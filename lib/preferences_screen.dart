@@ -184,6 +184,33 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
               },
             ),
           ),
+          const SizedBox(height: 32),
+          
+          const Text('Virtual Piano', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.orange)),
+          const SizedBox(height: 8),
+          Card(
+            child: Consumer<AudioEngine>(
+              builder: (context, engine, _) {
+                return ValueListenableBuilder<bool>(
+                  valueListenable: engine.dragToPlay,
+                  builder: (context, isDragEnabled, _) {
+                    return SwitchListTile(
+                      secondary: const Icon(Icons.touch_app, color: Colors.orange),
+                      title: const Text('Drag to Play (Glissando)'),
+                      subtitle: const Text('Play notes smoothly by sliding your finger across the virtual piano keys'),
+                      value: isDragEnabled,
+                      activeThumbColor: Colors.orange,
+                      onChanged: (val) {
+                        engine.dragToPlay.value = val;
+                        // Save triggers automatically when boolean toggles but for safety we can trigger internal save
+                        engine.stateNotifier.value++; // forces _saveState downstream technically but we should invoke properly
+                      },
+                    );
+                  }
+                );
+              }
+            ),
+          ),
         ],
       ),
     );

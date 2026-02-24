@@ -436,10 +436,16 @@ class _SynthesizerScreenState extends State<SynthesizerScreen> {
                                               Expanded(
                                                 child: GestureDetector(
                                                   onTap: () {}, // Swallow taps so they don't trigger the InkWell
-                                                  child: VirtualPiano(
-                                                    activeNotes: activeNotes,
-                                                    onNotePressed: (note) => engine.playNote(channel: channelIndex, key: note, velocity: 100),
-                                                    onNoteReleased: (note) => engine.stopNote(channel: channelIndex, key: note),
+                                                  child: ValueListenableBuilder<bool>(
+                                                    valueListenable: engine.dragToPlay,
+                                                    builder: (context, dragToPlay, _) {
+                                                      return VirtualPiano(
+                                                        activeNotes: activeNotes,
+                                                        dragToPlay: dragToPlay,
+                                                        onNotePressed: (note) => engine.playNote(channel: channelIndex, key: note, velocity: 100),
+                                                        onNoteReleased: (note) => engine.stopNote(channel: channelIndex, key: note),
+                                                      );
+                                                    }
                                                   ),
                                                 ),
                                               ),

@@ -49,6 +49,7 @@ class AudioEngine {
   
   // Dashboard UI State
   final ValueNotifier<List<int>> visibleChannels = ValueNotifier(List.generate(16, (i) => i));
+  final ValueNotifier<bool> dragToPlay = ValueNotifier(false);
 
   SharedPreferences? _prefs;
 
@@ -75,6 +76,7 @@ class AudioEngine {
     await _prefs!.setStringList('channels_state', channelsJson);
 
     await _prefs!.setString('visible_channels', jsonEncode(visibleChannels.value));
+    await _prefs!.setBool('drag_to_play', dragToPlay.value);
   }
 
   Future<void> _restoreState() async {
@@ -118,6 +120,12 @@ class AudioEngine {
       } catch (e) {
         debugPrint('Error decoding visible channels: $e');
       }
+    }
+    
+    // Restore Drag to Play toggle
+    bool? savedDragToPlay = _prefs!.getBool('drag_to_play');
+    if (savedDragToPlay != null) {
+      dragToPlay.value = savedDragToPlay;
     }
 
     stateNotifier.value++;
