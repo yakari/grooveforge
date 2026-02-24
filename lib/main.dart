@@ -1,12 +1,10 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:file_picker/file_picker.dart';
-import 'package:flutter_midi_command/flutter_midi_command.dart';
 import 'midi_service.dart';
 import 'audio_engine.dart';
 import 'cc_mapping_service.dart';
-import 'cc_preferences.dart';
+import 'preferences_screen.dart';
 
 void main() {
   runApp(
@@ -47,8 +45,11 @@ class SynthesizerScreen extends StatefulWidget {
 }
 
 class _SynthesizerScreenState extends State<SynthesizerScreen> {
-  String? _soundfontName;
-  MidiDevice? _connectedDevice;
+  // Store listener reference so we can safely remove it on dispose
+  void Function()? _toastListener;
+
+  // Track the flashing state of channels
+  final Map<int, bool> _channelFlashState = {};
 
   @override
   void initState() {
@@ -60,65 +61,106 @@ class _SynthesizerScreenState extends State<SynthesizerScreen> {
     
     audioEngine.ccMappingService = ccMappingService;
     
+    // Initialize the new persistent AudioEngine
+    audioEngine.init();
+    
     midiService.onMidiDataReceived = (packet) {
        audioEngine.processMidiPacket(packet);
     };
-  }
 
-  Future<void> _loadSoundfont() async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles(
-      type: FileType.any,
-    );
+    // Listen to telemetry for flashing channels
+    ccMappingService.lastEventNotifier.addListener(() {
+       final event = ccMappingService.lastEventNotifier.value;
+       if (event != null && mounted) {
+          int ch = event.channel;
+          setState(() { _channelFlashState[ch] = true; });
+          Future.delayed(const Duration(milliseconds: 150), () {
+             if (mounted) {
+               setState(() { _channelFlashState[ch] = false; });
+             }
+          });
+       }
+    });
 
-    if (result != null && result.files.single.path != null) {
-      File file = File(result.files.single.path!);
-      if (file.path.endsWith('.sf2') || file.path.endsWith('.SF2')) {
-         if (!mounted) return;
-         await context.read<AudioEngine>().init(file);
-         if (!mounted) return;
-         setState(() {
-           _soundfontName = result.files.single.name;
-         });
+    // Listen for Audio Engine Toasts (Soundfont loaded, patch changed)
+    _toastListener = () {
+      final msg = audioEngine.toastNotifier.value;
+      if (msg != null && mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), duration: const Duration(seconds: 2)));
       }
-    }
+    };
+    audioEngine.toastNotifier.addListener(_toastListener!);
   }
 
-  void _showMidiDevicesDialog() async {
-    final midiService = context.read<MidiService>();
-    final devices = await midiService.devices;
+  @override
+  void dispose() {
+    if (_toastListener != null) {
+      context.read<AudioEngine>().toastNotifier.removeListener(_toastListener!);
+    }
+    super.dispose();
+  }
 
-    if (!context.mounted) return;
+  void _showChannelConfigDialog(int channelIndex, AudioEngine engine) {
+    if (engine.loadedSoundfonts.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please load a soundfont in Preferences first')));
+      return;
+    }
+
+    String? selectedSf = engine.channels[channelIndex].soundfontPath ?? engine.loadedSoundfonts.first;
+    int program = engine.channels[channelIndex].program;
+    int bank = engine.channels[channelIndex].bank;
 
     showDialog(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Select MIDI Device'),
-          content: SizedBox(
-            width: 300,
-            height: 400,
-            child: ListView.builder(
-              itemCount: devices.length,
-              itemBuilder: (context, index) {
-                final device = devices[index];
-                return ListTile(
-                  title: Text(device.name),
-                  subtitle: Text(device.id),
-                  onTap: () async {
-                    if (_connectedDevice != null) {
-                      midiService.disconnect(_connectedDevice!);
-                    }
-                    await midiService.connect(device);
-                    if (!context.mounted) return;
-                    setState(() {
-                      _connectedDevice = device;
-                    });
-                    Navigator.pop(context);
-                  },
-                );
-              },
-            ),
-          ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: Text('Configure Channel ${channelIndex + 1}'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DropdownButtonFormField<String>(
+                    decoration: const InputDecoration(labelText: 'Soundfont'),
+                    value: engine.loadedSoundfonts.contains(selectedSf) ? selectedSf : engine.loadedSoundfonts.first,
+                    items: engine.loadedSoundfonts.map((sf) => DropdownMenuItem(
+                      value: sf,
+                      child: Text(sf.split(Platform.pathSeparator).last, overflow: TextOverflow.ellipsis),
+                    )).toList(),
+                    onChanged: (val) {
+                      if (val != null) setDialogState(() => selectedSf = val);
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    initialValue: program.toString(),
+                    decoration: const InputDecoration(labelText: 'Program / Patch (0-127)'),
+                    keyboardType: TextInputType.number,
+                    onChanged: (val) => program = int.tryParse(val) ?? 0,
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    initialValue: bank.toString(),
+                    decoration: const InputDecoration(labelText: 'Bank Select (MSB)'),
+                    keyboardType: TextInputType.number,
+                    onChanged: (val) => bank = int.tryParse(val) ?? 0,
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+                ElevatedButton(
+                  onPressed: () {
+                    engine.assignSoundfontToChannel(channelIndex, selectedSf!);
+                    engine.assignPatchToChannel(channelIndex, program, bank: bank);
+                    Navigator.pop(ctx);
+                  }, 
+                  child: const Text('Save')
+                ),
+              ],
+            );
+          }
         );
       }
     );
@@ -167,7 +209,7 @@ class _SynthesizerScreenState extends State<SynthesizerScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Yakalive Soundfont Player'),
+        title: const Text('Yakalive Synth'),
         elevation: 2,
         actions: [
           IconButton(
@@ -175,67 +217,92 @@ class _SynthesizerScreenState extends State<SynthesizerScreen> {
             tooltip: 'MIDI CC Help',
             onPressed: _showCcHelpDialog,
           ),
+          IconButton(
+            icon: const Icon(Icons.settings),
+            tooltip: 'Settings & Setup',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const PreferencesScreen()),
+              );
+            },
+          ),
         ],
       ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  children: [
-                    const Icon(Icons.piano, size: 64, color: Colors.deepPurpleAccent),
-                    const SizedBox(height: 16),
-                    Text(
-                      _soundfontName ?? 'No Soundfont Loaded (.sf2)',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 24),
-                    ElevatedButton.icon(
-                      onPressed: _loadSoundfont,
-                      icon: const Icon(Icons.folder_open),
-                      label: const Text('Load Soundfont'),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 32),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  children: [
-                    const Icon(Icons.cable, size: 64, color: Colors.blueAccent),
-                    const SizedBox(height: 16),
-                    Text(
-                      _connectedDevice?.name ?? 'No MIDI Device Connected',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 24),
-                    ElevatedButton.icon(
-                      onPressed: _showMidiDevicesDialog,
-                      icon: const Icon(Icons.settings_input_component),
-                      label: const Text('Connect MIDI Device'),
-                    ),
-                    const SizedBox(height: 16),
-                    OutlinedButton.icon(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const CcPreferencesScreen()),
-                        );
-                      },
-                      icon: const Icon(Icons.tune),
-                      label: const Text('CC Mapping Preferences'),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Consumer<AudioEngine>(
+          builder: (context, engine, child) {
+            return ValueListenableBuilder<int>(
+              valueListenable: engine.stateNotifier,
+              builder: (context, _, child) {
+                return GridView.builder(
+                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                    maxCrossAxisExtent: 250,
+                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 16,
+                    childAspectRatio: 1.2,
+                  ),
+                  itemCount: 16,
+                  itemBuilder: (context, index) {
+                    final state = engine.channels[index];
+                    String sfName = state.soundfontPath?.split(Platform.pathSeparator).last ?? 'No Soundfont';
+                    bool isFlashing = _channelFlashState[index] ?? false;
+
+                    return AnimatedContainer(
+                      duration: const Duration(milliseconds: 100),
+                      curve: Curves.easeInOut,
+                      decoration: BoxDecoration(
+                        color: isFlashing ? Colors.blueAccent.withValues(alpha: 0.4) : Theme.of(context).cardColor,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: isFlashing ? Colors.blueAccent : Colors.transparent,
+                          width: 2,
+                        ),
+                        boxShadow: [
+                          if (isFlashing)
+                             BoxShadow(color: Colors.blueAccent.withValues(alpha: 0.5), blurRadius: 10, spreadRadius: 2)
+                        ]
+                      ),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(16),
+                        onTap: () => _showChannelConfigDialog(index, engine),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text('CH ${index + 1}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.blueAccent)),
+                                  if (isFlashing) const Icon(Icons.circle, color: Colors.greenAccent, size: 12),
+                                ],
+                              ),
+                              const Spacer(),
+                              const Icon(Icons.piano, color: Colors.grey, size: 20),
+                              const SizedBox(height: 4),
+                              Text(sfName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis),
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  const Icon(Icons.music_note, color: Colors.grey, size: 16),
+                                  const SizedBox(width: 4),
+                                  Text('Prog: ${state.program}', style: const TextStyle(fontSize: 12)),
+                                  const SizedBox(width: 8),
+                                  Text('Bank: ${state.bank}', style: const TextStyle(fontSize: 12, color: Colors.white54)),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            );
+          },
         ),
       ),
     );
