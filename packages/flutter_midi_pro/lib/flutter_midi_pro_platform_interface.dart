@@ -38,6 +38,12 @@ abstract class FlutterMidiProPlatform extends PlatformInterface {
     throw UnimplementedError('controlChange() has not been implemented.');
   }
 
+  /// Sends a MIDI Pitch Bend message to the specified channel on a soundfont.
+  /// [value] is the pitch bend value (0-16383, center is 8192).
+  Future<void> pitchBend(int sfId, int channel, int value) {
+    throw UnimplementedError('pitchBend() has not been implemented.');
+  }
+
   Future<void> unloadSoundfont(int sfId) {
     throw UnimplementedError('unloadSoundfont() has not been implemented.');
   }

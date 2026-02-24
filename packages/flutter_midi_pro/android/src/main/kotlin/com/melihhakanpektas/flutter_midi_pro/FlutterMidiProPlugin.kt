@@ -37,6 +37,9 @@ class FlutterMidiProPlugin: FlutterPlugin, MethodCallHandler {
   private external fun controlChange(sfId: Int, channel: Int, controller: Int, value: Int)
 
   @JvmStatic
+  private external fun pitchBend(sfId: Int, channel: Int, value: Int)
+
+  @JvmStatic
     private external fun unloadSoundfont(sfId: Int)
     @JvmStatic
     private external fun dispose()
@@ -121,6 +124,13 @@ class FlutterMidiProPlugin: FlutterPlugin, MethodCallHandler {
         val controller = call.argument<Int>("controller") ?: 0
         val value = call.argument<Int>("value") ?: 0
         controlChange(sfId, channel, controller, value)
+        result.success(null)
+      }
+      "pitchBend" -> {
+        val sfId = call.argument<Int>("sfId") ?: 1
+        val channel = call.argument<Int>("channel") ?: 0
+        val value = call.argument<Int>("value") ?: 8192
+        pitchBend(sfId, channel, value)
         result.success(null)
       }
       "unloadSoundfont" -> {

@@ -112,6 +112,17 @@ public class FlutterMidiProPlugin: NSObject, FlutterPlugin {
         }
         sampler.sendController(UInt8(controller), withValue: UInt8(value), onChannel: UInt8(channel))
         result(nil)
+    case "pitchBend":
+        let args = call.arguments as! [String: Any]
+        let sfId = args["sfId"] as! Int
+        let channel = args["channel"] as! Int
+        let value = args["value"] as! Int
+        guard let sampler = soundfontSamplers[sfId]?[channel] else {
+            result(FlutterError(code: "SOUND_FONT_NOT_FOUND", message: "Soundfont/channel not found", details: nil))
+            return
+        }
+        sampler.sendPitchBend(UInt16(value), onChannel: UInt8(channel))
+        result(nil)
     case "unloadSoundfont":
         let args = call.arguments as! [String:Any]
         let sfId = args["sfId"] as! Int

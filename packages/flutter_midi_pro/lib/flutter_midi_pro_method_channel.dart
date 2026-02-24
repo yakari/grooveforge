@@ -47,6 +47,15 @@ class MethodChannelFlutterMidiPro extends FlutterMidiProPlatform {
   }
 
   @override
+  Future<void> pitchBend(int sfId, int channel, int value) async {
+    await _channel.invokeMethod('pitchBend', {
+      'sfId': sfId,
+      'channel': channel,
+      'value': value,
+    });
+  }
+
+  @override
   Future<void> unloadSoundfont(int sfId) async {
     await _channel.invokeMethod('unloadSoundfont', {'sfId': sfId});
   }

@@ -71,6 +71,12 @@ Java_com_melihhakanpektas_flutter_1midi_1pro_FlutterMidiProPlugin_controlChange(
 }
 
 extern "C" JNIEXPORT void JNICALL
+Java_com_melihhakanpektas_flutter_1midi_1pro_FlutterMidiProPlugin_pitchBend(JNIEnv* env, jclass clazz, jint sfId, jint channel, jint value) {
+    if (synths.find(sfId) == synths.end()) return;
+    fluid_synth_pitch_bend(synths[sfId], channel, value);
+}
+
+extern "C" JNIEXPORT void JNICALL
 Java_com_melihhakanpektas_flutter_1midi_1pro_FlutterMidiProPlugin_unloadSoundfont(JNIEnv* env, jclass clazz, jint sfId) {
     delete_fluid_audio_driver(drivers[sfId]);
     delete_fluid_synth(synths[sfId]);

@@ -140,6 +140,16 @@ class MidiPro {
     return FlutterMidiProPlatform.instance.controlChange(sfId, channel, controller, value);
   }
 
+  /// Sends a MIDI Pitch Bend message to the specified channel on a soundfont.
+  /// [value] is the pitch bend value (0-16383, center is 8192).
+  Future<void> pitchBend({
+    required int value,
+    int channel = 0,
+    int sfId = 1,
+  }) async {
+    return FlutterMidiProPlatform.instance.pitchBend(sfId, channel, value);
+  }
+
   /// Enables or disables sustain (MIDI CC 64) on the specified channel.
   /// When [enabled] is true, sends value 127; when false, sends value 0.
   Future<void> setSustain({

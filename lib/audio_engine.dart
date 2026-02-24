@@ -388,12 +388,22 @@ class AudioEngine {
     if (!_isInitialized) return;
     if (Platform.isLinux && _fluidSynthProcess != null) {
       _fluidSynthProcess!.stdin.writeln('cc $channel $controller $value');
+    } else {
+      int sfId = _getSfIdForChannel(channel);
+      if (sfId != -1) {
+        _midiPro.controlChange(sfId: sfId, channel: channel, controller: controller, value: value);
+      }
     }
   }
 
   void _sendPitchBend({required int channel, required int value}) {
     if (Platform.isLinux && _fluidSynthProcess != null) {
       _fluidSynthProcess!.stdin.writeln('pitch_bend $channel $value');
+    } else {
+      int sfId = _getSfIdForChannel(channel);
+      if (sfId != -1) {
+        _midiPro.pitchBend(sfId: sfId, channel: channel, value: value);
+      }
     }
   }
 
