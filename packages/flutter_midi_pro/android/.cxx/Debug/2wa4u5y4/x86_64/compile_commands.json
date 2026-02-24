@@ -1,7 +1,0 @@
-[
-{
-  "directory": "/home/yann/.pub-cache/hosted/pub.dev/flutter_midi_pro-3.1.6/android/.cxx/Debug/2wa4u5y4/x86_64",
-  "command": "/home/yann/Android/Sdk/ndk/27.0.12077973/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++ --target=x86_64-none-linux-android24 --sysroot=/home/yann/Android/Sdk/ndk/27.0.12077973/toolchains/llvm/prebuilt/linux-x86_64/sysroot -Dnative_lib_EXPORTS -I/home/yann/.pub-cache/hosted/pub.dev/flutter_midi_pro-3.1.6/android/src/main/cpp/fluidsynth/include -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D__BIONIC_NO_PAGE_SIZE_MACRO -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security   -fno-limit-debug-info  -fPIC -o CMakeFiles/native-lib.dir/native-lib.cpp.o -c /home/yann/.pub-cache/hosted/pub.dev/flutter_midi_pro-3.1.6/android/src/main/cpp/native-lib.cpp",
-  "file": "/home/yann/.pub-cache/hosted/pub.dev/flutter_midi_pro-3.1.6/android/src/main/cpp/native-lib.cpp"
-}
-]

@@ -1,3 +1,0 @@
-/home/yann/.pub-cache/hosted/pub.dev/flutter_midi_pro-3.1.6/android/.cxx/Debug/2wa4u5y4/x86_64/CMakeFiles/native-lib.dir
-/home/yann/.pub-cache/hosted/pub.dev/flutter_midi_pro-3.1.6/android/.cxx/Debug/2wa4u5y4/x86_64/CMakeFiles/edit_cache.dir
-/home/yann/.pub-cache/hosted/pub.dev/flutter_midi_pro-3.1.6/android/.cxx/Debug/2wa4u5y4/x86_64/CMakeFiles/rebuild_cache.dir
