@@ -1,0 +1,1 @@
+/home/yann/dev/yakalive/packages/flutter_midi_pro/android/src/main/cpp/CMakeLists.txt
