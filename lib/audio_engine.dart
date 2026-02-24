@@ -11,6 +11,7 @@ class ChannelState {
   String? soundfontPath;
   int program = 0;
   int bank = 0;
+  final ValueNotifier<Set<int>> activeNotes = ValueNotifier({});
 
   ChannelState();
 
@@ -278,6 +279,11 @@ class AudioEngine {
   }
 
   void playNote({required int channel, required int key, required int velocity}) {
+    // Update active notes
+    final currentNotes = Set<int>.from(channels[channel].activeNotes.value);
+    currentNotes.add(key);
+    channels[channel].activeNotes.value = currentNotes;
+    
     if (Platform.isLinux && _fluidSynthProcess != null) {
       _fluidSynthProcess!.stdin.writeln('noteon $channel $key $velocity');
     } else {
@@ -289,6 +295,11 @@ class AudioEngine {
   }
 
   void stopNote({required int channel, required int key}) {
+    // Update active notes
+    final currentNotes = Set<int>.from(channels[channel].activeNotes.value);
+    currentNotes.remove(key);
+    channels[channel].activeNotes.value = currentNotes;
+    
     if (Platform.isLinux && _fluidSynthProcess != null) {
        _fluidSynthProcess!.stdin.writeln('noteoff $channel $key');
     } else {

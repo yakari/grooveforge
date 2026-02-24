@@ -6,6 +6,7 @@ import 'audio_engine.dart';
 import 'cc_mapping_service.dart';
 import 'preferences_screen.dart';
 import 'gm_instruments.dart';
+import 'virtual_piano.dart';
 
 void main() {
   runApp(
@@ -51,6 +52,11 @@ class _SynthesizerScreenState extends State<SynthesizerScreen> {
 
   // Track the flashing state of channels
   final Map<int, bool> _channelFlashState = {};
+  
+  // Track auto-scrolling
+  final ScrollController _scrollController = ScrollController();
+  int _lastAutoScrolledChannel = -1;
+  DateTime _lastScrollTime = DateTime.fromMillisecondsSinceEpoch(0);
 
   @override
   void initState() {
@@ -69,12 +75,15 @@ class _SynthesizerScreenState extends State<SynthesizerScreen> {
        audioEngine.processMidiPacket(packet);
     };
 
-    // Listen to telemetry for flashing channels
+    // Listen to telemetry for flashing channels and auto-scrolling
     ccMappingService.lastEventNotifier.addListener(() {
        final event = ccMappingService.lastEventNotifier.value;
        if (event != null && mounted) {
           int ch = event.channel;
           setState(() { _channelFlashState[ch] = true; });
+          
+          _handleAutoScroll(ch);
+
           Future.delayed(const Duration(milliseconds: 150), () {
              if (mounted) {
                setState(() { _channelFlashState[ch] = false; });
@@ -94,11 +103,47 @@ class _SynthesizerScreenState extends State<SynthesizerScreen> {
     audioEngine.toastNotifier.addListener(_toastListener!);
   }
 
+  void _handleAutoScroll(int channel) {
+    if (!_scrollController.hasClients) return;
+    
+    // Prevent rapid scrolling if multiple notes hit at once
+    final now = DateTime.now();
+    if (now.difference(_lastScrollTime).inMilliseconds < 500 && channel == _lastAutoScrolledChannel) return;
+    
+    _lastAutoScrolledChannel = channel;
+    _lastScrollTime = now;
+
+    // We assume 2 items are fully visible on the screen.
+    // So the height of one block is roughly the viewport height / 2.
+    // Calculate off-screen bounds roughly:
+    final renderBox = context.findRenderObject() as RenderBox?;
+    if (renderBox != null) {
+      double itemHeight = renderBox.size.height / 2;
+      double targetOffset = channel * itemHeight;
+
+      // Adjust to keep it comfortably on-screen without violently jumping if already visible
+      double currentPosition = _scrollController.offset;
+      double viewportHeight = _scrollController.position.viewportDimension;
+      
+      bool isAbove = targetOffset < currentPosition;
+      bool isBelow = targetOffset + itemHeight > currentPosition + viewportHeight;
+
+      if (isAbove || isBelow) {
+         _scrollController.animateTo(
+           targetOffset - (itemHeight / 2), 
+           duration: const Duration(milliseconds: 300), 
+           curve: Curves.easeOutCubic
+         );
+      }
+    }
+  }
+
   @override
   void dispose() {
     if (_toastListener != null) {
       context.read<AudioEngine>().toastNotifier.removeListener(_toastListener!);
     }
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -237,72 +282,105 @@ class _SynthesizerScreenState extends State<SynthesizerScreen> {
             return ValueListenableBuilder<int>(
               valueListenable: engine.stateNotifier,
               builder: (context, _, child) {
-                return GridView.builder(
-                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                    maxCrossAxisExtent: 250,
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
-                    childAspectRatio: 1.2,
-                  ),
-                  itemCount: 16,
-                  itemBuilder: (context, index) {
-                    final state = engine.channels[index];
-                    String sfName = state.soundfontPath?.split(Platform.pathSeparator).last ?? 'No Soundfont';
-                    String patchName = engine.getCustomPatchName(index) ?? GmInstruments.list[state.program] ?? 'Unknown Patch';
-                    bool isFlashing = _channelFlashState[index] ?? false;
-
-                    return AnimatedContainer(
-                      duration: const Duration(milliseconds: 100),
-                      curve: Curves.easeInOut,
-                      decoration: BoxDecoration(
-                        color: isFlashing ? Colors.blueAccent.withValues(alpha: 0.4) : Theme.of(context).cardColor,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: isFlashing ? Colors.blueAccent : Colors.transparent,
-                          width: 2,
-                        ),
-                        boxShadow: [
-                          if (isFlashing)
-                             BoxShadow(color: Colors.blueAccent.withValues(alpha: 0.5), blurRadius: 10, spreadRadius: 2)
-                        ]
-                      ),
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(16),
-                        onTap: () => _showChannelConfigDialog(index, engine),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text('CH ${index + 1}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.blueAccent)),
-                                  if (isFlashing) const Icon(Icons.circle, color: Colors.greenAccent, size: 12),
-                                ],
+                return LayoutBuilder(
+                  builder: (context, constraints) {
+                    // Force height of items to exactly half the available screen space (minus padding)
+                    // so we always show strictly 2 items vertically at a time.
+                    double itemHeight = (constraints.maxHeight - 16) / 2;
+                    
+                    return ListView.builder(
+                      controller: _scrollController,
+                      itemCount: 16,
+                      itemBuilder: (context, index) {
+                        final state = engine.channels[index];
+                        String sfName = state.soundfontPath?.split(Platform.pathSeparator).last ?? 'No Soundfont';
+                        String patchName = engine.getCustomPatchName(index) ?? GmInstruments.list[state.program] ?? 'Unknown Patch';
+                        bool isFlashing = _channelFlashState[index] ?? false;
+  
+                        return SizedBox(
+                          height: itemHeight,
+                          child: Padding(
+                            padding: const EdgeInsets.only(bottom: 16.0),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 100),
+                              curve: Curves.easeInOut,
+                              decoration: BoxDecoration(
+                                color: isFlashing ? Colors.blueAccent.withValues(alpha: 0.2) : Theme.of(context).cardColor,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: isFlashing ? Colors.blueAccent : Colors.transparent,
+                                  width: 2,
+                                ),
+                                boxShadow: [
+                                  if (isFlashing)
+                                     BoxShadow(color: Colors.blueAccent.withValues(alpha: 0.3), blurRadius: 10, spreadRadius: 2)
+                                ]
                               ),
-                              const Spacer(),
-                              const Icon(Icons.piano, color: Colors.grey, size: 20),
-                              const SizedBox(height: 4),
-                              Text(sfName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis),
-                              const SizedBox(height: 2),
-                              Text(patchName, style: const TextStyle(color: Colors.white70, fontStyle: FontStyle.italic, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
-                              const SizedBox(height: 8),
-                              Row(
-                                children: [
-                                  const Icon(Icons.music_note, color: Colors.grey, size: 16),
-                                  const SizedBox(width: 4),
-                                  Text('Prog: ${state.program}', style: const TextStyle(fontSize: 12)),
-                                  const SizedBox(width: 8),
-                                  Text('Bank: ${state.bank}', style: const TextStyle(fontSize: 12, color: Colors.white54)),
-                                ],
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(16),
+                                onTap: () => _showChannelConfigDialog(index, engine),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16.0),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                                    children: [
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Text('CH ${index + 1}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.blueAccent)),
+                                          Row(
+                                            children: [
+                                              if (isFlashing) const Icon(Icons.circle, color: Colors.greenAccent, size: 12),
+                                              const SizedBox(width: 8),
+                                              const Icon(Icons.piano, color: Colors.grey, size: 20),
+                                            ],
+                                          )
+                                        ],
+                                      ),
+                                      const SizedBox(height: 12),
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(sfName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                                const SizedBox(height: 4),
+                                                Text(patchName, style: const TextStyle(color: Colors.white70, fontStyle: FontStyle.italic, fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                              ],
+                                            ),
+                                          ),
+                                          Column(
+                                            crossAxisAlignment: CrossAxisAlignment.end,
+                                            children: [
+                                              Text('Prog: ${state.program}', style: const TextStyle(fontSize: 14)),
+                                              Text('Bank: ${state.bank}', style: const TextStyle(fontSize: 12, color: Colors.white54)),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 16),
+                                      // Native Live Virtual Piano
+                                      Expanded(
+                                        child: ValueListenableBuilder<Set<int>>(
+                                          valueListenable: state.activeNotes,
+                                          builder: (context, activeNotes, _) {
+                                            return VirtualPiano(activeNotes: activeNotes);
+                                          }
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               ),
-                            ],
+                            ),
                           ),
-                        ),
-                      ),
+                        );
+                      },
                     );
-                  },
+                  }
                 );
               },
             );
