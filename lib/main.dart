@@ -5,6 +5,7 @@ import 'midi_service.dart';
 import 'audio_engine.dart';
 import 'cc_mapping_service.dart';
 import 'preferences_screen.dart';
+import 'gm_instruments.dart';
 
 void main() {
   runApp(
@@ -247,6 +248,7 @@ class _SynthesizerScreenState extends State<SynthesizerScreen> {
                   itemBuilder: (context, index) {
                     final state = engine.channels[index];
                     String sfName = state.soundfontPath?.split(Platform.pathSeparator).last ?? 'No Soundfont';
+                    String patchName = GmInstruments.list[state.program] ?? 'Unknown Patch';
                     bool isFlashing = _channelFlashState[index] ?? false;
 
                     return AnimatedContainer(
@@ -283,6 +285,8 @@ class _SynthesizerScreenState extends State<SynthesizerScreen> {
                               const Icon(Icons.piano, color: Colors.grey, size: 20),
                               const SizedBox(height: 4),
                               Text(sfName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis),
+                              const SizedBox(height: 2),
+                              Text(patchName, style: const TextStyle(color: Colors.white70, fontStyle: FontStyle.italic, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
                               const SizedBox(height: 8),
                               Row(
                                 children: [

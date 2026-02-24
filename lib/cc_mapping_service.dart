@@ -65,6 +65,7 @@ class CcMappingService {
     1003: '[System] Next Program/Patch',
     1004: '[System] Prev Program/Patch',
     1005: '[System] Absolute Patch Sweep',
+    1006: '[System] Absolute Bank/Tone Sweep',
   };
 
   SharedPreferences? _prefs;

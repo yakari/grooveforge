@@ -157,6 +157,11 @@ class CcPreferencesScreen extends StatelessWidget {
       String name = CcMappingService.standardGmCcs[i] ?? 'Undefined/Other';
       ccItems.add(DropdownMenuItem(value: i, child: Text('$name (CC $i)')));
     }
+    CcMappingService.standardGmCcs.forEach((key, name) {
+      if (key >= 1000) {
+        ccItems.add(DropdownMenuItem(value: key, child: Text(name)));
+      }
+    });
 
     showDialog(
       context: context,

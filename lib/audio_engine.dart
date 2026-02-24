@@ -219,7 +219,15 @@ class AudioEngine {
             final mapping = ccMappingService!.getMapping(data1);
             if (mapping != null) {
               if (mapping.targetCc >= 1000) {
-                 _handleSystemCommand(mapping.targetCc, channel, data2);
+                 if (mapping.targetChannel == -1) {
+                   for (int i = 0; i < 16; i++) {
+                      _handleSystemCommand(mapping.targetCc, i, data2);
+                   }
+                 } else if (mapping.targetChannel >= 0 && mapping.targetChannel <= 15) {
+                   _handleSystemCommand(mapping.targetCc, mapping.targetChannel, data2);
+                 } else {
+                   _handleSystemCommand(mapping.targetCc, channel, data2);
+                 }
                  return;
               } else if (mapping.targetChannel == -1) {
                 for (int i = 0; i < 16; i++) {
@@ -281,6 +289,10 @@ class AudioEngine {
     } else if (targetAction == 1005) { // Absolute Patch Index Sweep
        assignPatchToChannel(incomingChannel, value);
        toastNotifier.value = 'Patch Sweep [Ch $incomingChannel]: Program $value';
+    } else if (targetAction == 1006) { // Absolute Bank Index Sweep
+       int program = channels[incomingChannel].program;
+       assignPatchToChannel(incomingChannel, program, bank: value);
+       toastNotifier.value = 'Bank/Tone Sweep [Ch $incomingChannel]: Bank $value';
     }
   }
 
