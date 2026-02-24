@@ -46,6 +46,9 @@ class AudioEngine {
 
   final ValueNotifier<String?> toastNotifier = ValueNotifier(null);
   final ValueNotifier<int> stateNotifier = ValueNotifier(0);
+  
+  // Dashboard UI State
+  final ValueNotifier<List<int>> visibleChannels = ValueNotifier(List.generate(16, (i) => i));
 
   SharedPreferences? _prefs;
 
@@ -70,6 +73,8 @@ class AudioEngine {
     
     List<String> channelsJson = channels.map((c) => jsonEncode(c.toJson())).toList();
     await _prefs!.setStringList('channels_state', channelsJson);
+
+    await _prefs!.setString('visible_channels', jsonEncode(visibleChannels.value));
   }
 
   Future<void> _restoreState() async {
@@ -103,6 +108,18 @@ class AudioEngine {
         }
       }
     }
+    
+    // Restore UI visible channels filter
+    String? savedVisibleChannels = _prefs!.getString('visible_channels');
+    if (savedVisibleChannels != null) {
+      try {
+        final List<dynamic> decoded = jsonDecode(savedVisibleChannels);
+        visibleChannels.value = decoded.cast<int>();
+      } catch (e) {
+        debugPrint('Error decoding visible channels: $e');
+      }
+    }
+
     stateNotifier.value++;
   }
 

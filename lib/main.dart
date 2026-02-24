@@ -101,10 +101,17 @@ class _SynthesizerScreenState extends State<SynthesizerScreen> {
     _lastAutoScrolledChannel = channel;
     _lastScrollTime = now;
 
+    // We must find the visual index of this channel within the filtered list
+    final audioEngine = context.read<AudioEngine>();
+    int visualIndex = audioEngine.visibleChannels.value.indexOf(channel);
+    
+    // If the channel is hidden by the user's filter, we don't auto-scroll to it.
+    if (visualIndex == -1) return;
+
     // The ListView viewport height exactly matches the constraints of our LayoutBuilder
     double viewportHeight = _scrollController.position.viewportDimension;
     double itemHeight = (viewportHeight - 16) / 2;
-    double targetOffset = channel * itemHeight;
+    double targetOffset = visualIndex * itemHeight;
 
     double currentPosition = _scrollController.offset;
     
@@ -239,6 +246,68 @@ class _SynthesizerScreenState extends State<SynthesizerScreen> {
     );
   }
 
+  void _showChannelVisibilityDialog(BuildContext context) {
+    final engine = context.read<AudioEngine>();
+    // Clone the current set so we can modify it locally without triggering rebuilds yet
+    List<int> tempVisible = List.from(engine.visibleChannels.value);
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Visible Channels'),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: 16,
+                  itemBuilder: (context, index) {
+                    final int channelIndex = index;
+                    return CheckboxListTile(
+                      title: Text('Channel ${channelIndex + 1}'),
+                      value: tempVisible.contains(channelIndex),
+                      onChanged: (bool? value) {
+                        setDialogState(() {
+                          if (value == true) {
+                            if (!tempVisible.contains(channelIndex)) tempVisible.add(channelIndex);
+                          } else {
+                            tempVisible.remove(channelIndex);
+                          }
+                          tempVisible.sort();
+                        });
+                      },
+                    );
+                  },
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () {
+                    if (tempVisible.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('At least one channel must be visible')));
+                      return;
+                    }
+                    engine.visibleChannels.value = tempVisible;
+                    // Trigger a save using the public save method equivalent;
+                    engine.assignSoundfontToChannel(0, engine.channels[0].soundfontPath ?? engine.loadedSoundfonts.firstOrNull ?? '');
+                    Navigator.pop(context);
+                  },
+                  child: const Text('Save Filters'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -250,6 +319,11 @@ class _SynthesizerScreenState extends State<SynthesizerScreen> {
             icon: const Icon(Icons.help_outline),
             tooltip: 'MIDI CC Help',
             onPressed: _showCcHelpDialog,
+          ),
+          IconButton(
+            icon: const Icon(Icons.visibility),
+            tooltip: 'Filter Visible Channels',
+            onPressed: () => _showChannelVisibilityDialog(context),
           ),
           IconButton(
             icon: const Icon(Icons.settings),
@@ -276,107 +350,113 @@ class _SynthesizerScreenState extends State<SynthesizerScreen> {
                     // so we always show strictly 2 items vertically at a time.
                     double itemHeight = (constraints.maxHeight - 16) / 2;
                     
-                    return ListView.builder(
-                      controller: _scrollController,
-                      itemCount: 16,
-                      itemBuilder: (context, index) {
-                        final state = engine.channels[index];
-                        String sfName = state.soundfontPath?.split(Platform.pathSeparator).last ?? 'No Soundfont';
-                        String patchName = engine.getCustomPatchName(index) ?? GmInstruments.list[state.program] ?? 'Unknown Patch';
+                    return ValueListenableBuilder<List<int>>(
+                      valueListenable: engine.visibleChannels,
+                      builder: (context, visibleChannels, _) {
+                        return ListView.builder(
+                          controller: _scrollController,
+                          itemCount: visibleChannels.length,
+                          itemBuilder: (context, index) {
+                            final channelIndex = visibleChannels[index];
+                            final state = engine.channels[channelIndex];
+                            String sfName = state.soundfontPath?.split(Platform.pathSeparator).last ?? 'No Soundfont';
+                            String patchName = engine.getCustomPatchName(channelIndex) ?? GmInstruments.list[state.program] ?? 'Unknown Patch';
   
-                        return SizedBox(
-                          height: itemHeight,
-                          child: Padding(
-                            padding: const EdgeInsets.only(bottom: 16.0),
-                            child: ValueListenableBuilder<Set<int>>(
-                              valueListenable: state.activeNotes,
-                              builder: (context, activeNotes, _) {
-                                bool isFlashing = activeNotes.isNotEmpty;
-                                
-                                return AnimatedContainer(
-                                  duration: const Duration(milliseconds: 100),
-                                  curve: Curves.easeInOut,
-                                  decoration: BoxDecoration(
-                                    color: isFlashing ? Colors.blueAccent.withValues(alpha: 0.2) : Theme.of(context).cardColor,
-                                    borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(
-                                      color: isFlashing ? Colors.blueAccent : Colors.transparent,
-                                      width: 2,
-                                    ),
-                                    boxShadow: [
-                                      if (isFlashing)
-                                         BoxShadow(color: Colors.blueAccent.withValues(alpha: 0.3), blurRadius: 10, spreadRadius: 2)
-                                    ]
-                                  ),
-                                  child: InkWell(
-                                borderRadius: BorderRadius.circular(16),
-                                onTap: () => _showChannelConfigDialog(index, engine),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(16.0),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                                    children: [
-                                      Row(
-                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Text('CH ${index + 1}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.blueAccent)),
-                                          Row(
-                                            children: [
-                                              if (isFlashing) const Icon(Icons.circle, color: Colors.greenAccent, size: 12),
-                                              const SizedBox(width: 8),
-                                              const Icon(Icons.piano, color: Colors.grey, size: 20),
-                                            ],
-                                          )
-                                        ],
+                            return SizedBox(
+                              height: itemHeight,
+                              child: Padding(
+                                padding: const EdgeInsets.only(bottom: 16.0),
+                                child: ValueListenableBuilder<Set<int>>(
+                                  valueListenable: state.activeNotes,
+                                  builder: (context, activeNotes, _) {
+                                    bool isFlashing = activeNotes.isNotEmpty;
+                                    
+                                    return AnimatedContainer(
+                                      duration: const Duration(milliseconds: 100),
+                                      curve: Curves.easeInOut,
+                                      decoration: BoxDecoration(
+                                        color: isFlashing ? Colors.blueAccent.withValues(alpha: 0.2) : Theme.of(context).cardColor,
+                                        borderRadius: BorderRadius.circular(16),
+                                        border: Border.all(
+                                          color: isFlashing ? Colors.blueAccent : Colors.transparent,
+                                          width: 2,
+                                        ),
+                                        boxShadow: [
+                                          if (isFlashing)
+                                             BoxShadow(color: Colors.blueAccent.withValues(alpha: 0.3), blurRadius: 10, spreadRadius: 2)
+                                        ]
                                       ),
-                                      const SizedBox(height: 12),
-                                      Row(
-                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
-                                              children: [
-                                                Text(sfName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16), maxLines: 1, overflow: TextOverflow.ellipsis),
-                                                const SizedBox(height: 4),
-                                                Text(patchName, style: const TextStyle(color: Colors.white70, fontStyle: FontStyle.italic, fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis),
-                                              ],
-                                            ),
-                                          ),
-                                          Column(
-                                            crossAxisAlignment: CrossAxisAlignment.end,
+                                      child: InkWell(
+                                        borderRadius: BorderRadius.circular(16),
+                                        onTap: () => _showChannelConfigDialog(channelIndex, engine),
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(16.0),
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.stretch,
                                             children: [
-                                              Text('Prog: ${state.program}', style: const TextStyle(fontSize: 14)),
-                                              Text('Bank: ${state.bank}', style: const TextStyle(fontSize: 12, color: Colors.white54)),
+                                              Row(
+                                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                children: [
+                                                  Text('CH ${channelIndex + 1}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.blueAccent)),
+                                                  Row(
+                                                    children: [
+                                                      if (isFlashing) const Icon(Icons.circle, color: Colors.greenAccent, size: 12),
+                                                      const SizedBox(width: 8),
+                                                      const Icon(Icons.piano, color: Colors.grey, size: 20),
+                                                    ],
+                                                  )
+                                                ],
+                                              ),
+                                              const SizedBox(height: 12),
+                                              Row(
+                                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Expanded(
+                                                    child: Column(
+                                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                                      children: [
+                                                        Text(sfName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                                        const SizedBox(height: 4),
+                                                        Text(patchName, style: const TextStyle(color: Colors.white70, fontStyle: FontStyle.italic, fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                  Column(
+                                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                                    children: [
+                                                      Text('Prog: ${state.program}', style: const TextStyle(fontSize: 14)),
+                                                      Text('Bank: ${state.bank}', style: const TextStyle(fontSize: 12, color: Colors.white54)),
+                                                    ],
+                                                  ),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 16),
+                                              // Native Live Virtual Piano
+                                              Expanded(
+                                                child: GestureDetector(
+                                                  onTap: () {}, // Swallow taps so they don't trigger the InkWell
+                                                  child: VirtualPiano(
+                                                    activeNotes: activeNotes,
+                                                    onNotePressed: (note) => engine.playNote(channel: channelIndex, key: note, velocity: 100),
+                                                    onNoteReleased: (note) => engine.stopNote(channel: channelIndex, key: note),
+                                                  ),
+                                                ),
+                                              ),
                                             ],
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 16),
-                                      // Native Live Virtual Piano
-                                      Expanded(
-                                        child: GestureDetector(
-                                          onTap: () {}, // Swallow taps so they don't trigger the InkWell
-                                          child: VirtualPiano(
-                                            activeNotes: activeNotes,
-                                            onNotePressed: (note) => engine.playNote(channel: index, key: note, velocity: 100),
-                                            onNoteReleased: (note) => engine.stopNote(channel: index, key: note),
                                           ),
                                         ),
                                       ),
-                                    ],
-                                  ),
+                                    );
+                                  },
                                 ),
                               ),
                             );
                           },
-                        ),
-                      ),
+                        );
+                      },
                     );
                   },
-                );
-                  }
                 );
               },
             );
