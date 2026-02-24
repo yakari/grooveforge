@@ -124,7 +124,7 @@ class _SynthesizerScreenState extends State<SynthesizerScreen> {
                 children: [
                   DropdownButtonFormField<String>(
                     decoration: const InputDecoration(labelText: 'Soundfont'),
-                    value: engine.loadedSoundfonts.contains(selectedSf) ? selectedSf : engine.loadedSoundfonts.first,
+                    initialValue: engine.loadedSoundfonts.contains(selectedSf) ? selectedSf : engine.loadedSoundfonts.first,
                     items: engine.loadedSoundfonts.map((sf) => DropdownMenuItem(
                       value: sf,
                       child: Text(sf.split(Platform.pathSeparator).last, overflow: TextOverflow.ellipsis),
@@ -248,7 +248,7 @@ class _SynthesizerScreenState extends State<SynthesizerScreen> {
                   itemBuilder: (context, index) {
                     final state = engine.channels[index];
                     String sfName = state.soundfontPath?.split(Platform.pathSeparator).last ?? 'No Soundfont';
-                    String patchName = GmInstruments.list[state.program] ?? 'Unknown Patch';
+                    String patchName = engine.getCustomPatchName(index) ?? GmInstruments.list[state.program] ?? 'Unknown Patch';
                     bool isFlashing = _channelFlashState[index] ?? false;
 
                     return AnimatedContainer(

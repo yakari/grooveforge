@@ -5,6 +5,7 @@ import 'package:flutter_midi_pro/flutter_midi_pro.dart';
 import 'package:flutter_midi_command/flutter_midi_command.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'cc_mapping_service.dart';
+import 'sf2_parser.dart';
 
 class ChannelState {
   String? soundfontPath;
@@ -29,10 +30,13 @@ class AudioEngine {
   final MidiPro _midiPro = MidiPro();
   bool _isInitialized = false;
 
-  final List<String> loadedSoundfonts = [];
+  final List<String> loadedSoundfonts = []; // Platform specific mappings
   final Map<String, int> _sfPathToIdMobile = {};
   final Map<String, int> _sfPathToIdLinux = {};
   int _linuxSfIdCounter = 1;
+  
+  // Custom SF2 Patch Names Cache
+  final Map<String, Map<int, Map<int, String>>> sf2Presets = {};
 
   final List<ChannelState> channels = List.generate(16, (i) => ChannelState());
 
@@ -114,6 +118,10 @@ class AudioEngine {
     }
 
     loadedSoundfonts.add(path);
+    
+    // Parse custom patch names from SF2 metadata
+    sf2Presets[path] = await Sf2Parser.parsePresets(path);
+
     if (save) await _saveState();
     
     toastNotifier.value = 'Loaded: ${soundfont.uri.pathSegments.last}';
@@ -136,6 +144,7 @@ class AudioEngine {
     }
 
     loadedSoundfonts.remove(path);
+    sf2Presets.remove(path);
     
     // Clear any channels using it
     for (int i = 0; i < 16; i++) {
@@ -187,6 +196,21 @@ class AudioEngine {
     String? path = channels[channel].soundfontPath;
     if (path == null) return -1;
     return Platform.isLinux ? (_sfPathToIdLinux[path] ?? -1) : (_sfPathToIdMobile[path] ?? -1);
+  }
+
+  /// Returns the internal SF2 patch name for a specific channel's program/bank if available
+  String? getCustomPatchName(int channelIndex) {
+    if (channelIndex < 0 || channelIndex >= 16) return null;
+    final state = channels[channelIndex];
+    if (state.soundfontPath == null) return null;
+    
+    final sfPresets = sf2Presets[state.soundfontPath!];
+    if (sfPresets == null) return null;
+    
+    final bankPresets = sfPresets[state.bank];
+    if (bankPresets == null) return null;
+    
+    return bankPresets[state.program];
   }
 
   void processMidiPacket(MidiPacket packet) {

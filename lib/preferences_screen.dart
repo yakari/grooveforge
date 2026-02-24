@@ -43,7 +43,7 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                       midiService.disconnect(_connectedDevice!);
                     }
                     await midiService.connect(device);
-                    if (!mounted) return;
+                    if (!context.mounted) return;
                     setState(() {
                       _connectedDevice = device;
                     });
