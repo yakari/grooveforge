@@ -2,10 +2,14 @@ import 'package:flutter/material.dart';
 
 class VirtualPiano extends StatelessWidget {
   final Set<int> activeNotes;
+  final void Function(int note)? onNotePressed;
+  final void Function(int note)? onNoteReleased;
 
   const VirtualPiano({
     super.key,
     required this.activeNotes,
+    this.onNotePressed,
+    this.onNoteReleased,
   });
 
   String _getNoteName(int midiNote) {
@@ -81,7 +85,7 @@ class VirtualPiano extends StatelessWidget {
               Row(
                 children: whiteKeys.map((note) {
                   bool isActive = activeNotes.contains(note);
-                  return Container(
+                  Widget keyWidget = Container(
                     width: whiteKeyWidth,
                     height: currentHeight,
                     decoration: BoxDecoration(
@@ -98,6 +102,18 @@ class VirtualPiano extends StatelessWidget {
                         ? Text(_getNoteName(note), style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold))
                         : const SizedBox(),
                   );
+                  
+                  if (onNotePressed != null && onNoteReleased != null) {
+                    return Listener(
+                      behavior: HitTestBehavior.opaque,
+                      onPointerDown: (_) => onNotePressed!(note),
+                      onPointerUp: (_) => onNoteReleased!(note),
+                      onPointerCancel: (_) => onNoteReleased!(note),
+                      child: keyWidget,
+                    );
+                  }
+                  
+                  return keyWidget;
                 }).toList(),
               ),
               // Draw Black Keys (overlayed)
@@ -107,24 +123,36 @@ class VirtualPiano extends StatelessWidget {
                 int precedingWhiteNote = note - 1;
                 int whiteIndex = whiteKeys.indexOf(precedingWhiteNote);
                 
+                Widget keyWidget = Container(
+                  width: blackKeyWidth,
+                  height: currentHeight * 0.65,
+                  decoration: BoxDecoration(
+                    color: isActive ? Colors.blueAccent : Colors.black87,
+                    borderRadius: const BorderRadius.only(
+                      bottomLeft: Radius.circular(3),
+                      bottomRight: Radius.circular(3),
+                    ),
+                  ),
+                  alignment: Alignment.bottomCenter,
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: isActive 
+                      ? Text(_getNoteName(note), style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold))
+                      : const SizedBox(),
+                );
+                
+                if (onNotePressed != null && onNoteReleased != null) {
+                   keyWidget = Listener(
+                     behavior: HitTestBehavior.opaque,
+                     onPointerDown: (_) => onNotePressed!(note),
+                     onPointerUp: (_) => onNoteReleased!(note),
+                     onPointerCancel: (_) => onNoteReleased!(note),
+                     child: keyWidget,
+                   );
+                }
+
                 return Positioned(
                   left: (whiteIndex * whiteKeyWidth) + (whiteKeyWidth - (blackKeyWidth / 2)),
-                  child: Container(
-                    width: blackKeyWidth,
-                    height: currentHeight * 0.65,
-                    decoration: BoxDecoration(
-                      color: isActive ? Colors.blueAccent : Colors.black87,
-                      borderRadius: const BorderRadius.only(
-                        bottomLeft: Radius.circular(3),
-                        bottomRight: Radius.circular(3),
-                      ),
-                    ),
-                    alignment: Alignment.bottomCenter,
-                    padding: const EdgeInsets.only(bottom: 4),
-                    child: isActive 
-                        ? Text(_getNoteName(note), style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold))
-                        : const SizedBox(),
-                  ),
+                  child: keyWidget,
                 );
               }),
             ],

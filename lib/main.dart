@@ -364,11 +364,18 @@ class _SynthesizerScreenState extends State<SynthesizerScreen> {
                                       const SizedBox(height: 16),
                                       // Native Live Virtual Piano
                                       Expanded(
-                                        child: ValueListenableBuilder<Set<int>>(
-                                          valueListenable: state.activeNotes,
-                                          builder: (context, activeNotes, _) {
-                                            return VirtualPiano(activeNotes: activeNotes);
-                                          }
+                                        child: GestureDetector(
+                                          onTap: () {}, // Swallow taps so they don't trigger the InkWell
+                                          child: ValueListenableBuilder<Set<int>>(
+                                            valueListenable: state.activeNotes,
+                                            builder: (context, activeNotes, _) {
+                                              return VirtualPiano(
+                                                activeNotes: activeNotes,
+                                                onNotePressed: (note) => engine.playNote(channel: index, key: note, velocity: 100),
+                                                onNoteReleased: (note) => engine.stopNote(channel: index, key: note),
+                                              );
+                                            }
+                                          ),
                                         ),
                                       ),
                                     ],
