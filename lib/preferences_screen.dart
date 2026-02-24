@@ -17,6 +17,29 @@ class PreferencesScreen extends StatefulWidget {
 class _PreferencesScreenState extends State<PreferencesScreen> {
   MidiDevice? _connectedDevice;
 
+  @override
+  void initState() {
+    super.initState();
+    _checkConnectedDevices();
+  }
+
+  void _checkConnectedDevices() {
+    final midiService = context.read<MidiService>();
+    Future.microtask(() async {
+      final devs = await midiService.devices;
+      if (!mounted) return;
+      
+      for (var device in devs) {
+         if (device.connected) {
+            setState(() {
+               _connectedDevice = device;
+            });
+            break;
+         }
+      }
+    });
+  }
+
   void _showMidiDevicesDialog() async {
     final midiService = context.read<MidiService>();
     final devices = await midiService.devices;
