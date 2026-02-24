@@ -50,9 +50,6 @@ class _SynthesizerScreenState extends State<SynthesizerScreen> {
   // Store listener reference so we can safely remove it on dispose
   void Function()? _toastListener;
 
-  // Track the flashing state of channels
-  final Map<int, bool> _channelFlashState = {};
-  
   // Track auto-scrolling
   final ScrollController _scrollController = ScrollController();
   int _lastAutoScrolledChannel = -1;
@@ -75,20 +72,11 @@ class _SynthesizerScreenState extends State<SynthesizerScreen> {
        audioEngine.processMidiPacket(packet);
     };
 
-    // Listen to telemetry for flashing channels and auto-scrolling
+    // Listen to telemetry for auto-scrolling
     ccMappingService.lastEventNotifier.addListener(() {
        final event = ccMappingService.lastEventNotifier.value;
        if (event != null && mounted) {
-          int ch = event.channel;
-          setState(() { _channelFlashState[ch] = true; });
-          
-          _handleAutoScroll(ch);
-
-          Future.delayed(const Duration(milliseconds: 150), () {
-             if (mounted) {
-               setState(() { _channelFlashState[ch] = false; });
-             }
-          });
+          _handleAutoScroll(event.channel);
        }
     });
 
@@ -113,28 +101,28 @@ class _SynthesizerScreenState extends State<SynthesizerScreen> {
     _lastAutoScrolledChannel = channel;
     _lastScrollTime = now;
 
-    // We assume 2 items are fully visible on the screen.
-    // So the height of one block is roughly the viewport height / 2.
-    // Calculate off-screen bounds roughly:
-    final renderBox = context.findRenderObject() as RenderBox?;
-    if (renderBox != null) {
-      double itemHeight = renderBox.size.height / 2;
-      double targetOffset = channel * itemHeight;
+    // The ListView viewport height exactly matches the constraints of our LayoutBuilder
+    double viewportHeight = _scrollController.position.viewportDimension;
+    double itemHeight = (viewportHeight - 16) / 2;
+    double targetOffset = channel * itemHeight;
 
-      // Adjust to keep it comfortably on-screen without violently jumping if already visible
-      double currentPosition = _scrollController.offset;
-      double viewportHeight = _scrollController.position.viewportDimension;
-      
-      bool isAbove = targetOffset < currentPosition;
-      bool isBelow = targetOffset + itemHeight > currentPosition + viewportHeight;
+    double currentPosition = _scrollController.offset;
+    
+    bool isAbove = targetOffset < currentPosition;
+    bool isBelow = targetOffset + itemHeight > currentPosition + viewportHeight;
 
-      if (isAbove || isBelow) {
-         _scrollController.animateTo(
-           targetOffset - (itemHeight / 2), 
-           duration: const Duration(milliseconds: 300), 
-           curve: Curves.easeOutCubic
-         );
-      }
+    if (isAbove) {
+       _scrollController.animateTo(
+         targetOffset, // Snap item to top of screen
+         duration: const Duration(milliseconds: 300), 
+         curve: Curves.easeOutCubic
+       );
+    } else if (isBelow) {
+       _scrollController.animateTo(
+         targetOffset - viewportHeight + itemHeight, // Snap item to bottom of screen
+         duration: const Duration(milliseconds: 300), 
+         curve: Curves.easeOutCubic
+       );
     }
   }
 
@@ -295,28 +283,32 @@ class _SynthesizerScreenState extends State<SynthesizerScreen> {
                         final state = engine.channels[index];
                         String sfName = state.soundfontPath?.split(Platform.pathSeparator).last ?? 'No Soundfont';
                         String patchName = engine.getCustomPatchName(index) ?? GmInstruments.list[state.program] ?? 'Unknown Patch';
-                        bool isFlashing = _channelFlashState[index] ?? false;
   
                         return SizedBox(
                           height: itemHeight,
                           child: Padding(
                             padding: const EdgeInsets.only(bottom: 16.0),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 100),
-                              curve: Curves.easeInOut,
-                              decoration: BoxDecoration(
-                                color: isFlashing ? Colors.blueAccent.withValues(alpha: 0.2) : Theme.of(context).cardColor,
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: isFlashing ? Colors.blueAccent : Colors.transparent,
-                                  width: 2,
-                                ),
-                                boxShadow: [
-                                  if (isFlashing)
-                                     BoxShadow(color: Colors.blueAccent.withValues(alpha: 0.3), blurRadius: 10, spreadRadius: 2)
-                                ]
-                              ),
-                              child: InkWell(
+                            child: ValueListenableBuilder<Set<int>>(
+                              valueListenable: state.activeNotes,
+                              builder: (context, activeNotes, _) {
+                                bool isFlashing = activeNotes.isNotEmpty;
+                                
+                                return AnimatedContainer(
+                                  duration: const Duration(milliseconds: 100),
+                                  curve: Curves.easeInOut,
+                                  decoration: BoxDecoration(
+                                    color: isFlashing ? Colors.blueAccent.withValues(alpha: 0.2) : Theme.of(context).cardColor,
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                      color: isFlashing ? Colors.blueAccent : Colors.transparent,
+                                      width: 2,
+                                    ),
+                                    boxShadow: [
+                                      if (isFlashing)
+                                         BoxShadow(color: Colors.blueAccent.withValues(alpha: 0.3), blurRadius: 10, spreadRadius: 2)
+                                    ]
+                                  ),
+                                  child: InkWell(
                                 borderRadius: BorderRadius.circular(16),
                                 onTap: () => _showChannelConfigDialog(index, engine),
                                 child: Padding(
@@ -366,15 +358,10 @@ class _SynthesizerScreenState extends State<SynthesizerScreen> {
                                       Expanded(
                                         child: GestureDetector(
                                           onTap: () {}, // Swallow taps so they don't trigger the InkWell
-                                          child: ValueListenableBuilder<Set<int>>(
-                                            valueListenable: state.activeNotes,
-                                            builder: (context, activeNotes, _) {
-                                              return VirtualPiano(
-                                                activeNotes: activeNotes,
-                                                onNotePressed: (note) => engine.playNote(channel: index, key: note, velocity: 100),
-                                                onNoteReleased: (note) => engine.stopNote(channel: index, key: note),
-                                              );
-                                            }
+                                          child: VirtualPiano(
+                                            activeNotes: activeNotes,
+                                            onNotePressed: (note) => engine.playNote(channel: index, key: note, velocity: 100),
+                                            onNoteReleased: (note) => engine.stopNote(channel: index, key: note),
                                           ),
                                         ),
                                       ),
@@ -382,11 +369,13 @@ class _SynthesizerScreenState extends State<SynthesizerScreen> {
                                   ),
                                 ),
                               ),
-                            ),
-                          ),
-                        );
-                      },
+                            );
+                          },
+                        ),
+                      ),
                     );
+                  },
+                );
                   }
                 );
               },

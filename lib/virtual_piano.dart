@@ -16,7 +16,7 @@ class VirtualPiano extends StatelessWidget {
     final noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
     int octave = (midiNote ~/ 12) - 1;
     String name = noteNames[midiNote % 12];
-    return '${name}${octave}';
+    return '$name$octave';
   }
 
   bool _isBlackKey(int midiNote) {
