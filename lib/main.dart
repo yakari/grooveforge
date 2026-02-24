@@ -5,11 +5,14 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter_midi_command/flutter_midi_command.dart';
 import 'midi_service.dart';
 import 'audio_engine.dart';
+import 'cc_mapping_service.dart';
+import 'cc_preferences.dart';
 
 void main() {
   runApp(
     MultiProvider(
       providers: [
+        Provider<CcMappingService>(create: (_) => CcMappingService()),
         Provider<MidiService>(create: (_) => MidiService()),
         Provider<AudioEngine>(create: (_) => AudioEngine()),
       ],
@@ -53,6 +56,9 @@ class _SynthesizerScreenState extends State<SynthesizerScreen> {
     // Start listening to MIDI inputs and pass them to Audio Engine
     final midiService = context.read<MidiService>();
     final audioEngine = context.read<AudioEngine>();
+    final ccMappingService = context.read<CcMappingService>();
+    
+    audioEngine.ccMappingService = ccMappingService;
     
     midiService.onMidiDataReceived = (packet) {
        audioEngine.processMidiPacket(packet);
@@ -118,12 +124,58 @@ class _SynthesizerScreenState extends State<SynthesizerScreen> {
     );
   }
 
+  void _showCcHelpDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Standard MIDI CCs (General MIDI)'),
+          content: SizedBox(
+            width: 350,
+            height: 450,
+            child: ListView(
+              children: const [
+                ListTile(title: Text('CC 0'), subtitle: Text('Bank Select (MSB)')),
+                ListTile(title: Text('CC 1'), subtitle: Text('Modulation Wheel (Vibrato)')),
+                ListTile(title: Text('CC 2'), subtitle: Text('Breath Control')),
+                ListTile(title: Text('CC 4'), subtitle: Text('Foot Pedal')),
+                ListTile(title: Text('CC 5'), subtitle: Text('Portamento Time')),
+                ListTile(title: Text('CC 7'), subtitle: Text('Main Volume')),
+                ListTile(title: Text('CC 10'), subtitle: Text('Pan (Stereo)')),
+                ListTile(title: Text('CC 11'), subtitle: Text('Expression (Sub-Volume)')),
+                ListTile(title: Text('CC 64'), subtitle: Text('Sustain Pedal (On/Off)')),
+                ListTile(title: Text('CC 65'), subtitle: Text('Portamento (On/Off)')),
+                ListTile(title: Text('CC 71'), subtitle: Text('Resonance (Filter)')),
+                ListTile(title: Text('CC 74'), subtitle: Text('Frequency Cutoff (Filter)')),
+                ListTile(title: Text('CC 91'), subtitle: Text('Reverb Send Level')),
+                ListTile(title: Text('CC 93'), subtitle: Text('Chorus Send Level')),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Close'),
+            )
+          ],
+        );
+      }
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Yakalive Soundfont Player'),
         elevation: 2,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.help_outline),
+            tooltip: 'MIDI CC Help',
+            onPressed: _showCcHelpDialog,
+          ),
+        ],
       ),
       body: Center(
         child: Column(
@@ -163,10 +215,21 @@ class _SynthesizerScreenState extends State<SynthesizerScreen> {
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
                     const SizedBox(height: 24),
-                     ElevatedButton.icon(
+                    ElevatedButton.icon(
                       onPressed: _showMidiDevicesDialog,
                       icon: const Icon(Icons.settings_input_component),
                       label: const Text('Connect MIDI Device'),
+                    ),
+                    const SizedBox(height: 16),
+                    OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const CcPreferencesScreen()),
+                        );
+                      },
+                      icon: const Icon(Icons.tune),
+                      label: const Text('CC Mapping Preferences'),
                     ),
                   ],
                 ),
