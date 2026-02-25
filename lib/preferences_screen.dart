@@ -6,6 +6,7 @@ import 'package:flutter_midi_command/flutter_midi_command.dart';
 import 'midi_service.dart';
 import 'audio_engine.dart';
 import 'cc_preferences.dart';
+import 'cc_mapping_service.dart';
 
 class PreferencesScreen extends StatefulWidget {
   const PreferencesScreen({super.key});
@@ -205,6 +206,54 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                         // Save triggers automatically when boolean toggles but for safety we can trigger internal save
                         engine.stateNotifier.value++; // forces _saveState downstream technically but we should invoke properly
                       },
+                    );
+                  }
+                );
+              }
+            ),
+          ),
+          const SizedBox(height: 8),
+          Card(
+            child: Consumer<AudioEngine>(
+              builder: (context, engine, _) {
+                return ValueListenableBuilder<int>(
+                  valueListenable: engine.aftertouchDestCc,
+                  builder: (context, destCc, _) {
+                    final List<DropdownMenuItem<int>> ccItems = [];
+                    for (int i = 0; i <= 127; i++) {
+                      if (CcMappingService.standardGmCcs.containsKey(i)) {
+                        String name = CcMappingService.standardGmCcs[i]!;
+                        ccItems.add(DropdownMenuItem(value: i, child: Text('$name (CC $i)')));
+                      }
+                    }
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.waves, color: Colors.teal),
+                          const SizedBox(width: 16),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Aftertouch Effect', style: TextStyle(fontSize: 16)),
+                                Text('Route keyboard pressure to this CC', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                              ],
+                            ),
+                          ),
+                          DropdownButton<int>(
+                            value: destCc,
+                            items: ccItems,
+                            menuMaxHeight: 300,
+                            onChanged: (val) {
+                              if (val != null) {
+                                engine.aftertouchDestCc.value = val;
+                                engine.stateNotifier.value++;
+                              }
+                            },
+                          ),
+                        ],
+                      ),
                     );
                   }
                 );

@@ -49,7 +49,12 @@ class AudioEngine {
   
   // Dashboard UI State
   final ValueNotifier<List<int>> visibleChannels = ValueNotifier(List.generate(16, (i) => i));
+
+  /// Optional drag-to-play glissando feature on the virtual piano
   final ValueNotifier<bool> dragToPlay = ValueNotifier(false);
+
+  /// Target CC for incoming Aftertouch messages (defaults to 1 = Modulation/Vibrato)
+  final ValueNotifier<int> aftertouchDestCc = ValueNotifier(1);
 
   SharedPreferences? _prefs;
 
@@ -77,6 +82,7 @@ class AudioEngine {
 
     await _prefs!.setString('visible_channels', jsonEncode(visibleChannels.value));
     await _prefs!.setBool('drag_to_play', dragToPlay.value);
+    await _prefs!.setInt('aftertouch_dest_cc', aftertouchDestCc.value);
   }
 
   Future<void> _restoreState() async {
@@ -126,6 +132,11 @@ class AudioEngine {
     bool? savedDragToPlay = _prefs!.getBool('drag_to_play');
     if (savedDragToPlay != null) {
       dragToPlay.value = savedDragToPlay;
+    }
+
+    int? savedAftertouchDest = _prefs!.getInt('aftertouch_dest_cc');
+    if (savedAftertouchDest != null) {
+      aftertouchDestCc.value = savedAftertouchDest;
     }
 
     stateNotifier.value++;
@@ -246,9 +257,9 @@ class AudioEngine {
     final command = statusByte & 0xF0;
     final channel = statusByte & 0x0F;
 
-    if (packet.data.length >= 3) {
+    if (packet.data.length >= 2) {
       int data1 = packet.data[1];
-      final int data2 = packet.data[2];
+      int data2 = packet.data.length >= 3 ? packet.data[2] : 0;
 
       switch (command) {
         case 0x90: // Note On
@@ -298,6 +309,9 @@ class AudioEngine {
         case 0xE0: // Pitch Bend
           int pitchValue = (data2 << 7) | data1;
           _sendPitchBend(channel: channel, value: pitchValue);
+          break;
+        case 0xD0: // Channel Aftertouch
+          _sendControlChange(channel: channel, controller: aftertouchDestCc.value, value: data1);
           break;
       }
     }
