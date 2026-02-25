@@ -56,6 +56,9 @@ class AudioEngine {
   /// Target CC for incoming Aftertouch messages (defaults to 1 = Modulation/Vibrato)
   final ValueNotifier<int> aftertouchDestCc = ValueNotifier(1);
 
+  /// User preference for chord notation format (e.g. 'Standard' vs 'Solfege')
+  final ValueNotifier<String> notationFormat = ValueNotifier('Standard');
+
   SharedPreferences? _prefs;
 
   Future<void> init() async {
@@ -83,6 +86,7 @@ class AudioEngine {
     await _prefs!.setString('visible_channels', jsonEncode(visibleChannels.value));
     await _prefs!.setBool('drag_to_play', dragToPlay.value);
     await _prefs!.setInt('aftertouch_dest_cc', aftertouchDestCc.value);
+    await _prefs!.setString('notation_format', notationFormat.value);
   }
 
   Future<void> _restoreState() async {
@@ -137,6 +141,11 @@ class AudioEngine {
     int? savedAftertouchDest = _prefs!.getInt('aftertouch_dest_cc');
     if (savedAftertouchDest != null) {
       aftertouchDestCc.value = savedAftertouchDest;
+    }
+
+    String? savedNotationFormat = _prefs!.getString('notation_format');
+    if (savedNotationFormat != null) {
+      notationFormat.value = savedNotationFormat;
     }
 
     stateNotifier.value++;

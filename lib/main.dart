@@ -7,6 +7,7 @@ import 'cc_mapping_service.dart';
 import 'preferences_screen.dart';
 import 'gm_instruments.dart';
 import 'virtual_piano.dart';
+import 'chord_detector.dart';
 
 void main() {
   runApp(
@@ -418,7 +419,36 @@ class _SynthesizerScreenState extends State<SynthesizerScreen> {
                                                       children: [
                                                         Text(sfName, style: const TextStyle(color: Colors.white70, fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis),
                                                         const SizedBox(height: 2),
-                                                        Text(patchName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: Colors.white), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                                        Row(
+                                                          children: [
+                                                            Flexible(
+                                                              child: Text(patchName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: Colors.white), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                                            ),
+                                                            const SizedBox(width: 12),
+                                                            ValueListenableBuilder<Set<int>>(
+                                                              valueListenable: state.activeNotes,
+                                                              builder: (context, activeNotes, _) {
+                                                                final format = engine.notationFormat.value.toLowerCase() == 'solfege'
+                                                                    ? NotationFormat.solfege
+                                                                    : NotationFormat.standard;
+                                                                final chordName = ChordDetector.identifyChord(activeNotes, format: format);
+                                                                if (chordName == null) return const SizedBox.shrink();
+                                                                
+                                                                return Container(
+                                                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                                                  decoration: BoxDecoration(
+                                                                    color: Colors.amber.withValues(alpha: 0.8),
+                                                                    borderRadius: BorderRadius.circular(12),
+                                                                  ),
+                                                                  child: Text(
+                                                                    chordName,
+                                                                    style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 14),
+                                                                  ),
+                                                                );
+                                                              }
+                                                            ),
+                                                          ],
+                                                        ),
                                                       ],
                                                     ),
                                                   ),

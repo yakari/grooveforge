@@ -216,6 +216,50 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
           Card(
             child: Consumer<AudioEngine>(
               builder: (context, engine, _) {
+                return ValueListenableBuilder<String>(
+                  valueListenable: engine.notationFormat,
+                  builder: (context, format, _) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.music_note, color: Colors.blueGrey),
+                          const SizedBox(width: 16),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Music Notation Format', style: TextStyle(fontSize: 16)),
+                                Text('How chord names are displayed', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                              ],
+                            ),
+                          ),
+                          DropdownButton<String>(
+                            value: format,
+                            items: const [
+                              DropdownMenuItem(value: 'Standard', child: Text('Standard (C, D, E)')),
+                              DropdownMenuItem(value: 'Solfege', child: Text('Solfège (Do, Ré, Mi)')),
+                            ],
+                            onChanged: (val) {
+                              if (val != null) {
+                                engine.notationFormat.value = val;
+                                // Forces _saveState
+                                engine.stateNotifier.value++; 
+                              }
+                            },
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+                );
+              }
+            ),
+          ),
+          const SizedBox(height: 8),
+          Card(
+            child: Consumer<AudioEngine>(
+              builder: (context, engine, _) {
                 return ValueListenableBuilder<int>(
                   valueListenable: engine.aftertouchDestCc,
                   builder: (context, destCc, _) {
