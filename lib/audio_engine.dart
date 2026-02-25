@@ -349,17 +349,27 @@ class AudioEngine {
     }
   }
 
+  final Map<int, int> _lastSystemCommandTime = {};
+
   void _handleSystemCommand(int targetAction, int incomingChannel, int value) {
-    bool isTrigger = value > 64;
-    
-    if (targetAction == 1001 && isTrigger) { // Next Soundfont
-       _cycleChannelSoundfont(incomingChannel, 1);
-    } else if (targetAction == 1002 && isTrigger) { // Prev Soundfont
-       _cycleChannelSoundfont(incomingChannel, -1);
-    } else if (targetAction == 1003 && isTrigger) { // Next Patch
-       _changePatchIndex(incomingChannel, 1);
-    } else if (targetAction == 1004 && isTrigger) { // Prev Patch
-       _changePatchIndex(incomingChannel, -1);
+    if (targetAction >= 1001 && targetAction <= 1004) {
+      // Debounce logic to support hardware pads that strictly send `0` or burst `127` then `0`.
+      int now = DateTime.now().millisecondsSinceEpoch;
+      int lastTime = _lastSystemCommandTime[targetAction] ?? 0;
+      if (now - lastTime < 250) {
+        return; // Ignore rapid consecutive triggers from release signals
+      }
+      _lastSystemCommandTime[targetAction] = now;
+
+      if (targetAction == 1001) { // Next Soundfont
+         _cycleChannelSoundfont(incomingChannel, 1);
+      } else if (targetAction == 1002) { // Prev Soundfont
+         _cycleChannelSoundfont(incomingChannel, -1);
+      } else if (targetAction == 1003) { // Next Patch
+         _changePatchIndex(incomingChannel, 1);
+      } else if (targetAction == 1004) { // Prev Patch
+         _changePatchIndex(incomingChannel, -1);
+      }
     } else if (targetAction == 1005) { // Absolute Patch Index Sweep
        assignPatchToChannel(incomingChannel, value);
        toastNotifier.value = 'Patch Sweep [Ch $incomingChannel]: Program $value';
