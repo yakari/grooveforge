@@ -50,3 +50,20 @@ Yakalive Synthesizer is a low-latency, cross-platform Flutter application tailor
 3. Under **Soundfonts**, click **Load Soundfont (.sf2)** to add your preferred instruments.
 4. Go back to the main **Dashboard**, tap on any of the 16 channels, and assign a soundfont, program index, and bank to that channel.
 5. *(Optional)* Dive into **CC Mapping Preferences** to map your hardware's controllers to specific effects or actions like switching between instruments on-the-fly.
+
+## Open Source Credits
+
+Yakalive Synthesizer is built using the Flutter framework and relies on several fantastic open-source packages:
+
+- **[Flutter](https://flutter.dev/)** - Framework and SDK.
+- **[flutter_midi_command](https://pub.dev/packages/flutter_midi_command)** - For routing and receiving hardware MIDI messages.
+- **[provider](https://pub.dev/packages/provider)** - For reactive state management across the app.
+- **[file_picker](https://pub.dev/packages/file_picker)** & **[path_provider](https://pub.dev/packages/path_provider)** - For opening and managing `.sf2` soundfont files.
+- **[shared_preferences](https://pub.dev/packages/shared_preferences)** - For persisting configurations and dashboard state.
+- **[cupertino_icons](https://pub.dev/packages/cupertino_icons)** - For UI iconography.
+
+### Custom Audio Engine (`flutter_midi_pro`)
+
+This repository embeds a **modified version** of **[flutter_midi_pro](https://pub.dev/packages/flutter_midi_pro)** originally created by [Melih Hakan Pektas](https://github.com/melihhakanpektas) (Licensed under the MIT License). 
+
+Our embedded version has been heavily customized to support multi-timbral features and Linux `fluidsynth` integration. We are deeply grateful to the original author for providing such a solid foundation for Oboe/AVFoundation synthesis.
