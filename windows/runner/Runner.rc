@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.yakalive" "\0"
-            VALUE "FileDescription", "yakalive" "\0"
+            VALUE "CompanyName", "com.grooveforge" "\0"
+            VALUE "FileDescription", "grooveforge" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "yakalive" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.yakalive. All rights reserved." "\0"
-            VALUE "OriginalFilename", "yakalive.exe" "\0"
-            VALUE "ProductName", "yakalive" "\0"
+            VALUE "InternalName", "grooveforge" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 com.grooveforge. All rights reserved." "\0"
+            VALUE "OriginalFilename", "grooveforge.exe" "\0"
+            VALUE "ProductName", "grooveforge" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

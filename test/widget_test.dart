@@ -8,7 +8,7 @@
 // import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-// import 'package:yakalive/main.dart';
+// import 'package:grooveforge/main.dart';
 
 void main() {
   testWidgets('Default smoke test replaced', (WidgetTester tester) async {

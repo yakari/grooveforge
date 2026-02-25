@@ -1,4 +1,4 @@
-# Yakalive TODO List
+# GrooveForge TODO List
 
 ## Web Platform Support
 Currently, the Web build (`flutter run -d web-server`) compiles and the UI renders correctly, but the application fails to function due to two major technical blockers:

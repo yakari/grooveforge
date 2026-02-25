@@ -1,10 +1,10 @@
-# Yakalive Synthesizer
+# GrooveForge Synthesizer
 
-Yakalive Synthesizer is a low-latency, cross-platform Flutter application tailored to connect to MIDI keyboards (such as the Alesis Vortex Wireless 2) and perform multi-timbral soundfont synthesis (`.sf2`).
+GrooveForge Synthesizer is a low-latency, cross-platform Flutter application tailored to connect to MIDI keyboards (such as the Alesis Vortex Wireless 2) and perform multi-timbral soundfont synthesis (`.sf2`).
 
 ## Features
 
-Yakalive Synthesizer provides cross-platform, zero-latency multi-timbral synthesis utilizing `.sf2` soundfonts. Key capabilities include:
+GrooveForge Synthesizer provides cross-platform, zero-latency multi-timbral synthesis utilizing `.sf2` soundfonts. Key capabilities include:
 - **16-Channel Engine**: Fully independent state-managed MIDI channels.
 - **Advanced CC Mapping**: Map knobs, sliders, and pads to MIDI effects or powerful custom application actions (e.g. Patch Sweeping).
 - **Interactive UI**: A glowing 16-card grid dashboard representing your workspace.
@@ -47,7 +47,7 @@ For a full, detailed breakdown of all capabilities, see the [Features Documentat
 
 ## Open Source Credits
 
-Yakalive Synthesizer is built using the Flutter framework and relies on several fantastic open-source packages:
+GrooveForge Synthesizer is built using the Flutter framework and relies on several fantastic open-source packages:
 
 - **[Flutter](https://flutter.dev/)** - Framework and SDK.
 - **[flutter_midi_command](https://pub.dev/packages/flutter_midi_command)** - For routing and receiving hardware MIDI messages.

@@ -17,18 +17,18 @@ void main() {
         Provider<MidiService>(create: (_) => MidiService()),
         Provider<AudioEngine>(create: (_) => AudioEngine()),
       ],
-      child: const YakaliveApp(),
+      child: const GrooveForgeApp(),
     ),
   );
 }
 
-class YakaliveApp extends StatelessWidget {
-  const YakaliveApp({super.key});
+class GrooveForgeApp extends StatelessWidget {
+  const GrooveForgeApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Yakalive Synthesizer',
+      title: 'GrooveForge Synthesizer',
       theme: ThemeData.dark(useMaterial3: true).copyWith(
         colorScheme: ColorScheme.fromSeed(
           seedColor: Colors.deepPurple,
@@ -313,7 +313,7 @@ class _SynthesizerScreenState extends State<SynthesizerScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Yakalive Synth'),
+        title: const Text('GrooveForge Synth'),
         elevation: 2,
         actions: [
           IconButton(

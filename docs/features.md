@@ -1,6 +1,6 @@
-# Yakalive Features
+# GrooveForge Features
 
-Yakalive Synthesizer is packed with dynamic, performance-oriented features designed to turn a standard MIDI controller into a powerful, multi-timbral workstation.
+GrooveForge Synthesizer is packed with dynamic, performance-oriented features designed to turn a standard MIDI controller into a powerful, multi-timbral workstation.
 
 ## Core Audio & Architecture
 
@@ -14,7 +14,7 @@ Yakalive Synthesizer is packed with dynamic, performance-oriented features desig
 ## Performance Tools
 
 ### Advanced CC Mapping
-Map your hardware's physical knobs, sliders, pads, and ribbons to General MIDI effects or custom Yakalive commands.
+Map your hardware's physical knobs, sliders, pads, and ribbons to General MIDI effects or custom GrooveForge commands.
 *   **Standard MIDI Effects**: Volume, Expression, Reverb, Chorus, Pan, etc.
 *   **Custom System Actions**:
     *   `Next/Prev Soundfont`
@@ -31,7 +31,7 @@ Map your hardware's physical knobs, sliders, pads, and ribbons to General MIDI e
 ## Music Theory & Assistance
 
 ### Real-Time Chord Detection
-*   Yakalive actively listens to the notes played on each channel and analyzes them using advanced interval and bitmask logic.
+*   GrooveForge actively listens to the notes played on each channel and analyzes them using advanced interval and bitmask logic.
 *   The UI displays exactly what chord you are currently holding down in real-time (e.g., `Cmaj7`, `F#m11`, `G7b9`).
 *   **Sustain Memory**: Even after releasing the keys, the last detected chord remains visible on screen (dimmed) as a helpful reference point.
 

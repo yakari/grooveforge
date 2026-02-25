@@ -59,7 +59,7 @@ class CcMappingService {
     91: 'Reverb Send Level',
     93: 'Chorus Send Level',
     
-    // --- Yakalive System Actions ---
+    // --- GrooveForge System Actions ---
     1001: '[System] Next Soundfont',
     1002: '[System] Prev Soundfont',
     1003: '[System] Next Program/Patch',

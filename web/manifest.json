@@ -1,6 +1,6 @@
 {
-    "name": "yakalive",
-    "short_name": "yakalive",
+    "name": "grooveforge",
+    "short_name": "grooveforge",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

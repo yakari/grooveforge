@@ -8,7 +8,7 @@
     <uses-feature android:name="android.software.midi" android:required="true" />
 
     <application
-        android:label="yakalive"
+        android:label="grooveforge"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

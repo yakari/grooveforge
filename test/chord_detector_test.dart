@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:yakalive/chord_detector.dart';
+import 'package:grooveforge/chord_detector.dart';
 
 void main() {
   group('ChordDetector Tests', () {

@@ -5,10 +5,10 @@
 // 'flutter create' template.
 
 // The application's name. By default this is also the title of the Flutter window.
-PRODUCT_NAME = yakalive
+PRODUCT_NAME = grooveforge
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.yakalive.yakalive
+PRODUCT_BUNDLE_IDENTIFIER = com.grooveforge.grooveforge
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2026 com.yakalive. All rights reserved.
+PRODUCT_COPYRIGHT = Copyright © 2026 com.grooveforge. All rights reserved.
