@@ -4,19 +4,13 @@ Yakalive Synthesizer is a low-latency, cross-platform Flutter application tailor
 
 ## Features
 
-- **Cross-Platform Low Latency Audio**: Supports Android, iOS, macOS, Windows, and Linux.
-  - *Android*: Utilizes Google's ultra-low latency `Oboe` engine via the `flutter_midi_pro` plugin.
-  - *Apple*: Runs natively on `AVFoundation`.
-  - *Linux*: Automatically orchestrates a background ALSA `fluidsynth` CLI process capturing inputs and outputs to provide zero-latency synthesized sound matching native mobile experiences.
-- **16-Channel Multi-timbral Architecture**: Features a robust 16-channel state manager. Each channel independently tracks its assigned Soundfont, Program Patch, and Bank MSB, allowing for complex multi-instrument performances.
-- **Interactive Dashboard UI**: A 16-card grid dashboard actively animates and flashes borders in real-time on channels receiving MIDI data. Tap on any channel to instantly assign an instrument and patch.
-- **Multiple Soundfont Management**: Load multiple `.sf2` soundfont files simultaneously into your workspace. Memory management allows for loading and unloading soundfonts seamlessly.
-- **Advanced CC Mapping**: Intercept and map your hardware's physically knobs, sliders, and ribbons to General MIDI effects (Volume, Expression, Reverb, Chorus, Pan, etc.) or powerful Custom System Actions:
-  - *Next/Prev Soundfont*
-  - *Next/Prev Program Patch*
-  - *Absolute Patch Sweep (knobs mapped directly to instrument 0-127)*
-  - Offers 3-way custom routing: Map to the *Same Channel*, *All Channels (omni)*, or a *Specific Channel*.
-- **State Persistence**: Your loaded soundfont array and your exact 16-channel configurations are saved automatically via `shared_preferences` and restored instantly on launch.
+Yakalive Synthesizer provides cross-platform, zero-latency multi-timbral synthesis utilizing `.sf2` soundfonts. Key capabilities include:
+- **16-Channel Engine**: Fully independent state-managed MIDI channels.
+- **Advanced CC Mapping**: Map knobs, sliders, and pads to MIDI effects or powerful custom application actions (e.g. Patch Sweeping).
+- **Interactive UI**: A glowing 16-card grid dashboard representing your workspace.
+- **Real-Time Music Theory**: Live chord detection parsing and a mathematical "Scale Lock" system that flawlessly binds wrong notes into the correct grooving scale.
+
+For a full, detailed breakdown of all capabilities, see the [Features Documentation](docs/features.md).
 
 ## Prerequisites
 
