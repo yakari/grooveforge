@@ -31,14 +31,31 @@ class ChordDetector {
     '7sus4': 0x4A1, // 7sus4: R(0), P4(5), P5(7), m7(10) -> 10010100001
   };
 
+  /// Associates basic chord templates with their most common implied 7-note diatonic scale.
+  /// Bitmask representation of the scale relative to the root.
+  static const Map<String, int> _templateToScale = {
+    // Ionian: 0, 2, 4, 5, 7, 9, 11 -> 101010110101
+    '': 0xAB5, 'maj7': 0xAB5, '6': 0xAB5, 'sus2': 0xAB5, 'sus4': 0xAB5, '5': 0xAB5,
+    // Dorian: 0, 2, 3, 5, 7, 9, 10 -> 011010101101
+    'm': 0x6AD, 'm7': 0x6AD, 'm6': 0x6AD,
+    // Mixolydian: 0, 2, 4, 5, 7, 9, 10 -> 011010110101
+    '7': 0x6B5, '7sus4': 0x6B5,
+    // Harmonic Minor: 0, 2, 3, 5, 7, 8, 11 -> 100110101101
+    'mMaj7': 0x9AD, 
+    // Locrian: 0, 1, 3, 5, 6, 8, 10 -> 010101101011
+    'dim': 0x56B, 'm7b5': 0x56B, 'dim7': 0x56B, // Dim7 isn't strictly Locrian but Locrian is a safe fallback
+    // Whole Tone (or Lydian Augmented): 0, 2, 4, 6, 8, 10 -> 010101010101
+    'aug': 0x555,
+  };
+
   /// The standard western chromatic scale
   static const List<String> _standardNames = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
   
   /// The solfege scale
   static const List<String> _solfegeNames = ['Do ', 'Do# ', 'Ré ', 'Mib ', 'Mi ', 'Fa ', 'Fa# ', 'Sol ', 'Lab ', 'La ', 'Sib ', 'Si '];
 
-  /// Attempt to identify a chord from a set of active MIDI notes.
-  static String? identifyChord(Set<int> activeNotes, {NotationFormat format = NotationFormat.standard}) {
+  /// Attempt to identify a chord from a set of active MIDI notes, returning the name and its implied scale.
+  static ChordMatch? identifyChord(Set<int> activeNotes, {NotationFormat format = NotationFormat.standard}) {
     if (activeNotes.length < 3) return null; // Need at least a triad
 
     List<String> noteNames = format == NotationFormat.solfege ? _solfegeNames : _standardNames;
@@ -94,12 +111,14 @@ class ChordDetector {
           if ((extraMask & (1 << 3)) != 0) extensions.add('#9');
           if ((extraMask & (1 << 6)) != 0 &&
               !suffix.contains('dim') &&
-              !suffix.contains('b5'))
+              !suffix.contains('b5')) {
             extensions.add('#11');
+          }
           if ((extraMask & (1 << 8)) != 0 &&
               !suffix.contains('aug') &&
-              !suffix.contains('m6'))
+              !suffix.contains('m6')) {
             extensions.add('b13');
+          }
 
           // Score the match
           int score = 0;
@@ -156,13 +175,32 @@ class ChordDetector {
           }
 
           if (bestMatch == null || score > bestMatch.score) {
-            bestMatch = _ScoredMatch(chordName, score);
+            // Derive Scale
+            int scaleMask = _templateToScale[suffix] ?? _templateToScale['']!; // Default to Ionian if unknown
+            
+            // Integrate explicit extensions/alterations from the user into the scale
+            scaleMask |= extraMask;
+
+            // Shift scale back from relative root to absolute pitch classes
+            Set<int> absoluteScalePcs = {};
+            for (int i = 0; i < 12; i++) {
+              if ((scaleMask & (1 << i)) != 0) {
+                absoluteScalePcs.add((rootPc + i) % 12);
+              }
+            }
+            
+            // Ensure bass note is in the scale just in case
+            absoluteScalePcs.add(bassPc);
+
+            bool isMinor = (templateMask & (1 << 3)) != 0 || suffix.contains('m');
+            bestMatch = _ScoredMatch(chordName, score, absoluteScalePcs, rootPc, isMinor);
           }
         }
       }
     }
 
-    return bestMatch?.chordName;
+    if (bestMatch == null) return null;
+    return ChordMatch(bestMatch.chordName, bestMatch.scalePitchClasses, bestMatch.rootPc, bestMatch.isMinor);
   }
 
   /// Rotates a 12-bit pitch mask so the root rests at bit 0.
@@ -192,5 +230,17 @@ class ChordDetector {
 class _ScoredMatch {
   final String chordName;
   final int score;
-  _ScoredMatch(this.chordName, this.score);
+  final Set<int> scalePitchClasses;
+  final int rootPc;
+  final bool isMinor;
+  _ScoredMatch(this.chordName, this.score, this.scalePitchClasses, this.rootPc, this.isMinor);
+}
+
+class ChordMatch {
+  final String name;
+  final Set<int> scalePitchClasses;
+  final int rootPc;
+  final bool isMinor;
+
+  ChordMatch(this.name, this.scalePitchClasses, this.rootPc, this.isMinor);
 }

@@ -425,28 +425,91 @@ class _SynthesizerScreenState extends State<SynthesizerScreen> {
                                                               child: Text(patchName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: Colors.white), maxLines: 1, overflow: TextOverflow.ellipsis),
                                                             ),
                                                             const SizedBox(width: 12),
-                                                            ValueListenableBuilder<Set<int>>(
-                                                              valueListenable: state.activeNotes,
-                                                              builder: (context, activeNotes, _) {
-                                                                final format = engine.notationFormat.value.toLowerCase() == 'solfege'
-                                                                    ? NotationFormat.solfege
-                                                                    : NotationFormat.standard;
-                                                                final chordName = ChordDetector.identifyChord(activeNotes, format: format);
-                                                                if (chordName == null) return const SizedBox.shrink();
-                                                                
-                                                                return Container(
-                                                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                                                  decoration: BoxDecoration(
-                                                                    color: Colors.amber.withValues(alpha: 0.8),
-                                                                    borderRadius: BorderRadius.circular(12),
-                                                                  ),
-                                                                  child: Text(
-                                                                    chordName,
-                                                                    style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 14),
-                                                                  ),
-                                                                );
-                                                              }
-                                                            ),
+                                                              // Combine listeners to update UI on notes, last chord, or lock toggle
+                                                              ValueListenableBuilder<Set<int>>(
+                                                                valueListenable: state.activeNotes,
+                                                                builder: (context, activeNotes, _) {
+                                                                  return ValueListenableBuilder<ChordMatch?>(
+                                                                    valueListenable: state.lastChord,
+                                                                    builder: (context, lastChord, _) {
+                                                                      return ValueListenableBuilder<bool>(
+                                                                        valueListenable: state.isScaleLocked,
+                                                                        builder: (context, isLocked, _) {
+                                                                          // Don't show anything until a chord is played
+                                                                          if (lastChord == null) return const SizedBox.shrink();
+
+                                                                          // Dim if notes aren't actively held and scale isn't locked
+                                                                          bool isDimmed = activeNotes.isEmpty && !isLocked;
+                                                                          
+                                                                          return Row(
+                                                                            mainAxisSize: MainAxisSize.min,
+                                                                            children: [
+                                                                              InkWell(
+                                                                                borderRadius: BorderRadius.circular(12),
+                                                                                onTap: () {
+                                                                                  state.isScaleLocked.value = !state.isScaleLocked.value;
+                                                                                },
+                                                                                child: AnimatedContainer(
+                                                                                  duration: const Duration(milliseconds: 200),
+                                                                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                                                                  decoration: BoxDecoration(
+                                                                                    color: isLocked ? Colors.redAccent.withValues(alpha: 0.9) : Colors.amber.withValues(alpha: isDimmed ? 0.3 : 0.8),
+                                                                                    borderRadius: BorderRadius.circular(12),
+                                                                                  ),
+                                                                                  child: Row(
+                                                                                    mainAxisSize: MainAxisSize.min,
+                                                                                    children: [
+                                                                                      Text(
+                                                                                        lastChord.name,
+                                                                                        style: TextStyle(
+                                                                                          color: isLocked ? Colors.white : Colors.black, 
+                                                                                          fontWeight: FontWeight.bold, 
+                                                                                          fontSize: 14,
+                                                                                        ),
+                                                                                      ),
+                                                                                      if (isLocked) ...[
+                                                                                        const SizedBox(width: 4),
+                                                                                        const Icon(Icons.lock, size: 14, color: Colors.white),
+                                                                                      ]
+                                                                                    ],
+                                                                                  ),
+                                                                                ),
+                                                                              ),
+                                                                              if (isLocked) ...[
+                                                                                const SizedBox(width: 8),
+                                                                                ValueListenableBuilder<ScaleType>(
+                                                                                  valueListenable: state.currentScaleType,
+                                                                                  builder: (context, currentScale, _) {
+                                                                                    return DropdownButtonHideUnderline(
+                                                                                      child: DropdownButton<ScaleType>(
+                                                                                        value: currentScale,
+                                                                                        icon: const Icon(Icons.arrow_drop_down, color: Colors.white70),
+                                                                                        dropdownColor: Colors.grey[850],
+                                                                                        style: const TextStyle(color: Colors.white, fontSize: 12),
+                                                                                        onChanged: (ScaleType? newValue) {
+                                                                                          if (newValue != null) {
+                                                                                            state.currentScaleType.value = newValue;
+                                                                                          }
+                                                                                        },
+                                                                                        items: ScaleType.values.map<DropdownMenuItem<ScaleType>>((ScaleType value) {
+                                                                                          return DropdownMenuItem<ScaleType>(
+                                                                                            value: value,
+                                                                                            child: Text(value.name.replaceAllMapped(RegExp(r'[A-Z]'), (m) => ' ${m.group(0)}').toUpperCase()),
+                                                                                          );
+                                                                                        }).toList(),
+                                                                                      ),
+                                                                                    );
+                                                                                  }
+                                                                                ),
+                                                                              ]
+                                                                            ],
+                                                                          );
+                                                                        }
+                                                                      );
+                                                                    }
+                                                                  );
+                                                                }
+                                                              ),
                                                           ],
                                                         ),
                                                       ],

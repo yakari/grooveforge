@@ -66,6 +66,8 @@ class CcMappingService {
     1004: '[System] Prev Program/Patch',
     1005: '[System] Absolute Patch Sweep',
     1006: '[System] Absolute Bank/Tone Sweep',
+    1007: '[System] Toggle Scale Lock',
+    1008: '[System] Cycle Scale Type',
   };
 
   SharedPreferences? _prefs;

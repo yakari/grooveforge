@@ -6,12 +6,29 @@ import 'package:flutter_midi_command/flutter_midi_command.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'cc_mapping_service.dart';
 import 'sf2_parser.dart';
+import 'chord_detector.dart';
+
+enum ScaleType { 
+  standard, 
+  pentatonic, 
+  blues, 
+  dorian, 
+  mixolydian, 
+  harmonicMinor, 
+  melodicMinor, 
+  wholeTone, 
+  diminished 
+}
 
 class ChannelState {
   String? soundfontPath;
   int program = 0;
   int bank = 0;
   final ValueNotifier<Set<int>> activeNotes = ValueNotifier({});
+  final ValueNotifier<ChordMatch?> lastChord = ValueNotifier(null);
+  final ValueNotifier<bool> isScaleLocked = ValueNotifier(false);
+  final ValueNotifier<ScaleType> currentScaleType = ValueNotifier(ScaleType.standard);
+  final Map<int, int> activeKeyMappings = {}; // Track which key was actually played for note-off
 
   ChannelState();
 
@@ -19,6 +36,8 @@ class ChannelState {
     'soundfontPath': soundfontPath,
     'program': program,
     'bank': bank,
+    // Note: runtime state like activeNotes, lastChord, and configurations like scale lock 
+    // are intentionally not serialized, as they are ephemeral performance session state.
   };
 
   factory ChannelState.fromJson(Map<String, dynamic> json) => ChannelState()
@@ -327,49 +346,157 @@ class AudioEngine {
   }
 
   void playNote({required int channel, required int key, required int velocity}) {
-    // Update active notes
+    // Update active notes (raw visual input keys)
     final currentNotes = Set<int>.from(channels[channel].activeNotes.value);
     currentNotes.add(key);
     channels[channel].activeNotes.value = currentNotes;
     
+    int keyToPlay = key;
+
+    // Apply scale locking
+    if (channels[channel].isScaleLocked.value && channels[channel].lastChord.value != null) {
+      keyToPlay = _snapKeyToScale(
+        key, 
+        channels[channel].lastChord.value!, 
+        channels[channel].currentScaleType.value
+      );
+      channels[channel].activeKeyMappings[key] = keyToPlay;
+    }
+
     if (Platform.isLinux && _fluidSynthProcess != null) {
-      _fluidSynthProcess!.stdin.writeln('noteon $channel $key $velocity');
+      _fluidSynthProcess!.stdin.writeln('noteon $channel $keyToPlay $velocity');
     } else {
       int sfId = _getSfIdForChannel(channel);
       if (sfId != -1) {
-         _midiPro.playNote(sfId: sfId, channel: channel, key: key, velocity: velocity);
+         _midiPro.playNote(sfId: sfId, channel: channel, key: keyToPlay, velocity: velocity);
       }
     }
+    _updateChordState(channel);
   }
 
   void stopNote({required int channel, required int key}) {
-    // Update active notes
+    // Update active notes (raw visual input keys)
     final currentNotes = Set<int>.from(channels[channel].activeNotes.value);
     currentNotes.remove(key);
     channels[channel].activeNotes.value = currentNotes;
     
+    int keyToStop = key;
+    
+    // Retrieve the actually played key if scale lock engaged it
+    if (channels[channel].activeKeyMappings.containsKey(key)) {
+      keyToStop = channels[channel].activeKeyMappings.remove(key)!;
+    }
+
     if (Platform.isLinux && _fluidSynthProcess != null) {
-       _fluidSynthProcess!.stdin.writeln('noteoff $channel $key');
+       _fluidSynthProcess!.stdin.writeln('noteoff $channel $keyToStop');
     } else {
       int sfId = _getSfIdForChannel(channel);
       if (sfId != -1) {
-         _midiPro.stopNote(sfId: sfId, channel: channel, key: key);
+         _midiPro.stopNote(sfId: sfId, channel: channel, key: keyToStop);
       }
+    }
+    _updateChordState(channel);
+  }
+
+  void _updateChordState(int channel) {
+    // If the scale is already locked, do NOT update the chord. We want to keep
+    // the currently locked scale intact until they unlock it.
+    if (channels[channel].isScaleLocked.value) return;
+
+    final format = notationFormat.value.toLowerCase() == 'solfege'
+        ? NotationFormat.solfege
+        : NotationFormat.standard;
+
+    final notes = channels[channel].activeNotes.value;
+    final match = ChordDetector.identifyChord(notes, format: format);
+    
+    // We only update if we successfully detect a chord.
+    // This way if they lift their hands, the last chord stays on screen
+    // (and available for locking)
+    if (match != null) {
+      channels[channel].lastChord.value = match;
     }
   }
 
-  final Map<int, int> _lastSystemCommandTime = {};
+  int _snapKeyToScale(int originalKey, ChordMatch chord, ScaleType scaleType) {
+    Set<int> allowedPcs;
+    
+    if (scaleType == ScaleType.standard) {
+      allowedPcs = Set.from(chord.scalePitchClasses);
+    } else {
+      int root = chord.rootPc;
+      List<int> intervals;
+      switch (scaleType) {
+        case ScaleType.pentatonic:
+          intervals = chord.isMinor ? [0, 3, 5, 7, 10] : [0, 2, 4, 7, 9];
+          break;
+        case ScaleType.blues:
+          intervals = chord.isMinor ? [0, 3, 5, 6, 7, 10] : [0, 2, 3, 4, 7, 9];
+          break;
+        case ScaleType.dorian:
+          intervals = [0, 2, 3, 5, 7, 9, 10];
+          break;
+        case ScaleType.mixolydian:
+          intervals = [0, 2, 4, 5, 7, 9, 10];
+          break;
+        case ScaleType.harmonicMinor:
+          intervals = [0, 2, 3, 5, 7, 8, 11];
+          break;
+        case ScaleType.melodicMinor:
+          intervals = [0, 2, 3, 5, 7, 9, 11];
+          break;
+        case ScaleType.wholeTone:
+          intervals = [0, 2, 4, 6, 8, 10];
+          break;
+        case ScaleType.diminished: // Half-Whole
+          intervals = [0, 1, 3, 4, 6, 7, 9, 10];
+          break;
+        default:
+          intervals = [0, 2, 4, 5, 7, 9, 11]; // Fallback
+      }
+      allowedPcs = intervals.map((i) => (root + i) % 12).toSet();
+    }
+
+    int bestDistance = 999;
+    int bestKey = originalKey;
+
+    // Provide a reasonable search radius
+    for (int offset = 0; offset <= 12; offset++) {
+      int upKey = originalKey + offset;
+      if (allowedPcs.contains(upKey % 12)) {
+        if (offset < bestDistance) {
+          bestDistance = offset;
+          bestKey = upKey;
+        }
+      }
+
+      int downKey = originalKey - offset;
+      if (allowedPcs.contains(downKey % 12)) {
+        if (offset < bestDistance) {
+          bestDistance = offset;
+          bestKey = downKey;
+        }
+      }
+      
+      if (bestDistance < 999) break; // Found nearest
+    }
+
+    return bestKey;
+  }
+
+  final Map<String, int> _lastSystemCommandTime = {};
 
   void _handleSystemCommand(int targetAction, int incomingChannel, int value) {
-    if (targetAction >= 1001 && targetAction <= 1004) {
+    if ([1001, 1002, 1003, 1004, 1007, 1008].contains(targetAction)) {
       // Debounce logic to support hardware pads that strictly send `0` or burst `127` then `0`.
+      String debounceKey = '${targetAction}_$incomingChannel';
       int now = DateTime.now().millisecondsSinceEpoch;
-      int lastTime = _lastSystemCommandTime[targetAction] ?? 0;
+      int lastTime = _lastSystemCommandTime[debounceKey] ?? 0;
       if (now - lastTime < 250) {
         return; // Ignore rapid consecutive triggers from release signals
       }
-      _lastSystemCommandTime[targetAction] = now;
-
+      _lastSystemCommandTime[debounceKey] = now;
+      
       if (targetAction == 1001) { // Next Soundfont
          _cycleChannelSoundfont(incomingChannel, 1);
       } else if (targetAction == 1002) { // Prev Soundfont
@@ -378,6 +505,14 @@ class AudioEngine {
          _changePatchIndex(incomingChannel, 1);
       } else if (targetAction == 1004) { // Prev Patch
          _changePatchIndex(incomingChannel, -1);
+      } else if (targetAction == 1007) { // Toggle Scale Lock
+         channels[incomingChannel].isScaleLocked.value = !channels[incomingChannel].isScaleLocked.value;
+         toastNotifier.value = 'Scale Lock [Ch $incomingChannel]: ${channels[incomingChannel].isScaleLocked.value ? "ON" : "OFF"}';
+      } else if (targetAction == 1008) { // Cycle Scale Type
+         final currentTypes = ScaleType.values;
+         int nextIndex = (channels[incomingChannel].currentScaleType.value.index + 1) % currentTypes.length;
+         channels[incomingChannel].currentScaleType.value = currentTypes[nextIndex];
+         toastNotifier.value = 'Scale Type [Ch $incomingChannel]: ${currentTypes[nextIndex].name}';
       }
     } else if (targetAction == 1005) { // Absolute Patch Index Sweep
        assignPatchToChannel(incomingChannel, value);
