@@ -416,9 +416,9 @@ class _SynthesizerScreenState extends State<SynthesizerScreen> {
                                                     child: Column(
                                                       crossAxisAlignment: CrossAxisAlignment.start,
                                                       children: [
-                                                        Text(sfName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16), maxLines: 1, overflow: TextOverflow.ellipsis),
-                                                        const SizedBox(height: 4),
-                                                        Text(patchName, style: const TextStyle(color: Colors.white70, fontStyle: FontStyle.italic, fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                                        Text(sfName, style: const TextStyle(color: Colors.white70, fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                                        const SizedBox(height: 2),
+                                                        Text(patchName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: Colors.white), maxLines: 1, overflow: TextOverflow.ellipsis),
                                                       ],
                                                     ),
                                                   ),
