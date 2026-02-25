@@ -29,6 +29,7 @@ class ChannelState {
   final ValueNotifier<bool> isScaleLocked = ValueNotifier(false);
   final ValueNotifier<ScaleType> currentScaleType = ValueNotifier(ScaleType.standard);
   final Map<int, int> activeKeyMappings = {}; // Track which key was actually played for note-off
+  final Map<int, int> snappedKeyOwners = {}; // Maps logical note -> physical key that currently owns it
 
   ChannelState();
 
@@ -363,6 +364,24 @@ class AudioEngine {
       channels[channel].activeKeyMappings[key] = keyToPlay;
     }
 
+    // Check if another physical key currently owns this logical note
+    int? currentOwner = channels[channel].snappedKeyOwners[keyToPlay];
+    if (currentOwner != null && currentOwner != key) {
+      // Retrigger: Cut off the previous key's note seamlessly before striking again
+      if (Platform.isLinux && _fluidSynthProcess != null) {
+         _fluidSynthProcess!.stdin.writeln('noteoff $channel $keyToPlay');
+      } else {
+        int sfId = _getSfIdForChannel(channel);
+        if (sfId != -1) {
+           _midiPro.stopNote(sfId: sfId, channel: channel, key: keyToPlay);
+        }
+      }
+    }
+
+    // Take ownership of the logical note
+    channels[channel].snappedKeyOwners[keyToPlay] = key;
+
+    // Play the note
     if (Platform.isLinux && _fluidSynthProcess != null) {
       _fluidSynthProcess!.stdin.writeln('noteon $channel $keyToPlay $velocity');
     } else {
@@ -387,12 +406,20 @@ class AudioEngine {
       keyToStop = channels[channel].activeKeyMappings.remove(key)!;
     }
 
-    if (Platform.isLinux && _fluidSynthProcess != null) {
-       _fluidSynthProcess!.stdin.writeln('noteoff $channel $keyToStop');
-    } else {
-      int sfId = _getSfIdForChannel(channel);
-      if (sfId != -1) {
-         _midiPro.stopNote(sfId: sfId, channel: channel, key: keyToStop);
+    // Check if our physical key is still the owner of this logical note
+    int? currentOwner = channels[channel].snappedKeyOwners[keyToStop];
+
+    if (currentOwner == key) {
+      // We own the note, so let's finally stop it
+      channels[channel].snappedKeyOwners.remove(keyToStop);
+
+      if (Platform.isLinux && _fluidSynthProcess != null) {
+         _fluidSynthProcess!.stdin.writeln('noteoff $channel $keyToStop');
+      } else {
+        int sfId = _getSfIdForChannel(channel);
+        if (sfId != -1) {
+           _midiPro.stopNote(sfId: sfId, channel: channel, key: keyToStop);
+        }
       }
     }
     _updateChordState(channel);
