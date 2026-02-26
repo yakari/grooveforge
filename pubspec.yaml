@@ -42,6 +42,10 @@ dependencies:
   path_provider: ^2.1.5
   shared_preferences: ^2.5.4
 
+dependency_overrides:
+  flutter_midi_command_linux:
+    path: packages/flutter_midi_command_linux
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
