@@ -1,0 +1,28 @@
+name: flutter_midi_command_linux
+description: FlutterMidiCommand for Linux.
+version: 0.3.0
+homepage: https://github.com/InvisibleWrench/FlutterMidiCommand
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+  flutter: ">=3.10.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_midi_command_platform_interface: ^0.4.0
+  midi: ^0.1.0
+  ffi: ^2.0.1
+  tuple: ^2.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  plugin:
+    implements: flutter_midi_command
+    platforms:
+      linux:
+        dartPluginClass: FlutterMidiCommandLinux
+        pluginClass: FlutterMidiCommandLinuxPlugin
