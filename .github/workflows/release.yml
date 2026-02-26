@@ -1,0 +1,194 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.29.0'
+          channel: 'stable'
+          cache: true
+      - name: Get dependencies
+        run: flutter pub get
+      - name: Build APK
+        run: flutter build apk --release
+      - name: Build AppBundle
+        run: flutter build appbundle --release
+      - name: Rename artifacts
+        run: |
+          mv build/app/outputs/flutter-apk/app-release.apk GrooveForge-${{ github.ref_name }}.apk
+          mv build/app/outputs/bundle/release/app-release.aab GrooveForge-${{ github.ref_name }}.aab
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-build
+          path: |
+            GrooveForge-${{ github.ref_name }}.apk
+            GrooveForge-${{ github.ref_name }}.aab
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libblkid-dev liblzma-dev libgcrypt20-dev libasound2-dev libmpv-dev
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.29.0'
+          channel: 'stable'
+          cache: true
+      - name: Get dependencies
+        run: flutter pub get
+      - name: Build Linux
+        run: flutter build linux --release
+      - name: Package .deb
+        run: |
+          VERSION=${{ github.ref_name }}
+          VERSION_CLEAN=${VERSION#v}
+          mkdir -p deb/usr/bin
+          mkdir -p deb/usr/share/grooveforge
+          mkdir -p deb/usr/share/applications
+          mkdir -p deb/usr/share/icons/hicolor/512x512/apps
+          mkdir -p deb/DEBIAN
+          
+          cp -r build/linux/x64/release/bundle/* deb/usr/share/grooveforge/
+          cp icon.png deb/usr/share/icons/hicolor/512x512/apps/grooveforge.png
+          ln -s /usr/share/grooveforge/grooveforge deb/usr/bin/grooveforge
+          
+          cat <<EOF > deb/DEBIAN/control
+          Package: grooveforge
+          Version: $VERSION_CLEAN
+          Section: utils
+          Priority: optional
+          Architecture: amd64
+          Depends: fluidsynth, libasound2
+          Maintainer: Yann
+          Description: GrooveForge MIDI Synthesizer
+          EOF
+          
+          cat <<EOF > deb/usr/share/applications/grooveforge.desktop
+          [Desktop Entry]
+          Name=GrooveForge
+          Exec=grooveforge
+          Icon=grooveforge
+          Type=Application
+          Categories=Audio;Music;
+          EOF
+          
+          dpkg-deb --build deb GrooveForge-Linux-$VERSION.deb
+      - name: Zip Bundle
+        run: |
+          cd build/linux/x64/release/bundle
+          zip -r ../../../../GrooveForge-Linux-${{ github.ref_name }}-bundle.zip .
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-build
+          path: |
+            GrooveForge-Linux-${{ github.ref_name }}.deb
+            GrooveForge-Linux-${{ github.ref_name }}-bundle.zip
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.29.0'
+          channel: 'stable'
+          cache: true
+      - name: Get dependencies
+        run: flutter pub get
+      - name: Build Windows
+        run: flutter build windows --release
+      - name: Zip Artifact
+        run: |
+          Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath GrooveForge-Windows-${{ github.ref_name }}.zip
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: GrooveForge-Windows-${{ github.ref_name }}.zip
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.29.0'
+          channel: 'stable'
+          cache: true
+      - name: Get dependencies
+        run: flutter pub get
+      - name: Build macOS
+        run: flutter build macos --release
+      - name: Zip App
+        run: |
+          cd build/macos/Build/Products/Release
+          zip -r ../../../../../GrooveForge-macOS-${{ github.ref_name }}.zip GrooveForge.app
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-build
+          path: GrooveForge-macOS-${{ github.ref_name }}.zip
+
+  build-ios:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.29.0'
+          channel: 'stable'
+          cache: true
+      - name: Get dependencies
+        run: flutter pub get
+      - name: Build iOS
+        run: flutter build ios --release --no-codesign
+      - name: Package IPA (Unsigned)
+        run: |
+          mkdir -p Payload
+          cp -r build/ios/iphoneos/Runner.app Payload/
+          zip -r GrooveForge-iOS-${{ github.ref_name }}-unsigned.ipa Payload/
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-build
+          path: GrooveForge-iOS-${{ github.ref_name }}-unsigned.ipa
+
+  create-release:
+    needs: [build-android, build-linux, build-windows, build-macos, build-ios]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/android-build/*
+            artifacts/linux-build/*
+            artifacts/windows-build/*
+            artifacts/macos-build/*
+            artifacts/ios-build/*
+          generate_release_notes: true
+          draft: false
+          prerelease: false
