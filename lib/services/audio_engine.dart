@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show rootBundle, ByteData;
+import 'package:path_provider/path_provider.dart';
 import 'package:flutter_midi_pro/flutter_midi_pro.dart';
 import 'package:flutter_midi_command/flutter_midi_command.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -105,10 +107,51 @@ class AudioEngine {
     }
 
     await _restoreState();
+    await _ensureDefaultSoundfont();
     _isInitialized = true;
 
     // Persist UI preferences immediately on changes
     pianoKeysToShow.addListener(_saveState);
+  }
+
+  Future<void> _ensureDefaultSoundfont() async {
+    try {
+      final appDocsDir = await getApplicationDocumentsDirectory();
+      final defaultSfFile = File('${appDocsDir.path}/default_soundfont.sf2');
+
+      if (!defaultSfFile.existsSync()) {
+        final ByteData data = await rootBundle.load(
+          'assets/soundfonts/default.sf2',
+        );
+        final buffer = data.buffer;
+        await defaultSfFile.writeAsBytes(
+          buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
+        );
+      }
+
+      // Load it automatically if it's not already in the loaded list
+      if (!loadedSoundfonts.contains(defaultSfFile.path)) {
+        await loadSoundfont(defaultSfFile, save: false);
+      }
+
+      // If any channels don't have a soundfont assigned, assign the default one
+      bool stateChanged = false;
+      for (int i = 0; i < 16; i++) {
+        if (channels[i].soundfontPath == null ||
+            channels[i].soundfontPath!.isEmpty) {
+          channels[i].soundfontPath = defaultSfFile.path;
+          _applyChannelInstrument(i);
+          stateChanged = true;
+        }
+      }
+
+      if (stateChanged) {
+        await _saveState();
+        stateNotifier.value++;
+      }
+    } catch (e) {
+      debugPrint('Error unpacking default soundfont: $e');
+    }
   }
 
   Future<void> _saveState() async {

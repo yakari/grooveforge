@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-02-26
+
+### Added
+- Bundled a default, lightweight General MIDI Soundfont (`TimGM6mb.sf2`) so the app produces sound out-of-the-box on all platforms without requiring a manual download.
+- Added a horizontal scrollbar to the virtual piano.
+- Added a preference to customize the default number of piano keys visible on screen.
+
+### Changed
+- The virtual piano now initializes centered on Middle C (C4) instead of the far left.
+- Re-architected virtual piano auto-scrolling to track active notes robustly.
+- Synthesizer view gracefully adapts to ultra-wide/short aspect ratios (e.g., landscape mobile phones) by displaying a single channel vertically.
+
 ## [1.0.1] - 2026-02-26
 
 ### Changed
