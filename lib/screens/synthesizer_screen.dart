@@ -280,7 +280,9 @@ class _SynthesizerScreenState extends State<SynthesizerScreen> {
               builder: (context, _, child) {
                 return LayoutBuilder(
                   builder: (context, constraints) {
-                    double itemHeight = (constraints.maxHeight - 16) / 2;
+                    double itemHeight = constraints.maxHeight < 400
+                        ? constraints.maxHeight - 16
+                        : (constraints.maxHeight - 16) / 2;
 
                     return ValueListenableBuilder<List<int>>(
                       valueListenable: engine.visibleChannels,

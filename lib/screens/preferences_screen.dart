@@ -29,14 +29,14 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
     Future.microtask(() async {
       final devs = await midiService.devices;
       if (!mounted) return;
-      
+
       for (var device in devs) {
-         if (device.connected) {
-            setState(() {
-               _connectedDevice = device;
-            });
-            break;
-         }
+        if (device.connected) {
+          setState(() {
+            _connectedDevice = device;
+          });
+          break;
+        }
       }
     });
   }
@@ -78,7 +78,7 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
             ),
           ),
         );
-      }
+      },
     );
   }
 
@@ -90,8 +90,8 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
     if (result != null && result.files.single.path != null) {
       File file = File(result.files.single.path!);
       if (file.path.endsWith('.sf2') || file.path.endsWith('.SF2')) {
-         if (!mounted) return;
-         await context.read<AudioEngine>().loadSoundfont(file);
+        if (!mounted) return;
+        await context.read<AudioEngine>().loadSoundfont(file);
       }
     }
   }
@@ -99,13 +99,18 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Preferences'),
-      ),
+      appBar: AppBar(title: const Text('Preferences')),
       body: ListView(
         padding: const EdgeInsets.all(16.0),
         children: [
-          const Text('MIDI Connection', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.blueAccent)),
+          const Text(
+            'MIDI Connection',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.blueAccent,
+            ),
+          ),
           const SizedBox(height: 8),
           Card(
             child: ListTile(
@@ -117,8 +122,15 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
             ),
           ),
           const SizedBox(height: 32),
-          
-          const Text('Soundfonts', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.deepPurpleAccent)),
+
+          const Text(
+            'Soundfonts',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.deepPurpleAccent,
+            ),
+          ),
           const SizedBox(height: 8),
           Card(
             child: Column(
@@ -146,13 +158,24 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                           itemCount: engine.loadedSoundfonts.length,
                           itemBuilder: (context, index) {
                             String path = engine.loadedSoundfonts[index];
-                            String filename = path.split(Platform.pathSeparator).last;
+                            String filename = path
+                                .split(Platform.pathSeparator)
+                                .last;
                             return ListTile(
-                              leading: const Icon(Icons.piano, color: Colors.grey),
+                              leading: const Icon(
+                                Icons.piano,
+                                color: Colors.grey,
+                              ),
                               title: Text(filename),
-                              subtitle: Text(path, style: const TextStyle(fontSize: 10)),
+                              subtitle: Text(
+                                path,
+                                style: const TextStyle(fontSize: 10),
+                              ),
                               trailing: IconButton(
-                                icon: const Icon(Icons.delete, color: Colors.redAccent),
+                                icon: const Icon(
+                                  Icons.delete,
+                                  color: Colors.redAccent,
+                                ),
                                 onPressed: () {
                                   engine.unloadSoundfont(path);
                                 },
@@ -162,32 +185,50 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                         );
                       },
                     );
-                  }
+                  },
                 ),
               ],
             ),
           ),
           const SizedBox(height: 32),
-          
-          const Text('Routing & Control', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.teal)),
+
+          const Text(
+            'Routing & Control',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.teal,
+            ),
+          ),
           const SizedBox(height: 8),
           Card(
             child: ListTile(
               leading: const Icon(Icons.tune, color: Colors.teal),
               title: const Text('CC Mapping Preferences'),
-              subtitle: const Text('Map hardware knobs to GM Effects and System Actions'),
+              subtitle: const Text(
+                'Map hardware knobs to GM Effects and System Actions',
+              ),
               trailing: const Icon(Icons.chevron_right),
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => const CcPreferencesScreen()),
+                  MaterialPageRoute(
+                    builder: (_) => const CcPreferencesScreen(),
+                  ),
                 );
               },
             ),
           ),
           const SizedBox(height: 32),
-          
-          const Text('Virtual Piano', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.orange)),
+
+          const Text(
+            'Virtual Piano',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.orange,
+            ),
+          ),
           const SizedBox(height: 8),
           Card(
             child: Consumer<AudioEngine>(
@@ -196,20 +237,96 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                   valueListenable: engine.dragToPlay,
                   builder: (context, isDragEnabled, _) {
                     return SwitchListTile(
-                      secondary: const Icon(Icons.touch_app, color: Colors.orange),
+                      secondary: const Icon(
+                        Icons.touch_app,
+                        color: Colors.orange,
+                      ),
                       title: const Text('Drag to Play (Glissando)'),
-                      subtitle: const Text('Play notes smoothly by sliding your finger across the virtual piano keys'),
+                      subtitle: const Text(
+                        'Play notes smoothly by sliding your finger across the virtual piano keys',
+                      ),
                       value: isDragEnabled,
                       activeThumbColor: Colors.orange,
                       onChanged: (val) {
                         engine.dragToPlay.value = val;
                         // Save triggers automatically when boolean toggles but for safety we can trigger internal save
-                        engine.stateNotifier.value++; // forces _saveState downstream technically but we should invoke properly
+                        engine
+                            .stateNotifier
+                            .value++; // forces _saveState downstream technically but we should invoke properly
                       },
                     );
-                  }
+                  },
                 );
-              }
+              },
+            ),
+          ),
+          const SizedBox(height: 8),
+          Card(
+            child: Consumer<AudioEngine>(
+              builder: (context, engine, _) {
+                return ValueListenableBuilder<int>(
+                  valueListenable: engine.pianoKeysToShow,
+                  builder: (context, keysToShow, _) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16.0,
+                        vertical: 8.0,
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.piano, color: Colors.orange),
+                          const SizedBox(width: 16),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Visible Keys (Zoom)',
+                                  style: TextStyle(fontSize: 16),
+                                ),
+                                Text(
+                                  'Number of white keys to show at once',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          DropdownButton<int>(
+                            value: keysToShow,
+                            items: const [
+                              DropdownMenuItem(
+                                value: 15,
+                                child: Text('25 keys (15 white)'),
+                              ),
+                              DropdownMenuItem(
+                                value: 22,
+                                child: Text('37 keys (22 white)'),
+                              ),
+                              DropdownMenuItem(
+                                value: 29,
+                                child: Text('49 keys (29 white)'),
+                              ),
+                              DropdownMenuItem(
+                                value: 52,
+                                child: Text('88 keys (52 white)'),
+                              ),
+                            ],
+                            onChanged: (val) {
+                              if (val != null) {
+                                engine.pianoKeysToShow.value = val;
+                                engine.stateNotifier.value++;
+                              }
+                            },
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                );
+              },
             ),
           ),
           const SizedBox(height: 8),
@@ -220,7 +337,10 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                   valueListenable: engine.notationFormat,
                   builder: (context, format, _) {
                     return Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16.0,
+                        vertical: 8.0,
+                      ),
                       child: Row(
                         children: [
                           const Icon(Icons.music_note, color: Colors.blueGrey),
@@ -229,31 +349,46 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('Music Notation Format', style: TextStyle(fontSize: 16)),
-                                Text('How chord names are displayed', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                                Text(
+                                  'Music Notation Format',
+                                  style: TextStyle(fontSize: 16),
+                                ),
+                                Text(
+                                  'How chord names are displayed',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey,
+                                  ),
+                                ),
                               ],
                             ),
                           ),
                           DropdownButton<String>(
                             value: format,
                             items: const [
-                              DropdownMenuItem(value: 'Standard', child: Text('Standard (C, D, E)')),
-                              DropdownMenuItem(value: 'Solfege', child: Text('Solfège (Do, Ré, Mi)')),
+                              DropdownMenuItem(
+                                value: 'Standard',
+                                child: Text('Standard (C, D, E)'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'Solfege',
+                                child: Text('Solfège (Do, Ré, Mi)'),
+                              ),
                             ],
                             onChanged: (val) {
                               if (val != null) {
                                 engine.notationFormat.value = val;
                                 // Forces _saveState
-                                engine.stateNotifier.value++; 
+                                engine.stateNotifier.value++;
                               }
                             },
                           ),
                         ],
                       ),
                     );
-                  }
+                  },
                 );
-              }
+              },
             ),
           ),
           const SizedBox(height: 8),
@@ -267,11 +402,19 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                     for (int i = 0; i <= 127; i++) {
                       if (CcMappingService.standardGmCcs.containsKey(i)) {
                         String name = CcMappingService.standardGmCcs[i]!;
-                        ccItems.add(DropdownMenuItem(value: i, child: Text('$name (CC $i)')));
+                        ccItems.add(
+                          DropdownMenuItem(
+                            value: i,
+                            child: Text('$name (CC $i)'),
+                          ),
+                        );
                       }
                     }
                     return Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16.0,
+                        vertical: 8.0,
+                      ),
                       child: Row(
                         children: [
                           const Icon(Icons.waves, color: Colors.teal),
@@ -280,8 +423,17 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('Aftertouch Effect', style: TextStyle(fontSize: 16)),
-                                Text('Route keyboard pressure to this CC', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                                Text(
+                                  'Aftertouch Effect',
+                                  style: TextStyle(fontSize: 16),
+                                ),
+                                Text(
+                                  'Route keyboard pressure to this CC',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey,
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -299,9 +451,9 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                         ],
                       ),
                     );
-                  }
+                  },
                 );
-              }
+              },
             ),
           ),
         ],

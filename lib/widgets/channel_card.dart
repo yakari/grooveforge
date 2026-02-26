@@ -107,18 +107,24 @@ class ChannelCard extends StatelessWidget {
                         child: ValueListenableBuilder<bool>(
                           valueListenable: engine.dragToPlay,
                           builder: (context, dragToPlay, _) {
-                            return VirtualPiano(
-                              activeNotes: activeNotes,
-                              dragToPlay: dragToPlay,
-                              onNotePressed: (note) => engine.playNote(
-                                channel: channelIndex,
-                                key: note,
-                                velocity: 100,
-                              ),
-                              onNoteReleased: (note) => engine.stopNote(
-                                channel: channelIndex,
-                                key: note,
-                              ),
+                            return ValueListenableBuilder<int>(
+                              valueListenable: engine.pianoKeysToShow,
+                              builder: (context, keysToShow, _) {
+                                return VirtualPiano(
+                                  activeNotes: activeNotes,
+                                  dragToPlay: dragToPlay,
+                                  keysToShow: keysToShow,
+                                  onNotePressed: (note) => engine.playNote(
+                                    channel: channelIndex,
+                                    key: note,
+                                    velocity: 100,
+                                  ),
+                                  onNoteReleased: (note) => engine.stopNote(
+                                    channel: channelIndex,
+                                    key: note,
+                                  ),
+                                );
+                              },
                             );
                           },
                         ),
