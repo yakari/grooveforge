@@ -3,10 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_midi_command/flutter_midi_command.dart';
-import 'midi_service.dart';
-import 'audio_engine.dart';
-import 'cc_preferences.dart';
-import 'cc_mapping_service.dart';
+import 'package:grooveforge/services/midi_service.dart';
+import 'package:grooveforge/services/audio_engine.dart';
+import '../screens/cc_preferences.dart';
+import 'package:grooveforge/services/cc_mapping_service.dart';
 
 class PreferencesScreen extends StatefulWidget {
   const PreferencesScreen({super.key});

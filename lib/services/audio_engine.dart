@@ -4,9 +4,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_midi_pro/flutter_midi_pro.dart';
 import 'package:flutter_midi_command/flutter_midi_command.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'cc_mapping_service.dart';
-import 'sf2_parser.dart';
-import 'chord_detector.dart';
+import 'package:grooveforge/services/cc_mapping_service.dart';
+import '../services/sf2_parser.dart';
+import 'package:grooveforge/models/chord_detector.dart';
 
 enum ScaleType { 
   standard, 

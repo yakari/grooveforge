@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'cc_mapping_service.dart';
+import 'package:grooveforge/services/cc_mapping_service.dart';
 
 class CcPreferencesScreen extends StatelessWidget {
   const CcPreferencesScreen({super.key});
