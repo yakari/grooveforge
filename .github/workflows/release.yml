@@ -16,7 +16,7 @@ jobs:
           java-version: '17'
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: 'any'
+          flutter-version: '3.41.2'
           channel: 'stable'
           cache: true
       - name: Get dependencies
@@ -47,7 +47,7 @@ jobs:
           sudo apt-get install -y libgtk-3-dev libblkid-dev liblzma-dev libgcrypt20-dev libasound2-dev libmpv-dev
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: 'any'
+          flutter-version: '3.41.2'
           channel: 'stable'
           cache: true
       - name: Get dependencies
@@ -107,7 +107,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: 'any'
+          flutter-version: '3.41.2'
           channel: 'stable'
           cache: true
       - name: Get dependencies
@@ -129,7 +129,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: 'any'
+          flutter-version: '3.41.2'
           channel: 'stable'
           cache: true
       - name: Get dependencies
@@ -152,7 +152,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: 'any'
+          flutter-version: '3.41.2'
           channel: 'stable'
           cache: true
       - name: Get dependencies
