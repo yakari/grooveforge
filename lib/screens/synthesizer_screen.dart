@@ -28,7 +28,6 @@ class _SynthesizerScreenState extends State<SynthesizerScreen> {
     final ccMappingService = context.read<CcMappingService>();
 
     audioEngine.ccMappingService = ccMappingService;
-    audioEngine.init();
 
     midiService.onMidiDataReceived = (packet) {
       audioEngine.processMidiPacket(packet);

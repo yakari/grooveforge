@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import 'services/audio_engine.dart';
 import 'services/cc_mapping_service.dart';
 import 'services/midi_service.dart';
-import 'screens/synthesizer_screen.dart';
+import 'screens/splash_screen.dart';
 
 void main() {
   runApp(
@@ -32,7 +32,7 @@ class GrooveForgeApp extends StatelessWidget {
           brightness: Brightness.dark,
         ),
       ),
-      home: const SynthesizerScreen(),
+      home: const SplashScreen(),
     );
   }
 }

@@ -57,6 +57,11 @@ class AudioEngine {
   final MidiPro _midiPro = MidiPro();
   bool _isInitialized = false;
 
+  /// Exposes the current initialization step for the splash screen
+  final ValueNotifier<String> initStatus = ValueNotifier(
+    'Starting audio engine...',
+  );
+
   final List<String> loadedSoundfonts = []; // Platform specific mappings
   final Map<String, int> _sfPathToIdMobile = {};
   final Map<String, int> _sfPathToIdLinux = {};
@@ -94,9 +99,12 @@ class AudioEngine {
   SharedPreferences? _prefs;
 
   Future<void> init() async {
+    if (_isInitialized) return;
+    initStatus.value = 'Loading preferences...';
     _prefs = await SharedPreferences.getInstance();
 
     if (Platform.isLinux) {
+      initStatus.value = 'Starting FluidSynth backend...';
       _fluidSynthProcess?.kill();
       _fluidSynthProcess = await Process.start('/usr/bin/fluidsynth', [
         '-a',
@@ -106,9 +114,14 @@ class AudioEngine {
       ]);
     }
 
+    initStatus.value = 'Restoring saved state...';
     await _restoreState();
+
+    initStatus.value = 'Checking bundled soundfonts...';
     await _ensureDefaultSoundfont();
+
     _isInitialized = true;
+    initStatus.value = 'Ready';
 
     // Persist UI preferences immediately on changes
     pianoKeysToShow.addListener(_saveState);
@@ -120,6 +133,8 @@ class AudioEngine {
       final defaultSfFile = File('${appDocsDir.path}/default_soundfont.sf2');
 
       if (!defaultSfFile.existsSync()) {
+        initStatus.value =
+            'Extracting default soundfont (this may take a moment)...';
         final ByteData data = await rootBundle.load(
           'assets/soundfonts/default.sf2',
         );

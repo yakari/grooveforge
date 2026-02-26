@@ -8,9 +8,9 @@
     <uses-feature android:name="android.software.midi" android:required="true" />
 
     <application
-        android:label="grooveforge"
+        android:label="GrooveForge"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/launcher_icon">
         <activity
             android:name=".MainActivity"
             android:exported="true"
