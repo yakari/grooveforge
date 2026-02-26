@@ -27,8 +27,10 @@ class _VirtualPianoState extends State<VirtualPiano> {
   // Track continuous touches. Maps pointer ID -> MIDI Note currently depressed by that pointer
   final Map<int, int> _pointerToNote = {};
 
-  // Controller for horizontal scrolling
+  // Controller for horizontal scrolling (master)
   final ScrollController _scrollController = ScrollController();
+  // Dedicated controller for the scrollbar (slave)
+  final ScrollController _scrollbarController = ScrollController();
 
   // Render constants
   final int _minMidiNote = 21; // A0
@@ -37,6 +39,21 @@ class _VirtualPianoState extends State<VirtualPiano> {
   @override
   void initState() {
     super.initState();
+
+    // Sync controllers
+    _scrollController.addListener(() {
+      if (_scrollbarController.hasClients &&
+          _scrollbarController.offset != _scrollController.offset) {
+        _scrollbarController.jumpTo(_scrollController.offset);
+      }
+    });
+    _scrollbarController.addListener(() {
+      if (_scrollController.hasClients &&
+          _scrollController.offset != _scrollbarController.offset) {
+        _scrollController.jumpTo(_scrollbarController.offset);
+      }
+    });
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _centerOnNote(60); // Middle C
     });
@@ -89,6 +106,7 @@ class _VirtualPianoState extends State<VirtualPiano> {
   @override
   void dispose() {
     _scrollController.dispose();
+    _scrollbarController.dispose();
     super.dispose();
   }
 
@@ -326,117 +344,143 @@ class _VirtualPianoState extends State<VirtualPiano> {
           }
         });
 
-        return Scrollbar(
-          controller: _scrollController,
-          thumbVisibility: true, // Always show the scrollbar for visibility
-          child: SingleChildScrollView(
-            controller: _scrollController,
-            scrollDirection: Axis.horizontal,
-            physics: const ClampingScrollPhysics(), // Prevent bouncy overscroll
-            child: Listener(
-              behavior: HitTestBehavior.opaque,
-              onPointerDown: (e) => _handlePointerDown(
-                e,
-                keyHeight,
-                whiteKeyWidth,
-                blackKeyWidth,
-                whiteKeys,
-                blackKeys,
-              ),
-              onPointerMove: (e) => _handlePointerMove(
-                e,
-                keyHeight,
-                whiteKeyWidth,
-                blackKeyWidth,
-                whiteKeys,
-                blackKeys,
-              ),
-              onPointerUp: (e) => _handlePointerUp(e),
-              onPointerCancel: (e) => _handlePointerUp(e),
-              child: SizedBox(
-                width: totalWidth,
-                height: currentHeight,
-                child: Stack(
-                  children: [
-                    // Draw White Keys
-                    Row(
-                      children: whiteKeys.map((note) {
-                        bool isActive = widget.activeNotes.contains(note);
-                        return Container(
-                          width: whiteKeyWidth,
-                          height: keyHeight,
-                          decoration: BoxDecoration(
-                            color: isActive
-                                ? Colors.blueAccent.withValues(alpha: 0.8)
-                                : Colors.white,
-                            border: Border.all(
-                              color: Colors.black54,
-                              width: 0.5,
-                            ),
-                            borderRadius: const BorderRadius.only(
-                              bottomLeft: Radius.circular(4),
-                              bottomRight: Radius.circular(4),
-                            ),
-                          ),
-                          alignment: Alignment.bottomCenter,
-                          padding: const EdgeInsets.only(bottom: 4),
-                          child: isActive
-                              ? Text(
-                                  _getNoteName(note),
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                )
-                              : const SizedBox(),
-                        );
-                      }).toList(),
+        return Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                controller: _scrollController,
+                scrollDirection: Axis.horizontal,
+                physics: widget.dragToPlay
+                    ? const NeverScrollableScrollPhysics()
+                    : const ClampingScrollPhysics(),
+                child: SizedBox(
+                  width: totalWidth,
+                  height: currentHeight,
+                  child: Listener(
+                    behavior: HitTestBehavior.opaque,
+                    onPointerDown: (e) => _handlePointerDown(
+                      e,
+                      keyHeight,
+                      whiteKeyWidth,
+                      blackKeyWidth,
+                      whiteKeys,
+                      blackKeys,
                     ),
-                    // Draw Black Keys (overlayed)
-                    ...blackKeys.map((note) {
-                      bool isActive = widget.activeNotes.contains(note);
-                      // Find index of the preceding white key to position the black key
-                      int precedingWhiteNote = note - 1;
-                      int whiteIndex = whiteKeys.indexOf(precedingWhiteNote);
-
-                      return Positioned(
-                        left:
-                            (whiteIndex * whiteKeyWidth) +
-                            (whiteKeyWidth - (blackKeyWidth / 2)),
-                        child: Container(
-                          width: blackKeyWidth,
-                          height: keyHeight * 0.65,
-                          decoration: BoxDecoration(
-                            color: isActive
-                                ? Colors.blueAccent.withValues(alpha: 0.8)
-                                : Colors.black87,
-                            borderRadius: const BorderRadius.only(
-                              bottomLeft: Radius.circular(3),
-                              bottomRight: Radius.circular(3),
-                            ),
-                          ),
-                          alignment: Alignment.bottomCenter,
-                          padding: const EdgeInsets.only(bottom: 4),
-                          child: isActive
-                              ? Text(
-                                  _getNoteName(note),
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 8,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                )
-                              : const SizedBox(),
+                    onPointerMove: (e) => _handlePointerMove(
+                      e,
+                      keyHeight,
+                      whiteKeyWidth,
+                      blackKeyWidth,
+                      whiteKeys,
+                      blackKeys,
+                    ),
+                    onPointerUp: (e) => _handlePointerUp(e),
+                    onPointerCancel: (e) => _handlePointerUp(e),
+                    child: Stack(
+                      children: [
+                        // Draw White Keys
+                        Row(
+                          children: whiteKeys.map((note) {
+                            bool isActive = widget.activeNotes.contains(note);
+                            return Container(
+                              width: whiteKeyWidth,
+                              height: keyHeight,
+                              decoration: BoxDecoration(
+                                color: isActive
+                                    ? Colors.blueAccent.withValues(alpha: 0.8)
+                                    : Colors.white,
+                                border: Border.all(
+                                  color: Colors.black54,
+                                  width: 0.5,
+                                ),
+                                borderRadius: const BorderRadius.only(
+                                  bottomLeft: Radius.circular(4),
+                                  bottomRight: Radius.circular(4),
+                                ),
+                              ),
+                              alignment: Alignment.bottomCenter,
+                              padding: const EdgeInsets.only(bottom: 4),
+                              child: isActive
+                                  ? Text(
+                                      _getNoteName(note),
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    )
+                                  : const SizedBox(),
+                            );
+                          }).toList(),
                         ),
-                      );
-                    }), // Note the missing paren from mapping here
-                  ],
+                        // Draw Black Keys (overlayed)
+                        ...blackKeys.map((note) {
+                          bool isActive = widget.activeNotes.contains(note);
+                          int precedingWhiteNote = note - 1;
+                          int whiteIndex = whiteKeys.indexOf(
+                            precedingWhiteNote,
+                          );
+
+                          return Positioned(
+                            left:
+                                (whiteIndex * whiteKeyWidth) +
+                                (whiteKeyWidth - (blackKeyWidth / 2)),
+                            child: Container(
+                              width: blackKeyWidth,
+                              height: keyHeight * 0.65,
+                              decoration: BoxDecoration(
+                                color: isActive
+                                    ? Colors.blueAccent.withValues(alpha: 0.8)
+                                    : Colors.black87,
+                                borderRadius: const BorderRadius.only(
+                                  bottomLeft: Radius.circular(3),
+                                  bottomRight: Radius.circular(3),
+                                ),
+                              ),
+                              alignment: Alignment.bottomCenter,
+                              padding: const EdgeInsets.only(bottom: 4),
+                              child: isActive
+                                  ? Text(
+                                      _getNoteName(note),
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 8,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    )
+                                  : const SizedBox(),
+                            ),
+                          );
+                        }),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),
-          ), // Close SingleChildScrollView
-        ); // Close Scrollbar
+            // Dedicated Scrollbar area at the bottom
+            Container(
+              height: 32.0, // Large touch area
+              color: Colors.black26, // Distinct background for the track
+              child: RawScrollbar(
+                controller: _scrollbarController,
+                thumbVisibility: true,
+                interactive: true,
+                thickness: 24.0, // Very visible and draggable
+                thumbColor: Colors.blueAccent.withValues(alpha: 0.8),
+                radius: const Radius.circular(4),
+                child: SingleChildScrollView(
+                  controller: _scrollbarController,
+                  scrollDirection: Axis.horizontal,
+                  child: SizedBox(
+                    width: totalWidth,
+                    height: 1, // Minimal height scrollable area
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
       },
     );
   }
