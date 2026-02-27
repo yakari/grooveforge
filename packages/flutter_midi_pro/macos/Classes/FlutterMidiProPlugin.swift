@@ -46,6 +46,9 @@ public class FlutterMidiProPlugin: NSObject, FlutterPlugin {
             let sampler = AVAudioUnitSampler()
             audioEngine.attach(sampler)
             
+            // Boost volume (default is often too quiet on macOS/iOS)
+            sampler.masterGain = 15.0
+            
             // Connect to a unique input bus on the mainMixerNode
             let bus = nextBus
             nextBus += 1
@@ -55,9 +58,20 @@ public class FlutterMidiProPlugin: NSObject, FlutterPlugin {
             do {
                 try sampler.loadSoundBankInstrument(at: url, program: UInt8(program), bankMSB: UInt8(kAUSampler_DefaultMelodicBankMSB), bankLSB: UInt8(bank))
             } catch let error as NSError {
-                print("macOS MIDI ERROR: Failed to load sampler \(i): \(error.localizedDescription)")
-                result(FlutterError(code: "SOUND_FONT_LOAD_FAILED", message: "Failed to load soundfont instrument: \(error.localizedDescription)", details: "Path: \(path), Error: \(error.code)"))
-                return
+                if error.code == -10851 {
+                    print("macOS MIDI: Fallback load for sampler \(i) (MSB 0)...")
+                    do {
+                        try sampler.loadSoundBankInstrument(at: url, program: UInt8(program), bankMSB: 0, bankLSB: UInt8(bank))
+                    } catch {
+                        print("macOS MIDI ERROR: Fallback also failed: \(error.localizedDescription)")
+                        result(FlutterError(code: "SOUND_FONT_LOAD_FAILED", message: "Failed to load soundfont instrument: \(error.localizedDescription)", details: "Path: \(path), Error: \(error.code)"))
+                        return
+                    }
+                } else {
+                    print("macOS MIDI ERROR: Failed to load sampler \(i): \(error.localizedDescription)")
+                    result(FlutterError(code: "SOUND_FONT_LOAD_FAILED", message: "Failed to load soundfont instrument: \(error.localizedDescription)", details: "Path: \(path), Error: \(error.code)"))
+                    return
+                }
             }
             chSamplers.append(sampler)
         }
@@ -86,14 +100,27 @@ public class FlutterMidiProPlugin: NSObject, FlutterPlugin {
         let soundfontSampler = samplers[channel]
         let soundfontUrl = soundfontURLs[sfId]!
         print("macOS MIDI: selectInstrument program \(program) bank \(bank) on chan \(channel)")
+        var targetMSB = kAUSampler_DefaultMelodicBankMSB
         do {
-            try soundfontSampler.loadSoundBankInstrument(at: soundfontUrl, program: UInt8(program), bankMSB: UInt8(kAUSampler_DefaultMelodicBankMSB), bankLSB: UInt8(bank))
+            try soundfontSampler.loadSoundBankInstrument(at: soundfontUrl, program: UInt8(program), bankMSB: UInt8(targetMSB), bankLSB: UInt8(bank))
         } catch let error as NSError {
-            print("macOS MIDI ERROR: selectInstrument failed: \(error.localizedDescription)")
-            result(FlutterError(code: "SOUND_FONT_LOAD_FAILED", message: "Failed to load soundfont instrument: \(error.localizedDescription)", details: "sfId: \(sfId), Error: \(error.code)"))
-            return
+            if error.code == -10851 {
+                print("macOS MIDI: selectInstrument fallback (MSB 0)...")
+                targetMSB = 0
+                do {
+                    try soundfontSampler.loadSoundBankInstrument(at: soundfontUrl, program: UInt8(program), bankMSB: 0, bankLSB: UInt8(bank))
+                } catch let fallbackError as NSError {
+                    print("macOS MIDI ERROR: selectInstrument fallback also failed: \(fallbackError.localizedDescription)")
+                    result(FlutterError(code: "SOUND_FONT_LOAD_FAILED", message: "Failed to load soundfont instrument: \(fallbackError.localizedDescription)", details: "sfId: \(sfId), Error: \(fallbackError.code)"))
+                    return
+                }
+            } else {
+                print("macOS MIDI ERROR: selectInstrument failed: \(error.localizedDescription)")
+                result(FlutterError(code: "SOUND_FONT_LOAD_FAILED", message: "Failed to load soundfont instrument: \(error.localizedDescription)", details: "sfId: \(sfId), Error: \(error.code)"))
+                return
+            }
         }
-        soundfontSampler.sendProgramChange(UInt8(program), bankMSB: UInt8(kAUSampler_DefaultMelodicBankMSB), bankLSB: UInt8(bank), onChannel: UInt8(channel))
+        soundfontSampler.sendProgramChange(UInt8(program), bankMSB: UInt8(targetMSB), bankLSB: UInt8(bank), onChannel: UInt8(channel))
         result(nil)
     case "playNote":
         let args = call.arguments as! [String: Any]
