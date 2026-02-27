@@ -1,7 +1,8 @@
 import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart' show rootBundle, ByteData;
+import 'package:flutter/services.dart';
+import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter_midi_pro/flutter_midi_pro.dart';
 import 'package:flutter_midi_command/flutter_midi_command.dart';
@@ -131,14 +132,21 @@ class AudioEngine {
   Future<void> _ensureDefaultSoundfont() async {
     try {
       final appSupportDir = await getApplicationSupportDirectory();
-      final soundfontsDir = Directory('${appSupportDir.path}/soundfonts');
+      final soundfontsDirPath = p.join(appSupportDir.path, 'soundfonts');
+      final soundfontsDir = Directory(soundfontsDirPath);
+
+      debugPrint('Ensuring soundfonts directory exists at: $soundfontsDirPath');
       if (!soundfontsDir.existsSync()) {
         await soundfontsDir.create(recursive: true);
+        debugPrint('Created soundfonts directory.');
       }
 
-      final defaultSfFile = File('${soundfontsDir.path}/default_soundfont.sf2');
+      final defaultSfPath = p.join(soundfontsDirPath, 'default_soundfont.sf2');
+      final defaultSfFile = File(defaultSfPath);
 
+      debugPrint('Checking for default soundfont at: $defaultSfPath');
       if (!defaultSfFile.existsSync()) {
+        debugPrint('Extracting default soundfont from assets...');
         initStatus.value =
             'Extracting default soundfont (this may take a moment)...';
         final ByteData data = await rootBundle.load(
@@ -148,6 +156,7 @@ class AudioEngine {
         await defaultSfFile.writeAsBytes(
           buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
         );
+        debugPrint('Extracted default soundfont successfully.');
       }
 
       // Load it automatically if it's not already in the loaded list
@@ -196,12 +205,15 @@ class AudioEngine {
   Future<void> _restoreState() async {
     if (_prefs == null) return;
 
-    // Restore soundfonts
+    // Restore soundfonts with path migration
     List<String>? savedSfs = _prefs!.getStringList('loaded_soundfonts');
+    Map<String, String> migrationMap = {};
     if (savedSfs != null) {
       for (String path in savedSfs) {
-        if (File(path).existsSync()) {
-          await loadSoundfont(File(path), save: false);
+        final file = File(path);
+        if (file.existsSync()) {
+          String migratedPath = await loadSoundfont(file, save: false);
+          migrationMap[path] = migratedPath;
         }
       }
     }
@@ -216,6 +228,13 @@ class AudioEngine {
 
       for (int i = 0; i < 16; i++) {
         var state = ChannelState.fromJson(jsonDecode(savedChannels[i]));
+
+        // Migrate soundfont path if it was moved to the internal directory
+        if (state.soundfontPath != null &&
+            migrationMap.containsKey(state.soundfontPath)) {
+          state.soundfontPath = migrationMap[state.soundfontPath];
+        }
+
         channels[i] = state;
 
         if (state.soundfontPath != null &&
@@ -265,33 +284,48 @@ class AudioEngine {
     stateNotifier.value++;
   }
 
-  Future<void> loadSoundfont(File soundfont, {bool save = true}) async {
+  Future<String> loadSoundfont(File soundfont, {bool save = true}) async {
     try {
       final appSupportDir = await getApplicationSupportDirectory();
-      final soundfontsDir = Directory('${appSupportDir.path}/soundfonts');
+      final soundfontsDirPath = p.join(appSupportDir.path, 'soundfonts');
+      final soundfontsDir = Directory(soundfontsDirPath);
+
       if (!soundfontsDir.existsSync()) {
         await soundfontsDir.create(recursive: true);
       }
 
       String originalPath = soundfont.path;
-      String filename = soundfont.uri.pathSegments.last;
-      String targetPath = '${soundfontsDir.path}/$filename';
+      String filename = p.basename(originalPath);
+      String targetPath = p.join(soundfontsDirPath, filename);
+
+      debugPrint('Source soundfont path: $originalPath');
+      debugPrint('Target soundfont path: $targetPath');
 
       // If the file is not already in our internal soundfonts directory, copy it there.
-      // This is CRITICAL for macOS/iOS sandboxing.
-      if (originalPath != targetPath) {
-        debugPrint('Copying soundfont to internal storage: $targetPath');
+      if (p.absolute(originalPath) != p.absolute(targetPath)) {
+        if (!soundfont.existsSync()) {
+          throw Exception('Source file does not exist: $originalPath');
+        }
+
+        debugPrint('Copying soundfont to internal storage...');
         final targetFile = File(targetPath);
         if (!targetFile.existsSync() ||
             targetFile.lengthSync() != soundfont.lengthSync()) {
-          await soundfont.copy(targetPath);
+          // Use read/write instead of copy for cross-container/cross-volume robustness
+          final bytes = await soundfont.readAsBytes();
+          await targetFile.writeAsBytes(bytes);
+          debugPrint('Successfully copied to internal storage.');
+        } else {
+          debugPrint('Similar file already exists at target, skipping copy.');
         }
       }
 
       if (loadedSoundfonts.contains(targetPath)) {
-        debugPrint('Soundfont already loaded: $targetPath');
-        return;
+        debugPrint('Soundfont already in loadedSoundfonts list: $targetPath');
+        return targetPath;
       }
+
+      loadedSoundfonts.add(targetPath);
 
       debugPrint('Loading soundfont into MIDI engine: $targetPath');
       if (Platform.isLinux) {
@@ -307,8 +341,6 @@ class AudioEngine {
         _sfPathToIdMobile[targetPath] = sfId;
       }
 
-      loadedSoundfonts.add(targetPath);
-
       // Parse custom patch names from SF2 metadata
       try {
         sf2Presets[targetPath] = await Sf2Parser.parsePresets(targetPath);
@@ -320,9 +352,12 @@ class AudioEngine {
 
       toastNotifier.value = 'Loaded: $filename';
       stateNotifier.value++;
+
+      return targetPath;
     } catch (e) {
       debugPrint('CRITICAL error loading soundfont: $e');
       toastNotifier.value = 'Error loading soundfont: $e';
+      return soundfont.path; // Return original if error
     }
   }
 
@@ -829,7 +864,8 @@ class AudioEngine {
       await _prefs!.clear();
     }
     final appSupportDir = await getApplicationSupportDirectory();
-    final soundfontsDir = Directory('${appSupportDir.path}/soundfonts');
+    final soundfontsDirPath = p.join(appSupportDir.path, 'soundfonts');
+    final soundfontsDir = Directory(soundfontsDirPath);
     if (soundfontsDir.existsSync()) {
       await soundfontsDir.delete(recursive: true);
     }
