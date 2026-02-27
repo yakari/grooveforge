@@ -98,6 +98,7 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final engine = context.watch<AudioEngine>();
     return Scaffold(
       appBar: AppBar(title: const Text('Preferences')),
       body: ListView(
@@ -152,34 +153,61 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                             child: Text('No soundfonts loaded.'),
                           );
                         }
+                        // Sort: Put default soundfont at the top
+                        final sortedPaths = List<String>.from(
+                          engine.loadedSoundfonts,
+                        );
+                        sortedPaths.sort((a, b) {
+                          bool isADefault = a.endsWith('default_soundfont.sf2');
+                          bool isBDefault = b.endsWith('default_soundfont.sf2');
+                          if (isADefault && !isBDefault) return -1;
+                          if (!isADefault && isBDefault) return 1;
+                          return a.compareTo(b);
+                        });
+
                         return ListView.builder(
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
-                          itemCount: engine.loadedSoundfonts.length,
+                          itemCount: sortedPaths.length,
                           itemBuilder: (context, index) {
-                            String path = engine.loadedSoundfonts[index];
-                            String filename = path
-                                .split(Platform.pathSeparator)
-                                .last;
+                            String path = sortedPaths[index];
+                            bool isDefault = path.endsWith(
+                              'default_soundfont.sf2',
+                            );
+                            String filename =
+                                isDefault
+                                    ? 'Default soundfont'
+                                    : path.split(Platform.pathSeparator).last;
                             return ListTile(
-                              leading: const Icon(
+                              leading: Icon(
                                 Icons.piano,
-                                color: Colors.grey,
+                                color: isDefault ? Colors.blue : Colors.grey,
                               ),
-                              title: Text(filename),
+                              title: Text(
+                                filename,
+                                style: TextStyle(
+                                  fontWeight:
+                                      isDefault
+                                          ? FontWeight.bold
+                                          : FontWeight.normal,
+                                ),
+                              ),
                               subtitle: Text(
                                 path,
                                 style: const TextStyle(fontSize: 10),
                               ),
-                              trailing: IconButton(
-                                icon: const Icon(
-                                  Icons.delete,
-                                  color: Colors.redAccent,
-                                ),
-                                onPressed: () {
-                                  engine.unloadSoundfont(path);
-                                },
-                              ),
+                              trailing:
+                                  isDefault
+                                      ? null
+                                      : IconButton(
+                                        icon: const Icon(
+                                          Icons.delete,
+                                          color: Colors.redAccent,
+                                        ),
+                                        onPressed: () {
+                                          engine.unloadSoundfont(path);
+                                        },
+                                      ),
                             );
                           },
                         );
@@ -456,8 +484,53 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
               },
             ),
           ),
+          const Divider(height: 40),
+
+          ElevatedButton.icon(
+            onPressed: () => _showResetConfirmation(context, engine),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red.withValues(alpha: 0.1),
+              foregroundColor: Colors.redAccent,
+              side: const BorderSide(color: Colors.redAccent),
+              padding: const EdgeInsets.symmetric(vertical: 12),
+            ),
+            icon: const Icon(Icons.restore),
+            label: const Text('Reset All Preferences'),
+          ),
+
+          const SizedBox(height: 40),
         ],
       ),
+    );
+  }
+
+  void _showResetConfirmation(BuildContext context, AudioEngine engine) {
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            backgroundColor: Colors.grey[900],
+            title: const Text('Reset All Preferences?'),
+            content: const Text(
+              'This will clear all your settings, loaded soundfonts, and custom assignments. This action cannot be undone.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  Navigator.pop(context);
+                  await engine.resetAllPreferences();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.redAccent,
+                ),
+                child: const Text('Reset Everything'),
+              ),
+            ],
+          ),
     );
   }
 }

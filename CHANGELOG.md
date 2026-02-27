@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [1.2.1] - 2026-02-27
+
+### Added
+- **Reset Preferences:** Added a "Reset All Preferences" feature in the Preferences screen with a confirmation dialog to restore factory settings.
+- **Improved Soundfont UI:** The Default soundfont now displays as "Default soundfont", appears first in lists, and is protected from deletion.
+
+### Fixed
+- **macOS/iOS File Access:** Added necessary sandbox entitlements to enable the file picker on macOS and iOS.
+- **macOS Soundfont Storage:** Switched internal soundfont storage to `ApplicationSupportDirectory` to comply with macOS sandbox requirements and ensure reliable loading.
+
 
 ## [1.2.0] - 2026-02-26
 

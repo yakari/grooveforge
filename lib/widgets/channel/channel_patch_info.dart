@@ -66,51 +66,81 @@ class ChannelPatchInfo extends StatelessWidget {
         border: Border.all(color: Colors.white24),
         borderRadius: BorderRadius.circular(8),
       ),
-      child: engine.loadedSoundfonts.isEmpty
-          ? const Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Load a soundfont from preferences',
-                style: TextStyle(
-                  color: Colors.orange,
-                  fontSize: 14,
-                  fontStyle: FontStyle.italic,
+      child:
+          engine.loadedSoundfonts.isEmpty
+              ? const Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Load a soundfont from preferences',
+                  style: TextStyle(
+                    color: Colors.orange,
+                    fontSize: 14,
+                    fontStyle: FontStyle.italic,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            )
-          : DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                isExpanded: true,
-                dropdownColor: Colors.grey[900],
-                value: engine.loadedSoundfonts.contains(state.soundfontPath)
-                    ? state.soundfontPath
-                    : engine.loadedSoundfonts.first,
-                icon: const Icon(
-                  Icons.arrow_drop_down,
-                  color: Colors.white54,
-                  size: 20,
+              )
+              : DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  isExpanded: true,
+                  dropdownColor: Colors.grey[900],
+                  value:
+                      engine.loadedSoundfonts.contains(state.soundfontPath)
+                          ? state.soundfontPath
+                          : engine.loadedSoundfonts.first,
+                  icon: const Icon(
+                    Icons.arrow_drop_down,
+                    color: Colors.white54,
+                    size: 20,
+                  ),
+                  style: const TextStyle(fontSize: 14, color: Colors.white70),
+                  items:
+                      (() {
+                        // Sort: Put default soundfont at the top
+                        final sortedPaths = List<String>.from(
+                          engine.loadedSoundfonts,
+                        );
+                        sortedPaths.sort((a, b) {
+                          bool isADefault = a.endsWith('default_soundfont.sf2');
+                          bool isBDefault = b.endsWith('default_soundfont.sf2');
+                          if (isADefault && !isBDefault) return -1;
+                          if (!isADefault && isBDefault) return 1;
+                          return a.compareTo(b);
+                        });
+
+                        return sortedPaths.map((sfPath) {
+                          bool isDefault = sfPath.endsWith(
+                            'default_soundfont.sf2',
+                          );
+                          String name =
+                              isDefault
+                                  ? 'Default soundfont'
+                                  : sfPath.split(Platform.pathSeparator).last;
+                          return DropdownMenuItem<String>(
+                            value: sfPath,
+                            child: Text(
+                              name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontWeight:
+                                    isDefault
+                                        ? FontWeight.bold
+                                        : FontWeight.normal,
+                                color: isDefault ? Colors.blue[300] : null,
+                              ),
+                            ),
+                          );
+                        }).toList();
+                      })(),
+                  onChanged: (newSf) {
+                    if (newSf != null && newSf != state.soundfontPath) {
+                      engine.assignSoundfontToChannel(channelIndex, newSf);
+                    }
+                  },
                 ),
-                style: const TextStyle(fontSize: 14, color: Colors.white70),
-                items: engine.loadedSoundfonts.map((sfPath) {
-                  String name = sfPath.split(Platform.pathSeparator).last;
-                  return DropdownMenuItem<String>(
-                    value: sfPath,
-                    child: Text(
-                      name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  );
-                }).toList(),
-                onChanged: (newSf) {
-                  if (newSf != null && newSf != state.soundfontPath) {
-                    engine.assignSoundfontToChannel(channelIndex, newSf);
-                  }
-                },
               ),
-            ),
     );
 
     final Widget programPicker = Container(
@@ -125,26 +155,30 @@ class ChannelPatchInfo extends StatelessWidget {
         child: DropdownButton<int>(
           isExpanded: true,
           dropdownColor: Colors.grey[900],
-          value: availablePrograms.contains(state.program)
-              ? state.program
-              : (availablePrograms.isNotEmpty ? availablePrograms.first : 0),
+          value:
+              availablePrograms.contains(state.program)
+                  ? state.program
+                  : (availablePrograms.isNotEmpty
+                      ? availablePrograms.first
+                      : 0),
           icon: const Icon(Icons.arrow_drop_down, color: Colors.white54),
           style: const TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 16,
             color: Colors.white,
           ),
-          items: availablePrograms.map((prog) {
-            String pName = bankPresets![prog] ?? 'Unknown Program $prog';
-            return DropdownMenuItem<int>(
-              value: prog,
-              child: Text(
-                '${prog.toString().padLeft(3, '0')} - $pName',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            );
-          }).toList(),
+          items:
+              availablePrograms.map((prog) {
+                String pName = bankPresets![prog] ?? 'Unknown Program $prog';
+                return DropdownMenuItem<int>(
+                  value: prog,
+                  child: Text(
+                    '${prog.toString().padLeft(3, '0')} - $pName',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                );
+              }).toList(),
           onChanged: (newProg) {
             if (newProg != null) {
               engine.assignPatchToChannel(
@@ -169,18 +203,20 @@ class ChannelPatchInfo extends StatelessWidget {
       child: DropdownButtonHideUnderline(
         child: DropdownButton<int>(
           dropdownColor: Colors.grey[900],
-          value: availableBanks.contains(state.bank)
-              ? state.bank
-              : (availableBanks.isNotEmpty ? availableBanks.first : 0),
+          value:
+              availableBanks.contains(state.bank)
+                  ? state.bank
+                  : (availableBanks.isNotEmpty ? availableBanks.first : 0),
           style: const TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 16,
             color: Colors.white,
           ),
           icon: const Icon(Icons.arrow_drop_down, color: Colors.white54),
-          items: availableBanks.map((b) {
-            return DropdownMenuItem<int>(value: b, child: Text('Bank $b'));
-          }).toList(),
+          items:
+              availableBanks.map((b) {
+                return DropdownMenuItem<int>(value: b, child: Text('Bank $b'));
+              }).toList(),
           onChanged: (newBank) {
             if (newBank != null && newBank != state.bank) {
               int newProg = state.program;

@@ -47,10 +47,11 @@ class ChannelState {
     // are intentionally not serialized, as they are ephemeral performance session state.
   };
 
-  factory ChannelState.fromJson(Map<String, dynamic> json) => ChannelState()
-    ..soundfontPath = json['soundfontPath']
-    ..program = json['program'] ?? 0
-    ..bank = json['bank'] ?? 0;
+  factory ChannelState.fromJson(Map<String, dynamic> json) =>
+      ChannelState()
+        ..soundfontPath = json['soundfontPath']
+        ..program = json['program'] ?? 0
+        ..bank = json['bank'] ?? 0;
 }
 
 class AudioEngine {
@@ -129,8 +130,8 @@ class AudioEngine {
 
   Future<void> _ensureDefaultSoundfont() async {
     try {
-      final appDocsDir = await getApplicationDocumentsDirectory();
-      final defaultSfFile = File('${appDocsDir.path}/default_soundfont.sf2');
+      final appSupportDir = await getApplicationSupportDirectory();
+      final defaultSfFile = File('${appSupportDir.path}/default_soundfont.sf2');
 
       if (!defaultSfFile.existsSync()) {
         initStatus.value =
@@ -173,9 +174,8 @@ class AudioEngine {
     if (_prefs == null) return;
     await _prefs!.setStringList('loaded_soundfonts', loadedSoundfonts);
 
-    List<String> channelsJson = channels
-        .map((c) => jsonEncode(c.toJson()))
-        .toList();
+    List<String> channelsJson =
+        channels.map((c) => jsonEncode(c.toJson())).toList();
     await _prefs!.setStringList('channels_state', channelsJson);
 
     await _prefs!.setString(
@@ -576,9 +576,10 @@ class AudioEngine {
     // the currently locked scale intact until they unlock it.
     if (channels[channel].isScaleLocked.value) return;
 
-    final format = notationFormat.value.toLowerCase() == 'solfege'
-        ? NotationFormat.solfege
-        : NotationFormat.standard;
+    final format =
+        notationFormat.value.toLowerCase() == 'solfege'
+            ? NotationFormat.solfege
+            : NotationFormat.standard;
 
     final notes = channels[channel].activeNotes.value;
     final match = ChordDetector.identifyChord(notes, format: format);
@@ -778,5 +779,36 @@ class AudioEngine {
     if (Platform.isLinux) {
       _fluidSynthProcess?.kill();
     }
+  }
+
+  Future<void> resetAllPreferences() async {
+    if (_prefs != null) {
+      await _prefs!.clear();
+    }
+    final appSupportDir = await getApplicationSupportDirectory();
+    final defaultSfFile = File('${appSupportDir.path}/default_soundfont.sf2');
+    if (defaultSfFile.existsSync()) {
+      await defaultSfFile.delete();
+    }
+
+    // Reset in-memory state
+    loadedSoundfonts.clear();
+    _sfPathToIdMobile.clear();
+    _sfPathToIdLinux.clear();
+    _linuxSfIdCounter = 1;
+    sf2Presets.clear();
+    for (int i = 0; i < 16; i++) {
+      channels[i] = ChannelState();
+    }
+    visibleChannels.value = List.generate(16, (i) => i);
+    dragToPlay.value = false;
+    aftertouchDestCc.value = 1;
+    notationFormat.value = 'Standard';
+    pianoKeysToShow.value = 22;
+
+    _isInitialized = false;
+    await init();
+    stateNotifier.value++; // Trigger UI refresh
+    toastNotifier.value = 'All preferences reset to factory defaults';
   }
 }
