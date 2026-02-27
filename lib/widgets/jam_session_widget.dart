@@ -59,45 +59,48 @@ class JamSessionWidget extends StatelessWidget {
   }
 
   Widget _buildVerticalSidebar(BuildContext context, AudioEngine engine) {
-    return Card(
-      elevation: 0,
-      margin: EdgeInsets.zero,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.only(
-          topRight: Radius.circular(16),
-          bottomRight: Radius.circular(16),
-        ),
-      ),
-      child: Container(
-        width: 110,
-        height: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-        decoration: BoxDecoration(
-          borderRadius: const BorderRadius.only(
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Card(
+        elevation: 0,
+        margin: EdgeInsets.zero,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.only(
             topRight: Radius.circular(16),
             bottomRight: Radius.circular(16),
           ),
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Colors.deepPurple.withValues(alpha: 0.15),
-              Colors.blue.withValues(alpha: 0.15),
+        ),
+        child: Container(
+          width: 95,
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
+          decoration: BoxDecoration(
+            borderRadius: const BorderRadius.only(
+              topRight: Radius.circular(16),
+              bottomRight: Radius.circular(16),
+            ),
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.deepPurple.withValues(alpha: 0.15),
+                Colors.blue.withValues(alpha: 0.15),
+              ],
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 8),
+              _buildStartStopButton(engine, isVertical: true),
+              const Divider(height: 16, indent: 8, endIndent: 8),
+              _buildMasterDropdown(engine, isVertical: true),
+              const SizedBox(height: 8),
+              _buildSlavesSection(context, engine, isVertical: true),
+              const SizedBox(height: 8),
+              _buildScaleDropdown(engine, isVertical: true),
+              const SizedBox(height: 8),
             ],
           ),
-        ),
-        child: Column(
-          children: [
-            const SizedBox(height: 12),
-            _buildStartStopButton(engine, isVertical: true),
-            const Divider(height: 32, indent: 12, endIndent: 12),
-            _buildMasterDropdown(engine, isVertical: true),
-            const SizedBox(height: 16),
-            _buildSlavesSection(context, engine, isVertical: true),
-            const Spacer(),
-            _buildScaleDropdown(engine, isVertical: true),
-            const SizedBox(height: 12),
-          ],
         ),
       ),
     );
@@ -146,41 +149,54 @@ class JamSessionWidget extends StatelessWidget {
     return ValueListenableBuilder<int>(
       valueListenable: engine.jamMasterChannel,
       builder: (context, master, _) {
-        final dropdown = Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (isVertical)
-              const Icon(Icons.star, color: Colors.amber, size: 14),
-            const SizedBox(width: 4),
-            DropdownButton<int>(
-              value: master,
-              underline: const SizedBox(),
-              style:
-                  isVertical
-                      ? const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                      )
-                      : const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.blueAccent,
-                      ),
-              items: List.generate(
-                16,
-                (i) => DropdownMenuItem(
-                  value: i,
-                  child: Text(isVertical ? '${i + 1}' : 'CH ${i + 1}'),
-                ),
-              ),
-              onChanged: (val) {
-                if (val != null) engine.jamMasterChannel.value = val;
-              },
+        Widget dropdown = DropdownButton<int>(
+          value: master,
+          underline: const SizedBox(),
+          isExpanded: isVertical,
+          itemHeight: null, // Must be null or >= 48 to avoid assertion error
+          isDense: true,
+          padding: EdgeInsets.zero,
+          alignment: isVertical ? Alignment.center : Alignment.centerLeft,
+          dropdownColor: Theme.of(context).cardColor,
+          icon: const SizedBox(), // Hide default icon to use our own
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+            color: Colors.blueAccent,
+          ),
+          items: List.generate(
+            16,
+            (i) => DropdownMenuItem(
+              value: i,
+              alignment: isVertical ? Alignment.center : Alignment.centerLeft,
+              child: Text(isVertical ? '${i + 1}' : 'CH ${i + 1}'),
             ),
-          ],
+          ),
+          onChanged: (val) {
+            if (val != null) engine.jamMasterChannel.value = val;
+          },
         );
 
-        return _buildLabeledControl('Master', dropdown, isVertical: isVertical);
+        final content = _buildBoxedContainer(
+          isVertical: isVertical,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.star, color: Colors.amber, size: 14),
+              const SizedBox(width: 4),
+              // Constrain width to keep it compact
+              SizedBox(width: isVertical ? 32 : 56, child: dropdown),
+              const Icon(
+                Icons.arrow_drop_down,
+                size: 14,
+                color: Colors.blueAccent,
+              ),
+            ],
+          ),
+        );
+
+        return _buildLabeledControl('Master', content, isVertical: isVertical);
       },
     );
   }
@@ -193,21 +209,11 @@ class JamSessionWidget extends StatelessWidget {
     return ValueListenableBuilder<Set<int>>(
       valueListenable: engine.jamSlaveChannels,
       builder: (context, slaves, _) {
-        final content = InkWell(
-          onTap: () => _showSlaveSelectDialog(context, engine),
-          borderRadius: BorderRadius.circular(8),
-          child: Container(
-            padding: EdgeInsets.symmetric(
-              horizontal: 10,
-              vertical: isVertical ? 6 : 4,
-            ),
-            decoration: BoxDecoration(
-              border: Border.all(
-                color: Colors.blueAccent.withValues(alpha: 0.3),
-              ),
-              borderRadius: BorderRadius.circular(8),
-              color: Colors.blueAccent.withValues(alpha: 0.05),
-            ),
+        final content = _buildBoxedContainer(
+          isVertical: isVertical,
+          child: InkWell(
+            onTap: () => _showSlaveSelectDialog(context, engine),
+            borderRadius: BorderRadius.circular(8),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.center,
@@ -221,7 +227,7 @@ class JamSessionWidget extends StatelessWidget {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                if (!isVertical) const Icon(Icons.arrow_drop_down, size: 16),
+                const Icon(Icons.arrow_drop_down, size: 16),
               ],
             ),
           ),
@@ -240,9 +246,12 @@ class JamSessionWidget extends StatelessWidget {
           value: scale,
           underline: const SizedBox(),
           isExpanded: isVertical,
+          itemHeight: null, // Avoid assertion error
+          isDense: true,
+          padding: EdgeInsets.zero,
           alignment: isVertical ? Alignment.center : Alignment.centerLeft,
           dropdownColor: Theme.of(context).cardColor,
-          icon: isVertical ? const SizedBox() : null,
+          icon: const SizedBox(), // Hide default icon
           items:
               ScaleType.values
                   .map(
@@ -268,7 +277,23 @@ class JamSessionWidget extends StatelessWidget {
           },
         );
 
-        return _buildLabeledControl('Scale', dropdown, isVertical: isVertical);
+        final content = _buildBoxedContainer(
+          isVertical: isVertical,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (isVertical) Expanded(child: dropdown) else dropdown,
+              const Icon(
+                Icons.arrow_drop_down,
+                size: 14,
+                color: Colors.blueAccent,
+              ),
+            ],
+          ),
+        );
+
+        return _buildLabeledControl('Scale', content, isVertical: isVertical);
       },
     );
   }
@@ -371,6 +396,24 @@ class JamSessionWidget extends StatelessWidget {
           letterSpacing: 1.2,
         ),
       ),
+    );
+  }
+
+  Widget _buildBoxedContainer({
+    required bool isVertical,
+    required Widget child,
+  }) {
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: isVertical ? 6 : 10,
+        vertical: isVertical ? 2 : 4,
+      ),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.blueAccent.withValues(alpha: 0.3)),
+        borderRadius: BorderRadius.circular(8),
+        color: Colors.blueAccent.withValues(alpha: 0.05),
+      ),
+      child: child,
     );
   }
 }

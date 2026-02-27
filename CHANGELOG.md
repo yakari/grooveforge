@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.3] - 2026-02-28
+### Added
+- Unified "boxed" styling for Jam Master, Slaves, and Scale controls in both horizontal and vertical layouts.
+- Centered vertical layout for the Jam sidebar with a more compact footprint (95px width).
+- New interactive icons for dropdowns to clearly signal clickability.
+
+### Fixed
+- Flutter assertion error when `itemHeight` was set too low in Jam dropdowns.
+- Vertical sidebar now correctly centers vertically on the left edge.
+
 ## [1.3.2] - 2026-02-27
 
 ### Added
