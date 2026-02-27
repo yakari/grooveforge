@@ -7,6 +7,7 @@ import 'package:grooveforge/services/midi_service.dart';
 import 'package:grooveforge/screens/preferences_screen.dart';
 import 'package:grooveforge/widgets/channel_card.dart';
 import 'package:grooveforge/widgets/jam_session_widget.dart';
+import 'package:grooveforge/widgets/user_guide_modal.dart';
 
 class SynthesizerScreen extends StatefulWidget {
   const SynthesizerScreen({super.key});
@@ -102,73 +103,8 @@ class _SynthesizerScreenState extends State<SynthesizerScreen> {
     super.dispose();
   }
 
-  void _showCcHelpDialog() {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Standard MIDI CCs (General MIDI)'),
-          content: SizedBox(
-            width: 350,
-            height: 450,
-            child: ListView(
-              children: const [
-                ListTile(
-                  title: Text('CC 0'),
-                  subtitle: Text('Bank Select (MSB)'),
-                ),
-                ListTile(
-                  title: Text('CC 1'),
-                  subtitle: Text('Modulation Wheel (Vibrato)'),
-                ),
-                ListTile(title: Text('CC 2'), subtitle: Text('Breath Control')),
-                ListTile(title: Text('CC 4'), subtitle: Text('Foot Pedal')),
-                ListTile(
-                  title: Text('CC 5'),
-                  subtitle: Text('Portamento Time'),
-                ),
-                ListTile(title: Text('CC 7'), subtitle: Text('Main Volume')),
-                ListTile(title: Text('CC 10'), subtitle: Text('Pan (Stereo)')),
-                ListTile(
-                  title: Text('CC 11'),
-                  subtitle: Text('Expression (Sub-Volume)'),
-                ),
-                ListTile(
-                  title: Text('CC 64'),
-                  subtitle: Text('Sustain Pedal (On/Off)'),
-                ),
-                ListTile(
-                  title: Text('CC 65'),
-                  subtitle: Text('Portamento (On/Off)'),
-                ),
-                ListTile(
-                  title: Text('CC 71'),
-                  subtitle: Text('Resonance (Filter)'),
-                ),
-                ListTile(
-                  title: Text('CC 74'),
-                  subtitle: Text('Frequency Cutoff (Filter)'),
-                ),
-                ListTile(
-                  title: Text('CC 91'),
-                  subtitle: Text('Reverb Send Level'),
-                ),
-                ListTile(
-                  title: Text('CC 93'),
-                  subtitle: Text('Chorus Send Level'),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Close'),
-            ),
-          ],
-        );
-      },
-    );
+  void _showUserGuide() {
+    showDialog(context: context, builder: (context) => const UserGuideModal());
   }
 
   void _showChannelVisibilityDialog(BuildContext context) {
@@ -251,8 +187,8 @@ class _SynthesizerScreenState extends State<SynthesizerScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.help_outline),
-            tooltip: 'MIDI CC Help',
-            onPressed: _showCcHelpDialog,
+            tooltip: 'User Guide',
+            onPressed: _showUserGuide,
           ),
           IconButton(
             icon: const Icon(Icons.visibility),

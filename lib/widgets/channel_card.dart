@@ -111,8 +111,9 @@ class ChannelCard extends StatelessWidget {
                                           valueListenable:
                                               listenState.lastChord,
                                           builder: (context, lastChord, _) {
-                                            if (lastChord == null)
+                                            if (lastChord == null) {
                                               return const SizedBox.shrink();
+                                            }
 
                                             return ValueListenableBuilder<bool>(
                                               valueListenable:

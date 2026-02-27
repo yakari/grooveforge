@@ -58,7 +58,7 @@ class CcMappingService {
     74: 'Frequency Cutoff (Filter)',
     91: 'Reverb Send Level',
     93: 'Chorus Send Level',
-    
+
     // --- GrooveForge System Actions ---
     1001: '[System] Next Soundfont',
     1002: '[System] Prev Soundfont',
@@ -66,7 +66,7 @@ class CcMappingService {
     1004: '[System] Prev Program/Patch',
     1005: '[System] Absolute Patch Sweep',
     1006: '[System] Absolute Bank/Tone Sweep',
-    1007: '[System] Toggle Scale Lock',
+    1007: '[System] Start/Stop Jam Mode',
     1008: '[System] Cycle Scale Type',
   };
 
@@ -114,9 +114,8 @@ class CcMappingService {
 
   Future<void> _persist() async {
     if (_prefs == null) return;
-    List<String> toSave = mappingsNotifier.value.values
-        .map((m) => m.encode())
-        .toList();
+    List<String> toSave =
+        mappingsNotifier.value.values.map((m) => m.encode()).toList();
     await _prefs!.setStringList(_prefsKey, toSave);
   }
 

@@ -249,10 +249,11 @@ class JamSessionWidget extends StatelessWidget {
                                 ? null
                                 : (val) {
                                   setDialogState(() {
-                                    if (val)
+                                    if (val) {
                                       tempSlaves.add(i);
-                                    else
+                                    } else {
                                       tempSlaves.remove(i);
+                                    }
                                   });
                                 },
                         selectedColor: Colors.blueAccent.withValues(alpha: 0.3),
