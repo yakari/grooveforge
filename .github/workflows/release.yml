@@ -21,10 +21,20 @@ jobs:
           cache: true
       - name: Get dependencies
         run: flutter pub get
+      - name: Decode Keystore
+        run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > android/app/release-keystore.jks
       - name: Build APK
         run: flutter build apk --release
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
       - name: Build AppBundle
         run: flutter build appbundle --release
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
       - name: Rename artifacts
         run: |
           mv build/app/outputs/flutter-apk/app-release.apk GrooveForge-${{ github.ref_name }}.apk

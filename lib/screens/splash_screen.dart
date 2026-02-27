@@ -26,8 +26,9 @@ class _SplashScreenState extends State<SplashScreen> {
     if (!mounted) return;
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            const SynthesizerScreen(),
+        pageBuilder:
+            (context, animation, secondaryAnimation) =>
+                const SynthesizerScreen(),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(opacity: animation, child: child);
         },
@@ -46,7 +47,7 @@ class _SplashScreenState extends State<SplashScreen> {
           Positioned.fill(
             child: Image.asset(
               'splashscreen.png',
-              fit: BoxFit.cover,
+              fit: BoxFit.contain,
               errorBuilder: (context, error, stackTrace) {
                 // Fallback in case the asset isn't bundled or registered correctly yet
                 return Container(

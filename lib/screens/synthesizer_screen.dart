@@ -207,76 +207,95 @@ class _SynthesizerScreenState extends State<SynthesizerScreen> {
           ),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Consumer<AudioEngine>(
-          builder: (context, engine, child) {
-            return ValueListenableBuilder<ScaleLockMode>(
-              valueListenable: engine.lockModePreference,
-              builder: (context, lockMode, _) {
-                return OrientationBuilder(
-                  builder: (context, orientation) {
-                    final isLandscape = orientation == Orientation.landscape;
-                    final isNarrow = MediaQuery.of(context).size.width < 800;
-                    final showJamUI = lockMode == ScaleLockMode.jam;
+      body: Consumer<AudioEngine>(
+        builder: (context, engine, child) {
+          return ValueListenableBuilder<ScaleLockMode>(
+            valueListenable: engine.lockModePreference,
+            builder: (context, lockMode, _) {
+              return OrientationBuilder(
+                builder: (context, orientation) {
+                  return LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isLandscape = orientation == Orientation.landscape;
+                      // UNIFIED TRIGGER: If height is low in landscape, it's "Mobile Landscape"
+                      // 480px is a standard height for many landscape phones.
+                      final isMobileLandscape =
+                          isLandscape && constraints.maxHeight < 480;
 
-                    Widget mainContent = ValueListenableBuilder<int>(
-                      valueListenable: engine.stateNotifier,
-                      builder: (context, _, child) {
-                        return LayoutBuilder(
-                          builder: (context, constraints) {
-                            double itemHeight =
-                                constraints.maxHeight < 400
-                                    ? constraints.maxHeight - 16
-                                    : (constraints.maxHeight - 16) / 2;
+                      final showJamUI = lockMode == ScaleLockMode.jam;
 
-                            return ValueListenableBuilder<List<int>>(
-                              valueListenable: engine.visibleChannels,
-                              builder: (context, visibleChannels, _) {
-                                return ListView.builder(
-                                  controller: _scrollController,
-                                  itemCount: visibleChannels.length,
-                                  itemBuilder: (context, index) {
-                                    final channelIndex = visibleChannels[index];
+                      Widget mainContent = ValueListenableBuilder<int>(
+                        valueListenable: engine.stateNotifier,
+                        builder: (context, _, child) {
+                          return LayoutBuilder(
+                            builder: (context, innerConstraints) {
+                              double itemHeight =
+                                  isMobileLandscape
+                                      ? innerConstraints.maxHeight - 16
+                                      : (innerConstraints.maxHeight - 16) / 2;
 
-                                    return ChannelCard(
-                                      channelIndex: channelIndex,
-                                      itemHeight: itemHeight,
-                                    );
-                                  },
-                                );
-                              },
-                            );
-                          },
-                        );
-                      },
-                    );
+                              return ValueListenableBuilder<List<int>>(
+                                valueListenable: engine.visibleChannels,
+                                builder: (context, visibleChannels, _) {
+                                  return ListView.builder(
+                                    controller: _scrollController,
+                                    itemCount: visibleChannels.length,
+                                    itemBuilder: (context, index) {
+                                      final channelIndex =
+                                          visibleChannels[index];
 
-                    if (showJamUI) {
-                      if (isLandscape && isNarrow) {
-                        return Row(
-                          children: [
-                            const JamSessionWidget(),
-                            Expanded(child: mainContent),
-                          ],
-                        );
-                      } else {
-                        return Column(
-                          children: [
-                            const JamSessionWidget(),
-                            Expanded(child: mainContent),
-                          ],
-                        );
+                                      return ChannelCard(
+                                        channelIndex: channelIndex,
+                                        itemHeight: itemHeight,
+                                      );
+                                    },
+                                  );
+                                },
+                              );
+                            },
+                          );
+                        },
+                      );
+
+                      if (showJamUI) {
+                        if (isMobileLandscape) {
+                          return Row(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              const JamSessionWidget(forceVertical: true),
+                              Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(12.0),
+                                  child: mainContent,
+                                ),
+                              ),
+                            ],
+                          );
+                        } else {
+                          return Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Column(
+                              children: [
+                                const JamSessionWidget(forceVertical: false),
+                                const SizedBox(height: 8),
+                                Expanded(child: mainContent),
+                              ],
+                            ),
+                          );
+                        }
                       }
-                    }
 
-                    return mainContent;
-                  },
-                );
-              },
-            );
-          },
-        ),
+                      return Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: mainContent,
+                      );
+                    },
+                  );
+                },
+              );
+            },
+          );
+        },
       ),
     );
   }
