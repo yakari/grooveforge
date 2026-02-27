@@ -20,38 +20,40 @@ class MidiPro {
 
   /// Loads a soundfont file from the specified asset path.
   /// Returns the sfId (SoundfontSamplerId).
-  Future<int> loadSoundfontAsset({required String assetPath, int bank = 0, int program = 0}) async {
+  Future<int> loadSoundfontAsset(
+      {required String assetPath, int bank = 0, int program = 0}) async {
     final tempDir = await getTemporaryDirectory();
     final tempFile = File('${tempDir.path}/${assetPath.split('/').last}');
     if (!tempFile.existsSync()) {
       final byteData = await rootBundle.load(assetPath);
       final buffer = byteData.buffer;
-      await tempFile
-          .writeAsBytes(buffer.asUint8List(byteData.offsetInBytes, byteData.lengthInBytes));
+      await tempFile.writeAsBytes(
+          buffer.asUint8List(byteData.offsetInBytes, byteData.lengthInBytes));
     }
-    return FlutterMidiProPlatform.instance.loadSoundfont(tempFile.path, bank, program);
+    return FlutterMidiProPlatform.instance
+        .loadSoundfont(tempFile.path, bank, program);
   }
 
   /// Loads a soundfont file from the specified file path.
   /// Returns the sfId (SoundfontSamplerId).
-  Future<int> loadSoundfontFile({required String filePath, int bank = 0, int program = 0}) async {
-    final tempDir = await getTemporaryDirectory();
-    final tempFile = File('${tempDir.path}/${filePath.split('/').last}');
-    if (!tempFile.existsSync()) {
-      final file = File(filePath);
-      await file.copy(tempFile.path);
-    }
-    return FlutterMidiProPlatform.instance.loadSoundfont(tempFile.path, bank, program);
+  Future<int> loadSoundfontFile(
+      {required String filePath, int bank = 0, int program = 0}) async {
+    // No need to copy to temp if it's already a local file
+    return FlutterMidiProPlatform.instance
+        .loadSoundfont(filePath, bank, program);
   }
 
   /// Loads a soundfont file from the specified data.
   /// Returns the sfId (SoundfontSamplerId).
-  Future<int> loadSoundfontData({required Uint8List data, int bank = 0, int program = 0}) async {
+  Future<int> loadSoundfontData(
+      {required Uint8List data, int bank = 0, int program = 0}) async {
     final tempDir = await getTemporaryDirectory();
-    final randomTempFileName = 'soundfont_${DateTime.now().millisecondsSinceEpoch}.sf2';
+    final randomTempFileName =
+        'soundfont_${DateTime.now().millisecondsSinceEpoch}.sf2';
     final tempFile = File('${tempDir.path}/$randomTempFileName');
     tempFile.writeAsBytesSync(data);
-    return FlutterMidiProPlatform.instance.loadSoundfont(tempFile.path, bank, program);
+    return FlutterMidiProPlatform.instance
+        .loadSoundfont(tempFile.path, bank, program);
   }
 
   /// Selects an instrument on the specified soundfont.
@@ -76,7 +78,8 @@ class MidiPro {
     /// have banks, set this to 0.
     int bank = 0,
   }) async {
-    return FlutterMidiProPlatform.instance.selectInstrument(sfId, channel, bank, program);
+    return FlutterMidiProPlatform.instance
+        .selectInstrument(sfId, channel, bank, program);
   }
 
   /// Plays a note on the specified channel.
@@ -99,7 +102,8 @@ class MidiPro {
     /// The soundfont ID. First soundfont loaded is 1.
     int sfId = 1,
   }) async {
-    return FlutterMidiProPlatform.instance.playNote(channel, key, velocity, sfId);
+    return FlutterMidiProPlatform.instance
+        .playNote(channel, key, velocity, sfId);
   }
 
   /// Stops a note on the specified channel.
@@ -137,7 +141,8 @@ class MidiPro {
     int channel = 0,
     int sfId = 1,
   }) async {
-    return FlutterMidiProPlatform.instance.controlChange(sfId, channel, controller, value);
+    return FlutterMidiProPlatform.instance
+        .controlChange(sfId, channel, controller, value);
   }
 
   /// Sends a MIDI Pitch Bend message to the specified channel on a soundfont.
@@ -158,7 +163,8 @@ class MidiPro {
     int sfId = 1,
   }) async {
     final value = enabled ? 127 : 0;
-    return controlChange(controller: 64, value: value, channel: channel, sfId: sfId);
+    return controlChange(
+        controller: 64, value: value, channel: channel, sfId: sfId);
   }
 
   /// Unloads a soundfont from memory.
