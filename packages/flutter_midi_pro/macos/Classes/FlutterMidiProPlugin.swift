@@ -62,9 +62,9 @@ public class FlutterMidiProPlugin: NSObject, FlutterPlugin {
                     print("macOS MIDI: Fallback load for sampler \(i) (MSB 0)...")
                     do {
                         try sampler.loadSoundBankInstrument(at: url, program: UInt8(program), bankMSB: 0, bankLSB: UInt8(bank))
-                    } catch {
-                        print("macOS MIDI ERROR: Fallback also failed: \(error.localizedDescription)")
-                        result(FlutterError(code: "SOUND_FONT_LOAD_FAILED", message: "Failed to load soundfont instrument: \(error.localizedDescription)", details: "Path: \(path), Error: \(error.code)"))
+                    } catch let fallbackError as NSError {
+                        print("macOS MIDI ERROR: Fallback also failed: \(fallbackError.localizedDescription)")
+                        result(FlutterError(code: "SOUND_FONT_LOAD_FAILED", message: "Failed to load soundfont instrument: \(fallbackError.localizedDescription)", details: "Path: \(path), Error: \(fallbackError.code)"))
                         return
                     }
                 } else {

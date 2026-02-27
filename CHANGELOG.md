@@ -11,8 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Improved Soundfont UI:** The Default soundfont now displays as "Default soundfont", appears first in lists, and is protected from deletion.
 
 ### Fixed
-- **macOS/iOS File Access:** Added necessary sandbox entitlements to enable the file picker on macOS and iOS.
-- **macOS Soundfont Storage:** Switched internal soundfont storage to `ApplicationSupportDirectory` to comply with macOS sandbox requirements and ensure reliable loading.
+- **Linux Stability:** Resolved a crash and duplicated soundfont entries caused by logic errors in the soundfont loading state.
+- **macOS Audio Pipeline:** Complete refactor of the macOS audio engine to use a single shared `AVAudioEngine` with 16 mixer buses, providing better performance and fixing "no sound" issues.
+- **macOS Custom Soundfonts:** Removed a redundant file-copying loop that caused `PathNotFoundException` and added an automatic bank fallback (MSB 0) to fix load error `-10851`.
+- **Audio Improvements:** Boosted default audio volume on macOS by 15dB for better parity with other platforms.
+- **Path Migration:** Implemented a robust migration layer to automatically move legacy soundfont paths to the new secure internal storage.
 
 
 ## [1.2.0] - 2026-02-26

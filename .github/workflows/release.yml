@@ -176,6 +176,19 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
+      - name: Extract Latest Changelog
+        id: extract_changelog
+        run: |
+          # Extract the first version section from CHANGELOG.md
+          # This takes everything between the first '## [' and the second '## ['
+          # Excluding the header line itself
+          awk '/^## \[/ { if (count++) exit; next } count' CHANGELOG.md > latest_changelog.txt
+          {
+            echo 'CHANGELOG_CONTENT<<EOF'
+            cat latest_changelog.txt
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
@@ -189,6 +202,10 @@ jobs:
             artifacts/windows-build/*
             artifacts/macos-build/*
             artifacts/ios-build/*
+          body: |
+            ## What's Changed (Changelog)
+            ${{ steps.extract_changelog.outputs.CHANGELOG_CONTENT }}
+            
           generate_release_notes: true
           draft: false
           prerelease: false
