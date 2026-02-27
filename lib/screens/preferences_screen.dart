@@ -423,6 +423,70 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
           Card(
             child: Consumer<AudioEngine>(
               builder: (context, engine, _) {
+                return ValueListenableBuilder<ScaleLockMode>(
+                  valueListenable: engine.lockModePreference,
+                  builder: (context, lockMode, _) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16.0,
+                        vertical: 8.0,
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.lock_clock,
+                            color: Colors.purpleAccent,
+                          ),
+                          const SizedBox(width: 16),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Scale Lock Mode',
+                                  style: TextStyle(fontSize: 16),
+                                ),
+                                Text(
+                                  'Classic (per channel) vs Jam (master-slave)',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          DropdownButton<ScaleLockMode>(
+                            value: lockMode,
+                            items: const [
+                              DropdownMenuItem(
+                                value: ScaleLockMode.classic,
+                                child: Text('Classic Mode'),
+                              ),
+                              DropdownMenuItem(
+                                value: ScaleLockMode.jam,
+                                child: Text('Jam Mode'),
+                              ),
+                            ],
+                            onChanged: (val) {
+                              if (val != null) {
+                                engine.lockModePreference.value = val;
+                                engine.stateNotifier.value++;
+                              }
+                            },
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 8),
+          Card(
+            child: Consumer<AudioEngine>(
+              builder: (context, engine, _) {
                 return ValueListenableBuilder<int>(
                   valueListenable: engine.aftertouchDestCc,
                   builder: (context, destCc, _) {

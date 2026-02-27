@@ -13,6 +13,8 @@ class ChannelPatchInfo extends StatelessWidget {
   final bool isLocked;
   final ChordMatch? lastChord;
   final ScaleType currentScale;
+  final String? descriptiveScaleName;
+  final bool isJamSlave;
   final VoidCallback onLockToggled;
   final ValueChanged<ScaleType?> onScaleChanged;
 
@@ -24,6 +26,8 @@ class ChannelPatchInfo extends StatelessWidget {
     required this.isLocked,
     required this.lastChord,
     required this.currentScale,
+    this.descriptiveScaleName,
+    required this.isJamSlave,
     required this.onLockToggled,
     required this.onScaleChanged,
   });
@@ -254,10 +258,13 @@ class ChannelPatchInfo extends StatelessWidget {
               if (lastChord != null) ...[
                 const SizedBox(width: 8),
                 ChannelScaleLock(
+                  engine: engine,
                   isDimmed: isDimmed,
                   isLocked: isLocked,
                   lastChord: lastChord!,
                   currentScale: currentScale,
+                  descriptiveScaleName: descriptiveScaleName,
+                  isJamSlave: isJamSlave,
                   onLockToggled: onLockToggled,
                   onScaleChanged: onScaleChanged,
                 ),
@@ -275,10 +282,13 @@ class ChannelPatchInfo extends StatelessWidget {
                   if (lastChord != null) ...[
                     const SizedBox(width: 8),
                     ChannelScaleLock(
+                      engine: engine,
                       isDimmed: isDimmed,
                       isLocked: isLocked,
                       lastChord: lastChord!,
                       currentScale: currentScale,
+                      descriptiveScaleName: descriptiveScaleName,
+                      isJamSlave: isJamSlave,
                       onLockToggled: onLockToggled,
                       onScaleChanged: onScaleChanged,
                     ),

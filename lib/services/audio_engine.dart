@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -13,8 +14,13 @@ import 'package:grooveforge/models/chord_detector.dart';
 
 enum ScaleType {
   standard,
-  pentatonic,
+  jazz,
   blues,
+  rock,
+  asiatic,
+  oriental,
+  classical,
+  pentatonic,
   dorian,
   mixolydian,
   harmonicMinor,
@@ -22,6 +28,8 @@ enum ScaleType {
   wholeTone,
   diminished,
 }
+
+enum ScaleLockMode { classic, jam }
 
 class ChannelState {
   String? soundfontPath;
@@ -44,8 +52,6 @@ class ChannelState {
     'soundfontPath': soundfontPath,
     'program': program,
     'bank': bank,
-    // Note: runtime state like activeNotes, lastChord, and configurations like scale lock
-    // are intentionally not serialized, as they are ephemeral performance session state.
   };
 
   factory ChannelState.fromJson(Map<String, dynamic> json) =>
@@ -59,19 +65,16 @@ class AudioEngine {
   final MidiPro _midiPro = MidiPro();
   bool _isInitialized = false;
 
-  /// Exposes the current initialization step for the splash screen
   final ValueNotifier<String> initStatus = ValueNotifier(
     'Starting audio engine...',
   );
 
-  final List<String> loadedSoundfonts = []; // Platform specific mappings
+  final List<String> loadedSoundfonts = [];
   final Map<String, int> _sfPathToIdMobile = {};
   final Map<String, int> _sfPathToIdLinux = {};
   int _linuxSfIdCounter = 1;
 
-  // Custom SF2 Patch Names Cache
   final Map<String, Map<int, Map<int, String>>> sf2Presets = {};
-
   final List<ChannelState> channels = List.generate(16, (i) => ChannelState());
 
   Process? _fluidSynthProcess;
@@ -80,28 +83,39 @@ class AudioEngine {
   final ValueNotifier<String?> toastNotifier = ValueNotifier(null);
   final ValueNotifier<int> stateNotifier = ValueNotifier(0);
 
-  // Dashboard UI State
   final ValueNotifier<List<int>> visibleChannels = ValueNotifier(
     List.generate(16, (i) => i),
   );
 
-  /// Optional drag-to-play glissando feature on the virtual piano
   final ValueNotifier<bool> dragToPlay = ValueNotifier(false);
-
-  /// Target CC for incoming Aftertouch messages (defaults to 1 = Modulation/Vibrato)
   final ValueNotifier<int> aftertouchDestCc = ValueNotifier(1);
-
-  /// User preference for chord notation format (e.g. 'Standard' vs 'Solfege')
   final ValueNotifier<String> notationFormat = ValueNotifier('Standard');
-
-  /// Number of keys to show simultaneously in the Virtual Piano (default 88)
-  // Using number of white keys (22 implies a 37-key piano default)
   final ValueNotifier<int> pianoKeysToShow = ValueNotifier(22);
 
+  // Jam Mode State
+  final ValueNotifier<ScaleLockMode> lockModePreference = ValueNotifier(
+    ScaleLockMode.jam,
+  );
+  final ValueNotifier<bool> jamEnabled = ValueNotifier(false);
+  final ValueNotifier<int> jamMasterChannel = ValueNotifier(1); // Default Ch 2
+  final ValueNotifier<Set<int>> jamSlaveChannels = ValueNotifier({
+    0,
+  }); // Default Ch 1
+  final ValueNotifier<ScaleType> jamScaleType = ValueNotifier(
+    ScaleType.standard,
+  );
+
+  // Chord Release Logic
+  final List<Timer?> _chordUpdateTimers = List.generate(16, (i) => null);
+  final List<int> _lastNoteCounts = List.generate(16, (i) => 0);
+
+  final Map<int, DateTime> _lastNoteOffTime = {};
   SharedPreferences? _prefs;
 
   Future<void> init() async {
-    if (_isInitialized) return;
+    if (_isInitialized) {
+      return;
+    }
     initStatus.value = 'Loading preferences...';
     _prefs = await SharedPreferences.getInstance();
 
@@ -125,8 +139,12 @@ class AudioEngine {
     _isInitialized = true;
     initStatus.value = 'Ready';
 
-    // Persist UI preferences immediately on changes
     pianoKeysToShow.addListener(_saveState);
+    lockModePreference.addListener(_saveState);
+    jamEnabled.addListener(_saveState);
+    jamMasterChannel.addListener(_saveState);
+    jamSlaveChannels.addListener(_saveState);
+    jamScaleType.addListener(_saveState);
   }
 
   Future<void> _ensureDefaultSoundfont() async {
@@ -135,20 +153,15 @@ class AudioEngine {
       final soundfontsDirPath = p.join(appSupportDir.path, 'soundfonts');
       final soundfontsDir = Directory(soundfontsDirPath);
 
-      debugPrint('Ensuring soundfonts directory exists at: $soundfontsDirPath');
       if (!soundfontsDir.existsSync()) {
         await soundfontsDir.create(recursive: true);
-        debugPrint('Created soundfonts directory.');
       }
 
       final defaultSfPath = p.join(soundfontsDirPath, 'default_soundfont.sf2');
       final defaultSfFile = File(defaultSfPath);
 
-      debugPrint('Checking for default soundfont at: $defaultSfPath');
       if (!defaultSfFile.existsSync()) {
-        debugPrint('Extracting default soundfont from assets...');
-        initStatus.value =
-            'Extracting default soundfont (this may take a moment)...';
+        initStatus.value = 'Extracting default soundfont...';
         final ByteData data = await rootBundle.load(
           'assets/soundfonts/default.sf2',
         );
@@ -156,15 +169,12 @@ class AudioEngine {
         await defaultSfFile.writeAsBytes(
           buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
         );
-        debugPrint('Extracted default soundfont successfully.');
       }
 
-      // Load it automatically if it's not already in the loaded list
       if (!loadedSoundfonts.contains(defaultSfFile.path)) {
         await loadSoundfont(defaultSfFile, save: false);
       }
 
-      // If any channels don't have a soundfont assigned, assign the default one
       bool stateChanged = false;
       for (int i = 0; i < 16; i++) {
         if (channels[i].soundfontPath == null ||
@@ -185,7 +195,9 @@ class AudioEngine {
   }
 
   Future<void> _saveState() async {
-    if (_prefs == null) return;
+    if (_prefs == null) {
+      return;
+    }
     await _prefs!.setStringList('loaded_soundfonts', loadedSoundfonts);
 
     List<String> channelsJson =
@@ -200,12 +212,26 @@ class AudioEngine {
     await _prefs!.setInt('aftertouch_dest_cc', aftertouchDestCc.value);
     await _prefs!.setString('notation_format', notationFormat.value);
     await _prefs!.setInt('piano_keys_to_show', pianoKeysToShow.value);
+
+    // Save Jam State
+    await _prefs!.setInt(
+      'lock_mode_preference',
+      lockModePreference.value.index,
+    );
+    await _prefs!.setBool('jam_enabled', jamEnabled.value);
+    await _prefs!.setInt('jam_master_channel', jamMasterChannel.value);
+    await _prefs!.setStringList(
+      'jam_slave_channels',
+      jamSlaveChannels.value.map((e) => e.toString()).toList(),
+    );
+    await _prefs!.setInt('jam_scale_type', jamScaleType.value.index);
   }
 
   Future<void> _restoreState() async {
-    if (_prefs == null) return;
+    if (_prefs == null) {
+      return;
+    }
 
-    // Restore soundfonts with path migration
     List<String>? savedSfs = _prefs!.getStringList('loaded_soundfonts');
     Map<String, String> migrationMap = {};
     if (savedSfs != null) {
@@ -218,25 +244,19 @@ class AudioEngine {
       }
     }
 
-    // Restore channels
     List<String>? savedChannels = _prefs!.getStringList('channels_state');
     if (savedChannels != null && savedChannels.length == 16) {
-      // Delay before applying patches so Fluidsynth has time to load large SF2s into RAM
       if (Platform.isLinux && savedSfs != null && savedSfs.isNotEmpty) {
         await Future.delayed(const Duration(milliseconds: 1500));
       }
 
       for (int i = 0; i < 16; i++) {
         var state = ChannelState.fromJson(jsonDecode(savedChannels[i]));
-
-        // Migrate soundfont path if it was moved to the internal directory
         if (state.soundfontPath != null &&
             migrationMap.containsKey(state.soundfontPath)) {
           state.soundfontPath = migrationMap[state.soundfontPath];
         }
-
         channels[i] = state;
-
         if (state.soundfontPath != null &&
             loadedSoundfonts.contains(state.soundfontPath)) {
           _applyChannelInstrument(i);
@@ -244,7 +264,6 @@ class AudioEngine {
       }
     }
 
-    // Restore UI visible channels filter
     String? savedVisibleChannels = _prefs!.getString('visible_channels');
     if (savedVisibleChannels != null) {
       try {
@@ -255,7 +274,6 @@ class AudioEngine {
       }
     }
 
-    // Restore Drag to Play toggle
     bool? savedDragToPlay = _prefs!.getBool('drag_to_play');
     if (savedDragToPlay != null) {
       dragToPlay.value = savedDragToPlay;
@@ -274,11 +292,35 @@ class AudioEngine {
     int? savedPianoKeysToShow = _prefs!.getInt('piano_keys_to_show');
     if (savedPianoKeysToShow != null) {
       if (savedPianoKeysToShow == 88 || savedPianoKeysToShow == 52) {
-        // Enforce the new 37-key (22 white keys) default if they had the old default
         pianoKeysToShow.value = 22;
       } else {
         pianoKeysToShow.value = savedPianoKeysToShow;
       }
+    }
+
+    int? savedLockMode = _prefs!.getInt('lock_mode_preference');
+    if (savedLockMode != null) {
+      lockModePreference.value = ScaleLockMode.values[savedLockMode];
+    }
+
+    bool? savedJamEnabled = _prefs!.getBool('jam_enabled');
+    if (savedJamEnabled != null) {
+      jamEnabled.value = savedJamEnabled;
+    }
+
+    int? savedJamMaster = _prefs!.getInt('jam_master_channel');
+    if (savedJamMaster != null) {
+      jamMasterChannel.value = savedJamMaster;
+    }
+
+    List<String>? savedJamSlaves = _prefs!.getStringList('jam_slave_channels');
+    if (savedJamSlaves != null) {
+      jamSlaveChannels.value = savedJamSlaves.map((e) => int.parse(e)).toSet();
+    }
+
+    int? savedJamScale = _prefs!.getInt('jam_scale_type');
+    if (savedJamScale != null) {
+      jamScaleType.value = ScaleType.values[savedJamScale];
     }
 
     stateNotifier.value++;
@@ -289,7 +331,6 @@ class AudioEngine {
       final appSupportDir = await getApplicationSupportDirectory();
       final soundfontsDirPath = p.join(appSupportDir.path, 'soundfonts');
       final soundfontsDir = Directory(soundfontsDirPath);
-
       if (!soundfontsDir.existsSync()) {
         await soundfontsDir.create(recursive: true);
       }
@@ -298,101 +339,82 @@ class AudioEngine {
       String filename = p.basename(originalPath);
       String targetPath = p.join(soundfontsDirPath, filename);
 
-      debugPrint('Source soundfont path: $originalPath');
-      debugPrint('Target soundfont path: $targetPath');
-
-      // If the file is not already in our internal soundfonts directory, copy it there.
       if (p.absolute(originalPath) != p.absolute(targetPath)) {
         if (!soundfont.existsSync()) {
           throw Exception('Source file does not exist: $originalPath');
         }
-
-        debugPrint('Copying soundfont to internal storage...');
         final targetFile = File(targetPath);
         if (!targetFile.existsSync() ||
             targetFile.lengthSync() != soundfont.lengthSync()) {
-          // Use read/write instead of copy for cross-container/cross-volume robustness
           final bytes = await soundfont.readAsBytes();
           await targetFile.writeAsBytes(bytes);
-          debugPrint('Successfully copied to internal storage.');
-        } else {
-          debugPrint('Similar file already exists at target, skipping copy.');
         }
       }
 
       if (loadedSoundfonts.contains(targetPath)) {
-        debugPrint('Soundfont already in loadedSoundfonts list: $targetPath');
         return targetPath;
       }
-
       loadedSoundfonts.add(targetPath);
 
-      debugPrint('Loading soundfont into MIDI engine: $targetPath');
       if (Platform.isLinux) {
         _fluidSynthProcess?.stdin.writeln('load "$targetPath"');
         _sfPathToIdLinux[targetPath] = _linuxSfIdCounter++;
       } else {
         int sfId = await _midiPro.loadSoundfontFile(filePath: targetPath);
         if (sfId == -1) {
-          throw Exception(
-            'MIDI engine failed to load soundfont at $targetPath',
-          );
+          throw Exception('Failed to load soundfont at $targetPath');
         }
         _sfPathToIdMobile[targetPath] = sfId;
       }
 
-      // Parse custom patch names from SF2 metadata
       try {
         sf2Presets[targetPath] = await Sf2Parser.parsePresets(targetPath);
       } catch (e) {
-        debugPrint('Non-fatal error parsing SF2 presets for $targetPath: $e');
+        debugPrint('Error parsing SF2 presets: $e');
       }
 
-      if (save) await _saveState();
-
+      if (save) {
+        await _saveState();
+      }
       toastNotifier.value = 'Loaded: $filename';
       stateNotifier.value++;
-
       return targetPath;
     } catch (e) {
-      debugPrint('CRITICAL error loading soundfont: $e');
+      debugPrint('Error loading soundfont: $e');
       toastNotifier.value = 'Error loading soundfont: $e';
-      return soundfont.path; // Return original if error
+      return soundfont.path;
     }
   }
 
   Future<void> unloadSoundfont(String path) async {
-    if (!loadedSoundfonts.contains(path)) return;
-
+    if (!loadedSoundfonts.contains(path)) {
+      return;
+    }
     if (Platform.isLinux) {
-      int? id = _sfPathToIdLinux[path];
-      if (id != null) {
-        _fluidSynthProcess?.stdin.writeln('unload $id');
+      int? sfId = _sfPathToIdLinux[path];
+      if (sfId != null) {
+        _fluidSynthProcess?.stdin.writeln('unload $sfId');
       }
       _sfPathToIdLinux.remove(path);
     } else {
-      // flutter_midi_pro 3.1.6 does not natively expose unloadSoundfont yet,
-      // But we can just clear it from our mapped states.
       _sfPathToIdMobile.remove(path);
     }
-
     loadedSoundfonts.remove(path);
     sf2Presets.remove(path);
-
-    // Clear any channels using it
     for (int i = 0; i < 16; i++) {
       if (channels[i].soundfontPath == path) {
         channels[i].soundfontPath = null;
       }
     }
-
     await _saveState();
     toastNotifier.value = 'Unloaded Soundfont';
     stateNotifier.value++;
   }
 
   void assignSoundfontToChannel(int channel, String path) {
-    if (channel < 0 || channel > 15 || !loadedSoundfonts.contains(path)) return;
+    if (channel < 0 || channel > 15 || !loadedSoundfonts.contains(path)) {
+      return;
+    }
     channels[channel].soundfontPath = path;
     _applyChannelInstrument(channel);
     _saveState();
@@ -400,9 +422,13 @@ class AudioEngine {
   }
 
   void assignPatchToChannel(int channel, int program, {int? bank}) {
-    if (channel < 0 || channel > 15) return;
+    if (channel < 0 || channel > 15) {
+      return;
+    }
     channels[channel].program = program;
-    if (bank != null) channels[channel].bank = bank;
+    if (bank != null) {
+      channels[channel].bank = bank;
+    }
     _applyChannelInstrument(channel);
     _saveState();
     stateNotifier.value++;
@@ -410,8 +436,9 @@ class AudioEngine {
 
   void _applyChannelInstrument(int channel) {
     ChannelState state = channels[channel];
-    if (state.soundfontPath == null) return;
-
+    if (state.soundfontPath == null) {
+      return;
+    }
     if (Platform.isLinux) {
       int? sfId = _sfPathToIdLinux[state.soundfontPath!];
       if (sfId != null) {
@@ -434,40 +461,45 @@ class AudioEngine {
 
   int _getSfIdForChannel(int channel) {
     String? path = channels[channel].soundfontPath;
-    if (path == null) return -1;
+    if (path == null) {
+      return -1;
+    }
     return Platform.isLinux
         ? (_sfPathToIdLinux[path] ?? -1)
         : (_sfPathToIdMobile[path] ?? -1);
   }
 
-  /// Returns the internal SF2 patch name for a specific channel's program/bank if available
   String? getCustomPatchName(int channelIndex) {
-    if (channelIndex < 0 || channelIndex >= 16) return null;
+    if (channelIndex < 0 || channelIndex >= 16) {
+      return null;
+    }
     final state = channels[channelIndex];
-    if (state.soundfontPath == null) return null;
-
+    if (state.soundfontPath == null) {
+      return null;
+    }
     final sfPresets = sf2Presets[state.soundfontPath!];
-    if (sfPresets == null) return null;
-
+    if (sfPresets == null) {
+      return null;
+    }
     final bankPresets = sfPresets[state.bank];
-    if (bankPresets == null) return null;
-
+    if (bankPresets == null) {
+      return null;
+    }
     return bankPresets[state.program];
   }
 
   void processMidiPacket(MidiPacket packet) {
-    if (!_isInitialized || packet.data.isEmpty) return;
-
+    if (!_isInitialized || packet.data.isEmpty) {
+      return;
+    }
     final statusByte = packet.data[0];
     final command = statusByte & 0xF0;
     final channel = statusByte & 0x0F;
-
     if (packet.data.length >= 2) {
       int data1 = packet.data[1];
       int data2 = packet.data.length >= 3 ? packet.data[2] : 0;
-
       switch (command) {
-        case 0x90: // Note On
+        case 0x90:
           if (ccMappingService != null) {
             ccMappingService!.updateLastEvent('Note On', channel, data1, data2);
           }
@@ -477,7 +509,7 @@ class AudioEngine {
             stopNote(channel: channel, key: data1);
           }
           break;
-        case 0x80: // Note Off
+        case 0x80:
           if (ccMappingService != null) {
             ccMappingService!.updateLastEvent(
               'Note Off',
@@ -488,12 +520,13 @@ class AudioEngine {
           }
           stopNote(channel: channel, key: data1);
           break;
-        case 0xB0: // Control Change (CC)
+        case 0xB0:
           if (ccMappingService != null) {
             ccMappingService!.updateLastEvent('CC', channel, data1, data2);
             final mapping = ccMappingService!.getMapping(data1);
             if (mapping != null) {
               if (mapping.targetCc >= 1000) {
+                // System actions
                 if (mapping.targetChannel == -1) {
                   for (int i = 0; i < 16; i++) {
                     _handleSystemCommand(mapping.targetCc, i, data2);
@@ -508,48 +541,41 @@ class AudioEngine {
                 } else {
                   _handleSystemCommand(mapping.targetCc, channel, data2);
                 }
-                return;
-              } else if (mapping.targetChannel == -1) {
-                for (int i = 0; i < 16; i++) {
+              } else {
+                // Normal CC remapping
+                if (mapping.targetChannel == -1) {
+                  for (int i = 0; i < 16; i++) {
+                    _sendControlChange(
+                      channel: i,
+                      controller: mapping.targetCc,
+                      value: data2,
+                    );
+                  }
+                } else if (mapping.targetChannel == -2) {
                   _sendControlChange(
-                    channel: i,
+                    channel: channel,
+                    controller: mapping.targetCc,
+                    value: data2,
+                  );
+                } else {
+                  _sendControlChange(
+                    channel: mapping.targetChannel,
                     controller: mapping.targetCc,
                     value: data2,
                   );
                 }
-              } else if (mapping.targetChannel == -2) {
-                _sendControlChange(
-                  channel: channel,
-                  controller: mapping.targetCc,
-                  value: data2,
-                );
-              } else {
-                _sendControlChange(
-                  channel: mapping.targetChannel,
-                  controller: mapping.targetCc,
-                  value: data2,
-                );
               }
-            } else {
-              _sendControlChange(
-                channel: channel,
-                controller: data1,
-                value: data2,
-              );
+              return;
             }
-          } else {
-            _sendControlChange(
-              channel: channel,
-              controller: data1,
-              value: data2,
-            );
           }
+          // Default: send normal CC
+          _sendControlChange(channel: channel, controller: data1, value: data2);
           break;
-        case 0xE0: // Pitch Bend
+        case 0xE0:
           int pitchValue = (data2 << 7) | data1;
           _sendPitchBend(channel: channel, value: pitchValue);
           break;
-        case 0xD0: // Channel Aftertouch
+        case 0xD0:
           _sendControlChange(
             channel: channel,
             controller: aftertouchDestCc.value,
@@ -565,28 +591,39 @@ class AudioEngine {
     required int key,
     required int velocity,
   }) {
-    // Update active notes (raw visual input keys)
     final currentNotes = Set<int>.from(channels[channel].activeNotes.value);
     currentNotes.add(key);
     channels[channel].activeNotes.value = currentNotes;
-
     int keyToPlay = key;
 
-    // Apply scale locking
-    if (channels[channel].isScaleLocked.value &&
+    // Classic Scale Lock (per-channel)
+    if (lockModePreference.value == ScaleLockMode.classic &&
+        channels[channel].isScaleLocked.value &&
         channels[channel].lastChord.value != null) {
       keyToPlay = _snapKeyToScale(
         key,
         channels[channel].lastChord.value!,
         channels[channel].currentScaleType.value,
       );
+    }
+    // Jam Mode Scale Lock
+    else if (lockModePreference.value == ScaleLockMode.jam &&
+        jamEnabled.value &&
+        jamSlaveChannels.value.contains(channel) &&
+        channels[jamMasterChannel.value].lastChord.value != null) {
+      keyToPlay = _snapKeyToScale(
+        key,
+        channels[jamMasterChannel.value].lastChord.value!,
+        jamScaleType.value,
+      );
+    }
+
+    if (keyToPlay != key) {
       channels[channel].activeKeyMappings[key] = keyToPlay;
     }
 
-    // Check if another physical key currently owns this logical note
     int? currentOwner = channels[channel].snappedKeyOwners[keyToPlay];
     if (currentOwner != null && currentOwner != key) {
-      // Retrigger: Cut off the previous key's note seamlessly before striking again
       if (Platform.isLinux && _fluidSynthProcess != null) {
         _fluidSynthProcess!.stdin.writeln('noteoff $channel $keyToPlay');
       } else {
@@ -597,10 +634,8 @@ class AudioEngine {
       }
     }
 
-    // Take ownership of the logical note
     channels[channel].snappedKeyOwners[keyToPlay] = key;
 
-    // Play the note
     if (Platform.isLinux && _fluidSynthProcess != null) {
       _fluidSynthProcess!.stdin.writeln('noteon $channel $keyToPlay $velocity');
     } else {
@@ -618,25 +653,24 @@ class AudioEngine {
   }
 
   void stopNote({required int channel, required int key}) {
-    // Update active notes (raw visual input keys)
     final currentNotes = Set<int>.from(channels[channel].activeNotes.value);
     currentNotes.remove(key);
     channels[channel].activeNotes.value = currentNotes;
 
-    int keyToStop = key;
+    // Debounce for Master Channel Chord Release
+    if (lockModePreference.value == ScaleLockMode.jam &&
+        channel == jamMasterChannel.value) {
+      _lastNoteOffTime[key] = DateTime.now();
+    }
 
-    // Retrieve the actually played key if scale lock engaged it
+    int keyToStop = key;
     if (channels[channel].activeKeyMappings.containsKey(key)) {
       keyToStop = channels[channel].activeKeyMappings.remove(key)!;
     }
 
-    // Check if our physical key is still the owner of this logical note
     int? currentOwner = channels[channel].snappedKeyOwners[keyToStop];
-
     if (currentOwner == key) {
-      // We own the note, so let's finally stop it
       channels[channel].snappedKeyOwners.remove(keyToStop);
-
       if (Platform.isLinux && _fluidSynthProcess != null) {
         _fluidSynthProcess!.stdin.writeln('noteoff $channel $keyToStop');
       } else {
@@ -650,69 +684,199 @@ class AudioEngine {
   }
 
   void _updateChordState(int channel) {
-    // If the scale is already locked, do NOT update the chord. We want to keep
-    // the currently locked scale intact until they unlock it.
-    if (channels[channel].isScaleLocked.value) return;
+    // In Jam mode, we ONLY update the master channel's chord.
+    // In Classic mode, we don't update if already locked.
+    if (lockModePreference.value == ScaleLockMode.classic) {
+      if (channels[channel].isScaleLocked.value) {
+        return;
+      }
+    } else {
+      // Jam mode: only process master channel
+      if (channel != jamMasterChannel.value) {
+        return;
+      }
+    }
 
+    final notes = channels[channel].activeNotes.value;
+    final count = notes.length;
+    final lastCount = _lastNoteCounts[channel];
+
+    // Cancel any pending "wait-and-see" timer
+    _chordUpdateTimers[channel]?.cancel();
+    _chordUpdateTimers[channel] = null;
+
+    if (count > lastCount) {
+      // Instant Enrichment (Note On)
+      _performChordUpdate(channel, notes);
+    } else if (count < lastCount) {
+      // Grace Period (Note Off)
+      _chordUpdateTimers[channel] = Timer(const Duration(milliseconds: 30), () {
+        final currentNotes = channels[channel].activeNotes.value;
+        if (currentNotes.isEmpty) {
+          // Total Release: Keep peak chord identity (no-op)
+          _lastNoteCounts[channel] = 0;
+        } else {
+          // Deliberate Partial Release: Update identity
+          _performChordUpdate(channel, currentNotes);
+        }
+      });
+    }
+
+    // Note: We don't update _lastNoteCounts[channel] here if count < lastCount
+    // to preserve the peak context until the timer fires.
+    if (count > lastCount) {
+      _lastNoteCounts[channel] = count;
+    }
+  }
+
+  void _performChordUpdate(int channel, Set<int> notes) {
     final format =
         notationFormat.value.toLowerCase() == 'solfege'
             ? NotationFormat.solfege
             : NotationFormat.standard;
-
-    final notes = channels[channel].activeNotes.value;
     final match = ChordDetector.identifyChord(notes, format: format);
-
-    // We only update if we successfully detect a chord.
-    // This way if they lift their hands, the last chord stays on screen
-    // (and available for locking)
     if (match != null) {
       channels[channel].lastChord.value = match;
+      stateNotifier.value++;
     }
+    _lastNoteCounts[channel] = notes.length;
+  }
+
+  /// Returns a descriptive name for the effective scale being used.
+  String getDescriptiveScaleName(ChordMatch? chord, ScaleType type) {
+    if (chord == null) {
+      return type.name.toUpperCase();
+    }
+    return _getScaleInfo(chord, type).name;
+  }
+
+  _ScaleInfo _getScaleInfo(ChordMatch chord, ScaleType scaleType) {
+    if (scaleType == ScaleType.standard) {
+      final intervals = chord.scalePitchClasses.toList()..sort();
+      String name = 'Standard';
+
+      // Try to match specific mode names for the standard scale
+      final modeMap = {
+        '0,2,4,5,7,9,11': 'Ionian',
+        '0,2,3,5,7,9,10': 'Dorian',
+        '0,1,3,5,7,8,10': 'Phrygian',
+        '0,2,4,6,7,9,11': 'Lydian',
+        '0,2,4,5,7,9,10': 'Mixolydian',
+        '0,2,3,5,7,8,10': 'Aeolian',
+        '0,1,3,5,6,8,10': 'Locrian',
+      };
+
+      final key = intervals.join(',');
+      if (modeMap.containsKey(key)) {
+        name = modeMap[key]!;
+      }
+
+      return _ScaleInfo(intervals: intervals, name: name);
+    }
+
+    List<int> intervals;
+    String name;
+
+    switch (scaleType) {
+      case ScaleType.pentatonic:
+        intervals = chord.isMinor ? [0, 3, 5, 7, 10] : [0, 2, 4, 7, 9];
+        name = chord.isMinor ? 'Minor Pentatonic' : 'Major Pentatonic';
+        break;
+      case ScaleType.blues:
+        intervals = chord.isMinor ? [0, 3, 5, 6, 7, 10] : [0, 2, 3, 4, 7, 9];
+        name = chord.isMinor ? 'Minor Blues' : 'Major Blues';
+        break;
+      case ScaleType.dorian:
+        intervals = [0, 2, 3, 5, 7, 9, 10];
+        name = 'Dorian';
+        break;
+      case ScaleType.mixolydian:
+        intervals = [0, 2, 4, 5, 7, 9, 10];
+        name = 'Mixolydian';
+        break;
+      case ScaleType.harmonicMinor:
+        intervals = [0, 2, 3, 5, 7, 8, 11];
+        name = 'Harmonic Minor';
+        break;
+      case ScaleType.melodicMinor:
+        intervals = [0, 2, 3, 5, 7, 9, 11];
+        name = 'Melodic Minor';
+        break;
+      case ScaleType.wholeTone:
+        intervals = [0, 2, 4, 6, 8, 10];
+        name = 'Whole Tone';
+        break;
+      case ScaleType.diminished:
+        intervals = [0, 1, 3, 4, 6, 7, 9, 10];
+        name = 'Diminished';
+        break;
+      case ScaleType.jazz:
+        if (chord.isMinor) {
+          if (chord.suffix == 'm7b5' || chord.suffix.contains('dim')) {
+            intervals = [0, 2, 3, 5, 6, 8, 10];
+            name = 'Locrian #2';
+          } else if (chord.suffix.contains('7') ||
+              (chord.extensionsMask & (1 << 9)) != 0) {
+            intervals = [0, 2, 3, 5, 7, 9, 10];
+            name = 'Dorian';
+          } else {
+            intervals = [0, 2, 3, 5, 7, 8, 10];
+            name = 'Aeolian';
+          }
+        } else if (chord.suffix.contains('7') &&
+            !chord.suffix.contains('maj7')) {
+          bool isAltered = (chord.extensionsMask & 0x10A) != 0;
+          if (isAltered) {
+            intervals = [0, 1, 3, 4, 6, 8, 10];
+            name = 'Altered Scale';
+          } else if ((chord.extensionsMask & (1 << 6)) != 0) {
+            intervals = [0, 2, 4, 6, 7, 9, 10];
+            name = 'Lydian Dominant';
+          } else {
+            intervals = [0, 2, 4, 5, 7, 9, 10];
+            name = 'Mixolydian';
+          }
+        } else {
+          if ((chord.extensionsMask & (1 << 6)) != 0) {
+            intervals = [0, 2, 4, 6, 7, 9, 11];
+            name = 'Lydian';
+          } else {
+            intervals = [0, 2, 4, 5, 7, 9, 11];
+            name = 'Ionian';
+          }
+        }
+        break;
+      case ScaleType.rock:
+        intervals = [0, 2, 3, 4, 7, 9];
+        name = 'Rock Hexatonic';
+        break;
+      case ScaleType.classical:
+        intervals =
+            chord.isMinor ? [0, 2, 3, 5, 7, 8, 11] : [0, 2, 4, 5, 7, 9, 11];
+        name = chord.isMinor ? 'Harmonic Minor' : 'Natural Major';
+        break;
+      case ScaleType.asiatic:
+        intervals = [0, 2, 4, 7, 9];
+        name = 'Major Pentatonic';
+        break;
+      case ScaleType.oriental:
+        intervals = [0, 1, 4, 5, 7, 8, 10];
+        name = 'Phrygian Dominant';
+        break;
+      default:
+        intervals = [0, 2, 4, 5, 7, 9, 11];
+        name = 'Major';
+    }
+
+    return _ScaleInfo(intervals: intervals, name: name);
   }
 
   int _snapKeyToScale(int originalKey, ChordMatch chord, ScaleType scaleType) {
-    Set<int> allowedPcs;
-
-    if (scaleType == ScaleType.standard) {
-      allowedPcs = Set.from(chord.scalePitchClasses);
-    } else {
-      int root = chord.rootPc;
-      List<int> intervals;
-      switch (scaleType) {
-        case ScaleType.pentatonic:
-          intervals = chord.isMinor ? [0, 3, 5, 7, 10] : [0, 2, 4, 7, 9];
-          break;
-        case ScaleType.blues:
-          intervals = chord.isMinor ? [0, 3, 5, 6, 7, 10] : [0, 2, 3, 4, 7, 9];
-          break;
-        case ScaleType.dorian:
-          intervals = [0, 2, 3, 5, 7, 9, 10];
-          break;
-        case ScaleType.mixolydian:
-          intervals = [0, 2, 4, 5, 7, 9, 10];
-          break;
-        case ScaleType.harmonicMinor:
-          intervals = [0, 2, 3, 5, 7, 8, 11];
-          break;
-        case ScaleType.melodicMinor:
-          intervals = [0, 2, 3, 5, 7, 9, 11];
-          break;
-        case ScaleType.wholeTone:
-          intervals = [0, 2, 4, 6, 8, 10];
-          break;
-        case ScaleType.diminished: // Half-Whole
-          intervals = [0, 1, 3, 4, 6, 7, 9, 10];
-          break;
-        default:
-          intervals = [0, 2, 4, 5, 7, 9, 11]; // Fallback
-      }
-      allowedPcs = intervals.map((i) => (root + i) % 12).toSet();
-    }
-
+    final info = _getScaleInfo(chord, scaleType);
+    final root = chord.rootPc;
+    final allowedPcs = info.intervals.map((i) => (root + i) % 12).toSet();
     int bestDistance = 999;
     int bestKey = originalKey;
-
-    // Provide a reasonable search radius
     for (int offset = 0; offset <= 12; offset++) {
       int upKey = originalKey + offset;
       if (allowedPcs.contains(upKey % 12)) {
@@ -721,7 +885,6 @@ class AudioEngine {
           bestKey = upKey;
         }
       }
-
       int downKey = originalKey - offset;
       if (allowedPcs.contains(downKey % 12)) {
         if (offset < bestDistance) {
@@ -729,96 +892,93 @@ class AudioEngine {
           bestKey = downKey;
         }
       }
-
-      if (bestDistance < 999) break; // Found nearest
+      if (bestDistance < 999) {
+        break;
+      }
     }
-
     return bestKey;
   }
 
-  final Map<String, int> _lastSystemCommandTime = {};
-
   void _handleSystemCommand(int targetAction, int incomingChannel, int value) {
     if ([1001, 1002, 1003, 1004, 1007, 1008].contains(targetAction)) {
-      // Debounce logic to support hardware pads that strictly send `0` or burst `127` then `0`.
       String debounceKey = '${targetAction}_$incomingChannel';
       int now = DateTime.now().millisecondsSinceEpoch;
-      int lastTime = _lastSystemCommandTime[debounceKey] ?? 0;
+      int lastTime = (_prefs?.getInt('last_sys_cmd_$debounceKey')) ?? 0;
       if (now - lastTime < 250) {
-        return; // Ignore rapid consecutive triggers from release signals
+        return;
       }
-      _lastSystemCommandTime[debounceKey] = now;
+      _prefs?.setInt('last_sys_cmd_$debounceKey', now);
 
-      if (targetAction == 1001) {
-        // Next Soundfont
+      if (targetAction == 1007) {
+        if (lockModePreference.value == ScaleLockMode.jam) {
+          jamEnabled.value = !jamEnabled.value;
+          toastNotifier.value =
+              'Jam Mode: ${jamEnabled.value ? "STARTED" : "STOPPED"}';
+        } else {
+          channels[incomingChannel].isScaleLocked.value =
+              !channels[incomingChannel].isScaleLocked.value;
+          toastNotifier.value =
+              'Scale Lock [Ch $incomingChannel]: ${channels[incomingChannel].isScaleLocked.value ? "ON" : "OFF"}';
+        }
+        _saveState();
+      } else if (targetAction == 1001) {
         _cycleChannelSoundfont(incomingChannel, 1);
       } else if (targetAction == 1002) {
-        // Prev Soundfont
         _cycleChannelSoundfont(incomingChannel, -1);
       } else if (targetAction == 1003) {
-        // Next Patch
         _changePatchIndex(incomingChannel, 1);
       } else if (targetAction == 1004) {
-        // Prev Patch
         _changePatchIndex(incomingChannel, -1);
-      } else if (targetAction == 1007) {
-        // Toggle Scale Lock
-        channels[incomingChannel].isScaleLocked.value =
-            !channels[incomingChannel].isScaleLocked.value;
-        toastNotifier.value =
-            'Scale Lock [Ch $incomingChannel]: ${channels[incomingChannel].isScaleLocked.value ? "ON" : "OFF"}';
       } else if (targetAction == 1008) {
-        // Cycle Scale Type
-        final currentTypes = ScaleType.values;
-        int nextIndex =
-            (channels[incomingChannel].currentScaleType.value.index + 1) %
-            currentTypes.length;
-        channels[incomingChannel].currentScaleType.value =
-            currentTypes[nextIndex];
-        toastNotifier.value =
-            'Scale Type [Ch $incomingChannel]: ${currentTypes[nextIndex].name}';
+        if (lockModePreference.value == ScaleLockMode.jam) {
+          final vals = ScaleType.values;
+          jamScaleType.value =
+              vals[(jamScaleType.value.index + 1) % vals.length];
+          toastNotifier.value = 'Jam Scale: ${jamScaleType.value.name}';
+        } else {
+          final currentTypes = ScaleType.values;
+          int nextIndex =
+              (channels[incomingChannel].currentScaleType.value.index + 1) %
+              currentTypes.length;
+          channels[incomingChannel].currentScaleType.value =
+              currentTypes[nextIndex];
+          toastNotifier.value =
+              'Scale Type [Ch $incomingChannel]: ${currentTypes[nextIndex].name}';
+        }
+        _saveState();
       }
     } else if (targetAction == 1005) {
-      // Absolute Patch Index Sweep
       assignPatchToChannel(incomingChannel, value);
       toastNotifier.value = 'Patch Sweep [Ch $incomingChannel]: Program $value';
     } else if (targetAction == 1006) {
-      // Absolute Bank Index Sweep
-      int program = channels[incomingChannel].program;
-      assignPatchToChannel(incomingChannel, program, bank: value);
-      toastNotifier.value =
-          'Bank/Tone Sweep [Ch $incomingChannel]: Bank $value';
+      assignPatchToChannel(
+        incomingChannel,
+        channels[incomingChannel].program,
+        bank: value,
+      );
+      toastNotifier.value = 'Bank Sweep [Ch $incomingChannel]: Bank $value';
     }
   }
 
   void _cycleChannelSoundfont(int channel, int delta) {
-    if (loadedSoundfonts.isEmpty) return;
-
+    if (loadedSoundfonts.isEmpty) {
+      return;
+    }
     String? current = channels[channel].soundfontPath;
     int currentIndex = current != null ? loadedSoundfonts.indexOf(current) : -1;
-
     int nextIndex = (currentIndex + delta) % loadedSoundfonts.length;
-    if (nextIndex < 0) nextIndex = loadedSoundfonts.length - 1;
-
+    if (nextIndex < 0) {
+      nextIndex = loadedSoundfonts.length - 1;
+    }
     assignSoundfontToChannel(channel, loadedSoundfonts[nextIndex]);
-    toastNotifier.value =
-        'Assigned Soundfont [Ch $channel]: ${loadedSoundfonts[nextIndex].split(Platform.pathSeparator).last}';
   }
 
   void _changePatchIndex(int channel, int delta) {
-    int newProgram = channels[channel].program + delta;
-    int bank = channels[channel].bank;
-    if (newProgram > 127) {
-      newProgram = 0;
-      bank++;
-    } else if (newProgram < 0) {
-      newProgram = 127;
-      bank--;
-      if (bank < 0) bank = 0;
+    int nextProgram = (channels[channel].program + delta) % 128;
+    if (nextProgram < 0) {
+      nextProgram = 127;
     }
-    assignPatchToChannel(channel, newProgram, bank: bank);
-    toastNotifier.value =
-        'Patch Changed [Ch $channel]: Program $newProgram (Bank $bank)';
+    assignPatchToChannel(channel, nextProgram);
   }
 
   void _sendControlChange({
@@ -826,19 +986,16 @@ class AudioEngine {
     required int controller,
     required int value,
   }) {
-    if (!_isInitialized) return;
     if (Platform.isLinux && _fluidSynthProcess != null) {
       _fluidSynthProcess!.stdin.writeln('cc $channel $controller $value');
     } else {
       int sfId = _getSfIdForChannel(channel);
-      if (sfId != -1) {
-        _midiPro.controlChange(
-          sfId: sfId,
-          channel: channel,
-          controller: controller,
-          value: value,
-        );
-      }
+      _midiPro.controlChange(
+        controller: controller,
+        value: value,
+        channel: channel,
+        sfId: sfId == -1 ? 1 : sfId,
+      );
     }
   }
 
@@ -847,30 +1004,19 @@ class AudioEngine {
       _fluidSynthProcess!.stdin.writeln('pitch_bend $channel $value');
     } else {
       int sfId = _getSfIdForChannel(channel);
-      if (sfId != -1) {
-        _midiPro.pitchBend(sfId: sfId, channel: channel, value: value);
-      }
-    }
-  }
-
-  void dispose() {
-    if (Platform.isLinux) {
-      _fluidSynthProcess?.kill();
+      _midiPro.pitchBend(
+        value: value,
+        channel: channel,
+        sfId: sfId == -1 ? 1 : sfId,
+      );
     }
   }
 
   Future<void> resetAllPreferences() async {
-    if (_prefs != null) {
-      await _prefs!.clear();
+    if (_prefs == null) {
+      return;
     }
-    final appSupportDir = await getApplicationSupportDirectory();
-    final soundfontsDirPath = p.join(appSupportDir.path, 'soundfonts');
-    final soundfontsDir = Directory(soundfontsDirPath);
-    if (soundfontsDir.existsSync()) {
-      await soundfontsDir.delete(recursive: true);
-    }
-
-    // Reset in-memory state
+    await _prefs!.clear();
     loadedSoundfonts.clear();
     _sfPathToIdMobile.clear();
     _sfPathToIdLinux.clear();
@@ -884,10 +1030,20 @@ class AudioEngine {
     aftertouchDestCc.value = 1;
     notationFormat.value = 'Standard';
     pianoKeysToShow.value = 22;
-
+    lockModePreference.value = ScaleLockMode.classic;
+    jamEnabled.value = false;
+    jamMasterChannel.value = 1;
+    jamSlaveChannels.value = {0};
+    jamScaleType.value = ScaleType.standard;
     _isInitialized = false;
     await init();
-    stateNotifier.value++; // Trigger UI refresh
-    toastNotifier.value = 'All preferences reset to factory defaults';
+    stateNotifier.value++;
+    toastNotifier.value = 'All preferences reset';
   }
+}
+
+class _ScaleInfo {
+  final List<int> intervals;
+  final String name;
+  _ScaleInfo({required this.intervals, required this.name});
 }

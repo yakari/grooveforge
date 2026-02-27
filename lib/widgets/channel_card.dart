@@ -35,9 +35,10 @@ class ChannelCard extends StatelessWidget {
               duration: const Duration(milliseconds: 100),
               curve: Curves.easeInOut,
               decoration: BoxDecoration(
-                color: isFlashing
-                    ? Colors.blueAccent.withValues(alpha: 0.2)
-                    : Theme.of(context).cardColor,
+                color:
+                    isFlashing
+                        ? Colors.blueAccent.withValues(alpha: 0.2)
+                        : Theme.of(context).cardColor,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
                   color: isFlashing ? Colors.blueAccent : Colors.transparent,
@@ -64,31 +65,132 @@ class ChannelCard extends StatelessWidget {
                     const SizedBox(height: 12),
 
                     // Combine listeners to update UI on notes, last chord, or lock toggle
-                    ValueListenableBuilder<ChordMatch?>(
-                      valueListenable: state.lastChord,
-                      builder: (context, lastChord, _) {
+                    ValueListenableBuilder<ScaleLockMode>(
+                      valueListenable: engine.lockModePreference,
+                      builder: (context, lockMode, _) {
                         return ValueListenableBuilder<bool>(
-                          valueListenable: state.isScaleLocked,
-                          builder: (context, isLocked, _) {
-                            return ValueListenableBuilder<ScaleType>(
-                              valueListenable: state.currentScaleType,
-                              builder: (context, currentScale, _) {
-                                bool isDimmed =
-                                    activeNotes.isEmpty && !isLocked;
-                                return ChannelPatchInfo(
-                                  engine: engine,
-                                  channelIndex: channelIndex,
-                                  isDimmed: isDimmed,
-                                  isLocked: isLocked,
-                                  lastChord: lastChord,
-                                  currentScale: currentScale,
-                                  onLockToggled: () =>
-                                      state.isScaleLocked.value =
-                                          !state.isScaleLocked.value,
-                                  onScaleChanged: (ScaleType? newValue) {
-                                    if (newValue != null) {
-                                      state.currentScaleType.value = newValue;
-                                    }
+                          valueListenable: engine.jamEnabled,
+                          builder: (context, jamEnabled, _) {
+                            return ValueListenableBuilder<int>(
+                              valueListenable: engine.jamMasterChannel,
+                              builder: (context, masterCh, _) {
+                                return ValueListenableBuilder<Set<int>>(
+                                  valueListenable: engine.jamSlaveChannels,
+                                  builder: (context, slaves, _) {
+                                    return ValueListenableBuilder<ScaleType>(
+                                      valueListenable: engine.jamScaleType,
+                                      builder: (context, jamScale, _) {
+                                        // Jam mode logic
+                                        bool isMaster =
+                                            lockMode == ScaleLockMode.jam &&
+                                            channelIndex == masterCh;
+                                        bool isSlave =
+                                            lockMode == ScaleLockMode.jam &&
+                                            jamEnabled &&
+                                            slaves.contains(channelIndex);
+
+                                        // If Jam Mode is chosen, we ONLY show lock UI for Master or Slave
+                                        bool shouldShowLockUI =
+                                            lockMode == ScaleLockMode.classic ||
+                                            isMaster ||
+                                            isSlave;
+
+                                        if (!shouldShowLockUI) {
+                                          return const SizedBox.shrink();
+                                        }
+
+                                        // Choose whose state to listen to
+                                        final listenState =
+                                            isSlave
+                                                ? engine.channels[masterCh]
+                                                : state;
+
+                                        return ValueListenableBuilder<
+                                          ChordMatch?
+                                        >(
+                                          valueListenable:
+                                              listenState.lastChord,
+                                          builder: (context, lastChord, _) {
+                                            if (lastChord == null)
+                                              return const SizedBox.shrink();
+
+                                            return ValueListenableBuilder<bool>(
+                                              valueListenable:
+                                                  state.isScaleLocked,
+                                              builder: (context, isLocked, _) {
+                                                return ValueListenableBuilder<
+                                                  ScaleType
+                                                >(
+                                                  valueListenable:
+                                                      state.currentScaleType,
+                                                  builder: (
+                                                    context,
+                                                    currentScale,
+                                                    _,
+                                                  ) {
+                                                    // Effective UI values
+                                                    final chordToDisplay =
+                                                        lastChord;
+                                                    final scaleToDisplay =
+                                                        isSlave
+                                                            ? jamScale
+                                                            : currentScale;
+                                                    final descriptiveName = engine
+                                                        .getDescriptiveScaleName(
+                                                          chordToDisplay,
+                                                          scaleToDisplay,
+                                                        );
+                                                    final lockToDisplay =
+                                                        isSlave ||
+                                                        (lockMode ==
+                                                                ScaleLockMode
+                                                                    .classic &&
+                                                            isLocked);
+
+                                                    // Highlight for Jam Master (Yellow/Green) or Slave (Blue)
+                                                    bool isDimmed =
+                                                        activeNotes.isEmpty &&
+                                                        !lockToDisplay &&
+                                                        !isMaster;
+
+                                                    return ChannelPatchInfo(
+                                                      engine: engine,
+                                                      channelIndex:
+                                                          channelIndex,
+                                                      isDimmed: isDimmed,
+                                                      isLocked: lockToDisplay,
+                                                      lastChord: chordToDisplay,
+                                                      currentScale:
+                                                          scaleToDisplay,
+                                                      descriptiveScaleName:
+                                                          descriptiveName,
+                                                      isJamSlave: isSlave,
+                                                      onLockToggled: () {
+                                                        state
+                                                            .isScaleLocked
+                                                            .value = !state
+                                                                .isScaleLocked
+                                                                .value;
+                                                      },
+                                                      onScaleChanged: (
+                                                        ScaleType? newValue,
+                                                      ) {
+                                                        if (newValue != null &&
+                                                            !isSlave) {
+                                                          state
+                                                              .currentScaleType
+                                                              .value = newValue;
+                                                        }
+                                                      },
+                                                    );
+                                                  },
+                                                );
+                                              },
+                                            );
+                                          },
+                                        );
+                                      },
+                                    );
                                   },
                                 );
                               },
@@ -114,15 +216,17 @@ class ChannelCard extends StatelessWidget {
                                   activeNotes: activeNotes,
                                   dragToPlay: dragToPlay,
                                   keysToShow: keysToShow,
-                                  onNotePressed: (note) => engine.playNote(
-                                    channel: channelIndex,
-                                    key: note,
-                                    velocity: 100,
-                                  ),
-                                  onNoteReleased: (note) => engine.stopNote(
-                                    channel: channelIndex,
-                                    key: note,
-                                  ),
+                                  onNotePressed:
+                                      (note) => engine.playNote(
+                                        channel: channelIndex,
+                                        key: note,
+                                        velocity: 100,
+                                      ),
+                                  onNoteReleased:
+                                      (note) => engine.stopNote(
+                                        channel: channelIndex,
+                                        key: note,
+                                      ),
                                 );
                               },
                             );
