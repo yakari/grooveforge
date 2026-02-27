@@ -34,7 +34,15 @@ public class FlutterMidiProPlugin: NSObject, FlutterPlugin {
         let url = URL(fileURLWithPath: path)
         var chSamplers: [AVAudioUnitSampler] = []
         
-        for _ in 0...15 {
+        print("macOS MIDI: Attempting to load soundfont at \(path)")
+        let fileManager = FileManager.default
+        if !fileManager.fileExists(atPath: path) {
+            print("macOS MIDI ERROR: File does not exist at path: \(path)")
+            result(FlutterError(code: "SOUND_FONT_NOT_FOUND", message: "File not found at native path", details: path))
+            return
+        }
+
+        for i in 0...15 {
             let sampler = AVAudioUnitSampler()
             audioEngine.attach(sampler)
             
@@ -46,8 +54,9 @@ public class FlutterMidiProPlugin: NSObject, FlutterPlugin {
             
             do {
                 try sampler.loadSoundBankInstrument(at: url, program: UInt8(program), bankMSB: UInt8(kAUSampler_DefaultMelodicBankMSB), bankLSB: UInt8(bank))
-            } catch {
-                result(FlutterError(code: "SOUND_FONT_LOAD_FAILED", message: "Failed to load soundfont instrument", details: nil))
+            } catch let error as NSError {
+                print("macOS MIDI ERROR: Failed to load sampler \(i): \(error.localizedDescription)")
+                result(FlutterError(code: "SOUND_FONT_LOAD_FAILED", message: "Failed to load soundfont instrument: \(error.localizedDescription)", details: "Path: \(path), Error: \(error.code)"))
                 return
             }
             chSamplers.append(sampler)
@@ -71,15 +80,17 @@ public class FlutterMidiProPlugin: NSObject, FlutterPlugin {
         let bank = args["bank"] as! Int
         let program = args["program"] as! Int
         guard let samplers = soundfontSamplers[sfId], channel < samplers.count else {
-            result(FlutterError(code: "INVALID_ARGUMENT", message: "Invalid sfId or channel", details: nil))
+            result(FlutterError(code: "INVALID_ARGUMENT", message: "Invalid sfId or channel", details: "sfId: \(sfId), channel: \(channel)"))
             return
         }
         let soundfontSampler = samplers[channel]
         let soundfontUrl = soundfontURLs[sfId]!
+        print("macOS MIDI: selectInstrument program \(program) bank \(bank) on chan \(channel)")
         do {
             try soundfontSampler.loadSoundBankInstrument(at: soundfontUrl, program: UInt8(program), bankMSB: UInt8(kAUSampler_DefaultMelodicBankMSB), bankLSB: UInt8(bank))
-        } catch {
-            result(FlutterError(code: "SOUND_FONT_LOAD_FAILED", message: "Failed to load soundfont instrument", details: nil))
+        } catch let error as NSError {
+            print("macOS MIDI ERROR: selectInstrument failed: \(error.localizedDescription)")
+            result(FlutterError(code: "SOUND_FONT_LOAD_FAILED", message: "Failed to load soundfont instrument: \(error.localizedDescription)", details: "sfId: \(sfId), Error: \(error.code)"))
             return
         }
         soundfontSampler.sendProgramChange(UInt8(program), bankMSB: UInt8(kAUSampler_DefaultMelodicBankMSB), bankLSB: UInt8(bank), onChannel: UInt8(channel))
