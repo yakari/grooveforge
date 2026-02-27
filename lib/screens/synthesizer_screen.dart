@@ -6,6 +6,7 @@ import 'package:grooveforge/services/cc_mapping_service.dart';
 import 'package:grooveforge/services/midi_service.dart';
 import 'package:grooveforge/screens/preferences_screen.dart';
 import 'package:grooveforge/widgets/channel_card.dart';
+import 'package:grooveforge/widgets/jam_session_widget.dart';
 
 class SynthesizerScreen extends StatefulWidget {
   const SynthesizerScreen({super.key});
@@ -274,32 +275,66 @@ class _SynthesizerScreenState extends State<SynthesizerScreen> {
         padding: const EdgeInsets.all(16.0),
         child: Consumer<AudioEngine>(
           builder: (context, engine, child) {
-            return ValueListenableBuilder<int>(
-              valueListenable: engine.stateNotifier,
-              builder: (context, _, child) {
-                return LayoutBuilder(
-                  builder: (context, constraints) {
-                    double itemHeight = constraints.maxHeight < 400
-                        ? constraints.maxHeight - 16
-                        : (constraints.maxHeight - 16) / 2;
+            return ValueListenableBuilder<ScaleLockMode>(
+              valueListenable: engine.lockModePreference,
+              builder: (context, lockMode, _) {
+                return OrientationBuilder(
+                  builder: (context, orientation) {
+                    final isLandscape = orientation == Orientation.landscape;
+                    final isNarrow = MediaQuery.of(context).size.width < 800;
+                    final showJamUI = lockMode == ScaleLockMode.jam;
 
-                    return ValueListenableBuilder<List<int>>(
-                      valueListenable: engine.visibleChannels,
-                      builder: (context, visibleChannels, _) {
-                        return ListView.builder(
-                          controller: _scrollController,
-                          itemCount: visibleChannels.length,
-                          itemBuilder: (context, index) {
-                            final channelIndex = visibleChannels[index];
+                    Widget mainContent = ValueListenableBuilder<int>(
+                      valueListenable: engine.stateNotifier,
+                      builder: (context, _, child) {
+                        return LayoutBuilder(
+                          builder: (context, constraints) {
+                            double itemHeight =
+                                constraints.maxHeight < 400
+                                    ? constraints.maxHeight - 16
+                                    : (constraints.maxHeight - 16) / 2;
 
-                            return ChannelCard(
-                              channelIndex: channelIndex,
-                              itemHeight: itemHeight,
+                            return ValueListenableBuilder<List<int>>(
+                              valueListenable: engine.visibleChannels,
+                              builder: (context, visibleChannels, _) {
+                                return ListView.builder(
+                                  controller: _scrollController,
+                                  itemCount: visibleChannels.length,
+                                  itemBuilder: (context, index) {
+                                    final channelIndex = visibleChannels[index];
+
+                                    return ChannelCard(
+                                      channelIndex: channelIndex,
+                                      itemHeight: itemHeight,
+                                    );
+                                  },
+                                );
+                              },
                             );
                           },
                         );
                       },
                     );
+
+                    if (showJamUI) {
+                      if (isLandscape && isNarrow) {
+                        return Row(
+                          children: [
+                            const JamSessionWidget(),
+                            Expanded(child: mainContent),
+                          ],
+                        );
+                      } else {
+                        return Column(
+                          children: [
+                            const JamSessionWidget(),
+                            Expanded(child: mainContent),
+                          ],
+                        );
+                      }
+                    }
+
+                    return mainContent;
                   },
                 );
               },

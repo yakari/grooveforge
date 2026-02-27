@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [1.3.0] - 2026-02-27
+
+### Added
+- **Musical Scale Names:** Real descriptive names (e.g., Dorian, Mixolydian, Altered Scale) are now displayed in the UI instead of generic labels.
+- **Smart Jam Mode:** Significant overhaul of the Jam Mode engine to support multi-channel scale locking and dynamic mode calculation based on the Master's chord.
+- **Improved UI Propagation:** Descriptive scale names are now propagated to all UI components, offering better musical feedback during performance.
+
+### Changed
+- **Default Lock Mode:** "Jam Mode" is now the default scale-locking preference.
+
+### Fixed
+- **Chord Release Stabilization:** Implemented a peak-preservation logic with a 30ms grace period to prevent chord identity "flickering" during release transitions.
 ## [1.2.1] - 2026-02-27
 
 ### Added
