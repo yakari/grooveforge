@@ -7,6 +7,9 @@ import 'package:grooveforge/services/midi_service.dart';
 import 'package:grooveforge/services/audio_engine.dart';
 import '../screens/cc_preferences.dart';
 import 'package:grooveforge/services/cc_mapping_service.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:flutter/services.dart' show rootBundle;
 
 class PreferencesScreen extends StatefulWidget {
   const PreferencesScreen({super.key});
@@ -17,11 +20,22 @@ class PreferencesScreen extends StatefulWidget {
 
 class _PreferencesScreenState extends State<PreferencesScreen> {
   MidiDevice? _connectedDevice;
+  String _appVersion = 'Loading...';
 
   @override
   void initState() {
     super.initState();
     _checkConnectedDevices();
+    _loadVersionInfo();
+  }
+
+  Future<void> _loadVersionInfo() async {
+    final info = await PackageInfo.fromPlatform();
+    if (mounted) {
+      setState(() {
+        _appVersion = '${info.version}+${info.buildNumber}';
+      });
+    }
   }
 
   void _checkConnectedDevices() {
@@ -96,9 +110,51 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
     }
   }
 
+  void _showChangelogDialog() {
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            backgroundColor: Colors.grey[900],
+            title: const Text('Changelog'),
+            content: SizedBox(
+              width: 600,
+              height: 500,
+              child: FutureBuilder<String>(
+                future: rootBundle.loadString('CHANGELOG.md'),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError) {
+                    return const Center(
+                      child: Text('Error loading changelog.'),
+                    );
+                  }
+                  return Markdown(
+                    data: snapshot.data ?? '',
+                    styleSheet: MarkdownStyleSheet(
+                      h1: const TextStyle(color: Colors.blueAccent),
+                      h2: const TextStyle(color: Colors.blueAccent),
+                      h3: const TextStyle(color: Colors.deepPurpleAccent),
+                      p: const TextStyle(color: Colors.white70),
+                    ),
+                  );
+                },
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Close'),
+              ),
+            ],
+          ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final engine = context.watch<AudioEngine>();
     return Scaffold(
       appBar: AppBar(title: const Text('Preferences')),
       body: ListView(
@@ -550,16 +606,58 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
           ),
           const Divider(height: 40),
 
-          ElevatedButton.icon(
-            onPressed: () => _showResetConfirmation(context, engine),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red.withValues(alpha: 0.1),
-              foregroundColor: Colors.redAccent,
-              side: const BorderSide(color: Colors.redAccent),
-              padding: const EdgeInsets.symmetric(vertical: 12),
+          const Text(
+            'About',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey,
             ),
-            icon: const Icon(Icons.restore),
-            label: const Text('Reset All Preferences'),
+          ),
+          const SizedBox(height: 8),
+          Card(
+            child: Column(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.info_outline, color: Colors.grey),
+                  title: const Text('Version'),
+                  trailing: Text(
+                    _appVersion,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blueAccent,
+                    ),
+                  ),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.history, color: Colors.grey),
+                  title: const Text('View Changelog'),
+                  subtitle: const Text('History of changes and updates'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: _showChangelogDialog,
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 8),
+          const Divider(height: 40),
+
+          Consumer<AudioEngine>(
+            builder: (context, engine, _) {
+              return ElevatedButton.icon(
+                onPressed: () => _showResetConfirmation(context, engine),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red.withValues(alpha: 0.1),
+                  foregroundColor: Colors.redAccent,
+                  side: const BorderSide(color: Colors.redAccent),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                icon: const Icon(Icons.restore),
+                label: const Text('Reset All Preferences'),
+              );
+            },
           ),
 
           const SizedBox(height: 40),
