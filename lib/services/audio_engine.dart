@@ -31,6 +31,8 @@ enum ScaleType {
 
 enum ScaleLockMode { classic, jam }
 
+enum GestureAction { none, pitchBend, vibrato, glissando }
+
 class ChannelState {
   String? soundfontPath;
   int program = 0;
@@ -61,7 +63,7 @@ class ChannelState {
         ..bank = json['bank'] ?? 0;
 }
 
-class AudioEngine {
+class AudioEngine extends ChangeNotifier {
   final MidiPro _midiPro = MidiPro();
   bool _isInitialized = false;
 
@@ -88,11 +90,12 @@ class AudioEngine {
   );
 
   final ValueNotifier<bool> dragToPlay = ValueNotifier<bool>(true);
-  final ValueNotifier<bool> verticalPitchBendEnabled = ValueNotifier<bool>(
-    true,
+  // Gestures
+  final verticalGestureAction = ValueNotifier<GestureAction>(
+    GestureAction.vibrato,
   );
-  final ValueNotifier<bool> horizontalVibratoEnabled = ValueNotifier<bool>(
-    true,
+  final horizontalGestureAction = ValueNotifier<GestureAction>(
+    GestureAction.glissando,
   );
   final ValueNotifier<bool> isGestureInProgress = ValueNotifier<bool>(false);
   int _activeGestureCount = 0;
@@ -164,8 +167,8 @@ class AudioEngine {
     jamSlaveChannels.addListener(_saveState);
     jamScaleType.addListener(_saveState);
     dragToPlay.addListener(_saveState);
-    verticalPitchBendEnabled.addListener(_saveState);
-    horizontalVibratoEnabled.addListener(_saveState);
+    verticalGestureAction.addListener(_saveState);
+    horizontalGestureAction.addListener(_saveState);
     aftertouchDestCc.addListener(_saveState);
     notationFormat.addListener(_saveState);
   }
@@ -232,13 +235,13 @@ class AudioEngine {
       jsonEncode(visibleChannels.value),
     );
     await _prefs!.setBool('drag_to_play', dragToPlay.value);
-    await _prefs!.setBool(
-      'vertical_pitch_bend_enabled',
-      verticalPitchBendEnabled.value,
+    await _prefs!.setString(
+      'verticalGestureAction',
+      verticalGestureAction.value.name,
     );
-    await _prefs!.setBool(
-      'horizontal_vibrato_enabled',
-      horizontalVibratoEnabled.value,
+    await _prefs!.setString(
+      'horizontalGestureAction',
+      horizontalGestureAction.value.name,
     );
     await _prefs!.setInt('aftertouch_dest_cc', aftertouchDestCc.value);
     await _prefs!.setString('notation_format', notationFormat.value);
@@ -306,10 +309,21 @@ class AudioEngine {
     }
 
     dragToPlay.value = _prefs?.getBool('drag_to_play') ?? true;
-    verticalPitchBendEnabled.value =
-        _prefs?.getBool('vertical_pitch_bend_enabled') ?? true;
-    horizontalVibratoEnabled.value =
-        _prefs?.getBool('horizontal_vibrato_enabled') ?? true;
+    // Gestures
+    final vActStr = _prefs!.getString('verticalGestureAction');
+    if (vActStr != null) {
+      verticalGestureAction.value = GestureAction.values.firstWhere(
+        (e) => e.name == vActStr,
+        orElse: () => GestureAction.vibrato,
+      );
+    }
+    final hActStr = _prefs!.getString('horizontalGestureAction');
+    if (hActStr != null) {
+      horizontalGestureAction.value = GestureAction.values.firstWhere(
+        (e) => e.name == hActStr,
+        orElse: () => GestureAction.glissando,
+      );
+    }
     aftertouchDestCc.value = _prefs?.getInt('aftertouch_dest_cc') ?? 1;
 
     String? savedNotationFormat = _prefs!.getString('notation_format');
@@ -1065,8 +1079,8 @@ class AudioEngine {
     }
     visibleChannels.value = List.generate(16, (i) => i);
     dragToPlay.value = true;
-    verticalPitchBendEnabled.value = true;
-    horizontalVibratoEnabled.value = true;
+    verticalGestureAction.value = GestureAction.vibrato;
+    horizontalGestureAction.value = GestureAction.glissando;
     aftertouchDestCc.value = 1;
     notationFormat.value = 'Standard';
     pianoKeysToShow.value = 22;

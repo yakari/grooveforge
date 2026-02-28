@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.1] - 2026-02-28
+### Added
+- **Configurable Expressive Gestures**: Users can now independently assign actions (None, Pitch Bend, Vibrato, Glissando) to Vertical and Horizontal key gestures.
+- **Unified Gesture Preferences**: High-level configuration in the Preferences screen with new axis-specific dropdown menus.
+
+### Changed
+- **Performance Optimization**: Chord detection in Jam mode is now asynchronous, significantly reducing UI latency during heavy performance tracking.
+
+### Fixed
+- Resolved a runtime `Provider` crash on application startup.
+- Fixed a minor linting warning in the `VirtualPiano` logic.
+
 ## [1.4.0] - 2026-02-28
 ### Added
 - **Expressive Gestures**: Introduced vertical Pitch Bend and horizontal Vibrato on the Virtual Piano.

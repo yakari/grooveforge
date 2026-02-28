@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:grooveforge/services/audio_engine.dart';
 
 class VirtualPiano extends StatefulWidget {
   final Set<int> activeNotes;
   final void Function(int note)? onNotePressed;
   final void Function(int note)? onNoteReleased;
-  final bool dragToPlay;
+  final GestureAction verticalAction;
+  final GestureAction horizontalAction;
   final int keysToShow;
   final void Function(int value)? onPitchBend;
   final void Function(int cc, int value)? onControlChange;
@@ -15,7 +17,8 @@ class VirtualPiano extends StatefulWidget {
     required this.activeNotes,
     this.onNotePressed,
     this.onNoteReleased,
-    this.dragToPlay = true,
+    this.verticalAction = GestureAction.vibrato,
+    this.horizontalAction = GestureAction.glissando,
     this.keysToShow = 22,
     this.onPitchBend,
     this.onControlChange,
@@ -230,7 +233,7 @@ class _VirtualPianoState extends State<VirtualPiano> {
     int? currentNote = _pointerToNote[event.pointer];
 
     if (note != currentNote) {
-      if (widget.dragToPlay) {
+      if (widget.horizontalAction == GestureAction.glissando) {
         if (currentNote != null) {
           widget.onNoteReleased?.call(currentNote);
         }
@@ -250,23 +253,34 @@ class _VirtualPianoState extends State<VirtualPiano> {
         double dx = event.localPosition.dx - anchor.dx;
         double dy = event.localPosition.dy - anchor.dy;
 
-        // Vertical -> Pitch Bend
-        if (widget.onPitchBend != null) {
-          // Map -100px (up) to +2 semitones? Standard is 8192 centered.
-          // Let's say -100px is 16383, +100px is 0
-          double pbNormalized = (dy / -100.0).clamp(-1.0, 1.0);
-          int pbValue = 8192 + (pbNormalized * 8191).toInt();
-          widget.onPitchBend!(pbValue);
-        }
-
-        // Horizontal -> Vibrato (Modulation CC#1)
-        if (widget.onControlChange != null) {
-          // abs(dx) maps to CC value
-          double modNormalized = (dx.abs() / 40.0).clamp(0.0, 1.0);
-          int modValue = (modNormalized * 127).toInt();
-          widget.onControlChange!(1, modValue);
-        }
+        _applyGesture(widget.verticalAction, dy, isVertical: true);
+        _applyGesture(widget.horizontalAction, dx, isVertical: false);
       }
+    }
+  }
+
+  void _applyGesture(
+    GestureAction action,
+    double delta, {
+    required bool isVertical,
+  }) {
+    if (action == GestureAction.none || action == GestureAction.glissando) {
+      return;
+    }
+
+    if (action == GestureAction.pitchBend && widget.onPitchBend != null) {
+      // Map deltas to PB. Vertical: -100px (up) -> max, +100px -> min.
+      // Horizontal: +100px (right) -> max, -100px -> min.
+      double factor = isVertical ? -100.0 : 100.0;
+      double pbNormalized = (delta / factor).clamp(-1.0, 1.0);
+      int pbValue = 8192 + (pbNormalized * 8191).toInt();
+      widget.onPitchBend!(pbValue);
+    } else if (action == GestureAction.vibrato &&
+        widget.onControlChange != null) {
+      // Sensitivity: 40px for full depth
+      double modNormalized = (delta.abs() / 40.0).clamp(0.0, 1.0);
+      int modValue = (modNormalized * 127).toInt();
+      widget.onControlChange!(1, modValue);
     }
   }
 
@@ -281,8 +295,14 @@ class _VirtualPianoState extends State<VirtualPiano> {
     if (note != null) {
       widget.onNoteReleased?.call(note);
       // Reset gestures when lift finger
-      widget.onPitchBend?.call(8192);
-      widget.onControlChange?.call(1, 0);
+      if (widget.verticalAction == GestureAction.pitchBend ||
+          widget.horizontalAction == GestureAction.pitchBend) {
+        widget.onPitchBend?.call(8192);
+      }
+      if (widget.verticalAction == GestureAction.vibrato ||
+          widget.horizontalAction == GestureAction.vibrato) {
+        widget.onControlChange?.call(1, 0);
+      }
     }
   }
 
@@ -400,7 +420,7 @@ class _VirtualPianoState extends State<VirtualPiano> {
                 controller: _scrollController,
                 scrollDirection: Axis.horizontal,
                 physics:
-                    widget.dragToPlay
+                    (widget.horizontalAction == GestureAction.glissando)
                         ? const NeverScrollableScrollPhysics()
                         : const ClampingScrollPhysics(),
                 child: SizedBox(

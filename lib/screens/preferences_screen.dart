@@ -306,7 +306,7 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
           const SizedBox(height: 32),
 
           const Text(
-            'Expressive Gestures',
+            'Key Gestures',
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
@@ -319,44 +319,124 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
               builder: (context, engine, _) {
                 return Column(
                   children: [
-                    ValueListenableBuilder<bool>(
-                      valueListenable: engine.verticalPitchBendEnabled,
-                      builder: (context, enabled, _) {
-                        return SwitchListTile(
-                          secondary: const Icon(
-                            Icons.height,
-                            color: Colors.orange,
+                    ValueListenableBuilder<GestureAction>(
+                      valueListenable: engine.verticalGestureAction,
+                      builder: (context, action, _) {
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16.0,
+                            vertical: 8.0,
                           ),
-                          title: const Text('Vertical Pitch Bend'),
-                          subtitle: const Text(
-                            'Slide finger vertically on a key to bend pitch',
+                          child: Row(
+                            children: [
+                              const Icon(Icons.height, color: Colors.orange),
+                              const SizedBox(width: 16),
+                              const Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Vertical Interaction',
+                                      style: TextStyle(fontSize: 16),
+                                    ),
+                                    Text(
+                                      'Swipe up/down on a key',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              DropdownButton<GestureAction>(
+                                value: action,
+                                items: const [
+                                  DropdownMenuItem(
+                                    value: GestureAction.none,
+                                    child: Text('None'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: GestureAction.pitchBend,
+                                    child: Text('Pitch Bend'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: GestureAction.vibrato,
+                                    child: Text('Vibrato'),
+                                  ),
+                                ],
+                                onChanged: (val) {
+                                  if (val != null) {
+                                    engine.verticalGestureAction.value = val;
+                                    engine.stateNotifier.value++;
+                                  }
+                                },
+                              ),
+                            ],
                           ),
-                          value: enabled,
-                          onChanged: (val) {
-                            engine.verticalPitchBendEnabled.value = val;
-                            engine.stateNotifier.value++;
-                          },
                         );
                       },
                     ),
                     const Divider(height: 1),
-                    ValueListenableBuilder<bool>(
-                      valueListenable: engine.horizontalVibratoEnabled,
-                      builder: (context, enabled, _) {
-                        return SwitchListTile(
-                          secondary: const Icon(
-                            Icons.unfold_more,
-                            color: Colors.blue,
+                    ValueListenableBuilder<GestureAction>(
+                      valueListenable: engine.horizontalGestureAction,
+                      builder: (context, action, _) {
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16.0,
+                            vertical: 8.0,
                           ),
-                          title: const Text('Horizontal Vibrato'),
-                          subtitle: const Text(
-                            'Slide finger horizontally for modulation (CC#1)',
+                          child: Row(
+                            children: [
+                              const Icon(Icons.unfold_more, color: Colors.blue),
+                              const SizedBox(width: 16),
+                              const Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Horizontal Interaction',
+                                      style: TextStyle(fontSize: 16),
+                                    ),
+                                    Text(
+                                      'Slide left/right on a key',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              DropdownButton<GestureAction>(
+                                value: action,
+                                items: const [
+                                  DropdownMenuItem(
+                                    value: GestureAction.none,
+                                    child: Text('None'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: GestureAction.pitchBend,
+                                    child: Text('Pitch Bend'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: GestureAction.vibrato,
+                                    child: Text('Vibrato'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: GestureAction.glissando,
+                                    child: Text('Glissando'),
+                                  ),
+                                ],
+                                onChanged: (val) {
+                                  if (val != null) {
+                                    engine.horizontalGestureAction.value = val;
+                                    engine.stateNotifier.value++;
+                                  }
+                                },
+                              ),
+                            ],
                           ),
-                          value: enabled,
-                          onChanged: (val) {
-                            engine.horizontalVibratoEnabled.value = val;
-                            engine.stateNotifier.value++;
-                          },
                         );
                       },
                     ),
@@ -368,38 +448,11 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
           const SizedBox(height: 32),
 
           const Text(
-            'Virtual Piano',
+            'Virtual Piano Display',
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
               color: Colors.orange,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Card(
-            child: Consumer<AudioEngine>(
-              builder: (context, engine, _) {
-                return ValueListenableBuilder<bool>(
-                  valueListenable: engine.dragToPlay,
-                  builder: (context, enabled, _) {
-                    return SwitchListTile(
-                      secondary: const Icon(
-                        Icons.gesture,
-                        color: Colors.orange,
-                      ),
-                      title: const Text('Glissando (Drag to Play)'),
-                      subtitle: const Text(
-                        'Play notes by dragging finger across keys',
-                      ),
-                      value: enabled,
-                      onChanged: (val) {
-                        engine.dragToPlay.value = val;
-                        engine.stateNotifier.value++;
-                      },
-                    );
-                  },
-                );
-              },
             ),
           ),
           const SizedBox(height: 8),

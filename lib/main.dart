@@ -12,7 +12,7 @@ void main() {
       providers: [
         Provider<CcMappingService>(create: (_) => CcMappingService()),
         Provider<MidiService>(create: (_) => MidiService()),
-        Provider<AudioEngine>(create: (_) => AudioEngine()),
+        ChangeNotifierProvider<AudioEngine>(create: (_) => AudioEngine()),
       ],
       child: const GrooveForgeApp(),
     ),

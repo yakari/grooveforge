@@ -256,59 +256,45 @@ class ChannelCard extends StatelessWidget {
                       child: GestureDetector(
                         onTap:
                             () {}, // Swallow taps so they don't trigger anything underneath
-                        child: ValueListenableBuilder<bool>(
-                          valueListenable: engine.dragToPlay,
-                          builder: (context, dragToPlay, _) {
-                            return ValueListenableBuilder<int>(
-                              valueListenable: engine.pianoKeysToShow,
-                              builder: (context, keysToShow, _) {
-                                return ValueListenableBuilder<bool>(
+                        child: ValueListenableBuilder<int>(
+                          valueListenable: engine.pianoKeysToShow,
+                          builder: (context, keysToShow, _) {
+                            return ValueListenableBuilder<GestureAction>(
+                              valueListenable: engine.verticalGestureAction,
+                              builder: (context, vAction, _) {
+                                return ValueListenableBuilder<GestureAction>(
                                   valueListenable:
-                                      engine.verticalPitchBendEnabled,
-                                  builder: (context, pbEnabled, _) {
-                                    return ValueListenableBuilder<bool>(
-                                      valueListenable:
-                                          engine.horizontalVibratoEnabled,
-                                      builder: (context, vibEnabled, _) {
-                                        return VirtualPiano(
-                                          activeNotes: activeNotes,
-                                          dragToPlay: dragToPlay,
-                                          keysToShow: keysToShow,
-                                          onNotePressed:
-                                              (note) => engine.playNote(
-                                                channel: channelIndex,
-                                                key: note,
-                                                velocity: 100,
-                                              ),
-                                          onNoteReleased:
-                                              (note) => engine.stopNote(
-                                                channel: channelIndex,
-                                                key: note,
-                                              ),
-                                          onPitchBend:
-                                              pbEnabled
-                                                  ? (val) =>
-                                                      engine.setPitchBend(
-                                                        channel: channelIndex,
-                                                        value: val,
-                                                      )
-                                                  : null,
-                                          onControlChange:
-                                              vibEnabled
-                                                  ? (cc, val) =>
-                                                      engine.setControlChange(
-                                                        channel: channelIndex,
-                                                        controller: cc,
-                                                        value: val,
-                                                      )
-                                                  : null,
-                                          onInteractingChanged:
-                                              (interacting) =>
-                                                  engine.updateGestureState(
-                                                    interacting,
-                                                  ),
-                                        );
-                                      },
+                                      engine.horizontalGestureAction,
+                                  builder: (context, hAction, _) {
+                                    return VirtualPiano(
+                                      activeNotes: activeNotes,
+                                      verticalAction: vAction,
+                                      horizontalAction: hAction,
+                                      keysToShow: keysToShow,
+                                      onNotePressed:
+                                          (note) => engine.playNote(
+                                            channel: channelIndex,
+                                            key: note,
+                                            velocity: 100,
+                                          ),
+                                      onNoteReleased:
+                                          (note) => engine.stopNote(
+                                            channel: channelIndex,
+                                            key: note,
+                                          ),
+                                      onPitchBend:
+                                          (val) => engine.setPitchBend(
+                                            channel: channelIndex,
+                                            value: val,
+                                          ),
+                                      onControlChange:
+                                          (cc, val) => engine.setControlChange(
+                                            channel: channelIndex,
+                                            controller: cc,
+                                            value: val,
+                                          ),
+                                      onInteractingChanged:
+                                          engine.updateGestureState,
                                     );
                                   },
                                 );
