@@ -87,8 +87,26 @@ class AudioEngine {
     List.generate(16, (i) => i),
   );
 
-  final ValueNotifier<bool> dragToPlay = ValueNotifier(true);
-  final ValueNotifier<int> aftertouchDestCc = ValueNotifier(1);
+  final ValueNotifier<bool> dragToPlay = ValueNotifier<bool>(true);
+  final ValueNotifier<bool> verticalPitchBendEnabled = ValueNotifier<bool>(
+    true,
+  );
+  final ValueNotifier<bool> horizontalVibratoEnabled = ValueNotifier<bool>(
+    true,
+  );
+  final ValueNotifier<bool> isGestureInProgress = ValueNotifier<bool>(false);
+  int _activeGestureCount = 0;
+
+  void updateGestureState(bool interacting) {
+    if (interacting) {
+      _activeGestureCount++;
+    } else {
+      _activeGestureCount--;
+    }
+    isGestureInProgress.value = _activeGestureCount > 0;
+  }
+
+  final ValueNotifier<int> aftertouchDestCc = ValueNotifier<int>(1);
   final ValueNotifier<String> notationFormat = ValueNotifier('Standard');
   final ValueNotifier<int> pianoKeysToShow = ValueNotifier(22);
 
@@ -145,6 +163,11 @@ class AudioEngine {
     jamMasterChannel.addListener(_saveState);
     jamSlaveChannels.addListener(_saveState);
     jamScaleType.addListener(_saveState);
+    dragToPlay.addListener(_saveState);
+    verticalPitchBendEnabled.addListener(_saveState);
+    horizontalVibratoEnabled.addListener(_saveState);
+    aftertouchDestCc.addListener(_saveState);
+    notationFormat.addListener(_saveState);
   }
 
   Future<void> _ensureDefaultSoundfont() async {
@@ -209,6 +232,14 @@ class AudioEngine {
       jsonEncode(visibleChannels.value),
     );
     await _prefs!.setBool('drag_to_play', dragToPlay.value);
+    await _prefs!.setBool(
+      'vertical_pitch_bend_enabled',
+      verticalPitchBendEnabled.value,
+    );
+    await _prefs!.setBool(
+      'horizontal_vibrato_enabled',
+      horizontalVibratoEnabled.value,
+    );
     await _prefs!.setInt('aftertouch_dest_cc', aftertouchDestCc.value);
     await _prefs!.setString('notation_format', notationFormat.value);
     await _prefs!.setInt('piano_keys_to_show', pianoKeysToShow.value);
@@ -274,15 +305,12 @@ class AudioEngine {
       }
     }
 
-    bool? savedDragToPlay = _prefs!.getBool('drag_to_play');
-    if (savedDragToPlay != null) {
-      dragToPlay.value = savedDragToPlay;
-    }
-
-    int? savedAftertouchDest = _prefs!.getInt('aftertouch_dest_cc');
-    if (savedAftertouchDest != null) {
-      aftertouchDestCc.value = savedAftertouchDest;
-    }
+    dragToPlay.value = _prefs?.getBool('drag_to_play') ?? true;
+    verticalPitchBendEnabled.value =
+        _prefs?.getBool('vertical_pitch_bend_enabled') ?? true;
+    horizontalVibratoEnabled.value =
+        _prefs?.getBool('horizontal_vibrato_enabled') ?? true;
+    aftertouchDestCc.value = _prefs?.getInt('aftertouch_dest_cc') ?? 1;
 
     String? savedNotationFormat = _prefs!.getString('notation_format');
     if (savedNotationFormat != null) {
@@ -545,20 +573,20 @@ class AudioEngine {
                 // Normal CC remapping
                 if (mapping.targetChannel == -1) {
                   for (int i = 0; i < 16; i++) {
-                    _sendControlChange(
+                    setControlChange(
                       channel: i,
                       controller: mapping.targetCc,
                       value: data2,
                     );
                   }
                 } else if (mapping.targetChannel == -2) {
-                  _sendControlChange(
+                  setControlChange(
                     channel: channel,
                     controller: mapping.targetCc,
                     value: data2,
                   );
                 } else {
-                  _sendControlChange(
+                  setControlChange(
                     channel: mapping.targetChannel,
                     controller: mapping.targetCc,
                     value: data2,
@@ -569,14 +597,14 @@ class AudioEngine {
             }
           }
           // Default: send normal CC
-          _sendControlChange(channel: channel, controller: data1, value: data2);
+          setControlChange(channel: channel, controller: data1, value: data2);
           break;
         case 0xE0:
           int pitchValue = (data2 << 7) | data1;
-          _sendPitchBend(channel: channel, value: pitchValue);
+          setPitchBend(channel: channel, value: pitchValue);
           break;
         case 0xD0:
-          _sendControlChange(
+          setControlChange(
             channel: channel,
             controller: aftertouchDestCc.value,
             value: data1,
@@ -591,6 +619,10 @@ class AudioEngine {
     required int key,
     required int velocity,
   }) {
+    // Reset expressive gestures on Note On to avoid stuck values
+    setPitchBend(channel: channel, value: 8192); // Center
+    setControlChange(channel: channel, controller: 1, value: 0); // Reset Mod
+
     final currentNotes = Set<int>.from(channels[channel].activeNotes.value);
     currentNotes.add(key);
     channels[channel].activeNotes.value = currentNotes;
@@ -690,12 +722,9 @@ class AudioEngine {
       if (channels[channel].isScaleLocked.value) {
         return;
       }
-    } else {
-      // Jam mode: only process master channel
-      if (channel != jamMasterChannel.value) {
-        return;
-      }
     }
+    // In Jam mode, we allow all channels to update their detected chord for display.
+    // Snapping logic (noteOn) correctly handles reference to the master channel.
 
     final notes = channels[channel].activeNotes.value;
     final count = notes.length;
@@ -981,6 +1010,18 @@ class AudioEngine {
     assignPatchToChannel(channel, nextProgram);
   }
 
+  void setControlChange({
+    required int channel,
+    required int controller,
+    required int value,
+  }) {
+    _sendControlChange(channel: channel, controller: controller, value: value);
+  }
+
+  void setPitchBend({required int channel, required int value}) {
+    _sendPitchBend(channel: channel, value: value);
+  }
+
   void _sendControlChange({
     required int channel,
     required int controller,
@@ -1027,6 +1068,8 @@ class AudioEngine {
     }
     visibleChannels.value = List.generate(16, (i) => i);
     dragToPlay.value = true;
+    verticalPitchBendEnabled.value = true;
+    horizontalVibratoEnabled.value = true;
     aftertouchDestCc.value = 1;
     notationFormat.value = 'Standard';
     pianoKeysToShow.value = 22;

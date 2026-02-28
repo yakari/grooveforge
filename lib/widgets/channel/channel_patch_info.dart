@@ -11,11 +11,13 @@ class ChannelPatchInfo extends StatelessWidget {
   final int channelIndex;
   final bool isDimmed;
   final bool isLocked;
-  final ChordMatch? lastChord;
+  final ChordMatch? displayChord;
+  final ChordMatch? referenceChord;
   final ScaleType currentScale;
   final String? descriptiveScaleName;
   final bool isJamSlave;
-  final VoidCallback onLockToggled;
+  final bool showLockControls;
+  final VoidCallback? onLockToggled;
   final ValueChanged<ScaleType?> onScaleChanged;
 
   const ChannelPatchInfo({
@@ -24,11 +26,13 @@ class ChannelPatchInfo extends StatelessWidget {
     required this.channelIndex,
     required this.isDimmed,
     required this.isLocked,
-    required this.lastChord,
+    this.displayChord,
+    this.referenceChord,
     required this.currentScale,
     this.descriptiveScaleName,
     required this.isJamSlave,
-    required this.onLockToggled,
+    required this.showLockControls,
+    this.onLockToggled,
     required this.onScaleChanged,
   });
 
@@ -255,16 +259,18 @@ class ChannelPatchInfo extends StatelessWidget {
               Expanded(flex: 4, child: programPicker),
               const SizedBox(width: 8),
               bankPicker,
-              if (lastChord != null) ...[
+              if (displayChord != null || referenceChord != null) ...[
                 const SizedBox(width: 8),
                 ChannelScaleLock(
                   engine: engine,
                   isDimmed: isDimmed,
                   isLocked: isLocked,
-                  lastChord: lastChord!,
+                  displayChord: displayChord,
+                  referenceChord: referenceChord,
                   currentScale: currentScale,
                   descriptiveScaleName: descriptiveScaleName,
                   isJamSlave: isJamSlave,
+                  showLockControls: showLockControls,
                   onLockToggled: onLockToggled,
                   onScaleChanged: onScaleChanged,
                 ),
@@ -279,16 +285,18 @@ class ChannelPatchInfo extends StatelessWidget {
               Row(
                 children: [
                   Expanded(child: soundfontPicker),
-                  if (lastChord != null) ...[
+                  if (displayChord != null || referenceChord != null) ...[
                     const SizedBox(width: 8),
                     ChannelScaleLock(
                       engine: engine,
                       isDimmed: isDimmed,
                       isLocked: isLocked,
-                      lastChord: lastChord!,
+                      displayChord: displayChord,
+                      referenceChord: referenceChord,
                       currentScale: currentScale,
                       descriptiveScaleName: descriptiveScaleName,
                       isJamSlave: isJamSlave,
+                      showLockControls: showLockControls,
                       onLockToggled: onLockToggled,
                       onScaleChanged: onScaleChanged,
                     ),

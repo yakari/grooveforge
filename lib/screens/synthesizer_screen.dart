@@ -237,16 +237,25 @@ class _SynthesizerScreenState extends State<SynthesizerScreen> {
                               return ValueListenableBuilder<List<int>>(
                                 valueListenable: engine.visibleChannels,
                                 builder: (context, visibleChannels, _) {
-                                  return ListView.builder(
-                                    controller: _scrollController,
-                                    itemCount: visibleChannels.length,
-                                    itemBuilder: (context, index) {
-                                      final channelIndex =
-                                          visibleChannels[index];
+                                  return ValueListenableBuilder<bool>(
+                                    valueListenable: engine.isGestureInProgress,
+                                    builder: (context, interacting, _) {
+                                      return ListView.builder(
+                                        controller: _scrollController,
+                                        physics:
+                                            interacting
+                                                ? const NeverScrollableScrollPhysics()
+                                                : const AlwaysScrollableScrollPhysics(),
+                                        itemCount: visibleChannels.length,
+                                        itemBuilder: (context, index) {
+                                          final channelIndex =
+                                              visibleChannels[index];
 
-                                      return ChannelCard(
-                                        channelIndex: channelIndex,
-                                        itemHeight: itemHeight,
+                                          return ChannelCard(
+                                            channelIndex: channelIndex,
+                                            itemHeight: itemHeight,
+                                          );
+                                        },
                                       );
                                     },
                                   );

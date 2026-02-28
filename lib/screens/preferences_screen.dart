@@ -306,6 +306,68 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
           const SizedBox(height: 32),
 
           const Text(
+            'Expressive Gestures',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.orange,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Card(
+            child: Consumer<AudioEngine>(
+              builder: (context, engine, _) {
+                return Column(
+                  children: [
+                    ValueListenableBuilder<bool>(
+                      valueListenable: engine.verticalPitchBendEnabled,
+                      builder: (context, enabled, _) {
+                        return SwitchListTile(
+                          secondary: const Icon(
+                            Icons.height,
+                            color: Colors.orange,
+                          ),
+                          title: const Text('Vertical Pitch Bend'),
+                          subtitle: const Text(
+                            'Slide finger vertically on a key to bend pitch',
+                          ),
+                          value: enabled,
+                          onChanged: (val) {
+                            engine.verticalPitchBendEnabled.value = val;
+                            engine.stateNotifier.value++;
+                          },
+                        );
+                      },
+                    ),
+                    const Divider(height: 1),
+                    ValueListenableBuilder<bool>(
+                      valueListenable: engine.horizontalVibratoEnabled,
+                      builder: (context, enabled, _) {
+                        return SwitchListTile(
+                          secondary: const Icon(
+                            Icons.unfold_more,
+                            color: Colors.blue,
+                          ),
+                          title: const Text('Horizontal Vibrato'),
+                          subtitle: const Text(
+                            'Slide finger horizontally for modulation (CC#1)',
+                          ),
+                          value: enabled,
+                          onChanged: (val) {
+                            engine.horizontalVibratoEnabled.value = val;
+                            engine.stateNotifier.value++;
+                          },
+                        );
+                      },
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 32),
+
+          const Text(
             'Virtual Piano',
             style: TextStyle(
               fontSize: 20,
@@ -319,24 +381,20 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
               builder: (context, engine, _) {
                 return ValueListenableBuilder<bool>(
                   valueListenable: engine.dragToPlay,
-                  builder: (context, isDragEnabled, _) {
+                  builder: (context, enabled, _) {
                     return SwitchListTile(
                       secondary: const Icon(
-                        Icons.touch_app,
+                        Icons.gesture,
                         color: Colors.orange,
                       ),
-                      title: const Text('Drag to Play (Glissando)'),
+                      title: const Text('Glissando (Drag to Play)'),
                       subtitle: const Text(
-                        'Play notes smoothly by sliding your finger across the virtual piano keys',
+                        'Play notes by dragging finger across keys',
                       ),
-                      value: isDragEnabled,
-                      activeThumbColor: Colors.orange,
+                      value: enabled,
                       onChanged: (val) {
                         engine.dragToPlay.value = val;
-                        // Save triggers automatically when boolean toggles but for safety we can trigger internal save
-                        engine
-                            .stateNotifier
-                            .value++; // forces _saveState downstream technically but we should invoke properly
+                        engine.stateNotifier.value++;
                       },
                     );
                   },

@@ -33,8 +33,9 @@ android {
     buildTypes {
         release {
             // Check if we are in CI or have a local signing config
-            val keystoreFile = project.rootProject.file("android/app/release-keystore.jks")
+            val keystoreFile = project.file("release-keystore.jks")
             if (keystoreFile.exists()) {
+                println("GrooveForge: Using release keystore at ${keystoreFile.absolutePath}")
                 signingConfigs.create("release") {
                     storeFile = keystoreFile
                     storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
@@ -43,8 +44,7 @@ android {
                 }
                 signingConfig = signingConfigs.getByName("release")
             } else {
-                // TODO: Add your own signing config for the release build.
-                // Signing with the debug keys for now, so `flutter run --release` works.
+                println("GrooveForge: WARNING: Release keystore not found at ${keystoreFile.absolutePath}, falling back to debug.")
                 signingConfig = signingConfigs.getByName("debug")
             }
         }

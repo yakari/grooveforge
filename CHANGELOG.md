@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-02-28
+### Added
+- **Expressive Gestures**: Introduced vertical Pitch Bend and horizontal Vibrato on the Virtual Piano.
+- **Gesture-Locked Scrolling**: Automatic suppression of piano list scrolling while expressive gestures are in progress to prevent accidental movement.
+- **Independent Jam Chords**: Every channel now detects and displays its own chord independently in Jam mode.
+- **Dynamic Slave Visibility**: Slave channel chord names now hide automatically when they are not actively playing.
+
+### Changed
+- Refined Jam mode chord badges by removing the "JAM:" prefix for a cleaner aesthetic.
+- Scale names across all channels correctly reference the Master's chord context for synchronized performance feedback.
+
 ## [1.3.6] - 2026-02-28
 ### Added
 - New "About" section in Preferences screen.

@@ -6,14 +6,20 @@ class VirtualPiano extends StatefulWidget {
   final void Function(int note)? onNoteReleased;
   final bool dragToPlay;
   final int keysToShow;
+  final void Function(int value)? onPitchBend;
+  final void Function(int cc, int value)? onControlChange;
+  final void Function(bool interacting)? onInteractingChanged;
 
   const VirtualPiano({
     super.key,
     required this.activeNotes,
     this.onNotePressed,
     this.onNoteReleased,
-    this.dragToPlay = false,
-    this.keysToShow = 88,
+    this.dragToPlay = true,
+    this.keysToShow = 22,
+    this.onPitchBend,
+    this.onControlChange,
+    this.onInteractingChanged,
   });
 
   @override
@@ -26,6 +32,7 @@ class _VirtualPianoState extends State<VirtualPiano> {
 
   // Track continuous touches. Maps pointer ID -> MIDI Note currently depressed by that pointer
   final Map<int, int> _pointerToNote = {};
+  final Map<int, Offset> _pointerToAnchor = {};
 
   // Controller for horizontal scrolling (master)
   final ScrollController _scrollController = ScrollController();
@@ -65,9 +72,10 @@ class _VirtualPianoState extends State<VirtualPiano> {
     if (widget.activeNotes.isNotEmpty &&
         oldWidget.activeNotes != widget.activeNotes) {
       // Find a newly played note if possible to center on
-      int activeCopy = widget
-          .activeNotes
-          .last; // Set is unordered but typically holds the current playing
+      int activeCopy =
+          widget
+              .activeNotes
+              .last; // Set is unordered but typically holds the current playing
       _scrollToNoteIfNotVisible(activeCopy);
     }
   }
@@ -193,8 +201,13 @@ class _VirtualPianoState extends State<VirtualPiano> {
       bKeys,
     );
     if (note != null) {
+      bool wasEmpty = _pointerToNote.isEmpty;
       _pointerToNote[event.pointer] = note;
+      _pointerToAnchor[event.pointer] = event.localPosition;
       widget.onNotePressed?.call(note);
+      if (wasEmpty) {
+        widget.onInteractingChanged?.call(true);
+      }
     }
   }
 
@@ -206,9 +219,7 @@ class _VirtualPianoState extends State<VirtualPiano> {
     List<int> wKeys,
     List<int> bKeys,
   ) {
-    if (!widget.dragToPlay) return;
-
-    int? newNote = _getNoteAtPosition(
+    int? note = _getNoteAtPosition(
       event.localPosition,
       height,
       wWidth,
@@ -218,23 +229,60 @@ class _VirtualPianoState extends State<VirtualPiano> {
     );
     int? currentNote = _pointerToNote[event.pointer];
 
-    if (newNote != currentNote) {
-      if (currentNote != null) {
-        widget.onNoteReleased?.call(currentNote);
+    if (note != currentNote) {
+      if (widget.dragToPlay) {
+        if (currentNote != null) {
+          widget.onNoteReleased?.call(currentNote);
+        }
+        if (note != null) {
+          _pointerToNote[event.pointer] = note;
+          _pointerToAnchor[event.pointer] = event.localPosition;
+          widget.onNotePressed?.call(note);
+        } else {
+          _pointerToNote.remove(event.pointer);
+          _pointerToAnchor.remove(event.pointer);
+        }
       }
-      if (newNote != null) {
-        _pointerToNote[event.pointer] = newNote;
-        widget.onNotePressed?.call(newNote);
-      } else {
-        _pointerToNote.remove(event.pointer);
+    } else {
+      // Finger is on same key, check for expressive deltas
+      final anchor = _pointerToAnchor[event.pointer];
+      if (anchor != null) {
+        double dx = event.localPosition.dx - anchor.dx;
+        double dy = event.localPosition.dy - anchor.dy;
+
+        // Vertical -> Pitch Bend
+        if (widget.onPitchBend != null) {
+          // Map -100px (up) to +2 semitones? Standard is 8192 centered.
+          // Let's say -100px is 16383, +100px is 0
+          double pbNormalized = (dy / -100.0).clamp(-1.0, 1.0);
+          int pbValue = 8192 + (pbNormalized * 8191).toInt();
+          widget.onPitchBend!(pbValue);
+        }
+
+        // Horizontal -> Vibrato (Modulation CC#1)
+        if (widget.onControlChange != null) {
+          // abs(dx) maps to CC value
+          double modNormalized = (dx.abs() / 40.0).clamp(0.0, 1.0);
+          int modValue = (modNormalized * 127).toInt();
+          widget.onControlChange!(1, modValue);
+        }
       }
     }
   }
 
   void _handlePointerUp(PointerEvent event) {
     int? note = _pointerToNote.remove(event.pointer);
+    _pointerToAnchor.remove(event.pointer);
+
+    if (_pointerToNote.isEmpty) {
+      widget.onInteractingChanged?.call(false);
+    }
+
     if (note != null) {
       widget.onNoteReleased?.call(note);
+      // Reset gestures when lift finger
+      widget.onPitchBend?.call(8192);
+      widget.onControlChange?.call(1, 0);
     }
   }
 
@@ -259,19 +307,20 @@ class _VirtualPianoState extends State<VirtualPiano> {
       builder: (context, constraints) {
         // Provide a default if showing 88 keys on a tiny screen
         int keysToShow = widget.keysToShow <= 0 ? 88 : widget.keysToShow;
-        int maxWhiteKeys = keysToShow > whiteKeys.length
-            ? whiteKeys.length
-            : keysToShow;
+        int maxWhiteKeys =
+            keysToShow > whiteKeys.length ? whiteKeys.length : keysToShow;
 
         double whiteKeyWidth = constraints.maxWidth / maxWhiteKeys;
         double blackKeyWidth = whiteKeyWidth * 0.6;
-        double currentHeight = constraints.maxHeight == double.infinity
-            ? 100
-            : constraints.maxHeight;
+        double currentHeight =
+            constraints.maxHeight == double.infinity
+                ? 100
+                : constraints.maxHeight;
         double scrollbarPadding = 16.0;
-        double keyHeight = currentHeight > scrollbarPadding
-            ? currentHeight - scrollbarPadding
-            : currentHeight;
+        double keyHeight =
+            currentHeight > scrollbarPadding
+                ? currentHeight - scrollbarPadding
+                : currentHeight;
 
         // Calculate total required width
         double totalWidth = whiteKeyWidth * whiteKeys.length;
@@ -350,68 +399,78 @@ class _VirtualPianoState extends State<VirtualPiano> {
               child: SingleChildScrollView(
                 controller: _scrollController,
                 scrollDirection: Axis.horizontal,
-                physics: widget.dragToPlay
-                    ? const NeverScrollableScrollPhysics()
-                    : const ClampingScrollPhysics(),
+                physics:
+                    widget.dragToPlay
+                        ? const NeverScrollableScrollPhysics()
+                        : const ClampingScrollPhysics(),
                 child: SizedBox(
                   width: totalWidth,
                   height: currentHeight,
                   child: Listener(
                     behavior: HitTestBehavior.opaque,
-                    onPointerDown: (e) => _handlePointerDown(
-                      e,
-                      keyHeight,
-                      whiteKeyWidth,
-                      blackKeyWidth,
-                      whiteKeys,
-                      blackKeys,
-                    ),
-                    onPointerMove: (e) => _handlePointerMove(
-                      e,
-                      keyHeight,
-                      whiteKeyWidth,
-                      blackKeyWidth,
-                      whiteKeys,
-                      blackKeys,
-                    ),
+                    onPointerDown:
+                        (e) => _handlePointerDown(
+                          e,
+                          keyHeight,
+                          whiteKeyWidth,
+                          blackKeyWidth,
+                          whiteKeys,
+                          blackKeys,
+                        ),
+                    onPointerMove:
+                        (e) => _handlePointerMove(
+                          e,
+                          keyHeight,
+                          whiteKeyWidth,
+                          blackKeyWidth,
+                          whiteKeys,
+                          blackKeys,
+                        ),
                     onPointerUp: (e) => _handlePointerUp(e),
                     onPointerCancel: (e) => _handlePointerUp(e),
                     child: Stack(
                       children: [
                         // Draw White Keys
                         Row(
-                          children: whiteKeys.map((note) {
-                            bool isActive = widget.activeNotes.contains(note);
-                            return Container(
-                              width: whiteKeyWidth,
-                              height: keyHeight,
-                              decoration: BoxDecoration(
-                                color: isActive
-                                    ? Colors.blueAccent.withValues(alpha: 0.8)
-                                    : Colors.white,
-                                border: Border.all(
-                                  color: Colors.black54,
-                                  width: 0.5,
-                                ),
-                                borderRadius: const BorderRadius.only(
-                                  bottomLeft: Radius.circular(4),
-                                  bottomRight: Radius.circular(4),
-                                ),
-                              ),
-                              alignment: Alignment.bottomCenter,
-                              padding: const EdgeInsets.only(bottom: 4),
-                              child: isActive
-                                  ? Text(
-                                      _getNoteName(note),
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    )
-                                  : const SizedBox(),
-                            );
-                          }).toList(),
+                          children:
+                              whiteKeys.map((note) {
+                                bool isActive = widget.activeNotes.contains(
+                                  note,
+                                );
+                                return Container(
+                                  width: whiteKeyWidth,
+                                  height: keyHeight,
+                                  decoration: BoxDecoration(
+                                    color:
+                                        isActive
+                                            ? Colors.blueAccent.withValues(
+                                              alpha: 0.8,
+                                            )
+                                            : Colors.white,
+                                    border: Border.all(
+                                      color: Colors.black54,
+                                      width: 0.5,
+                                    ),
+                                    borderRadius: const BorderRadius.only(
+                                      bottomLeft: Radius.circular(4),
+                                      bottomRight: Radius.circular(4),
+                                    ),
+                                  ),
+                                  alignment: Alignment.bottomCenter,
+                                  padding: const EdgeInsets.only(bottom: 4),
+                                  child:
+                                      isActive
+                                          ? Text(
+                                            _getNoteName(note),
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          )
+                                          : const SizedBox(),
+                                );
+                              }).toList(),
                         ),
                         // Draw Black Keys (overlayed)
                         ...blackKeys.map((note) {
@@ -429,9 +488,12 @@ class _VirtualPianoState extends State<VirtualPiano> {
                               width: blackKeyWidth,
                               height: keyHeight * 0.65,
                               decoration: BoxDecoration(
-                                color: isActive
-                                    ? Colors.blueAccent.withValues(alpha: 0.8)
-                                    : Colors.black87,
+                                color:
+                                    isActive
+                                        ? Colors.blueAccent.withValues(
+                                          alpha: 0.8,
+                                        )
+                                        : Colors.black87,
                                 borderRadius: const BorderRadius.only(
                                   bottomLeft: Radius.circular(3),
                                   bottomRight: Radius.circular(3),
@@ -439,16 +501,17 @@ class _VirtualPianoState extends State<VirtualPiano> {
                               ),
                               alignment: Alignment.bottomCenter,
                               padding: const EdgeInsets.only(bottom: 4),
-                              child: isActive
-                                  ? Text(
-                                      _getNoteName(note),
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 8,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    )
-                                  : const SizedBox(),
+                              child:
+                                  isActive
+                                      ? Text(
+                                        _getNoteName(note),
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 8,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      )
+                                      : const SizedBox(),
                             ),
                           );
                         }),

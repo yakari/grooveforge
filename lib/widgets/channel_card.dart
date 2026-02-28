@@ -95,93 +95,126 @@ class ChannelCard extends StatelessWidget {
                                             isMaster ||
                                             isSlave;
 
-                                        if (!shouldShowLockUI) {
-                                          return const SizedBox.shrink();
-                                        }
-
                                         // Choose whose state to listen to
-                                        final listenState =
-                                            isSlave
-                                                ? engine.channels[masterCh]
-                                                : state;
+                                        final listenState = state;
 
-                                        return ValueListenableBuilder<
-                                          ChordMatch?
-                                        >(
-                                          valueListenable:
-                                              listenState.lastChord,
-                                          builder: (context, lastChord, _) {
-                                            if (lastChord == null) {
-                                              return const SizedBox.shrink();
-                                            }
-
-                                            return ValueListenableBuilder<bool>(
+                                        return ValueListenableBuilder<int>(
+                                          valueListenable: engine.stateNotifier,
+                                          builder: (context, _, child) {
+                                            return ValueListenableBuilder<
+                                              ChordMatch?
+                                            >(
                                               valueListenable:
-                                                  state.isScaleLocked,
-                                              builder: (context, isLocked, _) {
+                                                  listenState.lastChord,
+                                              builder: (context, lastChord, _) {
                                                 return ValueListenableBuilder<
-                                                  ScaleType
+                                                  bool
                                                 >(
                                                   valueListenable:
-                                                      state.currentScaleType,
+                                                      state.isScaleLocked,
                                                   builder: (
                                                     context,
-                                                    currentScale,
+                                                    isLocked,
                                                     _,
                                                   ) {
-                                                    // Effective UI values
-                                                    final chordToDisplay =
-                                                        lastChord;
-                                                    final scaleToDisplay =
-                                                        isSlave
-                                                            ? jamScale
-                                                            : currentScale;
-                                                    final descriptiveName = engine
-                                                        .getDescriptiveScaleName(
-                                                          chordToDisplay,
-                                                          scaleToDisplay,
-                                                        );
-                                                    final lockToDisplay =
-                                                        isSlave ||
-                                                        (lockMode ==
-                                                                ScaleLockMode
-                                                                    .classic &&
-                                                            isLocked);
-
-                                                    // Highlight for Jam Master (Yellow/Green) or Slave (Blue)
-                                                    bool isDimmed =
-                                                        activeNotes.isEmpty &&
-                                                        !lockToDisplay &&
-                                                        !isMaster;
-
-                                                    return ChannelPatchInfo(
-                                                      engine: engine,
-                                                      channelIndex:
-                                                          channelIndex,
-                                                      isDimmed: isDimmed,
-                                                      isLocked: lockToDisplay,
-                                                      lastChord: chordToDisplay,
-                                                      currentScale:
-                                                          scaleToDisplay,
-                                                      descriptiveScaleName:
-                                                          descriptiveName,
-                                                      isJamSlave: isSlave,
-                                                      onLockToggled: () {
-                                                        state
-                                                            .isScaleLocked
-                                                            .value = !state
-                                                                .isScaleLocked
-                                                                .value;
-                                                      },
-                                                      onScaleChanged: (
-                                                        ScaleType? newValue,
-                                                      ) {
-                                                        if (newValue != null &&
-                                                            !isSlave) {
+                                                    return ValueListenableBuilder<
+                                                      ScaleType
+                                                    >(
+                                                      valueListenable:
                                                           state
-                                                              .currentScaleType
-                                                              .value = newValue;
-                                                        }
+                                                              .currentScaleType,
+                                                      builder: (
+                                                        context,
+                                                        currentScale,
+                                                        _,
+                                                      ) {
+                                                        // Effective UI values
+                                                        final ownChord =
+                                                            lastChord;
+                                                        final showOwnChord =
+                                                            isMaster ||
+                                                            !isSlave ||
+                                                            activeNotes
+                                                                .isNotEmpty;
+                                                        final chordToDisplay =
+                                                            showOwnChord
+                                                                ? ownChord
+                                                                : null;
+                                                        final refChord =
+                                                            (isSlave &&
+                                                                    masterCh >=
+                                                                        0)
+                                                                ? engine
+                                                                    .channels[masterCh]
+                                                                    .lastChord
+                                                                    .value
+                                                                : ownChord;
+                                                        final scaleToDisplay =
+                                                            isSlave
+                                                                ? jamScale
+                                                                : currentScale;
+                                                        final descriptiveName =
+                                                            engine
+                                                                .getDescriptiveScaleName(
+                                                                  refChord,
+                                                                  scaleToDisplay,
+                                                                );
+                                                        final lockToDisplay =
+                                                            isSlave ||
+                                                            (lockMode ==
+                                                                    ScaleLockMode
+                                                                        .classic &&
+                                                                isLocked);
+
+                                                        // Highlight for Jam Master (Yellow/Green) or Slave (Blue)
+                                                        bool isDimmed =
+                                                            activeNotes
+                                                                .isEmpty &&
+                                                            !lockToDisplay &&
+                                                            !isMaster;
+
+                                                        return ChannelPatchInfo(
+                                                          engine: engine,
+                                                          channelIndex:
+                                                              channelIndex,
+                                                          isDimmed: isDimmed,
+                                                          isLocked:
+                                                              lockToDisplay,
+                                                          displayChord:
+                                                              chordToDisplay,
+                                                          referenceChord:
+                                                              refChord,
+                                                          currentScale:
+                                                              scaleToDisplay,
+                                                          descriptiveScaleName:
+                                                              descriptiveName,
+                                                          isJamSlave: isSlave,
+                                                          showLockControls:
+                                                              shouldShowLockUI,
+                                                          onLockToggled:
+                                                              (lockMode ==
+                                                                      ScaleLockMode
+                                                                          .jam)
+                                                                  ? null
+                                                                  : () {
+                                                                    state
+                                                                        .isScaleLocked
+                                                                        .value = !state
+                                                                            .isScaleLocked
+                                                                            .value;
+                                                                  },
+                                                          onScaleChanged: (
+                                                            ScaleType? newValue,
+                                                          ) {
+                                                            if (newValue !=
+                                                                    null &&
+                                                                !isSlave) {
+                                                              state
+                                                                  .currentScaleType
+                                                                  .value = newValue;
+                                                            }
+                                                          },
+                                                        );
                                                       },
                                                     );
                                                   },
@@ -213,21 +246,55 @@ class ChannelCard extends StatelessWidget {
                             return ValueListenableBuilder<int>(
                               valueListenable: engine.pianoKeysToShow,
                               builder: (context, keysToShow, _) {
-                                return VirtualPiano(
-                                  activeNotes: activeNotes,
-                                  dragToPlay: dragToPlay,
-                                  keysToShow: keysToShow,
-                                  onNotePressed:
-                                      (note) => engine.playNote(
-                                        channel: channelIndex,
-                                        key: note,
-                                        velocity: 100,
-                                      ),
-                                  onNoteReleased:
-                                      (note) => engine.stopNote(
-                                        channel: channelIndex,
-                                        key: note,
-                                      ),
+                                return ValueListenableBuilder<bool>(
+                                  valueListenable:
+                                      engine.verticalPitchBendEnabled,
+                                  builder: (context, pbEnabled, _) {
+                                    return ValueListenableBuilder<bool>(
+                                      valueListenable:
+                                          engine.horizontalVibratoEnabled,
+                                      builder: (context, vibEnabled, _) {
+                                        return VirtualPiano(
+                                          activeNotes: activeNotes,
+                                          dragToPlay: dragToPlay,
+                                          keysToShow: keysToShow,
+                                          onNotePressed:
+                                              (note) => engine.playNote(
+                                                channel: channelIndex,
+                                                key: note,
+                                                velocity: 100,
+                                              ),
+                                          onNoteReleased:
+                                              (note) => engine.stopNote(
+                                                channel: channelIndex,
+                                                key: note,
+                                              ),
+                                          onPitchBend:
+                                              pbEnabled
+                                                  ? (val) =>
+                                                      engine.setPitchBend(
+                                                        channel: channelIndex,
+                                                        value: val,
+                                                      )
+                                                  : null,
+                                          onControlChange:
+                                              vibEnabled
+                                                  ? (cc, val) =>
+                                                      engine.setControlChange(
+                                                        channel: channelIndex,
+                                                        controller: cc,
+                                                        value: val,
+                                                      )
+                                                  : null,
+                                          onInteractingChanged:
+                                              (interacting) =>
+                                                  engine.updateGestureState(
+                                                    interacting,
+                                                  ),
+                                        );
+                                      },
+                                    );
+                                  },
                                 );
                               },
                             );
