@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.5] - 2026-02-28
+### Added
+- Maximized vertical real estate for the Virtual Piano keys. Reduced padding and margins across the main screen and channel cards to improve playability on mobile/tablet devices.
+
+## [1.3.4] - 2026-02-28
+### Changed
+- Virtual Piano "Glissando" (Drag to Play) is now enabled by default for new installations and preference resets.
+
 ## [1.3.3] - 2026-02-28
 ### Added
 - Unified "boxed" styling for Jam Master, Slaves, and Scale controls in both horizontal and vertical layouts.

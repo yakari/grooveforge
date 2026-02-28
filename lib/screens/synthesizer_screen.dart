@@ -273,11 +273,11 @@ class _SynthesizerScreenState extends State<SynthesizerScreen> {
                           );
                         } else {
                           return Padding(
-                            padding: const EdgeInsets.all(16.0),
+                            padding: const EdgeInsets.all(2.0),
                             child: Column(
                               children: [
                                 const JamSessionWidget(forceVertical: false),
-                                const SizedBox(height: 8),
+                                const SizedBox(height: 2),
                                 Expanded(child: mainContent),
                               ],
                             ),
@@ -286,7 +286,7 @@ class _SynthesizerScreenState extends State<SynthesizerScreen> {
                       }
 
                       return Padding(
-                        padding: const EdgeInsets.all(16.0),
+                        padding: const EdgeInsets.all(2.0),
                         child: mainContent,
                       );
                     },

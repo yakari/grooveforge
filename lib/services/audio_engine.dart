@@ -87,7 +87,7 @@ class AudioEngine {
     List.generate(16, (i) => i),
   );
 
-  final ValueNotifier<bool> dragToPlay = ValueNotifier(false);
+  final ValueNotifier<bool> dragToPlay = ValueNotifier(true);
   final ValueNotifier<int> aftertouchDestCc = ValueNotifier(1);
   final ValueNotifier<String> notationFormat = ValueNotifier('Standard');
   final ValueNotifier<int> pianoKeysToShow = ValueNotifier(22);
@@ -1026,7 +1026,7 @@ class AudioEngine {
       channels[i] = ChannelState();
     }
     visibleChannels.value = List.generate(16, (i) => i);
-    dragToPlay.value = false;
+    dragToPlay.value = true;
     aftertouchDestCc.value = 1;
     notationFormat.value = 'Standard';
     pianoKeysToShow.value = 22;

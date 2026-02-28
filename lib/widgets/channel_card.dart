@@ -25,7 +25,7 @@ class ChannelCard extends StatelessWidget {
     return SizedBox(
       height: itemHeight,
       child: Padding(
-        padding: const EdgeInsets.only(bottom: 16.0),
+        padding: const EdgeInsets.only(bottom: 2.0),
         child: ValueListenableBuilder<Set<int>>(
           valueListenable: state.activeNotes,
           builder: (context, activeNotes, _) {
@@ -54,7 +54,7 @@ class ChannelCard extends StatelessWidget {
                 ],
               ),
               child: Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: const EdgeInsets.all(2.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -62,7 +62,7 @@ class ChannelCard extends StatelessWidget {
                       channelIndex: channelIndex,
                       isFlashing: isFlashing,
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 2),
 
                     // Combine listeners to update UI on notes, last chord, or lock toggle
                     ValueListenableBuilder<ScaleLockMode>(
@@ -201,7 +201,7 @@ class ChannelCard extends StatelessWidget {
                       },
                     ),
 
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 2),
                     // Native Live Virtual Piano
                     Expanded(
                       child: GestureDetector(
