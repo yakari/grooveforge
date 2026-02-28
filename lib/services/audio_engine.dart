@@ -681,7 +681,7 @@ class AudioEngine {
         );
       }
     }
-    _updateChordState(channel);
+    Future.microtask(() => _updateChordState(channel));
   }
 
   void stopNote({required int channel, required int key}) {
@@ -712,7 +712,7 @@ class AudioEngine {
         }
       }
     }
-    _updateChordState(channel);
+    Future.microtask(() => _updateChordState(channel));
   }
 
   void _updateChordState(int channel) {
@@ -764,10 +764,7 @@ class AudioEngine {
             ? NotationFormat.solfege
             : NotationFormat.standard;
     final match = ChordDetector.identifyChord(notes, format: format);
-    if (match != null) {
-      channels[channel].lastChord.value = match;
-      stateNotifier.value++;
-    }
+    channels[channel].lastChord.value = match;
     _lastNoteCounts[channel] = notes.length;
   }
 

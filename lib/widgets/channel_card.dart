@@ -136,10 +136,6 @@ class ChannelCard extends StatelessWidget {
                                                             !isSlave ||
                                                             activeNotes
                                                                 .isNotEmpty;
-                                                        final chordToDisplay =
-                                                            showOwnChord
-                                                                ? ownChord
-                                                                : null;
                                                         final refChord =
                                                             (isSlave &&
                                                                     masterCh >=
@@ -149,6 +145,26 @@ class ChannelCard extends StatelessWidget {
                                                                     .lastChord
                                                                     .value
                                                                 : ownChord;
+                                                        final chordToDisplay =
+                                                            showOwnChord
+                                                                ? (isSlave &&
+                                                                        refChord !=
+                                                                            null
+                                                                    ? ChordMatch(
+                                                                      refChord
+                                                                          .name
+                                                                          .split(
+                                                                            ' ',
+                                                                          )[0],
+                                                                      refChord
+                                                                          .scalePitchClasses,
+                                                                      refChord
+                                                                          .rootPc,
+                                                                      refChord
+                                                                          .isMinor,
+                                                                    )
+                                                                    : ownChord)
+                                                                : null;
                                                         final scaleToDisplay =
                                                             isSlave
                                                                 ? jamScale
