@@ -322,57 +322,32 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                     ValueListenableBuilder<GestureAction>(
                       valueListenable: engine.verticalGestureAction,
                       builder: (context, action, _) {
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16.0,
-                            vertical: 8.0,
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.height, color: Colors.orange),
-                              const SizedBox(width: 16),
-                              const Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Vertical Interaction',
-                                      style: TextStyle(fontSize: 16),
-                                    ),
-                                    Text(
-                                      'Swipe up/down on a key',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey,
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                        return _ResponsivePreferenceRow(
+                          icon: const Icon(Icons.height, color: Colors.orange),
+                          title: 'Vertical Interaction',
+                          subtitle: 'Swipe up/down on a key',
+                          trailing: DropdownButton<GestureAction>(
+                            value: action,
+                            items: const [
+                              DropdownMenuItem(
+                                value: GestureAction.none,
+                                child: Text('None'),
                               ),
-                              DropdownButton<GestureAction>(
-                                value: action,
-                                items: const [
-                                  DropdownMenuItem(
-                                    value: GestureAction.none,
-                                    child: Text('None'),
-                                  ),
-                                  DropdownMenuItem(
-                                    value: GestureAction.pitchBend,
-                                    child: Text('Pitch Bend'),
-                                  ),
-                                  DropdownMenuItem(
-                                    value: GestureAction.vibrato,
-                                    child: Text('Vibrato'),
-                                  ),
-                                ],
-                                onChanged: (val) {
-                                  if (val != null) {
-                                    engine.verticalGestureAction.value = val;
-                                    engine.stateNotifier.value++;
-                                  }
-                                },
+                              DropdownMenuItem(
+                                value: GestureAction.pitchBend,
+                                child: Text('Pitch Bend'),
+                              ),
+                              DropdownMenuItem(
+                                value: GestureAction.vibrato,
+                                child: Text('Vibrato'),
                               ),
                             ],
+                            onChanged: (val) {
+                              if (val != null) {
+                                engine.verticalGestureAction.value = val;
+                                engine.stateNotifier.value++;
+                              }
+                            },
                           ),
                         );
                       },
@@ -381,61 +356,39 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                     ValueListenableBuilder<GestureAction>(
                       valueListenable: engine.horizontalGestureAction,
                       builder: (context, action, _) {
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16.0,
-                            vertical: 8.0,
+                        return _ResponsivePreferenceRow(
+                          icon: const Icon(
+                            Icons.unfold_more,
+                            color: Colors.blue,
                           ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.unfold_more, color: Colors.blue),
-                              const SizedBox(width: 16),
-                              const Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Horizontal Interaction',
-                                      style: TextStyle(fontSize: 16),
-                                    ),
-                                    Text(
-                                      'Slide left/right on a key',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey,
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                          title: 'Horizontal Interaction',
+                          subtitle: 'Slide left/right on a key',
+                          trailing: DropdownButton<GestureAction>(
+                            value: action,
+                            items: const [
+                              DropdownMenuItem(
+                                value: GestureAction.none,
+                                child: Text('None'),
                               ),
-                              DropdownButton<GestureAction>(
-                                value: action,
-                                items: const [
-                                  DropdownMenuItem(
-                                    value: GestureAction.none,
-                                    child: Text('None'),
-                                  ),
-                                  DropdownMenuItem(
-                                    value: GestureAction.pitchBend,
-                                    child: Text('Pitch Bend'),
-                                  ),
-                                  DropdownMenuItem(
-                                    value: GestureAction.vibrato,
-                                    child: Text('Vibrato'),
-                                  ),
-                                  DropdownMenuItem(
-                                    value: GestureAction.glissando,
-                                    child: Text('Glissando'),
-                                  ),
-                                ],
-                                onChanged: (val) {
-                                  if (val != null) {
-                                    engine.horizontalGestureAction.value = val;
-                                    engine.stateNotifier.value++;
-                                  }
-                                },
+                              DropdownMenuItem(
+                                value: GestureAction.pitchBend,
+                                child: Text('Pitch Bend'),
+                              ),
+                              DropdownMenuItem(
+                                value: GestureAction.vibrato,
+                                child: Text('Vibrato'),
+                              ),
+                              DropdownMenuItem(
+                                value: GestureAction.glissando,
+                                child: Text('Glissando'),
                               ),
                             ],
+                            onChanged: (val) {
+                              if (val != null) {
+                                engine.horizontalGestureAction.value = val;
+                                engine.stateNotifier.value++;
+                              }
+                            },
                           ),
                         );
                       },
@@ -462,61 +415,36 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                 return ValueListenableBuilder<int>(
                   valueListenable: engine.pianoKeysToShow,
                   builder: (context, keysToShow, _) {
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16.0,
-                        vertical: 8.0,
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.piano, color: Colors.orange),
-                          const SizedBox(width: 16),
-                          const Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Visible Keys (Zoom)',
-                                  style: TextStyle(fontSize: 16),
-                                ),
-                                Text(
-                                  'Number of white keys to show at once',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                              ],
-                            ),
+                    return _ResponsivePreferenceRow(
+                      icon: const Icon(Icons.piano, color: Colors.orange),
+                      title: 'Visible Keys (Zoom)',
+                      subtitle: 'Number of white keys to show at once',
+                      trailing: DropdownButton<int>(
+                        value: keysToShow,
+                        items: const [
+                          DropdownMenuItem(
+                            value: 15,
+                            child: Text('25 keys (15 white)'),
                           ),
-                          DropdownButton<int>(
-                            value: keysToShow,
-                            items: const [
-                              DropdownMenuItem(
-                                value: 15,
-                                child: Text('25 keys (15 white)'),
-                              ),
-                              DropdownMenuItem(
-                                value: 22,
-                                child: Text('37 keys (22 white)'),
-                              ),
-                              DropdownMenuItem(
-                                value: 29,
-                                child: Text('49 keys (29 white)'),
-                              ),
-                              DropdownMenuItem(
-                                value: 52,
-                                child: Text('88 keys (52 white)'),
-                              ),
-                            ],
-                            onChanged: (val) {
-                              if (val != null) {
-                                engine.pianoKeysToShow.value = val;
-                                engine.stateNotifier.value++;
-                              }
-                            },
+                          DropdownMenuItem(
+                            value: 22,
+                            child: Text('37 keys (22 white)'),
+                          ),
+                          DropdownMenuItem(
+                            value: 29,
+                            child: Text('49 keys (29 white)'),
+                          ),
+                          DropdownMenuItem(
+                            value: 52,
+                            child: Text('88 keys (52 white)'),
                           ),
                         ],
+                        onChanged: (val) {
+                          if (val != null) {
+                            engine.pianoKeysToShow.value = val;
+                            engine.stateNotifier.value++;
+                          }
+                        },
                       ),
                     );
                   },
@@ -531,54 +459,32 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                 return ValueListenableBuilder<String>(
                   valueListenable: engine.notationFormat,
                   builder: (context, format, _) {
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16.0,
-                        vertical: 8.0,
+                    return _ResponsivePreferenceRow(
+                      icon: const Icon(
+                        Icons.music_note,
+                        color: Colors.blueGrey,
                       ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.music_note, color: Colors.blueGrey),
-                          const SizedBox(width: 16),
-                          const Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Music Notation Format',
-                                  style: TextStyle(fontSize: 16),
-                                ),
-                                Text(
-                                  'How chord names are displayed',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                              ],
-                            ),
+                      title: 'Music Notation Format',
+                      subtitle: 'How chord names are displayed',
+                      trailing: DropdownButton<String>(
+                        value: format,
+                        items: const [
+                          DropdownMenuItem(
+                            value: 'Standard',
+                            child: Text('Standard (C, D, E)'),
                           ),
-                          DropdownButton<String>(
-                            value: format,
-                            items: const [
-                              DropdownMenuItem(
-                                value: 'Standard',
-                                child: Text('Standard (C, D, E)'),
-                              ),
-                              DropdownMenuItem(
-                                value: 'Solfege',
-                                child: Text('Solfège (Do, Ré, Mi)'),
-                              ),
-                            ],
-                            onChanged: (val) {
-                              if (val != null) {
-                                engine.notationFormat.value = val;
-                                // Forces _saveState
-                                engine.stateNotifier.value++;
-                              }
-                            },
+                          DropdownMenuItem(
+                            value: 'Solfege',
+                            child: Text('Solfège (Do, Ré, Mi)'),
                           ),
                         ],
+                        onChanged: (val) {
+                          if (val != null) {
+                            engine.notationFormat.value = val;
+                            // Forces _saveState
+                            engine.stateNotifier.value++;
+                          }
+                        },
                       ),
                     );
                   },
@@ -593,56 +499,31 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                 return ValueListenableBuilder<ScaleLockMode>(
                   valueListenable: engine.lockModePreference,
                   builder: (context, lockMode, _) {
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16.0,
-                        vertical: 8.0,
+                    return _ResponsivePreferenceRow(
+                      icon: const Icon(
+                        Icons.lock_clock,
+                        color: Colors.purpleAccent,
                       ),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.lock_clock,
-                            color: Colors.purpleAccent,
+                      title: 'Scale Lock Mode',
+                      subtitle: 'Classic (per channel) vs Jam (master-slave)',
+                      trailing: DropdownButton<ScaleLockMode>(
+                        value: lockMode,
+                        items: const [
+                          DropdownMenuItem(
+                            value: ScaleLockMode.classic,
+                            child: Text('Classic Mode'),
                           ),
-                          const SizedBox(width: 16),
-                          const Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Scale Lock Mode',
-                                  style: TextStyle(fontSize: 16),
-                                ),
-                                Text(
-                                  'Classic (per channel) vs Jam (master-slave)',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          DropdownButton<ScaleLockMode>(
-                            value: lockMode,
-                            items: const [
-                              DropdownMenuItem(
-                                value: ScaleLockMode.classic,
-                                child: Text('Classic Mode'),
-                              ),
-                              DropdownMenuItem(
-                                value: ScaleLockMode.jam,
-                                child: Text('Jam Mode'),
-                              ),
-                            ],
-                            onChanged: (val) {
-                              if (val != null) {
-                                engine.lockModePreference.value = val;
-                                engine.stateNotifier.value++;
-                              }
-                            },
+                          DropdownMenuItem(
+                            value: ScaleLockMode.jam,
+                            child: Text('Jam Mode'),
                           ),
                         ],
+                        onChanged: (val) {
+                          if (val != null) {
+                            engine.lockModePreference.value = val;
+                            engine.stateNotifier.value++;
+                          }
+                        },
                       ),
                     );
                   },
@@ -669,45 +550,20 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                         );
                       }
                     }
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16.0,
-                        vertical: 8.0,
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.waves, color: Colors.teal),
-                          const SizedBox(width: 16),
-                          const Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Aftertouch Effect',
-                                  style: TextStyle(fontSize: 16),
-                                ),
-                                Text(
-                                  'Route keyboard pressure to this CC',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          DropdownButton<int>(
-                            value: destCc,
-                            items: ccItems,
-                            menuMaxHeight: 300,
-                            onChanged: (val) {
-                              if (val != null) {
-                                engine.aftertouchDestCc.value = val;
-                                engine.stateNotifier.value++;
-                              }
-                            },
-                          ),
-                        ],
+                    return _ResponsivePreferenceRow(
+                      icon: const Icon(Icons.waves, color: Colors.teal),
+                      title: 'Aftertouch Effect',
+                      subtitle: 'Route keyboard pressure to this CC',
+                      trailing: DropdownButton<int>(
+                        value: destCc,
+                        items: ccItems,
+                        menuMaxHeight: 300,
+                        onChanged: (val) {
+                          if (val != null) {
+                            engine.aftertouchDestCc.value = val;
+                            engine.stateNotifier.value++;
+                          }
+                        },
                       ),
                     );
                   },
@@ -804,6 +660,99 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
               ),
             ],
           ),
+    );
+  }
+}
+
+class _ResponsivePreferenceRow extends StatelessWidget {
+  final Widget icon;
+  final String title;
+  final String subtitle;
+  final Widget trailing;
+
+  const _ResponsivePreferenceRow({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.trailing,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // threshold for switching to column
+        bool isNarrow = constraints.maxWidth < 450;
+
+        if (isNarrow) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16.0,
+              vertical: 12.0,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    icon,
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(title, style: const TextStyle(fontSize: 16)),
+                          Text(
+                            subtitle,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: DropdownButtonHideUnderline(child: trailing),
+                ),
+              ],
+            ),
+          );
+        } else {
+          return Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16.0,
+              vertical: 8.0,
+            ),
+            child: Row(
+              children: [
+                icon,
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title, style: const TextStyle(fontSize: 16)),
+                      Text(
+                        subtitle,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                trailing,
+              ],
+            ),
+          );
+        }
+      },
     );
   }
 }
