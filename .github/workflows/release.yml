@@ -17,19 +17,11 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
           cache: 'gradle'
-      - name: Cache Android SDK components
-        id: cache-android-sdk
-        uses: actions/cache@v4
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2
         with:
-          path: |
-            ${{ env.ANDROID_SDK_ROOT }}/ndk
-            ${{ env.ANDROID_SDK_ROOT }}/cmake
-          key: ${{ runner.os }}-android-sdk-ndk-cmake-v1
-      - name: Install Android SDK components
-        if: steps.cache-android-sdk.outputs.cache-hit != 'true'
-        run: |
-          yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --licenses
-          $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager "ndk;27.0.12077973" "cmake;3.22.1"
+          key: ${{ runner.os }}-android-ccache
+          max-size: 2G
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.41.2'

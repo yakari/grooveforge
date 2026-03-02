@@ -52,6 +52,10 @@ android {
         externalNativeBuild {
             cmake {
                 arguments "-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON"
+                if (System.getenv("GITHUB_ACTIONS") == "true") {
+                    arguments "-DCMAKE_C_COMPILER_LAUNCHER=ccache",
+                              "-DCMAKE_CXX_COMPILER_LAUNCHER=ccache"
+                }
             }
         }
     }
