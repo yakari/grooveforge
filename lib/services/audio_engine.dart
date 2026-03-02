@@ -47,6 +47,7 @@ class ChannelState {
       {}; // Track which key was actually played for note-off
   final Map<int, int> snappedKeyOwners =
       {}; // Maps logical note -> physical key that currently owns it
+  final ValueNotifier<Set<int>?> validPitchClasses = ValueNotifier(null);
 
   ChannelState();
 
@@ -165,7 +166,10 @@ class AudioEngine extends ChangeNotifier {
     jamEnabled.addListener(_saveState);
     jamMasterChannel.addListener(_saveState);
     jamSlaveChannels.addListener(_saveState);
+    jamScaleType.addListener(_propagateJamScaleUpdate);
+    jamSlaveChannels.addListener(_propagateJamScaleUpdate);
     jamScaleType.addListener(_saveState);
+    jamSlaveChannels.addListener(_saveState);
     dragToPlay.addListener(_saveState);
     verticalGestureAction.addListener(_saveState);
     horizontalGestureAction.addListener(_saveState);
@@ -767,9 +771,7 @@ class AudioEngine extends ChangeNotifier {
 
     // Note: We don't update _lastNoteCounts[channel] here if count < lastCount
     // to preserve the peak context until the timer fires.
-    if (count > lastCount) {
-      _lastNoteCounts[channel] = count;
-    }
+    _performChordUpdate(channel, notes);
   }
 
   void _performChordUpdate(int channel, Set<int> notes) {
@@ -778,8 +780,68 @@ class AudioEngine extends ChangeNotifier {
             ? NotationFormat.solfege
             : NotationFormat.standard;
     final match = ChordDetector.identifyChord(notes, format: format);
-    channels[channel].lastChord.value = match;
+    if (match != null) {
+      channels[channel].lastChord.value = match;
+    }
     _lastNoteCounts[channel] = notes.length;
+
+    // Update validPitchClasses
+    if (lockModePreference.value == ScaleLockMode.jam &&
+        channel == jamMasterChannel.value) {
+      if (match != null) {
+        final info = _getScaleInfo(match, jamScaleType.value);
+        final root = match.rootPc;
+        final allowedPcs = info.intervals.map((i) => (root + i) % 12).toSet();
+
+        // Update Master
+        channels[channel].validPitchClasses.value = allowedPcs;
+
+        // Propagate to active Slaves
+        if (jamEnabled.value) {
+          for (int slaveIdx in jamSlaveChannels.value) {
+            if (slaveIdx >= 0 && slaveIdx < 16) {
+              channels[slaveIdx].validPitchClasses.value = allowedPcs;
+            }
+          }
+        }
+      }
+    } else if (lockModePreference.value == ScaleLockMode.classic) {
+      if (match != null && channels[channel].isScaleLocked.value) {
+        final info = _getScaleInfo(
+          match,
+          channels[channel].currentScaleType.value,
+        );
+        final root = match.rootPc;
+        final allowedPcs = info.intervals.map((i) => (root + i) % 12).toSet();
+        channels[channel].validPitchClasses.value = allowedPcs;
+      }
+    }
+  }
+
+  void _propagateJamScaleUpdate() {
+    if (lockModePreference.value != ScaleLockMode.jam || !jamEnabled.value) {
+      return;
+    }
+
+    final masterIdx = jamMasterChannel.value;
+    final masterChord = channels[masterIdx].lastChord.value;
+    if (masterChord == null) {
+      return;
+    }
+
+    final info = _getScaleInfo(masterChord, jamScaleType.value);
+    final root = masterChord.rootPc;
+    final allowedPcs = info.intervals.map((i) => (root + i) % 12).toSet();
+
+    // Update Master
+    channels[masterIdx].validPitchClasses.value = allowedPcs;
+
+    // Propagate to all Slaves
+    for (int slaveIdx in jamSlaveChannels.value) {
+      if (slaveIdx >= 0 && slaveIdx < 16) {
+        channels[slaveIdx].validPitchClasses.value = allowedPcs;
+      }
+    }
   }
 
   /// Returns a descriptive name for the effective scale being used.
@@ -788,6 +850,34 @@ class AudioEngine extends ChangeNotifier {
       return type.name.toUpperCase();
     }
     return _getScaleInfo(chord, type).name;
+  }
+
+  /// Returns the name of the dominant note (typically the 5th) of the current scale.
+  String? getDominantNoteName(ChordMatch? chord) {
+    if (chord == null) {
+      return null;
+    }
+    // Dominant is 7 semitones (perfect 5th) from root in most western scales used here
+    final dominantPc = (chord.rootPc + 7) % 12;
+    return _getNoteName(dominantPc);
+  }
+
+  String _getNoteName(int midiNote) {
+    const noteNames = [
+      'C',
+      'C#',
+      'D',
+      'D#',
+      'E',
+      'F',
+      'F#',
+      'G',
+      'G#',
+      'A',
+      'A#',
+      'B',
+    ];
+    return noteNames[midiNote % 12];
   }
 
   _ScaleInfo _getScaleInfo(ChordMatch chord, ScaleType scaleType) {

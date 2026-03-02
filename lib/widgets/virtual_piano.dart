@@ -11,6 +11,8 @@ class VirtualPiano extends StatefulWidget {
   final void Function(int value)? onPitchBend;
   final void Function(int cc, int value)? onControlChange;
   final void Function(bool interacting)? onInteractingChanged;
+  final Set<int>? validPitchClasses;
+  final int? rootPitchClass;
 
   const VirtualPiano({
     super.key,
@@ -23,6 +25,8 @@ class VirtualPiano extends StatefulWidget {
     this.onPitchBend,
     this.onControlChange,
     this.onInteractingChanged,
+    this.validPitchClasses,
+    this.rootPitchClass,
   });
 
   @override
@@ -203,7 +207,13 @@ class _VirtualPianoState extends State<VirtualPiano> {
       wKeys,
       bKeys,
     );
+
     if (note != null) {
+      if (widget.validPitchClasses != null &&
+          !widget.validPitchClasses!.contains(note % 12)) {
+        return;
+      }
+
       bool wasEmpty = _pointerToNote.isEmpty;
       _pointerToNote[event.pointer] = note;
       _pointerToAnchor[event.pointer] = event.localPosition;
@@ -230,6 +240,16 @@ class _VirtualPianoState extends State<VirtualPiano> {
       wKeys,
       bKeys,
     );
+
+    if (note != null &&
+        widget.validPitchClasses != null &&
+        !widget.validPitchClasses!.contains(note % 12)) {
+      // If we move into an invalid note, just ignore it.
+      // Do NOT update currentNote to null, because that would stop the previous sound.
+      // This allows glissando to sustain the last valid key while sliding over invalid ones.
+      return;
+    }
+
     int? currentNote = _pointerToNote[event.pointer];
 
     if (note != currentNote) {
@@ -466,11 +486,12 @@ class _VirtualPianoState extends State<VirtualPiano> {
                                             ? Colors.blueAccent.withValues(
                                               alpha: 0.8,
                                             )
-                                            : Colors.white,
-                                    border: Border.all(
-                                      color: Colors.black54,
-                                      width: 0.5,
-                                    ),
+                                            : (widget.validPitchClasses ==
+                                                    null ||
+                                                widget.validPitchClasses!
+                                                    .contains(note % 12))
+                                            ? Colors.white
+                                            : Colors.grey[400],
                                     borderRadius: const BorderRadius.only(
                                       bottomLeft: Radius.circular(4),
                                       bottomRight: Radius.circular(4),
@@ -479,12 +500,18 @@ class _VirtualPianoState extends State<VirtualPiano> {
                                   alignment: Alignment.bottomCenter,
                                   padding: const EdgeInsets.only(bottom: 4),
                                   child:
-                                      isActive
+                                      isActive ||
+                                              (widget.rootPitchClass != null &&
+                                                  note % 12 ==
+                                                      widget.rootPitchClass)
                                           ? Text(
                                             _getNoteName(note),
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 10,
+                                            style: TextStyle(
+                                              color:
+                                                  isActive
+                                                      ? Colors.white
+                                                      : Colors.blueAccent,
+                                              fontSize: isActive ? 10 : 9,
                                               fontWeight: FontWeight.bold,
                                             ),
                                           )
@@ -513,7 +540,12 @@ class _VirtualPianoState extends State<VirtualPiano> {
                                         ? Colors.blueAccent.withValues(
                                           alpha: 0.8,
                                         )
-                                        : Colors.black87,
+                                        : (widget.validPitchClasses == null ||
+                                            widget.validPitchClasses!.contains(
+                                              note % 12,
+                                            ))
+                                        ? Colors.black87
+                                        : Colors.grey.shade600,
                                 borderRadius: const BorderRadius.only(
                                   bottomLeft: Radius.circular(3),
                                   bottomRight: Radius.circular(3),
@@ -522,11 +554,17 @@ class _VirtualPianoState extends State<VirtualPiano> {
                               alignment: Alignment.bottomCenter,
                               padding: const EdgeInsets.only(bottom: 4),
                               child:
-                                  isActive
+                                  isActive ||
+                                          (widget.rootPitchClass != null &&
+                                              note % 12 ==
+                                                  widget.rootPitchClass)
                                       ? Text(
                                         _getNoteName(note),
-                                        style: const TextStyle(
-                                          color: Colors.white,
+                                        style: TextStyle(
+                                          color:
+                                              isActive
+                                                  ? Colors.white
+                                                  : Colors.blueAccent,
                                           fontSize: 8,
                                           fontWeight: FontWeight.bold,
                                         ),
