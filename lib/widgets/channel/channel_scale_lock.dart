@@ -81,7 +81,7 @@ class ChannelScaleLock extends StatelessWidget {
               ),
             ),
           ),
-        if (showLockControls && (isLocked || isJamSlave)) ...[
+        if (showLockControls && (isLocked && !isJamSlave)) ...[
           const SizedBox(width: 8),
           DropdownButtonHideUnderline(
             child: DropdownButton<ScaleType>(

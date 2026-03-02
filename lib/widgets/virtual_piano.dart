@@ -446,134 +446,137 @@ class _VirtualPianoState extends State<VirtualPiano> {
                 child: SizedBox(
                   width: totalWidth,
                   height: currentHeight,
-                  child: Listener(
-                    behavior: HitTestBehavior.opaque,
-                    onPointerDown:
-                        (e) => _handlePointerDown(
-                          e,
-                          keyHeight,
-                          whiteKeyWidth,
-                          blackKeyWidth,
-                          whiteKeys,
-                          blackKeys,
-                        ),
-                    onPointerMove:
-                        (e) => _handlePointerMove(
-                          e,
-                          keyHeight,
-                          whiteKeyWidth,
-                          blackKeyWidth,
-                          whiteKeys,
-                          blackKeys,
-                        ),
-                    onPointerUp: (e) => _handlePointerUp(e),
-                    onPointerCancel: (e) => _handlePointerUp(e),
-                    child: Stack(
-                      children: [
-                        // Draw White Keys
-                        Row(
-                          children:
-                              whiteKeys.map((note) {
-                                bool isActive = widget.activeNotes.contains(
-                                  note,
-                                );
-                                return Container(
-                                  width: whiteKeyWidth,
-                                  height: keyHeight,
-                                  decoration: BoxDecoration(
-                                    color:
-                                        isActive
-                                            ? Colors.blueAccent.withValues(
-                                              alpha: 0.8,
-                                            )
-                                            : (widget.validPitchClasses ==
-                                                    null ||
-                                                widget.validPitchClasses!
-                                                    .contains(note % 12))
-                                            ? Colors.white
-                                            : Colors.grey[400],
-                                    borderRadius: const BorderRadius.only(
-                                      bottomLeft: Radius.circular(4),
-                                      bottomRight: Radius.circular(4),
+                  child: GestureDetector(
+                    onVerticalDragUpdate: (_) {}, // Absorb vertical drags
+                    child: Listener(
+                      behavior: HitTestBehavior.opaque,
+                      onPointerDown:
+                          (e) => _handlePointerDown(
+                            e,
+                            keyHeight,
+                            whiteKeyWidth,
+                            blackKeyWidth,
+                            whiteKeys,
+                            blackKeys,
+                          ),
+                      onPointerMove:
+                          (e) => _handlePointerMove(
+                            e,
+                            keyHeight,
+                            whiteKeyWidth,
+                            blackKeyWidth,
+                            whiteKeys,
+                            blackKeys,
+                          ),
+                      onPointerUp: (e) => _handlePointerUp(e),
+                      onPointerCancel: (e) => _handlePointerUp(e),
+                      child: Stack(
+                        children: [
+                          // Draw White Keys
+                          Row(
+                            children:
+                                whiteKeys.map((note) {
+                                  bool isActive = widget.activeNotes.contains(
+                                    note,
+                                  );
+                                  return Container(
+                                    width: whiteKeyWidth,
+                                    height: keyHeight,
+                                    decoration: BoxDecoration(
+                                      color:
+                                          isActive
+                                              ? Colors.blueAccent.withValues(
+                                                alpha: 0.8,
+                                              )
+                                              : (widget.validPitchClasses ==
+                                                      null ||
+                                                  widget.validPitchClasses!
+                                                      .contains(note % 12))
+                                              ? Colors.white
+                                              : Colors.grey[400],
+                                      borderRadius: const BorderRadius.only(
+                                        bottomLeft: Radius.circular(4),
+                                        bottomRight: Radius.circular(4),
+                                      ),
                                     ),
-                                  ),
-                                  alignment: Alignment.bottomCenter,
-                                  padding: const EdgeInsets.only(bottom: 4),
-                                  child:
-                                      isActive ||
-                                              (widget.rootPitchClass != null &&
-                                                  note % 12 ==
-                                                      widget.rootPitchClass)
-                                          ? Text(
-                                            _getNoteName(note),
-                                            style: TextStyle(
-                                              color:
-                                                  isActive
-                                                      ? Colors.white
-                                                      : Colors.blueAccent,
-                                              fontSize: isActive ? 10 : 9,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          )
-                                          : const SizedBox(),
-                                );
-                              }).toList(),
-                        ),
-                        // Draw Black Keys (overlayed)
-                        ...blackKeys.map((note) {
-                          bool isActive = widget.activeNotes.contains(note);
-                          int precedingWhiteNote = note - 1;
-                          int whiteIndex = whiteKeys.indexOf(
-                            precedingWhiteNote,
-                          );
+                                    alignment: Alignment.bottomCenter,
+                                    padding: const EdgeInsets.only(bottom: 4),
+                                    child:
+                                        isActive ||
+                                                (widget.rootPitchClass !=
+                                                        null &&
+                                                    note % 12 ==
+                                                        widget.rootPitchClass)
+                                            ? Text(
+                                              _getNoteName(note),
+                                              style: TextStyle(
+                                                color:
+                                                    isActive
+                                                        ? Colors.white
+                                                        : Colors.blueAccent,
+                                                fontSize: isActive ? 10 : 9,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            )
+                                            : const SizedBox(),
+                                  );
+                                }).toList(),
+                          ),
+                          // Draw Black Keys (overlayed)
+                          ...blackKeys.map((note) {
+                            bool isActive = widget.activeNotes.contains(note);
+                            int precedingWhiteNote = note - 1;
+                            int whiteIndex = whiteKeys.indexOf(
+                              precedingWhiteNote,
+                            );
 
-                          return Positioned(
-                            left:
-                                (whiteIndex * whiteKeyWidth) +
-                                (whiteKeyWidth - (blackKeyWidth / 2)),
-                            child: Container(
-                              width: blackKeyWidth,
-                              height: keyHeight * 0.65,
-                              decoration: BoxDecoration(
-                                color:
-                                    isActive
-                                        ? Colors.blueAccent.withValues(
-                                          alpha: 0.8,
-                                        )
-                                        : (widget.validPitchClasses == null ||
-                                            widget.validPitchClasses!.contains(
-                                              note % 12,
-                                            ))
-                                        ? Colors.black87
-                                        : Colors.grey.shade600,
-                                borderRadius: const BorderRadius.only(
-                                  bottomLeft: Radius.circular(3),
-                                  bottomRight: Radius.circular(3),
+                            return Positioned(
+                              left:
+                                  (whiteIndex * whiteKeyWidth) +
+                                  (whiteKeyWidth - (blackKeyWidth / 2)),
+                              child: Container(
+                                width: blackKeyWidth,
+                                height: keyHeight * 0.65,
+                                decoration: BoxDecoration(
+                                  color:
+                                      isActive
+                                          ? Colors.blueAccent.withValues(
+                                            alpha: 0.8,
+                                          )
+                                          : (widget.validPitchClasses == null ||
+                                              widget.validPitchClasses!
+                                                  .contains(note % 12))
+                                          ? Colors.black87
+                                          : Colors.grey.shade600,
+                                  borderRadius: const BorderRadius.only(
+                                    bottomLeft: Radius.circular(3),
+                                    bottomRight: Radius.circular(3),
+                                  ),
                                 ),
+                                alignment: Alignment.bottomCenter,
+                                padding: const EdgeInsets.only(bottom: 4),
+                                child:
+                                    isActive ||
+                                            (widget.rootPitchClass != null &&
+                                                note % 12 ==
+                                                    widget.rootPitchClass)
+                                        ? Text(
+                                          _getNoteName(note),
+                                          style: TextStyle(
+                                            color:
+                                                isActive
+                                                    ? Colors.white
+                                                    : Colors.blueAccent,
+                                            fontSize: 8,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        )
+                                        : const SizedBox(),
                               ),
-                              alignment: Alignment.bottomCenter,
-                              padding: const EdgeInsets.only(bottom: 4),
-                              child:
-                                  isActive ||
-                                          (widget.rootPitchClass != null &&
-                                              note % 12 ==
-                                                  widget.rootPitchClass)
-                                      ? Text(
-                                        _getNoteName(note),
-                                        style: TextStyle(
-                                          color:
-                                              isActive
-                                                  ? Colors.white
-                                                  : Colors.blueAccent,
-                                          fontSize: 8,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      )
-                                      : const SizedBox(),
-                            ),
-                          );
-                        }),
-                      ],
+                            );
+                          }),
+                        ],
+                      ),
                     ),
                   ),
                 ),

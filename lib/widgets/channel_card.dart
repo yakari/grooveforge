@@ -145,27 +145,6 @@ class ChannelCard extends StatelessWidget {
                                                                     .lastChord
                                                                     .value
                                                                 : ownChord;
-                                                        final chordToDisplay =
-                                                            (showOwnChord ||
-                                                                    isSlave)
-                                                                ? (isSlave &&
-                                                                        refChord !=
-                                                                            null
-                                                                    ? ChordMatch(
-                                                                      refChord
-                                                                          .name
-                                                                          .split(
-                                                                            ' ',
-                                                                          )[0],
-                                                                      refChord
-                                                                          .scalePitchClasses,
-                                                                      refChord
-                                                                          .rootPc,
-                                                                      refChord
-                                                                          .isMinor,
-                                                                    )
-                                                                    : ownChord)
-                                                                : null;
                                                         final scaleToDisplay =
                                                             isSlave
                                                                 ? jamScale
@@ -177,17 +156,24 @@ class ChannelCard extends StatelessWidget {
                                                               scaleToDisplay,
                                                             );
 
-                                                        // If slave in Jam Mode, show root in chord area if idle
-                                                        if (isSlave &&
-                                                            refChord != null) {
-                                                          final rootName =
-                                                              refChord.name
-                                                                  .split(
-                                                                    ' ',
-                                                                  )[0];
-                                                          descriptiveName =
-                                                              '$rootName (Root) in $descriptiveName';
-                                                        }
+                                                        final chordToDisplay =
+                                                            (showOwnChord ||
+                                                                    isSlave)
+                                                                ? (isSlave &&
+                                                                        refChord !=
+                                                                            null
+                                                                    ? ChordMatch(
+                                                                      '${refChord.name.split(' ')[0]} $descriptiveName',
+                                                                      refChord
+                                                                          .scalePitchClasses,
+                                                                      refChord
+                                                                          .rootPc,
+                                                                      refChord
+                                                                          .isMinor,
+                                                                    )
+                                                                    : ownChord)
+                                                                : null;
+
                                                         final lockToDisplay =
                                                             isSlave ||
                                                             (lockMode ==
@@ -270,79 +256,89 @@ class ChannelCard extends StatelessWidget {
                         onTap:
                             () {}, // Swallow taps so they don't trigger anything underneath
                         child: ValueListenableBuilder<int>(
-                          valueListenable: engine.pianoKeysToShow,
-                          builder: (context, keysToShow, _) {
-                            return ValueListenableBuilder<GestureAction>(
-                              valueListenable: engine.verticalGestureAction,
-                              builder: (context, vAction, _) {
+                          valueListenable: engine.stateNotifier,
+                          builder: (context, _, child) {
+                            return ValueListenableBuilder<int>(
+                              valueListenable: engine.pianoKeysToShow,
+                              builder: (context, keysToShow, _) {
                                 return ValueListenableBuilder<GestureAction>(
-                                  valueListenable:
-                                      engine.horizontalGestureAction,
-                                  builder: (context, hAction, _) {
-                                    return ValueListenableBuilder<Set<int>?>(
-                                      valueListenable: state.validPitchClasses,
-                                      builder: (context, validPcs, _) {
-                                        // Calculate root for labeling
-                                        int? rootPc;
-                                        // We need to re-check jam status here for the piano builder
-                                        final jamEnabled =
-                                            engine.jamEnabled.value;
-                                        final lockMode =
-                                            engine.lockModePreference.value;
-                                        final slaves =
-                                            engine.jamSlaveChannels.value;
-                                        final isSlave =
-                                            lockMode == ScaleLockMode.jam &&
-                                            jamEnabled &&
-                                            slaves.contains(channelIndex);
+                                  valueListenable: engine.verticalGestureAction,
+                                  builder: (context, vAction, _) {
+                                    return ValueListenableBuilder<
+                                      GestureAction
+                                    >(
+                                      valueListenable:
+                                          engine.horizontalGestureAction,
+                                      builder: (context, hAction, _) {
+                                        return ValueListenableBuilder<
+                                          Set<int>?
+                                        >(
+                                          valueListenable:
+                                              state.validPitchClasses,
+                                          builder: (context, validPcs, _) {
+                                            // Calculate root for labeling
+                                            int? rootPc;
+                                            // We need to re-check jam status here for the piano builder
+                                            final jamEnabled =
+                                                engine.jamEnabled.value;
+                                            final lockMode =
+                                                engine.lockModePreference.value;
+                                            final slaves =
+                                                engine.jamSlaveChannels.value;
+                                            final isSlave =
+                                                lockMode == ScaleLockMode.jam &&
+                                                jamEnabled &&
+                                                slaves.contains(channelIndex);
 
-                                        if (isSlave) {
-                                          final masterCh =
-                                              engine.jamMasterChannel.value;
-                                          final masterChord =
-                                              engine
-                                                  .channels[masterCh]
-                                                  .lastChord
-                                                  .value;
-                                          if (masterChord != null) {
-                                            rootPc = masterChord.rootPc;
-                                          }
-                                        }
+                                            if (isSlave) {
+                                              final masterCh =
+                                                  engine.jamMasterChannel.value;
+                                              final masterChord =
+                                                  engine
+                                                      .channels[masterCh]
+                                                      .lastChord
+                                                      .value;
+                                              if (masterChord != null) {
+                                                rootPc = masterChord.rootPc;
+                                              }
+                                            }
 
-                                        return VirtualPiano(
-                                          activeNotes: activeNotes,
-                                          verticalAction: vAction,
-                                          horizontalAction: hAction,
-                                          keysToShow: keysToShow,
-                                          validPitchClasses:
-                                              isSlave ? validPcs : null,
-                                          rootPitchClass:
-                                              isSlave ? rootPc : null,
-                                          onNotePressed:
-                                              (note) => engine.playNote(
-                                                channel: channelIndex,
-                                                key: note,
-                                                velocity: 100,
-                                              ),
-                                          onNoteReleased:
-                                              (note) => engine.stopNote(
-                                                channel: channelIndex,
-                                                key: note,
-                                              ),
-                                          onPitchBend:
-                                              (val) => engine.setPitchBend(
-                                                channel: channelIndex,
-                                                value: val,
-                                              ),
-                                          onControlChange:
-                                              (cc, val) =>
-                                                  engine.setControlChange(
+                                            return VirtualPiano(
+                                              activeNotes: activeNotes,
+                                              verticalAction: vAction,
+                                              horizontalAction: hAction,
+                                              keysToShow: keysToShow,
+                                              validPitchClasses:
+                                                  isSlave ? validPcs : null,
+                                              rootPitchClass:
+                                                  isSlave ? rootPc : null,
+                                              onNotePressed:
+                                                  (note) => engine.playNote(
                                                     channel: channelIndex,
-                                                    controller: cc,
+                                                    key: note,
+                                                    velocity: 100,
+                                                  ),
+                                              onNoteReleased:
+                                                  (note) => engine.stopNote(
+                                                    channel: channelIndex,
+                                                    key: note,
+                                                  ),
+                                              onPitchBend:
+                                                  (val) => engine.setPitchBend(
+                                                    channel: channelIndex,
                                                     value: val,
                                                   ),
-                                          onInteractingChanged:
-                                              engine.updateGestureState,
+                                              onControlChange:
+                                                  (cc, val) =>
+                                                      engine.setControlChange(
+                                                        channel: channelIndex,
+                                                        controller: cc,
+                                                        value: val,
+                                                      ),
+                                              onInteractingChanged:
+                                                  engine.updateGestureState,
+                                            );
+                                          },
                                         );
                                       },
                                     );

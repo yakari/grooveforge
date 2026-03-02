@@ -163,7 +163,9 @@ class AudioEngine extends ChangeNotifier {
 
     pianoKeysToShow.addListener(_saveState);
     lockModePreference.addListener(_saveState);
+    lockModePreference.addListener(_propagateJamScaleUpdate);
     jamEnabled.addListener(_saveState);
+    jamEnabled.addListener(_propagateJamScaleUpdate);
     jamMasterChannel.addListener(_saveState);
     jamSlaveChannels.addListener(_saveState);
     jamScaleType.addListener(_propagateJamScaleUpdate);
@@ -820,6 +822,25 @@ class AudioEngine extends ChangeNotifier {
 
   void _propagateJamScaleUpdate() {
     if (lockModePreference.value != ScaleLockMode.jam || !jamEnabled.value) {
+      for (int i = 0; i < 16; i++) {
+        if (lockModePreference.value != ScaleLockMode.classic ||
+            !channels[i].isScaleLocked.value) {
+          channels[i].validPitchClasses.value = null;
+        } else {
+          // If switching to classic and it is locked, recalculate its scale
+          final match = channels[i].lastChord.value;
+          if (match != null) {
+            final info = _getScaleInfo(
+              match,
+              channels[i].currentScaleType.value,
+            );
+            final root = match.rootPc;
+            channels[i].validPitchClasses.value =
+                info.intervals.map((interv) => (root + interv) % 12).toSet();
+          }
+        }
+      }
+      stateNotifier.value++;
       return;
     }
 
@@ -842,6 +863,10 @@ class AudioEngine extends ChangeNotifier {
         channels[slaveIdx].validPitchClasses.value = allowedPcs;
       }
     }
+
+    // Force UI rebuild for slaves, in case the master chord changed to a relative scale
+    // where pitch classes are identical but the root changed (so UI labels and rendering update).
+    stateNotifier.value++;
   }
 
   /// Returns a descriptive name for the effective scale being used.
