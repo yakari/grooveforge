@@ -191,6 +191,32 @@ class _VirtualPianoState extends State<VirtualPiano> {
     return null;
   }
 
+  int _getValidTarget(int note) {
+    if (widget.validPitchClasses == null) return note;
+    if (widget.validPitchClasses!.contains(note % 12)) return note;
+    int bestDistance = 999;
+    int bestKey = note;
+    for (int offset = 1; offset <= 12; offset++) {
+      // Check downKey first to prefer snapping down (e.g., C# snaps to C)
+      int downKey = note - offset;
+      if (widget.validPitchClasses!.contains(downKey % 12)) {
+        if (offset < bestDistance) {
+          bestDistance = offset;
+          bestKey = downKey;
+        }
+      }
+      int upKey = note + offset;
+      if (widget.validPitchClasses!.contains(upKey % 12)) {
+        if (offset < bestDistance) {
+          bestDistance = offset;
+          bestKey = upKey;
+        }
+      }
+      if (bestDistance < 999) break;
+    }
+    return bestKey;
+  }
+
   void _handlePointerDown(
     PointerEvent event,
     double height,
@@ -209,9 +235,8 @@ class _VirtualPianoState extends State<VirtualPiano> {
     );
 
     if (note != null) {
-      if (widget.validPitchClasses != null &&
-          !widget.validPitchClasses!.contains(note % 12)) {
-        return;
+      if (widget.validPitchClasses != null) {
+        note = _getValidTarget(note);
       }
 
       bool wasEmpty = _pointerToNote.isEmpty;
@@ -241,13 +266,8 @@ class _VirtualPianoState extends State<VirtualPiano> {
       bKeys,
     );
 
-    if (note != null &&
-        widget.validPitchClasses != null &&
-        !widget.validPitchClasses!.contains(note % 12)) {
-      // If we move into an invalid note, just ignore it.
-      // Do NOT update currentNote to null, because that would stop the previous sound.
-      // This allows glissando to sustain the last valid key while sliding over invalid ones.
-      return;
+    if (note != null && widget.validPitchClasses != null) {
+      note = _getValidTarget(note);
     }
 
     int? currentNote = _pointerToNote[event.pointer];
@@ -476,9 +496,16 @@ class _VirtualPianoState extends State<VirtualPiano> {
                           Row(
                             children:
                                 whiteKeys.map((note) {
-                                  bool isActive = widget.activeNotes.contains(
-                                    note,
-                                  );
+                                  bool isActive = false;
+                                  if (widget.validPitchClasses != null) {
+                                    isActive = widget.activeNotes.contains(
+                                      _getValidTarget(note),
+                                    );
+                                  } else {
+                                    isActive = widget.activeNotes.contains(
+                                      note,
+                                    );
+                                  }
                                   return Container(
                                     width: whiteKeyWidth,
                                     height: keyHeight,
@@ -494,6 +521,10 @@ class _VirtualPianoState extends State<VirtualPiano> {
                                                       .contains(note % 12))
                                               ? Colors.white
                                               : Colors.grey[400],
+                                      border: Border.all(
+                                        color: Colors.black87,
+                                        width: 1,
+                                      ),
                                       borderRadius: const BorderRadius.only(
                                         bottomLeft: Radius.circular(4),
                                         bottomRight: Radius.circular(4),
@@ -524,7 +555,14 @@ class _VirtualPianoState extends State<VirtualPiano> {
                           ),
                           // Draw Black Keys (overlayed)
                           ...blackKeys.map((note) {
-                            bool isActive = widget.activeNotes.contains(note);
+                            bool isActive = false;
+                            if (widget.validPitchClasses != null) {
+                              isActive = widget.activeNotes.contains(
+                                _getValidTarget(note),
+                              );
+                            } else {
+                              isActive = widget.activeNotes.contains(note);
+                            }
                             int precedingWhiteNote = note - 1;
                             int whiteIndex = whiteKeys.indexOf(
                               precedingWhiteNote,
@@ -575,6 +613,24 @@ class _VirtualPianoState extends State<VirtualPiano> {
                               ),
                             );
                           }),
+                          // Zone Borders Overlay
+                          if (widget.validPitchClasses != null)
+                            Positioned.fill(
+                              child: IgnorePointer(
+                                child: CustomPaint(
+                                  painter: ZoneBorderPainter(
+                                    validPitchClasses:
+                                        widget.validPitchClasses!,
+                                    whiteKeys: whiteKeys,
+                                    blackKeys: blackKeys,
+                                    whiteKeyWidth: whiteKeyWidth,
+                                    blackKeyWidth: blackKeyWidth,
+                                    height: keyHeight,
+                                    targetResolver: _getValidTarget,
+                                  ),
+                                ),
+                              ),
+                            ),
                         ],
                       ),
                     ),
@@ -607,5 +663,113 @@ class _VirtualPianoState extends State<VirtualPiano> {
         );
       },
     );
+  }
+}
+
+typedef TargetResolver = int Function(int note);
+
+class ZoneBorderPainter extends CustomPainter {
+  final Set<int> validPitchClasses;
+  final List<int> whiteKeys;
+  final List<int> blackKeys;
+  final double whiteKeyWidth;
+  final double blackKeyWidth;
+  final double height;
+  final TargetResolver targetResolver;
+
+  ZoneBorderPainter({
+    required this.validPitchClasses,
+    required this.whiteKeys,
+    required this.blackKeys,
+    required this.whiteKeyWidth,
+    required this.blackKeyWidth,
+    required this.height,
+    required this.targetResolver,
+  });
+
+  Path _getBlackKeyRect(int n) {
+    int precedingWhite = n - 1;
+    int wIdx = whiteKeys.indexOf(precedingWhite);
+    if (wIdx == -1) return Path();
+    double startX =
+        (wIdx * whiteKeyWidth) + (whiteKeyWidth - (blackKeyWidth / 2));
+    return Path()
+      ..addRect(Rect.fromLTWH(startX, 0, blackKeyWidth, height * 0.65));
+  }
+
+  Path _getWhiteKeyVisiblePath(int n) {
+    int wIdx = whiteKeys.indexOf(n);
+    if (wIdx == -1) return Path();
+    Path p =
+        Path()..addRect(
+          Rect.fromLTWH(wIdx * whiteKeyWidth, 0, whiteKeyWidth, height),
+        );
+
+    // Subtract left black key portion
+    if (blackKeys.contains(n - 1)) {
+      p = Path.combine(PathOperation.difference, p, _getBlackKeyRect(n - 1));
+    }
+    // Subtract right black key portion
+    if (blackKeys.contains(n + 1)) {
+      p = Path.combine(PathOperation.difference, p, _getBlackKeyRect(n + 1));
+    }
+    return p;
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (validPitchClasses.isEmpty) return;
+
+    Map<int, List<int>> targetGroups = {};
+    for (int w in whiteKeys) {
+      targetGroups.putIfAbsent(targetResolver(w), () => []).add(w);
+    }
+    for (int b in blackKeys) {
+      targetGroups.putIfAbsent(targetResolver(b), () => []).add(b);
+    }
+
+    final strokePaint =
+        Paint()
+          ..color = Colors.indigoAccent
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.0
+          ..strokeJoin = StrokeJoin.round;
+
+    final glowPaint =
+        Paint()
+          ..color = Colors.indigoAccent.withValues(alpha: 0.6)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 5.0
+          ..strokeJoin = StrokeJoin.round
+          ..maskFilter = const MaskFilter.blur(BlurStyle.solid, 2.0);
+
+    for (final entry in targetGroups.entries) {
+      Path zonePath = Path();
+      bool first = true;
+      for (int note in entry.value) {
+        Path visiblePart =
+            blackKeys.contains(note)
+                ? _getBlackKeyRect(note)
+                : _getWhiteKeyVisiblePath(note);
+        if (first) {
+          zonePath = visiblePart;
+          first = false;
+        } else {
+          // Precise union of mutually exclusive bounds forms a contiguous outline without internal lines
+          zonePath = Path.combine(PathOperation.union, zonePath, visiblePart);
+        }
+      }
+
+      canvas.drawPath(zonePath, glowPaint);
+      canvas.drawPath(zonePath, strokePaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant ZoneBorderPainter oldDelegate) {
+    return oldDelegate.validPitchClasses != validPitchClasses ||
+        oldDelegate.whiteKeyWidth != whiteKeyWidth ||
+        oldDelegate.blackKeyWidth != blackKeyWidth ||
+        oldDelegate.height != height;
   }
 }
