@@ -140,6 +140,30 @@ abstract class AppLocalizations {
   /// **'Select MIDI Device'**
   String get selectMidiDeviceDialogTitle;
 
+  /// No description provided for @midiNewDeviceDetected.
+  ///
+  /// In en, this message translates to:
+  /// **'New MIDI Device Detected'**
+  String get midiNewDeviceDetected;
+
+  /// No description provided for @midiConnectNewDevicePrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect to {deviceName}?'**
+  String midiConnectNewDevicePrompt(String deviceName);
+
+  /// No description provided for @actionConnect.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect'**
+  String get actionConnect;
+
+  /// No description provided for @actionIgnore.
+  ///
+  /// In en, this message translates to:
+  /// **'Ignore'**
+  String get actionIgnore;
+
   /// No description provided for @soundfontsSection.
   ///
   /// In en, this message translates to:

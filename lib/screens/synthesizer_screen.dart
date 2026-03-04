@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_midi_command/flutter_midi_command.dart';
 
 import 'package:grooveforge/services/audio_engine.dart';
 import 'package:grooveforge/services/cc_mapping_service.dart';
@@ -28,6 +30,7 @@ class _SynthesizerScreenState extends State<SynthesizerScreen> {
   final ScrollController _scrollController = ScrollController();
   int _lastAutoScrolledChannel = -1;
   DateTime _lastScrollTime = DateTime.fromMillisecondsSinceEpoch(0);
+  StreamSubscription<MidiDevice>? _newDeviceSubscription;
 
   @override
   void initState() {
@@ -46,6 +49,12 @@ class _SynthesizerScreenState extends State<SynthesizerScreen> {
       final event = ccMappingService.lastEventNotifier.value;
       if (event != null && mounted) {
         _handleAutoScroll(event.channel);
+      }
+    });
+
+    _newDeviceSubscription = midiService.onNewDeviceDetected.listen((device) {
+      if (mounted) {
+        _showNewDeviceModal(device);
       }
     });
 
@@ -110,11 +119,38 @@ class _SynthesizerScreenState extends State<SynthesizerScreen> {
 
   @override
   void dispose() {
+    _newDeviceSubscription?.cancel();
     if (_toastListener != null) {
       context.read<AudioEngine>().toastNotifier.removeListener(_toastListener!);
     }
     _scrollController.dispose();
     super.dispose();
+  }
+
+  void _showNewDeviceModal(MidiDevice device) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        final l10n = AppLocalizations.of(context)!;
+        return AlertDialog(
+          title: Text(l10n.midiNewDeviceDetected),
+          content: Text(l10n.midiConnectNewDevicePrompt(device.name)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(l10n.actionIgnore),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                context.read<MidiService>().connect(device);
+                Navigator.pop(context);
+              },
+              child: Text(l10n.actionConnect),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _showUserGuide() {

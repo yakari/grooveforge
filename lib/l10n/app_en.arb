@@ -7,6 +7,15 @@
   "connectMidiDevice": "Connect MIDI Device",
   "notConnected": "Not connected",
   "selectMidiDeviceDialogTitle": "Select MIDI Device",
+  "midiNewDeviceDetected": "New MIDI Device Detected",
+  "midiConnectNewDevicePrompt": "Connect to {deviceName}?",
+  "@midiConnectNewDevicePrompt": {
+    "placeholders": {
+      "deviceName": { "type": "String" }
+    }
+  },
+  "actionConnect": "Connect",
+  "actionIgnore": "Ignore",
   "soundfontsSection": "Soundfonts",
   "loadSoundfont": "Load Soundfont (.sf2)",
   "noSoundfontsLoaded": "No soundfonts loaded.",

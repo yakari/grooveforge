@@ -30,6 +30,20 @@ class AppLocalizationsFr extends AppLocalizations {
   String get selectMidiDeviceDialogTitle => 'Sélectionner un appareil MIDI';
 
   @override
+  String get midiNewDeviceDetected => 'Nouvel appareil MIDI détecté';
+
+  @override
+  String midiConnectNewDevicePrompt(String deviceName) {
+    return 'Connecter à $deviceName ?';
+  }
+
+  @override
+  String get actionConnect => 'Connecter';
+
+  @override
+  String get actionIgnore => 'Ignorer';
+
+  @override
   String get soundfontsSection => 'Soundfonts';
 
   @override

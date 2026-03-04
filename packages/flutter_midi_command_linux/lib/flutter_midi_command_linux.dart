@@ -77,9 +77,9 @@ class FlutterMidiCommandLinux extends MidiCommandPlatform {
 
   @override
   Future<List<MidiDevice>> get devices async {
-    if (_allAlsaDevices.isEmpty) {
-      _allAlsaDevices.addAll(AlsaMidiDevice.getDevices());
-    }
+    _allAlsaDevices.clear();
+    _allAlsaDevices.addAll(AlsaMidiDevice.getDevices());
+
     return _allAlsaDevices
         .map(
           (alsMidiDevice) => LinuxMidiDevice(
