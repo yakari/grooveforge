@@ -56,6 +56,12 @@ android {
             output.outputFileName = "GrooveForge_${flutter.versionName}.apk"
         }
     }
+
+    externalNativeBuild {
+        cmake {
+            path = file("../../native_audio/CMakeLists.txt")
+        }
+    }
 }
 
 flutter {

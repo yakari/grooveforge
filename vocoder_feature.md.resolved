@@ -1,0 +1,61 @@
+# Vocoder Feature Exploration
+
+Adding a vocoder feature to GrooveForge is an exciting idea, but it does introduce some complexity, specifically around real-time audio input handling and Digital Signal Processing (DSP). 
+
+Here is a breakdown of what this feature could look like, the benefits it would bring, and how we could technically approach it across different platforms.
+
+## 1. What would this feature look like?
+
+From a UX/UI perspective, a vocoder feature would add a new "Effect" or "Module" to the synthesizer interface. 
+
+It would likely need:
+- **An Enable/Disable Toggle**: To quickly turn the mic input and vocoder processing on and off.
+- **Band Configuration**: A control to adjust the number of frequency bands (e.g., 8, 16, 32 bands). Fewer bands give a classic, robotic 70s/80s sound, while more bands provide higher intelligibility.
+- **Formant Control**: A knob to shift the formants up or down (altering the "gender" or "throat size" of the voice without changing the pitch).
+- **Dry/Wet Mix**: To blend the vocoded signal with the raw synthesizer audio.
+- **Mic Gain**: A sensitivity control to adjust the input level of the microphone, ideally with a small visual VU meter so the user knows it's picking up sound.
+
+## 2. What features will it bring?
+
+A vocoder essentially uses an analysis signal (usually a human voice via microphone) to modulate a carrier signal (the synthesizer's oscillators).
+
+- **"Talking Synth" Effect**: Users can sing or speak into their microphone while playing chords or melodies on the keyboard, causing the synthesizer to "sing" their words at the played pitches.
+- **Rhythmic Gating**: It doesn't have to be a voice! Users could route a drum beat into the input to rhythmically modulate a sustained synth chord.
+- **Creative Sound Design**: Applying voice characteristics to a raw sawtooth wave is the classic Daft Punk/Kraftwerk sound.
+
+## 3. How do we capture the voice of the user?
+
+Since GrooveForge is built with Flutter and seems to use a native audio engine (based on earlier mentions of `AudioEngine`, NDK, and Swift plugins), we need real-time, ultra-low-latency audio capture. Standard Flutter recording plugins are usually meant for recording files, not for real-time DSP, as the latency of bridging audio frames through Dart is too high.
+
+The best approach is to handle audio capture directly in the native C++ audio engine layer using a cross-platform audio library (like `miniaudio`, `RtAudio`, or `JUCE`).
+
+- **Linux**: ALSA, PulseAudio, or PipeWire.
+- **macOS / iOS**: CoreAudio (RemoteIO Audio Unit for low latency).
+- **Windows**: WASAPI.
+- **Android**: Oboe or AAudio (essential for bypassing Android's notoriously high standard audio latency).
+
+The C++ audio engine would open an input stream, buffer the incoming microphone audio, and feed it into the DSP vocoder algorithm alongside the synthesizer's output buffer.
+
+## 4. Supporting Sound Cards and External Mics
+
+Cross-platform audio libraries (like the ones mentioned above) inherently support external USB sound cards and microphones. When you plug in an audio interface (e.g., Focusrite Scarlett) or a USB mic, the OS registers it as an audio input device. 
+
+The native audio library can query the OS for a list of all currently connected input devices.
+
+## 5. How to let the user choose the correct device
+
+If a user has a built-in laptop mic, a webcam mic, and an external sound card plugged in, they need to be able to choose the right one.
+
+1. **Device Enumeration via FFI**: The C++ engine exposes a function via Dart FFI that returns a list (strings/IDs) of available input devices.
+2. **Preferences UI**: In `preferences_screen.dart`, we add an "Audio Input Device" dropdown.
+3. **Hot-plugging**: Ideally, the native side registers device change callbacks. If a user unplugs their USB mic, the app should detect it, fall back to the default mic, or warn the user.
+4. **Visual Testing**: When a user selects a device from the dropdown, displaying a tiny horizontal bar that lights up when they speak into it confirms they have selected the correct device.
+
+## Summary: Is it complicated?
+
+**Yes and No.**
+- **The DSP (Vocoder Algorithm)**: Implementing a good-sounding phase vocoder or channel vocoder in C++ requires some math (FFT or a bank of bandpass filters), but there are many open-source implementations we can reference.
+- **The Audio Routing**: If GrooveForge's C++ audio engine already has real-time output working well, adding a simultaneous real-time input stream adds an extra layer of complexity regarding buffer synchronization and avoiding feedback loops.
+- **The UI**: This is the easiest part. Adding a device selector and some knobs in Flutter is straightforward once the FFI bindings are set up.
+
+If we want to proceed, the first step would be prototyping the real-time audio input capture in our native engine to see what kind of latency we get before writing the actual vocoder DSP effect.

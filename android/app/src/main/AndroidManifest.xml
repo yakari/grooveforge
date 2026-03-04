@@ -21,6 +21,9 @@
 
     <uses-feature android:name="android.hardware.bluetooth_le" android:required="false" />
     <uses-feature android:name="android.software.midi" android:required="true" />
+    
+    <!-- Required for real-time audio input capture -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
     <application
         android:label="GrooveForge"
