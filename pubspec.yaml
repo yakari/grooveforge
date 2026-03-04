@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.4.5+19
+version: 1.5.0+20
 
 environment:
   sdk: ^3.7.0
@@ -44,6 +44,9 @@ dependencies:
   path: ^1.9.1
   flutter_markdown: ^0.7.5
   package_info_plus: ^8.2.3
+  flutter_localizations:
+    sdk: flutter
+  intl: ^0.20.2
 
 dependency_overrides:
   flutter_midi_command_linux:
@@ -89,6 +92,7 @@ flutter_native_splash:
 
 # The following section is specific to Flutter packages.
 flutter:
+  generate: true
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
@@ -100,6 +104,7 @@ flutter:
     - assets/soundfonts/
     - splashscreen.png
     - CHANGELOG.md
+    - CHANGELOG.fr.md
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see

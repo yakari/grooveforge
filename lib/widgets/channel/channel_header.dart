@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:grooveforge/l10n/app_localizations.dart';
 
 /// A simple header row for the [ChannelCard].
 ///
@@ -20,7 +21,7 @@ class ChannelHeader extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
-          'CH ${channelIndex + 1}',
+          AppLocalizations.of(context)!.chNumber(channelIndex + 1),
           style: const TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 18,

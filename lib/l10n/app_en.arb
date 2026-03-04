@@ -1,0 +1,188 @@
+{
+  "@@locale": "en",
+  "appTitle": "GrooveForge Synth",
+  "loadingText": "Initializing Synth Engine...",
+  "preferencesTitle": "Preferences",
+  "midiConnectionSection": "MIDI Connection",
+  "connectMidiDevice": "Connect MIDI Device",
+  "notConnected": "Not connected",
+  "selectMidiDeviceDialogTitle": "Select MIDI Device",
+  "soundfontsSection": "Soundfonts",
+  "loadSoundfont": "Load Soundfont (.sf2)",
+  "noSoundfontsLoaded": "No soundfonts loaded.",
+  "defaultSoundfont": "Default soundfont",
+  "routingControlSection": "Routing & Control",
+  "ccMappingPreferences": "CC Mapping Preferences",
+  "ccMappingPreferencesSubtitle": "Map hardware knobs to GM Effects and System Actions",
+  "keyGesturesSection": "Key Gestures",
+  "verticalInteraction": "Vertical Interaction",
+  "verticalInteractionSubtitle": "Swipe up/down on a key",
+  "horizontalInteraction": "Horizontal Interaction",
+  "horizontalInteractionSubtitle": "Slide left/right on a key",
+  "actionSave": "SAVE",
+  "chNumber": "CH {channel}",
+  "@chNumber": {
+    "placeholders": {
+      "channel": { "type": "int" }
+    }
+  },
+  "patchLoadSoundfont": "Load a soundfont from preferences",
+  "patchDefaultSoundfont": "Default soundfont",
+  "patchUnknownProgram": "Unknown Program {program}",
+  "@patchUnknownProgram": {
+    "placeholders": {
+      "program": { "type": "int" }
+    }
+  },
+  "patchBank": "Bank {bank}",
+  "@patchBank": {
+    "placeholders": {
+      "bank": { "type": "int" }
+    }
+  },
+  "jamStart": "JAM",
+  "jamStop": "STOP",
+  "jamMaster": "Master",
+  "jamSlaves": "Slaves",
+  "jamScale": "Scale",
+  "jamSelectSlavesDialogTitle": "Select Slave Channels",
+  "jamModeToast": "Jam Mode: {status}",
+  "@jamModeToast": {
+    "placeholders": {
+      "status": { "type": "String" }
+    }
+  },
+  "jamStarted": "STARTED",
+  "jamStopped": "STOPPED",
+  "ccTitle": "CC Mapping Preferences",
+  "ccActiveMappings": "Active Mappings",
+  "ccAddMapping": "Add Mapping",
+  "ccWaitingForEvents": "Waiting for incoming MIDI events...",
+  "ccLastEventCC": "Last Event: CC {cc} (Value: {val})",
+  "@ccLastEventCC": {
+    "placeholders": {
+      "cc": { "type": "int" },
+      "val": { "type": "int" }
+    }
+  },
+  "ccLastEventNote": "Last Event: {type} Note {note} (Velocity: {velocity})",
+  "@ccLastEventNote": {
+    "placeholders": {
+      "type": { "type": "String" },
+      "note": { "type": "int" },
+      "velocity": { "type": "int" }
+    }
+  },
+  "ccReceivedOnChannel": "Received on Channel {channel}",
+  "@ccReceivedOnChannel": {
+    "placeholders": {
+      "channel": { "type": "int" }
+    }
+  },
+  "ccInstructions": "Move a slider or play a note on your MIDI hardware controller to instantly identify its internal event data here.",
+  "ccNoMappings": "No custom mappings defined.\nClick below to add one.",
+  "ccUnknownSequence": "CC {cc}",
+  "@ccUnknownSequence": {
+    "placeholders": {
+      "cc": { "type": "int" }
+    }
+  },
+  "ccRoutingAllChannels": "All Channels",
+  "ccRoutingSameAsIncoming": "Same as Incoming",
+  "ccRoutingChannel": "Channel {channel}",
+  "@ccRoutingChannel": {
+    "placeholders": {
+      "channel": { "type": "int" }
+    }
+  },
+  "ccMappingHardwareToTarget": "Hardware CC {incoming} \u2794 Mapped to {targetName}",
+  "@ccMappingHardwareToTarget": {
+    "placeholders": {
+      "incoming": { "type": "int" },
+      "targetName": { "type": "String" }
+    }
+  },
+  "ccMappingRouting": "Routing: {channelStr}",
+  "@ccMappingRouting": {
+    "placeholders": {
+      "channelStr": { "type": "String" }
+    }
+  },
+  "ccNewMappingTitle": "New CC Mapping",
+  "ccIncomingLabel": "Incoming Hardware CC (e.g., 20)",
+  "ccTargetEffectLabel": "Target GM Effect",
+  "ccTargetChannelLabel": "Target Channel",
+  "ccSaveBinding": "Save Binding",
+  "ccTargetEffectFormat": "{name} (CC {cc})",
+  "@ccTargetEffectFormat": {
+    "placeholders": {
+      "name": { "type": "String" },
+      "cc": { "type": "int" }
+    }
+  },
+  "actionNone": "None",
+  "actionPitchBend": "Pitch Bend",
+  "actionVibrato": "Vibrato",
+  "actionGlissando": "Glissando",
+  "virtualPianoDisplaySection": "Virtual Piano Display",
+  "visibleKeysTitle": "Visible Keys (Zoom)",
+  "visibleKeysSubtitle": "Number of white keys to show at once",
+  "keys25": "25 keys (15 white)",
+  "keys37": "37 keys (22 white)",
+  "keys49": "49 keys (29 white)",
+  "keys88": "88 keys (52 white)",
+  "notationFormatTitle": "Music Notation Format",
+  "notationFormatSubtitle": "How chord names are displayed",
+  "notationStandard": "Standard (C, D, E)",
+  "notationSolfege": "Solfège (Do, Ré, Mi)",
+  "prefAboutMadeWith": "Made with Flutter in Paris 🇫🇷",
+  "splashStartingEngine": "Starting audio engine...",
+  "splashLoadingPreferences": "Loading preferences...",
+  "splashStartingFluidSynth": "Starting FluidSynth backend...",
+  "splashRestoringState": "Restoring saved state...",
+  "splashCheckingSoundfonts": "Checking bundled soundfonts...",
+  "splashExtractingSoundfont": "Extracting default soundfont...",
+  "splashReady": "Ready",
+  "synthVisibleChannelsTitle": "Visible Channels",
+  "synthChannelLabel": "Channel {channelIndex}",
+  "@synthChannelLabel": {
+    "placeholders": {
+      "channelIndex": {
+        "type": "int"
+      }
+    }
+  },
+  "synthErrorAtLeastOneChannel": "At least one channel must be visible",
+  "synthSaveFilters": "Save Filters",
+  "synthTooltipUserGuide": "User Guide",
+  "synthTooltipFilterChannels": "Filter Visible Channels",
+  "synthTooltipSettings": "Settings & Setup",
+  "actionCancel": "Cancel",
+  "scaleLockModeTitle": "Scale Lock Mode",
+  "scaleLockModeSubtitle": "Classic (per channel) vs Jam (master-slave)",
+  "modeClassic": "Classic Mode",
+  "modeJam": "Jam Mode",
+  "jamModeKeyGroupsTitle": "Jam Mode Key Groups",
+  "jamModeKeyGroupsSubtitle": "Visually group scale-mapped keys with borders",
+  "highlightWrongNotesTitle": "Highlight Wrong Notes",
+  "highlightWrongNotesSubtitle": "Color out-of-scale pressed keys in red",
+  "aftertouchEffectTitle": "Aftertouch Effect",
+  "aftertouchEffectSubtitle": "Route keyboard pressure to this CC",
+  "aboutSection": "About",
+  "versionTitle": "Version",
+  "viewChangelogTitle": "View Changelog",
+  "viewChangelogSubtitle": "History of changes and updates",
+  "changelogDialogTitle": "Changelog",
+  "closeButton": "Close",
+  "errorLoadingChangelog": "Error loading changelog.",
+  "resetPreferencesButton": "Reset All Preferences",
+  "resetPreferencesDialogTitle": "Reset All Preferences?",
+  "resetPreferencesDialogBody": "This will clear all your settings, loaded soundfonts, and custom assignments. This action cannot be undone.",
+  "cancelButton": "Cancel",
+  "resetEverythingButton": "Reset Everything",
+  "languageTitle": "Language",
+  "languageSubtitle": "App interface language",
+  "languageSystem": "System Default",
+  "languageEnglish": "English",
+  "languageFrench": "French"
+}

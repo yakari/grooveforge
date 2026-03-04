@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:grooveforge/l10n/app_localizations.dart';
 import 'package:grooveforge/services/audio_engine.dart';
 
 /// The control center for configuring Jam Mode parameters.
@@ -122,8 +123,13 @@ class JamSessionWidget extends StatelessWidget {
         return ElevatedButton.icon(
           onPressed: () {
             engine.jamEnabled.value = !engine.jamEnabled.value;
-            engine.toastNotifier.value =
-                'Jam Mode: ${engine.jamEnabled.value ? "STARTED" : "STOPPED"}';
+            engine.toastNotifier.value = AppLocalizations.of(
+              context,
+            )!.jamModeToast(
+              engine.jamEnabled.value
+                  ? AppLocalizations.of(context)!.jamStarted
+                  : AppLocalizations.of(context)!.jamStopped,
+            );
           },
           style: ElevatedButton.styleFrom(
             backgroundColor: enabled ? Colors.redAccent : Colors.greenAccent,
@@ -142,7 +148,9 @@ class JamSessionWidget extends StatelessWidget {
             size: isVertical ? 18 : 18,
           ),
           label: Text(
-            enabled ? 'STOP' : 'JAM',
+            enabled
+                ? AppLocalizations.of(context)!.jamStop
+                : AppLocalizations.of(context)!.jamStart,
             style: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: isVertical ? 12 : 13,
@@ -181,7 +189,11 @@ class JamSessionWidget extends StatelessWidget {
             (i) => DropdownMenuItem(
               value: i,
               alignment: isVertical ? Alignment.center : Alignment.centerLeft,
-              child: Text(isVertical ? '${i + 1}' : 'CH ${i + 1}'),
+              child: Text(
+                isVertical
+                    ? '${i + 1}'
+                    : AppLocalizations.of(context)!.chNumber(i + 1),
+              ),
             ),
           ),
           onChanged: (val) {
@@ -208,7 +220,11 @@ class JamSessionWidget extends StatelessWidget {
           ),
         );
 
-        return _buildLabeledControl('Master', content, isVertical: isVertical);
+        return _buildLabeledControl(
+          AppLocalizations.of(context)!.jamMaster,
+          content,
+          isVertical: isVertical,
+        );
       },
     );
   }
@@ -245,7 +261,11 @@ class JamSessionWidget extends StatelessWidget {
           ),
         );
 
-        return _buildLabeledControl('Slaves', content, isVertical: isVertical);
+        return _buildLabeledControl(
+          AppLocalizations.of(context)!.jamSlaves,
+          content,
+          isVertical: isVertical,
+        );
       },
     );
   }
@@ -305,7 +325,11 @@ class JamSessionWidget extends StatelessWidget {
           ),
         );
 
-        return _buildLabeledControl('Scale', content, isVertical: isVertical);
+        return _buildLabeledControl(
+          AppLocalizations.of(context)!.jamScale,
+          content,
+          isVertical: isVertical,
+        );
       },
     );
   }
@@ -318,7 +342,9 @@ class JamSessionWidget extends StatelessWidget {
           (context) => StatefulBuilder(
             builder: (context, setDialogState) {
               return AlertDialog(
-                title: const Text('Select Slave Channels'),
+                title: Text(
+                  AppLocalizations.of(context)!.jamSelectSlavesDialogTitle,
+                ),
                 content: SizedBox(
                   width: 300,
                   child: Wrap(
@@ -330,7 +356,9 @@ class JamSessionWidget extends StatelessWidget {
                       bool isMaster = i == engine.jamMasterChannel.value;
                       bool isSelected = tempSlaves.contains(i);
                       return FilterChip(
-                        label: Text('CH ${i + 1}'),
+                        label: Text(
+                          AppLocalizations.of(context)!.chNumber(i + 1),
+                        ),
                         selected: isSelected,
                         onSelected:
                             isMaster
@@ -352,14 +380,14 @@ class JamSessionWidget extends StatelessWidget {
                 actions: [
                   TextButton(
                     onPressed: () => Navigator.pop(context),
-                    child: const Text('CANCEL'),
+                    child: Text(AppLocalizations.of(context)!.actionCancel),
                   ),
                   ElevatedButton(
                     onPressed: () {
                       engine.jamSlaveChannels.value = tempSlaves;
                       Navigator.pop(context);
                     },
-                    child: const Text('SAVE'),
+                    child: Text(AppLocalizations.of(context)!.actionSave),
                   ),
                 ],
               );

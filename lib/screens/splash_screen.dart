@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/audio_engine.dart';
 import 'synthesizer_screen.dart';
+import '../l10n/app_localizations.dart';
 
 /// The initial launch screen of the application.
 ///
@@ -44,6 +45,29 @@ class _SplashScreenState extends State<SplashScreen> {
         transitionDuration: const Duration(milliseconds: 500),
       ),
     );
+  }
+
+  String _getLocalizedStatus(BuildContext context, String status) {
+    final l10n = AppLocalizations.of(context);
+    if (l10n == null) return status;
+    switch (status) {
+      case 'Starting audio engine...':
+        return l10n.splashStartingEngine;
+      case 'Loading preferences...':
+        return l10n.splashLoadingPreferences;
+      case 'Starting FluidSynth backend...':
+        return l10n.splashStartingFluidSynth;
+      case 'Restoring saved state...':
+        return l10n.splashRestoringState;
+      case 'Checking bundled soundfonts...':
+        return l10n.splashCheckingSoundfonts;
+      case 'Extracting default soundfont...':
+        return l10n.splashExtractingSoundfont;
+      case 'Ready':
+        return l10n.splashReady;
+      default:
+        return status;
+    }
   }
 
   @override
@@ -108,7 +132,7 @@ class _SplashScreenState extends State<SplashScreen> {
                         valueListenable: engine.initStatus,
                         builder: (context, status, child) {
                           return Text(
-                            status,
+                            _getLocalizedStatus(context, status),
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 14,

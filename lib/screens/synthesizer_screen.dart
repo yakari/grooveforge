@@ -8,6 +8,7 @@ import 'package:grooveforge/screens/preferences_screen.dart';
 import 'package:grooveforge/widgets/channel_card.dart';
 import 'package:grooveforge/widgets/jam_session_widget.dart';
 import 'package:grooveforge/widgets/user_guide_modal.dart';
+import '../l10n/app_localizations.dart';
 
 /// The primary user interface of GrooveForge.
 ///
@@ -131,8 +132,9 @@ class _SynthesizerScreenState extends State<SynthesizerScreen> {
       builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
+            final l10n = AppLocalizations.of(context)!;
             return AlertDialog(
-              title: const Text('Visible Channels'),
+              title: Text(l10n.synthVisibleChannelsTitle),
               content: SizedBox(
                 width: double.maxFinite,
                 child: ListView.builder(
@@ -141,7 +143,7 @@ class _SynthesizerScreenState extends State<SynthesizerScreen> {
                   itemBuilder: (context, index) {
                     final int channelIndex = index;
                     return CheckboxListTile(
-                      title: Text('Channel ${channelIndex + 1}'),
+                      title: Text(l10n.synthChannelLabel(channelIndex + 1)),
                       value: tempVisible.contains(channelIndex),
                       onChanged: (bool? value) {
                         setDialogState(() {
@@ -162,14 +164,14 @@ class _SynthesizerScreenState extends State<SynthesizerScreen> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel'),
+                  child: Text(l10n.actionCancel),
                 ),
                 TextButton(
                   onPressed: () {
                     if (tempVisible.isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('At least one channel must be visible'),
+                        SnackBar(
+                          content: Text(l10n.synthErrorAtLeastOneChannel),
                         ),
                       );
                       return;
@@ -183,7 +185,7 @@ class _SynthesizerScreenState extends State<SynthesizerScreen> {
                     );
                     Navigator.pop(context);
                   },
-                  child: const Text('Save Filters'),
+                  child: Text(l10n.synthSaveFilters),
                 ),
               ],
             );
@@ -195,24 +197,25 @@ class _SynthesizerScreenState extends State<SynthesizerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('GrooveForge Synth'),
+        title: Text(l10n.appTitle),
         elevation: 2,
         actions: [
           IconButton(
             icon: const Icon(Icons.help_outline),
-            tooltip: 'User Guide',
+            tooltip: l10n.synthTooltipUserGuide,
             onPressed: _showUserGuide,
           ),
           IconButton(
             icon: const Icon(Icons.visibility),
-            tooltip: 'Filter Visible Channels',
+            tooltip: l10n.synthTooltipFilterChannels,
             onPressed: () => _showChannelVisibilityDialog(context),
           ),
           IconButton(
             icon: const Icon(Icons.settings),
-            tooltip: 'Settings & Setup',
+            tooltip: l10n.synthTooltipSettings,
             onPressed: () {
               Navigator.push(
                 context,

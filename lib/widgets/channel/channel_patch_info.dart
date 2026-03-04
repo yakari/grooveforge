@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:grooveforge/l10n/app_localizations.dart';
 
 import 'package:grooveforge/models/chord_detector.dart';
 import 'package:grooveforge/models/gm_instruments.dart';
@@ -86,11 +87,11 @@ class ChannelPatchInfo extends StatelessWidget {
       ),
       child:
           engine.loadedSoundfonts.isEmpty
-              ? const Align(
+              ? Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  'Load a soundfont from preferences',
-                  style: TextStyle(
+                  AppLocalizations.of(context)!.patchLoadSoundfont,
+                  style: const TextStyle(
                     color: Colors.orange,
                     fontSize: 14,
                     fontStyle: FontStyle.italic,
@@ -133,7 +134,9 @@ class ChannelPatchInfo extends StatelessWidget {
                           );
                           String name =
                               isDefault
-                                  ? 'Default soundfont'
+                                  ? AppLocalizations.of(
+                                    context,
+                                  )!.patchDefaultSoundfont
                                   : sfPath.split(Platform.pathSeparator).last;
                           return DropdownMenuItem<String>(
                             value: sfPath,
@@ -187,7 +190,9 @@ class ChannelPatchInfo extends StatelessWidget {
           ),
           items:
               availablePrograms.map((prog) {
-                String pName = bankPresets![prog] ?? 'Unknown Program $prog';
+                String pName =
+                    bankPresets![prog] ??
+                    AppLocalizations.of(context)!.patchUnknownProgram(prog);
                 return DropdownMenuItem<int>(
                   value: prog,
                   child: Text(
@@ -233,7 +238,10 @@ class ChannelPatchInfo extends StatelessWidget {
           icon: const Icon(Icons.arrow_drop_down, color: Colors.white54),
           items:
               availableBanks.map((b) {
-                return DropdownMenuItem<int>(value: b, child: Text('Bank $b'));
+                return DropdownMenuItem<int>(
+                  value: b,
+                  child: Text(AppLocalizations.of(context)!.patchBank(b)),
+                );
               }).toList(),
           onChanged: (newBank) {
             if (newBank != null && newBank != state.bank) {

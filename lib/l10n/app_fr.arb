@@ -1,0 +1,188 @@
+{
+  "@@locale": "fr",
+  "appTitle": "GrooveForge Synth",
+  "loadingText": "Initialisation du moteur de synthèse...",
+  "preferencesTitle": "Préférences",
+  "midiConnectionSection": "Connexion MIDI",
+  "connectMidiDevice": "Connecter un appareil MIDI",
+  "notConnected": "Non connecté",
+  "selectMidiDeviceDialogTitle": "Sélectionner un appareil MIDI",
+  "soundfontsSection": "Soundfonts",
+  "loadSoundfont": "Charger une Soundfont (.sf2)",
+  "noSoundfontsLoaded": "Aucune soundfont chargée.",
+  "defaultSoundfont": "Soundfont par défaut",
+  "routingControlSection": "Routage et Contrôle",
+  "ccMappingPreferences": "Préférences de mapping CC",
+  "ccMappingPreferencesSubtitle": "Associez les potards matériels aux effets GM et actions système",
+  "keyGesturesSection": "Gestes sur les touches",
+  "verticalInteraction": "Interaction verticale",
+  "verticalInteractionSubtitle": "Glissez vers le haut/bas sur une touche",
+  "horizontalInteraction": "Interaction horizontale",
+  "horizontalInteractionSubtitle": "Glissez à gauche/droite sur une touche",
+  "actionSave": "SAUVEGARDER",
+  "chNumber": "CH {channel}",
+  "@chNumber": {
+    "placeholders": {
+      "channel": { "type": "int" }
+    }
+  },
+  "patchLoadSoundfont": "Charger une soundfont via les préférences",
+  "patchDefaultSoundfont": "Soundfont par défaut",
+  "patchUnknownProgram": "Programme inconnu {program}",
+  "@patchUnknownProgram": {
+    "placeholders": {
+      "program": { "type": "int" }
+    }
+  },
+  "patchBank": "Banque {bank}",
+  "@patchBank": {
+    "placeholders": {
+      "bank": { "type": "int" }
+    }
+  },
+  "jamStart": "JAM",
+  "jamStop": "STOP",
+  "jamMaster": "Maître",
+  "jamSlaves": "Esclaves",
+  "jamScale": "Gamme",
+  "jamSelectSlavesDialogTitle": "Sélectionner les canaux esclaves",
+  "jamModeToast": "Mode Jam : {status}",
+  "@jamModeToast": {
+    "placeholders": {
+      "status": { "type": "String" }
+    }
+  },
+  "jamStarted": "DÉMARRÉ",
+  "jamStopped": "ARRÊTÉ",
+  "ccTitle": "Préférences de Mapping CC",
+  "ccActiveMappings": "Mappings Actifs",
+  "ccAddMapping": "Ajouter un Mapping",
+  "ccWaitingForEvents": "En attente d'événements MIDI...",
+  "ccLastEventCC": "Dernier Événement : CC {cc} (Valeur : {val})",
+  "@ccLastEventCC": {
+    "placeholders": {
+      "cc": { "type": "int" },
+      "val": { "type": "int" }
+    }
+  },
+  "ccLastEventNote": "Dernier Événement : Note {type} {note} (Vélocité : {velocity})",
+  "@ccLastEventNote": {
+    "placeholders": {
+      "type": { "type": "String" },
+      "note": { "type": "int" },
+      "velocity": { "type": "int" }
+    }
+  },
+  "ccReceivedOnChannel": "Reçu sur le Canal {channel}",
+  "@ccReceivedOnChannel": {
+    "placeholders": {
+      "channel": { "type": "int" }
+    }
+  },
+  "ccInstructions": "Bougez un fader ou jouez une note sur votre contrôleur MIDI pour identifier instantanément ses données internes ici.",
+  "ccNoMappings": "Aucun mapping personnalisé défini.\nCliquez ci-dessous pour en ajouter un.",
+  "ccUnknownSequence": "CC {cc}",
+  "@ccUnknownSequence": {
+    "placeholders": {
+      "cc": { "type": "int" }
+    }
+  },
+  "ccRoutingAllChannels": "Tous les Canaux",
+  "ccRoutingSameAsIncoming": "Même que le signal entrant",
+  "ccRoutingChannel": "Canal {channel}",
+  "@ccRoutingChannel": {
+    "placeholders": {
+      "channel": { "type": "int" }
+    }
+  },
+  "ccMappingHardwareToTarget": "CC Matériel {incoming} \u2794 Mappé vers {targetName}",
+  "@ccMappingHardwareToTarget": {
+    "placeholders": {
+      "incoming": { "type": "int" },
+      "targetName": { "type": "String" }
+    }
+  },
+  "ccMappingRouting": "Routage : {channelStr}",
+  "@ccMappingRouting": {
+    "placeholders": {
+      "channelStr": { "type": "String" }
+    }
+  },
+  "ccNewMappingTitle": "Nouveau Mapping CC",
+  "ccIncomingLabel": "CC Matériel Entrant (ex: 20)",
+  "ccTargetEffectLabel": "Effet GM Cible",
+  "ccTargetChannelLabel": "Canal Cible",
+  "ccSaveBinding": "Sauvegarder l'Assignation",
+  "ccTargetEffectFormat": "{name} (CC {cc})",
+  "@ccTargetEffectFormat": {
+    "placeholders": {
+      "name": { "type": "String" },
+      "cc": { "type": "int" }
+    }
+  },
+  "actionNone": "Aucun",
+  "actionPitchBend": "Pitch Bend",
+  "actionVibrato": "Vibrato",
+  "actionGlissando": "Glissando",
+  "virtualPianoDisplaySection": "Affichage du Clavier Virtuel",
+  "visibleKeysTitle": "Touches visibles (Zoom)",
+  "visibleKeysSubtitle": "Nombre de touches blanches affichées",
+  "keys25": "25 touches (15 blanches)",
+  "keys37": "37 touches (22 blanches)",
+  "keys49": "49 touches (29 blanches)",
+  "keys88": "88 touches (52 blanches)",
+  "notationFormatTitle": "Format de Notation Musicale",
+  "notationFormatSubtitle": "Comment les accords sont affichés",
+  "notationStandard": "Standard (C, D, E)",
+  "notationSolfege": "Solfège (Do, Ré, Mi)",
+  "prefAboutMadeWith": "Fait avec Flutter à Paris 🇫🇷",
+  "splashStartingEngine": "Démarrage du moteur audio...",
+  "splashLoadingPreferences": "Chargement des préférences...",
+  "splashStartingFluidSynth": "Démarrage de FluidSynth...",
+  "splashRestoringState": "Restauration de l'état...",
+  "splashCheckingSoundfonts": "Vérification des soundfonts...",
+  "splashExtractingSoundfont": "Extraction de la soundfont par défaut...",
+  "splashReady": "Prêt",
+  "synthVisibleChannelsTitle": "Canaux Visibles",
+  "synthChannelLabel": "Canal {channelIndex}",
+  "@synthChannelLabel": {
+    "placeholders": {
+      "channelIndex": {
+        "type": "int"
+      }
+    }
+  },
+  "synthErrorAtLeastOneChannel": "Au moins un canal doit être visible",
+  "synthSaveFilters": "Sauvegarder les Filtres",
+  "synthTooltipUserGuide": "Guide d'Utilisateur",
+  "synthTooltipFilterChannels": "Filtrer les Canaux Visibles",
+  "synthTooltipSettings": "Paramètres & Configuration",
+  "actionCancel": "Annuler",
+  "scaleLockModeTitle": "Mode Scale Lock",
+  "scaleLockModeSubtitle": "Classique (par canal) vs Jam (maître-esclave)",
+  "modeClassic": "Mode Classique",
+  "modeJam": "Mode Jam",
+  "jamModeKeyGroupsTitle": "Groupes de touches Mode Jam",
+  "jamModeKeyGroupsSubtitle": "Regrouper visuellement les touches mappées (bordures)",
+  "highlightWrongNotesTitle": "Griser les fausses notes",
+  "highlightWrongNotesSubtitle": "Colorer les touches hors-gamme en rouge",
+  "aftertouchEffectTitle": "Effet Aftertouch",
+  "aftertouchEffectSubtitle": "Router la pression du clavier vers ce CC",
+  "aboutSection": "À propos",
+  "versionTitle": "Version",
+  "viewChangelogTitle": "Voir le Changelog",
+  "viewChangelogSubtitle": "Historique des modifications",
+  "changelogDialogTitle": "Changelog",
+  "closeButton": "Fermer",
+  "errorLoadingChangelog": "Erreur lors du chargement du changelog.",
+  "resetPreferencesButton": "Réinitialiser toutes les préférences",
+  "resetPreferencesDialogTitle": "Tout réinitialiser ?",
+  "resetPreferencesDialogBody": "Cela effacera tous vos réglages, soundfonts chargées et assignations personnalisées. Action irréversible.",
+  "cancelButton": "Annuler",
+  "resetEverythingButton": "Tout réinitialiser",
+  "languageTitle": "Langue",
+  "languageSubtitle": "Langue de l'interface",
+  "languageSystem": "Système (défaut)",
+  "languageEnglish": "Anglais",
+  "languageFrench": "Français"
+}

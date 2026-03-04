@@ -10,6 +10,8 @@ import 'package:grooveforge/services/cc_mapping_service.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter/services.dart' show rootBundle;
+import '../l10n/app_localizations.dart';
+import '../services/locale_provider.dart';
 
 /// The main settings interface for GrooveForge.
 ///
@@ -73,8 +75,9 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
     showDialog(
       context: context,
       builder: (context) {
+        final loc = AppLocalizations.of(context)!;
         return AlertDialog(
-          title: const Text('Select MIDI Device'),
+          title: Text(loc.selectMidiDeviceDialogTitle),
           content: SizedBox(
             width: 300,
             height: 400,
@@ -122,56 +125,107 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
   void _showChangelogDialog() {
     showDialog(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            backgroundColor: Colors.grey[900],
-            title: const Text('Changelog'),
-            content: SizedBox(
-              width: 600,
-              height: 500,
-              child: FutureBuilder<String>(
-                future: rootBundle.loadString('CHANGELOG.md'),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  if (snapshot.hasError) {
-                    return const Center(
-                      child: Text('Error loading changelog.'),
-                    );
-                  }
-                  return Markdown(
-                    data: snapshot.data ?? '',
-                    styleSheet: MarkdownStyleSheet(
-                      h1: const TextStyle(color: Colors.blueAccent),
-                      h2: const TextStyle(color: Colors.blueAccent),
-                      h3: const TextStyle(color: Colors.deepPurpleAccent),
-                      p: const TextStyle(color: Colors.white70),
-                    ),
-                  );
-                },
-              ),
+      builder: (context) {
+        final loc = AppLocalizations.of(context)!;
+        final isFrench = Localizations.localeOf(context).languageCode == 'fr';
+        final changelogAsset = isFrench ? 'CHANGELOG.fr.md' : 'CHANGELOG.md';
+
+        return AlertDialog(
+          backgroundColor: Colors.grey[900],
+          title: Text(loc.changelogDialogTitle),
+          content: SizedBox(
+            width: 600,
+            height: 500,
+            child: FutureBuilder<String>(
+              future: rootBundle.loadString(changelogAsset),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return Center(child: Text(loc.errorLoadingChangelog));
+                }
+                return Markdown(
+                  data: snapshot.data ?? '',
+                  styleSheet: MarkdownStyleSheet(
+                    h1: const TextStyle(color: Colors.blueAccent),
+                    h2: const TextStyle(color: Colors.blueAccent),
+                    h3: const TextStyle(color: Colors.deepPurpleAccent),
+                    p: const TextStyle(color: Colors.white70),
+                  ),
+                );
+              },
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Close'),
-              ),
-            ],
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(loc.closeButton),
+            ),
+          ],
+        );
+      },
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Preferences')),
+      appBar: AppBar(title: Text(loc.preferencesTitle)),
       body: ListView(
         padding: const EdgeInsets.all(16.0),
         children: [
-          const Text(
-            'MIDI Connection',
-            style: TextStyle(
+          // ======== LANGUAGE SECTION ========
+          Text(
+            loc.languageTitle,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.lightBlueAccent,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Card(
+            child: Consumer<LocaleProvider>(
+              builder: (context, localeProvider, _) {
+                return _ResponsivePreferenceRow(
+                  icon: const Icon(
+                    Icons.language,
+                    color: Colors.lightBlueAccent,
+                  ),
+                  title: loc.languageTitle,
+                  subtitle: loc.languageSubtitle,
+                  trailing: DropdownButton<Locale?>(
+                    value: localeProvider.locale,
+                    items: [
+                      DropdownMenuItem(
+                        value: null,
+                        child: Text(loc.languageSystem),
+                      ),
+                      const DropdownMenuItem(
+                        value: Locale('en'),
+                        child: Text('English'),
+                      ),
+                      const DropdownMenuItem(
+                        value: Locale('fr'),
+                        child: Text('Français'),
+                      ),
+                    ],
+                    onChanged: (val) {
+                      localeProvider.setLocale(val);
+                    },
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 32),
+
+          Text(
+            loc.midiConnectionSection,
+            style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
               color: Colors.blueAccent,
@@ -181,17 +235,17 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
           Card(
             child: ListTile(
               leading: const Icon(Icons.cable, color: Colors.blue),
-              title: const Text('Connect MIDI Device'),
-              subtitle: Text(_connectedDevice?.name ?? 'Not connected'),
+              title: Text(loc.connectMidiDevice),
+              subtitle: Text(_connectedDevice?.name ?? loc.notConnected),
               trailing: const Icon(Icons.chevron_right),
               onTap: _showMidiDevicesDialog,
             ),
           ),
           const SizedBox(height: 32),
 
-          const Text(
-            'Soundfonts',
-            style: TextStyle(
+          Text(
+            loc.soundfontsSection,
+            style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
               color: Colors.deepPurpleAccent,
@@ -203,7 +257,7 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
               children: [
                 ListTile(
                   leading: const Icon(Icons.add, color: Colors.deepPurple),
-                  title: const Text('Load Soundfont (.sf2)'),
+                  title: Text(loc.loadSoundfont),
                   onTap: _loadSoundfont,
                 ),
                 const Divider(height: 1),
@@ -213,9 +267,9 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                       valueListenable: engine.stateNotifier,
                       builder: (context, _, child) {
                         if (engine.loadedSoundfonts.isEmpty) {
-                          return const Padding(
-                            padding: EdgeInsets.all(16.0),
-                            child: Text('No soundfonts loaded.'),
+                          return Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Text(loc.noSoundfontsLoaded),
                           );
                         }
                         // Sort: Put default soundfont at the top
@@ -241,7 +295,7 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                             );
                             String filename =
                                 isDefault
-                                    ? 'Default soundfont'
+                                    ? loc.defaultSoundfont
                                     : path.split(Platform.pathSeparator).last;
                             return ListTile(
                               leading: Icon(
@@ -285,9 +339,9 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
           ),
           const SizedBox(height: 32),
 
-          const Text(
-            'Routing & Control',
-            style: TextStyle(
+          Text(
+            loc.routingControlSection,
+            style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
               color: Colors.teal,
@@ -297,10 +351,8 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
           Card(
             child: ListTile(
               leading: const Icon(Icons.tune, color: Colors.teal),
-              title: const Text('CC Mapping Preferences'),
-              subtitle: const Text(
-                'Map hardware knobs to GM Effects and System Actions',
-              ),
+              title: Text(loc.ccMappingPreferences),
+              subtitle: Text(loc.ccMappingPreferencesSubtitle),
               trailing: const Icon(Icons.chevron_right),
               onTap: () {
                 Navigator.push(
@@ -314,9 +366,9 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
           ),
           const SizedBox(height: 32),
 
-          const Text(
-            'Key Gestures',
-            style: TextStyle(
+          Text(
+            loc.keyGesturesSection,
+            style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
               color: Colors.orange,
@@ -333,22 +385,22 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                       builder: (context, action, _) {
                         return _ResponsivePreferenceRow(
                           icon: const Icon(Icons.height, color: Colors.orange),
-                          title: 'Vertical Interaction',
-                          subtitle: 'Swipe up/down on a key',
+                          title: loc.verticalInteraction,
+                          subtitle: loc.verticalInteractionSubtitle,
                           trailing: DropdownButton<GestureAction>(
                             value: action,
-                            items: const [
+                            items: [
                               DropdownMenuItem(
                                 value: GestureAction.none,
-                                child: Text('None'),
+                                child: Text(loc.actionNone),
                               ),
                               DropdownMenuItem(
                                 value: GestureAction.pitchBend,
-                                child: Text('Pitch Bend'),
+                                child: Text(loc.actionPitchBend),
                               ),
                               DropdownMenuItem(
                                 value: GestureAction.vibrato,
-                                child: Text('Vibrato'),
+                                child: Text(loc.actionVibrato),
                               ),
                             ],
                             onChanged: (val) {
@@ -370,26 +422,26 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                             Icons.unfold_more,
                             color: Colors.blue,
                           ),
-                          title: 'Horizontal Interaction',
-                          subtitle: 'Slide left/right on a key',
+                          title: loc.horizontalInteraction,
+                          subtitle: loc.horizontalInteractionSubtitle,
                           trailing: DropdownButton<GestureAction>(
                             value: action,
-                            items: const [
+                            items: [
                               DropdownMenuItem(
                                 value: GestureAction.none,
-                                child: Text('None'),
+                                child: Text(loc.actionNone),
                               ),
                               DropdownMenuItem(
                                 value: GestureAction.pitchBend,
-                                child: Text('Pitch Bend'),
+                                child: Text(loc.actionPitchBend),
                               ),
                               DropdownMenuItem(
                                 value: GestureAction.vibrato,
-                                child: Text('Vibrato'),
+                                child: Text(loc.actionVibrato),
                               ),
                               DropdownMenuItem(
                                 value: GestureAction.glissando,
-                                child: Text('Glissando'),
+                                child: Text(loc.actionGlissando),
                               ),
                             ],
                             onChanged: (val) {
@@ -409,9 +461,9 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
           ),
           const SizedBox(height: 32),
 
-          const Text(
-            'Virtual Piano Display',
-            style: TextStyle(
+          Text(
+            loc.virtualPianoDisplaySection,
+            style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
               color: Colors.orange,
@@ -426,27 +478,15 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                   builder: (context, keysToShow, _) {
                     return _ResponsivePreferenceRow(
                       icon: const Icon(Icons.piano, color: Colors.orange),
-                      title: 'Visible Keys (Zoom)',
-                      subtitle: 'Number of white keys to show at once',
+                      title: loc.visibleKeysTitle,
+                      subtitle: loc.visibleKeysSubtitle,
                       trailing: DropdownButton<int>(
                         value: keysToShow,
-                        items: const [
-                          DropdownMenuItem(
-                            value: 15,
-                            child: Text('25 keys (15 white)'),
-                          ),
-                          DropdownMenuItem(
-                            value: 22,
-                            child: Text('37 keys (22 white)'),
-                          ),
-                          DropdownMenuItem(
-                            value: 29,
-                            child: Text('49 keys (29 white)'),
-                          ),
-                          DropdownMenuItem(
-                            value: 52,
-                            child: Text('88 keys (52 white)'),
-                          ),
+                        items: [
+                          DropdownMenuItem(value: 15, child: Text(loc.keys25)),
+                          DropdownMenuItem(value: 22, child: Text(loc.keys37)),
+                          DropdownMenuItem(value: 29, child: Text(loc.keys49)),
+                          DropdownMenuItem(value: 52, child: Text(loc.keys88)),
                         ],
                         onChanged: (val) {
                           if (val != null) {
@@ -473,18 +513,18 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                         Icons.music_note,
                         color: Colors.blueGrey,
                       ),
-                      title: 'Music Notation Format',
-                      subtitle: 'How chord names are displayed',
+                      title: loc.notationFormatTitle,
+                      subtitle: loc.notationFormatSubtitle,
                       trailing: DropdownButton<String>(
                         value: format,
-                        items: const [
+                        items: [
                           DropdownMenuItem(
                             value: 'Standard',
-                            child: Text('Standard (C, D, E)'),
+                            child: Text(loc.notationStandard),
                           ),
                           DropdownMenuItem(
                             value: 'Solfege',
-                            child: Text('Solfège (Do, Ré, Mi)'),
+                            child: Text(loc.notationSolfege),
                           ),
                         ],
                         onChanged: (val) {
@@ -513,18 +553,18 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                         Icons.lock_clock,
                         color: Colors.purpleAccent,
                       ),
-                      title: 'Scale Lock Mode',
-                      subtitle: 'Classic (per channel) vs Jam (master-slave)',
+                      title: loc.scaleLockModeTitle,
+                      subtitle: loc.scaleLockModeSubtitle,
                       trailing: DropdownButton<ScaleLockMode>(
                         value: lockMode,
-                        items: const [
+                        items: [
                           DropdownMenuItem(
                             value: ScaleLockMode.classic,
-                            child: Text('Classic Mode'),
+                            child: Text(loc.modeClassic),
                           ),
                           DropdownMenuItem(
                             value: ScaleLockMode.jam,
-                            child: Text('Jam Mode'),
+                            child: Text(loc.modeJam),
                           ),
                         ],
                         onChanged: (val) {
@@ -552,8 +592,8 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                         Icons.border_outer,
                         color: Colors.blueAccent,
                       ),
-                      title: 'Jam Mode Key Groups',
-                      subtitle: 'Visually group scale-mapped keys with borders',
+                      title: loc.jamModeKeyGroupsTitle,
+                      subtitle: loc.jamModeKeyGroupsSubtitle,
                       trailing: Switch(
                         value: showBorders,
                         onChanged: (val) {
@@ -579,8 +619,8 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                         Icons.error_outline,
                         color: Colors.redAccent,
                       ),
-                      title: 'Highlight Wrong Notes',
-                      subtitle: 'Color out-of-scale pressed keys in red',
+                      title: loc.highlightWrongNotesTitle,
+                      subtitle: loc.highlightWrongNotesSubtitle,
                       trailing: Switch(
                         value: highlight,
                         onChanged: (val) {
@@ -615,8 +655,8 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                     }
                     return _ResponsivePreferenceRow(
                       icon: const Icon(Icons.waves, color: Colors.teal),
-                      title: 'Aftertouch Effect',
-                      subtitle: 'Route keyboard pressure to this CC',
+                      title: loc.aftertouchEffectTitle,
+                      subtitle: loc.aftertouchEffectSubtitle,
                       trailing: DropdownButton<int>(
                         value: destCc,
                         items: ccItems,
@@ -636,9 +676,9 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
           ),
           const Divider(height: 40),
 
-          const Text(
-            'About',
-            style: TextStyle(
+          Text(
+            loc.aboutSection,
+            style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
               color: Colors.grey,
@@ -650,7 +690,7 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
               children: [
                 ListTile(
                   leading: const Icon(Icons.info_outline, color: Colors.grey),
-                  title: const Text('Version'),
+                  title: Text(loc.versionTitle),
                   trailing: Text(
                     _appVersion,
                     style: const TextStyle(
@@ -662,8 +702,8 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                 const Divider(height: 1),
                 ListTile(
                   leading: const Icon(Icons.history, color: Colors.grey),
-                  title: const Text('View Changelog'),
-                  subtitle: const Text('History of changes and updates'),
+                  title: Text(loc.viewChangelogTitle),
+                  subtitle: Text(loc.viewChangelogSubtitle),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: _showChangelogDialog,
                 ),
@@ -685,7 +725,7 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
                 icon: const Icon(Icons.restore),
-                label: const Text('Reset All Preferences'),
+                label: Text(loc.resetPreferencesButton),
               );
             },
           ),
@@ -699,30 +739,30 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
   void _showResetConfirmation(BuildContext context, AudioEngine engine) {
     showDialog(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            backgroundColor: Colors.grey[900],
-            title: const Text('Reset All Preferences?'),
-            content: const Text(
-              'This will clear all your settings, loaded soundfonts, and custom assignments. This action cannot be undone.',
+      builder: (context) {
+        final loc = AppLocalizations.of(context)!;
+        return AlertDialog(
+          backgroundColor: Colors.grey[900],
+          title: Text(loc.resetPreferencesDialogTitle),
+          content: Text(loc.resetPreferencesDialogBody),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(loc.cancelButton),
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel'),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                await engine.resetAllPreferences();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent,
               ),
-              ElevatedButton(
-                onPressed: () async {
-                  Navigator.pop(context);
-                  await engine.resetAllPreferences();
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.redAccent,
-                ),
-                child: const Text('Reset Everything'),
-              ),
-            ],
-          ),
+              child: Text(loc.resetEverythingButton),
+            ),
+          ],
+        );
+      },
     );
   }
 }
