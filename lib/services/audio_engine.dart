@@ -774,7 +774,7 @@ class AudioEngine extends ChangeNotifier {
         );
       }
     }
-    Future.microtask(() => _updateChordState(channel));
+    Future.microtask(() => _updateChordState(channel, isNoteOn: true));
   }
 
   void stopNote({required int channel, required int key}) {
@@ -805,18 +805,18 @@ class AudioEngine extends ChangeNotifier {
         }
       }
     }
-    Future.microtask(() => _updateChordState(channel));
+    Future.microtask(() => _updateChordState(channel, isNoteOn: false));
   }
 
   /// Evaluates the currently held notes to mathematically determine the active chord structure.
   ///
   /// **Chord Stabilization Algorithm:**
-  /// Uses a 30ms grace period (`_chordUpdateTimers`) during 'Note Off' events.
+  /// Uses a 50ms grace period (`_chordUpdateTimers`) during 'Note Off' events.
   /// This distinguishes between deliberate chord changes and accidental timing imperfections
   /// when releasing a physical chord (humans rarely lift 4 fingers simultaneously on the millisecond).
   /// If all notes are released, the system retains the last "Peak Chord" in memory so
   /// Jam Slaves don't lose their harmony context during brief silences.
-  void _updateChordState(int channel) {
+  void _updateChordState(int channel, {required bool isNoteOn}) {
     // In Jam mode, we ONLY update the master channel's chord.
     // In Classic mode, we don't update if already locked.
     if (lockModePreference.value == ScaleLockMode.classic) {
@@ -824,37 +824,33 @@ class AudioEngine extends ChangeNotifier {
         return;
       }
     }
-    // In Jam mode, we allow all channels to update their detected chord for display.
-    // Snapping logic (noteOn) correctly handles reference to the master channel.
-
-    final notes = channels[channel].activeNotes.value;
-    final count = notes.length;
-    final lastCount = _lastNoteCounts[channel];
 
     // Cancel any pending "wait-and-see" timer
     _chordUpdateTimers[channel]?.cancel();
     _chordUpdateTimers[channel] = null;
 
-    if (count > lastCount) {
+    final notes = channels[channel].activeNotes.value;
+
+    if (isNoteOn) {
       // Instant Enrichment (Note On)
       _performChordUpdate(channel, notes);
-    } else if (count < lastCount) {
+    } else {
       // Grace Period (Note Off)
-      _chordUpdateTimers[channel] = Timer(const Duration(milliseconds: 30), () {
+      // We wait 50ms before updating the chord state.
+      // This allows for non-simultaneous finger releases without the chord "flickering"
+      // through simpler intermediary states (like a C5 when lifting a CMaj7).
+      _chordUpdateTimers[channel] = Timer(const Duration(milliseconds: 50), () {
         final currentNotes = channels[channel].activeNotes.value;
-        if (currentNotes.isEmpty) {
-          // Total Release: Keep peak chord identity (no-op)
-          _lastNoteCounts[channel] = 0;
-        } else {
+        if (currentNotes.isNotEmpty) {
           // Deliberate Partial Release: Update identity
           _performChordUpdate(channel, currentNotes);
+        } else {
+          // Total Release: Keep peak chord identity (no-op)
+          _lastNoteCounts[channel] = 0;
         }
+        _chordUpdateTimers[channel] = null;
       });
     }
-
-    // Note: We don't update _lastNoteCounts[channel] here if count < lastCount
-    // to preserve the peak context until the timer fires.
-    _performChordUpdate(channel, notes);
   }
 
   /// Physically runs the [ChordDetector] algorithm on the active notes and caches the result.
