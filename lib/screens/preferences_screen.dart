@@ -544,6 +544,60 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
           Card(
             child: Consumer<AudioEngine>(
               builder: (context, engine, _) {
+                return ValueListenableBuilder<bool>(
+                  valueListenable: engine.showJamModeBorders,
+                  builder: (context, showBorders, _) {
+                    return _ResponsivePreferenceRow(
+                      icon: const Icon(
+                        Icons.border_outer,
+                        color: Colors.blueAccent,
+                      ),
+                      title: 'Jam Mode Key Groups',
+                      subtitle: 'Visually group scale-mapped keys with borders',
+                      trailing: Switch(
+                        value: showBorders,
+                        onChanged: (val) {
+                          engine.showJamModeBorders.value = val;
+                          engine.stateNotifier.value++;
+                        },
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 8),
+          Card(
+            child: Consumer<AudioEngine>(
+              builder: (context, engine, _) {
+                return ValueListenableBuilder<bool>(
+                  valueListenable: engine.highlightWrongNotes,
+                  builder: (context, highlight, _) {
+                    return _ResponsivePreferenceRow(
+                      icon: const Icon(
+                        Icons.error_outline,
+                        color: Colors.redAccent,
+                      ),
+                      title: 'Highlight Wrong Notes',
+                      subtitle: 'Color out-of-scale pressed keys in red',
+                      trailing: Switch(
+                        value: highlight,
+                        onChanged: (val) {
+                          engine.highlightWrongNotes.value = val;
+                          engine.stateNotifier.value++;
+                        },
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 8),
+          Card(
+            child: Consumer<AudioEngine>(
+              builder: (context, engine, _) {
                 return ValueListenableBuilder<int>(
                   valueListenable: engine.aftertouchDestCc,
                   builder: (context, destCc, _) {

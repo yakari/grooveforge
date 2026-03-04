@@ -168,6 +168,12 @@ class AudioEngine extends ChangeNotifier {
     ScaleType.standard,
   );
 
+  /// User preference to display borders around scale-mapped key groups in Jam Mode.
+  final ValueNotifier<bool> showJamModeBorders = ValueNotifier(true);
+
+  /// User preference to color physical out-of-scale keys in red when mapped in Jam Mode.
+  final ValueNotifier<bool> highlightWrongNotes = ValueNotifier(true);
+
   // --- Chord Release Logic ---
 
   /// Holds pending Timers used to apply the 30ms "wait-and-see" anti-flicker delay.
@@ -215,6 +221,8 @@ class AudioEngine extends ChangeNotifier {
     jamSlaveChannels.addListener(_propagateJamScaleUpdate);
     jamScaleType.addListener(_saveState);
     jamSlaveChannels.addListener(_saveState);
+    showJamModeBorders.addListener(_saveState);
+    highlightWrongNotes.addListener(_saveState);
     dragToPlay.addListener(_saveState);
     verticalGestureAction.addListener(_saveState);
     horizontalGestureAction.addListener(_saveState);
@@ -308,6 +316,8 @@ class AudioEngine extends ChangeNotifier {
       jamSlaveChannels.value.map((e) => e.toString()).toList(),
     );
     await _prefs!.setInt('jam_scale_type', jamScaleType.value.index);
+    await _prefs!.setBool('jam_show_borders', showJamModeBorders.value);
+    await _prefs!.setBool('jam_highlight_wrong', highlightWrongNotes.value);
   }
 
   Future<void> _restoreState() async {
@@ -412,6 +422,16 @@ class AudioEngine extends ChangeNotifier {
     int? savedJamScale = _prefs!.getInt('jam_scale_type');
     if (savedJamScale != null) {
       jamScaleType.value = ScaleType.values[savedJamScale];
+    }
+
+    bool? savedShowJamModeBorders = _prefs!.getBool('jam_show_borders');
+    if (savedShowJamModeBorders != null) {
+      showJamModeBorders.value = savedShowJamModeBorders;
+    }
+
+    bool? savedHighlightWrongNotes = _prefs!.getBool('jam_highlight_wrong');
+    if (savedHighlightWrongNotes != null) {
+      highlightWrongNotes.value = savedHighlightWrongNotes;
     }
 
     stateNotifier.value++;
@@ -1113,18 +1133,18 @@ class AudioEngine extends ChangeNotifier {
     int bestDistance = 999;
     int bestKey = originalKey;
     for (int offset = 0; offset <= 12; offset++) {
-      int upKey = originalKey + offset;
-      if (allowedPcs.contains(upKey % 12)) {
-        if (offset < bestDistance) {
-          bestDistance = offset;
-          bestKey = upKey;
-        }
-      }
       int downKey = originalKey - offset;
       if (allowedPcs.contains(downKey % 12)) {
         if (offset < bestDistance) {
           bestDistance = offset;
           bestKey = downKey;
+        }
+      }
+      int upKey = originalKey + offset;
+      if (allowedPcs.contains(upKey % 12)) {
+        if (offset < bestDistance) {
+          bestDistance = offset;
+          bestKey = upKey;
         }
       }
       if (bestDistance < 999) {

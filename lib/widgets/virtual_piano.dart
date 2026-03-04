@@ -20,6 +20,8 @@ class VirtualPiano extends StatefulWidget {
   final void Function(bool interacting)? onInteractingChanged;
   final Set<int>? validPitchClasses;
   final int? rootPitchClass;
+  final bool showJamModeBorders;
+  final bool highlightWrongNotes;
 
   const VirtualPiano({
     super.key,
@@ -34,6 +36,8 @@ class VirtualPiano extends StatefulWidget {
     this.onInteractingChanged,
     this.validPitchClasses,
     this.rootPitchClass,
+    this.showJamModeBorders = true,
+    this.highlightWrongNotes = true,
   });
 
   @override
@@ -44,9 +48,11 @@ class _VirtualPianoState extends State<VirtualPiano> {
   // Track if this is the first layout pass
   bool _isInitialScroll = true;
 
-  /// Tracks continuous multi-touch gestures.
-  /// Maps a hardware pointer ID -> the MIDI Note currently depressed by that specific finger.
-  final Map<int, int> _pointerToNote = {};
+  /// Maps hardware pointer ID -> the PHYSICAL key actually sent to AudioEngine.
+  final Map<int, int> _pointerToActiveNote = {};
+
+  /// Maps hardware pointer ID -> the PHYSICAL visual key currently highlighted by finger position under glissando.
+  final Map<int, int> _pointerToVisualNote = {};
 
   /// Stores the exact (X,Y) screen coordinate where a finger first touched a key.
   /// Used as the origin point to calculate delta distances for expressive gestures (vibrato/pitchbend).
@@ -254,17 +260,15 @@ class _VirtualPianoState extends State<VirtualPiano> {
     );
 
     if (note != null) {
-      if (widget.validPitchClasses != null) {
-        note = _getValidTarget(note);
-      }
-
-      bool wasEmpty = _pointerToNote.isEmpty;
-      _pointerToNote[event.pointer] = note;
+      bool wasEmpty = _pointerToActiveNote.isEmpty;
+      _pointerToActiveNote[event.pointer] = note;
+      _pointerToVisualNote[event.pointer] = note;
       _pointerToAnchor[event.pointer] = event.localPosition;
       widget.onNotePressed?.call(note);
       if (wasEmpty) {
         widget.onInteractingChanged?.call(true);
       }
+      setState(() {});
     }
   }
 
@@ -285,37 +289,53 @@ class _VirtualPianoState extends State<VirtualPiano> {
       bKeys,
     );
 
-    if (note != null && widget.validPitchClasses != null) {
-      note = _getValidTarget(note);
+    int? currentActiveNote = _pointerToActiveNote[event.pointer];
+    int? currentVisualNote = _pointerToVisualNote[event.pointer];
+
+    if (note != currentVisualNote) {
+      if (widget.horizontalAction == GestureAction.glissando) {
+        if (note != null) {
+          _pointerToVisualNote[event.pointer] = note;
+        } else {
+          _pointerToVisualNote.remove(event.pointer);
+        }
+
+        int? logicalNote = note != null ? _getValidTarget(note) : null;
+        int? logicalCurrent =
+            currentActiveNote != null
+                ? _getValidTarget(currentActiveNote)
+                : null;
+
+        if (logicalNote != logicalCurrent) {
+          if (currentActiveNote != null) {
+            widget.onNoteReleased?.call(currentActiveNote);
+          }
+          if (note != null) {
+            _pointerToActiveNote[event.pointer] = note;
+            _pointerToAnchor[event.pointer] =
+                event.localPosition; // Anchor resets on note change
+            widget.onNotePressed?.call(note);
+          } else {
+            _pointerToActiveNote.remove(event.pointer);
+            _pointerToAnchor.remove(event.pointer);
+          }
+        }
+        setState(() {});
+      }
     }
 
-    int? currentNote = _pointerToNote[event.pointer];
-
-    if (note != currentNote) {
-      if (widget.horizontalAction == GestureAction.glissando) {
-        if (currentNote != null) {
-          widget.onNoteReleased?.call(currentNote);
+    // Always apply expressive gestures if the finger is moving over the same logical zone
+    // or if glissando is OFF (meaning visual note does not change as you drag across keys).
+    if (widget.horizontalAction != GestureAction.glissando ||
+        note == currentVisualNote) {
+      if (currentActiveNote != null) {
+        final anchor = _pointerToAnchor[event.pointer];
+        if (anchor != null) {
+          double dx = event.localPosition.dx - anchor.dx;
+          double dy = event.localPosition.dy - anchor.dy;
+          _applyGesture(widget.verticalAction, dy, isVertical: true);
+          _applyGesture(widget.horizontalAction, dx, isVertical: false);
         }
-        if (note != null) {
-          _pointerToNote[event.pointer] = note;
-          _pointerToAnchor[event.pointer] = event.localPosition;
-          widget.onNotePressed?.call(note);
-        } else {
-          _pointerToNote.remove(event.pointer);
-          _pointerToAnchor.remove(event.pointer);
-        }
-      }
-    } else {
-      // The finger is still on the same physical key it started on.
-      // We calculate how far the finger has dragged from its initial anchor point
-      // to apply expressive continuous controller (CC) messages like Vibrato or Pitch Bend.
-      final anchor = _pointerToAnchor[event.pointer];
-      if (anchor != null) {
-        double dx = event.localPosition.dx - anchor.dx;
-        double dy = event.localPosition.dy - anchor.dy;
-
-        _applyGesture(widget.verticalAction, dy, isVertical: true);
-        _applyGesture(widget.horizontalAction, dx, isVertical: false);
       }
     }
   }
@@ -346,15 +366,16 @@ class _VirtualPianoState extends State<VirtualPiano> {
   }
 
   void _handlePointerUp(PointerEvent event) {
-    int? note = _pointerToNote.remove(event.pointer);
+    int? activeNote = _pointerToActiveNote.remove(event.pointer);
+    _pointerToVisualNote.remove(event.pointer);
     _pointerToAnchor.remove(event.pointer);
 
-    if (_pointerToNote.isEmpty) {
+    if (_pointerToActiveNote.isEmpty) {
       widget.onInteractingChanged?.call(false);
     }
 
-    if (note != null) {
-      widget.onNoteReleased?.call(note);
+    if (activeNote != null) {
+      widget.onNoteReleased?.call(activeNote);
       // Reset gestures when lift finger
       if (widget.verticalAction == GestureAction.pitchBend ||
           widget.horizontalAction == GestureAction.pitchBend) {
@@ -369,6 +390,30 @@ class _VirtualPianoState extends State<VirtualPiano> {
 
   @override
   Widget build(BuildContext context) {
+    Set<int> displayActiveNotes = widget.activeNotes.toSet();
+    for (int p in _pointerToActiveNote.keys) {
+      int active = _pointerToActiveNote[p]!;
+      int? visual = _pointerToVisualNote[p];
+      if (displayActiveNotes.contains(active) && visual != null) {
+        displayActiveNotes.remove(active);
+        displayActiveNotes.add(visual);
+      }
+    }
+
+    Set<int> snappedNotes = {};
+    Set<int> wrongNotes = {};
+    if (widget.validPitchClasses != null) {
+      for (var note in displayActiveNotes) {
+        int target = _getValidTarget(note);
+        snappedNotes.add(target);
+        if (target != note) {
+          wrongNotes.add(note);
+        }
+      }
+    } else {
+      snappedNotes = displayActiveNotes.toSet();
+    }
+
     // We always render the full 88 keys range
     int minNote = _minMidiNote;
     int maxNote = _maxMidiNote;
@@ -518,30 +563,45 @@ class _VirtualPianoState extends State<VirtualPiano> {
                             children:
                                 whiteKeys.map((note) {
                                   bool isActive = false;
+                                  bool isWrong = false;
                                   if (widget.validPitchClasses != null) {
-                                    isActive = widget.activeNotes.contains(
-                                      _getValidTarget(note),
-                                    );
+                                    isActive = snappedNotes.contains(note);
+                                    isWrong =
+                                        widget.highlightWrongNotes &&
+                                        wrongNotes.contains(note);
                                   } else {
-                                    isActive = widget.activeNotes.contains(
+                                    isActive = displayActiveNotes.contains(
                                       note,
                                     );
                                   }
+
+                                  Color keyColor =
+                                      (widget.validPitchClasses == null ||
+                                              widget.validPitchClasses!
+                                                  .contains(note % 12))
+                                          ? Colors.white
+                                          : Colors.grey[400]!;
+
+                                  Color fillColor;
+                                  if (isActive) {
+                                    fillColor = Color.alphaBlend(
+                                      Colors.blueAccent.withValues(alpha: 0.8),
+                                      keyColor,
+                                    );
+                                  } else if (isWrong) {
+                                    fillColor = Color.alphaBlend(
+                                      Colors.redAccent.withValues(alpha: 0.8),
+                                      keyColor,
+                                    );
+                                  } else {
+                                    fillColor = keyColor;
+                                  }
+
                                   return Container(
                                     width: whiteKeyWidth,
                                     height: keyHeight,
                                     decoration: BoxDecoration(
-                                      color:
-                                          isActive
-                                              ? Colors.blueAccent.withValues(
-                                                alpha: 0.8,
-                                              )
-                                              : (widget.validPitchClasses ==
-                                                      null ||
-                                                  widget.validPitchClasses!
-                                                      .contains(note % 12))
-                                              ? Colors.white
-                                              : Colors.grey[400],
+                                      color: fillColor,
                                       border: Border.all(
                                         color: Colors.black87,
                                         width: 1,
@@ -577,17 +637,42 @@ class _VirtualPianoState extends State<VirtualPiano> {
                           // Draw Black Keys (overlayed)
                           ...blackKeys.map((note) {
                             bool isActive = false;
+                            bool isWrong = false;
                             if (widget.validPitchClasses != null) {
-                              isActive = widget.activeNotes.contains(
-                                _getValidTarget(note),
-                              );
+                              isActive = snappedNotes.contains(note);
+                              isWrong =
+                                  widget.highlightWrongNotes &&
+                                  wrongNotes.contains(note);
                             } else {
-                              isActive = widget.activeNotes.contains(note);
+                              isActive = displayActiveNotes.contains(note);
                             }
                             int precedingWhiteNote = note - 1;
                             int whiteIndex = whiteKeys.indexOf(
                               precedingWhiteNote,
                             );
+
+                            Color keyColor =
+                                (widget.validPitchClasses == null ||
+                                        widget.validPitchClasses!.contains(
+                                          note % 12,
+                                        ))
+                                    ? Colors.black87
+                                    : Colors.grey.shade600;
+
+                            Color fillColor;
+                            if (isActive) {
+                              fillColor = Color.alphaBlend(
+                                Colors.blueAccent.withValues(alpha: 0.8),
+                                keyColor,
+                              );
+                            } else if (isWrong) {
+                              fillColor = Color.alphaBlend(
+                                Colors.redAccent.withValues(alpha: 0.8),
+                                keyColor,
+                              );
+                            } else {
+                              fillColor = keyColor;
+                            }
 
                             return Positioned(
                               left:
@@ -597,16 +682,7 @@ class _VirtualPianoState extends State<VirtualPiano> {
                                 width: blackKeyWidth,
                                 height: keyHeight * 0.65,
                                 decoration: BoxDecoration(
-                                  color:
-                                      isActive
-                                          ? Colors.blueAccent.withValues(
-                                            alpha: 0.8,
-                                          )
-                                          : (widget.validPitchClasses == null ||
-                                              widget.validPitchClasses!
-                                                  .contains(note % 12))
-                                          ? Colors.black87
-                                          : Colors.grey.shade600,
+                                  color: fillColor,
                                   borderRadius: const BorderRadius.only(
                                     bottomLeft: Radius.circular(3),
                                     bottomRight: Radius.circular(3),
@@ -635,7 +711,8 @@ class _VirtualPianoState extends State<VirtualPiano> {
                             );
                           }),
                           // Zone Borders Overlay
-                          if (widget.validPitchClasses != null)
+                          if (widget.validPitchClasses != null &&
+                              widget.showJamModeBorders)
                             Positioned.fill(
                               child: IgnorePointer(
                                 child: CustomPaint(

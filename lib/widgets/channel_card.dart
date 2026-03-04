@@ -258,6 +258,10 @@ class ChannelCard extends StatelessWidget {
                               keysToShow: keysToShow,
                               validPitchClasses: isSlave ? validPcs : null,
                               rootPitchClass: isSlave ? rootPc : null,
+                              showJamModeBorders:
+                                  engine.showJamModeBorders.value,
+                              highlightWrongNotes:
+                                  engine.highlightWrongNotes.value,
                               onNotePressed:
                                   (note) => engine.playNote(
                                     channel: channelIndex,
