@@ -1,13 +1,25 @@
-/// How notes should be displayed
+/// Defines how notes and chord roots should be displayed in the UI.
 enum NotationFormat {
-  standard, // C, D, E
-  solfege, // Do, Ré, Mi
+  /// Standard western notation (e.g., C, D, E).
+  standard,
+
+  /// Solfege notation, common in Romance languages (e.g., Do, Ré, Mi).
+  solfege,
 }
 
-/// An advanced utility to parse a set of active MIDI notes into rich human-readable chord names,
-/// supporting inversions, complex extensions (9/11/13), and slash chords.
+/// An advanced utility to parse a set of active MIDI notes into rich human-readable chord names.
+///
+/// **Algorithm Overview:**
+/// 1. Converts physical MIDI notes into a 12-bit "Pitch Class" mask (0-11).
+/// 2. Iterates through every pressed note, treating it as a potential Root.
+/// 3. Rotates the 12-bit mask so the potential Root sits at position 0.
+/// 4. Compares the rotated mask against known bitmask templates (`_coreTemplates`).
+/// 5. Scores matches based on tightest fit, explaining the most notes, and valid extensions (9/11/13).
+/// 6. Returns the highest-scoring [ChordMatch], or null if no valid chord is found.
 class ChordDetector {
-  // ... _coreTemplates omitted for brevity ...
+  /// Bitmask templates for core chord shapes, relative to the root (bit 0 = Root).
+  /// For example, a Major Triad (Root, M3, P5 = intervals 0, 4, 7) is represented
+  /// in binary as 10010001, which is 0x091 in hex.
   static const Map<String, int> _coreTemplates = {
     // Triads
     '': 0x091, // Major: R(0), M3(4), P5(7) -> 10010001
@@ -88,7 +100,11 @@ class ChordDetector {
     'Si ',
   ];
 
-  /// Attempt to identify a chord from a set of active MIDI notes, returning the name and its implied scale.
+  /// Evaluates a set of active MIDI notes to find the most mathematically probable chord.
+  ///
+  /// Uses a bitmask pattern-matching algorithm to identify the root, quality, and extensions.
+  /// Returns a [ChordMatch] containing the formatted string and implied scale, or null
+  /// if the input contains fewer than 3 notes or resolves to no known harmonic structure.
   static ChordMatch? identifyChord(
     Set<int> activeNotes, {
     NotationFormat format = NotationFormat.standard,
@@ -291,13 +307,27 @@ class ChordDetector {
   }
 }
 
+/// Internal class used during the chord identification loop to track the highest-scoring candidate.
 class _ScoredMatch {
+  /// The formatted human-readable name of the chord.
   final String chordName;
+
+  /// The mathematical score indicating how well the input notes fit this template.
   final int score;
+
+  /// The set of pitch classes representing the implied scale for this chord.
   final Set<int> scalePitchClasses;
+
+  /// The pitch class (0-11) identified as the mathematical root of the chord.
   final int rootPc;
+
+  /// Whether the identified chord has a minor third.
   final bool isMinor;
+
+  /// The template suffix matched (e.g., 'm7', 'maj7').
   final String suffix;
+
+  /// Bitmask representing valid upper extensions beyond the core template (9th, 11th, etc.).
   final int extensionsMask;
   _ScoredMatch(
     this.chordName,
@@ -310,12 +340,24 @@ class _ScoredMatch {
   });
 }
 
+/// Represents a successfully identified chord structure and its musical implications.
 class ChordMatch {
+  /// The formatted human-readable name of the chord (e.g., "Cmaj7/G" or "La#m(add9)").
   final String name;
+
+  /// The set of pitch classes (0-11) representing the natural scale implied by this chord.
   final Set<int> scalePitchClasses;
+
+  /// The pitch class (0-11) corresponding to the root note of the chord.
   final int rootPc;
+
+  /// True if the chord contains a minor third; false otherwise.
   final bool isMinor;
+
+  /// The base suffix identified (e.g., '', 'm', 'maj7', 'dim').
   final String suffix;
+
+  /// Active upper extensions identified during matching, stored as a bitmask relative to the root.
   final int extensionsMask;
 
   ChordMatch(

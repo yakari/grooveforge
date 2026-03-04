@@ -11,6 +11,15 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter/services.dart' show rootBundle;
 
+/// The main settings interface for GrooveForge.
+///
+/// Provides user controls for:
+/// - MIDI device connection and disconnection.
+/// - Soundfont (`.sf2`) loading, managing, and unloading.
+/// - Core synthesizer preferences including scale lock modes (Classic vs Jam),
+///   notation format, and piano key visibility.
+/// - Interactive gesture mapping (e.g., assigning vertical swipes to Pitch Bend).
+/// - Global app state reset.
 class PreferencesScreen extends StatefulWidget {
   const PreferencesScreen({super.key});
 
@@ -664,6 +673,12 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
   }
 }
 
+/// A reusable list item component specifically for preferences.
+///
+/// It intelligently adapts its layout based on screen width.
+/// - On wider screens: Displays the icon, text, and control side-by-side [Row].
+/// - On narrow screens (like unrotated smartphones): Stacks the control below the text [Column]
+///   to prevent clipping and ensure touch targets remain large enough.
 class _ResponsivePreferenceRow extends StatelessWidget {
   final Widget icon;
   final String title;

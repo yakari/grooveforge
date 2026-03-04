@@ -9,6 +9,12 @@ import 'package:grooveforge/widgets/channel_card.dart';
 import 'package:grooveforge/widgets/jam_session_widget.dart';
 import 'package:grooveforge/widgets/user_guide_modal.dart';
 
+/// The primary user interface of GrooveForge.
+///
+/// This screen acts as the master container for the synthesizer. It organizes
+/// [ChannelCard] widgets into a scrollable list, optionally displays the
+/// [JamSessionWidget] if Jam Mode is enabled, and handles adaptive layouts
+/// for different screen sizes (e.g., Mobile Landscape vs. Tablet/Desktop).
 class SynthesizerScreen extends StatefulWidget {
   const SynthesizerScreen({super.key});
 
@@ -54,8 +60,15 @@ class _SynthesizerScreenState extends State<SynthesizerScreen> {
     audioEngine.toastNotifier.addListener(_toastListener!);
   }
 
+  /// Automatically scrolls the list of virtual keyboards so that a channel
+  /// receiving external MIDI input (from a hardware controller) becomes visible.
+  ///
+  /// Uses a 500ms throttle to prevent the UI from "jumping" erratically if
+  /// multiple channels trigger simultaneously or in rapid succession.
   void _handleAutoScroll(int channel) {
     if (!_scrollController.hasClients) return;
+
+    // Throttle auto-scrolling to prevent jumpiness when many events arrive quickly
     final now = DateTime.now();
     if (now.difference(_lastScrollTime).inMilliseconds < 500 &&
         channel == _lastAutoScrolledChannel) {
@@ -107,6 +120,8 @@ class _SynthesizerScreenState extends State<SynthesizerScreen> {
     showDialog(context: context, builder: (context) => const UserGuideModal());
   }
 
+  /// Displays a dialog allowing the user to filter which of the 16 MIDI channels
+  /// are currently rendered on screen, optimizing performance and reducing clutter.
   void _showChannelVisibilityDialog(BuildContext context) {
     final engine = context.read<AudioEngine>();
     List<int> tempVisible = List.from(engine.visibleChannels.value);
@@ -224,40 +239,39 @@ class _SynthesizerScreenState extends State<SynthesizerScreen> {
 
                       final showJamUI = lockMode == ScaleLockMode.jam;
 
-                      Widget mainContent = ValueListenableBuilder<int>(
-                        valueListenable: engine.stateNotifier,
-                        builder: (context, _, child) {
+                      // mainContent is the scrollable list of ChannelCards
+                      Widget mainContent = ListenableBuilder(
+                        // Listen to these states to rebuild the list
+                        listenable: Listenable.merge([
+                          engine.stateNotifier,
+                          engine.visibleChannels,
+                          engine.isGestureInProgress,
+                        ]),
+                        builder: (context, _) {
                           return LayoutBuilder(
                             builder: (context, innerConstraints) {
                               double itemHeight =
                                   isMobileLandscape
                                       ? innerConstraints.maxHeight - 16
                                       : (innerConstraints.maxHeight - 16) / 2;
+                              final visibleChannels =
+                                  engine.visibleChannels.value;
+                              final interacting =
+                                  engine.isGestureInProgress.value;
 
-                              return ValueListenableBuilder<List<int>>(
-                                valueListenable: engine.visibleChannels,
-                                builder: (context, visibleChannels, _) {
-                                  return ValueListenableBuilder<bool>(
-                                    valueListenable: engine.isGestureInProgress,
-                                    builder: (context, interacting, _) {
-                                      return ListView.builder(
-                                        controller: _scrollController,
-                                        physics:
-                                            interacting
-                                                ? const NeverScrollableScrollPhysics()
-                                                : const AlwaysScrollableScrollPhysics(),
-                                        itemCount: visibleChannels.length,
-                                        itemBuilder: (context, index) {
-                                          final channelIndex =
-                                              visibleChannels[index];
+                              return ListView.builder(
+                                controller: _scrollController,
+                                physics:
+                                    interacting
+                                        ? const NeverScrollableScrollPhysics()
+                                        : const AlwaysScrollableScrollPhysics(),
+                                itemCount: visibleChannels.length,
+                                itemBuilder: (context, index) {
+                                  final channelIndex = visibleChannels[index];
 
-                                          return ChannelCard(
-                                            channelIndex: channelIndex,
-                                            itemHeight: itemHeight,
-                                          );
-                                        },
-                                      );
-                                    },
+                                  return ChannelCard(
+                                    channelIndex: channelIndex,
+                                    itemHeight: itemHeight,
                                   );
                                 },
                               );

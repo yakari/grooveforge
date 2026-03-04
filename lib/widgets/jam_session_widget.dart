@@ -2,6 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:grooveforge/services/audio_engine.dart';
 
+/// The control center for configuring Jam Mode parameters.
+///
+/// This widget provides toggles and dropdowns to assign the Master channel,
+/// select Slave channels, choose the target mapping scale (e.g., Minor Pentatonic),
+/// and quickly start/stop the feature.
+///
+/// It dynamically adapts its layout (horizontal bar vs. vertical sidebar)
+/// based on available screen width and orientation, ensuring the controls
+/// remain accessible but unobtrusive.
 class JamSessionWidget extends StatelessWidget {
   final bool? forceVertical;
   const JamSessionWidget({super.key, this.forceVertical});
@@ -153,7 +162,10 @@ class JamSessionWidget extends StatelessWidget {
           value: master,
           underline: const SizedBox(),
           isExpanded: isVertical,
-          itemHeight: null, // Must be null or >= 48 to avoid assertion error
+          // Flutter's DropdownButton enforces a minimum itemHeight of 48.
+          // By setting itemHeight to null, we allow the dropdown to be denser,
+          // which is crucial for fitting into the compact sidebar/header.
+          itemHeight: null,
           isDense: true,
           padding: EdgeInsets.zero,
           alignment: isVertical ? Alignment.center : Alignment.centerLeft,
@@ -313,6 +325,8 @@ class JamSessionWidget extends StatelessWidget {
                     spacing: 8,
                     runSpacing: 8,
                     children: List.generate(16, (i) {
+                      // The Master channel cannot also be a Slave.
+                      // We disable the chip for the Master to prevent logical conflicts.
                       bool isMaster = i == engine.jamMasterChannel.value;
                       bool isSelected = tempSlaves.contains(i);
                       return FilterChip(

@@ -1,6 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:grooveforge/services/audio_engine.dart';
 
+/// A fully interactive, responsive, multi-touch 88-key virtual piano.
+///
+/// **Features:**
+/// - Maps screen touches to MIDI notes accurately (black keys overlay white keys).
+/// - Supports advanced expressive gestures: Y-axis (Vibrato/Pitchbend) and X-axis (Glissando).
+/// - Adapts to Jam Mode by visually snapping "wrong" keys to allowed [validPitchClasses].
+/// - Auto-scrolls to ensure externally played notes remain visible on screen.
 class VirtualPiano extends StatefulWidget {
   final Set<int> activeNotes;
   final void Function(int note)? onNotePressed;
@@ -37,8 +44,12 @@ class _VirtualPianoState extends State<VirtualPiano> {
   // Track if this is the first layout pass
   bool _isInitialScroll = true;
 
-  // Track continuous touches. Maps pointer ID -> MIDI Note currently depressed by that pointer
+  /// Tracks continuous multi-touch gestures.
+  /// Maps a hardware pointer ID -> the MIDI Note currently depressed by that specific finger.
   final Map<int, int> _pointerToNote = {};
+
+  /// Stores the exact (X,Y) screen coordinate where a finger first touched a key.
+  /// Used as the origin point to calculate delta distances for expressive gestures (vibrato/pitchbend).
   final Map<int, Offset> _pointerToAnchor = {};
 
   // Controller for horizontal scrolling (master)
@@ -154,6 +165,11 @@ class _VirtualPianoState extends State<VirtualPiano> {
         noteInOctave == 10;
   }
 
+  /// Accurate hit-testing to determine which piano key exists at a given screen coordinate.
+  ///
+  /// The algorithm prioritizes Black Keys, which occupy the top 65% of the keyboard's height
+  /// and sit horizontally between specific White Keys. If a touch falls in the bottom 35%,
+  /// or misses a Black Key in the top section, it maps to the underlying White Key.
   int? _getNoteAtPosition(
     Offset localPosition,
     double containerHeight,
@@ -191,6 +207,9 @@ class _VirtualPianoState extends State<VirtualPiano> {
     return null;
   }
 
+  /// Visual Snapping Algorithm (Jam Mode):
+  /// If [validPitchClasses] are enforced, this calculates the new logical note
+  /// that a prohibited physical key will trigger, searching bidirectionally to the nearest valid semitone.
   int _getValidTarget(int note) {
     if (widget.validPitchClasses == null) return note;
     if (widget.validPitchClasses!.contains(note % 12)) return note;
@@ -287,7 +306,9 @@ class _VirtualPianoState extends State<VirtualPiano> {
         }
       }
     } else {
-      // Finger is on same key, check for expressive deltas
+      // The finger is still on the same physical key it started on.
+      // We calculate how far the finger has dragged from its initial anchor point
+      // to apply expressive continuous controller (CC) messages like Vibrato or Pitch Bend.
       final anchor = _pointerToAnchor[event.pointer];
       if (anchor != null) {
         double dx = event.localPosition.dx - anchor.dx;
@@ -668,6 +689,11 @@ class _VirtualPianoState extends State<VirtualPiano> {
 
 typedef TargetResolver = int Function(int note);
 
+/// A custom canvas painter that outlines groups of physical keys that map to the same logical note.
+///
+/// In Jam Mode, playing a "wrong" note snaps to a "correct" note. This creates "zones" on the keyboard
+/// (e.g., C, C#, and D might all snap to C). This painter dynamically calculates the complex, non-rectangular
+/// polygon enveloping these adjacent physically-pressed keys and draws a glowing border to visualize the snap zone.
 class ZoneBorderPainter extends CustomPainter {
   final Set<int> validPitchClasses;
   final List<int> whiteKeys;

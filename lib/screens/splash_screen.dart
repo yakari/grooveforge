@@ -3,6 +3,10 @@ import 'package:provider/provider.dart';
 import '../services/audio_engine.dart';
 import 'synthesizer_screen.dart';
 
+/// The initial launch screen of the application.
+///
+/// Displays the app logo and provides visual feedback while the core audio
+/// components (like the soundfont synthesizers) initialize in the background.
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -17,6 +21,11 @@ class _SplashScreenState extends State<SplashScreen> {
     _initializeApp();
   }
 
+  /// Initializes the core application services.
+  ///
+  /// This method waits briefly to ensure the splash screen UI renders, then delegates
+  /// to [AudioEngine.init] to begin loading soundfonts and starting the audio thread.
+  /// Upon completion, it smoothly transitions to the main [SynthesizerScreen].
   Future<void> _initializeApp() async {
     final engine = context.read<AudioEngine>();
     // Wait for the very first frame to finish before starting the heavy lifting and status updates

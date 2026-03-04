@@ -1,6 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+/// A lightweight data model representing an incoming MIDI event.
+///
+/// Used primarily by the UI for diagnostic display (e.g., showing the user
+/// what CC number they just triggered on their hardware).
 class MidiEventInfo {
   final String type; // "CC", "Note On", "Note Off", etc.
   final int channel; // 0-15
@@ -15,6 +19,10 @@ class MidiEventInfo {
   });
 }
 
+/// Defines a routing rule for translating hardware MIDI input to application actions.
+///
+/// For example, a mapping might state: "When hardware CC #20 is received,
+/// translate it to GM Filter Cutoff (CC #74) and apply it to all channels."
 class CcMapping {
   final int incomingCc;
   final int targetCc;
@@ -38,6 +46,13 @@ class CcMapping {
   String encode() => '$incomingCc:$targetCc:$targetChannel';
 }
 
+/// Manages user-defined MIDI Control Change (CC) routing rules.
+///
+/// Intercepts incoming MIDI CC events and translates them according to user
+/// preferences before they reach the main synthesizer engine. It handles:
+/// - Persisting mappings using [SharedPreferences].
+/// - Providing standard GM mapping targets (like Reverb, Chorus).
+/// - Defining special system action targets (like `[System] Next Patch`).
 class CcMappingService {
   final ValueNotifier<Map<int, CcMapping>> mappingsNotifier = ValueNotifier({});
   final ValueNotifier<MidiEventInfo?> lastEventNotifier = ValueNotifier(null);

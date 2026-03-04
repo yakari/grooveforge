@@ -6,6 +6,13 @@ import 'package:grooveforge/models/gm_instruments.dart';
 import 'package:grooveforge/services/audio_engine.dart';
 import 'channel_scale_lock.dart';
 
+/// A widget that displays and allows configuration of the sound patch (Soundfont, Bank, Program)
+/// and scale lock settings for a specific MIDI channel.
+///
+/// This widget adapts its layout based on the available width (wide vs. narrow) to ensure
+/// the controls remain usable. It integrates with the `AudioEngine` to fetch available
+/// soundfonts and their respective presets, and includes the `ChannelScaleLock` widget
+/// to handle scale and chord locking configuration.
 class ChannelPatchInfo extends StatelessWidget {
   final AudioEngine engine;
   final int channelIndex;
@@ -40,7 +47,10 @@ class ChannelPatchInfo extends StatelessWidget {
   Widget build(BuildContext context) {
     final state = engine.channels[channelIndex];
 
-    // Parse patches based on loaded SF2 or fallback GM
+    // --- Data Preparation ---
+    // If a custom soundfont (.sf2) is loaded and assigned to this channel,
+    // we extract its specific available Banks and Programs.
+    // Otherwise, we fall back to the standard General MIDI instrument list.
     Map<int, String>? bankPresets;
     List<int> availableBanks = [state.bank];
 
@@ -250,6 +260,10 @@ class ChannelPatchInfo extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
+        // --- Responsive Layout ---
+        // Dynamically rearranges the soundfont, program, and bank dropdowns
+        // alongside the scale lock button based on the available widget width.
+        // This ensures usability on both tablets (wide) and phones (narrow).
         if (constraints.maxWidth > 550) {
           // Wide layout
           return Row(

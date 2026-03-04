@@ -33,20 +33,43 @@ enum ScaleLockMode { classic, jam }
 
 enum GestureAction { none, pitchBend, vibrato, glissando }
 
+/// Represents the current configuration and playback state for a single MIDI channel.
+///
+/// Holds the selected soundfont, bank, and program, as well as real-time performance
+/// data like active notes, the last detected chord, and scale locking settings.
 class ChannelState {
+  /// Absolute path to the currently assigned Soundfont file. Null if none is loaded.
   String? soundfontPath;
+
+  /// Currently assigned MIDI program (instrument patch), 0-127.
   int program = 0;
+
+  /// Currently assigned MIDI bank (0 for Standard GM).
   int bank = 0;
+
+  /// Set of physical keys currently being held down on this channel.
   final ValueNotifier<Set<int>> activeNotes = ValueNotifier({});
+
+  /// The most recent intelligently identified chord configuration, used to derive scales.
   final ValueNotifier<ChordMatch?> lastChord = ValueNotifier(null);
+
+  /// (Classic Mode) Whether this specific channel is frozen to its current scale.
   final ValueNotifier<bool> isScaleLocked = ValueNotifier(false);
+
+  /// (Classic Mode) The specific scale degree template applied to this channel.
   final ValueNotifier<ScaleType> currentScaleType = ValueNotifier(
     ScaleType.standard,
   );
-  final Map<int, int> activeKeyMappings =
-      {}; // Track which key was actually played for note-off
-  final Map<int, int> snappedKeyOwners =
-      {}; // Maps logical note -> physical key that currently owns it
+
+  /// Tracks shifted notes during snapping (Physical Key pressed -> Logical Note playing).
+  /// This ensures that releasing the physical key sends a note-off for the shifted pitch.
+  final Map<int, int> activeKeyMappings = {};
+
+  /// Maps Logical Note -> Physical Key currently driving it.
+  /// Resolves conflicts if two distinct physical keys snap to the exact same pitch.
+  final Map<int, int> snappedKeyOwners = {};
+
+  /// A visual reference set of pitch classes (0-11) allowed in the current active scale.
   final ValueNotifier<Set<int>?> validPitchClasses = ValueNotifier(null);
 
   ChannelState();
@@ -64,10 +87,18 @@ class ChannelState {
         ..bank = json['bank'] ?? 0;
 }
 
+/// The core service managing MIDI routing, audio synthesis, and intelligent playback features.
+///
+/// [AudioEngine] acts as the central hub of GrooveForge, initializing the appropriate
+/// synthesizer backend (FluidSynth on Linux, flutter_midi_pro on mobile), managing soundfonts,
+/// processing incoming MIDI events, and handling advanced features like Smart Jam Mode
+/// and scale synchronization across multiple channels.
 class AudioEngine extends ChangeNotifier {
+  /// The synthesizer library used for rendering audio on Mobile/macOS.
   final MidiPro _midiPro = MidiPro();
   bool _isInitialized = false;
 
+  /// Human-readable status string used during the app splash screen startup sequence.
   final ValueNotifier<String> initStatus = ValueNotifier(
     'Starting audio engine...',
   );
@@ -114,20 +145,32 @@ class AudioEngine extends ChangeNotifier {
   final ValueNotifier<String> notationFormat = ValueNotifier('Standard');
   final ValueNotifier<int> pianoKeysToShow = ValueNotifier(22);
 
-  // Jam Mode State
+  // --- Jam Mode State ---
+
+  /// User preference selecting between independent channels (Classic) or central intelligence (Jam).
   final ValueNotifier<ScaleLockMode> lockModePreference = ValueNotifier(
     ScaleLockMode.jam,
   );
+
+  /// Whether the Jam Mode feature is actively engaged overriding independent scales.
   final ValueNotifier<bool> jamEnabled = ValueNotifier(false);
+
+  /// The channel driving the harmony. Its chords dictate the scale for the Slaves.
   final ValueNotifier<int> jamMasterChannel = ValueNotifier(1); // Default Ch 2
+
+  /// Channels instructed to snap their outgoing note pitches to the Master's harmony.
   final ValueNotifier<Set<int>> jamSlaveChannels = ValueNotifier({
     0,
   }); // Default Ch 1
+
+  /// The template scale (e.g. Minor Pentatonic) applied based on the Master's root note.
   final ValueNotifier<ScaleType> jamScaleType = ValueNotifier(
     ScaleType.standard,
   );
 
-  // Chord Release Logic
+  // --- Chord Release Logic ---
+
+  /// Holds pending Timers used to apply the 30ms "wait-and-see" anti-flicker delay.
   final List<Timer?> _chordUpdateTimers = List.generate(16, (i) => null);
   final List<int> _lastNoteCounts = List.generate(16, (i) => 0);
 
@@ -536,6 +579,10 @@ class AudioEngine extends ChangeNotifier {
     return bankPresets[state.program];
   }
 
+  /// Interprets raw MIDI packets sent from external controllers or internal virtual keyboards.
+  ///
+  /// Routes Note On/Off commands to the synthesizer and forwards Control Change (CC)
+  /// messages to the [CcMappingService] for potential remapping or app-level system actions.
   void processMidiPacket(MidiPacket packet) {
     if (!_isInitialized || packet.data.isEmpty) {
       return;
@@ -634,6 +681,12 @@ class AudioEngine extends ChangeNotifier {
     }
   }
 
+  /// Plays a MIDI note, applying Scale Locking or Jam Mode snapping algorithms if active.
+  ///
+  /// **Snapping Architecture:**
+  /// If snapping is required, the input [key] is transposed to the nearest valid note in the scale.
+  /// This mapping (`input -> played`) is saved in `activeKeyMappings` so [stopNote]
+  /// correctly stops the transposed pitch later even if the scale has moved on.
   void playNote({
     required int channel,
     required int key,
@@ -735,6 +788,14 @@ class AudioEngine extends ChangeNotifier {
     Future.microtask(() => _updateChordState(channel));
   }
 
+  /// Evaluates the currently held notes to mathematically determine the active chord structure.
+  ///
+  /// **Chord Stabilization Algorithm:**
+  /// Uses a 30ms grace period (`_chordUpdateTimers`) during 'Note Off' events.
+  /// This distinguishes between deliberate chord changes and accidental timing imperfections
+  /// when releasing a physical chord (humans rarely lift 4 fingers simultaneously on the millisecond).
+  /// If all notes are released, the system retains the last "Peak Chord" in memory so
+  /// Jam Slaves don't lose their harmony context during brief silences.
   void _updateChordState(int channel) {
     // In Jam mode, we ONLY update the master channel's chord.
     // In Classic mode, we don't update if already locked.
@@ -776,6 +837,10 @@ class AudioEngine extends ChangeNotifier {
     _performChordUpdate(channel, notes);
   }
 
+  /// Physically runs the [ChordDetector] algorithm on the active notes and caches the result.
+  ///
+  /// If Jam Mode is active and this channel is the Master, it immediately calculates the
+  /// new allowed pitch classes for the deduced scale and propagates them to all Slave channels.
   void _performChordUpdate(int channel, Set<int> notes) {
     final format =
         notationFormat.value.toLowerCase() == 'solfege'
@@ -820,6 +885,11 @@ class AudioEngine extends ChangeNotifier {
     }
   }
 
+  /// Forces a resynchronization of valid pitch classes across all channels.
+  ///
+  /// Called when Jam Mode settings change (e.g., Master channel swapped, target scale type changed).
+  /// It clears locks on channels if Jam Mode is disabled, or explicitly forces slaves to adopt
+  /// the new Master constraints.
   void _propagateJamScaleUpdate() {
     if (lockModePreference.value != ScaleLockMode.jam || !jamEnabled.value) {
       for (int i = 0; i < 16; i++) {
@@ -905,6 +975,11 @@ class AudioEngine extends ChangeNotifier {
     return noteNames[midiNote % 12];
   }
 
+  /// Constructs a [_ScaleInfo] object containing intervals and a descriptive name for a given [ScaleType].
+  ///
+  /// This mapping dynamically adjusts based on the chord's quality (Major vs. Minor)
+  /// and upper extensions. For example, a "Jazz" scale applied to a m7b5 chord
+  /// will automatically yield a Locrian #2 scale instead of a standard Dorian or Aeolian.
   _ScaleInfo _getScaleInfo(ChordMatch chord, ScaleType scaleType) {
     if (scaleType == ScaleType.standard) {
       final intervals = chord.scalePitchClasses.toList()..sort();
@@ -1026,6 +1101,11 @@ class AudioEngine extends ChangeNotifier {
     return _ScaleInfo(intervals: intervals, name: name);
   }
 
+  /// The core algorithm for quantizing "wrong" notes to harmony-correct notes.
+  ///
+  /// Given an [originalKey] that the user physically pressed, it calculates the closest
+  /// mathematically valid MIDI note within the allowed [scaleType] built upon the [chord]'s root.
+  /// It searches bidirectionally (up and down) semitone by semitone until a match is found.
   int _snapKeyToScale(int originalKey, ChordMatch chord, ScaleType scaleType) {
     final info = _getScaleInfo(chord, scaleType);
     final root = chord.rootPc;
@@ -1054,6 +1134,11 @@ class AudioEngine extends ChangeNotifier {
     return bestKey;
   }
 
+  /// Executes high-level application actions triggered by mapped hardware CC commands.
+  ///
+  /// Includes a 250ms debounce for toggle/cycle actions to prevent hardware
+  /// drum pads from double-triggering continuous events. Actions include
+  /// starting Jam Mode (1007), cycling scales (1008), or sweeping patches (1005).
   void _handleSystemCommand(int targetAction, int incomingChannel, int value) {
     if ([1001, 1002, 1003, 1004, 1007, 1008].contains(targetAction)) {
       String debounceKey = '${targetAction}_$incomingChannel';

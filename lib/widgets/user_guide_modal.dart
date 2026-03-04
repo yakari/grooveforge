@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 
+/// A modal dialog containing the comprehensive user guide for GrooveForge.
+///
+/// The guide is organized into distinct tabs: Connectivity, Sounds, CC Mapping,
+/// and Jam Mode, providing users with quick access to application features and tips.
 class UserGuideModal extends StatelessWidget {
   const UserGuideModal({super.key});
 
@@ -66,6 +70,7 @@ class UserGuideModal extends StatelessWidget {
   }
 }
 
+/// Displays instructions and tips on connecting USB and Bluetooth LE MIDI controllers.
 class _ConnectivityTab extends StatelessWidget {
   const _ConnectivityTab();
 
@@ -101,6 +106,7 @@ class _ConnectivityTab extends StatelessWidget {
   }
 }
 
+/// Explains how to manage and load custom Soundfont (.sf2) files and select patches.
 class _SoundsTab extends StatelessWidget {
   const _SoundsTab();
 
@@ -146,6 +152,8 @@ class _SoundsTab extends StatelessWidget {
   }
 }
 
+/// Guides the user through remapping hardware MIDI CC messages to internal GrooveForge features,
+/// including a reference list of available System Actions.
 class _CcMappingTab extends StatelessWidget {
   const _CcMappingTab();
 
@@ -208,6 +216,8 @@ class _CcMappingTab extends StatelessWidget {
   }
 }
 
+/// Details the Smart Jam Mode feature, describing master-slave relationships,
+/// scale snapping algorithms, and providing a visual reference for common scales.
 class _JamModeTab extends StatelessWidget {
   const _JamModeTab();
 
@@ -404,6 +414,8 @@ Widget _buildScaleMemoItem(String name, List<int> intervals) {
   );
 }
 
+/// Custom painter that draws a 5-line musical staff, a G-Clef, and the specific
+/// notes of a given scale based on its intervals.
 class _StaffPainter extends CustomPainter {
   final List<int> intervals;
   _StaffPainter(this.intervals);
@@ -507,6 +519,8 @@ class _StaffPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
+/// Encapsulates the diatonic step (vertical position on the staff) and any
+/// necessary accidental (sharp/flat) needed to render a specific note in a scale.
 class _ScaleNote {
   final int step; // Diatonic step (0=C, 1=D, etc.)
   final String? accidental;

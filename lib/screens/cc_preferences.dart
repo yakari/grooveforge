@@ -2,6 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:grooveforge/services/cc_mapping_service.dart';
 
+/// Screen for configuring advanced MIDI Control Change (CC) mappings.
+///
+/// Allows the user to map hardware MIDI knobs/sliders to internal application features
+/// (like changing the Jam Mode scale) or specific General MIDI Effects (like Filter Cutoff).
+/// It features a live MIDI event monitor to help users identify the CC number of their hardware controls.
 class CcPreferencesScreen extends StatelessWidget {
   const CcPreferencesScreen({super.key});
 
@@ -10,20 +15,19 @@ class CcPreferencesScreen extends StatelessWidget {
     final ccService = context.read<CcMappingService>();
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('CC Mapping Preferences'),
-      ),
+      appBar: AppBar(title: const Text('CC Mapping Preferences')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
             _buildLastReceivedCard(ccService),
             const SizedBox(height: 24),
-            const Text('Active Mappings', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 16),
-            Expanded(
-              child: _buildMappingsList(ccService),
+            const Text(
+              'Active Mappings',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
+            const SizedBox(height: 16),
+            Expanded(child: _buildMappingsList(ccService)),
           ],
         ),
       ),
@@ -35,6 +39,11 @@ class CcPreferencesScreen extends StatelessWidget {
     );
   }
 
+  /// Builds the top card that displays the most recent incoming MIDI event.
+  ///
+  /// This acts as a diagnostic tool, allowing users to physically move a slider
+  /// on their MIDI controller and instantly see which CC number it transmits,
+  /// simplifying the mapping process.
   Widget _buildLastReceivedCard(CcMappingService ccService) {
     return Card(
       elevation: 4,
@@ -48,26 +57,36 @@ class CcPreferencesScreen extends StatelessWidget {
               valueListenable: ccService.lastEventNotifier,
               builder: (context, event, _) {
                 if (event == null) {
-                  return const Text('Waiting for incoming MIDI events...', style: TextStyle(fontSize: 18));
+                  return const Text(
+                    'Waiting for incoming MIDI events...',
+                    style: TextStyle(fontSize: 18),
+                  );
                 }
 
                 String eventText;
                 if (event.type == 'CC') {
                   eventText = 'CC ${event.data1} (Value: ${event.data2})';
                 } else {
-                  eventText = '${event.type} Note ${event.data1} (Velocity: ${event.data2})';
+                  eventText =
+                      '${event.type} Note ${event.data1} (Velocity: ${event.data2})';
                 }
 
                 return Column(
                   children: [
                     Text(
                       'Last Event: $eventText',
-                      style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     Text(
                       'Received on Channel ${event.channel + 1}',
-                      style: const TextStyle(fontSize: 16, color: Colors.blueAccent),
+                      style: const TextStyle(
+                        fontSize: 16,
+                        color: Colors.blueAccent,
+                      ),
                     ),
                   ],
                 );
@@ -98,15 +117,17 @@ class CcPreferencesScreen extends StatelessWidget {
             ),
           );
         }
-        
+
         final entries = mappings.values.toList();
         return ListView.builder(
           itemCount: entries.length,
           itemBuilder: (context, index) {
             final mapping = entries[index];
-            
-            String targetName = CcMappingService.standardGmCcs[mapping.targetCc] ?? 'CC ${mapping.targetCc}';
-            
+
+            String targetName =
+                CcMappingService.standardGmCcs[mapping.targetCc] ??
+                'CC ${mapping.targetCc}';
+
             String channelStr;
             if (mapping.targetChannel == -1) {
               channelStr = 'All Channels';
@@ -119,7 +140,9 @@ class CcPreferencesScreen extends StatelessWidget {
             return Card(
               child: ListTile(
                 leading: const Icon(Icons.swap_horiz, color: Colors.blueAccent),
-                title: Text('Hardware CC ${mapping.incomingCc} \u2794 Mapped to $targetName'),
+                title: Text(
+                  'Hardware CC ${mapping.incomingCc} \u2794 Mapped to $targetName',
+                ),
                 subtitle: Text('Routing: $channelStr'),
                 trailing: IconButton(
                   icon: const Icon(Icons.delete, color: Colors.redAccent),
@@ -149,7 +172,9 @@ class CcPreferencesScreen extends StatelessWidget {
       const DropdownMenuItem(value: -1, child: Text('All Channels')),
     ];
     for (int i = 0; i < 16; i++) {
-      channelItems.add(DropdownMenuItem(value: i, child: Text('Channel ${i + 1}')));
+      channelItems.add(
+        DropdownMenuItem(value: i, child: Text('Channel ${i + 1}')),
+      );
     }
 
     final List<DropdownMenuItem<int>> ccItems = [];
@@ -178,13 +203,17 @@ class CcPreferencesScreen extends StatelessWidget {
                   children: [
                     TextField(
                       controller: incomingController,
-                      decoration: const InputDecoration(labelText: 'Incoming Hardware CC (e.g., 20)'),
+                      decoration: const InputDecoration(
+                        labelText: 'Incoming Hardware CC (e.g., 20)',
+                      ),
                       keyboardType: TextInputType.number,
                       autofocus: true,
                     ),
                     const SizedBox(height: 16),
                     DropdownButtonFormField<int>(
-                      decoration: const InputDecoration(labelText: 'Target GM Effect'),
+                      decoration: const InputDecoration(
+                        labelText: 'Target GM Effect',
+                      ),
                       initialValue: targetCc,
                       isExpanded: true,
                       items: ccItems,
@@ -194,7 +223,9 @@ class CcPreferencesScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 16),
                     DropdownButtonFormField<int>(
-                      decoration: const InputDecoration(labelText: 'Target Channel'),
+                      decoration: const InputDecoration(
+                        labelText: 'Target Channel',
+                      ),
                       initialValue: targetChannel,
                       items: channelItems,
                       onChanged: (val) {
