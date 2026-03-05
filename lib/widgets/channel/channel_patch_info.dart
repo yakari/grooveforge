@@ -380,7 +380,15 @@ class ChannelPatchInfo extends StatelessWidget {
                         color: Colors.orange.withValues(alpha: 0.3),
                       ),
                       const SizedBox(width: 8),
-                      Expanded(child: VocoderControls(engine: engine)),
+                      Expanded(child: VocoderSliders(engine: engine)),
+                      const SizedBox(width: 8),
+                      Container(
+                        width: 1,
+                        height: 38,
+                        color: Colors.orange.withValues(alpha: 0.3),
+                      ),
+                      const SizedBox(width: 8),
+                      VocoderButtons(engine: engine),
                     ],
                   ),
                 ),
@@ -445,7 +453,15 @@ class ChannelPatchInfo extends StatelessWidget {
                         color: Colors.orange.withValues(alpha: 0.3),
                       ),
                       const SizedBox(width: 8),
-                      Expanded(child: VocoderControls(engine: engine)),
+                      Expanded(child: VocoderSliders(engine: engine)),
+                      const SizedBox(width: 8),
+                      Container(
+                        width: 1,
+                        height: 48,
+                        color: Colors.orange.withValues(alpha: 0.3),
+                      ),
+                      const SizedBox(width: 8),
+                      VocoderButtons(engine: engine),
                     ],
                   ),
                 ),
@@ -458,177 +474,172 @@ class ChannelPatchInfo extends StatelessWidget {
   }
 }
 
-class VocoderControls extends StatelessWidget {
+class VocoderSliders extends StatelessWidget {
   final AudioEngine engine;
 
-  const VocoderControls({super.key, required this.engine});
+  const VocoderSliders({super.key, required this.engine});
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      crossAxisAlignment: CrossAxisAlignment.center,
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        // Column 1: Sliders
-        Expanded(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Noise Mix
-              ValueListenableBuilder<double>(
-                valueListenable: engine.vocoderNoiseMix,
-                builder: (context, noise, _) {
-                  return Row(
-                    children: [
-                      const Text(
-                        'Noise',
-                        style: TextStyle(
-                          color: Colors.white70,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                        ),
+        // Noise Mix
+        ValueListenableBuilder<double>(
+          valueListenable: engine.vocoderNoiseMix,
+          builder: (context, noise, _) {
+            return Row(
+              children: [
+                const Text(
+                  'Noise',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Expanded(
+                  child: SliderTheme(
+                    data: SliderTheme.of(context).copyWith(
+                      trackHeight: 2,
+                      thumbShape: const RoundSliderThumbShape(
+                        enabledThumbRadius: 6,
                       ),
-                      Expanded(
-                        child: SliderTheme(
-                          data: SliderTheme.of(context).copyWith(
-                            trackHeight: 2,
-                            thumbShape: const RoundSliderThumbShape(
-                              enabledThumbRadius: 6,
-                            ),
-                            overlayShape: const RoundSliderOverlayShape(
-                              overlayRadius: 12,
-                            ),
-                          ),
-                          child: Slider(
-                            value: noise,
-                            min: 0.0,
-                            max: 0.2,
-                            activeColor: Colors.orange,
-                            inactiveColor: Colors.white24,
-                            onChanged: (val) {
-                              engine.vocoderNoiseMix.value = val;
-                              engine.updateVocoderParameters();
-                            },
-                          ),
-                        ),
+                      overlayShape: const RoundSliderOverlayShape(
+                        overlayRadius: 12,
                       ),
-                    ],
-                  );
-                },
-              ),
-              const SizedBox(height: 2),
-              // Env Release (Speed)
-              ValueListenableBuilder<double>(
-                valueListenable: engine.vocoderEnvRelease,
-                builder: (context, env, _) {
-                  return Row(
-                    children: [
-                      const Text(
-                        'Speed',
-                        style: TextStyle(
-                          color: Colors.white70,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Expanded(
-                        child: SliderTheme(
-                          data: SliderTheme.of(context).copyWith(
-                            trackHeight: 2,
-                            thumbShape: const RoundSliderThumbShape(
-                              enabledThumbRadius: 6,
-                            ),
-                            overlayShape: const RoundSliderOverlayShape(
-                              overlayRadius: 12,
-                            ),
-                          ),
-                          child: Slider(
-                            value: env,
-                            min: 0.0,
-                            max: 1.0,
-                            activeColor: Colors.orange,
-                            inactiveColor: Colors.white24,
-                            onChanged: (val) {
-                              engine.vocoderEnvRelease.value = val;
-                              engine.updateVocoderParameters();
-                            },
-                          ),
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              ),
-            ],
-          ),
-        ),
-
-        // Divider
-        Container(
-          width: 1,
-          height: 38,
-          margin: const EdgeInsets.symmetric(horizontal: 8),
-          color: Colors.orange.withValues(alpha: 0.3),
-        ),
-
-        // Column 2: Buttons
-        Column(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Waveform Toggle
-            ValueListenableBuilder<int>(
-              valueListenable: engine.vocoderWaveform,
-              builder: (context, wave, _) {
-                return SizedBox(
-                  height: 22,
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.black45,
-                      foregroundColor: Colors.orange,
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      side: const BorderSide(color: Colors.white12),
                     ),
-                    onPressed: () {
-                      engine.vocoderWaveform.value = wave == 0 ? 1 : 0;
-                      engine.updateVocoderParameters();
-                    },
-                    icon: Icon(
-                      wave == 0 ? Icons.show_chart : Icons.water,
-                      size: 12,
-                    ),
-                    label: Text(
-                      wave == 0 ? 'Sawtooth' : 'Square',
-                      style: const TextStyle(fontSize: 10),
+                    child: Slider(
+                      value: noise,
+                      min: 0.0,
+                      max: 0.2,
+                      activeColor: Colors.orange,
+                      inactiveColor: Colors.white24,
+                      onChanged: (val) {
+                        engine.vocoderNoiseMix.value = val;
+                        engine.updateVocoderParameters();
+                      },
                     ),
                   ),
-                );
-              },
-            ),
-            const SizedBox(height: 4),
-            // Refresh Mic Button
-            SizedBox(
+                ),
+              ],
+            );
+          },
+        ),
+        const SizedBox(height: 2),
+        // Env Release (Speed)
+        ValueListenableBuilder<double>(
+          valueListenable: engine.vocoderEnvRelease,
+          builder: (context, env, _) {
+            return Row(
+              children: [
+                const Text(
+                  'Speed',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Expanded(
+                  child: SliderTheme(
+                    data: SliderTheme.of(context).copyWith(
+                      trackHeight: 2,
+                      thumbShape: const RoundSliderThumbShape(
+                        enabledThumbRadius: 6,
+                      ),
+                      overlayShape: const RoundSliderOverlayShape(
+                        overlayRadius: 12,
+                      ),
+                    ),
+                    child: Slider(
+                      value: env,
+                      min: 0.0,
+                      max: 1.0,
+                      activeColor: Colors.orange,
+                      inactiveColor: Colors.white24,
+                      onChanged: (val) {
+                        engine.vocoderEnvRelease.value = val;
+                        engine.updateVocoderParameters();
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class VocoderButtons extends StatelessWidget {
+  final AudioEngine engine;
+
+  const VocoderButtons({super.key, required this.engine});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        // Waveform Toggle
+        ValueListenableBuilder<int>(
+          valueListenable: engine.vocoderWaveform,
+          builder: (context, wave, _) {
+            IconData getIcon() {
+              if (wave == 0) return Icons.show_chart; // Sawtooth
+              if (wave == 1) return Icons.water; // Square
+              return Icons.record_voice_over; // Neutral (Sine)
+            }
+
+            String getLabel() {
+              if (wave == 0) return 'Sawtooth';
+              if (wave == 1) return 'Square';
+              return 'Neutral';
+            }
+
+            return SizedBox(
               height: 22,
               child: ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.orange[800],
-                  foregroundColor: Colors.white,
+                  backgroundColor: Colors.black45,
+                  foregroundColor: Colors.orange,
                   padding: const EdgeInsets.symmetric(horizontal: 8),
+                  side: const BorderSide(color: Colors.white12),
                 ),
                 onPressed: () {
-                  AudioInputFFI().stopCapture();
-                  Future.delayed(const Duration(milliseconds: 100), () {
-                    AudioInputFFI().startCapture();
-                  });
+                  engine.vocoderWaveform.value = (wave + 1) % 3;
+                  engine.updateVocoderParameters();
                 },
-                icon: const Icon(Icons.refresh, size: 12),
-                label: const Text(
-                  'Refresh Mic',
-                  style: TextStyle(fontSize: 10),
-                ),
+                icon: Icon(getIcon(), size: 12),
+                label: Text(getLabel(), style: const TextStyle(fontSize: 10)),
               ),
+            );
+          },
+        ),
+        const SizedBox(height: 4),
+        // Refresh Mic Button
+        SizedBox(
+          height: 22,
+          child: ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange[800],
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
             ),
-          ],
+            onPressed: () {
+              AudioInputFFI().stopCapture();
+              Future.delayed(const Duration(milliseconds: 100), () {
+                AudioInputFFI().startCapture();
+              });
+            },
+            icon: const Icon(Icons.refresh, size: 12),
+            label: const Text('Refresh Mic', style: TextStyle(fontSize: 10)),
+          ),
         ),
       ],
     );

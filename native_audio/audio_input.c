@@ -16,7 +16,7 @@
 #define MAX_POLYPHONY 16
 #define SAMPLE_RATE 48000
 #define CHANNELS 1
-#define NUM_BANDS 16
+#define NUM_BANDS 32
 
 // --- Vocoder DSP State ---
 typedef struct {
@@ -32,13 +32,6 @@ typedef struct {
 
 static VocoderBand bands[NUM_BANDS];
 
-// Center frequencies spanning roughly 100Hz to 8kHz
-static const float BAND_FREQS[NUM_BANDS] = {
-    100.0f, 150.0f, 220.0f, 330.0f, 470.0f, 680.0f, 1000.0f, 
-    1500.0f, 2200.0f, 3300.0f, 4700.0f, 6800.0f, 8200.0f, 
-    10000.0f, 12000.0f, 14000.0f
-};
-
 // Envelope follower release coefficient (approx 20ms)
 static float envRelease = 0.0f;
 
@@ -48,13 +41,16 @@ typedef struct {
     int midiKey;
     float frequency;
     float phase;
+    float phase2; // Unison detune 1
+    float phase3; // Unison detune 2
     float velocity;
     float envelope;
     int releaseSamples;
+    float filterState; // Used for glottal pulse low-pass
 } Oscillator;
 
 // --- Vocoder Adjustable Parameters ---
-int g_vocoderWaveform = 0;          // 0 = Sawtooth, 1 = Square/PWM
+int g_vocoderWaveform = 0;          // 0 = Sawtooth, 1 = Square/PWM, 2 = Sine (Neutral)
 float g_vocoderNoiseMix = 0.05f;    // Amount of white noise added to carrier for consonant intelligibility
 float g_vocoderEnvRelease = 0.02f;  // Envelope follower release time (lower = faster)
 
@@ -137,13 +133,35 @@ static float renderOscillator(Oscillator* osc) {
     if (g_vocoderWaveform == 0) {
         // Sawtooth
         sample = osc->phase * 2.0f - 1.0f; 
-    } else {
+        osc->phase += (osc->frequency / SAMPLE_RATE);
+        if (osc->phase >= 1.0f) osc->phase -= 1.0f;
+    } else if (g_vocoderWaveform == 1) {
         // Square
         sample = (osc->phase < 0.5f) ? 1.0f : -1.0f;
+        osc->phase += (osc->frequency / SAMPLE_RATE);
+        if (osc->phase >= 1.0f) osc->phase -= 1.0f;
+    } else {
+        // Neutral (Choral Super-Vocal Ensemble)
+        // 3 detuned glottal pulses layered together with natural pitch spread.
+        float raw1 = (osc->phase < 0.08f) ? 2.0f : -0.2f;
+        float raw2 = (osc->phase2 < 0.08f) ? 2.0f : -0.2f;
+        float raw3 = (osc->phase3 < 0.08f) ? 2.0f : -0.2f;
+        
+        float mix = (raw1 + raw2 + raw3) * 0.33f;
+        
+        // Gentle lowpass filter for body warmth
+        osc->filterState += 0.3f * (mix - osc->filterState);
+        sample = osc->filterState; 
+        
+        // Advance phases with slight natural detuning (-10 cents and +10 cents)
+        osc->phase += (osc->frequency / SAMPLE_RATE);
+        osc->phase2 += ((osc->frequency * 0.994f) / SAMPLE_RATE);
+        osc->phase3 += ((osc->frequency * 1.006f) / SAMPLE_RATE);
+        
+        if (osc->phase >= 1.0f) osc->phase -= 1.0f;
+        if (osc->phase2 >= 1.0f) osc->phase2 -= 1.0f;
+        if (osc->phase3 >= 1.0f) osc->phase3 -= 1.0f;
     }
-    
-    osc->phase += (osc->frequency / SAMPLE_RATE);
-    if (osc->phase >= 1.0f) osc->phase -= 1.0f;
     
     return sample;
 }
@@ -244,8 +262,8 @@ void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uin
                 // 4. Amplitude Modulation (Restored basic linear multiplication)
                 vocoderOutput += carSignal * bands[b].envelope;
             }
-            // Add substantial makeup gain to output
-            vocoderOutput *= 35.0f;  // Restored high volume for Linux
+            // Add dynamic makeup gain to output
+            vocoderOutput *= 20.0f;
         } else {
             // Silence when no notes are playing to prevent Larsen feedback loop!
             vocoderOutput = 0.0f; 
@@ -282,9 +300,12 @@ EXPORT void VocoderNoteOn(int key, int velocity) {
             voices[i].midiKey = key;
             voices[i].frequency = noteToFreq(key);
             voices[i].velocity = velocity;
-            voices[i].phase = 0.0f;
+            voices[i].phase = ((float)rand() / (float)RAND_MAX); // Randomize start phase for natural chorus
+            voices[i].phase2 = ((float)rand() / (float)RAND_MAX);
+            voices[i].phase3 = ((float)rand() / (float)RAND_MAX);
             voices[i].envelope = 1.0f;
             voices[i].releaseSamples = 0;
+            voices[i].filterState = 0.0f;
             return;
         }
     }
@@ -303,12 +324,16 @@ EXPORT void VocoderNoteOff(int key) {
 EXPORT int start_audio_capture() {
     if (isInitialized) return 0;
 
-    // Initialize Vocoder DSP Filters
+    // Initialize Vocoder DSP Filters dynamically
     envRelease = expf(-1.0f / (SAMPLE_RATE * 0.02f)); // 20ms release
+    float minFreq = 80.0f;
+    float maxFreq = 12000.0f;
     for (int b = 0; b < NUM_BANDS; ++b) {
-        // High Q for distinct bands
-        calculateBandpass(&bands[b].modFilter, BAND_FREQS[b], 8.0f);
-        calculateBandpass(&bands[b].carFilter, BAND_FREQS[b], 8.0f);
+        // Logarithmic spacing
+        float freq = minFreq * powf(maxFreq / minFreq, (float)b / (NUM_BANDS - 1));
+        // Q factor controls overlap. Q=12.0 gives clean, distinct formants for 32 bands
+        calculateBandpass(&bands[b].modFilter, freq, 12.0f);
+        calculateBandpass(&bands[b].carFilter, freq, 12.0f);
         bands[b].envelope = 0.0f;
     }
 
