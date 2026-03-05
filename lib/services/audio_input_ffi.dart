@@ -7,8 +7,22 @@ typedef StartAudioCaptureDart = int Function();
 typedef StopAudioCaptureC = Void Function();
 typedef StopAudioCaptureDart = void Function();
 
-typedef GetCurrentPeakLevelC = Float Function();
-typedef GetCurrentPeakLevelDart = double Function();
+typedef GetInputPeakLevelC = Float Function();
+typedef GetInputPeakLevelDart = double Function();
+
+typedef GetOutputPeakLevelC = Float Function();
+typedef GetOutputPeakLevelDart = double Function();
+
+typedef VocoderNoteOnC = Void Function(Int32 key, Int32 velocity);
+typedef VocoderNoteOnDart = void Function(int key, int velocity);
+
+typedef VocoderNoteOffC = Void Function(Int32 key);
+typedef VocoderNoteOffDart = void Function(int key);
+
+typedef SetVocoderParametersC =
+    Void Function(Int32 waveform, Float noiseMix, Float envRelease);
+typedef SetVocoderParametersDart =
+    void Function(int waveform, double noiseMix, double envRelease);
 
 class AudioInputFFI {
   static AudioInputFFI? _instance;
@@ -16,7 +30,11 @@ class AudioInputFFI {
 
   late StartAudioCaptureDart _startCapture;
   late StopAudioCaptureDart _stopCapture;
-  late GetCurrentPeakLevelDart _getPeakLevel;
+  late GetInputPeakLevelDart _getInputPeakLevel;
+  late GetOutputPeakLevelDart _getOutputPeakLevel;
+  late VocoderNoteOnDart _vocoderNoteOn;
+  late VocoderNoteOffDart _vocoderNoteOff;
+  late SetVocoderParametersDart _setVocoderParameters;
 
   factory AudioInputFFI() {
     _instance ??= AudioInputFFI._internal();
@@ -38,10 +56,26 @@ class AudioInputFFI {
         _lib
             .lookup<NativeFunction<StopAudioCaptureC>>('stop_audio_capture')
             .asFunction();
-    _getPeakLevel =
+    _getInputPeakLevel =
         _lib
-            .lookup<NativeFunction<GetCurrentPeakLevelC>>(
-              'get_current_peak_level',
+            .lookup<NativeFunction<GetInputPeakLevelC>>('getInputPeakLevel')
+            .asFunction();
+    _getOutputPeakLevel =
+        _lib
+            .lookup<NativeFunction<GetOutputPeakLevelC>>('getOutputPeakLevel')
+            .asFunction();
+    _vocoderNoteOn =
+        _lib
+            .lookup<NativeFunction<VocoderNoteOnC>>('VocoderNoteOn')
+            .asFunction();
+    _vocoderNoteOff =
+        _lib
+            .lookup<NativeFunction<VocoderNoteOffC>>('VocoderNoteOff')
+            .asFunction();
+    _setVocoderParameters =
+        _lib
+            .lookup<NativeFunction<SetVocoderParametersC>>(
+              'setVocoderParameters',
             )
             .asFunction();
   }
@@ -55,7 +89,27 @@ class AudioInputFFI {
     _stopCapture();
   }
 
-  double getPeakLevel() {
-    return _getPeakLevel();
+  double getInputPeakLevel() {
+    return _getInputPeakLevel();
+  }
+
+  double getOutputPeakLevel() {
+    return _getOutputPeakLevel();
+  }
+
+  void playNote({required int key, required int velocity}) {
+    _vocoderNoteOn(key, velocity);
+  }
+
+  void stopNote({required int key}) {
+    _vocoderNoteOff(key);
+  }
+
+  void setVocoderParameters({
+    int waveform = 0,
+    double noiseMix = 0.05,
+    double envRelease = 0.02,
+  }) {
+    _setVocoderParameters(waveform, noiseMix, envRelease);
   }
 }

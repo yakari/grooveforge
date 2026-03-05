@@ -13,8 +13,6 @@ import 'package:flutter/services.dart' show rootBundle;
 import '../l10n/app_localizations.dart';
 import '../services/locale_provider.dart';
 import 'dart:async';
-import 'package:permission_handler/permission_handler.dart';
-import 'package:grooveforge/services/audio_input_ffi.dart';
 
 /// The main settings interface for GrooveForge.
 ///
@@ -677,19 +675,6 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
               },
             ),
           ),
-          if (Platform.isLinux || Platform.isAndroid) ...[
-            const SizedBox(height: 32),
-            const Text(
-              'Vocoder Prototype',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.green,
-              ),
-            ),
-            const SizedBox(height: 8),
-            const _MicrophoneTestWidget(),
-          ],
           const Divider(height: 40),
 
           Text(
@@ -880,105 +865,4 @@ class _ResponsivePreferenceRow extends StatelessWidget {
       },
     );
   }
-}
-
-class _MicrophoneTestWidgetState extends State<_MicrophoneTestWidget> {
-  final _audioInput = AudioInputFFI();
-  bool _isRecording = false;
-  double _peakLevel = 0.0;
-  Timer? _timer;
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    if (_isRecording) {
-      _audioInput.stopCapture();
-    }
-    super.dispose();
-  }
-
-  void _toggleCapture() async {
-    if (_isRecording) {
-      _audioInput.stopCapture();
-      _timer?.cancel();
-      setState(() {
-        _isRecording = false;
-        _peakLevel = 0.0;
-      });
-    } else {
-      // On platforms like Android, ensure we have microphone permission.
-      if (Platform.isAndroid || Platform.isIOS) {
-        final status = await Permission.microphone.request();
-        if (!status.isGranted) {
-          // Permission denied. For the prototype, we simply return.
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                  'Microphone permission required for the prototype',
-                ),
-              ),
-            );
-          }
-          return;
-        }
-      }
-
-      bool success = _audioInput.startCapture();
-      if (success) {
-        setState(() {
-          _isRecording = true;
-        });
-        _timer = Timer.periodic(const Duration(milliseconds: 30), (_) {
-          setState(() {
-            _peakLevel = _audioInput.getPeakLevel();
-          });
-        });
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.mic, color: Colors.green),
-                const SizedBox(width: 16),
-                const Expanded(
-                  child: Text(
-                    'Microphone Input Prototype',
-                    style: TextStyle(fontSize: 16),
-                  ),
-                ),
-                ElevatedButton(
-                  onPressed: _toggleCapture,
-                  child: Text(_isRecording ? 'Stop' : 'Start Capture'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            LinearProgressIndicator(
-              value: _peakLevel,
-              minHeight: 12,
-              backgroundColor: Colors.black26,
-              color: Colors.greenAccent,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _MicrophoneTestWidget extends StatefulWidget {
-  const _MicrophoneTestWidget();
-
-  @override
-  State<_MicrophoneTestWidget> createState() => _MicrophoneTestWidgetState();
 }

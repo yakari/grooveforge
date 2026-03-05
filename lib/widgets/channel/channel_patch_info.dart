@@ -5,7 +5,11 @@ import 'package:grooveforge/l10n/app_localizations.dart';
 import 'package:grooveforge/models/chord_detector.dart';
 import 'package:grooveforge/models/gm_instruments.dart';
 import 'package:grooveforge/services/audio_engine.dart';
+import 'package:grooveforge/services/audio_input_ffi.dart';
 import 'channel_scale_lock.dart';
+import 'vocoder_level_meters.dart';
+
+const String vocoderMode = 'vocoderMode';
 
 /// A widget that displays and allows configuration of the sound patch (Soundfont, Bank, Program)
 /// and scale lock settings for a specific MIDI channel.
@@ -105,7 +109,10 @@ class ChannelPatchInfo extends StatelessWidget {
                   isExpanded: true,
                   dropdownColor: Colors.grey[900],
                   value:
-                      engine.loadedSoundfonts.contains(state.soundfontPath)
+                      (state.soundfontPath == vocoderMode ||
+                              engine.loadedSoundfonts.contains(
+                                state.soundfontPath,
+                              ))
                           ? state.soundfontPath
                           : engine.loadedSoundfonts.first,
                   icon: const Icon(
@@ -128,32 +135,65 @@ class ChannelPatchInfo extends StatelessWidget {
                           return a.compareTo(b);
                         });
 
-                        return sortedPaths.map((sfPath) {
-                          bool isDefault = sfPath.endsWith(
-                            'default_soundfont.sf2',
-                          );
-                          String name =
-                              isDefault
-                                  ? AppLocalizations.of(
-                                    context,
-                                  )!.patchDefaultSoundfont
-                                  : sfPath.split(Platform.pathSeparator).last;
-                          return DropdownMenuItem<String>(
-                            value: sfPath,
-                            child: Text(
-                              name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontWeight:
-                                    isDefault
-                                        ? FontWeight.bold
-                                        : FontWeight.normal,
-                                color: isDefault ? Colors.blue[300] : null,
+                        List<DropdownMenuItem<String>> items =
+                            sortedPaths.map((sfPath) {
+                              bool isDefault = sfPath.endsWith(
+                                'default_soundfont.sf2',
+                              );
+                              String name =
+                                  isDefault
+                                      ? AppLocalizations.of(
+                                        context,
+                                      )!.patchDefaultSoundfont
+                                      : sfPath
+                                          .split(Platform.pathSeparator)
+                                          .last;
+                              return DropdownMenuItem<String>(
+                                value: sfPath,
+                                child: Text(
+                                  name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontWeight:
+                                        isDefault
+                                            ? FontWeight.bold
+                                            : FontWeight.normal,
+                                    color: isDefault ? Colors.blue[300] : null,
+                                  ),
+                                ),
+                              );
+                            }).toList();
+
+                        // Add Vocoder Option at the top
+                        // We do not add it to loadedSoundfonts so it doesn't try to parse it
+                        // But we want it available in the UI
+                        if (Platform.isLinux || Platform.isAndroid) {
+                          items.insert(
+                            0,
+                            DropdownMenuItem<String>(
+                              value: vocoderMode,
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.mic,
+                                    color: Colors.orange[300],
+                                    size: 16,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Vocoder',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.orange[300],
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           );
-                        }).toList();
+                        }
+                        return items;
                       })(),
                   onChanged: (newSf) {
                     if (newSf != null && newSf != state.soundfontPath) {
@@ -177,11 +217,13 @@ class ChannelPatchInfo extends StatelessWidget {
           isExpanded: true,
           dropdownColor: Colors.grey[900],
           value:
-              availablePrograms.contains(state.program)
-                  ? state.program
-                  : (availablePrograms.isNotEmpty
-                      ? availablePrograms.first
-                      : 0),
+              state.soundfontPath == vocoderMode
+                  ? 0
+                  : (availablePrograms.contains(state.program)
+                      ? state.program
+                      : (availablePrograms.isNotEmpty
+                          ? availablePrograms.first
+                          : 0)),
           icon: const Icon(Icons.arrow_drop_down, color: Colors.white54),
           style: const TextStyle(
             fontWeight: FontWeight.bold,
@@ -202,15 +244,18 @@ class ChannelPatchInfo extends StatelessWidget {
                   ),
                 );
               }).toList(),
-          onChanged: (newProg) {
-            if (newProg != null) {
-              engine.assignPatchToChannel(
-                channelIndex,
-                newProg,
-                bank: state.bank,
-              );
-            }
-          },
+          onChanged:
+              state.soundfontPath == vocoderMode
+                  ? null // Disable program picking in vocoder mode
+                  : (newProg) {
+                    if (newProg != null) {
+                      engine.assignPatchToChannel(
+                        channelIndex,
+                        newProg,
+                        bank: state.bank,
+                      );
+                    }
+                  },
         ),
       ),
     );
@@ -227,9 +272,11 @@ class ChannelPatchInfo extends StatelessWidget {
         child: DropdownButton<int>(
           dropdownColor: Colors.grey[900],
           value:
-              availableBanks.contains(state.bank)
-                  ? state.bank
-                  : (availableBanks.isNotEmpty ? availableBanks.first : 0),
+              state.soundfontPath == vocoderMode
+                  ? 0
+                  : (availableBanks.contains(state.bank)
+                      ? state.bank
+                      : (availableBanks.isNotEmpty ? availableBanks.first : 0)),
           style: const TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 16,
@@ -243,25 +290,32 @@ class ChannelPatchInfo extends StatelessWidget {
                   child: Text(AppLocalizations.of(context)!.patchBank(b)),
                 );
               }).toList(),
-          onChanged: (newBank) {
-            if (newBank != null && newBank != state.bank) {
-              int newProg = state.program;
-              if (state.soundfontPath != null &&
-                  engine.sf2Presets.containsKey(state.soundfontPath)) {
-                if (engine.sf2Presets[state.soundfontPath]?[newBank]
-                        ?.containsKey(newProg) !=
-                    true) {
-                  newProg =
-                      engine
-                          .sf2Presets[state.soundfontPath]?[newBank]
-                          ?.keys
-                          .first ??
-                      0;
-                }
-              }
-              engine.assignPatchToChannel(channelIndex, newProg, bank: newBank);
-            }
-          },
+          onChanged:
+              state.soundfontPath == vocoderMode
+                  ? null // Disable bank picking in vocoder mode
+                  : (newBank) {
+                    if (newBank != null && newBank != state.bank) {
+                      int newProg = state.program;
+                      if (state.soundfontPath != null &&
+                          engine.sf2Presets.containsKey(state.soundfontPath)) {
+                        if (engine.sf2Presets[state.soundfontPath]?[newBank]
+                                ?.containsKey(newProg) !=
+                            true) {
+                          newProg =
+                              engine
+                                  .sf2Presets[state.soundfontPath]?[newBank]
+                                  ?.keys
+                                  .first ??
+                              0;
+                        }
+                      }
+                      engine.assignPatchToChannel(
+                        channelIndex,
+                        newProg,
+                        bank: newBank,
+                      );
+                    }
+                  },
         ),
       ),
     );
@@ -274,27 +328,61 @@ class ChannelPatchInfo extends StatelessWidget {
         // This ensures usability on both tablets (wide) and phones (narrow).
         if (constraints.maxWidth > 550) {
           // Wide layout
-          return Row(
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Expanded(flex: 3, child: soundfontPicker),
-              const SizedBox(width: 8),
-              Expanded(flex: 4, child: programPicker),
-              const SizedBox(width: 8),
-              bankPicker,
-              if (displayChord != null || referenceChord != null) ...[
-                const SizedBox(width: 8),
-                ChannelScaleLock(
-                  engine: engine,
-                  isDimmed: isDimmed,
-                  isLocked: isLocked,
-                  displayChord: displayChord,
-                  referenceChord: referenceChord,
-                  currentScale: currentScale,
-                  descriptiveScaleName: descriptiveScaleName,
-                  isJamSlave: isJamSlave,
-                  showLockControls: showLockControls,
-                  onLockToggled: onLockToggled,
-                  onScaleChanged: onScaleChanged,
+              Row(
+                children: [
+                  Expanded(flex: 3, child: soundfontPicker),
+                  const SizedBox(width: 8),
+                  Expanded(flex: 4, child: programPicker),
+                  const SizedBox(width: 8),
+                  bankPicker,
+                  if (displayChord != null || referenceChord != null) ...[
+                    const SizedBox(width: 8),
+                    ChannelScaleLock(
+                      engine: engine,
+                      isDimmed: isDimmed,
+                      isLocked: isLocked,
+                      displayChord: displayChord,
+                      referenceChord: referenceChord,
+                      currentScale: currentScale,
+                      descriptiveScaleName: descriptiveScaleName,
+                      isJamSlave: isJamSlave,
+                      showLockControls: showLockControls,
+                      onLockToggled: onLockToggled,
+                      onScaleChanged: onScaleChanged,
+                    ),
+                  ],
+                ],
+              ),
+              if (state.soundfontPath == vocoderMode) ...[
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.black26,
+                    border: Border.all(
+                      color: Colors.orange.withValues(alpha: 0.3),
+                    ),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(child: VocoderLevelMeters()),
+                      const SizedBox(width: 8),
+                      Container(
+                        width: 1,
+                        height: 48,
+                        color: Colors.orange.withValues(alpha: 0.3),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(child: VocoderControls(engine: engine)),
+                    ],
+                  ),
                 ),
               ],
             ],
@@ -333,10 +421,216 @@ class ChannelPatchInfo extends StatelessWidget {
                   bankPicker,
                 ],
               ),
+              if (state.soundfontPath == vocoderMode) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.black26,
+                    border: Border.all(
+                      color: Colors.orange.withValues(alpha: 0.3),
+                    ),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(child: VocoderLevelMeters()),
+                      const SizedBox(width: 8),
+                      Container(
+                        width: 1,
+                        height: 48,
+                        color: Colors.orange.withValues(alpha: 0.3),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(child: VocoderControls(engine: engine)),
+                    ],
+                  ),
+                ),
+              ],
             ],
           );
         }
       },
+    );
+  }
+}
+
+class VocoderControls extends StatelessWidget {
+  final AudioEngine engine;
+
+  const VocoderControls({super.key, required this.engine});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        // Column 1: Sliders
+        Expanded(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Noise Mix
+              ValueListenableBuilder<double>(
+                valueListenable: engine.vocoderNoiseMix,
+                builder: (context, noise, _) {
+                  return Row(
+                    children: [
+                      const Text(
+                        'Noise',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Expanded(
+                        child: SliderTheme(
+                          data: SliderTheme.of(context).copyWith(
+                            trackHeight: 2,
+                            thumbShape: const RoundSliderThumbShape(
+                              enabledThumbRadius: 6,
+                            ),
+                            overlayShape: const RoundSliderOverlayShape(
+                              overlayRadius: 12,
+                            ),
+                          ),
+                          child: Slider(
+                            value: noise,
+                            min: 0.0,
+                            max: 0.2,
+                            activeColor: Colors.orange,
+                            inactiveColor: Colors.white24,
+                            onChanged: (val) {
+                              engine.vocoderNoiseMix.value = val;
+                              engine.updateVocoderParameters();
+                            },
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+              const SizedBox(height: 2),
+              // Env Release (Speed)
+              ValueListenableBuilder<double>(
+                valueListenable: engine.vocoderEnvRelease,
+                builder: (context, env, _) {
+                  return Row(
+                    children: [
+                      const Text(
+                        'Speed',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Expanded(
+                        child: SliderTheme(
+                          data: SliderTheme.of(context).copyWith(
+                            trackHeight: 2,
+                            thumbShape: const RoundSliderThumbShape(
+                              enabledThumbRadius: 6,
+                            ),
+                            overlayShape: const RoundSliderOverlayShape(
+                              overlayRadius: 12,
+                            ),
+                          ),
+                          child: Slider(
+                            value: env,
+                            min: 0.0,
+                            max: 1.0,
+                            activeColor: Colors.orange,
+                            inactiveColor: Colors.white24,
+                            onChanged: (val) {
+                              engine.vocoderEnvRelease.value = val;
+                              engine.updateVocoderParameters();
+                            },
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+
+        // Divider
+        Container(
+          width: 1,
+          height: 38,
+          margin: const EdgeInsets.symmetric(horizontal: 8),
+          color: Colors.orange.withValues(alpha: 0.3),
+        ),
+
+        // Column 2: Buttons
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Waveform Toggle
+            ValueListenableBuilder<int>(
+              valueListenable: engine.vocoderWaveform,
+              builder: (context, wave, _) {
+                return SizedBox(
+                  height: 22,
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.black45,
+                      foregroundColor: Colors.orange,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      side: const BorderSide(color: Colors.white12),
+                    ),
+                    onPressed: () {
+                      engine.vocoderWaveform.value = wave == 0 ? 1 : 0;
+                      engine.updateVocoderParameters();
+                    },
+                    icon: Icon(
+                      wave == 0 ? Icons.show_chart : Icons.water,
+                      size: 12,
+                    ),
+                    label: Text(
+                      wave == 0 ? 'Sawtooth' : 'Square',
+                      style: const TextStyle(fontSize: 10),
+                    ),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 4),
+            // Refresh Mic Button
+            SizedBox(
+              height: 22,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange[800],
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                ),
+                onPressed: () {
+                  AudioInputFFI().stopCapture();
+                  Future.delayed(const Duration(milliseconds: 100), () {
+                    AudioInputFFI().startCapture();
+                  });
+                },
+                icon: const Icon(Icons.refresh, size: 12),
+                label: const Text(
+                  'Refresh Mic',
+                  style: TextStyle(fontSize: 10),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }
