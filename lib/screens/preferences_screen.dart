@@ -12,6 +12,7 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import '../l10n/app_localizations.dart';
 import '../services/locale_provider.dart';
+import 'dart:async';
 
 /// The main settings interface for GrooveForge.
 ///

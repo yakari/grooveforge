@@ -10,7 +10,11 @@ import 'package:flutter_midi_command/flutter_midi_command.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:grooveforge/services/cc_mapping_service.dart';
 import '../services/sf2_parser.dart';
+import 'package:audio_session/audio_session.dart';
 import 'package:grooveforge/models/chord_detector.dart';
+import 'package:grooveforge/services/audio_input_ffi.dart';
+
+const String vocoderMode = 'vocoderMode';
 
 enum ScaleType {
   standard,
@@ -112,6 +116,8 @@ class AudioEngine extends ChangeNotifier {
   final List<ChannelState> channels = List.generate(16, (i) => ChannelState());
 
   Process? _fluidSynthProcess;
+
+  bool _isVocoderActive = false;
   CcMappingService? ccMappingService;
 
   final ValueNotifier<String?> toastNotifier = ValueNotifier(null);
@@ -144,6 +150,29 @@ class AudioEngine extends ChangeNotifier {
   final ValueNotifier<int> aftertouchDestCc = ValueNotifier<int>(1);
   final ValueNotifier<String> notationFormat = ValueNotifier('Standard');
   final ValueNotifier<int> pianoKeysToShow = ValueNotifier(22);
+
+  // --- Vocoder DSP State ---
+  final ValueNotifier<int> vocoderWaveform = ValueNotifier(
+    0,
+  ); // 0=Saw, 1=Square
+  final ValueNotifier<double> vocoderNoiseMix = ValueNotifier(
+    0.05,
+  ); // 0.0 - 1.0 (will scale to 2.0 in C)
+  final ValueNotifier<double> vocoderEnvRelease = ValueNotifier(
+    0.02,
+  ); // 0.0 - 1.0 (will scale to 0.0001 - 0.05 in C)
+  final ValueNotifier<double> vocoderBandwidth = ValueNotifier(
+    0.2, // Default Q ~8.0
+  );
+
+  void updateVocoderParameters() {
+    AudioInputFFI().setVocoderParameters(
+      waveform: vocoderWaveform.value,
+      noiseMix: vocoderNoiseMix.value,
+      envRelease: vocoderEnvRelease.value,
+      bandwidth: vocoderBandwidth.value,
+    );
+  }
 
   // --- Jam Mode State ---
 
@@ -199,6 +228,26 @@ class AudioEngine extends ChangeNotifier {
         '-m',
         'alsa_seq',
       ]);
+    } else {
+      try {
+        final session = await AudioSession.instance;
+        await session.configure(
+          AudioSessionConfiguration(
+            avAudioSessionCategory: AVAudioSessionCategory.playAndRecord,
+            avAudioSessionCategoryOptions:
+                AVAudioSessionCategoryOptions.allowBluetooth |
+                AVAudioSessionCategoryOptions.allowBluetoothA2dp,
+            androidAudioAttributes: AndroidAudioAttributes(
+              contentType: AndroidAudioContentType.speech,
+              usage: AndroidAudioUsage.voiceCommunication,
+            ),
+            androidAudioFocusGainType: AndroidAudioFocusGainType.gain,
+            androidWillPauseWhenDucked: true,
+          ),
+        );
+      } catch (e) {
+        debugPrint('Error configuring audio session for Bluetooth: $e');
+      }
     }
 
     initStatus.value = 'Restoring saved state...';
@@ -351,11 +400,14 @@ class AudioEngine extends ChangeNotifier {
         }
         channels[i] = state;
         if (state.soundfontPath != null &&
-            loadedSoundfonts.contains(state.soundfontPath)) {
+            (state.soundfontPath == vocoderMode ||
+                loadedSoundfonts.contains(state.soundfontPath))) {
           _applyChannelInstrument(i);
         }
       }
     }
+
+    _updateVocoderCaptureState();
 
     String? savedVisibleChannels = _prefs!.getString('visible_channels');
     if (savedVisibleChannels != null) {
@@ -517,17 +569,19 @@ class AudioEngine extends ChangeNotifier {
         channels[i].soundfontPath = null;
       }
     }
+    _updateVocoderCaptureState();
     await _saveState();
     toastNotifier.value = 'Unloaded Soundfont';
     stateNotifier.value++;
   }
 
   void assignSoundfontToChannel(int channel, String path) {
-    if (channel < 0 || channel > 15 || !loadedSoundfonts.contains(path)) {
-      return;
-    }
+    if (channel < 0 || channel > 15) return;
+    if (path != vocoderMode && !loadedSoundfonts.contains(path)) return;
+
     channels[channel].soundfontPath = path;
     _applyChannelInstrument(channel);
+    _updateVocoderCaptureState();
     _saveState();
     stateNotifier.value++;
   }
@@ -545,9 +599,23 @@ class AudioEngine extends ChangeNotifier {
     stateNotifier.value++;
   }
 
+  void _updateVocoderCaptureState() {
+    bool requiresVocoder = channels.any((c) => c.soundfontPath == vocoderMode);
+    if (requiresVocoder && !_isVocoderActive) {
+      bool started = AudioInputFFI().startCapture();
+      if (started) {
+        _isVocoderActive = true;
+        updateVocoderParameters();
+      }
+    } else if (!requiresVocoder && _isVocoderActive) {
+      AudioInputFFI().stopCapture();
+      _isVocoderActive = false;
+    }
+  }
+
   void _applyChannelInstrument(int channel) {
     ChannelState state = channels[channel];
-    if (state.soundfontPath == null) {
+    if (state.soundfontPath == null || state.soundfontPath == vocoderMode) {
       return;
     }
     if (Platform.isLinux) {
@@ -761,17 +829,24 @@ class AudioEngine extends ChangeNotifier {
 
     channels[channel].snappedKeyOwners[keyToPlay] = key;
 
-    if (Platform.isLinux && _fluidSynthProcess != null) {
-      _fluidSynthProcess!.stdin.writeln('noteon $channel $keyToPlay $velocity');
+    // Route to Vocoder
+    if (channels[channel].soundfontPath == vocoderMode) {
+      AudioInputFFI().playNote(key: keyToPlay, velocity: velocity);
     } else {
-      int sfId = _getSfIdForChannel(channel);
-      if (sfId != -1) {
-        _midiPro.playNote(
-          sfId: sfId,
-          channel: channel,
-          key: keyToPlay,
-          velocity: velocity,
+      if (Platform.isLinux && _fluidSynthProcess != null) {
+        _fluidSynthProcess!.stdin.writeln(
+          'noteon $channel $keyToPlay $velocity',
         );
+      } else {
+        int sfId = _getSfIdForChannel(channel);
+        if (sfId != -1) {
+          _midiPro.playNote(
+            sfId: sfId,
+            channel: channel,
+            key: keyToPlay,
+            velocity: velocity,
+          );
+        }
       }
     }
     Future.microtask(() => _updateChordState(channel, isNoteOn: true));
@@ -796,12 +871,17 @@ class AudioEngine extends ChangeNotifier {
     int? currentOwner = channels[channel].snappedKeyOwners[keyToStop];
     if (currentOwner == key) {
       channels[channel].snappedKeyOwners.remove(keyToStop);
-      if (Platform.isLinux && _fluidSynthProcess != null) {
-        _fluidSynthProcess!.stdin.writeln('noteoff $channel $keyToStop');
+
+      if (channels[channel].soundfontPath == vocoderMode) {
+        AudioInputFFI().stopNote(key: keyToStop);
       } else {
-        int sfId = _getSfIdForChannel(channel);
-        if (sfId != -1) {
-          _midiPro.stopNote(sfId: sfId, channel: channel, key: keyToStop);
+        if (Platform.isLinux && _fluidSynthProcess != null) {
+          _fluidSynthProcess!.stdin.writeln('noteoff $channel $keyToStop');
+        } else {
+          int sfId = _getSfIdForChannel(channel);
+          if (sfId != -1) {
+            _midiPro.stopNote(sfId: sfId, channel: channel, key: keyToStop);
+          }
         }
       }
     }
