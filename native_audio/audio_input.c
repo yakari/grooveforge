@@ -195,7 +195,7 @@ void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uin
             Oscillator* osc = &voices[v];
             if (osc->active || osc->releaseSamples > 0) {
                 if (!osc->active && osc->releaseSamples > 0) {
-                    osc->envelope -= (1.0f / 4800.0f); 
+                    osc->envelope -= (1.0f / 240.0f); 
                     osc->releaseSamples--;
                     if (osc->envelope <= 0.0f) {
                         osc->envelope = 0.0f;
@@ -315,7 +315,7 @@ EXPORT void VocoderNoteOff(int key) {
     for (int i = 0; i < MAX_POLYPHONY; ++i) {
         if (voices[i].active && voices[i].midiKey == key) {
             voices[i].active = false;
-            voices[i].releaseSamples = 4800; // ~100ms release tail
+            voices[i].releaseSamples = 240; // ~5ms release tail
         }
     }
 }
@@ -354,6 +354,7 @@ EXPORT int start_audio_capture() {
 
     // Initialize as FULL DUPLEX (Capture AND Playback)
     deviceConfig = ma_device_config_init(ma_device_type_duplex);
+    deviceConfig.performanceProfile = ma_performance_profile_low_latency;
     
 #ifdef __ANDROID__
     // Ask Android Core Audio (AAudio / OpenSL) to apply Hardware Acoustic Echo Cancellation (AEC)

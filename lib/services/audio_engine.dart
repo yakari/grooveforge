@@ -580,6 +580,7 @@ class AudioEngine extends ChangeNotifier {
       bool started = AudioInputFFI().startCapture();
       if (started) {
         _isVocoderActive = true;
+        updateVocoderParameters();
       }
     } else if (!requiresVocoder && _isVocoderActive) {
       AudioInputFFI().stopCapture();
