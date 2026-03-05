@@ -20,9 +20,19 @@ typedef VocoderNoteOffC = Void Function(Int32 key);
 typedef VocoderNoteOffDart = void Function(int key);
 
 typedef SetVocoderParametersC =
-    Void Function(Int32 waveform, Float noiseMix, Float envRelease);
+    Void Function(
+      Int32 waveform,
+      Float noiseMix,
+      Float envRelease,
+      Float bandwidth,
+    );
 typedef SetVocoderParametersDart =
-    void Function(int waveform, double noiseMix, double envRelease);
+    void Function(
+      int waveform,
+      double noiseMix,
+      double envRelease,
+      double bandwidth,
+    );
 
 class AudioInputFFI {
   static AudioInputFFI? _instance;
@@ -109,7 +119,8 @@ class AudioInputFFI {
     int waveform = 0,
     double noiseMix = 0.05,
     double envRelease = 0.02,
+    double bandwidth = 0.2,
   }) {
-    _setVocoderParameters(waveform, noiseMix, envRelease);
+    _setVocoderParameters(waveform, noiseMix, envRelease, bandwidth);
   }
 }

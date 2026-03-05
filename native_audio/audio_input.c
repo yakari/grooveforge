@@ -180,6 +180,16 @@ void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uin
     const float squelchAttack = 0.05f;     // Open instantly
     const float squelchRelease = 0.002f;   // Snap shut in ~100ms when talking stops
 
+    // Sibilance High-Pass Filter state (to let "S" and "T" consonants through)
+    static float sibilanceZ1 = 0.0f;
+    static float sibilanceZ2 = 0.0f;
+    // Simple high-pass coefficients for ~7000Hz at 48kHz
+    const float hp_b0 = 0.65f;
+    const float hp_b1 = -1.3f;
+    const float hp_b2 = 0.65f;
+    const float hp_a1 = -0.8f;
+    const float hp_a2 = 0.2f;
+
     // We process sample by sample
     for (ma_uint32 i = 0; i < frameCount; ++i) {
         float micInput = pIn ? pIn[i] : 0.0f;
@@ -207,12 +217,6 @@ void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uin
             }
         }
 
-        // Add user-controlled white noise to the synth for unvoiced sounds (sibilants like S, T, P)
-        if (g_vocoderNoiseMix > 0.001f) {
-            float noise = ((float)rand() / (float)RAND_MAX * 2.0f - 1.0f) * g_vocoderNoiseMix;
-            synthMix += noise;
-        }
-
         // Apply DC Blocker / Highpass to microphone
         micInput = pre_filter_mic(micInput);
 
@@ -237,6 +241,9 @@ void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uin
             if (voices[v].active || voices[v].releaseSamples > 0) totalActiveVoices += 1.0f;
         }
 
+        // 2ms attack to prevent envelope from tracking vocal chord pitch ripples (the 'gargle' effect)
+        const float envAttack = 0.01f; 
+        
         // ALWAYS process Modulator and Envelopes so they don't freeze when silent!
         for (int b = 0; b < NUM_BANDS; ++b) {
             // 1. Modulator (Mic) Bandpass
@@ -245,7 +252,8 @@ void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uin
             // 2. Envelope Follower (Full wave rectify + lowpass)
             float absMod = fabsf(modSignal);
             if (absMod > bands[b].envelope) {
-                bands[b].envelope = absMod; // Instant attack
+                // Smooth attack instead of instant
+                bands[b].envelope = bands[b].envelope * (1.0f - envAttack) + absMod * envAttack;
             } else {
                 // Use the user-controlled envelope release parameter
                 bands[b].envelope = bands[b].envelope * (1.0f - g_vocoderEnvRelease) + absMod * g_vocoderEnvRelease;
@@ -264,9 +272,25 @@ void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uin
             }
             // Add dynamic makeup gain to output
             vocoderOutput *= 20.0f;
+            
+            // --- Sibilance Injection ---
+            // Process the raw mic input through the 7kHz high-pass filter
+            float sibilance = micInput * hp_b0 + sibilanceZ1;
+            sibilanceZ1 = micInput * hp_b1 - sibilance * hp_a1 + sibilanceZ2;
+            sibilanceZ2 = micInput * hp_b2 - sibilance * hp_a2;
+            
+            // Mix the high-frequency consonants directly into the output 
+            // `g_vocoderNoiseMix` (Noise knob) controls the volume of these consonants
+            vocoderOutput += sibilance * g_vocoderNoiseMix * 2.5f;
+
         } else {
             // Silence when no notes are playing to prevent Larsen feedback loop!
             vocoderOutput = 0.0f; 
+            
+            // Keep the sibilance filter running so it doesn't pop when it opens
+            float sibilance = micInput * hp_b0 + sibilanceZ1;
+            sibilanceZ1 = micInput * hp_b1 - sibilance * hp_a1 + sibilanceZ2;
+            sibilanceZ2 = micInput * hp_b2 - sibilance * hp_a2;
         }
 
         // Apply Soft Clipper to prevent harsh digital distortion from clipping
@@ -320,20 +344,31 @@ EXPORT void VocoderNoteOff(int key) {
     }
 }
 
+// Initialize Vocoder DSP Filters dynamically
+static void init_vocoder_bands(float qFactor) {
+    float minFreq = 80.0f;
+    float maxFreq = 12000.0f;
+    for (int b = 0; b < NUM_BANDS; ++b) {
+        // Logarithmic spacing
+        float freq = minFreq * powf(maxFreq / minFreq, (float)b / (NUM_BANDS - 1));
+        // Q factor controls overlap.
+        calculateBandpass(&bands[b].modFilter, freq, qFactor);
+        calculateBandpass(&bands[b].carFilter, freq, qFactor);
+        // Do not reset envelope here to prevent audio pops if changed while playing
+    }
+}
+
 // Initialize and start audio duplex
 EXPORT int start_audio_capture() {
     if (isInitialized) return 0;
 
     // Initialize Vocoder DSP Filters dynamically
     envRelease = expf(-1.0f / (SAMPLE_RATE * 0.02f)); // 20ms release
-    float minFreq = 80.0f;
-    float maxFreq = 12000.0f;
+    
+    // Default Q factor 8.0 corresponds to our 0.2 UI default
+    init_vocoder_bands(8.0f);
+    
     for (int b = 0; b < NUM_BANDS; ++b) {
-        // Logarithmic spacing
-        float freq = minFreq * powf(maxFreq / minFreq, (float)b / (NUM_BANDS - 1));
-        // Q factor controls overlap. Q=12.0 gives clean, distinct formants for 32 bands
-        calculateBandpass(&bands[b].modFilter, freq, 12.0f);
-        calculateBandpass(&bands[b].carFilter, freq, 12.0f);
         bands[b].envelope = 0.0f;
     }
 
@@ -420,12 +455,16 @@ EXPORT float getOutputPeakLevel() {
     return peak;
 }
 
-EXPORT void setVocoderParameters(int waveform, float noiseMix, float envRelease) {
+EXPORT void setVocoderParameters(int waveform, float noiseMix, float envRelease, float bandwidth) {
     g_vocoderWaveform = waveform;
-    g_vocoderNoiseMix = noiseMix;
+    g_vocoderNoiseMix = noiseMix * 10.0f; // Scale 0.0-1.0 up to 0.0-10.0 for audible noise presence
     // Map a nice 0.0 - 1.0 value from the UI to the actual filter coefficient math
-    // 0.0 -> very slow (0.005), 1.0 -> very fast (0.1)
-    g_vocoderEnvRelease = 0.005f + (envRelease * 0.095f);
+    // 0.0 -> very slow (0.0001), 1.0 -> very fast (0.05)
+    g_vocoderEnvRelease = 0.0001f + (envRelease * 0.0499f);
+    
+    // Map bandwidth 0.0 to 1.0 to Q factor 2.0 (blurry) to 30.0 (sharp robotic)
+    float qFactor = 2.0f + (bandwidth * 28.0f);
+    init_vocoder_bands(qFactor);
 }
 
 // Deprecated, mapped to input for backward compat if needed

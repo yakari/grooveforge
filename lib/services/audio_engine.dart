@@ -156,16 +156,20 @@ class AudioEngine extends ChangeNotifier {
   ); // 0=Saw, 1=Square
   final ValueNotifier<double> vocoderNoiseMix = ValueNotifier(
     0.05,
-  ); // 0.0 - 0.2
+  ); // 0.0 - 1.0 (will scale to 2.0 in C)
   final ValueNotifier<double> vocoderEnvRelease = ValueNotifier(
     0.02,
-  ); // 0.0 - 1.0
+  ); // 0.0 - 1.0 (will scale to 0.0001 - 0.05 in C)
+  final ValueNotifier<double> vocoderBandwidth = ValueNotifier(
+    0.2, // Default Q ~8.0
+  );
 
   void updateVocoderParameters() {
     AudioInputFFI().setVocoderParameters(
       waveform: vocoderWaveform.value,
       noiseMix: vocoderNoiseMix.value,
       envRelease: vocoderEnvRelease.value,
+      bandwidth: vocoderBandwidth.value,
     );
   }
 

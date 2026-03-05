@@ -8,6 +8,7 @@ import 'package:grooveforge/services/audio_engine.dart';
 import 'package:grooveforge/services/audio_input_ffi.dart';
 import 'channel_scale_lock.dart';
 import 'vocoder_level_meters.dart';
+import '../rotary_knob.dart';
 
 const String vocoderMode = 'vocoderMode';
 
@@ -481,96 +482,67 @@ class VocoderSliders extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        // Noise Mix
-        ValueListenableBuilder<double>(
-          valueListenable: engine.vocoderNoiseMix,
-          builder: (context, noise, _) {
-            return Row(
-              children: [
-                const Text(
-                  'Noise',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Expanded(
-                  child: SliderTheme(
-                    data: SliderTheme.of(context).copyWith(
-                      trackHeight: 2,
-                      thumbShape: const RoundSliderThumbShape(
-                        enabledThumbRadius: 6,
-                      ),
-                      overlayShape: const RoundSliderOverlayShape(
-                        overlayRadius: 12,
-                      ),
-                    ),
-                    child: Slider(
-                      value: noise,
-                      min: 0.0,
-                      max: 0.2,
-                      activeColor: Colors.orange,
-                      inactiveColor: Colors.white24,
-                      onChanged: (val) {
-                        engine.vocoderNoiseMix.value = val;
-                        engine.updateVocoderParameters();
-                      },
-                    ),
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
-        const SizedBox(height: 2),
-        // Env Release (Speed)
-        ValueListenableBuilder<double>(
-          valueListenable: engine.vocoderEnvRelease,
-          builder: (context, env, _) {
-            return Row(
-              children: [
-                const Text(
-                  'Speed',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Expanded(
-                  child: SliderTheme(
-                    data: SliderTheme.of(context).copyWith(
-                      trackHeight: 2,
-                      thumbShape: const RoundSliderThumbShape(
-                        enabledThumbRadius: 6,
-                      ),
-                      overlayShape: const RoundSliderOverlayShape(
-                        overlayRadius: 12,
-                      ),
-                    ),
-                    child: Slider(
-                      value: env,
-                      min: 0.0,
-                      max: 1.0,
-                      activeColor: Colors.orange,
-                      inactiveColor: Colors.white24,
-                      onChanged: (val) {
-                        engine.vocoderEnvRelease.value = val;
-                        engine.updateVocoderParameters();
-                      },
-                    ),
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
-      ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+      child: Row(
+        mainAxisSize: MainAxisSize.max,
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          // Noise Knob
+          ValueListenableBuilder<double>(
+            valueListenable: engine.vocoderNoiseMix,
+            builder: (context, noise, _) {
+              return RotaryKnob(
+                value: noise,
+                min: 0.0,
+                max: 1.0,
+                label: 'NOISE',
+                size: 40,
+                onChanged: (val) {
+                  engine.vocoderNoiseMix.value = val;
+                  engine.updateVocoderParameters();
+                },
+              );
+            },
+          ),
+
+          // Speed Knob
+          ValueListenableBuilder<double>(
+            valueListenable: engine.vocoderEnvRelease,
+            builder: (context, env, _) {
+              return RotaryKnob(
+                value: env,
+                min: 0.0,
+                max: 1.0,
+                label: 'SPEED',
+                size: 40,
+                onChanged: (val) {
+                  engine.vocoderEnvRelease.value = val;
+                  engine.updateVocoderParameters();
+                },
+              );
+            },
+          ),
+
+          // Bandwidth Knob
+          ValueListenableBuilder<double>(
+            valueListenable: engine.vocoderBandwidth,
+            builder: (context, bw, _) {
+              return RotaryKnob(
+                value: bw,
+                min: 0.0,
+                max: 1.0,
+                label: 'BANDWIDTH',
+                size: 40,
+                onChanged: (val) {
+                  engine.vocoderBandwidth.value = val;
+                  engine.updateVocoderParameters();
+                },
+              );
+            },
+          ),
+        ],
+      ),
     );
   }
 }
