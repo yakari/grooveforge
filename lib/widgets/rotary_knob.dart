@@ -167,7 +167,7 @@ class _KnobPainter extends CustomPainter {
     // Top rim highlight for realistic bevel
     final innerBevelPaint =
         Paint()
-          ..color = Colors.white.withOpacity(0.15)
+          ..color = Colors.white.withValues(alpha: 0.15)
           ..style = PaintingStyle.stroke
           ..strokeWidth = 1.0;
     canvas.drawCircle(center, innerRadius, innerBevelPaint);

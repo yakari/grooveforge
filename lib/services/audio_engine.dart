@@ -10,6 +10,7 @@ import 'package:flutter_midi_command/flutter_midi_command.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:grooveforge/services/cc_mapping_service.dart';
 import '../services/sf2_parser.dart';
+import 'package:audio_session/audio_session.dart';
 import 'package:grooveforge/models/chord_detector.dart';
 import 'package:grooveforge/services/audio_input_ffi.dart';
 
@@ -227,6 +228,26 @@ class AudioEngine extends ChangeNotifier {
         '-m',
         'alsa_seq',
       ]);
+    } else {
+      try {
+        final session = await AudioSession.instance;
+        await session.configure(
+          AudioSessionConfiguration(
+            avAudioSessionCategory: AVAudioSessionCategory.playAndRecord,
+            avAudioSessionCategoryOptions:
+                AVAudioSessionCategoryOptions.allowBluetooth |
+                AVAudioSessionCategoryOptions.allowBluetoothA2dp,
+            androidAudioAttributes: AndroidAudioAttributes(
+              contentType: AndroidAudioContentType.speech,
+              usage: AndroidAudioUsage.voiceCommunication,
+            ),
+            androidAudioFocusGainType: AndroidAudioFocusGainType.gain,
+            androidWillPauseWhenDucked: true,
+          ),
+        );
+      } catch (e) {
+        debugPrint('Error configuring audio session for Bluetooth: $e');
+      }
     }
 
     initStatus.value = 'Restoring saved state...';
