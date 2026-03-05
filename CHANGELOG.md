@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-03-05
+### Added
+- **Vocoder Overhaul**: 32-band polyphonic vocoder with carrier waveform selection (including new 'Neutral' mode).
+- **Native Audio Input**: High-performance audio capture via miniaudio + FFI.
+- **Rotary UI Control**: New `RotaryKnob` custom widget for a more tactile experience.
+- **Advanced Vocoder Controls**: Added Bandwidth and Sibilance injection parameters.
+- **Audio Session Management**: Integration with `audio_session` for improved Bluetooth and routing support.
+- **Enhanced Level Meters**: Real-time visual feedback for vocoder input and output levels.
+
+### Changed
+- **Performance Optimizations**: Low-latency audio profile and optimized note release tails.
+
 ## [1.5.2] - 2026-03-04
 ### Fixed
 - **Chord Release Stabilization**: Optimized the chord release logic in Jam Mode by implementing a robust 50ms debounced stabilization window, preventing chord identity "flickering" during natural finger lift-offs.
