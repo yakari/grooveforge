@@ -426,7 +426,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get guideVocoderBody =>
-      'Le vocodeur utilise le micro pour moduler le son du synthé. Accédez-y via le preset \'VOCODER\' dans le sélecteur de patchs. Pour de meilleurs résultats :\n• Utilisez un casque ou des enceintes filaires (la latence Bluetooth est trop élevée).\n• Réglez les niveaux avec les boutons de gain.\n• Expérimentez avec les différentes ondes porteuses (Saw, Pulse, Neutral).';
+      'Le vocodeur utilise le micro pour moduler le son du synthé. Accédez-y via le preset \'VOCODER\' dans le sélecteur de patchs. Pour de meilleurs résultats :\n• Utilisez un casque ou des enceintes filaires (la latence Bluetooth est trop élevée).\n• Réglez les niveaux avec les boutons de gain.\n• Limitation Android : Vous ne pouvez pas utiliser deux périphériques USB séparés pour l\'entrée et la sortie. Utilisez un seul hub USB ou le micro interne.\n• Expérimentez avec les différentes ondes porteuses (Saw, Pulse, Neutral).';
 
   @override
   String get guideMidiTitle => 'Connectivité MIDI';
@@ -460,23 +460,60 @@ class AppLocalizationsFr extends AppLocalizations {
   String get guideScalesTitle => 'Gammes disponibles';
 
   @override
-  String get guideWelcomeHeader => 'Bienvenue dans GrooveForge v1.6.1';
+  String guideWelcomeHeader(String version) {
+    return 'Bienvenue dans GrooveForge v$version';
+  }
 
   @override
   String get guideWelcomeIntro =>
-      'Cette mise à jour apporte des améliorations significatives à votre workflow et à vos outils créatifs :';
+      'Cette mise à jour apporte des améliorations significatives à votre flux de travail et à vos outils créatifs :';
 
   @override
-  String get guideFeatureList1 => 'Connectivité MIDI et mapping unifiés';
+  String get guideChangelogExpand => 'Voir les nouveautés de cette version';
 
   @override
-  String get guideFeatureList2 => 'Nouveau Vocoder avec contrôles tactiles';
+  String get guideMidiHardware => '1. Connexion Matérielle';
 
   @override
-  String get guideFeatureList3 => 'Conseils musicaux et références de gammes';
+  String get guideMidiHardwareStep1 =>
+      'Connectez le contrôleur via USB (OTG) ou allumez l\'appareil BLE.';
 
   @override
-  String get guideFeatureList4 => 'Onboarding automatique pour les nouveautés';
+  String get guideMidiHardwareStep2 =>
+      'Allez dans Paramètres > Entrée MIDI et sélectionnez votre appareil.';
+
+  @override
+  String get guideMidiCcMappings => '2. Assignations CC & Système';
+
+  @override
+  String get guideMidiCcMappingsBody =>
+      'Liez les boutons à des effets comme le Volume ou des Actions Système :';
+
+  @override
+  String get guideMidiFeaturePatch => 'Patch Suivant/Précédent';
+
+  @override
+  String get guideMidiFeaturePatchDesc => 'Changez d\'instrument rapidement.';
+
+  @override
+  String get guideMidiFeatureScales => 'Cycle de Gammes';
+
+  @override
+  String get guideMidiFeatureScalesDesc => 'Changez l\'harmonie à la volée.';
+
+  @override
+  String get guideMidiFeatureJam => 'Bascule Mode Jam';
+
+  @override
+  String get guideMidiFeatureJamDesc => 'Forcez les esclaves à vous suivre.';
+
+  @override
+  String get guideMidiTipSplit =>
+      'Conseil : La plupart des contrôleurs MIDI modernes permettent de diviser les touches en zones/canaux distincts.';
+
+  @override
+  String get guideAndroidUsbLimitation =>
+      'Important : Sur Android, l\'utilisation d\'un hub USB avec des périphériques d\'entrée et de sortie séparés peut être instable. Utilisez une interface audio USB intégrée pour de meilleurs résultats.';
 
   @override
   String get micSelectionTitle => 'Entrée Audio';

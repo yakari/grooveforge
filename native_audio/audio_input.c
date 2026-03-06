@@ -3,6 +3,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <time.h>
 
 #ifdef __ANDROID__
 #include <android/log.h>
@@ -60,11 +61,52 @@ static int g_selectedCaptureDeviceIndex = -1; // -1 means default
 static int g_androidDeviceId = -1; // Specific Android Device ID for AAudio
 static int g_androidOutputDeviceId = -1; // Specific Android Output Device ID for AAudio
 
+// --- Latency Debug State ---
+static volatile int g_latencyDebugEnabled = 0;
+// Monotonic timestamp (ns) of the start of the most recent callback
+static volatile int64_t g_lastCallbackStartNs = 0;
+// Most-recent measured period between consecutive callbacks (ns)
+static volatile int64_t g_lastCallbackPeriodNs = 0;
+// Accumulator for rolling average over ~1s
+static int64_t g_periodAccumNs = 0;
+static int g_periodCount = 0;
+// Approximate number of callbacks per second (updated on each measurement)
+static int g_callbacksPerSec = 1;
+static int g_glitchCounter = 0;
+static int g_engineUnhealthy = 0;
+
+static int64_t _get_monotonic_ns(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (int64_t)ts.tv_sec * 1000000000LL + ts.tv_nsec;
+}
+
 // Global state
 static ma_context context;
-static ma_device device;
+static ma_device device;          // Playback-only (was duplex)
 static bool isInitialized = false;
 static Oscillator voices[MAX_POLYPHONY];
+
+// --- Dedicated Mic Capture Ring Buffer ---
+// A separate capture device feeds a ring buffer that the playback callback
+// reads from. This decouples capture from the duplex clock-alignment overhead
+// that was adding 300-400ms of delay on this Samsung device.
+#define MIC_RING_FRAMES 8192   // ~170ms of headroom at 48kHz (power-of-2 for fast modulo)
+#define MIC_RING_MASK   (MIC_RING_FRAMES - 1)
+static float          g_micRing[MIC_RING_FRAMES];
+// Written by mic capture callback, read by playback callback.
+// Accessed from two threads — plain volatile is sufficient for a single-producer
+// single-consumer ring on ARM (store-release / load-acquire semantics).
+static volatile ma_uint32 g_micWriteCursor = 0;
+
+static ma_device g_micDevice;     // Dedicated capture device
+static bool g_micDeviceRunning = false;
+
+// --- Latency Click Test ---
+// When latency debug is on and a note is pressed, inject a short click
+// directly into pOutput so we can measure RAW OUTPUT latency independently
+// of the mic path. If click is also delayed the output hardware path is slow.
+static volatile int g_clickCounter = 0;  // > 0 → mix click pulse for this many samples
 
 // --- DSP Helpers ---
 
@@ -170,153 +212,156 @@ static float renderOscillator(Oscillator* osc) {
     return sample;
 }
 
-// Data callback for full-duplex audio processing
-void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount)
+// --- Dedicated Mic Capture Callback ---
+// This fires on a dedicated high-priority capture thread (short period = 256 frames
+// = 5.3ms). Samples are pushed to g_micRing so the playback callback always
+// has access to the freshest mic data without duplex clock-alignment lag.
+void mic_capture_callback(ma_device* pDevice, void* pOutput, const void* pInput,
+                          ma_uint32 frameCount)
 {
-    float* pOut = (float*)pOutput;
     const float* pIn = (const float*)pInput;
+    if (!pIn || frameCount == 0) return;
+
+    ma_uint32 writePos = g_micWriteCursor;  // snapshot
+    for (ma_uint32 i = 0; i < frameCount; i++) {
+        g_micRing[(writePos + i) & MIC_RING_MASK] = pIn[i];
+    }
+    // Publish the new write position (store-release on ARM)
+    __atomic_store_n(&g_micWriteCursor, (writePos + frameCount) & MIC_RING_MASK,
+                     __ATOMIC_RELEASE);
+
+    // Update raw VU peak from dedicated capture thread
+    for (ma_uint32 i = 0; i < frameCount; i++) {
+        float a = fabsf(pIn[i]) * g_inputGain;
+        if (a > g_inputPeak) g_inputPeak = a;
+    }
+}
+
+// Data callback for full-duplex audio processing
+// Main audio loop.
+// Optimization: move voice counting OUT of the sample loop for speed.
+void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount) {
+    if (g_latencyDebugEnabled) {
+        int64_t now = _get_monotonic_ns();
+        if (g_lastCallbackStartNs != 0) {
+            int64_t period = now - g_lastCallbackStartNs;
+            g_lastCallbackPeriodNs = period;
+            g_periodAccumNs += period;
+            g_periodCount++;
+
+            // --- Jitter/Glitch Detection ---
+            double expectedMs = (double)frameCount / SAMPLE_RATE * 1000.0;
+            double actualMs = (double)period / 1e6;
+            if (actualMs > expectedMs * 1.5) {
+                g_glitchCounter++;
+                if (g_glitchCounter > 10) g_engineUnhealthy = 1;
+            } else if (g_glitchCounter > 0) {
+                g_glitchCounter--;
+                if (g_glitchCounter == 0) g_engineUnhealthy = 0;
+            }
+
+            double periodSec = (double)frameCount / SAMPLE_RATE;
+            int cbPerSec = (int)(1.0 / periodSec + 0.5);
+            if (cbPerSec < 1) cbPerSec = 1;
+            g_callbacksPerSec = cbPerSec;
+
+            if (g_periodCount >= cbPerSec) {
+                double avgPeriodMs = (double)(g_periodAccumNs / g_periodCount) / 1e6;
+                double bufferMs = (double)frameCount / SAMPLE_RATE * 1000.0;
+                LOGI("[Latency] avg_callback_period=%.2fms  buffer=%.2fms  glitches=%d status=%s",
+                     avgPeriodMs, bufferMs, g_glitchCounter, g_engineUnhealthy ? "UNHEALTHY" : "OK");
+                g_periodAccumNs = 0;
+                g_periodCount = 0;
+            }
+        }
+        g_lastCallbackStartNs = now;
+    }
+
+    ma_uint32 writePos = __atomic_load_n(&g_micWriteCursor, __ATOMIC_ACQUIRE);
+    ma_uint32 readStart = (writePos - frameCount) & MIC_RING_MASK;
+    float* pOut = (float*)pOutput;
     float inPeak = 0.0f;
     float outPeak = 0.0f;
-    
-    // Peak-based Squelch Gate variables
-    static float squelchEnv = 0.0f;
-    const float squelchThreshold = 0.003f; // Require fairly loud input to open gate
-    const float squelchAttack = 0.05f;     // Open instantly
-    const float squelchRelease = 0.002f;   // Snap shut in ~100ms when talking stops
 
-    // Sibilance High-Pass Filter state (to let "S" and "T" consonants through)
+    static float squelchEnv = 0.0f;
+    const float squelchThreshold = 0.003f;
+    const float squelchAttack = 0.05f;
+    const float squelchRelease = 0.002f;
+
     static float sibilanceZ1 = 0.0f;
     static float sibilanceZ2 = 0.0f;
-    // Simple high-pass coefficients for ~7000Hz at 48kHz
-    const float hp_b0 = 0.65f;
-    const float hp_b1 = -1.3f;
-    const float hp_b2 = 0.65f;
-    const float hp_a1 = -0.8f;
-    const float hp_a2 = 0.2f;
+    const float hp_b0 = 0.65f, hp_b1 = -1.3f, hp_b2 = 0.65f, hp_a1 = -0.8f, hp_a2 = 0.2f;
 
-    // Track Peak Level for VU meter
-    float peak = 0.0f;
-    for (ma_uint32 i = 0; i < frameCount; i++) {
-        float absSample = fabsf(pIn[i]);
-        if (absSample > peak) peak = absSample;
+    // PRE-LOOP: Count active voices once per callback
+    int activeVoiceCount = 0;
+    for (int v = 0; v < MAX_POLYPHONY; ++v) {
+        if (voices[v].active || voices[v].releaseSamples > 0) activeVoiceCount++;
     }
-    // Smooth peak decay
-    if (peak > g_inputPeak) g_inputPeak = peak;
-    else g_inputPeak *= 0.95f;
 
-    // We process sample by sample
     for (ma_uint32 i = 0; i < frameCount; ++i) {
-        float micInput = pIn ? pIn[i] : 0.0f;
-        micInput *= g_inputGain;
-        
-        // Track visual input peak BEFORE the gate mutes it, so the user can see their raw mic level
+        float micInput = g_micRing[(readStart + i) & MIC_RING_MASK] * g_inputGain;
         float absRawMic = fabsf(micInput);
         if (absRawMic > inPeak) inPeak = absRawMic;
 
         float synthMix = 0.0f;
-
-        // Render Synthesizer Carrier
-        for (int v = 0; v < MAX_POLYPHONY; ++v) {
-            Oscillator* osc = &voices[v];
-            if (osc->active || osc->releaseSamples > 0) {
-                if (!osc->active && osc->releaseSamples > 0) {
-                    osc->envelope -= (1.0f / 240.0f); 
-                    osc->releaseSamples--;
-                    if (osc->envelope <= 0.0f) {
-                        osc->envelope = 0.0f;
-                        osc->releaseSamples = 0;
+        if (activeVoiceCount > 0) {
+            for (int v = 0; v < MAX_POLYPHONY; ++v) {
+                Oscillator* osc = &voices[v];
+                if (osc->active || osc->releaseSamples > 0) {
+                    if (!osc->active && osc->releaseSamples > 0) {
+                        osc->envelope -= (1.0f / 240.0f);
+                        osc->releaseSamples--;
+                        if (osc->envelope <= 0.0f) { osc->envelope = 0.0f; osc->releaseSamples = 0; }
                     }
+                    synthMix += renderOscillator(osc) * (osc->velocity / 127.0f) * osc->envelope * 0.8f;
                 }
-                float rawOsc = renderOscillator(osc);
-                synthMix += rawOsc * (osc->velocity / 127.0f) * osc->envelope * 0.8f; 
             }
         }
 
-        // Apply DC Blocker / Highpass to microphone
         micInput = pre_filter_mic(micInput);
 
-        // --- HARD PEAK SQUELCH GATE ---
-        // Instantly kill the mic if it drops below the threshold to violently break Larsen loops
-        if (absRawMic > squelchEnv) {
-            squelchEnv = squelchEnv * (1.0f - squelchAttack) + absRawMic * squelchAttack; // Fast open
+        if (activeVoiceCount == 0) {
+            if (absRawMic > squelchEnv) squelchEnv = squelchEnv * (1.0f - squelchAttack) + absRawMic * squelchAttack;
+            else squelchEnv = squelchEnv * (1.0f - squelchRelease) + absRawMic * squelchRelease;
+            if (squelchEnv < squelchThreshold) { micInput = 0.0f; squelchEnv = 0.0f; }
         } else {
-            squelchEnv = squelchEnv * (1.0f - squelchRelease) + absRawMic * squelchRelease; // Fast close
+            squelchEnv = absRawMic;
         }
 
-        if (squelchEnv < squelchThreshold) {
-            micInput = 0.0f;
-            squelchEnv = 0.0f; // Force crush to prevent floating point stragglers
-        }
-
-        // --- Channel Vocoder Algorithm ---
-        float vocoderOutput = 0.0f;
-        float totalActiveVoices = 0.0f;
-
-        for (int v = 0; v < MAX_POLYPHONY; ++v) {
-            if (voices[v].active || voices[v].releaseSamples > 0) totalActiveVoices += 1.0f;
-        }
-
-        // 2ms attack to prevent envelope from tracking vocal chord pitch ripples (the 'gargle' effect)
-        const float envAttack = 0.01f; 
-        
-        // ALWAYS process Modulator and Envelopes so they don't freeze when silent!
         for (int b = 0; b < NUM_BANDS; ++b) {
-            // 1. Modulator (Mic) Bandpass
             float modSignal = processBiquad(&bands[b].modFilter, micInput);
-            
-            // 2. Envelope Follower (Full wave rectify + lowpass)
             float absMod = fabsf(modSignal);
-            if (absMod > bands[b].envelope) {
-                // Smooth attack instead of instant
-                bands[b].envelope = bands[b].envelope * (1.0f - envAttack) + absMod * envAttack;
-            } else {
-                // Use the user-controlled envelope release parameter
-                bands[b].envelope = bands[b].envelope * (1.0f - g_vocoderEnvRelease) + absMod * g_vocoderEnvRelease;
-            }
-            // Anti-denormal / Hard zero
+            if (absMod > bands[b].envelope) bands[b].envelope = bands[b].envelope * (1.0f - 0.01f) + absMod * 0.01f;
+            else bands[b].envelope = bands[b].envelope * (1.0f - g_vocoderEnvRelease) + absMod * g_vocoderEnvRelease;
             if (bands[b].envelope < 1e-6f) bands[b].envelope = 0.0f;
         }
 
-        if (totalActiveVoices > 0.0f) {
+        float vocoderOutput = 0.0f;
+        if (activeVoiceCount > 0) {
             for (int b = 0; b < NUM_BANDS; ++b) {
-                // 3. Carrier (Synth) Bandpass
-                float carSignal = processBiquad(&bands[b].carFilter, synthMix);
-
-                // 4. Amplitude Modulation (Restored basic linear multiplication)
-                vocoderOutput += carSignal * bands[b].envelope;
+                vocoderOutput += processBiquad(&bands[b].carFilter, synthMix) * bands[b].envelope;
             }
-            // Add dynamic makeup gain to output
             vocoderOutput *= 20.0f;
-            
-            // --- Sibilance Injection ---
-            // Process the raw mic input through the 7kHz high-pass filter
             float sibilance = micInput * hp_b0 + sibilanceZ1;
             sibilanceZ1 = micInput * hp_b1 - sibilance * hp_a1 + sibilanceZ2;
             sibilanceZ2 = micInput * hp_b2 - sibilance * hp_a2;
-            
-            // Mix the high-frequency consonants directly into the output 
-            // `g_vocoderNoiseMix` (Noise knob) controls the volume of these consonants
             vocoderOutput += sibilance * g_vocoderNoiseMix * 2.5f;
-
         } else {
-            // Silence when no notes are playing to prevent Larsen feedback loop!
-            vocoderOutput = 0.0f; 
-            
-            // Keep the sibilance filter running so it doesn't pop when it opens
             float sibilance = micInput * hp_b0 + sibilanceZ1;
             sibilanceZ1 = micInput * hp_b1 - sibilance * hp_a1 + sibilanceZ2;
             sibilanceZ2 = micInput * hp_b2 - sibilance * hp_a2;
         }
 
-        // Apply Soft Clipper to prevent harsh digital distortion from clipping
         vocoderOutput = soft_clip(vocoderOutput) * 0.95f;
-        
+
+        if (g_latencyDebugEnabled && g_clickCounter > 0) {
+            vocoderOutput += 0.6f * (1.0f - (float)(240 - g_clickCounter) / 240.0f);
+            g_clickCounter--;
+        }
+
         float absOut = fabsf(vocoderOutput);
         if (absOut > outPeak) outPeak = absOut;
-
-        if (pOut) {
-            pOut[i] = vocoderOutput; 
-        }
+        if (pOut) pOut[i] = vocoderOutput;
     }
 
     if (inPeak > g_inputPeak) g_inputPeak = inPeak;
@@ -339,12 +384,16 @@ EXPORT void VocoderNoteOn(int key, int velocity) {
             voices[i].midiKey = key;
             voices[i].frequency = noteToFreq(key);
             voices[i].velocity = velocity;
-            voices[i].phase = ((float)rand() / (float)RAND_MAX); // Randomize start phase for natural chorus
+            voices[i].phase = ((float)rand() / (float)RAND_MAX);
             voices[i].phase2 = ((float)rand() / (float)RAND_MAX);
             voices[i].phase3 = ((float)rand() / (float)RAND_MAX);
             voices[i].envelope = 1.0f;
             voices[i].releaseSamples = 0;
             voices[i].filterState = 0.0f;
+            // Latency click test: inject a brief 5ms click into the output so the
+            // user can hear when this note-on reaches the audio thread.
+            // Helps distinguish output-path latency from mic-path latency.
+            if (g_latencyDebugEnabled) g_clickCounter = 240;
             return;
         }
     }
@@ -373,53 +422,53 @@ static void init_vocoder_bands(float qFactor) {
     }
 }
 
-// Initialize and start audio duplex
+// Initialize and start audio — separate capture + playback devices.
+// This decouples the capture clock from the playback clock, eliminating the
+// TimeSeries sync overhead that was adding 300-400ms of mic onset delay on Android.
 EXPORT int start_audio_capture() {
     if (isInitialized) return 0;
 
-    // Initialize Vocoder DSP Filters dynamically
-    envRelease = expf(-1.0f / (SAMPLE_RATE * 0.02f)); // 20ms release
-    
-    // Default Q factor 8.0 corresponds to our 0.2 UI default
+    // Initialize Vocoder DSP
+    envRelease = expf(-1.0f / (SAMPLE_RATE * 0.02f));
     init_vocoder_bands(8.0f);
-    
-    for (int b = 0; b < NUM_BANDS; ++b) {
-        bands[b].envelope = 0.0f;
-    }
+    for (int b = 0; b < NUM_BANDS; ++b) bands[b].envelope = 0.0f;
+    for (int i = 0; i < MAX_POLYPHONY; ++i) { voices[i].active = false; voices[i].releaseSamples = 0; }
 
-    // Reset voices
-    for (int i = 0; i < MAX_POLYPHONY; ++i) {
-        voices[i].active = false;
-        voices[i].releaseSamples = 0;
-    }
+    // Clear the mic ring buffer
+    for (int i = 0; i < MIC_RING_FRAMES; i++) g_micRing[i] = 0.0f;
+    g_micWriteCursor = 0;
 
     ma_result result;
-    ma_device_config deviceConfig;
-
-    result = ma_context_init(NULL, 0, NULL, &context);
+    ma_context_config ctxConfig = ma_context_config_init();
+    result = ma_context_init(NULL, 0, &ctxConfig, &context);
     if (result != MA_SUCCESS) {
         LOGE("Failed to initialize context: %d\n", result);
         return -1;
     }
 
-    // Initialize as FULL DUPLEX (Capture AND Playback)
-    deviceConfig = ma_device_config_init(ma_device_type_duplex);
-    deviceConfig.performanceProfile = ma_performance_profile_low_latency;
+    // ---- 1. Dedicated Capture Device (256 frames = 5.3ms per callback) ----
+    // Runs independently from playback. Mic samples go to the ring buffer.
+    ma_device_config capConfig = ma_device_config_init(ma_device_type_capture);
+    capConfig.performanceProfile = ma_performance_profile_low_latency;
+    capConfig.capture.format     = ma_format_f32;
+    capConfig.capture.channels   = CHANNELS;
+    capConfig.sampleRate         = SAMPLE_RATE;
+    capConfig.dataCallback       = mic_capture_callback;
+    capConfig.periodSizeInFrames = 256;   // 5.3ms — smallest practical buffer
+    capConfig.periods            = 2;
 
 #ifdef __ANDROID__
-    // Use camcorder preset for potentially cleaner, higher-gain signal than voice_communication
-    deviceConfig.aaudio.inputPreset = ma_aaudio_input_preset_camcorder;
-    deviceConfig.opensl.recordingPreset = ma_opensl_recording_preset_camcorder;
+    capConfig.aaudio.inputPreset    = ma_aaudio_input_preset_voice_performance;
+    capConfig.opensl.recordingPreset = ma_opensl_recording_preset_voice_unprocessed;
 #endif
-    
-    // Capture config
+
+    // Device selection: use the same logic as before
     ma_device_info* pCaptureDeviceInfos;
     ma_uint32 captureDeviceCount;
     ma_result devResult = ma_context_get_devices(&context, NULL, NULL, &pCaptureDeviceInfos, &captureDeviceCount);
-    
+
     static ma_device_id customDeviceId;
     bool useCustomId = false;
-
 #ifdef __ANDROID__
     if (g_androidDeviceId > 0) {
         customDeviceId.aaudio = g_androidDeviceId;
@@ -427,65 +476,94 @@ EXPORT int start_audio_capture() {
         useCustomId = true;
     }
 #endif
-
     if (useCustomId) {
-        deviceConfig.capture.pDeviceID = &customDeviceId;
-        LOGI("GrooveForge: Opening Audio Device with specific ID: %d\n", g_androidDeviceId);
-    } else if (devResult == MA_SUCCESS && g_selectedCaptureDeviceIndex >= 0 && (ma_uint32)g_selectedCaptureDeviceIndex < captureDeviceCount) {
-        deviceConfig.capture.pDeviceID = &pCaptureDeviceInfos[g_selectedCaptureDeviceIndex].id;
-        LOGI("GrooveForge: Opening Audio Device by index: %d\n", g_selectedCaptureDeviceIndex);
+        capConfig.capture.pDeviceID = &customDeviceId;
+        LOGI("GrooveForge: Opening Capture Device with specific ID: %d", g_androidDeviceId);
+    } else if (devResult == MA_SUCCESS && g_selectedCaptureDeviceIndex >= 0 &&
+               (ma_uint32)g_selectedCaptureDeviceIndex < captureDeviceCount) {
+        capConfig.capture.pDeviceID = &pCaptureDeviceInfos[g_selectedCaptureDeviceIndex].id;
+        LOGI("GrooveForge: Opening Capture Device by index: %d", g_selectedCaptureDeviceIndex);
     } else {
-        deviceConfig.capture.pDeviceID = NULL; 
-        LOGI("GrooveForge: Opening Default Audio Device\n");
+        capConfig.capture.pDeviceID = NULL;
+        LOGI("GrooveForge: Opening Default Capture Device");
     }
+
+    result = ma_device_init(&context, &capConfig, &g_micDevice);
+    if (result != MA_SUCCESS) {
+        LOGE("Failed to init capture device: %d", result);
+        ma_context_uninit(&context);
+        return -2;
+    }
+    result = ma_device_start(&g_micDevice);
+    if (result != MA_SUCCESS) {
+        LOGE("Failed to start capture device: %d", result);
+        ma_device_uninit(&g_micDevice);
+        ma_context_uninit(&context);
+        return -3;
+    }
+    g_micDeviceRunning = true;
+
+    ma_uint32 capFrames  = g_micDevice.capture.internalPeriodSizeInFrames;
+    ma_uint32 capPeriods = g_micDevice.capture.internalPeriods;
+    double capLatencyMs  = (double)(capFrames * capPeriods) / SAMPLE_RATE * 1000.0;
+    LOGI("[Latency] CAPTURE device: %u frames x %u periods = %.1fms (requested 256)",
+         capFrames, capPeriods, capLatencyMs);
+
+    // ---- 2. Playback-Only Device (512 frames = 10.7ms per callback) ----
+    ma_device_config playConfig = ma_device_config_init(ma_device_type_playback);
+    playConfig.performanceProfile        = ma_performance_profile_low_latency;
+    playConfig.playback.format           = ma_format_f32;
+    playConfig.playback.channels         = CHANNELS;
+    playConfig.sampleRate                = SAMPLE_RATE;
+    playConfig.dataCallback              = data_callback;
+    playConfig.periodSizeInFrames        = 512;
+    playConfig.periods                   = 3;
+    playConfig.noPreSilencedOutputBuffer = MA_TRUE;
+    playConfig.noClip                    = MA_TRUE;
 
 #ifdef __ANDROID__
     static ma_device_id customOutputDeviceId;
     bool useCustomOutputId = false;
-
     if (g_androidOutputDeviceId > 0) {
         customOutputDeviceId.aaudio = g_androidOutputDeviceId;
         customOutputDeviceId.opensl = (ma_uint32)g_androidOutputDeviceId;
         useCustomOutputId = true;
     }
-
     if (useCustomOutputId) {
-        deviceConfig.playback.pDeviceID = &customOutputDeviceId;
-        LOGI("GrooveForge: Opening Playback Device with specific ID: %d\n", g_androidOutputDeviceId);
+        playConfig.playback.pDeviceID = &customOutputDeviceId;
+        LOGI("GrooveForge: Opening Playback Device with specific ID: %d", g_androidOutputDeviceId);
     } else {
-        deviceConfig.playback.pDeviceID = NULL; 
-        LOGI("GrooveForge: Opening Default Playback Device\n");
+        playConfig.playback.pDeviceID = NULL;
+        LOGI("GrooveForge: Opening Default Playback Device");
     }
 #else
-    deviceConfig.playback.pDeviceID = NULL; 
+    playConfig.playback.pDeviceID = NULL;
 #endif
-    
-    deviceConfig.capture.format    = ma_format_f32;
-    deviceConfig.capture.channels  = CHANNELS;
-    
-    // Playback config
-    deviceConfig.playback.format    = ma_format_f32;
-    deviceConfig.playback.channels  = CHANNELS;
 
-    deviceConfig.sampleRate        = SAMPLE_RATE;
-    deviceConfig.dataCallback      = data_callback;
-
-    result = ma_device_init(&context, &deviceConfig, &device);
+    result = ma_device_init(&context, &playConfig, &device);
     if (result != MA_SUCCESS) {
-        LOGE("Failed to initialize device: %d\n", result);
+        LOGE("Failed to init playback device: %d", result);
+        ma_device_stop(&g_micDevice); ma_device_uninit(&g_micDevice);
         ma_context_uninit(&context);
-        return -2;
+        return -4;
     }
-
     result = ma_device_start(&device);
     if (result != MA_SUCCESS) {
-        LOGE("Failed to start device: %d\n", result);
+        LOGE("Failed to start playback device: %d", result);
         ma_device_uninit(&device);
+        ma_device_stop(&g_micDevice); ma_device_uninit(&g_micDevice);
         ma_context_uninit(&context);
-        return -3;
+        return -5;
     }
 
-    LOGI("Audio duplex (Vocoder synth) started successfully!");
+    ma_uint32 playFrames  = device.playback.internalPeriodSizeInFrames;
+    ma_uint32 playPeriods = device.playback.internalPeriods;
+    double playLatencyMs  = (double)(playFrames * playPeriods) / SAMPLE_RATE * 1000.0;
+    LOGI("[Latency] PLAYBACK device: %u frames x %u periods = %.1fms",
+         playFrames, playPeriods, playLatencyMs);
+    LOGI("[Latency] Est. capture overhead: %.1fms — playback overhead: %.1fms — total budget: ~%.0fms",
+         capLatencyMs, playLatencyMs, capLatencyMs + playLatencyMs);
+    LOGI("[Latency] TIP: enable latency debug then press a key to hear the click test (output-only check)");
 
     isInitialized = true;
     return 0; // Success
@@ -494,11 +572,16 @@ EXPORT int start_audio_capture() {
 EXPORT void stop_audio_capture() {
     if (!isInitialized) return;
 
+    if (g_micDeviceRunning) {
+        ma_device_stop(&g_micDevice);
+        ma_device_uninit(&g_micDevice);
+        g_micDeviceRunning = false;
+    }
+
     ma_device_stop(&device);
     ma_device_uninit(&device);
     ma_context_uninit(&context);
 
-    isInitialized = false;
     isInitialized = false;
     g_inputPeak = 0.0f;
     g_outputPeak = 0.0f;
@@ -567,6 +650,31 @@ EXPORT void set_capture_device_config(int index, float gain, int androidDeviceId
          index, androidDeviceId, androidOutputDeviceId);
 }
 
+
+// --- Latency Debug FFI Exports ---
+
+EXPORT void set_latency_debug(int enabled) {
+    g_latencyDebugEnabled = enabled;
+    if (enabled) {
+        g_lastCallbackStartNs = 0;
+        g_periodAccumNs = 0;
+        g_periodCount = 0;
+        LOGI("[Latency] debug logging ENABLED");
+    } else {
+        LOGI("[Latency] debug logging DISABLED");
+    }
+}
+
+EXPORT float get_last_callback_period_ms(void) {
+    if (g_lastCallbackPeriodNs == 0) return 0.0f;
+    return (float)((double)g_lastCallbackPeriodNs / 1e6);
+}
+
+/// Returns the engine health status.
+/// 0 = OK, 1 = UNHEALTHY (too many glitches detected)
+EXPORT int get_engine_health(void) {
+    return g_engineUnhealthy;
+}
 
 // Deprecated, mapped to input for backward compat if needed
 EXPORT float getPeakLevel() {

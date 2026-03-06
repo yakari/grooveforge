@@ -851,7 +851,7 @@ abstract class AppLocalizations {
   /// No description provided for @guideVocoderBody.
   ///
   /// In en, this message translates to:
-  /// **'The Vocoder uses your device microphone to modulate the synth sound. Access it by selecting the \'VOCODER\' preset in the soundfont dropdown. For best results:\n• Use wired headphones or speakers (latency over Bluetooth is too high).\n• Setup mic levels with the gain knobs.\n• Experiment with different carrier waves (Saw, Pulse, Neutral).'**
+  /// **'The Vocoder uses your device microphone to modulate the synth sound. Access it by selecting the \'VOCODER\' preset in the soundfont dropdown. For best results:\n• Use wired headphones or speakers (latency over Bluetooth is too high).\n• Setup mic levels with the gain knobs.\n• Android Limitation: You cannot use separate USB devices for input and output. Use a single USB hub/interface that handles both, or the internal mic.\n• Experiment with different carrier waves (Saw, Pulse, Neutral).'**
   String get guideVocoderBody;
 
   /// No description provided for @guideMidiTitle.
@@ -911,8 +911,8 @@ abstract class AppLocalizations {
   /// No description provided for @guideWelcomeHeader.
   ///
   /// In en, this message translates to:
-  /// **'Welcome to GrooveForge v1.6.1'**
-  String get guideWelcomeHeader;
+  /// **'Welcome to GrooveForge v{version}'**
+  String guideWelcomeHeader(String version);
 
   /// No description provided for @guideWelcomeIntro.
   ///
@@ -920,29 +920,89 @@ abstract class AppLocalizations {
   /// **'This update brings significant improvements to your workflow and creative tools:'**
   String get guideWelcomeIntro;
 
-  /// No description provided for @guideFeatureList1.
+  /// No description provided for @guideChangelogExpand.
   ///
   /// In en, this message translates to:
-  /// **'Unified MIDI connectivity & mapping'**
-  String get guideFeatureList1;
+  /// **'See what\'s new in this version'**
+  String get guideChangelogExpand;
 
-  /// No description provided for @guideFeatureList2.
+  /// No description provided for @guideMidiHardware.
   ///
   /// In en, this message translates to:
-  /// **'New Vocoder with tactile controls'**
-  String get guideFeatureList2;
+  /// **'1. Hardware Connection'**
+  String get guideMidiHardware;
 
-  /// No description provided for @guideFeatureList3.
+  /// No description provided for @guideMidiHardwareStep1.
   ///
   /// In en, this message translates to:
-  /// **'Musical tips & visual scale reference'**
-  String get guideFeatureList3;
+  /// **'Connect controller via USB (OTG) or power on BLE device.'**
+  String get guideMidiHardwareStep1;
 
-  /// No description provided for @guideFeatureList4.
+  /// No description provided for @guideMidiHardwareStep2.
   ///
   /// In en, this message translates to:
-  /// **'Automatic onboarding for new features'**
-  String get guideFeatureList4;
+  /// **'Go to Settings > MIDI Input and select your device.'**
+  String get guideMidiHardwareStep2;
+
+  /// No description provided for @guideMidiCcMappings.
+  ///
+  /// In en, this message translates to:
+  /// **'2. CC & System Mappings'**
+  String get guideMidiCcMappings;
+
+  /// No description provided for @guideMidiCcMappingsBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Bind knobs to effects like Volume or System Actions:'**
+  String get guideMidiCcMappingsBody;
+
+  /// No description provided for @guideMidiFeaturePatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Patch Up/Down'**
+  String get guideMidiFeaturePatch;
+
+  /// No description provided for @guideMidiFeaturePatchDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Quickly switch instruments.'**
+  String get guideMidiFeaturePatchDesc;
+
+  /// No description provided for @guideMidiFeatureScales.
+  ///
+  /// In en, this message translates to:
+  /// **'Cycle Scales'**
+  String get guideMidiFeatureScales;
+
+  /// No description provided for @guideMidiFeatureScalesDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Change harmony on the fly.'**
+  String get guideMidiFeatureScalesDesc;
+
+  /// No description provided for @guideMidiFeatureJam.
+  ///
+  /// In en, this message translates to:
+  /// **'Toggle Jam'**
+  String get guideMidiFeatureJam;
+
+  /// No description provided for @guideMidiFeatureJamDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Force slaves to follow your lead.'**
+  String get guideMidiFeatureJamDesc;
+
+  /// No description provided for @guideMidiTipSplit.
+  ///
+  /// In en, this message translates to:
+  /// **'Tip: Most modern MIDI controllers allow splitting the keys into distinct zones/channels.'**
+  String get guideMidiTipSplit;
+
+  /// No description provided for @guideAndroidUsbLimitation.
+  ///
+  /// In en, this message translates to:
+  /// **'Important: On Android, using a USB hub with separate input and output devices can be unstable. Use an integrated USB Audio Interface for best results.'**
+  String get guideAndroidUsbLimitation;
 
   /// No description provided for @micSelectionTitle.
   ///

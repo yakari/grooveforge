@@ -1,12 +1,90 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
+import 'package:package_info_plus/package_info_plus.dart';
 import '../l10n/app_localizations.dart';
 
 /// A modal dialog containing the comprehensive user guide for GrooveForge.
 ///
 /// The guide is organized into distinct tabs: Features, MIDI Connectivity,
 /// Soundfonts, and Musical Tips.
-class UserGuideModal extends StatelessWidget {
+class UserGuideModal extends StatefulWidget {
   const UserGuideModal({super.key});
+
+  @override
+  State<UserGuideModal> createState() => _UserGuideModalState();
+}
+
+class _UserGuideModalState extends State<UserGuideModal> {
+  String _version = "...";
+  List<String> _latestChanges = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadVersionData();
+  }
+
+  Future<void> _loadVersionData() async {
+    final info = await PackageInfo.fromPlatform();
+    if (!mounted) return;
+
+    setState(() {
+      _version = info.version;
+    });
+
+    // Determine locale and changelog asset
+    final locale = Localizations.localeOf(context).languageCode;
+    final isFrench = locale == 'fr';
+    final changelogAsset = isFrench ? 'CHANGELOG.fr.md' : 'CHANGELOG.md';
+
+    try {
+      final content = await rootBundle.loadString(changelogAsset);
+      final changes = _parseLatestAdded(content, isFrench);
+      if (mounted) {
+        setState(() {
+          _latestChanges = changes;
+        });
+      }
+    } catch (e) {
+      debugPrint("Error loading changelog: $e");
+    }
+  }
+
+  List<String> _parseLatestAdded(String content, bool isFrench) {
+    final List<String> lines = content.split('\n');
+    final List<String> addedLines = [];
+    bool inLatestVersion = false;
+    bool inAddedSection = false;
+
+    final addedHeader = isFrench ? '### Ajouté' : '### Added';
+
+    for (var line in lines) {
+      line = line.trim();
+      if (line.startsWith('## [')) {
+        if (inLatestVersion) break; // Finished the first version block
+        inLatestVersion = true;
+        continue;
+      }
+
+      if (inLatestVersion && line.startsWith(addedHeader)) {
+        inAddedSection = true;
+        continue;
+      }
+
+      if (inAddedSection) {
+        if (line.startsWith('###')) {
+          break; // Next sub-section (Changed/Fixed)
+        }
+        if (line.startsWith('- ')) {
+          // Extract text and remove potential bolding/markdown
+          String clean = line.substring(2).replaceAll('**', '');
+          addedLines.add(clean);
+        }
+      }
+    }
+
+    return addedLines;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -68,10 +146,13 @@ class UserGuideModal extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              const Expanded(
+              Expanded(
                 child: TabBarView(
                   children: [
-                    _FeaturesTab(),
+                    _FeaturesTab(
+                      version: _version,
+                      latestChanges: _latestChanges,
+                    ),
                     _MidiConnectivityTab(),
                     _SoundfontsTab(),
                     _MusicalTipsTab(),
@@ -88,7 +169,9 @@ class UserGuideModal extends StatelessWidget {
 
 /// Displays information about Jam Mode and the new Vocoder feature.
 class _FeaturesTab extends StatelessWidget {
-  const _FeaturesTab();
+  final String version;
+  final List<String> latestChanges;
+  const _FeaturesTab({required this.version, required this.latestChanges});
 
   @override
   Widget build(BuildContext context) {
@@ -96,7 +179,7 @@ class _FeaturesTab extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 10),
       children: [
-        _buildWelcomeHeader(context, l10n),
+        _buildWelcomeHeader(context, l10n, version, latestChanges),
         const SizedBox(height: 24),
         _buildSectionTitle(l10n.guideJamModeTitle),
         _buildParagraph(l10n.guideJamModeBody),
@@ -125,37 +208,34 @@ class _MidiConnectivityTab extends StatelessWidget {
         _buildSectionTitle(l10n.guideMidiTitle),
         _buildParagraph(l10n.guideMidiBody),
         const SizedBox(height: 10),
-        _buildSubTitle('1. Hardware Connection'),
-        _buildStep(
-          1,
-          'Connect controller via USB (OTG) or power on BLE device.',
-        ),
-        _buildStep(2, 'Go to Settings > MIDI Input and select your device.'),
+        _buildSubTitle(l10n.guideMidiHardware),
+        _buildStep(1, l10n.guideMidiHardwareStep1),
+        _buildStep(2, l10n.guideMidiHardwareStep2),
         const SizedBox(height: 10),
-        _buildSubTitle('2. CC & System Mappings'),
-        _buildParagraph('Bind knobs to effects like Volume or System Actions:'),
+        _buildSubTitle(l10n.guideMidiCcMappings),
+        _buildParagraph(l10n.guideMidiCcMappingsBody),
         _buildFeatureItem(
           Icons.skip_next,
-          'Patch Up/Down',
-          'Quickly switch instruments.',
+          l10n.guideMidiFeaturePatch,
+          l10n.guideMidiFeaturePatchDesc,
         ),
         _buildFeatureItem(
           Icons.loop,
-          'Cycle Scales',
-          'Change harmony on the fly.',
+          l10n.guideMidiFeatureScales,
+          l10n.guideMidiFeatureScalesDesc,
         ),
         _buildFeatureItem(
           Icons.lock,
-          'Toggle Jam',
-          'Force slaves to follow your lead.',
+          l10n.guideMidiFeatureJam,
+          l10n.guideMidiFeatureJamDesc,
         ),
         const SizedBox(height: 24),
         _buildSectionTitle(l10n.guideMidiBestPracticeTitle),
         _buildParagraph(l10n.guideMidiBestPracticeBody),
         const SizedBox(height: 12),
-        _buildInfoBox(
-          'Tip: Most modern MIDI controllers allow splitting the keys into distinct zones/channels.',
-        ),
+        _buildInfoBox(l10n.guideMidiTipSplit),
+        const SizedBox(height: 12),
+        _buildInfoBox(l10n.guideAndroidUsbLimitation),
       ],
     );
   }
@@ -221,7 +301,12 @@ class _MusicalTipsTab extends StatelessWidget {
 }
 
 // Helper Widgets
-Widget _buildWelcomeHeader(BuildContext context, AppLocalizations l10n) {
+Widget _buildWelcomeHeader(
+  BuildContext context,
+  AppLocalizations l10n,
+  String version,
+  List<String> latestChanges,
+) {
   return Container(
     padding: const EdgeInsets.all(16),
     decoration: BoxDecoration(
@@ -233,7 +318,7 @@ Widget _buildWelcomeHeader(BuildContext context, AppLocalizations l10n) {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          l10n.guideWelcomeHeader,
+          l10n.guideWelcomeHeader(version),
           style: const TextStyle(
             color: Colors.white,
             fontSize: 18,
@@ -246,10 +331,33 @@ Widget _buildWelcomeHeader(BuildContext context, AppLocalizations l10n) {
           style: const TextStyle(color: Colors.white70, fontSize: 13),
         ),
         const SizedBox(height: 12),
-        _buildBulletItem(l10n.guideFeatureList1),
-        _buildBulletItem(l10n.guideFeatureList2),
-        _buildBulletItem(l10n.guideFeatureList3),
-        _buildBulletItem(l10n.guideFeatureList4),
+        if (latestChanges.isEmpty) ...[
+          _buildBulletItem("Stability & performance improvements"),
+          _buildBulletItem("New features & UI refinements"),
+        ] else ...[
+          Theme(
+            data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+            child: ExpansionTile(
+              initiallyExpanded: false,
+              title: Text(
+                l10n.guideChangelogExpand,
+                style: const TextStyle(
+                  color: Colors.blueAccent,
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              tilePadding: EdgeInsets.zero,
+              childrenPadding: const EdgeInsets.only(bottom: 8),
+              iconColor: Colors.blueAccent,
+              collapsedIconColor: Colors.blueAccent.withValues(alpha: 0.7),
+              children:
+                  latestChanges
+                      .map((change) => _buildBulletItem(change))
+                      .toList(),
+            ),
+          ),
+        ],
       ],
     ),
   );

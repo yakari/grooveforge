@@ -21,6 +21,16 @@ GrooveForge is developed and optimized for the following platforms:
 - **Linux**: Fully supported and tested. Relies on `fluidsynth` as a native backend.
 - **Windows / macOS / iOS**: **Experimental**. These ports are included in the codebase but are not fully tested and may have limited functionality or performance issues.
 
+## Hardware & Connection Notes
+
+### Android USB Limitations
+Due to Android's internal audio routing, you **cannot** use two separate USB audio devices for simultaneous input and output (e.g., plugging a standalone USB microphone and a separate USB DAC into the same USB-C hub). 
+
+For the **Vocoder** to work correctly with external hardware:
+- Use a **single USB audio interface** (or an integrated hub/dock that acts as one device) providing both input (XLR/Jack) and output (Headphones/Monitors).
+- Or use the **Internal Microphone** while routing output to a USB device or the system speakers.
+- **Bluetooth** is not recommended for the Vocoder due to high protocol latency.
+
 ## Prerequisites
 
 - [Flutter SDK](https://flutter.dev/docs/get-started/install)

@@ -137,6 +137,7 @@ class AudioEngine extends ChangeNotifier {
   );
   final ValueNotifier<bool> isGestureInProgress = ValueNotifier<bool>(false);
   int _activeGestureCount = 0;
+  Timer? _healthCheckTimer;
 
   void updateGestureState(bool interacting) {
     if (interacting) {
@@ -384,8 +385,11 @@ class AudioEngine extends ChangeNotifier {
                 AVAudioSessionCategoryOptions.allowBluetooth |
                 AVAudioSessionCategoryOptions.allowBluetoothA2dp,
             androidAudioAttributes: AndroidAudioAttributes(
-              contentType: AndroidAudioContentType.speech,
-              usage: AndroidAudioUsage.voiceCommunication,
+              // Use `media` usage — `voiceCommunication` forces the Android
+              // voice processing stack (echo canceller, NS, AGC) on the mix
+              // side which adds significant latency on some devices.
+              contentType: AndroidAudioContentType.music,
+              usage: AndroidAudioUsage.media,
             ),
             androidAudioFocusGainType: AndroidAudioFocusGainType.gain,
             androidWillPauseWhenDucked: true,
@@ -801,11 +805,43 @@ class AudioEngine extends ChangeNotifier {
       if (started) {
         _isVocoderActive = true;
         updateVocoderParameters();
+        // Enable latency debug logging — monitor with: adb logcat -s GrooveForgeAudio
+        AudioInputFFI().setLatencyDebug(enabled: true);
+        debugPrint(
+          'GrooveForge: Vocoder started — latency debug ON. '
+          'Run: adb logcat -s GrooveForgeAudio',
+        );
+        _startHealthWatcher();
       }
     } else if (!requiresVocoder && _isVocoderActive) {
+      _stopHealthWatcher();
+      AudioInputFFI().setLatencyDebug(enabled: false);
       AudioInputFFI().stopCapture();
       _isVocoderActive = false;
     }
+  }
+
+  void _startHealthWatcher() {
+    _healthCheckTimer?.cancel();
+    _healthCheckTimer = Timer.periodic(const Duration(milliseconds: 500), (
+      timer,
+    ) {
+      if (!_isVocoderActive) {
+        timer.cancel();
+        return;
+      }
+      if (AudioInputFFI().getEngineHealth() == 1) {
+        debugPrint(
+          'GrooveForge: Audio engine detected as UNHEALTHY. Triggering self-healing restart...',
+        );
+        restartCapture();
+      }
+    });
+  }
+
+  void _stopHealthWatcher() {
+    _healthCheckTimer?.cancel();
+    _healthCheckTimer = null;
   }
 
   void _applyChannelInstrument(int channel) {

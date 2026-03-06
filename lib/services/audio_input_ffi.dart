@@ -59,6 +59,15 @@ typedef SetCaptureDeviceConfigDart =
 typedef NativeFloatFunctionC = Float Function();
 typedef DartFloatFunction = double Function();
 
+typedef SetLatencyDebugC = Void Function(Int32 enabled);
+typedef SetLatencyDebugDart = void Function(int enabled);
+
+typedef GetLastCallbackPeriodMsC = Float Function();
+typedef GetLastCallbackPeriodMsDart = double Function();
+
+typedef GetEngineHealthC = Int32 Function();
+typedef GetEngineHealthDart = int Function();
+
 class AudioInputFFI {
   static AudioInputFFI? _instance;
   late DynamicLibrary _lib;
@@ -75,6 +84,9 @@ class AudioInputFFI {
   late final SetCaptureDeviceConfigDart _setCaptureDeviceConfig;
   late final DartFloatFunction _getVocoderInputPeak;
   late final DartFloatFunction _getVocoderOutputPeak;
+  late final SetLatencyDebugDart _setLatencyDebug;
+  late final GetLastCallbackPeriodMsDart _getLastCallbackPeriodMs;
+  late final GetEngineHealthDart _getEngineHealth;
 
   factory AudioInputFFI() {
     _instance ??= AudioInputFFI._internal();
@@ -148,6 +160,20 @@ class AudioInputFFI {
               'get_vocoder_output_peak',
             )
             .asFunction();
+    _setLatencyDebug =
+        _lib
+            .lookup<NativeFunction<SetLatencyDebugC>>('set_latency_debug')
+            .asFunction();
+    _getLastCallbackPeriodMs =
+        _lib
+            .lookup<NativeFunction<GetLastCallbackPeriodMsC>>(
+              'get_last_callback_period_ms',
+            )
+            .asFunction();
+    _getEngineHealth =
+        _lib
+            .lookup<NativeFunction<GetEngineHealthC>>('get_engine_health')
+            .asFunction();
   }
 
   bool startCapture() {
@@ -212,5 +238,25 @@ class AudioInputFFI {
 
   double getVocoderOutputPeak() {
     return _getVocoderOutputPeak();
+  }
+
+  /// Enable or disable C-level latency logging to Android logcat.
+  /// When enabled, logs a rolling average callback period every ~1 second.
+  /// Filter with: `adb logcat -s GrooveForgeAudio`
+  void setLatencyDebug({required bool enabled}) {
+    _setLatencyDebug(enabled ? 1 : 0);
+  }
+
+  /// Returns the most-recently measured duration between two consecutive
+  /// audio callbacks in milliseconds. Multiply by ~2 for a rough
+  /// full-duplex round-trip estimate. Returns 0.0 before the first callback.
+  double getLastCallbackPeriodMs() {
+    return _getLastCallbackPeriodMs();
+  }
+
+  /// Returns the current health of the audio engine.
+  /// 0 = OK, 1 = UNHEALTHY (too many consecutive late callbacks)
+  int getEngineHealth() {
+    return _getEngineHealth();
   }
 }
