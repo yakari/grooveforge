@@ -1,5 +1,6 @@
 import 'dart:ffi';
 import 'dart:io';
+import 'package:ffi/ffi.dart';
 
 typedef StartAudioCaptureC = Int32 Function();
 typedef StartAudioCaptureDart = int Function();
@@ -34,6 +35,30 @@ typedef SetVocoderParametersDart =
       double bandwidth,
     );
 
+typedef GetCaptureDeviceCountC = Int32 Function();
+typedef GetCaptureDeviceCountDart = int Function();
+
+typedef GetCaptureDeviceNameC = Pointer<Utf8> Function(Int32 index);
+typedef GetCaptureDeviceNameDart = Pointer<Utf8> Function(int index);
+
+typedef SetCaptureDeviceConfigC =
+    Void Function(
+      Int32 index,
+      Float gain,
+      Int32 androidDeviceId,
+      Int32 androidOutputDeviceId,
+    );
+typedef SetCaptureDeviceConfigDart =
+    void Function(
+      int index,
+      double gain,
+      int androidDeviceId,
+      int androidOutputDeviceId,
+    );
+
+typedef NativeFloatFunctionC = Float Function();
+typedef DartFloatFunction = double Function();
+
 class AudioInputFFI {
   static AudioInputFFI? _instance;
   late DynamicLibrary _lib;
@@ -45,6 +70,11 @@ class AudioInputFFI {
   late VocoderNoteOnDart _vocoderNoteOn;
   late VocoderNoteOffDart _vocoderNoteOff;
   late SetVocoderParametersDart _setVocoderParameters;
+  late GetCaptureDeviceCountDart _getCaptureDeviceCount;
+  late final GetCaptureDeviceNameDart _getCaptureDeviceName;
+  late final SetCaptureDeviceConfigDart _setCaptureDeviceConfig;
+  late final DartFloatFunction _getVocoderInputPeak;
+  late final DartFloatFunction _getVocoderOutputPeak;
 
   factory AudioInputFFI() {
     _instance ??= AudioInputFFI._internal();
@@ -88,6 +118,36 @@ class AudioInputFFI {
               'setVocoderParameters',
             )
             .asFunction();
+    _getCaptureDeviceCount =
+        _lib
+            .lookup<NativeFunction<GetCaptureDeviceCountC>>(
+              'get_capture_device_count',
+            )
+            .asFunction();
+    _getCaptureDeviceName =
+        _lib
+            .lookup<NativeFunction<GetCaptureDeviceNameC>>(
+              'get_capture_device_name',
+            )
+            .asFunction();
+    _setCaptureDeviceConfig =
+        _lib
+            .lookup<NativeFunction<SetCaptureDeviceConfigC>>(
+              'set_capture_device_config',
+            )
+            .asFunction();
+    _getVocoderInputPeak =
+        _lib
+            .lookup<NativeFunction<NativeFloatFunctionC>>(
+              'get_vocoder_input_peak',
+            )
+            .asFunction();
+    _getVocoderOutputPeak =
+        _lib
+            .lookup<NativeFunction<NativeFloatFunctionC>>(
+              'get_vocoder_output_peak',
+            )
+            .asFunction();
   }
 
   bool startCapture() {
@@ -122,5 +182,35 @@ class AudioInputFFI {
     double bandwidth = 0.2,
   }) {
     _setVocoderParameters(waveform, noiseMix, envRelease, bandwidth);
+  }
+
+  int getCaptureDeviceCount() {
+    return _getCaptureDeviceCount();
+  }
+
+  String getCaptureDeviceName(int index) {
+    return _getCaptureDeviceName(index).toDartString();
+  }
+
+  void setCaptureDeviceConfig(
+    int index,
+    double gain,
+    int androidDeviceId,
+    int androidOutputDeviceId,
+  ) {
+    _setCaptureDeviceConfig(
+      index,
+      gain,
+      androidDeviceId,
+      androidOutputDeviceId,
+    );
+  }
+
+  double getVocoderInputPeak() {
+    return _getVocoderInputPeak();
+  }
+
+  double getVocoderOutputPeak() {
+    return _getVocoderOutputPeak();
   }
 }

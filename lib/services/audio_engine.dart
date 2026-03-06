@@ -148,6 +148,7 @@ class AudioEngine extends ChangeNotifier {
   }
 
   final ValueNotifier<int> aftertouchDestCc = ValueNotifier<int>(1);
+  final ValueNotifier<bool> autoScrollEnabled = ValueNotifier<bool>(false);
   final ValueNotifier<String?> lastSeenVersion = ValueNotifier(null);
 
   Future<void> markWelcomeAsSeen(String version) async {
@@ -171,6 +172,16 @@ class AudioEngine extends ChangeNotifier {
   final ValueNotifier<double> vocoderBandwidth = ValueNotifier(
     0.2, // Default Q ~8.0
   );
+  final ValueNotifier<int> vocoderInputDeviceIndex = ValueNotifier<int>(-1);
+  final ValueNotifier<int> vocoderInputAndroidDeviceId = ValueNotifier<int>(-1);
+  final ValueNotifier<int> vocoderOutputAndroidDeviceId = ValueNotifier<int>(
+    -1,
+  );
+  final ValueNotifier<double> vocoderInputGain = ValueNotifier<double>(1.0);
+
+  static const audioConfigChannel = MethodChannel(
+    'com.grooveforge.grooveforge/audio_config',
+  );
 
   void updateVocoderParameters() {
     AudioInputFFI().setVocoderParameters(
@@ -179,6 +190,134 @@ class AudioEngine extends ChangeNotifier {
       envRelease: vocoderEnvRelease.value,
       bandwidth: vocoderBandwidth.value,
     );
+    AudioInputFFI().setCaptureDeviceConfig(
+      vocoderInputDeviceIndex.value,
+      vocoderInputGain.value,
+      vocoderInputAndroidDeviceId.value,
+      vocoderOutputAndroidDeviceId.value,
+    );
+  }
+
+  bool _isRestartingCapture = false;
+
+  /// Restart the audio capture engine (stop + start with a short delay).
+  /// This is the Dart-side equivalent of the "Refresh Mic" button.
+  /// Guards against re-entrant calls (e.g. due to Fluidsynth Oboe recovery loops).
+  Future<void> restartCapture() async {
+    if (_isRestartingCapture) {
+      debugPrint('GrooveForge: restartCapture skipped — already in progress.');
+      return;
+    }
+    _isRestartingCapture = true;
+    try {
+      debugPrint('GrooveForge: Restarting audio capture from Dart...');
+      AudioInputFFI().stopCapture();
+      await Future.delayed(const Duration(milliseconds: 200));
+      AudioInputFFI().startCapture();
+      debugPrint('GrooveForge: Audio capture restarted.');
+      // Cooldown: ignore any further restart requests for 500ms
+      await Future.delayed(const Duration(milliseconds: 500));
+    } finally {
+      _isRestartingCapture = false;
+    }
+  }
+
+  /// Listens for device plug/unplug events from Android's AudioDeviceCallback
+  /// (registered in MainActivity.kt) and auto-resets stale device selections.
+  void _setupAudioDeviceChangeListener() {
+    audioConfigChannel.setMethodCallHandler((call) async {
+      if (call.method == 'audioDevicesChanged') {
+        debugPrint(
+          'GrooveForge: Audio devices changed — checking for stale selections.',
+        );
+        await _resetDisconnectedDevices();
+        notifyListeners();
+      }
+    });
+  }
+
+  /// If the currently selected input or output device ID is no longer in the
+  /// enumerated device list, reset it to -1 (system default).
+  Future<void> _resetDisconnectedDevices() async {
+    try {
+      final inputs = await getAndroidInputDevices();
+      final inputIds = inputs.map((d) => d['id'] as int).toSet();
+      final currentIn = vocoderInputAndroidDeviceId.value;
+      if (currentIn != -1 && !inputIds.contains(currentIn)) {
+        debugPrint(
+          'GrooveForge: Input device $currentIn gone — resetting to default.',
+        );
+        vocoderInputAndroidDeviceId.value = -1;
+      }
+
+      final outputs = await getAndroidOutputDevices();
+      final outputIds = outputs.map((d) => d['id'] as int).toSet();
+      final currentOut = vocoderOutputAndroidDeviceId.value;
+      if (currentOut != -1 && !outputIds.contains(currentOut)) {
+        debugPrint(
+          'GrooveForge: Output device $currentOut gone — resetting to default.',
+        );
+        vocoderOutputAndroidDeviceId.value = -1;
+      }
+    } catch (e) {
+      debugPrint('GrooveForge: _resetDisconnectedDevices error: $e');
+    }
+  }
+
+  Future<List<String>> getAvailableMicrophones() async {
+    if (Platform.isAndroid) {
+      try {
+        final List<dynamic>? devices = await audioConfigChannel.invokeMethod(
+          'getAudioInputDevices',
+        );
+        if (devices != null) {
+          return devices.map((d) => "${d['name']} (ID: ${d['id']})").toList();
+        }
+      } catch (e) {
+        debugPrint('Error getting Android audio devices: $e');
+      }
+    }
+
+    final count = AudioInputFFI().getCaptureDeviceCount();
+    final List<String> names = [];
+    for (int i = 0; i < count; i++) {
+      names.add(AudioInputFFI().getCaptureDeviceName(i));
+    }
+    return names;
+  }
+
+  Future<List<Map<String, dynamic>>> getAndroidInputDevices() async {
+    if (!Platform.isAndroid) return [];
+    try {
+      final List<dynamic>? devices = await audioConfigChannel.invokeMethod(
+        'getAudioInputDevices',
+      );
+      if (devices == null) return [];
+      return devices
+          .cast<Map<dynamic, dynamic>>()
+          .map((d) => d.cast<String, dynamic>())
+          .toList();
+    } catch (e) {
+      debugPrint('GrooveForge: getAndroidInputDevices error: $e');
+      return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getAndroidOutputDevices() async {
+    if (!Platform.isAndroid) return [];
+    try {
+      final List<dynamic>? devices = await audioConfigChannel.invokeMethod(
+        'getAudioOutputDevices',
+      );
+      return devices
+              ?.cast<Map<dynamic, dynamic>>()
+              .map((d) => d.cast<String, dynamic>())
+              .toList() ??
+          [];
+    } catch (e) {
+      debugPrint('Error getting Android audio output devices: $e');
+      return [];
+    }
   }
 
   // --- Jam Mode State ---
@@ -266,6 +405,12 @@ class AudioEngine extends ChangeNotifier {
     _isInitialized = true;
     initStatus.value = 'Ready';
 
+    if (Platform.isAndroid) {
+      _setupAudioDeviceChangeListener();
+      // Check right now if any saved device is already stale
+      _resetDisconnectedDevices();
+    }
+
     pianoKeysToShow.addListener(_saveState);
     lockModePreference.addListener(_saveState);
     lockModePreference.addListener(_propagateJamScaleUpdate);
@@ -283,7 +428,23 @@ class AudioEngine extends ChangeNotifier {
     verticalGestureAction.addListener(_saveState);
     horizontalGestureAction.addListener(_saveState);
     aftertouchDestCc.addListener(_saveState);
+    autoScrollEnabled.addListener(_saveState);
     notationFormat.addListener(_saveState);
+    vocoderInputDeviceIndex.addListener(_saveState);
+    vocoderInputDeviceIndex.addListener(updateVocoderParameters);
+    vocoderInputDeviceIndex.addListener(restartCapture);
+    vocoderInputAndroidDeviceId.addListener(_saveState);
+    vocoderInputAndroidDeviceId.addListener(() {
+      updateVocoderParameters();
+      restartCapture();
+    });
+    vocoderOutputAndroidDeviceId.addListener(_saveState);
+    vocoderOutputAndroidDeviceId.addListener(() {
+      updateVocoderParameters();
+      restartCapture();
+    });
+    vocoderInputGain.addListener(_saveState);
+    vocoderInputGain.addListener(updateVocoderParameters);
   }
 
   Future<void> _ensureDefaultSoundfont() async {
@@ -374,7 +535,21 @@ class AudioEngine extends ChangeNotifier {
     await _prefs!.setInt('jam_scale_type', jamScaleType.value.index);
     await _prefs!.setBool('jam_show_borders', showJamModeBorders.value);
     await _prefs!.setBool('jam_highlight_wrong', highlightWrongNotes.value);
+    await _prefs!.setBool('auto_scroll_enabled', autoScrollEnabled.value);
     await _prefs!.setString('last_seen_version', lastSeenVersion.value ?? "");
+    await _prefs!.setInt(
+      'vocoder_input_device_index',
+      vocoderInputDeviceIndex.value,
+    );
+    await _prefs!.setInt(
+      'vocoder_input_android_device_id',
+      vocoderInputAndroidDeviceId.value,
+    );
+    await _prefs!.setInt(
+      'vocoder_output_android_device_id',
+      vocoderOutputAndroidDeviceId.value,
+    );
+    await _prefs!.setDouble('vocoder_input_gain', vocoderInputGain.value);
   }
 
   Future<void> _restoreState() async {
@@ -494,7 +669,17 @@ class AudioEngine extends ChangeNotifier {
       highlightWrongNotes.value = savedHighlightWrongNotes;
     }
 
+    autoScrollEnabled.value = _prefs!.getBool('auto_scroll_enabled') ?? false;
+
     lastSeenVersion.value = _prefs!.getString('last_seen_version');
+
+    vocoderInputDeviceIndex.value =
+        _prefs!.getInt('vocoder_input_device_index') ?? -1;
+    vocoderInputAndroidDeviceId.value =
+        _prefs!.getInt('vocoder_input_android_device_id') ?? -1;
+    vocoderOutputAndroidDeviceId.value =
+        _prefs!.getInt('vocoder_output_android_device_id') ?? -1;
+    vocoderInputGain.value = _prefs!.getDouble('vocoder_input_gain') ?? 1.0;
 
     stateNotifier.value++;
   }
@@ -1395,6 +1580,9 @@ class AudioEngine extends ChangeNotifier {
     jamMasterChannel.value = 1;
     jamSlaveChannels.value = {0};
     jamScaleType.value = ScaleType.standard;
+    vocoderInputDeviceIndex.value = -1;
+    vocoderInputAndroidDeviceId.value = -1;
+    vocoderInputGain.value = 1.0;
     _isInitialized = false;
     await init();
     stateNotifier.value++;

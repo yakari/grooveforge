@@ -217,5 +217,14 @@
   "guideFeatureList1": "Connectivité MIDI et mapping unifiés",
   "guideFeatureList2": "Nouveau Vocoder avec contrôles tactiles",
   "guideFeatureList3": "Conseils musicaux et références de gammes",
-  "guideFeatureList4": "Onboarding automatique pour les nouveautés"
+  "guideFeatureList4": "Onboarding automatique pour les nouveautés",
+  "micSelectionTitle": "Entrée Audio",
+  "micSelectionDevice": "Microphone",
+  "micSelectionSensitivity": "Sensibilité",
+  "micSelectionDefault": "Système (défaut)",
+  "audioOutputTitle": "Sortie Audio",
+  "audioOutputDevice": "Appareil de sortie",
+  "audioOutputDefault": "Système (défaut)",
+  "synthAutoScrollTitle": "Auto-scroll vers le canal actif",
+  "synthAutoScrollSubtitle": "Défiler automatiquement la liste lors de la réception MIDI"
 }

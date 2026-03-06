@@ -12,6 +12,7 @@ import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import '../l10n/app_localizations.dart';
 import '../services/locale_provider.dart';
+import '../services/audio_input_ffi.dart';
 import 'dart:async';
 
 /// The main settings interface for GrooveForge.
@@ -339,6 +340,273 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
             ),
           ),
           const SizedBox(height: 32),
+          // ======== AUDIO INPUT SECTION ========
+          Text(
+            loc.micSelectionTitle,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.pinkAccent,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Card(
+            child: Consumer<AudioEngine>(
+              builder: (context, engine, _) {
+                return Column(
+                  children: [
+                    FutureBuilder<List<dynamic>>(
+                      future:
+                          Platform.isAndroid
+                              ? engine.getAndroidInputDevices()
+                              : engine.getAvailableMicrophones(),
+                      builder: (context, snapshot) {
+                        final List<dynamic> devices = snapshot.data ?? [];
+                        return ValueListenableBuilder<int>(
+                          valueListenable: engine.vocoderInputDeviceIndex,
+                          builder: (context, deviceIndex, _) {
+                            return ValueListenableBuilder<int>(
+                              valueListenable:
+                                  engine.vocoderInputAndroidDeviceId,
+                              builder: (context, androidId, _) {
+                                String currentName = loc.micSelectionDefault;
+                                if (Platform.isAndroid) {
+                                  final dev = devices
+                                      .cast<dynamic>()
+                                      .firstWhere(
+                                        (d) => (d as Map)['id'] == androidId,
+                                        orElse: () => null,
+                                      );
+                                  if (dev != null) {
+                                    currentName = (dev as Map)['name'];
+                                  }
+                                } else if (deviceIndex >= 0 &&
+                                    deviceIndex < devices.length) {
+                                  currentName = devices[deviceIndex] as String;
+                                }
+
+                                final bool valueMissing =
+                                    Platform.isAndroid
+                                        ? (androidId != -1 &&
+                                            !devices.any(
+                                              (d) =>
+                                                  (d as Map)['id'] == androidId,
+                                            ))
+                                        : (deviceIndex != -1 &&
+                                            deviceIndex >= devices.length);
+
+                                return _ResponsivePreferenceRow(
+                                  icon: const Icon(
+                                    Icons.mic,
+                                    color: Colors.pinkAccent,
+                                  ),
+                                  title: loc.micSelectionDevice,
+                                  subtitle:
+                                      valueMissing
+                                          ? "Disconnected (ID: ${Platform.isAndroid ? androidId : deviceIndex})"
+                                          : currentName,
+                                  trailing: DropdownButton<int>(
+                                    value:
+                                        Platform.isAndroid
+                                            ? androidId
+                                            : deviceIndex,
+                                    items: [
+                                      DropdownMenuItem(
+                                        value: -1,
+                                        child: Text(loc.micSelectionDefault),
+                                      ),
+                                      if (valueMissing)
+                                        DropdownMenuItem(
+                                          value:
+                                              Platform.isAndroid
+                                                  ? androidId
+                                                  : deviceIndex,
+                                          child: Text(
+                                            "Disconnected (ID: ${Platform.isAndroid ? androidId : deviceIndex})",
+                                          ),
+                                        ),
+                                      ...List.generate(devices.length, (i) {
+                                        final device = devices[i];
+                                        final int val =
+                                            Platform.isAndroid
+                                                ? (device as Map)['id']
+                                                : i;
+                                        final String name =
+                                            Platform.isAndroid
+                                                ? (device as Map)['name']
+                                                : device as String;
+                                        return DropdownMenuItem(
+                                          value: val,
+                                          child: Text(name),
+                                        );
+                                      }),
+                                    ],
+                                    onChanged: (val) {
+                                      if (val != null) {
+                                        if (Platform.isAndroid) {
+                                          engine
+                                              .vocoderInputAndroidDeviceId
+                                              .value = val;
+                                          final selected = devices
+                                              .cast<dynamic>()
+                                              .firstWhere(
+                                                (d) => (d as Map)['id'] == val,
+                                                orElse: () => null,
+                                              );
+                                          debugPrint(
+                                            'GrooveForge: Selected device: ${selected?['name']} (ID: $val)',
+                                          );
+                                          if (selected != null &&
+                                              (selected
+                                                      as Map)['isBluetooth'] ==
+                                                  true) {
+                                            AudioEngine.audioConfigChannel
+                                                .invokeMethod(
+                                                  'startBluetoothSco',
+                                                );
+                                          } else {
+                                            AudioEngine.audioConfigChannel
+                                                .invokeMethod(
+                                                  'stopBluetoothSco',
+                                                );
+                                          }
+                                        } else {
+                                          engine.vocoderInputDeviceIndex.value =
+                                              val;
+                                        }
+                                        engine.stateNotifier.value++;
+                                      }
+                                    },
+                                  ),
+                                );
+                              },
+                            );
+                          },
+                        );
+                      },
+                    ),
+                    const Divider(height: 1),
+                    Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.graphic_eq,
+                                color: Colors.pinkAccent,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(loc.micSelectionSensitivity),
+                            ],
+                          ),
+                          ValueListenableBuilder<double>(
+                            valueListenable: engine.vocoderInputGain,
+                            builder: (context, gain, _) {
+                              return Slider(
+                                value: gain,
+                                min: 0.0,
+                                max: 20.0,
+                                onChanged: (val) {
+                                  engine.vocoderInputGain.value = val;
+                                  engine.stateNotifier.value++;
+                                },
+                              );
+                            },
+                          ),
+                          const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 8.0),
+                            child: _MicLevelMeter(),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 32),
+          // ======== AUDIO OUTPUT SECTION ========
+          Text(
+            loc.audioOutputTitle,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.pinkAccent,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Card(
+            child: Consumer<AudioEngine>(
+              builder: (context, engine, _) {
+                return FutureBuilder<List<Map<String, dynamic>>>(
+                  future: engine.getAndroidOutputDevices(),
+                  builder: (context, snapshot) {
+                    final devices = snapshot.data ?? [];
+                    return ValueListenableBuilder<int>(
+                      valueListenable: engine.vocoderOutputAndroidDeviceId,
+                      builder: (context, androidId, _) {
+                        String currentName = loc.audioOutputDefault;
+                        final dev = devices.firstWhere(
+                          (d) => d['id'] == androidId,
+                          orElse: () => <String, dynamic>{},
+                        );
+                        if (dev.isNotEmpty) {
+                          currentName = dev['name'] as String;
+                        }
+
+                        final bool valueMissing =
+                            androidId != -1 &&
+                            !devices.any((d) => d['id'] == androidId);
+
+                        return _ResponsivePreferenceRow(
+                          icon: const Icon(
+                            Icons.headset,
+                            color: Colors.pinkAccent,
+                          ),
+                          title: loc.audioOutputDevice,
+                          subtitle:
+                              valueMissing
+                                  ? "Disconnected (ID: $androidId)"
+                                  : currentName,
+                          trailing: DropdownButton<int>(
+                            value: androidId,
+                            items: [
+                              DropdownMenuItem(
+                                value: -1,
+                                child: Text(loc.audioOutputDefault),
+                              ),
+                              if (valueMissing)
+                                DropdownMenuItem(
+                                  value: androidId,
+                                  child: Text("Disconnected (ID: $androidId)"),
+                                ),
+                              ...devices.map((device) {
+                                return DropdownMenuItem(
+                                  value: device['id'] as int,
+                                  child: Text(device['name'] as String),
+                                );
+                              }),
+                            ],
+                            onChanged: (val) {
+                              if (val != null) {
+                                engine.vocoderOutputAndroidDeviceId.value = val;
+                                engine.stateNotifier.value++;
+                              }
+                            },
+                          ),
+                        );
+                      },
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 32),
 
           Text(
             loc.routingControlSection,
@@ -639,6 +907,33 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
           Card(
             child: Consumer<AudioEngine>(
               builder: (context, engine, _) {
+                return ValueListenableBuilder<bool>(
+                  valueListenable: engine.autoScrollEnabled,
+                  builder: (context, autoScroll, _) {
+                    return _ResponsivePreferenceRow(
+                      icon: const Icon(
+                        Icons.unfold_more,
+                        color: Colors.greenAccent,
+                      ),
+                      title: loc.synthAutoScrollTitle,
+                      subtitle: loc.synthAutoScrollSubtitle,
+                      trailing: Switch(
+                        value: autoScroll,
+                        onChanged: (val) {
+                          engine.autoScrollEnabled.value = val;
+                          engine.stateNotifier.value++;
+                        },
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 8),
+          Card(
+            child: Consumer<AudioEngine>(
+              builder: (context, engine, _) {
                 return ValueListenableBuilder<int>(
                   valueListenable: engine.aftertouchDestCc,
                   builder: (context, destCc, _) {
@@ -863,6 +1158,71 @@ class _ResponsivePreferenceRow extends StatelessWidget {
           );
         }
       },
+    );
+  }
+}
+
+class _MicLevelMeter extends StatefulWidget {
+  const _MicLevelMeter();
+
+  @override
+  State<_MicLevelMeter> createState() => _MicLevelMeterState();
+}
+
+class _MicLevelMeterState extends State<_MicLevelMeter> {
+  Timer? _timer;
+  double _level = 0.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(milliseconds: 50), (timer) {
+      if (mounted) {
+        final newLevel = AudioInputFFI().getInputPeakLevel();
+        if ((newLevel - _level).abs() > 0.01 || newLevel == 0) {
+          setState(() {
+            _level = newLevel;
+          });
+        }
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Container(
+          height: 8,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: Colors.white10,
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: FractionallySizedBox(
+            alignment: Alignment.centerLeft,
+            widthFactor: _level.clamp(0.0, 1.0),
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.greenAccent,
+                    Colors.yellowAccent,
+                    if (_level > 0.8) Colors.redAccent else Colors.yellowAccent,
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

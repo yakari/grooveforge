@@ -53,13 +53,17 @@ typedef struct {
 int g_vocoderWaveform = 0;          // 0 = Sawtooth, 1 = Square/PWM, 2 = Sine (Neutral)
 float g_vocoderNoiseMix = 0.05f;    // Amount of white noise added to carrier for consonant intelligibility
 float g_vocoderEnvRelease = 0.02f;  // Envelope follower release time (lower = faster)
+static float g_inputPeak = 0.0f;
+static float g_outputPeak = 0.0f;
+static float g_inputGain = 1.0f;
+static int g_selectedCaptureDeviceIndex = -1; // -1 means default
+static int g_androidDeviceId = -1; // Specific Android Device ID for AAudio
+static int g_androidOutputDeviceId = -1; // Specific Android Output Device ID for AAudio
 
 // Global state
 static ma_context context;
 static ma_device device;
 static bool isInitialized = false;
-static float currentInputPeak = 0.0f;
-static float currentOutputPeak = 0.0f;
 static Oscillator voices[MAX_POLYPHONY];
 
 // --- DSP Helpers ---
@@ -190,9 +194,20 @@ void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uin
     const float hp_a1 = -0.8f;
     const float hp_a2 = 0.2f;
 
+    // Track Peak Level for VU meter
+    float peak = 0.0f;
+    for (ma_uint32 i = 0; i < frameCount; i++) {
+        float absSample = fabsf(pIn[i]);
+        if (absSample > peak) peak = absSample;
+    }
+    // Smooth peak decay
+    if (peak > g_inputPeak) g_inputPeak = peak;
+    else g_inputPeak *= 0.95f;
+
     // We process sample by sample
     for (ma_uint32 i = 0; i < frameCount; ++i) {
         float micInput = pIn ? pIn[i] : 0.0f;
+        micInput *= g_inputGain;
         
         // Track visual input peak BEFORE the gate mutes it, so the user can see their raw mic level
         float absRawMic = fabsf(micInput);
@@ -304,8 +319,8 @@ void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uin
         }
     }
 
-    if (inPeak > currentInputPeak) currentInputPeak = inPeak;
-    if (outPeak > currentOutputPeak) currentOutputPeak = outPeak;
+    if (inPeak > g_inputPeak) g_inputPeak = inPeak;
+    if (outPeak > g_outputPeak) g_outputPeak = outPeak;
 }
 
 #ifdef _WIN32
@@ -390,20 +405,65 @@ EXPORT int start_audio_capture() {
     // Initialize as FULL DUPLEX (Capture AND Playback)
     deviceConfig = ma_device_config_init(ma_device_type_duplex);
     deviceConfig.performanceProfile = ma_performance_profile_low_latency;
-    
+
 #ifdef __ANDROID__
-    // Ask Android Core Audio (AAudio / OpenSL) to apply Hardware Acoustic Echo Cancellation (AEC)
-    deviceConfig.aaudio.inputPreset = ma_aaudio_input_preset_voice_communication;
-    deviceConfig.opensl.recordingPreset = ma_opensl_recording_preset_voice_communication;
+    // Use camcorder preset for potentially cleaner, higher-gain signal than voice_communication
+    deviceConfig.aaudio.inputPreset = ma_aaudio_input_preset_camcorder;
+    deviceConfig.opensl.recordingPreset = ma_opensl_recording_preset_camcorder;
+#endif
+    
+    // Capture config
+    ma_device_info* pCaptureDeviceInfos;
+    ma_uint32 captureDeviceCount;
+    ma_result devResult = ma_context_get_devices(&context, NULL, NULL, &pCaptureDeviceInfos, &captureDeviceCount);
+    
+    static ma_device_id customDeviceId;
+    bool useCustomId = false;
+
+#ifdef __ANDROID__
+    if (g_androidDeviceId > 0) {
+        customDeviceId.aaudio = g_androidDeviceId;
+        customDeviceId.opensl = (ma_uint32)g_androidDeviceId;
+        useCustomId = true;
+    }
 #endif
 
-    // Capture config
-    deviceConfig.capture.pDeviceID = NULL; 
+    if (useCustomId) {
+        deviceConfig.capture.pDeviceID = &customDeviceId;
+        LOGI("GrooveForge: Opening Audio Device with specific ID: %d\n", g_androidDeviceId);
+    } else if (devResult == MA_SUCCESS && g_selectedCaptureDeviceIndex >= 0 && (ma_uint32)g_selectedCaptureDeviceIndex < captureDeviceCount) {
+        deviceConfig.capture.pDeviceID = &pCaptureDeviceInfos[g_selectedCaptureDeviceIndex].id;
+        LOGI("GrooveForge: Opening Audio Device by index: %d\n", g_selectedCaptureDeviceIndex);
+    } else {
+        deviceConfig.capture.pDeviceID = NULL; 
+        LOGI("GrooveForge: Opening Default Audio Device\n");
+    }
+
+#ifdef __ANDROID__
+    static ma_device_id customOutputDeviceId;
+    bool useCustomOutputId = false;
+
+    if (g_androidOutputDeviceId > 0) {
+        customOutputDeviceId.aaudio = g_androidOutputDeviceId;
+        customOutputDeviceId.opensl = (ma_uint32)g_androidOutputDeviceId;
+        useCustomOutputId = true;
+    }
+
+    if (useCustomOutputId) {
+        deviceConfig.playback.pDeviceID = &customOutputDeviceId;
+        LOGI("GrooveForge: Opening Playback Device with specific ID: %d\n", g_androidOutputDeviceId);
+    } else {
+        deviceConfig.playback.pDeviceID = NULL; 
+        LOGI("GrooveForge: Opening Default Playback Device\n");
+    }
+#else
+    deviceConfig.playback.pDeviceID = NULL; 
+#endif
+    
     deviceConfig.capture.format    = ma_format_f32;
     deviceConfig.capture.channels  = CHANNELS;
     
     // Playback config
-    deviceConfig.playback.pDeviceID = NULL; 
     deviceConfig.playback.format    = ma_format_f32;
     deviceConfig.playback.channels  = CHANNELS;
 
@@ -439,19 +499,20 @@ EXPORT void stop_audio_capture() {
     ma_context_uninit(&context);
 
     isInitialized = false;
-    currentInputPeak = 0.0f;
-    currentOutputPeak = 0.0f;
+    isInitialized = false;
+    g_inputPeak = 0.0f;
+    g_outputPeak = 0.0f;
 }
 
 EXPORT float getInputPeakLevel() {
-    float peak = currentInputPeak;
-    currentInputPeak = 0.0f;
+    float peak = g_inputPeak;
+    g_inputPeak *= 0.8f; // Decaying peak for meters
     return peak;
 }
 
 EXPORT float getOutputPeakLevel() {
-    float peak = currentOutputPeak;
-    currentOutputPeak = 0.0f;
+    float peak = g_outputPeak;
+    g_outputPeak *= 0.8f;
     return peak;
 }
 
@@ -467,7 +528,54 @@ EXPORT void setVocoderParameters(int waveform, float noiseMix, float envRelease,
     init_vocoder_bands(qFactor);
 }
 
+// --- NEW PER-DEVICE AND GAIN CONTROL ---
+
+
+EXPORT int get_capture_device_count() {
+    if (!isInitialized) {
+        // We need a context to list devices. If not started, temporarily init one?
+        // Actually, start_audio_capture is usually called when vocoder is needed.
+        // Let's assume we can init context if needed.
+        ma_result result = ma_context_init(NULL, 0, NULL, &context);
+        if (result != MA_SUCCESS) return 0;
+    }
+
+    ma_device_info* pCaptureDeviceInfos;
+    ma_uint32 captureDeviceCount;
+    ma_result result = ma_context_get_devices(&context, NULL, NULL, &pCaptureDeviceInfos, &captureDeviceCount);
+    if (result != MA_SUCCESS) return 0;
+
+    return (int)captureDeviceCount;
+}
+
+EXPORT const char* get_capture_device_name(int index) {
+    ma_device_info* pCaptureDeviceInfos;
+    ma_uint32 captureDeviceCount;
+    ma_result result = ma_context_get_devices(&context, NULL, NULL, &pCaptureDeviceInfos, &captureDeviceCount);
+    if (result != MA_SUCCESS || (ma_uint32)index >= captureDeviceCount) return "Unknown";
+
+    return pCaptureDeviceInfos[index].name;
+}
+
+EXPORT void set_capture_device_config(int index, float gain, int androidDeviceId, int androidOutputDeviceId) {
+    g_selectedCaptureDeviceIndex = index;
+    g_inputGain = gain;
+    g_androidDeviceId = androidDeviceId;
+    g_androidOutputDeviceId = androidOutputDeviceId;
+
+    LOGI("GrooveForge: Device config updated (Index: %d, InID: %d, OutID: %d). Restart from Dart if needed.\n",
+         index, androidDeviceId, androidOutputDeviceId);
+}
+
+
 // Deprecated, mapped to input for backward compat if needed
 EXPORT float getPeakLevel() {
     return getInputPeakLevel();
+}
+EXPORT float get_vocoder_input_peak() {
+    return getInputPeakLevel();
+}
+
+EXPORT float get_vocoder_output_peak() {
+    return getOutputPeakLevel();
 }

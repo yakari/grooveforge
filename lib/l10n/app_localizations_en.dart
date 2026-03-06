@@ -473,4 +473,32 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get guideFeatureList4 => 'Automatic onboarding for new features';
+
+  @override
+  String get micSelectionTitle => 'Audio Input';
+
+  @override
+  String get micSelectionDevice => 'Microphone';
+
+  @override
+  String get micSelectionSensitivity => 'Sensitivity';
+
+  @override
+  String get micSelectionDefault => 'System Default';
+
+  @override
+  String get audioOutputTitle => 'Audio Output';
+
+  @override
+  String get audioOutputDevice => 'Output Device';
+
+  @override
+  String get audioOutputDefault => 'System Default';
+
+  @override
+  String get synthAutoScrollTitle => 'Auto-scroll to Active Channel';
+
+  @override
+  String get synthAutoScrollSubtitle =>
+      'Automatically scroll the list when MIDI is received';
 }

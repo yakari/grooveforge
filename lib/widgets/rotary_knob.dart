@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import 'dart:async';
 
 class RotaryKnob extends StatefulWidget {
   final double value;
   final double min;
   final double max;
   final String label;
+  final IconData? icon;
   final ValueChanged<double> onChanged;
   final double size;
+  final bool isCompact;
 
   const RotaryKnob({
     super.key,
@@ -15,8 +18,10 @@ class RotaryKnob extends StatefulWidget {
     this.min = 0.0,
     this.max = 1.0,
     required this.label,
+    this.icon,
     required this.onChanged,
     this.size = 50.0,
+    this.isCompact = false,
   });
 
   @override
@@ -25,11 +30,18 @@ class RotaryKnob extends StatefulWidget {
 
 class _RotaryKnobState extends State<RotaryKnob> {
   late double _currentValue;
+  final LayerLink _layerLink = LayerLink();
+  OverlayEntry? _overlayEntry;
+  // Use a ValueNotifier to update the overlay without triggering a full rebuild of the knob widget.
+  // This prevents "setState() during build" errors when the knob value is updated by the engine.
+  late final ValueNotifier<double> _overlayValueNotifier;
+  Timer? _overlayTimer;
 
   @override
   void initState() {
     super.initState();
     _currentValue = widget.value;
+    _overlayValueNotifier = ValueNotifier<double>(widget.value);
   }
 
   @override
@@ -37,7 +49,128 @@ class _RotaryKnobState extends State<RotaryKnob> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.value != widget.value) {
       _currentValue = widget.value;
+      // Use addPostFrameCallback to avoid "setState() during build" if this update
+      // happens during a build phase (which is common for ValueListenableBuilder updates).
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _overlayValueNotifier.value = widget.value;
+        }
+      });
     }
+  }
+
+  @override
+  void dispose() {
+    _overlayTimer?.cancel();
+    _hideOverlay();
+    _overlayValueNotifier.dispose();
+    super.dispose();
+  }
+
+  void _showOverlay() {
+    if (_overlayEntry != null) return;
+
+    _overlayEntry = OverlayEntry(
+      builder: (context) {
+        return Positioned(
+          width: 140,
+          child: IgnorePointer(
+            child: CompositedTransformFollower(
+              link: _layerLink,
+              showWhenUnlinked: false,
+              offset: const Offset(-45.0, -120.0), // Positioned above the knob
+              child: ValueListenableBuilder<double>(
+                valueListenable: _overlayValueNotifier,
+                builder: (context, val, _) {
+                  final normalizedValue =
+                      (val - widget.min) / (widget.max - widget.min);
+                  return Material(
+                    color: Colors.transparent,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 10,
+                        horizontal: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.9),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: Colors.orange.withValues(alpha: 0.6),
+                          width: 2.0,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.5),
+                            blurRadius: 15,
+                            spreadRadius: 3,
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (widget.icon != null) ...[
+                                Icon(
+                                  widget.icon,
+                                  size: 14,
+                                  color: Colors.white,
+                                ),
+                                const SizedBox(width: 6),
+                              ],
+                              Text(
+                                widget.label,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.8,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          SizedBox(
+                            width: 70,
+                            height: 70,
+                            child: CustomPaint(
+                              painter: _KnobPainter(value: normalizedValue),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+      },
+    );
+
+    Overlay.of(context).insert(_overlayEntry!);
+  }
+
+  void _hideOverlay() {
+    _overlayTimer?.cancel();
+    _overlayTimer = null;
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+  }
+
+  void _onPanDown(DragDownDetails details) {
+    _overlayTimer?.cancel();
+    _overlayTimer = Timer(const Duration(milliseconds: 200), () {
+      _showOverlay();
+    });
+  }
+
+  void _onPanStart(DragStartDetails details) {
+    _overlayTimer?.cancel();
+    _showOverlay();
   }
 
   void _onPanUpdate(DragUpdateDetails details) {
@@ -50,8 +183,13 @@ class _RotaryKnobState extends State<RotaryKnob> {
 
     setState(() {
       _currentValue = (_currentValue + change).clamp(widget.min, widget.max);
+      _overlayValueNotifier.value = _currentValue;
     });
     widget.onChanged(_currentValue);
+  }
+
+  void _onPanEnd(DragEndDetails details) {
+    _hideOverlay();
   }
 
   @override
@@ -59,27 +197,46 @@ class _RotaryKnobState extends State<RotaryKnob> {
     final normalizedValue =
         (_currentValue - widget.min) / (widget.max - widget.min);
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        GestureDetector(
-          onPanUpdate: _onPanUpdate,
-          child: SizedBox(
-            width: widget.size,
-            height: widget.size,
-            child: CustomPaint(painter: _KnobPainter(value: normalizedValue)),
+    return CompositedTransformTarget(
+      link: _layerLink,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          GestureDetector(
+            onPanDown: _onPanDown,
+            onPanStart: _onPanStart,
+            onPanUpdate: _onPanUpdate,
+            onPanEnd: _onPanEnd,
+            onPanCancel: _hideOverlay,
+            child: SizedBox(
+              width: widget.size,
+              height: widget.size,
+              child: CustomPaint(painter: _KnobPainter(value: normalizedValue)),
+            ),
           ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          widget.label,
-          style: const TextStyle(
-            color: Colors.white70,
-            fontSize: 10,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ],
+          SizedBox(height: widget.isCompact ? 1 : 4),
+          if (widget.isCompact && widget.icon != null)
+            Icon(widget.icon, size: 14, color: Colors.white70)
+          else
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (widget.icon != null) ...[
+                  Icon(widget.icon, size: 12, color: Colors.white70),
+                  const SizedBox(width: 4),
+                ],
+                Text(
+                  widget.label,
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+        ],
+      ),
     );
   }
 }

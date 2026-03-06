@@ -93,6 +93,9 @@ class _SynthesizerScreenState extends State<SynthesizerScreen> {
   void _handleAutoScroll(int channel) {
     if (!_scrollController.hasClients) return;
 
+    final audioEngine = context.read<AudioEngine>();
+    if (!audioEngine.autoScrollEnabled.value) return;
+
     // Throttle auto-scrolling to prevent jumpiness when many events arrive quickly
     final now = DateTime.now();
     if (now.difference(_lastScrollTime).inMilliseconds < 500 &&
@@ -103,7 +106,6 @@ class _SynthesizerScreenState extends State<SynthesizerScreen> {
     _lastAutoScrolledChannel = channel;
     _lastScrollTime = now;
 
-    final audioEngine = context.read<AudioEngine>();
     int visualIndex = audioEngine.visibleChannels.value.indexOf(channel);
 
     if (visualIndex == -1) return;
@@ -324,6 +326,7 @@ class _SynthesizerScreenState extends State<SynthesizerScreen> {
                                   final channelIndex = visibleChannels[index];
 
                                   return ChannelCard(
+                                    key: ValueKey('channel_$channelIndex'),
                                     channelIndex: channelIndex,
                                     itemHeight: itemHeight,
                                   );

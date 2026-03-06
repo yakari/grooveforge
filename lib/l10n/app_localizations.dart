@@ -943,6 +943,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Automatic onboarding for new features'**
   String get guideFeatureList4;
+
+  /// No description provided for @micSelectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio Input'**
+  String get micSelectionTitle;
+
+  /// No description provided for @micSelectionDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'Microphone'**
+  String get micSelectionDevice;
+
+  /// No description provided for @micSelectionSensitivity.
+  ///
+  /// In en, this message translates to:
+  /// **'Sensitivity'**
+  String get micSelectionSensitivity;
+
+  /// No description provided for @micSelectionDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'System Default'**
+  String get micSelectionDefault;
+
+  /// No description provided for @audioOutputTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio Output'**
+  String get audioOutputTitle;
+
+  /// No description provided for @audioOutputDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'Output Device'**
+  String get audioOutputDevice;
+
+  /// No description provided for @audioOutputDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'System Default'**
+  String get audioOutputDefault;
+
+  /// No description provided for @synthAutoScrollTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-scroll to Active Channel'**
+  String get synthAutoScrollTitle;
+
+  /// No description provided for @synthAutoScrollSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Automatically scroll the list when MIDI is received'**
+  String get synthAutoScrollSubtitle;
 }
 
 class _AppLocalizationsDelegate

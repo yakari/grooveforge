@@ -323,6 +323,9 @@ class ChannelPatchInfo extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
+        debugPrint(
+          '[ChannelPatchInfo] BUILD: channel=$channelIndex, maxWidth=${constraints.maxWidth}',
+        );
         // --- Responsive Layout ---
         // Dynamically rearranges the soundfont, program, and bank dropdowns
         // alongside the scale lock button based on the available widget width.
@@ -375,17 +378,25 @@ class ChannelPatchInfo extends StatelessWidget {
                     children: [
                       Expanded(child: VocoderLevelMeters()),
                       const SizedBox(width: 8),
+                      // Replace vertical separator logic to avoid IntrinsicHeight
                       Container(
                         width: 1,
-                        height: 48,
+                        height: 40, // Match typical knob/button height
                         color: Colors.orange.withValues(alpha: 0.3),
                       ),
                       const SizedBox(width: 8),
-                      Expanded(child: VocoderSliders(engine: engine)),
+                      Expanded(
+                        child: VocoderSliders(
+                          key: ValueKey('vocoder_wrap_wide_$channelIndex'),
+                          engine: engine,
+                          channelIndex: channelIndex,
+                          isNarrow: false,
+                        ),
+                      ),
                       const SizedBox(width: 8),
                       Container(
                         width: 1,
-                        height: 38,
+                        height: 40,
                         color: Colors.orange.withValues(alpha: 0.3),
                       ),
                       const SizedBox(width: 8),
@@ -450,15 +461,22 @@ class ChannelPatchInfo extends StatelessWidget {
                       const SizedBox(width: 8),
                       Container(
                         width: 1,
-                        height: 48,
+                        height: 30, // Slightly smaller for narrow
                         color: Colors.orange.withValues(alpha: 0.3),
                       ),
                       const SizedBox(width: 8),
-                      Expanded(child: VocoderSliders(engine: engine)),
+                      Expanded(
+                        child: VocoderSliders(
+                          key: ValueKey('vocoder_wrap_narrow_$channelIndex'),
+                          engine: engine,
+                          channelIndex: channelIndex,
+                          isNarrow: true,
+                        ),
+                      ),
                       const SizedBox(width: 8),
                       Container(
                         width: 1,
-                        height: 48,
+                        height: 30,
                         color: Colors.orange.withValues(alpha: 0.3),
                       ),
                       const SizedBox(width: 8),
@@ -477,29 +495,48 @@ class ChannelPatchInfo extends StatelessWidget {
 
 class VocoderSliders extends StatelessWidget {
   final AudioEngine engine;
+  final int channelIndex;
+  final bool isNarrow;
 
-  const VocoderSliders({super.key, required this.engine});
+  const VocoderSliders({
+    super.key,
+    required this.engine,
+    required this.channelIndex,
+    this.isNarrow = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
-      child: Row(
-        mainAxisSize: MainAxisSize.max,
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      padding: EdgeInsets.symmetric(
+        vertical: isNarrow ? 2.0 : 8.0,
+        horizontal: isNarrow ? 4.0 : 16.0,
+      ),
+      child: Wrap(
+        // Use a Key that matches the layout type to help Flutter distinguish them
+        key: ValueKey(
+          'vocoder_wrap_${isNarrow ? "narrow" : "wide"}_$channelIndex',
+        ),
+        alignment: WrapAlignment.spaceEvenly,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: isNarrow ? 4.0 : 16.0,
+        runSpacing: isNarrow ? 1.0 : 8.0,
         children: [
           // Noise Knob
           ValueListenableBuilder<double>(
             valueListenable: engine.vocoderNoiseMix,
-            builder: (context, noise, _) {
+            builder: (context, val, _) {
               return RotaryKnob(
-                value: noise,
+                key: ValueKey('vocoder_noise_$channelIndex'),
+                value: val,
                 min: 0.0,
                 max: 1.0,
                 label: 'NOISE',
-                size: 40,
-                onChanged: (val) {
-                  engine.vocoderNoiseMix.value = val;
+                icon: Icons.grain,
+                size: isNarrow ? 28 : 40,
+                isCompact: isNarrow,
+                onChanged: (newVal) {
+                  engine.vocoderNoiseMix.value = newVal;
                   engine.updateVocoderParameters();
                 },
               );
@@ -509,15 +546,18 @@ class VocoderSliders extends StatelessWidget {
           // Speed Knob
           ValueListenableBuilder<double>(
             valueListenable: engine.vocoderEnvRelease,
-            builder: (context, env, _) {
+            builder: (context, val, _) {
               return RotaryKnob(
-                value: env,
+                key: ValueKey('vocoder_speed_$channelIndex'),
+                value: val,
                 min: 0.0,
                 max: 1.0,
                 label: 'SPEED',
-                size: 40,
-                onChanged: (val) {
-                  engine.vocoderEnvRelease.value = val;
+                icon: Icons.bolt,
+                size: isNarrow ? 28 : 40,
+                isCompact: isNarrow,
+                onChanged: (newVal) {
+                  engine.vocoderEnvRelease.value = newVal;
                   engine.updateVocoderParameters();
                 },
               );
@@ -527,15 +567,18 @@ class VocoderSliders extends StatelessWidget {
           // Bandwidth Knob
           ValueListenableBuilder<double>(
             valueListenable: engine.vocoderBandwidth,
-            builder: (context, bw, _) {
+            builder: (context, val, _) {
               return RotaryKnob(
-                value: bw,
+                key: ValueKey('vocoder_bandwidth_$channelIndex'),
+                value: val,
                 min: 0.0,
                 max: 1.0,
                 label: 'BANDWIDTH',
-                size: 40,
-                onChanged: (val) {
-                  engine.vocoderBandwidth.value = val;
+                icon: Icons.width_full,
+                size: isNarrow ? 28 : 40,
+                isCompact: isNarrow,
+                onChanged: (newVal) {
+                  engine.vocoderBandwidth.value = newVal;
                   engine.updateVocoderParameters();
                 },
               );
@@ -593,7 +636,7 @@ class VocoderButtons extends StatelessWidget {
             );
           },
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 2),
         // Refresh Mic Button
         SizedBox(
           height: 22,
