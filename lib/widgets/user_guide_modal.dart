@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
+import '../l10n/app_localizations.dart';
 
 /// A modal dialog containing the comprehensive user guide for GrooveForge.
 ///
-/// The guide is organized into distinct tabs: Connectivity, Sounds, CC Mapping,
-/// and Jam Mode, providing users with quick access to application features and tips.
+/// The guide is organized into distinct tabs: Features, MIDI Connectivity,
+/// Soundfonts, and Musical Tips.
 class UserGuideModal extends StatelessWidget {
   const UserGuideModal({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return DefaultTabController(
       length: 4,
       child: Dialog(
@@ -23,9 +26,9 @@ class UserGuideModal extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    'GROOVEFORGE USER GUIDE',
-                    style: TextStyle(
+                  Text(
+                    l10n.guideTitle.toUpperCase(),
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
@@ -38,27 +41,40 @@ class UserGuideModal extends StatelessWidget {
                   ),
                 ],
               ),
-              const TabBar(
+              TabBar(
                 tabs: [
-                  Tab(icon: Icon(Icons.usb), text: 'CONNECTIVITY'),
-                  Tab(icon: Icon(Icons.library_music), text: 'SOUNDS'),
                   Tab(
-                    icon: Icon(Icons.settings_input_component),
-                    text: 'CC MAPPING',
+                    icon: const Icon(Icons.auto_awesome),
+                    text: l10n.guideTabFeatures.toUpperCase(),
                   ),
-                  Tab(icon: Icon(Icons.group_work), text: 'JAM MODE'),
+                  Tab(
+                    icon: const Icon(Icons.usb),
+                    text: l10n.guideTabMidi.toUpperCase(),
+                  ),
+                  Tab(
+                    icon: const Icon(Icons.library_music),
+                    text: l10n.guideTabSoundfonts.toUpperCase(),
+                  ),
+                  Tab(
+                    icon: const Icon(Icons.music_note),
+                    text: l10n.guideTabTips.toUpperCase(),
+                  ),
                 ],
                 indicatorColor: Colors.blueAccent,
                 labelColor: Colors.blueAccent,
                 unselectedLabelColor: Colors.white54,
+                labelStyle: const TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const Expanded(
                 child: TabBarView(
                   children: [
-                    _ConnectivityTab(),
-                    _SoundsTab(),
-                    _CcMappingTab(),
-                    _JamModeTab(),
+                    _FeaturesTab(),
+                    _MidiConnectivityTab(),
+                    _SoundfontsTab(),
+                    _MusicalTipsTab(),
                   ],
                 ),
               ),
@@ -70,216 +86,199 @@ class UserGuideModal extends StatelessWidget {
   }
 }
 
-/// Displays instructions and tips on connecting USB and Bluetooth LE MIDI controllers.
-class _ConnectivityTab extends StatelessWidget {
-  const _ConnectivityTab();
+/// Displays information about Jam Mode and the new Vocoder feature.
+class _FeaturesTab extends StatelessWidget {
+  const _FeaturesTab();
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return ListView(
       padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 10),
       children: [
-        _buildSectionTitle('Linking a MIDI Controller'),
-        _buildParagraph(
-          'GrooveForge supports USB MIDI and Bluetooth LE MIDI controllers out of the box. '
-          'To connect your hardware:',
-        ),
-        _buildStep(
-          1,
-          'Connect your controller via USB or power on your BLE controller.',
-        ),
-        _buildStep(2, 'Navigate to the Settings (gear icon) in the top right.'),
-        _buildStep(
-          3,
-          'Under "Internal MIDI Input", select your device from the list.',
-        ),
-        _buildStep(
-          4,
-          'The app will auto-connect. You will see a toast notification upon success.',
-        ),
+        _buildWelcomeHeader(context, l10n),
+        const SizedBox(height: 24),
+        _buildSectionTitle(l10n.guideJamModeTitle),
+        _buildParagraph(l10n.guideJamModeBody),
         const SizedBox(height: 20),
+        _buildSectionTitle(l10n.guideVocoderTitle),
+        _buildParagraph(l10n.guideVocoderBody),
+        const SizedBox(height: 10),
         _buildInfoBox(
-          'Tip: If your device does not appear, ensure it is in a MIDI-compatible mode and try restarting the app.',
-        ),
+          l10n.guideVocoderBody.split('\n').last,
+        ), // The latency warning
       ],
     );
   }
 }
 
-/// Explains how to manage and load custom Soundfont (.sf2) files and select patches.
-class _SoundsTab extends StatelessWidget {
-  const _SoundsTab();
+/// Explains MIDI connection (USB/BLE) and CC/System action mapping.
+class _MidiConnectivityTab extends StatelessWidget {
+  const _MidiConnectivityTab();
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return ListView(
       padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 10),
       children: [
-        _buildSectionTitle('Managing Soundfonts'),
-        _buildParagraph(
-          'GrooveForge comes with a "Default Soundfont", but you can load your own .sf2 files for high-quality instruments.',
-        ),
+        _buildSectionTitle(l10n.guideMidiTitle),
+        _buildParagraph(l10n.guideMidiBody),
+        const SizedBox(height: 10),
+        _buildSubTitle('1. Hardware Connection'),
         _buildStep(
           1,
-          'In Settings, use the "IMPORT SF2" button to add files from your device.',
+          'Connect controller via USB (OTG) or power on BLE device.',
         ),
-        _buildStep(
-          2,
-          'Imported soundfonts are securely moved to internal storage for consistent access.',
-        ),
-        _buildParagraph('On each Channel Card, you can customize:'),
+        _buildStep(2, 'Go to Settings > MIDI Input and select your device.'),
+        const SizedBox(height: 10),
+        _buildSubTitle('2. CC & System Mappings'),
+        _buildParagraph('Bind knobs to effects like Volume or System Actions:'),
         _buildFeatureItem(
-          Icons.folder,
-          'Soundfont',
-          'Choose from your loaded library.',
-        ),
-        _buildFeatureItem(
-          Icons.piano,
-          'Patch',
-          'Select the specific instrument preset.',
-        ),
-        _buildFeatureItem(
-          Icons.layers,
-          'Bank',
-          'Switch between different sound banks within the SF2.',
-        ),
-        const SizedBox(height: 20),
-        _buildInfoBox(
-          'Note: Changing a soundfont on one channel does not affect others unless you manually assign them.',
-        ),
-      ],
-    );
-  }
-}
-
-/// Guides the user through remapping hardware MIDI CC messages to internal GrooveForge features,
-/// including a reference list of available System Actions.
-class _CcMappingTab extends StatelessWidget {
-  const _CcMappingTab();
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 10),
-      children: [
-        _buildSectionTitle('MIDI CC Remapping'),
-        _buildParagraph(
-          'Remapping allows you to use your controller\'s knobs, sliders, and buttons to control app functions.',
-        ),
-        _buildStep(1, 'Go to Settings > CC MAPPINGS.'),
-        _buildStep(
-          2,
-          'Select a slot and choose a Target function (e.g., Modulation, Volume, or System Actions).',
-        ),
-        _buildStep(
-          3,
-          'Use "LEARN" and move your physical control to auto-assign the CC number.',
-        ),
-        const SizedBox(height: 20),
-        _buildSectionTitle('System Actions (Exhaustive List)'),
-        _buildParagraph(
-          'Mapping to a Target CC above 1000 triggers application-level events. '
-          'Note: Toggle and Cycle actions have a 250ms debounce to prevent "double-triggers" from sensitive pads.',
-        ),
-        _buildFeatureItem(
-          Icons.lock,
-          'Start/Stop Jam Mode (1007)',
-          'Starts or stops the Jam Mode, which automatically locks selected channels scales based on the chords played on the master channel.',
+          Icons.skip_next,
+          'Patch Up/Down',
+          'Quickly switch instruments.',
         ),
         _buildFeatureItem(
           Icons.loop,
-          'Cycle Scale Type (1008)',
-          'Quickly cycle through scales: Standard, Jazz, Asiatic, etc.',
+          'Cycle Scales',
+          'Change harmony on the fly.',
         ),
         _buildFeatureItem(
-          Icons.skip_next,
-          'Next/Prev Patch (1003/1004)',
-          'Increment or decrement the current instrument patch.',
+          Icons.lock,
+          'Toggle Jam',
+          'Force slaves to follow your lead.',
         ),
-        _buildFeatureItem(
-          Icons.library_music,
-          'Next/Prev Soundfont (1001/1002)',
-          'Switch the entire sound library for the channel.',
-        ),
-        _buildFeatureItem(
-          Icons.linear_scale,
-          'Absolute Patch Sweep (1005)',
-          'Maps a knob/slider (0-127) directly to the instrument index.',
-        ),
-        _buildFeatureItem(
-          Icons.layers,
-          'Absolute Bank Sweep (1006)',
-          'Maps a knob/slider directly to the Soundfont bank index.',
+        const SizedBox(height: 24),
+        _buildSectionTitle(l10n.guideMidiBestPracticeTitle),
+        _buildParagraph(l10n.guideMidiBestPracticeBody),
+        const SizedBox(height: 12),
+        _buildInfoBox(
+          'Tip: Most modern MIDI controllers allow splitting the keys into distinct zones/channels.',
         ),
       ],
     );
   }
 }
 
-/// Details the Smart Jam Mode feature, describing master-slave relationships,
-/// scale snapping algorithms, and providing a visual reference for common scales.
-class _JamModeTab extends StatelessWidget {
-  const _JamModeTab();
+/// Explains Soundfont loading and management.
+class _SoundfontsTab extends StatelessWidget {
+  const _SoundfontsTab();
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return ListView(
       padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 10),
       children: [
-        _buildSectionTitle('Smart Jam Mode (v1.3.0)'),
-        _buildParagraph(
-          'Jam Mode is the engine\'s most powerful feature, allowing intelligent scale synchronization across channels.',
+        _buildSectionTitle(l10n.guideSoundfontsTitle),
+        _buildParagraph(l10n.guideSoundfontsBody),
+        _buildFeatureItem(
+          Icons.folder_open,
+          'Import SF2',
+          'Add files from your local storage.',
         ),
-        const SizedBox(height: 10),
-        _buildSubTitle('1. Master & Slaves'),
-        _buildParagraph(
-          '• Define a Master Channel: Its played notes are analyzed to find the "best fit" chord identity.\n'
-          '• Assign Slave Channels: They will automatically "snap" their played keys to the nearest note in the scale derived from the Master\'s chord.',
-        ),
-        const SizedBox(height: 10),
-        _buildSubTitle('2. Scale Snapping Algorithm'),
-        _buildParagraph(
-          'When a slave note is played, the engine calculates the allowed pitch classes for the current scale. '
-          'If the played key isn\'t in the scale, it immediately shifts (+/-) to the closest valid interval. '
-          'This ensures your performance always stays perfectly in key with the harmony.',
-        ),
-        const SizedBox(height: 10),
-        _buildSubTitle('3. Chord Stabilization'),
-        _buildParagraph(
-          'A 30ms "Wait-and-See" logic prevents identity flickering during fast finger movements. '
-          'When you lift all fingers, the engine preserves the "Peak Chord" (the fullest version of the chord) '
-          'so slaved channels stay locked to the harmony during silence.',
+        _buildFeatureItem(
+          Icons.storage,
+          'Permanent Cache',
+          'Files are moved to app internal storage for stability.',
         ),
         const SizedBox(height: 20),
-        _buildSectionTitle('Scale Quick Memo'),
-        _buildParagraph(
-          'Here are the primary scales used in Jam Mode (shown in the key of C):',
+        _buildInfoBox(
+          'Tip: High-quality soundfonts can be several hundred MBs. Ensure you have enough storage.',
         ),
+      ],
+    );
+  }
+}
+
+/// Provides scale references and improvisation tips.
+class _MusicalTipsTab extends StatelessWidget {
+  const _MusicalTipsTab();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return ListView(
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 10),
+      children: [
+        _buildSectionTitle(l10n.guideTipsTitle),
+        _buildParagraph(l10n.guideTipsBody),
+        const Divider(color: Colors.white24, height: 32),
+        _buildSectionTitle(l10n.guideScalesTitle),
+        _buildParagraph('Visual reference for common scales (Key of C):'),
         _buildScaleMemoItem('MAJOR / IONIAN', [0, 2, 4, 5, 7, 9, 11]),
         _buildScaleMemoItem('DORIAN', [0, 2, 3, 5, 7, 9, 10]),
-        _buildScaleMemoItem('PHRYGIAN', [0, 1, 3, 5, 7, 8, 10]),
         _buildScaleMemoItem('LYDIAN', [0, 2, 4, 6, 7, 9, 11]),
         _buildScaleMemoItem('MIXOLYDIAN', [0, 2, 4, 5, 7, 9, 10]),
         _buildScaleMemoItem('AEOLIAN (MINOR)', [0, 2, 3, 5, 7, 8, 10]),
-        _buildScaleMemoItem('LOCRIAN', [0, 1, 3, 5, 6, 8, 10]),
-        const Divider(color: Colors.white24, height: 32),
         _buildScaleMemoItem('MAJOR PENTATONIC', [0, 2, 4, 7, 9]),
         _buildScaleMemoItem('MINOR PENTATONIC', [0, 3, 5, 7, 10]),
-        _buildScaleMemoItem('MAJOR BLUES', [0, 2, 3, 4, 7, 9]),
         _buildScaleMemoItem('MINOR BLUES', [0, 3, 5, 6, 7, 10]),
-        _buildScaleMemoItem('LYDIAN DOMINANT', [0, 2, 4, 6, 7, 9, 10]),
-        _buildScaleMemoItem('ALTERED SCALE', [0, 1, 3, 4, 6, 8, 10]),
-        _buildScaleMemoItem('HARMONIC MINOR', [0, 2, 3, 5, 7, 8, 11]),
-        _buildScaleMemoItem('MELODIC MINOR', [0, 2, 3, 5, 7, 9, 11]),
-        _buildScaleMemoItem('WHOLE TONE', [0, 2, 4, 6, 8, 10]),
-        _buildScaleMemoItem('DIMINISHED', [0, 1, 3, 4, 6, 7, 9, 10]),
-        const SizedBox(height: 20),
       ],
     );
   }
 }
 
 // Helper Widgets
+Widget _buildWelcomeHeader(BuildContext context, AppLocalizations l10n) {
+  return Container(
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: Colors.blueAccent.withValues(alpha: 0.1),
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: Colors.blueAccent.withValues(alpha: 0.3)),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          l10n.guideWelcomeHeader,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          l10n.guideWelcomeIntro,
+          style: const TextStyle(color: Colors.white70, fontSize: 13),
+        ),
+        const SizedBox(height: 12),
+        _buildBulletItem(l10n.guideFeatureList1),
+        _buildBulletItem(l10n.guideFeatureList2),
+        _buildBulletItem(l10n.guideFeatureList3),
+        _buildBulletItem(l10n.guideFeatureList4),
+      ],
+    ),
+  );
+}
+
+Widget _buildBulletItem(String text) {
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 2),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          "\u2022 ",
+          style: TextStyle(
+            color: Colors.blueAccent,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(color: Colors.white, fontSize: 13),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
 Widget _buildSectionTitle(String title) {
   return Padding(
     padding: const EdgeInsets.only(bottom: 12),
@@ -414,8 +413,6 @@ Widget _buildScaleMemoItem(String name, List<int> intervals) {
   );
 }
 
-/// Custom painter that draws a 5-line musical staff, a G-Clef, and the specific
-/// notes of a given scale based on its intervals.
 class _StaffPainter extends CustomPainter {
   final List<int> intervals;
   _StaffPainter(this.intervals);
@@ -434,7 +431,6 @@ class _StaffPainter extends CustomPainter {
     final double startY = (size.height - staffHeight) / 2;
     final double lineSpacing = staffHeight / 4;
 
-    // Draw G-Clef (Unicode)
     final double gLineY = startY + 3 * lineSpacing;
     final TextPainter clefPainter = TextPainter(
       text: const TextSpan(
@@ -444,29 +440,25 @@ class _StaffPainter extends CustomPainter {
       textDirection: TextDirection.ltr,
     );
     clefPainter.layout();
-    // Offset to center the G-loop on the G-line (empirical adjustment)
     clefPainter.paint(canvas, Offset(8, gLineY - 20));
 
-    // Draw 5 lines
     for (int i = 0; i < 5; i++) {
       final y = startY + i * lineSpacing;
       canvas.drawLine(Offset(0, y), Offset(size.width, y), linePaint);
     }
 
-    // Map intervals to diatonic steps and accidentals
-    // C=0, C#=1, D=2, D#=3, E=4, F=5, F#=6, G=7, G#=8, A=9, A#=10, B=11
     final Map<int, _ScaleNote> noteMap = {
       0: _ScaleNote(0, null),
-      1: _ScaleNote(1, '\u266D'), // ♭
+      1: _ScaleNote(1, '\u266D'),
       2: _ScaleNote(1, null),
-      3: _ScaleNote(2, '\u266D'), // ♭
+      3: _ScaleNote(2, '\u266D'),
       4: _ScaleNote(2, null),
       5: _ScaleNote(3, null),
-      6: _ScaleNote(3, '\u266F'), // ♯
+      6: _ScaleNote(3, '\u266F'),
       7: _ScaleNote(4, null),
-      8: _ScaleNote(5, '\u266D'), // ♭
+      8: _ScaleNote(5, '\u266D'),
       9: _ScaleNote(5, null),
-      10: _ScaleNote(6, '\u266D'), // ♭
+      10: _ScaleNote(6, '\u266D'),
       11: _ScaleNote(6, null),
     };
 
@@ -480,17 +472,13 @@ class _StaffPainter extends CustomPainter {
       final x = startX + i * noteSpacing;
       final info = noteMap[interval]!;
 
-      // Line 1 (Bottom) is index 4 in our loop above (startY + 4*lineSpacing)
       final line1Y = startY + 4 * lineSpacing;
-      // C4 (step 0) is 2 steps below Line 1 (E4)
       final y = line1Y - (info.step - 2) * (lineSpacing / 2);
 
-      // Ledger line for C4 (step 0)
       if (info.step == 0) {
         canvas.drawLine(Offset(x - 8, y), Offset(x + 8, y), linePaint);
       }
 
-      // Draw Accidental
       if (info.accidental != null) {
         final TextPainter tp = TextPainter(
           text: TextSpan(
@@ -519,10 +507,8 @@ class _StaffPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-/// Encapsulates the diatonic step (vertical position on the staff) and any
-/// necessary accidental (sharp/flat) needed to render a specific note in a scale.
 class _ScaleNote {
-  final int step; // Diatonic step (0=C, 1=D, etc.)
+  final int step;
   final String? accidental;
   _ScaleNote(this.step, this.accidental);
 }

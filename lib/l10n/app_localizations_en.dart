@@ -394,4 +394,83 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get languageFrench => 'French';
+
+  @override
+  String get guideTitle => 'User Guide';
+
+  @override
+  String get guideTabFeatures => 'Features';
+
+  @override
+  String get guideTabMidi => 'MIDI Connectivity';
+
+  @override
+  String get guideTabSoundfonts => 'Soundfonts';
+
+  @override
+  String get guideTabTips => 'Musical Tips';
+
+  @override
+  String get guideJamModeTitle => 'Jam Mode (Auto-Harmony)';
+
+  @override
+  String get guideJamModeBody =>
+      'Jam Mode allows you to play flawlessly by locking all keys to a specific scale. In Jam Mode, one channel acts as the \'Master\' (transmitting its scale/harmony) while other channels act as \'Slaves\'. Use the top controls to define the root note and scale type.';
+
+  @override
+  String get guideVocoderTitle => 'Vocoder (Voice Synth)';
+
+  @override
+  String get guideVocoderBody =>
+      'The Vocoder uses your device microphone to modulate the synth sound. Access it by selecting the \'VOCODER\' preset in the soundfont dropdown. For best results:\n• Use wired headphones or speakers (latency over Bluetooth is too high).\n• Setup mic levels with the gain knobs.\n• Experiment with different carrier waves (Saw, Pulse, Neutral).';
+
+  @override
+  String get guideMidiTitle => 'MIDI Connectivity';
+
+  @override
+  String get guideMidiBody =>
+      'Connect hardware controllers via USB (OTG adapter) or BLE MIDI. Enable CC Mapping in preferences to bind physical knobs to internal effects or system actions like \'Next Patch\'.';
+
+  @override
+  String get guideMidiBestPracticeTitle => 'Hardware Recommendations';
+
+  @override
+  String get guideMidiBestPracticeBody =>
+      'For an optimal experience, we recommend using a split MIDI keyboard or a dual-keyboard setup:\n• Channel 2 (Left Hand): Send notes here to control chords and harmony (Jam Master).\n• Channel 1 (Right Hand): Use this channel to improvise over the generated harmony with the current scale.';
+
+  @override
+  String get guideSoundfontsTitle => 'Soundfonts (SF2)';
+
+  @override
+  String get guideSoundfontsBody =>
+      'Import high-quality instrument sounds (.sf2) in the Soundfont preferences. Once loaded, you can assign them to any MIDI channel via the patch selector.';
+
+  @override
+  String get guideTipsTitle => 'Musical Tips & Improvisation';
+
+  @override
+  String get guideTipsBody =>
+      'New to improvisation? Try these tips:\n• Scale as Safe Zone: Every key in the selected scale will sound \'correct\' with the music.\n• The Root Note: Start or end your phrases on the root note (highlighted) to create a sense of resolution.\n• Rhythm first: Focus on simple rhythmic patterns rather than complex melodies.';
+
+  @override
+  String get guideScalesTitle => 'Available Scales';
+
+  @override
+  String get guideWelcomeHeader => 'Welcome to GrooveForge v1.6.1';
+
+  @override
+  String get guideWelcomeIntro =>
+      'This update brings significant improvements to your workflow and creative tools:';
+
+  @override
+  String get guideFeatureList1 => 'Unified MIDI connectivity & mapping';
+
+  @override
+  String get guideFeatureList2 => 'New Vocoder with tactile controls';
+
+  @override
+  String get guideFeatureList3 => 'Musical tips & visual scale reference';
+
+  @override
+  String get guideFeatureList4 => 'Automatic onboarding for new features';
 }

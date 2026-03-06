@@ -799,6 +799,150 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'French'**
   String get languageFrench;
+
+  /// No description provided for @guideTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'User Guide'**
+  String get guideTitle;
+
+  /// No description provided for @guideTabFeatures.
+  ///
+  /// In en, this message translates to:
+  /// **'Features'**
+  String get guideTabFeatures;
+
+  /// No description provided for @guideTabMidi.
+  ///
+  /// In en, this message translates to:
+  /// **'MIDI Connectivity'**
+  String get guideTabMidi;
+
+  /// No description provided for @guideTabSoundfonts.
+  ///
+  /// In en, this message translates to:
+  /// **'Soundfonts'**
+  String get guideTabSoundfonts;
+
+  /// No description provided for @guideTabTips.
+  ///
+  /// In en, this message translates to:
+  /// **'Musical Tips'**
+  String get guideTabTips;
+
+  /// No description provided for @guideJamModeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Jam Mode (Auto-Harmony)'**
+  String get guideJamModeTitle;
+
+  /// No description provided for @guideJamModeBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Jam Mode allows you to play flawlessly by locking all keys to a specific scale. In Jam Mode, one channel acts as the \'Master\' (transmitting its scale/harmony) while other channels act as \'Slaves\'. Use the top controls to define the root note and scale type.'**
+  String get guideJamModeBody;
+
+  /// No description provided for @guideVocoderTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Vocoder (Voice Synth)'**
+  String get guideVocoderTitle;
+
+  /// No description provided for @guideVocoderBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The Vocoder uses your device microphone to modulate the synth sound. Access it by selecting the \'VOCODER\' preset in the soundfont dropdown. For best results:\n• Use wired headphones or speakers (latency over Bluetooth is too high).\n• Setup mic levels with the gain knobs.\n• Experiment with different carrier waves (Saw, Pulse, Neutral).'**
+  String get guideVocoderBody;
+
+  /// No description provided for @guideMidiTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'MIDI Connectivity'**
+  String get guideMidiTitle;
+
+  /// No description provided for @guideMidiBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect hardware controllers via USB (OTG adapter) or BLE MIDI. Enable CC Mapping in preferences to bind physical knobs to internal effects or system actions like \'Next Patch\'.'**
+  String get guideMidiBody;
+
+  /// No description provided for @guideMidiBestPracticeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware Recommendations'**
+  String get guideMidiBestPracticeTitle;
+
+  /// No description provided for @guideMidiBestPracticeBody.
+  ///
+  /// In en, this message translates to:
+  /// **'For an optimal experience, we recommend using a split MIDI keyboard or a dual-keyboard setup:\n• Channel 2 (Left Hand): Send notes here to control chords and harmony (Jam Master).\n• Channel 1 (Right Hand): Use this channel to improvise over the generated harmony with the current scale.'**
+  String get guideMidiBestPracticeBody;
+
+  /// No description provided for @guideSoundfontsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Soundfonts (SF2)'**
+  String get guideSoundfontsTitle;
+
+  /// No description provided for @guideSoundfontsBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Import high-quality instrument sounds (.sf2) in the Soundfont preferences. Once loaded, you can assign them to any MIDI channel via the patch selector.'**
+  String get guideSoundfontsBody;
+
+  /// No description provided for @guideTipsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Musical Tips & Improvisation'**
+  String get guideTipsTitle;
+
+  /// No description provided for @guideTipsBody.
+  ///
+  /// In en, this message translates to:
+  /// **'New to improvisation? Try these tips:\n• Scale as Safe Zone: Every key in the selected scale will sound \'correct\' with the music.\n• The Root Note: Start or end your phrases on the root note (highlighted) to create a sense of resolution.\n• Rhythm first: Focus on simple rhythmic patterns rather than complex melodies.'**
+  String get guideTipsBody;
+
+  /// No description provided for @guideScalesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Available Scales'**
+  String get guideScalesTitle;
+
+  /// No description provided for @guideWelcomeHeader.
+  ///
+  /// In en, this message translates to:
+  /// **'Welcome to GrooveForge v1.6.1'**
+  String get guideWelcomeHeader;
+
+  /// No description provided for @guideWelcomeIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'This update brings significant improvements to your workflow and creative tools:'**
+  String get guideWelcomeIntro;
+
+  /// No description provided for @guideFeatureList1.
+  ///
+  /// In en, this message translates to:
+  /// **'Unified MIDI connectivity & mapping'**
+  String get guideFeatureList1;
+
+  /// No description provided for @guideFeatureList2.
+  ///
+  /// In en, this message translates to:
+  /// **'New Vocoder with tactile controls'**
+  String get guideFeatureList2;
+
+  /// No description provided for @guideFeatureList3.
+  ///
+  /// In en, this message translates to:
+  /// **'Musical tips & visual scale reference'**
+  String get guideFeatureList3;
+
+  /// No description provided for @guideFeatureList4.
+  ///
+  /// In en, this message translates to:
+  /// **'Automatic onboarding for new features'**
+  String get guideFeatureList4;
 }
 
 class _AppLocalizationsDelegate

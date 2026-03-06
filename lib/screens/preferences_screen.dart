@@ -8,7 +8,7 @@ import 'package:grooveforge/services/audio_engine.dart';
 import '../screens/cc_preferences.dart';
 import 'package:grooveforge/services/cc_mapping_service.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import '../l10n/app_localizations.dart';
 import '../services/locale_provider.dart';

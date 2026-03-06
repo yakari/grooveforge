@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.1] - 2026-03-06
+### Added
+- **Revamped User Guide**: Reorganized tabs (Features, MIDI Connectivity, Soundfonts, Musical Tips).
+- **Vocoder Documentation**: Added detailed instructions on how to use the new vocoder features.
+- **Musical Improvisation Tips**: Added a new section with theory bits to help beginners improvise using scales.
+- **Auto-Welcome**: The user guide now appears automatically on first launch or after a major update to highlight new features.
+
 ## [1.6.0] - 2026-03-05
 ### Added
 - **Vocoder Overhaul**: 32-band polyphonic vocoder with carrier waveform selection (including new 'Neutral' mode).

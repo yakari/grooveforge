@@ -398,4 +398,83 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get languageFrench => 'Français';
+
+  @override
+  String get guideTitle => 'Guide de l\'utilisateur';
+
+  @override
+  String get guideTabFeatures => 'Fonctionnalités';
+
+  @override
+  String get guideTabMidi => 'Connectivité MIDI';
+
+  @override
+  String get guideTabSoundfonts => 'Soundfonts';
+
+  @override
+  String get guideTabTips => 'Conseils musicaux';
+
+  @override
+  String get guideJamModeTitle => 'Mode Jam (Auto-Harmonie)';
+
+  @override
+  String get guideJamModeBody =>
+      'Le Mode Jam vous permet de jouer sans fausse note en verrouillant toutes les touches sur une gamme spécifique. Un canal fait office de \'Master\' (transmettant sa gamme) tandis que les autres sont des \'Slaves\'. Utilisez les contrôles supérieurs pour définir la tonique et le type de gamme.';
+
+  @override
+  String get guideVocoderTitle => 'Vocodeur (Synthé Vocal)';
+
+  @override
+  String get guideVocoderBody =>
+      'Le vocodeur utilise le micro pour moduler le son du synthé. Accédez-y via le preset \'VOCODER\' dans le sélecteur de patchs. Pour de meilleurs résultats :\n• Utilisez un casque ou des enceintes filaires (la latence Bluetooth est trop élevée).\n• Réglez les niveaux avec les boutons de gain.\n• Expérimentez avec les différentes ondes porteuses (Saw, Pulse, Neutral).';
+
+  @override
+  String get guideMidiTitle => 'Connectivité MIDI';
+
+  @override
+  String get guideMidiBody =>
+      'Connectez vos contrôleurs via USB (adaptateur OTG) ou BLE MIDI. Activez le mappage CC dans les préférences pour lier vos boutons physiques aux effets ou aux actions système comme \'Patch Suivant\'.';
+
+  @override
+  String get guideMidiBestPracticeTitle => 'Recommandations Matérielles';
+
+  @override
+  String get guideMidiBestPracticeBody =>
+      'Pour une expérience optimale, nous recommandons l\'utilisation d\'un clavier MIDI split ou de deux claviers :\n• Canal 2 (Main Gauche) : Envoyez les notes ici pour contrôler les accords et l\'harmonie (Master).\n• Canal 1 (Main Droite) : Utilisez ce canal pour improviser sur l\'harmonie générée avec la gamme actuelle.';
+
+  @override
+  String get guideSoundfontsTitle => 'Soundfonts (SF2)';
+
+  @override
+  String get guideSoundfontsBody =>
+      'Importez des sons d\'instruments de haute qualité (.sf2) dans les préférences. Une fois chargés, vous pouvez les assigner à n\'importe quel canal MIDI via le sélecteur de patch.';
+
+  @override
+  String get guideTipsTitle => 'Conseils & Improvisation';
+
+  @override
+  String get guideTipsBody =>
+      'Nouveau en improvisation ? Essayez ces conseils :\n• Gamme = Zone Sûre : Chaque touche de la gamme sélectionnée sonnera \'juste\'.\n• La Tonique : Commencez ou terminez vos phrases sur la tonique (mise en évidence) pour créer une résolution.\n• Rythme d\'abord : Concentrez-vous sur des motifs rythmiques simples plutôt que des mélodies complexes.';
+
+  @override
+  String get guideScalesTitle => 'Gammes disponibles';
+
+  @override
+  String get guideWelcomeHeader => 'Bienvenue dans GrooveForge v1.6.1';
+
+  @override
+  String get guideWelcomeIntro =>
+      'Cette mise à jour apporte des améliorations significatives à votre workflow et à vos outils créatifs :';
+
+  @override
+  String get guideFeatureList1 => 'Connectivité MIDI et mapping unifiés';
+
+  @override
+  String get guideFeatureList2 => 'Nouveau Vocoder avec contrôles tactiles';
+
+  @override
+  String get guideFeatureList3 => 'Conseils musicaux et références de gammes';
+
+  @override
+  String get guideFeatureList4 => 'Onboarding automatique pour les nouveautés';
 }

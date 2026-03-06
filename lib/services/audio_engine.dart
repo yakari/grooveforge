@@ -148,6 +148,13 @@ class AudioEngine extends ChangeNotifier {
   }
 
   final ValueNotifier<int> aftertouchDestCc = ValueNotifier<int>(1);
+  final ValueNotifier<String?> lastSeenVersion = ValueNotifier(null);
+
+  Future<void> markWelcomeAsSeen(String version) async {
+    lastSeenVersion.value = version;
+    await _saveState();
+  }
+
   final ValueNotifier<String> notationFormat = ValueNotifier('Standard');
   final ValueNotifier<int> pianoKeysToShow = ValueNotifier(22);
 
@@ -367,6 +374,7 @@ class AudioEngine extends ChangeNotifier {
     await _prefs!.setInt('jam_scale_type', jamScaleType.value.index);
     await _prefs!.setBool('jam_show_borders', showJamModeBorders.value);
     await _prefs!.setBool('jam_highlight_wrong', highlightWrongNotes.value);
+    await _prefs!.setString('last_seen_version', lastSeenVersion.value ?? "");
   }
 
   Future<void> _restoreState() async {
@@ -485,6 +493,8 @@ class AudioEngine extends ChangeNotifier {
     if (savedHighlightWrongNotes != null) {
       highlightWrongNotes.value = savedHighlightWrongNotes;
     }
+
+    lastSeenVersion.value = _prefs!.getString('last_seen_version');
 
     stateNotifier.value++;
   }

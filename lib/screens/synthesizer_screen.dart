@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_midi_command/flutter_midi_command.dart';
 
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:grooveforge/services/audio_engine.dart';
 import 'package:grooveforge/services/cc_mapping_service.dart';
 import 'package:grooveforge/services/midi_service.dart';
@@ -68,6 +69,20 @@ class _SynthesizerScreenState extends State<SynthesizerScreen> {
       }
     };
     audioEngine.toastNotifier.addListener(_toastListener!);
+
+    // Auto-show welcome guide for new versions
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final packageInfo = await PackageInfo.fromPlatform();
+      final currentVersion =
+          '${packageInfo.version}+${packageInfo.buildNumber}';
+
+      if (audioEngine.lastSeenVersion.value != currentVersion) {
+        if (mounted) {
+          _showUserGuide();
+          audioEngine.markWelcomeAsSeen(currentVersion);
+        }
+      }
+    });
   }
 
   /// Automatically scrolls the list of virtual keyboards so that a channel
