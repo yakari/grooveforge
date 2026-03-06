@@ -4,13 +4,22 @@ GrooveForge Synthesizer is a low-latency, cross-platform Flutter application tai
 
 ## Features
 
-GrooveForge Synthesizer provides cross-platform, zero-latency multi-timbral synthesis utilizing `.sf2` soundfonts. Key capabilities include:
+GrooveForge Synthesizer provides cross-platform, low-latency multi-timbral synthesis utilizing `.sf2` soundfonts. Key capabilities include:
 - **16-Channel Engine**: Fully independent state-managed MIDI channels.
-- **Advanced CC Mapping**: Map knobs, sliders, and pads to MIDI effects or powerful custom application actions (e.g. Patch Sweeping).
-- **Interactive UI**: A glowing 16-card grid dashboard representing your workspace.
-- **Real-Time Music Theory**: Live chord detection parsing and a mathematical "Scale Lock" system that flawlessly binds wrong notes into the correct grooving scale.
+- **Jam Mode (Collaborative)**: Synchronize scales and harmony across multiple channels or musicians. One "Master" channel can lead multiple "Slaves" for flawless improvisation.
+- **Integrated Vocoder**: Real-time voice synthesis using your device's microphone to modulate synth carriers.
+- **Scale Lock & Highlighting**: A mathematical system that binds notes to the correct scale, featuring visual feedback (Correct/Wrong/Root note highlights) on the virtual keyboard.
+- **Advanced CC Mapping**: Map knobs, sliders, and pads to MIDI effects or powerful custom application actions like "Patch Sweeping" or "Global Scale Cycle".
+- **Premium UI**: Tactile rotary knobs and a glowing 16-card grid dashboard for a professional studio feel.
 
-For a full, detailed breakdown of all capabilities, see the [Features Documentation](docs/features.md).
+For a full, detailed breakdown, see the [Features Documentation](docs/features.md).
+
+## Platform Support
+
+GrooveForge is developed and optimized for the following platforms:
+- **Android**: Fully supported and tested (ARM64). Uses Oboe for high-performance audio.
+- **Linux**: Fully supported and tested. Relies on `fluidsynth` as a native backend.
+- **Windows / macOS / iOS**: **Experimental**. These ports are included in the codebase but are not fully tested and may have limited functionality or performance issues.
 
 ## Prerequisites
 
