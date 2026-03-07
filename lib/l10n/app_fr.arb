@@ -242,5 +242,9 @@
   "audioOutputDevice": "Appareil de sortie",
   "audioOutputDefault": "Système (défaut)",
   "synthAutoScrollTitle": "Auto-scroll vers le canal actif",
-  "synthAutoScrollSubtitle": "Défiler automatiquement la liste lors de la réception MIDI"
+  "synthAutoScrollSubtitle": "Défiler automatiquement la liste lors de la réception MIDI",
+  "vocoderWarningTitle": "Avertissement de larsen",
+  "vocoderWarningBody": "L'utilisation simultanée du microphone et des haut-parleurs internes peut provoquer un effet de larsen (boucle sonore). Veuillez utiliser un casque, un micro séparé ou une enceinte externe pour une expérience sûre.",
+  "vocoderWarningValidate": "Activer le vocodeur",
+  "vocoderWarningCancel": "Annuler"
 }

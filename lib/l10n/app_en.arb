@@ -242,5 +242,9 @@
   "audioOutputDevice": "Output Device",
   "audioOutputDefault": "System Default",
   "synthAutoScrollTitle": "Auto-scroll to Active Channel",
-  "synthAutoScrollSubtitle": "Automatically scroll the list when MIDI is received"
+  "synthAutoScrollSubtitle": "Automatically scroll the list when MIDI is received",
+  "vocoderWarningTitle": "Feedback Warning",
+  "vocoderWarningBody": "Using the internal microphone and speakers simultaneously can cause a loud feedback loop (Larsen effect). Please use external headphones, a separate microphone, or an external speaker for a safe experience.",
+  "vocoderWarningValidate": "Enable Vocoder",
+  "vocoderWarningCancel": "Cancel"
 }

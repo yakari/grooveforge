@@ -13,6 +13,7 @@ import '../services/sf2_parser.dart';
 import 'package:audio_session/audio_session.dart';
 import 'package:grooveforge/models/chord_detector.dart';
 import 'package:grooveforge/services/audio_input_ffi.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 const String vocoderMode = 'vocoderMode';
 
@@ -150,15 +151,16 @@ class AudioEngine extends ChangeNotifier {
 
   final ValueNotifier<int> aftertouchDestCc = ValueNotifier<int>(1);
   final ValueNotifier<bool> autoScrollEnabled = ValueNotifier<bool>(false);
+
+  final ValueNotifier<int> pianoKeysToShow = ValueNotifier<int>(37);
+  final ValueNotifier<String> notationFormat = ValueNotifier<String>('standard');
+  final ValueNotifier<bool> vocoderWarningShown = ValueNotifier<bool>(false);
   final ValueNotifier<String?> lastSeenVersion = ValueNotifier(null);
 
   Future<void> markWelcomeAsSeen(String version) async {
     lastSeenVersion.value = version;
     await _saveState();
   }
-
-  final ValueNotifier<String> notationFormat = ValueNotifier('Standard');
-  final ValueNotifier<int> pianoKeysToShow = ValueNotifier(22);
 
   // --- Vocoder DSP State ---
   final ValueNotifier<int> vocoderWaveform = ValueNotifier(
@@ -369,6 +371,14 @@ class AudioEngine extends ChangeNotifier {
     }
     initStatus.value = 'Loading preferences...';
     _prefs = await SharedPreferences.getInstance();
+    
+    if (Platform.isAndroid) {
+      initStatus.value = 'Checking permissions...';
+      final status = await Permission.microphone.request();
+      if (status != PermissionStatus.granted) {
+        debugPrint('GrooveForge: Microphone permission not granted: $status');
+      }
+    }
 
     if (Platform.isLinux) {
       initStatus.value = 'Starting FluidSynth backend...';
@@ -582,6 +592,7 @@ class AudioEngine extends ChangeNotifier {
       'vocoder_output_android_device_id',
       vocoderOutputAndroidDeviceId.value,
     );
+    await _prefs!.setBool('vocoder_warning_shown', vocoderWarningShown.value);
   }
 
   Future<void> _restoreState() async {
@@ -603,6 +614,7 @@ class AudioEngine extends ChangeNotifier {
         _prefs!.getInt('vocoder_input_android_device_id') ?? -1;
     vocoderOutputAndroidDeviceId.value =
         _prefs!.getInt('vocoder_output_android_device_id') ?? -1;
+    vocoderWarningShown.value = _prefs!.getBool('vocoder_warning_shown') ?? false;
 
     // Apply logic to C engine immediately
     updateVocoderParameters();

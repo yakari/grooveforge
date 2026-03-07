@@ -542,4 +542,17 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get synthAutoScrollSubtitle =>
       'Défiler automatiquement la liste lors de la réception MIDI';
+
+  @override
+  String get vocoderWarningTitle => 'Avertissement de larsen';
+
+  @override
+  String get vocoderWarningBody =>
+      'L\'utilisation simultanée du microphone et des haut-parleurs internes peut provoquer un effet de larsen (boucle sonore). Veuillez utiliser un casque, un micro séparé ou une enceinte externe pour une expérience sûre.';
+
+  @override
+  String get vocoderWarningValidate => 'Activer le vocodeur';
+
+  @override
+  String get vocoderWarningCancel => 'Annuler';
 }

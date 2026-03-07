@@ -582,10 +582,11 @@ EXPORT int start_audio_capture() {
     static ma_device_id customDeviceId;
     bool useCustomId = false;
 #ifdef __ANDROID__
-    if (g_androidDeviceId > 0) {
+    if (g_androidDeviceId >= 0) {
         customDeviceId.aaudio = g_androidDeviceId;
         customDeviceId.opensl = (ma_uint32)g_androidDeviceId;
         useCustomId = true;
+        LOGI("GrooveForge: Android Capture Device ID %d set to customDeviceId", g_androidDeviceId);
     }
 #endif
     if (useCustomId) {
@@ -636,10 +637,11 @@ EXPORT int start_audio_capture() {
 #ifdef __ANDROID__
     static ma_device_id customOutputDeviceId;
     bool useCustomOutputId = false;
-    if (g_androidOutputDeviceId > 0) {
+    if (g_androidOutputDeviceId >= 0) {
         customOutputDeviceId.aaudio = g_androidOutputDeviceId;
         customOutputDeviceId.opensl = (ma_uint32)g_androidOutputDeviceId;
         useCustomOutputId = true;
+        LOGI("GrooveForge: Android Playback Device ID %d set to customOutputDeviceId", g_androidOutputDeviceId);
     }
     if (useCustomOutputId) {
         playConfig.playback.pDeviceID = &customOutputDeviceId;

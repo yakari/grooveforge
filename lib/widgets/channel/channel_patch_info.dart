@@ -197,7 +197,12 @@ class ChannelPatchInfo extends StatelessWidget {
                       })(),
                   onChanged: (newSf) {
                     if (newSf != null && newSf != state.soundfontPath) {
-                      engine.assignSoundfontToChannel(channelIndex, newSf);
+                      if (newSf == vocoderMode &&
+                          !engine.vocoderWarningShown.value) {
+                        _showVocoderWarning(context, channelIndex, newSf);
+                      } else {
+                        engine.assignSoundfontToChannel(channelIndex, newSf);
+                      }
                     }
                   },
                 ),
@@ -487,6 +492,58 @@ class ChannelPatchInfo extends StatelessWidget {
             ],
           );
         }
+      },
+    );
+  }
+
+  void _showVocoderWarning(
+    BuildContext context,
+    int channelIndex,
+    String vocoderPath,
+  ) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        final l10n = AppLocalizations.of(context)!;
+        return AlertDialog(
+          backgroundColor: Colors.grey[900],
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: Colors.orange[300]),
+              const SizedBox(width: 12),
+              Text(
+                l10n.vocoderWarningTitle,
+                style: const TextStyle(color: Colors.white),
+              ),
+            ],
+          ),
+          content: Text(
+            l10n.vocoderWarningBody,
+            style: const TextStyle(color: Colors.white70),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(
+                l10n.vocoderWarningCancel,
+                style: const TextStyle(color: Colors.white38),
+              ),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange[800],
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () {
+                engine.vocoderWarningShown.value = true;
+                engine.assignSoundfontToChannel(channelIndex, vocoderPath);
+                Navigator.of(context).pop();
+              },
+              child: Text(l10n.vocoderWarningValidate),
+            ),
+          ],
+        );
       },
     );
   }
