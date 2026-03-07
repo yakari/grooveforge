@@ -438,9 +438,25 @@ class AudioEngine extends ChangeNotifier {
     aftertouchDestCc.addListener(_saveState);
     autoScrollEnabled.addListener(_saveState);
     notationFormat.addListener(_saveState);
+
+    // Vocoder Listeners
+    vocoderWaveform.addListener(_saveState);
+    vocoderWaveform.addListener(updateVocoderParameters);
+    vocoderNoiseMix.addListener(_saveState);
+    vocoderNoiseMix.addListener(updateVocoderParameters);
+    vocoderEnvRelease.addListener(_saveState);
+    vocoderEnvRelease.addListener(updateVocoderParameters);
+    vocoderBandwidth.addListener(_saveState);
+    vocoderBandwidth.addListener(updateVocoderParameters);
+    vocoderInputGain.addListener(_saveState);
+    vocoderInputGain.addListener(updateVocoderParameters);
+    vocoderGateThreshold.addListener(_saveState);
+    vocoderGateThreshold.addListener(updateVocoderParameters);
+
     vocoderInputDeviceIndex.addListener(_saveState);
     vocoderInputDeviceIndex.addListener(updateVocoderParameters);
     vocoderInputDeviceIndex.addListener(restartCapture);
+
     vocoderInputAndroidDeviceId.addListener(_saveState);
     vocoderInputAndroidDeviceId.addListener(() {
       updateVocoderParameters();
@@ -451,10 +467,6 @@ class AudioEngine extends ChangeNotifier {
       updateVocoderParameters();
       restartCapture();
     });
-    vocoderInputGain.addListener(_saveState);
-    vocoderInputGain.addListener(updateVocoderParameters);
-    vocoderGateThreshold.addListener(_saveState);
-    vocoderGateThreshold.addListener(updateVocoderParameters);
   }
 
   Future<void> _ensureDefaultSoundfont() async {
@@ -547,6 +559,17 @@ class AudioEngine extends ChangeNotifier {
     await _prefs!.setBool('jam_highlight_wrong', highlightWrongNotes.value);
     await _prefs!.setBool('auto_scroll_enabled', autoScrollEnabled.value);
     await _prefs!.setString('last_seen_version', lastSeenVersion.value ?? "");
+
+    // Vocoder Parameters
+    await _prefs!.setInt('vocoder_waveform', vocoderWaveform.value);
+    await _prefs!.setDouble('vocoder_noise_mix', vocoderNoiseMix.value);
+    await _prefs!.setDouble('vocoder_env_release', vocoderEnvRelease.value);
+    await _prefs!.setDouble('vocoder_bandwidth', vocoderBandwidth.value);
+    await _prefs!.setDouble('vocoder_input_gain', vocoderInputGain.value);
+    await _prefs!.setDouble(
+      'vocoder_gate_threshold',
+      vocoderGateThreshold.value,
+    );
     await _prefs!.setInt(
       'vocoder_input_device_index',
       vocoderInputDeviceIndex.value,
@@ -559,17 +582,30 @@ class AudioEngine extends ChangeNotifier {
       'vocoder_output_android_device_id',
       vocoderOutputAndroidDeviceId.value,
     );
-    await _prefs!.setDouble('vocoder_input_gain', vocoderInputGain.value);
-    await _prefs!.setDouble(
-      'vocoder_gate_threshold',
-      vocoderGateThreshold.value,
-    );
   }
 
   Future<void> _restoreState() async {
     if (_prefs == null) {
       return;
     }
+
+    // Restore Vocoder Parameters FIRST so capture starts with correct device
+    vocoderWaveform.value = _prefs!.getInt('vocoder_waveform') ?? 0;
+    vocoderNoiseMix.value = _prefs!.getDouble('vocoder_noise_mix') ?? 0.05;
+    vocoderEnvRelease.value = _prefs!.getDouble('vocoder_env_release') ?? 0.02;
+    vocoderBandwidth.value = _prefs!.getDouble('vocoder_bandwidth') ?? 0.2;
+    vocoderInputGain.value = _prefs!.getDouble('vocoder_input_gain') ?? 1.0;
+    vocoderGateThreshold.value =
+        _prefs!.getDouble('vocoder_gate_threshold') ?? 0.01;
+    vocoderInputDeviceIndex.value =
+        _prefs!.getInt('vocoder_input_device_index') ?? -1;
+    vocoderInputAndroidDeviceId.value =
+        _prefs!.getInt('vocoder_input_android_device_id') ?? -1;
+    vocoderOutputAndroidDeviceId.value =
+        _prefs!.getInt('vocoder_output_android_device_id') ?? -1;
+
+    // Apply logic to C engine immediately
+    updateVocoderParameters();
 
     List<String>? savedSfs = _prefs!.getStringList('loaded_soundfonts');
     Map<String, String> migrationMap = {};
@@ -687,16 +723,6 @@ class AudioEngine extends ChangeNotifier {
 
     lastSeenVersion.value = _prefs!.getString('last_seen_version');
 
-    vocoderInputDeviceIndex.value =
-        _prefs!.getInt('vocoder_input_device_index') ?? -1;
-    vocoderInputAndroidDeviceId.value =
-        _prefs!.getInt('vocoder_input_android_device_id') ?? -1;
-    vocoderOutputAndroidDeviceId.value =
-        _prefs!.getInt('vocoder_output_android_device_id') ?? -1;
-    vocoderInputGain.value = _prefs!.getDouble('vocoder_input_gain') ?? 1.0;
-    vocoderGateThreshold.value =
-        _prefs!.getDouble('vocoder_gate_threshold') ?? 0.01;
-
     stateNotifier.value++;
   }
 
@@ -813,10 +839,12 @@ class AudioEngine extends ChangeNotifier {
   void _updateVocoderCaptureState() {
     bool requiresVocoder = channels.any((c) => c.soundfontPath == vocoderMode);
     if (requiresVocoder && !_isVocoderActive) {
+      // Apply correct parameters (Device Index, gain, etc.) BEFORE starting capture
+      updateVocoderParameters();
+
       bool started = AudioInputFFI().startCapture();
       if (started) {
         _isVocoderActive = true;
-        updateVocoderParameters();
         // Enable latency debug logging — monitor with: adb logcat -s GrooveForgeAudio
         AudioInputFFI().setLatencyDebug(enabled: true);
         debugPrint(

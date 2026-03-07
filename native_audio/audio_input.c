@@ -36,6 +36,8 @@ static VocoderBand bands[NUM_BANDS];
 // Envelope follower release coefficient (approx 20ms)
 static float envRelease = 0.0f;
 
+#define PSOLA_OA_SIZE 1024
+
 // --- Oscillator State ---
 typedef struct {
     bool active;
@@ -48,7 +50,9 @@ typedef struct {
     float envelope;
     int releaseSamples;
     float filterState; // Used for glottal pulse low-pass
-    float harmonizerReadPos; // Fractional read position in mic ring
+    float pulseTimer;  // PSOLA: samples until next grain trigger
+    float oaBuffer[PSOLA_OA_SIZE]; // PSOLA: overlap-add buffer
+    int   oaCursor;    // PSOLA: current sample position in OA buffer
 } Oscillator;
 
 // --- Vocoder Adjustable Parameters ---
@@ -86,9 +90,10 @@ static float g_micPitchHz = 150.0f;
 static int   g_acfCounter   = 0;
 static float g_acfBuffer[ACF_WINDOW];
 
-// --- Natural Wavetable Capture ---
-static float g_naturalWavetable[ACF_MAX_LAG];
-static int   g_naturalWavetableLen = 100;
+// --- Natural PSOLA Grain Capture ---
+// We capture 2 periods of the voice to create a smooth Hanning-windowed grain.
+static float g_naturalWavetable[ACF_MAX_LAG * 2];
+static int   g_naturalWavetableLen = 100; // This will be 2 * bestLag
 static float g_naturalMaxCorr = 0.0f;
 
 static int64_t _get_monotonic_ns(void) {
@@ -172,57 +177,26 @@ static float noteToFreq(int midiNote) {
     return 440.0f * powf(2.0f, (midiNote - 69) / 12.0f);
 }
 
-// --- Spectral Whitening for Formant Preservation ---
-// Flattens the spectral envelope of a single voice cycle to remove original formants.
-// This prevents the "chipmunk" effect when pitch-shifting the captured cycle.
-static void whiten_wavetable(float* table, int len) {
-    if (len <= 0 || len > ACF_MAX_LAG) return;
-
-    static float real[ACF_MAX_LAG];
-    static float imag[ACF_MAX_LAG];
-    static float mag[ACF_MAX_LAG];
-    static float smoothedMag[ACF_MAX_LAG];
-
-    // 1. Forward DFT (O(N^2) - feasible for small cycle lengths)
-    for (int k = 0; k < len; k++) {
-        float re = 0.0f;
-        float im = 0.0f;
-        float kScale = -6.2831853f * (float)k / (float)len;
-        for (int n = 0; n < len; n++) {
-            float angle = kScale * (float)n;
-            re += table[n] * cosf(angle);
-            im += table[n] * sinf(angle);
-        }
-        real[k] = re;
-        imag[k] = im;
-        mag[k] = sqrtf(re * re + im * im) + 1e-9f;
-    }
-
-    // 2. Extract Spectral Envelope (Formants) by smoothing the magnitude spectrum
-    int window = len / 8; // Window size to bridge harmonics
-    if (window < 2) window = 2;
-    for (int k = 0; k < len; k++) {
-        float sum = 0.0f;
-        int count = 0;
-        for (int i = -window; i <= window; i++) {
-            int idx = (k + i + len) % len;
-            sum += mag[idx];
-            count++;
-        }
-        smoothedMag[k] = sum / (float)count;
-    }
-
-    // 3. Inverse DFT with flattened spectrum
-    for (int n = 0; n < len; n++) {
-        float val = 0.0f;
-        float nScale = 6.2831853f * (float)n / (float)len;
-        for (int k = 0; k < len; k++) {
-            float r = real[k] / smoothedMag[k];
-            float i = imag[k] / smoothedMag[k];
-            float angle = nScale * (float)k;
-            val += r * cosf(angle) - i * sinf(angle);
-        }
-        table[n] = val / (float)len;
+// --- PSOLA: Hanning Window Capture ---
+// Captures 2 periods of the voice and applies a Hanning window to create a stable grain.
+static void capture_psola_grain(const float* source, int lag) {
+    if (lag < ACF_MIN_LAG || lag > ACF_MAX_LAG) return;
+    
+    int grainLen = lag * 2; 
+    g_naturalWavetableLen = grainLen;
+    
+    // Calculate RMS for normalization
+    float sumSq = 0.0f;
+    for (int i = 0; i < grainLen; i++) sumSq += source[i] * source[i];
+    float rms = sqrtf(sumSq / (float)grainLen) + 1e-9f;
+    // Target a healthy internal amplitude (approx 0.4 RMS)
+    float norm = 0.4f / rms;
+    if (norm > 4.0f) norm = 4.0f; // Limit extreme gain on silence
+    
+    for (int i = 0; i < grainLen; i++) {
+        // Hanning window over 2 periods
+        float window = 0.5f * (1.0f - cosf(6.2831853f * (float)i / (float)(grainLen - 1)));
+        g_naturalWavetable[i] = source[i] * window * norm;
     }
 }
 
@@ -279,16 +253,28 @@ static float renderOscillator(Oscillator* osc) {
         if (osc->phase2 >= 1.0f) osc->phase2 -= 1.0f;
         if (osc->phase3 >= 1.0f) osc->phase3 -= 1.0f;
     } else if (g_vocoderWaveform == 3) {
-        // --- Natural (Wavetable) Mode: loop the captured single-cycle voice ---
-        float tablePos = osc->phase * (float)g_naturalWavetableLen;
-        int idx0 = (int)tablePos;
-        int idx1 = (idx0 + 1) % g_naturalWavetableLen;
-        float frac = tablePos - (float)idx0;
-        sample = g_naturalWavetable[idx0 % ACF_MAX_LAG] * (1.0f - frac) + 
-                 g_naturalWavetable[idx1 % ACF_MAX_LAG] * frac;
+        // --- Natural (PSOLA) Mode: Pulse-Train Grain Synthesis ---
+        // This triggers a fixed-duration vocal pulse at the target MIDI frequency.
+        // It's superior to wavetable looping because it doesn't stretch formants.
+        osc->pulseTimer -= 1.0f;
+        if (osc->pulseTimer <= 0.0f) {
+            float targetPeriod = (float)SAMPLE_RATE / osc->frequency;
+            if (targetPeriod < 10.0f) targetPeriod = 10.0f; // Limit to 4.8kHz (ultrasound)
+            
+            // Trigger a new grain: add g_naturalWavetable into the circular oaBuffer
+            int grainLen = g_naturalWavetableLen;
+            if (grainLen > ACF_MAX_LAG * 2) grainLen = ACF_MAX_LAG * 2;
+            
+            for (int j = 0; j < grainLen; j++) {
+                int oaIdx = (osc->oaCursor + j) % PSOLA_OA_SIZE;
+                osc->oaBuffer[oaIdx] += g_naturalWavetable[j];
+            }
+            osc->pulseTimer += targetPeriod;
+        }
 
-        osc->phase += (osc->frequency / SAMPLE_RATE);
-        if (osc->phase >= 1.0f) osc->phase -= 1.0f;
+        sample = osc->oaBuffer[osc->oaCursor];
+        osc->oaBuffer[osc->oaCursor] = 0.0f; // Consume and clear
+        osc->oaCursor = (osc->oaCursor + 1) % PSOLA_OA_SIZE;
     }
 
     return sample;
@@ -408,20 +394,9 @@ void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uin
                     float norm = (energy > 1e-6f) ? (1.0f / sqrtf(energy / bestLag)) * 0.5f : 0.0f;
 
                     if (maxCorr > g_naturalMaxCorr * 0.8f || maxCorr > 0.5f) {
-                        g_naturalWavetableLen = bestLag;
                         g_naturalMaxCorr = maxCorr;
-                        
-                        // Copy raw cycle
-                        for (int j = 0; j < bestLag; j++) g_naturalWavetable[j] = g_acfBuffer[j];
-                        
-                        // Whiten to remove formants before looping
-                        whiten_wavetable(g_naturalWavetable, bestLag);
-                        
-                        // Normalize energy of the whitened cycle
-                        float whitenEnergy = 0.0f;
-                        for (int j = 0; j < bestLag; j++) whitenEnergy += g_naturalWavetable[j] * g_naturalWavetable[j];
-                        float whitenNorm = (whitenEnergy > 1e-6f) ? (1.0f / sqrtf(whitenEnergy / bestLag)) * 0.4f : 0.0f;
-                        for (int j = 0; j < bestLag; j++) g_naturalWavetable[j] *= whitenNorm;
+                        // Capture PSOLA grain (2 periods, Hanning windowed)
+                        capture_psola_grain(&g_acfBuffer[0], bestLag);
                     }
                 }
                 g_acfCounter = 0;
@@ -444,7 +419,8 @@ void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uin
                         osc->releaseSamples--;
                         if (osc->envelope <= 0.0f) { osc->envelope = 0.0f; osc->releaseSamples = 0; }
                     }
-                    synthMix += renderOscillator(osc) * (osc->velocity / 127.0f) * osc->envelope * 0.8f;
+                    float voiceGain = (g_vocoderWaveform == 3) ? 1.2f : 0.8f;
+                    synthMix += renderOscillator(osc) * (osc->velocity / 127.0f) * osc->envelope * voiceGain;
                 }
             }
         }
