@@ -48,12 +48,15 @@ typedef struct {
     float envelope;
     int releaseSamples;
     float filterState; // Used for glottal pulse low-pass
+    float harmonizerReadPos; // Fractional read position in mic ring
 } Oscillator;
 
 // --- Vocoder Adjustable Parameters ---
-int g_vocoderWaveform = 0;          // 0 = Sawtooth, 1 = Square/PWM, 2 = Sine (Neutral)
+int g_vocoderWaveform = 0;          // 0 = Sawtooth, 1 = Square, 2 = Choral (glottal ensemble), 3 = Neutral (Sine)
 float g_vocoderNoiseMix = 0.05f;    // Amount of white noise added to carrier for consonant intelligibility
 float g_vocoderEnvRelease = 0.02f;  // Envelope follower release time (lower = faster)
+static float g_gateThreshold = 0.01f; // Mic noise gate: mic samples below this amplitude are silenced
+
 static float g_inputPeak = 0.0f;
 static float g_outputPeak = 0.0f;
 static float g_inputGain = 1.0f;
@@ -74,6 +77,19 @@ static int g_periodCount = 0;
 static int g_callbacksPerSec = 1;
 static int g_glitchCounter = 0;
 static int g_engineUnhealthy = 0;
+
+// --- ACF Pitch Estimator State ---
+#define ACF_WINDOW 1024
+#define ACF_MAX_LAG 600  // 80Hz at 48kHz
+#define ACF_MIN_LAG 48   // 1000Hz at 48kHz
+static float g_micPitchHz = 150.0f;
+static int   g_acfCounter   = 0;
+static float g_acfBuffer[ACF_WINDOW];
+
+// --- Natural Wavetable Capture ---
+static float g_naturalWavetable[ACF_MAX_LAG];
+static int   g_naturalWavetableLen = 100;
+static float g_naturalMaxCorr = 0.0f;
 
 static int64_t _get_monotonic_ns(void) {
     struct timespec ts;
@@ -101,12 +117,6 @@ static volatile ma_uint32 g_micWriteCursor = 0;
 
 static ma_device g_micDevice;     // Dedicated capture device
 static bool g_micDeviceRunning = false;
-
-// --- Latency Click Test ---
-// When latency debug is on and a note is pressed, inject a short click
-// directly into pOutput so we can measure RAW OUTPUT latency independently
-// of the mic path. If click is also delayed the output hardware path is slow.
-static volatile int g_clickCounter = 0;  // > 0 → mix click pulse for this many samples
 
 // --- DSP Helpers ---
 
@@ -162,55 +172,74 @@ static float noteToFreq(int midiNote) {
     return 440.0f * powf(2.0f, (midiNote - 69) / 12.0f);
 }
 
-// Generates a simple band-limited-ish sawtooth
-static float renderSawtooth(Oscillator* osc) {
-    float sample = (2.0f * osc->phase) - 1.0f;
-    osc->phase += (osc->frequency / SAMPLE_RATE);
-    if (osc->phase >= 1.0f) {
-        osc->phase -= 1.0f;
+// Render Oscillator (Polyphonic Carrier) — used by modes 0, 1, 2.
+// Mode 3 (Neutral) bypasses this entirely, pitch-shifting the raw mic signal.
+static float renderOscillator(Oscillator* osc) {
+    float sample = 0.0f;
+
+    if (g_vocoderWaveform == 0) {
+        // --- Saw: 3 detuned unison copies (0, -5 cents, +5 cents) for body & intelligibility ---
+        float s1 = osc->phase  * 2.0f - 1.0f;
+        float s2 = osc->phase2 * 2.0f - 1.0f;  // -5 cents
+        float s3 = osc->phase3 * 2.0f - 1.0f;  // +5 cents
+        sample   = (s1 + s2 * 0.7f + s3 * 0.7f) * (1.0f / 2.4f);
+
+        osc->phase  += (osc->frequency / SAMPLE_RATE);
+        osc->phase2 += (osc->frequency * 0.9971f / SAMPLE_RATE);   // -5 cents: 2^(-5/1200)
+        osc->phase3 += (osc->frequency * 1.0029f / SAMPLE_RATE);   // +5 cents: 2^(+5/1200)
+        if (osc->phase  >= 1.0f) osc->phase  -= 1.0f;
+        if (osc->phase2 >= 1.0f) osc->phase2 -= 1.0f;
+        if (osc->phase3 >= 1.0f) osc->phase3 -= 1.0f;
+
+    } else if (g_vocoderWaveform == 1) {
+        // --- Square: 3 detuned unison copies (-8, 0, +8 cents) for richness & intelligibility ---
+        float s1 = (osc->phase  < 0.5f) ? 1.0f : -1.0f;
+        float s2 = (osc->phase2 < 0.5f) ? 1.0f : -1.0f;  // -8 cents
+        float s3 = (osc->phase3 < 0.5f) ? 1.0f : -1.0f;  // +8 cents
+        sample   = (s1 + s2 * 0.6f + s3 * 0.6f) * (1.0f / 2.2f);
+
+        osc->phase  += (osc->frequency / SAMPLE_RATE);
+        osc->phase2 += (osc->frequency * 0.9954f / SAMPLE_RATE);   // -8 cents
+        osc->phase3 += (osc->frequency * 1.0046f / SAMPLE_RATE);   // +8 cents
+        if (osc->phase  >= 1.0f) osc->phase  -= 1.0f;
+        if (osc->phase2 >= 1.0f) osc->phase2 -= 1.0f;
+        if (osc->phase3 >= 1.0f) osc->phase3 -= 1.0f;
+
+    } else if (g_vocoderWaveform == 2) {
+        // --- Choral: 3 detuned glottal pulses — warm, robotic, ensemble-like ---
+        float raw1 = (osc->phase  < 0.08f) ? 2.0f : -0.2f;
+        float raw2 = (osc->phase2 < 0.08f) ? 2.0f : -0.2f;
+        float raw3 = (osc->phase3 < 0.08f) ? 2.0f : -0.2f;
+
+        float mix = (raw1 + raw2 + raw3) * 0.33f;
+
+        // Gentle lowpass for body warmth
+        osc->filterState += 0.3f * (mix - osc->filterState);
+        sample = osc->filterState;
+
+        // Advance phases with slight natural detuning (-10 and +10 cents)
+        osc->phase  += (osc->frequency / SAMPLE_RATE);
+        osc->phase2 += (osc->frequency * 0.994f  / SAMPLE_RATE);  // -10 cents (original)
+        osc->phase3 += (osc->frequency * 1.006f  / SAMPLE_RATE);  // +10 cents (original)
+        if (osc->phase  >= 1.0f) osc->phase  -= 1.0f;
+        if (osc->phase2 >= 1.0f) osc->phase2 -= 1.0f;
+        if (osc->phase3 >= 1.0f) osc->phase3 -= 1.0f;
+    } else if (g_vocoderWaveform == 3) {
+        // --- Natural (Wavetable) Mode: loop the captured single-cycle voice ---
+        float tablePos = osc->phase * (float)g_naturalWavetableLen;
+        int idx0 = (int)tablePos;
+        int idx1 = (idx0 + 1) % g_naturalWavetableLen;
+        float frac = tablePos - (float)idx0;
+        sample = g_naturalWavetable[idx0 % ACF_MAX_LAG] * (1.0f - frac) + 
+                 g_naturalWavetable[idx1 % ACF_MAX_LAG] * frac;
+
+        osc->phase += (osc->frequency / SAMPLE_RATE);
+        if (osc->phase >= 1.0f) osc->phase -= 1.0f;
     }
+
     return sample;
 }
 
-// Render Oscillator (Polyphonic Carrier)
-static float renderOscillator(Oscillator* osc) {
-    float sample = 0.0f;
-    
-    if (g_vocoderWaveform == 0) {
-        // Sawtooth
-        sample = osc->phase * 2.0f - 1.0f; 
-        osc->phase += (osc->frequency / SAMPLE_RATE);
-        if (osc->phase >= 1.0f) osc->phase -= 1.0f;
-    } else if (g_vocoderWaveform == 1) {
-        // Square
-        sample = (osc->phase < 0.5f) ? 1.0f : -1.0f;
-        osc->phase += (osc->frequency / SAMPLE_RATE);
-        if (osc->phase >= 1.0f) osc->phase -= 1.0f;
-    } else {
-        // Neutral (Choral Super-Vocal Ensemble)
-        // 3 detuned glottal pulses layered together with natural pitch spread.
-        float raw1 = (osc->phase < 0.08f) ? 2.0f : -0.2f;
-        float raw2 = (osc->phase2 < 0.08f) ? 2.0f : -0.2f;
-        float raw3 = (osc->phase3 < 0.08f) ? 2.0f : -0.2f;
-        
-        float mix = (raw1 + raw2 + raw3) * 0.33f;
-        
-        // Gentle lowpass filter for body warmth
-        osc->filterState += 0.3f * (mix - osc->filterState);
-        sample = osc->filterState; 
-        
-        // Advance phases with slight natural detuning (-10 cents and +10 cents)
-        osc->phase += (osc->frequency / SAMPLE_RATE);
-        osc->phase2 += ((osc->frequency * 0.994f) / SAMPLE_RATE);
-        osc->phase3 += ((osc->frequency * 1.006f) / SAMPLE_RATE);
-        
-        if (osc->phase >= 1.0f) osc->phase -= 1.0f;
-        if (osc->phase2 >= 1.0f) osc->phase2 -= 1.0f;
-        if (osc->phase3 >= 1.0f) osc->phase3 -= 1.0f;
-    }
-    
-    return sample;
-}
 
 // --- Dedicated Mic Capture Callback ---
 // This fires on a dedicated high-priority capture thread (short period = 256 frames
@@ -288,6 +317,7 @@ void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uin
     const float squelchAttack = 0.05f;
     const float squelchRelease = 0.002f;
 
+    // Sibilance high-pass filter state (shared across modes)
     static float sibilanceZ1 = 0.0f;
     static float sibilanceZ2 = 0.0f;
     const float hp_b0 = 0.65f, hp_b1 = -1.3f, hp_b2 = 0.65f, hp_a1 = -0.8f, hp_a2 = 0.2f;
@@ -296,6 +326,44 @@ void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uin
     int activeVoiceCount = 0;
     for (int v = 0; v < MAX_POLYPHONY; ++v) {
         if (voices[v].active || voices[v].releaseSamples > 0) activeVoiceCount++;
+    }
+
+    // PRE-LOOP: Pitch Detection (ACF)
+    if (g_vocoderWaveform == 3 && activeVoiceCount > 0) {
+        for (ma_uint32 i = 0; i < frameCount; i++) {
+            g_acfBuffer[g_acfCounter++] = g_micRing[(readStart + i) & MIC_RING_MASK];
+            if (g_acfCounter >= ACF_WINDOW) {
+                float maxCorr = -1.0f;
+                int bestLag = -1;
+                for (int lag = ACF_MIN_LAG; lag < ACF_MAX_LAG; lag++) {
+                    float corr = 0.0f;
+                    for (int j = 0; j < ACF_WINDOW - lag; j++) {
+                        corr += g_acfBuffer[j] * g_acfBuffer[j + lag];
+                    }
+                    if (corr > maxCorr) { maxCorr = corr; bestLag = lag; }
+                }
+
+                if (bestLag > 0) {
+                    float detectedHz = (float)SAMPLE_RATE / (float)bestLag;
+                    g_micPitchHz = g_micPitchHz * 0.9f + detectedHz * 0.1f;
+                    
+                    // Capture dynamic wavetable snapshot if correlation is healthy
+                    // Normalize by energy to keep volume consistent
+                    float energy = 0.0f;
+                    for (int j = 0; j < bestLag; j++) energy += g_acfBuffer[j] * g_acfBuffer[j];
+                    float norm = (energy > 1e-6f) ? (1.0f / sqrtf(energy / bestLag)) * 0.5f : 0.0f;
+
+                    if (maxCorr > g_naturalMaxCorr * 0.8f || maxCorr > 0.5f) {
+                        g_naturalWavetableLen = bestLag;
+                        g_naturalMaxCorr = maxCorr;
+                        for (int j = 0; j < bestLag; j++) {
+                            g_naturalWavetable[j] = g_acfBuffer[j] * norm;
+                        }
+                    }
+                }
+                g_acfCounter = 0;
+            }
+        }
     }
 
     for (ma_uint32 i = 0; i < frameCount; ++i) {
@@ -320,6 +388,9 @@ void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uin
 
         micInput = pre_filter_mic(micInput);
 
+        // Noise gate: silence mic input below threshold at all times.
+        if (fabsf(micInput) < g_gateThreshold) micInput = 0.0f;
+
         if (activeVoiceCount == 0) {
             if (absRawMic > squelchEnv) squelchEnv = squelchEnv * (1.0f - squelchAttack) + absRawMic * squelchAttack;
             else squelchEnv = squelchEnv * (1.0f - squelchRelease) + absRawMic * squelchRelease;
@@ -328,6 +399,11 @@ void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uin
             squelchEnv = absRawMic;
         }
 
+        float vocoderOutput = 0.0f;
+
+        // ----------------------------------------------------------------
+        // FILTER-BANK MODES: Saw (0), Square (1), Choral (2), Neutral (3)
+        // ----------------------------------------------------------------
         for (int b = 0; b < NUM_BANDS; ++b) {
             float modSignal = processBiquad(&bands[b].modFilter, micInput);
             float absMod = fabsf(modSignal);
@@ -336,16 +412,23 @@ void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uin
             if (bands[b].envelope < 1e-6f) bands[b].envelope = 0.0f;
         }
 
-        float vocoderOutput = 0.0f;
         if (activeVoiceCount > 0) {
             for (int b = 0; b < NUM_BANDS; ++b) {
                 vocoderOutput += processBiquad(&bands[b].carFilter, synthMix) * bands[b].envelope;
             }
-            vocoderOutput *= 20.0f;
+            // Per-mode output scaling
+            float modeScale = (g_vocoderWaveform == 0) ? 18.0f :
+                              (g_vocoderWaveform == 1) ? 15.0f :
+                              (g_vocoderWaveform == 2) ? 20.0f : 15.0f; // Mode 3: Sine
+            vocoderOutput *= modeScale;
+
+            // Sibilance injection — boosted for Saw/Square for intelligibility
             float sibilance = micInput * hp_b0 + sibilanceZ1;
             sibilanceZ1 = micInput * hp_b1 - sibilance * hp_a1 + sibilanceZ2;
             sibilanceZ2 = micInput * hp_b2 - sibilance * hp_a2;
-            vocoderOutput += sibilance * g_vocoderNoiseMix * 2.5f;
+            float sibScale = (g_vocoderWaveform <= 1) ? 4.5f : 
+                             (g_vocoderWaveform == 2) ? 2.5f : 1.5f; // Mode 3: Sine
+            vocoderOutput += sibilance * g_vocoderNoiseMix * sibScale;
         } else {
             float sibilance = micInput * hp_b0 + sibilanceZ1;
             sibilanceZ1 = micInput * hp_b1 - sibilance * hp_a1 + sibilanceZ2;
@@ -354,16 +437,10 @@ void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uin
 
         vocoderOutput = soft_clip(vocoderOutput) * 0.95f;
 
-        if (g_latencyDebugEnabled && g_clickCounter > 0) {
-            vocoderOutput += 0.6f * (1.0f - (float)(240 - g_clickCounter) / 240.0f);
-            g_clickCounter--;
-        }
-
         float absOut = fabsf(vocoderOutput);
         if (absOut > outPeak) outPeak = absOut;
         if (pOut) pOut[i] = vocoderOutput;
     }
-
     if (inPeak > g_inputPeak) g_inputPeak = inPeak;
     if (outPeak > g_outputPeak) g_outputPeak = outPeak;
 }
@@ -390,10 +467,6 @@ EXPORT void VocoderNoteOn(int key, int velocity) {
             voices[i].envelope = 1.0f;
             voices[i].releaseSamples = 0;
             voices[i].filterState = 0.0f;
-            // Latency click test: inject a brief 5ms click into the output so the
-            // user can hear when this note-on reaches the audio thread.
-            // Helps distinguish output-path latency from mic-path latency.
-            if (g_latencyDebugEnabled) g_clickCounter = 240;
             return;
         }
     }
@@ -572,6 +645,13 @@ EXPORT int start_audio_capture() {
 EXPORT void stop_audio_capture() {
     if (!isInitialized) return;
 
+    // Reset health counters immediately so that the next start_audio_capture begins
+    // with a clean slate. Without this, a crash cycle (e.g. bad neutral mode) sets
+    // g_engineUnhealthy = 1 and the Dart health-watcher triggers an infinite restart
+    // loop that kills every note played and disrupts the whole Android audio stack.
+    g_engineUnhealthy = 0;
+    g_glitchCounter   = 0;
+
     if (g_micDeviceRunning) {
         ma_device_stop(&g_micDevice);
         ma_device_uninit(&g_micDevice);
@@ -599,16 +679,25 @@ EXPORT float getOutputPeakLevel() {
     return peak;
 }
 
+// waveform: 0=Saw, 1=Square, 2=Choral(glottal ensemble), 3=Natural(pitch-locked live wavetable)
 EXPORT void setVocoderParameters(int waveform, float noiseMix, float envRelease, float bandwidth) {
     g_vocoderWaveform = waveform;
     g_vocoderNoiseMix = noiseMix * 10.0f; // Scale 0.0-1.0 up to 0.0-10.0 for audible noise presence
     // Map a nice 0.0 - 1.0 value from the UI to the actual filter coefficient math
     // 0.0 -> very slow (0.0001), 1.0 -> very fast (0.05)
     g_vocoderEnvRelease = 0.0001f + (envRelease * 0.0499f);
-    
+
     // Map bandwidth 0.0 to 1.0 to Q factor 2.0 (blurry) to 30.0 (sharp robotic)
+    // (Only affects filter-bank modes 0, 1, 2; mode 3 bypasses the filter bank)
     float qFactor = 2.0f + (bandwidth * 28.0f);
     init_vocoder_bands(qFactor);
+}
+
+EXPORT void set_gate_threshold(float threshold) {
+    // Clamp to a safe range: 0.0 (gate off) to 0.5 (extreme gate)
+    if (threshold < 0.0f) threshold = 0.0f;
+    if (threshold > 0.5f) threshold = 0.5f;
+    g_gateThreshold = threshold;
 }
 
 // --- NEW PER-DEVICE AND GAIN CONTROL ---

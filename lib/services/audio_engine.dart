@@ -163,7 +163,7 @@ class AudioEngine extends ChangeNotifier {
   // --- Vocoder DSP State ---
   final ValueNotifier<int> vocoderWaveform = ValueNotifier(
     0,
-  ); // 0=Saw, 1=Square
+  ); // 0=Saw, 1=Square, 2=Choral (glottal ensemble), 3=Neutral (pitch-only)
   final ValueNotifier<double> vocoderNoiseMix = ValueNotifier(
     0.05,
   ); // 0.0 - 1.0 (will scale to 2.0 in C)
@@ -172,6 +172,9 @@ class AudioEngine extends ChangeNotifier {
   ); // 0.0 - 1.0 (will scale to 0.0001 - 0.05 in C)
   final ValueNotifier<double> vocoderBandwidth = ValueNotifier(
     0.2, // Default Q ~8.0
+  );
+  final ValueNotifier<double> vocoderGateThreshold = ValueNotifier(
+    0.01, // 0.0 = gate off, typical live use: ~0.02-0.05
   );
   final ValueNotifier<int> vocoderInputDeviceIndex = ValueNotifier<int>(-1);
   final ValueNotifier<int> vocoderInputAndroidDeviceId = ValueNotifier<int>(-1);
@@ -191,6 +194,7 @@ class AudioEngine extends ChangeNotifier {
       envRelease: vocoderEnvRelease.value,
       bandwidth: vocoderBandwidth.value,
     );
+    AudioInputFFI().setGateThreshold(vocoderGateThreshold.value);
     AudioInputFFI().setCaptureDeviceConfig(
       vocoderInputDeviceIndex.value,
       vocoderInputGain.value,
@@ -449,6 +453,8 @@ class AudioEngine extends ChangeNotifier {
     });
     vocoderInputGain.addListener(_saveState);
     vocoderInputGain.addListener(updateVocoderParameters);
+    vocoderGateThreshold.addListener(_saveState);
+    vocoderGateThreshold.addListener(updateVocoderParameters);
   }
 
   Future<void> _ensureDefaultSoundfont() async {
@@ -554,6 +560,10 @@ class AudioEngine extends ChangeNotifier {
       vocoderOutputAndroidDeviceId.value,
     );
     await _prefs!.setDouble('vocoder_input_gain', vocoderInputGain.value);
+    await _prefs!.setDouble(
+      'vocoder_gate_threshold',
+      vocoderGateThreshold.value,
+    );
   }
 
   Future<void> _restoreState() async {
@@ -684,6 +694,8 @@ class AudioEngine extends ChangeNotifier {
     vocoderOutputAndroidDeviceId.value =
         _prefs!.getInt('vocoder_output_android_device_id') ?? -1;
     vocoderInputGain.value = _prefs!.getDouble('vocoder_input_gain') ?? 1.0;
+    vocoderGateThreshold.value =
+        _prefs!.getDouble('vocoder_gate_threshold') ?? 0.01;
 
     stateNotifier.value++;
   }

@@ -5,7 +5,6 @@ import 'package:grooveforge/l10n/app_localizations.dart';
 import 'package:grooveforge/models/chord_detector.dart';
 import 'package:grooveforge/models/gm_instruments.dart';
 import 'package:grooveforge/services/audio_engine.dart';
-import 'package:grooveforge/services/audio_input_ffi.dart';
 import 'channel_scale_lock.dart';
 import 'vocoder_level_meters.dart';
 import '../rotary_knob.dart';
@@ -510,79 +509,104 @@ class VocoderSliders extends StatelessWidget {
     return Padding(
       padding: EdgeInsets.symmetric(
         vertical: isNarrow ? 2.0 : 8.0,
-        horizontal: isNarrow ? 4.0 : 16.0,
+        horizontal: isNarrow ? 4.0 : 8.0,
       ),
-      child: Wrap(
-        // Use a Key that matches the layout type to help Flutter distinguish them
+      child: Row(
         key: ValueKey(
-          'vocoder_wrap_${isNarrow ? "narrow" : "wide"}_$channelIndex',
+          'vocoder_row_${isNarrow ? "narrow" : "wide"}_$channelIndex',
         ),
-        alignment: WrapAlignment.spaceEvenly,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        spacing: isNarrow ? 4.0 : 16.0,
-        runSpacing: isNarrow ? 1.0 : 8.0,
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
           // Noise Knob
-          ValueListenableBuilder<double>(
-            valueListenable: engine.vocoderNoiseMix,
-            builder: (context, val, _) {
-              return RotaryKnob(
-                key: ValueKey('vocoder_noise_$channelIndex'),
-                value: val,
-                min: 0.0,
-                max: 1.0,
-                label: 'NOISE',
-                icon: Icons.grain,
-                size: isNarrow ? 28 : 40,
-                isCompact: isNarrow,
-                onChanged: (newVal) {
-                  engine.vocoderNoiseMix.value = newVal;
-                  engine.updateVocoderParameters();
-                },
-              );
-            },
+          Expanded(
+            child: ValueListenableBuilder<double>(
+              valueListenable: engine.vocoderNoiseMix,
+              builder: (context, val, _) {
+                return RotaryKnob(
+                  key: ValueKey('vocoder_noise_$channelIndex'),
+                  value: val,
+                  min: 0.0,
+                  max: 1.0,
+                  label: 'NOISE',
+                  icon: Icons.grain,
+                  size: isNarrow ? 28 : 40,
+                  isCompact: isNarrow,
+                  onChanged: (newVal) {
+                    engine.vocoderNoiseMix.value = newVal;
+                    engine.updateVocoderParameters();
+                  },
+                );
+              },
+            ),
           ),
 
           // Speed Knob
-          ValueListenableBuilder<double>(
-            valueListenable: engine.vocoderEnvRelease,
-            builder: (context, val, _) {
-              return RotaryKnob(
-                key: ValueKey('vocoder_speed_$channelIndex'),
-                value: val,
-                min: 0.0,
-                max: 1.0,
-                label: 'SPEED',
-                icon: Icons.bolt,
-                size: isNarrow ? 28 : 40,
-                isCompact: isNarrow,
-                onChanged: (newVal) {
-                  engine.vocoderEnvRelease.value = newVal;
-                  engine.updateVocoderParameters();
-                },
-              );
-            },
+          Expanded(
+            child: ValueListenableBuilder<double>(
+              valueListenable: engine.vocoderEnvRelease,
+              builder: (context, val, _) {
+                return RotaryKnob(
+                  key: ValueKey('vocoder_speed_$channelIndex'),
+                  value: val,
+                  min: 0.0,
+                  max: 1.0,
+                  label: 'SPEED',
+                  icon: Icons.bolt,
+                  size: isNarrow ? 28 : 40,
+                  isCompact: isNarrow,
+                  onChanged: (newVal) {
+                    engine.vocoderEnvRelease.value = newVal;
+                    engine.updateVocoderParameters();
+                  },
+                );
+              },
+            ),
           ),
 
           // Bandwidth Knob
-          ValueListenableBuilder<double>(
-            valueListenable: engine.vocoderBandwidth,
-            builder: (context, val, _) {
-              return RotaryKnob(
-                key: ValueKey('vocoder_bandwidth_$channelIndex'),
-                value: val,
-                min: 0.0,
-                max: 1.0,
-                label: 'BANDWIDTH',
-                icon: Icons.width_full,
-                size: isNarrow ? 28 : 40,
-                isCompact: isNarrow,
-                onChanged: (newVal) {
-                  engine.vocoderBandwidth.value = newVal;
-                  engine.updateVocoderParameters();
-                },
-              );
-            },
+          Expanded(
+            child: ValueListenableBuilder<double>(
+              valueListenable: engine.vocoderBandwidth,
+              builder: (context, val, _) {
+                return RotaryKnob(
+                  key: ValueKey('vocoder_bandwidth_$channelIndex'),
+                  value: val,
+                  min: 0.0,
+                  max: 1.0,
+                  label: 'BW',
+                  icon: Icons.width_full,
+                  size: isNarrow ? 28 : 40,
+                  isCompact: isNarrow,
+                  onChanged: (newVal) {
+                    engine.vocoderBandwidth.value = newVal;
+                    engine.updateVocoderParameters();
+                  },
+                );
+              },
+            ),
+          ),
+
+          // Gate Knob
+          Expanded(
+            child: ValueListenableBuilder<double>(
+              valueListenable: engine.vocoderGateThreshold,
+              builder: (context, val, _) {
+                return RotaryKnob(
+                  key: ValueKey('vocoder_gate_$channelIndex'),
+                  value: val,
+                  min: 0.0,
+                  max: 0.1,
+                  label: 'GATE',
+                  icon: Icons.noise_control_off,
+                  size: isNarrow ? 28 : 40,
+                  isCompact: isNarrow,
+                  onChanged: (newVal) {
+                    engine.vocoderGateThreshold.value = newVal;
+                    engine.updateVocoderParameters();
+                  },
+                );
+              },
+            ),
           ),
         ],
       ),
@@ -597,66 +621,67 @@ class VocoderButtons extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        // Waveform Toggle
-        ValueListenableBuilder<int>(
-          valueListenable: engine.vocoderWaveform,
-          builder: (context, wave, _) {
-            IconData getIcon() {
-              if (wave == 0) return Icons.show_chart; // Sawtooth
-              if (wave == 1) return Icons.water; // Square
-              return Icons.record_voice_over; // Neutral (Sine)
-            }
+    // 4 carrier modes laid out in a 2×2 grid
+    const leftCol = [
+      (label: 'Saw', icon: Icons.show_chart, index: 0),
+      (label: 'Choral', icon: Icons.record_voice_over, index: 2),
+    ];
+    const rightCol = [
+      (label: 'Square', icon: Icons.water, index: 1),
+      (label: 'Natural', icon: Icons.mic, index: 3),
+    ];
 
-            String getLabel() {
-              if (wave == 0) return 'Sawtooth';
-              if (wave == 1) return 'Square';
-              return 'Neutral';
-            }
-
-            return SizedBox(
-              height: 22,
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.black45,
-                  foregroundColor: Colors.orange,
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  side: const BorderSide(color: Colors.white12),
-                ),
-                onPressed: () {
-                  engine.vocoderWaveform.value = (wave + 1) % 3;
-                  engine.updateVocoderParameters();
-                },
-                icon: Icon(getIcon(), size: 12),
-                label: Text(getLabel(), style: const TextStyle(fontSize: 10)),
-              ),
-            );
-          },
-        ),
-        const SizedBox(height: 2),
-        // Refresh Mic Button
+    Widget buildBtn(({int index, IconData icon, String label}) wf, int wave) =>
         SizedBox(
-          height: 22,
+          height: 14,
           child: ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.orange[800],
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 8),
+              backgroundColor:
+                  wave == wf.index ? Colors.orange[900] : Colors.black45,
+              foregroundColor: wave == wf.index ? Colors.white : Colors.white38,
+              padding: const EdgeInsets.symmetric(horizontal: 5),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              side: BorderSide(
+                color:
+                    wave == wf.index
+                        ? Colors.orange.withValues(alpha: 0.6)
+                        : Colors.white12,
+              ),
             ),
             onPressed: () {
-              AudioInputFFI().stopCapture();
-              Future.delayed(const Duration(milliseconds: 100), () {
-                AudioInputFFI().startCapture();
-              });
+              engine.vocoderWaveform.value = wf.index;
+              engine.updateVocoderParameters();
             },
-            icon: const Icon(Icons.refresh, size: 12),
-            label: const Text('Refresh Mic', style: TextStyle(fontSize: 10)),
+            icon: Icon(wf.icon, size: 9),
+            label: Text(wf.label, style: const TextStyle(fontSize: 8)),
           ),
-        ),
-      ],
+        );
+
+    return ValueListenableBuilder<int>(
+      valueListenable: engine.vocoderWaveform,
+      builder: (context, wave, _) {
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          spacing: 3,
+          children: [
+            // Left column: Saw / Choral
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              spacing: 1,
+              children: [for (final wf in leftCol) buildBtn(wf, wave)],
+            ),
+            // Right column: Square / Neutral
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              spacing: 1,
+              children: [for (final wf in rightCol) buildBtn(wf, wave)],
+            ),
+          ],
+        );
+      },
     );
   }
 }

@@ -218,22 +218,25 @@ class _RotaryKnobState extends State<RotaryKnob> {
           if (widget.isCompact && widget.icon != null)
             Icon(widget.icon, size: 14, color: Colors.white70)
           else
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (widget.icon != null) ...[
-                  Icon(widget.icon, size: 12, color: Colors.white70),
-                  const SizedBox(width: 4),
-                ],
-                Text(
-                  widget.label,
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (widget.icon != null) ...[
+                    Icon(widget.icon, size: 12, color: Colors.white70),
+                    const SizedBox(width: 4),
+                  ],
+                  Text(
+                    widget.label,
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
         ],
       ),

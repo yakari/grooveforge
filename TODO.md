@@ -14,3 +14,5 @@ Currently, the Web build (`flutter run -d web-server`) compiles and the UI rende
     *   **Built-in Effects**: Use integrated **reverb and chorus** effects to enhance sound quality.
     *   **Advanced Control**: 16-channel support, pitch bend, and standard CC messages.
 *   **Integrate MuseScore General Soundfont**: Switch to `MuseScore_General.sf3` (MIT Licensed) as the high-quality default soundfont once SF3 support is available on all platforms. ftp://ftp.osuosl.org/pub/musescore/soundfont/MuseScore_General/MuseScore_General.sf3
+*   **Fix "Chipmunk" Effect in Natural Vocoder Mode**: The current Live-Wavetable implementation in `Natural` mode causes a pitch-shifted "chipmunk" sound because formants are shifted along with the fundamental.
+    *   **Solution**: Implement true **Formant Preservation** (e.g., using a separate spectral envelope for the carrier or a PSOLA-based approach) to keep the vocal character while changing the pitch.

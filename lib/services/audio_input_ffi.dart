@@ -68,6 +68,9 @@ typedef GetLastCallbackPeriodMsDart = double Function();
 typedef GetEngineHealthC = Int32 Function();
 typedef GetEngineHealthDart = int Function();
 
+typedef SetGateThresholdC = Void Function(Float threshold);
+typedef SetGateThresholdDart = void Function(double threshold);
+
 class AudioInputFFI {
   static AudioInputFFI? _instance;
   late DynamicLibrary _lib;
@@ -87,6 +90,7 @@ class AudioInputFFI {
   late final SetLatencyDebugDart _setLatencyDebug;
   late final GetLastCallbackPeriodMsDart _getLastCallbackPeriodMs;
   late final GetEngineHealthDart _getEngineHealth;
+  late final SetGateThresholdDart _setGateThreshold;
 
   factory AudioInputFFI() {
     _instance ??= AudioInputFFI._internal();
@@ -174,6 +178,10 @@ class AudioInputFFI {
         _lib
             .lookup<NativeFunction<GetEngineHealthC>>('get_engine_health')
             .asFunction();
+    _setGateThreshold =
+        _lib
+            .lookup<NativeFunction<SetGateThresholdC>>('set_gate_threshold')
+            .asFunction();
   }
 
   bool startCapture() {
@@ -258,5 +266,11 @@ class AudioInputFFI {
   /// 0 = OK, 1 = UNHEALTHY (too many consecutive late callbacks)
   int getEngineHealth() {
     return _getEngineHealth();
+  }
+
+  /// Sets the mic noise gate threshold (0.0 = off, 0.1 = aggressive).
+  /// Mic samples below this amplitude are silenced before vocoder processing.
+  void setGateThreshold(double threshold) {
+    _setGateThreshold(threshold);
   }
 }
