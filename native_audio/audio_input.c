@@ -172,6 +172,60 @@ static float noteToFreq(int midiNote) {
     return 440.0f * powf(2.0f, (midiNote - 69) / 12.0f);
 }
 
+// --- Spectral Whitening for Formant Preservation ---
+// Flattens the spectral envelope of a single voice cycle to remove original formants.
+// This prevents the "chipmunk" effect when pitch-shifting the captured cycle.
+static void whiten_wavetable(float* table, int len) {
+    if (len <= 0 || len > ACF_MAX_LAG) return;
+
+    static float real[ACF_MAX_LAG];
+    static float imag[ACF_MAX_LAG];
+    static float mag[ACF_MAX_LAG];
+    static float smoothedMag[ACF_MAX_LAG];
+
+    // 1. Forward DFT (O(N^2) - feasible for small cycle lengths)
+    for (int k = 0; k < len; k++) {
+        float re = 0.0f;
+        float im = 0.0f;
+        float kScale = -6.2831853f * (float)k / (float)len;
+        for (int n = 0; n < len; n++) {
+            float angle = kScale * (float)n;
+            re += table[n] * cosf(angle);
+            im += table[n] * sinf(angle);
+        }
+        real[k] = re;
+        imag[k] = im;
+        mag[k] = sqrtf(re * re + im * im) + 1e-9f;
+    }
+
+    // 2. Extract Spectral Envelope (Formants) by smoothing the magnitude spectrum
+    int window = len / 8; // Window size to bridge harmonics
+    if (window < 2) window = 2;
+    for (int k = 0; k < len; k++) {
+        float sum = 0.0f;
+        int count = 0;
+        for (int i = -window; i <= window; i++) {
+            int idx = (k + i + len) % len;
+            sum += mag[idx];
+            count++;
+        }
+        smoothedMag[k] = sum / (float)count;
+    }
+
+    // 3. Inverse DFT with flattened spectrum
+    for (int n = 0; n < len; n++) {
+        float val = 0.0f;
+        float nScale = 6.2831853f * (float)n / (float)len;
+        for (int k = 0; k < len; k++) {
+            float r = real[k] / smoothedMag[k];
+            float i = imag[k] / smoothedMag[k];
+            float angle = nScale * (float)k;
+            val += r * cosf(angle) - i * sinf(angle);
+        }
+        table[n] = val / (float)len;
+    }
+}
+
 // Render Oscillator (Polyphonic Carrier) — used by modes 0, 1, 2.
 // Mode 3 (Neutral) bypasses this entirely, pitch-shifting the raw mic signal.
 static float renderOscillator(Oscillator* osc) {
@@ -356,9 +410,18 @@ void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uin
                     if (maxCorr > g_naturalMaxCorr * 0.8f || maxCorr > 0.5f) {
                         g_naturalWavetableLen = bestLag;
                         g_naturalMaxCorr = maxCorr;
-                        for (int j = 0; j < bestLag; j++) {
-                            g_naturalWavetable[j] = g_acfBuffer[j] * norm;
-                        }
+                        
+                        // Copy raw cycle
+                        for (int j = 0; j < bestLag; j++) g_naturalWavetable[j] = g_acfBuffer[j];
+                        
+                        // Whiten to remove formants before looping
+                        whiten_wavetable(g_naturalWavetable, bestLag);
+                        
+                        // Normalize energy of the whitened cycle
+                        float whitenEnergy = 0.0f;
+                        for (int j = 0; j < bestLag; j++) whitenEnergy += g_naturalWavetable[j] * g_naturalWavetable[j];
+                        float whitenNorm = (whitenEnergy > 1e-6f) ? (1.0f / sqrtf(whitenEnergy / bestLag)) * 0.4f : 0.0f;
+                        for (int j = 0; j < bestLag; j++) g_naturalWavetable[j] *= whitenNorm;
                     }
                 }
                 g_acfCounter = 0;
