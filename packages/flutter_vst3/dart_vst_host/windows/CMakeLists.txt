@@ -73,15 +73,28 @@ file(GLOB VST3_SDK_SOURCES
 
 # ── Library target ─────────────────────────────────────────────────────────────
 
+# Find Win32-specific SDK files via GLOB_RECURSE so the build is robust
+# across SDK versions where these files may live at different sub-paths.
+file(GLOB_RECURSE _WIN32_PLATFORM_SOURCES LIST_DIRECTORIES false
+  "${VST3_SDK_DIR}/public.sdk/*.cpp")
+list(FILTER _WIN32_PLATFORM_SOURCES INCLUDE REGEX
+  "(^|/)(module_win32|threadchecker_win32)\\.cpp$")
+
+if(NOT _WIN32_PLATFORM_SOURCES)
+  message(FATAL_ERROR
+    "module_win32.cpp / threadchecker_win32.cpp not found under\n"
+    "  ${VST3_SDK_DIR}/public.sdk\n"
+    "Make sure the VST3 SDK is fully cloned.")
+endif()
+
 add_library(${PROJECT_NAME} SHARED
   ${NATIVE_DIR}/src/dart_vst_host.cpp
   # Platform stubs (ALSA + Linux editor → no-ops on Windows)
   ${NATIVE_DIR}/src/dart_vst_host_platform_stubs.cpp
   ${VST3_BASE_SOURCES}
   ${VST3_SDK_SOURCES}
-  # Win32 VST3 module loader and thread checker
-  ${VST3_SDK_DIR}/public.sdk/source/vst/hosting/module_win32.cpp
-  ${VST3_SDK_DIR}/public.sdk/source/common/threadchecker_win32.cpp
+  # Win32 VST3 module loader and thread checker (found by GLOB_RECURSE above)
+  ${_WIN32_PLATFORM_SOURCES}
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE

@@ -107,6 +107,10 @@ jobs:
           # Let ccache intercept the compiler for the VST3 SDK compilation.
           CC: ccache gcc
           CXX: ccache g++
+          # Pass the absolute SDK path explicitly so CMakeLists.txt does not
+          # need to resolve symlinks (REALPATH does not follow junctions on
+          # some platforms, and the cloned SDK version may differ from local).
+          VST3_SDK_DIR: ${{ github.workspace }}/packages/flutter_vst3/vst3sdk
       - name: Package .deb
         run: |
           VERSION=${{ github.ref_name }}
@@ -181,6 +185,11 @@ jobs:
         run: flutter pub get
       - name: Build Windows
         run: flutter build windows --release
+        env:
+          # CMake's get_filename_component(REALPATH) does not follow Windows
+          # directory junctions used by Flutter's .plugin_symlinks, so we pass
+          # the absolute path explicitly to bypass junction resolution entirely.
+          VST3_SDK_DIR: ${{ github.workspace }}/packages/flutter_vst3/vst3sdk
       - name: Zip Artifact
         run: |
           Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath GrooveForge-Windows-${{ github.ref_name }}.zip

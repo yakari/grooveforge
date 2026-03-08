@@ -106,11 +106,24 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
   RELEASE=1
 )
 
-# Platform-specific sources and libraries.
-target_sources(${PROJECT_NAME} PRIVATE
-  ${VST3_SDK_DIR}/public.sdk/source/vst/hosting/module_linux.cpp
-  ${VST3_SDK_DIR}/public.sdk/source/common/threadchecker_linux.cpp
-)
+# Platform-specific sources.
+# Use GLOB_RECURSE so the build stays robust when the VST3 SDK is cloned at
+# a different revision than the local copy (files may live at slightly
+# different paths between SDK versions).
+file(GLOB_RECURSE _LINUX_PLATFORM_SOURCES LIST_DIRECTORIES false
+  "${VST3_SDK_DIR}/public.sdk/*.cpp")
+list(FILTER _LINUX_PLATFORM_SOURCES INCLUDE REGEX
+  "(^|/)(module_linux|threadchecker_linux)\\.cpp$")
+
+if(NOT _LINUX_PLATFORM_SOURCES)
+  message(FATAL_ERROR
+    "module_linux.cpp / threadchecker_linux.cpp not found under\n"
+    "  ${VST3_SDK_DIR}/public.sdk\n"
+    "Make sure the VST3 SDK is fully cloned (git clone --depth=1 "
+    "https://github.com/steinbergmedia/vst3sdk.git).")
+endif()
+
+target_sources(${PROJECT_NAME} PRIVATE ${_LINUX_PLATFORM_SOURCES})
 
 find_package(ALSA REQUIRED)
 target_link_libraries(${PROJECT_NAME} PRIVATE ${ALSA_LIBRARIES})
