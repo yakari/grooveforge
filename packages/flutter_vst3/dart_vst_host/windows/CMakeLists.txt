@@ -18,11 +18,16 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 # ── Paths (resolve through Flutter's plugin symlink) ──────────────────────────
 get_filename_component(REAL_PLUGIN_DIR "${CMAKE_CURRENT_SOURCE_DIR}/.." REALPATH)
+file(TO_CMAKE_PATH "${REAL_PLUGIN_DIR}" REAL_PLUGIN_DIR)
 
 set(NATIVE_DIR "${REAL_PLUGIN_DIR}/native")
 
 if(DEFINED ENV{VST3_SDK_DIR})
   set(VST3_SDK_DIR "$ENV{VST3_SDK_DIR}")
+  # Convert native backslashes (e.g. D:\a\...) to forward slashes.
+  # CMake interprets backslashes as escape sequences in string contexts,
+  # so paths from Windows environment variables must be normalised first.
+  file(TO_CMAKE_PATH "${VST3_SDK_DIR}" VST3_SDK_DIR)
 else()
   set(VST3_SDK_DIR "${REAL_PLUGIN_DIR}/../vst3sdk")
 endif()
