@@ -46,10 +46,11 @@ class _Vst3PluginPanel extends StatefulWidget {
 }
 
 class _Vst3PluginPanelState extends State<_Vst3PluginPanel> {
-  /// unitId → list of params in that group
-  Map<int, List<VstParamInfo>> _groups = {};
-  /// unitId → display name
-  Map<int, String> _unitNames = {};
+  /// Display-name → list of params in that group.
+  /// Built from IUnitInfo units; large single-unit groups are further split
+  /// by parameter-name prefix analysis so plugins like Aeolus (everything in
+  /// Root Unit) still get meaningful category chips.
+  Map<String, List<VstParamInfo>> _groups = {};
   bool _loaded = false;
 
   @override
@@ -67,27 +68,58 @@ class _Vst3PluginPanelState extends State<_Vst3PluginPanel> {
     }
   }
 
+  // How many params a unit must have before we try to split it by name.
+  static const int _kSplitThreshold = 48;
+
   void _loadParams() {
     if (!mounted) return;
     final vstSvc = context.read<VstHostService>();
     final params = vstSvc.getParameters(widget.plugin.id);
     final unitNames = vstSvc.getUnitNames(widget.plugin.id);
 
-    // Group parameters by unitId.
-    final groups = <int, List<VstParamInfo>>{};
+    // Step 1: group by unitId.
+    final byUnit = <int, List<VstParamInfo>>{};
     for (final p in params) {
-      groups.putIfAbsent(p.unitId, () => []).add(p);
+      byUnit.putIfAbsent(p.unitId, () => []).add(p);
+    }
+
+    // Step 2: build named groups.  For large groups (plugins that put
+    // everything in Root Unit, like Aeolus) run name-prefix analysis and
+    // expand into multiple chips.  This runs at the chip level so the
+    // modal receives a usefully-scoped list from the start.
+    final multipleRealUnits = byUnit.length > 1;
+    final named = <String, List<VstParamInfo>>{};
+
+    for (final entry in byUnit.entries) {
+      final uid = entry.key;
+      final list = entry.value;
+      final unitName = unitNames[uid] ??
+          (uid <= 0 ? 'Parameters' : 'Group $uid');
+
+      if (list.length > _kSplitThreshold) {
+        final sub = _SubGroupDetector.detect(list);
+        if (sub.isNotEmpty) {
+          // Prefix the sub-group name with the unit name only when there are
+          // multiple real units so the chip labels remain readable.
+          for (final sg in sub.entries) {
+            final chipName = multipleRealUnits
+                ? '$unitName / ${sg.key}'
+                : sg.key;
+            named[chipName] = sg.value;
+          }
+          continue;
+        }
+      }
+      named[unitName] = list;
     }
 
     setState(() {
-      _groups = groups;
-      _unitNames = unitNames;
+      _groups = named;
       _loaded = true;
     });
   }
 
-  void _openCategoryModal(BuildContext ctx, int unitId, List<VstParamInfo> params) {
-    final name = _unitNames[unitId] ?? (unitId == -1 ? 'Parameters' : 'Group $unitId');
+  void _openCategoryModal(BuildContext ctx, String name, List<VstParamInfo> params) {
     showModalBottomSheet(
       context: ctx,
       isScrollControlled: true,
@@ -131,8 +163,7 @@ class _Vst3PluginPanelState extends State<_Vst3PluginPanel> {
           else
             _CategoryChips(
               groups: _groups,
-              unitNames: _unitNames,
-              onTap: (uid) => _openCategoryModal(context, uid, _groups[uid]!),
+              onTap: (name) => _openCategoryModal(context, name, _groups[name]!),
             ),
         ],
       ),
@@ -143,34 +174,23 @@ class _Vst3PluginPanelState extends State<_Vst3PluginPanel> {
 // ─── Category chips ───────────────────────────────────────────────────────────
 
 class _CategoryChips extends StatelessWidget {
-  final Map<int, List<VstParamInfo>> groups;
-  final Map<int, String> unitNames;
-  final void Function(int unitId) onTap;
+  final Map<String, List<VstParamInfo>> groups;
+  final void Function(String name) onTap;
 
   const _CategoryChips({
     required this.groups,
-    required this.unitNames,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     final entries = groups.entries.toList()
-      ..sort((a, b) {
-        // Put the root unit (-1) last, sort others alphabetically.
-        if (a.key == -1) return 1;
-        if (b.key == -1) return -1;
-        final na = unitNames[a.key] ?? '';
-        final nb = unitNames[b.key] ?? '';
-        return na.compareTo(nb);
-      });
+      ..sort((a, b) => a.key.compareTo(b.key));
 
     return Wrap(
       spacing: 6,
       runSpacing: 6,
       children: entries.map((e) {
-        final name = unitNames[e.key] ?? (e.key == -1 ? 'Params' : 'Group ${e.key}');
-        final count = e.value.length;
         return ActionChip(
           materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
           visualDensity: VisualDensity.compact,
@@ -178,7 +198,7 @@ class _CategoryChips extends StatelessWidget {
           side: BorderSide(color: Colors.tealAccent.withValues(alpha: 0.3)),
           avatar: const Icon(Icons.tune, size: 13, color: Colors.tealAccent),
           label: Text(
-            '$name ($count)',
+            '${e.key} (${e.value.length})',
             style: const TextStyle(
               color: Colors.tealAccent,
               fontSize: 11,
@@ -197,25 +217,27 @@ class _CategoryChips extends StatelessWidget {
 // Analyses parameter title patterns to build a two-level hierarchy.
 //
 // Strategy (tried in order, first match wins):
-//   1. Two-word prefix  e.g. "Channel 1 CC 5" → sub-group "Channel 1"
-//   2. One-word prefix  e.g. "VCO Type"       → sub-group "VCO"
-//   3. No sub-grouping  (fall back to search + pagination)
+//   1. Three-word prefix  e.g. "MIDI CC 0|5" → sub-group "MIDI CC 0"
+//   2. Two-word prefix    e.g. "Channel 1 CC 5" → sub-group "Channel 1"
+//   3. One-word prefix    e.g. "VCO Type" → sub-group "VCO"
+//   4. No sub-grouping    (fall back to search + pagination)
+//
+// Separators recognised: whitespace, hyphen, underscore, slash, pipe (|).
+// Pipe is important for "MIDI CC 0|0" which should group as "MIDI CC 0".
 //
 // A candidate prefix is accepted only when:
 //   • It produces 2–64 distinct sub-groups
 //   • No single sub-group contains more than 80 % of all params
-//     (otherwise the grouping is not useful)
-//   • Every individual sub-group has ≤ _kPageSize params
-//     OR it further reduces compared to the full list.
 class _SubGroupDetector {
   static const int _kMinGroupCount = 2;
   static const int _kMaxGroupCount = 64;
+  static final _sep = RegExp(r'[\s\-_/|]+');
 
   /// Returns the best sub-group map, or empty if flat layout is fine.
   static Map<String, List<VstParamInfo>> detect(List<VstParamInfo> params) {
     if (params.length <= _kPageSize) return {};
 
-    for (final prefixWords in [2, 1]) {
+    for (final prefixWords in [3, 2, 1]) {
       final groups = _groupByPrefix(params, prefixWords);
       if (_isUseful(groups, params.length)) return groups;
     }
@@ -226,7 +248,7 @@ class _SubGroupDetector {
       List<VstParamInfo> params, int words) {
     final groups = <String, List<VstParamInfo>>{};
     for (final p in params) {
-      final tokens = p.title.trim().split(RegExp(r'[\s\-_/]+'));
+      final tokens = p.title.trim().split(_sep);
       final key = tokens.take(words).join(' ');
       groups.putIfAbsent(key, () => []).add(p);
     }
@@ -238,7 +260,6 @@ class _SubGroupDetector {
     if (groups.length < _kMinGroupCount) return false;
     if (groups.length > _kMaxGroupCount) return false;
     final maxGroup = groups.values.fold(0, (m, v) => math.max(m, v.length));
-    // Reject if one group contains almost everything (not a useful split).
     if (maxGroup >= total * 0.8) return false;
     return true;
   }
