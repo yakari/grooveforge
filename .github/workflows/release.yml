@@ -68,6 +68,19 @@ jobs:
             libasound2-dev \
             libx11-dev
 
+      # The VST3 SDK is gitignored (too large to commit). Cache the clone so
+      # subsequent CI runs skip the download entirely.
+      - name: Cache VST3 SDK
+        id: cache-vst3sdk-linux
+        uses: actions/cache@v4
+        with:
+          path: packages/flutter_vst3/vst3sdk
+          key: vst3sdk-${{ hashFiles('packages/flutter_vst3/dart_vst_host/linux/CMakeLists.txt') }}
+
+      - name: Clone VST3 SDK
+        if: steps.cache-vst3sdk-linux.outputs.cache-hit != 'true'
+        run: git clone --depth=1 https://github.com/steinbergmedia/vst3sdk.git packages/flutter_vst3/vst3sdk
+
       # Cache the VST3 SDK object files — the SDK is hundreds of files and the
       # first cold compile takes several minutes. Subsequent runs are near-instant.
       - name: Setup ccache
@@ -145,6 +158,20 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+
+      # The VST3 SDK is gitignored (too large to commit). Cache the clone so
+      # subsequent CI runs skip the download entirely.
+      - name: Cache VST3 SDK
+        id: cache-vst3sdk-windows
+        uses: actions/cache@v4
+        with:
+          path: packages/flutter_vst3/vst3sdk
+          key: vst3sdk-${{ hashFiles('packages/flutter_vst3/dart_vst_host/windows/CMakeLists.txt') }}
+
+      - name: Clone VST3 SDK
+        if: steps.cache-vst3sdk-windows.outputs.cache-hit != 'true'
+        run: git clone --depth=1 https://github.com/steinbergmedia/vst3sdk.git packages/flutter_vst3/vst3sdk
+
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.41.2'

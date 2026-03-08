@@ -218,49 +218,72 @@ GrooveForge v2.0.0
 
 ---
 
-## Phase 2 — VST3 Hosting (Desktop Only) ✅
+## Phase 2 — VST3 Hosting (Desktop Only) ✅ COMPLETE
 
 > Adds the ability to load external `.vst3` plugins into rack slots on Linux, macOS, and Windows. Android and iOS are unaffected (the "Browse VST3" button is hidden on those platforms).
 
-### 2.1 — Dependency Setup ✅
+### 2.1 — Native Library & Build Automation ✅
 
-- [x] Clone `flutter_vst3` toolkit locally: `git clone https://github.com/MelbourneDeveloper/flutter_vst3 packages/flutter_vst3`
-- [x] Add `dart_vst_host` as a local path dependency in `pubspec.yaml`
-- [x] Patched `dart_vst_host` native C++ with ALSA audio output thread (`dart_vst_host_alsa.cpp`) — `dvh_audio_add_plugin`, `dvh_audio_remove_plugin`, `dvh_audio_clear_plugins`, `dvh_start_alsa_thread`, `dvh_stop_alsa_thread`
-- [x] Build native library: `cmake -S native -B native/build && make -j$(nproc)` → `libdart_vst_host.so` ✅
-- [x] Bundle `.so` in `linux/CMakeLists.txt` install targets
+- [x] Vendored `flutter_vst3` toolkit at `packages/flutter_vst3/` (BSD-3-Clause, compatible with MIT)
+- [x] Removed nested `.git` so the vendored copy can be committed to the repo
+- [x] Patched `dart_vst_host` native C++:
+  - ALSA audio output thread (`dart_vst_host_alsa.cpp`) — `dvh_audio_add_plugin/remove/clear`, `dvh_start/stop_alsa_thread`
+  - X11 plugin editor window (`dart_vst_host_editor_linux.cpp`) — `dvh_open/close_editor`, `dvh_editor_is_open`, full `IRunLoop` + `IPlugFrame` implementation for JUCE-based plugins (Surge XT etc.)
+  - Parameter unit/group API (`dart_vst_host.cpp`) — `dvh_param_unit_id`, `dvh_unit_count`, `dvh_unit_name`
+  - Cross-platform stubs (`dart_vst_host_platform_stubs.cpp`) — no-op ALSA + editor functions on Windows/macOS
+- [x] Converted `dart_vst_host` to a Flutter FFI plugin (`ffiPlugin: true` for linux/windows/macos in `pubspec.yaml`)
+  - Created `dart_vst_host/linux/CMakeLists.txt` — symlink-aware (`get_filename_component(... REALPATH)`), links ALSA + X11
+  - Created `dart_vst_host/windows/CMakeLists.txt` — Win32 VST3 module loader, links user32/ole32/uuid
+  - Created `dart_vst_host/macos/CMakeLists.txt` — ObjC++ module loader, links Cocoa/Carbon/CoreFoundation/AudioToolbox
+  - Removed manual `.so` copy from `linux/CMakeLists.txt` — Flutter build system handles bundling automatically
+- [x] Updated `.github/workflows/release.yml`: `libx11-dev` + `ccache` for VST3 SDK compilation, `libx11-6` in `.deb` depends
 
 ### 2.2 — Platform-Conditional Import Architecture ✅
 
 - [x] `lib/services/vst_host_service_stub.dart` — no-op stub for mobile/web
-- [x] `lib/services/vst_host_service_desktop.dart` — real implementation: `VstHost`, `VstPlugin` wrapping; `initialize`, `loadPlugin`, `unloadPlugin`, `noteOn/Off`, `getParameters`, `setParameter`, `startAudio/stopAudio`, `scanPluginPaths`
+- [x] `lib/services/vst_host_service_desktop.dart` — `initialize`, `loadPlugin`, `unloadPlugin`, `noteOn/Off`, `getParameters`, `getUnitNames`, `setParameter`, `startAudio/stopAudio`, `scanPluginPaths`, `openEditor`, `closeEditor`, `isEditorOpen`
 - [x] `lib/services/vst_host_service.dart` — conditional export (`dart.library.io`)
 - [x] Registered `VstHostService` in `MultiProvider` in `main.dart`
+- [x] `VstParamInfo` includes `unitId` for parameter grouping
 
-### 2.3 — VST3 Plugin Scanner ✅
+### 2.3 — VST3 Plugin Loading ✅
 
-- [x] `VstHostService.defaultSearchPaths` — `~/.vst3`, `/usr/lib/vst3`, `/usr/local/lib/vst3` on Linux (matching macOS/Windows equivalents)
-- [x] `scanPluginPaths(List<String>)` — async directory scan returning `.vst3` paths
-- [x] VST3 scanner `ListTile` in `PreferencesScreen` (desktop-only, inside `if (!Platform.isAndroid && !Platform.isIOS)`)
+- [x] VST3 bundle directory detection + `.so` resolution inside bundle in `add_plugin_sheet.dart` (uses `FilePicker.getDirectoryPath()`)
+- [x] `dvh_load_plugin` fixed to store `PlugProvider` in `DVH_PluginState` (prevents premature termination)
+- [x] `setComponentState()` added after init for JUCE-based plugins (Surge XT, DISTRHO) to build internal processor reference
+- [x] Single-component VST3 support — controller queried from component when `getControllerPtr()` returns null (Aeolus, Guitarix)
+- [x] Multi-output-bus support in `dvh_resume` — all buses configured dynamically (Surge XT has Scene B, etc.)
+- [x] Instrument plugin support (0 audio inputs) — `nullptr` inputs passed to `dvh_resume`
+- [x] Autosave reload — `SplashScreen` re-loads all `Vst3PluginInstance`s into `VstHostService` on startup
 
-### 2.4 — Vst3SlotUI ✅
+### 2.4 — Vst3SlotUI (parameter knobs + editor button) ✅
 
-- [x] `lib/widgets/rack/vst3_slot_ui.dart` — shows parameter sliders for all VST3 parameters on desktop; mobile shows placeholder
+- [x] Compact **category chips** in the rack card — one chip per parameter group (IUnitInfo unit or name-detected sub-group)
+- [x] Large groups (> 48 params) expanded at chip level using `_SubGroupDetector` (3/2/1-word prefix analysis, `|` as separator for MIDI CC channels)
+- [x] Tapping a chip opens `_ParamCategoryModal` — grid of `RotaryKnob` widgets (reuses existing `lib/widgets/rotary_knob.dart`)
+- [x] Modal: search bar, sub-group dropdown for very large categories, pagination (24 per page)
+- [x] **Show/Close Plugin UI** button — opens the plugin's native editor in a floating X11 window
+  - Editor close button: `XWithdrawWindow` for immediate visual feedback + detached background thread for non-blocking `IPlugView::removed()` cleanup
+  - Editor X-button close: `removed()` called on the event thread (JUCE's GUI thread) to avoid deadlock
+  - Re-open after close: `g_cleanupFutures` wait ensures `removed()` finishes before `createView()` is called
+  - Self-join crash fix: cleanup future never erased from within its own lambda (would cause `EDEADLK` via `std::shared_future` destructor)
+- [x] `_EditorButton` polls `isEditorOpen` via `Timer.periodic` to sync state with native window close/open
 - [x] Parameter values persisted into `Vst3PluginInstance.parameters` via `rack.setVst3Parameter()`
-- [x] Piano widget shown for VST3 slots too (routes `noteOn/Off` to `VstHostService` + tracks active notes in engine)
-- [x] Mobile / empty-path → `_UnavailablePlaceholder` with `vst3NotLoaded` or `rackPluginUnavailableOnMobile` message
+- [x] Mobile / empty-path → `_UnavailablePlaceholder`
 
 ### 2.5 — .gf Format Update for VST3 ✅
 
-- [x] `Vst3PluginInstance.toJson/fromJson` already writes/reads `parameters` map (keyed by param ID string)
+- [x] `Vst3PluginInstance.toJson/fromJson` writes/reads `parameters` map (keyed by param ID string)
 - [x] `RackState.setVst3Parameter()` — persists param change in model for `.gf` autosave
 
-### 2.6 — Testing (manual smoke test)
+### 2.6 — Testing (manual smoke test) ✅
 
-- [ ] Load `Aeolus.vst3` or `Guitarix.vst3` from `/usr/lib/vst3` via "Browse VST3" in rack
-- [ ] Verify parameters appear as sliders in `Vst3SlotUI`
-- [ ] Play notes on the rack piano — verify audio output through ALSA
-- [ ] Save project as `.gf`, reload — verify parameters restored
+- [x] Loaded Surge XT (`/usr/lib/vst3/Surge XT.vst3`) — audio output via ALSA confirmed working
+- [x] Loaded Aeolus (`/usr/lib/vst3/Aeolus.vst3`) — parameters grouped correctly
+- [x] Loaded Guitarix (single-component VST3) — parameters accessible
+- [x] Native editor window opens for Surge XT, can be opened/closed/reopened without freeze or crash
+- [x] Parameter knobs display and update plugin state in real time
+- [ ] Save project as `.gf`, reload — verify VST3 parameters restored *(pending full round-trip test)*
 - [ ] Open same `.gf` on Android — verify placeholder shown, no crash
 
 ---
@@ -269,62 +292,75 @@ GrooveForge v2.0.0
 
 > Packages the built-in synthesizer/vocoder as a proper `.vst3` bundle loadable in Reaper, Ardour, Bitwig, Ableton, FL Studio, etc. This is a separate CMake build artifact, not part of the Flutter app build.
 
+### ⚠️ Open Design Question — Jam Mode in a Standalone VST3
+
+The Jam Mode feature (per-slot scale locking driven by a master chord) is tightly coupled to **multiple GrooveForge Keyboard instances running in the same host process**. Distributing as a single VST3 plugin creates a fundamental architectural challenge:
+
+**Option A — Host-side IPC between instances**
+Each `GrooveForge Keyboard.vst3` instance communicates with sibling instances via a named pipe, shared memory segment, or D-Bus message. The "master" instance broadcasts the detected chord; "follower" instances receive it and lock their scale. Complexity: high. Latency: low if shared memory.
+
+**Option B — GrooveForge Keyboard as a "rack host" plugin**
+The VST3 itself is a mini-host: it embeds multiple virtual keyboards (with individual MIDI channels and soundfonts) inside a single plugin instance, plus the Jam session widget as part of its own editor UI. The DAW sees only one plugin slot. Complexity: very high (embedded audio sub-graph). Benefit: Jam Mode works identically to the standalone app.
+
+**Option C — Jam Mode stays app-only, standalone VST3 is soundfont/vocoder only**
+The distributable VST3 exposes soundfont player + vocoder as a single-instance instrument. Jam Mode remains exclusive to the GrooveForge standalone app where multiple rack slots can coordinate. Simplest to implement; clearest separation of concerns.
+
+**Current leaning: Option C** for the first release (simplicity), with Option A prototyped later if demand exists.
+
+---
+
 ### 3.1 — VST3 SDK Setup
 
-- Download VST3 SDK 3.8+ (MIT): `git clone https://github.com/steinbergmedia/vst3sdk vst3_plugin/vst3sdk`
-- Verify SDK version is 3.8+ (MIT license) — check `vst3sdk/LICENSE.txt`
-- Add `vst3sdk/` to `.gitignore` (large, fetched at build time)
-- Add a `setup_vst3.sh` script at project root to clone the SDK automatically
+- [ ] Download VST3 SDK 3.8+ (MIT): `git clone https://github.com/steinbergmedia/vst3sdk vst3_plugin/vst3sdk`
+- [ ] Verify SDK version is 3.8+ (MIT license) — check `vst3sdk/LICENSE.txt`
+- [ ] Add `vst3sdk/` to `.gitignore` (already vendored for hosting; the plugin build can reuse `packages/flutter_vst3/vst3sdk`)
+- [ ] Add a `setup_vst3_plugin.sh` script at project root (separate from hosting SDK)
 
 ### 3.2 — VST3 Plugin Project Scaffold
 
-- Create `vst3_plugin/` directory at project root
-- Create `vst3_plugin/CMakeLists.txt`:
-  - Targets: `GrooveForgeKeyboard.vst3`
-  - Links: `vst3sdk`, FluidSynth static lib, `native_audio/audio_input.c` (shared with app)
+- [ ] Create `vst3_plugin/` directory at project root
+- [ ] Create `vst3_plugin/CMakeLists.txt`:
+  - Target: `GrooveForge Keyboard.vst3`
+  - Links: `vst3sdk` (reuse `packages/flutter_vst3/vst3sdk`), FluidSynth static lib, `native_audio/audio_input.c`
   - Platform install paths: `~/.vst3/` (Linux), `~/Library/Audio/Plug-Ins/VST3/` (macOS), `C:\Program Files\Common Files\VST3\` (Windows)
-- Create `vst3_plugin/src/processor.cpp` — VST3 `IAudioProcessor` implementation:
+- [ ] Create `vst3_plugin/src/processor.cpp` — `IAudioProcessor`:
   - Delegates MIDI note on/off to FluidSynth
-  - Delegates vocoder processing to `audio_input.c` DSP (Linux/macOS/Windows builds only)
-- Create `vst3_plugin/src/controller.cpp` — VST3 `IEditController` implementation:
-  - Exposes parameters: soundfont path, bank, patch, vocoder waveform, noise mix, bandwidth, sibilance, gate threshold, gain
+  - Delegates vocoder processing to `audio_input.c` DSP (Linux only for now, see vocoder platform table)
+- [ ] Create `vst3_plugin/src/controller.cpp` — `IEditController`:
+  - Parameters: soundfont path, bank, patch, vocoder on/off, waveform, noise mix, bandwidth, gate threshold, gain
   - Parameter IDs match `.gf` state keys for round-trip compatibility
-- Create `vst3_plugin/src/factory.cpp` — VST3 plugin factory registration
-- Create `vst3_plugin/src/grooveforge_keyboard_ids.h` — VST3 class UIDs (generated with `uuidgen`)
-- Create `vst3_plugin/resources/GrooveForgeKeyboard.uidesc` — VSTGUI layout (basic knobs + dropdown for soundfont)
+- [ ] Create `vst3_plugin/src/factory.cpp` — plugin factory registration
+- [ ] Create `vst3_plugin/src/grooveforge_keyboard_ids.h` — VST3 class UIDs (generate with `uuidgen`)
+- [ ] Create `vst3_plugin/resources/GrooveForgeKeyboard.uidesc` — VSTGUI layout (knobs + soundfont dropdown)
 
 ### 3.3 — Shared Audio Engine Code
 
-- Symlink or copy `native_audio/audio_input.c` into `vst3_plugin/src/` (or use CMake `include_directories`)
-- Ensure `native_audio/audio_input.c` compiles cleanly as a static library without the Flutter FFI entrypoint
-- Bundle FluidSynth as a static lib in the VST3 build (no dynamic dependency at runtime)
-- Include default soundfont `assets/soundfonts/default.sf2` in the `.vst3` bundle's `Resources/` folder
+- [ ] Ensure `native_audio/audio_input.c` compiles cleanly as a static lib without the Flutter FFI entrypoint
+- [ ] Bundle FluidSynth as a static lib in the VST3 build (no runtime dynamic dependency)
+- [ ] Include default soundfont `assets/soundfonts/default.sf2` in the `.vst3` bundle's `Resources/` folder
 
 ### 3.4 — Build Targets
 
-- Add `Makefile` targets at project root:
-  - `make vst-linux` — builds `GrooveForge Keyboard.vst3` for Linux x86_64
-  - `make vst-macos` — builds universal binary (Intel + Apple Silicon)
-  - `make vst-windows` — cross-compile or native Windows build
-  - `make vst-install` — installs to OS default VST3 folder
-- Add GitHub Actions CI job: build VST3 on Ubuntu, macOS, Windows; upload as release artifacts
+- [ ] `make vst-linux` — builds for Linux x86_64, installs to `~/.vst3/`
+- [ ] `make vst-macos` — universal binary (Intel + Apple Silicon)
+- [ ] `make vst-windows` — cross-compile or native Windows build
+- [ ] GitHub Actions CI job: build VST3 on Ubuntu/macOS/Windows, upload as release artifacts
 
-### 3.5 — flutter_vst3 Integration Option
+### 3.5 — Jam Mode IPC Prototype (Option A, post-launch)
 
-- Evaluate replacing the raw CMake approach with `flutter_vst3` toolkit scaffold:
-  - Pros: Dart audio processor, Flutter UI, less C++ boilerplate
-  - Cons: IPC overhead, experimental status (43 stars)
-  - Decision: **Start with raw CMake for performance-critical audio path, use flutter_vst3 only for the UI editor window if needed**
+- [ ] Investigate `shm_open` / `mmap` shared memory for inter-instance chord broadcast on Linux/macOS
+- [ ] Design a minimal protocol: master writes `{scale_root, scale_type, chord_notes[]}`, followers poll at audio callback rate
+- [ ] Evaluate if DAW sandboxing (macOS, some Linux setups) blocks shared memory between plugin instances
 
 ### 3.6 — Testing
 
-- Load `GrooveForge Keyboard.vst3` in **Reaper** (Linux) — play notes via MIDI, change patches
-- Load in **Ardour** (Linux) — verify MIDI routing and audio output
-- Verify soundfont selection parameter updates the instrument in real time
-- Verify vocoder activates when waveform parameter is set (Linux/macOS builds)
-- Verify the plugin state saves/restores correctly when the DAW project is saved and reopened
-- Test on macOS with Logic Pro / GarageBand
-- Test on Windows with FL Studio / Reaper
+- [ ] Load in **Reaper** (Linux) — play notes via MIDI, change patches, verify audio
+- [ ] Load in **Ardour** (Linux) — verify MIDI routing and audio output
+- [ ] Soundfont selection parameter updates instrument in real time
+- [ ] Vocoder activates when waveform parameter ≠ off (Linux)
+- [ ] Plugin state saves/restores correctly when DAW project is saved and reopened
+- [ ] Test on macOS with Logic Pro / GarageBand
+- [ ] Test on Windows with FL Studio / Reaper
 
 ---
 
@@ -341,16 +377,16 @@ GrooveForge v2.0.0
 ## Version Plan
 
 
-| Version | Phase   | Description                                                        |
-| ------- | ------- | ------------------------------------------------------------------ |
-| `2.0.0` | Phase 1 | Rack UI + GrooveForge Keyboard built-in plugin + .gf project files |
-| `2.1.0` | Phase 2 | External VST3 hosting (desktop only)                               |
-| `2.2.0` | Phase 3 | GrooveForge Keyboard as distributable `.vst3` bundle               |
+| Version | Phase   | Status      | Description                                                        |
+| ------- | ------- | ----------- | ------------------------------------------------------------------ |
+| `2.0.0` | Phase 1 | ✅ Complete  | Rack UI + GrooveForge Keyboard built-in plugin + .gf project files |
+| `2.1.0` | Phase 2 | ✅ Complete  | External VST3 hosting (desktop only)                               |
+| `2.2.0` | Phase 3 | 🔜 TODO     | GrooveForge Keyboard as distributable `.vst3` bundle               |
 
 
 ---
 
-*Last updated: 2026-03-08 — Phase 1 complete + Jam Mode redesign complete. Zero analyzer errors. Ready for smoke testing.*
+*Last updated: 2026-03-08 — Phase 2 complete. Native VST3 hosting with ALSA audio, X11 editor windows (IRunLoop/IPlugFrame), parameter knobs (RotaryKnob), smart name-based category grouping. Phase 3 architecture options documented. Zero analyzer errors.*
 
 ---
 

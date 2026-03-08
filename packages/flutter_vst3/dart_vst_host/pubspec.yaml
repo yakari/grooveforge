@@ -17,21 +17,23 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
 
-# Declares this package as a Flutter FFI plugin for all desktop platforms.
+# Declares this package as a Flutter FFI plugin for Linux and Windows.
 # Flutter's build system automatically configures the platform CMakeLists.txt,
 # compiles the native library, and bundles it — no manual cmake/make steps.
 #
-# Audio output is ALSA-backed on Linux. Windows (WASAPI) and macOS (CoreAudio)
-# audio support can be added in the future via platform-specific source files.
-# Plugin editor GUI opens a floating window on Linux (X11).  On macOS,
-# FlutterPlatformView (NSView embedding) is a viable future enhancement that
-# would allow in-card display of the VST3 plugin UI.
+# Audio: ALSA on Linux. Windows (WASAPI) and macOS (CoreAudio) can be added
+# later via platform-specific source files.
+# Editor GUI: floating X11 window on Linux.  macOS NSView embedding via
+# FlutterPlatformView is a viable future enhancement.
+#
+# macOS is intentionally omitted here: Flutter macOS uses CocoaPods, which
+# requires a .podspec file that our CMake-only approach does not provide.
+# Until a proper podspec + CoreAudio backend are added, macOS VST3 hosting
+# falls back to the no-op stub (VstHostService from vst_host_service_stub.dart).
 flutter:
   plugin:
     platforms:
       linux:
         ffiPlugin: true
       windows:
-        ffiPlugin: true
-      macos:
         ffiPlugin: true
