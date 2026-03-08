@@ -588,12 +588,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get rackMidiChannel => 'MIDI CH';
 
   @override
-  String get rackRoleMaster => 'Master';
-
-  @override
-  String get rackRoleSlave => 'Slave';
-
-  @override
   String get rackOpenProject => 'Open Project';
 
   @override
@@ -623,4 +617,29 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get splashRestoringRack => 'Restoring rack state...';
+
+  @override
+  String get jamSlotOff => 'JAM OFF';
+
+  @override
+  String get jamSlotOn => 'JAM ON';
+
+  @override
+  String get jamSlotSelectMaster => 'Select Jam Master';
+
+  @override
+  String get jamSlotSelectMasterHint =>
+      'Which slot will drive the harmony for this keyboard?';
+
+  @override
+  String get jamSlotChangeMaster => 'Change master…';
+
+  @override
+  String get jamSlotNoMasterSelected => 'Pick master';
+
+  @override
+  String get jamSlotNoOtherSlots => 'No other slots available to follow.';
+
+  @override
+  String get jamSlotClearMaster => 'Clear Jam master';
 }

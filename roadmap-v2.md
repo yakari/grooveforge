@@ -367,4 +367,31 @@ GrooveForge v2.0.0
 
 ---
 
-*Last updated: 2026-03-08 — Phase 1 complete. Zero analyzer errors. Ready for smoke testing.*
+*Last updated: 2026-03-08 — Phase 1 complete + Jam Mode redesign complete. Zero analyzer errors. Ready for smoke testing.*
+
+---
+
+## Jam Mode Redesign (implemented between Phase 1 and Phase 2)
+
+The old global master/slave model was replaced with a per-slot opt-in model:
+
+### Before
+- One global master channel (only the first one had effect if multiple were set)
+- Multiple slave channels defined globally in `JamSessionWidget`
+- Setting a channel as "slave to no one" required marking it Master — unintuitive
+
+### After
+- **Every rack slot independently opts in** to Jam following with a "JAM OFF / JAM ON" toggle button in its header
+- **No master designation required** — any slot can be watched by other slots
+- When toggling JAM ON for the **first time**, a modal prompts the user to pick which slot drives the harmony
+- When JAM is ON, an adjacent chip shows the master's MIDI channel and allows changing it with one tap
+- **Multiple slots can follow the same or different masters** simultaneously
+- Slots with JAM OFF play freely with no scale constraint
+- The global JAM start/stop in the top bar acts as a master on/off switch without losing configurations
+
+### Key code changes
+- `GrooveForgeKeyboardPlugin`: `PluginRole role` → `bool jamEnabled, String? jamMasterSlotId`
+- `AudioEngine`: `jamMasterChannel + jamSlaveChannels` → `jamFollowerMap: ValueNotifier<Map<int,int>>` (follower ch → master ch)
+- `RackState`: new `setPluginJamEnabled()` / `setPluginJamMaster()` / `_syncJamFollowerMapToEngine()`
+- `rack_slot_widget.dart`: `_RoleChip` → `_JamChip` + `_MasterPickerChip`
+- `plugin_role.dart` deleted; `channel_card.dart` deleted

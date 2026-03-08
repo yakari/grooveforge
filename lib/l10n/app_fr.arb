@@ -259,8 +259,6 @@
   "rackRemove": "Supprimer",
   "rackPluginUnavailableOnMobile": "Ce plugin VST3 n'est pas disponible sur mobile.",
   "rackMidiChannel": "CANAL MIDI",
-  "rackRoleMaster": "Maître",
-  "rackRoleSlave": "Esclave",
   "rackOpenProject": "Ouvrir un projet",
   "rackSaveProject": "Enregistrer",
   "rackSaveProjectAs": "Enregistrer sous…",
@@ -270,5 +268,14 @@
   "rackProjectSaved": "Projet enregistré.",
   "rackProjectOpened": "Projet ouvert.",
   "rackAutosaveRestored": "Session restaurée.",
-  "splashRestoringRack": "Restauration du rack..."
+  "splashRestoringRack": "Restauration du rack...",
+
+  "jamSlotOff": "JAM OFF",
+  "jamSlotOn": "JAM ON",
+  "jamSlotSelectMaster": "Choisir le maître Jam",
+  "jamSlotSelectMasterHint": "Quel slot pilote l'harmonie pour ce clavier ?",
+  "jamSlotChangeMaster": "Changer le maître…",
+  "jamSlotNoMasterSelected": "Choisir maître",
+  "jamSlotNoOtherSlots": "Aucun autre slot disponible.",
+  "jamSlotClearMaster": "Retirer le maître Jam"
 }

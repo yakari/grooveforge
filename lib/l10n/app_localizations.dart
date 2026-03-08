@@ -1148,18 +1148,6 @@ abstract class AppLocalizations {
   /// **'MIDI CH'**
   String get rackMidiChannel;
 
-  /// No description provided for @rackRoleMaster.
-  ///
-  /// In en, this message translates to:
-  /// **'Master'**
-  String get rackRoleMaster;
-
-  /// No description provided for @rackRoleSlave.
-  ///
-  /// In en, this message translates to:
-  /// **'Slave'**
-  String get rackRoleSlave;
-
   /// No description provided for @rackOpenProject.
   ///
   /// In en, this message translates to:
@@ -1219,6 +1207,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Restoring rack state...'**
   String get splashRestoringRack;
+
+  /// No description provided for @jamSlotOff.
+  ///
+  /// In en, this message translates to:
+  /// **'JAM OFF'**
+  String get jamSlotOff;
+
+  /// No description provided for @jamSlotOn.
+  ///
+  /// In en, this message translates to:
+  /// **'JAM ON'**
+  String get jamSlotOn;
+
+  /// No description provided for @jamSlotSelectMaster.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Jam Master'**
+  String get jamSlotSelectMaster;
+
+  /// No description provided for @jamSlotSelectMasterHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Which slot will drive the harmony for this keyboard?'**
+  String get jamSlotSelectMasterHint;
+
+  /// No description provided for @jamSlotChangeMaster.
+  ///
+  /// In en, this message translates to:
+  /// **'Change master…'**
+  String get jamSlotChangeMaster;
+
+  /// No description provided for @jamSlotNoMasterSelected.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick master'**
+  String get jamSlotNoMasterSelected;
+
+  /// No description provided for @jamSlotNoOtherSlots.
+  ///
+  /// In en, this message translates to:
+  /// **'No other slots available to follow.'**
+  String get jamSlotNoOtherSlots;
+
+  /// No description provided for @jamSlotClearMaster.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear Jam master'**
+  String get jamSlotClearMaster;
 }
 
 class _AppLocalizationsDelegate

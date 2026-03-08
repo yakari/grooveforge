@@ -1,5 +1,4 @@
 import 'plugin_instance.dart';
-import 'plugin_role.dart';
 
 /// Represents an external VST3 plugin loaded from disk.
 ///
@@ -13,9 +12,6 @@ class Vst3PluginInstance implements PluginInstance {
   @override
   int midiChannel;
 
-  @override
-  PluginRole role;
-
   /// Absolute path to the .vst3 bundle/file on disk.
   final String path;
 
@@ -28,7 +24,6 @@ class Vst3PluginInstance implements PluginInstance {
   Vst3PluginInstance({
     required this.id,
     required this.midiChannel,
-    required this.role,
     required this.path,
     required this.pluginName,
     Map<int, double>? parameters,
@@ -42,7 +37,6 @@ class Vst3PluginInstance implements PluginInstance {
     'id': id,
     'type': 'vst3',
     'midiChannel': midiChannel,
-    'role': role.name,
     'path': path,
     'name': pluginName,
     'state': {
@@ -62,10 +56,6 @@ class Vst3PluginInstance implements PluginInstance {
     return Vst3PluginInstance(
       id: json['id'] as String,
       midiChannel: (json['midiChannel'] as num?)?.toInt() ?? 1,
-      role: PluginRole.values.firstWhere(
-        (r) => r.name == json['role'],
-        orElse: () => PluginRole.slave,
-      ),
       path: json['path'] as String? ?? '',
       pluginName: json['name'] as String? ?? 'Unknown VST3',
       parameters: params,

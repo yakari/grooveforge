@@ -2,19 +2,18 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../models/plugin_instance.dart';
-import '../models/plugin_role.dart';
 import '../models/grooveforge_keyboard_plugin.dart';
 import 'audio_engine.dart';
 
 /// Manages the ordered list of plugin slots in the GrooveForge rack.
 ///
 /// Each [PluginInstance] in [plugins] corresponds to one synthesizer lane
-/// with its own MIDI channel, sound source, and Jam Mode role. [RackState]
-/// keeps the [AudioEngine]'s jam master/slave channel assignments in sync
-/// whenever the rack is modified.
+/// with its own MIDI channel and sound source. Per-slot Jam Mode configuration
+/// (enabled flag + chosen master slot) is stored on [GrooveForgeKeyboardPlugin]
+/// and synced to [AudioEngine.jamFollowerMap] after every mutation.
 ///
 /// Persistence is handled externally by [ProjectService], which calls
-/// [toJson] / [fromJson] and manages .gf file I/O. [RackState] itself
+/// [toJson] / [loadFromJson] and manages .gf file I/O. [RackState] itself
 /// notifies an optional [onChanged] callback after every mutation so that
 /// the project service can trigger an autosave.
 class RackState extends ChangeNotifier {
@@ -32,21 +31,6 @@ class RackState extends ChangeNotifier {
 
   int get pluginCount => _plugins.length;
 
-  PluginInstance? get masterPlugin => _plugins.firstWhere(
-    (p) => p.role == PluginRole.master,
-    orElse: () => _plugins.isEmpty ? _dummy : _plugins.first,
-  );
-
-  // Sentinel used only when the list is empty — never stored.
-  static final _dummy = GrooveForgeKeyboardPlugin(
-    id: '__dummy__',
-    midiChannel: 1,
-    role: PluginRole.master,
-  );
-
-  List<PluginInstance> get slavePlugins =>
-      _plugins.where((p) => p.role == PluginRole.slave).toList();
-
   // ─── Initialisation ───────────────────────────────────────────────────────
 
   /// Populates the rack from a JSON list (e.g., loaded from a .gf file).
@@ -60,13 +44,12 @@ class RackState extends ChangeNotifier {
       }
     }
     _applyAllPluginsToEngine();
-    _syncJamChannelsToEngine();
+    _syncJamFollowerMapToEngine();
     notifyListeners();
   }
 
-  /// Creates the factory defaults: one slave on MIDI channel 1, one master
-  /// on MIDI channel 2, both using whatever the engine already has for those
-  /// channels (i.e., the default soundfont restored from SharedPreferences).
+  /// Creates the factory defaults: two independent GrooveForge Keyboard slots
+  /// with no Jam following configured (users opt in per-slot).
   void initDefaults() {
     _plugins.clear();
 
@@ -75,7 +58,6 @@ class RackState extends ChangeNotifier {
       GrooveForgeKeyboardPlugin(
         id: 'slot-0',
         midiChannel: 1,
-        role: PluginRole.slave,
         soundfontPath: ch0.soundfontPath,
         bank: ch0.bank,
         program: ch0.program,
@@ -87,14 +69,13 @@ class RackState extends ChangeNotifier {
       GrooveForgeKeyboardPlugin(
         id: 'slot-1',
         midiChannel: 2,
-        role: PluginRole.master,
         soundfontPath: ch1.soundfontPath,
         bank: ch1.bank,
         program: ch1.program,
       ),
     );
 
-    _syncJamChannelsToEngine();
+    _syncJamFollowerMapToEngine();
     notifyListeners();
     _notifyChanged();
   }
@@ -106,14 +87,20 @@ class RackState extends ChangeNotifier {
     if (plugin is GrooveForgeKeyboardPlugin) {
       _applyPluginToEngine(plugin);
     }
-    _syncJamChannelsToEngine();
+    _syncJamFollowerMapToEngine();
     notifyListeners();
     _notifyChanged();
   }
 
   void removePlugin(String id) {
+    // Clear jamMasterSlotId references to the removed slot on other plugins.
+    for (final p in _plugins) {
+      if (p is GrooveForgeKeyboardPlugin && p.jamMasterSlotId == id) {
+        p.jamMasterSlotId = null;
+      }
+    }
     _plugins.removeWhere((p) => p.id == id);
-    _syncJamChannelsToEngine();
+    _syncJamFollowerMapToEngine();
     notifyListeners();
     _notifyChanged();
   }
@@ -134,17 +121,7 @@ class RackState extends ChangeNotifier {
     if (plugin == null) return;
     plugin.midiChannel = midiChannel;
     if (plugin is GrooveForgeKeyboardPlugin) _applyPluginToEngine(plugin);
-    _syncJamChannelsToEngine();
-    notifyListeners();
-    _notifyChanged();
-  }
-
-  /// Toggle a slot between master and slave roles.
-  void setPluginRole(String id, PluginRole role) {
-    final plugin = _findById(id);
-    if (plugin == null) return;
-    plugin.role = role;
-    _syncJamChannelsToEngine();
+    _syncJamFollowerMapToEngine();
     notifyListeners();
     _notifyChanged();
   }
@@ -169,6 +146,32 @@ class RackState extends ChangeNotifier {
       program,
       bank: bank,
     );
+    notifyListeners();
+    _notifyChanged();
+  }
+
+  /// Enable or disable Jam following on a slot, optionally setting the master
+  /// at the same time.
+  void setPluginJamEnabled(
+    String id, {
+    required bool enabled,
+    String? masterSlotId,
+  }) {
+    final plugin = _findGKById(id);
+    if (plugin == null) return;
+    plugin.jamEnabled = enabled;
+    if (masterSlotId != null) plugin.jamMasterSlotId = masterSlotId;
+    _syncJamFollowerMapToEngine();
+    notifyListeners();
+    _notifyChanged();
+  }
+
+  /// Change the master slot that a follower slot is watching.
+  void setPluginJamMaster(String id, String? masterSlotId) {
+    final plugin = _findGKById(id);
+    if (plugin == null) return;
+    plugin.jamMasterSlotId = masterSlotId;
+    _syncJamFollowerMapToEngine();
     notifyListeners();
     _notifyChanged();
   }
@@ -204,7 +207,6 @@ class RackState extends ChangeNotifier {
     if (idx < 0 || idx > 15) return;
 
     if (plugin.soundfontPath != null) {
-      // Only assign if the soundfont is actually loaded (or is vocoderMode)
       final isLoaded = plugin.soundfontPath == 'vocoderMode' ||
           _engine.loadedSoundfonts.contains(plugin.soundfontPath);
       if (isLoaded) {
@@ -214,7 +216,6 @@ class RackState extends ChangeNotifier {
     if (plugin.soundfontPath != 'vocoderMode') {
       _engine.assignPatchToChannel(idx, plugin.program, bank: plugin.bank);
     }
-    // If this slot is in vocoder mode, apply its stored vocoder params
     if (plugin.isVocoderMode) {
       _engine.vocoderWaveform.value = plugin.vocoderWaveform;
       _engine.vocoderNoiseMix.value = plugin.vocoderNoiseMix;
@@ -226,25 +227,30 @@ class RackState extends ChangeNotifier {
     }
   }
 
-  /// Derives the engine's jam master/slave channel assignments from the rack's
-  /// plugin roles, replacing the old hand-configured dropdowns in JamWidget.
-  void _syncJamChannelsToEngine() {
-    PluginInstance? master;
+  /// Builds the follower map from the current rack's per-slot jam configuration
+  /// and pushes it to [AudioEngine.jamFollowerMap].
+  ///
+  /// follower channel (0-indexed) → master channel (0-indexed).
+  void _syncJamFollowerMapToEngine() {
+    final map = <int, int>{};
+
     for (final p in _plugins) {
-      if (p.role == PluginRole.master) {
-        master = p;
-        break;
+      if (p is! GrooveForgeKeyboardPlugin) continue;
+      if (!p.jamEnabled || p.jamMasterSlotId == null) continue;
+
+      final master = _findById(p.jamMasterSlotId!);
+      if (master == null) continue;
+
+      final followerCh = p.midiChannel - 1;
+      final masterCh = master.midiChannel - 1;
+      if (followerCh >= 0 && followerCh < 16 &&
+          masterCh >= 0 && masterCh < 16 &&
+          followerCh != masterCh) {
+        map[followerCh] = masterCh;
       }
     }
-    if (master != null) {
-      _engine.jamMasterChannel.value = master.midiChannel - 1;
-    }
 
-    final slaves = _plugins
-        .where((p) => p.role == PluginRole.slave)
-        .map((p) => p.midiChannel - 1)
-        .toSet();
-    _engine.jamSlaveChannels.value = slaves;
+    _engine.jamFollowerMap.value = map;
   }
 
   // ─── Helpers ─────────────────────────────────────────────────────────────
@@ -263,7 +269,6 @@ class RackState extends ChangeNotifier {
   }
 
   void _notifyChanged() {
-    // Defer so that the calling frame can finish its setState first.
     Timer.run(() => onChanged?.call());
   }
 

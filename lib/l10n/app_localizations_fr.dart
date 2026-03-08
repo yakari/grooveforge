@@ -592,12 +592,6 @@ class AppLocalizationsFr extends AppLocalizations {
   String get rackMidiChannel => 'CANAL MIDI';
 
   @override
-  String get rackRoleMaster => 'Maître';
-
-  @override
-  String get rackRoleSlave => 'Esclave';
-
-  @override
   String get rackOpenProject => 'Ouvrir un projet';
 
   @override
@@ -627,4 +621,29 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get splashRestoringRack => 'Restauration du rack...';
+
+  @override
+  String get jamSlotOff => 'JAM OFF';
+
+  @override
+  String get jamSlotOn => 'JAM ON';
+
+  @override
+  String get jamSlotSelectMaster => 'Choisir le maître Jam';
+
+  @override
+  String get jamSlotSelectMasterHint =>
+      'Quel slot pilote l\'harmonie pour ce clavier ?';
+
+  @override
+  String get jamSlotChangeMaster => 'Changer le maître…';
+
+  @override
+  String get jamSlotNoMasterSelected => 'Choisir maître';
+
+  @override
+  String get jamSlotNoOtherSlots => 'Aucun autre slot disponible.';
+
+  @override
+  String get jamSlotClearMaster => 'Retirer le maître Jam';
 }

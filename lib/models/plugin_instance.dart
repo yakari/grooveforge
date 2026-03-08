@@ -1,4 +1,3 @@
-import 'plugin_role.dart';
 import 'grooveforge_keyboard_plugin.dart';
 import 'vst3_plugin_instance.dart';
 
@@ -9,8 +8,6 @@ abstract class PluginInstance {
   String get id;
   int get midiChannel; // 1-16, user-facing
   set midiChannel(int v);
-  PluginRole get role;
-  set role(PluginRole v);
 
   /// Human-readable name shown in the rack slot header.
   String get displayName;

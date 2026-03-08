@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 
 import '../l10n/app_localizations.dart';
 import '../models/grooveforge_keyboard_plugin.dart';
-import '../models/plugin_role.dart';
 import '../models/vst3_plugin_instance.dart';
 import '../services/rack_state.dart';
 
@@ -83,7 +82,6 @@ class _AddPluginSheetContent extends StatelessWidget {
                   GrooveForgeKeyboardPlugin(
                     id: rack.generateSlotId(),
                     midiChannel: ch,
-                    role: PluginRole.slave,
                   ),
                 );
               },
@@ -104,7 +102,6 @@ class _AddPluginSheetContent extends StatelessWidget {
                     Vst3PluginInstance(
                       id: rack.generateSlotId(),
                       midiChannel: ch,
-                      role: PluginRole.slave,
                       path: '',
                       pluginName: 'VST3 Plugin (coming in v2.1)',
                     ),

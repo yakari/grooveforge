@@ -259,8 +259,6 @@
   "rackRemove": "Remove",
   "rackPluginUnavailableOnMobile": "This VST3 plugin is not available on mobile.",
   "rackMidiChannel": "MIDI CH",
-  "rackRoleMaster": "Master",
-  "rackRoleSlave": "Slave",
   "rackOpenProject": "Open Project",
   "rackSaveProject": "Save Project",
   "rackSaveProjectAs": "Save As…",
@@ -270,5 +268,14 @@
   "rackProjectSaved": "Project saved.",
   "rackProjectOpened": "Project opened.",
   "rackAutosaveRestored": "Session restored.",
-  "splashRestoringRack": "Restoring rack state..."
+  "splashRestoringRack": "Restoring rack state...",
+
+  "jamSlotOff": "JAM OFF",
+  "jamSlotOn": "JAM ON",
+  "jamSlotSelectMaster": "Select Jam Master",
+  "jamSlotSelectMasterHint": "Which slot will drive the harmony for this keyboard?",
+  "jamSlotChangeMaster": "Change master…",
+  "jamSlotNoMasterSelected": "Pick master",
+  "jamSlotNoOtherSlots": "No other slots available to follow.",
+  "jamSlotClearMaster": "Clear Jam master"
 }
