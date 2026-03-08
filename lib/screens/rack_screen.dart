@@ -5,11 +5,13 @@ import 'package:flutter_midi_command/flutter_midi_command.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import '../l10n/app_localizations.dart';
+import '../models/vst3_plugin_instance.dart';
 import '../services/audio_engine.dart';
 import '../services/cc_mapping_service.dart';
 import '../services/midi_service.dart';
 import '../services/project_service.dart';
 import '../services/rack_state.dart';
+import '../services/vst_host_service.dart';
 import '../widgets/add_plugin_sheet.dart';
 import '../widgets/jam_session_widget.dart';
 import '../widgets/rack_slot_widget.dart';
@@ -33,6 +35,8 @@ class _RackScreenState extends State<RackScreen> {
   final ScrollController _scrollController = ScrollController();
   StreamSubscription<MidiDevice>? _newDeviceSubscription;
   String? _currentProjectPath;
+  // GlobalKeys per slot id, used by ensureVisible in auto-scroll.
+  final Map<String, GlobalKey> _slotKeys = {};
 
   @override
   void initState() {
@@ -43,7 +47,11 @@ class _RackScreenState extends State<RackScreen> {
 
     audioEngine.ccMappingService = ccMappingService;
     midiService.onMidiDataReceived = (packet) {
-      audioEngine.processMidiPacket(packet);
+      // If a VST3 slot owns this MIDI channel, send only to the VST3 plugin
+      // and skip FluidSynth entirely — otherwise the soundfont plays in parallel.
+      if (!_routeMidiToVst3Plugins(packet)) {
+        audioEngine.processMidiPacket(packet);
+      }
     };
 
     ccMappingService.lastEventNotifier.addListener(() {
@@ -92,6 +100,43 @@ class _RackScreenState extends State<RackScreen> {
 
   // ─── Auto-scroll ────────────────────────────────────────────────────────────
 
+  /// Routes incoming MIDI messages to VST3 rack slots on the matching channel.
+  ///
+  /// Returns `true` if at least one VST3 slot claims the incoming MIDI channel,
+  /// which tells the caller to skip FluidSynth for this packet.
+  bool _routeMidiToVst3Plugins(MidiPacket packet) {
+    if (packet.data.isEmpty) return false;
+    final statusByte = packet.data[0];
+    final midiChannel = (statusByte & 0x0F) + 1; // 0-based → 1-based
+
+    final rack = context.read<RackState>();
+    final vst3Slots = rack.plugins
+        .whereType<Vst3PluginInstance>()
+        .where((p) => p.midiChannel == midiChannel)
+        .toList();
+
+    if (vst3Slots.isEmpty) return false;
+
+    // Forward note-on/off to each VST3 plugin on this channel.
+    final command = statusByte & 0xF0;
+    if ((command == 0x90 || command == 0x80) && packet.data.length >= 2) {
+      final vstSvc = context.read<VstHostService>();
+      final note = packet.data[1];
+      final velocity = packet.data.length >= 3 ? packet.data[2] : 0;
+
+      for (final plugin in vst3Slots) {
+        if (command == 0x90 && velocity > 0) {
+          vstSvc.noteOn(plugin.id, 0, note, velocity / 127.0);
+        } else {
+          vstSvc.noteOff(plugin.id, 0, note);
+        }
+      }
+    }
+
+    // Return true for any MIDI status on a VST3 channel so FluidSynth is skipped.
+    return true;
+  }
+
   void _handleAutoScroll(int channel) {
     final engine = context.read<AudioEngine>();
     if (!engine.autoScrollEnabled.value) return;
@@ -103,22 +148,14 @@ class _RackScreenState extends State<RackScreen> {
     );
     if (slotIndex == -1) return;
 
-    final viewportHeight = _scrollController.position.viewportDimension;
-    final itemHeight = (viewportHeight - 16) / 2;
-    final targetOffset = slotIndex * itemHeight;
-    final currentPosition = _scrollController.offset;
-
-    if (targetOffset < currentPosition) {
-      _scrollController.animateTo(
-        targetOffset,
+    // Slots now have variable height; scroll to the registered key if possible.
+    final key = _slotKeys[rack.plugins[slotIndex].id];
+    if (key?.currentContext != null) {
+      Scrollable.ensureVisible(
+        key!.currentContext!,
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOutCubic,
-      );
-    } else if (targetOffset + itemHeight > currentPosition + viewportHeight) {
-      _scrollController.animateTo(
-        targetOffset - viewportHeight + itemHeight,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOutCubic,
+        alignment: 0.1,
       );
     }
   }
@@ -302,6 +339,7 @@ class _RackScreenState extends State<RackScreen> {
                       final mainContent = _RackList(
                         scrollController: _scrollController,
                         isMobileLandscape: isMobileLandscape,
+                        slotKeys: _slotKeys,
                       );
 
                       if (showJamUI) {
@@ -358,10 +396,12 @@ class _RackScreenState extends State<RackScreen> {
 class _RackList extends StatelessWidget {
   final ScrollController scrollController;
   final bool isMobileLandscape;
+  final Map<String, GlobalKey> slotKeys;
 
   const _RackList({
     required this.scrollController,
     required this.isMobileLandscape,
+    required this.slotKeys,
   });
 
   @override
@@ -375,50 +415,43 @@ class _RackList extends StatelessWidget {
           builder: (context, _) {
             final interacting = engine.isGestureInProgress.value;
 
-            return LayoutBuilder(
-              builder: (context, constraints) {
-                // Each slot takes half the available height in portrait;
-                // full height in mobile landscape (one slot fills the screen).
-                final slotHeight = isMobileLandscape
-                    ? constraints.maxHeight - 8
-                    : (constraints.maxHeight - 16) / 2;
+            if (rack.plugins.isEmpty) {
+              return Center(
+                child: Text(
+                  AppLocalizations.of(context)!.rackAddPlugin,
+                  style: const TextStyle(color: Colors.white38),
+                ),
+              );
+            }
 
-                // The piano section is ~40% of the slot height.
-                final pianoHeight = (slotHeight * 0.42).clamp(80.0, 260.0);
+            // Piano height: fixed size that works well across screen sizes.
+            // Landscape mobile gets a shorter piano to preserve vertical space.
+            final pianoHeight = isMobileLandscape ? 90.0 : 140.0;
 
-                if (rack.plugins.isEmpty) {
-                  return Center(
-                    child: Text(
-                      AppLocalizations.of(context)!.rackAddPlugin,
-                      style: const TextStyle(color: Colors.white38),
-                    ),
-                  );
-                }
-
-                return ReorderableListView.builder(
-                  scrollController: scrollController,
-                  physics: interacting
-                      ? const NeverScrollableScrollPhysics()
-                      : const AlwaysScrollableScrollPhysics(),
-                  itemCount: rack.plugins.length,
-                  onReorder: rack.reorderPlugins,
-                  proxyDecorator: (child, index, animation) => Material(
-                    elevation: 8,
-                    borderRadius: BorderRadius.circular(16),
-                    color: Colors.transparent,
-                    child: child,
+            return ReorderableListView.builder(
+              scrollController: scrollController,
+              physics: interacting
+                  ? const NeverScrollableScrollPhysics()
+                  : const AlwaysScrollableScrollPhysics(),
+              itemCount: rack.plugins.length,
+              onReorder: rack.reorderPlugins,
+              proxyDecorator: (child, index, animation) => Material(
+                elevation: 8,
+                borderRadius: BorderRadius.circular(16),
+                color: Colors.transparent,
+                child: child,
+              ),
+              itemBuilder: (context, index) {
+                final plugin = rack.plugins[index];
+                final slotKey =
+                    slotKeys.putIfAbsent(plugin.id, () => GlobalKey());
+                return KeyedSubtree(
+                  key: ValueKey(plugin.id),
+                  child: RackSlotWidget(
+                    key: slotKey,
+                    plugin: plugin,
+                    pianoHeight: pianoHeight,
                   ),
-                  itemBuilder: (context, index) {
-                    final plugin = rack.plugins[index];
-                    return SizedBox(
-                      key: ValueKey(plugin.id),
-                      height: slotHeight,
-                      child: RackSlotWidget(
-                        plugin: plugin,
-                        pianoHeight: pianoHeight,
-                      ),
-                    );
-                  },
                 );
               },
             );

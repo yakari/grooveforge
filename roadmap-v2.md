@@ -218,67 +218,50 @@ GrooveForge v2.0.0
 
 ---
 
-## Phase 2 — VST3 Hosting (Desktop Only)
+## Phase 2 — VST3 Hosting (Desktop Only) ✅
 
 > Adds the ability to load external `.vst3` plugins into rack slots on Linux, macOS, and Windows. Android and iOS are unaffected (the "Browse VST3" button is hidden on those platforms).
 
-### 2.1 — Dependency Setup
+### 2.1 — Dependency Setup ✅
 
-- Clone `flutter_vst3` toolkit locally: `git clone https://github.com/MelbourneDeveloper/flutter_vst3 packages/flutter_vst3`
-- Add `dart_vst_host` as a local path dependency in `pubspec.yaml` (desktop-only via conditional import)
-- Add `dart_vst_graph` as a local path dependency
-- Build native VST3 host components: `cd packages/flutter_vst3 && ./setup.sh`
-- Verify CMake build produces `libvst3host.so` (Linux) / `.dylib` (macOS) / `.dll` (Windows)
+- [x] Clone `flutter_vst3` toolkit locally: `git clone https://github.com/MelbourneDeveloper/flutter_vst3 packages/flutter_vst3`
+- [x] Add `dart_vst_host` as a local path dependency in `pubspec.yaml`
+- [x] Patched `dart_vst_host` native C++ with ALSA audio output thread (`dart_vst_host_alsa.cpp`) — `dvh_audio_add_plugin`, `dvh_audio_remove_plugin`, `dvh_audio_clear_plugins`, `dvh_start_alsa_thread`, `dvh_stop_alsa_thread`
+- [x] Build native library: `cmake -S native -B native/build && make -j$(nproc)` → `libdart_vst_host.so` ✅
+- [x] Bundle `.so` in `linux/CMakeLists.txt` install targets
 
-### 2.2 — Platform-Conditional Import Architecture
+### 2.2 — Platform-Conditional Import Architecture ✅
 
-- Create `lib/services/vst_host_service_interface.dart` — abstract `VstHostService`:
-  - `Future<void> initialize()`
-  - `Future<List<String>> scanPlugins(List<String> searchPaths)`
-  - `Future<Vst3PluginInstance> loadPlugin(String path)`
-  - `void unloadPlugin(String id)`
-  - `void setParameter(String pluginId, int paramId, double value)`
-  - `Map<int, double> getParameters(String pluginId)`
-- Create `lib/services/vst_host_service_stub.dart` — stub implementation (mobile/web) that throws "Not supported on this platform"
-- Create `lib/services/vst_host_service_desktop.dart` — real implementation wrapping `dart_vst_host`
-- Create `lib/services/vst_host_service.dart` — conditional export:
-  ```dart
-  export 'vst_host_service_stub.dart'
-      if (dart.library.io) 'vst_host_service_desktop.dart';
-  ```
-- Register `VstHostService` in `MultiProvider`
+- [x] `lib/services/vst_host_service_stub.dart` — no-op stub for mobile/web
+- [x] `lib/services/vst_host_service_desktop.dart` — real implementation: `VstHost`, `VstPlugin` wrapping; `initialize`, `loadPlugin`, `unloadPlugin`, `noteOn/Off`, `getParameters`, `setParameter`, `startAudio/stopAudio`, `scanPluginPaths`
+- [x] `lib/services/vst_host_service.dart` — conditional export (`dart.library.io`)
+- [x] Registered `VstHostService` in `MultiProvider` in `main.dart`
 
-### 2.3 — VST3 Plugin Scanner
+### 2.3 — VST3 Plugin Scanner ✅
 
-- Implement `VstHostServiceDesktop.scanPlugins()` checking default OS paths:
-  - Linux: `~/.vst3`, `/usr/lib/vst3`, `/usr/local/lib/vst3`
-  - macOS: `~/Library/Audio/Plug-Ins/VST3`, `/Library/Audio/Plug-Ins/VST3`
-  - Windows: `C:\Program Files\Common Files\VST3`
-- Add a "Scan for VST3 Plugins" button in `PreferencesScreen` (desktop only)
-- Cache scan results in `SharedPreferences` as `List<String>` of plugin paths + names
-- Show scan progress via a modal with a `LinearProgressIndicator`
+- [x] `VstHostService.defaultSearchPaths` — `~/.vst3`, `/usr/lib/vst3`, `/usr/local/lib/vst3` on Linux (matching macOS/Windows equivalents)
+- [x] `scanPluginPaths(List<String>)` — async directory scan returning `.vst3` paths
+- [x] VST3 scanner `ListTile` in `PreferencesScreen` (desktop-only, inside `if (!Platform.isAndroid && !Platform.isIOS)`)
 
-### 2.4 — Vst3SlotUI
+### 2.4 — Vst3SlotUI ✅
 
-- Create `lib/widgets/rack/vst3_slot_ui.dart`:
-  - Shows plugin name, vendor, version
-  - Lists all exposed parameters as labeled sliders (using `dart_vst_host` parameter descriptors)
-  - "Open Plugin Editor" button — opens the VST3 native GUI window (via `VstHostService`)
-  - "MIDI Channel" and "Role" controls (shared with `GrooveForgeKeyboardSlotUI`)
-  - On mobile: renders a grey "Plugin unavailable on this platform" placeholder card
+- [x] `lib/widgets/rack/vst3_slot_ui.dart` — shows parameter sliders for all VST3 parameters on desktop; mobile shows placeholder
+- [x] Parameter values persisted into `Vst3PluginInstance.parameters` via `rack.setVst3Parameter()`
+- [x] Piano widget shown for VST3 slots too (routes `noteOn/Off` to `VstHostService` + tracks active notes in engine)
+- [x] Mobile / empty-path → `_UnavailablePlaceholder` with `vst3NotLoaded` or `rackPluginUnavailableOnMobile` message
 
-### 2.5 — .gf Format Update for VST3
+### 2.5 — .gf Format Update for VST3 ✅
 
-- Update `ProjectService.saveProject()` to write VST3 parameter maps for `Vst3PluginInstance` slots
-- Update `ProjectService.openProject()` to reconstruct `Vst3PluginInstance` from `.gf`, skipping gracefully on mobile (leaving a placeholder)
-- Add platform field in `.gf` VST3 entry so mobile knows it's a desktop-only slot
+- [x] `Vst3PluginInstance.toJson/fromJson` already writes/reads `parameters` map (keyed by param ID string)
+- [x] `RackState.setVst3Parameter()` — persists param change in model for `.gf` autosave
 
-### 2.6 — Testing
+### 2.6 — Testing (manual smoke test)
 
-- Load a free VST3 (e.g., TAL-NoiseMaker) on Linux — verify parameters appear in `Vst3SlotUI`
-- Save a project with a VST3 slot as `.gf`, reload — verify parameters are restored
-- Open the same `.gf` on Android — verify the VST3 slot shows a placeholder, not a crash
-- Verify `.gf` files containing only built-in plugins work identically on all platforms
+- [ ] Load `Aeolus.vst3` or `Guitarix.vst3` from `/usr/lib/vst3` via "Browse VST3" in rack
+- [ ] Verify parameters appear as sliders in `Vst3SlotUI`
+- [ ] Play notes on the rack piano — verify audio output through ALSA
+- [ ] Save project as `.gf`, reload — verify parameters restored
+- [ ] Open same `.gf` on Android — verify placeholder shown, no crash
 
 ---
 

@@ -1255,6 +1255,84 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Clear Jam master'**
   String get jamSlotClearMaster;
+
+  /// No description provided for @vst3LoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to load VST3 plugin. Make sure you selected the .vst3 bundle folder.'**
+  String get vst3LoadFailed;
+
+  /// No description provided for @vst3NotLoaded.
+  ///
+  /// In en, this message translates to:
+  /// **'Plugin not yet loaded.'**
+  String get vst3NotLoaded;
+
+  /// No description provided for @vst3NotABundle.
+  ///
+  /// In en, this message translates to:
+  /// **'Selected folder is not a .vst3 bundle. Please select a folder that ends in .vst3.'**
+  String get vst3NotABundle;
+
+  /// No description provided for @vst3BrowseTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Browse for .vst3 folder…'**
+  String get vst3BrowseTitle;
+
+  /// No description provided for @vst3BrowseSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Select a .vst3 bundle directory from your filesystem.'**
+  String get vst3BrowseSubtitle;
+
+  /// No description provided for @vst3PickInstalledTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick from installed plugins'**
+  String get vst3PickInstalledTitle;
+
+  /// No description provided for @vst3PickInstalledSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose from plugins found in default system paths.'**
+  String get vst3PickInstalledSubtitle;
+
+  /// No description provided for @vst3ScanTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan for VST3 Plugins'**
+  String get vst3ScanTitle;
+
+  /// No description provided for @vst3ScanSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Search default system paths for installed .vst3 plugins.'**
+  String get vst3ScanSubtitle;
+
+  /// No description provided for @vst3Scanning.
+  ///
+  /// In en, this message translates to:
+  /// **'Scanning…'**
+  String get vst3Scanning;
+
+  /// No description provided for @vst3ScanFound.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} plugin(s) found.'**
+  String vst3ScanFound(int count);
+
+  /// No description provided for @vst3ScanNoneFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No .vst3 plugins found in default paths.'**
+  String get vst3ScanNoneFound;
+
+  /// No description provided for @vst3ScanError.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan failed: {error}'**
+  String vst3ScanError(String error);
 }
 
 class _AppLocalizationsDelegate

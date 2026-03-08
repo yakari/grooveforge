@@ -7,6 +7,7 @@ import 'services/midi_service.dart';
 import 'services/locale_provider.dart';
 import 'services/project_service.dart';
 import 'services/rack_state.dart';
+import 'services/vst_host_service.dart';
 import 'screens/splash_screen.dart';
 import 'l10n/app_localizations.dart';
 
@@ -23,6 +24,10 @@ void main() {
           update: (ctx, engine, previous) => previous ?? RackState(engine),
         ),
         Provider<ProjectService>(create: (_) => ProjectService()),
+        Provider<VstHostService>(
+          create: (_) => VstHostService.instance,
+          dispose: (_, svc) => svc.dispose(),
+        ),
       ],
       child: const GrooveForgeApp(),
     ),

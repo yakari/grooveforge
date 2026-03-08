@@ -13,6 +13,7 @@ import 'package:flutter/services.dart' show rootBundle;
 import '../l10n/app_localizations.dart';
 import '../services/locale_provider.dart';
 import '../services/audio_input_ffi.dart';
+import '../services/vst_host_service.dart';
 import 'dart:async';
 
 /// The main settings interface for GrooveForge.
@@ -972,6 +973,23 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
           ),
           const Divider(height: 40),
 
+          // ======== VST3 SECTION (desktop only) ========
+          if (!Platform.isAndroid && !Platform.isIOS) ...[
+            Text(
+              'VST3 Plugins',
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.tealAccent,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Card(
+              child: _Vst3ScanTile(),
+            ),
+            const Divider(height: 40),
+          ],
+
           Text(
             loc.aboutSection,
             style: const TextStyle(
@@ -1223,6 +1241,67 @@ class _MicLevelMeterState extends State<_MicLevelMeter> {
           ),
         ),
       ],
+    );
+  }
+}
+
+// ─── VST3 Scanner tile ────────────────────────────────────────────────────────
+
+class _Vst3ScanTile extends StatefulWidget {
+  @override
+  State<_Vst3ScanTile> createState() => _Vst3ScanTileState();
+}
+
+class _Vst3ScanTileState extends State<_Vst3ScanTile> {
+  bool _scanning = false;
+  String? _result;
+
+  Future<void> _scan(BuildContext context) async {
+    final l10n = AppLocalizations.of(context)!;
+    final vstSvc = context.read<VstHostService>();
+    if (!vstSvc.isSupported) return;
+
+    setState(() {
+      _scanning = true;
+      _result = null;
+    });
+
+    try {
+      await vstSvc.initialize();
+      final paths = await vstSvc.scanPluginPaths(VstHostService.defaultSearchPaths);
+      setState(() {
+        _result = paths.isEmpty
+            ? l10n.vst3ScanNoneFound
+            : l10n.vst3ScanFound(paths.length);
+        _scanning = false;
+      });
+    } catch (e) {
+      setState(() {
+        _result = l10n.vst3ScanError(e.toString());
+        _scanning = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final vstSvc = context.read<VstHostService>();
+
+    return ListTile(
+      leading: const Icon(Icons.search, color: Colors.tealAccent),
+      title: Text(l10n.vst3ScanTitle),
+      subtitle: Text(_result ?? l10n.vst3ScanSubtitle),
+      trailing: _scanning
+          ? const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : vstSvc.isSupported
+              ? const Icon(Icons.chevron_right)
+              : const Icon(Icons.block, color: Colors.white38),
+      onTap: vstSvc.isSupported && !_scanning ? () => _scan(context) : null,
     );
   }
 }

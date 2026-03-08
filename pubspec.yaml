@@ -37,6 +37,8 @@ dependencies:
   flutter_midi_command: ^0.5.3
   flutter_midi_pro:
     path: packages/flutter_midi_pro
+  dart_vst_host:
+    path: packages/flutter_vst3/dart_vst_host
   provider: ^6.1.5+1
   file_picker: ^10.3.10
   path_provider: ^2.1.5

@@ -100,6 +100,10 @@ install(TARGETS ${BINARY_NAME} RUNTIME DESTINATION "${CMAKE_INSTALL_PREFIX}"
 install(TARGETS audio_input LIBRARY DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
   COMPONENT Runtime)
 
+# libdart_vst_host.so is now bundled automatically via the dart_vst_host
+# FFI plugin (ffiPlugin: true in pubspec.yaml → linux/CMakeLists.txt).
+# No manual copy needed here.
+
 install(FILES "${FLUTTER_ICU_DATA_FILE}" DESTINATION "${INSTALL_BUNDLE_DATA_DIR}"
   COMPONENT Runtime)
 

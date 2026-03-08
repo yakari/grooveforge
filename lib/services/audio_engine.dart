@@ -1021,6 +1021,20 @@ class AudioEngine extends ChangeNotifier {
   /// If snapping is required, the input [key] is transposed to the nearest valid note in the scale.
   /// This mapping (`input -> played`) is saved in `activeKeyMappings` so [stopNote]
   /// correctly stops the transposed pitch later even if the scale has moved on.
+  /// Updates the active-note set for a channel **without** routing to FluidSynth
+  /// or flutter_midi_pro. Use for VST3 slots where audio is handled externally.
+  void noteOnUiOnly({required int channel, required int key}) {
+    final current = Set<int>.from(channels[channel].activeNotes.value);
+    current.add(key);
+    channels[channel].activeNotes.value = current;
+  }
+
+  void noteOffUiOnly({required int channel, required int key}) {
+    final current = Set<int>.from(channels[channel].activeNotes.value);
+    current.remove(key);
+    channels[channel].activeNotes.value = current;
+  }
+
   void playNote({
     required int channel,
     required int key,

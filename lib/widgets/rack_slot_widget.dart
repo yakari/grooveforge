@@ -7,6 +7,7 @@ import '../models/plugin_instance.dart';
 import '../models/vst3_plugin_instance.dart';
 import '../services/audio_engine.dart';
 import '../services/rack_state.dart';
+import '../services/vst_host_service.dart';
 import '../widgets/virtual_piano.dart';
 import 'rack/grooveforge_keyboard_slot_ui.dart';
 import 'rack/vst3_slot_ui.dart';
@@ -57,10 +58,15 @@ class RackSlotWidget extends StatelessWidget {
             children: [
               _SlotHeader(plugin: plugin, isFlashing: isFlashing),
               _buildBody(context),
+              // Piano is only shown for built-in GK slots.
+              // VST3 slots receive MIDI from the physical controller.
               if (plugin is GrooveForgeKeyboardPlugin)
                 SizedBox(
                   height: pianoHeight,
-                  child: _RackSlotPiano(channelIndex: channelIndex),
+                  child: _RackSlotPiano(
+                    channelIndex: channelIndex,
+                    plugin: plugin,
+                  ),
                 ),
             ],
           ),
@@ -508,7 +514,12 @@ class _MasterPickerChip extends StatelessWidget {
 
 class _RackSlotPiano extends StatelessWidget {
   final int channelIndex;
-  const _RackSlotPiano({required this.channelIndex});
+  final PluginInstance plugin;
+
+  const _RackSlotPiano({
+    required this.channelIndex,
+    required this.plugin,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -556,10 +567,26 @@ class _RackSlotPiano extends StatelessWidget {
               rootPitchClass: isFollower ? rootPc : null,
               showJamModeBorders: engine.showJamModeBorders.value,
               highlightWrongNotes: engine.highlightWrongNotes.value,
-              onNotePressed: (note) =>
-                  engine.playNote(channel: channelIndex, key: note, velocity: 100),
-              onNoteReleased: (note) =>
-                  engine.stopNote(channel: channelIndex, key: note),
+              onNotePressed: (note) {
+                if (plugin is Vst3PluginInstance) {
+                  // VST3 audio goes to VstHostService; engine only tracks
+                  // UI state (key highlight) without routing to FluidSynth.
+                  context.read<VstHostService>().noteOn(
+                      plugin.id, 0, note, 1.0);
+                  engine.noteOnUiOnly(channel: channelIndex, key: note);
+                } else {
+                  engine.playNote(
+                      channel: channelIndex, key: note, velocity: 100);
+                }
+              },
+              onNoteReleased: (note) {
+                if (plugin is Vst3PluginInstance) {
+                  context.read<VstHostService>().noteOff(plugin.id, 0, note);
+                  engine.noteOffUiOnly(channel: channelIndex, key: note);
+                } else {
+                  engine.stopNote(channel: channelIndex, key: note);
+                }
+              },
               onPitchBend: (val) =>
                   engine.setPitchBend(channel: channelIndex, value: val),
               onControlChange: (cc, val) => engine.setControlChange(

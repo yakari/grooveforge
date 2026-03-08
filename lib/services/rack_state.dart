@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 
 import '../models/plugin_instance.dart';
 import '../models/grooveforge_keyboard_plugin.dart';
+import '../models/vst3_plugin_instance.dart';
 import 'audio_engine.dart';
 
 /// Manages the ordered list of plugin slots in the GrooveForge rack.
@@ -173,6 +174,14 @@ class RackState extends ChangeNotifier {
     plugin.jamMasterSlotId = masterSlotId;
     _syncJamFollowerMapToEngine();
     notifyListeners();
+    _notifyChanged();
+  }
+
+  /// Persist a VST3 parameter value change in the rack model for .gf saving.
+  void setVst3Parameter(String id, int paramId, double value) {
+    final plugin = _findById(id);
+    if (plugin is! Vst3PluginInstance) return;
+    plugin.parameters[paramId] = value;
     _notifyChanged();
   }
 

@@ -1,0 +1,37 @@
+name: dart_vst_host
+description: Minimal VST3 host via FFI wrapping Steinberg hosting helpers.
+  Declared as a Flutter FFI plugin so that `flutter build linux` automatically
+  compiles the native library and bundles it — no manual cmake/make step needed.
+version: 0.1.0
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+  flutter: '>=3.10.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  ffi: ^2.1.0
+  meta: ^1.12.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+# Declares this package as a Flutter FFI plugin for all desktop platforms.
+# Flutter's build system automatically configures the platform CMakeLists.txt,
+# compiles the native library, and bundles it — no manual cmake/make steps.
+#
+# Audio output is ALSA-backed on Linux. Windows (WASAPI) and macOS (CoreAudio)
+# audio support can be added in the future via platform-specific source files.
+# Plugin editor GUI opens a floating window on Linux (X11).  On macOS,
+# FlutterPlatformView (NSView embedding) is a viable future enhancement that
+# would allow in-card display of the VST3 plugin UI.
+flutter:
+  plugin:
+    platforms:
+      linux:
+        ffiPlugin: true
+      windows:
+        ffiPlugin: true
+      macos:
+        ffiPlugin: true

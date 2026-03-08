@@ -646,4 +646,53 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get jamSlotClearMaster => 'Retirer le maître Jam';
+
+  @override
+  String get vst3LoadFailed =>
+      'Échec du chargement du plugin VST3. Assurez-vous d\'avoir sélectionné le dossier .vst3.';
+
+  @override
+  String get vst3NotLoaded => 'Plugin pas encore chargé.';
+
+  @override
+  String get vst3NotABundle =>
+      'Le dossier sélectionné n\'est pas un bundle .vst3. Sélectionnez un dossier se terminant par .vst3.';
+
+  @override
+  String get vst3BrowseTitle => 'Parcourir un dossier .vst3…';
+
+  @override
+  String get vst3BrowseSubtitle =>
+      'Sélectionner un répertoire bundle .vst3 depuis votre système de fichiers.';
+
+  @override
+  String get vst3PickInstalledTitle => 'Choisir parmi les plugins installés';
+
+  @override
+  String get vst3PickInstalledSubtitle =>
+      'Choisissez parmi les plugins trouvés dans les chemins système par défaut.';
+
+  @override
+  String get vst3ScanTitle => 'Scanner les plugins VST3';
+
+  @override
+  String get vst3ScanSubtitle =>
+      'Rechercher les plugins .vst3 installés dans les chemins système par défaut.';
+
+  @override
+  String get vst3Scanning => 'Analyse en cours…';
+
+  @override
+  String vst3ScanFound(int count) {
+    return '$count plugin(s) trouvé(s).';
+  }
+
+  @override
+  String get vst3ScanNoneFound =>
+      'Aucun plugin .vst3 trouvé dans les chemins par défaut.';
+
+  @override
+  String vst3ScanError(String error) {
+    return 'Échec de l\'analyse : $error';
+  }
 }

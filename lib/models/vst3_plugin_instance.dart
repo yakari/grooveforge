@@ -46,6 +46,20 @@ class Vst3PluginInstance implements PluginInstance {
     },
   };
 
+  Vst3PluginInstance copyWith({
+    String? id,
+    int? midiChannel,
+    String? path,
+    String? pluginName,
+    Map<int, double>? parameters,
+  }) => Vst3PluginInstance(
+    id: id ?? this.id,
+    midiChannel: midiChannel ?? this.midiChannel,
+    path: path ?? this.path,
+    pluginName: pluginName ?? this.pluginName,
+    parameters: parameters ?? Map.of(this.parameters),
+  );
+
   factory Vst3PluginInstance.fromJson(Map<String, dynamic> json) {
     final state = (json['state'] as Map<String, dynamic>?) ?? {};
     final rawParams = (state['parameters'] as Map<String, dynamic>?) ?? {};

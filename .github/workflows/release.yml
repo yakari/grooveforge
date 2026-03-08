@@ -59,19 +59,41 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install dependencies
+
+      - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libblkid-dev liblzma-dev libgcrypt20-dev libasound2-dev libmpv-dev
+          sudo apt-get install -y \
+            libgtk-3-dev libblkid-dev liblzma-dev libgcrypt20-dev libmpv-dev \
+            libasound2-dev \
+            libx11-dev
+
+      # Cache the VST3 SDK object files — the SDK is hundreds of files and the
+      # first cold compile takes several minutes. Subsequent runs are near-instant.
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: ${{ runner.os }}-linux-vst3-ccache
+          max-size: 1G
+
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.41.2'
           channel: 'stable'
           cache: true
+
       - name: Get dependencies
         run: flutter pub get
+
+      # dart_vst_host is declared as an FFI plugin (ffiPlugin: true).
+      # Flutter builds and bundles libdart_vst_host.so automatically —
+      # no manual cmake / make / cp steps needed.
       - name: Build Linux
         run: flutter build linux --release
+        env:
+          # Let ccache intercept the compiler for the VST3 SDK compilation.
+          CC: ccache gcc
+          CXX: ccache g++
       - name: Package .deb
         run: |
           VERSION=${{ github.ref_name }}
@@ -92,7 +114,7 @@ jobs:
           Section: utils
           Priority: optional
           Architecture: amd64
-          Depends: fluidsynth, libasound2
+          Depends: fluidsynth, libasound2, libx11-6
           Maintainer: Yann
           Description: GrooveForge MIDI Synthesizer
           EOF
