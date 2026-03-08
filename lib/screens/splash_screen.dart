@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/audio_engine.dart';
-import 'synthesizer_screen.dart';
+import '../services/project_service.dart';
+import '../services/rack_state.dart';
+import 'rack_screen.dart';
 import '../l10n/app_localizations.dart';
 
 /// The initial launch screen of the application.
@@ -29,19 +31,25 @@ class _SplashScreenState extends State<SplashScreen> {
   /// Upon completion, it smoothly transitions to the main [SynthesizerScreen].
   Future<void> _initializeApp() async {
     final engine = context.read<AudioEngine>();
-    // Wait for the very first frame to finish before starting the heavy lifting and status updates
+    final rack = context.read<RackState>();
+
+    // Wait for the very first frame to finish before starting the heavy lifting.
     await Future.delayed(const Duration(milliseconds: 100));
     await engine.init();
 
     if (!mounted) return;
+    engine.initStatus.value = 'Restoring rack state...';
+    final projectService = ProjectService();
+    rack.onChanged = () => projectService.autosave(rack, engine);
+    await projectService.loadOrInitDefault(rack, engine);
+
+    if (!mounted) return;
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
-        pageBuilder:
-            (context, animation, secondaryAnimation) =>
-                const SynthesizerScreen(),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return FadeTransition(opacity: animation, child: child);
-        },
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            const RackScreen(),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) =>
+            FadeTransition(opacity: animation, child: child),
         transitionDuration: const Duration(milliseconds: 500),
       ),
     );
@@ -59,6 +67,8 @@ class _SplashScreenState extends State<SplashScreen> {
         return l10n.splashStartingFluidSynth;
       case 'Restoring saved state...':
         return l10n.splashRestoringState;
+      case 'Restoring rack state...':
+        return l10n.splashRestoringRack;
       case 'Checking bundled soundfonts...':
         return l10n.splashCheckingSoundfonts;
       case 'Extracting default soundfont...':

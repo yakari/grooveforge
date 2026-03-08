@@ -555,4 +555,76 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get vocoderWarningCancel => 'Annuler';
+
+  @override
+  String get rackTitle => 'Rack';
+
+  @override
+  String get rackAddPlugin => 'Ajouter un plugin';
+
+  @override
+  String get rackAddGrooveForgeKeyboard => 'GrooveForge Keyboard';
+
+  @override
+  String get rackAddGrooveForgeKeyboardSubtitle => 'Synthé & vocodeur intégrés';
+
+  @override
+  String get rackAddVst3 => 'Parcourir les plugins VST3…';
+
+  @override
+  String get rackAddVst3Subtitle => 'Charger un fichier .vst3 depuis le disque';
+
+  @override
+  String get rackRemovePlugin => 'Supprimer le plugin';
+
+  @override
+  String get rackRemovePluginConfirm =>
+      'Supprimer ce slot ? Les réglages non sauvegardés seront perdus.';
+
+  @override
+  String get rackRemove => 'Supprimer';
+
+  @override
+  String get rackPluginUnavailableOnMobile =>
+      'Ce plugin VST3 n\'est pas disponible sur mobile.';
+
+  @override
+  String get rackMidiChannel => 'CANAL MIDI';
+
+  @override
+  String get rackRoleMaster => 'Maître';
+
+  @override
+  String get rackRoleSlave => 'Esclave';
+
+  @override
+  String get rackOpenProject => 'Ouvrir un projet';
+
+  @override
+  String get rackSaveProject => 'Enregistrer';
+
+  @override
+  String get rackSaveProjectAs => 'Enregistrer sous…';
+
+  @override
+  String get rackNewProject => 'Nouveau projet';
+
+  @override
+  String get rackNewProjectConfirm =>
+      'Créer un nouveau projet ? Les changements non sauvegardés seront perdus.';
+
+  @override
+  String get rackNewProjectButton => 'Nouveau projet';
+
+  @override
+  String get rackProjectSaved => 'Projet enregistré.';
+
+  @override
+  String get rackProjectOpened => 'Projet ouvert.';
+
+  @override
+  String get rackAutosaveRestored => 'Session restaurée.';
+
+  @override
+  String get splashRestoringRack => 'Restauration du rack...';
 }

@@ -1081,6 +1081,144 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Cancel'**
   String get vocoderWarningCancel;
+
+  /// No description provided for @rackTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Rack'**
+  String get rackTitle;
+
+  /// No description provided for @rackAddPlugin.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Plugin'**
+  String get rackAddPlugin;
+
+  /// No description provided for @rackAddGrooveForgeKeyboard.
+  ///
+  /// In en, this message translates to:
+  /// **'GrooveForge Keyboard'**
+  String get rackAddGrooveForgeKeyboard;
+
+  /// No description provided for @rackAddGrooveForgeKeyboardSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Built-in synth & vocoder'**
+  String get rackAddGrooveForgeKeyboardSubtitle;
+
+  /// No description provided for @rackAddVst3.
+  ///
+  /// In en, this message translates to:
+  /// **'Browse VST3 Plugin…'**
+  String get rackAddVst3;
+
+  /// No description provided for @rackAddVst3Subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Load an external .vst3 from disk'**
+  String get rackAddVst3Subtitle;
+
+  /// No description provided for @rackRemovePlugin.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove Plugin'**
+  String get rackRemovePlugin;
+
+  /// No description provided for @rackRemovePluginConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove this plugin slot? All unsaved settings will be lost.'**
+  String get rackRemovePluginConfirm;
+
+  /// No description provided for @rackRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get rackRemove;
+
+  /// No description provided for @rackPluginUnavailableOnMobile.
+  ///
+  /// In en, this message translates to:
+  /// **'This VST3 plugin is not available on mobile.'**
+  String get rackPluginUnavailableOnMobile;
+
+  /// No description provided for @rackMidiChannel.
+  ///
+  /// In en, this message translates to:
+  /// **'MIDI CH'**
+  String get rackMidiChannel;
+
+  /// No description provided for @rackRoleMaster.
+  ///
+  /// In en, this message translates to:
+  /// **'Master'**
+  String get rackRoleMaster;
+
+  /// No description provided for @rackRoleSlave.
+  ///
+  /// In en, this message translates to:
+  /// **'Slave'**
+  String get rackRoleSlave;
+
+  /// No description provided for @rackOpenProject.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Project'**
+  String get rackOpenProject;
+
+  /// No description provided for @rackSaveProject.
+  ///
+  /// In en, this message translates to:
+  /// **'Save Project'**
+  String get rackSaveProject;
+
+  /// No description provided for @rackSaveProjectAs.
+  ///
+  /// In en, this message translates to:
+  /// **'Save As…'**
+  String get rackSaveProjectAs;
+
+  /// No description provided for @rackNewProject.
+  ///
+  /// In en, this message translates to:
+  /// **'New Project'**
+  String get rackNewProject;
+
+  /// No description provided for @rackNewProjectConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Start a new project? Unsaved changes will be lost.'**
+  String get rackNewProjectConfirm;
+
+  /// No description provided for @rackNewProjectButton.
+  ///
+  /// In en, this message translates to:
+  /// **'New Project'**
+  String get rackNewProjectButton;
+
+  /// No description provided for @rackProjectSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Project saved.'**
+  String get rackProjectSaved;
+
+  /// No description provided for @rackProjectOpened.
+  ///
+  /// In en, this message translates to:
+  /// **'Project opened.'**
+  String get rackProjectOpened;
+
+  /// No description provided for @rackAutosaveRestored.
+  ///
+  /// In en, this message translates to:
+  /// **'Session restored.'**
+  String get rackAutosaveRestored;
+
+  /// No description provided for @splashRestoringRack.
+  ///
+  /// In en, this message translates to:
+  /// **'Restoring rack state...'**
+  String get splashRestoringRack;
 }
 
 class _AppLocalizationsDelegate

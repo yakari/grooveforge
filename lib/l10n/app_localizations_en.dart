@@ -551,4 +551,76 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get vocoderWarningCancel => 'Cancel';
+
+  @override
+  String get rackTitle => 'Rack';
+
+  @override
+  String get rackAddPlugin => 'Add Plugin';
+
+  @override
+  String get rackAddGrooveForgeKeyboard => 'GrooveForge Keyboard';
+
+  @override
+  String get rackAddGrooveForgeKeyboardSubtitle => 'Built-in synth & vocoder';
+
+  @override
+  String get rackAddVst3 => 'Browse VST3 Plugin…';
+
+  @override
+  String get rackAddVst3Subtitle => 'Load an external .vst3 from disk';
+
+  @override
+  String get rackRemovePlugin => 'Remove Plugin';
+
+  @override
+  String get rackRemovePluginConfirm =>
+      'Remove this plugin slot? All unsaved settings will be lost.';
+
+  @override
+  String get rackRemove => 'Remove';
+
+  @override
+  String get rackPluginUnavailableOnMobile =>
+      'This VST3 plugin is not available on mobile.';
+
+  @override
+  String get rackMidiChannel => 'MIDI CH';
+
+  @override
+  String get rackRoleMaster => 'Master';
+
+  @override
+  String get rackRoleSlave => 'Slave';
+
+  @override
+  String get rackOpenProject => 'Open Project';
+
+  @override
+  String get rackSaveProject => 'Save Project';
+
+  @override
+  String get rackSaveProjectAs => 'Save As…';
+
+  @override
+  String get rackNewProject => 'New Project';
+
+  @override
+  String get rackNewProjectConfirm =>
+      'Start a new project? Unsaved changes will be lost.';
+
+  @override
+  String get rackNewProjectButton => 'New Project';
+
+  @override
+  String get rackProjectSaved => 'Project saved.';
+
+  @override
+  String get rackProjectOpened => 'Project opened.';
+
+  @override
+  String get rackAutosaveRestored => 'Session restored.';
+
+  @override
+  String get splashRestoringRack => 'Restoring rack state...';
 }

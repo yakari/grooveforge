@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-03-08
+
+### Added
+- **Plugin Rack**: Replaced the fixed channel list with a fully dynamic, reorderable plugin rack. Each slot is an independent synthesizer lane with its own MIDI channel, soundfont/patch, and Jam Mode role.
+- **GrooveForge Keyboard Plugin**: The built-in synth/vocoder is now a proper plugin instance with per-slot configuration (soundfont, bank, patch, vocoder settings) and full save/restore support.
+- **Drag-and-Drop Reordering**: Rack slots can be reordered freely by dragging the handle on the left of each slot header.
+- **Add / Remove Plugins**: A floating action button opens a sheet to add new GrooveForge Keyboard slots (or VST3 plugins on desktop — Phase 2). Slots can be removed with confirmation.
+- **Master / Slave Roles in Slot Headers**: Each slot now has a Master/Slave chip directly in its header. Tapping toggles the role; the Jam Mode engine is updated automatically.
+- **MIDI Channel Badge**: Each slot shows its MIDI channel and allows changing it via a picker, preventing conflicts with other slots.
+- **Project Files (.gf format)**: Projects are now saved and loaded as JSON `.gf` files. The app bar file menu provides Open, Save As, and New Project actions.
+- **Autosave**: Every rack change is automatically persisted to `autosave.gf` in the app documents directory, restoring the session on next launch.
+- **First-Launch Defaults**: On first launch, the rack is pre-configured with one Slave slot on MIDI channel 1 and one Master slot on MIDI channel 2.
+- **Simplified Jam Mode Widget**: The Jam Mode bar no longer shows master/slave channel dropdowns (managed per-slot in the rack); it now focuses on the JAM start/stop and scale type controls.
+
+### Removed
+- **Visible Channels Modal**: The "Filter Visible Channels" dialog has been removed. The rack is the channel list — every slot is visible.
+- **SynthesizerScreen** and **ChannelCard**: Replaced by `RackScreen` and `RackSlotWidget`.
+
+### Architecture
+- New `PluginInstance` abstract model with `GrooveForgeKeyboardPlugin` and `Vst3PluginInstance` (desktop Phase 2 stub).
+- New `RackState` ChangeNotifier manages the plugin list and syncs Jam master/slave to `AudioEngine`.
+- New `ProjectService` handles `.gf` file I/O (JSON save/load/autosave).
+
 ## [1.7.1] - 2026-03-07
 ### Added
 - **Vocoder Feedback Warning**: Implemented a safety modal that warns users about potential audio feedback (Larsen effect) when using the vocoder with internal microphones and speakers. The warning is shown once and can be dismissed permanently.

@@ -124,10 +124,6 @@ class AudioEngine extends ChangeNotifier {
   final ValueNotifier<String?> toastNotifier = ValueNotifier(null);
   final ValueNotifier<int> stateNotifier = ValueNotifier(0);
 
-  final ValueNotifier<List<int>> visibleChannels = ValueNotifier(
-    List.generate(16, (i) => i),
-  );
-
   final ValueNotifier<bool> dragToPlay = ValueNotifier<bool>(true);
   // Gestures
   final verticalGestureAction = ValueNotifier<GestureAction>(
@@ -536,10 +532,6 @@ class AudioEngine extends ChangeNotifier {
         channels.map((c) => jsonEncode(c.toJson())).toList();
     await _prefs!.setStringList('channels_state', channelsJson);
 
-    await _prefs!.setString(
-      'visible_channels',
-      jsonEncode(visibleChannels.value),
-    );
     await _prefs!.setBool('drag_to_play', dragToPlay.value);
     await _prefs!.setString(
       'verticalGestureAction',
@@ -653,16 +645,6 @@ class AudioEngine extends ChangeNotifier {
     }
 
     _updateVocoderCaptureState();
-
-    String? savedVisibleChannels = _prefs!.getString('visible_channels');
-    if (savedVisibleChannels != null) {
-      try {
-        final List<dynamic> decoded = jsonDecode(savedVisibleChannels);
-        visibleChannels.value = decoded.cast<int>();
-      } catch (e) {
-        debugPrint('Error decoding visible channels: $e');
-      }
-    }
 
     dragToPlay.value = _prefs?.getBool('drag_to_play') ?? true;
     // Gestures
@@ -1656,7 +1638,6 @@ class AudioEngine extends ChangeNotifier {
     for (int i = 0; i < 16; i++) {
       channels[i] = ChannelState();
     }
-    visibleChannels.value = List.generate(16, (i) => i);
     dragToPlay.value = true;
     verticalGestureAction.value = GestureAction.vibrato;
     horizontalGestureAction.value = GestureAction.glissando;
