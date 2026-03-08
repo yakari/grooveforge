@@ -46,11 +46,12 @@ sudo apt-get install libgtk-3-dev libblkid-dev liblzma-dev libgcrypt20-dev libmp
 The VST3 SDK is too large to commit to the repository. Clone it once into the expected location before running a build:
 
 ```bash
-git clone --depth=1 https://github.com/steinbergmedia/vst3sdk.git \
+git clone --depth=1 --recurse-submodules --shallow-submodules \
+  https://github.com/steinbergmedia/vst3sdk.git \
   packages/flutter_vst3/vst3sdk
 ```
 
-The SDK must live at `packages/flutter_vst3/vst3sdk/`. Flutter's build system picks it up automatically via the `dart_vst_host` FFI plugin — no manual CMake step is needed.
+The `--recurse-submodules` flag is required because `public.sdk` is a git submodule inside the Steinberg repository — a plain `--depth=1` clone leaves that directory empty and the build fails. The SDK must live at `packages/flutter_vst3/vst3sdk/`. Flutter's build system picks it up automatically via the `dart_vst_host` FFI plugin — no manual CMake step is needed.
 
 You can also override the path with the `VST3_SDK_DIR` environment variable if you already have the SDK installed elsewhere:
 
@@ -74,7 +75,8 @@ flutter pub get
 ### 2 — Fetch the VST3 SDK (Linux / Windows only)
 
 ```bash
-git clone --depth=1 https://github.com/steinbergmedia/vst3sdk.git \
+git clone --depth=1 --recurse-submodules --shallow-submodules \
+  https://github.com/steinbergmedia/vst3sdk.git \
   packages/flutter_vst3/vst3sdk
 ```
 
