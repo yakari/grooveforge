@@ -32,6 +32,16 @@ class ChannelPatchInfo extends StatelessWidget {
   final VoidCallback? onLockToggled;
   final ValueChanged<ScaleType?> onScaleChanged;
 
+  /// Optional: called when the user selects a program/bank in the rack slot.
+  /// When provided, replaces the direct engine call so that the rack model
+  /// can be updated (and autosaved). When null, the engine is called directly
+  /// (legacy channel-card behaviour).
+  final void Function(int program, int bank)? onPatchChanged;
+
+  /// Optional: called when the user selects a soundfont in the rack slot.
+  /// Same purpose as [onPatchChanged].
+  final void Function(String soundfontPath)? onSoundfontChanged;
+
   const ChannelPatchInfo({
     super.key,
     required this.engine,
@@ -46,6 +56,8 @@ class ChannelPatchInfo extends StatelessWidget {
     required this.showLockControls,
     this.onLockToggled,
     required this.onScaleChanged,
+    this.onPatchChanged,
+    this.onSoundfontChanged,
   });
 
   @override
@@ -168,7 +180,7 @@ class ChannelPatchInfo extends StatelessWidget {
                         // Add Vocoder Option at the top
                         // We do not add it to loadedSoundfonts so it doesn't try to parse it
                         // But we want it available in the UI
-                        if (Platform.isLinux || Platform.isAndroid) {
+                        if (Platform.isLinux || Platform.isAndroid || Platform.isMacOS) {
                           items.insert(
                             0,
                             DropdownMenuItem<String>(
@@ -200,6 +212,8 @@ class ChannelPatchInfo extends StatelessWidget {
                       if (newSf == vocoderMode &&
                           !engine.vocoderWarningShown.value) {
                         _showVocoderWarning(context, channelIndex, newSf);
+                      } else if (onSoundfontChanged != null) {
+                        onSoundfontChanged!(newSf);
                       } else {
                         engine.assignSoundfontToChannel(channelIndex, newSf);
                       }
@@ -254,11 +268,15 @@ class ChannelPatchInfo extends StatelessWidget {
                   ? null // Disable program picking in vocoder mode
                   : (newProg) {
                     if (newProg != null) {
-                      engine.assignPatchToChannel(
-                        channelIndex,
-                        newProg,
-                        bank: state.bank,
-                      );
+                      if (onPatchChanged != null) {
+                        onPatchChanged!(newProg, state.bank);
+                      } else {
+                        engine.assignPatchToChannel(
+                          channelIndex,
+                          newProg,
+                          bank: state.bank,
+                        );
+                      }
                     }
                   },
         ),
@@ -314,11 +332,15 @@ class ChannelPatchInfo extends StatelessWidget {
                               0;
                         }
                       }
-                      engine.assignPatchToChannel(
-                        channelIndex,
-                        newProg,
-                        bank: newBank,
-                      );
+                      if (onPatchChanged != null) {
+                        onPatchChanged!(newProg, newBank);
+                      } else {
+                        engine.assignPatchToChannel(
+                          channelIndex,
+                          newProg,
+                          bank: newBank,
+                        );
+                      }
                     }
                   },
         ),
@@ -537,7 +559,11 @@ class ChannelPatchInfo extends StatelessWidget {
               ),
               onPressed: () {
                 engine.vocoderWarningShown.value = true;
-                engine.assignSoundfontToChannel(channelIndex, vocoderPath);
+                if (onSoundfontChanged != null) {
+                  onSoundfontChanged!(vocoderPath);
+                } else {
+                  engine.assignSoundfontToChannel(channelIndex, vocoderPath);
+                }
                 Navigator.of(context).pop();
               },
               child: Text(l10n.vocoderWarningValidate),

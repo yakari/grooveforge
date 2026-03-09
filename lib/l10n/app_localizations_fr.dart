@@ -555,4 +555,144 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get vocoderWarningCancel => 'Annuler';
+
+  @override
+  String get rackTitle => 'Rack';
+
+  @override
+  String get rackAddPlugin => 'Ajouter un plugin';
+
+  @override
+  String get rackAddGrooveForgeKeyboard => 'GrooveForge Keyboard';
+
+  @override
+  String get rackAddGrooveForgeKeyboardSubtitle => 'Synthé & vocodeur intégrés';
+
+  @override
+  String get rackAddVst3 => 'Parcourir les plugins VST3…';
+
+  @override
+  String get rackAddVst3Subtitle => 'Charger un fichier .vst3 depuis le disque';
+
+  @override
+  String get rackRemovePlugin => 'Supprimer le plugin';
+
+  @override
+  String get rackRemovePluginConfirm =>
+      'Supprimer ce slot ? Les réglages non sauvegardés seront perdus.';
+
+  @override
+  String get rackRemove => 'Supprimer';
+
+  @override
+  String get rackPluginUnavailableOnMobile =>
+      'Ce plugin VST3 n\'est pas disponible sur mobile.';
+
+  @override
+  String get rackMidiChannel => 'CANAL MIDI';
+
+  @override
+  String get rackOpenProject => 'Ouvrir un projet';
+
+  @override
+  String get rackSaveProject => 'Enregistrer';
+
+  @override
+  String get rackSaveProjectAs => 'Enregistrer sous…';
+
+  @override
+  String get rackNewProject => 'Nouveau projet';
+
+  @override
+  String get rackNewProjectConfirm =>
+      'Créer un nouveau projet ? Les changements non sauvegardés seront perdus.';
+
+  @override
+  String get rackNewProjectButton => 'Nouveau projet';
+
+  @override
+  String get rackProjectSaved => 'Projet enregistré.';
+
+  @override
+  String get rackProjectOpened => 'Projet ouvert.';
+
+  @override
+  String get rackAutosaveRestored => 'Session restaurée.';
+
+  @override
+  String get splashRestoringRack => 'Restauration du rack...';
+
+  @override
+  String get jamSlotOff => 'JAM OFF';
+
+  @override
+  String get jamSlotOn => 'JAM ON';
+
+  @override
+  String get jamSlotSelectMaster => 'Choisir le maître Jam';
+
+  @override
+  String get jamSlotSelectMasterHint =>
+      'Quel slot pilote l\'harmonie pour ce clavier ?';
+
+  @override
+  String get jamSlotChangeMaster => 'Changer le maître…';
+
+  @override
+  String get jamSlotNoMasterSelected => 'Choisir maître';
+
+  @override
+  String get jamSlotNoOtherSlots => 'Aucun autre slot disponible.';
+
+  @override
+  String get jamSlotClearMaster => 'Retirer le maître Jam';
+
+  @override
+  String get vst3LoadFailed =>
+      'Échec du chargement du plugin VST3. Assurez-vous d\'avoir sélectionné le dossier .vst3.';
+
+  @override
+  String get vst3NotLoaded => 'Plugin pas encore chargé.';
+
+  @override
+  String get vst3NotABundle =>
+      'Le dossier sélectionné n\'est pas un bundle .vst3. Sélectionnez un dossier se terminant par .vst3.';
+
+  @override
+  String get vst3BrowseTitle => 'Parcourir un dossier .vst3…';
+
+  @override
+  String get vst3BrowseSubtitle =>
+      'Sélectionner un répertoire bundle .vst3 depuis votre système de fichiers.';
+
+  @override
+  String get vst3PickInstalledTitle => 'Choisir parmi les plugins installés';
+
+  @override
+  String get vst3PickInstalledSubtitle =>
+      'Choisissez parmi les plugins trouvés dans les chemins système par défaut.';
+
+  @override
+  String get vst3ScanTitle => 'Scanner les plugins VST3';
+
+  @override
+  String get vst3ScanSubtitle =>
+      'Rechercher les plugins .vst3 installés dans les chemins système par défaut.';
+
+  @override
+  String get vst3Scanning => 'Analyse en cours…';
+
+  @override
+  String vst3ScanFound(int count) {
+    return '$count plugin(s) trouvé(s).';
+  }
+
+  @override
+  String get vst3ScanNoneFound =>
+      'Aucun plugin .vst3 trouvé dans les chemins par défaut.';
+
+  @override
+  String vst3ScanError(String error) {
+    return 'Échec de l\'analyse : $error';
+  }
 }

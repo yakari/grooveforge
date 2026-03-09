@@ -1081,6 +1081,258 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Cancel'**
   String get vocoderWarningCancel;
+
+  /// No description provided for @rackTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Rack'**
+  String get rackTitle;
+
+  /// No description provided for @rackAddPlugin.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Plugin'**
+  String get rackAddPlugin;
+
+  /// No description provided for @rackAddGrooveForgeKeyboard.
+  ///
+  /// In en, this message translates to:
+  /// **'GrooveForge Keyboard'**
+  String get rackAddGrooveForgeKeyboard;
+
+  /// No description provided for @rackAddGrooveForgeKeyboardSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Built-in synth & vocoder'**
+  String get rackAddGrooveForgeKeyboardSubtitle;
+
+  /// No description provided for @rackAddVst3.
+  ///
+  /// In en, this message translates to:
+  /// **'Browse VST3 Plugin…'**
+  String get rackAddVst3;
+
+  /// No description provided for @rackAddVst3Subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Load an external .vst3 from disk'**
+  String get rackAddVst3Subtitle;
+
+  /// No description provided for @rackRemovePlugin.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove Plugin'**
+  String get rackRemovePlugin;
+
+  /// No description provided for @rackRemovePluginConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove this plugin slot? All unsaved settings will be lost.'**
+  String get rackRemovePluginConfirm;
+
+  /// No description provided for @rackRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get rackRemove;
+
+  /// No description provided for @rackPluginUnavailableOnMobile.
+  ///
+  /// In en, this message translates to:
+  /// **'This VST3 plugin is not available on mobile.'**
+  String get rackPluginUnavailableOnMobile;
+
+  /// No description provided for @rackMidiChannel.
+  ///
+  /// In en, this message translates to:
+  /// **'MIDI CH'**
+  String get rackMidiChannel;
+
+  /// No description provided for @rackOpenProject.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Project'**
+  String get rackOpenProject;
+
+  /// No description provided for @rackSaveProject.
+  ///
+  /// In en, this message translates to:
+  /// **'Save Project'**
+  String get rackSaveProject;
+
+  /// No description provided for @rackSaveProjectAs.
+  ///
+  /// In en, this message translates to:
+  /// **'Save As…'**
+  String get rackSaveProjectAs;
+
+  /// No description provided for @rackNewProject.
+  ///
+  /// In en, this message translates to:
+  /// **'New Project'**
+  String get rackNewProject;
+
+  /// No description provided for @rackNewProjectConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Start a new project? Unsaved changes will be lost.'**
+  String get rackNewProjectConfirm;
+
+  /// No description provided for @rackNewProjectButton.
+  ///
+  /// In en, this message translates to:
+  /// **'New Project'**
+  String get rackNewProjectButton;
+
+  /// No description provided for @rackProjectSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Project saved.'**
+  String get rackProjectSaved;
+
+  /// No description provided for @rackProjectOpened.
+  ///
+  /// In en, this message translates to:
+  /// **'Project opened.'**
+  String get rackProjectOpened;
+
+  /// No description provided for @rackAutosaveRestored.
+  ///
+  /// In en, this message translates to:
+  /// **'Session restored.'**
+  String get rackAutosaveRestored;
+
+  /// No description provided for @splashRestoringRack.
+  ///
+  /// In en, this message translates to:
+  /// **'Restoring rack state...'**
+  String get splashRestoringRack;
+
+  /// No description provided for @jamSlotOff.
+  ///
+  /// In en, this message translates to:
+  /// **'JAM OFF'**
+  String get jamSlotOff;
+
+  /// No description provided for @jamSlotOn.
+  ///
+  /// In en, this message translates to:
+  /// **'JAM ON'**
+  String get jamSlotOn;
+
+  /// No description provided for @jamSlotSelectMaster.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Jam Master'**
+  String get jamSlotSelectMaster;
+
+  /// No description provided for @jamSlotSelectMasterHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Which slot will drive the harmony for this keyboard?'**
+  String get jamSlotSelectMasterHint;
+
+  /// No description provided for @jamSlotChangeMaster.
+  ///
+  /// In en, this message translates to:
+  /// **'Change master…'**
+  String get jamSlotChangeMaster;
+
+  /// No description provided for @jamSlotNoMasterSelected.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick master'**
+  String get jamSlotNoMasterSelected;
+
+  /// No description provided for @jamSlotNoOtherSlots.
+  ///
+  /// In en, this message translates to:
+  /// **'No other slots available to follow.'**
+  String get jamSlotNoOtherSlots;
+
+  /// No description provided for @jamSlotClearMaster.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear Jam master'**
+  String get jamSlotClearMaster;
+
+  /// No description provided for @vst3LoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to load VST3 plugin. Make sure you selected the .vst3 bundle folder.'**
+  String get vst3LoadFailed;
+
+  /// No description provided for @vst3NotLoaded.
+  ///
+  /// In en, this message translates to:
+  /// **'Plugin not yet loaded.'**
+  String get vst3NotLoaded;
+
+  /// No description provided for @vst3NotABundle.
+  ///
+  /// In en, this message translates to:
+  /// **'Selected folder is not a .vst3 bundle. Please select a folder that ends in .vst3.'**
+  String get vst3NotABundle;
+
+  /// No description provided for @vst3BrowseTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Browse for .vst3 folder…'**
+  String get vst3BrowseTitle;
+
+  /// No description provided for @vst3BrowseSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Select a .vst3 bundle directory from your filesystem.'**
+  String get vst3BrowseSubtitle;
+
+  /// No description provided for @vst3PickInstalledTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick from installed plugins'**
+  String get vst3PickInstalledTitle;
+
+  /// No description provided for @vst3PickInstalledSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose from plugins found in default system paths.'**
+  String get vst3PickInstalledSubtitle;
+
+  /// No description provided for @vst3ScanTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan for VST3 Plugins'**
+  String get vst3ScanTitle;
+
+  /// No description provided for @vst3ScanSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Search default system paths for installed .vst3 plugins.'**
+  String get vst3ScanSubtitle;
+
+  /// No description provided for @vst3Scanning.
+  ///
+  /// In en, this message translates to:
+  /// **'Scanning…'**
+  String get vst3Scanning;
+
+  /// No description provided for @vst3ScanFound.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} plugin(s) found.'**
+  String vst3ScanFound(int count);
+
+  /// No description provided for @vst3ScanNoneFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No .vst3 plugins found in default paths.'**
+  String get vst3ScanNoneFound;
+
+  /// No description provided for @vst3ScanError.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan failed: {error}'**
+  String vst3ScanError(String error);
 }
 
 class _AppLocalizationsDelegate

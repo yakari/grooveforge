@@ -1,3 +1,4 @@
+#define MA_API static
 #define MINIAUDIO_IMPLEMENTATION
 #include "miniaudio.h"
 #include <math.h>

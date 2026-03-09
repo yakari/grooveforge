@@ -100,8 +100,12 @@ class AudioInputFFI {
   AudioInputFFI._internal() {
     if (Platform.isAndroid || Platform.isLinux) {
       _lib = DynamicLibrary.open('libaudio_input.so');
+    } else if (Platform.isMacOS) {
+      // For development, we can try to find it in the project root or use an absolute path.
+      // In a real app, it would be bundled in the app's Frameworks or Resources.
+      _lib = DynamicLibrary.open('libaudio_input.dylib');
     } else {
-      throw UnsupportedError('This prototype supports Linux and Android only');
+      throw UnsupportedError('This platform is not supported');
     }
 
     _startCapture =

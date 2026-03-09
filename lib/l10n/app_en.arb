@@ -246,5 +246,60 @@
   "vocoderWarningTitle": "Feedback Warning",
   "vocoderWarningBody": "Using the internal microphone and speakers simultaneously can cause a loud feedback loop (Larsen effect). Please use external headphones, a separate microphone, or an external speaker for a safe experience.",
   "vocoderWarningValidate": "Enable Vocoder",
-  "vocoderWarningCancel": "Cancel"
+  "vocoderWarningCancel": "Cancel",
+
+  "rackTitle": "Rack",
+  "rackAddPlugin": "Add Plugin",
+  "rackAddGrooveForgeKeyboard": "GrooveForge Keyboard",
+  "rackAddGrooveForgeKeyboardSubtitle": "Built-in synth & vocoder",
+  "rackAddVst3": "Browse VST3 Plugin…",
+  "rackAddVst3Subtitle": "Load an external .vst3 from disk",
+  "rackRemovePlugin": "Remove Plugin",
+  "rackRemovePluginConfirm": "Remove this plugin slot? All unsaved settings will be lost.",
+  "rackRemove": "Remove",
+  "rackPluginUnavailableOnMobile": "This VST3 plugin is not available on mobile.",
+  "rackMidiChannel": "MIDI CH",
+  "rackOpenProject": "Open Project",
+  "rackSaveProject": "Save Project",
+  "rackSaveProjectAs": "Save As…",
+  "rackNewProject": "New Project",
+  "rackNewProjectConfirm": "Start a new project? Unsaved changes will be lost.",
+  "rackNewProjectButton": "New Project",
+  "rackProjectSaved": "Project saved.",
+  "rackProjectOpened": "Project opened.",
+  "rackAutosaveRestored": "Session restored.",
+  "splashRestoringRack": "Restoring rack state...",
+
+  "jamSlotOff": "JAM OFF",
+  "jamSlotOn": "JAM ON",
+  "jamSlotSelectMaster": "Select Jam Master",
+  "jamSlotSelectMasterHint": "Which slot will drive the harmony for this keyboard?",
+  "jamSlotChangeMaster": "Change master…",
+  "jamSlotNoMasterSelected": "Pick master",
+  "jamSlotNoOtherSlots": "No other slots available to follow.",
+  "jamSlotClearMaster": "Clear Jam master",
+
+  "vst3LoadFailed": "Failed to load VST3 plugin. Make sure you selected the .vst3 bundle folder.",
+  "vst3NotLoaded": "Plugin not yet loaded.",
+  "vst3NotABundle": "Selected folder is not a .vst3 bundle. Please select a folder that ends in .vst3.",
+  "vst3BrowseTitle": "Browse for .vst3 folder…",
+  "vst3BrowseSubtitle": "Select a .vst3 bundle directory from your filesystem.",
+  "vst3PickInstalledTitle": "Pick from installed plugins",
+  "vst3PickInstalledSubtitle": "Choose from plugins found in default system paths.",
+  "vst3ScanTitle": "Scan for VST3 Plugins",
+  "vst3ScanSubtitle": "Search default system paths for installed .vst3 plugins.",
+  "vst3Scanning": "Scanning…",
+  "vst3ScanFound": "{count} plugin(s) found.",
+  "@vst3ScanFound": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "vst3ScanNoneFound": "No .vst3 plugins found in default paths.",
+  "vst3ScanError": "Scan failed: {error}",
+  "@vst3ScanError": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  }
 }

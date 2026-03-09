@@ -124,10 +124,6 @@ class AudioEngine extends ChangeNotifier {
   final ValueNotifier<String?> toastNotifier = ValueNotifier(null);
   final ValueNotifier<int> stateNotifier = ValueNotifier(0);
 
-  final ValueNotifier<List<int>> visibleChannels = ValueNotifier(
-    List.generate(16, (i) => i),
-  );
-
   final ValueNotifier<bool> dragToPlay = ValueNotifier<bool>(true);
   // Gestures
   final verticalGestureAction = ValueNotifier<GestureAction>(
@@ -152,8 +148,8 @@ class AudioEngine extends ChangeNotifier {
   final ValueNotifier<int> aftertouchDestCc = ValueNotifier<int>(1);
   final ValueNotifier<bool> autoScrollEnabled = ValueNotifier<bool>(false);
 
-  final ValueNotifier<int> pianoKeysToShow = ValueNotifier<int>(37);
-  final ValueNotifier<String> notationFormat = ValueNotifier<String>('standard');
+  final ValueNotifier<int> pianoKeysToShow = ValueNotifier<int>(22); // 22 white keys = 37 total keys (3 octaves)
+  final ValueNotifier<String> notationFormat = ValueNotifier<String>('Standard');
   final ValueNotifier<bool> vocoderWarningShown = ValueNotifier<bool>(false);
   final ValueNotifier<String?> lastSeenVersion = ValueNotifier(null);
 
@@ -337,13 +333,12 @@ class AudioEngine extends ChangeNotifier {
   /// Whether the Jam Mode feature is actively engaged overriding independent scales.
   final ValueNotifier<bool> jamEnabled = ValueNotifier(false);
 
-  /// The channel driving the harmony. Its chords dictate the scale for the Slaves.
-  final ValueNotifier<int> jamMasterChannel = ValueNotifier(1); // Default Ch 2
-
-  /// Channels instructed to snap their outgoing note pitches to the Master's harmony.
-  final ValueNotifier<Set<int>> jamSlaveChannels = ValueNotifier({
-    0,
-  }); // Default Ch 1
+  /// Per-slot Jam following map: follower channel index (0-based) → master channel index (0-based).
+  ///
+  /// Populated by [RackState] after every rack mutation. A channel that appears
+  /// as a key in this map will have its notes snapped to the master's detected scale
+  /// when [jamEnabled] is true.
+  final ValueNotifier<Map<int, int>> jamFollowerMap = ValueNotifier({});
 
   /// The template scale (e.g. Minor Pentatonic) applied based on the Master's root note.
   final ValueNotifier<ScaleType> jamScaleType = ValueNotifier(
@@ -374,9 +369,13 @@ class AudioEngine extends ChangeNotifier {
     
     if (Platform.isAndroid) {
       initStatus.value = 'Checking permissions...';
-      final status = await Permission.microphone.request();
-      if (status != PermissionStatus.granted) {
-        debugPrint('GrooveForge: Microphone permission not granted: $status');
+      try {
+        final status = await Permission.microphone.request();
+        if (status != PermissionStatus.granted) {
+          debugPrint('GrooveForge: Microphone permission not granted: $status');
+        }
+      } catch (e) {
+        debugPrint('GrooveForge: permission_handler failed on Android: $e');
       }
     }
 
@@ -434,12 +433,9 @@ class AudioEngine extends ChangeNotifier {
     lockModePreference.addListener(_propagateJamScaleUpdate);
     jamEnabled.addListener(_saveState);
     jamEnabled.addListener(_propagateJamScaleUpdate);
-    jamMasterChannel.addListener(_saveState);
-    jamSlaveChannels.addListener(_saveState);
+    jamFollowerMap.addListener(_propagateJamScaleUpdate);
     jamScaleType.addListener(_propagateJamScaleUpdate);
-    jamSlaveChannels.addListener(_propagateJamScaleUpdate);
     jamScaleType.addListener(_saveState);
-    jamSlaveChannels.addListener(_saveState);
     showJamModeBorders.addListener(_saveState);
     highlightWrongNotes.addListener(_saveState);
     dragToPlay.addListener(_saveState);
@@ -536,10 +532,6 @@ class AudioEngine extends ChangeNotifier {
         channels.map((c) => jsonEncode(c.toJson())).toList();
     await _prefs!.setStringList('channels_state', channelsJson);
 
-    await _prefs!.setString(
-      'visible_channels',
-      jsonEncode(visibleChannels.value),
-    );
     await _prefs!.setBool('drag_to_play', dragToPlay.value);
     await _prefs!.setString(
       'verticalGestureAction',
@@ -559,11 +551,6 @@ class AudioEngine extends ChangeNotifier {
       lockModePreference.value.index,
     );
     await _prefs!.setBool('jam_enabled', jamEnabled.value);
-    await _prefs!.setInt('jam_master_channel', jamMasterChannel.value);
-    await _prefs!.setStringList(
-      'jam_slave_channels',
-      jamSlaveChannels.value.map((e) => e.toString()).toList(),
-    );
     await _prefs!.setInt('jam_scale_type', jamScaleType.value.index);
     await _prefs!.setBool('jam_show_borders', showJamModeBorders.value);
     await _prefs!.setBool('jam_highlight_wrong', highlightWrongNotes.value);
@@ -654,16 +641,6 @@ class AudioEngine extends ChangeNotifier {
 
     _updateVocoderCaptureState();
 
-    String? savedVisibleChannels = _prefs!.getString('visible_channels');
-    if (savedVisibleChannels != null) {
-      try {
-        final List<dynamic> decoded = jsonDecode(savedVisibleChannels);
-        visibleChannels.value = decoded.cast<int>();
-      } catch (e) {
-        debugPrint('Error decoding visible channels: $e');
-      }
-    }
-
     dragToPlay.value = _prefs?.getBool('drag_to_play') ?? true;
     // Gestures
     final vActStr = _prefs!.getString('verticalGestureAction');
@@ -704,16 +681,6 @@ class AudioEngine extends ChangeNotifier {
     bool? savedJamEnabled = _prefs!.getBool('jam_enabled');
     if (savedJamEnabled != null) {
       jamEnabled.value = savedJamEnabled;
-    }
-
-    int? savedJamMaster = _prefs!.getInt('jam_master_channel');
-    if (savedJamMaster != null) {
-      jamMasterChannel.value = savedJamMaster;
-    }
-
-    List<String>? savedJamSlaves = _prefs!.getStringList('jam_slave_channels');
-    if (savedJamSlaves != null) {
-      jamSlaveChannels.value = savedJamSlaves.map((e) => int.parse(e)).toSet();
     }
 
     int? savedJamScale = _prefs!.getInt('jam_scale_type');
@@ -1058,6 +1025,20 @@ class AudioEngine extends ChangeNotifier {
   /// If snapping is required, the input [key] is transposed to the nearest valid note in the scale.
   /// This mapping (`input -> played`) is saved in `activeKeyMappings` so [stopNote]
   /// correctly stops the transposed pitch later even if the scale has moved on.
+  /// Updates the active-note set for a channel **without** routing to FluidSynth
+  /// or flutter_midi_pro. Use for VST3 slots where audio is handled externally.
+  void noteOnUiOnly({required int channel, required int key}) {
+    final current = Set<int>.from(channels[channel].activeNotes.value);
+    current.add(key);
+    channels[channel].activeNotes.value = current;
+  }
+
+  void noteOffUiOnly({required int channel, required int key}) {
+    final current = Set<int>.from(channels[channel].activeNotes.value);
+    current.remove(key);
+    channels[channel].activeNotes.value = current;
+  }
+
   void playNote({
     required int channel,
     required int key,
@@ -1082,16 +1063,14 @@ class AudioEngine extends ChangeNotifier {
         channels[channel].currentScaleType.value,
       );
     }
-    // Jam Mode Scale Lock
-    else if (lockModePreference.value == ScaleLockMode.jam &&
-        jamEnabled.value &&
-        jamSlaveChannels.value.contains(channel) &&
-        channels[jamMasterChannel.value].lastChord.value != null) {
-      keyToPlay = _snapKeyToScale(
-        key,
-        channels[jamMasterChannel.value].lastChord.value!,
-        jamScaleType.value,
-      );
+    // Jam Mode Scale Lock — per-slot following
+    else if (jamEnabled.value &&
+        jamFollowerMap.value.containsKey(channel)) {
+      final masterIdx = jamFollowerMap.value[channel]!;
+      final masterChord = channels[masterIdx].lastChord.value;
+      if (masterChord != null) {
+        keyToPlay = _snapKeyToScale(key, masterChord, jamScaleType.value);
+      }
     }
 
     if (keyToPlay != key) {
@@ -1140,9 +1119,9 @@ class AudioEngine extends ChangeNotifier {
     currentNotes.remove(key);
     channels[channel].activeNotes.value = currentNotes;
 
-    // Debounce for Master Channel Chord Release
-    if (lockModePreference.value == ScaleLockMode.jam &&
-        channel == jamMasterChannel.value) {
+    // Debounce for Jam master chord release — applies to any channel being watched
+    if (jamEnabled.value &&
+        jamFollowerMap.value.values.contains(channel)) {
       _lastNoteOffTime[key] = DateTime.now();
     }
 
@@ -1231,27 +1210,27 @@ class AudioEngine extends ChangeNotifier {
     }
     _lastNoteCounts[channel] = notes.length;
 
-    // Update validPitchClasses
-    if (lockModePreference.value == ScaleLockMode.jam &&
-        channel == jamMasterChannel.value) {
-      if (match != null) {
+    // Update validPitchClasses — propagate to any follower slots watching this channel
+    if (jamEnabled.value) {
+      final followers = jamFollowerMap.value.entries
+          .where((e) => e.value == channel)
+          .map((e) => e.key)
+          .toList();
+
+      if (followers.isNotEmpty && match != null) {
         final info = _getScaleInfo(match, jamScaleType.value);
         final root = match.rootPc;
         final allowedPcs = info.intervals.map((i) => (root + i) % 12).toSet();
 
-        // Update Master
-        channels[channel].validPitchClasses.value = allowedPcs;
-
-        // Propagate to active Slaves
-        if (jamEnabled.value) {
-          for (int slaveIdx in jamSlaveChannels.value) {
-            if (slaveIdx >= 0 && slaveIdx < 16) {
-              channels[slaveIdx].validPitchClasses.value = allowedPcs;
-            }
+        for (final followerIdx in followers) {
+          if (followerIdx >= 0 && followerIdx < 16) {
+            channels[followerIdx].validPitchClasses.value = allowedPcs;
           }
         }
       }
-    } else if (lockModePreference.value == ScaleLockMode.classic) {
+    }
+
+    if (lockModePreference.value == ScaleLockMode.classic) {
       if (match != null && channels[channel].isScaleLocked.value) {
         final info = _getScaleInfo(
           match,
@@ -1266,17 +1245,16 @@ class AudioEngine extends ChangeNotifier {
 
   /// Forces a resynchronization of valid pitch classes across all channels.
   ///
-  /// Called when Jam Mode settings change (e.g., Master channel swapped, target scale type changed).
-  /// It clears locks on channels if Jam Mode is disabled, or explicitly forces slaves to adopt
-  /// the new Master constraints.
+  /// Called when Jam Mode settings change (e.g., follower map changed, scale type changed).
+  /// Clears follower pitch constraints if Jam is disabled; re-applies master scales when on.
   void _propagateJamScaleUpdate() {
-    if (lockModePreference.value != ScaleLockMode.jam || !jamEnabled.value) {
+    if (!jamEnabled.value || jamFollowerMap.value.isEmpty) {
+      // Clear jam-derived pitch classes on all non-classically-locked channels.
       for (int i = 0; i < 16; i++) {
         if (lockModePreference.value != ScaleLockMode.classic ||
             !channels[i].isScaleLocked.value) {
           channels[i].validPitchClasses.value = null;
         } else {
-          // If switching to classic and it is locked, recalculate its scale
           final match = channels[i].lastChord.value;
           if (match != null) {
             final info = _getScaleInfo(
@@ -1293,28 +1271,24 @@ class AudioEngine extends ChangeNotifier {
       return;
     }
 
-    final masterIdx = jamMasterChannel.value;
-    final masterChord = channels[masterIdx].lastChord.value;
-    if (masterChord == null) {
-      return;
-    }
+    // For each unique master, propagate its scale to all its followers.
+    final masterIndices = jamFollowerMap.value.values.toSet();
+    for (final masterIdx in masterIndices) {
+      if (masterIdx < 0 || masterIdx >= 16) continue;
+      final masterChord = channels[masterIdx].lastChord.value;
+      if (masterChord == null) continue;
 
-    final info = _getScaleInfo(masterChord, jamScaleType.value);
-    final root = masterChord.rootPc;
-    final allowedPcs = info.intervals.map((i) => (root + i) % 12).toSet();
+      final info = _getScaleInfo(masterChord, jamScaleType.value);
+      final root = masterChord.rootPc;
+      final allowedPcs = info.intervals.map((i) => (root + i) % 12).toSet();
 
-    // Update Master
-    channels[masterIdx].validPitchClasses.value = allowedPcs;
-
-    // Propagate to all Slaves
-    for (int slaveIdx in jamSlaveChannels.value) {
-      if (slaveIdx >= 0 && slaveIdx < 16) {
-        channels[slaveIdx].validPitchClasses.value = allowedPcs;
+      for (final entry in jamFollowerMap.value.entries) {
+        if (entry.value == masterIdx && entry.key >= 0 && entry.key < 16) {
+          channels[entry.key].validPitchClasses.value = allowedPcs;
+        }
       }
     }
 
-    // Force UI rebuild for slaves, in case the master chord changed to a relative scale
-    // where pitch classes are identical but the root changed (so UI labels and rendering update).
     stateNotifier.value++;
   }
 
@@ -1656,7 +1630,6 @@ class AudioEngine extends ChangeNotifier {
     for (int i = 0; i < 16; i++) {
       channels[i] = ChannelState();
     }
-    visibleChannels.value = List.generate(16, (i) => i);
     dragToPlay.value = true;
     verticalGestureAction.value = GestureAction.vibrato;
     horizontalGestureAction.value = GestureAction.glissando;
@@ -1665,8 +1638,7 @@ class AudioEngine extends ChangeNotifier {
     pianoKeysToShow.value = 22;
     lockModePreference.value = ScaleLockMode.classic;
     jamEnabled.value = false;
-    jamMasterChannel.value = 1;
-    jamSlaveChannels.value = {0};
+    jamFollowerMap.value = {};
     jamScaleType.value = ScaleType.standard;
     vocoderInputDeviceIndex.value = -1;
     vocoderInputAndroidDeviceId.value = -1;

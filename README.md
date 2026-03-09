@@ -1,82 +1,145 @@
-# GrooveForge Synthesizer
+# GrooveForge 2.0
 
-GrooveForge Synthesizer is a low-latency, cross-platform Flutter application tailored to connect to MIDI keyboards (such as the Alesis Vortex Wireless 2) and perform multi-timbral soundfont synthesis (`.sf2`).
+GrooveForge is a cross-platform Flutter DAW application. It connects to physical MIDI keyboards, hosts external VST3 plugins (desktop), runs a built-in multi-timbral synthesizer / vocoder, and supports real-time collaborative Jam Mode with scale locking across multiple plugin slots.
 
 ## Features
 
-GrooveForge Synthesizer provides cross-platform, low-latency multi-timbral synthesis utilizing `.sf2` soundfonts. Key capabilities include:
-- **16-Channel Engine**: Fully independent state-managed MIDI channels.
-- **Jam Mode (Collaborative)**: Synchronize scales and harmony across multiple channels or musicians. One "Master" channel can lead multiple "Slaves" for flawless improvisation.
-- **Integrated Vocoder**: Real-time voice synthesis using your device's microphone to modulate synth carriers.
-- **Scale Lock & Highlighting**: A mathematical system that binds notes to the correct scale, featuring visual feedback (Correct/Wrong/Root note highlights) on the virtual keyboard.
-- **Advanced CC Mapping**: Map knobs, sliders, and pads to MIDI effects or powerful custom application actions like "Patch Sweeping" or "Global Scale Cycle".
-- **Premium UI**: Tactile rotary knobs and a glowing 16-card grid dashboard for a professional studio feel.
-
-For a full, detailed breakdown, see the [Features Documentation](docs/features.md).
+- **Plugin Rack** — an ordered, drag-and-drop rack of plugin slots. Add, remove, and reorder plugins at any time.
+- **GrooveForge Keyboard** — the built-in plugin. Each slot has independent soundfont selection (`.sf2`), bank/patch assignment, a real-time vocoder, MIDI channel routing, and per-slot Jam Mode.
+- **VST3 Hosting (Linux, planned on Windows)** — load any installed VST3 instrument or effect. Parameters are displayed as rotary knobs grouped by category. The plugin's native GUI opens in a separate floating window.
+- **Jam Mode** — enable per-slot scale locking. Each slot picks a master slot; when the master plays a chord, all following slots lock to that scale. A global override pauses all following without losing individual settings.
+- **Scale Lock & Highlighting** — binds notes to the selected scale with visual feedback (root / correct / wrong note colouring) on the on-screen keyboard.
+- **Advanced CC Mapping** — map hardware knobs, sliders, and pads to MIDI effects or application actions (Patch Sweep, Global Scale Cycle, etc.).
+- **Project Files** — save and restore complete rack configurations, including VST3 parameter snapshots, to a `.gf` JSON file. The last session is autosaved on every change.
 
 ## Platform Support
 
-GrooveForge is developed and optimized for the following platforms:
-- **Android**: Fully supported and tested (ARM64). Uses Oboe for high-performance audio.
-- **Linux**: Fully supported and tested. Relies on `fluidsynth` as a native backend.
-- **Windows / macOS / iOS**: **Experimental**. These ports are included in the codebase but are not fully tested and may have limited functionality or performance issues.
-
-## Hardware & Connection Notes
-
-### Android USB Limitations
-Due to Android's internal audio routing, you **cannot** use two separate USB audio devices for simultaneous input and output (e.g., plugging a standalone USB microphone and a separate USB DAC into the same USB-C hub). 
-
-For the **Vocoder** to work correctly with external hardware:
-- Use a **single USB audio interface** (or an integrated hub/dock that acts as one device) providing both input (XLR/Jack) and output (Headphones/Monitors).
-- Or use the **Internal Microphone** while routing output to a USB device or the system speakers.
-- **Bluetooth** is not recommended for the Vocoder due to high protocol latency.
+| Platform | Status | Notes |
+|---|---|---|
+| **Linux** | ✅ Primary target | Full Vocoder & VST3 hosting (ALSA audio, X11 editor windows), FluidSynth synthesis |
+| **Android** | ✅ Supported | GrooveForge Keyboard only, with Vocoder; VST3 hosting is desktop-exclusive |
+| **Windows** | 🔜 Planned | VST3 hosting plumbing in place; WASAPI audio not yet wired |
+| **macOS** | ✅ Supported | Full Vocoder & VST3 hosting; App Sandbox must be disabled for 3rd-party VSTs |
+| **iOS** | 🧪 Experimental | Basic build only; untested |
 
 ## Prerequisites
 
-- [Flutter SDK](https://flutter.dev/docs/get-started/install)
-- **Linux Users**: You must have `fluidsynth` installed to use the Linux backend natively.
-  ```bash
-  sudo apt-get install fluidsynth
-  ```
+### All platforms
 
-## How to Build and Run
+- [Flutter SDK](https://flutter.dev/docs/get-started/install) (≥ 3.10)
 
-1. **Clone the repository and install dependencies:**
-   ```bash
-   flutter pub get
-   ```
-2. **Run the application:**
-   You can target whichever connected device or desktop environment you are developing on:
-   ```bash
-   flutter run -d linux
-   ```
-3. **Build a release version:**
-   ```bash
-   flutter build linux
-   # Or target `flutter build apk`, `flutter build macos`, etc.
-   ```
+### Linux (required for building and running)
 
-## Usage
+```bash
+# FluidSynth — synthesizer backend
+sudo apt-get install fluidsynth libfluidsynth-dev
 
-1. Open **Preferences** by clicking the Gear Icon in the top right.
-2. Under **MIDI Connection**, select your connected MIDI Keyboard device.
-3. Under **Soundfonts**, click **Load Soundfont (.sf2)** to add your preferred instruments.
-4. Go back to the main **Dashboard**, tap on any of the 16 channels, and assign a soundfont, program index, and bank to that channel.
-5. *(Optional)* Dive into **CC Mapping Preferences** to map your hardware's controllers to specific effects or actions like switching between instruments on-the-fly.
+# ALSA and X11 — VST3 audio and editor window support
+sudo apt-get install libasound2-dev libx11-dev
+
+# GTK and other Flutter Linux dependencies
+sudo apt-get install libgtk-3-dev libblkid-dev liblzma-dev libgcrypt20-dev libmpv-dev
+```
+
+### macOS (required for building and running)
+
+```bash
+# CMake — required to build native audio and VST3 host
+brew install cmake
+```
+
+### VST3 SDK (required to build on Linux or Windows)
+
+The VST3 SDK is too large to commit to the repository. Clone it once into the expected location before running a build:
+
+```bash
+git clone --depth=1 --recurse-submodules --shallow-submodules \
+  https://github.com/steinbergmedia/vst3sdk.git \
+  packages/flutter_vst3/vst3sdk
+```
+
+The `--recurse-submodules` flag is required because `public.sdk` is a git submodule inside the Steinberg repository — a plain `--depth=1` clone leaves that directory empty and the build fails. The SDK must live at `packages/flutter_vst3/vst3sdk/`. Flutter's build system picks it up automatically via the `dart_vst_host` FFI plugin — no manual CMake step is needed.
+
+You can also override the path with the `VST3_SDK_DIR` environment variable if you already have the SDK installed elsewhere:
+
+```bash
+export VST3_SDK_DIR=/opt/vst3sdk
+flutter build linux --release
+```
+
+> The VST3 SDK v3.8+ is MIT-licensed and fully compatible with GrooveForge's MIT license.
+
+## How to Build
+
+### 1 — Clone and fetch Dart dependencies
+
+```bash
+git clone https://github.com/your-org/grooveforge.git
+cd grooveforge
+flutter pub get
+```
+
+### 2 — Fetch the VST3 SDK (Desktop only)
+
+```bash
+# Linux / Windows / macOS
+git clone --depth=1 --recurse-submodules --shallow-submodules \
+  https://github.com/steinbergmedia/vst3sdk.git \
+  packages/flutter_vst3/vst3sdk
+```
+
+### 3 — Run or build
+
+```bash
+# Development
+flutter run -d linux
+flutter run -d macos
+
+# Release builds
+flutter build linux --release
+flutter build macos --release
+flutter build apk --release
+flutter build windows --release
+```
+
+The native `libdart_vst_host` and `libaudio_input` libraries are compiled and bundled automatically by Flutter's FFI plugin system (on macOS, ensure `cmake` is installed).
+
+## Using VST3 Plugins (Linux)
+
+1. Open the app and tap **+** in the rack to add a plugin slot.
+2. Choose **VST3 Plugin** and select the plugin's `.vst3` bundle directory (e.g. `/usr/lib/vst3/Surge XT.vst3`).
+3. The plugin loads, starts producing audio via ALSA, and its parameters appear as grouped rotary knobs in the rack card.
+4. Tap **Show plugin UI** in the card to open the plugin's native editor window.
+5. Use **Save Project** (top bar) to write a `.gf` file that snapshots all parameter values for later recall.
+
+Common installed locations on Linux:
+
+```
+/usr/lib/vst3/
+~/.vst3/
+/usr/local/lib/vst3/
+```
+
+## Project File Format (`.gf`)
+
+GrooveForge saves projects as plain JSON with a `.gf` extension. The file stores the full rack order, all GrooveForge Keyboard settings (soundfont, bank, patch, MIDI channel, Jam configuration), and a snapshot of every VST3 parameter value. Open a project with **Open Project** in the top bar.
 
 ## Open Source Credits
 
-GrooveForge Synthesizer is built using the Flutter framework and relies on several fantastic open-source packages:
+- **[Flutter](https://flutter.dev/)** — framework and SDK.
+- **[FluidSynth](https://www.fluidsynth.org/)** — soundfont synthesis engine (Linux native).
+- **[VST3 SDK](https://github.com/steinbergmedia/vst3sdk)** — Steinberg VST3 interfaces (MIT license, v3.8+).
+- **[flutter_midi_command](https://pub.dev/packages/flutter_midi_command)** — hardware MIDI routing.
+- **[provider](https://pub.dev/packages/provider)** — reactive state management.
+- **[file_picker](https://pub.dev/packages/file_picker)** & **[path_provider](https://pub.dev/packages/path_provider)** — file system access.
+- **[shared_preferences](https://pub.dev/packages/shared_preferences)** — lightweight preference persistence.
 
-- **[Flutter](https://flutter.dev/)** - Framework and SDK.
-- **[flutter_midi_command](https://pub.dev/packages/flutter_midi_command)** - For routing and receiving hardware MIDI messages.
-- **[provider](https://pub.dev/packages/provider)** - For reactive state management across the app.
-- **[file_picker](https://pub.dev/packages/file_picker)** & **[path_provider](https://pub.dev/packages/path_provider)** - For opening and managing `.sf2` soundfont files.
-- **[shared_preferences](https://pub.dev/packages/shared_preferences)** - For persisting configurations and dashboard state.
-- **[cupertino_icons](https://pub.dev/packages/cupertino_icons)** - For UI iconography.
+### Embedded packages (modified)
 
-### Custom Audio Engine (`flutter_midi_pro`)
+Both packages below are vendored inside `packages/` and carry their own licenses. Our modifications are described for transparency.
 
-This repository embeds a **modified version** of **[flutter_midi_pro](https://pub.dev/packages/flutter_midi_pro)** originally created by [Melih Hakan Pektas](https://github.com/melihhakanpektas) (Licensed under the MIT License). 
+**[flutter_midi_pro](https://pub.dev/packages/flutter_midi_pro)** by [Melih Hakan Pektas](https://github.com/melihhakanpektas) — MIT License.
+The embedded version adds multi-timbral support (16 independent channels) and a Linux FluidSynth native backend that was absent from the upstream package.
 
-Our embedded version has been heavily customized to support multi-timbral features and Linux `fluidsynth` integration. We are deeply grateful to the original author for providing such a solid foundation for Oboe/AVFoundation synthesis.
+**[flutter_vst3](https://github.com/MelbourneDeveloper/flutter_vst3)** by Melbourne Developer — BSD-3-Clause License.
+The embedded `dart_vst_host` sub-package has been extended with: a Linux ALSA audio thread, an X11 floating editor window with full `IRunLoop` / `IPlugFrame` support, parameter unit/group APIs (`dvh_param_unit_id`, `dvh_unit_count`, `dvh_unit_name`), multi-output-bus resume logic, single-component VST3 fallback, and platform stub files for Windows and macOS compilation.

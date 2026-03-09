@@ -44,9 +44,9 @@ class MidiService {
       }
     });
 
-    // Linux and Windows flutter_midi_command implementations often don't emit native setup events.
+    // Linux, Windows, and macOS (at launch) implementations often don't emit native setup events reliably.
     // Poll every 2 seconds to detect hotplugged or unplugged devices.
-    if (!kIsWeb && (Platform.isLinux || Platform.isWindows)) {
+    if (!kIsWeb && (Platform.isLinux || Platform.isWindows || Platform.isMacOS)) {
       debugPrint(
         'MidiService: Starting polling timer for ${Platform.operatingSystem}',
       );
@@ -59,8 +59,6 @@ class MidiService {
   }
 
   Future<void> _handleSetupChanged() async {
-    // Only log every few polls if nothing changed to avoid spamming?
-    // No, user says they see NO logs, so let's log everything for now.
     debugPrint('MidiService: Checking for device changes...');
     final devs = await _midiCommand.devices;
     if (devs == null) {
@@ -80,66 +78,76 @@ class MidiService {
 
     final prefs = await SharedPreferences.getInstance();
     final lastDeviceId = prefs.getString('last_midi_device_id');
+    final lastDeviceName = prefs.getString('last_midi_device_name');
+    
+    if (lastDeviceId != null || lastDeviceName != null) {
+      debugPrint('MidiService: Last saved device ID: $lastDeviceId, Name: $lastDeviceName');
+    }
 
     for (var device in devs) {
-      if (!_knownDeviceIds.contains(device.id)) {
-        debugPrint(
-          'MidiService: New device found: ${device.id} (${device.name})',
-        );
-        _knownDeviceIds.add(device.id);
+      // macOS assigns new random IDs to USB MIDI devices across reconnections.
+      // Match by ID first, and fallback to matching the exact name if we have one.
+      final isLastDevice = device.id == lastDeviceId || 
+                           (lastDeviceName != null && device.name == lastDeviceName);
+      
+      // If it's a new device, OR if it's our last device and it's NOT connected yet, process it.
+      if (!_knownDeviceIds.contains(device.id) || (isLastDevice && !device.connected)) {
+        if (!_knownDeviceIds.contains(device.id)) {
+          debugPrint('MidiService: New device found: ${device.id} (${device.name})');
+          _knownDeviceIds.add(device.id);
+        }
 
-        if (device.id == lastDeviceId) {
+        if (isLastDevice) {
           try {
+            debugPrint('MidiService: Attempting auto-reconnect to ${device.name}...');
             await connect(device);
-            debugPrint('Auto-reconnected to MIDI device: ${device.name}');
+            debugPrint('MidiService: Auto-reconnected to ${device.name}');
           } catch (e) {
-            debugPrint('Failed to auto-reconnect to MIDI device: $e');
-            prefs.remove('last_midi_device_id');
+            debugPrint('MidiService: Failed to auto-reconnect to ${device.name}: $e');
+            // We DON'T clear the ID here. The user said it works if plugged in later,
+            // so we should keep trying or wait for the next poll.
           }
         } else if (!device.connected) {
           debugPrint('MidiService: Prompting for new device: ${device.name}');
-          // It's a brand new device, neither known nor recently auto-connected
           _newDeviceController.add(device);
-        } else {
-          debugPrint(
-            'MidiService: Device ${device.name} is already connected, ignoring prompt.',
-          );
         }
       }
     }
   }
 
   /// Attempts to automatically reconnect to the last used MIDI device.
-  ///
-  /// Reads the device ID from [SharedPreferences] and attempts connection
-  /// if the device is currently visible/available.
   Future<void> _tryAutoConnect() async {
-    debugPrint('MidiService: _tryAutoConnect called');
+    debugPrint('MidiService: INITIAL _tryAutoConnect');
     final prefs = await SharedPreferences.getInstance();
     final lastDeviceId = prefs.getString('last_midi_device_id');
+    final lastDeviceName = prefs.getString('last_midi_device_name');
+    
+    if (lastDeviceId == null && lastDeviceName == null) {
+      debugPrint('MidiService: No last device saved.');
+      return;
+    }
+    debugPrint('MidiService: Want to reconnect to ID: $lastDeviceId or Name: $lastDeviceName');
 
     final devs = await _midiCommand.devices;
-    if (devs == null) {
-      debugPrint('MidiService: _tryAutoConnect found no devices early.');
+    if (devs == null || devs.isEmpty) {
+      debugPrint('MidiService: No devices found yet during INITIAL scan.');
       return;
     }
 
-    // Track initially discovered devices so they aren't treated as "newly plugged in"
-    for (var d in devs) {
-      _knownDeviceIds.add(d.id);
-    }
-    debugPrint('MidiService: initial known devices: $_knownDeviceIds');
-
-    if (lastDeviceId == null) return;
+    debugPrint('MidiService: Initial scan found: ${devs.map((e) => e.id)}');
 
     for (var device in devs) {
-      if (device.id == lastDeviceId) {
+      _knownDeviceIds.add(device.id);
+      
+      final isLastDevice = device.id == lastDeviceId || 
+                           (lastDeviceName != null && device.name == lastDeviceName);
+                           
+      if (isLastDevice) {
         try {
           await connect(device);
-          debugPrint('Auto-connected to MIDI device: ${device.name}');
+          debugPrint('MidiService: Initial auto-connect success: ${device.name}');
         } catch (e) {
-          debugPrint('Failed to auto-connect to MIDI device: $e');
-          prefs.remove('last_midi_device_id'); // Clear if connection fails
+          debugPrint('MidiService: Initial auto-connect failed: $e. Will retry in polling.');
         }
         break;
       }
@@ -158,12 +166,14 @@ class MidiService {
     await _midiCommand.connectToDevice(device);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('last_midi_device_id', device.id);
+    await prefs.setString('last_midi_device_name', device.name);
   }
 
   void disconnect(MidiDevice device) async {
     _midiCommand.disconnectDevice(device);
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('last_midi_device_id');
+    await prefs.remove('last_midi_device_name');
   }
 
   void dispose() {

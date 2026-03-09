@@ -58,8 +58,6 @@ class JamSessionWidget extends StatelessWidget {
             runSpacing: 8,
             children: [
               _buildStartStopButton(engine),
-              _buildMasterDropdown(engine),
-              _buildSlavesSection(context, engine),
               _buildScaleDropdown(engine),
             ],
           ),
@@ -103,10 +101,6 @@ class JamSessionWidget extends StatelessWidget {
               const SizedBox(height: 8),
               _buildStartStopButton(engine, isVertical: true),
               const Divider(height: 16, indent: 8, endIndent: 8),
-              _buildMasterDropdown(engine, isVertical: true),
-              const SizedBox(height: 8),
-              _buildSlavesSection(context, engine, isVertical: true),
-              const SizedBox(height: 8),
               _buildScaleDropdown(engine, isVertical: true),
               const SizedBox(height: 8),
             ],
@@ -157,114 +151,6 @@ class JamSessionWidget extends StatelessWidget {
               letterSpacing: isVertical ? 1.0 : null,
             ),
           ),
-        );
-      },
-    );
-  }
-
-  Widget _buildMasterDropdown(AudioEngine engine, {bool isVertical = false}) {
-    return ValueListenableBuilder<int>(
-      valueListenable: engine.jamMasterChannel,
-      builder: (context, master, _) {
-        Widget dropdown = DropdownButton<int>(
-          value: master,
-          underline: const SizedBox(),
-          isExpanded: isVertical,
-          // Flutter's DropdownButton enforces a minimum itemHeight of 48.
-          // By setting itemHeight to null, we allow the dropdown to be denser,
-          // which is crucial for fitting into the compact sidebar/header.
-          itemHeight: null,
-          isDense: true,
-          padding: EdgeInsets.zero,
-          alignment: isVertical ? Alignment.center : Alignment.centerLeft,
-          dropdownColor: Theme.of(context).cardColor,
-          icon: const SizedBox(), // Hide default icon to use our own
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-            color: Colors.blueAccent,
-          ),
-          items: List.generate(
-            16,
-            (i) => DropdownMenuItem(
-              value: i,
-              alignment: isVertical ? Alignment.center : Alignment.centerLeft,
-              child: Text(
-                isVertical
-                    ? '${i + 1}'
-                    : AppLocalizations.of(context)!.chNumber(i + 1),
-              ),
-            ),
-          ),
-          onChanged: (val) {
-            if (val != null) engine.jamMasterChannel.value = val;
-          },
-        );
-
-        final content = _buildBoxedContainer(
-          isVertical: isVertical,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.star, color: Colors.amber, size: 14),
-              const SizedBox(width: 4),
-              // Constrain width to keep it compact
-              SizedBox(width: isVertical ? 32 : 56, child: dropdown),
-              const Icon(
-                Icons.arrow_drop_down,
-                size: 14,
-                color: Colors.blueAccent,
-              ),
-            ],
-          ),
-        );
-
-        return _buildLabeledControl(
-          AppLocalizations.of(context)!.jamMaster,
-          content,
-          isVertical: isVertical,
-        );
-      },
-    );
-  }
-
-  Widget _buildSlavesSection(
-    BuildContext context,
-    AudioEngine engine, {
-    bool isVertical = false,
-  }) {
-    return ValueListenableBuilder<Set<int>>(
-      valueListenable: engine.jamSlaveChannels,
-      builder: (context, slaves, _) {
-        final content = _buildBoxedContainer(
-          isVertical: isVertical,
-          child: InkWell(
-            onTap: () => _showSlaveSelectDialog(context, engine),
-            borderRadius: BorderRadius.circular(8),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.link, size: 16, color: Colors.blueAccent),
-                const SizedBox(width: 4),
-                Text(
-                  '${slaves.length}',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const Icon(Icons.arrow_drop_down, size: 16),
-              ],
-            ),
-          ),
-        );
-
-        return _buildLabeledControl(
-          AppLocalizations.of(context)!.jamSlaves,
-          content,
-          isVertical: isVertical,
         );
       },
     );
@@ -331,68 +217,6 @@ class JamSessionWidget extends StatelessWidget {
           isVertical: isVertical,
         );
       },
-    );
-  }
-
-  void _showSlaveSelectDialog(BuildContext context, AudioEngine engine) {
-    Set<int> tempSlaves = Set.from(engine.jamSlaveChannels.value);
-    showDialog(
-      context: context,
-      builder:
-          (context) => StatefulBuilder(
-            builder: (context, setDialogState) {
-              return AlertDialog(
-                title: Text(
-                  AppLocalizations.of(context)!.jamSelectSlavesDialogTitle,
-                ),
-                content: SizedBox(
-                  width: 300,
-                  child: Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: List.generate(16, (i) {
-                      // The Master channel cannot also be a Slave.
-                      // We disable the chip for the Master to prevent logical conflicts.
-                      bool isMaster = i == engine.jamMasterChannel.value;
-                      bool isSelected = tempSlaves.contains(i);
-                      return FilterChip(
-                        label: Text(
-                          AppLocalizations.of(context)!.chNumber(i + 1),
-                        ),
-                        selected: isSelected,
-                        onSelected:
-                            isMaster
-                                ? null
-                                : (val) {
-                                  setDialogState(() {
-                                    if (val) {
-                                      tempSlaves.add(i);
-                                    } else {
-                                      tempSlaves.remove(i);
-                                    }
-                                  });
-                                },
-                        selectedColor: Colors.blueAccent.withValues(alpha: 0.3),
-                      );
-                    }),
-                  ),
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: Text(AppLocalizations.of(context)!.actionCancel),
-                  ),
-                  ElevatedButton(
-                    onPressed: () {
-                      engine.jamSlaveChannels.value = tempSlaves;
-                      Navigator.pop(context);
-                    },
-                    child: Text(AppLocalizations.of(context)!.actionSave),
-                  ),
-                ],
-              );
-            },
-          ),
     );
   }
 

@@ -59,19 +59,62 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install dependencies
+
+      - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libblkid-dev liblzma-dev libgcrypt20-dev libasound2-dev libmpv-dev
+          sudo apt-get install -y \
+            libgtk-3-dev libblkid-dev liblzma-dev libgcrypt20-dev libmpv-dev \
+            libasound2-dev \
+            libx11-dev
+
+      # The VST3 SDK is gitignored (too large to commit). Cache the clone so
+      # subsequent CI runs skip the download entirely.
+      # public.sdk is a git submodule — must use --recurse-submodules.
+      - name: Cache VST3 SDK
+        id: cache-vst3sdk-linux
+        uses: actions/cache@v4
+        with:
+          path: packages/flutter_vst3/vst3sdk
+          key: vst3sdk-recurse-${{ hashFiles('packages/flutter_vst3/dart_vst_host/linux/CMakeLists.txt') }}
+
+      - name: Clone VST3 SDK
+        if: steps.cache-vst3sdk-linux.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth=1 --recurse-submodules --shallow-submodules \
+            https://github.com/steinbergmedia/vst3sdk.git \
+            packages/flutter_vst3/vst3sdk
+
+      # Cache the VST3 SDK object files — the SDK is hundreds of files and the
+      # first cold compile takes several minutes. Subsequent runs are near-instant.
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: ${{ runner.os }}-linux-vst3-ccache
+          max-size: 1G
+
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.41.2'
           channel: 'stable'
           cache: true
+
       - name: Get dependencies
         run: flutter pub get
+
+      # dart_vst_host is declared as an FFI plugin (ffiPlugin: true).
+      # Flutter builds and bundles libdart_vst_host.so automatically —
+      # no manual cmake / make / cp steps needed.
       - name: Build Linux
         run: flutter build linux --release
+        env:
+          # Let ccache intercept the compiler for the VST3 SDK compilation.
+          CC: ccache gcc
+          CXX: ccache g++
+          # Pass the absolute SDK path explicitly so CMakeLists.txt does not
+          # need to resolve symlinks (REALPATH does not follow junctions on
+          # some platforms, and the cloned SDK version may differ from local).
+          VST3_SDK_DIR: ${{ github.workspace }}/packages/flutter_vst3/vst3sdk
       - name: Package .deb
         run: |
           VERSION=${{ github.ref_name }}
@@ -92,7 +135,7 @@ jobs:
           Section: utils
           Priority: optional
           Architecture: amd64
-          Depends: fluidsynth, libasound2
+          Depends: fluidsynth, libasound2, libx11-6
           Maintainer: Yann
           Description: GrooveForge MIDI Synthesizer
           EOF
@@ -123,6 +166,24 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+
+      # The VST3 SDK is gitignored (too large to commit). Cache the clone so
+      # subsequent CI runs skip the download entirely.
+      # public.sdk is a git submodule — must use --recurse-submodules.
+      - name: Cache VST3 SDK
+        id: cache-vst3sdk-windows
+        uses: actions/cache@v4
+        with:
+          path: packages/flutter_vst3/vst3sdk
+          key: vst3sdk-recurse-${{ hashFiles('packages/flutter_vst3/dart_vst_host/windows/CMakeLists.txt') }}
+
+      - name: Clone VST3 SDK
+        if: steps.cache-vst3sdk-windows.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth=1 --recurse-submodules --shallow-submodules `
+            https://github.com/steinbergmedia/vst3sdk.git `
+            packages/flutter_vst3/vst3sdk
+
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.41.2'
@@ -132,6 +193,11 @@ jobs:
         run: flutter pub get
       - name: Build Windows
         run: flutter build windows --release
+        env:
+          # CMake's get_filename_component(REALPATH) does not follow Windows
+          # directory junctions used by Flutter's .plugin_symlinks, so we pass
+          # the absolute path explicitly to bypass junction resolution entirely.
+          VST3_SDK_DIR: ${{ github.workspace }}/packages/flutter_vst3/vst3sdk
       - name: Zip Artifact
         run: |
           Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath GrooveForge-Windows-${{ github.ref_name }}.zip
@@ -145,15 +211,39 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: brew install cmake
+
+      # Cache VST3 SDK
+      - name: Cache VST3 SDK
+        id: cache-vst3sdk-macos
+        uses: actions/cache@v4
+        with:
+          path: packages/flutter_vst3/vst3sdk
+          key: vst3sdk-recurse-${{ hashFiles('packages/flutter_vst3/dart_vst_host/native/CMakeLists.txt') }}
+
+      - name: Clone VST3 SDK
+        if: steps.cache-vst3sdk-macos.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth=1 --recurse-submodules --shallow-submodules \
+            https://github.com/steinbergmedia/vst3sdk.git \
+            packages/flutter_vst3/vst3sdk
+
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.41.2'
           channel: 'stable'
           cache: true
+
       - name: Get dependencies
         run: flutter pub get
+
       - name: Build macOS
         run: flutter build macos --release
+        env:
+          VST3_SDK_DIR: ${{ github.workspace }}/packages/flutter_vst3/vst3sdk
+
       - name: Zip App
         run: |
           cd build/macos/Build/Products/Release

@@ -246,5 +246,60 @@
   "vocoderWarningTitle": "Avertissement de larsen",
   "vocoderWarningBody": "L'utilisation simultanée du microphone et des haut-parleurs internes peut provoquer un effet de larsen (boucle sonore). Veuillez utiliser un casque, un micro séparé ou une enceinte externe pour une expérience sûre.",
   "vocoderWarningValidate": "Activer le vocodeur",
-  "vocoderWarningCancel": "Annuler"
+  "vocoderWarningCancel": "Annuler",
+
+  "rackTitle": "Rack",
+  "rackAddPlugin": "Ajouter un plugin",
+  "rackAddGrooveForgeKeyboard": "GrooveForge Keyboard",
+  "rackAddGrooveForgeKeyboardSubtitle": "Synthé & vocodeur intégrés",
+  "rackAddVst3": "Parcourir les plugins VST3…",
+  "rackAddVst3Subtitle": "Charger un fichier .vst3 depuis le disque",
+  "rackRemovePlugin": "Supprimer le plugin",
+  "rackRemovePluginConfirm": "Supprimer ce slot ? Les réglages non sauvegardés seront perdus.",
+  "rackRemove": "Supprimer",
+  "rackPluginUnavailableOnMobile": "Ce plugin VST3 n'est pas disponible sur mobile.",
+  "rackMidiChannel": "CANAL MIDI",
+  "rackOpenProject": "Ouvrir un projet",
+  "rackSaveProject": "Enregistrer",
+  "rackSaveProjectAs": "Enregistrer sous…",
+  "rackNewProject": "Nouveau projet",
+  "rackNewProjectConfirm": "Créer un nouveau projet ? Les changements non sauvegardés seront perdus.",
+  "rackNewProjectButton": "Nouveau projet",
+  "rackProjectSaved": "Projet enregistré.",
+  "rackProjectOpened": "Projet ouvert.",
+  "rackAutosaveRestored": "Session restaurée.",
+  "splashRestoringRack": "Restauration du rack...",
+
+  "jamSlotOff": "JAM OFF",
+  "jamSlotOn": "JAM ON",
+  "jamSlotSelectMaster": "Choisir le maître Jam",
+  "jamSlotSelectMasterHint": "Quel slot pilote l'harmonie pour ce clavier ?",
+  "jamSlotChangeMaster": "Changer le maître…",
+  "jamSlotNoMasterSelected": "Choisir maître",
+  "jamSlotNoOtherSlots": "Aucun autre slot disponible.",
+  "jamSlotClearMaster": "Retirer le maître Jam",
+
+  "vst3LoadFailed": "Échec du chargement du plugin VST3. Assurez-vous d'avoir sélectionné le dossier .vst3.",
+  "vst3NotLoaded": "Plugin pas encore chargé.",
+  "vst3NotABundle": "Le dossier sélectionné n'est pas un bundle .vst3. Sélectionnez un dossier se terminant par .vst3.",
+  "vst3BrowseTitle": "Parcourir un dossier .vst3…",
+  "vst3BrowseSubtitle": "Sélectionner un répertoire bundle .vst3 depuis votre système de fichiers.",
+  "vst3PickInstalledTitle": "Choisir parmi les plugins installés",
+  "vst3PickInstalledSubtitle": "Choisissez parmi les plugins trouvés dans les chemins système par défaut.",
+  "vst3ScanTitle": "Scanner les plugins VST3",
+  "vst3ScanSubtitle": "Rechercher les plugins .vst3 installés dans les chemins système par défaut.",
+  "vst3Scanning": "Analyse en cours…",
+  "vst3ScanFound": "{count} plugin(s) trouvé(s).",
+  "@vst3ScanFound": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "vst3ScanNoneFound": "Aucun plugin .vst3 trouvé dans les chemins par défaut.",
+  "vst3ScanError": "Échec de l'analyse : {error}",
+  "@vst3ScanError": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  }
 }

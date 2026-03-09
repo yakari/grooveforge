@@ -137,6 +137,13 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.0.8"
+  dart_vst_host:
+    dependency: "direct main"
+    description:
+      path: "packages/flutter_vst3/dart_vst_host"
+      relative: true
+    source: path
+    version: "0.1.0"
   dbus:
     dependency: transitive
     description:
