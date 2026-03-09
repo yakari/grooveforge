@@ -29,8 +29,8 @@ class VstHostService {
   Future<void> initialize() async {
     if (!isSupported) return;
     if (_host != null) return;
-    _host = VstHost.create(sampleRate: 44100.0, maxBlock: 256);
-    debugPrint('VstHostService: host created');
+    _host = VstHost.create(sampleRate: 48000.0, maxBlock: 256);
+    debugPrint('VstHostService: host created (version: ${_host!.getVersion()})');
   }
 
   void dispose() {
@@ -54,7 +54,7 @@ class VstHostService {
 
     try {
       final plugin = _host!.load(path);
-      final ok = plugin.resume(sampleRate: 44100.0, maxBlock: 256);
+      final ok = plugin.resume(sampleRate: 48000.0, maxBlock: 256);
       if (!ok) {
         plugin.unload();
         return null;
@@ -111,7 +111,14 @@ class VstHostService {
   bool openEditor(String slotId, {String title = 'Plugin Editor'}) {
     final plugin = _plugins[slotId];
     if (plugin == null) return false;
-    final windowId = plugin.openEditor(title: title);
+    
+    int windowId = 0;
+    if (Platform.isMacOS) {
+      windowId = plugin.openMacEditor(title: title);
+    } else {
+      windowId = plugin.openEditor(title: title);
+    }
+    
     debugPrint('VstHostService: openEditor slotId=$slotId windowId=$windowId');
     return windowId != 0;
   }
@@ -179,20 +186,33 @@ class VstHostService {
     for (final p in _plugins.values) {
       _host!.addToAudioLoop(p);
     }
-    final ok = _host!.startAlsaThread();
+    
+    bool ok = false;
+    if (Platform.isMacOS) {
+      ok = _host!.startMacAudio();
+    } else {
+      ok = _host!.startAlsaThread();
+    }
+    
     if (ok) {
       _audioRunning = true;
-      debugPrint('VstHostService: ALSA audio thread started');
+      debugPrint('VstHostService: Audio thread started (Backend: ${Platform.operatingSystem})');
     } else {
-      debugPrint('VstHostService: failed to start ALSA audio thread');
+      debugPrint('VstHostService: failed to start audio thread');
     }
   }
 
   void stopAudio() {
     if (!_audioRunning || _host == null) return;
-    _host!.stopAlsaThread();
+    
+    if (Platform.isMacOS) {
+      _host!.stopMacAudio();
+    } else {
+      _host!.stopAlsaThread();
+    }
+    
     _audioRunning = false;
-    debugPrint('VstHostService: ALSA audio thread stopped');
+    debugPrint('VstHostService: Audio thread stopped');
   }
 
   // ─── Plugin scanner ────────────────────────────────────────────────────────

@@ -42,6 +42,9 @@ class NativeBindings {
 
   NativeBindings(this.lib);
 
+  late final Pointer<Utf8> Function() dvhGetVersion =
+      lib.lookupFunction<Pointer<Utf8> Function(), Pointer<Utf8> Function()>('dvh_get_version');
+
   late final Pointer<Void> Function(double, int) dvhCreateHost =
       lib.lookupFunction<_HostCreateC, Pointer<Void> Function(double, int)>('dvh_create_host');
 
@@ -112,6 +115,13 @@ class NativeBindings {
           void Function(Pointer<Void>)
       >('dvh_stop_alsa_thread');
 
+  // macOS specific audio management
+  late final int Function(Pointer<Void>) dvhMacStartAudio =
+      lib.lookupFunction<Int32 Function(Pointer<Void>), int Function(Pointer<Void>)>('dvh_mac_start_audio');
+
+  late final void Function(Pointer<Void>) dvhMacStopAudio =
+      lib.lookupFunction<Void Function(Pointer<Void>), void Function(Pointer<Void>)>('dvh_mac_stop_audio');
+
   // Parameter unit/group API.
   late final int Function(Pointer<Void>, int) dvhParamUnitId =
       lib.lookupFunction<Int32 Function(Pointer<Void>, Int32),
@@ -144,6 +154,16 @@ class NativeBindings {
           Int32 Function(Pointer<Void>),
           int Function(Pointer<Void>)
       >('dvh_editor_is_open');
+
+  // macOS specific editor
+  late final int Function(Pointer<Void>, Pointer<Utf8>) dvhMacOpenEditor =
+      lib.lookupFunction<IntPtr Function(Pointer<Void>, Pointer<Utf8>), int Function(Pointer<Void>, Pointer<Utf8>)>('dvh_mac_open_editor');
+
+  late final void Function(Pointer<Void>) dvhMacCloseEditor =
+      lib.lookupFunction<Void Function(Pointer<Void>), void Function(Pointer<Void>)>('dvh_mac_close_editor');
+
+  late final int Function(Pointer<Void>) dvhMacEditorIsOpen =
+      lib.lookupFunction<Int32 Function(Pointer<Void>), int Function(Pointer<Void>)>('dvh_mac_editor_is_open');
 }
 
 /// Load the native library. The optional [path] may be used to point

@@ -65,22 +65,32 @@ include_directories(
 )
 
 # List source files. This library provides VST3 plugin hosting functionality.
+set(VstSources
+  src/dart_vst_host.cpp
+)
+
+if(NOT APPLE AND NOT UNIX)
+  list(APPEND VstSources src/dart_vst_host_platform_stubs.cpp)
+endif()
+
 add_library(dart_vst_host SHARED
- src/dart_vst_host.cpp
- src/dart_vst_host_alsa.cpp
- src/dart_vst_host_editor_linux.cpp
- ${VST3_BASE_SOURCES}
- ${VST3_SDK_SOURCES}
+  ${VstSources}
+  ${VST3_BASE_SOURCES}
+  ${VST3_SDK_SOURCES}
 )
 
 # Add platform-specific module files
 if(APPLE)
   target_sources(dart_vst_host PRIVATE
+    src/dart_vst_host_audio_mac.cpp
+    src/dart_vst_host_editor_mac.mm
     ${VST3_SDK_DIR}/public.sdk/source/vst/hosting/module_mac.mm
     ${VST3_SDK_DIR}/public.sdk/source/common/threadchecker_mac.mm
   )
 elseif(UNIX)
   target_sources(dart_vst_host PRIVATE
+    src/dart_vst_host_alsa.cpp
+    src/dart_vst_host_editor_linux.cpp
     ${VST3_SDK_DIR}/public.sdk/source/vst/hosting/module_linux.cpp
     ${VST3_SDK_DIR}/public.sdk/source/common/threadchecker_linux.cpp
   )
@@ -117,6 +127,7 @@ if(APPLE)
   
   # Enable Objective-C++ for .mm files with ARC
   set_source_files_properties(
+    src/dart_vst_host_editor_mac.mm
     ${VST3_SDK_DIR}/public.sdk/source/vst/hosting/module_mac.mm
     ${VST3_SDK_DIR}/public.sdk/source/common/threadchecker_mac.mm
     PROPERTIES COMPILE_FLAGS "-x objective-c++ -fobjc-arc"

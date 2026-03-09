@@ -59,6 +59,16 @@ static int32_t toOK(tresult r) { return r == kResultTrue ? 1 : 0; }
 
 extern "C" {
 
+DVH_API const char* dvh_get_version() {
+#ifdef __APPLE__
+    return "1.2.0-macOS-FIXED";
+#elif defined(__linux__)
+    return "1.2.0-Linux";
+#else
+    return "1.2.0-Generic";
+#endif
+}
+
 // Create a new host state with the given sample rate and maximum
 // block size. This sets up the VST context factory to point at
 // HostApplication for plug‑ins to query host information.
@@ -234,6 +244,9 @@ int32_t dvh_resume(DVH_Plugin p, double sample_rate, int32_t max_block) {
   if (ps->processor->setProcessing(true) != kResultTrue) return 0;
 
   ps->active = true;
+  fprintf(stderr, "[dart_vst_host] dvh_resume(p=%p) success: sr=%.1f maxBlock=%d numIn=%d numOut=%d\n",
+          p, sample_rate, max_block, numAudioIn, numAudioOut);
+  fflush(stderr);
   return 1;
 }
 

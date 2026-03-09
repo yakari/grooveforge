@@ -28,8 +28,13 @@ class VstHost {
     if (h == nullptr) {
       throw StateError('Failed to create host');
     }
-    return VstHost._(b, h);
+    final host = VstHost._(b, h);
+    print('VstHost: version ${host.getVersion()}');
+    return host;
   }
+
+  /// Get the version string of the native VST host library.
+  String getVersion() => _b.dvhGetVersion().toDartString();
 
   /// Release resources associated with this host. After calling
   /// dispose(), the host handle is invalid and should not be used.
@@ -60,6 +65,12 @@ class VstHost {
 
   /// Stop the ALSA output thread.
   void stopAlsaThread() => _b.dvhStopAlsaThread(handle);
+
+  /// macOS: Start the CoreAudio/miniaudio output thread.
+  bool startMacAudio() => _b.dvhMacStartAudio(handle) == 1;
+
+  /// macOS: Stop the CoreAudio/miniaudio output thread.
+  void stopMacAudio() => _b.dvhMacStopAudio(handle);
 
   /// Load a VST plug‑in from [modulePath]. Optionally specify
   /// [classUid] to select a specific class from a multi‑class module.
@@ -258,6 +269,20 @@ class VstPlugin {
 
   /// Returns true if an editor window is currently open.
   bool get isEditorOpen => _b.dvhEditorIsOpen(handle) == 1;
+
+  /// macOS: Open the plugin's native editor in a standalone Cocoa window.
+  int openMacEditor({String title = 'Plugin Editor'}) {
+    final t = title.toNativeUtf8();
+    final r = _b.dvhMacOpenEditor(handle, t);
+    malloc.free(t);
+    return r;
+  }
+
+  /// macOS: Close the editor window.
+  void closeMacEditor() => _b.dvhMacCloseEditor(handle);
+
+  /// macOS: Returns true if an editor window is currently open.
+  bool get isMacEditorOpen => _b.dvhMacEditorIsOpen(handle) == 1;
 
   /// Process a block of stereo audio. The input and output lists must
   /// all have the same length. Returns true on success.

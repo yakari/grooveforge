@@ -21,6 +21,9 @@ extern "C" {
 typedef void* DVH_Host;
 typedef void* DVH_Plugin;
 
+// Returns a version string for the host library (e.g. "1.1.0-macOS").
+DVH_API const char* dvh_get_version();
+
 // Create a VST3 host. Provide sample rate and max block size.
 DVH_API DVH_Host dvh_create_host(double sample_rate, int32_t max_block);
 // Destroy a previously created host.
@@ -74,6 +77,10 @@ DVH_API int32_t dvh_start_alsa_thread(DVH_Host host, const char* alsa_device);
 // Stop the ALSA output thread. Blocks until the thread exits.
 DVH_API void    dvh_stop_alsa_thread(DVH_Host host);
 
+// macOS specific audio device management (CoreAudio/miniaudio)
+DVH_API int32_t dvh_mac_start_audio(DVH_Host host);
+DVH_API void    dvh_mac_stop_audio(DVH_Host host);
+
 // Parameter unit/group API — for grouping parameters by category.
 // Returns the unitId for the parameter at [index]. Returns -1 on failure.
 DVH_API int32_t dvh_param_unit_id(DVH_Plugin p, int32_t index);
@@ -94,6 +101,11 @@ DVH_API intptr_t dvh_open_editor(DVH_Plugin p, const char* title);
 DVH_API void     dvh_close_editor(DVH_Plugin p);
 // Returns 1 if an editor window is currently open for this plugin.
 DVH_API int32_t  dvh_editor_is_open(DVH_Plugin p);
+
+// macOS specific editor (Cocoa/NSWindow)
+DVH_API intptr_t dvh_mac_open_editor(DVH_Plugin p, const char* title);
+DVH_API void     dvh_mac_close_editor(DVH_Plugin p);
+DVH_API int32_t  dvh_mac_editor_is_open(DVH_Plugin p);
 
 #ifdef __cplusplus
 }

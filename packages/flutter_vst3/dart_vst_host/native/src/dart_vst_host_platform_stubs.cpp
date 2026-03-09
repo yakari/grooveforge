@@ -9,7 +9,7 @@
 // can be implemented here in the future. On macOS, CoreAudio and NSView/
 // Cocoa PlatformView are the equivalents.
 
-#ifndef __linux__
+#if !defined(__linux__) && !defined(__APPLE__)
 
 #include "dart_vst_host.h"
 

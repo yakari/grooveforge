@@ -52,6 +52,7 @@ class _Vst3PluginPanelState extends State<_Vst3PluginPanel> {
   /// Root Unit) still get meaningful category chips.
   Map<String, List<VstParamInfo>> _groups = {};
   bool _loaded = false;
+  final ValueNotifier<bool> _isCollapsed = ValueNotifier(false);
 
   @override
   void initState() {
@@ -160,12 +161,62 @@ class _Vst3PluginPanelState extends State<_Vst3PluginPanel> {
             )
           else if (_groups.isEmpty)
             _NoParamsHint(pluginName: widget.plugin.pluginName)
-          else
-            _CategoryChips(
-              groups: _groups,
-              onTap: (name) => _openCategoryModal(context, name, _groups[name]!),
+          else ...[
+            const SizedBox(height: 8),
+            _CollapsibleParamsHeader(isCollapsed: _isCollapsed),
+            ValueListenableBuilder<bool>(
+              valueListenable: _isCollapsed,
+              builder: (context, collapsed, _) {
+                if (collapsed) return const SizedBox.shrink();
+                return Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: _CategoryChips(
+                    groups: _groups,
+                    onTap: (name) => _openCategoryModal(context, name, _groups[name]!),
+                  ),
+                );
+              },
             ),
+          ],
         ],
+      ),
+    );
+  }
+}
+
+class _CollapsibleParamsHeader extends StatelessWidget {
+  final ValueNotifier<bool> isCollapsed;
+  const _CollapsibleParamsHeader({required this.isCollapsed});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: () => isCollapsed.value = !isCollapsed.value,
+      borderRadius: BorderRadius.circular(4),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          children: [
+            ValueListenableBuilder<bool>(
+              valueListenable: isCollapsed,
+              builder: (context, collapsed, _) => Icon(
+                collapsed ? Icons.chevron_right : Icons.expand_more,
+                size: 16,
+                color: Colors.white38,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              'PARAMETERS',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.4),
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
