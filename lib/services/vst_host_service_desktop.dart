@@ -124,10 +124,22 @@ class VstHostService {
   }
 
   /// Close the plugin's editor window.
-  void closeEditor(String slotId) => _plugins[slotId]?.closeEditor();
+  void closeEditor(String slotId) {
+    if (Platform.isMacOS) {
+      _plugins[slotId]?.closeMacEditor();
+    } else {
+      _plugins[slotId]?.closeEditor();
+    }
+  }
 
   /// Whether the plugin's editor window is currently open.
-  bool isEditorOpen(String slotId) => _plugins[slotId]?.isEditorOpen ?? false;
+  bool isEditorOpen(String slotId) {
+    if (Platform.isMacOS) {
+      return _plugins[slotId]?.isMacEditorOpen ?? false;
+    } else {
+      return _plugins[slotId]?.isEditorOpen ?? false;
+    }
+  }
 
   // ─── Parameter control ─────────────────────────────────────────────────────
 
