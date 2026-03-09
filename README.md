@@ -16,10 +16,10 @@ GrooveForge is a cross-platform Flutter DAW application. It connects to physical
 
 | Platform | Status | Notes |
 |---|---|---|
-| **Linux** | ✅ Primary target | Full VST3 hosting (ALSA audio, X11 editor windows), FluidSynth synthesis |
-| **Android** | ✅ Supported | GrooveForge Keyboard only; VST3 hosting is desktop-exclusive |
+| **Linux** | ✅ Primary target | Full Vocoder & VST3 hosting (ALSA audio, X11 editor windows), FluidSynth synthesis |
+| **Android** | ✅ Supported | GrooveForge Keyboard only, with Vocoder; VST3 hosting is desktop-exclusive |
 | **Windows** | 🔜 Planned | VST3 hosting plumbing in place; WASAPI audio not yet wired |
-| **macOS** | 🧪 Experimental | GrooveForge Keyboard only; CoreAudio/VST3 not yet wired |
+| **macOS** | ✅ Supported | Full Vocoder & VST3 hosting; App Sandbox must be disabled for 3rd-party VSTs |
 | **iOS** | 🧪 Experimental | Basic build only; untested |
 
 ## Prerequisites
@@ -39,6 +39,13 @@ sudo apt-get install libasound2-dev libx11-dev
 
 # GTK and other Flutter Linux dependencies
 sudo apt-get install libgtk-3-dev libblkid-dev liblzma-dev libgcrypt20-dev libmpv-dev
+```
+
+### macOS (required for building and running)
+
+```bash
+# CMake — required to build native audio and VST3 host
+brew install cmake
 ```
 
 ### VST3 SDK (required to build on Linux or Windows)
@@ -72,9 +79,10 @@ cd grooveforge
 flutter pub get
 ```
 
-### 2 — Fetch the VST3 SDK (Linux / Windows only)
+### 2 — Fetch the VST3 SDK (Desktop only)
 
 ```bash
+# Linux / Windows / macOS
 git clone --depth=1 --recurse-submodules --shallow-submodules \
   https://github.com/steinbergmedia/vst3sdk.git \
   packages/flutter_vst3/vst3sdk
@@ -85,14 +93,16 @@ git clone --depth=1 --recurse-submodules --shallow-submodules \
 ```bash
 # Development
 flutter run -d linux
+flutter run -d macos
 
 # Release builds
 flutter build linux --release
+flutter build macos --release
 flutter build apk --release
 flutter build windows --release
 ```
 
-The native `libdart_vst_host.so` (Linux) or `dart_vst_host.dll` (Windows) is compiled and bundled automatically by Flutter's FFI plugin system. No separate CMake invocation is required.
+The native `libdart_vst_host` and `libaudio_input` libraries are compiled and bundled automatically by Flutter's FFI plugin system (on macOS, ensure `cmake` is installed).
 
 ## Using VST3 Plugins (Linux)
 

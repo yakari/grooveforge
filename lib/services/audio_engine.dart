@@ -148,8 +148,8 @@ class AudioEngine extends ChangeNotifier {
   final ValueNotifier<int> aftertouchDestCc = ValueNotifier<int>(1);
   final ValueNotifier<bool> autoScrollEnabled = ValueNotifier<bool>(false);
 
-  final ValueNotifier<int> pianoKeysToShow = ValueNotifier<int>(37);
-  final ValueNotifier<String> notationFormat = ValueNotifier<String>('standard');
+  final ValueNotifier<int> pianoKeysToShow = ValueNotifier<int>(22); // 22 white keys = 37 total keys (3 octaves)
+  final ValueNotifier<String> notationFormat = ValueNotifier<String>('Standard');
   final ValueNotifier<bool> vocoderWarningShown = ValueNotifier<bool>(false);
   final ValueNotifier<String?> lastSeenVersion = ValueNotifier(null);
 
@@ -369,9 +369,13 @@ class AudioEngine extends ChangeNotifier {
     
     if (Platform.isAndroid) {
       initStatus.value = 'Checking permissions...';
-      final status = await Permission.microphone.request();
-      if (status != PermissionStatus.granted) {
-        debugPrint('GrooveForge: Microphone permission not granted: $status');
+      try {
+        final status = await Permission.microphone.request();
+        if (status != PermissionStatus.granted) {
+          debugPrint('GrooveForge: Microphone permission not granted: $status');
+        }
+      } catch (e) {
+        debugPrint('GrooveForge: permission_handler failed on Android: $e');
       }
     }
 

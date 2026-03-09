@@ -211,15 +211,39 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: brew install cmake
+
+      # Cache VST3 SDK
+      - name: Cache VST3 SDK
+        id: cache-vst3sdk-macos
+        uses: actions/cache@v4
+        with:
+          path: packages/flutter_vst3/vst3sdk
+          key: vst3sdk-recurse-${{ hashFiles('packages/flutter_vst3/dart_vst_host/native/CMakeLists.txt') }}
+
+      - name: Clone VST3 SDK
+        if: steps.cache-vst3sdk-macos.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth=1 --recurse-submodules --shallow-submodules \
+            https://github.com/steinbergmedia/vst3sdk.git \
+            packages/flutter_vst3/vst3sdk
+
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.41.2'
           channel: 'stable'
           cache: true
+
       - name: Get dependencies
         run: flutter pub get
+
       - name: Build macOS
         run: flutter build macos --release
+        env:
+          VST3_SDK_DIR: ${{ github.workspace }}/packages/flutter_vst3/vst3sdk
+
       - name: Zip App
         run: |
           cd build/macos/Build/Products/Release

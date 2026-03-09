@@ -751,7 +751,7 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                       title: loc.visibleKeysTitle,
                       subtitle: loc.visibleKeysSubtitle,
                       trailing: DropdownButton<int>(
-                        value: keysToShow,
+                        value: [15, 22, 29, 52].contains(keysToShow) ? keysToShow : 22,
                         items: [
                           DropdownMenuItem(value: 15, child: Text(loc.keys25)),
                           DropdownMenuItem(value: 22, child: Text(loc.keys37)),
@@ -786,7 +786,7 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                       title: loc.notationFormatTitle,
                       subtitle: loc.notationFormatSubtitle,
                       trailing: DropdownButton<String>(
-                        value: format,
+                        value: ['Standard', 'Solfege'].contains(format) ? format : 'Standard',
                         items: [
                           DropdownMenuItem(
                             value: 'Standard',
@@ -955,7 +955,7 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                       title: loc.aftertouchEffectTitle,
                       subtitle: loc.aftertouchEffectSubtitle,
                       trailing: DropdownButton<int>(
-                        value: destCc,
+                        value: ccItems.any((item) => item.value == destCc) ? destCc : 1,
                         items: ccItems,
                         menuMaxHeight: 300,
                         onChanged: (val) {

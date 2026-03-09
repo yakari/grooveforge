@@ -180,7 +180,7 @@ class ChannelPatchInfo extends StatelessWidget {
                         // Add Vocoder Option at the top
                         // We do not add it to loadedSoundfonts so it doesn't try to parse it
                         // But we want it available in the UI
-                        if (Platform.isLinux || Platform.isAndroid) {
+                        if (Platform.isLinux || Platform.isAndroid || Platform.isMacOS) {
                           items.insert(
                             0,
                             DropdownMenuItem<String>(

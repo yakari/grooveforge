@@ -12,6 +12,16 @@ target_link_libraries(audio_input PRIVATE Threads::Threads)
 if (ANDROID)
     find_library(log-lib log)
     target_link_libraries(audio_input PRIVATE m ${log-lib})
+elseif (APPLE)
+    find_library(COREAUDIO_LIB CoreAudio)
+    find_library(COREFOUNDATION_LIB CoreFoundation)
+    find_library(AUDIOUNIT_LIB AudioUnit)
+    target_link_libraries(audio_input PRIVATE 
+        ${COREAUDIO_LIB} 
+        ${COREFOUNDATION_LIB} 
+        ${AUDIOUNIT_LIB}
+        m
+    )
 elseif (UNIX AND NOT APPLE)
     find_library(M_LIB m)
     find_library(DL_LIB dl)
