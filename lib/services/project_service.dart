@@ -42,10 +42,8 @@ class ProjectService {
   /// autosave file. Errors are swallowed and printed as debug output.
   Future<void> autosave(RackState rackState, AudioEngine engine) async {
     try {
-      // Snapshot vocoder params for any active vocoder slot before saving
-      // (both legacy GK-slot vocoder mode and standalone GFPA vocoder slots).
+      // Snapshot GFPA vocoder params before saving.
       for (final plugin in rackState.plugins) {
-        rackState.snapshotVocoderParams(plugin.id);
         if (plugin is GFpaPluginInstance &&
             plugin.pluginId == 'com.grooveforge.vocoder') {
           rackState.snapshotGfpaVocoderParams(plugin.id);
@@ -84,9 +82,8 @@ class ProjectService {
     RackState rackState,
     AudioEngine engine,
   ) async {
-    // Snapshot vocoder params before saving.
+    // Snapshot GFPA vocoder params before saving.
     for (final plugin in rackState.plugins) {
-      rackState.snapshotVocoderParams(plugin.id);
       if (plugin is GFpaPluginInstance &&
           plugin.pluginId == 'com.grooveforge.vocoder') {
         rackState.snapshotGfpaVocoderParams(plugin.id);

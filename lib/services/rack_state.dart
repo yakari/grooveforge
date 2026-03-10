@@ -187,19 +187,6 @@ class RackState extends ChangeNotifier {
     _notifyChanged();
   }
 
-  /// Snapshot the engine's current vocoder parameters into a GK plugin's
-  /// state (called when the slot is in vocoder mode so .gf saves the latest).
-  void snapshotVocoderParams(String id) {
-    final plugin = _findGKById(id);
-    if (plugin == null || !plugin.isVocoderMode) return;
-    plugin.vocoderWaveform = _engine.vocoderWaveform.value;
-    plugin.vocoderNoiseMix = _engine.vocoderNoiseMix.value;
-    plugin.vocoderEnvRelease = _engine.vocoderEnvRelease.value;
-    plugin.vocoderBandwidth = _engine.vocoderBandwidth.value;
-    plugin.vocoderGateThreshold = _engine.vocoderGateThreshold.value;
-    plugin.vocoderInputGain = _engine.vocoderInputGain.value;
-  }
-
   /// Snapshot the engine's current vocoder params into a GFPA vocoder slot's
   /// [GFpaPluginInstance.state] so they are persisted in .gf files.
   void snapshotGfpaVocoderParams(String id) {
@@ -327,25 +314,11 @@ class RackState extends ChangeNotifier {
     final idx = plugin.midiChannel - 1;
     if (idx < 0 || idx > 15) return;
 
-    if (plugin.soundfontPath != null) {
-      final isLoaded = plugin.soundfontPath == 'vocoderMode' ||
-          _engine.loadedSoundfonts.contains(plugin.soundfontPath);
-      if (isLoaded) {
-        _engine.assignSoundfontToChannel(idx, plugin.soundfontPath!);
-      }
+    if (plugin.soundfontPath != null &&
+        _engine.loadedSoundfonts.contains(plugin.soundfontPath)) {
+      _engine.assignSoundfontToChannel(idx, plugin.soundfontPath!);
     }
-    if (plugin.soundfontPath != 'vocoderMode') {
-      _engine.assignPatchToChannel(idx, plugin.program, bank: plugin.bank);
-    }
-    if (plugin.isVocoderMode) {
-      _engine.vocoderWaveform.value = plugin.vocoderWaveform;
-      _engine.vocoderNoiseMix.value = plugin.vocoderNoiseMix;
-      _engine.vocoderEnvRelease.value = plugin.vocoderEnvRelease;
-      _engine.vocoderBandwidth.value = plugin.vocoderBandwidth;
-      _engine.vocoderGateThreshold.value = plugin.vocoderGateThreshold;
-      _engine.vocoderInputGain.value = plugin.vocoderInputGain;
-      _engine.updateVocoderParameters();
-    }
+    _engine.assignPatchToChannel(idx, plugin.program, bank: plugin.bank);
   }
 
   /// Syncs jam state to the engine.

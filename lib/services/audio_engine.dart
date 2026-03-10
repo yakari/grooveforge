@@ -176,7 +176,6 @@ class AudioEngine extends ChangeNotifier {
 
   final ValueNotifier<int> pianoKeysToShow = ValueNotifier<int>(22); // 22 white keys = 37 total keys (3 octaves)
   final ValueNotifier<String> notationFormat = ValueNotifier<String>('Standard');
-  final ValueNotifier<bool> vocoderWarningShown = ValueNotifier<bool>(false);
   final ValueNotifier<String?> lastSeenVersion = ValueNotifier(null);
 
   Future<void> markWelcomeAsSeen(String version) async {
@@ -579,7 +578,6 @@ class AudioEngine extends ChangeNotifier {
       'vocoder_output_android_device_id',
       vocoderOutputAndroidDeviceId.value,
     );
-    await _prefs!.setBool('vocoder_warning_shown', vocoderWarningShown.value);
   }
 
   Future<void> _restoreState() async {
@@ -601,8 +599,6 @@ class AudioEngine extends ChangeNotifier {
         _prefs!.getInt('vocoder_input_android_device_id') ?? -1;
     vocoderOutputAndroidDeviceId.value =
         _prefs!.getInt('vocoder_output_android_device_id') ?? -1;
-    vocoderWarningShown.value = _prefs!.getBool('vocoder_warning_shown') ?? false;
-
     // Apply logic to C engine immediately
     updateVocoderParameters();
 

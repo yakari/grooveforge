@@ -173,7 +173,7 @@ class GFVocoderPlugin implements GFInstrumentPlugin {
   }
 
   /// Snapshot current engine params into this plugin's internal state.
-  /// Called by [RackState.snapshotVocoderParams] before autosave.
+  /// Called by [RackState.snapshotGfpaVocoderParams] before autosave.
   void snapshotFromEngine() {
     _waveform = _engine.vocoderWaveform.value;
     _noiseMix = _engine.vocoderNoiseMix.value;

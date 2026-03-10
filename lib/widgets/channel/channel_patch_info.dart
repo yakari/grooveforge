@@ -6,10 +6,7 @@ import 'package:grooveforge/models/chord_detector.dart';
 import 'package:grooveforge/models/gm_instruments.dart';
 import 'package:grooveforge/services/audio_engine.dart';
 import 'channel_scale_lock.dart';
-import 'vocoder_level_meters.dart';
 import '../rotary_knob.dart';
-
-const String vocoderMode = 'vocoderMode';
 
 /// A widget that displays and allows configuration of the sound patch (Soundfont, Bank, Program)
 /// and scale lock settings for a specific MIDI channel.
@@ -121,10 +118,7 @@ class ChannelPatchInfo extends StatelessWidget {
                   isExpanded: true,
                   dropdownColor: Colors.grey[900],
                   value:
-                      (state.soundfontPath == vocoderMode ||
-                              engine.loadedSoundfonts.contains(
-                                state.soundfontPath,
-                              ))
+                      engine.loadedSoundfonts.contains(state.soundfontPath)
                           ? state.soundfontPath
                           : engine.loadedSoundfonts.first,
                   icon: const Icon(
@@ -177,42 +171,11 @@ class ChannelPatchInfo extends StatelessWidget {
                               );
                             }).toList();
 
-                        // Add Vocoder Option at the top
-                        // We do not add it to loadedSoundfonts so it doesn't try to parse it
-                        // But we want it available in the UI
-                        if (Platform.isLinux || Platform.isAndroid || Platform.isMacOS) {
-                          items.insert(
-                            0,
-                            DropdownMenuItem<String>(
-                              value: vocoderMode,
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.mic,
-                                    color: Colors.orange[300],
-                                    size: 16,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Vocoder',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.orange[300],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        }
                         return items;
                       })(),
                   onChanged: (newSf) {
                     if (newSf != null && newSf != state.soundfontPath) {
-                      if (newSf == vocoderMode &&
-                          !engine.vocoderWarningShown.value) {
-                        _showVocoderWarning(context, channelIndex, newSf);
-                      } else if (onSoundfontChanged != null) {
+                      if (onSoundfontChanged != null) {
                         onSoundfontChanged!(newSf);
                       } else {
                         engine.assignSoundfontToChannel(channelIndex, newSf);
@@ -236,13 +199,9 @@ class ChannelPatchInfo extends StatelessWidget {
           isExpanded: true,
           dropdownColor: Colors.grey[900],
           value:
-              state.soundfontPath == vocoderMode
-                  ? 0
-                  : (availablePrograms.contains(state.program)
-                      ? state.program
-                      : (availablePrograms.isNotEmpty
-                          ? availablePrograms.first
-                          : 0)),
+              availablePrograms.contains(state.program)
+                  ? state.program
+                  : (availablePrograms.isNotEmpty ? availablePrograms.first : 0),
           icon: const Icon(Icons.arrow_drop_down, color: Colors.white54),
           style: const TextStyle(
             fontWeight: FontWeight.bold,
@@ -263,10 +222,7 @@ class ChannelPatchInfo extends StatelessWidget {
                   ),
                 );
               }).toList(),
-          onChanged:
-              state.soundfontPath == vocoderMode
-                  ? null // Disable program picking in vocoder mode
-                  : (newProg) {
+          onChanged: (newProg) {
                     if (newProg != null) {
                       if (onPatchChanged != null) {
                         onPatchChanged!(newProg, state.bank);
@@ -295,11 +251,9 @@ class ChannelPatchInfo extends StatelessWidget {
         child: DropdownButton<int>(
           dropdownColor: Colors.grey[900],
           value:
-              state.soundfontPath == vocoderMode
-                  ? 0
-                  : (availableBanks.contains(state.bank)
-                      ? state.bank
-                      : (availableBanks.isNotEmpty ? availableBanks.first : 0)),
+              availableBanks.contains(state.bank)
+                  ? state.bank
+                  : (availableBanks.isNotEmpty ? availableBanks.first : 0),
           style: const TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 16,
@@ -313,10 +267,7 @@ class ChannelPatchInfo extends StatelessWidget {
                   child: Text(AppLocalizations.of(context)!.patchBank(b)),
                 );
               }).toList(),
-          onChanged:
-              state.soundfontPath == vocoderMode
-                  ? null // Disable bank picking in vocoder mode
-                  : (newBank) {
+          onChanged: (newBank) {
                     if (newBank != null && newBank != state.bank) {
                       int newProg = state.program;
                       if (state.soundfontPath != null &&
@@ -383,51 +334,6 @@ class ChannelPatchInfo extends StatelessWidget {
                   ],
                 ],
               ),
-              if (state.soundfontPath == vocoderMode) ...[
-                const SizedBox(height: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.black26,
-                    border: Border.all(
-                      color: Colors.orange.withValues(alpha: 0.3),
-                    ),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(child: VocoderLevelMeters()),
-                      const SizedBox(width: 8),
-                      // Replace vertical separator logic to avoid IntrinsicHeight
-                      Container(
-                        width: 1,
-                        height: 40, // Match typical knob/button height
-                        color: Colors.orange.withValues(alpha: 0.3),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: VocoderSliders(
-                          key: ValueKey('vocoder_wrap_wide_$channelIndex'),
-                          engine: engine,
-                          channelIndex: channelIndex,
-                          isNarrow: false,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Container(
-                        width: 1,
-                        height: 40,
-                        color: Colors.orange.withValues(alpha: 0.3),
-                      ),
-                      const SizedBox(width: 8),
-                      VocoderButtons(engine: engine),
-                    ],
-                  ),
-                ),
-              ],
             ],
           );
         } else {
@@ -464,109 +370,9 @@ class ChannelPatchInfo extends StatelessWidget {
                   bankPicker,
                 ],
               ),
-              if (state.soundfontPath == vocoderMode) ...[
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.black26,
-                    border: Border.all(
-                      color: Colors.orange.withValues(alpha: 0.3),
-                    ),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(child: VocoderLevelMeters()),
-                      const SizedBox(width: 8),
-                      Container(
-                        width: 1,
-                        height: 30, // Slightly smaller for narrow
-                        color: Colors.orange.withValues(alpha: 0.3),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: VocoderSliders(
-                          key: ValueKey('vocoder_wrap_narrow_$channelIndex'),
-                          engine: engine,
-                          channelIndex: channelIndex,
-                          isNarrow: true,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Container(
-                        width: 1,
-                        height: 30,
-                        color: Colors.orange.withValues(alpha: 0.3),
-                      ),
-                      const SizedBox(width: 8),
-                      VocoderButtons(engine: engine),
-                    ],
-                  ),
-                ),
-              ],
             ],
           );
         }
-      },
-    );
-  }
-
-  void _showVocoderWarning(
-    BuildContext context,
-    int channelIndex,
-    String vocoderPath,
-  ) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        final l10n = AppLocalizations.of(context)!;
-        return AlertDialog(
-          backgroundColor: Colors.grey[900],
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Row(
-            children: [
-              Icon(Icons.warning_amber_rounded, color: Colors.orange[300]),
-              const SizedBox(width: 12),
-              Text(
-                l10n.vocoderWarningTitle,
-                style: const TextStyle(color: Colors.white),
-              ),
-            ],
-          ),
-          content: Text(
-            l10n.vocoderWarningBody,
-            style: const TextStyle(color: Colors.white70),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(
-                l10n.vocoderWarningCancel,
-                style: const TextStyle(color: Colors.white38),
-              ),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.orange[800],
-                foregroundColor: Colors.white,
-              ),
-              onPressed: () {
-                engine.vocoderWarningShown.value = true;
-                if (onSoundfontChanged != null) {
-                  onSoundfontChanged!(vocoderPath);
-                } else {
-                  engine.assignSoundfontToChannel(channelIndex, vocoderPath);
-                }
-                Navigator.of(context).pop();
-              },
-              child: Text(l10n.vocoderWarningValidate),
-            ),
-          ],
-        );
       },
     );
   }

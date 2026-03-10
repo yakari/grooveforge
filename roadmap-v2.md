@@ -30,20 +30,35 @@ GrooveForge v2.0.0
 │
 ├── Rack Engine (Dart, all platforms)
 │   ├── PluginInstance (abstract base)
-│   │   ├── GrooveForgeKeyboardPlugin   ← built-in plugin (all platforms)
+│   │   ├── GrooveForgeKeyboardPlugin   ← model for keyboard slots
+│   │   ├── GFpaPluginInstance          ← model for all GFPA slots (Phase 3 ✅)
 │   │   └── Vst3PluginInstance          ← desktop only (Linux/macOS/Windows)
-│   ├── RackState (ChangeNotifier)      ← replaces channel list in AudioEngine
+│   ├── RackState (ChangeNotifier)      ← ordered slot list + engine sync
 │   └── ProjectService (.gf JSON)       ← save/load/autosave project files
 │
-├── Rack UI
-│   ├── RackScreen                      ← replaces SynthesizerScreen
-│   ├── RackSlotWidget                  ← replaces ChannelCard
-│   │   ├── GrooveForgeKeyboardSlotUI   ← existing controls, unified per-slot
-│   │   └── Vst3SlotUI                  ← generic param sliders (desktop only)
-│   ├── AddPluginSheet                  ← bottom sheet: pick plugin type
-│   └── Drag/drop reordering            ← ReorderableListView
+├── GFPA — GrooveForge Plugin API (Phase 3 ✅)
+│   ├── packages/grooveforge_plugin_api/   ← pure Dart, no Flutter dep
+│   │   ├── GFPlugin / GFPluginParameter / GFPluginContext
+│   │   ├── GFInstrumentPlugin  (MIDI IN → AUDIO OUT)
+│   │   ├── GFEffectPlugin      (AUDIO IN → AUDIO OUT)
+│   │   └── GFMidiFxPlugin      (MIDI IN → MIDI OUT)
+│   ├── packages/grooveforge_plugin_ui/    ← Flutter UI helpers for plugins
+│   │   └── RotaryKnob, GFParameterKnob, GFParameterGrid
+│   └── Built-in plugins
+│       ├── GFKeyboardPlugin    (com.grooveforge.keyboard)
+│       ├── GFVocoderPlugin     (com.grooveforge.vocoder)
+│       └── GFJamModePlugin     (com.grooveforge.jammode)
 │
-└── GrooveForge Keyboard VST3 (separate CMake build, desktop only)
+├── Rack UI
+│   ├── RackScreen                         ← reorderable rack (custom drag handles)
+│   ├── RackSlotWidget                     ← per-slot wrapper + mini piano
+│   │   ├── GrooveForgeKeyboardSlotUI      ← soundfont/patch/scale controls
+│   │   ├── GFpaVocoderSlotUI              ← compact vocoder panel
+│   │   ├── GFpaJamModeSlotUI              ← RC-20 style routing panel
+│   │   └── Vst3SlotUI                     ← generic param sliders (desktop only)
+│   └── AddPluginSheet                     ← pick: keyboard / vocoder / jam / vst3
+│
+└── GrooveForge Keyboard VST3 (separate CMake build, desktop only — Phase 3b)
     ├── native_audio/audio_input.c      ← shared with main app (vocoder DSP)
     ├── FluidSynth static lib           ← compiled in
     └── flutter_vst3 scaffold           ← IPC bridge + Dart audio processor
@@ -51,56 +66,87 @@ GrooveForge v2.0.0
 
 ### .gf Project File Format (JSON)
 
+> **v2.0.0 format** — the top-level `jamMode` block has been removed. All jam
+> settings now live inside the `GFpaPluginInstance` state of a Jam Mode slot.
+> The `role` field on keyboard slots is no longer written or read.
+
 ```json
 {
   "version": "2.0.0",
-  "name": "My Project",
-  "createdAt": "2026-03-08T12:00:00Z",
-  "jamMode": {
-    "enabled": false,
-    "scaleType": "standard",
-    "scaleLockMode": "jam"
-  },
+  "savedAt": "2026-03-09T12:00:00Z",
   "plugins": [
     {
       "id": "slot-0",
       "type": "grooveforge_keyboard",
       "midiChannel": 1,
-      "role": "slave",
       "state": {
-        "soundfontPath": "vocoder",
+        "soundfontPath": "/path/to/guitar.sf2",
         "bank": 0,
-        "patch": 0,
-        "vocoderEnabled": false,
-        "vocoderWaveform": 0,
-        "vocoderNoiseMix": 0.05,
-        "vocoderEnvRelease": 0.02,
-        "vocoderBandwidth": 0.2,
-        "vocoderGateThreshold": 0.01,
-        "vocoderInputGain": 1.0
+        "patch": 25
       }
     },
     {
       "id": "slot-1",
       "type": "grooveforge_keyboard",
       "midiChannel": 2,
-      "role": "master",
       "state": {
-        "soundfontPath": "default",
+        "soundfontPath": null,
         "bank": 0,
-        "patch": 0,
-        "vocoderEnabled": false,
-        "vocoderWaveform": 0,
-        "vocoderNoiseMix": 0.05,
-        "vocoderEnvRelease": 0.02,
-        "vocoderBandwidth": 0.2,
-        "vocoderGateThreshold": 0.01,
-        "vocoderInputGain": 1.0
+        "patch": 4
+      }
+    },
+    {
+      "id": "slot-jam-0",
+      "type": "gfpa",
+      "pluginId": "com.grooveforge.jammode",
+      "midiChannel": 0,
+      "masterSlotId": "slot-1",
+      "targetSlotIds": ["slot-0"],
+      "state": {
+        "enabled": false,
+        "scaleType": "standard",
+        "detectionMode": "chord",
+        "bpmLockBeats": 0
       }
     }
   ]
 }
 ```
+
+> **GFPA Vocoder entry** (standalone slot with its own MIDI channel):
+>
+> ```json
+> {
+>   "id": "slot-voc-0",
+>   "type": "gfpa",
+>   "pluginId": "com.grooveforge.vocoder",
+>   "midiChannel": 3,
+>   "state": {
+>     "waveform": 0,
+>     "noiseMix": 0.05,
+>     "envRelease": 0.02,
+>     "bandwidth": 0.2,
+>     "gateThreshold": 0.01,
+>     "inputGain": 1.0
+>   }
+> }
+> ```
+
+> **VST3 entry** (desktop-only, written when external plugins are added):
+>
+> ```json
+> {
+>   "id": "slot-2",
+>   "type": "vst3",
+>   "platform": ["linux", "macos", "windows"],
+>   "path": "/home/user/.vst3/TAL-Reverb.vst3",
+>   "name": "TAL Reverb IV",
+>   "midiChannel": 3,
+>   "state": {
+>     "parameters": { "0": 0.65, "1": 0.3 }
+>   }
+> }
+> ```
 
 > **VST3 entry** (desktop-only, written when external plugins are added):
 >
@@ -122,13 +168,17 @@ GrooveForge v2.0.0
 ### Platform Constraints
 
 
-| Feature                         | Linux | macOS | Windows | Android | iOS |
-| ------------------------------- | ----- | ----- | ------- | ------- | --- |
-| GrooveForge Keyboard (built-in) | ✅     | ✅     | ✅       | ✅       | ✅   |
-| External VST3 hosting           | ✅     | ✅     | ✅       | ❌       | ❌   |
-| .gf save/open                   | ✅     | ✅     | ✅       | ✅       | ✅   |
-| Distributable .vst3 bundle      | ✅     | ✅     | ✅       | ❌       | ❌   |
-| Vocoder                         | ✅     | ❌     | ❌       | ✅       | ❌   |
+| Feature                                | Linux | macOS | Windows | Android | iOS |
+| -------------------------------------- | ----- | ----- | ------- | ------- | --- |
+| GrooveForge Keyboard GFPA plugin       | ✅     | ✅     | ✅       | ✅       | ✅   |
+| Vocoder GFPA plugin                    | ✅     | ⚠️¹   | ⚠️¹     | ✅       | ⚠️¹  |
+| Jam Mode GFPA plugin                   | ✅     | ✅     | ✅       | ✅       | ✅   |
+| External VST3 hosting                  | ✅     | ✅     | ✅       | ❌       | ❌   |
+| .gf save/open                          | ✅     | ✅     | ✅       | ✅       | ✅   |
+| Distributable .vst3 bundle             | ✅     | ✅     | ✅       | ❌       | ❌   |
+
+> ⚠️¹ Vocoder audio input (`audio_input.c`) is only wired to ALSA on Linux and
+> Android. macOS/iOS/Windows mic input integration is deferred to Phase 8.
 
 
 ---
@@ -288,7 +338,7 @@ GrooveForge v2.0.0
 
 ---
 
-## Phase 3 — GFPA Core + Built-in Plugin Migration
+## Phase 3 — GFPA Core + Built-in Plugin Migration ✅ COMPLETE
 
 > Defines the GrooveForge Plugin API (GFPA) interfaces and migrates all three built-in components — the virtual keyboard, the vocoder, and Jam Mode — to implement them. This is **pure Dart work**, no native changes. It must land before the audio graph (Phase 5) so every built-in plugin is already a typed node when cable routing arrives. The distributable VST3 bundle (previously planned here) is deferred to Phase 3b and simplified by building on top of this foundation.
 
@@ -377,6 +427,7 @@ class GFTransportContext {
 - [x] `lib/src/gf_plugin_registry.dart` — `GFPluginRegistry` singleton (`register`, `all`, `instruments`, `effects`, `midiFx`)
 - [x] `lib/grooveforge_plugin_api.dart` — barrel export
 - [x] Add as a path dependency in the main `pubspec.yaml`
+- [x] Create `packages/grooveforge_plugin_ui/` — Flutter companion package exposing reusable UI helpers (`RotaryKnob`, `GFParameterKnob`, `GFParameterGrid`) for use in GFPA plugin slot UIs
 
 ### 3.2 — Migrate GrooveForge Keyboard → `GFInstrumentPlugin`
 
@@ -408,42 +459,59 @@ class GFTransportContext {
   - `processMidi` — transforms note-on events to nearest in-scale pitch
   - `getState/loadState` — scale type, detection mode, BPM lock
 - [x] Register in `GFPluginRegistry` at startup (all platforms)
-- [x] Jam Mode is now a **standalone `GFpaPluginInstance` slot** with `masterSlotId` + `targetSlotId` fields
-- [x] `RackState._syncJamFollowerMapToEngine()` reads `GFpaPluginInstance` jam slots alongside legacy `GrooveForgeKeyboardPlugin.jamEnabled` (both co-exist for backward compat)
-- [x] Create `lib/widgets/rack/gfpa_jam_mode_slot_ui.dart` — master/target slot pickers, detection mode toggle, scale picker, BPM lock selector, status line
+- [x] Jam Mode is a **standalone `GFpaPluginInstance` slot** with `masterSlotId` + `targetSlotIds` (list — supports multiple simultaneous targets)
+- [x] `RackState._syncJamFollowerMapToEngine()` reads `GFpaPluginInstance` jam slots and pushes independent `GFpaJamEntry` objects to `AudioEngine.gfpaJamEntries`
+- [x] Create `lib/widgets/rack/gfpa_jam_mode_slot_ui.dart` — RC-20-inspired hardware-panel UI:
+  - Signal-flow row: MASTER dropdown → amber LCD (live scale name + type tag) → TARGETS chips
+  - LCD doubles as scale-type selector (tap to change); displays `[SCALE TYPE]` bracket only for families where the name is not self-describing (Standard, Jazz, Classical, Asiatic, Oriental)
+  - Glowing LED enable/disable button with ON/OFF indicator
+  - Controls strip with labeled `DETECT` (Chord / Bass note) and `SYNC` (Off / 1 beat / ½ bar / 1 bar) sections, each with explanatory tooltips
+  - Visual toggle buttons for key borders and wrong-note dimming (moved from Preferences)
+  - Responsive layout: wide (≥480 px) two-row panel; narrow (<480 px) stacked column; controls strip uses `Wrap` to reflow on very small screens
 - [x] **Detection mode — Chord**: derives scale from `AudioEngine` chord detector (existing behaviour)
-- [x] **Detection mode — Bass Note**: uses lowest active note on master channel as scale root, builds scale from that root + selected scale type. Ideal for bass lines where one note drives the harmony of the full arrangement.
-- [x] **BPM Lock** (`1 beat` / `½ bar` / `1 bar`): scale root only changes on beat boundaries (stored in state, functional in Phase 4 when transport engine is wired). Enables **walking bass** lines — each bass note held for one beat changes the scale for that beat.
-- Note: `GrooveForgeKeyboardPlugin.jamEnabled/jamMasterSlotId` fields retained for backward compat; auto-migration deferred to Phase 5
+- [x] **Detection mode — Bass Note**: uses lowest active note on master channel as scale root. Ideal for walking bass lines.
+- [x] **BPM Lock** (`1 beat` / `½ bar` / `1 bar`): scale root only changes on beat boundaries (stored in state, fully functional in Phase 4 when transport engine is wired)
+- [x] Old `JamSessionWidget`, global `ScaleLockMode` preference, and `GrooveForgeKeyboardPlugin.jamEnabled/jamMasterSlotId` fields **removed** (dead code purge)
+- [x] Default new project includes a pre-configured Jam Mode slot (master = CH 2, target = CH 1, inactive by default)
 
 ### 3.5 — `GFpaPluginInstance` Model & Rack Integration
 
-- [x] Create `lib/models/gfpa_plugin_instance.dart` — `id`, `pluginId`, `midiChannel`, `state`, `targetSlotId`, `masterSlotId`; `toJson/fromJson` with `"type": "gfpa"`
+- [x] Create `lib/models/gfpa_plugin_instance.dart` — `id`, `pluginId`, `midiChannel`, `state`, `targetSlotIds` (list), `masterSlotId`; `toJson/fromJson` with `"type": "gfpa"`; backward-compat reading of old `targetSlotId` (string)
 - [x] `PluginInstance.fromJson` handles `"type": "gfpa"` → `GFpaPluginInstance.fromJson`
 - [x] `RackState` holds `GFpaPluginInstance` entries; `addPlugin`, `removePlugin`, `_applyAllPluginsToEngine` all handle the new type
 - [x] `AddPluginSheet` — Vocoder + Jam Mode tiles added (always visible on all platforms)
 - [x] `RackSlotWidget` dispatches to `GFpaVocoderSlotUI` or `GFpaJamModeSlotUI`; MIDI channel badge hidden for channel-0 slots; piano shown for vocoder
+- [x] `ReorderableListView` uses `buildDefaultDragHandles: false` — custom left-side drag handle in each slot header is the sole reorder control
 
 ### 3.6 — Audio Thread Integration (pre-graph)
 
 Before Phase 5's audio graph exists, GFPA plugin audio is integrated via the existing engine mechanisms:
 
-- [x] Vocoder GFPA slot: `RackState._applyGfpaPluginToEngine` assigns `vocoderMode` to the slot's MIDI channel (same mechanism as legacy keyboard vocoder mode)
-- [x] Jam Mode GFPA slot: `RackState._syncJamFollowerMapToEngine` reads `masterSlotId`/`targetSlotId` and pushes them to `AudioEngine.jamFollowerMap` (same engine jam logic, new data source)
+- [x] Vocoder GFPA slot: `RackState._applyGfpaPluginToEngine` assigns `vocoderMode` to the slot's MIDI channel; external MIDI controllers route to the vocoder via the standard `processMidiPacket` path (no omni-mode workaround needed)
+- [x] Jam Mode GFPA slot: `RackState._syncJamFollowerMapToEngine` reads `masterSlotId`/`targetSlotIds` and populates `AudioEngine.gfpaJamEntries` (independent `GFpaJamEntry` objects, one per Jam Mode slot)
+- [x] `AudioEngine._performChordUpdate` and `_propagateJamScaleUpdate` propagate scale changes to all GFPA jam followers independently of legacy per-channel scale lock
 - [x] `GFJamModePlugin.processMidi` implemented as a proper `GFMidiFxPlugin` — ready for Phase 5 audio graph (not yet called by engine in Phase 3)
+- [x] **MIDI routing fix**: removed erroneous omni-mode vocoder routing that caused all MIDI input to also trigger the vocoder channel regardless of target
+- [x] **Startup hang fix** (`MidiService`): added `_isConnecting` guard to prevent concurrent `connectToDevice` calls when the 2-second polling timer races with `_tryAutoConnect` on Linux
 - Note: Full `AudioEngine._renderFrame()` linear pass with `processBlock` calls deferred to Phase 5 when the audio graph replaces it entirely
 
 ### 3.7 — Localization
 
 - [x] Add EN/FR keys: `rackAddVocoder`, `rackAddVocoderSubtitle`, `rackAddJamMode`, `rackAddJamModeSubtitle`
+- [x] Remove obsolete EN/FR keys related to old jam mode UI (`jamStart`, `jamStop`, `jamMaster`, `scaleLockModeTitle`, `modeClassic`, `synthSaveFilters`, etc.)
 
 ### 3.8 — Testing
 
-- [ ] Vocoder inserted as a standalone slot on Linux — vocal processing audible
-- [ ] Jam Mode plugin added between two keyboard slots — notes on slot A lock slot B to scale
-- [ ] Two Jam Mode plugins, each following a different master — independent, no interference
-- [ ] Save/load project with GFPA slots — state round-trips cleanly
-- [ ] Old `.gf` files with legacy `jamEnabled: true` / vocoder mode continue to load without errors
+- [x] Vocoder inserted as a standalone slot on Linux — vocal processing audible
+- [x] Vocoder responds to external MIDI controller on its assigned channel
+- [x] Jam Mode plugin added between two keyboard slots — notes on slot A lock slot B to scale; highlighting and key borders visible on target slots
+- [x] Jam Mode: changing scale type in the rack takes effect immediately without stop/restart
+- [x] Jam Mode: multiple target slots supported (e.g. keyboard CH 1 + vocoder CH 3 both follow CH 2)
+- [x] Jam Mode: active scale name displayed correctly with root note prefix ("C Minor Blues", not "Minor Blues")
+- [x] Key labels (note names) visible on both white and black keys for active and fundamental notes
+- [x] Two Jam Mode plugins, each following a different master — independent, no interference
+- [x] Save/load project with GFPA slots — state round-trips cleanly
+- [x] Old `.gf` files without GFPA slots continue to load without errors (backward compat)
 
 ---
 

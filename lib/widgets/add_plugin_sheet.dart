@@ -13,7 +13,7 @@ import '../services/vst_host_service.dart';
 /// Bottom sheet that lets the user choose which plugin type to add to the rack.
 ///
 /// Always available:
-///   • GrooveForge Keyboard (built-in synth/vocoder)
+///   • GrooveForge Keyboard (built-in FluidSynth keyboard)
 ///
 /// Desktop only (Linux / macOS / Windows):
 ///   • Browse VST3 Plugin… — folder picker or pick from installed list

@@ -466,19 +466,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Automatically scroll the list when MIDI is received';
 
   @override
-  String get vocoderWarningTitle => 'Feedback Warning';
-
-  @override
-  String get vocoderWarningBody =>
-      'Using the internal microphone and speakers simultaneously can cause a loud feedback loop (Larsen effect). Please use external headphones, a separate microphone, or an external speaker for a safe experience.';
-
-  @override
-  String get vocoderWarningValidate => 'Enable Vocoder';
-
-  @override
-  String get vocoderWarningCancel => 'Cancel';
-
-  @override
   String get rackTitle => 'Rack';
 
   @override
@@ -488,7 +475,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get rackAddGrooveForgeKeyboard => 'GrooveForge Keyboard';
 
   @override
-  String get rackAddGrooveForgeKeyboardSubtitle => 'Built-in synth & vocoder';
+  String get rackAddGrooveForgeKeyboardSubtitle =>
+      'Built-in FluidSynth keyboard';
 
   @override
   String get rackAddVocoder => 'Vocoder';

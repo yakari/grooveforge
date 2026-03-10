@@ -1238,7 +1238,7 @@ String _noteNameFromPc(int pc) {
 String _shortName(PluginInstance s) {
   if (s is GrooveForgeKeyboardPlugin) {
     final sf = s.soundfontPath;
-    if (sf == null || sf == 'vocoderMode') return s.displayName;
+    if (sf == null) return s.displayName;
     final file = sf.split('/').last;
     return file.length > 12 ? '${file.substring(0, 12)}…' : file;
   }

@@ -470,19 +470,6 @@ class AppLocalizationsFr extends AppLocalizations {
       'Défiler automatiquement la liste lors de la réception MIDI';
 
   @override
-  String get vocoderWarningTitle => 'Avertissement de larsen';
-
-  @override
-  String get vocoderWarningBody =>
-      'L\'utilisation simultanée du microphone et des haut-parleurs internes peut provoquer un effet de larsen (boucle sonore). Veuillez utiliser un casque, un micro séparé ou une enceinte externe pour une expérience sûre.';
-
-  @override
-  String get vocoderWarningValidate => 'Activer le vocodeur';
-
-  @override
-  String get vocoderWarningCancel => 'Annuler';
-
-  @override
   String get rackTitle => 'Rack';
 
   @override
@@ -492,7 +479,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get rackAddGrooveForgeKeyboard => 'GrooveForge Keyboard';
 
   @override
-  String get rackAddGrooveForgeKeyboardSubtitle => 'Synthé & vocodeur intégrés';
+  String get rackAddGrooveForgeKeyboardSubtitle => 'Clavier FluidSynth intégré';
 
   @override
   String get rackAddVocoder => 'Vocodeur';

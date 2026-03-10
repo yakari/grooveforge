@@ -926,30 +926,6 @@ abstract class AppLocalizations {
   /// **'Automatically scroll the list when MIDI is received'**
   String get synthAutoScrollSubtitle;
 
-  /// No description provided for @vocoderWarningTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Feedback Warning'**
-  String get vocoderWarningTitle;
-
-  /// No description provided for @vocoderWarningBody.
-  ///
-  /// In en, this message translates to:
-  /// **'Using the internal microphone and speakers simultaneously can cause a loud feedback loop (Larsen effect). Please use external headphones, a separate microphone, or an external speaker for a safe experience.'**
-  String get vocoderWarningBody;
-
-  /// No description provided for @vocoderWarningValidate.
-  ///
-  /// In en, this message translates to:
-  /// **'Enable Vocoder'**
-  String get vocoderWarningValidate;
-
-  /// No description provided for @vocoderWarningCancel.
-  ///
-  /// In en, this message translates to:
-  /// **'Cancel'**
-  String get vocoderWarningCancel;
-
   /// No description provided for @rackTitle.
   ///
   /// In en, this message translates to:
@@ -971,7 +947,7 @@ abstract class AppLocalizations {
   /// No description provided for @rackAddGrooveForgeKeyboardSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Built-in synth & vocoder'**
+  /// **'Built-in FluidSynth keyboard'**
   String get rackAddGrooveForgeKeyboardSubtitle;
 
   /// No description provided for @rackAddVocoder.
