@@ -11,18 +11,39 @@ import '../../plugins/gf_jam_mode_plugin.dart';
 import '../../services/audio_engine.dart';
 import '../../services/rack_state.dart';
 
-/// Rack slot body for a standalone GFPA Jam Mode slot.
-///
-/// Adapts to the available width:
-///   ≥ 500 px (desktop/tablet landscape) — two-column layout: routing on
-///     the left, settings on the right.
-///   < 500 px (phone/narrow) — stacked column layout.
+// ─── Design tokens (RC-20 inspired hardware palette) ─────────────────────────
+
+const _kPanelBg = Color(0xFF141414);
+const _kPanelBorder = Color(0xFF2C2C2C);
+const _kSeparator = Color(0xFF222222);
+
+// LED status colours
+const _kLedOn = Color(0xFF00E56A); // bright green
+
+// Amber "LCD" display
+const _kLcdAmber = Color(0xFFFFAD2A);
+const _kLcdBg = Color(0xFF080808);
+
+// Routing labels
+const _kMasterColor = Color(0xFFD09030); // warm gold
+const _kTargetColor = Color(0xFF25B8D8); // cyan
+
+// Control accent colours
+const _kModeChord = Color(0xFF8860E0); // purple
+const _kModeBass = Color(0xFF20C0D0); // teal
+const _kBpmColor = Color(0xFFE0A030); // amber
+const _kVisualColor = Color(0xFF6090D0); // blue
+
+// ─── Root widget ─────────────────────────────────────────────────────────────
+
+/// Rack slot body for a GFPA Jam Mode plugin, styled as an RC-20 inspired
+/// hardware panel with signal-flow routing and a glowing LED enable button.
 class GFpaJamModeSlotUI extends StatelessWidget {
   const GFpaJamModeSlotUI({super.key, required this.plugin});
 
   final GFpaPluginInstance plugin;
 
-  // ─── State helpers ────────────────────────────────────────────────────────
+  // ── State helpers ─────────────────────────────────────────────────────────
 
   bool get _enabled => plugin.state['enabled'] != false;
 
@@ -49,7 +70,7 @@ class GFpaJamModeSlotUI extends StatelessWidget {
     rack.setGfpaPluginState(plugin.id, {...plugin.state, ...delta});
   }
 
-  // ─── Build ────────────────────────────────────────────────────────────────
+  // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -65,30 +86,60 @@ class GFpaJamModeSlotUI extends StatelessWidget {
 
         return LayoutBuilder(
           builder: (context, constraints) {
-            final isWide = constraints.maxWidth >= 500;
-            return Padding(
-              padding: const EdgeInsets.fromLTRB(10, 6, 10, 8),
-              child: isWide
-                  ? _WideLayout(
+            final isWide = constraints.maxWidth >= 480;
+
+            return Container(
+              margin: const EdgeInsets.fromLTRB(8, 4, 8, 8),
+              decoration: BoxDecoration(
+                color: _kPanelBg,
+                borderRadius: BorderRadius.circular(5),
+                border: Border.all(color: _kPanelBorder),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // ── Signal-flow routing row ──────────────────────────────
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(10, 9, 10, 8),
+                    child: isWide
+                        ? _WideRoutingRow(
+                            plugin: plugin,
+                            rack: rack,
+                            engine: engine,
+                            allSlots: allSlots,
+                            enabled: _enabled,
+                            scaleType: _scaleType,
+                            onUpdate: _update,
+                          )
+                        : _NarrowRoutingRows(
+                            plugin: plugin,
+                            rack: rack,
+                            engine: engine,
+                            allSlots: allSlots,
+                            enabled: _enabled,
+                            scaleType: _scaleType,
+                            onUpdate: _update,
+                          ),
+                  ),
+
+                  // ── Hairline separator ────────────────────────────────────
+                  Container(height: 1, color: _kSeparator),
+
+                  // ── Controls strip ────────────────────────────────────────
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(10, 6, 10, 8),
+                    child: _ControlsStrip(
                       plugin: plugin,
                       rack: rack,
-                      allSlots: allSlots,
-                      enabled: _enabled,
-                      detectionMode: _detectionMode,
-                      bpmLockBeats: _bpmLockBeats,
-                      scaleType: _scaleType,
-                      onUpdate: _update,
-                    )
-                  : _NarrowLayout(
-                      plugin: plugin,
-                      rack: rack,
-                      allSlots: allSlots,
-                      enabled: _enabled,
+                      engine: engine,
                       detectionMode: _detectionMode,
                       bpmLockBeats: _bpmLockBeats,
                       scaleType: _scaleType,
                       onUpdate: _update,
                     ),
+                  ),
+                ],
+              ),
             );
           },
         );
@@ -97,411 +148,201 @@ class GFpaJamModeSlotUI extends StatelessWidget {
   }
 }
 
-// ─── Shared layout data ───────────────────────────────────────────────────────
+// ─── Wide routing row ─────────────────────────────────────────────────────────
+//
+//  [MASTER section] →→ [Scale LCD selector] →→ [Targets section ···] [LED button]
 
-class _LayoutData {
-  const _LayoutData({
+class _WideRoutingRow extends StatelessWidget {
+  const _WideRoutingRow({
     required this.plugin,
     required this.rack,
+    required this.engine,
     required this.allSlots,
     required this.enabled,
-    required this.detectionMode,
-    required this.bpmLockBeats,
     required this.scaleType,
     required this.onUpdate,
   });
 
   final GFpaPluginInstance plugin;
   final RackState rack;
+  final AudioEngine engine;
   final List<PluginInstance> allSlots;
   final bool enabled;
-  final JamDetectionMode detectionMode;
-  final int bpmLockBeats;
-  final ScaleType scaleType;
-  final void Function(RackState, Map<String, dynamic>) onUpdate;
-}
-
-// ─── Wide layout (desktop / tablet) ──────────────────────────────────────────
-
-class _WideLayout extends StatelessWidget {
-  const _WideLayout({
-    required this.plugin,
-    required this.rack,
-    required this.allSlots,
-    required this.enabled,
-    required this.detectionMode,
-    required this.bpmLockBeats,
-    required this.scaleType,
-    required this.onUpdate,
-  });
-
-  final GFpaPluginInstance plugin;
-  final RackState rack;
-  final List<PluginInstance> allSlots;
-  final bool enabled;
-  final JamDetectionMode detectionMode;
-  final int bpmLockBeats;
   final ScaleType scaleType;
   final void Function(RackState, Map<String, dynamic>) onUpdate;
 
   @override
   Widget build(BuildContext context) {
-    final d = _LayoutData(
-      plugin: plugin,
-      rack: rack,
-      allSlots: allSlots,
-      enabled: enabled,
-      detectionMode: detectionMode,
-      bpmLockBeats: bpmLockBeats,
-      scaleType: scaleType,
-      onUpdate: onUpdate,
-    );
-
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        // ── Left: routing ─────────────────────────────────────────────
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _MasterRow(d: d),
-              const SizedBox(height: 6),
-              _TargetChips(d: d),
-            ],
+        // ── Master ──────────────────────────────────────────────────────────
+        _MasterSection(plugin: plugin, allSlots: allSlots, rack: rack),
+
+        // ── Flow arrow ──────────────────────────────────────────────────────
+        _FlowArrow(enabled: enabled),
+
+        // ── Scale LCD (also the scale-type selector) ─────────────────────────
+        // Flexible so it claims remaining space between master and targets
+        // without overflowing when the scale name is long.
+        Flexible(
+          child: _ScaleLcdSelector(
+            plugin: plugin,
+            allSlots: allSlots,
+            engine: engine,
+            scaleType: scaleType,
+            enabled: enabled,
+            rack: rack,
+            onUpdate: onUpdate,
+            showLabel: true,
           ),
         ),
-        const SizedBox(width: 16),
-        // ── Right: enable + settings ──────────────────────────────────
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _ScaleIndicator(plugin: plugin, allSlots: allSlots, d: d),
-                const SizedBox(width: 8),
-                const _VisualToggles(),
-                const SizedBox(width: 8),
-                _EnableButton(d: d),
-              ],
-            ),
-            const SizedBox(height: 8),
-            _DetectionRow(d: d),
-            const SizedBox(height: 6),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _ScaleButton(d: d),
-                const SizedBox(width: 8),
-                _BpmRow(d: d),
-              ],
-            ),
-          ],
+
+        // ── Flow arrow ──────────────────────────────────────────────────────
+        _FlowArrow(enabled: enabled),
+
+        // ── Targets (takes remaining space) ─────────────────────────────────
+        Expanded(
+          child: _TargetsSection(plugin: plugin, allSlots: allSlots, rack: rack),
+        ),
+
+        const SizedBox(width: 12),
+
+        // ── LED enable button ────────────────────────────────────────────────
+        _LedButton(
+          enabled: enabled,
+          onTap: () =>
+              rack.setJamModeEnabled(plugin.id, enabled: !enabled),
         ),
       ],
     );
   }
 }
 
-// ─── Narrow layout (phone) ───────────────────────────────────────────────────
+// ─── Narrow routing rows ──────────────────────────────────────────────────────
 
-class _NarrowLayout extends StatelessWidget {
-  const _NarrowLayout({
+class _NarrowRoutingRows extends StatelessWidget {
+  const _NarrowRoutingRows({
     required this.plugin,
     required this.rack,
+    required this.engine,
     required this.allSlots,
     required this.enabled,
-    required this.detectionMode,
-    required this.bpmLockBeats,
     required this.scaleType,
     required this.onUpdate,
   });
 
   final GFpaPluginInstance plugin;
   final RackState rack;
+  final AudioEngine engine;
   final List<PluginInstance> allSlots;
   final bool enabled;
-  final JamDetectionMode detectionMode;
-  final int bpmLockBeats;
   final ScaleType scaleType;
   final void Function(RackState, Map<String, dynamic>) onUpdate;
 
   @override
   Widget build(BuildContext context) {
-    final d = _LayoutData(
-      plugin: plugin,
-      rack: rack,
-      allSlots: allSlots,
-      enabled: enabled,
-      detectionMode: detectionMode,
-      bpmLockBeats: bpmLockBeats,
-      scaleType: scaleType,
-      onUpdate: onUpdate,
-    );
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
+        // Row: LED + Scale LCD
         Row(
           children: [
-            Expanded(child: _MasterRow(d: d)),
-            const SizedBox(width: 8),
-            _EnableButton(d: d),
+            _LedButton(
+              enabled: enabled,
+              onTap: () =>
+                  rack.setJamModeEnabled(plugin.id, enabled: !enabled),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _ScaleLcdSelector(
+                plugin: plugin,
+                allSlots: allSlots,
+                engine: engine,
+                scaleType: scaleType,
+                enabled: enabled,
+                rack: rack,
+                onUpdate: onUpdate,
+                showLabel: false,
+              ),
+            ),
           ],
         ),
-        const SizedBox(height: 6),
-        _ScaleIndicator(plugin: plugin, allSlots: allSlots, d: d),
-        const SizedBox(height: 6),
-        _TargetChips(d: d),
         const SizedBox(height: 8),
-        _DetectionRow(d: d),
+        // Master
+        _MasterSection(plugin: plugin, allSlots: allSlots, rack: rack),
         const SizedBox(height: 6),
-        Row(
-          children: [
-            _ScaleButton(d: d),
-            const SizedBox(width: 8),
-            Expanded(child: _BpmRow(d: d)),
-            const SizedBox(width: 8),
-            const _VisualToggles(),
-          ],
-        ),
+        // Targets
+        _TargetsSection(plugin: plugin, allSlots: allSlots, rack: rack),
       ],
     );
   }
 }
 
-// ─── Shared sub-widgets ───────────────────────────────────────────────────────
+// ─── LED enable button ────────────────────────────────────────────────────────
 
-/// ♪ Drives harmony: [slot dropdown]
-class _MasterRow extends StatelessWidget {
-  const _MasterRow({required this.d});
-  final _LayoutData d;
+class _LedButton extends StatelessWidget {
+  const _LedButton({required this.enabled, required this.onTap});
 
-  @override
-  Widget build(BuildContext context) {
-    final available = d.allSlots;
-    final current = available.cast<PluginInstance?>().firstWhere(
-          (s) => s?.id == d.plugin.masterSlotId,
-          orElse: () => null,
-        );
-
-    return Row(
-      children: [
-        const Icon(Icons.music_note, size: 13, color: Colors.deepPurpleAccent),
-        const SizedBox(width: 5),
-        const Text(
-          'Master',
-          style: TextStyle(fontSize: 11, color: Colors.white54),
-        ),
-        const SizedBox(width: 6),
-        Expanded(
-          child: available.isEmpty
-              ? const Text('No slots',
-                  style: TextStyle(fontSize: 11, color: Colors.white24))
-              : DropdownButton<String>(
-                  value: current?.id,
-                  hint: const Text('— pick —',
-                      style: TextStyle(fontSize: 11, color: Colors.white38)),
-                  isExpanded: true,
-                  underline: Container(height: 1, color: Colors.white12),
-                  dropdownColor: Colors.grey[850],
-                  style: const TextStyle(fontSize: 11, color: Colors.white70),
-                  items: [
-                    const DropdownMenuItem(
-                      value: null,
-                      child: Text('— none —',
-                          style: TextStyle(
-                              fontSize: 11, color: Colors.white38)),
-                    ),
-                    for (final s in available)
-                      DropdownMenuItem(
-                        value: s.id,
-                        child: Text(
-                          'CH ${s.midiChannel} — ${_shortName(s)}',
-                          style: const TextStyle(fontSize: 11),
-                        ),
-                      ),
-                  ],
-                  onChanged: (id) => d.rack.setJamModeMaster(d.plugin.id, id),
-                ),
-        ),
-      ],
-    );
-  }
-}
-
-/// 🔒 Targets: [chip × chip × ...] [+ Add ▼]
-class _TargetChips extends StatelessWidget {
-  const _TargetChips({required this.d});
-  final _LayoutData d;
+  final bool enabled;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final targetIds = d.plugin.targetSlotIds;
-    final available = d.allSlots
-        .where((s) =>
-            s.id != d.plugin.masterSlotId && !targetIds.contains(s.id))
-        .toList();
-
-    return Row(
-      children: [
-        const Icon(Icons.lock_outline, size: 13, color: Colors.orangeAccent),
-        const SizedBox(width: 5),
-        const Text(
-          'Targets',
-          style: TextStyle(fontSize: 11, color: Colors.white54),
-        ),
-        const SizedBox(width: 6),
-        Expanded(
-          child: Wrap(
-            spacing: 4,
-            runSpacing: 4,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              // Existing targets as removable chips
-              for (final targetId in targetIds) ...[
-                _buildTargetChip(context, targetId),
-              ],
-              // "+" add button — only if there are available slots
-              if (available.isNotEmpty)
-                _AddTargetButton(
-                  available: available,
-                  onAdd: (id) =>
-                      d.rack.addJamModeTarget(d.plugin.id, id),
-                ),
-              if (targetIds.isEmpty && available.isEmpty)
-                const Text(
-                  'No slots available',
-                  style: TextStyle(fontSize: 11, color: Colors.white24),
-                ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTargetChip(BuildContext context, String targetId) {
-    final slot = d.allSlots.cast<PluginInstance?>().firstWhere(
-          (s) => s?.id == targetId,
-          orElse: () => null,
-        );
-    final label =
-        slot != null ? 'CH ${slot.midiChannel} ${_shortName(slot)}' : '?';
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-      decoration: BoxDecoration(
-        color: Colors.orangeAccent.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: Colors.orangeAccent.withValues(alpha: 0.5)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-                fontSize: 11,
-                color: Colors.orangeAccent,
-                fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(width: 4),
-          GestureDetector(
-            onTap: () => d.rack.removeJamModeTarget(d.plugin.id, targetId),
-            child: const Icon(Icons.close, size: 10, color: Colors.orangeAccent),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _AddTargetButton extends StatelessWidget {
-  const _AddTargetButton({required this.available, required this.onAdd});
-  final List<PluginInstance> available;
-  final ValueChanged<String> onAdd;
-
-  @override
-  Widget build(BuildContext context) {
-    return PopupMenuButton<String>(
-      color: Colors.grey[850],
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      onSelected: onAdd,
-      itemBuilder: (_) => [
-        for (final s in available)
-          PopupMenuItem(
-            value: s.id,
-            height: 34,
-            child: Text(
-              'CH ${s.midiChannel} — ${_shortName(s)}',
-              style: const TextStyle(fontSize: 12, color: Colors.white70),
-            ),
-          ),
-      ],
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-        decoration: BoxDecoration(
-          color: Colors.white10,
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: Colors.white24),
-        ),
-        child: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.add, size: 11, color: Colors.white54),
-            SizedBox(width: 3),
-            Text('Add',
-                style: TextStyle(fontSize: 11, color: Colors.white54)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// [● START / ■ STOP] toggle button
-class _EnableButton extends StatelessWidget {
-  const _EnableButton({required this.d});
-  final _LayoutData d;
-
-  @override
-  Widget build(BuildContext context) {
-    final on = d.enabled;
     return GestureDetector(
-      onTap: () => d.rack.setJamModeEnabled(d.plugin.id, enabled: !on),
+      onTap: onTap,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 140),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        duration: const Duration(milliseconds: 200),
+        width: 46,
+        height: 46,
         decoration: BoxDecoration(
-          color: on
-              ? Colors.greenAccent.withValues(alpha: 0.15)
-              : Colors.white10,
-          borderRadius: BorderRadius.circular(8),
+          shape: BoxShape.circle,
+          color:
+              enabled ? _kLedOn.withValues(alpha: 0.1) : const Color(0xFF1A1A1A),
           border: Border.all(
-            color: on
-                ? Colors.greenAccent.withValues(alpha: 0.7)
-                : Colors.white24,
-            width: 1.5,
+            color: enabled ? _kLedOn : Colors.white24,
+            width: enabled ? 2.0 : 1.5,
           ),
+          boxShadow: enabled
+              ? [
+                  BoxShadow(
+                    color: _kLedOn.withValues(alpha: 0.45),
+                    blurRadius: 12,
+                    spreadRadius: 1,
+                  ),
+                  BoxShadow(
+                    color: _kLedOn.withValues(alpha: 0.15),
+                    blurRadius: 22,
+                    spreadRadius: 4,
+                  ),
+                ]
+              : [],
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              on ? Icons.stop_circle_outlined : Icons.play_circle_outline,
-              size: 14,
-              color: on ? Colors.greenAccent : Colors.white38,
+            // Inner LED dot
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: 10,
+              height: 10,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: enabled ? _kLedOn : const Color(0xFF3A3A3A),
+                boxShadow: enabled
+                    ? [BoxShadow(color: _kLedOn, blurRadius: 5)]
+                    : [],
+              ),
             ),
-            const SizedBox(width: 5),
+            const SizedBox(height: 4),
             Text(
-              on ? 'Active' : 'Off',
+              enabled ? 'ON' : 'OFF',
               style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: on ? Colors.greenAccent : Colors.white38,
+                fontSize: 8,
+                fontWeight: FontWeight.w900,
+                color: enabled ? _kLedOn : Colors.white30,
+                letterSpacing: 0.8,
               ),
             ),
           ],
@@ -511,44 +352,34 @@ class _EnableButton extends StatelessWidget {
   }
 }
 
-/// [Chord] [Bass Note] detection mode chips
-class _DetectionRow extends StatelessWidget {
-  const _DetectionRow({required this.d});
-  final _LayoutData d;
+// ─── Scale LCD + type selector ────────────────────────────────────────────────
 
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _Chip(
-          label: 'Chord',
-          icon: Icons.music_note,
-          selected: d.detectionMode == JamDetectionMode.chord,
-          color: Colors.deepPurpleAccent,
-          onTap: () => d.onUpdate(
-              d.rack, {'detectionMode': JamDetectionMode.chord.name}),
-        ),
-        const SizedBox(width: 4),
-        _Chip(
-          label: 'Bass note',
-          icon: Icons.piano,
-          selected: d.detectionMode == JamDetectionMode.bassNote,
-          color: Colors.cyanAccent,
-          onTap: () => d.onUpdate(
-              d.rack, {'detectionMode': JamDetectionMode.bassNote.name}),
-        ),
-      ],
-    );
-  }
-}
+/// The amber LCD display that shows the active scale name AND doubles as the
+/// scale-type selector: tap it to open the scale-type popup menu.
+///
+/// [showLabel] adds a "SCALE TYPE ▾" hint below the LCD (use on wide screens).
+class _ScaleLcdSelector extends StatelessWidget {
+  const _ScaleLcdSelector({
+    required this.plugin,
+    required this.allSlots,
+    required this.engine,
+    required this.scaleType,
+    required this.enabled,
+    required this.rack,
+    required this.onUpdate,
+    required this.showLabel,
+  });
 
-/// Scale selector — a compact button that opens a popup menu
-class _ScaleButton extends StatelessWidget {
-  const _ScaleButton({required this.d});
-  final _LayoutData d;
+  final GFpaPluginInstance plugin;
+  final List<PluginInstance> allSlots;
+  final AudioEngine engine;
+  final ScaleType scaleType;
+  final bool enabled;
+  final RackState rack;
+  final void Function(RackState, Map<String, dynamic>) onUpdate;
+  final bool showLabel;
 
-  static const _labels = {
+  static const _scaleLabels = {
     ScaleType.standard: 'Standard',
     ScaleType.pentatonic: 'Pentatonic',
     ScaleType.blues: 'Blues',
@@ -567,58 +398,480 @@ class _ScaleButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PopupMenuButton<ScaleType>(
-      color: Colors.grey[850],
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      onSelected: (s) => d.onUpdate(d.rack, {'scaleType': s.name}),
-      itemBuilder: (_) => [
-        for (final s in ScaleType.values)
-          PopupMenuItem(
-            value: s,
-            height: 34,
-            child: Row(
-              children: [
-                if (s == d.scaleType)
-                  const Icon(Icons.check, size: 12, color: Colors.deepPurpleAccent)
-                else
-                  const SizedBox(width: 12),
-                const SizedBox(width: 6),
-                Text(
-                  _labels[s] ?? s.name,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: s == d.scaleType
-                        ? Colors.deepPurpleAccent
-                        : Colors.white70,
+    final masterSlot = allSlots.cast<PluginInstance?>().firstWhere(
+          (s) => s?.id == plugin.masterSlotId,
+          orElse: () => null,
+        );
+
+    // Build the live scale-name content for the LCD
+    Widget lcdContent;
+    if (masterSlot == null) {
+      lcdContent = _buildLcd(context, '— NO MASTER —', showChevron: true);
+    } else {
+      final masterCh = masterSlot.midiChannel - 1;
+      lcdContent = ListenableBuilder(
+        listenable: Listenable.merge([
+          engine.gfpaJamEntries,
+          engine.channels[masterCh].lastChord,
+          engine.channels[masterCh].activeNotes,
+        ]),
+        builder: (context, _) {
+          final entry = engine.gfpaJamEntries.value
+              .where((e) => e.masterCh == masterCh)
+              .firstOrNull;
+
+          String label;
+          if (entry == null) {
+            label = '— — —';
+          } else {
+            // These types don't appear in the descriptive scale name itself,
+            // so the bracket tag adds useful context.  For all others (Blues,
+            // Pentatonic, Rock, Dorian, etc.) the name already carries the info.
+            const taggedTypes = {
+              ScaleType.standard,
+              ScaleType.jazz,
+              ScaleType.classical,
+              ScaleType.asiatic,
+              ScaleType.oriental,
+            };
+            final rawTag = _scaleLabels[entry.scaleType] ?? entry.scaleType.name;
+            final typeTag = taggedTypes.contains(entry.scaleType)
+                ? ' [$rawTag]'
+                : '';
+
+            if (entry.bassNoteMode) {
+              final active = engine.channels[masterCh].activeNotes.value;
+              if (active.isNotEmpty) {
+                final rootPc = active.reduce(min) % 12;
+                final synth =
+                    ChordMatch(_noteNameFromPc(rootPc), const {}, rootPc, false);
+                final name =
+                    engine.getDescriptiveScaleName(synth, entry.scaleType);
+                label = '${_noteNameFromPc(rootPc)} $name$typeTag';
+              } else {
+                label =
+                    '${engine.getDescriptiveScaleName(null, entry.scaleType)}$typeTag';
+              }
+            } else {
+              final chord = engine.channels[masterCh].lastChord.value;
+              final name =
+                  engine.getDescriptiveScaleName(chord, entry.scaleType);
+              final scalePart = chord != null
+                  ? '${_noteNameFromPc(chord.rootPc)} $name'
+                  : name;
+              label = '$scalePart$typeTag';
+            }
+          }
+          return _buildLcd(context, label, showChevron: true);
+        },
+      );
+    }
+
+    return Tooltip(
+      message: 'Tap to change the scale type\nCurrent: ${_scaleLabels[scaleType] ?? scaleType.name}',
+      child: PopupMenuButton<ScaleType>(
+        color: const Color(0xFF1C1C1C),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+        onSelected: (s) => onUpdate(rack, {'scaleType': s.name}),
+        itemBuilder: (_) => [
+          for (final s in ScaleType.values)
+            PopupMenuItem(
+              value: s,
+              height: 32,
+              child: Row(
+                children: [
+                  if (s == scaleType)
+                    const Icon(Icons.check, size: 11, color: _kLcdAmber)
+                  else
+                    const SizedBox(width: 11),
+                  const SizedBox(width: 6),
+                  Text(
+                    _scaleLabels[s] ?? s.name,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: s == scaleType ? _kLcdAmber : Colors.white70,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+        // CrossAxisAlignment.stretch propagates the width constraint that the
+        // parent (Flexible in wide / Expanded in narrow) provides all the way
+        // down to lcdContent, preventing horizontal overflow.
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            lcdContent,
+            if (showLabel) ...[
+              const SizedBox(height: 3),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'SCALE TYPE',
+                    style: TextStyle(
+                      fontSize: 7,
+                      fontWeight: FontWeight.w800,
+                      color: _kLcdAmber.withValues(alpha: 0.55),
+                      letterSpacing: 1.3,
+                    ),
+                  ),
+                  const SizedBox(width: 2),
+                  Icon(
+                    Icons.arrow_drop_down,
+                    size: 10,
+                    color: _kLcdAmber.withValues(alpha: 0.55),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLcd(BuildContext context, String scaleName,
+      {required bool showChevron}) {
+    return _LcdContainer(
+      enabled: enabled,
+      child: Row(
+        // mainAxisSize.max fills the width provided by the stretched Column,
+        // letting Flexible truncate long scale names with an ellipsis.
+        children: [
+          Flexible(
+            child: Text(
+              scaleName.toUpperCase(),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
+              softWrap: false,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                color: enabled ? _kLcdAmber : _kLcdAmber.withValues(alpha: 0.25),
+                letterSpacing: 1.2,
+              ),
+            ),
+          ),
+          if (showChevron) ...[
+            const SizedBox(width: 4),
+            Icon(
+              Icons.edit,
+              size: 9,
+              color: enabled
+                  ? _kLcdAmber.withValues(alpha: 0.5)
+                  : Colors.white12,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _LcdContainer extends StatelessWidget {
+  const _LcdContainer({required this.enabled, required this.child});
+
+  final bool enabled;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: _kLcdBg,
+        borderRadius: BorderRadius.circular(3),
+        border: Border.all(
+          color: enabled
+              ? _kLcdAmber.withValues(alpha: 0.35)
+              : Colors.white.withValues(alpha: 0.06),
+        ),
+        boxShadow: enabled
+            ? [
+                BoxShadow(
+                  color: _kLcdAmber.withValues(alpha: 0.07),
+                  blurRadius: 10,
+                  spreadRadius: 2,
+                ),
+              ]
+            : [],
+      ),
+      child: child,
+    );
+  }
+}
+
+// ─── Flow arrow ───────────────────────────────────────────────────────────────
+
+class _FlowArrow extends StatelessWidget {
+  const _FlowArrow({required this.enabled});
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        child: Icon(
+          Icons.arrow_forward,
+          size: 14,
+          color: enabled ? _kLcdAmber.withValues(alpha: 0.5) : Colors.white12,
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Master section ───────────────────────────────────────────────────────────
+
+class _MasterSection extends StatelessWidget {
+  const _MasterSection({
+    required this.plugin,
+    required this.allSlots,
+    required this.rack,
+  });
+
+  final GFpaPluginInstance plugin;
+  final List<PluginInstance> allSlots;
+  final RackState rack;
+
+  @override
+  Widget build(BuildContext context) {
+    final current = allSlots.cast<PluginInstance?>().firstWhere(
+          (s) => s?.id == plugin.masterSlotId,
+          orElse: () => null,
+        );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Label row
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 6,
+              height: 6,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: _kMasterColor,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              'MASTER',
+              style: TextStyle(
+                fontSize: 8,
+                fontWeight: FontWeight.w800,
+                color: _kMasterColor,
+                letterSpacing: 1.4,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 3),
+        // Dropdown
+        SizedBox(
+          width: 130,
+          child: DropdownButton<String>(
+            value: current?.id,
+            hint: const Text(
+              '— pick —',
+              style: TextStyle(fontSize: 11, color: Colors.white30),
+            ),
+            isExpanded: true,
+            underline: Container(
+              height: 1,
+              color: _kMasterColor.withValues(alpha: 0.5),
+            ),
+            dropdownColor: const Color(0xFF1C1C1C),
+            style: const TextStyle(fontSize: 11, color: Colors.white70),
+            iconSize: 16,
+            icon: Icon(Icons.arrow_drop_down,
+                color: _kMasterColor.withValues(alpha: 0.7)),
+            items: [
+              const DropdownMenuItem(
+                value: null,
+                child: Text('— none —',
+                    style: TextStyle(fontSize: 11, color: Colors.white30)),
+              ),
+              for (final s in allSlots)
+                DropdownMenuItem(
+                  value: s.id,
+                  child: Text(
+                    'CH ${s.midiChannel} — ${_shortName(s)}',
+                    style: const TextStyle(fontSize: 11),
                   ),
                 ),
-              ],
+            ],
+            onChanged: (id) => rack.setJamModeMaster(plugin.id, id),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ─── Targets section ──────────────────────────────────────────────────────────
+
+class _TargetsSection extends StatelessWidget {
+  const _TargetsSection({
+    required this.plugin,
+    required this.allSlots,
+    required this.rack,
+  });
+
+  final GFpaPluginInstance plugin;
+  final List<PluginInstance> allSlots;
+  final RackState rack;
+
+  @override
+  Widget build(BuildContext context) {
+    final targetIds = plugin.targetSlotIds;
+    final available = allSlots
+        .where(
+            (s) => s.id != plugin.masterSlotId && !targetIds.contains(s.id))
+        .toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Label row
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 6,
+              height: 6,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: _kTargetColor,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              'TARGETS',
+              style: TextStyle(
+                fontSize: 8,
+                fontWeight: FontWeight.w800,
+                color: _kTargetColor,
+                letterSpacing: 1.4,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 3),
+        // Chips + add button
+        Wrap(
+          spacing: 4,
+          runSpacing: 4,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            for (final id in targetIds) _targetChip(context, id),
+            if (available.isNotEmpty)
+              _AddTargetButton(
+                available: available,
+                onAdd: (id) => rack.addJamModeTarget(plugin.id, id),
+              ),
+            if (targetIds.isEmpty && available.isEmpty)
+              Text(
+                'no slots',
+                style: TextStyle(fontSize: 10, color: Colors.white24),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _targetChip(BuildContext context, String id) {
+    final slot = allSlots.cast<PluginInstance?>().firstWhere(
+          (s) => s?.id == id,
+          orElse: () => null,
+        );
+    final label =
+        slot != null ? 'CH ${slot.midiChannel} ${_shortName(slot)}' : '?';
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(7, 3, 5, 3),
+      decoration: BoxDecoration(
+        color: _kTargetColor.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(3),
+        border: Border.all(color: _kTargetColor.withValues(alpha: 0.45)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              color: _kTargetColor,
+              letterSpacing: 0.3,
+            ),
+          ),
+          const SizedBox(width: 4),
+          GestureDetector(
+            onTap: () => rack.removeJamModeTarget(plugin.id, id),
+            child: Icon(Icons.close, size: 10, color: _kTargetColor),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AddTargetButton extends StatelessWidget {
+  const _AddTargetButton({required this.available, required this.onAdd});
+
+  final List<PluginInstance> available;
+  final ValueChanged<String> onAdd;
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<String>(
+      color: const Color(0xFF1C1C1C),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+      onSelected: onAdd,
+      itemBuilder: (_) => [
+        for (final s in available)
+          PopupMenuItem(
+            value: s.id,
+            height: 34,
+            child: Text(
+              'CH ${s.midiChannel} — ${_shortName(s)}',
+              style: const TextStyle(fontSize: 12, color: Colors.white70),
             ),
           ),
       ],
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        padding: const EdgeInsets.fromLTRB(6, 3, 6, 3),
         decoration: BoxDecoration(
-          color: Colors.deepPurpleAccent.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(
-              color: Colors.deepPurpleAccent.withValues(alpha: 0.5)),
+          color: Colors.white.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(3),
+          border: Border.all(color: Colors.white24),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.piano, size: 11, color: Colors.deepPurpleAccent),
-            const SizedBox(width: 4),
-            Text(
-              _labels[d.scaleType] ?? d.scaleType.name,
-              style: const TextStyle(
-                  fontSize: 11,
-                  color: Colors.deepPurpleAccent,
-                  fontWeight: FontWeight.w600),
-            ),
+            Icon(Icons.add, size: 10, color: _kTargetColor),
             const SizedBox(width: 3),
-            const Icon(Icons.arrow_drop_down,
-                size: 13, color: Colors.deepPurpleAccent),
+            Text(
+              'Add',
+              style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: _kTargetColor),
+            ),
           ],
         ),
       ),
@@ -626,10 +879,225 @@ class _ScaleButton extends StatelessWidget {
   }
 }
 
-/// BPM lock chip row: [Off] [1 beat] [½ bar] [1 bar]
-class _BpmRow extends StatelessWidget {
-  const _BpmRow({required this.d});
-  final _LayoutData d;
+// ─── Controls strip ───────────────────────────────────────────────────────────
+//
+//  DETECT [♪Chord | ♩Bass]   SYNC [Off][1][½][1bar]   · · ·   [□][□]
+
+class _ControlsStrip extends StatelessWidget {
+  const _ControlsStrip({
+    required this.plugin,
+    required this.rack,
+    required this.engine,
+    required this.detectionMode,
+    required this.bpmLockBeats,
+    required this.scaleType,
+    required this.onUpdate,
+  });
+
+  final GFpaPluginInstance plugin;
+  final RackState rack;
+  final AudioEngine engine;
+  final JamDetectionMode detectionMode;
+  final int bpmLockBeats;
+  final ScaleType scaleType;
+  final void Function(RackState, Map<String, dynamic>) onUpdate;
+
+  @override
+  Widget build(BuildContext context) {
+    // Wrap lets DETECT / SYNC / visual toggles reflow to a second line on
+    // narrow screens instead of causing horizontal overflow.
+    return Wrap(
+      spacing: 10,
+      runSpacing: 6,
+      crossAxisAlignment: WrapCrossAlignment.end,
+      children: [
+        // ── Detection mode ─────────────────────────────────────────────────
+        _LabeledControl(
+          label: 'DETECT',
+          tooltip:
+              '♪ Chord — detect the scale from all notes pressed simultaneously on the master channel.\n'
+              '♩ Bass note — use only the lowest note (ideal for walking bass lines).',
+          child: _ModeToggle(
+              detectionMode: detectionMode, onUpdate: onUpdate, rack: rack),
+        ),
+
+        // ── BPM sync ───────────────────────────────────────────────────────
+        _LabeledControl(
+          label: 'SYNC',
+          tooltip:
+              'When to apply scale changes detected from the master channel.\n\n'
+              'Off — apply immediately on each new note/chord\n'
+              '1 beat — wait for the next beat\n'
+              '½ bar — change every 2 beats\n'
+              '1 bar — change every 4 beats',
+          child: _BpmStrip(
+              bpmLockBeats: bpmLockBeats, onUpdate: onUpdate, rack: rack),
+        ),
+
+        // ── Visual toggles ─────────────────────────────────────────────────
+        _VisualToggles(engine: engine),
+      ],
+    );
+  }
+}
+
+// ─── Labeled control helper ───────────────────────────────────────────────────
+
+/// Wraps [child] with a small uppercase label + help icon above it.
+/// The label row is itself a [Tooltip] trigger so hovering/long-pressing
+/// reveals the explanation on any platform.
+class _LabeledControl extends StatelessWidget {
+  const _LabeledControl({
+    required this.label,
+    required this.tooltip,
+    required this.child,
+  });
+
+  final String label;
+  final String tooltip;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Tooltip(
+          message: tooltip,
+          preferBelow: false,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 7,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white38,
+                  letterSpacing: 1.3,
+                ),
+              ),
+              const SizedBox(width: 3),
+              const Icon(Icons.help_outline, size: 8, color: Colors.white30),
+            ],
+          ),
+        ),
+        const SizedBox(height: 4),
+        child,
+      ],
+    );
+  }
+}
+
+// ── Detection mode: [Chord] [Bass] ───────────────────────────────────────────
+
+class _ModeToggle extends StatelessWidget {
+  const _ModeToggle({
+    required this.detectionMode,
+    required this.onUpdate,
+    required this.rack,
+  });
+
+  final JamDetectionMode detectionMode;
+  final void Function(RackState, Map<String, dynamic>) onUpdate;
+  final RackState rack;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: Colors.white12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _ModeTab(
+            label: 'Chord',
+            icon: Icons.music_note,
+            selected: detectionMode == JamDetectionMode.chord,
+            color: _kModeChord,
+            rounded: const BorderRadius.horizontal(left: Radius.circular(3)),
+            onTap: () => onUpdate(rack, {'detectionMode': JamDetectionMode.chord.name}),
+          ),
+          Container(width: 1, height: 20, color: Colors.white10),
+          _ModeTab(
+            label: 'Bass',
+            icon: Icons.piano,
+            selected: detectionMode == JamDetectionMode.bassNote,
+            color: _kModeBass,
+            rounded: const BorderRadius.horizontal(right: Radius.circular(3)),
+            onTap: () => onUpdate(rack, {'detectionMode': JamDetectionMode.bassNote.name}),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ModeTab extends StatelessWidget {
+  const _ModeTab({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.color,
+    required this.rounded,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final Color color;
+  final BorderRadius rounded;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 120),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: selected ? color.withValues(alpha: 0.18) : Colors.transparent,
+          borderRadius: rounded,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 10, color: selected ? color : Colors.white30),
+            const SizedBox(width: 3),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                color: selected ? color : Colors.white38,
+                letterSpacing: 0.3,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── BPM lock strip: [Off] [1] [½] [1bar] ─────────────────────────────────────
+
+class _BpmStrip extends StatelessWidget {
+  const _BpmStrip({
+    required this.bpmLockBeats,
+    required this.onUpdate,
+    required this.rack,
+  });
+
+  final int bpmLockBeats;
+  final void Function(RackState, Map<String, dynamic>) onUpdate;
+  final RackState rack;
 
   static const _options = [
     (val: 0, label: 'Off'),
@@ -644,30 +1112,27 @@ class _BpmRow extends StatelessWidget {
       spacing: 3,
       runSpacing: 3,
       children: _options.map((opt) {
-        final sel = d.bpmLockBeats == opt.val;
+        final sel = bpmLockBeats == opt.val;
         return GestureDetector(
-          onTap: () =>
-              d.onUpdate(d.rack, {'bpmLockBeats': opt.val}),
-          child: Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+          onTap: () => onUpdate(rack, {'bpmLockBeats': opt.val}),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 120),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
             decoration: BoxDecoration(
-              color: sel
-                  ? Colors.amberAccent.withValues(alpha: 0.15)
-                  : Colors.white10,
-              borderRadius: BorderRadius.circular(5),
+              color: sel ? _kBpmColor.withValues(alpha: 0.15) : Colors.white.withValues(alpha: 0.04),
+              borderRadius: BorderRadius.circular(3),
               border: Border.all(
-                color: sel
-                    ? Colors.amberAccent.withValues(alpha: 0.7)
-                    : Colors.white24,
+                color: sel ? _kBpmColor.withValues(alpha: 0.65) : Colors.white12,
               ),
             ),
             child: Text(
               opt.label,
               style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  color: sel ? Colors.amberAccent : Colors.white38),
+                fontSize: 9,
+                fontWeight: FontWeight.w800,
+                color: sel ? _kBpmColor : Colors.white30,
+                letterSpacing: 0.3,
+              ),
             ),
           ),
         );
@@ -676,120 +1141,14 @@ class _BpmRow extends StatelessWidget {
   }
 }
 
-// ─── Active scale indicator ───────────────────────────────────────────────────
+// ── Visual toggles: borders + highlight ──────────────────────────────────────
 
-/// Shows the currently active scale with its root note (e.g. "C Major").
-/// Updates live as the master plays new chords or bass notes.
-class _ScaleIndicator extends StatelessWidget {
-  const _ScaleIndicator({
-    required this.plugin,
-    required this.allSlots,
-    required this.d,
-  });
-
-  final GFpaPluginInstance plugin;
-  final List<PluginInstance> allSlots;
-  final _LayoutData d;
-
-  @override
-  Widget build(BuildContext context) {
-    final engine = context.read<AudioEngine>();
-    final masterSlot = allSlots
-        .cast<PluginInstance?>()
-        .firstWhere((s) => s?.id == plugin.masterSlotId, orElse: () => null);
-    if (masterSlot == null) return const SizedBox.shrink();
-
-    final masterCh = masterSlot.midiChannel - 1;
-    if (masterCh < 0 || masterCh >= 16) return const SizedBox.shrink();
-
-    return ListenableBuilder(
-      listenable: Listenable.merge([
-        engine.gfpaJamEntries,
-        engine.channels[masterCh].lastChord,
-        engine.channels[masterCh].activeNotes,
-      ]),
-      builder: (context, _) {
-        final entry = engine.gfpaJamEntries.value
-            .where((e) => e.masterCh == masterCh)
-            .firstOrNull;
-        if (entry == null) return const SizedBox.shrink();
-
-        // Build a display label: "C Minor Blues", "G Pentatonic", etc.
-        // Always prefix with the root note name when it is known.
-        String label;
-        if (entry.bassNoteMode) {
-          final active = engine.channels[masterCh].activeNotes.value;
-          if (active.isNotEmpty) {
-            final rootPc = active.reduce(min) % 12;
-            final synth =
-                ChordMatch(_noteNameFromPc(rootPc), const {}, rootPc, false);
-            final scaleName =
-                engine.getDescriptiveScaleName(synth, entry.scaleType);
-            label = '${_noteNameFromPc(rootPc)} $scaleName';
-          } else {
-            label = engine.getDescriptiveScaleName(null, entry.scaleType);
-          }
-        } else {
-          final chord = engine.channels[masterCh].lastChord.value;
-          final scaleName =
-              engine.getDescriptiveScaleName(chord, entry.scaleType);
-          label = chord != null
-              ? '${_noteNameFromPc(chord.rootPc)} $scaleName'
-              : scaleName;
-        }
-
-        final on = d.enabled;
-        return AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-          decoration: BoxDecoration(
-            color: on
-                ? Colors.deepPurpleAccent.withValues(alpha: 0.18)
-                : Colors.white.withValues(alpha: 0.04),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: on
-                  ? Colors.deepPurpleAccent.withValues(alpha: 0.65)
-                  : Colors.white12,
-              width: 1.5,
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.music_note,
-                size: 13,
-                color: on ? Colors.deepPurpleAccent : Colors.white24,
-              ),
-              const SizedBox(width: 5),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                  color: on ? Colors.white : Colors.white38,
-                  letterSpacing: 0.3,
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
-
-// ─── Visual settings toggles ─────────────────────────────────────────────────
-
-/// Two icon-toggle-buttons controlling the visual display of scale information
-/// on the piano keys of target channels: [border] [highlight].
 class _VisualToggles extends StatelessWidget {
-  const _VisualToggles();
+  const _VisualToggles({required this.engine});
+  final AudioEngine engine;
 
   @override
   Widget build(BuildContext context) {
-    final engine = context.read<AudioEngine>();
     return ListenableBuilder(
       listenable: Listenable.merge([
         engine.showJamModeBorders,
@@ -802,9 +1161,10 @@ class _VisualToggles extends StatelessWidget {
             icon: Icons.border_outer,
             tooltip: 'Show scale borders on keys',
             active: engine.showJamModeBorders.value,
-            color: Colors.blueAccent,
+            color: _kVisualColor,
             onToggle: () {
-              engine.showJamModeBorders.value = !engine.showJamModeBorders.value;
+              engine.showJamModeBorders.value =
+                  !engine.showJamModeBorders.value;
               engine.stateNotifier.value++;
             },
           ),
@@ -815,7 +1175,8 @@ class _VisualToggles extends StatelessWidget {
             active: engine.highlightWrongNotes.value,
             color: Colors.redAccent,
             onToggle: () {
-              engine.highlightWrongNotes.value = !engine.highlightWrongNotes.value;
+              engine.highlightWrongNotes.value =
+                  !engine.highlightWrongNotes.value;
               engine.stateNotifier.value++;
             },
           ),
@@ -850,64 +1211,17 @@ class _VisualToggle extends StatelessWidget {
           duration: const Duration(milliseconds: 120),
           padding: const EdgeInsets.all(4),
           decoration: BoxDecoration(
-            color: active ? color.withValues(alpha: 0.15) : Colors.white10,
-            borderRadius: BorderRadius.circular(5),
+            color: active ? color.withValues(alpha: 0.15) : Colors.white.withValues(alpha: 0.04),
+            borderRadius: BorderRadius.circular(3),
             border: Border.all(
-              color: active ? color.withValues(alpha: 0.7) : Colors.white24,
+              color: active ? color.withValues(alpha: 0.65) : Colors.white12,
             ),
           ),
-          child: Icon(icon, size: 13, color: active ? color : Colors.white38),
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Generic chip ─────────────────────────────────────────────────────────────
-
-class _Chip extends StatelessWidget {
-  const _Chip({
-    required this.label,
-    required this.icon,
-    required this.selected,
-    required this.color,
-    required this.onTap,
-  });
-
-  final String label;
-  final IconData icon;
-  final bool selected;
-  final Color color;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 120),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: selected ? color.withValues(alpha: 0.15) : Colors.white10,
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(
-            color: selected ? color.withValues(alpha: 0.8) : Colors.white24,
+          child: Icon(
+            icon,
+            size: 12,
+            color: active ? color : Colors.white30,
           ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 11, color: selected ? color : Colors.white38),
-            const SizedBox(width: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: selected ? color : Colors.white38,
-              ),
-            ),
-          ],
         ),
       ),
     );
@@ -917,9 +1231,7 @@ class _Chip extends StatelessWidget {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 String _noteNameFromPc(int pc) {
-  const names = [
-    'C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'
-  ];
+  const names = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
   return names[pc % 12];
 }
 

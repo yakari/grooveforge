@@ -386,6 +386,7 @@ class _RackList extends StatelessWidget {
 
             return ReorderableListView.builder(
               scrollController: scrollController,
+              buildDefaultDragHandles: false,
               physics: interacting
                   ? const NeverScrollableScrollPhysics()
                   : const AlwaysScrollableScrollPhysics(),

@@ -54,7 +54,9 @@ class RackState extends ChangeNotifier {
   }
 
   /// Creates the factory defaults: two independent GrooveForge Keyboard slots
-  /// with no Jam following configured (users opt in per-slot).
+  /// (ch 1 = melody / right hand, ch 2 = harmony / left hand) plus a Jam Mode
+  /// slot pre-configured with ch 2 as master and ch 1 as target, inactive by
+  /// default so the user opts in by pressing the LED button.
   void initDefaults() {
     _plugins.clear();
 
@@ -77,6 +79,24 @@ class RackState extends ChangeNotifier {
         soundfontPath: ch1.soundfontPath,
         bank: ch1.bank,
         program: ch1.program,
+      ),
+    );
+
+    // Jam Mode slot: ch2 drives the harmony, ch1 follows.
+    // Starts inactive so the user consciously enables it.
+    _plugins.add(
+      GFpaPluginInstance(
+        id: 'slot-jam-0',
+        pluginId: 'com.grooveforge.jammode',
+        midiChannel: 0,
+        masterSlotId: 'slot-1',
+        targetSlotIds: ['slot-0'],
+        state: {
+          'enabled': false,
+          'scaleType': 'standard',
+          'detectionMode': 'chord',
+          'bpmLockBeats': 0,
+        },
       ),
     );
 

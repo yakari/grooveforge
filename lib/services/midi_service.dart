@@ -24,6 +24,10 @@ class MidiService {
 
   Timer? _pollingTimer;
 
+  /// Guards against concurrent [connect] calls (e.g. polling timer firing
+  /// while [_tryAutoConnect] is already awaiting [connectToDevice]).
+  bool _isConnecting = false;
+
   MidiService() {
     debugPrint('MidiService: Initializing...');
 
@@ -98,14 +102,19 @@ class MidiService {
         }
 
         if (isLastDevice) {
-          try {
-            debugPrint('MidiService: Attempting auto-reconnect to ${device.name}...');
-            await connect(device);
-            debugPrint('MidiService: Auto-reconnected to ${device.name}');
-          } catch (e) {
-            debugPrint('MidiService: Failed to auto-reconnect to ${device.name}: $e');
-            // We DON'T clear the ID here. The user said it works if plugged in later,
-            // so we should keep trying or wait for the next poll.
+          if (_isConnecting) {
+            debugPrint('MidiService: Already connecting — skipping reconnect for ${device.name}');
+          } else {
+            try {
+              debugPrint('MidiService: Attempting auto-reconnect to ${device.name}...');
+              _isConnecting = true;
+              await connect(device);
+              debugPrint('MidiService: Auto-reconnected to ${device.name}');
+            } catch (e) {
+              debugPrint('MidiService: Failed to auto-reconnect to ${device.name}: $e');
+            } finally {
+              _isConnecting = false;
+            }
           }
         } else if (!device.connected) {
           debugPrint('MidiService: Prompting for new device: ${device.name}');
@@ -143,11 +152,16 @@ class MidiService {
                            (lastDeviceName != null && device.name == lastDeviceName);
                            
       if (isLastDevice) {
-        try {
-          await connect(device);
-          debugPrint('MidiService: Initial auto-connect success: ${device.name}');
-        } catch (e) {
-          debugPrint('MidiService: Initial auto-connect failed: $e. Will retry in polling.');
+        if (!_isConnecting) {
+          try {
+            _isConnecting = true;
+            await connect(device);
+            debugPrint('MidiService: Initial auto-connect success: ${device.name}');
+          } catch (e) {
+            debugPrint('MidiService: Initial auto-connect failed: $e. Will retry in polling.');
+          } finally {
+            _isConnecting = false;
+          }
         }
         break;
       }
