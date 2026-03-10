@@ -1480,19 +1480,6 @@ class AudioEngine extends ChangeNotifier {
   /// In chord mode the scale is derived from the chord detected on [entry.masterCh].
   /// In bass-note mode the lowest active note on [entry.masterCh] becomes the root.
   /// Returns the note that [key] would be snapped to on [channel] if it is a
-  /// GFPA Jam Mode follower, otherwise returns [key] unchanged.
-  ///
-  /// Use this when routing MIDI to audio backends that bypass [playNote] (e.g.
-  /// the vocoder's [AudioInputFFI] path).
-  int snapNoteForChannel(int channel, int key) {
-    for (final entry in gfpaJamEntries.value) {
-      if (entry.followerCh == channel) {
-        return _snapKeyToGfpaJam(key, entry);
-      }
-    }
-    return key;
-  }
-
   int _snapKeyToGfpaJam(int key, GFpaJamEntry entry) {
     final masterCh = entry.masterCh;
     Set<int> scalePcs;
