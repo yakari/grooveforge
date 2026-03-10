@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../l10n/app_localizations.dart';
+import '../models/gfpa_plugin_instance.dart';
 import '../models/grooveforge_keyboard_plugin.dart';
 import '../models/plugin_instance.dart';
 import '../models/vst3_plugin_instance.dart';
@@ -9,6 +10,8 @@ import '../services/audio_engine.dart';
 import '../services/rack_state.dart';
 import '../services/vst_host_service.dart';
 import '../widgets/virtual_piano.dart';
+import 'rack/gfpa_jam_mode_slot_ui.dart';
+import 'rack/gfpa_vocoder_slot_ui.dart';
 import 'rack/grooveforge_keyboard_slot_ui.dart';
 import 'rack/vst3_slot_ui.dart';
 
@@ -32,6 +35,7 @@ class RackSlotWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final engine = context.read<AudioEngine>();
+    // midiChannel == 0 for MIDI FX / effect GFPA slots — use ch 0 as fallback.
     final channelIndex = (plugin.midiChannel - 1).clamp(0, 15);
     final channelState = engine.channels[channelIndex];
 
@@ -58,9 +62,9 @@ class RackSlotWidget extends StatelessWidget {
             children: [
               _SlotHeader(plugin: plugin, isFlashing: isFlashing),
               _buildBody(context),
-              // Piano is only shown for built-in GK slots.
-              // VST3 slots receive MIDI from the physical controller.
-              if (plugin is GrooveForgeKeyboardPlugin)
+              // Piano is shown for built-in GK slots and GFPA instrument slots
+              // (keyboard and vocoder). MIDI FX / VST3 / effect slots get none.
+              if (_showPiano)
                 SizedBox(
                   height: pianoHeight,
                   child: _RackSlotPiano(
@@ -75,6 +79,16 @@ class RackSlotWidget extends StatelessWidget {
     );
   }
 
+  bool get _showPiano {
+    if (plugin is GrooveForgeKeyboardPlugin) return true;
+    if (plugin is GFpaPluginInstance) {
+      final gfpa = plugin as GFpaPluginInstance;
+      // Vocoder has a MIDI channel and responds to notes.
+      return gfpa.pluginId == 'com.grooveforge.vocoder';
+    }
+    return false;
+  }
+
   Widget _buildBody(BuildContext context) {
     if (plugin is GrooveForgeKeyboardPlugin) {
       return GrooveForgeKeyboardSlotUI(
@@ -83,6 +97,23 @@ class RackSlotWidget extends StatelessWidget {
     }
     if (plugin is Vst3PluginInstance) {
       return Vst3SlotUI(plugin: plugin as Vst3PluginInstance);
+    }
+    if (plugin is GFpaPluginInstance) {
+      final gfpa = plugin as GFpaPluginInstance;
+      switch (gfpa.pluginId) {
+        case 'com.grooveforge.vocoder':
+          return GFpaVocoderSlotUI(plugin: gfpa);
+        case 'com.grooveforge.jammode':
+          return GFpaJamModeSlotUI(plugin: gfpa);
+        default:
+          return Padding(
+            padding: const EdgeInsets.all(12),
+            child: Text(
+              'Plugin not installed: ${gfpa.pluginId}',
+              style: const TextStyle(color: Colors.orange, fontSize: 12),
+            ),
+          );
+      }
     }
     return const SizedBox.shrink();
   }
@@ -143,14 +174,11 @@ class _SlotHeader extends StatelessWidget {
             ),
           ),
 
-          // ── MIDI channel badge (dropdown)
-          _MidiChannelBadge(plugin: plugin),
-          const SizedBox(width: 4),
-
-          // ── JAM chip (only for built-in keyboard slots)
-          if (plugin is GrooveForgeKeyboardPlugin)
-            _JamChip(plugin: plugin as GrooveForgeKeyboardPlugin),
-          if (plugin is GrooveForgeKeyboardPlugin) const SizedBox(width: 4),
+          // ── MIDI channel badge — hidden for MIDI FX / effect GFPA slots
+          if (plugin.midiChannel > 0) ...[
+            _MidiChannelBadge(plugin: plugin),
+            const SizedBox(width: 4),
+          ],
 
           // ── Delete button
           IconButton(
@@ -167,6 +195,13 @@ class _SlotHeader extends StatelessWidget {
 
   IconData _iconFor(PluginInstance p) {
     if (p is GrooveForgeKeyboardPlugin) return Icons.piano;
+    if (p is GFpaPluginInstance) {
+      switch (p.pluginId) {
+        case 'com.grooveforge.keyboard': return Icons.piano;
+        case 'com.grooveforge.vocoder': return Icons.mic;
+        case 'com.grooveforge.jammode': return Icons.link;
+      }
+    }
     return Icons.extension;
   }
 
@@ -284,232 +319,6 @@ class _MidiChannelBadge extends StatelessWidget {
   }
 }
 
-// ─── JAM chip ────────────────────────────────────────────────────────────────
-//
-// Shows "JAM OFF" / "JAM ON" for GrooveForge Keyboard slots.
-//
-// Behaviour:
-//   • Tapping "JAM OFF" → if no master set yet, shows the master-picker modal
-//     first, then enables Jam. If a master was previously set, re-enables
-//     directly.
-//   • Tapping "JAM ON" → disables Jam (keeps jamMasterSlotId for quick re-enable).
-//   • When JAM ON: an adjacent tappable chip shows the master's MIDI channel and
-//     allows the user to change it.
-
-class _JamChip extends StatelessWidget {
-  final GrooveForgeKeyboardPlugin plugin;
-  const _JamChip({required this.plugin});
-
-  @override
-  Widget build(BuildContext context) {
-    final isOn = plugin.jamEnabled;
-    final rack = context.read<RackState>();
-    final l10n = AppLocalizations.of(context)!;
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // ── JAM toggle button
-        GestureDetector(
-          onTap: () => _handleJamTap(context, rack, l10n),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: isOn
-                  ? Colors.deepPurpleAccent.withValues(alpha: 0.25)
-                  : Colors.white10,
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(
-                color: isOn
-                    ? Colors.deepPurpleAccent.withValues(alpha: 0.8)
-                    : Colors.white24,
-              ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  isOn ? Icons.link : Icons.link_off,
-                  size: 11,
-                  color: isOn ? Colors.deepPurpleAccent : Colors.white38,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  isOn ? l10n.jamSlotOn : l10n.jamSlotOff,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: isOn ? Colors.deepPurpleAccent : Colors.white38,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-
-        // ── Master picker chip (visible only when JAM ON)
-        if (isOn) ...[
-          const SizedBox(width: 3),
-          _MasterPickerChip(plugin: plugin),
-        ],
-      ],
-    );
-  }
-
-  void _handleJamTap(
-    BuildContext context,
-    RackState rack,
-    AppLocalizations l10n,
-  ) {
-    if (plugin.jamEnabled) {
-      // Toggle OFF — keep master for quick re-enable.
-      rack.setPluginJamEnabled(plugin.id, enabled: false);
-    } else if (plugin.jamMasterSlotId == null) {
-      // First activation — must pick a master first.
-      _showMasterPicker(
-        context, rack, l10n,
-        currentPluginId: plugin.id,
-        onPicked: (masterId) {
-          rack.setPluginJamEnabled(plugin.id, enabled: true, masterSlotId: masterId);
-        },
-      );
-    } else {
-      // Re-enable with previously chosen master.
-      rack.setPluginJamEnabled(plugin.id, enabled: true);
-    }
-  }
-
-  static void _showMasterPicker(
-    BuildContext context,
-    RackState rack,
-    AppLocalizations l10n, {
-    required String currentPluginId,
-    void Function(String masterId)? onPicked,
-  }) {
-    // All other slots are candidates for being master.
-    final candidates = rack.plugins
-        .where((p) => p.id != currentPluginId)
-        .toList();
-
-    if (candidates.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.jamSlotNoOtherSlots)),
-      );
-      return;
-    }
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.grey[900],
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(l10n.jamSlotSelectMaster,
-            style: const TextStyle(color: Colors.white)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(l10n.jamSlotSelectMasterHint,
-                style: const TextStyle(color: Colors.white60, fontSize: 12)),
-            const SizedBox(height: 8),
-            ...candidates.map(
-              (p) => ListTile(
-                dense: true,
-                leading: Icon(
-                  p is GrooveForgeKeyboardPlugin ? Icons.piano : Icons.extension,
-                  color: Colors.deepPurpleAccent,
-                  size: 18,
-                ),
-                title: Text(
-                  p.displayName,
-                  style: const TextStyle(color: Colors.white),
-                ),
-                subtitle: Text(
-                  'MIDI CH ${p.midiChannel}',
-                  style: const TextStyle(color: Colors.white54, fontSize: 11),
-                ),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  onPicked?.call(p.id);
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Master picker chip (shown next to JAM ON) ───────────────────────────────
-
-class _MasterPickerChip extends StatelessWidget {
-  final GrooveForgeKeyboardPlugin plugin;
-  const _MasterPickerChip({required this.plugin});
-
-  @override
-  Widget build(BuildContext context) {
-    final rack = context.read<RackState>();
-    final l10n = AppLocalizations.of(context)!;
-
-    // Resolve the display label: show the master's MIDI channel if found.
-    final master = plugin.jamMasterSlotId != null
-        ? rack.plugins.where((p) => p.id == plugin.jamMasterSlotId).firstOrNull
-        : null;
-
-    final label = master != null
-        ? 'CH ${master.midiChannel}'
-        : l10n.jamSlotNoMasterSelected;
-
-    final hasValidMaster = master != null;
-
-    return GestureDetector(
-      onTap: () => _JamChip._showMasterPicker(
-        context,
-        rack,
-        l10n,
-        currentPluginId: plugin.id,
-        onPicked: (masterId) => rack.setPluginJamMaster(plugin.id, masterId),
-      ),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
-        decoration: BoxDecoration(
-          color: hasValidMaster
-              ? Colors.deepPurpleAccent.withValues(alpha: 0.15)
-              : Colors.orangeAccent.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(
-            color: hasValidMaster
-                ? Colors.deepPurpleAccent.withValues(alpha: 0.5)
-                : Colors.orangeAccent.withValues(alpha: 0.6),
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              hasValidMaster ? Icons.arrow_right_alt : Icons.warning_amber,
-              size: 11,
-              color: hasValidMaster ? Colors.deepPurpleAccent : Colors.orangeAccent,
-            ),
-            const SizedBox(width: 3),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                color: hasValidMaster
-                    ? Colors.deepPurpleAccent
-                    : Colors.orangeAccent,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 // ─── Piano (full channel logic, adapted for rack slot) ───────────────────────
 
 class _RackSlotPiano extends StatelessWidget {
@@ -538,6 +347,11 @@ class _RackSlotPiano extends StatelessWidget {
           engine.jamEnabled,
           engine.lockModePreference,
           engine.jamFollowerMap,
+          engine.gfpaJamEntries,
+          // Listen to all channels so rootPc and scale borders refresh when any
+          // master chord or active-note set changes (e.g. bass-note mode).
+          ...engine.channels.map((ch) => ch.lastChord),
+          ...engine.channels.map((ch) => ch.activeNotes),
         ]),
         builder: (context, _) {
           final keysToShow = engine.pianoKeysToShow.value;
@@ -545,14 +359,25 @@ class _RackSlotPiano extends StatelessWidget {
           final hAction = engine.horizontalGestureAction.value;
           final validPcs = state.validPitchClasses.value;
           final followerMap = engine.jamFollowerMap.value;
-          final isFollower =
+          final isLegacyFollower =
               engine.jamEnabled.value && followerMap.containsKey(channelIndex);
+          final gfpaEntries = engine.gfpaJamEntries.value;
+          final gfpaEntry = gfpaEntries.where((e) => e.followerCh == channelIndex).firstOrNull;
+          final isFollower = isLegacyFollower || gfpaEntry != null;
 
           int? rootPc;
-          if (isFollower) {
+          if (isLegacyFollower) {
             final masterIdx = followerMap[channelIndex]!;
             if (masterIdx >= 0 && masterIdx < engine.channels.length) {
               rootPc = engine.channels[masterIdx].lastChord.value?.rootPc;
+            }
+          } else if (gfpaEntry != null) {
+            final masterCh = gfpaEntry.masterCh;
+            if (gfpaEntry.bassNoteMode) {
+              final active = engine.channels[masterCh].activeNotes.value;
+              if (active.isNotEmpty) rootPc = active.reduce((a, b) => a < b ? a : b) % 12;
+            } else {
+              rootPc = engine.channels[masterCh].lastChord.value?.rootPc;
             }
           }
 

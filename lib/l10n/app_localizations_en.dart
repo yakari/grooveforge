@@ -565,6 +565,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get rackAddGrooveForgeKeyboardSubtitle => 'Built-in synth & vocoder';
 
   @override
+  String get rackAddVocoder => 'Vocoder';
+
+  @override
+  String get rackAddVocoderSubtitle => 'Mic-driven voice synthesizer (GFPA)';
+
+  @override
+  String get rackAddJamMode => 'Jam Mode';
+
+  @override
+  String get rackAddJamModeSubtitle =>
+      'Scale-lock a keyboard slot to another\'s harmony';
+
+  @override
   String get rackAddVst3 => 'Browse VST3 Plugin…';
 
   @override

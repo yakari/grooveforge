@@ -1,12 +1,19 @@
 import 'grooveforge_keyboard_plugin.dart';
+import 'gfpa_plugin_instance.dart';
 import 'vst3_plugin_instance.dart';
 
 /// Abstract base for every slot that can live in the GrooveForge rack.
 ///
-/// Concrete subtypes: [GrooveForgeKeyboardPlugin], [Vst3PluginInstance].
+/// Concrete subtypes:
+///   - [GrooveForgeKeyboardPlugin] — built-in keyboard / vocoder (legacy model)
+///   - [Vst3PluginInstance]        — external VST3 plugin (desktop only)
+///   - [GFpaPluginInstance]        — GFPA plugin (all platforms, Phase 3+)
 abstract class PluginInstance {
   String get id;
-  int get midiChannel; // 1-16, user-facing
+
+  /// MIDI channel (1–16) for instrument slots.
+  /// 0 = no MIDI channel for [GFpaPluginInstance] effect / MIDI FX slots.
+  int get midiChannel;
   set midiChannel(int v);
 
   /// Human-readable name shown in the rack slot header.
@@ -23,6 +30,8 @@ abstract class PluginInstance {
         return GrooveForgeKeyboardPlugin.fromJson(json);
       case 'vst3':
         return Vst3PluginInstance.fromJson(json);
+      case 'gfpa':
+        return GFpaPluginInstance.fromJson(json);
       default:
         throw ArgumentError('Unknown plugin type: $type');
     }

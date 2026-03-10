@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:grooveforge_plugin_api/grooveforge_plugin_api.dart';
 import 'package:provider/provider.dart';
 import '../models/vst3_plugin_instance.dart';
+import '../plugins/gf_keyboard_plugin.dart';
+import '../plugins/gf_jam_mode_plugin.dart';
+import '../plugins/gf_vocoder_plugin.dart';
 import '../services/audio_engine.dart';
 import '../services/project_service.dart';
 import '../services/rack_state.dart';
@@ -39,6 +43,10 @@ class _SplashScreenState extends State<SplashScreen> {
     await Future.delayed(const Duration(milliseconds: 100));
     await engine.init();
 
+    // Register built-in GFPA plugins so GFpaPluginInstance slots can resolve
+    // their runtime implementations from GFPluginRegistry.
+    _registerBuiltinGfpaPlugins(engine);
+
     if (!mounted) return;
     engine.initStatus.value = 'Restoring rack state...';
     final projectService = ProjectService();
@@ -71,6 +79,17 @@ class _SplashScreenState extends State<SplashScreen> {
         transitionDuration: const Duration(milliseconds: 500),
       ),
     );
+  }
+
+  /// Register all first-party GFPA plugins with [GFPluginRegistry].
+  ///
+  /// Called once after [AudioEngine.init] so that plugin implementations that
+  /// hold an [AudioEngine] reference are initialised with the live engine.
+  void _registerBuiltinGfpaPlugins(AudioEngine engine) {
+    final registry = GFPluginRegistry.instance;
+    registry.register(GFKeyboardPlugin(engine));
+    registry.register(GFVocoderPlugin(engine));
+    registry.register(GFJamModePlugin(engine));
   }
 
   String _getLocalizedStatus(BuildContext context, String status) {

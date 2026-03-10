@@ -1,3 +1,5 @@
+import 'dart:math' show min;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -45,36 +47,72 @@ class GrooveForgeKeyboardSlotUI extends StatelessWidget {
         engine.jamEnabled,
         engine.jamFollowerMap,
         engine.jamScaleType,
+        engine.gfpaJamEntries,
         engine.stateNotifier,
         state.lastChord,
         state.isScaleLocked,
         state.currentScaleType,
         state.activeNotes,
-        // Listen to all channels' chords so the follower updates when the
-        // master plays, without needing a dynamic listener.
+        // Listen to all channels so follower updates when master plays.
         ...engine.channels.map((ch) => ch.lastChord),
+        ...engine.channels.map((ch) => ch.activeNotes),
       ]),
       builder: (context, _) {
         final lockMode = engine.lockModePreference.value;
         final followerMap = engine.jamFollowerMap.value;
-        final isFollower =
+        final isLegacyFollower =
             engine.jamEnabled.value && followerMap.containsKey(channelIndex);
 
-        final masterCh = isFollower ? followerMap[channelIndex]! : -1;
-        final jamScale = engine.jamScaleType.value;
+        // GFPA Jam follower detection
+        final gfpaEntry = engine.gfpaJamEntries.value
+            .where((e) => e.followerCh == channelIndex)
+            .firstOrNull;
+        final isGfpaFollower = gfpaEntry != null;
+        final isFollower = isLegacyFollower || isGfpaFollower;
+
         final lastChord = state.lastChord.value;
         final isLocked = state.isScaleLocked.value;
         final currentScale = state.currentScaleType.value;
 
-        final refChord = (isFollower && masterCh >= 0)
-            ? engine.channels[masterCh].lastChord.value
-            : lastChord;
-        final scaleToDisplay = isFollower ? jamScale : currentScale;
-        final descriptiveName = engine.getDescriptiveScaleName(
-          refChord,
-          scaleToDisplay,
-        );
+        // Determine master channel + scale type for this follower
+        final int masterChIdx;
+        final ScaleType scaleToDisplay;
+        if (isLegacyFollower) {
+          masterChIdx = followerMap[channelIndex]!;
+          scaleToDisplay = engine.jamScaleType.value;
+        } else if (isGfpaFollower) {
+          masterChIdx = gfpaEntry.masterCh;
+          scaleToDisplay = gfpaEntry.scaleType;
+        } else {
+          masterChIdx = -1;
+          scaleToDisplay = currentScale;
+        }
 
+        // Reference chord: from master (chord mode) or synthesised from bass
+        // note (bass note mode), falling back to own chord when standalone.
+        ChordMatch? refChord;
+        if (isLegacyFollower && masterChIdx >= 0) {
+          refChord = engine.channels[masterChIdx].lastChord.value;
+        } else if (isGfpaFollower) {
+          if (gfpaEntry.bassNoteMode) {
+            final active = engine.channels[masterChIdx].activeNotes.value;
+            if (active.isNotEmpty) {
+              final rootPc = active.reduce(min) % 12;
+              // Synthetic chord so the scale name carries the root note.
+              refChord = ChordMatch(
+                  _noteNameFromPc(rootPc), const {}, rootPc, false);
+            }
+          } else {
+            refChord = masterChIdx >= 0
+                ? engine.channels[masterChIdx].lastChord.value
+                : null;
+          }
+        } else {
+          refChord = lastChord;
+        }
+
+        final descriptiveName =
+            engine.getDescriptiveScaleName(refChord, scaleToDisplay);
         final activeNotes = state.activeNotes.value;
 
         final chordToDisplay = isFollower && refChord != null
@@ -88,7 +126,6 @@ class GrooveForgeKeyboardSlotUI extends StatelessWidget {
 
         final lockToDisplay =
             isFollower || (lockMode == ScaleLockMode.classic && isLocked);
-
         final shouldShowLockUI = lockMode == ScaleLockMode.classic || isFollower;
 
         return Padding(
@@ -108,7 +145,8 @@ class GrooveForgeKeyboardSlotUI extends StatelessWidget {
             descriptiveScaleName: descriptiveName,
             isJamSlave: isFollower,
             showLockControls: shouldShowLockUI,
-            onLockToggled: lockMode == ScaleLockMode.jam
+            // GFPA followers: lock is controlled by the Jam rack, not per-channel
+            onLockToggled: (isGfpaFollower || lockMode == ScaleLockMode.jam)
                 ? null
                 : () {
                     state.isScaleLocked.value = !state.isScaleLocked.value;
@@ -123,4 +161,12 @@ class GrooveForgeKeyboardSlotUI extends StatelessWidget {
       },
     );
   }
+}
+
+/// Maps a MIDI pitch class (0–11) to a display note name.
+String _noteNameFromPc(int pc) {
+  const names = [
+    'C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'
+  ];
+  return names[pc % 12];
 }

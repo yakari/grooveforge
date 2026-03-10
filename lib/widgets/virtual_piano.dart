@@ -279,7 +279,7 @@ class _VirtualPianoState extends State<VirtualPiano> {
       final wkw = constraints.maxWidth / maxWK;
       final bkw = wkw * 0.6;
       final totalH = constraints.maxHeight == double.infinity ? 100.0 : constraints.maxHeight;
-      const sbPad = 16.0;
+      const sbPad = 32.0; // must match the scrollbar Container height below
       final kh = totalH > sbPad ? totalH - sbPad : totalH;
       final totalW = wkw * wKeys.length;
 
@@ -451,7 +451,7 @@ class _PianoKeysPainter extends CustomPainter {
       final isRoot = rootPitchClass != null && note % 12 == rootPitchClass;
       if (isActive || isRoot) {
         _label(canvas, _noteName(note),
-            isActive ? Colors.white : Colors.blueAccent,
+            isActive ? Colors.indigo.shade900 : Colors.blueAccent,
             isActive ? 10 : 9,
             x + wkw / 2, keyHeight);
       }

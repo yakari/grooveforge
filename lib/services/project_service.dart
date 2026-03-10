@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 
+import '../models/gfpa_plugin_instance.dart';
 import 'rack_state.dart';
 import 'audio_engine.dart';
 
@@ -41,9 +42,14 @@ class ProjectService {
   /// autosave file. Errors are swallowed and printed as debug output.
   Future<void> autosave(RackState rackState, AudioEngine engine) async {
     try {
-      // Snapshot vocoder params for any active vocoder slot before saving.
+      // Snapshot vocoder params for any active vocoder slot before saving
+      // (both legacy GK-slot vocoder mode and standalone GFPA vocoder slots).
       for (final plugin in rackState.plugins) {
         rackState.snapshotVocoderParams(plugin.id);
+        if (plugin is GFpaPluginInstance &&
+            plugin.pluginId == 'com.grooveforge.vocoder') {
+          rackState.snapshotGfpaVocoderParams(plugin.id);
+        }
       }
       final path = await _autosavePath();
       await _writeGfFile(path, rackState, engine);
@@ -81,6 +87,10 @@ class ProjectService {
     // Snapshot vocoder params before saving.
     for (final plugin in rackState.plugins) {
       rackState.snapshotVocoderParams(plugin.id);
+      if (plugin is GFpaPluginInstance &&
+          plugin.pluginId == 'com.grooveforge.vocoder') {
+        rackState.snapshotGfpaVocoderParams(plugin.id);
+      }
     }
 
     // On mobile, default to the documents directory.

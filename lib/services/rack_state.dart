@@ -1,10 +1,13 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 
+import '../models/gfpa_plugin_instance.dart';
 import '../models/plugin_instance.dart';
 import '../models/grooveforge_keyboard_plugin.dart';
 import '../models/vst3_plugin_instance.dart';
+import '../plugins/gf_vocoder_plugin.dart';
 import 'audio_engine.dart';
+import 'package:grooveforge_plugin_api/grooveforge_plugin_api.dart';
 
 /// Manages the ordered list of plugin slots in the GrooveForge rack.
 ///
@@ -47,6 +50,7 @@ class RackState extends ChangeNotifier {
     _applyAllPluginsToEngine();
     _syncJamFollowerMapToEngine();
     notifyListeners();
+    _notifyChanged();
   }
 
   /// Creates the factory defaults: two independent GrooveForge Keyboard slots
@@ -87,6 +91,8 @@ class RackState extends ChangeNotifier {
     _plugins.add(plugin);
     if (plugin is GrooveForgeKeyboardPlugin) {
       _applyPluginToEngine(plugin);
+    } else if (plugin is GFpaPluginInstance) {
+      _applyGfpaPluginToEngine(plugin);
     }
     _syncJamFollowerMapToEngine();
     notifyListeners();
@@ -94,10 +100,14 @@ class RackState extends ChangeNotifier {
   }
 
   void removePlugin(String id) {
-    // Clear jamMasterSlotId references to the removed slot on other plugins.
+    // Clear references to the removed slot on all dependent plugins.
     for (final p in _plugins) {
       if (p is GrooveForgeKeyboardPlugin && p.jamMasterSlotId == id) {
         p.jamMasterSlotId = null;
+      }
+      if (p is GFpaPluginInstance) {
+        if (p.masterSlotId == id) p.masterSlotId = null;
+        p.targetSlotIds.remove(id);
       }
     }
     _plugins.removeWhere((p) => p.id == id);
@@ -151,31 +161,6 @@ class RackState extends ChangeNotifier {
     _notifyChanged();
   }
 
-  /// Enable or disable Jam following on a slot, optionally setting the master
-  /// at the same time.
-  void setPluginJamEnabled(
-    String id, {
-    required bool enabled,
-    String? masterSlotId,
-  }) {
-    final plugin = _findGKById(id);
-    if (plugin == null) return;
-    plugin.jamEnabled = enabled;
-    if (masterSlotId != null) plugin.jamMasterSlotId = masterSlotId;
-    _syncJamFollowerMapToEngine();
-    notifyListeners();
-    _notifyChanged();
-  }
-
-  /// Change the master slot that a follower slot is watching.
-  void setPluginJamMaster(String id, String? masterSlotId) {
-    final plugin = _findGKById(id);
-    if (plugin == null) return;
-    plugin.jamMasterSlotId = masterSlotId;
-    _syncJamFollowerMapToEngine();
-    notifyListeners();
-    _notifyChanged();
-  }
 
   /// Persist a VST3 parameter value change in the rack model for .gf saving.
   void setVst3Parameter(String id, int paramId, double value) {
@@ -198,6 +183,110 @@ class RackState extends ChangeNotifier {
     plugin.vocoderInputGain = _engine.vocoderInputGain.value;
   }
 
+  /// Snapshot the engine's current vocoder params into a GFPA vocoder slot's
+  /// [GFpaPluginInstance.state] so they are persisted in .gf files.
+  void snapshotGfpaVocoderParams(String id) {
+    final plugin = _findGfpaById(id);
+    if (plugin == null || plugin.pluginId != 'com.grooveforge.vocoder') return;
+    final registry = GFPluginRegistry.instance;
+    final gfPlugin = registry.findById('com.grooveforge.vocoder');
+    if (gfPlugin is GFVocoderPlugin) {
+      gfPlugin.snapshotFromEngine();
+      plugin.state = gfPlugin.getState();
+    } else {
+      // Fallback: read directly from engine notifiers.
+      plugin.state = {
+        'waveform': _engine.vocoderWaveform.value,
+        'noiseMix': _engine.vocoderNoiseMix.value,
+        'envRelease': _engine.vocoderEnvRelease.value,
+        'bandwidth': _engine.vocoderBandwidth.value,
+        'gateThreshold': _engine.vocoderGateThreshold.value,
+        'inputGain': _engine.vocoderInputGain.value,
+      };
+    }
+  }
+
+  /// Update the master slot for a Jam Mode GFPA slot.
+  void setJamModeMaster(String id, String? masterSlotId) {
+    final plugin = _findGfpaById(id);
+    if (plugin == null || plugin.pluginId != 'com.grooveforge.jammode') return;
+    plugin.masterSlotId = masterSlotId;
+    _syncJamFollowerMapToEngine();
+    notifyListeners();
+    _notifyChanged();
+  }
+
+  /// Add a target slot to a Jam Mode GFPA slot (multi-target support).
+  void addJamModeTarget(String id, String targetSlotId) {
+    final plugin = _findGfpaById(id);
+    if (plugin == null || plugin.pluginId != 'com.grooveforge.jammode') return;
+    if (!plugin.targetSlotIds.contains(targetSlotId)) {
+      plugin.targetSlotIds.add(targetSlotId);
+    }
+    _syncJamFollowerMapToEngine();
+    notifyListeners();
+    _notifyChanged();
+  }
+
+  /// Remove a target slot from a Jam Mode GFPA slot.
+  void removeJamModeTarget(String id, String targetSlotId) {
+    final plugin = _findGfpaById(id);
+    if (plugin == null || plugin.pluginId != 'com.grooveforge.jammode') return;
+    plugin.targetSlotIds.remove(targetSlotId);
+    _syncJamFollowerMapToEngine();
+    notifyListeners();
+    _notifyChanged();
+  }
+
+  /// Toggle the enabled state of a GFPA Jam Mode slot.
+  void setJamModeEnabled(String id, {required bool enabled}) {
+    final plugin = _findGfpaById(id);
+    if (plugin == null || plugin.pluginId != 'com.grooveforge.jammode') return;
+    plugin.state = {...plugin.state, 'enabled': enabled};
+    _syncJamFollowerMapToEngine();
+    notifyListeners();
+    _notifyChanged();
+  }
+
+  // Keep old setJamModeConnections for any call sites not yet migrated.
+  void setJamModeConnections(
+    String id, {
+    String? masterSlotId,
+    bool clearMaster = false,
+    String? targetSlotId,
+    bool clearTarget = false,
+  }) {
+    final plugin = _findGfpaById(id);
+    if (plugin == null || plugin.pluginId != 'com.grooveforge.jammode') return;
+    if (clearMaster) {
+      plugin.masterSlotId = null;
+    } else if (masterSlotId != null) {
+      plugin.masterSlotId = masterSlotId;
+    }
+    if (clearTarget && targetSlotId != null) {
+      plugin.targetSlotIds.remove(targetSlotId);
+    } else if (targetSlotId != null &&
+        !plugin.targetSlotIds.contains(targetSlotId)) {
+      plugin.targetSlotIds.add(targetSlotId);
+    }
+    _syncJamFollowerMapToEngine();
+    notifyListeners();
+    _notifyChanged();
+  }
+
+  /// Update the full state map of a GFPA plugin slot (triggers autosave).
+  void setGfpaPluginState(String id, Map<String, dynamic> state) {
+    final plugin = _findGfpaById(id);
+    if (plugin == null) return;
+    plugin.state = state;
+    // Re-sync the engine immediately so scale/detection-mode changes take
+    // effect without requiring a stop/restart of Jam Mode.
+    if (plugin.pluginId == 'com.grooveforge.jammode') {
+      _syncJamFollowerMapToEngine();
+    }
+    _notifyChanged();
+  }
+
   // ─── Serialisation ────────────────────────────────────────────────────────
 
   List<Map<String, dynamic>> toJson() =>
@@ -207,7 +296,38 @@ class RackState extends ChangeNotifier {
 
   void _applyAllPluginsToEngine() {
     for (final p in _plugins) {
-      if (p is GrooveForgeKeyboardPlugin) _applyPluginToEngine(p);
+      if (p is GrooveForgeKeyboardPlugin) {
+        _applyPluginToEngine(p);
+      } else if (p is GFpaPluginInstance) {
+        _applyGfpaPluginToEngine(p);
+      }
+    }
+  }
+
+  void _applyGfpaPluginToEngine(GFpaPluginInstance plugin) {
+    switch (plugin.pluginId) {
+      case 'com.grooveforge.vocoder':
+        if (plugin.midiChannel > 0) {
+          _engine.assignSoundfontToChannel(
+            plugin.midiChannel - 1,
+            'vocoderMode',
+          );
+          // Restore saved params into the engine.
+          final s = plugin.state;
+          _engine.vocoderWaveform.value =
+              (s['waveform'] as num?)?.toInt() ?? 0;
+          _engine.vocoderNoiseMix.value =
+              (s['noiseMix'] as num?)?.toDouble() ?? 0.05;
+          _engine.vocoderEnvRelease.value =
+              (s['envRelease'] as num?)?.toDouble() ?? 0.02;
+          _engine.vocoderBandwidth.value =
+              (s['bandwidth'] as num?)?.toDouble() ?? 0.2;
+          _engine.vocoderGateThreshold.value =
+              (s['gateThreshold'] as num?)?.toDouble() ?? 0.01;
+          _engine.vocoderInputGain.value =
+              (s['inputGain'] as num?)?.toDouble() ?? 1.0;
+          _engine.updateVocoderParameters();
+        }
     }
   }
 
@@ -236,30 +356,72 @@ class RackState extends ChangeNotifier {
     }
   }
 
-  /// Builds the follower map from the current rack's per-slot jam configuration
-  /// and pushes it to [AudioEngine.jamFollowerMap].
+  /// Syncs jam state to the engine.
   ///
-  /// follower channel (0-indexed) → master channel (0-indexed).
+  /// - Legacy [GrooveForgeKeyboardPlugin] slots → [AudioEngine.jamFollowerMap]
+  ///   (controlled by the global [AudioEngine.jamEnabled] toggle).
+  /// - GFPA Jam Mode slots → [AudioEngine.gfpaJamEntries]
+  ///   (independent per-slot enable/disable, own scale and detection mode).
   void _syncJamFollowerMapToEngine() {
-    final map = <int, int>{};
+    final legacyMap = <int, int>{};
+    final gfpaEntries = <GFpaJamEntry>[];
 
     for (final p in _plugins) {
-      if (p is! GrooveForgeKeyboardPlugin) continue;
-      if (!p.jamEnabled || p.jamMasterSlotId == null) continue;
+      if (p is GrooveForgeKeyboardPlugin) {
+        if (!p.jamEnabled || p.jamMasterSlotId == null) continue;
+        final master = _findById(p.jamMasterSlotId!);
+        if (master == null) continue;
+        final followerCh = p.midiChannel - 1;
+        final masterCh = master.midiChannel - 1;
+        if (followerCh >= 0 &&
+            followerCh < 16 &&
+            masterCh >= 0 &&
+            masterCh < 16 &&
+            followerCh != masterCh) {
+          legacyMap[followerCh] = masterCh;
+        }
+      } else if (p is GFpaPluginInstance &&
+          p.pluginId == 'com.grooveforge.jammode') {
+        // Slot-level enabled flag (defaults to true when absent).
+        if (p.state['enabled'] == false) continue;
+        if (p.targetSlotIds.isEmpty || p.masterSlotId == null) continue;
+        final master = _findById(p.masterSlotId!);
+        if (master == null) continue;
+        final masterCh = master.midiChannel - 1;
+        if (masterCh < 0 || masterCh >= 16) continue;
 
-      final master = _findById(p.jamMasterSlotId!);
-      if (master == null) continue;
+        final scaleType = _parseScaleType(p.state['scaleType'] as String?);
+        final bassNoteMode = p.state['detectionMode'] == 'bassNote';
 
-      final followerCh = p.midiChannel - 1;
-      final masterCh = master.midiChannel - 1;
-      if (followerCh >= 0 && followerCh < 16 &&
-          masterCh >= 0 && masterCh < 16 &&
-          followerCh != masterCh) {
-        map[followerCh] = masterCh;
+        for (final targetId in p.targetSlotIds) {
+          final target = _findById(targetId);
+          if (target == null) continue;
+          final followerCh = target.midiChannel - 1;
+          if (followerCh < 0 || followerCh >= 16 || followerCh == masterCh) {
+            continue;
+          }
+          gfpaEntries.add(
+            GFpaJamEntry(
+              masterCh: masterCh,
+              followerCh: followerCh,
+              scaleType: scaleType,
+              bassNoteMode: bassNoteMode,
+            ),
+          );
+        }
       }
     }
 
-    _engine.jamFollowerMap.value = map;
+    _engine.jamFollowerMap.value = legacyMap;
+    _engine.gfpaJamEntries.value = gfpaEntries;
+  }
+
+  ScaleType _parseScaleType(String? s) {
+    if (s == null) return ScaleType.standard;
+    return ScaleType.values.firstWhere(
+      (v) => v.name == s,
+      orElse: () => ScaleType.standard,
+    );
   }
 
   // ─── Helpers ─────────────────────────────────────────────────────────────
@@ -277,13 +439,22 @@ class RackState extends ChangeNotifier {
     return p is GrooveForgeKeyboardPlugin ? p : null;
   }
 
+  GFpaPluginInstance? _findGfpaById(String id) {
+    final p = _findById(id);
+    return p is GFpaPluginInstance ? p : null;
+  }
+
   void _notifyChanged() {
     Timer.run(() => onChanged?.call());
   }
 
-  /// Returns the next unused MIDI channel (1-16), or -1 if all are taken.
+  /// Returns the next unused MIDI channel (1–16), or -1 if all are taken.
+  /// Slots with [midiChannel] == 0 (MIDI FX / pure effect) are not counted.
   int nextAvailableMidiChannel() {
-    final used = _plugins.map((p) => p.midiChannel).toSet();
+    final used = _plugins
+        .where((p) => p.midiChannel > 0)
+        .map((p) => p.midiChannel)
+        .toSet();
     for (int ch = 1; ch <= 16; ch++) {
       if (!used.contains(ch)) return ch;
     }

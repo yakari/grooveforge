@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:async';
+import 'dart:math' show min;
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -16,6 +17,33 @@ import 'package:grooveforge/services/audio_input_ffi.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 const String vocoderMode = 'vocoderMode';
+
+/// A single GFPA-managed jam connection.
+///
+/// Independent of the legacy [AudioEngine.jamEnabled] / [AudioEngine.jamFollowerMap]
+/// / [AudioEngine.jamScaleType] system. Multiple entries with different
+/// [followerCh] values are supported — one per configured (master, target) pair
+/// across all active GFPA Jam Mode slots.
+class GFpaJamEntry {
+  const GFpaJamEntry({
+    required this.masterCh,
+    required this.followerCh,
+    required this.scaleType,
+    required this.bassNoteMode,
+  });
+
+  /// 0-indexed master MIDI channel (chord/bass detection source).
+  final int masterCh;
+
+  /// 0-indexed follower MIDI channel (notes are snapped here).
+  final int followerCh;
+
+  final ScaleType scaleType;
+
+  /// When true, uses the lowest active note on [masterCh] as the scale root
+  /// instead of the chord-based detection.
+  final bool bassNoteMode;
+}
 
 enum ScaleType {
   standard,
@@ -327,7 +355,7 @@ class AudioEngine extends ChangeNotifier {
 
   /// User preference selecting between independent channels (Classic) or central intelligence (Jam).
   final ValueNotifier<ScaleLockMode> lockModePreference = ValueNotifier(
-    ScaleLockMode.jam,
+    ScaleLockMode.classic,
   );
 
   /// Whether the Jam Mode feature is actively engaged overriding independent scales.
@@ -339,6 +367,13 @@ class AudioEngine extends ChangeNotifier {
   /// as a key in this map will have its notes snapped to the master's detected scale
   /// when [jamEnabled] is true.
   final ValueNotifier<Map<int, int>> jamFollowerMap = ValueNotifier({});
+
+  /// GFPA-managed jam entries, updated by [RackState] whenever a Jam Mode slot
+  /// is added, removed, enabled, or reconfigured.
+  ///
+  /// These entries are applied in [playNote] independently of [jamEnabled] —
+  /// each GFPA Jam Mode slot has its own enabled flag and scale choice.
+  final ValueNotifier<List<GFpaJamEntry>> gfpaJamEntries = ValueNotifier([]);
 
   /// The template scale (e.g. Minor Pentatonic) applied based on the Master's root note.
   final ValueNotifier<ScaleType> jamScaleType = ValueNotifier(
@@ -435,6 +470,7 @@ class AudioEngine extends ChangeNotifier {
     jamEnabled.addListener(_propagateJamScaleUpdate);
     jamFollowerMap.addListener(_propagateJamScaleUpdate);
     jamScaleType.addListener(_propagateJamScaleUpdate);
+    gfpaJamEntries.addListener(_propagateJamScaleUpdate);
     jamScaleType.addListener(_saveState);
     showJamModeBorders.addListener(_saveState);
     highlightWrongNotes.addListener(_saveState);
@@ -1063,13 +1099,22 @@ class AudioEngine extends ChangeNotifier {
         channels[channel].currentScaleType.value,
       );
     }
-    // Jam Mode Scale Lock — per-slot following
+    // Legacy Jam Mode Scale Lock (global toggle + JamSessionWidget scale)
     else if (jamEnabled.value &&
         jamFollowerMap.value.containsKey(channel)) {
       final masterIdx = jamFollowerMap.value[channel]!;
       final masterChord = channels[masterIdx].lastChord.value;
       if (masterChord != null) {
         keyToPlay = _snapKeyToScale(key, masterChord, jamScaleType.value);
+      }
+    }
+    // GFPA Jam Mode — independent of global jamEnabled, per-slot scale/mode
+    else {
+      for (final entry in gfpaJamEntries.value) {
+        if (entry.followerCh == channel) {
+          keyToPlay = _snapKeyToGfpaJam(key, entry);
+          break;
+        }
       }
     }
 
@@ -1241,6 +1286,31 @@ class AudioEngine extends ChangeNotifier {
         channels[channel].validPitchClasses.value = allowedPcs;
       }
     }
+
+    // Propagate validPitchClasses to GFPA Jam Mode followers watching this channel
+    for (final entry in gfpaJamEntries.value.where((e) => e.masterCh == channel)) {
+      final followerCh = entry.followerCh;
+      if (followerCh < 0 || followerCh >= 16) continue;
+      if (entry.bassNoteMode) {
+        // Bass note: root is the lowest currently active note
+        if (notes.isNotEmpty) {
+          final rootPc = notes.reduce(min) % 12;
+          final intervals = _gfpaBassNoteIntervals(entry.scaleType);
+          channels[followerCh].validPitchClasses.value =
+              intervals.map((i) => (rootPc + i) % 12).toSet();
+        }
+        // When notes are empty keep the previous scale so the piano stays highlighted
+      } else {
+        // Chord mode: use the detected chord root
+        final effectiveMatch = match ?? channels[channel].lastChord.value;
+        if (effectiveMatch != null) {
+          final info = _getScaleInfo(effectiveMatch, entry.scaleType);
+          final allowedPcs =
+              info.intervals.map((i) => (effectiveMatch.rootPc + i) % 12).toSet();
+          channels[followerCh].validPitchClasses.value = allowedPcs;
+        }
+      }
+    }
   }
 
   /// Forces a resynchronization of valid pitch classes across all channels.
@@ -1248,9 +1318,14 @@ class AudioEngine extends ChangeNotifier {
   /// Called when Jam Mode settings change (e.g., follower map changed, scale type changed).
   /// Clears follower pitch constraints if Jam is disabled; re-applies master scales when on.
   void _propagateJamScaleUpdate() {
-    if (!jamEnabled.value || jamFollowerMap.value.isEmpty) {
-      // Clear jam-derived pitch classes on all non-classically-locked channels.
+    final hasLegacyJam = jamEnabled.value && jamFollowerMap.value.isNotEmpty;
+    final gfpaFollowers = gfpaJamEntries.value.map((e) => e.followerCh).toSet();
+
+    // ── Clear non-active channels ─────────────────────────────────────────
+    if (!hasLegacyJam) {
+      // Legacy jam is off: clear channels that are not GFPA followers.
       for (int i = 0; i < 16; i++) {
+        if (gfpaFollowers.contains(i)) continue; // GFPA handles these below
         if (lockModePreference.value != ScaleLockMode.classic ||
             !channels[i].isScaleLocked.value) {
           channels[i].validPitchClasses.value = null;
@@ -1267,24 +1342,55 @@ class AudioEngine extends ChangeNotifier {
           }
         }
       }
-      stateNotifier.value++;
-      return;
+      if (gfpaJamEntries.value.isEmpty) {
+        stateNotifier.value++;
+        return; // Nothing more to propagate
+      }
     }
 
-    // For each unique master, propagate its scale to all its followers.
-    final masterIndices = jamFollowerMap.value.values.toSet();
-    for (final masterIdx in masterIndices) {
-      if (masterIdx < 0 || masterIdx >= 16) continue;
-      final masterChord = channels[masterIdx].lastChord.value;
-      if (masterChord == null) continue;
+    // ── Legacy Jam: propagate master scale to legacy followers ────────────
+    if (hasLegacyJam) {
+      final masterIndices = jamFollowerMap.value.values.toSet();
+      for (final masterIdx in masterIndices) {
+        if (masterIdx < 0 || masterIdx >= 16) continue;
+        final masterChord = channels[masterIdx].lastChord.value;
+        if (masterChord == null) continue;
 
-      final info = _getScaleInfo(masterChord, jamScaleType.value);
-      final root = masterChord.rootPc;
-      final allowedPcs = info.intervals.map((i) => (root + i) % 12).toSet();
+        final info = _getScaleInfo(masterChord, jamScaleType.value);
+        final root = masterChord.rootPc;
+        final allowedPcs = info.intervals.map((i) => (root + i) % 12).toSet();
 
-      for (final entry in jamFollowerMap.value.entries) {
-        if (entry.value == masterIdx && entry.key >= 0 && entry.key < 16) {
-          channels[entry.key].validPitchClasses.value = allowedPcs;
+        for (final entry in jamFollowerMap.value.entries) {
+          if (entry.value == masterIdx && entry.key >= 0 && entry.key < 16) {
+            channels[entry.key].validPitchClasses.value = allowedPcs;
+          }
+        }
+      }
+    }
+
+    // ── GFPA Jam: propagate scale to GFPA follower channels ──────────────
+    for (final entry in gfpaJamEntries.value) {
+      final masterCh = entry.masterCh;
+      final followerCh = entry.followerCh;
+      if (followerCh < 0 || followerCh >= 16) continue;
+      if (entry.bassNoteMode) {
+        final active = channels[masterCh].activeNotes.value;
+        if (active.isNotEmpty) {
+          final rootPc = active.reduce(min) % 12;
+          final intervals = _gfpaBassNoteIntervals(entry.scaleType);
+          channels[followerCh].validPitchClasses.value =
+              intervals.map((i) => (rootPc + i) % 12).toSet();
+        } else {
+          channels[followerCh].validPitchClasses.value = null;
+        }
+      } else {
+        final masterChord = channels[masterCh].lastChord.value;
+        if (masterChord != null) {
+          final info = _getScaleInfo(masterChord, entry.scaleType);
+          channels[followerCh].validPitchClasses.value =
+              info.intervals.map((i) => (masterChord.rootPc + i) % 12).toSet();
+        } else {
+          channels[followerCh].validPitchClasses.value = null;
         }
       }
     }
@@ -1485,6 +1591,98 @@ class AudioEngine extends ChangeNotifier {
       }
     }
     return bestKey;
+  }
+
+  /// Snaps [key] to the nearest in-scale pitch for a GFPA jam [entry].
+  ///
+  /// In chord mode the scale is derived from the chord detected on [entry.masterCh].
+  /// In bass-note mode the lowest active note on [entry.masterCh] becomes the root.
+  /// Returns the note that [key] would be snapped to on [channel] if it is a
+  /// GFPA Jam Mode follower, otherwise returns [key] unchanged.
+  ///
+  /// Use this when routing MIDI to audio backends that bypass [playNote] (e.g.
+  /// the vocoder's [AudioInputFFI] path).
+  int snapNoteForChannel(int channel, int key) {
+    for (final entry in gfpaJamEntries.value) {
+      if (entry.followerCh == channel) {
+        return _snapKeyToGfpaJam(key, entry);
+      }
+    }
+    return key;
+  }
+
+  int _snapKeyToGfpaJam(int key, GFpaJamEntry entry) {
+    final masterCh = entry.masterCh;
+    Set<int> scalePcs;
+
+    if (entry.bassNoteMode) {
+      final active = channels[masterCh].activeNotes.value;
+      if (active.isEmpty) return key;
+      final bassNote = active.reduce(min);
+      final rootPc = bassNote % 12;
+      scalePcs = _gfpaBassNoteIntervals(entry.scaleType)
+          .map((i) => (rootPc + i) % 12)
+          .toSet();
+    } else {
+      final masterChord = channels[masterCh].lastChord.value;
+      if (masterChord == null) return key;
+      final info = _getScaleInfo(masterChord, entry.scaleType);
+      scalePcs = info.intervals
+          .map((i) => (masterChord.rootPc + i) % 12)
+          .toSet();
+    }
+
+    if (scalePcs.isEmpty) return key;
+
+    // Snap to the nearest in-scale pitch class (same bidirectional search as
+    // _snapKeyToScale but operating directly on pitch-class sets).
+    int bestDistance = 999;
+    int bestKey = key;
+    for (int offset = 0; offset <= 12; offset++) {
+      final down = key - offset;
+      if (scalePcs.contains(down % 12) && offset < bestDistance) {
+        bestDistance = offset;
+        bestKey = down;
+      }
+      final up = key + offset;
+      if (scalePcs.contains(up % 12) && offset < bestDistance) {
+        bestDistance = offset;
+        bestKey = up;
+      }
+      if (bestDistance < 999) break;
+    }
+    return bestKey;
+  }
+
+  /// Scale intervals for bass-note detection mode (no chord quality context).
+  /// Mirrors GFJamModePlugin._intervalsFor — kept in sync manually.
+  static List<int> _gfpaBassNoteIntervals(ScaleType type) {
+    switch (type) {
+      case ScaleType.standard:
+      case ScaleType.classical:
+      case ScaleType.jazz:
+        return [0, 2, 4, 5, 7, 9, 11];
+      case ScaleType.pentatonic:
+      case ScaleType.asiatic:
+        return [0, 2, 4, 7, 9];
+      case ScaleType.blues:
+      case ScaleType.rock:
+        return [0, 2, 3, 4, 7, 9];
+      case ScaleType.oriental:
+        return [0, 1, 4, 5, 7, 8, 10];
+      case ScaleType.dorian:
+        return [0, 2, 3, 5, 7, 9, 10];
+      case ScaleType.mixolydian:
+        return [0, 2, 4, 5, 7, 9, 10];
+      case ScaleType.harmonicMinor:
+        return [0, 2, 3, 5, 7, 8, 11];
+      case ScaleType.melodicMinor:
+        return [0, 2, 3, 5, 7, 9, 11];
+      case ScaleType.wholeTone:
+        return [0, 2, 4, 6, 8, 10];
+      case ScaleType.diminished:
+        return [0, 1, 3, 4, 6, 7, 9, 10];
+    }
   }
 
   /// Executes high-level application actions triggered by mapped hardware CC commands.

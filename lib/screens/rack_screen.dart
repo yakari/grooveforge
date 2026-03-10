@@ -5,15 +5,16 @@ import 'package:flutter_midi_command/flutter_midi_command.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import '../l10n/app_localizations.dart';
+import '../models/gfpa_plugin_instance.dart';
 import '../models/vst3_plugin_instance.dart';
 import '../services/audio_engine.dart';
+import '../services/audio_input_ffi.dart';
 import '../services/cc_mapping_service.dart';
 import '../services/midi_service.dart';
 import '../services/project_service.dart';
 import '../services/rack_state.dart';
 import '../services/vst_host_service.dart';
 import '../widgets/add_plugin_sheet.dart';
-import '../widgets/jam_session_widget.dart';
 import '../widgets/rack_slot_widget.dart';
 import '../widgets/user_guide_modal.dart';
 import 'preferences_screen.dart';
@@ -47,6 +48,10 @@ class _RackScreenState extends State<RackScreen> {
 
     audioEngine.ccMappingService = ccMappingService;
     midiService.onMidiDataReceived = (packet) {
+      // Route to GFPA vocoder plugins regardless of incoming MIDI channel
+      // (omni mode: the vocoder should respond to any controller).
+      _routeMidiToGfpaVocoder(packet);
+
       // If a VST3 slot owns this MIDI channel, send only to the VST3 plugin
       // and skip FluidSynth entirely — otherwise the soundfont plays in parallel.
       if (!_routeMidiToVst3Plugins(packet)) {
@@ -135,6 +140,54 @@ class _RackScreenState extends State<RackScreen> {
 
     // Return true for any MIDI status on a VST3 channel so FluidSynth is skipped.
     return true;
+  }
+
+  /// Routes note-on/off to any active GFPA Vocoder slot via [AudioInputFFI].
+  ///
+  /// GFPA vocoder slots operate in MIDI omni mode: they respond to notes on
+  /// any incoming MIDI channel.  This matches the behaviour of a hardware
+  /// vocoder — the controller channel is irrelevant, only the note value
+  /// matters.  Runs independently of FluidSynth / VST3 routing (does not
+  /// return a bool; the other routing paths continue as normal).
+  ///
+  /// If the vocoder's own assigned channel is the incoming channel,
+  /// Routes incoming MIDI note events to the GFPA Vocoder (omni-mode: any
+  /// incoming channel triggers the vocoder).
+  ///
+  /// Also applies GFPA Jam Mode scale-snapping when the vocoder rack is a
+  /// target of an active Jam Mode slot, so the vocoder respects the same scale
+  /// lock as other channels.
+  ///
+  /// [AudioEngine.processMidiPacket] will also route to [AudioInputFFI] via
+  /// the [vocoderMode] soundfont check — that duplicate call is harmless
+  /// because [AudioInputFFI.playNote] is idempotent for the same key.
+  void _routeMidiToGfpaVocoder(MidiPacket packet) {
+    if (packet.data.isEmpty) return;
+    final statusByte = packet.data[0];
+    final command = statusByte & 0xF0;
+    if (command != 0x90 && command != 0x80) return;
+    if (packet.data.length < 2) return;
+
+    final rack = context.read<RackState>();
+    final vocoderPlugin = rack.plugins
+        .whereType<GFpaPluginInstance>()
+        .where((p) => p.pluginId == 'com.grooveforge.vocoder' && p.midiChannel > 0)
+        .firstOrNull;
+    if (vocoderPlugin == null) return;
+
+    int note = packet.data[1];
+    final velocity = packet.data.length >= 3 ? packet.data[2] : 0;
+
+    // Apply Jam Mode scale-snapping for the vocoder's MIDI channel.
+    final engine = context.read<AudioEngine>();
+    final vocoderCh = vocoderPlugin.midiChannel - 1;
+    note = engine.snapNoteForChannel(vocoderCh, note);
+
+    if (command == 0x90 && velocity > 0) {
+      AudioInputFFI().playNote(key: note, velocity: velocity);
+    } else {
+      AudioInputFFI().stopNote(key: note);
+    }
   }
 
   void _handleAutoScroll(int channel) {
@@ -321,62 +374,19 @@ class _RackScreenState extends State<RackScreen> {
           ),
         ],
       ),
-      body: Consumer<AudioEngine>(
-        builder: (context, audioEngine, _) {
-          return ValueListenableBuilder<ScaleLockMode>(
-            valueListenable: audioEngine.lockModePreference,
-            builder: (context, lockMode, _) {
-                  return OrientationBuilder(
-                    builder: (context, orientation) {
-                      return LayoutBuilder(
-                        builder: (context, constraints) {
-                          final isLandscape =
-                              orientation == Orientation.landscape;
-                          final isMobileLandscape =
-                              isLandscape && constraints.maxHeight < 480;
-                          final showJamUI = lockMode == ScaleLockMode.jam;
-
-                      final mainContent = _RackList(
-                        scrollController: _scrollController,
-                        isMobileLandscape: isMobileLandscape,
-                        slotKeys: _slotKeys,
-                      );
-
-                      if (showJamUI) {
-                        if (isMobileLandscape) {
-                          return Row(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              const JamSessionWidget(forceVertical: true),
-                              Expanded(
-                                child: Padding(
-                                  padding: const EdgeInsets.all(12.0),
-                                  child: mainContent,
-                                ),
-                              ),
-                            ],
-                          );
-                        } else {
-                          return Padding(
-                            padding: const EdgeInsets.all(2.0),
-                            child: Column(
-                              children: [
-                                const JamSessionWidget(forceVertical: false),
-                                const SizedBox(height: 2),
-                                Expanded(child: mainContent),
-                              ],
-                            ),
-                          );
-                        }
-                      }
-
-                      return Padding(
-                        padding: const EdgeInsets.all(2.0),
-                        child: mainContent,
-                      );
-                    },
-                  );
-                },
+      body: OrientationBuilder(
+        builder: (context, orientation) {
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              final isMobileLandscape = orientation == Orientation.landscape &&
+                  constraints.maxHeight < 480;
+              return Padding(
+                padding: const EdgeInsets.all(2.0),
+                child: _RackList(
+                  scrollController: _scrollController,
+                  isMobileLandscape: isMobileLandscape,
+                  slotKeys: _slotKeys,
+                ),
               );
             },
           );
@@ -433,6 +443,7 @@ class _RackList extends StatelessWidget {
               physics: interacting
                   ? const NeverScrollableScrollPhysics()
                   : const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.only(bottom: 88),
               itemCount: rack.plugins.length,
               onReorder: rack.reorderPlugins,
               proxyDecorator: (child, index, animation) => Material(

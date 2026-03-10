@@ -39,6 +39,10 @@ dependencies:
     path: packages/flutter_midi_pro
   dart_vst_host:
     path: packages/flutter_vst3/dart_vst_host
+  grooveforge_plugin_api:
+    path: packages/grooveforge_plugin_api
+  grooveforge_plugin_ui:
+    path: packages/grooveforge_plugin_ui
   provider: ^6.1.5+1
   file_picker: ^10.3.10
   path_provider: ^2.1.5

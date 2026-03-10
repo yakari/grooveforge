@@ -1106,6 +1106,30 @@ abstract class AppLocalizations {
   /// **'Built-in synth & vocoder'**
   String get rackAddGrooveForgeKeyboardSubtitle;
 
+  /// No description provided for @rackAddVocoder.
+  ///
+  /// In en, this message translates to:
+  /// **'Vocoder'**
+  String get rackAddVocoder;
+
+  /// No description provided for @rackAddVocoderSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Mic-driven voice synthesizer (GFPA)'**
+  String get rackAddVocoderSubtitle;
+
+  /// No description provided for @rackAddJamMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Jam Mode'**
+  String get rackAddJamMode;
+
+  /// No description provided for @rackAddJamModeSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Scale-lock a keyboard slot to another\'s harmony'**
+  String get rackAddJamModeSubtitle;
+
   /// No description provided for @rackAddVst3.
   ///
   /// In en, this message translates to:
