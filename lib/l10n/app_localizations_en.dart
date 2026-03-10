@@ -105,35 +105,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get jamStart => 'JAM';
-
-  @override
-  String get jamStop => 'STOP';
-
-  @override
-  String get jamMaster => 'Master';
-
-  @override
-  String get jamSlaves => 'Slaves';
-
-  @override
-  String get jamScale => 'Scale';
-
-  @override
-  String get jamSelectSlavesDialogTitle => 'Select Slave Channels';
-
-  @override
-  String jamModeToast(String status) {
-    return 'Jam Mode: $status';
-  }
-
-  @override
-  String get jamStarted => 'STARTED';
-
-  @override
-  String get jamStopped => 'STOPPED';
-
-  @override
   String get ccTitle => 'CC Mapping Preferences';
 
   @override
@@ -284,58 +255,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get splashReady => 'Ready';
 
   @override
-  String get synthVisibleChannelsTitle => 'Visible Channels';
-
-  @override
-  String synthChannelLabel(int channelIndex) {
-    return 'Channel $channelIndex';
-  }
-
-  @override
-  String get synthErrorAtLeastOneChannel =>
-      'At least one channel must be visible';
-
-  @override
-  String get synthSaveFilters => 'Save Filters';
-
-  @override
   String get synthTooltipUserGuide => 'User Guide';
-
-  @override
-  String get synthTooltipFilterChannels => 'Filter Visible Channels';
 
   @override
   String get synthTooltipSettings => 'Settings & Setup';
 
   @override
   String get actionCancel => 'Cancel';
-
-  @override
-  String get scaleLockModeTitle => 'Scale Lock Mode';
-
-  @override
-  String get scaleLockModeSubtitle =>
-      'Classic (per channel) vs Jam (master-slave)';
-
-  @override
-  String get modeClassic => 'Classic Mode';
-
-  @override
-  String get modeJam => 'Jam Mode';
-
-  @override
-  String get jamModeKeyGroupsTitle => 'Jam Mode Key Groups';
-
-  @override
-  String get jamModeKeyGroupsSubtitle =>
-      'Visually group scale-mapped keys with borders';
-
-  @override
-  String get highlightWrongNotesTitle => 'Highlight Wrong Notes';
-
-  @override
-  String get highlightWrongNotesSubtitle =>
-      'Color out-of-scale pressed keys in red';
 
   @override
   String get aftertouchEffectTitle => 'Aftertouch Effect';
@@ -630,31 +556,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get splashRestoringRack => 'Restoring rack state...';
-
-  @override
-  String get jamSlotOff => 'JAM OFF';
-
-  @override
-  String get jamSlotOn => 'JAM ON';
-
-  @override
-  String get jamSlotSelectMaster => 'Select Jam Master';
-
-  @override
-  String get jamSlotSelectMasterHint =>
-      'Which slot will drive the harmony for this keyboard?';
-
-  @override
-  String get jamSlotChangeMaster => 'Change master…';
-
-  @override
-  String get jamSlotNoMasterSelected => 'Pick master';
-
-  @override
-  String get jamSlotNoOtherSlots => 'No other slots available to follow.';
-
-  @override
-  String get jamSlotClearMaster => 'Clear Jam master';
 
   @override
   String get vst3LoadFailed =>

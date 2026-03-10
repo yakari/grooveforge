@@ -102,9 +102,6 @@ class RackState extends ChangeNotifier {
   void removePlugin(String id) {
     // Clear references to the removed slot on all dependent plugins.
     for (final p in _plugins) {
-      if (p is GrooveForgeKeyboardPlugin && p.jamMasterSlotId == id) {
-        p.jamMasterSlotId = null;
-      }
       if (p is GFpaPluginInstance) {
         if (p.masterSlotId == id) p.masterSlotId = null;
         p.targetSlotIds.remove(id);
@@ -248,31 +245,6 @@ class RackState extends ChangeNotifier {
     _notifyChanged();
   }
 
-  // Keep old setJamModeConnections for any call sites not yet migrated.
-  void setJamModeConnections(
-    String id, {
-    String? masterSlotId,
-    bool clearMaster = false,
-    String? targetSlotId,
-    bool clearTarget = false,
-  }) {
-    final plugin = _findGfpaById(id);
-    if (plugin == null || plugin.pluginId != 'com.grooveforge.jammode') return;
-    if (clearMaster) {
-      plugin.masterSlotId = null;
-    } else if (masterSlotId != null) {
-      plugin.masterSlotId = masterSlotId;
-    }
-    if (clearTarget && targetSlotId != null) {
-      plugin.targetSlotIds.remove(targetSlotId);
-    } else if (targetSlotId != null &&
-        !plugin.targetSlotIds.contains(targetSlotId)) {
-      plugin.targetSlotIds.add(targetSlotId);
-    }
-    _syncJamFollowerMapToEngine();
-    notifyListeners();
-    _notifyChanged();
-  }
 
   /// Update the full state map of a GFPA plugin slot (triggers autosave).
   void setGfpaPluginState(String id, Map<String, dynamic> state) {
@@ -360,27 +332,13 @@ class RackState extends ChangeNotifier {
   ///
   /// - Legacy [GrooveForgeKeyboardPlugin] slots → [AudioEngine.jamFollowerMap]
   ///   (controlled by the global [AudioEngine.jamEnabled] toggle).
-  /// - GFPA Jam Mode slots → [AudioEngine.gfpaJamEntries]
-  ///   (independent per-slot enable/disable, own scale and detection mode).
+  /// Syncs GFPA Jam Mode slots → [AudioEngine.gfpaJamEntries]
+  /// (independent per-slot enable/disable, own scale and detection mode).
   void _syncJamFollowerMapToEngine() {
-    final legacyMap = <int, int>{};
     final gfpaEntries = <GFpaJamEntry>[];
 
     for (final p in _plugins) {
-      if (p is GrooveForgeKeyboardPlugin) {
-        if (!p.jamEnabled || p.jamMasterSlotId == null) continue;
-        final master = _findById(p.jamMasterSlotId!);
-        if (master == null) continue;
-        final followerCh = p.midiChannel - 1;
-        final masterCh = master.midiChannel - 1;
-        if (followerCh >= 0 &&
-            followerCh < 16 &&
-            masterCh >= 0 &&
-            masterCh < 16 &&
-            followerCh != masterCh) {
-          legacyMap[followerCh] = masterCh;
-        }
-      } else if (p is GFpaPluginInstance &&
+      if (p is GFpaPluginInstance &&
           p.pluginId == 'com.grooveforge.jammode') {
         // Slot-level enabled flag (defaults to true when absent).
         if (p.state['enabled'] == false) continue;
@@ -412,7 +370,6 @@ class RackState extends ChangeNotifier {
       }
     }
 
-    _engine.jamFollowerMap.value = legacyMap;
     _engine.gfpaJamEntries.value = gfpaEntries;
   }
 

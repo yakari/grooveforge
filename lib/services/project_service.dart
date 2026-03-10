@@ -157,11 +157,6 @@ class ProjectService {
     final data = {
       'version': _formatVersion,
       'savedAt': DateTime.now().toIso8601String(),
-      'jamMode': {
-        'enabled': engine.jamEnabled.value,
-        'scaleType': engine.jamScaleType.value.name,
-        'lockMode': engine.lockModePreference.value.name,
-      },
       'plugins': rackState.toJson(),
     };
     final file = File(path);
@@ -178,29 +173,6 @@ class ProjectService {
   ) async {
     final content = await File(path).readAsString();
     final Map<String, dynamic> data = jsonDecode(content) as Map<String, dynamic>;
-
-    // Restore global jam settings.
-    final jamData = data['jamMode'] as Map<String, dynamic>?;
-    if (jamData != null) {
-      final enabledRaw = jamData['enabled'];
-      if (enabledRaw is bool) engine.jamEnabled.value = enabledRaw;
-
-      final scaleStr = jamData['scaleType'] as String?;
-      if (scaleStr != null) {
-        engine.jamScaleType.value = ScaleType.values.firstWhere(
-          (s) => s.name == scaleStr,
-          orElse: () => ScaleType.standard,
-        );
-      }
-
-      final lockStr = jamData['lockMode'] as String?;
-      if (lockStr != null) {
-        engine.lockModePreference.value = ScaleLockMode.values.firstWhere(
-          (s) => s.name == lockStr,
-          orElse: () => ScaleLockMode.jam,
-        );
-      }
-    }
 
     // Restore rack plugins.
     final pluginsJson = data['plugins'] as List<dynamic>? ?? [];

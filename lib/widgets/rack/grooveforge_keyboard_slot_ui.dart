@@ -43,10 +43,6 @@ class GrooveForgeKeyboardSlotUI extends StatelessWidget {
 
     return ListenableBuilder(
       listenable: Listenable.merge([
-        engine.lockModePreference,
-        engine.jamEnabled,
-        engine.jamFollowerMap,
-        engine.jamScaleType,
         engine.gfpaJamEntries,
         engine.stateNotifier,
         state.lastChord,
@@ -58,17 +54,11 @@ class GrooveForgeKeyboardSlotUI extends StatelessWidget {
         ...engine.channels.map((ch) => ch.activeNotes),
       ]),
       builder: (context, _) {
-        final lockMode = engine.lockModePreference.value;
-        final followerMap = engine.jamFollowerMap.value;
-        final isLegacyFollower =
-            engine.jamEnabled.value && followerMap.containsKey(channelIndex);
-
         // GFPA Jam follower detection
         final gfpaEntry = engine.gfpaJamEntries.value
             .where((e) => e.followerCh == channelIndex)
             .firstOrNull;
-        final isGfpaFollower = gfpaEntry != null;
-        final isFollower = isLegacyFollower || isGfpaFollower;
+        final isFollower = gfpaEntry != null;
 
         final lastChord = state.lastChord.value;
         final isLocked = state.isScaleLocked.value;
@@ -77,10 +67,7 @@ class GrooveForgeKeyboardSlotUI extends StatelessWidget {
         // Determine master channel + scale type for this follower
         final int masterChIdx;
         final ScaleType scaleToDisplay;
-        if (isLegacyFollower) {
-          masterChIdx = followerMap[channelIndex]!;
-          scaleToDisplay = engine.jamScaleType.value;
-        } else if (isGfpaFollower) {
+        if (gfpaEntry != null) {
           masterChIdx = gfpaEntry.masterCh;
           scaleToDisplay = gfpaEntry.scaleType;
         } else {
@@ -91,9 +78,7 @@ class GrooveForgeKeyboardSlotUI extends StatelessWidget {
         // Reference chord: from master (chord mode) or synthesised from bass
         // note (bass note mode), falling back to own chord when standalone.
         ChordMatch? refChord;
-        if (isLegacyFollower && masterChIdx >= 0) {
-          refChord = engine.channels[masterChIdx].lastChord.value;
-        } else if (isGfpaFollower) {
+        if (gfpaEntry != null) {
           if (gfpaEntry.bassNoteMode) {
             final active = engine.channels[masterChIdx].activeNotes.value;
             if (active.isNotEmpty) {
@@ -124,9 +109,7 @@ class GrooveForgeKeyboardSlotUI extends StatelessWidget {
               )
             : lastChord;
 
-        final lockToDisplay =
-            isFollower || (lockMode == ScaleLockMode.classic && isLocked);
-        final shouldShowLockUI = lockMode == ScaleLockMode.classic || isFollower;
+        final lockToDisplay = isFollower || isLocked;
 
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -144,9 +127,9 @@ class GrooveForgeKeyboardSlotUI extends StatelessWidget {
             currentScale: scaleToDisplay,
             descriptiveScaleName: descriptiveName,
             isJamSlave: isFollower,
-            showLockControls: shouldShowLockUI,
+            showLockControls: true,
             // GFPA followers: lock is controlled by the Jam rack, not per-channel
-            onLockToggled: (isGfpaFollower || lockMode == ScaleLockMode.jam)
+            onLockToggled: isFollower
                 ? null
                 : () {
                     state.isScaleLocked.value = !state.isScaleLocked.value;

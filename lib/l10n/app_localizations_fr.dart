@@ -107,35 +107,6 @@ class AppLocalizationsFr extends AppLocalizations {
   }
 
   @override
-  String get jamStart => 'JAM';
-
-  @override
-  String get jamStop => 'STOP';
-
-  @override
-  String get jamMaster => 'Maître';
-
-  @override
-  String get jamSlaves => 'Esclaves';
-
-  @override
-  String get jamScale => 'Gamme';
-
-  @override
-  String get jamSelectSlavesDialogTitle => 'Sélectionner les canaux esclaves';
-
-  @override
-  String jamModeToast(String status) {
-    return 'Mode Jam : $status';
-  }
-
-  @override
-  String get jamStarted => 'DÉMARRÉ';
-
-  @override
-  String get jamStopped => 'ARRÊTÉ';
-
-  @override
   String get ccTitle => 'Préférences de Mapping CC';
 
   @override
@@ -287,58 +258,13 @@ class AppLocalizationsFr extends AppLocalizations {
   String get splashReady => 'Prêt';
 
   @override
-  String get synthVisibleChannelsTitle => 'Canaux Visibles';
-
-  @override
-  String synthChannelLabel(int channelIndex) {
-    return 'Canal $channelIndex';
-  }
-
-  @override
-  String get synthErrorAtLeastOneChannel =>
-      'Au moins un canal doit être visible';
-
-  @override
-  String get synthSaveFilters => 'Sauvegarder les Filtres';
-
-  @override
   String get synthTooltipUserGuide => 'Guide d\'Utilisateur';
-
-  @override
-  String get synthTooltipFilterChannels => 'Filtrer les Canaux Visibles';
 
   @override
   String get synthTooltipSettings => 'Paramètres & Configuration';
 
   @override
   String get actionCancel => 'Annuler';
-
-  @override
-  String get scaleLockModeTitle => 'Mode Scale Lock';
-
-  @override
-  String get scaleLockModeSubtitle =>
-      'Classique (par canal) vs Jam (maître-esclave)';
-
-  @override
-  String get modeClassic => 'Mode Classique';
-
-  @override
-  String get modeJam => 'Mode Jam';
-
-  @override
-  String get jamModeKeyGroupsTitle => 'Groupes de touches Mode Jam';
-
-  @override
-  String get jamModeKeyGroupsSubtitle =>
-      'Regrouper visuellement les touches mappées (bordures)';
-
-  @override
-  String get highlightWrongNotesTitle => 'Griser les fausses notes';
-
-  @override
-  String get highlightWrongNotesSubtitle =>
-      'Colorer les touches hors-gamme en rouge';
 
   @override
   String get aftertouchEffectTitle => 'Effet Aftertouch';
@@ -634,31 +560,6 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get splashRestoringRack => 'Restauration du rack...';
-
-  @override
-  String get jamSlotOff => 'JAM OFF';
-
-  @override
-  String get jamSlotOn => 'JAM ON';
-
-  @override
-  String get jamSlotSelectMaster => 'Choisir le maître Jam';
-
-  @override
-  String get jamSlotSelectMasterHint =>
-      'Quel slot pilote l\'harmonie pour ce clavier ?';
-
-  @override
-  String get jamSlotChangeMaster => 'Changer le maître…';
-
-  @override
-  String get jamSlotNoMasterSelected => 'Choisir maître';
-
-  @override
-  String get jamSlotNoOtherSlots => 'Aucun autre slot disponible.';
-
-  @override
-  String get jamSlotClearMaster => 'Retirer le maître Jam';
 
   @override
   String get vst3LoadFailed =>

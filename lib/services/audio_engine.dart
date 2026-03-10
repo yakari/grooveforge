@@ -20,8 +20,7 @@ const String vocoderMode = 'vocoderMode';
 
 /// A single GFPA-managed jam connection.
 ///
-/// Independent of the legacy [AudioEngine.jamEnabled] / [AudioEngine.jamFollowerMap]
-/// / [AudioEngine.jamScaleType] system. Multiple entries with different
+/// Multiple entries with different
 /// [followerCh] values are supported — one per configured (master, target) pair
 /// across all active GFPA Jam Mode slots.
 class GFpaJamEntry {
@@ -62,7 +61,6 @@ enum ScaleType {
   diminished,
 }
 
-enum ScaleLockMode { classic, jam }
 
 enum GestureAction { none, pitchBend, vibrato, glissando }
 
@@ -353,32 +351,12 @@ class AudioEngine extends ChangeNotifier {
 
   // --- Jam Mode State ---
 
-  /// User preference selecting between independent channels (Classic) or central intelligence (Jam).
-  final ValueNotifier<ScaleLockMode> lockModePreference = ValueNotifier(
-    ScaleLockMode.classic,
-  );
-
-  /// Whether the Jam Mode feature is actively engaged overriding independent scales.
-  final ValueNotifier<bool> jamEnabled = ValueNotifier(false);
-
-  /// Per-slot Jam following map: follower channel index (0-based) → master channel index (0-based).
-  ///
-  /// Populated by [RackState] after every rack mutation. A channel that appears
-  /// as a key in this map will have its notes snapped to the master's detected scale
-  /// when [jamEnabled] is true.
-  final ValueNotifier<Map<int, int>> jamFollowerMap = ValueNotifier({});
-
   /// GFPA-managed jam entries, updated by [RackState] whenever a Jam Mode slot
   /// is added, removed, enabled, or reconfigured.
   ///
-  /// These entries are applied in [playNote] independently of [jamEnabled] —
-  /// each GFPA Jam Mode slot has its own enabled flag and scale choice.
+  /// Each GFPA Jam Mode slot has its own enabled flag and scale choice,
+  /// applied in [playNote] independently of any global toggle.
   final ValueNotifier<List<GFpaJamEntry>> gfpaJamEntries = ValueNotifier([]);
-
-  /// The template scale (e.g. Minor Pentatonic) applied based on the Master's root note.
-  final ValueNotifier<ScaleType> jamScaleType = ValueNotifier(
-    ScaleType.standard,
-  );
 
   /// User preference to display borders around scale-mapped key groups in Jam Mode.
   final ValueNotifier<bool> showJamModeBorders = ValueNotifier(true);
@@ -392,7 +370,6 @@ class AudioEngine extends ChangeNotifier {
   final List<Timer?> _chordUpdateTimers = List.generate(16, (i) => null);
   final List<int> _lastNoteCounts = List.generate(16, (i) => 0);
 
-  final Map<int, DateTime> _lastNoteOffTime = {};
   SharedPreferences? _prefs;
 
   Future<void> init() async {
@@ -464,14 +441,7 @@ class AudioEngine extends ChangeNotifier {
     }
 
     pianoKeysToShow.addListener(_saveState);
-    lockModePreference.addListener(_saveState);
-    lockModePreference.addListener(_propagateJamScaleUpdate);
-    jamEnabled.addListener(_saveState);
-    jamEnabled.addListener(_propagateJamScaleUpdate);
-    jamFollowerMap.addListener(_propagateJamScaleUpdate);
-    jamScaleType.addListener(_propagateJamScaleUpdate);
     gfpaJamEntries.addListener(_propagateJamScaleUpdate);
-    jamScaleType.addListener(_saveState);
     showJamModeBorders.addListener(_saveState);
     highlightWrongNotes.addListener(_saveState);
     dragToPlay.addListener(_saveState);
@@ -582,12 +552,6 @@ class AudioEngine extends ChangeNotifier {
     await _prefs!.setInt('piano_keys_to_show', pianoKeysToShow.value);
 
     // Save Jam State
-    await _prefs!.setInt(
-      'lock_mode_preference',
-      lockModePreference.value.index,
-    );
-    await _prefs!.setBool('jam_enabled', jamEnabled.value);
-    await _prefs!.setInt('jam_scale_type', jamScaleType.value.index);
     await _prefs!.setBool('jam_show_borders', showJamModeBorders.value);
     await _prefs!.setBool('jam_highlight_wrong', highlightWrongNotes.value);
     await _prefs!.setBool('auto_scroll_enabled', autoScrollEnabled.value);
@@ -707,21 +671,6 @@ class AudioEngine extends ChangeNotifier {
       } else {
         pianoKeysToShow.value = savedPianoKeysToShow;
       }
-    }
-
-    int? savedLockMode = _prefs!.getInt('lock_mode_preference');
-    if (savedLockMode != null) {
-      lockModePreference.value = ScaleLockMode.values[savedLockMode];
-    }
-
-    bool? savedJamEnabled = _prefs!.getBool('jam_enabled');
-    if (savedJamEnabled != null) {
-      jamEnabled.value = savedJamEnabled;
-    }
-
-    int? savedJamScale = _prefs!.getInt('jam_scale_type');
-    if (savedJamScale != null) {
-      jamScaleType.value = ScaleType.values[savedJamScale];
     }
 
     bool? savedShowJamModeBorders = _prefs!.getBool('jam_show_borders');
@@ -1090,8 +1039,7 @@ class AudioEngine extends ChangeNotifier {
     int keyToPlay = key;
 
     // Classic Scale Lock (per-channel)
-    if (lockModePreference.value == ScaleLockMode.classic &&
-        channels[channel].isScaleLocked.value &&
+    if (channels[channel].isScaleLocked.value &&
         channels[channel].lastChord.value != null) {
       keyToPlay = _snapKeyToScale(
         key,
@@ -1099,16 +1047,7 @@ class AudioEngine extends ChangeNotifier {
         channels[channel].currentScaleType.value,
       );
     }
-    // Legacy Jam Mode Scale Lock (global toggle + JamSessionWidget scale)
-    else if (jamEnabled.value &&
-        jamFollowerMap.value.containsKey(channel)) {
-      final masterIdx = jamFollowerMap.value[channel]!;
-      final masterChord = channels[masterIdx].lastChord.value;
-      if (masterChord != null) {
-        keyToPlay = _snapKeyToScale(key, masterChord, jamScaleType.value);
-      }
-    }
-    // GFPA Jam Mode — independent of global jamEnabled, per-slot scale/mode
+    // GFPA Jam Mode — per-slot scale/mode
     else {
       for (final entry in gfpaJamEntries.value) {
         if (entry.followerCh == channel) {
@@ -1164,12 +1103,6 @@ class AudioEngine extends ChangeNotifier {
     currentNotes.remove(key);
     channels[channel].activeNotes.value = currentNotes;
 
-    // Debounce for Jam master chord release — applies to any channel being watched
-    if (jamEnabled.value &&
-        jamFollowerMap.value.values.contains(channel)) {
-      _lastNoteOffTime[key] = DateTime.now();
-    }
-
     int keyToStop = key;
     if (channels[channel].activeKeyMappings.containsKey(key)) {
       keyToStop = channels[channel].activeKeyMappings.remove(key)!;
@@ -1204,12 +1137,9 @@ class AudioEngine extends ChangeNotifier {
   /// If all notes are released, the system retains the last "Peak Chord" in memory so
   /// Jam Slaves don't lose their harmony context during brief silences.
   void _updateChordState(int channel, {required bool isNoteOn}) {
-    // In Jam mode, we ONLY update the master channel's chord.
-    // In Classic mode, we don't update if already locked.
-    if (lockModePreference.value == ScaleLockMode.classic) {
-      if (channels[channel].isScaleLocked.value) {
-        return;
-      }
+    // Don't update if the channel's scale is locked (classic per-channel lock).
+    if (channels[channel].isScaleLocked.value) {
+      return;
     }
 
     // Cancel any pending "wait-and-see" timer
@@ -1255,36 +1185,15 @@ class AudioEngine extends ChangeNotifier {
     }
     _lastNoteCounts[channel] = notes.length;
 
-    // Update validPitchClasses — propagate to any follower slots watching this channel
-    if (jamEnabled.value) {
-      final followers = jamFollowerMap.value.entries
-          .where((e) => e.value == channel)
-          .map((e) => e.key)
-          .toList();
-
-      if (followers.isNotEmpty && match != null) {
-        final info = _getScaleInfo(match, jamScaleType.value);
-        final root = match.rootPc;
-        final allowedPcs = info.intervals.map((i) => (root + i) % 12).toSet();
-
-        for (final followerIdx in followers) {
-          if (followerIdx >= 0 && followerIdx < 16) {
-            channels[followerIdx].validPitchClasses.value = allowedPcs;
-          }
-        }
-      }
-    }
-
-    if (lockModePreference.value == ScaleLockMode.classic) {
-      if (match != null && channels[channel].isScaleLocked.value) {
-        final info = _getScaleInfo(
-          match,
-          channels[channel].currentScaleType.value,
-        );
-        final root = match.rootPc;
-        final allowedPcs = info.intervals.map((i) => (root + i) % 12).toSet();
-        channels[channel].validPitchClasses.value = allowedPcs;
-      }
+    // Classic per-channel scale lock: update this channel's own validPitchClasses.
+    if (match != null && channels[channel].isScaleLocked.value) {
+      final info = _getScaleInfo(
+        match,
+        channels[channel].currentScaleType.value,
+      );
+      final root = match.rootPc;
+      final allowedPcs = info.intervals.map((i) => (root + i) % 12).toSet();
+      channels[channel].validPitchClasses.value = allowedPcs;
     }
 
     // Propagate validPitchClasses to GFPA Jam Mode followers watching this channel
@@ -1315,57 +1224,30 @@ class AudioEngine extends ChangeNotifier {
 
   /// Forces a resynchronization of valid pitch classes across all channels.
   ///
-  /// Called when Jam Mode settings change (e.g., follower map changed, scale type changed).
-  /// Clears follower pitch constraints if Jam is disabled; re-applies master scales when on.
+  /// Called when GFPA jam entries change (follower map, scale type, etc.).
+  /// Clears non-follower channel constraints, then propagates scales to GFPA followers.
   void _propagateJamScaleUpdate() {
-    final hasLegacyJam = jamEnabled.value && jamFollowerMap.value.isNotEmpty;
     final gfpaFollowers = gfpaJamEntries.value.map((e) => e.followerCh).toSet();
 
-    // ── Clear non-active channels ─────────────────────────────────────────
-    if (!hasLegacyJam) {
-      // Legacy jam is off: clear channels that are not GFPA followers.
-      for (int i = 0; i < 16; i++) {
-        if (gfpaFollowers.contains(i)) continue; // GFPA handles these below
-        if (lockModePreference.value != ScaleLockMode.classic ||
-            !channels[i].isScaleLocked.value) {
-          channels[i].validPitchClasses.value = null;
-        } else {
-          final match = channels[i].lastChord.value;
-          if (match != null) {
-            final info = _getScaleInfo(
-              match,
-              channels[i].currentScaleType.value,
-            );
-            final root = match.rootPc;
-            channels[i].validPitchClasses.value =
-                info.intervals.map((interv) => (root + interv) % 12).toSet();
-          }
+    // ── Clear non-GFPA-follower channels ──────────────────────────────────
+    for (int i = 0; i < 16; i++) {
+      if (gfpaFollowers.contains(i)) continue;
+      if (!channels[i].isScaleLocked.value) {
+        channels[i].validPitchClasses.value = null;
+      } else {
+        final match = channels[i].lastChord.value;
+        if (match != null) {
+          final info = _getScaleInfo(match, channels[i].currentScaleType.value);
+          final root = match.rootPc;
+          channels[i].validPitchClasses.value =
+              info.intervals.map((interv) => (root + interv) % 12).toSet();
         }
-      }
-      if (gfpaJamEntries.value.isEmpty) {
-        stateNotifier.value++;
-        return; // Nothing more to propagate
       }
     }
 
-    // ── Legacy Jam: propagate master scale to legacy followers ────────────
-    if (hasLegacyJam) {
-      final masterIndices = jamFollowerMap.value.values.toSet();
-      for (final masterIdx in masterIndices) {
-        if (masterIdx < 0 || masterIdx >= 16) continue;
-        final masterChord = channels[masterIdx].lastChord.value;
-        if (masterChord == null) continue;
-
-        final info = _getScaleInfo(masterChord, jamScaleType.value);
-        final root = masterChord.rootPc;
-        final allowedPcs = info.intervals.map((i) => (root + i) % 12).toSet();
-
-        for (final entry in jamFollowerMap.value.entries) {
-          if (entry.value == masterIdx && entry.key >= 0 && entry.key < 16) {
-            channels[entry.key].validPitchClasses.value = allowedPcs;
-          }
-        }
-      }
+    if (gfpaJamEntries.value.isEmpty) {
+      stateNotifier.value++;
+      return;
     }
 
     // ── GFPA Jam: propagate scale to GFPA follower channels ──────────────
@@ -1701,16 +1583,10 @@ class AudioEngine extends ChangeNotifier {
       _prefs?.setInt('last_sys_cmd_$debounceKey', now);
 
       if (targetAction == 1007) {
-        if (lockModePreference.value == ScaleLockMode.jam) {
-          jamEnabled.value = !jamEnabled.value;
-          toastNotifier.value =
-              'Jam Mode: ${jamEnabled.value ? "STARTED" : "STOPPED"}';
-        } else {
-          channels[incomingChannel].isScaleLocked.value =
-              !channels[incomingChannel].isScaleLocked.value;
-          toastNotifier.value =
-              'Scale Lock [Ch $incomingChannel]: ${channels[incomingChannel].isScaleLocked.value ? "ON" : "OFF"}';
-        }
+        channels[incomingChannel].isScaleLocked.value =
+            !channels[incomingChannel].isScaleLocked.value;
+        toastNotifier.value =
+            'Scale Lock [Ch $incomingChannel]: ${channels[incomingChannel].isScaleLocked.value ? "ON" : "OFF"}';
         _saveState();
       } else if (targetAction == 1001) {
         _cycleChannelSoundfont(incomingChannel, 1);
@@ -1721,21 +1597,14 @@ class AudioEngine extends ChangeNotifier {
       } else if (targetAction == 1004) {
         _changePatchIndex(incomingChannel, -1);
       } else if (targetAction == 1008) {
-        if (lockModePreference.value == ScaleLockMode.jam) {
-          final vals = ScaleType.values;
-          jamScaleType.value =
-              vals[(jamScaleType.value.index + 1) % vals.length];
-          toastNotifier.value = 'Jam Scale: ${jamScaleType.value.name}';
-        } else {
-          final currentTypes = ScaleType.values;
-          int nextIndex =
-              (channels[incomingChannel].currentScaleType.value.index + 1) %
-              currentTypes.length;
-          channels[incomingChannel].currentScaleType.value =
-              currentTypes[nextIndex];
-          toastNotifier.value =
-              'Scale Type [Ch $incomingChannel]: ${currentTypes[nextIndex].name}';
-        }
+        final currentTypes = ScaleType.values;
+        int nextIndex =
+            (channels[incomingChannel].currentScaleType.value.index + 1) %
+            currentTypes.length;
+        channels[incomingChannel].currentScaleType.value =
+            currentTypes[nextIndex];
+        toastNotifier.value =
+            'Scale Type [Ch $incomingChannel]: ${currentTypes[nextIndex].name}';
         _saveState();
       }
     } else if (targetAction == 1005) {
@@ -1834,10 +1703,6 @@ class AudioEngine extends ChangeNotifier {
     aftertouchDestCc.value = 1;
     notationFormat.value = 'Standard';
     pianoKeysToShow.value = 22;
-    lockModePreference.value = ScaleLockMode.classic;
-    jamEnabled.value = false;
-    jamFollowerMap.value = {};
-    jamScaleType.value = ScaleType.standard;
     vocoderInputDeviceIndex.value = -1;
     vocoderInputAndroidDeviceId.value = -1;
     vocoderInputGain.value = 1.0;

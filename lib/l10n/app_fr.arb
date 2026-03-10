@@ -49,20 +49,6 @@
       "bank": { "type": "int" }
     }
   },
-  "jamStart": "JAM",
-  "jamStop": "STOP",
-  "jamMaster": "Maître",
-  "jamSlaves": "Esclaves",
-  "jamScale": "Gamme",
-  "jamSelectSlavesDialogTitle": "Sélectionner les canaux esclaves",
-  "jamModeToast": "Mode Jam : {status}",
-  "@jamModeToast": {
-    "placeholders": {
-      "status": { "type": "String" }
-    }
-  },
-  "jamStarted": "DÉMARRÉ",
-  "jamStopped": "ARRÊTÉ",
   "ccTitle": "Préférences de Mapping CC",
   "ccActiveMappings": "Mappings Actifs",
   "ccAddMapping": "Ajouter un Mapping",
@@ -152,29 +138,9 @@
   "splashCheckingSoundfonts": "Vérification des soundfonts...",
   "splashExtractingSoundfont": "Extraction de la soundfont par défaut...",
   "splashReady": "Prêt",
-  "synthVisibleChannelsTitle": "Canaux Visibles",
-  "synthChannelLabel": "Canal {channelIndex}",
-  "@synthChannelLabel": {
-    "placeholders": {
-      "channelIndex": {
-        "type": "int"
-      }
-    }
-  },
-  "synthErrorAtLeastOneChannel": "Au moins un canal doit être visible",
-  "synthSaveFilters": "Sauvegarder les Filtres",
   "synthTooltipUserGuide": "Guide d'Utilisateur",
-  "synthTooltipFilterChannels": "Filtrer les Canaux Visibles",
   "synthTooltipSettings": "Paramètres & Configuration",
   "actionCancel": "Annuler",
-  "scaleLockModeTitle": "Mode Scale Lock",
-  "scaleLockModeSubtitle": "Classique (par canal) vs Jam (maître-esclave)",
-  "modeClassic": "Mode Classique",
-  "modeJam": "Mode Jam",
-  "jamModeKeyGroupsTitle": "Groupes de touches Mode Jam",
-  "jamModeKeyGroupsSubtitle": "Regrouper visuellement les touches mappées (bordures)",
-  "highlightWrongNotesTitle": "Griser les fausses notes",
-  "highlightWrongNotesSubtitle": "Colorer les touches hors-gamme en rouge",
   "aftertouchEffectTitle": "Effet Aftertouch",
   "aftertouchEffectSubtitle": "Router la pression du clavier vers ce CC",
   "aboutSection": "À propos",
@@ -220,7 +186,6 @@
   },
   "guideWelcomeIntro": "Cette mise à jour apporte des améliorations significatives à votre flux de travail et à vos outils créatifs :",
   "guideChangelogExpand": "Voir les nouveautés de cette version",
-  "guideWelcomeIntro": "Cette mise à jour apporte des améliorations significatives à votre flux de travail et à vos outils créatifs :",
   "guideMidiHardware": "1. Connexion Matérielle",
   "guideMidiHardwareStep1": "Connectez le contrôleur via USB (OTG) ou allumez l'appareil BLE.",
   "guideMidiHardwareStep2": "Allez dans Paramètres > Entrée MIDI et sélectionnez votre appareil.",
@@ -273,15 +238,6 @@
   "rackProjectOpened": "Projet ouvert.",
   "rackAutosaveRestored": "Session restaurée.",
   "splashRestoringRack": "Restauration du rack...",
-
-  "jamSlotOff": "JAM OFF",
-  "jamSlotOn": "JAM ON",
-  "jamSlotSelectMaster": "Choisir le maître Jam",
-  "jamSlotSelectMasterHint": "Quel slot pilote l'harmonie pour ce clavier ?",
-  "jamSlotChangeMaster": "Changer le maître…",
-  "jamSlotNoMasterSelected": "Choisir maître",
-  "jamSlotNoOtherSlots": "Aucun autre slot disponible.",
-  "jamSlotClearMaster": "Retirer le maître Jam",
 
   "vst3LoadFailed": "Échec du chargement du plugin VST3. Assurez-vous d'avoir sélectionné le dossier .vst3.",
   "vst3NotLoaded": "Plugin pas encore chargé.",

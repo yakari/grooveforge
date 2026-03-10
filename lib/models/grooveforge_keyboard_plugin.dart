@@ -4,7 +4,7 @@ import 'plugin_instance.dart';
 ///
 /// Wraps the existing FluidSynth + vocoder synthesizer backend. Each instance
 /// represents one rack slot with its own MIDI channel, soundfont, bank/patch,
-/// per-slot Jam following settings, and vocoder settings.
+/// and vocoder settings. Jam Mode routing is handled by the GFPA Jam Mode plugin.
 ///
 /// The vocoder DSP itself is a global singleton (one C engine); however, each
 /// plugin instance stores its own vocoder parameter set so that settings are
@@ -16,15 +16,6 @@ class GrooveForgeKeyboardPlugin implements PluginInstance {
 
   @override
   int midiChannel; // 1-16
-
-  /// Whether this slot is following a master slot in Jam Mode.
-  /// When true and [jamMasterSlotId] is set, this slot's notes are snapped
-  /// to the scale derived from the master slot's detected chord.
-  bool jamEnabled;
-
-  /// The ID of the rack slot this slot follows in Jam Mode.
-  /// null = no master selected (JAM ON will prompt the user to pick one).
-  String? jamMasterSlotId;
 
   /// Absolute path to the loaded .sf2 file, 'vocoderMode', or null (default).
   String? soundfontPath;
@@ -43,8 +34,6 @@ class GrooveForgeKeyboardPlugin implements PluginInstance {
   GrooveForgeKeyboardPlugin({
     required this.id,
     required this.midiChannel,
-    this.jamEnabled = false,
-    this.jamMasterSlotId,
     this.soundfontPath,
     this.bank = 0,
     this.program = 0,
@@ -66,8 +55,6 @@ class GrooveForgeKeyboardPlugin implements PluginInstance {
     'id': id,
     'type': 'grooveforge_keyboard',
     'midiChannel': midiChannel,
-    'jamEnabled': jamEnabled,
-    'jamMasterSlotId': jamMasterSlotId,
     'state': {
       'soundfontPath': soundfontPath,
       'bank': bank,
@@ -86,8 +73,6 @@ class GrooveForgeKeyboardPlugin implements PluginInstance {
     return GrooveForgeKeyboardPlugin(
       id: json['id'] as String,
       midiChannel: (json['midiChannel'] as num?)?.toInt() ?? 1,
-      jamEnabled: (json['jamEnabled'] as bool?) ?? false,
-      jamMasterSlotId: json['jamMasterSlotId'] as String?,
       soundfontPath: state['soundfontPath'] as String?,
       bank: (state['bank'] as num?)?.toInt() ?? 0,
       program: (state['program'] as num?)?.toInt() ?? 0,
@@ -107,9 +92,6 @@ class GrooveForgeKeyboardPlugin implements PluginInstance {
   GrooveForgeKeyboardPlugin copyWith({
     String? id,
     int? midiChannel,
-    bool? jamEnabled,
-    String? jamMasterSlotId,
-    bool clearJamMaster = false,
     String? soundfontPath,
     bool clearSoundfont = false,
     int? bank,
@@ -123,9 +105,6 @@ class GrooveForgeKeyboardPlugin implements PluginInstance {
   }) => GrooveForgeKeyboardPlugin(
     id: id ?? this.id,
     midiChannel: midiChannel ?? this.midiChannel,
-    jamEnabled: jamEnabled ?? this.jamEnabled,
-    jamMasterSlotId:
-        clearJamMaster ? null : (jamMasterSlotId ?? this.jamMasterSlotId),
     soundfontPath:
         clearSoundfont ? null : (soundfontPath ?? this.soundfontPath),
     bank: bank ?? this.bank,

@@ -344,9 +344,6 @@ class _RackSlotPiano extends StatelessWidget {
           engine.verticalGestureAction,
           engine.horizontalGestureAction,
           state.validPitchClasses,
-          engine.jamEnabled,
-          engine.lockModePreference,
-          engine.jamFollowerMap,
           engine.gfpaJamEntries,
           // Listen to all channels so rootPc and scale borders refresh when any
           // master chord or active-note set changes (e.g. bass-note mode).
@@ -358,20 +355,13 @@ class _RackSlotPiano extends StatelessWidget {
           final vAction = engine.verticalGestureAction.value;
           final hAction = engine.horizontalGestureAction.value;
           final validPcs = state.validPitchClasses.value;
-          final followerMap = engine.jamFollowerMap.value;
-          final isLegacyFollower =
-              engine.jamEnabled.value && followerMap.containsKey(channelIndex);
-          final gfpaEntries = engine.gfpaJamEntries.value;
-          final gfpaEntry = gfpaEntries.where((e) => e.followerCh == channelIndex).firstOrNull;
-          final isFollower = isLegacyFollower || gfpaEntry != null;
+          final gfpaEntry = engine.gfpaJamEntries.value
+              .where((e) => e.followerCh == channelIndex)
+              .firstOrNull;
+          final isFollower = gfpaEntry != null;
 
           int? rootPc;
-          if (isLegacyFollower) {
-            final masterIdx = followerMap[channelIndex]!;
-            if (masterIdx >= 0 && masterIdx < engine.channels.length) {
-              rootPc = engine.channels[masterIdx].lastChord.value?.rootPc;
-            }
-          } else if (gfpaEntry != null) {
+          if (gfpaEntry != null) {
             final masterCh = gfpaEntry.masterCh;
             if (gfpaEntry.bassNoteMode) {
               final active = engine.channels[masterCh].activeNotes.value;

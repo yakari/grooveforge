@@ -49,20 +49,6 @@
       "bank": { "type": "int" }
     }
   },
-  "jamStart": "JAM",
-  "jamStop": "STOP",
-  "jamMaster": "Master",
-  "jamSlaves": "Slaves",
-  "jamScale": "Scale",
-  "jamSelectSlavesDialogTitle": "Select Slave Channels",
-  "jamModeToast": "Jam Mode: {status}",
-  "@jamModeToast": {
-    "placeholders": {
-      "status": { "type": "String" }
-    }
-  },
-  "jamStarted": "STARTED",
-  "jamStopped": "STOPPED",
   "ccTitle": "CC Mapping Preferences",
   "ccActiveMappings": "Active Mappings",
   "ccAddMapping": "Add Mapping",
@@ -152,29 +138,9 @@
   "splashCheckingSoundfonts": "Checking bundled soundfonts...",
   "splashExtractingSoundfont": "Extracting default soundfont...",
   "splashReady": "Ready",
-  "synthVisibleChannelsTitle": "Visible Channels",
-  "synthChannelLabel": "Channel {channelIndex}",
-  "@synthChannelLabel": {
-    "placeholders": {
-      "channelIndex": {
-        "type": "int"
-      }
-    }
-  },
-  "synthErrorAtLeastOneChannel": "At least one channel must be visible",
-  "synthSaveFilters": "Save Filters",
   "synthTooltipUserGuide": "User Guide",
-  "synthTooltipFilterChannels": "Filter Visible Channels",
   "synthTooltipSettings": "Settings & Setup",
   "actionCancel": "Cancel",
-  "scaleLockModeTitle": "Scale Lock Mode",
-  "scaleLockModeSubtitle": "Classic (per channel) vs Jam (master-slave)",
-  "modeClassic": "Classic Mode",
-  "modeJam": "Jam Mode",
-  "jamModeKeyGroupsTitle": "Jam Mode Key Groups",
-  "jamModeKeyGroupsSubtitle": "Visually group scale-mapped keys with borders",
-  "highlightWrongNotesTitle": "Highlight Wrong Notes",
-  "highlightWrongNotesSubtitle": "Color out-of-scale pressed keys in red",
   "aftertouchEffectTitle": "Aftertouch Effect",
   "aftertouchEffectSubtitle": "Route keyboard pressure to this CC",
   "aboutSection": "About",
@@ -220,7 +186,6 @@
   },
   "guideWelcomeIntro": "This update brings significant improvements to your workflow and creative tools:",
   "guideChangelogExpand": "See what's new in this version",
-  "guideWelcomeIntro": "This update brings significant improvements to your workflow and creative tools:",
   "guideMidiHardware": "1. Hardware Connection",
   "guideMidiHardwareStep1": "Connect controller via USB (OTG) or power on BLE device.",
   "guideMidiHardwareStep2": "Go to Settings > MIDI Input and select your device.",
@@ -273,15 +238,6 @@
   "rackProjectOpened": "Project opened.",
   "rackAutosaveRestored": "Session restored.",
   "splashRestoringRack": "Restoring rack state...",
-
-  "jamSlotOff": "JAM OFF",
-  "jamSlotOn": "JAM ON",
-  "jamSlotSelectMaster": "Select Jam Master",
-  "jamSlotSelectMasterHint": "Which slot will drive the harmony for this keyboard?",
-  "jamSlotChangeMaster": "Change master…",
-  "jamSlotNoMasterSelected": "Pick master",
-  "jamSlotNoOtherSlots": "No other slots available to follow.",
-  "jamSlotClearMaster": "Clear Jam master",
 
   "vst3LoadFailed": "Failed to load VST3 plugin. Make sure you selected the .vst3 bundle folder.",
   "vst3NotLoaded": "Plugin not yet loaded.",
