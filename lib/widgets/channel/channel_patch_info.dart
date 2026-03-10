@@ -349,9 +349,6 @@ class ChannelPatchInfo extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        debugPrint(
-          '[ChannelPatchInfo] BUILD: channel=$channelIndex, maxWidth=${constraints.maxWidth}',
-        );
         // --- Responsive Layout ---
         // Dynamically rearranges the soundfont, program, and bank dropdowns
         // alongside the scale lock button based on the available widget width.

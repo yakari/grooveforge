@@ -125,6 +125,16 @@ endif()
 
 target_sources(${PROJECT_NAME} PRIVATE ${_LINUX_PLATFORM_SOURCES})
 
+# Suppress all warnings from vendored VST3 SDK sources — they are third-party
+# code we do not maintain and warnings here are noise (pragma-pack, deprecated
+# wstring_convert, format type mismatches, nontrivial-memcall, etc.).
+set_source_files_properties(
+  ${VST3_BASE_SOURCES}
+  ${VST3_SDK_SOURCES}
+  ${_LINUX_PLATFORM_SOURCES}
+  PROPERTIES COMPILE_OPTIONS "-w"
+)
+
 find_package(ALSA REQUIRED)
 target_link_libraries(${PROJECT_NAME} PRIVATE ${ALSA_LIBRARIES})
 target_include_directories(${PROJECT_NAME} PRIVATE ${ALSA_INCLUDE_DIRS})

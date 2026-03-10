@@ -336,10 +336,6 @@ void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uin
             g_callbacksPerSec = cbPerSec;
 
             if (g_periodCount >= cbPerSec) {
-                double avgPeriodMs = (double)(g_periodAccumNs / g_periodCount) / 1e6;
-                double bufferMs = (double)frameCount / SAMPLE_RATE * 1000.0;
-                LOGI("[Latency] avg_callback_period=%.2fms  buffer=%.2fms  glitches=%d status=%s",
-                     avgPeriodMs, bufferMs, g_glitchCounter, g_engineUnhealthy ? "UNHEALTHY" : "OK");
                 g_periodAccumNs = 0;
                 g_periodCount = 0;
             }

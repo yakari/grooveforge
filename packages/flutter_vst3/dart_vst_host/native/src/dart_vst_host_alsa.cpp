@@ -72,8 +72,6 @@ static void audioThreadFn(AudioState* state, snd_pcm_t* pcm) {
     std::vector<float> mixR(blockSize, 0.f);
     std::vector<int16_t> pcmBuf(blockSize * 2);
 
-    int blockCount = 0;
-
     while (state->running.load()) {
         std::fill(mixL.begin(), mixL.end(), 0.f);
         std::fill(mixR.begin(), mixR.end(), 0.f);
@@ -95,20 +93,6 @@ static void audioThreadFn(AudioState* state, snd_pcm_t* pcm) {
                 mixL[i] += outL[i];
                 mixR[i] += outR[i];
             }
-        }
-
-        // Log audio activity every ~2 seconds to confirm the loop is running
-        // and that plugins are producing non-silence.
-        if (++blockCount % (state->sampleRate / blockSize * 2) == 0) {
-            float peak = 0.f;
-            for (int i = 0; i < blockSize; ++i) {
-                float v = std::fabs(mixL[i]);
-                if (v > peak) peak = v;
-                v = std::fabs(mixR[i]);
-                if (v > peak) peak = v;
-            }
-            fprintf(stderr, "[dart_vst_host] ALSA loop alive — plugins=%zu  peak=%.4f\n",
-                    snapshot.size(), peak);
         }
 
         for (int i = 0; i < blockSize; ++i) {
