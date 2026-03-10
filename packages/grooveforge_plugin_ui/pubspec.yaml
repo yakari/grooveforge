@@ -1,4 +1,5 @@
 name: grooveforge_plugin_ui
+publish_to: 'none'
 description: >
   Flutter UI components for building GFPA plugin interfaces — RotaryKnob,
   GFParameterKnob, and GFParameterGrid. Companion package to

@@ -9,6 +9,17 @@
 # packages, and plugins designed to encourage good coding practices.
 include: package:flutter_lints/flutter.yaml
 
+analyzer:
+  exclude:
+    # These are standalone packages developed in the monorepo but not root app
+    # dependencies. They must be analyzed independently with their own `pub get`.
+    - packages/flutter_vst3/dart_vst_graph/**
+    - packages/flutter_vst3/flutter_vst3/**
+    - packages/flutter_vst3/vsts/**
+    # Test files for path-dependency sub-packages use their own dev deps
+    # (e.g. package:test) which are not visible from the root resolution.
+    - packages/flutter_vst3/dart_vst_host/test/**
+
 linter:
   # The lint rules applied to this project can be customized in the
   # section below to disable rules from the `package:flutter_lints/flutter.yaml`

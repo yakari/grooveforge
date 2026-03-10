@@ -3,6 +3,7 @@
 /// provides low‑level functions for creating a host, loading VST
 /// plug‑ins and processing audio. Higher level classes are defined
 /// in host.dart which wrap these bindings in a safer API.
+library;
 
 import 'dart:ffi';
 import 'dart:io';
