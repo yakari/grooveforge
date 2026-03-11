@@ -268,6 +268,35 @@ GrooveForge v2.0.0
 
 ---
 
+## Jam Mode Redesign ✅ COMPLETE (implemented between Phase 1 and Phase 2, model superseded by Phase 3 GFPA)
+
+The old global master/slave model was replaced with a per-slot opt-in model:
+
+### Before
+- One global master channel (only the first one had effect if multiple were set)
+- Multiple slave channels defined globally in `JamSessionWidget`
+- Setting a channel as "slave to no one" required marking it Master — unintuitive
+
+### After (Phase 1→2 intermediate model, later replaced by GFpaJamModePlugin in Phase 3)
+- **Every rack slot independently opts in** to Jam following with a "JAM OFF / JAM ON" toggle button in its header
+- **No master designation required** — any slot can be watched by other slots
+- When toggling JAM ON for the **first time**, a modal prompts the user to pick which slot drives the harmony
+- When JAM is ON, an adjacent chip shows the master's MIDI channel and allows changing it with one tap
+- **Multiple slots can follow the same or different masters** simultaneously
+- Slots with JAM OFF play freely with no scale constraint
+- The global JAM start/stop in the top bar acts as a master on/off switch without losing configurations
+
+### Key code changes
+- `GrooveForgeKeyboardPlugin`: `PluginRole role` → `bool jamEnabled, String? jamMasterSlotId`
+- `AudioEngine`: `jamMasterChannel + jamSlaveChannels` → `jamFollowerMap: ValueNotifier<Map<int,int>>` (follower ch → master ch)
+- `RackState`: new `setPluginJamEnabled()` / `setPluginJamMaster()` / `_syncJamFollowerMapToEngine()`
+- `rack_slot_widget.dart`: `_RoleChip` → `_JamChip` + `_MasterPickerChip`
+- `plugin_role.dart` deleted; `channel_card.dart` deleted
+
+> All of the above was later superseded in Phase 3 by the `GFpaJamModePlugin` slot (GFPA), which replaced per-slot jam flags with a dedicated Jam Mode rack slot managing master/target routing independently.
+
+---
+
 ## Phase 2 — VST3 Hosting (Desktop Only) ✅ COMPLETE
 
 > Adds the ability to load external `.vst3` plugins into rack slots on Linux, macOS, and Windows. Android and iOS are unaffected (the "Browse VST3" button is hidden on those platforms).
@@ -515,29 +544,72 @@ Before Phase 5's audio graph exists, GFPA plugin audio is integrated via the exi
 
 ---
 
-## Phase 3b — GrooveForge Keyboard as Distributable VST3
+## Phase 3b — GrooveForge Keyboard + Vocoder as Distributable VST3 ✅ COMPLETE
 
-> Deferred from original Phase 3. Now simpler: the C++ `IAudioProcessor` calls the same `audio_input.c` + FluidSynth DSP already used by the `GFEffectPlugin` and `GFInstrumentPlugin` implementations. Jam Mode is **not** included in the distributable VST3 — it lives in the GFPA layer and is exclusive to GrooveForge's own rack. No design question remains.
+> Two separate pure-C++ VST3 bundles — no Dart runtime required in the DAW.
+> The `flutter_vst3` Dart-IPC bridge is not used here (it requires a Dart runtime
+> which DAWs don't provide). Instead each plugin links the VST3 SDK directly.
+>
+> **Vocoder design**: sidechain audio input bus (the singer's voice comes from the
+> DAW audio track, not mic capture). This is the standard professional VST3 vocoder
+> pattern and more flexible than the in-app mic-capture approach.
+>
+> Jam Mode is **not** included — it is GFPA-only and exclusive to GrooveForge's rack.
 
-### 3b.1 — VST3 Plugin Scaffold
+### Architecture
 
-- [ ] Create `vst3_plugin/CMakeLists.txt` — links `vst3sdk` (reuse `packages/flutter_vst3/vst3sdk`), FluidSynth static lib, `native_audio/audio_input.c`
-- [ ] `vst3_plugin/src/processor.cpp` — `IAudioProcessor`: MIDI note on/off → FluidSynth; vocoder DSP from `audio_input.c` (Linux only)
-- [ ] `vst3_plugin/src/controller.cpp` — `IEditController`: parameters mirror `GFKeyboardPlugin.parameters` and `GFVocoderPlugin.parameters` IDs exactly (same normalized range, same unit labels)
-- [ ] `vst3_plugin/src/factory.cpp` + `grooveforge_keyboard_ids.h` (generate UIDs with `uuidgen`)
-- [ ] Bundle default soundfont in `Resources/` of the `.vst3` bundle
+```
+packages/flutter_vst3/
+└── vsts/
+    ├── grooveforge_keyboard/          ← VST3 Instrument (MIDI in → FluidSynth → stereo out)
+    │   ├── CMakeLists.txt             (links VST3 SDK + libfluidsynth via pkg-config)
+    │   ├── include/grooveforge_keyboard_ids.h   (processor + controller UIDs, param IDs)
+    │   └── src/
+    │       ├── processor.cpp          (IAudioProcessor: MIDI events → fluid_synth_write_float)
+    │       ├── controller.cpp         (IEditController: Gain, Bank, Program params)
+    │       └── factory.cpp            (single-TU: includes processor + controller, BEGIN_FACTORY_DEF)
+    └── grooveforge_vocoder/           ← VST3 Effect (mono voice in + MIDI → vocoder DSP → stereo out)
+        ├── CMakeLists.txt             (links VST3 SDK + vocoder_dsp static lib)
+        ├── include/grooveforge_vocoder_ids.h    (UIDs, param IDs)
+        └── src/
+            ├── processor.cpp          (IAudioProcessor: sidechain audio + MIDI → vocoder_dsp_process)
+            ├── controller.cpp         (IEditController: Waveform, Noise Mix, Bandwidth, Gate, Release, Gain)
+            └── factory.cpp            (single-TU factory)
+
+native_audio/
+├── vocoder_dsp.h      ← NEW: context-based vocoder DSP API (no miniaudio)
+└── vocoder_dsp.c      ← NEW: VocoderContext struct + DSP ported from audio_input.c
+```
+
+### 3b.1 — VST3 Plugin Scaffold ✅
+
+- [x] `native_audio/vocoder_dsp.h` + `vocoder_dsp.c` — context-based DSP, no miniaudio dep
+- [x] `vsts/grooveforge_keyboard/CMakeLists.txt` — links vst3sdk + libfluidsynth (pkg-config)
+- [x] `grooveforge_keyboard_ids.h` — processor/controller UIDs, kParamGain/Bank/Program
+- [x] `processor.cpp` — MIDI note on/off → `fluid_synth_noteon/noteoff` + `fluid_synth_write_float`; state saved as gain + bank + program + soundfont path
+- [x] `controller.cpp` — Gain (0..1), Bank (0-127), Program (0-127)
+- [x] `factory.cpp` — single-TU `BEGIN_FACTORY_DEF` with kInstrumentSynth category
+- [x] `vsts/grooveforge_vocoder/CMakeLists.txt` — links vst3sdk + vocoder_dsp static lib
+- [x] `grooveforge_vocoder_ids.h` — UIDs, kParamWaveform/NoiseMix/Bandwidth/Gate/EnvRelease/InputGain
+- [x] `processor.cpp` — mono sidechain input + MIDI → `vocoder_dsp_process`; stereo output; voice-steal on polyphony overflow
+- [x] `controller.cpp` — Waveform (list: Saw/Square/Choral/Natural), Noise Mix, Bandwidth, Gate Threshold, Env Release, Input Gain
+- [x] `factory.cpp` — single-TU `BEGIN_FACTORY_DEF` with kFxVocoder category
+- [ ] Bundle default soundfont in `Resources/` of the keyboard `.vst3` bundle (load from bundle-relative path at runtime)
 
 ### 3b.2 — Build & CI
 
-- [ ] `make vst-linux` → installs to `~/.vst3/`
+- [x] `make keyboard` / `make vocoder` / `make grooveforge` targets in `flutter_vst3/Makefile`
+- [x] `make install-grooveforge` — copies both bundles to `~/.vst3/`
 - [ ] `make vst-macos` → universal binary
 - [ ] `make vst-windows` → Win32 build
-- [ ] GitHub Actions CI: build on Ubuntu/macOS/Windows, upload as release artifacts alongside the Flutter app
+- [ ] GitHub Actions CI: build on Ubuntu/macOS/Windows, upload as release artifacts
 
 ### 3b.3 — Testing
 
-- [ ] Load in Reaper (Linux) — notes via MIDI, soundfont change, vocoder — verify audio
-- [ ] Load in Ardour (Linux) — verify MIDI routing + audio output
+- [ ] Load keyboard in Reaper (Linux) — verify MIDI note on/off, bank/program switching, state save/restore
+- [ ] Load vocoder in Reaper (Linux) — route audio track to sidechain input, verify carrier oscillator modes
+- [x] Load keyboard in Ardour (Linux) — verified loading and MIDI note output ✅
+- [x] Load vocoder in Ardour (Linux) — Flatpak-compatible, GLIBC version mismatch fixed ✅
 - [ ] Save/restore plugin state in DAW project
 
 ---
@@ -549,28 +621,6 @@ Before Phase 5's audio graph exists, GFPA plugin audio is integrated via the exi
 - Add `setup_vst3.sh` to project root (VST3 SDK auto-download)
 - Add `vst3_plugin/` build instructions to `README.md`
 - Trademark compliance: if using "VST3" branding in the UI or plugin name, follow [Steinberg trademark guidelines](https://www.steinberg.net/vst-instrument-and-plug-in-developer/Steinberg_VST_Plug-In_SDK_Licensing_Agreement.pdf) (logo usage rules, no implication of Steinberg endorsement)
-
----
-
-## Version Plan
-
-
-| Version | Phase   | Status      | Description                                                                      |
-| ------- | ------- | ----------- | -------------------------------------------------------------------------------- |
-| `2.0.0` | Phase 1 | ✅ Complete  | Rack UI + GrooveForge Keyboard built-in plugin + .gf project files               |
-| `2.1.0` | Phase 2 | ✅ Complete  | External VST3 hosting (desktop only)                                             |
-| `2.2.0` | Phase 3 | 🔜 TODO     | GrooveForge Keyboard as distributable `.vst3` bundle                             |
-| `2.3.0` | Phase 4 | 🔜 TODO     | Transport engine: global BPM, time signature, play/stop, ProcessContext to VSTs  |
-| `2.4.0` | Phase 5 | 🔜 TODO     | Audio signal graph + "Back of Rack" cable patching UI                            |
-| `2.5.0` | Phase 6 | 🔜 TODO     | VST3 effect plugin support (insert FX chains per slot, master bus FX)            |
-| `2.6.0` | Phase 7 | 🔜 TODO     | MIDI Looper (BPM-synced, per-slot, multi-track overdub)                          |
-| `3.0.0` | Phase 8 | 🔜 TODO     | GrooveForge Plugin API (GFPA) — mobile-native plugin system (Android/iOS/all)   |
-| `3.1.0` | Phase 9 | 🔜 TODO     | Audio looper (requires audio graph from Phase 5)                                 |
-
-
----
-
-*Last updated: 2026-03-09 — Phases 4–9 planned. Transport engine, audio graph, cable patching UI, MIDI looper, GrooveForge Plugin API (GFPA), and audio looper. See below for full specification.*
 
 ---
 
@@ -1315,49 +1365,22 @@ All keys below are **reserved immediately** in the current `ProjectService` to a
 ## Version Plan
 
 
-| Version | Phase   | Status      | Description                                                                      |
-| ------- | ------- | ----------- | -------------------------------------------------------------------------------- |
-| `2.0.0` | Phase 1  | ✅ Complete  | Rack UI + GrooveForge Keyboard built-in plugin + .gf project files               |
-| `2.1.0` | Phase 2  | ✅ Complete  | External VST3 hosting (desktop only)                                             |
-| `2.2.0` | Phase 3  | 🚧 In Progress | GFPA core interfaces + migrate keyboard, vocoder, Jam Mode to GFPA plugins    |
-| `2.2.x` | Phase 3b | 🔜 TODO     | Distributable GrooveForge Keyboard `.vst3` bundle (deferred, simpler post-3)     |
-| `2.3.0` | Phase 4  | 🔜 TODO     | Transport engine: global BPM, time signature, play/stop, ProcessContext to VSTs  |
-| `2.4.0` | Phase 5  | 🔜 TODO     | Audio signal graph + "Back of Rack" cable patching UI                            |
-| `2.5.0` | Phase 6  | 🔜 TODO     | VST3 effect plugin support (insert FX chains per slot, master bus FX)            |
-| `2.6.0` | Phase 7  | 🔜 TODO     | MIDI Looper (BPM-synced, per-slot, multi-track overdub)                          |
-| `3.0.0` | Phase 8  | 🔜 TODO     | GFPA community plugins — first-party effects (reverb, EQ, delay…) + plugin store |
-| `3.1.0` | Phase 8b | 🔜 TODO     | AudioUnit v3 bridge (macOS + iOS) — hosts AUv3 ecosystem plugins                 |
-| `3.2.0` | Phase 9  | 🔜 TODO     | Audio looper (PCM, requires audio graph from Phase 5)                            |
-| `TBD`   | Phase 8c | ⏸ Deferred  | AAP bridge (Android) — deferred pending AAP v1.0 + ecosystem growth              |
+| Version | Phase    | Status       | Description                                                                      |
+| ------- | -------- | ------------ | -------------------------------------------------------------------------------- |
+| `2.0.0` | Phase 1  | ✅ Complete   | Rack UI + GrooveForge Keyboard built-in plugin + .gf project files               |
+| `2.1.0` | Phase 2  | ✅ Complete   | External VST3 hosting (desktop only)                                             |
+| `2.2.0` | Phase 3  | ✅ Complete   | GFPA core + Keyboard / Vocoder / Jam Mode built-in plugins (all platforms)       |
+| `2.2.1` | Phase 3b | ✅ Complete   | GrooveForge Keyboard + Vocoder as distributable `.vst3` bundles (Linux)          |
+| `2.3.0` | Phase 4  | 🔜 TODO      | Transport engine: global BPM, time signature, play/stop, ProcessContext to VSTs  |
+| `2.4.0` | Phase 5  | 🔜 TODO      | Audio signal graph + "Back of Rack" cable patching UI                            |
+| `2.5.0` | Phase 6  | 🔜 TODO      | VST3 effect plugin support (insert FX chains per slot, master bus FX)            |
+| `2.6.0` | Phase 7  | 🔜 TODO      | MIDI Looper (BPM-synced, per-slot, multi-track overdub)                          |
+| `3.0.0` | Phase 8  | 🔜 TODO      | GFPA community plugins — first-party effects (reverb, EQ, delay…) + plugin store |
+| `3.1.0` | Phase 8b | 🔜 TODO      | AudioUnit v3 bridge (macOS + iOS) — hosts AUv3 ecosystem plugins                 |
+| `3.2.0` | Phase 9  | 🔜 TODO      | Audio looper (PCM, requires audio graph from Phase 5)                            |
+| `TBD`   | Phase 8c | ⏸ Deferred   | AAP bridge (Android) — deferred pending AAP v1.0 + ecosystem growth              |
 
 
 ---
 
-*Last updated: 2026-03-09 — Phases 4–9 specified. Transport engine, audio signal graph + cable patching UI, VST3 effect support, MIDI looper, GrooveForge Plugin API (mobile-native plugin system), audio looper.*
-
----
-
-## Jam Mode Redesign (implemented between Phase 1 and Phase 2)
-
-The old global master/slave model was replaced with a per-slot opt-in model:
-
-### Before
-- One global master channel (only the first one had effect if multiple were set)
-- Multiple slave channels defined globally in `JamSessionWidget`
-- Setting a channel as "slave to no one" required marking it Master — unintuitive
-
-### After
-- **Every rack slot independently opts in** to Jam following with a "JAM OFF / JAM ON" toggle button in its header
-- **No master designation required** — any slot can be watched by other slots
-- When toggling JAM ON for the **first time**, a modal prompts the user to pick which slot drives the harmony
-- When JAM is ON, an adjacent chip shows the master's MIDI channel and allows changing it with one tap
-- **Multiple slots can follow the same or different masters** simultaneously
-- Slots with JAM OFF play freely with no scale constraint
-- The global JAM start/stop in the top bar acts as a master on/off switch without losing configurations
-
-### Key code changes
-- `GrooveForgeKeyboardPlugin`: `PluginRole role` → `bool jamEnabled, String? jamMasterSlotId`
-- `AudioEngine`: `jamMasterChannel + jamSlaveChannels` → `jamFollowerMap: ValueNotifier<Map<int,int>>` (follower ch → master ch)
-- `RackState`: new `setPluginJamEnabled()` / `setPluginJamMaster()` / `_syncJamFollowerMapToEngine()`
-- `rack_slot_widget.dart`: `_RoleChip` → `_JamChip` + `_MasterPickerChip`
-- `plugin_role.dart` deleted; `channel_card.dart` deleted
+*Last updated: 2026-03-11 — Phases 1–3b complete (v2.0.0–v2.2.1). Phases 4–9 planned: transport engine, audio graph, cable patching UI, MIDI looper, and audio looper. See below for full specification.*

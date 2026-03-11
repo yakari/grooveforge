@@ -1,7 +1,7 @@
 # flutter_vst3 Toolkit Makefile
 # Builds VST® 3 plugins with Flutter UI and pure Dart audio processing
 
-.PHONY: all build test clean clean-native clean-plugin help dart-deps flutter-deps reverb-vst install reverb reverb-build-only echo echo-vst echo-build-only echo-deps
+.PHONY: all build test clean clean-native clean-plugin help dart-deps flutter-deps reverb-vst install reverb reverb-build-only echo echo-vst echo-build-only echo-deps keyboard keyboard-vst vocoder vocoder-vst grooveforge
 
 # Default target - build the Flutter Reverb VST® 3 plugin
 all: reverb
@@ -34,6 +34,40 @@ echo-vst: echo
 
 # Build echo VST® 3 without installing (explicit build-only target)
 echo-build-only: echo
+
+# ── GrooveForge VST3 plugins (pure C++, no Dart runtime) ─────────────────
+
+# Build both GrooveForge plugins
+grooveforge: keyboard vocoder
+
+# Build the GrooveForge Keyboard VST3 plugin and install a real copy to ~/.vst3/
+# (symlinks are blocked by Flatpak DAW sandboxes like Ardour/Reaper)
+keyboard:
+	@echo "Building GrooveForge Keyboard VST3 plugin..."
+	@mkdir -p vsts/grooveforge_keyboard/build
+	@cd vsts/grooveforge_keyboard/build && cmake -DCMAKE_BUILD_TYPE=Release .. && make -j$(shell nproc 2>/dev/null || echo 4)
+	@mkdir -p ~/.vst3
+	@rm -rf ~/.vst3/grooveforge_keyboard.vst3
+	@cp -rL vsts/grooveforge_keyboard/build/VST3/Release/grooveforge_keyboard.vst3 ~/.vst3/
+	@echo "✅ GrooveForge Keyboard installed to ~/.vst3/grooveforge_keyboard.vst3"
+
+keyboard-vst: keyboard
+
+# Build the GrooveForge Vocoder VST3 plugin and install a real copy to ~/.vst3/
+# (symlinks are blocked by Flatpak DAW sandboxes like Ardour/Reaper)
+vocoder:
+	@echo "Building GrooveForge Vocoder VST3 plugin..."
+	@mkdir -p vsts/grooveforge_vocoder/build
+	@cd vsts/grooveforge_vocoder/build && cmake -DCMAKE_BUILD_TYPE=Release .. && make -j$(shell nproc 2>/dev/null || echo 4)
+	@mkdir -p ~/.vst3
+	@rm -rf ~/.vst3/grooveforge_vocoder.vst3
+	@cp -rL vsts/grooveforge_vocoder/build/VST3/Release/grooveforge_vocoder.vst3 ~/.vst3/
+	@echo "✅ GrooveForge Vocoder installed to ~/.vst3/grooveforge_vocoder.vst3"
+
+vocoder-vst: vocoder
+
+# Install both GrooveForge plugins to ~/.vst3/ (aliases — build targets already install)
+install-grooveforge: grooveforge
 
 # Run all tests
 test: build
