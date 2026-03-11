@@ -199,6 +199,7 @@ class AudioEngine extends ChangeNotifier {
   final ValueNotifier<double> vocoderGateThreshold = ValueNotifier(
     0.01, // 0.0 = gate off, typical live use: ~0.02-0.05
   );
+
   final ValueNotifier<int> vocoderInputDeviceIndex = ValueNotifier<int>(-1);
   final ValueNotifier<int> vocoderInputAndroidDeviceId = ValueNotifier<int>(-1);
   final ValueNotifier<int> vocoderOutputAndroidDeviceId = ValueNotifier<int>(
@@ -368,6 +369,11 @@ class AudioEngine extends ChangeNotifier {
   /// Holds pending Timers used to apply the 30ms "wait-and-see" anti-flicker delay.
   final List<Timer?> _chordUpdateTimers = List.generate(16, (i) => null);
   final List<int> _lastNoteCounts = List.generate(16, (i) => 0);
+
+  /// Last known bass-root scale pitch-classes per follower channel.
+  /// Keyed by follower channel index. Persists after master notes are released
+  /// so walking-bass snapping still works between note changes.
+  final Map<int, Set<int>> _lastBassScalePcs = {};
 
   SharedPreferences? _prefs;
 
@@ -1201,8 +1207,9 @@ class AudioEngine extends ChangeNotifier {
         if (notes.isNotEmpty) {
           final rootPc = notes.reduce(min) % 12;
           final intervals = _gfpaBassNoteIntervals(entry.scaleType);
-          channels[followerCh].validPitchClasses.value =
-              intervals.map((i) => (rootPc + i) % 12).toSet();
+          final pcs = intervals.map((i) => (rootPc + i) % 12).toSet();
+          channels[followerCh].validPitchClasses.value = pcs;
+          _lastBassScalePcs[followerCh] = pcs;
         }
         // When notes are empty keep the previous scale so the piano stays highlighted
       } else {
@@ -1224,6 +1231,8 @@ class AudioEngine extends ChangeNotifier {
   /// Clears non-follower channel constraints, then propagates scales to GFPA followers.
   void _propagateJamScaleUpdate() {
     final gfpaFollowers = gfpaJamEntries.value.map((e) => e.followerCh).toSet();
+    // Clear bass cache for channels that are no longer followers.
+    _lastBassScalePcs.removeWhere((ch, _) => !gfpaFollowers.contains(ch));
 
     // ── Clear non-GFPA-follower channels ──────────────────────────────────
     for (int i = 0; i < 16; i++) {
@@ -1256,8 +1265,9 @@ class AudioEngine extends ChangeNotifier {
         if (active.isNotEmpty) {
           final rootPc = active.reduce(min) % 12;
           final intervals = _gfpaBassNoteIntervals(entry.scaleType);
-          channels[followerCh].validPitchClasses.value =
-              intervals.map((i) => (rootPc + i) % 12).toSet();
+          final pcs = intervals.map((i) => (rootPc + i) % 12).toSet();
+          channels[followerCh].validPitchClasses.value = pcs;
+          _lastBassScalePcs[followerCh] = pcs;
         } else {
           channels[followerCh].validPitchClasses.value = null;
         }
@@ -1482,12 +1492,19 @@ class AudioEngine extends ChangeNotifier {
 
     if (entry.bassNoteMode) {
       final active = channels[masterCh].activeNotes.value;
-      if (active.isEmpty) return key;
-      final bassNote = active.reduce(min);
-      final rootPc = bassNote % 12;
-      scalePcs = _gfpaBassNoteIntervals(entry.scaleType)
-          .map((i) => (rootPc + i) % 12)
-          .toSet();
+      if (active.isEmpty) {
+        // When no master notes are held, use the last known bass scale so
+        // notes can still be snapped to the most recently played root.
+        final lastPcs = _lastBassScalePcs[entry.followerCh];
+        if (lastPcs == null || lastPcs.isEmpty) return key;
+        scalePcs = lastPcs;
+      } else {
+        final bassNote = active.reduce(min);
+        final rootPc = bassNote % 12;
+        scalePcs = _gfpaBassNoteIntervals(entry.scaleType)
+            .map((i) => (rootPc + i) % 12)
+            .toSet();
+      }
     } else {
       final masterChord = channels[masterCh].lastChord.value;
       if (masterChord == null) return key;
