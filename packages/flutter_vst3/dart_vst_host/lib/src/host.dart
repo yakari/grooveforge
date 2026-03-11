@@ -43,6 +43,18 @@ class VstHost {
     _b.dvhDestroyHost(handle);
   }
 
+  /// Set the global transport state for all plugins.
+  void setTransport({
+    required double bpm,
+    required int timeSigNum,
+    required int timeSigDen,
+    required bool isPlaying,
+    required double positionInBeats,
+    required int positionInSamples,
+  }) {
+    _b.dvhSetTransport(bpm, timeSigNum, timeSigDen, isPlaying ? 1 : 0, positionInBeats, positionInSamples);
+  }
+
   // ─── ALSA audio loop helpers ───────────────────────────────────────────────
 
   /// Register [plugin] with the host's ALSA audio thread.

@@ -34,11 +34,12 @@ class RackSlotWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('RackSlotWidget: build START for ${plugin.displayName}');
     final engine = context.read<AudioEngine>();
     // midiChannel == 0 for MIDI FX / effect GFPA slots — use ch 0 as fallback.
     final channelIndex = (plugin.midiChannel - 1).clamp(0, 15);
     final channelState = engine.channels[channelIndex];
-
+    debugPrint('RackSlotWidget: building ValueListenableBuilder for ${plugin.displayName}');
     return ValueListenableBuilder<Set<int>>(
       valueListenable: channelState.activeNotes,
       builder: (context, activeNotes, _) {
@@ -90,6 +91,7 @@ class RackSlotWidget extends StatelessWidget {
   }
 
   Widget _buildBody(BuildContext context) {
+    debugPrint('RackSlotWidget: _buildBody for ${plugin.displayName}');
     if (plugin is GrooveForgeKeyboardPlugin) {
       return GrooveForgeKeyboardSlotUI(
         plugin: plugin as GrooveForgeKeyboardPlugin,
@@ -104,6 +106,7 @@ class RackSlotWidget extends StatelessWidget {
         case 'com.grooveforge.vocoder':
           return GFpaVocoderSlotUI(plugin: gfpa);
         case 'com.grooveforge.jammode':
+          debugPrint('RackSlotWidget: returning GFpaJamModeSlotUI');
           return GFpaJamModeSlotUI(plugin: gfpa);
         default:
           return Padding(

@@ -9,6 +9,7 @@ import '../services/audio_engine.dart';
 import '../services/project_service.dart';
 import '../services/rack_state.dart';
 import '../services/vst_host_service.dart';
+import '../services/transport_engine.dart';
 import 'rack_screen.dart';
 import '../l10n/app_localizations.dart';
 
@@ -38,6 +39,7 @@ class _SplashScreenState extends State<SplashScreen> {
   Future<void> _initializeApp() async {
     final engine = context.read<AudioEngine>();
     final rack = context.read<RackState>();
+    final transport = context.read<TransportEngine>();
 
     // Wait for the very first frame to finish before starting the heavy lifting.
     await Future.delayed(const Duration(milliseconds: 100));
@@ -50,26 +52,35 @@ class _SplashScreenState extends State<SplashScreen> {
     if (!mounted) return;
     engine.initStatus.value = 'Restoring rack state...';
     final projectService = ProjectService();
-    rack.onChanged = () => projectService.autosave(rack, engine);
-    await projectService.loadOrInitDefault(rack, engine);
+    rack.onChanged = () => projectService.autosave(rack, engine, transport);
+    debugPrint('SplashScreen: Calling loadOrInitDefault');
+    await projectService.loadOrInitDefault(rack, engine, transport);
+    debugPrint('SplashScreen: loadOrInitDefault returned');
 
     // Re-load any persisted VST3 plugins into the native host so their
     // parameters are accessible immediately (they are not auto-loaded on restore).
     if (!mounted) return;
+    debugPrint('SplashScreen: initializing VstHostService');
     final vstSvc = context.read<VstHostService>();
     if (vstSvc.isSupported) {
+      debugPrint('SplashScreen: vstSvc.initialize()');
       await vstSvc.initialize();
       bool anyVst3Loaded = false;
       for (final plugin in rack.plugins) {
         if (plugin is! Vst3PluginInstance || plugin.path.isEmpty) continue;
         engine.initStatus.value = 'Loading ${plugin.pluginName}…';
+        debugPrint('SplashScreen: Loading VST3 ${plugin.pluginName}');
         final loaded = await vstSvc.loadPlugin(plugin.path, plugin.id);
         if (loaded != null) anyVst3Loaded = true;
       }
-      if (anyVst3Loaded) vstSvc.startAudio();
+      if (anyVst3Loaded) {
+        debugPrint('SplashScreen: vstSvc.startAudio()');
+        vstSvc.startAudio();
+      }
     }
 
     if (!mounted) return;
+    debugPrint('SplashScreen: pushing RackScreen');
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) =>

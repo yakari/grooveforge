@@ -12,8 +12,10 @@ import '../services/midi_service.dart';
 import '../services/project_service.dart';
 import '../services/rack_state.dart';
 import '../services/vst_host_service.dart';
+import '../services/transport_engine.dart';
 import '../widgets/add_plugin_sheet.dart';
 import '../widgets/rack_slot_widget.dart';
+import '../widgets/transport_bar.dart';
 import '../widgets/user_guide_modal.dart';
 import 'preferences_screen.dart';
 
@@ -40,16 +42,17 @@ class _RackScreenState extends State<RackScreen> {
   @override
   void initState() {
     super.initState();
+    debugPrint('RackScreen: initState START');
     final midiService = context.read<MidiService>();
-    final audioEngine = context.read<AudioEngine>();
+    final engine = context.read<AudioEngine>();
     final ccMappingService = context.read<CcMappingService>();
 
-    audioEngine.ccMappingService = ccMappingService;
+    engine.ccMappingService = ccMappingService;
     midiService.onMidiDataReceived = (packet) {
       // If a VST3 slot owns this MIDI channel, send only to the VST3 plugin
       // and skip FluidSynth entirely — otherwise the soundfont plays in parallel.
       if (!_routeMidiToVst3Plugins(packet)) {
-        audioEngine.processMidiPacket(packet);
+        engine.processMidiPacket(packet);
       }
     };
 
@@ -59,7 +62,7 @@ class _RackScreenState extends State<RackScreen> {
     });
 
     _toastListener = () {
-      final msg = audioEngine.toastNotifier.value;
+      final msg = engine.toastNotifier.value;
       if (msg != null && mounted) {
         ScaffoldMessenger.of(context).clearSnackBars();
         ScaffoldMessenger.of(context).showSnackBar(
@@ -67,7 +70,7 @@ class _RackScreenState extends State<RackScreen> {
         );
       }
     };
-    audioEngine.toastNotifier.addListener(_toastListener!);
+        engine.toastNotifier.addListener(_toastListener!);
 
     _newDeviceSubscription = midiService.onNewDeviceDetected.listen((device) {
       if (mounted) _showNewDeviceModal(device);
@@ -78,13 +81,14 @@ class _RackScreenState extends State<RackScreen> {
       final packageInfo = await PackageInfo.fromPlatform();
       final currentVersion =
           '${packageInfo.version}+${packageInfo.buildNumber}';
-      if (audioEngine.lastSeenVersion.value != currentVersion) {
+      if (engine.lastSeenVersion.value != currentVersion) {
         if (mounted) {
           _showUserGuide();
-          audioEngine.markWelcomeAsSeen(currentVersion);
+          engine.markWelcomeAsSeen(currentVersion);
         }
       }
     });
+    debugPrint('RackScreen: initState END');
   }
 
   @override
@@ -165,9 +169,10 @@ class _RackScreenState extends State<RackScreen> {
     final l10n = AppLocalizations.of(context)!;
     final rack = context.read<RackState>();
     final engine = context.read<AudioEngine>();
-    final service = ProjectService();
+    final transport = context.read<TransportEngine>();
+    final service = context.read<ProjectService>();
 
-    final path = await service.openProject(rack, engine);
+    final path = await service.openProject(rack, engine, transport);
     if (path != null && mounted) {
       setState(() => _currentProjectPath = path);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -180,9 +185,10 @@ class _RackScreenState extends State<RackScreen> {
     final l10n = AppLocalizations.of(context)!;
     final rack = context.read<RackState>();
     final engine = context.read<AudioEngine>();
-    final service = ProjectService();
+    final transport = context.read<TransportEngine>();
+    final service = context.read<ProjectService>();
 
-    final path = await service.saveProjectAs(rack, engine);
+    final path = await service.saveProjectAs(rack, engine, transport);
     if (path != null && mounted) {
       setState(() => _currentProjectPath = path);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -253,8 +259,8 @@ class _RackScreenState extends State<RackScreen> {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('RackScreen: build START');
     final l10n = AppLocalizations.of(context)!;
-
     return Scaffold(
       appBar: AppBar(
         title: Text(_currentProjectPath != null
@@ -328,10 +334,17 @@ class _RackScreenState extends State<RackScreen> {
                   constraints.maxHeight < 480;
               return Padding(
                 padding: const EdgeInsets.all(2.0),
-                child: _RackList(
-                  scrollController: _scrollController,
-                  isMobileLandscape: isMobileLandscape,
-                  slotKeys: _slotKeys,
+                child: Column(
+                  children: [
+                    const TransportBar(),
+                    Expanded(
+                      child: _RackList(
+                        scrollController: _scrollController,
+                        isMobileLandscape: isMobileLandscape,
+                        slotKeys: _slotKeys,
+                      ),
+                    ),
+                  ],
                 ),
               );
             },
@@ -401,6 +414,7 @@ class _RackList extends StatelessWidget {
               ),
               itemBuilder: (context, index) {
                 final plugin = rack.plugins[index];
+                debugPrint('RackList: building item $index for plugin ${plugin.id}');
                 final slotKey =
                     slotKeys.putIfAbsent(plugin.id, () => GlobalKey());
                 return KeyedSubtree(

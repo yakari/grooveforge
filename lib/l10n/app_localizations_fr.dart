@@ -596,4 +596,19 @@ class AppLocalizationsFr extends AppLocalizations {
   String vst3ScanError(String error) {
     return 'Échec de l\'analyse : $error';
   }
+
+  @override
+  String get transportBpm => 'BPM';
+
+  @override
+  String get transportTapTempo => 'Tap';
+
+  @override
+  String get transportPlay => 'Lecture';
+
+  @override
+  String get transportStop => 'Stop';
+
+  @override
+  String get transportTimeSignature => 'Métrique';
 }

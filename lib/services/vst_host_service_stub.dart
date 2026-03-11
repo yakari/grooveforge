@@ -19,6 +19,15 @@ class VstHostService {
 
   void noteOff(String slotId, int channel, int note) {}
 
+  void setTransport({
+    required double bpm,
+    required int timeSigNum,
+    required int timeSigDen,
+    required bool isPlaying,
+    required double positionInBeats,
+    required int positionInSamples,
+  }) {}
+
   bool setParameter(String slotId, int paramId, double normalized) => false;
 
   double getParameter(String slotId, int paramId) => 0.0;

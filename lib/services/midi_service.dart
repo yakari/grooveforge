@@ -5,10 +5,6 @@ import 'package:flutter_midi_command/flutter_midi_command.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// A wrapper service around [FlutterMidiCommand] to manage hardware connections.
-///
-/// Handles discovering available Bluetooth/USB MIDI devices, establishing connections,
-/// routing incoming MIDI data packets, and persisting the last connected device
-/// for automatic reconnection on subsequent app launches.
 class MidiService {
   final MidiCommand _midiCommand = MidiCommand();
   StreamSubscription<MidiPacket>? _rxSubscription;
@@ -17,6 +13,7 @@ class MidiService {
   Function(MidiPacket)? onMidiDataReceived;
 
   final Set<String> _knownDeviceIds = {};
+  final Set<String> _blacklistedDeviceNames = {}; // Session-local blacklist
   final StreamController<MidiDevice> _newDeviceController =
       StreamController<MidiDevice>.broadcast();
 
@@ -24,22 +21,32 @@ class MidiService {
 
   Timer? _pollingTimer;
 
-  /// Guards against concurrent [connect] calls (e.g. polling timer firing
-  /// while [_tryAutoConnect] is already awaiting [connectToDevice]).
+  /// Guards against concurrent [connect] calls
   bool _isConnecting = false;
+
+  /// Backoff to avoid rapid reconnection loops for problematic hardware
+  DateTime? _lastConnectAttemptTime;
+  String? _lastConnectAttemptDevice;
 
   MidiService() {
     debugPrint('MidiService: Initializing...');
 
+    // On Linux, the native stream listener can sometimes cause conflicts with the ALSA driver during connection.
+    // We prefer the polling strategy for stability on Linux/Windows/macOS.
     final setupStream = _midiCommand.onMidiSetupChanged;
-    if (setupStream != null) {
+    if (setupStream != null && !Platform.isLinux) {
       debugPrint('MidiService: Subscribing to onMidiSetupChanged');
       _setupSubscription = setupStream.listen((event) {
         debugPrint('MidiService: onMidiSetupChanged event: $event');
         _handleSetupChanged();
       });
-    } else {
-      debugPrint('MidiService: onMidiSetupChanged is null!');
+    }
+
+    if (!kIsWeb && (Platform.isLinux || Platform.isWindows || Platform.isMacOS)) {
+      debugPrint('MidiService: Starting 2s polling timer for ${Platform.operatingSystem}');
+      _pollingTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+        _handleSetupChanged();
+      });
     }
 
     _midiCommand.onMidiDataReceived?.listen((packet) {
@@ -47,33 +54,53 @@ class MidiService {
         onMidiDataReceived!(packet);
       }
     });
-
-    // Linux, Windows, and macOS (at launch) implementations often don't emit native setup events reliably.
-    // Poll every 2 seconds to detect hotplugged or unplugged devices.
-    if (!kIsWeb && (Platform.isLinux || Platform.isWindows || Platform.isMacOS)) {
-      debugPrint(
-        'MidiService: Starting polling timer for ${Platform.operatingSystem}',
-      );
-      _pollingTimer = Timer.periodic(const Duration(seconds: 2), (_) {
-        _handleSetupChanged();
-      });
-    }
-
+    
     _tryAutoConnect();
   }
 
+  void _setHangFlagSync(bool value) {
+    try {
+      final path = '/tmp/grooveforge_midi_hang.flag';
+      final file = File(path);
+      if (value) {
+        file.writeAsStringSync('hanging', flush: true);
+      } else {
+        if (file.existsSync()) file.deleteSync();
+      }
+    } catch (e) {
+      debugPrint('MidiService: Failed to set hang flag: $e');
+    }
+  }
+
+  bool _isHangFlagSetSync() {
+    try {
+      return File('/tmp/grooveforge_midi_hang.flag').existsSync();
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<void> _handleSetupChanged() async {
-    debugPrint('MidiService: Checking for device changes...');
-    final devs = await _midiCommand.devices;
-    if (devs == null) {
-      debugPrint('MidiService: Devices list is NULL');
+    if (_isConnecting) {
+      debugPrint('MidiService: Scan ignored, connection already in progress.');
       return;
     }
 
-    final currentDeviceIds = devs.map((e) => e.id).toSet();
-    debugPrint('MidiService: Current devices: $currentDeviceIds');
+    // Debounce: don't scan too often
+    final now = DateTime.now();
+    if (_lastConnectAttemptTime != null && 
+        now.difference(_lastConnectAttemptTime!) < const Duration(seconds: 2)) {
+      debugPrint('MidiService: Scan debounced.');
+      return;
+    }
 
-    // Remove disconnected devices from known list so they can be discovered again if replugged
+    debugPrint('MidiService: Checking for device changes...');
+    final devs = await _midiCommand.devices;
+    if (devs == null) return;
+
+    final currentDeviceIds = devs.map((e) => e.id).toSet();
+    
+    // Remove disconnected devices from known list
     _knownDeviceIds.removeWhere((id) {
       bool removed = !currentDeviceIds.contains(id);
       if (removed) debugPrint('MidiService: Removed $id from known devices');
@@ -81,40 +108,33 @@ class MidiService {
     });
 
     final prefs = await SharedPreferences.getInstance();
-    final lastDeviceId = prefs.getString('last_midi_device_id');
     final lastDeviceName = prefs.getString('last_midi_device_name');
-    
-    if (lastDeviceId != null || lastDeviceName != null) {
-      debugPrint('MidiService: Last saved device ID: $lastDeviceId, Name: $lastDeviceName');
-    }
 
     for (var device in devs) {
-      // macOS assigns new random IDs to USB MIDI devices across reconnections.
-      // Match by ID first, and fallback to matching the exact name if we have one.
-      final isLastDevice = device.id == lastDeviceId || 
-                           (lastDeviceName != null && device.name == lastDeviceName);
+      final isLastDevice = (lastDeviceName != null && device.name == lastDeviceName);
       
-      // If it's a new device, OR if it's our last device and it's NOT connected yet, process it.
-      if (!_knownDeviceIds.contains(device.id) || (isLastDevice && !device.connected)) {
-        if (!_knownDeviceIds.contains(device.id)) {
-          debugPrint('MidiService: New device found: ${device.id} (${device.name})');
-          _knownDeviceIds.add(device.id);
-        }
+      if (!_knownDeviceIds.contains(device.id)) {
+        debugPrint('MidiService: New device found: ${device.id} (${device.name})');
+        _knownDeviceIds.add(device.id);
 
-        if (isLastDevice) {
-          if (_isConnecting) {
-            debugPrint('MidiService: Already connecting — skipping reconnect for ${device.name}');
-          } else {
-            try {
-              debugPrint('MidiService: Attempting auto-reconnect to ${device.name}...');
-              _isConnecting = true;
-              await connect(device);
-              debugPrint('MidiService: Auto-reconnected to ${device.name}');
-            } catch (e) {
-              debugPrint('MidiService: Failed to auto-reconnect to ${device.name}: $e');
-            } finally {
-              _isConnecting = false;
-            }
+        if (isLastDevice && !_blacklistedDeviceNames.contains(device.name)) {
+          // Additional safety: don't auto-reconnect if we just tried recently
+          if (_lastConnectAttemptDevice == device.name && 
+              now.difference(_lastConnectAttemptTime!) < const Duration(seconds: 15)) {
+            debugPrint('MidiService: Skipping rapid auto-reconnect for ${device.name} (backoff)');
+            continue;
+          }
+
+          if (device.connected) {
+            debugPrint('MidiService: Device ${device.name} already connected, skipping auto-reconnect.');
+            continue;
+          }
+
+          try {
+            debugPrint('MidiService: Attempting auto-reconnect to ${device.name}...');
+            await connect(device);
+          } catch (e) {
+            debugPrint('MidiService: Failed to auto-reconnect to ${device.name}: $e');
           }
         } else if (!device.connected) {
           debugPrint('MidiService: Prompting for new device: ${device.name}');
@@ -124,44 +144,37 @@ class MidiService {
     }
   }
 
-  /// Attempts to automatically reconnect to the last used MIDI device.
   Future<void> _tryAutoConnect() async {
     debugPrint('MidiService: INITIAL _tryAutoConnect');
     final prefs = await SharedPreferences.getInstance();
-    final lastDeviceId = prefs.getString('last_midi_device_id');
     final lastDeviceName = prefs.getString('last_midi_device_name');
     
-    if (lastDeviceId == null && lastDeviceName == null) {
+    if (lastDeviceName == null) {
       debugPrint('MidiService: No last device saved.');
       return;
     }
-    debugPrint('MidiService: Want to reconnect to ID: $lastDeviceId or Name: $lastDeviceName');
 
-    final devs = await _midiCommand.devices;
-    if (devs == null || devs.isEmpty) {
-      debugPrint('MidiService: No devices found yet during INITIAL scan.');
+    // Check if the last session likely hung during a MIDI connection attempt
+    if (_isHangFlagSetSync()) {
+      debugPrint('MidiService: WARNING: Last session appears to have hung! Blacklisting $lastDeviceName.');
+      _blacklistedDeviceNames.add(lastDeviceName);
+      _setHangFlagSync(false);
       return;
     }
 
-    debugPrint('MidiService: Initial scan found: ${devs.map((e) => e.id)}');
+    if (_isConnecting) return;
+
+    final devs = await _midiCommand.devices;
+    if (devs == null || devs.isEmpty) return;
 
     for (var device in devs) {
       _knownDeviceIds.add(device.id);
-      
-      final isLastDevice = device.id == lastDeviceId || 
-                           (lastDeviceName != null && device.name == lastDeviceName);
-                           
-      if (isLastDevice) {
-        if (!_isConnecting) {
-          try {
-            _isConnecting = true;
-            await connect(device);
-            debugPrint('MidiService: Initial auto-connect success: ${device.name}');
-          } catch (e) {
-            debugPrint('MidiService: Initial auto-connect failed: $e. Will retry in polling.');
-          } finally {
-            _isConnecting = false;
-          }
+      if (device.name == lastDeviceName && !_blacklistedDeviceNames.contains(device.name)) {
+        try {
+          // Tight timeout for boot attempt
+          await connect(device).timeout(const Duration(seconds: 4));
+        } catch (e) {
+          debugPrint('MidiService: Initial auto-connect failed or timed out: $e');
         }
         break;
       }
@@ -177,10 +190,35 @@ class MidiService {
   }
 
   Future<void> connect(MidiDevice device) async {
-    await _midiCommand.connectToDevice(device);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('last_midi_device_id', device.id);
-    await prefs.setString('last_midi_device_name', device.name);
+    if (_isConnecting) {
+      debugPrint('MidiService: connect IGNORED, another connection in progress');
+      return;
+    }
+
+    _isConnecting = true;
+    _lastConnectAttemptTime = DateTime.now();
+    _lastConnectAttemptDevice = device.name;
+
+    try {
+      _setHangFlagSync(true);
+      debugPrint('MidiService: connect START for ${device.name}');
+      // If it truly blocks the thread, the timer won't fire. 
+      // But we wrap it in a secondary guard to prevent recursion if Alsa fires events.
+      await _midiCommand.connectToDevice(device).timeout(const Duration(seconds: 8));
+      debugPrint('MidiService: connect SUCCESS for ${device.name}');
+      
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('last_midi_device_id', device.id);
+      await prefs.setString('last_midi_device_name', device.name);
+      
+      _setHangFlagSync(false);
+    } catch (e) {
+      debugPrint('MidiService: connect ERROR for ${device.name}: $e');
+      _setHangFlagSync(false);
+      rethrow;
+    } finally {
+      _isConnecting = false;
+    }
   }
 
   void disconnect(MidiDevice device) async {

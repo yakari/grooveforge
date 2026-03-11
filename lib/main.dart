@@ -7,6 +7,7 @@ import 'services/midi_service.dart';
 import 'services/locale_provider.dart';
 import 'services/project_service.dart';
 import 'services/rack_state.dart';
+import 'services/transport_engine.dart';
 import 'services/vst_host_service.dart';
 import 'screens/splash_screen.dart';
 import 'l10n/app_localizations.dart';
@@ -19,9 +20,10 @@ void main() {
         Provider<CcMappingService>(create: (_) => CcMappingService()),
         Provider<MidiService>(create: (_) => MidiService()),
         ChangeNotifierProvider<AudioEngine>(create: (_) => AudioEngine()),
-        ChangeNotifierProxyProvider<AudioEngine, RackState>(
-          create: (ctx) => RackState(ctx.read<AudioEngine>()),
-          update: (ctx, engine, previous) => previous ?? RackState(engine),
+        ChangeNotifierProvider<TransportEngine>(create: (_) => TransportEngine()),
+        ChangeNotifierProxyProvider2<AudioEngine, TransportEngine, RackState>(
+          create: (ctx) => RackState(ctx.read<AudioEngine>(), ctx.read<TransportEngine>()),
+          update: (ctx, engine, transport, previous) => previous ?? RackState(engine, transport),
         ),
         Provider<ProjectService>(create: (_) => ProjectService()),
         Provider<VstHostService>(

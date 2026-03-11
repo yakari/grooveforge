@@ -256,5 +256,10 @@
     "placeholders": {
       "error": { "type": "String" }
     }
-  }
+  },
+  "transportBpm": "BPM",
+  "transportTapTempo": "Tap",
+  "transportPlay": "Lecture",
+  "transportStop": "Stop",
+  "transportTimeSignature": "Métrique"
 }

@@ -53,6 +53,9 @@ struct DVH_HostState {
   }
 };
 
+static Steinberg::Vst::ProcessContext g_transportContext{};
+static std::mutex g_transportMtx;
+
 // Utility converting tresult into 0/1 for C API. Steinberg returns
 // kResultTrue on success and kResultFalse or error codes on failure.
 static int32_t toOK(tresult r) { return r == kResultTrue ? 1 : 0; }
@@ -306,6 +309,20 @@ int32_t dvh_process_stereo_f32(DVH_Plugin p,
     inBufs[i].channelBuffers32 = const_cast<float**>(inChannels);
   }
 
+  // ── ProcessContext ────────────────────────────────────────────────────────
+  ProcessContext ctxCopy;
+  {
+      std::lock_guard<std::mutex> lock(g_transportMtx);
+      ctxCopy = g_transportContext;
+      if (g_transportContext.state & Steinberg::Vst::ProcessContext::kPlaying) {
+          g_transportContext.projectTimeSamples += num_frames;
+          double currentBps = g_transportContext.tempo / 60.0;
+          double beatsPerSample = currentBps / ps->setup.sampleRate;
+          g_transportContext.projectTimeMusic += beatsPerSample * num_frames;
+      }
+  }
+  ctxCopy.sampleRate = ps->setup.sampleRate;
+
   // ── ProcessData ───────────────────────────────────────────────────────────
   ProcessData data{};
   data.processMode        = ps->setup.processMode;
@@ -318,6 +335,7 @@ int32_t dvh_process_stereo_f32(DVH_Plugin p,
   data.inputParameterChanges  = &ps->inputParamChanges;
   data.outputParameterChanges = &ps->outputParamChanges;
   data.inputEvents            = &ps->inputEvents;
+  data.processContext         = &ctxCopy;
 
   auto r = ps->processor->process(data);
 
@@ -473,6 +491,26 @@ int32_t dvh_unit_name(DVH_Plugin p, int32_t unit_id,
   }
   ui->release();
   return 0;
+}
+
+DVH_API void dvh_set_transport(double bpm, int32_t timeSigNum, int32_t timeSigDen, int32_t isPlaying, double positionInBeats, int32_t positionInSamples) {
+  std::lock_guard<std::mutex> lock(g_transportMtx);
+  g_transportContext.tempo = bpm;
+  g_transportContext.timeSigNumerator = timeSigNum;
+  g_transportContext.timeSigDenominator = timeSigDen;
+  if (isPlaying) {
+      g_transportContext.state |= Steinberg::Vst::ProcessContext::kPlaying;
+  } else {
+      g_transportContext.state &= ~Steinberg::Vst::ProcessContext::kPlaying;
+  }
+  // Only overwrite position if resetting to 0 to avoid jitter when just changing BPM.
+  if (positionInBeats == 0.0 && positionInSamples == 0) {
+      g_transportContext.projectTimeMusic = 0.0;
+      g_transportContext.projectTimeSamples = 0;
+  }
+  g_transportContext.state |= Steinberg::Vst::ProcessContext::kTempoValid |
+                              Steinberg::Vst::ProcessContext::kTimeSigValid |
+                              Steinberg::Vst::ProcessContext::kProjectTimeMusicValid;
 }
 
 } // extern "C"

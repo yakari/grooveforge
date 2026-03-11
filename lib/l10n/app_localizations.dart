@@ -1153,6 +1153,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Scan failed: {error}'**
   String vst3ScanError(String error);
+
+  /// No description provided for @transportBpm.
+  ///
+  /// In en, this message translates to:
+  /// **'BPM'**
+  String get transportBpm;
+
+  /// No description provided for @transportTapTempo.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap'**
+  String get transportTapTempo;
+
+  /// No description provided for @transportPlay.
+  ///
+  /// In en, this message translates to:
+  /// **'Play'**
+  String get transportPlay;
+
+  /// No description provided for @transportStop.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop'**
+  String get transportStop;
+
+  /// No description provided for @transportTimeSignature.
+  ///
+  /// In en, this message translates to:
+  /// **'Time Sig'**
+  String get transportTimeSignature;
 }
 
 class _AppLocalizationsDelegate

@@ -7,6 +7,7 @@ import '../models/grooveforge_keyboard_plugin.dart';
 import '../models/vst3_plugin_instance.dart';
 import '../plugins/gf_vocoder_plugin.dart';
 import 'audio_engine.dart';
+import 'transport_engine.dart';
 import 'package:grooveforge_plugin_api/grooveforge_plugin_api.dart';
 
 /// Manages the ordered list of plugin slots in the GrooveForge rack.
@@ -22,13 +23,23 @@ import 'package:grooveforge_plugin_api/grooveforge_plugin_api.dart';
 /// the project service can trigger an autosave.
 class RackState extends ChangeNotifier {
   final AudioEngine _engine;
+  final TransportEngine _transport;
 
   final List<PluginInstance> _plugins = [];
 
   /// Called after every mutation; use to trigger autosave.
   VoidCallback? onChanged;
 
-  RackState(this._engine);
+  RackState(this._engine, this._transport) {
+    _engine.transportProvider = () => GFTransportContext(
+      bpm: _transport.bpm,
+      timeSigNumerator: _transport.timeSigNumerator,
+      timeSigDenominator: _transport.timeSigDenominator,
+      isPlaying: _transport.isPlaying,
+      isRecording: _transport.isRecording,
+      positionInBeats: _transport.positionInBeats,
+    );
+  }
 
   /// Read-only view of the current plugin list (in display order).
   List<PluginInstance> get plugins => List.unmodifiable(_plugins);

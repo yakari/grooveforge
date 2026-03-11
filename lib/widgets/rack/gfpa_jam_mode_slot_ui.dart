@@ -74,6 +74,7 @@ class GFpaJamModeSlotUI extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('JamModeUI: build START');
     final rack = context.read<RackState>();
     final engine = context.read<AudioEngine>();
 
@@ -438,9 +439,11 @@ class _ScaleLcdSelector extends StatelessWidget {
             final typeTag = taggedTypes.contains(entry.scaleType)
                 ? ' [$rawTag]'
                 : '';
-
+                
+            debugPrint('JamModeUI: entry.bassNoteMode = ${entry.bassNoteMode}');
             if (entry.bassNoteMode) {
               final active = engine.channels[masterCh].activeNotes.value;
+              debugPrint('JamModeUI: active.isEmpty = ${active.isEmpty}');
               if (active.isNotEmpty) {
                 final rootPc = active.reduce(min) % 12;
                 final synth =

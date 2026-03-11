@@ -592,4 +592,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String vst3ScanError(String error) {
     return 'Scan failed: $error';
   }
+
+  @override
+  String get transportBpm => 'BPM';
+
+  @override
+  String get transportTapTempo => 'Tap';
+
+  @override
+  String get transportPlay => 'Play';
+
+  @override
+  String get transportStop => 'Stop';
+
+  @override
+  String get transportTimeSignature => 'Time Sig';
 }

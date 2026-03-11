@@ -15,6 +15,8 @@ import 'package:audio_session/audio_session.dart';
 import 'package:grooveforge/models/chord_detector.dart';
 import 'package:grooveforge/services/audio_input_ffi.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:grooveforge_plugin_api/grooveforge_plugin_api.dart';
+import '../plugins/gf_jam_mode_plugin.dart';
 
 const String vocoderMode = 'vocoderMode';
 
@@ -199,6 +201,8 @@ class AudioEngine extends ChangeNotifier {
   final ValueNotifier<double> vocoderGateThreshold = ValueNotifier(
     0.01, // 0.0 = gate off, typical live use: ~0.02-0.05
   );
+  GFTransportContext Function()? transportProvider;
+
   final ValueNotifier<int> vocoderInputDeviceIndex = ValueNotifier<int>(-1);
   final ValueNotifier<int> vocoderInputAndroidDeviceId = ValueNotifier<int>(-1);
   final ValueNotifier<int> vocoderOutputAndroidDeviceId = ValueNotifier<int>(
@@ -1045,9 +1049,27 @@ class AudioEngine extends ChangeNotifier {
     }
     // GFPA Jam Mode — per-slot scale/mode
     else {
+      final jamPlugin = GFPluginRegistry.instance.findById('com.grooveforge.jammode') as GFJamModePlugin?;
       for (final entry in gfpaJamEntries.value) {
         if (entry.followerCh == channel) {
-          keyToPlay = _snapKeyToGfpaJam(key, entry);
+          if (jamPlugin != null) {
+            jamPlugin.masterChannelIndex = entry.masterCh;
+            final events = [
+              TimestampedMidiEvent(
+                ppqPosition: 0.0,
+                status: 0x90 | channel,
+                data1: key,
+                data2: velocity,
+              )
+            ];
+            final ctx = transportProvider?.call() ?? const GFTransportContext();
+            final processed = jamPlugin.processMidi(events, ctx);
+            if (processed.isNotEmpty) {
+              keyToPlay = processed.first.data1;
+            }
+          } else {
+            keyToPlay = _snapKeyToGfpaJam(key, entry);
+          }
           break;
         }
       }
@@ -1223,6 +1245,7 @@ class AudioEngine extends ChangeNotifier {
   /// Called when GFPA jam entries change (follower map, scale type, etc.).
   /// Clears non-follower channel constraints, then propagates scales to GFPA followers.
   void _propagateJamScaleUpdate() {
+    debugPrint('AudioEngine: _propagateJamScaleUpdate START');
     final gfpaFollowers = gfpaJamEntries.value.map((e) => e.followerCh).toSet();
 
     // ── Clear non-GFPA-follower channels ──────────────────────────────────
