@@ -30,7 +30,10 @@ class RackState extends ChangeNotifier {
   /// Called after every mutation; use to trigger autosave.
   VoidCallback? onChanged;
 
-  RackState(this._engine, this._transport);
+  RackState(this._engine, this._transport) {
+    _engine.bpmProvider = () => _transport.bpm;
+    _engine.isPlayingProvider = () => _transport.isPlaying;
+  }
 
   /// Read-only view of the current plugin list (in display order).
   List<PluginInstance> get plugins => List.unmodifiable(_plugins);
@@ -345,6 +348,8 @@ class RackState extends ChangeNotifier {
 
         final scaleType = _parseScaleType(p.state['scaleType'] as String?);
         final bassNoteMode = p.state['detectionMode'] == 'bassNote';
+        final bpmLockBeats =
+            (p.state['bpmLockBeats'] as num?)?.toInt().clamp(0, 4) ?? 0;
 
         for (final targetId in p.targetSlotIds) {
           final target = _findById(targetId);
@@ -359,6 +364,7 @@ class RackState extends ChangeNotifier {
               followerCh: followerCh,
               scaleType: scaleType,
               bassNoteMode: bassNoteMode,
+              bpmLockBeats: bpmLockBeats,
             ),
           );
         }

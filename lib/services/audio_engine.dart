@@ -29,6 +29,7 @@ class GFpaJamEntry {
     required this.followerCh,
     required this.scaleType,
     required this.bassNoteMode,
+    this.bpmLockBeats = 0,
   });
 
   /// 0-indexed master MIDI channel (chord/bass detection source).
@@ -42,6 +43,11 @@ class GFpaJamEntry {
   /// When true, uses the lowest active note on [masterCh] as the scale root
   /// instead of the chord-based detection.
   final bool bassNoteMode;
+
+  /// Number of beats per scale-lock window. 0 = off (real-time), 1 = every
+  /// beat, 2 = every 2 beats, 4 = every bar (4/4). The scale only updates
+  /// when the elapsed wall-clock time since the last update exceeds one window.
+  final int bpmLockBeats;
 }
 
 enum ScaleType {
@@ -199,6 +205,11 @@ class AudioEngine extends ChangeNotifier {
   final ValueNotifier<double> vocoderGateThreshold = ValueNotifier(
     0.01, // 0.0 = gate off, typical live use: ~0.02-0.05
   );
+
+  /// Callbacks injected by [RackState] so the engine can read transport state
+  /// without a hard dependency on [TransportEngine].
+  double Function() bpmProvider = () => 120.0;
+  bool Function() isPlayingProvider = () => false;
 
   final ValueNotifier<int> vocoderInputDeviceIndex = ValueNotifier<int>(-1);
   final ValueNotifier<int> vocoderInputAndroidDeviceId = ValueNotifier<int>(-1);
@@ -374,6 +385,15 @@ class AudioEngine extends ChangeNotifier {
   /// Keyed by follower channel index. Persists after master notes are released
   /// so walking-bass snapping still works between note changes.
   final Map<int, Set<int>> _lastBassScalePcs = {};
+
+  /// BPM-locked scale pitch-classes per follower channel.
+  /// Only updated when the beat-window elapsed time has expired.
+  /// Used by both shading and snapping when [GFpaJamEntry.bpmLockBeats] > 0.
+  final Map<int, Set<int>> _bpmLockedScalePcs = {};
+
+  /// Wall-clock timestamp of the last scale update per follower channel,
+  /// used to enforce the beat-window gap in BPM lock mode.
+  final Map<int, DateTime> _lastScaleLockTime = {};
 
   SharedPreferences? _prefs;
 
@@ -1208,8 +1228,11 @@ class AudioEngine extends ChangeNotifier {
           final rootPc = notes.reduce(min) % 12;
           final intervals = _gfpaBassNoteIntervals(entry.scaleType);
           final pcs = intervals.map((i) => (rootPc + i) % 12).toSet();
-          channels[followerCh].validPitchClasses.value = pcs;
           _lastBassScalePcs[followerCh] = pcs;
+          if (_shouldUpdateLockedScale(entry, followerCh)) {
+            channels[followerCh].validPitchClasses.value = pcs;
+            _bpmLockedScalePcs[followerCh] = pcs;
+          }
         }
         // When notes are empty keep the previous scale so the piano stays highlighted
       } else {
@@ -1219,7 +1242,10 @@ class AudioEngine extends ChangeNotifier {
           final info = _getScaleInfo(effectiveMatch, entry.scaleType);
           final allowedPcs =
               info.intervals.map((i) => (effectiveMatch.rootPc + i) % 12).toSet();
-          channels[followerCh].validPitchClasses.value = allowedPcs;
+          if (_shouldUpdateLockedScale(entry, followerCh)) {
+            channels[followerCh].validPitchClasses.value = allowedPcs;
+            _bpmLockedScalePcs[followerCh] = allowedPcs;
+          }
         }
       }
     }
@@ -1231,8 +1257,10 @@ class AudioEngine extends ChangeNotifier {
   /// Clears non-follower channel constraints, then propagates scales to GFPA followers.
   void _propagateJamScaleUpdate() {
     final gfpaFollowers = gfpaJamEntries.value.map((e) => e.followerCh).toSet();
-    // Clear bass cache for channels that are no longer followers.
+    // Clear per-follower caches for channels that are no longer followers.
     _lastBassScalePcs.removeWhere((ch, _) => !gfpaFollowers.contains(ch));
+    _bpmLockedScalePcs.removeWhere((ch, _) => !gfpaFollowers.contains(ch));
+    _lastScaleLockTime.removeWhere((ch, _) => !gfpaFollowers.contains(ch));
 
     // ── Clear non-GFPA-follower channels ──────────────────────────────────
     for (int i = 0; i < 16; i++) {
@@ -1481,21 +1509,73 @@ class AudioEngine extends ChangeNotifier {
     return bestKey;
   }
 
+  /// Returns true when it is safe to update the locked scale for [followerCh].
+  ///
+  /// When [entry.bpmLockBeats] > 0 and the transport is playing, the scale is
+  /// frozen for one beat-window (measured by wall-clock). The window duration
+  /// is `bpmLockBeats * 60 / bpm` seconds. Outside that window (or when the
+  /// transport is stopped, or lock is off) this always returns true.
+  bool _shouldUpdateLockedScale(GFpaJamEntry entry, int followerCh) {
+    if (entry.bpmLockBeats <= 0 || !isPlayingProvider()) return true;
+    final bpm = bpmProvider();
+    if (bpm <= 0) return true;
+    final windowMs = (entry.bpmLockBeats * 60000.0 / bpm).round();
+    final last = _lastScaleLockTime[followerCh];
+    if (last == null) {
+      _lastScaleLockTime[followerCh] = DateTime.now();
+      return true;
+    }
+    if (DateTime.now().difference(last).inMilliseconds >= windowMs) {
+      _lastScaleLockTime[followerCh] = DateTime.now();
+      return true;
+    }
+    return false;
+  }
+
   /// Snaps [key] to the nearest in-scale pitch for a GFPA jam [entry].
   ///
   /// In chord mode the scale is derived from the chord detected on [entry.masterCh].
   /// In bass-note mode the lowest active note on [entry.masterCh] becomes the root.
   /// Returns the note that [key] would be snapped to on [channel] if it is a
   int _snapKeyToGfpaJam(int key, GFpaJamEntry entry) {
+    final followerCh = entry.followerCh;
     final masterCh = entry.masterCh;
     Set<int> scalePcs;
+
+    // BPM lock: when the transport is playing and a lock window is active,
+    // snap to the last committed locked scale so snapping stays in sync with
+    // the visual shading — both only update on beat-window boundaries.
+    if (entry.bpmLockBeats > 0 && isPlayingProvider()) {
+      final locked = _bpmLockedScalePcs[followerCh];
+      if (locked != null && locked.isNotEmpty) {
+        scalePcs = locked;
+        // skip real-time computation, jump straight to snapping
+        if (scalePcs.isEmpty) return key;
+        int bestDistance = 999;
+        int bestKey = key;
+        for (int offset = 0; offset <= 12; offset++) {
+          final down = key - offset;
+          if (scalePcs.contains(down % 12) && offset < bestDistance) {
+            bestDistance = offset;
+            bestKey = down;
+          }
+          final up = key + offset;
+          if (scalePcs.contains(up % 12) && offset < bestDistance) {
+            bestDistance = offset;
+            bestKey = up;
+          }
+          if (bestDistance < 999) break;
+        }
+        return bestKey;
+      }
+    }
 
     if (entry.bassNoteMode) {
       final active = channels[masterCh].activeNotes.value;
       if (active.isEmpty) {
         // When no master notes are held, use the last known bass scale so
         // notes can still be snapped to the most recently played root.
-        final lastPcs = _lastBassScalePcs[entry.followerCh];
+        final lastPcs = _lastBassScalePcs[followerCh];
         if (lastPcs == null || lastPcs.isEmpty) return key;
         scalePcs = lastPcs;
       } else {
