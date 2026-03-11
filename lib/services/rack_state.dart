@@ -30,16 +30,7 @@ class RackState extends ChangeNotifier {
   /// Called after every mutation; use to trigger autosave.
   VoidCallback? onChanged;
 
-  RackState(this._engine, this._transport) {
-    _engine.transportProvider = () => GFTransportContext(
-      bpm: _transport.bpm,
-      timeSigNumerator: _transport.timeSigNumerator,
-      timeSigDenominator: _transport.timeSigDenominator,
-      isPlaying: _transport.isPlaying,
-      isRecording: _transport.isRecording,
-      positionInBeats: _transport.positionInBeats,
-    );
-  }
+  RackState(this._engine, this._transport);
 
   /// Read-only view of the current plugin list (in display order).
   List<PluginInstance> get plugins => List.unmodifiable(_plugins);
