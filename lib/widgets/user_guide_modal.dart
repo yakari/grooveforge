@@ -6,7 +6,7 @@ import '../l10n/app_localizations.dart';
 /// A modal dialog containing the comprehensive user guide for GrooveForge.
 ///
 /// The guide is organized into distinct tabs: Features, MIDI Connectivity,
-/// Soundfonts, and Musical Tips.
+/// Soundfonts, Musical Tips, and Rack & Cables.
 class UserGuideModal extends StatefulWidget {
   const UserGuideModal({super.key});
 
@@ -91,7 +91,7 @@ class _UserGuideModalState extends State<UserGuideModal> {
     final l10n = AppLocalizations.of(context)!;
 
     return DefaultTabController(
-      length: 4,
+      length: 5,
       child: Dialog(
         backgroundColor: const Color(0xFF1A1A24),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -137,6 +137,10 @@ class _UserGuideModalState extends State<UserGuideModal> {
                     icon: const Icon(Icons.music_note),
                     text: l10n.guideTabTips.toUpperCase(),
                   ),
+                  Tab(
+                    icon: const Icon(Icons.cable_outlined),
+                    text: l10n.guideTabPatch.toUpperCase(),
+                  ),
                 ],
                 indicatorColor: Colors.blueAccent,
                 labelColor: Colors.blueAccent,
@@ -156,6 +160,7 @@ class _UserGuideModalState extends State<UserGuideModal> {
                     _MidiConnectivityTab(),
                     _SoundfontsTab(),
                     _MusicalTipsTab(),
+                    _PatchViewTab(),
                   ],
                 ),
               ),
@@ -296,6 +301,136 @@ class _MusicalTipsTab extends StatelessWidget {
         _buildScaleMemoItem('MINOR PENTATONIC', [0, 3, 5, 7, 10]),
         _buildScaleMemoItem('MINOR BLUES', [0, 3, 5, 6, 7, 10]),
       ],
+    );
+  }
+}
+
+/// Explains the rack system, back-panel patch view, jack types, and cable
+/// drawing/disconnecting workflow introduced in Phase 5.
+class _PatchViewTab extends StatelessWidget {
+  const _PatchViewTab();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return ListView(
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 10),
+      children: [
+        // ── Rack intro ──────────────────────────────────────────────────────
+        _buildSectionTitle(l10n.guidePatchRackTitle),
+        _buildParagraph(l10n.guidePatchRackBody),
+        const SizedBox(height: 8),
+        _buildSubTitle(l10n.guidePatchSlotTypesTitle),
+        _buildFeatureItem(Icons.piano, l10n.guidePatchSlotKeyboard, l10n.guidePatchSlotKeyboardDesc),
+        _buildFeatureItem(Icons.mic, l10n.guidePatchSlotVocoder, l10n.guidePatchSlotVocoderDesc),
+        _buildFeatureItem(Icons.auto_awesome, l10n.guidePatchSlotJam, l10n.guidePatchSlotJamDesc),
+        _buildFeatureItem(Icons.piano_outlined, l10n.guidePatchSlotVirtualPiano, l10n.guidePatchSlotVirtualPianoDesc),
+        _buildFeatureItem(Icons.extension, l10n.guidePatchSlotVst3, l10n.guidePatchSlotVst3Desc),
+        const SizedBox(height: 4),
+        _buildDesktopOnlyBox(l10n.guidePatchSlotVst3DesktopOnly),
+        const Divider(color: Colors.white12, height: 40),
+        // ── Patch view ──────────────────────────────────────────────────────
+        _buildSectionTitle(l10n.guidePatchTitle),
+        _buildParagraph(l10n.guidePatchIntro),
+        const SizedBox(height: 20),
+        _buildSubTitle(l10n.guidePatchToggleTitle),
+        _buildParagraph(l10n.guidePatchToggleBody),
+        const SizedBox(height: 20),
+        _buildSubTitle(l10n.guidePatchJacksTitle),
+        _buildParagraph(l10n.guidePatchJacksBody),
+        _buildJackLegend(),
+        const SizedBox(height: 20),
+        _buildSubTitle(l10n.guidePatchDrawTitle),
+        _buildParagraph(l10n.guidePatchDrawBody),
+        const SizedBox(height: 20),
+        _buildSubTitle(l10n.guidePatchDisconnectTitle),
+        _buildParagraph(l10n.guidePatchDisconnectBody),
+        const SizedBox(height: 20),
+        _buildSubTitle(l10n.guidePatchDataTitle),
+        _buildParagraph(l10n.guidePatchDataBody),
+        const SizedBox(height: 12),
+        _buildInfoBox(l10n.guidePatchTip),
+      ],
+    );
+  }
+
+  /// An amber-tinted info box used to flag platform-specific limitations,
+  /// such as VST3 support being desktop-only.
+  Widget _buildDesktopOnlyBox(String text) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.amber.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.amber.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.desktop_windows_outlined, color: Colors.amber, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(color: Colors.amber, fontSize: 13),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Visual legend showing each cable colour and the signal family it represents.
+  Widget _buildJackLegend() {
+    return Padding(
+      padding: const EdgeInsets.only(top: 4, bottom: 8, left: 8),
+      child: Column(
+        children: [
+          _buildLegendRow(const Color(0xFFFFD700), 'MIDI', 'MIDI IN / OUT'),
+          _buildLegendRow(const Color(0xFFFF4444), 'Audio L', 'AUDIO OUT L / AUDIO IN L'),
+          _buildLegendRow(Colors.white70, 'Audio R', 'AUDIO OUT R / AUDIO IN R'),
+          _buildLegendRow(const Color(0xFFFF8C00), 'Send/Return', 'SEND OUT / RETURN IN'),
+          _buildLegendRow(const Color(0xFFAB47BC), 'Data', 'CHORD & SCALE (Jam Mode)'),
+        ],
+      ),
+    );
+  }
+
+  /// A single row in the cable colour legend: a coloured swatch, a short
+  /// family label, and a description of the ports it covers.
+  Widget _buildLegendRow(Color color, String family, String ports) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        children: [
+          Container(
+            width: 16,
+            height: 16,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white24, width: 1),
+            ),
+          ),
+          const SizedBox(width: 10),
+          SizedBox(
+            width: 80,
+            child: Text(
+              family,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              ports,
+              style: const TextStyle(color: Colors.white54, fontSize: 12),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

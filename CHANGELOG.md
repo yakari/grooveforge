@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Audio graph persistence** — all MIDI/Audio cable connections are saved and restored in `.gf` project files under the `"audioGraph"` key. Data connections continue to be stored per-plugin in `masterSlotId`/`targetSlotIds`.
 - **Slot cleanup** — removing a rack slot automatically disconnects all its MIDI/Audio cables from the graph.
 - 20 new localised strings for the patch view UI (EN + FR).
+- **User guide "Rack & Cables" tab** — new fifth tab in the in-app user guide covering patch view toggle, jack types, cable drawing, disconnecting, data cable/Jam Mode sync, and the Virtual Piano slot.
 
 ### Architecture
 - `AudioPortId` enum with colour, direction, family, and compatibility helpers.

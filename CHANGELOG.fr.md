@@ -15,6 +15,7 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 - **Persistance du graphe audio** — toutes les connexions câble MIDI/Audio sont sauvegardées et restaurées dans les fichiers `.gf` sous la clé `"audioGraph"`. Les connexions de données continuent d'être stockées par plugin dans `masterSlotId`/`targetSlotIds`.
 - **Nettoyage de slot** — la suppression d'un slot déconnecte automatiquement tous ses câbles MIDI/Audio du graphe.
 - 20 nouvelles chaînes localisées pour l'interface de câblage (EN + FR).
+- **Onglet « Rack & Câbles » dans le guide utilisateur** — cinquième onglet dans le guide intégré couvrant le basculement de la vue de câblage, les types de jacks, le tracé et la déconnexion des câbles, la synchronisation câbles data/Jam Mode, et le slot Piano Virtuel.
 
 ### Architecture
 - Enum `AudioPortId` avec helpers de couleur, direction, famille et compatibilité.

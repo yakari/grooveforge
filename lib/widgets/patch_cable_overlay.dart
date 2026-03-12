@@ -50,7 +50,7 @@ class PatchCableOverlayState extends State<PatchCableOverlay> {
 
   @override
   Widget build(BuildContext context) {
-    const hitSize = 32.0;
+    const hitSize = 48.0;
     return Stack(
       children: [
         // Cable drawing — fully transparent to pointer events so scroll and
@@ -76,6 +76,7 @@ class PatchCableOverlayState extends State<PatchCableOverlay> {
               width: hitSize,
               height: hitSize,
               child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
                 onTapUp: (details) => _showDisconnectMenu(
                   context,
                   details.globalPosition,
@@ -404,7 +405,10 @@ class _CablePainter extends CustomPainter {
     _drawPlug(canvas, p0, color);
     _drawPlug(canvas, p3, color);
 
-    midpoints[id] = _bezierPoint(p0, p1, p2, p3, 0.5);
+    // Disconnect badge — drawn last so it sits on top of the cable.
+    final mid = _bezierPoint(p0, p1, p2, p3, 0.5);
+    _drawDisconnectBadge(canvas, mid, color);
+    midpoints[id] = mid;
   }
 
   @override
@@ -470,6 +474,49 @@ class _DragCablePainter extends CustomPainter {
 }
 
 // ── Shared drawing helpers ────────────────────────────────────────────────────
+
+/// Draws a small circular disconnect badge at [center].
+///
+/// The badge is a dark filled circle with a coloured ring and a white × symbol,
+/// giving users a clear tap target to disconnect the cable. Rendered on top of
+/// the cable body so it is always visible against any background colour.
+void _drawDisconnectBadge(Canvas canvas, Offset center, Color cableColor) {
+  const r = 9.0; // badge radius in logical pixels
+
+  // Dark background so the badge is legible over any cable colour.
+  canvas.drawCircle(
+    center, r,
+    Paint()
+      ..color = const Color(0xDD1A1A2E)
+      ..style = PaintingStyle.fill,
+  );
+
+  // Coloured ring that matches the cable family.
+  canvas.drawCircle(
+    center, r,
+    Paint()
+      ..color = cableColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5,
+  );
+
+  // White × drawn as two crossing lines.
+  final xPaint = Paint()
+    ..color = Colors.white
+    ..strokeWidth = 1.5
+    ..strokeCap = StrokeCap.round;
+  const d = r * 0.45;
+  canvas.drawLine(
+    Offset(center.dx - d, center.dy - d),
+    Offset(center.dx + d, center.dy + d),
+    xPaint,
+  );
+  canvas.drawLine(
+    Offset(center.dx + d, center.dy - d),
+    Offset(center.dx - d, center.dy + d),
+    xPaint,
+  );
+}
 
 /// Draws a filled plug-tip circle at [center].
 ///

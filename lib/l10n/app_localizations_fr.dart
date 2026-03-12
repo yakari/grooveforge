@@ -344,6 +344,104 @@ class AppLocalizationsFr extends AppLocalizations {
   String get guideTabTips => 'Conseils musicaux';
 
   @override
+  String get guideTabPatch => 'Rack & Câbles';
+
+  @override
+  String get guidePatchRackTitle => 'Le Rack';
+
+  @override
+  String get guidePatchRackBody =>
+      'Le rack est le cœur de GrooveForge. Chaque ligne est un slot — un instrument ou processeur d\'effets indépendant. Ajoutez des slots avec le bouton +, supprimez-les avec l\'icône corbeille, et réordonnez-les en faisant glisser la poignée à gauche de chaque slot.';
+
+  @override
+  String get guidePatchSlotTypesTitle => 'Types de slots';
+
+  @override
+  String get guidePatchSlotKeyboard => 'Clavier';
+
+  @override
+  String get guidePatchSlotKeyboardDesc =>
+      'Synthétiseur intégré piloté par une soundfont (.sf2). Jouez via le clavier à l\'écran ou un contrôleur MIDI externe.';
+
+  @override
+  String get guidePatchSlotVocoder => 'Vocodeur';
+
+  @override
+  String get guidePatchSlotVocoderDesc =>
+      'Traite l\'audio du microphone à travers une onde porteuse pour des effets de voix synthétique.';
+
+  @override
+  String get guidePatchSlotJam => 'Mode Jam';
+
+  @override
+  String get guidePatchSlotJamDesc =>
+      'Moteur d\'harmonie qui quantifie les notes MIDI entrantes sur une gamme en temps réel. Reçoit les informations d\'accord d\'un slot clavier maître.';
+
+  @override
+  String get guidePatchSlotVirtualPiano => 'Piano Virtuel';
+
+  @override
+  String get guidePatchSlotVirtualPianoDesc =>
+      'Source MIDI légère : achemine la saisie tactile de l\'écran dans la chaîne de signal sans produire d\'audio propre.';
+
+  @override
+  String get guidePatchSlotVst3 => 'Plugin VST3';
+
+  @override
+  String get guidePatchSlotVst3Desc =>
+      'Chargez n\'importe quel instrument ou effet VST3 tiers. Nécessite un bundle .vst3 compatible installé sur votre système.';
+
+  @override
+  String get guidePatchSlotVst3DesktopOnly =>
+      'Les slots VST3 sont disponibles uniquement sur les plateformes desktop (Linux, macOS, Windows). Ils ne sont pas disponibles sur Android ou iOS.';
+
+  @override
+  String get guidePatchTitle => 'Câblage';
+
+  @override
+  String get guidePatchIntro =>
+      'La vue de câblage vous permet de voir le panneau arrière de chaque slot de votre rack et de tracer des câbles virtuels entre les jacks, comme sur un vrai rack matériel. Appuyez sur l\'icône câble dans la barre d\'outils pour basculer entre la vue avant (jeu) et la vue arrière (câblage).';
+
+  @override
+  String get guidePatchToggleTitle => 'Basculer la vue de câblage';
+
+  @override
+  String get guidePatchToggleBody =>
+      'Appuyez sur l\'icône câble (⊡) en haut à droite de l\'écran rack pour passer à la vue panneau arrière. Appuyez à nouveau (ou sur l\'icône agenda) pour revenir à la vue avant. Le réordonnancement des slots est désactivé en vue de câblage.';
+
+  @override
+  String get guidePatchJacksTitle => 'Types de jacks';
+
+  @override
+  String get guidePatchJacksBody =>
+      'Chaque slot expose un ensemble de jacks regroupés par famille de signal :\n• MIDI (jaune) — MIDI IN / MIDI OUT pour les notes et messages CC.\n• Audio (rouge / blanc / orange) — AUDIO IN L, AUDIO IN R, AUDIO OUT L, AUDIO OUT R pour l\'audio stéréo ; SEND / RETURN pour les boucles d\'effets.\n• Data (violet) — CHORD OUT/IN et SCALE OUT/IN pour le routage de l\'harmonie du Mode Jam.';
+
+  @override
+  String get guidePatchDrawTitle => 'Tracer un câble';
+
+  @override
+  String get guidePatchDrawBody =>
+      'Appuyez longuement sur un jack de sortie (●) pour commencer à faire glisser un câble. Les jacks d\'entrée compatibles clignotent pour indiquer les cibles valides. Faites glisser vers un jack d\'entrée compatible et relâchez pour connecter. Relâcher dans l\'espace vide annule le glisser.\n\nPaires compatibles : MIDI OUT → MIDI IN, AUDIO OUT L → AUDIO IN L, AUDIO OUT R → AUDIO IN R, SEND → RETURN, CHORD OUT → CHORD IN, SCALE OUT → SCALE IN.';
+
+  @override
+  String get guidePatchDisconnectTitle => 'Déconnecter un câble';
+
+  @override
+  String get guidePatchDisconnectBody =>
+      'Chaque câble affiche un petit badge ✕ en son milieu. Appuyez sur le badge pour ouvrir le menu Déconnecter. Le badge est aussi la zone de clic du câble — visez le cercle avec l\'anneau coloré.';
+
+  @override
+  String get guidePatchDataTitle => 'Câbles Data (Mode Jam)';
+
+  @override
+  String get guidePatchDataBody =>
+      'Les câbles data violets représentent le flux d\'harmonie du Mode Jam entre les slots. Tracer un câble CHORD OUT → CHORD IN revient à sélectionner un master Mode Jam dans le menu déroulant — les deux contrôles restent synchronisés. De même, un câble SCALE OUT → SCALE IN correspond à un slot follower.';
+
+  @override
+  String get guidePatchTip =>
+      'Conseil : Les câbles sont sauvegardés dans votre projet (.gf). Ouvrez un projet sauvegardé pour restaurer toutes les connexions telles que vous les avez laissées.';
+
+  @override
   String get guideJamModeTitle => 'Mode Jam (Auto-Harmonie)';
 
   @override

@@ -340,6 +340,104 @@ class AppLocalizationsEn extends AppLocalizations {
   String get guideTabTips => 'Musical Tips';
 
   @override
+  String get guideTabPatch => 'Rack & Cables';
+
+  @override
+  String get guidePatchRackTitle => 'The Rack';
+
+  @override
+  String get guidePatchRackBody =>
+      'The rack is the heart of GrooveForge. Each row is a slot — an independent instrument or effect processor. Add slots with the + button, remove them with the trash icon, and reorder them by dragging the handle on the left side of each slot.';
+
+  @override
+  String get guidePatchSlotTypesTitle => 'Slot Types';
+
+  @override
+  String get guidePatchSlotKeyboard => 'Keyboard';
+
+  @override
+  String get guidePatchSlotKeyboardDesc =>
+      'Built-in synthesizer driven by a soundfont (.sf2). Play via the on-screen keyboard or an external MIDI controller.';
+
+  @override
+  String get guidePatchSlotVocoder => 'Vocoder';
+
+  @override
+  String get guidePatchSlotVocoderDesc =>
+      'Processes microphone audio through a carrier wave for voice-synth effects.';
+
+  @override
+  String get guidePatchSlotJam => 'Jam Mode';
+
+  @override
+  String get guidePatchSlotJamDesc =>
+      'Harmony engine that snaps incoming MIDI notes to a scale in real time. Receives chord information from a master keyboard slot.';
+
+  @override
+  String get guidePatchSlotVirtualPiano => 'Virtual Piano';
+
+  @override
+  String get guidePatchSlotVirtualPianoDesc =>
+      'A lightweight MIDI-only source: routes on-screen touch input into the signal chain without producing audio of its own.';
+
+  @override
+  String get guidePatchSlotVst3 => 'VST3 Plugin';
+
+  @override
+  String get guidePatchSlotVst3Desc =>
+      'Load any third-party VST3 instrument or effect. Requires a compatible .vst3 bundle installed on your system.';
+
+  @override
+  String get guidePatchSlotVst3DesktopOnly =>
+      'VST3 plugin slots are available on desktop platforms only (Linux, macOS, Windows). They are not available on Android or iOS.';
+
+  @override
+  String get guidePatchTitle => 'Cable Patching';
+
+  @override
+  String get guidePatchIntro =>
+      'The patch view lets you see the back panel of every slot in your rack and draw virtual cables between jacks, just like on a real hardware rack. Tap the cable icon in the top app bar to toggle between the front view (playing) and the back view (patching).';
+
+  @override
+  String get guidePatchToggleTitle => 'Toggling Patch View';
+
+  @override
+  String get guidePatchToggleBody =>
+      'Tap the cable icon (⊡) in the top-right of the rack screen to switch to the back panel view. Tap it again (or the agenda icon) to return to the front view. Slot reordering is disabled while in patch view.';
+
+  @override
+  String get guidePatchJacksTitle => 'Jack Types';
+
+  @override
+  String get guidePatchJacksBody =>
+      'Each slot exposes a set of jacks grouped by signal family:\n• MIDI (yellow) — MIDI IN / MIDI OUT for note and CC messages.\n• Audio (red / white / orange) — AUDIO IN L, AUDIO IN R, AUDIO OUT L, AUDIO OUT R for stereo audio; SEND / RETURN for effects loops.\n• Data (purple) — CHORD OUT/IN and SCALE OUT/IN for Jam Mode harmony routing.';
+
+  @override
+  String get guidePatchDrawTitle => 'Drawing a Cable';
+
+  @override
+  String get guidePatchDrawBody =>
+      'Long-press an output jack (●) to start dragging a cable. Compatible input jacks will pulse to show valid targets. Drag to a compatible input jack and release to connect. Dropping in empty space cancels the drag.\n\nCompatible pairs: MIDI OUT → MIDI IN, AUDIO OUT L → AUDIO IN L, AUDIO OUT R → AUDIO IN R, SEND → RETURN, CHORD OUT → CHORD IN, SCALE OUT → SCALE IN.';
+
+  @override
+  String get guidePatchDisconnectTitle => 'Disconnecting a Cable';
+
+  @override
+  String get guidePatchDisconnectBody =>
+      'Each cable has a small ✕ badge at its midpoint. Tap the badge to bring up the Disconnect menu. The badge is also the cable\'s hit zone, so aim for the circle with the coloured ring.';
+
+  @override
+  String get guidePatchDataTitle => 'Data Cables (Jam Mode)';
+
+  @override
+  String get guidePatchDataBody =>
+      'Purple data cables represent the Jam Mode harmony flow between slots. Drawing a CHORD OUT → CHORD IN cable is the same as selecting a Jam Mode master in the dropdown — both controls stay in sync. Similarly, a SCALE OUT → SCALE IN cable corresponds to a target follower slot.';
+
+  @override
+  String get guidePatchTip =>
+      'Tip: Cables are saved as part of your project (.gf file). Open a saved project to restore all connections exactly as you left them.';
+
+  @override
   String get guideJamModeTitle => 'Jam Mode (Auto-Harmony)';
 
   @override
