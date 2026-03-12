@@ -622,4 +622,66 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get transportTimeSigDenominator => 'Beat unit';
+
+  @override
+  String get patchViewToggleTooltip => 'Patch view';
+
+  @override
+  String get patchViewFrontButton => 'FRONT';
+
+  @override
+  String get disconnectCable => 'Disconnect';
+
+  @override
+  String get cableColour => 'Cable colour';
+
+  @override
+  String get connectionCycleError =>
+      'Cycle detected: this connection would create a feedback loop';
+
+  @override
+  String get portMidiIn => 'MIDI IN';
+
+  @override
+  String get portMidiOut => 'MIDI OUT';
+
+  @override
+  String get portAudioInL => 'AUDIO IN L';
+
+  @override
+  String get portAudioInR => 'AUDIO IN R';
+
+  @override
+  String get portAudioOutL => 'AUDIO OUT L';
+
+  @override
+  String get portAudioOutR => 'AUDIO OUT R';
+
+  @override
+  String get portSendOut => 'SEND';
+
+  @override
+  String get portReturnIn => 'RETURN';
+
+  @override
+  String get portChordOut => 'CHORD OUT';
+
+  @override
+  String get portChordIn => 'CHORD IN';
+
+  @override
+  String get portScaleOut => 'SCALE OUT';
+
+  @override
+  String get portScaleIn => 'SCALE IN';
+
+  @override
+  String get virtualPianoSlotName => 'Virtual Piano';
+
+  @override
+  String get addVirtualPiano => 'Add Virtual Piano';
+
+  @override
+  String get rackAddVirtualPianoSubtitle =>
+      'Standalone MIDI source for patch routing';
 }

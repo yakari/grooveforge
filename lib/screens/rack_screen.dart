@@ -5,15 +5,21 @@ import 'package:flutter_midi_command/flutter_midi_command.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import '../l10n/app_localizations.dart';
+import '../models/audio_port_id.dart';
+import '../models/gfpa_plugin_instance.dart';
 import '../models/vst3_plugin_instance.dart';
 import '../services/audio_engine.dart';
+import '../services/audio_graph.dart';
 import '../services/cc_mapping_service.dart';
 import '../services/midi_service.dart';
+import '../services/patch_drag_controller.dart';
 import '../services/project_service.dart';
 import '../services/rack_state.dart';
 import '../services/vst_host_service.dart';
 import '../services/transport_engine.dart';
 import '../widgets/add_plugin_sheet.dart';
+import '../widgets/patch_cable_overlay.dart';
+import '../widgets/rack/slot_back_panel_widget.dart';
 import '../widgets/rack_slot_widget.dart';
 import '../widgets/transport_bar.dart';
 import '../widgets/user_guide_modal.dart';
@@ -36,8 +42,18 @@ class _RackScreenState extends State<RackScreen> {
   final ScrollController _scrollController = ScrollController();
   StreamSubscription<MidiDevice>? _newDeviceSubscription;
   String? _currentProjectPath;
+
+  /// Controls whether the rack shows front panels (default) or back panels
+  /// (patch view) for cable routing.
+  final ValueNotifier<bool> _isPatchView = ValueNotifier(false);
+
   // GlobalKeys per slot id, used by ensureVisible in auto-scroll.
   final Map<String, GlobalKey> _slotKeys = {};
+
+  /// GlobalKeys per jack, keyed by "$slotId:${portId.name}".
+  /// Shared between [SlotBackPanelWidget] and [PatchCableOverlay] so the
+  /// overlay can resolve jack screen positions for cable rendering.
+  final Map<String, GlobalKey> _jackKeys = {};
 
   @override
   void initState() {
@@ -98,6 +114,7 @@ class _RackScreenState extends State<RackScreen> {
       context.read<AudioEngine>().toastNotifier.removeListener(_toastListener!);
     }
     _scrollController.dispose();
+    _isPatchView.dispose();
     super.dispose();
   }
 
@@ -170,9 +187,10 @@ class _RackScreenState extends State<RackScreen> {
     final rack = context.read<RackState>();
     final engine = context.read<AudioEngine>();
     final transport = context.read<TransportEngine>();
+    final audioGraph = context.read<AudioGraph>();
     final service = context.read<ProjectService>();
 
-    final path = await service.openProject(rack, engine, transport);
+    final path = await service.openProject(rack, engine, transport, audioGraph);
     if (path != null && mounted) {
       setState(() => _currentProjectPath = path);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -186,9 +204,11 @@ class _RackScreenState extends State<RackScreen> {
     final rack = context.read<RackState>();
     final engine = context.read<AudioEngine>();
     final transport = context.read<TransportEngine>();
+    final audioGraph = context.read<AudioGraph>();
     final service = context.read<ProjectService>();
 
-    final path = await service.saveProjectAs(rack, engine, transport);
+    final path =
+        await service.saveProjectAs(rack, engine, transport, audioGraph);
     if (path != null && mounted) {
       setState(() => _currentProjectPath = path);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -220,6 +240,9 @@ class _RackScreenState extends State<RackScreen> {
       ),
     );
     if (confirmed == true && mounted) {
+      // Clear the audio graph before initialising defaults so stale cables
+      // from the previous project don't linger in the patch view.
+      context.read<AudioGraph>().clear();
       context.read<RackState>().initDefaults();
       setState(() => _currentProjectPath = null);
     }
@@ -255,6 +278,114 @@ class _RackScreenState extends State<RackScreen> {
     showDialog(context: context, builder: (_) => const UserGuideModal());
   }
 
+  // ─── Drag-end handling (cable drop) ─────────────────────────────────────────
+
+  /// Called when the pointer is released during a cable drag.
+  ///
+  /// Iterates all registered jack keys — which are keyed by the string
+  /// `"$slotId:${portId.name}"` — to find a jack whose render box contains
+  /// [globalPos]. If found and compatible with the drag source port, creates
+  /// the appropriate connection (MIDI/Audio → AudioGraph, Data → RackState).
+  void _handleDragEnd(Offset globalPos) {
+    final dragCtrl = context.read<PatchDragController>();
+    if (!dragCtrl.isDragging) return;
+
+    final fromSlotId = dragCtrl.fromSlotId!;
+    final fromPort = dragCtrl.fromPort!;
+    final rack = context.read<RackState>();
+    final graph = context.read<AudioGraph>();
+    final l10n = AppLocalizations.of(context)!;
+
+    // _jackKeys is Map<String, GlobalKey> where the String key encodes the
+    // jack identity as "$slotId:${portId.name}".
+    for (final entry in _jackKeys.entries) {
+      final jackRenderObject = entry.value.currentContext?.findRenderObject();
+      final box = jackRenderObject as RenderBox?;
+      if (box == null || !box.hasSize) continue;
+
+      // Check if the pointer landed near this jack circle.
+      // Inflate by 20 dp (≈ the jack diameter) for comfortable finger drops.
+      final jackRect = box.localToGlobal(Offset.zero) & box.size;
+      if (!jackRect.inflate(20).contains(globalPos)) continue;
+
+      // Decode toSlotId and toPort from the map key string.
+      // Key format: "$slotId:${portId.name}"
+      final colonIdx = entry.key.lastIndexOf(':');
+      if (colonIdx == -1) continue;
+      final toSlotId = entry.key.substring(0, colonIdx);
+      final portName = entry.key.substring(colonIdx + 1);
+
+      AudioPortId toPort;
+      try {
+        toPort = AudioPortId.values.byName(portName);
+      } catch (_) {
+        continue;
+      }
+
+      // Port is incompatible: skip this jack and keep looking — the drop
+      // position may overlap another (compatible) jack in the Wrap layout.
+      if (!fromPort.compatibleWith(toPort)) continue;
+
+      // Route to the appropriate service based on port family.
+      if (fromPort.isDataPort) {
+        _connectDataCable(fromSlotId, fromPort, toSlotId, toPort, rack);
+      } else {
+        _connectAudioMidiCable(
+            fromSlotId, fromPort, toSlotId, toPort, graph, l10n);
+      }
+      break;
+    }
+
+    dragCtrl.endDrag();
+  }
+
+  /// Creates a MIDI or Audio cable by calling [AudioGraph.connect].
+  void _connectAudioMidiCable(
+    String fromSlotId,
+    AudioPortId fromPort,
+    String toSlotId,
+    AudioPortId toPort,
+    AudioGraph graph,
+    AppLocalizations l10n,
+  ) {
+    try {
+      graph.connect(fromSlotId, fromPort, toSlotId, toPort);
+    } on ArgumentError catch (e) {
+      if (!mounted) return;
+      final msg = e.message as String;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            msg.contains('ycle') ? l10n.connectionCycleError : msg,
+          ),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
+  /// Routes a data cable drop to the appropriate [RackState] mutation.
+  ///
+  /// Data cables mirror the existing [GFpaPluginInstance.masterSlotId] and
+  /// [GFpaPluginInstance.targetSlotIds] fields, keeping the patch view and
+  /// the Jam Mode dropdowns in sync.
+  void _connectDataCable(
+    String fromSlotId,
+    AudioPortId fromPort,
+    String toSlotId,
+    AudioPortId toPort,
+    RackState rack,
+  ) {
+    if (fromPort == AudioPortId.chordOut && toPort == AudioPortId.chordIn) {
+      // Chord cable: designate the keyboard as the Jam Mode master.
+      rack.setJamModeMaster(toSlotId, fromSlotId);
+    } else if (fromPort == AudioPortId.scaleOut &&
+        toPort == AudioPortId.scaleIn) {
+      // Scale cable: add this keyboard as a scale-locked target of the jam slot.
+      rack.addJamModeTarget(fromSlotId, toSlotId);
+    }
+  }
+
   // ─── Build ───────────────────────────────────────────────────────────────────
 
   @override
@@ -268,6 +399,17 @@ class _RackScreenState extends State<RackScreen> {
             : l10n.rackTitle),
         elevation: 2,
         actions: [
+          // Patch view toggle — shown always, activates back-panel cable UI.
+          ValueListenableBuilder<bool>(
+            valueListenable: _isPatchView,
+            builder: (ctx, isPatch, _) => IconButton(
+              icon: Icon(
+                isPatch ? Icons.view_agenda_outlined : Icons.cable_outlined,
+              ),
+              tooltip: l10n.patchViewToggleTooltip,
+              onPressed: () => _isPatchView.value = !isPatch,
+            ),
+          ),
           PopupMenuButton<String>(
             icon: const Icon(Icons.folder_open),
             tooltip: l10n.rackOpenProject,
@@ -338,10 +480,59 @@ class _RackScreenState extends State<RackScreen> {
                   children: [
                     const TransportBar(),
                     Expanded(
-                      child: _RackList(
-                        scrollController: _scrollController,
-                        isMobileLandscape: isMobileLandscape,
-                        slotKeys: _slotKeys,
+                      // ValueListenableBuilder so _RackList and the overlays
+                      // rebuild when the patch view is toggled, without
+                      // rebuilding the whole Scaffold.
+                      child: ValueListenableBuilder<bool>(
+                        valueListenable: _isPatchView,
+                        builder: (ctx, isPatch, _) => Listener(
+                          // Track pointer during cable drags.
+                          onPointerMove: (e) {
+                            if (isPatch) {
+                              ctx
+                                  .read<PatchDragController>()
+                                  .updatePosition(e.position);
+                            }
+                          },
+                          onPointerUp: (e) {
+                            if (isPatch) _handleDragEnd(e.position);
+                          },
+                          child: Stack(
+                            children: [
+                              _RackList(
+                                scrollController: _scrollController,
+                                isMobileLandscape: isMobileLandscape,
+                                slotKeys: _slotKeys,
+                                jackKeys: _jackKeys,
+                                isPatchView: isPatch,
+                                onFlipToFront: () =>
+                                    _isPatchView.value = false,
+                              ),
+                              // Cable overlays — only active in patch view
+                              // so they never intercept front-panel touches
+                              // (virtual piano keys, scroll, etc.).
+                              if (isPatch) ...[
+                                Consumer2<AudioGraph, RackState>(
+                                  builder: (ctx2, graph, rack, child) =>
+                                      PatchCableOverlay(
+                                    graph: graph,
+                                    rack: rack,
+                                    jackKeys: _jackKeys,
+                                  ),
+                                ),
+                                // Always in tree (not conditional on isDragging)
+                                // so its RenderBox is ready the moment a drag
+                                // begins. ListenableBuilder inside the widget
+                                // drives repaints without an outer Consumer.
+                                DragCableOverlay(
+                                  controller:
+                                      ctx.read<PatchDragController>(),
+                                  jackKeys: _jackKeys,
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
                       ),
                     ),
                   ],
@@ -362,15 +553,30 @@ class _RackScreenState extends State<RackScreen> {
 
 // ─── Reorderable rack list ────────────────────────────────────────────────────
 
+/// The scrollable list of rack slots — renders either front-panel
+/// [RackSlotWidget]s or back-panel [SlotBackPanelWidget]s depending on
+/// [isPatchView].
 class _RackList extends StatelessWidget {
   final ScrollController scrollController;
   final bool isMobileLandscape;
   final Map<String, GlobalKey> slotKeys;
 
+  /// Jack GlobalKeys shared with [PatchCableOverlay] for cable position lookup.
+  final Map<String, GlobalKey> jackKeys;
+
+  /// True when the patch (back-panel) view is active.
+  final bool isPatchView;
+
+  /// Called when the user taps [FRONT] on a back panel to flip back.
+  final VoidCallback onFlipToFront;
+
   const _RackList({
     required this.scrollController,
     required this.isMobileLandscape,
     required this.slotKeys,
+    required this.jackKeys,
+    required this.isPatchView,
+    required this.onFlipToFront,
   });
 
   @override
@@ -397,6 +603,28 @@ class _RackList extends StatelessWidget {
             // Landscape mobile gets a shorter piano to preserve vertical space.
             final pianoHeight = isMobileLandscape ? 90.0 : 140.0;
 
+            // In patch view use a plain ListView — no reorder needed and it
+            // avoids gesture conflicts that ReorderableListView introduces
+            // (long-press drag recognisers competing with jack long-presses).
+            if (isPatchView) {
+              return ListView.builder(
+                controller: scrollController,
+                padding: const EdgeInsets.only(bottom: 88),
+                itemCount: rack.plugins.length,
+                itemBuilder: (context, index) {
+                  final plugin = rack.plugins[index];
+                  return SlotBackPanelWidget(
+                    key: ValueKey('back:${plugin.id}'),
+                    plugin: plugin,
+                    jackKeys: jackKeys,
+                    onFlipToFront: onFlipToFront,
+                  );
+                },
+              );
+            }
+
+            // Front-panel view: reorderable list with custom drag handles
+            // (defined inside RackSlotWidget — buildDefaultDragHandles: false).
             return ReorderableListView.builder(
               scrollController: scrollController,
               buildDefaultDragHandles: false,
@@ -414,7 +642,8 @@ class _RackList extends StatelessWidget {
               ),
               itemBuilder: (context, index) {
                 final plugin = rack.plugins[index];
-                debugPrint('RackList: building item $index for plugin ${plugin.id}');
+                debugPrint(
+                    'RackList: building item $index for plugin ${plugin.id}');
                 final slotKey =
                     slotKeys.putIfAbsent(plugin.id, () => GlobalKey());
                 return KeyedSubtree(

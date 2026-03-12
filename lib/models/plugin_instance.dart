@@ -1,6 +1,7 @@
 import 'grooveforge_keyboard_plugin.dart';
 import 'gfpa_plugin_instance.dart';
 import 'vst3_plugin_instance.dart';
+import 'virtual_piano_plugin.dart';
 
 /// Abstract base for every slot that can live in the GrooveForge rack.
 ///
@@ -8,6 +9,7 @@ import 'vst3_plugin_instance.dart';
 ///   - [GrooveForgeKeyboardPlugin] — built-in keyboard / vocoder (legacy model)
 ///   - [Vst3PluginInstance]        — external VST3 plugin (desktop only)
 ///   - [GFpaPluginInstance]        — GFPA plugin (all platforms, Phase 3+)
+///   - [VirtualPianoPlugin]        — standalone MIDI-OUT source for patch routing
 abstract class PluginInstance {
   String get id;
 
@@ -32,6 +34,8 @@ abstract class PluginInstance {
         return Vst3PluginInstance.fromJson(json);
       case 'gfpa':
         return GFpaPluginInstance.fromJson(json);
+      case 'virtual_piano':
+        return VirtualPianoPlugin.fromJson(json);
       default:
         throw ArgumentError('Unknown plugin type: $type');
     }

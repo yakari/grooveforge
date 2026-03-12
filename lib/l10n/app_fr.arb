@@ -266,5 +266,26 @@
   "transportMetronome": "Métronome",
   "transportTimeSigCustom": "Personnalisé",
   "transportTimeSigNumerator": "Temps / mesure",
-  "transportTimeSigDenominator": "Unité de temps"
+  "transportTimeSigDenominator": "Unité de temps",
+
+  "patchViewToggleTooltip": "Vue de câblage",
+  "patchViewFrontButton": "FACE",
+  "disconnectCable": "Déconnecter",
+  "cableColour": "Couleur du câble",
+  "connectionCycleError": "Cycle détecté : cette connexion créerait une boucle de rétroaction",
+  "portMidiIn": "MIDI IN",
+  "portMidiOut": "MIDI OUT",
+  "portAudioInL": "AUDIO IN L",
+  "portAudioInR": "AUDIO IN R",
+  "portAudioOutL": "AUDIO OUT L",
+  "portAudioOutR": "AUDIO OUT R",
+  "portSendOut": "SEND",
+  "portReturnIn": "RETURN",
+  "portChordOut": "ACCORD OUT",
+  "portChordIn": "ACCORD IN",
+  "portScaleOut": "GAMME OUT",
+  "portScaleIn": "GAMME IN",
+  "virtualPianoSlotName": "Piano Virtuel",
+  "addVirtualPiano": "Ajouter un piano virtuel",
+  "rackAddVirtualPianoSubtitle": "Source MIDI autonome pour le câblage"
 }

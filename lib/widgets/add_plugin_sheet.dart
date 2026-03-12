@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import '../models/gfpa_plugin_instance.dart';
 import '../models/grooveforge_keyboard_plugin.dart';
+import '../models/virtual_piano_plugin.dart';
 import '../services/rack_state.dart';
 import '../services/vst_host_service.dart';
 
@@ -249,6 +250,20 @@ class _AddPluginSheetContentState extends State<_AddPluginSheetContent> {
                     pluginId: 'com.grooveforge.jammode',
                     midiChannel: 0,
                   ),
+                );
+              },
+            ),
+
+            // ── Virtual Piano (MIDI source for patch routing)
+            _PluginTile(
+              icon: Icons.piano_outlined,
+              iconColor: const Color(0xFFAA44FF),
+              title: l10n.addVirtualPiano,
+              subtitle: l10n.rackAddVirtualPianoSubtitle,
+              onTap: () {
+                Navigator.pop(context);
+                rack.addPlugin(
+                  VirtualPianoPlugin(id: rack.generateSlotId()),
                 );
               },
             ),

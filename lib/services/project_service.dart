@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'audio_engine.dart';
+import 'audio_graph.dart';
 import 'project_migration_service.dart';
 import 'rack_state.dart';
 import 'transport_engine.dart';
@@ -23,13 +24,14 @@ class ProjectService extends ChangeNotifier {
     RackState rackState,
     AudioEngine engine,
     TransportEngine transport,
+    AudioGraph audioGraph,
   ) async {
     final docsDir = await getApplicationDocumentsDirectory();
     final autosavePath = '${docsDir.path}/autosave.gf';
 
     if (await File(autosavePath).exists()) {
       try {
-        await _readGfFile(autosavePath, rackState, engine, transport);
+        await _readGfFile(autosavePath, rackState, engine, transport, audioGraph);
         _currentProjectPath = autosavePath;
       } catch (e) {
         debugPrint('ProjectService: autosave load failed ($e) — using defaults');
@@ -47,10 +49,11 @@ class ProjectService extends ChangeNotifier {
     RackState rackState,
     AudioEngine engine,
     TransportEngine transport,
+    AudioGraph audioGraph,
   ) async {
     final docsDir = await getApplicationDocumentsDirectory();
     final autosavePath = '${docsDir.path}/autosave.gf';
-    await _writeGfFile(autosavePath, rackState, engine, transport);
+    await _writeGfFile(autosavePath, rackState, engine, transport, audioGraph);
     _currentProjectPath = autosavePath;
   }
 
@@ -59,6 +62,7 @@ class ProjectService extends ChangeNotifier {
     RackState rackState,
     AudioEngine engine,
     TransportEngine transport,
+    AudioGraph audioGraph,
   ) async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
@@ -67,7 +71,7 @@ class ProjectService extends ChangeNotifier {
 
     if (result != null && result.files.single.path != null) {
       final path = result.files.single.path!;
-      await loadProject(path, rackState, engine, transport);
+      await loadProject(path, rackState, engine, transport, audioGraph);
       return path;
     }
     return null;
@@ -78,6 +82,7 @@ class ProjectService extends ChangeNotifier {
     RackState rackState,
     AudioEngine engine,
     TransportEngine transport,
+    AudioGraph audioGraph,
   ) async {
     final result = await FilePicker.platform.saveFile(
       dialogTitle: 'Save Project As',
@@ -87,9 +92,9 @@ class ProjectService extends ChangeNotifier {
     );
 
     if (result != null) {
-      // Ensure .gf extension
+      // Ensure .gf extension.
       final path = result.endsWith('.gf') ? result : '$result.gf';
-      await saveProject(path, rackState, engine, transport);
+      await saveProject(path, rackState, engine, transport, audioGraph);
       return path;
     }
     return null;
@@ -101,11 +106,12 @@ class ProjectService extends ChangeNotifier {
     RackState rackState,
     AudioEngine engine,
     TransportEngine transport,
+    AudioGraph audioGraph,
   ) async {
     _isSaving = true;
     notifyListeners();
     try {
-      await _writeGfFile(path, rackState, engine, transport);
+      await _writeGfFile(path, rackState, engine, transport, audioGraph);
       _currentProjectPath = path;
     } finally {
       _isSaving = false;
@@ -119,8 +125,9 @@ class ProjectService extends ChangeNotifier {
     RackState rackState,
     AudioEngine engine,
     TransportEngine transport,
+    AudioGraph audioGraph,
   ) async {
-    await _readGfFile(path, rackState, engine, transport);
+    await _readGfFile(path, rackState, engine, transport, audioGraph);
     _currentProjectPath = path;
     notifyListeners();
   }
@@ -132,6 +139,7 @@ class ProjectService extends ChangeNotifier {
     RackState rackState,
     AudioEngine engine,
     TransportEngine transport,
+    AudioGraph audioGraph,
   ) async {
     final data = {
       'version': _formatVersion,
@@ -143,7 +151,9 @@ class ProjectService extends ChangeNotifier {
         'swing': transport.swing,
         'metronomeEnabled': transport.metronomeEnabled,
       },
-      'audioGraph': {}, // Reserved for future use
+      // MIDI and Audio graph connections (Phase 5).
+      // Data (chord/scale) connections are stored within each plugin's state.
+      'audioGraph': audioGraph.toJson(),
       'loopTracks': [], // Reserved for future use
       'plugins': rackState.toJson(),
     };
@@ -180,29 +190,46 @@ class ProjectService extends ChangeNotifier {
     RackState rackState,
     AudioEngine engine,
     TransportEngine transport,
+    AudioGraph audioGraph,
   ) async {
     final content = await File(path).readAsString();
     if (content.isEmpty) throw FormatException('Empty project file');
-    
-    final Map<String, dynamic> data = jsonDecode(content) as Map<String, dynamic>;
 
-    // Migrate data if necessary
+    final Map<String, dynamic> data =
+        jsonDecode(content) as Map<String, dynamic>;
+
+    // Migrate data if necessary.
     ProjectMigrationService.migrate(data);
 
     // Restore transport if present.
     final transportJson = data['transport'] as Map<String, dynamic>?;
     if (transportJson != null) {
       transport.bpm = (transportJson['bpm'] as num?)?.toDouble() ?? 120.0;
-      transport.timeSigNumerator = (transportJson['timeSigNumerator'] as num?)?.toInt() ?? 4;
-      transport.timeSigDenominator = (transportJson['timeSigDenominator'] as num?)?.toInt() ?? 4;
+      transport.timeSigNumerator =
+          (transportJson['timeSigNumerator'] as num?)?.toInt() ?? 4;
+      transport.timeSigDenominator =
+          (transportJson['timeSigDenominator'] as num?)?.toInt() ?? 4;
       transport.swing = (transportJson['swing'] as num?)?.toDouble() ?? 0.0;
-      transport.metronomeEnabled = (transportJson['metronomeEnabled'] as bool?) ?? false;
+      transport.metronomeEnabled =
+          (transportJson['metronomeEnabled'] as bool?) ?? false;
     }
 
-    // Restore rack plugins.
+    // Restore rack plugins first — slot IDs must exist before the audio graph
+    // can reference them by ID.
     final pluginsJson = data['plugins'] as List<dynamic>? ?? [];
     rackState.loadFromJson(pluginsJson);
 
-    debugPrint('ProjectService: loaded from $path (${pluginsJson.length} slots)');
+    // Restore the MIDI/Audio graph connections.
+    // Older .gf files with 'audioGraph: {}' produce an empty connection list,
+    // which is correct behaviour (no cables).
+    final audioGraphJson =
+        data['audioGraph'] as Map<String, dynamic>? ?? const {};
+    audioGraph.loadFromJson(audioGraphJson);
+
+    debugPrint(
+      'ProjectService: loaded from $path '
+      '(${pluginsJson.length} slots, '
+      '${audioGraph.connections.length} cables)',
+    );
   }
 }

@@ -1213,6 +1213,126 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Beat unit'**
   String get transportTimeSigDenominator;
+
+  /// No description provided for @patchViewToggleTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Patch view'**
+  String get patchViewToggleTooltip;
+
+  /// No description provided for @patchViewFrontButton.
+  ///
+  /// In en, this message translates to:
+  /// **'FRONT'**
+  String get patchViewFrontButton;
+
+  /// No description provided for @disconnectCable.
+  ///
+  /// In en, this message translates to:
+  /// **'Disconnect'**
+  String get disconnectCable;
+
+  /// No description provided for @cableColour.
+  ///
+  /// In en, this message translates to:
+  /// **'Cable colour'**
+  String get cableColour;
+
+  /// No description provided for @connectionCycleError.
+  ///
+  /// In en, this message translates to:
+  /// **'Cycle detected: this connection would create a feedback loop'**
+  String get connectionCycleError;
+
+  /// No description provided for @portMidiIn.
+  ///
+  /// In en, this message translates to:
+  /// **'MIDI IN'**
+  String get portMidiIn;
+
+  /// No description provided for @portMidiOut.
+  ///
+  /// In en, this message translates to:
+  /// **'MIDI OUT'**
+  String get portMidiOut;
+
+  /// No description provided for @portAudioInL.
+  ///
+  /// In en, this message translates to:
+  /// **'AUDIO IN L'**
+  String get portAudioInL;
+
+  /// No description provided for @portAudioInR.
+  ///
+  /// In en, this message translates to:
+  /// **'AUDIO IN R'**
+  String get portAudioInR;
+
+  /// No description provided for @portAudioOutL.
+  ///
+  /// In en, this message translates to:
+  /// **'AUDIO OUT L'**
+  String get portAudioOutL;
+
+  /// No description provided for @portAudioOutR.
+  ///
+  /// In en, this message translates to:
+  /// **'AUDIO OUT R'**
+  String get portAudioOutR;
+
+  /// No description provided for @portSendOut.
+  ///
+  /// In en, this message translates to:
+  /// **'SEND'**
+  String get portSendOut;
+
+  /// No description provided for @portReturnIn.
+  ///
+  /// In en, this message translates to:
+  /// **'RETURN'**
+  String get portReturnIn;
+
+  /// No description provided for @portChordOut.
+  ///
+  /// In en, this message translates to:
+  /// **'CHORD OUT'**
+  String get portChordOut;
+
+  /// No description provided for @portChordIn.
+  ///
+  /// In en, this message translates to:
+  /// **'CHORD IN'**
+  String get portChordIn;
+
+  /// No description provided for @portScaleOut.
+  ///
+  /// In en, this message translates to:
+  /// **'SCALE OUT'**
+  String get portScaleOut;
+
+  /// No description provided for @portScaleIn.
+  ///
+  /// In en, this message translates to:
+  /// **'SCALE IN'**
+  String get portScaleIn;
+
+  /// No description provided for @virtualPianoSlotName.
+  ///
+  /// In en, this message translates to:
+  /// **'Virtual Piano'**
+  String get virtualPianoSlotName;
+
+  /// No description provided for @addVirtualPiano.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Virtual Piano'**
+  String get addVirtualPiano;
+
+  /// No description provided for @rackAddVirtualPianoSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Standalone MIDI source for patch routing'**
+  String get rackAddVirtualPianoSubtitle;
 }
 
 class _AppLocalizationsDelegate

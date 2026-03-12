@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'services/audio_engine.dart';
+import 'services/audio_graph.dart';
 import 'services/cc_mapping_service.dart';
 import 'services/midi_service.dart';
 import 'services/locale_provider.dart';
+import 'services/patch_drag_controller.dart';
 import 'services/project_service.dart';
 import 'services/rack_state.dart';
 import 'services/transport_engine.dart';
@@ -21,9 +23,21 @@ void main() {
         Provider<MidiService>(create: (_) => MidiService()),
         ChangeNotifierProvider<AudioEngine>(create: (_) => AudioEngine()),
         ChangeNotifierProvider<TransportEngine>(create: (_) => TransportEngine()),
-        ChangeNotifierProxyProvider2<AudioEngine, TransportEngine, RackState>(
-          create: (ctx) => RackState(ctx.read<AudioEngine>(), ctx.read<TransportEngine>()),
-          update: (ctx, engine, transport, previous) => previous ?? RackState(engine, transport),
+        // AudioGraph must be registered before RackState so that RackState can
+        // call audioGraph.onSlotRemoved when a slot is deleted.
+        ChangeNotifierProvider<AudioGraph>(create: (_) => AudioGraph()),
+        ChangeNotifierProvider<PatchDragController>(
+          create: (_) => PatchDragController(),
+        ),
+        ChangeNotifierProxyProvider3<AudioEngine, TransportEngine, AudioGraph,
+            RackState>(
+          create: (ctx) => RackState(
+            ctx.read<AudioEngine>(),
+            ctx.read<TransportEngine>(),
+            ctx.read<AudioGraph>(),
+          ),
+          update: (ctx, engine, transport, graph, previous) =>
+              previous ?? RackState(engine, transport, graph),
         ),
         Provider<ProjectService>(create: (_) => ProjectService()),
         Provider<VstHostService>(

@@ -266,5 +266,26 @@
   "transportMetronome": "Metronome",
   "transportTimeSigCustom": "Custom",
   "transportTimeSigNumerator": "Beats / bar",
-  "transportTimeSigDenominator": "Beat unit"
+  "transportTimeSigDenominator": "Beat unit",
+
+  "patchViewToggleTooltip": "Patch view",
+  "patchViewFrontButton": "FRONT",
+  "disconnectCable": "Disconnect",
+  "cableColour": "Cable colour",
+  "connectionCycleError": "Cycle detected: this connection would create a feedback loop",
+  "portMidiIn": "MIDI IN",
+  "portMidiOut": "MIDI OUT",
+  "portAudioInL": "AUDIO IN L",
+  "portAudioInR": "AUDIO IN R",
+  "portAudioOutL": "AUDIO OUT L",
+  "portAudioOutR": "AUDIO OUT R",
+  "portSendOut": "SEND",
+  "portReturnIn": "RETURN",
+  "portChordOut": "CHORD OUT",
+  "portChordIn": "CHORD IN",
+  "portScaleOut": "SCALE OUT",
+  "portScaleIn": "SCALE IN",
+  "virtualPianoSlotName": "Virtual Piano",
+  "addVirtualPiano": "Add Virtual Piano",
+  "rackAddVirtualPianoSubtitle": "Standalone MIDI source for patch routing"
 }

@@ -626,4 +626,66 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get transportTimeSigDenominator => 'Unité de temps';
+
+  @override
+  String get patchViewToggleTooltip => 'Vue de câblage';
+
+  @override
+  String get patchViewFrontButton => 'FACE';
+
+  @override
+  String get disconnectCable => 'Déconnecter';
+
+  @override
+  String get cableColour => 'Couleur du câble';
+
+  @override
+  String get connectionCycleError =>
+      'Cycle détecté : cette connexion créerait une boucle de rétroaction';
+
+  @override
+  String get portMidiIn => 'MIDI IN';
+
+  @override
+  String get portMidiOut => 'MIDI OUT';
+
+  @override
+  String get portAudioInL => 'AUDIO IN L';
+
+  @override
+  String get portAudioInR => 'AUDIO IN R';
+
+  @override
+  String get portAudioOutL => 'AUDIO OUT L';
+
+  @override
+  String get portAudioOutR => 'AUDIO OUT R';
+
+  @override
+  String get portSendOut => 'SEND';
+
+  @override
+  String get portReturnIn => 'RETURN';
+
+  @override
+  String get portChordOut => 'ACCORD OUT';
+
+  @override
+  String get portChordIn => 'ACCORD IN';
+
+  @override
+  String get portScaleOut => 'GAMME OUT';
+
+  @override
+  String get portScaleIn => 'GAMME IN';
+
+  @override
+  String get virtualPianoSlotName => 'Piano Virtuel';
+
+  @override
+  String get addVirtualPiano => 'Ajouter un piano virtuel';
+
+  @override
+  String get rackAddVirtualPianoSubtitle =>
+      'Source MIDI autonome pour le câblage';
 }

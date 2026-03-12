@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [X.x.x]
+
+### Added
+- **Audio Signal Graph** — directed graph model (`AudioGraph` service) connecting rack slots with typed ports: MIDI IN/OUT (yellow), Audio IN/OUT L/R (red/white), Send/Return (orange), and Data chord/scale ports (purple for Jam Mode). Validates port compatibility, prevents duplicate edges, and enforces cycle detection via DFS.
+- **"Back of Rack" patch view** — toggle via the cable icon in the app bar. The rack flips to show each slot's back panel with coloured virtual jacks. MIDI/Audio cables are drawn as bezier curves with natural downward sag; data cables (chord/scale routing) are rendered in purple and stay in sync with the Jam Mode dropdowns.
+- **Cable interactions** — long-press an output jack to start drawing a cable; compatible input jacks pulse; drop on a valid target to create the connection. Tap a cable to disconnect it via a context menu. Incompatible drops are silently ignored.
+- **VirtualPianoPlugin** — a new addable slot type (addable from "Add Plugin") that exposes only a MIDI OUT jack, enabling the touchscreen piano to be routed through Jam Mode scale-locking before reaching an instrument slot.
+- **Audio graph persistence** — all MIDI/Audio cable connections are saved and restored in `.gf` project files under the `"audioGraph"` key. Data connections continue to be stored per-plugin in `masterSlotId`/`targetSlotIds`.
+- **Slot cleanup** — removing a rack slot automatically disconnects all its MIDI/Audio cables from the graph.
+- 20 new localised strings for the patch view UI (EN + FR).
+
+### Architecture
+- `AudioPortId` enum with colour, direction, family, and compatibility helpers.
+- `AudioGraphConnection` model with canonical composite ID (no UUID dependency).
+- `PatchDragController` ChangeNotifier for live cable drag state.
+- `RackState` now receives `AudioGraph` as a constructor parameter (`ChangeNotifierProxyProvider3`).
+- `ProjectService` methods gain an `AudioGraph` parameter; autosave is also triggered on graph mutations.
+
 ## [2.3.0] - 2026-03-11
 
 ### Added
