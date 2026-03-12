@@ -3,7 +3,10 @@ import 'dart:io';
 import 'package:dart_vst_host/dart_vst_host.dart';
 import 'package:flutter/foundation.dart';
 
+import '../models/audio_port_id.dart';
+import '../models/plugin_instance.dart';
 import '../models/vst3_plugin_instance.dart';
+import 'audio_graph.dart';
 
 /// Desktop VST3 host service.
 ///
@@ -234,15 +237,59 @@ class VstHostService {
 
   void stopAudio() {
     if (!_audioRunning || _host == null) return;
-    
+
     if (Platform.isMacOS) {
       _host!.stopMacAudio();
     } else {
       _host!.stopAlsaThread();
     }
-    
+
     _audioRunning = false;
     debugPrint('VstHostService: Audio thread stopped');
+  }
+
+  // ─── Audio graph routing (Phase 5.4) ──────────────────────────────────────
+
+  /// Synchronises the native ALSA processing order and audio routing table
+  /// with the current state of the Dart [AudioGraph].
+  ///
+  /// Should be called whenever:
+  ///   - An [AudioGraph] connection is added or removed.
+  ///   - A VST3 plugin slot is added or removed from the rack.
+  ///
+  /// Only VST3 slots (those present in [_plugins]) participate in native
+  /// routing. Built-in GFPA slots (FluidSynth, vocoder, Jam Mode) use their
+  /// own audio paths and are not routed through the ALSA loop.
+  void syncAudioRouting(AudioGraph graph, List<PluginInstance> allPlugins) {
+    if (!isSupported || _host == null) return;
+
+    // Build the topological processing order — VST3 slots only.
+    final allSlotIds = allPlugins.map((p) => p.id).toList();
+    final orderedIds = graph.topologicalOrder(allSlotIds);
+    final orderedPlugins = orderedIds
+        .map((id) => _plugins[id])
+        .whereType<VstPlugin>()
+        .toList();
+
+    _host!.setProcessingOrder(orderedPlugins);
+
+    // Rebuild routing table from audio connections between VST3 slots.
+    _host!.clearRoutes();
+    for (final conn in graph.connections) {
+      // Only route audio-family port connections (not MIDI or Data cables).
+      if (conn.fromPort.isDataPort || conn.toPort.isDataPort) continue;
+      if (conn.fromPort == AudioPortId.midiOut || conn.toPort == AudioPortId.midiIn) continue;
+
+      final from = _plugins[conn.fromSlotId];
+      final to   = _plugins[conn.toSlotId];
+      if (from == null || to == null) continue; // one or both endpoints not VST3
+
+      _host!.routeAudio(from, to);
+      debugPrint(
+        'VstHostService: route ${conn.fromSlotId}:${conn.fromPort.name} '
+        '→ ${conn.toSlotId}:${conn.toPort.name}',
+      );
+    }
   }
 
   // ─── Plugin scanner ────────────────────────────────────────────────────────

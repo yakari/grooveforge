@@ -9,6 +9,7 @@ import '../plugins/gf_vocoder_plugin.dart';
 import 'audio_engine.dart';
 import 'audio_graph.dart';
 import 'transport_engine.dart';
+import 'vst_host_service_desktop.dart';
 import 'package:grooveforge_plugin_api/grooveforge_plugin_api.dart';
 
 /// Manages the ordered list of plugin slots in the GrooveForge rack.
@@ -60,6 +61,18 @@ class RackState extends ChangeNotifier {
     _lastTimeSigNumerator = _transport.timeSigNumerator;
     _lastTimeSigDenominator = _transport.timeSigDenominator;
     _transport.addListener(_onTransportChanged);
+    // Phase 5.4: whenever the audio graph changes, push the new topological
+    // order and routing rules to the native ALSA/CoreAudio processing loop.
+    _audioGraph.addListener(_onAudioGraphChanged);
+  }
+
+  /// Called whenever the [AudioGraph] changes (connection added/removed).
+  ///
+  /// Pushes the updated topological processing order and routing table to the
+  /// native audio loop so audio flows through the new cable configuration
+  /// immediately without restarting the ALSA/CoreAudio thread.
+  void _onAudioGraphChanged() {
+    VstHostService.instance.syncAudioRouting(_audioGraph, _plugins);
   }
 
   void _onTransportChanged() {
@@ -96,6 +109,7 @@ class RackState extends ChangeNotifier {
   void dispose() {
     _bpmSaveDebounce?.cancel();
     _transport.removeListener(_onTransportChanged);
+    _audioGraph.removeListener(_onAudioGraphChanged);
     super.dispose();
   }
 
@@ -184,6 +198,8 @@ class RackState extends ChangeNotifier {
       _applyGfpaPluginToEngine(plugin);
     }
     _syncJamFollowerMapToEngine();
+    // Sync native routing: new slot may alter the topological sort order.
+    VstHostService.instance.syncAudioRouting(_audioGraph, _plugins);
     notifyListeners();
     _notifyChanged();
   }
@@ -198,9 +214,12 @@ class RackState extends ChangeNotifier {
     }
     _plugins.removeWhere((p) => p.id == id);
     // Inform the AudioGraph so any MIDI/Audio cables connected to the
-    // removed slot are automatically cleaned up.
+    // removed slot are automatically cleaned up (fires _onAudioGraphChanged
+    // if any connections were removed).
     _audioGraph.onSlotRemoved(id);
     _syncJamFollowerMapToEngine();
+    // Sync native routing even if no cables pointed to the removed slot.
+    VstHostService.instance.syncAudioRouting(_audioGraph, _plugins);
     notifyListeners();
     _notifyChanged();
   }

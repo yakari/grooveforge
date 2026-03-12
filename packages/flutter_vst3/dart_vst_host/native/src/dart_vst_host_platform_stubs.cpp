@@ -27,6 +27,12 @@ int32_t dvh_start_alsa_thread(DVH_Host /*host*/, const char* /*alsa_device*/) {
 
 void dvh_stop_alsa_thread(DVH_Host /*host*/) {}
 
+// ── Audio graph routing stubs (Phase 5.4) ────────────────────────────────────
+
+void dvh_set_processing_order(DVH_Host /*host*/, const DVH_Plugin* /*order*/, int32_t /*count*/) {}
+void dvh_route_audio(DVH_Host /*host*/, DVH_Plugin /*from*/, DVH_Plugin /*to*/) {}
+void dvh_clear_routes(DVH_Host /*host*/) {}
+
 // ── Plugin editor stubs ──────────────────────────────────────────────────────
 
 intptr_t dvh_open_editor(DVH_Plugin /*p*/, const char* /*title*/) {

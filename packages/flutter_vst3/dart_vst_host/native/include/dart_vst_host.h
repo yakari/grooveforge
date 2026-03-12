@@ -80,6 +80,28 @@ DVH_API int32_t dvh_start_alsa_thread(DVH_Host host, const char* alsa_device);
 // Stop the ALSA output thread. Blocks until the thread exits.
 DVH_API void    dvh_stop_alsa_thread(DVH_Host host);
 
+// ── Audio graph execution ────────────────────────────────────────────────────
+
+// Set the processing order for the audio callback.
+// plugins_ordered is an array of [count] DVH_Plugin handles in the desired
+// topological order (sources first, effects last). Pass NULL / count=0 to
+// restore the default insertion order.
+DVH_API void dvh_set_processing_order(DVH_Host host,
+                                      const DVH_Plugin* plugins_ordered,
+                                      int32_t count);
+
+// Route the stereo audio output of [from_plugin] to the audio input of
+// [to_plugin]. [from_plugin]'s output will NOT be mixed into the master
+// output — it feeds exclusively into [to_plugin]'s input instead.
+// Ensure [from_plugin] precedes [to_plugin] in the processing order.
+DVH_API void dvh_route_audio(DVH_Host host,
+                             DVH_Plugin from_plugin,
+                             DVH_Plugin to_plugin);
+
+// Remove all audio routing rules. Every plugin's output returns to the
+// default behaviour of mixing directly into the master ALSA output.
+DVH_API void dvh_clear_routes(DVH_Host host);
+
 // macOS specific audio device management (CoreAudio/miniaudio)
 DVH_API int32_t dvh_mac_start_audio(DVH_Host host);
 DVH_API void    dvh_mac_stop_audio(DVH_Host host);

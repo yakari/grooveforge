@@ -11,6 +11,7 @@
 #include "dart_vst_host.h"
 
 #include <vector>
+#include <deque>
 #include <mutex>
 #include <memory>
 #include <atomic>
@@ -41,6 +42,30 @@ struct VstNode : Node {
   DVH_Plugin p{nullptr};
   VstNode(DVH_Plugin plugin) : p(plugin) {}
   ~VstNode() override { if (p) dvh_unload_plugin(p); }
+  int32_t process(const float* inL, const float* inR, float* outL, float* outR, int32_t n) override {
+    return dvh_process_stereo_f32(p, inL, inR, outL, outR, n);
+  }
+  int32_t noteOn(int ch, int note, float vel) override { return dvh_note_on(p, ch, note, vel); }
+  int32_t noteOff(int ch, int note, float vel) override { return dvh_note_off(p, ch, note, vel); }
+  int32_t paramCount() const override { return dvh_param_count(p); }
+  int32_t paramInfo(int idx, int32_t* id, std::string& t, std::string& u) override {
+    char title[256]; char units[64]; int32_t pid = 0;
+    if (dvh_param_info(p, idx, &pid, title, 256, units, 64) != 1) return 0;
+    if (id) *id = pid; t = title; u = units; return 1;
+  }
+  float getParam(int32_t id) override { return dvh_get_param_normalized(p, id); }
+  int32_t setParam(int32_t id, float v) override { return dvh_set_param_normalized(p, id, v); }
+};
+
+// A non-owning wrapper around an existing DVH_Plugin. Unlike VstNode, this
+// node does NOT call dvh_unload_plugin on destruction — the caller retains
+// ownership and manages the plugin lifetime externally (e.g. VstHostService).
+// Used by dvh_graph_add_plugin() to attach an already-loaded plugin to the
+// graph without transferring lifecycle responsibility.
+struct ExternalVstNode : Node {
+  DVH_Plugin p{nullptr};
+  ExternalVstNode(DVH_Plugin plugin) : p(plugin) {}
+  ~ExternalVstNode() override {} // intentionally does NOT unload
   int32_t process(const float* inL, const float* inR, float* outL, float* outR, int32_t n) override {
     return dvh_process_stereo_f32(p, inL, inR, outL, outR, n);
   }
@@ -201,9 +226,30 @@ struct GraphImpl {
       bufs[ioIn].inL = inL;
       bufs[ioIn].inR = inR;
     }
-    // process nodes in index order (simple linear graph). For a
-    // topologically complex graph a proper sort would be needed.
-    for (int i = 0; i < (int)nodes.size(); ++i) {
+    // Kahn's topological sort — process sources before their dependents.
+    // edges[i].src is the single upstream node for node i (-1 if none).
+    // In-degree is at most 1 per node (one stereo bus input per node).
+    std::vector<int> inDeg((int)nodes.size(), 0);
+    for (int i = 0; i < (int)nodes.size(); ++i)
+      if (edges[i].src >= 0) inDeg[i] = 1;
+
+    std::deque<int> q;
+    for (int i = 0; i < (int)nodes.size(); ++i)
+      if (inDeg[i] == 0) q.push_back(i);
+
+    std::vector<int> order;
+    while (!q.empty()) {
+      int cur = q.front(); q.pop_front();
+      order.push_back(cur);
+      // Nodes whose only upstream is [cur] become ready.
+      for (int m = 0; m < (int)nodes.size(); ++m)
+        if (edges[m].src == cur && --inDeg[m] == 0) q.push_back(m);
+    }
+    // Safety: append any remaining nodes if a cycle somehow slipped through.
+    for (int i = 0; i < (int)nodes.size(); ++i)
+      if (inDeg[i] > 0) order.push_back(i);
+
+    for (int i : order) {
       const float* srcL = nullptr;
       const float* srcR = nullptr;
       if (edges[i].src >= 0) {
@@ -254,6 +300,14 @@ int32_t dvh_graph_add_vst(DVH_Graph g, const char* path, const char* uid, int32_
     return 0;
   }
   int id = gg->addNode(std::make_unique<VstNode>(p));
+  if (out_id) *out_id = id;
+  return 1;
+}
+
+int32_t dvh_graph_add_plugin(DVH_Graph g, DVH_Plugin plugin, int32_t* out_id) {
+  if (!g || !plugin) return 0;
+  auto* gg = (GraphImpl*)g;
+  int id = gg->addNode(std::make_unique<ExternalVstNode>(plugin));
   if (out_id) *out_id = id;
   return 1;
 }
