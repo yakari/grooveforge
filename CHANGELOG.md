@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] - 2026-03-11
+
+### Added
+- **Global transport engine**: a new `TransportEngine` service tracks BPM (20–300), time signature, play/stop state, and swing. Changes are propagated live to all loaded VST3 plugins via `dvh_set_transport` → `ProcessContext`, so tempo-synced effects (LFOs, delays, arpeggiators) instantly lock to the app BPM.
+- **Transport bar** in the `RackScreen` app bar: inline BPM field (tap to type), **`−` / `+` nudge buttons** (tap ±1 BPM; hold for rapid repeat — 400 ms initial delay then 80 ms intervals), **scroll-wheel on BPM display** (scroll up/down ±1 BPM), **Tap Tempo** button (averages the last 4 taps, rejects outliers), **▶ / ■ Play/Stop** toggle, **time signature selector**, **beat-pulse LED** (flashes amber on every beat, red on downbeat with fade animation), and **audible metronome toggle** (🎵 icon; GM percussion click via FluidSynth / flutter_midi_pro channel 9 — side-stick on downbeat, high-wood-block on other beats).
+- **Transport state saved/restored** in `.gf` project files: BPM, time signature, swing, and `metronomeEnabled` are preserved per project. Missing `transport` key in older files defaults to `120 BPM / 4/4 / metronome off`.
+- **Jam Mode BPM lock** — fully functional end-to-end: the `Off / 1 beat / ½ bar / 1 bar` sync setting in each Jam Mode slot now gates scale-root changes at beat-window boundaries (wall-clock based, derived from live BPM). Both the piano shading and the note snapping use the same locked pitch-class set — what you see highlighted is exactly what you hear.
+- **Walking bass scale persistence**: when the master channel has no active notes (bass note released between steps), the last known bass scale is cached in `_lastBassScalePcs` so follower channels continue snapping correctly across note transitions.
+- **`bpmLockBeats` wired end-to-end**: the beat-lock setting flows from the Jam Mode UI → `plugin.state` → `RackState._syncJamFollowerMapToEngine` → `GFpaJamEntry.bpmLockBeats` → `AudioEngine._shouldUpdateLockedScale()`.
+- **Forward-compatibility reserved keys**: `"audioGraph": { "connections": [] }` and `"loopTracks": []` added to newly created `.gf` files (empty — prevents format churn when Phases 5 and 7 land).
+
+### Fixed
+- **Jam Mode chord scale locking**: snapping and piano shading now always use the same `_getScaleInfo(chord, scaleType)` function. Previously, Gemini-introduced code routed snapping through `GFJamModePlugin.processMidi` (which used `chord.scalePitchClasses` — the raw chord-detector output) while the shading used the chord-quality × scale-type matrix. For Jazz, Pentatonic, Blues, Classical and all non-Standard scale types, the two diverged — played notes no longer matched highlighted keys. Snapping is now always done directly via `_snapKeyToGfpaJam`, which calls `_getScaleInfo` identically to the shading logic.
+- **Jam Mode MIDI input locking**: external MIDI keyboard notes on a follower channel are now correctly snapped. The broken plugin-registry routing introduced by a previous refactor is removed; all paths go through `_snapKeyToGfpaJam`.
+- **Snap algorithm direction restored**: all three snapping paths (scale lock, GFPA jam, virtual piano) now use the original DOWN-first tie-breaking preference (nearest lower neighbor wins on equidistant candidates), matching the pre-regression behaviour.
+
+### Architecture
+- `TransportEngine` now runs a `Timer.periodic(10 ms)` ticker while playing; it advances `positionInBeats` / `positionInSamples` by wall-clock elapsed microseconds, fires `onBeat(isDownbeat)` on each beat boundary, increments `ValueNotifier<int> beatCount` (for UI pulse), and calls `_syncToHost()` every tick so VST3 plugins always read an accurate playhead position.
+- `TransportEngine.onBeat` callback is wired by `RackState` to call `AudioEngine.playMetronomeClick(isDownbeat)` when `metronomeEnabled` is true.
+- `AudioEngine.bpmProvider` / `isPlayingProvider` — lightweight function-reference callbacks injected by `RackState`; the audio engine reads live transport state without a hard import dependency on `TransportEngine`.
+- `AudioEngine._bpmLockedScalePcs` — per-follower-channel cache of the currently committed locked scale pitch-class set, shared by both the piano shading propagation (`_performChordUpdate`) and the note snapper (`_snapKeyToGfpaJam`).
+- `AudioEngine._lastScaleLockTime` — wall-clock timestamp per follower channel; `_shouldUpdateLockedScale()` compares elapsed time against `bpmLockBeats × 60 / bpm` ms to gate updates.
+
+---
+
 ## [2.2.1] - 2026-03-11
 
 ### Added

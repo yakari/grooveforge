@@ -141,6 +141,7 @@ class ProjectService extends ChangeNotifier {
         'timeSigNumerator': transport.timeSigNumerator,
         'timeSigDenominator': transport.timeSigDenominator,
         'swing': transport.swing,
+        'metronomeEnabled': transport.metronomeEnabled,
       },
       'audioGraph': {}, // Reserved for future use
       'loopTracks': [], // Reserved for future use
@@ -195,6 +196,7 @@ class ProjectService extends ChangeNotifier {
       transport.timeSigNumerator = (transportJson['timeSigNumerator'] as num?)?.toInt() ?? 4;
       transport.timeSigDenominator = (transportJson['timeSigDenominator'] as num?)?.toInt() ?? 4;
       transport.swing = (transportJson['swing'] as num?)?.toDouble() ?? 0.0;
+      transport.metronomeEnabled = (transportJson['metronomeEnabled'] as bool?) ?? false;
     }
 
     // Restore rack plugins.

@@ -86,6 +86,9 @@ class AppLocalizationsFr extends AppLocalizations {
   String get actionSave => 'SAUVEGARDER';
 
   @override
+  String get actionDone => 'Terminé';
+
+  @override
   String chNumber(int channel) {
     return 'CH $channel';
   }
@@ -611,4 +614,16 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get transportTimeSignature => 'Métrique';
+
+  @override
+  String get transportMetronome => 'Métronome';
+
+  @override
+  String get transportTimeSigCustom => 'Personnalisé';
+
+  @override
+  String get transportTimeSigNumerator => 'Temps / mesure';
+
+  @override
+  String get transportTimeSigDenominator => 'Unité de temps';
 }

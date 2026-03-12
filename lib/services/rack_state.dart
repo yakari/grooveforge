@@ -30,9 +30,68 @@ class RackState extends ChangeNotifier {
   /// Called after every mutation; use to trigger autosave.
   VoidCallback? onChanged;
 
+  // Tracks transport settings to detect user-driven changes and trigger
+  // autosave (TransportEngine.notifyListeners is not otherwise wired into
+  // RackState.onChanged).
+  bool _lastMetronomeEnabled = false;
+  double _lastBpm = 120.0;
+  int _lastTimeSigNumerator = 4;
+  int _lastTimeSigDenominator = 4;
+
+  // Debounce timer for BPM saves — nudge fires every 80 ms so we wait until
+  // the user stops adjusting before persisting.
+  Timer? _bpmSaveDebounce;
+
   RackState(this._engine, this._transport) {
     _engine.bpmProvider = () => _transport.bpm;
     _engine.isPlayingProvider = () => _transport.isPlaying;
+    _transport.onBeat = (bool isDownbeat) {
+      if (_transport.metronomeEnabled) {
+        _engine.playMetronomeClick(isDownbeat);
+      }
+    };
+    _lastMetronomeEnabled = _transport.metronomeEnabled;
+    _lastBpm = _transport.bpm;
+    _lastTimeSigNumerator = _transport.timeSigNumerator;
+    _lastTimeSigDenominator = _transport.timeSigDenominator;
+    _transport.addListener(_onTransportChanged);
+  }
+
+  void _onTransportChanged() {
+    bool saveNow = false;
+
+    // Metronome toggle — save immediately.
+    if (_transport.metronomeEnabled != _lastMetronomeEnabled) {
+      _lastMetronomeEnabled = _transport.metronomeEnabled;
+      saveNow = true;
+    }
+
+    // Time signature — save immediately.
+    if (_transport.timeSigNumerator != _lastTimeSigNumerator ||
+        _transport.timeSigDenominator != _lastTimeSigDenominator) {
+      _lastTimeSigNumerator = _transport.timeSigNumerator;
+      _lastTimeSigDenominator = _transport.timeSigDenominator;
+      saveNow = true;
+    }
+
+    if (saveNow) Timer.run(() => onChanged?.call());
+
+    // BPM — debounced: save 1.5 s after the user stops nudging/typing.
+    if (_transport.bpm != _lastBpm) {
+      _lastBpm = _transport.bpm;
+      _bpmSaveDebounce?.cancel();
+      _bpmSaveDebounce = Timer(
+        const Duration(milliseconds: 1500),
+        () => onChanged?.call(),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _bpmSaveDebounce?.cancel();
+    _transport.removeListener(_onTransportChanged);
+    super.dispose();
   }
 
   /// Read-only view of the current plugin list (in display order).

@@ -242,6 +242,12 @@ abstract class AppLocalizations {
   /// **'SAVE'**
   String get actionSave;
 
+  /// No description provided for @actionDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get actionDone;
+
   /// No description provided for @chNumber.
   ///
   /// In en, this message translates to:
@@ -1183,6 +1189,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Time Sig'**
   String get transportTimeSignature;
+
+  /// No description provided for @transportMetronome.
+  ///
+  /// In en, this message translates to:
+  /// **'Metronome'**
+  String get transportMetronome;
+
+  /// No description provided for @transportTimeSigCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom'**
+  String get transportTimeSigCustom;
+
+  /// No description provided for @transportTimeSigNumerator.
+  ///
+  /// In en, this message translates to:
+  /// **'Beats / bar'**
+  String get transportTimeSigNumerator;
+
+  /// No description provided for @transportTimeSigDenominator.
+  ///
+  /// In en, this message translates to:
+  /// **'Beat unit'**
+  String get transportTimeSigDenominator;
 }
 
 class _AppLocalizationsDelegate

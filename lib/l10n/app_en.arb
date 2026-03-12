@@ -29,6 +29,7 @@
   "horizontalInteraction": "Horizontal Interaction",
   "horizontalInteractionSubtitle": "Slide left/right on a key",
   "actionSave": "SAVE",
+  "actionDone": "Done",
   "chNumber": "CH {channel}",
   "@chNumber": {
     "placeholders": {
@@ -261,5 +262,9 @@
   "transportTapTempo": "Tap",
   "transportPlay": "Play",
   "transportStop": "Stop",
-  "transportTimeSignature": "Time Sig"
+  "transportTimeSignature": "Time Sig",
+  "transportMetronome": "Metronome",
+  "transportTimeSigCustom": "Custom",
+  "transportTimeSigNumerator": "Beats / bar",
+  "transportTimeSigDenominator": "Beat unit"
 }

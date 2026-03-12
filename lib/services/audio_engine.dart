@@ -905,6 +905,30 @@ class AudioEngine extends ChangeNotifier {
         : (_sfPathToIdMobile[path] ?? -1);
   }
 
+  /// Plays a short metronome click on GM percussion channel 9.
+  /// [isDownbeat] selects a louder accent note (side-stick) vs a soft wood-block.
+  void playMetronomeClick(bool isDownbeat) {
+    const int percChannel = 9;
+    // GM drum notes: 37 = side stick (downbeat accent), 76 = high wood block (regular beat).
+    final int note = isDownbeat ? 37 : 76;
+    final int velocity = isDownbeat ? 100 : 75;
+    if (Platform.isLinux) {
+      _fluidSynthProcess?.stdin.writeln('noteon $percChannel $note $velocity');
+      Future.delayed(const Duration(milliseconds: 40), () {
+        _fluidSynthProcess?.stdin.writeln('noteoff $percChannel $note');
+      });
+    } else {
+      // On mobile use any loaded soundfont; channel 9 follows GM percussion in most SF2 files.
+      final int sfId = _sfPathToIdMobile.isNotEmpty ? _sfPathToIdMobile.values.first : -1;
+      if (sfId != -1) {
+        _midiPro.playNote(sfId: sfId, channel: percChannel, key: note, velocity: velocity);
+        Future.delayed(const Duration(milliseconds: 40), () {
+          _midiPro.stopNote(sfId: sfId, channel: percChannel, key: note);
+        });
+      }
+    }
+  }
+
   String? getCustomPatchName(int channelIndex) {
     if (channelIndex < 0 || channelIndex >= 16) {
       return null;

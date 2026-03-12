@@ -84,6 +84,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get actionSave => 'SAVE';
 
   @override
+  String get actionDone => 'Done';
+
+  @override
   String chNumber(int channel) {
     return 'CH $channel';
   }
@@ -607,4 +610,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get transportTimeSignature => 'Time Sig';
+
+  @override
+  String get transportMetronome => 'Metronome';
+
+  @override
+  String get transportTimeSigCustom => 'Custom';
+
+  @override
+  String get transportTimeSigNumerator => 'Beats / bar';
+
+  @override
+  String get transportTimeSigDenominator => 'Beat unit';
 }

@@ -29,6 +29,7 @@
   "horizontalInteraction": "Interaction horizontale",
   "horizontalInteractionSubtitle": "Glissez à gauche/droite sur une touche",
   "actionSave": "SAUVEGARDER",
+  "actionDone": "Terminé",
   "chNumber": "CH {channel}",
   "@chNumber": {
     "placeholders": {
@@ -261,5 +262,9 @@
   "transportTapTempo": "Tap",
   "transportPlay": "Lecture",
   "transportStop": "Stop",
-  "transportTimeSignature": "Métrique"
+  "transportTimeSignature": "Métrique",
+  "transportMetronome": "Métronome",
+  "transportTimeSigCustom": "Personnalisé",
+  "transportTimeSigNumerator": "Temps / mesure",
+  "transportTimeSigDenominator": "Unité de temps"
 }

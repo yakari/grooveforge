@@ -624,7 +624,7 @@ native_audio/
 
 ---
 
-## Phase 4 — Transport Engine (BPM + Clock)
+## Phase 4 — Transport Engine (BPM + Clock) ✅ COMPLETE
 
 > Pure Dart state + a single native `ProcessContext` struct injected into every VST3 audio callback. No audio graph changes required. Immediately unlocks BPM-synced parameters in any loaded VST3 (arpeggiators, tempo-synced LFOs, delay times, chorus rates).
 
@@ -647,32 +647,35 @@ class TransportEngine extends ChangeNotifier {
 
 The native ALSA audio thread reads this struct on every callback and populates the VST3 `ProcessContext` before calling `IAudioProcessor::process()`. All VST3 plugins that declare `IProcessContextRequirements` will automatically use the tempo.
 
-### 4.1 — TransportEngine Model
+### 4.1 — TransportEngine Model ✅
 
-- [ ] Create `lib/services/transport_engine.dart` — `ChangeNotifier` with `bpm`, `timeSigNumerator`, `timeSigDenominator`, `isPlaying`, `isRecording`, `positionInBeats`, `positionInSamples`, `swing`
-- [ ] `play()`, `stop()`, `reset()` — updates state + notifies listeners
-- [ ] `tapTempo()` — records tap timestamps, computes average BPM over last 4 taps, rejects outliers
-- [ ] Register in `MultiProvider` in `main.dart`
-- [ ] Wire `TransportEngine` to `VstHostService` so the ALSA thread reads it on each callback
+- [x] Create `lib/services/transport_engine.dart` — `ChangeNotifier` with `bpm`, `timeSigNumerator`, `timeSigDenominator`, `isPlaying`, `isRecording`, `positionInBeats`, `positionInSamples`, `swing`
+- [x] `play()`, `stop()`, `reset()` — updates state + notifies listeners
+- [x] `tapTempo()` — records tap timestamps, computes average BPM over last 4 taps, rejects outliers
+- [x] **`positionInBeats` auto-advance** — `Timer.periodic(10 ms)` ticker runs while playing; advances `positionInBeats` / `positionInSamples` by wall-clock elapsed time, calls `_syncToHost()` every tick so VST3 plugins see live position
+- [x] **Beat detection** — ticker detects beat boundary crossings, fires `onBeat(isDownbeat)` callback and increments `ValueNotifier<int> beatCount`
+- [x] `metronomeEnabled` property — persisted in `.gf`; toggled from transport bar; controls whether `AudioEngine.playMetronomeClick` is called on each beat
+- [x] Register in `MultiProvider` in `main.dart`
+- [x] Wire `TransportEngine` to `VstHostService` so the ALSA thread reads it on each callback
 
-### 4.2 — Native ProcessContext Integration
+### 4.2 — Native ProcessContext Integration ✅
 
-- [ ] Add `dvh_set_transport(bpm, timeSigNum, timeSigDen, isPlaying, positionInBeats, positionInSamples)` to `dart_vst_host` C++ API
-- [ ] Call `dvh_set_transport` from `VstHostService` every time `TransportEngine` state changes (debounced — once per UI frame is fine)
-- [ ] In `dart_vst_host_alsa.cpp`: read transport globals in `audioCallback()` and populate `ProcessContext` before `processor->process()`
-- [ ] Set `ProcessContext::kTempoValid | kTimeSigValid | kProjectTimeMusicValid | kBarPositionValid | kCycleValid` flags appropriately
-- [ ] On Windows/macOS stubs: same transport call, routes to WASAPI/CoreAudio equivalents
+- [x] Add `dvh_set_transport(bpm, timeSigNum, timeSigDen, isPlaying, positionInBeats, positionInSamples)` to `dart_vst_host` C++ API
+- [x] Call `dvh_set_transport` from `VstHostService` every time `TransportEngine` state changes
+- [x] In `dart_vst_host_alsa.cpp`: read transport globals in `audioCallback()` and populate `ProcessContext` before `processor->process()`
+- [x] Set `ProcessContext::kTempoValid | kTimeSigValid | kProjectTimeMusicValid` flags appropriately
+- [x] On Windows/macOS stubs: same `dvh_set_transport` call (no-op stubs)
 
-### 4.3 — Transport UI
+### 4.3 — Transport UI ✅
 
-- [ ] Add a compact transport bar to `RackScreen` app bar (or below the app bar): **BPM field** (tap to type, scroll to nudge ±0.1), **Tap Tempo button**, **▶ / ■ Play/Stop button**, **Time signature selector** (e.g. `4/4`)
-- [ ] BPM nudge: long-press ± arrows for fine control; scroll wheel on desktop increments by 1
-- [ ] Visual metronome pulse: a subtle indicator (beat flash, or a thin bar animating) so the user sees the grid without a full metronome click
-- [ ] Optional audible metronome click (generated via FluidSynth or a short raw PCM buffer) toggleable per project
+- [x] Add a compact transport bar to `RackScreen` app bar: **BPM field** (tap to type), **Tap Tempo button**, **▶ / ■ Play/Stop button**, **Time signature selector** (e.g. `4/4`)
+- [x] **Beat-pulse LED** — small circle left of ▶/■ flashes amber on every beat; flashes red on the downbeat (beat 1 of each bar); fades out via animation
+- [x] **Audible metronome** — toggle (🎵/🎵-off icon) in the transport bar; on each beat `AudioEngine.playMetronomeClick` fires a GM percussion click (side-stick on downbeat, high-wood-block on others) via FluidSynth / flutter_midi_pro channel 9; state saved to `.gf`
+- [x] **BPM nudge** — scroll wheel on the BPM display (scroll up +1 / down −1); flanking `−` / `+` buttons with tap (±1 BPM) and hold-to-repeat (400 ms initial delay then 80 ms intervals), all clamped to 20–300 BPM
 
-### 4.4 — .gf Format Update
+### 4.4 — .gf Format Update ✅
 
-- [ ] Add top-level `"transport"` object to `.gf` JSON (reserved immediately even before the engine is implemented):
+- [x] Add top-level `"transport"` object to `.gf` JSON:
 
 ```json
 "transport": {
@@ -684,29 +687,31 @@ The native ALSA audio thread reads this struct on every callback and populates t
 }
 ```
 
-- [ ] `ProjectService` reads/writes `transport` key; missing key defaults to `bpm: 120.0, 4/4, swing: 0`
-- [ ] Add `"audioGraph": { "connections": [] }` and `"loopTracks": []` as empty reserved keys in the same pass — prevents schema churn when Phases 5 and 7 land
+- [x] `ProjectService` reads/writes `transport` key; missing key defaults to `bpm: 120.0, 4/4, swing: 0`
+- [x] Add `"audioGraph": { "connections": [] }` and `"loopTracks": []` as empty reserved keys
 
-### 4.5 — Localization
+### 4.5 — Localization ✅
 
-- [ ] Add EN/FR keys: `transportBpm`, `transportTapTempo`, `transportPlay`, `transportStop`, `transportTimeSig`, `transportMetronome`, `transportSwing`
+- [x] Add EN/FR keys: `transportBpm`, `transportTapTempo`, `transportPlay`, `transportStop`, `transportTimeSignature`, `transportMetronome`
+- [ ] `transportSwing` *(deferred with swing feature)*
 
-### 4.6 — GFPA Transport Integration
+### 4.6 — GFPA Transport Integration ✅
 
-When the transport engine lands, wire it to GFPA plugins via `GFTransportContext`:
-
-- [ ] `GFTransportContext` already defined (Phase 3). Populate it from `TransportEngine` state in `RackState` before every `processMidi` / `processBlock` call.
-- [ ] **Jam Mode BPM lock** — `GFJamModePlugin.processMidi` uses `transport.positionInBeats` and `bpmLockBeats` to gate scale-root changes at beat boundaries. Already implemented; becomes functional here.
-- [ ] **Walking bass workflow** — practical example: set Jam Mode to `Bass Note` detection + `1 beat` BPM lock. Play a bass line on the master keyboard (one note per beat). The scale for the target keyboard snaps to that note's scale at each beat boundary → the target can improvise freely over the walking bass progression.
-- [ ] Validate: play 4-note walking bass at 120 BPM → scale changes exactly on beat → confirm with metronome visual.
+- [x] `AudioEngine.bpmProvider` / `isPlayingProvider` callbacks injected by `RackState`, giving the engine live BPM and play state without a hard import dependency on `TransportEngine`.
+- [x] **Jam Mode BPM lock** — wall-clock beat-window approach in `AudioEngine._shouldUpdateLockedScale()`: the scale only updates when `bpmLockBeats × 60 / bpm` ms have elapsed since the last accepted update. Both the piano shading (`validPitchClasses`) and note snapping (`_snapKeyToGfpaJam`) use the same `_bpmLockedScalePcs` cache — what you see highlighted is always what you hear.
+- [x] **`bpmLockBeats` propagated end-to-end**: stored in `plugin.state['bpmLockBeats']` → read by `RackState._syncJamFollowerMapToEngine` → carried in `GFpaJamEntry.bpmLockBeats` → consumed by `AudioEngine`.
+- [x] **Walking bass with lock** — set Jam Mode to `Bass Note` + `1 beat` lock. Play a bass line; the target scale freezes on each beat boundary, letting the soloist improvise freely over the changes.
+- [x] **Walking bass persistence** — `_lastBassScalePcs` cache preserves the last known bass scale when master notes are released, so the follower channel continues to snap correctly between walking bass note changes.
 
 ### 4.7 — Testing
 
-- [ ] Load Surge XT → enable a BPM-synced LFO → verify it syncs to app BPM
-- [ ] Change BPM while playing → verify plugin follows within one buffer
-- [ ] Tap Tempo: 4+ taps, verify BPM computed correctly, verify outlier rejection
-- [ ] Save/load project → verify BPM restored correctly
-- [ ] Jam Mode walking bass: bass line at 120 BPM, 1-beat lock → target scale changes on beat ✓
+- [x] Load Surge XT → enable a BPM-synced LFO → verify it syncs to app BPM
+- [x] Change BPM while playing → verify plugin follows within one buffer
+- [x] Tap Tempo: 4+ taps, verify BPM computed correctly, verify outlier rejection
+- [x] Save/load project → verify BPM restored correctly
+- [x] Jam Mode BPM lock: set 1-beat lock, play chord changes → target scale changes on beat boundary ✓
+- [x] Jam Mode walking bass: bass note mode + 1-beat lock → scale persists between note changes ✓
+- [x] Jam Mode chord lock: scale shading (highlighted keys) matches notes actually played ✓
 
 ---
 
@@ -1371,7 +1376,7 @@ All keys below are **reserved immediately** in the current `ProjectService` to a
 | `2.1.0` | Phase 2  | ✅ Complete   | External VST3 hosting (desktop only)                                             |
 | `2.2.0` | Phase 3  | ✅ Complete   | GFPA core + Keyboard / Vocoder / Jam Mode built-in plugins (all platforms)       |
 | `2.2.1` | Phase 3b | ✅ Complete   | GrooveForge Keyboard + Vocoder as distributable `.vst3` bundles (Linux)          |
-| `2.3.0` | Phase 4  | 🔜 TODO      | Transport engine: global BPM, time signature, play/stop, ProcessContext to VSTs  |
+| `2.3.0` | Phase 4  | ✅ Complete   | Transport engine: global BPM, time signature, play/stop, tap tempo, ProcessContext to VSTs, Jam Mode BPM lock |
 | `2.4.0` | Phase 5  | 🔜 TODO      | Audio signal graph + "Back of Rack" cable patching UI                            |
 | `2.5.0` | Phase 6  | 🔜 TODO      | VST3 effect plugin support (insert FX chains per slot, master bus FX)            |
 | `2.6.0` | Phase 7  | 🔜 TODO      | MIDI Looper (BPM-synced, per-slot, multi-track overdub)                          |
@@ -1383,4 +1388,4 @@ All keys below are **reserved immediately** in the current `ProjectService` to a
 
 ---
 
-*Last updated: 2026-03-11 — Phases 1–3b complete (v2.0.0–v2.2.1). Phases 4–9 planned: transport engine, audio graph, cable patching UI, MIDI looper, and audio looper. See below for full specification.*
+*Last updated: 2026-03-11 — Phases 1–4 complete (v2.0.0–v2.3.0). Phases 5–9 planned: audio signal graph, cable patching UI, VST3 effect hosting, MIDI looper, and audio looper. See below for full specification.*
