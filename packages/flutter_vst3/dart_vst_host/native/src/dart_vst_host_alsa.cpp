@@ -12,6 +12,7 @@
 #ifdef __linux__
 
 #include "dart_vst_host.h"
+#include "dart_vst_host_internal.h"
 
 #include <alsa/asoundlib.h>
 #include <algorithm>
@@ -239,6 +240,14 @@ DVH_API int32_t dvh_start_alsa_thread(DVH_Host host, const char* alsa_device) {
         fprintf(stderr, "[dart_vst_host] ALSA thread already running\n");
         return 1;
     }
+
+    // Sync sample rate and block size from the host so ALSA opens at the
+    // same rate that plug-ins were resumed with. The AudioState defaults to
+    // 44100 Hz which would cause a ~1.4-semitone pitch shift vs VSTs running
+    // at 48000 Hz.
+    auto* hs = static_cast<DVH_HostState*>(host);
+    s->sampleRate = static_cast<int32_t>(hs->sr);
+    s->blockSize  = static_cast<int32_t>(hs->maxBlock);
 
     const char* dev = (alsa_device && alsa_device[0]) ? alsa_device : "default";
     fprintf(stderr, "[dart_vst_host] Opening ALSA device: %s\n", dev);

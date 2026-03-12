@@ -31,8 +31,6 @@
 
 #include "public.sdk/source/vst/hosting/module.h"
 #include "public.sdk/source/vst/hosting/plugprovider.h"
-#include "public.sdk/source/vst/hosting/hostclasses.h"
-#include "public.sdk/source/vst/hosting/parameterchanges.h"
 #include "public.sdk/source/vst/vsteventshelper.h"
 #include "public.sdk/source/vst/hosting/eventlist.h"
 #include "public.sdk/source/vst/utility/stringconvert.h"
@@ -40,18 +38,9 @@
 using namespace Steinberg;
 using namespace Steinberg::Vst;
 
+// DVH_HostState is defined in dart_vst_host_internal.h (shared with
+// dart_vst_host_alsa.cpp so the ALSA thread can read sr and maxBlock).
 #include "dart_vst_host_internal.h"
-
-// Host state object storing global context for a set of plugins. It
-// owns a HostApplication which can be queried by loaded plug‑ins.
-struct DVH_HostState {
-  double sr;
-  int32 maxBlock;
-  HostApplication hostApp;
-  DVH_HostState(double s, int32 m) : sr(s), maxBlock(m) {
-    Vst::PluginContextFactory::instance().setPluginContext(&hostApp);
-  }
-};
 
 static Steinberg::Vst::ProcessContext g_transportContext{};
 static std::mutex g_transportMtx;
