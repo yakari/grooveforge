@@ -5,14 +5,19 @@ import '../l10n/app_localizations.dart';
 import '../models/gfpa_plugin_instance.dart';
 import '../models/grooveforge_keyboard_plugin.dart';
 import '../models/plugin_instance.dart';
+import '../models/virtual_piano_plugin.dart';
 import '../models/vst3_plugin_instance.dart';
+import '../models/audio_graph_connection.dart';
+import '../models/audio_port_id.dart';
 import '../services/audio_engine.dart';
+import '../services/audio_graph.dart';
 import '../services/rack_state.dart';
 import '../services/vst_host_service.dart';
 import '../widgets/virtual_piano.dart';
 import 'rack/gfpa_jam_mode_slot_ui.dart';
 import 'rack/gfpa_vocoder_slot_ui.dart';
 import 'rack/grooveforge_keyboard_slot_ui.dart';
+import 'rack/virtual_piano_slot_ui.dart';
 import 'rack/vst3_slot_ui.dart';
 
 /// One slot in the GrooveForge rack.
@@ -82,6 +87,7 @@ class RackSlotWidget extends StatelessWidget {
 
   bool get _showPiano {
     if (plugin is GrooveForgeKeyboardPlugin) return true;
+    if (plugin is VirtualPianoPlugin) return true;
     if (plugin is GFpaPluginInstance) {
       final gfpa = plugin as GFpaPluginInstance;
       // Vocoder has a MIDI channel and responds to notes.
@@ -96,6 +102,9 @@ class RackSlotWidget extends StatelessWidget {
       return GrooveForgeKeyboardSlotUI(
         plugin: plugin as GrooveForgeKeyboardPlugin,
       );
+    }
+    if (plugin is VirtualPianoPlugin) {
+      return VirtualPianoSlotUI(plugin: plugin as VirtualPianoPlugin);
     }
     if (plugin is Vst3PluginInstance) {
       return Vst3SlotUI(plugin: plugin as Vst3PluginInstance);
@@ -198,6 +207,7 @@ class _SlotHeader extends StatelessWidget {
 
   IconData _iconFor(PluginInstance p) {
     if (p is GrooveForgeKeyboardPlugin) return Icons.piano;
+    if (p is VirtualPianoPlugin) return Icons.piano_outlined;
     if (p is GFpaPluginInstance) {
       switch (p.pluginId) {
         case 'com.grooveforge.keyboard': return Icons.piano;
@@ -385,26 +395,8 @@ class _RackSlotPiano extends StatelessWidget {
               rootPitchClass: isFollower ? rootPc : null,
               showJamModeBorders: engine.showJamModeBorders.value,
               highlightWrongNotes: engine.highlightWrongNotes.value,
-              onNotePressed: (note) {
-                if (plugin is Vst3PluginInstance) {
-                  // VST3 audio goes to VstHostService; engine only tracks
-                  // UI state (key highlight) without routing to FluidSynth.
-                  context.read<VstHostService>().noteOn(
-                      plugin.id, 0, note, 1.0);
-                  engine.noteOnUiOnly(channel: channelIndex, key: note);
-                } else {
-                  engine.playNote(
-                      channel: channelIndex, key: note, velocity: 100);
-                }
-              },
-              onNoteReleased: (note) {
-                if (plugin is Vst3PluginInstance) {
-                  context.read<VstHostService>().noteOff(plugin.id, 0, note);
-                  engine.noteOffUiOnly(channel: channelIndex, key: note);
-                } else {
-                  engine.stopNote(channel: channelIndex, key: note);
-                }
-              },
+              onNotePressed: (note) => _onNotePressed(context, engine, note),
+              onNoteReleased: (note) => _onNoteReleased(context, engine, note),
               onPitchBend: (val) =>
                   engine.setPitchBend(channel: channelIndex, value: val),
               onControlChange: (cc, val) => engine.setControlChange(
@@ -416,4 +408,103 @@ class _RackSlotPiano extends StatelessWidget {
       ),
     );
   }
+
+  /// Handles a note-on event from the on-screen piano keyboard.
+  ///
+  /// Routing logic per plugin type:
+  /// - [VirtualPianoPlugin]: has no soundfont; highlights its own keys for
+  ///   visual feedback, then forwards the note to every slot wired to its
+  ///   MIDI OUT jack via the [AudioGraph] cable map.
+  /// - [Vst3PluginInstance]: sends via [VstHostService] (bypasses FluidSynth)
+  ///   and marks the key as active on the engine for UI highlighting.
+  /// - All other slots: routes directly to FluidSynth via [AudioEngine.playNote].
+  void _onNotePressed(BuildContext context, AudioEngine engine, int note) {
+    if (plugin is VirtualPianoPlugin) {
+      // Highlight VP's own key for visual feedback — no audio produced here.
+      engine.noteOnUiOnly(channel: channelIndex, key: note);
+      // Route the note to every slot connected to this VP's MIDI OUT jack.
+      _dispatchMidiNoteOn(context, engine, note);
+    } else if (plugin is Vst3PluginInstance) {
+      // VST3 audio goes to VstHostService; engine only tracks UI state.
+      context.read<VstHostService>().noteOn(plugin.id, 0, note, 1.0);
+      engine.noteOnUiOnly(channel: channelIndex, key: note);
+    } else {
+      engine.playNote(channel: channelIndex, key: note, velocity: 100);
+    }
+  }
+
+  /// Handles a note-off event from the on-screen piano keyboard.
+  void _onNoteReleased(BuildContext context, AudioEngine engine, int note) {
+    if (plugin is VirtualPianoPlugin) {
+      engine.noteOffUiOnly(channel: channelIndex, key: note);
+      _dispatchMidiNoteOff(context, engine, note);
+    } else if (plugin is Vst3PluginInstance) {
+      context.read<VstHostService>().noteOff(plugin.id, 0, note);
+      engine.noteOffUiOnly(channel: channelIndex, key: note);
+    } else {
+      engine.stopNote(channel: channelIndex, key: note);
+    }
+  }
+
+  /// Forwards a MIDI note-on event to all slots wired to this slot's MIDI OUT
+  /// jack. Called only for [VirtualPianoPlugin] slots.
+  ///
+  /// Each connected target is routed according to its type:
+  /// - VST3 → [VstHostService.noteOn] + [AudioEngine.noteOnUiOnly]
+  /// - FluidSynth (GFK, Vocoder, generic GFPA) → [AudioEngine.playNote]
+  void _dispatchMidiNoteOn(
+    BuildContext context,
+    AudioEngine engine,
+    int note,
+  ) {
+    for (final cable in _midiOutCables(context)) {
+      final target = _findPlugin(context, cable.toSlotId);
+      if (target == null) continue;
+      final targetCh = (target.midiChannel - 1).clamp(0, 15);
+      if (target is Vst3PluginInstance) {
+        context.read<VstHostService>().noteOn(target.id, 0, note, 1.0);
+        engine.noteOnUiOnly(channel: targetCh, key: note);
+      } else {
+        engine.playNote(channel: targetCh, key: note, velocity: 100);
+      }
+    }
+  }
+
+  /// Forwards a MIDI note-off event to all slots wired to this slot's MIDI OUT
+  /// jack. Mirrors the logic of [_dispatchMidiNoteOn].
+  void _dispatchMidiNoteOff(
+    BuildContext context,
+    AudioEngine engine,
+    int note,
+  ) {
+    for (final cable in _midiOutCables(context)) {
+      final target = _findPlugin(context, cable.toSlotId);
+      if (target == null) continue;
+      final targetCh = (target.midiChannel - 1).clamp(0, 15);
+      if (target is Vst3PluginInstance) {
+        context.read<VstHostService>().noteOff(target.id, 0, note);
+        engine.noteOffUiOnly(channel: targetCh, key: note);
+      } else {
+        engine.stopNote(channel: targetCh, key: note);
+      }
+    }
+  }
+
+  /// Returns all [AudioGraphConnection]s originating from this slot's
+  /// [AudioPortId.midiOut] jack.
+  List<AudioGraphConnection> _midiOutCables(BuildContext context) =>
+      context
+          .read<AudioGraph>()
+          .connectionsFrom(plugin.id)
+          .where((c) => c.fromPort == AudioPortId.midiOut)
+          .toList();
+
+  /// Looks up a plugin instance by its slot ID in [RackState].
+  /// Returns null if the slot has been removed since the cable was drawn.
+  PluginInstance? _findPlugin(BuildContext context, String slotId) =>
+      context
+          .read<RackState>()
+          .plugins
+          .where((p) => p.id == slotId)
+          .firstOrNull;
 }

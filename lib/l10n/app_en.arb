@@ -315,5 +315,6 @@
   "portScaleIn": "SCALE IN",
   "virtualPianoSlotName": "Virtual Piano",
   "addVirtualPiano": "Add Virtual Piano",
-  "rackAddVirtualPianoSubtitle": "Standalone MIDI source for patch routing"
+  "rackAddVirtualPianoSubtitle": "Standalone MIDI source for patch routing",
+  "virtualPianoSlotHint": "Notes route via MIDI OUT — connect a cable in patch view."
 }

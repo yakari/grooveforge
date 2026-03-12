@@ -172,11 +172,15 @@ class _VirtualPianoState extends State<VirtualPiano> {
   void _onDown(PointerEvent e, double h, double wkw, double bkw, List<int> wk, List<int> bk) {
     final note = _hitTest(e.localPosition, h, wkw, bkw, wk, bk);
     if (note == null) return;
+    // Snap the logical note to the active scale so individual taps behave the
+    // same as glissando — invalid keys are redirected to the nearest valid
+    // pitch class. _validTarget returns note unchanged when no scale is set.
+    final snapped = _validTarget(note);
     final wasEmpty = _pointerNote.isEmpty;
-    _pointerNote[e.pointer] = note;
-    _pointerVisual[e.pointer] = note;
+    _pointerNote[e.pointer] = snapped;  // logical note used for release
+    _pointerVisual[e.pointer] = note;   // visual highlight stays on pressed key
     _pointerAnchor[e.pointer] = e.localPosition;
-    widget.onNotePressed?.call(note);
+    widget.onNotePressed?.call(snapped);
     if (wasEmpty) widget.onInteractingChanged?.call(true);
     setState(() {});
   }
@@ -193,9 +197,16 @@ class _VirtualPianoState extends State<VirtualPiano> {
       if (logNew != logCur) {
         if (curActive != null) widget.onNoteReleased?.call(curActive);
         if (note != null) {
-          _pointerNote[e.pointer] = note;
+          // Use the snapped note for both storage and the callback so that
+          // routes bypassing the engine (e.g. VP→VST3 via cable) also receive
+          // the scale-corrected pitch. _validTarget is called again here
+          // (rather than reusing logNew) to get a non-nullable int directly.
+          // The visual key (_pointerVisual) stays at the raw position so the
+          // highlight follows the finger.
+          final snapped = _validTarget(note);
+          _pointerNote[e.pointer] = snapped;
           _pointerAnchor[e.pointer] = e.localPosition;
-          widget.onNotePressed?.call(note);
+          widget.onNotePressed?.call(snapped);
         } else {
           _pointerNote.remove(e.pointer);
           _pointerAnchor.remove(e.pointer);

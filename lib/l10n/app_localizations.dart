@@ -1501,6 +1501,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Standalone MIDI source for patch routing'**
   String get rackAddVirtualPianoSubtitle;
+
+  /// No description provided for @virtualPianoSlotHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Notes route via MIDI OUT — connect a cable in patch view.'**
+  String get virtualPianoSlotHint;
 }
 
 class _AppLocalizationsDelegate

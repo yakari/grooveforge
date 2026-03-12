@@ -7,6 +7,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import '../l10n/app_localizations.dart';
 import '../models/audio_port_id.dart';
 import '../models/gfpa_plugin_instance.dart';
+import '../models/virtual_piano_plugin.dart';
 import '../models/vst3_plugin_instance.dart';
 import '../services/audio_engine.dart';
 import '../services/audio_graph.dart';
@@ -120,10 +121,18 @@ class _RackScreenState extends State<RackScreen> {
 
   // ─── Auto-scroll ────────────────────────────────────────────────────────────
 
-  /// Routes incoming MIDI messages to VST3 rack slots on the matching channel.
+  /// Routes incoming MIDI messages to VST3 and [VirtualPianoPlugin] slots on
+  /// the matching channel, bypassing FluidSynth.
   ///
-  /// Returns `true` if at least one VST3 slot claims the incoming MIDI channel,
-  /// which tells the caller to skip FluidSynth for this packet.
+  /// - **VST3 slots** receive note events directly via [VstHostService].
+  /// - **Virtual Piano slots** act as cable-based MIDI sources: notes are
+  ///   scale-snapped for the VP's channel, then forwarded to every slot wired
+  ///   to its MIDI OUT jack in [AudioGraph]. This mirrors what [_RackSlotPiano]
+  ///   does for on-screen key presses.
+  ///
+  /// Returns `true` when at least one VST3 or VP slot claims the channel so
+  /// the caller can skip [AudioEngine.processMidiPacket] (which would route to
+  /// FluidSynth and produce the wrong sound).
   bool _routeMidiToVst3Plugins(MidiPacket packet) {
     if (packet.data.isEmpty) return false;
     final statusByte = packet.data[0];
@@ -134,27 +143,103 @@ class _RackScreenState extends State<RackScreen> {
         .whereType<Vst3PluginInstance>()
         .where((p) => p.midiChannel == midiChannel)
         .toList();
+    final vpSlots = rack.plugins
+        .whereType<VirtualPianoPlugin>()
+        .where((p) => p.midiChannel == midiChannel)
+        .toList();
 
-    if (vst3Slots.isEmpty) return false;
+    if (vst3Slots.isEmpty && vpSlots.isEmpty) return false;
 
-    // Forward note-on/off to each VST3 plugin on this channel.
     final command = statusByte & 0xF0;
     if ((command == 0x90 || command == 0x80) && packet.data.length >= 2) {
       final vstSvc = context.read<VstHostService>();
       final note = packet.data[1];
       final velocity = packet.data.length >= 3 ? packet.data[2] : 0;
+      final isNoteOn = command == 0x90 && velocity > 0;
 
+      // ── Direct VST3 routing ──────────────────────────────────────────────
       for (final plugin in vst3Slots) {
-        if (command == 0x90 && velocity > 0) {
+        if (isNoteOn) {
           vstSvc.noteOn(plugin.id, 0, note, velocity / 127.0);
         } else {
           vstSvc.noteOff(plugin.id, 0, note);
         }
       }
+
+      // ── Virtual Piano cable routing ──────────────────────────────────────
+      if (vpSlots.isNotEmpty) {
+        final engine = context.read<AudioEngine>();
+        final audioGraph = context.read<AudioGraph>();
+        for (final vp in vpSlots) {
+          _routeExternalMidiThroughVp(
+            vp: vp,
+            note: note,
+            velocity: velocity,
+            isNoteOn: isNoteOn,
+            engine: engine,
+            audioGraph: audioGraph,
+            vstSvc: vstSvc,
+            rack: rack,
+          );
+        }
+      }
     }
 
-    // Return true for any MIDI status on a VST3 channel so FluidSynth is skipped.
     return true;
+  }
+
+  /// Routes one external MIDI note event through a [VirtualPianoPlugin]'s
+  /// MIDI OUT cable connections.
+  ///
+  /// Applies scale snapping for the VP's own channel (so Jam Mode affects
+  /// external MIDI just as it does on-screen key presses), updates VP's visual
+  /// key highlight, then dispatches the snapped note to each downstream slot.
+  void _routeExternalMidiThroughVp({
+    required VirtualPianoPlugin vp,
+    required int note,
+    required int velocity,
+    required bool isNoteOn,
+    required AudioEngine engine,
+    required AudioGraph audioGraph,
+    required VstHostService vstSvc,
+    required RackState rack,
+  }) {
+    final vpCh = (vp.midiChannel - 1).clamp(0, 15);
+    // Scale-snap the note using VP's channel state (Jam Mode / classic lock).
+    final snapped = engine.snapNoteForChannel(vpCh, note);
+
+    // Update VP's own key highlight.
+    if (isNoteOn) {
+      engine.noteOnUiOnly(channel: vpCh, key: note);
+    } else {
+      engine.noteOffUiOnly(channel: vpCh, key: note);
+    }
+
+    // Forward to each slot connected to VP's MIDI OUT jack.
+    final cables = audioGraph
+        .connectionsFrom(vp.id)
+        .where((c) => c.fromPort == AudioPortId.midiOut);
+    for (final cable in cables) {
+      final target =
+          rack.plugins.where((p) => p.id == cable.toSlotId).firstOrNull;
+      if (target == null) continue;
+      final targetCh = (target.midiChannel - 1).clamp(0, 15);
+      if (isNoteOn) {
+        if (target is Vst3PluginInstance) {
+          vstSvc.noteOn(target.id, 0, snapped, velocity / 127.0);
+          engine.noteOnUiOnly(channel: targetCh, key: snapped);
+        } else {
+          engine.playNote(channel: targetCh, key: snapped, velocity: velocity);
+        }
+      } else {
+        if (target is Vst3PluginInstance) {
+          vstSvc.noteOff(target.id, 0, snapped);
+          engine.noteOffUiOnly(channel: targetCh, key: snapped);
+        } else {
+          engine.stopNote(channel: targetCh, key: snapped);
+        }
+      }
+    }
   }
 
   void _handleAutoScroll(int channel) {

@@ -40,7 +40,13 @@ class SlotBackPanelWidget extends StatelessWidget {
   // ── Port layout per plugin type ──────────────────────────────────────────
 
   List<AudioPortId> _portsFor(PluginInstance plugin) {
-    if (plugin is VirtualPianoPlugin) return [AudioPortId.midiOut];
+    if (plugin is VirtualPianoPlugin) {
+      return [
+        AudioPortId.midiIn,   // aligns MIDI OUT with other slots; also accepts MIDI from Jam Mode OUT
+        AudioPortId.midiOut,  // touch-keyboard notes out — position 2, aligned with GFK / Jam Mode
+        AudioPortId.scaleIn,  // scale data ← Jam Mode scaleOut for on-screen key highlighting
+      ];
+    }
 
     if (plugin is GrooveForgeKeyboardPlugin) {
       return [

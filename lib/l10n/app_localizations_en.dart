@@ -782,4 +782,8 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get rackAddVirtualPianoSubtitle =>
       'Standalone MIDI source for patch routing';
+
+  @override
+  String get virtualPianoSlotHint =>
+      'Notes route via MIDI OUT — connect a cable in patch view.';
 }

@@ -315,5 +315,6 @@
   "portScaleIn": "GAMME IN",
   "virtualPianoSlotName": "Piano Virtuel",
   "addVirtualPiano": "Ajouter un piano virtuel",
-  "rackAddVirtualPianoSubtitle": "Source MIDI autonome pour le câblage"
+  "rackAddVirtualPianoSubtitle": "Source MIDI autonome pour le câblage",
+  "virtualPianoSlotHint": "Les notes passent par MIDI OUT — connectez un câble en vue de câblage."
 }

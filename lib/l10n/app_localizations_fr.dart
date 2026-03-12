@@ -786,4 +786,8 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get rackAddVirtualPianoSubtitle =>
       'Source MIDI autonome pour le câblage';
+
+  @override
+  String get virtualPianoSlotHint =>
+      'Les notes passent par MIDI OUT — connectez un câble en vue de câblage.';
 }

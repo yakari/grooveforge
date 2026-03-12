@@ -26,13 +26,15 @@ class VirtualPianoPlugin extends PluginInstance {
   @override
   final String id;
 
-  /// MIDI channel is unused for [VirtualPianoPlugin] — this slot does not
-  /// transmit MIDI channel messages directly to the audio engine. Routing
-  /// is performed entirely through audio-graph cable connections.
+  /// MIDI channel on which this slot's on-screen keyboard sends note events.
+  ///
+  /// Notes played on the front-panel piano are dispatched on this channel,
+  /// allowing the slot to participate in Jam Mode and other channel-based
+  /// processing. The channel can be changed via the badge in the slot header.
   @override
-  int midiChannel = 0;
+  int midiChannel;
 
-  VirtualPianoPlugin({required this.id});
+  VirtualPianoPlugin({required this.id, required this.midiChannel});
 
   @override
   // Localised label is resolved at the widget layer via AppLocalizations.
@@ -45,10 +47,14 @@ class VirtualPianoPlugin extends PluginInstance {
   Map<String, dynamic> toJson() => {
         'type': 'virtual_piano',
         'id': id,
+        'midiChannel': midiChannel,
       };
 
   /// Deserialises a [VirtualPianoPlugin] from its JSON representation.
   factory VirtualPianoPlugin.fromJson(Map<String, dynamic> json) {
-    return VirtualPianoPlugin(id: json['id'] as String);
+    return VirtualPianoPlugin(
+      id: json['id'] as String,
+      midiChannel: (json['midiChannel'] as int?) ?? 1,
+    );
   }
 }
