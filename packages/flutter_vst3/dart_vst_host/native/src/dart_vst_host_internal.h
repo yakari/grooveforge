@@ -16,12 +16,27 @@
 #include "pluginterfaces/vst/ivstmessage.h"
 #include "public.sdk/source/vst/hosting/module.h"
 #include "public.sdk/source/vst/hosting/plugprovider.h"
+#include "public.sdk/source/vst/hosting/hostclasses.h"
 #include "public.sdk/source/vst/hosting/parameterchanges.h"
 #include "public.sdk/source/vst/hosting/eventlist.h"
 #include "public.sdk/source/common/memorystream.h"
 
 using namespace Steinberg;
 using namespace Steinberg::Vst;
+
+/// Host state object storing global context for a set of plugins.
+///
+/// Owns a HostApplication which VST3 plug-ins can query for host services.
+/// The sample rate and max block size are set once at creation and used
+/// by all plug-ins registered with this host.
+struct DVH_HostState {
+  double sr;
+  int32 maxBlock;
+  HostApplication hostApp;
+  DVH_HostState(double s, int32 m) : sr(s), maxBlock(m) {
+    Vst::PluginContextFactory::instance().setPluginContext(&hostApp);
+  }
+};
 
 struct DVH_PluginState {
   std::shared_ptr<VST3::Hosting::Module> module;

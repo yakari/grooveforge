@@ -704,6 +704,174 @@ abstract class AppLocalizations {
   /// **'Musical Tips'**
   String get guideTabTips;
 
+  /// No description provided for @guideTabPatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Rack & Cables'**
+  String get guideTabPatch;
+
+  /// No description provided for @guidePatchRackTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'The Rack'**
+  String get guidePatchRackTitle;
+
+  /// No description provided for @guidePatchRackBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The rack is the heart of GrooveForge. Each row is a slot — an independent instrument or effect processor. Add slots with the + button, remove them with the trash icon, and reorder them by dragging the handle on the left side of each slot.'**
+  String get guidePatchRackBody;
+
+  /// No description provided for @guidePatchSlotTypesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Slot Types'**
+  String get guidePatchSlotTypesTitle;
+
+  /// No description provided for @guidePatchSlotKeyboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Keyboard'**
+  String get guidePatchSlotKeyboard;
+
+  /// No description provided for @guidePatchSlotKeyboardDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Built-in synthesizer driven by a soundfont (.sf2). Play via the on-screen keyboard or an external MIDI controller.'**
+  String get guidePatchSlotKeyboardDesc;
+
+  /// No description provided for @guidePatchSlotVocoder.
+  ///
+  /// In en, this message translates to:
+  /// **'Vocoder'**
+  String get guidePatchSlotVocoder;
+
+  /// No description provided for @guidePatchSlotVocoderDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Processes microphone audio through a carrier wave for voice-synth effects.'**
+  String get guidePatchSlotVocoderDesc;
+
+  /// No description provided for @guidePatchSlotJam.
+  ///
+  /// In en, this message translates to:
+  /// **'Jam Mode'**
+  String get guidePatchSlotJam;
+
+  /// No description provided for @guidePatchSlotJamDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Harmony engine that snaps incoming MIDI notes to a scale in real time. Receives chord information from a master keyboard slot.'**
+  String get guidePatchSlotJamDesc;
+
+  /// No description provided for @guidePatchSlotVirtualPiano.
+  ///
+  /// In en, this message translates to:
+  /// **'Virtual MIDI Controller'**
+  String get guidePatchSlotVirtualPiano;
+
+  /// No description provided for @guidePatchSlotVirtualPianoDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'A lightweight MIDI-only source: routes on-screen touch input into the signal chain without producing audio of its own.'**
+  String get guidePatchSlotVirtualPianoDesc;
+
+  /// No description provided for @guidePatchSlotVst3.
+  ///
+  /// In en, this message translates to:
+  /// **'VST3 Plugin'**
+  String get guidePatchSlotVst3;
+
+  /// No description provided for @guidePatchSlotVst3Desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Load any third-party VST3 instrument or effect. Requires a compatible .vst3 bundle installed on your system.'**
+  String get guidePatchSlotVst3Desc;
+
+  /// No description provided for @guidePatchSlotVst3DesktopOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'VST3 plugin slots are available on desktop platforms only (Linux, macOS, Windows). They are not available on Android or iOS.'**
+  String get guidePatchSlotVst3DesktopOnly;
+
+  /// No description provided for @guidePatchTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Cable Patching'**
+  String get guidePatchTitle;
+
+  /// No description provided for @guidePatchIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'The patch view lets you see the back panel of every slot in your rack and draw virtual cables between jacks, just like on a real hardware rack. Tap the cable icon in the top app bar to toggle between the front view (playing) and the back view (patching).'**
+  String get guidePatchIntro;
+
+  /// No description provided for @guidePatchToggleTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Toggling Patch View'**
+  String get guidePatchToggleTitle;
+
+  /// No description provided for @guidePatchToggleBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap the cable icon (⊡) in the top-right of the rack screen to switch to the back panel view. Tap it again (or the agenda icon) to return to the front view. Slot reordering is disabled while in patch view.'**
+  String get guidePatchToggleBody;
+
+  /// No description provided for @guidePatchJacksTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Jack Types'**
+  String get guidePatchJacksTitle;
+
+  /// No description provided for @guidePatchJacksBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Each slot exposes a set of jacks grouped by signal family:\n• MIDI (yellow) — MIDI IN / MIDI OUT for note and CC messages.\n• Audio (red / white / orange) — AUDIO IN L, AUDIO IN R, AUDIO OUT L, AUDIO OUT R for stereo audio; SEND / RETURN for effects loops.\n• Data (purple) — CHORD OUT/IN and SCALE OUT/IN for Jam Mode harmony routing.'**
+  String get guidePatchJacksBody;
+
+  /// No description provided for @guidePatchDrawTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Drawing a Cable'**
+  String get guidePatchDrawTitle;
+
+  /// No description provided for @guidePatchDrawBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Long-press an output jack (●) to start dragging a cable. Compatible input jacks will pulse to show valid targets. Drag to a compatible input jack and release to connect. Dropping in empty space cancels the drag.\n\nCompatible pairs: MIDI OUT → MIDI IN, AUDIO OUT L → AUDIO IN L, AUDIO OUT R → AUDIO IN R, SEND → RETURN, CHORD OUT → CHORD IN, SCALE OUT → SCALE IN.'**
+  String get guidePatchDrawBody;
+
+  /// No description provided for @guidePatchDisconnectTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Disconnecting a Cable'**
+  String get guidePatchDisconnectTitle;
+
+  /// No description provided for @guidePatchDisconnectBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Each cable has a small ✕ badge at its midpoint. Tap the badge to bring up the Disconnect menu. The badge is also the cable\'s hit zone, so aim for the circle with the coloured ring.'**
+  String get guidePatchDisconnectBody;
+
+  /// No description provided for @guidePatchDataTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Data Cables (Jam Mode)'**
+  String get guidePatchDataTitle;
+
+  /// No description provided for @guidePatchDataBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Purple data cables represent the Jam Mode harmony flow between slots. Drawing a CHORD OUT → CHORD IN cable is the same as selecting a Jam Mode master in the dropdown — both controls stay in sync. Similarly, a SCALE OUT → SCALE IN cable corresponds to a target follower slot.'**
+  String get guidePatchDataBody;
+
+  /// No description provided for @guidePatchTip.
+  ///
+  /// In en, this message translates to:
+  /// **'Tip: Cables are saved as part of your project (.gf file). Open a saved project to restore all connections exactly as you left them.'**
+  String get guidePatchTip;
+
   /// No description provided for @guideJamModeTitle.
   ///
   /// In en, this message translates to:
@@ -1213,6 +1381,132 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Beat unit'**
   String get transportTimeSigDenominator;
+
+  /// No description provided for @patchViewToggleTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Patch view'**
+  String get patchViewToggleTooltip;
+
+  /// No description provided for @patchViewFrontButton.
+  ///
+  /// In en, this message translates to:
+  /// **'FRONT'**
+  String get patchViewFrontButton;
+
+  /// No description provided for @disconnectCable.
+  ///
+  /// In en, this message translates to:
+  /// **'Disconnect'**
+  String get disconnectCable;
+
+  /// No description provided for @cableColour.
+  ///
+  /// In en, this message translates to:
+  /// **'Cable colour'**
+  String get cableColour;
+
+  /// No description provided for @connectionCycleError.
+  ///
+  /// In en, this message translates to:
+  /// **'Cycle detected: this connection would create a feedback loop'**
+  String get connectionCycleError;
+
+  /// No description provided for @portMidiIn.
+  ///
+  /// In en, this message translates to:
+  /// **'MIDI IN'**
+  String get portMidiIn;
+
+  /// No description provided for @portMidiOut.
+  ///
+  /// In en, this message translates to:
+  /// **'MIDI OUT'**
+  String get portMidiOut;
+
+  /// No description provided for @portAudioInL.
+  ///
+  /// In en, this message translates to:
+  /// **'AUDIO IN L'**
+  String get portAudioInL;
+
+  /// No description provided for @portAudioInR.
+  ///
+  /// In en, this message translates to:
+  /// **'AUDIO IN R'**
+  String get portAudioInR;
+
+  /// No description provided for @portAudioOutL.
+  ///
+  /// In en, this message translates to:
+  /// **'AUDIO OUT L'**
+  String get portAudioOutL;
+
+  /// No description provided for @portAudioOutR.
+  ///
+  /// In en, this message translates to:
+  /// **'AUDIO OUT R'**
+  String get portAudioOutR;
+
+  /// No description provided for @portSendOut.
+  ///
+  /// In en, this message translates to:
+  /// **'SEND'**
+  String get portSendOut;
+
+  /// No description provided for @portReturnIn.
+  ///
+  /// In en, this message translates to:
+  /// **'RETURN'**
+  String get portReturnIn;
+
+  /// No description provided for @portChordOut.
+  ///
+  /// In en, this message translates to:
+  /// **'CHORD OUT'**
+  String get portChordOut;
+
+  /// No description provided for @portChordIn.
+  ///
+  /// In en, this message translates to:
+  /// **'CHORD IN'**
+  String get portChordIn;
+
+  /// No description provided for @portScaleOut.
+  ///
+  /// In en, this message translates to:
+  /// **'SCALE OUT'**
+  String get portScaleOut;
+
+  /// No description provided for @portScaleIn.
+  ///
+  /// In en, this message translates to:
+  /// **'SCALE IN'**
+  String get portScaleIn;
+
+  /// No description provided for @virtualPianoSlotName.
+  ///
+  /// In en, this message translates to:
+  /// **'Virtual MIDI Controller'**
+  String get virtualPianoSlotName;
+
+  /// No description provided for @addVirtualPiano.
+  ///
+  /// In en, this message translates to:
+  /// **'Virtual MIDI Controller'**
+  String get addVirtualPiano;
+
+  /// No description provided for @rackAddVirtualPianoSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Standalone MIDI source for patch routing'**
+  String get rackAddVirtualPianoSubtitle;
+
+  /// No description provided for @virtualPianoSlotHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Notes route via MIDI OUT — connect a cable in patch view.'**
+  String get virtualPianoSlotHint;
 }
 
 class _AppLocalizationsDelegate

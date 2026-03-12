@@ -6,6 +6,7 @@ import '../plugins/gf_keyboard_plugin.dart';
 import '../plugins/gf_jam_mode_plugin.dart';
 import '../plugins/gf_vocoder_plugin.dart';
 import '../services/audio_engine.dart';
+import '../services/audio_graph.dart';
 import '../services/project_service.dart';
 import '../services/rack_state.dart';
 import '../services/vst_host_service.dart';
@@ -40,6 +41,7 @@ class _SplashScreenState extends State<SplashScreen> {
     final engine = context.read<AudioEngine>();
     final rack = context.read<RackState>();
     final transport = context.read<TransportEngine>();
+    final audioGraph = context.read<AudioGraph>();
 
     // Wait for the very first frame to finish before starting the heavy lifting.
     await Future.delayed(const Duration(milliseconds: 100));
@@ -52,9 +54,14 @@ class _SplashScreenState extends State<SplashScreen> {
     if (!mounted) return;
     engine.initStatus.value = 'Restoring rack state...';
     final projectService = ProjectService();
-    rack.onChanged = () => projectService.autosave(rack, engine, transport);
+    // Trigger autosave on both rack changes and audio graph changes (new cables).
+    rack.onChanged =
+        () => projectService.autosave(rack, engine, transport, audioGraph);
+    audioGraph.addListener(
+      () => projectService.autosave(rack, engine, transport, audioGraph),
+    );
     debugPrint('SplashScreen: Calling loadOrInitDefault');
-    await projectService.loadOrInitDefault(rack, engine, transport);
+    await projectService.loadOrInitDefault(rack, engine, transport, audioGraph);
     debugPrint('SplashScreen: loadOrInitDefault returned');
 
     // Re-load any persisted VST3 plugins into the native host so their

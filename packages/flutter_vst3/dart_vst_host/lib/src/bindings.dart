@@ -121,6 +121,28 @@ class NativeBindings {
           void Function(Pointer<Void>)
       >('dvh_stop_alsa_thread');
 
+  // Audio graph routing (Phase 5.4).
+  // dvh_set_processing_order: set topological processing order.
+  late final void Function(Pointer<Void>, Pointer<Pointer<Void>>, int) dvhSetProcessingOrder =
+      lib.lookupFunction<
+          Void Function(Pointer<Void>, Pointer<Pointer<Void>>, Int32),
+          void Function(Pointer<Void>, Pointer<Pointer<Void>>, int)
+      >('dvh_set_processing_order');
+
+  // dvh_route_audio: route from_plugin output → to_plugin input.
+  late final void Function(Pointer<Void>, Pointer<Void>, Pointer<Void>) dvhRouteAudio =
+      lib.lookupFunction<
+          Void Function(Pointer<Void>, Pointer<Void>, Pointer<Void>),
+          void Function(Pointer<Void>, Pointer<Void>, Pointer<Void>)
+      >('dvh_route_audio');
+
+  // dvh_clear_routes: remove all audio routing rules.
+  late final void Function(Pointer<Void>) dvhClearRoutes =
+      lib.lookupFunction<
+          Void Function(Pointer<Void>),
+          void Function(Pointer<Void>)
+      >('dvh_clear_routes');
+
   // macOS specific audio management
   late final int Function(Pointer<Void>) dvhMacStartAudio =
       lib.lookupFunction<Int32 Function(Pointer<Void>), int Function(Pointer<Void>)>('dvh_mac_start_audio');

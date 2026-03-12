@@ -5,6 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [X.x.x]
+
+### Added
+- **Audio Signal Graph** — directed graph model (`AudioGraph` service) connecting rack slots with typed ports: MIDI IN/OUT (yellow), Audio IN/OUT L/R (red/white), Send/Return (orange), and Data chord/scale ports (purple for Jam Mode). Validates port compatibility, prevents duplicate edges, and enforces cycle detection via DFS.
+- **"Back of Rack" patch view** — toggle via the cable icon in the app bar. The rack flips to show each slot's back panel with coloured virtual jacks. MIDI/Audio cables are drawn as bezier curves with natural downward sag; data cables (chord/scale routing) are rendered in purple and stay in sync with the Jam Mode dropdowns.
+- **Cable interactions** — long-press an output jack to start drawing a cable; compatible input jacks pulse; drop on a valid target to create the connection. Tap a cable to disconnect it via a context menu. Incompatible drops are silently ignored.
+- **VirtualPianoPlugin** — a new addable slot type (addable from "Add Plugin") with a real MIDI channel, an on-screen piano keyboard, and MIDI IN / MIDI OUT / Scale IN jacks in the patch view. MIDI OUT is aligned with the same position as other slots. Touch-keyboard notes are forwarded through drawn MIDI cables to connected target slots (VST3 or FluidSynth). Jam Mode's Scale OUT can be wired to its Scale IN jack to enable scale locking for VST instruments.
+- **Audio graph persistence** — all MIDI/Audio cable connections are saved and restored in `.gf` project files under the `"audioGraph"` key. Data connections continue to be stored per-plugin in `masterSlotId`/`targetSlotIds`.
+- **Slot cleanup** — removing a rack slot automatically disconnects all its MIDI/Audio cables from the graph.
+- 20 new localised strings for the patch view UI (EN + FR).
+- **User guide "Rack & Cables" tab** — new fifth tab in the in-app user guide covering patch view toggle, jack types, cable drawing, disconnecting, data cable/Jam Mode sync, and the Virtual Piano slot.
+- **Cable disconnect badge** — visible ✕ badge drawn at each cable's midpoint with a 48 dp tap zone; `HitTestBehavior.opaque` ensures the badge reliably receives taps.
+- **Add Plugin sheet scrollable** — sheet now uses `isScrollControlled: true` and `SingleChildScrollView`, preventing overflow on small or crowded screens.
+
+### Fixed
+- **Scale lock on individual key taps** — `VirtualPiano._onDown` now applies `_validTarget` snapping before calling `onNotePressed`, so tapping a single invalid key redirects to the nearest valid pitch class (same behaviour as glissando). The same fix applies to glissando note transitions in `_onMove`: the snapped pitch is stored in `_pointerNote` and forwarded to the callback instead of the raw key under the finger. This matters especially for VP→VST3 cable routing which bypasses the engine's internal snapping.
+- **External MIDI through Virtual Piano** — incoming MIDI on a VP's channel is now forwarded through its MIDI OUT cable connections (respecting scale lock/Jam Mode snapping), so a hardware MIDI controller can drive a VST3 instrument via the VP routing chain. Previously, external MIDI on a VP channel fell through to FluidSynth (silent/wrong sound) and never reached the downstream VST.
+
+### Fixed
+- **Scale lock on individual key taps** — `VirtualPiano._onDown` now applies `_validTarget` snapping before calling `onNotePressed`, so tapping a single invalid key redirects to the nearest valid pitch class (same behaviour as glissando). The same fix applies to glissando note transitions in `_onMove`: the snapped pitch is stored in `_pointerNote` and forwarded to the callback instead of the raw key under the finger.
+- **External MIDI through Virtual Piano** — incoming MIDI on a VP's channel is now forwarded through its MIDI OUT cable connections (respecting scale lock/Jam Mode snapping), so a hardware MIDI controller can drive a VST3 instrument via the VP routing chain. Previously, external MIDI on a VP channel fell through to FluidSynth (silent/wrong sound) and never reached the downstream VST.
+- **VST3 pitch off by ~1.5 semitones on Linux** — the ALSA audio state had a hardcoded default sample rate of 44100 Hz while VST3 plug-ins were resumed at 48000 Hz, causing the audio output to play back at the wrong speed. `dvh_start_alsa_thread` now reads `sr` and `maxBlock` from the host configuration so ALSA opens at the same rate the plug-ins use.
+
+### Architecture
+- `AudioPortId` enum with colour, direction, family, and compatibility helpers.
+- `AudioGraphConnection` model with canonical composite ID (no UUID dependency).
+- `PatchDragController` ChangeNotifier for live cable drag state.
+- `RackState` now receives `AudioGraph` as a constructor parameter (`ChangeNotifierProxyProvider3`).
+- `ProjectService` methods gain an `AudioGraph` parameter; autosave is also triggered on graph mutations.
+- `PatchCableOverlay` uses per-midpoint `Positioned` tap zones computed via `addPostFrameCallback` after each paint; no full-screen gesture interceptor.
+- `DragCableOverlay` is a `StatefulWidget` with an internal `ListenableBuilder` so it repaints on pointer-move without a parent `Consumer`.
+- **Native audio graph execution** — `dart_vst_host` ALSA/CoreAudio loop gains `dvh_set_processing_order` (topological order) and `dvh_route_audio` / `dvh_clear_routes` (signal routing). When a VST3 audio cable is drawn in the patch view, the source plugin's output is fed directly into the destination plugin's audio input; the source is no longer mixed into the master bus. Plugins with no outgoing audio cable continue mixing directly to the master output. Dart-side sync via `VstHostService.syncAudioRouting` is triggered whenever the `AudioGraph` changes or a slot is added/removed.
+- `GraphImpl::process()` in `dart_vst_graph` now uses Kahn's topological sort so nodes are always processed in dependency order (sources before effects), replacing the previous naïve index-order traversal.
+- `dvh_graph_add_plugin` added to the `dart_vst_graph` C API — wraps an already-loaded `DVH_Plugin` as a non-owning node so external plugin managers can participate in the graph without transferring lifecycle responsibility.
+
 ## [2.3.0] - 2026-03-11
 
 ### Added

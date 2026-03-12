@@ -5,6 +5,41 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/lang/fr/).
 
+## [X.x.x]
+
+### Ajouté
+- **Graphe de signal audio** — modèle de graphe orienté (`AudioGraph`) connectant les slots du rack via des ports typés : MIDI IN/OUT (jaune), Audio IN/OUT G/D (rouge/blanc), Send/Return (orange), et ports de données accord/gamme (violet, pour le Jam Mode). Valide la compatibilité des ports, empêche les arêtes dupliquées et applique la détection de cycles par DFS.
+- **Vue « dos du rack » de câblage** — bascule via l'icône câble dans la barre d'application. Le rack se retourne pour afficher le panneau arrière de chaque slot avec des jacks virtuels colorés. Les câbles MIDI/Audio sont dessinés sous forme de courbes de Bézier avec un affaissement naturel vers le bas ; les câbles de données (routage accord/gamme) sont en violet et restent synchronisés avec les menus déroulants du Jam Mode.
+- **Interactions câble** — appui long sur un jack de sortie pour commencer à tirer un câble ; les jacks d'entrée compatibles clignotent ; relâcher sur une cible valide crée la connexion. Appuyer sur un câble permet de le déconnecter via un menu contextuel. Les dépôts incompatibles sont silencieusement ignorés.
+- **VirtualPianoPlugin** — nouveau type de slot (via "Ajouter un plugin") avec un vrai canal MIDI, un clavier piano à l'écran, et des jacks MIDI IN / MIDI OUT / Scale IN dans la vue de câblage. Le MIDI OUT est aligné avec celui des autres slots. Les notes du clavier tactile sont transmises via les câbles MIDI dessinés aux slots connectés (VST3 ou FluidSynth). Le Scale OUT du Jam Mode peut être câblé au jack Scale IN pour verrouiller la gamme d'un instrument VST.
+- **Persistance du graphe audio** — toutes les connexions câble MIDI/Audio sont sauvegardées et restaurées dans les fichiers `.gf` sous la clé `"audioGraph"`. Les connexions de données continuent d'être stockées par plugin dans `masterSlotId`/`targetSlotIds`.
+- **Nettoyage de slot** — la suppression d'un slot déconnecte automatiquement tous ses câbles MIDI/Audio du graphe.
+- 20 nouvelles chaînes localisées pour l'interface de câblage (EN + FR).
+- **Onglet « Rack & Câbles » dans le guide utilisateur** — cinquième onglet dans le guide intégré couvrant le basculement de la vue de câblage, les types de jacks, le tracé et la déconnexion des câbles, la synchronisation câbles data/Jam Mode, et le slot Piano Virtuel.
+- **Badge de déconnexion des câbles** — badge ✕ visible au milieu de chaque câble avec une zone de tap de 48 dp ; `HitTestBehavior.opaque` garantit une réception fiable des taps.
+- **Feuille « Ajouter un plugin » défilable** — la feuille utilise désormais `isScrollControlled: true` et `SingleChildScrollView`, évitant le débordement sur les petits écrans.
+
+### Corrigé
+- **Verrouillage de gamme sur les taps individuels** — `VirtualPiano._onDown` applique désormais le snapping `_validTarget` avant d'appeler `onNotePressed`, de sorte qu'appuyer sur une touche invalide redirige vers la classe de hauteur valide la plus proche (même comportement que le glissando). Le même correctif s'applique aux transitions de notes en glissando dans `_onMove` : la note snappée est stockée dans `_pointerNote` et transmise au callback au lieu de la touche brute sous le doigt. Cela est particulièrement important pour le routage VP→VST3 par câble, qui contourne le snapping interne du moteur.
+- **MIDI externe via Piano Virtuel** — les notes MIDI entrantes sur le canal d'un VP sont désormais transmises via ses connexions câble MIDI OUT (en respectant le verrouillage de gamme/Jam Mode), permettant à un contrôleur MIDI matériel de piloter un instrument VST3 via la chaîne de routage VP. Auparavant, le MIDI externe sur un canal VP tombait dans FluidSynth (son silencieux ou erroné) et n'atteignait jamais le VST en aval.
+
+### Corrigé
+- **Verrouillage de gamme sur les taps individuels** — `VirtualPiano._onDown` applique désormais le snapping `_validTarget` avant d'appeler `onNotePressed`, de sorte qu'appuyer sur une touche invalide redirige vers la classe de hauteur valide la plus proche (même comportement que le glissando). Le même correctif s'applique aux transitions de notes en glissando dans `_onMove` : la note snappée est stockée dans `_pointerNote` et transmise au callback au lieu de la touche brute sous le doigt.
+- **MIDI externe via Piano Virtuel** — les notes MIDI entrantes sur le canal d'un VP sont désormais transmises via ses connexions câble MIDI OUT (en respectant le verrouillage de gamme/Jam Mode), permettant à un contrôleur MIDI matériel de piloter un instrument VST3 via la chaîne de routage VP. Auparavant, le MIDI externe sur un canal VP tombait dans FluidSynth (son silencieux ou erroné) et n'atteignait jamais le VST en aval.
+- **Hauteur des VST3 décalée d'environ 1,5 demi-tons sous Linux** — l'état audio ALSA avait une fréquence d'échantillonnage par défaut codée en dur à 44100 Hz alors que les plug-ins VST3 étaient repris à 48000 Hz, provoquant une lecture audio à la mauvaise vitesse. `dvh_start_alsa_thread` lit désormais `sr` et `maxBlock` depuis la configuration de l'hôte afin qu'ALSA s'ouvre à la même fréquence que celle utilisée par les plug-ins.
+
+### Architecture
+- Enum `AudioPortId` avec helpers de couleur, direction, famille et compatibilité.
+- Modèle `AudioGraphConnection` avec ID composite canonique (sans dépendance UUID).
+- `PatchDragController` ChangeNotifier pour l'état de glisser-déposer en cours.
+- `RackState` reçoit désormais `AudioGraph` en paramètre constructeur (`ChangeNotifierProxyProvider3`).
+- Les méthodes de `ProjectService` reçoivent un paramètre `AudioGraph` ; la sauvegarde automatique est également déclenchée lors des mutations du graphe.
+- `PatchCableOverlay` utilise des zones de tap `Positioned` par point-milieu calculées via `addPostFrameCallback` après chaque peinture ; aucun intercepteur de gestes plein écran.
+- `DragCableOverlay` est un `StatefulWidget` avec un `ListenableBuilder` interne qui déclenche les repeints lors des déplacements du pointeur sans `Consumer` parent.
+- **Exécution native du graphe audio** — la boucle ALSA/CoreAudio de `dart_vst_host` gagne `dvh_set_processing_order` (ordre topologique) et `dvh_route_audio` / `dvh_clear_routes` (routage de signal). Quand un câble audio VST3 est tracé dans la vue de câblage, la sortie du plugin source est injectée directement dans l'entrée audio du plugin destination ; la source n'est plus mixée dans le bus maître. Les plugins sans câble audio sortant continuent de se mixer directement dans la sortie maître. La synchronisation côté Dart via `VstHostService.syncAudioRouting` est déclenchée dès que l'`AudioGraph` change ou qu'un slot est ajouté/supprimé.
+- `GraphImpl::process()` dans `dart_vst_graph` utilise désormais le tri topologique de Kahn pour traiter les nœuds dans l'ordre de dépendance (sources avant effets), remplaçant le parcours naïf par ordre d'index.
+- `dvh_graph_add_plugin` ajouté à l'API C de `dart_vst_graph` — enveloppe un `DVH_Plugin` déjà chargé comme nœud non-propriétaire afin que les gestionnaires de plugins externes puissent participer au graphe sans transférer la responsabilité du cycle de vie.
+
 ## [2.3.0] - 2026-03-11
 
 ### Ajouté

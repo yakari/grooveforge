@@ -1070,6 +1070,35 @@ class AudioEngine extends ChangeNotifier {
     channels[channel].activeNotes.value = current;
   }
 
+  /// Returns the scale-snapped note for [channel] and [key] without any
+  /// side effects (no audio routed, no UI state changed, no mapping stored).
+  ///
+  /// Applies GFPA Jam Mode snapping if an active jam entry covers [channel],
+  /// or the classic per-channel scale lock if enabled. Returns [key] unchanged
+  /// when no lock is active.
+  ///
+  /// Used by external MIDI routing in [RackScreen] to snap notes before they
+  /// are forwarded through patch cables — keeping the same pitch correction
+  /// that the on-screen piano and [playNote] apply.
+  int snapNoteForChannel(int channel, int key) {
+    // Classic per-channel scale lock (UI toggle on each GFK slot).
+    if (channels[channel].isScaleLocked.value &&
+        channels[channel].lastChord.value != null) {
+      return _snapKeyToScale(
+        key,
+        channels[channel].lastChord.value!,
+        channels[channel].currentScaleType.value,
+      );
+    }
+    // GFPA Jam Mode — snap if this channel is a declared follower.
+    for (final entry in gfpaJamEntries.value) {
+      if (entry.followerCh == channel) {
+        return _snapKeyToGfpaJam(key, entry);
+      }
+    }
+    return key;
+  }
+
   void playNote({
     required int channel,
     required int key,

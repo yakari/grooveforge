@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import '../models/gfpa_plugin_instance.dart';
 import '../models/grooveforge_keyboard_plugin.dart';
+import '../models/virtual_piano_plugin.dart';
 import '../services/rack_state.dart';
 import '../services/vst_host_service.dart';
 
@@ -20,6 +21,7 @@ import '../services/vst_host_service.dart';
 void showAddPluginSheet(BuildContext context) {
   showModalBottomSheet(
     context: context,
+    isScrollControlled: true,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
     ),
@@ -156,11 +158,17 @@ class _AddPluginSheetContentState extends State<_AddPluginSheetContent> {
     final rack = context.read<RackState>();
 
     return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
+      child: ConstrainedBox(
+        // isScrollControlled lets the sheet grow to full screen height; cap it
+        // at 80% so it never fully obscures the rack behind it.
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.8,
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
             // Handle bar
             Container(
               width: 40,
@@ -253,6 +261,32 @@ class _AddPluginSheetContentState extends State<_AddPluginSheetContent> {
               },
             ),
 
+            // ── Virtual Piano (MIDI source for patch routing)
+            _PluginTile(
+              icon: Icons.piano_outlined,
+              iconColor: const Color(0xFFAA44FF),
+              title: l10n.addVirtualPiano,
+              subtitle: l10n.rackAddVirtualPianoSubtitle,
+              onTap: () {
+                Navigator.pop(context);
+                final ch = rack.nextAvailableMidiChannel();
+                if (ch == -1) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('All 16 MIDI channels are already in use.'),
+                    ),
+                  );
+                  return;
+                }
+                rack.addPlugin(
+                  VirtualPianoPlugin(
+                    id: rack.generateSlotId(),
+                    midiChannel: ch,
+                  ),
+                );
+              },
+            ),
+
             // ── VST3 (desktop only)
             if (_isDesktop) ...[
               if (_loading)
@@ -292,6 +326,7 @@ class _AddPluginSheetContentState extends State<_AddPluginSheetContent> {
             const SizedBox(height: 8),
           ],
         ),
+      ),
       ),
     );
   }

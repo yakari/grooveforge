@@ -85,6 +85,36 @@ class VstHost {
   /// macOS: Stop the CoreAudio/miniaudio output thread.
   void stopMacAudio() => _b.dvhMacStopAudio(handle);
 
+  // ─── Audio graph routing (Phase 5.4) ──────────────────────────────────────
+
+  /// Set the topological processing order for the audio callback.
+  ///
+  /// [ordered] must list ALL plugins that should be processed, in the order
+  /// sources come before the effects that consume their output.
+  /// Pass an empty list to restore the default insertion order.
+  void setProcessingOrder(List<VstPlugin> ordered) {
+    if (ordered.isEmpty) {
+      _b.dvhSetProcessingOrder(handle, nullptr, 0);
+      return;
+    }
+    final arr = calloc<Pointer<Void>>(ordered.length);
+    for (int i = 0; i < ordered.length; i++) arr[i] = ordered[i].handle;
+    _b.dvhSetProcessingOrder(handle, arr, ordered.length);
+    calloc.free(arr);
+  }
+
+  /// Route [from]'s stereo output to [to]'s audio input.
+  ///
+  /// [from]'s output will no longer be mixed directly into the ALSA master
+  /// output — it feeds exclusively into [to]'s input instead. [from] must
+  /// precede [to] in the processing order set via [setProcessingOrder].
+  void routeAudio(VstPlugin from, VstPlugin to) =>
+      _b.dvhRouteAudio(handle, from.handle, to.handle);
+
+  /// Remove all audio routing rules. Every plugin's output returns to the
+  /// default behaviour of mixing directly into the master ALSA output.
+  void clearRoutes() => _b.dvhClearRoutes(handle);
+
   /// Load a VST plug‑in from [modulePath]. Optionally specify
   /// [classUid] to select a specific class from a multi‑class module.
   /// Returns a VstPlugin on success; throws StateError on failure.

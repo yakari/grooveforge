@@ -69,6 +69,15 @@ DVH_API int32_t dvh_graph_add_vst(DVH_Graph g,
                                   const char* class_uid_or_null,
                                   int32_t* out_node_id);
 
+// Add an already-loaded DVH_Plugin as a non-owning node. The graph does
+// NOT take ownership — the plugin will NOT be unloaded when the node or
+// graph is destroyed. The caller is responsible for the plugin’s lifetime.
+// Useful when VstHostService manages plugin loading externally and only
+// wants to use the graph for audio routing. Returns 1 on success.
+DVH_API int32_t dvh_graph_add_plugin(DVH_Graph g,
+                                     DVH_Plugin plugin,
+                                     int32_t* out_node_id);
+
 // Add a mixer node with the given number of inputs. Each input
 // represents a stereo bus. The mixer sums all connected inputs with
 // per‑input gains (initially 0dB) and outputs a single stereo bus.
