@@ -374,7 +374,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Harmony engine that snaps incoming MIDI notes to a scale in real time. Receives chord information from a master keyboard slot.';
 
   @override
-  String get guidePatchSlotVirtualPiano => 'Virtual Piano';
+  String get guidePatchSlotVirtualPiano => 'Virtual MIDI Controller';
 
   @override
   String get guidePatchSlotVirtualPianoDesc =>
@@ -774,10 +774,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get portScaleIn => 'SCALE IN';
 
   @override
-  String get virtualPianoSlotName => 'Virtual Piano';
+  String get virtualPianoSlotName => 'Virtual MIDI Controller';
 
   @override
-  String get addVirtualPiano => 'Add Virtual Piano';
+  String get addVirtualPiano => 'Virtual MIDI Controller';
 
   @override
   String get rackAddVirtualPianoSubtitle =>

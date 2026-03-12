@@ -767,7 +767,7 @@ abstract class AppLocalizations {
   /// No description provided for @guidePatchSlotVirtualPiano.
   ///
   /// In en, this message translates to:
-  /// **'Virtual Piano'**
+  /// **'Virtual MIDI Controller'**
   String get guidePatchSlotVirtualPiano;
 
   /// No description provided for @guidePatchSlotVirtualPianoDesc.
@@ -1487,13 +1487,13 @@ abstract class AppLocalizations {
   /// No description provided for @virtualPianoSlotName.
   ///
   /// In en, this message translates to:
-  /// **'Virtual Piano'**
+  /// **'Virtual MIDI Controller'**
   String get virtualPianoSlotName;
 
   /// No description provided for @addVirtualPiano.
   ///
   /// In en, this message translates to:
-  /// **'Add Virtual Piano'**
+  /// **'Virtual MIDI Controller'**
   String get addVirtualPiano;
 
   /// No description provided for @rackAddVirtualPianoSubtitle.

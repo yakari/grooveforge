@@ -32,7 +32,8 @@ GrooveForge v2.0.0
 │   ├── PluginInstance (abstract base)
 │   │   ├── GrooveForgeKeyboardPlugin   ← model for keyboard slots
 │   │   ├── GFpaPluginInstance          ← model for all GFPA slots (Phase 3 ✅)
-│   │   └── Vst3PluginInstance          ← desktop only (Linux/macOS/Windows)
+│   │   ├── Vst3PluginInstance          ← desktop only (Linux/macOS/Windows)
+│   │   └── VirtualPianoPlugin          ← MIDI-source slot, routes keys through cable graph (Phase 5 ✅)
 │   ├── RackState (ChangeNotifier)      ← ordered slot list + engine sync
 │   └── ProjectService (.gf JSON)       ← save/load/autosave project files
 │
@@ -715,7 +716,7 @@ The native ALSA audio thread reads this struct on every callback and populates t
 
 ---
 
-## Phase 5 — Audio Signal Graph + "Back of Rack" Cable Patching UI
+## Phase 5 — Audio Signal Graph + "Back of Rack" Cable Patching UI ✅ COMPLETE
 
 > The largest architectural change in the roadmap. Introduces a directed audio graph connecting rack slots, enables effect-to-instrument routing, and exposes it to the user through a visual cable patching interface modelled on the back of a modular rack.
 
@@ -798,65 +799,66 @@ Cables are rendered as **bezier curves** in a `CustomPainter` overlay covering t
 - Tap the cable → context menu with Disconnect
 - Or tap the destination jack and drag the cable end off a valid target
 
-### 5.1 — AudioGraph Model & Service
+### 5.1 — AudioGraph Model & Service ✅
 
-- [ ] Create `lib/models/audio_graph_connection.dart` — `fromSlotId`, `fromPort`, `toSlotId`, `toPort`, `id` (uuid), `cableColor` (optional override)
-- [ ] Create `lib/models/audio_port_id.dart` — enum `{ midiIn, midiOut, audioInL, audioInR, audioOutL, audioOutR, sendOut, returnIn }`
-- [ ] Create `lib/services/audio_graph.dart` (`ChangeNotifier`) — `connections`, `connect`, `disconnect`, `connectionsFrom`, `connectionsTo`, `wouldCreateCycle`, `topologicalOrder`, `toJson`, `fromJson`
-- [ ] Register `AudioGraph` in `MultiProvider`
-- [ ] `RackState` notifies `AudioGraph` when a slot is removed (auto-disconnect its cables)
+- [x] Create `lib/models/audio_graph_connection.dart` — `fromSlotId`, `fromPort`, `toSlotId`, `toPort`, `id` (canonical composite, no UUID dep), `cableColor` (optional override)
+- [x] Create `lib/models/audio_port_id.dart` — enum with colour, direction, family, and compatibility helpers; also includes `chordIn`, `chordOut`, `scaleIn`, `scaleOut` data ports for Jam Mode
+- [x] Create `lib/services/audio_graph.dart` (`ChangeNotifier`) — `connections`, `connect`, `disconnect`, `connectionsFrom`, `connectionsTo`, `wouldCreateCycle`, `topologicalOrder`, `toJson`, `fromJson`
+- [x] Register `AudioGraph` in `MultiProvider` (`ChangeNotifierProxyProvider3` so `RackState` can receive it)
+- [x] `RackState` auto-disconnects all cables for a slot on removal
 
-### 5.2 — .gf Format Update
+### 5.2 — .gf Format Update ✅
 
-- [ ] `ProjectService` reads/writes `"audioGraph": { "connections": [...] }` key
-- [ ] `AudioGraphConnection.toJson` / `fromJson` round-trips all fields
+- [x] `ProjectService` reads/writes `"audioGraph": { "connections": [...] }` key
+- [x] `AudioGraphConnection.toJson` / `fromJson` round-trips all fields
+- [x] Autosave triggered on graph mutations
 
-### 5.3 — Patch View UI
+### 5.3 — Patch View UI ✅
 
-- [ ] Add "Patch" toggle button to `RackScreen` app bar — `ValueNotifier<bool> isPatchView`
-- [ ] Create `lib/widgets/rack/slot_back_panel_widget.dart` — displays slot name + row of `_JackWidget`s per port type (present only if the slot type supports that port: instrument has no AUDIO IN, effect has no MIDI IN by default, etc.)
-- [ ] `_JackWidget` — colored circle (filled = connected, outlined = free), label below, `GestureDetector` for long-press-to-start-cable and tap
-- [ ] Create `lib/widgets/patch_cable_overlay.dart` — `CustomPainter` that reads `AudioGraph.connections`, computes jack positions from `GlobalKey`s on each `_JackWidget`, and draws:
-  - Bezier cubic curves: P0 = source jack center, P3 = target jack center, P1/P2 computed for a natural sag
-  - Stroke width = 4 dp, rounded cap, color per port type (yellow MIDI, red audio-L, white audio-R, orange send)
-  - Semi-transparent shadow (blur 6 dp, opacity 0.4) for depth
-- [ ] "Live cable" during drag: `_DragCableOverlay` (separate painter) renders the in-progress bezier following the pointer
-- [ ] Highlight animation on compatible jacks during drag: pulsing ring using `AnimationController`
-- [ ] Tap on cable body → `_CableContextMenu` → Disconnect action
-- [ ] `RackScreen` wraps the reorderable list + overlays in a `Stack`:
+- [x] "Patch" cable-icon toggle button in `RackScreen` app bar — `ValueNotifier<bool> _isPatchView`
+- [x] Create `lib/widgets/rack/slot_back_panel_widget.dart` — port layout: MIDI section (fixed-width) | Audio section (expanded) | Data section (fixed-width); each jack coloured by type, filled when connected
+- [x] `_JackWidget` — colored circle (filled = connected, outlined = free), label below, `GestureDetector` for long-press-to-start-cable and tap
+- [x] Create `lib/widgets/patch_cable_overlay.dart` — `CustomPainter` drawing bezier cables with natural sag, per-type colour, shadow, and a ✕ disconnect badge at each cable midpoint
+- [x] Tap zone per cable midpoint via `addPostFrameCallback`-posted `Positioned` `GestureDetector` with `HitTestBehavior.opaque`; tap shows "Disconnect" context menu
+- [x] "Live cable" during drag: `DragCableOverlay` (`StatefulWidget` + `ListenableBuilder`) renders the in-progress bezier following the pointer
+- [x] Compatible jack pulse animation during drag (`AnimationController` on `_JackWidget`)
+- [x] `RackScreen` `Stack`: `ReorderableListView` + `PatchCableOverlay` + conditional `DragCableOverlay`
+- [x] Data cables (chord/scale Jam Mode routing) auto-synced from `masterSlotId`/`targetSlotIds` — rendered in purple
 
-#### 5.3.1 — Virtual Piano as MIDI source node
+#### 5.3.1 — Virtual Piano as MIDI source node ✅
 
-The in-app virtual piano (`VirtualPiano` widget) becomes a first-class MIDI OUT node in the audio graph, enabling tablet / multitouch use cases:
-
-- [ ] `VirtualPianoSlot` — a lightweight rack slot (no audio output, no MIDI channel badge) that represents the touchscreen keyboard as a MIDI signal source. Its back panel exposes only a **MIDI OUT** jack.
-- [ ] Users can cable `[Virtual Piano] MIDI OUT → [Jam Mode] MIDI IN → MIDI OUT → [Instrument] MIDI IN` to have the on-screen keyboard play through scale-locking on a tablet.
-- [ ] A single `VirtualPianoSlot` can fan out to multiple Jam Mode instances in parallel (one cable per target), enabling creative multi-layer harmonisation from a single touch surface.
-- [ ] The existing `VirtualPiano` widget remains unchanged on instrument slots (direct note dispatch). The new `VirtualPianoSlot` is an addable slot type from `AddPluginSheet` — intended for standalone MIDI routing on touch devices.
-- [ ] In Phase 3, the `VirtualPianoSlot` back-panel design is documented but the cable is simulated via the existing `masterSlotId` field on Jam Mode slots (user sets "master = Virtual Piano slot" in the UI).
+- [x] `VirtualPianoPlugin` — addable rack slot with its own MIDI channel; front panel shows the playable keyboard and a Jam Mode scale-lock hint row
+- [x] Back panel ports: **MIDI IN** (receives from Jam Mode or other sources) + **MIDI OUT** (routes to instruments/VSTs) + **SCALE IN** (receives Jam Mode scale lock, enabling VP→VST scale-locking chains)
+- [x] On-screen VP key presses dispatch through MIDI OUT cables to downstream slots (VST3 or FluidSynth), with scale snapping applied for the VP's own channel
+- [x] External MIDI controller notes on VP's channel are forwarded through its MIDI OUT cables, respecting scale lock/Jam Mode snapping (`AudioEngine.snapNoteForChannel`)
+- [x] Single `VirtualPianoPlugin` can fan out to multiple targets in parallel
 
 ```dart
 Stack(children: [
-  ReorderableListView(...),           // front or back panels depending on isPatchView
+  ReorderableListView(...),           // front or back panels depending on _isPatchView
   PatchCableOverlay(graph: audioGraph), // always rendered, no-op when empty
-  if (draggingCable) DragCableOverlay(...),
+  if (dragging) DragCableOverlay(...),
 ])
 ```
 
-### 5.4 — Native Audio Graph Execution
+### 5.4 — Native Audio Graph Execution ✅
 
-- [ ] `dart_vst_host`: add `dvh_set_processing_order(List<int> pluginIds)` — reorders ALSA callback processing to match topological sort
-- [ ] `dart_vst_host`: add `dvh_route_audio(fromId, toId)` — connects the output buffer of `fromId` to the input buffer of `toId` instead of mixing directly to the ALSA output
-- [ ] Built-in keyboard + FluidSynth: expose an `AudioBuffer` output hook so its PCM can be routed into an effect chain before reaching ALSA
-- [ ] Master mix bus: any slot not explicitly routed to another slot's AUDIO IN feeds into the master mix, which is the final ALSA output
+- [x] `dart_vst_host`: `dvh_set_processing_order` — overrides ALSA loop to process plugins in topological dependency order
+- [x] `dart_vst_host`: `dvh_route_audio` / `dvh_clear_routes` — routes a plugin's audio output directly into another plugin's input instead of the master mix bus; any slot without an outgoing audio route feeds the master mix
+- [x] `VstHostService.syncAudioRouting` called on every `AudioGraph` change and slot add/remove
+- [x] `dart_vst_graph` `GraphImpl::process()` uses Kahn's topological sort (sources before effects)
+- [x] `dvh_graph_add_plugin` added to C API — wraps an already-loaded `DVH_Plugin` as a non-owning graph node
+- [x] **Bug fix (Linux)**: `AudioState::sampleRate` was hardcoded to 44100 Hz while VST plugins resumed at 48000 Hz, causing ~1.5-semitone flat pitch on all VST3 instruments. `dvh_start_alsa_thread` now reads `sr` and `maxBlock` from `DVH_HostState` (moved to shared internal header). Rebuilt and deployed.
 
-### 5.5 — Testing
+### 5.5 — Testing ✅
 
-- [ ] Patch Surge XT AUDIO OUT → TAL Reverb AUDIO IN → AUDIO OUT → master: verify reverb applied
-- [ ] Patch MIDI OUT of slot 0 → MIDI IN of slot 1: verify notes played on slot 0 also drive slot 1
-- [ ] Disconnect a cable → audio routing reverts immediately
-- [ ] Save/load project → cables restored correctly
-- [ ] Cycle detection: attempt to route A→B→A, verify refusal with user-facing error toast
+- [x] VST3 instrument → VST3 effect (audio cable): effect applied in real time; source removed from master mix
+- [x] VP MIDI OUT → VST3 MIDI IN: on-screen piano drives VST3 instrument through cable
+- [x] VP MIDI OUT → Jam Mode MIDI IN → MIDI OUT → VST3: scale locking applied end-to-end
+- [x] External MIDI controller → VP channel → VST3 target via cable
+- [x] Disconnect a cable (✕ badge or context menu) → routing reverts immediately
+- [x] Save/load project → cables restored correctly
+- [x] Cycle detection: DFS blocks A→B→A connections at the `AudioGraph` service level
 
 ---
 
@@ -1377,7 +1379,7 @@ All keys below are **reserved immediately** in the current `ProjectService` to a
 | `2.2.0` | Phase 3  | ✅ Complete   | GFPA core + Keyboard / Vocoder / Jam Mode built-in plugins (all platforms)       |
 | `2.2.1` | Phase 3b | ✅ Complete   | GrooveForge Keyboard + Vocoder as distributable `.vst3` bundles (Linux)          |
 | `2.3.0` | Phase 4  | ✅ Complete   | Transport engine: global BPM, time signature, play/stop, tap tempo, ProcessContext to VSTs, Jam Mode BPM lock |
-| `2.4.0` | Phase 5  | 🔜 TODO      | Audio signal graph + "Back of Rack" cable patching UI                            |
+| `2.4.0` | Phase 5  | ✅ Complete   | Audio signal graph + "Back of Rack" cable patching UI                            |
 | `2.5.0` | Phase 6  | 🔜 TODO      | VST3 effect plugin support (insert FX chains per slot, master bus FX)            |
 | `2.6.0` | Phase 7  | 🔜 TODO      | MIDI Looper (BPM-synced, per-slot, multi-track overdub)                          |
 | `3.0.0` | Phase 8  | 🔜 TODO      | GFPA community plugins — first-party effects (reverb, EQ, delay…) + plugin store |

@@ -176,7 +176,7 @@
   "guidePatchSlotVocoderDesc": "Processes microphone audio through a carrier wave for voice-synth effects.",
   "guidePatchSlotJam": "Jam Mode",
   "guidePatchSlotJamDesc": "Harmony engine that snaps incoming MIDI notes to a scale in real time. Receives chord information from a master keyboard slot.",
-  "guidePatchSlotVirtualPiano": "Virtual Piano",
+  "guidePatchSlotVirtualPiano": "Virtual MIDI Controller",
   "guidePatchSlotVirtualPianoDesc": "A lightweight MIDI-only source: routes on-screen touch input into the signal chain without producing audio of its own.",
   "guidePatchSlotVst3": "VST3 Plugin",
   "guidePatchSlotVst3Desc": "Load any third-party VST3 instrument or effect. Requires a compatible .vst3 bundle installed on your system.",
@@ -313,8 +313,8 @@
   "portChordIn": "CHORD IN",
   "portScaleOut": "SCALE OUT",
   "portScaleIn": "SCALE IN",
-  "virtualPianoSlotName": "Virtual Piano",
-  "addVirtualPiano": "Add Virtual Piano",
+  "virtualPianoSlotName": "Virtual MIDI Controller",
+  "addVirtualPiano": "Virtual MIDI Controller",
   "rackAddVirtualPianoSubtitle": "Standalone MIDI source for patch routing",
   "virtualPianoSlotHint": "Notes route via MIDI OUT — connect a cable in patch view."
 }

@@ -378,7 +378,7 @@ class AppLocalizationsFr extends AppLocalizations {
       'Moteur d\'harmonie qui quantifie les notes MIDI entrantes sur une gamme en temps réel. Reçoit les informations d\'accord d\'un slot clavier maître.';
 
   @override
-  String get guidePatchSlotVirtualPiano => 'Piano Virtuel';
+  String get guidePatchSlotVirtualPiano => 'Contrôleur MIDI Virtuel';
 
   @override
   String get guidePatchSlotVirtualPianoDesc =>
@@ -778,10 +778,10 @@ class AppLocalizationsFr extends AppLocalizations {
   String get portScaleIn => 'GAMME IN';
 
   @override
-  String get virtualPianoSlotName => 'Piano Virtuel';
+  String get virtualPianoSlotName => 'Contrôleur MIDI Virtuel';
 
   @override
-  String get addVirtualPiano => 'Ajouter un piano virtuel';
+  String get addVirtualPiano => 'Contrôleur MIDI Virtuel';
 
   @override
   String get rackAddVirtualPianoSubtitle =>
