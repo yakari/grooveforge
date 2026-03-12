@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `PatchDragController` ChangeNotifier for live cable drag state.
 - `RackState` now receives `AudioGraph` as a constructor parameter (`ChangeNotifierProxyProvider3`).
 - `ProjectService` methods gain an `AudioGraph` parameter; autosave is also triggered on graph mutations.
+- `PatchCableOverlay` uses per-midpoint `Positioned` tap zones computed via `addPostFrameCallback` after each paint; no full-screen gesture interceptor.
+- `DragCableOverlay` is a `StatefulWidget` with an internal `ListenableBuilder` so it repaints on pointer-move without a parent `Consumer`.
 
 ## [2.3.0] - 2026-03-11
 

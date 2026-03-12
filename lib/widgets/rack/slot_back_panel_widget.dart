@@ -45,11 +45,12 @@ class SlotBackPanelWidget extends StatelessWidget {
     if (plugin is GrooveForgeKeyboardPlugin) {
       return [
         AudioPortId.midiIn,
+        AudioPortId.midiOut,   // MIDI notes flow out to Jam Mode for scale locking
         AudioPortId.audioOutL,
         AudioPortId.audioOutR,
         AudioPortId.sendOut,
-        AudioPortId.chordOut,
-        AudioPortId.scaleIn,
+        AudioPortId.chordOut,  // chord data → Jam Mode chordIn
+        AudioPortId.scaleIn,   // scale data ← Jam Mode scaleOut
       ];
     }
 
@@ -61,6 +62,7 @@ class SlotBackPanelWidget extends StatelessWidget {
           AudioPortId.audioInR,
           AudioPortId.audioOutL,
           AudioPortId.audioOutR,
+          AudioPortId.scaleIn,   // scale data ← Jam Mode scaleOut
         ];
       }
       if (plugin.pluginId == 'com.grooveforge.jammode') {

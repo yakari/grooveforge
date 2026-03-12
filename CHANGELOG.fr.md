@@ -22,6 +22,8 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 - `PatchDragController` ChangeNotifier pour l'état de glisser-déposer en cours.
 - `RackState` reçoit désormais `AudioGraph` en paramètre constructeur (`ChangeNotifierProxyProvider3`).
 - Les méthodes de `ProjectService` reçoivent un paramètre `AudioGraph` ; la sauvegarde automatique est également déclenchée lors des mutations du graphe.
+- `PatchCableOverlay` utilise des zones de tap `Positioned` par point-milieu calculées via `addPostFrameCallback` après chaque peinture ; aucun intercepteur de gestes plein écran.
+- `DragCableOverlay` est un `StatefulWidget` avec un `ListenableBuilder` interne qui déclenche les repeints lors des déplacements du pointeur sans `Consumer` parent.
 
 ## [2.3.0] - 2026-03-11
 
