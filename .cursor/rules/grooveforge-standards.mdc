@@ -1,0 +1,172 @@
+---
+description: GrooveForge project coding standards – responsive UI, real-time audio, changelog discipline, and research-first approach
+alwaysApply: true
+---
+
+# GrooveForge Coding Standards
+
+## Project Overview
+
+GrooveForge is a Flutter/Dart cross-platform music application (Android, iOS, Linux, macOS, Windows) with VST3 plugin support (C++), real-time audio processing, and a GrooveForge Plugin API (GFPA).
+
+## 1. Responsive UI
+
+Every screen and widget must render correctly across all form factors:
+
+- **Desktop** (1280 px+): full layout, side panels, expanded controls
+- **Tablet landscape** (900–1279 px): two-column layouts, compact sidebars
+- **Tablet portrait** (600–899 px): single-column with collapsible panels
+- **Phone portrait/landscape** (< 600 px): stacked layout, bottom sheets for secondary controls
+
+Use `LayoutBuilder` / `MediaQuery` breakpoints consistently. Never use fixed pixel widths for main layout containers. Test every new screen in at least three form factors.
+
+```dart
+// ✅ GOOD
+final isWide = constraints.maxWidth >= 900;
+return isWide ? _WideLayout() : _NarrowLayout();
+
+// ❌ BAD
+return SizedBox(width: 400, child: MyPanel());
+```
+
+## 2. Real-Time Audio — Zero Tolerance for Latency
+
+Audio is the core product. Latency is unacceptable.
+
+- **Never** allocate memory, call `print`, acquire locks, or do I/O on the audio thread.
+- Prefer lock-free ring buffers and pre-allocated pools for audio↔UI data exchange.
+- On Android: always request `AudioManager.STREAM_MUSIC` with `setPerformanceMode(PERFORMANCE_MODE_LOW_LATENCY)` and use `AAudio` or `Oboe` wherever possible; avoid `AudioTrack` in Java/Kotlin code paths.
+- VST3 `process()` calls must be allocation-free and complete in well under the buffer deadline.
+- For UI interactions that affect audio (knob turns, BPM changes), pass values via `ValueNotifier` / atomic flag — never block the audio thread waiting for a Dart future.
+
+```dart
+// ✅ GOOD – non-blocking parameter update
+_audioEngine.gainProvider = () => _gainNotifier.value;
+
+// ❌ BAD – future/await on audio-sensitive path
+await _audioEngine.setGain(newValue);
+```
+
+## 3. Changelog Discipline
+
+**Every fix and new feature must be recorded immediately** in both:
+- `CHANGELOG.md` (English)
+- `CHANGELOG.fr.md` (French)
+
+Rules:
+- Add entries under a new **`[X.x.x]`** placeholder version header at the top of each file (below the existing dated releases).
+- Use Keep a Changelog sections: `Added`, `Fixed`, `Changed`, `Removed`, `Architecture`.
+- When the user asks to cut a release / label the version:
+  1. Replace `[X.x.x]` with the version number given by the user in both changelogs.
+  2. Add today's date: `## [2.4.0] - YYYY-MM-DD`.
+  3. Update `version:` in `pubspec.yaml` to `<version>+<build+1>` (increment the build number).
+
+```
+## [X.x.x]          ← placeholder until release is labeled
+
+### Added
+- Description of new feature.
+
+### Fixed
+- Description of bug fix.
+```
+
+## 4. Internationalization (l10n) — Mandatory
+
+All user-visible strings must go through Flutter's `AppLocalizations`. **No hardcoded strings in the UI.**
+
+- Template file: `lib/l10n/app_en.arb` (English — source of truth)
+- Translation file: `lib/l10n/app_fr.arb` (French)
+- Generated class: `AppLocalizations` (import via `flutter_localizations`)
+
+Workflow for every new string:
+1. Add the key + English value to `app_en.arb`.
+2. Add the translated French value to `app_fr.arb`.
+3. Reference it in code via `context.l10n.<key>` (or `AppLocalizations.of(context)!.<key>`).
+
+```dart
+// ✅ GOOD
+Text(context.l10n.rackScreenTitle)
+
+// ❌ BAD – hardcoded string
+Text('Rack')
+```
+
+Never use `toString()` on domain objects directly in widgets — expose a localized label through a helper or the ARB files.
+
+## 5. Research Before Implementing
+
+Before implementing any non-trivial feature or choosing an approach:
+
+1. **Context7 MCP first**: query the `user-context7` MCP server for up-to-date library documentation and idiomatic patterns.
+2. **Web search as fallback**: if Context7 returns no relevant results, do a targeted web search (include the current year 2026 for recency).
+3. Prefer official/idiomatic APIs over workarounds. Document the chosen approach with a brief comment when the decision is non-obvious.
+
+## 6. Code Clarity — Low Complexity and Exhaustive Comments
+
+### Keep complexity low
+
+- **No bracket/parenthesis hell**: never nest more than 2–3 levels of callbacks, conditionals, or expressions in a single block.
+- Extract named methods for every distinct logical step — aim for methods that fit on one screen and do one thing.
+- Prefer early returns and guard clauses over deeply nested `if/else` trees.
+
+```dart
+// ❌ BAD – deeply nested, hard to follow
+void process(List<Note> notes) {
+  if (notes.isNotEmpty) {
+    for (final n in notes) {
+      if (n.isActive) {
+        if (n.velocity > 0) {
+          _send(n.pitch, (n.velocity * _gainProvider()).clamp(0, 127).toInt());
+        }
+      }
+    }
+  }
+}
+
+// ✅ GOOD – flat, each step named
+void process(List<Note> notes) {
+  for (final note in notes) {
+    _processNote(note);
+  }
+}
+
+void _processNote(Note note) {
+  if (!note.isActive || note.velocity == 0) return;
+  final scaledVelocity = _applyGain(note.velocity);
+  _send(note.pitch, scaledVelocity);
+}
+
+int _applyGain(int velocity) =>
+    (velocity * _gainProvider()).clamp(0, 127).toInt();
+```
+
+### Comment everything — assume the reader is not a DAW developer
+
+Every **class, enum, typedef, mixin, extension, method, and function** must have a doc comment (`///` in Dart, `/** */` in C++):
+
+- **What** the entity represents or does (one sentence is enough for simple things).
+- **Why** it exists if not obvious from the name.
+- **Key parameters** and return value when non-trivial.
+
+Inside algorithms, add **inline comments on each logical step** — explain the audio/music concept, not just the code:
+
+```dart
+/// Snaps [midiNote] to the nearest pitch class allowed by the current
+/// jam-mode scale. Uses a DOWN-first tie-breaking rule: when two candidate
+/// notes are equidistant, the lower one is preferred, matching the
+/// behaviour expected by Western harmonic conventions.
+int snapToScale(int midiNote, Set<int> allowedPitchClasses) {
+  final pc = midiNote % 12; // pitch class: 0=C, 1=C#, … 11=B
+  if (allowedPitchClasses.contains(pc)) return midiNote; // already in scale
+
+  // Search outward from the original note (down first) until we find
+  // a pitch class that belongs to the active scale.
+  for (int delta = 1; delta <= 6; delta++) {
+    final down = midiNote - delta;
+    if (allowedPitchClasses.contains(down % 12)) return down;
+    final up = midiNote + delta;
+    if (allowedPitchClasses.contains(up % 12)) return up;
+  }
+  return midiNote; // fallback: no match found, keep original
+}
