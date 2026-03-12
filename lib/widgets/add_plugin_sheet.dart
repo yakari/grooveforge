@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../l10n/app_localizations.dart';
+import '../models/gfpa_plugin_instance.dart';
 import '../models/grooveforge_keyboard_plugin.dart';
 import '../services/rack_state.dart';
 import '../services/vst_host_service.dart';
@@ -12,7 +13,7 @@ import '../services/vst_host_service.dart';
 /// Bottom sheet that lets the user choose which plugin type to add to the rack.
 ///
 /// Always available:
-///   • GrooveForge Keyboard (built-in synth/vocoder)
+///   • GrooveForge Keyboard (built-in FluidSynth keyboard)
 ///
 /// Desktop only (Linux / macOS / Windows):
 ///   • Browse VST3 Plugin… — folder picker or pick from installed list
@@ -202,6 +203,51 @@ class _AddPluginSheetContentState extends State<_AddPluginSheetContent> {
                   GrooveForgeKeyboardPlugin(
                     id: rack.generateSlotId(),
                     midiChannel: ch,
+                  ),
+                );
+              },
+            ),
+
+            // ── Vocoder (GFPA instrument)
+            _PluginTile(
+              icon: Icons.mic,
+              iconColor: Colors.cyanAccent,
+              title: l10n.rackAddVocoder,
+              subtitle: l10n.rackAddVocoderSubtitle,
+              onTap: () {
+                Navigator.pop(context);
+                final ch = rack.nextAvailableMidiChannel();
+                if (ch == -1) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('All 16 MIDI channels are already in use.'),
+                    ),
+                  );
+                  return;
+                }
+                rack.addPlugin(
+                  GFpaPluginInstance(
+                    id: rack.generateSlotId(),
+                    pluginId: 'com.grooveforge.vocoder',
+                    midiChannel: ch,
+                  ),
+                );
+              },
+            ),
+
+            // ── Jam Mode (GFPA MIDI FX)
+            _PluginTile(
+              icon: Icons.link,
+              iconColor: Colors.amberAccent,
+              title: l10n.rackAddJamMode,
+              subtitle: l10n.rackAddJamModeSubtitle,
+              onTap: () {
+                Navigator.pop(context);
+                rack.addPlugin(
+                  GFpaPluginInstance(
+                    id: rack.generateSlotId(),
+                    pluginId: 'com.grooveforge.jammode',
+                    midiChannel: 0,
                   ),
                 );
               },

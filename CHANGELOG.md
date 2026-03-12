@@ -5,6 +5,113 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] - 2026-03-11
+
+### Added
+- **Global transport engine**: a new `TransportEngine` service tracks BPM (20–300), time signature, play/stop state, and swing. Changes are propagated live to all loaded VST3 plugins via `dvh_set_transport` → `ProcessContext`, so tempo-synced effects (LFOs, delays, arpeggiators) instantly lock to the app BPM.
+- **Transport bar** in the `RackScreen` app bar: inline BPM field (tap to type), **`−` / `+` nudge buttons** (tap ±1 BPM; hold for rapid repeat — 400 ms initial delay then 80 ms intervals), **scroll-wheel on BPM display** (scroll up/down ±1 BPM), **Tap Tempo** button (averages the last 4 taps, rejects outliers), **▶ / ■ Play/Stop** toggle, **time signature selector**, **beat-pulse LED** (flashes amber on every beat, red on downbeat with fade animation), and **audible metronome toggle** (🎵 icon; GM percussion click via FluidSynth / flutter_midi_pro channel 9 — side-stick on downbeat, high-wood-block on other beats).
+- **Transport state saved/restored** in `.gf` project files: BPM, time signature, swing, and `metronomeEnabled` are preserved per project. Missing `transport` key in older files defaults to `120 BPM / 4/4 / metronome off`.
+- **Jam Mode BPM lock** — fully functional end-to-end: the `Off / 1 beat / ½ bar / 1 bar` sync setting in each Jam Mode slot now gates scale-root changes at beat-window boundaries (wall-clock based, derived from live BPM). Both the piano shading and the note snapping use the same locked pitch-class set — what you see highlighted is exactly what you hear.
+- **Walking bass scale persistence**: when the master channel has no active notes (bass note released between steps), the last known bass scale is cached in `_lastBassScalePcs` so follower channels continue snapping correctly across note transitions.
+- **`bpmLockBeats` wired end-to-end**: the beat-lock setting flows from the Jam Mode UI → `plugin.state` → `RackState._syncJamFollowerMapToEngine` → `GFpaJamEntry.bpmLockBeats` → `AudioEngine._shouldUpdateLockedScale()`.
+- **Forward-compatibility reserved keys**: `"audioGraph": { "connections": [] }` and `"loopTracks": []` added to newly created `.gf` files (empty — prevents format churn when Phases 5 and 7 land).
+
+### Fixed
+- **Jam Mode chord scale locking**: snapping and piano shading now always use the same `_getScaleInfo(chord, scaleType)` function. Previously, Gemini-introduced code routed snapping through `GFJamModePlugin.processMidi` (which used `chord.scalePitchClasses` — the raw chord-detector output) while the shading used the chord-quality × scale-type matrix. For Jazz, Pentatonic, Blues, Classical and all non-Standard scale types, the two diverged — played notes no longer matched highlighted keys. Snapping is now always done directly via `_snapKeyToGfpaJam`, which calls `_getScaleInfo` identically to the shading logic.
+- **Jam Mode MIDI input locking**: external MIDI keyboard notes on a follower channel are now correctly snapped. The broken plugin-registry routing introduced by a previous refactor is removed; all paths go through `_snapKeyToGfpaJam`.
+- **Snap algorithm direction restored**: all three snapping paths (scale lock, GFPA jam, virtual piano) now use the original DOWN-first tie-breaking preference (nearest lower neighbor wins on equidistant candidates), matching the pre-regression behaviour.
+
+### Architecture
+- `TransportEngine` now runs a `Timer.periodic(10 ms)` ticker while playing; it advances `positionInBeats` / `positionInSamples` by wall-clock elapsed microseconds, fires `onBeat(isDownbeat)` on each beat boundary, increments `ValueNotifier<int> beatCount` (for UI pulse), and calls `_syncToHost()` every tick so VST3 plugins always read an accurate playhead position.
+- `TransportEngine.onBeat` callback is wired by `RackState` to call `AudioEngine.playMetronomeClick(isDownbeat)` when `metronomeEnabled` is true.
+- `AudioEngine.bpmProvider` / `isPlayingProvider` — lightweight function-reference callbacks injected by `RackState`; the audio engine reads live transport state without a hard import dependency on `TransportEngine`.
+- `AudioEngine._bpmLockedScalePcs` — per-follower-channel cache of the currently committed locked scale pitch-class set, shared by both the piano shading propagation (`_performChordUpdate`) and the note snapper (`_snapKeyToGfpaJam`).
+- `AudioEngine._lastScaleLockTime` — wall-clock timestamp per follower channel; `_shouldUpdateLockedScale()` compares elapsed time against `bpmLockBeats × 60 / bpm` ms to gate updates.
+
+---
+
+## [2.2.1] - 2026-03-11
+
+### Added
+- **GrooveForge Keyboard VST3 plugin**: Distributable `.vst3` bundle (Linux) that runs inside any VST3-compatible DAW (Ardour, Reaper, etc.) without requiring the GrooveForge app. MIDI in → FluidSynth → stereo audio out. Parameters: Gain, Bank, Program.
+- **GrooveForge Vocoder VST3 plugin**: Distributable `.vst3` bundle (Linux) implementing the sidechain vocoder pattern standard in professional DAWs. Route any audio track as the carrier signal via the DAW's sidechain bus; play MIDI notes to control pitch. Parameters: Waveform, Noise Mix, Bandwidth, Gate Threshold, Env Release, Input Gain.
+- **`vocoder_dsp.h/c`**: Context-based vocoder DSP library extracted from `audio_input.c` — no audio-backend dependencies, usable from both the GFPA plugin and the VST3 bundle.
+- **Flatpak DAW compatibility**: Both bundles load correctly inside sandboxed Flatpak builds of Ardour/Reaper. Achieved by statically linking FluidSynth (built from source with all audio backends disabled), inlining math functions with `-ffast-math`, and patching all `$ORIGIN` RPATHs via `scripts/bundle_deps.sh`.
+- **`scripts/bundle_deps.sh`**: Shell script that recursively bundles shared library dependencies into a `.vst3` bundle and patches all RPATHs to `$ORIGIN` for self-contained deployment.
+- **VST3 build documentation**: Comprehensive `packages/flutter_vst3/vsts/README.md` covering plugin properties, build instructions, Flatpak compatibility notes, a GFPA vs VST3 comparison table, and a troubleshooting guide.
+
+### Architecture
+- Pure C++ VST3 plugins using the Steinberg VST3 SDK (MIT since v3.8) — no Dart or Flutter runtime required in the DAW.
+- `grooveforge_keyboard.vst3`: single compilation unit (`factory.cpp` includes `processor.cpp` + `controller.cpp`), FluidSynth statically linked via CMake `FetchContent` (v2.4.0 built from source), Linux `ModuleEntry`/`ModuleExit` entry points via `linuxmain.cpp`.
+- `grooveforge_vocoder.vst3`: same single-TU pattern, `vocoder_dsp` static library compiled with `-fPIC -ffast-math`, zero external runtime dependencies.
+- `make keyboard` / `make vocoder` / `make grooveforge` targets perform a real `cp -rL` install to `~/.vst3/` (no symlinks — required for Flatpak sandbox compatibility).
+
+---
+
+## [2.2.0] - 2026-03-09
+
+### Added
+- **GrooveForge Plugin API (GFPA)**: A pure-Dart extensible plugin system, platform-independent (Linux, macOS, Windows, Android, iOS). Defines typed interfaces: `GFInstrumentPlugin` (MIDI in → audio out), `GFEffectPlugin` (audio in → audio out), `GFMidiFxPlugin` (MIDI in → MIDI out). Ships as a standalone `packages/grooveforge_plugin_api/` package with no Flutter dependency, enabling third-party plugins.
+- **`packages/grooveforge_plugin_ui/`**: Flutter companion package exposing reusable UI helpers — `RotaryKnob`, `GFParameterKnob`, `GFParameterGrid` — for rapid plugin UI development.
+- **Vocoder as a standalone GFPA slot**: The vocoder is now its own rack slot with a dedicated MIDI channel, piano, and controls. Multiple vocoders can coexist independently in the same project.
+- **Jam Mode GFPA plugin**: A full `GFMidiFxPlugin` implementation with a complete UI overhaul inspired by the Roland RC-20.
+  - Signal-flow row: MASTER dropdown → amber LCD (live scale name + type tag) → TARGETS chips.
+  - LCD doubles as a scale-type selector; displays `[SCALE TYPE]` bracket only for families where the name is not self-describing (Standard, Jazz, Classical, Asiatic, Oriental).
+  - Glowing LED enable/disable button with ON/OFF indicator.
+  - **Multiple targets**: one Jam Mode slot can control any number of keyboard and vocoder slots simultaneously.
+  - **Bass note detection mode**: uses the lowest active note on the master channel as the scale root — ideal for walking-bass lines.
+  - **BPM sync lock** (Off / 1 beat / ½ bar / 1 bar): scale root changes only on beat boundaries (activates fully when Phase 4 transport lands).
+  - Responsive layout: wide two-row panel (≥480 px); narrow stacked column (<480 px); controls strip reflows with `Wrap` on very small screens.
+  - Key borders and wrong-note dimming settings moved from Preferences into the Jam Mode rack slot.
+- **Default project template**: new projects start with two keyboard slots and a pre-configured Jam Mode slot (master = CH 2, target = CH 1, inactive by default).
+- **`GFpaPluginInstance` model**: serializes/deserializes as `"type": "gfpa"` in `.gf` files; supports multiple `targetSlotIds` (backward-compatible with old single `targetSlotId` string).
+- **GFPA plugin registry** (`GFPluginRegistry`): singleton registry for all built-in and future third-party plugins.
+
+### Changed
+- Scale name display in the Jam rack now shows the full `"C Minor Blues"` form (root note + scale name); the `[TYPE]` bracket is shown only when the scale family does not already encode the type.
+- Virtual keyboard no longer exposes a vocoder option in its soundfont dropdown (vocoder is its own slot type).
+- Default new project no longer sets master/slave roles on keyboard slots (role concept superseded by the Jam Mode GFPA slot).
+
+### Removed
+- **Legacy `JamSessionWidget`** and global `ScaleLockMode` preference — all jam routing is now managed by the Jam Mode GFPA plugin slot.
+- **`GrooveForgeKeyboardPlugin.jamEnabled/jamMasterSlotId`** fields — dead code purge after GFPA migration.
+- **`_buildMasterDropdown` / `_buildSlavesSection`** — replaced by `GFpaJamModeSlotUI`.
+- **Vocoder option from the keyboard soundfont dropdown** — vocoder is a dedicated slot type.
+
+### Fixed
+- **Vocoder MIDI routing**: removed erroneous omni-mode routing that caused all MIDI input to trigger the vocoder channel regardless of which slot was targeted.
+- **Startup hang**: added `_isConnecting` guard to `MidiService` to prevent concurrent `connectToDevice` calls when the 2-second polling timer raced with `_tryAutoConnect` on Linux.
+- **Note labels on white keys**: note name labels (e.g. `C4`, `F#6`) now render correctly on white keys as well as black keys.
+- **Scale immediately applied on change**: changing the scale type in a Jam Mode slot now propagates to all target channels without requiring a stop/restart cycle.
+- **Vocoder targetable by Jam Mode**: vocoder slots can now be added as Jam Mode targets, receiving scale locking the same way keyboard slots do.
+- **Rack bottom padding**: added bottom margin so the FAB no longer overlaps the last rack slot.
+
+---
+
+## [2.1.0] - 2026-03-08
+
+### Added
+- **External VST3 plugin hosting** (Linux, macOS, Windows): load any `.vst3` bundle into a rack slot via the "Browse VST3" tile in the Add Plugin sheet.
+- **Parameter knobs**: each VST3 slot displays category chips (one per parameter group). Tapping a chip opens a modal grid of `RotaryKnob` widgets with search, sub-group filter, and pagination (24 per page).
+- **Native plugin editor window** (Linux): opens the VST3 plugin's own GUI in a floating X11 window. The editor can be opened, closed, and reopened without freezing or crashing.
+- **ALSA audio output thread**: `dart_vst_host_alsa.cpp` — low-latency ALSA playback thread consuming VST3 audio output in real time.
+- **Single-component VST3 support**: controller is queried from the component when `getControllerPtr()` returns null (Aeolus, Guitarix).
+- **Multi-output-bus support**: all audio output buses are configured dynamically on resume (Surge XT Scene B, etc.).
+- **Autosave reload**: VST3 plugin instances in a `.gf` project are re-loaded into `VstHostService` on startup via the splash screen.
+- **Parameter persistence**: VST3 parameter values are stored in `Vst3PluginInstance.parameters` and saved to the `.gf` project.
+
+### Architecture
+- `packages/flutter_vst3/` vendored at project root (BSD-3-Clause, compatible with MIT); nested `.git` removed so it is committed to the repo.
+- `dart_vst_host` converted to a Flutter FFI plugin (`ffiPlugin: true`) with platform-specific CMakeLists for Linux (ALSA + X11), Windows (Win32), and macOS (Cocoa/CoreAudio).
+- Platform-conditional import: `vst_host_service.dart` exports the desktop implementation on Linux/macOS/Windows and a no-op stub on mobile.
+
+### Fixed
+- JUCE-based plugins (Surge XT, DISTRHO): `setComponentState()` called after init to build the internal processor reference.
+- Editor X-button close: `removed()` called on the event thread to avoid deadlock with JUCE's GUI thread.
+- Re-open after close: `g_cleanupFutures` wait ensures `removed()` finishes before `createView()` is called again.
+
+---
+
 ## [2.0.0] - 2026-03-08
 
 ### Added

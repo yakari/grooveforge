@@ -3,6 +3,7 @@
 /// provides low‑level functions for creating a host, loading VST
 /// plug‑ins and processing audio. Higher level classes are defined
 /// in host.dart which wrap these bindings in a safer API.
+library;
 
 import 'dart:ffi';
 import 'dart:io';
@@ -19,6 +20,8 @@ typedef _UnloadC = Void Function(Pointer<Void>);
 
 typedef _ResumeC = Int32 Function(Pointer<Void>, Double, Int32);
 typedef _SuspendC = Int32 Function(Pointer<Void>);
+
+typedef _SetTransportC = Void Function(Double, Int32, Int32, Int32, Double, Int32);
 
 typedef _ProcessStereoC = Int32 Function(
   Pointer<Void>,
@@ -62,6 +65,9 @@ class NativeBindings {
 
   late final int Function(Pointer<Void>) dvhSuspend =
       lib.lookupFunction<_SuspendC, int Function(Pointer<Void>)>('dvh_suspend');
+
+  late final void Function(double, int, int, int, double, int) dvhSetTransport =
+      lib.lookupFunction<_SetTransportC, void Function(double, int, int, int, double, int)>('dvh_set_transport');
 
   late final int Function(Pointer<Void>, Pointer<Float>, Pointer<Float>, Pointer<Float>, Pointer<Float>, int) dvhProcessStereoF32 =
       lib.lookupFunction<_ProcessStereoC, int Function(Pointer<Void>, Pointer<Float>, Pointer<Float>, Pointer<Float>, Pointer<Float>, int)>('dvh_process_stereo_f32');

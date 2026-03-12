@@ -39,6 +39,9 @@ DVH_API int32_t dvh_resume(DVH_Plugin p, double sample_rate, int32_t max_block);
 // Suspend processing on a plugin.
 DVH_API int32_t dvh_suspend(DVH_Plugin p);
 
+// Set global transport properties to be passed to all plugins in their ProcessContext.
+DVH_API void dvh_set_transport(double bpm, int32_t timeSigNum, int32_t timeSigDen, int32_t isPlaying, double positionInBeats, int32_t positionInSamples);
+
 // Process stereo audio. Input pointers must be valid arrays of length num_frames. Output will be written in-place.
 DVH_API int32_t dvh_process_stereo_f32(DVH_Plugin p,
                                        const float* inL, const float* inR,

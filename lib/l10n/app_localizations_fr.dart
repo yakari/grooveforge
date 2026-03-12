@@ -86,6 +86,9 @@ class AppLocalizationsFr extends AppLocalizations {
   String get actionSave => 'SAUVEGARDER';
 
   @override
+  String get actionDone => 'Terminé';
+
+  @override
   String chNumber(int channel) {
     return 'CH $channel';
   }
@@ -105,35 +108,6 @@ class AppLocalizationsFr extends AppLocalizations {
   String patchBank(int bank) {
     return 'Banque $bank';
   }
-
-  @override
-  String get jamStart => 'JAM';
-
-  @override
-  String get jamStop => 'STOP';
-
-  @override
-  String get jamMaster => 'Maître';
-
-  @override
-  String get jamSlaves => 'Esclaves';
-
-  @override
-  String get jamScale => 'Gamme';
-
-  @override
-  String get jamSelectSlavesDialogTitle => 'Sélectionner les canaux esclaves';
-
-  @override
-  String jamModeToast(String status) {
-    return 'Mode Jam : $status';
-  }
-
-  @override
-  String get jamStarted => 'DÉMARRÉ';
-
-  @override
-  String get jamStopped => 'ARRÊTÉ';
 
   @override
   String get ccTitle => 'Préférences de Mapping CC';
@@ -287,58 +261,13 @@ class AppLocalizationsFr extends AppLocalizations {
   String get splashReady => 'Prêt';
 
   @override
-  String get synthVisibleChannelsTitle => 'Canaux Visibles';
-
-  @override
-  String synthChannelLabel(int channelIndex) {
-    return 'Canal $channelIndex';
-  }
-
-  @override
-  String get synthErrorAtLeastOneChannel =>
-      'Au moins un canal doit être visible';
-
-  @override
-  String get synthSaveFilters => 'Sauvegarder les Filtres';
-
-  @override
   String get synthTooltipUserGuide => 'Guide d\'Utilisateur';
-
-  @override
-  String get synthTooltipFilterChannels => 'Filtrer les Canaux Visibles';
 
   @override
   String get synthTooltipSettings => 'Paramètres & Configuration';
 
   @override
   String get actionCancel => 'Annuler';
-
-  @override
-  String get scaleLockModeTitle => 'Mode Scale Lock';
-
-  @override
-  String get scaleLockModeSubtitle =>
-      'Classique (par canal) vs Jam (maître-esclave)';
-
-  @override
-  String get modeClassic => 'Mode Classique';
-
-  @override
-  String get modeJam => 'Mode Jam';
-
-  @override
-  String get jamModeKeyGroupsTitle => 'Groupes de touches Mode Jam';
-
-  @override
-  String get jamModeKeyGroupsSubtitle =>
-      'Regrouper visuellement les touches mappées (bordures)';
-
-  @override
-  String get highlightWrongNotesTitle => 'Griser les fausses notes';
-
-  @override
-  String get highlightWrongNotesSubtitle =>
-      'Colorer les touches hors-gamme en rouge';
 
   @override
   String get aftertouchEffectTitle => 'Effet Aftertouch';
@@ -544,19 +473,6 @@ class AppLocalizationsFr extends AppLocalizations {
       'Défiler automatiquement la liste lors de la réception MIDI';
 
   @override
-  String get vocoderWarningTitle => 'Avertissement de larsen';
-
-  @override
-  String get vocoderWarningBody =>
-      'L\'utilisation simultanée du microphone et des haut-parleurs internes peut provoquer un effet de larsen (boucle sonore). Veuillez utiliser un casque, un micro séparé ou une enceinte externe pour une expérience sûre.';
-
-  @override
-  String get vocoderWarningValidate => 'Activer le vocodeur';
-
-  @override
-  String get vocoderWarningCancel => 'Annuler';
-
-  @override
   String get rackTitle => 'Rack';
 
   @override
@@ -566,7 +482,20 @@ class AppLocalizationsFr extends AppLocalizations {
   String get rackAddGrooveForgeKeyboard => 'GrooveForge Keyboard';
 
   @override
-  String get rackAddGrooveForgeKeyboardSubtitle => 'Synthé & vocodeur intégrés';
+  String get rackAddGrooveForgeKeyboardSubtitle => 'Clavier FluidSynth intégré';
+
+  @override
+  String get rackAddVocoder => 'Vocodeur';
+
+  @override
+  String get rackAddVocoderSubtitle => 'Synthèse vocale par microphone (GFPA)';
+
+  @override
+  String get rackAddJamMode => 'Mode Jam';
+
+  @override
+  String get rackAddJamModeSubtitle =>
+      'Verrouille la gamme d\'un clavier sur l\'harmonie d\'un autre';
 
   @override
   String get rackAddVst3 => 'Parcourir les plugins VST3…';
@@ -623,31 +552,6 @@ class AppLocalizationsFr extends AppLocalizations {
   String get splashRestoringRack => 'Restauration du rack...';
 
   @override
-  String get jamSlotOff => 'JAM OFF';
-
-  @override
-  String get jamSlotOn => 'JAM ON';
-
-  @override
-  String get jamSlotSelectMaster => 'Choisir le maître Jam';
-
-  @override
-  String get jamSlotSelectMasterHint =>
-      'Quel slot pilote l\'harmonie pour ce clavier ?';
-
-  @override
-  String get jamSlotChangeMaster => 'Changer le maître…';
-
-  @override
-  String get jamSlotNoMasterSelected => 'Choisir maître';
-
-  @override
-  String get jamSlotNoOtherSlots => 'Aucun autre slot disponible.';
-
-  @override
-  String get jamSlotClearMaster => 'Retirer le maître Jam';
-
-  @override
   String get vst3LoadFailed =>
       'Échec du chargement du plugin VST3. Assurez-vous d\'avoir sélectionné le dossier .vst3.';
 
@@ -695,4 +599,31 @@ class AppLocalizationsFr extends AppLocalizations {
   String vst3ScanError(String error) {
     return 'Échec de l\'analyse : $error';
   }
+
+  @override
+  String get transportBpm => 'BPM';
+
+  @override
+  String get transportTapTempo => 'Tap';
+
+  @override
+  String get transportPlay => 'Lecture';
+
+  @override
+  String get transportStop => 'Stop';
+
+  @override
+  String get transportTimeSignature => 'Métrique';
+
+  @override
+  String get transportMetronome => 'Métronome';
+
+  @override
+  String get transportTimeSigCustom => 'Personnalisé';
+
+  @override
+  String get transportTimeSigNumerator => 'Temps / mesure';
+
+  @override
+  String get transportTimeSigDenominator => 'Unité de temps';
 }

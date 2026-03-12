@@ -242,6 +242,12 @@ abstract class AppLocalizations {
   /// **'SAVE'**
   String get actionSave;
 
+  /// No description provided for @actionDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get actionDone;
+
   /// No description provided for @chNumber.
   ///
   /// In en, this message translates to:
@@ -271,60 +277,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Bank {bank}'**
   String patchBank(int bank);
-
-  /// No description provided for @jamStart.
-  ///
-  /// In en, this message translates to:
-  /// **'JAM'**
-  String get jamStart;
-
-  /// No description provided for @jamStop.
-  ///
-  /// In en, this message translates to:
-  /// **'STOP'**
-  String get jamStop;
-
-  /// No description provided for @jamMaster.
-  ///
-  /// In en, this message translates to:
-  /// **'Master'**
-  String get jamMaster;
-
-  /// No description provided for @jamSlaves.
-  ///
-  /// In en, this message translates to:
-  /// **'Slaves'**
-  String get jamSlaves;
-
-  /// No description provided for @jamScale.
-  ///
-  /// In en, this message translates to:
-  /// **'Scale'**
-  String get jamScale;
-
-  /// No description provided for @jamSelectSlavesDialogTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Select Slave Channels'**
-  String get jamSelectSlavesDialogTitle;
-
-  /// No description provided for @jamModeToast.
-  ///
-  /// In en, this message translates to:
-  /// **'Jam Mode: {status}'**
-  String jamModeToast(String status);
-
-  /// No description provided for @jamStarted.
-  ///
-  /// In en, this message translates to:
-  /// **'STARTED'**
-  String get jamStarted;
-
-  /// No description provided for @jamStopped.
-  ///
-  /// In en, this message translates to:
-  /// **'STOPPED'**
-  String get jamStopped;
 
   /// No description provided for @ccTitle.
   ///
@@ -590,41 +542,11 @@ abstract class AppLocalizations {
   /// **'Ready'**
   String get splashReady;
 
-  /// No description provided for @synthVisibleChannelsTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Visible Channels'**
-  String get synthVisibleChannelsTitle;
-
-  /// No description provided for @synthChannelLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Channel {channelIndex}'**
-  String synthChannelLabel(int channelIndex);
-
-  /// No description provided for @synthErrorAtLeastOneChannel.
-  ///
-  /// In en, this message translates to:
-  /// **'At least one channel must be visible'**
-  String get synthErrorAtLeastOneChannel;
-
-  /// No description provided for @synthSaveFilters.
-  ///
-  /// In en, this message translates to:
-  /// **'Save Filters'**
-  String get synthSaveFilters;
-
   /// No description provided for @synthTooltipUserGuide.
   ///
   /// In en, this message translates to:
   /// **'User Guide'**
   String get synthTooltipUserGuide;
-
-  /// No description provided for @synthTooltipFilterChannels.
-  ///
-  /// In en, this message translates to:
-  /// **'Filter Visible Channels'**
-  String get synthTooltipFilterChannels;
 
   /// No description provided for @synthTooltipSettings.
   ///
@@ -637,54 +559,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Cancel'**
   String get actionCancel;
-
-  /// No description provided for @scaleLockModeTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Scale Lock Mode'**
-  String get scaleLockModeTitle;
-
-  /// No description provided for @scaleLockModeSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Classic (per channel) vs Jam (master-slave)'**
-  String get scaleLockModeSubtitle;
-
-  /// No description provided for @modeClassic.
-  ///
-  /// In en, this message translates to:
-  /// **'Classic Mode'**
-  String get modeClassic;
-
-  /// No description provided for @modeJam.
-  ///
-  /// In en, this message translates to:
-  /// **'Jam Mode'**
-  String get modeJam;
-
-  /// No description provided for @jamModeKeyGroupsTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Jam Mode Key Groups'**
-  String get jamModeKeyGroupsTitle;
-
-  /// No description provided for @jamModeKeyGroupsSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Visually group scale-mapped keys with borders'**
-  String get jamModeKeyGroupsSubtitle;
-
-  /// No description provided for @highlightWrongNotesTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Highlight Wrong Notes'**
-  String get highlightWrongNotesTitle;
-
-  /// No description provided for @highlightWrongNotesSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Color out-of-scale pressed keys in red'**
-  String get highlightWrongNotesSubtitle;
 
   /// No description provided for @aftertouchEffectTitle.
   ///
@@ -1058,30 +932,6 @@ abstract class AppLocalizations {
   /// **'Automatically scroll the list when MIDI is received'**
   String get synthAutoScrollSubtitle;
 
-  /// No description provided for @vocoderWarningTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Feedback Warning'**
-  String get vocoderWarningTitle;
-
-  /// No description provided for @vocoderWarningBody.
-  ///
-  /// In en, this message translates to:
-  /// **'Using the internal microphone and speakers simultaneously can cause a loud feedback loop (Larsen effect). Please use external headphones, a separate microphone, or an external speaker for a safe experience.'**
-  String get vocoderWarningBody;
-
-  /// No description provided for @vocoderWarningValidate.
-  ///
-  /// In en, this message translates to:
-  /// **'Enable Vocoder'**
-  String get vocoderWarningValidate;
-
-  /// No description provided for @vocoderWarningCancel.
-  ///
-  /// In en, this message translates to:
-  /// **'Cancel'**
-  String get vocoderWarningCancel;
-
   /// No description provided for @rackTitle.
   ///
   /// In en, this message translates to:
@@ -1103,8 +953,32 @@ abstract class AppLocalizations {
   /// No description provided for @rackAddGrooveForgeKeyboardSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Built-in synth & vocoder'**
+  /// **'Built-in FluidSynth keyboard'**
   String get rackAddGrooveForgeKeyboardSubtitle;
+
+  /// No description provided for @rackAddVocoder.
+  ///
+  /// In en, this message translates to:
+  /// **'Vocoder'**
+  String get rackAddVocoder;
+
+  /// No description provided for @rackAddVocoderSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Mic-driven voice synthesizer (GFPA)'**
+  String get rackAddVocoderSubtitle;
+
+  /// No description provided for @rackAddJamMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Jam Mode'**
+  String get rackAddJamMode;
+
+  /// No description provided for @rackAddJamModeSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Scale-lock a keyboard slot to another\'s harmony'**
+  String get rackAddJamModeSubtitle;
 
   /// No description provided for @rackAddVst3.
   ///
@@ -1208,54 +1082,6 @@ abstract class AppLocalizations {
   /// **'Restoring rack state...'**
   String get splashRestoringRack;
 
-  /// No description provided for @jamSlotOff.
-  ///
-  /// In en, this message translates to:
-  /// **'JAM OFF'**
-  String get jamSlotOff;
-
-  /// No description provided for @jamSlotOn.
-  ///
-  /// In en, this message translates to:
-  /// **'JAM ON'**
-  String get jamSlotOn;
-
-  /// No description provided for @jamSlotSelectMaster.
-  ///
-  /// In en, this message translates to:
-  /// **'Select Jam Master'**
-  String get jamSlotSelectMaster;
-
-  /// No description provided for @jamSlotSelectMasterHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Which slot will drive the harmony for this keyboard?'**
-  String get jamSlotSelectMasterHint;
-
-  /// No description provided for @jamSlotChangeMaster.
-  ///
-  /// In en, this message translates to:
-  /// **'Change master…'**
-  String get jamSlotChangeMaster;
-
-  /// No description provided for @jamSlotNoMasterSelected.
-  ///
-  /// In en, this message translates to:
-  /// **'Pick master'**
-  String get jamSlotNoMasterSelected;
-
-  /// No description provided for @jamSlotNoOtherSlots.
-  ///
-  /// In en, this message translates to:
-  /// **'No other slots available to follow.'**
-  String get jamSlotNoOtherSlots;
-
-  /// No description provided for @jamSlotClearMaster.
-  ///
-  /// In en, this message translates to:
-  /// **'Clear Jam master'**
-  String get jamSlotClearMaster;
-
   /// No description provided for @vst3LoadFailed.
   ///
   /// In en, this message translates to:
@@ -1333,6 +1159,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Scan failed: {error}'**
   String vst3ScanError(String error);
+
+  /// No description provided for @transportBpm.
+  ///
+  /// In en, this message translates to:
+  /// **'BPM'**
+  String get transportBpm;
+
+  /// No description provided for @transportTapTempo.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap'**
+  String get transportTapTempo;
+
+  /// No description provided for @transportPlay.
+  ///
+  /// In en, this message translates to:
+  /// **'Play'**
+  String get transportPlay;
+
+  /// No description provided for @transportStop.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop'**
+  String get transportStop;
+
+  /// No description provided for @transportTimeSignature.
+  ///
+  /// In en, this message translates to:
+  /// **'Time Sig'**
+  String get transportTimeSignature;
+
+  /// No description provided for @transportMetronome.
+  ///
+  /// In en, this message translates to:
+  /// **'Metronome'**
+  String get transportMetronome;
+
+  /// No description provided for @transportTimeSigCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom'**
+  String get transportTimeSigCustom;
+
+  /// No description provided for @transportTimeSigNumerator.
+  ///
+  /// In en, this message translates to:
+  /// **'Beats / bar'**
+  String get transportTimeSigNumerator;
+
+  /// No description provided for @transportTimeSigDenominator.
+  ///
+  /// In en, this message translates to:
+  /// **'Beat unit'**
+  String get transportTimeSigDenominator;
 }
 
 class _AppLocalizationsDelegate

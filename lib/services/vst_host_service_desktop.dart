@@ -95,6 +95,24 @@ class VstHostService {
     }
   }
 
+  void setTransport({
+    required double bpm,
+    required int timeSigNum,
+    required int timeSigDen,
+    required bool isPlaying,
+    required double positionInBeats,
+    required int positionInSamples,
+  }) {
+    _host?.setTransport(
+      bpm: bpm,
+      timeSigNum: timeSigNum,
+      timeSigDen: timeSigDen,
+      isPlaying: isPlaying,
+      positionInBeats: positionInBeats,
+      positionInSamples: positionInSamples,
+    );
+  }
+
   // ─── MIDI routing ──────────────────────────────────────────────────────────
 
   void noteOn(String slotId, int channel, int note, double velocity) {

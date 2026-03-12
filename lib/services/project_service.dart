@@ -3,138 +3,126 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:path/path.dart' as p;
-
-import 'rack_state.dart';
 import 'audio_engine.dart';
+import 'project_migration_service.dart';
+import 'rack_state.dart';
+import 'transport_engine.dart';
 
-/// Handles saving and loading GrooveForge project files (.gf format, JSON).
-///
-/// A .gf file contains:
-/// - The full ordered rack plugin list with per-slot state
-/// - Global Jam Mode settings (enabled, scale type, lock mode)
-///
-/// An autosave file (`autosave.gf`) is written to the app's documents
-/// directory after every rack mutation so that state is always restored
-/// on next launch without any user action.
-class ProjectService {
-  static const _autosaveFilename = 'autosave.gf';
-  static const _fileExtension = 'gf';
-  static const _formatVersion = '2.0.0';
+/// Manages loading and saving current project state to a .gf file.
+class ProjectService extends ChangeNotifier {
+  static const String _formatVersion = '2.0.0';
+  
+  String? _currentProjectPath;
+  String? get currentProjectPath => _currentProjectPath;
 
-  // ─── Autosave ─────────────────────────────────────────────────────────────
+  bool _isSaving = false;
+  bool get isSaving => _isSaving;
 
-  Future<String> _autosavePath() async {
-    final dir = await getApplicationDocumentsDirectory();
-    return p.join(dir.path, _autosaveFilename);
-  }
-
-  Future<bool> hasAutosave() async {
-    try {
-      return File(await _autosavePath()).existsSync();
-    } catch (_) {
-      return false;
-    }
-  }
-
-  /// Silently serialises [rackState] + [engine] global jam state to the
-  /// autosave file. Errors are swallowed and printed as debug output.
-  Future<void> autosave(RackState rackState, AudioEngine engine) async {
-    try {
-      // Snapshot vocoder params for any active vocoder slot before saving.
-      for (final plugin in rackState.plugins) {
-        rackState.snapshotVocoderParams(plugin.id);
-      }
-      final path = await _autosavePath();
-      await _writeGfFile(path, rackState, engine);
-    } catch (e) {
-      debugPrint('ProjectService: autosave failed — $e');
-    }
-  }
-
-  /// Loads the autosave file into [rackState], or calls [rackState.initDefaults]
-  /// if no autosave exists (first launch).
+  /// Loads the last autosave or initializes a default project if none exists.
   Future<void> loadOrInitDefault(
     RackState rackState,
     AudioEngine engine,
+    TransportEngine transport,
   ) async {
-    if (await hasAutosave()) {
+    final docsDir = await getApplicationDocumentsDirectory();
+    final autosavePath = '${docsDir.path}/autosave.gf';
+
+    if (await File(autosavePath).exists()) {
       try {
-        final path = await _autosavePath();
-        await _readGfFile(path, rackState, engine);
-        return;
+        await _readGfFile(autosavePath, rackState, engine, transport);
+        _currentProjectPath = autosavePath;
       } catch (e) {
         debugPrint('ProjectService: autosave load failed ($e) — using defaults');
+        rackState.initDefaults();
       }
+    } else {
+      debugPrint('ProjectService: no autosave found — initializing defaults');
+      rackState.initDefaults();
     }
-    rackState.initDefaults();
+    notifyListeners();
   }
 
-  // ─── Explicit Save ────────────────────────────────────────────────────────
-
-  /// Opens a save-file dialog and writes a .gf project file.
-  /// Returns the chosen path, or null if the user cancelled.
-  Future<String?> saveProjectAs(
+  /// Triggers an autosave.
+  Future<void> autosave(
     RackState rackState,
     AudioEngine engine,
+    TransportEngine transport,
   ) async {
-    // Snapshot vocoder params before saving.
-    for (final plugin in rackState.plugins) {
-      rackState.snapshotVocoderParams(plugin.id);
-    }
-
-    // On mobile, default to the documents directory.
-    if (Platform.isAndroid || Platform.isIOS) {
-      final dir = await getApplicationDocumentsDirectory();
-      final path = p.join(dir.path, 'project.$_fileExtension');
-      await _writeGfFile(path, rackState, engine);
-      return path;
-    }
-
-    final result = await FilePicker.platform.saveFile(
-      dialogTitle: 'Save GrooveForge Project',
-      fileName: 'project.$_fileExtension',
-      type: FileType.custom,
-      allowedExtensions: [_fileExtension],
-    );
-
-    if (result == null) return null;
-
-    final path = result.endsWith('.$_fileExtension')
-        ? result
-        : '$result.$_fileExtension';
-    await _writeGfFile(path, rackState, engine);
-    return path;
+    final docsDir = await getApplicationDocumentsDirectory();
+    final autosavePath = '${docsDir.path}/autosave.gf';
+    await _writeGfFile(autosavePath, rackState, engine, transport);
+    _currentProjectPath = autosavePath;
   }
 
-  // ─── Explicit Open ────────────────────────────────────────────────────────
-
-  /// Opens a file-picker dialog and loads the chosen .gf project.
-  /// Returns the path of the loaded file, or null if cancelled / error.
+  /// Opens a project using a file picker.
   Future<String?> openProject(
     RackState rackState,
     AudioEngine engine,
+    TransportEngine transport,
   ) async {
-    FilePickerResult? result;
-    try {
-      result = await FilePicker.platform.pickFiles(
-        dialogTitle: 'Open GrooveForge Project',
-        type: FileType.custom,
-        allowedExtensions: [_fileExtension],
-        allowMultiple: false,
-      );
-    } catch (e) {
-      debugPrint('ProjectService: file picker error — $e');
-      return null;
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['gf'],
+    );
+
+    if (result != null && result.files.single.path != null) {
+      final path = result.files.single.path!;
+      await loadProject(path, rackState, engine, transport);
+      return path;
     }
+    return null;
+  }
 
-    final path = result?.files.single.path;
-    if (path == null) return null;
+  /// Saves the current project state to a new file using a file picker.
+  Future<String?> saveProjectAs(
+    RackState rackState,
+    AudioEngine engine,
+    TransportEngine transport,
+  ) async {
+    final result = await FilePicker.platform.saveFile(
+      dialogTitle: 'Save Project As',
+      fileName: 'project.gf',
+      type: FileType.custom,
+      allowedExtensions: ['gf'],
+    );
 
-    await _readGfFile(path, rackState, engine);
-    // Persist the freshly loaded state as the autosave too.
-    await autosave(rackState, engine);
-    return path;
+    if (result != null) {
+      // Ensure .gf extension
+      final path = result.endsWith('.gf') ? result : '$result.gf';
+      await saveProject(path, rackState, engine, transport);
+      return path;
+    }
+    return null;
+  }
+
+  /// Saves the project to the given path.
+  Future<void> saveProject(
+    String path,
+    RackState rackState,
+    AudioEngine engine,
+    TransportEngine transport,
+  ) async {
+    _isSaving = true;
+    notifyListeners();
+    try {
+      await _writeGfFile(path, rackState, engine, transport);
+      _currentProjectPath = path;
+    } finally {
+      _isSaving = false;
+      notifyListeners();
+    }
+  }
+
+  /// Loads a project from the given path.
+  Future<void> loadProject(
+    String path,
+    RackState rackState,
+    AudioEngine engine,
+    TransportEngine transport,
+  ) async {
+    await _readGfFile(path, rackState, engine, transport);
+    _currentProjectPath = path;
+    notifyListeners();
   }
 
   // ─── Internal I/O ────────────────────────────────────────────────────────
@@ -143,53 +131,72 @@ class ProjectService {
     String path,
     RackState rackState,
     AudioEngine engine,
+    TransportEngine transport,
   ) async {
     final data = {
       'version': _formatVersion,
       'savedAt': DateTime.now().toIso8601String(),
-      'jamMode': {
-        'enabled': engine.jamEnabled.value,
-        'scaleType': engine.jamScaleType.value.name,
-        'lockMode': engine.lockModePreference.value.name,
+      'transport': {
+        'bpm': transport.bpm,
+        'timeSigNumerator': transport.timeSigNumerator,
+        'timeSigDenominator': transport.timeSigDenominator,
+        'swing': transport.swing,
+        'metronomeEnabled': transport.metronomeEnabled,
       },
+      'audioGraph': {}, // Reserved for future use
+      'loopTracks': [], // Reserved for future use
       'plugins': rackState.toJson(),
     };
+    
     final file = File(path);
-    await file.writeAsString(
-      const JsonEncoder.withIndent('  ').convert(data),
-    );
-    debugPrint('ProjectService: saved to $path');
+    final tmpPath = '$path.tmp';
+    final tmpFile = File(tmpPath);
+    
+    try {
+      await tmpFile.writeAsString(
+        const JsonEncoder.withIndent('  ').convert(data),
+        flush: true,
+      );
+      
+      if (await file.exists()) {
+        await file.delete();
+      }
+      
+      await tmpFile.rename(path);
+      debugPrint('ProjectService: saved to $path');
+    } catch (e) {
+      debugPrint('ProjectService: Failed to save project: $e');
+      if (await tmpFile.exists()) {
+        try {
+          await tmpFile.delete();
+        } catch (_) {}
+      }
+      rethrow;
+    }
   }
 
   Future<void> _readGfFile(
     String path,
     RackState rackState,
     AudioEngine engine,
+    TransportEngine transport,
   ) async {
     final content = await File(path).readAsString();
+    if (content.isEmpty) throw FormatException('Empty project file');
+    
     final Map<String, dynamic> data = jsonDecode(content) as Map<String, dynamic>;
 
-    // Restore global jam settings.
-    final jamData = data['jamMode'] as Map<String, dynamic>?;
-    if (jamData != null) {
-      final enabledRaw = jamData['enabled'];
-      if (enabledRaw is bool) engine.jamEnabled.value = enabledRaw;
+    // Migrate data if necessary
+    ProjectMigrationService.migrate(data);
 
-      final scaleStr = jamData['scaleType'] as String?;
-      if (scaleStr != null) {
-        engine.jamScaleType.value = ScaleType.values.firstWhere(
-          (s) => s.name == scaleStr,
-          orElse: () => ScaleType.standard,
-        );
-      }
-
-      final lockStr = jamData['lockMode'] as String?;
-      if (lockStr != null) {
-        engine.lockModePreference.value = ScaleLockMode.values.firstWhere(
-          (s) => s.name == lockStr,
-          orElse: () => ScaleLockMode.jam,
-        );
-      }
+    // Restore transport if present.
+    final transportJson = data['transport'] as Map<String, dynamic>?;
+    if (transportJson != null) {
+      transport.bpm = (transportJson['bpm'] as num?)?.toDouble() ?? 120.0;
+      transport.timeSigNumerator = (transportJson['timeSigNumerator'] as num?)?.toInt() ?? 4;
+      transport.timeSigDenominator = (transportJson['timeSigDenominator'] as num?)?.toInt() ?? 4;
+      transport.swing = (transportJson['swing'] as num?)?.toDouble() ?? 0.0;
+      transport.metronomeEnabled = (transportJson['metronomeEnabled'] as bool?) ?? false;
     }
 
     // Restore rack plugins.
