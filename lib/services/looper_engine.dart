@@ -342,49 +342,85 @@ class LooperEngine extends ChangeNotifier {
   /// Called from [startPlayback] (immediate path, already on a downbeat) and
   /// from [_checkWaitingForBar] (deferred path, bar just arrived).
   ///
-  /// ### Why recordingStartBeat is NOT changed here
+  /// ### recordingStartBeat realignment
   ///
-  /// Every [TimestampedMidiEvent.beatOffset] was computed as
-  /// `transportBeat - recordingStartBeat` at the moment the note was played.
-  /// Changing `recordingStartBeat` would shift every event's apparent position
-  /// in the loop relative to the bar grid.
+  /// Each [TimestampedMidiEvent.beatOffset] is `transportBeat - recordingStartBeat`
+  /// at record time.  The first event has some `firstOffset` (e.g. 1.64 beats —
+  /// the gap between pressing record and playing the first note on bar 1).
   ///
-  /// Example: recording started at transport beat 3.0; user played a chord at
-  /// transport beat 5.0 (bar 2, beat 1) → `beatOffset = 2.0`.  Keeping
-  /// `recordingStartBeat = 3.0`, the chord fires when
-  /// `(currentBeat - 3.0) % loopLen = 2.0`, i.e. at every bar-beat-1 going
-  /// forward — exactly on the bar grid.  If we had reset `recordingStartBeat`
-  /// to, say, 9.0 (next downbeat), the chord would fire at 11.0 (beat 3), two
-  /// beats late.
+  /// We want that first note to fire exactly at [anchorBeat], so:
+  /// ```
+  ///   phase(anchorBeat) = firstOffset
+  ///   (anchorBeat − recordingStartBeat) % loopLen = firstOffset
+  ///   → recordingStartBeat = anchorBeat − firstOffset
+  /// ```
+  ///
+  /// This is correct both when the session was just recorded (same transport
+  /// session) and after a project reload where `recordingStartBeat` has been
+  /// reset to 0 — no JSON persistence of `recordingStartBeat` is required.
   ///
   /// ### prevPlaybackBeat initialisation
   ///
-  /// [s.prevBeatFloor] holds the transport position from the last ticker tick
-  /// before this downbeat (set by either [startPlayback] or the "no bar yet"
-  /// branch of [_checkWaitingForBar]).  Using it as [s.prevPlaybackBeat]
-  /// ensures the very first [_tickTrack] call has an event window that
-  /// straddles [anchorBeat], so notes at the downbeat phase fire immediately —
-  /// not one loop iteration later.
+  /// [s.prevBeatFloor] holds the transport beat from the last ticker tick
+  /// before this downbeat.  Using it as [s.prevPlaybackBeat] makes the first
+  /// [_tickTrack] event window straddle [anchorBeat], so events at the
+  /// downbeat phase fire immediately rather than one loop iteration later.
   ///
-  /// Both the UI bar-highlight notification and the audio event fire on the
-  /// **same** ticker iteration: [_detectBeatCrossings] sees the beat-floor
-  /// advance past [anchorBeat] and calls [notifyListeners], while [_tickTrack]
-  /// fires the notes — no separate code paths.
+  /// ### Unified code path
+  ///
+  /// Both the bar-highlight and the audio fire on the **same** tick:
+  /// [_detectBeatCrossings] notifies listeners when it sees the beat-floor
+  /// advance past [anchorBeat], while [_tickTrack] fires the MIDI events.
   void _activatePlayback(LooperSession s, double anchorBeat) {
-    // Keep recordingStartBeat unchanged (see doc above).
-    // prevBeatFloor is the transport beat from the last tick before the bar;
-    // using it as prevPlaybackBeat means _tickTrack's first window straddles
-    // anchorBeat, so events at the downbeat phase are not skipped.
+    // Re-anchor recordingStartBeat so the first note of the loop always fires
+    // exactly at anchorBeat (the bar downbeat), regardless of where in the
+    // transport the recording originally started.
+    //
+    // Why: all TimestampedMidiEvent.beatOffset values are relative to
+    // recordingStartBeat.  The first note has beatOffset = firstOffset (e.g.
+    // 1.64 beats after the user pressed record).  For it to fire at anchorBeat
+    // we need:
+    //   phase(anchorBeat) = firstOffset
+    //   (anchorBeat - recordingStartBeat) % loopLen = firstOffset
+    //   → recordingStartBeat = anchorBeat - firstOffset
+    //
+    // This is correct both in the "live" case (just recorded, same session)
+    // and after a project reload (recordingStartBeat defaults to 0.0, which
+    // would otherwise misalign the loop by firstOffset beats).
+    //
+    // prevPlaybackBeat is set to s.prevBeatFloor (the transport beat from the
+    // last tick before the downbeat) so the first _tickTrack window straddles
+    // anchorBeat and fires events at that exact phase.
+    final firstOffset = _firstEventOffset(s);
+    s.recordingStartBeat = anchorBeat - firstOffset;
     s.prevPlaybackBeat = s.prevBeatFloor;
     s.state = LooperState.playing;
     _updateTicker();
     notifyListeners();
     debugPrint(
       '[Looper] _activatePlayback: anchorBeat=$anchorBeat  '
+      'firstOffset=$firstOffset  '
       'recordingStartBeat=${s.recordingStartBeat}  '
       'prevPlaybackBeat=${s.prevPlaybackBeat}  '
       'time=${DateTime.now().millisecondsSinceEpoch}',
     );
+  }
+
+  /// Returns the beat offset of the earliest event across all playable tracks.
+  ///
+  /// Used by [_activatePlayback] to compute the correct [LooperSession.recordingStartBeat]
+  /// so that the first note of the loop fires at the bar downbeat.
+  ///
+  /// Events within each track are already sorted by [_sortTrackEvents], so
+  /// index 0 is the earliest.  Returns 0.0 when no events are found.
+  double _firstEventOffset(LooperSession s) {
+    for (final track in s.tracks) {
+      if (track.lengthInBeats == null || track.events.isEmpty) continue;
+      // Tracks are ordered by recording time (base loop first, then overdubs).
+      // The first non-empty track's first event defines the loop's start.
+      return track.events[0].beatOffset;
+    }
+    return 0.0;
   }
 
   /// Pauses playback without clearing recordings.
