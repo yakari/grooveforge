@@ -5,17 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [X.x.x]
-
-### Added
-- **Single-button looper UX** — REC / PLAY / OVERDUB buttons replaced by one unified LOOP button, mirroring a hardware pedal. Press once to record, again to stop and sync to bar 1, again to queue an overdub at the next loop end, again to stop the overdub. State LCD and button glow communicate the current phase at a glance.
-- **`waitingForOverdub` state** — after pressing LOOP while playing, the engine waits for the loop to wrap back to phase 0 before starting the overdub pass, so overdubs always start in perfect sync.
-- **`looperButtonPress` API** — unified engine method encapsulating the full state-machine step for the single-button workflow (old `toggleRecord`/`togglePlay`/`toggleRecord` calls remain available for CC bindings).
-
-### Fixed
-- **Overdub track deletion not persisted** — deleting an overdub layer now triggers `onDataChanged` (autosave), so deleted tracks no longer reappear after an app restart.
-- **Loop phase after reload** — `_activatePlayback` now re-anchors `recordingStartBeat` to `anchorBeat − firstEventOffset`, so the first note always fires at the bar downbeat regardless of when the recording originally started or whether the project was reloaded.
-- **2-beat audio delay on `waitingForBar` resume** — `_activatePlayback` no longer overwrites `recordingStartBeat` with the downbeat, which was shifting all event phases by the recording pre-roll offset.
+## [2.5.0] - 2026-03-13
 
 ### Added
 - **MIDI Looper (Phase 7.1–7.4)** — new multi-track MIDI looper rack slot (`LooperPluginInstance`) with MIDI IN / MIDI OUT jacks in the patch view. Record MIDI from any connected source, loop it back to instrument slots, and overdub additional layers in parallel.
@@ -29,9 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 20 new localised strings for the looper UI (EN + FR).
 
 ### Fixed
-- **Chord detection off-by-one** — at a downbeat (bar N → bar N+1) `_detectBeatCrossings` was flushing notes stored in bar N into bar N+1's slot because `_currentRelativeBar` already returned the new bar index. The fix computes the bar-just-ended as `(newAbsBar − 1) − recordingBarStart` and passes it explicitly to `_flushBarChord`, so chords are now stored in the correct bar.
-- **Chord not detected in real-time** — chord detection now fires immediately in `feedMidiEvent` as soon as ≥3 distinct pitches are heard in the current bar ("first chord wins"). Bar-boundary flushing is preserved as a fallback and will not overwrite a chord that was already identified live.
-- **Currently-playing bar not highlighted** — the chord grid now highlights the active bar with a green glow during playback. `LooperEngine.currentPlaybackBarForTrack` computes the 0-based bar index from the loop phase (accounting for speed modifiers). `_detectBeatCrossings` notifies listeners on each downbeat even when not recording so the highlight advances in real time.
+- **Linux audio silence after looper repeat** — FluidSynth stdout/stderr were never drained, causing the OS pipe buffer (~64 KB) to fill up after prolonged looper playback. Once full, FluidSynth blocked on its own output writes, stopped reading from stdin, and all note-on/note-off commands silently dropped — producing stuck held notes followed by total silence from all sources (looper, MIDI keyboard, on-screen piano). Fixed by draining both streams immediately after `Process.start` and adding the `-q` (quiet) flag to reduce FluidSynth's output volume.
 - **Save As… crash** — `ProjectService` was registered as `Provider` instead of `ChangeNotifierProvider`, causing an unhandled exception when `context.read<ProjectService>()` was called from `rack_screen.dart`. Fixed by changing to `ChangeNotifierProvider`.
 - **Splash screen ProjectService isolation** — splash screen now uses the shared `Provider`-registered `ProjectService` instance (via `context.read`) instead of creating a local instance, so autosave path and project state are consistent between screens.
 - **Looper not recording from GFK on-screen keys** — on-screen piano key presses for `GrooveForgeKeyboardPlugin` (and other non-VP, non-VST3 slots) now also feed any looper connected via a MIDI OUT cable in the patch view. Previously only `VirtualPianoPlugin` slots dispatched through cables; GFK called FluidSynth directly and bypassed the looper entirely.

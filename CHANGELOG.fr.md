@@ -5,17 +5,7 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/lang/fr/).
 
-## [X.x.x]
-
-### Ajouté
-- **Looper mono-bouton** — les boutons REC / PLAY / OVERDUB sont remplacés par un unique bouton LOOP, à l'image d'une pédale de looper matérielle. Une pression pour enregistrer, une autre pour arrêter l'enregistrement et synchroniser sur la mesure 1, une troisième pour mettre en attente un overdub à la prochaine fin de boucle, une dernière pour l'arrêter. Le badge LCD et le halo du bouton indiquent la phase courante en un coup d'œil.
-- **État `waitingForOverdub`** — après avoir appuyé sur LOOP en lecture, le moteur attend que la boucle revienne en phase 0 avant de lancer l'overdub, assurant une synchronisation parfaite.
-- **API `looperButtonPress`** — méthode moteur unifiée encapsulant la progression de la machine d'état pour le workflow mono-bouton (les anciens appels `toggleRecord`/`togglePlay` restent disponibles pour les assignations CC).
-
-### Corrigé
-- **Suppression d'une piste overdub non persistée** — la suppression d'une couche overdub déclenche désormais `onDataChanged` (sauvegarde automatique), évitant la réapparition des pistes supprimées après redémarrage.
-- **Phase de boucle après rechargement** — `_activatePlayback` recalcule `recordingStartBeat` comme `anchorBeat − firstEventOffset`, de sorte que la première note se déclenche toujours sur le temps fort, indépendamment du moment d'enregistrement ou d'un rechargement de projet.
-- **Retard audio de 2 temps lors d'un `waitingForBar`** — `_activatePlayback` n'écrase plus `recordingStartBeat` avec le temps fort, ce qui décalait toutes les phases d'événements du pré-roll d'enregistrement.
+## [2.5.0] - 2026-03-13
 
 ### Ajouté
 - **Looper MIDI (Phase 7.1–7.4)** — nouveau slot rack looper MIDI multi-piste (`LooperPluginInstance`) avec prises MIDI IN / MIDI OUT dans la vue de câblage. Enregistrez du MIDI depuis n'importe quelle source connectée, bouclez-le vers des slots d'instruments et superposez des couches supplémentaires en parallèle (overdub).
@@ -29,15 +19,14 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 - 20 nouvelles chaînes localisées pour l'interface du looper (EN + FR).
 
 ### Corrigé
+- **Silence audio Linux après répétition du looper** — La sortie stdout/stderr de FluidSynth n'était jamais drainée, ce qui remplissait le buffer pipe OS (~64 Ko) après une utilisation prolongée du looper. Une fois plein, FluidSynth se bloquait sur ses propres écritures de sortie, cessait de lire depuis stdin, et toutes les commandes note-on/note-off étaient silencieusement perdues — produisant des notes bloquées tenues puis un silence total de toutes les sources (looper, clavier MIDI, piano à l'écran). Corrigé en drainant les deux flux immédiatement après `Process.start` et en ajoutant le drapeau `-q` (mode silencieux) pour réduire le volume de sortie de FluidSynth.
 - **Looper n'enregistre pas depuis le clavier GFK à l'écran** — les pressions sur les touches du piano à l'écran pour `GrooveForgeKeyboardPlugin` (et autres slots non-VP, non-VST3) alimentent désormais aussi tout looper connecté via un câble MIDI OUT dans la vue de câblage. Auparavant, seuls les slots `VirtualPianoPlugin` acheminaient via les câbles ; GFK appelait FluidSynth directement et contournait le looper.
 - **Looper n'enregistre pas depuis le MIDI externe (clavier matériel) sur le canal GFK** — `_routeMidiToVst3Plugins` dans `rack_screen.dart` recherche désormais aussi les slots GFK pour le canal MIDI entrant et appelle `_feedMidiToLoopers` en effet de bord, de sorte qu'un contrôleur matériel jouant sur un canal GFK est capturé par un looper connecté. FluidSynth joue toujours en parallèle.
 - **Grille d'accords du looper non actualisée pendant l'enregistrement** — `LooperEngine._detectBeatCrossings` appelle désormais `notifyListeners()` lors d'un flush d'accord à une limite de mesure, permettant à la grille d'accords de `LooperSlotUI` de se mettre à jour en temps réel.
 - **Boucles perdues au redémarrage de l'application** — les rappels de sauvegarde automatique (`rack.onChanged` et `audioGraph.addListener`) sont désormais enregistrés **après** le retour de `loadOrInitDefault` dans `splash_screen.dart`. Auparavant, `audioGraph.notifyListeners()` se déclenchait de manière synchrone pendant `audioGraph.loadFromJson` — avant l'appel de `looperEngine.loadFromJson` — déclenchant une sauvegarde automatique qui capturait un looper vide et écrasait les données de session persistées.
 - **Événements de lecture manqués / notes sautées** — la lecture du looper utilise désormais `LooperSession.prevPlaybackBeat` (le temps de transport réel à la fin du tick précédent) pour définir la fenêtre d'événements. Auparavant, une estimation codée en dur `0.01 × bpm / 60` était utilisée, ce qui faisait sauter silencieusement des événements lorsque le timer Dart se déclenchait tard.
 - **Notes bloquées et dégradation progressive des accords** — les notes tenues au-delà de la limite de boucle (sans note-off enregistrée) ne sonnent plus indéfiniment. `LoopTrack.activePlaybackNotes` suit les notes « actives » pendant la lecture ; au redémarrage de la boucle les note-offs sont envoyés avant la nouvelle itération ; à l'arrêt/pause/stop transport toutes les notes tenues sont silenciées. Élimine le vol de voix FluidSynth qui faisait perdre une note à chaque itération d'un accord de 3 notes.
-
-### Corrigé
-- **Décalage d'un dans la détection d'accord** — à un temps fort (mesure N → N+1), `_detectBeatCrossings` enregistrait les notes de la mesure N dans le slot de la mesure N+1 car `_currentRelativeBar` retournait déjà le nouvel index. Le correctif calcule la mesure qui vient de se terminer via `(newAbsBar − 1) − recordingBarStart` et le transmet explicitement à `_flushBarChord`.
+- **Décalage d'un temps dans la détection d'accord** — à un temps fort (mesure N → N+1), `_detectBeatCrossings` enregistrait les notes de la mesure N dans le slot de la mesure N+1 car `_currentRelativeBar` retournait déjà le nouvel index. Le correctif calcule la mesure qui vient de se terminer via `(newAbsBar − 1) − recordingBarStart` et le transmet explicitement à `_flushBarChord`.
 - **Accord non détecté en temps réel** — la détection d'accord se déclenche désormais immédiatement dans `feedMidiEvent` dès que ≥3 hauteurs distinctes sont entendues dans la mesure courante (« premier accord gagnant »). Le flush en fin de mesure est conservé comme solution de repli et n'écrase pas un accord déjà identifié en temps réel.
 - **Mesure en cours de lecture non mise en évidence** — la grille d'accords met désormais en évidence la mesure active avec un halo vert pendant la lecture. `LooperEngine.currentPlaybackBarForTrack` calcule l'index de mesure 0-basé à partir de la phase de boucle (en tenant compte des modificateurs de vitesse). `_detectBeatCrossings` notifie les écouteurs à chaque temps fort même sans enregistrement actif.
 - **Crash « Enregistrer sous… »** — `ProjectService` était enregistré en tant que `Provider` au lieu de `ChangeNotifierProvider`, provoquant une exception non gérée. Corrigé.

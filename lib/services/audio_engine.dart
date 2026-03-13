@@ -424,7 +424,19 @@ class AudioEngine extends ChangeNotifier {
         'alsa',
         '-m',
         'alsa_seq',
+        '-q', // quiet mode: suppresses the interactive prompt and verbose logs
       ]);
+      // Drain stdout and stderr continuously to prevent a pipe deadlock.
+      //
+      // Without this, FluidSynth's output (interactive prompt lines, command
+      // echo, warnings…) eventually fills the OS pipe buffer (~64 KB on Linux).
+      // When the buffer is full FluidSynth blocks on its next write() call and
+      // stops reading from stdin.  Dart's stdin buffer then fills up, new
+      // note-on / note-off writes silently fail, and all sound stops — while
+      // the last notes that were already queued in the pipe buffer keep ringing
+      // as stuck notes.
+      _fluidSynthProcess!.stdout.listen((_) {});
+      _fluidSynthProcess!.stderr.listen((_) {});
     } else {
       try {
         final session = await AudioSession.instance;
