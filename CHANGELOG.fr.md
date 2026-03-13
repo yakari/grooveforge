@@ -13,6 +13,7 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 - **Chip de quantification dans la bande de transport** — un chip compact "Q:…" (ambre, cycle au tap) a été ajouté à la bande de transport à côté de CLEAR, au niveau du slot. Réglez-le avant d'enregistrer ; la grille s'applique à chaque passe d'enregistrement suivante (première prise et overdubs).
 
 ### Corrigé
+- **Volume des soundfonts trop faible** — le gain par défaut de FluidSynth (0.2) produisait une amplitude d'environ 0.1, bien inférieure à la sortie typique des VST. Porté à 5.0 sur Linux (option CLI `-g 5`) et Android (`synth.gain` dans native-lib.cpp), alignant ainsi le volume des soundfonts sur le reste du graphe audio.
 - **Raccourci Jam Mode "Épingler sous le transport"** — le bouton d'épinglage du slot Jam Mode fonctionne désormais comme prévu. Épingler un slot Jam Mode insère une bande compacte (nom du slot · LED ON/OFF · LCD de gamme en temps réel) directement sous la barre de transport pour un contrôle rapide sans faire défiler jusqu'au rack. L'état d'épinglage est persisté dans les fichiers `.gf`.
 - **Raccourci looper "Épingler sous le transport"** — le bouton d'épinglage du slot looper fonctionne désormais comme prévu. Épingler un looper insère une bande de contrôle compacte (nom du slot · LOOP · STOP · CLEAR · chip Q · LCD d'état) directement sous la barre de transport afin que l'utilisateur puisse contrôler le looper depuis n'importe quel endroit sans faire défiler jusqu'à son slot dans le rack.
 

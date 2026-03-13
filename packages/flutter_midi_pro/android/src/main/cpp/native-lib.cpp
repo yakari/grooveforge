@@ -12,7 +12,9 @@ int nextSfId = 1;
 extern "C" JNIEXPORT int JNICALL
 Java_com_melihhakanpektas_flutter_1midi_1pro_FlutterMidiProPlugin_loadSoundfont(JNIEnv* env, jclass clazz, jstring path, jint bank, jint program) {
     settings[nextSfId] = new_fluid_settings();
-    fluid_settings_setnum(settings[nextSfId], "synth.gain", 1.0);
+    // FluidSynth's default gain is 0.2, which produces ~0.1 amplitude — far
+    // quieter than typical plugin/VST output (~0.3–0.5). 5.0 brings it in line.
+    fluid_settings_setnum(settings[nextSfId], "synth.gain", 5.0);
     // sayısal değerleri uygun setter ile ayarla
     fluid_settings_setint(settings[nextSfId], "audio.period-size", 64);
     fluid_settings_setint(settings[nextSfId], "audio.periods", 2);

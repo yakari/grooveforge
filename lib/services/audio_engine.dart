@@ -424,6 +424,10 @@ class AudioEngine extends ChangeNotifier {
         'alsa',
         '-m',
         'alsa_seq',
+        '-g',
+        '5', // synth gain — FluidSynth's default (0.2) produces ~0.1 amplitude,
+             // far quieter than typical VST output (~0.3-0.5). 5.0 brings the
+             // FluidSynth level in line with the rest of the audio graph.
         '-q', // quiet mode: suppresses the interactive prompt and verbose logs
       ]);
       // Drain stdout and stderr continuously to prevent a pipe deadlock.
