@@ -8,6 +8,16 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 ## [X.x.x]
 
 ### Ajouté
+- **Looper mono-bouton** — les boutons REC / PLAY / OVERDUB sont remplacés par un unique bouton LOOP, à l'image d'une pédale de looper matérielle. Une pression pour enregistrer, une autre pour arrêter l'enregistrement et synchroniser sur la mesure 1, une troisième pour mettre en attente un overdub à la prochaine fin de boucle, une dernière pour l'arrêter. Le badge LCD et le halo du bouton indiquent la phase courante en un coup d'œil.
+- **État `waitingForOverdub`** — après avoir appuyé sur LOOP en lecture, le moteur attend que la boucle revienne en phase 0 avant de lancer l'overdub, assurant une synchronisation parfaite.
+- **API `looperButtonPress`** — méthode moteur unifiée encapsulant la progression de la machine d'état pour le workflow mono-bouton (les anciens appels `toggleRecord`/`togglePlay` restent disponibles pour les assignations CC).
+
+### Corrigé
+- **Suppression d'une piste overdub non persistée** — la suppression d'une couche overdub déclenche désormais `onDataChanged` (sauvegarde automatique), évitant la réapparition des pistes supprimées après redémarrage.
+- **Phase de boucle après rechargement** — `_activatePlayback` recalcule `recordingStartBeat` comme `anchorBeat − firstEventOffset`, de sorte que la première note se déclenche toujours sur le temps fort, indépendamment du moment d'enregistrement ou d'un rechargement de projet.
+- **Retard audio de 2 temps lors d'un `waitingForBar`** — `_activatePlayback` n'écrase plus `recordingStartBeat` avec le temps fort, ce qui décalait toutes les phases d'événements du pré-roll d'enregistrement.
+
+### Ajouté
 - **Looper MIDI (Phase 7.1–7.4)** — nouveau slot rack looper MIDI multi-piste (`LooperPluginInstance`) avec prises MIDI IN / MIDI OUT dans la vue de câblage. Enregistrez du MIDI depuis n'importe quelle source connectée, bouclez-le vers des slots d'instruments et superposez des couches supplémentaires en parallèle (overdub).
 - **Service LooperEngine** — moteur de lecture précis à 10 ms avec quantisation de longueur de boucle à la mesure, synchro intelligente sur le temps fort, modificateurs de piste indépendants (mute / inversé / demi-vitesse / double vitesse), et détection d'accord par mesure via `ChordDetector`. Machine d'état : idle → armé → enregistrement → lecture → overdub.
 - **Modèle LoopTrack** — chronologie d'événements MIDI sérialisable avec horodatages en temps-battement, modificateurs de vitesse, drapeau inversé, état muet et grille d'accords par mesure (`Map<int, String?>`).

@@ -1568,6 +1568,12 @@ abstract class AppLocalizations {
   /// **'Waiting for bar 1…'**
   String get looperWaitingForBar;
 
+  /// No description provided for @looperWaitingForOverdub.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for loop end…'**
+  String get looperWaitingForOverdub;
+
   /// No description provided for @looperTrack.
   ///
   /// In en, this message translates to:

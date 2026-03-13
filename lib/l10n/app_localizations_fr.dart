@@ -823,6 +823,9 @@ class AppLocalizationsFr extends AppLocalizations {
   String get looperWaitingForBar => 'En attente de la mesure 1…';
 
   @override
+  String get looperWaitingForOverdub => 'En attente de la fin de boucle…';
+
+  @override
   String looperTrack(int n) {
     return 'Piste $n';
   }

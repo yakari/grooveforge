@@ -818,6 +818,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get looperWaitingForBar => 'Waiting for bar 1…';
 
   @override
+  String get looperWaitingForOverdub => 'Waiting for loop end…';
+
+  @override
   String looperTrack(int n) {
     return 'Track $n';
   }

@@ -328,6 +328,7 @@
   "looperOverdub": "Overdub",
   "looperArmed": "Armé — en attente du transport",
   "looperWaitingForBar": "En attente de la mesure 1…",
+  "looperWaitingForOverdub": "En attente de la fin de boucle…",
   "looperTrack": "Piste {n}",
   "@looperTrack": {
     "placeholders": {

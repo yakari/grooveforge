@@ -67,10 +67,14 @@ class _LooperSlotUIState extends State<LooperSlotUI> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // ── Transport strip (REC / PLAY / STOP / CLEAR + state LCD) ────────
+          // ── Transport strip (LOOP / STOP / CLEAR + state LCD) ──────────────
           _TransportStrip(
             slotId: widget.plugin.id,
             state: session?.state ?? LooperState.idle,
+            hasContent: session?.tracks
+                    .any((t) =>
+                        t.lengthInBeats != null && t.events.isNotEmpty) ??
+                false,
             engine: engine,
             l10n: l10n,
           ),
@@ -97,69 +101,59 @@ class _LooperSlotUIState extends State<LooperSlotUI> {
 
 // ── Transport strip ───────────────────────────────────────────────────────────
 
-/// The main control row: REC · PLAY · STOP · CLEAR + state LCD badge.
+/// The main control row: LOOP button · STOP · CLEAR + state LCD.
+///
+/// The LOOP button is the single-action control, mirroring a hardware looper
+/// pedal.  Its icon and colour reflect the *next* action:
+///
+/// | State              | Icon         | Colour  | Press effect          |
+/// |--------------------|--------------|---------|------------------------|
+/// | idle               | ● record     | red     | arm / start recording  |
+/// | armed              | ● record     | yellow  | cancel arm             |
+/// | recording          | ■ stop       | red     | stop → waitingForBar   |
+/// | waitingForBar      | ■ stop       | yellow  | cancel → idle          |
+/// | playing            | ◎ layers     | amber   | queue overdub          |
+/// | waitingForOverdub  | ◎ layers     | amber   | cancel overdub queue   |
+/// | overdubbing        | ■ stop       | amber   | stop overdub → playing |
 class _TransportStrip extends StatelessWidget {
   final String slotId;
   final LooperState state;
+
+  /// True when the session has at least one completed, non-empty track.
+  /// Used to show a play button instead of a record button when idle with
+  /// existing content (e.g. after stop or after a project reload).
+  final bool hasContent;
+
   final LooperEngine engine;
   final AppLocalizations l10n;
 
   const _TransportStrip({
     required this.slotId,
     required this.state,
+    required this.hasContent,
     required this.engine,
     required this.l10n,
   });
 
   @override
   Widget build(BuildContext context) {
+    final (loopIcon, loopColor, loopActive, loopTooltip) = _loopButtonProps();
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
         children: [
-          // REC button — first recording pass only (not shown when playing).
-          // Pressing it while idle/armed starts a new first-pass recording.
-          // Pressing while recording stops and begins playback.
+          // Single LOOP button — the only recording/playback control.
           _TransportButton(
-            icon: Icons.fiber_manual_record,
-            color: _kRecColor,
-            active: state == LooperState.recording ||
-                state == LooperState.armed,
-            tooltip: l10n.looperRecord,
-            onTap: state == LooperState.playing ||
-                    state == LooperState.overdubbing
-                ? () {} // disabled during play/OD — use OD button instead
-                : () => engine.toggleRecord(slotId),
+            icon: loopIcon,
+            color: loopColor,
+            active: loopActive,
+            tooltip: loopTooltip,
+            onTap: () => engine.looperButtonPress(slotId),
           ),
           const SizedBox(width: 6),
 
-          // PLAY button — toggles playback.
-          _TransportButton(
-            icon: Icons.play_arrow,
-            color: _kPlayColor,
-            active: state == LooperState.playing ||
-                state == LooperState.overdubbing ||
-                state == LooperState.waitingForBar,
-            tooltip: l10n.looperPlay,
-            onTap: () => engine.togglePlay(slotId),
-          ),
-          const SizedBox(width: 6),
-
-          // OVERDUB button — amber, enabled only when a loop is playing.
-          // Starts a new layer recording on top of the existing playback.
-          _TransportButton(
-            icon: Icons.layers,
-            color: _kOdColor,
-            active: state == LooperState.overdubbing,
-            tooltip: l10n.looperOverdub,
-            onTap: state == LooperState.playing ||
-                    state == LooperState.overdubbing
-                ? () => engine.toggleRecord(slotId)
-                : () {}, // no-op when idle — must be playing first
-          ),
-          const SizedBox(width: 6),
-
-          // STOP — always available, neutral colour.
+          // STOP — always available; stops playback without clearing tracks.
           _TransportButton(
             icon: Icons.stop,
             color: Colors.white54,
@@ -169,7 +163,7 @@ class _TransportStrip extends StatelessWidget {
           ),
           const SizedBox(width: 6),
 
-          // CLEAR — erases all tracks.
+          // CLEAR — erases all tracks and resets to idle.
           _TransportButton(
             icon: Icons.delete_outline,
             color: Colors.white38,
@@ -186,6 +180,70 @@ class _TransportStrip extends StatelessWidget {
       ),
     );
   }
+
+  /// Returns (icon, color, active, tooltip) for the LOOP button given [state].
+  ///
+  /// Icon intent: shows what pressing the button will DO next.
+  ///   ● record     — press to start recording
+  ///   ► play       — press to stop recording and begin playback
+  ///   ◎ overdub    — press to queue (or cancel) an overdub layer
+  ///   ■ stop       — press to abort the current overdub early
+  (IconData, Color, bool, String) _loopButtonProps() => switch (state) {
+        // Idle: two sub-cases based on whether tracks exist.
+        //   • No tracks → record button (red): press to start recording.
+        //   • Has tracks → play button (green): press to resume at bar 1.
+        LooperState.idle => hasContent
+            ? (Icons.play_circle, _kPlayColor, false, l10n.looperPlay)
+            : (
+                Icons.fiber_manual_record,
+                _kRecColor,
+                false,
+                l10n.looperRecord,
+              ),
+        // Armed, waiting for transport — press to cancel.
+        LooperState.armed => (
+            Icons.fiber_manual_record,
+            _kArmedColor,
+            true,
+            l10n.looperRecord,
+          ),
+        // Recording — press to stop recording and start playback.
+        // play_circle communicates the outcome (playback will begin).
+        LooperState.recording => (
+            Icons.play_circle,
+            _kRecColor,
+            true,
+            l10n.looperPlay,
+          ),
+        // First recording done; syncing to bar 1 — same icon, armed colour.
+        LooperState.waitingForBar => (
+            Icons.play_circle,
+            _kArmedColor,
+            true,
+            l10n.looperPlay,
+          ),
+        // Playing cleanly — press to queue an overdub at next loop end.
+        LooperState.playing => (
+            Icons.layers,
+            _kOdColor,
+            false,
+            l10n.looperOverdub,
+          ),
+        // Overdub queued, still playing — press to cancel the queue.
+        LooperState.waitingForOverdub => (
+            Icons.layers,
+            _kOdColor,
+            true,
+            l10n.looperOverdub,
+          ),
+        // Overdubbing — press to abort early (auto-stops at loop end anyway).
+        LooperState.overdubbing => (
+            Icons.stop,
+            _kOdColor,
+            true,
+            l10n.looperStop,
+          ),
+      };
 }
 
 // ── Transport button ──────────────────────────────────────────────────────────
@@ -283,6 +341,8 @@ class _StateLcd extends StatelessWidget {
         LooperState.waitingForBar =>
           (l10n.looperWaitingForBar.toUpperCase(), _kArmedColor),
         LooperState.playing => (l10n.looperPlay.toUpperCase(), _kPlayColor),
+        LooperState.waitingForOverdub =>
+          (l10n.looperWaitingForOverdub.toUpperCase(), _kOdColor),
         LooperState.overdubbing =>
           (l10n.looperOverdub.toUpperCase(), _kOdColor),
       };

@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [X.x.x]
 
 ### Added
+- **Single-button looper UX** — REC / PLAY / OVERDUB buttons replaced by one unified LOOP button, mirroring a hardware pedal. Press once to record, again to stop and sync to bar 1, again to queue an overdub at the next loop end, again to stop the overdub. State LCD and button glow communicate the current phase at a glance.
+- **`waitingForOverdub` state** — after pressing LOOP while playing, the engine waits for the loop to wrap back to phase 0 before starting the overdub pass, so overdubs always start in perfect sync.
+- **`looperButtonPress` API** — unified engine method encapsulating the full state-machine step for the single-button workflow (old `toggleRecord`/`togglePlay`/`toggleRecord` calls remain available for CC bindings).
+
+### Fixed
+- **Overdub track deletion not persisted** — deleting an overdub layer now triggers `onDataChanged` (autosave), so deleted tracks no longer reappear after an app restart.
+- **Loop phase after reload** — `_activatePlayback` now re-anchors `recordingStartBeat` to `anchorBeat − firstEventOffset`, so the first note always fires at the bar downbeat regardless of when the recording originally started or whether the project was reloaded.
+- **2-beat audio delay on `waitingForBar` resume** — `_activatePlayback` no longer overwrites `recordingStartBeat` with the downbeat, which was shifting all event phases by the recording pre-roll offset.
+
+### Added
 - **MIDI Looper (Phase 7.1–7.4)** — new multi-track MIDI looper rack slot (`LooperPluginInstance`) with MIDI IN / MIDI OUT jacks in the patch view. Record MIDI from any connected source, loop it back to instrument slots, and overdub additional layers in parallel.
 - **LooperEngine service** — beat-accurate 10 ms playback engine with bar-quantised loop lengths, smart downbeat sync, per-track mute/reverse/half-speed/double-speed modifiers, and per-bar chord detection via `ChordDetector`. State machine: idle → armed → recording → playing → overdubbing.
 - **LoopTrack model** — serialisable MIDI event timeline with beat-offset timestamps, speed modifiers, reverse flag, mute state, and a per-bar chord grid (`Map<int, String?>`).

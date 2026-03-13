@@ -328,6 +328,7 @@
   "looperOverdub": "Overdub",
   "looperArmed": "Armed — waiting for transport",
   "looperWaitingForBar": "Waiting for bar 1…",
+  "looperWaitingForOverdub": "Waiting for loop end…",
   "looperTrack": "Track {n}",
   "@looperTrack": {
     "placeholders": {

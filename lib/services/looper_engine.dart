@@ -12,20 +12,32 @@ import 'transport_engine.dart';
 ///
 /// Transitions:
 /// ```
-/// idle ──► armed ──► recording ──► playing
-///                                     │
-///                                     ▼
-///                              overdubbing ──► playing
+/// idle ──► armed ──► recording ──► waitingForBar ──► playing
+///                                                        │
+///                                  waitingForOverdub ◄──┤
+///                                         │             │
+///                                         ▼             │
+///                                   overdubbing ────────┘
 /// ```
-/// • [idle]           — no loop recorded yet; engine is quiescent.
-/// • [armed]          — transport is stopped; engine will start recording
-///                      as soon as the transport plays.
-/// • [recording]      — actively accumulating MIDI events.
-/// • [waitingForBar]  — play was requested mid-bar; engine is counting
-///                      beats until the next bar 1 before starting.
-/// • [playing]        — replaying the recorded events in a loop.
-/// • [overdubbing]    — replaying AND accumulating new events on top.
-enum LooperState { idle, armed, recording, waitingForBar, playing, overdubbing }
+/// • [idle]               — no loop recorded yet; engine is quiescent.
+/// • [armed]              — transport is stopped; engine will start recording
+///                          as soon as the transport plays.
+/// • [recording]          — actively accumulating MIDI events.
+/// • [waitingForBar]      — first recording done; engine counts beats until
+///                          the next bar-1 downbeat before starting playback.
+/// • [playing]            — replaying the recorded events in a loop.
+/// • [waitingForOverdub]  — playing AND waiting for the loop to wrap back to
+///                          phase 0 before starting the next overdub pass.
+/// • [overdubbing]        — replaying AND accumulating new events on top.
+enum LooperState {
+  idle,
+  armed,
+  recording,
+  waitingForBar,
+  playing,
+  waitingForOverdub,
+  overdubbing,
+}
 
 // ── CC action ─────────────────────────────────────────────────────────────────
 
@@ -107,7 +119,9 @@ class LooperSession {
 
   /// True when the slot should be firing recorded MIDI events.
   bool get isPlayingActive =>
-      state == LooperState.playing || state == LooperState.overdubbing;
+      state == LooperState.playing ||
+      state == LooperState.waitingForOverdub ||
+      state == LooperState.overdubbing;
 
   /// The track that is currently being written to (recording / overdub pass),
   /// or null if no recording is in progress.
@@ -426,11 +440,81 @@ class LooperEngine extends ChangeNotifier {
   /// Pauses playback without clearing recordings.
   void pausePlayback(String slotId) {
     final s = _requireSession(slotId);
-    if (s.state != LooperState.playing) return;
+    // Accept playing and waitingForOverdub; overdubbing is handled via stop.
+    if (s.state != LooperState.playing &&
+        s.state != LooperState.waitingForOverdub) {
+      return;
+    }
     s.state = LooperState.idle;
     // Release any notes that were held during playback so they do not ring
     // indefinitely after the looper stops.
     _silenceAllTracks(slotId, s);
+    _updateTicker();
+    notifyListeners();
+  }
+
+  // ── Single-button looper action ────────────────────────────────────────
+
+  /// Hardware-looper–style single-button action.
+  ///
+  /// Each press advances the state machine one step forward (or cancels the
+  /// current pending action):
+  ///
+  /// | Current state        | Press action                                  |
+  /// |----------------------|-----------------------------------------------|
+  /// | idle                 | arm / start first recording                   |
+  /// | armed                | cancel arm → idle                             |
+  /// | recording            | stop recording → waitingForBar (→ playing)    |
+  /// | waitingForBar        | cancel → idle                                 |
+  /// | playing              | queue overdub at next loop end                |
+  /// | waitingForOverdub    | cancel overdub queue → playing                |
+  /// | overdubbing          | stop overdub → playing                        |
+  void looperButtonPress(String slotId) {
+    final s = _requireSession(slotId);
+    switch (s.state) {
+      case LooperState.idle:
+        // If tracks already exist (restored from save, or after stop), resume
+        // playback at the next bar boundary.  Only start a new recording when
+        // the slot is truly empty.
+        final hasContent = s.tracks
+            .any((t) => t.lengthInBeats != null && t.events.isNotEmpty);
+        if (hasContent) {
+          startPlayback(slotId);
+        } else {
+          startRecording(slotId);
+        }
+      case LooperState.armed:
+        stop(slotId);
+      case LooperState.recording:
+        stopRecording(slotId);
+      case LooperState.waitingForBar:
+        stop(slotId);
+      case LooperState.playing:
+        _queueOverdub(slotId);
+      case LooperState.waitingForOverdub:
+        _cancelOverdubQueue(slotId);
+      case LooperState.overdubbing:
+        stopRecording(slotId);
+    }
+  }
+
+  /// Transitions a [playing] session to [waitingForOverdub].
+  ///
+  /// The session keeps playing until the loop wraps back to phase 0, at which
+  /// point [_checkLoopEnd] automatically starts the overdub recording pass.
+  void _queueOverdub(String slotId) {
+    final s = _requireSession(slotId);
+    if (s.state != LooperState.playing) return;
+    s.state = LooperState.waitingForOverdub;
+    _updateTicker();
+    notifyListeners();
+  }
+
+  /// Cancels a pending overdub queue and returns to [playing].
+  void _cancelOverdubQueue(String slotId) {
+    final s = _requireSession(slotId);
+    if (s.state != LooperState.waitingForOverdub) return;
+    s.state = LooperState.playing;
     _updateTicker();
     notifyListeners();
   }
@@ -440,6 +524,7 @@ class LooperEngine extends ChangeNotifier {
     final s = _requireSession(slotId);
     switch (s.state) {
       case LooperState.playing:
+      case LooperState.waitingForOverdub:
         pausePlayback(slotId);
       case LooperState.idle:
         startPlayback(slotId);
@@ -577,10 +662,17 @@ class LooperEngine extends ChangeNotifier {
   }
 
   /// Removes [trackId] from [slotId].
+  ///
+  /// Triggers [onDataChanged] so the project is autosaved — without this,
+  /// a deleted overdub track would reappear after an app restart.
   void removeTrack(String slotId, String trackId) {
     final s = _sessions[slotId];
-    s?.tracks.removeWhere((t) => t.id == trackId);
+    if (s == null) return;
+    s.tracks.removeWhere((t) => t.id == trackId);
+    // If all tracks are gone, reset to idle so the slot behaves like new.
+    if (s.tracks.isEmpty) s.state = LooperState.idle;
     notifyListeners();
+    onDataChanged?.call();
   }
 
   // ── Transport-arm bridge ───────────────────────────────────────────────
@@ -736,6 +828,7 @@ class LooperEngine extends ChangeNotifier {
   /// Starts or stops the 10 ms playback ticker based on whether any session
   /// is actively recording or playing.
   void _updateTicker() {
+    // isPlayingActive already covers waitingForOverdub.
     final needsTicker = _sessions.values.any(
       (s) =>
           s.isPlayingActive ||
@@ -779,6 +872,7 @@ class LooperEngine extends ChangeNotifier {
       if (s.isPlayingActive ||
           s.isRecordingActive ||
           s.state == LooperState.waitingForBar) {
+        // isPlayingActive already covers waitingForOverdub.
         s.state = LooperState.idle;
         _silenceAllTracks(entry.key, s);
         changed = true;
@@ -809,12 +903,67 @@ class LooperEngine extends ChangeNotifier {
           _tickTrack(slotId, session, track, currentBeat);
         }
       }
+
+      // Check for loop-boundary transitions.  Must run AFTER _tickTrack so
+      // prevPlaybackBeat still holds the pre-tick value needed for wrap
+      // detection (session.prevPlaybackBeat is updated at the end of this
+      // method, after this block).
+      if (session.state == LooperState.waitingForOverdub) {
+        _checkLoopEnd(session, currentBeat);
+      } else if (session.state == LooperState.overdubbing && slotId != null) {
+        _checkOverdubEnd(session, currentBeat, slotId);
+      }
     }
 
     // Advance the stored beat so the next tick has an accurate previous
     // position.  Updated even when not playing so it is fresh when playback
     // resumes (avoids a large catch-up window on the very first playing tick).
     session.prevPlaybackBeat = currentBeat;
+  }
+
+  /// Returns true if the loop phase wrapped between the previous tick and now.
+  ///
+  /// Uses the first completed track's length as the canonical loop length.
+  /// The same wrap-detection logic as [_tickTrack]: prevPhase > currentPhase
+  /// means the phase counter rolled over from near [loopLen] back to 0.
+  bool _loopJustWrapped(LooperSession session, double currentBeat) {
+    LoopTrack? ref;
+    for (final t in session.tracks) {
+      if (t.lengthInBeats != null) {
+        ref = t;
+        break;
+      }
+    }
+    if (ref == null) return false;
+
+    final effectiveLen = ref.lengthInBeats! / speedMultiplier(ref.speed);
+    final prevPhase =
+        (session.prevPlaybackBeat - session.recordingStartBeat) % effectiveLen;
+    final currentPhase =
+        (currentBeat - session.recordingStartBeat) % effectiveLen;
+    return prevPhase > currentPhase;
+  }
+
+  /// Starts the queued overdub pass when the loop wraps back to phase 0.
+  ///
+  /// Called from [_tickSession] when [LooperState.waitingForOverdub].
+  void _checkLoopEnd(LooperSession session, double currentBeat) {
+    if (!_loopJustWrapped(session, currentBeat)) return;
+    _beginRecordingPass(session);
+    session.state = LooperState.overdubbing;
+    notifyListeners();
+  }
+
+  /// Auto-stops the current overdub pass when the loop completes one full
+  /// cycle, returning to [LooperState.playing].
+  ///
+  /// Called from [_tickSession] when [LooperState.overdubbing].  This mirrors
+  /// real hardware loopers where an overdub automatically ends at the same
+  /// loop boundary it started on — no manual button press required.
+  void _checkOverdubEnd(
+      LooperSession session, double currentBeat, String slotId) {
+    if (!_loopJustWrapped(session, currentBeat)) return;
+    stopRecording(slotId);
   }
 
   /// Checks whether a bar-1 downbeat has arrived while the session is in
