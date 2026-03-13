@@ -3,6 +3,7 @@ import 'dart:math' show min;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../models/chord_detector.dart';
 import '../../models/gfpa_plugin_instance.dart';
 import '../../models/grooveforge_keyboard_plugin.dart';
@@ -139,6 +140,10 @@ class GFpaJamModeSlotUI extends StatelessWidget {
                       onUpdate: _update,
                     ),
                   ),
+
+                  // ── Pin toggle ────────────────────────────────────────────
+                  Container(height: 1, color: _kSeparator),
+                  _JamModePinToggle(plugin: plugin),
                 ],
               ),
             );
@@ -1226,6 +1231,363 @@ class _VisualToggle extends StatelessWidget {
             color: active ? color : Colors.white30,
           ),
         ),
+      ),
+    );
+  }
+}
+
+// ─── Pin toggle ───────────────────────────────────────────────────────────────
+
+/// A small row that toggles whether this Jam Mode slot is pinned below
+/// the transport bar for quick access.
+class _JamModePinToggle extends StatelessWidget {
+  const _JamModePinToggle({required this.plugin});
+
+  final GFpaPluginInstance plugin;
+
+  @override
+  Widget build(BuildContext context) {
+    final rack = context.read<RackState>();
+    final l10n = AppLocalizations.of(context)!;
+    final pinned = plugin.pinned;
+
+    return GestureDetector(
+      onTap: () => rack.toggleJamModePinned(plugin.id),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              pinned ? Icons.push_pin : Icons.push_pin_outlined,
+              size: 13,
+              color: pinned ? _kLcdAmber : Colors.white24,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              l10n.jamModePinBelow,
+              style: TextStyle(
+                color: pinned ? _kLcdAmber : Colors.white38,
+                fontSize: 10,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Pinned jam mode bar ──────────────────────────────────────────────────────
+
+/// Compact one-liner control strip rendered just below the transport bar for
+/// every Jam Mode [GFpaPluginInstance] that has `pinned == true`.
+///
+/// Shows: slot name · LED (ON/OFF) · scale LCD.
+///
+/// Place this widget between [TransportBar] and the rack list in the screen
+/// scaffold.
+class PinnedJamModeBar extends StatelessWidget {
+  const PinnedJamModeBar({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final rack = context.watch<RackState>();
+    final engine = context.watch<AudioEngine>();
+
+    final pinned = rack.plugins
+        .whereType<GFpaPluginInstance>()
+        .where((p) =>
+            p.pluginId == 'com.grooveforge.jammode' && p.pinned)
+        .toList();
+
+    if (pinned.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      color: _kPanelBg,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(height: 1, color: _kPanelBorder),
+          for (final plugin in pinned)
+            _PinnedJamModeRow(plugin: plugin, engine: engine),
+        ],
+      ),
+    );
+  }
+}
+
+/// One compact row inside [PinnedJamModeBar] for a single Jam Mode slot.
+///
+/// Shows: slot name · LED toggle · scale LCD (live scale name).
+class _PinnedJamModeRow extends StatelessWidget {
+  const _PinnedJamModeRow({
+    required this.plugin,
+    required this.engine,
+  });
+
+  final GFpaPluginInstance plugin;
+  final AudioEngine engine;
+
+  bool get _enabled => plugin.state['enabled'] != false;
+
+  @override
+  Widget build(BuildContext context) {
+    final rack = context.read<RackState>();
+    final enabled = _enabled;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      child: Row(
+        children: [
+          // Slot name.
+          Text(
+            plugin.displayName,
+            style: const TextStyle(
+              color: _kLcdAmber,
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 0.8,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Container(width: 1, height: 20, color: _kPanelBorder),
+          const SizedBox(width: 10),
+
+          // Compact LED toggle — ON / OFF.
+          GestureDetector(
+            onTap: () =>
+                rack.setJamModeEnabled(plugin.id, enabled: !enabled),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: enabled
+                    ? _kLedOn.withValues(alpha: 0.12)
+                    : Colors.white.withValues(alpha: 0.04),
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(
+                  color: enabled ? _kLedOn : Colors.white24,
+                ),
+                boxShadow: enabled
+                    ? [
+                        BoxShadow(
+                          color: _kLedOn.withValues(alpha: 0.3),
+                          blurRadius: 6,
+                        )
+                      ]
+                    : [],
+              ),
+              child: Text(
+                enabled ? 'ON' : 'OFF',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
+                  color: enabled ? _kLedOn : Colors.white38,
+                  letterSpacing: 0.8,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+
+          // Live scale LCD.
+          Expanded(
+            child: _PinnedScaleLcd(
+              plugin: plugin,
+              engine: engine,
+              enabled: enabled,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Live scale-name LCD used inside [_PinnedJamModeRow].
+///
+/// Reacts to chord / active-note changes on the master channel so the pinned
+/// bar always shows the current scale without polling.
+class _PinnedScaleLcd extends StatelessWidget {
+  const _PinnedScaleLcd({
+    required this.plugin,
+    required this.engine,
+    required this.enabled,
+  });
+
+  final GFpaPluginInstance plugin;
+  final AudioEngine engine;
+  final bool enabled;
+
+  /// Reads the current scale type directly from [plugin.state] so that every
+  /// build — whether triggered by a parent rebuild or by the live listenables
+  /// inside this widget — always sees the latest value rather than a snapshot
+  /// that was fixed at construction time.
+  ScaleType get _scaleType {
+    final s = plugin.state['scaleType'] as String?;
+    if (s == null) return ScaleType.standard;
+    return ScaleType.values.firstWhere(
+      (v) => v.name == s,
+      orElse: () => ScaleType.standard,
+    );
+  }
+
+  // Mirrors the label map from _ScaleLcdSelector.
+  static const _scaleLabels = {
+    ScaleType.standard: 'Standard',
+    ScaleType.pentatonic: 'Pentatonic',
+    ScaleType.blues: 'Blues',
+    ScaleType.rock: 'Rock',
+    ScaleType.jazz: 'Jazz',
+    ScaleType.dorian: 'Dorian',
+    ScaleType.mixolydian: 'Mixolydian',
+    ScaleType.harmonicMinor: 'Harm. Minor',
+    ScaleType.melodicMinor: 'Mel. Minor',
+    ScaleType.classical: 'Classical',
+    ScaleType.asiatic: 'Asiatic',
+    ScaleType.oriental: 'Oriental',
+    ScaleType.wholeTone: 'Whole Tone',
+    ScaleType.diminished: 'Diminished',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final rack = context.read<RackState>();
+
+    // No master slot — show a non-interactive placeholder.
+    if (plugin.masterSlotId == null) {
+      return _popupWrapper(context, rack, _lcdBox('— NO MASTER —'));
+    }
+
+    // Resolve master slot → 0-based channel index used by the engine.
+    final masterSlot = rack.plugins
+        .cast<PluginInstance?>()
+        .firstWhere((p) => p?.id == plugin.masterSlotId, orElse: () => null);
+    if (masterSlot == null) {
+      return _popupWrapper(context, rack, _lcdBox('— — —'));
+    }
+    final masterCh = (masterSlot.midiChannel.clamp(1, 16)) - 1;
+
+    return ListenableBuilder(
+      listenable: Listenable.merge([
+        engine.gfpaJamEntries,
+        engine.channels[masterCh].lastChord,
+        engine.channels[masterCh].activeNotes,
+      ]),
+      builder: (context, _) {
+        final entry = engine.gfpaJamEntries.value
+            .where((e) => e.masterCh == masterCh)
+            .firstOrNull;
+
+        if (entry == null) {
+          return _popupWrapper(context, rack, _lcdBox('— — —'));
+        }
+
+        const taggedTypes = {
+          ScaleType.standard,
+          ScaleType.jazz,
+          ScaleType.classical,
+          ScaleType.asiatic,
+          ScaleType.oriental,
+        };
+        final rawTag = _scaleLabels[entry.scaleType] ?? entry.scaleType.name;
+        final typeTag =
+            taggedTypes.contains(entry.scaleType) ? ' [$rawTag]' : '';
+
+        String label;
+        if (entry.bassNoteMode) {
+          final active = engine.channels[masterCh].activeNotes.value;
+          if (active.isNotEmpty) {
+            final rootPc = active.reduce(min) % 12;
+            final synth =
+                ChordMatch(_noteNameFromPc(rootPc), const {}, rootPc, false);
+            label =
+                '${_noteNameFromPc(rootPc)} ${engine.getDescriptiveScaleName(synth, entry.scaleType)}$typeTag';
+          } else {
+            label =
+                '${engine.getDescriptiveScaleName(null, entry.scaleType)}$typeTag';
+          }
+        } else {
+          final chord = engine.channels[masterCh].lastChord.value;
+          final scalePart = chord != null
+              ? '${_noteNameFromPc(chord.rootPc)} ${engine.getDescriptiveScaleName(chord, entry.scaleType)}'
+              : engine.getDescriptiveScaleName(null, entry.scaleType);
+          label = '$scalePart$typeTag';
+        }
+
+        return _popupWrapper(context, rack, _lcdBox(label));
+      },
+    );
+  }
+
+  /// Wraps [child] in a [PopupMenuButton] that lets the user pick a new scale
+  /// type — identical behaviour to the full-rack [_ScaleLcdSelector].
+  Widget _popupWrapper(BuildContext context, RackState rack, Widget child) {
+    return Tooltip(
+      message:
+          'Tap to change scale type\nCurrent: ${_scaleLabels[_scaleType] ?? _scaleType.name}',
+      child: PopupMenuButton<ScaleType>(
+        color: const Color(0xFF1C1C1C),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+        onSelected: (s) => rack.setGfpaPluginState(
+          plugin.id,
+          {...plugin.state, 'scaleType': s.name},
+        ),
+        itemBuilder: (_) => [
+          for (final s in ScaleType.values)
+            PopupMenuItem(
+              value: s,
+              height: 32,
+              child: Row(
+                children: [
+                  if (s == _scaleType)
+                    const Icon(Icons.check, size: 11, color: _kLcdAmber)
+                  else
+                    const SizedBox(width: 11),
+                  const SizedBox(width: 6),
+                  Text(
+                    _scaleLabels[s] ?? s.name,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: s == _scaleType ? _kLcdAmber : Colors.white70,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+        child: child,
+      ),
+    );
+  }
+
+  Widget _lcdBox(String text) {
+    return _LcdContainer(
+      enabled: enabled,
+      child: Row(
+        children: [
+          Flexible(
+            child: Text(
+              text.toUpperCase(),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                color: enabled ? _kLcdAmber : _kLcdAmber.withValues(alpha: 0.25),
+                letterSpacing: 1.2,
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
+          // Edit chevron hints that the LCD is tappable.
+          Icon(
+            Icons.edit,
+            size: 9,
+            color: enabled ? _kLcdAmber.withValues(alpha: 0.5) : Colors.white12,
+          ),
+        ],
       ),
     );
   }

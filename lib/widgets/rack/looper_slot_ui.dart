@@ -67,7 +67,7 @@ class _LooperSlotUIState extends State<LooperSlotUI> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // ── Transport strip (LOOP / STOP / CLEAR + state LCD) ──────────────
+          // ── Transport strip (LOOP / STOP / CLEAR + state LCD + Q chip) ───
           _TransportStrip(
             slotId: widget.plugin.id,
             state: session?.state ?? LooperState.idle,
@@ -75,6 +75,7 @@ class _LooperSlotUIState extends State<LooperSlotUI> {
                     .any((t) =>
                         t.lengthInBeats != null && t.events.isNotEmpty) ??
                 false,
+            quantize: session?.quantize ?? LoopQuantize.off,
             engine: engine,
             l10n: l10n,
           ),
@@ -124,6 +125,9 @@ class _TransportStrip extends StatelessWidget {
   /// existing content (e.g. after stop or after a project reload).
   final bool hasContent;
 
+  /// Slot-level quantize grid: applies to every new recording pass.
+  final LoopQuantize quantize;
+
   final LooperEngine engine;
   final AppLocalizations l10n;
 
@@ -131,6 +135,7 @@ class _TransportStrip extends StatelessWidget {
     required this.slotId,
     required this.state,
     required this.hasContent,
+    required this.quantize,
     required this.engine,
     required this.l10n,
   });
@@ -170,6 +175,15 @@ class _TransportStrip extends StatelessWidget {
             active: false,
             tooltip: l10n.looperClear,
             onTap: () => engine.clearAll(slotId),
+          ),
+          const SizedBox(width: 10),
+
+          // Quantize chip — slot-level grid applied to every new recording pass.
+          _QuantizeChip(
+            slotId: slotId,
+            quantize: quantize,
+            engine: engine,
+            l10n: l10n,
           ),
 
           const Spacer(),
@@ -760,6 +774,170 @@ class _SpeedChip extends StatelessWidget {
             fontWeight: FontWeight.bold,
           ),
         ),
+      ),
+    );
+  }
+}
+
+// ── Quantize chip ─────────────────────────────────────────────────────────────
+
+/// Slot-level quantize chip shown in the transport strip.
+///
+/// Tapping cycles the slot's recording-quantize grid through the
+/// [LoopQuantize] sequence: off → 1/4 → 1/8 → 1/16 → 1/32 → off → …
+///
+/// The selected grid is applied to **every new recording pass** for this slot
+/// (first-pass and overdubs).  Snapping happens at record-stop time, so the
+/// user sets this once before recording and the notes are committed to the
+/// nearest grid line when they press stop.
+///
+/// When [LoopQuantize.off] the chip is dimmed (no snapping).  Otherwise it
+/// glows amber to indicate that the next recording pass will be quantized.
+class _QuantizeChip extends StatelessWidget {
+  final String slotId;
+  final LoopQuantize quantize;
+  final LooperEngine engine;
+  final AppLocalizations l10n;
+
+  const _QuantizeChip({
+    required this.slotId,
+    required this.quantize,
+    required this.engine,
+    required this.l10n,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final active = quantize != LoopQuantize.off;
+    const activeColor = _kOdColor;
+
+    return Tooltip(
+      message: '${l10n.looperQuantize}: ${quantize.label}',
+      child: GestureDetector(
+        onTap: () => engine.setQuantize(slotId, quantize.next),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          decoration: BoxDecoration(
+            color: active ? activeColor.withValues(alpha: 0.18) : _kPanel,
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(
+              color: active ? activeColor.withValues(alpha: 0.7) : _kBorder,
+            ),
+          ),
+          child: Text(
+            'Q:${quantize.label}',
+            style: TextStyle(
+              color: active ? activeColor : Colors.white38,
+              fontSize: 9,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Pinned looper bar ─────────────────────────────────────────────────────────
+
+/// A compact one-liner control strip rendered just below the transport bar
+/// for every [LooperPluginInstance] that has `pinned == true`.
+///
+/// It surfaces the three most important looper actions (LOOP / STOP / CLEAR),
+/// the quantize chip, and the state LCD — all on a single row — so the user
+/// can control the looper without scrolling to its rack slot.
+///
+/// Place this widget between [TransportBar] and the rack list in the screen
+/// scaffold.
+class PinnedLooperBar extends StatelessWidget {
+  const PinnedLooperBar({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final rack = context.watch<RackState>();
+    final engine = context.watch<LooperEngine>();
+    final l10n = AppLocalizations.of(context)!;
+
+    // Collect all pinned looper slots.
+    final pinned = rack.plugins
+        .whereType<LooperPluginInstance>()
+        .where((p) => p.pinned)
+        .toList();
+
+    if (pinned.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      color: _kBg,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Divider(height: 1, color: _kBorder),
+          for (final plugin in pinned)
+            _PinnedLooperRow(
+              plugin: plugin,
+              engine: engine,
+              l10n: l10n,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// One compact row inside [PinnedLooperBar] for a single looper slot.
+///
+/// Shows: slot name · LOOP · STOP · CLEAR · Q chip · state LCD.
+class _PinnedLooperRow extends StatelessWidget {
+  final LooperPluginInstance plugin;
+  final LooperEngine engine;
+  final AppLocalizations l10n;
+
+  const _PinnedLooperRow({
+    required this.plugin,
+    required this.engine,
+    required this.l10n,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final session = engine.session(plugin.id);
+    final state = session?.state ?? LooperState.idle;
+    final hasContent = session?.tracks
+            .any((t) => t.lengthInBeats != null && t.events.isNotEmpty) ??
+        false;
+    final quantize = session?.quantize ?? LoopQuantize.off;
+
+    // Reuse the same button-property logic from _TransportStrip.
+    final strip = _TransportStrip(
+      slotId: plugin.id,
+      state: state,
+      hasContent: hasContent,
+      quantize: quantize,
+      engine: engine,
+      l10n: l10n,
+    );
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: Row(
+        children: [
+          // Slot name label — identifies which looper this row controls.
+          Text(
+            plugin.displayName,
+            style: const TextStyle(
+              color: _kLcdText,
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 0.8,
+            ),
+          ),
+          const SizedBox(width: 10),
+          const VerticalDivider(width: 1, color: _kBorder),
+          const SizedBox(width: 10),
+
+          // Compact transport controls — identical behaviour to the full slot.
+          Expanded(child: strip),
+        ],
       ),
     );
   }

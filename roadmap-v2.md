@@ -1045,13 +1045,19 @@ Both `LooperPluginInstance` and `GFpaJamModePlugin` gain a 📌 **pin toggle** i
 - [ ] **Volume** slider per track (0–100% velocity scale) — deferred
 - [ ] Long-press STOP → confirm-clear dialog — deferred (CLEAR button used instead)
 
-### 6.7 — Record-Stop Quantization
+### 6.7 — Record-Stop Quantization ✅
 
-- [ ] Applied at record-stop time (preserves original feel during recording, quantises to nearest grid on commit)
-- [ ] Values: off, 1/32, 1/16, 1/8, 1/4, 1/2
-- [ ] Snaps each event's `beatOffset` to the nearest grid division in `stopRecording`
-- [ ] Optional "humanize" jitter (0–50 ms random offset) applied after quantize to restore organic feel
-- [ ] UI selector in the looper slot front panel options row
+Applied at record-stop time: original timings are preserved during recording and snapped to the nearest grid on commit.
+
+- [x] `LoopQuantize` enum in `loop_track.dart`: `off`, `quarter` (1/4), `eighth` (1/8), `sixteenth` (1/16), `thirtySecond` (1/32) — includes `gridBeats`, `label`, and `next` helpers
+- [x] `LoopTrack.quantize` field — default `off`; persisted in `LoopTrack.toJson` / `fromJson` with backward-compat default
+- [x] `LooperEngine._applyQuantization(track)` — snaps all `beatOffset` values after `_sortTrackEvents` in `stopRecording`; enforces minimum one-grid-step gap between each note-on and its note-off to prevent zero-duration notes; clamps offsets to `[0, loopLen)`
+- [x] `LooperEngine._snapBeat(beat, grid)` — allocation-free pure helper
+- [x] `LooperSession.quantize` — slot-level field; stamped onto each new `LoopTrack` at `_beginRecordingPass` so the grid is locked at recording start
+- [x] `LooperEngine.setQuantize(slotId, quantize)` — slot-level public setter, triggers `notifyListeners` + `onDataChanged` for autosave
+- [x] **Quantize chip** in the **transport strip** (next to CLEAR): `Q:off`, `Q:1/4`, `Q:1/8`, `Q:1/16`, `Q:1/32` — tap to cycle; set before recording, applies to every subsequent recording pass
+- [x] `looperQuantize` EN/FR l10n key (used in chip tooltip)
+- [ ] Optional "humanize" jitter (0–50 ms random offset) after quantize — deferred
 
 ### 6.8 — Playback Modes ✅
 
@@ -1075,7 +1081,8 @@ Hardware CC buttons bindable per looper slot via the looper front panel:
 ### 6.10 — Localization ✅
 
 - [x] 20+ EN/FR keys added: `looperSlotName`, `addLooper`, `rackAddLooperSubtitle`, `looperRecPlay`, `looperStop`, `looperOverdub`, `looperClear`, `looperMute`, `looperReverse`, `looperSpeed`, `looperPinBelowTransport`, `jamModePinBelowTransport`, and related UI strings
-- [ ] `looperQuantize`, `looperVolume`, `looperSmartSyncTolerance` — deferred with their features
+- [x] `looperQuantize` EN/FR key added (6.7 implementation)
+- [ ] `looperVolume`, `looperSmartSyncTolerance` — deferred with their features
 
 ### 6.11 — Testing
 
@@ -1090,39 +1097,6 @@ Hardware CC buttons bindable per looper slot via the looper front panel:
 - [ ] Smart sync: tap Play 400 ms after downbeat → waits for next downbeat
 - [ ] GFK → Looper → Jam Mode + GFK2 chain: scale locks on GFK2 follow recorded chord progression
 - [ ] Two looper slots playing simultaneously → no timing drift
-
-### 6.12 — Live Playback Quantization (Snap-to-Grid)
-
-> Quantizes recorded events **at playback time** rather than at record-stop time, so the setting can be changed freely without discarding or re-recording the loop. Enables smooth multi-overdub sessions where each player records loosely but hears a tight, locked-to-grid result.
-
-#### Design
-
-The quantization value (e.g. 1/4, 1/8, 1/16, 1/32) is stored on each `LoopTrack` as `playbackQuantize` (default: `off`). On every `_fireEventsInRange` call the event's `beatOffset` is snapped to the nearest grid point before the phase-window comparison and dispatch:
-
-```dart
-double _snapOffset(double rawOffset, PlaybackQuantize q, double beatsPerBar) {
-  if (q == PlaybackQuantize.off) return rawOffset;
-  // e.g. 1/16 of a 4/4 bar → gridBeats = 4 × (1/16) = 0.25 beats
-  final gridBeats = beatsPerBar / q.divisionsPerBar;
-  return (rawOffset / gridBeats).round() * gridBeats;
-}
-```
-
-Because the original `beatOffset` values in `LoopTrack.events` are **never mutated**, toggling the quantize value takes effect on the very next tick with zero overhead — no re-recording required.
-
-**Performance note:** Snapping is a single floating-point multiply + round per event per 10 ms tick — negligible CPU cost even with many overdub tracks. A **"Bake" option** is provided for users who want to lock the snapped offsets permanently into the project file (eliminating the runtime cost and making the loop portable), but it is entirely optional.
-
-**Stuck-note safety:** The same `_snapOffset` helper is applied consistently to both note-on and note-off events, ensuring they always snap to the same grid point and can never become mismatched.
-
-#### Implementation tasks
-
-- [ ] Add `PlaybackQuantize` enum to `loop_track.dart`: `off`, `quarter` (1/4), `eighth` (1/8), `sixteenth` (1/16), `thirtySecond` (1/32)
-- [ ] `LoopTrack.toJson` / `fromJson` — persist `playbackQuantize` field (backward-compat default: `off`)
-- [ ] `LooperEngine._snapOffset(rawOffset, q, beatsPerBar)` — pure, allocation-free helper
-- [ ] Apply snap inside `_fireEventsInRange` before the phase-window check; snap note-on and note-off symmetrically to prevent stuck notes
-- [ ] "Bake" action in `LooperEngine.bakeQuantization(slotId, trackId)` — writes snapped offsets to a new event list, sets `playbackQuantize = off`, triggers `onDataChanged` for autosave
-- [ ] UI: quantize selector chip in the per-track controls row (alongside speed / reverse): `Q: off / 1/4 / 1/8 / 1/16 / 1/32`; long-press on chip → "Bake quantization" option
-- [ ] EN/FR localization keys: `looperQuantize`, `looperQuantizeOff`, `looperQuantizeBake`, `looperQuantizeBakeConfirm`
 
 ---
 
@@ -1500,4 +1474,4 @@ All keys below are **reserved immediately** in the current `ProjectService` to a
 
 ---
 
-*Last updated: 2026-03-13 — Phases 1–6 complete (v2.0.0–v2.5.0). Phase 6 (MIDI Looper) shipped with v2.5.0; live playback quantization (6.12) is the main remaining looper task. Phases 7–9 planned: VST3 effect hosting, GFPA plugin ecosystem, audio looper.*
+*Last updated: 2026-03-13 — Phases 1–6 complete (v2.0.0–v2.5.0). Phase 6 (MIDI Looper) shipped with v2.5.0; record-stop quantization (6.7) implemented. Remaining looper work: humanize jitter, smart-sync tests, volume slider. Phases 7–9 planned: VST3 effect hosting, GFPA plugin ecosystem, audio looper.*

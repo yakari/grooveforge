@@ -802,6 +802,14 @@ class AppLocalizationsFr extends AppLocalizations {
       'Enregistrez et bouclez des séquences MIDI avec synchro de mesure';
 
   @override
+  String get addLooperAlreadyExists =>
+      'Un Looper MIDI est déjà dans le rack. Un seul est autorisé.';
+
+  @override
+  String get addJamModeAlreadyExists =>
+      'Un Jam Mode est déjà dans le rack. Un seul est autorisé.';
+
+  @override
   String get looperRecord => 'Enregistrer';
 
   @override
@@ -820,10 +828,10 @@ class AppLocalizationsFr extends AppLocalizations {
   String get looperArmed => 'Armé — en attente du transport';
 
   @override
-  String get looperWaitingForBar => 'En attente de la mesure 1…';
+  String get looperWaitingForBar => 'En attente de la mesure';
 
   @override
-  String get looperWaitingForOverdub => 'En attente de la fin de boucle…';
+  String get looperWaitingForOverdub => 'En attente de l\'overdub';
 
   @override
   String looperTrack(int n) {
@@ -832,6 +840,9 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get looperPinBelow => 'Épingler sous le transport';
+
+  @override
+  String get jamModePinBelow => 'Épingler sous le transport';
 
   @override
   String get looperHalfSpeed => '½×';
@@ -865,4 +876,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get looperCcRemove => 'Supprimer l\'assignation CC';
+
+  @override
+  String get looperQuantize => 'Quantification';
 }

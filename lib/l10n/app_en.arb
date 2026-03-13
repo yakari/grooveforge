@@ -321,14 +321,16 @@
   "looperSlotName": "MIDI Looper",
   "addLooper": "MIDI Looper",
   "addLooperSubtitle": "Record and loop MIDI patterns with bar sync",
+  "addLooperAlreadyExists": "A MIDI Looper is already in the rack. Only one is allowed.",
+  "addJamModeAlreadyExists": "A Jam Mode is already in the rack. Only one is allowed.",
   "looperRecord": "Record",
   "looperPlay": "Play",
   "looperStop": "Stop",
   "looperClear": "Clear",
   "looperOverdub": "Overdub",
   "looperArmed": "Armed — waiting for transport",
-  "looperWaitingForBar": "Waiting for bar 1…",
-  "looperWaitingForOverdub": "Waiting for loop end…",
+  "looperWaitingForBar": "Waiting for bar",
+  "looperWaitingForOverdub": "Waiting for overdub",
   "looperTrack": "Track {n}",
   "@looperTrack": {
     "placeholders": {
@@ -336,6 +338,7 @@
     }
   },
   "looperPinBelow": "Pin below transport",
+  "jamModePinBelow": "Pin below transport",
   "looperHalfSpeed": "½×",
   "looperNormalSpeed": "1×",
   "looperDoubleSpeed": "2×",
@@ -350,5 +353,7 @@
   },
   "looperCcAssign": "Assign CC",
   "looperCcAssignTitle": "Assign hardware CC to looper action",
-  "looperCcRemove": "Remove CC binding"
+  "looperCcRemove": "Remove CC binding",
+
+  "looperQuantize": "Quantize"
 }

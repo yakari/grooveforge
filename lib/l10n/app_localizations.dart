@@ -1526,6 +1526,18 @@ abstract class AppLocalizations {
   /// **'Record and loop MIDI patterns with bar sync'**
   String get addLooperSubtitle;
 
+  /// No description provided for @addLooperAlreadyExists.
+  ///
+  /// In en, this message translates to:
+  /// **'A MIDI Looper is already in the rack. Only one is allowed.'**
+  String get addLooperAlreadyExists;
+
+  /// No description provided for @addJamModeAlreadyExists.
+  ///
+  /// In en, this message translates to:
+  /// **'A Jam Mode is already in the rack. Only one is allowed.'**
+  String get addJamModeAlreadyExists;
+
   /// No description provided for @looperRecord.
   ///
   /// In en, this message translates to:
@@ -1565,13 +1577,13 @@ abstract class AppLocalizations {
   /// No description provided for @looperWaitingForBar.
   ///
   /// In en, this message translates to:
-  /// **'Waiting for bar 1…'**
+  /// **'Waiting for bar'**
   String get looperWaitingForBar;
 
   /// No description provided for @looperWaitingForOverdub.
   ///
   /// In en, this message translates to:
-  /// **'Waiting for loop end…'**
+  /// **'Waiting for overdub'**
   String get looperWaitingForOverdub;
 
   /// No description provided for @looperTrack.
@@ -1585,6 +1597,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Pin below transport'**
   String get looperPinBelow;
+
+  /// No description provided for @jamModePinBelow.
+  ///
+  /// In en, this message translates to:
+  /// **'Pin below transport'**
+  String get jamModePinBelow;
 
   /// No description provided for @looperHalfSpeed.
   ///
@@ -1645,6 +1663,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Remove CC binding'**
   String get looperCcRemove;
+
+  /// No description provided for @looperQuantize.
+  ///
+  /// In en, this message translates to:
+  /// **'Quantize'**
+  String get looperQuantize;
 }
 
 class _AppLocalizationsDelegate

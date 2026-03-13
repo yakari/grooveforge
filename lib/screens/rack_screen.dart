@@ -23,6 +23,8 @@ import '../services/vst_host_service.dart';
 import '../services/transport_engine.dart';
 import '../widgets/add_plugin_sheet.dart';
 import '../widgets/patch_cable_overlay.dart';
+import '../widgets/rack/gfpa_jam_mode_slot_ui.dart';
+import '../widgets/rack/looper_slot_ui.dart';
 import '../widgets/rack/slot_back_panel_widget.dart';
 import '../widgets/rack_slot_widget.dart';
 import '../widgets/transport_bar.dart';
@@ -699,6 +701,12 @@ class _RackScreenState extends State<RackScreen> {
                 child: Column(
                   children: [
                     const TransportBar(),
+                    // Compact Jam Mode strip — shown only when at least one
+                    // Jam Mode slot has been pinned below the transport bar.
+                    const PinnedJamModeBar(),
+                    // Compact looper strip — shown only when at least one
+                    // looper slot has been pinned below the transport bar.
+                    const PinnedLooperBar(),
                     Expanded(
                       // ValueListenableBuilder so _RackList and the overlays
                       // rebuild when the patch view is toggled, without

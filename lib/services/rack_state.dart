@@ -334,7 +334,16 @@ class RackState extends ChangeNotifier {
     _notifyChanged();
   }
 
-  /// Toggle the enabled state of a GFPA Jam Mode slot.
+  /// Toggles whether a [GFpaPluginInstance] Jam Mode slot is pinned below the
+  /// transport bar for quick access.
+  void toggleJamModePinned(String id) {
+    final plugin = _findGfpaById(id);
+    if (plugin == null || plugin.pluginId != 'com.grooveforge.jammode') return;
+    plugin.pinned = !plugin.pinned;
+    notifyListeners();
+    _notifyChanged();
+  }
+
   /// Toggles whether a [LooperPluginInstance] is pinned below the transport bar.
   void toggleLooperPinned(String id) {
     final plugin = plugins.whereType<LooperPluginInstance>().where((p) => p.id == id).firstOrNull;

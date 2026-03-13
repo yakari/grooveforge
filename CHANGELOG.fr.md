@@ -5,6 +5,17 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/lang/fr/).
 
+## [X.x.x]
+
+### Ajouté
+- **Instance unique pour le Jam Mode et le Looper MIDI** — le panneau "Ajouter un plugin" vérifie désormais si un Jam Mode ou un Looper est déjà présent avant d'en insérer un nouveau. Si c'est le cas, le panneau se ferme et un SnackBar indique qu'une seule instance est autorisée. Cela évite les configurations incohérentes et simplifie l'assignation des CC.
+- **Quantification à l'arrêt d'enregistrement (6.7)** — chaque piste du looper dispose maintenant d'un réglage de quantification individuel (désactivé / 1/4 / 1/8 / 1/16 / 1/32). Lorsqu'il est activé, tous les décalages en temps des événements enregistrés sont alignés sur la grille la plus proche au moment où l'utilisateur appuie sur stop. Un écart minimal d'un pas de grille entre chaque paire note-on / note-off est imposé pour éviter les notes de durée nulle. Le réglage est stocké dans `LoopTrack.quantize`, persisté dans les fichiers de projet `.gf`, et vaut `off` par défaut.
+- **Chip de quantification dans la bande de transport** — un chip compact "Q:…" (ambre, cycle au tap) a été ajouté à la bande de transport à côté de CLEAR, au niveau du slot. Réglez-le avant d'enregistrer ; la grille s'applique à chaque passe d'enregistrement suivante (première prise et overdubs).
+
+### Corrigé
+- **Raccourci Jam Mode "Épingler sous le transport"** — le bouton d'épinglage du slot Jam Mode fonctionne désormais comme prévu. Épingler un slot Jam Mode insère une bande compacte (nom du slot · LED ON/OFF · LCD de gamme en temps réel) directement sous la barre de transport pour un contrôle rapide sans faire défiler jusqu'au rack. L'état d'épinglage est persisté dans les fichiers `.gf`.
+- **Raccourci looper "Épingler sous le transport"** — le bouton d'épinglage du slot looper fonctionne désormais comme prévu. Épingler un looper insère une bande de contrôle compacte (nom du slot · LOOP · STOP · CLEAR · chip Q · LCD d'état) directement sous la barre de transport afin que l'utilisateur puisse contrôler le looper depuis n'importe quel endroit sans faire défiler jusqu'à son slot dans le rack.
+
 ## [2.5.0] - 2026-03-13
 
 ### Ajouté

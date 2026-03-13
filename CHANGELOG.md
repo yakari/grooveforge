@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [X.x.x]
+
+### Added
+- **Single-instance enforcement for Jam Mode and MIDI Looper** — the "Add Plugin" sheet now checks for an existing Jam Mode or Looper before inserting a new one. If one is already present, the sheet closes and a SnackBar explains that only one instance is allowed. This prevents incoherent multi-looper setups and simplifies CC mapping.
+- **Record-stop quantization (6.7)** — each looper track now has an individual quantize setting (off / 1/4 / 1/8 / 1/16 / 1/32). When set, all recorded event beat-offsets are snapped to the nearest grid line the moment the user presses stop. A minimum one-grid-step gap between paired note-on and note-off is enforced to prevent zero-duration notes. The setting is stored in `LoopTrack.quantize`, persisted in `.gf` project files, and defaults to `off`.
+- **Quantize chip in transport strip** — a compact "Q:…" chip (amber, cycles on tap) has been added to the transport strip next to CLEAR, at the slot level. Set it before recording; the grid applies to every subsequent recording pass (first-pass and overdubs).
+
+### Fixed
+- **"Pin below transport" Jam Mode shortcut** — the pin toggle in the Jam Mode rack slot now works as intended. Pinning a Jam Mode slot inserts a compact one-liner strip (slot name · ON/OFF LED · live scale LCD) directly below the transport bar for quick control without scrolling. Pin state is persisted in `.gf` project files.
+- **"Pin below transport" looper shortcut** — the pin toggle in the looper rack slot now works as intended. Pinning a looper inserts a compact one-liner control strip (slot name · LOOP · STOP · CLEAR · Q chip · state LCD) directly below the transport bar so the user can control the looper from anywhere without scrolling to its rack slot.
+
 ## [2.5.0] - 2026-03-13
 
 ### Added

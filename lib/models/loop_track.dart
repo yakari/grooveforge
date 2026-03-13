@@ -60,6 +60,60 @@ enum LoopTrackSpeed {
   double_,
 }
 
+// ── Record-stop quantization ──────────────────────────────────────────────────
+
+/// Grid resolution applied to all recorded events when the user stops
+/// recording, snapping each event's [TimestampedMidiEvent.beatOffset] to the
+/// nearest rhythmic subdivision.
+///
+/// Quantization is destructive: the snapped offsets are written back into
+/// [LoopTrack.events] so they persist in the project file.  The original
+/// (loose) timings are not retained after the snap.
+///
+/// Values represent the note subdivision relative to a beat (quarter note):
+/// - [off]          — no snapping; timings are kept exactly as played.
+/// - [quarter]      — snap to the nearest quarter note (1 beat).
+/// - [eighth]       — snap to the nearest eighth note (½ beat).
+/// - [sixteenth]    — snap to the nearest sixteenth note (¼ beat).
+/// - [thirtySecond] — snap to the nearest thirty-second note (⅛ beat).
+enum LoopQuantize {
+  off,
+  quarter,
+  eighth,
+  sixteenth,
+  thirtySecond;
+
+  /// Returns the beat distance between adjacent grid lines for this quantize
+  /// value, assuming a quarter-note beat unit.
+  ///
+  /// Returns 0.0 for [off] — callers should check for [off] before dividing.
+  double get gridBeats => switch (this) {
+        LoopQuantize.off => 0.0,
+        LoopQuantize.quarter => 1.0,
+        LoopQuantize.eighth => 0.5,
+        LoopQuantize.sixteenth => 0.25,
+        LoopQuantize.thirtySecond => 0.125,
+      };
+
+  /// Short display label used in the looper track controls chip.
+  String get label => switch (this) {
+        LoopQuantize.off => 'off',
+        LoopQuantize.quarter => '1/4',
+        LoopQuantize.eighth => '1/8',
+        LoopQuantize.sixteenth => '1/16',
+        LoopQuantize.thirtySecond => '1/32',
+      };
+
+  /// The next value in the cycling sequence for the UI chip toggle.
+  LoopQuantize get next => switch (this) {
+        LoopQuantize.off => LoopQuantize.quarter,
+        LoopQuantize.quarter => LoopQuantize.eighth,
+        LoopQuantize.eighth => LoopQuantize.sixteenth,
+        LoopQuantize.sixteenth => LoopQuantize.thirtySecond,
+        LoopQuantize.thirtySecond => LoopQuantize.off,
+      };
+}
+
 /// Returns the numeric multiplier for [speed] (how fast beats advance in the
 /// loop relative to the transport).
 double speedMultiplier(LoopTrackSpeed speed) => switch (speed) {
@@ -105,6 +159,14 @@ class LoopTrack {
   /// each bar boundary is crossed.
   final Map<int, String?> chordPerBar;
 
+  /// Grid resolution applied to recorded events when the user presses stop.
+  ///
+  /// When set to anything other than [LoopQuantize.off], [LooperEngine] snaps
+  /// every [TimestampedMidiEvent.beatOffset] in [events] to the nearest grid
+  /// line at the end of each recording pass (including overdubs).  The setting
+  /// is persisted in the project file and applies independently per track.
+  LoopQuantize quantize;
+
   /// MIDI notes currently "on" during playback, packed as
   /// `(channelNibble << 7) | pitchByte`.  Not persisted — reset on load.
   ///
@@ -120,6 +182,7 @@ class LoopTrack {
     this.muted = false,
     this.reversed = false,
     this.speed = LoopTrackSpeed.normal,
+    this.quantize = LoopQuantize.off,
     Map<int, String?>? chordPerBar,
   })  : events = events ?? [],
         chordPerBar = chordPerBar ?? {},
@@ -153,6 +216,7 @@ class LoopTrack {
         'muted': muted,
         'reversed': reversed,
         'speed': speed.name,
+        'quantize': quantize.name,
         'chordPerBar': chordPerBar.map(
           (k, v) => MapEntry(k.toString(), v),
         ),
@@ -169,6 +233,10 @@ class LoopTrack {
         speed: LoopTrackSpeed.values.firstWhere(
           (s) => s.name == (json['speed'] as String?),
           orElse: () => LoopTrackSpeed.normal,
+        ),
+        quantize: LoopQuantize.values.firstWhere(
+          (q) => q.name == (json['quantize'] as String?),
+          orElse: () => LoopQuantize.off,
         ),
         chordPerBar: (json['chordPerBar'] as Map<String, dynamic>?)?.map(
               (k, v) => MapEntry(int.parse(k), v as String?),

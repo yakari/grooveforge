@@ -101,6 +101,15 @@ class LooperSession {
   /// Map from CC number → action bound to that CC for this slot.
   final Map<int, LooperAction> ccAssignments;
 
+  /// Quantize grid applied to every new recording pass for this slot.
+  ///
+  /// Stored at the slot level so the user can set it once before recording
+  /// and have it apply automatically to every subsequent first-pass or overdub
+  /// track.  The value is stamped onto each new [LoopTrack] at the start of
+  /// the recording pass so that per-track history is preserved in the project
+  /// file.
+  LoopQuantize quantize;
+
   LooperSession()
       : state = LooperState.idle,
         tracks = [],
@@ -109,7 +118,8 @@ class LooperSession {
         prevRelativeBar = 0,
         prevBeatFloor = 0.0,
         prevPlaybackBeat = 0.0,
-        ccAssignments = {};
+        ccAssignments = {},
+        quantize = LoopQuantize.off;
 
   // ── Derived helpers ────────────────────────────────────────────────────
 
@@ -132,6 +142,7 @@ class LooperSession {
 
   Map<String, dynamic> toJson() => {
         'tracks': tracks.map((t) => t.toJson()).toList(),
+        'quantize': quantize.name,
         // Volatile fields (state, playheads, recording timestamps) are not
         // persisted — the looper always starts in idle after a project load.
       };
@@ -142,6 +153,10 @@ class LooperSession {
     for (final t in rawTracks) {
       tracks.add(LoopTrack.fromJson(t as Map<String, dynamic>));
     }
+    quantize = LoopQuantize.values.firstWhere(
+      (q) => q.name == (json['quantize'] as String?),
+      orElse: () => LoopQuantize.off,
+    );
   }
 }
 
@@ -255,6 +270,11 @@ class LooperEngine extends ChangeNotifier {
       final rawLength = _transport.positionInBeats - s.recordingStartBeat;
       track.lengthInBeats = _quantiseToBar(rawLength);
       _sortTrackEvents(track);
+      // If the track has a non-off quantize setting, snap all event offsets
+      // to the nearest grid line now, while we still have the loop length.
+      if (track.quantize != LoopQuantize.off) {
+        _applyQuantization(track);
+      }
     }
 
     // Flush any bars that have not yet been processed by the timer tick.
@@ -755,7 +775,9 @@ class LooperEngine extends ChangeNotifier {
   /// and captures the current transport beat as the reference point.
   void _beginRecordingPass(LooperSession session) {
     final trackId = 'track_${DateTime.now().millisecondsSinceEpoch}';
-    session.tracks.add(LoopTrack(id: trackId));
+    // Stamp the slot-level quantize setting onto the new track so that the
+    // snapping grid is locked at recording start and persisted in the project.
+    session.tracks.add(LoopTrack(id: trackId, quantize: session.quantize));
     session.recordingStartBeat = _transport.positionInBeats;
     session.notesInBar.clear();
     session.prevRelativeBar = 0;
@@ -816,6 +838,96 @@ class LooperEngine extends ChangeNotifier {
   void _sortTrackEvents(LoopTrack track) {
     track.events.sort((a, b) => a.beatOffset.compareTo(b.beatOffset));
   }
+
+  // ── Record-stop quantization ────────────────────────────────────────────
+
+  /// Sets the [LoopQuantize] grid for [slotId].
+  ///
+  /// The value is slot-level: it is stamped onto every new [LoopTrack] created
+  /// by a subsequent recording pass (first-pass or overdub), then applied at
+  /// record-stop time.  Existing completed tracks are not retroactively snapped.
+  void setQuantize(String slotId, LoopQuantize quantize) {
+    final s = _sessions[slotId];
+    if (s == null) return;
+    s.quantize = quantize;
+    notifyListeners();
+    onDataChanged?.call();
+  }
+
+  /// Snaps all [LoopTrack.events] offsets to the nearest grid line defined by
+  /// [track.quantize], keeping every offset inside `[0, lengthInBeats)`.
+  ///
+  /// After snapping the list is re-sorted because snapping can change the
+  /// relative order of closely spaced events (e.g. a note-on at beat 0.9 and
+  /// a note-off at beat 1.05 may both snap to beat 1.0, and ordering matters
+  /// for correct note-on/off pairing during playback).
+  ///
+  /// A minimum 1-grid-step gap between a note-on and its matching note-off is
+  /// enforced: if they snap to the same offset, the note-off is pushed one
+  /// grid step forward.  This prevents zero-duration notes that would silently
+  /// be dropped by some synthesisers.
+  void _applyQuantization(LoopTrack track) {
+    final loopLen = track.lengthInBeats;
+    if (loopLen == null || loopLen <= 0) return;
+
+    final grid = track.quantize.gridBeats;
+
+    // First pass: snap every offset to the nearest grid line, clamped to the
+    // loop boundary so no event can land exactly at or beyond loopLen.
+    final snapped = track.events.map((e) {
+      final raw = _snapBeat(e.beatOffset, grid).clamp(0.0, loopLen - grid);
+      return TimestampedMidiEvent(
+        beatOffset: raw,
+        status: e.status,
+        data1: e.data1,
+        data2: e.data2,
+      );
+    }).toList();
+
+    // Second pass: ensure note-off events are at least one grid step after
+    // their paired note-on to avoid zero-duration notes.
+    //
+    // We track each note's last seen note-on beat (keyed by data1 = pitch) and
+    // push a note-off that landed on the same beat one grid step forward.
+    final Map<int, double> lastNoteOnBeat = {};
+    final adjusted = snapped.map((e) {
+      // Note-on: status high nibble = 0x9, velocity > 0.
+      final isNoteOn = (e.status & 0xF0) == 0x90 && e.data2 > 0;
+      // Note-off: status high nibble = 0x8, or note-on with velocity = 0.
+      final isNoteOff =
+          (e.status & 0xF0) == 0x80 || ((e.status & 0xF0) == 0x90 && e.data2 == 0);
+
+      if (isNoteOn) {
+        lastNoteOnBeat[e.data1] = e.beatOffset;
+        return e;
+      }
+
+      if (isNoteOff) {
+        final onBeat = lastNoteOnBeat[e.data1];
+        if (onBeat != null && e.beatOffset <= onBeat) {
+          // Push the note-off one grid step forward, staying inside the loop.
+          final pushed = (onBeat + grid).clamp(0.0, loopLen);
+          return TimestampedMidiEvent(
+            beatOffset: pushed,
+            status: e.status,
+            data1: e.data1,
+            data2: e.data2,
+          );
+        }
+      }
+
+      return e;
+    }).toList();
+
+    track.events
+      ..clear()
+      ..addAll(adjusted);
+    _sortTrackEvents(track);
+  }
+
+  /// Snaps [beat] to the nearest multiple of [grid].
+  double _snapBeat(double beat, double grid) =>
+      (beat / grid).round() * grid;
 
   LoopTrack? _findTrack(String slotId, String trackId) =>
       _sessions[slotId]

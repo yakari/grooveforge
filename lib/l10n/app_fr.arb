@@ -321,14 +321,16 @@
   "looperSlotName": "Looper MIDI",
   "addLooper": "Looper MIDI",
   "addLooperSubtitle": "Enregistrez et bouclez des séquences MIDI avec synchro de mesure",
+  "addLooperAlreadyExists": "Un Looper MIDI est déjà dans le rack. Un seul est autorisé.",
+  "addJamModeAlreadyExists": "Un Jam Mode est déjà dans le rack. Un seul est autorisé.",
   "looperRecord": "Enregistrer",
   "looperPlay": "Lecture",
   "looperStop": "Stop",
   "looperClear": "Effacer",
   "looperOverdub": "Overdub",
   "looperArmed": "Armé — en attente du transport",
-  "looperWaitingForBar": "En attente de la mesure 1…",
-  "looperWaitingForOverdub": "En attente de la fin de boucle…",
+  "looperWaitingForBar": "En attente de la mesure",
+  "looperWaitingForOverdub": "En attente de l'overdub",
   "looperTrack": "Piste {n}",
   "@looperTrack": {
     "placeholders": {
@@ -336,6 +338,7 @@
     }
   },
   "looperPinBelow": "Épingler sous le transport",
+  "jamModePinBelow": "Épingler sous le transport",
   "looperHalfSpeed": "½×",
   "looperNormalSpeed": "1×",
   "looperDoubleSpeed": "2×",
@@ -350,5 +353,7 @@
   },
   "looperCcAssign": "Assigner CC",
   "looperCcAssignTitle": "Assigner un CC matériel à une action du looper",
-  "looperCcRemove": "Supprimer l'assignation CC"
+  "looperCcRemove": "Supprimer l'assignation CC",
+
+  "looperQuantize": "Quantification"
 }

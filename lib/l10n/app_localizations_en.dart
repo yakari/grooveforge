@@ -797,6 +797,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get addLooperSubtitle => 'Record and loop MIDI patterns with bar sync';
 
   @override
+  String get addLooperAlreadyExists =>
+      'A MIDI Looper is already in the rack. Only one is allowed.';
+
+  @override
+  String get addJamModeAlreadyExists =>
+      'A Jam Mode is already in the rack. Only one is allowed.';
+
+  @override
   String get looperRecord => 'Record';
 
   @override
@@ -815,10 +823,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get looperArmed => 'Armed — waiting for transport';
 
   @override
-  String get looperWaitingForBar => 'Waiting for bar 1…';
+  String get looperWaitingForBar => 'Waiting for bar';
 
   @override
-  String get looperWaitingForOverdub => 'Waiting for loop end…';
+  String get looperWaitingForOverdub => 'Waiting for overdub';
 
   @override
   String looperTrack(int n) {
@@ -827,6 +835,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get looperPinBelow => 'Pin below transport';
+
+  @override
+  String get jamModePinBelow => 'Pin below transport';
 
   @override
   String get looperHalfSpeed => '½×';
@@ -859,4 +870,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get looperCcRemove => 'Remove CC binding';
+
+  @override
+  String get looperQuantize => 'Quantize';
 }
