@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [X.x.x]
+
+### Added
+- **MIDI Looper (Phase 7.1–7.4)** — new multi-track MIDI looper rack slot (`LooperPluginInstance`) with MIDI IN / MIDI OUT jacks in the patch view. Record MIDI from any connected source, loop it back to instrument slots, and overdub additional layers in parallel.
+- **LooperEngine service** — beat-accurate 10 ms playback engine with bar-quantised loop lengths, smart downbeat sync, per-track mute/reverse/half-speed/double-speed modifiers, and per-bar chord detection via `ChordDetector`. State machine: idle → armed → recording → playing → overdubbing.
+- **LoopTrack model** — serialisable MIDI event timeline with beat-offset timestamps, speed modifiers, reverse flag, mute state, and a per-bar chord grid (`Map<int, String?>`).
+- **Looper front-panel UI** — hardware-style slot panel with REC / PLAY / OVERDUB (amber layers icon) / STOP / CLEAR transport buttons; state LCD badge; per-track chord grid (horizontally scrollable bar cells); mute (M), reverse (R), and speed (½× / 1× / 2×) per-track controls; pin-below-transport toggle.
+- **Overdub** — dedicated OD button (amber, layers icon) enabled only while a loop is playing. Pressing it starts a new overdub layer; pressing again stops the overdub pass and resumes clean playback. REC button is disabled during play to prevent accidental first-pass overwrite.
+- **Looper persistence** — recorded tracks and chord grids are saved in `.gf` project files under `"looperSessions"` and restored on project open/autosave reload.
+- **Hardware CC assignment** — bind any CC to looper actions (toggle-record, toggle-play, stop, clear) per slot.
+- **Add Plugin sheet** — "MIDI Looper" tile added (green loop icon).
+- 20 new localised strings for the looper UI (EN + FR).
+
+### Fixed
+- **Chord detection off-by-one** — at a downbeat (bar N → bar N+1) `_detectBeatCrossings` was flushing notes stored in bar N into bar N+1's slot because `_currentRelativeBar` already returned the new bar index. The fix computes the bar-just-ended as `(newAbsBar − 1) − recordingBarStart` and passes it explicitly to `_flushBarChord`, so chords are now stored in the correct bar.
+- **Chord not detected in real-time** — chord detection now fires immediately in `feedMidiEvent` as soon as ≥3 distinct pitches are heard in the current bar ("first chord wins"). Bar-boundary flushing is preserved as a fallback and will not overwrite a chord that was already identified live.
+- **Currently-playing bar not highlighted** — the chord grid now highlights the active bar with a green glow during playback. `LooperEngine.currentPlaybackBarForTrack` computes the 0-based bar index from the loop phase (accounting for speed modifiers). `_detectBeatCrossings` notifies listeners on each downbeat even when not recording so the highlight advances in real time.
+- **Save As… crash** — `ProjectService` was registered as `Provider` instead of `ChangeNotifierProvider`, causing an unhandled exception when `context.read<ProjectService>()` was called from `rack_screen.dart`. Fixed by changing to `ChangeNotifierProvider`.
+- **Splash screen ProjectService isolation** — splash screen now uses the shared `Provider`-registered `ProjectService` instance (via `context.read`) instead of creating a local instance, so autosave path and project state are consistent between screens.
+- **Looper not recording from GFK on-screen keys** — on-screen piano key presses for `GrooveForgeKeyboardPlugin` (and other non-VP, non-VST3 slots) now also feed any looper connected via a MIDI OUT cable in the patch view. Previously only `VirtualPianoPlugin` slots dispatched through cables; GFK called FluidSynth directly and bypassed the looper entirely.
+- **Looper not recording from external (hardware) MIDI on GFK channel** — `_routeMidiToVst3Plugins` in `rack_screen.dart` now also looks up GFK slots for the incoming MIDI channel and calls `_feedMidiToLoopers` as a side-effect, so a hardware controller playing on a GFK channel is captured by a connected looper. FluidSynth still plays in parallel (return value unchanged for pure GFK channels).
+- **Looper chord grid not refreshing during recording** — `LooperEngine._detectBeatCrossings` now calls `notifyListeners()` when a bar-boundary chord flush occurs, so the chord grid in `LooperSlotUI` updates in real time without waiting for a state-machine transition.
+- **Loops lost on app restart** — the autosave callbacks (`rack.onChanged` and `audioGraph.addListener`) are now registered **after** `loadOrInitDefault` completes in `splash_screen.dart`. Previously, `audioGraph.notifyListeners()` fired synchronously during `audioGraph.loadFromJson` — before `looperEngine.loadFromJson` was called — triggering an autosave that captured an empty looper and overwrote the persisted session data.
+- **Missed playback events / skipped notes** — looper playback now uses `LooperSession.prevPlaybackBeat` (the actual transport beat at the end of the previous tick) to define the event window. Previously a hardcoded `0.01 × bpm / 60` estimate was used, which silently skipped events whenever the Dart timer fired late (GC pause, heavy UI frame).
+- **Stuck notes and progressive chord decay** — notes held past the loop boundary (no note-off recorded) no longer ring indefinitely. `LoopTrack.activePlaybackNotes` tracks which notes are "on" during playback; at wrap-around the looper sends note-offs before the next iteration begins; at stop/pause/transport-stop all held notes are silenced. Eliminates the FluidSynth voice-stealing that caused a 3-note chord to lose one note per loop iteration.
+
 ## [2.4.0] - 2026-03-12
 
 ### Added

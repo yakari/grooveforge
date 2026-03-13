@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../models/gfpa_plugin_instance.dart';
+import '../models/looper_plugin_instance.dart';
 import '../models/plugin_instance.dart';
 import '../models/grooveforge_keyboard_plugin.dart';
 import '../models/vst3_plugin_instance.dart';
@@ -334,6 +335,15 @@ class RackState extends ChangeNotifier {
   }
 
   /// Toggle the enabled state of a GFPA Jam Mode slot.
+  /// Toggles whether a [LooperPluginInstance] is pinned below the transport bar.
+  void toggleLooperPinned(String id) {
+    final plugin = plugins.whereType<LooperPluginInstance>().where((p) => p.id == id).firstOrNull;
+    if (plugin == null) return;
+    plugin.pinned = !plugin.pinned;
+    notifyListeners();
+    _notifyChanged();
+  }
+
   void setJamModeEnabled(String id, {required bool enabled}) {
     final plugin = _findGfpaById(id);
     if (plugin == null || plugin.pluginId != 'com.grooveforge.jammode') return;

@@ -5,6 +5,34 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/lang/fr/).
 
+## [X.x.x]
+
+### Ajouté
+- **Looper MIDI (Phase 7.1–7.4)** — nouveau slot rack looper MIDI multi-piste (`LooperPluginInstance`) avec prises MIDI IN / MIDI OUT dans la vue de câblage. Enregistrez du MIDI depuis n'importe quelle source connectée, bouclez-le vers des slots d'instruments et superposez des couches supplémentaires en parallèle (overdub).
+- **Service LooperEngine** — moteur de lecture précis à 10 ms avec quantisation de longueur de boucle à la mesure, synchro intelligente sur le temps fort, modificateurs de piste indépendants (mute / inversé / demi-vitesse / double vitesse), et détection d'accord par mesure via `ChordDetector`. Machine d'état : idle → armé → enregistrement → lecture → overdub.
+- **Modèle LoopTrack** — chronologie d'événements MIDI sérialisable avec horodatages en temps-battement, modificateurs de vitesse, drapeau inversé, état muet et grille d'accords par mesure (`Map<int, String?>`).
+- **Interface panneau avant du looper** — panneau de slot style matériel avec boutons transport REC / PLAY / OVERDUB (icône couches ambre) / STOP / CLEAR ; badge LCD d'état ; grille d'accords par piste (cellules de mesure défilables horizontalement) ; contrôles par piste mute (M), inversé (R) et vitesse (½× / 1× / 2×) ; bascule épingler sous le transport.
+- **Overdub** — bouton OD dédié (ambre, icône couches) actif uniquement pendant la lecture d'une boucle. Appuyez pour démarrer une nouvelle couche d'overdub ; rappuyez pour arrêter le passage d'overdub et reprendre la lecture normale. Le bouton REC est désactivé pendant la lecture pour éviter l'écrasement accidentel de la première prise.
+- **Persistance du looper** — les pistes enregistrées et les grilles d'accords sont sauvegardées dans les fichiers `.gf` sous `"looperSessions"` et restaurées à l'ouverture du projet/rechargement de la sauvegarde automatique.
+- **Assignation CC matériel** — liez n'importe quel CC aux actions du looper (bascule enregistrement, bascule lecture, stop, effacer) par slot.
+- **Feuille Ajouter un Plugin** — tuile « Looper MIDI » ajoutée (icône boucle verte).
+- 20 nouvelles chaînes localisées pour l'interface du looper (EN + FR).
+
+### Corrigé
+- **Looper n'enregistre pas depuis le clavier GFK à l'écran** — les pressions sur les touches du piano à l'écran pour `GrooveForgeKeyboardPlugin` (et autres slots non-VP, non-VST3) alimentent désormais aussi tout looper connecté via un câble MIDI OUT dans la vue de câblage. Auparavant, seuls les slots `VirtualPianoPlugin` acheminaient via les câbles ; GFK appelait FluidSynth directement et contournait le looper.
+- **Looper n'enregistre pas depuis le MIDI externe (clavier matériel) sur le canal GFK** — `_routeMidiToVst3Plugins` dans `rack_screen.dart` recherche désormais aussi les slots GFK pour le canal MIDI entrant et appelle `_feedMidiToLoopers` en effet de bord, de sorte qu'un contrôleur matériel jouant sur un canal GFK est capturé par un looper connecté. FluidSynth joue toujours en parallèle.
+- **Grille d'accords du looper non actualisée pendant l'enregistrement** — `LooperEngine._detectBeatCrossings` appelle désormais `notifyListeners()` lors d'un flush d'accord à une limite de mesure, permettant à la grille d'accords de `LooperSlotUI` de se mettre à jour en temps réel.
+- **Boucles perdues au redémarrage de l'application** — les rappels de sauvegarde automatique (`rack.onChanged` et `audioGraph.addListener`) sont désormais enregistrés **après** le retour de `loadOrInitDefault` dans `splash_screen.dart`. Auparavant, `audioGraph.notifyListeners()` se déclenchait de manière synchrone pendant `audioGraph.loadFromJson` — avant l'appel de `looperEngine.loadFromJson` — déclenchant une sauvegarde automatique qui capturait un looper vide et écrasait les données de session persistées.
+- **Événements de lecture manqués / notes sautées** — la lecture du looper utilise désormais `LooperSession.prevPlaybackBeat` (le temps de transport réel à la fin du tick précédent) pour définir la fenêtre d'événements. Auparavant, une estimation codée en dur `0.01 × bpm / 60` était utilisée, ce qui faisait sauter silencieusement des événements lorsque le timer Dart se déclenchait tard.
+- **Notes bloquées et dégradation progressive des accords** — les notes tenues au-delà de la limite de boucle (sans note-off enregistrée) ne sonnent plus indéfiniment. `LoopTrack.activePlaybackNotes` suit les notes « actives » pendant la lecture ; au redémarrage de la boucle les note-offs sont envoyés avant la nouvelle itération ; à l'arrêt/pause/stop transport toutes les notes tenues sont silenciées. Élimine le vol de voix FluidSynth qui faisait perdre une note à chaque itération d'un accord de 3 notes.
+
+### Corrigé
+- **Décalage d'un dans la détection d'accord** — à un temps fort (mesure N → N+1), `_detectBeatCrossings` enregistrait les notes de la mesure N dans le slot de la mesure N+1 car `_currentRelativeBar` retournait déjà le nouvel index. Le correctif calcule la mesure qui vient de se terminer via `(newAbsBar − 1) − recordingBarStart` et le transmet explicitement à `_flushBarChord`.
+- **Accord non détecté en temps réel** — la détection d'accord se déclenche désormais immédiatement dans `feedMidiEvent` dès que ≥3 hauteurs distinctes sont entendues dans la mesure courante (« premier accord gagnant »). Le flush en fin de mesure est conservé comme solution de repli et n'écrase pas un accord déjà identifié en temps réel.
+- **Mesure en cours de lecture non mise en évidence** — la grille d'accords met désormais en évidence la mesure active avec un halo vert pendant la lecture. `LooperEngine.currentPlaybackBarForTrack` calcule l'index de mesure 0-basé à partir de la phase de boucle (en tenant compte des modificateurs de vitesse). `_detectBeatCrossings` notifie les écouteurs à chaque temps fort même sans enregistrement actif.
+- **Crash « Enregistrer sous… »** — `ProjectService` était enregistré en tant que `Provider` au lieu de `ChangeNotifierProvider`, provoquant une exception non gérée. Corrigé.
+- **Isolation du ProjectService au démarrage** — le SplashScreen utilise désormais l'instance partagée via `context.read` au lieu d'en créer une locale, assurant la cohérence du chemin de sauvegarde automatique.
+
 ## [2.4.0] - 2026-03-12
 
 ### Ajouté

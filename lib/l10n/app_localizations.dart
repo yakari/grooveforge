@@ -1193,7 +1193,7 @@ abstract class AppLocalizations {
   /// No description provided for @rackOpenProject.
   ///
   /// In en, this message translates to:
-  /// **'Open Project'**
+  /// **'Projects'**
   String get rackOpenProject;
 
   /// No description provided for @rackSaveProject.
@@ -1507,6 +1507,138 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Notes route via MIDI OUT — connect a cable in patch view.'**
   String get virtualPianoSlotHint;
+
+  /// No description provided for @looperSlotName.
+  ///
+  /// In en, this message translates to:
+  /// **'MIDI Looper'**
+  String get looperSlotName;
+
+  /// No description provided for @addLooper.
+  ///
+  /// In en, this message translates to:
+  /// **'MIDI Looper'**
+  String get addLooper;
+
+  /// No description provided for @addLooperSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Record and loop MIDI patterns with bar sync'**
+  String get addLooperSubtitle;
+
+  /// No description provided for @looperRecord.
+  ///
+  /// In en, this message translates to:
+  /// **'Record'**
+  String get looperRecord;
+
+  /// No description provided for @looperPlay.
+  ///
+  /// In en, this message translates to:
+  /// **'Play'**
+  String get looperPlay;
+
+  /// No description provided for @looperStop.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop'**
+  String get looperStop;
+
+  /// No description provided for @looperClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get looperClear;
+
+  /// No description provided for @looperOverdub.
+  ///
+  /// In en, this message translates to:
+  /// **'Overdub'**
+  String get looperOverdub;
+
+  /// No description provided for @looperArmed.
+  ///
+  /// In en, this message translates to:
+  /// **'Armed — waiting for transport'**
+  String get looperArmed;
+
+  /// No description provided for @looperWaitingForBar.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for bar 1…'**
+  String get looperWaitingForBar;
+
+  /// No description provided for @looperTrack.
+  ///
+  /// In en, this message translates to:
+  /// **'Track {n}'**
+  String looperTrack(int n);
+
+  /// No description provided for @looperPinBelow.
+  ///
+  /// In en, this message translates to:
+  /// **'Pin below transport'**
+  String get looperPinBelow;
+
+  /// No description provided for @looperHalfSpeed.
+  ///
+  /// In en, this message translates to:
+  /// **'½×'**
+  String get looperHalfSpeed;
+
+  /// No description provided for @looperNormalSpeed.
+  ///
+  /// In en, this message translates to:
+  /// **'1×'**
+  String get looperNormalSpeed;
+
+  /// No description provided for @looperDoubleSpeed.
+  ///
+  /// In en, this message translates to:
+  /// **'2×'**
+  String get looperDoubleSpeed;
+
+  /// No description provided for @looperReverse.
+  ///
+  /// In en, this message translates to:
+  /// **'Reverse'**
+  String get looperReverse;
+
+  /// No description provided for @looperMute.
+  ///
+  /// In en, this message translates to:
+  /// **'Mute'**
+  String get looperMute;
+
+  /// No description provided for @looperNoChord.
+  ///
+  /// In en, this message translates to:
+  /// **'—'**
+  String get looperNoChord;
+
+  /// No description provided for @looperBar.
+  ///
+  /// In en, this message translates to:
+  /// **'Bar {n}'**
+  String looperBar(int n);
+
+  /// No description provided for @looperCcAssign.
+  ///
+  /// In en, this message translates to:
+  /// **'Assign CC'**
+  String get looperCcAssign;
+
+  /// No description provided for @looperCcAssignTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Assign hardware CC to looper action'**
+  String get looperCcAssignTitle;
+
+  /// No description provided for @looperCcRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove CC binding'**
+  String get looperCcRemove;
 }
 
 class _AppLocalizationsDelegate

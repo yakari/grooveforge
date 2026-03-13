@@ -1,5 +1,6 @@
 import 'grooveforge_keyboard_plugin.dart';
 import 'gfpa_plugin_instance.dart';
+import 'looper_plugin_instance.dart';
 import 'vst3_plugin_instance.dart';
 import 'virtual_piano_plugin.dart';
 
@@ -10,6 +11,7 @@ import 'virtual_piano_plugin.dart';
 ///   - [Vst3PluginInstance]        — external VST3 plugin (desktop only)
 ///   - [GFpaPluginInstance]        — GFPA plugin (all platforms, Phase 3+)
 ///   - [VirtualPianoPlugin]        — standalone MIDI-OUT source for patch routing
+///   - [LooperPluginInstance]      — multi-track MIDI looper rack slot
 abstract class PluginInstance {
   String get id;
 
@@ -36,6 +38,8 @@ abstract class PluginInstance {
         return GFpaPluginInstance.fromJson(json);
       case 'virtual_piano':
         return VirtualPianoPlugin.fromJson(json);
+      case 'looper':
+        return LooperPluginInstance.fromJson(json);
       default:
         throw ArgumentError('Unknown plugin type: $type');
     }

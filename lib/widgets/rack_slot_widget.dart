@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import '../models/gfpa_plugin_instance.dart';
 import '../models/grooveforge_keyboard_plugin.dart';
+import '../models/looper_plugin_instance.dart';
 import '../models/plugin_instance.dart';
 import '../models/virtual_piano_plugin.dart';
 import '../models/vst3_plugin_instance.dart';
@@ -11,12 +12,14 @@ import '../models/audio_graph_connection.dart';
 import '../models/audio_port_id.dart';
 import '../services/audio_engine.dart';
 import '../services/audio_graph.dart';
+import '../services/looper_engine.dart';
 import '../services/rack_state.dart';
 import '../services/vst_host_service.dart';
 import '../widgets/virtual_piano.dart';
 import 'rack/gfpa_jam_mode_slot_ui.dart';
 import 'rack/gfpa_vocoder_slot_ui.dart';
 import 'rack/grooveforge_keyboard_slot_ui.dart';
+import 'rack/looper_slot_ui.dart';
 import 'rack/virtual_piano_slot_ui.dart';
 import 'rack/vst3_slot_ui.dart';
 
@@ -105,6 +108,9 @@ class RackSlotWidget extends StatelessWidget {
     }
     if (plugin is VirtualPianoPlugin) {
       return VirtualPianoSlotUI(plugin: plugin as VirtualPianoPlugin);
+    }
+    if (plugin is LooperPluginInstance) {
+      return LooperSlotUI(plugin: plugin as LooperPluginInstance);
     }
     if (plugin is Vst3PluginInstance) {
       return Vst3SlotUI(plugin: plugin as Vst3PluginInstance);
@@ -208,6 +214,7 @@ class _SlotHeader extends StatelessWidget {
   IconData _iconFor(PluginInstance p) {
     if (p is GrooveForgeKeyboardPlugin) return Icons.piano;
     if (p is VirtualPianoPlugin) return Icons.piano_outlined;
+    if (p is LooperPluginInstance) return Icons.loop;
     if (p is GFpaPluginInstance) {
       switch (p.pluginId) {
         case 'com.grooveforge.keyboard': return Icons.piano;
@@ -417,7 +424,8 @@ class _RackSlotPiano extends StatelessWidget {
   ///   MIDI OUT jack via the [AudioGraph] cable map.
   /// - [Vst3PluginInstance]: sends via [VstHostService] (bypasses FluidSynth)
   ///   and marks the key as active on the engine for UI highlighting.
-  /// - All other slots: routes directly to FluidSynth via [AudioEngine.playNote].
+  /// - All other slots (GFK, GFPA, etc.): routes to FluidSynth AND forwards
+  ///   the note to any [LooperPluginInstance] wired to this slot's MIDI OUT.
   void _onNotePressed(BuildContext context, AudioEngine engine, int note) {
     if (plugin is VirtualPianoPlugin) {
       // Highlight VP's own key for visual feedback — no audio produced here.
@@ -430,6 +438,9 @@ class _RackSlotPiano extends StatelessWidget {
       engine.noteOnUiOnly(channel: channelIndex, key: note);
     } else {
       engine.playNote(channel: channelIndex, key: note, velocity: 100);
+      // Also feed any loopers connected to this slot's MIDI OUT so
+      // on-screen keys are captured by the looper (e.g. GFK → Looper cable).
+      _feedConnectedLoopers(context, note, 100, isNoteOn: true);
     }
   }
 
@@ -443,6 +454,9 @@ class _RackSlotPiano extends StatelessWidget {
       engine.noteOffUiOnly(channel: channelIndex, key: note);
     } else {
       engine.stopNote(channel: channelIndex, key: note);
+      // Mirror the note-on looper feed for note-off so held notes are
+      // properly terminated in the recorded loop.
+      _feedConnectedLoopers(context, note, 0, isNoteOn: false);
     }
   }
 
@@ -450,6 +464,7 @@ class _RackSlotPiano extends StatelessWidget {
   /// jack. Called only for [VirtualPianoPlugin] slots.
   ///
   /// Each connected target is routed according to its type:
+  /// - [LooperPluginInstance] → [LooperEngine.feedMidiEvent] (records the note)
   /// - VST3 → [VstHostService.noteOn] + [AudioEngine.noteOnUiOnly]
   /// - FluidSynth (GFK, Vocoder, generic GFPA) → [AudioEngine.playNote]
   void _dispatchMidiNoteOn(
@@ -457,9 +472,14 @@ class _RackSlotPiano extends StatelessWidget {
     AudioEngine engine,
     int note,
   ) {
+    final status = 0x90 | (channelIndex & 0x0F); // note-on on this channel
     for (final cable in _midiOutCables(context)) {
       final target = _findPlugin(context, cable.toSlotId);
       if (target == null) continue;
+      if (target is LooperPluginInstance) {
+        context.read<LooperEngine>().feedMidiEvent(target.id, status, note, 100);
+        continue;
+      }
       final targetCh = (target.midiChannel - 1).clamp(0, 15);
       if (target is Vst3PluginInstance) {
         context.read<VstHostService>().noteOn(target.id, 0, note, 1.0);
@@ -477,15 +497,47 @@ class _RackSlotPiano extends StatelessWidget {
     AudioEngine engine,
     int note,
   ) {
+    final status = 0x80 | (channelIndex & 0x0F); // note-off on this channel
     for (final cable in _midiOutCables(context)) {
       final target = _findPlugin(context, cable.toSlotId);
       if (target == null) continue;
+      if (target is LooperPluginInstance) {
+        context.read<LooperEngine>().feedMidiEvent(target.id, status, note, 0);
+        continue;
+      }
       final targetCh = (target.midiChannel - 1).clamp(0, 15);
       if (target is Vst3PluginInstance) {
         context.read<VstHostService>().noteOff(target.id, 0, note);
         engine.noteOffUiOnly(channel: targetCh, key: note);
       } else {
         engine.stopNote(channel: targetCh, key: note);
+      }
+    }
+  }
+
+  /// Feeds a note event only to [LooperPluginInstance] targets connected to
+  /// this slot's MIDI OUT jack.
+  ///
+  /// Unlike [_dispatchMidiNoteOn]/[_dispatchMidiNoteOff] (which route to ALL
+  /// downstream targets), this method intentionally skips non-looper targets
+  /// to avoid double-playing instruments that are already driven by FluidSynth.
+  ///
+  /// Called for GFK and other non-VP, non-VST3 slots so that on-screen key
+  /// presses are recorded by any connected looper without disturbing audio.
+  void _feedConnectedLoopers(
+    BuildContext context,
+    int note,
+    int velocity, {
+    required bool isNoteOn,
+  }) {
+    final looperEngine = context.read<LooperEngine>();
+    final status = isNoteOn
+        ? (0x90 | (channelIndex & 0x0F))
+        : (0x80 | (channelIndex & 0x0F));
+    for (final cable in _midiOutCables(context)) {
+      final target = _findPlugin(context, cable.toSlotId);
+      if (target is LooperPluginInstance) {
+        looperEngine.feedMidiEvent(target.id, status, note, velocity);
       }
     }
   }

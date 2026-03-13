@@ -616,7 +616,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get rackMidiChannel => 'MIDI CH';
 
   @override
-  String get rackOpenProject => 'Open Project';
+  String get rackOpenProject => 'Projects';
 
   @override
   String get rackSaveProject => 'Save Project';
@@ -786,4 +786,74 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get virtualPianoSlotHint =>
       'Notes route via MIDI OUT — connect a cable in patch view.';
+
+  @override
+  String get looperSlotName => 'MIDI Looper';
+
+  @override
+  String get addLooper => 'MIDI Looper';
+
+  @override
+  String get addLooperSubtitle => 'Record and loop MIDI patterns with bar sync';
+
+  @override
+  String get looperRecord => 'Record';
+
+  @override
+  String get looperPlay => 'Play';
+
+  @override
+  String get looperStop => 'Stop';
+
+  @override
+  String get looperClear => 'Clear';
+
+  @override
+  String get looperOverdub => 'Overdub';
+
+  @override
+  String get looperArmed => 'Armed — waiting for transport';
+
+  @override
+  String get looperWaitingForBar => 'Waiting for bar 1…';
+
+  @override
+  String looperTrack(int n) {
+    return 'Track $n';
+  }
+
+  @override
+  String get looperPinBelow => 'Pin below transport';
+
+  @override
+  String get looperHalfSpeed => '½×';
+
+  @override
+  String get looperNormalSpeed => '1×';
+
+  @override
+  String get looperDoubleSpeed => '2×';
+
+  @override
+  String get looperReverse => 'Reverse';
+
+  @override
+  String get looperMute => 'Mute';
+
+  @override
+  String get looperNoChord => '—';
+
+  @override
+  String looperBar(int n) {
+    return 'Bar $n';
+  }
+
+  @override
+  String get looperCcAssign => 'Assign CC';
+
+  @override
+  String get looperCcAssignTitle => 'Assign hardware CC to looper action';
+
+  @override
+  String get looperCcRemove => 'Remove CC binding';
 }

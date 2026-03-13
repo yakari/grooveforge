@@ -7,7 +7,9 @@ import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import '../models/gfpa_plugin_instance.dart';
 import '../models/grooveforge_keyboard_plugin.dart';
+import '../models/looper_plugin_instance.dart';
 import '../models/virtual_piano_plugin.dart';
+import '../services/looper_engine.dart';
 import '../services/rack_state.dart';
 import '../services/vst_host_service.dart';
 
@@ -284,6 +286,22 @@ class _AddPluginSheetContentState extends State<_AddPluginSheetContent> {
                     midiChannel: ch,
                   ),
                 );
+              },
+            ),
+
+            // ── MIDI Looper
+            _PluginTile(
+              icon: Icons.loop,
+              iconColor: Colors.greenAccent,
+              title: l10n.addLooper,
+              subtitle: l10n.addLooperSubtitle,
+              onTap: () {
+                Navigator.pop(context);
+                final slotId = rack.generateSlotId();
+                final looper = LooperPluginInstance(id: slotId);
+                rack.addPlugin(looper);
+                // Register a session in the engine as soon as the slot is added.
+                context.read<LooperEngine>().ensureSession(slotId);
               },
             ),
 

@@ -619,7 +619,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get rackMidiChannel => 'CANAL MIDI';
 
   @override
-  String get rackOpenProject => 'Ouvrir un projet';
+  String get rackOpenProject => 'Projets';
 
   @override
   String get rackSaveProject => 'Enregistrer';
@@ -790,4 +790,76 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get virtualPianoSlotHint =>
       'Les notes passent par MIDI OUT — connectez un câble en vue de câblage.';
+
+  @override
+  String get looperSlotName => 'Looper MIDI';
+
+  @override
+  String get addLooper => 'Looper MIDI';
+
+  @override
+  String get addLooperSubtitle =>
+      'Enregistrez et bouclez des séquences MIDI avec synchro de mesure';
+
+  @override
+  String get looperRecord => 'Enregistrer';
+
+  @override
+  String get looperPlay => 'Lecture';
+
+  @override
+  String get looperStop => 'Stop';
+
+  @override
+  String get looperClear => 'Effacer';
+
+  @override
+  String get looperOverdub => 'Overdub';
+
+  @override
+  String get looperArmed => 'Armé — en attente du transport';
+
+  @override
+  String get looperWaitingForBar => 'En attente de la mesure 1…';
+
+  @override
+  String looperTrack(int n) {
+    return 'Piste $n';
+  }
+
+  @override
+  String get looperPinBelow => 'Épingler sous le transport';
+
+  @override
+  String get looperHalfSpeed => '½×';
+
+  @override
+  String get looperNormalSpeed => '1×';
+
+  @override
+  String get looperDoubleSpeed => '2×';
+
+  @override
+  String get looperReverse => 'Inverser';
+
+  @override
+  String get looperMute => 'Muet';
+
+  @override
+  String get looperNoChord => '—';
+
+  @override
+  String looperBar(int n) {
+    return 'Mesure $n';
+  }
+
+  @override
+  String get looperCcAssign => 'Assigner CC';
+
+  @override
+  String get looperCcAssignTitle =>
+      'Assigner un CC matériel à une action du looper';
+
+  @override
+  String get looperCcRemove => 'Supprimer l\'assignation CC';
 }

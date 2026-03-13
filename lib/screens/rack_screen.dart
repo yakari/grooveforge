@@ -7,11 +7,14 @@ import 'package:package_info_plus/package_info_plus.dart';
 import '../l10n/app_localizations.dart';
 import '../models/audio_port_id.dart';
 import '../models/gfpa_plugin_instance.dart';
+import '../models/grooveforge_keyboard_plugin.dart';
+import '../models/looper_plugin_instance.dart';
 import '../models/virtual_piano_plugin.dart';
 import '../models/vst3_plugin_instance.dart';
 import '../services/audio_engine.dart';
 import '../services/audio_graph.dart';
 import '../services/cc_mapping_service.dart';
+import '../services/looper_engine.dart';
 import '../services/midi_service.dart';
 import '../services/patch_drag_controller.dart';
 import '../services/project_service.dart';
@@ -65,6 +68,14 @@ class _RackScreenState extends State<RackScreen> {
     final ccMappingService = context.read<CcMappingService>();
 
     engine.ccMappingService = ccMappingService;
+
+    // Wire looper MIDI playback → dispatch to slots connected via MIDI OUT cable.
+    final looperEngine = context.read<LooperEngine>();
+    looperEngine.onMidiPlayback = _handleLooperPlayback;
+
+    // When the transport starts playing, arm any waiting looper sessions.
+    context.read<TransportEngine>().addListener(_onTransportChanged);
+
     midiService.onMidiDataReceived = (packet) {
       // If a VST3 slot owns this MIDI channel, send only to the VST3 plugin
       // and skip FluidSynth entirely — otherwise the soundfont plays in parallel.
@@ -114,9 +125,22 @@ class _RackScreenState extends State<RackScreen> {
     if (_toastListener != null) {
       context.read<AudioEngine>().toastNotifier.removeListener(_toastListener!);
     }
+    context.read<TransportEngine>().removeListener(_onTransportChanged);
+    context.read<LooperEngine>().onMidiPlayback = null;
     _scrollController.dispose();
     _isPatchView.dispose();
     super.dispose();
+  }
+
+  /// Called when the [TransportEngine] state changes.
+  ///
+  /// Notifies [LooperEngine] when the transport transitions to playing so that
+  /// armed looper sessions begin recording in sync with the downbeat.
+  void _onTransportChanged() {
+    final transport = context.read<TransportEngine>();
+    if (transport.isPlaying) {
+      context.read<LooperEngine>().onTransportPlay();
+    }
   }
 
   // ─── Auto-scroll ────────────────────────────────────────────────────────────
@@ -147,8 +171,14 @@ class _RackScreenState extends State<RackScreen> {
         .whereType<VirtualPianoPlugin>()
         .where((p) => p.midiChannel == midiChannel)
         .toList();
+    // GFK slots are also checked so that external MIDI on a keyboard channel
+    // is forwarded to any looper connected via MIDI OUT cable.
+    final gfkSlots = rack.plugins
+        .whereType<GrooveForgeKeyboardPlugin>()
+        .where((p) => p.midiChannel == midiChannel)
+        .toList();
 
-    if (vst3Slots.isEmpty && vpSlots.isEmpty) return false;
+    if (vst3Slots.isEmpty && vpSlots.isEmpty && gfkSlots.isEmpty) return false;
 
     final command = statusByte & 0xF0;
     if ((command == 0x90 || command == 0x80) && packet.data.length >= 2) {
@@ -183,9 +213,30 @@ class _RackScreenState extends State<RackScreen> {
           );
         }
       }
+
+      // ── GrooveForge Keyboard looper feed ─────────────────────────────────
+      // GFK audio still flows through FluidSynth (caller returns false below
+      // when gfkSlots is the only match), but we also capture the note into
+      // any looper whose MIDI IN jack is connected to this GFK's MIDI OUT.
+      if (gfkSlots.isNotEmpty) {
+        for (final gfk in gfkSlots) {
+          final gfkCh = (gfk.midiChannel - 1).clamp(0, 15);
+          _feedMidiToLoopers(
+            isNoteOn
+                ? (0x90 | gfkCh)
+                : (0x80 | gfkCh),
+            note,
+            velocity,
+            gfk.id,
+          );
+        }
+      }
     }
 
-    return true;
+    // Return true only when a VST3 or VP slot claimed the channel — those
+    // replace FluidSynth. A GFK match feeds the looper as a side-effect but
+    // still needs FluidSynth to produce audio, so we return false in that case.
+    return vst3Slots.isNotEmpty || vpSlots.isNotEmpty;
   }
 
   /// Routes one external MIDI note event through a [VirtualPianoPlugin]'s
@@ -215,7 +266,15 @@ class _RackScreenState extends State<RackScreen> {
       engine.noteOffUiOnly(channel: vpCh, key: note);
     }
 
-    // Forward to each slot connected to VP's MIDI OUT jack.
+    // Feed the (snapped) note into any looper connected to VP's MIDI OUT.
+    _feedMidiToLoopers(
+      isNoteOn ? 0x90 | (vpCh & 0x0F) : 0x80 | (vpCh & 0x0F),
+      snapped,
+      velocity,
+      vp.id,
+    );
+
+    // Forward to each non-looper slot connected to VP's MIDI OUT jack.
     final cables = audioGraph
         .connectionsFrom(vp.id)
         .where((c) => c.fromPort == AudioPortId.midiOut);
@@ -238,6 +297,79 @@ class _RackScreenState extends State<RackScreen> {
         } else {
           engine.stopNote(channel: targetCh, key: snapped);
         }
+      }
+    }
+  }
+
+  /// Dispatches a MIDI event emitted by the looper during playback to every
+  /// slot connected via the looper slot's MIDI OUT cable.
+  ///
+  /// Called by [LooperEngine.onMidiPlayback] on every replayed event.
+  void _handleLooperPlayback(String slotId, int status, int data1, int data2) {
+    if (!mounted) return;
+    final rack = context.read<RackState>();
+    final audioGraph = context.read<AudioGraph>();
+    final engine = context.read<AudioEngine>();
+    final vstSvc = context.read<VstHostService>();
+
+    final command = status & 0xF0;
+    final isNoteOn = command == 0x90 && data2 > 0;
+    final isNoteOff = command == 0x80 || (command == 0x90 && data2 == 0);
+
+    // Forward to each slot connected to this looper's MIDI OUT jack.
+    final cables = audioGraph
+        .connectionsFrom(slotId)
+        .where((c) => c.fromPort == AudioPortId.midiOut);
+    for (final cable in cables) {
+      final target =
+          rack.plugins.where((p) => p.id == cable.toSlotId).firstOrNull;
+      if (target == null) continue;
+      final targetCh = (target.midiChannel - 1).clamp(0, 15);
+      if (isNoteOn) {
+        if (target is Vst3PluginInstance) {
+          vstSvc.noteOn(target.id, 0, data1, data2 / 127.0);
+          engine.noteOnUiOnly(channel: targetCh, key: data1);
+        } else {
+          engine.playNote(channel: targetCh, key: data1, velocity: data2);
+        }
+      } else if (isNoteOff) {
+        if (target is Vst3PluginInstance) {
+          vstSvc.noteOff(target.id, 0, data1);
+          engine.noteOffUiOnly(channel: targetCh, key: data1);
+        } else {
+          engine.stopNote(channel: targetCh, key: data1);
+        }
+      }
+    }
+  }
+
+  /// Feeds an incoming external MIDI event to any [LooperPluginInstance] whose
+  /// MIDI IN jack is connected (via cable) to the slot that owns [midiChannel].
+  ///
+  /// This enables the pattern: [Hardware controller → Keyboard slot → cable →
+  /// Looper MIDI IN] where the looper records the notes played externally.
+  void _feedMidiToLoopers(
+    int status,
+    int data1,
+    int data2,
+    String sourceSlotId,
+  ) {
+    final audioGraph = context.read<AudioGraph>();
+    final looperEngine = context.read<LooperEngine>();
+
+    // Find all MIDI OUT cables leaving [sourceSlotId].
+    final cables = audioGraph
+        .connectionsFrom(sourceSlotId)
+        .where((c) => c.fromPort == AudioPortId.midiOut);
+
+    for (final cable in cables) {
+      final targetSlotId = cable.toSlotId;
+      final isLooper = context
+          .read<RackState>()
+          .plugins
+          .any((p) => p.id == targetSlotId && p is LooperPluginInstance);
+      if (isLooper) {
+        looperEngine.feedMidiEvent(targetSlotId, status, data1, data2);
       }
     }
   }
@@ -273,9 +405,11 @@ class _RackScreenState extends State<RackScreen> {
     final engine = context.read<AudioEngine>();
     final transport = context.read<TransportEngine>();
     final audioGraph = context.read<AudioGraph>();
+    final looper = context.read<LooperEngine>();
     final service = context.read<ProjectService>();
 
-    final path = await service.openProject(rack, engine, transport, audioGraph);
+    final path = await service.openProject(
+        rack, engine, transport, audioGraph, looper);
     if (path != null && mounted) {
       setState(() => _currentProjectPath = path);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -290,10 +424,11 @@ class _RackScreenState extends State<RackScreen> {
     final engine = context.read<AudioEngine>();
     final transport = context.read<TransportEngine>();
     final audioGraph = context.read<AudioGraph>();
+    final looper = context.read<LooperEngine>();
     final service = context.read<ProjectService>();
 
-    final path =
-        await service.saveProjectAs(rack, engine, transport, audioGraph);
+    final path = await service.saveProjectAs(
+        rack, engine, transport, audioGraph, looper);
     if (path != null && mounted) {
       setState(() => _currentProjectPath = path);
       ScaffoldMessenger.of(context).showSnackBar(

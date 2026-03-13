@@ -252,7 +252,7 @@
   "rackRemove": "Remove",
   "rackPluginUnavailableOnMobile": "This VST3 plugin is not available on mobile.",
   "rackMidiChannel": "MIDI CH",
-  "rackOpenProject": "Open Project",
+  "rackOpenProject": "Projects",
   "rackSaveProject": "Save Project",
   "rackSaveProjectAs": "Save As…",
   "rackNewProject": "New Project",
@@ -316,5 +316,38 @@
   "virtualPianoSlotName": "Virtual MIDI Controller",
   "addVirtualPiano": "Virtual MIDI Controller",
   "rackAddVirtualPianoSubtitle": "Standalone MIDI source for patch routing",
-  "virtualPianoSlotHint": "Notes route via MIDI OUT — connect a cable in patch view."
+  "virtualPianoSlotHint": "Notes route via MIDI OUT — connect a cable in patch view.",
+
+  "looperSlotName": "MIDI Looper",
+  "addLooper": "MIDI Looper",
+  "addLooperSubtitle": "Record and loop MIDI patterns with bar sync",
+  "looperRecord": "Record",
+  "looperPlay": "Play",
+  "looperStop": "Stop",
+  "looperClear": "Clear",
+  "looperOverdub": "Overdub",
+  "looperArmed": "Armed — waiting for transport",
+  "looperWaitingForBar": "Waiting for bar 1…",
+  "looperTrack": "Track {n}",
+  "@looperTrack": {
+    "placeholders": {
+      "n": { "type": "int" }
+    }
+  },
+  "looperPinBelow": "Pin below transport",
+  "looperHalfSpeed": "½×",
+  "looperNormalSpeed": "1×",
+  "looperDoubleSpeed": "2×",
+  "looperReverse": "Reverse",
+  "looperMute": "Mute",
+  "looperNoChord": "—",
+  "looperBar": "Bar {n}",
+  "@looperBar": {
+    "placeholders": {
+      "n": { "type": "int" }
+    }
+  },
+  "looperCcAssign": "Assign CC",
+  "looperCcAssignTitle": "Assign hardware CC to looper action",
+  "looperCcRemove": "Remove CC binding"
 }
