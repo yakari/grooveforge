@@ -46,45 +46,113 @@ class RackSlotWidget extends StatelessWidget {
     final engine = context.read<AudioEngine>();
     // midiChannel == 0 for MIDI FX / effect GFPA slots — use ch 0 as fallback.
     final channelIndex = (plugin.midiChannel - 1).clamp(0, 15);
+
+    // ── Looper: glow when actively playing back to connected slots ──────────
+    if (plugin is LooperPluginInstance) {
+      return ListenableBuilder(
+        listenable: context.read<LooperEngine>(),
+        builder: (context, _) {
+          final session =
+              context.read<LooperEngine>().session(plugin.id);
+          final isFlashing = session?.isPlayingActive ?? false;
+          return _buildSlotContent(context, isFlashing, channelIndex);
+        },
+      );
+    }
+
+    // ── Jam Mode: glow while keys are held on the master channel ─────────────
+    // Both detect modes (chord and bass-note) share the same glow condition:
+    // activeNotes is non-empty ↔ the master is currently sending input.
+    // lastChord is intentionally NOT used: it persists after keys are released
+    // (it stores the last recognised chord), which would keep the header lit
+    // permanently after a single chord is played.
+    // No glow when Jam Mode is disabled or no master slot is configured.
+    if (plugin is GFpaPluginInstance &&
+        (plugin as GFpaPluginInstance).pluginId == 'com.grooveforge.jammode') {
+      return ListenableBuilder(
+        listenable: Listenable.merge([
+          engine.gfpaJamEntries,
+          ...engine.channels.map((ch) => ch.activeNotes),
+        ]),
+        builder: (context, _) {
+          final jamPlugin = plugin as GFpaPluginInstance;
+          final enabled = jamPlugin.state['enabled'] != false;
+          if (!enabled) return _buildSlotContent(context, false, channelIndex);
+
+          // Find the master slot to know which channel to watch.
+          final rack = context.read<RackState>();
+          final masterSlot = rack.plugins
+              .cast<PluginInstance?>()
+              .firstWhere(
+                (p) => p?.id == jamPlugin.masterSlotId,
+                orElse: () => null,
+              );
+          if (masterSlot == null) {
+            return _buildSlotContent(context, false, channelIndex);
+          }
+
+          final masterCh = (masterSlot.midiChannel - 1).clamp(0, 15);
+          final isFlashing =
+              engine.channels[masterCh].activeNotes.value.isNotEmpty;
+
+          return _buildSlotContent(context, isFlashing, channelIndex);
+        },
+      );
+    }
+
+    // ── Instrument slots: glow when notes are active on their channel ───────
     final channelState = engine.channels[channelIndex];
-    debugPrint('RackSlotWidget: building ValueListenableBuilder for ${plugin.displayName}');
+    debugPrint(
+        'RackSlotWidget: building ValueListenableBuilder for ${plugin.displayName}');
     return ValueListenableBuilder<Set<int>>(
       valueListenable: channelState.activeNotes,
       builder: (context, activeNotes, _) {
-        final isFlashing = activeNotes.isNotEmpty;
-        return AnimatedContainer(
-          duration: const Duration(milliseconds: 100),
-          curve: Curves.easeInOut,
-          margin: const EdgeInsets.only(bottom: 2),
-          decoration: BoxDecoration(
-            color: isFlashing
-                ? Colors.blueAccent.withValues(alpha: 0.2)
-                : Theme.of(context).cardColor,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: isFlashing ? Colors.blueAccent : Colors.transparent,
-              width: 2,
-            ),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _SlotHeader(plugin: plugin, isFlashing: isFlashing),
-              _buildBody(context),
-              // Piano is shown for built-in GK slots and GFPA instrument slots
-              // (keyboard and vocoder). MIDI FX / VST3 / effect slots get none.
-              if (_showPiano)
-                SizedBox(
-                  height: pianoHeight,
-                  child: _RackSlotPiano(
-                    channelIndex: channelIndex,
-                    plugin: plugin,
-                  ),
-                ),
-            ],
-          ),
-        );
+        final isFlashing = _shouldShowNoteGlow && activeNotes.isNotEmpty;
+        return _buildSlotContent(context, isFlashing, channelIndex);
       },
+    );
+  }
+
+  /// Builds the animated slot container with [isFlashing] glow state.
+  ///
+  /// Extracted so that Looper, Jam Mode, and instrument slots can each use a
+  /// different reactive listener while sharing the same decoration logic.
+  Widget _buildSlotContent(
+    BuildContext context,
+    bool isFlashing,
+    int channelIndex,
+  ) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 100),
+      curve: Curves.easeInOut,
+      margin: const EdgeInsets.only(bottom: 2),
+      decoration: BoxDecoration(
+        color: isFlashing
+            ? Colors.blueAccent.withValues(alpha: 0.2)
+            : Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isFlashing ? Colors.blueAccent : Colors.transparent,
+          width: 2,
+        ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _SlotHeader(plugin: plugin, isFlashing: isFlashing),
+          _buildBody(context),
+          // Piano is shown for built-in GK slots and GFPA instrument slots
+          // (keyboard and vocoder). MIDI FX / VST3 / effect slots get none.
+          if (_showPiano)
+            SizedBox(
+              height: pianoHeight,
+              child: _RackSlotPiano(
+                channelIndex: channelIndex,
+                plugin: plugin,
+              ),
+            ),
+        ],
+      ),
     );
   }
 
@@ -97,6 +165,22 @@ class RackSlotWidget extends StatelessWidget {
       return gfpa.pluginId == 'com.grooveforge.vocoder';
     }
     return false;
+  }
+
+  /// Whether this slot should flash blue when notes are active on its channel.
+  ///
+  /// Jam Mode and Looper are MIDI FX / recorder slots — they share channel 0
+  /// with any instrument on MIDI channel 1, so they must be excluded from the
+  /// note-activity glow to avoid false highlights when an unconnected VP is
+  /// played.  Only slots that directly produce or respond to notes should glow.
+  bool get _shouldShowNoteGlow {
+    if (plugin is LooperPluginInstance) return false;
+    if (plugin is GFpaPluginInstance) {
+      final gfpa = plugin as GFpaPluginInstance;
+      // Only the vocoder is an instrument; Jam Mode and other MIDI FX are not.
+      return gfpa.pluginId == 'com.grooveforge.vocoder';
+    }
+    return true; // VP, GFK, VST3 all respond to notes and should glow.
   }
 
   Widget _buildBody(BuildContext context) {
