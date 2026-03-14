@@ -345,9 +345,9 @@ class _LedButton extends StatelessWidget {
             Text(
               enabled ? 'ON' : 'OFF',
               style: TextStyle(
-                fontSize: 8,
+                fontSize: 10,
                 fontWeight: FontWeight.w900,
-                color: enabled ? _kLedOn : Colors.white30,
+                color: enabled ? _kLedOn : Colors.white54,
                 letterSpacing: 0.8,
               ),
             ),
@@ -521,9 +521,9 @@ class _ScaleLcdSelector extends StatelessWidget {
                   Text(
                     'SCALE TYPE',
                     style: TextStyle(
-                      fontSize: 7,
+                      fontSize: 9,
                       fontWeight: FontWeight.w800,
-                      color: _kLcdAmber.withValues(alpha: 0.55),
+                      color: _kLcdAmber.withValues(alpha: 0.75),
                       letterSpacing: 1.3,
                     ),
                   ),
@@ -676,7 +676,7 @@ class _MasterSection extends StatelessWidget {
             Text(
               'MASTER',
               style: TextStyle(
-                fontSize: 8,
+                fontSize: 10,
                 fontWeight: FontWeight.w800,
                 color: _kMasterColor,
                 letterSpacing: 1.4,
@@ -692,7 +692,7 @@ class _MasterSection extends StatelessWidget {
             value: current?.id,
             hint: const Text(
               '— pick —',
-              style: TextStyle(fontSize: 11, color: Colors.white30),
+              style: TextStyle(fontSize: 11, color: Colors.white54),
             ),
             isExpanded: true,
             underline: Container(
@@ -708,7 +708,7 @@ class _MasterSection extends StatelessWidget {
               const DropdownMenuItem(
                 value: null,
                 child: Text('— none —',
-                    style: TextStyle(fontSize: 11, color: Colors.white30)),
+                    style: TextStyle(fontSize: 11, color: Colors.white54)),
               ),
               for (final s in allSlots)
                 DropdownMenuItem(
@@ -768,7 +768,7 @@ class _TargetsSection extends StatelessWidget {
             Text(
               'TARGETS',
               style: TextStyle(
-                fontSize: 8,
+                fontSize: 10,
                 fontWeight: FontWeight.w800,
                 color: _kTargetColor,
                 letterSpacing: 1.4,
@@ -792,7 +792,7 @@ class _TargetsSection extends StatelessWidget {
             if (targetIds.isEmpty && available.isEmpty)
               Text(
                 'no slots',
-                style: TextStyle(fontSize: 10, color: Colors.white24),
+                style: TextStyle(fontSize: 10, color: Colors.white54),
               ),
           ],
         ),
@@ -980,14 +980,14 @@ class _LabeledControl extends StatelessWidget {
               Text(
                 label,
                 style: const TextStyle(
-                  fontSize: 7,
+                  fontSize: 9,
                   fontWeight: FontWeight.w800,
-                  color: Colors.white38,
+                  color: Colors.white60,
                   letterSpacing: 1.3,
                 ),
               ),
               const SizedBox(width: 3),
-              const Icon(Icons.help_outline, size: 8, color: Colors.white30),
+              const Icon(Icons.help_outline, size: 9, color: Colors.white54),
             ],
           ),
         ),
@@ -1076,14 +1076,14 @@ class _ModeTab extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 10, color: selected ? color : Colors.white30),
+            Icon(icon, size: 10, color: selected ? color : Colors.white54),
             const SizedBox(width: 3),
             Text(
               label,
               style: TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.w700,
-                color: selected ? color : Colors.white38,
+                color: selected ? color : Colors.white60,
                 letterSpacing: 0.3,
               ),
             ),
@@ -1136,9 +1136,9 @@ class _BpmStrip extends StatelessWidget {
             child: Text(
               opt.label,
               style: TextStyle(
-                fontSize: 9,
+                fontSize: 11,
                 fontWeight: FontWeight.w800,
-                color: sel ? _kBpmColor : Colors.white30,
+                color: sel ? _kBpmColor : Colors.white54,
                 letterSpacing: 0.3,
               ),
             ),
@@ -1228,7 +1228,7 @@ class _VisualToggle extends StatelessWidget {
           child: Icon(
             icon,
             size: 12,
-            color: active ? color : Colors.white30,
+            color: active ? color : Colors.white54,
           ),
         ),
       ),
@@ -1261,13 +1261,13 @@ class _JamModePinToggle extends StatelessWidget {
             Icon(
               pinned ? Icons.push_pin : Icons.push_pin_outlined,
               size: 13,
-              color: pinned ? _kLcdAmber : Colors.white24,
+              color: pinned ? _kLcdAmber : Colors.white38,
             ),
             const SizedBox(width: 6),
             Text(
               l10n.jamModePinBelow,
               style: TextStyle(
-                color: pinned ? _kLcdAmber : Colors.white38,
+                color: pinned ? _kLcdAmber : Colors.white54,
                 fontSize: 10,
               ),
             ),
@@ -1383,7 +1383,7 @@ class _PinnedJamModeRow extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.w900,
-                  color: enabled ? _kLedOn : Colors.white38,
+                  color: enabled ? _kLedOn : Colors.white60,
                   letterSpacing: 0.8,
                 ),
               ),

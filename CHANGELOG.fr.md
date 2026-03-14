@@ -5,6 +5,14 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/lang/fr/).
 
+## [2.5.2] - 2026-03-14
+
+### Corrigé
+- **Contraste et lisibilité des textes** — tailles de police et opacités augmentées dans le rack Jam Mode, le rack MIDI Looper et la vue arrière (panneau de patch) pour améliorer la lisibilité sur fond sombre :
+  - **Vue arrière** : libellés de section (MIDI / AUDIO / DATA) passés de 9 à 10 px et d'un gris quasi invisible à un bleu-gris lisible ; libellés de port (MIDI IN, AUDIO OUT L, etc.) passés de 8 à 10 px ; nom d'affichage et bouton [FACE] éclaircis.
+  - **Looper** : badge d'état « IDLE » nettement plus visible (white24 → white54) ; icônes de transport inactives éclaircies ; libellés de piste 10 → 11 px ; cellules de grille d'accords, bascules M/R, puces de vitesse et puce Q toutes passées de 9 à 10 px avec des couleurs inactives plus contrastées ; icônes et texte du bouton épingle éclaircis.
+  - **Jam Mode** : libellé ON/OFF du bouton LED 8 → 10 px ; libellés de section MASTER et TARGETS 8 → 10 px ; indication SCALE TYPE 7 → 9 px ; libellés DETECT/SYNC 7 → 9 px ; texte inactif des puces sync et BPM relevé de white30/white38 à white54/white60 ; puce BPM 9 → 11 px ; couleurs des espaces réservés des menus déroulants éclaircies ; bouton épingle éclairci.
+
 ## [2.5.1] - 2026-03-14
 
 ### Ajouté

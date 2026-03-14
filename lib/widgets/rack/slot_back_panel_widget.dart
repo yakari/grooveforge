@@ -227,7 +227,7 @@ class _BackPanelHeader extends StatelessWidget {
           child: Text(
             displayName.toUpperCase(),
             style: const TextStyle(
-              color: Color(0xFF7799BB),
+              color: Color(0xFFAABBDD),
               fontSize: 12,
               fontWeight: FontWeight.bold,
               letterSpacing: 2.0,
@@ -245,7 +245,7 @@ class _BackPanelHeader extends StatelessWidget {
           child: Text(
             '[${l10n.patchViewFrontButton}]',
             style: const TextStyle(
-              color: Color(0xFF556688),
+              color: Color(0xFF8899BB),
               fontSize: 10,
               letterSpacing: 1.2,
             ),
@@ -289,8 +289,8 @@ class _JackSection extends StatelessWidget {
         Text(
           label,
           style: const TextStyle(
-            color: Color(0xFF445566),
-            fontSize: 9,
+            color: Color(0xFF8899BB),
+            fontSize: 10,
             letterSpacing: 1.2,
             fontWeight: FontWeight.w600,
           ),
@@ -436,8 +436,8 @@ class _JackWidgetState extends State<_JackWidget>
               Text(
                 widget.port.localizedLabel(widget.l10n),
                 style: TextStyle(
-                  color: widget.port.color.withValues(alpha: 0.75),
-                  fontSize: 8,
+                  color: widget.port.color.withValues(alpha: 0.90),
+                  fontSize: 10,
                   letterSpacing: 0.4,
                 ),
                 textAlign: TextAlign.center,

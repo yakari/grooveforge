@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.2] - 2026-03-14
+
+### Fixed
+- **UI text contrast and readability** — increased font sizes and opacity across the Jam Mode rack, MIDI Looper rack, and rack rear view (patch panel) to improve legibility on dark backgrounds:
+  - **Rear view**: section labels (MIDI / AUDIO / DATA) raised from 9 px to 10 px and from near-invisible grey to visible blue-grey; port labels (MIDI IN, AUDIO OUT L, etc.) raised from 8 px to 10 px; display name and [FRONT] button brightened.
+  - **Looper**: "IDLE" state badge no longer nearly invisible (white24 → white54); transport button inactive icons brightened; track labels 10 → 11 px; chord bar cells, M/R toggles, speed chips, and Q chip all raised from 9 px to 10 px with higher contrast inactive colours; delete and pin toggle icons/text brightened.
+  - **Jam Mode**: ON/OFF LED label 8 → 10 px; MASTER and TARGETS section labels 8 → 10 px; SCALE TYPE hint 7 → 9 px; DETECT/SYNC section labels 7 → 9 px; sync chip and BPM chip unselected text raised from white30/white38 to white54/white60; BPM chip text 9 → 11 px; dropdown placeholder colours brightened; pin toggle brightened.
+
 ## [2.5.1] - 2026-03-14
 
 ### Added

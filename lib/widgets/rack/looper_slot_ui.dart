@@ -161,7 +161,7 @@ class _TransportStrip extends StatelessWidget {
           // STOP — always available; stops playback without clearing tracks.
           _TransportButton(
             icon: Icons.stop,
-            color: Colors.white54,
+            color: Colors.white70,
             active: false,
             tooltip: l10n.looperStop,
             onTap: () => engine.stop(slotId),
@@ -171,7 +171,7 @@ class _TransportStrip extends StatelessWidget {
           // CLEAR — erases all tracks and resets to idle.
           _TransportButton(
             icon: Icons.delete_outline,
-            color: Colors.white38,
+            color: Colors.white54,
             active: false,
             tooltip: l10n.looperClear,
             onTap: () => engine.clearAll(slotId),
@@ -307,7 +307,7 @@ class _TransportButton extends StatelessWidget {
                   ]
                 : null,
           ),
-          child: Icon(icon, size: 18, color: active ? color : Colors.white38),
+          child: Icon(icon, size: 18, color: active ? color : Colors.white60),
         ),
       ),
     );
@@ -349,7 +349,7 @@ class _StateLcd extends StatelessWidget {
   /// Maps [LooperState] to a display label and accent colour.
   (String, Color) _labelAndColor(LooperState state, AppLocalizations l10n) =>
       switch (state) {
-        LooperState.idle => ('IDLE', Colors.white24),
+        LooperState.idle => ('IDLE', Colors.white54),
         LooperState.armed => (l10n.looperArmed.toUpperCase(), _kArmedColor),
         LooperState.recording => (l10n.looperRecord.toUpperCase(), _kRecColor),
         LooperState.waitingForBar =>
@@ -429,8 +429,8 @@ class _TrackRow extends StatelessWidget {
             child: Text(
               l10n.looperTrack(index + 1),
               style: TextStyle(
-                color: track.muted ? Colors.white24 : Colors.white54,
-                fontSize: 10,
+                color: track.muted ? Colors.white38 : Colors.white70,
+                fontSize: 11,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 0.5,
               ),
@@ -490,7 +490,7 @@ class _ChordGrid extends StatelessWidget {
     if (bars.isEmpty) {
       return Text(
         track.lengthInBeats == null ? '…' : l10n.looperNoChord,
-        style: const TextStyle(color: Colors.white24, fontSize: 10),
+        style: const TextStyle(color: Colors.white38, fontSize: 10),
       );
     }
 
@@ -555,7 +555,7 @@ class _BarCell extends StatelessWidget {
         ? _kLcdText
         : hasChord
             ? _kPlayColor
-            : Colors.white24;
+            : Colors.white38;
 
     return Tooltip(
       message: l10n.looperBar(barIndex + 1),
@@ -581,7 +581,7 @@ class _BarCell extends StatelessWidget {
             hasChord ? chord! : l10n.looperNoChord,
             style: TextStyle(
               color: textColor,
-              fontSize: 9,
+              fontSize: 10,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -639,7 +639,7 @@ class _TrackControls extends StatelessWidget {
         // Delete track.
         GestureDetector(
           onTap: () => engine.removeTrack(slotId, track.id),
-          child: const Icon(Icons.close, size: 14, color: Colors.white24),
+          child: const Icon(Icons.close, size: 14, color: Colors.white38),
         ),
       ],
     );
@@ -682,8 +682,8 @@ class _MiniToggle extends StatelessWidget {
             child: Text(
               label,
               style: TextStyle(
-                color: active ? activeColor : Colors.white24,
-                fontSize: 9,
+                color: active ? activeColor : Colors.white54,
+                fontSize: 10,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -769,8 +769,8 @@ class _SpeedChip extends StatelessWidget {
         child: Text(
           label,
           style: TextStyle(
-            color: active ? _kLcdText : Colors.white24,
-            fontSize: 9,
+            color: active ? _kLcdText : Colors.white54,
+            fontSize: 10,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -827,8 +827,8 @@ class _QuantizeChip extends StatelessWidget {
           child: Text(
             'Q:${quantize.label}',
             style: TextStyle(
-              color: active ? activeColor : Colors.white38,
-              fontSize: 9,
+              color: active ? activeColor : Colors.white60,
+              fontSize: 10,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -966,13 +966,13 @@ class _PinToggle extends StatelessWidget {
             Icon(
               plugin.pinned ? Icons.push_pin : Icons.push_pin_outlined,
               size: 13,
-              color: plugin.pinned ? _kLcdText : Colors.white24,
+              color: plugin.pinned ? _kLcdText : Colors.white38,
             ),
             const SizedBox(width: 6),
             Text(
               l10n.looperPinBelow,
               style: TextStyle(
-                color: plugin.pinned ? _kLcdText : Colors.white38,
+                color: plugin.pinned ? _kLcdText : Colors.white54,
                 fontSize: 10,
               ),
             ),
