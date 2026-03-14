@@ -1106,6 +1106,36 @@ abstract class AppLocalizations {
   /// **'System Default'**
   String get audioOutputDefault;
 
+  /// No description provided for @audioSettingsBarGain.
+  ///
+  /// In en, this message translates to:
+  /// **'Gain'**
+  String get audioSettingsBarGain;
+
+  /// No description provided for @audioSettingsBarMicSensitivity.
+  ///
+  /// In en, this message translates to:
+  /// **'Mic'**
+  String get audioSettingsBarMicSensitivity;
+
+  /// No description provided for @audioSettingsBarMicDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'Input'**
+  String get audioSettingsBarMicDevice;
+
+  /// No description provided for @audioSettingsBarOutputDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'Output'**
+  String get audioSettingsBarOutputDevice;
+
+  /// No description provided for @audioSettingsBarToggleTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Show/hide audio settings bar'**
+  String get audioSettingsBarToggleTooltip;
+
   /// No description provided for @synthAutoScrollTitle.
   ///
   /// In en, this message translates to:

@@ -575,6 +575,22 @@ class AppLocalizationsFr extends AppLocalizations {
   String get audioOutputDefault => 'Système (défaut)';
 
   @override
+  String get audioSettingsBarGain => 'Volume';
+
+  @override
+  String get audioSettingsBarMicSensitivity => 'Micro';
+
+  @override
+  String get audioSettingsBarMicDevice => 'Entrée';
+
+  @override
+  String get audioSettingsBarOutputDevice => 'Sortie';
+
+  @override
+  String get audioSettingsBarToggleTooltip =>
+      'Afficher/masquer la barre de réglages audio';
+
+  @override
   String get synthAutoScrollTitle => 'Auto-scroll vers le canal actif';
 
   @override

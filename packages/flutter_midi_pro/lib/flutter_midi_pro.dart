@@ -167,6 +167,14 @@ class MidiPro {
         controller: 64, value: value, channel: channel, sfId: sfId);
   }
 
+  /// Sets the master output gain on all loaded FluidSynth synth instances.
+  ///
+  /// [gain] is in the range 0.0–10.0. The change is applied immediately to
+  /// every active synth so no soundfont reload is needed.
+  Future<void> setGain(double gain) async {
+    return FlutterMidiProPlatform.instance.setGain(gain);
+  }
+
   /// Unloads a soundfont from memory.
   /// The soundfont ID is the ID returned by the [loadSoundfont] method.
   /// If resetPresets is true, the presets will be reset to the default values.

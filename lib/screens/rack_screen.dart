@@ -27,6 +27,7 @@ import '../widgets/rack/gfpa_jam_mode_slot_ui.dart';
 import '../widgets/rack/looper_slot_ui.dart';
 import '../widgets/rack/slot_back_panel_widget.dart';
 import '../widgets/rack_slot_widget.dart';
+import '../widgets/audio_settings_bar.dart';
 import '../widgets/transport_bar.dart';
 import '../widgets/user_guide_modal.dart';
 import 'preferences_screen.dart';
@@ -52,6 +53,10 @@ class _RackScreenState extends State<RackScreen> {
   /// Controls whether the rack shows front panels (default) or back panels
   /// (patch view) for cable routing.
   final ValueNotifier<bool> _isPatchView = ValueNotifier(false);
+
+  /// Controls whether the supplementary bars (audio settings, etc.) are
+  /// shown below the transport bar. Toggled via the chevron in [TransportBar].
+  final ValueNotifier<bool> _supplementaryBarsVisible = ValueNotifier(true);
 
   // GlobalKeys per slot id, used by ensureVisible in auto-scroll.
   final Map<String, GlobalKey> _slotKeys = {};
@@ -859,7 +864,22 @@ class _RackScreenState extends State<RackScreen> {
                 padding: const EdgeInsets.all(2.0),
                 child: Column(
                   children: [
-                    const TransportBar(),
+                    TransportBar(
+                      supplementaryBarsVisible: _supplementaryBarsVisible,
+                    ),
+                    // Collapsible supplementary bars — toggled by the chevron
+                    // icon in the TransportBar. AnimatedSize provides a smooth
+                    // slide-in/out transition so the rack list doesn't jump.
+                    ValueListenableBuilder<bool>(
+                      valueListenable: _supplementaryBarsVisible,
+                      builder: (ctx, visible, _) => AnimatedSize(
+                        duration: const Duration(milliseconds: 200),
+                        curve: Curves.easeInOut,
+                        child: visible
+                            ? const AudioSettingsBar()
+                            : const SizedBox.shrink(),
+                      ),
+                    ),
                     // Compact Jam Mode strip — shown only when at least one
                     // Jam Mode slot has been pinned below the transport bar.
                     const PinnedJamModeBar(),

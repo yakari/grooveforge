@@ -232,9 +232,39 @@ class AudioEngine extends ChangeNotifier {
   );
   final ValueNotifier<double> vocoderInputGain = ValueNotifier<double>(1.0);
 
+  /// Master output gain sent to the FluidSynth process (`gain` command).
+  ///
+  /// Linux default is 3.0 — the previous 5.0 was too loud relative to VST
+  /// output. Initialized before FluidSynth starts so the `-g` flag already
+  /// uses the persisted value.
+  /// Master output gain for the built-in FluidSynth engine (all platforms).
+  ///
+  /// Default is 3.0 — lower than the old hardcoded 5.0 which was too loud on
+  /// Linux. The value is persisted and applied live without a soundfont reload.
+  /// Restored from SharedPreferences on init; if no saved value exists the
+  /// default is 3.0 on Linux and 5.0 on Android/other (matching prior
+  /// behaviour for existing installs).
+  final ValueNotifier<double> fluidSynthGain = ValueNotifier<double>(3.0);
+
   static const audioConfigChannel = MethodChannel(
     'com.grooveforge.grooveforge/audio_config',
   );
+
+  /// Applies the current [fluidSynthGain] value to all active FluidSynth
+  /// instances, regardless of platform.
+  ///
+  /// - **Linux**: sends a `gain <value>` command to the FluidSynth child
+  ///   process via stdin — takes effect on the running engine immediately.
+  /// - **Android / other**: calls [MidiPro.setGain] which routes through the
+  ///   `flutter_midi_pro` method channel to `fluid_synth_set_gain()` on every
+  ///   loaded synth instance.
+  void applyFluidSynthGain() {
+    if (Platform.isLinux) {
+      _fluidSynthProcess?.stdin.writeln('gain ${fluidSynthGain.value}');
+    } else {
+      MidiPro().setGain(fluidSynthGain.value);
+    }
+  }
 
   void updateVocoderParameters() {
     AudioInputFFI().setVocoderParameters(
@@ -439,9 +469,10 @@ class AudioEngine extends ChangeNotifier {
         '-m',
         'alsa_seq',
         '-g',
-        '5', // synth gain — FluidSynth's default (0.2) produces ~0.1 amplitude,
-             // far quieter than typical VST output (~0.3-0.5). 5.0 brings the
-             // FluidSynth level in line with the rest of the audio graph.
+        '${fluidSynthGain.value}', // synth gain — persisted value (default 3.0 on Linux).
+             // FluidSynth's default (0.2) produces ~0.1 amplitude, far quieter
+             // than typical VST output (~0.3-0.5). We default to 3.0 on Linux
+             // which is loud enough without clipping at typical playing volumes.
         '-q', // quiet mode: suppresses the interactive prompt and verbose logs
       ]);
       // Drain stdout and stderr continuously to prevent a pipe deadlock.
@@ -519,6 +550,9 @@ class AudioEngine extends ChangeNotifier {
     vocoderInputGain.addListener(updateVocoderParameters);
     vocoderGateThreshold.addListener(_saveState);
     vocoderGateThreshold.addListener(updateVocoderParameters);
+
+    fluidSynthGain.addListener(_saveState);
+    fluidSynthGain.addListener(applyFluidSynthGain);
 
     vocoderInputDeviceIndex.addListener(_saveState);
     vocoderInputDeviceIndex.addListener(updateVocoderParameters);
@@ -612,6 +646,9 @@ class AudioEngine extends ChangeNotifier {
     await _prefs!.setBool('auto_scroll_enabled', autoScrollEnabled.value);
     await _prefs!.setString('last_seen_version', lastSeenVersion.value ?? "");
 
+    // FluidSynth gain (Linux)
+    await _prefs!.setDouble('fluidsynth_gain', fluidSynthGain.value);
+
     // Vocoder Parameters
     await _prefs!.setInt('vocoder_waveform', vocoderWaveform.value);
     await _prefs!.setDouble('vocoder_noise_mix', vocoderNoiseMix.value);
@@ -640,6 +677,11 @@ class AudioEngine extends ChangeNotifier {
     if (_prefs == null) {
       return;
     }
+
+    // Restore FluidSynth gain — applied immediately via stdin if the process
+    // is already running (only meaningful on Linux).
+    fluidSynthGain.value =
+        _prefs!.getDouble('fluidsynth_gain') ?? (Platform.isLinux ? 3.0 : 5.0);
 
     // Restore Vocoder Parameters FIRST so capture starts with correct device
     vocoderWaveform.value = _prefs!.getInt('vocoder_waveform') ?? 0;

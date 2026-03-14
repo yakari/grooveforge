@@ -9,12 +9,16 @@ std::map<int, fluid_settings_t*> settings = {};
 std::map<int, int> soundfonts = {};
 int nextSfId = 1;
 
+/// Current output gain applied to all synths. Default matches the original
+/// hardcoded value so existing behaviour is preserved until the user changes it.
+static float g_gain = 5.0f;
+
 extern "C" JNIEXPORT int JNICALL
 Java_com_melihhakanpektas_flutter_1midi_1pro_FlutterMidiProPlugin_loadSoundfont(JNIEnv* env, jclass clazz, jstring path, jint bank, jint program) {
     settings[nextSfId] = new_fluid_settings();
-    // FluidSynth's default gain is 0.2, which produces ~0.1 amplitude — far
-    // quieter than typical plugin/VST output (~0.3–0.5). 5.0 brings it in line.
-    fluid_settings_setnum(settings[nextSfId], "synth.gain", 5.0);
+    // Apply the current user-set gain (default 5.0) so that newly-loaded
+    // synths match any gain adjustment already applied via setGain().
+    fluid_settings_setnum(settings[nextSfId], "synth.gain", g_gain);
     // sayısal değerleri uygun setter ile ayarla
     fluid_settings_setint(settings[nextSfId], "audio.period-size", 64);
     fluid_settings_setint(settings[nextSfId], "audio.periods", 2);
@@ -85,6 +89,18 @@ Java_com_melihhakanpektas_flutter_1midi_1pro_FlutterMidiProPlugin_unloadSoundfon
     synths.erase(sfId);
     drivers.erase(sfId);
     soundfonts.erase(sfId);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_melihhakanpektas_flutter_1midi_1pro_FlutterMidiProPlugin_setGain(JNIEnv* env, jclass clazz, jdouble gain) {
+    // Persist so future soundfont loads also start at this gain level.
+    g_gain = static_cast<float>(gain);
+    // Apply gain to every currently-loaded synth instance.
+    // fluid_synth_set_gain() updates the live output level without requiring
+    // a restart; range is 0.0–10.0 (FluidSynth internal limit).
+    for (auto const& entry : synths) {
+        fluid_synth_set_gain(entry.second, g_gain);
+    }
 }
 
 extern "C" JNIEXPORT void JNICALL

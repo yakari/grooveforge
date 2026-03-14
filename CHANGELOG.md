@@ -5,9 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [X.x.x]
+## [2.5.1] - 2026-03-14
 
 ### Added
+- **Audio Settings Bar** — a collapsible strip below the transport bar exposes the most-used audio controls inline: FluidSynth output-gain knob (Linux), mic-sensitivity knob, mic-device dropdown, and output-device dropdown (Android). A chevron icon on the left of the transport bar shows/hides the strip (and any future supplementary bars added below it) with an animated slide transition. Settings remain in sync with the Preferences screen.
+- **Configurable FluidSynth gain** — the output gain for the built-in FluidSynth engine is now user-adjustable (range 0–10) and persisted across sessions. The Linux default is lowered from 5.0 to 3.0 to match typical VST output levels; the saved value is applied both at startup (via the `-g` flag) and live via FluidSynth's `gain` stdin command.
 - **Global MIDI CC bindings for Looper** — five new system action codes (1009-1013) can be mapped to any hardware CC knob/button in the CC Preferences screen: Record/Stop Rec, Play/Pause, Overdub, Stop, and Clear All. When triggered, the action is dispatched to the single active MIDI Looper slot.
 - **Global CC for channel mute/unmute (1014)** — a new system action code lets a single hardware CC toggle the mute state of any set of MIDI channels simultaneously. In the CC Preferences dialog, selecting the "Mute / Unmute Channels" action reveals a channel-selection checklist (Ch 1–16); the chosen channels are persisted with the mapping. This is useful for, e.g., silencing the vocoder channel while keeping a backing instrument playing without unplugging cables.
 - **Single-instance enforcement for Jam Mode and MIDI Looper** — the "Add Plugin" sheet now checks for an existing Jam Mode or Looper before inserting a new one. If one is already present, the sheet closes and a SnackBar explains that only one instance is allowed. This prevents incoherent multi-looper setups and simplifies CC mapping.

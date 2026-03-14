@@ -5,9 +5,11 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/lang/fr/).
 
-## [X.x.x]
+## [2.5.1] - 2026-03-14
 
 ### Ajouté
+- **Barre de réglages audio** — une bande escamotable sous la barre de transport expose les contrôles audio les plus utilisés directement à l'écran : potentiomètre de gain FluidSynth (Linux), potentiomètre de sensibilité micro, liste déroulante de sélection du micro, et liste déroulante de sortie audio (Android). Une icône chevron à gauche de la barre de transport affiche ou masque la bande (ainsi que d'éventuelles futures barres supplémentaires) avec une animation de glissement. Les réglages restent synchronisés avec l'écran des Préférences.
+- **Gain FluidSynth configurable** — le gain de sortie du moteur FluidSynth intégré est désormais ajustable par l'utilisateur (plage 0–10) et persisté entre les sessions. La valeur par défaut sur Linux passe de 5,0 à 3,0 pour s'aligner sur les niveaux de sortie des plugins VST ; la valeur sauvegardée est appliquée au démarrage (via le flag `-g`) et en temps réel via la commande `gain` sur l'entrée standard de FluidSynth.
 - **Assignations CC globales pour le Looper** — cinq nouveaux codes d'action système (1009-1013) peuvent être assignés à n'importe quel bouton ou potentiomètre CC matériel dans l'écran des préférences CC : Enregistrer/Arrêter, Lecture/Pause, Overdub, Stop et Tout effacer. L'action est transmise au slot Looper MIDI actif unique.
 - **CC global de sourdine de canaux (1014)** — un nouveau code d'action système permet à un seul CC matériel de basculer l'état muet d'un ensemble de canaux MIDI simultanément. Dans la boîte de dialogue des préférences CC, sélectionner l'action "Couper / Rétablir les canaux" affiche une liste de cases à cocher (Ch 1–16) ; les canaux sélectionnés sont persistés avec l'assignation. Utile, par exemple, pour couper le canal du vocoder tout en maintenant un instrument d'accompagnement actif, sans débrancher les câbles.
 - **Instance unique pour le Jam Mode et le Looper MIDI** — le panneau "Ajouter un plugin" vérifie désormais si un Jam Mode ou un Looper est déjà présent avant d'en insérer un nouveau. Si c'est le cas, le panneau se ferme et un SnackBar indique qu'une seule instance est autorisée. Cela évite les configurations incohérentes et simplifie l'assignation des CC.

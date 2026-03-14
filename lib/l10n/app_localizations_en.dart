@@ -571,6 +571,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get audioOutputDefault => 'System Default';
 
   @override
+  String get audioSettingsBarGain => 'Gain';
+
+  @override
+  String get audioSettingsBarMicSensitivity => 'Mic';
+
+  @override
+  String get audioSettingsBarMicDevice => 'Input';
+
+  @override
+  String get audioSettingsBarOutputDevice => 'Output';
+
+  @override
+  String get audioSettingsBarToggleTooltip => 'Show/hide audio settings bar';
+
+  @override
   String get synthAutoScrollTitle => 'Auto-scroll to Active Channel';
 
   @override
