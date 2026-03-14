@@ -5,6 +5,14 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/lang/fr/).
 
+## [X.x.x]
+
+### Ajouté
+- Plugin GFPA **Stylophone** : clavier à lamelles chromatiques monophonique (2 octaves, 25 touches) joué au toucher ou en glissant le doigt. Décalage d'octave de −2 à +2 via les boutons intégrés dans le slot. Routé vers le canal FluidSynth attribué au slot.
+- Plugin GFPA **Thérémine** : grand pad tactile dont l'axe vertical contrôle la hauteur (bas = grave, haut = aigu) et l'axe horizontal contrôle le volume (CC 7). Un orbe violet lumineux suit le doigt. Note de base (C2–C5) et plage (1–4 octaves) réglables via les boutons +/− du slot.
+- Les deux plugins apparaissent dans la feuille « Ajouter un plugin » avec des icônes dédiées.
+- Liste des futurs plugins GFPA enregistrée dans le backlog : Arpégiateur d'accords, Réverb spectrale, Boîte à rythmes / Séquenceur, Harmoniseur de gamme, Bit-crusher / Lo-fi.
+
 ## [2.5.3] - 2026-03-14
 
 ### Ajouté

@@ -300,6 +300,60 @@ class _AddPluginSheetContentState extends State<_AddPluginSheetContent> {
               },
             ),
 
+            // ── Stylophone (GFPA monophonic strip instrument)
+            _PluginTile(
+              icon: Icons.linear_scale,
+              iconColor: Colors.blueGrey,
+              title: l10n.rackAddStylophone,
+              subtitle: l10n.rackAddStyloPhoneSubtitle,
+              onTap: () {
+                Navigator.pop(context);
+                final ch = rack.nextAvailableMidiChannel();
+                if (ch == -1) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('All 16 MIDI channels are already in use.'),
+                    ),
+                  );
+                  return;
+                }
+                rack.addPlugin(
+                  GFpaPluginInstance(
+                    id: rack.generateSlotId(),
+                    pluginId: 'com.grooveforge.stylophone',
+                    midiChannel: ch,
+                  ),
+                );
+              },
+            ),
+
+            // ── Theremin (GFPA touch-controlled pitch & volume)
+            _PluginTile(
+              icon: Icons.sensors,
+              iconColor: Colors.deepPurpleAccent,
+              title: l10n.rackAddTheremin,
+              subtitle: l10n.rackAddThereminSubtitle,
+              onTap: () {
+                Navigator.pop(context);
+                final ch = rack.nextAvailableMidiChannel();
+                if (ch == -1) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('All 16 MIDI channels are already in use.'),
+                    ),
+                  );
+                  return;
+                }
+                rack.addPlugin(
+                  GFpaPluginInstance(
+                    id: rack.generateSlotId(),
+                    pluginId: 'com.grooveforge.theremin',
+                    midiChannel: ch,
+                  ),
+                );
+              },
+            ),
+
             // ── MIDI Looper
             _PluginTile(
               icon: Icons.loop,

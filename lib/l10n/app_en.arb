@@ -398,5 +398,10 @@
   "keyHeightSmall": "Small",
   "keyHeightNormal": "Normal",
   "keyHeightLarge": "Large",
-  "keyHeightExtraLarge": "Extra Large"
+  "keyHeightExtraLarge": "Extra Large",
+
+  "rackAddStylophone": "Stylophone",
+  "rackAddStyloPhoneSubtitle": "Monophonic metal-strip instrument (GFPA)",
+  "rackAddTheremin": "Theremin",
+  "rackAddThereminSubtitle": "Touch pad — vertical pitch, horizontal volume (GFPA)"
 }

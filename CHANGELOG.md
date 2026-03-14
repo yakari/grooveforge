@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [X.x.x]
+
+### Added
+- **Stylophone** GFPA instrument plugin: monophonic chromatic metal-strip keyboard (2 octaves, 25 keys) played by touch or slide. Octave shift −2 to +2 via in-slot buttons. Routes to the FluidSynth channel assigned to the rack slot.
+- **Theremin** GFPA instrument plugin: large touch pad where vertical position controls pitch (bottom = low, top = high) and horizontal position controls volume (CC 7). A glowing purple orb follows the finger. Base note (C2–C5) and range (1–4 octaves) are adjustable via in-slot +/− buttons.
+- Both plugins appear in the "Add Plugin" sheet with dedicated icons (`linear_scale` for Stylophone, `sensors` for Theremin).
+- Backlog tracked for future GFPA plugins: Chord Arpeggiator, Spectral Reverb, Drum Machine / Step Sequencer, Scale Harmonizer, Bit-crusher / Lo-fi.
+
 ## [2.5.3] - 2026-03-14
 
 ### Added

@@ -398,5 +398,10 @@
   "keyHeightSmall": "Petit",
   "keyHeightNormal": "Normal",
   "keyHeightLarge": "Grand",
-  "keyHeightExtraLarge": "Très grand"
+  "keyHeightExtraLarge": "Très grand",
+
+  "rackAddStylophone": "Stylophone",
+  "rackAddStyloPhoneSubtitle": "Instrument monophonique à lamelles métalliques (GFPA)",
+  "rackAddTheremin": "Thérémine",
+  "rackAddThereminSubtitle": "Pad tactile — hauteur verticale, volume horizontal (GFPA)"
 }

@@ -19,6 +19,8 @@ import '../models/keyboard_display_config.dart';
 import '../widgets/keyboard_config_dialog.dart';
 import '../widgets/virtual_piano.dart';
 import 'rack/gfpa_jam_mode_slot_ui.dart';
+import 'rack/gfpa_stylophone_slot_ui.dart';
+import 'rack/gfpa_theremin_slot_ui.dart';
 import 'rack/gfpa_vocoder_slot_ui.dart';
 import 'rack/grooveforge_keyboard_slot_ui.dart';
 import 'rack/looper_slot_ui.dart';
@@ -181,7 +183,8 @@ class RackSlotWidget extends StatelessWidget {
     if (plugin is VirtualPianoPlugin) return true;
     if (plugin is GFpaPluginInstance) {
       final gfpa = plugin as GFpaPluginInstance;
-      // Vocoder has a MIDI channel and responds to notes.
+      // Vocoder uses the shared rack piano. Stylophone and Theremin render
+      // their own playing surface in the slot body — no piano needed.
       return gfpa.pluginId == 'com.grooveforge.vocoder';
     }
     return false;
@@ -197,8 +200,15 @@ class RackSlotWidget extends StatelessWidget {
     if (plugin is LooperPluginInstance) return false;
     if (plugin is GFpaPluginInstance) {
       final gfpa = plugin as GFpaPluginInstance;
-      // Only the vocoder is an instrument; Jam Mode and other MIDI FX are not.
-      return gfpa.pluginId == 'com.grooveforge.vocoder';
+      // Instrument slots that produce notes should glow; MIDI FX slots should not.
+      switch (gfpa.pluginId) {
+        case 'com.grooveforge.vocoder':
+        case 'com.grooveforge.stylophone':
+        case 'com.grooveforge.theremin':
+          return true;
+        default:
+          return false;
+      }
     }
     return true; // VP, GFK, VST3 all respond to notes and should glow.
   }
@@ -227,6 +237,10 @@ class RackSlotWidget extends StatelessWidget {
         case 'com.grooveforge.jammode':
           debugPrint('RackSlotWidget: returning GFpaJamModeSlotUI');
           return GFpaJamModeSlotUI(plugin: gfpa);
+        case 'com.grooveforge.stylophone':
+          return GFpaStyloPhoneSlotUI(plugin: gfpa);
+        case 'com.grooveforge.theremin':
+          return GFpaThereminSlotUI(plugin: gfpa);
         default:
           return Padding(
             padding: const EdgeInsets.all(12),
@@ -337,6 +351,8 @@ class _SlotHeader extends StatelessWidget {
         case 'com.grooveforge.keyboard': return Icons.piano;
         case 'com.grooveforge.vocoder': return Icons.mic;
         case 'com.grooveforge.jammode': return Icons.link;
+        case 'com.grooveforge.stylophone': return Icons.linear_scale;
+        case 'com.grooveforge.theremin': return Icons.sensors;
       }
     }
     return Icons.extension;
