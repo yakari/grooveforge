@@ -69,18 +69,18 @@ class AppLocalizationsFr extends AppLocalizations {
   String get keyGesturesSection => 'Gestes sur les touches';
 
   @override
-  String get verticalInteraction => 'Interaction verticale';
+  String get verticalInteraction => 'Interaction verticale (défaut)';
 
   @override
   String get verticalInteractionSubtitle =>
-      'Glissez vers le haut/bas sur une touche';
+      'Glissez vers le haut/bas sur une touche — modifiable par slot';
 
   @override
-  String get horizontalInteraction => 'Interaction horizontale';
+  String get horizontalInteraction => 'Interaction horizontale (défaut)';
 
   @override
   String get horizontalInteractionSubtitle =>
-      'Glissez à gauche/droite sur une touche';
+      'Glissez à gauche/droite sur une touche — modifiable par slot';
 
   @override
   String get actionSave => 'SAUVEGARDER';
@@ -217,10 +217,11 @@ class AppLocalizationsFr extends AppLocalizations {
   String get virtualPianoDisplaySection => 'Affichage du Clavier Virtuel';
 
   @override
-  String get visibleKeysTitle => 'Touches visibles (Zoom)';
+  String get visibleKeysTitle => 'Nombre de touches (défaut)';
 
   @override
-  String get visibleKeysSubtitle => 'Nombre de touches blanches affichées';
+  String get visibleKeysSubtitle =>
+      'Touches blanches affichées sans override par slot';
 
   @override
   String get keys25 => '25 touches (15 blanches)';
@@ -281,11 +282,11 @@ class AppLocalizationsFr extends AppLocalizations {
   String get actionCancel => 'Annuler';
 
   @override
-  String get aftertouchEffectTitle => 'Effet Aftertouch';
+  String get aftertouchEffectTitle => 'Effet Aftertouch (défaut)';
 
   @override
   String get aftertouchEffectSubtitle =>
-      'Router la pression du clavier vers ce CC';
+      'Router la pression du clavier vers ce CC — modifiable par slot';
 
   @override
   String get aboutSection => 'À propos';
@@ -646,7 +647,10 @@ class AppLocalizationsFr extends AppLocalizations {
   String get rackMidiChannel => 'CANAL MIDI';
 
   @override
-  String get rackOpenProject => 'Projets';
+  String get rackMenuProject => 'Projets';
+
+  @override
+  String get rackOpenProject => 'Ouvrir un projet';
 
   @override
   String get rackSaveProject => 'Enregistrer';
@@ -906,4 +910,67 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get looperQuantize => 'Quantification';
+
+  @override
+  String get kbConfigTitle => 'Config. clavier';
+
+  @override
+  String kbConfigDefault(String value) {
+    return 'Défaut ($value)';
+  }
+
+  @override
+  String get kbConfigKeysToShow => 'Touches à afficher';
+
+  @override
+  String get kbConfigKeysToShowSubtitle =>
+      'Nombre de touches visibles (remplace le défaut)';
+
+  @override
+  String kbConfigKeysDefault(int count) {
+    return 'Défaut ($count touches)';
+  }
+
+  @override
+  String get kbConfigKeyHeight => 'Hauteur des touches';
+
+  @override
+  String get kbConfigKeyHeightSubtitle =>
+      'Des touches plus hautes facilitent le jeu sur téléphone';
+
+  @override
+  String get kbConfigVertGesture => 'Geste vertical';
+
+  @override
+  String get kbConfigVertGestureSubtitle =>
+      'Glissez vers le haut/bas sur une touche';
+
+  @override
+  String get kbConfigHorizGesture => 'Geste horizontal';
+
+  @override
+  String get kbConfigHorizGestureSubtitle =>
+      'Glissez à gauche/droite sur les touches';
+
+  @override
+  String get kbConfigAftertouch => 'CC Aftertouch';
+
+  @override
+  String get kbConfigAftertouchSubtitle =>
+      'La pression verticale est routée vers ce CC';
+
+  @override
+  String get kbConfigResetDefaults => 'Réinitialiser';
+
+  @override
+  String get keyHeightSmall => 'Petit';
+
+  @override
+  String get keyHeightNormal => 'Normal';
+
+  @override
+  String get keyHeightLarge => 'Grand';
+
+  @override
+  String get keyHeightExtraLarge => 'Très grand';
 }

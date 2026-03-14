@@ -5,6 +5,15 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/lang/fr/).
 
+## [2.5.3] - 2026-03-14
+
+### Ajouté
+- Modal de configuration du clavier par slot : appuyez sur l'icône de réglage (⊞) juste avant le badge de canal MIDI sur tout slot Clavier ou Piano Virtuel.
+- Paramètres disponibles par slot : nombre de touches visibles (remplace le défaut global), hauteur des touches (Compact / Normal / Grand / Très grand), actions de geste vertical et horizontal, CC de destination de l'aftertouch.
+- Les hauteurs de touches correspondent à des valeurs en pixels fixes (110 / 150 / 175 / 200 px), rendant le piano utilisable sur téléphone sans modifier la mise en page globale.
+- La configuration par slot est sauvegardée dans le fichier projet `.gf` et entièrement rétrocompatible.
+- Les labels des Préférences pour le nombre de touches, les gestes et l'aftertouch indiquent désormais qu'ils sont des valeurs par défaut modifiables par slot.
+
 ## [2.5.2] - 2026-03-14
 
 ### Corrigé

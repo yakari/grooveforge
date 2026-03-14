@@ -1,3 +1,4 @@
+import 'keyboard_display_config.dart';
 import 'plugin_instance.dart';
 
 /// A lightweight rack slot that represents the touchscreen keyboard as a
@@ -34,7 +35,18 @@ class VirtualPianoPlugin extends PluginInstance {
   @override
   int midiChannel;
 
-  VirtualPianoPlugin({required this.id, required this.midiChannel});
+  /// Per-slot keyboard display and expression overrides.
+  ///
+  /// When non-null, the fields inside override the corresponding global
+  /// Preferences values for this slot only. Null fields within the config
+  /// still fall back to global prefs. Persisted in the project .gf file.
+  KeyboardDisplayConfig? keyboardConfig;
+
+  VirtualPianoPlugin({
+    required this.id,
+    required this.midiChannel,
+    this.keyboardConfig,
+  });
 
   @override
   // Localised label is resolved at the widget layer via AppLocalizations.
@@ -48,13 +60,18 @@ class VirtualPianoPlugin extends PluginInstance {
         'type': 'virtual_piano',
         'id': id,
         'midiChannel': midiChannel,
+        if (keyboardConfig != null)
+          'keyboardConfig': keyboardConfig!.toJson(),
       };
 
   /// Deserialises a [VirtualPianoPlugin] from its JSON representation.
   factory VirtualPianoPlugin.fromJson(Map<String, dynamic> json) {
+    final cfgJson = json['keyboardConfig'] as Map<String, dynamic>?;
     return VirtualPianoPlugin(
       id: json['id'] as String,
       midiChannel: (json['midiChannel'] as int?) ?? 1,
+      keyboardConfig:
+          cfgJson != null ? KeyboardDisplayConfig.fromJson(cfgJson) : null,
     );
   }
 }

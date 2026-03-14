@@ -2,9 +2,11 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../models/gfpa_plugin_instance.dart';
+import '../models/keyboard_display_config.dart';
 import '../models/looper_plugin_instance.dart';
 import '../models/plugin_instance.dart';
 import '../models/grooveforge_keyboard_plugin.dart';
+import '../models/virtual_piano_plugin.dart';
 import '../models/vst3_plugin_instance.dart';
 import '../plugins/gf_vocoder_plugin.dart';
 import 'audio_engine.dart';
@@ -270,6 +272,23 @@ class RackState extends ChangeNotifier {
     _notifyChanged();
   }
 
+
+  /// Update the per-slot keyboard display and expression config.
+  ///
+  /// Pass `null` as [config] to clear all overrides and revert to global prefs.
+  /// Changes are persisted immediately via the autosave callback.
+  void setKeyboardConfig(String id, KeyboardDisplayConfig? config) {
+    final plugin = _findById(id);
+    if (plugin is GrooveForgeKeyboardPlugin) {
+      plugin.keyboardConfig = config;
+    } else if (plugin is VirtualPianoPlugin) {
+      plugin.keyboardConfig = config;
+    } else {
+      return;
+    }
+    notifyListeners();
+    _notifyChanged();
+  }
 
   /// Persist a VST3 parameter value change in the rack model for .gf saving.
   void setVst3Parameter(String id, int paramId, double value) {

@@ -56,7 +56,7 @@ class _RackScreenState extends State<RackScreen> {
 
   /// Controls whether the supplementary bars (audio settings, etc.) are
   /// shown below the transport bar. Toggled via the chevron in [TransportBar].
-  final ValueNotifier<bool> _supplementaryBarsVisible = ValueNotifier(true);
+  final ValueNotifier<bool> _supplementaryBarsVisible = ValueNotifier(false);
 
   // GlobalKeys per slot id, used by ensureVisible in auto-scroll.
   final Map<String, GlobalKey> _slotKeys = {};
@@ -798,7 +798,7 @@ class _RackScreenState extends State<RackScreen> {
           ),
           PopupMenuButton<String>(
             icon: const Icon(Icons.folder_open),
-            tooltip: l10n.rackOpenProject,
+            tooltip: l10n.rackMenuProject,
             onSelected: (value) async {
               switch (value) {
                 case 'open':

@@ -15,6 +15,8 @@ import '../services/audio_graph.dart';
 import '../services/looper_engine.dart';
 import '../services/rack_state.dart';
 import '../services/vst_host_service.dart';
+import '../models/keyboard_display_config.dart';
+import '../widgets/keyboard_config_dialog.dart';
 import '../widgets/virtual_piano.dart';
 import 'rack/gfpa_jam_mode_slot_ui.dart';
 import 'rack/gfpa_vocoder_slot_ui.dart';
@@ -145,7 +147,7 @@ class RackSlotWidget extends StatelessWidget {
           // (keyboard and vocoder). MIDI FX / VST3 / effect slots get none.
           if (_showPiano)
             SizedBox(
-              height: pianoHeight,
+              height: _effectivePianoHeight,
               child: _RackSlotPiano(
                 channelIndex: channelIndex,
                 plugin: plugin,
@@ -154,6 +156,24 @@ class RackSlotWidget extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  /// Returns the piano area height for this slot.
+  ///
+  /// If the plugin has a per-slot [KeyboardDisplayConfig] with an explicit
+  /// [KeyHeightOption], that height takes precedence over [pianoHeight].
+  /// Otherwise the default [pianoHeight] passed by the parent is used.
+  double get _effectivePianoHeight {
+    KeyboardDisplayConfig? cfg;
+    if (plugin is GrooveForgeKeyboardPlugin) {
+      cfg = (plugin as GrooveForgeKeyboardPlugin).keyboardConfig;
+    } else if (plugin is VirtualPianoPlugin) {
+      cfg = (plugin as VirtualPianoPlugin).keyboardConfig;
+    }
+    if (cfg == null) return pianoHeight;
+    // Only override height when the user has explicitly chosen non-normal,
+    // OR when a config object exists (it always carries a keyHeightOption).
+    return cfg.keyHeightOption.pianoPixelHeight;
   }
 
   bool get _showPiano {
@@ -275,6 +295,19 @@ class _SlotHeader extends StatelessWidget {
               ],
             ),
           ),
+
+          // ── Keyboard config button — only for piano-type slots
+          if (plugin is GrooveForgeKeyboardPlugin ||
+              plugin is VirtualPianoPlugin) ...[
+            IconButton(
+              icon: const Icon(Icons.tune, size: 16, color: Colors.white38),
+              tooltip: 'Keyboard config',
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+              onPressed: () => showKeyboardConfigDialog(context, plugin),
+            ),
+            const SizedBox(width: 4),
+          ],
 
           // ── MIDI channel badge — hidden for MIDI FX / effect GFPA slots
           if (plugin.midiChannel > 0) ...[
@@ -434,6 +467,17 @@ class _RackSlotPiano extends StatelessWidget {
     required this.plugin,
   });
 
+  /// Returns the per-slot [KeyboardDisplayConfig] if the plugin has one.
+  KeyboardDisplayConfig? get _keyboardConfig {
+    if (plugin is GrooveForgeKeyboardPlugin) {
+      return (plugin as GrooveForgeKeyboardPlugin).keyboardConfig;
+    }
+    if (plugin is VirtualPianoPlugin) {
+      return (plugin as VirtualPianoPlugin).keyboardConfig;
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     final engine = context.read<AudioEngine>();
@@ -455,9 +499,14 @@ class _RackSlotPiano extends StatelessWidget {
           ...engine.channels.map((ch) => ch.activeNotes),
         ]),
         builder: (context, _) {
-          final keysToShow = engine.pianoKeysToShow.value;
-          final vAction = engine.verticalGestureAction.value;
-          final hAction = engine.horizontalGestureAction.value;
+          // Resolve effective values: per-slot config overrides global prefs.
+          final cfg = _keyboardConfig;
+          final keysToShow =
+              cfg?.keysToShow ?? engine.pianoKeysToShow.value;
+          final vAction =
+              cfg?.verticalGestureAction ?? engine.verticalGestureAction.value;
+          final hAction = cfg?.horizontalGestureAction ??
+              engine.horizontalGestureAction.value;
           final validPcs = state.validPitchClasses.value;
           final gfpaEntry = engine.gfpaJamEntries.value
               .where((e) => e.followerCh == channelIndex)
@@ -669,18 +718,28 @@ class _RackSlotPiano extends StatelessWidget {
   ///
   /// Same routing logic as [_onPitchBend]: VP slots forward through cables,
   /// VST3 slots go to [VstHostService], everything else to [AudioEngine].
+  ///
+  /// CC 1 (vibrato gesture) is remapped to the per-slot aftertouch destination
+  /// when a [KeyboardDisplayConfig] override is active; otherwise it falls back
+  /// to [AudioEngine.aftertouchDestCc].
   void _onControlChange(
     BuildContext context,
     AudioEngine engine,
     int cc,
     int value,
   ) {
+    // Remap CC 1 (the vibrato-gesture default) to the effective aftertouch CC.
+    final effectiveCc = (cc == 1)
+        ? (_keyboardConfig?.aftertouchDestCc ?? engine.aftertouchDestCc.value)
+        : cc;
+
     if (plugin is VirtualPianoPlugin) {
-      _dispatchMidiCC(context, engine, cc, value);
+      _dispatchMidiCC(context, engine, effectiveCc, value);
     } else if (plugin is Vst3PluginInstance) {
-      context.read<VstHostService>().controlChange(plugin.id, 0, cc, value);
+      context.read<VstHostService>().controlChange(plugin.id, 0, effectiveCc, value);
     } else {
-      engine.setControlChange(channel: channelIndex, controller: cc, value: value);
+      engine.setControlChange(
+          channel: channelIndex, controller: effectiveCc, value: value);
     }
   }
 

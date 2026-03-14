@@ -69,16 +69,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get keyGesturesSection => 'Key Gestures';
 
   @override
-  String get verticalInteraction => 'Vertical Interaction';
+  String get verticalInteraction => 'Vertical Interaction (default)';
 
   @override
-  String get verticalInteractionSubtitle => 'Swipe up/down on a key';
+  String get verticalInteractionSubtitle =>
+      'Swipe up/down on a key — overridable per slot';
 
   @override
-  String get horizontalInteraction => 'Horizontal Interaction';
+  String get horizontalInteraction => 'Horizontal Interaction (default)';
 
   @override
-  String get horizontalInteractionSubtitle => 'Slide left/right on a key';
+  String get horizontalInteractionSubtitle =>
+      'Slide left/right on a key — overridable per slot';
 
   @override
   String get actionSave => 'SAVE';
@@ -215,10 +217,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get virtualPianoDisplaySection => 'Virtual Piano Display';
 
   @override
-  String get visibleKeysTitle => 'Visible Keys (Zoom)';
+  String get visibleKeysTitle => 'Default Key Count';
 
   @override
-  String get visibleKeysSubtitle => 'Number of white keys to show at once';
+  String get visibleKeysSubtitle =>
+      'Number of white keys shown when no per-slot override is set';
 
   @override
   String get keys25 => '25 keys (15 white)';
@@ -278,10 +281,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get actionCancel => 'Cancel';
 
   @override
-  String get aftertouchEffectTitle => 'Aftertouch Effect';
+  String get aftertouchEffectTitle => 'Aftertouch Effect (default)';
 
   @override
-  String get aftertouchEffectSubtitle => 'Route keyboard pressure to this CC';
+  String get aftertouchEffectSubtitle =>
+      'Route keyboard pressure to this CC — overridable per slot';
 
   @override
   String get aboutSection => 'About';
@@ -642,7 +646,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get rackMidiChannel => 'MIDI CH';
 
   @override
-  String get rackOpenProject => 'Projects';
+  String get rackMenuProject => 'Projects';
+
+  @override
+  String get rackOpenProject => 'Open Project';
 
   @override
   String get rackSaveProject => 'Save Project';
@@ -899,4 +906,65 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get looperQuantize => 'Quantize';
+
+  @override
+  String get kbConfigTitle => 'Keyboard Config';
+
+  @override
+  String kbConfigDefault(String value) {
+    return 'Default ($value)';
+  }
+
+  @override
+  String get kbConfigKeysToShow => 'Keys to show';
+
+  @override
+  String get kbConfigKeysToShowSubtitle =>
+      'Number of visible keys (overrides default)';
+
+  @override
+  String kbConfigKeysDefault(int count) {
+    return 'Default ($count keys)';
+  }
+
+  @override
+  String get kbConfigKeyHeight => 'Key height';
+
+  @override
+  String get kbConfigKeyHeightSubtitle =>
+      'Taller keys are easier to play on phones';
+
+  @override
+  String get kbConfigVertGesture => 'Vertical swipe';
+
+  @override
+  String get kbConfigVertGestureSubtitle => 'Swipe up/down on a key';
+
+  @override
+  String get kbConfigHorizGesture => 'Horizontal swipe';
+
+  @override
+  String get kbConfigHorizGestureSubtitle => 'Slide left/right across keys';
+
+  @override
+  String get kbConfigAftertouch => 'Aftertouch CC';
+
+  @override
+  String get kbConfigAftertouchSubtitle =>
+      'Vertical pressure routes to this CC';
+
+  @override
+  String get kbConfigResetDefaults => 'Reset to defaults';
+
+  @override
+  String get keyHeightSmall => 'Small';
+
+  @override
+  String get keyHeightNormal => 'Normal';
+
+  @override
+  String get keyHeightLarge => 'Large';
+
+  @override
+  String get keyHeightExtraLarge => 'Extra Large';
 }

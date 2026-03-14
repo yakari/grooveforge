@@ -215,25 +215,25 @@ abstract class AppLocalizations {
   /// No description provided for @verticalInteraction.
   ///
   /// In en, this message translates to:
-  /// **'Vertical Interaction'**
+  /// **'Vertical Interaction (default)'**
   String get verticalInteraction;
 
   /// No description provided for @verticalInteractionSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Swipe up/down on a key'**
+  /// **'Swipe up/down on a key — overridable per slot'**
   String get verticalInteractionSubtitle;
 
   /// No description provided for @horizontalInteraction.
   ///
   /// In en, this message translates to:
-  /// **'Horizontal Interaction'**
+  /// **'Horizontal Interaction (default)'**
   String get horizontalInteraction;
 
   /// No description provided for @horizontalInteractionSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Slide left/right on a key'**
+  /// **'Slide left/right on a key — overridable per slot'**
   String get horizontalInteractionSubtitle;
 
   /// No description provided for @actionSave.
@@ -455,13 +455,13 @@ abstract class AppLocalizations {
   /// No description provided for @visibleKeysTitle.
   ///
   /// In en, this message translates to:
-  /// **'Visible Keys (Zoom)'**
+  /// **'Default Key Count'**
   String get visibleKeysTitle;
 
   /// No description provided for @visibleKeysSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Number of white keys to show at once'**
+  /// **'Number of white keys shown when no per-slot override is set'**
   String get visibleKeysSubtitle;
 
   /// No description provided for @keys25.
@@ -581,13 +581,13 @@ abstract class AppLocalizations {
   /// No description provided for @aftertouchEffectTitle.
   ///
   /// In en, this message translates to:
-  /// **'Aftertouch Effect'**
+  /// **'Aftertouch Effect (default)'**
   String get aftertouchEffectTitle;
 
   /// No description provided for @aftertouchEffectSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Route keyboard pressure to this CC'**
+  /// **'Route keyboard pressure to this CC — overridable per slot'**
   String get aftertouchEffectSubtitle;
 
   /// No description provided for @aboutSection.
@@ -1238,10 +1238,16 @@ abstract class AppLocalizations {
   /// **'MIDI CH'**
   String get rackMidiChannel;
 
-  /// No description provided for @rackOpenProject.
+  /// No description provided for @rackMenuProject.
   ///
   /// In en, this message translates to:
   /// **'Projects'**
+  String get rackMenuProject;
+
+  /// No description provided for @rackOpenProject.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Project'**
   String get rackOpenProject;
 
   /// No description provided for @rackSaveProject.
@@ -1717,6 +1723,114 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Quantize'**
   String get looperQuantize;
+
+  /// No description provided for @kbConfigTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Keyboard Config'**
+  String get kbConfigTitle;
+
+  /// No description provided for @kbConfigDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Default ({value})'**
+  String kbConfigDefault(String value);
+
+  /// No description provided for @kbConfigKeysToShow.
+  ///
+  /// In en, this message translates to:
+  /// **'Keys to show'**
+  String get kbConfigKeysToShow;
+
+  /// No description provided for @kbConfigKeysToShowSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Number of visible keys (overrides default)'**
+  String get kbConfigKeysToShowSubtitle;
+
+  /// No description provided for @kbConfigKeysDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Default ({count} keys)'**
+  String kbConfigKeysDefault(int count);
+
+  /// No description provided for @kbConfigKeyHeight.
+  ///
+  /// In en, this message translates to:
+  /// **'Key height'**
+  String get kbConfigKeyHeight;
+
+  /// No description provided for @kbConfigKeyHeightSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Taller keys are easier to play on phones'**
+  String get kbConfigKeyHeightSubtitle;
+
+  /// No description provided for @kbConfigVertGesture.
+  ///
+  /// In en, this message translates to:
+  /// **'Vertical swipe'**
+  String get kbConfigVertGesture;
+
+  /// No description provided for @kbConfigVertGestureSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Swipe up/down on a key'**
+  String get kbConfigVertGestureSubtitle;
+
+  /// No description provided for @kbConfigHorizGesture.
+  ///
+  /// In en, this message translates to:
+  /// **'Horizontal swipe'**
+  String get kbConfigHorizGesture;
+
+  /// No description provided for @kbConfigHorizGestureSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Slide left/right across keys'**
+  String get kbConfigHorizGestureSubtitle;
+
+  /// No description provided for @kbConfigAftertouch.
+  ///
+  /// In en, this message translates to:
+  /// **'Aftertouch CC'**
+  String get kbConfigAftertouch;
+
+  /// No description provided for @kbConfigAftertouchSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Vertical pressure routes to this CC'**
+  String get kbConfigAftertouchSubtitle;
+
+  /// No description provided for @kbConfigResetDefaults.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset to defaults'**
+  String get kbConfigResetDefaults;
+
+  /// No description provided for @keyHeightSmall.
+  ///
+  /// In en, this message translates to:
+  /// **'Small'**
+  String get keyHeightSmall;
+
+  /// No description provided for @keyHeightNormal.
+  ///
+  /// In en, this message translates to:
+  /// **'Normal'**
+  String get keyHeightNormal;
+
+  /// No description provided for @keyHeightLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'Large'**
+  String get keyHeightLarge;
+
+  /// No description provided for @keyHeightExtraLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'Extra Large'**
+  String get keyHeightExtraLarge;
 }
 
 class _AppLocalizationsDelegate

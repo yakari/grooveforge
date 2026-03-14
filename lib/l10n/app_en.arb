@@ -24,10 +24,10 @@
   "ccMappingPreferences": "CC Mapping Preferences",
   "ccMappingPreferencesSubtitle": "Map hardware knobs to GM Effects and System Actions",
   "keyGesturesSection": "Key Gestures",
-  "verticalInteraction": "Vertical Interaction",
-  "verticalInteractionSubtitle": "Swipe up/down on a key",
-  "horizontalInteraction": "Horizontal Interaction",
-  "horizontalInteractionSubtitle": "Slide left/right on a key",
+  "verticalInteraction": "Vertical Interaction (default)",
+  "verticalInteractionSubtitle": "Swipe up/down on a key — overridable per slot",
+  "horizontalInteraction": "Horizontal Interaction (default)",
+  "horizontalInteractionSubtitle": "Slide left/right on a key — overridable per slot",
   "actionSave": "SAVE",
   "actionDone": "Done",
   "chNumber": "CH {channel}",
@@ -129,8 +129,8 @@
   "actionVibrato": "Vibrato",
   "actionGlissando": "Glissando",
   "virtualPianoDisplaySection": "Virtual Piano Display",
-  "visibleKeysTitle": "Visible Keys (Zoom)",
-  "visibleKeysSubtitle": "Number of white keys to show at once",
+  "visibleKeysTitle": "Default Key Count",
+  "visibleKeysSubtitle": "Number of white keys shown when no per-slot override is set",
   "keys25": "25 keys (15 white)",
   "keys37": "37 keys (22 white)",
   "keys49": "49 keys (29 white)",
@@ -150,8 +150,8 @@
   "synthTooltipUserGuide": "User Guide",
   "synthTooltipSettings": "Settings & Setup",
   "actionCancel": "Cancel",
-  "aftertouchEffectTitle": "Aftertouch Effect",
-  "aftertouchEffectSubtitle": "Route keyboard pressure to this CC",
+  "aftertouchEffectTitle": "Aftertouch Effect (default)",
+  "aftertouchEffectSubtitle": "Route keyboard pressure to this CC — overridable per slot",
   "aboutSection": "About",
   "versionTitle": "Version",
   "viewChangelogTitle": "View Changelog",
@@ -265,7 +265,8 @@
   "rackRemove": "Remove",
   "rackPluginUnavailableOnMobile": "This VST3 plugin is not available on mobile.",
   "rackMidiChannel": "MIDI CH",
-  "rackOpenProject": "Projects",
+  "rackMenuProject": "Projects",
+  "rackOpenProject": "Open Project",
   "rackSaveProject": "Save Project",
   "rackSaveProjectAs": "Save As…",
   "rackNewProject": "New Project",
@@ -368,5 +369,34 @@
   "looperCcAssignTitle": "Assign hardware CC to looper action",
   "looperCcRemove": "Remove CC binding",
 
-  "looperQuantize": "Quantize"
+  "looperQuantize": "Quantize",
+
+  "kbConfigTitle": "Keyboard Config",
+  "kbConfigDefault": "Default ({value})",
+  "@kbConfigDefault": {
+    "placeholders": {
+      "value": { "type": "String" }
+    }
+  },
+  "kbConfigKeysToShow": "Keys to show",
+  "kbConfigKeysToShowSubtitle": "Number of visible keys (overrides default)",
+  "kbConfigKeysDefault": "Default ({count} keys)",
+  "@kbConfigKeysDefault": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "kbConfigKeyHeight": "Key height",
+  "kbConfigKeyHeightSubtitle": "Taller keys are easier to play on phones",
+  "kbConfigVertGesture": "Vertical swipe",
+  "kbConfigVertGestureSubtitle": "Swipe up/down on a key",
+  "kbConfigHorizGesture": "Horizontal swipe",
+  "kbConfigHorizGestureSubtitle": "Slide left/right across keys",
+  "kbConfigAftertouch": "Aftertouch CC",
+  "kbConfigAftertouchSubtitle": "Vertical pressure routes to this CC",
+  "kbConfigResetDefaults": "Reset to defaults",
+  "keyHeightSmall": "Small",
+  "keyHeightNormal": "Normal",
+  "keyHeightLarge": "Large",
+  "keyHeightExtraLarge": "Extra Large"
 }

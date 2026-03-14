@@ -24,10 +24,10 @@
   "ccMappingPreferences": "Préférences de mapping CC",
   "ccMappingPreferencesSubtitle": "Associez les potards matériels aux effets GM et actions système",
   "keyGesturesSection": "Gestes sur les touches",
-  "verticalInteraction": "Interaction verticale",
-  "verticalInteractionSubtitle": "Glissez vers le haut/bas sur une touche",
-  "horizontalInteraction": "Interaction horizontale",
-  "horizontalInteractionSubtitle": "Glissez à gauche/droite sur une touche",
+  "verticalInteraction": "Interaction verticale (défaut)",
+  "verticalInteractionSubtitle": "Glissez vers le haut/bas sur une touche — modifiable par slot",
+  "horizontalInteraction": "Interaction horizontale (défaut)",
+  "horizontalInteractionSubtitle": "Glissez à gauche/droite sur une touche — modifiable par slot",
   "actionSave": "SAUVEGARDER",
   "actionDone": "Terminé",
   "chNumber": "CH {channel}",
@@ -129,8 +129,8 @@
   "actionVibrato": "Vibrato",
   "actionGlissando": "Glissando",
   "virtualPianoDisplaySection": "Affichage du Clavier Virtuel",
-  "visibleKeysTitle": "Touches visibles (Zoom)",
-  "visibleKeysSubtitle": "Nombre de touches blanches affichées",
+  "visibleKeysTitle": "Nombre de touches (défaut)",
+  "visibleKeysSubtitle": "Touches blanches affichées sans override par slot",
   "keys25": "25 touches (15 blanches)",
   "keys37": "37 touches (22 blanches)",
   "keys49": "49 touches (29 blanches)",
@@ -150,8 +150,8 @@
   "synthTooltipUserGuide": "Guide d'Utilisateur",
   "synthTooltipSettings": "Paramètres & Configuration",
   "actionCancel": "Annuler",
-  "aftertouchEffectTitle": "Effet Aftertouch",
-  "aftertouchEffectSubtitle": "Router la pression du clavier vers ce CC",
+  "aftertouchEffectTitle": "Effet Aftertouch (défaut)",
+  "aftertouchEffectSubtitle": "Router la pression du clavier vers ce CC — modifiable par slot",
   "aboutSection": "À propos",
   "versionTitle": "Version",
   "viewChangelogTitle": "Voir le Changelog",
@@ -265,7 +265,8 @@
   "rackRemove": "Supprimer",
   "rackPluginUnavailableOnMobile": "Ce plugin VST3 n'est pas disponible sur mobile.",
   "rackMidiChannel": "CANAL MIDI",
-  "rackOpenProject": "Projets",
+  "rackMenuProject": "Projets",
+  "rackOpenProject": "Ouvrir un projet",
   "rackSaveProject": "Enregistrer",
   "rackSaveProjectAs": "Enregistrer sous…",
   "rackNewProject": "Nouveau projet",
@@ -368,5 +369,34 @@
   "looperCcAssignTitle": "Assigner un CC matériel à une action du looper",
   "looperCcRemove": "Supprimer l'assignation CC",
 
-  "looperQuantize": "Quantification"
+  "looperQuantize": "Quantification",
+
+  "kbConfigTitle": "Config. clavier",
+  "kbConfigDefault": "Défaut ({value})",
+  "@kbConfigDefault": {
+    "placeholders": {
+      "value": { "type": "String" }
+    }
+  },
+  "kbConfigKeysToShow": "Touches à afficher",
+  "kbConfigKeysToShowSubtitle": "Nombre de touches visibles (remplace le défaut)",
+  "kbConfigKeysDefault": "Défaut ({count} touches)",
+  "@kbConfigKeysDefault": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "kbConfigKeyHeight": "Hauteur des touches",
+  "kbConfigKeyHeightSubtitle": "Des touches plus hautes facilitent le jeu sur téléphone",
+  "kbConfigVertGesture": "Geste vertical",
+  "kbConfigVertGestureSubtitle": "Glissez vers le haut/bas sur une touche",
+  "kbConfigHorizGesture": "Geste horizontal",
+  "kbConfigHorizGestureSubtitle": "Glissez à gauche/droite sur les touches",
+  "kbConfigAftertouch": "CC Aftertouch",
+  "kbConfigAftertouchSubtitle": "La pression verticale est routée vers ce CC",
+  "kbConfigResetDefaults": "Réinitialiser",
+  "keyHeightSmall": "Petit",
+  "keyHeightNormal": "Normal",
+  "keyHeightLarge": "Grand",
+  "keyHeightExtraLarge": "Très grand"
 }

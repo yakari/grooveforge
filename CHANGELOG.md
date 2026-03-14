@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.3] - 2026-03-14
+
+### Added
+- Per-slot keyboard configuration modal: tap the tune icon (⊞) just before the MIDI channel badge on any Keyboard or Virtual Piano slot to open the config dialog.
+- Settings available per slot: number of visible keys (overrides the global default), key height (Compact / Normal / Large / Extra Large), vertical and horizontal swipe gesture actions, and aftertouch destination CC.
+- Key height options map to explicit pixel values (110 / 150 / 175 / 200 px), making the piano usable on phones without changing the global layout.
+- Per-slot config is saved in the project `.gf` file and fully backward-compatible (old projects load without changes).
+- Preferences screen labels for key count, gesture actions, and aftertouch CC now indicate they are global defaults overridable per slot.
+
 ## [2.5.2] - 2026-03-14
 
 ### Fixed
