@@ -54,6 +54,13 @@ enum LooperAction {
 
   /// Erase all recorded tracks and return to idle.
   clearAll,
+
+  /// Queue the next overdub pass.
+  ///
+  /// When playing: queues an overdub (transitions to [LooperState.waitingForOverdub]).
+  /// When overdubbing: stops the overdub and resumes clean playback.
+  /// Ignored in all other states.
+  overdub,
 }
 
 // ── Per-slot session ──────────────────────────────────────────────────────────
@@ -569,6 +576,26 @@ class LooperEngine extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Queues an overdub pass for [slotId], or stops the current overdub.
+  ///
+  /// - When playing → transitions to [LooperState.waitingForOverdub].
+  ///   The actual overdub starts at the next loop phase-0 downbeat.
+  /// - When overdubbing → stops the overdub pass and resumes clean playback.
+  /// - Ignored in all other states (idle, armed, recording, waitingForBar,
+  ///   waitingForOverdub).
+  void queueOverdub(String slotId) {
+    final s = _requireSession(slotId);
+    switch (s.state) {
+      case LooperState.playing:
+        s.state = LooperState.waitingForOverdub;
+        notifyListeners();
+      case LooperState.overdubbing:
+        stopRecording(slotId);
+      default:
+        break;
+    }
+  }
+
   /// Erases all recorded tracks for [slotId] and resets to idle.
   void clearAll(String slotId) {
     final s = _requireSession(slotId);
@@ -650,6 +677,8 @@ class LooperEngine extends ChangeNotifier {
         stop(slotId);
       case LooperAction.clearAll:
         clearAll(slotId);
+      case LooperAction.overdub:
+        queueOverdub(slotId);
       case null:
         break;
     }

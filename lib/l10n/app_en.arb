@@ -109,6 +109,14 @@
   "ccTargetEffectLabel": "Target GM Effect",
   "ccTargetChannelLabel": "Target Channel",
   "ccSaveBinding": "Save Binding",
+  "ccMuteChannelsLabel": "Channels to mute/unmute",
+  "ccMuteChannelsSummary": "Channels: {channels}",
+  "@ccMuteChannelsSummary": {
+    "placeholders": {
+      "channels": { "type": "String" }
+    }
+  },
+  "ccMuteNoChannels": "No channels selected",
   "ccTargetEffectFormat": "{name} (CC {cc})",
   "@ccTargetEffectFormat": {
     "placeholders": {

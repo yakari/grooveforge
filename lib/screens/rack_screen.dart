@@ -75,6 +75,20 @@ class _RackScreenState extends State<RackScreen> {
     final looperEngine = context.read<LooperEngine>();
     looperEngine.onMidiPlayback = _handleLooperPlayback;
 
+    // Wire global CC looper actions (1009-1013) from AudioEngine to LooperEngine.
+    // The looper enforces single-instance, so we always target the first session.
+    engine.onLooperSystemAction = (int actionCode, int ccValue) {
+      final slotId = looperEngine.sessions.keys.firstOrNull;
+      if (slotId == null) return; // no looper slot in rack
+      switch (actionCode) {
+        case 1009: looperEngine.toggleRecord(slotId);
+        case 1010: looperEngine.togglePlay(slotId);
+        case 1011: looperEngine.queueOverdub(slotId);
+        case 1012: looperEngine.stop(slotId);
+        case 1013: looperEngine.clearAll(slotId);
+      }
+    };
+
     // When the transport starts playing, arm any waiting looper sessions.
     context.read<TransportEngine>().addListener(_onTransportChanged);
 
@@ -129,6 +143,7 @@ class _RackScreenState extends State<RackScreen> {
     }
     context.read<TransportEngine>().removeListener(_onTransportChanged);
     context.read<LooperEngine>().onMidiPlayback = null;
+    context.read<AudioEngine>().onLooperSystemAction = null;
     _scrollController.dispose();
     _isPatchView.dispose();
     super.dispose();
@@ -233,12 +248,156 @@ class _RackScreenState extends State<RackScreen> {
           );
         }
       }
+    } else if (_isExpressionCommand(command) && packet.data.length >= 2) {
+      // ── Pitch bend / CC / channel pressure forwarding ────────────────────
+      // Expression messages (pitch bend, mod wheel, aftertouch…) received on a
+      // VP's channel must be forwarded through its MIDI OUT cable to whatever
+      // slot is connected downstream — typically a GF Keyboard or VST3 plugin.
+      // Without this, sliding a physical controller through a VP cable produces
+      // no effect on the target instrument.
+      if (vpSlots.isNotEmpty) {
+        final engine = context.read<AudioEngine>();
+        final audioGraph = context.read<AudioGraph>();
+        final vstSvc = context.read<VstHostService>();
+        for (final vp in vpSlots) {
+          _routeExpressionThroughVp(
+            vp: vp,
+            command: command,
+            data1: packet.data[1],
+            data2: packet.data.length >= 3 ? packet.data[2] : 0,
+            engine: engine,
+            audioGraph: audioGraph,
+            vstSvc: vstSvc,
+            rack: rack,
+          );
+        }
+      }
+      // VST3 slots receive expression directly (they replace FluidSynth).
+      if (vst3Slots.isNotEmpty) {
+        final vstSvc = context.read<VstHostService>();
+        _routeExpressionToVst3Slots(
+          command: command,
+          data1: packet.data[1],
+          data2: packet.data.length >= 3 ? packet.data[2] : 0,
+          vst3Slots: vst3Slots,
+          vstSvc: vstSvc,
+        );
+      }
     }
 
     // Return true only when a VST3 or VP slot claimed the channel — those
     // replace FluidSynth. A GFK match feeds the looper as a side-effect but
     // still needs FluidSynth to produce audio, so we return false in that case.
     return vst3Slots.isNotEmpty || vpSlots.isNotEmpty;
+  }
+
+  /// Returns true when [command] is a MIDI expression message that must be
+  /// forwarded through VP cable connections: pitch bend, control change, or
+  /// channel pressure (aftertouch).
+  bool _isExpressionCommand(int command) =>
+      command == 0xE0 || command == 0xB0 || command == 0xD0;
+
+  /// Forwards a pitch-bend value (raw 14-bit) to a target engine channel.
+  ///
+  /// Channel pressure (0xD0) is re-mapped to CC#1 via [AudioEngine] to match
+  /// the same conversion that [AudioEngine.processMidiPacket] applies for
+  /// hardware MIDI — keeping behaviour consistent regardless of MIDI source.
+  void _dispatchExpressionToEngineChannel({
+    required int command,
+    required int data1,
+    required int data2,
+    required int targetCh,
+    required AudioEngine engine,
+  }) {
+    switch (command) {
+      case 0xE0:
+        // Pitch bend: 14-bit value reconstructed from two 7-bit bytes.
+        final pitchValue = (data2 << 7) | data1;
+        engine.setPitchBend(channel: targetCh, value: pitchValue);
+      case 0xB0:
+        engine.setControlChange(
+          channel: targetCh,
+          controller: data1,
+          value: data2,
+        );
+      case 0xD0:
+        // Channel pressure → CC#1 (modulation), matching processMidiPacket.
+        engine.setControlChange(
+          channel: targetCh,
+          controller: engine.aftertouchDestCc.value,
+          value: data1,
+        );
+    }
+  }
+
+  /// Sends an expression message (pitch bend, CC, aftertouch) directly to
+  /// each VST3 slot on the matching channel, bypassing FluidSynth.
+  void _routeExpressionToVst3Slots({
+    required int command,
+    required int data1,
+    required int data2,
+    required List<Vst3PluginInstance> vst3Slots,
+    required VstHostService vstSvc,
+  }) {
+    for (final plugin in vst3Slots) {
+      switch (command) {
+        case 0xE0:
+          // Convert 14-bit raw to semitones (-2..+2) for the GFPA pitchBend API.
+          final semitones = ((data2 << 7 | data1) - 8192) / 8192.0 * 2.0;
+          vstSvc.pitchBend(plugin.id, 0, semitones);
+        case 0xB0:
+          vstSvc.controlChange(plugin.id, 0, data1, data2);
+        case 0xD0:
+          // Channel pressure → CC#1 (modulation wheel) for VST3 plugins.
+          vstSvc.controlChange(plugin.id, 0, 1, data1);
+      }
+    }
+  }
+
+  /// Forwards an expression message received on a [VirtualPianoPlugin]'s
+  /// channel through every slot connected to its MIDI OUT jack.
+  ///
+  /// This is the expression sibling of [_routeExternalMidiThroughVp]: notes
+  /// are scale-snapped there, but pitch bend and CC must travel the same cable
+  /// path so that, for example, a physical slide controller routed VP → GFK
+  /// actually bends the GFK channel's pitch.
+  void _routeExpressionThroughVp({
+    required VirtualPianoPlugin vp,
+    required int command,
+    required int data1,
+    required int data2,
+    required AudioEngine engine,
+    required AudioGraph audioGraph,
+    required VstHostService vstSvc,
+    required RackState rack,
+  }) {
+    // Forward to each non-looper slot connected to VP's MIDI OUT jack.
+    final cables = audioGraph
+        .connectionsFrom(vp.id)
+        .where((c) => c.fromPort == AudioPortId.midiOut);
+    for (final cable in cables) {
+      final target =
+          rack.plugins.where((p) => p.id == cable.toSlotId).firstOrNull;
+      if (target == null) continue;
+      if (target is Vst3PluginInstance) {
+        _routeExpressionToVst3Slots(
+          command: command,
+          data1: data1,
+          data2: data2,
+          vst3Slots: [target],
+          vstSvc: vstSvc,
+        );
+      } else {
+        final targetCh = (target.midiChannel - 1).clamp(0, 15);
+        _dispatchExpressionToEngineChannel(
+          command: command,
+          data1: data1,
+          data2: data2,
+          targetCh: targetCh,
+          engine: engine,
+        );
+      }
+    }
   }
 
   /// Routes one external MIDI note event through a [VirtualPianoPlugin]'s

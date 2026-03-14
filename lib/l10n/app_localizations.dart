@@ -398,6 +398,24 @@ abstract class AppLocalizations {
   /// **'Save Binding'**
   String get ccSaveBinding;
 
+  /// No description provided for @ccMuteChannelsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Channels to mute/unmute'**
+  String get ccMuteChannelsLabel;
+
+  /// No description provided for @ccMuteChannelsSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Channels: {channels}'**
+  String ccMuteChannelsSummary(String channels);
+
+  /// No description provided for @ccMuteNoChannels.
+  ///
+  /// In en, this message translates to:
+  /// **'No channels selected'**
+  String get ccMuteNoChannels;
+
   /// No description provided for @ccTargetEffectFormat.
   ///
   /// In en, this message translates to:

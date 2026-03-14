@@ -109,6 +109,14 @@
   "ccTargetEffectLabel": "Effet GM Cible",
   "ccTargetChannelLabel": "Canal Cible",
   "ccSaveBinding": "Sauvegarder l'Assignation",
+  "ccMuteChannelsLabel": "Canaux à couper/rétablir",
+  "ccMuteChannelsSummary": "Canaux : {channels}",
+  "@ccMuteChannelsSummary": {
+    "placeholders": {
+      "channels": { "type": "String" }
+    }
+  },
+  "ccMuteNoChannels": "Aucun canal sélectionné",
   "ccTargetEffectFormat": "{name} (CC {cc})",
   "@ccTargetEffectFormat": {
     "placeholders": {

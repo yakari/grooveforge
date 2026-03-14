@@ -23,27 +23,52 @@ class MidiEventInfo {
 ///
 /// For example, a mapping might state: "When hardware CC #20 is received,
 /// translate it to GM Filter Cutoff (CC #74) and apply it to all channels."
+///
+/// The optional [muteChannels] field is used exclusively by system action 1014
+/// ([System] Mute / Unmute Channels) to specify which channels (0-based, 0-15)
+/// are toggled by that CC.  It is null / ignored for all other target codes.
 class CcMapping {
   final int incomingCc;
   final int targetCc;
   final int targetChannel; // -1 for All, -2 for Same, 0..15 for specific 1..16
 
+  /// Channels to mute/unmute when [targetCc] == 1014 (sorted 0-15).
+  /// Null for all other target codes.
+  final Set<int>? muteChannels;
+
   CcMapping({
     required this.incomingCc,
     required this.targetCc,
     required this.targetChannel,
+    this.muteChannels,
   });
 
+  /// Encoded format: `incoming:target:channel[:m:ch1,ch2,…]`
+  ///
+  /// The optional `:m:…` suffix carries the mute-channel list for action 1014.
   factory CcMapping.fromString(String str) {
     final parts = str.split(':');
+    Set<int>? mute;
+    // Suffix format: …:m:0,3,5  — position 3 is the literal 'm' marker
+    if (parts.length >= 5 && parts[3] == 'm') {
+      mute = parts[4].split(',').map(int.parse).toSet();
+    }
     return CcMapping(
       incomingCc: int.parse(parts[0]),
       targetCc: int.parse(parts[1]),
       targetChannel: parts.length > 2 ? int.parse(parts[2]) : -2,
+      muteChannels: mute,
     );
   }
 
-  String encode() => '$incomingCc:$targetCc:$targetChannel';
+  String encode() {
+    final base = '$incomingCc:$targetCc:$targetChannel';
+    if (muteChannels != null && muteChannels!.isNotEmpty) {
+      final channelList = (muteChannels!.toList()..sort()).join(',');
+      return '$base:m:$channelList';
+    }
+    return base;
+  }
 }
 
 /// Manages user-defined MIDI Control Change (CC) routing rules.
@@ -83,7 +108,30 @@ class CcMappingService {
     1006: '[System] Absolute Bank/Tone Sweep',
     1007: '[System] Start/Stop Jam Mode',
     1008: '[System] Cycle Scale Type',
+
+    // --- Looper Actions ---
+    1009: '[Looper] Record / Stop Rec',
+    1010: '[Looper] Play / Pause',
+    1011: '[Looper] Overdub',
+    1012: '[Looper] Stop',
+    1013: '[Looper] Clear All',
+
+    // --- Channel Mute ---
+    1014: '[System] Mute / Unmute Channels',
   };
+
+  /// Returns true if [targetCc] is a looper system action (1009-1013).
+  ///
+  /// Used by the CC preferences UI to hide the channel-routing selector,
+  /// which is irrelevant for looper actions (they target the single looper slot).
+  static bool isLooperAction(int targetCc) =>
+      targetCc >= 1009 && targetCc <= 1013;
+
+  /// Returns true if [targetCc] is the mute/unmute action (1014).
+  ///
+  /// Used by the CC preferences UI to show the channel multiselect widget
+  /// instead of the standard channel-routing dropdown.
+  static bool isMuteAction(int targetCc) => targetCc == 1014;
 
   SharedPreferences? _prefs;
   static const String _prefsKey = 'cc_advanced_mappings';

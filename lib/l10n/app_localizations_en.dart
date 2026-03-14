@@ -184,6 +184,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get ccSaveBinding => 'Save Binding';
 
   @override
+  String get ccMuteChannelsLabel => 'Channels to mute/unmute';
+
+  @override
+  String ccMuteChannelsSummary(String channels) {
+    return 'Channels: $channels';
+  }
+
+  @override
+  String get ccMuteNoChannels => 'No channels selected';
+
+  @override
   String ccTargetEffectFormat(String name, int cc) {
     return '$name (CC $cc)';
   }

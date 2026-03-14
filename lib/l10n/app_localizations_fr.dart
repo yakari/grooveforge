@@ -186,6 +186,17 @@ class AppLocalizationsFr extends AppLocalizations {
   String get ccSaveBinding => 'Sauvegarder l\'Assignation';
 
   @override
+  String get ccMuteChannelsLabel => 'Canaux à couper/rétablir';
+
+  @override
+  String ccMuteChannelsSummary(String channels) {
+    return 'Canaux : $channels';
+  }
+
+  @override
+  String get ccMuteNoChannels => 'Aucun canal sélectionné';
+
+  @override
   String ccTargetEffectFormat(String name, int cc) {
     return '$name (CC $cc)';
   }

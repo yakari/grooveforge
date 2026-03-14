@@ -405,9 +405,9 @@ class _RackSlotPiano extends StatelessWidget {
               onNotePressed: (note) => _onNotePressed(context, engine, note),
               onNoteReleased: (note) => _onNoteReleased(context, engine, note),
               onPitchBend: (val) =>
-                  engine.setPitchBend(channel: channelIndex, value: val),
-              onControlChange: (cc, val) => engine.setControlChange(
-                  channel: channelIndex, controller: cc, value: val),
+                  _onPitchBend(context, engine, val),
+              onControlChange: (cc, val) =>
+                  _onControlChange(context, engine, cc, val),
               onInteractingChanged: engine.updateGestureState,
             ),
           );
@@ -559,4 +559,87 @@ class _RackSlotPiano extends StatelessWidget {
           .plugins
           .where((p) => p.id == slotId)
           .firstOrNull;
+
+  // ─── Expression (pitch bend / CC) routing ────────────────────────────────
+
+  /// Handles a pitch-bend gesture from the on-screen piano.
+  ///
+  /// - **[VirtualPianoPlugin]**: VP produces no audio of its own, so the bend
+  ///   is forwarded through its MIDI OUT cable to every connected target slot,
+  ///   matching the same routing that notes follow in [_dispatchMidiNoteOn].
+  /// - **[Vst3PluginInstance]**: dispatched to [VstHostService] (no-op until
+  ///   the native binding is added; avoids incorrect FluidSynth bend).
+  /// - **All others** (GFK, vocoder, GFPA): sent directly to [AudioEngine].
+  void _onPitchBend(BuildContext context, AudioEngine engine, int rawValue) {
+    if (plugin is VirtualPianoPlugin) {
+      _dispatchMidiPitchBend(context, engine, rawValue);
+    } else if (plugin is Vst3PluginInstance) {
+      final semitones = (rawValue - 8192) / 8192.0 * 2.0;
+      context.read<VstHostService>().pitchBend(plugin.id, 0, semitones);
+    } else {
+      engine.setPitchBend(channel: channelIndex, value: rawValue);
+    }
+  }
+
+  /// Handles a control-change gesture from the on-screen piano.
+  ///
+  /// Same routing logic as [_onPitchBend]: VP slots forward through cables,
+  /// VST3 slots go to [VstHostService], everything else to [AudioEngine].
+  void _onControlChange(
+    BuildContext context,
+    AudioEngine engine,
+    int cc,
+    int value,
+  ) {
+    if (plugin is VirtualPianoPlugin) {
+      _dispatchMidiCC(context, engine, cc, value);
+    } else if (plugin is Vst3PluginInstance) {
+      context.read<VstHostService>().controlChange(plugin.id, 0, cc, value);
+    } else {
+      engine.setControlChange(channel: channelIndex, controller: cc, value: value);
+    }
+  }
+
+  /// Forwards a pitch-bend value through every slot wired to this VP's MIDI OUT.
+  ///
+  /// Converts the raw 14-bit value to semitones when the target is VST3,
+  /// and reconstructs the correct 14-bit word for FluidSynth channels.
+  void _dispatchMidiPitchBend(
+    BuildContext context,
+    AudioEngine engine,
+    int rawValue,
+  ) {
+    final vstSvc = context.read<VstHostService>();
+    for (final cable in _midiOutCables(context)) {
+      final target = _findPlugin(context, cable.toSlotId);
+      if (target == null) continue;
+      if (target is Vst3PluginInstance) {
+        final semitones = (rawValue - 8192) / 8192.0 * 2.0;
+        vstSvc.pitchBend(target.id, 0, semitones);
+      } else {
+        final targetCh = (target.midiChannel - 1).clamp(0, 15);
+        engine.setPitchBend(channel: targetCh, value: rawValue);
+      }
+    }
+  }
+
+  /// Forwards a control-change message through every slot wired to this VP's MIDI OUT.
+  void _dispatchMidiCC(
+    BuildContext context,
+    AudioEngine engine,
+    int cc,
+    int value,
+  ) {
+    final vstSvc = context.read<VstHostService>();
+    for (final cable in _midiOutCables(context)) {
+      final target = _findPlugin(context, cable.toSlotId);
+      if (target == null) continue;
+      if (target is Vst3PluginInstance) {
+        vstSvc.controlChange(target.id, 0, cc, value);
+      } else {
+        final targetCh = (target.midiChannel - 1).clamp(0, 15);
+        engine.setControlChange(channel: targetCh, controller: cc, value: value);
+      }
+    }
+  }
 }
