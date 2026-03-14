@@ -7,8 +7,17 @@ import '../l10n/app_localizations.dart';
 
 /// Transport bar with play/stop, BPM (tap-to-type, scroll-wheel, ± hold-to-repeat),
 /// tap-tempo, time signature, a visual beat-pulse LED, and an audible metronome toggle.
+///
+/// [supplementaryBarsVisible] — when provided, a chevron toggle icon is shown
+/// on the left side of the bar. Tapping it flips the notifier value so that
+/// [RackScreen] can show or hide supplementary bars (audio settings, etc.)
+/// below the transport strip without rebuilding the whole scaffold.
 class TransportBar extends StatefulWidget {
-  const TransportBar({super.key});
+  const TransportBar({super.key, this.supplementaryBarsVisible});
+
+  /// Controls visibility of the supplementary bars (audio settings bar, …).
+  /// When null, no toggle icon is rendered.
+  final ValueNotifier<bool>? supplementaryBarsVisible;
 
   @override
   State<TransportBar> createState() => _TransportBarState();
@@ -95,6 +104,32 @@ class _TransportBarState extends State<TransportBar>
           return Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              // ── Supplementary-bars toggle ──────────────────────────────────
+              // Shown only when a notifier is wired in by RackScreen.
+              if (widget.supplementaryBarsVisible != null)
+                ValueListenableBuilder<bool>(
+                  valueListenable: widget.supplementaryBarsVisible!,
+                  builder: (ctx, visible, _) => Tooltip(
+                    message: l10n.audioSettingsBarToggleTooltip,
+                    child: IconButton(
+                      icon: Icon(
+                        visible
+                            ? Icons.expand_less
+                            : Icons.expand_more,
+                        size: 20,
+                      ),
+                      color: Colors.white54,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(
+                        minWidth: 28,
+                        minHeight: 28,
+                      ),
+                      onPressed: () =>
+                          widget.supplementaryBarsVisible!.value = !visible,
+                    ),
+                  ),
+                ),
+
               // Beat-pulse LED
               AnimatedBuilder(
                 animation: _beatAnim,

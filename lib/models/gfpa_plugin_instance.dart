@@ -36,6 +36,10 @@ class GFpaPluginInstance implements PluginInstance {
   /// detection. Becomes a MIDI cable in Phase 5.
   String? masterSlotId;
 
+  /// When true, this slot is rendered in a pinned panel below the transport
+  /// bar for quick access without scrolling to its rack slot.
+  bool pinned;
+
   GFpaPluginInstance({
     required this.id,
     required this.pluginId,
@@ -43,6 +47,7 @@ class GFpaPluginInstance implements PluginInstance {
     Map<String, dynamic>? state,
     List<String>? targetSlotIds,
     this.masterSlotId,
+    this.pinned = false,
   })  : state = state ?? {},
         targetSlotIds = targetSlotIds ?? [];
 
@@ -71,6 +76,7 @@ class GFpaPluginInstance implements PluginInstance {
         'midiChannel': midiChannel,
         if (targetSlotIds.isNotEmpty) 'targetSlotIds': targetSlotIds,
         if (masterSlotId != null) 'masterSlotId': masterSlotId,
+        if (pinned) 'pinned': true,
         'state': state,
       };
 
@@ -94,6 +100,7 @@ class GFpaPluginInstance implements PluginInstance {
       ),
       targetSlotIds: targetSlotIds,
       masterSlotId: json['masterSlotId'] as String?,
+      pinned: (json['pinned'] as bool?) ?? false,
     );
   }
 
@@ -105,6 +112,7 @@ class GFpaPluginInstance implements PluginInstance {
     List<String>? targetSlotIds,
     String? masterSlotId,
     bool clearMasterSlot = false,
+    bool? pinned,
   }) =>
       GFpaPluginInstance(
         id: id ?? this.id,
@@ -113,5 +121,6 @@ class GFpaPluginInstance implements PluginInstance {
         state: state ?? Map.from(this.state),
         targetSlotIds: targetSlotIds ?? List.from(this.targetSlotIds),
         masterSlotId: clearMasterSlot ? null : (masterSlotId ?? this.masterSlotId),
+        pinned: pinned ?? this.pinned,
       );
 }

@@ -44,6 +44,14 @@ abstract class FlutterMidiProPlatform extends PlatformInterface {
     throw UnimplementedError('pitchBend() has not been implemented.');
   }
 
+  /// Sets the master output gain on all currently-loaded FluidSynth instances.
+  ///
+  /// [gain] must be in the range 0.0–10.0. Takes effect immediately without
+  /// requiring a soundfont reload.
+  Future<void> setGain(double gain) {
+    throw UnimplementedError('setGain() has not been implemented.');
+  }
+
   Future<void> unloadSoundfont(int sfId) {
     throw UnimplementedError('unloadSoundfont() has not been implemented.');
   }

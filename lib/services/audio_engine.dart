@@ -109,6 +109,13 @@ class ChannelState {
   /// A visual reference set of pitch classes (0-11) allowed in the current active scale.
   final ValueNotifier<Set<int>?> validPitchClasses = ValueNotifier(null);
 
+  /// Whether this channel is currently muted.
+  ///
+  /// When true, [AudioEngine.playNote] skips audio emission but still tracks
+  /// UI state (active notes, chord detection). Note-off always goes through
+  /// to prevent stuck notes when unmuting.
+  final ValueNotifier<bool> isMuted = ValueNotifier(false);
+
   ChannelState();
 
   Map<String, dynamic> toJson() => {
@@ -211,6 +218,13 @@ class AudioEngine extends ChangeNotifier {
   double Function() bpmProvider = () => 120.0;
   bool Function() isPlayingProvider = () => false;
 
+  /// Called by [_handleSystemCommand] when a looper system action CC fires.
+  ///
+  /// Set by [RackScreen] so that looper engine calls can be dispatched from the
+  /// audio MIDI pipeline without creating a hard dependency on [LooperEngine].
+  /// Arguments: the system action code (1009-1013) and the CC value (0-127).
+  void Function(int actionCode, int ccValue)? onLooperSystemAction;
+
   final ValueNotifier<int> vocoderInputDeviceIndex = ValueNotifier<int>(-1);
   final ValueNotifier<int> vocoderInputAndroidDeviceId = ValueNotifier<int>(-1);
   final ValueNotifier<int> vocoderOutputAndroidDeviceId = ValueNotifier<int>(
@@ -218,9 +232,39 @@ class AudioEngine extends ChangeNotifier {
   );
   final ValueNotifier<double> vocoderInputGain = ValueNotifier<double>(1.0);
 
+  /// Master output gain sent to the FluidSynth process (`gain` command).
+  ///
+  /// Linux default is 3.0 — the previous 5.0 was too loud relative to VST
+  /// output. Initialized before FluidSynth starts so the `-g` flag already
+  /// uses the persisted value.
+  /// Master output gain for the built-in FluidSynth engine (all platforms).
+  ///
+  /// Default is 3.0 — lower than the old hardcoded 5.0 which was too loud on
+  /// Linux. The value is persisted and applied live without a soundfont reload.
+  /// Restored from SharedPreferences on init; if no saved value exists the
+  /// default is 3.0 on Linux and 5.0 on Android/other (matching prior
+  /// behaviour for existing installs).
+  final ValueNotifier<double> fluidSynthGain = ValueNotifier<double>(3.0);
+
   static const audioConfigChannel = MethodChannel(
     'com.grooveforge.grooveforge/audio_config',
   );
+
+  /// Applies the current [fluidSynthGain] value to all active FluidSynth
+  /// instances, regardless of platform.
+  ///
+  /// - **Linux**: sends a `gain <value>` command to the FluidSynth child
+  ///   process via stdin — takes effect on the running engine immediately.
+  /// - **Android / other**: calls [MidiPro.setGain] which routes through the
+  ///   `flutter_midi_pro` method channel to `fluid_synth_set_gain()` on every
+  ///   loaded synth instance.
+  void applyFluidSynthGain() {
+    if (Platform.isLinux) {
+      _fluidSynthProcess?.stdin.writeln('gain ${fluidSynthGain.value}');
+    } else {
+      MidiPro().setGain(fluidSynthGain.value);
+    }
+  }
 
   void updateVocoderParameters() {
     AudioInputFFI().setVocoderParameters(
@@ -424,7 +468,24 @@ class AudioEngine extends ChangeNotifier {
         'alsa',
         '-m',
         'alsa_seq',
+        '-g',
+        '${fluidSynthGain.value}', // synth gain — persisted value (default 3.0 on Linux).
+             // FluidSynth's default (0.2) produces ~0.1 amplitude, far quieter
+             // than typical VST output (~0.3-0.5). We default to 3.0 on Linux
+             // which is loud enough without clipping at typical playing volumes.
+        '-q', // quiet mode: suppresses the interactive prompt and verbose logs
       ]);
+      // Drain stdout and stderr continuously to prevent a pipe deadlock.
+      //
+      // Without this, FluidSynth's output (interactive prompt lines, command
+      // echo, warnings…) eventually fills the OS pipe buffer (~64 KB on Linux).
+      // When the buffer is full FluidSynth blocks on its next write() call and
+      // stops reading from stdin.  Dart's stdin buffer then fills up, new
+      // note-on / note-off writes silently fail, and all sound stops — while
+      // the last notes that were already queued in the pipe buffer keep ringing
+      // as stuck notes.
+      _fluidSynthProcess!.stdout.listen((_) {});
+      _fluidSynthProcess!.stderr.listen((_) {});
     } else {
       try {
         final session = await AudioSession.instance;
@@ -489,6 +550,9 @@ class AudioEngine extends ChangeNotifier {
     vocoderInputGain.addListener(updateVocoderParameters);
     vocoderGateThreshold.addListener(_saveState);
     vocoderGateThreshold.addListener(updateVocoderParameters);
+
+    fluidSynthGain.addListener(_saveState);
+    fluidSynthGain.addListener(applyFluidSynthGain);
 
     vocoderInputDeviceIndex.addListener(_saveState);
     vocoderInputDeviceIndex.addListener(updateVocoderParameters);
@@ -582,6 +646,9 @@ class AudioEngine extends ChangeNotifier {
     await _prefs!.setBool('auto_scroll_enabled', autoScrollEnabled.value);
     await _prefs!.setString('last_seen_version', lastSeenVersion.value ?? "");
 
+    // FluidSynth gain (Linux)
+    await _prefs!.setDouble('fluidsynth_gain', fluidSynthGain.value);
+
     // Vocoder Parameters
     await _prefs!.setInt('vocoder_waveform', vocoderWaveform.value);
     await _prefs!.setDouble('vocoder_noise_mix', vocoderNoiseMix.value);
@@ -610,6 +677,11 @@ class AudioEngine extends ChangeNotifier {
     if (_prefs == null) {
       return;
     }
+
+    // Restore FluidSynth gain — applied immediately via stdin if the process
+    // is already running (only meaningful on Linux).
+    fluidSynthGain.value =
+        _prefs!.getDouble('fluidsynth_gain') ?? (Platform.isLinux ? 3.0 : 5.0);
 
     // Restore Vocoder Parameters FIRST so capture starts with correct device
     vocoderWaveform.value = _prefs!.getInt('vocoder_waveform') ?? 0;
@@ -990,8 +1062,17 @@ class AudioEngine extends ChangeNotifier {
             final mapping = ccMappingService!.getMapping(data1);
             if (mapping != null) {
               if (mapping.targetCc >= 1000) {
-                // System actions
-                if (mapping.targetChannel == -1) {
+                // Looper (1009-1013) and mute (1014) actions are channel-agnostic:
+                // fire once with the full mapping rather than once per channel.
+                if (mapping.targetCc >= 1009) {
+                  _handleSystemCommand(
+                    mapping.targetCc,
+                    channel,
+                    data2,
+                    muteChannels: mapping.muteChannels,
+                  );
+                } else if (mapping.targetChannel == -1) {
+                  // Broadcast system action to all 16 channels.
                   for (int i = 0; i < 16; i++) {
                     _handleSystemCommand(mapping.targetCc, i, data2);
                   }
@@ -1149,6 +1230,9 @@ class AudioEngine extends ChangeNotifier {
     }
 
     channels[channel].snappedKeyOwners[keyToPlay] = key;
+
+    // Skip audio emission when the channel is muted (UI tracking continues above).
+    if (channels[channel].isMuted.value) return;
 
     // Route to Vocoder
     if (channels[channel].soundfontPath == vocoderMode) {
@@ -1705,7 +1789,36 @@ class AudioEngine extends ChangeNotifier {
   /// Includes a 250ms debounce for toggle/cycle actions to prevent hardware
   /// drum pads from double-triggering continuous events. Actions include
   /// starting Jam Mode (1007), cycling scales (1008), or sweeping patches (1005).
-  void _handleSystemCommand(int targetAction, int incomingChannel, int value) {
+  /// Dispatches a resolved system action coming from a CC mapping.
+  ///
+  /// [targetAction] is the system action code (1001-1014).
+  /// [incomingChannel] is the MIDI channel on which the original CC arrived (0-15).
+  /// [value] is the raw CC value (0-127).
+  /// [muteChannels] carries the set of channels to toggle for action 1014;
+  /// ignored for all other action codes.
+  void _handleSystemCommand(
+    int targetAction,
+    int incomingChannel,
+    int value, {
+    Set<int>? muteChannels,
+  }) {
+    // ── Looper actions (1009-1013): delegate to LooperEngine via callback ──
+    if (targetAction >= 1009 && targetAction <= 1013) {
+      onLooperSystemAction?.call(targetAction, value);
+      return;
+    }
+
+    // ── Channel mute/unmute action (1014) ───────────────────────────────────
+    if (targetAction == 1014) {
+      // Toggle the muted state for every channel listed in the mapping.
+      for (final ch in muteChannels ?? <int>{}) {
+        if (ch >= 0 && ch < channels.length) {
+          channels[ch].isMuted.value = !channels[ch].isMuted.value;
+        }
+      }
+      return;
+    }
+
     if ([1001, 1002, 1003, 1004, 1007, 1008].contains(targetAction)) {
       String debounceKey = '${targetAction}_$incomingChannel';
       int now = DateTime.now().millisecondsSinceEpoch;
@@ -1779,11 +1892,23 @@ class AudioEngine extends ChangeNotifier {
     required int controller,
     required int value,
   }) {
-    _sendControlChange(channel: channel, controller: controller, value: value);
+    // When the channel is running the vocoder DSP, forward CC to the native C
+    // engine instead of FluidSynth — the C oscillator handles CC#1 (vibrato).
+    if (channels[channel].soundfontPath == vocoderMode) {
+      AudioInputFFI().controlChange(controller, value);
+    } else {
+      _sendControlChange(channel: channel, controller: controller, value: value);
+    }
   }
 
   void setPitchBend({required int channel, required int value}) {
-    _sendPitchBend(channel: channel, value: value);
+    // When the channel is running the vocoder DSP, route pitch bend to the
+    // native C oscillator rather than FluidSynth — the C engine owns those voices.
+    if (channels[channel].soundfontPath == vocoderMode) {
+      AudioInputFFI().pitchBend(value);
+    } else {
+      _sendPitchBend(channel: channel, value: value);
+    }
   }
 
   void _sendControlChange({

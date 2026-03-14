@@ -50,6 +50,11 @@ GrooveForge v2.0.0
 │       ├── GFVocoderPlugin     (com.grooveforge.vocoder)
 │       └── GFJamModePlugin     (com.grooveforge.jammode)
 │
+├── MIDI Looper (Phase 6 ✅)
+│   ├── LooperPluginInstance    ← rack slot with MIDI IN/OUT jacks + pin-to-transport
+│   ├── LooperEngine            ← PPQ-ticked playback + recording, chord analysis
+│   └── LoopTrack               ← base+overdub layers, chord grid, speed/reverse
+│
 ├── Rack UI
 │   ├── RackScreen                         ← reorderable rack (custom drag handles)
 │   ├── RackSlotWidget                     ← per-slot wrapper + mini piano
@@ -862,7 +867,7 @@ Stack(children: [
 
 ---
 
-## Phase 6 — VST3 Effect Plugin Support
+## Phase 7 — VST3 Effect Plugin Support
 
 > Distinguishes instrument and effect VST3 plugins and integrates them properly into the audio graph. Effect plugins appear as distinct slot types in the rack and can be connected to instruments via the patch view.
 
@@ -880,14 +885,14 @@ An **effect slot** in the rack looks different from an instrument slot:
 - Shows: plugin name, effect type chip (Reverb / Compressor / EQ / Delay / Other), parameter knobs, editor button
 - In the patch view its back panel shows AUDIO IN L/R + AUDIO OUT L/R jacks (and optionally MIDI IN if the plugin declares a MIDI input bus)
 
-### 6.1 — Plugin Type Detection
+### 7.1 — Plugin Type Detection
 
 - [ ] `dvh_get_audio_input_count(pluginId)` — new FFI call, returns the number of audio input buses
 - [ ] `dvh_get_audio_output_count(pluginId)` — returns number of audio output buses
 - [ ] `VstHostService.loadPlugin()` — after loading, calls both, sets `Vst3PluginInstance.pluginType` field
 - [ ] `AddPluginSheet` — shows two browsing options: "Load VST3 Instrument" and "Load VST3 Effect", but detection overrides at load time with an informational toast if the file type differs from what was selected
 
-### 6.2 — Vst3PluginInstance Model Update
+### 7.2 — Vst3PluginInstance Model Update
 
 - [ ] Add `Vst3PluginType pluginType` enum field to `Vst3PluginInstance` (`.instrument`, `.effect`, `.analyzer`)
 - [ ] `toJson/fromJson` updated for new field
@@ -895,13 +900,13 @@ An **effect slot** in the rack looks different from an instrument slot:
   - Instrument: `[midiIn, audioOutL, audioOutR, sendOut]`
   - Effect: `[audioInL, audioInR, audioOutL, audioOutR, sendOut, returnIn]`
 
-### 6.3 — Effect Slot UI (Vst3EffectSlotUI)
+### 7.3 — Effect Slot UI (Vst3EffectSlotUI)
 
 - [ ] Create `lib/widgets/rack/vst3_effect_slot_ui.dart` — reuses `Vst3SlotUI` parameter knob system, removes piano + MIDI badge, adds effect-type category chip in the header
 - [ ] Effect type chip auto-detected from plugin name heuristics (contains "Reverb", "Comp", "EQ", "Delay", "Chorus", "Dist", etc.) and from VST3 `kFx` sub-category metadata if available
 - [ ] `RackSlotWidget` dispatches to `Vst3EffectSlotUI` when `pluginType == effect`
 
-### 6.4 — Insert FX Chain (per instrument slot, optional shortcut)
+### 7.4 — Insert FX Chain (per instrument slot, optional shortcut)
 
 While the full audio graph (Phase 5) is the canonical routing mechanism, a simplified **insert FX chain** UI shortcut is useful for the common case of "apply a reverb to this synth":
 
@@ -912,7 +917,7 @@ While the full audio graph (Phase 5) is the canonical routing mechanism, a simpl
 - [ ] This is syntactic sugar over the audio graph: under the hood it creates `audioOutL/R → audioInL/R` connections automatically
 - [ ] The patch view still shows these as explicit cables
 
-### 6.5 — Testing
+### 7.5 — Testing
 
 - [ ] Load a compressor VST3 effect (e.g. dragonfly, LSP Compressor) — verify detected as effect type
 - [ ] Insert after Surge XT — verify audio passes through and effect is audible
@@ -921,98 +926,177 @@ While the full audio graph (Phase 5) is the canonical routing mechanism, a simpl
 
 ---
 
-## Phase 7 — MIDI Looper
+## Phase 6 — MIDI Looper ✅ COMPLETE
 
-> A BPM-synced MIDI recording and playback system. Purely Dart-side (no native audio required). Records MIDI events from any rack slot over N bars, loops them in sync with the transport clock, and supports multi-layer overdub.
+> A BPM-synced MIDI recording and playback system, entirely Dart-side. The looper is a first-class rack slot with MIDI IN (record source) and MIDI OUT (playback fan-out) jacks in the audio graph — enabling the full chain: record chords on a GFK, route MIDI OUT to Jam Mode (auto-lock scales on another keyboard) and back to the same GFK (hear the loop immediately). Multiple looper slots can play in parallel.
 
-### Design
-
-A **loop track** is associated with one or more rack slots (its MIDI targets). It records raw `MidiEvent`s (note-on, note-off, CC, pitch bend) with PPQ timestamps. On playback, events are dispatched to the target slots' `noteOn/Off/cc/pitchBend` handlers at the correct times.
+### Design — LoopTrack model
 
 ```dart
 class LoopTrack {
   final String id;
   String name;
-  int lengthInBars;                      // 1, 2, 4, 8, 16
+  int? presetLengthInBars;               // null = auto-detect from first recording; or 1/2/4/8/16
+  int? lengthInBars;                     // actual loop length (set on first stop if preset is null)
+  List<String> sourceSlotIds;            // which slots to record MIDI from
   List<String> targetSlotIds;            // which slots receive playback
-  List<TimestampedMidiEvent> events;     // sorted by ppqPosition
-  LoopTrackState state;                  // idle | armed | recording | playing | overdubbing | muted
-  double volumeScale;                    // 0.0 – 1.0 playback velocity multiplier
+  List<TimestampedMidiEvent> baseEvents; // committed base layer (sorted by ppqPosition)
+  List<List<TimestampedMidiEvent>> overdubLayers; // one list per overdub, for undo
+  List<List<String>> chordsPerBar;       // chord names detected per bar, e.g. [["Am","Bm7"],["C7/E"]]
+  LoopTrackState state;                  // idle|armed|recording|playing|overdubbing|muted
+  double volumeScale;                    // 0.0–1.0 playback velocity multiplier
   bool muted;
+  bool reversed;                         // play events in reverse PPQ order
+  double speedFactor;                    // 0.5 = half-speed, 1.0 = normal, 2.0 = double
+  int selectedBar;                       // resume point set by tapping a chord segment (0 = start)
 }
 
 class TimestampedMidiEvent {
-  final double ppqPosition;             // position in PPQ within the loop
-  final MidiEvent event;
+  final double ppqPosition;              // position in PPQ within the loop
+  final List<int> midiBytes;             // [status, data1, data2]
 }
 ```
 
-The **LooperEngine** (`ChangeNotifier`) manages all loop tracks:
-- Listens to `TransportEngine` position changes on every audio tick
-- Dispatches playback events to `AudioEngine` at the correct PPQ positions
-- Records incoming MIDI events (routed from `AudioEngine.onMidiIn` stream) into the armed track
+### Design — State machine (unified Rec/Play button)
 
-### 7.1 — LooperEngine Service
+```
+idle ──[Rec/Play]──► armed          (waits for next downbeat)
+armed ──[downbeat]──► recording
+recording ──[Rec/Play]──► playing   (stop immediately + start looping)
+playing ──[Rec/Play]──► overdubbing (layer new events on top)
+overdubbing ──[Rec/Play]──► playing (commit overdub layer)
+any ──[Stop]──► idle                (playhead jumps to selectedBar)
+```
 
-- [ ] Create `lib/services/looper_engine.dart` — `ChangeNotifier`, `List<LoopTrack> tracks`
-- [ ] `armTrack(trackId)` — sets track to `armed`; on the next downbeat (bar boundary), switches to `recording`
-- [ ] `stopRecord(trackId)` — on next downbeat, stops recording, switches to `playing`, trims `events` to `lengthInBars` bars worth of PPQ
-- [ ] `overdub(trackId)` — continues playing while also recording new events layered on top
-- [ ] `clear(trackId)` — removes all events, sets state to `idle`
-- [ ] `mute(trackId)` / `unmute(trackId)` — suppresses playback dispatch without losing events
-- [ ] `_tick(ppqPosition)` — called from `TransportEngine` on every UI frame (~60 fps); dispatches any events whose `ppqPosition` falls within the current frame's window
-- [ ] MIDI input routing: `AudioEngine` exposes a `Stream<MidiEvent> midiInStream` that `LooperEngine` subscribes to when a track is armed/overdubbing
+Long-press Stop → confirm-clear dialog (wipes all events + chord data).
 
-### 7.2 — LoopTrack Model
+### Design — Smart bar-sync on Play
 
-- [ ] Create `lib/models/loop_track.dart` — all fields above, `toJson/fromJson` round-trip
-- [ ] `TimestampedMidiEvent.toJson` encodes `ppqPosition` + MIDI bytes
-- [ ] `LoopTrackState` enum
+When the user taps Play after missing a downbeat by a small amount:
+- If elapsed ms since last downbeat < **tolerance window** (default 200 ms, configurable): start immediately and offset the loop playhead by that elapsed PPQ so the loop stays bar-aligned from the listener's perspective.
+- If elapsed ≥ tolerance: wait for the next downbeat.
 
-### 7.3 — .gf Format Update
+This avoids the frustrating "waited a whole extra bar" problem when the user is just slightly late.
 
-- [ ] `ProjectService` writes/reads `"loopTracks": [...]` array
-- [ ] Each track serialized with: `id`, `name`, `lengthInBars`, `targetSlotIds`, `events` array, `volumeScale`, `muted`
-- [ ] Events stored compact: `[ppq, status, data1, data2]` tuples
+### Design — Looper as a rack slot
 
-### 7.4 — Looper UI
+`LooperPluginInstance` is a rack slot type like Jam Mode. Its back panel exposes:
+- **MIDI IN** — record source (MIDI events wired here are recorded when armed/overdubbing)
+- **MIDI OUT** — playback targets (recorded events are dispatched to all wired destinations)
 
-- [ ] Add a **Looper Panel** below the transport bar in `RackScreen` (or as a collapsible drawer from the bottom edge)
-- [ ] Panel shows a horizontal scrollable list of `LoopTrackCard`s
-- [ ] `LoopTrackCard` displays:
-  - Track name (editable inline)
-  - State indicator light (idle=grey, armed=yellow pulse, recording=red pulse, playing=green, overdub=orange)
-  - Length selector: `1 / 2 / 4 / 8 / 16` bars (segmented control)
-  - Target slots: compact chip list showing which slot(s) feed / receive this track
-  - **Rec** button — arms recording (starts on next downbeat when transport is running)
-  - **Play/Stop** button — manually toggle playback (independent of global transport for jamming freedom)
-  - **Overdub** button — layers on top of existing events while playing
-  - **Clear** button (with confirm)
-  - **Mute** toggle
-  - Mini event density visualization: thin bar showing note density across the loop length (drawn as a `CustomPainter`)
-- [ ] `+` FAB in looper panel adds a new empty loop track, prompts for target slot selection
-- [ ] Looper panel visibility toggle saved in preferences (not in `.gf`)
+Multiple `LoopTrack`s live inside one slot (a multi-track looper). Users can add multiple looper slots for independent parallel loops. The `AudioGraph` handles fan-out naturally: one MIDI OUT can connect to GFK + Jam Mode simultaneously.
 
-### 7.5 — Quantization
+### Design — Pinned slots
 
-- [ ] Optional per-track quantization applied at record-stop time (not during recording, to preserve feel)
-- [ ] Quantize values: off, 1/32, 1/16, 1/8, 1/4, 1/2
-- [ ] Quantize snaps each event's `ppqPosition` to the nearest grid division
-- [ ] "Humanize" slider (0–50ms random jitter) can be applied after quantize to restore feel
+Both `LooperPluginInstance` and `GFpaJamModePlugin` gain a 📌 **pin toggle** in their slot header. When pinned, the slot's compact front panel is rendered in a fixed area between the transport bar and the rack list — always visible regardless of scroll position or patch view. Saved in `.gf`.
 
-### 7.6 — Localization
+### 6.1 — LooperEngine Service ✅
 
-- [ ] Add EN/FR keys: `looperPanel`, `looperAddTrack`, `looperRecord`, `looperStop`, `looperPlay`, `looperOverdub`, `looperClear`, `looperClearConfirm`, `looperMute`, `looperLength`, `looperTargetSlots`, `looperQuantize`
+- [x] Create `lib/services/looper_engine.dart` — `ChangeNotifier`, per-slot `LooperSession` map
+- [x] Subscribe to `TransportEngine` via 10 ms `Timer.periodic` ticker; reads `positionInBeats` as authoritative clock
+- [x] `startRecording` / `stopRecording` / `toggleRecord` — recording state machine
+- [x] `startPlayback` / `pausePlayback` / `stop` / `clearAll` — playback controls
+- [x] `looperButtonPress` — hardware-looper single-button state machine
+- [x] `_queueOverdub` / `_cancelOverdubQueue` — overdub queuing at loop boundary
+- [x] `_checkOverdubEnd` — auto-stops overdub at the end of one full loop cycle
+- [x] `feedMidiEvent` — records incoming MIDI events with beat offsets
+- [x] Smart bar-sync: waits for the next bar-1 downbeat before starting playback (`_checkWaitingForBar`)
+- [x] Auto-length: on `stopRecording`, quantises loop length to nearest bar boundary
+- [x] `_silenceAllTracks` / `_silenceTrack` — sends note-offs for all held notes at stop / wrap
+- [x] `_tickTrack` / `_fireEventsBetween` — beat-accurate playback with wrap-around and speed/reverse support
+- [x] Per-bar chord detection during recording (`_detectBeatCrossings`, `_flushBarChord`)
 
-### 7.7 — Testing
+### 6.2 — LoopTrack Model ✅
 
-- [ ] Record 2 bars of notes on Surge XT → verify playback loops at correct tempo
-- [ ] Change BPM → verify loop playback stretches/compresses correctly (PPQ-based, not time-based)
-- [ ] Overdub adds notes without erasing existing ones
-- [ ] Clear removes all events
-- [ ] Mute suppresses audio without stopping the internal playhead
-- [ ] Save/load project → loop tracks with events restored
-- [ ] Quantize 1/16 → verify event positions snapped
+- [x] Create `lib/models/loop_track.dart` — `id`, `events`, `lengthInBeats`, `chordPerBar`, `muted`, `reversed`, `speed` (`LoopTrackSpeed` enum), `activePlaybackNotes`
+- [x] `TimestampedMidiEvent` — `beatOffset`, `status`, `data1`, `data2` with `toJson`/`fromJson`
+- [x] `LoopTrack.toJson` / `fromJson` — full round-trip (events as compact lists)
+- [x] `LoopTrack.detectAndStoreChord` — chord detection per bar using `ChordDetector`
+
+### 6.3 — Looper as Rack Slot ✅
+
+- [x] Create `lib/models/looper_plugin_instance.dart` — extends `PluginInstance`; `pinnedBelowTransport`; JSON round-trip
+- [x] Register `LooperPluginInstance` in `AddPluginSheet` (all platforms; pure Dart, no native dep)
+- [x] `slot_back_panel_widget.dart` — looper back panel with MIDI IN + MIDI OUT jacks
+- [x] `RackScreen._handleLooperPlayback` — routes looper MIDI OUT events to wired downstream slots (VST3 via `VstHostService`, FluidSynth via `AudioEngine`)
+- [x] `RackScreen._feedMidiToLoopers` — feeds incoming MIDI from source slots to connected looper MIDI IN jacks
+
+### 6.4 — Pinned Slots ✅
+
+- [x] `LooperPluginInstance` and `GFpaPluginInstance` (Jam Mode) gain `bool pinnedBelowTransport` (persisted in `.gf`)
+- [x] `RackScreen`: pinned slots rendered in a `Column` between the transport bar and the `ReorderableListView`, always visible regardless of scroll position
+- [x] 📌 pin toggle icon in slot header (front view only); tap toggles + autosaves
+
+### 6.5 — .gf Format Update ✅
+
+- [x] `ProjectService` reads/writes `"looperSessions"` key with all `LoopTrack` data per slot
+- [x] Events stored compact: `[beatOffset, status, data1, data2]` per event
+- [x] Chord data: `{ barIndex: chordName }` map per track
+- [x] `pinnedBelowTransport` persisted for looper and Jam Mode slots
+
+### 6.6 — Looper UI (front panel) ✅
+
+- [x] Create `lib/widgets/rack/looper_slot_ui.dart`
+- [x] **Chord grid strip**: horizontally scrollable bar cells showing detected chord name per bar; current playback bar highlighted in real time
+- [x] **Transport row**: `[● REC]` `[▶ PLAY]` `[⊕ OD]` `[■ STOP]` `[✕ CLEAR]` buttons + LCD state badge (idle / armed / recording / playing / overdubbing)
+- [x] **Per-track controls**: mute (M), reverse (R), speed (½× / 1× / 2×) toggle chips per track row
+- [x] **Multi-track**: each overdub adds a new `LoopTrack` row inside the slot; OD button adds layers, CLEAR on a track removes it
+- [x] **Pin below transport**: 📌 toggle in slot header keeps the looper always visible
+- [ ] **Volume** slider per track (0–100% velocity scale) — deferred
+- [ ] Long-press STOP → confirm-clear dialog — deferred (CLEAR button used instead)
+
+### 6.7 — Record-Stop Quantization ✅
+
+Applied at record-stop time: original timings are preserved during recording and snapped to the nearest grid on commit.
+
+- [x] `LoopQuantize` enum in `loop_track.dart`: `off`, `quarter` (1/4), `eighth` (1/8), `sixteenth` (1/16), `thirtySecond` (1/32) — includes `gridBeats`, `label`, and `next` helpers
+- [x] `LoopTrack.quantize` field — default `off`; persisted in `LoopTrack.toJson` / `fromJson` with backward-compat default
+- [x] `LooperEngine._applyQuantization(track)` — snaps all `beatOffset` values after `_sortTrackEvents` in `stopRecording`; enforces minimum one-grid-step gap between each note-on and its note-off to prevent zero-duration notes; clamps offsets to `[0, loopLen)`
+- [x] `LooperEngine._snapBeat(beat, grid)` — allocation-free pure helper
+- [x] `LooperSession.quantize` — slot-level field; stamped onto each new `LoopTrack` at `_beginRecordingPass` so the grid is locked at recording start
+- [x] `LooperEngine.setQuantize(slotId, quantize)` — slot-level public setter, triggers `notifyListeners` + `onDataChanged` for autosave
+- [x] **Quantize chip** in the **transport strip** (next to CLEAR): `Q:off`, `Q:1/4`, `Q:1/8`, `Q:1/16`, `Q:1/32` — tap to cycle; set before recording, applies to every subsequent recording pass
+- [x] `looperQuantize` EN/FR l10n key (used in chip tooltip)
+- [ ] Optional "humanize" jitter (0–50 ms random offset) after quantize — deferred
+
+### 6.8 — Playback Modes ✅
+
+- [x] **Reverse**: events iterated in reverse and positions mirrored (`loopLen - beatOffset`) in `_fireEventsInRange`
+- [x] **Half-speed (0.5×)**: `LoopTrackSpeed.half` — effective loop length doubled; events play at half rate
+- [x] **Double-speed (2.0×)**: `LoopTrackSpeed.double_` — effective loop length halved; events play at double rate
+- [x] Speed change takes effect immediately (no mid-loop glitches since phase is computed each tick)
+
+### 6.9 — CC Assignments ✅
+
+Hardware CC buttons bindable per looper slot via the looper front panel:
+
+- [x] `toggleRecord` — Rec/Play toggle
+- [x] `togglePlay` — play/pause without clearing
+- [x] `stop` — stop and return to idle
+- [x] `clearAll` — erase all tracks
+- [x] CC assignment UI in the looper slot front panel; `LooperEngine.setCcAssignment` / `handleCc` APIs
+- [ ] `looperJumpToBar` — map CC value 0–127 to bar index — deferred
+- [ ] Integration with the global CC Mapping settings screen — deferred
+
+### 6.10 — Localization ✅
+
+- [x] 20+ EN/FR keys added: `looperSlotName`, `addLooper`, `rackAddLooperSubtitle`, `looperRecPlay`, `looperStop`, `looperOverdub`, `looperClear`, `looperMute`, `looperReverse`, `looperSpeed`, `looperPinBelowTransport`, `jamModePinBelowTransport`, and related UI strings
+- [x] `looperQuantize` EN/FR key added (6.7 implementation)
+- [ ] `looperVolume`, `looperSmartSyncTolerance` — deferred with their features
+
+### 6.11 — Testing
+
+- [x] Record 4+ bars of chords on GFK → chord grid shows correct chord names per bar
+- [x] Overdub layers added and played back simultaneously
+- [x] Reverse and ½× / 2× speed modes work correctly
+- [x] Save/load project → loop events, chord grid, pinned state all restored
+- [x] Pinned looper slot visible above rack list (below transport bar)
+- [x] CC buttons bound to looper actions (record, play, stop, clear)
+- [x] Linux pipe deadlock fix: FluidSynth stdout/stderr now drained continuously — no more silence after sustained looper playback
+- [ ] Smart sync: tap Play 100 ms after downbeat → starts immediately (not one bar late)
+- [ ] Smart sync: tap Play 400 ms after downbeat → waits for next downbeat
+- [ ] GFK → Looper → Jam Mode + GFK2 chain: scale locks on GFK2 follow recorded chord progression
+- [ ] Two looper slots playing simultaneously → no timing drift
 
 ---
 
@@ -1268,7 +1352,7 @@ Revisit this phase when **all** of the following are true:
 
 ## Phase 9 — Audio Looper
 
-> Extends the MIDI looper from Phase 7 to record and play back **audio** (PCM samples). Requires the audio graph from Phase 5 to capture mixed audio from any bus or slot. Significantly more complex than MIDI looping due to memory, latency compensation, and synchronization.
+> Extends the MIDI looper from Phase 6 to record and play back **audio** (PCM samples). Requires the audio graph from Phase 5 to capture mixed audio from any bus or slot. Significantly more complex than MIDI looping due to memory, latency compensation, and synchronization.
 
 ### Design
 
@@ -1380,8 +1464,8 @@ All keys below are **reserved immediately** in the current `ProjectService` to a
 | `2.2.1` | Phase 3b | ✅ Complete   | GrooveForge Keyboard + Vocoder as distributable `.vst3` bundles (Linux)          |
 | `2.3.0` | Phase 4  | ✅ Complete   | Transport engine: global BPM, time signature, play/stop, tap tempo, ProcessContext to VSTs, Jam Mode BPM lock |
 | `2.4.0` | Phase 5  | ✅ Complete   | Audio signal graph + "Back of Rack" cable patching UI                            |
-| `2.5.0` | Phase 6  | 🔜 TODO      | VST3 effect plugin support (insert FX chains per slot, master bus FX)            |
-| `2.6.0` | Phase 7  | 🔜 TODO      | MIDI Looper (BPM-synced, per-slot, multi-track overdub)                          |
+| `2.5.0` | Phase 6  | ✅ Complete   | MIDI Looper (BPM-synced, per-slot, multi-track overdub, live playback quantization pending) |
+| `2.6.0` | Phase 7  | 🔜 TODO      | VST3 effect plugin support (insert FX chains per slot, master bus FX)            |
 | `3.0.0` | Phase 8  | 🔜 TODO      | GFPA community plugins — first-party effects (reverb, EQ, delay…) + plugin store |
 | `3.1.0` | Phase 8b | 🔜 TODO      | AudioUnit v3 bridge (macOS + iOS) — hosts AUv3 ecosystem plugins                 |
 | `3.2.0` | Phase 9  | 🔜 TODO      | Audio looper (PCM, requires audio graph from Phase 5)                            |
@@ -1390,4 +1474,4 @@ All keys below are **reserved immediately** in the current `ProjectService` to a
 
 ---
 
-*Last updated: 2026-03-11 — Phases 1–4 complete (v2.0.0–v2.3.0). Phases 5–9 planned: audio signal graph, cable patching UI, VST3 effect hosting, MIDI looper, and audio looper. See below for full specification.*
+*Last updated: 2026-03-13 — Phases 1–6 complete (v2.0.0–v2.5.0). Phase 6 (MIDI Looper) shipped with v2.5.0; record-stop quantization (6.7) implemented. Remaining looper work: humanize jitter, smart-sync tests, volume slider. Phases 7–9 planned: VST3 effect hosting, GFPA plugin ecosystem, audio looper.*

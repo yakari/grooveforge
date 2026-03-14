@@ -7,7 +7,9 @@ import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import '../models/gfpa_plugin_instance.dart';
 import '../models/grooveforge_keyboard_plugin.dart';
+import '../models/looper_plugin_instance.dart';
 import '../models/virtual_piano_plugin.dart';
+import '../services/looper_engine.dart';
 import '../services/rack_state.dart';
 import '../services/vst_host_service.dart';
 
@@ -250,6 +252,17 @@ class _AddPluginSheetContentState extends State<_AddPluginSheetContent> {
               title: l10n.rackAddJamMode,
               subtitle: l10n.rackAddJamModeSubtitle,
               onTap: () {
+                // Enforce single-instance limit: only one Jam Mode allowed.
+                final hasJamMode = rack.plugins
+                    .whereType<GFpaPluginInstance>()
+                    .any((p) => p.pluginId == 'com.grooveforge.jammode');
+                if (hasJamMode) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(l10n.addJamModeAlreadyExists)),
+                  );
+                  return;
+                }
                 Navigator.pop(context);
                 rack.addPlugin(
                   GFpaPluginInstance(
@@ -284,6 +297,32 @@ class _AddPluginSheetContentState extends State<_AddPluginSheetContent> {
                     midiChannel: ch,
                   ),
                 );
+              },
+            ),
+
+            // ── MIDI Looper
+            _PluginTile(
+              icon: Icons.loop,
+              iconColor: Colors.greenAccent,
+              title: l10n.addLooper,
+              subtitle: l10n.addLooperSubtitle,
+              onTap: () {
+                // Enforce single-instance limit: only one Looper allowed.
+                final hasLooper =
+                    rack.plugins.whereType<LooperPluginInstance>().isNotEmpty;
+                if (hasLooper) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(l10n.addLooperAlreadyExists)),
+                  );
+                  return;
+                }
+                Navigator.pop(context);
+                final slotId = rack.generateSlotId();
+                final looper = LooperPluginInstance(id: slotId);
+                rack.addPlugin(looper);
+                // Register a session in the engine as soon as the slot is added.
+                context.read<LooperEngine>().ensureSession(slotId);
               },
             ),
 

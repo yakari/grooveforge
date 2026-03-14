@@ -126,6 +126,23 @@ class VstHostService {
     _plugins[slotId]?.noteOff(channel, note, 0.0);
   }
 
+  /// Forwards a pitch-bend message to a VST3 plugin.
+  ///
+  /// The dart_vst_host native library currently only exposes note on/off via
+  /// dvh_note_on / dvh_note_off. Pitch bend for VST3 requires a dvh_pitch_bend
+  /// native function — tracked as a future enhancement. No-op until then.
+  void pitchBend(String slotId, int channel, double semitones) {
+    // TODO(midi-expression): call dvh_pitch_bend once the native binding exists.
+  }
+
+  /// Forwards a control-change message to a VST3 plugin.
+  ///
+  /// Same limitation as [pitchBend] — native CC dispatch is not yet in
+  /// dart_vst_host. No-op until the native binding is added.
+  void controlChange(String slotId, int channel, int cc, int value) {
+    // TODO(midi-expression): call dvh_control_change once the native binding exists.
+  }
+
   // ─── Plugin editor GUI ─────────────────────────────────────────────────────
 
   /// Open the plugin's native editor window. Returns true if a window was opened.

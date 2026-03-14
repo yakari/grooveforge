@@ -5,6 +5,7 @@ import '../../l10n/app_localizations.dart';
 import '../../models/audio_port_id.dart';
 import '../../models/gfpa_plugin_instance.dart';
 import '../../models/grooveforge_keyboard_plugin.dart';
+import '../../models/looper_plugin_instance.dart';
 import '../../models/plugin_instance.dart';
 import '../../models/virtual_piano_plugin.dart';
 import '../../models/vst3_plugin_instance.dart';
@@ -40,6 +41,15 @@ class SlotBackPanelWidget extends StatelessWidget {
   // ── Port layout per plugin type ──────────────────────────────────────────
 
   List<AudioPortId> _portsFor(PluginInstance plugin) {
+    if (plugin is LooperPluginInstance) {
+      // The looper accepts MIDI IN (to record) and emits MIDI OUT (to replay
+      // recorded events to connected instrument / Jam Mode slots).
+      return [
+        AudioPortId.midiIn,   // records MIDI from connected source
+        AudioPortId.midiOut,  // replays recorded MIDI to connected targets
+      ];
+    }
+
     if (plugin is VirtualPianoPlugin) {
       return [
         AudioPortId.midiIn,   // aligns MIDI OUT with other slots; also accepts MIDI from Jam Mode OUT

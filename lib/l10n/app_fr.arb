@@ -109,6 +109,14 @@
   "ccTargetEffectLabel": "Effet GM Cible",
   "ccTargetChannelLabel": "Canal Cible",
   "ccSaveBinding": "Sauvegarder l'Assignation",
+  "ccMuteChannelsLabel": "Canaux à couper/rétablir",
+  "ccMuteChannelsSummary": "Canaux : {channels}",
+  "@ccMuteChannelsSummary": {
+    "placeholders": {
+      "channels": { "type": "String" }
+    }
+  },
+  "ccMuteNoChannels": "Aucun canal sélectionné",
   "ccTargetEffectFormat": "{name} (CC {cc})",
   "@ccTargetEffectFormat": {
     "placeholders": {
@@ -235,6 +243,11 @@
   "audioOutputTitle": "Sortie Audio",
   "audioOutputDevice": "Appareil de sortie",
   "audioOutputDefault": "Système (défaut)",
+  "audioSettingsBarGain": "Volume",
+  "audioSettingsBarMicSensitivity": "Micro",
+  "audioSettingsBarMicDevice": "Entrée",
+  "audioSettingsBarOutputDevice": "Sortie",
+  "audioSettingsBarToggleTooltip": "Afficher/masquer la barre de réglages audio",
   "synthAutoScrollTitle": "Auto-scroll vers le canal actif",
   "synthAutoScrollSubtitle": "Défiler automatiquement la liste lors de la réception MIDI",
   "rackTitle": "Rack",
@@ -252,7 +265,7 @@
   "rackRemove": "Supprimer",
   "rackPluginUnavailableOnMobile": "Ce plugin VST3 n'est pas disponible sur mobile.",
   "rackMidiChannel": "CANAL MIDI",
-  "rackOpenProject": "Ouvrir un projet",
+  "rackOpenProject": "Projets",
   "rackSaveProject": "Enregistrer",
   "rackSaveProjectAs": "Enregistrer sous…",
   "rackNewProject": "Nouveau projet",
@@ -316,5 +329,44 @@
   "virtualPianoSlotName": "Contrôleur MIDI Virtuel",
   "addVirtualPiano": "Contrôleur MIDI Virtuel",
   "rackAddVirtualPianoSubtitle": "Source MIDI autonome pour le câblage",
-  "virtualPianoSlotHint": "Les notes passent par MIDI OUT — connectez un câble en vue de câblage."
+  "virtualPianoSlotHint": "Les notes passent par MIDI OUT — connectez un câble en vue de câblage.",
+
+  "looperSlotName": "Looper MIDI",
+  "addLooper": "Looper MIDI",
+  "addLooperSubtitle": "Enregistrez et bouclez des séquences MIDI avec synchro de mesure",
+  "addLooperAlreadyExists": "Un Looper MIDI est déjà dans le rack. Un seul est autorisé.",
+  "addJamModeAlreadyExists": "Un Jam Mode est déjà dans le rack. Un seul est autorisé.",
+  "looperRecord": "Enregistrer",
+  "looperPlay": "Lecture",
+  "looperStop": "Stop",
+  "looperClear": "Effacer",
+  "looperOverdub": "Overdub",
+  "looperArmed": "Armé — en attente du transport",
+  "looperWaitingForBar": "En attente de la mesure",
+  "looperWaitingForOverdub": "En attente de l'overdub",
+  "looperTrack": "Piste {n}",
+  "@looperTrack": {
+    "placeholders": {
+      "n": { "type": "int" }
+    }
+  },
+  "looperPinBelow": "Épingler sous le transport",
+  "jamModePinBelow": "Épingler sous le transport",
+  "looperHalfSpeed": "½×",
+  "looperNormalSpeed": "1×",
+  "looperDoubleSpeed": "2×",
+  "looperReverse": "Inverser",
+  "looperMute": "Muet",
+  "looperNoChord": "—",
+  "looperBar": "Mesure {n}",
+  "@looperBar": {
+    "placeholders": {
+      "n": { "type": "int" }
+    }
+  },
+  "looperCcAssign": "Assigner CC",
+  "looperCcAssignTitle": "Assigner un CC matériel à une action du looper",
+  "looperCcRemove": "Supprimer l'assignation CC",
+
+  "looperQuantize": "Quantification"
 }

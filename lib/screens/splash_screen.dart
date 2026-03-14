@@ -7,6 +7,7 @@ import '../plugins/gf_jam_mode_plugin.dart';
 import '../plugins/gf_vocoder_plugin.dart';
 import '../services/audio_engine.dart';
 import '../services/audio_graph.dart';
+import '../services/looper_engine.dart';
 import '../services/project_service.dart';
 import '../services/rack_state.dart';
 import '../services/vst_host_service.dart';
@@ -42,6 +43,7 @@ class _SplashScreenState extends State<SplashScreen> {
     final rack = context.read<RackState>();
     final transport = context.read<TransportEngine>();
     final audioGraph = context.read<AudioGraph>();
+    final looperEngine = context.read<LooperEngine>();
 
     // Wait for the very first frame to finish before starting the heavy lifting.
     await Future.delayed(const Duration(milliseconds: 100));
@@ -53,16 +55,34 @@ class _SplashScreenState extends State<SplashScreen> {
 
     if (!mounted) return;
     engine.initStatus.value = 'Restoring rack state...';
-    final projectService = ProjectService();
-    // Trigger autosave on both rack changes and audio graph changes (new cables).
-    rack.onChanged =
-        () => projectService.autosave(rack, engine, transport, audioGraph);
-    audioGraph.addListener(
-      () => projectService.autosave(rack, engine, transport, audioGraph),
-    );
+    // Use the shared ProjectService instance from the Provider so that
+    // rack_screen.dart reads the same currentProjectPath.
+    final projectService = context.read<ProjectService>();
+
+    // Load the last autosave (or initialise defaults) BEFORE wiring up the
+    // autosave callbacks.  This prevents spurious autosaves that would fire
+    // mid-load (e.g. audioGraph.notifyListeners fires before looperEngine is
+    // restored), which would overwrite persisted loop data with an empty state.
     debugPrint('SplashScreen: Calling loadOrInitDefault');
-    await projectService.loadOrInitDefault(rack, engine, transport, audioGraph);
+    await projectService.loadOrInitDefault(
+        rack, engine, transport, audioGraph, looperEngine);
     debugPrint('SplashScreen: loadOrInitDefault returned');
+
+    // Register autosave callbacks only AFTER the initial project load so
+    // that every subsequent mutation (new slots, cable changes, etc.) is
+    // persisted, without risking a race condition during restore.
+    rack.onChanged = () =>
+        projectService.autosave(rack, engine, transport, audioGraph, looperEngine);
+    audioGraph.addListener(
+      () => projectService.autosave(
+          rack, engine, transport, audioGraph, looperEngine),
+    );
+    // Autosave after a recording pass completes or is cleared.  We use the
+    // dedicated onDataChanged hook instead of addListener because the latter
+    // fires on every bar-boundary tick during playback (every ~10 ms), which
+    // would thrash the disk with unnecessary writes.
+    looperEngine.onDataChanged = () =>
+        projectService.autosave(rack, engine, transport, audioGraph, looperEngine);
 
     // Re-load any persisted VST3 plugins into the native host so their
     // parameters are accessible immediately (they are not auto-loaded on restore).

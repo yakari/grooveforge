@@ -186,6 +186,17 @@ class AppLocalizationsFr extends AppLocalizations {
   String get ccSaveBinding => 'Sauvegarder l\'Assignation';
 
   @override
+  String get ccMuteChannelsLabel => 'Canaux à couper/rétablir';
+
+  @override
+  String ccMuteChannelsSummary(String channels) {
+    return 'Canaux : $channels';
+  }
+
+  @override
+  String get ccMuteNoChannels => 'Aucun canal sélectionné';
+
+  @override
   String ccTargetEffectFormat(String name, int cc) {
     return '$name (CC $cc)';
   }
@@ -564,6 +575,22 @@ class AppLocalizationsFr extends AppLocalizations {
   String get audioOutputDefault => 'Système (défaut)';
 
   @override
+  String get audioSettingsBarGain => 'Volume';
+
+  @override
+  String get audioSettingsBarMicSensitivity => 'Micro';
+
+  @override
+  String get audioSettingsBarMicDevice => 'Entrée';
+
+  @override
+  String get audioSettingsBarOutputDevice => 'Sortie';
+
+  @override
+  String get audioSettingsBarToggleTooltip =>
+      'Afficher/masquer la barre de réglages audio';
+
+  @override
   String get synthAutoScrollTitle => 'Auto-scroll vers le canal actif';
 
   @override
@@ -619,7 +646,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get rackMidiChannel => 'CANAL MIDI';
 
   @override
-  String get rackOpenProject => 'Ouvrir un projet';
+  String get rackOpenProject => 'Projets';
 
   @override
   String get rackSaveProject => 'Enregistrer';
@@ -790,4 +817,93 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get virtualPianoSlotHint =>
       'Les notes passent par MIDI OUT — connectez un câble en vue de câblage.';
+
+  @override
+  String get looperSlotName => 'Looper MIDI';
+
+  @override
+  String get addLooper => 'Looper MIDI';
+
+  @override
+  String get addLooperSubtitle =>
+      'Enregistrez et bouclez des séquences MIDI avec synchro de mesure';
+
+  @override
+  String get addLooperAlreadyExists =>
+      'Un Looper MIDI est déjà dans le rack. Un seul est autorisé.';
+
+  @override
+  String get addJamModeAlreadyExists =>
+      'Un Jam Mode est déjà dans le rack. Un seul est autorisé.';
+
+  @override
+  String get looperRecord => 'Enregistrer';
+
+  @override
+  String get looperPlay => 'Lecture';
+
+  @override
+  String get looperStop => 'Stop';
+
+  @override
+  String get looperClear => 'Effacer';
+
+  @override
+  String get looperOverdub => 'Overdub';
+
+  @override
+  String get looperArmed => 'Armé — en attente du transport';
+
+  @override
+  String get looperWaitingForBar => 'En attente de la mesure';
+
+  @override
+  String get looperWaitingForOverdub => 'En attente de l\'overdub';
+
+  @override
+  String looperTrack(int n) {
+    return 'Piste $n';
+  }
+
+  @override
+  String get looperPinBelow => 'Épingler sous le transport';
+
+  @override
+  String get jamModePinBelow => 'Épingler sous le transport';
+
+  @override
+  String get looperHalfSpeed => '½×';
+
+  @override
+  String get looperNormalSpeed => '1×';
+
+  @override
+  String get looperDoubleSpeed => '2×';
+
+  @override
+  String get looperReverse => 'Inverser';
+
+  @override
+  String get looperMute => 'Muet';
+
+  @override
+  String get looperNoChord => '—';
+
+  @override
+  String looperBar(int n) {
+    return 'Mesure $n';
+  }
+
+  @override
+  String get looperCcAssign => 'Assigner CC';
+
+  @override
+  String get looperCcAssignTitle =>
+      'Assigner un CC matériel à une action du looper';
+
+  @override
+  String get looperCcRemove => 'Supprimer l\'assignation CC';
+
+  @override
+  String get looperQuantize => 'Quantification';
 }

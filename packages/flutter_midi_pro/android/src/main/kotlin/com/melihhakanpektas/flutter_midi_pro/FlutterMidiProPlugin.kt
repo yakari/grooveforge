@@ -40,6 +40,8 @@ class FlutterMidiProPlugin: FlutterPlugin, MethodCallHandler {
   private external fun pitchBend(sfId: Int, channel: Int, value: Int)
 
   @JvmStatic
+    private external fun setGain(gain: Double)
+    @JvmStatic
     private external fun unloadSoundfont(sfId: Int)
     @JvmStatic
     private external fun dispose()
@@ -131,6 +133,11 @@ class FlutterMidiProPlugin: FlutterPlugin, MethodCallHandler {
         val channel = call.argument<Int>("channel") ?: 0
         val value = call.argument<Int>("value") ?: 8192
         pitchBend(sfId, channel, value)
+        result.success(null)
+      }
+      "setGain" -> {
+        val gain = call.argument<Double>("gain") ?: 5.0
+        setGain(gain)
         result.success(null)
       }
       "unloadSoundfont" -> {

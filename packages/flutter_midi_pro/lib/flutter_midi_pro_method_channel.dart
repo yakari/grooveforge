@@ -59,6 +59,11 @@ class MethodChannelFlutterMidiPro extends FlutterMidiProPlatform {
   }
 
   @override
+  Future<void> setGain(double gain) async {
+    await _channel.invokeMethod('setGain', {'gain': gain});
+  }
+
+  @override
   Future<void> unloadSoundfont(int sfId) async {
     await _channel.invokeMethod('unloadSoundfont', {'sfId': sfId});
   }

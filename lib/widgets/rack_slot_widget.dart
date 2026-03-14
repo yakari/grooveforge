@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import '../models/gfpa_plugin_instance.dart';
 import '../models/grooveforge_keyboard_plugin.dart';
+import '../models/looper_plugin_instance.dart';
 import '../models/plugin_instance.dart';
 import '../models/virtual_piano_plugin.dart';
 import '../models/vst3_plugin_instance.dart';
@@ -11,12 +12,14 @@ import '../models/audio_graph_connection.dart';
 import '../models/audio_port_id.dart';
 import '../services/audio_engine.dart';
 import '../services/audio_graph.dart';
+import '../services/looper_engine.dart';
 import '../services/rack_state.dart';
 import '../services/vst_host_service.dart';
 import '../widgets/virtual_piano.dart';
 import 'rack/gfpa_jam_mode_slot_ui.dart';
 import 'rack/gfpa_vocoder_slot_ui.dart';
 import 'rack/grooveforge_keyboard_slot_ui.dart';
+import 'rack/looper_slot_ui.dart';
 import 'rack/virtual_piano_slot_ui.dart';
 import 'rack/vst3_slot_ui.dart';
 
@@ -43,45 +46,113 @@ class RackSlotWidget extends StatelessWidget {
     final engine = context.read<AudioEngine>();
     // midiChannel == 0 for MIDI FX / effect GFPA slots — use ch 0 as fallback.
     final channelIndex = (plugin.midiChannel - 1).clamp(0, 15);
+
+    // ── Looper: glow when actively playing back to connected slots ──────────
+    if (plugin is LooperPluginInstance) {
+      return ListenableBuilder(
+        listenable: context.read<LooperEngine>(),
+        builder: (context, _) {
+          final session =
+              context.read<LooperEngine>().session(plugin.id);
+          final isFlashing = session?.isPlayingActive ?? false;
+          return _buildSlotContent(context, isFlashing, channelIndex);
+        },
+      );
+    }
+
+    // ── Jam Mode: glow while keys are held on the master channel ─────────────
+    // Both detect modes (chord and bass-note) share the same glow condition:
+    // activeNotes is non-empty ↔ the master is currently sending input.
+    // lastChord is intentionally NOT used: it persists after keys are released
+    // (it stores the last recognised chord), which would keep the header lit
+    // permanently after a single chord is played.
+    // No glow when Jam Mode is disabled or no master slot is configured.
+    if (plugin is GFpaPluginInstance &&
+        (plugin as GFpaPluginInstance).pluginId == 'com.grooveforge.jammode') {
+      return ListenableBuilder(
+        listenable: Listenable.merge([
+          engine.gfpaJamEntries,
+          ...engine.channels.map((ch) => ch.activeNotes),
+        ]),
+        builder: (context, _) {
+          final jamPlugin = plugin as GFpaPluginInstance;
+          final enabled = jamPlugin.state['enabled'] != false;
+          if (!enabled) return _buildSlotContent(context, false, channelIndex);
+
+          // Find the master slot to know which channel to watch.
+          final rack = context.read<RackState>();
+          final masterSlot = rack.plugins
+              .cast<PluginInstance?>()
+              .firstWhere(
+                (p) => p?.id == jamPlugin.masterSlotId,
+                orElse: () => null,
+              );
+          if (masterSlot == null) {
+            return _buildSlotContent(context, false, channelIndex);
+          }
+
+          final masterCh = (masterSlot.midiChannel - 1).clamp(0, 15);
+          final isFlashing =
+              engine.channels[masterCh].activeNotes.value.isNotEmpty;
+
+          return _buildSlotContent(context, isFlashing, channelIndex);
+        },
+      );
+    }
+
+    // ── Instrument slots: glow when notes are active on their channel ───────
     final channelState = engine.channels[channelIndex];
-    debugPrint('RackSlotWidget: building ValueListenableBuilder for ${plugin.displayName}');
+    debugPrint(
+        'RackSlotWidget: building ValueListenableBuilder for ${plugin.displayName}');
     return ValueListenableBuilder<Set<int>>(
       valueListenable: channelState.activeNotes,
       builder: (context, activeNotes, _) {
-        final isFlashing = activeNotes.isNotEmpty;
-        return AnimatedContainer(
-          duration: const Duration(milliseconds: 100),
-          curve: Curves.easeInOut,
-          margin: const EdgeInsets.only(bottom: 2),
-          decoration: BoxDecoration(
-            color: isFlashing
-                ? Colors.blueAccent.withValues(alpha: 0.2)
-                : Theme.of(context).cardColor,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: isFlashing ? Colors.blueAccent : Colors.transparent,
-              width: 2,
-            ),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _SlotHeader(plugin: plugin, isFlashing: isFlashing),
-              _buildBody(context),
-              // Piano is shown for built-in GK slots and GFPA instrument slots
-              // (keyboard and vocoder). MIDI FX / VST3 / effect slots get none.
-              if (_showPiano)
-                SizedBox(
-                  height: pianoHeight,
-                  child: _RackSlotPiano(
-                    channelIndex: channelIndex,
-                    plugin: plugin,
-                  ),
-                ),
-            ],
-          ),
-        );
+        final isFlashing = _shouldShowNoteGlow && activeNotes.isNotEmpty;
+        return _buildSlotContent(context, isFlashing, channelIndex);
       },
+    );
+  }
+
+  /// Builds the animated slot container with [isFlashing] glow state.
+  ///
+  /// Extracted so that Looper, Jam Mode, and instrument slots can each use a
+  /// different reactive listener while sharing the same decoration logic.
+  Widget _buildSlotContent(
+    BuildContext context,
+    bool isFlashing,
+    int channelIndex,
+  ) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 100),
+      curve: Curves.easeInOut,
+      margin: const EdgeInsets.only(bottom: 2),
+      decoration: BoxDecoration(
+        color: isFlashing
+            ? Colors.blueAccent.withValues(alpha: 0.2)
+            : Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isFlashing ? Colors.blueAccent : Colors.transparent,
+          width: 2,
+        ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _SlotHeader(plugin: plugin, isFlashing: isFlashing),
+          _buildBody(context),
+          // Piano is shown for built-in GK slots and GFPA instrument slots
+          // (keyboard and vocoder). MIDI FX / VST3 / effect slots get none.
+          if (_showPiano)
+            SizedBox(
+              height: pianoHeight,
+              child: _RackSlotPiano(
+                channelIndex: channelIndex,
+                plugin: plugin,
+              ),
+            ),
+        ],
+      ),
     );
   }
 
@@ -96,6 +167,22 @@ class RackSlotWidget extends StatelessWidget {
     return false;
   }
 
+  /// Whether this slot should flash blue when notes are active on its channel.
+  ///
+  /// Jam Mode and Looper are MIDI FX / recorder slots — they share channel 0
+  /// with any instrument on MIDI channel 1, so they must be excluded from the
+  /// note-activity glow to avoid false highlights when an unconnected VP is
+  /// played.  Only slots that directly produce or respond to notes should glow.
+  bool get _shouldShowNoteGlow {
+    if (plugin is LooperPluginInstance) return false;
+    if (plugin is GFpaPluginInstance) {
+      final gfpa = plugin as GFpaPluginInstance;
+      // Only the vocoder is an instrument; Jam Mode and other MIDI FX are not.
+      return gfpa.pluginId == 'com.grooveforge.vocoder';
+    }
+    return true; // VP, GFK, VST3 all respond to notes and should glow.
+  }
+
   Widget _buildBody(BuildContext context) {
     debugPrint('RackSlotWidget: _buildBody for ${plugin.displayName}');
     if (plugin is GrooveForgeKeyboardPlugin) {
@@ -105,6 +192,9 @@ class RackSlotWidget extends StatelessWidget {
     }
     if (plugin is VirtualPianoPlugin) {
       return VirtualPianoSlotUI(plugin: plugin as VirtualPianoPlugin);
+    }
+    if (plugin is LooperPluginInstance) {
+      return LooperSlotUI(plugin: plugin as LooperPluginInstance);
     }
     if (plugin is Vst3PluginInstance) {
       return Vst3SlotUI(plugin: plugin as Vst3PluginInstance);
@@ -208,6 +298,7 @@ class _SlotHeader extends StatelessWidget {
   IconData _iconFor(PluginInstance p) {
     if (p is GrooveForgeKeyboardPlugin) return Icons.piano;
     if (p is VirtualPianoPlugin) return Icons.piano_outlined;
+    if (p is LooperPluginInstance) return Icons.loop;
     if (p is GFpaPluginInstance) {
       switch (p.pluginId) {
         case 'com.grooveforge.keyboard': return Icons.piano;
@@ -398,9 +489,9 @@ class _RackSlotPiano extends StatelessWidget {
               onNotePressed: (note) => _onNotePressed(context, engine, note),
               onNoteReleased: (note) => _onNoteReleased(context, engine, note),
               onPitchBend: (val) =>
-                  engine.setPitchBend(channel: channelIndex, value: val),
-              onControlChange: (cc, val) => engine.setControlChange(
-                  channel: channelIndex, controller: cc, value: val),
+                  _onPitchBend(context, engine, val),
+              onControlChange: (cc, val) =>
+                  _onControlChange(context, engine, cc, val),
               onInteractingChanged: engine.updateGestureState,
             ),
           );
@@ -417,7 +508,8 @@ class _RackSlotPiano extends StatelessWidget {
   ///   MIDI OUT jack via the [AudioGraph] cable map.
   /// - [Vst3PluginInstance]: sends via [VstHostService] (bypasses FluidSynth)
   ///   and marks the key as active on the engine for UI highlighting.
-  /// - All other slots: routes directly to FluidSynth via [AudioEngine.playNote].
+  /// - All other slots (GFK, GFPA, etc.): routes to FluidSynth AND forwards
+  ///   the note to any [LooperPluginInstance] wired to this slot's MIDI OUT.
   void _onNotePressed(BuildContext context, AudioEngine engine, int note) {
     if (plugin is VirtualPianoPlugin) {
       // Highlight VP's own key for visual feedback — no audio produced here.
@@ -430,6 +522,9 @@ class _RackSlotPiano extends StatelessWidget {
       engine.noteOnUiOnly(channel: channelIndex, key: note);
     } else {
       engine.playNote(channel: channelIndex, key: note, velocity: 100);
+      // Also feed any loopers connected to this slot's MIDI OUT so
+      // on-screen keys are captured by the looper (e.g. GFK → Looper cable).
+      _feedConnectedLoopers(context, note, 100, isNoteOn: true);
     }
   }
 
@@ -443,6 +538,9 @@ class _RackSlotPiano extends StatelessWidget {
       engine.noteOffUiOnly(channel: channelIndex, key: note);
     } else {
       engine.stopNote(channel: channelIndex, key: note);
+      // Mirror the note-on looper feed for note-off so held notes are
+      // properly terminated in the recorded loop.
+      _feedConnectedLoopers(context, note, 0, isNoteOn: false);
     }
   }
 
@@ -450,6 +548,7 @@ class _RackSlotPiano extends StatelessWidget {
   /// jack. Called only for [VirtualPianoPlugin] slots.
   ///
   /// Each connected target is routed according to its type:
+  /// - [LooperPluginInstance] → [LooperEngine.feedMidiEvent] (records the note)
   /// - VST3 → [VstHostService.noteOn] + [AudioEngine.noteOnUiOnly]
   /// - FluidSynth (GFK, Vocoder, generic GFPA) → [AudioEngine.playNote]
   void _dispatchMidiNoteOn(
@@ -457,9 +556,14 @@ class _RackSlotPiano extends StatelessWidget {
     AudioEngine engine,
     int note,
   ) {
+    final status = 0x90 | (channelIndex & 0x0F); // note-on on this channel
     for (final cable in _midiOutCables(context)) {
       final target = _findPlugin(context, cable.toSlotId);
       if (target == null) continue;
+      if (target is LooperPluginInstance) {
+        context.read<LooperEngine>().feedMidiEvent(target.id, status, note, 100);
+        continue;
+      }
       final targetCh = (target.midiChannel - 1).clamp(0, 15);
       if (target is Vst3PluginInstance) {
         context.read<VstHostService>().noteOn(target.id, 0, note, 1.0);
@@ -477,15 +581,47 @@ class _RackSlotPiano extends StatelessWidget {
     AudioEngine engine,
     int note,
   ) {
+    final status = 0x80 | (channelIndex & 0x0F); // note-off on this channel
     for (final cable in _midiOutCables(context)) {
       final target = _findPlugin(context, cable.toSlotId);
       if (target == null) continue;
+      if (target is LooperPluginInstance) {
+        context.read<LooperEngine>().feedMidiEvent(target.id, status, note, 0);
+        continue;
+      }
       final targetCh = (target.midiChannel - 1).clamp(0, 15);
       if (target is Vst3PluginInstance) {
         context.read<VstHostService>().noteOff(target.id, 0, note);
         engine.noteOffUiOnly(channel: targetCh, key: note);
       } else {
         engine.stopNote(channel: targetCh, key: note);
+      }
+    }
+  }
+
+  /// Feeds a note event only to [LooperPluginInstance] targets connected to
+  /// this slot's MIDI OUT jack.
+  ///
+  /// Unlike [_dispatchMidiNoteOn]/[_dispatchMidiNoteOff] (which route to ALL
+  /// downstream targets), this method intentionally skips non-looper targets
+  /// to avoid double-playing instruments that are already driven by FluidSynth.
+  ///
+  /// Called for GFK and other non-VP, non-VST3 slots so that on-screen key
+  /// presses are recorded by any connected looper without disturbing audio.
+  void _feedConnectedLoopers(
+    BuildContext context,
+    int note,
+    int velocity, {
+    required bool isNoteOn,
+  }) {
+    final looperEngine = context.read<LooperEngine>();
+    final status = isNoteOn
+        ? (0x90 | (channelIndex & 0x0F))
+        : (0x80 | (channelIndex & 0x0F));
+    for (final cable in _midiOutCables(context)) {
+      final target = _findPlugin(context, cable.toSlotId);
+      if (target is LooperPluginInstance) {
+        looperEngine.feedMidiEvent(target.id, status, note, velocity);
       }
     }
   }
@@ -507,4 +643,87 @@ class _RackSlotPiano extends StatelessWidget {
           .plugins
           .where((p) => p.id == slotId)
           .firstOrNull;
+
+  // ─── Expression (pitch bend / CC) routing ────────────────────────────────
+
+  /// Handles a pitch-bend gesture from the on-screen piano.
+  ///
+  /// - **[VirtualPianoPlugin]**: VP produces no audio of its own, so the bend
+  ///   is forwarded through its MIDI OUT cable to every connected target slot,
+  ///   matching the same routing that notes follow in [_dispatchMidiNoteOn].
+  /// - **[Vst3PluginInstance]**: dispatched to [VstHostService] (no-op until
+  ///   the native binding is added; avoids incorrect FluidSynth bend).
+  /// - **All others** (GFK, vocoder, GFPA): sent directly to [AudioEngine].
+  void _onPitchBend(BuildContext context, AudioEngine engine, int rawValue) {
+    if (plugin is VirtualPianoPlugin) {
+      _dispatchMidiPitchBend(context, engine, rawValue);
+    } else if (plugin is Vst3PluginInstance) {
+      final semitones = (rawValue - 8192) / 8192.0 * 2.0;
+      context.read<VstHostService>().pitchBend(plugin.id, 0, semitones);
+    } else {
+      engine.setPitchBend(channel: channelIndex, value: rawValue);
+    }
+  }
+
+  /// Handles a control-change gesture from the on-screen piano.
+  ///
+  /// Same routing logic as [_onPitchBend]: VP slots forward through cables,
+  /// VST3 slots go to [VstHostService], everything else to [AudioEngine].
+  void _onControlChange(
+    BuildContext context,
+    AudioEngine engine,
+    int cc,
+    int value,
+  ) {
+    if (plugin is VirtualPianoPlugin) {
+      _dispatchMidiCC(context, engine, cc, value);
+    } else if (plugin is Vst3PluginInstance) {
+      context.read<VstHostService>().controlChange(plugin.id, 0, cc, value);
+    } else {
+      engine.setControlChange(channel: channelIndex, controller: cc, value: value);
+    }
+  }
+
+  /// Forwards a pitch-bend value through every slot wired to this VP's MIDI OUT.
+  ///
+  /// Converts the raw 14-bit value to semitones when the target is VST3,
+  /// and reconstructs the correct 14-bit word for FluidSynth channels.
+  void _dispatchMidiPitchBend(
+    BuildContext context,
+    AudioEngine engine,
+    int rawValue,
+  ) {
+    final vstSvc = context.read<VstHostService>();
+    for (final cable in _midiOutCables(context)) {
+      final target = _findPlugin(context, cable.toSlotId);
+      if (target == null) continue;
+      if (target is Vst3PluginInstance) {
+        final semitones = (rawValue - 8192) / 8192.0 * 2.0;
+        vstSvc.pitchBend(target.id, 0, semitones);
+      } else {
+        final targetCh = (target.midiChannel - 1).clamp(0, 15);
+        engine.setPitchBend(channel: targetCh, value: rawValue);
+      }
+    }
+  }
+
+  /// Forwards a control-change message through every slot wired to this VP's MIDI OUT.
+  void _dispatchMidiCC(
+    BuildContext context,
+    AudioEngine engine,
+    int cc,
+    int value,
+  ) {
+    final vstSvc = context.read<VstHostService>();
+    for (final cable in _midiOutCables(context)) {
+      final target = _findPlugin(context, cable.toSlotId);
+      if (target == null) continue;
+      if (target is Vst3PluginInstance) {
+        vstSvc.controlChange(target.id, 0, cc, value);
+      } else {
+        final targetCh = (target.midiChannel - 1).clamp(0, 15);
+        engine.setControlChange(channel: targetCh, controller: cc, value: value);
+      }
+    }
+  }
 }

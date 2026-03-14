@@ -61,6 +61,18 @@ int g_vocoderWaveform = 0;          // 0 = Sawtooth, 1 = Square, 2 = Choral (glo
 float g_vocoderNoiseMix = 0.05f;    // Amount of white noise added to carrier for consonant intelligibility
 float g_vocoderEnvRelease = 0.02f;  // Envelope follower release time (lower = faster)
 static float g_gateThreshold = 0.01f; // Mic noise gate: mic samples below this amplitude are silenced
+// Pitch bend multiplier for the vocoder carrier oscillator.
+// 1.0 = no bend. Derived from the raw MIDI pitch-bend value (0-16383, center 8192)
+// using a ±2 semitone range (standard VST convention).
+static volatile float g_pitchBendFactor = 1.0f;
+
+// Vibrato (CC#1 / mod wheel) LFO state for the vocoder carrier oscillator.
+// g_vibratoDepth is the normalised depth (0..1, where 1 = CC#1 at 127).
+// g_lfoPhase advances once per sample; g_effectivePitchFactor is recomputed
+// at the start of each sample in data_callback so renderOscillator can read it.
+static float g_vibratoDepth  = 0.0f; // 0..1 controlled by CC#1
+static float g_lfoPhase      = 0.0f; // 0..1 sawtooth counter
+static float g_effectivePitchFactor = 1.0f; // = g_pitchBendFactor × vibrato LFO
 
 static float g_inputPeak = 0.0f;
 static float g_outputPeak = 0.0f;
@@ -213,9 +225,10 @@ static float renderOscillator(Oscillator* osc) {
         float s3 = osc->phase3 * 2.0f - 1.0f;  // +5 cents
         sample   = (s1 + s2 * 0.7f + s3 * 0.7f) * (1.0f / 2.4f);
 
-        osc->phase  += (osc->frequency / SAMPLE_RATE);
-        osc->phase2 += (osc->frequency * 0.9971f / SAMPLE_RATE);   // -5 cents: 2^(-5/1200)
-        osc->phase3 += (osc->frequency * 1.0029f / SAMPLE_RATE);   // +5 cents: 2^(+5/1200)
+        float bentFreq0 = osc->frequency * g_effectivePitchFactor;
+        osc->phase  += (bentFreq0 / SAMPLE_RATE);
+        osc->phase2 += (bentFreq0 * 0.9971f / SAMPLE_RATE);   // -5 cents: 2^(-5/1200)
+        osc->phase3 += (bentFreq0 * 1.0029f / SAMPLE_RATE);   // +5 cents: 2^(+5/1200)
         if (osc->phase  >= 1.0f) osc->phase  -= 1.0f;
         if (osc->phase2 >= 1.0f) osc->phase2 -= 1.0f;
         if (osc->phase3 >= 1.0f) osc->phase3 -= 1.0f;
@@ -227,9 +240,10 @@ static float renderOscillator(Oscillator* osc) {
         float s3 = (osc->phase3 < 0.5f) ? 1.0f : -1.0f;  // +8 cents
         sample   = (s1 + s2 * 0.6f + s3 * 0.6f) * (1.0f / 2.2f);
 
-        osc->phase  += (osc->frequency / SAMPLE_RATE);
-        osc->phase2 += (osc->frequency * 0.9954f / SAMPLE_RATE);   // -8 cents
-        osc->phase3 += (osc->frequency * 1.0046f / SAMPLE_RATE);   // +8 cents
+        float bentFreq1 = osc->frequency * g_effectivePitchFactor;
+        osc->phase  += (bentFreq1 / SAMPLE_RATE);
+        osc->phase2 += (bentFreq1 * 0.9954f / SAMPLE_RATE);   // -8 cents
+        osc->phase3 += (bentFreq1 * 1.0046f / SAMPLE_RATE);   // +8 cents
         if (osc->phase  >= 1.0f) osc->phase  -= 1.0f;
         if (osc->phase2 >= 1.0f) osc->phase2 -= 1.0f;
         if (osc->phase3 >= 1.0f) osc->phase3 -= 1.0f;
@@ -247,9 +261,10 @@ static float renderOscillator(Oscillator* osc) {
         sample = osc->filterState;
 
         // Advance phases with slight natural detuning (-10 and +10 cents)
-        osc->phase  += (osc->frequency / SAMPLE_RATE);
-        osc->phase2 += (osc->frequency * 0.994f  / SAMPLE_RATE);  // -10 cents (original)
-        osc->phase3 += (osc->frequency * 1.006f  / SAMPLE_RATE);  // +10 cents (original)
+        float bentFreq2 = osc->frequency * g_effectivePitchFactor;
+        osc->phase  += (bentFreq2 / SAMPLE_RATE);
+        osc->phase2 += (bentFreq2 * 0.994f  / SAMPLE_RATE);  // -10 cents (original)
+        osc->phase3 += (bentFreq2 * 1.006f  / SAMPLE_RATE);  // +10 cents (original)
         if (osc->phase  >= 1.0f) osc->phase  -= 1.0f;
         if (osc->phase2 >= 1.0f) osc->phase2 -= 1.0f;
         if (osc->phase3 >= 1.0f) osc->phase3 -= 1.0f;
@@ -259,7 +274,7 @@ static float renderOscillator(Oscillator* osc) {
         // It's superior to wavetable looping because it doesn't stretch formants.
         osc->pulseTimer -= 1.0f;
         if (osc->pulseTimer <= 0.0f) {
-            float targetPeriod = (float)SAMPLE_RATE / osc->frequency;
+            float targetPeriod = (float)SAMPLE_RATE / (osc->frequency * g_effectivePitchFactor);
             if (targetPeriod < 10.0f) targetPeriod = 10.0f; // Limit to 4.8kHz (ultrasound)
             
             // Trigger a new grain: add g_naturalWavetable into the circular oaBuffer
@@ -402,6 +417,14 @@ void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uin
     }
 
     for (ma_uint32 i = 0; i < frameCount; ++i) {
+        // Advance the vibrato LFO once per sample (5.5 Hz sine, standard keyboard rate).
+        // Combine with the raw pitch-bend multiplier so renderOscillator needs only one factor.
+        // Depth: ±1 semitone at CC#1 = 127 (factor ≈ 0.05946 = 2^(1/12) - 1).
+        g_lfoPhase += 5.5f / (float)SAMPLE_RATE;
+        if (g_lfoPhase >= 1.0f) g_lfoPhase -= 1.0f;
+        float lfoSin = sinf(g_lfoPhase * 6.2831853f); // 2π
+        g_effectivePitchFactor = g_pitchBendFactor * (1.0f + lfoSin * g_vibratoDepth * 0.05946f);
+
         float micInput = g_micRing[(readStart + i) & MIC_RING_MASK] * g_inputGain;
         float absRawMic = fabsf(micInput);
         if (absRawMic > inPeak) inPeak = absRawMic;
@@ -514,6 +537,32 @@ EXPORT void VocoderNoteOff(int key) {
             voices[i].active = false;
             voices[i].releaseSamples = 240; // ~5ms release tail
         }
+    }
+}
+
+/// Apply a MIDI pitch-bend value to the vocoder carrier oscillator.
+///
+/// rawValue is the standard 14-bit MIDI pitch-bend word (0–16383, center 8192).
+/// The bend range is ±2 semitones, matching the VST3 default.
+/// Updating g_pitchBendFactor here is thread-safe enough for audio use:
+/// a torn float write produces at worst a brief pitch glitch, not a crash.
+EXPORT void VocoderPitchBend(int rawValue) {
+    // Normalise to -1..+1 then scale to ±2 semitones
+    float normalised = ((float)rawValue - 8192.0f) / 8192.0f;
+    float semitones  = normalised * 2.0f;
+    g_pitchBendFactor = powf(2.0f, semitones / 12.0f);
+}
+
+/// Handle MIDI Control Change messages for the vocoder carrier oscillator.
+///
+/// Currently recognises CC#1 (modulation wheel / vibrato depth).
+/// CC#1 = 0 disables vibrato; CC#1 = 127 produces ±1 semitone LFO modulation
+/// at 5.5 Hz (the standard keyboard vibrato rate).
+/// Other CC numbers are silently ignored.
+EXPORT void VocoderControlChange(int cc, int value) {
+    if (cc == 1) {
+        // Map 0-127 to 0.0-1.0 vibrato depth
+        g_vibratoDepth = (float)value / 127.0f;
     }
 }
 

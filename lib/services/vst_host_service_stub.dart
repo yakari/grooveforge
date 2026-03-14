@@ -19,6 +19,10 @@ class VstHostService {
 
   void noteOff(String slotId, int channel, int note) {}
 
+  void pitchBend(String slotId, int channel, double semitones) {}
+
+  void controlChange(String slotId, int channel, int cc, int value) {}
+
   void setTransport({
     required double bpm,
     required int timeSigNum,

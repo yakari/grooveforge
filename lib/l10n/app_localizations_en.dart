@@ -184,6 +184,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get ccSaveBinding => 'Save Binding';
 
   @override
+  String get ccMuteChannelsLabel => 'Channels to mute/unmute';
+
+  @override
+  String ccMuteChannelsSummary(String channels) {
+    return 'Channels: $channels';
+  }
+
+  @override
+  String get ccMuteNoChannels => 'No channels selected';
+
+  @override
   String ccTargetEffectFormat(String name, int cc) {
     return '$name (CC $cc)';
   }
@@ -560,6 +571,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get audioOutputDefault => 'System Default';
 
   @override
+  String get audioSettingsBarGain => 'Gain';
+
+  @override
+  String get audioSettingsBarMicSensitivity => 'Mic';
+
+  @override
+  String get audioSettingsBarMicDevice => 'Input';
+
+  @override
+  String get audioSettingsBarOutputDevice => 'Output';
+
+  @override
+  String get audioSettingsBarToggleTooltip => 'Show/hide audio settings bar';
+
+  @override
   String get synthAutoScrollTitle => 'Auto-scroll to Active Channel';
 
   @override
@@ -616,7 +642,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get rackMidiChannel => 'MIDI CH';
 
   @override
-  String get rackOpenProject => 'Open Project';
+  String get rackOpenProject => 'Projects';
 
   @override
   String get rackSaveProject => 'Save Project';
@@ -786,4 +812,91 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get virtualPianoSlotHint =>
       'Notes route via MIDI OUT — connect a cable in patch view.';
+
+  @override
+  String get looperSlotName => 'MIDI Looper';
+
+  @override
+  String get addLooper => 'MIDI Looper';
+
+  @override
+  String get addLooperSubtitle => 'Record and loop MIDI patterns with bar sync';
+
+  @override
+  String get addLooperAlreadyExists =>
+      'A MIDI Looper is already in the rack. Only one is allowed.';
+
+  @override
+  String get addJamModeAlreadyExists =>
+      'A Jam Mode is already in the rack. Only one is allowed.';
+
+  @override
+  String get looperRecord => 'Record';
+
+  @override
+  String get looperPlay => 'Play';
+
+  @override
+  String get looperStop => 'Stop';
+
+  @override
+  String get looperClear => 'Clear';
+
+  @override
+  String get looperOverdub => 'Overdub';
+
+  @override
+  String get looperArmed => 'Armed — waiting for transport';
+
+  @override
+  String get looperWaitingForBar => 'Waiting for bar';
+
+  @override
+  String get looperWaitingForOverdub => 'Waiting for overdub';
+
+  @override
+  String looperTrack(int n) {
+    return 'Track $n';
+  }
+
+  @override
+  String get looperPinBelow => 'Pin below transport';
+
+  @override
+  String get jamModePinBelow => 'Pin below transport';
+
+  @override
+  String get looperHalfSpeed => '½×';
+
+  @override
+  String get looperNormalSpeed => '1×';
+
+  @override
+  String get looperDoubleSpeed => '2×';
+
+  @override
+  String get looperReverse => 'Reverse';
+
+  @override
+  String get looperMute => 'Mute';
+
+  @override
+  String get looperNoChord => '—';
+
+  @override
+  String looperBar(int n) {
+    return 'Bar $n';
+  }
+
+  @override
+  String get looperCcAssign => 'Assign CC';
+
+  @override
+  String get looperCcAssignTitle => 'Assign hardware CC to looper action';
+
+  @override
+  String get looperCcRemove => 'Remove CC binding';
+
+  @override
+  String get looperQuantize => 'Quantize';
 }

@@ -135,36 +135,11 @@ class CcPreferencesScreen extends StatelessWidget {
           itemCount: entries.length,
           itemBuilder: (context, index) {
             final mapping = entries[index];
-
-            String targetName =
-                CcMappingService.standardGmCcs[mapping.targetCc] ??
-                AppLocalizations.of(
-                  context,
-                )!.ccUnknownSequence(mapping.targetCc);
-
-            String channelStr;
-            if (mapping.targetChannel == -1) {
-              channelStr = AppLocalizations.of(context)!.ccRoutingAllChannels;
-            } else if (mapping.targetChannel == -2) {
-              channelStr =
-                  AppLocalizations.of(context)!.ccRoutingSameAsIncoming;
-            } else {
-              channelStr = AppLocalizations.of(
-                context,
-              )!.ccRoutingChannel(mapping.targetChannel + 1);
-            }
-
             return Card(
               child: ListTile(
                 leading: const Icon(Icons.swap_horiz, color: Colors.blueAccent),
-                title: Text(
-                  AppLocalizations.of(
-                    context,
-                  )!.ccMappingHardwareToTarget(mapping.incomingCc, targetName),
-                ),
-                subtitle: Text(
-                  AppLocalizations.of(context)!.ccMappingRouting(channelStr),
-                ),
+                title: Text(_mappingTitle(context, mapping)),
+                subtitle: Text(_mappingSubtitle(context, mapping)),
                 trailing: IconButton(
                   icon: const Icon(Icons.delete, color: Colors.redAccent),
                   onPressed: () => ccService.removeMapping(mapping.incomingCc),
@@ -177,11 +152,60 @@ class CcPreferencesScreen extends StatelessWidget {
     );
   }
 
+  /// Returns the main label for a mapping list tile.
+  String _mappingTitle(BuildContext context, CcMapping mapping) {
+    final targetName =
+        CcMappingService.standardGmCcs[mapping.targetCc] ??
+        AppLocalizations.of(context)!.ccUnknownSequence(mapping.targetCc);
+    return AppLocalizations.of(
+      context,
+    )!.ccMappingHardwareToTarget(mapping.incomingCc, targetName);
+  }
+
+  /// Returns the subtitle for a mapping list tile.
+  ///
+  /// For the mute action (1014), shows the list of affected channels instead
+  /// of the normal channel-routing string.
+  String _mappingSubtitle(BuildContext context, CcMapping mapping) {
+    // Mute action: list the channels being toggled.
+    if (CcMappingService.isMuteAction(mapping.targetCc)) {
+      final channels = mapping.muteChannels;
+      if (channels == null || channels.isEmpty) {
+        return AppLocalizations.of(context)!.ccMuteNoChannels;
+      }
+      final sorted = channels.toList()..sort();
+      final label = sorted.map((ch) => (ch + 1).toString()).join(', ');
+      return AppLocalizations.of(context)!.ccMuteChannelsSummary(label);
+    }
+
+    // Looper actions: channel routing is irrelevant.
+    if (CcMappingService.isLooperAction(mapping.targetCc)) return '';
+
+    // Standard routing.
+    final channelStr = _channelLabel(context, mapping.targetChannel);
+    return AppLocalizations.of(context)!.ccMappingRouting(channelStr);
+  }
+
+  /// Converts a [targetChannel] value to a human-readable string.
+  String _channelLabel(BuildContext context, int targetChannel) {
+    if (targetChannel == -1) {
+      return AppLocalizations.of(context)!.ccRoutingAllChannels;
+    }
+    if (targetChannel == -2) {
+      return AppLocalizations.of(context)!.ccRoutingSameAsIncoming;
+    }
+    return AppLocalizations.of(
+      context,
+    )!.ccRoutingChannel(targetChannel + 1);
+  }
+
   void _showAddMappingDialog(BuildContext context, CcMappingService ccService) {
     final incomingController = TextEditingController();
 
     int targetCc = 74; // default to filter cutoff (frequent target)
     int targetChannel = -2; // default to Same Channel
+    // Channels selected for the mute action (0-based, matching ChannelState indices).
+    Set<int> muteChannels = {};
 
     final lastEvent = ccService.lastEventNotifier.value;
     if (lastEvent != null && lastEvent.type == 'CC') {
@@ -232,6 +256,11 @@ class CcPreferencesScreen extends StatelessWidget {
       builder: (dialogContext) {
         return StatefulBuilder(
           builder: (context, setState) {
+            final isLooper = CcMappingService.isLooperAction(targetCc);
+            final isMute = CcMappingService.isMuteAction(targetCc);
+            // Channel routing is only meaningful for standard (non-system) CCs.
+            final showChannelRouting = !isLooper && !isMute;
+
             return AlertDialog(
               title: Text(AppLocalizations.of(context)!.ccNewMappingTitle),
               content: SingleChildScrollView(
@@ -257,21 +286,40 @@ class CcPreferencesScreen extends StatelessWidget {
                       isExpanded: true,
                       items: ccItems,
                       onChanged: (val) {
-                        if (val != null) setState(() => targetCc = val);
+                        if (val != null) {
+                          setState(() {
+                            targetCc = val;
+                            // Reset mute-channel selection on action change.
+                            if (!CcMappingService.isMuteAction(val)) {
+                              muteChannels = {};
+                            }
+                          });
+                        }
                       },
                     ),
-                    const SizedBox(height: 16),
-                    DropdownButtonFormField<int>(
-                      decoration: InputDecoration(
-                        labelText:
-                            AppLocalizations.of(context)!.ccTargetChannelLabel,
+                    if (showChannelRouting) ...[
+                      const SizedBox(height: 16),
+                      DropdownButtonFormField<int>(
+                        decoration: InputDecoration(
+                          labelText: AppLocalizations.of(
+                            context,
+                          )!.ccTargetChannelLabel,
+                        ),
+                        initialValue: targetChannel,
+                        items: channelItems,
+                        onChanged: (val) {
+                          if (val != null) setState(() => targetChannel = val);
+                        },
                       ),
-                      initialValue: targetChannel,
-                      items: channelItems,
-                      onChanged: (val) {
-                        if (val != null) setState(() => targetChannel = val);
-                      },
-                    ),
+                    ],
+                    if (isMute) ...[
+                      const SizedBox(height: 16),
+                      _MuteChannelSelector(
+                        selected: muteChannels,
+                        onChanged: (updated) =>
+                            setState(() => muteChannels = updated),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -288,6 +336,10 @@ class CcPreferencesScreen extends StatelessWidget {
                         incomingCc: incoming,
                         targetCc: targetCc,
                         targetChannel: targetChannel,
+                        muteChannels:
+                            isMute && muteChannels.isNotEmpty
+                                ? muteChannels
+                                : null,
                       );
                       ccService.saveMapping(mapping);
                       Navigator.pop(dialogContext);
@@ -300,6 +352,60 @@ class CcPreferencesScreen extends StatelessWidget {
           },
         );
       },
+    );
+  }
+}
+
+/// A checkboxes widget for selecting which MIDI channels (1-16) are targeted
+/// by the mute/unmute action (system action 1014).
+///
+/// Channels are displayed in a 4×4 grid so they fit compactly in the dialog.
+class _MuteChannelSelector extends StatelessWidget {
+  final Set<int> selected;
+  final ValueChanged<Set<int>> onChanged;
+
+  const _MuteChannelSelector({
+    required this.selected,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          AppLocalizations.of(context)!.ccMuteChannelsLabel,
+          style: Theme.of(context).textTheme.labelLarge,
+        ),
+        const SizedBox(height: 8),
+        // 4 columns × 4 rows = 16 channels
+        Wrap(
+          spacing: 4,
+          runSpacing: 0,
+          children: List.generate(16, (i) {
+            final isChecked = selected.contains(i);
+            return SizedBox(
+              width: 72,
+              child: CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                title: Text('Ch ${i + 1}', style: const TextStyle(fontSize: 12)),
+                value: isChecked,
+                onChanged: (_) {
+                  final updated = Set<int>.from(selected);
+                  if (isChecked) {
+                    updated.remove(i);
+                  } else {
+                    updated.add(i);
+                  }
+                  onChanged(updated);
+                },
+              ),
+            );
+          }),
+        ),
+      ],
     );
   }
 }

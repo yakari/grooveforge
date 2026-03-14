@@ -201,11 +201,25 @@ class GFVocoderPlugin implements GFInstrumentPlugin {
   void noteOff(int channel, int note) =>
       AudioInputFFI().stopNote(key: note);
 
+  /// Applies pitch bend to the vocoder carrier oscillator.
+  ///
+  /// [semitones] is in the range -2..+2 (GFPA convention).
+  /// Converts to the 14-bit MIDI raw value expected by [AudioInputFFI.pitchBend].
   @override
-  void pitchBend(int channel, double semitones) {}
+  void pitchBend(int channel, double semitones) {
+    // GFPA passes semitones; convert to the 14-bit MIDI raw value (0–16383, center 8192).
+    final raw = ((semitones / 2.0).clamp(-1.0, 1.0) * 8191).round() + 8192;
+    AudioInputFFI().pitchBend(raw);
+  }
 
+  /// Dispatches a MIDI Control Change to the vocoder carrier oscillator.
+  ///
+  /// Forwards to the native C engine via [AudioInputFFI.controlChange].
+  /// Currently meaningful for CC#1 (modulation wheel → vibrato depth).
   @override
-  void controlChange(int channel, int cc, int value) {}
+  void controlChange(int channel, int cc, int value) {
+    AudioInputFFI().controlChange(cc, value);
+  }
 
   @override
   void processBlock(Float32List outL, Float32List outR, int frameCount) {

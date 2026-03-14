@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'services/audio_engine.dart';
 import 'services/audio_graph.dart';
 import 'services/cc_mapping_service.dart';
+import 'services/looper_engine.dart';
 import 'services/midi_service.dart';
 import 'services/locale_provider.dart';
 import 'services/patch_drag_controller.dart';
@@ -29,6 +30,12 @@ void main() {
         ChangeNotifierProvider<PatchDragController>(
           create: (_) => PatchDragController(),
         ),
+        // LooperEngine needs TransportEngine for beat-clock access.
+        ChangeNotifierProxyProvider<TransportEngine, LooperEngine>(
+          create: (ctx) => LooperEngine(ctx.read<TransportEngine>()),
+          update: (ctx, transport, previous) =>
+              previous ?? LooperEngine(transport),
+        ),
         ChangeNotifierProxyProvider3<AudioEngine, TransportEngine, AudioGraph,
             RackState>(
           create: (ctx) => RackState(
@@ -39,7 +46,7 @@ void main() {
           update: (ctx, engine, transport, graph, previous) =>
               previous ?? RackState(engine, transport, graph),
         ),
-        Provider<ProjectService>(create: (_) => ProjectService()),
+        ChangeNotifierProvider<ProjectService>(create: (_) => ProjectService()),
         Provider<VstHostService>(
           create: (_) => VstHostService.instance,
           dispose: (_, svc) => svc.dispose(),

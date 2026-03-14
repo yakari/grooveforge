@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'audio_engine.dart';
 import 'audio_graph.dart';
+import 'looper_engine.dart';
 import 'project_migration_service.dart';
 import 'rack_state.dart';
 import 'transport_engine.dart';
@@ -25,13 +26,16 @@ class ProjectService extends ChangeNotifier {
     AudioEngine engine,
     TransportEngine transport,
     AudioGraph audioGraph,
+    LooperEngine looperEngine,
   ) async {
     final docsDir = await getApplicationDocumentsDirectory();
     final autosavePath = '${docsDir.path}/autosave.gf';
 
     if (await File(autosavePath).exists()) {
       try {
-        await _readGfFile(autosavePath, rackState, engine, transport, audioGraph);
+        await _readGfFile(
+            autosavePath, rackState, engine, transport, audioGraph,
+            looperEngine);
         _currentProjectPath = autosavePath;
       } catch (e) {
         debugPrint('ProjectService: autosave load failed ($e) — using defaults');
@@ -50,10 +54,12 @@ class ProjectService extends ChangeNotifier {
     AudioEngine engine,
     TransportEngine transport,
     AudioGraph audioGraph,
+    LooperEngine looperEngine,
   ) async {
     final docsDir = await getApplicationDocumentsDirectory();
     final autosavePath = '${docsDir.path}/autosave.gf';
-    await _writeGfFile(autosavePath, rackState, engine, transport, audioGraph);
+    await _writeGfFile(
+        autosavePath, rackState, engine, transport, audioGraph, looperEngine);
     _currentProjectPath = autosavePath;
   }
 
@@ -63,6 +69,7 @@ class ProjectService extends ChangeNotifier {
     AudioEngine engine,
     TransportEngine transport,
     AudioGraph audioGraph,
+    LooperEngine looperEngine,
   ) async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
@@ -71,7 +78,8 @@ class ProjectService extends ChangeNotifier {
 
     if (result != null && result.files.single.path != null) {
       final path = result.files.single.path!;
-      await loadProject(path, rackState, engine, transport, audioGraph);
+      await loadProject(
+          path, rackState, engine, transport, audioGraph, looperEngine);
       return path;
     }
     return null;
@@ -83,6 +91,7 @@ class ProjectService extends ChangeNotifier {
     AudioEngine engine,
     TransportEngine transport,
     AudioGraph audioGraph,
+    LooperEngine looperEngine,
   ) async {
     final result = await FilePicker.platform.saveFile(
       dialogTitle: 'Save Project As',
@@ -94,7 +103,8 @@ class ProjectService extends ChangeNotifier {
     if (result != null) {
       // Ensure .gf extension.
       final path = result.endsWith('.gf') ? result : '$result.gf';
-      await saveProject(path, rackState, engine, transport, audioGraph);
+      await saveProject(
+          path, rackState, engine, transport, audioGraph, looperEngine);
       return path;
     }
     return null;
@@ -107,11 +117,13 @@ class ProjectService extends ChangeNotifier {
     AudioEngine engine,
     TransportEngine transport,
     AudioGraph audioGraph,
+    LooperEngine looperEngine,
   ) async {
     _isSaving = true;
     notifyListeners();
     try {
-      await _writeGfFile(path, rackState, engine, transport, audioGraph);
+      await _writeGfFile(
+          path, rackState, engine, transport, audioGraph, looperEngine);
       _currentProjectPath = path;
     } finally {
       _isSaving = false;
@@ -126,8 +138,10 @@ class ProjectService extends ChangeNotifier {
     AudioEngine engine,
     TransportEngine transport,
     AudioGraph audioGraph,
+    LooperEngine looperEngine,
   ) async {
-    await _readGfFile(path, rackState, engine, transport, audioGraph);
+    await _readGfFile(
+        path, rackState, engine, transport, audioGraph, looperEngine);
     _currentProjectPath = path;
     notifyListeners();
   }
@@ -140,6 +154,7 @@ class ProjectService extends ChangeNotifier {
     AudioEngine engine,
     TransportEngine transport,
     AudioGraph audioGraph,
+    LooperEngine looperEngine,
   ) async {
     final data = {
       'version': _formatVersion,
@@ -154,7 +169,8 @@ class ProjectService extends ChangeNotifier {
       // MIDI and Audio graph connections (Phase 5).
       // Data (chord/scale) connections are stored within each plugin's state.
       'audioGraph': audioGraph.toJson(),
-      'loopTracks': [], // Reserved for future use
+      // Looper sessions: per-slot recorded MIDI track data (Phase 7).
+      'looperSessions': looperEngine.toJson(),
       'plugins': rackState.toJson(),
     };
     
@@ -191,6 +207,7 @@ class ProjectService extends ChangeNotifier {
     AudioEngine engine,
     TransportEngine transport,
     AudioGraph audioGraph,
+    LooperEngine looperEngine,
   ) async {
     final content = await File(path).readAsString();
     if (content.isEmpty) throw FormatException('Empty project file');
@@ -225,6 +242,12 @@ class ProjectService extends ChangeNotifier {
     final audioGraphJson =
         data['audioGraph'] as Map<String, dynamic>? ?? const {};
     audioGraph.loadFromJson(audioGraphJson);
+
+    // Restore looper sessions (Phase 7). Older files without this key
+    // produce an empty session map — correct for fresh projects.
+    final looperJson =
+        data['looperSessions'] as Map<String, dynamic>? ?? const {};
+    looperEngine.loadFromJson(looperJson);
 
     debugPrint(
       'ProjectService: loaded from $path '

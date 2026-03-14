@@ -71,6 +71,12 @@ typedef GetEngineHealthDart = int Function();
 typedef SetGateThresholdC = Void Function(Float threshold);
 typedef SetGateThresholdDart = void Function(double threshold);
 
+typedef VocoderPitchBendC = Void Function(Int32 rawValue);
+typedef VocoderPitchBendDart = void Function(int rawValue);
+
+typedef VocoderControlChangeC = Void Function(Int32 cc, Int32 value);
+typedef VocoderControlChangeDart = void Function(int cc, int value);
+
 class AudioInputFFI {
   static AudioInputFFI? _instance;
   late DynamicLibrary _lib;
@@ -91,6 +97,8 @@ class AudioInputFFI {
   late final GetLastCallbackPeriodMsDart _getLastCallbackPeriodMs;
   late final GetEngineHealthDart _getEngineHealth;
   late final SetGateThresholdDart _setGateThreshold;
+  late final VocoderPitchBendDart _vocoderPitchBend;
+  late final VocoderControlChangeDart _vocoderControlChange;
 
   factory AudioInputFFI() {
     _instance ??= AudioInputFFI._internal();
@@ -186,6 +194,14 @@ class AudioInputFFI {
         _lib
             .lookup<NativeFunction<SetGateThresholdC>>('set_gate_threshold')
             .asFunction();
+    _vocoderPitchBend =
+        _lib
+            .lookup<NativeFunction<VocoderPitchBendC>>('VocoderPitchBend')
+            .asFunction();
+    _vocoderControlChange =
+        _lib
+            .lookup<NativeFunction<VocoderControlChangeC>>('VocoderControlChange')
+            .asFunction();
   }
 
   bool startCapture() {
@@ -276,5 +292,21 @@ class AudioInputFFI {
   /// Mic samples below this amplitude are silenced before vocoder processing.
   void setGateThreshold(double threshold) {
     _setGateThreshold(threshold);
+  }
+
+  /// Applies MIDI pitch bend to the vocoder carrier oscillator.
+  ///
+  /// [rawValue] is the standard 14-bit MIDI pitch-bend word (0–16383, center 8192).
+  /// The C engine uses a ±2 semitone range. Call with 8192 to reset to center.
+  void pitchBend(int rawValue) {
+    _vocoderPitchBend(rawValue);
+  }
+
+  /// Dispatches a MIDI Control Change to the vocoder carrier oscillator.
+  ///
+  /// Currently handles CC#1 (modulation wheel / vibrato depth):
+  /// value 0 disables vibrato, value 127 applies ±1 semitone LFO at 5.5 Hz.
+  void controlChange(int cc, int value) {
+    _vocoderControlChange(cc, value);
   }
 }
