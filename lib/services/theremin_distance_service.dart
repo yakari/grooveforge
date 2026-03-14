@@ -1,0 +1,156 @@
+import 'dart:async';
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
+import 'package:permission_handler/permission_handler.dart';
+
+/// Streams normalized camera focal distance for the Theremin camera mode.
+///
+/// Communicates with the native camera plugins via two platform channels:
+///
+///   Method channel — [_kMethodChannel]: start / stop / isSupported calls.
+///   Event channel  — [_kEventChannel]:  per-frame [Double] stream, [0.0, 1.0].
+///
+/// The raw per-frame values are smoothed with an exponential moving average
+/// (EMA) before being written to [distance]. This removes high-frequency AF
+/// jitter while keeping the response time short enough for musical use.
+///
+/// ### Platform mapping
+///
+/// | Platform | Source                                       | Range       |
+/// |----------|----------------------------------------------|-------------|
+/// | Android  | Camera2 `LENS_FOCUS_DISTANCE` (diopters),    | [0.0, 1.0]  |
+/// |          | normalized by `LENS_INFO_MINIMUM_FOCUS_DIST` |             |
+/// | iOS      | `AVCaptureDevice.lensPosition`               | [0.0, 1.0]  |
+/// | macOS    | `AVCaptureDevice.lensPosition`               | [0.0, 1.0]  |
+///
+/// In all cases: 0.0 = hand far (or no hand), 1.0 = hand at minimum focus.
+///
+/// ### Usage
+///
+/// ```dart
+/// final svc = ThereminDistanceService();
+/// final error = await svc.start();
+/// if (error == null) {
+///   svc.distance.addListener(() => print(svc.distance.value));
+/// }
+/// // later:
+/// await svc.stop();
+/// svc.dispose();
+/// ```
+class ThereminDistanceService {
+  // ─── Platform channel names ───────────────────────────────────────────────
+
+  static const _kMethodChannel =
+      MethodChannel('com.grooveforge/theremin_camera');
+  static const _kEventChannel =
+      EventChannel('com.grooveforge/theremin_camera_events');
+
+  // ─── Public state ─────────────────────────────────────────────────────────
+
+  /// EMA-smoothed focal distance, normalized to [0.0, 1.0].
+  ///
+  /// 0.0 = hand far from camera (plays lowest note / silence).
+  /// 1.0 = hand at the camera's minimum focus distance (plays highest note).
+  ///
+  /// Notifies on every frame callback (~30 fps) while [isActive] is true.
+  final distance = ValueNotifier<double>(0.0);
+
+  /// True while the native camera session is running.
+  bool get isActive => _subscription != null;
+
+  // ─── EMA parameters ───────────────────────────────────────────────────────
+
+  /// EMA smoothing factor α ∈ (0, 1].
+  ///
+  /// Higher α → faster response but more jitter.
+  /// Lower  α → smoother but sluggish (laggy pitch changes).
+  ///
+  /// At α = 0.15 and 30 fps the step response reaches 63 % of a new target
+  /// in ≈ 6 frames (~ 200 ms), which feels musical without excessive smearing.
+  static const double _alpha = 0.15;
+
+  // ─── Private ──────────────────────────────────────────────────────────────
+
+  StreamSubscription<dynamic>? _subscription;
+
+  // ─── Platform support ─────────────────────────────────────────────────────
+
+  /// Whether the current platform has a native focal-distance implementation.
+  ///
+  /// Linux and Windows have no Flutter camera plugin support in this build;
+  /// returning false here lets the slot UI disable the CAM button gracefully.
+  bool get isPlatformSupported =>
+      !kIsWeb &&
+      (Platform.isAndroid || Platform.isIOS || Platform.isMacOS);
+
+  // ─── Lifecycle ────────────────────────────────────────────────────────────
+
+  /// Requests camera permission and starts the native camera session.
+  ///
+  /// Returns null on success, or one of these error-code strings:
+  ///   - `'PLATFORM_UNSUPPORTED'` — Linux, Windows, or web.
+  ///   - `'NO_PERMISSION'`        — user denied camera permission.
+  ///   - `'NO_CAMERA'`            — no suitable camera found on device.
+  ///   - `'FIXED_FOCUS'`          — camera has no autofocus (common on webcams).
+  ///   - `'CONFIG_ERROR'`         — AVFoundation / Camera2 configuration error.
+  Future<String?> start() async {
+    if (!isPlatformSupported) return 'PLATFORM_UNSUPPORTED';
+    if (isActive) return null; // already running
+
+    // ── Camera permission ──────────────────────────────────────────────────
+    // permission_handler covers Android, iOS, and macOS uniformly.
+    final status = await Permission.camera.request();
+    if (!status.isGranted) return 'NO_PERMISSION';
+
+    // ── Start native session ───────────────────────────────────────────────
+    try {
+      await _kMethodChannel.invokeMethod<void>('start');
+    } on PlatformException catch (e) {
+      return e.code; // propagates NO_CAMERA, FIXED_FOCUS, etc.
+    }
+
+    // ── Subscribe to distance event stream ────────────────────────────────
+    _subscription = _kEventChannel.receiveBroadcastStream().listen(
+      (raw) => _onRawFrame((raw as num).toDouble()),
+      onError: (_) {}, // errors are handled; stream just stops
+    );
+
+    return null; // success
+  }
+
+  /// Stops the native camera session and releases the EventChannel subscription.
+  ///
+  /// Resets [distance] to 0.0. Safe to call when already stopped.
+  Future<void> stop() async {
+    await _subscription?.cancel();
+    _subscription = null;
+
+    if (isPlatformSupported) {
+      // Ignore errors on stop (e.g. if the session never started).
+      await _kMethodChannel.invokeMethod<void>('stop').catchError((_) {});
+    }
+
+    distance.value = 0.0;
+  }
+
+  /// Releases [distance] and stops the session if still running.
+  void dispose() {
+    stop();
+    distance.dispose();
+  }
+
+  // ─── EMA smoothing ────────────────────────────────────────────────────────
+
+  /// Applies an exponential moving average to each raw per-frame reading.
+  ///
+  /// EMA formula:  smoothed_n = smoothed_{n-1} × (1 − α) + raw_n × α
+  ///
+  /// Because α = 0.15, the impulse response decays to 1/e in ≈ 6 frames,
+  /// which gives smooth pitch control without perceptible lag at 30 fps.
+  void _onRawFrame(double raw) {
+    final prev = distance.value;
+    distance.value = prev * (1.0 - _alpha) + raw.clamp(0.0, 1.0) * _alpha;
+  }
+}

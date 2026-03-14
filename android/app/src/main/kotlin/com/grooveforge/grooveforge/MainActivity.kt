@@ -10,6 +10,7 @@ import android.util.Log
 import androidx.annotation.NonNull
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
@@ -34,6 +35,20 @@ class MainActivity : FlutterActivity() {
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
         val channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
         methodChannel = channel
+
+        // ── Theremin camera distance plugin ───────────────────────────────────
+        // Streams front-camera focal distance as normalized [0, 1] values for
+        // the camera-mode Theremin. MethodChannel handles start/stop; EventChannel
+        // carries the per-frame distance stream.
+        val thereminPlugin = ThereminCameraPlugin(this)
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            ThereminCameraPlugin.METHOD_CHANNEL
+        ).setMethodCallHandler(thereminPlugin)
+        EventChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            ThereminCameraPlugin.EVENT_CHANNEL
+        ).setStreamHandler(thereminPlugin)
 
         channel.setMethodCallHandler { call, result ->
             val am = audioManager!!

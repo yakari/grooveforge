@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **Stylophone** GFPA instrument plugin: monophonic chromatic metal-strip keyboard (2 octaves, 25 keys) played by touch or slide. Octave shift −2 to +2 via in-slot buttons. Routes to the FluidSynth channel assigned to the rack slot.
 - **Theremin** GFPA instrument plugin: large touch pad where vertical position controls pitch (bottom = low, top = high) and horizontal position controls volume (CC 7). A glowing purple orb follows the finger. Base note (C2–C5) and range (1–4 octaves) are adjustable via in-slot +/− buttons.
+- **Theremin CAM mode** (Android / iOS / macOS): tap the **CAM** toggle above the pad to switch from touch to camera-based playing. The front camera's autofocus focal distance tracks hand proximity — move your hand closer to raise pitch, farther to lower it. An EMA filter (α = 0.15) smooths raw per-frame readings for musical responsiveness. A glowing orb follows the camera-computed hand position. Volume stays at full in this mode. Graceful degradation: fixed-focus cameras, denied permissions, and unsupported platforms (Linux, Windows, web) show a localised error message; the CAM button is greyed-out with a tooltip on platforms that have no camera plugin support.
 - Both plugins appear in the "Add Plugin" sheet with dedicated icons (`linear_scale` for Stylophone, `sensors` for Theremin).
 - Backlog tracked for future GFPA plugins: Chord Arpeggiator, Spectral Reverb, Drum Machine / Step Sequencer, Scale Harmonizer, Bit-crusher / Lo-fi.
 

@@ -70,6 +70,8 @@
 		<string>This app requires Bluetooth to connect to wireless MIDI controllers like the Alesis Vortex.</string>
 		<key>NSMicrophoneUsageDescription</key>
 		<string>This app requires Audio session access to synthesize and play soundfonts.</string>
+		<key>NSCameraUsageDescription</key>
+		<string>GrooveForge uses the front camera to measure hand distance for the Theremin instrument. No video is recorded or stored.</string>
 		<key>UIStatusBarHidden</key>
 		<false/>
 	</dict>

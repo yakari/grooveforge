@@ -1,26 +1,47 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../models/gfpa_plugin_instance.dart';
 import '../../plugins/gf_theremin_plugin.dart';
 import '../../services/audio_engine.dart';
 import '../../services/rack_state.dart';
+import '../../services/theremin_distance_service.dart';
 import 'package:grooveforge_plugin_api/grooveforge_plugin_api.dart';
+
+// ─── Input mode ───────────────────────────────────────────────────────────────
+
+/// Whether the theremin is driven by touch or by the camera focal distance.
+enum _ThereminInputMode {
+  /// Classic touch pad: vertical axis = pitch, horizontal axis = volume.
+  touchPad,
+
+  /// Camera mode: hand distance from camera controls pitch at full volume.
+  camera,
+}
+
+// ─── Slot widget ──────────────────────────────────────────────────────────────
 
 /// Rack-slot body for the GFPA Theremin plugin.
 ///
-/// Displays a large dark touch pad that the user plays by pressing and
-/// dragging a finger — mimicking the hands-near-antenna gesture of a real
-/// theremin:
+/// Two input modes are available via the PAD / CAM toggle at the top:
 ///
-///   • Vertical axis → pitch (bottom = [baseNote], top = highest note in range).
+/// **PAD mode** (default)
+///   Touch-pad mimicking the hand-near-antenna gesture of a real theremin:
+///   • Vertical axis → pitch (bottom = [_baseNote], top = highest note in range).
 ///   • Horizontal axis → volume (CC 7: left = quiet, right = loud).
 ///
-/// A glowing orb follows the touch point for haptic and visual feedback.
-/// Releasing the finger silences the instrument and restores full volume.
+/// **CAM mode** (Android / iOS / macOS only)
+///   The front camera's autofocus focal distance tracks hand proximity:
+///   • Closer hand  → higher pitch.
+///   • Farther hand → lower pitch (silence below the [_kSilenceThreshold]).
+///   Volume stays at 127 (full) in this mode.
 ///
-/// Base note and range are adjusted via small +/− buttons beside the pad.
-/// Changes are persisted in [GFpaPluginInstance.state] for project save/load.
+/// A glowing purple orb follows the active position in both modes.
+/// Releasing the finger / moving the hand away silences the instrument.
+///
+/// Base note and range are adjusted via small +/− buttons in the sidebar.
+/// Changes persist in [GFpaPluginInstance.state] for project save/load.
 class GFpaThereminSlotUI extends StatefulWidget {
   const GFpaThereminSlotUI({super.key, required this.plugin});
 
@@ -31,11 +52,57 @@ class GFpaThereminSlotUI extends StatefulWidget {
 }
 
 class _GFpaThereminSlotUIState extends State<GFpaThereminSlotUI> {
-  /// Current orb position in local pad coordinates; null when silent.
+  // ─── Input mode ─────────────────────────────────────────────────────────
+
+  /// Currently active input mode (defaults to touch-pad).
+  _ThereminInputMode _inputMode = _ThereminInputMode.touchPad;
+
+  // ─── Camera service ──────────────────────────────────────────────────────
+
+  /// Service that streams focal-distance readings from the native camera plugin.
+  late final ThereminDistanceService _distSvc;
+
+  /// True while [ThereminDistanceService.start] is awaiting the native reply.
+  bool _camStarting = false;
+
+  /// Error code returned by [ThereminDistanceService.start], or null if OK.
+  ///
+  /// Possible values: 'NO_PERMISSION', 'NO_CAMERA', 'FIXED_FOCUS',
+  /// 'CONFIG_ERROR', 'PLATFORM_UNSUPPORTED'.  null = camera is running fine.
+  String? _camError;
+
+  // ─── Audio engine (captured outside build for async/listener access) ──────
+
+  /// Cached reference to [AudioEngine] set in [didChangeDependencies].
+  ///
+  /// We cache this because the camera-distance listener and dispose path need
+  /// it without a BuildContext.
+  late AudioEngine _engine;
+
+  // ─── Playing state ───────────────────────────────────────────────────────
+
+  /// Orb position in local pad coordinates; null when no note is sounding.
   Offset? _orbPosition;
 
   /// MIDI note currently sounding (-1 = silent).
   int _activeNote = -1;
+
+  // ─── Layout (written by LayoutBuilder; read by camera listener) ──────────
+
+  /// Most-recent pad dimensions, updated every time [LayoutBuilder] rebuilds.
+  ///
+  /// Stored as a plain field (not in state) to avoid triggering a rebuild when
+  /// only layout changes.  Safe for the camera listener to read because the
+  /// listener is always followed by [setState], which re-queries this field.
+  Size _padSize = Size.zero;
+
+  // ─── Silence threshold ───────────────────────────────────────────────────
+
+  /// Distance values below this are treated as "no hand detected" → silence.
+  ///
+  /// EMA-smoothed readings near 0.0 are very noisy, so we apply a small dead
+  /// zone.  0.03 maps to roughly 30 cm away for most device cameras.
+  static const double _kSilenceThreshold = 0.03;
 
   // ─── State helpers ────────────────────────────────────────────────────────
 
@@ -47,9 +114,143 @@ class _GFpaThereminSlotUIState extends State<GFpaThereminSlotUI> {
   int get _rangeOctaves =>
       (widget.plugin.state['rangeOctaves'] as num?)?.toInt()?.clamp(1, 4) ?? 2;
 
+  /// MIDI channel index (0-based) derived from [GFpaPluginInstance.midiChannel].
+  int get _channelIndex => (widget.plugin.midiChannel - 1).clamp(0, 15);
+
+  // ─── Lifecycle ────────────────────────────────────────────────────────────
+
+  @override
+  void initState() {
+    super.initState();
+    _distSvc = ThereminDistanceService();
+    // Listen to every distance update so we can drive pitch in camera mode.
+    _distSvc.distance.addListener(_onCameraDistance);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Cache the audio engine so the camera listener can use it without context.
+    _engine = context.read<AudioEngine>();
+  }
+
+  @override
+  void dispose() {
+    // Remove listener first so _onCameraDistance cannot fire after disposal.
+    _distSvc.distance.removeListener(_onCameraDistance);
+    _stopCurrentNote();
+    _distSvc.dispose(); // stops the camera session and disposes the notifier
+    super.dispose();
+  }
+
+  // ─── Camera distance listener ─────────────────────────────────────────────
+
+  /// Called by [ThereminDistanceService.distance] on every camera frame (~30 fps).
+  ///
+  /// Ignored when in touch-pad mode.  In camera mode the new distance drives
+  /// pitch changes and orb position updates.
+  void _onCameraDistance() {
+    if (_inputMode != _ThereminInputMode.camera) return;
+    if (!mounted) return;
+    _processDistanceFrame(_distSvc.distance.value);
+  }
+
+  /// Translates a raw [dist] value ∈ [0,1] into a MIDI note + orb position.
+  ///
+  /// Values below [_kSilenceThreshold] are treated as silence (no hand).
+  /// The mapping is:
+  ///   dist = 0  → hand far from camera → lowest note (orb at bottom).
+  ///   dist = 1  → hand at minimum focus → highest note (orb at top).
+  void _processDistanceFrame(double dist) {
+    if (dist < _kSilenceThreshold) {
+      _silenceIfActive();
+      return;
+    }
+
+    // Y position: dist=1 (close hand) → top of pad → high pitch.
+    final orbY = _padSize.height * (1.0 - dist);
+    final orbX = _padSize.width / 2; // centred horizontally
+
+    final newNote = _yToNote(orbY, _padSize.height);
+
+    // Camera mode uses full volume — there is no X axis for the user to control.
+    _engine.setControlChange(
+        channel: _channelIndex, controller: 7, value: 127);
+
+    if (_activeNote < 0) {
+      // No note currently sounding: start one.
+      _engine.playNote(
+          channel: _channelIndex, key: newNote, velocity: 100);
+      _activeNote = newNote;
+    } else if (newNote != _activeNote) {
+      // Pitch crossed a semitone boundary: legato transition.
+      _engine.stopNote(channel: _channelIndex, key: _activeNote);
+      _engine.playNote(
+          channel: _channelIndex, key: newNote, velocity: 100);
+      _activeNote = newNote;
+    }
+
+    setState(() => _orbPosition = Offset(orbX, orbY));
+  }
+
+  /// Stops the sounding note and hides the orb when distance falls to silence.
+  void _silenceIfActive() {
+    // Nothing to do if already silent and orb already hidden.
+    if (_activeNote < 0 && _orbPosition == null) return;
+
+    if (_activeNote >= 0) {
+      _engine.stopNote(channel: _channelIndex, key: _activeNote);
+      // Restore full volume so downstream slots are not left partially silenced.
+      _engine.setControlChange(
+          channel: _channelIndex, controller: 7, value: 127);
+      _activeNote = -1;
+    }
+
+    setState(() => _orbPosition = null);
+  }
+
+  // ─── Mode switching ───────────────────────────────────────────────────────
+
+  /// Switches to camera mode: requests permission, starts the native session.
+  ///
+  /// Sets [_camStarting] while waiting for the native reply so the UI can show
+  /// a loading indicator.  On failure [_camError] is set and the mode stays
+  /// as camera so the error message is visible in the pad area.
+  Future<void> _switchToCamera() async {
+    if (!_distSvc.isPlatformSupported) return;
+
+    _stopCurrentNote();
+    setState(() {
+      _inputMode = _ThereminInputMode.camera;
+      _camError = null;
+      _camStarting = true;
+      _orbPosition = null;
+    });
+
+    final error = await _distSvc.start();
+    if (!mounted) return;
+
+    setState(() {
+      _camStarting = false;
+      _camError = error;
+    });
+  }
+
+  /// Switches back to touch-pad mode and stops the camera session.
+  void _switchToPad() {
+    _stopCurrentNote();
+    _distSvc.stop();
+    setState(() {
+      _inputMode = _ThereminInputMode.touchPad;
+      _camError = null;
+      _camStarting = false;
+      _orbPosition = null;
+    });
+  }
+
   // ─── Parameter controls ───────────────────────────────────────────────────
 
-  /// Changes [_baseNote] by [delta] semitones (in 12-semitone steps = 1 octave).
+  /// Changes [_baseNote] by [delta] octaves (12 semitones per step).
   void _changeBaseNote(int delta, RackState rack) {
     final newBase = (_baseNote + delta * 12).clamp(36, 72);
     widget.plugin.state['baseNote'] = newBase;
@@ -67,7 +268,7 @@ class _GFpaThereminSlotUIState extends State<GFpaThereminSlotUI> {
     setState(() {});
   }
 
-  /// Mirrors slot state into the [GFThereminPlugin] registry instance so
+  /// Mirrors slot state into the [GFThereminPlugin] registry instance so that
   /// [getParameter] stays consistent with what is shown on screen.
   void _syncToRegistry() {
     final plugin = GFPluginRegistry.instance
@@ -81,126 +282,417 @@ class _GFpaThereminSlotUIState extends State<GFpaThereminSlotUI> {
 
   // ─── Pitch / volume mapping ───────────────────────────────────────────────
 
-  /// Converts a vertical pointer position to the nearest MIDI note.
+  /// Converts a vertical pad position to the nearest MIDI note.
   ///
-  /// Y = 0 (top of pad) → highest note; Y = height (bottom) → lowest note.
+  /// Y = 0 (top of pad) → highest note; Y = height → lowest note.
   /// This matches the theremin convention where raising the hand raises pitch.
   int _yToNote(double y, double height) {
-    // t ∈ [0, 1]: 0 = bottom (low), 1 = top (high).
+    // t ∈ [0, 1]: 0 = bottom (low pitch), 1 = top (high pitch).
     final t = 1.0 - (y / height).clamp(0.0, 1.0);
     final semitones = (t * _rangeOctaves * 12).round();
     return (_baseNote + semitones).clamp(0, 127);
   }
 
-  /// Converts a horizontal pointer position to a CC 7 volume value (0–127).
+  /// Converts a horizontal pad position to a CC 7 volume value (0–127).
   ///
   /// X = 0 (left) → silent; X = width (right) → full volume.
   int _xToVolume(double x, double width) =>
       ((x / width).clamp(0.0, 1.0) * 127).round();
 
-  // ─── Touch handlers ───────────────────────────────────────────────────────
+  // ─── Touch handlers (PAD mode only) ──────────────────────────────────────
 
-  /// Called on pointer-down and every pointer-move to update pitch + volume.
-  void _onTouch(
-      Offset position, Size padSize, AudioEngine engine, int channelIndex) {
-    final newNote = _yToNote(position.dy, padSize.height);
-    final volume = _xToVolume(position.dx, padSize.width);
+  /// Called on every pointer-down/move to update pitch + volume.
+  void _onTouch(Offset position) {
+    final newNote = _yToNote(position.dy, _padSize.height);
+    final volume = _xToVolume(position.dx, _padSize.width);
 
     // Update volume via CC 7 (MIDI standard volume controller).
-    engine.setControlChange(
-        channel: channelIndex, controller: 7, value: volume);
+    _engine.setControlChange(
+        channel: _channelIndex, controller: 7, value: volume);
 
     if (_activeNote == -1) {
       // First touch: start the note.
-      engine.playNote(
-          channel: channelIndex, key: newNote, velocity: 100);
+      _engine.playNote(
+          channel: _channelIndex, key: newNote, velocity: 100);
       _activeNote = newNote;
     } else if (newNote != _activeNote) {
       // Pitch crossed a semitone boundary: legato transition.
-      engine.stopNote(channel: channelIndex, key: _activeNote);
-      engine.playNote(
-          channel: channelIndex, key: newNote, velocity: 100);
+      _engine.stopNote(channel: _channelIndex, key: _activeNote);
+      _engine.playNote(
+          channel: _channelIndex, key: newNote, velocity: 100);
       _activeNote = newNote;
     }
 
     setState(() => _orbPosition = position);
   }
 
-  /// Called when the finger lifts: silence the note and restore full volume.
-  void _onRelease(AudioEngine engine, int channelIndex) {
+  /// Called when the finger lifts: silence and restore full volume.
+  void _onRelease() {
     if (_activeNote >= 0) {
-      engine.stopNote(channel: channelIndex, key: _activeNote);
+      _engine.stopNote(channel: _channelIndex, key: _activeNote);
       _activeNote = -1;
     }
     // Restore full volume so subsequent slots are not left at partial volume.
-    engine.setControlChange(
-        channel: channelIndex, controller: 7, value: 127);
+    _engine.setControlChange(
+        channel: _channelIndex, controller: 7, value: 127);
     setState(() => _orbPosition = null);
+  }
+
+  /// Stops the sounding note without a setState call.  Safe to call from
+  /// [dispose] and mode-switch paths where rebuilding is undesirable.
+  void _stopCurrentNote() {
+    if (_activeNote < 0) return;
+    _engine.stopNote(channel: _channelIndex, key: _activeNote);
+    _engine.setControlChange(
+        channel: _channelIndex, controller: 7, value: 127);
+    _activeNote = -1;
   }
 
   // ─── Build ────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
-    final engine = context.read<AudioEngine>();
+    final l10n = AppLocalizations.of(context)!;
     final rack = context.read<RackState>();
-    final channelIndex = (widget.plugin.midiChannel - 1).clamp(0, 15);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Touch pad ───────────────────────────────────────────────────
-          Expanded(
-            child: SizedBox(
-              height: 148,
-              child: LayoutBuilder(
-                builder: (ctx, constraints) {
-                  final padSize = Size(
-                    constraints.maxWidth,
-                    constraints.maxHeight,
-                  );
-                  return Listener(
-                    // Raw pointer events avoid arena conflicts with rack scroll.
-                    onPointerDown: (e) =>
-                        _onTouch(e.localPosition, padSize, engine, channelIndex),
-                    onPointerMove: (e) =>
-                        _onTouch(e.localPosition, padSize, engine, channelIndex),
-                    onPointerUp: (_) => _onRelease(engine, channelIndex),
-                    onPointerCancel: (_) => _onRelease(engine, channelIndex),
-                    child: _ThereminPad(
-                      orbPosition: _orbPosition,
-                      baseNote: _baseNote,
-                      rangeOctaves: _rangeOctaves,
-                    ),
-                  );
-                },
+          // ── Mode toggle (PAD / CAM) ──────────────────────────────────────
+          _buildModeToggle(l10n),
+
+          const SizedBox(height: 4),
+
+          // ── Main row: pad + controls sidebar ─────────────────────────────
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // ── Touch / camera pad ──────────────────────────────────────
+              Expanded(
+                child: SizedBox(
+                  height: 148,
+                  child: LayoutBuilder(
+                    builder: (ctx, constraints) {
+                      // Capture pad dimensions for the camera listener.
+                      _padSize =
+                          Size(constraints.maxWidth, constraints.maxHeight);
+
+                      return Listener(
+                        // Raw pointer events avoid gesture arena conflicts with
+                        // the enclosing rack scroll view.
+                        onPointerDown: (e) {
+                          if (_inputMode == _ThereminInputMode.touchPad) {
+                            _onTouch(e.localPosition);
+                          }
+                        },
+                        onPointerMove: (e) {
+                          if (_inputMode == _ThereminInputMode.touchPad) {
+                            _onTouch(e.localPosition);
+                          }
+                        },
+                        onPointerUp: (_) {
+                          if (_inputMode == _ThereminInputMode.touchPad) {
+                            _onRelease();
+                          }
+                        },
+                        onPointerCancel: (_) {
+                          if (_inputMode == _ThereminInputMode.touchPad) {
+                            _onRelease();
+                          }
+                        },
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            // Dark gradient pad + glowing orb.
+                            _ThereminPad(
+                              orbPosition: _orbPosition,
+                              baseNote: _baseNote,
+                              rangeOctaves: _rangeOctaves,
+                            ),
+                            // Camera status overlay (badge / spinner / error).
+                            if (_inputMode == _ThereminInputMode.camera)
+                              _CamStatusOverlay(
+                                isStarting: _camStarting,
+                                errorCode: _camError,
+                                isPlaying: _orbPosition != null,
+                                l10n: l10n,
+                              ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
               ),
-            ),
-          ),
 
-          const SizedBox(width: 8),
+              const SizedBox(width: 8),
 
-          // ── Controls sidebar ─────────────────────────────────────────────
-          _ControlSidebar(
-            baseNote: _baseNote,
-            rangeOctaves: _rangeOctaves,
-            onBaseNoteDecrement: () => _changeBaseNote(-1, rack),
-            onBaseNoteIncrement: () => _changeBaseNote(+1, rack),
-            onRangeDecrement: () => _changeRange(-1, rack),
-            onRangeIncrement: () => _changeRange(+1, rack),
+              // ── Controls sidebar ─────────────────────────────────────────
+              _ControlSidebar(
+                baseNote: _baseNote,
+                rangeOctaves: _rangeOctaves,
+                onBaseNoteDecrement: () => _changeBaseNote(-1, rack),
+                onBaseNoteIncrement: () => _changeBaseNote(+1, rack),
+                onRangeDecrement: () => _changeRange(-1, rack),
+                onRangeIncrement: () => _changeRange(+1, rack),
+              ),
+            ],
           ),
         ],
       ),
     );
+  }
+
+  /// Builds the PAD / CAM segmented toggle row.
+  Widget _buildModeToggle(AppLocalizations l10n) {
+    final isPad = _inputMode == _ThereminInputMode.touchPad;
+    final camSupported = _distSvc.isPlatformSupported;
+
+    final camButton = _ModeButton(
+      label: l10n.thereminModeCam,
+      selected: !isPad,
+      enabled: camSupported,
+      // Only allow switching *to* camera when in pad mode (avoids double-start).
+      onTap: camSupported && isPad ? () => _switchToCamera() : null,
+    );
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _ModeButton(
+          label: l10n.thereminModePad,
+          selected: isPad,
+          // Allow switching back to pad mode from any camera sub-state.
+          onTap: isPad ? null : _switchToPad,
+        ),
+        const SizedBox(width: 4),
+        // On unsupported platforms wrap in a tooltip explaining why it's greyed out.
+        camSupported
+            ? camButton
+            : Tooltip(
+                message: l10n.thereminCamErrUnsupported,
+                child: camButton,
+              ),
+      ],
+    );
+  }
+}
+
+// ─── Mode toggle button ───────────────────────────────────────────────────────
+
+/// A small pill-shaped toggle button used in the PAD / CAM selector row.
+///
+/// When [selected] is true the button is highlighted in purple to indicate the
+/// active mode.  When [enabled] is false the button is visually dimmed and
+/// [onTap] is not invoked (the platform does not support that mode).
+class _ModeButton extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final bool enabled;
+  final VoidCallback? onTap;
+
+  const _ModeButton({
+    required this.label,
+    required this.selected,
+    this.enabled = true,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: enabled ? onTap : null,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: selected
+              ? Colors.purpleAccent.withValues(alpha: 0.25)
+              : Colors.white.withValues(alpha: 0.07),
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(
+            color: selected
+                ? Colors.purpleAccent.withValues(alpha: 0.65)
+                : Colors.white24,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 9,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1,
+            color: !enabled
+                ? Colors.white24
+                : selected
+                    ? Colors.purpleAccent
+                    : Colors.white54,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Camera status overlay ────────────────────────────────────────────────────
+
+/// Overlay drawn on top of the theremin pad while in camera mode.
+///
+/// Three states:
+///   • **Starting** — shows a circular progress indicator while the native
+///     camera session is starting.
+///   • **Error**    — shows a camera-off icon and a localised error message.
+///   • **Active**   — shows a small "CAM" badge in the top-right corner.
+///     When [isPlaying] is false (hand out of range) an additional hint text
+///     is shown in the centre so the user knows what to do.
+class _CamStatusOverlay extends StatelessWidget {
+  final bool isStarting;
+  final String? errorCode;
+
+  /// True when the orb is visible (a note is sounding), false when silent.
+  final bool isPlaying;
+  final AppLocalizations l10n;
+
+  const _CamStatusOverlay({
+    required this.isStarting,
+    required this.errorCode,
+    required this.isPlaying,
+    required this.l10n,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (isStarting) return _buildStarting();
+    if (errorCode != null) return _buildError();
+    return _buildActive();
+  }
+
+  /// Centred spinner shown while [ThereminDistanceService.start] is awaiting.
+  Widget _buildStarting() {
+    return const Center(
+      child: SizedBox(
+        width: 24,
+        height: 24,
+        child: CircularProgressIndicator(
+          strokeWidth: 2,
+          color: Colors.purpleAccent,
+        ),
+      ),
+    );
+  }
+
+  /// Semi-transparent overlay with a camera-off icon and a localised message.
+  Widget _buildError() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.videocam_off, color: Colors.white38, size: 24),
+              const SizedBox(height: 8),
+              Text(
+                _errorMessage(),
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.white54, fontSize: 10),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Small CAM badge in the top-right, plus a centre hint when silent.
+  Widget _buildActive() {
+    return Stack(
+      children: [
+        // "CAM" badge — always visible so users know which mode is active.
+        Positioned(
+          top: 6,
+          right: 6,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: Colors.purpleAccent.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(
+                color: Colors.purpleAccent.withValues(alpha: 0.45),
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.videocam,
+                  size: 9,
+                  color: Colors.purpleAccent.withValues(alpha: 0.8),
+                ),
+                const SizedBox(width: 3),
+                Text(
+                  'CAM',
+                  style: TextStyle(
+                    fontSize: 8,
+                    letterSpacing: 1,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.purpleAccent.withValues(alpha: 0.8),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        // Hint text: visible only when no note is sounding.
+        if (!isPlaying)
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Text(
+                l10n.thereminCamHint,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Color(0x33FFFFFF),
+                  fontSize: 10,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  /// Maps an error code returned by [ThereminDistanceService.start] to a
+  /// localised message string.
+  String _errorMessage() {
+    switch (errorCode) {
+      case 'NO_PERMISSION':
+        return l10n.thereminCamErrNoPermission;
+      case 'NO_CAMERA':
+        return l10n.thereminCamErrNoCamera;
+      case 'FIXED_FOCUS':
+        return l10n.thereminCamErrFixedFocus;
+      case 'CONFIG_ERROR':
+        return l10n.thereminCamErrConfigError;
+      case 'PLATFORM_UNSUPPORTED':
+        return l10n.thereminCamErrUnsupported;
+      default:
+        return l10n.thereminCamErrConfigError;
+    }
   }
 }
 
 // ─── Touch pad ────────────────────────────────────────────────────────────────
 
 /// The main theremin playing surface: a dark gradient pad with a floating
-/// glowing orb that appears at the touch point.
+/// glowing orb at the active position (touch or camera-driven).
 class _ThereminPad extends StatelessWidget {
   final Offset? orbPosition;
   final int baseNote;
@@ -240,7 +732,7 @@ class _ThereminPad extends StatelessWidget {
             ),
           ),
 
-          // ── Hint overlays ────────────────────────────────────────────────
+          // ── Hint overlays (PAD mode axis labels) ─────────────────────────
           const Positioned(
             left: 8,
             top: 6,
@@ -267,11 +759,12 @@ class _ThereminPad extends StatelessWidget {
           ),
 
           // ── Glowing orb ──────────────────────────────────────────────────
-          // Appears only while the user is touching the pad; follows the
-          // pointer exactly so players get immediate visual pitch feedback.
+          // Appears while a note is sounding (in both PAD and CAM modes).
+          // In PAD mode it follows the pointer; in CAM mode it is driven by
+          // the distance computed from the camera focal position.
           if (orbPosition != null)
             Positioned(
-              // Centre the 48 × 48 orb on the pointer.
+              // Centre the 48 × 48 orb on the active position.
               left: orbPosition!.dx - 24,
               top: orbPosition!.dy - 24,
               child: Container(
@@ -341,8 +834,7 @@ class _ControlSidebar extends StatelessWidget {
       'C', 'C♯', 'D', 'D♯', 'E',
       'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B',
     ];
-    final noteName =
-        '${noteNames[baseNote % 12]}${(baseNote ~/ 12) - 1}';
+    final noteName = '${noteNames[baseNote % 12]}${(baseNote ~/ 12) - 1}';
 
     return SizedBox(
       width: 62,
