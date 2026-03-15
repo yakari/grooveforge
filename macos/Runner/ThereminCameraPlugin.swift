@@ -32,7 +32,8 @@ class ThereminCameraPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
     // ─── State ────────────────────────────────────────────────────────────────
 
     private var eventSink: FlutterEventSink?
-    private var previewSink: FlutterEventSink?
+    // fileprivate so PreviewStreamHandler (same file, different class) can write it.
+    fileprivate var previewSink: FlutterEventSink?
     private var captureSession: AVCaptureSession?
     private var captureDevice: AVCaptureDevice?
     private let captureQueue = DispatchQueue(
@@ -82,7 +83,7 @@ class ThereminCameraPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
         )
 
         let instance = ThereminCameraPlugin()
-        methodChannel.setMethodCallHandler(instance.handleMethodCall(_:result:))
+        methodChannel.setMethodCallHandler(instance.handle(_:result:))
         eventChannel.setStreamHandler(instance)
         let previewHandler = PreviewStreamHandler(plugin: instance)
         previewChannel.setStreamHandler(previewHandler)
@@ -90,7 +91,7 @@ class ThereminCameraPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
 
     // ─── Method calls ─────────────────────────────────────────────────────────
 
-    func handleMethodCall(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
+    func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
         switch call.method {
         case "start":
             startCapture(result: result)
@@ -139,22 +140,10 @@ class ThereminCameraPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
             return
         }
 
-        // Decide AF vs. contrast mode based on what this camera supports.
-        if !device.isFocusModeSupported(.continuousAutoFocus) {
-            // Fixed-focus camera (common for USB webcams): fall back to
-            // brightness/contrast analysis.
-            useContrastMode = true
-        } else {
-            useContrastMode = false
-            do {
-                try device.lockForConfiguration()
-                device.focusMode = .continuousAutoFocus
-                device.unlockForConfiguration()
-            } catch {
-                // AF config failed; fall back to contrast mode.
-                useContrastMode = true
-            }
-        }
+        // macOS does not expose AVCaptureDevice.lensPosition (iOS/tvOS only),
+        // so AF mode is unavailable.  Always use brightness/contrast analysis
+        // regardless of whether the camera supports continuousAutoFocus.
+        useContrastMode = true
 
         captureDevice = device
 

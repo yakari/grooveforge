@@ -39,7 +39,8 @@ class ThereminCameraPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
     private var eventSink: FlutterEventSink?
 
     /** Delivers JPEG preview thumbnails to Dart. */
-    private var previewSink: FlutterEventSink?
+    // fileprivate so PreviewStreamHandler (same file, different class) can write it.
+    fileprivate var previewSink: FlutterEventSink?
 
     private var captureSession: AVCaptureSession?
 
@@ -96,7 +97,7 @@ class ThereminCameraPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
         )
 
         let instance = ThereminCameraPlugin()
-        methodChannel.setMethodCallHandler(instance.handleMethodCall(_:result:))
+        methodChannel.setMethodCallHandler(instance.handle(_:result:))
         eventChannel.setStreamHandler(instance)
         let previewHandler = PreviewStreamHandler(plugin: instance)
         previewChannel.setStreamHandler(previewHandler)
@@ -104,7 +105,7 @@ class ThereminCameraPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
 
     // ─── Method calls ─────────────────────────────────────────────────────────
 
-    func handleMethodCall(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
+    func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
         switch call.method {
         case "start":
             startCapture(result: result)
