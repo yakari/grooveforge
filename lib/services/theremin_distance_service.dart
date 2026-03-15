@@ -61,7 +61,7 @@ class ThereminDistanceService {
   final distance = ValueNotifier<double>(0.0);
 
   /// Latest JPEG thumbnail from the camera preview channel, or null if not
-  /// yet received.  Updated at ≈ 5 fps while the camera is active.
+  /// yet received.  Updated at ≈ 10 fps while the camera is active.
   final previewFrame = ValueNotifier<Uint8List?>(null);
 
   /// True while the native camera session is running.
@@ -74,9 +74,14 @@ class ThereminDistanceService {
   /// Higher α → faster response but more jitter.
   /// Lower  α → smoother but sluggish (laggy pitch changes).
   ///
-  /// At α = 0.15 and 30 fps the step response reaches 63 % of a new target
-  /// in ≈ 6 frames (~ 200 ms), which feels musical without excessive smearing.
-  static const double _alpha = 0.15;
+  /// At α = 0.40 and 30 fps the step response reaches 63 % of a new target
+  /// in ≈ 2 frames (~ 67 ms) — fast enough for musical playing without
+  /// perceptible lag, while still removing single-frame noise spikes.
+  ///
+  /// Previously 0.15, which combined with the native-side EMA (also 0.15)
+  /// created a double-smoothing effect with ~400 ms settling time.  The
+  /// native-side EMA has been removed so this is now the only smoothing pass.
+  static const double _alpha = 0.40;
 
   // ─── Private ──────────────────────────────────────────────────────────────
 

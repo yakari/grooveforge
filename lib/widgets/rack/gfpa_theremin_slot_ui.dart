@@ -64,7 +64,8 @@ class GFpaThereminSlotUI extends StatefulWidget {
   State<GFpaThereminSlotUI> createState() => _GFpaThereminSlotUIState();
 }
 
-class _GFpaThereminSlotUIState extends State<GFpaThereminSlotUI> {
+class _GFpaThereminSlotUIState extends State<GFpaThereminSlotUI>
+    with WidgetsBindingObserver {
   // ─── Input mode ─────────────────────────────────────────────────────────
 
   /// Currently active input mode (defaults to touch-pad).
@@ -163,10 +164,30 @@ class _GFpaThereminSlotUIState extends State<GFpaThereminSlotUI> {
     AudioInputFFI().thereminStart();
     // Sync saved vibrato depth to the native synth.
     AudioInputFFI().thereminSetVibrato(_vibrato);
+    // Register for app lifecycle events so we can silence the synth when
+    // the app is backgrounded or killed (prevents stuck notes).
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  /// Silences the theremin when the app moves to the background or is killed.
+  ///
+  /// Without this, the miniaudio device keeps playing after the app is
+  /// backgrounded because the touch/camera callbacks stop firing while
+  /// the oscillator volume remains at its last value.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.detached) {
+      _stopCurrentNote();
+      if (_inputMode == _ThereminInputMode.camera) _distSvc.stop();
+      setState(() => _orbPosition = null);
+    }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     // Remove listeners first so callbacks cannot fire after disposal.
     _distSvc.distance.removeListener(_onCameraDistance);
     _distSvc.previewFrame.removeListener(_onPreviewFrame);
@@ -544,6 +565,7 @@ class _GFpaThereminSlotUIState extends State<GFpaThereminSlotUI> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final rack = context.read<RackState>();
+    final engine = context.read<AudioEngine>();
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
@@ -570,22 +592,16 @@ class _GFpaThereminSlotUIState extends State<GFpaThereminSlotUI> {
                       _padSize =
                           Size(constraints.maxWidth, constraints.maxHeight);
 
-                      return GestureDetector(
-                        // Claim all pan gestures (horizontal + vertical) so
-                        // the parent rack ScrollView cannot scroll while the
-                        // player's finger is on the pad. The Listener child
-                        // still receives all raw pointer events for pitch/volume
-                        // mapping — the two mechanisms are independent.
-                        behavior: HitTestBehavior.opaque,
-                        onPanDown: (_) {},
-                        onPanStart: (_) {},
-                        onPanUpdate: (_) {},
-                        onPanEnd: (_) {},
-                        onPanCancel: () {},
-                        child: Listener(
-                        // Raw pointer events avoid gesture arena conflicts with
-                        // the enclosing rack scroll view.
+                      // Listener with raw pointer events for pitch/volume
+                      // mapping.  On pointer-down we call
+                      // engine.updateGestureState(true), which flips the
+                      // rack list to NeverScrollableScrollPhysics — the same
+                      // mechanism used by VirtualPiano.  This reliably
+                      // prevents the parent ReorderableListView from
+                      // scrolling on Android while the pad is active.
+                      return Listener(
                         onPointerDown: (e) {
+                          engine.updateGestureState(true);
                           if (_inputMode == _ThereminInputMode.touchPad) {
                             _onTouch(e.localPosition);
                           }
@@ -596,11 +612,13 @@ class _GFpaThereminSlotUIState extends State<GFpaThereminSlotUI> {
                           }
                         },
                         onPointerUp: (_) {
+                          engine.updateGestureState(false);
                           if (_inputMode == _ThereminInputMode.touchPad) {
                             _onRelease();
                           }
                         },
                         onPointerCancel: (_) {
+                          engine.updateGestureState(false);
                           if (_inputMode == _ThereminInputMode.touchPad) {
                             _onRelease();
                           }
@@ -625,7 +643,6 @@ class _GFpaThereminSlotUIState extends State<GFpaThereminSlotUI> {
                               ),
                           ],
                         ),
-                      ),
                       );
                     },
                   ),

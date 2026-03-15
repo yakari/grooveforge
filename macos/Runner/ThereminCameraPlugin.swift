@@ -45,13 +45,21 @@ class ThereminCameraPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
     /** True when the camera does not support continuousAutoFocus. */
     private var useContrastMode = false
 
-    /** EMA-smoothed contrast value emitted in contrast mode. */
-    private var smoothedContrast: Double = 0.0
-
-    /** Rolling luma history for 60-frame min/max normalization. */
+    /**
+     * Rolling luma history for min/max normalization (30 frames ≈ 1 s at 30 fps).
+     * Halved from 60 so the plugin adapts to ambient lighting changes faster.
+     */
     private var lumaHistory: [Double] = []
 
-    /** Frame counter for throttling preview to ≈ 5 fps. */
+    /**
+     * Shared CIContext for all preview-frame renders.
+     *
+     * Creating a CIContext is expensive (allocates a Metal pipeline).
+     * Reusing a single instance avoids a large per-frame allocation.
+     */
+    private let ciContext = CIContext(options: [.useSoftwareRenderer: false])
+
+    /** Frame counter for throttling preview to ≈ 10 fps. */
     private var frameCount = 0
 
     // ─── FlutterPlugin ────────────────────────────────────────────────────────
@@ -216,7 +224,6 @@ class ThereminCameraPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
             self?.captureDevice = nil
         }
         frameCount = 0
-        smoothedContrast = 0.0
         lumaHistory = []
     }
 
@@ -245,7 +252,7 @@ class ThereminCameraPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
             }
         }
         let mean = count > 0 ? Double(sum) / Double(count) / 255.0 : 0.0
-        if lumaHistory.count >= 60 { lumaHistory.removeFirst() }
+        if lumaHistory.count >= 30 { lumaHistory.removeFirst() }
         lumaHistory.append(mean)
         let minL = lumaHistory.min() ?? 0; let maxL = lumaHistory.max() ?? 1
         let range = maxL - minL
@@ -255,18 +262,27 @@ class ThereminCameraPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
     // ─── Preview thumbnail ────────────────────────────────────────────────────
 
     /**
-     * Sends a 120×90 JPEG grayscale thumbnail to the preview EventChannel.
+     * Sends a 120×90 JPEG thumbnail to the preview EventChannel.
      *
-     * Uses NSBitmapImageRep for JPEG encoding (macOS equivalent of UIImage).
+     * Called every 3rd frame (≈ 10 fps) for a smoother live feel.
+     *
+     * Optimisations vs. previous implementation:
+     *   - Uses the shared [ciContext] field instead of a new CIContext per call.
+     *   - Applies a horizontal mirror (front-camera selfie convention).
      */
     private func sendPreviewFrame(_ pixelBuffer: CVPixelBuffer) {
         let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
         let targetSize = CGSize(width: 120, height: 90)
         let scaleX = targetSize.width  / ciImage.extent.width
         let scaleY = targetSize.height / ciImage.extent.height
+
+        // Scale then mirror horizontally (front-camera selfie convention).
         let scaled = ciImage.transformed(by: CGAffineTransform(scaleX: scaleX, y: scaleY))
-        let ctx = CIContext()
-        guard let cgImage = ctx.createCGImage(scaled, from: scaled.extent) else { return }
+        let mirrored = scaled
+            .transformed(by: CGAffineTransform(scaleX: -1, y: 1))
+            .transformed(by: CGAffineTransform(translationX: scaled.extent.width, y: 0))
+
+        guard let cgImage = ciContext.createCGImage(mirrored, from: mirrored.extent) else { return }
         let bitmapRep = NSBitmapImageRep(cgImage: cgImage)
         guard let jpegData = bitmapRep.representation(
             using: .jpeg, properties: [.compressionFactor: NSNumber(value: 0.5)]
@@ -306,7 +322,7 @@ extension ThereminCameraPlugin: AVCaptureVideoDataOutputSampleBufferDelegate {
      * In contrast mode: analyses the Y-plane luminance and emits a normalized
      * brightness value that tracks the hand's distance from the camera.
      *
-     * Also sends a JPEG preview thumbnail every 6th frame (≈ 5 fps).
+     * Also sends a JPEG preview thumbnail every 3rd frame (≈ 10 fps).
      */
     func captureOutput(
         _ output: AVCaptureOutput,
@@ -317,10 +333,10 @@ extension ThereminCameraPlugin: AVCaptureVideoDataOutputSampleBufferDelegate {
 
         // Distance signal.
         if useContrastMode {
+            // Emit raw normalized luma — EMA smoothing is applied once on the
+            // Dart side (ThereminDistanceService._smooth).  No double-EMA.
             if let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) {
-                let luma = computeNormalizedLuma(pixelBuffer)
-                smoothedContrast = smoothedContrast * 0.85 + luma * 0.15
-                let val = smoothedContrast
+                let val = computeNormalizedLuma(pixelBuffer)
                 DispatchQueue.main.async { [weak self] in self?.eventSink?(val) }
             }
         } else {
@@ -329,8 +345,8 @@ extension ThereminCameraPlugin: AVCaptureVideoDataOutputSampleBufferDelegate {
             DispatchQueue.main.async { [weak self] in self?.eventSink?(pos) }
         }
 
-        // Preview thumbnail every 6th frame (≈ 5 fps).
-        if frameCount % 6 == 0, let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) {
+        // Preview thumbnail every 3rd frame (≈ 10 fps).
+        if frameCount % 3 == 0, let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) {
             sendPreviewFrame(pixelBuffer)
         }
     }

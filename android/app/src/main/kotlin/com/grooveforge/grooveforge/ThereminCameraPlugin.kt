@@ -106,11 +106,22 @@ class ThereminCameraPlugin(private val context: Context) :
 
     // ─── Contrast-mode state ──────────────────────────────────────────────────
 
-    /** Rolling history of mean luma values for min/max normalization (60 frames ≈ 2 s at 30 fps). */
+    /**
+     * Rolling history of mean luma values for min/max normalization.
+     *
+     * 30 frames ≈ 1 s at 30 fps — half the original window so the plugin
+     * adapts to changing ambient lighting twice as quickly without sacrificing
+     * normalization stability.
+     */
     private val lumaHistory = ArrayDeque<Double>()
 
-    /** EMA-smoothed contrast value emitted in contrast mode. */
-    private var smoothedContrast = 0.0
+    /**
+     * Pre-allocated pixel buffer for the 120×90 preview thumbnail.
+     *
+     * Reusing this array across frames avoids an IntArray(10 800) allocation
+     * on every call to [sendPreviewFrame], reducing GC pressure.
+     */
+    private val previewPixels = IntArray(120 * 90)
 
     /**
      * Clockwise degrees the sensor image must be rotated so it appears upright
@@ -122,7 +133,7 @@ class ThereminCameraPlugin(private val context: Context) :
      */
     private var sensorOrientation: Int = 0
 
-    /** Frame counter used to throttle the preview thumbnail to ≈ 5 fps. */
+    /** Frame counter used to throttle the preview thumbnail to ≈ 10 fps. */
     private var frameCount = 0
 
     // ─── MethodChannel.MethodCallHandler ──────────────────────────────────────
@@ -262,16 +273,15 @@ class ThereminCameraPlugin(private val context: Context) :
             val img = r.acquireLatestImage() ?: return@setOnImageAvailableListener
             try {
                 if (useContrastMode) {
-                    // Contrast mode: analyse Y-plane luminance to estimate hand proximity.
-                    val normalized = computeNormalizedLuma(img)
-                    // EMA α = 0.15 (same as Dart-side smoothing for AF mode).
-                    smoothedContrast = smoothedContrast * 0.85 + normalized * 0.15
-                    val value = smoothedContrast
+                    // Contrast mode: emit the raw normalized luma directly.
+                    // EMA smoothing is applied once on the Dart side
+                    // (ThereminDistanceService._smooth) — no double-smoothing.
+                    val value = computeNormalizedLuma(img)
                     mainHandler.post { eventSink?.success(value) }
                 }
-                // Preview thumbnail: send a JPEG at ≈ 5 fps regardless of mode.
+                // Preview thumbnail: send a JPEG at ≈ 10 fps regardless of mode.
                 frameCount++
-                if (frameCount % 6 == 0) sendPreviewFrame(img)
+                if (frameCount % 3 == 0) sendPreviewFrame(img)
             } finally {
                 // Always release the image to prevent camera buffer starvation.
                 img.close()
@@ -375,8 +385,8 @@ class ThereminCameraPlugin(private val context: Context) :
             }
         }
         val mean = if (count > 0) sum.toDouble() / count / 255.0 else 0.0
-        // Rolling min/max normalization over 2 s window.
-        if (lumaHistory.size >= 60) lumaHistory.removeFirst()
+        // Rolling min/max normalization over ≈ 1 s window (30 frames).
+        if (lumaHistory.size >= 30) lumaHistory.removeFirst()
         lumaHistory.addLast(mean)
         val minL = lumaHistory.minOrNull() ?: 0.0
         val maxL = lumaHistory.maxOrNull() ?: 1.0
@@ -387,12 +397,17 @@ class ThereminCameraPlugin(private val context: Context) :
     // ─── Preview thumbnail ────────────────────────────────────────────────────
 
     /**
-     * Downscales [image] to a 120×90 grayscale JPEG and sends it to the
-     * preview EventChannel so the Dart UI can show a semi-transparent camera
-     * feed behind the theremin pad.
+     * Downscales [image] to a 120×90 grayscale JPEG, corrects orientation,
+     * and horizontally mirrors it (front-camera selfie effect), then sends it
+     * to the preview EventChannel.
      *
-     * Called every 6th frame (≈ 5 fps at 30 fps capture rate) to keep
-     * bandwidth low while still giving a live feel.
+     * Called every 3rd frame (≈ 10 fps at 30 fps) for a smoother live feel.
+     *
+     * Optimisations vs. the previous implementation:
+     *   - [previewPixels] is pre-allocated once as a class field to avoid a
+     *     10 800-element IntArray allocation on every call.
+     *   - Rotation and horizontal mirror are combined into a single [Matrix]
+     *     pass so only one extra [Bitmap] is ever created per preview frame.
      */
     private fun sendPreviewFrame(image: android.media.Image) {
         try {
@@ -400,55 +415,48 @@ class ThereminCameraPlugin(private val context: Context) :
             val yBuffer = yPlane.buffer.duplicate()
             val yStride = yPlane.rowStride
             val srcW = image.width; val srcH = image.height
-
-            // Downscale step: always target 120×90 in the sensor's coordinate
-            // space — rotation is applied afterwards so the final size may differ.
             val dstW = 120; val dstH = 90
-            val pixels = IntArray(dstW * dstH)
+
+            // ── Downsample Y-plane to 120×90 grayscale ──────────────────────
+            // Reuse the pre-allocated pixel buffer to avoid per-frame GC pressure.
             for (row in 0 until dstH) {
                 val srcRow = row * srcH / dstH
                 for (col in 0 until dstW) {
                     val y = yBuffer.get(srcRow * yStride + col * srcW / dstW).toInt() and 0xFF
-                    pixels[row * dstW + col] = (0xFF shl 24) or (y shl 16) or (y shl 8) or y
+                    previewPixels[row * dstW + col] = (0xFF shl 24) or (y shl 16) or (y shl 8) or y
                 }
             }
-            val raw = android.graphics.Bitmap.createBitmap(dstW, dstH, android.graphics.Bitmap.Config.ARGB_8888)
-            raw.setPixels(pixels, 0, dstW, 0, 0, dstW, dstH)
+            val raw = android.graphics.Bitmap.createBitmap(
+                previewPixels, dstW, dstH, android.graphics.Bitmap.Config.ARGB_8888)
 
-            // Rotate the thumbnail so it appears upright in the device's current
-            // orientation.
-            //
-            // Camera2 outputs raw frames aligned to the sensor coordinate space.
-            // Two rotations must be composed:
-            //   1. sensorOrientation — CW degrees the frame needs to compensate
-            //      for the physical sensor mounting angle (typically 270° for
-            //      front cameras on phones).
-            //   2. displayRotation  — CCW degrees the display is rotated from
-            //      portrait (0=portrait, 90=landscape-left, 180, 270).
-            //
-            // For a front-facing camera the combined formula is:
-            //   (sensorOrientation + displayRotation) % 360
-            // Portrait (0°):  (270 + 0)  % 360 = 270° CW → upright.
-            // Landscape (90°): (270 + 90) % 360 = 0°    → no extra rotation needed.
+            // ── Compute display-adjusted rotation ───────────────────────────
+            // sensorOrientation: CW degrees the raw frame needs to appear upright
+            //   in portrait (typically 270° for front cameras).
+            // displayRotation: current CCW rotation of the display from portrait.
+            // Combined formula for front cameras: (sensor + display) % 360.
             @Suppress("DEPRECATION") // defaultDisplay deprecated at API 30; still correct here
             val displayRotation =
                 (context.getSystemService(android.content.Context.WINDOW_SERVICE)
                     as android.view.WindowManager).defaultDisplay.rotation * 90
             val rotateDeg = (sensorOrientation + displayRotation) % 360
-            val bmp = if (rotateDeg == 0) {
-                raw
-            } else {
-                val matrix = android.graphics.Matrix().apply { postRotate(rotateDeg.toFloat()) }
-                val rotated = android.graphics.Bitmap.createBitmap(raw, 0, 0, dstW, dstH, matrix, false)
-                raw.recycle()
-                rotated
+
+            // ── Single-pass: rotation + horizontal mirror ────────────────────
+            // Combining both transforms into one Matrix avoids an intermediate
+            // Bitmap allocation.  The horizontal flip uses the source bitmap
+            // centre as the pivot (dstW/2, dstH/2) so the image stays centred.
+            val matrix = android.graphics.Matrix().apply {
+                if (rotateDeg != 0) postRotate(rotateDeg.toFloat())
+                // Mirror: flip around the vertical axis at the source centre.
+                // Front cameras should show a "selfie" mirror image.
+                postScale(-1f, 1f, dstW / 2f, dstH / 2f)
             }
+            val bmp = android.graphics.Bitmap.createBitmap(raw, 0, 0, dstW, dstH, matrix, false)
+            raw.recycle()
 
             val out = java.io.ByteArrayOutputStream()
             bmp.compress(android.graphics.Bitmap.CompressFormat.JPEG, 60, out)
             bmp.recycle()
-            val bytes = out.toByteArray()
-            mainHandler.post { previewSink?.success(bytes) }
+            mainHandler.post { previewSink?.success(out.toByteArray()) }
         } catch (_: Exception) { /* ignore preview errors — never crash the audio path */ }
     }
 
@@ -466,6 +474,5 @@ class ThereminCameraPlugin(private val context: Context) :
         cameraThread?.quitSafely(); cameraThread = null
         cameraHandler = null
         frameCount = 0
-        smoothedContrast = 0.0
     }
 }

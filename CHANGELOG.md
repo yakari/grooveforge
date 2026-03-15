@@ -5,26 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [X.x.x]
+## [2.5.4] - 2026-03-15
 
 ### Added
-- **Theremin and Stylophone MIDI OUT**: both instruments now expose a **MIDI OUT** jack in the rack rear view. Connect a cable to a GF Keyboard, VST3, or MIDI Looper slot to drive it from the theremin or stylophone. The Theremin tracks the nearest semitone of the continuous pitch and dispatches note-on/off on semitone crossings. The Stylophone dispatches a note-on on every key press and note-off on release.
-- **MUTE toggle** on both the Theremin (in the PAD/CAM row) and Stylophone (next to the VIB button): silences the built-in native C synthesiser while MIDI OUT events continue to flow — ideal for using them as expressive MIDI controllers without double-triggering sound.
-- **Android camera preview rotation fix**: the semi-transparent camera thumbnail in Theremin CAM mode now accounts for the device display orientation so the preview is upright in portrait mode and correctly aligned in landscape.
-- **Theremin pad height customisation**: a new **HEIGHT** control in the theremin sidebar lets users cycle through four pad sizes — S (120 px), M (160 px), L (210 px), XL (270 px). The default is now M, slightly taller than before. The chosen size persists in the project save file.
-- **Stylophone vibrato toggle** (VIB button): tap the VIB button below the waveform selector to enable a 5.5 Hz LFO that wobbles pitch by ±0.5 semitone, reproducing the classic tape-wobble effect of vintage Stylophones. Vibrato state (on at depth 0.7, or off) persists in the project save file.
-- **Theremin pad scroll lock**: the theremin touch pad now claims all pan gestures so the parent rack scroll view cannot accidentally scroll while the player's finger is on the surface.
-- **Camera contrast fallback** for fixed-focus cameras: the Theremin CAM mode no longer returns a `FIXED_FOCUS` error on devices without autofocus. Instead it automatically falls back to brightness/contrast analysis of the center 50% of each frame, with a 60-frame rolling min/max normalization that adapts to ambient lighting. Works on all Android devices and webcams.
-- **Camera preview overlay** in Theremin CAM mode: a 5 fps semi-transparent (opacity 0.35) grayscale camera thumbnail is displayed behind the glowing orb, giving a live view of what the camera sees (Android, iOS, macOS).
-- **Stylophone** GFPA instrument plugin: monophonic chromatic metal-strip keyboard (2 octaves, 25 keys) played by touch or slide. Octave shift −2 to +2 via in-slot buttons. Routes to the FluidSynth channel assigned to the rack slot.
-- **Theremin** GFPA instrument plugin: large touch pad where vertical position controls pitch (bottom = low, top = high) and horizontal position controls volume (CC 7). A glowing purple orb follows the finger. Base note (C2–C5) and range (1–4 octaves) are adjustable via in-slot +/− buttons.
-- **Theremin CAM mode** (Android / iOS / macOS): tap the **CAM** toggle above the pad to switch from touch to camera-based playing. The front camera's autofocus focal distance tracks hand proximity — move your hand closer to raise pitch, farther to lower it. An EMA filter (α = 0.15) smooths raw per-frame readings for musical responsiveness. A glowing orb follows the camera-computed hand position. Volume stays at full in this mode. Graceful degradation: fixed-focus cameras, denied permissions, and unsupported platforms (Linux, Windows, web) show a localised error message; the CAM button is greyed-out with a tooltip on platforms that have no camera plugin support.
-- Both plugins appear in the "Add Plugin" sheet with dedicated icons (`linear_scale` for Stylophone, `sensors` for Theremin).
-- Backlog tracked for future GFPA plugins: Chord Arpeggiator, Spectral Reverb, Drum Machine / Step Sequencer, Scale Harmonizer, Bit-crusher / Lo-fi.
-- **Stylophone native C synthesiser**: replaces FluidSynth with a dedicated monophonic oscillator running in its own miniaudio device. Four waveforms selectable in-slot — SQR (square, classic Stylophone buzz), SAW (sawtooth), SIN (sine), TRI (triangle). Phase is preserved across key slides for click-free legato. Short release envelope (τ ≈ 104 ms) eliminates click on note-off. Waveform selection persists in the project save file.
-- **Theremin native C synthesiser**: replaces FluidSynth with a dedicated sine oscillator running in its own miniaudio device. Features smooth portamento (τ ≈ 42 ms), 6.5 Hz vibrato LFO with adjustable depth (0–100 % in 25 % steps via in-slot +/− buttons), and a faint 3rd harmonic (+10 %) for warmth. Pitch is sent as direct Hz values (not stepped MIDI notes) so the glide is continuous. Vibrato depth persists in the project save file.
-- Vibrato control added to the Theremin sidebar (VIB label, +/− buttons, values 0 %/25 %/50 %/75 %/100 %).
-- Camera mode for the Theremin now sends full native volume (1.0) rather than MIDI CC 7.
+- **Theremin & Stylophone**: two new GFPA instrument plugins. The Theremin is a large touch pad (vertical = pitch, horizontal = volume) with a native C sine oscillator — portamento (τ ≈ 42 ms), 6.5 Hz vibrato LFO (0–100 %), adjustable base note and range. The Stylophone is a monophonic 25-key chromatic strip keyboard with four waveforms (SQR/SAW/SIN/TRI), click-free legato, and octave shift ±2.
+- **Theremin CAM mode** (Android / iOS / macOS): hand proximity via camera autofocus controls pitch. Falls back to brightness/contrast analysis on fixed-focus cameras (no error on webcams). Live semi-transparent camera preview displayed behind the orb at ≈ 10 fps.
+- **Stylophone VIB button**: toggles a 5.5 Hz ±0.5-semitone LFO for a vintage tape-wobble effect. State persists.
+- **MIDI OUT jack** on both instruments (rack rear view): connect to a GF Keyboard, VST3, or Looper slot. The Theremin sends note-on/off on semitone crossings; the Stylophone on each key press/release.
+- **MUTE toggle** on both instruments: silences the built-in synthesiser while MIDI OUT keeps flowing — use them as expressive MIDI controllers without double-triggering sound.
+- **Theremin pad height**: four sizes (S/M/L/XL) via a new HEIGHT control in the sidebar. Persists in the project file.
+- **Camera preview mirror**: CAM overlay now shows a selfie-mirrored image; rotation correctly accounts for device orientation (Android). EMA smoothing lag reduced from ~400 ms to ~67 ms.
+- **Theremin pad scroll lock**: touching the pad no longer accidentally scrolls the rack.
 
 ## [2.5.3] - 2026-03-14
 
