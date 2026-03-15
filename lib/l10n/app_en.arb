@@ -412,5 +412,11 @@
   "thereminCamErrNoPermission": "Camera permission denied. Switch to PAD mode to try again.",
   "thereminCamErrNoCamera": "No suitable camera found on this device.",
   "thereminCamErrFixedFocus": "This camera has fixed focus — hand tracking is not available.",
-  "thereminCamErrConfigError": "Camera configuration error. Please switch to PAD mode."
+  "thereminCamErrConfigError": "Camera configuration error. Please switch to PAD mode.",
+
+  "styloWaveformSquare": "SQR",
+  "styloWaveformSawtooth": "SAW",
+  "styloWaveformSine": "SIN",
+  "styloWaveformTriangle": "TRI",
+  "thereminVibrato": "VIB"
 }

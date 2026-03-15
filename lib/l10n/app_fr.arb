@@ -412,5 +412,11 @@
   "thereminCamErrNoPermission": "Permission caméra refusée. Repassez en mode PAD pour réessayer.",
   "thereminCamErrNoCamera": "Aucune caméra compatible trouvée sur cet appareil.",
   "thereminCamErrFixedFocus": "Cette caméra a une mise au point fixe — le suivi de la main n'est pas disponible.",
-  "thereminCamErrConfigError": "Erreur de configuration caméra. Veuillez passer en mode PAD."
+  "thereminCamErrConfigError": "Erreur de configuration caméra. Veuillez passer en mode PAD.",
+
+  "styloWaveformSquare": "SQR",
+  "styloWaveformSawtooth": "SAW",
+  "styloWaveformSine": "SIN",
+  "styloWaveformTriangle": "TRI",
+  "thereminVibrato": "VIB"
 }

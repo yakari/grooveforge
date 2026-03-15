@@ -6,17 +6,17 @@ import 'package:grooveforge_plugin_api/grooveforge_plugin_api.dart';
 ///
 /// Emulates the eerie, pitch-wavering theremin: the player's finger position
 /// on the pad controls pitch (vertical axis) and volume (horizontal axis)
-/// without pressing any discrete key. Monophonic: only one note sounds at a
+/// without pressing any discrete key.  Monophonic: only one note sounds at a
 /// time.
 ///
-/// All touch handling and AudioEngine routing are performed by
-/// [GFpaThereminSlotUI]. This class holds parameter state only:
+/// All touch handling and audio routing are performed by [GFpaThereminSlotUI].
+/// This class holds parameter state only:
 ///   • [paramBaseNote] — lowest MIDI note reachable at the bottom of the pad.
 ///   • [paramRange]    — pitch range (1–4 octaves) covered by the pad height.
+///   • [paramVibrato]  — 6.5 Hz vibrato LFO depth (0 = off, 1 = full).
 ///
-/// Audio is produced by FluidSynth on the MIDI channel assigned to this rack
-/// slot, so any loaded soundfont preset can be used — string pads, flutes,
-/// or saw-lead patches work especially well for a theremin timbre.
+/// Audio is produced by a native C sine oscillator with smooth portamento
+/// and vibrato running in its own miniaudio device, independent of FluidSynth.
 class GFThereminPlugin implements GFInstrumentPlugin {
   GFThereminPlugin();
 
@@ -34,6 +34,12 @@ class GFThereminPlugin implements GFInstrumentPlugin {
   /// Default ≈ 0.33 → 2 octaves.
   static const int paramRange = 1;
 
+  /// Vibrato LFO depth applied by the native C synth's 6.5 Hz oscillator.
+  ///
+  /// Already normalized [0.0, 1.0]: 0 = no vibrato, 1 = ±0.5 semitone.
+  /// Default 0.0 = no vibrato.
+  static const int paramVibrato = 2;
+
   // ─── Internal state ───────────────────────────────────────────────────────
 
   /// Lowest MIDI note (bottom of the pad).
@@ -41,6 +47,9 @@ class GFThereminPlugin implements GFInstrumentPlugin {
 
   /// Pitch range in octaves (1–4).
   int _rangeOctaves = 2;
+
+  /// Vibrato depth [0.0, 1.0] (0 = off, 1 = full ±0.5 st modulation).
+  double _vibrato = 0.0;
 
   // ─── GFPlugin identity ────────────────────────────────────────────────────
 
@@ -74,6 +83,13 @@ class GFThereminPlugin implements GFInstrumentPlugin {
           defaultValue: 0.33,
           unitLabel: 'oct',
         ),
+        GFPluginParameter(
+          id: paramVibrato,
+          name: 'Vibrato',
+          min: 0,
+          max: 1,
+          defaultValue: 0.0,
+        ),
       ];
 
   // ─── Parameter access ─────────────────────────────────────────────────────
@@ -87,6 +103,9 @@ class GFThereminPlugin implements GFInstrumentPlugin {
       case paramRange:
         // Map {1, 2, 3, 4} → [0.0, 0.33, 0.67, 1.0].
         return (_rangeOctaves - 1) / 3.0;
+      case paramVibrato:
+        // Already normalised [0.0, 1.0].
+        return _vibrato;
       default:
         return 0.0;
     }
@@ -101,6 +120,9 @@ class GFThereminPlugin implements GFInstrumentPlugin {
       case paramRange:
         // Map [0.0, 1.0] → {1, 2, 3, 4}.
         _rangeOctaves = (1 + (normalizedValue * 3).round()).clamp(1, 4);
+      case paramVibrato:
+        // Depth is already normalised — clamp for safety.
+        _vibrato = normalizedValue.clamp(0.0, 1.0);
     }
   }
 
@@ -112,20 +134,26 @@ class GFThereminPlugin implements GFInstrumentPlugin {
   /// Pitch range in octaves (1–4), for direct UI reads.
   int get rangeOctaves => _rangeOctaves;
 
+  /// Current vibrato depth [0.0, 1.0], for direct UI reads.
+  double get vibrato => _vibrato;
+
   // ─── State serialization ──────────────────────────────────────────────────
 
   @override
   Map<String, dynamic> getState() => {
         'baseNote': _baseNote,
         'rangeOctaves': _rangeOctaves,
+        'vibrato': _vibrato,
       };
 
   @override
   void loadState(Map<String, dynamic> state) {
     _baseNote =
-        (state['baseNote'] as num?)?.toInt()?.clamp(36, 72) ?? 48;
+        (state['baseNote'] as num?)?.toInt().clamp(36, 72) ?? 48;
     _rangeOctaves =
-        (state['rangeOctaves'] as num?)?.toInt()?.clamp(1, 4) ?? 2;
+        (state['rangeOctaves'] as num?)?.toInt().clamp(1, 4) ?? 2;
+    _vibrato =
+        (state['vibrato'] as num?)?.toDouble().clamp(0.0, 1.0) ?? 0.0;
   }
 
   // ─── Lifecycle ────────────────────────────────────────────────────────────
@@ -136,7 +164,7 @@ class GFThereminPlugin implements GFInstrumentPlugin {
   @override
   Future<void> dispose() async {}
 
-  // ─── MIDI (no-op — audio routed via AudioEngine in the slot UI) ───────────
+  // ─── MIDI (no-op — audio routed via native C synth in the slot UI) ────────
 
   @override
   void noteOn(int channel, int note, int velocity) {}
@@ -152,7 +180,8 @@ class GFThereminPlugin implements GFInstrumentPlugin {
 
   @override
   void processBlock(Float32List outL, Float32List outR, int frameCount) {
-    // Audio is produced by FluidSynth via AudioEngine.playNote / stopNote,
-    // called from GFpaThereminSlotUI. No Dart-side DSP is performed here.
+    // Audio is produced by the native C theremin oscillator (sine + 3rd harmonic,
+    // with portamento and vibrato LFO) running in its own miniaudio device.
+    // No Dart-side DSP is performed here.
   }
 }

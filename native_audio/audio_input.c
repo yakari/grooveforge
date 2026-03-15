@@ -863,3 +863,413 @@ EXPORT float get_vocoder_input_peak() {
 EXPORT float get_vocoder_output_peak() {
     return getOutputPeakLevel();
 }
+
+// =============================================================================
+// THEREMIN SYNTH — Continuous-pitch monophonic sine oscillator
+// =============================================================================
+// Produces the eerie, gliding tone of a real theremin:
+//   • Smooth portamento (exponential glide, τ ≈ 42 ms at 48 kHz)
+//   • 6.5 Hz vibrato LFO with adjustable depth
+//   • Sine wave with faint 3rd harmonic (10 %) for warmth
+//   • Smooth amplitude envelope (τ ≈ 7 ms) — prevents click artefacts
+// The C synth receives direct Hz + volume [0,1] commands from Dart.
+
+// ── Theremin device state ────────────────────────────────────────────────────
+
+/// miniaudio context dedicated to the theremin playback device.
+static ma_context g_thereminCtx;
+
+/// miniaudio playback device that runs the theremin synthesis callback.
+static ma_device  g_thereminDev;
+
+/// True while the theremin device is initialised and running.
+static bool       g_thereminRunning = false;
+
+// ── Theremin DSP parameters (written by Dart thread, read by audio callback) ─
+
+/// Target fundamental frequency in Hz, set by Dart via theremin_set_pitch_hz.
+static volatile float g_thereminTargetHz  = 440.0f;
+
+/// Target output volume [0, 0.85], set by Dart via theremin_set_volume.
+static volatile float g_thereminTargetVol = 0.0f;
+
+/// Vibrato depth [0, 1]: 0 = no vibrato, 1 = ±0.5 semitone LFO modulation.
+static volatile float g_thereminVibDepth  = 0.0f;
+
+// ── Theremin internal DSP state (audio-thread only, never written from Dart) ─
+
+/// Smoothed current frequency (approaches g_thereminTargetHz via THEREMIN_GLIDE).
+static float g_thereminCurrentHz  = 440.0f;
+
+/// Smoothed current volume (approaches g_thereminTargetVol via THEREMIN_VOL).
+static float g_thereminCurrentVol = 0.0f;
+
+/// Oscillator phase accumulator [0, 1).
+static float g_thereminPhase      = 0.0f;
+
+/// Vibrato LFO phase accumulator [0, 1).
+static float g_thereminLfoPhase   = 0.0f;
+
+/// Portamento coefficient: each sample closes 0.0005 of the remaining gap → τ ≈ 42 ms.
+#define THEREMIN_GLIDE    0.0005f
+
+/// Volume envelope coefficient: τ ≈ 7 ms — responsive but click-free.
+#define THEREMIN_VOL      0.003f
+
+/// Vibrato semitone coefficient: 2^(0.5/12) − 1 ≈ 0.02963 (±0.5 st at depth=1).
+#define THEREMIN_VIB_COEF 0.02963f
+
+// ── Theremin audio callback ───────────────────────────────────────────────────
+
+/// miniaudio data callback for the theremin playback device.
+///
+/// Called by the audio thread at buffer boundaries (~256 frames = 5.3 ms).
+/// All DSP is allocation-free and runs entirely on the audio thread.
+///
+/// Each sample pipeline:
+///   1. Exponential pitch glide towards the target Hz.
+///   2. Exponential volume envelope towards the target volume.
+///   3. 6.5 Hz vibrato LFO applied to instantaneous Hz.
+///   4. Sine oscillator with a faint 3rd harmonic (+10 %) for warmth.
+///   5. Phase accumulator advanced by hz/sampleRate.
+static void theremin_data_callback(
+    ma_device* pDevice,
+    void* pOutput,
+    const void* pInput,
+    ma_uint32 frameCount)
+{
+    (void)pInput;
+    float* out = (float*)pOutput;
+    // Cache sample rate as float to avoid repeated int→float casts.
+    const float sr = (float)pDevice->sampleRate;
+
+    for (ma_uint32 i = 0; i < frameCount; i++) {
+        // Step 1 — Portamento: exponentially approach the target frequency.
+        // Each sample closes 0.05 % of the remaining gap, giving τ ≈ 42 ms.
+        g_thereminCurrentHz +=
+            (g_thereminTargetHz - g_thereminCurrentHz) * THEREMIN_GLIDE;
+
+        // Step 2 — Volume envelope: same exponential approach for click-free
+        // amplitude transitions (attack and release both use τ ≈ 7 ms).
+        g_thereminCurrentVol +=
+            (g_thereminTargetVol - g_thereminCurrentVol) * THEREMIN_VOL;
+
+        // Step 3 — Vibrato LFO at 6.5 Hz.
+        // Advance LFO phase and wrap to [0, 1).
+        g_thereminLfoPhase += 6.5f / sr;
+        if (g_thereminLfoPhase >= 1.0f) g_thereminLfoPhase -= 1.0f;
+        const float lfo = sinf(g_thereminLfoPhase * 6.28318530718f);
+        // Apply vibrato depth: modulates hz by ±THEREMIN_VIB_COEF semitones.
+        const float hz =
+            g_thereminCurrentHz * (1.0f + lfo * g_thereminVibDepth * THEREMIN_VIB_COEF);
+
+        // Step 4 — Oscillator: fundamental + 10 % 3rd harmonic for warmth.
+        // Normalised so the sum never exceeds ±1.0.
+        const float twoPiPhase = g_thereminPhase * 6.28318530718f;
+        float s = sinf(twoPiPhase) + sinf(twoPiPhase * 3.0f) * 0.10f;
+        s *= (1.0f / 1.10f); // Normalise to ±1.0 headroom.
+
+        // Step 5 — Advance phase and wrap to [0, 1) to prevent floating-point drift.
+        g_thereminPhase += hz / sr;
+        if (g_thereminPhase >= 1.0f) g_thereminPhase -= 1.0f;
+
+        // Output: scale by smoothed volume.
+        out[i] = s * g_thereminCurrentVol;
+    }
+}
+
+// ── Theremin FFI exports ──────────────────────────────────────────────────────
+
+/// Initialises the theremin miniaudio context and playback device, then starts
+/// the synthesis callback.
+///
+/// Returns 0 on success, −1 if context init fails, −2 if device init fails,
+/// −3 if device start fails.  Safe to call again after theremin_stop().
+EXPORT int theremin_start(void) {
+    if (g_thereminRunning) return 0; // Already running — idempotent.
+
+    // Reset DSP state so a fresh start has no pitch or volume memory.
+    g_thereminCurrentHz  = g_thereminTargetHz;
+    g_thereminCurrentVol = 0.0f;
+    g_thereminPhase      = 0.0f;
+    g_thereminLfoPhase   = 0.0f;
+
+    // Initialise a dedicated miniaudio context (independent from the vocoder).
+    ma_result result = ma_context_init(NULL, 0, NULL, &g_thereminCtx);
+    if (result != MA_SUCCESS) {
+        LOGE("theremin_start: context init failed (%d)", result);
+        return -1;
+    }
+
+    // Configure a low-latency mono f32 playback device.
+    ma_device_config cfg = ma_device_config_init(ma_device_type_playback);
+    cfg.playback.format   = ma_format_f32;
+    cfg.playback.channels = 1;
+    cfg.sampleRate        = SAMPLE_RATE;
+    cfg.dataCallback      = theremin_data_callback;
+    cfg.performanceProfile = ma_performance_profile_low_latency;
+    cfg.periodSizeInFrames = 256;
+    cfg.periods            = 2;
+
+    result = ma_device_init(&g_thereminCtx, &cfg, &g_thereminDev);
+    if (result != MA_SUCCESS) {
+        LOGE("theremin_start: device init failed (%d)", result);
+        ma_context_uninit(&g_thereminCtx);
+        return -2;
+    }
+
+    result = ma_device_start(&g_thereminDev);
+    if (result != MA_SUCCESS) {
+        LOGE("theremin_start: device start failed (%d)", result);
+        ma_device_uninit(&g_thereminDev);
+        ma_context_uninit(&g_thereminCtx);
+        return -3;
+    }
+
+    g_thereminRunning = true;
+    return 0;
+}
+
+/// Stops and uninitialises the theremin audio device and context.
+///
+/// Immediately silences output by zeroing the current volume before stopping
+/// the device, preventing a click artefact on shutdown.
+EXPORT void theremin_stop(void) {
+    if (!g_thereminRunning) return;
+    // Zero volume first to fade out any ongoing sound before stopping device.
+    g_thereminCurrentVol = 0.0f;
+    ma_device_stop(&g_thereminDev);
+    ma_device_uninit(&g_thereminDev);
+    ma_context_uninit(&g_thereminCtx);
+    g_thereminRunning = false;
+}
+
+/// Sets the theremin target pitch frequency in Hz.
+///
+/// The audio callback glides to this frequency exponentially (τ ≈ 42 ms)
+/// so pitch changes are smooth and theremin-like.
+/// [hz] is clamped to the audible range [20, 20000].
+EXPORT void theremin_set_pitch_hz(float hz) {
+    if (hz < 20.0f)     hz = 20.0f;
+    if (hz > 20000.0f)  hz = 20000.0f;
+    g_thereminTargetHz = hz;
+}
+
+/// Sets the theremin output volume.
+///
+/// [volume] is normalised [0, 1]; internally scaled by 0.85 to leave headroom
+/// for the vibrato modulation.  The audio callback smooths changes (τ ≈ 7 ms).
+EXPORT void theremin_set_volume(float volume) {
+    if (volume < 0.0f) volume = 0.0f;
+    if (volume > 1.0f) volume = 1.0f;
+    g_thereminTargetVol = volume * 0.85f;
+}
+
+/// Sets the vibrato depth applied by the 6.5 Hz LFO.
+///
+/// [depth] ∈ [0, 1]: 0 = no vibrato, 1 = ±0.5 semitone modulation.
+/// Changes take effect on the very next audio callback frame.
+EXPORT void theremin_set_vibrato(float depth) {
+    if (depth < 0.0f) depth = 0.0f;
+    if (depth > 1.0f) depth = 1.0f;
+    g_thereminVibDepth = depth;
+}
+
+// =============================================================================
+// STYLOPHONE SYNTH — Monophonic waveform oscillator
+// =============================================================================
+// Emulates the Dubreq Stylophone: buzzy, monophonic, waveform-selectable.
+// Waveforms: 0=Square (default), 1=Sawtooth, 2=Sine, 3=Triangle.
+// Phase is NOT reset between keys so sliding sounds click-free.
+// Short release envelope (τ ≈ 100 ms) prevents click on note-off.
+
+// ── Stylophone device state ───────────────────────────────────────────────────
+
+/// miniaudio context dedicated to the stylophone playback device.
+static ma_context g_styloCtx;
+
+/// miniaudio playback device that runs the stylophone synthesis callback.
+static ma_device  g_styloDev;
+
+/// True while the stylophone device is initialised and running.
+static bool       g_styloRunning = false;
+
+// ── Stylophone DSP parameters (written by Dart thread, read by audio callback) ─
+
+/// Current oscillator frequency in Hz, set by Dart via stylophone_note_on.
+static volatile float g_styloCurrentHz   = 440.0f;
+
+/// Active waveform: 0=Square, 1=Sawtooth, 2=Sine, 3=Triangle.
+static volatile int   g_styloWaveform    = 0;
+
+/// 1 when a note is being pressed; 0 during release.
+static volatile int   g_styloNoteActive  = 0;
+
+// ── Stylophone internal DSP state (audio-thread only) ────────────────────────
+
+/// Oscillator phase accumulator [0, 1).  Preserved between notes for legato.
+static float g_styloPhase = 0.0f;
+
+/// Amplitude envelope [0, 1].  Rises on note-on, decays exponentially on note-off.
+static float g_styloEnv   = 0.0f;
+
+/// Attack ramp per sample: reaches 1.0 in ~2 ms at 48 kHz.
+#define STYLO_ATTACK       0.004f
+
+/// Release coefficient: applied each sample during note-off → τ ≈ 104 ms.
+#define STYLO_RELEASE_COEF 0.9998f
+
+/// Master output volume with headroom margin.
+#define STYLO_MASTER_VOL   0.75f
+
+// ── Stylophone audio callback ─────────────────────────────────────────────────
+
+/// miniaudio data callback for the stylophone playback device.
+///
+/// Runs entirely on the audio thread; allocation-free.
+/// Envelope: linear attack (~2 ms) on note-on, exponential release (~104 ms) on note-off.
+/// Phase is continuous across note changes so legato slides are click-free.
+static void stylophone_data_callback(
+    ma_device* pDevice,
+    void* pOutput,
+    const void* pInput,
+    ma_uint32 frameCount)
+{
+    (void)pInput;
+    float* out = (float*)pOutput;
+    const float sr = (float)pDevice->sampleRate;
+
+    // Cache waveform locally to avoid repeated volatile reads in the hot loop.
+    const int waveform = g_styloWaveform;
+
+    for (ma_uint32 i = 0; i < frameCount; i++) {
+        // Step 1 — Envelope: linear attack on note-on, exponential decay on note-off.
+        if (g_styloNoteActive) {
+            // Attack: ramp up from 0 → 1 over ~2 ms to prevent a pop on first key press.
+            g_styloEnv += STYLO_ATTACK;
+            if (g_styloEnv > 1.0f) g_styloEnv = 1.0f;
+        } else {
+            // Release: exponential decay.  Clamp to zero below a perceptual threshold.
+            g_styloEnv *= STYLO_RELEASE_COEF;
+            if (g_styloEnv < 1e-5f) g_styloEnv = 0.0f;
+        }
+
+        // Use a local copy of phase for readability.
+        const float phase = g_styloPhase;
+
+        // Step 2 — Waveform synthesis based on selected waveform index.
+        float s;
+        switch (waveform) {
+            default:
+            case 0: // Square: classic Stylophone buzz.
+                s = (phase < 0.5f) ? 1.0f : -1.0f;
+                break;
+            case 1: // Sawtooth: brighter, richer harmonic content.
+                s = phase * 2.0f - 1.0f;
+                break;
+            case 2: // Sine: pure, flute-like tone.
+                s = sinf(phase * 6.28318530718f);
+                break;
+            case 3: // Triangle: softer than square, odd harmonics only.
+                s = (phase < 0.5f) ? (phase * 4.0f - 1.0f) : (3.0f - phase * 4.0f);
+                break;
+        }
+
+        // Step 3 — Advance phase accumulator and wrap to [0, 1).
+        g_styloPhase += g_styloCurrentHz / sr;
+        if (g_styloPhase >= 1.0f) g_styloPhase -= 1.0f;
+
+        // Step 4 — Apply envelope and master volume.
+        out[i] = s * g_styloEnv * STYLO_MASTER_VOL;
+    }
+}
+
+// ── Stylophone FFI exports ────────────────────────────────────────────────────
+
+/// Initialises the stylophone miniaudio context and playback device, then starts
+/// the synthesis callback.
+///
+/// Returns 0 on success, −1 if context init fails, −2 if device init fails,
+/// −3 if device start fails.  Safe to call again after stylophone_stop().
+EXPORT int stylophone_start(void) {
+    if (g_styloRunning) return 0; // Already running — idempotent.
+
+    // Reset envelope; keep phase intact so a quick stop/start is seamless.
+    g_styloEnv = 0.0f;
+
+    ma_result result = ma_context_init(NULL, 0, NULL, &g_styloCtx);
+    if (result != MA_SUCCESS) {
+        LOGE("stylophone_start: context init failed (%d)", result);
+        return -1;
+    }
+
+    ma_device_config cfg = ma_device_config_init(ma_device_type_playback);
+    cfg.playback.format    = ma_format_f32;
+    cfg.playback.channels  = 1;
+    cfg.sampleRate         = SAMPLE_RATE;
+    cfg.dataCallback       = stylophone_data_callback;
+    cfg.performanceProfile = ma_performance_profile_low_latency;
+    cfg.periodSizeInFrames = 256;
+    cfg.periods            = 2;
+
+    result = ma_device_init(&g_styloCtx, &cfg, &g_styloDev);
+    if (result != MA_SUCCESS) {
+        LOGE("stylophone_start: device init failed (%d)", result);
+        ma_context_uninit(&g_styloCtx);
+        return -2;
+    }
+
+    result = ma_device_start(&g_styloDev);
+    if (result != MA_SUCCESS) {
+        LOGE("stylophone_start: device start failed (%d)", result);
+        ma_device_uninit(&g_styloDev);
+        ma_context_uninit(&g_styloCtx);
+        return -3;
+    }
+
+    g_styloRunning = true;
+    return 0;
+}
+
+/// Stops and uninitialises the stylophone audio device and context.
+///
+/// The note-active flag is cleared so the release envelope winds down
+/// naturally through the remaining callback frames before device stop.
+EXPORT void stylophone_stop(void) {
+    if (!g_styloRunning) return;
+    g_styloNoteActive = 0;
+    ma_device_stop(&g_styloDev);
+    ma_device_uninit(&g_styloDev);
+    ma_context_uninit(&g_styloCtx);
+    g_styloRunning = false;
+}
+
+/// Starts a note at the given frequency.
+///
+/// [hz] is clamped to [20, 20000].  Phase is NOT reset so sliding from one
+/// key to another is seamless (no click at the transition).
+/// The amplitude envelope immediately starts rising from its current value.
+EXPORT void stylophone_note_on(float hz) {
+    if (hz < 20.0f)     hz = 20.0f;
+    if (hz > 20000.0f)  hz = 20000.0f;
+    g_styloCurrentHz  = hz;
+    g_styloNoteActive = 1;
+}
+
+/// Releases the current note, triggering the exponential release envelope.
+///
+/// The oscillator continues running during the release (τ ≈ 104 ms) so the
+/// sound fades gracefully rather than cutting abruptly.
+EXPORT void stylophone_note_off(void) {
+    g_styloNoteActive = 0;
+}
+
+/// Selects the oscillator waveform.
+///
+/// [waveform] is clamped to [0, 3]: 0=Square, 1=Sawtooth, 2=Sine, 3=Triangle.
+/// Takes effect on the very next audio callback frame.
+EXPORT void stylophone_set_waveform(int waveform) {
+    if (waveform < 0) waveform = 0;
+    if (waveform > 3) waveform = 3;
+    g_styloWaveform = waveform;
+}

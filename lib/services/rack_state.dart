@@ -530,6 +530,14 @@ class RackState extends ChangeNotifier {
     Timer.run(() => onChanged?.call());
   }
 
+  /// Public helper for plugin slot widgets that need to trigger both a
+  /// [notifyListeners] rebuild and an autosave without calling the protected
+  /// [notifyListeners] directly from outside this class.
+  void markDirty() {
+    notifyListeners();
+    _notifyChanged();
+  }
+
   /// Returns the next unused MIDI channel (1–16), or -1 if all are taken.
   /// Slots with [midiChannel] == 0 (MIDI FX / pure effect) are not counted.
   int nextAvailableMidiChannel() {

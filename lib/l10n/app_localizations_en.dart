@@ -967,4 +967,63 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get keyHeightExtraLarge => 'Extra Large';
+
+  @override
+  String get rackAddStylophone => 'Stylophone';
+
+  @override
+  String get rackAddStyloPhoneSubtitle =>
+      'Monophonic metal-strip instrument (GFPA)';
+
+  @override
+  String get rackAddTheremin => 'Theremin';
+
+  @override
+  String get rackAddThereminSubtitle =>
+      'Touch pad — vertical pitch, horizontal volume (GFPA)';
+
+  @override
+  String get thereminModePad => 'PAD';
+
+  @override
+  String get thereminModeCam => 'CAM';
+
+  @override
+  String get thereminCamHint =>
+      'Move your hand towards or away from the camera to play';
+
+  @override
+  String get thereminCamErrUnsupported =>
+      'Camera mode is not available on this platform.';
+
+  @override
+  String get thereminCamErrNoPermission =>
+      'Camera permission denied. Switch to PAD mode to try again.';
+
+  @override
+  String get thereminCamErrNoCamera =>
+      'No suitable camera found on this device.';
+
+  @override
+  String get thereminCamErrFixedFocus =>
+      'This camera has fixed focus — hand tracking is not available.';
+
+  @override
+  String get thereminCamErrConfigError =>
+      'Camera configuration error. Please switch to PAD mode.';
+
+  @override
+  String get styloWaveformSquare => 'SQR';
+
+  @override
+  String get styloWaveformSawtooth => 'SAW';
+
+  @override
+  String get styloWaveformSine => 'SIN';
+
+  @override
+  String get styloWaveformTriangle => 'TRI';
+
+  @override
+  String get thereminVibrato => 'VIB';
 }

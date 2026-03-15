@@ -1,9 +1,12 @@
+import 'dart:math' show pow;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../models/gfpa_plugin_instance.dart';
 import '../../plugins/gf_stylophone_plugin.dart';
-import '../../services/audio_engine.dart';
+import '../../services/audio_input_ffi.dart';
 import '../../services/rack_state.dart';
 import 'package:grooveforge_plugin_api/grooveforge_plugin_api.dart';
 
@@ -13,13 +16,17 @@ import 'package:grooveforge_plugin_api/grooveforge_plugin_api.dart';
 /// user plays by touching or sliding, mimicking the feel of pressing a metal
 /// stylus against the Stylophone's printed keyboard.
 ///
-/// Monophony is enforced here: when the touch slides from one key to the
-/// next, [AudioEngine.stopNote] is called on the previous key before
-/// [AudioEngine.playNote] is called on the new one.
+/// Monophony is enforced here: when the touch slides from one key to the next,
+/// [AudioInputFFI.styloNoteOn] is called with the new frequency.  Because the
+/// native C oscillator preserves phase across frequency changes, the legato
+/// transition is click-free.
 ///
-/// The octave shift (−2 to +2) is stored in [GFpaPluginInstance.state] for
-/// project persistence and kept in sync with [GFStyloPhonePlugin] in the
-/// [GFPluginRegistry].
+/// A waveform selector row (SQR / SAW / SIN / TRI) is displayed between the
+/// octave controls and the key strip.
+///
+/// The octave shift (−2 to +2) and waveform (0–3) are stored in
+/// [GFpaPluginInstance.state] for project persistence and kept in sync with
+/// [GFStyloPhonePlugin] in the [GFPluginRegistry].
 class GFpaStyloPhoneSlotUI extends StatefulWidget {
   const GFpaStyloPhoneSlotUI({super.key, required this.plugin});
 
@@ -36,11 +43,37 @@ class _GFpaStyloPhoneSlotUIState extends State<GFpaStyloPhoneSlotUI> {
   /// Number of chromatic keys shown: 2 octaves + top C = 25 notes.
   static const int _numKeys = 25;
 
+  // ─── Lifecycle ────────────────────────────────────────────────────────────
+
+  @override
+  void initState() {
+    super.initState();
+    // Start the native C oscillator for this slot.
+    AudioInputFFI().styloStart();
+    // Sync waveform if it was persisted from a previous session.
+    final saved = _waveform;
+    if (saved != 0) {
+      AudioInputFFI().styloSetWaveform(saved);
+    }
+  }
+
+  @override
+  void dispose() {
+    // Silence and stop the native device before releasing resources.
+    AudioInputFFI().styloNoteOff();
+    AudioInputFFI().styloStop();
+    super.dispose();
+  }
+
   // ─── State helpers ────────────────────────────────────────────────────────
 
   /// Current octave shift from [GFpaPluginInstance.state], defaulting to 0.
   int get _octaveShift =>
       (widget.plugin.state['octaveShift'] as num?)?.toInt() ?? 0;
+
+  /// Current waveform index from [GFpaPluginInstance.state], defaulting to 0.
+  int get _waveform =>
+      (widget.plugin.state['waveform'] as num?)?.toInt().clamp(0, 3) ?? 0;
 
   /// Lowest MIDI note on the strip given the current octave shift.
   ///
@@ -49,6 +82,12 @@ class _GFpaStyloPhoneSlotUIState extends State<GFpaStyloPhoneSlotUI> {
 
   /// MIDI note for key [index] (0 = lowest, 24 = highest).
   int _keyToNote(int index) => (_baseNote + index).clamp(0, 127);
+
+  /// Converts a MIDI note number to frequency in Hz.
+  ///
+  /// Uses the standard equal-temperament formula: A4 = 440 Hz, MIDI 69.
+  double _keyToHz(int keyIndex) =>
+      440.0 * pow(2.0, (_keyToNote(keyIndex) - 69.0) / 12.0).toDouble();
 
   // ─── Octave shift ─────────────────────────────────────────────────────────
 
@@ -67,7 +106,23 @@ class _GFpaStyloPhoneSlotUIState extends State<GFpaStyloPhoneSlotUI> {
         GFStyloPhonePlugin.paramOctave, (newShift + 2) / 4.0);
 
     // Notify rack so autosave picks up the new state.
-    rack.notifyListeners();
+    rack.markDirty();
+    setState(() {});
+  }
+
+  /// Changes the oscillator waveform and persists the selection.
+  ///
+  /// Updates slot state, the native C oscillator, and the registry plugin.
+  void _changeWaveform(int waveform, RackState rack) {
+    widget.plugin.state['waveform'] = waveform;
+    // Propagate to native synth immediately (no latency).
+    AudioInputFFI().styloSetWaveform(waveform);
+    // Mirror into the registry plugin so getParameter stays consistent.
+    final registryPlugin = GFPluginRegistry.instance
+        .findById('com.grooveforge.stylophone') as GFStyloPhonePlugin?;
+    registryPlugin?.setParameter(
+        GFStyloPhonePlugin.paramWaveform, waveform / 3.0);
+    rack.markDirty();
     setState(() {});
   }
 
@@ -80,24 +135,21 @@ class _GFpaStyloPhoneSlotUIState extends State<GFpaStyloPhoneSlotUI> {
   }
 
   /// Starts or slides to a key, enforcing monophony.
-  void _pressKey(int keyIndex, AudioEngine engine, int channelIndex) {
+  ///
+  /// Phase is preserved in the native synth so sliding between keys is
+  /// click-free (no pop at transitions).
+  void _pressKey(int keyIndex) {
     if (keyIndex == _activeKeyIndex) return; // same key — nothing to do
 
-    // Stop the previous note before starting the new one (monophonic legato).
-    if (_activeKeyIndex >= 0) {
-      engine.stopNote(
-          channel: channelIndex, key: _keyToNote(_activeKeyIndex));
-    }
-
-    engine.playNote(
-        channel: channelIndex, key: _keyToNote(keyIndex), velocity: 100);
+    // Send the new frequency directly — C synth handles legato continuously.
+    AudioInputFFI().styloNoteOn(_keyToHz(keyIndex));
     setState(() => _activeKeyIndex = keyIndex);
   }
 
   /// Releases the currently sounding key.
-  void _releaseKey(AudioEngine engine, int channelIndex) {
+  void _releaseKey() {
     if (_activeKeyIndex < 0) return;
-    engine.stopNote(channel: channelIndex, key: _keyToNote(_activeKeyIndex));
+    AudioInputFFI().styloNoteOff();
     setState(() => _activeKeyIndex = -1);
   }
 
@@ -105,10 +157,8 @@ class _GFpaStyloPhoneSlotUIState extends State<GFpaStyloPhoneSlotUI> {
 
   @override
   Widget build(BuildContext context) {
-    final engine = context.read<AudioEngine>();
+    final l10n = AppLocalizations.of(context)!;
     final rack = context.read<RackState>();
-    // MIDI channels are 1-indexed; the engine expects 0-indexed.
-    final channelIndex = (widget.plugin.midiChannel - 1).clamp(0, 15);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
@@ -119,7 +169,15 @@ class _GFpaStyloPhoneSlotUIState extends State<GFpaStyloPhoneSlotUI> {
           _OctaveRow(
             octaveShift: _octaveShift,
             onDecrement: () => _changeOctave(-1, rack),
-            onIncrement: () => _changeOctave(+1, rack),
+            onIncrement: () => _changeOctave(1, rack),
+          ),
+          const SizedBox(height: 6),
+
+          // ── Waveform selector ────────────────────────────────────────────
+          _WaveformRow(
+            currentWaveform: _waveform,
+            onWaveformSelected: (w) => _changeWaveform(w, rack),
+            l10n: l10n,
           ),
           const SizedBox(height: 6),
 
@@ -132,16 +190,12 @@ class _GFpaStyloPhoneSlotUIState extends State<GFpaStyloPhoneSlotUI> {
                 return Listener(
                   // Use raw pointer events so both taps and slides are captured
                   // without gesture arena conflicts.
-                  onPointerDown: (e) => _pressKey(
-                      _xToKeyIndex(e.localPosition.dx, totalWidth),
-                      engine,
-                      channelIndex),
-                  onPointerMove: (e) => _pressKey(
-                      _xToKeyIndex(e.localPosition.dx, totalWidth),
-                      engine,
-                      channelIndex),
-                  onPointerUp: (_) => _releaseKey(engine, channelIndex),
-                  onPointerCancel: (_) => _releaseKey(engine, channelIndex),
+                  onPointerDown: (e) =>
+                      _pressKey(_xToKeyIndex(e.localPosition.dx, totalWidth)),
+                  onPointerMove: (e) =>
+                      _pressKey(_xToKeyIndex(e.localPosition.dx, totalWidth)),
+                  onPointerUp: (_) => _releaseKey(),
+                  onPointerCancel: (_) => _releaseKey(),
                   child: _StyloPhoneStripPainter(
                     numKeys: _numKeys,
                     activeKeyIndex: _activeKeyIndex,
@@ -152,6 +206,98 @@ class _GFpaStyloPhoneSlotUIState extends State<GFpaStyloPhoneSlotUI> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ─── Waveform selector row ─────────────────────────────────────────────────────
+
+/// A row of four pill-shaped toggle buttons for selecting the Stylophone waveform.
+///
+/// Labels are localised short abbreviations: SQR / SAW / SIN / TRI.
+/// The active waveform is highlighted in the same purple accent as the
+/// Theremin mode toggle, keeping the visual language consistent.
+class _WaveformRow extends StatelessWidget {
+  final int currentWaveform;
+  final ValueChanged<int> onWaveformSelected;
+  final AppLocalizations l10n;
+
+  const _WaveformRow({
+    required this.currentWaveform,
+    required this.onWaveformSelected,
+    required this.l10n,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // Map waveform index → localised label.
+    final labels = [
+      l10n.styloWaveformSquare,
+      l10n.styloWaveformSawtooth,
+      l10n.styloWaveformSine,
+      l10n.styloWaveformTriangle,
+    ];
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (int i = 0; i < 4; i++) ...[
+          if (i > 0) const SizedBox(width: 4),
+          _ModeButton(
+            label: labels[i],
+            selected: currentWaveform == i,
+            onTap: () => onWaveformSelected(i),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+// ─── Mode toggle button (shared visual language with Theremin) ────────────────
+
+/// A small pill-shaped toggle button used in the waveform selector row.
+///
+/// When [selected] is true the button is highlighted in purple.
+/// Mirrors the visual style of the Theremin PAD/CAM mode buttons.
+class _ModeButton extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback? onTap;
+
+  const _ModeButton({
+    required this.label,
+    required this.selected,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: selected
+              ? Colors.purpleAccent.withValues(alpha: 0.25)
+              : Colors.white.withValues(alpha: 0.07),
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(
+            color: selected
+                ? Colors.purpleAccent.withValues(alpha: 0.65)
+                : Colors.white24,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 9,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1,
+            color: selected ? Colors.purpleAccent : Colors.white54,
+          ),
+        ),
       ),
     );
   }
@@ -175,8 +321,7 @@ class _OctaveRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Format the octave shift with a leading + sign for positive values.
-    final label =
-        'OCT ${octaveShift >= 0 ? '+' : ''}$octaveShift';
+    final label = 'OCT ${octaveShift >= 0 ? '+' : ''}$octaveShift';
 
     return Row(
       mainAxisSize: MainAxisSize.min,

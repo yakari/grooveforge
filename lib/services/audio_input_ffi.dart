@@ -77,6 +77,70 @@ typedef VocoderPitchBendDart = void Function(int rawValue);
 typedef VocoderControlChangeC = Void Function(Int32 cc, Int32 value);
 typedef VocoderControlChangeDart = void Function(int cc, int value);
 
+// ── Theremin FFI typedefs ─────────────────────────────────────────────────────
+
+/// C signature for theremin_start: initialises the theremin device, returns int.
+typedef ThereminStartC = Int32 Function();
+
+/// Dart signature for theremin_start.
+typedef ThereminStartDart = int Function();
+
+/// C signature for theremin_stop: stops and frees the theremin device.
+typedef ThereminStopC = Void Function();
+
+/// Dart signature for theremin_stop.
+typedef ThereminStopDart = void Function();
+
+/// C signature for theremin_set_pitch_hz: sets target frequency in Hz.
+typedef ThereminSetPitchHzC = Void Function(Float hz);
+
+/// Dart signature for theremin_set_pitch_hz.
+typedef ThereminSetPitchHzDart = void Function(double hz);
+
+/// C signature for theremin_set_volume: sets target volume [0, 1].
+typedef ThereminSetVolumeC = Void Function(Float volume);
+
+/// Dart signature for theremin_set_volume.
+typedef ThereminSetVolumeDart = void Function(double volume);
+
+/// C signature for theremin_set_vibrato: sets vibrato depth [0, 1].
+typedef ThereminSetVibratoC = Void Function(Float depth);
+
+/// Dart signature for theremin_set_vibrato.
+typedef ThereminSetVibratoDart = void Function(double depth);
+
+// ── Stylophone FFI typedefs ───────────────────────────────────────────────────
+
+/// C signature for stylophone_start: initialises the stylophone device, returns int.
+typedef StyloStartC = Int32 Function();
+
+/// Dart signature for stylophone_start.
+typedef StyloStartDart = int Function();
+
+/// C signature for stylophone_stop: stops and frees the stylophone device.
+typedef StyloStopC = Void Function();
+
+/// Dart signature for stylophone_stop.
+typedef StyloStopDart = void Function();
+
+/// C signature for stylophone_note_on: starts a note at the given Hz.
+typedef StyloNoteOnC = Void Function(Float hz);
+
+/// Dart signature for stylophone_note_on.
+typedef StyloNoteOnDart = void Function(double hz);
+
+/// C signature for stylophone_note_off: triggers the release envelope.
+typedef StyloNoteOffC = Void Function();
+
+/// Dart signature for stylophone_note_off.
+typedef StyloNoteOffDart = void Function();
+
+/// C signature for stylophone_set_waveform: selects waveform 0–3.
+typedef StyloSetWaveformC = Void Function(Int32 waveform);
+
+/// Dart signature for stylophone_set_waveform.
+typedef StyloSetWaveformDart = void Function(int waveform);
+
 class AudioInputFFI {
   static AudioInputFFI? _instance;
   late DynamicLibrary _lib;
@@ -99,6 +163,40 @@ class AudioInputFFI {
   late final SetGateThresholdDart _setGateThreshold;
   late final VocoderPitchBendDart _vocoderPitchBend;
   late final VocoderControlChangeDart _vocoderControlChange;
+
+  // ── Theremin FFI function references ───────────────────────────────────────
+
+  /// Bound reference to `theremin_start` in the native library.
+  late final ThereminStartDart _thereminStart;
+
+  /// Bound reference to `theremin_stop` in the native library.
+  late final ThereminStopDart _thereminStop;
+
+  /// Bound reference to `theremin_set_pitch_hz` in the native library.
+  late final ThereminSetPitchHzDart _thereminSetPitchHz;
+
+  /// Bound reference to `theremin_set_volume` in the native library.
+  late final ThereminSetVolumeDart _thereminSetVolume;
+
+  /// Bound reference to `theremin_set_vibrato` in the native library.
+  late final ThereminSetVibratoDart _thereminSetVibrato;
+
+  // ── Stylophone FFI function references ─────────────────────────────────────
+
+  /// Bound reference to `stylophone_start` in the native library.
+  late final StyloStartDart _styloStart;
+
+  /// Bound reference to `stylophone_stop` in the native library.
+  late final StyloStopDart _styloStop;
+
+  /// Bound reference to `stylophone_note_on` in the native library.
+  late final StyloNoteOnDart _styloNoteOn;
+
+  /// Bound reference to `stylophone_note_off` in the native library.
+  late final StyloNoteOffDart _styloNoteOff;
+
+  /// Bound reference to `stylophone_set_waveform` in the native library.
+  late final StyloSetWaveformDart _styloSetWaveform;
 
   factory AudioInputFFI() {
     _instance ??= AudioInputFFI._internal();
@@ -201,6 +299,50 @@ class AudioInputFFI {
     _vocoderControlChange =
         _lib
             .lookup<NativeFunction<VocoderControlChangeC>>('VocoderControlChange')
+            .asFunction();
+
+    // ── Theremin bindings ─────────────────────────────────────────────────
+    _thereminStart =
+        _lib
+            .lookup<NativeFunction<ThereminStartC>>('theremin_start')
+            .asFunction();
+    _thereminStop =
+        _lib
+            .lookup<NativeFunction<ThereminStopC>>('theremin_stop')
+            .asFunction();
+    _thereminSetPitchHz =
+        _lib
+            .lookup<NativeFunction<ThereminSetPitchHzC>>('theremin_set_pitch_hz')
+            .asFunction();
+    _thereminSetVolume =
+        _lib
+            .lookup<NativeFunction<ThereminSetVolumeC>>('theremin_set_volume')
+            .asFunction();
+    _thereminSetVibrato =
+        _lib
+            .lookup<NativeFunction<ThereminSetVibratoC>>('theremin_set_vibrato')
+            .asFunction();
+
+    // ── Stylophone bindings ───────────────────────────────────────────────
+    _styloStart =
+        _lib
+            .lookup<NativeFunction<StyloStartC>>('stylophone_start')
+            .asFunction();
+    _styloStop =
+        _lib
+            .lookup<NativeFunction<StyloStopC>>('stylophone_stop')
+            .asFunction();
+    _styloNoteOn =
+        _lib
+            .lookup<NativeFunction<StyloNoteOnC>>('stylophone_note_on')
+            .asFunction();
+    _styloNoteOff =
+        _lib
+            .lookup<NativeFunction<StyloNoteOffC>>('stylophone_note_off')
+            .asFunction();
+    _styloSetWaveform =
+        _lib
+            .lookup<NativeFunction<StyloSetWaveformC>>('stylophone_set_waveform')
             .asFunction();
   }
 
@@ -309,4 +451,51 @@ class AudioInputFFI {
   void controlChange(int cc, int value) {
     _vocoderControlChange(cc, value);
   }
+
+  // ── Theremin public API ───────────────────────────────────────────────────
+
+  /// Starts the theremin native synthesis device.
+  ///
+  /// Returns 0 on success; non-zero values indicate miniaudio init errors.
+  /// Idempotent: safe to call when the device is already running.
+  int thereminStart() => _thereminStart();
+
+  /// Stops the theremin native synthesis device and frees resources.
+  void thereminStop() => _thereminStop();
+
+  /// Sets the theremin target pitch in Hz (clamped to [20, 20000] by C).
+  ///
+  /// The C engine glides smoothly to the new frequency over ~42 ms.
+  void thereminSetPitchHz(double hz) => _thereminSetPitchHz(hz);
+
+  /// Sets the theremin output volume (normalised [0, 1]; C scales to 0.85).
+  ///
+  /// The C engine smooths amplitude changes over ~7 ms to prevent clicks.
+  void thereminSetVolume(double volume) => _thereminSetVolume(volume);
+
+  /// Sets the 6.5 Hz vibrato depth (normalised [0, 1]).
+  ///
+  /// 0 = no vibrato; 1 = ±0.5 semitone LFO modulation.
+  void thereminSetVibrato(double depth) => _thereminSetVibrato(depth);
+
+  // ── Stylophone public API ─────────────────────────────────────────────────
+
+  /// Starts the stylophone native synthesis device.
+  ///
+  /// Returns 0 on success; non-zero values indicate miniaudio init errors.
+  int styloStart() => _styloStart();
+
+  /// Stops the stylophone native synthesis device and frees resources.
+  void styloStop() => _styloStop();
+
+  /// Starts a note at [hz] (clamped to [20, 20000]).
+  ///
+  /// Phase is preserved so sliding between keys is seamless (no click).
+  void styloNoteOn(double hz) => _styloNoteOn(hz);
+
+  /// Releases the current note, starting the exponential release envelope.
+  void styloNoteOff() => _styloNoteOff();
+
+  /// Selects the oscillator waveform: 0=Square, 1=Sawtooth, 2=Sine, 3=Triangle.
+  void styloSetWaveform(int waveform) => _styloSetWaveform(waveform);
 }

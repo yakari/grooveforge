@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Theremin CAM mode** (Android / iOS / macOS): tap the **CAM** toggle above the pad to switch from touch to camera-based playing. The front camera's autofocus focal distance tracks hand proximity — move your hand closer to raise pitch, farther to lower it. An EMA filter (α = 0.15) smooths raw per-frame readings for musical responsiveness. A glowing orb follows the camera-computed hand position. Volume stays at full in this mode. Graceful degradation: fixed-focus cameras, denied permissions, and unsupported platforms (Linux, Windows, web) show a localised error message; the CAM button is greyed-out with a tooltip on platforms that have no camera plugin support.
 - Both plugins appear in the "Add Plugin" sheet with dedicated icons (`linear_scale` for Stylophone, `sensors` for Theremin).
 - Backlog tracked for future GFPA plugins: Chord Arpeggiator, Spectral Reverb, Drum Machine / Step Sequencer, Scale Harmonizer, Bit-crusher / Lo-fi.
+- **Stylophone native C synthesiser**: replaces FluidSynth with a dedicated monophonic oscillator running in its own miniaudio device. Four waveforms selectable in-slot — SQR (square, classic Stylophone buzz), SAW (sawtooth), SIN (sine), TRI (triangle). Phase is preserved across key slides for click-free legato. Short release envelope (τ ≈ 104 ms) eliminates click on note-off. Waveform selection persists in the project save file.
+- **Theremin native C synthesiser**: replaces FluidSynth with a dedicated sine oscillator running in its own miniaudio device. Features smooth portamento (τ ≈ 42 ms), 6.5 Hz vibrato LFO with adjustable depth (0–100 % in 25 % steps via in-slot +/− buttons), and a faint 3rd harmonic (+10 %) for warmth. Pitch is sent as direct Hz values (not stepped MIDI notes) so the glide is continuous. Vibrato depth persists in the project save file.
+- Vibrato control added to the Theremin sidebar (VIB label, +/− buttons, values 0 %/25 %/50 %/75 %/100 %).
+- Camera mode for the Theremin now sends full native volume (1.0) rather than MIDI CC 7.
 
 ## [2.5.3] - 2026-03-14
 
