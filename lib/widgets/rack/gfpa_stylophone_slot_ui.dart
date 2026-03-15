@@ -4,10 +4,17 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../../models/audio_port_id.dart';
 import '../../models/gfpa_plugin_instance.dart';
+import '../../models/looper_plugin_instance.dart';
+import '../../models/vst3_plugin_instance.dart';
 import '../../plugins/gf_stylophone_plugin.dart';
+import '../../services/audio_engine.dart';
+import '../../services/audio_graph.dart';
 import '../../services/audio_input_ffi.dart';
+import '../../services/looper_engine.dart';
 import '../../services/rack_state.dart';
+import '../../services/vst_host_service.dart';
 import 'package:grooveforge_plugin_api/grooveforge_plugin_api.dart';
 
 /// Rack-slot body for the GFPA Stylophone plugin.
@@ -24,9 +31,15 @@ import 'package:grooveforge_plugin_api/grooveforge_plugin_api.dart';
 /// A waveform selector row (SQR / SAW / SIN / TRI) is displayed between the
 /// octave controls and the key strip.
 ///
-/// The octave shift (−2 to +2) and waveform (0–3) are stored in
-/// [GFpaPluginInstance.state] for project persistence and kept in sync with
-/// [GFStyloPhonePlugin] in the [GFPluginRegistry].
+/// **MIDI OUT**: every key press dispatches a MIDI note-on (and every release
+/// a note-off) to all slots connected via the back-panel MIDI OUT jack.  This
+/// lets the Stylophone drive a GF Keyboard, VST3, or MIDI Looper slot.  When
+/// the MUTE toggle is on the native C synthesiser is silenced while MIDI
+/// events continue to flow.
+///
+/// The octave shift (−2 to +2), waveform (0–3), vibrato, and mute flag are
+/// stored in [GFpaPluginInstance.state] for project persistence and kept in
+/// sync with [GFStyloPhonePlugin] in the [GFPluginRegistry].
 class GFpaStyloPhoneSlotUI extends StatefulWidget {
   const GFpaStyloPhoneSlotUI({super.key, required this.plugin});
 
@@ -55,6 +68,9 @@ class _GFpaStyloPhoneSlotUIState extends State<GFpaStyloPhoneSlotUI> {
     if (saved != 0) {
       AudioInputFFI().styloSetWaveform(saved);
     }
+    // Sync vibrato if it was persisted from a previous session.
+    final savedVib = _vibrato;
+    if (savedVib > 0.0) AudioInputFFI().styloSetVibrato(savedVib);
   }
 
   @override
@@ -75,6 +91,11 @@ class _GFpaStyloPhoneSlotUIState extends State<GFpaStyloPhoneSlotUI> {
   int get _waveform =>
       (widget.plugin.state['waveform'] as num?)?.toInt().clamp(0, 3) ?? 0;
 
+  /// Current vibrato depth from [GFpaPluginInstance.state], defaulting to 0.0.
+  double get _vibrato =>
+      (widget.plugin.state['vibrato'] as num?)?.toDouble().clamp(0.0, 1.0) ??
+      0.0;
+
   /// Lowest MIDI note on the strip given the current octave shift.
   ///
   /// The strip always starts at C; C3 (MIDI 48) is the no-shift baseline.
@@ -88,6 +109,88 @@ class _GFpaStyloPhoneSlotUIState extends State<GFpaStyloPhoneSlotUI> {
   /// Uses the standard equal-temperament formula: A4 = 440 Hz, MIDI 69.
   double _keyToHz(int keyIndex) =>
       440.0 * pow(2.0, (_keyToNote(keyIndex) - 69.0) / 12.0).toDouble();
+
+  /// Whether the native C synthesiser is muted (MIDI OUT continues to flow).
+  bool get _muteSound =>
+      (widget.plugin.state['muteSound'] as bool?) ?? false;
+
+  // ─── MIDI OUT dispatch ────────────────────────────────────────────────────
+
+  /// Sends a MIDI note-on to every slot connected to this plugin's MIDI OUT
+  /// jack.  Mirrors the routing logic of [_RackSlotWidget._dispatchMidiNoteOn]
+  /// so Looper, VST3, and FluidSynth targets are all handled correctly.
+  void _dispatchNoteOn(BuildContext context, int note) {
+    final cables = context
+        .read<AudioGraph>()
+        .connectionsFrom(widget.plugin.id)
+        .where((c) => c.fromPort == AudioPortId.midiOut)
+        .toList();
+    if (cables.isEmpty) return;
+
+    // Channel index: GFpaPluginInstance stores 1-indexed MIDI channel.
+    final ch = (widget.plugin.midiChannel - 1).clamp(0, 15);
+    final status = 0x90 | (ch & 0x0F);
+    final engine = context.read<AudioEngine>();
+
+    for (final cable in cables) {
+      final target = context
+          .read<RackState>()
+          .plugins
+          .where((p) => p.id == cable.toSlotId)
+          .firstOrNull;
+      if (target == null) continue;
+
+      if (target is LooperPluginInstance) {
+        context.read<LooperEngine>().feedMidiEvent(target.id, status, note, 100);
+        continue;
+      }
+
+      final targetCh = (target.midiChannel - 1).clamp(0, 15);
+      if (target is Vst3PluginInstance) {
+        context.read<VstHostService>().noteOn(target.id, 0, note, 1.0);
+        engine.noteOnUiOnly(channel: targetCh, key: note);
+      } else {
+        engine.playNote(channel: targetCh, key: note, velocity: 100);
+      }
+    }
+  }
+
+  /// Sends a MIDI note-off to every slot connected to this plugin's MIDI OUT
+  /// jack.  Mirrors [_dispatchNoteOn].
+  void _dispatchNoteOff(BuildContext context, int note) {
+    final cables = context
+        .read<AudioGraph>()
+        .connectionsFrom(widget.plugin.id)
+        .where((c) => c.fromPort == AudioPortId.midiOut)
+        .toList();
+    if (cables.isEmpty) return;
+
+    final ch = (widget.plugin.midiChannel - 1).clamp(0, 15);
+    final status = 0x80 | (ch & 0x0F);
+    final engine = context.read<AudioEngine>();
+
+    for (final cable in cables) {
+      final target = context
+          .read<RackState>()
+          .plugins
+          .where((p) => p.id == cable.toSlotId)
+          .firstOrNull;
+      if (target == null) continue;
+
+      if (target is LooperPluginInstance) {
+        context.read<LooperEngine>().feedMidiEvent(target.id, status, note, 0);
+        continue;
+      }
+
+      final targetCh = (target.midiChannel - 1).clamp(0, 15);
+      if (target is Vst3PluginInstance) {
+        context.read<VstHostService>().noteOff(target.id, 0, note);
+        engine.noteOffUiOnly(channel: targetCh, key: note);
+      } else {
+        engine.stopNote(channel: targetCh, key: note);
+      }
+    }
+  }
 
   // ─── Octave shift ─────────────────────────────────────────────────────────
 
@@ -126,6 +229,35 @@ class _GFpaStyloPhoneSlotUIState extends State<GFpaStyloPhoneSlotUI> {
     setState(() {});
   }
 
+  /// Toggles the native synthesiser mute flag.
+  ///
+  /// When muted, key presses still dispatch MIDI OUT events so connected
+  /// instruments (GFK, VST3, etc.) continue to respond, but the built-in C
+  /// oscillator is silenced.
+  void _toggleMute(RackState rack) {
+    widget.plugin.state['muteSound'] = !_muteSound;
+    // If currently playing, silence the native oscillator immediately.
+    if (_muteSound && _activeKeyIndex >= 0) AudioInputFFI().styloNoteOff();
+    rack.markDirty();
+    setState(() {});
+  }
+
+  /// Toggles vibrato between off (0.0) and on (0.7).
+  ///
+  /// A depth of 0.7 gives a noticeable but musically tasteful tape-wobble
+  /// without over-modulating the pitch.
+  void _toggleVibrato(RackState rack) {
+    final newVal = _vibrato > 0.0 ? 0.0 : 0.7;
+    widget.plugin.state['vibrato'] = newVal;
+    AudioInputFFI().styloSetVibrato(newVal);
+    // Mirror into the registry plugin so getParameter stays consistent.
+    final reg = GFPluginRegistry.instance
+        .findById('com.grooveforge.stylophone') as GFStyloPhonePlugin?;
+    reg?.setParameter(GFStyloPhonePlugin.paramVibrato, newVal);
+    rack.markDirty();
+    setState(() {});
+  }
+
   // ─── Note events ──────────────────────────────────────────────────────────
 
   /// Converts a horizontal pointer position to a key index.
@@ -138,18 +270,35 @@ class _GFpaStyloPhoneSlotUIState extends State<GFpaStyloPhoneSlotUI> {
   ///
   /// Phase is preserved in the native synth so sliding between keys is
   /// click-free (no pop at transitions).
-  void _pressKey(int keyIndex) {
+  ///
+  /// Also dispatches a MIDI note-on (and note-off for the previous key) to
+  /// any slots wired to the MIDI OUT jack.  Native audio is skipped when the
+  /// MUTE toggle is on.
+  void _pressKey(int keyIndex, BuildContext ctx) {
     if (keyIndex == _activeKeyIndex) return; // same key — nothing to do
 
-    // Send the new frequency directly — C synth handles legato continuously.
-    AudioInputFFI().styloNoteOn(_keyToHz(keyIndex));
+    final note = _keyToNote(keyIndex);
+    final prevNote = _activeKeyIndex >= 0 ? _keyToNote(_activeKeyIndex) : -1;
+
+    // Native sound — skipped when muted.
+    if (!_muteSound) AudioInputFFI().styloNoteOn(_keyToHz(keyIndex));
+
+    // MIDI OUT: release previous note then press new one.
+    if (prevNote >= 0) _dispatchNoteOff(ctx, prevNote);
+    _dispatchNoteOn(ctx, note);
+
     setState(() => _activeKeyIndex = keyIndex);
   }
 
   /// Releases the currently sounding key.
-  void _releaseKey() {
+  ///
+  /// Silences native audio (unless muted) and sends a MIDI note-off to any
+  /// connected MIDI OUT targets.
+  void _releaseKey(BuildContext ctx) {
     if (_activeKeyIndex < 0) return;
-    AudioInputFFI().styloNoteOff();
+    final note = _keyToNote(_activeKeyIndex);
+    if (!_muteSound) AudioInputFFI().styloNoteOff();
+    _dispatchNoteOff(ctx, note);
     setState(() => _activeKeyIndex = -1);
   }
 
@@ -179,7 +328,26 @@ class _GFpaStyloPhoneSlotUIState extends State<GFpaStyloPhoneSlotUI> {
             onWaveformSelected: (w) => _changeWaveform(w, rack),
             l10n: l10n,
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
+
+          // ── Vibrato + Mute toggles ───────────────────────────────────────
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _VibratoRow(
+                vibratoOn: _vibrato > 0.0,
+                onToggle: () => _toggleVibrato(rack),
+              ),
+              const SizedBox(width: 4),
+              // MUTE silences the native synth while MIDI OUT keeps flowing.
+              _ModeButton(
+                label: l10n.midiMuteOwnSound,
+                selected: _muteSound,
+                onTap: () => _toggleMute(rack),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
 
           // ── Key strip ────────────────────────────────────────────────────
           SizedBox(
@@ -190,12 +358,12 @@ class _GFpaStyloPhoneSlotUIState extends State<GFpaStyloPhoneSlotUI> {
                 return Listener(
                   // Use raw pointer events so both taps and slides are captured
                   // without gesture arena conflicts.
-                  onPointerDown: (e) =>
-                      _pressKey(_xToKeyIndex(e.localPosition.dx, totalWidth)),
-                  onPointerMove: (e) =>
-                      _pressKey(_xToKeyIndex(e.localPosition.dx, totalWidth)),
-                  onPointerUp: (_) => _releaseKey(),
-                  onPointerCancel: (_) => _releaseKey(),
+                  onPointerDown: (e) => _pressKey(
+                      _xToKeyIndex(e.localPosition.dx, totalWidth), ctx),
+                  onPointerMove: (e) => _pressKey(
+                      _xToKeyIndex(e.localPosition.dx, totalWidth), ctx),
+                  onPointerUp: (_) => _releaseKey(ctx),
+                  onPointerCancel: (_) => _releaseKey(ctx),
                   child: _StyloPhoneStripPainter(
                     numKeys: _numKeys,
                     activeKeyIndex: _activeKeyIndex,
@@ -382,6 +550,54 @@ class _OctaveButton extends StatelessWidget {
         onPressed: enabled ? onPressed : null,
         child: Icon(icon, size: 14),
       ),
+    );
+  }
+}
+
+// ─── Vibrato toggle row ───────────────────────────────────────────────────────
+
+/// A compact row with a single VIB toggle button for the stylophone.
+///
+/// When active, a 5.5 Hz vibrato LFO wobbles the pitch by ±0.5 semitone,
+/// reproducing the tape-wobble effect of vintage Stylophones.
+class _VibratoRow extends StatelessWidget {
+  final bool vibratoOn;
+  final VoidCallback onToggle;
+
+  const _VibratoRow({required this.vibratoOn, required this.onToggle});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        GestureDetector(
+          onTap: onToggle,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: vibratoOn
+                  ? Colors.purpleAccent.withValues(alpha: 0.25)
+                  : Colors.white.withValues(alpha: 0.07),
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(
+                color: vibratoOn
+                    ? Colors.purpleAccent.withValues(alpha: 0.65)
+                    : Colors.white24,
+              ),
+            ),
+            child: Text(
+              'VIB',
+              style: TextStyle(
+                fontSize: 9,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1,
+                color: vibratoOn ? Colors.purpleAccent : Colors.white38,
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

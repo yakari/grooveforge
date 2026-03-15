@@ -141,6 +141,12 @@ typedef StyloSetWaveformC = Void Function(Int32 waveform);
 /// Dart signature for stylophone_set_waveform.
 typedef StyloSetWaveformDart = void Function(int waveform);
 
+/// C signature for stylophone_set_vibrato: sets vibrato depth [0.0, 1.0].
+typedef StyloSetVibratoC = Void Function(Float depth);
+
+/// Dart signature for stylophone_set_vibrato.
+typedef StyloSetVibratoDart = void Function(double depth);
+
 class AudioInputFFI {
   static AudioInputFFI? _instance;
   late DynamicLibrary _lib;
@@ -197,6 +203,9 @@ class AudioInputFFI {
 
   /// Bound reference to `stylophone_set_waveform` in the native library.
   late final StyloSetWaveformDart _styloSetWaveform;
+
+  /// Bound reference to `stylophone_set_vibrato` in the native library.
+  late final StyloSetVibratoDart _styloSetVibrato;
 
   factory AudioInputFFI() {
     _instance ??= AudioInputFFI._internal();
@@ -343,6 +352,10 @@ class AudioInputFFI {
     _styloSetWaveform =
         _lib
             .lookup<NativeFunction<StyloSetWaveformC>>('stylophone_set_waveform')
+            .asFunction();
+    _styloSetVibrato =
+        _lib
+            .lookup<NativeFunction<StyloSetVibratoC>>('stylophone_set_vibrato')
             .asFunction();
   }
 
@@ -498,4 +511,7 @@ class AudioInputFFI {
 
   /// Selects the oscillator waveform: 0=Square, 1=Sawtooth, 2=Sine, 3=Triangle.
   void styloSetWaveform(int waveform) => _styloSetWaveform(waveform);
+
+  /// Sets the stylophone vibrato depth: 0.0 = off, 1.0 = full wobble.
+  void styloSetVibrato(double depth) => _styloSetVibrato(depth);
 }

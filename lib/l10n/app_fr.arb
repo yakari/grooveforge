@@ -418,5 +418,7 @@
   "styloWaveformSawtooth": "SAW",
   "styloWaveformSine": "SIN",
   "styloWaveformTriangle": "TRI",
-  "thereminVibrato": "VIB"
+  "thereminVibrato": "VIB",
+  "thereminPadHeight": "HAUTEUR",
+  "midiMuteOwnSound": "MUTE"
 }

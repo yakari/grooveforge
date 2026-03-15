@@ -46,3 +46,6 @@ app.*.map.json
 
 # Native Android C++ build artifacts
 **/.cxx/
+
+# Local-only documentation (not for public repo)
+/docs/local/

@@ -9,22 +9,20 @@ import Flutter
  *   0.0 = hand far from camera (or no hand) → low pitch
  *   1.0 = hand at minimum focus distance    → high pitch
  *
- * Technique:
- *   1. Opens an AVCaptureSession with the front-facing wide-angle camera.
- *   2. Enables AVCaptureFocusModeContinuousAutoFocus so the lens tracks the
- *      nearest subject (the player's hand).
- *   3. Adds an AVCaptureVideoDataOutput whose per-frame callback reads
- *      AVCaptureDevice.lensPosition — already normalized to [0, 1] by iOS,
- *      where 0 = infinity and 1 = minimum focus distance.
- *   4. Emits each lensPosition to Flutter via EventChannel on the main thread.
+ * **Autofocus mode** (default for AF-capable cameras):
+ *   Reads AVCaptureDevice.lensPosition — already normalized to [0, 1] by iOS,
+ *   where 0 = infinity and 1 = minimum focus distance.
  *
- * AVCaptureDevice.lensPosition vs. LENS_FOCUS_DISTANCE (Android):
- *   Both measure where the AF motor currently sits. lensPosition is already
- *   dimensionless [0, 1]; no normalization needed on Apple platforms.
+ * **Contrast mode** (automatic fallback for fixed-focus cameras):
+ *   Computes the mean luminance of the center 50% of each YCbCr frame, applies
+ *   a 60-frame rolling min/max normalization, then emits the normalized value.
+ *   This works on any camera regardless of AF capability.
+ *
+ * An additional preview EventChannel emits 120×90 JPEG thumbnails at ≈ 5 fps
+ * so the Dart UI can show a live semi-transparent camera feed.
  *
  * Limitations:
  *   - Requires NSCameraUsageDescription in Info.plist and user permission.
- *   - Returns FIXED_FOCUS if the camera does not support continuousAutoFocus.
  *   - AF latency varies by device (iPhone 15: ~100 ms; older models: ~300 ms).
  */
 class ThereminCameraPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
@@ -33,15 +31,19 @@ class ThereminCameraPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
 
     static let methodChannelName = "com.grooveforge/theremin_camera"
     static let eventChannelName  = "com.grooveforge/theremin_camera_events"
+    static let previewChannelName = "com.grooveforge/theremin_camera_preview"
 
     // ─── State ────────────────────────────────────────────────────────────────
 
     /** Delivers distance values to Dart; set by Flutter on EventChannel.listen. */
     private var eventSink: FlutterEventSink?
 
+    /** Delivers JPEG preview thumbnails to Dart. */
+    private var previewSink: FlutterEventSink?
+
     private var captureSession: AVCaptureSession?
 
-    /** The active camera device; we read its lensPosition each frame. */
+    /** The active camera device; we read its lensPosition in AF mode each frame. */
     private var captureDevice: AVCaptureDevice?
 
     /** Serial queue for all Camera session / delegate calls. */
@@ -49,6 +51,20 @@ class ThereminCameraPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
         label: "com.grooveforge.theremin.camera",
         qos: .userInteractive
     )
+
+    // ─── Contrast-mode state ──────────────────────────────────────────────────
+
+    /** True when the camera does not support continuousAutoFocus. */
+    private var useContrastMode = false
+
+    /** EMA-smoothed contrast value emitted in contrast mode. */
+    private var smoothedContrast: Double = 0.0
+
+    /** Rolling luma history for 60-frame min/max normalization. */
+    private var lumaHistory: [Double] = []
+
+    /** Frame counter for throttling preview to ≈ 5 fps. */
+    private var frameCount = 0
 
     // ─── FlutterPlugin ────────────────────────────────────────────────────────
 
@@ -65,10 +81,16 @@ class ThereminCameraPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
             name: eventChannelName,
             binaryMessenger: messenger
         )
+        let previewChannel = FlutterEventChannel(
+            name: previewChannelName,
+            binaryMessenger: messenger
+        )
 
         let instance = ThereminCameraPlugin()
         methodChannel.setMethodCallHandler(instance.handleMethodCall(_:result:))
         eventChannel.setStreamHandler(instance)
+        let previewHandler = PreviewStreamHandler(plugin: instance)
+        previewChannel.setStreamHandler(previewHandler)
     }
 
     // ─── Method calls ─────────────────────────────────────────────────────────
@@ -81,15 +103,15 @@ class ThereminCameraPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
             stopCapture()
             result(nil)
         case "isSupported":
-            // iOS always supports this code path; actual AF support is checked
-            // in startCapture and surfaced as a FIXED_FOCUS error if absent.
+            // iOS always supports this code path; AF support is checked
+            // in startCapture, with graceful fallback to contrast mode.
             result(true)
         default:
             result(FlutterMethodNotImplemented)
         }
     }
 
-    // ─── FlutterStreamHandler ─────────────────────────────────────────────────
+    // ─── FlutterStreamHandler (distance channel) ──────────────────────────────
 
     func onListen(withArguments arguments: Any?,
                   eventSink events: @escaping FlutterEventSink) -> FlutterError? {
@@ -107,8 +129,10 @@ class ThereminCameraPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
     /**
      * Configures and starts an AVCaptureSession with the front camera.
      *
-     * Calls result(nil) once the session is configured and streaming.
-     * Returns a FlutterError via result if no AF-capable front camera is found.
+     * If the camera supports continuousAutoFocus, enables AF and uses
+     * lensPosition for distance. Otherwise falls back to contrast mode.
+     * Calls result(nil) once the session is running; never returns a
+     * FIXED_FOCUS error — that case is handled transparently.
      */
     private func startCapture(result: @escaping FlutterResult) {
         // Front-facing camera: faces the user, whose hand is in the same
@@ -124,28 +148,20 @@ class ThereminCameraPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
             return
         }
 
-        // Continuous AF is required: without it lensPosition stays fixed and
-        // carries no hand-distance information.
-        guard device.isFocusModeSupported(.continuousAutoFocus) else {
-            result(FlutterError(
-                code: "FIXED_FOCUS",
-                message: "Front camera is fixed-focus; focal distance not available",
-                details: nil
-            ))
-            return
-        }
-
-        do {
-            try device.lockForConfiguration()
-            device.focusMode = .continuousAutoFocus
-            device.unlockForConfiguration()
-        } catch {
-            result(FlutterError(
-                code: "CONFIG_ERROR",
-                message: error.localizedDescription,
-                details: nil
-            ))
-            return
+        // Decide AF vs. contrast mode based on what this camera supports.
+        if !device.isFocusModeSupported(.continuousAutoFocus) {
+            // Fixed-focus camera: fall back to brightness/contrast analysis.
+            useContrastMode = true
+        } else {
+            useContrastMode = false
+            do {
+                try device.lockForConfiguration()
+                device.focusMode = .continuousAutoFocus
+                device.unlockForConfiguration()
+            } catch {
+                // AF config failed; fall back to contrast mode.
+                useContrastMode = true
+            }
         }
 
         captureDevice = device
@@ -167,8 +183,8 @@ class ThereminCameraPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
         result: @escaping FlutterResult
     ) {
         let session = AVCaptureSession()
-        // Lowest preset: we only need the frame cadence to drive lensPosition
-        // polling — we never look at pixel data.
+        // Lowest preset: in AF mode we only need the frame cadence to drive
+        // lensPosition polling. In contrast mode low resolution is fine too.
         session.sessionPreset = .low
 
         do {
@@ -195,8 +211,8 @@ class ThereminCameraPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
             return
         }
 
-        // Video output drives the frame cadence; we read lensPosition in the
-        // per-frame delegate and discard the pixel buffer itself.
+        // Video output drives the frame cadence; in AF mode we read lensPosition
+        // in the per-frame delegate; in contrast mode we analyse the pixel buffer.
         let output = AVCaptureVideoDataOutput()
         output.alwaysDiscardsLateVideoFrames = true
         output.setSampleBufferDelegate(self, queue: captureQueue)
@@ -226,6 +242,82 @@ class ThereminCameraPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
             self?.captureSession = nil
             self?.captureDevice = nil
         }
+        frameCount = 0
+        smoothedContrast = 0.0
+        lumaHistory = []
+    }
+
+    // ─── Contrast analysis ────────────────────────────────────────────────────
+
+    /**
+     * Computes the mean luminance of the center 50% of [pixelBuffer] using
+     * the Y plane of the YCbCr pixel format, normalized via a rolling 60-frame
+     * min/max window so the value adapts to ambient lighting conditions.
+     */
+    private func computeNormalizedLuma(_ pixelBuffer: CVPixelBuffer) -> Double {
+        CVPixelBufferLockBaseAddress(pixelBuffer, .readOnly)
+        defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, .readOnly) }
+        guard let base = CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, 0) else { return 0 }
+        let w = CVPixelBufferGetWidth(pixelBuffer)
+        let h = CVPixelBufferGetHeight(pixelBuffer)
+        let stride = CVPixelBufferGetBytesPerRowOfPlane(pixelBuffer, 0)
+        let bytes = base.assumingMemoryBound(to: UInt8.self)
+        let x0 = w / 4; let x1 = w * 3 / 4
+        let y0 = h / 4; let y1 = h * 3 / 4
+        var sum: Int = 0; var count = 0
+        for row in y0..<y1 {
+            for col in x0..<x1 {
+                sum += Int(bytes[row * stride + col])
+                count += 1
+            }
+        }
+        let mean = count > 0 ? Double(sum) / Double(count) / 255.0 : 0.0
+        if lumaHistory.count >= 60 { lumaHistory.removeFirst() }
+        lumaHistory.append(mean)
+        let minL = lumaHistory.min() ?? 0; let maxL = lumaHistory.max() ?? 1
+        let range = maxL - minL
+        return range < 0.02 ? 0.0 : max(0.0, min(1.0, (mean - minL) / range))
+    }
+
+    // ─── Preview thumbnail ────────────────────────────────────────────────────
+
+    /**
+     * Sends a 120×90 JPEG grayscale thumbnail to the preview EventChannel.
+     *
+     * Called every 6th frame (≈ 5 fps) to keep bandwidth low while still
+     * giving the Dart UI a live camera feed to show behind the theremin pad.
+     */
+    private func sendPreviewFrame(_ pixelBuffer: CVPixelBuffer) {
+        let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
+        let targetSize = CGSize(width: 120, height: 90)
+        let scaleX = targetSize.width  / ciImage.extent.width
+        let scaleY = targetSize.height / ciImage.extent.height
+        let scaled = ciImage.transformed(by: CGAffineTransform(scaleX: scaleX, y: scaleY))
+        let ctx = CIContext()
+        guard let cgImage = ctx.createCGImage(scaled, from: scaled.extent) else { return }
+        let uiImage = UIImage(cgImage: cgImage)
+        guard let jpegData = uiImage.jpegData(compressionQuality: 0.5) else { return }
+        let flutterData = FlutterStandardTypedData(bytes: jpegData)
+        DispatchQueue.main.async { [weak self] in self?.previewSink?(flutterData) }
+    }
+}
+
+// ─── Preview stream handler ────────────────────────────────────────────────────
+
+/** StreamHandler for the camera preview EventChannel. */
+private class PreviewStreamHandler: NSObject, FlutterStreamHandler {
+    weak var plugin: ThereminCameraPlugin?
+    init(plugin: ThereminCameraPlugin) { self.plugin = plugin }
+
+    func onListen(withArguments arguments: Any?,
+                  eventSink events: @escaping FlutterEventSink) -> FlutterError? {
+        plugin?.previewSink = events
+        return nil
+    }
+
+    func onCancel(withArguments arguments: Any?) -> FlutterError? {
+        plugin?.previewSink = nil
+        return nil
     }
 }
 
@@ -236,26 +328,39 @@ extension ThereminCameraPlugin: AVCaptureVideoDataOutputSampleBufferDelegate {
     /**
      * Called by AVFoundation once per video frame on [captureQueue].
      *
-     * Reads AVCaptureDevice.lensPosition: a Float already normalized to
-     * [0.0 = infinity, 1.0 = minimum focus distance]. This value changes as
-     * the AF motor tracks the player's hand.
+     * In AF mode: reads lensPosition (already normalized [0,1]) and emits it.
+     * In contrast mode: analyses the Y-plane luminance and emits a normalized
+     * brightness value that tracks the hand's distance from the camera.
      *
-     * Emits the value to Flutter on the main thread.
+     * Also sends a JPEG preview thumbnail every 6th frame (≈ 5 fps).
      */
     func captureOutput(
         _ output: AVCaptureOutput,
         didOutput sampleBuffer: CMSampleBuffer,
         from connection: AVCaptureConnection
     ) {
-        guard let device = captureDevice else { return }
+        frameCount += 1
 
-        // lensPosition: 0 = infinity (far hand, low pitch),
-        //               1 = closest focus (near hand, high pitch).
-        let pos = Double(device.lensPosition)
+        // Distance signal.
+        if useContrastMode {
+            // Brightness/contrast analysis of the center 50% of the frame.
+            if let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) {
+                let luma = computeNormalizedLuma(pixelBuffer)
+                smoothedContrast = smoothedContrast * 0.85 + luma * 0.15
+                let val = smoothedContrast
+                DispatchQueue.main.async { [weak self] in self?.eventSink?(val) }
+            }
+        } else {
+            guard let device = captureDevice else { return }
+            // lensPosition: 0 = infinity (far hand, low pitch),
+            //               1 = closest focus (near hand, high pitch).
+            let pos = Double(device.lensPosition)
+            DispatchQueue.main.async { [weak self] in self?.eventSink?(pos) }
+        }
 
-        // EventSink must be called on the main thread.
-        DispatchQueue.main.async { [weak self] in
-            self?.eventSink?(pos)
+        // Preview thumbnail every 6th frame (≈ 5 fps).
+        if frameCount % 6 == 0, let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) {
+            sendPreviewFrame(pixelBuffer)
         }
     }
 }

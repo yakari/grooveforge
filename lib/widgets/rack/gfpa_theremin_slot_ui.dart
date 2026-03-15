@@ -1,14 +1,22 @@
-import 'dart:math' show pow;
+import 'dart:math' show log, pow;
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../../models/audio_port_id.dart';
 import '../../models/gfpa_plugin_instance.dart';
+import '../../models/looper_plugin_instance.dart';
+import '../../models/vst3_plugin_instance.dart';
 import '../../plugins/gf_theremin_plugin.dart';
+import '../../services/audio_engine.dart';
+import '../../services/audio_graph.dart';
 import '../../services/audio_input_ffi.dart';
+import '../../services/looper_engine.dart';
 import '../../services/rack_state.dart';
 import '../../services/theremin_distance_service.dart';
+import '../../services/vst_host_service.dart';
 import 'package:grooveforge_plugin_api/grooveforge_plugin_api.dart';
 
 // ─── Input mode ───────────────────────────────────────────────────────────────
@@ -84,6 +92,11 @@ class _GFpaThereminSlotUIState extends State<GFpaThereminSlotUI> {
   /// True while a tone is sounding through the native C theremin oscillator.
   bool _isPlaying = false;
 
+  /// MIDI note number last dispatched to connected MIDI OUT targets, or -1
+  /// when silent.  Tracked so we can send a note-off when pitch crosses a
+  /// semitone boundary or when the sound stops (finger lift / hand away).
+  int _lastMidiNoteOut = -1;
+
   // ─── Layout (written by LayoutBuilder; read by camera listener) ──────────
 
   /// Most-recent pad dimensions, updated every time [LayoutBuilder] rebuilds.
@@ -116,6 +129,26 @@ class _GFpaThereminSlotUIState extends State<GFpaThereminSlotUI> {
       (widget.plugin.state['vibrato'] as num?)?.toDouble().clamp(0.0, 1.0) ??
       0.0;
 
+  /// Pad height index from persistent slot state (0 = S, 1 = M, 2 = L, 3 = XL).
+  ///
+  /// Defaults to 1 (M = 160 px), which is a touch taller than the original
+  /// fixed size and feels comfortable on most screen sizes.
+  int get _padHeightIdx =>
+      (widget.plugin.state['padHeightIdx'] as num?)?.toInt().clamp(0, 3) ?? 1;
+
+  /// Pixel heights corresponding to [_padHeightIdx] values 0–3.
+  static const List<double> _kPadHeights = [120, 160, 210, 270];
+
+  /// Pixel height label shown in the sidebar (S / M / L / XL).
+  static const List<String> _kPadHeightLabels = ['S', 'M', 'L', 'XL'];
+
+  /// Returns the current pad height in logical pixels.
+  double get _padPixelHeight => _kPadHeights[_padHeightIdx];
+
+  /// Whether the native C synthesiser is muted (MIDI OUT continues to flow).
+  bool get _muteSound =>
+      (widget.plugin.state['muteSound'] as bool?) ?? false;
+
   // ─── Lifecycle ────────────────────────────────────────────────────────────
 
   @override
@@ -124,6 +157,8 @@ class _GFpaThereminSlotUIState extends State<GFpaThereminSlotUI> {
     _distSvc = ThereminDistanceService();
     // Listen to every distance update so we can drive pitch in camera mode.
     _distSvc.distance.addListener(_onCameraDistance);
+    // Listen to preview frame updates to refresh the pad background overlay.
+    _distSvc.previewFrame.addListener(_onPreviewFrame);
     // Start native C theremin oscillator for this slot.
     AudioInputFFI().thereminStart();
     // Sync saved vibrato depth to the native synth.
@@ -132,8 +167,9 @@ class _GFpaThereminSlotUIState extends State<GFpaThereminSlotUI> {
 
   @override
   void dispose() {
-    // Remove listener first so _onCameraDistance cannot fire after disposal.
+    // Remove listeners first so callbacks cannot fire after disposal.
     _distSvc.distance.removeListener(_onCameraDistance);
+    _distSvc.previewFrame.removeListener(_onPreviewFrame);
     _stopCurrentNote();
     // Silence the native device then shut it down.
     AudioInputFFI().thereminSetVolume(0.0);
@@ -172,9 +208,19 @@ class _GFpaThereminSlotUIState extends State<GFpaThereminSlotUI> {
 
     final hz = _yToHz(orbY, _padSize.height);
 
-    // Camera mode uses full volume — the user controls pitch only.
-    AudioInputFFI().thereminSetPitchHz(hz);
-    AudioInputFFI().thereminSetVolume(1.0);
+    // Native sound: camera mode uses full volume — pitch only.
+    if (!_muteSound) {
+      AudioInputFFI().thereminSetPitchHz(hz);
+      AudioInputFFI().thereminSetVolume(1.0);
+    }
+
+    // MIDI OUT: dispatch note changes at semitone boundaries.
+    final midiNote = _hzToMidiNote(hz);
+    if (midiNote != _lastMidiNoteOut) {
+      if (_lastMidiNoteOut >= 0) _dispatchNoteOff(_lastMidiNoteOut);
+      _dispatchNoteOn(midiNote, 100);
+      _lastMidiNoteOut = midiNote;
+    }
 
     setState(() {
       _isPlaying = true;
@@ -187,11 +233,22 @@ class _GFpaThereminSlotUIState extends State<GFpaThereminSlotUI> {
     // Nothing to do if already silent and orb already hidden.
     if (!_isPlaying && _orbPosition == null) return;
 
-    AudioInputFFI().thereminSetVolume(0.0);
+    if (!_muteSound) AudioInputFFI().thereminSetVolume(0.0);
+    if (_lastMidiNoteOut >= 0) {
+      _dispatchNoteOff(_lastMidiNoteOut);
+      _lastMidiNoteOut = -1;
+    }
     setState(() {
       _isPlaying = false;
       _orbPosition = null;
     });
+  }
+
+  /// Called when a new preview frame thumbnail arrives from the camera.
+  ///
+  /// Triggers a rebuild so [_CamStatusOverlay] can display the updated frame.
+  void _onPreviewFrame() {
+    if (mounted) setState(() {});
   }
 
   // ─── Mode switching ───────────────────────────────────────────────────────
@@ -204,6 +261,11 @@ class _GFpaThereminSlotUIState extends State<GFpaThereminSlotUI> {
   Future<void> _switchToCamera() async {
     if (!_distSvc.isPlatformSupported) return;
 
+    // Release any sounding MIDI note before switching modes.
+    if (_lastMidiNoteOut >= 0) {
+      _dispatchNoteOff(_lastMidiNoteOut);
+      _lastMidiNoteOut = -1;
+    }
     _stopCurrentNote();
     setState(() {
       _inputMode = _ThereminInputMode.camera;
@@ -223,6 +285,11 @@ class _GFpaThereminSlotUIState extends State<GFpaThereminSlotUI> {
 
   /// Switches back to touch-pad mode and stops the camera session.
   void _switchToPad() {
+    // Release any sounding MIDI note before switching modes.
+    if (_lastMidiNoteOut >= 0) {
+      _dispatchNoteOff(_lastMidiNoteOut);
+      _lastMidiNoteOut = -1;
+    }
     _stopCurrentNote();
     _distSvc.stop();
     setState(() {
@@ -267,6 +334,16 @@ class _GFpaThereminSlotUIState extends State<GFpaThereminSlotUI> {
     setState(() {});
   }
 
+  /// Cycles the pad height index by [delta] (−1 or +1) through the four
+  /// preset sizes (S → M → L → XL) and persists the new value.
+  void _changePadHeight(int delta, RackState rack) {
+    final newIdx = (_padHeightIdx + delta).clamp(0, 3);
+    widget.plugin.state['padHeightIdx'] = newIdx;
+    _syncToRegistry();
+    rack.markDirty();
+    setState(() {});
+  }
+
   /// Mirrors slot state into the [GFThereminPlugin] registry instance so that
   /// [getParameter] stays consistent with what is shown on screen.
   void _syncToRegistry() {
@@ -278,6 +355,107 @@ class _GFpaThereminSlotUIState extends State<GFpaThereminSlotUI> {
     plugin.setParameter(
         GFThereminPlugin.paramRange, (_rangeOctaves - 1) / 3.0);
     plugin.setParameter(GFThereminPlugin.paramVibrato, _vibrato);
+  }
+
+  // ─── MIDI OUT dispatch ────────────────────────────────────────────────────
+
+  /// Converts a frequency in Hz to the nearest MIDI note number [0, 127].
+  ///
+  /// Inverse of the equal-temperament formula: A4 = 440 Hz = MIDI 69.
+  /// Used to determine which MIDI note to emit when pitch crosses a semitone.
+  int _hzToMidiNote(double hz) {
+    if (hz <= 0) return 0;
+    return (12.0 * (log(hz / 440.0) / log(2.0)) + 69.0)
+        .round()
+        .clamp(0, 127);
+  }
+
+  /// Sends a MIDI note-on to every slot connected to this plugin's MIDI OUT
+  /// jack.  Mirrors the routing logic of [_RackSlotWidget._dispatchMidiNoteOn]
+  /// so Looper, VST3, and FluidSynth targets are all handled correctly.
+  void _dispatchNoteOn(int note, int velocity) {
+    final cables = context
+        .read<AudioGraph>()
+        .connectionsFrom(widget.plugin.id)
+        .where((c) => c.fromPort == AudioPortId.midiOut)
+        .toList();
+    if (cables.isEmpty) return;
+
+    final ch = (widget.plugin.midiChannel - 1).clamp(0, 15);
+    final status = 0x90 | (ch & 0x0F);
+    final engine = context.read<AudioEngine>();
+
+    for (final cable in cables) {
+      final target = context
+          .read<RackState>()
+          .plugins
+          .where((p) => p.id == cable.toSlotId)
+          .firstOrNull;
+      if (target == null) continue;
+
+      if (target is LooperPluginInstance) {
+        context.read<LooperEngine>().feedMidiEvent(
+            target.id, status, note, velocity);
+        continue;
+      }
+
+      final targetCh = (target.midiChannel - 1).clamp(0, 15);
+      if (target is Vst3PluginInstance) {
+        context.read<VstHostService>().noteOn(target.id, 0, note, 1.0);
+        engine.noteOnUiOnly(channel: targetCh, key: note);
+      } else {
+        engine.playNote(channel: targetCh, key: note, velocity: velocity);
+      }
+    }
+  }
+
+  /// Sends a MIDI note-off to every slot connected to this plugin's MIDI OUT
+  /// jack.  Mirrors [_dispatchNoteOn].
+  void _dispatchNoteOff(int note) {
+    final cables = context
+        .read<AudioGraph>()
+        .connectionsFrom(widget.plugin.id)
+        .where((c) => c.fromPort == AudioPortId.midiOut)
+        .toList();
+    if (cables.isEmpty) return;
+
+    final ch = (widget.plugin.midiChannel - 1).clamp(0, 15);
+    final status = 0x80 | (ch & 0x0F);
+    final engine = context.read<AudioEngine>();
+
+    for (final cable in cables) {
+      final target = context
+          .read<RackState>()
+          .plugins
+          .where((p) => p.id == cable.toSlotId)
+          .firstOrNull;
+      if (target == null) continue;
+
+      if (target is LooperPluginInstance) {
+        context.read<LooperEngine>().feedMidiEvent(target.id, status, note, 0);
+        continue;
+      }
+
+      final targetCh = (target.midiChannel - 1).clamp(0, 15);
+      if (target is Vst3PluginInstance) {
+        context.read<VstHostService>().noteOff(target.id, 0, note);
+        engine.noteOffUiOnly(channel: targetCh, key: note);
+      } else {
+        engine.stopNote(channel: targetCh, key: note);
+      }
+    }
+  }
+
+  /// Toggles the native synthesiser mute flag.
+  ///
+  /// When muted the built-in C oscillator stays silent but MIDI OUT events
+  /// continue flowing to any connected instruments (GFK, VST3, Looper, etc.).
+  void _toggleMute(RackState rack) {
+    widget.plugin.state['muteSound'] = !_muteSound;
+    // If active and now muted, silence the native oscillator immediately.
+    if (_muteSound && _isPlaying) AudioInputFFI().thereminSetVolume(0.0);
+    rack.markDirty();
+    setState(() {});
   }
 
   // ─── Pitch / volume mapping ───────────────────────────────────────────────
@@ -304,13 +482,31 @@ class _GFpaThereminSlotUIState extends State<GFpaThereminSlotUI> {
   // ─── Touch handlers (PAD mode only) ──────────────────────────────────────
 
   /// Called on every pointer-down/move to update pitch + volume.
+  ///
+  /// Sends the continuous Hz value to the native C oscillator (unless muted)
+  /// and dispatches MIDI note-on/off via MIDI OUT whenever the pitch crosses
+  /// a semitone boundary.
   void _onTouch(Offset position) {
     final hz = _yToHz(position.dy, _padSize.height);
     final vol = _xToVolNorm(position.dx, _padSize.width);
 
-    // Send pitch and volume directly to the native C oscillator.
-    AudioInputFFI().thereminSetPitchHz(hz);
-    AudioInputFFI().thereminSetVolume(vol);
+    // Native sound — skip when muted so the C oscillator stays silent.
+    if (!_muteSound) {
+      AudioInputFFI().thereminSetPitchHz(hz);
+      AudioInputFFI().thereminSetVolume(vol);
+    }
+
+    // MIDI OUT: emit note-off for the previous note and note-on for the new
+    // one whenever the pitch crosses a semitone boundary.
+    if (mounted) {
+      final midiNote = _hzToMidiNote(hz);
+      final velocity = (vol * 127).round().clamp(1, 127);
+      if (midiNote != _lastMidiNoteOut) {
+        if (_lastMidiNoteOut >= 0) _dispatchNoteOff(_lastMidiNoteOut);
+        _dispatchNoteOn(midiNote, velocity);
+        _lastMidiNoteOut = midiNote;
+      }
+    }
 
     setState(() {
       _isPlaying = true;
@@ -318,9 +514,13 @@ class _GFpaThereminSlotUIState extends State<GFpaThereminSlotUI> {
     });
   }
 
-  /// Called when the finger lifts: fade volume to zero.
+  /// Called when the finger lifts: fade native volume to zero and release MIDI.
   void _onRelease() {
-    AudioInputFFI().thereminSetVolume(0.0);
+    if (!_muteSound) AudioInputFFI().thereminSetVolume(0.0);
+    if (mounted && _lastMidiNoteOut >= 0) {
+      _dispatchNoteOff(_lastMidiNoteOut);
+      _lastMidiNoteOut = -1;
+    }
     setState(() {
       _isPlaying = false;
       _orbPosition = null;
@@ -329,6 +529,9 @@ class _GFpaThereminSlotUIState extends State<GFpaThereminSlotUI> {
 
   /// Stops the sounding note without a setState call.  Safe to call from
   /// [dispose] and mode-switch paths where rebuilding is undesirable.
+  ///
+  /// Does not dispatch MIDI — callers that have context should call
+  /// [_dispatchNoteOff] themselves before calling this.
   void _stopCurrentNote() {
     if (!_isPlaying) return;
     AudioInputFFI().thereminSetVolume(0.0);
@@ -360,14 +563,26 @@ class _GFpaThereminSlotUIState extends State<GFpaThereminSlotUI> {
               // ── Touch / camera pad ──────────────────────────────────────
               Expanded(
                 child: SizedBox(
-                  height: 148,
+                  height: _padPixelHeight,
                   child: LayoutBuilder(
                     builder: (ctx, constraints) {
                       // Capture pad dimensions for the camera listener.
                       _padSize =
                           Size(constraints.maxWidth, constraints.maxHeight);
 
-                      return Listener(
+                      return GestureDetector(
+                        // Claim all pan gestures (horizontal + vertical) so
+                        // the parent rack ScrollView cannot scroll while the
+                        // player's finger is on the pad. The Listener child
+                        // still receives all raw pointer events for pitch/volume
+                        // mapping — the two mechanisms are independent.
+                        behavior: HitTestBehavior.opaque,
+                        onPanDown: (_) {},
+                        onPanStart: (_) {},
+                        onPanUpdate: (_) {},
+                        onPanEnd: (_) {},
+                        onPanCancel: () {},
+                        child: Listener(
                         // Raw pointer events avoid gesture arena conflicts with
                         // the enclosing rack scroll view.
                         onPointerDown: (e) {
@@ -405,10 +620,12 @@ class _GFpaThereminSlotUIState extends State<GFpaThereminSlotUI> {
                                 isStarting: _camStarting,
                                 errorCode: _camError,
                                 isPlaying: _orbPosition != null,
+                                previewFrame: _distSvc.previewFrame.value,
                                 l10n: l10n,
                               ),
                           ],
                         ),
+                      ),
                       );
                     },
                   ),
@@ -422,12 +639,16 @@ class _GFpaThereminSlotUIState extends State<GFpaThereminSlotUI> {
                 baseNote: _baseNote,
                 rangeOctaves: _rangeOctaves,
                 vibrato: _vibrato,
+                padHeightIdx: _padHeightIdx,
+                padHeightLabels: _GFpaThereminSlotUIState._kPadHeightLabels,
                 onBaseNoteDecrement: () => _changeBaseNote(-1, rack),
                 onBaseNoteIncrement: () => _changeBaseNote(1, rack),
                 onRangeDecrement: () => _changeRange(-1, rack),
                 onRangeIncrement: () => _changeRange(1, rack),
                 onVibratoDecrement: () => _changeVibrato(-1, rack),
                 onVibratoIncrement: () => _changeVibrato(1, rack),
+                onPadHeightDecrement: () => _changePadHeight(-1, rack),
+                onPadHeightIncrement: () => _changePadHeight(1, rack),
                 l10n: l10n,
               ),
             ],
@@ -437,10 +658,14 @@ class _GFpaThereminSlotUIState extends State<GFpaThereminSlotUI> {
     );
   }
 
-  /// Builds the PAD / CAM segmented toggle row.
+  /// Builds the PAD / CAM / MUTE control row.
+  ///
+  /// PAD and CAM are input-mode toggles; MUTE is an independent output toggle
+  /// that silences the native C oscillator while MIDI OUT keeps flowing.
   Widget _buildModeToggle(AppLocalizations l10n) {
     final isPad = _inputMode == _ThereminInputMode.touchPad;
     final camSupported = _distSvc.isPlatformSupported;
+    final rack = context.read<RackState>();
 
     final camButton = _ModeButton(
       label: l10n.thereminModeCam,
@@ -467,6 +692,14 @@ class _GFpaThereminSlotUIState extends State<GFpaThereminSlotUI> {
                 message: l10n.thereminCamErrUnsupported,
                 child: camButton,
               ),
+        // Visual gap to separate mode toggles from the output option.
+        const SizedBox(width: 8),
+        // MUTE silences the native synth; MIDI OUT continues to flow.
+        _ModeButton(
+          label: l10n.midiMuteOwnSound,
+          selected: _muteSound,
+          onTap: () => _toggleMute(rack),
+        ),
       ],
     );
   }
@@ -544,12 +777,17 @@ class _CamStatusOverlay extends StatelessWidget {
 
   /// True when the orb is visible (a note is sounding), false when silent.
   final bool isPlaying;
+
+  /// Latest JPEG thumbnail from the camera preview channel, or null if not yet received.
+  final Uint8List? previewFrame;
+
   final AppLocalizations l10n;
 
   const _CamStatusOverlay({
     required this.isStarting,
     required this.errorCode,
     required this.isPlaying,
+    required this.previewFrame,
     required this.l10n,
   });
 
@@ -605,6 +843,23 @@ class _CamStatusOverlay extends StatelessWidget {
   Widget _buildActive() {
     return Stack(
       children: [
+        // Semi-transparent camera preview (updated at ≈ 5 fps).
+        // Opacity 0.35 so the glowing orb remains the visual focus.
+        if (previewFrame != null)
+          Positioned.fill(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(7),
+              child: Opacity(
+                opacity: 0.35,
+                child: Image.memory(
+                  previewFrame!,
+                  fit: BoxFit.cover,
+                  gaplessPlayback: true, // prevents flicker between frames
+                ),
+              ),
+            ),
+          ),
+
         // "CAM" badge — always visible so users know which mode is active.
         Positioned(
           top: 6,
@@ -795,7 +1050,8 @@ class _ThereminPad extends StatelessWidget {
 
 // ─── Controls sidebar ─────────────────────────────────────────────────────────
 
-/// Small vertical sidebar with +/− controls for base note, range, and vibrato.
+/// Small vertical sidebar with +/− controls for base note, range, vibrato,
+/// and pad height.
 ///
 /// Displayed to the right of the theremin pad so the controls are always
 /// accessible without occluding the playing surface.
@@ -803,24 +1059,37 @@ class _ControlSidebar extends StatelessWidget {
   final int baseNote;
   final int rangeOctaves;
   final double vibrato;
+
+  /// Current pad-height preset index (0 = S, 1 = M, 2 = L, 3 = XL).
+  final int padHeightIdx;
+
+  /// Display labels for the four height presets, indexed by [padHeightIdx].
+  final List<String> padHeightLabels;
+
   final VoidCallback onBaseNoteDecrement;
   final VoidCallback onBaseNoteIncrement;
   final VoidCallback onRangeDecrement;
   final VoidCallback onRangeIncrement;
   final VoidCallback onVibratoDecrement;
   final VoidCallback onVibratoIncrement;
+  final VoidCallback onPadHeightDecrement;
+  final VoidCallback onPadHeightIncrement;
   final AppLocalizations l10n;
 
   const _ControlSidebar({
     required this.baseNote,
     required this.rangeOctaves,
     required this.vibrato,
+    required this.padHeightIdx,
+    required this.padHeightLabels,
     required this.onBaseNoteDecrement,
     required this.onBaseNoteIncrement,
     required this.onRangeDecrement,
     required this.onRangeIncrement,
     required this.onVibratoDecrement,
     required this.onVibratoIncrement,
+    required this.onPadHeightDecrement,
+    required this.onPadHeightIncrement,
     required this.l10n,
   });
 
@@ -873,6 +1142,18 @@ class _ControlSidebar extends StatelessWidget {
             canIncrement: vibrato < 1.0,
             onDecrement: onVibratoDecrement,
             onIncrement: onVibratoIncrement,
+          ),
+
+          const SizedBox(height: 8),
+
+          // Pad height preset control (S / M / L / XL).
+          _SideControl(
+            label: l10n.thereminPadHeight,
+            value: padHeightLabels[padHeightIdx],
+            canDecrement: padHeightIdx > 0,
+            canIncrement: padHeightIdx < padHeightLabels.length - 1,
+            onDecrement: onPadHeightDecrement,
+            onIncrement: onPadHeightIncrement,
           ),
         ],
       ),

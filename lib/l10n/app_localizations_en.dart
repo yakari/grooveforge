@@ -1026,4 +1026,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get thereminVibrato => 'VIB';
+
+  @override
+  String get thereminPadHeight => 'HEIGHT';
+
+  @override
+  String get midiMuteOwnSound => 'MUTE';
 }

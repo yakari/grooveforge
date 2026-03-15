@@ -1933,6 +1933,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'VIB'**
   String get thereminVibrato;
+
+  /// No description provided for @thereminPadHeight.
+  ///
+  /// In en, this message translates to:
+  /// **'HEIGHT'**
+  String get thereminPadHeight;
+
+  /// No description provided for @midiMuteOwnSound.
+  ///
+  /// In en, this message translates to:
+  /// **'MUTE'**
+  String get midiMuteOwnSound;
 }
 
 class _AppLocalizationsDelegate

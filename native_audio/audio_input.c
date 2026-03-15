@@ -1113,6 +1113,13 @@ static float g_styloPhase = 0.0f;
 /// Amplitude envelope [0, 1].  Rises on note-on, decays exponentially on note-off.
 static float g_styloEnv   = 0.0f;
 
+/// Vibrato LFO depth for the stylophone: 0 = off, 1 = full (±0.5 semitone).
+/// Set by Dart via stylophone_set_vibrato().
+static volatile float g_styloVibDepth = 0.0f;
+
+/// Vibrato LFO phase [0, 1). Audio-thread only.
+static float g_styloLfoPhase = 0.0f;
+
 /// Attack ramp per sample: reaches 1.0 in ~2 ms at 48 kHz.
 #define STYLO_ATTACK       0.004f
 
@@ -1154,6 +1161,14 @@ static void stylophone_data_callback(
             if (g_styloEnv < 1e-5f) g_styloEnv = 0.0f;
         }
 
+        // ── Vibrato LFO ──────────────────────────────────────────────────────
+        // 5.5 Hz sine wave (same rate as the vocoder) modulating pitch by up to
+        // ±0.5 semitone (THEREMIN_VIB_COEF = 2^(0.5/12) − 1 ≈ 0.02963).
+        g_styloLfoPhase += 5.5f / sr;
+        if (g_styloLfoPhase >= 1.0f) g_styloLfoPhase -= 1.0f;
+        float styloLfo = sinf(g_styloLfoPhase * 6.28318530718f);
+        float styloHz  = g_styloCurrentHz * (1.0f + styloLfo * g_styloVibDepth * 0.02963f);
+
         // Use a local copy of phase for readability.
         const float phase = g_styloPhase;
 
@@ -1176,7 +1191,7 @@ static void stylophone_data_callback(
         }
 
         // Step 3 — Advance phase accumulator and wrap to [0, 1).
-        g_styloPhase += g_styloCurrentHz / sr;
+        g_styloPhase += styloHz / sr;
         if (g_styloPhase >= 1.0f) g_styloPhase -= 1.0f;
 
         // Step 4 — Apply envelope and master volume.
@@ -1194,8 +1209,10 @@ static void stylophone_data_callback(
 EXPORT int stylophone_start(void) {
     if (g_styloRunning) return 0; // Already running — idempotent.
 
-    // Reset envelope; keep phase intact so a quick stop/start is seamless.
-    g_styloEnv = 0.0f;
+    // Reset envelope and LFO phase; keep oscillator phase intact so a
+    // quick stop/start is seamless.
+    g_styloEnv      = 0.0f;
+    g_styloLfoPhase = 0.0f;
 
     ma_result result = ma_context_init(NULL, 0, NULL, &g_styloCtx);
     if (result != MA_SUCCESS) {
@@ -1272,4 +1289,14 @@ EXPORT void stylophone_set_waveform(int waveform) {
     if (waveform < 0) waveform = 0;
     if (waveform > 3) waveform = 3;
     g_styloWaveform = waveform;
+}
+
+/// Set the stylophone vibrato depth.
+///
+/// depth = 0.0 → no vibrato (clean tone).
+/// depth = 1.0 → ±0.5 semitone wobble at 5.5 Hz — classic tape-wobble effect.
+EXPORT void stylophone_set_vibrato(float depth) {
+    if (depth < 0.0f) depth = 0.0f;
+    if (depth > 1.0f) depth = 1.0f;
+    g_styloVibDepth = depth;
 }

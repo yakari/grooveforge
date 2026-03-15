@@ -32,6 +32,11 @@ class GFStyloPhonePlugin implements GFInstrumentPlugin {
   /// Default 0.0 = Square (classic Stylophone buzz).
   static const int paramWaveform = 1;
 
+  /// Vibrato LFO depth.
+  ///
+  /// Normalized [0.0, 1.0]: 0.0 = no vibrato, 1.0 = ±0.5 semitone at 5.5 Hz.
+  static const int paramVibrato = 2;
+
   // ─── Internal state ───────────────────────────────────────────────────────
 
   /// Octave offset in full octaves: -2 means two octaves down, +2 two up.
@@ -39,6 +44,9 @@ class GFStyloPhonePlugin implements GFInstrumentPlugin {
 
   /// Active waveform index: 0=Square, 1=Sawtooth, 2=Sine, 3=Triangle.
   int _waveform = 0;
+
+  /// Vibrato LFO depth [0.0, 1.0]. 0.0 = clean tone, 1.0 = full tape-wobble.
+  double _vibrato = 0.0;
 
   // ─── GFPlugin identity ────────────────────────────────────────────────────
 
@@ -73,6 +81,14 @@ class GFStyloPhonePlugin implements GFInstrumentPlugin {
           max: 3,
           defaultValue: 0.0,
         ),
+        GFPluginParameter(
+          id: paramVibrato,
+          name: 'Vibrato',
+          // 0.0 = off, 1.0 = full ±0.5 semitone wobble.
+          min: 0,
+          max: 1,
+          defaultValue: 0.0,
+        ),
       ];
 
   // ─── Parameter access ─────────────────────────────────────────────────────
@@ -86,6 +102,8 @@ class GFStyloPhonePlugin implements GFInstrumentPlugin {
       case paramWaveform:
         // Map {0, 1, 2, 3} → [0.0, 0.333, 0.667, 1.0].
         return _waveform / 3.0;
+      case paramVibrato:
+        return _vibrato;
       default:
         return 0.0;
     }
@@ -100,6 +118,8 @@ class GFStyloPhonePlugin implements GFInstrumentPlugin {
       case paramWaveform:
         // Map [0.0, 1.0] → {0, 1, 2, 3}.
         _waveform = (normalizedValue * 3).round().clamp(0, 3);
+      case paramVibrato:
+        _vibrato = normalizedValue.clamp(0.0, 1.0);
     }
   }
 
@@ -117,12 +137,16 @@ class GFStyloPhonePlugin implements GFInstrumentPlugin {
   /// Current waveform index (0=Square, 1=Sawtooth, 2=Sine, 3=Triangle).
   int get waveform => _waveform;
 
+  /// Current vibrato depth [0.0, 1.0].
+  double get vibrato => _vibrato;
+
   // ─── State serialization ──────────────────────────────────────────────────
 
   @override
   Map<String, dynamic> getState() => {
         'octaveShift': _octaveShift,
         'waveform': _waveform,
+        'vibrato': _vibrato,
       };
 
   @override
@@ -131,6 +155,8 @@ class GFStyloPhonePlugin implements GFInstrumentPlugin {
         (state['octaveShift'] as num?)?.toInt().clamp(-2, 2) ?? 0;
     _waveform =
         (state['waveform'] as num?)?.toInt().clamp(0, 3) ?? 0;
+    _vibrato =
+        (state['vibrato'] as num?)?.toDouble().clamp(0.0, 1.0) ?? 0.0;
   }
 
   // ─── Lifecycle ────────────────────────────────────────────────────────────

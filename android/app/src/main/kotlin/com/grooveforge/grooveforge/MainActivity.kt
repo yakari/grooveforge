@@ -38,17 +38,22 @@ class MainActivity : FlutterActivity() {
 
         // ── Theremin camera distance plugin ───────────────────────────────────
         // Streams front-camera focal distance as normalized [0, 1] values for
-        // the camera-mode Theremin. MethodChannel handles start/stop; EventChannel
-        // carries the per-frame distance stream.
-        val thereminPlugin = ThereminCameraPlugin(this)
+        // the camera-mode Theremin. MethodChannel handles start/stop; the main
+        // EventChannel carries the per-frame distance stream; the preview
+        // EventChannel carries 5 fps JPEG thumbnails for the pad background.
+        val thereminCameraPlugin = ThereminCameraPlugin(this)
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             ThereminCameraPlugin.METHOD_CHANNEL
-        ).setMethodCallHandler(thereminPlugin)
+        ).setMethodCallHandler(thereminCameraPlugin)
         EventChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             ThereminCameraPlugin.EVENT_CHANNEL
-        ).setStreamHandler(thereminPlugin)
+        ).setStreamHandler(thereminCameraPlugin)
+        EventChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            ThereminCameraPlugin.PREVIEW_CHANNEL
+        ).setStreamHandler(thereminCameraPlugin.previewStreamHandler())
 
         channel.setMethodCallHandler { call, result ->
             val am = audioManager!!

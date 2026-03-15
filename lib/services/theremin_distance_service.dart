@@ -7,10 +7,11 @@ import 'package:permission_handler/permission_handler.dart';
 
 /// Streams normalized camera focal distance for the Theremin camera mode.
 ///
-/// Communicates with the native camera plugins via two platform channels:
+/// Communicates with the native camera plugins via three platform channels:
 ///
-///   Method channel — [_kMethodChannel]: start / stop / isSupported calls.
-///   Event channel  — [_kEventChannel]:  per-frame [Double] stream, [0.0, 1.0].
+///   Method channel  — [_kMethodChannel]:  start / stop / isSupported calls.
+///   Event channel   — [_kEventChannel]:   per-frame [Double] stream, [0.0, 1.0].
+///   Preview channel — [_kPreviewChannel]: 5 fps JPEG thumbnails as [Uint8List].
 ///
 /// The raw per-frame values are smoothed with an exponential moving average
 /// (EMA) before being written to [distance]. This removes high-frequency AF
@@ -46,6 +47,8 @@ class ThereminDistanceService {
       MethodChannel('com.grooveforge/theremin_camera');
   static const _kEventChannel =
       EventChannel('com.grooveforge/theremin_camera_events');
+  static const _kPreviewChannel =
+      EventChannel('com.grooveforge/theremin_camera_preview');
 
   // ─── Public state ─────────────────────────────────────────────────────────
 
@@ -56,6 +59,10 @@ class ThereminDistanceService {
   ///
   /// Notifies on every frame callback (~30 fps) while [isActive] is true.
   final distance = ValueNotifier<double>(0.0);
+
+  /// Latest JPEG thumbnail from the camera preview channel, or null if not
+  /// yet received.  Updated at ≈ 5 fps while the camera is active.
+  final previewFrame = ValueNotifier<Uint8List?>(null);
 
   /// True while the native camera session is running.
   bool get isActive => _subscription != null;
@@ -74,6 +81,7 @@ class ThereminDistanceService {
   // ─── Private ──────────────────────────────────────────────────────────────
 
   StreamSubscription<dynamic>? _subscription;
+  StreamSubscription<dynamic>? _previewSubscription;
 
   // ─── Platform support ─────────────────────────────────────────────────────
 
@@ -117,15 +125,26 @@ class ThereminDistanceService {
       onError: (_) {}, // errors are handled; stream just stops
     );
 
+    // ── Subscribe to preview thumbnail stream ─────────────────────────────
+    _previewSubscription = _kPreviewChannel.receiveBroadcastStream().listen(
+      (raw) {
+        if (raw is Uint8List) previewFrame.value = raw;
+      },
+      onError: (_) {},
+    );
+
     return null; // success
   }
 
   /// Stops the native camera session and releases the EventChannel subscription.
   ///
-  /// Resets [distance] to 0.0. Safe to call when already stopped.
+  /// Resets [distance] and [previewFrame] to their default values.
+  /// Safe to call when already stopped.
   Future<void> stop() async {
     await _subscription?.cancel();
     _subscription = null;
+    await _previewSubscription?.cancel();
+    _previewSubscription = null;
 
     if (isPlatformSupported) {
       // Ignore errors on stop (e.g. if the session never started).
@@ -133,12 +152,14 @@ class ThereminDistanceService {
     }
 
     distance.value = 0.0;
+    previewFrame.value = null;
   }
 
-  /// Releases [distance] and stops the session if still running.
+  /// Releases [distance], [previewFrame], and stops the session if running.
   void dispose() {
     stop();
     distance.dispose();
+    previewFrame.dispose();
   }
 
   // ─── EMA smoothing ────────────────────────────────────────────────────────
