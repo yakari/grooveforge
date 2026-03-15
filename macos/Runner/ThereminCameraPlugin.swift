@@ -320,18 +320,11 @@ extension ThereminCameraPlugin: AVCaptureVideoDataOutputSampleBufferDelegate {
     ) {
         frameCount += 1
 
-        // Distance signal.
-        if useContrastMode {
-            // Emit raw normalized luma — EMA smoothing is applied once on the
-            // Dart side (ThereminDistanceService._smooth).  No double-EMA.
-            if let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) {
-                let val = computeNormalizedLuma(pixelBuffer)
-                DispatchQueue.main.async { [weak self] in self?.eventSink?(val) }
-            }
-        } else {
-            guard let device = captureDevice else { return }
-            let pos = Double(device.lensPosition)
-            DispatchQueue.main.async { [weak self] in self?.eventSink?(pos) }
+        // Distance signal — macOS always uses contrast mode because
+        // AVCaptureDevice.lensPosition is unavailable on macOS.
+        if let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) {
+            let val = computeNormalizedLuma(pixelBuffer)
+            DispatchQueue.main.async { [weak self] in self?.eventSink?(val) }
         }
 
         // Preview thumbnail every 3rd frame (≈ 10 fps).
