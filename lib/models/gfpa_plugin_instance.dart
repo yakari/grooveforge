@@ -62,6 +62,10 @@ class GFpaPluginInstance implements PluginInstance {
         return 'Vocoder';
       case 'com.grooveforge.jammode':
         return 'Jam Mode';
+      case 'com.grooveforge.stylophone':
+        return 'Stylophone';
+      case 'com.grooveforge.theremin':
+        return 'Theremin';
       default:
         final parts = pluginId.split('.');
         return parts.isNotEmpty ? parts.last : pluginId;

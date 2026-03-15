@@ -10,6 +10,11 @@ class MainFlutterWindow: NSWindow {
 
     RegisterGeneratedPlugins(registry: flutterViewController)
 
+    // Register the theremin camera distance plugin.
+    if let registrar = flutterViewController.registrar(forPlugin: "ThereminCameraPlugin") {
+      ThereminCameraPlugin.register(with: registrar)
+    }
+
     super.awakeFromNib()
   }
 }

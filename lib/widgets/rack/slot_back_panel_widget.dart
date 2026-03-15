@@ -89,6 +89,17 @@ class SlotBackPanelWidget extends StatelessWidget {
           AudioPortId.scaleOut,
         ];
       }
+      // Theremin and Stylophone expose a MIDI OUT jack so they can drive
+      // connected instruments (GFK, VST3, etc.) as expressive MIDI controllers.
+      if (plugin.pluginId == 'com.grooveforge.stylophone' ||
+          plugin.pluginId == 'com.grooveforge.theremin') {
+        return [
+          AudioPortId.midiIn,
+          AudioPortId.midiOut,
+          AudioPortId.audioOutL,
+          AudioPortId.audioOutR,
+        ];
+      }
       return [
         AudioPortId.midiIn,
         AudioPortId.audioOutL,

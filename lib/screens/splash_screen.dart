@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../models/vst3_plugin_instance.dart';
 import '../plugins/gf_keyboard_plugin.dart';
 import '../plugins/gf_jam_mode_plugin.dart';
+import '../plugins/gf_stylophone_plugin.dart';
+import '../plugins/gf_theremin_plugin.dart';
 import '../plugins/gf_vocoder_plugin.dart';
 import '../services/audio_engine.dart';
 import '../services/audio_graph.dart';
@@ -128,6 +130,10 @@ class _SplashScreenState extends State<SplashScreen> {
     registry.register(GFKeyboardPlugin(engine));
     registry.register(GFVocoderPlugin(engine));
     registry.register(GFJamModePlugin(engine));
+    // Fun instruments — each is a pure-Dart GFPA shell that routes to
+    // the FluidSynth channel assigned to its rack slot.
+    registry.register(GFStyloPhonePlugin());
+    registry.register(GFThereminPlugin());
   }
 
   String _getLocalizedStatus(BuildContext context, String status) {

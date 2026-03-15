@@ -12,5 +12,9 @@ import UIKit
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
+    // Register the theremin camera distance plugin alongside auto-generated plugins.
+    if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "ThereminCameraPlugin") {
+      ThereminCameraPlugin.register(with: registrar)
+    }
   }
 }

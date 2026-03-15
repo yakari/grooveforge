@@ -1831,6 +1831,120 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Extra Large'**
   String get keyHeightExtraLarge;
+
+  /// No description provided for @rackAddStylophone.
+  ///
+  /// In en, this message translates to:
+  /// **'Stylophone'**
+  String get rackAddStylophone;
+
+  /// No description provided for @rackAddStyloPhoneSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Monophonic metal-strip instrument (GFPA)'**
+  String get rackAddStyloPhoneSubtitle;
+
+  /// No description provided for @rackAddTheremin.
+  ///
+  /// In en, this message translates to:
+  /// **'Theremin'**
+  String get rackAddTheremin;
+
+  /// No description provided for @rackAddThereminSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Touch pad — vertical pitch, horizontal volume (GFPA)'**
+  String get rackAddThereminSubtitle;
+
+  /// No description provided for @thereminModePad.
+  ///
+  /// In en, this message translates to:
+  /// **'PAD'**
+  String get thereminModePad;
+
+  /// No description provided for @thereminModeCam.
+  ///
+  /// In en, this message translates to:
+  /// **'CAM'**
+  String get thereminModeCam;
+
+  /// No description provided for @thereminCamHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Move your hand towards or away from the camera to play'**
+  String get thereminCamHint;
+
+  /// No description provided for @thereminCamErrUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'Camera mode is not available on this platform.'**
+  String get thereminCamErrUnsupported;
+
+  /// No description provided for @thereminCamErrNoPermission.
+  ///
+  /// In en, this message translates to:
+  /// **'Camera permission denied. Switch to PAD mode to try again.'**
+  String get thereminCamErrNoPermission;
+
+  /// No description provided for @thereminCamErrNoCamera.
+  ///
+  /// In en, this message translates to:
+  /// **'No suitable camera found on this device.'**
+  String get thereminCamErrNoCamera;
+
+  /// No description provided for @thereminCamErrFixedFocus.
+  ///
+  /// In en, this message translates to:
+  /// **'This camera has fixed focus — hand tracking is not available.'**
+  String get thereminCamErrFixedFocus;
+
+  /// No description provided for @thereminCamErrConfigError.
+  ///
+  /// In en, this message translates to:
+  /// **'Camera configuration error. Please switch to PAD mode.'**
+  String get thereminCamErrConfigError;
+
+  /// No description provided for @styloWaveformSquare.
+  ///
+  /// In en, this message translates to:
+  /// **'SQR'**
+  String get styloWaveformSquare;
+
+  /// No description provided for @styloWaveformSawtooth.
+  ///
+  /// In en, this message translates to:
+  /// **'SAW'**
+  String get styloWaveformSawtooth;
+
+  /// No description provided for @styloWaveformSine.
+  ///
+  /// In en, this message translates to:
+  /// **'SIN'**
+  String get styloWaveformSine;
+
+  /// No description provided for @styloWaveformTriangle.
+  ///
+  /// In en, this message translates to:
+  /// **'TRI'**
+  String get styloWaveformTriangle;
+
+  /// No description provided for @thereminVibrato.
+  ///
+  /// In en, this message translates to:
+  /// **'VIB'**
+  String get thereminVibrato;
+
+  /// No description provided for @thereminPadHeight.
+  ///
+  /// In en, this message translates to:
+  /// **'HEIGHT'**
+  String get thereminPadHeight;
+
+  /// No description provided for @midiMuteOwnSound.
+  ///
+  /// In en, this message translates to:
+  /// **'MUTE'**
+  String get midiMuteOwnSound;
 }
 
 class _AppLocalizationsDelegate

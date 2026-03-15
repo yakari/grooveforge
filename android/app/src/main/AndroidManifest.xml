@@ -26,6 +26,12 @@
     <!-- Required for real-time audio input capture -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
+    <!-- Required for the Theremin camera-distance mode (front-facing AF camera). -->
+    <!-- declared required=false so the app installs on devices without a front cam. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera.front" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
+
     <application
         android:label="GrooveForge"
         android:name="${applicationName}"

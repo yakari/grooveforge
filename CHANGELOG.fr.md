@@ -5,6 +5,18 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/lang/fr/).
 
+## [2.5.4] - 2026-03-15
+
+### Ajouté
+- **Thérémine et Stylophone** : deux nouveaux plugins d'instruments GFPA. Le Thérémine est un grand pad tactile (vertical = hauteur, horizontal = volume) avec un oscillateur C natif sinusoïdal — portamento (τ ≈ 42 ms), LFO vibrato à 6,5 Hz (0–100 %), note de base et plage ajustables. Le Stylophone est un clavier à lamelles chromatiques monophonique de 25 touches avec quatre formes d'onde (SQR/SAW/SIN/TRI), legato sans clic et décalage d'octave ±2.
+- **Mode CAM du Thérémine** (Android / iOS / macOS) : la proximité de la main mesurée par l'autofocus contrôle la hauteur. Repli automatique sur l'analyse luminosité/contraste pour les caméras à focale fixe (pas d'erreur sur les webcams). Aperçu caméra semi-transparent affiché derrière l'orbe à ≈ 10 fps.
+- **Bouton VIB du Stylophone** : active un LFO à 5,5 Hz de ±0,5 demi-ton pour l'effet « tape-wobble » vintage. L'état persiste.
+- **Prise MIDI OUT** sur les deux instruments (vue arrière du rack) : branchez un câble vers un GF Keyboard, un VST3 ou un Looper. Le Thérémine envoie note-on/off à chaque changement de demi-ton ; le Stylophone à chaque touche pressée/relâchée.
+- **Bouton MUTE** sur les deux instruments : coupe le synthétiseur intégré tout en laissant le MIDI OUT circuler — idéal pour les utiliser comme contrôleurs MIDI expressifs sans doubler le son.
+- **Hauteur du pad du Thérémine** : quatre tailles (S/M/L/XL) via un nouveau contrôle HAUTEUR dans la barre latérale. Persiste dans le fichier projet.
+- **Miroir de l'aperçu CAM** : l'aperçu s'affiche en miroir selfie ; la rotation tient compte de l'orientation de l'appareil (Android). Lag de l'EMA réduit de ~400 ms à ~67 ms.
+- **Verrouillage du défilement sur le pad du Thérémine** : toucher le pad ne fait plus défiler le rack accidentellement.
+
 ## [2.5.3] - 2026-03-14
 
 ### Ajouté

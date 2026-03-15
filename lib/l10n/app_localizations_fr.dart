@@ -973,4 +973,69 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get keyHeightExtraLarge => 'Très grand';
+
+  @override
+  String get rackAddStylophone => 'Stylophone';
+
+  @override
+  String get rackAddStyloPhoneSubtitle =>
+      'Instrument monophonique à lamelles métalliques (GFPA)';
+
+  @override
+  String get rackAddTheremin => 'Thérémine';
+
+  @override
+  String get rackAddThereminSubtitle =>
+      'Pad tactile — hauteur verticale, volume horizontal (GFPA)';
+
+  @override
+  String get thereminModePad => 'PAD';
+
+  @override
+  String get thereminModeCam => 'CAM';
+
+  @override
+  String get thereminCamHint =>
+      'Rapprochez ou éloignez votre main de la caméra pour jouer';
+
+  @override
+  String get thereminCamErrUnsupported =>
+      'Le mode caméra n\'est pas disponible sur cette plateforme.';
+
+  @override
+  String get thereminCamErrNoPermission =>
+      'Permission caméra refusée. Repassez en mode PAD pour réessayer.';
+
+  @override
+  String get thereminCamErrNoCamera =>
+      'Aucune caméra compatible trouvée sur cet appareil.';
+
+  @override
+  String get thereminCamErrFixedFocus =>
+      'Cette caméra a une mise au point fixe — le suivi de la main n\'est pas disponible.';
+
+  @override
+  String get thereminCamErrConfigError =>
+      'Erreur de configuration caméra. Veuillez passer en mode PAD.';
+
+  @override
+  String get styloWaveformSquare => 'SQR';
+
+  @override
+  String get styloWaveformSawtooth => 'SAW';
+
+  @override
+  String get styloWaveformSine => 'SIN';
+
+  @override
+  String get styloWaveformTriangle => 'TRI';
+
+  @override
+  String get thereminVibrato => 'VIB';
+
+  @override
+  String get thereminPadHeight => 'HAUTEUR';
+
+  @override
+  String get midiMuteOwnSound => 'MUTE';
 }
