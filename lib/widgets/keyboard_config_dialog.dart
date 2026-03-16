@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../l10n/app_localizations.dart';
+import '../models/gfpa_plugin_instance.dart';
 import '../models/grooveforge_keyboard_plugin.dart';
 import '../models/keyboard_display_config.dart';
 import '../models/plugin_instance.dart';
@@ -10,10 +11,32 @@ import '../services/audio_engine.dart';
 import '../services/cc_mapping_service.dart';
 import '../services/rack_state.dart';
 
+/// Returns true for plugins that support per-slot keyboard config.
+///
+/// Currently: [GrooveForgeKeyboardPlugin], [VirtualPianoPlugin], and the
+/// GFPA Vocoder (which has an embedded virtual piano).
+bool _supportsKeyboardConfig(PluginInstance plugin) {
+  if (plugin is GrooveForgeKeyboardPlugin) return true;
+  if (plugin is VirtualPianoPlugin) return true;
+  if (plugin is GFpaPluginInstance &&
+      plugin.pluginId == 'com.grooveforge.vocoder') {
+    return true;
+  }
+  return false;
+}
+
+/// Returns the current [KeyboardDisplayConfig] for [plugin], or null.
+KeyboardDisplayConfig? _configOf(PluginInstance plugin) {
+  if (plugin is GrooveForgeKeyboardPlugin) return plugin.keyboardConfig;
+  if (plugin is VirtualPianoPlugin) return plugin.keyboardConfig;
+  if (plugin is GFpaPluginInstance) return plugin.keyboardConfig;
+  return null;
+}
+
 /// Opens the per-slot keyboard configuration dialog for [plugin].
 ///
-/// Only valid for [GrooveForgeKeyboardPlugin] and [VirtualPianoPlugin]; calling
-/// with any other plugin type is a no-op.
+/// Valid for [GrooveForgeKeyboardPlugin], [VirtualPianoPlugin], and the
+/// GFPA Vocoder. Calling with any other plugin type is a no-op.
 ///
 /// The dialog lets the user override, per slot:
 /// - Number of visible keys
@@ -24,10 +47,7 @@ import '../services/rack_state.dart';
 ///
 /// Changes are applied immediately and persisted via [RackState.setKeyboardConfig].
 void showKeyboardConfigDialog(BuildContext context, PluginInstance plugin) {
-  // Only piano-type slots support this config.
-  if (plugin is! GrooveForgeKeyboardPlugin && plugin is! VirtualPianoPlugin) {
-    return;
-  }
+  if (!_supportsKeyboardConfig(plugin)) return;
   showDialog<void>(
     context: context,
     builder: (ctx) => _KeyboardConfigDialog(plugin: plugin),
@@ -85,15 +105,7 @@ class _KeyboardConfigDialogState extends State<_KeyboardConfigDialog> {
     _keyHeightOption = cfg?.keyHeightOption ?? KeyHeightOption.normal;
   }
 
-  KeyboardDisplayConfig? get _pluginConfig {
-    if (widget.plugin is GrooveForgeKeyboardPlugin) {
-      return (widget.plugin as GrooveForgeKeyboardPlugin).keyboardConfig;
-    }
-    if (widget.plugin is VirtualPianoPlugin) {
-      return (widget.plugin as VirtualPianoPlugin).keyboardConfig;
-    }
-    return null;
-  }
+  KeyboardDisplayConfig? get _pluginConfig => _configOf(widget.plugin);
 
   // ── Persist current state ────────────────────────────────────────────────
 

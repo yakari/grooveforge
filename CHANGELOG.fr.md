@@ -5,6 +5,12 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/lang/fr/).
 
+## [2.5.5] - 2026-03-16
+
+### Ajouté
+- **Configuration du clavier du Vocoder** : le slot Vocoder expose désormais le même bouton ⊞ que le GF Keyboard et le Piano Virtuel — appuyez dessus pour régler indépendamment le nombre de touches visibles et la hauteur des touches, sans toucher aux préférences globales.
+- **Mode Naturel du Vocoder repensé en autotune** : l'ancienne forme d'onde Naturelle passait par le banc de filtres du vocoder et sonnait robotique. Elle est remplacée par un décaleur de hauteur PSOLA (Pitch-Synchronous Overlap-Add) qui lit le signal brut du micro, détecte la hauteur source par ACF, et retime les grains à la fréquence MIDI cible — contournant complètement le banc de filtres pour préserver le timbre de la voix.
+
 ## [2.5.4] - 2026-03-15
 
 ### Ajouté

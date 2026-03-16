@@ -1,3 +1,4 @@
+import 'keyboard_display_config.dart';
 import 'plugin_instance.dart';
 
 /// A rack slot backed by a GFPA (GrooveForge Plugin API) plugin.
@@ -40,6 +41,13 @@ class GFpaPluginInstance implements PluginInstance {
   /// bar for quick access without scrolling to its rack slot.
   bool pinned;
 
+  /// Per-slot keyboard display config (key count, height, gestures).
+  ///
+  /// Only meaningful for GFPA instrument slots that also show a virtual piano
+  /// (currently the vocoder).  Null means "use global prefs".
+  /// Persisted in the `state` map under the key `'keyboardConfig'`.
+  KeyboardDisplayConfig? keyboardConfig;
+
   GFpaPluginInstance({
     required this.id,
     required this.pluginId,
@@ -48,6 +56,7 @@ class GFpaPluginInstance implements PluginInstance {
     List<String>? targetSlotIds,
     this.masterSlotId,
     this.pinned = false,
+    this.keyboardConfig,
   })  : state = state ?? {},
         targetSlotIds = targetSlotIds ?? [];
 
@@ -81,7 +90,13 @@ class GFpaPluginInstance implements PluginInstance {
         if (targetSlotIds.isNotEmpty) 'targetSlotIds': targetSlotIds,
         if (masterSlotId != null) 'masterSlotId': masterSlotId,
         if (pinned) 'pinned': true,
-        'state': state,
+        'state': {
+          ...state,
+          // Persist keyboard config inside the state map so it round-trips
+          // through project files alongside other plugin state.
+          if (keyboardConfig != null)
+            'keyboardConfig': keyboardConfig!.toJson(),
+        },
       };
 
   factory GFpaPluginInstance.fromJson(Map<String, dynamic> json) {
@@ -95,16 +110,24 @@ class GFpaPluginInstance implements PluginInstance {
       targetSlotIds = old != null ? [old] : [];
     }
 
+    final stateMap = Map<String, dynamic>.from(
+      (json['state'] as Map<String, dynamic>?) ?? {},
+    );
+    final kbJson = stateMap['keyboardConfig'] as Map<String, dynamic>?;
+    // Remove the nested keyboardConfig from the raw state map so it is not
+    // duplicated — it is exposed via the typed keyboardConfig field instead.
+    stateMap.remove('keyboardConfig');
+
     return GFpaPluginInstance(
       id: json['id'] as String,
       pluginId: json['pluginId'] as String,
       midiChannel: (json['midiChannel'] as num?)?.toInt() ?? 0,
-      state: Map<String, dynamic>.from(
-        (json['state'] as Map<String, dynamic>?) ?? {},
-      ),
+      state: stateMap,
       targetSlotIds: targetSlotIds,
       masterSlotId: json['masterSlotId'] as String?,
       pinned: (json['pinned'] as bool?) ?? false,
+      keyboardConfig:
+          kbJson != null ? KeyboardDisplayConfig.fromJson(kbJson) : null,
     );
   }
 
@@ -117,6 +140,8 @@ class GFpaPluginInstance implements PluginInstance {
     String? masterSlotId,
     bool clearMasterSlot = false,
     bool? pinned,
+    KeyboardDisplayConfig? keyboardConfig,
+    bool clearKeyboardConfig = false,
   }) =>
       GFpaPluginInstance(
         id: id ?? this.id,
@@ -126,5 +151,8 @@ class GFpaPluginInstance implements PluginInstance {
         targetSlotIds: targetSlotIds ?? List.from(this.targetSlotIds),
         masterSlotId: clearMasterSlot ? null : (masterSlotId ?? this.masterSlotId),
         pinned: pinned ?? this.pinned,
+        keyboardConfig: clearKeyboardConfig
+            ? null
+            : (keyboardConfig ?? this.keyboardConfig),
       );
 }

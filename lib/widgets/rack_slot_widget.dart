@@ -171,10 +171,10 @@ class RackSlotWidget extends StatelessWidget {
       cfg = (plugin as GrooveForgeKeyboardPlugin).keyboardConfig;
     } else if (plugin is VirtualPianoPlugin) {
       cfg = (plugin as VirtualPianoPlugin).keyboardConfig;
+    } else if (plugin is GFpaPluginInstance) {
+      cfg = (plugin as GFpaPluginInstance).keyboardConfig;
     }
     if (cfg == null) return pianoHeight;
-    // Only override height when the user has explicitly chosen non-normal,
-    // OR when a config object exists (it always carries a keyHeightOption).
     return cfg.keyHeightOption.pianoPixelHeight;
   }
 
@@ -310,9 +310,12 @@ class _SlotHeader extends StatelessWidget {
             ),
           ),
 
-          // ── Keyboard config button — only for piano-type slots
+          // ── Keyboard config button — piano-type slots and vocoder
           if (plugin is GrooveForgeKeyboardPlugin ||
-              plugin is VirtualPianoPlugin) ...[
+              plugin is VirtualPianoPlugin ||
+              (plugin is GFpaPluginInstance &&
+                  (plugin as GFpaPluginInstance).pluginId ==
+                      'com.grooveforge.vocoder')) ...[
             IconButton(
               icon: const Icon(Icons.tune, size: 16, color: Colors.white38),
               tooltip: 'Keyboard config',
@@ -490,6 +493,9 @@ class _RackSlotPiano extends StatelessWidget {
     }
     if (plugin is VirtualPianoPlugin) {
       return (plugin as VirtualPianoPlugin).keyboardConfig;
+    }
+    if (plugin is GFpaPluginInstance) {
+      return (plugin as GFpaPluginInstance).keyboardConfig;
     }
     return null;
   }

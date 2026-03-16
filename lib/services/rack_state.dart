@@ -283,6 +283,9 @@ class RackState extends ChangeNotifier {
       plugin.keyboardConfig = config;
     } else if (plugin is VirtualPianoPlugin) {
       plugin.keyboardConfig = config;
+    } else if (plugin is GFpaPluginInstance) {
+      // Only vocoder GFPA slots have an embedded piano that can be configured.
+      plugin.keyboardConfig = config;
     } else {
       return;
     }
