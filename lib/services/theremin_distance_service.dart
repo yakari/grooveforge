@@ -113,9 +113,17 @@ class ThereminDistanceService {
     if (isActive) return null; // already running
 
     // ── Camera permission ──────────────────────────────────────────────────
-    // permission_handler covers Android, iOS, and macOS uniformly.
-    final status = await Permission.camera.request();
-    if (!status.isGranted) return 'NO_PERMISSION';
+    if (Platform.isMacOS) {
+      // Workaround: permission_handler fails to register on macOS in this project.
+      // Call the native permission request directly on our custom channel.
+      final bool granted =
+          await _kMethodChannel.invokeMethod<bool>('requestPermission') ?? false;
+      if (!granted) return 'NO_PERMISSION';
+    } else {
+      // permission_handler covers Android and iOS correctly.
+      final status = await Permission.camera.request();
+      if (!status.isGranted) return 'NO_PERMISSION';
+    }
 
     // ── Start native session ───────────────────────────────────────────────
     try {

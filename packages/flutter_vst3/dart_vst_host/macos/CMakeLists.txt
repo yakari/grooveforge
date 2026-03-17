@@ -79,6 +79,9 @@ add_library(${PROJECT_NAME} SHARED
   ${NATIVE_DIR}/src/dart_vst_host.cpp
   # Platform stubs (ALSA + Linux editor → no-ops on macOS)
   ${NATIVE_DIR}/src/dart_vst_host_platform_stubs.cpp
+  # macOS specific implementation
+  ${NATIVE_DIR}/src/dart_vst_host_audio_mac.cpp
+  ${NATIVE_DIR}/src/dart_vst_host_editor_mac.mm
   ${VST3_BASE_SOURCES}
   ${VST3_SDK_SOURCES}
   # macOS VST3 module loader and thread checker (Objective-C++)

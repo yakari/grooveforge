@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.6] - 2026-03-16
+
+### Fixed
+- **MacOS crash on startup**: Rebuilt the precompiled macOS `libaudio_input.dylib` to include the `VocoderPitchBend` and `VocoderControlChange` C FFI symbols, preventing a `symbol not found` crash on launch.
+- **MacOS crash when adding modules**: Fixed missing `dvh_set_processing_order` symbol in `libdart_vst_host.dylib` by including missing native source files in the macOS build configuration and rebuilding the library. This restores VST3 routing functionality on macOS.
+- **MacOS camera permission error**: Fixed a `MissingPluginException` for `permission_handler` on macOS by implementing a native camera permission request directly in `ThereminCameraPlugin.swift` and bypassing the failing plugin on this platform.
+
 ## [2.5.5] - 2026-03-16
 - **Vocoder keyboard config**: the Vocoder slot now exposes the same ⊞ tune button as the GF Keyboard and Virtual Piano slots — tap it to override the number of visible keys and key height for that slot independently of the global preference.
 - **Vocoder Natural mode redesigned as autotune**: the former Natural waveform used the vocoder filterbank and sounded robotic. It is now a PSOLA (Pitch-Synchronous Overlap-Add) pitch shifter that reads raw mic audio, detects the source pitch via ACF, and retimes grains to the target MIDI note frequency — bypassing the filterbank entirely so the voice timbre is preserved.

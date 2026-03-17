@@ -5,6 +5,13 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/lang/fr/).
 
+## [2.5.6] - 2026-03-16
+
+### Corrigé
+- **Plantage sur macOS au démarrage** : Recompilation de la bibliothèque `libaudio_input.dylib` pour macOS afin d'inclure les symboles C FFI `VocoderPitchBend` et `VocoderControlChange`, empêchant un plantage `symbol not found` au lancement de l'application.
+- **Plantage sur macOS lors de l'ajout de modules** : Correction du symbole `dvh_set_processing_order` manquant dans `libdart_vst_host.dylib` en incluant les fichiers sources natifs manquants dans la configuration de construction macOS et en recompilant la bibliothèque. Cela restaure la fonctionnalité de routage VST3 sur macOS.
+- **Erreur de permission caméra sur macOS** : Correction d'une `MissingPluginException` pour `permission_handler` sur macOS en implémentant une requête de permission caméra native directement dans `ThereminCameraPlugin.swift` et en contournant le plugin défaillant sur cette plateforme.
+
 ## [2.5.5] - 2026-03-16
 
 ### Ajouté

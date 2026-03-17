@@ -98,6 +98,8 @@ class ThereminCameraPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
         case "stop":
             stopCapture()
             result(nil)
+        case "requestPermission":
+            requestPermission(result: result)
         case "isSupported":
             result(true)
         default:
@@ -116,6 +118,29 @@ class ThereminCameraPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
     func onCancel(withArguments arguments: Any?) -> FlutterError? {
         self.eventSink = nil
         return nil
+    }
+
+    /**
+     * Natively requests camera access on macOS.
+     *
+     * Workaround for permission_handler package issues on macOS project.
+     */
+    private func requestPermission(result: @escaping FlutterResult) {
+        let status = AVCaptureDevice.authorizationStatus(for: .video)
+        switch status {
+        case .authorized:
+            result(true)
+        case .notDetermined:
+            AVCaptureDevice.requestAccess(for: .video) { granted in
+                DispatchQueue.main.async {
+                    result(granted)
+                }
+            }
+        case .denied, .restricted:
+            result(false)
+        @unknown default:
+            result(false)
+        }
     }
 
     // ─── Capture session ──────────────────────────────────────────────────────
