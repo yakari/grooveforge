@@ -98,7 +98,9 @@ class VstHost {
       return;
     }
     final arr = calloc<Pointer<Void>>(ordered.length);
-    for (int i = 0; i < ordered.length; i++) arr[i] = ordered[i].handle;
+    for (int i = 0; i < ordered.length; i++) {
+      arr[i] = ordered[i].handle;
+    }
     _b.dvhSetProcessingOrder(handle, arr, ordered.length);
     calloc.free(arr);
   }

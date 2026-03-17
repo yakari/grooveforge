@@ -28,6 +28,13 @@ class ProjectService extends ChangeNotifier {
     AudioGraph audioGraph,
     LooperEngine looperEngine,
   ) async {
+    if (kIsWeb) {
+      // No persistent filesystem on web — always start with defaults.
+      debugPrint('ProjectService: web target — initializing defaults');
+      rackState.initDefaults();
+      notifyListeners();
+      return;
+    }
     final docsDir = await getApplicationDocumentsDirectory();
     final autosavePath = '${docsDir.path}/autosave.gf';
 
@@ -56,6 +63,7 @@ class ProjectService extends ChangeNotifier {
     AudioGraph audioGraph,
     LooperEngine looperEngine,
   ) async {
+    if (kIsWeb) return;  // No filesystem on web; project state is not persisted.
     final docsDir = await getApplicationDocumentsDirectory();
     final autosavePath = '${docsDir.path}/autosave.gf';
     await _writeGfFile(

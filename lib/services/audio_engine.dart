@@ -259,7 +259,7 @@ class AudioEngine extends ChangeNotifier {
   ///   `flutter_midi_pro` method channel to `fluid_synth_set_gain()` on every
   ///   loaded synth instance.
   void applyFluidSynthGain() {
-    if (Platform.isLinux) {
+    if (!kIsWeb && Platform.isLinux) {
       _fluidSynthProcess?.stdin.writeln('gain ${fluidSynthGain.value}');
     } else {
       MidiPro().setGain(fluidSynthGain.value);
@@ -349,7 +349,7 @@ class AudioEngine extends ChangeNotifier {
   }
 
   Future<List<String>> getAvailableMicrophones() async {
-    if (Platform.isAndroid) {
+    if (!kIsWeb && Platform.isAndroid) {
       try {
         final List<dynamic>? devices = await audioConfigChannel.invokeMethod(
           'getAudioInputDevices',
@@ -371,7 +371,7 @@ class AudioEngine extends ChangeNotifier {
   }
 
   Future<List<Map<String, dynamic>>> getAndroidInputDevices() async {
-    if (!Platform.isAndroid) return [];
+    if (kIsWeb || !Platform.isAndroid) return [];
     try {
       final List<dynamic>? devices = await audioConfigChannel.invokeMethod(
         'getAudioInputDevices',
@@ -388,7 +388,7 @@ class AudioEngine extends ChangeNotifier {
   }
 
   Future<List<Map<String, dynamic>>> getAndroidOutputDevices() async {
-    if (!Platform.isAndroid) return [];
+    if (kIsWeb || !Platform.isAndroid) return [];
     try {
       final List<dynamic>? devices = await audioConfigChannel.invokeMethod(
         'getAudioOutputDevices',
@@ -448,7 +448,7 @@ class AudioEngine extends ChangeNotifier {
     initStatus.value = 'Loading preferences...';
     _prefs = await SharedPreferences.getInstance();
     
-    if (Platform.isAndroid) {
+    if (!kIsWeb && Platform.isAndroid) {
       initStatus.value = 'Checking permissions...';
       try {
         final status = await Permission.microphone.request();
@@ -460,54 +460,56 @@ class AudioEngine extends ChangeNotifier {
       }
     }
 
-    if (Platform.isLinux) {
-      initStatus.value = 'Starting FluidSynth backend...';
-      _fluidSynthProcess?.kill();
-      _fluidSynthProcess = await Process.start('/usr/bin/fluidsynth', [
-        '-a',
-        'alsa',
-        '-m',
-        'alsa_seq',
-        '-g',
-        '${fluidSynthGain.value}', // synth gain — persisted value (default 3.0 on Linux).
-             // FluidSynth's default (0.2) produces ~0.1 amplitude, far quieter
-             // than typical VST output (~0.3-0.5). We default to 3.0 on Linux
-             // which is loud enough without clipping at typical playing volumes.
-        '-q', // quiet mode: suppresses the interactive prompt and verbose logs
-      ]);
-      // Drain stdout and stderr continuously to prevent a pipe deadlock.
-      //
-      // Without this, FluidSynth's output (interactive prompt lines, command
-      // echo, warnings…) eventually fills the OS pipe buffer (~64 KB on Linux).
-      // When the buffer is full FluidSynth blocks on its next write() call and
-      // stops reading from stdin.  Dart's stdin buffer then fills up, new
-      // note-on / note-off writes silently fail, and all sound stops — while
-      // the last notes that were already queued in the pipe buffer keep ringing
-      // as stuck notes.
-      _fluidSynthProcess!.stdout.listen((_) {});
-      _fluidSynthProcess!.stderr.listen((_) {});
-    } else {
-      try {
-        final session = await AudioSession.instance;
-        await session.configure(
-          AudioSessionConfiguration(
-            avAudioSessionCategory: AVAudioSessionCategory.playAndRecord,
-            avAudioSessionCategoryOptions:
-                AVAudioSessionCategoryOptions.allowBluetooth |
-                AVAudioSessionCategoryOptions.allowBluetoothA2dp,
-            androidAudioAttributes: AndroidAudioAttributes(
-              // Use `media` usage — `voiceCommunication` forces the Android
-              // voice processing stack (echo canceller, NS, AGC) on the mix
-              // side which adds significant latency on some devices.
-              contentType: AndroidAudioContentType.music,
-              usage: AndroidAudioUsage.media,
+    if (!kIsWeb) {
+      if (Platform.isLinux) {
+        initStatus.value = 'Starting FluidSynth backend...';
+        _fluidSynthProcess?.kill();
+        _fluidSynthProcess = await Process.start('/usr/bin/fluidsynth', [
+          '-a',
+          'alsa',
+          '-m',
+          'alsa_seq',
+          '-g',
+          '${fluidSynthGain.value}', // synth gain — persisted value (default 3.0 on Linux).
+               // FluidSynth's default (0.2) produces ~0.1 amplitude, far quieter
+               // than typical VST output (~0.3-0.5). We default to 3.0 on Linux
+               // which is loud enough without clipping at typical playing volumes.
+          '-q', // quiet mode: suppresses the interactive prompt and verbose logs
+        ]);
+        // Drain stdout and stderr continuously to prevent a pipe deadlock.
+        //
+        // Without this, FluidSynth's output (interactive prompt lines, command
+        // echo, warnings…) eventually fills the OS pipe buffer (~64 KB on Linux).
+        // When the buffer is full FluidSynth blocks on its next write() call and
+        // stops reading from stdin.  Dart's stdin buffer then fills up, new
+        // note-on / note-off writes silently fail, and all sound stops — while
+        // the last notes that were already queued in the pipe buffer keep ringing
+        // as stuck notes.
+        _fluidSynthProcess!.stdout.listen((_) {});
+        _fluidSynthProcess!.stderr.listen((_) {});
+      } else {
+        try {
+          final session = await AudioSession.instance;
+          await session.configure(
+            AudioSessionConfiguration(
+              avAudioSessionCategory: AVAudioSessionCategory.playAndRecord,
+              avAudioSessionCategoryOptions:
+                  AVAudioSessionCategoryOptions.allowBluetooth |
+                  AVAudioSessionCategoryOptions.allowBluetoothA2dp,
+              androidAudioAttributes: AndroidAudioAttributes(
+                // Use `media` usage — `voiceCommunication` forces the Android
+                // voice processing stack (echo canceller, NS, AGC) on the mix
+                // side which adds significant latency on some devices.
+                contentType: AndroidAudioContentType.music,
+                usage: AndroidAudioUsage.media,
+              ),
+              androidAudioFocusGainType: AndroidAudioFocusGainType.gain,
+              androidWillPauseWhenDucked: true,
             ),
-            androidAudioFocusGainType: AndroidAudioFocusGainType.gain,
-            androidWillPauseWhenDucked: true,
-          ),
-        );
-      } catch (e) {
-        debugPrint('Error configuring audio session for Bluetooth: $e');
+          );
+        } catch (e) {
+          debugPrint('Error configuring audio session for Bluetooth: $e');
+        }
       }
     }
 
@@ -520,7 +522,7 @@ class AudioEngine extends ChangeNotifier {
     _isInitialized = true;
     initStatus.value = 'Ready';
 
-    if (Platform.isAndroid) {
+    if (!kIsWeb && Platform.isAndroid) {
       _setupAudioDeviceChangeListener();
       // Check right now if any saved device is already stale
       _resetDisconnectedDevices();
@@ -571,6 +573,32 @@ class AudioEngine extends ChangeNotifier {
   }
 
   Future<void> _ensureDefaultSoundfont() async {
+    if (kIsWeb) {
+      // Web: AudioContext requires a user gesture before it can run (browser
+      // autoplay policy). WorkletSynthesizer initialises its AudioWorklet
+      // thread only after the context is running, so awaiting soundfont load
+      // here would hang the splash screen forever.
+      //
+      // Instead: pre-assign the asset path to every channel so the UI is
+      // ready, then kick off the load in the background. The first time the
+      // user plays a note the context resumes, the worklet initialises, and
+      // subsequent notes produce sound. Any notes fired before the load
+      // completes are silently dropped (sfId = -1 → no-op).
+      const assetPath = 'assets/soundfonts/default.sf2';
+      if (!loadedSoundfonts.contains(assetPath)) {
+        for (int i = 0; i < 16; i++) {
+          if (channels[i].soundfontPath == null ||
+              channels[i].soundfontPath!.isEmpty) {
+            channels[i].soundfontPath = assetPath;
+          }
+        }
+        // Fire-and-forget: completes after user's first interaction resumes
+        // the AudioContext.
+        _loadWebSoundfontInBackground(assetPath);
+      }
+      return;
+    }
+
     try {
       final appSupportDir = await getApplicationSupportDirectory();
       final soundfontsDirPath = p.join(appSupportDir.path, 'soundfonts');
@@ -614,6 +642,34 @@ class AudioEngine extends ChangeNotifier {
       }
     } catch (e) {
       debugPrint('Error unpacking default soundfont: $e');
+    }
+  }
+
+  /// Loads the web default soundfont in the background.
+  ///
+  /// Called once during init without awaiting it. The load requires the
+  /// AudioContext to be running (user gesture), so it may pend silently
+  /// until the user first interacts with the app. Once the sfId is
+  /// available the channel instrument assignments are applied and all
+  /// queued notes can play.
+  Future<void> _loadWebSoundfontInBackground(String assetPath) async {
+    try {
+      final sfId = await _midiPro.loadSoundfontAsset(assetPath: assetPath);
+      if (sfId == -1) {
+        debugPrint('GrooveForge Web: soundfont load returned -1 (JS bridge not ready)');
+        return;
+      }
+      _sfPathToIdMobile[assetPath] = sfId;
+      loadedSoundfonts.add(assetPath);
+      for (int i = 0; i < 16; i++) {
+        if (channels[i].soundfontPath == assetPath) {
+          _applyChannelInstrument(i);
+        }
+      }
+      stateNotifier.value++;
+      debugPrint('GrooveForge Web: default soundfont loaded (sfId=$sfId)');
+    } catch (e) {
+      debugPrint('GrooveForge Web: error loading default soundfont: $e');
     }
   }
 
@@ -681,7 +737,8 @@ class AudioEngine extends ChangeNotifier {
     // Restore FluidSynth gain — applied immediately via stdin if the process
     // is already running (only meaningful on Linux).
     fluidSynthGain.value =
-        _prefs!.getDouble('fluidsynth_gain') ?? (Platform.isLinux ? 3.0 : 5.0);
+        _prefs!.getDouble('fluidsynth_gain') ??
+        (!kIsWeb && Platform.isLinux ? 3.0 : 5.0);
 
     // Restore Vocoder Parameters FIRST so capture starts with correct device
     vocoderWaveform.value = _prefs!.getInt('vocoder_waveform') ?? 0;
@@ -700,35 +757,51 @@ class AudioEngine extends ChangeNotifier {
     // Apply logic to C engine immediately
     updateVocoderParameters();
 
-    List<String>? savedSfs = _prefs!.getStringList('loaded_soundfonts');
-    Map<String, String> migrationMap = {};
-    if (savedSfs != null) {
-      for (String path in savedSfs) {
-        final file = File(path);
-        if (file.existsSync()) {
-          String migratedPath = await loadSoundfont(file, save: false);
-          migrationMap[path] = migratedPath;
+    if (!kIsWeb) {
+      // Native: reload soundfonts from their saved file paths and apply them.
+      final List<String>? savedSfs =
+          _prefs!.getStringList('loaded_soundfonts');
+      final Map<String, String> migrationMap = {};
+      if (savedSfs != null) {
+        for (final path in savedSfs) {
+          final file = File(path);
+          if (file.existsSync()) {
+            final migratedPath = await loadSoundfont(file, save: false);
+            migrationMap[path] = migratedPath;
+          }
         }
       }
-    }
 
-    List<String>? savedChannels = _prefs!.getStringList('channels_state');
-    if (savedChannels != null && savedChannels.length == 16) {
-      if (Platform.isLinux && savedSfs != null && savedSfs.isNotEmpty) {
-        await Future.delayed(const Duration(milliseconds: 1500));
-      }
-
-      for (int i = 0; i < 16; i++) {
-        var state = ChannelState.fromJson(jsonDecode(savedChannels[i]));
-        if (state.soundfontPath != null &&
-            migrationMap.containsKey(state.soundfontPath)) {
-          state.soundfontPath = migrationMap[state.soundfontPath];
+      final List<String>? savedChannels =
+          _prefs!.getStringList('channels_state');
+      if (savedChannels != null && savedChannels.length == 16) {
+        if (Platform.isLinux && savedSfs != null && savedSfs.isNotEmpty) {
+          await Future.delayed(const Duration(milliseconds: 1500));
         }
-        channels[i] = state;
-        if (state.soundfontPath != null &&
-            (state.soundfontPath == vocoderMode ||
-                loadedSoundfonts.contains(state.soundfontPath))) {
-          _applyChannelInstrument(i);
+        for (int i = 0; i < 16; i++) {
+          var state = ChannelState.fromJson(jsonDecode(savedChannels[i]));
+          if (state.soundfontPath != null &&
+              migrationMap.containsKey(state.soundfontPath)) {
+            state.soundfontPath = migrationMap[state.soundfontPath];
+          }
+          channels[i] = state;
+          if (state.soundfontPath != null &&
+              (state.soundfontPath == vocoderMode ||
+                  loadedSoundfonts.contains(state.soundfontPath))) {
+            _applyChannelInstrument(i);
+          }
+        }
+      }
+    } else {
+      // Web: no writable filesystem — restore only bank/program per channel.
+      // The soundfont itself is loaded in _ensureDefaultSoundfont().
+      final List<String>? savedChannels =
+          _prefs!.getStringList('channels_state');
+      if (savedChannels != null && savedChannels.length == 16) {
+        for (int i = 0; i < 16; i++) {
+          final state = ChannelState.fromJson(jsonDecode(savedChannels[i]));
+          channels[i].program = state.program;
+          channels[i].bank = state.bank;
         }
       }
     }
@@ -785,6 +858,13 @@ class AudioEngine extends ChangeNotifier {
   }
 
   Future<String> loadSoundfont(File soundfont, {bool save = true}) async {
+    if (kIsWeb) {
+      // File-based soundfont loading is not supported on web. Custom soundfonts
+      // can be added in a future update via a web-compatible file-bytes path.
+      debugPrint(
+          'GrooveForge Web: loadSoundfont(File) is not supported on web.');
+      return soundfont.path;
+    }
     try {
       final appSupportDir = await getApplicationSupportDirectory();
       final soundfontsDirPath = p.join(appSupportDir.path, 'soundfonts');
@@ -848,7 +928,7 @@ class AudioEngine extends ChangeNotifier {
     if (!loadedSoundfonts.contains(path)) {
       return;
     }
-    if (Platform.isLinux) {
+    if (!kIsWeb && Platform.isLinux) {
       int? sfId = _sfPathToIdLinux[path];
       if (sfId != null) {
         _fluidSynthProcess?.stdin.writeln('unload $sfId');
@@ -947,7 +1027,7 @@ class AudioEngine extends ChangeNotifier {
     if (state.soundfontPath == null || state.soundfontPath == vocoderMode) {
       return;
     }
-    if (Platform.isLinux) {
+    if (!kIsWeb && Platform.isLinux) {
       int? sfId = _sfPathToIdLinux[state.soundfontPath!];
       if (sfId != null) {
         _fluidSynthProcess?.stdin.writeln(
@@ -972,7 +1052,7 @@ class AudioEngine extends ChangeNotifier {
     if (path == null) {
       return -1;
     }
-    return Platform.isLinux
+    return (!kIsWeb && Platform.isLinux)
         ? (_sfPathToIdLinux[path] ?? -1)
         : (_sfPathToIdMobile[path] ?? -1);
   }
@@ -984,7 +1064,7 @@ class AudioEngine extends ChangeNotifier {
     // GM drum notes: 37 = side stick (downbeat accent), 76 = high wood block (regular beat).
     final int note = isDownbeat ? 37 : 76;
     final int velocity = isDownbeat ? 100 : 75;
-    if (Platform.isLinux) {
+    if (!kIsWeb && Platform.isLinux) {
       _fluidSynthProcess?.stdin.writeln('noteon $percChannel $note $velocity');
       Future.delayed(const Duration(milliseconds: 40), () {
         _fluidSynthProcess?.stdin.writeln('noteoff $percChannel $note');
@@ -1219,7 +1299,7 @@ class AudioEngine extends ChangeNotifier {
 
     int? currentOwner = channels[channel].snappedKeyOwners[keyToPlay];
     if (currentOwner != null && currentOwner != key) {
-      if (Platform.isLinux && _fluidSynthProcess != null) {
+      if (!kIsWeb && Platform.isLinux && _fluidSynthProcess != null) {
         _fluidSynthProcess!.stdin.writeln('noteoff $channel $keyToPlay');
       } else {
         int sfId = _getSfIdForChannel(channel);
@@ -1238,7 +1318,7 @@ class AudioEngine extends ChangeNotifier {
     if (channels[channel].soundfontPath == vocoderMode) {
       AudioInputFFI().playNote(key: keyToPlay, velocity: velocity);
     } else {
-      if (Platform.isLinux && _fluidSynthProcess != null) {
+      if (!kIsWeb && Platform.isLinux && _fluidSynthProcess != null) {
         _fluidSynthProcess!.stdin.writeln(
           'noteon $channel $keyToPlay $velocity',
         );
@@ -1274,7 +1354,7 @@ class AudioEngine extends ChangeNotifier {
       if (channels[channel].soundfontPath == vocoderMode) {
         AudioInputFFI().stopNote(key: keyToStop);
       } else {
-        if (Platform.isLinux && _fluidSynthProcess != null) {
+        if (!kIsWeb && Platform.isLinux && _fluidSynthProcess != null) {
           _fluidSynthProcess!.stdin.writeln('noteoff $channel $keyToStop');
         } else {
           int sfId = _getSfIdForChannel(channel);
@@ -1916,7 +1996,7 @@ class AudioEngine extends ChangeNotifier {
     required int controller,
     required int value,
   }) {
-    if (Platform.isLinux && _fluidSynthProcess != null) {
+    if (!kIsWeb && Platform.isLinux && _fluidSynthProcess != null) {
       _fluidSynthProcess!.stdin.writeln('cc $channel $controller $value');
     } else {
       int sfId = _getSfIdForChannel(channel);
@@ -1930,7 +2010,7 @@ class AudioEngine extends ChangeNotifier {
   }
 
   void _sendPitchBend({required int channel, required int value}) {
-    if (Platform.isLinux && _fluidSynthProcess != null) {
+    if (!kIsWeb && Platform.isLinux && _fluidSynthProcess != null) {
       _fluidSynthProcess!.stdin.writeln('pitch_bend $channel $value');
     } else {
       int sfId = _getSfIdForChannel(channel);

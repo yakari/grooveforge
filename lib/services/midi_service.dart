@@ -34,7 +34,7 @@ class MidiService {
     // On Linux, the native stream listener can sometimes cause conflicts with the ALSA driver during connection.
     // We prefer the polling strategy for stability on Linux/Windows/macOS.
     final setupStream = _midiCommand.onMidiSetupChanged;
-    if (setupStream != null && !Platform.isLinux) {
+    if (!kIsWeb && setupStream != null && !Platform.isLinux) {
       debugPrint('MidiService: Subscribing to onMidiSetupChanged');
       _setupSubscription = setupStream.listen((event) {
         debugPrint('MidiService: onMidiSetupChanged event: $event');
@@ -59,6 +59,7 @@ class MidiService {
   }
 
   void _setHangFlagSync(bool value) {
+    if (kIsWeb) return;  // No filesystem on web; hang-detection is native-only.
     try {
       final path = '/tmp/grooveforge_midi_hang.flag';
       final file = File(path);
@@ -73,6 +74,7 @@ class MidiService {
   }
 
   bool _isHangFlagSetSync() {
+    if (kIsWeb) return false;  // No filesystem on web.
     try {
       return File('/tmp/grooveforge_midi_hang.flag').existsSync();
     } catch (_) {
@@ -81,6 +83,7 @@ class MidiService {
   }
 
   Future<void> _handleSetupChanged() async {
+    if (kIsWeb) return;  // No MIDI device scanning on web.
     if (_isConnecting) {
       debugPrint('MidiService: Scan ignored, connection already in progress.');
       return;
@@ -145,6 +148,7 @@ class MidiService {
   }
 
   Future<void> _tryAutoConnect() async {
+    if (kIsWeb) return;  // No MIDI hardware on web.
     debugPrint('MidiService: INITIAL _tryAutoConnect');
     final prefs = await SharedPreferences.getInstance();
     final lastDeviceName = prefs.getString('last_midi_device_name');
@@ -185,6 +189,7 @@ class MidiService {
       _midiCommand.onMidiSetupChanged?.map((_) => []);
 
   Future<List<MidiDevice>> get devices async {
+    if (kIsWeb) return [];  // flutter_midi_command has no web implementation.
     final devs = await _midiCommand.devices;
     return devs ?? [];
   }

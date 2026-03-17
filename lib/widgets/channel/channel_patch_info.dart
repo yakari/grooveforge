@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:grooveforge/l10n/app_localizations.dart';
 
@@ -152,7 +153,7 @@ class ChannelPatchInfo extends StatelessWidget {
                                         context,
                                       )!.patchDefaultSoundfont
                                       : sfPath
-                                          .split(Platform.pathSeparator)
+                                          .split(kIsWeb ? '/' : Platform.pathSeparator)
                                           .last;
                               return DropdownMenuItem<String>(
                                 value: sfPath,

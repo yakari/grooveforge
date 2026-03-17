@@ -19,6 +19,11 @@ analyzer:
     # Test files for path-dependency sub-packages use their own dev deps
     # (e.g. package:test) which are not visible from the root resolution.
     - packages/flutter_vst3/dart_vst_host/test/**
+    # Web-only flutter_midi_pro platform implementation: uses dart:js_interop
+    # extension types that require a web compilation context. Analyzed in
+    # isolation via packages/flutter_midi_pro rather than from the root.
+    - packages/flutter_midi_pro/lib/flutter_midi_pro_web.dart
+    - "**/flutter_midi_pro_web.dart"
 
 linter:
   # The lint rules applied to this project can be customized in the

@@ -1,4 +1,6 @@
+import '../models/plugin_instance.dart';
 import '../models/vst3_plugin_instance.dart';
+import 'audio_graph.dart';
 
 /// Stub VstHostService for mobile and web platforms where VST3 hosting
 /// is not supported. All methods are no-ops or throw immediately.
@@ -50,6 +52,8 @@ class VstHostService {
   bool openEditor(String slotId, {String title = 'Plugin Editor'}) => false;
   void closeEditor(String slotId) {}
   bool isEditorOpen(String slotId) => false;
+
+  void syncAudioRouting(AudioGraph graph, List<PluginInstance> allPlugins) {}
 
   void dispose() {}
 }

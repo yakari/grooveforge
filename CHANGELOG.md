@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [X.x.x]
+
+### Added
+- **Web target**: GrooveForge now builds and runs as a Flutter web app deployable to GitHub Pages.
+- **Web audio (GF Keyboard)**: SF2 soundfont playback on web via a SpessaSynth JavaScript bridge (`web/js/grooveforge_audio.js`). The bridge is loaded as a `<script type="module">` in `web/index.html` and exposed as `window.grooveForgeAudio`. A new `FlutterMidiProWeb` Dart class (using `dart:js_interop` extension types) delegates all MIDI calls to this bridge.
+- **Web audio (Stylophone & Theremin)**: Oscillator synthesis on web via the Web Audio API, exposed as `window.grooveForgeOscillator`. Waveform, vibrato, portamento, and amplitude behaviour match the native C implementation.
+- **GitHub Actions workflow** (`.github/workflows/web_deploy.yml`): Automatically builds the Flutter web release and deploys to GitHub Pages (`gh-pages` branch) on every push to `main`.
+
+### Architecture
+- `lib/services/audio_input_ffi.dart` converted to a conditional re-export: native platforms use `audio_input_ffi_native.dart` (unchanged FFI code); web uses `audio_input_ffi_stub.dart` (JS interop bridge, all Vocoder methods are no-ops).
+- `lib/services/vst_host_service.dart` conditional export condition changed from `dart.library.io` to `dart.library.js_interop` — `dart:io` is partially available on Flutter web 3.x, so the old condition was incorrectly selecting the desktop (FFI-heavy) implementation on web.
+- `lib/services/rack_state.dart` import changed from the concrete `vst_host_service_desktop.dart` to the conditional re-export `vst_host_service.dart`, ensuring the FFI-free stub is used on web.
+- `lib/services/vst_host_service_stub.dart` extended with a `syncAudioRouting` no-op to match the desktop interface.
+- `kIsWeb` guards added in `audio_engine.dart`, `midi_service.dart`, and `project_service.dart` to skip all `dart:io` file/directory operations on web.
+- `packages/flutter_midi_pro`: SDK constraint raised to `>=3.3.0` (extension types), `flutter_web_plugins` dependency added, web plugin registration (`FlutterMidiProWeb`) added to `pubspec.yaml`. `loadSoundfontAsset` skips temp-file I/O on web and passes the asset path directly to the JS bridge.
+- `packages/flutter_midi_pro/analysis_options.yaml` updated to exclude `flutter_midi_pro_web.dart` from non-web analysis (the file uses `dart:js_interop` extension types that are only valid in a web compilation context).
+
 ## [2.5.6] - 2026-03-16
 
 ### Fixed

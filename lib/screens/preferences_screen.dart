@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
@@ -299,7 +300,7 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                             String filename =
                                 isDefault
                                     ? loc.defaultSoundfont
-                                    : path.split(Platform.pathSeparator).last;
+                                    : path.split(kIsWeb ? '/' : Platform.pathSeparator).last;
                             return ListTile(
                               leading: Icon(
                                 Icons.piano,
@@ -358,7 +359,7 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                   children: [
                     FutureBuilder<List<dynamic>>(
                       future:
-                          Platform.isAndroid
+                          (!kIsWeb && Platform.isAndroid)
                               ? engine.getAndroidInputDevices()
                               : engine.getAvailableMicrophones(),
                       builder: (context, snapshot) {
@@ -371,7 +372,7 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                                   engine.vocoderInputAndroidDeviceId,
                               builder: (context, androidId, _) {
                                 String currentName = loc.micSelectionDefault;
-                                if (Platform.isAndroid) {
+                                if ((!kIsWeb && Platform.isAndroid)) {
                                   final dev = devices
                                       .cast<dynamic>()
                                       .firstWhere(
@@ -387,7 +388,7 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                                 }
 
                                 final bool valueMissing =
-                                    Platform.isAndroid
+                                    (!kIsWeb && Platform.isAndroid)
                                         ? (androidId != -1 &&
                                             !devices.any(
                                               (d) =>
@@ -404,11 +405,11 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                                   title: loc.micSelectionDevice,
                                   subtitle:
                                       valueMissing
-                                          ? "Disconnected (ID: ${Platform.isAndroid ? androidId : deviceIndex})"
+                                          ? "Disconnected (ID: ${(!kIsWeb && Platform.isAndroid) ? androidId : deviceIndex})"
                                           : currentName,
                                   trailing: DropdownButton<int>(
                                     value:
-                                        Platform.isAndroid
+                                        (!kIsWeb && Platform.isAndroid)
                                             ? androidId
                                             : deviceIndex,
                                     items: [
@@ -419,21 +420,21 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                                       if (valueMissing)
                                         DropdownMenuItem(
                                           value:
-                                              Platform.isAndroid
+                                              (!kIsWeb && Platform.isAndroid)
                                                   ? androidId
                                                   : deviceIndex,
                                           child: Text(
-                                            "Disconnected (ID: ${Platform.isAndroid ? androidId : deviceIndex})",
+                                            "Disconnected (ID: ${(!kIsWeb && Platform.isAndroid) ? androidId : deviceIndex})",
                                           ),
                                         ),
                                       ...List.generate(devices.length, (i) {
                                         final device = devices[i];
                                         final int val =
-                                            Platform.isAndroid
+                                            (!kIsWeb && Platform.isAndroid)
                                                 ? (device as Map)['id']
                                                 : i;
                                         final String name =
-                                            Platform.isAndroid
+                                            (!kIsWeb && Platform.isAndroid)
                                                 ? (device as Map)['name']
                                                 : device as String;
                                         return DropdownMenuItem(
@@ -444,7 +445,7 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                                     ],
                                     onChanged: (val) {
                                       if (val != null) {
-                                        if (Platform.isAndroid) {
+                                        if ((!kIsWeb && Platform.isAndroid)) {
                                           engine
                                               .vocoderInputAndroidDeviceId
                                               .value = val;
@@ -881,7 +882,7 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
           const Divider(height: 40),
 
           // ======== VST3 SECTION (desktop only) ========
-          if (!Platform.isAndroid && !Platform.isIOS) ...[
+          if (!kIsWeb && !Platform.isAndroid && !Platform.isIOS) ...[
             Text(
               'VST3 Plugins',
               style: const TextStyle(

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -49,7 +50,7 @@ class AudioSettingsBar extends StatelessWidget {
           _MicDeviceDropdown(engine: engine, l10n: l10n),
 
           // ── Output device dropdown (Android only) ────────────────────────
-          if (Platform.isAndroid) ...[
+          if (!kIsWeb && Platform.isAndroid) ...[
             const SizedBox(width: 12),
             const _Divider(),
             const SizedBox(width: 12),
@@ -134,7 +135,7 @@ class _MicDeviceDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<List<dynamic>>(
-      future: Platform.isAndroid
+      future: (!kIsWeb && Platform.isAndroid)
           ? engine.getAndroidInputDevices()
           : engine.getAvailableMicrophones(),
       builder: (context, snapshot) {
@@ -143,13 +144,13 @@ class _MicDeviceDropdown extends StatelessWidget {
         return _CompactDeviceDropdown(
           label: l10n.audioSettingsBarMicDevice,
           icon: Icons.mic_none,
-          currentValueListenable: Platform.isAndroid
+          currentValueListenable: (!kIsWeb && Platform.isAndroid)
               ? engine.vocoderInputAndroidDeviceId
               : engine.vocoderInputDeviceIndex,
           defaultLabel: l10n.micSelectionDefault,
           devices: devices,
           onChanged: (val) {
-            if (Platform.isAndroid) {
+            if (!kIsWeb && Platform.isAndroid) {
               engine.vocoderInputAndroidDeviceId.value = val;
             } else {
               engine.vocoderInputDeviceIndex.value = val;

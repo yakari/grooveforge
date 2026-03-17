@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_midi_pro/flutter_midi_pro_platform_interface.dart';
 import 'package:path_provider/path_provider.dart';
@@ -22,6 +23,12 @@ class MidiPro {
   /// Returns the sfId (SoundfontSamplerId).
   Future<int> loadSoundfontAsset(
       {required String assetPath, int bank = 0, int program = 0}) async {
+    if (kIsWeb) {
+      // On web there is no writable filesystem; pass the asset path directly
+      // to the platform implementation which fetches it via fetch().
+      return FlutterMidiProPlatform.instance
+          .loadSoundfont(assetPath, bank, program);
+    }
     final tempDir = await getTemporaryDirectory();
     final tempFile = File('${tempDir.path}/${assetPath.split('/').last}');
     if (!tempFile.existsSync()) {
@@ -47,6 +54,11 @@ class MidiPro {
   /// Returns the sfId (SoundfontSamplerId).
   Future<int> loadSoundfontData(
       {required Uint8List data, int bank = 0, int program = 0}) async {
+    if (kIsWeb) {
+      // On web, file I/O is unavailable; return -1 (unsupported path).
+      // User-loaded soundfonts on web require a different flow.
+      return -1;
+    }
     final tempDir = await getTemporaryDirectory();
     final randomTempFileName =
         'soundfont_${DateTime.now().millisecondsSinceEpoch}.sf2';

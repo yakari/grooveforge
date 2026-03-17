@@ -1,4 +1,10 @@
 include: package:flutter_lints/flutter.yaml
 
+analyzer:
+  exclude:
+    # Web-only file using dart:js_interop extension types — only valid in a
+    # web compilation context. Analyzed in isolation via flutter build web.
+    - lib/flutter_midi_pro_web.dart
+
 # Additional information about this file can be found at
 # https://dart.dev/guides/language/analysis-options

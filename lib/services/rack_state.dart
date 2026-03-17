@@ -12,7 +12,7 @@ import '../plugins/gf_vocoder_plugin.dart';
 import 'audio_engine.dart';
 import 'audio_graph.dart';
 import 'transport_engine.dart';
-import 'vst_host_service_desktop.dart';
+import 'vst_host_service.dart';
 import 'package:grooveforge_plugin_api/grooveforge_plugin_api.dart';
 
 /// Manages the ordered list of plugin slots in the GrooveForge rack.

@@ -1,0 +1,51 @@
+name: Build & Deploy Web
+
+# Trigger on pushes to main or manually via the Actions tab.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Allow the workflow to write to the gh-pages branch.
+permissions:
+  contents: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Checkout ────────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. Flutter setup ───────────────────────────────────────────────────
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          # Pin to the same channel / version used for native builds.
+          flutter-version: '3.32.x'
+          channel: 'stable'
+          cache: true
+
+      - name: Install Flutter dependencies
+        run: flutter pub get
+
+      # ── 3. Build web ───────────────────────────────────────────────────────
+      # --base-href must match the GitHub Pages sub-path, e.g.:
+      #   https://<user>.github.io/<repo>/  →  --base-href /<repo>/
+      # Change the value below if your repo name is different.
+      - name: Build Flutter web
+        run: |
+          flutter build web \
+            --release \
+            --base-href "/${{ github.event.repository.name }}/"
+
+      # ── 4. Deploy to gh-pages ──────────────────────────────────────────────
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: build/web
+          # Keeps gh-pages history lean — each deploy is a clean publish.
+          force_orphan: true
