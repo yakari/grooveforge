@@ -24,8 +24,8 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          # Pin to the same channel / version used for native builds.
-          flutter-version: '3.32.x'
+          # shared_preferences >=2.5.4 requires Dart ^3.9.0 (Flutter 3.41+).
+          flutter-version: '3.41.x'
           channel: 'stable'
           cache: true
 
