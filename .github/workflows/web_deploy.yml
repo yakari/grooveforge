@@ -3,8 +3,7 @@ name: Build & Deploy Web
 # Trigger on pushes to version tags or manually via the Actions tab.
 on:
   push:
-    tags:
-      - 'v*'
+    branches: [main]
   workflow_dispatch:
 
 # Allow the workflow to write to the gh-pages branch.
@@ -46,7 +45,13 @@ jobs:
             --wasm \
             --base-href "/${{ github.event.repository.name }}/"
 
-      # ── 4. Deploy to gh-pages ──────────────────────────────────────────────
+      # ── 4. Copy docs (single source of truth for /features and /privacy) ──
+      # The HTML shells in web/features/ and web/privacy/ fetch these .md files
+      # at runtime via marked.js, so they must be present in the build output.
+      - name: Copy docs into build
+        run: cp -r docs build/web/docs
+
+      # ── 5. Deploy to gh-pages ──────────────────────────────────────────────
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
         with:

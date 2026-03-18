@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="GrooveForge features — cross-platform music workstation">
+  <title>GrooveForge — Features</title>
+  <link rel="icon" type="image/png" href="../favicon.png"/>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <style>
+    :root {
+      --bg: #1a1a2e;
+      --surface: #16213e;
+      --accent: #0f3460;
+      --highlight: #e94560;
+      --text: #e0e0e0;
+      --muted: #a0a0b0;
+      --code-bg: #0d1117;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      line-height: 1.7;
+    }
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--accent);
+      padding: 1rem 2rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    header a { color: var(--highlight); text-decoration: none; font-weight: 600; font-size: 1.2rem; }
+    header a:hover { text-decoration: underline; }
+    header span { color: var(--muted); }
+    main { max-width: 860px; margin: 0 auto; padding: 3rem 2rem; }
+    #content h1 { font-size: 2.2rem; color: var(--highlight); margin-bottom: 0.5rem; }
+    #content h2 {
+      font-size: 1.4rem; color: #7ecfff; margin-top: 2.5rem; margin-bottom: 0.8rem;
+      padding-bottom: 0.3rem; border-bottom: 1px solid var(--accent);
+    }
+    #content h3 { font-size: 1.1rem; color: #a8d8ff; margin-top: 1.5rem; margin-bottom: 0.5rem; }
+    #content p { margin-bottom: 0.8rem; }
+    #content ul { list-style: none; padding-left: 0; margin-bottom: 0.8rem; }
+    #content ul li { padding: 0.25rem 0 0.25rem 1.5rem; position: relative; }
+    #content ul li::before { content: '▸'; position: absolute; left: 0; color: var(--highlight); }
+    #content ul ul li::before { color: #7ecfff; }
+    #content strong { color: #fff; }
+    #content em { color: var(--muted); font-style: italic; }
+    #content code {
+      background: var(--code-bg); border: 1px solid var(--accent); border-radius: 3px;
+      padding: 0.1em 0.4em; font-family: 'SFMono-Regular', Consolas, monospace;
+      font-size: 0.88em; color: #a8d8ff;
+    }
+    #content a { color: var(--highlight); text-decoration: none; }
+    #content a:hover { text-decoration: underline; }
+    footer {
+      text-align: center; padding: 2rem; color: var(--muted); font-size: 0.85rem;
+      border-top: 1px solid var(--accent); margin-top: 4rem;
+    }
+    footer a { color: var(--highlight); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="../">GrooveForge</a>
+    <span>/</span>
+    <span>Features</span>
+  </header>
+  <main>
+    <div id="content"></div>
+  </main>
+  <footer>
+    <p><a href="../">GrooveForge</a> &mdash; <a href="../privacy/">Privacy Policy</a></p>
+  </footer>
+  <script>
+    fetch('../docs/features.md')
+      .then(r => r.text())
+      .then(md => { document.getElementById('content').innerHTML = marked.parse(md); })
+      .catch(() => { document.getElementById('content').textContent = 'Failed to load content.'; });
+  </script>
+</body>
+</html>
