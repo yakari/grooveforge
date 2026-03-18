@@ -5,7 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [X.x.x]
+## [2.5.7] - 2026-03-17
+
+### Fixed
+- **Rack keyboard rebuild storm**: Notes on any MIDI channel were triggering a full rebuild of every keyboard slot in the rack (O(N×16) repaints per keypress). The outer `ListenableBuilder` in `_RackSlotPiano` and `GrooveForgeKeyboardSlotUI` was unconditionally merging all 16 channels' `activeNotes` and `lastChord` notifiers, regardless of whether the slot is a GFPA Jam follower. Replaced with a three-layer architecture: layer 1 listens to configuration only, layer 2 (new `_PianoBody` / `_GfkFollowerBody` widgets) subscribes to exactly one master-channel notifier for followers only, and layer 3 (`ValueListenableBuilder<Set<int>>`) handles own-channel note highlighting. Non-follower slots now subscribe to zero cross-channel notifiers, reducing note-on rebuild work from O(N) to O(1) per keypress.
 
 ### Added
 - **Web target**: GrooveForge now builds and runs as a Flutter web app deployable to GitHub Pages.

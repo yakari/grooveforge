@@ -15,9 +15,15 @@ import '../channel/channel_patch_info.dart';
 /// widget, bridging the per-slot plugin model to [AudioEngine]'s
 /// channel-indexed API.
 ///
-/// Jam Mode display: when this slot is configured as a Jam follower
-/// ([GrooveForgeKeyboardPlugin.jamEnabled] is true and a master is set), this
-/// widget shows the master slot's chord and scale context instead of its own.
+/// ## Rebuild strategy
+///
+/// Layer 1 (this widget's [ListenableBuilder]) subscribes only to own-channel
+/// notifiers and [AudioEngine.gfpaJamEntries].  Cross-channel notifiers are
+/// absent: a note on any other channel never triggers a rebuild here.
+///
+/// When this slot is a GFPA Jam follower, a [_GfkFollowerBody] child (layer 2)
+/// is inserted.  It subscribes to exactly one master-channel notifier so that
+/// only the master's chord/bass-note updates reach this widget tree.
 class GrooveForgeKeyboardSlotUI extends StatelessWidget {
   final GrooveForgeKeyboardPlugin plugin;
 
@@ -49,67 +55,124 @@ class GrooveForgeKeyboardSlotUI extends StatelessWidget {
         state.isScaleLocked,
         state.currentScaleType,
         state.activeNotes,
-        // Listen to all channels so follower updates when master plays.
-        ...engine.channels.map((ch) => ch.lastChord),
-        ...engine.channels.map((ch) => ch.activeNotes),
+        // Cross-channel notifiers removed: followers subscribe to exactly one
+        // master-channel notifier inside _GfkFollowerBody (layer 2) so that
+        // notes on unrelated channels cause zero rebuilds in this slot.
       ]),
       builder: (context, _) {
-        // GFPA Jam follower detection
         final gfpaEntry = engine.gfpaJamEntries.value
             .where((e) => e.followerCh == channelIndex)
             .firstOrNull;
-        final isFollower = gfpaEntry != null;
 
-        final lastChord = state.lastChord.value;
         final isLocked = state.isScaleLocked.value;
         final currentScale = state.currentScaleType.value;
-
-        // Determine master channel + scale type for this follower
-        final int masterChIdx;
-        final ScaleType scaleToDisplay;
-        if (gfpaEntry != null) {
-          masterChIdx = gfpaEntry.masterCh;
-          scaleToDisplay = gfpaEntry.scaleType;
-        } else {
-          masterChIdx = -1;
-          scaleToDisplay = currentScale;
-        }
-
-        // Reference chord: from master (chord mode) or synthesised from bass
-        // note (bass note mode), falling back to own chord when standalone.
-        ChordMatch? refChord;
-        if (gfpaEntry != null) {
-          if (gfpaEntry.bassNoteMode) {
-            final active = engine.channels[masterChIdx].activeNotes.value;
-            if (active.isNotEmpty) {
-              final rootPc = active.reduce(min) % 12;
-              // Synthetic chord so the scale name carries the root note.
-              refChord = ChordMatch(
-                  _noteNameFromPc(rootPc), const {}, rootPc, false);
-            }
-          } else {
-            refChord = masterChIdx >= 0
-                ? engine.channels[masterChIdx].lastChord.value
-                : null;
-          }
-        } else {
-          refChord = lastChord;
-        }
-
-        final descriptiveName =
-            engine.getDescriptiveScaleName(refChord, scaleToDisplay);
         final activeNotes = state.activeNotes.value;
 
-        final chordToDisplay = isFollower && refChord != null
+        if (gfpaEntry == null) {
+          // Non-follower: all display data comes from this channel alone.
+          final lastChord = state.lastChord.value;
+          final descriptiveName =
+              engine.getDescriptiveScaleName(lastChord, currentScale);
+
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            child: ChannelPatchInfo(
+              engine: engine,
+              channelIndex: channelIndex,
+              onPatchChanged: (program, bank) =>
+                  rack.setPluginPatch(plugin.id, program, bank: bank),
+              onSoundfontChanged: (sf) =>
+                  rack.setPluginSoundfont(plugin.id, sf),
+              isDimmed: activeNotes.isEmpty && !isLocked,
+              isLocked: isLocked,
+              displayChord: lastChord,
+              referenceChord: lastChord,
+              currentScale: currentScale,
+              descriptiveScaleName: descriptiveName,
+              isJamSlave: false,
+              showLockControls: true,
+              onLockToggled: () {
+                state.isScaleLocked.value = !state.isScaleLocked.value;
+              },
+              onScaleChanged: (ScaleType? newValue) {
+                if (newValue != null) {
+                  state.currentScaleType.value = newValue;
+                }
+              },
+            ),
+          );
+        }
+
+        // Follower: hand off to a widget that listens only to the master.
+        return _GfkFollowerBody(
+          engine: engine,
+          rack: rack,
+          plugin: plugin,
+          channelIndex: channelIndex,
+          gfpaEntry: gfpaEntry,
+          ownState: state,
+          activeNotes: activeNotes,
+        );
+      },
+    );
+  }
+}
+
+/// Layer-2 body for GFPA Jam follower slots.
+///
+/// Subscribes to exactly one master-channel notifier:
+/// [ChannelState.activeNotes] in bass-note mode, or [ChannelState.lastChord]
+/// in chord-detection mode. This ensures that a chord change on the master
+/// updates only the follower's header — not every slot in the rack.
+///
+/// The [activeNotes] field from the outer layer-1 builder is used for dimming
+/// so that own-note changes (already handled by layer 1) remain accurate.
+class _GfkFollowerBody extends StatelessWidget {
+  final AudioEngine engine;
+  final RackState rack;
+  final GrooveForgeKeyboardPlugin plugin;
+  final int channelIndex;
+  final GFpaJamEntry gfpaEntry;
+  final ChannelState ownState;
+
+  /// Own-channel active notes snapshot from layer 1, used only for dimming.
+  final Set<int> activeNotes;
+
+  const _GfkFollowerBody({
+    required this.engine,
+    required this.rack,
+    required this.plugin,
+    required this.channelIndex,
+    required this.gfpaEntry,
+    required this.ownState,
+    required this.activeNotes,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final masterState = engine.channels[gfpaEntry.masterCh];
+
+    // Subscribe to the one notifier that drives this follower's display.
+    final Listenable masterNotifier = gfpaEntry.bassNoteMode
+        ? masterState.activeNotes
+        : masterState.lastChord;
+
+    return ListenableBuilder(
+      listenable: masterNotifier,
+      builder: (ctx, _) {
+        final refChord = _computeRefChord(masterState);
+        final descriptiveName =
+            engine.getDescriptiveScaleName(refChord, gfpaEntry.scaleType);
+
+        // Build the display chord: root note + scale name in the chord header.
+        final chordToDisplay = refChord != null
             ? ChordMatch(
                 '${refChord.name.split(' ')[0]} $descriptiveName',
                 refChord.scalePitchClasses,
                 refChord.rootPc,
                 refChord.isMinor,
               )
-            : lastChord;
-
-        final lockToDisplay = isFollower || isLocked;
+            : ownState.lastChord.value;
 
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -120,29 +183,40 @@ class GrooveForgeKeyboardSlotUI extends StatelessWidget {
                 rack.setPluginPatch(plugin.id, program, bank: bank),
             onSoundfontChanged: (sf) =>
                 rack.setPluginSoundfont(plugin.id, sf),
-            isDimmed: activeNotes.isEmpty && !lockToDisplay,
-            isLocked: lockToDisplay,
+            // Follower is treated as always locked: scale is set by the Jam rack.
+            isDimmed: activeNotes.isEmpty,
+            isLocked: true,
             displayChord: chordToDisplay,
             referenceChord: refChord,
-            currentScale: scaleToDisplay,
+            currentScale: gfpaEntry.scaleType,
             descriptiveScaleName: descriptiveName,
-            isJamSlave: isFollower,
+            isJamSlave: true,
             showLockControls: true,
-            // GFPA followers: lock is controlled by the Jam rack, not per-channel
-            onLockToggled: isFollower
-                ? null
-                : () {
-                    state.isScaleLocked.value = !state.isScaleLocked.value;
-                  },
-            onScaleChanged: (ScaleType? newValue) {
-              if (newValue != null && !isFollower) {
-                state.currentScaleType.value = newValue;
-              }
-            },
+            // Lock and scale are controlled by the Jam Mode rack slot, not here.
+            onLockToggled: null,
+            onScaleChanged: (_) {},
           ),
         );
       },
     );
+  }
+
+  /// Computes the reference chord from the master channel state.
+  ///
+  /// In bass-note mode: synthesises a [ChordMatch] whose root is the lowest
+  /// active MIDI note on the master channel, so the scale name shows the
+  /// correct root even when no full chord is detected.
+  /// In chord mode: reads the last detected chord directly.
+  ChordMatch? _computeRefChord(ChannelState masterState) {
+    if (gfpaEntry.bassNoteMode) {
+      final active = masterState.activeNotes.value;
+      if (active.isNotEmpty) {
+        final rootPc = active.reduce(min) % 12;
+        return ChordMatch(_noteNameFromPc(rootPc), const {}, rootPc, false);
+      }
+      return null;
+    }
+    return masterState.lastChord.value;
   }
 }
 

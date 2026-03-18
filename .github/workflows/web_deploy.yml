@@ -1,9 +1,10 @@
 name: Build & Deploy Web
 
-# Trigger on pushes to main or manually via the Actions tab.
+# Trigger on pushes to version tags or manually via the Actions tab.
 on:
   push:
-    branches: [main]
+    tags:
+      - 'v*'
   workflow_dispatch:
 
 # Allow the workflow to write to the gh-pages branch.
@@ -31,14 +32,18 @@ jobs:
       - name: Install Flutter dependencies
         run: flutter pub get
 
-      # ── 3. Build web ───────────────────────────────────────────────────────
+      # ── 3. Build web (WASM) ────────────────────────────────────────────────
       # --base-href must match the GitHub Pages sub-path, e.g.:
       #   https://<user>.github.io/<repo>/  →  --base-href /<repo>/
       # Change the value below if your repo name is different.
-      - name: Build Flutter web
+      #
+      # --wasm compiles Dart to WebAssembly (dart2wasm) instead of JavaScript.
+      # Requires Flutter >= 3.22 on the stable channel.
+      - name: Build Flutter web (WASM)
         run: |
           flutter build web \
             --release \
+            --wasm \
             --base-href "/${{ github.event.repository.name }}/"
 
       # ── 4. Deploy to gh-pages ──────────────────────────────────────────────

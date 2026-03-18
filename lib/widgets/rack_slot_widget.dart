@@ -477,6 +477,12 @@ class _MidiChannelBadge extends StatelessWidget {
 
 // ─── Piano (full channel logic, adapted for rack slot) ───────────────────────
 
+/// Layer-1 widget: subscribes only to configuration notifiers.
+///
+/// Resolves the per-slot [KeyboardDisplayConfig], gesture actions, valid pitch
+/// classes, and the GFPA Jam entry for this channel, then hands the resolved
+/// values to [_PianoBody]. Cross-channel notifiers are deliberately absent
+/// from this listener — that work is delegated to [_PianoBody] (layer 2/3).
 class _RackSlotPiano extends StatelessWidget {
   final int channelIndex;
   final PluginInstance plugin;
@@ -515,61 +521,158 @@ class _RackSlotPiano extends StatelessWidget {
           engine.horizontalGestureAction,
           state.validPitchClasses,
           engine.gfpaJamEntries,
-          // Listen to all channels so rootPc and scale borders refresh when any
-          // master chord or active-note set changes (e.g. bass-note mode).
-          ...engine.channels.map((ch) => ch.lastChord),
-          ...engine.channels.map((ch) => ch.activeNotes),
+          // Cross-channel notifiers removed: followers subscribe to exactly one
+          // master-channel notifier inside _PianoBody (layer 2), and
+          // non-followers skip straight to the activeNotes layer (layer 3).
         ]),
         builder: (context, _) {
           // Resolve effective values: per-slot config overrides global prefs.
           final cfg = _keyboardConfig;
-          final keysToShow =
-              cfg?.keysToShow ?? engine.pianoKeysToShow.value;
+          final keysToShow = cfg?.keysToShow ?? engine.pianoKeysToShow.value;
           final vAction =
               cfg?.verticalGestureAction ?? engine.verticalGestureAction.value;
           final hAction = cfg?.horizontalGestureAction ??
               engine.horizontalGestureAction.value;
           final validPcs = state.validPitchClasses.value;
+
+          // Determine whether this slot is a GFPA Jam follower.
           final gfpaEntry = engine.gfpaJamEntries.value
               .where((e) => e.followerCh == channelIndex)
               .firstOrNull;
-          final isFollower = gfpaEntry != null;
 
-          int? rootPc;
-          if (gfpaEntry != null) {
-            final masterCh = gfpaEntry.masterCh;
-            if (gfpaEntry.bassNoteMode) {
-              final active = engine.channels[masterCh].activeNotes.value;
-              if (active.isNotEmpty) rootPc = active.reduce((a, b) => a < b ? a : b) % 12;
-            } else {
-              rootPc = engine.channels[masterCh].lastChord.value?.rootPc;
-            }
-          }
-
-          return ValueListenableBuilder<Set<int>>(
-            valueListenable: state.activeNotes,
-            builder: (context, activeNotes, _) => VirtualPiano(
-              activeNotes: activeNotes,
-              verticalAction: vAction,
-              horizontalAction: hAction,
-              keysToShow: keysToShow,
-              validPitchClasses: isFollower ? validPcs : null,
-              rootPitchClass: isFollower ? rootPc : null,
-              showJamModeBorders: engine.showJamModeBorders.value,
-              highlightWrongNotes: engine.highlightWrongNotes.value,
-              onNotePressed: (note) => _onNotePressed(context, engine, note),
-              onNoteReleased: (note) => _onNoteReleased(context, engine, note),
-              onPitchBend: (val) =>
-                  _onPitchBend(context, engine, val),
-              onControlChange: (cc, val) =>
-                  _onControlChange(context, engine, cc, val),
-              onInteractingChanged: engine.updateGestureState,
-            ),
+          return _PianoBody(
+            engine: engine,
+            channelIndex: channelIndex,
+            plugin: plugin,
+            gfpaEntry: gfpaEntry,
+            keysToShow: keysToShow,
+            vAction: vAction,
+            hAction: hAction,
+            validPcs: validPcs,
+            keyboardConfig: cfg,
           );
         },
       ),
     );
   }
+}
+
+/// Layer-2/3 widget: inserts a Jam-context listener only for GFPA followers.
+///
+/// **Non-follower** (layer 3 only): subscribes to its own channel's
+/// [ChannelState.activeNotes] via [ValueListenableBuilder] and builds
+/// [VirtualPiano] directly.  A note on any other channel causes zero rebuilds
+/// here.
+///
+/// **Follower** (layers 2 + 3): wraps a [ListenableBuilder] that subscribes
+/// to exactly one master-channel notifier — [ChannelState.activeNotes] in
+/// bass-note mode, [ChannelState.lastChord] otherwise.  This computes [rootPc]
+/// for key highlighting and then passes it down to the [ValueListenableBuilder]
+/// for the own-notes layer.
+class _PianoBody extends StatelessWidget {
+  final AudioEngine engine;
+  final int channelIndex;
+  final PluginInstance plugin;
+
+  /// Jam follower entry for this channel, or null if not a follower.
+  final GFpaJamEntry? gfpaEntry;
+
+  final int keysToShow;
+  final GestureAction vAction;
+  final GestureAction hAction;
+
+  /// Valid pitch classes for scale highlighting on this channel.
+  final Set<int>? validPcs;
+
+  /// Per-slot keyboard config, used for the aftertouch CC remap.
+  final KeyboardDisplayConfig? keyboardConfig;
+
+  const _PianoBody({
+    required this.engine,
+    required this.channelIndex,
+    required this.plugin,
+    required this.gfpaEntry,
+    required this.keysToShow,
+    required this.vAction,
+    required this.hAction,
+    required this.validPcs,
+    required this.keyboardConfig,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final ownState = engine.channels[channelIndex];
+
+    if (gfpaEntry == null) {
+      // Fast path: not a Jam follower — only this slot's own activeNotes matters.
+      return ValueListenableBuilder<Set<int>>(
+        valueListenable: ownState.activeNotes,
+        builder: (ctx, activeNotes, _) =>
+            _buildPiano(ctx, activeNotes, rootPitchClass: null),
+      );
+    }
+
+    // Follower path: subscribe to the specific master-channel notifier only.
+    // Using activeNotes in bass-note mode (lowest held note → root pitch class),
+    // or lastChord in chord-detection mode.
+    final masterState = engine.channels[gfpaEntry!.masterCh];
+    final Listenable masterNotifier = gfpaEntry!.bassNoteMode
+        ? masterState.activeNotes
+        : masterState.lastChord;
+
+    return ListenableBuilder(
+      listenable: masterNotifier,
+      builder: (ctx, _) {
+        final rootPc = _computeRootPc(masterState);
+        return ValueListenableBuilder<Set<int>>(
+          valueListenable: ownState.activeNotes,
+          builder: (ctx, activeNotes, _) =>
+              _buildPiano(ctx, activeNotes, rootPitchClass: rootPc),
+        );
+      },
+    );
+  }
+
+  /// Derives the root pitch class from the master channel for key highlighting.
+  ///
+  /// In bass-note mode: lowest active MIDI note mod 12.
+  /// In chord mode: root pitch class from the last detected chord.
+  /// Returns null when no input is present.
+  int? _computeRootPc(ChannelState masterState) {
+    if (gfpaEntry!.bassNoteMode) {
+      final active = masterState.activeNotes.value;
+      if (active.isNotEmpty) {
+        return active.reduce((a, b) => a < b ? a : b) % 12;
+      }
+      return null;
+    }
+    return masterState.lastChord.value?.rootPc;
+  }
+
+  /// Builds the [VirtualPiano] leaf widget with all gesture and MIDI callbacks.
+  Widget _buildPiano(
+    BuildContext context,
+    Set<int> activeNotes, {
+    required int? rootPitchClass,
+  }) {
+    return VirtualPiano(
+      activeNotes: activeNotes,
+      verticalAction: vAction,
+      horizontalAction: hAction,
+      keysToShow: keysToShow,
+      validPitchClasses: gfpaEntry != null ? validPcs : null,
+      rootPitchClass: rootPitchClass,
+      showJamModeBorders: engine.showJamModeBorders.value,
+      highlightWrongNotes: engine.highlightWrongNotes.value,
+      onNotePressed: (note) => _onNotePressed(context, note),
+      onNoteReleased: (note) => _onNoteReleased(context, note),
+      onPitchBend: (val) => _onPitchBend(context, val),
+      onControlChange: (cc, val) => _onControlChange(context, cc, val),
+      onInteractingChanged: engine.updateGestureState,
+    );
+  }
+
+  // ─── Note event routing ──────────────────────────────────────────────────
 
   /// Handles a note-on event from the on-screen piano keyboard.
   ///
@@ -581,12 +684,12 @@ class _RackSlotPiano extends StatelessWidget {
   ///   and marks the key as active on the engine for UI highlighting.
   /// - All other slots (GFK, GFPA, etc.): routes to FluidSynth AND forwards
   ///   the note to any [LooperPluginInstance] wired to this slot's MIDI OUT.
-  void _onNotePressed(BuildContext context, AudioEngine engine, int note) {
+  void _onNotePressed(BuildContext context, int note) {
     if (plugin is VirtualPianoPlugin) {
       // Highlight VP's own key for visual feedback — no audio produced here.
       engine.noteOnUiOnly(channel: channelIndex, key: note);
       // Route the note to every slot connected to this VP's MIDI OUT jack.
-      _dispatchMidiNoteOn(context, engine, note);
+      _dispatchMidiNoteOn(context, note);
     } else if (plugin is Vst3PluginInstance) {
       // VST3 audio goes to VstHostService; engine only tracks UI state.
       context.read<VstHostService>().noteOn(plugin.id, 0, note, 1.0);
@@ -600,10 +703,10 @@ class _RackSlotPiano extends StatelessWidget {
   }
 
   /// Handles a note-off event from the on-screen piano keyboard.
-  void _onNoteReleased(BuildContext context, AudioEngine engine, int note) {
+  void _onNoteReleased(BuildContext context, int note) {
     if (plugin is VirtualPianoPlugin) {
       engine.noteOffUiOnly(channel: channelIndex, key: note);
-      _dispatchMidiNoteOff(context, engine, note);
+      _dispatchMidiNoteOff(context, note);
     } else if (plugin is Vst3PluginInstance) {
       context.read<VstHostService>().noteOff(plugin.id, 0, note);
       engine.noteOffUiOnly(channel: channelIndex, key: note);
@@ -622,11 +725,7 @@ class _RackSlotPiano extends StatelessWidget {
   /// - [LooperPluginInstance] → [LooperEngine.feedMidiEvent] (records the note)
   /// - VST3 → [VstHostService.noteOn] + [AudioEngine.noteOnUiOnly]
   /// - FluidSynth (GFK, Vocoder, generic GFPA) → [AudioEngine.playNote]
-  void _dispatchMidiNoteOn(
-    BuildContext context,
-    AudioEngine engine,
-    int note,
-  ) {
+  void _dispatchMidiNoteOn(BuildContext context, int note) {
     final status = 0x90 | (channelIndex & 0x0F); // note-on on this channel
     for (final cable in _midiOutCables(context)) {
       final target = _findPlugin(context, cable.toSlotId);
@@ -647,11 +746,7 @@ class _RackSlotPiano extends StatelessWidget {
 
   /// Forwards a MIDI note-off event to all slots wired to this slot's MIDI OUT
   /// jack. Mirrors the logic of [_dispatchMidiNoteOn].
-  void _dispatchMidiNoteOff(
-    BuildContext context,
-    AudioEngine engine,
-    int note,
-  ) {
+  void _dispatchMidiNoteOff(BuildContext context, int note) {
     final status = 0x80 | (channelIndex & 0x0F); // note-off on this channel
     for (final cable in _midiOutCables(context)) {
       final target = _findPlugin(context, cable.toSlotId);
@@ -725,9 +820,9 @@ class _RackSlotPiano extends StatelessWidget {
   /// - **[Vst3PluginInstance]**: dispatched to [VstHostService] (no-op until
   ///   the native binding is added; avoids incorrect FluidSynth bend).
   /// - **All others** (GFK, vocoder, GFPA): sent directly to [AudioEngine].
-  void _onPitchBend(BuildContext context, AudioEngine engine, int rawValue) {
+  void _onPitchBend(BuildContext context, int rawValue) {
     if (plugin is VirtualPianoPlugin) {
-      _dispatchMidiPitchBend(context, engine, rawValue);
+      _dispatchMidiPitchBend(context, rawValue);
     } else if (plugin is Vst3PluginInstance) {
       final semitones = (rawValue - 8192) / 8192.0 * 2.0;
       context.read<VstHostService>().pitchBend(plugin.id, 0, semitones);
@@ -744,19 +839,14 @@ class _RackSlotPiano extends StatelessWidget {
   /// CC 1 (vibrato gesture) is remapped to the per-slot aftertouch destination
   /// when a [KeyboardDisplayConfig] override is active; otherwise it falls back
   /// to [AudioEngine.aftertouchDestCc].
-  void _onControlChange(
-    BuildContext context,
-    AudioEngine engine,
-    int cc,
-    int value,
-  ) {
+  void _onControlChange(BuildContext context, int cc, int value) {
     // Remap CC 1 (the vibrato-gesture default) to the effective aftertouch CC.
     final effectiveCc = (cc == 1)
-        ? (_keyboardConfig?.aftertouchDestCc ?? engine.aftertouchDestCc.value)
+        ? (keyboardConfig?.aftertouchDestCc ?? engine.aftertouchDestCc.value)
         : cc;
 
     if (plugin is VirtualPianoPlugin) {
-      _dispatchMidiCC(context, engine, effectiveCc, value);
+      _dispatchMidiCC(context, effectiveCc, value);
     } else if (plugin is Vst3PluginInstance) {
       context.read<VstHostService>().controlChange(plugin.id, 0, effectiveCc, value);
     } else {
@@ -769,11 +859,7 @@ class _RackSlotPiano extends StatelessWidget {
   ///
   /// Converts the raw 14-bit value to semitones when the target is VST3,
   /// and reconstructs the correct 14-bit word for FluidSynth channels.
-  void _dispatchMidiPitchBend(
-    BuildContext context,
-    AudioEngine engine,
-    int rawValue,
-  ) {
+  void _dispatchMidiPitchBend(BuildContext context, int rawValue) {
     final vstSvc = context.read<VstHostService>();
     for (final cable in _midiOutCables(context)) {
       final target = _findPlugin(context, cable.toSlotId);
@@ -789,12 +875,7 @@ class _RackSlotPiano extends StatelessWidget {
   }
 
   /// Forwards a control-change message through every slot wired to this VP's MIDI OUT.
-  void _dispatchMidiCC(
-    BuildContext context,
-    AudioEngine engine,
-    int cc,
-    int value,
-  ) {
+  void _dispatchMidiCC(BuildContext context, int cc, int value) {
     final vstSvc = context.read<VstHostService>();
     for (final cable in _midiOutCables(context)) {
       final target = _findPlugin(context, cable.toSlotId);

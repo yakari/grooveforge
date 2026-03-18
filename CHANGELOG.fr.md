@@ -5,7 +5,10 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/lang/fr/).
 
-## [X.x.x]
+## [2.5.7] - 2026-03-17
+
+### Corrigé
+- **Cascade de reconstructions clavier dans le rack** : les notes sur n'importe quel canal MIDI déclenchaient une reconstruction complète de chaque slot clavier du rack (O(N×16) repeintures par appui de touche). Le `ListenableBuilder` extérieur dans `_RackSlotPiano` et `GrooveForgeKeyboardSlotUI` fusionnait inconditionnellement les notificateurs `activeNotes` et `lastChord` des 16 canaux, que le slot soit ou non un suiveur GFPA Jam. Remplacé par une architecture à trois couches : la couche 1 écoute uniquement la configuration, la couche 2 (nouveaux widgets `_PianoBody` / `_GfkFollowerBody`) souscrit à exactement un notificateur du canal maître pour les suiveurs, et la couche 3 (`ValueListenableBuilder<Set<int>>`) gère la mise en évidence des notes du canal propre. Les slots non-suiveurs ne souscrivent désormais à aucun notificateur inter-canaux, réduisant le travail de reconstruction à l'appui d'une touche de O(N) à O(1).
 
 ### Ajouté
 - **Cible web** : GrooveForge peut désormais être compilé en application Flutter web et déployé sur GitHub Pages.
