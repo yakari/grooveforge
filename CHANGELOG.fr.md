@@ -5,6 +5,24 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/lang/fr/).
 
+## [2.6.0] - 2026-03-19
+
+### Ajouté
+- **Support des effets VST3** : enum `Vst3PluginType` (instrument / effet / analyseur) stocké dans le modèle et persisté dans les fichiers `.gf`. Le panneau « Ajouter un plugin » propose désormais des tuiles séparées pour les instruments VST3 et les effets VST3.
+- `Vst3EffectSlotUI` : corps de slot dédié aux effets — accent violet, chip de catégorie auto-détectée (Réverbération / Compresseur / EQ / Delay / Modulation / Distorsion / Dynamique), grille de boutons rotatifs avec recherche, détection de sous-groupes et pagination identiques à l'interface instrument.
+- **Inserts FX** : chip collapsible « FX ▸ (N) » en bas de chaque slot instrument VST3. Liste les effets dont les entrées audio sont câblées sur les sorties de l'instrument. Le bouton + charge un effet comme slot de premier rang et câble automatiquement `audioOutL/R → audioInL/R` dans le graphe audio.
+- Les panneaux arrière des effets VST3 exposent désormais `AUDIO IN L/R + AUDIO OUT L/R + SEND + RETURN` au lieu de `MIDI IN + audio`.
+- Les slots effets VST3 n'affichent plus de badge canal MIDI, de piano virtuel ni de lueur d'activité de note.
+
+### Corrigé
+- **Routage audio GF Keyboard non restauré au chargement d'un projet** : au démarrage, `syncAudioRouting` était appelé alors que `VstHost` n'était pas encore initialisé (`_host == null`), la méthode retournait immédiatement sans câbler l'audio du clavier à travers les effets VST3 sauvegardés. Un second appel à `syncAudioRouting` est maintenant effectué dans `SplashScreen` après le chargement de tous les plugins VST3 et le démarrage du thread ALSA, ce qui rétablit correctement la table de routage complète.
+- **Crash de l'éditeur VST3 sous XWayland (GLX BadAccess)** : les plugins VST3 basés sur JUCE (ex. Dragonfly Hall Reverb) faisaient planter toute l'application lors de l'ouverture de leur interface native sous une session Wayland. Le gestionnaire d'erreurs fatal par défaut de Xlib appelait `exit()` quand `glXMakeCurrent` retournait `BadAccess`, car le thread de rendu Flutter possédait déjà le contexte GLX. Un `XSetErrorHandler` non fatal est maintenant installé autour de `createView()` + `attached()` dans `dart_vst_host_editor_linux.cpp` ; en cas d'erreur GLX, l'ouverture est annulée proprement et une snackbar guide l'utilisateur à relancer avec `LIBGL_ALWAYS_SOFTWARE=1` ou en session X11 pure.
+- **Section des paramètres VST3 repliée par défaut** : l'accordéon de paramètres dans les slots VST3 (instrument et effet) est maintenant fermé au chargement initial, réduisant l'encombrement visuel.
+
+### Architecture
+- **Routage audio Theremin / Stylophone → effets VST3** : les instruments intégrés (Theremin, Stylophone) peuvent désormais alimenter des effets VST3 via le graphe audio. Le routage repose sur trois couches coordonnées : (1) `native_audio/audio_input.c` expose les fonctions C `theremin_render_block()` / `stylophone_render_block()` et un drapeau de mode capture qui silence la sortie miniaudio directe vers ALSA quand une route est active ; (2) `dart_vst_host_alsa.cpp` ajoute un registre de rendu externe (`dvh_set_external_render` / `dvh_clear_external_render`) pour que la boucle ALSA appelle la fonction de rendu comme entrée stéréo du plugin à chaque bloc ; (3) `VstHostService.syncAudioRouting` détecte les connexions non-VST3 → VST3 dans l'`AudioGraph`, enregistre la fonction de rendu appropriée et bascule le mode capture en conséquence.
+- **Routage audio GF Keyboard → effets VST3** : le sous-processus FluidSynth (`/usr/bin/fluidsynth -a alsa`) est remplacé sur Linux par libfluidsynth liée directement dans `libaudio_input.so`. FluidSynth fonctionne désormais en mode « pas de pilote audio » et est rendu manuellement via `keyboard_render_block()`. Un nouveau slot de rendu maître dans la boucle ALSA de dart_vst_host (`dvh_add_master_render` / `dvh_remove_master_render`) permet au clavier de sonner normalement via le thread ALSA sans route VST3, et de rediriger l'audio vers l'entrée de l'effet quand une connexion est établie. Toutes les commandes MIDI (note on/off, sélection de programme, pitch bend, CC, gain) sont désormais envoyées par FFI au lieu de pipes stdin.
+
 ## [2.5.8] - 2026-03-17
 
 ### Corrigé

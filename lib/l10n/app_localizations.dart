@@ -1310,6 +1310,12 @@ abstract class AppLocalizations {
   /// **'Failed to load VST3 plugin. Make sure you selected the .vst3 bundle folder.'**
   String get vst3LoadFailed;
 
+  /// No description provided for @vst3EditorOpenFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open plugin editor. If the plugin uses OpenGL, try launching GrooveForge with LIBGL_ALWAYS_SOFTWARE=1 or in a pure X11 session (unset WAYLAND_DISPLAY).'**
+  String get vst3EditorOpenFailed;
+
   /// No description provided for @vst3NotLoaded.
   ///
   /// In en, this message translates to:
@@ -1945,6 +1951,108 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'MUTE'**
   String get midiMuteOwnSound;
+
+  /// No description provided for @vst3BrowseInstrumentTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Browse VST3 Instrument…'**
+  String get vst3BrowseInstrumentTitle;
+
+  /// No description provided for @vst3BrowseInstrumentSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Load a synthesizer or sampler plugin (.vst3)'**
+  String get vst3BrowseInstrumentSubtitle;
+
+  /// No description provided for @vst3BrowseEffectTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Browse VST3 Effect…'**
+  String get vst3BrowseEffectTitle;
+
+  /// No description provided for @vst3BrowseEffectSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Load an audio effect plugin (.vst3)'**
+  String get vst3BrowseEffectSubtitle;
+
+  /// No description provided for @vst3PickInstalledInstrumentTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick Installed Instrument'**
+  String get vst3PickInstalledInstrumentTitle;
+
+  /// No description provided for @vst3PickInstalledEffectTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick Installed Effect'**
+  String get vst3PickInstalledEffectTitle;
+
+  /// No description provided for @vst3EffectTypeReverb.
+  ///
+  /// In en, this message translates to:
+  /// **'Reverb'**
+  String get vst3EffectTypeReverb;
+
+  /// No description provided for @vst3EffectTypeCompressor.
+  ///
+  /// In en, this message translates to:
+  /// **'Compressor'**
+  String get vst3EffectTypeCompressor;
+
+  /// No description provided for @vst3EffectTypeEq.
+  ///
+  /// In en, this message translates to:
+  /// **'EQ'**
+  String get vst3EffectTypeEq;
+
+  /// No description provided for @vst3EffectTypeDelay.
+  ///
+  /// In en, this message translates to:
+  /// **'Delay'**
+  String get vst3EffectTypeDelay;
+
+  /// No description provided for @vst3EffectTypeModulation.
+  ///
+  /// In en, this message translates to:
+  /// **'Modulation'**
+  String get vst3EffectTypeModulation;
+
+  /// No description provided for @vst3EffectTypeDistortion.
+  ///
+  /// In en, this message translates to:
+  /// **'Distortion'**
+  String get vst3EffectTypeDistortion;
+
+  /// No description provided for @vst3EffectTypeDynamics.
+  ///
+  /// In en, this message translates to:
+  /// **'Dynamics'**
+  String get vst3EffectTypeDynamics;
+
+  /// No description provided for @vst3EffectTypeFx.
+  ///
+  /// In en, this message translates to:
+  /// **'FX'**
+  String get vst3EffectTypeFx;
+
+  /// No description provided for @vst3FxInserts.
+  ///
+  /// In en, this message translates to:
+  /// **'FX'**
+  String get vst3FxInserts;
+
+  /// No description provided for @vst3FxAddEffect.
+  ///
+  /// In en, this message translates to:
+  /// **'Add effect'**
+  String get vst3FxAddEffect;
+
+  /// No description provided for @vst3FxNoEffects.
+  ///
+  /// In en, this message translates to:
+  /// **'No effects — connect via patch view'**
+  String get vst3FxNoEffects;
 }
 
 class _AppLocalizationsDelegate

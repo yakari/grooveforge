@@ -35,6 +35,19 @@ struct AudioState {
     /// When a route exists for plugin P, P's output feeds into the
     /// destination plugin's input rather than the master mix bus.
     std::unordered_map<void*, void*> routes;
+    /// External audio sources: destPlugin → render function.
+    /// When registered, the ALSA loop calls the function instead of using
+    /// silence or an upstream VST3 output as the plugin's audio input.
+    /// Used to route non-VST3 generators (Theremin, Stylophone) into effects.
+    std::unordered_map<void*, DvhRenderFn> externalRenders;
+    /// Master-mix contributors: render functions whose output is mixed directly
+    /// into the ALSA master output alongside VST3 plugin outputs. Used for
+    /// GF Keyboard (libfluidsynth) when it is not routed into a VST3 effect.
+    std::vector<DvhRenderFn> masterRenders;
+    /// Pre-allocated stereo buffer for external render calls — no heap
+    /// allocation on the audio thread.
+    std::vector<float> extBufL;
+    std::vector<float> extBufR;
     std::mutex          pluginsMtx;
 
     std::thread         thread;
@@ -83,24 +96,47 @@ static void removeState(DVH_Host host) {
 //
 // This allows simple send-return chains, e.g.:
 //   Synth → Effect: Effect output → master mix; Synth output → Effect input.
+// Process [ordered] plugins using [routes] for VST3→VST3 routing and
+// [extRenders] for non-VST3 → VST3 injection (e.g. Theremin → Reverb).
+//
+// Input priority for each plugin:
+//   1. External render function (non-VST3 source, e.g. Theremin DSP)
+//   2. Upstream VST3 plugin output (dvh_route_audio connection)
+//   3. Silence (zero buffer) — default when no source is wired
 static void _processPlugins(
     const std::vector<void*>& ordered,
     const std::unordered_map<void*, void*>& routes,
+    const std::unordered_map<void*, DvhRenderFn>& extRenders,
     std::unordered_map<void*, std::pair<std::vector<float>, std::vector<float>>>& bufs,
     int32_t blockSize,
     const std::vector<float>& zeroL,
     const std::vector<float>& zeroR,
     std::vector<float>& mixL,
-    std::vector<float>& mixR)
+    std::vector<float>& mixR,
+    std::vector<float>& extBufL,
+    std::vector<float>& extBufR)
 {
     for (void* p : ordered) {
-        // Reverse-lookup: find the upstream plugin whose output feeds into p.
-        void* upstream = nullptr;
-        for (const auto& r : routes)
-            if (r.second == p) { upstream = r.first; break; }
+        const float* inL;
+        const float* inR;
 
-        const float* inL = upstream ? bufs.at(upstream).first.data()  : zeroL.data();
-        const float* inR = upstream ? bufs.at(upstream).second.data() : zeroR.data();
+        auto extIt = extRenders.find(p);
+        if (extIt != extRenders.end()) {
+            // External non-VST3 source (Theremin, Stylophone, …).
+            // Call the registered render fn to fill the pre-allocated buffers.
+            extIt->second(extBufL.data(), extBufR.data(), blockSize);
+            inL = extBufL.data();
+            inR = extBufR.data();
+        } else {
+            // Reverse-lookup: find the upstream VST3 plugin that feeds into p.
+            void* upstream = nullptr;
+            for (const auto& r : routes)
+                if (r.second == p) { upstream = r.first; break; }
+
+            inL = upstream ? bufs.at(upstream).first.data()  : zeroL.data();
+            inR = upstream ? bufs.at(upstream).second.data() : zeroR.data();
+        }
+
         auto& out = bufs[p];
         dvh_process_stereo_f32(p, inL, inR, out.first.data(), out.second.data(), blockSize);
 
@@ -128,14 +164,19 @@ static void audioThreadFn(AudioState* state, snd_pcm_t* pcm) {
         std::fill(mixL.begin(), mixL.end(), 0.f);
         std::fill(mixR.begin(), mixR.end(), 0.f);
 
-        // Snapshot plugins, order, and routes under the lock so the audio
-        // thread never races with Dart-side mutations.
+        // Snapshot plugins, order, routes, external renders, and master-mix
+        // contributors under the lock so the audio thread never races with
+        // Dart-side mutations.
         std::vector<void*> ordered;
         std::unordered_map<void*, void*> routes;
+        std::unordered_map<void*, DvhRenderFn> extRenders;
+        std::vector<DvhRenderFn> masterRenders;
         {
             std::lock_guard<std::mutex> lk(state->pluginsMtx);
-            ordered = state->processOrder.empty() ? state->plugins : state->processOrder;
-            routes  = state->routes;
+            ordered      = state->processOrder.empty() ? state->plugins : state->processOrder;
+            routes       = state->routes;
+            extRenders   = state->externalRenders;
+            masterRenders = state->masterRenders;
         }
 
         // Allocate per-plugin output buffers for routing.
@@ -143,7 +184,19 @@ static void audioThreadFn(AudioState* state, snd_pcm_t* pcm) {
         for (void* p : ordered)
             bufs[p] = {std::vector<float>(blockSize, 0.f), std::vector<float>(blockSize, 0.f)};
 
-        _processPlugins(ordered, routes, bufs, blockSize, zeroL, zeroR, mixL, mixR);
+        _processPlugins(ordered, routes, extRenders, bufs, blockSize,
+                        zeroL, zeroR, mixL, mixR,
+                        state->extBufL, state->extBufR);
+
+        // Mix master-render contributors (e.g. GF Keyboard via libfluidsynth)
+        // directly into the master bus using the pre-allocated ext buffers.
+        for (DvhRenderFn fn : masterRenders) {
+            fn(state->extBufL.data(), state->extBufR.data(), blockSize);
+            for (int i = 0; i < blockSize; ++i) {
+                mixL[i] += state->extBufL[i];
+                mixR[i] += state->extBufR[i];
+            }
+        }
 
         // Soft-clip to [-1, 1] and convert to int16 interleaved.
         for (int i = 0; i < blockSize; ++i) {
@@ -231,6 +284,46 @@ DVH_API void dvh_clear_routes(DVH_Host host) {
     s->routes.clear();
 }
 
+DVH_API void dvh_set_external_render(DVH_Host host, DVH_Plugin plugin, DvhRenderFn fn) {
+    if (!host || !plugin || !fn) return;
+    auto* s = get(host);
+    if (!s) return;
+    std::lock_guard<std::mutex> lk(s->pluginsMtx);
+    s->externalRenders[plugin] = fn;
+}
+
+DVH_API void dvh_clear_external_render(DVH_Host host, DVH_Plugin plugin) {
+    if (!host || !plugin) return;
+    auto* s = get(host);
+    if (!s) return;
+    std::lock_guard<std::mutex> lk(s->pluginsMtx);
+    s->externalRenders.erase(plugin);
+}
+
+DVH_API void dvh_add_master_render(DVH_Host host, DvhRenderFn fn) {
+    if (!host || !fn) return;
+    auto* s = getOrCreate(host);
+    std::lock_guard<std::mutex> lk(s->pluginsMtx);
+    // Deduplicate: only add if not already present.
+    for (auto existing : s->masterRenders)
+        if (existing == fn) return;
+    s->masterRenders.push_back(fn);
+    fprintf(stderr, "[dart_vst_host] Master render added (total=%zu)\n",
+            s->masterRenders.size());
+}
+
+DVH_API void dvh_remove_master_render(DVH_Host host, DvhRenderFn fn) {
+    if (!host || !fn) return;
+    auto* s = get(host);
+    if (!s) return;
+    std::lock_guard<std::mutex> lk(s->pluginsMtx);
+    s->masterRenders.erase(
+        std::remove(s->masterRenders.begin(), s->masterRenders.end(), fn),
+        s->masterRenders.end());
+    fprintf(stderr, "[dart_vst_host] Master render removed (total=%zu)\n",
+            s->masterRenders.size());
+}
+
 // Open and configure ALSA synchronously so failures are immediately visible.
 // Returns 1 on success, 0 if ALSA cannot be opened/configured.
 DVH_API int32_t dvh_start_alsa_thread(DVH_Host host, const char* alsa_device) {
@@ -248,6 +341,10 @@ DVH_API int32_t dvh_start_alsa_thread(DVH_Host host, const char* alsa_device) {
     auto* hs = static_cast<DVH_HostState*>(host);
     s->sampleRate = static_cast<int32_t>(hs->sr);
     s->blockSize  = static_cast<int32_t>(hs->maxBlock);
+
+    // Pre-allocate external render buffers (avoids heap allocation on audio thread).
+    s->extBufL.assign(s->blockSize, 0.f);
+    s->extBufR.assign(s->blockSize, 0.f);
 
     const char* dev = (alsa_device && alsa_device[0]) ? alsa_device : "default";
     fprintf(stderr, "[dart_vst_host] Opening ALSA device: %s\n", dev);
@@ -304,5 +401,9 @@ extern "C" {
     void    dvh_set_processing_order(DVH_Host, const DVH_Plugin*, int32_t) {}
     void    dvh_route_audio(DVH_Host, DVH_Plugin, DVH_Plugin) {}
     void    dvh_clear_routes(DVH_Host) {}
+    void    dvh_set_external_render(DVH_Host, DVH_Plugin, DvhRenderFn) {}
+    void    dvh_clear_external_render(DVH_Host, DVH_Plugin) {}
+    void    dvh_add_master_render(DVH_Host, DvhRenderFn) {}
+    void    dvh_remove_master_render(DVH_Host, DvhRenderFn) {}
 }
 #endif

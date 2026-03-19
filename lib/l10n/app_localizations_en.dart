@@ -684,6 +684,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Failed to load VST3 plugin. Make sure you selected the .vst3 bundle folder.';
 
   @override
+  String get vst3EditorOpenFailed =>
+      'Could not open plugin editor. If the plugin uses OpenGL, try launching GrooveForge with LIBGL_ALWAYS_SOFTWARE=1 or in a pure X11 session (unset WAYLAND_DISPLAY).';
+
+  @override
   String get vst3NotLoaded => 'Plugin not yet loaded.';
 
   @override
@@ -1032,4 +1036,56 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get midiMuteOwnSound => 'MUTE';
+
+  @override
+  String get vst3BrowseInstrumentTitle => 'Browse VST3 Instrument…';
+
+  @override
+  String get vst3BrowseInstrumentSubtitle =>
+      'Load a synthesizer or sampler plugin (.vst3)';
+
+  @override
+  String get vst3BrowseEffectTitle => 'Browse VST3 Effect…';
+
+  @override
+  String get vst3BrowseEffectSubtitle => 'Load an audio effect plugin (.vst3)';
+
+  @override
+  String get vst3PickInstalledInstrumentTitle => 'Pick Installed Instrument';
+
+  @override
+  String get vst3PickInstalledEffectTitle => 'Pick Installed Effect';
+
+  @override
+  String get vst3EffectTypeReverb => 'Reverb';
+
+  @override
+  String get vst3EffectTypeCompressor => 'Compressor';
+
+  @override
+  String get vst3EffectTypeEq => 'EQ';
+
+  @override
+  String get vst3EffectTypeDelay => 'Delay';
+
+  @override
+  String get vst3EffectTypeModulation => 'Modulation';
+
+  @override
+  String get vst3EffectTypeDistortion => 'Distortion';
+
+  @override
+  String get vst3EffectTypeDynamics => 'Dynamics';
+
+  @override
+  String get vst3EffectTypeFx => 'FX';
+
+  @override
+  String get vst3FxInserts => 'FX';
+
+  @override
+  String get vst3FxAddEffect => 'Add effect';
+
+  @override
+  String get vst3FxNoEffects => 'No effects — connect via patch view';
 }

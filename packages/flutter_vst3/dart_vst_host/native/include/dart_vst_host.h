@@ -102,6 +102,60 @@ DVH_API void dvh_route_audio(DVH_Host host,
 // default behaviour of mixing directly into the master ALSA output.
 DVH_API void dvh_clear_routes(DVH_Host host);
 
+// ── External audio source injection ──────────────────────────────────────────
+//
+// Allows non-VST3 audio generators (Theremin, Stylophone) to feed audio into
+// a VST3 effect plugin's input, bypassing the normal "upstream plugin output"
+// mechanism.
+//
+// The render function has signature:
+//   void render(float* outL, float* outR, int32_t frames)
+// It is called from the ALSA audio thread — must be allocation-free.
+//
+// Typical flow:
+//   1. Enable capture mode on the native synth (e.g. theremin_set_capture_mode(1))
+//      so its miniaudio device outputs silence.
+//   2. Call dvh_set_external_render(host, effectPlugin, thereminRenderBlock)
+//      so the ALSA loop feeds theremin audio into the effect's input.
+//   3. On disconnect: dvh_clear_external_render + theremin_set_capture_mode(0).
+
+typedef void (*DvhRenderFn)(float* outL, float* outR, int32_t frames);
+
+// Register [fn] as the stereo audio source for [plugin]'s input.
+// Overrides any routed upstream VST3 output or silence.
+DVH_API void dvh_set_external_render(DVH_Host host,
+                                     DVH_Plugin plugin,
+                                     DvhRenderFn fn);
+
+// Remove the external render registration for [plugin].
+// The plugin's input reverts to silence or its routed upstream output.
+DVH_API void dvh_clear_external_render(DVH_Host host, DVH_Plugin plugin);
+
+// ── Master-mix render contributors ───────────────────────────────────────────
+//
+// Allows non-VST3 audio generators (e.g. GF Keyboard via libfluidsynth) to
+// contribute audio directly to the ALSA master mix output without being
+// associated with any VST3 plugin input.
+//
+// [fn] is called from the ALSA audio thread each block and its output is
+// accumulated into the master mix alongside VST3 plugin outputs.
+// The function must be allocation-free and signal-safe.
+//
+// Typical use for GF Keyboard (not routed through a VST3 effect):
+//   dvh_add_master_render(host, keyboard_render_block)
+//
+// When the keyboard IS routed through an effect:
+//   dvh_remove_master_render(host, keyboard_render_block)
+//   dvh_set_external_render(host, effectPlugin, keyboard_render_block)
+
+// Register [fn] as a master-mix audio contributor.
+// Adding the same function pointer twice has no effect (deduplication).
+DVH_API void dvh_add_master_render(DVH_Host host, DvhRenderFn fn);
+
+// Remove a previously registered master-mix contributor.
+// No-op if [fn] was not registered.
+DVH_API void dvh_remove_master_render(DVH_Host host, DvhRenderFn fn);
+
 // macOS specific audio device management (CoreAudio/miniaudio)
 DVH_API int32_t dvh_mac_start_audio(DVH_Host host);
 DVH_API void    dvh_mac_stop_audio(DVH_Host host);

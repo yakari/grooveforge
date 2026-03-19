@@ -2,29 +2,30 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../l10n/app_localizations.dart';
-import '../../models/audio_port_id.dart';
 import '../../models/vst3_plugin_instance.dart';
-import '../../services/audio_graph.dart';
 import '../../services/rack_state.dart';
 import '../../services/vst_host_service.dart';
 import '../rotary_knob.dart';
 
-/// Rack slot body for an external [Vst3PluginInstance].
+/// Rack slot body for a VST3 **effect** plugin ([Vst3PluginType.effect]).
 ///
-/// On desktop shows a compact status row + editor button + parameter category
-/// chips. Tapping a category opens a modal grid of knobs for that group.
+/// Distinct from [Vst3SlotUI] (instrument) in several ways:
+///   - No MIDI channel badge — effects process audio, not note streams.
+///   - No virtual piano.
+///   - Shows an effect-type chip (Reverb / Compressor / EQ / Delay / …) in the
+///     status row, auto-detected from the plugin name.
+///   - Uses a purple/violet accent to distinguish effects from teal instruments.
 ///
-/// On mobile or when the path is empty it shows a placeholder card.
-class Vst3SlotUI extends StatelessWidget {
+/// On mobile or when the path is empty, falls back to [_UnavailableEffectPlaceholder].
+class Vst3EffectSlotUI extends StatelessWidget {
   final Vst3PluginInstance plugin;
 
-  const Vst3SlotUI({super.key, required this.plugin});
+  const Vst3EffectSlotUI({super.key, required this.plugin});
 
   static bool get _isDesktop =>
       !kIsWeb && (Platform.isLinux || Platform.isMacOS || Platform.isWindows);
@@ -32,30 +33,73 @@ class Vst3SlotUI extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!_isDesktop || plugin.path.isEmpty) {
-      return _UnavailablePlaceholder(plugin: plugin);
+      return _UnavailableEffectPlaceholder(plugin: plugin);
     }
-    return _Vst3PluginPanel(plugin: plugin);
+    return _EffectPanel(plugin: plugin);
   }
 }
 
-// ─── Desktop plugin panel ─────────────────────────────────────────────────────
+// ─── Effect type detection ────────────────────────────────────────────────────
 
-class _Vst3PluginPanel extends StatefulWidget {
-  final Vst3PluginInstance plugin;
-  const _Vst3PluginPanel({required this.plugin});
-
-  @override
-  State<_Vst3PluginPanel> createState() => _Vst3PluginPanelState();
+/// Returns a localised effect-category label derived from the plugin name.
+///
+/// Uses keyword matching — plugins are not required to conform to any naming
+/// convention, so this is heuristic. The order matters: more specific terms
+/// (e.g. "compressor") are checked before generic ones (e.g. "comp").
+String _effectTypeLabel(String pluginName, AppLocalizations l10n) {
+  final lower = pluginName.toLowerCase();
+  if (_matchesAny(lower, ['reverb', 'hall', 'room', 'convolution'])) {
+    return l10n.vst3EffectTypeReverb;
+  }
+  if (_matchesAny(lower, ['compressor', 'comp', 'limiter', 'peak', 'rms'])) {
+    return l10n.vst3EffectTypeCompressor;
+  }
+  if (_matchesAny(lower, ['eq', 'equalizer', 'equaliser', 'filter', 'parametric'])) {
+    return l10n.vst3EffectTypeEq;
+  }
+  if (_matchesAny(lower, ['delay', 'echo', 'tape'])) {
+    return l10n.vst3EffectTypeDelay;
+  }
+  if (_matchesAny(lower, ['chorus', 'flanger', 'phaser', 'tremolo', 'vibrato', 'modulation'])) {
+    return l10n.vst3EffectTypeModulation;
+  }
+  if (_matchesAny(lower, ['distortion', 'overdrive', 'drive', 'fuzz', 'saturation', 'sat', 'amp'])) {
+    return l10n.vst3EffectTypeDistortion;
+  }
+  if (_matchesAny(lower, ['gate', 'expander', 'dynamics', 'transient'])) {
+    return l10n.vst3EffectTypeDynamics;
+  }
+  return l10n.vst3EffectTypeFx;
 }
 
-class _Vst3PluginPanelState extends State<_Vst3PluginPanel> {
+bool _matchesAny(String text, List<String> keywords) =>
+    keywords.any(text.contains);
+
+// ─── Accent colour ────────────────────────────────────────────────────────────
+
+/// Purple accent used throughout the effect slot UI.
+///
+/// Distinguishes effect slots (purple) from instrument slots (teal) at a glance.
+const Color _kEffectAccent = Color(0xFFBB86FC); // Material purple 200
+
+// ─── Desktop effect panel ─────────────────────────────────────────────────────
+
+class _EffectPanel extends StatefulWidget {
+  final Vst3PluginInstance plugin;
+  const _EffectPanel({required this.plugin});
+
+  @override
+  State<_EffectPanel> createState() => _EffectPanelState();
+}
+
+class _EffectPanelState extends State<_EffectPanel> {
   /// Display-name → list of params in that group.
-  /// Built from IUnitInfo units; large single-unit groups are further split
-  /// by parameter-name prefix analysis so plugins like Aeolus (everything in
-  /// Root Unit) still get meaningful category chips.
   Map<String, List<VstParamInfo>> _groups = {};
   bool _loaded = false;
   final ValueNotifier<bool> _isCollapsed = ValueNotifier(true);
+
+  // Same split threshold as Vst3SlotUI — prevents monolithic parameter lists.
+  static const int _kSplitThreshold = 48;
 
   @override
   void initState() {
@@ -64,7 +108,7 @@ class _Vst3PluginPanelState extends State<_Vst3PluginPanel> {
   }
 
   @override
-  void didUpdateWidget(_Vst3PluginPanel old) {
+  void didUpdateWidget(_EffectPanel old) {
     super.didUpdateWidget(old);
     if (old.plugin.id != widget.plugin.id ||
         old.plugin.path != widget.plugin.path) {
@@ -72,25 +116,19 @@ class _Vst3PluginPanelState extends State<_Vst3PluginPanel> {
     }
   }
 
-  // How many params a unit must have before we try to split it by name.
-  static const int _kSplitThreshold = 48;
-
   void _loadParams() {
     if (!mounted) return;
     final vstSvc = context.read<VstHostService>();
     final params = vstSvc.getParameters(widget.plugin.id);
     final unitNames = vstSvc.getUnitNames(widget.plugin.id);
 
-    // Step 1: group by unitId.
+    // Step 1: group by VST3 unit (IUnitInfo).
     final byUnit = <int, List<VstParamInfo>>{};
     for (final p in params) {
       byUnit.putIfAbsent(p.unitId, () => []).add(p);
     }
 
-    // Step 2: build named groups.  For large groups (plugins that put
-    // everything in Root Unit, like Aeolus) run name-prefix analysis and
-    // expand into multiple chips.  This runs at the chip level so the
-    // modal receives a usefully-scoped list from the start.
+    // Step 2: build named groups, splitting oversized units by prefix.
     final multipleRealUnits = byUnit.length > 1;
     final named = <String, List<VstParamInfo>>{};
 
@@ -101,10 +139,8 @@ class _Vst3PluginPanelState extends State<_Vst3PluginPanel> {
           (uid <= 0 ? 'Parameters' : 'Group $uid');
 
       if (list.length > _kSplitThreshold) {
-        final sub = _SubGroupDetector.detect(list);
+        final sub = _EffectSubGroupDetector.detect(list);
         if (sub.isNotEmpty) {
-          // Prefix the sub-group name with the unit name only when there are
-          // multiple real units so the chip labels remain readable.
           for (final sg in sub.entries) {
             final chipName = multipleRealUnits
                 ? '$unitName / ${sg.key}'
@@ -123,7 +159,8 @@ class _Vst3PluginPanelState extends State<_Vst3PluginPanel> {
     });
   }
 
-  void _openCategoryModal(BuildContext ctx, String name, List<VstParamInfo> params) {
+  void _openCategoryModal(
+      BuildContext ctx, String name, List<VstParamInfo> params) {
     showModalBottomSheet(
       context: ctx,
       isScrollControlled: true,
@@ -131,7 +168,7 @@ class _Vst3PluginPanelState extends State<_Vst3PluginPanel> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (_) => _ParamCategoryModal(
+      builder: (_) => _EffectParamModal(
         categoryName: name,
         params: params,
         plugin: widget.plugin,
@@ -147,9 +184,9 @@ class _Vst3PluginPanelState extends State<_Vst3PluginPanel> {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          _StatusRow(plugin: widget.plugin),
+          _EffectStatusRow(plugin: widget.plugin),
           const SizedBox(height: 4),
-          _EditorButton(plugin: widget.plugin),
+          _EffectEditorButton(plugin: widget.plugin),
           const SizedBox(height: 6),
           if (!_loaded)
             const Center(
@@ -163,338 +200,36 @@ class _Vst3PluginPanelState extends State<_Vst3PluginPanel> {
               ),
             )
           else if (_groups.isEmpty)
-            _NoParamsHint(pluginName: widget.plugin.pluginName)
+            _EffectNoParamsHint(pluginName: widget.plugin.pluginName)
           else ...[
             const SizedBox(height: 8),
-            _CollapsibleParamsHeader(isCollapsed: _isCollapsed),
+            _EffectCollapsibleHeader(isCollapsed: _isCollapsed),
             ValueListenableBuilder<bool>(
               valueListenable: _isCollapsed,
               builder: (context, collapsed, _) {
                 if (collapsed) return const SizedBox.shrink();
                 return Padding(
                   padding: const EdgeInsets.only(top: 8),
-                  child: _CategoryChips(
+                  child: _EffectCategoryChips(
                     groups: _groups,
-                    onTap: (name) => _openCategoryModal(context, name, _groups[name]!),
+                    onTap: (name) =>
+                        _openCategoryModal(context, name, _groups[name]!),
                   ),
                 );
               },
             ),
           ],
-
-          // ── FX Inserts shortcut (instrument VST3 only) ─────────────────
-          // Shows a collapsible list of VST3 effect slots wired to this
-          // instrument's audio outputs, with a + button to quickly add one.
-          const SizedBox(height: 8),
-          _FxInsertsSection(instrumentPlugin: widget.plugin),
         ],
       ),
     );
   }
 }
 
-// ─── FX Inserts section ───────────────────────────────────────────────────────
+// ─── Collapsible header ───────────────────────────────────────────────────────
 
-/// Expandable "FX Inserts" section shown at the bottom of an instrument VST3 slot.
-///
-/// Reads the [AudioGraph] to discover which VST3 effect slots are currently
-/// connected to this instrument's [AudioPortId.audioOutL] jack. The list is
-/// syntactic sugar — cables still appear in the patch view and can be managed
-/// there. The + button browses for an effect, adds it as a top-level rack slot,
-/// and auto-wires [audioOutL/R] → [audioInL/R].
-class _FxInsertsSection extends StatefulWidget {
-  final Vst3PluginInstance instrumentPlugin;
-
-  const _FxInsertsSection({required this.instrumentPlugin});
-
-  @override
-  State<_FxInsertsSection> createState() => _FxInsertsSectionState();
-}
-
-class _FxInsertsSectionState extends State<_FxInsertsSection> {
-  bool _expanded = false;
-  bool _loading = false;
-
-  static bool get _isDesktop =>
-      !kIsWeb && (Platform.isLinux || Platform.isMacOS || Platform.isWindows);
-
-  // ── Helpers ───────────────────────────────────────────────────────────────
-
-  /// Returns the effect slots wired to this instrument's audio outputs.
-  ///
-  /// Looks at all connections where [fromSlotId] == this instrument and
-  /// [fromPort] is [AudioPortId.audioOutL], then finds the rack slot for
-  /// each target that is a VST3 effect.
-  List<Vst3PluginInstance> _connectedEffects(
-      AudioGraph graph, RackState rack) {
-    final outCables = graph
-        .connectionsFrom(widget.instrumentPlugin.id)
-        .where((c) => c.fromPort == AudioPortId.audioOutL);
-
-    return outCables
-        .map((c) => rack.plugins
-            .whereType<Vst3PluginInstance>()
-            .where((p) =>
-                p.id == c.toSlotId &&
-                p.pluginType == Vst3PluginType.effect)
-            .firstOrNull)
-        .whereType<Vst3PluginInstance>()
-        .toList();
-  }
-
-  /// Resolves the `.vst3` bundle directory from any path the picker gives us.
-  ///
-  /// Handles both direct bundle selection and picking a file inside the bundle.
-  String? _resolveBundlePath(String rawPath) {
-    if (rawPath.endsWith('.vst3') &&
-        FileSystemEntity.isDirectorySync(rawPath)) {
-      return rawPath;
-    }
-    var dir = File(rawPath).parent;
-    while (dir.path != dir.parent.path) {
-      if (dir.path.endsWith('.vst3')) return dir.path;
-      dir = dir.parent;
-    }
-    return null;
-  }
-
-  /// Browses for a .vst3 effect, loads it, adds it to the rack, and
-  /// automatically wires audioOutL/R from this instrument to audioInL/R of
-  /// the new effect slot.
-  Future<void> _addEffect(BuildContext context) async {
-    final l10n = AppLocalizations.of(context)!;
-    final vstSvc = context.read<VstHostService>();
-    final rack = context.read<RackState>();
-    final graph = context.read<AudioGraph>();
-
-    final selected = await FilePicker.platform.getDirectoryPath(
-      dialogTitle: l10n.vst3BrowseEffectTitle,
-    );
-    if (selected == null) return;
-
-    final bundlePath = _resolveBundlePath(selected);
-    if (bundlePath == null) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.vst3NotABundle)),
-      );
-      return;
-    }
-
-    setState(() => _loading = true);
-    await vstSvc.initialize();
-    final slotId = rack.generateSlotId();
-    final instance = await vstSvc.loadPlugin(
-      bundlePath,
-      slotId,
-      pluginType: Vst3PluginType.effect,
-    );
-    setState(() => _loading = false);
-
-    if (!context.mounted) return;
-
-    if (instance == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.vst3LoadFailed)),
-      );
-      return;
-    }
-
-    // Add effect slot to the rack right after this instrument slot.
-    rack.addPlugin(instance);
-    vstSvc.startAudio();
-
-    // Auto-wire: instrument audioOutL/R → effect audioInL/R.
-    graph.connect(
-      widget.instrumentPlugin.id,
-      AudioPortId.audioOutL,
-      slotId,
-      AudioPortId.audioInL,
-    );
-    graph.connect(
-      widget.instrumentPlugin.id,
-      AudioPortId.audioOutR,
-      slotId,
-      AudioPortId.audioInR,
-    );
-
-    // Sync native audio routing so the effect is active immediately.
-    vstSvc.syncAudioRouting(graph, rack.plugins);
-  }
-
-  // ── Build ─────────────────────────────────────────────────────────────────
-
-  @override
-  Widget build(BuildContext context) {
-    if (!_isDesktop) return const SizedBox.shrink();
-
-    final l10n = AppLocalizations.of(context)!;
-    final graph = context.watch<AudioGraph>();
-    final rack = context.read<RackState>();
-    final effects = _connectedEffects(graph, rack);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // ── Collapsible header chip ────────────────────────────────────────
-        GestureDetector(
-          onTap: () => setState(() => _expanded = !_expanded),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: Colors.deepPurple.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(
-                color: Colors.deepPurple.withValues(alpha: 0.3),
-              ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  _expanded ? Icons.expand_more : Icons.chevron_right,
-                  size: 14,
-                  color: Colors.deepPurpleAccent,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  '${l10n.vst3FxInserts} (${effects.length})',
-                  style: const TextStyle(
-                    color: Colors.deepPurpleAccent,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-
-        // ── Expanded section ───────────────────────────────────────────────
-        if (_expanded) ...[
-          const SizedBox(height: 6),
-          if (effects.isEmpty)
-            Padding(
-              padding: const EdgeInsets.only(left: 4, bottom: 4),
-              child: Text(
-                l10n.vst3FxNoEffects,
-                style: const TextStyle(
-                  color: Colors.white38,
-                  fontSize: 11,
-                ),
-              ),
-            )
-          else
-            ...effects.map((fx) => _InsertEffectRow(effect: fx)),
-          const SizedBox(height: 4),
-          // ── + button to add a new effect ─────────────────────────────
-          if (_loading)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 4),
-              child: SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            )
-          else
-            SizedBox(
-              height: 26,
-              child: OutlinedButton.icon(
-                onPressed: () => _addEffect(context),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.deepPurpleAccent,
-                  side: BorderSide(
-                      color: Colors.deepPurple.withValues(alpha: 0.5)),
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  textStyle: const TextStyle(fontSize: 11),
-                ),
-                icon: const Icon(Icons.add, size: 13),
-                label: Text(l10n.vst3FxAddEffect),
-              ),
-            ),
-        ],
-      ],
-    );
-  }
-}
-
-/// One row in the FX inserts list showing the effect name and a remove-cable button.
-///
-/// Removing the cable disconnects the audioOutL/R → audioInL/R connections but
-/// keeps the effect slot in the rack (it can still be reached via patch view).
-class _InsertEffectRow extends StatelessWidget {
-  final Vst3PluginInstance effect;
-
-  const _InsertEffectRow({required this.effect});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: Colors.deepPurple.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(4),
-          border: Border.all(color: Colors.deepPurple.withValues(alpha: 0.2)),
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.auto_fix_high, size: 12,
-                color: Colors.deepPurpleAccent),
-            const SizedBox(width: 6),
-            Expanded(
-              child: Text(
-                effect.pluginName,
-                style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            // Disconnect button — removes the cables but leaves the rack slot.
-            GestureDetector(
-              onTap: () => _disconnect(context),
-              child: const Icon(Icons.link_off, size: 14, color: Colors.white38),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// Removes the audioOutL/R → audioInL/R cables between the parent instrument
-  /// and this effect slot. The effect slot itself stays in the rack.
-  void _disconnect(BuildContext context) {
-    final graph = context.read<AudioGraph>();
-    final vstSvc = context.read<VstHostService>();
-    final rack = context.read<RackState>();
-
-    // Find the parent instrument (the slot whose audioOutL connects here).
-    final parentCable = graph.connections
-        .where((c) =>
-            c.toSlotId == effect.id &&
-            c.toPort == AudioPortId.audioInL)
-        .firstOrNull;
-    if (parentCable == null) return;
-
-    // Disconnect both stereo cables by their connection IDs.
-    graph.disconnect(parentCable.id);
-    final rightCable = graph.connections.where((c) =>
-        c.fromSlotId == parentCable.fromSlotId &&
-        c.toSlotId == effect.id &&
-        c.toPort == AudioPortId.audioInR).firstOrNull;
-    if (rightCable != null) graph.disconnect(rightCable.id);
-    vstSvc.syncAudioRouting(graph, rack.plugins);
-  }
-}
-
-class _CollapsibleParamsHeader extends StatelessWidget {
+class _EffectCollapsibleHeader extends StatelessWidget {
   final ValueNotifier<bool> isCollapsed;
-  const _CollapsibleParamsHeader({required this.isCollapsed});
+  const _EffectCollapsibleHeader({required this.isCollapsed});
 
   @override
   Widget build(BuildContext context) {
@@ -507,7 +242,7 @@ class _CollapsibleParamsHeader extends StatelessWidget {
           children: [
             ValueListenableBuilder<bool>(
               valueListenable: isCollapsed,
-              builder: (context, collapsed, _) => Icon(
+              builder: (_, collapsed, _) => Icon(
                 collapsed ? Icons.chevron_right : Icons.expand_more,
                 size: 16,
                 color: Colors.white38,
@@ -532,14 +267,11 @@ class _CollapsibleParamsHeader extends StatelessWidget {
 
 // ─── Category chips ───────────────────────────────────────────────────────────
 
-class _CategoryChips extends StatelessWidget {
+class _EffectCategoryChips extends StatelessWidget {
   final Map<String, List<VstParamInfo>> groups;
   final void Function(String name) onTap;
 
-  const _CategoryChips({
-    required this.groups,
-    required this.onTap,
-  });
+  const _EffectCategoryChips({required this.groups, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -553,13 +285,13 @@ class _CategoryChips extends StatelessWidget {
         return ActionChip(
           materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
           visualDensity: VisualDensity.compact,
-          backgroundColor: Colors.tealAccent.withValues(alpha: 0.08),
-          side: BorderSide(color: Colors.tealAccent.withValues(alpha: 0.3)),
-          avatar: const Icon(Icons.tune, size: 13, color: Colors.tealAccent),
+          backgroundColor: _kEffectAccent.withValues(alpha: 0.08),
+          side: BorderSide(color: _kEffectAccent.withValues(alpha: 0.3)),
+          avatar: Icon(Icons.auto_fix_high, size: 13, color: _kEffectAccent),
           label: Text(
             '${e.key} (${e.value.length})',
-            style: const TextStyle(
-              color: Colors.tealAccent,
+            style: TextStyle(
+              color: _kEffectAccent,
               fontSize: 11,
               fontWeight: FontWeight.w500,
             ),
@@ -571,25 +303,14 @@ class _CategoryChips extends StatelessWidget {
   }
 }
 
-// ─── Sub-group detection ──────────────────────────────────────────────────────
-//
-// Analyses parameter title patterns to build a two-level hierarchy.
-//
-// Strategy (tried in order, first match wins):
-//   1. Three-word prefix  e.g. "MIDI CC 0|5" → sub-group "MIDI CC 0"
-//   2. Two-word prefix    e.g. "Channel 1 CC 5" → sub-group "Channel 1"
-//   3. One-word prefix    e.g. "VCO Type" → sub-group "VCO"
-//   4. No sub-grouping    (fall back to search + pagination)
-//
-// Separators recognised: whitespace, hyphen, underscore, slash, pipe (|).
-// Pipe is important for "MIDI CC 0|0" which should group as "MIDI CC 0".
-//
-// A candidate prefix is accepted only when:
-//   • It produces 2–64 distinct sub-groups
-//   • No single sub-group contains more than 80 % of all params
-class _SubGroupDetector {
+// ─── Sub-group detection (identical strategy as Vst3SlotUI) ──────────────────
+
+/// Analyses parameter title prefixes to split very large parameter lists into
+/// manageable sub-groups. Uses word-prefix analysis with 2–64 group bounds.
+class _EffectSubGroupDetector {
   static const int _kMinGroupCount = 2;
   static const int _kMaxGroupCount = 64;
+  static const int _kPageSize = 24;
   static final _sep = RegExp(r'[\s\-_/|]+');
 
   /// Returns the best sub-group map, or empty if flat layout is fine.
@@ -624,34 +345,35 @@ class _SubGroupDetector {
   }
 }
 
-// ─── Parameter category modal (knobs) ────────────────────────────────────────
+// ─── Parameter modal ──────────────────────────────────────────────────────────
 
-const int _kPageSize = 24;
+const int _kEffectPageSize = 24;
 
-class _ParamCategoryModal extends StatefulWidget {
+/// Bottom sheet grid of knobs for one parameter category of an effect plugin.
+///
+/// Identical mechanics to [_ParamCategoryModal] in [Vst3SlotUI] but uses the
+/// purple effect accent colour throughout.
+class _EffectParamModal extends StatefulWidget {
   final String categoryName;
   final List<VstParamInfo> params;
   final Vst3PluginInstance plugin;
 
-  const _ParamCategoryModal({
+  const _EffectParamModal({
     required this.categoryName,
     required this.params,
     required this.plugin,
   });
 
   @override
-  State<_ParamCategoryModal> createState() => _ParamCategoryModalState();
+  State<_EffectParamModal> createState() => _EffectParamModalState();
 }
 
-class _ParamCategoryModalState extends State<_ParamCategoryModal> {
+class _EffectParamModalState extends State<_EffectParamModal> {
   late Map<int, double> _values;
-
-  // Sub-group detection results.
   Map<String, List<VstParamInfo>> _subGroups = {};
   List<String> _subGroupKeys = [];
-  String? _selectedSubGroup; // null = all / no sub-groups
+  String? _selectedSubGroup;
 
-  // Search + pagination.
   final _searchCtrl = TextEditingController();
   String _searchText = '';
   int _page = 0;
@@ -666,7 +388,7 @@ class _ParamCategoryModalState extends State<_ParamCategoryModal> {
             vstSvc.getParameter(widget.plugin.id, p.id),
     };
 
-    _subGroups = _SubGroupDetector.detect(widget.params);
+    _subGroups = _EffectSubGroupDetector.detect(widget.params);
     if (_subGroups.isNotEmpty) {
       _subGroupKeys = _subGroups.keys.toList()..sort();
       _selectedSubGroup = _subGroupKeys.first;
@@ -695,11 +417,9 @@ class _ParamCategoryModalState extends State<_ParamCategoryModal> {
   }
 
   List<VstParamInfo> get _currentParams {
-    // Start from sub-group or all params.
     final base = _subGroups.isNotEmpty && _selectedSubGroup != null
         ? (_subGroups[_selectedSubGroup] ?? widget.params)
         : widget.params;
-    // Apply text search.
     if (_searchText.isEmpty) return base;
     return base
         .where((p) => p.title.toLowerCase().contains(_searchText))
@@ -709,18 +429,18 @@ class _ParamCategoryModalState extends State<_ParamCategoryModal> {
   @override
   Widget build(BuildContext context) {
     final filtered = _currentParams;
-    final totalPages = (filtered.length / _kPageSize).ceil();
+    final totalPages = (filtered.length / _kEffectPageSize).ceil();
     final safePage = _page.clamp(0, math.max(0, totalPages - 1)).toInt();
-    final pageItems = filtered.skip(safePage * _kPageSize).take(_kPageSize).toList();
-
-    final maxH = MediaQuery.of(context).size.height * 0.75;
+    final pageItems =
+        filtered.skip(safePage * _kEffectPageSize).take(_kEffectPageSize).toList();
 
     return ConstrainedBox(
-      constraints: BoxConstraints(maxHeight: maxH),
+      constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.75),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // ── Drag handle ───────────────────────────────────────────────────
+          // ── Drag handle ───────────────────────────────────────────────
           const SizedBox(height: 8),
           Container(
             width: 36, height: 4,
@@ -731,21 +451,20 @@ class _ParamCategoryModalState extends State<_ParamCategoryModal> {
           ),
           const SizedBox(height: 8),
 
-          // ── Header ────────────────────────────────────────────────────────
+          // ── Header ────────────────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
               children: [
-                const Icon(Icons.tune, color: Colors.tealAccent, size: 18),
+                Icon(Icons.auto_fix_high, color: _kEffectAccent, size: 18),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     widget.categoryName,
                     style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                    ),
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold),
                   ),
                 ),
                 Text(
@@ -764,7 +483,7 @@ class _ParamCategoryModalState extends State<_ParamCategoryModal> {
           ),
           const SizedBox(height: 8),
 
-          // ── Sub-group dropdown (only when auto-detected) ───────────────────
+          // ── Sub-group dropdown ─────────────────────────────────────────
           if (_subGroups.isNotEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -789,7 +508,6 @@ class _ParamCategoryModalState extends State<_ParamCategoryModal> {
                       ),
                       style: const TextStyle(color: Colors.white, fontSize: 12),
                       items: [
-                        // "All" option
                         DropdownMenuItem(
                           value: null,
                           child: Text(
@@ -817,7 +535,7 @@ class _ParamCategoryModalState extends State<_ParamCategoryModal> {
 
           if (_subGroups.isNotEmpty) const SizedBox(height: 8),
 
-          // ── Search bar ────────────────────────────────────────────────────
+          // ── Search ────────────────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: TextField(
@@ -848,7 +566,7 @@ class _ParamCategoryModalState extends State<_ParamCategoryModal> {
           const SizedBox(height: 8),
           const Divider(height: 1, color: Colors.white10),
 
-          // ── Knob grid ────────────────────────────────────────────────────
+          // ── Knob grid ─────────────────────────────────────────────────
           Flexible(
             child: pageItems.isEmpty
                 ? const Center(
@@ -872,7 +590,7 @@ class _ParamCategoryModalState extends State<_ParamCategoryModal> {
                     itemCount: pageItems.length,
                     itemBuilder: (_, i) {
                       final p = pageItems[i];
-                      return _KnobTile(
+                      return _EffectKnobTile(
                         info: p,
                         value: _values[p.id] ?? 0.0,
                         onChanged: (v) => _setParam(p.id, v),
@@ -881,11 +599,10 @@ class _ParamCategoryModalState extends State<_ParamCategoryModal> {
                   ),
           ),
 
-          // ── Pagination ────────────────────────────────────────────────────
+          // ── Pagination ────────────────────────────────────────────────
           if (totalPages > 1)
             Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -898,8 +615,7 @@ class _ParamCategoryModalState extends State<_ParamCategoryModal> {
                   ),
                   Text(
                     '${safePage + 1} / $totalPages',
-                    style:
-                        const TextStyle(color: Colors.white54, fontSize: 12),
+                    style: const TextStyle(color: Colors.white54, fontSize: 12),
                   ),
                   IconButton(
                     icon: const Icon(Icons.chevron_right),
@@ -919,14 +635,15 @@ class _ParamCategoryModalState extends State<_ParamCategoryModal> {
   }
 }
 
-// ─── Individual knob tile ─────────────────────────────────────────────────────
+// ─── Knob tile ────────────────────────────────────────────────────────────────
 
-class _KnobTile extends StatelessWidget {
+/// A single knob cell in the parameter grid, styled with the purple effect accent.
+class _EffectKnobTile extends StatelessWidget {
   final VstParamInfo info;
   final double value;
   final ValueChanged<double> onChanged;
 
-  const _KnobTile({
+  const _EffectKnobTile({
     required this.info,
     required this.value,
     required this.onChanged,
@@ -934,8 +651,6 @@ class _KnobTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // VST3 params are already normalized [0, 1]; RotaryKnob's min/max defaults
-    // match, so onChanged receives the normalized value directly.
     final label = info.units.isEmpty
         ? info.title
         : '${info.title} (${info.units})';
@@ -951,21 +666,27 @@ class _KnobTile extends StatelessWidget {
 
 // ─── Status row ───────────────────────────────────────────────────────────────
 
-class _StatusRow extends StatelessWidget {
+/// Shows the plugin path, load status, and an effect-type chip.
+///
+/// The effect-type chip (Reverb / Compressor / EQ …) replaces the MIDI IN chip
+/// used by instrument slots — effects receive audio, not MIDI note streams.
+class _EffectStatusRow extends StatelessWidget {
   final Vst3PluginInstance plugin;
-  const _StatusRow({required this.plugin});
+  const _EffectStatusRow({required this.plugin});
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final vstSvc = context.read<VstHostService>();
     final isLoaded = vstSvc.isSupported;
+    final effectLabel = _effectTypeLabel(plugin.pluginName, l10n);
 
     return Row(
       children: [
         Icon(
           isLoaded ? Icons.check_circle_outline : Icons.error_outline,
           size: 14,
-          color: isLoaded ? Colors.tealAccent : Colors.redAccent,
+          color: isLoaded ? _kEffectAccent : Colors.redAccent,
         ),
         const SizedBox(width: 6),
         Expanded(
@@ -975,22 +696,24 @@ class _StatusRow extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
           ),
         ),
+
+        // ── Effect-type chip ─────────────────────────────────────────
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
           decoration: BoxDecoration(
-            color: Colors.tealAccent.withValues(alpha: 0.1),
+            color: _kEffectAccent.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(4),
-            border: Border.all(color: Colors.tealAccent.withValues(alpha: 0.4)),
+            border: Border.all(color: _kEffectAccent.withValues(alpha: 0.4)),
           ),
-          child: const Row(
+          child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.piano, size: 11, color: Colors.tealAccent),
-              SizedBox(width: 4),
+              Icon(Icons.auto_fix_high, size: 11, color: _kEffectAccent),
+              const SizedBox(width: 4),
               Text(
-                'MIDI IN',
+                effectLabel,
                 style: TextStyle(
-                  color: Colors.tealAccent,
+                  color: _kEffectAccent,
                   fontSize: 10,
                   fontWeight: FontWeight.bold,
                 ),
@@ -1005,9 +728,9 @@ class _StatusRow extends StatelessWidget {
 
 // ─── No-parameters hint ───────────────────────────────────────────────────────
 
-class _NoParamsHint extends StatelessWidget {
+class _EffectNoParamsHint extends StatelessWidget {
   final String pluginName;
-  const _NoParamsHint({required this.pluginName});
+  const _EffectNoParamsHint({required this.pluginName});
 
   @override
   Widget build(BuildContext context) {
@@ -1045,25 +768,29 @@ class _NoParamsHint extends StatelessWidget {
   }
 }
 
-// ─── Editor window button ─────────────────────────────────────────────────────
+// ─── Editor button ────────────────────────────────────────────────────────────
 
-class _EditorButton extends StatefulWidget {
+/// Toggle button to open / close the plugin's native GUI window.
+///
+/// Uses the purple effect accent when closed, orange when open — the orange
+/// "active" state is shared with the instrument editor button so the state is
+/// instantly recognisable regardless of slot type.
+class _EffectEditorButton extends StatefulWidget {
   final Vst3PluginInstance plugin;
-  const _EditorButton({required this.plugin});
+  const _EffectEditorButton({required this.plugin});
 
   @override
-  State<_EditorButton> createState() => _EditorButtonState();
+  State<_EffectEditorButton> createState() => _EffectEditorButtonState();
 }
 
-class _EditorButtonState extends State<_EditorButton> {
+class _EffectEditorButtonState extends State<_EffectEditorButton> {
   bool _open = false;
   Timer? _pollTimer;
 
   @override
   void initState() {
     super.initState();
-    // Poll native state every 500 ms so we detect when the user closes the
-    // X11 window via the title-bar close button.
+    // Poll native state every 500 ms to detect window-close via the title bar.
     _pollTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
       if (!mounted) return;
       final vstSvc = context.read<VstHostService>();
@@ -1093,6 +820,7 @@ class _EditorButtonState extends State<_EditorButton> {
       setState(() => _open = true);
     } else {
       // Editor failed to open — likely a GLX/XWayland conflict on Linux.
+      // The native layer has already logged details; surface the hint to the user.
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(AppLocalizations.of(context)!.vst3EditorOpenFailed),
         duration: const Duration(seconds: 8),
@@ -1102,18 +830,17 @@ class _EditorButtonState extends State<_EditorButton> {
 
   @override
   Widget build(BuildContext context) {
-    if (!Vst3SlotUI._isDesktop) return const SizedBox.shrink();
+    if (!Vst3EffectSlotUI._isDesktop) return const SizedBox.shrink();
+
+    final activeColor = _open ? Colors.orangeAccent : _kEffectAccent;
 
     return SizedBox(
       height: 30,
       child: OutlinedButton.icon(
         onPressed: _toggle,
         style: OutlinedButton.styleFrom(
-          foregroundColor: _open ? Colors.orangeAccent : Colors.tealAccent,
-          side: BorderSide(
-            color: (_open ? Colors.orangeAccent : Colors.tealAccent)
-                .withValues(alpha: 0.6),
-          ),
+          foregroundColor: activeColor,
+          side: BorderSide(color: activeColor.withValues(alpha: 0.6)),
           padding: const EdgeInsets.symmetric(horizontal: 10),
           textStyle: const TextStyle(fontSize: 11),
         ),
@@ -1124,11 +851,12 @@ class _EditorButtonState extends State<_EditorButton> {
   }
 }
 
-// ─── Mobile / empty-path placeholder ─────────────────────────────────────────
+// ─── Unavailable placeholder ──────────────────────────────────────────────────
 
-class _UnavailablePlaceholder extends StatelessWidget {
+/// Shown on mobile or when the .vst3 path is empty.
+class _UnavailableEffectPlaceholder extends StatelessWidget {
   final Vst3PluginInstance plugin;
-  const _UnavailablePlaceholder({required this.plugin});
+  const _UnavailableEffectPlaceholder({required this.plugin});
 
   @override
   Widget build(BuildContext context) {
@@ -1143,7 +871,8 @@ class _UnavailablePlaceholder extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.extension_off, color: Colors.white38, size: 28),
+          Icon(Icons.auto_fix_high,
+              color: _kEffectAccent.withValues(alpha: 0.5), size: 28),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -1152,9 +881,7 @@ class _UnavailablePlaceholder extends StatelessWidget {
                 Text(
                   plugin.pluginName,
                   style: const TextStyle(
-                    color: Colors.white70,
-                    fontWeight: FontWeight.bold,
-                  ),
+                      color: Colors.white70, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 2),
                 Text(
