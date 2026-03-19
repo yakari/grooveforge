@@ -9,12 +9,16 @@ This page is used to inform visitors regarding our policies with the collection,
 GrooveForge is designed to be a **private, local-first application**. 
 
 - **Personal Data**: We do **not** collect, store, or transmit any personal information, such as your name, email address, location, or contact details.
-- **Microphone/Audio**: The app requires access to audio systems to generate sound, but it does **not** record or transmit any audio data.
+- **Microphone**: The app may request microphone access **only** when you use the **Vocoder** module. Your voice is processed in real time to shape the synthesizer sound; it is **not** recorded, stored, or transmitted.
+- **Camera**: The app may request access to the **front camera** for a fun, motion-based interaction with the **Theremin** module. Camera frames are used locally in real time to control the instrument; no video or images are recorded, stored, or transmitted.
+- **Audio output**: The app uses the device’s audio system to generate sound. No audio is sent to our servers or third parties.
 - **Storage**: The app may request permission to access your device's storage solely for the purpose of loading SoundFont files (.sf2) or MIDI files provided by you. No other files are accessed, and no data is uploaded.
 
 ## 2. Permissions
 
 The app may request the following permissions:
+- **Microphone**: Required for the Vocoder module (real-time voice processing; no recording or transmission).
+- **Camera**: Required for the Theremin module’s motion-based interaction (front camera; no recording or transmission).
 - **MIDI**: To connect to external MIDI controllers and instruments.
 - **Storage/File Access**: To load user-provided SoundFont files.
 
@@ -40,7 +44,7 @@ We may update our Privacy Policy from time to time. Thus, you are advised to rev
 
 ## 8. Contact Us
 
-If you have any questions or suggestions about our Privacy Policy, do not hesitate to contact us via our GitHub repository: [https://github.com/yann/grooveforge](https://github.com/yann/grooveforge)
+If you have any questions or suggestions about our Privacy Policy, do not hesitate to contact us via our GitHub repository: [https://github.com/yakari/grooveforge](https://github.com/yakari/grooveforge)
 
 ---
-*Last updated: 2026-03-01*
+*Last updated: 2026-03-19*

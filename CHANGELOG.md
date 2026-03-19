@@ -5,7 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [X.x.x]
+## [2.5.8] - 2026-03-17
+
+### Fixed
+- **Save As (Android & web)**: "Save As…" in the project menu did nothing on Android and web. On web, `FilePicker.platform.saveFile` requires `bytes` and returns `null` after triggering a download; on Android/iOS the plugin also requires `bytes`. The project is now serialized to JSON bytes and passed to `saveFile` on all platforms. On web, the empty-string result is treated as success (download started); on mobile and desktop the plugin writes the file and returns the path. The UI shows "Project saved" in all cases.
 
 ### Added
 - Static HTML pages for `/features` and `/privacy` routes under `web/features/index.html` and `web/privacy/index.html`, restoring these pages on GitHub Pages after the Flutter web deployment replaced the previous static site.

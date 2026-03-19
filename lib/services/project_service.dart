@@ -1,5 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
@@ -94,6 +96,13 @@ class ProjectService extends ChangeNotifier {
   }
 
   /// Saves the current project state to a new file using a file picker.
+  ///
+  /// On **web**, the plugin triggers a browser download (no path returned);
+  /// we return the empty string so the UI can show success. On **Android**
+  /// and **iOS**, the plugin requires [bytes]; we pass the project JSON so
+  /// the plugin writes the file and returns the path. On **desktop**, passing
+  /// [bytes] lets the plugin write the chosen path; we then set
+  /// [_currentProjectPath] and return it.
   Future<String?> saveProjectAs(
     RackState rackState,
     AudioEngine engine,
@@ -101,20 +110,27 @@ class ProjectService extends ChangeNotifier {
     AudioGraph audioGraph,
     LooperEngine looperEngine,
   ) async {
+    final jsonStr = _projectDataToJsonString(
+        rackState, engine, transport, audioGraph, looperEngine);
+    final bytes = Uint8List.fromList(utf8.encode(jsonStr));
+
     final result = await FilePicker.platform.saveFile(
       dialogTitle: 'Save Project As',
       fileName: 'project.gf',
       type: FileType.custom,
       allowedExtensions: ['gf'],
+      bytes: bytes,
     );
 
     if (result != null) {
-      // Ensure .gf extension.
       final path = result.endsWith('.gf') ? result : '$result.gf';
-      await saveProject(
-          path, rackState, engine, transport, audioGraph, looperEngine);
+      _currentProjectPath = path;
+      notifyListeners();
       return path;
     }
+
+    // Web: saveFile triggers a download and returns null; treat as success.
+    if (kIsWeb) return '';
     return null;
   }
 
@@ -156,14 +172,17 @@ class ProjectService extends ChangeNotifier {
 
   // ─── Internal I/O ────────────────────────────────────────────────────────
 
-  Future<void> _writeGfFile(
-    String path,
+  /// Builds the project document as a JSON string (no file I/O).
+  ///
+  /// Used by [saveProjectAs] to pass bytes to the file picker on web and
+  /// mobile, and by [_writeGfFile] for desktop autosave/save.
+  String _projectDataToJsonString(
     RackState rackState,
     AudioEngine engine,
     TransportEngine transport,
     AudioGraph audioGraph,
     LooperEngine looperEngine,
-  ) async {
+  ) {
     final data = {
       'version': _formatVersion,
       'savedAt': DateTime.now().toIso8601String(),
@@ -174,28 +193,35 @@ class ProjectService extends ChangeNotifier {
         'swing': transport.swing,
         'metronomeEnabled': transport.metronomeEnabled,
       },
-      // MIDI and Audio graph connections (Phase 5).
-      // Data (chord/scale) connections are stored within each plugin's state.
       'audioGraph': audioGraph.toJson(),
-      // Looper sessions: per-slot recorded MIDI track data (Phase 7).
       'looperSessions': looperEngine.toJson(),
       'plugins': rackState.toJson(),
     };
-    
+    return const JsonEncoder.withIndent('  ').convert(data);
+  }
+
+  Future<void> _writeGfFile(
+    String path,
+    RackState rackState,
+    AudioEngine engine,
+    TransportEngine transport,
+    AudioGraph audioGraph,
+    LooperEngine looperEngine,
+  ) async {
+    final jsonStr = _projectDataToJsonString(
+        rackState, engine, transport, audioGraph, looperEngine);
+
     final file = File(path);
     final tmpPath = '$path.tmp';
     final tmpFile = File(tmpPath);
-    
+
     try {
-      await tmpFile.writeAsString(
-        const JsonEncoder.withIndent('  ').convert(data),
-        flush: true,
-      );
-      
+      await tmpFile.writeAsString(jsonStr, flush: true);
+
       if (await file.exists()) {
         await file.delete();
       }
-      
+
       await tmpFile.rename(path);
       debugPrint('ProjectService: saved to $path');
     } catch (e) {

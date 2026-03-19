@@ -5,7 +5,10 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/lang/fr/).
 
-## [X.x.x]
+## [2.5.8] - 2026-03-17
+
+### Corrigé
+- **Enregistrer sous (Android et web)** : l’option « Enregistrer sous… » du menu projet ne faisait rien sur Android et sur le web. Sur le web, `FilePicker.platform.saveFile` exige des `bytes` et renvoie `null` après avoir déclenché un téléchargement ; sur Android/iOS le plugin exige aussi des `bytes`. Le projet est désormais sérialisé en octets JSON et passé à `saveFile` sur toutes les plateformes. Sur le web, le résultat vide est considéré comme un succès (téléchargement démarré) ; sur mobile et desktop le plugin écrit le fichier et renvoie le chemin. L’interface affiche « Projet enregistré » dans tous les cas.
 
 ### Ajouté
 - Pages HTML statiques pour les routes `/features` et `/privacy` dans `web/features/index.html` et `web/privacy/index.html`, restaurant ces pages sur GitHub Pages après que le déploiement Flutter web ait remplacé l'ancien site statique.

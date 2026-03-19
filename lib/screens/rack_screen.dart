@@ -596,7 +596,8 @@ class _RackScreenState extends State<RackScreen> {
     final path = await service.saveProjectAs(
         rack, engine, transport, audioGraph, looper);
     if (path != null && mounted) {
-      setState(() => _currentProjectPath = path);
+      // path is empty string on web (download triggered, no file path).
+      setState(() => _currentProjectPath = path.isEmpty ? null : path);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(l10n.rackProjectSaved)),
       );
