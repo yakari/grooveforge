@@ -26,7 +26,9 @@
   #define EXPORT __attribute__((visibility("default"))) __attribute__((used))
 #endif
 
-#ifdef __linux__
+// FluidSynth is only available on Linux desktop. Android also defines
+// __linux__, so we explicitly exclude it here.
+#if defined(__linux__) && !defined(__ANDROID__)
 
 #include <fluidsynth.h>
 #include <string.h>
@@ -175,7 +177,7 @@ EXPORT void keyboard_render_block(float* outL, float* outR, int frames) {
     fluid_synth_write_float(g_synth, frames, outL, 0, 1, outR, 0, 1);
 }
 
-#else // !__linux__ ─────────────────────────────────────────────────────────
+#else // !(defined(__linux__) && !defined(__ANDROID__)) ──────────────────────
 
 // Non-Linux stubs — keyboard audio is handled by flutter_midi_pro on those
 // platforms and never flows through the dart_vst_host ALSA loop.
@@ -197,4 +199,4 @@ EXPORT void keyboard_render_block(float* l, float* r, int f) {
     memset(r, 0, (size_t)f * sizeof(float));
 }
 
-#endif // __linux__
+#endif // defined(__linux__) && !defined(__ANDROID__)

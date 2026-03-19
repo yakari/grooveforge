@@ -66,7 +66,8 @@ jobs:
           sudo apt-get install -y \
             libgtk-3-dev libblkid-dev liblzma-dev libgcrypt20-dev libmpv-dev \
             libasound2-dev \
-            libx11-dev
+            libx11-dev \
+            libfluidsynth-dev
 
       # The VST3 SDK is gitignored (too large to commit). Cache the clone so
       # subsequent CI runs skip the download entirely.
