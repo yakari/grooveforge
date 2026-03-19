@@ -7,9 +7,10 @@ import 'package:package_info_plus/package_info_plus.dart';
 import '../l10n/app_localizations.dart';
 import '../models/audio_port_id.dart';
 import '../models/gfpa_plugin_instance.dart';
+import '../constants/soundfont_sentinels.dart';
 import '../models/grooveforge_keyboard_plugin.dart';
 import '../models/looper_plugin_instance.dart';
-import '../models/virtual_piano_plugin.dart';
+import '../models/plugin_instance.dart';
 import '../models/vst3_plugin_instance.dart';
 import '../services/audio_engine.dart';
 import '../services/audio_graph.dart';
@@ -167,18 +168,16 @@ class _RackScreenState extends State<RackScreen> {
 
   // ─── Auto-scroll ────────────────────────────────────────────────────────────
 
-  /// Routes incoming MIDI messages to VST3 and [VirtualPianoPlugin] slots on
-  /// the matching channel, bypassing FluidSynth.
+  /// Routes incoming MIDI messages to VST3 and MIDI-controller-only keyboard
+  /// slots on the matching channel, bypassing FluidSynth for those paths.
   ///
   /// - **VST3 slots** receive note events directly via [VstHostService].
-  /// - **Virtual Piano slots** act as cable-based MIDI sources: notes are
-  ///   scale-snapped for the VP's channel, then forwarded to every slot wired
-  ///   to its MIDI OUT jack in [AudioGraph]. This mirrors what [_RackSlotPiano]
-  ///   does for on-screen key presses.
+  /// - **GrooveForge Keyboard** with soundfont [kMidiControllerOnlySoundfont]
+  ///   behaves like the former Virtual Piano: scale-snapped notes and expression
+  ///   follow MIDI OUT cables (see [_RackSlotPiano] for touch input).
   ///
-  /// Returns `true` when at least one VST3 or VP slot claims the channel so
-  /// the caller can skip [AudioEngine.processMidiPacket] (which would route to
-  /// FluidSynth and produce the wrong sound).
+  /// Returns `true` when FluidSynth must not handle this packet for the channel
+  /// (VST3 and/or MIDI-only keyboard). Normal GFK slots still use FluidSynth.
   bool _routeMidiToVst3Plugins(MidiPacket packet) {
     if (packet.data.isEmpty) return false;
     final statusByte = packet.data[0];
@@ -189,18 +188,26 @@ class _RackScreenState extends State<RackScreen> {
         .whereType<Vst3PluginInstance>()
         .where((p) => p.midiChannel == midiChannel)
         .toList();
-    final vpSlots = rack.plugins
-        .whereType<VirtualPianoPlugin>()
-        .where((p) => p.midiChannel == midiChannel)
-        .toList();
-    // GFK slots are also checked so that external MIDI on a keyboard channel
-    // is forwarded to any looper connected via MIDI OUT cable.
-    final gfkSlots = rack.plugins
+    final gfkMidiOnlySlots = rack.plugins
         .whereType<GrooveForgeKeyboardPlugin>()
-        .where((p) => p.midiChannel == midiChannel)
+        .where((p) =>
+            p.midiChannel == midiChannel &&
+            p.soundfontPath == kMidiControllerOnlySoundfont)
+        .toList();
+    // Synth GFK: external MIDI still goes through FluidSynth, but we also feed
+    // any looper wired from this slot's MIDI OUT.
+    final gfkSynthSlots = rack.plugins
+        .whereType<GrooveForgeKeyboardPlugin>()
+        .where((p) =>
+            p.midiChannel == midiChannel &&
+            p.soundfontPath != kMidiControllerOnlySoundfont)
         .toList();
 
-    if (vst3Slots.isEmpty && vpSlots.isEmpty && gfkSlots.isEmpty) return false;
+    if (vst3Slots.isEmpty &&
+        gfkMidiOnlySlots.isEmpty &&
+        gfkSynthSlots.isEmpty) {
+      return false;
+    }
 
     final command = statusByte & 0xF0;
     if ((command == 0x90 || command == 0x80) && packet.data.length >= 2) {
@@ -218,13 +225,13 @@ class _RackScreenState extends State<RackScreen> {
         }
       }
 
-      // ── Virtual Piano cable routing ──────────────────────────────────────
-      if (vpSlots.isNotEmpty) {
+      // ── MIDI-only GFK cable routing (legacy Virtual Piano behaviour) ─────
+      if (gfkMidiOnlySlots.isNotEmpty) {
         final engine = context.read<AudioEngine>();
         final audioGraph = context.read<AudioGraph>();
-        for (final vp in vpSlots) {
-          _routeExternalMidiThroughVp(
-            vp: vp,
+        for (final src in gfkMidiOnlySlots) {
+          _routeExternalMidiThroughPatchMidiSource(
+            source: src,
             note: note,
             velocity: velocity,
             isNoteOn: isNoteOn,
@@ -236,12 +243,9 @@ class _RackScreenState extends State<RackScreen> {
         }
       }
 
-      // ── GrooveForge Keyboard looper feed ─────────────────────────────────
-      // GFK audio still flows through FluidSynth (caller returns false below
-      // when gfkSlots is the only match), but we also capture the note into
-      // any looper whose MIDI IN jack is connected to this GFK's MIDI OUT.
-      if (gfkSlots.isNotEmpty) {
-        for (final gfk in gfkSlots) {
+      // ── GrooveForge Keyboard (with synth) looper feed ─────────────────────
+      if (gfkSynthSlots.isNotEmpty) {
+        for (final gfk in gfkSynthSlots) {
           final gfkCh = (gfk.midiChannel - 1).clamp(0, 15);
           _feedMidiToLoopers(
             isNoteOn
@@ -255,18 +259,13 @@ class _RackScreenState extends State<RackScreen> {
       }
     } else if (_isExpressionCommand(command) && packet.data.length >= 2) {
       // ── Pitch bend / CC / channel pressure forwarding ────────────────────
-      // Expression messages (pitch bend, mod wheel, aftertouch…) received on a
-      // VP's channel must be forwarded through its MIDI OUT cable to whatever
-      // slot is connected downstream — typically a GF Keyboard or VST3 plugin.
-      // Without this, sliding a physical controller through a VP cable produces
-      // no effect on the target instrument.
-      if (vpSlots.isNotEmpty) {
+      if (gfkMidiOnlySlots.isNotEmpty) {
         final engine = context.read<AudioEngine>();
         final audioGraph = context.read<AudioGraph>();
         final vstSvc = context.read<VstHostService>();
-        for (final vp in vpSlots) {
-          _routeExpressionThroughVp(
-            vp: vp,
+        for (final src in gfkMidiOnlySlots) {
+          _routeExpressionThroughPatchMidiSource(
+            source: src,
             command: command,
             data1: packet.data[1],
             data2: packet.data.length >= 3 ? packet.data[2] : 0,
@@ -290,10 +289,7 @@ class _RackScreenState extends State<RackScreen> {
       }
     }
 
-    // Return true only when a VST3 or VP slot claimed the channel — those
-    // replace FluidSynth. A GFK match feeds the looper as a side-effect but
-    // still needs FluidSynth to produce audio, so we return false in that case.
-    return vst3Slots.isNotEmpty || vpSlots.isNotEmpty;
+    return vst3Slots.isNotEmpty || gfkMidiOnlySlots.isNotEmpty;
   }
 
   /// Returns true when [command] is a MIDI expression message that must be
@@ -359,15 +355,10 @@ class _RackScreenState extends State<RackScreen> {
     }
   }
 
-  /// Forwards an expression message received on a [VirtualPianoPlugin]'s
-  /// channel through every slot connected to its MIDI OUT jack.
-  ///
-  /// This is the expression sibling of [_routeExternalMidiThroughVp]: notes
-  /// are scale-snapped there, but pitch bend and CC must travel the same cable
-  /// path so that, for example, a physical slide controller routed VP → GFK
-  /// actually bends the GFK channel's pitch.
-  void _routeExpressionThroughVp({
-    required VirtualPianoPlugin vp,
+  /// Forwards expression from a MIDI-controller-only source slot through its
+  /// MIDI OUT cables (same graph path as on-screen keys).
+  void _routeExpressionThroughPatchMidiSource({
+    required PluginInstance source,
     required int command,
     required int data1,
     required int data2,
@@ -376,9 +367,8 @@ class _RackScreenState extends State<RackScreen> {
     required VstHostService vstSvc,
     required RackState rack,
   }) {
-    // Forward to each non-looper slot connected to VP's MIDI OUT jack.
     final cables = audioGraph
-        .connectionsFrom(vp.id)
+        .connectionsFrom(source.id)
         .where((c) => c.fromPort == AudioPortId.midiOut);
     for (final cable in cables) {
       final target =
@@ -405,14 +395,10 @@ class _RackScreenState extends State<RackScreen> {
     }
   }
 
-  /// Routes one external MIDI note event through a [VirtualPianoPlugin]'s
-  /// MIDI OUT cable connections.
-  ///
-  /// Applies scale snapping for the VP's own channel (so Jam Mode affects
-  /// external MIDI just as it does on-screen key presses), updates VP's visual
-  /// key highlight, then dispatches the snapped note to each downstream slot.
-  void _routeExternalMidiThroughVp({
-    required VirtualPianoPlugin vp,
+  /// Routes one external MIDI note through a MIDI-controller-only slot's
+  /// MIDI OUT cables (scale snap + UI highlights + looper + targets).
+  void _routeExternalMidiThroughPatchMidiSource({
+    required PluginInstance source,
     required int note,
     required int velocity,
     required bool isNoteOn,
@@ -421,28 +407,24 @@ class _RackScreenState extends State<RackScreen> {
     required VstHostService vstSvc,
     required RackState rack,
   }) {
-    final vpCh = (vp.midiChannel - 1).clamp(0, 15);
-    // Scale-snap the note using VP's channel state (Jam Mode / classic lock).
-    final snapped = engine.snapNoteForChannel(vpCh, note);
+    final srcCh = (source.midiChannel - 1).clamp(0, 15);
+    final snapped = engine.snapNoteForChannel(srcCh, note);
 
-    // Update VP's own key highlight.
     if (isNoteOn) {
-      engine.noteOnUiOnly(channel: vpCh, key: note);
+      engine.noteOnUiOnly(channel: srcCh, key: note);
     } else {
-      engine.noteOffUiOnly(channel: vpCh, key: note);
+      engine.noteOffUiOnly(channel: srcCh, key: note);
     }
 
-    // Feed the (snapped) note into any looper connected to VP's MIDI OUT.
     _feedMidiToLoopers(
-      isNoteOn ? 0x90 | (vpCh & 0x0F) : 0x80 | (vpCh & 0x0F),
+      isNoteOn ? 0x90 | (srcCh & 0x0F) : 0x80 | (srcCh & 0x0F),
       snapped,
       velocity,
-      vp.id,
+      source.id,
     );
 
-    // Forward to each non-looper slot connected to VP's MIDI OUT jack.
     final cables = audioGraph
-        .connectionsFrom(vp.id)
+        .connectionsFrom(source.id)
         .where((c) => c.fromPort == AudioPortId.midiOut);
     for (final cable in cables) {
       final target =

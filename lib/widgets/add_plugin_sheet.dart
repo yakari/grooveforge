@@ -2,13 +2,13 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:grooveforge_plugin_api/grooveforge_plugin_api.dart';
 import 'package:provider/provider.dart';
 
 import '../l10n/app_localizations.dart';
 import '../models/gfpa_plugin_instance.dart';
 import '../models/grooveforge_keyboard_plugin.dart';
 import '../models/looper_plugin_instance.dart';
-import '../models/virtual_piano_plugin.dart';
 import '../services/looper_engine.dart';
 import '../services/rack_state.dart';
 import '../services/vst_host_service.dart'; // re-exports Vst3PluginType
@@ -66,6 +66,79 @@ class _AddPluginSheetContentState extends State<_AddPluginSheetContent> {
   }
 
   /// Loads and adds a VST3 plugin of the given [pluginType].
+  // ── Descriptor plugin helpers ────────────────────────────────────────────
+
+  /// Add a descriptor-backed plugin (identified by [pluginId]) to the rack.
+  ///
+  /// The plugin must already be registered in [GFPluginRegistry] (all bundled
+  /// `.gfpd` plugins are loaded at app startup in `main.dart`). Descriptor
+  /// plugins are audio effects — they use `midiChannel: 0` and need no MIDI
+  /// channel allocation.
+  void _addDescriptorPlugin(
+    BuildContext context,
+    RackState rack,
+    String pluginId,
+  ) {
+    final registered = GFPluginRegistry.instance.findById(pluginId);
+    if (registered == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Plugin not found: $pluginId')),
+      );
+      return;
+    }
+    Navigator.pop(context);
+    rack.addPlugin(
+      GFpaPluginInstance(
+        id: rack.generateSlotId(),
+        pluginId: pluginId,
+        midiChannel: 0, // effects do not use MIDI channels
+      ),
+    );
+  }
+
+  /// Let the user pick a `.gfpd` file from device storage and add it to the
+  /// rack. The file is parsed by [GFDescriptorLoader.loadAndRegister], which
+  /// also adds it to [GFPluginRegistry] for future use in this session.
+  Future<void> _loadGfpdFromFile(BuildContext context, RackState rack) async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['gfpd'],
+      withData: false,
+    );
+    if (result == null || result.files.isEmpty) return;
+    final path = result.files.first.path;
+    if (path == null) return;
+
+    try {
+      final content = await File(path).readAsString();
+      final plugin = GFDescriptorLoader.loadAndRegister(content);
+      if (plugin == null) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to parse .gfpd file.')),
+          );
+        }
+        return;
+      }
+      if (context.mounted) {
+        Navigator.pop(context);
+        rack.addPlugin(
+          GFpaPluginInstance(
+            id: rack.generateSlotId(),
+            pluginId: plugin.pluginId,
+            midiChannel: 0,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error reading file: $e')),
+        );
+      }
+    }
+  }
+
   ///
   /// Instrument plugins are assigned the next free MIDI channel.
   /// Effect plugins use midiChannel == 0 (no MIDI routing).
@@ -304,32 +377,6 @@ class _AddPluginSheetContentState extends State<_AddPluginSheetContent> {
               },
             ),
 
-            // ── Virtual Piano (MIDI source for patch routing)
-            _PluginTile(
-              icon: Icons.piano_outlined,
-              iconColor: const Color(0xFFAA44FF),
-              title: l10n.addVirtualPiano,
-              subtitle: l10n.rackAddVirtualPianoSubtitle,
-              onTap: () {
-                Navigator.pop(context);
-                final ch = rack.nextAvailableMidiChannel();
-                if (ch == -1) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('All 16 MIDI channels are already in use.'),
-                    ),
-                  );
-                  return;
-                }
-                rack.addPlugin(
-                  VirtualPianoPlugin(
-                    id: rack.generateSlotId(),
-                    midiChannel: ch,
-                  ),
-                );
-              },
-            ),
-
             // ── Stylophone (GFPA monophonic strip instrument)
             _PluginTile(
               icon: Icons.linear_scale,
@@ -384,6 +431,10 @@ class _AddPluginSheetContentState extends State<_AddPluginSheetContent> {
               },
             ),
 
+            // ═══════════════════════════════════════════════════════════════
+            // MIDI Looper
+            // ═══════════════════════════════════════════════════════════════
+
             // ── MIDI Looper
             _PluginTile(
               icon: Icons.loop,
@@ -410,11 +461,103 @@ class _AddPluginSheetContentState extends State<_AddPluginSheetContent> {
               },
             ),
 
+            // ═══════════════════════════════════════════════════════════════
+            // Built-in GFPA Effects (.gfpd descriptor plugins — all platforms)
+            // ═══════════════════════════════════════════════════════════════
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+              child: Text(
+                l10n.rackAddEffectsSectionLabel,
+                style: TextStyle(
+                  color: Colors.white54,
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.0,
+                ),
+              ),
+            ),
+
+            _PluginTile(
+              icon: Icons.blur_on,
+              iconColor: Colors.lightBlueAccent,
+              title: l10n.rackAddReverb,
+              subtitle: l10n.rackAddReverbSubtitle,
+              onTap: () => _addDescriptorPlugin(
+                context, rack, 'com.grooveforge.reverb',
+              ),
+            ),
+            _PluginTile(
+              icon: Icons.repeat,
+              iconColor: Colors.tealAccent,
+              title: l10n.rackAddDelay,
+              subtitle: l10n.rackAddDelaySubtitle,
+              onTap: () => _addDescriptorPlugin(
+                context, rack, 'com.grooveforge.delay',
+              ),
+            ),
+            _PluginTile(
+              icon: Icons.graphic_eq,
+              iconColor: Colors.orangeAccent,
+              title: l10n.rackAddWah,
+              subtitle: l10n.rackAddWahSubtitle,
+              onTap: () => _addDescriptorPlugin(
+                context, rack, 'com.grooveforge.wah',
+              ),
+            ),
+            _PluginTile(
+              icon: Icons.equalizer,
+              iconColor: Colors.greenAccent,
+              title: l10n.rackAddEq,
+              subtitle: l10n.rackAddEqSubtitle,
+              onTap: () => _addDescriptorPlugin(
+                context, rack, 'com.grooveforge.eq',
+              ),
+            ),
+            _PluginTile(
+              icon: Icons.compress,
+              iconColor: Colors.purpleAccent,
+              title: l10n.rackAddCompressor,
+              subtitle: l10n.rackAddCompressorSubtitle,
+              onTap: () => _addDescriptorPlugin(
+                context, rack, 'com.grooveforge.compressor',
+              ),
+            ),
+            _PluginTile(
+              icon: Icons.waves,
+              iconColor: Colors.cyanAccent,
+              title: l10n.rackAddChorus,
+              subtitle: l10n.rackAddChorusSubtitle,
+              onTap: () => _addDescriptorPlugin(
+                context, rack, 'com.grooveforge.chorus',
+              ),
+            ),
+
+            // ── Load a custom .gfpd plugin from storage
+            _PluginTile(
+              icon: Icons.file_open,
+              iconColor: Colors.white54,
+              title: l10n.rackAddLoadGfpd,
+              subtitle: l10n.rackAddLoadGfpdSubtitle,
+              onTap: () => _loadGfpdFromFile(context, rack),
+            ),
+
             // ── VST3 (desktop only) ─────────────────────────────────────
             // Instrument and effect are shown as separate tiles so the user
             // can declare intent upfront. The type is stored in the model
             // and drives the rack slot UI and back-panel jack layout.
             if (_isDesktop) ...[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                child: Text(
+                  l10n.rackAddVstSectionLabel,
+                  style: const TextStyle(
+                    color: Colors.white54,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.0,
+                  ),
+                ),
+              ),
               if (_loading)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 16),

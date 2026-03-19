@@ -186,6 +186,33 @@ DVH_API intptr_t dvh_mac_open_editor(DVH_Plugin p, const char* title);
 DVH_API void     dvh_mac_close_editor(DVH_Plugin p);
 DVH_API int32_t  dvh_mac_editor_is_open(DVH_Plugin p);
 
+// ── GFPA master-insert chain ──────────────────────────────────────────────────
+//
+// Allows GFPA native DSP effects (reverb, delay, wah, EQ, compressor, chorus)
+// to process the output of a master-render contributor before it reaches the
+// ALSA mix bus.  Full types are defined in gfpa_dsp.h; the API here uses
+// compatible void* / function-pointer types so that dart_vst_host.h has no
+// dependency on gfpa_dsp.h.
+//
+// GfpaInsertFn_fwd matches GfpaInsertFn exactly:
+//   void fn(const float*, const float*, float*, float*, int32_t, void*)
+typedef void (*GfpaInsertFn_fwd)(const float*, const float*,
+                                  float*, float*, int32_t, void*);
+
+/// Register a GFPA insert on [source]'s master-render audio path.
+/// [insertFn] is called each ALSA block with the source's dry stereo output;
+/// [userdata] is the GfpaDspHandle (obtained from gfpa_dsp_userdata()).
+/// Calling again for the same [source] replaces the existing insert.
+DVH_API void dvh_add_master_insert(DVH_Host host, DvhRenderFn source,
+                                    GfpaInsertFn_fwd insertFn, void* userdata);
+
+/// Remove the GFPA insert registered for [source]. No-op if none registered.
+DVH_API void dvh_remove_master_insert(DVH_Host host, DvhRenderFn source);
+
+/// Remove all registered master inserts.
+/// Call at the start of each syncAudioRouting() rebuild.
+DVH_API void dvh_clear_master_inserts(DVH_Host host);
+
 #ifdef __cplusplus
 }
 #endif

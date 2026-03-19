@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:grooveforge_plugin_api/grooveforge_plugin_api.dart';
 import 'package:provider/provider.dart';
 
 import 'services/audio_engine.dart';
@@ -15,7 +17,37 @@ import 'services/vst_host_service.dart';
 import 'screens/splash_screen.dart';
 import 'l10n/app_localizations.dart';
 
-void main() {
+/// Asset paths for all bundled `.gfpd` plugin descriptor files.
+const _kBundledGfpdAssets = [
+  'assets/plugins/reverb.gfpd',
+  'assets/plugins/delay.gfpd',
+  'assets/plugins/wah.gfpd',
+  'assets/plugins/eq.gfpd',
+  'assets/plugins/compressor.gfpd',
+  'assets/plugins/chorus.gfpd',
+];
+
+/// Load and register all bundled `.gfpd` plugins before the first frame.
+///
+/// Each asset is parsed by [GFDescriptorLoader.loadAndRegister], which adds
+/// the resulting [GFDescriptorPlugin] to [GFPluginRegistry]. The built-in DSP
+/// node factories ([GFDspNodeRegistry]) are registered first so every node
+/// type referenced in the descriptors resolves correctly.
+Future<void> _loadBundledGfpdPlugins() async {
+  GFDescriptorLoader.registerBuiltinNodes();
+  for (final assetPath in _kBundledGfpdAssets) {
+    try {
+      final yaml = await rootBundle.loadString(assetPath);
+      GFDescriptorLoader.loadAndRegister(yaml);
+    } catch (e) {
+      debugPrint('[main] Failed to load $assetPath: $e');
+    }
+  }
+}
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await _loadBundledGfpdPlugins();
   runApp(
     MultiProvider(
       providers: [

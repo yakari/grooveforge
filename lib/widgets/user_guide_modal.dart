@@ -324,7 +324,6 @@ class _PatchViewTab extends StatelessWidget {
         _buildFeatureItem(Icons.piano, l10n.guidePatchSlotKeyboard, l10n.guidePatchSlotKeyboardDesc),
         _buildFeatureItem(Icons.mic, l10n.guidePatchSlotVocoder, l10n.guidePatchSlotVocoderDesc),
         _buildFeatureItem(Icons.auto_awesome, l10n.guidePatchSlotJam, l10n.guidePatchSlotJamDesc),
-        _buildFeatureItem(Icons.piano_outlined, l10n.guidePatchSlotVirtualPiano, l10n.guidePatchSlotVirtualPianoDesc),
         _buildFeatureItem(Icons.extension, l10n.guidePatchSlotVst3, l10n.guidePatchSlotVst3Desc),
         const SizedBox(height: 4),
         _buildDesktopOnlyBox(l10n.guidePatchSlotVst3DesktopOnly),

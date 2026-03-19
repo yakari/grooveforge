@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../l10n/app_localizations.dart';
+import '../constants/soundfont_sentinels.dart';
 import '../models/gfpa_plugin_instance.dart';
 import '../models/grooveforge_keyboard_plugin.dart';
 import '../models/looper_plugin_instance.dart';
 import '../models/plugin_instance.dart';
-import '../models/virtual_piano_plugin.dart';
 import '../models/vst3_plugin_instance.dart';
 import '../models/audio_graph_connection.dart';
 import '../models/audio_port_id.dart';
@@ -18,13 +18,15 @@ import '../services/vst_host_service.dart';
 import '../models/keyboard_display_config.dart';
 import '../widgets/keyboard_config_dialog.dart';
 import '../widgets/virtual_piano.dart';
+import 'package:grooveforge_plugin_api/grooveforge_plugin_api.dart';
+
+import 'rack/gfpa_descriptor_slot_ui.dart';
 import 'rack/gfpa_jam_mode_slot_ui.dart';
 import 'rack/gfpa_stylophone_slot_ui.dart';
 import 'rack/gfpa_theremin_slot_ui.dart';
 import 'rack/gfpa_vocoder_slot_ui.dart';
 import 'rack/grooveforge_keyboard_slot_ui.dart';
 import 'rack/looper_slot_ui.dart';
-import 'rack/virtual_piano_slot_ui.dart';
 import 'rack/vst3_effect_slot_ui.dart';
 import 'rack/vst3_slot_ui.dart';
 
@@ -34,7 +36,7 @@ import 'rack/vst3_slot_ui.dart';
 ///   - A header: drag handle, plugin name, MIDI channel badge, JAM chip,
 ///     active-note indicator, delete button.
 ///   - A plugin-specific body ([GrooveForgeKeyboardSlotUI] or [Vst3SlotUI]).
-///   - A [VirtualPiano] (only for [GrooveForgeKeyboardPlugin] slots).
+///   - A [VirtualPiano] (GF keyboard, MIDI-only keyboard, vocoder).
 class RackSlotWidget extends StatelessWidget {
   final PluginInstance plugin;
   final double pianoHeight;
@@ -170,8 +172,6 @@ class RackSlotWidget extends StatelessWidget {
     KeyboardDisplayConfig? cfg;
     if (plugin is GrooveForgeKeyboardPlugin) {
       cfg = (plugin as GrooveForgeKeyboardPlugin).keyboardConfig;
-    } else if (plugin is VirtualPianoPlugin) {
-      cfg = (plugin as VirtualPianoPlugin).keyboardConfig;
     } else if (plugin is GFpaPluginInstance) {
       cfg = (plugin as GFpaPluginInstance).keyboardConfig;
     }
@@ -181,7 +181,6 @@ class RackSlotWidget extends StatelessWidget {
 
   bool get _showPiano {
     if (plugin is GrooveForgeKeyboardPlugin) return true;
-    if (plugin is VirtualPianoPlugin) return true;
     if (plugin is GFpaPluginInstance) {
       final gfpa = plugin as GFpaPluginInstance;
       // Vocoder uses the shared rack piano. Stylophone and Theremin render
@@ -216,7 +215,7 @@ class RackSlotWidget extends StatelessWidget {
       final vst3 = plugin as Vst3PluginInstance;
       return vst3.pluginType == Vst3PluginType.instrument;
     }
-    return true; // VP, GFK respond to notes and should glow.
+    return true; // GFK (synth or MIDI-only) responds to notes and should glow.
   }
 
   Widget _buildBody(BuildContext context) {
@@ -225,9 +224,6 @@ class RackSlotWidget extends StatelessWidget {
       return GrooveForgeKeyboardSlotUI(
         plugin: plugin as GrooveForgeKeyboardPlugin,
       );
-    }
-    if (plugin is VirtualPianoPlugin) {
-      return VirtualPianoSlotUI(plugin: plugin as VirtualPianoPlugin);
     }
     if (plugin is LooperPluginInstance) {
       return LooperSlotUI(plugin: plugin as LooperPluginInstance);
@@ -255,6 +251,16 @@ class RackSlotWidget extends StatelessWidget {
         case 'com.grooveforge.theremin':
           return GFpaThereminSlotUI(plugin: gfpa);
         default:
+          // Check if this pluginId is a descriptor-backed (.gfpd) plugin.
+          final registeredPlugin =
+              GFPluginRegistry.instance.findById(gfpa.pluginId);
+          if (registeredPlugin is GFDescriptorPlugin) {
+            return GFpaDescriptorSlotUI(
+              instance: gfpa,
+              descriptor: registeredPlugin.descriptor,
+            );
+          }
+          // Unknown plugin — show a non-crashing placeholder.
           return Padding(
             padding: const EdgeInsets.all(12),
             child: Text(
@@ -325,7 +331,6 @@ class _SlotHeader extends StatelessWidget {
 
           // ── Keyboard config button — piano-type slots and vocoder
           if (plugin is GrooveForgeKeyboardPlugin ||
-              plugin is VirtualPianoPlugin ||
               (plugin is GFpaPluginInstance &&
                   (plugin as GFpaPluginInstance).pluginId ==
                       'com.grooveforge.vocoder')) ...[
@@ -359,8 +364,11 @@ class _SlotHeader extends StatelessWidget {
   }
 
   IconData _iconFor(PluginInstance p) {
-    if (p is GrooveForgeKeyboardPlugin) return Icons.piano;
-    if (p is VirtualPianoPlugin) return Icons.piano_outlined;
+    if (p is GrooveForgeKeyboardPlugin) {
+      return p.soundfontPath == kMidiControllerOnlySoundfont
+          ? Icons.piano_outlined
+          : Icons.piano;
+    }
     if (p is LooperPluginInstance) return Icons.loop;
     if (p is Vst3PluginInstance) {
       // Effect and analyzer plugins use a wand icon to distinguish them from
@@ -380,6 +388,16 @@ class _SlotHeader extends StatelessWidget {
         case 'com.grooveforge.jammode': return Icons.link;
         case 'com.grooveforge.stylophone': return Icons.linear_scale;
         case 'com.grooveforge.theremin': return Icons.sensors;
+        case 'com.grooveforge.reverb': return Icons.blur_on;
+        case 'com.grooveforge.delay': return Icons.repeat;
+        case 'com.grooveforge.wah': return Icons.graphic_eq;
+        case 'com.grooveforge.eq': return Icons.equalizer;
+        case 'com.grooveforge.compressor': return Icons.compress;
+        case 'com.grooveforge.chorus': return Icons.waves;
+      }
+      // Generic icon for any other descriptor-backed plugin.
+      if (GFPluginRegistry.instance.findById(p.pluginId) is GFDescriptorPlugin) {
+        return Icons.tune;
       }
     }
     return Icons.extension;
@@ -499,6 +517,13 @@ class _MidiChannelBadge extends StatelessWidget {
   }
 }
 
+/// True when this slot's on-screen keyboard acts as a MIDI-only controller
+/// (no internal FluidSynth on its channel).
+bool _routesMidiThroughCablesOnly(PluginInstance plugin) {
+  return plugin is GrooveForgeKeyboardPlugin &&
+      plugin.soundfontPath == kMidiControllerOnlySoundfont;
+}
+
 // ─── Piano (full channel logic, adapted for rack slot) ───────────────────────
 
 /// Layer-1 widget: subscribes only to configuration notifiers.
@@ -520,9 +545,6 @@ class _RackSlotPiano extends StatelessWidget {
   KeyboardDisplayConfig? get _keyboardConfig {
     if (plugin is GrooveForgeKeyboardPlugin) {
       return (plugin as GrooveForgeKeyboardPlugin).keyboardConfig;
-    }
-    if (plugin is VirtualPianoPlugin) {
-      return (plugin as VirtualPianoPlugin).keyboardConfig;
     }
     if (plugin is GFpaPluginInstance) {
       return (plugin as GFpaPluginInstance).keyboardConfig;
@@ -701,18 +723,14 @@ class _PianoBody extends StatelessWidget {
   /// Handles a note-on event from the on-screen piano keyboard.
   ///
   /// Routing logic per plugin type:
-  /// - [VirtualPianoPlugin]: has no soundfont; highlights its own keys for
-  ///   visual feedback, then forwards the note to every slot wired to its
-  ///   MIDI OUT jack via the [AudioGraph] cable map.
+  /// - **MIDI-only GFK** ([kMidiControllerOnlySoundfont]): highlights keys and
+  ///   forwards notes through MIDI OUT cables (no internal FluidSynth).
   /// - [Vst3PluginInstance]: sends via [VstHostService] (bypasses FluidSynth)
   ///   and marks the key as active on the engine for UI highlighting.
-  /// - All other slots (GFK, GFPA, etc.): routes to FluidSynth AND forwards
-  ///   the note to any [LooperPluginInstance] wired to this slot's MIDI OUT.
+  /// - **Other slots**: [AudioEngine.playNote] plus looper feed on MIDI OUT.
   void _onNotePressed(BuildContext context, int note) {
-    if (plugin is VirtualPianoPlugin) {
-      // Highlight VP's own key for visual feedback — no audio produced here.
+    if (_routesMidiThroughCablesOnly(plugin)) {
       engine.noteOnUiOnly(channel: channelIndex, key: note);
-      // Route the note to every slot connected to this VP's MIDI OUT jack.
       _dispatchMidiNoteOn(context, note);
     } else if (plugin is Vst3PluginInstance) {
       // VST3 audio goes to VstHostService; engine only tracks UI state.
@@ -728,7 +746,7 @@ class _PianoBody extends StatelessWidget {
 
   /// Handles a note-off event from the on-screen piano keyboard.
   void _onNoteReleased(BuildContext context, int note) {
-    if (plugin is VirtualPianoPlugin) {
+    if (_routesMidiThroughCablesOnly(plugin)) {
       engine.noteOffUiOnly(channel: channelIndex, key: note);
       _dispatchMidiNoteOff(context, note);
     } else if (plugin is Vst3PluginInstance) {
@@ -743,7 +761,7 @@ class _PianoBody extends StatelessWidget {
   }
 
   /// Forwards a MIDI note-on event to all slots wired to this slot's MIDI OUT
-  /// jack. Called only for [VirtualPianoPlugin] slots.
+  /// jack. Used for MIDI-only GFK slots.
   ///
   /// Each connected target is routed according to its type:
   /// - [LooperPluginInstance] → [LooperEngine.feedMidiEvent] (records the note)
@@ -838,14 +856,12 @@ class _PianoBody extends StatelessWidget {
 
   /// Handles a pitch-bend gesture from the on-screen piano.
   ///
-  /// - **[VirtualPianoPlugin]**: VP produces no audio of its own, so the bend
-  ///   is forwarded through its MIDI OUT cable to every connected target slot,
-  ///   matching the same routing that notes follow in [_dispatchMidiNoteOn].
+  /// - **MIDI-only GFK**: bend is forwarded through MIDI OUT cables.
   /// - **[Vst3PluginInstance]**: dispatched to [VstHostService] (no-op until
   ///   the native binding is added; avoids incorrect FluidSynth bend).
-  /// - **All others** (GFK, vocoder, GFPA): sent directly to [AudioEngine].
+  /// - **All others** (GFK with synth, vocoder, GFPA): sent directly to [AudioEngine].
   void _onPitchBend(BuildContext context, int rawValue) {
-    if (plugin is VirtualPianoPlugin) {
+    if (_routesMidiThroughCablesOnly(plugin)) {
       _dispatchMidiPitchBend(context, rawValue);
     } else if (plugin is Vst3PluginInstance) {
       final semitones = (rawValue - 8192) / 8192.0 * 2.0;
@@ -857,8 +873,7 @@ class _PianoBody extends StatelessWidget {
 
   /// Handles a control-change gesture from the on-screen piano.
   ///
-  /// Same routing logic as [_onPitchBend]: VP slots forward through cables,
-  /// VST3 slots go to [VstHostService], everything else to [AudioEngine].
+  /// Same routing logic as [_onPitchBend].
   ///
   /// CC 1 (vibrato gesture) is remapped to the per-slot aftertouch destination
   /// when a [KeyboardDisplayConfig] override is active; otherwise it falls back
@@ -869,7 +884,7 @@ class _PianoBody extends StatelessWidget {
         ? (keyboardConfig?.aftertouchDestCc ?? engine.aftertouchDestCc.value)
         : cc;
 
-    if (plugin is VirtualPianoPlugin) {
+    if (_routesMidiThroughCablesOnly(plugin)) {
       _dispatchMidiCC(context, effectiveCc, value);
     } else if (plugin is Vst3PluginInstance) {
       context.read<VstHostService>().controlChange(plugin.id, 0, effectiveCc, value);
@@ -879,7 +894,7 @@ class _PianoBody extends StatelessWidget {
     }
   }
 
-  /// Forwards a pitch-bend value through every slot wired to this VP's MIDI OUT.
+  /// Forwards a pitch-bend value through every slot wired to this MIDI source's OUT.
   ///
   /// Converts the raw 14-bit value to semitones when the target is VST3,
   /// and reconstructs the correct 14-bit word for FluidSynth channels.
@@ -898,7 +913,7 @@ class _PianoBody extends StatelessWidget {
     }
   }
 
-  /// Forwards a control-change message through every slot wired to this VP's MIDI OUT.
+  /// Forwards CC through every slot wired to this MIDI source's MIDI OUT.
   void _dispatchMidiCC(BuildContext context, int cc, int value) {
     final vstSvc = context.read<VstHostService>();
     for (final cable in _midiOutCables(context)) {

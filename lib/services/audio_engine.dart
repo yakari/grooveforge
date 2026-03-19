@@ -12,6 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:grooveforge/services/cc_mapping_service.dart';
 import '../services/sf2_parser.dart';
 import 'package:audio_session/audio_session.dart';
+import 'package:grooveforge/constants/soundfont_sentinels.dart';
 import 'package:grooveforge/models/chord_detector.dart';
 import 'package:grooveforge/services/audio_input_ffi.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -941,7 +942,11 @@ class AudioEngine extends ChangeNotifier {
 
   void assignSoundfontToChannel(int channel, String path) {
     if (channel < 0 || channel > 15) return;
-    if (path != vocoderMode && !loadedSoundfonts.contains(path)) return;
+    if (path != vocoderMode &&
+        path != kMidiControllerOnlySoundfont &&
+        !loadedSoundfonts.contains(path)) {
+      return;
+    }
 
     channels[channel].soundfontPath = path;
     _applyChannelInstrument(channel);
@@ -1013,7 +1018,9 @@ class AudioEngine extends ChangeNotifier {
 
   void _applyChannelInstrument(int channel) {
     ChannelState state = channels[channel];
-    if (state.soundfontPath == null || state.soundfontPath == vocoderMode) {
+    if (state.soundfontPath == null ||
+        state.soundfontPath == vocoderMode ||
+        state.soundfontPath == kMidiControllerOnlySoundfont) {
       return;
     }
     if (!kIsWeb && Platform.isLinux) {
@@ -1036,7 +1043,7 @@ class AudioEngine extends ChangeNotifier {
 
   int _getSfIdForChannel(int channel) {
     String? path = channels[channel].soundfontPath;
-    if (path == null) {
+    if (path == null || path == kMidiControllerOnlySoundfont) {
       return -1;
     }
     return (!kIsWeb && Platform.isLinux)
@@ -1252,9 +1259,14 @@ class AudioEngine extends ChangeNotifier {
     required int key,
     required int velocity,
   }) {
-    // Reset expressive gestures on Note On to avoid stuck values
-    setPitchBend(channel: channel, value: 8192); // Center
-    setControlChange(channel: channel, controller: 1, value: 0); // Reset Mod
+    final midiControllerOnly = channels[channel].soundfontPath ==
+        kMidiControllerOnlySoundfont;
+
+    // Reset expressive gestures on Note On to avoid stuck values (synth slots).
+    if (!midiControllerOnly) {
+      setPitchBend(channel: channel, value: 8192); // Center
+      setControlChange(channel: channel, controller: 1, value: 0); // Reset Mod
+    }
 
     final currentNotes = Set<int>.from(channels[channel].activeNotes.value);
     currentNotes.add(key);
@@ -1285,7 +1297,7 @@ class AudioEngine extends ChangeNotifier {
     }
 
     int? currentOwner = channels[channel].snappedKeyOwners[keyToPlay];
-    if (currentOwner != null && currentOwner != key) {
+    if (currentOwner != null && currentOwner != key && !midiControllerOnly) {
       if (!kIsWeb && Platform.isLinux) {
         AudioInputFFI().keyboardNoteOff(channel, keyToPlay);
       } else {
@@ -1301,21 +1313,23 @@ class AudioEngine extends ChangeNotifier {
     // Skip audio emission when the channel is muted (UI tracking continues above).
     if (channels[channel].isMuted.value) return;
 
-    // Route to Vocoder
-    if (channels[channel].soundfontPath == vocoderMode) {
-      AudioInputFFI().playNote(key: keyToPlay, velocity: velocity);
-    } else {
-      if (!kIsWeb && Platform.isLinux) {
-        AudioInputFFI().keyboardNoteOn(channel, keyToPlay, velocity);
+    if (!midiControllerOnly) {
+      // Route to Vocoder
+      if (channels[channel].soundfontPath == vocoderMode) {
+        AudioInputFFI().playNote(key: keyToPlay, velocity: velocity);
       } else {
-        int sfId = _getSfIdForChannel(channel);
-        if (sfId != -1) {
-          _midiPro.playNote(
-            sfId: sfId,
-            channel: channel,
-            key: keyToPlay,
-            velocity: velocity,
-          );
+        if (!kIsWeb && Platform.isLinux) {
+          AudioInputFFI().keyboardNoteOn(channel, keyToPlay, velocity);
+        } else {
+          int sfId = _getSfIdForChannel(channel);
+          if (sfId != -1) {
+            _midiPro.playNote(
+              sfId: sfId,
+              channel: channel,
+              key: keyToPlay,
+              velocity: velocity,
+            );
+          }
         }
       }
     }
@@ -1336,15 +1350,19 @@ class AudioEngine extends ChangeNotifier {
     if (currentOwner == key) {
       channels[channel].snappedKeyOwners.remove(keyToStop);
 
-      if (channels[channel].soundfontPath == vocoderMode) {
-        AudioInputFFI().stopNote(key: keyToStop);
-      } else {
-        if (!kIsWeb && Platform.isLinux) {
-          AudioInputFFI().keyboardNoteOff(channel, keyToStop);
+      final midiOnly =
+          channels[channel].soundfontPath == kMidiControllerOnlySoundfont;
+      if (!midiOnly) {
+        if (channels[channel].soundfontPath == vocoderMode) {
+          AudioInputFFI().stopNote(key: keyToStop);
         } else {
-          int sfId = _getSfIdForChannel(channel);
-          if (sfId != -1) {
-            _midiPro.stopNote(sfId: sfId, channel: channel, key: keyToStop);
+          if (!kIsWeb && Platform.isLinux) {
+            AudioInputFFI().keyboardNoteOff(channel, keyToStop);
+          } else {
+            int sfId = _getSfIdForChannel(channel);
+            if (sfId != -1) {
+              _midiPro.stopNote(sfId: sfId, channel: channel, key: keyToStop);
+            }
           }
         }
       }
@@ -1961,6 +1979,9 @@ class AudioEngine extends ChangeNotifier {
     // engine instead of FluidSynth — the C oscillator handles CC#1 (vibrato).
     if (channels[channel].soundfontPath == vocoderMode) {
       AudioInputFFI().controlChange(controller, value);
+    } else if (channels[channel].soundfontPath ==
+        kMidiControllerOnlySoundfont) {
+      // MIDI-controller-only slots forward expression via patch cables, not FluidSynth.
     } else {
       _sendControlChange(channel: channel, controller: controller, value: value);
     }
@@ -1971,6 +1992,9 @@ class AudioEngine extends ChangeNotifier {
     // native C oscillator rather than FluidSynth — the C engine owns those voices.
     if (channels[channel].soundfontPath == vocoderMode) {
       AudioInputFFI().pitchBend(value);
+    } else if (channels[channel].soundfontPath ==
+        kMidiControllerOnlySoundfont) {
+      // See [setControlChange] — no internal synth on this channel.
     } else {
       _sendPitchBend(channel: channel, value: value);
     }
@@ -1981,6 +2005,9 @@ class AudioEngine extends ChangeNotifier {
     required int controller,
     required int value,
   }) {
+    if (channels[channel].soundfontPath == kMidiControllerOnlySoundfont) {
+      return;
+    }
     if (!kIsWeb && Platform.isLinux) {
       AudioInputFFI().keyboardControlChange(channel, controller, value);
     } else {
@@ -1995,6 +2022,9 @@ class AudioEngine extends ChangeNotifier {
   }
 
   void _sendPitchBend({required int channel, required int value}) {
+    if (channels[channel].soundfontPath == kMidiControllerOnlySoundfont) {
+      return;
+    }
     if (!kIsWeb && Platform.isLinux) {
       AudioInputFFI().keyboardPitchBend(channel, value);
     } else {

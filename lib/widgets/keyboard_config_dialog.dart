@@ -6,18 +6,15 @@ import '../models/gfpa_plugin_instance.dart';
 import '../models/grooveforge_keyboard_plugin.dart';
 import '../models/keyboard_display_config.dart';
 import '../models/plugin_instance.dart';
-import '../models/virtual_piano_plugin.dart';
 import '../services/audio_engine.dart';
 import '../services/cc_mapping_service.dart';
 import '../services/rack_state.dart';
 
 /// Returns true for plugins that support per-slot keyboard config.
 ///
-/// Currently: [GrooveForgeKeyboardPlugin], [VirtualPianoPlugin], and the
-/// GFPA Vocoder (which has an embedded virtual piano).
+/// Currently: [GrooveForgeKeyboardPlugin] and the GFPA Vocoder (embedded piano).
 bool _supportsKeyboardConfig(PluginInstance plugin) {
   if (plugin is GrooveForgeKeyboardPlugin) return true;
-  if (plugin is VirtualPianoPlugin) return true;
   if (plugin is GFpaPluginInstance &&
       plugin.pluginId == 'com.grooveforge.vocoder') {
     return true;
@@ -28,15 +25,14 @@ bool _supportsKeyboardConfig(PluginInstance plugin) {
 /// Returns the current [KeyboardDisplayConfig] for [plugin], or null.
 KeyboardDisplayConfig? _configOf(PluginInstance plugin) {
   if (plugin is GrooveForgeKeyboardPlugin) return plugin.keyboardConfig;
-  if (plugin is VirtualPianoPlugin) return plugin.keyboardConfig;
   if (plugin is GFpaPluginInstance) return plugin.keyboardConfig;
   return null;
 }
 
 /// Opens the per-slot keyboard configuration dialog for [plugin].
 ///
-/// Valid for [GrooveForgeKeyboardPlugin], [VirtualPianoPlugin], and the
-/// GFPA Vocoder. Calling with any other plugin type is a no-op.
+/// Valid for [GrooveForgeKeyboardPlugin] and the GFPA Vocoder. Calling with any
+/// other plugin type is a no-op.
 ///
 /// The dialog lets the user override, per slot:
 /// - Number of visible keys
@@ -196,7 +192,8 @@ class _KeyboardConfigDialogState extends State<_KeyboardConfigDialog> {
                 iconColor: Colors.teal,
                 title: l10n.kbConfigAftertouch,
                 subtitle: l10n.kbConfigAftertouchSubtitle,
-                trailing: _aftertouchDropdown(l10n, globalCc),
+                placeTrailingBelow: true,
+                trailing: _aftertouchDropdown(l10n, globalCc, expandInParent: true),
               ),
             ],
           ),
@@ -382,7 +379,14 @@ class _KeyboardConfigDialogState extends State<_KeyboardConfigDialog> {
   /// Aftertouch CC dropdown — only standard GM CCs (no system actions).
   ///
   /// First item is "Default (CC N)" which clears the override.
-  Widget _aftertouchDropdown(AppLocalizations l10n, int globalCc) {
+  ///
+  /// When [expandInParent] is true, the button fills the width of its parent
+  /// (used when the control sits on its own row below the description).
+  Widget _aftertouchDropdown(
+    AppLocalizations l10n,
+    int globalCc, {
+    bool expandInParent = false,
+  }) {
     // Build CC items — filter out system actions (values > 127).
     final ccItems = [
       for (final entry in CcMappingService.standardGmCcs.entries)
@@ -401,6 +405,7 @@ class _KeyboardConfigDialogState extends State<_KeyboardConfigDialog> {
 
     return DropdownButton<int?>(
       value: _aftertouchDestCc,
+      isExpanded: expandInParent,
       dropdownColor: Colors.grey[850],
       menuMaxHeight: 300,
       style: const TextStyle(color: Colors.white, fontSize: 13),
@@ -438,6 +443,10 @@ class _KeyboardConfigDialogState extends State<_KeyboardConfigDialog> {
 
 /// A two-line label + icon row with a trailing control, matching the style of
 /// the Preferences screen rows.
+///
+/// When [placeTrailingBelow] is true, the icon and text stay on one row and
+/// [trailing] is placed full-width underneath — used for long subtitles plus
+/// wide dropdowns (e.g. aftertouch CC list).
 class _ConfigRow extends StatelessWidget {
   final IconData icon;
   final Color iconColor;
@@ -445,16 +454,60 @@ class _ConfigRow extends StatelessWidget {
   final String subtitle;
   final Widget trailing;
 
+  /// Puts [trailing] on its own row below the title/subtitle instead of beside them.
+  final bool placeTrailingBelow;
+
   const _ConfigRow({
     required this.icon,
     required this.iconColor,
     required this.title,
     required this.subtitle,
     required this.trailing,
+    this.placeTrailingBelow = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    final textBlock = Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(color: Colors.white, fontSize: 13),
+          ),
+          Text(
+            subtitle,
+            style: const TextStyle(
+              color: Colors.white54,
+              fontSize: 11,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (placeTrailingBelow) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(icon, color: iconColor, size: 20),
+                const SizedBox(width: 12),
+                textBlock,
+              ],
+            ),
+            const SizedBox(height: 8),
+            trailing,
+          ],
+        ),
+      );
+    }
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
@@ -462,24 +515,7 @@ class _ConfigRow extends StatelessWidget {
         children: [
           Icon(icon, color: iconColor, size: 20),
           const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(color: Colors.white, fontSize: 13),
-                ),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    color: Colors.white54,
-                    fontSize: 11,
-                  ),
-                ),
-              ],
-            ),
-          ),
+          textBlock,
           const SizedBox(width: 8),
           trailing,
         ],

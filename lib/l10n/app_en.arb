@@ -38,6 +38,8 @@
   },
   "patchLoadSoundfont": "Load a soundfont from preferences",
   "patchDefaultSoundfont": "Default soundfont",
+  "patchSoundfontNoneMidiOnly": "None (MIDI only)",
+  "rackSlotKeyboardMidiOnlyShort": "MIDI only",
   "patchUnknownProgram": "Unknown Program {program}",
   "@patchUnknownProgram": {
     "placeholders": {
@@ -179,13 +181,11 @@
   "guidePatchRackBody": "The rack is the heart of GrooveForge. Each row is a slot — an independent instrument or effect processor. Add slots with the + button, remove them with the trash icon, and reorder them by dragging the handle on the left side of each slot.",
   "guidePatchSlotTypesTitle": "Slot Types",
   "guidePatchSlotKeyboard": "Keyboard",
-  "guidePatchSlotKeyboardDesc": "Built-in synthesizer driven by a soundfont (.sf2). Play via the on-screen keyboard or an external MIDI controller.",
+  "guidePatchSlotKeyboardDesc": "Built-in FluidSynth driven by a soundfont (.sf2). Play from the on-screen keyboard or external MIDI. Choose None as the soundfont to use the keyboard as a MIDI-only controller (MIDI OUT cables in patch view, no built-in synth).",
   "guidePatchSlotVocoder": "Vocoder",
   "guidePatchSlotVocoderDesc": "Processes microphone audio through a carrier wave for voice-synth effects.",
   "guidePatchSlotJam": "Jam Mode",
   "guidePatchSlotJamDesc": "Harmony engine that snaps incoming MIDI notes to a scale in real time. Receives chord information from a master keyboard slot.",
-  "guidePatchSlotVirtualPiano": "Virtual MIDI Controller",
-  "guidePatchSlotVirtualPianoDesc": "A lightweight MIDI-only source: routes on-screen touch input into the signal chain without producing audio of its own.",
   "guidePatchSlotVst3": "VST3 Plugin",
   "guidePatchSlotVst3Desc": "Load any third-party VST3 instrument or effect. Requires a compatible .vst3 bundle installed on your system.",
   "guidePatchSlotVst3DesktopOnly": "VST3 plugin slots are available on desktop platforms only (Linux, macOS, Windows). They are not available on Android or iOS.",
@@ -253,7 +253,7 @@
   "rackTitle": "Rack",
   "rackAddPlugin": "Add Plugin",
   "rackAddGrooveForgeKeyboard": "GrooveForge Keyboard",
-  "rackAddGrooveForgeKeyboardSubtitle": "Built-in FluidSynth keyboard",
+  "rackAddGrooveForgeKeyboardSubtitle": "Soundfont synth or MIDI-only (None) for patch routing",
   "rackAddVocoder": "Vocoder",
   "rackAddVocoderSubtitle": "Mic-driven voice synthesizer (GFPA)",
   "rackAddJamMode": "Jam Mode",
@@ -328,11 +328,6 @@
   "portChordIn": "CHORD IN",
   "portScaleOut": "SCALE OUT",
   "portScaleIn": "SCALE IN",
-  "virtualPianoSlotName": "Virtual MIDI Controller",
-  "addVirtualPiano": "Virtual MIDI Controller",
-  "rackAddVirtualPianoSubtitle": "Standalone MIDI source for patch routing",
-  "virtualPianoSlotHint": "Notes route via MIDI OUT — connect a cable in patch view.",
-
   "looperSlotName": "MIDI Looper",
   "addLooper": "MIDI Looper",
   "addLooperSubtitle": "Record and loop MIDI patterns with bar sync",
@@ -441,5 +436,23 @@
 
   "vst3FxInserts": "FX",
   "vst3FxAddEffect": "Add effect",
-  "vst3FxNoEffects": "No effects — connect via patch view"
+  "vst3FxNoEffects": "No effects — connect via patch view",
+
+  "rackAddEffectsSectionLabel": "Built-in Effects",
+  "rackAddVstSectionLabel": "VST3 Plugins",
+
+  "rackAddReverb": "Plate Reverb",
+  "rackAddReverbSubtitle": "Lush stereo room reverb",
+  "rackAddDelay": "Ping-Pong Delay",
+  "rackAddDelaySubtitle": "Stereo delay with BPM sync",
+  "rackAddWah": "Auto-Wah",
+  "rackAddWahSubtitle": "Envelope / LFO wah filter with BPM sync",
+  "rackAddEq": "4-Band EQ",
+  "rackAddEqSubtitle": "Low shelf, 2× peaking, high shelf",
+  "rackAddCompressor": "Compressor",
+  "rackAddCompressorSubtitle": "RMS compressor with soft knee",
+  "rackAddChorus": "Chorus / Flanger",
+  "rackAddChorusSubtitle": "Stereo chorus with BPM sync",
+  "rackAddLoadGfpd": "Load .gfpd from file…",
+  "rackAddLoadGfpdSubtitle": "Import a custom GrooveForge plugin descriptor"
 }

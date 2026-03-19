@@ -65,8 +65,10 @@ include_directories(
 )
 
 # List source files. This library provides VST3 plugin hosting functionality.
+# gfpa_dsp.cpp contains native DSP implementations for GFPA descriptor effects.
 set(VstSources
   src/dart_vst_host.cpp
+  src/gfpa_dsp.cpp
 )
 
 if(NOT APPLE AND NOT UNIX)

@@ -6,7 +6,7 @@ import '../models/keyboard_display_config.dart';
 import '../models/looper_plugin_instance.dart';
 import '../models/plugin_instance.dart';
 import '../models/grooveforge_keyboard_plugin.dart';
-import '../models/virtual_piano_plugin.dart';
+import '../constants/soundfont_sentinels.dart';
 import '../models/vst3_plugin_instance.dart';
 import '../plugins/gf_vocoder_plugin.dart';
 import 'audio_engine.dart';
@@ -281,8 +281,6 @@ class RackState extends ChangeNotifier {
     final plugin = _findById(id);
     if (plugin is GrooveForgeKeyboardPlugin) {
       plugin.keyboardConfig = config;
-    } else if (plugin is VirtualPianoPlugin) {
-      plugin.keyboardConfig = config;
     } else if (plugin is GFpaPluginInstance) {
       // Only vocoder GFPA slots have an embedded piano that can be configured.
       plugin.keyboardConfig = config;
@@ -446,7 +444,9 @@ class RackState extends ChangeNotifier {
     final idx = plugin.midiChannel - 1;
     if (idx < 0 || idx > 15) return;
 
-    if (plugin.soundfontPath != null &&
+    if (plugin.soundfontPath == kMidiControllerOnlySoundfont) {
+      _engine.assignSoundfontToChannel(idx, kMidiControllerOnlySoundfont);
+    } else if (plugin.soundfontPath != null &&
         _engine.loadedSoundfonts.contains(plugin.soundfontPath)) {
       _engine.assignSoundfontToChannel(idx, plugin.soundfontPath!);
     }
@@ -539,6 +539,14 @@ class RackState extends ChangeNotifier {
   void markDirty() {
     notifyListeners();
     _notifyChanged();
+  }
+
+  /// Trigger a native audio routing rebuild without modifying the rack.
+  ///
+  /// Used by GFPA descriptor slot widgets after registering or unregistering
+  /// a native DSP instance so that [VstHostService] can wire the insert chain.
+  void syncAudioRoutingIfNeeded() {
+    VstHostService.instance.syncAudioRouting(_audioGraph, _plugins);
   }
 
   /// Returns the next unused MIDI channel (1–16), or -1 if all are taken.

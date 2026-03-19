@@ -1,3 +1,4 @@
+import 'dart:ffi';
 import 'dart:io';
 
 import 'package:dart_vst_host/dart_vst_host.dart';
@@ -32,6 +33,10 @@ class VstHostService {
   // Map from rack slot ID → loaded VstPlugin handle.
   final Map<String, VstPlugin> _plugins = {};
 
+  // Map from rack slot ID → native GFPA DSP handle (Pointer<Void>).
+  // Populated by registerGfpaDsp() when a descriptor effect slot becomes active.
+  final Map<String, Pointer<Void>> _gfpaHandles = {};
+
   // ─── Lifecycle ─────────────────────────────────────────────────────────────
 
   Future<void> initialize() async {
@@ -48,6 +53,11 @@ class VstHostService {
       p.unload();
     }
     _plugins.clear();
+    // Destroy all GFPA DSP instances before tearing down the host.
+    for (final h in _gfpaHandles.values) {
+      _host?.destroyGfpaDsp(h);
+    }
+    _gfpaHandles.clear();
     _host?.dispose();
     _host = null;
   }
@@ -132,6 +142,8 @@ class VstHostService {
       positionInBeats: positionInBeats,
       positionInSamples: positionInSamples,
     );
+    // Propagate BPM to GFPA BPM-synced effects (delay, wah, chorus).
+    _host?.setGfpaBpm(bpm);
   }
 
   // ─── MIDI routing ──────────────────────────────────────────────────────────
@@ -315,12 +327,14 @@ class VstHostService {
 
     _host!.setProcessingOrder(orderedPlugins);
 
-    // Track which built-in instruments now have VST3 audio routes so we can
-    // enable/disable capture mode on the native synth side, and toggle the
-    // GF Keyboard between master-mix and external-render modes.
+    // Clear all master inserts at the start of each rebuild so stale
+    // registrations from prior configurations are removed before we re-add.
+    _host!.clearMasterInserts();
+
+    // Track which built-in instruments now have audio routes so we can
+    // enable/disable capture mode on the native synth side.
     final thereminHasRoute = <String>{};
     final styloHasRoute    = <String>{};
-    bool keyboardHasRoute  = false;
 
     // Rebuild routing table from audio connections.
     _host!.clearRoutes();
@@ -357,9 +371,8 @@ class VstHostService {
         // so it must be handled before the GFpaPluginInstance type guard.
         if (fromPlugin is GrooveForgeKeyboardPlugin) {
           // libfluidsynth renders a full stereo mix of all MIDI channels.
-          // Route it into the VST3 effect's input and remove from master mix.
+          // Route it into the VST3 effect's input.
           _host!.setExternalRender(to, AudioInputFFI().keyboardRenderBlockPtr);
-          keyboardHasRoute = true;
           continue;
         }
 
@@ -375,6 +388,30 @@ class VstHostService {
         }
         // Other built-in instruments (Vocoder, JamMode) are not routable
         // through the VST3 chain — they use separate audio paths.
+        continue;
+      }
+
+      // Non-VST3 → GFPA descriptor effect (no VST3 plugin in the destination).
+      // The destination slot has a native DSP handle in _gfpaHandles.
+      if (from == null && to == null) {
+        final toHandle = _gfpaHandles[conn.toSlotId];
+        if (toHandle == null || toHandle == nullptr) continue;
+
+        final fromPlugin = allPlugins.firstWhere(
+          (p) => p.id == conn.fromSlotId,
+          orElse: () => allPlugins.first,
+        );
+
+        // GF Keyboard → GFPA effect: wire via master-insert on the keyboard
+        // render function so the keyboard audio passes through native DSP.
+        // The keyboard stays in masterRenders; the insert chain replaces
+        // direct accumulation with the DSP-processed output.
+        if (fromPlugin is GrooveForgeKeyboardPlugin && Platform.isLinux) {
+          _host!.addMasterInsert(
+            AudioInputFFI().keyboardRenderBlockPtr,
+            toHandle,
+          );
+        }
       }
     }
 
@@ -383,7 +420,7 @@ class VstHostService {
     // Capture mode ON  → miniaudio outputs silence; ALSA thread drives DSP.
     // Capture mode OFF → normal direct ALSA playback.
     //
-    // For GF Keyboard: when routed into a VST3 effect, remove it from the
+    // For GF Keyboard: when routed into an effect, remove it from the
     // master-mix list (output now goes to the effect's input exclusively).
     // When not routed, add it back as a master-mix contributor.
     final thereminActive = thereminHasRoute.isNotEmpty;
@@ -393,18 +430,63 @@ class VstHostService {
       AudioInputFFI().styloSetCaptureMode(enabled: styloActive);
 
       if (Platform.isLinux) {
-        if (keyboardHasRoute) {
-          // Keyboard audio flows exclusively into the VST3 effect — remove
-          // from master mix to avoid playing it twice.
-          _host!.removeMasterRender(AudioInputFFI().keyboardRenderBlockPtr);
-        } else {
-          // No VST3 route — keyboard contributes directly to the master mix.
-          _host!.addMasterRender(AudioInputFFI().keyboardRenderBlockPtr);
-        }
+        // Always keep the keyboard in masterRenders.
+        // The insert chain handles routing: when an insert is registered for
+        // the keyboard render fn (keyboard → GFPA effect), the ALSA loop
+        // passes audio through the DSP before accumulating to master.
+        // When no insert exists, audio goes directly to master.
+        // Removing the keyboard from masterRenders would silence it even when
+        // an insert is wired (inserts only run for fns IN masterRenders).
+        _host!.addMasterRender(AudioInputFFI().keyboardRenderBlockPtr);
       }
     } catch (_) {
       // AudioInputFFI may not be initialised on non-Linux builds (web, macOS
       // without the native lib). Silently ignore — routing is no-op there.
+    }
+  }
+
+  // ─── GFPA native DSP effects ────────────────────────────────────────────────
+
+  /// Create a native GFPA DSP instance for [pluginId] and store it under
+  /// [slotId].  The DSP runs on the ALSA audio thread once wired via
+  /// [syncAudioRouting].
+  ///
+  /// Calling again for the same [slotId] first destroys the old instance
+  /// (safe because syncAudioRouting clears inserts before re-registering).
+  void registerGfpaDsp(String slotId, String pluginId) {
+    if (!isSupported || _host == null) return;
+    _destroyGfpaDspForSlot(slotId);
+    final handle = _host!.createGfpaDsp(pluginId, 48000, 256);
+    if (handle == nullptr) {
+      debugPrint('VstHostService: gfpa_dsp_create returned null for $pluginId');
+      return;
+    }
+    _gfpaHandles[slotId] = handle;
+    debugPrint('VstHostService: GFPA DSP created for $slotId ($pluginId)');
+  }
+
+  /// Destroy the native DSP instance for [slotId] and remove it from the map.
+  void unregisterGfpaDsp(String slotId) {
+    if (!isSupported || _host == null) return;
+    _destroyGfpaDspForSlot(slotId);
+    debugPrint('VstHostService: GFPA DSP destroyed for $slotId');
+  }
+
+  /// Send a physical parameter value to the native DSP for [slotId].
+  ///
+  /// [physicalValue] must already be in the parameter's declared range
+  /// (i.e. the caller converts from normalised [0,1] using min + norm*(max-min)).
+  void setGfpaDspParam(String slotId, String paramId, double physicalValue) {
+    final handle = _gfpaHandles[slotId];
+    if (handle == null || handle == nullptr) return;
+    _host?.setGfpaDspParam(handle, paramId, physicalValue);
+  }
+
+  /// Internal: destroy and remove the DSP handle for [slotId] if present.
+  void _destroyGfpaDspForSlot(String slotId) {
+    final old = _gfpaHandles.remove(slotId);
+    if (old != null && old != nullptr) {
+      _host?.destroyGfpaDsp(old);
     }
   }
 

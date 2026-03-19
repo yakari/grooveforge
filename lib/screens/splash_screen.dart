@@ -102,9 +102,13 @@ class _SplashScreenState extends State<SplashScreen> {
         final loaded = await vstSvc.loadPlugin(plugin.path, plugin.id);
         if (loaded != null) anyVst3Loaded = true;
       }
+      // Always start the ALSA/CoreAudio thread so the GF Keyboard (FluidSynth)
+      // can render audio even when no VST3 plugins are in the rack. On Linux
+      // the keyboard's render block is registered inside startAudio() and only
+      // produces sound once that thread is running.
+      debugPrint('SplashScreen: vstSvc.startAudio()');
+      vstSvc.startAudio();
       if (anyVst3Loaded) {
-        debugPrint('SplashScreen: vstSvc.startAudio()');
-        vstSvc.startAudio();
         // Re-apply saved cable routing now that the ALSA thread is live and
         // all VST3 effect plugins are in _plugins. The syncAudioRouting call
         // that fires during audioGraph.loadFromJson() above returns early

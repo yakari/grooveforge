@@ -5,6 +5,58 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/lang/fr/).
 
+## [X.x.x]
+
+### Ajouté
+- **DSP C++ natif pour les effets descripteurs GFPA** : les six effets `.gfpd` intégrés (reverb, delay, wah, EQ, compresseur, chorus) fonctionnent désormais avec un vrai DSP natif sur le thread audio ALSA au lieu de l'implémentation Dart. Chaque type de plugin dispose d'une implémentation C++ complète (`gfpa_dsp.cpp`) avec des tampons pré-alloués, des mises à jour de paramètres atomiques et la synchronisation BPM.
+- **Chaîne d'inserts maître** (`dvh_add_master_insert` / `dvh_remove_master_insert` / `dvh_clear_master_inserts`) : nouveau mécanisme de routage audio ALSA permettant à un effet GFPA d'intercepter la sortie d'une source master-render et de la traiter via DSP natif avant le mixage.
+- **Liaisons Dart FFI** pour `gfpa_dsp_create`, `gfpa_dsp_set_param`, `gfpa_dsp_destroy`, `gfpa_dsp_insert_fn`, `gfpa_dsp_userdata`, `gfpa_set_bpm` et les trois fonctions de la chaîne d'inserts.
+- **Méthodes haut niveau VstHost** : `createGfpaDsp`, `destroyGfpaDsp`, `setGfpaDspParam`, `setGfpaBpm`, `addMasterInsert`, `removeMasterInsert`, `clearMasterInserts`.
+- **VstHostService (desktop)** : `registerGfpaDsp`, `unregisterGfpaDsp`, `setGfpaDspParam` — gestion du cycle de vie du DSP natif par slot. `syncAudioRouting` câble désormais les connexions clavier→effet GFPA via la chaîne d'inserts.
+- **GFpaDescriptorSlotUI** : enregistre/désenregistre le DSP natif à l'initialisation/destruction du slot, synchronise tous les paramètres vers le natif après chaque changement de bouton.
+- **RackState.syncAudioRoutingIfNeeded()** : méthode publique pour que les widgets de slot déclenchent une reconstruction immédiate du routage sans modifier l'état du rack.
+- **Propagation du BPM vers les effets GFPA** : `setTransport` appelle désormais `gfpa_set_bpm` pour que les effets natifs synchronisés sur le BPM (delay, wah, chorus) suivent les changements de tempo en temps réel.
+
+### Architecture
+- `gfpa_dsp.h` / `gfpa_dsp.cpp` ajoutés à `dart_vst_host/native/` avec les implémentations complètes de Freeverb, délai ping-pong, wah SVF Chamberlin, EQ biquad 4 bandes, compresseur RMS et chorus stéréo.
+- `gfpa_dsp.cpp` ajouté aux `VstSources` dans `CMakeLists.txt`.
+- Implémentations stub non-Linux ajoutées au bloc `#else` de `dart_vst_host_alsa.cpp` pour toutes les nouvelles fonctions GFPA.
+
+### Corrigé
+- Feuille « Ajouter un plugin » : en-tête de section **Plugins VST3** (desktop), comme pour les effets intégrés.
+
+### Modifié
+- **Slot Virtual Piano supprimé** : le même comportement est obtenu avec **GrooveForge Keyboard** et la soundfont **Aucune (MIDI seulement)** — routage MIDI OUT / échelle / looper, sans FluidSynth intégré. Les projets avec `virtual_piano` se chargent automatiquement dans ce mode clavier.
+
+### Corrigé
+- Dialogue de configuration du clavier et préférences : la description de l’aftertouch / CC de pression et le menu déroulant sont empilés verticalement pour éviter un texte et des libellés trop longs côte à côte.
+- **Clavier GF muet sans plugin VST3 dans le rack (Linux)** : `vstSvc.startAudio()` n’était appelé que lorsqu’au moins un plugin VST3 était chargé avec succès. Or sous Linux, le thread de rendu ALSA doit démarrer systématiquement car le clavier GF (FluidSynth) rend l’audio via `keyboard_render_block()` dans ce même thread. Le thread démarre désormais inconditionnellement lorsque l’hôte VST3 est pris en charge ; `syncAudioRouting` reste conditionnel à la présence de plugins VST3.
+- **Effets `.gfpd` intégrés introuvables** : les six fichiers descripteurs fournis (`reverb`, `delay`, `wah`, `eq`, `compressor`, `chorus`) utilisaient du YAML invalide — plusieurs paires `clé: valeur` sur une même ligne en style bloc, ce qui est interdit par la spécification YAML (`: ` à l’intérieur d’un scalaire brut). Le parseur `package:yaml` levait une exception au démarrage et l’avalait silencieusement, laissant le registre vide. Tous les fichiers ont été réécrits avec une clé par ligne.
+
+### Ajouté
+- **Format de descripteur `.gfpd`** : format YAML déclaratif pour décrire les plugins GFPA — métadonnées, graphe DSP, paramètres automatisables et disposition de l'interface. Permet de créer des plugins sans écrire de code Dart.
+- **GFDspNode / GFDspGraph** : moteur de graphe audio à zéro allocation qui exécute des chaînes de nœuds DSP intégrés sur le thread audio.
+- **Bibliothèque de nœuds DSP intégrés** : `gain`, `wet_dry`, `freeverb` (réverbération à plaque Schroeder), `biquad_filter` (LP/HP/BP/Notch/Peak/Shelf), `delay` (délai ping-pong stéréo), `wah_filter` (filtre SVF Chamberlin + LFO), `compressor` (RMS), `chorus` (flanger/chorus stéréo avec délai fractionnel).
+- **Effet Auto-Wah** (`com.grooveforge.wah`) : filtre passe-bande résonant avec LFO sine/triangle/dent de scie, taux synchronisable sur le BPM, division rythmique sélectionnable (2 mesures → 1/16).
+- **Réverb à plaque** (`com.grooveforge.reverb`), **Délai Ping-Pong** (`com.grooveforge.delay`), **Égaliseur 4 bandes** (`com.grooveforge.eq`), **Compresseur** (`com.grooveforge.compressor`), **Chorus/Flanger** (`com.grooveforge.chorus`) : six effets propriétaires fournis sous forme de fichiers `.gfpd`.
+- **GFDescriptorPlugin** : implémentation de `GFEffectPlugin` reposant sur un `GFDspGraph` ; s'intègre au rack existant, à la sauvegarde/chargement `.gf` et au registre GFPA.
+- **GFDescriptorLoader** : analyse les fichiers YAML `.gfpd` et enregistre les plugins via `GFPluginRegistry`.
+- **GFSlider** : widget fader vertical/horizontal stylisé (piste métallique, remplissage orange, poignée glissante) assorti à l'esthétique du RotaryKnob.
+- **GFVuMeter** : vumètre stéréo animé à 20 segments colorés (vert/ambre/rouge) avec indicateur de crête.
+- **GFToggleButton** : bouton bascule LED éclairé style pédale d'effet avec animation de lueur.
+- **GFOptionSelector** : sélecteur segmenté pour les paramètres discrets (forme d'onde LFO, division rythmique, mode de filtre).
+- **GFDescriptorPluginUI** : fabrique de widgets qui génère automatiquement un panneau de plugin complet à partir du bloc `ui:` d'un descripteur `.gfpd`.
+- **`transportProvider` dans `GFPluginContext`** : callback de transport en temps réel donnant aux nœuds DSP synchronisés sur le BPM le tempo courant sans allocation mémoire.
+- **`HOW_TO_CREATE_A_PLUGIN.md`** : guide complet de création de plugins couvrant le schéma `.gfpd`, tous les types de nœuds, les contrôles UI, les conventions d'identifiants et les recettes courantes.
+
+### Architecture
+- Tous les nœuds de traitement DSP sont pré-alloués lors de `initialize()` ; `processBlock()` n'effectue aucune allocation sur le thread audio.
+- Les liaisons de paramètres de nœud sont résolues à la construction du graphe ; les changements de paramètres UI se propagent via `GFDspGraph.setParam()` sans recherche de chaînes dans la boucle critique.
+- `GFpaDescriptorSlotUI` crée une instance `GFDescriptorPlugin` indépendante par slot de rack : deux slots d'un même effet ne partagent jamais leur état DSP.
+- L'état des paramètres est stocké dans `GFpaPluginInstance.state` (carte JSON) à chaque changement, assurant la persistance complète dans les fichiers de projet `.gf` et la sauvegarde automatique.
+- Le **panneau « Ajouter un plugin »** liste les six effets intégrés dans une section « Effets intégrés » et inclut une tuile « Charger un fichier .gfpd… » pour les plugins créés par l'utilisateur.
+- La **répartition des slots du rack** (`rack_slot_widget.dart`) redirige les slots GFPA basés sur un descripteur vers `GFpaDescriptorSlotUI`, avec des icônes distinctes pour chaque effet intégré.
+
 ## [2.6.0] - 2026-03-19
 
 ### Ajouté

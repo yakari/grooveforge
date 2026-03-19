@@ -1,0 +1,106 @@
+spec: "1.0"
+id: "com.grooveforge.chorus"
+name: "Chorus / Flanger"
+version: "1.0.0"
+type: effect
+
+# Stereo chorus and flanger. The signal is mixed with a slightly-delayed,
+# pitch-modulated copy of itself. At short delay + deep modulation: flanger.
+# At longer delay + subtle modulation: chorus ensemble sound.
+# Left/right LFOs are 180 degrees out of phase for a wide, immersive stereo image.
+
+parameters:
+  - id: rate
+    paramId: 0
+    name: "Rate"
+    min: 0.1
+    max: 10.0
+    default: 0.5
+    unit: "Hz"
+  - id: depth
+    paramId: 1
+    name: "Depth"
+    min: 0.0
+    max: 1.0
+    default: 0.5
+  - id: delay
+    paramId: 2
+    name: "Delay"
+    min: 5.0
+    max: 50.0
+    default: 20.0
+    unit: "ms"
+  - id: feedback
+    paramId: 3
+    name: "FB"
+    min: 0.0
+    max: 90.0
+    default: 0.0
+    unit: "%"
+  - id: bpm_sync
+    paramId: 4
+    name: "BPM"
+    min: 0.0
+    max: 1.0
+    default: 0.0
+    type: toggle
+  - id: beat_div
+    paramId: 5
+    name: "Div"
+    min: 0.0
+    max: 5.0
+    default: 3.0
+    type: selector
+    options: ["2 bars", "1 bar", "1/2", "1/4", "1/8", "1/16"]
+  - id: mix
+    paramId: 6
+    name: "Mix"
+    min: 0.0
+    max: 100.0
+    default: 50.0
+    unit: "%"
+
+graph:
+  nodes:
+    - id: in
+      type: audio_in
+    - id: cho
+      type: chorus
+      params:
+        rate:     { param: rate }
+        depth:    { param: depth }
+        delay:    { param: delay }
+        feedback: { param: feedback }
+        bpmSync:  { param: bpm_sync }
+        beatDiv:  { param: beat_div }
+        mix:      { param: mix }
+    - id: out
+      type: audio_out
+
+  connections:
+    - from: in.out
+      to: cho.in
+    - from: cho.out
+      to: out.in
+
+ui:
+  layout: row
+  controls:
+    - type: knob
+      param: rate
+    - type: knob
+      param: depth
+    - type: knob
+      param: delay
+    - type: knob
+      param: feedback
+    - type: toggle
+      param: bpm_sync
+      label: "BPM"
+    - type: selector
+      param: beat_div
+      label: "Div"
+    - type: knob
+      param: mix
+    - type: vumeter
+      source: out

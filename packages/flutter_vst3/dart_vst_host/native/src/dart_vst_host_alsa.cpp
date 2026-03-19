@@ -13,6 +13,7 @@
 
 #include "dart_vst_host.h"
 #include "dart_vst_host_internal.h"
+#include "../include/gfpa_dsp.h"
 
 #include <alsa/asoundlib.h>
 #include <algorithm>
@@ -44,10 +45,18 @@ struct AudioState {
     /// into the ALSA master output alongside VST3 plugin outputs. Used for
     /// GF Keyboard (libfluidsynth) when it is not routed into a VST3 effect.
     std::vector<DvhRenderFn> masterRenders;
+    /// GFPA insert chain: for each master render source, an optional insert
+    /// effect that intercepts audio before it reaches the master mix bus.
+    /// Key = source DvhRenderFn, Value = {insertFn, userdata}.
+    std::unordered_map<DvhRenderFn, std::pair<GfpaInsertFn, void*>> masterInserts;
     /// Pre-allocated stereo buffer for external render calls — no heap
     /// allocation on the audio thread.
     std::vector<float> extBufL;
     std::vector<float> extBufR;
+    /// Pre-allocated intermediate buffers for insert chain processing.
+    /// The insert reads from extBuf and writes here, then we accumulate to mix.
+    std::vector<float> insertBufL;
+    std::vector<float> insertBufR;
     std::mutex          pluginsMtx;
 
     std::thread         thread;
@@ -171,12 +180,14 @@ static void audioThreadFn(AudioState* state, snd_pcm_t* pcm) {
         std::unordered_map<void*, void*> routes;
         std::unordered_map<void*, DvhRenderFn> extRenders;
         std::vector<DvhRenderFn> masterRenders;
+        std::unordered_map<DvhRenderFn, std::pair<GfpaInsertFn, void*>> masterInserts;
         {
             std::lock_guard<std::mutex> lk(state->pluginsMtx);
-            ordered      = state->processOrder.empty() ? state->plugins : state->processOrder;
-            routes       = state->routes;
-            extRenders   = state->externalRenders;
+            ordered       = state->processOrder.empty() ? state->plugins : state->processOrder;
+            routes        = state->routes;
+            extRenders    = state->externalRenders;
             masterRenders = state->masterRenders;
+            masterInserts = state->masterInserts;
         }
 
         // Allocate per-plugin output buffers for routing.
@@ -189,12 +200,28 @@ static void audioThreadFn(AudioState* state, snd_pcm_t* pcm) {
                         state->extBufL, state->extBufR);
 
         // Mix master-render contributors (e.g. GF Keyboard via libfluidsynth)
-        // directly into the master bus using the pre-allocated ext buffers.
+        // into the master bus, applying any registered GFPA insert effects.
         for (DvhRenderFn fn : masterRenders) {
+            // Render the source into the pre-allocated ext buffer.
             fn(state->extBufL.data(), state->extBufR.data(), blockSize);
-            for (int i = 0; i < blockSize; ++i) {
-                mixL[i] += state->extBufL[i];
-                mixR[i] += state->extBufR[i];
+
+            auto it = masterInserts.find(fn);
+            if (it != masterInserts.end()) {
+                // An insert is registered: route source through the DSP effect
+                // into the insert intermediate buffer, then accumulate that.
+                it->second.first(state->extBufL.data(), state->extBufR.data(),
+                                 state->insertBufL.data(), state->insertBufR.data(),
+                                 blockSize, it->second.second);
+                for (int i = 0; i < blockSize; ++i) {
+                    mixL[i] += state->insertBufL[i];
+                    mixR[i] += state->insertBufR[i];
+                }
+            } else {
+                // No insert — accumulate source directly to master mix.
+                for (int i = 0; i < blockSize; ++i) {
+                    mixL[i] += state->extBufL[i];
+                    mixR[i] += state->extBufR[i];
+                }
             }
         }
 
@@ -324,6 +351,43 @@ DVH_API void dvh_remove_master_render(DVH_Host host, DvhRenderFn fn) {
             s->masterRenders.size());
 }
 
+/// Register a GFPA insert on [source]'s master-render audio path.
+///
+/// On each ALSA block, [source]'s output passes through [insertFn] before
+/// being mixed into the master bus.  Replaces any previously registered
+/// insert for the same [source].
+DVH_API void dvh_add_master_insert(DVH_Host host, DvhRenderFn source,
+                                    GfpaInsertFn insertFn, void* userdata) {
+    if (!host || !source || !insertFn) return;
+    auto* s = getOrCreate(host);
+    std::lock_guard<std::mutex> lk(s->pluginsMtx);
+    s->masterInserts[source] = {insertFn, userdata};
+    fprintf(stderr, "[dart_vst_host] Master insert added (total=%zu)\n",
+            s->masterInserts.size());
+}
+
+/// Remove the GFPA insert registered for [source]. No-op if none registered.
+DVH_API void dvh_remove_master_insert(DVH_Host host, DvhRenderFn source) {
+    if (!host || !source) return;
+    auto* s = get(host);
+    if (!s) return;
+    std::lock_guard<std::mutex> lk(s->pluginsMtx);
+    s->masterInserts.erase(source);
+    fprintf(stderr, "[dart_vst_host] Master insert removed (total=%zu)\n",
+            s->masterInserts.size());
+}
+
+/// Remove all registered master inserts.  Called from syncAudioRouting at the
+/// start of a full routing rebuild to clear stale registrations.
+DVH_API void dvh_clear_master_inserts(DVH_Host host) {
+    if (!host) return;
+    auto* s = get(host);
+    if (!s) return;
+    std::lock_guard<std::mutex> lk(s->pluginsMtx);
+    s->masterInserts.clear();
+    fprintf(stderr, "[dart_vst_host] Master inserts cleared\n");
+}
+
 // Open and configure ALSA synchronously so failures are immediately visible.
 // Returns 1 on success, 0 if ALSA cannot be opened/configured.
 DVH_API int32_t dvh_start_alsa_thread(DVH_Host host, const char* alsa_device) {
@@ -342,9 +406,12 @@ DVH_API int32_t dvh_start_alsa_thread(DVH_Host host, const char* alsa_device) {
     s->sampleRate = static_cast<int32_t>(hs->sr);
     s->blockSize  = static_cast<int32_t>(hs->maxBlock);
 
-    // Pre-allocate external render buffers (avoids heap allocation on audio thread).
+    // Pre-allocate external render and insert intermediate buffers
+    // (avoids heap allocation on the audio thread).
     s->extBufL.assign(s->blockSize, 0.f);
     s->extBufR.assign(s->blockSize, 0.f);
+    s->insertBufL.assign(s->blockSize, 0.f);
+    s->insertBufR.assign(s->blockSize, 0.f);
 
     const char* dev = (alsa_device && alsa_device[0]) ? alsa_device : "default";
     fprintf(stderr, "[dart_vst_host] Opening ALSA device: %s\n", dev);
@@ -392,6 +459,7 @@ DVH_API void dvh_stop_alsa_thread(DVH_Host host) {
 #else // !__linux__
 
 #include "dart_vst_host.h"
+#include "../include/gfpa_dsp.h"
 extern "C" {
     void    dvh_audio_add_plugin(DVH_Host, DVH_Plugin) {}
     void    dvh_audio_remove_plugin(DVH_Host, DVH_Plugin) {}
@@ -405,5 +473,16 @@ extern "C" {
     void    dvh_clear_external_render(DVH_Host, DVH_Plugin) {}
     void    dvh_add_master_render(DVH_Host, DvhRenderFn) {}
     void    dvh_remove_master_render(DVH_Host, DvhRenderFn) {}
+    // GFPA insert chain stubs — no-ops on non-Linux platforms.
+    void    dvh_add_master_insert(DVH_Host, DvhRenderFn, GfpaInsertFn, void*) {}
+    void    dvh_remove_master_insert(DVH_Host, DvhRenderFn) {}
+    void    dvh_clear_master_inserts(DVH_Host) {}
+    // GFPA DSP stubs — return safe no-op values.
+    void*   gfpa_dsp_create(const char*, int32_t, int32_t) { return nullptr; }
+    void    gfpa_dsp_set_param(void*, const char*, double) {}
+    GfpaInsertFn gfpa_dsp_insert_fn(void*) { return nullptr; }
+    void*   gfpa_dsp_userdata(void*) { return nullptr; }
+    void    gfpa_dsp_destroy(void*) {}
+    void    gfpa_set_bpm(double) {}
 }
 #endif

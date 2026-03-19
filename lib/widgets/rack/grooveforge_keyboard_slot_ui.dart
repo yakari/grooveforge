@@ -3,6 +3,7 @@ import 'dart:math' show min;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../constants/soundfont_sentinels.dart';
 import '../../models/chord_detector.dart';
 import '../../models/grooveforge_keyboard_plugin.dart';
 import '../../services/audio_engine.dart';
@@ -79,6 +80,8 @@ class GrooveForgeKeyboardSlotUI extends StatelessWidget {
             child: ChannelPatchInfo(
               engine: engine,
               channelIndex: channelIndex,
+              hideInstrumentPickers:
+                  plugin.soundfontPath == kMidiControllerOnlySoundfont,
               onPatchChanged: (program, bank) =>
                   rack.setPluginPatch(plugin.id, program, bank: bank),
               onSoundfontChanged: (sf) =>
@@ -179,6 +182,8 @@ class _GfkFollowerBody extends StatelessWidget {
           child: ChannelPatchInfo(
             engine: engine,
             channelIndex: channelIndex,
+            hideInstrumentPickers:
+                plugin.soundfontPath == kMidiControllerOnlySoundfont,
             onPatchChanged: (program, bank) =>
                 rack.setPluginPatch(plugin.id, program, bank: bank),
             onSoundfontChanged: (sf) =>

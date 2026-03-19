@@ -1,0 +1,71 @@
+spec: "1.0"
+id: "com.grooveforge.reverb"
+name: "Plate Reverb"
+version: "1.0.0"
+type: effect
+
+parameters:
+  - id: room_size
+    paramId: 0
+    name: "Room"
+    min: 0.0
+    max: 1.0
+    default: 0.5
+  - id: damping
+    paramId: 1
+    name: "Damp"
+    min: 0.0
+    max: 1.0
+    default: 0.5
+  - id: width
+    paramId: 2
+    name: "Width"
+    min: 0.0
+    max: 1.0
+    default: 1.0
+  - id: mix
+    paramId: 3
+    name: "Mix"
+    min: 0.0
+    max: 100.0
+    default: 33.0
+    unit: "%"
+
+graph:
+  nodes:
+    - id: in
+      type: audio_in
+    - id: rev
+      type: freeverb
+      params:
+        roomSize: { param: room_size }
+        damping:  { param: damping }
+        width:    { param: width }
+    - id: mix_nd
+      type: wet_dry
+      params:
+        mix: { param: mix }
+    - id: out
+      type: audio_out
+
+  connections:
+    - from: in.out
+      to: [rev.in, mix_nd.dry]
+    - from: rev.out
+      to: mix_nd.wet
+    - from: mix_nd.out
+      to: out.in
+
+ui:
+  layout: row
+  controls:
+    - type: knob
+      param: room_size
+    - type: knob
+      param: damping
+    - type: knob
+      param: width
+    - type: knob
+      param: mix
+    - type: vumeter
+      source: out

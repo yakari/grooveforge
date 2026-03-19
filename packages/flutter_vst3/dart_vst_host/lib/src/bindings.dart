@@ -200,6 +200,101 @@ class NativeBindings {
       )
   >('dvh_remove_master_render');
 
+  // ── GFPA native DSP API ────────────────────────────────────────────────────
+  //
+  // Bindings for the GFPA DSP effect instances defined in gfpa_dsp.h.
+  // These are used by VstHostService to create/destroy per-slot native effects
+  // and to wire them into the ALSA master-insert chain.
+
+  /// Create a native DSP instance for the given pluginId.
+  /// Returns nullptr for unrecognised IDs.
+  late final Pointer<Void> Function(Pointer<Utf8>, int, int) gfpaDspCreate =
+      lib.lookupFunction<
+          Pointer<Void> Function(Pointer<Utf8>, Int32, Int32),
+          Pointer<Void> Function(Pointer<Utf8>, int, int)
+      >('gfpa_dsp_create');
+
+  /// Set a physical (denormalized) parameter value on a DSP instance.
+  late final void Function(Pointer<Void>, Pointer<Utf8>, double) gfpaDspSetParam =
+      lib.lookupFunction<
+          Void Function(Pointer<Void>, Pointer<Utf8>, Double),
+          void Function(Pointer<Void>, Pointer<Utf8>, double)
+      >('gfpa_dsp_set_param');
+
+  /// Return the static insert callback function pointer for this DSP instance.
+  /// The type is treated as Pointer(Void) since Dart FFI cannot store function
+  /// pointers in typed fields directly; the native side casts it correctly.
+  late final Pointer<Void> Function(Pointer<Void>) gfpaDspInsertFn =
+      lib.lookupFunction<
+          Pointer<Void> Function(Pointer<Void>),
+          Pointer<Void> Function(Pointer<Void>)
+      >('gfpa_dsp_insert_fn');
+
+  /// Return the userdata pointer to pass alongside the insert callback.
+  late final Pointer<Void> Function(Pointer<Void>) gfpaDspUserdata =
+      lib.lookupFunction<
+          Pointer<Void> Function(Pointer<Void>),
+          Pointer<Void> Function(Pointer<Void>)
+      >('gfpa_dsp_userdata');
+
+  /// Destroy a DSP instance and free all associated resources.
+  late final void Function(Pointer<Void>) gfpaDspDestroy =
+      lib.lookupFunction<
+          Void Function(Pointer<Void>),
+          void Function(Pointer<Void>)
+      >('gfpa_dsp_destroy');
+
+  /// Set the global BPM for BPM-synced effects (delay, wah, chorus).
+  late final void Function(double) gfpaSetBpm =
+      lib.lookupFunction<Void Function(Double), void Function(double)>('gfpa_set_bpm');
+
+  // ── GFPA master-insert chain ───────────────────────────────────────────────
+
+  /// Register a GFPA insert on a master-render source.
+  /// insertFnPtr and userdata are both Pointer(Void) at the FFI boundary;
+  /// the native side casts them back to the correct function pointer types.
+  late final void Function(
+    Pointer<Void>,
+    Pointer<NativeFunction<Void Function(Pointer<Float>, Pointer<Float>, Int32)>>,
+    Pointer<Void>,
+    Pointer<Void>,
+  ) dvhAddMasterInsert = lib.lookupFunction<
+      Void Function(
+        Pointer<Void>,
+        Pointer<NativeFunction<Void Function(Pointer<Float>, Pointer<Float>, Int32)>>,
+        Pointer<Void>,
+        Pointer<Void>,
+      ),
+      void Function(
+        Pointer<Void>,
+        Pointer<NativeFunction<Void Function(Pointer<Float>, Pointer<Float>, Int32)>>,
+        Pointer<Void>,
+        Pointer<Void>,
+      )
+  >('dvh_add_master_insert');
+
+  /// Remove the GFPA insert registered for [source].
+  late final void Function(
+    Pointer<Void>,
+    Pointer<NativeFunction<Void Function(Pointer<Float>, Pointer<Float>, Int32)>>,
+  ) dvhRemoveMasterInsert = lib.lookupFunction<
+      Void Function(
+        Pointer<Void>,
+        Pointer<NativeFunction<Void Function(Pointer<Float>, Pointer<Float>, Int32)>>,
+      ),
+      void Function(
+        Pointer<Void>,
+        Pointer<NativeFunction<Void Function(Pointer<Float>, Pointer<Float>, Int32)>>,
+      )
+  >('dvh_remove_master_insert');
+
+  /// Remove all registered master inserts.
+  late final void Function(Pointer<Void>) dvhClearMasterInserts =
+      lib.lookupFunction<
+          Void Function(Pointer<Void>),
+          void Function(Pointer<Void>)
+      >('dvh_clear_master_inserts');
+
   // macOS specific audio management
   late final int Function(Pointer<Void>) dvhMacStartAudio =
       lib.lookupFunction<Int32 Function(Pointer<Void>), int Function(Pointer<Void>)>('dvh_mac_start_audio');

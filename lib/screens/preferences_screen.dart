@@ -862,7 +862,9 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                       icon: const Icon(Icons.waves, color: Colors.teal),
                       title: loc.aftertouchEffectTitle,
                       subtitle: loc.aftertouchEffectSubtitle,
+                      alwaysStackTrailing: true,
                       trailing: DropdownButton<int>(
+                        isExpanded: true,
                         value: ccItems.any((item) => item.value == destCc) ? destCc : 1,
                         items: ccItems,
                         menuMaxHeight: 300,
@@ -995,27 +997,33 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
 /// - On wider screens: Displays the icon, text, and control side-by-side [Row].
 /// - On narrow screens (like unrotated smartphones): Stacks the control below the text [Column]
 ///   to prevent clipping and ensure touch targets remain large enough.
+/// - [alwaysStackTrailing]: when true, always uses the stacked layout (e.g. long subtitle +
+///   wide dropdown that do not fit beside each other even on desktop).
 class _ResponsivePreferenceRow extends StatelessWidget {
   final Widget icon;
   final String title;
   final String subtitle;
   final Widget trailing;
 
+  /// Forces the control below the title/subtitle regardless of width.
+  final bool alwaysStackTrailing;
+
   const _ResponsivePreferenceRow({
     required this.icon,
     required this.title,
     required this.subtitle,
     required this.trailing,
+    this.alwaysStackTrailing = false,
   });
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        // threshold for switching to column
-        bool isNarrow = constraints.maxWidth < 450;
+        final useStackedLayout =
+            alwaysStackTrailing || constraints.maxWidth < 450;
 
-        if (isNarrow) {
+        if (useStackedLayout) {
           return Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: 16.0,
