@@ -278,6 +278,7 @@
   "splashRestoringRack": "Restauration du rack...",
 
   "vst3LoadFailed": "Échec du chargement du plugin VST3. Assurez-vous d'avoir sélectionné le dossier .vst3.",
+  "vst3EditorOpenFailed": "Impossible d'ouvrir l'éditeur du plugin. Si le plugin utilise OpenGL, lancez GrooveForge avec LIBGL_ALWAYS_SOFTWARE=1 ou en session X11 pure (désactivez WAYLAND_DISPLAY).",
   "vst3NotLoaded": "Plugin pas encore chargé.",
   "vst3NotABundle": "Le dossier sélectionné n'est pas un bundle .vst3. Sélectionnez un dossier se terminant par .vst3.",
   "vst3BrowseTitle": "Parcourir un dossier .vst3…",
@@ -420,5 +421,25 @@
   "styloWaveformTriangle": "TRI",
   "thereminVibrato": "VIB",
   "thereminPadHeight": "HAUTEUR",
-  "midiMuteOwnSound": "MUTE"
+  "midiMuteOwnSound": "MUTE",
+
+  "vst3BrowseInstrumentTitle": "Parcourir un instrument VST3…",
+  "vst3BrowseInstrumentSubtitle": "Charger un synthétiseur ou un échantillonneur (.vst3)",
+  "vst3BrowseEffectTitle": "Parcourir un effet VST3…",
+  "vst3BrowseEffectSubtitle": "Charger un plugin d'effet audio (.vst3)",
+  "vst3PickInstalledInstrumentTitle": "Choisir un instrument installé",
+  "vst3PickInstalledEffectTitle": "Choisir un effet installé",
+
+  "vst3EffectTypeReverb": "Réverbération",
+  "vst3EffectTypeCompressor": "Compresseur",
+  "vst3EffectTypeEq": "EQ",
+  "vst3EffectTypeDelay": "Delay",
+  "vst3EffectTypeModulation": "Modulation",
+  "vst3EffectTypeDistortion": "Distorsion",
+  "vst3EffectTypeDynamics": "Dynamique",
+  "vst3EffectTypeFx": "FX",
+
+  "vst3FxInserts": "FX",
+  "vst3FxAddEffect": "Ajouter un effet",
+  "vst3FxNoEffects": "Aucun effet — connecter via la vue patch"
 }

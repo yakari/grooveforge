@@ -105,6 +105,11 @@ class _SplashScreenState extends State<SplashScreen> {
       if (anyVst3Loaded) {
         debugPrint('SplashScreen: vstSvc.startAudio()');
         vstSvc.startAudio();
+        // Re-apply saved cable routing now that the ALSA thread is live and
+        // all VST3 effect plugins are in _plugins. The syncAudioRouting call
+        // that fires during audioGraph.loadFromJson() above returns early
+        // because _host is still null at that point.
+        vstSvc.syncAudioRouting(audioGraph, rack.plugins);
       }
     }
 

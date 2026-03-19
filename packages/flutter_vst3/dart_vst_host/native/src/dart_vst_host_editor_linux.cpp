@@ -20,6 +20,7 @@
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/Xatom.h>
+#include <GL/glx.h>
 #include <poll.h>
 
 #include <algorithm>
@@ -36,6 +37,36 @@
 using namespace Steinberg;
 using namespace Steinberg::Vst;
 using namespace Steinberg::Linux;
+
+// ─── Non-fatal X11 error handler ─────────────────────────────────────────────
+//
+// The default Xlib error handler calls exit(). On XWayland, VST3 plugins that
+// use OpenGL (JUCE-based, e.g. Dragonfly Hall) call glXMakeCurrent during
+// createView() / attached(). This fails with BadAccess because Flutter's render
+// thread already holds the GLX context on the same server connection, and
+// XWayland doesn't allow a second thread to steal it. Without a custom handler
+// the process crashes immediately.
+//
+// We install a non-crashing handler around the view creation window, record the
+// error, and return 0 from dvh_open_editor so Flutter shows a graceful message.
+//
+// Thread safety: XSetErrorHandler is process-global and not thread-safe. We
+// guard install/restore with g_x11ErrMtx. The flag is atomic so the handler
+// (which Xlib may invoke from any thread) writes safely.
+
+static std::mutex        g_x11ErrMtx;
+static std::atomic<bool> g_x11ErrorOccurred{false};
+
+/** Non-fatal X11 error handler: logs the event and sets a flag instead of
+ *  calling exit(). Returns 0 as required by the Xlib error handler contract. */
+static int dvhX11ErrorHandler(Display*, XErrorEvent* ev) {
+    g_x11ErrorOccurred.store(true);
+    fprintf(stderr,
+        "[dart_vst_host] X11 error suppressed: request_code=%d minor_code=%d "
+        "error_code=%d — likely GLX BadAccess under XWayland\n",
+        ev->request_code, ev->minor_code, ev->error_code);
+    return 0;
+}
 
 // ─── IRunLoop implementation ──────────────────────────────────────────────────
 // Plugins use this to register file descriptors (e.g. MIDI/audio FDs) and
@@ -363,13 +394,36 @@ DVH_API intptr_t dvh_open_editor(DVH_Plugin p, const char* title) {
         XCloseDisplay(testDpy);
     }
 
+    // ── Install non-fatal X11 error handler ──────────────────────────────────
+    // JUCE-based plugins call glXMakeCurrent inside createView() / attached().
+    // Under XWayland this triggers BadAccess because Flutter's render thread
+    // already owns the GLX context. The default handler calls exit(); ours
+    // records the failure and lets us clean up gracefully.
+    XErrorHandler prevErrHandler;
+    {
+        std::lock_guard<std::mutex> lk(g_x11ErrMtx);
+        g_x11ErrorOccurred.store(false);
+        prevErrHandler = XSetErrorHandler(dvhX11ErrorHandler);
+    }
+
+    // Helper: restore the previous handler, flush pending errors, check flag.
+    // Returns true if an X11 error was caught.
+    auto restoreAndCheck = [&](Display* syncDpy) -> bool {
+        if (syncDpy) XSync(syncDpy, False); // deliver any queued error events
+        std::lock_guard<std::mutex> lk(g_x11ErrMtx);
+        XSetErrorHandler(prevErrHandler);
+        return g_x11ErrorOccurred.load();
+    };
+
     IPlugView* plugView = ps->controller->createView(ViewType::kEditor);
     if (!plugView) {
+        restoreAndCheck(nullptr);
         fprintf(stderr, "[dart_vst_host] createView(kEditor) returned null\n");
         return 0;
     }
 
     if (plugView->isPlatformTypeSupported(kPlatformTypeX11EmbedWindowID) != kResultTrue) {
+        restoreAndCheck(nullptr);
         fprintf(stderr, "[dart_vst_host] X11EmbedWindowID not supported\n");
         plugView->release();
         return 0;
@@ -377,6 +431,7 @@ DVH_API intptr_t dvh_open_editor(DVH_Plugin p, const char* title) {
 
     Display* dpy = XOpenDisplay(nullptr);
     if (!dpy) {
+        restoreAndCheck(nullptr);
         fprintf(stderr, "[dart_vst_host] XOpenDisplay failed\n");
         plugView->release();
         return 0;
@@ -409,8 +464,19 @@ DVH_API intptr_t dvh_open_editor(DVH_Plugin p, const char* title) {
     plugView->setFrame(plugFrame);
 
     tresult res = plugView->attached((void*)(intptr_t)win, kPlatformTypeX11EmbedWindowID);
-    if (res != kResultTrue) {
-        fprintf(stderr, "[dart_vst_host] IPlugView::attached() failed (%d)\n", (int)res);
+
+    // Restore the X11 error handler now that view creation is done.
+    // XSync flushes the queue so any async GLX errors are delivered before
+    // we put the old handler back.
+    bool x11Failed = restoreAndCheck(dpy);
+
+    if (res != kResultTrue || x11Failed) {
+        fprintf(stderr,
+            "[dart_vst_host] IPlugView::attached() failed: res=%d x11Error=%d\n"
+            "[dart_vst_host] Hint: if x11Error=1 this is a GLX/XWayland conflict.\n"
+            "[dart_vst_host] Workaround: launch GrooveForge with LIBGL_ALWAYS_SOFTWARE=1\n"
+            "[dart_vst_host] or run under a pure X11 session (unset WAYLAND_DISPLAY).\n",
+            (int)res, (int)x11Failed);
         plugView->setFrame(nullptr);
         plugView->release();
         plugFrame->release();

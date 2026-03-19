@@ -867,7 +867,7 @@ Stack(children: [
 
 ---
 
-## Phase 7 — VST3 Effect Plugin Support
+## Phase 7 — VST3 Effect Plugin Support ✅ COMPLETE
 
 > Distinguishes instrument and effect VST3 plugins and integrates them properly into the audio graph. Effect plugins appear as distinct slot types in the rack and can be connected to instruments via the patch view.
 
@@ -887,35 +887,29 @@ An **effect slot** in the rack looks different from an instrument slot:
 
 ### 7.1 — Plugin Type Detection
 
-- [ ] `dvh_get_audio_input_count(pluginId)` — new FFI call, returns the number of audio input buses
-- [ ] `dvh_get_audio_output_count(pluginId)` — returns number of audio output buses
-- [ ] `VstHostService.loadPlugin()` — after loading, calls both, sets `Vst3PluginInstance.pluginType` field
-- [ ] `AddPluginSheet` — shows two browsing options: "Load VST3 Instrument" and "Load VST3 Effect", but detection overrides at load time with an informational toast if the file type differs from what was selected
+- [x] `AddPluginSheet` — shows two browsing options: "Browse VST3 Instrument" and "Browse VST3 Effect"; user explicitly declares type at load time
+- [x] `VstHostService.loadPlugin()` — accepts `pluginType` parameter, sets it on the instance
 
 ### 7.2 — Vst3PluginInstance Model Update
 
-- [ ] Add `Vst3PluginType pluginType` enum field to `Vst3PluginInstance` (`.instrument`, `.effect`, `.analyzer`)
-- [ ] `toJson/fromJson` updated for new field
-- [ ] `PluginInstance.availablePorts` — computed property based on `pluginType`:
-  - Instrument: `[midiIn, audioOutL, audioOutR, sendOut]`
-  - Effect: `[audioInL, audioInR, audioOutL, audioOutR, sendOut, returnIn]`
+- [x] Add `Vst3PluginType pluginType` enum field to `Vst3PluginInstance` (`.instrument`, `.effect`, `.analyzer`)
+- [x] `toJson/fromJson` updated for new field
+- [x] `slot_back_panel_widget.dart` — `availablePorts` based on `pluginType`:
+  - Instrument: `[midiIn, audioInL, audioInR, audioOutL, audioOutR, sendOut]`
+  - Effect/Analyzer: `[audioInL, audioInR, audioOutL, audioOutR, sendOut, returnIn]`
 
 ### 7.3 — Effect Slot UI (Vst3EffectSlotUI)
 
-- [ ] Create `lib/widgets/rack/vst3_effect_slot_ui.dart` — reuses `Vst3SlotUI` parameter knob system, removes piano + MIDI badge, adds effect-type category chip in the header
-- [ ] Effect type chip auto-detected from plugin name heuristics (contains "Reverb", "Comp", "EQ", "Delay", "Chorus", "Dist", etc.) and from VST3 `kFx` sub-category metadata if available
-- [ ] `RackSlotWidget` dispatches to `Vst3EffectSlotUI` when `pluginType == effect`
+- [x] Created `lib/widgets/rack/vst3_effect_slot_ui.dart` — purple/violet accent, effect-type chip (Reverb/Compressor/EQ/Delay/Modulation/Distortion/Dynamics/FX), parameter knob grid, no piano/MIDI badge
+- [x] Effect type auto-detected from plugin name heuristics
+- [x] `RackSlotWidget` dispatches to `Vst3EffectSlotUI` when `pluginType == effect || analyzer`
 
 ### 7.4 — Insert FX Chain (per instrument slot, optional shortcut)
 
-While the full audio graph (Phase 5) is the canonical routing mechanism, a simplified **insert FX chain** UI shortcut is useful for the common case of "apply a reverb to this synth":
-
-- [ ] Each instrument slot card has an expandable **"FX Inserts"** section below the controls (collapsed by default, `▸ FX (0)` chip)
-- [ ] Tapping `▸ FX` expands a mini-list of effect slots chained in series
-- [ ] `+` button adds an effect slot inline (opens `AddPluginSheet` filtered to effects only)
-- [ ] Dragging inside the mini-list reorders effects in the insert chain
-- [ ] This is syntactic sugar over the audio graph: under the hood it creates `audioOutL/R → audioInL/R` connections automatically
-- [ ] The patch view still shows these as explicit cables
+- [x] Each instrument slot card has an expandable **"FX Inserts"** section (`▸ FX (n)` chip, collapsed by default)
+- [x] `+` button adds an effect slot (opens file picker for .vst3), auto-wires `audioOutL/R → audioInL/R`
+- [x] Disconnect button removes cables (slot remains in rack, accessible via patch view)
+- [x] Syntactic sugar over the audio graph — cables still visible in patch view
 
 ### 7.5 — Testing
 
@@ -1465,7 +1459,7 @@ All keys below are **reserved immediately** in the current `ProjectService` to a
 | `2.3.0` | Phase 4  | ✅ Complete   | Transport engine: global BPM, time signature, play/stop, tap tempo, ProcessContext to VSTs, Jam Mode BPM lock |
 | `2.4.0` | Phase 5  | ✅ Complete   | Audio signal graph + "Back of Rack" cable patching UI                            |
 | `2.5.0` | Phase 6  | ✅ Complete   | MIDI Looper (BPM-synced, per-slot, multi-track overdub, live playback quantization pending) |
-| `2.6.0` | Phase 7  | 🔜 TODO      | VST3 effect plugin support (insert FX chains per slot, master bus FX)            |
+| `2.6.0` | Phase 7  | ✅ Complete   | VST3 effect plugin support (effect slot UI, insert FX chain shortcut per instrument slot) |
 | `3.0.0` | Phase 8  | 🔜 TODO      | GFPA community plugins — first-party effects (reverb, EQ, delay…) + plugin store |
 | `3.1.0` | Phase 8b | 🔜 TODO      | AudioUnit v3 bridge (macOS + iOS) — hosts AUv3 ecosystem plugins                 |
 | `3.2.0` | Phase 9  | 🔜 TODO      | Audio looper (PCM, requires audio graph from Phase 5)                            |
@@ -1474,4 +1468,4 @@ All keys below are **reserved immediately** in the current `ProjectService` to a
 
 ---
 
-*Last updated: 2026-03-13 — Phases 1–6 complete (v2.0.0–v2.5.0). Phase 6 (MIDI Looper) shipped with v2.5.0; record-stop quantization (6.7) implemented. Remaining looper work: humanize jitter, smart-sync tests, volume slider. Phases 7–9 planned: VST3 effect hosting, GFPA plugin ecosystem, audio looper.*
+*Last updated: 2026-03-19 — Phases 1–7 complete (v2.0.0–v2.6.0). Phase 6 (MIDI Looper) shipped with v2.5.0; record-stop quantization (6.7) implemented. Remaining looper work: humanize jitter, smart-sync tests, volume slider. Phase 7 (VST3 effect plugin support) shipped with v2.6.0. Phases 8–9 planned: VST3 effect hosting, GFPA plugin ecosystem, audio looper.*

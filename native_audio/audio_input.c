@@ -919,19 +919,64 @@ static float g_thereminLfoPhase   = 0.0f;
 /// Vibrato semitone coefficient: 2^(0.5/12) − 1 ≈ 0.02963 (±0.5 st at depth=1).
 #define THEREMIN_VIB_COEF 0.02963f
 
+// ── Theremin capture mode ─────────────────────────────────────────────────────
+//
+// When set to 1, the miniaudio callback outputs silence and does NOT advance
+// the DSP state.  Instead, theremin_render_block() advances the DSP state and
+// writes stereo f32 samples that dart_vst_host's ALSA loop feeds into a VST3
+// effect input.
+//
+// Only one thread advances the DSP state at a time: miniaudio thread when 0,
+// dart_vst_host ALSA thread when 1.  No mutex needed — modes are exclusive.
+
+/// 0 = normal playback via miniaudio; 1 = routed through VST3 effect chain.
+static volatile int g_thereminCaptureMode = 0;
+
+// ── Theremin DSP inner loop (shared by callback and render_block) ─────────────
+
+/// Computes one sample of Theremin DSP and advances all internal state.
+///
+/// Must only be called from the thread that currently owns the DSP state
+/// (miniaudio thread when capture=0; ALSA thread when capture=1).
+static inline float _theremin_dsp_tick(float sr) {
+    // Portamento: exponential glide towards target Hz (τ ≈ 42 ms).
+    g_thereminCurrentHz +=
+        (g_thereminTargetHz - g_thereminCurrentHz) * THEREMIN_GLIDE;
+
+    // Volume envelope: exponential approach for click-free transitions (τ ≈ 7 ms).
+    g_thereminCurrentVol +=
+        (g_thereminTargetVol - g_thereminCurrentVol) * THEREMIN_VOL;
+
+    // Vibrato LFO at 6.5 Hz — advance phase and wrap to [0, 1).
+    g_thereminLfoPhase += 6.5f / sr;
+    if (g_thereminLfoPhase >= 1.0f) g_thereminLfoPhase -= 1.0f;
+    const float lfo = sinf(g_thereminLfoPhase * 6.28318530718f);
+    // Modulate instantaneous Hz by ±THEREMIN_VIB_COEF semitones at full depth.
+    const float hz =
+        g_thereminCurrentHz * (1.0f + lfo * g_thereminVibDepth * THEREMIN_VIB_COEF);
+
+    // Oscillator: fundamental + 10 % 3rd harmonic, normalised to ±1.0.
+    const float twoPiPhase = g_thereminPhase * 6.28318530718f;
+    float s = sinf(twoPiPhase) + sinf(twoPiPhase * 3.0f) * 0.10f;
+    s *= (1.0f / 1.10f);
+
+    // Advance phase accumulator, wrap to [0, 1) to prevent float drift.
+    g_thereminPhase += hz / sr;
+    if (g_thereminPhase >= 1.0f) g_thereminPhase -= 1.0f;
+
+    return s * g_thereminCurrentVol;
+}
+
 // ── Theremin audio callback ───────────────────────────────────────────────────
 
 /// miniaudio data callback for the theremin playback device.
 ///
-/// Called by the audio thread at buffer boundaries (~256 frames = 5.3 ms).
-/// All DSP is allocation-free and runs entirely on the audio thread.
+/// When capture mode is OFF (default): runs full DSP and writes to the ALSA
+/// device directly — normal playback.
 ///
-/// Each sample pipeline:
-///   1. Exponential pitch glide towards the target Hz.
-///   2. Exponential volume envelope towards the target volume.
-///   3. 6.5 Hz vibrato LFO applied to instantaneous Hz.
-///   4. Sine oscillator with a faint 3rd harmonic (+10 %) for warmth.
-///   5. Phase accumulator advanced by hz/sampleRate.
+/// When capture mode is ON: outputs silence without advancing DSP state.
+/// The ALSA loop in dart_vst_host calls theremin_render_block() instead,
+/// which advances the DSP and feeds the result into the VST3 effect chain.
 static void theremin_data_callback(
     ma_device* pDevice,
     void* pOutput,
@@ -940,42 +985,16 @@ static void theremin_data_callback(
 {
     (void)pInput;
     float* out = (float*)pOutput;
-    // Cache sample rate as float to avoid repeated int→float casts.
-    const float sr = (float)pDevice->sampleRate;
 
-    for (ma_uint32 i = 0; i < frameCount; i++) {
-        // Step 1 — Portamento: exponentially approach the target frequency.
-        // Each sample closes 0.05 % of the remaining gap, giving τ ≈ 42 ms.
-        g_thereminCurrentHz +=
-            (g_thereminTargetHz - g_thereminCurrentHz) * THEREMIN_GLIDE;
-
-        // Step 2 — Volume envelope: same exponential approach for click-free
-        // amplitude transitions (attack and release both use τ ≈ 7 ms).
-        g_thereminCurrentVol +=
-            (g_thereminTargetVol - g_thereminCurrentVol) * THEREMIN_VOL;
-
-        // Step 3 — Vibrato LFO at 6.5 Hz.
-        // Advance LFO phase and wrap to [0, 1).
-        g_thereminLfoPhase += 6.5f / sr;
-        if (g_thereminLfoPhase >= 1.0f) g_thereminLfoPhase -= 1.0f;
-        const float lfo = sinf(g_thereminLfoPhase * 6.28318530718f);
-        // Apply vibrato depth: modulates hz by ±THEREMIN_VIB_COEF semitones.
-        const float hz =
-            g_thereminCurrentHz * (1.0f + lfo * g_thereminVibDepth * THEREMIN_VIB_COEF);
-
-        // Step 4 — Oscillator: fundamental + 10 % 3rd harmonic for warmth.
-        // Normalised so the sum never exceeds ±1.0.
-        const float twoPiPhase = g_thereminPhase * 6.28318530718f;
-        float s = sinf(twoPiPhase) + sinf(twoPiPhase * 3.0f) * 0.10f;
-        s *= (1.0f / 1.10f); // Normalise to ±1.0 headroom.
-
-        // Step 5 — Advance phase and wrap to [0, 1) to prevent floating-point drift.
-        g_thereminPhase += hz / sr;
-        if (g_thereminPhase >= 1.0f) g_thereminPhase -= 1.0f;
-
-        // Output: scale by smoothed volume.
-        out[i] = s * g_thereminCurrentVol;
+    if (g_thereminCaptureMode) {
+        // Silence — DSP ownership transferred to dart_vst_host ALSA thread.
+        for (ma_uint32 i = 0; i < frameCount; i++) out[i] = 0.0f;
+        return;
     }
+
+    const float sr = (float)pDevice->sampleRate;
+    for (ma_uint32 i = 0; i < frameCount; i++)
+        out[i] = _theremin_dsp_tick(sr);
 }
 
 // ── Theremin FFI exports ──────────────────────────────────────────────────────
@@ -1075,6 +1094,40 @@ EXPORT void theremin_set_vibrato(float depth) {
     g_thereminVibDepth = depth;
 }
 
+/// Enables or disables VST3 capture routing for the Theremin.
+///
+/// When [enabled] == 1:
+///   - The miniaudio callback outputs silence (DSP ownership released).
+///   - The dart_vst_host ALSA thread drives the DSP via theremin_render_block().
+///   - The Theremin's audio is fed into the VST3 effect chain instead of the
+///     ALSA hardware directly.
+///
+/// When [enabled] == 0 (default):
+///   - Normal playback: the miniaudio callback advances the DSP and outputs
+///     directly to the hardware ALSA device.
+///
+/// Call this before calling dvh_set_external_render on the Dart side.
+EXPORT void theremin_set_capture_mode(int enabled) {
+    g_thereminCaptureMode = enabled ? 1 : 0;
+}
+
+/// Renders [frames] samples of Theremin DSP into [outL] and [outR] (stereo f32).
+///
+/// Must ONLY be called when capture mode is enabled (theremin_set_capture_mode(1)).
+/// Called by dart_vst_host's ALSA thread — advances the DSP state and writes
+/// mono-duplicated stereo output that is then fed to the connected VST3 effect.
+///
+/// This function is allocation-free and safe on the audio thread.
+EXPORT void theremin_render_block(float* outL, float* outR, int frames) {
+    const float sr = (float)SAMPLE_RATE;
+    for (int i = 0; i < frames; i++) {
+        const float s = _theremin_dsp_tick(sr);
+        // Mono source → duplicate to both stereo channels.
+        outL[i] = s;
+        outR[i] = s;
+    }
+}
+
 // =============================================================================
 // STYLOPHONE SYNTH — Monophonic waveform oscillator
 // =============================================================================
@@ -1129,13 +1182,55 @@ static float g_styloLfoPhase = 0.0f;
 /// Master output volume with headroom margin.
 #define STYLO_MASTER_VOL   0.75f
 
+// ── Stylophone capture mode ───────────────────────────────────────────────────
+/// 0 = normal playback via miniaudio; 1 = routed through VST3 effect chain.
+static volatile int g_styloCaptureMode = 0;
+
+// ── Stylophone DSP inner loop (shared by callback and render_block) ───────────
+
+/// Computes one sample of Stylophone DSP and advances all internal state.
+///
+/// Only call from the thread that currently owns the DSP state:
+/// miniaudio thread when capture=0; dart_vst_host ALSA thread when capture=1.
+static inline float _stylophone_dsp_tick(float sr) {
+    // Envelope: linear attack on note-on, exponential decay on note-off.
+    if (g_styloNoteActive) {
+        g_styloEnv += STYLO_ATTACK;
+        if (g_styloEnv > 1.0f) g_styloEnv = 1.0f;
+    } else {
+        g_styloEnv *= STYLO_RELEASE_COEF;
+        if (g_styloEnv < 1e-5f) g_styloEnv = 0.0f;
+    }
+
+    // Vibrato LFO at 5.5 Hz — modulates pitch by ±0.5 semitone at full depth.
+    g_styloLfoPhase += 5.5f / sr;
+    if (g_styloLfoPhase >= 1.0f) g_styloLfoPhase -= 1.0f;
+    const float styloLfo = sinf(g_styloLfoPhase * 6.28318530718f);
+    const float styloHz  = g_styloCurrentHz * (1.0f + styloLfo * g_styloVibDepth * 0.02963f);
+
+    const float phase = g_styloPhase;
+    float s;
+    switch (g_styloWaveform) {
+        default:
+        case 0: s = (phase < 0.5f) ? 1.0f : -1.0f;                              break; // Square
+        case 1: s = phase * 2.0f - 1.0f;                                         break; // Sawtooth
+        case 2: s = sinf(phase * 6.28318530718f);                                 break; // Sine
+        case 3: s = (phase < 0.5f) ? (phase * 4.0f - 1.0f) : (3.0f - phase * 4.0f); break; // Triangle
+    }
+
+    g_styloPhase += styloHz / sr;
+    if (g_styloPhase >= 1.0f) g_styloPhase -= 1.0f;
+
+    return s * g_styloEnv * STYLO_MASTER_VOL;
+}
+
 // ── Stylophone audio callback ─────────────────────────────────────────────────
 
 /// miniaudio data callback for the stylophone playback device.
 ///
-/// Runs entirely on the audio thread; allocation-free.
-/// Envelope: linear attack (~2 ms) on note-on, exponential release (~104 ms) on note-off.
-/// Phase is continuous across note changes so legato slides are click-free.
+/// When capture mode is OFF (default): runs full DSP and writes to ALSA.
+/// When capture mode is ON: outputs silence; dart_vst_host calls
+/// stylophone_render_block() to advance the DSP and feed VST3 effect inputs.
 static void stylophone_data_callback(
     ma_device* pDevice,
     void* pOutput,
@@ -1144,59 +1239,15 @@ static void stylophone_data_callback(
 {
     (void)pInput;
     float* out = (float*)pOutput;
-    const float sr = (float)pDevice->sampleRate;
 
-    // Cache waveform locally to avoid repeated volatile reads in the hot loop.
-    const int waveform = g_styloWaveform;
-
-    for (ma_uint32 i = 0; i < frameCount; i++) {
-        // Step 1 — Envelope: linear attack on note-on, exponential decay on note-off.
-        if (g_styloNoteActive) {
-            // Attack: ramp up from 0 → 1 over ~2 ms to prevent a pop on first key press.
-            g_styloEnv += STYLO_ATTACK;
-            if (g_styloEnv > 1.0f) g_styloEnv = 1.0f;
-        } else {
-            // Release: exponential decay.  Clamp to zero below a perceptual threshold.
-            g_styloEnv *= STYLO_RELEASE_COEF;
-            if (g_styloEnv < 1e-5f) g_styloEnv = 0.0f;
-        }
-
-        // ── Vibrato LFO ──────────────────────────────────────────────────────
-        // 5.5 Hz sine wave (same rate as the vocoder) modulating pitch by up to
-        // ±0.5 semitone (THEREMIN_VIB_COEF = 2^(0.5/12) − 1 ≈ 0.02963).
-        g_styloLfoPhase += 5.5f / sr;
-        if (g_styloLfoPhase >= 1.0f) g_styloLfoPhase -= 1.0f;
-        float styloLfo = sinf(g_styloLfoPhase * 6.28318530718f);
-        float styloHz  = g_styloCurrentHz * (1.0f + styloLfo * g_styloVibDepth * 0.02963f);
-
-        // Use a local copy of phase for readability.
-        const float phase = g_styloPhase;
-
-        // Step 2 — Waveform synthesis based on selected waveform index.
-        float s;
-        switch (waveform) {
-            default:
-            case 0: // Square: classic Stylophone buzz.
-                s = (phase < 0.5f) ? 1.0f : -1.0f;
-                break;
-            case 1: // Sawtooth: brighter, richer harmonic content.
-                s = phase * 2.0f - 1.0f;
-                break;
-            case 2: // Sine: pure, flute-like tone.
-                s = sinf(phase * 6.28318530718f);
-                break;
-            case 3: // Triangle: softer than square, odd harmonics only.
-                s = (phase < 0.5f) ? (phase * 4.0f - 1.0f) : (3.0f - phase * 4.0f);
-                break;
-        }
-
-        // Step 3 — Advance phase accumulator and wrap to [0, 1).
-        g_styloPhase += styloHz / sr;
-        if (g_styloPhase >= 1.0f) g_styloPhase -= 1.0f;
-
-        // Step 4 — Apply envelope and master volume.
-        out[i] = s * g_styloEnv * STYLO_MASTER_VOL;
+    if (g_styloCaptureMode) {
+        for (ma_uint32 i = 0; i < frameCount; i++) out[i] = 0.0f;
+        return;
     }
+
+    const float sr = (float)pDevice->sampleRate;
+    for (ma_uint32 i = 0; i < frameCount; i++)
+        out[i] = _stylophone_dsp_tick(sr);
 }
 
 // ── Stylophone FFI exports ────────────────────────────────────────────────────
@@ -1299,4 +1350,26 @@ EXPORT void stylophone_set_vibrato(float depth) {
     if (depth < 0.0f) depth = 0.0f;
     if (depth > 1.0f) depth = 1.0f;
     g_styloVibDepth = depth;
+}
+
+/// Enables or disables VST3 capture routing for the Stylophone.
+///
+/// When [enabled] == 1, the miniaudio callback outputs silence and
+/// stylophone_render_block() must be called by dart_vst_host's ALSA thread
+/// to advance the DSP and feed audio into the connected VST3 effect.
+EXPORT void stylophone_set_capture_mode(int enabled) {
+    g_styloCaptureMode = enabled ? 1 : 0;
+}
+
+/// Renders [frames] samples of Stylophone DSP into [outL] and [outR] (stereo f32).
+///
+/// Must ONLY be called when capture mode is enabled (stylophone_set_capture_mode(1)).
+/// Allocation-free; safe to call from dart_vst_host's ALSA audio thread.
+EXPORT void stylophone_render_block(float* outL, float* outR, int frames) {
+    const float sr = (float)SAMPLE_RATE;
+    for (int i = 0; i < frames; i++) {
+        const float s = _stylophone_dsp_tick(sr);
+        outL[i] = s;
+        outR[i] = s;
+    }
 }

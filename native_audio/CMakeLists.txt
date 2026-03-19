@@ -3,8 +3,10 @@ project(audio_input C)
 
 set(CMAKE_C_STANDARD 99)
 
-# Build a shared library that Dart can load via FFI
-add_library(audio_input SHARED audio_input.c)
+# Build a shared library that Dart can load via FFI.
+# keyboard_synth.c is compiled on all platforms (with Linux-only implementation
+# and no-op stubs on other platforms).
+add_library(audio_input SHARED audio_input.c keyboard_synth.c)
 
 find_package(Threads REQUIRED)
 target_link_libraries(audio_input PRIVATE Threads::Threads)
@@ -16,14 +18,17 @@ elseif (APPLE)
     find_library(COREAUDIO_LIB CoreAudio)
     find_library(COREFOUNDATION_LIB CoreFoundation)
     find_library(AUDIOUNIT_LIB AudioUnit)
-    target_link_libraries(audio_input PRIVATE 
-        ${COREAUDIO_LIB} 
-        ${COREFOUNDATION_LIB} 
+    target_link_libraries(audio_input PRIVATE
+        ${COREAUDIO_LIB}
+        ${COREFOUNDATION_LIB}
         ${AUDIOUNIT_LIB}
         m
     )
 elseif (UNIX AND NOT APPLE)
     find_library(M_LIB m)
     find_library(DL_LIB dl)
-    target_link_libraries(audio_input PRIVATE ${M_LIB} ${DL_LIB})
+    # Link libfluidsynth for in-process GF Keyboard rendering (Linux only).
+    # fluidsynth is available system-wide via pkg-config on Manjaro/Ubuntu.
+    find_library(FLUIDSYNTH_LIB fluidsynth)
+    target_link_libraries(audio_input PRIVATE ${M_LIB} ${DL_LIB} ${FLUIDSYNTH_LIB})
 endif()

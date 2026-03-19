@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.0] - 2026-03-19
+
+### Added
+- **VST3 Effect Plugin Support**: `Vst3PluginType` enum (instrument / effect / analyzer) stored in the model and persisted in `.gf` files. "Add Plugin" sheet now shows separate tiles for VST3 Instrument and VST3 Effect.
+- `Vst3EffectSlotUI`: dedicated rack slot body for effect plugins — purple accent, auto-detected effect-type chip (Reverb / Compressor / EQ / Delay / Modulation / Distortion / Dynamics), full knob grid with search, sub-group detection, and pagination identical to the instrument UI.
+- **FX Inserts**: collapsible "FX ▸ (N)" chip at the bottom of every VST3 instrument slot. Lists VST3 effect slots whose audio inputs are wired to this instrument's outputs. The + button browses for an effect, adds it as a first-class rack slot, and auto-wires `audioOutL/R → audioInL/R` in the audio graph.
+- Effect and analyzer VST3 back panels now expose `AUDIO IN L/R + AUDIO OUT L/R + SEND + RETURN` jacks instead of `MIDI IN + audio` jacks.
+- Effect VST3 slots no longer show a MIDI channel badge, a virtual piano, or the note-activity glow.
+
+### Fixed
+- **GF Keyboard audio routing not restored on project load**: On startup, `syncAudioRouting` was called while `VstHost` was still uninitialised (`_host == null`), so it returned early and never wired keyboard audio through saved VST3 effect connections. A second `syncAudioRouting` call is now made in `SplashScreen` after all VST3 plugins have been loaded and the ALSA thread has started, restoring the full routing table correctly.
+- **VST3 editor crash on XWayland (GLX BadAccess)**: JUCE-based VST3 plugins (e.g. Dragonfly Hall Reverb) crashed the entire app when opening their native editor under a Wayland session. The default Xlib fatal error handler called `exit()` when `glXMakeCurrent` returned `BadAccess` because Flutter's render thread already owned the GLX context. A non-fatal `XSetErrorHandler` is now installed around `createView()` + `attached()` in `dart_vst_host_editor_linux.cpp`; if a GLX error is caught, the editor open is aborted cleanly and a snackbar guides the user to relaunch with `LIBGL_ALWAYS_SOFTWARE=1` or in a pure X11 session.
+- **VST3 effect parameters section collapsed by default**: The parameters accordion in both instrument and effect VST3 rack slots now starts collapsed, reducing visual clutter on first load.
+
+### Architecture
+- **Theremin / Stylophone → VST3 effect audio routing**: Built-in instruments (Theremin, Stylophone) can now feed audio into VST3 effect plugins via the audio graph. Routing is implemented through three coordinated layers: (1) `native_audio/audio_input.c` exposes `theremin_render_block()` / `stylophone_render_block()` C functions and a capture-mode flag that silences the miniaudio direct-to-ALSA output when a route is active; (2) `dart_vst_host_alsa.cpp` adds an external-render registry (`dvh_set_external_render` / `dvh_clear_external_render`) so the ALSA audio loop calls the render function as the plugin's stereo input each block; (3) `VstHostService.syncAudioRouting` detects non-VST3 → VST3 connections in the `AudioGraph`, registers the correct render function, and toggles capture mode accordingly.
+- **GF Keyboard → VST3 effect audio routing**: Replaced the FluidSynth subprocess (`/usr/bin/fluidsynth -a alsa`) on Linux with libfluidsynth linked directly into `libaudio_input.so`. FluidSynth now runs in "no audio driver" mode and is rendered manually via `keyboard_render_block()`. A new master-mix render slot in the dart_vst_host ALSA loop (`dvh_add_master_render` / `dvh_remove_master_render`) lets keyboard audio play normally through the ALSA thread when not routed into a VST3 effect, and routes it through the effect's input when connected. All MIDI commands (note on/off, program select, pitch bend, CC, gain) are now dispatched via FFI instead of stdin pipes.
+
 ## [2.5.8] - 2026-03-17
 
 ### Fixed

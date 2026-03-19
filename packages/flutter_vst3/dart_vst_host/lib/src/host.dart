@@ -117,6 +117,44 @@ class VstHost {
   /// default behaviour of mixing directly into the master ALSA output.
   void clearRoutes() => _b.dvhClearRoutes(handle);
 
+  /// Register a non-VST3 render function as the audio source for [plugin]'s
+  /// input. The ALSA thread will call [renderFn] each block to fill the
+  /// plugin's stereo input buffer, bypassing silence or upstream VST3 output.
+  ///
+  /// [renderFn] is a raw pointer to a C function with signature:
+  ///   `void render(float* outL, float* outR, int32_t frames)`
+  /// Obtain it via `DynamicLibrary.lookup<NativeFunction<...>>('symbol')`.
+  ///
+  /// Typical use: route Theremin or Stylophone audio into a VST3 effect.
+  void setExternalRender(
+    VstPlugin plugin,
+    Pointer<NativeFunction<Void Function(Pointer<Float>, Pointer<Float>, Int32)>> renderFn,
+  ) => _b.dvhSetExternalRender(handle, plugin.handle, renderFn);
+
+  /// Remove the external render registration for [plugin].
+  /// The plugin's input reverts to silence or its routed upstream VST3 output.
+  void clearExternalRender(VstPlugin plugin) =>
+      _b.dvhClearExternalRender(handle, plugin.handle);
+
+  /// Register [renderFn] as a master-mix audio contributor.
+  ///
+  /// The ALSA thread calls [renderFn] every block and mixes its stereo output
+  /// directly into the master bus alongside VST3 plugin outputs. Used for
+  /// GF Keyboard (libfluidsynth) when it is not routed through a VST3 effect.
+  ///
+  /// Adding the same pointer twice is a no-op (deduplicated in C).
+  void addMasterRender(
+    Pointer<NativeFunction<Void Function(Pointer<Float>, Pointer<Float>, Int32)>> renderFn,
+  ) => _b.dvhAddMasterRender(handle, renderFn);
+
+  /// Remove a previously registered master-mix contributor.
+  ///
+  /// No-op if [renderFn] was not registered. Call before switching to an
+  /// external-render VST3 route.
+  void removeMasterRender(
+    Pointer<NativeFunction<Void Function(Pointer<Float>, Pointer<Float>, Int32)>> renderFn,
+  ) => _b.dvhRemoveMasterRender(handle, renderFn);
+
   /// Load a VST plug‑in from [modulePath]. Optionally specify
   /// [classUid] to select a specific class from a multi‑class module.
   /// Returns a VstPlugin on success; throws StateError on failure.

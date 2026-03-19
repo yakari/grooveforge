@@ -4,9 +4,14 @@ import 'package:dart_vst_host/dart_vst_host.dart';
 import 'package:flutter/foundation.dart';
 
 import '../models/audio_port_id.dart';
+import '../models/gfpa_plugin_instance.dart';
+import '../models/grooveforge_keyboard_plugin.dart';
 import '../models/plugin_instance.dart';
 import '../models/vst3_plugin_instance.dart';
+// Vst3PluginType used in loadPlugin signature.
+export '../models/vst3_plugin_instance.dart' show Vst3PluginType;
 import 'audio_graph.dart';
+import 'audio_input_ffi_native.dart';
 
 /// Desktop VST3 host service.
 ///
@@ -51,8 +56,16 @@ class VstHostService {
 
   /// Load a .vst3 plugin from [path] and associate it with [slotId].
   ///
+  /// [pluginType] must be supplied by the caller (user intent from
+  /// [AddPluginSheet]). Effect slots receive [midiChannel] == 0 because they
+  /// process audio, not MIDI note streams.
+  ///
   /// Returns a populated [Vst3PluginInstance] on success, null on failure.
-  Future<Vst3PluginInstance?> loadPlugin(String path, String slotId) async {
+  Future<Vst3PluginInstance?> loadPlugin(
+    String path,
+    String slotId, {
+    Vst3PluginType pluginType = Vst3PluginType.instrument,
+  }) async {
     if (!isSupported || _host == null) return null;
 
     try {
@@ -77,11 +90,16 @@ class VstHostService {
       if (_audioRunning) _host!.addToAudioLoop(plugin);
 
       final name = path.split('/').last.replaceAll('.vst3', '');
+
+      // Effect and analyzer slots have no MIDI channel — set to 0.
+      final midiCh = pluginType == Vst3PluginType.instrument ? 1 : 0;
+
       return Vst3PluginInstance(
         id: slotId,
-        midiChannel: 1,
+        midiChannel: midiCh,
         path: path,
         pluginName: name,
+        pluginType: pluginType,
       );
     } catch (e) {
       debugPrint('VstHostService: failed to load $path — $e');
@@ -236,7 +254,14 @@ class VstHostService {
     for (final p in _plugins.values) {
       _host!.addToAudioLoop(p);
     }
-    
+
+    // Register GF Keyboard (libfluidsynth) as a master-mix contributor so its
+    // audio plays through the ALSA thread alongside VST3 plugins. On Linux the
+    // keyboard synth is always initialised before startAudio() is called.
+    if (Platform.isLinux) {
+      _host!.addMasterRender(AudioInputFFI().keyboardRenderBlockPtr);
+    }
+
     bool ok = false;
     if (Platform.isMacOS) {
       ok = _host!.startMacAudio();
@@ -290,22 +315,96 @@ class VstHostService {
 
     _host!.setProcessingOrder(orderedPlugins);
 
-    // Rebuild routing table from audio connections between VST3 slots.
+    // Track which built-in instruments now have VST3 audio routes so we can
+    // enable/disable capture mode on the native synth side, and toggle the
+    // GF Keyboard between master-mix and external-render modes.
+    final thereminHasRoute = <String>{};
+    final styloHasRoute    = <String>{};
+    bool keyboardHasRoute  = false;
+
+    // Rebuild routing table from audio connections.
     _host!.clearRoutes();
+    // Clear all previous external renders before re-registering them.
+    for (final plugin in _plugins.values) {
+      _host!.clearExternalRender(plugin);
+    }
+
     for (final conn in graph.connections) {
-      // Only route audio-family port connections (not MIDI or Data cables).
+      // Only audio-family ports — skip MIDI and data cables.
       if (conn.fromPort.isDataPort || conn.toPort.isDataPort) continue;
-      if (conn.fromPort == AudioPortId.midiOut || conn.toPort == AudioPortId.midiIn) continue;
+      if (conn.fromPort == AudioPortId.midiOut ||
+          conn.toPort == AudioPortId.midiIn) {
+        continue;
+      }
 
       final from = _plugins[conn.fromSlotId];
       final to   = _plugins[conn.toSlotId];
-      if (from == null || to == null) continue; // one or both endpoints not VST3
 
-      _host!.routeAudio(from, to);
-      debugPrint(
-        'VstHostService: route ${conn.fromSlotId}:${conn.fromPort.name} '
-        '→ ${conn.toSlotId}:${conn.toPort.name}',
-      );
+      if (from != null && to != null) {
+        // VST3 → VST3: standard dart_vst_host routing.
+        _host!.routeAudio(from, to);
+        continue;
+      }
+
+      if (from == null && to != null) {
+        // Non-VST3 → VST3: identify the source plugin by slot ID.
+        final fromPlugin = allPlugins.firstWhere(
+          (p) => p.id == conn.fromSlotId,
+          orElse: () => allPlugins.first,
+        );
+
+        // GF Keyboard uses GrooveForgeKeyboardPlugin (not GFpaPluginInstance),
+        // so it must be handled before the GFpaPluginInstance type guard.
+        if (fromPlugin is GrooveForgeKeyboardPlugin) {
+          // libfluidsynth renders a full stereo mix of all MIDI channels.
+          // Route it into the VST3 effect's input and remove from master mix.
+          _host!.setExternalRender(to, AudioInputFFI().keyboardRenderBlockPtr);
+          keyboardHasRoute = true;
+          continue;
+        }
+
+        // Theremin and Stylophone are GFpaPluginInstance subclasses.
+        if (fromPlugin is! GFpaPluginInstance) continue;
+
+        if (fromPlugin.pluginId == 'com.grooveforge.theremin') {
+          _host!.setExternalRender(to, AudioInputFFI().thereminRenderBlockPtr);
+          thereminHasRoute.add(fromPlugin.id);
+        } else if (fromPlugin.pluginId == 'com.grooveforge.stylophone') {
+          _host!.setExternalRender(to, AudioInputFFI().styloRenderBlockPtr);
+          styloHasRoute.add(fromPlugin.id);
+        }
+        // Other built-in instruments (Vocoder, JamMode) are not routable
+        // through the VST3 chain — they use separate audio paths.
+      }
+    }
+
+    // Enable capture mode on native synths that are routed through VST3,
+    // and disable it for those that are no longer connected.
+    // Capture mode ON  → miniaudio outputs silence; ALSA thread drives DSP.
+    // Capture mode OFF → normal direct ALSA playback.
+    //
+    // For GF Keyboard: when routed into a VST3 effect, remove it from the
+    // master-mix list (output now goes to the effect's input exclusively).
+    // When not routed, add it back as a master-mix contributor.
+    final thereminActive = thereminHasRoute.isNotEmpty;
+    final styloActive    = styloHasRoute.isNotEmpty;
+    try {
+      AudioInputFFI().thereminSetCaptureMode(enabled: thereminActive);
+      AudioInputFFI().styloSetCaptureMode(enabled: styloActive);
+
+      if (Platform.isLinux) {
+        if (keyboardHasRoute) {
+          // Keyboard audio flows exclusively into the VST3 effect — remove
+          // from master mix to avoid playing it twice.
+          _host!.removeMasterRender(AudioInputFFI().keyboardRenderBlockPtr);
+        } else {
+          // No VST3 route — keyboard contributes directly to the master mix.
+          _host!.addMasterRender(AudioInputFFI().keyboardRenderBlockPtr);
+        }
+      }
+    } catch (_) {
+      // AudioInputFFI may not be initialised on non-Linux builds (web, macOS
+      // without the native lib). Silently ignore — routing is no-op there.
     }
   }
 

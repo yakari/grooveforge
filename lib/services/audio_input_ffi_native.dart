@@ -77,6 +77,27 @@ typedef VocoderPitchBendDart = void Function(int rawValue);
 typedef VocoderControlChangeC = Void Function(Int32 cc, Int32 value);
 typedef VocoderControlChangeDart = void Function(int cc, int value);
 
+// ── Theremin render-block typedefs (for VST3 routing) ────────────────────────
+
+/// C signature: `void theremin_render_block(float* outL, float* outR, int frames)`
+/// Used as an external render function registered with dart_vst_host.
+typedef ThereminRenderBlockC = Void Function(Pointer<Float>, Pointer<Float>, Int32);
+
+/// C signature: `void theremin_set_capture_mode(int enabled)`
+typedef ThereminSetCaptureModeC = Void Function(Int32);
+
+/// Dart callable for theremin_set_capture_mode.
+typedef ThereminSetCaptureModeDart = void Function(int);
+
+/// C signature: `void stylophone_render_block(float* outL, float* outR, int frames)`
+typedef StyloRenderBlockC = Void Function(Pointer<Float>, Pointer<Float>, Int32);
+
+/// C signature: `void stylophone_set_capture_mode(int enabled)`
+typedef StyloSetCaptureModeC = Void Function(Int32);
+
+/// Dart callable for stylophone_set_capture_mode.
+typedef StyloSetCaptureModeDart = void Function(int);
+
 // ── Theremin FFI typedefs ─────────────────────────────────────────────────────
 
 /// C signature for theremin_start: initialises the theremin device, returns int.
@@ -147,6 +168,51 @@ typedef StyloSetVibratoC = Void Function(Float depth);
 /// Dart signature for stylophone_set_vibrato.
 typedef StyloSetVibratoDart = void Function(double depth);
 
+// ── GF Keyboard (libfluidsynth) FFI typedefs ─────────────────────────────────
+
+/// C: `int keyboard_init(float sampleRate)` — initialise FluidSynth engine.
+typedef KeyboardInitC = Int32 Function(Float sampleRate);
+typedef KeyboardInitDart = int Function(double sampleRate);
+
+/// C: `void keyboard_destroy()` — free FluidSynth engine.
+typedef KeyboardDestroyC = Void Function();
+typedef KeyboardDestroyDart = void Function();
+
+/// C: `int keyboard_load_sf(const char* path)` → FluidSynth sfId.
+typedef KeyboardLoadSfC = Int32 Function(Pointer<Utf8> path);
+typedef KeyboardLoadSfDart = int Function(Pointer<Utf8> path);
+
+/// C: `void keyboard_unload_sf(int sfId)`.
+typedef KeyboardUnloadSfC = Void Function(Int32 sfId);
+typedef KeyboardUnloadSfDart = void Function(int sfId);
+
+/// C: `void keyboard_program_select(int ch, int sfId, int bank, int prog)`.
+typedef KeyboardProgramSelectC = Void Function(Int32 ch, Int32 sfId, Int32 bank, Int32 prog);
+typedef KeyboardProgramSelectDart = void Function(int ch, int sfId, int bank, int prog);
+
+/// C: `void keyboard_note_on(int ch, int key, int vel)`.
+typedef KeyboardNoteOnC = Void Function(Int32 ch, Int32 key, Int32 vel);
+typedef KeyboardNoteOnDart = void Function(int ch, int key, int vel);
+
+/// C: `void keyboard_note_off(int ch, int key)`.
+typedef KeyboardNoteOffC = Void Function(Int32 ch, Int32 key);
+typedef KeyboardNoteOffDart = void Function(int ch, int key);
+
+/// C: `void keyboard_pitch_bend(int ch, int value)`.
+typedef KeyboardPitchBendC = Void Function(Int32 ch, Int32 value);
+typedef KeyboardPitchBendDart = void Function(int ch, int value);
+
+/// C: `void keyboard_control_change(int ch, int cc, int value)`.
+typedef KeyboardControlChangeC = Void Function(Int32 ch, Int32 cc, Int32 value);
+typedef KeyboardControlChangeDart = void Function(int ch, int cc, int value);
+
+/// C: `void keyboard_set_gain(float gain)`.
+typedef KeyboardSetGainC = Void Function(Float gain);
+typedef KeyboardSetGainDart = void Function(double gain);
+
+/// C: `void keyboard_render_block(float* outL, float* outR, int frames)`.
+typedef KeyboardRenderBlockC = Void Function(Pointer<Float>, Pointer<Float>, Int32);
+
 class AudioInputFFI {
   static AudioInputFFI? _instance;
   late DynamicLibrary _lib;
@@ -187,6 +253,13 @@ class AudioInputFFI {
   /// Bound reference to `theremin_set_vibrato` in the native library.
   late final ThereminSetVibratoDart _thereminSetVibrato;
 
+  /// Raw pointer to `theremin_render_block` — passed to dart_vst_host as an
+  /// external render fn when the Theremin is cabled into a VST3 effect.
+  late final Pointer<NativeFunction<ThereminRenderBlockC>> thereminRenderBlockPtr;
+
+  /// Dart-callable bound to `theremin_set_capture_mode`.
+  late final ThereminSetCaptureModeDart _thereminSetCaptureMode;
+
   // ── Stylophone FFI function references ─────────────────────────────────────
 
   /// Bound reference to `stylophone_start` in the native library.
@@ -206,6 +279,48 @@ class AudioInputFFI {
 
   /// Bound reference to `stylophone_set_vibrato` in the native library.
   late final StyloSetVibratoDart _styloSetVibrato;
+
+  /// Raw pointer to `stylophone_render_block` for VST3 routing.
+  late final Pointer<NativeFunction<StyloRenderBlockC>> styloRenderBlockPtr;
+
+  /// Dart-callable bound to `stylophone_set_capture_mode`.
+  late final StyloSetCaptureModeDart _styloSetCaptureMode;
+
+  // ── GF Keyboard (libfluidsynth) FFI fields ─────────────────────────────────
+
+  /// Bound reference to `keyboard_init` — creates the FluidSynth engine.
+  late final KeyboardInitDart _keyboardInit;
+
+  /// Bound reference to `keyboard_destroy` — frees the FluidSynth engine.
+  late final KeyboardDestroyDart _keyboardDestroy;
+
+  /// Bound reference to `keyboard_load_sf` — loads a .sf2 file.
+  late final KeyboardLoadSfDart _keyboardLoadSf;
+
+  /// Bound reference to `keyboard_unload_sf` — unloads a soundfont by sfId.
+  late final KeyboardUnloadSfDart _keyboardUnloadSf;
+
+  /// Bound reference to `keyboard_program_select` — assigns instrument patch.
+  late final KeyboardProgramSelectDart _keyboardProgramSelect;
+
+  /// Bound reference to `keyboard_note_on`.
+  late final KeyboardNoteOnDart _keyboardNoteOn;
+
+  /// Bound reference to `keyboard_note_off`.
+  late final KeyboardNoteOffDart _keyboardNoteOff;
+
+  /// Bound reference to `keyboard_pitch_bend`.
+  late final KeyboardPitchBendDart _keyboardPitchBend;
+
+  /// Bound reference to `keyboard_control_change`.
+  late final KeyboardControlChangeDart _keyboardControlChange;
+
+  /// Bound reference to `keyboard_set_gain`.
+  late final KeyboardSetGainDart _keyboardSetGain;
+
+  /// Raw pointer to `keyboard_render_block` — passed to dart_vst_host as a
+  /// master-mix contributor or external render source for VST3 effects.
+  late final Pointer<NativeFunction<KeyboardRenderBlockC>> keyboardRenderBlockPtr;
 
   factory AudioInputFFI() {
     _instance ??= AudioInputFFI._internal();
@@ -331,6 +446,13 @@ class AudioInputFFI {
         _lib
             .lookup<NativeFunction<ThereminSetVibratoC>>('theremin_set_vibrato')
             .asFunction();
+    // Raw pointer — not .asFunction(); dart_vst_host needs the address directly.
+    thereminRenderBlockPtr =
+        _lib.lookup<NativeFunction<ThereminRenderBlockC>>('theremin_render_block');
+    _thereminSetCaptureMode =
+        _lib
+            .lookup<NativeFunction<ThereminSetCaptureModeC>>('theremin_set_capture_mode')
+            .asFunction();
 
     // ── Stylophone bindings ───────────────────────────────────────────────
     _styloStart =
@@ -357,6 +479,37 @@ class AudioInputFFI {
         _lib
             .lookup<NativeFunction<StyloSetVibratoC>>('stylophone_set_vibrato')
             .asFunction();
+    styloRenderBlockPtr =
+        _lib.lookup<NativeFunction<StyloRenderBlockC>>('stylophone_render_block');
+    _styloSetCaptureMode =
+        _lib
+            .lookup<NativeFunction<StyloSetCaptureModeC>>('stylophone_set_capture_mode')
+            .asFunction();
+
+    // ── GF Keyboard bindings ──────────────────────────────────────────────
+    _keyboardInit =
+        _lib.lookup<NativeFunction<KeyboardInitC>>('keyboard_init').asFunction();
+    _keyboardDestroy =
+        _lib.lookup<NativeFunction<KeyboardDestroyC>>('keyboard_destroy').asFunction();
+    _keyboardLoadSf =
+        _lib.lookup<NativeFunction<KeyboardLoadSfC>>('keyboard_load_sf').asFunction();
+    _keyboardUnloadSf =
+        _lib.lookup<NativeFunction<KeyboardUnloadSfC>>('keyboard_unload_sf').asFunction();
+    _keyboardProgramSelect =
+        _lib.lookup<NativeFunction<KeyboardProgramSelectC>>('keyboard_program_select').asFunction();
+    _keyboardNoteOn =
+        _lib.lookup<NativeFunction<KeyboardNoteOnC>>('keyboard_note_on').asFunction();
+    _keyboardNoteOff =
+        _lib.lookup<NativeFunction<KeyboardNoteOffC>>('keyboard_note_off').asFunction();
+    _keyboardPitchBend =
+        _lib.lookup<NativeFunction<KeyboardPitchBendC>>('keyboard_pitch_bend').asFunction();
+    _keyboardControlChange =
+        _lib.lookup<NativeFunction<KeyboardControlChangeC>>('keyboard_control_change').asFunction();
+    _keyboardSetGain =
+        _lib.lookup<NativeFunction<KeyboardSetGainC>>('keyboard_set_gain').asFunction();
+    // Raw pointer — passed as a C function pointer to dart_vst_host.
+    keyboardRenderBlockPtr =
+        _lib.lookup<NativeFunction<KeyboardRenderBlockC>>('keyboard_render_block');
   }
 
   bool startCapture() {
@@ -491,6 +644,14 @@ class AudioInputFFI {
   /// 0 = no vibrato; 1 = ±0.5 semitone LFO modulation.
   void thereminSetVibrato(double depth) => _thereminSetVibrato(depth);
 
+  /// Enables or disables VST3 capture routing for the Theremin.
+  ///
+  /// When [enabled] is true, the miniaudio device outputs silence and
+  /// dart_vst_host's ALSA loop calls [thereminRenderBlockPtr] each block.
+  /// Set to false to restore direct ALSA playback.
+  void thereminSetCaptureMode({required bool enabled}) =>
+      _thereminSetCaptureMode(enabled ? 1 : 0);
+
   // ── Stylophone public API ─────────────────────────────────────────────────
 
   /// Starts the stylophone native synthesis device.
@@ -514,4 +675,59 @@ class AudioInputFFI {
 
   /// Sets the stylophone vibrato depth: 0.0 = off, 1.0 = full wobble.
   void styloSetVibrato(double depth) => _styloSetVibrato(depth);
+
+  /// Enables or disables VST3 capture routing for the Stylophone.
+  void styloSetCaptureMode({required bool enabled}) =>
+      _styloSetCaptureMode(enabled ? 1 : 0);
+
+  // ── GF Keyboard public API ────────────────────────────────────────────────
+
+  /// Initialise the FluidSynth engine at [sampleRate] Hz (no audio driver).
+  ///
+  /// Must be called before any other keyboard method. Safe to call multiple
+  /// times — subsequent calls are no-ops. Returns 1 on success, 0 on failure.
+  int keyboardInit(double sampleRate) => _keyboardInit(sampleRate);
+
+  /// Destroy the FluidSynth engine and free all resources.
+  void keyboardDestroy() => _keyboardDestroy();
+
+  /// Load a SoundFont (.sf2) from [path] and return its FluidSynth sfId.
+  ///
+  /// Returns a positive sfId on success, -1 on failure. The sfId must be
+  /// stored by the caller (e.g. in [AudioEngine._sfPathToIdLinux]) and passed
+  /// to [keyboardProgramSelect] and [keyboardUnloadSf].
+  int keyboardLoadSf(String path) {
+    final ptr = path.toNativeUtf8();
+    try {
+      return _keyboardLoadSf(ptr);
+    } finally {
+      malloc.free(ptr);
+    }
+  }
+
+  /// Unload a SoundFont by its FluidSynth [sfId].
+  void keyboardUnloadSf(int sfId) => _keyboardUnloadSf(sfId);
+
+  /// Assign MIDI channel [ch] to use instrument [program] from soundfont [sfId].
+  void keyboardProgramSelect(int ch, int sfId, int bank, int program) =>
+      _keyboardProgramSelect(ch, sfId, bank, program);
+
+  /// Send a MIDI note-on: [ch] 0–15, [key] 0–127, [velocity] 1–127.
+  void keyboardNoteOn(int ch, int key, int velocity) =>
+      _keyboardNoteOn(ch, key, velocity);
+
+  /// Send a MIDI note-off: [ch] 0–15, [key] 0–127.
+  void keyboardNoteOff(int ch, int key) => _keyboardNoteOff(ch, key);
+
+  /// Send a MIDI pitch-bend to [ch]. [value] is the 14-bit raw word (0–16383,
+  /// centre 8192) as forwarded by AudioEngine._sendPitchBend.
+  void keyboardPitchBend(int ch, int value) => _keyboardPitchBend(ch, value);
+
+  /// Send a MIDI Control Change to [ch]: [cc] 0–127, [value] 0–127.
+  void keyboardControlChange(int ch, int cc, int value) =>
+      _keyboardControlChange(ch, cc, value);
+
+  /// Set the master FluidSynth output gain (linear scalar; GrooveForge default
+  /// is 3.0 on Linux).
+  void keyboardSetGain(double gain) => _keyboardSetGain(gain);
 }

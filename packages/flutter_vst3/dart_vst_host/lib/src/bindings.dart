@@ -143,6 +143,63 @@ class NativeBindings {
           void Function(Pointer<Void>)
       >('dvh_clear_routes');
 
+  // dvh_set_external_render: register a non-VST3 render function as the audio
+  // source for a VST3 plugin's input (e.g. Theremin DSP → Reverb effect).
+  // [fn] is a Pointer to a C function with signature:
+  //   void render(float* outL, float* outR, int32_t frames)
+  late final void Function(
+    Pointer<Void>, Pointer<Void>,
+    Pointer<NativeFunction<Void Function(Pointer<Float>, Pointer<Float>, Int32)>>,
+  ) dvhSetExternalRender = lib.lookupFunction<
+      Void Function(
+        Pointer<Void>, Pointer<Void>,
+        Pointer<NativeFunction<Void Function(Pointer<Float>, Pointer<Float>, Int32)>>,
+      ),
+      void Function(
+        Pointer<Void>, Pointer<Void>,
+        Pointer<NativeFunction<Void Function(Pointer<Float>, Pointer<Float>, Int32)>>,
+      )
+  >('dvh_set_external_render');
+
+  // dvh_clear_external_render: remove external render for a plugin.
+  late final void Function(Pointer<Void>, Pointer<Void>) dvhClearExternalRender =
+      lib.lookupFunction<
+          Void Function(Pointer<Void>, Pointer<Void>),
+          void Function(Pointer<Void>, Pointer<Void>)
+      >('dvh_clear_external_render');
+
+  // dvh_add_master_render: register a render fn as a master-mix contributor.
+  // The fn is called each ALSA block and its stereo output is mixed into the
+  // master bus alongside VST3 plugin outputs. Deduplicated on the C side.
+  late final void Function(
+    Pointer<Void>,
+    Pointer<NativeFunction<Void Function(Pointer<Float>, Pointer<Float>, Int32)>>,
+  ) dvhAddMasterRender = lib.lookupFunction<
+      Void Function(
+        Pointer<Void>,
+        Pointer<NativeFunction<Void Function(Pointer<Float>, Pointer<Float>, Int32)>>,
+      ),
+      void Function(
+        Pointer<Void>,
+        Pointer<NativeFunction<Void Function(Pointer<Float>, Pointer<Float>, Int32)>>,
+      )
+  >('dvh_add_master_render');
+
+  // dvh_remove_master_render: remove a previously registered master-mix fn.
+  late final void Function(
+    Pointer<Void>,
+    Pointer<NativeFunction<Void Function(Pointer<Float>, Pointer<Float>, Int32)>>,
+  ) dvhRemoveMasterRender = lib.lookupFunction<
+      Void Function(
+        Pointer<Void>,
+        Pointer<NativeFunction<Void Function(Pointer<Float>, Pointer<Float>, Int32)>>,
+      ),
+      void Function(
+        Pointer<Void>,
+        Pointer<NativeFunction<Void Function(Pointer<Float>, Pointer<Float>, Int32)>>,
+      )
+  >('dvh_remove_master_render');
+
   // macOS specific audio management
   late final int Function(Pointer<Void>) dvhMacStartAudio =
       lib.lookupFunction<Int32 Function(Pointer<Void>), int Function(Pointer<Void>)>('dvh_mac_start_audio');

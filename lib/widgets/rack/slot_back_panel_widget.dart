@@ -8,7 +8,7 @@ import '../../models/grooveforge_keyboard_plugin.dart';
 import '../../models/looper_plugin_instance.dart';
 import '../../models/plugin_instance.dart';
 import '../../models/virtual_piano_plugin.dart';
-import '../../models/vst3_plugin_instance.dart';
+import '../../models/vst3_plugin_instance.dart'; // Vst3PluginInstance, Vst3PluginType
 import '../../services/audio_graph.dart';
 import '../../services/patch_drag_controller.dart';
 
@@ -108,6 +108,19 @@ class SlotBackPanelWidget extends StatelessWidget {
     }
 
     if (plugin is Vst3PluginInstance) {
+      // Effect and analyzer plugins process audio — no MIDI IN/OUT jack.
+      // Instruments receive MIDI note streams — expose MIDI IN.
+      if (plugin.pluginType == Vst3PluginType.effect ||
+          plugin.pluginType == Vst3PluginType.analyzer) {
+        return [
+          AudioPortId.audioInL,
+          AudioPortId.audioInR,
+          AudioPortId.audioOutL,
+          AudioPortId.audioOutR,
+          AudioPortId.sendOut,
+          AudioPortId.returnIn,
+        ];
+      }
       return [
         AudioPortId.midiIn,
         AudioPortId.audioInL,

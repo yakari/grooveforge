@@ -25,6 +25,7 @@ import 'rack/gfpa_vocoder_slot_ui.dart';
 import 'rack/grooveforge_keyboard_slot_ui.dart';
 import 'rack/looper_slot_ui.dart';
 import 'rack/virtual_piano_slot_ui.dart';
+import 'rack/vst3_effect_slot_ui.dart';
 import 'rack/vst3_slot_ui.dart';
 
 /// One slot in the GrooveForge rack.
@@ -210,7 +211,12 @@ class RackSlotWidget extends StatelessWidget {
           return false;
       }
     }
-    return true; // VP, GFK, VST3 all respond to notes and should glow.
+    // Effect and analyzer VST3 slots process audio, not MIDI — no note glow.
+    if (plugin is Vst3PluginInstance) {
+      final vst3 = plugin as Vst3PluginInstance;
+      return vst3.pluginType == Vst3PluginType.instrument;
+    }
+    return true; // VP, GFK respond to notes and should glow.
   }
 
   Widget _buildBody(BuildContext context) {
@@ -227,7 +233,14 @@ class RackSlotWidget extends StatelessWidget {
       return LooperSlotUI(plugin: plugin as LooperPluginInstance);
     }
     if (plugin is Vst3PluginInstance) {
-      return Vst3SlotUI(plugin: plugin as Vst3PluginInstance);
+      final vst3 = plugin as Vst3PluginInstance;
+      // Route effect and analyzer plugins to the dedicated effect slot UI.
+      // Instrument plugins keep the standard Vst3SlotUI with MIDI routing.
+      if (vst3.pluginType == Vst3PluginType.effect ||
+          vst3.pluginType == Vst3PluginType.analyzer) {
+        return Vst3EffectSlotUI(plugin: vst3);
+      }
+      return Vst3SlotUI(plugin: vst3);
     }
     if (plugin is GFpaPluginInstance) {
       final gfpa = plugin as GFpaPluginInstance;
@@ -349,6 +362,17 @@ class _SlotHeader extends StatelessWidget {
     if (p is GrooveForgeKeyboardPlugin) return Icons.piano;
     if (p is VirtualPianoPlugin) return Icons.piano_outlined;
     if (p is LooperPluginInstance) return Icons.loop;
+    if (p is Vst3PluginInstance) {
+      // Effect and analyzer plugins use a wand icon to distinguish them from
+      // instrument slots (generic extension icon).
+      switch (p.pluginType) {
+        case Vst3PluginType.effect:
+        case Vst3PluginType.analyzer:
+          return Icons.auto_fix_high;
+        case Vst3PluginType.instrument:
+          return Icons.extension;
+      }
+    }
     if (p is GFpaPluginInstance) {
       switch (p.pluginId) {
         case 'com.grooveforge.keyboard': return Icons.piano;

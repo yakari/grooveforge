@@ -11,7 +11,7 @@ import '../models/looper_plugin_instance.dart';
 import '../models/virtual_piano_plugin.dart';
 import '../services/looper_engine.dart';
 import '../services/rack_state.dart';
-import '../services/vst_host_service.dart';
+import '../services/vst_host_service.dart'; // re-exports Vst3PluginType
 
 /// Bottom sheet that lets the user choose which plugin type to add to the rack.
 ///
@@ -65,32 +65,53 @@ class _AddPluginSheetContentState extends State<_AddPluginSheetContent> {
     return null;
   }
 
-  Future<void> _loadAndAdd(BuildContext context, String bundlePath) async {
+  /// Loads and adds a VST3 plugin of the given [pluginType].
+  ///
+  /// Instrument plugins are assigned the next free MIDI channel.
+  /// Effect plugins use midiChannel == 0 (no MIDI routing).
+  Future<void> _loadAndAdd(
+    BuildContext context,
+    String bundlePath, {
+    Vst3PluginType pluginType = Vst3PluginType.instrument,
+  }) async {
     final rack = context.read<RackState>();
     final vstSvc = context.read<VstHostService>();
     final l10n = AppLocalizations.of(context)!;
 
-    final ch = rack.nextAvailableMidiChannel();
-    if (ch == -1) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('All 16 MIDI channels are already in use.')),
-      );
-      return;
+    // Only instrument plugins need a MIDI channel.
+    final int ch;
+    if (pluginType == Vst3PluginType.instrument) {
+      ch = rack.nextAvailableMidiChannel();
+      if (ch == -1) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('All 16 MIDI channels are already in use.')),
+        );
+        return;
+      }
+    } else {
+      ch = 0; // Effects process audio, no MIDI channel needed.
     }
 
     setState(() => _loading = true);
 
     await vstSvc.initialize();
     final slotId = rack.generateSlotId();
-    final instance = await vstSvc.loadPlugin(bundlePath, slotId);
+    final instance = await vstSvc.loadPlugin(
+      bundlePath,
+      slotId,
+      pluginType: pluginType,
+    );
 
     setState(() => _loading = false);
 
     if (!context.mounted) return;
 
     if (instance != null) {
-      rack.addPlugin(instance.copyWith(midiChannel: ch));
+      rack.addPlugin(pluginType == Vst3PluginType.instrument
+          ? instance.copyWith(midiChannel: ch)
+          : instance);
       vstSvc.startAudio();
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -101,12 +122,17 @@ class _AddPluginSheetContentState extends State<_AddPluginSheetContent> {
 
   // ─── Browse for .vst3 folder ──────────────────────────────────────────────
 
-  Future<void> _browseVst3Folder(BuildContext context) async {
+  /// Opens a directory picker for the given [pluginType] and loads the bundle.
+  Future<void> _browseVst3Folder(
+      BuildContext context, Vst3PluginType pluginType) async {
     final l10n = AppLocalizations.of(context)!;
 
-    // Use directory picker — .vst3 bundles are directories on Linux/macOS.
+    final dialogTitle = pluginType == Vst3PluginType.effect
+        ? l10n.vst3BrowseEffectTitle
+        : l10n.vst3BrowseInstrumentTitle;
+
     final selected = await FilePicker.platform.getDirectoryPath(
-      dialogTitle: l10n.vst3BrowseTitle,
+      dialogTitle: dialogTitle,
     );
     if (selected == null) return;
 
@@ -121,27 +147,31 @@ class _AddPluginSheetContentState extends State<_AddPluginSheetContent> {
 
     if (!context.mounted) return;
     Navigator.pop(context);
-    await _loadAndAdd(context, bundlePath);
+    await _loadAndAdd(context, bundlePath, pluginType: pluginType);
   }
 
   // ─── Pick from installed plugins ──────────────────────────────────────────
 
-  Future<void> _pickFromInstalled(BuildContext context) async {
+  /// Shows the installed plugin picker for the given [pluginType].
+  Future<void> _pickFromInstalled(
+      BuildContext context, Vst3PluginType pluginType) async {
     final vstSvc = context.read<VstHostService>();
     await vstSvc.initialize();
 
-    final found = await vstSvc.scanPluginPaths(VstHostService.defaultSearchPaths);
+    final found =
+        await vstSvc.scanPluginPaths(VstHostService.defaultSearchPaths);
 
     if (!context.mounted) return;
 
     if (found.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context)!.vst3ScanNoneFound)),
+        SnackBar(
+            content:
+                Text(AppLocalizations.of(context)!.vst3ScanNoneFound)),
       );
       return;
     }
 
-    // Show a dialog listing the found .vst3 bundles.
     final picked = await showDialog<String>(
       context: context,
       builder: (ctx) => _InstalledPluginsDialog(paths: found),
@@ -149,7 +179,7 @@ class _AddPluginSheetContentState extends State<_AddPluginSheetContent> {
     if (picked == null || !context.mounted) return;
 
     Navigator.pop(context);
-    await _loadAndAdd(context, picked);
+    await _loadAndAdd(context, picked, pluginType: pluginType);
   }
 
   // ─── UI ───────────────────────────────────────────────────────────────────
@@ -380,7 +410,10 @@ class _AddPluginSheetContentState extends State<_AddPluginSheetContent> {
               },
             ),
 
-            // ── VST3 (desktop only)
+            // ── VST3 (desktop only) ─────────────────────────────────────
+            // Instrument and effect are shown as separate tiles so the user
+            // can declare intent upfront. The type is stored in the model
+            // and drives the rack slot UI and back-panel jack layout.
             if (_isDesktop) ...[
               if (_loading)
                 const Padding(
@@ -399,19 +432,39 @@ class _AddPluginSheetContentState extends State<_AddPluginSheetContent> {
                   ),
                 )
               else ...[
+                // ── VST3 Instrument ──────────────────────────────────────
                 _PluginTile(
                   icon: Icons.folder_open,
                   iconColor: Colors.tealAccent,
-                  title: l10n.vst3BrowseTitle,
-                  subtitle: l10n.vst3BrowseSubtitle,
-                  onTap: () => _browseVst3Folder(context),
+                  title: l10n.vst3BrowseInstrumentTitle,
+                  subtitle: l10n.vst3BrowseInstrumentSubtitle,
+                  onTap: () => _browseVst3Folder(
+                      context, Vst3PluginType.instrument),
                 ),
                 _PluginTile(
                   icon: Icons.extension,
                   iconColor: Colors.amber,
-                  title: l10n.vst3PickInstalledTitle,
+                  title: l10n.vst3PickInstalledInstrumentTitle,
                   subtitle: l10n.vst3PickInstalledSubtitle,
-                  onTap: () => _pickFromInstalled(context),
+                  onTap: () => _pickFromInstalled(
+                      context, Vst3PluginType.instrument),
+                ),
+                // ── VST3 Effect ──────────────────────────────────────────
+                _PluginTile(
+                  icon: Icons.folder_open,
+                  iconColor: const Color(0xFFBB86FC),
+                  title: l10n.vst3BrowseEffectTitle,
+                  subtitle: l10n.vst3BrowseEffectSubtitle,
+                  onTap: () => _browseVst3Folder(
+                      context, Vst3PluginType.effect),
+                ),
+                _PluginTile(
+                  icon: Icons.auto_fix_high,
+                  iconColor: Colors.deepPurpleAccent,
+                  title: l10n.vst3PickInstalledEffectTitle,
+                  subtitle: l10n.vst3PickInstalledSubtitle,
+                  onTap: () => _pickFromInstalled(
+                      context, Vst3PluginType.effect),
                 ),
               ],
             ],

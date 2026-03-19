@@ -161,4 +161,36 @@ class AudioInputFFI {
 
   /// Sets vibrato depth [0.0, 1.0] (LFO modulates oscillator frequency by ±15 Hz at depth 1).
   void styloSetVibrato(double depth) => _osc?.styloSetVibrato(depth.toJS);
+
+  // ── GF Keyboard — all no-ops on web (uses soundfont-player JS bridge) ──
+
+  /// Not supported on web — keyboard audio is handled by the JS soundfont bridge.
+  int keyboardInit(double sampleRate) => 0;
+
+  /// Not supported on web — no-op.
+  void keyboardDestroy() {}
+
+  /// Not supported on web — returns -1.
+  int keyboardLoadSf(String path) => -1;
+
+  /// Not supported on web — no-op.
+  void keyboardUnloadSf(int sfId) {}
+
+  /// Not supported on web — no-op.
+  void keyboardProgramSelect(int ch, int sfId, int bank, int program) {}
+
+  /// Not supported on web — no-op.
+  void keyboardNoteOn(int ch, int key, int velocity) {}
+
+  /// Not supported on web — no-op.
+  void keyboardNoteOff(int ch, int key) {}
+
+  /// Not supported on web — no-op.
+  void keyboardPitchBend(int ch, int value) {}
+
+  /// Not supported on web — no-op.
+  void keyboardControlChange(int ch, int cc, int value) {}
+
+  /// Not supported on web — no-op.
+  void keyboardSetGain(double gain) {}
 }

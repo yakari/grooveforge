@@ -150,12 +150,9 @@ class AudioEngine extends ChangeNotifier {
   final List<String> loadedSoundfonts = [];
   final Map<String, int> _sfPathToIdMobile = {};
   final Map<String, int> _sfPathToIdLinux = {};
-  int _linuxSfIdCounter = 1;
 
   final Map<String, Map<int, Map<int, String>>> sf2Presets = {};
   final List<ChannelState> channels = List.generate(16, (i) => ChannelState());
-
-  Process? _fluidSynthProcess;
 
   bool _isVocoderActive = false;
   CcMappingService? ccMappingService;
@@ -260,7 +257,7 @@ class AudioEngine extends ChangeNotifier {
   ///   loaded synth instance.
   void applyFluidSynthGain() {
     if (!kIsWeb && Platform.isLinux) {
-      _fluidSynthProcess?.stdin.writeln('gain ${fluidSynthGain.value}');
+      AudioInputFFI().keyboardSetGain(fluidSynthGain.value);
     } else {
       MidiPro().setGain(fluidSynthGain.value);
     }
@@ -463,30 +460,17 @@ class AudioEngine extends ChangeNotifier {
     if (!kIsWeb) {
       if (Platform.isLinux) {
         initStatus.value = 'Starting FluidSynth backend...';
-        _fluidSynthProcess?.kill();
-        _fluidSynthProcess = await Process.start('/usr/bin/fluidsynth', [
-          '-a',
-          'alsa',
-          '-m',
-          'alsa_seq',
-          '-g',
-          '${fluidSynthGain.value}', // synth gain — persisted value (default 3.0 on Linux).
-               // FluidSynth's default (0.2) produces ~0.1 amplitude, far quieter
-               // than typical VST output (~0.3-0.5). We default to 3.0 on Linux
-               // which is loud enough without clipping at typical playing volumes.
-          '-q', // quiet mode: suppresses the interactive prompt and verbose logs
-        ]);
-        // Drain stdout and stderr continuously to prevent a pipe deadlock.
-        //
-        // Without this, FluidSynth's output (interactive prompt lines, command
-        // echo, warnings…) eventually fills the OS pipe buffer (~64 KB on Linux).
-        // When the buffer is full FluidSynth blocks on its next write() call and
-        // stops reading from stdin.  Dart's stdin buffer then fills up, new
-        // note-on / note-off writes silently fail, and all sound stops — while
-        // the last notes that were already queued in the pipe buffer keep ringing
-        // as stuck notes.
-        _fluidSynthProcess!.stdout.listen((_) {});
-        _fluidSynthProcess!.stderr.listen((_) {});
+        // Use libfluidsynth directly (in-process, no audio driver) so that
+        // the dart_vst_host ALSA thread can drive rendering via
+        // keyboard_render_block() — same mechanism as Theremin/Stylophone.
+        // keyboard_init() is idempotent: safe to call on re-initialisation.
+        final ok = AudioInputFFI().keyboardInit(48000.0);
+        if (ok == 1) {
+          AudioInputFFI().keyboardSetGain(fluidSynthGain.value);
+          debugPrint('AudioEngine: FluidSynth initialised via FFI');
+        } else {
+          debugPrint('AudioEngine: FluidSynth FFI init failed');
+        }
       } else {
         try {
           final session = await AudioSession.instance;
@@ -895,8 +879,13 @@ class AudioEngine extends ChangeNotifier {
       loadedSoundfonts.add(targetPath);
 
       if (Platform.isLinux) {
-        _fluidSynthProcess?.stdin.writeln('load "$targetPath"');
-        _sfPathToIdLinux[targetPath] = _linuxSfIdCounter++;
+        // keyboard_load_sf() returns the FluidSynth-assigned sfId directly,
+        // replacing the old counter-based stub ID used with the subprocess.
+        final sfId = AudioInputFFI().keyboardLoadSf(targetPath);
+        if (sfId < 0) {
+          throw Exception('Failed to load soundfont via FluidSynth: $targetPath');
+        }
+        _sfPathToIdLinux[targetPath] = sfId;
       } else {
         int sfId = await _midiPro.loadSoundfontFile(filePath: targetPath);
         if (sfId == -1) {
@@ -931,7 +920,7 @@ class AudioEngine extends ChangeNotifier {
     if (!kIsWeb && Platform.isLinux) {
       int? sfId = _sfPathToIdLinux[path];
       if (sfId != null) {
-        _fluidSynthProcess?.stdin.writeln('unload $sfId');
+        AudioInputFFI().keyboardUnloadSf(sfId);
       }
       _sfPathToIdLinux.remove(path);
     } else {
@@ -1030,9 +1019,7 @@ class AudioEngine extends ChangeNotifier {
     if (!kIsWeb && Platform.isLinux) {
       int? sfId = _sfPathToIdLinux[state.soundfontPath!];
       if (sfId != null) {
-        _fluidSynthProcess?.stdin.writeln(
-          'select $channel $sfId ${state.bank} ${state.program}',
-        );
+        AudioInputFFI().keyboardProgramSelect(channel, sfId, state.bank, state.program);
       }
     } else {
       int? sfId = _sfPathToIdMobile[state.soundfontPath!];
@@ -1065,9 +1052,9 @@ class AudioEngine extends ChangeNotifier {
     final int note = isDownbeat ? 37 : 76;
     final int velocity = isDownbeat ? 100 : 75;
     if (!kIsWeb && Platform.isLinux) {
-      _fluidSynthProcess?.stdin.writeln('noteon $percChannel $note $velocity');
+      AudioInputFFI().keyboardNoteOn(percChannel, note, velocity);
       Future.delayed(const Duration(milliseconds: 40), () {
-        _fluidSynthProcess?.stdin.writeln('noteoff $percChannel $note');
+        AudioInputFFI().keyboardNoteOff(percChannel, note);
       });
     } else {
       // On mobile use any loaded soundfont; channel 9 follows GM percussion in most SF2 files.
@@ -1299,8 +1286,8 @@ class AudioEngine extends ChangeNotifier {
 
     int? currentOwner = channels[channel].snappedKeyOwners[keyToPlay];
     if (currentOwner != null && currentOwner != key) {
-      if (!kIsWeb && Platform.isLinux && _fluidSynthProcess != null) {
-        _fluidSynthProcess!.stdin.writeln('noteoff $channel $keyToPlay');
+      if (!kIsWeb && Platform.isLinux) {
+        AudioInputFFI().keyboardNoteOff(channel, keyToPlay);
       } else {
         int sfId = _getSfIdForChannel(channel);
         if (sfId != -1) {
@@ -1318,10 +1305,8 @@ class AudioEngine extends ChangeNotifier {
     if (channels[channel].soundfontPath == vocoderMode) {
       AudioInputFFI().playNote(key: keyToPlay, velocity: velocity);
     } else {
-      if (!kIsWeb && Platform.isLinux && _fluidSynthProcess != null) {
-        _fluidSynthProcess!.stdin.writeln(
-          'noteon $channel $keyToPlay $velocity',
-        );
+      if (!kIsWeb && Platform.isLinux) {
+        AudioInputFFI().keyboardNoteOn(channel, keyToPlay, velocity);
       } else {
         int sfId = _getSfIdForChannel(channel);
         if (sfId != -1) {
@@ -1354,8 +1339,8 @@ class AudioEngine extends ChangeNotifier {
       if (channels[channel].soundfontPath == vocoderMode) {
         AudioInputFFI().stopNote(key: keyToStop);
       } else {
-        if (!kIsWeb && Platform.isLinux && _fluidSynthProcess != null) {
-          _fluidSynthProcess!.stdin.writeln('noteoff $channel $keyToStop');
+        if (!kIsWeb && Platform.isLinux) {
+          AudioInputFFI().keyboardNoteOff(channel, keyToStop);
         } else {
           int sfId = _getSfIdForChannel(channel);
           if (sfId != -1) {
@@ -1996,8 +1981,8 @@ class AudioEngine extends ChangeNotifier {
     required int controller,
     required int value,
   }) {
-    if (!kIsWeb && Platform.isLinux && _fluidSynthProcess != null) {
-      _fluidSynthProcess!.stdin.writeln('cc $channel $controller $value');
+    if (!kIsWeb && Platform.isLinux) {
+      AudioInputFFI().keyboardControlChange(channel, controller, value);
     } else {
       int sfId = _getSfIdForChannel(channel);
       _midiPro.controlChange(
@@ -2010,8 +1995,8 @@ class AudioEngine extends ChangeNotifier {
   }
 
   void _sendPitchBend({required int channel, required int value}) {
-    if (!kIsWeb && Platform.isLinux && _fluidSynthProcess != null) {
-      _fluidSynthProcess!.stdin.writeln('pitch_bend $channel $value');
+    if (!kIsWeb && Platform.isLinux) {
+      AudioInputFFI().keyboardPitchBend(channel, value);
     } else {
       int sfId = _getSfIdForChannel(channel);
       _midiPro.pitchBend(
@@ -2030,7 +2015,6 @@ class AudioEngine extends ChangeNotifier {
     loadedSoundfonts.clear();
     _sfPathToIdMobile.clear();
     _sfPathToIdLinux.clear();
-    _linuxSfIdCounter = 1;
     sf2Presets.clear();
     for (int i = 0; i < 16; i++) {
       channels[i] = ChannelState();

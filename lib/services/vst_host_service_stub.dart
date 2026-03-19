@@ -2,6 +2,9 @@ import '../models/plugin_instance.dart';
 import '../models/vst3_plugin_instance.dart';
 import 'audio_graph.dart';
 
+// Re-export so callers always get Vst3PluginType from the same import.
+export '../models/vst3_plugin_instance.dart' show Vst3PluginType;
+
 /// Stub VstHostService for mobile and web platforms where VST3 hosting
 /// is not supported. All methods are no-ops or throw immediately.
 class VstHostService {
@@ -12,8 +15,11 @@ class VstHostService {
 
   Future<void> initialize() async {}
 
-  Future<Vst3PluginInstance?> loadPlugin(String path, String slotId) async =>
-      null;
+  Future<Vst3PluginInstance?> loadPlugin(
+    String path,
+    String slotId, {
+    Vst3PluginType pluginType = Vst3PluginType.instrument,
+  }) async => null;
 
   void unloadPlugin(String slotId) {}
 
