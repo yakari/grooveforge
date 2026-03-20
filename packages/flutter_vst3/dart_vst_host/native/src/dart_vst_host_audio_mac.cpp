@@ -10,6 +10,7 @@
 #define MA_API static
 #define MINIAUDIO_IMPLEMENTATION
 #include "dart_vst_host.h"
+#include "../include/gfpa_dsp.h"
 #include "miniaudio.h"
 
 #include <algorithm>
@@ -24,6 +25,12 @@ struct AudioState {
     std::vector<void*> plugins;
     std::vector<void*> processOrder;
     std::unordered_map<void*, void*> routes;
+    /// Master-mix contributors: render functions mixed directly into the output.
+    /// Used for GF Keyboard (libfluidsynth) on macOS.
+    std::vector<DvhRenderFn> masterRenders;
+    /// GFPA insert chain: per-source optional DSP effect that intercepts audio
+    /// before it reaches the master mix bus.  Same semantics as ALSA backend.
+    std::unordered_map<DvhRenderFn, std::pair<GfpaInsertFn, void*>> masterInserts;
     std::mutex          pluginsMtx;
 
     ma_device           device;
@@ -31,6 +38,13 @@ struct AudioState {
 
     int32_t sampleRate{48000};
     int32_t blockSize{256};
+
+    /// Pre-allocated stereo buffers for master-render and insert processing —
+    /// no heap allocation inside the CoreAudio callback.
+    std::vector<float> extBufL;
+    std::vector<float> extBufR;
+    std::vector<float> insertBufL;
+    std::vector<float> insertBufR;
 };
 
 static std::mutex           g_mapMtx;
@@ -104,13 +118,20 @@ static void dataCallback(ma_device* pDevice, void* pOutput, const void* /*pInput
     std::fill(out, out + frameCount * 2, 0.f);
 
     std::vector<float> zeroL(frameCount, 0.f), zeroR(frameCount, 0.f);
+    // Master mix accumulator (interleaved floats from VST3 processing are
+    // written directly into out; master-render contributors need a staging buf).
+    std::vector<float> mixL(frameCount, 0.f), mixR(frameCount, 0.f);
 
     std::vector<void*> ordered;
     std::unordered_map<void*, void*> routes;
+    std::vector<DvhRenderFn> masterRenders;
+    std::unordered_map<DvhRenderFn, std::pair<GfpaInsertFn, void*>> masterInserts;
     {
         std::lock_guard<std::mutex> lk(state->pluginsMtx);
-        ordered = state->processOrder.empty() ? state->plugins : state->processOrder;
-        routes  = state->routes;
+        ordered       = state->processOrder.empty() ? state->plugins : state->processOrder;
+        routes        = state->routes;
+        masterRenders = state->masterRenders;
+        masterInserts = state->masterInserts;
     }
 
     std::unordered_map<void*, std::pair<std::vector<float>, std::vector<float>>> bufs;
@@ -118,6 +139,31 @@ static void dataCallback(ma_device* pDevice, void* pOutput, const void* /*pInput
         bufs[p] = {std::vector<float>(frameCount, 0.f), std::vector<float>(frameCount, 0.f)};
 
     _processPlugins(ordered, routes, bufs, frameCount, zeroL, zeroR, out);
+
+    // Mix master-render contributors (e.g. GF Keyboard) into the output,
+    // applying any registered GFPA insert effects along the way.
+    // Uses the pre-allocated state buffers to avoid heap allocation here.
+    for (DvhRenderFn fn : masterRenders) {
+        fn(state->extBufL.data(), state->extBufR.data(), (int32_t)frameCount);
+
+        auto it = masterInserts.find(fn);
+        if (it != masterInserts.end()) {
+            // Route source audio through the DSP insert before mixing to output.
+            it->second.first(state->extBufL.data(), state->extBufR.data(),
+                             state->insertBufL.data(), state->insertBufR.data(),
+                             (int32_t)frameCount, it->second.second);
+            for (ma_uint32 i = 0; i < frameCount; ++i) {
+                out[i * 2 + 0] += state->insertBufL[i];
+                out[i * 2 + 1] += state->insertBufR[i];
+            }
+        } else {
+            // No insert — accumulate source directly into the interleaved output.
+            for (ma_uint32 i = 0; i < frameCount; ++i) {
+                out[i * 2 + 0] += state->extBufL[i];
+                out[i * 2 + 1] += state->extBufR[i];
+            }
+        }
+    }
 
     // Soft-clip to [-1, 1].
     for (ma_uint32 i = 0; i < frameCount * 2; ++i) {
@@ -192,6 +238,13 @@ DVH_API int32_t dvh_mac_start_audio(DVH_Host host) {
     fprintf(stderr, "[dart_vst_host] dvh_mac_start_audio(host=%p) called\n", host);
     fflush(stderr);
 
+    // Pre-allocate insert-chain buffers so the CoreAudio callback never
+    // allocates heap memory on the real-time audio thread.
+    s->extBufL.assign(s->blockSize, 0.f);
+    s->extBufR.assign(s->blockSize, 0.f);
+    s->insertBufL.assign(s->blockSize, 0.f);
+    s->insertBufR.assign(s->blockSize, 0.f);
+
     ma_device_config config = ma_device_config_init(ma_device_type_playback);
     config.playback.format   = ma_format_f32;
     config.playback.channels = 2;
@@ -236,6 +289,13 @@ DVH_API void dvh_mac_stop_audio(DVH_Host host) {
     fflush(stderr);
 }
 
+// ─── External-render routing (Theremin/Stylophone → VST3 input) ─────────────
+// Not yet implemented for CoreAudio — macOS instruments output audio through
+// their own paths.  Stubs satisfy the FFI symbol lookup from syncAudioRouting.
+
+DVH_API void dvh_set_external_render(DVH_Host /*host*/, DVH_Plugin /*plugin*/, DvhRenderFn /*fn*/) {}
+DVH_API void dvh_clear_external_render(DVH_Host /*host*/, DVH_Plugin /*plugin*/) {}
+
 // Keep ALSA stubs for compatibility — ALSA is not used on macOS.
 DVH_API int32_t dvh_start_alsa_thread(DVH_Host /*host*/, const char* /*device*/) {
     fprintf(stderr, "[dart_vst_host] dvh_start_alsa_thread called on macOS (IGNORING: use dvh_mac_start_audio)\n");
@@ -243,6 +303,66 @@ DVH_API int32_t dvh_start_alsa_thread(DVH_Host /*host*/, const char* /*device*/)
     return 0;
 }
 DVH_API void dvh_stop_alsa_thread(DVH_Host /*host*/) {}
+
+// ─── Master-render contributors (e.g. GF Keyboard) ──────────────────────────
+
+/// Register [fn] as a master-mix contributor.  On each CoreAudio block its
+/// stereo output is added to the master bus (possibly via an insert effect).
+DVH_API void dvh_add_master_render(DVH_Host host, DvhRenderFn fn) {
+    if (!host || !fn) return;
+    auto* s = getOrCreate(host);
+    std::lock_guard<std::mutex> lk(s->pluginsMtx);
+    // Deduplicate.
+    for (auto existing : s->masterRenders)
+        if (existing == fn) return;
+    s->masterRenders.push_back(fn);
+    fprintf(stderr, "[dart_vst_host] Master render added (total=%zu)\n", s->masterRenders.size());
+}
+
+/// Remove [fn] from the master-render list.
+DVH_API void dvh_remove_master_render(DVH_Host host, DvhRenderFn fn) {
+    if (!host || !fn) return;
+    auto* s = get(host);
+    if (!s) return;
+    std::lock_guard<std::mutex> lk(s->pluginsMtx);
+    s->masterRenders.erase(
+        std::remove(s->masterRenders.begin(), s->masterRenders.end(), fn),
+        s->masterRenders.end());
+    fprintf(stderr, "[dart_vst_host] Master render removed (total=%zu)\n", s->masterRenders.size());
+}
+
+// ─── GFPA insert chain ───────────────────────────────────────────────────────
+
+/// Register a GFPA DSP insert on [source]'s master-render path.
+/// Audio from [source] passes through [insertFn]/[userdata] before the master
+/// bus.  Replaces any existing insert for the same [source].
+DVH_API void dvh_add_master_insert(DVH_Host host, DvhRenderFn source,
+                                   GfpaInsertFn insertFn, void* userdata) {
+    if (!host || !source || !insertFn) return;
+    auto* s = getOrCreate(host);
+    std::lock_guard<std::mutex> lk(s->pluginsMtx);
+    s->masterInserts[source] = {insertFn, userdata};
+    fprintf(stderr, "[dart_vst_host] Master insert added (total=%zu)\n", s->masterInserts.size());
+}
+
+/// Remove the insert for [source].
+DVH_API void dvh_remove_master_insert(DVH_Host host, DvhRenderFn source) {
+    if (!host || !source) return;
+    auto* s = get(host);
+    if (!s) return;
+    std::lock_guard<std::mutex> lk(s->pluginsMtx);
+    s->masterInserts.erase(source);
+    fprintf(stderr, "[dart_vst_host] Master insert removed (total=%zu)\n", s->masterInserts.size());
+}
+
+/// Clear all inserts (called at the start of every syncAudioRouting rebuild).
+DVH_API void dvh_clear_master_inserts(DVH_Host host) {
+    if (!host) return;
+    auto* s = get(host);
+    if (!s) return;
+    std::lock_guard<std::mutex> lk(s->pluginsMtx);
+    s->masterInserts.clear();
+}
 
 } // extern "C"
 

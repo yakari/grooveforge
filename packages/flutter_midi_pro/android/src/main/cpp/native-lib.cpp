@@ -2,6 +2,7 @@
 #include <fluidsynth.h>
 #include <unistd.h>
 #include <map>
+#include "gfpa_audio_android.h"
 
 std::map<int, fluid_synth_t*> synths = {};
 std::map<int, fluid_audio_driver_t*> drivers = {};
@@ -19,14 +20,12 @@ Java_com_melihhakanpektas_flutter_1midi_1pro_FlutterMidiProPlugin_loadSoundfont(
     // Apply the current user-set gain (default 5.0) so that newly-loaded
     // synths match any gain adjustment already applied via setGain().
     fluid_settings_setnum(settings[nextSfId], "synth.gain", g_gain);
-    // sayısal değerleri uygun setter ile ayarla
-    fluid_settings_setint(settings[nextSfId], "audio.period-size", 64);
-    fluid_settings_setint(settings[nextSfId], "audio.periods", 2);
+    // Real-time priority for the Oboe audio thread (99 = max SCHED_FIFO).
     fluid_settings_setint(settings[nextSfId], "audio.realtime-prio", 99);
     fluid_settings_setnum(settings[nextSfId], "synth.sample-rate", 48000.0);
     fluid_settings_setint(settings[nextSfId], "synth.polyphony", 32);
-
-    // OBOE Low Latency Driver Settings
+    // Select the Oboe backend explicitly — required for new_fluid_audio_driver2
+    // to route audio through Oboe instead of an unavailable default driver.
     fluid_settings_setstr(settings[nextSfId], "audio.driver", "oboe");
     fluid_settings_setstr(settings[nextSfId], "audio.oboe.performance-mode", "LowLatency");
     fluid_settings_setstr(settings[nextSfId], "audio.oboe.sharing-mode", "Exclusive");
@@ -38,7 +37,12 @@ Java_com_melihhakanpektas_flutter_1midi_1pro_FlutterMidiProPlugin_loadSoundfont(
         fluid_synth_program_select(synths[nextSfId], i, sfId, bank, program);
     }
     env->ReleaseStringUTFChars(path, nativePath);
-    // Audio driver'ı en son oluştur
+    // Use the standard audio driver (not new_fluid_audio_driver2) because the
+    // bundled FluidSynth Oboe driver does not implement new_fluid_oboe_audio_driver2
+    // and new_fluid_audio_driver2 would return NULL, silencing all audio.
+    // GFPA insert effects on the keyboard audio path are not supported on Android
+    // with this FluidSynth build; they would require a custom FluidSynth with the
+    // Oboe func2 variant.
     drivers[nextSfId] = new_fluid_audio_driver(settings[nextSfId], synths[nextSfId]);
     soundfonts[nextSfId] = sfId;
     nextSfId++;

@@ -68,11 +68,25 @@ set_target_properties(libvorbisenc PROPERTIES IMPORTED_LOCATION ${fluidsynth_DIR
 add_library(libvorbisfile SHARED IMPORTED)
 set_target_properties(libvorbisfile PROPERTIES IMPORTED_LOCATION ${fluidsynth_DIR}/lib/${ANDROID_ABI}/libvorbisfile.so)
 
-# Library that will be called directly from JAVA
-add_library(native-lib SHARED native-lib.cpp)
+# Library that will be called directly from JAVA.
+# gfpa_audio_android.cpp provides the FluidSynth audio callback and insert chain.
+# gfpa_dsp.cpp contains the C++ DSP implementations (reverb, delay, wah, EQ,
+# compressor, chorus) shared with the Linux/macOS ALSA path.
+add_library(native-lib SHARED
+        native-lib.cpp
+        gfpa_audio_android.cpp
+        ../../../../../flutter_vst3/dart_vst_host/native/src/gfpa_dsp.cpp
+)
 
-# Specifies the directory where the C or C++ source coude will look the #include <yourlibrary.h> header files
-target_include_directories(native-lib PRIVATE ${fluidsynth_DIR}/include)
+# Include directories:
+#  - fluidsynth_DIR/include   : FluidSynth public headers (fluidsynth.h, etc.)
+#  - CMAKE_CURRENT_SOURCE_DIR : gfpa_audio_android.h (local header)
+#  - flutter_vst3 native/include : gfpa_dsp.h and dart_vst_host.h
+target_include_directories(native-lib PRIVATE
+        ${fluidsynth_DIR}/include
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../flutter_vst3/dart_vst_host/native/include
+)
 
 # Link everything alltogether. Notice that native-lib should be the first element in the list.
 target_link_libraries(

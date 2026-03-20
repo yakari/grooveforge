@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [X.x.x]
 
 ### Added
+- **GFPA DSP effects on Android**: all six built-in `.gfpd` effects (reverb, delay, wah, EQ, compressor, chorus) now process audio on Android via the Oboe real-time thread. A custom `gfpa_audio_callback` (registered with `new_fluid_audio_driver2`) intercepts FluidSynth's Oboe output and applies the GFPA insert chain in-place — allocation-free, lock-free on the hot path.
+- **`gfpa_audio_android.cpp` / `.h`**: new C++ translation unit in `flutter_midi_pro` implementing the FluidSynth audio callback and insert-chain management (`gfpa_android_add_insert`, `gfpa_android_remove_insert`, `gfpa_android_clear_inserts`, `gfpa_android_set_bpm`).
+- **`GfpaAndroidBindings` Dart class**: FFI singleton (`lib/services/gfpa_android_bindings.dart`) binding the Android-side DSP and insert-chain functions from `libnative-lib.so`.
+- **Android support in `VstHostService`**: `isSupported` now includes `Platform.isAndroid`; `initialize`, `startAudio`, `registerGfpaDsp`, `unregisterGfpaDsp`, `setGfpaDspParam`, `setTransport`, and `syncAudioRouting` all have Android-specific branches that route through `GfpaAndroidBindings` instead of `VstHost`.
 - **Native C++ DSP for GFPA descriptor effects**: all six built-in `.gfpd` effects (reverb, delay, wah, EQ, compressor, chorus) now run real native DSP on the ALSA audio thread instead of the Dart implementation. Each plugin type has a full C++ implementation (`gfpa_dsp.cpp`) with pre-allocated buffers, atomic parameter updates, and BPM-sync support.
 - **Master-insert chain** (`dvh_add_master_insert` / `dvh_remove_master_insert` / `dvh_clear_master_inserts`): new ALSA audio routing mechanism that lets a GFPA effect intercept a master-render source's output and process it through native DSP before mixing to the master bus.
 - **Dart FFI bindings** for `gfpa_dsp_create`, `gfpa_dsp_set_param`, `gfpa_dsp_destroy`, `gfpa_dsp_insert_fn`, `gfpa_dsp_userdata`, `gfpa_set_bpm`, and the three insert-chain functions.

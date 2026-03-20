@@ -13,6 +13,7 @@ import '../models/vst3_plugin_instance.dart';
 export '../models/vst3_plugin_instance.dart' show Vst3PluginType;
 import 'audio_graph.dart';
 import 'audio_input_ffi_native.dart';
+import 'gfpa_android_bindings.dart';
 
 /// Desktop VST3 host service.
 ///
@@ -26,7 +27,11 @@ class VstHostService {
   VstHostService._();
 
   bool get isSupported =>
-      !kIsWeb && (Platform.isLinux || Platform.isMacOS || Platform.isWindows);
+      !kIsWeb &&
+      (Platform.isLinux ||
+          Platform.isMacOS ||
+          Platform.isWindows ||
+          Platform.isAndroid);
 
   VstHost? _host;
 
@@ -42,6 +47,11 @@ class VstHostService {
   Future<void> initialize() async {
     if (!isSupported) return;
     if (_host != null) return;
+
+    // Android uses libnative-lib.so (flutter_midi_pro) for audio — no
+    // VstHost or libdart_vst_host.so needed on this platform.
+    if (Platform.isAndroid) return;
+
     _host = VstHost.create(sampleRate: 48000.0, maxBlock: 256);
     debugPrint('VstHostService: host created (version: ${_host!.getVersion()})');
   }
@@ -144,6 +154,12 @@ class VstHostService {
     );
     // Propagate BPM to GFPA BPM-synced effects (delay, wah, chorus).
     _host?.setGfpaBpm(bpm);
+
+    // On Android the VstHost is not used; propagate BPM via the FFI binding
+    // which writes to the atomic float in gfpa_dsp.cpp / gfpa_audio_android.cpp.
+    if (Platform.isAndroid) {
+      GfpaAndroidBindings.instance.gfpaAndroidSetBpm(bpm);
+    }
   }
 
   // ─── MIDI routing ──────────────────────────────────────────────────────────
@@ -260,7 +276,16 @@ class VstHostService {
   bool _audioRunning = false;
 
   void startAudio() {
-    if (!isSupported || _audioRunning || _host == null) return;
+    if (!isSupported) return;
+
+    // FluidSynth's Oboe driver starts automatically when loadSoundfont is
+    // called on Android.  Mark as started so setTransport calls go through.
+    if (Platform.isAndroid) {
+      _audioRunning = true;
+      return;
+    }
+
+    if (_audioRunning || _host == null) return;
     // Register all currently loaded plugins with the audio loop.
     _host!.clearAudioLoop();
     for (final p in _plugins.values) {
@@ -315,7 +340,15 @@ class VstHostService {
   /// routing. Built-in GFPA slots (FluidSynth, vocoder, Jam Mode) use their
   /// own audio paths and are not routed through the ALSA loop.
   void syncAudioRouting(AudioGraph graph, List<PluginInstance> allPlugins) {
-    if (!isSupported || _host == null) return;
+    if (!isSupported) return;
+
+    // On Android, the GFPA insert chain lives in gfpa_audio_android.cpp.
+    if (Platform.isAndroid) {
+      _syncAudioRoutingAndroid(graph, allPlugins);
+      return;
+    }
+
+    if (_host == null) return;
 
     // Build the topological processing order — VST3 slots only.
     final allSlotIds = allPlugins.map((p) => p.id).toList();
@@ -454,7 +487,20 @@ class VstHostService {
   /// Calling again for the same [slotId] first destroys the old instance
   /// (safe because syncAudioRouting clears inserts before re-registering).
   void registerGfpaDsp(String slotId, String pluginId) {
-    if (!isSupported || _host == null) return;
+    if (!isSupported) return;
+
+    // On Android, create the DSP via the FFI binding to libnative-lib.so.
+    if (Platform.isAndroid) {
+      _destroyGfpaDspForSlot(slotId);
+      final handle = GfpaAndroidBindings.instance.createDsp(pluginId);
+      if (handle != nullptr) {
+        _gfpaHandles[slotId] = handle;
+        debugPrint('VstHostService: GFPA DSP created (Android) for $slotId ($pluginId)');
+      }
+      return;
+    }
+
+    if (_host == null) return;
     _destroyGfpaDspForSlot(slotId);
     final handle = _host!.createGfpaDsp(pluginId, 48000, 256);
     if (handle == nullptr) {
@@ -467,7 +513,19 @@ class VstHostService {
 
   /// Destroy the native DSP instance for [slotId] and remove it from the map.
   void unregisterGfpaDsp(String slotId) {
-    if (!isSupported || _host == null) return;
+    if (!isSupported) return;
+
+    // On Android, destroy via the FFI binding and skip the VstHost path.
+    if (Platform.isAndroid) {
+      final handle = _gfpaHandles.remove(slotId);
+      if (handle != null && handle != nullptr) {
+        GfpaAndroidBindings.instance.gfpaDspDestroy(handle);
+        debugPrint('VstHostService: GFPA DSP destroyed (Android) for $slotId');
+      }
+      return;
+    }
+
+    if (_host == null) return;
     _destroyGfpaDspForSlot(slotId);
     debugPrint('VstHostService: GFPA DSP destroyed for $slotId');
   }
@@ -479,13 +537,61 @@ class VstHostService {
   void setGfpaDspParam(String slotId, String paramId, double physicalValue) {
     final handle = _gfpaHandles[slotId];
     if (handle == null || handle == nullptr) return;
+
+    // On Android, forward directly via the FFI binding to libnative-lib.so.
+    if (Platform.isAndroid) {
+      GfpaAndroidBindings.instance.gfpaDspSetParam(handle, paramId, physicalValue);
+      return;
+    }
+
     _host?.setGfpaDspParam(handle, paramId, physicalValue);
   }
 
+  /// Synchronise the Android GFPA insert chain with the current [graph].
+  ///
+  /// Rebuilds the chain from scratch each call:
+  ///   1. Clear all existing inserts so stale connections are removed.
+  ///   2. Walk the graph connections and add an insert for each
+  ///      GrooveForgeKeyboard → GFPA effect cable.
+  ///
+  /// VST3 plugins are not available on Android; only GFPA descriptor effects
+  /// (those with handles in [_gfpaHandles]) participate in routing.
+  void _syncAudioRoutingAndroid(
+      AudioGraph graph, List<PluginInstance> allPlugins) {
+    // Clear all inserts — rebuilt from scratch on each call.
+    GfpaAndroidBindings.instance.gfpaAndroidClearInserts();
+
+    for (final conn in graph.connections) {
+      // Skip MIDI and data cables — only audio connections are routed.
+      if (conn.fromPort.isDataPort || conn.toPort.isDataPort) continue;
+      if (conn.fromPort == AudioPortId.midiOut ||
+          conn.toPort == AudioPortId.midiIn) {
+        continue;
+      }
+
+      // Only handle keyboard → GFPA effect connections on Android.
+      final fromPlugin = allPlugins.firstWhere(
+        (p) => p.id == conn.fromSlotId,
+        orElse: () => allPlugins.first,
+      );
+      if (fromPlugin is! GrooveForgeKeyboardPlugin) continue;
+
+      final toHandle = _gfpaHandles[conn.toSlotId];
+      if (toHandle == null || toHandle == nullptr) continue;
+
+      GfpaAndroidBindings.instance.gfpaAndroidAddInsert(toHandle);
+    }
+  }
+
   /// Internal: destroy and remove the DSP handle for [slotId] if present.
+  ///
+  /// On Android [_host] is null; destruction goes through [GfpaAndroidBindings].
   void _destroyGfpaDspForSlot(String slotId) {
     final old = _gfpaHandles.remove(slotId);
-    if (old != null && old != nullptr) {
+    if (old == null || old == nullptr) return;
+    if (Platform.isAndroid) {
+      GfpaAndroidBindings.instance.gfpaDspDestroy(old);
+    } else {
       _host?.destroyGfpaDsp(old);
     }
   }

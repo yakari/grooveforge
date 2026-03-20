@@ -15,7 +15,6 @@
 //   - No heap allocation, no logging, no locks inside any process() method.
 
 #include "../include/gfpa_dsp.h"
-#include "dart_vst_host_internal.h"
 
 #include <atomic>
 #include <cmath>

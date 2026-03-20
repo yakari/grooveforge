@@ -79,6 +79,8 @@ add_library(${PROJECT_NAME} SHARED
   ${NATIVE_DIR}/src/dart_vst_host.cpp
   # Platform stubs (ALSA + Linux editor → no-ops on macOS)
   ${NATIVE_DIR}/src/dart_vst_host_platform_stubs.cpp
+  # GFPA built-in DSP effects (reverb, delay, wah, EQ, compressor, chorus)
+  ${NATIVE_DIR}/src/gfpa_dsp.cpp
   # macOS specific implementation
   ${NATIVE_DIR}/src/dart_vst_host_audio_mac.cpp
   ${NATIVE_DIR}/src/dart_vst_host_editor_mac.mm
