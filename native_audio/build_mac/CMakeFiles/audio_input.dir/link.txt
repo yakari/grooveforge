@@ -1,0 +1,1 @@
+/usr/bin/cc -O3 -DNDEBUG -arch arm64 -dynamiclib -Wl,-headerpad_max_install_names -o libaudio_input.dylib -install_name @rpath/libaudio_input.dylib CMakeFiles/audio_input.dir/audio_input.c.o CMakeFiles/audio_input.dir/keyboard_synth.c.o  -framework CoreAudio -framework CoreFoundation -framework AudioUnit /opt/homebrew/lib/libfluidsynth.dylib -lm

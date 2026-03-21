@@ -1,23 +1,23 @@
 /**
- * keyboard_synth.c — FluidSynth-based GF Keyboard audio engine (Linux only).
+ * keyboard_synth.c — FluidSynth-based GF Keyboard audio engine (Linux + macOS).
  *
- * Replaces the external FluidSynth subprocess with an in-process library call
- * so that the ALSA audio thread in dart_vst_host can drive rendering via
- * keyboard_render_block() — the same "external render" mechanism used by the
- * Theremin and Stylophone.
+ * Audio architecture (Linux ALSA / macOS CoreAudio):
+ *   - Up to MAX_KB_SLOTS isolated FluidSynth instances, one per GF Keyboard
+ *     rack slot.  MIDI channel n maps to slot n % MAX_KB_SLOTS.
+ *   - dart_vst_host registers keyboard_render_block_N() as a master-render
+ *     contributor for slot N.  Because each slot has a unique C function
+ *     address, dart_vst_host can attach a GFPA insert effect to slot N without
+ *     that effect bleeding into slot M (N ≠ M).
+ *   - Backward-compat wrappers (keyboard_init / keyboard_render_block) operate
+ *     on slot 0 so existing single-keyboard code paths are unchanged.
  *
- * Audio architecture:
- *   - FluidSynth is created with audio.driver = "none" (no built-in output).
- *   - dart_vst_host calls keyboard_render_block() each ALSA block, which
- *     calls fluid_synth_write_float() to advance the synth and fill L/R buffers.
- *   - When a GF Keyboard slot is NOT routed into a VST3 effect, dart_vst_host
- *     adds keyboard_render_block to its master-mix render list, mixing the
- *     keyboard audio directly into the ALSA output.
- *   - When the slot IS routed into a VST3 effect, dart_vst_host uses
- *     keyboard_render_block as the effect's external-render source instead.
+ * macOS: glib's g_slice allocator corrupts Swift/ObjC heap metadata.
+ * setenv("G_SLICE","always-malloc",1) is called in AppDelegate.swift
+ * (applicationWillFinishLaunching) and again inside keyboard_init_slot() as a
+ * belt-and-suspenders fallback.
  *
- * Non-Linux platforms continue using flutter_midi_pro; all functions below
- * are no-op stubs on those platforms.
+ * Android and other platforms use flutter_midi_pro; all functions below are
+ * no-op stubs on those platforms.
  */
 
 #if defined(_WIN32)
@@ -26,177 +26,352 @@
   #define EXPORT __attribute__((visibility("default"))) __attribute__((used))
 #endif
 
-// FluidSynth is only available on Linux desktop. Android also defines
-// __linux__, so we explicitly exclude it here.
-#if defined(__linux__) && !defined(__ANDROID__)
+// FluidSynth is available on Linux and macOS desktop.
+// Android also defines __linux__, so we explicitly exclude it.
+#if (defined(__linux__) || defined(__APPLE__)) && !defined(__ANDROID__)
 
 #include <fluidsynth.h>
+#include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 
-/** Global FluidSynth settings and synth instances — shared across all GF
- *  Keyboard rack slots (which simply use different MIDI channels). */
-static fluid_settings_t* g_settings = NULL;
-static fluid_synth_t*    g_synth    = NULL;
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+/** Maximum number of concurrent GF Keyboard slots (FluidSynth instances). */
+#define MAX_KB_SLOTS 2
+
+/** Maximum number of soundfonts that can be loaded globally. */
+#define MAX_LOADED_SF 16
+
+// ── Per-slot state ────────────────────────────────────────────────────────────
+
+typedef struct {
+    fluid_settings_t* settings;
+    fluid_synth_t*    synth;
+    int               in_use; ///< 1 = active FluidSynth instance, 0 = free.
+} KbSlot;
+
+static KbSlot g_kb_slots[MAX_KB_SLOTS];
 
 /**
- * Initialise the FluidSynth engine at [sampleRate] Hz.
+ * Last gain value applied via keyboard_set_gain().
+ * Stored so that newly created slots (slot 1 is initialised lazily when the
+ * second keyboard plugin first appears in syncAudioRouting) receive the same
+ * gain as slot 0, which is set up earlier during audio engine initialisation.
+ * Default matches FluidSynth's factory default.
+ */
+static float g_current_gain = 0.2f;
+
+/**
+ * Ordered list of soundfont paths loaded so far.
+ * When a new slot is created, all paths are replayed into it so that
+ * sfIds stay consistent across slots (equal load order → equal sfIds).
+ */
+static char g_loaded_sf_paths[MAX_LOADED_SF][512];
+static int  g_loaded_sf_count = 0;
+
+// ── Internal helpers ──────────────────────────────────────────────────────────
+
+/** Returns the slot index that owns [channel] (0-based MIDI channel 0–15). */
+static int _slot_for_channel(int channel) {
+    return channel % MAX_KB_SLOTS;
+}
+
+/**
+ * Aggressively disable reverb and chorus on [slot->synth].
  *
- * Must be called once before any other keyboard_* function. The synth is
- * created with no audio driver so that audio output is fully manual via
- * keyboard_render_block(). Safe to call multiple times — subsequent calls
- * are no-ops if already initialised.
+ * Three independent layers so macOS FluidSynth 2.5.3 cannot sneak reverb back:
+ *   1. fluid_synth_reverb_on / fluid_synth_chorus_on with explicit fx_group=0
+ *      (the group all 16 channels belong to by default).  Using -1 ("all groups")
+ *      was silently ignored on Homebrew FluidSynth 2.5.3.
+ *   2. fluid_synth_set_reverb_group_level / _chorus_group_level → 0.0 so even
+ *      if the unit is somehow still active its output contribution is zero.
+ *   3. Called again after every fluid_synth_sfload because loading a soundfont
+ *      with reset_presets=1 can restore the internal reverb state.
+ *
+ * Must only be called when slot->synth is non-NULL.
+ */
+static void _disable_reverb_chorus(KbSlot* slot) {
+    // Layer 1 — toggle the FX unit off for the default FX group (0).
+    fluid_synth_reverb_on(slot->synth, 0, 0);
+    fluid_synth_chorus_on(slot->synth, 0, 0);
+    // Layer 2 — zero output level for ALL FX groups (-1 = all groups is valid
+    // for the *_group_level variants even if it is not for *_on).
+    fluid_synth_set_reverb_group_level(slot->synth, -1, 0.0);
+    fluid_synth_set_chorus_group_level(slot->synth, -1, 0.0);
+}
+
+/**
+ * Create a FluidSynth instance for [slot] at [sampleRate] Hz and replay all
+ * previously loaded soundfonts into it so its sfIds match slot 0.
+ *
+ * The first soundfont is loaded with reset=1 to bootstrap channel assignments;
+ * subsequent ones use reset=0 to preserve existing assignments.
  *
  * Returns 1 on success, 0 on failure.
  */
-EXPORT int keyboard_init(float sampleRate) {
-    if (g_synth) return 1; // already initialised
+static int _create_synth(KbSlot* slot, float sampleRate) {
+    slot->settings = new_fluid_settings();
+    fluid_settings_setnum(slot->settings, "synth.sample-rate", (double)sampleRate);
+    fluid_settings_setint(slot->settings, "synth.midi-channels", 16);
+    fluid_settings_setstr(slot->settings, "audio.driver", "none");
+    // Disable built-in reverb/chorus — these add a reverb tail that sounds like
+    // a permanently-held sustain pedal.  GFPA effects are applied downstream.
+    fluid_settings_setint(slot->settings, "synth.reverb.active", 0);
+    fluid_settings_setint(slot->settings, "synth.chorus.active", 0);
 
-    g_settings = new_fluid_settings();
-    fluid_settings_setnum(g_settings, "synth.sample-rate", (double)sampleRate);
-    fluid_settings_setint(g_settings, "synth.midi-channels", 16);
-    // "none" disables the built-in audio output; we drive rendering manually.
-    fluid_settings_setstr(g_settings, "audio.driver", "none");
-
-    g_synth = new_fluid_synth(g_settings);
-    if (!g_synth) {
-        delete_fluid_settings(g_settings);
-        g_settings = NULL;
-        fprintf(stderr, "[keyboard_synth] ERROR: new_fluid_synth() failed\n");
+    slot->synth = new_fluid_synth(slot->settings);
+    if (!slot->synth) {
+        delete_fluid_settings(slot->settings);
+        slot->settings = NULL;
         return 0;
     }
 
-    fprintf(stderr, "[keyboard_synth] FluidSynth initialised (sr=%.0f, no audio driver)\n",
-            (double)sampleRate);
+    // Apply the current master gain so this slot matches existing slots.
+    // Slot 1 is created lazily (after the first keyboard_set_gain call), so
+    // without this it would start at FluidSynth's factory default (0.2) while
+    // slot 0 already has the application gain (3.0 on Linux/macOS).
+    fluid_synth_set_gain(slot->synth, g_current_gain);
+
+    // Replay all loaded soundfonts so sfIds match slot 0.
+    for (int i = 0; i < g_loaded_sf_count; ++i) {
+        // First SF gets reset=1 to bootstrap channel assignments on this fresh
+        // synth; subsequent SFs use reset=0 to leave those assignments intact.
+        int resetFlag = (i == 0) ? 1 : 0;
+        fluid_synth_sfload(slot->synth, g_loaded_sf_paths[i], resetFlag);
+    }
+
+    // Disable reverb/chorus AFTER the sfload replay — loading a soundfont with
+    // reset_presets=1 can restore FluidSynth's internal reverb state, so the
+    // disable must come last to be authoritative.
+    _disable_reverb_chorus(slot);
+
+    slot->in_use = 1;
+    return 1;
+}
+
+// ── Slot lifecycle API ────────────────────────────────────────────────────────
+
+/**
+ * Initialise FluidSynth slot [slotIdx] at [sampleRate] Hz.
+ *
+ * Safe to call multiple times — subsequent calls for an already-initialised
+ * slot are no-ops.  Returns 1 on success (new or existing), 0 on failure.
+ */
+EXPORT int keyboard_init_slot(int slotIdx, float sampleRate) {
+    if (slotIdx < 0 || slotIdx >= MAX_KB_SLOTS) return 0;
+    KbSlot* slot = &g_kb_slots[slotIdx];
+    if (slot->in_use) return 1; // already initialised
+
+#ifdef __APPLE__
+    // Belt-and-suspenders G_SLICE fix — AppDelegate.swift also sets this
+    // before dyld loads libglib, which is the authoritative fix.
+    setenv("G_SLICE", "always-malloc", 0);
+#endif
+
+    if (!_create_synth(slot, sampleRate)) {
+        fprintf(stderr, "[keyboard_synth] ERROR: new_fluid_synth() failed for slot %d\n", slotIdx);
+        return 0;
+    }
+    fprintf(stderr, "[keyboard_synth] FluidSynth slot %d initialised (sr=%.0f)\n",
+            slotIdx, (double)sampleRate);
     return 1;
 }
 
 /**
- * Destroy the FluidSynth engine and free all resources.
- *
- * Any loaded soundfonts are automatically freed. After this call, all other
- * keyboard_* functions are no-ops until keyboard_init() is called again.
+ * Backward-compatible initialiser — creates slot 0 at [sampleRate] Hz.
+ * Returns 1 on success, 0 on failure.
  */
-EXPORT void keyboard_destroy(void) {
-    if (g_synth)    { delete_fluid_synth(g_synth);       g_synth    = NULL; }
-    if (g_settings) { delete_fluid_settings(g_settings); g_settings = NULL; }
+EXPORT int keyboard_init(float sampleRate) {
+    return keyboard_init_slot(0, sampleRate);
 }
 
+/** Destroy the FluidSynth instance for [slotIdx] and free its resources. */
+EXPORT void keyboard_destroy_slot(int slotIdx) {
+    if (slotIdx < 0 || slotIdx >= MAX_KB_SLOTS) return;
+    KbSlot* slot = &g_kb_slots[slotIdx];
+    if (!slot->in_use) return;
+    if (slot->synth)    { delete_fluid_synth(slot->synth);       slot->synth    = NULL; }
+    if (slot->settings) { delete_fluid_settings(slot->settings); slot->settings = NULL; }
+    slot->in_use = 0;
+}
+
+/** Backward-compatible destructor — destroys slot 0. */
+EXPORT void keyboard_destroy(void) {
+    keyboard_destroy_slot(0);
+}
+
+// ── SoundFont management ──────────────────────────────────────────────────────
+
 /**
- * Load a SoundFont (.sf2) file and return its FluidSynth soundfont ID.
+ * Load a SoundFont into ALL active slots and record its path for future slots.
  *
- * [path] must be an absolute path to a valid .sf2 file.
- * Returns a positive sfId on success, -1 on failure.
- * Passing reset=1 resets all channel presets to the new soundfont.
+ * Because every slot loads soundfonts in the same order, FluidSynth assigns
+ * identical sfIds across all instances.  Dart needs only one path→sfId map.
+ *
+ * The first soundfont ever loaded uses reset=1 to bootstrap channel assignments;
+ * subsequent ones use reset=0 so existing assignments are not wiped.
+ *
+ * Returns the sfId assigned by slot 0 on success, -1 on failure.
  */
 EXPORT int keyboard_load_sf(const char* path) {
-    if (!g_synth) return -1;
-    int sfId = (int)fluid_synth_sfload(g_synth, path, /*reset_presets=*/1);
-    fprintf(stderr, "[keyboard_synth] load_sf '%s' → sfId=%d\n", path, sfId);
+    if (!g_kb_slots[0].synth) return -1;
+
+    // Record for future slot creation.
+    if (g_loaded_sf_count < MAX_LOADED_SF) {
+        strncpy(g_loaded_sf_paths[g_loaded_sf_count], path,
+                sizeof(g_loaded_sf_paths[0]) - 1);
+        g_loaded_sf_paths[g_loaded_sf_count][sizeof(g_loaded_sf_paths[0]) - 1] = '\0';
+        ++g_loaded_sf_count;
+    }
+
+    // reset=1 only for the very first SF — bootstraps channel assignments on a
+    // fresh synth.  Subsequent SFs use reset=0 to preserve existing assignments.
+    int isFirst = (g_loaded_sf_count == 1);
+    int sfId = (int)fluid_synth_sfload(g_kb_slots[0].synth, path, isFirst);
+    fprintf(stderr, "[keyboard_synth] load_sf '%s' → sfId=%d (reset=%d)\n",
+            path, sfId, isFirst);
+    // sfload with reset=1 can restore FluidSynth's reverb state — re-disable.
+    _disable_reverb_chorus(&g_kb_slots[0]);
+
+    // Mirror into all other active slots.
+    for (int i = 1; i < MAX_KB_SLOTS; ++i) {
+        if (g_kb_slots[i].in_use && g_kb_slots[i].synth) {
+            fluid_synth_sfload(g_kb_slots[i].synth, path, /*reset=*/0);
+            _disable_reverb_chorus(&g_kb_slots[i]);
+        }
+    }
     return sfId;
 }
 
-/**
- * Unload a previously loaded SoundFont by its FluidSynth ID.
- *
- * Passing reset=1 clears any channel assignments that referenced this font.
- */
+/** Unload a SoundFont by [sfId] from ALL active slots. */
 EXPORT void keyboard_unload_sf(int sfId) {
-    if (g_synth) fluid_synth_sfunload(g_synth, (unsigned int)sfId, /*reset_presets=*/1);
+    for (int i = 0; i < MAX_KB_SLOTS; ++i) {
+        if (g_kb_slots[i].in_use && g_kb_slots[i].synth) {
+            fluid_synth_sfunload(g_kb_slots[i].synth, (unsigned int)sfId, /*reset=*/1);
+        }
+    }
 }
 
-/**
- * Assign an instrument patch to a MIDI channel.
- *
- * [channel] 0–15, [sfId] from keyboard_load_sf(), [bank] and [program]
- * are standard General MIDI bank/program numbers.
- */
+// ── MIDI dispatch — routed to the correct slot via channel % MAX_KB_SLOTS ─────
+
+/** Assign an instrument patch to MIDI [channel]. Routes to the owning slot. */
 EXPORT void keyboard_program_select(int channel, int sfId, int bank, int program) {
-    if (g_synth) {
-        fluid_synth_program_select(g_synth, channel,
+    KbSlot* slot = &g_kb_slots[_slot_for_channel(channel)];
+    if (slot->synth) {
+        fluid_synth_program_select(slot->synth, channel,
                                    (unsigned int)sfId,
                                    (unsigned int)bank,
                                    (unsigned int)program);
     }
 }
 
-/** Send a MIDI note-on event: [channel] 0–15, [key] 0–127, [velocity] 1–127. */
+/** Send note-on to [channel]'s owning slot. */
 EXPORT void keyboard_note_on(int channel, int key, int velocity) {
-    if (g_synth) fluid_synth_noteon(g_synth, channel, key, velocity);
+    KbSlot* slot = &g_kb_slots[_slot_for_channel(channel)];
+    if (slot->synth) fluid_synth_noteon(slot->synth, channel, key, velocity);
 }
 
-/** Send a MIDI note-off event: [channel] 0–15, [key] 0–127. */
+/** Send note-off to [channel]'s owning slot. */
 EXPORT void keyboard_note_off(int channel, int key) {
-    if (g_synth) fluid_synth_noteoff(g_synth, channel, key);
+    KbSlot* slot = &g_kb_slots[_slot_for_channel(channel)];
+    if (slot->synth) fluid_synth_noteoff(slot->synth, channel, key);
 }
 
-/**
- * Send a MIDI pitch-bend value.
- *
- * [value] is the 14-bit MIDI pitch-bend word (0–16383, centre 8192),
- * which matches the raw value forwarded by AudioEngine.
- */
+/** Send pitch-bend to [channel]'s owning slot. */
 EXPORT void keyboard_pitch_bend(int channel, int value) {
-    if (g_synth) fluid_synth_pitch_bend(g_synth, channel, value);
+    KbSlot* slot = &g_kb_slots[_slot_for_channel(channel)];
+    if (slot->synth) fluid_synth_pitch_bend(slot->synth, channel, value);
 }
 
-/** Send a MIDI Control Change: [cc] 0–127, [value] 0–127. */
+/** Send control-change to [channel]'s owning slot. */
 EXPORT void keyboard_control_change(int channel, int cc, int value) {
-    if (g_synth) fluid_synth_cc(g_synth, channel, cc, value);
+    KbSlot* slot = &g_kb_slots[_slot_for_channel(channel)];
+    if (slot->synth) fluid_synth_cc(slot->synth, channel, cc, value);
 }
 
-/**
- * Set the master output gain of the FluidSynth engine.
- *
- * [gain] is a linear scalar (FluidSynth default is 0.2; GrooveForge default
- * is 3.0 on Linux to match VST3 output levels).
- */
+/** Set the output gain on ALL active slots and remember it for future slots. */
 EXPORT void keyboard_set_gain(float gain) {
-    if (g_synth) fluid_synth_set_gain(g_synth, gain);
+    // Persist the value so _create_synth() applies it to slots initialised later.
+    g_current_gain = gain;
+    for (int i = 0; i < MAX_KB_SLOTS; ++i) {
+        if (g_kb_slots[i].in_use && g_kb_slots[i].synth) {
+            fluid_synth_set_gain(g_kb_slots[i].synth, gain);
+        }
+    }
 }
 
-/**
- * Render one block of stereo audio into [outL] and [outR].
- *
- * Called by the dart_vst_host ALSA thread every block — either as a
- * master-mix contributor (keyboard not routed into a VST3 effect) or as an
- * external-render source for a downstream VST3 effect. [frames] matches the
- * ALSA block size (typically 256 samples at 48 kHz).
- *
- * Uses non-interleaved output: fluid_synth_write_float() strides are 1,
- * writing directly into the provided float arrays.
- */
-EXPORT void keyboard_render_block(float* outL, float* outR, int frames) {
-    if (!g_synth) {
-        // Synth not ready — output silence to avoid noise.
+// ── Per-slot render functions ─────────────────────────────────────────────────
+//
+// Each slot gets its own static C function so that dart_vst_host can attach
+// a GFPA insert effect to exactly one slot without it bleeding into others.
+// A unique C function address is required because the insert chain is keyed
+// on the render function pointer.
+
+/** Render one block from slot 0 into [outL]/[outR]. */
+EXPORT void keyboard_render_block_0(float* outL, float* outR, int frames) {
+    KbSlot* slot = &g_kb_slots[0];
+    if (!slot->synth) {
         memset(outL, 0, (size_t)frames * sizeof(float));
         memset(outR, 0, (size_t)frames * sizeof(float));
         return;
     }
-    // fluid_synth_write_float(synth, len, lbuf, loff, lstride, rbuf, roff, rstride)
-    fluid_synth_write_float(g_synth, frames, outL, 0, 1, outR, 0, 1);
+    fluid_synth_write_float(slot->synth, frames, outL, 0, 1, outR, 0, 1);
 }
 
-#else // !(defined(__linux__) && !defined(__ANDROID__)) ──────────────────────
+/** Render one block from slot 1 into [outL]/[outR]. */
+EXPORT void keyboard_render_block_1(float* outL, float* outR, int frames) {
+    KbSlot* slot = &g_kb_slots[1];
+    if (!slot->synth) {
+        memset(outL, 0, (size_t)frames * sizeof(float));
+        memset(outR, 0, (size_t)frames * sizeof(float));
+        return;
+    }
+    fluid_synth_write_float(slot->synth, frames, outL, 0, 1, outR, 0, 1);
+}
 
-// Non-Linux stubs — keyboard audio is handled by flutter_midi_pro on those
-// platforms and never flows through the dart_vst_host ALSA loop.
+/**
+ * Return the render function pointer for [slotIdx].
+ *
+ * Dart stores this as the key for dart_vst_host insert-chain registration,
+ * ensuring effects are scoped to one keyboard slot only.
+ */
+EXPORT void* keyboard_render_fn_for_slot(int slotIdx) {
+    switch (slotIdx) {
+        case 0: return (void*)keyboard_render_block_0;
+        case 1: return (void*)keyboard_render_block_1;
+        default: return NULL;
+    }
+}
+
+/**
+ * Backward-compatible render — renders slot 0 only.
+ * Kept so existing code that holds a pointer to keyboard_render_block continues
+ * to work; new code should use keyboard_render_fn_for_slot(slotIdx).
+ */
+EXPORT void keyboard_render_block(float* outL, float* outR, int frames) {
+    keyboard_render_block_0(outL, outR, frames);
+}
+
+#else // ── Stub implementations for Android / other platforms ─────────────────
 
 #include <string.h>
 
-EXPORT int  keyboard_init(float sr)                                    { return 0; }
-EXPORT void keyboard_destroy(void)                                     {}
-EXPORT int  keyboard_load_sf(const char* p)                           { (void)p; return -1; }
-EXPORT void keyboard_unload_sf(int id)                                 { (void)id; }
-EXPORT void keyboard_program_select(int c, int s, int b, int p)        { (void)c;(void)s;(void)b;(void)p; }
-EXPORT void keyboard_note_on(int c, int k, int v)                     { (void)c;(void)k;(void)v; }
-EXPORT void keyboard_note_off(int c, int k)                           { (void)c;(void)k; }
-EXPORT void keyboard_pitch_bend(int c, int v)                         { (void)c;(void)v; }
-EXPORT void keyboard_control_change(int c, int cc, int v)             { (void)c;(void)cc;(void)v; }
-EXPORT void keyboard_set_gain(float g)                                { (void)g; }
-EXPORT void keyboard_render_block(float* l, float* r, int f) {
-    memset(l, 0, (size_t)f * sizeof(float));
-    memset(r, 0, (size_t)f * sizeof(float));
-}
+EXPORT int   keyboard_init_slot(int i, float sr)                       { (void)i;(void)sr; return 0; }
+EXPORT int   keyboard_init(float sr)                                   { (void)sr; return 0; }
+EXPORT void  keyboard_destroy_slot(int i)                              { (void)i; }
+EXPORT void  keyboard_destroy(void)                                    {}
+EXPORT int   keyboard_load_sf(const char* p)                          { (void)p; return -1; }
+EXPORT void  keyboard_unload_sf(int id)                                { (void)id; }
+EXPORT void  keyboard_program_select(int c, int s, int b, int p)       { (void)c;(void)s;(void)b;(void)p; }
+EXPORT void  keyboard_note_on(int c, int k, int v)                    { (void)c;(void)k;(void)v; }
+EXPORT void  keyboard_note_off(int c, int k)                          { (void)c;(void)k; }
+EXPORT void  keyboard_pitch_bend(int c, int v)                        { (void)c;(void)v; }
+EXPORT void  keyboard_control_change(int c, int cc, int v)            { (void)c;(void)cc;(void)v; }
+EXPORT void  keyboard_set_gain(float g)                               { (void)g; }
+EXPORT void* keyboard_render_fn_for_slot(int i)                       { (void)i; return NULL; }
+EXPORT void  keyboard_render_block_0(float* l, float* r, int f)       { memset(l,0,(size_t)f*4); memset(r,0,(size_t)f*4); }
+EXPORT void  keyboard_render_block_1(float* l, float* r, int f)       { memset(l,0,(size_t)f*4); memset(r,0,(size_t)f*4); }
+EXPORT void  keyboard_render_block(float* l, float* r, int f)         { memset(l,0,(size_t)f*4); memset(r,0,(size_t)f*4); }
 
-#endif // defined(__linux__) && !defined(__ANDROID__)
+#endif

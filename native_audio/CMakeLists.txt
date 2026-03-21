@@ -18,10 +18,16 @@ elseif (APPLE)
     find_library(COREAUDIO_LIB CoreAudio)
     find_library(COREFOUNDATION_LIB CoreFoundation)
     find_library(AUDIOUNIT_LIB AudioUnit)
+    # FluidSynth installed via Homebrew (arm64: /opt/homebrew, x86_64: /usr/local).
+    find_library(FLUIDSYNTH_LIB fluidsynth HINTS /opt/homebrew/lib /usr/local/lib)
+    find_path(FLUIDSYNTH_INCLUDE_DIR fluidsynth.h
+              HINTS /opt/homebrew/include /usr/local/include)
+    target_include_directories(audio_input PRIVATE ${FLUIDSYNTH_INCLUDE_DIR})
     target_link_libraries(audio_input PRIVATE
         ${COREAUDIO_LIB}
         ${COREFOUNDATION_LIB}
         ${AUDIOUNIT_LIB}
+        ${FLUIDSYNTH_LIB}
         m
     )
 elseif (UNIX AND NOT APPLE)

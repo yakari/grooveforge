@@ -209,12 +209,17 @@ jobs:
           path: GrooveForge-Windows-${{ github.ref_name }}.zip
 
   build-macos:
+    # macos-latest is arm64 (M-series).  FluidSynth from Homebrew is arm64-only,
+    # so we build arm64 exclusively.  Intel Macs run arm64 apps via Rosetta 2.
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
 
       - name: Install system dependencies
-        run: brew install cmake
+        # fluid-synth: GF Keyboard FluidSynth backend.
+        # dylibbundler: recursively copies and re-links Homebrew dylib deps so the
+        #               app bundle is self-contained (no Homebrew required on end-user Macs).
+        run: brew install cmake fluid-synth dylibbundler
 
       # Cache VST3 SDK
       - name: Cache VST3 SDK
@@ -239,6 +244,38 @@ jobs:
 
       - name: Get dependencies
         run: flutter pub get
+
+      - name: Build libaudio_input.dylib and bundle FluidSynth
+        # The pre-built dylib in the repo links to an absolute Homebrew path
+        # (/opt/homebrew/opt/fluid-synth/lib/libfluidsynth.3.dylib) that only
+        # exists on this CI machine.  We rebuild from source here so the path
+        # comes from the CI's own Homebrew install, then use dylibbundler to
+        # copy FluidSynth + all its transitive Homebrew dependencies into
+        # macos/Runner/ and rewrite every absolute Homebrew reference to
+        # @rpath/ so the app bundle is fully self-contained.
+        run: |
+          cd native_audio
+          mkdir build_mac && cd build_mac
+          cmake .. -DCMAKE_BUILD_TYPE=Release
+          cmake --build .
+          cd ../..
+
+          DYLIB=native_audio/build_mac/libaudio_input.dylib
+          RUNNER_DIR=macos/Runner
+
+          # dylibbundler copies libfluidsynth.3.dylib + its deps (glib, gthread,
+          # libsndfile, portaudio, gettext, readline…) into macos/Runner/,
+          # retargets all inter-dep references to @rpath/, and patches the
+          # top-level dylib's references to match.
+          dylibbundler \
+            --overwrite-dir \
+            --bundle-deps \
+            --fix-file  "$DYLIB" \
+            --dest-dir  "$RUNNER_DIR" \
+            --install-path @rpath/ \
+            --search-path "$(brew --prefix)/lib"
+
+          cp "$DYLIB" "$RUNNER_DIR/libaudio_input.dylib"
 
       - name: Build macOS
         run: flutter build macos --release

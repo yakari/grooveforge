@@ -246,12 +246,18 @@ DVH_API int32_t dvh_mac_start_audio(DVH_Host host) {
     s->insertBufR.assign(s->blockSize, 0.f);
 
     ma_device_config config = ma_device_config_init(ma_device_type_playback);
-    config.playback.format   = ma_format_f32;
-    config.playback.channels = 2;
-    config.sampleRate        = s->sampleRate;
-    config.dataCallback      = dataCallback;
-    config.pUserData         = s;
-    config.performanceProfile = ma_performance_profile_low_latency;
+    config.playback.format      = ma_format_f32;
+    config.playback.channels    = 2;
+    config.sampleRate           = (ma_uint32)s->sampleRate;
+    config.dataCallback         = dataCallback;
+    config.pUserData            = s;
+    config.performanceProfile   = ma_performance_profile_low_latency;
+    // Lock the period size to match our pre-allocated scratch buffers and the
+    // FluidSynth/VST3 block size.  Without this miniaudio lets CoreAudio choose
+    // its own period (typically 512 on macOS), which causes keyboard_render_block
+    // to write 512 floats into the 256-float extBufL/R → buffer overflow → corrupt
+    // audio that sounds like random effects / echo / distortion.
+    config.periodSizeInFrames   = (ma_uint32)s->blockSize;
 
     fprintf(stderr, "[dart_vst_host] Initializing ma_device at %d Hz...\n", s->sampleRate);
     fflush(stderr);

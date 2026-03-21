@@ -257,7 +257,7 @@ class AudioEngine extends ChangeNotifier {
   ///   `flutter_midi_pro` method channel to `fluid_synth_set_gain()` on every
   ///   loaded synth instance.
   void applyFluidSynthGain() {
-    if (!kIsWeb && Platform.isLinux) {
+    if (!kIsWeb && (Platform.isLinux || Platform.isMacOS)) {
       AudioInputFFI().keyboardSetGain(fluidSynthGain.value);
     } else {
       MidiPro().setGain(fluidSynthGain.value);
@@ -459,16 +459,17 @@ class AudioEngine extends ChangeNotifier {
     }
 
     if (!kIsWeb) {
-      if (Platform.isLinux) {
+      if (Platform.isLinux || Platform.isMacOS) {
         initStatus.value = 'Starting FluidSynth backend...';
         // Use libfluidsynth directly (in-process, no audio driver) so that
-        // the dart_vst_host ALSA thread can drive rendering via
+        // the dart_vst_host audio thread can drive rendering via
         // keyboard_render_block() — same mechanism as Theremin/Stylophone.
+        // Works on both Linux (ALSA) and macOS (CoreAudio).
         // keyboard_init() is idempotent: safe to call on re-initialisation.
         final ok = AudioInputFFI().keyboardInit(48000.0);
         if (ok == 1) {
           AudioInputFFI().keyboardSetGain(fluidSynthGain.value);
-          debugPrint('AudioEngine: FluidSynth initialised via FFI');
+          debugPrint('AudioEngine: FluidSynth initialised via FFI (${Platform.operatingSystem})');
         } else {
           debugPrint('AudioEngine: FluidSynth FFI init failed');
         }
@@ -723,7 +724,7 @@ class AudioEngine extends ChangeNotifier {
     // is already running (only meaningful on Linux).
     fluidSynthGain.value =
         _prefs!.getDouble('fluidsynth_gain') ??
-        (!kIsWeb && Platform.isLinux ? 3.0 : 5.0);
+        (!kIsWeb && (Platform.isLinux || Platform.isMacOS) ? 3.0 : 5.0);
 
     // Restore Vocoder Parameters FIRST so capture starts with correct device
     vocoderWaveform.value = _prefs!.getInt('vocoder_waveform') ?? 0;
@@ -760,7 +761,7 @@ class AudioEngine extends ChangeNotifier {
       final List<String>? savedChannels =
           _prefs!.getStringList('channels_state');
       if (savedChannels != null && savedChannels.length == 16) {
-        if (Platform.isLinux && savedSfs != null && savedSfs.isNotEmpty) {
+        if ((Platform.isLinux || Platform.isMacOS) && savedSfs != null && savedSfs.isNotEmpty) {
           await Future.delayed(const Duration(milliseconds: 1500));
         }
         for (int i = 0; i < 16; i++) {
@@ -879,9 +880,9 @@ class AudioEngine extends ChangeNotifier {
       }
       loadedSoundfonts.add(targetPath);
 
-      if (Platform.isLinux) {
-        // keyboard_load_sf() returns the FluidSynth-assigned sfId directly,
-        // replacing the old counter-based stub ID used with the subprocess.
+      if (Platform.isLinux || Platform.isMacOS) {
+        // keyboard_load_sf() returns the FluidSynth-assigned sfId directly.
+        // Works on both Linux (ALSA) and macOS (CoreAudio).
         final sfId = AudioInputFFI().keyboardLoadSf(targetPath);
         if (sfId < 0) {
           throw Exception('Failed to load soundfont via FluidSynth: $targetPath');
@@ -918,7 +919,7 @@ class AudioEngine extends ChangeNotifier {
     if (!loadedSoundfonts.contains(path)) {
       return;
     }
-    if (!kIsWeb && Platform.isLinux) {
+    if (!kIsWeb && (Platform.isLinux || Platform.isMacOS)) {
       int? sfId = _sfPathToIdLinux[path];
       if (sfId != null) {
         AudioInputFFI().keyboardUnloadSf(sfId);
@@ -1023,7 +1024,7 @@ class AudioEngine extends ChangeNotifier {
         state.soundfontPath == kMidiControllerOnlySoundfont) {
       return;
     }
-    if (!kIsWeb && Platform.isLinux) {
+    if (!kIsWeb && (Platform.isLinux || Platform.isMacOS)) {
       int? sfId = _sfPathToIdLinux[state.soundfontPath!];
       if (sfId != null) {
         AudioInputFFI().keyboardProgramSelect(channel, sfId, state.bank, state.program);
@@ -1046,7 +1047,7 @@ class AudioEngine extends ChangeNotifier {
     if (path == null || path == kMidiControllerOnlySoundfont) {
       return -1;
     }
-    return (!kIsWeb && Platform.isLinux)
+    return (!kIsWeb && (Platform.isLinux || Platform.isMacOS))
         ? (_sfPathToIdLinux[path] ?? -1)
         : (_sfPathToIdMobile[path] ?? -1);
   }
@@ -1058,7 +1059,7 @@ class AudioEngine extends ChangeNotifier {
     // GM drum notes: 37 = side stick (downbeat accent), 76 = high wood block (regular beat).
     final int note = isDownbeat ? 37 : 76;
     final int velocity = isDownbeat ? 100 : 75;
-    if (!kIsWeb && Platform.isLinux) {
+    if (!kIsWeb && (Platform.isLinux || Platform.isMacOS)) {
       AudioInputFFI().keyboardNoteOn(percChannel, note, velocity);
       Future.delayed(const Duration(milliseconds: 40), () {
         AudioInputFFI().keyboardNoteOff(percChannel, note);
@@ -1298,7 +1299,7 @@ class AudioEngine extends ChangeNotifier {
 
     int? currentOwner = channels[channel].snappedKeyOwners[keyToPlay];
     if (currentOwner != null && currentOwner != key && !midiControllerOnly) {
-      if (!kIsWeb && Platform.isLinux) {
+      if (!kIsWeb && (Platform.isLinux || Platform.isMacOS)) {
         AudioInputFFI().keyboardNoteOff(channel, keyToPlay);
       } else {
         int sfId = _getSfIdForChannel(channel);
@@ -1318,7 +1319,7 @@ class AudioEngine extends ChangeNotifier {
       if (channels[channel].soundfontPath == vocoderMode) {
         AudioInputFFI().playNote(key: keyToPlay, velocity: velocity);
       } else {
-        if (!kIsWeb && Platform.isLinux) {
+        if (!kIsWeb && (Platform.isLinux || Platform.isMacOS)) {
           AudioInputFFI().keyboardNoteOn(channel, keyToPlay, velocity);
         } else {
           int sfId = _getSfIdForChannel(channel);
@@ -1356,7 +1357,7 @@ class AudioEngine extends ChangeNotifier {
         if (channels[channel].soundfontPath == vocoderMode) {
           AudioInputFFI().stopNote(key: keyToStop);
         } else {
-          if (!kIsWeb && Platform.isLinux) {
+          if (!kIsWeb && (Platform.isLinux || Platform.isMacOS)) {
             AudioInputFFI().keyboardNoteOff(channel, keyToStop);
           } else {
             int sfId = _getSfIdForChannel(channel);
@@ -2008,7 +2009,7 @@ class AudioEngine extends ChangeNotifier {
     if (channels[channel].soundfontPath == kMidiControllerOnlySoundfont) {
       return;
     }
-    if (!kIsWeb && Platform.isLinux) {
+    if (!kIsWeb && (Platform.isLinux || Platform.isMacOS)) {
       AudioInputFFI().keyboardControlChange(channel, controller, value);
     } else {
       int sfId = _getSfIdForChannel(channel);
@@ -2025,7 +2026,7 @@ class AudioEngine extends ChangeNotifier {
     if (channels[channel].soundfontPath == kMidiControllerOnlySoundfont) {
       return;
     }
-    if (!kIsWeb && Platform.isLinux) {
+    if (!kIsWeb && (Platform.isLinux || Platform.isMacOS)) {
       AudioInputFFI().keyboardPitchBend(channel, value);
     } else {
       int sfId = _getSfIdForChannel(channel);

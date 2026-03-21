@@ -292,11 +292,20 @@ class VstHostService {
       _host!.addToAudioLoop(p);
     }
 
-    // Register GF Keyboard (libfluidsynth) as a master-mix contributor so its
-    // audio plays through the ALSA thread alongside VST3 plugins. On Linux the
-    // keyboard synth is always initialised before startAudio() is called.
-    if (Platform.isLinux) {
-      _host!.addMasterRender(AudioInputFFI().keyboardRenderBlockPtr);
+    // Register slot 0 as a baseline master-mix contributor.  Slot 0 is always
+    // created by audio_engine.dart's keyboard_init() call.  Using the per-slot
+    // function pointer (keyboard_render_block_0) rather than the backward-compat
+    // Register render functions for all keyboard slots upfront.
+    // keyboard_render_block_N outputs silence when slot N has no active synth,
+    // so pre-registering both is always safe.  Slot 0 is also initialised by
+    // audio_engine.dart's keyboard_init(); slot 1 is initialised here so it is
+    // ready before syncAudioRouting() fires (which only runs on connection or
+    // plugin changes, not on plain rack startup with no effects).
+    if (Platform.isLinux || Platform.isMacOS) {
+      AudioInputFFI().keyboardInitSlot(0, 48000.0);
+      AudioInputFFI().keyboardInitSlot(1, 48000.0);
+      _host!.addMasterRender(AudioInputFFI().keyboardRenderFnForSlot(0));
+      _host!.addMasterRender(AudioInputFFI().keyboardRenderFnForSlot(1));
     }
 
     bool ok = false;
@@ -364,6 +373,20 @@ class VstHostService {
     // registrations from prior configurations are removed before we re-add.
     _host!.clearMasterInserts();
 
+    // Ensure each GF Keyboard slot is initialised and registered as a
+    // master-mix contributor.  Using per-slot render function pointers
+    // (keyboard_render_block_0, keyboard_render_block_1) instead of the
+    // backward-compat keyboard_render_block means dart_vst_host can key
+    // GFPA inserts on the exact slot that owns a given keyboard.
+    if (Platform.isLinux || Platform.isMacOS) {
+      for (final plugin in allPlugins.whereType<GrooveForgeKeyboardPlugin>()) {
+        // MIDI channels are 1-based; map to 0-based slot index mod MAX_KB_SLOTS.
+        final slotIdx = (plugin.midiChannel - 1) % 2;
+        AudioInputFFI().keyboardInitSlot(slotIdx, 48000.0);
+        _host!.addMasterRender(AudioInputFFI().keyboardRenderFnForSlot(slotIdx));
+      }
+    }
+
     // Track which built-in instruments now have audio routes so we can
     // enable/disable capture mode on the native synth side.
     final thereminHasRoute = <String>{};
@@ -403,9 +426,10 @@ class VstHostService {
         // GF Keyboard uses GrooveForgeKeyboardPlugin (not GFpaPluginInstance),
         // so it must be handled before the GFpaPluginInstance type guard.
         if (fromPlugin is GrooveForgeKeyboardPlugin) {
-          // libfluidsynth renders a full stereo mix of all MIDI channels.
-          // Route it into the VST3 effect's input.
-          _host!.setExternalRender(to, AudioInputFFI().keyboardRenderBlockPtr);
+          // Use the per-slot render function so this VST3 effect only receives
+          // audio from the keyboard slot it is cabled to.
+          final slotIdx = (fromPlugin.midiChannel - 1) % 2;
+          _host!.setExternalRender(to, AudioInputFFI().keyboardRenderFnForSlot(slotIdx));
           continue;
         }
 
@@ -435,13 +459,15 @@ class VstHostService {
           orElse: () => allPlugins.first,
         );
 
-        // GF Keyboard → GFPA effect: wire via master-insert on the keyboard
-        // render function so the keyboard audio passes through native DSP.
-        // The keyboard stays in masterRenders; the insert chain replaces
-        // direct accumulation with the DSP-processed output.
-        if (fromPlugin is GrooveForgeKeyboardPlugin && Platform.isLinux) {
+        // GF Keyboard → GFPA effect: wire a master-insert keyed on the
+        // slot-specific render function pointer.  dart_vst_host intercepts
+        // that slot's output and pipes it through the DSP before accumulation,
+        // leaving the other keyboard's slot unaffected.
+        if (fromPlugin is GrooveForgeKeyboardPlugin &&
+            (Platform.isLinux || Platform.isMacOS)) {
+          final slotIdx = (fromPlugin.midiChannel - 1) % 2;
           _host!.addMasterInsert(
-            AudioInputFFI().keyboardRenderBlockPtr,
+            AudioInputFFI().keyboardRenderFnForSlot(slotIdx),
             toHandle,
           );
         }
@@ -462,16 +488,6 @@ class VstHostService {
       AudioInputFFI().thereminSetCaptureMode(enabled: thereminActive);
       AudioInputFFI().styloSetCaptureMode(enabled: styloActive);
 
-      if (Platform.isLinux) {
-        // Always keep the keyboard in masterRenders.
-        // The insert chain handles routing: when an insert is registered for
-        // the keyboard render fn (keyboard → GFPA effect), the ALSA loop
-        // passes audio through the DSP before accumulating to master.
-        // When no insert exists, audio goes directly to master.
-        // Removing the keyboard from masterRenders would silence it even when
-        // an insert is wired (inserts only run for fns IN masterRenders).
-        _host!.addMasterRender(AudioInputFFI().keyboardRenderBlockPtr);
-      }
     } catch (_) {
       // AudioInputFFI may not be initialised on non-Linux builds (web, macOS
       // without the native lib). Silently ignore — routing is no-op there.

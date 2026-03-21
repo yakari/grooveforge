@@ -1,0 +1,3 @@
+/Users/ypoirier/dev/grooveforge/native_audio/build_mac/CMakeFiles/audio_input.dir
+/Users/ypoirier/dev/grooveforge/native_audio/build_mac/CMakeFiles/edit_cache.dir
+/Users/ypoirier/dev/grooveforge/native_audio/build_mac/CMakeFiles/rebuild_cache.dir
