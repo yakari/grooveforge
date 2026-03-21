@@ -1,6 +1,6 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
@@ -21,6 +21,14 @@ class ProjectService extends ChangeNotifier {
 
   bool _isSaving = false;
   bool get isSaving => _isSaving;
+
+  /// Debounce timer for [autosave].  Rapid mutations (e.g. a continuous knob
+  /// drag) reset this timer on every call; the actual write only happens once
+  /// the stream of changes quiets down for [_autosaveDelay].
+  Timer? _autosaveDebounce;
+
+  /// How long to wait after the last change before flushing an autosave.
+  static const Duration _autosaveDelay = Duration(milliseconds: 500);
 
   /// Loads the last autosave or initializes a default project if none exists.
   Future<void> loadOrInitDefault(
@@ -57,20 +65,57 @@ class ProjectService extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Triggers an autosave.
-  Future<void> autosave(
+  /// Schedules an autosave, debounced by [_autosaveDelay].
+  ///
+  /// Each call resets the debounce timer, so a burst of rapid mutations
+  /// (e.g. continuous knob drag) results in exactly one disk write that
+  /// captures the final state once the stream of changes quiets down.
+  ///
+  /// Without debouncing, concurrent writes all target the same `.tmp` file:
+  /// the first rename succeeds and every subsequent rename fails with ENOENT
+  /// because the temp file has already been moved away.
+  void autosave(
+    RackState rackState,
+    AudioEngine engine,
+    TransportEngine transport,
+    AudioGraph audioGraph,
+    LooperEngine looperEngine,
+  ) {
+    if (kIsWeb) return;  // No filesystem on web; project state is not persisted.
+
+    // Cancel any previously scheduled write and start a fresh countdown.
+    _autosaveDebounce?.cancel();
+    _autosaveDebounce = Timer(_autosaveDelay, () {
+      _performAutosave(rackState, engine, transport, audioGraph, looperEngine);
+    });
+  }
+
+  /// Executes the actual autosave write, guarded against concurrent runs.
+  ///
+  /// [autosave] is the public entry point; this method performs the I/O.
+  Future<void> _performAutosave(
     RackState rackState,
     AudioEngine engine,
     TransportEngine transport,
     AudioGraph audioGraph,
     LooperEngine looperEngine,
   ) async {
-    if (kIsWeb) return;  // No filesystem on web; project state is not persisted.
-    final docsDir = await getApplicationDocumentsDirectory();
-    final autosavePath = '${docsDir.path}/autosave.gf';
-    await _writeGfFile(
-        autosavePath, rackState, engine, transport, audioGraph, looperEngine);
-    _currentProjectPath = autosavePath;
+    // Skip if a manual saveProject is already in flight (rare but possible).
+    if (_isSaving) return;
+
+    _isSaving = true;
+    try {
+      final docsDir = await getApplicationDocumentsDirectory();
+      final autosavePath = '${docsDir.path}/autosave.gf';
+      await _writeGfFile(
+          autosavePath, rackState, engine, transport, audioGraph, looperEngine);
+      _currentProjectPath = autosavePath;
+    } catch (e) {
+      // Log but do not rethrow — autosave failures are non-fatal.
+      debugPrint('ProjectService: autosave failed: $e');
+    } finally {
+      _isSaving = false;
+    }
   }
 
   /// Opens a project using a file picker.
