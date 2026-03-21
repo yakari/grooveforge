@@ -468,7 +468,9 @@ class AudioEngine extends ChangeNotifier {
         // keyboard_init() is idempotent: safe to call on re-initialisation.
         initStatus.value = 'Starting native keyboard...';
         final ok = AudioInputFFI().keyboardInit(48000.0);
-        if (ok == 1) {
+        // keyboard_init_slot() returns 1 (already existed) or 2 (newly created);
+        // both are success values.  0 means failure.
+        if (ok != 0) {
           _isNativeKeyboardActive = true;
           AudioInputFFI().keyboardSetGain(fluidSynthGain.value);
           debugPrint('AudioEngine: Native keyboard initialised via FFI (${Platform.isLinux ? "Linux" : "macOS"}/FluidSynth)');
