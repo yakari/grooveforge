@@ -1,35 +1,56 @@
-// gfpa_audio_android.h — Android audio callback for GFPA DSP insert chain.
+// gfpa_audio_android.h — Android GFPA DSP per-source insert chains.
 //
-// Declares the FluidSynth audio callback used with new_fluid_audio_driver2.
-// The callback intercepts Oboe's audio thread, renders FluidSynth audio, then
-// applies the GFPA insert chain (reverb, delay, wah, EQ, compressor, chorus)
-// before handing samples to the Oboe output buffer.
+// Each sound source on the audio bus has its own insert chain keyed by its
+// bus slot ID.  Effects are applied per-source BEFORE audio is summed into
+// the master mix, so WAH on the Theremin cannot bleed into Keyboard or
+// Vocoder audio, and vice versa.
 //
-// All processing is done on the Oboe real-time thread — no allocation, no
-// logging, no locks on the hot path.
+// Bus slot ID assignment (must match oboe_stream_android.h):
+//   1–4  : GF Keyboard slots (sfId from flutter_midi_pro loadSoundfont)
+//   5    : Theremin
+//   6    : Stylophone
+//   7    : Vocoder
+//
+// The Dart layer (gfpa_android_bindings.dart / vst_host_service_desktop.dart)
+// calls gfpa_android_add_insert_for_sf() once per routing sync, passing the
+// correct bus slot ID for each source → GFPA cable.
 #pragma once
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/// FluidSynth audio callback matching the fluid_audio_func_t signature.
+/// Register [dspHandle] as the next insert in the chain for [sfId].
 ///
-/// Called by FluidSynth's Oboe driver each block.  Renders [len] frames from
-/// [data] (a fluid_synth_t*), applies the active GFPA insert chain in-place,
-/// and writes the result into [out].
+/// [sfId] is the integer returned by flutter_midi_pro's loadSoundfont (1-based,
+/// max kMaxSfId).  Idempotent: registering the same handle twice is a no-op.
+void gfpa_android_add_insert_for_sf(int sfId, void* dspHandle);
+
+/// Remove [dspHandle] from whichever per-keyboard chain it belongs to.
 ///
-/// [data]  — opaque pointer; cast to fluid_synth_t* inside the implementation.
-/// [len]   — number of sample frames to render.
-/// [nfx]   — number of effect (reverb/chorus) output pairs in [fx].
-/// [fx]    — array of FluidSynth effect buffers (may be NULL when nfx == 0).
-/// [nout]  — number of dry output pairs in [out].
-/// [out]   — array of output buffers; [0] = left, [1] = right channel.
+/// Searches all chains.  No-op if the handle is not registered anywhere.
+void gfpa_android_remove_insert(void* dspHandle);
+
+/// Clear every insert from every per-keyboard chain.
 ///
-/// Returns 0 (FLUID_OK) on success.
-int gfpa_audio_callback(void* data, int len,
-                        int nfx, float* fx[],
-                        int nout, float* out[]);
+/// Called at the start of each syncAudioRouting rebuild so that stale
+/// connections from the previous graph configuration are removed.
+void gfpa_android_clear_all_inserts(void);
+
+/// Apply the insert chain for [sfId] to the stereo signal in [outL]/[outR].
+///
+/// Called by oboe_stream_android.cpp once per synth block, before the
+/// synth's contribution is accumulated into the master mix.
+/// No-op when the chain for [sfId] is empty.
+///
+/// [outL], [outR] — non-interleaved in/out stereo buffers.
+/// [frames]       — number of sample frames to process.
+void gfpa_android_apply_chain_for_sf(int sfId,
+                                      float* outL, float* outR,
+                                      int frames);
+
+/// Forward the transport BPM to all BPM-synced GFPA effects (delay, wah, chorus).
+void gfpa_android_set_bpm(double bpm);
 
 #ifdef __cplusplus
 }

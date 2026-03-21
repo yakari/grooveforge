@@ -152,6 +152,14 @@ class AudioEngine extends ChangeNotifier {
   final Map<String, int> _sfPathToIdMobile = {};
   final Map<String, int> _sfPathToIdLinux = {};
 
+  /// Maps MIDI channel (0–15) → dedicated FluidSynth sfId on Android.
+  ///
+  /// Each GF Keyboard slot that triggers [createKeyboardSlotSynth] gets its
+  /// own FluidSynth instance.  This is the key that allows GFPA effects to be
+  /// applied per-slot (per bus slot) without bleeding into other keyboard slots
+  /// that share the same soundfont file.
+  final Map<int, int> _channelSlotSfId = {};
+
   final Map<String, Map<int, Map<int, String>>> sf2Presets = {};
   final List<ChannelState> channels = List.generate(16, (i) => ChannelState());
 
@@ -1030,7 +1038,14 @@ class AudioEngine extends ChangeNotifier {
         AudioInputFFI().keyboardProgramSelect(channel, sfId, state.bank, state.program);
       }
     } else {
-      int? sfId = _sfPathToIdMobile[state.soundfontPath!];
+      // On Android, prefer the per-slot dedicated synth sfId.  During startup
+      // (before createKeyboardSlotSynth runs) the per-slot map is empty and we
+      // fall back to the global path-keyed sfId — both keyboards share the same
+      // synth temporarily, which is fine for audio until initAndroidKeyboardSlots
+      // creates independent instances.
+      final int? sfId = !kIsWeb && Platform.isAndroid
+          ? (_channelSlotSfId[channel] ?? _sfPathToIdMobile[state.soundfontPath!])
+          : _sfPathToIdMobile[state.soundfontPath!];
       if (sfId != null) {
         _midiPro.selectInstrument(
           sfId: sfId,
@@ -1047,9 +1062,78 @@ class AudioEngine extends ChangeNotifier {
     if (path == null || path == kMidiControllerOnlySoundfont) {
       return -1;
     }
+    if (!kIsWeb && Platform.isAndroid) {
+      // Prefer the per-slot dedicated synth (created by createKeyboardSlotSynth)
+      // so that GFPA effects routed to this slot's bus slot ID only affect this
+      // keyboard's audio.  Falls back to the global path-keyed sfId during the
+      // brief window between startup and initAndroidKeyboardSlots completing.
+      return _channelSlotSfId[channel] ?? (_sfPathToIdMobile[path] ?? -1);
+    }
     return (!kIsWeb && (Platform.isLinux || Platform.isMacOS))
         ? (_sfPathToIdLinux[path] ?? -1)
         : (_sfPathToIdMobile[path] ?? -1);
+  }
+
+  /// Returns the soundfont ID assigned to [path] by the mobile audio driver
+  /// (the integer returned by [loadSoundfont] JNI, 1-based), or -1 if [path]
+  /// is not currently loaded.
+  ///
+  /// Used by [RackState.syncAudioRouting] on Android to route each keyboard's
+  /// GFPA effects to the correct per-sfId insert chain so that WAH on keyboard
+  /// A cannot bleed into keyboard B's audio path.
+  int sfIdForPath(String path) => _sfPathToIdMobile[path] ?? -1;
+
+  /// Returns the per-slot dedicated FluidSynth bus sfId for [midiChannel] on
+  /// Android, or -1 if no dedicated instance has been created yet for that channel.
+  ///
+  /// Call this from [RackState._buildKeyboardSfIds] so that each GF Keyboard
+  /// slot is routed to its own GFPA insert chain, preventing effects on one
+  /// keyboard from bleeding into another.
+  int sfIdForChannel(int midiChannel) =>
+      _channelSlotSfId[midiChannel] ?? -1;
+
+  /// Creates a dedicated FluidSynth instance for the GF Keyboard slot on
+  /// [midiChannel] on Android.
+  ///
+  /// Each call to the native [loadSoundfontFile] JNI creates a new
+  /// [fluid_synth_t] and registers it on the AAudio bus under a fresh sfId.
+  /// After this call, MIDI note events for [midiChannel] are routed to this
+  /// dedicated synth, and GFPA effects are applied only to its audio output.
+  ///
+  /// Idempotent: if [midiChannel] already has a dedicated synth, this method
+  /// reuses it (no new instance is created).
+  ///
+  /// Returns the assigned sfId, or -1 on failure or non-Android platforms.
+  Future<int> createKeyboardSlotSynth(
+    int midiChannel,
+    String soundfontPath,
+  ) async {
+    if (kIsWeb || !Platform.isAndroid) return -1;
+    if (soundfontPath == kMidiControllerOnlySoundfont) return -1;
+    // Idempotent: reuse existing dedicated synth for this channel.
+    final existing = _channelSlotSfId[midiChannel];
+    if (existing != null) return existing;
+
+    final sfId = await _midiPro.loadSoundfontFile(filePath: soundfontPath);
+    if (sfId == -1) return -1;
+
+    _channelSlotSfId[midiChannel] = sfId;
+
+    // Configure the new dedicated synth with the current bank/program for this
+    // channel so it plays the correct patch immediately.
+    final state = channels[midiChannel];
+    _midiPro.selectInstrument(
+      sfId: sfId,
+      channel: midiChannel,
+      bank: state.bank,
+      program: state.program,
+    );
+
+    debugPrint(
+      'AudioEngine: created dedicated synth for ch$midiChannel '
+      '→ sfId=$sfId ($soundfontPath)',
+    );
+    return sfId;
   }
 
   /// Plays a short metronome click on GM percussion channel 9.
@@ -2046,6 +2130,7 @@ class AudioEngine extends ChangeNotifier {
     loadedSoundfonts.clear();
     _sfPathToIdMobile.clear();
     _sfPathToIdLinux.clear();
+    _channelSlotSfId.clear();
     sf2Presets.clear();
     for (int i = 0; i < 16; i++) {
       channels[i] = ChannelState();

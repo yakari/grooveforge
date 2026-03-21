@@ -75,6 +75,7 @@ set_target_properties(libvorbisfile PROPERTIES IMPORTED_LOCATION ${fluidsynth_DI
 add_library(native-lib SHARED
         native-lib.cpp
         gfpa_audio_android.cpp
+        oboe_stream_android.cpp
         ../../../../../flutter_vst3/dart_vst_host/native/src/gfpa_dsp.cpp
 )
 
@@ -112,5 +113,6 @@ target_link_libraries(
         libvorbisenc
         libvorbisfile
         android
+        aaudio
         log
 )

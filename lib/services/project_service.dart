@@ -57,10 +57,16 @@ class ProjectService extends ChangeNotifier {
       } catch (e) {
         debugPrint('ProjectService: autosave load failed ($e) — using defaults');
         rackState.initDefaults();
+        // Create per-slot FluidSynth instances for the default keyboard slots
+        // so that GFPA routing works correctly on Android from the start.
+        await rackState.initAndroidKeyboardSlots();
       }
     } else {
       debugPrint('ProjectService: no autosave found — initializing defaults');
       rackState.initDefaults();
+      // Create per-slot FluidSynth instances for the default keyboard slots
+      // so that GFPA routing works correctly on Android from the start.
+      await rackState.initAndroidKeyboardSlots();
     }
     notifyListeners();
   }
@@ -314,6 +320,10 @@ class ProjectService extends ChangeNotifier {
     // can reference them by ID.
     final pluginsJson = data['plugins'] as List<dynamic>? ?? [];
     rackState.loadFromJson(pluginsJson);
+
+    // On Android, provision a dedicated FluidSynth instance per GF Keyboard
+    // slot so GFPA effects on one keyboard cannot bleed into another.
+    await rackState.initAndroidKeyboardSlots();
 
     // Restore the MIDI/Audio graph connections.
     // Older .gf files with 'audioGraph: {}' produce an empty connection list,

@@ -2,103 +2,170 @@
 #include <fluidsynth.h>
 #include <unistd.h>
 #include <map>
-#include "gfpa_audio_android.h"
+#include <android/log.h>
+#include "oboe_stream_android.h"
 
-std::map<int, fluid_synth_t*> synths = {};
-std::map<int, fluid_audio_driver_t*> drivers = {};
-std::map<int, fluid_settings_t*> settings = {};
-std::map<int, int> soundfonts = {};
-int nextSfId = 1;
+// ── Per-soundfont state ───────────────────────────────────────────────────────
+//
+// Each loadSoundfont() call creates one FluidSynth instance (synth + settings).
+// Audio is NOT driven by a FluidSynth audio driver; instead all synths are
+// registered with the shared AAudio stream in oboe_stream_android.cpp, which
+// calls fluid_synth_process() on each of them every block and applies the
+// GFPA insert chain (WAH, reverb, delay, EQ, compressor, chorus) before
+// handing the mixed audio to the device.
 
-/// Current output gain applied to all synths. Default matches the original
-/// hardcoded value so existing behaviour is preserved until the user changes it.
+/// Maps the integer soundfont-ID (returned to Dart) to the FluidSynth synth.
+static std::map<int, fluid_synth_t*>    synths;
+
+/// Maps soundfont-ID to FluidSynth settings.  Kept alive alongside the synth
+/// (FluidSynth documentation: settings must outlive the synth).
+static std::map<int, fluid_settings_t*> settings;
+
+/// Maps soundfont-ID to the soundfont's internal FluidSynth ID (for program_select).
+static std::map<int, int> soundfonts;
+
+/// Counter for assigning unique soundfont IDs.
+static int nextSfId = 1;
+
+/// Current output gain applied to all synths.  Persisted so that synths loaded
+/// after a setGain() call start at the correct level.
 static float g_gain = 5.0f;
 
-extern "C" JNIEXPORT int JNICALL
-Java_com_melihhakanpektas_flutter_1midi_1pro_FlutterMidiProPlugin_loadSoundfont(JNIEnv* env, jclass clazz, jstring path, jint bank, jint program) {
-    settings[nextSfId] = new_fluid_settings();
-    // Apply the current user-set gain (default 5.0) so that newly-loaded
-    // synths match any gain adjustment already applied via setGain().
-    fluid_settings_setnum(settings[nextSfId], "synth.gain", g_gain);
-    // Real-time priority for the Oboe audio thread (99 = max SCHED_FIFO).
-    fluid_settings_setint(settings[nextSfId], "audio.realtime-prio", 99);
-    fluid_settings_setnum(settings[nextSfId], "synth.sample-rate", 48000.0);
-    fluid_settings_setint(settings[nextSfId], "synth.polyphony", 32);
-    // Select the Oboe backend explicitly — required for new_fluid_audio_driver2
-    // to route audio through Oboe instead of an unavailable default driver.
-    fluid_settings_setstr(settings[nextSfId], "audio.driver", "oboe");
-    fluid_settings_setstr(settings[nextSfId], "audio.oboe.performance-mode", "LowLatency");
-    fluid_settings_setstr(settings[nextSfId], "audio.oboe.sharing-mode", "Exclusive");
+// ── JNI entry points ──────────────────────────────────────────────────────────
 
-    const char *nativePath = env->GetStringUTFChars(path, nullptr);
-    synths[nextSfId] = new_fluid_synth(settings[nextSfId]);
-    int sfId = fluid_synth_sfload(synths[nextSfId], nativePath, 0);
+extern "C" JNIEXPORT int JNICALL
+Java_com_melihhakanpektas_flutter_1midi_1pro_FlutterMidiProPlugin_loadSoundfont(
+        JNIEnv* env, jclass /*clazz*/, jstring path, jint bank, jint program)
+{
+    fluid_settings_t* s = new_fluid_settings();
+    settings[nextSfId]  = s;
+
+    // Apply the current gain so this synth starts at the same level as any
+    // already-loaded synth.
+    fluid_settings_setnum(s, "synth.gain", g_gain);
+
+    // Match the sample rate to the AAudio stream (see oboe_stream_start call
+    // below) to avoid FluidSynth resampling on every block.
+    fluid_settings_setnum(s, "synth.sample-rate", 48000.0);
+    fluid_settings_setint(s, "synth.polyphony", 32);
+
+    // Disable FluidSynth's built-in reverb and chorus — both are applied via
+    // the GFPA insert chain at the mixer level, so having them active here
+    // would double-process the signal.
+    fluid_settings_setint(s, "synth.reverb.active", 0);
+    fluid_settings_setint(s, "synth.chorus.active", 0);
+
+    // Create the synth (no audio driver — we drive it via fluid_synth_process).
+    fluid_synth_t* synth = new_fluid_synth(s);
+
+    // Definitively disable reverb/chorus at runtime too.  Some FluidSynth
+    // builds ignore the settings-only path; the runtime call is authoritative.
+    fluid_synth_reverb_on(synth, -1, 0);
+    fluid_synth_chorus_on(synth, -1, 0);
+
+    synths[nextSfId] = synth;
+
+    // Load the soundfont and select it on all 16 MIDI channels.
+    const char* nativePath = env->GetStringUTFChars(path, nullptr);
+    int sfId = fluid_synth_sfload(synth, nativePath, 0);
     for (int i = 0; i < 16; i++) {
-        fluid_synth_program_select(synths[nextSfId], i, sfId, bank, program);
+        fluid_synth_program_select(synth, i, sfId, bank, program);
     }
     env->ReleaseStringUTFChars(path, nativePath);
-    // Use the standard audio driver (not new_fluid_audio_driver2) because the
-    // bundled FluidSynth Oboe driver does not implement new_fluid_oboe_audio_driver2
-    // and new_fluid_audio_driver2 would return NULL, silencing all audio.
-    // GFPA insert effects on the keyboard audio path are not supported on Android
-    // with this FluidSynth build; they would require a custom FluidSynth with the
-    // Oboe func2 variant.
-    drivers[nextSfId] = new_fluid_audio_driver(settings[nextSfId], synths[nextSfId]);
     soundfonts[nextSfId] = sfId;
-    nextSfId++;
-    return nextSfId - 1;
+
+    // Start the shared AAudio stream on the first load; subsequent loads are
+    // no-ops in oboe_stream_start (it checks g_stream != nullptr).
+    oboe_stream_start(48000);
+
+    // Register this synth for rendering.  The AAudio callback will mix it
+    // alongside any other active synth each block.
+    // Pass nextSfId so the AAudio callback can route this keyboard's audio
+    // through its own GFPA insert chain before summing into the master mix.
+    oboe_stream_add_synth(synth, nextSfId);
+
+    return nextSfId++;
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_com_melihhakanpektas_flutter_1midi_1pro_FlutterMidiProPlugin_selectInstrument(JNIEnv* env, jclass clazz, jint sfId, jint channel, jint bank, jint program) {
+Java_com_melihhakanpektas_flutter_1midi_1pro_FlutterMidiProPlugin_selectInstrument(
+        JNIEnv* /*env*/, jclass /*clazz*/, jint sfId, jint channel, jint bank, jint program)
+{
     fluid_synth_program_select(synths[sfId], channel, soundfonts[sfId], bank, program);
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_com_melihhakanpektas_flutter_1midi_1pro_FlutterMidiProPlugin_playNote(JNIEnv* env, jclass clazz, jint channel, jint key, jint velocity, jint sfId) {
+Java_com_melihhakanpektas_flutter_1midi_1pro_FlutterMidiProPlugin_playNote(
+        JNIEnv* /*env*/, jclass /*clazz*/, jint channel, jint key, jint velocity, jint sfId)
+{
     fluid_synth_noteon(synths[sfId], channel, key, velocity);
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_com_melihhakanpektas_flutter_1midi_1pro_FlutterMidiProPlugin_stopNote(JNIEnv* env, jclass clazz, jint channel, jint key, jint sfId) {
+Java_com_melihhakanpektas_flutter_1midi_1pro_FlutterMidiProPlugin_stopNote(
+        JNIEnv* /*env*/, jclass /*clazz*/, jint channel, jint key, jint sfId)
+{
     fluid_synth_noteoff(synths[sfId], channel, key);
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_com_melihhakanpektas_flutter_1midi_1pro_FlutterMidiProPlugin_stopAllNotes(JNIEnv* env, jclass clazz, jint sfId) {
+Java_com_melihhakanpektas_flutter_1midi_1pro_FlutterMidiProPlugin_stopAllNotes(
+        JNIEnv* /*env*/, jclass /*clazz*/, jint sfId)
+{
     if (synths.find(sfId) == synths.end()) return;
-    // Sustain'i kapat ve tüm kanallar için All Sound Off gönder
+
+    // Release sustain and send All Sound Off on every MIDI channel.
     for (int ch = 0; ch < 16; ++ch) {
-        fluid_synth_cc(synths[sfId], ch, 64, 0); // Sustain off
-        fluid_synth_all_sounds_off(synths[sfId], ch); // Instant cut
+        fluid_synth_cc(synths[sfId], ch, 64, 0);          // Sustain off
+        fluid_synth_all_sounds_off(synths[sfId], ch);      // Instant cut
     }
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_com_melihhakanpektas_flutter_1midi_1pro_FlutterMidiProPlugin_controlChange(JNIEnv* env, jclass clazz, jint sfId, jint channel, jint controller, jint value) {
+Java_com_melihhakanpektas_flutter_1midi_1pro_FlutterMidiProPlugin_controlChange(
+        JNIEnv* /*env*/, jclass /*clazz*/, jint sfId, jint channel, jint controller, jint value)
+{
     if (synths.find(sfId) == synths.end()) return;
     fluid_synth_cc(synths[sfId], channel, controller, value);
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_com_melihhakanpektas_flutter_1midi_1pro_FlutterMidiProPlugin_pitchBend(JNIEnv* env, jclass clazz, jint sfId, jint channel, jint value) {
+Java_com_melihhakanpektas_flutter_1midi_1pro_FlutterMidiProPlugin_pitchBend(
+        JNIEnv* /*env*/, jclass /*clazz*/, jint sfId, jint channel, jint value)
+{
     if (synths.find(sfId) == synths.end()) return;
     fluid_synth_pitch_bend(synths[sfId], channel, value);
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_com_melihhakanpektas_flutter_1midi_1pro_FlutterMidiProPlugin_unloadSoundfont(JNIEnv* env, jclass clazz, jint sfId) {
-    delete_fluid_audio_driver(drivers[sfId]);
-    delete_fluid_synth(synths[sfId]);
+Java_com_melihhakanpektas_flutter_1midi_1pro_FlutterMidiProPlugin_unloadSoundfont(
+        JNIEnv* /*env*/, jclass /*clazz*/, jint sfId)
+{
+    auto it = synths.find(sfId);
+    if (it == synths.end()) return;
+
+    fluid_synth_t* synth = it->second;
+
+    // Unregister from the AAudio stream.  This call blocks until any
+    // in-progress callback that captured a snapshot of this synth has
+    // fully completed — safe to delete immediately after.
+    oboe_stream_remove_synth(synth);
+
+    delete_fluid_synth(synth);
+    delete_fluid_settings(settings[sfId]);
+
     synths.erase(sfId);
-    drivers.erase(sfId);
+    settings.erase(sfId);
     soundfonts.erase(sfId);
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_com_melihhakanpektas_flutter_1midi_1pro_FlutterMidiProPlugin_setGain(JNIEnv* env, jclass clazz, jdouble gain) {
+Java_com_melihhakanpektas_flutter_1midi_1pro_FlutterMidiProPlugin_setGain(
+        JNIEnv* /*env*/, jclass /*clazz*/, jdouble gain)
+{
     // Persist so future soundfont loads also start at this gain level.
     g_gain = static_cast<float>(gain);
+
     // Apply gain to every currently-loaded synth instance.
     // fluid_synth_set_gain() updates the live output level without requiring
     // a restart; range is 0.0–10.0 (FluidSynth internal limit).
@@ -108,13 +175,18 @@ Java_com_melihhakanpektas_flutter_1midi_1pro_FlutterMidiProPlugin_setGain(JNIEnv
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_com_melihhakanpektas_flutter_1midi_1pro_FlutterMidiProPlugin_dispose(JNIEnv* env, jclass clazz) {
+Java_com_melihhakanpektas_flutter_1midi_1pro_FlutterMidiProPlugin_dispose(
+        JNIEnv* /*env*/, jclass /*clazz*/)
+{
+    // Stop the shared AAudio stream first so no callbacks fire while we
+    // free the synths it was rendering.
+    oboe_stream_stop();
+
     for (auto const& x : synths) {
-        delete_fluid_audio_driver(drivers[x.first]);
-        delete_fluid_synth(synths[x.first]);
+        delete_fluid_synth(x.second);
         delete_fluid_settings(settings[x.first]);
     }
     synths.clear();
-    drivers.clear();
+    settings.clear();
     soundfonts.clear();
 }

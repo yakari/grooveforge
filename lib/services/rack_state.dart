@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 
 import '../models/gfpa_plugin_instance.dart';
@@ -69,13 +71,66 @@ class RackState extends ChangeNotifier {
     _audioGraph.addListener(_onAudioGraphChanged);
   }
 
+  /// Builds a map of keyboard slot plugin ID → per-slot FluidSynth sfId for
+  /// Android GFPA routing.
+  ///
+  /// Each GF Keyboard slot gets its own FluidSynth instance on Android
+  /// (provisioned by [initAndroidKeyboardSlots]).  This map tells
+  /// [VstHostService] which bus slot sfId to register each GFPA insert under,
+  /// so that an effect connected to keyboard A's output cannot affect keyboard
+  /// B's audio path.
+  ///
+  /// Returns an empty map on all non-Android platforms.
+  Map<String, int> _buildKeyboardSfIds() {
+    final result = <String, int>{};
+    for (final plugin in _plugins) {
+      if (plugin is! GrooveForgeKeyboardPlugin) continue;
+      // Use the per-slot dedicated sfId (set by initAndroidKeyboardSlots).
+      // If the dedicated synth has not been created yet, sfIdForChannel returns
+      // -1 and this slot is omitted from the routing map — GFPA inserts simply
+      // have no effect until the next syncAudioRouting after init completes.
+      final sfId = _engine.sfIdForChannel(plugin.midiChannel - 1);
+      if (sfId >= 1) result[plugin.id] = sfId;
+    }
+    return result;
+  }
+
+  /// Creates a dedicated FluidSynth instance on the AAudio bus for every GF
+  /// Keyboard slot in the current rack, on Android only.
+  ///
+  /// Must be called once after [loadFromJson] or [initDefaults], when the full
+  /// plugin list is known.  After this completes, each keyboard slot has its
+  /// own bus slot ID so GFPA effects can be applied per-slot without bleeding
+  /// into adjacent keyboards that share the same soundfont file.
+  ///
+  /// No-op on iOS, desktop, and web.
+  Future<void> initAndroidKeyboardSlots() async {
+    if (kIsWeb || !Platform.isAndroid) return;
+    for (final plugin in _plugins) {
+      if (plugin is! GrooveForgeKeyboardPlugin) continue;
+      final path = plugin.soundfontPath;
+      if (path == null || path == kMidiControllerOnlySoundfont) continue;
+      await _engine.createKeyboardSlotSynth(plugin.midiChannel - 1, path);
+    }
+    // Push updated sfId map to the native routing layer.
+    VstHostService.instance.syncAudioRouting(
+      _audioGraph,
+      _plugins,
+      keyboardSfIds: _buildKeyboardSfIds(),
+    );
+  }
+
   /// Called whenever the [AudioGraph] changes (connection added/removed).
   ///
   /// Pushes the updated topological processing order and routing table to the
   /// native audio loop so audio flows through the new cable configuration
   /// immediately without restarting the ALSA/CoreAudio thread.
   void _onAudioGraphChanged() {
-    VstHostService.instance.syncAudioRouting(_audioGraph, _plugins);
+    VstHostService.instance.syncAudioRouting(
+      _audioGraph,
+      _plugins,
+      keyboardSfIds: _buildKeyboardSfIds(),
+    );
   }
 
   void _onTransportChanged() {
@@ -197,12 +252,33 @@ class RackState extends ChangeNotifier {
     _plugins.add(plugin);
     if (plugin is GrooveForgeKeyboardPlugin) {
       _applyPluginToEngine(plugin);
+      // Ensure this slot has its own dedicated FluidSynth instance on Android.
+      // Fire-and-forget: the synth is available before the user can connect a
+      // GFPA cable (requires a separate user action), so the async delay is fine.
+      if (!kIsWeb && Platform.isAndroid &&
+          plugin.soundfontPath != null &&
+          plugin.soundfontPath != kMidiControllerOnlySoundfont) {
+        _engine
+            .createKeyboardSlotSynth(
+              plugin.midiChannel - 1,
+              plugin.soundfontPath!,
+            )
+            .then((_) => VstHostService.instance.syncAudioRouting(
+                  _audioGraph,
+                  _plugins,
+                  keyboardSfIds: _buildKeyboardSfIds(),
+                ));
+      }
     } else if (plugin is GFpaPluginInstance) {
       _applyGfpaPluginToEngine(plugin);
     }
     _syncJamFollowerMapToEngine();
     // Sync native routing: new slot may alter the topological sort order.
-    VstHostService.instance.syncAudioRouting(_audioGraph, _plugins);
+    VstHostService.instance.syncAudioRouting(
+      _audioGraph,
+      _plugins,
+      keyboardSfIds: _buildKeyboardSfIds(),
+    );
     notifyListeners();
     _notifyChanged();
   }
@@ -222,7 +298,11 @@ class RackState extends ChangeNotifier {
     _audioGraph.onSlotRemoved(id);
     _syncJamFollowerMapToEngine();
     // Sync native routing even if no cables pointed to the removed slot.
-    VstHostService.instance.syncAudioRouting(_audioGraph, _plugins);
+    VstHostService.instance.syncAudioRouting(
+      _audioGraph,
+      _plugins,
+      keyboardSfIds: _buildKeyboardSfIds(),
+    );
     notifyListeners();
     _notifyChanged();
   }
@@ -546,7 +626,11 @@ class RackState extends ChangeNotifier {
   /// Used by GFPA descriptor slot widgets after registering or unregistering
   /// a native DSP instance so that [VstHostService] can wire the insert chain.
   void syncAudioRoutingIfNeeded() {
-    VstHostService.instance.syncAudioRouting(_audioGraph, _plugins);
+    VstHostService.instance.syncAudioRouting(
+      _audioGraph,
+      _plugins,
+      keyboardSfIds: _buildKeyboardSfIds(),
+    );
   }
 
   /// Returns the next unused MIDI channel (1–16), or -1 if all are taken.

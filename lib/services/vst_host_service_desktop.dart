@@ -348,12 +348,16 @@ class VstHostService {
   /// Only VST3 slots (those present in [_plugins]) participate in native
   /// routing. Built-in GFPA slots (FluidSynth, vocoder, Jam Mode) use their
   /// own audio paths and are not routed through the ALSA loop.
-  void syncAudioRouting(AudioGraph graph, List<PluginInstance> allPlugins) {
+  void syncAudioRouting(
+    AudioGraph graph,
+    List<PluginInstance> allPlugins, {
+    Map<String, int> keyboardSfIds = const {},
+  }) {
     if (!isSupported) return;
 
     // On Android, the GFPA insert chain lives in gfpa_audio_android.cpp.
     if (Platform.isAndroid) {
-      _syncAudioRoutingAndroid(graph, allPlugins);
+      _syncAudioRoutingAndroid(graph, allPlugins, keyboardSfIds);
       return;
     }
 
@@ -572,10 +576,18 @@ class VstHostService {
   ///
   /// VST3 plugins are not available on Android; only GFPA descriptor effects
   /// (those with handles in [_gfpaHandles]) participate in routing.
+  /// Rebuilds the per-keyboard GFPA insert chains for Android.
+  ///
+  /// [keyboardSfIds] maps each keyboard plugin's slot ID to its soundfont ID
+  /// (the 1-based integer returned by [loadSoundfont]).  The native layer uses
+  /// this to route each effect to only the keyboard it is connected to, so
+  /// WAH on keyboard A cannot bleed into keyboard B's audio path.
   void _syncAudioRoutingAndroid(
-      AudioGraph graph, List<PluginInstance> allPlugins) {
-    // Clear all inserts — rebuilt from scratch on each call.
-    GfpaAndroidBindings.instance.gfpaAndroidClearInserts();
+      AudioGraph graph,
+      List<PluginInstance> allPlugins,
+      Map<String, int> keyboardSfIds) {
+    // Clear all per-keyboard chains — rebuilt from scratch on each call.
+    GfpaAndroidBindings.instance.gfpaAndroidClearAllInserts();
 
     for (final conn in graph.connections) {
       // Skip MIDI and data cables — only audio connections are routed.
@@ -595,7 +607,11 @@ class VstHostService {
       final toHandle = _gfpaHandles[conn.toSlotId];
       if (toHandle == null || toHandle == nullptr) continue;
 
-      GfpaAndroidBindings.instance.gfpaAndroidAddInsert(toHandle);
+      // Look up the sfId for this keyboard to route the insert correctly.
+      final sfId = keyboardSfIds[conn.fromSlotId] ?? -1;
+      if (sfId < 1) continue; // Keyboard not yet loaded — skip.
+
+      GfpaAndroidBindings.instance.gfpaAndroidAddInsertForSf(sfId, toHandle);
     }
   }
 
