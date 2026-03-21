@@ -75,7 +75,17 @@ class RackState extends ChangeNotifier {
   /// native audio loop so audio flows through the new cable configuration
   /// immediately without restarting the ALSA/CoreAudio thread.
   void _onAudioGraphChanged() {
-    VstHostService.instance.syncAudioRouting(_audioGraph, _plugins);
+    _syncRouting();
+  }
+
+  /// Sync native audio routing, re-applying channel programs for any newly
+  /// created FluidSynth slots so the correct soundfont/patch plays.
+  void _syncRouting() {
+    VstHostService.instance.syncAudioRouting(
+      _audioGraph,
+      _plugins,
+      onNewSlot: _engine.reapplySlotPrograms,
+    );
   }
 
   void _onTransportChanged() {
@@ -202,7 +212,7 @@ class RackState extends ChangeNotifier {
     }
     _syncJamFollowerMapToEngine();
     // Sync native routing: new slot may alter the topological sort order.
-    VstHostService.instance.syncAudioRouting(_audioGraph, _plugins);
+    _syncRouting();
     notifyListeners();
     _notifyChanged();
   }
@@ -222,7 +232,7 @@ class RackState extends ChangeNotifier {
     _audioGraph.onSlotRemoved(id);
     _syncJamFollowerMapToEngine();
     // Sync native routing even if no cables pointed to the removed slot.
-    VstHostService.instance.syncAudioRouting(_audioGraph, _plugins);
+    _syncRouting();
     notifyListeners();
     _notifyChanged();
   }
@@ -546,7 +556,7 @@ class RackState extends ChangeNotifier {
   /// Used by GFPA descriptor slot widgets after registering or unregistering
   /// a native DSP instance so that [VstHostService] can wire the insert chain.
   void syncAudioRoutingIfNeeded() {
-    VstHostService.instance.syncAudioRouting(_audioGraph, _plugins);
+    _syncRouting();
   }
 
   /// Returns the next unused MIDI channel (1–16), or -1 if all are taken.

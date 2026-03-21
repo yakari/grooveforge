@@ -19,42 +19,44 @@ if(NOT EXISTS ${VST3_SDK_DIR}/CMakeLists.txt)
   message(FATAL_ERROR "VST3 SDK not found at ${VST3_SDK_DIR}. Download it first.")
 endif()
 
-# Manually include VST3 sources - SDK requires CMake 3.25+ but we have 3.22
-file(GLOB_RECURSE VST3_BASE_SOURCES 
-  ${VST3_SDK_DIR}/base/source/*.cpp
-  ${VST3_SDK_DIR}/pluginterfaces/base/*.cpp
-  ${VST3_SDK_DIR}/pluginterfaces/vst/*.cpp
-  ${VST3_SDK_DIR}/pluginterfaces/gui/*.cpp
-)
-
-# Add core VST SDK sources - avoid duplicates
+# ── VST3 SDK hosting-layer sources ───────────────────────────────────────────
+#
+# IMPORTANT: Only include HOSTING-side sources here. Including plugin-side SDK
+# sources (vstbus, vstcomponent, vsteditcontroller, vstparameters, etc.) causes
+# vtable/virtual-dispatch conflicts with the host's expected ABI, which corrupts
+# the C++ heap and crashes the Dart VM. See gfpa_dsp.cpp header for full notes.
+#
+# Required sources for a working VST3 host:
+#   1. Interface IID definitions (coreiids, vstinitiids, commoniids, baseiids)
+#   2. Hosting layer (plugprovider, hostclasses, module, eventlist, paramchanges)
+#   3. Common utilities (pluginview, memorystream, stringconvert, updatehandler)
 file(GLOB VST3_SDK_SOURCES
-  ${VST3_SDK_DIR}/public.sdk/source/vst/vstbus.cpp
-  ${VST3_SDK_DIR}/public.sdk/source/vst/vstcomponent.cpp  
-  ${VST3_SDK_DIR}/public.sdk/source/vst/vstcomponentbase.cpp
-  ${VST3_SDK_DIR}/public.sdk/source/vst/vsteditcontroller.cpp
+  ${VST3_SDK_DIR}/pluginterfaces/base/coreiids.cpp
+  ${VST3_SDK_DIR}/pluginterfaces/base/funknown.cpp
+  ${VST3_SDK_DIR}/pluginterfaces/base/ustring.cpp
   ${VST3_SDK_DIR}/public.sdk/source/vst/vstinitiids.cpp
-  ${VST3_SDK_DIR}/public.sdk/source/vst/vstnoteexpressiontypes.cpp
-  ${VST3_SDK_DIR}/public.sdk/source/vst/vstparameters.cpp
-  ${VST3_SDK_DIR}/public.sdk/source/vst/vstpresetfile.cpp
-  ${VST3_SDK_DIR}/public.sdk/source/vst/vstrepresentation.cpp
+  ${VST3_SDK_DIR}/public.sdk/source/common/commoniids.cpp
+  ${VST3_SDK_DIR}/public.sdk/source/common/pluginview.cpp
+  ${VST3_SDK_DIR}/public.sdk/source/common/memorystream.cpp
+  ${VST3_SDK_DIR}/public.sdk/source/common/commonstringconvert.cpp
   ${VST3_SDK_DIR}/public.sdk/source/vst/hosting/hostclasses.cpp
   ${VST3_SDK_DIR}/public.sdk/source/vst/hosting/pluginterfacesupport.cpp
   ${VST3_SDK_DIR}/public.sdk/source/vst/hosting/module.cpp
-  ${VST3_SDK_DIR}/public.sdk/source/common/pluginview.cpp
-  ${VST3_SDK_DIR}/public.sdk/source/common/commoniids.cpp
-  ${VST3_SDK_DIR}/public.sdk/source/vst/utility/stringconvert.cpp
-  ${VST3_SDK_DIR}/public.sdk/source/vst/utility/sampleaccurate.cpp
   ${VST3_SDK_DIR}/public.sdk/source/vst/hosting/eventlist.cpp
   ${VST3_SDK_DIR}/public.sdk/source/vst/hosting/parameterchanges.cpp
   ${VST3_SDK_DIR}/public.sdk/source/vst/hosting/plugprovider.cpp
-  ${VST3_SDK_DIR}/public.sdk/source/common/updatehandler.cpp
-  ${VST3_SDK_DIR}/public.sdk/source/common/memorystream.cpp
+  ${VST3_SDK_DIR}/public.sdk/source/vst/hosting/connectionproxy.cpp
+  ${VST3_SDK_DIR}/public.sdk/source/vst/utility/stringconvert.cpp
+  ${VST3_SDK_DIR}/base/source/baseiids.cpp
+  ${VST3_SDK_DIR}/base/source/fdebug.cpp
+  ${VST3_SDK_DIR}/base/source/fobject.cpp
+  ${VST3_SDK_DIR}/base/source/fstreamer.cpp
+  ${VST3_SDK_DIR}/base/source/fstring.cpp
+  ${VST3_SDK_DIR}/base/source/updatehandler.cpp
   ${VST3_SDK_DIR}/base/thread/source/flock.cpp
   ${VST3_SDK_DIR}/base/thread/source/fcondition.cpp
-  ${VST3_SDK_DIR}/public.sdk/source/vst/hosting/connectionproxy.cpp
-  ${VST3_SDK_DIR}/public.sdk/source/common/commonstringconvert.cpp
 )
+
 
 include_directories(
   ${VST3_SDK_DIR}
@@ -77,7 +79,6 @@ endif()
 
 add_library(dart_vst_host SHARED
   ${VstSources}
-  ${VST3_BASE_SOURCES}
   ${VST3_SDK_SOURCES}
 )
 
@@ -114,6 +115,11 @@ target_compile_definitions(dart_vst_host PRIVATE
   DART_VST_HOST_EXPORTS
   RELEASE=1
 )
+
+# -fno-common prevents multiple tentative definitions of interface IIDs
+# from being silently merged by the linker into a single __DATA,__common
+# symbol — which can cause dlopen to fail on macOS flat namespace.
+target_compile_options(dart_vst_host PRIVATE -fno-common)
 
 if(APPLE)
   find_library(COCOA_FRAMEWORK Cocoa)

@@ -52,7 +52,7 @@ class VstHostService {
     // VstHost or libdart_vst_host.so needed on this platform.
     if (Platform.isAndroid) return;
 
-    _host = VstHost.create(sampleRate: 48000.0, maxBlock: 256);
+    _host = VstHost.create(sampleRate: 48000.0, maxBlock: 4096);
     debugPrint('VstHostService: host created (version: ${_host!.getVersion()})');
   }
 
@@ -63,6 +63,9 @@ class VstHostService {
       p.unload();
     }
     _plugins.clear();
+    // macOS: Wait for audio thread to stop accessing old rack before deallocating.
+    if (Platform.isMacOS) _host?.syncMacAudio();
+
     // Destroy all GFPA DSP instances before tearing down the host.
     for (final h in _gfpaHandles.values) {
       _host?.destroyGfpaDsp(h);
@@ -90,7 +93,7 @@ class VstHostService {
 
     try {
       final plugin = _host!.load(path);
-      final ok = plugin.resume(sampleRate: 48000.0, maxBlock: 256);
+      final ok = plugin.resume(sampleRate: 48000.0, maxBlock: 4096);
       if (!ok) {
         plugin.unload();
         return null;
@@ -131,6 +134,8 @@ class VstHostService {
     final plugin = _plugins.remove(slotId);
     if (plugin != null) {
       if (_audioRunning) _host!.removeFromAudioLoop(plugin);
+      // macOS: Ensure audio thread is no longer processing this plugin.
+      if (Platform.isMacOS) _host?.syncMacAudio();
       plugin.suspend();
       plugin.unload();
     }
@@ -292,13 +297,12 @@ class VstHostService {
       _host!.addToAudioLoop(p);
     }
 
-    // Register GF Keyboard (libfluidsynth) as a master-mix contributor so its
-    // audio plays through the ALSA thread alongside VST3 plugins. On Linux the
-    // keyboard synth is always initialised before startAudio() is called.
-    if (Platform.isLinux) {
-      _host!.addMasterRender(AudioInputFFI().keyboardRenderBlockPtr);
-    }
-
+    // NOTE: GF Keyboard render pointers are registered in syncAudioRouting(),
+    // which is always called after startAudio() when the rack loads.  Do NOT
+    // add keyboardRenderBlockPtr here — syncAudioRouting uses per-slot
+    // trampolines and adding the backward-compat slot-0 pointer here would
+    // cause slot 0 to render twice per audio block (once via the trampoline,
+    // once via the backward-compat wrapper), producing garbled audio.
     bool ok = false;
     if (Platform.isMacOS) {
       ok = _host!.startMacAudio();
@@ -339,7 +343,14 @@ class VstHostService {
   /// Only VST3 slots (those present in [_plugins]) participate in native
   /// routing. Built-in GFPA slots (FluidSynth, vocoder, Jam Mode) use their
   /// own audio paths and are not routed through the ALSA loop.
-  void syncAudioRouting(AudioGraph graph, List<PluginInstance> allPlugins) {
+  /// [onNewSlot]: optional callback invoked with a slot index whenever
+  /// [keyboard_init_slot] creates a NEW FluidSynth instance (return value 2).
+  /// The caller should re-apply [keyboard_program_select] for all AudioEngine
+  /// channels that map to that slot (ch % 4 == slotIdx) so the correct
+  /// soundfont/patch is active — earlier calls were no-ops because the slot
+  /// did not exist yet.
+  void syncAudioRouting(AudioGraph graph, List<PluginInstance> allPlugins,
+      {void Function(int slotIdx)? onNewSlot}) {
     if (!isSupported) return;
 
     // On Android, the GFPA insert chain lives in gfpa_audio_android.cpp.
@@ -360,9 +371,35 @@ class VstHostService {
 
     _host!.setProcessingOrder(orderedPlugins);
 
-    // Clear all master inserts at the start of each rebuild so stale
-    // registrations from prior configurations are removed before we re-add.
+    // Ensure each GF Keyboard rack slot has its own FluidSynth instance.
+    // keyboard_init_slot() returns:
+    //   0 = failure, 1 = already existed (no-op), 2 = newly created.
+    // When a slot is newly created, _kb_create_synth() replays all loaded
+    // soundfonts with reset=1 (so all channels default to the last SF's
+    // program 0). Any keyboard_program_select() calls that happened before
+    // this slot existed were silent no-ops in C. We must re-apply them now.
+    if (Platform.isLinux || Platform.isMacOS) {
+      for (final p in allPlugins) {
+        if (p is GrooveForgeKeyboardPlugin) {
+          final slotIdx = (p.midiChannel - 1) % 4;
+          final initResult = AudioInputFFI().keyboardInitSlot(slotIdx, 48000.0);
+          if (initResult == 2) {
+            // Newly created slot — replay program_select for all channels
+            // that map to it so the correct soundfont/patch is heard.
+            onNewSlot?.call(slotIdx);
+          }
+        }
+      }
+    }
+
+    // Clear all master inserts (used by theremin/stylophone → GFPA paths) and
+    // ALL keyboard slot insert chains before rebuilding routing from scratch.
+    // Each slot is independent; clearing all prevents stale inserts from a
+    // previous routing configuration bleeding into the new one.
     _host!.clearMasterInserts();
+    for (int i = 0; i < 4; i++) {
+      AudioInputFFI().keyboardClearInsertsSlot(i);
+    }
 
     // Track which built-in instruments now have audio routes so we can
     // enable/disable capture mode on the native synth side.
@@ -435,15 +472,37 @@ class VstHostService {
           orElse: () => allPlugins.first,
         );
 
-        // GF Keyboard → GFPA effect: wire via master-insert on the keyboard
-        // render function so the keyboard audio passes through native DSP.
-        // The keyboard stays in masterRenders; the insert chain replaces
-        // direct accumulation with the DSP-processed output.
-        if (fromPlugin is GrooveForgeKeyboardPlugin && Platform.isLinux) {
-          _host!.addMasterInsert(
-            AudioInputFFI().keyboardRenderBlockPtr,
-            toHandle,
-          );
+        // Non-VST3 source → GFPA effect: wire via the source's inline chain.
+        // The keyboard applies effects inside keyboard_render_block() itself;
+        // theremin/stylophone still use dart_vst_host's master-insert API.
+        if (fromPlugin is GrooveForgeKeyboardPlugin &&
+            (Platform.isLinux || Platform.isMacOS)) {
+          // Each keyboard slot maps to its own FluidSynth instance via slotIdx
+          // = (midiChannel - 1) % 4.  Using per-slot insert APIs ensures that
+          // an effect on slot A does not bleed into slot B.
+          //
+          // NOTE: Do NOT call addMasterRender here — the final loop below
+          // adds every keyboard slot's render pointer exactly once.  Adding it
+          // here as well would render the slot twice per block (once through
+          // the insert chain, once dry), causing garbled audio.
+          final slotIdx = (fromPlugin.midiChannel - 1) % 4;
+          final insertFn = _host!.gfpaDspInsertFn(toHandle);
+          final userdata  = _host!.gfpaDspUserdata(toHandle);
+          AudioInputFFI().keyboardAddInsertSlot(slotIdx, insertFn, userdata);
+        } else if (fromPlugin is GFpaPluginInstance) {
+          if (fromPlugin.pluginId == 'com.grooveforge.theremin') {
+            _host!.addMasterRender(AudioInputFFI().thereminRenderBlockPtr);
+            _host!.addMasterInsert(
+              AudioInputFFI().thereminRenderBlockPtr,
+              toHandle,
+            );
+          } else if (fromPlugin.pluginId == 'com.grooveforge.stylophone') {
+            _host!.addMasterRender(AudioInputFFI().styloRenderBlockPtr);
+            _host!.addMasterInsert(
+              AudioInputFFI().styloRenderBlockPtr,
+              toHandle,
+            );
+          }
         }
       }
     }
@@ -462,15 +521,18 @@ class VstHostService {
       AudioInputFFI().thereminSetCaptureMode(enabled: thereminActive);
       AudioInputFFI().styloSetCaptureMode(enabled: styloActive);
 
-      if (Platform.isLinux) {
-        // Always keep the keyboard in masterRenders.
-        // The insert chain handles routing: when an insert is registered for
-        // the keyboard render fn (keyboard → GFPA effect), the ALSA loop
-        // passes audio through the DSP before accumulating to master.
-        // When no insert exists, audio goes directly to master.
-        // Removing the keyboard from masterRenders would silence it even when
-        // an insert is wired (inserts only run for fns IN masterRenders).
-        _host!.addMasterRender(AudioInputFFI().keyboardRenderBlockPtr);
+      if (Platform.isLinux || Platform.isMacOS) {
+        // Ensure every active keyboard slot contributes to the master mix.
+        // Each slot has its own render function so unconnected keyboards play
+        // dry while connected keyboards go through their effect inline.
+        for (final p in allPlugins) {
+          if (p is GrooveForgeKeyboardPlugin) {
+            final slotIdx = (p.midiChannel - 1) % 4;
+            _host!.addMasterRender(
+              AudioInputFFI().keyboardRenderFnForSlot(slotIdx),
+            );
+          }
+        }
       }
     } catch (_) {
       // AudioInputFFI may not be initialised on non-Linux builds (web, macOS
@@ -501,8 +563,18 @@ class VstHostService {
     }
 
     if (_host == null) return;
+
+    // Clear ALL keyboard slot insert chains before freeing the old handle so
+    // the audio thread cannot call into freed memory (use-after-free fix).
+    // syncAudioRouting() re-registers the correct inserts afterwards.
+    if (_gfpaHandles.containsKey(slotId)) {
+      for (int i = 0; i < 4; i++) {
+        AudioInputFFI().keyboardClearInsertsSlot(i);
+      }
+    }
+
     _destroyGfpaDspForSlot(slotId);
-    final handle = _host!.createGfpaDsp(pluginId, 48000, 256);
+    final handle = _host!.createGfpaDsp(pluginId, 48000, 4096);
     if (handle == nullptr) {
       debugPrint('VstHostService: gfpa_dsp_create returned null for $pluginId');
       return;
@@ -526,6 +598,17 @@ class VstHostService {
     }
 
     if (_host == null) return;
+
+    // Clear ALL keyboard slot insert chains so the audio thread cannot call
+    // into the freed handle after destruction.
+    for (int i = 0; i < 4; i++) {
+      AudioInputFFI().keyboardClearInsertsSlot(i);
+    }
+
+    // macOS: Wait for any in-flight keyboard_render_block() call to complete
+    // before freeing the DSP handle.
+    if (Platform.isMacOS) _host?.syncMacAudio();
+
     _destroyGfpaDspForSlot(slotId);
     debugPrint('VstHostService: GFPA DSP destroyed for $slotId');
   }
@@ -592,6 +675,8 @@ class VstHostService {
     if (Platform.isAndroid) {
       GfpaAndroidBindings.instance.gfpaDspDestroy(old);
     } else {
+      // Note: syncMacAudio() should be called by the caller of this method 
+      // BEFORE calling it, to ensure the pointers are nulled in the active rack first.
       _host?.destroyGfpaDsp(old);
     }
   }

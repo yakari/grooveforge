@@ -59,7 +59,8 @@ class VstHostService {
   void closeEditor(String slotId) {}
   bool isEditorOpen(String slotId) => false;
 
-  void syncAudioRouting(AudioGraph graph, List<PluginInstance> allPlugins) {}
+  void syncAudioRouting(AudioGraph graph, List<PluginInstance> allPlugins,
+      {void Function(int slotIdx)? onNewSlot}) {}
 
   /// Stub: no-op — native GFPA DSP is not supported on this platform.
   void registerGfpaDsp(String slotId, String pluginId) {}

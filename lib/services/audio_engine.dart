@@ -4,6 +4,7 @@ import 'dart:math' show min;
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter_midi_pro/flutter_midi_pro.dart';
@@ -142,6 +143,7 @@ class AudioEngine extends ChangeNotifier {
   /// The synthesizer library used for rendering audio on Mobile/macOS.
   final MidiPro _midiPro = MidiPro();
   bool _isInitialized = false;
+  bool _isNativeKeyboardActive = false;
 
   /// Human-readable status string used during the app splash screen startup sequence.
   final ValueNotifier<String> initStatus = ValueNotifier(
@@ -150,7 +152,7 @@ class AudioEngine extends ChangeNotifier {
 
   final List<String> loadedSoundfonts = [];
   final Map<String, int> _sfPathToIdMobile = {};
-  final Map<String, int> _sfPathToIdLinux = {};
+  final Map<String, int> _sfPathToIdNative = {};
 
   final Map<String, Map<int, Map<int, String>>> sf2Presets = {};
   final List<ChannelState> channels = List.generate(16, (i) => ChannelState());
@@ -257,7 +259,7 @@ class AudioEngine extends ChangeNotifier {
   ///   `flutter_midi_pro` method channel to `fluid_synth_set_gain()` on every
   ///   loaded synth instance.
   void applyFluidSynthGain() {
-    if (!kIsWeb && Platform.isLinux) {
+    if (!kIsWeb && (Platform.isLinux || Platform.isMacOS)) {
       AudioInputFFI().keyboardSetGain(fluidSynthGain.value);
     } else {
       MidiPro().setGain(fluidSynthGain.value);
@@ -459,20 +461,27 @@ class AudioEngine extends ChangeNotifier {
     }
 
     if (!kIsWeb) {
-      if (Platform.isLinux) {
-        initStatus.value = 'Starting FluidSynth backend...';
-        // Use libfluidsynth directly (in-process, no audio driver) so that
-        // the dart_vst_host ALSA thread can drive rendering via
+      if (Platform.isLinux || Platform.isMacOS) {
+        // macOS/Linux: use FluidSynth directly (in-process, no audio driver) so that
+        // the dart_vst_host ALSA/CoreAudio thread drives rendering via
         // keyboard_render_block() — same mechanism as Theremin/Stylophone.
         // keyboard_init() is idempotent: safe to call on re-initialisation.
+        initStatus.value = 'Starting native keyboard...';
         final ok = AudioInputFFI().keyboardInit(48000.0);
         if (ok == 1) {
+          _isNativeKeyboardActive = true;
           AudioInputFFI().keyboardSetGain(fluidSynthGain.value);
-          debugPrint('AudioEngine: FluidSynth initialised via FFI');
+          debugPrint('AudioEngine: Native keyboard initialised via FFI (${Platform.isLinux ? "Linux" : "macOS"}/FluidSynth)');
         } else {
-          debugPrint('AudioEngine: FluidSynth FFI init failed');
+          debugPrint('AudioEngine: Native keyboard FFI init failed');
         }
-      } else {
+        // Android: keyboard audio is produced by flutter_midi_pro
+        // (AVAudioUnitSampler / soundfont), which gives the correct piano sound.
+        // _isNativeKeyboardActive stays false → playNote/stopNote will route
+        // through _midiPro instead of the sine-oscillator fallback.
+      }
+      
+      if (!Platform.isLinux) {
         try {
           final session = await AudioSession.instance;
           await session.configure(
@@ -578,8 +587,8 @@ class AudioEngine extends ChangeNotifier {
           }
         }
         // Fire-and-forget: completes after user's first interaction resumes
-        // the AudioContext.
-        _loadWebSoundfontInBackground(assetPath);
+        // the AudioContext on Web, or immediately on Native.
+        _loadSoundfontInBackground(assetPath);
       }
       return;
     }
@@ -630,31 +639,27 @@ class AudioEngine extends ChangeNotifier {
     }
   }
 
-  /// Loads the web default soundfont in the background.
-  ///
-  /// Called once during init without awaiting it. The load requires the
-  /// AudioContext to be running (user gesture), so it may pend silently
-  /// until the user first interacts with the app. Once the sfId is
-  /// available the channel instrument assignments are applied and all
-  /// queued notes can play.
-  Future<void> _loadWebSoundfontInBackground(String assetPath) async {
+  /// Loads the default soundfont in the background for Web or Native.
+  Future<void> _loadSoundfontInBackground(String assetPath) async {
     try {
-      final sfId = await _midiPro.loadSoundfontAsset(assetPath: assetPath);
-      if (sfId == -1) {
-        debugPrint('GrooveForge Web: soundfont load returned -1 (JS bridge not ready)');
-        return;
-      }
-      _sfPathToIdMobile[assetPath] = sfId;
-      loadedSoundfonts.add(assetPath);
-      for (int i = 0; i < 16; i++) {
-        if (channels[i].soundfontPath == assetPath) {
-          _applyChannelInstrument(i);
+      if (kIsWeb || Platform.isLinux || Platform.isMacOS) {
+        if (kIsWeb) {
+          final sfId = await _midiPro.loadSoundfontAsset(assetPath: assetPath);
+          if (sfId == -1) return;
+          _sfPathToIdMobile[assetPath] = sfId;
         }
+        loadedSoundfonts.add(assetPath);
+        for (int i = 0; i < 16; i++) {
+          if (channels[i].soundfontPath == assetPath) {
+            _applyChannelInstrument(i);
+          }
+        }
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          stateNotifier.value++;
+        });
       }
-      stateNotifier.value++;
-      debugPrint('GrooveForge Web: default soundfont loaded (sfId=$sfId)');
     } catch (e) {
-      debugPrint('GrooveForge Web: error loading default soundfont: $e');
+      debugPrint('GrooveForge: error loading soundfont in background: $e');
     }
   }
 
@@ -879,14 +884,14 @@ class AudioEngine extends ChangeNotifier {
       }
       loadedSoundfonts.add(targetPath);
 
-      if (Platform.isLinux) {
+      if (Platform.isLinux || Platform.isMacOS) {
         // keyboard_load_sf() returns the FluidSynth-assigned sfId directly,
         // replacing the old counter-based stub ID used with the subprocess.
         final sfId = AudioInputFFI().keyboardLoadSf(targetPath);
         if (sfId < 0) {
           throw Exception('Failed to load soundfont via FluidSynth: $targetPath');
         }
-        _sfPathToIdLinux[targetPath] = sfId;
+        _sfPathToIdNative[targetPath] = sfId;
       } else {
         int sfId = await _midiPro.loadSoundfontFile(filePath: targetPath);
         if (sfId == -1) {
@@ -919,11 +924,11 @@ class AudioEngine extends ChangeNotifier {
       return;
     }
     if (!kIsWeb && Platform.isLinux) {
-      int? sfId = _sfPathToIdLinux[path];
+      int? sfId = _sfPathToIdNative[path];
       if (sfId != null) {
         AudioInputFFI().keyboardUnloadSf(sfId);
       }
-      _sfPathToIdLinux.remove(path);
+      _sfPathToIdNative.remove(path);
     } else {
       _sfPathToIdMobile.remove(path);
     }
@@ -1016,6 +1021,24 @@ class AudioEngine extends ChangeNotifier {
     _healthCheckTimer = null;
   }
 
+  /// Re-apply [keyboard_program_select] for every AudioEngine channel that
+  /// maps to [slotIdx] (i.e. channel % 4 == slotIdx).
+  ///
+  /// Called by [VstHostService.syncAudioRouting] immediately after a new
+  /// FluidSynth slot is first created ([keyboard_init_slot] returns 2).
+  /// Earlier [keyboard_program_select] calls for a not-yet-initialised slot
+  /// are silent no-ops in C (synth pointer is NULL at that point), so the
+  /// program selections for those channels are never applied unless we
+  /// explicitly replay them here.
+  void reapplySlotPrograms(int slotIdx) {
+    if (kIsWeb) return;
+    if (!Platform.isLinux && !Platform.isMacOS) return;
+    // Walk all 16 MIDI channels; re-apply those mapping to [slotIdx].
+    for (int ch = slotIdx; ch < 16; ch += 4) {
+      _applyChannelInstrument(ch);
+    }
+  }
+
   void _applyChannelInstrument(int channel) {
     ChannelState state = channels[channel];
     if (state.soundfontPath == null ||
@@ -1023,8 +1046,8 @@ class AudioEngine extends ChangeNotifier {
         state.soundfontPath == kMidiControllerOnlySoundfont) {
       return;
     }
-    if (!kIsWeb && Platform.isLinux) {
-      int? sfId = _sfPathToIdLinux[state.soundfontPath!];
+    if (!kIsWeb && (Platform.isLinux || Platform.isMacOS)) {
+      int? sfId = _sfPathToIdNative[state.soundfontPath!];
       if (sfId != null) {
         AudioInputFFI().keyboardProgramSelect(channel, sfId, state.bank, state.program);
       }
@@ -1046,8 +1069,8 @@ class AudioEngine extends ChangeNotifier {
     if (path == null || path == kMidiControllerOnlySoundfont) {
       return -1;
     }
-    return (!kIsWeb && Platform.isLinux)
-        ? (_sfPathToIdLinux[path] ?? -1)
+    return (!kIsWeb && (Platform.isLinux || Platform.isMacOS))
+        ? (_sfPathToIdNative[path] ?? -1)
         : (_sfPathToIdMobile[path] ?? -1);
   }
 
@@ -1058,7 +1081,7 @@ class AudioEngine extends ChangeNotifier {
     // GM drum notes: 37 = side stick (downbeat accent), 76 = high wood block (regular beat).
     final int note = isDownbeat ? 37 : 76;
     final int velocity = isDownbeat ? 100 : 75;
-    if (!kIsWeb && Platform.isLinux) {
+    if (_isNativeKeyboardActive) {
       AudioInputFFI().keyboardNoteOn(percChannel, note, velocity);
       Future.delayed(const Duration(milliseconds: 40), () {
         AudioInputFFI().keyboardNoteOff(percChannel, note);
@@ -1298,7 +1321,7 @@ class AudioEngine extends ChangeNotifier {
 
     int? currentOwner = channels[channel].snappedKeyOwners[keyToPlay];
     if (currentOwner != null && currentOwner != key && !midiControllerOnly) {
-      if (!kIsWeb && Platform.isLinux) {
+      if (_isNativeKeyboardActive) {
         AudioInputFFI().keyboardNoteOff(channel, keyToPlay);
       } else {
         int sfId = _getSfIdForChannel(channel);
@@ -1318,7 +1341,7 @@ class AudioEngine extends ChangeNotifier {
       if (channels[channel].soundfontPath == vocoderMode) {
         AudioInputFFI().playNote(key: keyToPlay, velocity: velocity);
       } else {
-        if (!kIsWeb && Platform.isLinux) {
+        if (_isNativeKeyboardActive) {
           AudioInputFFI().keyboardNoteOn(channel, keyToPlay, velocity);
         } else {
           int sfId = _getSfIdForChannel(channel);
@@ -1356,7 +1379,7 @@ class AudioEngine extends ChangeNotifier {
         if (channels[channel].soundfontPath == vocoderMode) {
           AudioInputFFI().stopNote(key: keyToStop);
         } else {
-          if (!kIsWeb && Platform.isLinux) {
+          if (_isNativeKeyboardActive) {
             AudioInputFFI().keyboardNoteOff(channel, keyToStop);
           } else {
             int sfId = _getSfIdForChannel(channel);
@@ -1499,7 +1522,9 @@ class AudioEngine extends ChangeNotifier {
     }
 
     if (gfpaJamEntries.value.isEmpty) {
-      stateNotifier.value++;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        stateNotifier.value++;
+      });
       return;
     }
 
@@ -1531,7 +1556,9 @@ class AudioEngine extends ChangeNotifier {
       }
     }
 
-    stateNotifier.value++;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      stateNotifier.value++;
+    });
   }
 
   /// Returns a descriptive name for the effective scale being used.
@@ -2044,7 +2071,7 @@ class AudioEngine extends ChangeNotifier {
     await _prefs!.clear();
     loadedSoundfonts.clear();
     _sfPathToIdMobile.clear();
-    _sfPathToIdLinux.clear();
+    _sfPathToIdNative.clear();
     sf2Presets.clear();
     for (int i = 0; i < 16; i++) {
       channels[i] = ChannelState();

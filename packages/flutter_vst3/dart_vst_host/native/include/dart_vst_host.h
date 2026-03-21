@@ -159,6 +159,9 @@ DVH_API void dvh_remove_master_render(DVH_Host host, DvhRenderFn fn);
 // macOS specific audio device management (CoreAudio/miniaudio)
 DVH_API int32_t dvh_mac_start_audio(DVH_Host host);
 DVH_API void    dvh_mac_stop_audio(DVH_Host host);
+// Wait for at least one full audio cycle to complete on the macOS audio thread.
+// Ensures that old RackStates or deleted plugins are no longer being accessed.
+DVH_API void    dvh_mac_sync_audio(DVH_Host host);
 
 // Parameter unit/group API — for grouping parameters by category.
 // Returns the unitId for the parameter at [index]. Returns -1 on failure.

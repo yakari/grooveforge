@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -129,36 +130,38 @@ class RackSlotWidget extends StatelessWidget {
     bool isFlashing,
     int channelIndex,
   ) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 100),
-      curve: Curves.easeInOut,
-      margin: const EdgeInsets.only(bottom: 2),
-      decoration: BoxDecoration(
-        color: isFlashing
-            ? Colors.blueAccent.withValues(alpha: 0.2)
-            : Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isFlashing ? Colors.blueAccent : Colors.transparent,
-          width: 2,
+    return RepaintBoundary(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 100),
+        curve: Curves.easeInOut,
+        margin: const EdgeInsets.only(bottom: 2),
+        decoration: BoxDecoration(
+          color: isFlashing
+              ? Colors.blueAccent.withValues(alpha: 0.2)
+              : Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isFlashing ? Colors.blueAccent : Colors.transparent,
+            width: 2,
+          ),
         ),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _SlotHeader(plugin: plugin, isFlashing: isFlashing),
-          _buildBody(context),
-          // Piano is shown for built-in GK slots and GFPA instrument slots
-          // (keyboard and vocoder). MIDI FX / VST3 / effect slots get none.
-          if (_showPiano)
-            SizedBox(
-              height: _effectivePianoHeight,
-              child: _RackSlotPiano(
-                channelIndex: channelIndex,
-                plugin: plugin,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _SlotHeader(plugin: plugin, isFlashing: isFlashing),
+            _buildBody(context),
+            // Piano is shown for built-in GK slots and GFPA instrument slots
+            // (keyboard and vocoder). MIDI FX / VST3 / effect slots get none.
+            if (_showPiano)
+              SizedBox(
+                height: _effectivePianoHeight,
+                child: _RackSlotPiano(
+                  channelIndex: channelIndex,
+                  plugin: plugin,
+                ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -315,15 +318,32 @@ class _SlotHeader extends StatelessWidget {
                 Icon(_iconFor(plugin), color: Colors.deepPurpleAccent, size: 16),
                 const SizedBox(width: 6),
                 Flexible(
-                  child: Text(
-                    plugin.displayName,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                      color: Colors.white70,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                  child: Platform.isMacOS
+                      ? ClipRect(
+                          child: Text(
+                            plugin.displayName.trim().isEmpty
+                                ? '???'
+                                : plugin.displayName,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                              color: Colors.white70,
+                            ),
+                            overflow: TextOverflow.visible,
+                            softWrap: false,
+                          ),
+                        )
+                      : Text(
+                          plugin.displayName.trim().isEmpty
+                              ? '???'
+                              : plugin.displayName,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: Colors.white70,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                 ),
               ],
             ),
@@ -459,14 +479,28 @@ class _MidiChannelBadge extends StatelessWidget {
           borderRadius: BorderRadius.circular(6),
           border: Border.all(color: Colors.blueAccent.withValues(alpha: 0.5)),
         ),
-        child: Text(
-          '${l10n.rackMidiChannel} ${plugin.midiChannel}',
-          style: const TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.bold,
-            color: Colors.blueAccent,
-          ),
-        ),
+        child: Platform.isMacOS
+            ? ClipRect(
+                child: Text(
+                  '${l10n.rackMidiChannel} ${plugin.midiChannel}',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blueAccent,
+                  ),
+                  overflow: TextOverflow.visible,
+                  softWrap: false,
+                ),
+              )
+            : Text(
+                '${l10n.rackMidiChannel} ${plugin.midiChannel}',
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blueAccent,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
       ),
     );
   }

@@ -302,6 +302,9 @@ class NativeBindings {
   late final void Function(Pointer<Void>) dvhMacStopAudio =
       lib.lookupFunction<Void Function(Pointer<Void>), void Function(Pointer<Void>)>('dvh_mac_stop_audio');
 
+  late final void Function(Pointer<Void>) dvhMacSyncAudio =
+      lib.lookupFunction<Void Function(Pointer<Void>), void Function(Pointer<Void>)>('dvh_mac_sync_audio');
+
   // Parameter unit/group API.
   late final int Function(Pointer<Void>, int) dvhParamUnitId =
       lib.lookupFunction<Int32 Function(Pointer<Void>, Int32),

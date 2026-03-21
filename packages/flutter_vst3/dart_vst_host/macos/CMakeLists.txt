@@ -36,41 +36,47 @@ if(NOT EXISTS "${VST3_SDK_DIR}/CMakeLists.txt")
   )
 endif()
 
-# ── VST3 SDK sources (cross-platform) ─────────────────────────────────────────
-
-file(GLOB_RECURSE VST3_BASE_SOURCES
-  ${VST3_SDK_DIR}/base/source/*.cpp
-  ${VST3_SDK_DIR}/pluginterfaces/base/*.cpp
-  ${VST3_SDK_DIR}/pluginterfaces/vst/*.cpp
-  ${VST3_SDK_DIR}/pluginterfaces/gui/*.cpp
-)
-
-file(GLOB VST3_SDK_SOURCES
-  ${VST3_SDK_DIR}/public.sdk/source/vst/vstbus.cpp
-  ${VST3_SDK_DIR}/public.sdk/source/vst/vstcomponent.cpp
-  ${VST3_SDK_DIR}/public.sdk/source/vst/vstcomponentbase.cpp
-  ${VST3_SDK_DIR}/public.sdk/source/vst/vsteditcontroller.cpp
+# ── VST3 SDK sources (macOS hosting — minimal, hosting-layer only) ────────────
+#
+# IMPORTANT: Do NOT add plugin-side SDK sources here (vstbus, vstcomponent,
+# vsteditcontroller, vstparameters, vstpresetfile, etc.). Those sources are
+# for writing VST3 plugins, not hosting them. Including them alongside the
+# hosting layer causes vtable/virtual-dispatch ABI conflicts that corrupt the
+# C++ heap, which then crashes the Dart VM with:
+#   BUG IN CLIENT OF LIBMALLOC: memory corruption of free block
+#
+# Also do NOT use file(GLOB_RECURSE ...) on pluginterfaces or base — those
+# directories contain optional files that create duplicate symbol definitions.
+#
+# Required hosting-side sources:
+#   1. Interface IID definitions (coreiids, vstinitiids, commoniids, baseiids)
+#   2. Hosting layer (plugprovider, hostclasses, module, eventlist, paramchanges)
+#   3. Common utilities (pluginview, memorystream, stringconvert, updatehandler)
+set(VST3_SDK_SOURCES
+  ${VST3_SDK_DIR}/pluginterfaces/base/coreiids.cpp
+  ${VST3_SDK_DIR}/pluginterfaces/base/funknown.cpp
+  ${VST3_SDK_DIR}/pluginterfaces/base/ustring.cpp
   ${VST3_SDK_DIR}/public.sdk/source/vst/vstinitiids.cpp
-  ${VST3_SDK_DIR}/public.sdk/source/vst/vstnoteexpressiontypes.cpp
-  ${VST3_SDK_DIR}/public.sdk/source/vst/vstparameters.cpp
-  ${VST3_SDK_DIR}/public.sdk/source/vst/vstpresetfile.cpp
-  ${VST3_SDK_DIR}/public.sdk/source/vst/vstrepresentation.cpp
+  ${VST3_SDK_DIR}/public.sdk/source/common/commoniids.cpp
+  ${VST3_SDK_DIR}/public.sdk/source/common/pluginview.cpp
+  ${VST3_SDK_DIR}/public.sdk/source/common/memorystream.cpp
+  ${VST3_SDK_DIR}/public.sdk/source/common/commonstringconvert.cpp
   ${VST3_SDK_DIR}/public.sdk/source/vst/hosting/hostclasses.cpp
   ${VST3_SDK_DIR}/public.sdk/source/vst/hosting/pluginterfacesupport.cpp
   ${VST3_SDK_DIR}/public.sdk/source/vst/hosting/module.cpp
-  ${VST3_SDK_DIR}/public.sdk/source/common/pluginview.cpp
-  ${VST3_SDK_DIR}/public.sdk/source/common/commoniids.cpp
-  ${VST3_SDK_DIR}/public.sdk/source/vst/utility/stringconvert.cpp
-  ${VST3_SDK_DIR}/public.sdk/source/vst/utility/sampleaccurate.cpp
   ${VST3_SDK_DIR}/public.sdk/source/vst/hosting/eventlist.cpp
   ${VST3_SDK_DIR}/public.sdk/source/vst/hosting/parameterchanges.cpp
   ${VST3_SDK_DIR}/public.sdk/source/vst/hosting/plugprovider.cpp
-  ${VST3_SDK_DIR}/public.sdk/source/common/updatehandler.cpp
-  ${VST3_SDK_DIR}/public.sdk/source/common/memorystream.cpp
+  ${VST3_SDK_DIR}/public.sdk/source/vst/hosting/connectionproxy.cpp
+  ${VST3_SDK_DIR}/public.sdk/source/vst/utility/stringconvert.cpp
+  ${VST3_SDK_DIR}/base/source/baseiids.cpp
+  ${VST3_SDK_DIR}/base/source/fdebug.cpp
+  ${VST3_SDK_DIR}/base/source/fobject.cpp
+  ${VST3_SDK_DIR}/base/source/fstreamer.cpp
+  ${VST3_SDK_DIR}/base/source/fstring.cpp
+  ${VST3_SDK_DIR}/base/source/updatehandler.cpp
   ${VST3_SDK_DIR}/base/thread/source/flock.cpp
   ${VST3_SDK_DIR}/base/thread/source/fcondition.cpp
-  ${VST3_SDK_DIR}/public.sdk/source/vst/hosting/connectionproxy.cpp
-  ${VST3_SDK_DIR}/public.sdk/source/common/commonstringconvert.cpp
 )
 
 # ── Library target ─────────────────────────────────────────────────────────────
@@ -84,12 +90,12 @@ add_library(${PROJECT_NAME} SHARED
   # macOS specific implementation
   ${NATIVE_DIR}/src/dart_vst_host_audio_mac.cpp
   ${NATIVE_DIR}/src/dart_vst_host_editor_mac.mm
-  ${VST3_BASE_SOURCES}
   ${VST3_SDK_SOURCES}
   # macOS VST3 module loader and thread checker (Objective-C++)
   ${VST3_SDK_DIR}/public.sdk/source/vst/hosting/module_mac.mm
   ${VST3_SDK_DIR}/public.sdk/source/common/threadchecker_mac.mm
 )
+
 
 # The .mm files need Objective-C++ with ARC
 set_source_files_properties(
@@ -110,6 +116,10 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
   DART_VST_HOST_EXPORTS
   RELEASE=1
 )
+
+# -fno-common: prevents tentative-definition symbol merging that causes
+# dlopen to fail with 'symbol not found' on macOS flat namespace.
+target_compile_options(${PROJECT_NAME} PRIVATE -fno-common -Wreorder)
 
 # macOS system frameworks required by VST3 hosting
 find_library(COCOA_FRAMEWORK         Cocoa)

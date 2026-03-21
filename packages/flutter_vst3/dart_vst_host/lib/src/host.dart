@@ -85,6 +85,10 @@ class VstHost {
   /// macOS: Stop the CoreAudio/miniaudio output thread.
   void stopMacAudio() => _b.dvhMacStopAudio(handle);
 
+  /// macOS: Wait for at least one full audio cycle to complete.
+  /// Ensures safe memory deallocation after rack changes.
+  void syncMacAudio() => _b.dvhMacSyncAudio(handle);
+
   // ─── Audio graph routing (Phase 5.4) ──────────────────────────────────────
 
   /// Set the topological processing order for the audio callback.
@@ -192,6 +196,22 @@ class VstHost {
 
   /// Set the global BPM for all BPM-synced GFPA effects (delay, wah, chorus).
   void setGfpaBpm(double bpm) => _b.gfpaSetBpm(bpm);
+
+  /// Return the static insert-callback pointer for [dspHandle], as Pointer<Void>.
+  ///
+  /// Used by [VstHostService] to register the callback with the keyboard's
+  /// inline insert chain (keyboard_add_insert in libaudio_input) rather than
+  /// with dart_vst_host's master-insert API.  The returned pointer is valid
+  /// for the entire lifetime of the [dspHandle].
+  Pointer<Void> gfpaDspInsertFn(Pointer<Void> dspHandle) =>
+      _b.gfpaDspInsertFn(dspHandle);
+
+  /// Return the userdata pointer for [dspHandle].
+  ///
+  /// Companion to [gfpaDspInsertFn]: pass both to keyboard_add_insert() so
+  /// the audio thread can dispatch the correct DSP instance.
+  Pointer<Void> gfpaDspUserdata(Pointer<Void> dspHandle) =>
+      _b.gfpaDspUserdata(dspHandle);
 
   /// Register a GFPA DSP insert on [sourceFn]'s master-render audio path.
   ///

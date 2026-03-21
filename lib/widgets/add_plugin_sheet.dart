@@ -649,7 +649,7 @@ class _InstalledPluginsDialog extends StatelessWidget {
               subtitle: Text(
                 dir,
                 style: const TextStyle(fontSize: 11, color: Colors.white38),
-                overflow: TextOverflow.ellipsis,
+                overflow: Platform.isMacOS ? TextOverflow.clip : TextOverflow.ellipsis,
               ),
               onTap: () => Navigator.pop(context, path),
             );

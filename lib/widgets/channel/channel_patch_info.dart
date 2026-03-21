@@ -108,16 +108,30 @@ class ChannelPatchInfo extends StatelessWidget {
           engine.loadedSoundfonts.isEmpty
               ? Align(
                 alignment: Alignment.centerLeft,
-                child: Text(
-                  AppLocalizations.of(context)!.patchLoadSoundfont,
-                  style: const TextStyle(
-                    color: Colors.orange,
-                    fontSize: 14,
-                    fontStyle: FontStyle.italic,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
+                  child: Platform.isMacOS
+                      ? ClipRect(
+                          child: Text(
+                            AppLocalizations.of(context)!.patchLoadSoundfont,
+                            style: const TextStyle(
+                              color: Colors.orange,
+                              fontSize: 14,
+                              fontStyle: FontStyle.italic,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.visible,
+                            softWrap: false,
+                          ),
+                        )
+                      : Text(
+                          AppLocalizations.of(context)!.patchLoadSoundfont,
+                          style: const TextStyle(
+                            color: Colors.orange,
+                            fontSize: 14,
+                            fontStyle: FontStyle.italic,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
               )
               : DropdownButtonHideUnderline(
                 child: DropdownButton<String>(
@@ -157,12 +171,22 @@ class ChannelPatchInfo extends StatelessWidget {
 
                         final noneItem = DropdownMenuItem<String>(
                           value: kMidiControllerOnlySoundfont,
-                          child: Text(
-                            AppLocalizations.of(context)!
-                                .patchSoundfontNoneMidiOnly,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                          child: Platform.isMacOS
+                              ? ClipRect(
+                                  child: Text(
+                                    AppLocalizations.of(context)!
+                                        .patchSoundfontNoneMidiOnly,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.visible,
+                                    softWrap: false,
+                                  ),
+                                )
+                              : Text(
+                                  AppLocalizations.of(context)!
+                                      .patchSoundfontNoneMidiOnly,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                         );
                         List<DropdownMenuItem<String>> items =
                             sortedPaths.map((sfPath) {
@@ -179,18 +203,36 @@ class ChannelPatchInfo extends StatelessWidget {
                                           .last;
                               return DropdownMenuItem<String>(
                                 value: sfPath,
-                                child: Text(
-                                  name,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontWeight:
-                                        isDefault
-                                            ? FontWeight.bold
-                                            : FontWeight.normal,
-                                    color: isDefault ? Colors.blue[300] : null,
-                                  ),
-                                ),
+                                child: Platform.isMacOS
+                                    ? ClipRect(
+                                        child: Text(
+                                          name,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.visible,
+                                          softWrap: false,
+                                          style: TextStyle(
+                                            fontWeight: isDefault
+                                                ? FontWeight.bold
+                                                : FontWeight.normal,
+                                            color: isDefault
+                                                ? Colors.blue[300]
+                                                : null,
+                                          ),
+                                        ),
+                                      )
+                                    : Text(
+                                        name,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontWeight: isDefault
+                                              ? FontWeight.bold
+                                              : FontWeight.normal,
+                                          color: isDefault
+                                              ? Colors.blue[300]
+                                              : null,
+                                        ),
+                                      ),
                               );
                             }).toList();
 
@@ -234,15 +276,25 @@ class ChannelPatchInfo extends StatelessWidget {
           items:
               availablePrograms.map((prog) {
                 String pName =
-                    bankPresets![prog] ??
-                    AppLocalizations.of(context)!.patchUnknownProgram(prog);
+                    (bankPresets![prog] ??
+                     AppLocalizations.of(context)!.patchUnknownProgram(prog));
+                if (pName.isEmpty) pName = '???';
                 return DropdownMenuItem<int>(
                   value: prog,
-                  child: Text(
-                    '${prog.toString().padLeft(3, '0')} - $pName',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                  child: Platform.isMacOS
+                      ? ClipRect(
+                          child: Text(
+                            '${prog.toString().padLeft(3, '0')} - $pName',
+                            maxLines: 1,
+                            overflow: TextOverflow.visible,
+                            softWrap: false,
+                          ),
+                        )
+                      : Text(
+                          '${prog.toString().padLeft(3, '0')} - $pName',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                 );
               }).toList(),
           onChanged: (newProg) {

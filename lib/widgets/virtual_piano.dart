@@ -423,14 +423,21 @@ class _PianoKeysPainter extends CustomPainter {
     return base;
   }
 
+  static final Map<String, TextPainter> _tpCache = {};
+
   void _label(Canvas canvas, String text, Color color, double fontSize, double cx, double bottomY) {
-    final tp = TextPainter(
-      text: TextSpan(
-        text: text,
-        style: TextStyle(color: color, fontSize: fontSize, fontWeight: FontWeight.bold),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
+    final key = '$text-$color-$fontSize';
+    final tp = _tpCache.putIfAbsent(key, () {
+      final p = TextPainter(
+        text: TextSpan(
+          text: text,
+          style: TextStyle(color: color, fontSize: fontSize, fontWeight: FontWeight.bold),
+        ),
+        textDirection: TextDirection.ltr,
+      );
+      p.layout();
+      return p;
+    });
     tp.paint(canvas, Offset(cx - tp.width / 2, bottomY - tp.height - 4));
   }
 

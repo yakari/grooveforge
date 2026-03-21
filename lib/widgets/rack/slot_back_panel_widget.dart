@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:grooveforge_plugin_api/grooveforge_plugin_api.dart'
     show GFEffectPlugin, GFPluginRegistry;
@@ -262,7 +263,7 @@ class _BackPanelHeader extends StatelessWidget {
               fontWeight: FontWeight.bold,
               letterSpacing: 2.0,
             ),
-            overflow: TextOverflow.ellipsis,
+            overflow: Platform.isMacOS ? TextOverflow.clip : TextOverflow.ellipsis,
           ),
         ),
         TextButton(
@@ -425,11 +426,23 @@ class _JackWidgetState extends State<_JackWidget>
         dragCtrl.fromPort!.compatibleWith(widget.port);
 
     // Start/stop the pulse animation for compatible input jacks during drag.
+    //
+    // IMPORTANT: Both repeat() and stop()/value=0 must be deferred with
+    // addPostFrameCallback.  Calling them synchronously during build() causes
+    // AnimationController to notify its listeners (including AnimatedBuilder's
+    // setState), which tries to mark a widget dirty mid-build and triggers the
+    // Flutter assertion '_elements.contains(element)'.
     if (isCompatible && !_pulseCtrl.isAnimating) {
-      _pulseCtrl.repeat(reverse: true);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !_pulseCtrl.isAnimating) _pulseCtrl.repeat(reverse: true);
+      });
     } else if (!isCompatible && _pulseCtrl.isAnimating) {
-      _pulseCtrl.stop();
-      _pulseCtrl.value = 0;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _pulseCtrl.stop();
+          _pulseCtrl.value = 0;
+        }
+      });
     }
 
     final isDimmed = isDragActive && !isCompatible && !widget.port.isOutput;

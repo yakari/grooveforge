@@ -7,7 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [X.x.x]
 
-### Added
+### Fixed
+- **macOS crash (heap corruption / EXC_BAD_ACCESS in `shared_preferences_foundation`)**: FluidSynth transitively loads glib, whose `g_slice` slab allocator bypasses the system malloc zone and corrupts Swift's conformance cache and ObjC metadata. The previous fix (`setenv` inside `keyboard_init()`) was too late — glib's `__attribute__((constructor))` runs when `libglib` is loaded by dyld, before any Dart code executes. Fixed by calling `setenv("G_SLICE", "always-malloc", 1)` in `AppDelegate.swift`'s `applicationWillFinishLaunching`, which runs before Flutter's Dart engine starts and before `libaudio_input.dylib` (and its transitive glib dependency) is opened via `dlopen`.
+- **macOS crash (heap corruption / SIGTRAP)**: Eliminated a use-after-free race condition where the old `GfpaDspHandle` was freed in `registerGfpaDsp` while the audio thread might still be executing its insert callback. `keyboard_clear_inserts()` is now called before any DSP destruction so the audio thread's insert snapshot is guaranteed stale-pointer-free.
+- **GFPA effects not applied on macOS**: The keyboard → GFPA effect routing was wired through `dart_vst_host`'s master-insert API, which required cross-library synchronisation that was unreliable on macOS. Effects are now applied inline inside `keyboard_render_block()` in `libaudio_input`, matching the Android architecture.
+
+### Fixed
+- **GFPA effect on one keyboard bleeding into other keyboards**: A second GF Keyboard slot without any effect was being processed by the wah/reverb/etc. registered for the first keyboard, because all keyboard audio came from a single global FluidSynth instance with a single global insert chain. Fixed by giving each keyboard slot its own FluidSynth instance (keyed by MIDI channel index) and its own isolated insert chain.
+- **Flutter assertion `_elements.contains(element)` when connecting cables**: `_JackWidgetState.build` was calling `_pulseCtrl.repeat(reverse: true)` and `_pulseCtrl.value = 0` during a build phase. Both calls synchronously notify `AnimatedBuilder` listeners, which call `setState` mid-build and trigger a Flutter dirty-element assertion. Fixed by deferring both the `repeat()` start and the `stop()/value=0` reset via `WidgetsBinding.instance.addPostFrameCallback`.
+- **GF Keyboard audio degraded / does not sound like a soundfont**: Two separate sources of double-rendering caused slot 0's FluidSynth to render twice per audio block. (1) `startAudio()` was registering `keyboardRenderBlockPtr` (backward-compat slot-0 wrapper), and `syncAudioRouting` was additionally registering `keyboardRenderFnForSlot(0)` — two different function pointers for the same slot both accepted by `addMasterRender`. (2) Inside the keyboard→GFPA connection loop, `addMasterRender(renderPtr)` was called for the connected slot, and the final "ensure all keyboards" loop added it again. Fixed by removing the `keyboardRenderBlockPtr` registration from `startAudio()` (now handled entirely by `syncAudioRouting`) and removing the redundant `addMasterRender` call from the connection loop (the final loop already covers all slots).
+- **Both soundfonts play simultaneously / wrong soundfont on GF Keyboard / sounds like an out-of-tune piano**: Three root causes fixed. (1) `keyboard_load_sf()` called `fluid_synth_sfload(..., reset=1)` which resets ALL 16 MIDI channel program assignments to the newly loaded soundfont's defaults — fixed by changing to `reset=0`. (2) `keyboard_program_select()` is a C no-op when the target slot's FluidSynth doesn't exist yet (synth pointer is NULL). When `keyboard_init_slot()` later calls `_kb_create_synth()`, that function replayed all soundfonts with `reset=1`, defaulting ALL channels to the last-loaded soundfont's program 0 (e.g. distorted guitar instead of piano) — fixed by also changing `_kb_create_synth`'s replay loop to `reset=0`. (3) Since `keyboard_program_select()` calls that occurred before the slot existed were silent no-ops, Dart must re-apply them after slot creation — fixed by making `keyboard_init_slot()` return `2` for newly-created slots, and having `VstHostService.syncAudioRouting()` invoke an `onNewSlot` callback (`AudioEngine.reapplySlotPrograms`) to replay correct program selections for all channels mapping to the new slot.
+
+### Architecture
+- **Multi-slot FluidSynth (`keyboard_synth.c`)**: Up to 4 isolated FluidSynth instances (`KbSlot`) are now supported. MIDI channel `n` maps to slot `n % 4`. Soundfonts are loaded into all active slots in order so sfIds stay consistent without per-slot tracking in Dart. Per-slot insert chains replace the former global chain.
+- **Static render trampolines**: `keyboard_render_block_0/1/2/3` provide unique C function addresses per slot; `keyboard_render_fn_for_slot(int)` returns the right one. dart_vst_host's `addMasterRender` now receives a unique pointer per keyboard slot.
+- **Per-slot insert API**: `keyboard_add_insert_slot(slotIdx, fn, ud)` and `keyboard_clear_inserts_slot(slotIdx)` replace the old global `keyboard_add_insert/clear_inserts`. Backward-compatible slot-0 wrappers are kept.
+- **`AudioInputFFI` gains multi-slot API**: `keyboardInitSlot`, `keyboardDestroySlot`, `keyboardRenderFnForSlot`, `keyboardAddInsertSlot`, `keyboardClearInsertsSlot` Dart FFI bindings.
+- **`syncAudioRouting` initialises slots on demand**: Each `GrooveForgeKeyboardPlugin` in the rack triggers `keyboardInitSlot(midiChannel-1 % 4, 48000)` so the second keyboard slot's FluidSynth is ready before routing is rebuilt.
+- **Removed sine-oscillator fallback**: The `#else` branch in `keyboard_synth.c` (a polyphonic sine-wave stub for platforms without FluidSynth) has been removed. macOS now compiles the full FluidSynth path; Android never calls `keyboard_render_block` for MIDI playback.
+- **Inline GFPA insert chain in `keyboard_synth.c`**: `_kb_apply_chain()` shared helper + per-slot insert chain applied at the end of each slot's render block.
+- **`VstHost` exposes raw DSP accessors**: `gfpaDspInsertFn(handle)` and `gfpaDspUserdata(handle)` allow `VstHostService` to extract the function pointer and userdata needed for `keyboard_add_insert_slot()` without going through `dvh_add_master_insert`.
+- **`dart_vst_host` master-insert API no longer used for the keyboard path**: keyboard → GFPA connections now bypass `dvh_add_master_insert`; the API is still used for theremin/stylophone → GFPA connections on desktop.
+
+### Fixed (previously)
+- **macOS Stability (SIGTRAP Fix)**: Resolved a critical memory corruption crash (`EXC_BREAKPOINT`) by implementing full double-buffering for master renders and GFPA inserts. Added a cycle-counting synchronization mechanism (`dvh_mac_sync_audio`) that ensures the audio thread has "evacuated" old rack state before Dart deallocates plugin or DSP memory.
+- **macOS UI Stability**: Resolved the persistent `EXC_BAD_ACCESS` (SIGSEGV) crash in Skia text rendering (`SkFont::getWidthsBounds`) and "RECURSION LEVEL 39" in Dart. Implemented a robust `ClipRect` + `TextOverflow.visible` workaround to bypass Skia's internal ellipsis measurement on macOS.
+- **Paint Isolation & Optimization**: Restored `RepaintBoundary` for plugin slots to isolate paint cycles and implemented `TextPainter` caching in the Virtual Piano to reduce UI thread load and stabilize layout during high MIDI activity.
+- **macOS Keyboard Routing (FluidSynth)**: Enabled the native FluidSynth engine on macOS. Keyboard audio now correctly flows through the VST host's master inserts and effects (e.g., Wah, Reverb).
+- **AudioEngine Refactor**: Unified desktop soundfont management in `AudioEngine.dart` using a new native-FFI path for both Linux and macOS. 
+- **VST3 Build System (macOS)**: Restored the `ffiPlugin: true` configuration in `pubspec.yaml` and cleaned up SDK source includes.
+- **macOS Import Fixes**: Resolved build failures caused by missing `dart:io` imports and `WidgetsBinding` in various UI and service files.
+- Critical memory corruption in GFPA Delay and Chorus effects (initialization order).
 - **GFPA DSP effects on Android**: all six built-in `.gfpd` effects (reverb, delay, wah, EQ, compressor, chorus) now process audio on Android via the Oboe real-time thread. A custom `gfpa_audio_callback` (registered with `new_fluid_audio_driver2`) intercepts FluidSynth's Oboe output and applies the GFPA insert chain in-place — allocation-free, lock-free on the hot path.
 - **`gfpa_audio_android.cpp` / `.h`**: new C++ translation unit in `flutter_midi_pro` implementing the FluidSynth audio callback and insert-chain management (`gfpa_android_add_insert`, `gfpa_android_remove_insert`, `gfpa_android_clear_inserts`, `gfpa_android_set_bpm`).
 - **`GfpaAndroidBindings` Dart class**: FFI singleton (`lib/services/gfpa_android_bindings.dart`) binding the Android-side DSP and insert-chain functions from `libnative-lib.so`.
@@ -27,6 +57,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Non-Linux stub implementations added to the `#else` block of `dart_vst_host_alsa.cpp` for all new GFPA functions.
 
 ### Fixed
+- **macOS native audio**: rebuilt `libaudio_input.dylib` and `libdart_vst_host.dylib` to ensure all symbols are correctly exported. Enabled Master-render and Master-insert routing on macOS, allowing native instruments (Theremin, Stylophone) to use GFPA descriptor effects (Wah, Delay, Reverb).
 - Add-plugin sheet: section header **VST3 Plugins** (desktop) mirroring the built-in effects separator.
 
 ### Changed
@@ -552,6 +583,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.2.0] - 2026-02-26
 
 ### Added
+- Correction d'une corruption de mémoire critique dans le code DSP natif (Delay/Chorus) sur macOS.
+- Correction des symboles VST3 SDK manquants dans `libdart_vst_host.dylib` causant des erreurs au démarrage.
+- Ajout d'une synthèse clavier native de secours pour macOS et Android.
 - Implemented a custom application icon for all platforms.
 - Added a native splash screen (Android, iOS) for a seamless startup experience.
 - Created a dynamic, fullscreen Flutter splash screen that shows initialization progress (loading preferences, starting backends, etc.).

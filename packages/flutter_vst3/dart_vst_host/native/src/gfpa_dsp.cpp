@@ -173,6 +173,7 @@ struct FreeverbEffect {
     void process(const float* inL, const float* inR,
                  float* outL, float* outR, int32_t n)
     {
+        if (n > 4096) return; // Safety: should not happen with current host config
         const float w  = width.load();
         // Width controls the side-to-side spread of the reverb:
         //   w1 = weight of same-channel reverb output
@@ -298,15 +299,19 @@ struct EqEffect {
     BiquadFilter eq3; ///< Band 3: high-mid peaking.
     BiquadFilter eq4; ///< Band 4: high-shelf.
 
+    // sampleRate MUST be declared before any field whose initializer uses it,
+    // because C++ initializes members in declaration order, not init-list order.
+    float sampleRate; ///< Stored for coefficient re-computation.
+
     // Physical parameters (atomic for thread safety).
     std::atomic<float> lowFreq{100.0f},  lowGain{0.0f};
     std::atomic<float> lmidFreq{500.0f}, lmidQ{1.0f},   lmidGain{0.0f};
     std::atomic<float> hmidFreq{2500.f}, hmidQ{1.0f},   hmidGain{0.0f};
     std::atomic<float> highFreq{8000.f}, highGain{0.0f};
 
-    float sampleRate; ///< Stored for coefficient re-computation.
-
     explicit EqEffect(float sr) : sampleRate(sr) {
+        // Coefficients depend on sampleRate — computed in body after all members
+        // are fully initialized.
         _rebuildEq1(); _rebuildEq2(); _rebuildEq3(); _rebuildEq4();
     }
 
@@ -349,10 +354,12 @@ private:
 
 /// Stereo ping-pong delay with optional BPM synchronisation.
 struct DelayEffect {
-    std::vector<float> bufL, bufR;  ///< Left and right delay lines.
+    // Declaration order MUST match the constructor initializer list order,
+    // because C++ initializes members in declaration order.
     int32_t maxDelaySamples;         ///< Pre-allocated buffer length.
+    float   sampleRate;              ///< Sample rate, used for time->sample conversion.
+    std::vector<float> bufL, bufR;  ///< Left and right delay lines.
     int32_t writePos{0};             ///< Current write head.
-    float   sampleRate;
 
     // Physical parameters.
     std::atomic<float> timeMs{375.0f};    ///< Delay time in ms [1, 2000].
@@ -395,6 +402,7 @@ struct DelayEffect {
     void process(const float* inL, const float* inR,
                  float* outL, float* outR, int32_t n)
     {
+        if (n > 4096) return; // Safety: should not happen with current host config
         int32_t delay = _delaySamples();
         // Clamp delay to valid range to prevent buffer over-reads.
         if (delay <= 0)                  delay = 1;
@@ -426,12 +434,14 @@ struct DelayEffect {
 
 /// Wah auto-filter: LFO-swept SVF bandpass with optional BPM sync.
 struct WahEffect {
+    // sampleRate MUST be declared first: the constructor initializer list
+    // mentions it before tmpL/tmpR, and C++ initializes in declaration order.
+    float sampleRate;
+
     // SVF state variables (per channel).
     float lowL{0}, bandL{0};
     float lowR{0}, bandR{0};
     float lfoPhase{0.0f}; ///< LFO phase in [0,1).
-
-    float sampleRate;
 
     // Physical parameters.
     std::atomic<float> center{1200.0f};   ///< Center frequency Hz [200, 4000].
@@ -445,8 +455,8 @@ struct WahEffect {
 
     std::vector<float> tmpL, tmpR;
 
-    WahEffect(float sr, int32_t block)
-        : sampleRate(sr), tmpL(block, 0.0f), tmpR(block, 0.0f)
+    WahEffect(float sr, int32_t /*block*/)
+        : sampleRate(sr), tmpL(4096, 0.0f), tmpR(4096, 0.0f)
     {}
 
     void setParam(const char* id, float v) {
@@ -481,6 +491,7 @@ struct WahEffect {
     void process(const float* inL, const float* inR,
                  float* outL, float* outR, int32_t n)
     {
+        if (n > 4096) return; // Safety: should not happen with current host config
         const float c        = center.load();
         const float q        = resonance.load();
         const float d        = depth.load();
@@ -585,14 +596,14 @@ struct CompressorEffect {
 // flanger (very short delay) effects. L and R channels use LFOs that start
 // 180° apart for a natural stereo widening feel.
 
-/// Stereo chorus with optional BPM synchronisation.
 struct ChorusEffect {
-    std::vector<float> bufL, bufR;  ///< Per-channel modulated delay lines.
+    // Declaration order MUST match the constructor initializer list order.
     int32_t maxDelaySamples;
+    float sampleRate;
+    std::vector<float> bufL, bufR;  ///< Per-channel modulated delay lines.
     int32_t writePos{0};
     float lfoPhaseL{0.0f};  ///< LFO phase for L (starts at 0°).
     float lfoPhaseR{0.5f};  ///< LFO phase for R (starts at 180° — stereo spread).
-    float sampleRate;
 
     std::atomic<float> rate{0.5f};       ///< LFO rate Hz [0.1, 10].
     std::atomic<float> depth{0.5f};      ///< Modulation depth [0, 1].
@@ -604,12 +615,12 @@ struct ChorusEffect {
 
     std::vector<float> tmpL, tmpR;
 
-    ChorusEffect(float sr, int32_t block)
+    ChorusEffect(float sr, int32_t /*block*/)
         : maxDelaySamples(static_cast<int32_t>(sr * 0.1f) + 1) // max 100 ms
         , sampleRate(sr)
         , bufL(maxDelaySamples, 0.0f)
         , bufR(maxDelaySamples, 0.0f)
-        , tmpL(block, 0.0f), tmpR(block, 0.0f)
+        , tmpL(4096, 0.0f), tmpR(4096, 0.0f)
     {}
 
     void setParam(const char* id, float v) {
@@ -642,6 +653,7 @@ struct ChorusEffect {
     void process(const float* inL, const float* inR,
                  float* outL, float* outR, int32_t n)
     {
+        if (n > 4096) return; // Safety: should not happen with current host config
         const float rHz      = _rateHz();
         const float phaseInc = rHz / sampleRate;
         const float baseDelay = delayMs.load() * sampleRate / 1000.0f;
@@ -753,7 +765,11 @@ GfpaDspHandle gfpa_dsp_create(const char* pluginId, int32_t sr, int32_t block) {
         delete inst;
         return nullptr;
     }
-    return static_cast<GfpaDspHandle>(inst);
+    auto* handle = static_cast<GfpaDspHandle>(inst);
+    fprintf(stderr, "[gfpa_dsp] Created effect %s (handle=%p, sr=%d, block=%d)\n", 
+            pluginId, (void*)handle, sr, block);
+    fflush(stderr);
+    return handle;
 }
 
 /// Set a physical parameter value on a live DSP instance.
@@ -775,7 +791,6 @@ GfpaInsertFn gfpa_dsp_insert_fn(GfpaDspHandle /*handle*/) {
     return GfpaDspInstance::insertCb;
 }
 
-/// Return the userdata pointer (the instance itself).
 void* gfpa_dsp_userdata(GfpaDspHandle handle) {
     return handle;
 }

@@ -4,6 +4,7 @@ import 'dart:math' as math;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -446,14 +447,26 @@ class _InsertEffectRow extends StatelessWidget {
                 color: Colors.deepPurpleAccent),
             const SizedBox(width: 6),
             Expanded(
-              child: Text(
-                effect.pluginName,
-                style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500),
-                overflow: TextOverflow.ellipsis,
-              ),
+                child: Platform.isMacOS
+                    ? ClipRect(
+                        child: Text(
+                          effect.pluginName,
+                          style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500),
+                          overflow: TextOverflow.visible,
+                          softWrap: false,
+                        ),
+                      )
+                    : Text(
+                        effect.pluginName,
+                        style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500),
+                        overflow: TextOverflow.ellipsis,
+                      ),
             ),
             // Disconnect button — removes the cables but leaves the rack slot.
             GestureDetector(
@@ -800,10 +813,18 @@ class _ParamCategoryModalState extends State<_ParamCategoryModal> {
                         ..._subGroupKeys.map(
                           (k) => DropdownMenuItem(
                             value: k,
-                            child: Text(
-                              '$k  (${_subGroups[k]!.length})',
-                              overflow: TextOverflow.ellipsis,
-                            ),
+                              child: Platform.isMacOS
+                                  ? ClipRect(
+                                      child: Text(
+                                        '$k  (${_subGroups[k]!.length})',
+                                        overflow: TextOverflow.visible,
+                                        softWrap: false,
+                                      ),
+                                    )
+                                  : Text(
+                                      '$k  (${_subGroups[k]!.length})',
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                           ),
                         ),
                       ],
@@ -969,11 +990,20 @@ class _StatusRow extends StatelessWidget {
         ),
         const SizedBox(width: 6),
         Expanded(
-          child: Text(
-            plugin.path,
-            style: const TextStyle(color: Colors.white38, fontSize: 10),
-            overflow: TextOverflow.ellipsis,
-          ),
+          child: Platform.isMacOS
+              ? ClipRect(
+                  child: Text(
+                    plugin.path,
+                    style: const TextStyle(color: Colors.white38, fontSize: 10),
+                    overflow: TextOverflow.visible,
+                    softWrap: false,
+                  ),
+                )
+              : Text(
+                  plugin.path,
+                  style: const TextStyle(color: Colors.white38, fontSize: 10),
+                  overflow: TextOverflow.ellipsis,
+                ),
         ),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),

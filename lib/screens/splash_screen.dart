@@ -113,7 +113,8 @@ class _SplashScreenState extends State<SplashScreen> {
         // all VST3 effect plugins are in _plugins. The syncAudioRouting call
         // that fires during audioGraph.loadFromJson() above returns early
         // because _host is still null at that point.
-        vstSvc.syncAudioRouting(audioGraph, rack.plugins);
+        vstSvc.syncAudioRouting(audioGraph, rack.plugins,
+            onNewSlot: engine.reapplySlotPrograms);
       }
     }
 

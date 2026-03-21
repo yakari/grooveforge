@@ -1,6 +1,8 @@
 PODS:
   - audio_session (0.0.1):
     - FlutterMacOS
+  - dart_vst_host (0.1.0):
+    - FlutterMacOS
   - file_picker (0.0.1):
     - FlutterMacOS
   - flutter_midi_command (0.0.1):
@@ -19,6 +21,7 @@ PODS:
 
 DEPENDENCIES:
   - audio_session (from `Flutter/ephemeral/.symlinks/plugins/audio_session/macos`)
+  - dart_vst_host (from `Flutter/ephemeral/.symlinks/plugins/dart_vst_host/macos`)
   - file_picker (from `Flutter/ephemeral/.symlinks/plugins/file_picker/macos`)
   - flutter_midi_command (from `Flutter/ephemeral/.symlinks/plugins/flutter_midi_command/macos`)
   - flutter_midi_pro (from `Flutter/ephemeral/.symlinks/plugins/flutter_midi_pro/macos`)
@@ -30,6 +33,8 @@ DEPENDENCIES:
 EXTERNAL SOURCES:
   audio_session:
     :path: Flutter/ephemeral/.symlinks/plugins/audio_session/macos
+  dart_vst_host:
+    :path: Flutter/ephemeral/.symlinks/plugins/dart_vst_host/macos
   file_picker:
     :path: Flutter/ephemeral/.symlinks/plugins/file_picker/macos
   flutter_midi_command:
@@ -47,6 +52,7 @@ EXTERNAL SOURCES:
 
 SPEC CHECKSUMS:
   audio_session: eaca2512cf2b39212d724f35d11f46180ad3a33e
+  dart_vst_host: 767ca9e8244712c7dee2c5e4959ba475ecc1f127
   file_picker: 7584aae6fa07a041af2b36a2655122d42f578c1a
   flutter_midi_command: c7517347a1acc8e4c7d4e9fa9809b3e87bbfd2b8
   flutter_midi_pro: 4c5d8ef49905c7d72d7dc94f5f110a0137d95252

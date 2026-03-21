@@ -30,10 +30,17 @@ dev_dependencies:
 # requires a .podspec file that our CMake-only approach does not provide.
 # Until a proper podspec + CoreAudio backend are added, macOS VST3 hosting
 # falls back to the no-op stub (VstHostService from vst_host_service_stub.dart).
+# macOS: dart_vst_host is NOT declared as a CocoaPods plugin here.
+# The libdart_vst_host.dylib is loaded at runtime via Dart FFI
+# (DynamicLibrary.open('libdart_vst_host.dylib')). Xcode copies the
+# pre-built dylib from macos/Runner/ into the app bundle via the
+# Runner target's Copy Files build phase.
 flutter:
   plugin:
     platforms:
       linux:
+        ffiPlugin: true
+      macos:
         ffiPlugin: true
       windows:
         ffiPlugin: true

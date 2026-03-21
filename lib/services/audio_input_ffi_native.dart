@@ -213,6 +213,45 @@ typedef KeyboardSetGainDart = void Function(double gain);
 /// C: `void keyboard_render_block(float* outL, float* outR, int frames)`.
 typedef KeyboardRenderBlockC = Void Function(Pointer<Float>, Pointer<Float>, Int32);
 
+// ── GF Keyboard multi-slot FFI typedefs ──────────────────────────────────────
+
+/// C: `int keyboard_init_slot(int slotIdx, float sampleRate)` — creates an
+/// isolated FluidSynth instance for one rack keyboard slot.
+typedef KeyboardInitSlotC = Int32 Function(Int32 slotIdx, Float sampleRate);
+typedef KeyboardInitSlotDart = int Function(int slotIdx, double sampleRate);
+
+/// C: `void keyboard_destroy_slot(int slotIdx)` — frees a slot's instance.
+typedef KeyboardDestroySlotC = Void Function(Int32 slotIdx);
+typedef KeyboardDestroySlotDart = void Function(int slotIdx);
+
+/// C: `void* keyboard_render_fn_for_slot(int slotIdx)` — returns the static
+/// render-block function pointer for [slotIdx].  Pass this to dart_vst_host's
+/// addMasterRender() so each keyboard slot has its own unique render function.
+typedef KeyboardRenderFnForSlotC = Pointer<Void> Function(Int32 slotIdx);
+typedef KeyboardRenderFnForSlotDart = Pointer<Void> Function(int slotIdx);
+
+// ── GF Keyboard GFPA insert chain FFI typedefs ───────────────────────────────
+
+/// C: `void keyboard_add_insert(void* fn, void* userdata)` — backward-compat,
+/// adds to slot 0.
+typedef KeyboardAddInsertC = Void Function(Pointer<Void> fn, Pointer<Void> userdata);
+typedef KeyboardAddInsertDart = void Function(Pointer<Void> fn, Pointer<Void> userdata);
+
+/// C: `void keyboard_clear_inserts(void)` — backward-compat, clears slot 0.
+typedef KeyboardClearInsertsC = Void Function();
+typedef KeyboardClearInsertsDart = void Function();
+
+/// C: `void keyboard_add_insert_slot(int slotIdx, void* fn, void* userdata)`
+/// Registers a GFPA effect on a specific keyboard slot's inline audio path.
+typedef KeyboardAddInsertSlotC = Void Function(Int32 slotIdx, Pointer<Void> fn, Pointer<Void> userdata);
+typedef KeyboardAddInsertSlotDart = void Function(int slotIdx, Pointer<Void> fn, Pointer<Void> userdata);
+
+/// C: `void keyboard_clear_inserts_slot(int slotIdx)` — clears all inserts
+/// for a specific keyboard slot.  Must be called before destroying any
+/// GfpaDspHandle linked to that slot.
+typedef KeyboardClearInsertsSlotC = Void Function(Int32 slotIdx);
+typedef KeyboardClearInsertsSlotDart = void Function(int slotIdx);
+
 class AudioInputFFI {
   static AudioInputFFI? _instance;
   late DynamicLibrary _lib;
@@ -321,6 +360,34 @@ class AudioInputFFI {
   /// Raw pointer to `keyboard_render_block` — passed to dart_vst_host as a
   /// master-mix contributor or external render source for VST3 effects.
   late final Pointer<NativeFunction<KeyboardRenderBlockC>> keyboardRenderBlockPtr;
+
+  // ── GF Keyboard multi-slot fields ────────────────────────────────────────
+
+  /// Bound reference to `keyboard_init_slot` — creates an isolated FluidSynth
+  /// instance for one rack slot.
+  late final KeyboardInitSlotDart _keyboardInitSlot;
+
+  /// Bound reference to `keyboard_destroy_slot` — frees a slot's FluidSynth.
+  late final KeyboardDestroySlotDart _keyboardDestroySlot;
+
+  /// Bound reference to `keyboard_render_fn_for_slot` — returns the static
+  /// render function pointer for a given slot index.
+  late final KeyboardRenderFnForSlotDart _keyboardRenderFnForSlot;
+
+  // ── GF Keyboard GFPA insert chain fields ─────────────────────────────────
+
+  /// Bound reference to `keyboard_add_insert` — registers a GFPA effect on
+  /// slot 0 (backward-compatible single-keyboard path).
+  late final KeyboardAddInsertDart _keyboardAddInsert;
+
+  /// Bound reference to `keyboard_clear_inserts` — clears slot 0 inserts.
+  late final KeyboardClearInsertsDart _keyboardClearInserts;
+
+  /// Bound reference to `keyboard_add_insert_slot` — per-slot insert registration.
+  late final KeyboardAddInsertSlotDart _keyboardAddInsertSlot;
+
+  /// Bound reference to `keyboard_clear_inserts_slot` — per-slot insert clear.
+  late final KeyboardClearInsertsSlotDart _keyboardClearInsertsSlot;
 
   factory AudioInputFFI() {
     _instance ??= AudioInputFFI._internal();
@@ -510,6 +577,24 @@ class AudioInputFFI {
     // Raw pointer — passed as a C function pointer to dart_vst_host.
     keyboardRenderBlockPtr =
         _lib.lookup<NativeFunction<KeyboardRenderBlockC>>('keyboard_render_block');
+
+    // ── GF Keyboard multi-slot bindings ──────────────────────────────────
+    _keyboardInitSlot =
+        _lib.lookup<NativeFunction<KeyboardInitSlotC>>('keyboard_init_slot').asFunction();
+    _keyboardDestroySlot =
+        _lib.lookup<NativeFunction<KeyboardDestroySlotC>>('keyboard_destroy_slot').asFunction();
+    _keyboardRenderFnForSlot =
+        _lib.lookup<NativeFunction<KeyboardRenderFnForSlotC>>('keyboard_render_fn_for_slot').asFunction();
+
+    // ── GF Keyboard insert chain ──────────────────────────────────────────
+    _keyboardAddInsert =
+        _lib.lookup<NativeFunction<KeyboardAddInsertC>>('keyboard_add_insert').asFunction();
+    _keyboardClearInserts =
+        _lib.lookup<NativeFunction<KeyboardClearInsertsC>>('keyboard_clear_inserts').asFunction();
+    _keyboardAddInsertSlot =
+        _lib.lookup<NativeFunction<KeyboardAddInsertSlotC>>('keyboard_add_insert_slot').asFunction();
+    _keyboardClearInsertsSlot =
+        _lib.lookup<NativeFunction<KeyboardClearInsertsSlotC>>('keyboard_clear_inserts_slot').asFunction();
   }
 
   bool startCapture() {
@@ -694,7 +779,7 @@ class AudioInputFFI {
   /// Load a SoundFont (.sf2) from [path] and return its FluidSynth sfId.
   ///
   /// Returns a positive sfId on success, -1 on failure. The sfId must be
-  /// stored by the caller (e.g. in [AudioEngine._sfPathToIdLinux]) and passed
+  /// stored by the caller (e.g. in [AudioEngine._sfPathToIdNative]) and passed
   /// to [keyboardProgramSelect] and [keyboardUnloadSf].
   int keyboardLoadSf(String path) {
     final ptr = path.toNativeUtf8();
@@ -730,4 +815,56 @@ class AudioInputFFI {
   /// Set the master FluidSynth output gain (linear scalar; GrooveForge default
   /// is 3.0 on Linux).
   void keyboardSetGain(double gain) => _keyboardSetGain(gain);
+
+  // ── GF Keyboard multi-slot public API ────────────────────────────────────
+
+  /// Initialise a FluidSynth engine for [slotIdx] at [sampleRate] Hz.
+  ///
+  /// Each GF Keyboard rack slot should use its own [slotIdx] (0–3) so that
+  /// GFPA effects on one slot do not bleed into another.  Idempotent.
+  /// Returns 1 on success, 0 on failure.
+  int keyboardInitSlot(int slotIdx, double sampleRate) =>
+      _keyboardInitSlot(slotIdx, sampleRate);
+
+  /// Destroy the FluidSynth engine for [slotIdx].
+  void keyboardDestroySlot(int slotIdx) => _keyboardDestroySlot(slotIdx);
+
+  /// Return the native render-block function pointer for [slotIdx].
+  ///
+  /// Pass the result to [VstHost.addMasterRender] or [VstHost.setExternalRender]
+  /// so each keyboard slot has a unique C function address that renders only
+  /// its own FluidSynth instance.
+  Pointer<NativeFunction<KeyboardRenderBlockC>> keyboardRenderFnForSlot(
+      int slotIdx) {
+    final rawPtr = _keyboardRenderFnForSlot(slotIdx);
+    return rawPtr.cast<NativeFunction<KeyboardRenderBlockC>>();
+  }
+
+  // ── GF Keyboard insert chain public API ──────────────────────────────────
+
+  /// Register a GFPA effect on [slotIdx]'s inline audio path (per-slot).
+  ///
+  /// Effects registered on slot A do NOT affect slot B — this is the correct
+  /// API for multi-keyboard racks.  Always call [keyboardClearInsertsSlot]
+  /// before destroying any GfpaDspHandle.
+  void keyboardAddInsertSlot(
+      int slotIdx, Pointer<Void> insertFn, Pointer<Void> userdata) =>
+      _keyboardAddInsertSlot(slotIdx, insertFn, userdata);
+
+  /// Remove all GFPA effects from [slotIdx]'s audio path.
+  void keyboardClearInsertsSlot(int slotIdx) =>
+      _keyboardClearInsertsSlot(slotIdx);
+
+  /// Register a GFPA descriptor effect on the GF Keyboard's inline audio path.
+  ///
+  /// Backward-compatible: operates on slot 0.  Prefer [keyboardAddInsertSlot]
+  /// for multi-keyboard setups.
+  void keyboardAddInsert(Pointer<Void> insertFn, Pointer<Void> userdata) =>
+      _keyboardAddInsert(insertFn, userdata);
+
+  /// Remove all registered GFPA effects from slot 0's audio path.
+  ///
+  /// Backward-compatible.  Prefer [keyboardClearInsertsSlot] for
+  /// multi-keyboard setups.
+  void keyboardClearInserts() => _keyboardClearInserts();
 }

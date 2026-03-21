@@ -1,5 +1,6 @@
 import 'dart:math' show min;
 
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -552,18 +553,34 @@ class _ScaleLcdSelector extends StatelessWidget {
         // letting Flexible truncate long scale names with an ellipsis.
         children: [
           Flexible(
-            child: Text(
-              scaleName.toUpperCase(),
-              overflow: TextOverflow.ellipsis,
-              maxLines: 1,
-              softWrap: false,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-                color: enabled ? _kLcdAmber : _kLcdAmber.withValues(alpha: 0.25),
-                letterSpacing: 1.2,
-              ),
-            ),
+            child: Platform.isMacOS
+                ? ClipRect(
+                    child: Text(
+                      scaleName.toUpperCase(),
+                      overflow: TextOverflow.visible,
+                      maxLines: 1,
+                      softWrap: false,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color:
+                            enabled ? _kLcdAmber : _kLcdAmber.withValues(alpha: 0.25),
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                  )
+                : Text(
+                    scaleName.toUpperCase(),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color:
+                          enabled ? _kLcdAmber : _kLcdAmber.withValues(alpha: 0.25),
+                      letterSpacing: 1.2,
+                    ),
+                  ),
           ),
           if (showChevron) ...[
             const SizedBox(width: 4),
@@ -1547,12 +1564,33 @@ class _PinnedScaleLcd extends StatelessWidget {
                   else
                     const SizedBox(width: 11),
                   const SizedBox(width: 6),
-                  Text(
-                    _scaleLabels[s] ?? s.name,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: s == _scaleType ? _kLcdAmber : Colors.white70,
-                    ),
+                  Flexible(
+                    child: Platform.isMacOS
+                        ? ClipRect(
+                            child: Text(
+                              _scaleLabels[s] ?? s.name,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: s == _scaleType
+                                    ? _kLcdAmber
+                                    : Colors.white70,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.visible,
+                              softWrap: false,
+                            ),
+                          )
+                        : Text(
+                            _scaleLabels[s] ?? s.name,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: s == _scaleType
+                                  ? _kLcdAmber
+                                  : Colors.white70,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                   ),
                 ],
               ),
@@ -1569,17 +1607,32 @@ class _PinnedScaleLcd extends StatelessWidget {
       child: Row(
         children: [
           Flexible(
-            child: Text(
-              text.toUpperCase(),
-              overflow: TextOverflow.ellipsis,
-              maxLines: 1,
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w800,
-                color: enabled ? _kLcdAmber : _kLcdAmber.withValues(alpha: 0.25),
-                letterSpacing: 1.2,
-              ),
-            ),
+            child: Platform.isMacOS
+                ? ClipRect(
+                    child: Text(
+                      text.toUpperCase(),
+                      overflow: TextOverflow.visible,
+                      softWrap: false,
+                      maxLines: 1,
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        color: enabled ? _kLcdAmber : _kLcdAmber.withValues(alpha: 0.25),
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                  )
+                : Text(
+                    text.toUpperCase(),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      color: enabled ? _kLcdAmber : _kLcdAmber.withValues(alpha: 0.25),
+                      letterSpacing: 1.2,
+                    ),
+                  ),
           ),
           const SizedBox(width: 4),
           // Edit chevron hints that the LCD is tappable.

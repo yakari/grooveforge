@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -518,10 +519,18 @@ class _EffectParamModalState extends State<_EffectParamModal> {
                         ..._subGroupKeys.map(
                           (k) => DropdownMenuItem(
                             value: k,
-                            child: Text(
-                              '$k  (${_subGroups[k]!.length})',
-                              overflow: TextOverflow.ellipsis,
-                            ),
+                              child: Platform.isMacOS
+                                  ? ClipRect(
+                                      child: Text(
+                                        '$k  (${_subGroups[k]!.length})',
+                                        overflow: TextOverflow.visible,
+                                        softWrap: false,
+                                      ),
+                                    )
+                                  : Text(
+                                      '$k  (${_subGroups[k]!.length})',
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                           ),
                         ),
                       ],
@@ -690,11 +699,20 @@ class _EffectStatusRow extends StatelessWidget {
         ),
         const SizedBox(width: 6),
         Expanded(
-          child: Text(
-            plugin.path,
-            style: const TextStyle(color: Colors.white38, fontSize: 10),
-            overflow: TextOverflow.ellipsis,
-          ),
+          child: Platform.isMacOS
+              ? ClipRect(
+                  child: Text(
+                    plugin.path,
+                    style: const TextStyle(color: Colors.white38, fontSize: 10),
+                    overflow: TextOverflow.visible,
+                    softWrap: false,
+                  ),
+                )
+              : Text(
+                  plugin.path,
+                  style: const TextStyle(color: Colors.white38, fontSize: 10),
+                  overflow: TextOverflow.ellipsis,
+                ),
         ),
 
         // ── Effect-type chip ─────────────────────────────────────────
