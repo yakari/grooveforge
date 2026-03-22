@@ -13,6 +13,7 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 - **Contrôles UI pour plugins GFPA** : GFSlider (fader), GFVuMeter (vumètre stéréo animé 20 segments avec indicateur de crête), GFToggleButton (bouton LED style pédale d’effet), GFOptionSelector (sélecteur segmenté pour paramètres discrets).
 - **GF Keyboard sur macOS via FluidSynth** : remplace le fallback `flutter_midi_pro` précédent ; les effets GFPA et la lecture MIDI fonctionnent désormais de façon identique sur Linux et macOS.
 - **`HOW_TO_CREATE_A_PLUGIN.md`** : guide complet de création de plugins `.gfpd`.
+- **Reconstruction automatique des bibliothèques natives C/C++ sur macOS** : ajout de `scripts/build_native_macos.sh` et d'une phase Run Script Xcode en pré-build afin que `libaudio_input.dylib` et `libdart_vst_host.dylib` soient reconstruites automatiquement (de façon incrémentale via CMake) à chaque `flutter run` ou build Xcode du target Runner. Plus besoin d'un `cmake && make` manuel après modification des sources natives.
 
 ### Corrigé
 - **Plantage de la sauvegarde automatique sur Linux** (ENOENT au renommage) : des changements de paramètres rapides déclenchaient des écritures concurrentes sur le même fichier `.tmp`. Résolu par un anti-rebond de 500 ms.

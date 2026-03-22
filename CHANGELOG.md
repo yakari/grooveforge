@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **GFPA plugin UI controls**: GFSlider (fader), GFVuMeter (20-segment stereo VU meter with peak hold), GFToggleButton (LED stomp-box toggle), GFOptionSelector (segmented selector for discrete parameters).
 - **GF Keyboard on macOS via FluidSynth**: replaces the previous `flutter_midi_pro` fallback; GFPA effects and MIDI playback now work identically on Linux and macOS.
 - **`HOW_TO_CREATE_A_PLUGIN.md`**: comprehensive authoring guide for `.gfpd` plugins.
+- **Auto-rebuild of native C/C++ libraries on macOS**: added `scripts/build_native_macos.sh` and a pre-build Xcode Run Script phase so that `libaudio_input.dylib` and `libdart_vst_host.dylib` are rebuilt automatically (incrementally via CMake) every time `flutter run` or Xcode builds the Runner target. No manual `cmake && make` step required after editing native sources.
 
 ### Fixed
 - **Autosave crash on Linux** (ENOENT on rename): rapid knob changes triggered concurrent writes to the same `.tmp` file. Debounced with a 500 ms timer.
