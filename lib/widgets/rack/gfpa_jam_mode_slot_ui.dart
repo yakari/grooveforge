@@ -3,6 +3,7 @@ import 'dart:math' show min;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../constants/soundfont_sentinels.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/chord_detector.dart';
 import '../../models/gfpa_plugin_instance.dart';
@@ -714,7 +715,7 @@ class _MasterSection extends StatelessWidget {
                 DropdownMenuItem(
                   value: s.id,
                   child: Text(
-                    'CH ${s.midiChannel} — ${_shortName(s)}',
+                    'CH ${s.midiChannel} — ${_shortName(context, s)}',
                     style: const TextStyle(fontSize: 11),
                   ),
                 ),
@@ -806,7 +807,7 @@ class _TargetsSection extends StatelessWidget {
           orElse: () => null,
         );
     final label =
-        slot != null ? 'CH ${slot.midiChannel} ${_shortName(slot)}' : '?';
+        slot != null ? 'CH ${slot.midiChannel} ${_shortName(context, slot)}' : '?';
 
     return Container(
       padding: const EdgeInsets.fromLTRB(7, 3, 5, 3),
@@ -850,13 +851,13 @@ class _AddTargetButton extends StatelessWidget {
       color: const Color(0xFF1C1C1C),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
       onSelected: onAdd,
-      itemBuilder: (_) => [
+      itemBuilder: (menuCtx) => [
         for (final s in available)
           PopupMenuItem(
             value: s.id,
             height: 34,
             child: Text(
-              'CH ${s.midiChannel} — ${_shortName(s)}',
+              'CH ${s.midiChannel} — ${_shortName(menuCtx, s)}',
               style: const TextStyle(fontSize: 12, color: Colors.white70),
             ),
           ),
@@ -1600,10 +1601,14 @@ String _noteNameFromPc(int pc) {
   return names[pc % 12];
 }
 
-String _shortName(PluginInstance s) {
+String _shortName(BuildContext context, PluginInstance s) {
+  final l10n = AppLocalizations.of(context)!;
   if (s is GrooveForgeKeyboardPlugin) {
     final sf = s.soundfontPath;
     if (sf == null) return s.displayName;
+    if (sf == kMidiControllerOnlySoundfont) {
+      return l10n.rackSlotKeyboardMidiOnlyShort;
+    }
     final file = sf.split('/').last;
     return file.length > 12 ? '${file.substring(0, 12)}…' : file;
   }

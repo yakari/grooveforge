@@ -38,6 +38,8 @@
   },
   "patchLoadSoundfont": "Charger une soundfont via les préférences",
   "patchDefaultSoundfont": "Soundfont par défaut",
+  "patchSoundfontNoneMidiOnly": "Aucune (MIDI seulement)",
+  "rackSlotKeyboardMidiOnlyShort": "MIDI seul",
   "patchUnknownProgram": "Programme inconnu {program}",
   "@patchUnknownProgram": {
     "placeholders": {
@@ -179,13 +181,11 @@
   "guidePatchRackBody": "Le rack est le cœur de GrooveForge. Chaque ligne est un slot — un instrument ou processeur d'effets indépendant. Ajoutez des slots avec le bouton +, supprimez-les avec l'icône corbeille, et réordonnez-les en faisant glisser la poignée à gauche de chaque slot.",
   "guidePatchSlotTypesTitle": "Types de slots",
   "guidePatchSlotKeyboard": "Clavier",
-  "guidePatchSlotKeyboardDesc": "Synthétiseur intégré piloté par une soundfont (.sf2). Jouez via le clavier à l'écran ou un contrôleur MIDI externe.",
+  "guidePatchSlotKeyboardDesc": "FluidSynth intégré avec soundfont (.sf2). Jouez au clavier à l'écran ou en MIDI externe. Choisissez Aucune comme soundfont pour un contrôleur MIDI uniquement (câbles MIDI OUT, sans synthé intégré).",
   "guidePatchSlotVocoder": "Vocodeur",
   "guidePatchSlotVocoderDesc": "Traite l'audio du microphone à travers une onde porteuse pour des effets de voix synthétique.",
   "guidePatchSlotJam": "Mode Jam",
   "guidePatchSlotJamDesc": "Moteur d'harmonie qui quantifie les notes MIDI entrantes sur une gamme en temps réel. Reçoit les informations d'accord d'un slot clavier maître.",
-  "guidePatchSlotVirtualPiano": "Contrôleur MIDI Virtuel",
-  "guidePatchSlotVirtualPianoDesc": "Source MIDI légère : achemine la saisie tactile de l'écran dans la chaîne de signal sans produire d'audio propre.",
   "guidePatchSlotVst3": "Plugin VST3",
   "guidePatchSlotVst3Desc": "Chargez n'importe quel instrument ou effet VST3 tiers. Nécessite un bundle .vst3 compatible installé sur votre système.",
   "guidePatchSlotVst3DesktopOnly": "Les slots VST3 sont disponibles uniquement sur les plateformes desktop (Linux, macOS, Windows). Ils ne sont pas disponibles sur Android ou iOS.",
@@ -253,7 +253,7 @@
   "rackTitle": "Rack",
   "rackAddPlugin": "Ajouter un plugin",
   "rackAddGrooveForgeKeyboard": "GrooveForge Keyboard",
-  "rackAddGrooveForgeKeyboardSubtitle": "Clavier FluidSynth intégré",
+  "rackAddGrooveForgeKeyboardSubtitle": "Synthé soundfont ou MIDI seul (Aucune) pour le câblage",
   "rackAddVocoder": "Vocodeur",
   "rackAddVocoderSubtitle": "Synthèse vocale par microphone (GFPA)",
   "rackAddJamMode": "Mode Jam",
@@ -328,11 +328,6 @@
   "portChordIn": "ACCORD IN",
   "portScaleOut": "GAMME OUT",
   "portScaleIn": "GAMME IN",
-  "virtualPianoSlotName": "Contrôleur MIDI Virtuel",
-  "addVirtualPiano": "Contrôleur MIDI Virtuel",
-  "rackAddVirtualPianoSubtitle": "Source MIDI autonome pour le câblage",
-  "virtualPianoSlotHint": "Les notes passent par MIDI OUT — connectez un câble en vue de câblage.",
-
   "looperSlotName": "Looper MIDI",
   "addLooper": "Looper MIDI",
   "addLooperSubtitle": "Enregistrez et bouclez des séquences MIDI avec synchro de mesure",
@@ -441,5 +436,23 @@
 
   "vst3FxInserts": "FX",
   "vst3FxAddEffect": "Ajouter un effet",
-  "vst3FxNoEffects": "Aucun effet — connecter via la vue patch"
+  "vst3FxNoEffects": "Aucun effet — connecter via la vue patch",
+
+  "rackAddEffectsSectionLabel": "Effets intégrés",
+  "rackAddVstSectionLabel": "Plugins VST3",
+
+  "rackAddReverb": "Réverb à plaque",
+  "rackAddReverbSubtitle": "Réverbération stéréo riche",
+  "rackAddDelay": "Delay Ping-Pong",
+  "rackAddDelaySubtitle": "Delay stéréo synchronisable sur le BPM",
+  "rackAddWah": "Auto-Wah",
+  "rackAddWahSubtitle": "Filtre wah enveloppe / LFO avec sync BPM",
+  "rackAddEq": "EQ 4 bandes",
+  "rackAddEqSubtitle": "Filtre passe-bas en plateau, 2× crête, passe-haut en plateau",
+  "rackAddCompressor": "Compresseur",
+  "rackAddCompressorSubtitle": "Compresseur RMS à genou doux",
+  "rackAddChorus": "Chorus / Flanger",
+  "rackAddChorusSubtitle": "Chorus stéréo synchronisable sur le BPM",
+  "rackAddLoadGfpd": "Charger un fichier .gfpd…",
+  "rackAddLoadGfpdSubtitle": "Importer un descripteur de plugin GrooveForge personnalisé"
 }

@@ -1128,6 +1128,29 @@ EXPORT void theremin_render_block(float* outL, float* outR, int frames) {
     }
 }
 
+/// AAudio-bus render wrapper for the Theremin.
+///
+/// Matches the AudioSourceRenderFn signature expected by oboe_stream_add_source()
+/// in libnative-lib.so.  The [userdata] parameter is unused — the Theremin
+/// uses singleton DSP state.
+///
+/// Must be called with capture mode enabled (theremin_set_capture_mode(1))
+/// so that the miniaudio device outputs silence and this function owns the
+/// DSP state exclusively.
+EXPORT void theremin_bus_render(float* outL, float* outR, int frames, void* userdata) {
+    (void)userdata;
+    theremin_render_block(outL, outR, frames);
+}
+
+/// Returns the address of theremin_bus_render as an intptr_t.
+///
+/// Called from Dart so the function pointer can be passed to
+/// oboe_stream_add_source() in libnative-lib.so, registering the Theremin
+/// on the shared AAudio bus so GFPA effects apply to its audio output.
+EXPORT intptr_t theremin_bus_render_fn_addr(void) {
+    return (intptr_t)(void*)theremin_bus_render;
+}
+
 // =============================================================================
 // STYLOPHONE SYNTH — Monophonic waveform oscillator
 // =============================================================================

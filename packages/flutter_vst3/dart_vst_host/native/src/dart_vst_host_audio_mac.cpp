@@ -10,27 +10,59 @@
 #define MA_API static
 #define MINIAUDIO_IMPLEMENTATION
 #include "dart_vst_host.h"
+#include "../include/gfpa_dsp.h"
 #include "miniaudio.h"
 
 #include <algorithm>
 #include <atomic>
+#include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <mutex>
+#include <thread>
 #include <unordered_map>
 #include <vector>
+
+/// One fan-in effect chain: one or more source render functions whose audio
+/// is mixed together and then passed through a series of GFPA DSP inserts.
+/// See dart_vst_host_alsa.cpp for full documentation.
+struct InsertChain {
+    std::vector<DvhRenderFn> sources;
+    std::vector<std::pair<GfpaInsertFn, void*>> effects;
+};
 
 struct AudioState {
     std::vector<void*> plugins;
     std::vector<void*> processOrder;
     std::unordered_map<void*, void*> routes;
+    /// Master-mix contributors: ALL active non-VST3 render functions.
+    /// Sources that belong to an InsertChain are skipped in the bare-render
+    /// loop — the chain's own fan-in loop renders them instead.
+    std::vector<DvhRenderFn> masterRenders;
+    /// Fan-in insert chains.  Multiple sources feeding the same first effect
+    /// are merged into one chain so each DSP runs exactly once per block.
+    std::vector<InsertChain> masterInsertChains;
     std::mutex          pluginsMtx;
+    /// Monotonically increasing counter incremented at the end of every audio
+    /// block.  dvh_remove_master_insert_by_handle drains on this to avoid
+    /// use-after-free crashes in the CoreAudio callback.
+    std::atomic<uint64_t> callbackSeq{0};
 
     ma_device           device;
     std::atomic<bool>   running{false};
 
     int32_t sampleRate{48000};
     int32_t blockSize{256};
+
+    /// Pre-allocated stereo buffers for master-render and insert processing —
+    /// no heap allocation inside the CoreAudio callback.
+    std::vector<float> extBufL;
+    std::vector<float> extBufR;
+    std::vector<float> insertBufL;
+    std::vector<float> insertBufR;
+    /// Pre-allocated temporary buffer for fan-in source mixing.
+    std::vector<float> tmpBufL;
+    std::vector<float> tmpBufR;
 };
 
 static std::mutex           g_mapMtx;
@@ -104,13 +136,20 @@ static void dataCallback(ma_device* pDevice, void* pOutput, const void* /*pInput
     std::fill(out, out + frameCount * 2, 0.f);
 
     std::vector<float> zeroL(frameCount, 0.f), zeroR(frameCount, 0.f);
+    // Master mix accumulator (interleaved floats from VST3 processing are
+    // written directly into out; master-render contributors need a staging buf).
+    std::vector<float> mixL(frameCount, 0.f), mixR(frameCount, 0.f);
 
     std::vector<void*> ordered;
     std::unordered_map<void*, void*> routes;
+    std::vector<DvhRenderFn> masterRenders;
+    std::vector<InsertChain> masterInsertChains;
     {
         std::lock_guard<std::mutex> lk(state->pluginsMtx);
-        ordered = state->processOrder.empty() ? state->plugins : state->processOrder;
-        routes  = state->routes;
+        ordered            = state->processOrder.empty() ? state->plugins : state->processOrder;
+        routes             = state->routes;
+        masterRenders      = state->masterRenders;
+        masterInsertChains = state->masterInsertChains;
     }
 
     std::unordered_map<void*, std::pair<std::vector<float>, std::vector<float>>> bufs;
@@ -118,6 +157,57 @@ static void dataCallback(ma_device* pDevice, void* pOutput, const void* /*pInput
         bufs[p] = {std::vector<float>(frameCount, 0.f), std::vector<float>(frameCount, 0.f)};
 
     _processPlugins(ordered, routes, bufs, frameCount, zeroL, zeroR, out);
+
+    // ── Fan-in insert chains ─────────────────────────────────────────────
+    // For each chain: mix all sources into extBuf (fan-in), apply effects in
+    // series, then accumulate to output.  Sources in chains are skipped below.
+    for (const auto& chain : masterInsertChains) {
+        std::fill(state->extBufL.begin(), state->extBufL.end(), 0.f);
+        std::fill(state->extBufR.begin(), state->extBufR.end(), 0.f);
+        for (DvhRenderFn fn : chain.sources) {
+            fn(state->tmpBufL.data(), state->tmpBufR.data(), (int32_t)frameCount);
+            for (ma_uint32 i = 0; i < frameCount; ++i) {
+                state->extBufL[i] += state->tmpBufL[i];
+                state->extBufR[i] += state->tmpBufR[i];
+            }
+        }
+        for (const auto& ins : chain.effects) {
+            ins.first(state->extBufL.data(), state->extBufR.data(),
+                      state->insertBufL.data(), state->insertBufR.data(),
+                      (int32_t)frameCount, ins.second);
+            std::copy(state->insertBufL.begin(), state->insertBufL.end(),
+                      state->extBufL.begin());
+            std::copy(state->insertBufR.begin(), state->insertBufR.end(),
+                      state->extBufR.begin());
+        }
+        for (ma_uint32 i = 0; i < frameCount; ++i) {
+            out[i * 2 + 0] += state->extBufL[i];
+            out[i * 2 + 1] += state->extBufR[i];
+        }
+    }
+
+    // ── Bare master renders (no chain) ───────────────────────────────────
+    // Render sources not in any chain directly into the output.
+    for (DvhRenderFn fn : masterRenders) {
+        bool inChain = false;
+        for (const auto& chain : masterInsertChains) {
+            for (DvhRenderFn src : chain.sources) {
+                if (src == fn) { inChain = true; break; }
+            }
+            if (inChain) break;
+        }
+        if (inChain) continue;
+
+        fn(state->extBufL.data(), state->extBufR.data(), (int32_t)frameCount);
+        for (ma_uint32 i = 0; i < frameCount; ++i) {
+            out[i * 2 + 0] += state->extBufL[i];
+            out[i * 2 + 1] += state->extBufR[i];
+        }
+    }
+
+    // Signal that this block's DSP processing is complete so that
+    // dvh_remove_master_insert_by_handle can drain safely.
+    state->callbackSeq.fetch_add(1, std::memory_order_release);
 
     // Soft-clip to [-1, 1].
     for (ma_uint32 i = 0; i < frameCount * 2; ++i) {
@@ -192,13 +282,29 @@ DVH_API int32_t dvh_mac_start_audio(DVH_Host host) {
     fprintf(stderr, "[dart_vst_host] dvh_mac_start_audio(host=%p) called\n", host);
     fflush(stderr);
 
+    // Pre-allocate all audio scratch buffers so the CoreAudio callback never
+    // allocates heap memory on the real-time audio thread.
+    // tmpBuf is used for fan-in source mixing in insert chains.
+    s->extBufL.assign(s->blockSize, 0.f);
+    s->extBufR.assign(s->blockSize, 0.f);
+    s->insertBufL.assign(s->blockSize, 0.f);
+    s->insertBufR.assign(s->blockSize, 0.f);
+    s->tmpBufL.assign(s->blockSize, 0.f);
+    s->tmpBufR.assign(s->blockSize, 0.f);
+
     ma_device_config config = ma_device_config_init(ma_device_type_playback);
-    config.playback.format   = ma_format_f32;
-    config.playback.channels = 2;
-    config.sampleRate        = s->sampleRate;
-    config.dataCallback      = dataCallback;
-    config.pUserData         = s;
-    config.performanceProfile = ma_performance_profile_low_latency;
+    config.playback.format      = ma_format_f32;
+    config.playback.channels    = 2;
+    config.sampleRate           = (ma_uint32)s->sampleRate;
+    config.dataCallback         = dataCallback;
+    config.pUserData            = s;
+    config.performanceProfile   = ma_performance_profile_low_latency;
+    // Lock the period size to match our pre-allocated scratch buffers and the
+    // FluidSynth/VST3 block size.  Without this miniaudio lets CoreAudio choose
+    // its own period (typically 512 on macOS), which causes keyboard_render_block
+    // to write 512 floats into the 256-float extBufL/R → buffer overflow → corrupt
+    // audio that sounds like random effects / echo / distortion.
+    config.periodSizeInFrames   = (ma_uint32)s->blockSize;
 
     fprintf(stderr, "[dart_vst_host] Initializing ma_device at %d Hz...\n", s->sampleRate);
     fflush(stderr);
@@ -236,6 +342,13 @@ DVH_API void dvh_mac_stop_audio(DVH_Host host) {
     fflush(stderr);
 }
 
+// ─── External-render routing (Theremin/Stylophone → VST3 input) ─────────────
+// Not yet implemented for CoreAudio — macOS instruments output audio through
+// their own paths.  Stubs satisfy the FFI symbol lookup from syncAudioRouting.
+
+DVH_API void dvh_set_external_render(DVH_Host /*host*/, DVH_Plugin /*plugin*/, DvhRenderFn /*fn*/) {}
+DVH_API void dvh_clear_external_render(DVH_Host /*host*/, DVH_Plugin /*plugin*/) {}
+
 // Keep ALSA stubs for compatibility — ALSA is not used on macOS.
 DVH_API int32_t dvh_start_alsa_thread(DVH_Host /*host*/, const char* /*device*/) {
     fprintf(stderr, "[dart_vst_host] dvh_start_alsa_thread called on macOS (IGNORING: use dvh_mac_start_audio)\n");
@@ -243,6 +356,162 @@ DVH_API int32_t dvh_start_alsa_thread(DVH_Host /*host*/, const char* /*device*/)
     return 0;
 }
 DVH_API void dvh_stop_alsa_thread(DVH_Host /*host*/) {}
+
+// ─── Master-render contributors (e.g. GF Keyboard) ──────────────────────────
+
+/// Register [fn] as a master-mix contributor.  On each CoreAudio block its
+/// stereo output is added to the master bus (possibly via an insert effect).
+DVH_API void dvh_add_master_render(DVH_Host host, DvhRenderFn fn) {
+    if (!host || !fn) return;
+    auto* s = getOrCreate(host);
+    std::lock_guard<std::mutex> lk(s->pluginsMtx);
+    // Deduplicate.
+    for (auto existing : s->masterRenders)
+        if (existing == fn) return;
+    s->masterRenders.push_back(fn);
+    fprintf(stderr, "[dart_vst_host] Master render added (total=%zu)\n", s->masterRenders.size());
+}
+
+/// Remove [fn] from the master-render list.
+DVH_API void dvh_remove_master_render(DVH_Host host, DvhRenderFn fn) {
+    if (!host || !fn) return;
+    auto* s = get(host);
+    if (!s) return;
+    std::lock_guard<std::mutex> lk(s->pluginsMtx);
+    s->masterRenders.erase(
+        std::remove(s->masterRenders.begin(), s->masterRenders.end(), fn),
+        s->masterRenders.end());
+    fprintf(stderr, "[dart_vst_host] Master render removed (total=%zu)\n", s->masterRenders.size());
+}
+
+// ─── GFPA insert chain ───────────────────────────────────────────────────────
+
+/// Register a GFPA DSP insert on [source]'s master-render path.
+/// Fan-in merging: if [userdata] is already in an existing chain, [source]
+/// is added to that chain's sources instead of creating a duplicate.
+/// See dart_vst_host_alsa.cpp for full documentation.
+DVH_API void dvh_add_master_insert(DVH_Host host, DvhRenderFn source,
+                                   GfpaInsertFn insertFn, void* userdata) {
+    if (!host || !source || !insertFn) return;
+    auto* s = getOrCreate(host);
+    std::lock_guard<std::mutex> lk(s->pluginsMtx);
+
+    // Search all chains for one that already contains this DSP.
+    // If found: merge [source] into that chain (fan-in).
+    for (auto& chain : s->masterInsertChains) {
+        for (const auto& ins : chain.effects) {
+            if (ins.second != userdata) continue;
+            for (DvhRenderFn src : chain.sources)
+                if (src == source) return;  // already registered
+            chain.sources.push_back(source);
+            fprintf(stderr, "[dart_vst_host] Fan-in: source=%p merged into chain "
+                    "containing dsp=%p (sources=%zu)\n",
+                    (void*)source, userdata, chain.sources.size());
+            return;
+        }
+    }
+
+    // No chain contains this DSP yet.  Find a chain for [source] and append.
+    for (auto& chain : s->masterInsertChains) {
+        for (DvhRenderFn src : chain.sources) {
+            if (src != source) continue;
+            for (const auto& ins : chain.effects)
+                if (ins.second == userdata) return;  // already there
+            chain.effects.push_back({insertFn, userdata});
+            fprintf(stderr, "[dart_vst_host] Chain append: source=%p dsp=%p "
+                    "effects=%zu\n",
+                    (void*)source, userdata, chain.effects.size());
+            return;
+        }
+    }
+
+    // Create a new chain.
+    s->masterInsertChains.push_back({{source}, {{insertFn, userdata}}});
+    fprintf(stderr, "[dart_vst_host] New chain: source=%p dsp=%p\n",
+            (void*)source, userdata);
+}
+
+/// Remove [source] from all chains.  Chains with no sources left are deleted.
+DVH_API void dvh_remove_master_insert(DVH_Host host, DvhRenderFn source) {
+    if (!host || !source) return;
+    auto* s = get(host);
+    if (!s) return;
+    std::lock_guard<std::mutex> lk(s->pluginsMtx);
+    for (auto& chain : s->masterInsertChains) {
+        chain.sources.erase(
+            std::remove(chain.sources.begin(), chain.sources.end(), source),
+            chain.sources.end());
+    }
+    s->masterInsertChains.erase(
+        std::remove_if(s->masterInsertChains.begin(), s->masterInsertChains.end(),
+            [](const InsertChain& c) { return c.sources.empty(); }),
+        s->masterInsertChains.end());
+    fprintf(stderr, "[dart_vst_host] Master insert removed for source %p\n", (void*)source);
+}
+
+/// Remove the insert matching [dspHandle] from all chains, then drain.
+/// Must be called BEFORE gfpa_dsp_destroy to prevent use-after-free crashes.
+DVH_API void dvh_remove_master_insert_by_handle(DVH_Host host, void* dspHandle) {
+    if (!host || !dspHandle) return;
+    auto* s = get(host);
+    if (!s) return;
+    void* const ud = gfpa_dsp_userdata(dspHandle);
+    bool removed = false;
+    {
+        std::lock_guard<std::mutex> lk(s->pluginsMtx);
+        for (auto& chain : s->masterInsertChains) {
+            auto it = std::remove_if(chain.effects.begin(), chain.effects.end(),
+                [ud](const std::pair<GfpaInsertFn, void*>& ins) {
+                    return ins.second == ud;
+                });
+            if (it != chain.effects.end()) {
+                chain.effects.erase(it, chain.effects.end());
+                removed = true;
+            }
+        }
+        s->masterInsertChains.erase(
+            std::remove_if(s->masterInsertChains.begin(), s->masterInsertChains.end(),
+                [](const InsertChain& c) { return c.effects.empty(); }),
+            s->masterInsertChains.end());
+    } // ← pluginsMtx released BEFORE drain to avoid deadlock with CoreAudio callback
+    if (!removed) {
+        fprintf(stderr, "[dart_vst_host] dvh_remove_master_insert_by_handle: "
+                "handle %p not found\n", dspHandle);
+        return;
+    }
+    const uint64_t seqBefore = s->callbackSeq.load(std::memory_order_acquire);
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(500);
+    while (s->callbackSeq.load(std::memory_order_acquire) <= seqBefore) {
+        if (std::chrono::steady_clock::now() >= deadline) {
+            fprintf(stderr, "[dart_vst_host] dvh_remove_master_insert_by_handle: "
+                    "drain timeout for handle %p\n", dspHandle);
+            break;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    fprintf(stderr, "[dart_vst_host] dvh_remove_master_insert_by_handle: "
+            "drained OK for handle %p\n", dspHandle);
+}
+
+/// Clear all insert chains (called at the start of every syncAudioRouting rebuild).
+DVH_API void dvh_clear_master_inserts(DVH_Host host) {
+    if (!host) return;
+    auto* s = get(host);
+    if (!s) return;
+    std::lock_guard<std::mutex> lk(s->pluginsMtx);
+    s->masterInsertChains.clear();
+}
+
+/// Clear all master render contributors.
+/// Called from syncAudioRouting before re-registering active sources.
+DVH_API void dvh_clear_master_renders(DVH_Host host) {
+    if (!host) return;
+    auto* s = get(host);
+    if (!s) return;
+    std::lock_guard<std::mutex> lk(s->pluginsMtx);
+    s->masterRenders.clear();
+    fprintf(stderr, "[dart_vst_host] Master renders cleared\n");
+}
 
 } // extern "C"
 

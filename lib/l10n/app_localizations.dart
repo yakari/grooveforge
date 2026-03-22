@@ -266,6 +266,18 @@ abstract class AppLocalizations {
   /// **'Default soundfont'**
   String get patchDefaultSoundfont;
 
+  /// No description provided for @patchSoundfontNoneMidiOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'None (MIDI only)'**
+  String get patchSoundfontNoneMidiOnly;
+
+  /// No description provided for @rackSlotKeyboardMidiOnlyShort.
+  ///
+  /// In en, this message translates to:
+  /// **'MIDI only'**
+  String get rackSlotKeyboardMidiOnlyShort;
+
   /// No description provided for @patchUnknownProgram.
   ///
   /// In en, this message translates to:
@@ -755,7 +767,7 @@ abstract class AppLocalizations {
   /// No description provided for @guidePatchSlotKeyboardDesc.
   ///
   /// In en, this message translates to:
-  /// **'Built-in synthesizer driven by a soundfont (.sf2). Play via the on-screen keyboard or an external MIDI controller.'**
+  /// **'Built-in FluidSynth driven by a soundfont (.sf2). Play from the on-screen keyboard or external MIDI. Choose None as the soundfont to use the keyboard as a MIDI-only controller (MIDI OUT cables in patch view, no built-in synth).'**
   String get guidePatchSlotKeyboardDesc;
 
   /// No description provided for @guidePatchSlotVocoder.
@@ -781,18 +793,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Harmony engine that snaps incoming MIDI notes to a scale in real time. Receives chord information from a master keyboard slot.'**
   String get guidePatchSlotJamDesc;
-
-  /// No description provided for @guidePatchSlotVirtualPiano.
-  ///
-  /// In en, this message translates to:
-  /// **'Virtual MIDI Controller'**
-  String get guidePatchSlotVirtualPiano;
-
-  /// No description provided for @guidePatchSlotVirtualPianoDesc.
-  ///
-  /// In en, this message translates to:
-  /// **'A lightweight MIDI-only source: routes on-screen touch input into the signal chain without producing audio of its own.'**
-  String get guidePatchSlotVirtualPianoDesc;
 
   /// No description provided for @guidePatchSlotVst3.
   ///
@@ -1169,7 +1169,7 @@ abstract class AppLocalizations {
   /// No description provided for @rackAddGrooveForgeKeyboardSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Built-in FluidSynth keyboard'**
+  /// **'Soundfont synth or MIDI-only (None) for patch routing'**
   String get rackAddGrooveForgeKeyboardSubtitle;
 
   /// No description provided for @rackAddVocoder.
@@ -1543,30 +1543,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'SCALE IN'**
   String get portScaleIn;
-
-  /// No description provided for @virtualPianoSlotName.
-  ///
-  /// In en, this message translates to:
-  /// **'Virtual MIDI Controller'**
-  String get virtualPianoSlotName;
-
-  /// No description provided for @addVirtualPiano.
-  ///
-  /// In en, this message translates to:
-  /// **'Virtual MIDI Controller'**
-  String get addVirtualPiano;
-
-  /// No description provided for @rackAddVirtualPianoSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Standalone MIDI source for patch routing'**
-  String get rackAddVirtualPianoSubtitle;
-
-  /// No description provided for @virtualPianoSlotHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Notes route via MIDI OUT — connect a cable in patch view.'**
-  String get virtualPianoSlotHint;
 
   /// No description provided for @looperSlotName.
   ///
@@ -2053,6 +2029,102 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No effects — connect via patch view'**
   String get vst3FxNoEffects;
+
+  /// No description provided for @rackAddEffectsSectionLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Built-in Effects'**
+  String get rackAddEffectsSectionLabel;
+
+  /// No description provided for @rackAddVstSectionLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'VST3 Plugins'**
+  String get rackAddVstSectionLabel;
+
+  /// No description provided for @rackAddReverb.
+  ///
+  /// In en, this message translates to:
+  /// **'Plate Reverb'**
+  String get rackAddReverb;
+
+  /// No description provided for @rackAddReverbSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Lush stereo room reverb'**
+  String get rackAddReverbSubtitle;
+
+  /// No description provided for @rackAddDelay.
+  ///
+  /// In en, this message translates to:
+  /// **'Ping-Pong Delay'**
+  String get rackAddDelay;
+
+  /// No description provided for @rackAddDelaySubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Stereo delay with BPM sync'**
+  String get rackAddDelaySubtitle;
+
+  /// No description provided for @rackAddWah.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-Wah'**
+  String get rackAddWah;
+
+  /// No description provided for @rackAddWahSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Envelope / LFO wah filter with BPM sync'**
+  String get rackAddWahSubtitle;
+
+  /// No description provided for @rackAddEq.
+  ///
+  /// In en, this message translates to:
+  /// **'4-Band EQ'**
+  String get rackAddEq;
+
+  /// No description provided for @rackAddEqSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Low shelf, 2× peaking, high shelf'**
+  String get rackAddEqSubtitle;
+
+  /// No description provided for @rackAddCompressor.
+  ///
+  /// In en, this message translates to:
+  /// **'Compressor'**
+  String get rackAddCompressor;
+
+  /// No description provided for @rackAddCompressorSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'RMS compressor with soft knee'**
+  String get rackAddCompressorSubtitle;
+
+  /// No description provided for @rackAddChorus.
+  ///
+  /// In en, this message translates to:
+  /// **'Chorus / Flanger'**
+  String get rackAddChorus;
+
+  /// No description provided for @rackAddChorusSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Stereo chorus with BPM sync'**
+  String get rackAddChorusSubtitle;
+
+  /// No description provided for @rackAddLoadGfpd.
+  ///
+  /// In en, this message translates to:
+  /// **'Load .gfpd from file…'**
+  String get rackAddLoadGfpd;
+
+  /// No description provided for @rackAddLoadGfpdSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Import a custom GrooveForge plugin descriptor'**
+  String get rackAddLoadGfpdSubtitle;
 }
 
 class _AppLocalizationsDelegate

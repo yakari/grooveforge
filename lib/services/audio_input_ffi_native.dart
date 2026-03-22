@@ -213,6 +213,19 @@ typedef KeyboardSetGainDart = void Function(double gain);
 /// C: `void keyboard_render_block(float* outL, float* outR, int frames)`.
 typedef KeyboardRenderBlockC = Void Function(Pointer<Float>, Pointer<Float>, Int32);
 
+/// C: `int keyboard_init_slot(int slotIdx, float sampleRate)` — initialise one FluidSynth slot.
+///
+/// Idempotent — safe to call when the slot is already active (returns 1).
+typedef KeyboardInitSlotC = Int32 Function(Int32 slotIdx, Float sampleRate);
+typedef KeyboardInitSlotDart = int Function(int slotIdx, double sampleRate);
+
+/// C: `void* keyboard_render_fn_for_slot(int slotIdx)` — return the slot-specific render fn ptr.
+///
+/// Returns the address of `keyboard_render_block_0` or `keyboard_render_block_1`
+/// depending on [slotIdx].  Returns null if [slotIdx] is out of range.
+typedef KeyboardRenderFnForSlotC = Pointer<Void> Function(Int32 slotIdx);
+typedef KeyboardRenderFnForSlotDart = Pointer<Void> Function(int slotIdx);
+
 class AudioInputFFI {
   static AudioInputFFI? _instance;
   late DynamicLibrary _lib;
@@ -259,6 +272,11 @@ class AudioInputFFI {
 
   /// Dart-callable bound to `theremin_set_capture_mode`.
   late final ThereminSetCaptureModeDart _thereminSetCaptureMode;
+
+  /// Bound to `theremin_bus_render_fn_addr` — returns the address of the
+  /// theremin_bus_render trampoline as an integer, so it can be passed to
+  /// oboe_stream_add_source() in libnative-lib.so via GfpaAndroidBindings.
+  late final int Function() _thereminBusRenderFnAddr;
 
   // ── Stylophone FFI function references ─────────────────────────────────────
 
@@ -321,6 +339,12 @@ class AudioInputFFI {
   /// Raw pointer to `keyboard_render_block` — passed to dart_vst_host as a
   /// master-mix contributor or external render source for VST3 effects.
   late final Pointer<NativeFunction<KeyboardRenderBlockC>> keyboardRenderBlockPtr;
+
+  /// Bound reference to `keyboard_init_slot` — initialises one FluidSynth slot on demand.
+  late final KeyboardInitSlotDart _keyboardInitSlot;
+
+  /// Bound reference to `keyboard_render_fn_for_slot` — returns the C render fn ptr for a slot.
+  late final KeyboardRenderFnForSlotDart _keyboardRenderFnForSlot;
 
   factory AudioInputFFI() {
     _instance ??= AudioInputFFI._internal();
@@ -453,6 +477,10 @@ class AudioInputFFI {
         _lib
             .lookup<NativeFunction<ThereminSetCaptureModeC>>('theremin_set_capture_mode')
             .asFunction();
+    _thereminBusRenderFnAddr =
+        _lib
+            .lookup<NativeFunction<IntPtr Function()>>('theremin_bus_render_fn_addr')
+            .asFunction<int Function()>();
 
     // ── Stylophone bindings ───────────────────────────────────────────────
     _styloStart =
@@ -510,6 +538,10 @@ class AudioInputFFI {
     // Raw pointer — passed as a C function pointer to dart_vst_host.
     keyboardRenderBlockPtr =
         _lib.lookup<NativeFunction<KeyboardRenderBlockC>>('keyboard_render_block');
+    _keyboardInitSlot =
+        _lib.lookup<NativeFunction<KeyboardInitSlotC>>('keyboard_init_slot').asFunction();
+    _keyboardRenderFnForSlot =
+        _lib.lookup<NativeFunction<KeyboardRenderFnForSlotC>>('keyboard_render_fn_for_slot').asFunction();
   }
 
   bool startCapture() {
@@ -652,6 +684,13 @@ class AudioInputFFI {
   void thereminSetCaptureMode({required bool enabled}) =>
       _thereminSetCaptureMode(enabled ? 1 : 0);
 
+  /// Returns the address of the `theremin_bus_render` trampoline function.
+  ///
+  /// Pass this address to [GfpaAndroidBindings.oboeStreamAddSource] on Android
+  /// to register the Theremin as a source on the shared AAudio bus so that
+  /// GFPA effects (WAH, reverb, etc.) can be applied to its audio output.
+  int thereminBusRenderFnAddr() => _thereminBusRenderFnAddr();
+
   // ── Stylophone public API ─────────────────────────────────────────────────
 
   /// Starts the stylophone native synthesis device.
@@ -730,4 +769,25 @@ class AudioInputFFI {
   /// Set the master FluidSynth output gain (linear scalar; GrooveForge default
   /// is 3.0 on Linux).
   void keyboardSetGain(double gain) => _keyboardSetGain(gain);
+
+  /// Initialise FluidSynth slot [slotIdx] at [sampleRate] Hz.
+  ///
+  /// Idempotent — safe to call multiple times for an already-active slot.
+  /// Must be called before [keyboardRenderFnForSlot] is used for that slot.
+  /// Returns 1 on success, 0 on failure.
+  int keyboardInitSlot(int slotIdx, double sampleRate) =>
+      _keyboardInitSlot(slotIdx, sampleRate);
+
+  /// Returns the slot-specific C render function pointer for [slotIdx].
+  ///
+  /// Each slot has a unique C function address (`keyboard_render_block_0`,
+  /// `keyboard_render_block_1`…), allowing dart_vst_host to attach a GFPA
+  /// insert effect to exactly one keyboard without it bleeding into others.
+  ///
+  /// The returned pointer is suitable for passing to [VstHost.addMasterRender]
+  /// and [VstHost.addMasterInsert]. Returns [nullptr] for out-of-range [slotIdx].
+  Pointer<NativeFunction<KeyboardRenderBlockC>> keyboardRenderFnForSlot(int slotIdx) {
+    final raw = _keyboardRenderFnForSlot(slotIdx);
+    return raw.cast<NativeFunction<KeyboardRenderBlockC>>();
+  }
 }

@@ -5,6 +5,27 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/lang/fr/).
 
+## [X.x.x]
+
+### Ajouté
+- **Effets DSP GFPA natifs** (Android, Linux, macOS) : six effets intégrés — Auto-Wah, Réverb à plaque, Délai Ping-Pong, Égaliseur 4 bandes, Compresseur, Chorus/Flanger — implémentés en C++ natif sans allocation sur le thread audio temps réel. Les chaînes multi-effets et le routage vers le Theremin/Stylophone sont pris en charge sur toutes les plateformes.
+- **Format de descripteur `.gfpd`** : format YAML déclaratif pour créer des plugins GFPA sans écrire de code Dart — métadonnées, graphe DSP, paramètres automatisables et disposition de l’interface. Six effets propriétaires fournis sous forme de fichiers `.gfpd`.
+- **Contrôles UI pour plugins GFPA** : GFSlider (fader), GFVuMeter (vumètre stéréo animé 20 segments avec indicateur de crête), GFToggleButton (bouton LED style pédale d’effet), GFOptionSelector (sélecteur segmenté pour paramètres discrets).
+- **GF Keyboard sur macOS via FluidSynth** : remplace le fallback `flutter_midi_pro` précédent ; les effets GFPA et la lecture MIDI fonctionnent désormais de façon identique sur Linux et macOS.
+- **`HOW_TO_CREATE_A_PLUGIN.md`** : guide complet de création de plugins `.gfpd`.
+- **Reconstruction automatique des bibliothèques natives C/C++ sur macOS** : ajout de `scripts/build_native_macos.sh` et d'une phase Run Script Xcode en pré-build afin que `libaudio_input.dylib` et `libdart_vst_host.dylib` soient reconstruites automatiquement (de façon incrémentale via CMake) à chaque `flutter run` ou build Xcode du target Runner. Plus besoin d'un `cmake && make` manuel après modification des sources natives.
+
+### Corrigé
+- **Plantage de la sauvegarde automatique sur Linux** (ENOENT au renommage) : des changements de paramètres rapides déclenchaient des écritures concurrentes sur le même fichier `.tmp`. Résolu par un anti-rebond de 500 ms.
+- **Clavier GF muet sans plugin VST3 dans le rack (Linux)** : le thread de rendu ALSA démarre désormais systématiquement lorsque l’hôte VST3 est pris en charge.
+- **Son de « pédale de sustain constamment enfoncée » sur macOS** : FluidSynth 2.5.3 (Homebrew) ignorait `synth.reverb.active=0` ; ajout d’appels runtime `fluid_synth_reverb_on` / `fluid_synth_chorus_on` après la création du synth.
+- **Deuxième clavier GF nettement moins fort que le premier** : les slots clavier créés à la demande héritent désormais du gain de l’application au lieu du gain par défaut de FluidSynth (0,2 → 3,0).
+- **Dialogue de configuration du clavier** : la description de l’aftertouch/CC de pression et le menu déroulant s’empilent désormais verticalement au lieu d’être côte à côte.
+- **Build CI macOS** : `libaudio_input.dylib` est recompilé depuis les sources et embarqué avec toutes les dépendances Homebrew de FluidSynth via `dylibbundler`.
+
+### Modifié
+- **Slot Virtual Piano supprimé** : le même comportement est disponible via le **GF Keyboard** avec la soundfont *Aucune (MIDI seulement)*. Les projets existants migrent automatiquement au chargement.
+
 ## [2.6.0] - 2026-03-19
 
 ### Ajouté

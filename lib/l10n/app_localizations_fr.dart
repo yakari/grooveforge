@@ -100,6 +100,12 @@ class AppLocalizationsFr extends AppLocalizations {
   String get patchDefaultSoundfont => 'Soundfont par défaut';
 
   @override
+  String get patchSoundfontNoneMidiOnly => 'Aucune (MIDI seulement)';
+
+  @override
+  String get rackSlotKeyboardMidiOnlyShort => 'MIDI seul';
+
+  @override
   String patchUnknownProgram(int program) {
     return 'Programme inconnu $program';
   }
@@ -373,7 +379,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get guidePatchSlotKeyboardDesc =>
-      'Synthétiseur intégré piloté par une soundfont (.sf2). Jouez via le clavier à l\'écran ou un contrôleur MIDI externe.';
+      'FluidSynth intégré avec soundfont (.sf2). Jouez au clavier à l\'écran ou en MIDI externe. Choisissez Aucune comme soundfont pour un contrôleur MIDI uniquement (câbles MIDI OUT, sans synthé intégré).';
 
   @override
   String get guidePatchSlotVocoder => 'Vocodeur';
@@ -388,13 +394,6 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get guidePatchSlotJamDesc =>
       'Moteur d\'harmonie qui quantifie les notes MIDI entrantes sur une gamme en temps réel. Reçoit les informations d\'accord d\'un slot clavier maître.';
-
-  @override
-  String get guidePatchSlotVirtualPiano => 'Contrôleur MIDI Virtuel';
-
-  @override
-  String get guidePatchSlotVirtualPianoDesc =>
-      'Source MIDI légère : achemine la saisie tactile de l\'écran dans la chaîne de signal sans produire d\'audio propre.';
 
   @override
   String get guidePatchSlotVst3 => 'Plugin VST3';
@@ -608,7 +607,8 @@ class AppLocalizationsFr extends AppLocalizations {
   String get rackAddGrooveForgeKeyboard => 'GrooveForge Keyboard';
 
   @override
-  String get rackAddGrooveForgeKeyboardSubtitle => 'Clavier FluidSynth intégré';
+  String get rackAddGrooveForgeKeyboardSubtitle =>
+      'Synthé soundfont ou MIDI seul (Aucune) pour le câblage';
 
   @override
   String get rackAddVocoder => 'Vocodeur';
@@ -811,20 +811,6 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get portScaleIn => 'GAMME IN';
-
-  @override
-  String get virtualPianoSlotName => 'Contrôleur MIDI Virtuel';
-
-  @override
-  String get addVirtualPiano => 'Contrôleur MIDI Virtuel';
-
-  @override
-  String get rackAddVirtualPianoSubtitle =>
-      'Source MIDI autonome pour le câblage';
-
-  @override
-  String get virtualPianoSlotHint =>
-      'Les notes passent par MIDI OUT — connectez un câble en vue de câblage.';
 
   @override
   String get looperSlotName => 'Looper MIDI';
@@ -1096,4 +1082,54 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get vst3FxNoEffects => 'Aucun effet — connecter via la vue patch';
+
+  @override
+  String get rackAddEffectsSectionLabel => 'Effets intégrés';
+
+  @override
+  String get rackAddVstSectionLabel => 'Plugins VST3';
+
+  @override
+  String get rackAddReverb => 'Réverb à plaque';
+
+  @override
+  String get rackAddReverbSubtitle => 'Réverbération stéréo riche';
+
+  @override
+  String get rackAddDelay => 'Delay Ping-Pong';
+
+  @override
+  String get rackAddDelaySubtitle => 'Delay stéréo synchronisable sur le BPM';
+
+  @override
+  String get rackAddWah => 'Auto-Wah';
+
+  @override
+  String get rackAddWahSubtitle => 'Filtre wah enveloppe / LFO avec sync BPM';
+
+  @override
+  String get rackAddEq => 'EQ 4 bandes';
+
+  @override
+  String get rackAddEqSubtitle =>
+      'Filtre passe-bas en plateau, 2× crête, passe-haut en plateau';
+
+  @override
+  String get rackAddCompressor => 'Compresseur';
+
+  @override
+  String get rackAddCompressorSubtitle => 'Compresseur RMS à genou doux';
+
+  @override
+  String get rackAddChorus => 'Chorus / Flanger';
+
+  @override
+  String get rackAddChorusSubtitle => 'Chorus stéréo synchronisable sur le BPM';
+
+  @override
+  String get rackAddLoadGfpd => 'Charger un fichier .gfpd…';
+
+  @override
+  String get rackAddLoadGfpdSubtitle =>
+      'Importer un descripteur de plugin GrooveForge personnalisé';
 }

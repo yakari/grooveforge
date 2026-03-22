@@ -155,6 +155,86 @@ class VstHost {
     Pointer<NativeFunction<Void Function(Pointer<Float>, Pointer<Float>, Int32)>> renderFn,
   ) => _b.dvhRemoveMasterRender(handle, renderFn);
 
+  // ─── GFPA native DSP effects ───────────────────────────────────────────────
+
+  /// Create a native GFPA DSP instance for [pluginId].
+  ///
+  /// [pluginId] must be a recognised built-in effect ID such as
+  /// `"com.grooveforge.reverb"`. Returns a non-null [Pointer<Void>] on success
+  /// or [nullptr] for unrecognised IDs.
+  ///
+  /// [sampleRate] and [blockSize] must match the values used to start the
+  /// ALSA thread so that delay-line buffers are sized correctly.
+  Pointer<Void> createGfpaDsp(String pluginId, int sampleRate, int blockSize) {
+    final id = pluginId.toNativeUtf8();
+    final result = _b.gfpaDspCreate(id, sampleRate, blockSize);
+    malloc.free(id);
+    return result;
+  }
+
+  /// Destroy a GFPA DSP instance previously created with [createGfpaDsp].
+  ///
+  /// The caller must remove the insert from the chain via
+  /// [removeMasterInsert] before calling this to avoid dangling callbacks.
+  void destroyGfpaDsp(Pointer<Void> dspHandle) =>
+      _b.gfpaDspDestroy(dspHandle);
+
+  /// Set a physical (denormalized) parameter value on a live DSP instance.
+  ///
+  /// [paramId] is the string key from the .gfpd file (e.g. `"room_size"`).
+  /// [physicalValue] is the raw value in the parameter's declared range
+  /// (e.g. 1200.0 Hz for the wah center frequency).
+  void setGfpaDspParam(Pointer<Void> dspHandle, String paramId, double physicalValue) {
+    final id = paramId.toNativeUtf8();
+    _b.gfpaDspSetParam(dspHandle, id, physicalValue);
+    malloc.free(id);
+  }
+
+  /// Set the global BPM for all BPM-synced GFPA effects (delay, wah, chorus).
+  void setGfpaBpm(double bpm) => _b.gfpaSetBpm(bpm);
+
+  /// Register a GFPA DSP insert on [sourceFn]'s master-render audio path.
+  ///
+  /// [dspHandle] is the opaque handle returned by [createGfpaDsp].
+  /// On each ALSA block, [sourceFn]'s output is piped through the DSP effect
+  /// before being mixed into the master bus.
+  ///
+  /// Replaces any existing insert for the same [sourceFn].
+  void addMasterInsert(
+    Pointer<NativeFunction<Void Function(Pointer<Float>, Pointer<Float>, Int32)>> sourceFn,
+    Pointer<Void> dspHandle,
+  ) {
+    final insertFn = _b.gfpaDspInsertFn(dspHandle);
+    final userdata = _b.gfpaDspUserdata(dspHandle);
+    _b.dvhAddMasterInsert(handle, sourceFn, insertFn, userdata);
+  }
+
+  /// Remove all inserts for [sourceFn] from the chain.
+  void removeMasterInsert(
+    Pointer<NativeFunction<Void Function(Pointer<Float>, Pointer<Float>, Int32)>> sourceFn,
+  ) => _b.dvhRemoveMasterInsert(handle, sourceFn);
+
+  /// Remove the insert matching [dspHandle] from all source chains, then
+  /// drain — waits for the audio callback to complete at least one full block
+  /// so that any in-flight raw pointer to this DSP has retired.
+  ///
+  /// **Must be called BEFORE [destroyGfpaDsp]** to prevent use-after-free
+  /// crashes on the ALSA / CoreAudio audio thread.
+  void removeMasterInsertByHandle(Pointer<Void> dspHandle) =>
+      _b.dvhRemoveMasterInsertByHandle(handle, dspHandle);
+
+  /// Remove all registered master inserts (all fan-in chains).
+  ///
+  /// Call at the beginning of each syncAudioRouting rebuild.
+  void clearMasterInserts() => _b.dvhClearMasterInserts(handle);
+
+  /// Remove all registered master render contributors.
+  ///
+  /// Call at the beginning of each syncAudioRouting rebuild so that stale
+  /// entries from previous routing states (e.g. a Theremin that was connected
+  /// before but now has no cables) are not left in the list.
+  void clearMasterRenders() => _b.dvhClearMasterRenders(handle);
+
   /// Load a VST plug‑in from [modulePath]. Optionally specify
   /// [classUid] to select a specific class from a multi‑class module.
   /// Returns a VstPlugin on success; throws StateError on failure.

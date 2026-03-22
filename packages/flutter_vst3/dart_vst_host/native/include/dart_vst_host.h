@@ -186,6 +186,50 @@ DVH_API intptr_t dvh_mac_open_editor(DVH_Plugin p, const char* title);
 DVH_API void     dvh_mac_close_editor(DVH_Plugin p);
 DVH_API int32_t  dvh_mac_editor_is_open(DVH_Plugin p);
 
+// ── GFPA master-insert chain ──────────────────────────────────────────────────
+//
+// Allows GFPA native DSP effects (reverb, delay, wah, EQ, compressor, chorus)
+// to process the output of a master-render contributor before it reaches the
+// ALSA mix bus.  Full types are defined in gfpa_dsp.h; the API here uses
+// compatible void* / function-pointer types so that dart_vst_host.h has no
+// dependency on gfpa_dsp.h.
+//
+// GfpaInsertFn_fwd matches GfpaInsertFn exactly:
+//   void fn(const float*, const float*, float*, float*, int32_t, void*)
+typedef void (*GfpaInsertFn_fwd)(const float*, const float*,
+                                  float*, float*, int32_t, void*);
+
+/// Register a GFPA insert on [source]'s master-render audio path.
+/// [insertFn] is called each ALSA block with the source's dry stereo output;
+/// [userdata] is the GfpaDspHandle (obtained from gfpa_dsp_userdata()).
+/// Calling again for the same [source] replaces the existing insert.
+DVH_API void dvh_add_master_insert(DVH_Host host, DvhRenderFn source,
+                                    GfpaInsertFn_fwd insertFn, void* userdata);
+
+/// Remove all inserts for [source] from the chain. No-op if none registered.
+DVH_API void dvh_remove_master_insert(DVH_Host host, DvhRenderFn source);
+
+/// Remove the insert matching [dspHandle] from every source chain, then drain.
+///
+/// Searches all source chains for an entry whose userdata equals
+/// gfpa_dsp_userdata(dspHandle) and removes it.  Spin-waits for the audio
+/// callback to complete at least one full block after removal so that any
+/// in-flight raw pointer to this DSP has retired.
+///
+/// **Must be called BEFORE gfpa_dsp_destroy** to avoid use-after-free crashes.
+DVH_API void dvh_remove_master_insert_by_handle(DVH_Host host, void* dspHandle);
+
+/// Remove all registered master inserts (all fan-in chains).
+/// Call at the start of each syncAudioRouting() rebuild.
+DVH_API void dvh_clear_master_inserts(DVH_Host host);
+
+/// Remove all registered master render contributors.
+/// Call at the start of each syncAudioRouting() rebuild so that stale entries
+/// from a previous routing state (e.g. a Theremin that was connected before
+/// but now has no cables) are not left in the list.  Re-add active sources
+/// immediately after with dvh_add_master_render.
+DVH_API void dvh_clear_master_renders(DVH_Host host);
+
 #ifdef __cplusplus
 }
 #endif

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:grooveforge_plugin_api/grooveforge_plugin_api.dart'
+    show GFEffectPlugin, GFPluginRegistry;
 import 'package:provider/provider.dart';
 
 import '../../l10n/app_localizations.dart';
@@ -7,7 +9,6 @@ import '../../models/gfpa_plugin_instance.dart';
 import '../../models/grooveforge_keyboard_plugin.dart';
 import '../../models/looper_plugin_instance.dart';
 import '../../models/plugin_instance.dart';
-import '../../models/virtual_piano_plugin.dart';
 import '../../models/vst3_plugin_instance.dart'; // Vst3PluginInstance, Vst3PluginType
 import '../../services/audio_graph.dart';
 import '../../services/patch_drag_controller.dart';
@@ -50,14 +51,6 @@ class SlotBackPanelWidget extends StatelessWidget {
       ];
     }
 
-    if (plugin is VirtualPianoPlugin) {
-      return [
-        AudioPortId.midiIn,   // aligns MIDI OUT with other slots; also accepts MIDI from Jam Mode OUT
-        AudioPortId.midiOut,  // touch-keyboard notes out — position 2, aligned with GFK / Jam Mode
-        AudioPortId.scaleIn,  // scale data ← Jam Mode scaleOut for on-screen key highlighting
-      ];
-    }
-
     if (plugin is GrooveForgeKeyboardPlugin) {
       return [
         AudioPortId.midiIn,
@@ -96,6 +89,19 @@ class SlotBackPanelWidget extends StatelessWidget {
         return [
           AudioPortId.midiIn,
           AudioPortId.midiOut,
+          AudioPortId.audioOutL,
+          AudioPortId.audioOutR,
+        ];
+      }
+      // Look up the plugin type from the registry. Descriptor-based effect
+      // plugins (GFEffectPlugin) process audio: they need stereo IN + OUT and
+      // no MIDI jack. Unknown or unregistered plugins fall back to instrument
+      // layout (MIDI IN + audio OUT) to match the pre-existing behaviour.
+      final registered = GFPluginRegistry.instance.findById(plugin.pluginId);
+      if (registered is GFEffectPlugin) {
+        return [
+          AudioPortId.audioInL,
+          AudioPortId.audioInR,
           AudioPortId.audioOutL,
           AudioPortId.audioOutR,
         ];

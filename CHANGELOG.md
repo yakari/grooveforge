@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [X.x.x]
+
+### Added
+- **Native GFPA DSP effects** (Android, Linux, macOS): six built-in effects — Auto-Wah, Plate Reverb, Ping-Pong Delay, 4-Band EQ, Compressor, Chorus/Flanger — run as allocation-free native C++ DSP on the real-time audio thread. Multi-effect chains and routing to Theremin/Stylophone are supported on all platforms.
+- **`.gfpd` Plugin Descriptor Format**: declarative YAML format to author GFPA plugins without writing Dart code — metadata, DSP signal graph, automatable parameters, and UI layout. Six first-party effects bundled as `.gfpd` assets.
+- **GFPA plugin UI controls**: GFSlider (fader), GFVuMeter (20-segment stereo VU meter with peak hold), GFToggleButton (LED stomp-box toggle), GFOptionSelector (segmented selector for discrete parameters).
+- **GF Keyboard on macOS via FluidSynth**: replaces the previous `flutter_midi_pro` fallback; GFPA effects and MIDI playback now work identically on Linux and macOS.
+- **`HOW_TO_CREATE_A_PLUGIN.md`**: comprehensive authoring guide for `.gfpd` plugins.
+- **Auto-rebuild of native C/C++ libraries on macOS**: added `scripts/build_native_macos.sh` and a pre-build Xcode Run Script phase so that `libaudio_input.dylib` and `libdart_vst_host.dylib` are rebuilt automatically (incrementally via CMake) every time `flutter run` or Xcode builds the Runner target. No manual `cmake && make` step required after editing native sources.
+
+### Fixed
+- **Autosave crash on Linux** (ENOENT on rename): rapid knob changes triggered concurrent writes to the same `.tmp` file. Debounced with a 500 ms timer.
+- **GF Keyboard silent when no VST3 plugin is in the rack (Linux)**: the ALSA render thread now starts unconditionally when the VST3 host is supported.
+- **"Sustain pedal always held" sound on macOS**: FluidSynth 2.5.3 (Homebrew) ignored `synth.reverb.active=0`; added runtime `fluid_synth_reverb_on` / `fluid_synth_chorus_on` disable calls after synth creation.
+- **Second GF Keyboard significantly quieter than first**: lazily-created keyboard slots now inherit the app gain instead of FluidSynth's factory default (0.2 → 3.0).
+- **Keyboard config dialog**: aftertouch/pressure CC description and dropdown now stack vertically instead of being squeezed side-by-side.
+- **macOS CI build**: `libaudio_input.dylib` is rebuilt from source and bundled with all transitive FluidSynth Homebrew dependencies via `dylibbundler`.
+
+### Changed
+- **Virtual Piano slot removed**: superseded by **GF Keyboard** with soundfont set to *None (MIDI only)*. Existing projects migrate automatically on load.
+
 ## [2.6.0] - 2026-03-19
 
 ### Added

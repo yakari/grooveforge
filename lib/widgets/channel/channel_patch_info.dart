@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:grooveforge/l10n/app_localizations.dart';
 
+import 'package:grooveforge/constants/soundfont_sentinels.dart';
 import 'package:grooveforge/models/chord_detector.dart';
 import 'package:grooveforge/models/gm_instruments.dart';
 import 'package:grooveforge/services/audio_engine.dart';
@@ -40,6 +41,9 @@ class ChannelPatchInfo extends StatelessWidget {
   /// Same purpose as [onPatchChanged].
   final void Function(String soundfontPath)? onSoundfontChanged;
 
+  /// When true, bank and program pickers are omitted (MIDI-only keyboard slot).
+  final bool hideInstrumentPickers;
+
   const ChannelPatchInfo({
     super.key,
     required this.engine,
@@ -56,6 +60,7 @@ class ChannelPatchInfo extends StatelessWidget {
     required this.onScaleChanged,
     this.onPatchChanged,
     this.onSoundfontChanged,
+    this.hideInstrumentPickers = false,
   });
 
   @override
@@ -118,10 +123,18 @@ class ChannelPatchInfo extends StatelessWidget {
                 child: DropdownButton<String>(
                   isExpanded: true,
                   dropdownColor: Colors.grey[900],
-                  value:
-                      engine.loadedSoundfonts.contains(state.soundfontPath)
-                          ? state.soundfontPath
-                          : engine.loadedSoundfonts.first,
+                  value: () {
+                    if (state.soundfontPath ==
+                        kMidiControllerOnlySoundfont) {
+                      return kMidiControllerOnlySoundfont;
+                    }
+                    if (engine.loadedSoundfonts.contains(state.soundfontPath)) {
+                      return state.soundfontPath;
+                    }
+                    return engine.loadedSoundfonts.isNotEmpty
+                        ? engine.loadedSoundfonts.first
+                        : null;
+                  }(),
                   icon: const Icon(
                     Icons.arrow_drop_down,
                     color: Colors.white54,
@@ -142,6 +155,15 @@ class ChannelPatchInfo extends StatelessWidget {
                           return a.compareTo(b);
                         });
 
+                        final noneItem = DropdownMenuItem<String>(
+                          value: kMidiControllerOnlySoundfont,
+                          child: Text(
+                            AppLocalizations.of(context)!
+                                .patchSoundfontNoneMidiOnly,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        );
                         List<DropdownMenuItem<String>> items =
                             sortedPaths.map((sfPath) {
                               bool isDefault = sfPath.endsWith(
@@ -172,7 +194,7 @@ class ChannelPatchInfo extends StatelessWidget {
                               );
                             }).toList();
 
-                        return items;
+                        return [noneItem, ...items];
                       })(),
                   onChanged: (newSf) {
                     if (newSf != null && newSf != state.soundfontPath) {
@@ -305,6 +327,30 @@ class ChannelPatchInfo extends StatelessWidget {
         // Dynamically rearranges the soundfont, program, and bank dropdowns
         // alongside the scale lock button based on the available widget width.
         // This ensures usability on both tablets (wide) and phones (narrow).
+        if (hideInstrumentPickers) {
+          return Row(
+            children: [
+              Expanded(flex: 3, child: soundfontPicker),
+              if (displayChord != null || referenceChord != null) ...[
+                const SizedBox(width: 8),
+                ChannelScaleLock(
+                  engine: engine,
+                  isDimmed: isDimmed,
+                  isLocked: isLocked,
+                  displayChord: displayChord,
+                  referenceChord: referenceChord,
+                  currentScale: currentScale,
+                  descriptiveScaleName: descriptiveScaleName,
+                  isJamSlave: isJamSlave,
+                  showLockControls: showLockControls,
+                  onLockToggled: onLockToggled,
+                  onScaleChanged: onScaleChanged,
+                ),
+              ],
+            ],
+          );
+        }
+
         if (constraints.maxWidth > 550) {
           // Wide layout
           return Column(

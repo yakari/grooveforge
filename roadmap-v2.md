@@ -1468,4 +1468,4 @@ All keys below are **reserved immediately** in the current `ProjectService` to a
 
 ---
 
-*Last updated: 2026-03-19 — Phases 1–7 complete (v2.0.0–v2.6.0). Phase 6 (MIDI Looper) shipped with v2.5.0; record-stop quantization (6.7) implemented. Remaining looper work: humanize jitter, smart-sync tests, volume slider. Phase 7 (VST3 effect plugin support) shipped with v2.6.0. Phases 8–9 planned: VST3 effect hosting, GFPA plugin ecosystem, audio looper.*
+*Last updated: 2026-03-19 — Phases 1–7 complete (v2.0.0–v2.6.0). Phase 6 (MIDI Looper) shipped with v2.5.0; record-stop quantization (6.7) implemented. Remaining looper work: humanize jitter, smart-sync tests, volume slider. Phase 7 (VST3 effect plugin support) shipped with v2.6.0. Phases 8–9 planned: GFPA plugin ecosystem, audio looper.*

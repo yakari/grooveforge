@@ -6,6 +6,10 @@ import 'plugin_instance.dart';
 /// Wraps the existing FluidSynth synthesizer backend. Each instance represents
 /// one rack slot with its own MIDI channel, soundfont, bank, and program.
 ///
+/// Persisted value `midiControllerOnly` on [soundfontPath] means **MIDI only**:
+/// on-screen keyboard and patch cables work, but no internal FluidSynth sound
+/// (pick **None** in the slot soundfont dropdown).
+///
 /// Vocoder mode has been removed from keyboard slots — use the standalone
 /// GFPA Vocoder plugin ([com.grooveforge.vocoder]) instead.
 class GrooveForgeKeyboardPlugin implements PluginInstance {

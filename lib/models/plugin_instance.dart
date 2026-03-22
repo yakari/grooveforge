@@ -1,16 +1,16 @@
+import '../constants/soundfont_sentinels.dart';
 import 'grooveforge_keyboard_plugin.dart';
 import 'gfpa_plugin_instance.dart';
+import 'keyboard_display_config.dart';
 import 'looper_plugin_instance.dart';
 import 'vst3_plugin_instance.dart';
-import 'virtual_piano_plugin.dart';
 
 /// Abstract base for every slot that can live in the GrooveForge rack.
 ///
 /// Concrete subtypes:
-///   - [GrooveForgeKeyboardPlugin] — built-in keyboard / vocoder (legacy model)
+///   - [GrooveForgeKeyboardPlugin] — built-in keyboard (FluidSynth and/or MIDI-only)
 ///   - [Vst3PluginInstance]        — external VST3 plugin (desktop only)
 ///   - [GFpaPluginInstance]        — GFPA plugin (all platforms, Phase 3+)
-///   - [VirtualPianoPlugin]        — standalone MIDI-OUT source for patch routing
 ///   - [LooperPluginInstance]      — multi-track MIDI looper rack slot
 abstract class PluginInstance {
   String get id;
@@ -37,11 +37,27 @@ abstract class PluginInstance {
       case 'gfpa':
         return GFpaPluginInstance.fromJson(json);
       case 'virtual_piano':
-        return VirtualPianoPlugin.fromJson(json);
+        return _keyboardPluginMigratedFromVirtualPiano(json);
       case 'looper':
         return LooperPluginInstance.fromJson(json);
       default:
         throw ArgumentError('Unknown plugin type: $type');
     }
   }
+}
+
+/// Legacy `.gf` files stored [VirtualPianoPlugin] as `type: virtual_piano`.
+/// That slot type is removed: the same behaviour is a [GrooveForgeKeyboardPlugin]
+/// with [kMidiControllerOnlySoundfont].
+GrooveForgeKeyboardPlugin _keyboardPluginMigratedFromVirtualPiano(
+  Map<String, dynamic> json,
+) {
+  final cfgJson = json['keyboardConfig'] as Map<String, dynamic>?;
+  return GrooveForgeKeyboardPlugin(
+    id: json['id'] as String,
+    midiChannel: (json['midiChannel'] as num?)?.toInt() ?? 1,
+    soundfontPath: kMidiControllerOnlySoundfont,
+    keyboardConfig:
+        cfgJson != null ? KeyboardDisplayConfig.fromJson(cfgJson) : null,
+  );
 }
