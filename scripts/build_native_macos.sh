@@ -16,6 +16,23 @@
 
 set -euo pipefail
 
+# ── CI guard ──────────────────────────────────────────────────────────────────
+# On GitHub Actions (CI=true) the dylibs are built by an explicit cmake step
+# before this Xcode build phase runs.  Rebuilding here would:
+#   1. Waste several minutes of build time, and
+#   2. Overwrite the dylibbundler-patched, self-contained dylib with a raw
+#      Homebrew-linked one — breaking the app bundle.
+# Skip the rebuild and let the pre-built libs remain in macos/Runner/.
+if [ "${CI:-false}" = "true" ]; then
+    echo "CI environment detected — native libs pre-built by workflow; skipping."
+    exit 0
+fi
+
+# ── PATH setup ────────────────────────────────────────────────────────────────
+# Xcode build-phase scripts run with a minimal PATH (/usr/bin:/bin only).
+# Add standard Homebrew locations so cmake and ninja are discoverable.
+export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+
 # Resolve the Flutter project root from Xcode's PROJECT_DIR (which is macos/).
 PROJECT_ROOT="${PROJECT_DIR}/.."
 NCPU="$(sysctl -n hw.ncpu)"
