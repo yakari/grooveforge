@@ -254,11 +254,8 @@ jobs:
         # macos/Runner/ and rewrite every absolute Homebrew reference to
         # @rpath/ so the app bundle is fully self-contained.
         run: |
-          cd native_audio
-          mkdir build_mac && cd build_mac
-          cmake .. -DCMAKE_BUILD_TYPE=Release
-          cmake --build .
-          cd ../..
+          cmake -S native_audio -B native_audio/build_mac -DCMAKE_BUILD_TYPE=Release
+          cmake --build native_audio/build_mac
 
           DYLIB=native_audio/build_mac/libaudio_input.dylib
           RUNNER_DIR=macos/Runner

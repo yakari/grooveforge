@@ -13,7 +13,7 @@ import '../models/vst3_plugin_instance.dart';
 export '../models/vst3_plugin_instance.dart' show Vst3PluginType;
 import 'audio_graph.dart';
 import 'audio_input_ffi_native.dart';
-import 'gfpa_android_bindings.dart';
+import 'gfpa_android_bindings_native.dart';
 
 /// Desktop VST3 host service.
 ///
