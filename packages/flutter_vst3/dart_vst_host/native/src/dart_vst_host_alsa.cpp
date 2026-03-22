@@ -18,6 +18,7 @@
 #include <alsa/asoundlib.h>
 #include <algorithm>
 #include <atomic>
+#include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -26,6 +27,23 @@
 #include <thread>
 #include <unordered_map>
 #include <vector>
+
+/// One fan-in effect chain: one or more source render functions whose audio
+/// is mixed together and then passed through a series of GFPA DSP inserts.
+///
+/// Example topology — KB2 → WAH → Reverb, Theremin → WAH → Reverb:
+///   sources = [kb2RenderFn, thereminRenderFn]
+///   effects = [(wahInsertFn, wahPtr), (reverbInsertFn, reverbPtr)]
+///
+/// The audio callback mixes all sources first (fan-in), then runs effects in
+/// series on the combined signal.  Each DSP is therefore called exactly once
+/// per block regardless of how many sources feed into it.
+struct InsertChain {
+    /// Render functions whose audio is mixed (fan-in) before the effect chain.
+    std::vector<DvhRenderFn> sources;
+    /// Effects in processing order: sources → [0] → [1] → … → master mix.
+    std::vector<std::pair<GfpaInsertFn, void*>> effects;
+};
 
 struct AudioState {
     std::vector<void*> plugins;
@@ -41,14 +59,13 @@ struct AudioState {
     /// silence or an upstream VST3 output as the plugin's audio input.
     /// Used to route non-VST3 generators (Theremin, Stylophone) into effects.
     std::unordered_map<void*, DvhRenderFn> externalRenders;
-    /// Master-mix contributors: render functions whose output is mixed directly
-    /// into the ALSA master output alongside VST3 plugin outputs. Used for
-    /// GF Keyboard (libfluidsynth) when it is not routed into a VST3 effect.
+    /// Master-mix contributors: ALL active non-VST3 render functions.
+    /// Sources that belong to an InsertChain are skipped in the bare-render
+    /// loop — the chain's own fan-in loop renders them instead.
     std::vector<DvhRenderFn> masterRenders;
-    /// GFPA insert chain: for each master render source, an optional insert
-    /// effect that intercepts audio before it reaches the master mix bus.
-    /// Key = source DvhRenderFn, Value = {insertFn, userdata}.
-    std::unordered_map<DvhRenderFn, std::pair<GfpaInsertFn, void*>> masterInserts;
+    /// Fan-in insert chains.  Multiple sources feeding the same first effect
+    /// are merged into one chain so each DSP runs exactly once per block.
+    std::vector<InsertChain> masterInsertChains;
     /// Pre-allocated stereo buffer for external render calls — no heap
     /// allocation on the audio thread.
     std::vector<float> extBufL;
@@ -57,7 +74,16 @@ struct AudioState {
     /// The insert reads from extBuf and writes here, then we accumulate to mix.
     std::vector<float> insertBufL;
     std::vector<float> insertBufR;
+    /// Pre-allocated temporary buffer for fan-in source mixing — each source
+    /// renders into tmpBuf and it is accumulated into extBuf before the chain.
+    std::vector<float> tmpBufL;
+    std::vector<float> tmpBufR;
     std::mutex          pluginsMtx;
+    /// Monotonically increasing counter incremented at the end of every audio
+    /// block, after all DSP processing is complete.  dvh_remove_master_insert_by_handle
+    /// spin-waits on this to drain any in-flight callback snapshot before the
+    /// caller destroys the DSP object, preventing use-after-free crashes.
+    std::atomic<uint64_t> callbackSeq{0};
 
     std::thread         thread;
     std::atomic<bool>   running{false};
@@ -180,14 +206,14 @@ static void audioThreadFn(AudioState* state, snd_pcm_t* pcm) {
         std::unordered_map<void*, void*> routes;
         std::unordered_map<void*, DvhRenderFn> extRenders;
         std::vector<DvhRenderFn> masterRenders;
-        std::unordered_map<DvhRenderFn, std::pair<GfpaInsertFn, void*>> masterInserts;
+        std::vector<InsertChain> masterInsertChains;
         {
             std::lock_guard<std::mutex> lk(state->pluginsMtx);
-            ordered       = state->processOrder.empty() ? state->plugins : state->processOrder;
-            routes        = state->routes;
-            extRenders    = state->externalRenders;
-            masterRenders = state->masterRenders;
-            masterInserts = state->masterInserts;
+            ordered             = state->processOrder.empty() ? state->plugins : state->processOrder;
+            routes              = state->routes;
+            extRenders          = state->externalRenders;
+            masterRenders       = state->masterRenders;
+            masterInsertChains  = state->masterInsertChains;
         }
 
         // Allocate per-plugin output buffers for routing.
@@ -199,31 +225,66 @@ static void audioThreadFn(AudioState* state, snd_pcm_t* pcm) {
                         zeroL, zeroR, mixL, mixR,
                         state->extBufL, state->extBufR);
 
-        // Mix master-render contributors (e.g. GF Keyboard via libfluidsynth)
-        // into the master bus, applying any registered GFPA insert effects.
-        for (DvhRenderFn fn : masterRenders) {
-            // Render the source into the pre-allocated ext buffer.
-            fn(state->extBufL.data(), state->extBufR.data(), blockSize);
-
-            auto it = masterInserts.find(fn);
-            if (it != masterInserts.end()) {
-                // An insert is registered: route source through the DSP effect
-                // into the insert intermediate buffer, then accumulate that.
-                it->second.first(state->extBufL.data(), state->extBufR.data(),
-                                 state->insertBufL.data(), state->insertBufR.data(),
-                                 blockSize, it->second.second);
+        // ── Fan-in insert chains ────────────────────────────────────────────
+        // For each chain: mix all sources into extBuf (fan-in), apply effects
+        // in series, then accumulate to the master bus.  Sources listed in any
+        // chain are skipped in the bare-render loop below so they are never
+        // rendered twice.
+        for (const auto& chain : masterInsertChains) {
+            // Zero the accumulation buffer for this chain's fan-in mix.
+            std::fill(state->extBufL.begin(), state->extBufL.end(), 0.f);
+            std::fill(state->extBufR.begin(), state->extBufR.end(), 0.f);
+            // Render each source into tmpBuf and accumulate into extBuf.
+            for (DvhRenderFn fn : chain.sources) {
+                fn(state->tmpBufL.data(), state->tmpBufR.data(), blockSize);
                 for (int i = 0; i < blockSize; ++i) {
-                    mixL[i] += state->insertBufL[i];
-                    mixR[i] += state->insertBufR[i];
-                }
-            } else {
-                // No insert — accumulate source directly to master mix.
-                for (int i = 0; i < blockSize; ++i) {
-                    mixL[i] += state->extBufL[i];
-                    mixR[i] += state->extBufR[i];
+                    state->extBufL[i] += state->tmpBufL[i];
+                    state->extBufR[i] += state->tmpBufR[i];
                 }
             }
+            // Apply effects in series: extBuf → insertBuf → extBuf.
+            for (const auto& ins : chain.effects) {
+                ins.first(state->extBufL.data(), state->extBufR.data(),
+                          state->insertBufL.data(), state->insertBufR.data(),
+                          blockSize, ins.second);
+                std::copy(state->insertBufL.begin(), state->insertBufL.end(),
+                          state->extBufL.begin());
+                std::copy(state->insertBufR.begin(), state->insertBufR.end(),
+                          state->extBufR.begin());
+            }
+            // Accumulate processed signal to the master mix.
+            for (int i = 0; i < blockSize; ++i) {
+                mixL[i] += state->extBufL[i];
+                mixR[i] += state->extBufR[i];
+            }
         }
+
+        // ── Bare master renders (no chain) ──────────────────────────────────
+        // Render sources that are NOT part of any insert chain directly.
+        // This handles instruments with no downstream effects (e.g. KB1 bare).
+        for (DvhRenderFn fn : masterRenders) {
+            // Skip if this source is already handled by a chain above.
+            bool inChain = false;
+            for (const auto& chain : masterInsertChains) {
+                for (DvhRenderFn src : chain.sources) {
+                    if (src == fn) { inChain = true; break; }
+                }
+                if (inChain) break;
+            }
+            if (inChain) continue;
+
+            fn(state->extBufL.data(), state->extBufR.data(), blockSize);
+            for (int i = 0; i < blockSize; ++i) {
+                mixL[i] += state->extBufL[i];
+                mixR[i] += state->extBufR[i];
+            }
+        }
+
+        // Signal that this block's DSP processing is complete.
+        // dvh_remove_master_insert_by_handle spin-waits on this counter to
+        // ensure any in-flight snapshot that still held a raw DSP pointer has
+        // retired before the caller destroys the DSP object.
+        state->callbackSeq.fetch_add(1, std::memory_order_release);
 
         // Soft-clip to [-1, 1] and convert to int16 interleaved.
         for (int i = 0; i < blockSize; ++i) {
@@ -353,39 +414,160 @@ DVH_API void dvh_remove_master_render(DVH_Host host, DvhRenderFn fn) {
 
 /// Register a GFPA insert on [source]'s master-render audio path.
 ///
-/// On each ALSA block, [source]'s output passes through [insertFn] before
-/// being mixed into the master bus.  Replaces any previously registered
-/// insert for the same [source].
+/// On each ALSA block, [source]'s output passes through the insert chain
+/// in registration order.  Multiple inserts for the same [source] form a
+/// series chain (source → insert[0] → insert[1] → … → master mix).
+///
+/// Fan-in merging: if [userdata] is already registered in an existing chain,
+/// [source] is added to that chain's sources (fan-in).  This allows multiple
+/// render sources (e.g. KB2 + Theremin) to share the same WAH → Reverb chain:
+/// all sources are mixed first, then the effect runs once on the combined
+/// signal, preventing double-processing and the associated distortion.
 DVH_API void dvh_add_master_insert(DVH_Host host, DvhRenderFn source,
                                     GfpaInsertFn insertFn, void* userdata) {
     if (!host || !source || !insertFn) return;
     auto* s = getOrCreate(host);
     std::lock_guard<std::mutex> lk(s->pluginsMtx);
-    s->masterInserts[source] = {insertFn, userdata};
-    fprintf(stderr, "[dart_vst_host] Master insert added (total=%zu)\n",
-            s->masterInserts.size());
+
+    // Search all chains for one that already contains this DSP.
+    // If found: merge [source] into that chain (fan-in).
+    for (auto& chain : s->masterInsertChains) {
+        for (const auto& ins : chain.effects) {
+            if (ins.second != userdata) continue;
+            // Chain already has this DSP — add source if not already there.
+            for (DvhRenderFn src : chain.sources)
+                if (src == source) return;  // already registered
+            chain.sources.push_back(source);
+            fprintf(stderr, "[dart_vst_host] Fan-in: source=%p merged into chain "
+                    "containing dsp=%p (sources=%zu)\n",
+                    (void*)source, userdata, chain.sources.size());
+            return;
+        }
+    }
+
+    // No chain contains this DSP yet.  Find an existing chain for [source]
+    // and append the effect to it.
+    for (auto& chain : s->masterInsertChains) {
+        for (DvhRenderFn src : chain.sources) {
+            if (src != source) continue;
+            // This source already has a chain — append the new effect.
+            for (const auto& ins : chain.effects)
+                if (ins.second == userdata) return;  // already there
+            chain.effects.push_back({insertFn, userdata});
+            fprintf(stderr, "[dart_vst_host] Chain append: source=%p dsp=%p "
+                    "effects=%zu\n",
+                    (void*)source, userdata, chain.effects.size());
+            return;
+        }
+    }
+
+    // Neither this DSP nor this source has a chain yet — create one.
+    s->masterInsertChains.push_back({{source}, {{insertFn, userdata}}});
+    fprintf(stderr, "[dart_vst_host] New chain: source=%p dsp=%p\n",
+            (void*)source, userdata);
 }
 
-/// Remove the GFPA insert registered for [source]. No-op if none registered.
+/// Remove [source] from all chains.  If a chain has no sources left after
+/// removal it is deleted entirely.  No-op if [source] is not in any chain.
 DVH_API void dvh_remove_master_insert(DVH_Host host, DvhRenderFn source) {
     if (!host || !source) return;
     auto* s = get(host);
     if (!s) return;
     std::lock_guard<std::mutex> lk(s->pluginsMtx);
-    s->masterInserts.erase(source);
-    fprintf(stderr, "[dart_vst_host] Master insert removed (total=%zu)\n",
-            s->masterInserts.size());
+    for (auto& chain : s->masterInsertChains) {
+        chain.sources.erase(
+            std::remove(chain.sources.begin(), chain.sources.end(), source),
+            chain.sources.end());
+    }
+    // Remove chains that no longer have any sources.
+    s->masterInsertChains.erase(
+        std::remove_if(s->masterInsertChains.begin(), s->masterInsertChains.end(),
+            [](const InsertChain& c) { return c.sources.empty(); }),
+        s->masterInsertChains.end());
+    fprintf(stderr, "[dart_vst_host] Master insert removed for source %p\n", (void*)source);
 }
 
-/// Remove all registered master inserts.  Called from syncAudioRouting at the
-/// start of a full routing rebuild to clear stale registrations.
+/// Remove the insert matching [dspHandle] from every source chain, then drain.
+///
+/// Searches all chains for an entry whose userdata equals
+/// gfpa_dsp_userdata(dspHandle) and removes it.  After removing, this
+/// function spin-waits for the audio callback to complete at least one full
+/// block, guaranteeing that any in-flight snapshot that still held a raw
+/// pointer to this DSP object has retired.  The caller may then safely
+/// destroy the DSP.
+///
+/// **Must be called BEFORE gfpa_dsp_destroy** to prevent use-after-free
+/// crashes on the ALSA audio thread.
+DVH_API void dvh_remove_master_insert_by_handle(DVH_Host host, void* dspHandle) {
+    if (!host || !dspHandle) return;
+    auto* s = get(host);
+    if (!s) return;
+    // Resolve the userdata pointer stored in the chain entry.
+    void* const ud = gfpa_dsp_userdata(dspHandle);
+    bool removed = false;
+    {
+        std::lock_guard<std::mutex> lk(s->pluginsMtx);
+        // Remove matching effects from all chains.
+        for (auto& chain : s->masterInsertChains) {
+            auto it = std::remove_if(chain.effects.begin(), chain.effects.end(),
+                [ud](const std::pair<GfpaInsertFn, void*>& ins) {
+                    return ins.second == ud;
+                });
+            if (it != chain.effects.end()) {
+                chain.effects.erase(it, chain.effects.end());
+                removed = true;
+            }
+        }
+        // Remove chains that have no effects left (sources become bare renders).
+        s->masterInsertChains.erase(
+            std::remove_if(s->masterInsertChains.begin(), s->masterInsertChains.end(),
+                [](const InsertChain& c) { return c.effects.empty(); }),
+            s->masterInsertChains.end());
+    } // ← pluginsMtx released BEFORE drain to avoid deadlock with audio callback
+    if (!removed) {
+        fprintf(stderr, "[dart_vst_host] dvh_remove_master_insert_by_handle: "
+                "handle %p not found in any chain\n", dspHandle);
+        return;
+    }
+    // Drain: spin-wait for the audio callback to complete at least one block
+    // after the removal.  The callbackSeq counter is incremented at the END of
+    // each block's DSP processing, so a strictly greater value means any
+    // in-flight raw pointer reference has been retired.
+    const uint64_t seqBefore = s->callbackSeq.load(std::memory_order_acquire);
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(500);
+    while (s->callbackSeq.load(std::memory_order_acquire) <= seqBefore) {
+        if (std::chrono::steady_clock::now() >= deadline) {
+            fprintf(stderr, "[dart_vst_host] dvh_remove_master_insert_by_handle: "
+                    "drain timeout for handle %p\n", dspHandle);
+            break;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    fprintf(stderr, "[dart_vst_host] dvh_remove_master_insert_by_handle: "
+            "drained OK for handle %p\n", dspHandle);
+}
+
+/// Remove all registered master inserts (all chains).
+/// Called from syncAudioRouting at the start of a full routing rebuild.
 DVH_API void dvh_clear_master_inserts(DVH_Host host) {
     if (!host) return;
     auto* s = get(host);
     if (!s) return;
     std::lock_guard<std::mutex> lk(s->pluginsMtx);
-    s->masterInserts.clear();
+    s->masterInsertChains.clear();
     fprintf(stderr, "[dart_vst_host] Master inserts cleared\n");
+}
+
+/// Remove all master render contributors.
+/// Called from syncAudioRouting before re-registering active sources so that
+/// stale entries from previous routing states are not left in the list.
+DVH_API void dvh_clear_master_renders(DVH_Host host) {
+    if (!host) return;
+    auto* s = get(host);
+    if (!s) return;
+    std::lock_guard<std::mutex> lk(s->pluginsMtx);
+    s->masterRenders.clear();
+    fprintf(stderr, "[dart_vst_host] Master renders cleared\n");
 }
 
 // Open and configure ALSA synchronously so failures are immediately visible.
@@ -406,12 +588,14 @@ DVH_API int32_t dvh_start_alsa_thread(DVH_Host host, const char* alsa_device) {
     s->sampleRate = static_cast<int32_t>(hs->sr);
     s->blockSize  = static_cast<int32_t>(hs->maxBlock);
 
-    // Pre-allocate external render and insert intermediate buffers
-    // (avoids heap allocation on the audio thread).
+    // Pre-allocate all audio scratch buffers (avoids heap allocation on the
+    // audio thread).  tmpBuf is used for fan-in source mixing in insert chains.
     s->extBufL.assign(s->blockSize, 0.f);
     s->extBufR.assign(s->blockSize, 0.f);
     s->insertBufL.assign(s->blockSize, 0.f);
     s->insertBufR.assign(s->blockSize, 0.f);
+    s->tmpBufL.assign(s->blockSize, 0.f);
+    s->tmpBufR.assign(s->blockSize, 0.f);
 
     const char* dev = (alsa_device && alsa_device[0]) ? alsa_device : "default";
     fprintf(stderr, "[dart_vst_host] Opening ALSA device: %s\n", dev);
@@ -476,7 +660,9 @@ extern "C" {
     // GFPA insert chain stubs — no-ops on non-Linux platforms.
     void    dvh_add_master_insert(DVH_Host, DvhRenderFn, GfpaInsertFn, void*) {}
     void    dvh_remove_master_insert(DVH_Host, DvhRenderFn) {}
+    void    dvh_remove_master_insert_by_handle(DVH_Host, void*) {}
     void    dvh_clear_master_inserts(DVH_Host) {}
+    void    dvh_clear_master_renders(DVH_Host) {}
     // GFPA DSP stubs — return safe no-op values.
     void*   gfpa_dsp_create(const char*, int32_t, int32_t) { return nullptr; }
     void    gfpa_dsp_set_param(void*, const char*, double) {}

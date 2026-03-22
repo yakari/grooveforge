@@ -373,15 +373,16 @@ class VstHostService {
 
     _host!.setProcessingOrder(orderedPlugins);
 
-    // Clear all master inserts at the start of each rebuild so stale
-    // registrations from prior configurations are removed before we re-add.
+    // Clear all inserts and all render contributors at the start of each
+    // rebuild so stale registrations from prior routing states are removed.
+    // masterRenders must be cleared so that instruments no longer in the rack
+    // or no longer connected (e.g. a Theremin that was cabled before) are not
+    // left in the list, which would cause them to be rendered twice (once via
+    // the cleared list and once via their own ALSA device) → saturation.
     _host!.clearMasterInserts();
+    _host!.clearMasterRenders();
 
-    // Ensure each GF Keyboard slot is initialised and registered as a
-    // master-mix contributor.  Using per-slot render function pointers
-    // (keyboard_render_block_0, keyboard_render_block_1) instead of the
-    // backward-compat keyboard_render_block means dart_vst_host can key
-    // GFPA inserts on the exact slot that owns a given keyboard.
+    // Re-register each GF Keyboard slot as a master-mix contributor.
     if (Platform.isLinux || Platform.isMacOS) {
       for (final plugin in allPlugins.whereType<GrooveForgeKeyboardPlugin>()) {
         // MIDI channels are 1-based; map to 0-based slot index mod MAX_KB_SLOTS.
@@ -452,28 +453,39 @@ class VstHostService {
         continue;
       }
 
-      // Non-VST3 → GFPA descriptor effect (no VST3 plugin in the destination).
-      // The destination slot has a native DSP handle in _gfpaHandles.
-      if (from == null && to == null) {
-        final toHandle = _gfpaHandles[conn.toSlotId];
-        if (toHandle == null || toHandle == nullptr) continue;
+      // Non-VST3 → GFPA: handled below via DFS traversal after this loop.
+    }
 
-        final fromPlugin = allPlugins.firstWhere(
-          (p) => p.id == conn.fromSlotId,
-          orElse: () => allPlugins.first,
-        );
+    // ── GFPA insert chains (Linux/macOS): DFS from each source ───────────────
+    //
+    // Using DFS (same approach as the Android path) ensures that chained
+    // effects such as Keyboard → WAH → Reverb are registered in the correct
+    // order into the source's insert chain.  A single-hop lookup would miss
+    // the second effect in the chain.
+    if (Platform.isLinux || Platform.isMacOS) {
+      // GF Keyboard sources.
+      for (final plugin in allPlugins.whereType<GrooveForgeKeyboardPlugin>()) {
+        final slotIdx = (plugin.midiChannel - 1) % 2;
+        _addChainInsertsDesktop(
+            plugin.id, AudioInputFFI().keyboardRenderFnForSlot(slotIdx), graph);
+      }
 
-        // GF Keyboard → GFPA effect: wire a master-insert keyed on the
-        // slot-specific render function pointer.  dart_vst_host intercepts
-        // that slot's output and pipes it through the DSP before accumulation,
-        // leaving the other keyboard's slot unaffected.
-        if (fromPlugin is GrooveForgeKeyboardPlugin &&
-            (Platform.isLinux || Platform.isMacOS)) {
-          final slotIdx = (fromPlugin.midiChannel - 1) % 2;
-          _host!.addMasterInsert(
-            AudioInputFFI().keyboardRenderFnForSlot(slotIdx),
-            toHandle,
-          );
+      // Theremin and Stylophone: when wired to a GFPA effect, add them as
+      // masterRender contributors and enable capture mode so their own ALSA
+      // device outputs silence (the ALSA thread drives the DSP instead).
+      for (final plugin in allPlugins.whereType<GFpaPluginInstance>()) {
+        if (plugin.pluginId == 'com.grooveforge.theremin' &&
+            _hasAnyGfpaConnection(plugin.id, graph)) {
+          _host!.addMasterRender(AudioInputFFI().thereminRenderBlockPtr);
+          thereminHasRoute.add(plugin.id);
+          _addChainInsertsDesktop(
+              plugin.id, AudioInputFFI().thereminRenderBlockPtr, graph);
+        } else if (plugin.pluginId == 'com.grooveforge.stylophone' &&
+            _hasAnyGfpaConnection(plugin.id, graph)) {
+          _host!.addMasterRender(AudioInputFFI().styloRenderBlockPtr);
+          styloHasRoute.add(plugin.id);
+          _addChainInsertsDesktop(
+              plugin.id, AudioInputFFI().styloRenderBlockPtr, graph);
         }
       }
     }
@@ -642,6 +654,51 @@ class VstHostService {
     }
   }
 
+  /// Depth-first traversal of [graph] starting from [sourceSlotId] for the
+  /// desktop (Linux/macOS) GFPA insert chain.
+  ///
+  /// Registers every reachable GFPA DSP handle into [renderFn]'s masterInsert
+  /// chain in DFS traversal order, enabling series chains such as
+  /// Keyboard → WAH → Reverb.  Only audio connections are followed.
+  void _addChainInsertsDesktop(
+      String sourceSlotId,
+      Pointer<NativeFunction<Void Function(Pointer<Float>, Pointer<Float>, Int32)>> renderFn,
+      AudioGraph graph, [Set<String>? visited]) {
+    final seen = visited ?? {sourceSlotId};
+    for (final conn in graph.connections) {
+      if (conn.fromSlotId != sourceSlotId) continue;
+      if (conn.fromPort.isDataPort || conn.toPort.isDataPort) continue;
+      if (conn.fromPort == AudioPortId.midiOut ||
+          conn.toPort == AudioPortId.midiIn) {
+        continue;
+      }
+      if (seen.contains(conn.toSlotId)) continue;
+      seen.add(conn.toSlotId);
+      final handle = _gfpaHandles[conn.toSlotId];
+      if (handle != null && handle != nullptr) {
+        _host!.addMasterInsert(renderFn, handle);
+      }
+      _addChainInsertsDesktop(conn.toSlotId, renderFn, graph, seen);
+    }
+  }
+
+  /// Returns true if [slotId] has at least one audio connection to a slot
+  /// that has an active GFPA DSP handle.  Used to decide whether to add a
+  /// Theremin/Stylophone as a masterRender contributor.
+  bool _hasAnyGfpaConnection(String slotId, AudioGraph graph) {
+    for (final conn in graph.connections) {
+      if (conn.fromSlotId != slotId) continue;
+      if (conn.fromPort.isDataPort || conn.toPort.isDataPort) continue;
+      if (conn.fromPort == AudioPortId.midiOut ||
+          conn.toPort == AudioPortId.midiIn) {
+        continue;
+      }
+      final handle = _gfpaHandles[conn.toSlotId];
+      if (handle != null && handle != nullptr) return true;
+    }
+    return false;
+  }
+
   /// Internal: destroy and remove the DSP handle for [slotId] if present.
   ///
   /// On Android [_host] is null; destruction goes through [GfpaAndroidBindings].
@@ -660,6 +717,11 @@ class VstHostService {
       GfpaAndroidBindings.instance.gfpaAndroidRemoveInsert(old);
       GfpaAndroidBindings.instance.gfpaDspDestroy(old);
     } else {
+      // Remove from all source chains and drain before destroying.
+      // The drain spin-waits for the ALSA/CoreAudio callback to finish at
+      // least one full block after removal, ensuring no in-flight raw pointer
+      // to this DSP remains before gfpa_dsp_destroy frees the memory.
+      _host?.removeMasterInsertByHandle(old);
       _host?.destroyGfpaDsp(old);
     }
   }

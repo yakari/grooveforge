@@ -273,7 +273,7 @@ class NativeBindings {
       )
   >('dvh_add_master_insert');
 
-  /// Remove the GFPA insert registered for [source].
+  /// Remove all inserts for a specific source render function.
   late final void Function(
     Pointer<Void>,
     Pointer<NativeFunction<Void Function(Pointer<Float>, Pointer<Float>, Int32)>>,
@@ -288,12 +288,27 @@ class NativeBindings {
       )
   >('dvh_remove_master_insert');
 
-  /// Remove all registered master inserts.
+  /// Remove the insert matching [dspHandle] from all source chains and drain.
+  /// Must be called BEFORE gfpa_dsp_destroy to prevent use-after-free crashes.
+  late final void Function(Pointer<Void>, Pointer<Void>) dvhRemoveMasterInsertByHandle =
+      lib.lookupFunction<
+          Void Function(Pointer<Void>, Pointer<Void>),
+          void Function(Pointer<Void>, Pointer<Void>)
+      >('dvh_remove_master_insert_by_handle');
+
+  /// Remove all registered master inserts (all fan-in chains).
   late final void Function(Pointer<Void>) dvhClearMasterInserts =
       lib.lookupFunction<
           Void Function(Pointer<Void>),
           void Function(Pointer<Void>)
       >('dvh_clear_master_inserts');
+
+  /// Remove all registered master render contributors.
+  late final void Function(Pointer<Void>) dvhClearMasterRenders =
+      lib.lookupFunction<
+          Void Function(Pointer<Void>),
+          void Function(Pointer<Void>)
+      >('dvh_clear_master_renders');
 
   // macOS specific audio management
   late final int Function(Pointer<Void>) dvhMacStartAudio =

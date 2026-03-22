@@ -209,15 +209,31 @@ class VstHost {
     _b.dvhAddMasterInsert(handle, sourceFn, insertFn, userdata);
   }
 
-  /// Remove the GFPA insert registered for [sourceFn].
+  /// Remove all inserts for [sourceFn] from the chain.
   void removeMasterInsert(
     Pointer<NativeFunction<Void Function(Pointer<Float>, Pointer<Float>, Int32)>> sourceFn,
   ) => _b.dvhRemoveMasterInsert(handle, sourceFn);
 
-  /// Remove all registered master inserts.
+  /// Remove the insert matching [dspHandle] from all source chains, then
+  /// drain — waits for the audio callback to complete at least one full block
+  /// so that any in-flight raw pointer to this DSP has retired.
+  ///
+  /// **Must be called BEFORE [destroyGfpaDsp]** to prevent use-after-free
+  /// crashes on the ALSA / CoreAudio audio thread.
+  void removeMasterInsertByHandle(Pointer<Void> dspHandle) =>
+      _b.dvhRemoveMasterInsertByHandle(handle, dspHandle);
+
+  /// Remove all registered master inserts (all fan-in chains).
   ///
   /// Call at the beginning of each syncAudioRouting rebuild.
   void clearMasterInserts() => _b.dvhClearMasterInserts(handle);
+
+  /// Remove all registered master render contributors.
+  ///
+  /// Call at the beginning of each syncAudioRouting rebuild so that stale
+  /// entries from previous routing states (e.g. a Theremin that was connected
+  /// before but now has no cables) are not left in the list.
+  void clearMasterRenders() => _b.dvhClearMasterRenders(handle);
 
   /// Load a VST plug‑in from [modulePath]. Optionally specify
   /// [classUid] to select a specific class from a multi‑class module.
