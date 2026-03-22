@@ -47,5 +47,10 @@ app.*.map.json
 # Native Android C++ build artifacts
 **/.cxx/
 
+# CMake build directories — contain absolute paths baked into CMakeCache.txt
+# and must never be committed (CI checkouts will have different paths).
+native_audio/build_mac/
+packages/flutter_vst3/dart_vst_host/native/build/
+
 # Local-only documentation (not for public repo)
 /docs/local/

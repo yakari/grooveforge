@@ -1,7 +1,0 @@
-{
-	"InstallScripts" : 
-	[
-		"/Users/ypoirier/dev/grooveforge/native_audio/build_mac/cmake_install.cmake"
-	],
-	"Parallel" : false
-}

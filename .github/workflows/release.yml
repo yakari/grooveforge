@@ -254,6 +254,7 @@ jobs:
         # macos/Runner/ and rewrite every absolute Homebrew reference to
         # @rpath/ so the app bundle is fully self-contained.
         run: |
+          rm -f native_audio/build_mac/CMakeCache.txt
           cmake -S native_audio -B native_audio/build_mac -DCMAKE_BUILD_TYPE=Release
           cmake --build native_audio/build_mac
 
