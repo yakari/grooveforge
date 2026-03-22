@@ -1094,9 +1094,39 @@ Hardware CC buttons bindable per looper slot via the looper front panel:
 
 ---
 
-## Phase 8 — Plugin Ecosystem: GFPA + Platform Bridges (AudioUnit / AAP)
+## Phase 8 — Plugin Ecosystem: GFPA + Platform Bridges (AudioUnit / AAP) ⚡ IN PROGRESS
 
 > Mobile platforms cannot host VST3. This phase adds plugin extensibility on all platforms through a **three-tier strategy**: a first-party pure-Dart plugin API (GFPA) as the universal baseline, an AudioUnit v3 bridge for iOS and macOS, and a future AAP bridge for Android. Each tier targets a different trade-off between simplicity and ecosystem reach.
+>
+> **Tier 1 (v2.7.0)**: six bundled first-party effects shipped as `.gfpd` assets with native C++ DSP — fully functional on Android, Linux, macOS. Pub.dev publishing and the plugin store remain pending.
+
+### 8.0 — Tier 1: Bundled First-Party GFPA Effects ✅ COMPLETE (v2.7.0)
+
+#### `.gfpd` Plugin Descriptor Format ✅
+
+- [x] YAML-based declarative format: metadata, DSP signal graph, automatable parameters, UI layout
+- [x] `GFDescriptorLoader`: parses `.gfpd` YAML, registers plugins via `GFPluginRegistry`
+- [x] `GFDescriptorPlugin`: `GFEffectPlugin` backed by a `GFDspGraph`; full rack, `.gf` save/load, and GFPA registry integration
+- [x] `GFDspNode` / `GFDspGraph`: zero-allocation audio graph engine executing built-in DSP node chains on the audio thread
+- [x] Six first-party effects bundled as `.gfpd` assets: Auto-Wah (`com.grooveforge.wah`), Plate Reverb, Ping-Pong Delay, 4-Band EQ, Compressor, Chorus/Flanger
+- [x] `HOW_TO_CREATE_A_PLUGIN.md`: authoring guide (schema, all node types, UI controls, ID conventions, common recipes)
+
+#### Native C++ DSP — Linux / macOS ✅
+
+- [x] `gfpa_dsp.h` / `gfpa_dsp.cpp` in `dart_vst_host/native/`: Freeverb, ping-pong delay, Chamberlin SVF wah, 4-band biquad EQ, RMS compressor, stereo chorus — pre-allocated, atomic parameter updates
+- [x] Master-insert chain API (`dvh_add_master_insert` / `dvh_remove_master_insert` / `dvh_clear_master_inserts`): GFPA effects intercept a source's audio before the master mix; fan-in merging for shared chains (e.g. Keyboard + Theremin → same WAH)
+- [x] BPM propagation to native DSP via `gfpa_set_bpm`; GF Keyboard on macOS via FluidSynth (replaces `flutter_midi_pro`)
+
+#### Native C++ DSP — Android ✅
+
+- [x] Shared AAudio output stream (`oboe_stream_android.cpp`): per-keyboard FluidSynth rendering with per-keyboard GFPA insert chains before master mix
+- [x] Theremin and Stylophone registered on the AAudio bus; DFS traversal wires all reachable GFPA effects per source
+- [x] `GfpaAndroidBindings` Dart FFI singleton; `VstHostService` Android branches for all GFPA lifecycle operations
+
+#### GFPA Plugin UI Controls ✅
+
+- [x] `GFSlider` (fader), `GFVuMeter` (20-segment stereo VU meter with peak hold), `GFToggleButton` (LED stomp-box toggle), `GFOptionSelector` (segmented selector for discrete parameters)
+- [x] `GFDescriptorPluginUI`: widget factory auto-generating a complete plugin panel from a `.gfpd` `ui:` block
 
 ### Existing Art — Why Not Just Use These?
 
@@ -1192,20 +1222,19 @@ Each package registers itself via `GFPluginRegistry.register(MyPlugin())` in its
 
 ### 8.2 — First-Party GFPA Effect Plugins (mobile-first)
 
-Once the GFPA framework is in place, implement the following as standalone packages:
+> **v2.7.0 note**: the six core effects were shipped as bundled `.gfpd` assets with native C++ DSP (Phase 7b), covering Android, Linux, and macOS. They are not standalone pub.dev packages — they are embedded in the app. The remaining items (vocoder mk2, arpeggiator, chord) and the pub.dev publication path are still pending.
 
-| Package name              | Type       | Description                                          | Platforms |
-| ------------------------- | ---------- | ---------------------------------------------------- | --------- |
-| `gf_plugin_reverb`        | Effect     | Schroeder plate reverb (pure Dart DSP)               | All       |
-| `gf_plugin_delay`         | Effect     | Stereo ping-pong delay, BPM-synced tap divisions     | All       |
-| `gf_plugin_compressor`    | Effect     | RMS compressor with attack/release/ratio/makeup      | All       |
-| `gf_plugin_eq`            | Effect     | 4-band parametric EQ (biquad filters)                | All       |
-| `gf_plugin_chorus`        | Effect     | Stereo chorus / flanger, BPM-syncable rate           | All       |
-| `gf_plugin_vocoder_mk2`   | Effect     | Improved vocoder replacing the built-in DSP          | All       |
-| `gf_plugin_arpeggiator`   | MIDI FX    | BPM-synced arpeggiator, pattern editor               | All       |
-| `gf_plugin_chord`         | MIDI FX    | Harmonizer / chord generator from single notes       | All       |
-
-Each is a pure-Dart DSP implementation, no native code, works identically on Android, iOS, Linux, macOS, Windows.
+| Package / Asset           | Type       | Description                                          | Status |
+| ------------------------- | ---------- | ---------------------------------------------------- | ------ |
+| `com.grooveforge.reverb`  | Effect     | Schroeder plate reverb (native C++ DSP)              | ✅ bundled v2.7.0 |
+| `com.grooveforge.delay`   | Effect     | Stereo ping-pong delay, BPM-synced                   | ✅ bundled v2.7.0 |
+| `com.grooveforge.eq`      | Effect     | 4-band biquad EQ                                     | ✅ bundled v2.7.0 |
+| `com.grooveforge.compressor` | Effect  | RMS compressor with attack/release/ratio/makeup      | ✅ bundled v2.7.0 |
+| `com.grooveforge.chorus`  | Effect     | Stereo chorus / flanger, BPM-syncable rate           | ✅ bundled v2.7.0 |
+| `com.grooveforge.wah`     | Effect     | Auto-Wah: resonant SVF + LFO, BPM-syncable           | ✅ bundled v2.7.0 |
+| `gf_plugin_vocoder_mk2`   | Effect     | Improved vocoder replacing the built-in DSP          | [ ] pending |
+| `gf_plugin_arpeggiator`   | MIDI FX    | BPM-synced arpeggiator, pattern editor               | [ ] pending |
+| `gf_plugin_chord`         | MIDI FX    | Harmonizer / chord generator from single notes       | [ ] pending |
 
 ### 8.3 — Plugin Store Browser (in-app)
 
@@ -1460,7 +1489,8 @@ All keys below are **reserved immediately** in the current `ProjectService` to a
 | `2.4.0` | Phase 5  | ✅ Complete   | Audio signal graph + "Back of Rack" cable patching UI                            |
 | `2.5.0` | Phase 6  | ✅ Complete   | MIDI Looper (BPM-synced, per-slot, multi-track overdub, live playback quantization pending) |
 | `2.6.0` | Phase 7  | ✅ Complete   | VST3 effect plugin support (effect slot UI, insert FX chain shortcut per instrument slot) |
-| `3.0.0` | Phase 8  | 🔜 TODO      | GFPA community plugins — first-party effects (reverb, EQ, delay…) + plugin store |
+| `2.7.0` | Phase 8 (Tier 1) | ✅ Complete | GFPA Tier 1: six bundled first-party effects as `.gfpd` + native C++ DSP (Android, Linux, macOS); GF Keyboard on macOS |
+| `3.0.0` | Phase 8 (full) | 🔜 TODO | Publish `grooveforge_plugin_api` to pub.dev; plugin store browser; vocoder mk2, arpeggiator, chord MIDI FX |
 | `3.1.0` | Phase 8b | 🔜 TODO      | AudioUnit v3 bridge (macOS + iOS) — hosts AUv3 ecosystem plugins                 |
 | `3.2.0` | Phase 9  | 🔜 TODO      | Audio looper (PCM, requires audio graph from Phase 5)                            |
 | `TBD`   | Phase 8c | ⏸ Deferred   | AAP bridge (Android) — deferred pending AAP v1.0 + ecosystem growth              |
@@ -1468,4 +1498,4 @@ All keys below are **reserved immediately** in the current `ProjectService` to a
 
 ---
 
-*Last updated: 2026-03-19 — Phases 1–7 complete (v2.0.0–v2.6.0). Phase 6 (MIDI Looper) shipped with v2.5.0; record-stop quantization (6.7) implemented. Remaining looper work: humanize jitter, smart-sync tests, volume slider. Phase 7 (VST3 effect plugin support) shipped with v2.6.0. Phases 8–9 planned: GFPA plugin ecosystem, audio looper.*
+*Last updated: 2026-03-22 — Phases 1–7 complete (v2.0.0–v2.6.0). Phase 8 Tier 1 shipped with v2.7.0: six bundled GFPA effects as `.gfpd` + native C++ DSP on Android/Linux/macOS, GF Keyboard on macOS. Remaining Phase 8 work: pub.dev publishing, plugin store, vocoder mk2, arpeggiator, chord MIDI FX. Phases 8b, 9 pending.*

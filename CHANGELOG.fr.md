@@ -5,7 +5,7 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/lang/fr/).
 
-## [X.x.x]
+## [2.7.0] - 2026-03-22
 
 ### Ajouté
 - **Effets DSP GFPA natifs** (Android, Linux, macOS) : six effets intégrés — Auto-Wah, Réverb à plaque, Délai Ping-Pong, Égaliseur 4 bandes, Compresseur, Chorus/Flanger — implémentés en C++ natif sans allocation sur le thread audio temps réel. Les chaînes multi-effets et le routage vers le Theremin/Stylophone sont pris en charge sur toutes les plateformes.
