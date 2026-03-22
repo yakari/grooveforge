@@ -5,11 +5,6 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [X.x.x]
-
-### Fixed
-- **macOS CI `CMakeCache.txt` path mismatch**: `native_audio/build_mac/` was committed to git with absolute local paths baked into `CMakeCache.txt`. CI (different checkout path) caused CMake to abort with a source-directory mismatch. Fixed by deleting `CMakeCache.txt` before running cmake in both the CI workflow and `scripts/build_native_macos.sh`. Added `native_audio/build_mac/` and `packages/flutter_vst3/dart_vst_host/native/build/` to `.gitignore` and removed both from git tracking so this cannot recur.
-
 ## [2.7.0] - 2026-03-22
 
 ### Added

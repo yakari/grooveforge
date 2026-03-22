@@ -275,6 +275,14 @@ jobs:
 
           cp "$DYLIB" "$RUNNER_DIR/libaudio_input.dylib"
 
+      - name: Install CocoaPods dependencies
+        # flutter build macos skips pod install when Podfile.lock is up-to-date,
+        # even on a fresh checkout where macos/Pods/ doesn't exist yet (it is
+        # gitignored).  Run pod install explicitly so the Pods directory and all
+        # generated support files (xcconfig, XCFileLists) are present before
+        # xcodebuild starts.
+        run: cd macos && pod install && cd ..
+
       - name: Build macOS
         run: flutter build macos --release
         env:
