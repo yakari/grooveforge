@@ -24,17 +24,27 @@ extern "C" {
 #endif
 
 // ── Bus slot ID constants ─────────────────────────────────────────────────────
+//
+// FluidSynth assigns sfIds sequentially from 1 for every loadSoundfont() call.
+// With per-keyboard dedicated synths (createKeyboardSlotSynth), each of the
+// 4 keyboard slots can generate 2 sfId allocations (initial load + dedicated
+// load), meaning sfIds can reach 8 or higher in practice.
+//
+// Instrument bus slots are therefore placed at 100+ to guarantee they never
+// collide with any FluidSynth sfId, regardless of how many soundfonts are
+// loaded.  The gfpa_audio_android chains array (kMaxBusSlot) must be at
+// least as large as the highest slot ID used here.
 
 /// Fixed bus slot ID for the Theremin instrument.
-/// Must not collide with any FluidSynth sfId (which are 1-based integers
-/// assigned sequentially from native-lib.cpp; max 4 keyboard slots).
-#define OBOE_BUS_SLOT_THEREMIN  5
+/// Placed at 100 to avoid collisions with FluidSynth sfIds (1-based,
+/// sequentially assigned — may reach double digits with multiple keyboard slots).
+#define OBOE_BUS_SLOT_THEREMIN   100
 
 /// Fixed bus slot ID for the Stylophone instrument.
-#define OBOE_BUS_SLOT_STYLOPHONE 6
+#define OBOE_BUS_SLOT_STYLOPHONE 101
 
 /// Fixed bus slot ID for the Vocoder instrument.
-#define OBOE_BUS_SLOT_VOCODER   7
+#define OBOE_BUS_SLOT_VOCODER    102
 
 // ── Generic audio source render callback ─────────────────────────────────────
 
@@ -103,6 +113,15 @@ void oboe_stream_add_synth(fluid_synth_t* synth, int sfId);
 /// Blocks until any in-flight callback using this synth has finished.
 /// After this returns it is safe to call delete_fluid_synth(synth).
 void oboe_stream_remove_synth(fluid_synth_t* synth);
+
+// ── Drain synchronisation (shared with other translation units) ──────────────
+
+/// Returns the current value of the per-callback sequence counter.
+///
+/// Incremented once at the end of every AAudio callback invocation.
+/// Used by gfpa_audio_android and other consumers to drain any in-flight
+/// snapshot before freeing resources referenced by the audio thread.
+uint64_t oboe_stream_callback_done_seq(void);
 
 #ifdef __cplusplus
 }

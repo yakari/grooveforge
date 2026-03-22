@@ -532,20 +532,14 @@ class VstHostService {
   }
 
   /// Destroy the native DSP instance for [slotId] and remove it from the map.
+  ///
+  /// Delegates to [_destroyGfpaDspForSlot] on all platforms so the Android
+  /// path correctly calls [gfpaAndroidRemoveInsert] (with its drain wait)
+  /// before [gfpaDspDestroy].  The previous inline Android branch called
+  /// [gfpaDspDestroy] directly, bypassing the drain and causing a
+  /// use-after-free SIGSEGV in the AAudio callback.
   void unregisterGfpaDsp(String slotId) {
     if (!isSupported) return;
-
-    // On Android, destroy via the FFI binding and skip the VstHost path.
-    if (Platform.isAndroid) {
-      final handle = _gfpaHandles.remove(slotId);
-      if (handle != null && handle != nullptr) {
-        GfpaAndroidBindings.instance.gfpaDspDestroy(handle);
-        debugPrint('VstHostService: GFPA DSP destroyed (Android) for $slotId');
-      }
-      return;
-    }
-
-    if (_host == null) return;
     _destroyGfpaDspForSlot(slotId);
     debugPrint('VstHostService: GFPA DSP destroyed for $slotId');
   }
@@ -569,14 +563,15 @@ class VstHostService {
 
   /// Synchronise the Android GFPA insert chain with the current [graph].
   ///
-  /// Rebuilds the chain from scratch each call:
-  ///   1. Clear all existing inserts so stale connections are removed.
-  ///   2. Walk the graph connections and add an insert for each
-  ///      GrooveForgeKeyboard → GFPA effect cable.
+  /// Rebuilds all per-source chains from scratch:
+  ///   1. Clear every existing insert so stale connections are removed.
+  ///   2. For each GF Keyboard, trace the full downstream GFPA chain via DFS
+  ///      and register every reachable effect into that keyboard's bus slot.
+  ///   3. For Theremin (bus slot 5) and Stylophone (bus slot 6), do the same.
   ///
-  /// VST3 plugins are not available on Android; only GFPA descriptor effects
-  /// (those with handles in [_gfpaHandles]) participate in routing.
-  /// Rebuilds the per-keyboard GFPA insert chains for Android.
+  /// Using DFS (rather than single-hop lookup) allows effect chains such as
+  /// Keyboard → WAH → Reverb to work: Reverb is registered in the same slot
+  /// as WAH, so both effects run in series on that keyboard's audio path.
   ///
   /// [keyboardSfIds] maps each keyboard plugin's slot ID to its soundfont ID
   /// (the 1-based integer returned by [loadSoundfont]).  The native layer uses
@@ -586,42 +581,83 @@ class VstHostService {
       AudioGraph graph,
       List<PluginInstance> allPlugins,
       Map<String, int> keyboardSfIds) {
-    // Clear all per-keyboard chains — rebuilt from scratch on each call.
+    // Clear all per-source chains — rebuilt from scratch on each call.
     GfpaAndroidBindings.instance.gfpaAndroidClearAllInserts();
 
+    // ── GF Keyboards: one bus slot per soundfont ID ────────────────────────
+    for (final plugin in allPlugins.whereType<GrooveForgeKeyboardPlugin>()) {
+      final sfId = keyboardSfIds[plugin.id] ?? -1;
+      if (sfId < 1) continue; // Not yet loaded — skip.
+      _addChainInserts(plugin.id, sfId, graph);
+    }
+
+    // ── Theremin (bus slot 5) and Stylophone (bus slot 6) ─────────────────
+    //
+    // These are GFpaPluginInstance slots with well-known plugin IDs. Their
+    // audio flows through the shared AAudio bus, so the bus slot ID is the
+    // key the native insert chain uses.
+    for (final plugin in allPlugins.whereType<GFpaPluginInstance>()) {
+      if (plugin.pluginId == 'com.grooveforge.theremin') {
+        _addChainInserts(plugin.id, kBusSlotTheremin, graph);
+      } else if (plugin.pluginId == 'com.grooveforge.stylophone') {
+        _addChainInserts(plugin.id, kBusSlotStylophone, graph);
+      }
+    }
+  }
+
+  /// Depth-first traversal of [graph] starting from [sourceSlotId].
+  ///
+  /// Registers every reachable GFPA DSP handle into [busSlotId]'s insert
+  /// chain in traversal order (source → first effect → chained effects).
+  /// [visited] tracks visited slot IDs to avoid infinite loops in cycles
+  /// (cycles are prevented by [AudioGraph.wouldCreateCycle] but the guard
+  /// also protects against future graph changes).
+  ///
+  /// Only audio connections are followed — MIDI and data ports are skipped.
+  void _addChainInserts(
+      String sourceSlotId, int busSlotId, AudioGraph graph, [Set<String>? visited]) {
+    final seen = visited ?? {sourceSlotId};
+
     for (final conn in graph.connections) {
-      // Skip MIDI and data cables — only audio connections are routed.
+      // Only follow audio cables from the current node.
+      if (conn.fromSlotId != sourceSlotId) continue;
       if (conn.fromPort.isDataPort || conn.toPort.isDataPort) continue;
       if (conn.fromPort == AudioPortId.midiOut ||
           conn.toPort == AudioPortId.midiIn) {
         continue;
       }
 
-      // Only handle keyboard → GFPA effect connections on Android.
-      final fromPlugin = allPlugins.firstWhere(
-        (p) => p.id == conn.fromSlotId,
-        orElse: () => allPlugins.first,
-      );
-      if (fromPlugin is! GrooveForgeKeyboardPlugin) continue;
+      // Guard against cycles.
+      if (seen.contains(conn.toSlotId)) continue;
+      seen.add(conn.toSlotId);
 
-      final toHandle = _gfpaHandles[conn.toSlotId];
-      if (toHandle == null || toHandle == nullptr) continue;
+      // Register the downstream GFPA effect handle if available.
+      final handle = _gfpaHandles[conn.toSlotId];
+      if (handle != null && handle != nullptr) {
+        GfpaAndroidBindings.instance.gfpaAndroidAddInsertForSf(busSlotId, handle);
+      }
 
-      // Look up the sfId for this keyboard to route the insert correctly.
-      final sfId = keyboardSfIds[conn.fromSlotId] ?? -1;
-      if (sfId < 1) continue; // Keyboard not yet loaded — skip.
-
-      GfpaAndroidBindings.instance.gfpaAndroidAddInsertForSf(sfId, toHandle);
+      // Recurse to pick up chained effects (e.g. WAH → Reverb).
+      _addChainInserts(conn.toSlotId, busSlotId, graph, seen);
     }
   }
 
   /// Internal: destroy and remove the DSP handle for [slotId] if present.
   ///
   /// On Android [_host] is null; destruction goes through [GfpaAndroidBindings].
+  ///
+  /// **Ordering guarantee**: `gfpaAndroidRemoveInsert` must be called BEFORE
+  /// `gfpaDspDestroy`. The remove call contains a spin-wait that drains any
+  /// in-flight AAudio callback snapshot that still holds a raw pointer to the
+  /// DSP object. Destroying first leaves a dangling pointer in the chain and
+  /// causes an immediate use-after-free SIGSEGV on the audio thread.
   void _destroyGfpaDspForSlot(String slotId) {
     final old = _gfpaHandles.remove(slotId);
     if (old == null || old == nullptr) return;
     if (Platform.isAndroid) {
+      // Remove from the insert chain and wait for the audio thread to drain
+      // any in-flight callback that still references this handle.
+      GfpaAndroidBindings.instance.gfpaAndroidRemoveInsert(old);
       GfpaAndroidBindings.instance.gfpaDspDestroy(old);
     } else {
       _host?.destroyGfpaDsp(old);

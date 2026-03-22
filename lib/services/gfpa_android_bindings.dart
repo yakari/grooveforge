@@ -2,6 +2,22 @@ import 'dart:ffi';
 
 import 'package:ffi/ffi.dart';
 
+// ── AAudio bus slot ID constants ──────────────────────────────────────────────
+//
+// These mirror the OBOE_BUS_SLOT_* #defines in oboe_stream_android.h.
+// GF Keyboard slots use FluidSynth sfIds (assigned sequentially from 1) as
+// their bus slot IDs.  Instrument slots are placed at 100+ to guarantee they
+// never collide with any sfId regardless of how many soundfonts are loaded.
+
+/// AAudio bus slot ID for the Theremin.  Matches OBOE_BUS_SLOT_THEREMIN (100).
+const int kBusSlotTheremin = 100;
+
+/// AAudio bus slot ID for the Stylophone.  Matches OBOE_BUS_SLOT_STYLOPHONE (101).
+const int kBusSlotStylophone = 101;
+
+/// AAudio bus slot ID for the Vocoder.  Matches OBOE_BUS_SLOT_VOCODER (102).
+const int kBusSlotVocoder = 102;
+
 // ── Native function type definitions ─────────────────────────────────────────
 
 /// Native signature for gfpa_dsp_create.
@@ -54,6 +70,34 @@ typedef _GfpaAndroidSetBpmNative = Void Function(Double bpm);
 
 /// Dart binding for gfpa_android_set_bpm.
 typedef _GfpaAndroidSetBpm = void Function(double bpm);
+
+// ── oboe_stream_android bindings ──────────────────────────────────────────────
+
+/// AudioSourceRenderFn native type: void (*)(float*, float*, int32, void*).
+///
+/// This is the render callback signature for all bus sources (keyboards,
+/// Theremin, Stylophone, Vocoder).  The function pointer value comes from
+/// audio_input.so via [thereminBusRenderFnAddr()].
+typedef _AudioSourceRenderFnNative =
+    Void Function(Pointer<Float>, Pointer<Float>, Int32, Pointer<Void>);
+
+/// Native signature for oboe_stream_add_source.
+typedef _OboeStreamAddSourceNative = Void Function(
+    Pointer<NativeFunction<_AudioSourceRenderFnNative>>, // renderFn
+    Pointer<Void>,                                       // userdata
+    Int32);                                              // busSlotId
+
+/// Dart binding for oboe_stream_add_source.
+typedef _OboeStreamAddSource = void Function(
+    Pointer<NativeFunction<_AudioSourceRenderFnNative>>,
+    Pointer<Void>,
+    int);
+
+/// Native signature for oboe_stream_remove_source.
+typedef _OboeStreamRemoveSourceNative = Void Function(Int32 busSlotId);
+
+/// Dart binding for oboe_stream_remove_source.
+typedef _OboeStreamRemoveSource = void Function(int busSlotId);
 
 // ── GfpaAndroidBindings ───────────────────────────────────────────────────────
 
@@ -142,6 +186,24 @@ class GfpaAndroidBindings {
       _lib.lookupFunction<_GfpaAndroidSetBpmNative, _GfpaAndroidSetBpm>(
           'gfpa_android_set_bpm');
 
+  /// Register a generic audio source on the shared AAudio bus.
+  ///
+  /// [renderFnAddr] — raw address of an AudioSourceRenderFn-compatible C
+  ///   function (e.g. from [thereminBusRenderFnAddr()]).
+  /// [busSlotId]    — unique slot identifier (see OBOE_BUS_SLOT_* constants).
+  ///   The same ID is used to look up the GFPA insert chain for this source.
+  late final _OboeStreamAddSource _oboeStreamAddSource =
+      _lib.lookupFunction<_OboeStreamAddSourceNative, _OboeStreamAddSource>(
+          'oboe_stream_add_source');
+
+  /// Unregister an audio source from the AAudio bus.
+  ///
+  /// Blocks until any in-flight audio callback snapshot that captured this
+  /// source has fully completed before returning.
+  late final _OboeStreamRemoveSource _oboeStreamRemoveSource =
+      _lib.lookupFunction<_OboeStreamRemoveSourceNative, _OboeStreamRemoveSource>(
+          'oboe_stream_remove_source');
+
   // ── Public API ────────────────────────────────────────────────────────────
 
   /// Create a native DSP instance for [pluginId].
@@ -199,4 +261,27 @@ class GfpaAndroidBindings {
 
   /// Forward [bpm] to all BPM-synced GFPA effects (delay, wah, chorus).
   void gfpaAndroidSetBpm(double bpm) => _gfpaAndroidSetBpm(bpm);
+
+  /// Register an audio source on the shared AAudio bus.
+  ///
+  /// [renderFnAddr] — address of the C render callback (AudioSourceRenderFn).
+  ///   Typically obtained via `theremin_bus_render_fn_addr()` from
+  ///   libaudio_input.so.
+  /// [busSlotId]    — unique integer slot identifier; also the GFPA chain key.
+  ///   Use [kBusSlotTheremin], [kBusSlotStylophone], or [kBusSlotVocoder]
+  ///   for non-keyboard sources.  These are placed at 100+ to avoid collisions
+  ///   with FluidSynth sfIds, which are assigned sequentially from 1.
+  void oboeStreamAddSource(int renderFnAddr, int busSlotId) {
+    final fnPtr =
+        Pointer<NativeFunction<_AudioSourceRenderFnNative>>.fromAddress(
+            renderFnAddr);
+    _oboeStreamAddSource(fnPtr, nullptr, busSlotId);
+  }
+
+  /// Unregister an audio source from the AAudio bus by its [busSlotId].
+  ///
+  /// Blocks until any in-flight audio callback snapshot has finished, so the
+  /// caller may safely free any resources associated with this source.
+  void oboeStreamRemoveSource(int busSlotId) =>
+      _oboeStreamRemoveSource(busSlotId);
 }

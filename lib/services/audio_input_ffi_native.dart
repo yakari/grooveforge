@@ -273,6 +273,11 @@ class AudioInputFFI {
   /// Dart-callable bound to `theremin_set_capture_mode`.
   late final ThereminSetCaptureModeDart _thereminSetCaptureMode;
 
+  /// Bound to `theremin_bus_render_fn_addr` — returns the address of the
+  /// theremin_bus_render trampoline as an integer, so it can be passed to
+  /// oboe_stream_add_source() in libnative-lib.so via GfpaAndroidBindings.
+  late final int Function() _thereminBusRenderFnAddr;
+
   // ── Stylophone FFI function references ─────────────────────────────────────
 
   /// Bound reference to `stylophone_start` in the native library.
@@ -472,6 +477,10 @@ class AudioInputFFI {
         _lib
             .lookup<NativeFunction<ThereminSetCaptureModeC>>('theremin_set_capture_mode')
             .asFunction();
+    _thereminBusRenderFnAddr =
+        _lib
+            .lookup<NativeFunction<IntPtr Function()>>('theremin_bus_render_fn_addr')
+            .asFunction<int Function()>();
 
     // ── Stylophone bindings ───────────────────────────────────────────────
     _styloStart =
@@ -674,6 +683,13 @@ class AudioInputFFI {
   /// Set to false to restore direct ALSA playback.
   void thereminSetCaptureMode({required bool enabled}) =>
       _thereminSetCaptureMode(enabled ? 1 : 0);
+
+  /// Returns the address of the `theremin_bus_render` trampoline function.
+  ///
+  /// Pass this address to [GfpaAndroidBindings.oboeStreamAddSource] on Android
+  /// to register the Theremin as a source on the shared AAudio bus so that
+  /// GFPA effects (WAH, reverb, etc.) can be applied to its audio output.
+  int thereminBusRenderFnAddr() => _thereminBusRenderFnAddr();
 
   // ── Stylophone public API ─────────────────────────────────────────────────
 

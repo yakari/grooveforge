@@ -166,6 +166,43 @@ class _RackScreenState extends State<RackScreen> {
     }
   }
 
+  // ─── Patch view toggle ──────────────────────────────────────────────────────
+
+  /// Log a snapshot of all rack modules and their audio connections whenever
+  /// the user switches between front (slot) view and back (patch) view.
+  ///
+  /// Emits one line per module (id, displayName, type) and one line per audio
+  /// connection so that bug reports can describe the wiring unambiguously.
+  void _logRackStateOnViewSwitch({required bool toBackView}) {
+    final rack = context.read<RackState>();
+    final graph = context.read<AudioGraph>();
+    final direction = toBackView ? 'front → back (patch)' : 'back (patch) → front';
+
+    final buf = StringBuffer();
+    buf.writeln('─── RackScreen view switch: $direction ───');
+
+    // ── Modules ──────────────────────────────────────────────────────────────
+    buf.writeln('Modules (${rack.plugins.length}):');
+    for (final p in rack.plugins) {
+      final type = p.runtimeType.toString();
+      buf.writeln('  [${p.id}] "${p.displayName}" ($type)');
+    }
+
+    // ── Audio connections ─────────────────────────────────────────────────────
+    final audioConns = graph.connections
+        .where((c) => !c.fromPort.isDataPort && !c.toPort.isDataPort)
+        .where((c) =>
+            c.fromPort != AudioPortId.midiOut && c.toPort != AudioPortId.midiIn)
+        .toList();
+    buf.writeln('Audio connections (${audioConns.length}):');
+    for (final c in audioConns) {
+      buf.writeln(
+          '  [${c.fromSlotId}]:${c.fromPort.name} → [${c.toSlotId}]:${c.toPort.name}');
+    }
+
+    debugPrint(buf.toString());
+  }
+
   // ─── Auto-scroll ────────────────────────────────────────────────────────────
 
   /// Routes incoming MIDI messages to VST3 and MIDI-controller-only keyboard
@@ -776,7 +813,10 @@ class _RackScreenState extends State<RackScreen> {
                 isPatch ? Icons.view_agenda_outlined : Icons.cable_outlined,
               ),
               tooltip: l10n.patchViewToggleTooltip,
-              onPressed: () => _isPatchView.value = !isPatch,
+              onPressed: () {
+                _logRackStateOnViewSwitch(toBackView: !isPatch);
+                _isPatchView.value = !isPatch;
+              },
             ),
           ),
           PopupMenuButton<String>(

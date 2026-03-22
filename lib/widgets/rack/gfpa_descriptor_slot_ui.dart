@@ -89,6 +89,8 @@ class _GFpaDescriptorSlotUIState extends State<GFpaDescriptorSlotUI> {
     }
 
     // Listen to param changes: sync back to the rack model for persistence.
+    // Guard: widget may have been disposed during the preceding await.
+    if (!mounted) return;
     _paramNotifier.addListener(_onParamChanged);
 
     if (mounted) setState(() => _initialized = true);

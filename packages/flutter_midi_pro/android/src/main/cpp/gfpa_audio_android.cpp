@@ -26,10 +26,13 @@
 
 #include "gfpa_audio_android.h"
 #include "gfpa_dsp.h"
+#include "oboe_stream_android.h"
 
 #include <android/log.h>
+#include <chrono>
 #include <cstring>
 #include <mutex>
+#include <thread>
 
 // ── Logging macros ────────────────────────────────────────────────────────────
 
@@ -48,9 +51,11 @@ static constexpr int kMaxFrames = 4096;
 
 /// Maximum bus slot ID supported.
 /// g_sfChains is indexed 0..kMaxBusSlot; index 0 is unused (slot IDs start at 1).
-/// Slots 1–4: GF Keyboard (FluidSynth sfId).
-/// Slot 5: Theremin.  Slot 6: Stylophone.  Slot 7: Vocoder.
-static constexpr int kMaxBusSlot = 8; // leave slot 8 as headroom
+/// Slots 1–N: GF Keyboard (FluidSynth sfId, dynamically assigned).
+/// Slots 100–102: Theremin, Stylophone, Vocoder (see OBOE_BUS_SLOT_* in oboe_stream_android.h).
+///
+/// Array size: (kMaxBusSlot + 1) * sizeof(SfInsertChain) ≈ 103 * 140 bytes ≈ 14 KB.
+static constexpr int kMaxBusSlot = 102;
 
 // ── Per-keyboard insert chain storage ─────────────────────────────────────────
 
@@ -151,24 +156,67 @@ extern "C" void gfpa_android_add_insert_for_sf(int sfId, void* dspHandle)
 extern "C" void gfpa_android_remove_insert(void* dspHandle)
 {
     void* ud = gfpa_dsp_userdata(dspHandle);
-    std::lock_guard<std::mutex> lock(g_chainsMtx);
 
-    // Search every per-keyboard chain for this handle and remove if found.
-    for (int s = 1; s <= kMaxBusSlot; ++s) {
-        SfInsertChain& chain = g_sfChains[s];
-        int found = -1;
-        for (int i = 0; i < chain.count; ++i) {
-            if (chain.inserts[i].userdata == ud) { found = i; break; }
-        }
-        if (found < 0) continue;
+    // ── Step 1: Remove from chains (lock held only for the mutation) ───────
+    //
+    // IMPORTANT: the lock must be released BEFORE the drain wait below.
+    // gfpa_android_apply_chain_for_sf() acquires g_chainsMtx to take its own
+    // chain snapshot.  If we kept the lock across the drain wait, the audio
+    // callback would deadlock trying to acquire g_chainsMtx, the seq counter
+    // would never advance, the 50 ms timeout would fire, we would call
+    // gfpa_dsp_destroy while the callback eventually acquires the lock and
+    // runs DSP on the freed object → SIGSEGV.
+    {
+        std::lock_guard<std::mutex> lock(g_chainsMtx);
 
-        // Shift later entries left to keep the array contiguous.
-        for (int i = found; i < chain.count - 1; ++i) {
-            chain.inserts[i] = chain.inserts[i + 1];
+        for (int s = 1; s <= kMaxBusSlot; ++s) {
+            SfInsertChain& chain = g_sfChains[s];
+            int found = -1;
+            for (int i = 0; i < chain.count; ++i) {
+                if (chain.inserts[i].userdata == ud) { found = i; break; }
+            }
+            if (found < 0) continue;
+
+            // Shift later entries left to keep the array contiguous.
+            for (int i = found; i < chain.count - 1; ++i) {
+                chain.inserts[i] = chain.inserts[i + 1];
+            }
+            --chain.count;
+            LOGI("gfpa_android_remove_insert: removed from sfId=%d, %d remaining",
+                 s, chain.count);
         }
-        --chain.count;
-        LOGI("gfpa_android_remove_insert: removed from sfId=%d, %d remaining",
-             s, chain.count);
+    } // ← g_chainsMtx released here, BEFORE the drain wait
+
+    // ── Step 2: Drain — wait for any in-flight snapshot to retire ─────────
+    //
+    // After releasing the lock above, any new call to
+    // gfpa_android_apply_chain_for_sf() will acquire g_chainsMtx, take a
+    // chain snapshot that no longer contains this handle, and proceed safely.
+    //
+    // A callback that acquired g_chainsMtx BEFORE our removal above may have
+    // already snapshotted the old chain (including our handle) and released
+    // the lock.  That callback is now running DSP on the snapshot.
+    //
+    // We wait until g_callbackDoneSeq advances.  The counter increments AFTER
+    // all per-source chains are applied (end of audioCallback), so when it
+    // advances by at least 1 from our baseline, any such in-flight snapshot
+    // has fully retired and the raw DSP pointer is no longer live.
+    //
+    // With the lock released above the audio thread is never blocked, so this
+    // wait completes within one audio burst (typically ~5 ms at 256 frames /
+    // 48 kHz) rather than hitting the timeout.  The timeout guards the edge
+    // case where the stream is stopped or severely stalled.
+    {
+        const uint64_t seqBefore = oboe_stream_callback_done_seq();
+        const auto deadline =
+            std::chrono::steady_clock::now() + std::chrono::milliseconds(500);
+        while (oboe_stream_callback_done_seq() <= seqBefore) {
+            if (std::chrono::steady_clock::now() >= deadline) {
+                LOGI("gfpa_android_remove_insert: drain timeout — proceeding");
+                break;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
     }
 }
 

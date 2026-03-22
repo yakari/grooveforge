@@ -1,6 +1,7 @@
+import 'dart:io';
 import 'dart:math' show log, pow;
-import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -13,6 +14,7 @@ import '../../plugins/gf_theremin_plugin.dart';
 import '../../services/audio_engine.dart';
 import '../../services/audio_graph.dart';
 import '../../services/audio_input_ffi.dart';
+import '../../services/gfpa_android_bindings.dart';
 import '../../services/looper_engine.dart';
 import '../../services/rack_state.dart';
 import '../../services/theremin_distance_service.dart';
@@ -162,6 +164,15 @@ class _GFpaThereminSlotUIState extends State<GFpaThereminSlotUI>
     _distSvc.previewFrame.addListener(_onPreviewFrame);
     // Start native C theremin oscillator for this slot.
     AudioInputFFI().thereminStart();
+    // On Android: route theremin audio through the shared AAudio bus so that
+    // GFPA effects (WAH, reverb, etc.) can be applied to it.  Capture mode
+    // silences the miniaudio device; theremin_bus_render takes over as the
+    // audio source registered on the bus (bus slot 5 = OBOE_BUS_SLOT_THEREMIN).
+    if (!kIsWeb && Platform.isAndroid) {
+      AudioInputFFI().thereminSetCaptureMode(enabled: true);
+      final fnAddr = AudioInputFFI().thereminBusRenderFnAddr();
+      GfpaAndroidBindings.instance.oboeStreamAddSource(fnAddr, kBusSlotTheremin);
+    }
     // Sync saved vibrato depth to the native synth.
     AudioInputFFI().thereminSetVibrato(_vibrato);
     // Register for app lifecycle events so we can silence the synth when
@@ -194,6 +205,14 @@ class _GFpaThereminSlotUIState extends State<GFpaThereminSlotUI>
     _stopCurrentNote();
     // Silence the native device then shut it down.
     AudioInputFFI().thereminSetVolume(0.0);
+    // On Android: remove the theremin from the AAudio bus before stopping it
+    // so the audio callback cannot dereference the theremin's DSP state after
+    // it is freed.  oboeStreamRemoveSource blocks until any in-flight snapshot
+    // has completed.
+    if (!kIsWeb && Platform.isAndroid) {
+      GfpaAndroidBindings.instance.oboeStreamRemoveSource(kBusSlotTheremin);
+      AudioInputFFI().thereminSetCaptureMode(enabled: false);
+    }
     AudioInputFFI().thereminStop();
     _distSvc.dispose(); // stops the camera session and disposes the notifier
     super.dispose();

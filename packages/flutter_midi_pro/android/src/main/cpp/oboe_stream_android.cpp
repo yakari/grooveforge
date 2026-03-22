@@ -408,6 +408,17 @@ extern "C" void oboe_stream_add_synth(fluid_synth_t* synth, int sfId)
                            sfId);
 }
 
+/// Returns the current value of the callback-done sequence counter.
+///
+/// Other translation units (e.g. gfpa_audio_android.cpp) call this to
+/// implement a drain-wait: record the value before a mutation, then spin
+/// until the counter advances, guaranteeing at least one full audio callback
+/// has completed after the mutation and any in-flight snapshot has been retired.
+extern "C" uint64_t oboe_stream_callback_done_seq(void)
+{
+    return g_callbackDoneSeq.load(std::memory_order_acquire);
+}
+
 extern "C" void oboe_stream_remove_synth(fluid_synth_t* synth)
 {
     // Find the busSlotId that corresponds to this synth pointer, then remove.

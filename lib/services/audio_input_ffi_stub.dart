@@ -139,6 +139,12 @@ class AudioInputFFI {
   /// Sets the 6.5 Hz vibrato LFO depth [0, 1].
   void thereminSetVibrato(double depth) => _osc?.thereminSetVibrato(depth.toJS);
 
+  /// No-op on web — capture mode and bus routing are Android-only.
+  void thereminSetCaptureMode({required bool enabled}) {}
+
+  /// Returns 0 on web — bus render function addresses are Android-only.
+  int thereminBusRenderFnAddr() => 0;
+
   // ── Stylophone — forwarded to Web Audio oscillator ─────────────────────
 
   /// Starts the stylophone Web Audio oscillator.
