@@ -96,26 +96,31 @@ graph:
       to: out.in
 
 ui:
-  layout: row
-  controls:
-    - type: knob
-      param: center
-    - type: knob
-      param: resonance
-    - type: knob
-      param: rate
-    - type: knob
-      param: depth
-    - type: selector
-      param: waveform
-      label: "Wave"
-    - type: toggle
-      param: bpm_sync
-      label: "BPM"
-    - type: selector
-      param: beat_div
-      label: "Div"
-    - type: knob
-      param: mix
-    - type: vumeter
-      source: out
+  groups:
+    - label: "Filter"
+      controls:
+        - type: knob
+          param: center
+        - type: knob
+          param: resonance
+    - label: "LFO"
+      controls:
+        - type: knob
+          param: rate
+        - type: knob
+          param: depth
+        - type: selector
+          param: waveform
+          label: "Wave"
+        - type: toggle
+          param: bpm_sync
+          label: "BPM"
+        - type: selector
+          param: beat_div
+          label: "Div"
+    - label: "Output"
+      controls:
+        - type: knob
+          param: mix
+        - type: vumeter
+          source: out

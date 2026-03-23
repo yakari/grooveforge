@@ -38,6 +38,14 @@ class RackState extends ChangeNotifier {
 
   final List<PluginInstance> _plugins = [];
 
+  /// Initialized [GFMidiDescriptorPlugin] instances keyed by rack slot ID.
+  ///
+  /// Populated by [GFpaDescriptorSlotUI] via [registerMidiFxPlugin] when a
+  /// MIDI FX slot mounts, and cleared by [unregisterMidiFxPlugin] when it
+  /// unmounts. The apply method [applyMidiFxForChannel] reads from this map
+  /// to transform events before dispatch.
+  final Map<String, GFMidiDescriptorPlugin> _midiFxInstances = {};
+
   /// Called after every mutation; use to trigger autosave.
   VoidCallback? onChanged;
 
@@ -168,6 +176,10 @@ class RackState extends ChangeNotifier {
     _bpmSaveDebounce?.cancel();
     _transport.removeListener(_onTransportChanged);
     _audioGraph.removeListener(_onAudioGraphChanged);
+    for (final plugin in _midiFxInstances.values) {
+      plugin.dispose();
+    }
+    _midiFxInstances.clear();
     super.dispose();
   }
 
@@ -180,6 +192,12 @@ class RackState extends ChangeNotifier {
 
   /// Populates the rack from a JSON list (e.g., loaded from a .gf file).
   void loadFromJson(List<dynamic> pluginsJson) {
+    // Dispose any existing MIDI FX instances before loading new ones.
+    for (final plugin in _midiFxInstances.values) {
+      plugin.dispose();
+    }
+    _midiFxInstances.clear();
+
     _plugins.clear();
     for (final entry in pluginsJson) {
       try {
@@ -190,6 +208,15 @@ class RackState extends ChangeNotifier {
     }
     _applyAllPluginsToEngine();
     _syncJamFollowerMapToEngine();
+
+    // Eagerly initialise all MIDI FX slots so they are ready for routing even
+    // when their slot widget is scrolled off screen (lazy list rendering).
+    for (final plugin in _plugins) {
+      if (plugin is GFpaPluginInstance) {
+        _initMidiFxPlugin(plugin); // fire-and-forget; errors are caught inside
+      }
+    }
+
     notifyListeners();
     _notifyChanged();
   }
@@ -271,6 +298,9 @@ class RackState extends ChangeNotifier {
       }
     } else if (plugin is GFpaPluginInstance) {
       _applyGfpaPluginToEngine(plugin);
+      // Eagerly init so the MIDI FX is available immediately, even before the
+      // slot widget scrolls into view.
+      _initMidiFxPlugin(plugin); // fire-and-forget; errors caught inside
     }
     _syncJamFollowerMapToEngine();
     // Sync native routing: new slot may alter the topological sort order.
@@ -284,6 +314,9 @@ class RackState extends ChangeNotifier {
   }
 
   void removePlugin(String id) {
+    // Dispose and remove any eagerly-initialised MIDI FX plugin for this slot.
+    _midiFxInstances.remove(id)?.dispose();
+
     // Clear references to the removed slot on all dependent plugins.
     for (final p in _plugins) {
       if (p is GFpaPluginInstance) {
@@ -620,6 +653,137 @@ class RackState extends ChangeNotifier {
     notifyListeners();
     _notifyChanged();
   }
+
+  // ─── MIDI FX instance registry ──────────────────────────────────────────
+
+  /// Eagerly initialise a [GFMidiDescriptorPlugin] for [instance] and store it
+  /// in [_midiFxInstances] so it is available for MIDI routing even when the
+  /// slot widget is off-screen (lazy list rendering never mounts it).
+  ///
+  /// Called by [addPlugin] and [loadFromJson] for every MIDI FX slot. The
+  /// call is fire-and-forget; errors are caught and logged so a bad descriptor
+  /// cannot break the rest of the rack.
+  Future<void> _initMidiFxPlugin(GFpaPluginInstance instance) async {
+    final registered = GFPluginRegistry.instance.findById(instance.pluginId);
+    if (registered is! GFMidiDescriptorPlugin) return;
+
+    // Create a fresh per-slot instance so two harmonizer slots don't share state.
+    final plugin = GFMidiDescriptorPlugin(registered.descriptor);
+
+    // Resolve the scale-provider channel from the master slot (for Jam Mode
+    // scale snapping). Falls back to channel 0 when no master is configured.
+    final masterSlotId = instance.masterSlotId;
+    final masterSlot = masterSlotId != null
+        ? _plugins
+            .whereType<GFpaPluginInstance>()
+            .where((p) => p.id == masterSlotId)
+            .firstOrNull
+        : null;
+    final masterChannel = ((masterSlot?.midiChannel ?? 1) - 1).clamp(0, 15);
+
+    final nodeContext = GFMidiNodeContext(
+      sourceChannelIndex: _resolveSourceChannelForMidiFx(instance),
+      scaleProvider: () =>
+          _engine.channels[masterChannel].validPitchClasses.value,
+    );
+
+    try {
+      await plugin.initialize(GFMidiPluginContext(
+        sampleRate: 44100,
+        maxFramesPerBlock: 512,
+        midiNodeContext: nodeContext,
+      ));
+      // Restore previously saved parameter state (normalized 0–1 values).
+      plugin.loadState(Map<String, dynamic>.from(instance.state));
+      _midiFxInstances[instance.id] = plugin;
+      notifyListeners(); // let the UI update if the slot just became visible
+    } catch (e) {
+      debugPrint('[RackState] MIDI FX init failed for ${instance.id}: $e');
+    }
+  }
+
+  /// Returns the MIDI channel index (0-based) of the first configured target
+  /// slot for [instance], or 0 if no target is set.
+  ///
+  /// Used to seed the [GFMidiNodeContext.sourceChannelIndex] so time-synced
+  /// nodes (e.g., arpeggiators) can align to the correct channel's tempo grid.
+  int _resolveSourceChannelForMidiFx(GFpaPluginInstance instance) {
+    for (final targetId in instance.targetSlotIds) {
+      final target = _findById(targetId);
+      if (target != null && target.midiChannel > 0) {
+        return target.midiChannel - 1;
+      }
+    }
+    return 0;
+  }
+
+  /// Register an initialized [GFMidiDescriptorPlugin] for [slotId].
+  ///
+  /// Called by [GFpaMidiFxDescriptorSlotUI] to update the parameter state on a
+  /// plugin that [RackState] may have already initialized eagerly. The widget's
+  /// instance is preferred so knob changes are reflected immediately.
+  void registerMidiFxPlugin(String slotId, GFMidiDescriptorPlugin plugin) {
+    // Dispose the eagerly-created instance if the widget provides its own.
+    _midiFxInstances[slotId]?.dispose();
+    _midiFxInstances[slotId] = plugin;
+  }
+
+  /// Unregister the MIDI FX plugin for [slotId].
+  ///
+  /// Called by [GFpaMidiFxDescriptorSlotUI] on disposal. Does NOT dispose the
+  /// plugin — [RackState] re-initialises it eagerly so it stays available for
+  /// routing even when the slot scrolls off screen.
+  void unregisterMidiFxPlugin(String slotId) {
+    // Re-initialise from the slot instance so routing continues without the widget.
+    final slot = _findById(slotId);
+    if (slot is GFpaPluginInstance) {
+      // Remove the widget-owned instance first to avoid disposing a live plugin.
+      _midiFxInstances.remove(slotId);
+      _initMidiFxPlugin(slot); // fire-and-forget
+    }
+  }
+
+  /// Transform [events] through all active MIDI FX chains that target [midiChannel].
+  ///
+  /// Searches all [GFpaPluginInstance] MIDI FX slots. For each whose
+  /// [GFpaPluginInstance.targetSlotIds] contains any slot with
+  /// [PluginInstance.midiChannel] == [midiChannel], the events are piped
+  /// through the registered [GFMidiDescriptorPlugin].
+  ///
+  /// If no MIDI FX slot targets [midiChannel] the original [events] list is
+  /// returned unchanged.
+  List<TimestampedMidiEvent> applyMidiFxForChannel(
+    int midiChannel,
+    List<TimestampedMidiEvent> events,
+    GFTransportContext transport,
+  ) {
+    // Collect slot IDs on this MIDI channel.
+    final targetedSlotIds = _plugins
+        .where((p) => p.midiChannel == midiChannel)
+        .map((p) => p.id)
+        .toSet();
+
+    // Find MIDI FX slots whose targetSlotIds overlap with the targeted set.
+    final fxSlots = _plugins
+        .whereType<GFpaPluginInstance>()
+        .where((p) => p.targetSlotIds.any(targetedSlotIds.contains));
+
+    // Chain events through each applicable MIDI FX plugin in rack order.
+    var current = events;
+    for (final fx in fxSlots) {
+      final plugin = _midiFxInstances[fx.id];
+      if (plugin == null) continue;
+      current = plugin.processMidi(current, transport);
+    }
+    return current;
+  }
+
+  /// Return the [GFMidiDescriptorPlugin] registered for [slotId], or null.
+  ///
+  /// Used by [_PianoBody] to look up MIDI FX plugins connected via patch cable
+  /// so on-screen keyboard notes can be routed through the MIDI FX chain.
+  GFMidiDescriptorPlugin? midiFxInstanceForSlot(String slotId) =>
+      _midiFxInstances[slotId];
 
   /// Trigger a native audio routing rebuild without modifying the rack.
   ///

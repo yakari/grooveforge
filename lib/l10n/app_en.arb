@@ -454,5 +454,9 @@
   "rackAddChorus": "Chorus / Flanger",
   "rackAddChorusSubtitle": "Stereo chorus with BPM sync",
   "rackAddLoadGfpd": "Load .gfpd from file…",
-  "rackAddLoadGfpdSubtitle": "Import a custom GrooveForge plugin descriptor"
+  "rackAddLoadGfpdSubtitle": "Import a custom GrooveForge plugin descriptor",
+
+  "rackAddMidiFxSectionLabel": "Built-in MIDI FX",
+  "rackAddHarmonizer": "Harmonizer",
+  "rackAddHarmonizerSubtitle": "Add harmony voices to any MIDI input (MIDI FX)"
 }

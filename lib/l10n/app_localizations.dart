@@ -2125,6 +2125,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Import a custom GrooveForge plugin descriptor'**
   String get rackAddLoadGfpdSubtitle;
+
+  /// No description provided for @rackAddMidiFxSectionLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Built-in MIDI FX'**
+  String get rackAddMidiFxSectionLabel;
+
+  /// No description provided for @rackAddHarmonizer.
+  ///
+  /// In en, this message translates to:
+  /// **'Harmonizer'**
+  String get rackAddHarmonizer;
+
+  /// No description provided for @rackAddHarmonizerSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add harmony voices to any MIDI input (MIDI FX)'**
+  String get rackAddHarmonizerSubtitle;
 }
 
 class _AppLocalizationsDelegate

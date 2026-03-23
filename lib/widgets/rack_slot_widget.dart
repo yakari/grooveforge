@@ -14,6 +14,7 @@ import '../services/audio_engine.dart';
 import '../services/audio_graph.dart';
 import '../services/looper_engine.dart';
 import '../services/rack_state.dart';
+import '../services/transport_engine.dart';
 import '../services/vst_host_service.dart';
 import '../models/keyboard_display_config.dart';
 import '../widgets/keyboard_config_dialog.dart';
@@ -254,6 +255,12 @@ class RackSlotWidget extends StatelessWidget {
           // Check if this pluginId is a descriptor-backed (.gfpd) plugin.
           final registeredPlugin =
               GFPluginRegistry.instance.findById(gfpa.pluginId);
+          if (registeredPlugin is GFMidiDescriptorPlugin) {
+            return GFpaMidiFxDescriptorSlotUI(
+              instance: gfpa,
+              descriptor: registeredPlugin.descriptor,
+            );
+          }
           if (registeredPlugin is GFDescriptorPlugin) {
             return GFpaDescriptorSlotUI(
               instance: gfpa,
@@ -727,9 +734,11 @@ class _PianoBody extends StatelessWidget {
   ///   forwards notes through MIDI OUT cables (no internal FluidSynth).
   /// - [Vst3PluginInstance]: sends via [VstHostService] (bypasses FluidSynth)
   ///   and marks the key as active on the engine for UI highlighting.
-  /// - **Other slots**: [AudioEngine.playNote] plus looper feed on MIDI OUT.
+  /// - **Other slots**: MIDI FX chain (if any) then [AudioEngine.playNote] plus
+  ///   looper feed on MIDI OUT.
   void _onNotePressed(BuildContext context, int note) {
-    if (_routesMidiThroughCablesOnly(plugin)) {
+    final midiOnly = _routesMidiThroughCablesOnly(plugin);
+    if (midiOnly) {
       engine.noteOnUiOnly(channel: channelIndex, key: note);
       _dispatchMidiNoteOn(context, note);
     } else if (plugin is Vst3PluginInstance) {
@@ -737,7 +746,12 @@ class _PianoBody extends StatelessWidget {
       context.read<VstHostService>().noteOn(plugin.id, 0, note, 1.0);
       engine.noteOnUiOnly(channel: channelIndex, key: note);
     } else {
-      engine.playNote(channel: channelIndex, key: note, velocity: 100);
+      // Route through any MIDI FX connected via patch cable (e.g. harmonizer)
+      // before playing. Harmony notes are played on the same channel.
+      final midiEvents = _applyMidiChain(context, note, 100);
+      for (final e in midiEvents) {
+        engine.playNote(channel: channelIndex, key: e.data1, velocity: e.data2);
+      }
       // Also feed any loopers connected to this slot's MIDI OUT so
       // on-screen keys are captured by the looper (e.g. GFK → Looper cable).
       _feedConnectedLoopers(context, note, 100, isNoteOn: true);
@@ -753,11 +767,59 @@ class _PianoBody extends StatelessWidget {
       context.read<VstHostService>().noteOff(plugin.id, 0, note);
       engine.noteOffUiOnly(channel: channelIndex, key: note);
     } else {
-      engine.stopNote(channel: channelIndex, key: note);
+      // Symmetric note-off for every voice the MIDI FX added at note-on time.
+      for (final e in _applyMidiChain(context, note, 0)) {
+        engine.stopNote(channel: channelIndex, key: e.data1);
+      }
       // Mirror the note-on looper feed for note-off so held notes are
       // properly terminated in the recorded loop.
       _feedConnectedLoopers(context, note, 0, isNoteOn: false);
     }
+  }
+
+  /// Routes [note] through any MIDI FX slots wired to this slot's MIDI OUT jack.
+  ///
+  /// Returns the processed event list. When [velocity] > 0 the event is a
+  /// note-on (status 0x9n); when [velocity] == 0 it is a note-off (status
+  /// 0x8n) so harmonizers emit the correct symmetric note-off for each voice
+  /// they added during the corresponding note-on.
+  ///
+  /// When no MIDI FX are connected the list contains the single original event
+  /// unchanged, so the caller can always iterate without a special-case check.
+  List<TimestampedMidiEvent> _applyMidiChain(
+    BuildContext context,
+    int note,
+    int velocity,
+  ) {
+    // Use note-off status (0x80) for velocity=0, note-on (0x90) otherwise.
+    final status = velocity > 0
+        ? (0x90 | (channelIndex & 0x0F))
+        : (0x80 | (channelIndex & 0x0F));
+
+    final event = TimestampedMidiEvent(
+      ppqPosition: 0.0,
+      status: status,
+      data1: note,
+      data2: velocity,
+    );
+
+    // Find MIDI FX plugins wired to this slot's MIDI OUT jack.
+    final rack = context.read<RackState>();
+    final cables = _midiOutCables(context);
+    final chain = cables
+        .map((cable) => rack.midiFxInstanceForSlot(cable.toSlotId))
+        .whereType<GFMidiDescriptorPlugin>()
+        .toList(growable: false);
+
+    if (chain.isEmpty) return [event];
+
+    // Run events through each MIDI FX in cable order.
+    final transport = context.read<TransportEngine>().toGFTransportContext();
+    var events = <TimestampedMidiEvent>[event];
+    for (final fx in chain) {
+      events = fx.processMidi(events, transport);
+    }
+    return events;
   }
 
   /// Forwards a MIDI note-on event to all slots wired to this slot's MIDI OUT

@@ -532,6 +532,31 @@ class _AddPluginSheetContentState extends State<_AddPluginSheetContent> {
               ),
             ),
 
+            // ═══════════════════════════════════════════════════════════════
+            // Built-in MIDI FX (.gfpd descriptor plugins — all platforms)
+            // ═══════════════════════════════════════════════════════════════
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+              child: Text(
+                l10n.rackAddMidiFxSectionLabel,
+                style: const TextStyle(
+                  color: Colors.white54,
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.0,
+                ),
+              ),
+            ),
+            _PluginTile(
+              icon: Icons.music_note,
+              iconColor: Colors.pinkAccent,
+              title: l10n.rackAddHarmonizer,
+              subtitle: l10n.rackAddHarmonizerSubtitle,
+              onTap: () => _addDescriptorPlugin(
+                context, rack, 'com.grooveforge.harmonizer',
+              ),
+            ),
+
             // ── Load a custom .gfpd plugin from storage
             _PluginTile(
               icon: Icons.file_open,

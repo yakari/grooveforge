@@ -1,4 +1,5 @@
 import 'gf_transport_context.dart';
+import 'midi/gf_midi_node.dart';
 
 /// Host context injected into a plugin at [GFPlugin.initialize] time.
 ///
@@ -33,5 +34,26 @@ class GFPluginContext {
     required this.maxFramesPerBlock,
     this.transport = GFTransportContext.stopped,
     this.transportProvider,
+  });
+}
+
+/// Extended host context for [GFMidiFxPlugin] initialization.
+///
+/// Carries the same fields as [GFPluginContext] plus the MIDI-specific
+/// [midiNodeContext] required by [GFMidiDescriptorPlugin] to wire host
+/// callbacks (scale provider, source channel) into its [GFMidiNode]s.
+///
+/// The host constructs this instead of a plain [GFPluginContext] whenever it
+/// initialises a slot whose plugin type is [GFPluginType.midiFx].
+class GFMidiPluginContext extends GFPluginContext {
+  /// Host context forwarded verbatim to each [GFMidiNode.initialize] call.
+  final GFMidiNodeContext midiNodeContext;
+
+  const GFMidiPluginContext({
+    required super.sampleRate,
+    required super.maxFramesPerBlock,
+    super.transport = GFTransportContext.stopped,
+    super.transportProvider,
+    required this.midiNodeContext,
   });
 }

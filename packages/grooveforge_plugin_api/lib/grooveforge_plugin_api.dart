@@ -29,6 +29,7 @@ export 'src/gf_plugin_registry.dart';
 
 // ── Plugin descriptor system (.gfpd) ─────────────────────────────────────────
 export 'src/gf_plugin_descriptor.dart';
+export 'src/gf_abstract_descriptor_plugin.dart';
 export 'src/gf_descriptor_plugin.dart';
 export 'src/gf_descriptor_loader.dart';
 
@@ -45,3 +46,11 @@ export 'src/dsp/gf_dsp_delay.dart';
 export 'src/dsp/gf_dsp_wah_filter.dart';
 export 'src/dsp/gf_dsp_compressor.dart';
 export 'src/dsp/gf_dsp_chorus.dart';
+
+// ── MIDI node infrastructure ──────────────────────────────────────────────────
+export 'src/midi/gf_midi_node.dart';
+export 'src/midi/gf_midi_graph.dart';
+export 'src/midi/gf_midi_descriptor_plugin.dart';
+
+// ── Built-in MIDI node implementations ───────────────────────────────────────
+export 'src/midi/gf_midi_nodes_builtin.dart';

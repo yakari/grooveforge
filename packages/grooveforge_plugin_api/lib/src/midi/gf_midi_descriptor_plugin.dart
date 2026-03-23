@@ -1,36 +1,39 @@
-import 'dart:typed_data';
-import 'gf_abstract_descriptor_plugin.dart';
-import 'gf_effect_plugin.dart';
-import 'gf_plugin_context.dart';
-import 'gf_plugin_parameter.dart';
-import 'gf_plugin_type.dart';
-import 'gf_transport_context.dart';
-import 'gf_plugin_descriptor.dart';
-import 'dsp/gf_dsp_graph.dart';
-import 'dsp/gf_dsp_node.dart';
+import '../gf_abstract_descriptor_plugin.dart';
+import '../gf_midi_event.dart';
+import '../gf_midi_fx_plugin.dart';
+import '../gf_plugin_context.dart';
+import '../gf_plugin_parameter.dart';
+import '../gf_plugin_type.dart';
+import '../gf_plugin_descriptor.dart';
+import '../gf_transport_context.dart';
+import 'gf_midi_graph.dart';
+import 'gf_midi_node.dart';
 
-/// A [GFEffectPlugin] whose signal processing is defined by a [GFPluginDescriptor].
+/// A [GFMidiFxPlugin] whose MIDI processing is defined by a [GFPluginDescriptor].
 ///
-/// Instead of hand-coding DSP, a [GFDescriptorPlugin] reads a `.gfpd`
-/// descriptor at load time, builds a [GFDspGraph] from the declared node
-/// graph, and routes parameter changes from the UI to the correct DSP nodes.
+/// Mirrors [GFDescriptorPlugin] for the MIDI domain: instead of hand-coding
+/// event transforms, a [GFMidiDescriptorPlugin] reads a `.gfpd` descriptor at
+/// load time, builds a [GFMidiGraph] from the declared `midi_nodes:` list, and
+/// routes parameter changes from the UI to the correct [GFMidiNode]s.
 ///
-/// **Thread safety**: [processBlock] and [updateTransport] are called on the
-/// audio thread. [setParameter] and [getParameter] may be called from the UI
-/// thread. Individual Dart `double` field reads/writes are atomic on 64-bit
-/// platforms, so the pattern is safe without explicit locking.
-class GFDescriptorPlugin extends GFEffectPlugin
+/// **Lifecycle**
+/// 1. Construct: `GFMidiDescriptorPlugin(descriptor)`
+/// 2. Initialize: `plugin.initialize(GFMidiPluginContext(…))` — builds the
+///    graph and injects the host [GFMidiNodeContext] into every node.
+/// 3. Per-block: `plugin.processMidi(events, transport)`
+/// 4. Teardown: `plugin.dispose()`
+///
+/// **Host requirement**: [initialize] must receive a [GFMidiPluginContext]
+/// (not a plain [GFPluginContext]). A [StateError] is thrown otherwise.
+class GFMidiDescriptorPlugin extends GFMidiFxPlugin
     implements GFAbstractDescriptorPlugin {
   final GFPluginDescriptor _descriptor;
-  final GFDspGraph _graph = GFDspGraph();
+  final GFMidiGraph _graph = GFMidiGraph();
 
-  /// Normalised parameter values [0.0, 1.0] indexed by [GFPluginParameter.id].
+  /// Normalised parameter values [0.0, 1.0] indexed by parameter list position.
   final List<double> _paramValues;
 
-  /// Latest transport context, updated by [updateTransport] before each block.
-  GFTransportContext _transport = GFTransportContext.stopped;
-
-  GFDescriptorPlugin(this._descriptor)
+  GFMidiDescriptorPlugin(this._descriptor)
     : _paramValues = List<double>.generate(
         _descriptor.parameters.length,
         (i) {
@@ -54,7 +57,7 @@ class GFDescriptorPlugin extends GFEffectPlugin
   String get version => _descriptor.version;
 
   @override
-  GFPluginType get type => _descriptor.type;
+  GFPluginType get type => GFPluginType.midiFx;
 
   // ── GFPlugin parameters ────────────────────────────────────────────────────
 
@@ -84,7 +87,7 @@ class GFDescriptorPlugin extends GFEffectPlugin
     final idx = _indexForParamId(paramId);
     if (idx < 0) return;
     _paramValues[idx] = normalizedValue.clamp(0.0, 1.0);
-    // Forward to graph using the descriptor's string id for the binding lookup.
+    // Forward to the graph using the descriptor's string id for binding lookup.
     _graph.setParam(_descriptor.parameters[idx].id, normalizedValue);
   }
 
@@ -115,17 +118,25 @@ class GFDescriptorPlugin extends GFEffectPlugin
 
   @override
   Future<void> initialize(GFPluginContext context) async {
-    // Build the node graph from the descriptor.
-    final ok = _graph.build(_descriptor, GFDspNodeRegistry.instance);
-    if (!ok) {
+    // Require the host to provide the MIDI-specific context subclass.
+    if (context is! GFMidiPluginContext) {
       throw StateError(
-        'GFDescriptorPlugin(${_descriptor.id}): unknown DSP node type in graph.',
+        'GFMidiDescriptorPlugin(${_descriptor.id}): '
+        'initialize() requires a GFMidiPluginContext.',
       );
     }
-    _graph.initialize(context.sampleRate, context.maxFramesPerBlock);
 
-    // Seed transport from the initial context snapshot.
-    _transport = context.transport;
+    // Build the MIDI node chain from the descriptor's midi_nodes list.
+    final ok = _graph.build(_descriptor, GFMidiNodeRegistry.instance);
+    if (!ok) {
+      throw StateError(
+        'GFMidiDescriptorPlugin(${_descriptor.id}): '
+        'unknown MIDI node type in midi_nodes list.',
+      );
+    }
+
+    // Inject host callbacks (scaleProvider, channel index) into each node.
+    _graph.initialize(context.midiNodeContext);
   }
 
   @override
@@ -133,27 +144,14 @@ class GFDescriptorPlugin extends GFEffectPlugin
     _graph.dispose();
   }
 
-  // ── GFEffectPlugin audio processing ───────────────────────────────────────
+  // ── GFMidiFxPlugin MIDI processing ────────────────────────────────────────
 
   @override
-  void processBlock(
-    Float32List inL,
-    Float32List inR,
-    Float32List outL,
-    Float32List outR,
-    int frameCount,
+  List<TimestampedMidiEvent> processMidi(
+    List<TimestampedMidiEvent> events,
+    GFTransportContext transport,
   ) {
-    _graph.processBlock(inL, inR, outL, outR, frameCount, _transport);
-  }
-
-  // ── Transport update (called by the rack engine before each block) ─────────
-
-  /// Update the transport snapshot used for BPM-synced DSP.
-  ///
-  /// The rack engine must call this before every [processBlock] call whenever
-  /// the transport state changes (BPM change, play/stop, position seek).
-  void updateTransport(GFTransportContext transport) {
-    _transport = transport;
+    return _graph.processMidi(events, transport);
   }
 
   // ── Internal helpers ───────────────────────────────────────────────────────
@@ -167,7 +165,7 @@ class GFDescriptorPlugin extends GFEffectPlugin
     return -1;
   }
 
-  /// Expose the descriptor for UI generation.
+  /// Expose the descriptor for UI generation (used by the rack slot UI).
   @override
   GFPluginDescriptor get descriptor => _descriptor;
 }

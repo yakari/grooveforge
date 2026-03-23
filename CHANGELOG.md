@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [X.x.x]
+
+### Added
+- **Harmonizer MIDI FX plugin** in "Add Plugin" menu: adds up to two harmony voices (default: major third + perfect fifth) above every note played on any instrument. Intervals are configurable (0–24 semitones); Scale Lock snaps harmony pitches to the active Jam Mode scale.
+- **MIDI FX node architecture** (`type: midi_fx` in `.gfpd`): pure-Dart processing chain — `GFMidiNode` / `GFMidiGraph` / `GFMidiNodeRegistry` — mirrors the audio DSP node system. Three built-in nodes: `transpose` (pitch shift ±24 st), `harmonize` (scale-aware harmony voices), `gate` (velocity threshold filter).
+- **Responsive plugin UI groups** (`groups:` in `.gfpd`): controls can be organized into labelled sections. On screens ≥ 600 px groups display as side-by-side columns; on narrow phones each group collapses to a tappable `ExpansionTile`.
+- **`GFAbstractDescriptorPlugin`** interface: `GFDescriptorPluginUI` now accepts both audio effect and MIDI FX descriptor plugins without code changes.
+- **`TransportEngine.toGFTransportContext()`**: snapshots BPM, time signature, and playback state for MIDI FX nodes.
+
+### Fixed
+- **On-screen keyboard notes now pass through MIDI FX chain**: notes played on any GF Keyboard slot are routed through MIDI FX plugins (e.g. Harmonizer) connected via MIDI OUT patch cable before being sent to FluidSynth. Harmony voices play on the same channel and instrument as the original note.
+- **Harmonizer (and all MIDI FX) now active even when scrolled off-screen**: MIDI FX plugins are initialized eagerly by `RackState` at project load, independently of widget rendering. Previously, a slot scrolled out of the lazy list was never mounted, so its plugin was never registered and notes bypassed the MIDI FX chain entirely.
+- **All built-in effects now have responsive layouts**: all six bundled `.gfpd` effect descriptors (Reverb, Delay, Wah, EQ, Compressor, Chorus) now declare `groups:` sections, enabling the collapsible/column responsive layout on all screen sizes.
+- **Harmonizer appears in the "Add Plugin" menu**: added a dedicated tile in the new "Built-in MIDI FX" section (was only loadable via manual file import).
+
+### Architecture
+- `GFMidiDescriptorPlugin` implements `GFMidiFxPlugin` using an internal `GFMidiGraph`, exactly mirroring how `GFDescriptorPlugin` wraps a `GFDspGraph`.
+- `GFDescriptorLoader.registerBuiltinMidiNodes()` registers the three built-in MIDI node factories; call it alongside `registerBuiltinNodes()` at startup.
+- `RackState.registerMidiFxPlugin` / `unregisterMidiFxPlugin` / `applyMidiFxForChannel` / `midiFxInstanceForSlot`: live MIDI FX instances are stored in `RackState` and applied both to incoming external MIDI packets (in `rack_screen.dart`) and to on-screen keyboard notes (in `rack_slot_widget.dart` via `_applyMidiChain`).
+- `RackState._initMidiFxPlugin`: eagerly initializes every MIDI FX slot at `loadFromJson` / `addPlugin` time so MIDI routing is active regardless of widget visibility (fixes lazy-list blind spot).
+- `GFpaMidiFxDescriptorSlotUI` is now a pure display widget: it reads the pre-initialized plugin from `RackState.midiFxInstanceForSlot` and no longer owns the plugin lifecycle.
+- `.gfpd` `midi_nodes:` key (flat list = execution order); `groups:` key in `ui:` for responsive layout.
+
 ## [2.7.0] - 2026-03-22
 
 ### Added

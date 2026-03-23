@@ -5,6 +5,29 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/lang/fr/).
 
+## [X.x.x]
+
+### Ajouté
+- **Plugin MIDI FX Harmoniseur** dans le menu "Ajouter un plugin" : ajoute jusqu'à deux voix d'harmonie (par défaut : tierce majeure + quinte juste) au-dessus de chaque note jouée sur n'importe quel instrument. Les intervalles sont configurables (0–24 demi-tons) ; le verrou de gamme ajuste les voix à la gamme Jam Mode active.
+- **Architecture de nœuds MIDI FX** (`type: midi_fx` dans `.gfpd`) : chaîne de traitement 100 % Dart — `GFMidiNode` / `GFMidiGraph` / `GFMidiNodeRegistry` — en miroir du système de nœuds DSP audio. Trois nœuds intégrés : `transpose` (décalage ±24 demi-tons), `harmonize` (voix harmoniques accordées à la gamme), `gate` (filtre par seuil de vélocité).
+- **UI de plugin responsive avec groupes** (`groups:` dans `.gfpd`) : les contrôles peuvent être organisés en sections étiquetées. Sur les écrans ≥ 600 px les groupes s'affichent côte à côte ; sur téléphone, chaque groupe se replie en `ExpansionTile`.
+- **Interface `GFAbstractDescriptorPlugin`** : `GFDescriptorPluginUI` accepte désormais indifféremment les plugins d'effet audio et les plugins MIDI FX à descripteur.
+- **`TransportEngine.toGFTransportContext()`** : instantané du BPM, de la signature rythmique et de l'état de lecture pour les nœuds MIDI FX.
+
+### Corrigé
+- **Les notes du clavier à l'écran passent désormais par la chaîne MIDI FX** : les notes jouées sur un slot GF Keyboard sont routées à travers les plugins MIDI FX (ex. Harmoniseur) connectés via le câble MIDI OUT avant d'être envoyées à FluidSynth. Les voix harmoniques jouent sur le même canal et le même instrument que la note originale.
+- **L'Harmoniseur (et tous les MIDI FX) restent actifs même hors de l'écran** : les plugins MIDI FX sont désormais initialisés de façon anticipée par `RackState` au chargement du projet, indépendamment du rendu des widgets. Auparavant, un slot sorti du champ de la liste lazy n'était jamais monté, son plugin jamais enregistré, et les notes contournaient entièrement la chaîne MIDI FX.
+- **Tous les effets intégrés ont maintenant une mise en page responsive** : les six descripteurs `.gfpd` intégrés (Réverb, Delay, Wah, EQ, Compresseur, Chorus) déclarent désormais des sections `groups:`, activant la mise en page responsive sur tous les formats d'écran.
+- **L'Harmoniseur apparaît dans le menu "Ajouter un plugin"** : nouvelle section "Effets MIDI intégrés" avec la tuile dédiée (auparavant uniquement chargeable via import de fichier manuel).
+
+### Architecture
+- `GFMidiDescriptorPlugin` implémente `GFMidiFxPlugin` via un `GFMidiGraph` interne, exactement comme `GFDescriptorPlugin` encapsule un `GFDspGraph`.
+- `GFDescriptorLoader.registerBuiltinMidiNodes()` enregistre les trois fabriques de nœuds MIDI intégrés ; à appeler en même temps que `registerBuiltinNodes()` au démarrage.
+- `RackState.registerMidiFxPlugin` / `unregisterMidiFxPlugin` / `applyMidiFxForChannel` / `midiFxInstanceForSlot` : les instances MIDI FX actives sont stockées dans `RackState` et appliquées à chaque paquet MIDI entrant dans `rack_screen.dart` ainsi qu'aux notes du clavier à l'écran dans `rack_slot_widget.dart` via `_applyMidiChain`.
+- `RackState._initMidiFxPlugin` : initialise de façon anticipée chaque slot MIDI FX lors de `loadFromJson` / `addPlugin`, assurant le routage MIDI indépendamment de la visibilité des widgets (correction du point aveugle des listes lazy).
+- `GFpaMidiFxDescriptorSlotUI` est désormais un widget d'affichage pur : il lit le plugin pré-initialisé depuis `RackState.midiFxInstanceForSlot` et ne gère plus lui-même la durée de vie du plugin.
+- Clé `midi_nodes:` dans `.gfpd` (liste plate = ordre d'exécution) ; clé `groups:` dans `ui:` pour la mise en page responsive.
+
 ## [2.7.0] - 2026-03-22
 
 ### Ajouté

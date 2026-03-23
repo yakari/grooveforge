@@ -67,17 +67,22 @@ graph:
       to: out.in
 
 ui:
-  layout: row
-  controls:
-    - type: knob
-      param: threshold
-    - type: knob
-      param: ratio
-    - type: knob
-      param: attack
-    - type: knob
-      param: release
-    - type: knob
-      param: makeup
-    - type: vumeter
-      source: out
+  groups:
+    - label: "Gate"
+      controls:
+        - type: knob
+          param: threshold
+        - type: knob
+          param: ratio
+    - label: "Envelope"
+      controls:
+        - type: knob
+          param: attack
+        - type: knob
+          param: release
+    - label: "Output"
+      controls:
+        - type: knob
+          param: makeup
+        - type: vumeter
+          source: out

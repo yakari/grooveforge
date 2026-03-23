@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:grooveforge_plugin_api/grooveforge_plugin_api.dart'
+    show GFTransportContext;
 import 'vst_host_service.dart';
 
 // Approximate sample rate for positionInSamples advancement – good enough for VST3 context.
@@ -171,6 +173,19 @@ class TransportEngine extends ChangeNotifier {
     beatCount.dispose();
     super.dispose();
   }
+
+  /// Snapshot the current transport state as a [GFTransportContext].
+  ///
+  /// Used by MIDI FX processing to pass BPM and playback state to nodes
+  /// that perform beat-quantised transforms (e.g. arpeggiator).
+  GFTransportContext toGFTransportContext() => GFTransportContext(
+        bpm: _bpm,
+        timeSigNumerator: _timeSigNumerator,
+        timeSigDenominator: _timeSigDenominator,
+        isPlaying: _isPlaying,
+        isRecording: _isRecording,
+        positionInBeats: _positionInBeats,
+      );
 
   // Tap Tempo logic
   final List<DateTime> _tapTimestamps = [];

@@ -1132,4 +1132,14 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get rackAddLoadGfpdSubtitle =>
       'Importer un descripteur de plugin GrooveForge personnalisé';
+
+  @override
+  String get rackAddMidiFxSectionLabel => 'Effets MIDI intégrés';
+
+  @override
+  String get rackAddHarmonizer => 'Harmoniseur';
+
+  @override
+  String get rackAddHarmonizerSubtitle =>
+      'Ajoute des voix harmoniques à toute entrée MIDI (effet MIDI)';
 }

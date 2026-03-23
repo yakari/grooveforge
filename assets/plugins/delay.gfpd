@@ -69,19 +69,24 @@ graph:
       to: out.in
 
 ui:
-  layout: row
-  controls:
-    - type: knob
-      param: time
-    - type: knob
-      param: feedback
-    - type: toggle
-      param: bpm_sync
-      label: "BPM"
-    - type: selector
-      param: beat_div
-      label: "Div"
-    - type: knob
-      param: mix
-    - type: vumeter
-      source: out
+  groups:
+    - label: "Timing"
+      controls:
+        - type: knob
+          param: time
+        - type: toggle
+          param: bpm_sync
+          label: "BPM"
+        - type: selector
+          param: beat_div
+          label: "Div"
+    - label: "Character"
+      controls:
+        - type: knob
+          param: feedback
+    - label: "Output"
+      controls:
+        - type: knob
+          param: mix
+        - type: vumeter
+          source: out
