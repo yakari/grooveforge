@@ -265,8 +265,11 @@ jobs:
           # libsndfile, portaudio, gettext, readline…) into macos/Runner/,
           # retargets all inter-dep references to @rpath/, and patches the
           # top-level dylib's references to match.
+          # NOTE: use --overwrite-files (not --overwrite-dir): --overwrite-dir
+          # deletes the entire dest-dir first, wiping committed source files
+          # (AppDelegate.swift, Configs/*.xcconfig, etc.) that Xcode needs.
           dylibbundler \
-            --overwrite-dir \
+            --overwrite-files \
             --bundle-deps \
             --fix-file  "$DYLIB" \
             --dest-dir  "$RUNNER_DIR" \
