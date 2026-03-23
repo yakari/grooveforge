@@ -1,4 +1,5 @@
 import 'package:yaml/yaml.dart';
+import 'gf_plugin.dart';
 import 'gf_plugin_descriptor.dart';
 import 'gf_plugin_type.dart';
 import 'gf_descriptor_plugin.dart';
@@ -12,6 +13,9 @@ import 'dsp/gf_dsp_delay.dart';
 import 'dsp/gf_dsp_wah_filter.dart';
 import 'dsp/gf_dsp_compressor.dart';
 import 'dsp/gf_dsp_chorus.dart';
+import 'midi/gf_midi_node.dart';
+import 'midi/gf_midi_descriptor_plugin.dart';
+import 'midi/gf_midi_nodes_builtin.dart';
 
 /// Parses `.gfpd` YAML content into [GFPluginDescriptor] objects and registers
 /// the resulting [GFDescriptorPlugin] instances in [GFPluginRegistry].
@@ -38,7 +42,7 @@ class GFDescriptorLoader {
 
   /// Register all built-in DSP node factories in [GFDspNodeRegistry].
   ///
-  /// Must be called once before any `.gfpd` file is loaded.
+  /// Must be called once before any `.gfpd` effect file is loaded.
   static void registerBuiltinNodes() {
     final reg = GFDspNodeRegistry.instance;
     // Simple utility nodes.
@@ -53,20 +57,39 @@ class GFDescriptorLoader {
     reg.register('chorus', (id) => GFDspChorusNode(id));
   }
 
+  /// Register all built-in MIDI node factories in [GFMidiNodeRegistry].
+  ///
+  /// Must be called once before any `.gfpd` midi_fx file is loaded.
+  static void registerBuiltinMidiNodes() {
+    final reg = GFMidiNodeRegistry.instance;
+    reg.register('transpose', (id) => TransposeNode(id));
+    reg.register('gate', (id) => GateNode(id));
+    reg.register('harmonize', (id) => HarmonizeNode(id));
+    reg.register('chord_expand', (id) => ChordExpandNode(id));
+    reg.register('arpeggiate', (id) => ArpeggiateNode(id));
+    reg.register('velocity_curve', (id) => VelocityCurveNode(id));
+  }
+
   // ── Parse + register ───────────────────────────────────────────────────────
 
   /// Parse a `.gfpd` YAML string and register the resulting plugin.
   ///
-  /// Returns the created [GFDescriptorPlugin] on success, or null if the YAML
-  /// is invalid or missing required fields.
+  /// Returns the created [GFPlugin] on success ([GFDescriptorPlugin] for
+  /// `type: effect` / `instrument`, [GFMidiDescriptorPlugin] for
+  /// `type: midi_fx`), or null if the YAML is invalid.
   ///
   /// The plugin is automatically added to [GFPluginRegistry] so it appears in
   /// [AddPluginSheet] and can be loaded from a `.gf` project file.
-  static GFDescriptorPlugin? loadAndRegister(String yamlContent) {
+  static GFPlugin? loadAndRegister(String yamlContent) {
     final descriptor = parse(yamlContent);
     if (descriptor == null) return null;
 
-    final plugin = GFDescriptorPlugin(descriptor);
+    final GFPlugin plugin;
+    if (descriptor.type == GFPluginType.midiFx) {
+      plugin = GFMidiDescriptorPlugin(descriptor);
+    } else {
+      plugin = GFDescriptorPlugin(descriptor);
+    }
     GFPluginRegistry.instance.register(plugin);
     return plugin;
   }
@@ -102,7 +125,8 @@ class GFDescriptorLoader {
     final type = _parsePluginType(typeStr);
     final parameters = _parseParameters(doc['parameters']);
     final (nodes, connections) = _parseGraph(doc['graph']);
-    final (uiLayout, controls) = _parseUi(doc['ui']);
+    final midiNodes = _parseMidiNodes(doc['midi_nodes']);
+    final (uiLayout, controls, groups) = _parseUi(doc['ui']);
 
     return GFPluginDescriptor(
       specVersion: specVersion,
@@ -113,8 +137,10 @@ class GFDescriptorLoader {
       parameters: parameters,
       nodes: nodes,
       connections: connections,
+      midiNodes: midiNodes,
       uiLayout: uiLayout,
       controls: controls,
+      groups: groups,
     );
   }
 
@@ -228,15 +254,51 @@ class GFDescriptorLoader {
     return result;
   }
 
+  // ── MIDI nodes ────────────────────────────────────────────────────────────
+
+  /// Parse the top-level `midi_nodes:` list into [GFDescriptorMidiNode]s.
+  ///
+  /// The list order is the execution order of the linear MIDI chain.
+  static List<GFDescriptorMidiNode> _parseMidiNodes(dynamic raw) {
+    if (raw is! YamlList) return const [];
+    return raw.map<GFDescriptorMidiNode>((item) {
+      final m = item as YamlMap;
+      final params = _parseNodeParams(m['params']);
+      return GFDescriptorMidiNode(
+        id: _str(m, 'id'),
+        type: _str(m, 'type'),
+        params: params,
+      );
+    }).toList(growable: false);
+  }
+
   // ── UI ────────────────────────────────────────────────────────────────────
 
-  static (GFUiLayout, List<GFDescriptorControl>) _parseUi(dynamic raw) {
-    if (raw is! YamlMap) return (GFUiLayout.row, const []);
+  static (GFUiLayout, List<GFDescriptorControl>, List<GFDescriptorControlGroup>)
+      _parseUi(dynamic raw) {
+    if (raw is! YamlMap) return (GFUiLayout.row, const [], const []);
 
     final layoutStr = _str(raw, 'layout', fallback: 'row');
     final layout = layoutStr == 'grid' ? GFUiLayout.grid : GFUiLayout.row;
     final controls = _parseControls(raw['controls']);
-    return (layout, controls);
+    final groups = _parseGroups(raw['groups']);
+    return (layout, controls, groups);
+  }
+
+  /// Parse the `groups:` list into [GFDescriptorControlGroup]s.
+  ///
+  /// Each group has a `label:` string and a `controls:` list (same format as
+  /// the top-level `ui: controls:` list). When groups are present the flat
+  /// `controls:` list should be omitted from the `.gfpd` file.
+  static List<GFDescriptorControlGroup> _parseGroups(dynamic raw) {
+    if (raw is! YamlList) return const [];
+    return raw.map<GFDescriptorControlGroup>((item) {
+      final m = item as YamlMap;
+      return GFDescriptorControlGroup(
+        label: _str(m, 'label'),
+        controls: _parseControls(m['controls']),
+      );
+    }).toList(growable: false);
   }
 
   static List<GFDescriptorControl> _parseControls(dynamic raw) {
@@ -273,7 +335,8 @@ class GFDescriptorLoader {
 
   static GFPluginType _parsePluginType(String s) => switch (s) {
         'instrument' => GFPluginType.instrument,
-        'midifx' => GFPluginType.midiFx,
+        // Accept both `midi_fx` (canonical, underscore) and `midifx` (legacy).
+        'midi_fx' || 'midifx' => GFPluginType.midiFx,
         'analyzer' => GFPluginType.analyzer,
         _ => GFPluginType.effect,
       };

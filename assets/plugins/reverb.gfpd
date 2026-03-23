@@ -57,15 +57,18 @@ graph:
       to: out.in
 
 ui:
-  layout: row
-  controls:
-    - type: knob
-      param: room_size
-    - type: knob
-      param: damping
-    - type: knob
-      param: width
-    - type: knob
-      param: mix
-    - type: vumeter
-      source: out
+  groups:
+    - label: "Room"
+      controls:
+        - type: knob
+          param: room_size
+        - type: knob
+          param: damping
+        - type: knob
+          param: width
+    - label: "Output"
+      controls:
+        - type: knob
+          param: mix
+        - type: vumeter
+          source: out

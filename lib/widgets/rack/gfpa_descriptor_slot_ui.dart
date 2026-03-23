@@ -7,6 +7,10 @@ import '../../models/gfpa_plugin_instance.dart';
 import '../../services/rack_state.dart';
 import '../../services/vst_host_service.dart';
 
+// ─────────────────────────────────────────────────────────────────────────────
+//  Effect slot UI (type: effect / instrument)
+// ─────────────────────────────────────────────────────────────────────────────
+
 /// Rack slot UI for descriptor-backed GFPA effect plugins (`.gfpd`).
 ///
 /// This widget bridges the rack model ([GFpaPluginInstance]) and the
@@ -161,6 +165,103 @@ class _GFpaDescriptorSlotUIState extends State<GFpaDescriptorSlotUI> {
         plugin: _plugin,
         paramNotifier: _paramNotifier,
         vuController: _vuController,
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  MIDI FX slot UI (type: midi_fx)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Rack slot UI for descriptor-backed GFPA MIDI FX plugins (`.gfpd` with
+/// `type: midi_fx`).
+///
+/// [RackState] now eagerly initialises the [GFMidiDescriptorPlugin] for every
+/// MIDI FX slot at project load / slot add time, so MIDI routing is active even
+/// when the slot widget is scrolled off-screen (lazy list rendering).
+///
+/// This widget is therefore purely cosmetic: it reads the already-initialised
+/// plugin from [RackState.midiFxInstanceForSlot] and renders knobs / controls.
+/// It does NOT own the plugin lifetime — that is managed by [RackState].
+class GFpaMidiFxDescriptorSlotUI extends StatefulWidget {
+  const GFpaMidiFxDescriptorSlotUI({
+    super.key,
+    required this.instance,
+    required this.descriptor,
+  });
+
+  /// The rack model — holds persisted state and target slot IDs.
+  final GFpaPluginInstance instance;
+
+  /// The descriptor from the registry (used only for the UI; the live plugin
+  /// instance is fetched from [RackState]).
+  final GFPluginDescriptor descriptor;
+
+  @override
+  State<GFpaMidiFxDescriptorSlotUI> createState() =>
+      _GFpaMidiFxDescriptorSlotUIState();
+}
+
+class _GFpaMidiFxDescriptorSlotUIState
+    extends State<GFpaMidiFxDescriptorSlotUI> {
+  /// Incremented by [GFDescriptorPluginUI] whenever a knob changes, triggering
+  /// a rebuild and a state-persistence write via [_onParamChanged].
+  late final ValueNotifier<int> _paramNotifier;
+
+  @override
+  void initState() {
+    super.initState();
+    _paramNotifier = ValueNotifier(0);
+    _paramNotifier.addListener(_onParamChanged);
+  }
+
+  @override
+  void dispose() {
+    _paramNotifier.removeListener(_onParamChanged);
+    _paramNotifier.dispose();
+    super.dispose();
+  }
+
+  /// Persists the current plugin parameter values back to the rack model so
+  /// they survive a project save / reload.
+  void _onParamChanged() {
+    final rack = context.read<RackState>();
+    final plugin = rack.midiFxInstanceForSlot(widget.instance.id);
+    if (plugin == null) return;
+    widget.instance.state
+      ..clear()
+      ..addAll(plugin.getState());
+    rack.markDirty();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Watch RackState so this widget rebuilds once the plugin finishes its
+    // async initialization (RackState calls notifyListeners after init).
+    final plugin = context
+        .watch<RackState>()
+        .midiFxInstanceForSlot(widget.instance.id);
+
+    if (plugin == null) {
+      // Plugin is still initializing in the background — show a spinner.
+      return const Padding(
+        padding: EdgeInsets.all(16),
+        child: Center(
+          child: SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(strokeWidth: 1.5),
+          ),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      child: GFDescriptorPluginUI(
+        plugin: plugin,
+        paramNotifier: _paramNotifier,
       ),
     );
   }

@@ -176,6 +176,36 @@ class GFDescriptorConnection {
 }
 
 // ─────────────────────────────────────────────────────────────
+//  MIDI graph descriptor
+// ─────────────────────────────────────────────────────────────
+
+/// A single node in the `.gfpd` MIDI processing chain.
+///
+/// Analogous to [GFDescriptorNode] for the audio graph. [type] names a
+/// built-in MIDI algorithm (e.g. `"transpose"`, `"harmonize"`, `"gate"`).
+/// The available types are registered in [GFMidiNodeRegistry].
+///
+/// [params] maps node-internal parameter names to their value sources.
+/// Same binding rules as audio DSP nodes ([GFParamRefBinding] /
+/// [GFConstantBinding]).
+class GFDescriptorMidiNode {
+  /// Unique identifier within the MIDI chain (e.g. `"harmonizer1"`).
+  final String id;
+
+  /// Built-in MIDI node type key (e.g. `"transpose"`, `"harmonize"`).
+  final String type;
+
+  /// Parameter bindings: node_param_name → binding.
+  final Map<String, GFNodeParamBinding> params;
+
+  const GFDescriptorMidiNode({
+    required this.id,
+    required this.type,
+    this.params = const {},
+  });
+}
+
+// ─────────────────────────────────────────────────────────────
 //  UI descriptor
 // ─────────────────────────────────────────────────────────────
 
@@ -208,6 +238,29 @@ class GFDescriptorControl {
     this.label,
     this.size = GFControlSize.medium,
     this.action,
+  });
+}
+
+/// A named group of controls for the responsive plugin UI (Phase 10).
+///
+/// When a `.gfpd` file declares a `groups:` block, the generated UI renders
+/// controls in labelled sections rather than a single flat list. On narrow
+/// screens (< 600 px) each group becomes a collapsible [ExpansionTile]; on
+/// wider screens all groups display simultaneously as labelled columns.
+///
+/// If no `groups:` block is present in the `.gfpd`, all controls fall into
+/// one implicit un-labelled group and the layout degrades gracefully to the
+/// previous flat behaviour.
+class GFDescriptorControlGroup {
+  /// Display label shown as the group heading (e.g. `"Reverb"`, `"Gate"`).
+  final String label;
+
+  /// Controls that belong to this group, in display order.
+  final List<GFDescriptorControl> controls;
+
+  const GFDescriptorControlGroup({
+    required this.label,
+    required this.controls,
   });
 }
 
@@ -271,17 +324,33 @@ class GFPluginDescriptor {
   /// All automatable parameters exposed by this plugin.
   final List<GFDescriptorParameter> parameters;
 
-  /// DSP processing nodes.
+  /// DSP processing nodes (empty for `type: midi_fx` plugins).
   final List<GFDescriptorNode> nodes;
 
-  /// Audio connections between node ports.
+  /// Audio connections between node ports (empty for `type: midi_fx` plugins).
   final List<GFDescriptorConnection> connections;
+
+  /// MIDI processing nodes in execution order (empty for `type: effect` plugins).
+  ///
+  /// For `type: midi_fx` plugins the chain is linear: events flow from index 0
+  /// to the last node, with each node's output feeding the next node's input.
+  final List<GFDescriptorMidiNode> midiNodes;
 
   /// How controls are arranged in the auto-generated rack slot UI.
   final GFUiLayout uiLayout;
 
-  /// Controls rendered in the rack slot panel.
+  /// Controls rendered in the rack slot panel (flat list, no grouping).
+  ///
+  /// When [groups] is non-empty, individual [controls] are embedded inside
+  /// groups and this field should be treated as empty by the UI renderer.
   final List<GFDescriptorControl> controls;
+
+  /// Grouped controls for the responsive Phase 10 UI.
+  ///
+  /// If empty, the UI falls back to the flat [controls] list with the legacy
+  /// row/grid layout. If non-empty, each [GFDescriptorControlGroup] renders
+  /// as a labelled section (tab on wide screens, collapsible on narrow screens).
+  final List<GFDescriptorControlGroup> groups;
 
   const GFPluginDescriptor({
     required this.specVersion,
@@ -292,8 +361,10 @@ class GFPluginDescriptor {
     required this.parameters,
     required this.nodes,
     required this.connections,
+    this.midiNodes = const [],
     required this.uiLayout,
     required this.controls,
+    this.groups = const [],
   });
 
   /// Look up a parameter descriptor by its string [id].

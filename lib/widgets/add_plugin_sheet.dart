@@ -532,6 +532,76 @@ class _AddPluginSheetContentState extends State<_AddPluginSheetContent> {
               ),
             ),
 
+            // ═══════════════════════════════════════════════════════════════
+            // Built-in MIDI FX (.gfpd descriptor plugins — all platforms)
+            // ═══════════════════════════════════════════════════════════════
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+              child: Text(
+                l10n.rackAddMidiFxSectionLabel,
+                style: const TextStyle(
+                  color: Colors.white54,
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.0,
+                ),
+              ),
+            ),
+            _PluginTile(
+              icon: Icons.music_note,
+              iconColor: Colors.pinkAccent,
+              title: l10n.rackAddHarmonizer,
+              subtitle: l10n.rackAddHarmonizerSubtitle,
+              onTap: () => _addDescriptorPlugin(
+                context, rack, 'com.grooveforge.harmonizer',
+              ),
+            ),
+            _PluginTile(
+              icon: Icons.piano,
+              iconColor: Colors.purpleAccent,
+              title: l10n.rackAddChordExpand,
+              subtitle: l10n.rackAddChordExpandSubtitle,
+              onTap: () => _addDescriptorPlugin(
+                context, rack, 'com.grooveforge.chord',
+              ),
+            ),
+            _PluginTile(
+              icon: Icons.auto_awesome,
+              iconColor: Colors.tealAccent,
+              title: l10n.rackAddArpeggiator,
+              subtitle: l10n.rackAddArpeggiatorSubtitle,
+              onTap: () => _addDescriptorPlugin(
+                context, rack, 'com.grooveforge.arpeggiator',
+              ),
+            ),
+            _PluginTile(
+              icon: Icons.swap_vert,
+              iconColor: Colors.orangeAccent,
+              title: l10n.rackAddTransposer,
+              subtitle: l10n.rackAddTransposerSubtitle,
+              onTap: () => _addDescriptorPlugin(
+                context, rack, 'com.grooveforge.transposer',
+              ),
+            ),
+            _PluginTile(
+              icon: Icons.tune,
+              iconColor: Colors.yellowAccent,
+              title: l10n.rackAddVelocityCurve,
+              subtitle: l10n.rackAddVelocityCurveSubtitle,
+              onTap: () => _addDescriptorPlugin(
+                context, rack, 'com.grooveforge.velocity_curve',
+              ),
+            ),
+            _PluginTile(
+              icon: Icons.filter_alt,
+              iconColor: Colors.cyanAccent,
+              title: l10n.rackAddGate,
+              subtitle: l10n.rackAddGateSubtitle,
+              onTap: () => _addDescriptorPlugin(
+                context, rack, 'com.grooveforge.gate',
+              ),
+            ),
+
             // ── Load a custom .gfpd plugin from storage
             _PluginTile(
               icon: Icons.file_open,

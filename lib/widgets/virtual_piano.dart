@@ -97,7 +97,21 @@ class _VirtualPianoState extends State<VirtualPiano> {
   void didUpdateWidget(covariant VirtualPiano old) {
     super.didUpdateWidget(old);
     if (widget.activeNotes.isNotEmpty && old.activeNotes != widget.activeNotes) {
-      _scrollToNote(widget.activeNotes.last);
+      // Only scroll when new notes are added (ignore releases — no need to
+      // reposition on note-off).
+      final added = widget.activeNotes.difference(old.activeNotes);
+      if (added.isEmpty) return;
+
+      // Only follow notes that the user is physically pressing on this widget.
+      // Autonomous MIDI FX events — arp steps cycling through octaves, timer-
+      // driven chord voices — must NOT steal the viewport.  Scrolling away from
+      // the user's hand makes the keyboard unplayable when a wide-range arp is
+      // active.  Harmonizer / ChordExpand notes are fine: the root note the user
+      // pressed is always among the added set, so it will be found here and used
+      // as the scroll target instead of any generated upper voices.
+      final userNotes = Set<int>.from(_pointerNote.values);
+      final matching = added.where(userNotes.contains);
+      if (matching.isNotEmpty) _scrollToNote(matching.first);
     }
   }
 

@@ -67,6 +67,7 @@ class SlotBackPanelWidget extends StatelessWidget {
       if (plugin.pluginId == 'com.grooveforge.vocoder') {
         return [
           AudioPortId.midiIn,
+          AudioPortId.midiOut,   // MIDI notes flow out to MIDI FX plugins
           AudioPortId.audioInL,
           AudioPortId.audioInR,
           AudioPortId.audioOutL,

@@ -131,36 +131,45 @@ graph:
       to: out.in
 
 ui:
-  layout: grid
-  controls:
-    - type: knob
-      param: low_freq
-      size: small
-    - type: slider
-      param: low_gain
-    - type: knob
-      param: lmid_freq
-      size: small
-    - type: knob
-      param: lmid_q
-      size: small
-    - type: slider
-      param: lmid_gain
-    - type: knob
-      param: hmid_freq
-      size: small
-    - type: knob
-      param: hmid_q
-      size: small
-    - type: slider
-      param: hmid_gain
-    - type: knob
-      param: high_freq
-      size: small
-    - type: slider
-      param: high_gain
-    - type: vumeter
-      source: out
-    - type: button
-      action: reset
-      label: "Flat"
+  groups:
+    - label: "Low"
+      controls:
+        - type: knob
+          param: low_freq
+          size: small
+        - type: slider
+          param: low_gain
+    - label: "Low Mid"
+      controls:
+        - type: knob
+          param: lmid_freq
+          size: small
+        - type: knob
+          param: lmid_q
+          size: small
+        - type: slider
+          param: lmid_gain
+    - label: "High Mid"
+      controls:
+        - type: knob
+          param: hmid_freq
+          size: small
+        - type: knob
+          param: hmid_q
+          size: small
+        - type: slider
+          param: hmid_gain
+    - label: "High"
+      controls:
+        - type: knob
+          param: high_freq
+          size: small
+        - type: slider
+          param: high_gain
+    - label: "Output"
+      controls:
+        - type: vumeter
+          source: out
+        - type: button
+          action: reset
+          label: "Flat"

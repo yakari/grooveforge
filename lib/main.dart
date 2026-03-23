@@ -19,22 +19,31 @@ import 'l10n/app_localizations.dart';
 
 /// Asset paths for all bundled `.gfpd` plugin descriptor files.
 const _kBundledGfpdAssets = [
+  // Audio effect plugins.
   'assets/plugins/reverb.gfpd',
   'assets/plugins/delay.gfpd',
   'assets/plugins/wah.gfpd',
   'assets/plugins/eq.gfpd',
   'assets/plugins/compressor.gfpd',
   'assets/plugins/chorus.gfpd',
+  // MIDI FX plugins.
+  'assets/plugins/harmonizer.gfpd',
+  'assets/plugins/chord_expand.gfpd',
+  'assets/plugins/arpeggiator.gfpd',
+  'assets/plugins/transposer.gfpd',
+  'assets/plugins/velocity_curve.gfpd',
+  'assets/plugins/gate.gfpd',
 ];
 
 /// Load and register all bundled `.gfpd` plugins before the first frame.
 ///
 /// Each asset is parsed by [GFDescriptorLoader.loadAndRegister], which adds
-/// the resulting [GFDescriptorPlugin] to [GFPluginRegistry]. The built-in DSP
-/// node factories ([GFDspNodeRegistry]) are registered first so every node
-/// type referenced in the descriptors resolves correctly.
+/// the resulting plugin to [GFPluginRegistry]. Built-in DSP node factories
+/// ([GFDspNodeRegistry]) and MIDI node factories ([GFMidiNodeRegistry]) are
+/// registered first so every node type referenced in the descriptors resolves.
 Future<void> _loadBundledGfpdPlugins() async {
   GFDescriptorLoader.registerBuiltinNodes();
+  GFDescriptorLoader.registerBuiltinMidiNodes();
   for (final assetPath in _kBundledGfpdAssets) {
     try {
       final yaml = await rootBundle.loadString(assetPath);

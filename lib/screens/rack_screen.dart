@@ -1,8 +1,11 @@
 import 'dart:async';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_midi_command/flutter_midi_command.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:grooveforge_plugin_api/grooveforge_plugin_api.dart'
+    show TimestampedMidiEvent;
 
 import '../l10n/app_localizations.dart';
 import '../models/audio_port_id.dart';
@@ -99,10 +102,17 @@ class _RackScreenState extends State<RackScreen> {
     context.read<TransportEngine>().addListener(_onTransportChanged);
 
     midiService.onMidiDataReceived = (packet) {
-      // If a VST3 slot owns this MIDI channel, send only to the VST3 plugin
-      // and skip FluidSynth entirely — otherwise the soundfont plays in parallel.
-      if (!_routeMidiToVst3Plugins(packet)) {
-        engine.processMidiPacket(packet);
+      // Apply any active MIDI FX chains before dispatching.
+      // Harmonic transforms (harmonizer, transpose) run here; this may expand
+      // one incoming event into multiple (e.g. note + harmony voices).
+      final events = _applyMidiFxToPacket(packet);
+      for (final event in events) {
+        final dispatched = _eventToPacket(event, packet);
+        // If a VST3 slot owns this MIDI channel, send only to the VST3 plugin
+        // and skip FluidSynth entirely — otherwise the soundfont plays in parallel.
+        if (!_routeMidiToVst3Plugins(dispatched)) {
+          engine.processMidiPacket(dispatched);
+        }
       }
     };
 
@@ -201,6 +211,48 @@ class _RackScreenState extends State<RackScreen> {
     }
 
     debugPrint(buf.toString());
+  }
+
+  // ─── MIDI FX preprocessing ───────────────────────────────────────────────
+
+  /// Convert a raw [MidiPacket] to a [TimestampedMidiEvent], run it through
+  /// any active MIDI FX chains, and return the resulting event list.
+  ///
+  /// If no MIDI FX targets the incoming channel the original event is returned
+  /// as a single-element list unchanged. If a harmonizer or transposer is
+  /// active the list may contain additional events.
+  ///
+  /// PPQ position is 0.0 for real-time external events (no block position).
+  List<TimestampedMidiEvent> _applyMidiFxToPacket(MidiPacket packet) {
+    if (packet.data.isEmpty) return const [];
+
+    final status = packet.data[0];
+    final data1 = packet.data.length >= 2 ? packet.data[1] : 0;
+    final data2 = packet.data.length >= 3 ? packet.data[2] : 0;
+
+    final event = TimestampedMidiEvent(
+      ppqPosition: 0.0,
+      status: status,
+      data1: data1,
+      data2: data2,
+    );
+
+    // MIDI channel: 0-based in status byte, 1-based in rack slots.
+    final midiChannel = (status & 0x0F) + 1;
+    final rack = context.read<RackState>();
+    final transport = context.read<TransportEngine>().toGFTransportContext();
+
+    return rack.applyMidiFxForChannel(midiChannel, [event], transport);
+  }
+
+  /// Wrap a [TimestampedMidiEvent] back into a [MidiPacket], reusing the
+  /// [original] packet's device and timestamp for correct routing.
+  MidiPacket _eventToPacket(TimestampedMidiEvent event, MidiPacket original) {
+    return MidiPacket(
+      Uint8List.fromList([event.status, event.data1, event.data2]),
+      original.timestamp,
+      original.device,
+    );
   }
 
   // ─── Auto-scroll ────────────────────────────────────────────────────────────

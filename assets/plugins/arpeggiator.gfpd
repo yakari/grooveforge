@@ -1,0 +1,88 @@
+spec: "1.0"
+id: "com.grooveforge.arpeggiator"
+name: "Arpeggiator"
+version: "1.0.0"
+type: midi_fx
+
+# Arpeggiates held notes in a rhythmic sequence. Incoming note-ons are
+# suppressed and replaced by a cycling sequence of individual notes driven
+# by wall-clock time, so the arp plays during live performance regardless of
+# whether the transport is running.
+
+parameters:
+  # Playback pattern — determines the order in which held pitches are visited.
+  # 6 options; normalised as index / 5.
+  - id: pattern
+    paramId: 0
+    name: "Pattern"
+    min: 0
+    max: 5
+    default: 0
+    type: selector
+    options: ["Up", "Down", "UpDown", "DnUp", "Played", "Random"]
+
+  # Step division — rhythmic value of each arp step.
+  # 9 options; normalised as index / 8.
+  - id: division
+    paramId: 1
+    name: "Division"
+    min: 0
+    max: 8
+    default: 1
+    type: selector
+    options: ["1/4", "1/8", "1/16", "1/32", "1/64", "1/4T", "1/8T", "1/16T", "1/32T"]
+
+  # Gate — fraction of the step duration that the note sounds.
+  # 0.0 → 10 %, 1.0 → 100 %. Short values give a staccato feel.
+  - id: gate
+    paramId: 2
+    name: "Gate"
+    min: 0.0
+    max: 1.0
+    default: 0.722
+    type: float
+    unit: "%"
+
+  # Octaves — how many octaves the arp climbs before cycling back.
+  # 3 options; normalised as index / 2.
+  - id: octaves
+    paramId: 3
+    name: "Octaves"
+    min: 0
+    max: 2
+    default: 0
+    type: selector
+    options: ["1", "2", "3"]
+
+midi_nodes:
+  - id: arp
+    type: arpeggiate
+    params:
+      pattern:  { param: pattern }
+      division: { param: division }
+      gate:     { param: gate }
+      octaves:  { param: octaves }
+
+ui:
+  layout: grid
+  groups:
+    - label: "Pattern"
+      controls:
+        - type: selector
+          param: pattern
+          label: "Pattern"
+    - label: "Rhythm"
+      controls:
+        - type: selector
+          param: division
+          label: "Division"
+    - label: "Gate"
+      controls:
+        - type: knob
+          param: gate
+          label: "Gate"
+    - label: "Range"
+      controls:
+        - type: selector
+          param: octaves
+          label: "Octaves"

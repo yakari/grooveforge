@@ -2125,6 +2125,84 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Import a custom GrooveForge plugin descriptor'**
   String get rackAddLoadGfpdSubtitle;
+
+  /// No description provided for @rackAddMidiFxSectionLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Built-in MIDI FX'**
+  String get rackAddMidiFxSectionLabel;
+
+  /// No description provided for @rackAddHarmonizer.
+  ///
+  /// In en, this message translates to:
+  /// **'Harmonizer'**
+  String get rackAddHarmonizer;
+
+  /// No description provided for @rackAddHarmonizerSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add harmony voices to any MIDI input (MIDI FX)'**
+  String get rackAddHarmonizerSubtitle;
+
+  /// No description provided for @rackAddChordExpand.
+  ///
+  /// In en, this message translates to:
+  /// **'Chord Expand'**
+  String get rackAddChordExpand;
+
+  /// No description provided for @rackAddChordExpandSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Expand each note into a full chord voicing (MIDI FX)'**
+  String get rackAddChordExpandSubtitle;
+
+  /// No description provided for @rackAddArpeggiator.
+  ///
+  /// In en, this message translates to:
+  /// **'Arpeggiator'**
+  String get rackAddArpeggiator;
+
+  /// No description provided for @rackAddArpeggiatorSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Arpeggiate held notes in a rhythmic sequence (MIDI FX)'**
+  String get rackAddArpeggiatorSubtitle;
+
+  /// No description provided for @rackAddTransposer.
+  ///
+  /// In en, this message translates to:
+  /// **'Transposer'**
+  String get rackAddTransposer;
+
+  /// No description provided for @rackAddTransposerSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Shift all notes up or down by ±24 semitones (MIDI FX)'**
+  String get rackAddTransposerSubtitle;
+
+  /// No description provided for @rackAddVelocityCurve.
+  ///
+  /// In en, this message translates to:
+  /// **'Velocity Curve'**
+  String get rackAddVelocityCurve;
+
+  /// No description provided for @rackAddVelocityCurveSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Remap velocity with a power, sigmoid, or fixed curve (MIDI FX)'**
+  String get rackAddVelocityCurveSubtitle;
+
+  /// No description provided for @rackAddGate.
+  ///
+  /// In en, this message translates to:
+  /// **'Gate'**
+  String get rackAddGate;
+
+  /// No description provided for @rackAddGateSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Filter notes by velocity range and pitch range (MIDI FX)'**
+  String get rackAddGateSubtitle;
 }
 
 class _AppLocalizationsDelegate

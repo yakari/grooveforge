@@ -20,4 +20,5 @@ export 'src/gf_slider.dart';
 export 'src/gf_vu_meter.dart';
 export 'src/gf_toggle_button.dart';
 export 'src/gf_option_selector.dart';
+export 'src/gf_dropdown_selector.dart';
 export 'src/gf_descriptor_plugin_ui.dart';

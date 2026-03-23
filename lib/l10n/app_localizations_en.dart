@@ -1122,4 +1122,49 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get rackAddLoadGfpdSubtitle =>
       'Import a custom GrooveForge plugin descriptor';
+
+  @override
+  String get rackAddMidiFxSectionLabel => 'Built-in MIDI FX';
+
+  @override
+  String get rackAddHarmonizer => 'Harmonizer';
+
+  @override
+  String get rackAddHarmonizerSubtitle =>
+      'Add harmony voices to any MIDI input (MIDI FX)';
+
+  @override
+  String get rackAddChordExpand => 'Chord Expand';
+
+  @override
+  String get rackAddChordExpandSubtitle =>
+      'Expand each note into a full chord voicing (MIDI FX)';
+
+  @override
+  String get rackAddArpeggiator => 'Arpeggiator';
+
+  @override
+  String get rackAddArpeggiatorSubtitle =>
+      'Arpeggiate held notes in a rhythmic sequence (MIDI FX)';
+
+  @override
+  String get rackAddTransposer => 'Transposer';
+
+  @override
+  String get rackAddTransposerSubtitle =>
+      'Shift all notes up or down by ±24 semitones (MIDI FX)';
+
+  @override
+  String get rackAddVelocityCurve => 'Velocity Curve';
+
+  @override
+  String get rackAddVelocityCurveSubtitle =>
+      'Remap velocity with a power, sigmoid, or fixed curve (MIDI FX)';
+
+  @override
+  String get rackAddGate => 'Gate';
+
+  @override
+  String get rackAddGateSubtitle =>
+      'Filter notes by velocity range and pitch range (MIDI FX)';
 }

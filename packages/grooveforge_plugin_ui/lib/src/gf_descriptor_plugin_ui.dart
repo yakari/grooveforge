@@ -5,6 +5,7 @@ import 'gf_slider.dart';
 import 'gf_vu_meter.dart';
 import 'gf_toggle_button.dart';
 import 'gf_option_selector.dart';
+import 'gf_dropdown_selector.dart';
 
 /// Auto-generates a plugin UI panel from a [GFPluginDescriptor].
 ///
@@ -13,10 +14,12 @@ import 'gf_option_selector.dart';
 /// renders the declared controls (knobs, sliders, VU meters, toggles,
 /// selectors) in the specified layout.
 ///
-/// Each control is bound to a [GFDescriptorPlugin] instance. Parameter changes
-/// from the UI are propagated via [GFDescriptorPlugin.setParameter]; the
-/// [ValueNotifier] passed in notifies the widget to rebuild when parameter
-/// values change from the engine side.
+/// Each control is bound to a [GFAbstractDescriptorPlugin] instance (either a
+/// [GFDescriptorPlugin] for audio effects or a [GFMidiDescriptorPlugin] for
+/// MIDI FX). Parameter changes from the UI are propagated via
+/// [GFAbstractDescriptorPlugin.setParameter]; the [ValueNotifier] passed in
+/// notifies the widget to rebuild when parameter values change from the
+/// engine side.
 ///
 /// ## Usage
 /// ```dart
@@ -35,7 +38,10 @@ class GFDescriptorPluginUI extends StatelessWidget {
   });
 
   /// The plugin whose parameters are controlled by this UI.
-  final GFDescriptorPlugin plugin;
+  ///
+  /// Accepts both [GFDescriptorPlugin] (audio effects) and
+  /// [GFMidiDescriptorPlugin] (MIDI FX) via [GFAbstractDescriptorPlugin].
+  final GFAbstractDescriptorPlugin plugin;
 
   /// Notified whenever a parameter changes — triggers a rebuild.
   final ValueNotifier<int> paramNotifier;
@@ -50,32 +56,143 @@ class GFDescriptorPluginUI extends StatelessWidget {
 
     return ValueListenableBuilder<int>(
       valueListenable: paramNotifier,
-      builder: (context, _, __) {
-        final controls = descriptor.controls.map((ctrl) {
-          return _buildControl(context, ctrl, descriptor);
-        }).toList(growable: false);
-
-        if (descriptor.uiLayout == GFUiLayout.grid) {
-          return Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            alignment: WrapAlignment.center,
-            children: controls,
+      builder: (ctx, _, __) {
+        // Phase 10: when the descriptor declares groups, use the responsive
+        // grouped layout. Otherwise fall back to the legacy flat layout.
+        if (descriptor.groups.isNotEmpty) {
+          return LayoutBuilder(
+            builder: (_, constraints) => constraints.maxWidth >= 600
+                ? _buildWideGroupLayout(ctx, descriptor)
+                : _buildNarrowGroupLayout(ctx, descriptor),
           );
         }
-        // Default: row layout.
-        return SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: controls
-                .expand((w) => [w, const SizedBox(width: 10)])
-                .toList()
-              ..removeLast(),
-          ),
-        );
+        return _buildFlatLayout(ctx, descriptor);
       },
+    );
+  }
+
+  // ── Flat layout (legacy — no groups) ──────────────────────────────────────
+
+  Widget _buildFlatLayout(BuildContext context, GFPluginDescriptor descriptor) {
+    final controls = descriptor.controls
+        .map((ctrl) => _buildControl(context, ctrl, descriptor))
+        .toList(growable: false);
+
+    if (descriptor.uiLayout == GFUiLayout.grid) {
+      return Wrap(
+        spacing: 10,
+        runSpacing: 10,
+        alignment: WrapAlignment.center,
+        children: controls,
+      );
+    }
+    // Default: horizontal row with scroll for overflow.
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: controls
+            .expand((w) => [w, const SizedBox(width: 10)])
+            .toList()
+          ..removeLast(),
+      ),
+    );
+  }
+
+  // ── Wide group layout (≥ 600 px) ──────────────────────────────────────────
+
+  /// Renders all groups side-by-side with a labelled column per group.
+  ///
+  /// Each group column contains a small heading and a [Wrap] of its controls.
+  /// Suitable for tablet landscape and desktop.
+  Widget _buildWideGroupLayout(
+    BuildContext context,
+    GFPluginDescriptor descriptor,
+  ) {
+    final groupWidgets = descriptor.groups.map((group) {
+      final controls = group.controls
+          .map((ctrl) => _buildControl(context, ctrl, descriptor))
+          .toList(growable: false);
+
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Group label heading.
+            Text(
+              group.label,
+              style: const TextStyle(
+                color: Colors.white54,
+                fontSize: 9,
+                letterSpacing: 0.8,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: controls,
+            ),
+          ],
+        ),
+      );
+    }).toList(growable: false);
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: groupWidgets,
+      ),
+    );
+  }
+
+  // ── Narrow group layout (< 600 px) ────────────────────────────────────────
+
+  /// Renders each group as a collapsible [ExpansionTile].
+  ///
+  /// On narrow phones the user taps a group header to expand/collapse it,
+  /// keeping the UI usable without scrolling horizontally.
+  Widget _buildNarrowGroupLayout(
+    BuildContext context,
+    GFPluginDescriptor descriptor,
+  ) {
+    final tiles = descriptor.groups.map((group) {
+      final controls = group.controls
+          .map((ctrl) => _buildControl(context, ctrl, descriptor))
+          .toList(growable: false);
+
+      return ExpansionTile(
+        initiallyExpanded: true,
+        tilePadding: const EdgeInsets.symmetric(horizontal: 8),
+        childrenPadding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+        title: Text(
+          group.label,
+          style: const TextStyle(
+            color: Colors.white70,
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        children: [
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: controls,
+          ),
+        ],
+      );
+    }).toList(growable: false);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: tiles,
     );
   }
 
@@ -191,16 +308,28 @@ class GFDescriptorPluginUI extends StatelessWidget {
     final count = options.length;
     final selectedIndex = (normValue * (count - 1)).round().clamp(0, count - 1);
     final label = ctrl.label ?? param.name;
+    final onChanged = (int i) {
+      final norm = count <= 1 ? 0.0 : i / (count - 1).toDouble();
+      plugin.setParameter(param.paramId, norm);
+      paramNotifier.value++;
+    };
+
+    // Use a dropdown for large option sets — segmented rows become unreadable
+    // beyond ~5 options (each segment would be too narrow to display its label).
+    if (count > 5) {
+      return GFDropdownSelector(
+        options: options,
+        selectedIndex: selectedIndex,
+        label: label,
+        onChanged: onChanged,
+      );
+    }
 
     return GFOptionSelector(
       options: options,
       selectedIndex: selectedIndex,
       label: label,
-      onChanged: (i) {
-        final norm = count <= 1 ? 0.0 : i / (count - 1).toDouble();
-        plugin.setParameter(param.paramId, norm);
-        paramNotifier.value++;
-      },
+      onChanged: onChanged,
     );
   }
 

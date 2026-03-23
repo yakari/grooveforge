@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.8.0] - 2026-03-24
+
+### Added
+- **MIDI FX plugin system** (`type: midi_fx` in `.gfpd`): pure-Dart MIDI processing chain — `GFMidiNode` / `GFMidiGraph` / `GFMidiNodeRegistry` — parallel to the audio DSP node system. Plugins connect to instrument slots via MIDI OUT → MIDI FX MIDI IN patch cables in the back-panel view. Six built-in node types ship with this release: `transpose`, `harmonize`, `chord_expand`, `arpeggiate`, `velocity_curve`, `gate`.
+- **Harmonizer** (`com.grooveforge.harmonizer`): adds up to two harmony voices above every note. Intervals configurable 0–24 semitones; Scale Lock snaps voices to the active Jam Mode scale.
+- **Chord Expand** (`com.grooveforge.chord`): expands each note into a full chord voicing. 11 chord qualities (Major through Dim7); three spread modes — Close (within one octave), Open (drop-2 style), Wide (all tones +1 octave); Scale Lock.
+- **Arpeggiator** (`com.grooveforge.arpeggiator`): replaces held notes with a rhythmic sequence. 6 patterns (Up / Down / UpDown / DownUp / AsPlayed / Random), 9 divisions (1/4 → 1/32T), gate 10–100 %, 1–3 octaves. Wall-clock timing — plays independently of transport state.
+- **Transposer** (`com.grooveforge.transposer`): shifts all notes ±24 semitones. Virtual piano viewport does not scroll to the transposed pitch — only physically pressed keys trigger scroll (`_pointerNote` logic).
+- **Velocity Curve** (`com.grooveforge.velocity_curve`): remaps note-on velocities. Three modes — Power (exponent 0.25–4.0 via one Amount knob; centre = linear), Sigmoid (S-curve centred at velocity 64, steepness 4–20), Fixed (constant output velocity 1–127). Note-offs and non-note events pass through unchanged.
+- **Gate** (`com.grooveforge.gate`): filters notes outside a velocity window (Min/Max Vel 0–127) and/or a pitch range (Min/Max Note 0–127). Suppressed note-ons are tracked so matching note-offs are also suppressed — no stuck notes even when parameters change while notes are held.
+- **Vocoder MIDI OUT jack**: the Vocoder back panel now exposes a MIDI OUT jack so any MIDI FX plugin can be wired to it in patch view. The vocoder's on-screen piano was already routing through `_applyMidiChain()` — the jack was the only missing piece.
+- **Responsive plugin UI groups** (Phase 10): `.gfpd` `ui:` block gains an optional `groups:` key — controls are organised into labelled sections. On screens ≥ 600 px all groups display side-by-side; on narrow phones each group collapses to a tappable `ExpansionTile`. All 12 bundled `.gfpd` files (6 audio effects + 6 MIDI FX) updated with logical groupings.
+
+### Fixed
+- **Arpeggiator: three extra step divisions** — Division selector now offers 9 options including 1/64, 1/16T, and 1/32T (at 120 BPM: 31 ms, 83 ms, and 42 ms per step respectively).
+- **Arpeggiator: virtual piano no longer scrolls to arp step notes** — `didUpdateWidget` auto-scroll now follows only keys the user is physically pressing (`_pointerNote`). Arp steps cycling through octaves no longer steal the viewport mid-performance.
+- **Arpeggiator: keys visually stuck after glissando** — two root causes fixed: (1) `_arpNoteOns` sentinel left unconsumed after inline `_fireStep` in `_handleUserNoteOn`, causing a return-stroke press to be misidentified as an arp event and the eventual note-off to be dropped; (2) `_onNotePressed` forwarded all events from `_applyMidiChain` to `engine.playNote`, including tick-injected gate note-offs that added stale pitches to `activeNotes`.
+- **MIDI FX active even when slot is scrolled off-screen** — all MIDI FX slots are now initialised eagerly by `RackState` at project load, independently of widget rendering. Previously a slot scrolled out of the lazy list was never mounted and notes bypassed its MIDI FX chain entirely.
+- **All bundled audio effects now have responsive layouts** — the six `.gfpd` effect descriptors (Reverb, Delay, Wah, EQ, Compressor, Chorus) now declare `groups:` sections, enabling the collapsible/column responsive layout on all screen sizes.
+
+### Architecture
+- `GFMidiDescriptorPlugin` implements `GFMidiFxPlugin` via an internal `GFMidiGraph`, exactly mirroring how `GFDescriptorPlugin` wraps a `GFDspGraph`.
+- `RackState._midiFxTicker`: 10 ms `Timer.periodic` drives time-based nodes (arpeggiator) on all instrument channels even with no incoming events — enables sustained arpeggios when holding a chord.
+- `RackState._initMidiFxPlugin`: eagerly initialises every MIDI FX slot at `loadFromJson` / `addPlugin` time; `midiFxInstanceForSlot` exposes the live instance to `_applyMidiChain`.
+- `GateNode` extended with `maxVelocity`, `minPitch`, `maxPitch` parameters; backward-compatible (defaults keep the gate fully open).
+
 ## [2.7.0] - 2026-03-22
 
 ### Added
