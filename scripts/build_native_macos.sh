@@ -16,6 +16,23 @@
 
 set -euo pipefail
 
+# ── CI guard ──────────────────────────────────────────────────────────────────
+# On GitHub Actions (CI=true) the dylibs are built by an explicit cmake step
+# before this Xcode build phase runs.  Rebuilding here would:
+#   1. Waste several minutes of build time, and
+#   2. Overwrite the dylibbundler-patched, self-contained dylib with a raw
+#      Homebrew-linked one — breaking the app bundle.
+# Skip the rebuild and let the pre-built libs remain in macos/Runner/.
+if [ "${CI:-false}" = "true" ]; then
+    echo "CI environment detected — native libs pre-built by workflow; skipping."
+    exit 0
+fi
+
+# ── PATH setup ────────────────────────────────────────────────────────────────
+# Xcode build-phase scripts run with a minimal PATH (/usr/bin:/bin only).
+# Add standard Homebrew locations so cmake and ninja are discoverable.
+export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+
 # Resolve the Flutter project root from Xcode's PROJECT_DIR (which is macos/).
 PROJECT_ROOT="${PROJECT_DIR}/.."
 NCPU="$(sysctl -n hw.ncpu)"
@@ -28,15 +45,15 @@ RUNNER_DIR="${PROJECT_DIR}/Runner"
 echo "▶ Building libaudio_input.dylib..."
 
 BUILD_AUDIO="${PROJECT_ROOT}/native_audio/build_mac"
-mkdir -p "${BUILD_AUDIO}"
 
-# Run CMake configure only when the cache is missing (avoids re-running on every build).
-if [ ! -f "${BUILD_AUDIO}/CMakeCache.txt" ]; then
-    cmake -S "${PROJECT_ROOT}/native_audio" \
-          -B "${BUILD_AUDIO}" \
-          -DCMAKE_BUILD_TYPE=Release \
-          -Wno-dev
-fi
+# Always re-run configure: CMakeCache.txt embeds absolute paths, so a stale
+# cache from a different checkout (or committed build dir) would cause CMake
+# to reject the source tree with a path mismatch error.
+rm -f "${BUILD_AUDIO}/CMakeCache.txt"
+cmake -S "${PROJECT_ROOT}/native_audio" \
+      -B "${BUILD_AUDIO}" \
+      -DCMAKE_BUILD_TYPE=Release \
+      -Wno-dev
 
 cmake --build "${BUILD_AUDIO}" --parallel "${NCPU}"
 
@@ -60,16 +77,14 @@ if [ ! -d "${VST3_SDK_DIR}" ]; then
 fi
 
 BUILD_VST="${PROJECT_ROOT}/packages/flutter_vst3/dart_vst_host/native/build"
-mkdir -p "${BUILD_VST}"
 
-# Run CMake configure only when the cache is missing.
-if [ ! -f "${BUILD_VST}/CMakeCache.txt" ]; then
-    VST3_SDK_DIR="${VST3_SDK_DIR}" \
-    cmake -S "${PROJECT_ROOT}/packages/flutter_vst3/dart_vst_host/native" \
-          -B "${BUILD_VST}" \
-          -DCMAKE_BUILD_TYPE=Release \
-          -Wno-dev
-fi
+# Always re-run configure for the same reason as libaudio_input above.
+rm -f "${BUILD_VST}/CMakeCache.txt"
+VST3_SDK_DIR="${VST3_SDK_DIR}" \
+cmake -S "${PROJECT_ROOT}/packages/flutter_vst3/dart_vst_host/native" \
+      -B "${BUILD_VST}" \
+      -DCMAKE_BUILD_TYPE=Release \
+      -Wno-dev
 
 VST3_SDK_DIR="${VST3_SDK_DIR}" cmake --build "${BUILD_VST}" --parallel "${NCPU}"
 
