@@ -464,5 +464,14 @@
   "rackAddChordExpandSubtitle": "Expand each note into a full chord voicing (MIDI FX)",
 
   "rackAddArpeggiator": "Arpeggiator",
-  "rackAddArpeggiatorSubtitle": "Arpeggiate held notes in a rhythmic sequence (MIDI FX)"
+  "rackAddArpeggiatorSubtitle": "Arpeggiate held notes in a rhythmic sequence (MIDI FX)",
+
+  "rackAddTransposer": "Transposer",
+  "rackAddTransposerSubtitle": "Shift all notes up or down by ±24 semitones (MIDI FX)",
+
+  "rackAddVelocityCurve": "Velocity Curve",
+  "rackAddVelocityCurveSubtitle": "Remap velocity with a power, sigmoid, or fixed curve (MIDI FX)",
+
+  "rackAddGate": "Gate",
+  "rackAddGateSubtitle": "Filter notes by velocity range and pitch range (MIDI FX)"
 }

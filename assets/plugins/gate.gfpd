@@ -1,0 +1,82 @@
+spec: "1.0"
+id: "com.grooveforge.gate"
+name: "Gate"
+version: "1.0.0"
+type: midi_fx
+
+# Filters out notes that fall outside a velocity range or a pitch range.
+# A note-on passes only when BOTH of the following hold:
+#   minVelocity ≤ velocity ≤ maxVelocity
+#   minPitch    ≤ pitch    ≤ maxPitch
+#
+# Suppressed note-ons are tracked so the matching note-off is also suppressed
+# — preventing stuck notes when parameters change while notes are held.
+# Non-note events (CC, pitch-bend, aftertouch) always pass through unchanged.
+#
+# Common use cases:
+#   • Velocity gate: raise minVelocity to ignore accidental ghost notes.
+#   • Zone split: restrict minPitch / maxPitch to route a keyboard region.
+#   • Velocity window: set both min and max to let only a narrow dynamic band
+#     through (e.g., only fortissimo hits for a rimshot effect).
+
+parameters:
+  # Lower velocity threshold. Notes softer than this are suppressed.
+  - id: min_velocity
+    paramId: 0
+    name: "Min Vel"
+    min: 0
+    max: 127
+    default: 0
+
+  # Upper velocity threshold. Notes louder than this are suppressed.
+  - id: max_velocity
+    paramId: 1
+    name: "Max Vel"
+    min: 0
+    max: 127
+    default: 127
+
+  # Lowest MIDI note number that may pass through (0 = C−2).
+  - id: min_pitch
+    paramId: 2
+    name: "Min Note"
+    min: 0
+    max: 127
+    default: 0
+
+  # Highest MIDI note number that may pass through (127 = G9).
+  - id: max_pitch
+    paramId: 3
+    name: "Max Note"
+    min: 0
+    max: 127
+    default: 127
+
+midi_nodes:
+  - id: g
+    type: gate
+    params:
+      minVelocity: { param: min_velocity }
+      maxVelocity: { param: max_velocity }
+      minPitch:    { param: min_pitch }
+      maxPitch:    { param: max_pitch }
+
+ui:
+  layout: grid
+  groups:
+    - label: "Velocity"
+      controls:
+        - type: knob
+          param: min_velocity
+          label: "Min Vel"
+        - type: knob
+          param: max_velocity
+          label: "Max Vel"
+    - label: "Pitch"
+      controls:
+        - type: knob
+          param: min_pitch
+          label: "Min Note"
+        - type: knob
+          param: max_pitch
+          label: "Max Note"

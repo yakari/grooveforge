@@ -2167,6 +2167,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Arpeggiate held notes in a rhythmic sequence (MIDI FX)'**
   String get rackAddArpeggiatorSubtitle;
+
+  /// No description provided for @rackAddTransposer.
+  ///
+  /// In en, this message translates to:
+  /// **'Transposer'**
+  String get rackAddTransposer;
+
+  /// No description provided for @rackAddTransposerSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Shift all notes up or down by ±24 semitones (MIDI FX)'**
+  String get rackAddTransposerSubtitle;
+
+  /// No description provided for @rackAddVelocityCurve.
+  ///
+  /// In en, this message translates to:
+  /// **'Velocity Curve'**
+  String get rackAddVelocityCurve;
+
+  /// No description provided for @rackAddVelocityCurveSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Remap velocity with a power, sigmoid, or fixed curve (MIDI FX)'**
+  String get rackAddVelocityCurveSubtitle;
+
+  /// No description provided for @rackAddGate.
+  ///
+  /// In en, this message translates to:
+  /// **'Gate'**
+  String get rackAddGate;
+
+  /// No description provided for @rackAddGateSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Filter notes by velocity range and pitch range (MIDI FX)'**
+  String get rackAddGateSubtitle;
 }
 
 class _AppLocalizationsDelegate

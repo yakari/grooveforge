@@ -464,5 +464,14 @@
   "rackAddChordExpandSubtitle": "Développe chaque note en un accord complet (effet MIDI)",
 
   "rackAddArpeggiator": "Arpégiateur",
-  "rackAddArpeggiatorSubtitle": "Arpège les notes maintenues en séquence rythmique (effet MIDI)"
+  "rackAddArpeggiatorSubtitle": "Arpège les notes maintenues en séquence rythmique (effet MIDI)",
+
+  "rackAddTransposer": "Transposeur",
+  "rackAddTransposerSubtitle": "Décale toutes les notes de ±24 demi-tons (effet MIDI)",
+
+  "rackAddVelocityCurve": "Courbe de vélocité",
+  "rackAddVelocityCurveSubtitle": "Remappage de vélocité via courbe en puissance, sigmoïde ou valeur fixe (effet MIDI)",
+
+  "rackAddGate": "Gate",
+  "rackAddGateSubtitle": "Filtre les notes par plage de vélocité et de hauteur (effet MIDI)"
 }

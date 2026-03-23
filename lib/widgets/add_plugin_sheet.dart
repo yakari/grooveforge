@@ -574,6 +574,33 @@ class _AddPluginSheetContentState extends State<_AddPluginSheetContent> {
                 context, rack, 'com.grooveforge.arpeggiator',
               ),
             ),
+            _PluginTile(
+              icon: Icons.swap_vert,
+              iconColor: Colors.orangeAccent,
+              title: l10n.rackAddTransposer,
+              subtitle: l10n.rackAddTransposerSubtitle,
+              onTap: () => _addDescriptorPlugin(
+                context, rack, 'com.grooveforge.transposer',
+              ),
+            ),
+            _PluginTile(
+              icon: Icons.tune,
+              iconColor: Colors.yellowAccent,
+              title: l10n.rackAddVelocityCurve,
+              subtitle: l10n.rackAddVelocityCurveSubtitle,
+              onTap: () => _addDescriptorPlugin(
+                context, rack, 'com.grooveforge.velocity_curve',
+              ),
+            ),
+            _PluginTile(
+              icon: Icons.filter_alt,
+              iconColor: Colors.cyanAccent,
+              title: l10n.rackAddGate,
+              subtitle: l10n.rackAddGateSubtitle,
+              onTap: () => _addDescriptorPlugin(
+                context, rack, 'com.grooveforge.gate',
+              ),
+            ),
 
             // ── Load a custom .gfpd plugin from storage
             _PluginTile(

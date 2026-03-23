@@ -100,21 +100,40 @@ class TransposeNode extends GFMidiNode {
 //  GateNode  ("gate")
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Filters out notes whose velocity falls below a threshold.
+/// Filters out notes that fall outside a velocity range or a pitch range.
 ///
 /// **Node type key**: `"gate"`
 ///
 /// **Parameters**
-/// | name        | normalised range | semantic range   |
-/// |-------------|-----------------|------------------|
-/// | minVelocity | 0.0 → 1.0       | 0 → 127 velocity |
+/// | name        | normalised range | semantic range       |
+/// |-------------|-----------------|----------------------|
+/// | minVelocity | 0.0 → 1.0       | 0 → 127 velocity     |
+/// | maxVelocity | 0.0 → 1.0       | 0 → 127 velocity     |
+/// | minPitch    | 0.0 → 1.0       | 0 → 127 MIDI note    |
+/// | maxPitch    | 0.0 → 1.0       | 0 → 127 MIDI note    |
 ///
-/// Note-on events with `velocity < minVelocity` are suppressed. The
-/// corresponding note-off events are also suppressed so no stuck notes occur.
-/// Events that are not note-on/note-off pass through unchanged.
+/// A note-on passes only if both conditions hold:
+///   `minVelocity ≤ velocity ≤ maxVelocity` **and**
+///   `minPitch ≤ pitch ≤ maxPitch`.
+///
+/// Suppressed note-ons are tracked so that the matching note-off is also
+/// suppressed — preventing stuck notes when parameters change mid-hold.
+///
+/// Events that are not note-on/note-off (CC, pitch-bend, …) always pass
+/// through unchanged. The fast path exits immediately when all parameters
+/// are at their defaults (gate fully open).
 class GateNode extends GFMidiNode {
-  /// Minimum velocity (0–127) for a note to pass the gate.
+  /// Lower velocity threshold (0–127). Default: 0 (no lower limit).
   int _minVelocity = 0;
+
+  /// Upper velocity threshold (0–127). Default: 127 (no upper limit).
+  int _maxVelocity = 127;
+
+  /// Lowest MIDI note number that may pass (0–127). Default: 0 (all pitches).
+  int _minPitch = 0;
+
+  /// Highest MIDI note number that may pass (0–127). Default: 127 (all pitches).
+  int _maxPitch = 127;
 
   /// Pitches currently gated (suppressed note-on received, note-off pending).
   ///
@@ -130,8 +149,15 @@ class GateNode extends GFMidiNode {
 
   @override
   void setParam(String paramName, double normalizedValue) {
-    if (paramName == 'minVelocity') {
-      _minVelocity = (normalizedValue * 127).round();
+    switch (paramName) {
+      case 'minVelocity':
+        _minVelocity = (normalizedValue * 127).round();
+      case 'maxVelocity':
+        _maxVelocity = (normalizedValue * 127).round();
+      case 'minPitch':
+        _minPitch = (normalizedValue * 127).round();
+      case 'maxPitch':
+        _maxPitch = (normalizedValue * 127).round();
     }
   }
 
@@ -140,7 +166,9 @@ class GateNode extends GFMidiNode {
     List<TimestampedMidiEvent> events,
     GFTransportContext transport,
   ) {
-    if (_minVelocity == 0) return events; // fast path — gate fully open
+    // Fast path: gate fully open (all default values — every note passes).
+    if (_minVelocity == 0 && _maxVelocity == 127 &&
+        _minPitch == 0 && _maxPitch == 127) { return events; }
 
     final output = <TimestampedMidiEvent>[];
     for (final e in events) {
@@ -155,13 +183,20 @@ class GateNode extends GFMidiNode {
     return output;
   }
 
+  /// Let the note-on through only if both velocity and pitch are in range.
+  ///
+  /// Blocked notes are added to [_gated] so the matching note-off is also
+  /// suppressed — no stuck notes if parameters change while notes are held.
   void _processGateNoteOn(
     TimestampedMidiEvent e,
     List<TimestampedMidiEvent> output,
   ) {
     final ch = e.midiChannel;
-    if (e.data2 < _minVelocity) {
-      // Velocity too low — suppress and remember for matching note-off.
+    final blocked = e.data2 < _minVelocity ||
+        e.data2 > _maxVelocity ||
+        e.data1 < _minPitch ||
+        e.data1 > _maxPitch;
+    if (blocked) {
       _gated[ch].add(e.data1);
     } else {
       output.add(e);
@@ -1089,4 +1124,182 @@ class ArpeggiateNode extends GFMidiNode {
 
   /// NOTE OFF status byte for [channel] (0x8n).
   int _noteOffStatus(int channel) => 0x80 | (channel & 0x0F);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  VelocityCurveNode  ("velocity_curve")
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Curve mode for [VelocityCurveNode].
+///
+/// Selects the mathematical function used to remap incoming note velocities.
+enum _VelocityCurveMode {
+  /// Power curve: v_out = (v_in / 127)^exponent × 127.
+  ///
+  /// The exponent is controlled by [VelocityCurveNode._amount]:
+  /// - 0.0 → exponent 0.25 (soft response: gentle press sounds louder)
+  /// - 0.5 → exponent 1.0  (linear: no change)
+  /// - 1.0 → exponent 4.0  (hard response: strong press needed for loud output)
+  power,
+
+  /// Sigmoid S-curve: compresses the mid-range and pushes extremes outward.
+  ///
+  /// Controlled by [VelocityCurveNode._amount]:
+  /// - 0.0 → gentle S (near-linear; almost no effect)
+  /// - 1.0 → steep S (sharp contrast between soft and loud zones)
+  ///
+  /// The output is always rescaled to span the full [1, 127] range.
+  sigmoid,
+
+  /// Fixed velocity: every note-on is given the same velocity regardless of
+  /// how hard the key was pressed.
+  ///
+  /// Controlled by [VelocityCurveNode._amount]:
+  /// - 0.0 → velocity 1 (minimum audible; 0 would be interpreted as note-off)
+  /// - 1.0 → velocity 127 (maximum)
+  fixed,
+}
+
+/// Remaps incoming note-on velocities using a configurable curve function.
+///
+/// **Node type key**: `"velocity_curve"`
+///
+/// **Parameters**
+/// | name   | normalised range | semantic meaning                                      |
+/// |--------|-----------------|-------------------------------------------------------|
+/// | mode   | 0.0 → 1.0       | Curve type: Power / Sigmoid / Fixed (index / 2)       |
+/// | amount | 0.0 → 1.0       | Curve intensity — or fixed output velocity in Fixed mode|
+///
+/// **Power mode** (mode = 0, default)
+/// Applies a power function: v_out = round(127 × (v_in / 127)^exponent), where
+/// exponent = 2^((amount − 0.5) × 4).  This spans 0.25 (soft response) through
+/// 1.0 (linear) to 4.0 (hard response) and short-circuits at amount ≈ 0.5.
+///
+/// **Sigmoid mode** (mode = 1)
+/// Applies a logistic S-curve centred at velocity 64.  The steepness parameter
+/// k = 4 + amount × 16 controls how sharply the curve transitions from the
+/// soft zone to the loud zone.  Output is always renormalised to [1, 127].
+///
+/// **Fixed mode** (mode = 2)
+/// Replaces every note-on velocity with a constant value derived from amount:
+/// v_out = max(1, round(amount × 127)).  Velocity 0 is never returned as it
+/// would be interpreted as a note-off by MIDI receivers.
+///
+/// Note-off events and all non-note events (CC, pitch-bend, …) are passed
+/// through unchanged.
+class VelocityCurveNode extends GFMidiNode {
+  /// Current curve mode. Default: power at the linear centre (no change).
+  _VelocityCurveMode _mode = _VelocityCurveMode.power;
+
+  /// Normalised curve intensity or fixed velocity [0.0, 1.0].
+  ///
+  /// Meaning depends on [_mode] — see class-level documentation.
+  /// Default 0.5 = linear (power exponent = 1.0, no remapping).
+  double _amount = 0.5;
+
+  VelocityCurveNode(super.nodeId);
+
+  @override
+  void initialize(GFMidiNodeContext context) {
+    // No host state needed — velocity remapping is self-contained.
+  }
+
+  @override
+  void setParam(String paramName, double normalizedValue) {
+    switch (paramName) {
+      case 'mode':
+        // 3 options (0–2) → normalise by (3 − 1) = 2.
+        final idx = (normalizedValue * 2).round().clamp(0, 2);
+        _mode = _VelocityCurveMode.values[idx];
+      case 'amount':
+        _amount = normalizedValue.clamp(0.0, 1.0);
+    }
+  }
+
+  @override
+  List<TimestampedMidiEvent> processMidi(
+    List<TimestampedMidiEvent> events,
+    GFTransportContext transport,
+  ) {
+    // Fast path: power mode at the linear centre — no remapping needed.
+    if (_mode == _VelocityCurveMode.power && (_amount - 0.5).abs() < 0.01) {
+      return events;
+    }
+
+    final output = <TimestampedMidiEvent>[];
+    for (final e in events) {
+      // Remap only genuine note-ons (data2 > 0 distinguishes them from the
+      // "note-on with velocity 0" alternative note-off form used by some gear).
+      output.add(e.isNoteOn && e.data2 > 0 ? _remapVelocity(e) : e);
+    }
+    return output;
+  }
+
+  /// Return [noteOn] with its velocity field replaced by the curve output.
+  ///
+  /// If the curve happens to produce the same velocity (e.g., linear power
+  /// at centre), the original event object is returned unchanged.
+  TimestampedMidiEvent _remapVelocity(TimestampedMidiEvent noteOn) {
+    final newVel = _computeVelocity(noteOn.data2);
+    if (newVel == noteOn.data2) return noteOn;
+    return TimestampedMidiEvent(
+      ppqPosition: noteOn.ppqPosition,
+      status: noteOn.status,
+      data1: noteOn.data1,
+      data2: newVel,
+    );
+  }
+
+  /// Route the velocity through the active curve function.
+  int _computeVelocity(int velocity) {
+    switch (_mode) {
+      case _VelocityCurveMode.power:
+        return _applyPower(velocity);
+      case _VelocityCurveMode.sigmoid:
+        return _applySigmoid(velocity);
+      case _VelocityCurveMode.fixed:
+        return _applyFixed();
+    }
+  }
+
+  /// Power-curve remapping.
+  ///
+  /// Exponent = 2^((amount − 0.5) × 4), giving a range of [0.25, 4.0]:
+  /// - Exponent < 1 (amount < 0.5): concave — soft press → brighter output.
+  /// - Exponent = 1 (amount ≈ 0.5): identity mapping (linear, no change).
+  /// - Exponent > 1 (amount > 0.5): convex — strong press required for volume.
+  int _applyPower(int velocity) {
+    final exponent = pow(2.0, (_amount - 0.5) * 4.0);
+    return (127.0 * pow(velocity / 127.0, exponent)).round().clamp(1, 127);
+  }
+
+  /// Sigmoid S-curve remapping.
+  ///
+  /// Maps velocity through 1 / (1 + e^(−k × (v/127 − 0.5))) and renormalises
+  /// so the output always spans [1, 127]:
+  /// - k = 4 + amount × 16 (steepness range: 4 → 20).
+  /// - Low k: gentle S-curve, near-linear. High k: sharp "snap" at v = 64.
+  int _applySigmoid(int velocity) {
+    final k = 4.0 + _amount * 16.0;
+
+    // Shift the input so 0.5 (velocity 64) sits at zero — centres the curve.
+    final x = velocity / 127.0 - 0.5;
+
+    // Compute the sigmoid output and its limits at the input extremes so we
+    // can renormalise back to [0, 1] regardless of steepness.
+    final halfK  = k * 0.5;
+    final sigMin = 1.0 / (1.0 + exp(halfK));   // sigmoid(−0.5) at v_in = 0
+    final sigMax = 1.0 / (1.0 + exp(-halfK));  // sigmoid(+0.5) at v_in = 127
+    final sigX   = 1.0 / (1.0 + exp(-k * x));
+
+    final normalized = (sigX - sigMin) / (sigMax - sigMin);
+    return (1 + (normalized * 126.0)).round().clamp(1, 127);
+  }
+
+  /// Fixed-velocity output: ignore the incoming velocity entirely.
+  ///
+  /// amount = 0.0 → velocity 1 (minimum audible);
+  /// amount = 1.0 → velocity 127 (maximum).
+  /// Velocity 0 is never returned to avoid it being misread as a note-off.
+  int _applyFixed() => max(1, (_amount * 127.0).round());
 }

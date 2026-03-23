@@ -30,6 +30,9 @@ const _kBundledGfpdAssets = [
   'assets/plugins/harmonizer.gfpd',
   'assets/plugins/chord_expand.gfpd',
   'assets/plugins/arpeggiator.gfpd',
+  'assets/plugins/transposer.gfpd',
+  'assets/plugins/velocity_curve.gfpd',
+  'assets/plugins/gate.gfpd',
 ];
 
 /// Load and register all bundled `.gfpd` plugins before the first frame.

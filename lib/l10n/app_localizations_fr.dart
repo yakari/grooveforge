@@ -1156,4 +1156,25 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get rackAddArpeggiatorSubtitle =>
       'Arpège les notes maintenues en séquence rythmique (effet MIDI)';
+
+  @override
+  String get rackAddTransposer => 'Transposeur';
+
+  @override
+  String get rackAddTransposerSubtitle =>
+      'Décale toutes les notes de ±24 demi-tons (effet MIDI)';
+
+  @override
+  String get rackAddVelocityCurve => 'Courbe de vélocité';
+
+  @override
+  String get rackAddVelocityCurveSubtitle =>
+      'Remappage de vélocité via courbe en puissance, sigmoïde ou valeur fixe (effet MIDI)';
+
+  @override
+  String get rackAddGate => 'Gate';
+
+  @override
+  String get rackAddGateSubtitle =>
+      'Filtre les notes par plage de vélocité et de hauteur (effet MIDI)';
 }
