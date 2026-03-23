@@ -1284,15 +1284,19 @@ nodes:
 New MIDI FX after these are just `.gfpd` files composing existing nodes — **no code required**.
 
 **Implementation path:**
-- [ ] `GFMidiNode` / `GFMidiGraph` — parallel to `GFDspNode` / `GFDspGraph`, pure Dart
-- [ ] Extend `GFDescriptorPlugin` to handle `type: midi_fx`, wrapping a `GFMidiGraph` as a `GFMidiFxPlugin`
-- [ ] Implement the six built-in MIDI node types listed above
-- [ ] Ship `com.grooveforge.chord` and `com.grooveforge.arpeggiator` as `.gfpd` assets
+- [x] `GFMidiNode` / `GFMidiGraph` — parallel to `GFDspNode` / `GFDspGraph`, pure Dart
+- [x] Extend `GFDescriptorPlugin` to handle `type: midi_fx`, wrapping a `GFMidiGraph` as a `GFMidiFxPlugin`
+- [x] Implement the six built-in MIDI node types listed above
+- [x] Ship all six MIDI FX plugins as `.gfpd` assets (v2.8.0)
 
-| Asset                          | Type    | Description                                       | Status      |
-| ------------------------------ | ------- | ------------------------------------------------- | ----------- |
-| `com.grooveforge.chord`        | MIDI FX | Harmonizer: adds voiced intervals above each note | [ ] pending |
-| `com.grooveforge.arpeggiator`  | MIDI FX | BPM-synced arpeggiator, configurable pattern      | [ ] pending |
+| Asset                               | Type    | Description                                              | Status            |
+| ----------------------------------- | ------- | -------------------------------------------------------- | ----------------- |
+| `com.grooveforge.harmonizer`        | MIDI FX | Adds up to two harmony voices above each note            | ✅ bundled v2.8.0 |
+| `com.grooveforge.chord`             | MIDI FX | Expands each note into a full chord voicing (11 types)   | ✅ bundled v2.8.0 |
+| `com.grooveforge.arpeggiator`       | MIDI FX | BPM-synced arpeggiator, 6 patterns, 9 divisions          | ✅ bundled v2.8.0 |
+| `com.grooveforge.transposer`        | MIDI FX | Shifts all notes ±24 semitones                           | ✅ bundled v2.8.0 |
+| `com.grooveforge.velocity_curve`    | MIDI FX | Remaps velocity via power / sigmoid / fixed curve        | ✅ bundled v2.8.0 |
+| `com.grooveforge.gate`              | MIDI FX | Filters notes by velocity range and pitch range          | ✅ bundled v2.8.0 |
 
 #### Vocoder Mk2 — Design Notes
 
@@ -1541,21 +1545,22 @@ Plugins without `groups:` continue to work — controls fall into a single impli
 
 ### 10.1 — `.gfpd` Schema Extension
 
-- [ ] Add optional `groups:` key to `ui:` block in `.gfpd` schema; document in `HOW_TO_CREATE_A_PLUGIN.md`
-- [ ] `GFDescriptorLoader` parses group definitions; passes them to `GFDescriptorPluginUI`
-- [ ] Backward compat: descriptors without `groups:` render as a single flat responsive grid
+- [x] Add optional `groups:` key to `ui:` block in `.gfpd` schema; document in `HOW_TO_CREATE_A_PLUGIN.md`
+- [x] `GFDescriptorLoader` parses group definitions; passes them to `GFDescriptorPluginUI`
+- [x] Backward compat: descriptors without `groups:` render as a single flat responsive grid
 
 ### 10.2 — `GFDescriptorPluginUI` Responsive Layout
 
-- [ ] `LayoutBuilder`-driven: branch at 600 px and 360 px thresholds
-- [ ] Wide: all groups in a `Row`, each group a labeled `Column` of knobs
+- [x] `LayoutBuilder`-driven: branch at 600 px and 360 px thresholds
+- [x] Wide: all groups in a `Row`, each group a labeled `Column` of knobs
+- [x] Narrow (phone portrait): `ExpansionTile` per group, 2-column knob grid inside
+- [x] Knob grid uses `Wrap` with adaptive item width, never `GridView` with fixed column count
 - [ ] Medium (phone landscape / small tablet): `TabBar` + `TabBarView` per group
-- [ ] Narrow (phone portrait): `ExpansionTile` per group, 2-column knob grid inside
-- [ ] Knob grid uses `Wrap` with adaptive item width, never `GridView` with fixed column count
 
 ### 10.3 — Update Existing Bundled `.gfpd` Files
 
-- [ ] Add `groups:` to all six bundled effects (reverb, delay, EQ, compressor, chorus, wah) with logical groupings (e.g. reverb: Main / Tone / Advanced)
+- [x] Add `groups:` to all six bundled audio effects (reverb, delay, EQ, compressor, chorus, wah)
+- [x] Add `groups:` to all six bundled MIDI FX plugins (harmonizer, chord, arp, transposer, velocity curve, gate)
 - [ ] Validate layout at phone portrait (360 × 800), phone landscape (800 × 360), tablet portrait (768 × 1024), desktop (1280+)
 
 ### 10.4 — VST3 Slot UI (already uses chips — verify mobile)
@@ -1565,7 +1570,7 @@ Plugins without `groups:` continue to work — controls fall into a single impli
 
 ### 10.5 — Localization
 
-- [ ] No new user-visible strings expected (group labels come from `.gfpd` descriptors, not ARB files)
+- [x] No new user-visible strings needed (group labels come from `.gfpd` descriptors, not ARB files)
 
 ### 10.6 — Testing
 
@@ -1640,7 +1645,7 @@ All keys below are **reserved immediately** in the current `ProjectService` to a
 | `2.5.0` | Phase 6  | ✅ Complete   | MIDI Looper (BPM-synced, per-slot, multi-track overdub, live playback quantization pending) |
 | `2.6.0` | Phase 7  | ✅ Complete   | VST3 effect plugin support (effect slot UI, insert FX chain shortcut per instrument slot) |
 | `2.7.0` | Phase 8 (Tier 1) | ✅ Complete | GFPA Tier 1: six bundled first-party effects as `.gfpd` + native C++ DSP (Android, Linux, macOS); GF Keyboard on macOS |
-| `2.8.0` | Phase 8 + Phase 10 | 🔜 Next | MIDI FX node system + harmonizer + arpeggiator (`.gfpd`); responsive plugin panel UI |
+| `2.8.0` | Phase 8 + Phase 10 | ✅ Complete | MIDI FX node system + 6 plugins (harmonizer, chord expand, arpeggiator, transposer, velocity curve, gate); responsive plugin panel `groups:`; vocoder MIDI OUT |
 | `3.0.0` | Phase 8 (full) | 🔜 TODO | Publish `grooveforge_plugin_api` to pub.dev; plugin store browser; vocoder mk2   |
 | `3.1.0` | Phase 8b | 🔜 TODO      | AudioUnit v3 bridge (macOS + iOS) — hosts AUv3 ecosystem plugins                 |
 | `3.2.0` | Phase 9  | 🔜 TODO      | Audio looper (PCM, requires audio graph from Phase 5)                            |
@@ -1649,4 +1654,4 @@ All keys below are **reserved immediately** in the current `ProjectService` to a
 
 ---
 
-*Last updated: 2026-03-22 — Phases 1–7 complete (v2.0.0–v2.6.0). Phase 8 Tier 1 shipped with v2.7.0: six bundled GFPA effects as `.gfpd` + native C++ DSP on Android/Linux/macOS, GF Keyboard on macOS. Next (v2.8.0): MIDI FX node system enabling harmonizer + arpeggiator as `.gfpd` files (pure Dart, no C++), plus responsive plugin panel UI (Phase 10). Then v3.0.0: pub.dev publishing, plugin store, vocoder mk2. Phases 8b, 9 pending.*
+*Last updated: 2026-03-24 — Phases 1–8 (Tier 1 + MIDI FX) + Phase 10 complete (v2.0.0–v2.8.0). v2.8.0 ships the full MIDI FX node system: six pure-Dart plugins (Harmonizer, Chord Expand, Arpeggiator, Transposer, Velocity Curve, Gate) as `.gfpd` assets, plus vocoder MIDI OUT jack and responsive plugin panel `groups:`. Next (v3.0.0): pub.dev publishing of `grooveforge_plugin_api`, in-app plugin store browser, vocoder mk2. Phases 8b (AudioUnit), 9 (audio looper), 8c (AAP) pending.*
