@@ -1132,4 +1132,11 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get rackAddHarmonizerSubtitle =>
       'Add harmony voices to any MIDI input (MIDI FX)';
+
+  @override
+  String get rackAddChordExpand => 'Chord Expand';
+
+  @override
+  String get rackAddChordExpandSubtitle =>
+      'Expand each note into a full chord voicing (MIDI FX)';
 }

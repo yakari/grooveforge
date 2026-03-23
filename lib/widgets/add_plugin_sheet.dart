@@ -556,6 +556,15 @@ class _AddPluginSheetContentState extends State<_AddPluginSheetContent> {
                 context, rack, 'com.grooveforge.harmonizer',
               ),
             ),
+            _PluginTile(
+              icon: Icons.piano,
+              iconColor: Colors.purpleAccent,
+              title: l10n.rackAddChordExpand,
+              subtitle: l10n.rackAddChordExpandSubtitle,
+              onTap: () => _addDescriptorPlugin(
+                context, rack, 'com.grooveforge.chord',
+              ),
+            ),
 
             // ── Load a custom .gfpd plugin from storage
             _PluginTile(

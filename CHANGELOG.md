@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [X.x.x]
 
 ### Added
+- **Chord Expand MIDI FX plugin** (`com.grooveforge.chord`) in "Add Plugin" menu: expands each incoming note into a full chord voicing. The original note passes through as the root; the remaining chord tones are added above it. 11 chord qualities available (Major, Minor, Dim, Aug, Sus2, Sus4, Dom7, Maj7, Min7, Half-dim, Dim7). Three spread modes: Close (stacked within one octave), Open (drop-2 style, alternate notes raised an octave), Wide (all non-root tones up one octave). Scale Lock snaps every chord tone to the active Jam Mode scale.
+- **`ChordExpandNode`** built-in MIDI node (`type: chord_expand`): pure-Dart implementation with per-note note-off tracking to guarantee no stuck notes even when chord type or spread changes while notes are held.
+
+### Added (previous)
 - **Harmonizer MIDI FX plugin** in "Add Plugin" menu: adds up to two harmony voices (default: major third + perfect fifth) above every note played on any instrument. Intervals are configurable (0–24 semitones); Scale Lock snaps harmony pitches to the active Jam Mode scale.
 - **MIDI FX node architecture** (`type: midi_fx` in `.gfpd`): pure-Dart processing chain — `GFMidiNode` / `GFMidiGraph` / `GFMidiNodeRegistry` — mirrors the audio DSP node system. Three built-in nodes: `transpose` (pitch shift ±24 st), `harmonize` (scale-aware harmony voices), `gate` (velocity threshold filter).
 - **Responsive plugin UI groups** (`groups:` in `.gfpd`): controls can be organized into labelled sections. On screens ≥ 600 px groups display as side-by-side columns; on narrow phones each group collapses to a tappable `ExpansionTile`.

@@ -1142,4 +1142,11 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get rackAddHarmonizerSubtitle =>
       'Ajoute des voix harmoniques à toute entrée MIDI (effet MIDI)';
+
+  @override
+  String get rackAddChordExpand => 'Chord Expand';
+
+  @override
+  String get rackAddChordExpandSubtitle =>
+      'Développe chaque note en un accord complet (effet MIDI)';
 }

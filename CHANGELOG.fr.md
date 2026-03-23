@@ -8,6 +8,10 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 ## [X.x.x]
 
 ### Ajouté
+- **Plugin MIDI FX Chord Expand** (`com.grooveforge.chord`) dans le menu "Ajouter un plugin" : développe chaque note entrante en un accord complet. La note d'origine passe toujours en tant que fondamentale ; les autres notes de l'accord sont ajoutées au-dessus. 11 qualités d'accords disponibles (Majeur, Mineur, Diminué, Augmenté, Sus2, Sus4, Dom7, Maj7, Min7, demi-diminué, Dim7). Trois modes d'écartement : Serré (empilé dans une octave), Ouvert (style drop-2, notes alternées relevées d'une octave), Large (toutes les notes non fondamentales montées d'une octave). Le verrou de gamme ajuste chaque note de l'accord à la gamme Jam Mode active.
+- **Nœud intégré `ChordExpandNode`** (`type: chord_expand`) : implémentation 100 % Dart avec suivi par note des note-offs, garantissant l'absence de notes bloquées même si le type d'accord ou l'écartement change pendant qu'une note est maintenue.
+
+### Ajouté (précédent)
 - **Plugin MIDI FX Harmoniseur** dans le menu "Ajouter un plugin" : ajoute jusqu'à deux voix d'harmonie (par défaut : tierce majeure + quinte juste) au-dessus de chaque note jouée sur n'importe quel instrument. Les intervalles sont configurables (0–24 demi-tons) ; le verrou de gamme ajuste les voix à la gamme Jam Mode active.
 - **Architecture de nœuds MIDI FX** (`type: midi_fx` dans `.gfpd`) : chaîne de traitement 100 % Dart — `GFMidiNode` / `GFMidiGraph` / `GFMidiNodeRegistry` — en miroir du système de nœuds DSP audio. Trois nœuds intégrés : `transpose` (décalage ±24 demi-tons), `harmonize` (voix harmoniques accordées à la gamme), `gate` (filtre par seuil de vélocité).
 - **UI de plugin responsive avec groupes** (`groups:` dans `.gfpd`) : les contrôles peuvent être organisés en sections étiquetées. Sur les écrans ≥ 600 px les groupes s'affichent côte à côte ; sur téléphone, chaque groupe se replie en `ExpansionTile`.

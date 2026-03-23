@@ -97,7 +97,16 @@ class _VirtualPianoState extends State<VirtualPiano> {
   void didUpdateWidget(covariant VirtualPiano old) {
     super.didUpdateWidget(old);
     if (widget.activeNotes.isNotEmpty && old.activeNotes != widget.activeNotes) {
-      _scrollToNote(widget.activeNotes.last);
+      // Only scroll when new notes are added (ignore releases — no need to
+      // reposition on note-off).
+      final added = widget.activeNotes.difference(old.activeNotes);
+      if (added.isEmpty) return;
+
+      // Scroll to the first newly added note, not the last one in the full set.
+      // MIDI FX nodes (HarmonizeNode, ChordExpandNode, …) always emit the
+      // original user-pressed event first, then any generated tones — so
+      // `added.first` is always the note the user actually played.
+      _scrollToNote(added.first);
     }
   }
 

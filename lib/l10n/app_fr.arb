@@ -458,5 +458,8 @@
 
   "rackAddMidiFxSectionLabel": "Effets MIDI intégrés",
   "rackAddHarmonizer": "Harmoniseur",
-  "rackAddHarmonizerSubtitle": "Ajoute des voix harmoniques à toute entrée MIDI (effet MIDI)"
+  "rackAddHarmonizerSubtitle": "Ajoute des voix harmoniques à toute entrée MIDI (effet MIDI)",
+
+  "rackAddChordExpand": "Chord Expand",
+  "rackAddChordExpandSubtitle": "Développe chaque note en un accord complet (effet MIDI)"
 }

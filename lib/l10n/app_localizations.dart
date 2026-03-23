@@ -2143,6 +2143,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Add harmony voices to any MIDI input (MIDI FX)'**
   String get rackAddHarmonizerSubtitle;
+
+  /// No description provided for @rackAddChordExpand.
+  ///
+  /// In en, this message translates to:
+  /// **'Chord Expand'**
+  String get rackAddChordExpand;
+
+  /// No description provided for @rackAddChordExpandSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Expand each note into a full chord voicing (MIDI FX)'**
+  String get rackAddChordExpandSubtitle;
 }
 
 class _AppLocalizationsDelegate

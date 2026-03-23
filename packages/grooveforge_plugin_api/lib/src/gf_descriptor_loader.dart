@@ -65,6 +65,7 @@ class GFDescriptorLoader {
     reg.register('transpose', (id) => TransposeNode(id));
     reg.register('gate', (id) => GateNode(id));
     reg.register('harmonize', (id) => HarmonizeNode(id));
+    reg.register('chord_expand', (id) => ChordExpandNode(id));
   }
 
   // ── Parse + register ───────────────────────────────────────────────────────

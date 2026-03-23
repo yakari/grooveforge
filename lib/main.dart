@@ -28,6 +28,7 @@ const _kBundledGfpdAssets = [
   'assets/plugins/chorus.gfpd',
   // MIDI FX plugins.
   'assets/plugins/harmonizer.gfpd',
+  'assets/plugins/chord_expand.gfpd',
 ];
 
 /// Load and register all bundled `.gfpd` plugins before the first frame.
