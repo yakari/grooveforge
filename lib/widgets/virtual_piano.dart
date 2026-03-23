@@ -102,11 +102,16 @@ class _VirtualPianoState extends State<VirtualPiano> {
       final added = widget.activeNotes.difference(old.activeNotes);
       if (added.isEmpty) return;
 
-      // Scroll to the first newly added note, not the last one in the full set.
-      // MIDI FX nodes (HarmonizeNode, ChordExpandNode, …) always emit the
-      // original user-pressed event first, then any generated tones — so
-      // `added.first` is always the note the user actually played.
-      _scrollToNote(added.first);
+      // Only follow notes that the user is physically pressing on this widget.
+      // Autonomous MIDI FX events — arp steps cycling through octaves, timer-
+      // driven chord voices — must NOT steal the viewport.  Scrolling away from
+      // the user's hand makes the keyboard unplayable when a wide-range arp is
+      // active.  Harmonizer / ChordExpand notes are fine: the root note the user
+      // pressed is always among the added set, so it will be found here and used
+      // as the scroll target instead of any generated upper voices.
+      final userNotes = Set<int>.from(_pointerNote.values);
+      final matching = added.where(userNotes.contains);
+      if (matching.isNotEmpty) _scrollToNote(matching.first);
     }
   }
 

@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import '../gf_midi_event.dart';
 import '../gf_transport_context.dart';
 import 'gf_midi_node.dart';
@@ -535,4 +537,556 @@ class ChordExpandNode extends GFMidiNode {
     }
     return midiNote; // fallback: scale empty or note at boundary
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  ArpeggiateNode  ("arpeggiate")
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Step division durations in quarter-note beats.
+///
+/// | Index | Name   | Beats   | At 120 BPM |
+/// |-------|--------|---------|------------|
+/// | 0     | 1/4    | 1.000   | 500 ms     |
+/// | 1     | 1/8    | 0.500   | 250 ms     |
+/// | 2     | 1/16   | 0.250   | 125 ms     |
+/// | 3     | 1/32   | 0.125   |  62 ms     |
+/// | 4     | 1/64   | 0.0625  |  31 ms     |
+/// | 5     | 1/4T   | 0.667   | 333 ms     |
+/// | 6     | 1/8T   | 0.333   | 167 ms     |
+/// | 7     | 1/16T  | 0.167   |  83 ms     |
+/// | 8     | 1/32T  | 0.083   |  42 ms     |
+///
+/// Triplet values use exact fractions (2/3, 1/3, 1/6, 1/12 beats) so they
+/// stay precisely in a three-against-two relationship at any tempo.
+const List<double> _kArpDivisionBeats = [
+  1.0,      // 0 — 1/4
+  0.5,      // 1 — 1/8
+  0.25,     // 2 — 1/16
+  0.125,    // 3 — 1/32
+  0.0625,   // 4 — 1/64
+  2 / 3,    // 5 — 1/4T
+  1 / 3,    // 6 — 1/8T
+  1 / 6,    // 7 — 1/16T
+  1 / 12,   // 8 — 1/32T
+];
+
+/// Arpeggiator playback pattern.
+///
+/// Controls the order in which held pitches are visited each cycle.
+enum _ArpPattern {
+  /// Pitches in ascending order: C → E → G → C → …
+  up,
+
+  /// Pitches in descending order: G → E → C → G → …
+  down,
+
+  /// Ping-pong ascending then descending, endpoints not repeated:
+  /// C → E → G → E → C → E → …
+  upDown,
+
+  /// Ping-pong descending then ascending, endpoints not repeated:
+  /// G → E → C → E → G → E → …
+  downUp,
+
+  /// Notes in the order the user pressed them.
+  asPlayed,
+
+  /// A random pitch from the held set is chosen each step.
+  random,
+}
+
+/// Mutable arpeggiator state for a single MIDI channel.
+///
+/// Separated from [ArpeggiateNode] to keep per-channel bookkeeping tidy.
+/// One instance lives in the 16-element [ArpeggiateNode._channels] list.
+class _ArpChannelState {
+  /// Pitches currently held by the player, in press order (oldest → index 0).
+  ///
+  /// Maintained as an ordered list so the [_ArpPattern.asPlayed] pattern
+  /// can reproduce the exact key-press sequence.
+  final List<int> heldOrder = [];
+
+  /// Velocity at which each currently-held pitch was pressed.
+  ///
+  /// Used so arp-generated notes inherit the dynamics of the held note they
+  /// originate from (or the closest one when octave-shifted).
+  final Map<int, int> heldVelocity = {};
+
+  /// Current step index, incremented each time a new step fires.
+  ///
+  /// The effective position in the pattern is `stepIndex % sequence.length`,
+  /// so the arp loops indefinitely without overflow risk.
+  int stepIndex = 0;
+
+  /// MIDI pitch of the note currently sounding from the arpeggiator.
+  ///
+  /// Null when the arp is silent (between steps or fully stopped).
+  int? currentPitch;
+
+  /// Wall-clock timestamp (µs) when the current step started.
+  ///
+  /// Zero means the arp has not yet started for this channel (no notes held).
+  int stepStartUs = 0;
+
+  /// True once the gate note-off for the current step has been sent.
+  ///
+  /// Prevents double note-offs when the gate fraction of a step elapses
+  /// before the full step duration does (i.e. gate < 100%).
+  bool noteOffSent = false;
+
+  /// Reset all state when the arp stops (held notes becomes empty).
+  void clear() {
+    heldOrder.clear();
+    heldVelocity.clear();
+    stepIndex = 0;
+    currentPitch = null;
+    stepStartUs = 0;
+    noteOffSent = false;
+  }
+}
+
+/// Arpeggiates held notes in a rhythmic sequence.
+///
+/// Incoming note-ons and note-offs are suppressed and used only to update the
+/// "held notes" set. The arpeggiator then emits its own note-on / note-off
+/// sequence at the configured tempo division, gate, and pattern.
+///
+/// **Node type key**: `"arpeggiate"`
+///
+/// **Parameters**
+/// | name     | normalised range | semantic meaning                             |
+/// |----------|-----------------|----------------------------------------------|
+/// | pattern  | 0.0 → 1.0       | Up/Down/UpDown/DownUp/AsPlayed/Random (0–5)  |
+/// | division | 0.0 → 1.0       | 1/4 / 1/8 / 1/16 / 1/32 / 1/64 / 1/4T / 1/8T / 1/16T / 1/32T |
+/// | gate     | 0.0 → 1.0       | Note hold fraction: 10%–100% of step         |
+/// | octaves  | 0.0 → 1.0       | 1, 2, or 3 octaves (0–2 → 1–3)              |
+///
+/// **Wall-clock timing**
+/// Steps are driven by `DateTime.now().microsecondsSinceEpoch` rather than
+/// `GFTransportContext.positionInBeats`. This ensures the arp plays during
+/// live performance even when the sequencer transport is stopped.
+///
+/// **tick() / processMidi() feedback loop**
+/// `GFMidiGraph` calls `tick()` before `processMidi()`, then merges tick
+/// output into the incoming events stream for that same node.  The arp uses
+/// per-channel `_arpNoteOns` and `_arpNoteOffs` sets so `processMidi()` can
+/// distinguish its own tick-generated events (pass through) from the user's
+/// note events (update held state, suppress from output).
+class ArpeggiateNode extends GFMidiNode {
+  // ── Parameters ──────────────────────────────────────────────────────────────
+
+  /// Current playback pattern (see [_ArpPattern]). Default: ascending.
+  _ArpPattern _pattern = _ArpPattern.up;
+
+  /// Index into [_kArpDivisionBeats]. Default: 1/8 note.
+  int _divisionIndex = 1;
+
+  /// Fraction of each step that the note sounds: 0.1 (10 %) → 1.0 (100 %).
+  ///
+  /// Short gates (< 0.5) produce a staccato feel; long gates (> 0.9) blur
+  /// adjacent steps together and are useful for legato-style arpeggios.
+  double _gateRatio = 0.75;
+
+  /// Number of octaves the arpeggio spans: 1, 2, or 3.
+  ///
+  /// With octaves > 1 the base pitch set is repeated at +12 / +24 semitones
+  /// so the arp climbs up before cycling back to the root octave.
+  int _octaves = 1;
+
+  // ── Per-channel state ────────────────────────────────────────────────────────
+
+  /// Independent arpeggiator state for each of the 16 MIDI channels.
+  final List<_ArpChannelState> _channels =
+      List.generate(16, (_) => _ArpChannelState());
+
+  /// Pitches of arp-generated note-ons pending recognition in [processMidi].
+  ///
+  /// `tick()` adds a pitch here before emitting the note-on event.
+  /// `processMidi()` removes it when it sees the matching event, knowing to
+  /// pass it through rather than treating it as a user event.
+  final List<Set<int>> _arpNoteOns = List.generate(16, (_) => {});
+
+  /// Pitches of arp-generated note-offs pending recognition in [processMidi].
+  final List<Set<int>> _arpNoteOffs = List.generate(16, (_) => {});
+
+  // ── Misc ─────────────────────────────────────────────────────────────────────
+
+  /// Random number generator for the [_ArpPattern.random] mode.
+  final Random _random = Random();
+
+  ArpeggiateNode(super.nodeId);
+
+  // ── Lifecycle ────────────────────────────────────────────────────────────────
+
+  @override
+  void initialize(GFMidiNodeContext context) {
+    // Clear any stale held-note state (e.g. after a project reload).
+    for (final ch in _channels) {
+      ch.clear();
+    }
+  }
+
+  // ── Parameters ───────────────────────────────────────────────────────────────
+
+  @override
+  void setParam(String paramName, double normalizedValue) {
+    switch (paramName) {
+      case 'pattern':
+        // 6 patterns → normalise by (6 − 1) = 5.
+        final idx = (normalizedValue * 5).round().clamp(0, 5);
+        _pattern = _ArpPattern.values[idx];
+      case 'division':
+        // 9 options (indices 0–8) → normalise by (9 − 1) = 8.
+        _divisionIndex = (normalizedValue * 8).round().clamp(0, 8);
+      case 'gate':
+        // Map [0, 1] → [0.10, 1.0] so gate can never be fully silent.
+        _gateRatio = 0.1 + normalizedValue * 0.9;
+      case 'octaves':
+        // 3 options → normalise by 2; add 1 so the range is [1, 3].
+        _octaves = (normalizedValue * 2).round().clamp(0, 2) + 1;
+    }
+  }
+
+  // ── Time-driven event generation ─────────────────────────────────────────────
+
+  /// Generate arp note-ons / note-offs based on elapsed wall-clock time.
+  ///
+  /// Called by [GFMidiGraph] once per block, before [processMidi]. Output
+  /// events are then merged with incoming user events in the same block.
+  @override
+  List<TimestampedMidiEvent> tick(GFTransportContext transport) {
+    final nowUs = DateTime.now().microsecondsSinceEpoch;
+    final stepDurationUs = _computeStepDurationUs(transport.bpm);
+    // Gate note-off fires at this fraction of the step duration.
+    final gateOffUs = (stepDurationUs * _gateRatio).toInt();
+
+    final output = <TimestampedMidiEvent>[];
+    for (var ch = 0; ch < 16; ch++) {
+      _tickChannel(ch, nowUs, stepDurationUs, gateOffUs, output);
+    }
+    return output;
+  }
+
+  /// Advance the arpeggiator for channel [ch].
+  ///
+  /// Emits a gate note-off when [gateOffUs] has elapsed since the step start,
+  /// then advances to the next step when the full [stepDurationUs] has elapsed.
+  void _tickChannel(
+    int ch,
+    int nowUs,
+    int stepDurationUs,
+    int gateOffUs,
+    List<TimestampedMidiEvent> output,
+  ) {
+    final state = _channels[ch];
+    // Skip channels that have no held notes or have not yet started.
+    if (state.heldOrder.isEmpty || state.stepStartUs == 0) return;
+
+    final elapsed = nowUs - state.stepStartUs;
+
+    // ── Gate note-off: mute the note at (gateRatio × stepDuration) ───────────
+    if (!state.noteOffSent &&
+        state.currentPitch != null &&
+        elapsed >= gateOffUs) {
+      _emitArpNoteOff(ch, state.currentPitch!, output);
+      state.noteOffSent = true;
+    }
+
+    // ── Step advance: fire the next note once the step duration has elapsed ──
+    if (elapsed >= stepDurationUs) {
+      // Guarantee the gate note-off went out before the new note-on.
+      if (!state.noteOffSent && state.currentPitch != null) {
+        _emitArpNoteOff(ch, state.currentPitch!, output);
+        state.noteOffSent = true;
+      }
+      state.stepIndex++;
+      _fireStep(ch, state, output);
+      // Reset step clock — add overshoot to next step for drift-free timing.
+      state.stepStartUs = nowUs - (elapsed - stepDurationUs);
+    }
+  }
+
+  // ── MIDI event processing ────────────────────────────────────────────────────
+
+  @override
+  List<TimestampedMidiEvent> processMidi(
+    List<TimestampedMidiEvent> events,
+    GFTransportContext transport,
+  ) {
+    final output = <TimestampedMidiEvent>[];
+    for (final e in events) {
+      _processEvent(e, transport, output);
+    }
+    return output;
+  }
+
+  /// Route a single event to the appropriate handler.
+  ///
+  /// Arp-generated events (tracked in [_arpNoteOns] / [_arpNoteOffs]) are
+  /// passed through immediately. User note events update the held-note state
+  /// and are suppressed from the output stream. All other events pass through.
+  void _processEvent(
+    TimestampedMidiEvent e,
+    GFTransportContext transport,
+    List<TimestampedMidiEvent> output,
+  ) {
+    final ch = e.midiChannel;
+
+    // Arp-generated note-on: recognised and passed straight to the output.
+    if (e.isNoteOn && _arpNoteOns[ch].remove(e.data1)) {
+      output.add(e);
+      return;
+    }
+
+    // Arp-generated note-off: same pass-through treatment.
+    if (e.isNoteOff && _arpNoteOffs[ch].remove(e.data1)) {
+      output.add(e);
+      return;
+    }
+
+    // User note-on: update held state, fire first arp step if idle.
+    if (e.isNoteOn) {
+      _handleUserNoteOn(e, output);
+      return;
+    }
+
+    // User note-off: update held state, stop arp if all keys released.
+    if (e.isNoteOff) {
+      _handleUserNoteOff(e, output);
+      return;
+    }
+
+    // CC, pitch-bend, aftertouch, etc. pass through unchanged.
+    output.add(e);
+  }
+
+  /// Handle a user note-on: add the pitch to the held set.
+  ///
+  /// If the arp was idle (no held notes before this event), fires the first
+  /// arp step immediately — eliminating the one-tick latency that would occur
+  /// if we waited for the next [tick()] call (~10 ms).
+  void _handleUserNoteOn(
+    TimestampedMidiEvent e,
+    List<TimestampedMidiEvent> output,
+  ) {
+    final ch = e.midiChannel;
+    final pitch = e.data1;
+    final state = _channels[ch];
+    final wasEmpty = state.heldOrder.isEmpty;
+
+    // Avoid duplicating a pitch if the same key is re-triggered (e.g. glide).
+    if (!state.heldVelocity.containsKey(pitch)) {
+      state.heldOrder.add(pitch);
+    }
+    state.heldVelocity[pitch] = e.data2;
+
+    if (wasEmpty) {
+      // First key pressed: start the arp at step 0 with no delay.
+      state.stepIndex = 0;
+      state.stepStartUs = DateTime.now().microsecondsSinceEpoch;
+      _fireStep(ch, state, output);
+      // _fireStep() always adds the pitch to _arpNoteOns so that tick()-generated
+      // events can be recognised when GFMidiGraph merges them with incoming events.
+      // Here we are already *inside* processMidi — the note-on went straight to
+      // output and there is no pending tick event to consume the sentinel.  Leaving
+      // it in the set means a subsequent press of the same pitch (e.g. on a return
+      // glissando stroke) would be silently misidentified as an arp-generated event,
+      // causing _handleUserNoteOn to be skipped and the eventual release to emit no
+      // note-off — the note would then stick visually in activeNotes forever.
+      _arpNoteOns[ch].remove(state.currentPitch);
+    }
+    // When additional keys are pressed while the arp is already running,
+    // the new pitch will appear in the pattern on the next step naturally.
+  }
+
+  /// Handle a user note-off: remove the pitch from the held set.
+  ///
+  /// When the last held key is released, the currently-sounding arp note
+  /// receives an immediate note-off and all per-channel state is cleared.
+  void _handleUserNoteOff(
+    TimestampedMidiEvent e,
+    List<TimestampedMidiEvent> output,
+  ) {
+    final ch = e.midiChannel;
+    final pitch = e.data1;
+    final state = _channels[ch];
+
+    state.heldOrder.remove(pitch);
+    state.heldVelocity.remove(pitch);
+
+    if (state.heldOrder.isEmpty) {
+      // All keys released — stop the arp and silence any ringing note.
+      if (!state.noteOffSent && state.currentPitch != null) {
+        // Emit note-off directly (not via _arpNoteOffs; we are already
+        // inside processMidi and can write straight to output).
+        output.add(TimestampedMidiEvent(
+          ppqPosition: e.ppqPosition,
+          status: _noteOffStatus(ch),
+          data1: state.currentPitch!,
+          data2: 0,
+        ));
+      }
+      state.clear();
+    }
+  }
+
+  // ── Step helpers ─────────────────────────────────────────────────────────────
+
+  /// Emit the arp note for the current step of [state] on channel [ch].
+  ///
+  /// Builds the pitch set from the held notes (expanded across octaves),
+  /// picks the pitch for [state.stepIndex] according to [_pattern], and
+  /// appends a note-on event to [output].  The pitch is also added to
+  /// [_arpNoteOns] so [processMidi] can recognise it when tick() output is
+  /// merged into the incoming stream.
+  void _fireStep(
+    int ch,
+    _ArpChannelState state,
+    List<TimestampedMidiEvent> output,
+  ) {
+    final pitches = _buildPitches(state);
+    if (pitches.isEmpty) return;
+
+    final pitch = _patternPitch(pitches, state.stepIndex);
+    final velocity = _closestVelocity(pitch, state.heldVelocity);
+
+    _arpNoteOns[ch].add(pitch);
+    output.add(TimestampedMidiEvent(
+      ppqPosition: 0,
+      status: _noteOnStatus(ch),
+      data1: pitch,
+      data2: velocity,
+    ));
+    state.currentPitch = pitch;
+    state.noteOffSent = false;
+  }
+
+  /// Add an arp-generated note-off to [output] and track it in [_arpNoteOffs].
+  void _emitArpNoteOff(
+      int ch, int pitch, List<TimestampedMidiEvent> output) {
+    _arpNoteOffs[ch].add(pitch);
+    output.add(TimestampedMidiEvent(
+      ppqPosition: 0,
+      status: _noteOffStatus(ch),
+      data1: pitch,
+      data2: 0,
+    ));
+  }
+
+  // ── Pattern builders ─────────────────────────────────────────────────────────
+
+  /// Build the list of pitches the arpeggiator cycles through.
+  ///
+  /// For sorted patterns (Up / Down / UpDown / DownUp) the base pitches are
+  /// sorted ascending. For [_ArpPattern.asPlayed] / [_ArpPattern.random] the
+  /// press order is preserved. The list is then replicated at +12 / +24 st
+  /// when [_octaves] > 1, clipping at MIDI note 127.
+  List<int> _buildPitches(_ArpChannelState state) {
+    if (state.heldOrder.isEmpty) return const [];
+
+    // Choose base ordering: sorted for harmonic patterns, press-order otherwise.
+    final List<int> base;
+    if (_pattern == _ArpPattern.asPlayed || _pattern == _ArpPattern.random) {
+      base = List<int>.from(state.heldOrder);
+    } else {
+      base = List<int>.from(state.heldOrder)..sort();
+    }
+
+    if (_octaves == 1) return base;
+
+    // Expand across octaves: e.g. octaves=2 → [C4, E4, G4, C5, E5, G5].
+    final expanded = <int>[];
+    for (var oct = 0; oct < _octaves; oct++) {
+      for (final p in base) {
+        final shifted = p + oct * 12;
+        if (shifted <= 127) expanded.add(shifted);
+      }
+    }
+    return expanded;
+  }
+
+  /// Pick the arp pitch for the given [stepIndex] from [pitches].
+  ///
+  /// [_ArpPattern.random] ignores [stepIndex] and picks randomly.
+  /// All other patterns use [_buildSequence] to create a looping sequence.
+  int _patternPitch(List<int> pitches, int stepIndex) {
+    if (_pattern == _ArpPattern.random) {
+      return pitches[_random.nextInt(pitches.length)];
+    }
+    final seq = _buildSequence(pitches);
+    return seq[stepIndex % seq.length];
+  }
+
+  /// Build the full looping sequence for [pitches] based on [_pattern].
+  ///
+  /// | Pattern | Example for [C, E, G]     | Length  |
+  /// |---------|---------------------------|---------|
+  /// | Up      | [C, E, G]                 | N       |
+  /// | Down    | [G, E, C]                 | N       |
+  /// | UpDown  | [C, E, G, E] (ping-pong)  | 2(N−1)  |
+  /// | DownUp  | [G, E, C, E] (pong-ping)  | 2(N−1)  |
+  /// | AsPlayed| press order               | N       |
+  ///
+  /// For N = 1, all patterns return the single note (no ping-pong needed).
+  List<int> _buildSequence(List<int> pitches) {
+    if (pitches.length <= 1) return pitches;
+
+    switch (_pattern) {
+      case _ArpPattern.up:
+      case _ArpPattern.asPlayed:
+        return pitches;
+      case _ArpPattern.down:
+        return pitches.reversed.toList();
+      case _ArpPattern.upDown:
+        // Ascending + descending: skip both endpoints on the return to avoid
+        // repeating the top and bottom notes twice in a row.
+        // [C, E, G] → [C, E, G, E] — length = 2 × (N − 1)
+        return [
+          ...pitches,
+          ...pitches.reversed.skip(1).take(pitches.length - 2),
+        ];
+      case _ArpPattern.downUp:
+        final desc = pitches.reversed.toList();
+        return [
+          ...desc,
+          ...desc.reversed.skip(1).take(desc.length - 2),
+        ];
+      case _ArpPattern.random:
+        return pitches; // handled in _patternPitch, never reached here
+    }
+  }
+
+  // ── Utilities ────────────────────────────────────────────────────────────────
+
+  /// Compute the step duration in microseconds for the current [bpm] and
+  /// division index.
+  ///
+  /// Clamps [bpm] to 1 to avoid division by zero at stopped transport.
+  int _computeStepDurationUs(double bpm) {
+    final safeBpm = bpm < 1.0 ? 1.0 : bpm;
+    return (60000000.0 / safeBpm * _kArpDivisionBeats[_divisionIndex])
+        .toInt();
+  }
+
+  /// Return the velocity for an arp-generated [pitch] from [heldVelocity].
+  ///
+  /// Tries an exact pitch match first, then a pitch-class match (for notes
+  /// shifted up by octaves), and finally falls back to 100 (forte).
+  int _closestVelocity(int pitch, Map<int, int> heldVelocity) {
+    if (heldVelocity.isEmpty) return 100;
+    if (heldVelocity.containsKey(pitch)) return heldVelocity[pitch]!;
+    // Pitch-class match: C5 (60) velocity matches C4 (48) when octave-expanded.
+    final pc = pitch % 12;
+    for (final entry in heldVelocity.entries) {
+      if (entry.key % 12 == pc) return entry.value;
+    }
+    return heldVelocity.values.first;
+  }
+
+  /// NOTE ON status byte for [channel] (0x9n, velocity > 0 required).
+  int _noteOnStatus(int channel) => 0x90 | (channel & 0x0F);
+
+  /// NOTE OFF status byte for [channel] (0x8n).
+  int _noteOffStatus(int channel) => 0x80 | (channel & 0x0F);
 }

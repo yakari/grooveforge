@@ -29,6 +29,7 @@ const _kBundledGfpdAssets = [
   // MIDI FX plugins.
   'assets/plugins/harmonizer.gfpd',
   'assets/plugins/chord_expand.gfpd',
+  'assets/plugins/arpeggiator.gfpd',
 ];
 
 /// Load and register all bundled `.gfpd` plugins before the first frame.

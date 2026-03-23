@@ -748,9 +748,14 @@ class _PianoBody extends StatelessWidget {
     } else {
       // Route through any MIDI FX connected via patch cable (e.g. harmonizer)
       // before playing. Harmony notes are played on the same channel.
+      // Only note-on events trigger playNote — autonomous tick() calls inside
+      // _applyMidiChain can inject gate note-offs into the same output batch,
+      // and passing those to playNote would add stale pitches to activeNotes.
       final midiEvents = _applyMidiChain(context, note, 100);
       for (final e in midiEvents) {
-        engine.playNote(channel: channelIndex, key: e.data1, velocity: e.data2);
+        if (e.isNoteOn) {
+          engine.playNote(channel: channelIndex, key: e.data1, velocity: e.data2);
+        }
       }
       // Also feed any loopers connected to this slot's MIDI OUT so
       // on-screen keys are captured by the looper (e.g. GFK → Looper cable).
@@ -768,8 +773,13 @@ class _PianoBody extends StatelessWidget {
       engine.noteOffUiOnly(channel: channelIndex, key: note);
     } else {
       // Symmetric note-off for every voice the MIDI FX added at note-on time.
+      // Only note-off events trigger stopNote — tick() can return step note-ons
+      // in the same batch, and passing those to stopNote would prematurely erase
+      // pitches from activeNotes that the arp is still supposed to be playing.
       for (final e in _applyMidiChain(context, note, 0)) {
-        engine.stopNote(channel: channelIndex, key: e.data1);
+        if (e.isNoteOff) {
+          engine.stopNote(channel: channelIndex, key: e.data1);
+        }
       }
       // Mirror the note-on looper feed for note-off so held notes are
       // properly terminated in the recorded loop.

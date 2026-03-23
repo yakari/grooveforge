@@ -1139,4 +1139,11 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get rackAddChordExpandSubtitle =>
       'Expand each note into a full chord voicing (MIDI FX)';
+
+  @override
+  String get rackAddArpeggiator => 'Arpeggiator';
+
+  @override
+  String get rackAddArpeggiatorSubtitle =>
+      'Arpeggiate held notes in a rhythmic sequence (MIDI FX)';
 }

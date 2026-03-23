@@ -565,6 +565,15 @@ class _AddPluginSheetContentState extends State<_AddPluginSheetContent> {
                 context, rack, 'com.grooveforge.chord',
               ),
             ),
+            _PluginTile(
+              icon: Icons.auto_awesome,
+              iconColor: Colors.tealAccent,
+              title: l10n.rackAddArpeggiator,
+              subtitle: l10n.rackAddArpeggiatorSubtitle,
+              onTap: () => _addDescriptorPlugin(
+                context, rack, 'com.grooveforge.arpeggiator',
+              ),
+            ),
 
             // ── Load a custom .gfpd plugin from storage
             _PluginTile(

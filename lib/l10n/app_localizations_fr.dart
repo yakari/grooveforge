@@ -1149,4 +1149,11 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get rackAddChordExpandSubtitle =>
       'Développe chaque note en un accord complet (effet MIDI)';
+
+  @override
+  String get rackAddArpeggiator => 'Arpégiateur';
+
+  @override
+  String get rackAddArpeggiatorSubtitle =>
+      'Arpège les notes maintenues en séquence rythmique (effet MIDI)';
 }

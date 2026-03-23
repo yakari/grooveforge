@@ -61,6 +61,19 @@ class RackState extends ChangeNotifier {
   // the user stops adjusting before persisting.
   Timer? _bpmSaveDebounce;
 
+  /// Periodic timer that drives arpeggiator ticks on all instrument channels.
+  ///
+  /// Arpeggiators generate notes autonomously based on wall-clock time, but
+  /// [GFMidiGraph.processMidi] is only called when there are incoming user
+  /// events. When the user holds a chord and no new events arrive, this timer
+  /// fires every ~10 ms and injects an empty event list into each active
+  /// MIDI-FX chain so that [ArpeggiateNode.tick()] is invoked, advancing the
+  /// step sequence in real time.
+  ///
+  /// 10 ms corresponds to ±5 ms step-timing jitter — acceptable for musical
+  /// use since even 1/32 at 240 BPM is ~31 ms.
+  Timer? _midiFxTicker;
+
   RackState(this._engine, this._transport, this._audioGraph) {
     _engine.bpmProvider = () => _transport.bpm;
     _engine.isPlayingProvider = () => _transport.isPlaying;
@@ -77,6 +90,13 @@ class RackState extends ChangeNotifier {
     // Phase 5.4: whenever the audio graph changes, push the new topological
     // order and routing rules to the native ALSA/CoreAudio processing loop.
     _audioGraph.addListener(_onAudioGraphChanged);
+
+    // Drive arpeggiators with an independent 10 ms tick so they advance even
+    // when the user is holding notes and no fresh MIDI events are arriving.
+    _midiFxTicker = Timer.periodic(
+      const Duration(milliseconds: 10),
+      (_) => _tickMidiFx(),
+    );
   }
 
   /// Builds a map of keyboard slot plugin ID → per-slot FluidSynth sfId for
@@ -171,9 +191,52 @@ class RackState extends ChangeNotifier {
     }
   }
 
+  /// Called every ~10 ms to drive time-based MIDI FX nodes (e.g. arpeggiators).
+  ///
+  /// Pipes an empty event list through every registered MIDI FX plugin.
+  /// [GFMidiGraph.processMidi] calls [GFMidiNode.tick()] before
+  /// [GFMidiNode.processMidi], so arp nodes advance their step sequence and
+  /// emit note events even when no user events arrive (e.g. while holding a
+  /// chord with no new key presses).
+  ///
+  /// This covers both connection styles:
+  /// - **MIDI cable**: arpeggiator slot reached from a keyboard via
+  ///   `_applyMidiChain` in `rack_slot_widget.dart` (no `targetSlotIds` set).
+  /// - **targetSlotIds**: arpeggiator configured with explicit target slots
+  ///   (used by MIDI-controller-only channels without a cable).
+  ///
+  /// Arp-generated events carry the correct MIDI channel in their status byte
+  /// (inherited from the original user note-on), so `e.midiChannel` is used
+  /// directly to route them to the engine rather than looking up slot channels.
+  void _tickMidiFx() {
+    final transport = GFTransportContext(
+      bpm: _transport.bpm,
+      timeSigNumerator: _transport.timeSigNumerator,
+      timeSigDenominator: _transport.timeSigDenominator,
+      isPlaying: _transport.isPlaying,
+      positionInBeats: _transport.positionInBeats,
+    );
+
+    // Tick every registered MIDI FX instance. For non-arp plugins (harmonizer,
+    // chord expand) tick() returns [] and processMidi([]) returns [] — no cost.
+    for (final plugin in _midiFxInstances.values) {
+      final events = plugin.processMidi(const [], transport);
+      for (final e in events) {
+        // e.midiChannel is the 0-based channel nibble from the status byte.
+        final ch = e.midiChannel;
+        if (e.isNoteOn) {
+          _engine.playNote(channel: ch, key: e.data1, velocity: e.data2);
+        } else if (e.isNoteOff) {
+          _engine.stopNote(channel: ch, key: e.data1);
+        }
+      }
+    }
+  }
+
   @override
   void dispose() {
     _bpmSaveDebounce?.cancel();
+    _midiFxTicker?.cancel();
     _transport.removeListener(_onTransportChanged);
     _audioGraph.removeListener(_onAudioGraphChanged);
     for (final plugin in _midiFxInstances.values) {

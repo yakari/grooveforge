@@ -2155,6 +2155,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Expand each note into a full chord voicing (MIDI FX)'**
   String get rackAddChordExpandSubtitle;
+
+  /// No description provided for @rackAddArpeggiator.
+  ///
+  /// In en, this message translates to:
+  /// **'Arpeggiator'**
+  String get rackAddArpeggiator;
+
+  /// No description provided for @rackAddArpeggiatorSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Arpeggiate held notes in a rhythmic sequence (MIDI FX)'**
+  String get rackAddArpeggiatorSubtitle;
 }
 
 class _AppLocalizationsDelegate

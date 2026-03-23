@@ -461,5 +461,8 @@
   "rackAddHarmonizerSubtitle": "Add harmony voices to any MIDI input (MIDI FX)",
 
   "rackAddChordExpand": "Chord Expand",
-  "rackAddChordExpandSubtitle": "Expand each note into a full chord voicing (MIDI FX)"
+  "rackAddChordExpandSubtitle": "Expand each note into a full chord voicing (MIDI FX)",
+
+  "rackAddArpeggiator": "Arpeggiator",
+  "rackAddArpeggiatorSubtitle": "Arpeggiate held notes in a rhythmic sequence (MIDI FX)"
 }

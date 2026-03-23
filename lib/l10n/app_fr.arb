@@ -461,5 +461,8 @@
   "rackAddHarmonizerSubtitle": "Ajoute des voix harmoniques à toute entrée MIDI (effet MIDI)",
 
   "rackAddChordExpand": "Chord Expand",
-  "rackAddChordExpandSubtitle": "Développe chaque note en un accord complet (effet MIDI)"
+  "rackAddChordExpandSubtitle": "Développe chaque note en un accord complet (effet MIDI)",
+
+  "rackAddArpeggiator": "Arpégiateur",
+  "rackAddArpeggiatorSubtitle": "Arpège les notes maintenues en séquence rythmique (effet MIDI)"
 }
