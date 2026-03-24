@@ -173,43 +173,17 @@ class SlotBackPanelWidget extends StatelessWidget {
             const SizedBox(height: 10),
 
             // ── Jack sections laid out horizontally like a hardware rack ───
-            // MIDI and DATA sections are fixed-width; AUDIO takes remaining space.
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (midiPorts.isNotEmpty) ...[
-                  _JackSection(
-                    label: 'MIDI',
-                    ports: midiPorts,
-                    plugin: plugin,
-                    jackKeys: jackKeys,
-                    l10n: l10n,
-                  ),
-                  if (audioPorts.isNotEmpty || dataPorts.isNotEmpty)
-                    _sectionDivider(),
-                ],
-                if (audioPorts.isNotEmpty) ...[
-                  Expanded(
-                    child: _JackSection(
-                      label: 'AUDIO',
-                      ports: audioPorts,
-                      plugin: plugin,
-                      jackKeys: jackKeys,
-                      l10n: l10n,
-                      spreadEvenly: true,
-                    ),
-                  ),
-                  if (dataPorts.isNotEmpty) _sectionDivider(),
-                ],
-                if (dataPorts.isNotEmpty)
-                  _JackSection(
-                    label: 'DATA',
-                    ports: dataPorts,
-                    plugin: plugin,
-                    jackKeys: jackKeys,
-                    l10n: l10n,
-                  ),
-              ],
+            // On narrow phones (< 480 dp) sections stack vertically to avoid
+            // overflow; on wider screens the classic side-by-side row is used.
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final narrow = constraints.maxWidth < 480;
+                return narrow
+                    ? _buildNarrowSections(
+                        midiPorts, audioPorts, dataPorts, plugin, l10n)
+                    : _buildWideSections(
+                        midiPorts, audioPorts, dataPorts, plugin, l10n);
+              },
             ),
           ],
         ),
@@ -217,7 +191,100 @@ class SlotBackPanelWidget extends StatelessWidget {
     );
   }
 
-  /// A thin vertical separator between jack family sections.
+  /// Wide layout (≥ 480 dp): MIDI | AUDIO (expanded) | DATA in a single row,
+  /// mirroring the aesthetic of a real hardware rack.
+  Widget _buildWideSections(
+    List<AudioPortId> midiPorts,
+    List<AudioPortId> audioPorts,
+    List<AudioPortId> dataPorts,
+    PluginInstance plugin,
+    AppLocalizations l10n,
+  ) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (midiPorts.isNotEmpty) ...[
+          _JackSection(
+            label: 'MIDI',
+            ports: midiPorts,
+            plugin: plugin,
+            jackKeys: jackKeys,
+            l10n: l10n,
+          ),
+          if (audioPorts.isNotEmpty || dataPorts.isNotEmpty)
+            _sectionDivider(),
+        ],
+        if (audioPorts.isNotEmpty) ...[
+          Expanded(
+            child: _JackSection(
+              label: 'AUDIO',
+              ports: audioPorts,
+              plugin: plugin,
+              jackKeys: jackKeys,
+              l10n: l10n,
+              spreadEvenly: true,
+            ),
+          ),
+          if (dataPorts.isNotEmpty) _sectionDivider(),
+        ],
+        if (dataPorts.isNotEmpty)
+          _JackSection(
+            label: 'DATA',
+            ports: dataPorts,
+            plugin: plugin,
+            jackKeys: jackKeys,
+            l10n: l10n,
+          ),
+      ],
+    );
+  }
+
+  /// Narrow layout (< 480 dp): sections stacked vertically so that no section
+  /// is clipped or overflows on small phone screens.
+  Widget _buildNarrowSections(
+    List<AudioPortId> midiPorts,
+    List<AudioPortId> audioPorts,
+    List<AudioPortId> dataPorts,
+    PluginInstance plugin,
+    AppLocalizations l10n,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (midiPorts.isNotEmpty) ...[
+          _JackSection(
+            label: 'MIDI',
+            ports: midiPorts,
+            plugin: plugin,
+            jackKeys: jackKeys,
+            l10n: l10n,
+          ),
+          if (audioPorts.isNotEmpty || dataPorts.isNotEmpty)
+            const SizedBox(height: 10),
+        ],
+        if (audioPorts.isNotEmpty) ...[
+          _JackSection(
+            label: 'AUDIO',
+            ports: audioPorts,
+            plugin: plugin,
+            jackKeys: jackKeys,
+            l10n: l10n,
+          ),
+          if (dataPorts.isNotEmpty) const SizedBox(height: 10),
+        ],
+        if (dataPorts.isNotEmpty)
+          _JackSection(
+            label: 'DATA',
+            ports: dataPorts,
+            plugin: plugin,
+            jackKeys: jackKeys,
+            l10n: l10n,
+          ),
+      ],
+    );
+  }
+
+  /// A thin vertical separator between jack family sections (wide layout only).
   Widget _sectionDivider() => Container(
         width: 1,
         height: 64,

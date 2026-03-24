@@ -100,221 +100,342 @@ class _TransportBarState extends State<TransportBar>
       child: Consumer<TransportEngine>(
         builder: (context, transport, child) {
           final isPlaying = transport.isPlaying;
-
-          return Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // ── Supplementary-bars toggle ──────────────────────────────────
-              // Shown only when a notifier is wired in by RackScreen.
-              if (widget.supplementaryBarsVisible != null)
-                ValueListenableBuilder<bool>(
-                  valueListenable: widget.supplementaryBarsVisible!,
-                  builder: (ctx, visible, _) => Tooltip(
-                    message: l10n.audioSettingsBarToggleTooltip,
-                    child: IconButton(
-                      icon: Icon(
-                        visible
-                            ? Icons.expand_less
-                            : Icons.expand_more,
-                        size: 20,
-                      ),
-                      color: Colors.white54,
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(
-                        minWidth: 28,
-                        minHeight: 28,
-                      ),
-                      onPressed: () =>
-                          widget.supplementaryBarsVisible!.value = !visible,
-                    ),
-                  ),
-                ),
-
-              // Beat-pulse LED
-              AnimatedBuilder(
-                animation: _beatAnim,
-                builder: (context0, child0) {
-                  final t = _beatAnim.value;
-                  final targetColor =
-                      _isDownbeat ? Colors.redAccent : Colors.amberAccent;
-                  final color =
-                      Color.lerp(targetColor, Colors.grey[800], t)!;
-                  final scale = 1.0 + 0.35 * (1.0 - t);
-                  return Transform.scale(
-                    scale: scale,
-                    child: Container(
-                      width: 12,
-                      height: 12,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: isPlaying ? color : Colors.grey[800],
-                        boxShadow: isPlaying && t < 0.5
-                            ? [
-                                BoxShadow(
-                                  color: (_isDownbeat
-                                          ? Colors.redAccent
-                                          : Colors.amberAccent)
-                                      .withValues(
-                                          alpha: (1.0 - t * 2).clamp(0, 1)),
-                                  blurRadius: 8,
-                                  spreadRadius: 2,
-                                ),
-                              ]
-                            : null,
-                      ),
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(width: 12),
-
-              // Play/Stop button
-              IconButton(
-                icon: Icon(isPlaying ? Icons.stop : Icons.play_arrow),
-                color: isPlaying ? Colors.redAccent : Colors.greenAccent,
-                tooltip:
-                    isPlaying ? l10n.transportStop : l10n.transportPlay,
-                iconSize: 32,
-                onPressed: () {
-                  if (isPlaying) {
-                    transport.stop();
-                  } else {
-                    transport.play();
-                  }
-                },
-              ),
-              const SizedBox(width: 8),
-
-              // BPM nudge −, BPM display (scroll + tap-to-type), BPM nudge +
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _NudgeButton(
-                    icon: Icons.remove,
-                    onStart: () => _startNudge(transport, -1.0),
-                    onStop: _stopNudge,
-                  ),
-                  Listener(
-                    onPointerSignal: (event) {
-                      if (event is PointerScrollEvent) {
-                        // Scroll up (dy < 0) → increase BPM; scroll down → decrease.
-                        final delta = event.scrollDelta.dy > 0 ? -1.0 : 1.0;
-                        _nudgeBpm(transport, delta);
-                      }
-                    },
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: () => _showBpmDialog(context, transport),
-                        borderRadius: BorderRadius.circular(8),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 4),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                '${transport.bpm.round()}',
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              Text(
-                                l10n.transportBpm,
-                                style: const TextStyle(
-                                  fontSize: 10,
-                                  color: Colors.white70,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  _NudgeButton(
-                    icon: Icons.add,
-                    onStart: () => _startNudge(transport, 1.0),
-                    onStop: _stopNudge,
-                  ),
-                ],
-              ),
-              const Spacer(),
-
-              // Tap Tempo button
-              ElevatedButton(
-                onPressed: () => transport.tapTempo(),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  backgroundColor: Colors.blueGrey.shade800,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                child: Text(
-                  l10n.transportTapTempo.toUpperCase(),
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              const SizedBox(width: 16),
-
-              // Time Signature — tap to change
-              Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () => _showTimeSigDialog(context, transport),
-                  borderRadius: BorderRadius.circular(8),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 4),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          '${transport.timeSigNumerator} / ${transport.timeSigDenominator}',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                        Text(
-                          l10n.transportTimeSignature,
-                          style: const TextStyle(
-                            fontSize: 10,
-                            color: Colors.white70,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-
-              // Metronome toggle
-              Tooltip(
-                message: l10n.transportMetronome,
-                child: IconButton(
-                  icon: Icon(
-                    transport.metronomeEnabled
-                        ? Icons.music_note
-                        : Icons.music_off,
-                  ),
-                  color: transport.metronomeEnabled
-                      ? Colors.amberAccent
-                      : Colors.grey,
-                  iconSize: 22,
-                  onPressed: () {
-                    transport.metronomeEnabled = !transport.metronomeEnabled;
-                  },
-                ),
-              ),
-            ],
+          // Below 500 dp the single-row layout overflows — switch to two rows.
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              final compact = constraints.maxWidth < 500;
+              return compact
+                  ? _buildCompact(context, transport, isPlaying, l10n)
+                  : _buildWide(context, transport, isPlaying, l10n);
+            },
           );
+        },
+      ),
+    );
+  }
+
+  // ── Wide layout (≥ 500 dp) ───────────────────────────────────────────────
+
+  /// Single-row layout for tablets and desktops.
+  Widget _buildWide(
+    BuildContext context,
+    TransportEngine transport,
+    bool isPlaying,
+    AppLocalizations l10n,
+  ) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        _supplementaryToggle(l10n),
+        _beatLed(isPlaying),
+        const SizedBox(width: 12),
+        _playStopButton(transport, isPlaying, l10n),
+        const SizedBox(width: 8),
+        _bpmControl(context, transport, l10n),
+        const Spacer(),
+        _tapButton(transport, l10n),
+        const SizedBox(width: 16),
+        _timeSigButton(context, transport, l10n),
+        const SizedBox(width: 8),
+        _metronomeButton(transport, l10n),
+      ],
+    );
+  }
+
+  // ── Compact layout (< 500 dp) ────────────────────────────────────────────
+
+  /// Single-row compact layout for phones.
+  ///
+  /// Controls are split into a left cluster (toggle + LED + play + BPM) and a
+  /// right cluster (TAP + time sig + metronome), with [MainAxisAlignment.spaceBetween]
+  /// distributing the free space between them. Each element uses reduced icon
+  /// sizes, tighter padding, and no sub-labels to stay within ~350 dp.
+  Widget _buildCompact(
+    BuildContext context,
+    TransportEngine transport,
+    bool isPlaying,
+    AppLocalizations l10n,
+  ) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        // Left cluster: toggle · LED · play · BPM controls
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _supplementaryToggle(l10n),
+            _beatLed(isPlaying),
+            const SizedBox(width: 6),
+            _playStopButton(transport, isPlaying, l10n, compact: true),
+            const SizedBox(width: 2),
+            _bpmControl(context, transport, l10n, compact: true),
+          ],
+        ),
+        // Right cluster: TAP · time sig · metronome
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _tapButton(transport, l10n, compact: true),
+            const SizedBox(width: 4),
+            _timeSigButton(context, transport, l10n, compact: true),
+            _metronomeButton(transport, l10n, compact: true),
+          ],
+        ),
+      ],
+    );
+  }
+
+  // ── Shared sub-widgets ───────────────────────────────────────────────────
+
+  /// Chevron icon that toggles the supplementary bars visibility.
+  /// Returns an empty [SizedBox] when no notifier is wired.
+  Widget _supplementaryToggle(AppLocalizations l10n) {
+    if (widget.supplementaryBarsVisible == null) return const SizedBox.shrink();
+    return ValueListenableBuilder<bool>(
+      valueListenable: widget.supplementaryBarsVisible!,
+      builder: (ctx, visible, _) => Tooltip(
+        message: l10n.audioSettingsBarToggleTooltip,
+        child: IconButton(
+          icon: Icon(
+            visible ? Icons.expand_less : Icons.expand_more,
+            size: 20,
+          ),
+          color: Colors.white54,
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+          onPressed: () =>
+              widget.supplementaryBarsVisible!.value = !visible,
+        ),
+      ),
+    );
+  }
+
+  /// Animated beat-pulse LED.
+  Widget _beatLed(bool isPlaying) {
+    return AnimatedBuilder(
+      animation: _beatAnim,
+      builder: (context, child) {
+        final t = _beatAnim.value;
+        final targetColor =
+            _isDownbeat ? Colors.redAccent : Colors.amberAccent;
+        final color = Color.lerp(targetColor, Colors.grey[800], t)!;
+        final scale = 1.0 + 0.35 * (1.0 - t);
+        return Transform.scale(
+          scale: scale,
+          child: Container(
+            width: 12,
+            height: 12,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: isPlaying ? color : Colors.grey[800],
+              boxShadow: isPlaying && t < 0.5
+                  ? [
+                      BoxShadow(
+                        color: (_isDownbeat
+                                ? Colors.redAccent
+                                : Colors.amberAccent)
+                            .withValues(alpha: (1.0 - t * 2).clamp(0, 1)),
+                        blurRadius: 8,
+                        spreadRadius: 2,
+                      ),
+                    ]
+                  : null,
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// Play / Stop icon button.
+  ///
+  /// [compact] shrinks the icon size and removes default [IconButton] padding
+  /// so the widget fits within the narrow-phone transport bar.
+  Widget _playStopButton(
+    TransportEngine transport,
+    bool isPlaying,
+    AppLocalizations l10n, {
+    bool compact = false,
+  }) {
+    return IconButton(
+      icon: Icon(isPlaying ? Icons.stop : Icons.play_arrow),
+      color: isPlaying ? Colors.redAccent : Colors.greenAccent,
+      tooltip: isPlaying ? l10n.transportStop : l10n.transportPlay,
+      iconSize: compact ? 24 : 32,
+      padding: compact ? EdgeInsets.zero : null,
+      constraints: compact
+          ? const BoxConstraints(minWidth: 32, minHeight: 32)
+          : null,
+      onPressed: () {
+        if (isPlaying) {
+          transport.stop();
+        } else {
+          transport.play();
+        }
+      },
+    );
+  }
+
+  /// BPM nudge − · tappable BPM value · nudge +.
+  ///
+  /// [compact] reduces font size, button padding, and nudge button dimensions.
+  Widget _bpmControl(
+    BuildContext context,
+    TransportEngine transport,
+    AppLocalizations l10n, {
+    bool compact = false,
+  }) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _NudgeButton(
+          icon: Icons.remove,
+          onStart: () => _startNudge(transport, -1.0),
+          onStop: _stopNudge,
+          compact: compact,
+        ),
+        Listener(
+          onPointerSignal: (event) {
+            if (event is PointerScrollEvent) {
+              // Scroll up (dy < 0) → increase BPM; scroll down → decrease.
+              final delta = event.scrollDelta.dy > 0 ? -1.0 : 1.0;
+              _nudgeBpm(transport, delta);
+            }
+          },
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => _showBpmDialog(context, transport),
+              borderRadius: BorderRadius.circular(8),
+              child: Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: compact ? 6 : 10,
+                  vertical: 4,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '${transport.bpm.round()}',
+                      style: TextStyle(
+                        fontSize: compact ? 15 : 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    Text(
+                      l10n.transportBpm,
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: Colors.white70,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        _NudgeButton(
+          icon: Icons.add,
+          onStart: () => _startNudge(transport, 1.0),
+          onStop: _stopNudge,
+          compact: compact,
+        ),
+      ],
+    );
+  }
+
+  /// Tap Tempo button.
+  ///
+  /// [compact] reduces horizontal padding to save space on phones.
+  Widget _tapButton(
+    TransportEngine transport,
+    AppLocalizations l10n, {
+    bool compact = false,
+  }) {
+    return ElevatedButton(
+      onPressed: () => transport.tapTempo(),
+      style: ElevatedButton.styleFrom(
+        padding: EdgeInsets.symmetric(horizontal: compact ? 8 : 16),
+        backgroundColor: Colors.blueGrey.shade800,
+        foregroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+      child: Text(
+        l10n.transportTapTempo.toUpperCase(),
+        style: const TextStyle(fontWeight: FontWeight.bold),
+      ),
+    );
+  }
+
+  /// Time signature button — tap to change.
+  ///
+  /// [compact] hides the sub-label and tightens padding to save horizontal space.
+  Widget _timeSigButton(
+    BuildContext context,
+    TransportEngine transport,
+    AppLocalizations l10n, {
+    bool compact = false,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _showTimeSigDialog(context, transport),
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: compact ? 6 : 8,
+            vertical: 4,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '${transport.timeSigNumerator}/${transport.timeSigDenominator}',
+                style: TextStyle(
+                  fontSize: compact ? 14 : 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              if (!compact)
+                Text(
+                  l10n.transportTimeSignature,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: Colors.white70,
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Metronome on/off icon button.
+  ///
+  /// [compact] shrinks the icon and removes padding to save horizontal space.
+  Widget _metronomeButton(
+    TransportEngine transport,
+    AppLocalizations l10n, {
+    bool compact = false,
+  }) {
+    return Tooltip(
+      message: l10n.transportMetronome,
+      child: IconButton(
+        icon: Icon(
+          transport.metronomeEnabled ? Icons.music_note : Icons.music_off,
+        ),
+        color: transport.metronomeEnabled ? Colors.amberAccent : Colors.grey,
+        iconSize: compact ? 18 : 22,
+        padding: compact ? EdgeInsets.zero : null,
+        constraints: compact
+            ? const BoxConstraints(minWidth: 28, minHeight: 28)
+            : null,
+        onPressed: () {
+          transport.metronomeEnabled = !transport.metronomeEnabled;
         },
       ),
     );
@@ -557,32 +678,40 @@ class _ValueStepper extends StatelessWidget {
 }
 
 /// Small icon button with hold-to-repeat behaviour.
-/// [onStart] is called when the press begins; [onStop] when it ends.
+///
+/// [compact] reduces the button size from 28×28 to 22×22, matching the
+/// tighter spacing used in the narrow-phone single-row transport bar.
 class _NudgeButton extends StatelessWidget {
   const _NudgeButton({
     required this.icon,
     required this.onStart,
     required this.onStop,
+    this.compact = false,
   });
 
   final IconData icon;
   final VoidCallback onStart;
   final VoidCallback onStop;
 
+  /// When true, reduces the button to 22×22 dp with a 14 dp icon.
+  final bool compact;
+
   @override
   Widget build(BuildContext context) {
+    final size = compact ? 22.0 : 28.0;
+    final iconSize = compact ? 14.0 : 16.0;
     return GestureDetector(
       onTapDown: (_) => onStart(),
       onTapUp: (_) => onStop(),
       onTapCancel: onStop,
       child: Container(
-        width: 28,
-        height: 28,
+        width: size,
+        height: size,
         decoration: BoxDecoration(
           color: Colors.white10,
           borderRadius: BorderRadius.circular(6),
         ),
-        child: Icon(icon, size: 16, color: Colors.white70),
+        child: Icon(icon, size: iconSize, color: Colors.white70),
       ),
     );
   }

@@ -54,6 +54,20 @@ class _RackScreenState extends State<RackScreen> {
   StreamSubscription<MidiDevice>? _newDeviceSubscription;
   String? _currentProjectPath;
 
+  /// Timer that periodically scrolls the list while the user holds a cable
+  /// drag near the top or bottom edge of the patch view.
+  Timer? _autoScrollTimer;
+
+  /// Last known pointer position (global) during a cable drag.
+  /// Stored so the auto-scroll timer can poke [PatchDragController] with a
+  /// fresh position on each scroll tick, keeping the live cable repainted.
+  Offset? _lastDragPointer;
+
+  /// Key placed on the [Stack] that contains the rack list and cable overlays.
+  /// Used in [_handleDragAutoScroll] to convert the pointer's global position
+  /// into the patch-area's local coordinate space for edge detection.
+  final GlobalKey _patchAreaKey = GlobalKey();
+
   /// Controls whether the rack shows front panels (default) or back panels
   /// (patch view) for cable routing.
   final ValueNotifier<bool> _isPatchView = ValueNotifier(false);
@@ -160,6 +174,7 @@ class _RackScreenState extends State<RackScreen> {
     context.read<TransportEngine>().removeListener(_onTransportChanged);
     context.read<LooperEngine>().onMidiPlayback = null;
     context.read<AudioEngine>().onLooperSystemAction = null;
+    _autoScrollTimer?.cancel();
     _scrollController.dispose();
     _isPatchView.dispose();
     super.dispose();
@@ -741,10 +756,83 @@ class _RackScreenState extends State<RackScreen> {
   /// Called when the pointer is released during a cable drag.
   ///
   /// Iterates all registered jack keys — which are keyed by the string
+  // ─── Auto-scroll during cable drag ─────────────────────────────────────────
+
+  /// Detects whether the pointer is inside the edge-scroll threshold and starts
+  /// or stops [_autoScrollTimer] accordingly.
+  ///
+  /// Called on every pointer-move event while in patch view. The threshold zone
+  /// is 80 dp from the top and bottom edges of the patch area. Inside that zone
+  /// the rack list scrolls automatically so the user can reach a jack that lives
+  /// off-screen without lifting their finger.
+  void _handleDragAutoScroll(Offset globalPos) {
+    final dragCtrl = context.read<PatchDragController>();
+    if (!dragCtrl.isDragging) {
+      _stopAutoScroll();
+      return;
+    }
+    _lastDragPointer = globalPos;
+
+    final renderBox =
+        _patchAreaKey.currentContext?.findRenderObject() as RenderBox?;
+    if (renderBox == null) {
+      _stopAutoScroll();
+      return;
+    }
+
+    final localY = renderBox.globalToLocal(globalPos).dy;
+    final height = renderBox.size.height;
+    const threshold = 80.0;
+
+    if (localY < threshold) {
+      _startAutoScroll(scrollDown: false);
+    } else if (localY > height - threshold) {
+      _startAutoScroll(scrollDown: true);
+    } else {
+      _stopAutoScroll();
+    }
+  }
+
+  /// Starts (or restarts) the auto-scroll timer.
+  ///
+  /// Each tick advances the list by 5 dp and pokes [PatchDragController] so
+  /// both [DragCableOverlay] and [PatchCableOverlay] repaint with updated jack
+  /// positions. The [PatchCableOverlay] also listens to [_scrollController]
+  /// directly for its static cables — see [patch_cable_overlay.dart].
+  void _startAutoScroll({required bool scrollDown}) {
+    _autoScrollTimer?.cancel();
+    _autoScrollTimer =
+        Timer.periodic(const Duration(milliseconds: 16), (_) {
+      if (!_scrollController.hasClients) return;
+      final pos = _scrollController.position;
+      final newOffset = (pos.pixels + (scrollDown ? 5.0 : -5.0))
+          .clamp(pos.minScrollExtent, pos.maxScrollExtent);
+      _scrollController.jumpTo(newOffset);
+
+      // Poke the drag controller so DragCableOverlay repaints.
+      // The scroll controller change already triggers PatchCableOverlay
+      // through the repaint listenable wired in PatchCableOverlay.
+      if (_lastDragPointer != null) {
+        context
+            .read<PatchDragController>()
+            .updatePosition(_lastDragPointer!);
+      }
+    });
+  }
+
+  /// Cancels the auto-scroll timer, stopping edge-triggered scrolling.
+  void _stopAutoScroll() {
+    _autoScrollTimer?.cancel();
+    _autoScrollTimer = null;
+  }
+
+  // ─── Drag drop ──────────────────────────────────────────────────────────────
+
   /// `"$slotId:${portId.name}"` — to find a jack whose render box contains
   /// [globalPos]. If found and compatible with the drag source port, creates
   /// the appropriate connection (MIDI/Audio → AudioGraph, Data → RackState).
   void _handleDragEnd(Offset globalPos) {
+    _stopAutoScroll();
     final dragCtrl = context.read<PatchDragController>();
     if (!dragCtrl.isDragging) return;
 
@@ -974,12 +1062,14 @@ class _RackScreenState extends State<RackScreen> {
                               ctx
                                   .read<PatchDragController>()
                                   .updatePosition(e.position);
+                              _handleDragAutoScroll(e.position);
                             }
                           },
                           onPointerUp: (e) {
                             if (isPatch) _handleDragEnd(e.position);
                           },
                           child: Stack(
+                            key: _patchAreaKey,
                             children: [
                               _RackList(
                                 scrollController: _scrollController,
@@ -1000,6 +1090,7 @@ class _RackScreenState extends State<RackScreen> {
                                     graph: graph,
                                     rack: rack,
                                     jackKeys: _jackKeys,
+                                    scrollController: _scrollController,
                                   ),
                                 ),
                                 // Always in tree (not conditional on isDragging)
@@ -1085,23 +1176,28 @@ class _RackList extends StatelessWidget {
             // Landscape mobile gets a shorter piano to preserve vertical space.
             final pianoHeight = isMobileLandscape ? 90.0 : 140.0;
 
-            // In patch view use a plain ListView — no reorder needed and it
-            // avoids gesture conflicts that ReorderableListView introduces
-            // (long-press drag recognisers competing with jack long-presses).
+            // In patch view use a non-virtualizing scroll view.
+            //
+            // ListView.builder would remove off-screen items from the tree,
+            // making their GlobalKeys detach — causing _jackCenter to return
+            // null and cables between distant plugins to silently disappear.
+            // SingleChildScrollView + Column keeps every SlotBackPanelWidget
+            // mounted at all times, so all jack keys stay valid regardless of
+            // scroll position.
             if (isPatchView) {
-              return ListView.builder(
+              return SingleChildScrollView(
                 controller: scrollController,
                 padding: const EdgeInsets.only(bottom: 88),
-                itemCount: rack.plugins.length,
-                itemBuilder: (context, index) {
-                  final plugin = rack.plugins[index];
-                  return SlotBackPanelWidget(
-                    key: ValueKey('back:${plugin.id}'),
-                    plugin: plugin,
-                    jackKeys: jackKeys,
-                    onFlipToFront: onFlipToFront,
-                  );
-                },
+                child: Column(
+                  children: rack.plugins
+                      .map((plugin) => SlotBackPanelWidget(
+                            key: ValueKey('back:${plugin.id}'),
+                            plugin: plugin,
+                            jackKeys: jackKeys,
+                            onFlipToFront: onFlipToFront,
+                          ))
+                      .toList(),
+                ),
               );
             }
 

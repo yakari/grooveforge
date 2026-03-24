@@ -5,6 +5,16 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/lang/fr/).
 
+## [X.x.x]
+
+### Corrigé
+- Panneau arrière (vue patch) : les sections de jacks s'empilent désormais verticalement sur les écrans de téléphone (< 480 dp) au lieu de déborder horizontalement.
+- Vue patch : les câbles entre plugins restent visibles même quand un connecteur est hors de l'écran. La vue patch utilise maintenant un défilement non-virtualisé pour que toutes les `GlobalKey` de jacks restent montées en permanence.
+- Vue patch : commencer un glisser de câble près du bord supérieur ou inférieur de la liste fait maintenant défiler automatiquement le rack, permettant de relier des jacks éloignés sans lâcher le câble.
+- Vue patch : les câbles statiques et le câble de glisser en cours se repeignent correctement lors du défilement automatique.
+- Barre de transport : sur les téléphones étroits (< 500 dp), une présentation compacte sur une seule ligne est utilisée — contrôles répartis en cluster gauche (LED / lecture / BPM) et cluster droit (TAP / signature rythmique / métronome) avec icônes et espacements réduits. Pas de deuxième ligne.
+- Barre de réglages audio : les menus déroulants de périphériques sont maintenant dans des `Expanded` avec `isExpanded: true`, pour partager la largeur restante après les boutons rotatifs plutôt que de déborder.
+
 ## [2.8.0] - 2026-03-24
 
 ### Ajouté

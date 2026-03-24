@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [X.x.x]
+
+### Fixed
+- Back panel (patch view): jack sections now stack vertically on phone screens (< 480 dp) instead of overflowing the row horizontally.
+- Patch view: cables between plugins now remain visible even when one endpoint is scrolled off-screen. The patch view now uses a non-virtualizing scroll view so all jack `GlobalKey`s stay mounted at all times.
+- Patch view: starting a cable drag near the top or bottom edge of the list now auto-scrolls the rack, making it possible to connect jacks that are far apart without releasing the cable.
+- Patch view: static cables and the live drag cable now repaint correctly when the rack list scrolls during edge auto-scroll.
+- Transport bar: on narrow phones (< 500 dp) a compact single-row layout is used — controls split into a left cluster (LED / play / BPM) and a right cluster (TAP / time sig / metronome) with reduced icon sizes and spacing. No second row.
+- Audio settings bar: device dropdowns are now wrapped in `Expanded` with `isExpanded: true`, so they share remaining width after the fixed-size knobs instead of overflowing.
+
 ## [2.8.0] - 2026-03-24
 
 ### Added

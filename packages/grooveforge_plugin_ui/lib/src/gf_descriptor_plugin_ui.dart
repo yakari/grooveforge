@@ -308,11 +308,11 @@ class GFDescriptorPluginUI extends StatelessWidget {
     final count = options.length;
     final selectedIndex = (normValue * (count - 1)).round().clamp(0, count - 1);
     final label = ctrl.label ?? param.name;
-    final onChanged = (int i) {
+    void onChanged(int i) {
       final norm = count <= 1 ? 0.0 : i / (count - 1).toDouble();
       plugin.setParameter(param.paramId, norm);
       paramNotifier.value++;
-    };
+    }
 
     // Use a dropdown for large option sets — segmented rows become unreadable
     // beyond ~5 options (each segment would be too narrow to display its label).

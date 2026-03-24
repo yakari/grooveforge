@@ -25,11 +25,18 @@ class PatchCableOverlay extends StatefulWidget {
   final RackState rack;
   final Map<String, GlobalKey> jackKeys;
 
+  /// When provided, the cable painter uses this as its [CustomPainter.repaint]
+  /// listenable so that static cables are redrawn whenever the rack list scrolls
+  /// (jack positions change on screen during auto-scroll or manual scroll while
+  /// a drag is active).
+  final ScrollController? scrollController;
+
   const PatchCableOverlay({
     super.key,
     required this.graph,
     required this.rack,
     required this.jackKeys,
+    this.scrollController,
   });
 
   @override
@@ -64,6 +71,7 @@ class PatchCableOverlayState extends State<PatchCableOverlay> {
               jackKeys: widget.jackKeys,
               overlayBoxGetter: _getOverlayBox,
               onMidpointsComputed: _onMidpointsComputed,
+              repaint: widget.scrollController,
             ),
             child: const SizedBox.expand(),
           ),
@@ -325,6 +333,7 @@ class _CablePainter extends CustomPainter {
     required this.jackKeys,
     required this.overlayBoxGetter,
     required this.onMidpointsComputed,
+    super.repaint,
   });
 
   @override

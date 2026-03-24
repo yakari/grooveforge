@@ -29,6 +29,8 @@ class AudioSettingsBar extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     final engine = context.watch<AudioEngine>();
 
+    // Knobs (fixed ~40 dp each) are placed first; the dropdowns share whatever
+    // width remains via Expanded so they never cause a row overflow on phones.
     return Container(
       color: Colors.black38,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -46,15 +48,16 @@ class AudioSettingsBar extends StatelessWidget {
           const _Divider(),
           const SizedBox(width: 12),
 
-          // ── Mic device dropdown ──────────────────────────────────────────
-          _MicDeviceDropdown(engine: engine, l10n: l10n),
+          // ── Mic device dropdown — takes remaining space ───────────────────
+          Expanded(child: _MicDeviceDropdown(engine: engine, l10n: l10n)),
 
           // ── Output device dropdown (Android only) ────────────────────────
           if (!kIsWeb && Platform.isAndroid) ...[
             const SizedBox(width: 12),
             const _Divider(),
             const SizedBox(width: 12),
-            _OutputDeviceDropdown(engine: engine, l10n: l10n),
+            Expanded(
+                child: _OutputDeviceDropdown(engine: engine, l10n: l10n)),
           ],
         ],
       ),
@@ -262,6 +265,7 @@ class _CompactDeviceDropdown extends StatelessWidget {
             DropdownButton<int>(
               value: effectiveValue,
               isDense: true,
+              isExpanded: true, // fills the Expanded parent; prevents row overflow
               underline: const SizedBox.shrink(),
               style: const TextStyle(fontSize: 12, color: Colors.white),
               dropdownColor: Colors.grey[900],
