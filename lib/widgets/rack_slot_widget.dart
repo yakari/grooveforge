@@ -813,10 +813,13 @@ class _PianoBody extends StatelessWidget {
       data2: velocity,
     );
 
-    // Find MIDI FX plugins wired to this slot's MIDI OUT jack.
+    // Find non-bypassed MIDI FX plugins wired to this slot's MIDI OUT jack.
+    // Bypassed slots are skipped to match [RackState.applyMidiFxForChannel],
+    // which applies the same check for hardware MIDI controller input.
     final rack = context.read<RackState>();
     final cables = _midiOutCables(context);
     final chain = cables
+        .where((cable) => !rack.isMidiFxBypassed(cable.toSlotId))
         .map((cable) => rack.midiFxInstanceForSlot(cable.toSlotId))
         .whereType<GFMidiDescriptorPlugin>()
         .toList(growable: false);

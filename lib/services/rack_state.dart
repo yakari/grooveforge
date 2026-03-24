@@ -935,6 +935,21 @@ class RackState extends ChangeNotifier {
   GFMidiDescriptorPlugin? midiFxInstanceForSlot(String slotId) =>
       _midiFxInstances[slotId];
 
+  /// Returns `true` when the MIDI FX slot with [slotId] has been bypassed
+  /// (its power toggle is off, i.e. `state['__bypass'] == true`).
+  ///
+  /// Used by [_PianoBody._applyMidiChain] to skip bypassed effects for
+  /// on-screen keyboard input, mirroring the bypass check already present
+  /// in [applyMidiFxForChannel] for hardware MIDI controller input.
+  bool isMidiFxBypassed(String slotId) {
+    for (final p in _plugins) {
+      if (p.id == slotId && p is GFpaPluginInstance) {
+        return p.state['__bypass'] == true;
+      }
+    }
+    return false;
+  }
+
   /// Trigger a native audio routing rebuild without modifying the rack.
   ///
   /// Used by GFPA descriptor slot widgets after registering or unregistering
