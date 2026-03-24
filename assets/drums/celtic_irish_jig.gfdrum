@@ -1,0 +1,69 @@
+name: Irish Jig
+family: celtic
+bpm_range: [100, 180]
+time_signature: [6, 8]
+resolution: 12
+feel: straight
+
+instruments:
+  kick:    { note: 36, base_velocity: 100, velocity_range: 15, timing_jitter: 0.015, duration_beats: 0.10 }
+  snare:   { note: 38, base_velocity: 90,  velocity_range: 18, timing_jitter: 0.018, duration_beats: 0.08 }
+  hihat:   { note: 42, base_velocity: 75,  velocity_range: 12, timing_jitter: 0.014, duration_beats: 0.07 }
+  crash:   { note: 49, base_velocity: 95,  velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.22 }
+  tom_hi:  { note: 48, base_velocity: 90,  velocity_range: 15, timing_jitter: 0.018, duration_beats: 0.10 }
+  tom_lo:  { note: 41, base_velocity: 88,  velocity_range: 15, timing_jitter: 0.018, duration_beats: 0.12 }
+  tambourine: { note: 54, base_velocity: 70, velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.07 }
+
+humanization:
+  timing_jitter: 0.018
+  velocity_jitter: 14
+  velocity_drift: 0.07
+
+sections:
+  intro:
+    type: count_in
+    hits: 4
+    note: 42
+
+  groove:
+    bars: 2
+    variations:
+      - name: main
+        weight: 3
+        kick:       "X..X..X..X..X..X..X..X.."
+        snare:      "...X......X......X......X."
+        hihat:      "xXxxXxxXxxXxxXxxXxxXxxXxx."
+        tambourine: "X..x..X..x..X..x..X..x.."
+      - name: alt
+        weight: 2
+        kick:       "X..X..X.....X..X..X....."
+        snare:      "...X......X......X......X."
+        hihat:      "xXxxXxxXxxXxxXxxXxxXxxXxx."
+
+  fill:
+    bars: 1
+    variations:
+      - name: roll
+        snare:  "XxXxXxXxXxXx"
+        tom_hi: "........X..."
+        tom_lo: "..........X."
+        kick:   "X..........."
+      - name: toms
+        tom_hi: "X..X..X....."
+        tom_lo: "..........X."
+        kick:   "X..........."
+
+  crash:
+    bars: 1
+    variations:
+      - name: standard
+        crash:  "X..........."
+        kick:   "X..........."
+        hihat:  "xXxxXxxXxxXx"
+
+structure:
+  fill_every: 8
+  break_every: 0
+  break_length: 1
+  crash_after_fill: true
+  dynamic_build: false

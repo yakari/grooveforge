@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [X.x.x]
+
+### Added
+- Drum Track Generator: new rack module with transport-sync beat scheduling, humanization engine (velocity jitter, microtiming, ghost notes), swing slider, and structured fills/breaks.
+- `.gfdrum` pattern format: YAML-based declarative drum patterns with step grids (X/x/o/g/.), per-instrument velocity and timing configuration, `loop` and `sequence` section types. Users can author and load custom patterns.
+- Six bundled patterns: Classic Rock, Jazz Swing, Bossa Nova, Tight Funk, Irish Jig, Breton An Dro.
+- Breton An Dro uses `type: sequence` for authentic bar-by-bar phrase variation.
+- `DrumPatternRegistry` singleton for pattern discovery across the app.
+
 ## [2.8.1] - 2026-03-24
 
 ### Added

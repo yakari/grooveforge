@@ -6,9 +6,11 @@ import 'package:grooveforge_plugin_api/grooveforge_plugin_api.dart';
 import 'package:provider/provider.dart';
 
 import '../l10n/app_localizations.dart';
+import '../models/drum_generator_plugin_instance.dart';
 import '../models/gfpa_plugin_instance.dart';
 import '../models/grooveforge_keyboard_plugin.dart';
 import '../models/looper_plugin_instance.dart';
+import '../services/drum_generator_engine.dart';
 import '../services/looper_engine.dart';
 import '../services/rack_state.dart';
 import '../services/vst_host_service.dart'; // re-exports Vst3PluginType
@@ -427,6 +429,45 @@ class _AddPluginSheetContentState extends State<_AddPluginSheetContent> {
                     pluginId: 'com.grooveforge.theremin',
                     midiChannel: ch,
                   ),
+                );
+              },
+            ),
+
+            // ═══════════════════════════════════════════════════════════════
+            // Drum Generator
+            // ═══════════════════════════════════════════════════════════════
+
+            // ── Drum Track Generator
+            _PluginTile(
+              icon: Icons.album,
+              iconColor: Colors.orangeAccent,
+              title: l10n.drumGeneratorAddTitle,
+              subtitle: l10n.drumGeneratorAddSubtitle,
+              onTap: () {
+                Navigator.pop(context);
+                // Prefer MIDI channel 10 for drums (GM convention).
+                // Fall back to the next available channel if 10 is taken.
+                final drumCh10InUse =
+                    rack.plugins.any((p) => p.midiChannel == 10);
+                final ch = drumCh10InUse
+                    ? rack.nextAvailableMidiChannel()
+                    : 10;
+                final midiChannel = ch == -1 ? 10 : ch;
+
+                final slotId = rack.generateSlotId();
+                rack.addPlugin(
+                  DrumGeneratorPluginInstance(
+                    id: slotId,
+                    midiChannel: midiChannel,
+                    builtinPatternId: 'rock_basic',
+                  ),
+                );
+                // Register the session so the engine is ready immediately.
+                final drumEngine = context.read<DrumGeneratorEngine>();
+                drumEngine.ensureSession(
+                  slotId,
+                  rack.plugins.whereType<DrumGeneratorPluginInstance>()
+                      .firstWhere((p) => p.id == slotId),
                 );
               },
             ),

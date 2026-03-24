@@ -2239,6 +2239,240 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Remove CC binding'**
   String get midiFxCcRemove;
+
+  /// No description provided for @drumGeneratorAddTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Drum Generator'**
+  String get drumGeneratorAddTitle;
+
+  /// No description provided for @drumGeneratorAddSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Beat patterns from bossa nova to metal, with human feel'**
+  String get drumGeneratorAddSubtitle;
+
+  /// No description provided for @drumGeneratorActiveLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get drumGeneratorActiveLabel;
+
+  /// No description provided for @drumGeneratorStyleLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Style'**
+  String get drumGeneratorStyleLabel;
+
+  /// No description provided for @drumGeneratorSwingLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Swing'**
+  String get drumGeneratorSwingLabel;
+
+  /// No description provided for @drumGeneratorSwingPattern.
+  ///
+  /// In en, this message translates to:
+  /// **'Pattern default'**
+  String get drumGeneratorSwingPattern;
+
+  /// No description provided for @drumGeneratorHumanizeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Human feel'**
+  String get drumGeneratorHumanizeLabel;
+
+  /// No description provided for @drumGeneratorHumanizeRobotic.
+  ///
+  /// In en, this message translates to:
+  /// **'Robotic'**
+  String get drumGeneratorHumanizeRobotic;
+
+  /// No description provided for @drumGeneratorHumanizeLive.
+  ///
+  /// In en, this message translates to:
+  /// **'Live drummer'**
+  String get drumGeneratorHumanizeLive;
+
+  /// No description provided for @drumGeneratorIntroLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Count-in'**
+  String get drumGeneratorIntroLabel;
+
+  /// No description provided for @drumGeneratorFillLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Fill every'**
+  String get drumGeneratorFillLabel;
+
+  /// No description provided for @drumGeneratorSoundfontLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Soundfont'**
+  String get drumGeneratorSoundfontLabel;
+
+  /// No description provided for @drumGeneratorLoadPattern.
+  ///
+  /// In en, this message translates to:
+  /// **'Load .gfdrum…'**
+  String get drumGeneratorLoadPattern;
+
+  /// No description provided for @drumGeneratorFormatGuide.
+  ///
+  /// In en, this message translates to:
+  /// **'Format guide'**
+  String get drumGeneratorFormatGuide;
+
+  /// No description provided for @drumGeneratorIntroNone.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get drumGeneratorIntroNone;
+
+  /// No description provided for @drumGeneratorIntroCountIn1.
+  ///
+  /// In en, this message translates to:
+  /// **'1 bar'**
+  String get drumGeneratorIntroCountIn1;
+
+  /// No description provided for @drumGeneratorIntroCountIn2.
+  ///
+  /// In en, this message translates to:
+  /// **'2 bars'**
+  String get drumGeneratorIntroCountIn2;
+
+  /// No description provided for @drumGeneratorIntroChopsticks.
+  ///
+  /// In en, this message translates to:
+  /// **'Chopsticks (4 hits)'**
+  String get drumGeneratorIntroChopsticks;
+
+  /// No description provided for @drumGeneratorFillOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get drumGeneratorFillOff;
+
+  /// No description provided for @drumGeneratorFillEvery4.
+  ///
+  /// In en, this message translates to:
+  /// **'Every 4 bars'**
+  String get drumGeneratorFillEvery4;
+
+  /// No description provided for @drumGeneratorFillEvery8.
+  ///
+  /// In en, this message translates to:
+  /// **'Every 8 bars'**
+  String get drumGeneratorFillEvery8;
+
+  /// No description provided for @drumGeneratorFillEvery16.
+  ///
+  /// In en, this message translates to:
+  /// **'Every 16 bars'**
+  String get drumGeneratorFillEvery16;
+
+  /// No description provided for @drumGeneratorFillRandom.
+  ///
+  /// In en, this message translates to:
+  /// **'Random'**
+  String get drumGeneratorFillRandom;
+
+  /// No description provided for @drumGeneratorCrashAfterFill.
+  ///
+  /// In en, this message translates to:
+  /// **'Crash after fill'**
+  String get drumGeneratorCrashAfterFill;
+
+  /// No description provided for @drumGeneratorDynamicBuild.
+  ///
+  /// In en, this message translates to:
+  /// **'Dynamic build'**
+  String get drumGeneratorDynamicBuild;
+
+  /// No description provided for @drumGeneratorDefaultSoundfont.
+  ///
+  /// In en, this message translates to:
+  /// **'Default soundfont'**
+  String get drumGeneratorDefaultSoundfont;
+
+  /// No description provided for @drumGeneratorFormatGuideTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Drum Pattern Format (.gfdrum)'**
+  String get drumGeneratorFormatGuideTitle;
+
+  /// No description provided for @drumGeneratorFormatGuideContent.
+  ///
+  /// In en, this message translates to:
+  /// **'A .gfdrum file is a YAML text file describing a drum pattern.\n\nStep grid notation:\nX = strong hit (~100)\nx = medium hit (~75)\no = soft hit (~55)\ng = ghost note (~28)\n. = rest\n\nVelocity fields: base_velocity, velocity_range\nTiming fields: timing_jitter, rush\nSections: groove, fill, break, crash, intro\nSection types: loop (random), sequence (ordered bars)\n\nSee bundled patterns in assets/drums/ for examples.'**
+  String get drumGeneratorFormatGuideContent;
+
+  /// No description provided for @drumGeneratorNoPatternsFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No patterns loaded'**
+  String get drumGeneratorNoPatternsFound;
+
+  /// No description provided for @drumGeneratorFamilyRock.
+  ///
+  /// In en, this message translates to:
+  /// **'Rock'**
+  String get drumGeneratorFamilyRock;
+
+  /// No description provided for @drumGeneratorFamilyJazz.
+  ///
+  /// In en, this message translates to:
+  /// **'Jazz'**
+  String get drumGeneratorFamilyJazz;
+
+  /// No description provided for @drumGeneratorFamilyFunk.
+  ///
+  /// In en, this message translates to:
+  /// **'Funk'**
+  String get drumGeneratorFamilyFunk;
+
+  /// No description provided for @drumGeneratorFamilyLatin.
+  ///
+  /// In en, this message translates to:
+  /// **'Latin'**
+  String get drumGeneratorFamilyLatin;
+
+  /// No description provided for @drumGeneratorFamilyCeltic.
+  ///
+  /// In en, this message translates to:
+  /// **'Celtic'**
+  String get drumGeneratorFamilyCeltic;
+
+  /// No description provided for @drumGeneratorFamilyPop.
+  ///
+  /// In en, this message translates to:
+  /// **'Pop'**
+  String get drumGeneratorFamilyPop;
+
+  /// No description provided for @drumGeneratorFamilyElectronic.
+  ///
+  /// In en, this message translates to:
+  /// **'Electronic'**
+  String get drumGeneratorFamilyElectronic;
+
+  /// No description provided for @drumGeneratorFamilyWorld.
+  ///
+  /// In en, this message translates to:
+  /// **'World'**
+  String get drumGeneratorFamilyWorld;
+
+  /// No description provided for @drumGeneratorFamilyMetal.
+  ///
+  /// In en, this message translates to:
+  /// **'Metal'**
+  String get drumGeneratorFamilyMetal;
+
+  /// No description provided for @drumGeneratorCustomPattern.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom pattern'**
+  String get drumGeneratorCustomPattern;
 }
 
 class _AppLocalizationsDelegate

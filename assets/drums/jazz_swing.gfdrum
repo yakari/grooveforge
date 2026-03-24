@@ -1,0 +1,78 @@
+name: Jazz Swing
+family: jazz
+bpm_range: [100, 260]
+time_signature: [4, 4]
+resolution: 16
+feel: swing_hard
+
+instruments:
+  kick:    { note: 36, base_velocity: 80,  velocity_range: 20, timing_jitter: 0.025, rush: -0.01, duration_beats: 0.12 }
+  snare:   { note: 38, base_velocity: 70,  velocity_range: 22, timing_jitter: 0.028, duration_beats: 0.10 }
+  hihat:   { note: 42, base_velocity: 65,  velocity_range: 12, timing_jitter: 0.020, duration_beats: 0.07 }
+  hihat_foot: { note: 44, base_velocity: 60, velocity_range: 10, timing_jitter: 0.015, duration_beats: 0.07 }
+  ride:    { note: 51, base_velocity: 85,  velocity_range: 15, timing_jitter: 0.022, duration_beats: 0.10 }
+  ride_bell: { note: 53, base_velocity: 95, velocity_range: 10, timing_jitter: 0.018, duration_beats: 0.08 }
+  crash:   { note: 49, base_velocity: 90,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.22 }
+  tom_hi:  { note: 48, base_velocity: 85,  velocity_range: 18, timing_jitter: 0.025, duration_beats: 0.10 }
+  tom_lo:  { note: 41, base_velocity: 80,  velocity_range: 18, timing_jitter: 0.025, duration_beats: 0.12 }
+
+humanization:
+  timing_jitter: 0.025
+  velocity_jitter: 18
+  velocity_drift: 0.10
+
+sections:
+  intro:
+    type: count_in
+    hits: 4
+    note: 42
+
+  groove:
+    bars: 2
+    variations:
+      - name: ride_main
+        weight: 4
+        ride:   "X.xXx.xXx.xX.x."
+        hihat_foot: "....X.......X..."
+        kick:   "X..............."
+        snare:  "..g...g.....g..."
+      - name: ride_alt
+        weight: 2
+        ride:   "X.xXx.xXx.xX.xx"
+        hihat_foot: "....X.......X..."
+        kick:   "X..............."
+        snare:  "..g.....g.g....."
+      - name: hihat_comp
+        weight: 1
+        hihat:  "X.xXx.xXx.xX.x."
+        hihat_foot: "....X.......X..."
+        kick:   "X..............."
+        snare:  "..g...g.....g..."
+
+  fill:
+    bars: 1
+    variations:
+      - name: bebop
+        snare:  "....x.x.x.X.X.X."
+        tom_hi: "............X..."
+        tom_lo: "..............X."
+        kick:   "X..............."
+      - name: ride_roll
+        ride:   "XxXxXxXxXxXxXxXx"
+        snare:  "..............X."
+        kick:   "X..............."
+
+  crash:
+    bars: 1
+    variations:
+      - name: standard
+        crash: "X..............."
+        ride:  "..X.xXx.X.xX.x."
+        hihat_foot: "....X.......X..."
+
+structure:
+  fill_every: 16
+  break_every: 0
+  break_length: 1
+  crash_after_fill: true
+  dynamic_build: false

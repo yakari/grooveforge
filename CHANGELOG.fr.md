@@ -5,6 +5,15 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/lang/fr/).
 
+## [X.x.x]
+
+### Ajouté
+- Générateur de batterie : nouveau module de rack avec programmation de tempo synchronisée au transport, moteur d'humanisation (jitter de vélocité, microtiming, notes fantômes), curseur de swing, et structure fills/breaks configurable.
+- Format de pattern `.gfdrum` : patterns de batterie déclaratifs YAML avec grilles de pas (X/x/o/g/.), configuration de vélocité et timing par instrument, types de section `loop` et `sequence`. Les utilisateurs peuvent créer et charger leurs propres patterns.
+- Six patterns inclus : Classic Rock, Jazz Swing, Bossa Nova, Tight Funk, Irish Jig, Breton An Dro.
+- Breton An Dro utilise `type: sequence` pour une variation authentique mesure par mesure.
+- `DrumPatternRegistry` singleton pour la découverte des patterns dans l'application.
+
 ## [2.8.1] - 2026-03-24
 
 ### Ajouté

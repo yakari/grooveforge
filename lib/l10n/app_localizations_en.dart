@@ -1188,4 +1188,123 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get midiFxCcRemove => 'Remove CC binding';
+
+  @override
+  String get drumGeneratorAddTitle => 'Drum Generator';
+
+  @override
+  String get drumGeneratorAddSubtitle =>
+      'Beat patterns from bossa nova to metal, with human feel';
+
+  @override
+  String get drumGeneratorActiveLabel => 'Active';
+
+  @override
+  String get drumGeneratorStyleLabel => 'Style';
+
+  @override
+  String get drumGeneratorSwingLabel => 'Swing';
+
+  @override
+  String get drumGeneratorSwingPattern => 'Pattern default';
+
+  @override
+  String get drumGeneratorHumanizeLabel => 'Human feel';
+
+  @override
+  String get drumGeneratorHumanizeRobotic => 'Robotic';
+
+  @override
+  String get drumGeneratorHumanizeLive => 'Live drummer';
+
+  @override
+  String get drumGeneratorIntroLabel => 'Count-in';
+
+  @override
+  String get drumGeneratorFillLabel => 'Fill every';
+
+  @override
+  String get drumGeneratorSoundfontLabel => 'Soundfont';
+
+  @override
+  String get drumGeneratorLoadPattern => 'Load .gfdrum…';
+
+  @override
+  String get drumGeneratorFormatGuide => 'Format guide';
+
+  @override
+  String get drumGeneratorIntroNone => 'None';
+
+  @override
+  String get drumGeneratorIntroCountIn1 => '1 bar';
+
+  @override
+  String get drumGeneratorIntroCountIn2 => '2 bars';
+
+  @override
+  String get drumGeneratorIntroChopsticks => 'Chopsticks (4 hits)';
+
+  @override
+  String get drumGeneratorFillOff => 'Off';
+
+  @override
+  String get drumGeneratorFillEvery4 => 'Every 4 bars';
+
+  @override
+  String get drumGeneratorFillEvery8 => 'Every 8 bars';
+
+  @override
+  String get drumGeneratorFillEvery16 => 'Every 16 bars';
+
+  @override
+  String get drumGeneratorFillRandom => 'Random';
+
+  @override
+  String get drumGeneratorCrashAfterFill => 'Crash after fill';
+
+  @override
+  String get drumGeneratorDynamicBuild => 'Dynamic build';
+
+  @override
+  String get drumGeneratorDefaultSoundfont => 'Default soundfont';
+
+  @override
+  String get drumGeneratorFormatGuideTitle => 'Drum Pattern Format (.gfdrum)';
+
+  @override
+  String get drumGeneratorFormatGuideContent =>
+      'A .gfdrum file is a YAML text file describing a drum pattern.\n\nStep grid notation:\nX = strong hit (~100)\nx = medium hit (~75)\no = soft hit (~55)\ng = ghost note (~28)\n. = rest\n\nVelocity fields: base_velocity, velocity_range\nTiming fields: timing_jitter, rush\nSections: groove, fill, break, crash, intro\nSection types: loop (random), sequence (ordered bars)\n\nSee bundled patterns in assets/drums/ for examples.';
+
+  @override
+  String get drumGeneratorNoPatternsFound => 'No patterns loaded';
+
+  @override
+  String get drumGeneratorFamilyRock => 'Rock';
+
+  @override
+  String get drumGeneratorFamilyJazz => 'Jazz';
+
+  @override
+  String get drumGeneratorFamilyFunk => 'Funk';
+
+  @override
+  String get drumGeneratorFamilyLatin => 'Latin';
+
+  @override
+  String get drumGeneratorFamilyCeltic => 'Celtic';
+
+  @override
+  String get drumGeneratorFamilyPop => 'Pop';
+
+  @override
+  String get drumGeneratorFamilyElectronic => 'Electronic';
+
+  @override
+  String get drumGeneratorFamilyWorld => 'World';
+
+  @override
+  String get drumGeneratorFamilyMetal => 'Metal';
+
+  @override
+  String get drumGeneratorCustomPattern => 'Custom pattern';
 }

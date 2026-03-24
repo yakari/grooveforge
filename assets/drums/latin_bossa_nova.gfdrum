@@ -1,0 +1,71 @@
+name: Bossa Nova
+family: latin
+bpm_range: [80, 140]
+time_signature: [4, 4]
+resolution: 16
+feel: laid_back
+
+instruments:
+  kick:    { note: 36, base_velocity: 85, velocity_range: 12, timing_jitter: 0.018, rush: -0.02, duration_beats: 0.12 }
+  snare:   { note: 38, base_velocity: 75, velocity_range: 15, timing_jitter: 0.020, duration_beats: 0.10 }
+  rimshot: { note: 37, base_velocity: 80, velocity_range: 12, timing_jitter: 0.015, rush: 0.015, duration_beats: 0.08 }
+  hihat:   { note: 42, base_velocity: 65, velocity_range: 10, timing_jitter: 0.015, duration_beats: 0.07 }
+  ride:    { note: 51, base_velocity: 80, velocity_range: 12, timing_jitter: 0.018, duration_beats: 0.10 }
+  crash:   { note: 49, base_velocity: 90, velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.22 }
+
+humanization:
+  timing_jitter: 0.018
+  velocity_jitter: 10
+  velocity_drift: 0.06
+
+sections:
+  intro:
+    type: count_in
+    hits: 4
+    note: 37
+
+  groove:
+    bars: 2
+    variations:
+      - name: main
+        weight: 3
+        kick:    "X.......X......."
+        rimshot: "....X.......X..."
+        hihat:   "x.x.x.x.x.x.x.x."
+        ride:    "X...x...X...x..."
+      - name: cross_stick
+        weight: 2
+        kick:    "X...X...X......."
+        rimshot: "....X.......X..."
+        hihat:   "x.x.x.x.x.x.x.x."
+      - name: no_kick
+        weight: 1
+        rimshot: "....X.......X..."
+        hihat:   "x.x.x.x.x.x.x.x."
+        ride:    "X...x...X...x..."
+
+  fill:
+    bars: 1
+    variations:
+      - name: rimshot_run
+        rimshot: "X.X.X.X.X.X.X.X."
+        kick:    "X..............."
+      - name: hihat_open
+        hihat:   "x.x.x.x.x.x.x.x."
+        rimshot: "....X..X..X.X.X."
+        kick:    "X..............."
+
+  crash:
+    bars: 1
+    variations:
+      - name: standard
+        crash:   "X..............."
+        kick:    "X..............."
+        hihat:   "x.x.x.x.x.x.x.x."
+
+structure:
+  fill_every: 8
+  break_every: 0
+  break_length: 1
+  crash_after_fill: true
+  dynamic_build: false

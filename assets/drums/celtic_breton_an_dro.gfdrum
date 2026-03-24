@@ -1,0 +1,78 @@
+name: "Breton An Dro"
+family: celtic
+bpm_range: [100, 160]
+time_signature: [4, 4]
+resolution: 16
+feel: straight
+
+instruments:
+  kick:    { note: 36, base_velocity: 100, velocity_range: 14, timing_jitter: 0.016, duration_beats: 0.12 }
+  snare:   { note: 38, base_velocity: 95,  velocity_range: 18, timing_jitter: 0.020, duration_beats: 0.09 }
+  rimshot: { note: 37, base_velocity: 88,  velocity_range: 15, timing_jitter: 0.016, duration_beats: 0.08 }
+  hihat:   { note: 42, base_velocity: 72,  velocity_range: 12, timing_jitter: 0.014, duration_beats: 0.07 }
+  crash:   { note: 49, base_velocity: 95,  velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.22 }
+  tom_hi:  { note: 48, base_velocity: 90,  velocity_range: 15, timing_jitter: 0.018, duration_beats: 0.10 }
+  tom_lo:  { note: 41, base_velocity: 88,  velocity_range: 15, timing_jitter: 0.018, duration_beats: 0.12 }
+
+humanization:
+  timing_jitter: 0.018
+  velocity_jitter: 15
+  velocity_drift: 0.08
+
+# Breton an dro: a 4-bar phrase where each bar has its own rhythmic signature.
+# Uses 'sequence' type so bars play in order (1->2->3->4->loop) rather than random.
+sections:
+  intro:
+    type: count_in
+    hits: 4
+    note: 37
+
+  groove:
+    bars: 4
+    type: sequence
+    bar_grids:
+      - # bar 1: strong downbeat, typical binary feel
+        kick:    "X...X...X......."
+        snare:   "....X.......X..."
+        hihat:   "x.x.x.x.x.x.x.x."
+      - # bar 2: syncopated kick, rimshot accent
+        kick:    "X.X.....X......."
+        rimshot: "....X.......X..."
+        hihat:   "x.x.x.x.x.x.x.x."
+      - # bar 3: light bar with ghost notes
+        kick:    "X...X..........."
+        snare:   "....X.......X..."
+        hihat:   "x.x.x.x.x.x.x.x."
+        rimshot: "..X.....X......."
+      - # bar 4: driving push into the repeat
+        kick:    "X...X...X.X.X..."
+        snare:   "....X.......X..."
+        hihat:   "x.x.x.x.x.x.x.x."
+
+  fill:
+    bars: 1
+    variations:
+      - name: roll
+        snare:  "XxXxXxXxXxXxXxX."
+        tom_hi: "............X..."
+        tom_lo: "..............X."
+        kick:   "X..............."
+      - name: bombarde_imitation
+        tom_hi:  "X.X.X.X.X......."
+        tom_lo:  "..............X."
+        kick:    "X..............."
+
+  crash:
+    bars: 1
+    variations:
+      - name: standard
+        crash:  "X..............."
+        kick:   "X..............."
+        hihat:  "x.x.x.x.x.x.x.x."
+
+structure:
+  fill_every: 8
+  break_every: 0
+  break_length: 1
+  crash_after_fill: true
+  dynamic_build: false

@@ -1,0 +1,78 @@
+name: Tight Funk
+family: funk
+bpm_range: [80, 120]
+time_signature: [4, 4]
+resolution: 16
+feel: straight
+
+instruments:
+  kick:    { note: 36, base_velocity: 105, velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.12 }
+  snare:   { note: 38, base_velocity: 100, velocity_range: 15, timing_jitter: 0.012, duration_beats: 0.10 }
+  snare_ghost: { note: 38, base_velocity: 28, velocity_range: 8, timing_jitter: 0.008, duration_beats: 0.08 }
+  hihat:   { note: 42, base_velocity: 80,  velocity_range: 12, timing_jitter: 0.008, duration_beats: 0.07 }
+  hihat_open: { note: 46, base_velocity: 85, velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.16 }
+  crash:   { note: 49, base_velocity: 95,  velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.22 }
+  tom_hi:  { note: 48, base_velocity: 90,  velocity_range: 15, timing_jitter: 0.015, duration_beats: 0.10 }
+  tom_lo:  { note: 41, base_velocity: 88,  velocity_range: 15, timing_jitter: 0.015, duration_beats: 0.12 }
+
+humanization:
+  timing_jitter: 0.010
+  velocity_jitter: 10
+  velocity_drift: 0.04
+
+sections:
+  intro:
+    type: count_in
+    hits: 4
+    note: 37
+
+  groove:
+    bars: 2
+    variations:
+      - name: main
+        weight: 3
+        kick:        "X...X.X.....X..."
+        snare:       "....X.......X..."
+        snare_ghost: "..g.....g.g....."
+        hihat:       "XxXxXxXxXxXxXxXx"
+      - name: open_hat
+        weight: 2
+        kick:        "X...X.X.....X..."
+        snare:       "....X.......X..."
+        snare_ghost: "..g.....g.g....."
+        hihat:       "XxXxXxXxXxXxXxo."
+        hihat_open:  "...............X"
+      - name: synco
+        weight: 1
+        kick:        "X.X.....X.X..X.."
+        snare:       "....X.......X..."
+        snare_ghost: "g.....g.....g..."
+        hihat:       "XxXxXxXxXxXxXxXx"
+
+  fill:
+    bars: 1
+    variations:
+      - name: snare_ghost_run
+        snare:       "X.X.X.X.X.X.X.X."
+        snare_ghost: ".x.x.x.x.x.x.x."
+        kick:        "X..............."
+      - name: tom_run
+        tom_hi:  "X.X.X.X.X......."
+        tom_lo:  ".........X.X.X.X"
+        kick:    "X..............."
+        snare:   "..............X."
+
+  crash:
+    bars: 1
+    variations:
+      - name: standard
+        crash: "X..............."
+        kick:  "X..............."
+        hihat: "XxXxXxXxXxXxXxXx"
+
+structure:
+  fill_every: 8
+  break_every: 0
+  break_length: 1
+  crash_after_fill: true
+  dynamic_build: true

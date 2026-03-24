@@ -1,0 +1,81 @@
+name: Classic Rock
+family: rock
+bpm_range: [80, 160]
+time_signature: [4, 4]
+resolution: 16
+feel: straight
+
+instruments:
+  kick:   { note: 36, base_velocity: 105, velocity_range: 12, timing_jitter: 0.015, duration_beats: 0.15 }
+  snare:  { note: 38, base_velocity: 100, velocity_range: 18, timing_jitter: 0.018, duration_beats: 0.12 }
+  hihat:  { note: 42, base_velocity: 75,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.08 }
+  hihat_open: { note: 46, base_velocity: 80, velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.18 }
+  crash:  { note: 49, base_velocity: 100, velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.25 }
+  tom_hi: { note: 48, base_velocity: 95,  velocity_range: 15, timing_jitter: 0.018, duration_beats: 0.12 }
+  tom_mid: { note: 45, base_velocity: 90, velocity_range: 15, timing_jitter: 0.018, duration_beats: 0.12 }
+  tom_lo: { note: 41, base_velocity: 90,  velocity_range: 15, timing_jitter: 0.018, duration_beats: 0.15 }
+
+humanization:
+  timing_jitter: 0.015
+  velocity_jitter: 12
+  velocity_drift: 0.05
+
+sections:
+  intro:
+    type: count_in
+    hits: 4
+    note: 37
+
+  groove:
+    bars: 2
+    variations:
+      - name: main
+        weight: 4
+        kick:   "X...X...X.X....."
+        snare:  "....X.......X..."
+        hihat:  "x.x.x.x.x.x.x.x."
+      - name: alt
+        weight: 1
+        kick:   "X...X...X......X"
+        snare:  "....X.......X..."
+        hihat:  "x.x.x.x.x.x.x.x."
+      - name: open_hat
+        weight: 1
+        kick:   "X...X...X.X....."
+        snare:  "....X.......X..."
+        hihat:  "x.x.x.x.x.x.x.o"
+        hihat_open: "...............X"
+
+  fill:
+    bars: 1
+    variations:
+      - name: simple
+        snare:  "....X...X.X.X.X."
+        tom_hi: "............X..."
+        tom_lo: "..............X."
+      - name: full
+        tom_hi: "X.X.X.X.X......."
+        tom_mid: ".......X.X......"
+        tom_lo: ".........X.X.X.X"
+        kick:   "X..............."
+
+  break:
+    bars: 2
+    variations:
+      - name: drop
+        kick: "X..............."
+
+  crash:
+    bars: 1
+    variations:
+      - name: standard
+        crash: "X..............."
+        kick:  "X..............."
+        hihat: "x.x.x.x.x.x.x.x."
+
+structure:
+  fill_every: 8
+  break_every: 0
+  break_length: 1
+  crash_after_fill: true
+  dynamic_build: true

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../l10n/app_localizations.dart';
 import '../constants/soundfont_sentinels.dart';
+import '../models/drum_generator_plugin_instance.dart';
 import '../models/gfpa_plugin_instance.dart';
 import '../models/grooveforge_keyboard_plugin.dart';
 import '../models/looper_plugin_instance.dart';
@@ -21,6 +22,7 @@ import '../widgets/keyboard_config_dialog.dart';
 import '../widgets/virtual_piano.dart';
 import 'package:grooveforge_plugin_api/grooveforge_plugin_api.dart';
 
+import 'rack/drum_generator_slot_ui.dart';
 import 'rack/gfpa_descriptor_slot_ui.dart';
 import 'rack/gfpa_jam_mode_slot_ui.dart';
 import 'rack/gfpa_stylophone_slot_ui.dart';
@@ -198,6 +200,7 @@ class RackSlotWidget extends StatelessWidget {
   /// note-activity glow to avoid false highlights when an unconnected VP is
   /// played.  Only slots that directly produce or respond to notes should glow.
   bool get _shouldShowNoteGlow {
+    if (plugin is DrumGeneratorPluginInstance) return false;
     if (plugin is LooperPluginInstance) return false;
     if (plugin is GFpaPluginInstance) {
       final gfpa = plugin as GFpaPluginInstance;
@@ -221,6 +224,11 @@ class RackSlotWidget extends StatelessWidget {
 
   Widget _buildBody(BuildContext context) {
     debugPrint('RackSlotWidget: _buildBody for ${plugin.displayName}');
+    if (plugin is DrumGeneratorPluginInstance) {
+      return DrumGeneratorSlotUI(
+        plugin: plugin as DrumGeneratorPluginInstance,
+      );
+    }
     if (plugin is GrooveForgeKeyboardPlugin) {
       return GrooveForgeKeyboardSlotUI(
         plugin: plugin as GrooveForgeKeyboardPlugin,
@@ -371,6 +379,7 @@ class _SlotHeader extends StatelessWidget {
   }
 
   IconData _iconFor(PluginInstance p) {
+    if (p is DrumGeneratorPluginInstance) return Icons.album;
     if (p is GrooveForgeKeyboardPlugin) {
       return p.soundfontPath == kMidiControllerOnlySoundfont
           ? Icons.piano_outlined

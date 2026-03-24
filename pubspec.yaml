@@ -113,6 +113,7 @@ flutter:
   assets:
     - assets/soundfonts/
     - assets/plugins/
+    - assets/drums/
     - splashscreen.png
     - CHANGELOG.md
     - CHANGELOG.fr.md
