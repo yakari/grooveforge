@@ -5,7 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:flutter_midi_command/flutter_midi_command.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:grooveforge_plugin_api/grooveforge_plugin_api.dart'
-    show TimestampedMidiEvent;
+    show GFTransportContext, TimestampedMidiEvent;
 
 import '../l10n/app_localizations.dart';
 import '../models/audio_port_id.dart';
@@ -36,6 +36,23 @@ import '../widgets/transport_bar.dart';
 import '../widgets/user_guide_modal.dart';
 import 'preferences_screen.dart';
 
+/// Pre-computed routing snapshot for one MIDI channel.
+///
+/// Built once by [_RackScreenState._rebuildRoutingCache] and reused on every
+/// incoming MIDI note without any heap allocations. Replaced entirely whenever
+/// [RackState] or [AudioGraph] fires [notifyListeners] (slot added/removed,
+/// cable connected/disconnected).
+class _ChannelRouting {
+  /// VST3 slots on this MIDI channel.
+  final List<Vst3PluginInstance> vst3Slots = [];
+
+  /// GFK slots with a MIDI-only soundfont (no FluidSynth; cable routing only).
+  final List<GrooveForgeKeyboardPlugin> midiOnlySlots = [];
+
+  /// GFK slots with a real soundfont (FluidSynth plays + loopers are fed).
+  final List<GrooveForgeKeyboardPlugin> synthSlots = [];
+}
+
 /// The main screen of GrooveForge v2: a reorderable plugin rack.
 ///
 /// Replaces [SynthesizerScreen]. Each row in the list is a [RackSlotWidget]
@@ -53,6 +70,40 @@ class _RackScreenState extends State<RackScreen> {
   final ScrollController _scrollController = ScrollController();
   StreamSubscription<MidiDevice>? _newDeviceSubscription;
   String? _currentProjectPath;
+
+  // ── Cached service references ─────────────────────────────────────────────
+  // Populated once in initState. Eliminates context.read<T>() traversals
+  // on every incoming MIDI note — each read is O(widget-tree depth).
+  late RackState _rackState;
+  late AudioEngine _engine;
+  late AudioGraph _audioGraph;
+  late VstHostService _vstSvc;
+  late LooperEngine _looperEngine;
+  late TransportEngine _transportEngine;
+
+  // ── Per-channel routing cache ──────────────────────────────────────────────
+  // Rebuilt by [_rebuildRoutingCache] whenever RackState or AudioGraph
+  // notifies (structural changes only — not on every note event).
+  // Hot path: zero allocations — just Map/List reads.
+  final Map<int, _ChannelRouting> _routingCache = {};
+
+  /// Maps each instrument slot ID to the looper slot IDs reachable from it
+  /// via a MIDI OUT cable. Computed during [_rebuildRoutingCache].
+  ///
+  /// [_feedMidiToLoopers] reads this directly — no [AudioGraph.connectionsFrom]
+  /// call (and no List allocation) on the hot path.
+  final Map<String, List<String>> _looperTargets = {};
+
+  /// Maps each looper slot ID to the target [PluginInstance]s wired to its
+  /// MIDI OUT jack. Updated by [_rebuildRoutingCache] and consumed by
+  /// [_handleLooperPlayback] so playback dispatch is also allocation-free.
+  final Map<String, List<PluginInstance>> _looperPlaybackTargets = {};
+
+  /// Cached [GFTransportContext] for the MIDI FX pipeline.
+  ///
+  /// Avoids allocating a new object on every MIDI event. Updated whenever
+  /// [TransportEngine] notifies (tempo / play-state change).
+  late GFTransportContext _cachedTransport;
 
   /// Timer that periodically scrolls the list while the user holds a cable
   /// drag near the top or bottom edge of the patch view.
@@ -98,32 +149,47 @@ class _RackScreenState extends State<RackScreen> {
   void initState() {
     super.initState();
     debugPrint('RackScreen: initState START');
+
+    // ── Cache service references once ────────────────────────────────────────
+    // All subsequent hot-path code reads from these fields instead of calling
+    // context.read<T>() (which traverses the widget tree) per MIDI event.
+    _rackState = context.read<RackState>();
+    _engine = context.read<AudioEngine>();
+    _audioGraph = context.read<AudioGraph>();
+    _vstSvc = context.read<VstHostService>();
+    _looperEngine = context.read<LooperEngine>();
+    _transportEngine = context.read<TransportEngine>();
+    _cachedTransport = _transportEngine.toGFTransportContext();
+
+    // Build the per-channel routing snapshot. Listeners below keep it fresh.
+    _rackState.addListener(_rebuildRoutingCache);
+    _audioGraph.addListener(_rebuildRoutingCache);
+    _rebuildRoutingCache();
+
     final midiService = context.read<MidiService>();
-    final engine = context.read<AudioEngine>();
     final ccMappingService = context.read<CcMappingService>();
 
-    engine.ccMappingService = ccMappingService;
+    _engine.ccMappingService = ccMappingService;
 
     // Wire looper MIDI playback → dispatch to slots connected via MIDI OUT cable.
-    final looperEngine = context.read<LooperEngine>();
-    looperEngine.onMidiPlayback = _handleLooperPlayback;
+    _looperEngine.onMidiPlayback = _handleLooperPlayback;
 
     // Wire global CC looper actions (1009-1013) from AudioEngine to LooperEngine.
     // The looper enforces single-instance, so we always target the first session.
-    engine.onLooperSystemAction = (int actionCode, int ccValue) {
-      final slotId = looperEngine.sessions.keys.firstOrNull;
+    _engine.onLooperSystemAction = (int actionCode, int ccValue) {
+      final slotId = _looperEngine.sessions.keys.firstOrNull;
       if (slotId == null) return; // no looper slot in rack
       switch (actionCode) {
-        case 1009: looperEngine.toggleRecord(slotId);
-        case 1010: looperEngine.togglePlay(slotId);
-        case 1011: looperEngine.queueOverdub(slotId);
-        case 1012: looperEngine.stop(slotId);
-        case 1013: looperEngine.clearAll(slotId);
+        case 1009: _looperEngine.toggleRecord(slotId);
+        case 1010: _looperEngine.togglePlay(slotId);
+        case 1011: _looperEngine.queueOverdub(slotId);
+        case 1012: _looperEngine.stop(slotId);
+        case 1013: _looperEngine.clearAll(slotId);
       }
     };
 
     // When the transport starts playing, arm any waiting looper sessions.
-    context.read<TransportEngine>().addListener(_onTransportChanged);
+    _transportEngine.addListener(_onTransportChanged);
 
     midiService.onMidiDataReceived = (packet) {
       // Check whether an incoming CC matches any MIDI FX bypass assignment and
@@ -132,20 +198,29 @@ class _RackScreenState extends State<RackScreen> {
       if (packet.data.length >= 2) {
         final command = packet.data[0] & 0xF0;
         if (command == 0xB0) {
-          context.read<RackState>().handleBypassCcEvent(packet.data[1]);
+          _rackState.handleBypassCcEvent(packet.data[1]);
         }
       }
 
-      // Apply any active MIDI FX chains before dispatching.
-      // Harmonic transforms (harmonizer, transpose) run here; this may expand
-      // one incoming event into multiple (e.g. note + harmony voices).
+      // Fast path: if no MIDI FX are registered, dispatch directly without
+      // creating a TimestampedMidiEvent or running applyMidiFxForChannel.
+      // MIDI FX are rare and change only on structural rack edits, so this
+      // branch is taken for the vast majority of notes.
+      if (!_rackState.hasMidiFxPlugins) {
+        if (!_routeMidiToVst3Plugins(packet)) {
+          _engine.processMidiPacket(packet);
+        }
+        return;
+      }
+
+      // MIDI FX path: harmonizers/transposers may expand one event into many.
       final events = _applyMidiFxToPacket(packet);
       for (final event in events) {
         final dispatched = _eventToPacket(event, packet);
         // If a VST3 slot owns this MIDI channel, send only to the VST3 plugin
         // and skip FluidSynth entirely — otherwise the soundfont plays in parallel.
         if (!_routeMidiToVst3Plugins(dispatched)) {
-          engine.processMidiPacket(dispatched);
+          _engine.processMidiPacket(dispatched);
         }
       }
     };
@@ -166,7 +241,7 @@ class _RackScreenState extends State<RackScreen> {
     });
 
     _toastListener = () {
-      final msg = engine.toastNotifier.value;
+      final msg = _engine.toastNotifier.value;
       if (msg != null && mounted) {
         ScaffoldMessenger.of(context).clearSnackBars();
         ScaffoldMessenger.of(context).showSnackBar(
@@ -174,7 +249,7 @@ class _RackScreenState extends State<RackScreen> {
         );
       }
     };
-        engine.toastNotifier.addListener(_toastListener!);
+        _engine.toastNotifier.addListener(_toastListener!);
 
     _newDeviceSubscription = midiService.onNewDeviceDetected.listen((device) {
       if (mounted) _showNewDeviceModal(device);
@@ -185,10 +260,10 @@ class _RackScreenState extends State<RackScreen> {
       final packageInfo = await PackageInfo.fromPlatform();
       final currentVersion =
           '${packageInfo.version}+${packageInfo.buildNumber}';
-      if (engine.lastSeenVersion.value != currentVersion) {
+      if (_engine.lastSeenVersion.value != currentVersion) {
         if (mounted) {
           _showUserGuide();
-          engine.markWelcomeAsSeen(currentVersion);
+          _engine.markWelcomeAsSeen(currentVersion);
         }
       }
     });
@@ -197,13 +272,15 @@ class _RackScreenState extends State<RackScreen> {
 
   @override
   void dispose() {
+    _rackState.removeListener(_rebuildRoutingCache);
+    _audioGraph.removeListener(_rebuildRoutingCache);
     _newDeviceSubscription?.cancel();
     if (_toastListener != null) {
-      context.read<AudioEngine>().toastNotifier.removeListener(_toastListener!);
+      _engine.toastNotifier.removeListener(_toastListener!);
     }
-    context.read<TransportEngine>().removeListener(_onTransportChanged);
-    context.read<LooperEngine>().onMidiPlayback = null;
-    context.read<AudioEngine>().onLooperSystemAction = null;
+    _transportEngine.removeListener(_onTransportChanged);
+    _looperEngine.onMidiPlayback = null;
+    _engine.onLooperSystemAction = null;
     _autoScrollTimer?.cancel();
     _midiScrollDebounce?.cancel();
     _scrollController.dispose();
@@ -216,9 +293,74 @@ class _RackScreenState extends State<RackScreen> {
   /// Notifies [LooperEngine] when the transport transitions to playing so that
   /// armed looper sessions begin recording in sync with the downbeat.
   void _onTransportChanged() {
-    final transport = context.read<TransportEngine>();
-    if (transport.isPlaying) {
-      context.read<LooperEngine>().onTransportPlay();
+    // Refresh the cached transport context so MIDI FX plugins always see the
+    // current BPM and play-state without allocating a new object per event.
+    _cachedTransport = _transportEngine.toGFTransportContext();
+    if (_transportEngine.isPlaying) {
+      _looperEngine.onTransportPlay();
+    }
+  }
+
+  // ─── Routing cache ──────────────────────────────────────────────────────────
+
+  /// Rebuilds the per-channel routing snapshot from the current rack and graph.
+  ///
+  /// Called once in [initState] and again whenever [RackState] or [AudioGraph]
+  /// fires [notifyListeners] (slot added/removed, cable connected/disconnected).
+  ///
+  /// After this method returns, [_routingCache], [_looperTargets], and
+  /// [_looperPlaybackTargets] are fully up-to-date so the MIDI hot path
+  /// ([_routeMidiToVst3Plugins], [_feedMidiToLoopers], [_handleLooperPlayback])
+  /// can serve queries without any heap allocation.
+  void _rebuildRoutingCache() {
+    _routingCache.clear();
+    _looperTargets.clear();
+    _looperPlaybackTargets.clear();
+
+    final plugins = _rackState.plugins;
+
+    // ── Per-channel slot classification ──────────────────────────────────────
+    for (final plugin in plugins) {
+      final routing =
+          _routingCache.putIfAbsent(plugin.midiChannel, _ChannelRouting.new);
+      if (plugin is Vst3PluginInstance) {
+        routing.vst3Slots.add(plugin);
+      } else if (plugin is GrooveForgeKeyboardPlugin) {
+        if (plugin.soundfontPath == kMidiControllerOnlySoundfont) {
+          routing.midiOnlySlots.add(plugin);
+        } else {
+          routing.synthSlots.add(plugin);
+        }
+      }
+    }
+
+    // ── Looper wiring: instrument slot → looper targets ─────────────────────
+    // For each GFK or MIDI-only slot, find LooperPluginInstance destinations
+    // reachable via a MIDI OUT cable in the audio graph.
+    for (final routing in _routingCache.values) {
+      final srcSlots = [...routing.midiOnlySlots, ...routing.synthSlots];
+      for (final src in srcSlots) {
+        final targets = <String>[];
+        for (final p in plugins) {
+          if (p is LooperPluginInstance &&
+              _audioGraph.hasMidiOutTo(src.id, p.id)) {
+            targets.add(p.id);
+          }
+        }
+        if (targets.isNotEmpty) _looperTargets[src.id] = targets;
+      }
+    }
+
+    // ── Looper playback wiring: looper slot → downstream targets ─────────────
+    // For each LooperPluginInstance, find all slots connected to its MIDI OUT
+    // so [_handleLooperPlayback] can dispatch without scanning connections.
+    for (final p in plugins) {
+      if (p is! LooperPluginInstance) continue;
+      final targets = <PluginInstance>[];
+      for (final dest in plugins) {
+        if (_audioGraph.hasMidiOutTo(p.id, dest.id)) targets.add(dest);
+      }
+      if (targets.isNotEmpty) _looperPlaybackTargets[p.id] = targets;
     }
   }
 
@@ -285,10 +427,9 @@ class _RackScreenState extends State<RackScreen> {
 
     // MIDI channel: 0-based in status byte, 1-based in rack slots.
     final midiChannel = (status & 0x0F) + 1;
-    final rack = context.read<RackState>();
-    final transport = context.read<TransportEngine>().toGFTransportContext();
 
-    return rack.applyMidiFxForChannel(midiChannel, [event], transport);
+    // Use cached rack state and transport context — no context.read<>() calls.
+    return _rackState.applyMidiFxForChannel(midiChannel, [event], _cachedTransport);
   }
 
   /// Wrap a [TimestampedMidiEvent] back into a [MidiPacket], reusing the
@@ -318,35 +459,20 @@ class _RackScreenState extends State<RackScreen> {
     final statusByte = packet.data[0];
     final midiChannel = (statusByte & 0x0F) + 1; // 0-based → 1-based
 
-    final rack = context.read<RackState>();
-    final vst3Slots = rack.plugins
-        .whereType<Vst3PluginInstance>()
-        .where((p) => p.midiChannel == midiChannel)
-        .toList();
-    final gfkMidiOnlySlots = rack.plugins
-        .whereType<GrooveForgeKeyboardPlugin>()
-        .where((p) =>
-            p.midiChannel == midiChannel &&
-            p.soundfontPath == kMidiControllerOnlySoundfont)
-        .toList();
-    // Synth GFK: external MIDI still goes through FluidSynth, but we also feed
-    // any looper wired from this slot's MIDI OUT.
-    final gfkSynthSlots = rack.plugins
-        .whereType<GrooveForgeKeyboardPlugin>()
-        .where((p) =>
-            p.midiChannel == midiChannel &&
-            p.soundfontPath != kMidiControllerOnlySoundfont)
-        .toList();
+    // Use pre-computed routing snapshot — zero allocations, zero provider reads.
+    final routing = _routingCache[midiChannel];
+    if (routing == null) return false;
 
-    if (vst3Slots.isEmpty &&
-        gfkMidiOnlySlots.isEmpty &&
-        gfkSynthSlots.isEmpty) {
+    final vst3Slots = routing.vst3Slots;
+    final gfkMidiOnlySlots = routing.midiOnlySlots;
+    final gfkSynthSlots = routing.synthSlots;
+
+    if (vst3Slots.isEmpty && gfkMidiOnlySlots.isEmpty && gfkSynthSlots.isEmpty) {
       return false;
     }
 
     final command = statusByte & 0xF0;
     if ((command == 0x90 || command == 0x80) && packet.data.length >= 2) {
-      final vstSvc = context.read<VstHostService>();
       final note = packet.data[1];
       final velocity = packet.data.length >= 3 ? packet.data[2] : 0;
       final isNoteOn = command == 0x90 && velocity > 0;
@@ -354,72 +480,58 @@ class _RackScreenState extends State<RackScreen> {
       // ── Direct VST3 routing ──────────────────────────────────────────────
       for (final plugin in vst3Slots) {
         if (isNoteOn) {
-          vstSvc.noteOn(plugin.id, 0, note, velocity / 127.0);
+          _vstSvc.noteOn(plugin.id, 0, note, velocity / 127.0);
         } else {
-          vstSvc.noteOff(plugin.id, 0, note);
+          _vstSvc.noteOff(plugin.id, 0, note);
         }
       }
 
       // ── MIDI-only GFK cable routing (legacy Virtual Piano behaviour) ─────
-      if (gfkMidiOnlySlots.isNotEmpty) {
-        final engine = context.read<AudioEngine>();
-        final audioGraph = context.read<AudioGraph>();
-        for (final src in gfkMidiOnlySlots) {
-          _routeExternalMidiThroughPatchMidiSource(
-            source: src,
-            note: note,
-            velocity: velocity,
-            isNoteOn: isNoteOn,
-            engine: engine,
-            audioGraph: audioGraph,
-            vstSvc: vstSvc,
-            rack: rack,
-          );
-        }
+      for (final src in gfkMidiOnlySlots) {
+        _routeExternalMidiThroughPatchMidiSource(
+          source: src,
+          note: note,
+          velocity: velocity,
+          isNoteOn: isNoteOn,
+          engine: _engine,
+          audioGraph: _audioGraph,
+          vstSvc: _vstSvc,
+          rack: _rackState,
+        );
       }
 
       // ── GrooveForge Keyboard (with synth) looper feed ─────────────────────
-      if (gfkSynthSlots.isNotEmpty) {
-        for (final gfk in gfkSynthSlots) {
-          final gfkCh = (gfk.midiChannel - 1).clamp(0, 15);
-          _feedMidiToLoopers(
-            isNoteOn
-                ? (0x90 | gfkCh)
-                : (0x80 | gfkCh),
-            note,
-            velocity,
-            gfk.id,
-          );
-        }
+      for (final gfk in gfkSynthSlots) {
+        final gfkCh = (gfk.midiChannel - 1).clamp(0, 15);
+        _feedMidiToLoopers(
+          isNoteOn ? (0x90 | gfkCh) : (0x80 | gfkCh),
+          note,
+          velocity,
+          gfk.id,
+        );
       }
     } else if (_isExpressionCommand(command) && packet.data.length >= 2) {
       // ── Pitch bend / CC / channel pressure forwarding ────────────────────
-      if (gfkMidiOnlySlots.isNotEmpty) {
-        final engine = context.read<AudioEngine>();
-        final audioGraph = context.read<AudioGraph>();
-        final vstSvc = context.read<VstHostService>();
-        for (final src in gfkMidiOnlySlots) {
-          _routeExpressionThroughPatchMidiSource(
-            source: src,
-            command: command,
-            data1: packet.data[1],
-            data2: packet.data.length >= 3 ? packet.data[2] : 0,
-            engine: engine,
-            audioGraph: audioGraph,
-            vstSvc: vstSvc,
-            rack: rack,
-          );
-        }
+      for (final src in gfkMidiOnlySlots) {
+        _routeExpressionThroughPatchMidiSource(
+          source: src,
+          command: command,
+          data1: packet.data[1],
+          data2: packet.data.length >= 3 ? packet.data[2] : 0,
+          engine: _engine,
+          audioGraph: _audioGraph,
+          vstSvc: _vstSvc,
+          rack: _rackState,
+        );
       }
       // VST3 slots receive expression directly (they replace FluidSynth).
       if (vst3Slots.isNotEmpty) {
-        final vstSvc = context.read<VstHostService>();
         _routeExpressionToVst3Slots(
           command: command,
           data1: packet.data[1],
           data2: packet.data.length >= 3 ? packet.data[2] : 0,
           vst3Slots: vst3Slots,
-          vstSvc: vstSvc,
+          vstSvc: _vstSvc,
         );
       }
     }
@@ -590,37 +702,30 @@ class _RackScreenState extends State<RackScreen> {
   /// Called by [LooperEngine.onMidiPlayback] on every replayed event.
   void _handleLooperPlayback(String slotId, int status, int data1, int data2) {
     if (!mounted) return;
-    final rack = context.read<RackState>();
-    final audioGraph = context.read<AudioGraph>();
-    final engine = context.read<AudioEngine>();
-    final vstSvc = context.read<VstHostService>();
 
     final command = status & 0xF0;
     final isNoteOn = command == 0x90 && data2 > 0;
     final isNoteOff = command == 0x80 || (command == 0x90 && data2 == 0);
 
-    // Forward to each slot connected to this looper's MIDI OUT jack.
-    final cables = audioGraph
-        .connectionsFrom(slotId)
-        .where((c) => c.fromPort == AudioPortId.midiOut);
-    for (final cable in cables) {
-      final target =
-          rack.plugins.where((p) => p.id == cable.toSlotId).firstOrNull;
-      if (target == null) continue;
+    // Use pre-computed playback targets — no connectionsFrom() + no provider reads.
+    final targets = _looperPlaybackTargets[slotId];
+    if (targets == null) return;
+
+    for (final target in targets) {
       final targetCh = (target.midiChannel - 1).clamp(0, 15);
       if (isNoteOn) {
         if (target is Vst3PluginInstance) {
-          vstSvc.noteOn(target.id, 0, data1, data2 / 127.0);
-          engine.noteOnUiOnly(channel: targetCh, key: data1);
+          _vstSvc.noteOn(target.id, 0, data1, data2 / 127.0);
+          _engine.noteOnUiOnly(channel: targetCh, key: data1);
         } else {
-          engine.playNote(channel: targetCh, key: data1, velocity: data2);
+          _engine.playNote(channel: targetCh, key: data1, velocity: data2);
         }
       } else if (isNoteOff) {
         if (target is Vst3PluginInstance) {
-          vstSvc.noteOff(target.id, 0, data1);
-          engine.noteOffUiOnly(channel: targetCh, key: data1);
+          _vstSvc.noteOff(target.id, 0, data1);
+          _engine.noteOffUiOnly(channel: targetCh, key: data1);
         } else {
-          engine.stopNote(channel: targetCh, key: data1);
+          _engine.stopNote(channel: targetCh, key: data1);
         }
       }
     }
@@ -637,39 +742,26 @@ class _RackScreenState extends State<RackScreen> {
     int data2,
     String sourceSlotId,
   ) {
-    final audioGraph = context.read<AudioGraph>();
-    final looperEngine = context.read<LooperEngine>();
-
-    // Find all MIDI OUT cables leaving [sourceSlotId].
-    final cables = audioGraph
-        .connectionsFrom(sourceSlotId)
-        .where((c) => c.fromPort == AudioPortId.midiOut);
-
-    for (final cable in cables) {
-      final targetSlotId = cable.toSlotId;
-      final isLooper = context
-          .read<RackState>()
-          .plugins
-          .any((p) => p.id == targetSlotId && p is LooperPluginInstance);
-      if (isLooper) {
-        looperEngine.feedMidiEvent(targetSlotId, status, data1, data2);
-      }
+    // Look up pre-computed looper targets for this source slot.
+    // No AudioGraph.connectionsFrom() call and no List allocation on hot path.
+    final targets = _looperTargets[sourceSlotId];
+    if (targets == null) return;
+    for (final targetSlotId in targets) {
+      _looperEngine.feedMidiEvent(targetSlotId, status, data1, data2);
     }
   }
 
   void _handleAutoScroll(int channel) {
-    final engine = context.read<AudioEngine>();
-    if (!engine.autoScrollEnabled.value) return;
+    if (!_engine.autoScrollEnabled.value) return;
     if (!_scrollController.hasClients) return;
 
-    final rack = context.read<RackState>();
-    final slotIndex = rack.plugins.indexWhere(
+    final slotIndex = _rackState.plugins.indexWhere(
       (p) => p.midiChannel - 1 == channel,
     );
     if (slotIndex == -1) return;
 
     // Slots now have variable height; scroll to the registered key if possible.
-    final key = _slotKeys[rack.plugins[slotIndex].id];
+    final key = _slotKeys[_rackState.plugins[slotIndex].id];
     if (key?.currentContext != null) {
       Scrollable.ensureVisible(
         key!.currentContext!,

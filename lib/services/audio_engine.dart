@@ -696,7 +696,7 @@ class AudioEngine extends ChangeNotifier {
     await _prefs!.setBool('auto_scroll_enabled', autoScrollEnabled.value);
     await _prefs!.setString('last_seen_version', lastSeenVersion.value ?? "");
 
-    // FluidSynth gain (Linux)
+    // FluidSynth master output gain (all platforms).
     await _prefs!.setDouble('fluidsynth_gain', fluidSynthGain.value);
 
     // Vocoder Parameters
@@ -728,11 +728,13 @@ class AudioEngine extends ChangeNotifier {
       return;
     }
 
-    // Restore FluidSynth gain — applied immediately via stdin if the process
-    // is already running (only meaningful on Linux).
-    fluidSynthGain.value =
-        _prefs!.getDouble('fluidsynth_gain') ??
-        (!kIsWeb && (Platform.isLinux || Platform.isMacOS) ? 3.0 : 5.0);
+    // Restore FluidSynth master output gain.
+    // Default is 3.0 on all platforms — 5.0 was too loud and caused
+    // saturation on Android speakers.  The saved value is applied by the
+    // fluidSynthGain listener (applyFluidSynthGain); it will also be
+    // re-applied after each new FluidSynth instance is created so that
+    // per-slot synths on Android inherit the correct level.
+    fluidSynthGain.value = _prefs!.getDouble('fluidsynth_gain') ?? 3.0;
 
     // Restore Vocoder Parameters FIRST so capture starts with correct device
     vocoderWaveform.value = _prefs!.getInt('vocoder_waveform') ?? 0;
@@ -902,6 +904,9 @@ class AudioEngine extends ChangeNotifier {
           throw Exception('Failed to load soundfont at $targetPath');
         }
         _sfPathToIdMobile[targetPath] = sfId;
+        // Apply user gain to the newly created FluidSynth instance — the
+        // listener fired during _restoreState before this instance existed.
+        applyFluidSynthGain();
       }
 
       try {
@@ -1128,6 +1133,12 @@ class AudioEngine extends ChangeNotifier {
       bank: state.bank,
       program: state.program,
     );
+
+    // Apply the user's saved gain to this new synth instance.
+    // The fluidSynthGain listener fires once during _restoreState but at that
+    // point no per-slot synths exist yet — each new instance would otherwise
+    // inherit FluidSynth's internal default instead of the saved value.
+    applyFluidSynthGain();
 
     debugPrint(
       'AudioEngine: created dedicated synth for ch$midiChannel '

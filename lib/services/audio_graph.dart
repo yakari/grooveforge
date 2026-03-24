@@ -107,6 +107,22 @@ class AudioGraph extends ChangeNotifier {
   List<AudioGraphConnection> connectionsTo(String slotId) =>
       _connections.where((c) => c.toSlotId == slotId).toList();
 
+  /// Returns `true` if a MIDI-OUT cable runs from [fromSlotId] to [toSlotId],
+  /// without allocating a new [List].
+  ///
+  /// Use this instead of `connectionsFrom(...).any(...)` on the MIDI hot path
+  /// to avoid the intermediate [List] allocation that [connectionsFrom] creates.
+  bool hasMidiOutTo(String fromSlotId, String toSlotId) {
+    for (final c in _connections) {
+      if (c.fromSlotId == fromSlotId &&
+          c.fromPort == AudioPortId.midiOut &&
+          c.toSlotId == toSlotId) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   // ── Cycle detection (DFS) ─────────────────────────────────────────────────
 
   /// Returns true if adding the edge [fromSlotId] → [toSlotId] would

@@ -11,6 +11,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.concurrent.Executors
 
 /** FlutterMidiProPlugin */
 class FlutterMidiProPlugin: FlutterPlugin, MethodCallHandler {
@@ -34,15 +35,17 @@ class FlutterMidiProPlugin: FlutterPlugin, MethodCallHandler {
     private external fun stopAllNotes(sfId: Int)
 
     @JvmStatic
-  private external fun controlChange(sfId: Int, channel: Int, controller: Int, value: Int)
+    private external fun controlChange(sfId: Int, channel: Int, controller: Int, value: Int)
 
-  @JvmStatic
-  private external fun pitchBend(sfId: Int, channel: Int, value: Int)
+    @JvmStatic
+    private external fun pitchBend(sfId: Int, channel: Int, value: Int)
 
-  @JvmStatic
+    @JvmStatic
     private external fun setGain(gain: Double)
+
     @JvmStatic
     private external fun unloadSoundfont(sfId: Int)
+
     @JvmStatic
     private external fun dispose()
   }
@@ -50,12 +53,39 @@ class FlutterMidiProPlugin: FlutterPlugin, MethodCallHandler {
   private lateinit var channel : MethodChannel
   private lateinit var flutterPluginBinding: FlutterPlugin.FlutterPluginBinding
 
+  // Dedicated single-threaded executor for real-time audio JNI calls.
+  //
+  // Every hot-path operation (playNote, stopNote, controlChange, pitchBend)
+  // is dispatched here instead of running on the Android main thread.
+  //
+  // The Android main thread also handles the Choreographer (vsync) callbacks
+  // that drive Flutter's frame pipeline.  When playNote ran on the main thread,
+  // a vsync frame render could interleave between consecutive note-on messages
+  // of a chord — delaying subsequent notes by 10–20 ms even on fast hardware.
+  //
+  // By executing on this isolated thread:
+  //   1. FluidSynth JNI calls are never preempted by UI frame renders.
+  //   2. All three notes of a chord reach fluid_synth_noteon() back-to-back,
+  //      within the same FluidSynth audio buffer → heard simultaneously.
+  //   3. result.success(null) is returned to Dart *before* the JNI call,
+  //      so the Dart event loop is unblocked immediately regardless of
+  //      how long the audio work takes.
+  //
+  // Thread priority is set to MAX so the OS scheduler prefers audio work over
+  // background tasks when the device is under load.
+  private val audioExecutor = Executors.newSingleThreadExecutor { runnable ->
+    Thread(runnable, "GrooveForge-Audio").also {
+      it.priority = Thread.MAX_PRIORITY
+    }
+  }
+
   override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
     this.flutterPluginBinding = flutterPluginBinding
     channel = MethodChannel(flutterPluginBinding.binaryMessenger, "flutter_midi_pro")
     channel.setMethodCallHandler(this)
-  }  
- override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
+  }
+
+  override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
     when (call.method) {
       "loadSoundfont" -> {
         CoroutineScope(Dispatchers.IO).launch {
@@ -63,18 +93,15 @@ class FlutterMidiProPlugin: FlutterPlugin, MethodCallHandler {
           val bank = call.argument<Int>("bank")?:0
           val program = call.argument<Int>("program")?:0
           val audioManager = flutterPluginBinding.applicationContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-          
-          // Sesi mute yapma
+
+          // Mute while loading to prevent a click when FluidSynth reinitialises.
           audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_MUTE, 0)
-          
-          // Soundfont yükleme işlemi (senkron, bloke eden çağrı)
+
           val sfId = loadSoundfont(path, bank, program)
           delay(250)
-          
-          // Sesi tekrar açma
+
           audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_UNMUTE, 0)
-          
-          // Sonucu ana thread'de Flutter'a iletme
+
           withContext(Dispatchers.Main) {
             if (sfId == -1) {
               result.error("INVALID_ARGUMENT", "Something went wrong. Check the path of the template soundfont", null)
@@ -84,80 +111,97 @@ class FlutterMidiProPlugin: FlutterPlugin, MethodCallHandler {
           }
         }
       }
+
       "selectInstrument" -> {
         val sfId = call.argument<Int>("sfId")?:1
-        val channel = call.argument<Int>("channel")?:0
+        val ch   = call.argument<Int>("channel")?:0
         val bank = call.argument<Int>("bank")?:0
-        val program = call.argument<Int>("program")?:0
-          selectInstrument(sfId, channel, bank, program)
-          result.success(null)
-        }
+        val prog = call.argument<Int>("program")?:0
+        result.success(null)
+        audioExecutor.execute { selectInstrument(sfId, ch, bank, prog) }
+      }
+
+      // ── Real-time note events ────────────────────────────────────────────
+      // result.success(null) is sent BEFORE the JNI dispatch so that the
+      // Dart Future resolves immediately.  Dart never awaits these calls in
+      // the hot path, but returning early ensures the method-channel round-
+      // trip does not add latency on top of the audio thread queue.
+
       "playNote" -> {
-        val channel = call.argument<Int>("channel")
+        val ch  = call.argument<Int>("channel")
         val key = call.argument<Int>("key")
-        val velocity = call.argument<Int>("velocity")
+        val vel = call.argument<Int>("velocity")
         val sfId = call.argument<Int>("sfId")
-        if (channel != null && key != null && velocity != null && sfId != null) {
-          playNote(channel, key, velocity, sfId)
+        if (ch != null && key != null && vel != null && sfId != null) {
           result.success(null)
+          audioExecutor.execute { playNote(ch, key, vel, sfId) }
         } else {
-          result.error("INVALID_ARGUMENT", "channel, key, and velocity are required", null)
+          result.error("INVALID_ARGUMENT", "channel, key, velocity and sfId are required", null)
         }
       }
+
       "stopNote" -> {
-        val channel = call.argument<Int>("channel")
-        val key = call.argument<Int>("key")
+        val ch   = call.argument<Int>("channel")
+        val key  = call.argument<Int>("key")
         val sfId = call.argument<Int>("sfId")
-        if (channel != null && key != null && sfId != null) {
-          stopNote(channel, key, sfId)
+        if (ch != null && key != null && sfId != null) {
           result.success(null)
+          audioExecutor.execute { stopNote(ch, key, sfId) }
         } else {
           result.error("INVALID_ARGUMENT", "channel and key are required", null)
         }
       }
+
       "stopAllNotes" -> {
         val sfId = call.argument<Int>("sfId") as Int
-        stopAllNotes(sfId)
         result.success(null)
+        audioExecutor.execute { stopAllNotes(sfId) }
       }
+
       "controlChange" -> {
-        val sfId = call.argument<Int>("sfId") ?: 1
-        val channel = call.argument<Int>("channel") ?: 0
+        val sfId       = call.argument<Int>("sfId") ?: 1
+        val ch         = call.argument<Int>("channel") ?: 0
         val controller = call.argument<Int>("controller") ?: 0
-        val value = call.argument<Int>("value") ?: 0
-        controlChange(sfId, channel, controller, value)
+        val value      = call.argument<Int>("value") ?: 0
         result.success(null)
+        audioExecutor.execute { controlChange(sfId, ch, controller, value) }
       }
+
       "pitchBend" -> {
-        val sfId = call.argument<Int>("sfId") ?: 1
-        val channel = call.argument<Int>("channel") ?: 0
+        val sfId  = call.argument<Int>("sfId") ?: 1
+        val ch    = call.argument<Int>("channel") ?: 0
         val value = call.argument<Int>("value") ?: 8192
-        pitchBend(sfId, channel, value)
         result.success(null)
+        audioExecutor.execute { pitchBend(sfId, ch, value) }
       }
+
       "setGain" -> {
         val gain = call.argument<Double>("gain") ?: 5.0
-        setGain(gain)
         result.success(null)
+        audioExecutor.execute { setGain(gain) }
       }
+
       "unloadSoundfont" -> {
         val sfId = call.argument<Int>("sfId")
         if (sfId != null) {
-          unloadSoundfont(sfId)
           result.success(null)
+          audioExecutor.execute { unloadSoundfont(sfId) }
         } else {
           result.error("INVALID_ARGUMENT", "sfId is required", null)
         }
       }
+
       "dispose" -> {
-        dispose()
         result.success(null)
+        audioExecutor.execute { dispose() }
       }
+
       else -> result.notImplemented()
     }
   }
 
   override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
     channel.setMethodCallHandler(null)
+    audioExecutor.shutdown()
   }
 }

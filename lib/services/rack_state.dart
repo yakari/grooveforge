@@ -13,7 +13,6 @@ import '../models/vst3_plugin_instance.dart';
 import '../plugins/gf_vocoder_plugin.dart';
 import 'audio_engine.dart';
 import 'audio_graph.dart';
-import '../models/audio_port_id.dart';
 import 'transport_engine.dart';
 import 'vst_host_service.dart';
 import 'package:grooveforge_plugin_api/grooveforge_plugin_api.dart';
@@ -869,6 +868,9 @@ class RackState extends ChangeNotifier {
     List<TimestampedMidiEvent> events,
     GFTransportContext transport,
   ) {
+    // Fast exit: no MIDI FX registered at all → nothing to process.
+    if (_midiFxInstances.isEmpty) return events;
+
     // Collect slot IDs on this MIDI channel.
     final targetedSlotIds = _plugins
         .where((p) => p.midiChannel == midiChannel)
@@ -897,11 +899,9 @@ class RackState extends ChangeNotifier {
         continue;
       }
       // Style 2: the FX is reachable from an instrument slot via a MIDI cable.
-      // Check whether any MIDI OUT cable from a targeted slot leads to this FX.
-      final reachableViaCable = targetedSlotIds.any((slotId) =>
-          _audioGraph.connectionsFrom(slotId).any(
-            (c) => c.fromPort == AudioPortId.midiOut && c.toSlotId == p.id,
-          ));
+      // Use hasMidiOutTo to avoid allocating an intermediate List per slot.
+      final reachableViaCable =
+          targetedSlotIds.any((slotId) => _audioGraph.hasMidiOutTo(slotId, p.id));
       if (reachableViaCable) fxSlotIds.add(p.id);
     }
 
@@ -921,6 +921,12 @@ class RackState extends ChangeNotifier {
     }
     return current;
   }
+
+  /// `true` when at least one MIDI FX plugin is currently registered.
+  ///
+  /// Used by the MIDI hot path to skip the entire [applyMidiFxForChannel]
+  /// pipeline (and avoid its allocations) when the rack has no MIDI FX slots.
+  bool get hasMidiFxPlugins => _midiFxInstances.isNotEmpty;
 
   /// Return the [GFMidiDescriptorPlugin] registered for [slotId], or null.
   ///

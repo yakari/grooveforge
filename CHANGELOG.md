@@ -12,6 +12,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **MIDI CC assignment for MIDI FX bypass**: a MIDI remote icon next to the bypass button opens a dialog that waits for the user to move any knob or button on a hardware controller, then binds that CC number to the bypass toggle. The assigned CC chip is shown in the header; the binding can be removed from the same dialog.
 
 ### Fixed
+- **Android chord latency — audio calls moved off UI thread**: `playNote`, `stopNote`, `controlChange`, and `pitchBend` in `FlutterMidiProPlugin.kt` previously ran on the Android main thread (same thread as the Choreographer vsync). A frame render starting just before a chord note arrived would delay that note by 10–20 ms. All real-time audio JNI calls now execute on a dedicated `MAX_PRIORITY` single-thread executor (`GrooveForge-Audio`), completely decoupled from the UI rendering cycle. `MethodChannel.Result.success(null)` is returned to Dart before the JNI call so the Dart event loop is unblocked immediately.
+- **Android default gain saturation**: FluidSynth master gain default lowered from `5.0` to `3.0` (matching the Linux value already in use). The previous `5.0` was too loud on Android speakers and caused audible clipping.
+- **Android gain not persisted across sessions**: `applyFluidSynthGain()` is now called after every new FluidSynth instance is created (`loadSoundfont`, `createKeyboardSlotSynth`). Previously the gain listener fired once during `_restoreState` before any synth instance existed, so new instances silently inherited FluidSynth's internal default.
+
+### Architecture
+- **MIDI hot-path — zero allocation per note** (no more GC jitter on chord input):
+  - `AudioGraph.hasMidiOutTo()`: new allocation-free MIDI-OUT connection probe; replaces the `connectionsFrom().any()` pattern that allocated an intermediate `List` per targeted slot.
+  - `RackState.applyMidiFxForChannel()` fast-exits immediately when no MIDI FX are registered (`_midiFxInstances.isEmpty`), skipping all plugin scans and Set allocations for the common case.
+  - `RackState.hasMidiFxPlugins` getter: lets the call site skip the entire MIDI FX pipeline (including `TimestampedMidiEvent` + `List` construction) when the rack has no FX slots.
+  - `_RackScreenState` per-channel routing cache (`_routingCache`): VST3 slots, MIDI-only GFK slots, and synth GFK slots pre-classified by MIDI channel. Rebuilt once on structural changes (slot added/removed, cable drawn/removed) via `RackState` and `AudioGraph` listeners. Eliminates the three `whereType<>().where().toList()` scans previously executed per MIDI event in `_routeMidiToVst3Plugins`.
+  - `_looperTargets` cache: maps each instrument slot ID to the looper slot IDs reachable via MIDI OUT cable. `_feedMidiToLoopers` now does a single `Map` lookup — no `connectionsFrom()` call and no `RackState.plugins.any()` scan per event.
+  - `_looperPlaybackTargets` cache: maps each looper slot ID to its downstream targets. `_handleLooperPlayback` now dispatches without scanning connections or plugins.
+  - `_cachedTransport`: `GFTransportContext` computed once per transport change instead of once per MIDI event.
+  - All service references (`_rackState`, `_engine`, `_audioGraph`, `_vstSvc`, `_looperEngine`, `_transportEngine`) cached as fields in `_RackScreenState`, eliminating `context.read<T>()` widget-tree traversals from the MIDI callback.
+
+### Fixed
 - **MIDI FX not applied to hardware MIDI controller input**: `applyMidiFxForChannel` now discovers MIDI FX plugins connected via patch cables (MIDI OUT → MIDI IN) in addition to the explicit `targetSlotIds` mechanism. Previously only the `targetSlotIds` path was checked, so cable-connected effects (Harmonizer, Transposer, …) were silently bypassed for hardware controllers.
 - **Random latency / chord delay with hardware MIDI controller** (three separate fixes):
   1. Note On/Off events no longer update `lastEventNotifier` in `CcMappingService` — all its consumers only care about CC events, so note updates were triggering widget rebuilds and scroll animations on every keystroke for no reason.
