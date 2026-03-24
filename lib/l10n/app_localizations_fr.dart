@@ -1177,4 +1177,25 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get rackAddGateSubtitle =>
       'Filtre les notes par plage de vélocité et de hauteur (effet MIDI)';
+
+  @override
+  String get midiFxBypass => 'Bypass';
+
+  @override
+  String get midiFxCcAssign => 'Assigner CC au bypass';
+
+  @override
+  String get midiFxCcAssignTitle => 'Assigner un CC matériel au bypass';
+
+  @override
+  String get midiFxCcWaiting =>
+      'Bougez un bouton ou un potentiomètre sur votre contrôleur MIDI...';
+
+  @override
+  String midiFxCcAssigned(int cc) {
+    return 'CC $cc assigné au bypass';
+  }
+
+  @override
+  String get midiFxCcRemove => 'Supprimer l\'assignation CC';
 }

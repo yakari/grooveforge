@@ -58,6 +58,16 @@ class _RackScreenState extends State<RackScreen> {
   /// drag near the top or bottom edge of the patch view.
   Timer? _autoScrollTimer;
 
+  /// Debounce timer for MIDI-triggered auto-scroll.
+  ///
+  /// When hardware MIDI notes arrive in rapid succession (e.g. a chord),
+  /// each note would otherwise trigger a [Scrollable.ensureVisible] call,
+  /// scheduling 300 ms of animation work on the UI thread and starving
+  /// subsequent MIDI bytes waiting in the isolate message queue.
+  /// This timer defers the scroll until 60 ms after the last incoming event,
+  /// so only one scroll animation runs per burst of notes.
+  Timer? _midiScrollDebounce;
+
   /// Last known pointer position (global) during a cable drag.
   /// Stored so the auto-scroll timer can poke [PatchDragController] with a
   /// fresh position on each scroll tick, keeping the live cable repainted.
@@ -116,6 +126,16 @@ class _RackScreenState extends State<RackScreen> {
     context.read<TransportEngine>().addListener(_onTransportChanged);
 
     midiService.onMidiDataReceived = (packet) {
+      // Check whether an incoming CC matches any MIDI FX bypass assignment and
+      // toggle it. This is a side-effect check — the CC still flows through
+      // the rest of the pipeline normally.
+      if (packet.data.length >= 2) {
+        final command = packet.data[0] & 0xF0;
+        if (command == 0xB0) {
+          context.read<RackState>().handleBypassCcEvent(packet.data[1]);
+        }
+      }
+
       // Apply any active MIDI FX chains before dispatching.
       // Harmonic transforms (harmonizer, transpose) run here; this may expand
       // one incoming event into multiple (e.g. note + harmony voices).
@@ -132,7 +152,17 @@ class _RackScreenState extends State<RackScreen> {
 
     ccMappingService.lastEventNotifier.addListener(() {
       final event = ccMappingService.lastEventNotifier.value;
-      if (event != null && mounted) _handleAutoScroll(event.channel);
+      if (event == null || !mounted) return;
+      // Debounce: cancel any pending scroll and restart the timer. This way,
+      // a burst of notes (chord) results in a single scroll attempt after the
+      // burst settles, instead of one per note which keeps Flutter rendering
+      // frames and delays MIDI bytes sitting in the isolate message queue.
+      final channel = event.channel;
+      _midiScrollDebounce?.cancel();
+      _midiScrollDebounce = Timer(
+        const Duration(milliseconds: 60),
+        () { if (mounted) _handleAutoScroll(channel); },
+      );
     });
 
     _toastListener = () {
@@ -175,6 +205,7 @@ class _RackScreenState extends State<RackScreen> {
     context.read<LooperEngine>().onMidiPlayback = null;
     context.read<AudioEngine>().onLooperSystemAction = null;
     _autoScrollTimer?.cancel();
+    _midiScrollDebounce?.cancel();
     _scrollController.dispose();
     _isPatchView.dispose();
     super.dispose();
@@ -642,7 +673,7 @@ class _RackScreenState extends State<RackScreen> {
     if (key?.currentContext != null) {
       Scrollable.ensureVisible(
         key!.currentContext!,
-        duration: const Duration(milliseconds: 300),
+        duration: const Duration(milliseconds: 80),
         curve: Curves.easeOutCubic,
         alignment: 0.1,
       );

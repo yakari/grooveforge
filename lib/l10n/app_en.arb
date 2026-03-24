@@ -473,5 +473,17 @@
   "rackAddVelocityCurveSubtitle": "Remap velocity with a power, sigmoid, or fixed curve (MIDI FX)",
 
   "rackAddGate": "Gate",
-  "rackAddGateSubtitle": "Filter notes by velocity range and pitch range (MIDI FX)"
+  "rackAddGateSubtitle": "Filter notes by velocity range and pitch range (MIDI FX)",
+
+  "midiFxBypass": "Bypass",
+  "midiFxCcAssign": "Assign CC to bypass",
+  "midiFxCcAssignTitle": "Assign hardware CC to bypass",
+  "midiFxCcWaiting": "Move a knob or button on your MIDI controller to assign it...",
+  "midiFxCcAssigned": "CC {cc} assigned to bypass",
+  "@midiFxCcAssigned": {
+    "placeholders": {
+      "cc": { "type": "int" }
+    }
+  },
+  "midiFxCcRemove": "Remove CC binding"
 }

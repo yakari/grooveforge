@@ -2203,6 +2203,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Filter notes by velocity range and pitch range (MIDI FX)'**
   String get rackAddGateSubtitle;
+
+  /// No description provided for @midiFxBypass.
+  ///
+  /// In en, this message translates to:
+  /// **'Bypass'**
+  String get midiFxBypass;
+
+  /// No description provided for @midiFxCcAssign.
+  ///
+  /// In en, this message translates to:
+  /// **'Assign CC to bypass'**
+  String get midiFxCcAssign;
+
+  /// No description provided for @midiFxCcAssignTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Assign hardware CC to bypass'**
+  String get midiFxCcAssignTitle;
+
+  /// No description provided for @midiFxCcWaiting.
+  ///
+  /// In en, this message translates to:
+  /// **'Move a knob or button on your MIDI controller to assign it...'**
+  String get midiFxCcWaiting;
+
+  /// No description provided for @midiFxCcAssigned.
+  ///
+  /// In en, this message translates to:
+  /// **'CC {cc} assigned to bypass'**
+  String midiFxCcAssigned(int cc);
+
+  /// No description provided for @midiFxCcRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove CC binding'**
+  String get midiFxCcRemove;
 }
 
 class _AppLocalizationsDelegate

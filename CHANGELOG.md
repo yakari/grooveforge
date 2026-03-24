@@ -7,7 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [X.x.x]
 
+### Added
+- **MIDI FX bypass toggle**: every MIDI FX plugin slot now has a power on/off button in its header row. When off, the plugin is skipped entirely — no MIDI events pass through it and arpeggiators stop generating notes.
+- **MIDI CC assignment for MIDI FX bypass**: a MIDI remote icon next to the bypass button opens a dialog that waits for the user to move any knob or button on a hardware controller, then binds that CC number to the bypass toggle. The assigned CC chip is shown in the header; the binding can be removed from the same dialog.
+
 ### Fixed
+- **MIDI FX not applied to hardware MIDI controller input**: `applyMidiFxForChannel` now discovers MIDI FX plugins connected via patch cables (MIDI OUT → MIDI IN) in addition to the explicit `targetSlotIds` mechanism. Previously only the `targetSlotIds` path was checked, so cable-connected effects (Harmonizer, Transposer, …) were silently bypassed for hardware controllers.
+- **Random latency / chord delay with hardware MIDI controller** (three separate fixes):
+  1. Note On/Off events no longer update `lastEventNotifier` in `CcMappingService` — all its consumers only care about CC events, so note updates were triggering widget rebuilds and scroll animations on every keystroke for no reason.
+  2. Chord detection (`_updateChordState`) previously used `Future.microtask`, which runs before the next event-queue item. This caused chord analysis (and its `ValueNotifier` updates) to execute between each note of a chord, blocking subsequent MIDI bytes. It now uses `Timer(Duration.zero)` for Note On so pending MIDI bytes are processed before chord detection starts; each new note cancels the previous timer so `_performChordUpdate` runs exactly once after the full chord settles. Note Off keeps its existing 50 ms grace timer.
+  3. `playNote` and `stopNote` now emit audio (FFI/method-channel call) before touching any `ValueNotifier`. Previously `activeNotes.value = …` fired a synchronous widget rebuild (piano key highlights) before the audio call, inserting a rebuild between every note of a chord and every Harmonizer voice. The `activeNotes` update and chord detection are now deferred via `Timer(Duration.zero)` so all audio dispatches complete first. Same fix applied to `noteOnUiOnly` / `noteOffUiOnly` for VST3 and MIDI-only slots.
+  4. Auto-scroll is debounced (60 ms) to prevent CC bursts from triggering multiple animations.
 - Back panel (patch view): jack sections now stack vertically on phone screens (< 480 dp) instead of overflowing the row horizontally.
 - Patch view: cables between plugins now remain visible even when one endpoint is scrolled off-screen. The patch view now uses a non-virtualizing scroll view so all jack `GlobalKey`s stay mounted at all times.
 - Patch view: starting a cable drag near the top or bottom edge of the list now auto-scrolls the rack, making it possible to connect jacks that are far apart without releasing the cable.

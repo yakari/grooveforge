@@ -7,7 +7,17 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 
 ## [X.x.x]
 
+### Ajouté
+- **Bypass des plugins MIDI FX** : chaque slot d'effet MIDI dispose maintenant d'un bouton d'activation/désactivation dans son en-tête. Lorsqu'il est désactivé, le plugin est entièrement ignoré — aucun événement MIDI ne le traverse et les arpégiateurs cessent de générer des notes.
+- **Assignation CC MIDI pour le bypass** : une icône de télécommande MIDI à côté du bouton de bypass ouvre une boîte de dialogue attendant que l'utilisateur bouge un potentiomètre ou un bouton sur son contrôleur, puis associe ce numéro CC au toggle de bypass. Le CC assigné s'affiche en puce dans l'en-tête ; l'assignation peut être supprimée depuis la même boîte de dialogue.
+
 ### Corrigé
+- **MIDI FX non appliqués aux contrôleurs MIDI matériels** : `applyMidiFxForChannel` détecte maintenant les plugins MIDI FX connectés via câbles patch (MIDI OUT → MIDI IN) en plus du mécanisme explicite `targetSlotIds`. Auparavant, seul le chemin `targetSlotIds` était vérifié, si bien que les effets câblés visuellement (Harmoniseur, Transposeur, …) étaient silencieusement ignorés pour les contrôleurs matériels.
+- **Latence aléatoire / délai sur les accords avec contrôleur MIDI** (trois correctifs distincts) :
+  1. Les événements Note On/Off ne mettent plus à jour `lastEventNotifier` dans `CcMappingService` — tous ses consommateurs n'utilisent que les CC, les notes déclenchaient donc des reconstructions de widgets et des animations de défilement à chaque touche sans raison.
+  2. La détection d'accord (`_updateChordState`) utilisait `Future.microtask`, qui s'exécute avant le prochain élément de la file d'événements. L'analyse harmonique (et ses mises à jour `ValueNotifier`) s'intercalait ainsi entre chaque note d'un accord, bloquant les octets MIDI suivants. Elle utilise désormais `Timer(Duration.zero)` pour Note On, ce qui place le traitement dans la file d'événements après les octets MIDI déjà en attente ; chaque nouvelle note annule le timer précédent, si bien que `_performChordUpdate` ne s'exécute qu'une seule fois après que l'accord complet est constitué. Note Off conserve son timer de grâce de 50 ms.
+  3. `playNote` et `stopNote` émettent désormais le son (appel FFI/method-channel) avant tout accès à un `ValueNotifier`. Auparavant, `activeNotes.value = …` déclenchait une reconstruction synchrone des widgets (touches du piano) avant l'appel audio, intercalant une reconstruction entre chaque note d'un accord et chaque voix de l'Harmoniseur. La mise à jour de `activeNotes` et la détection d'accord sont désormais différées via `Timer(Duration.zero)` afin que tous les envois audio soient traités en premier. Même correctif appliqué à `noteOnUiOnly` / `noteOffUiOnly` pour les slots VST3 et MIDI-only.
+  4. Le défilement automatique est anti-rebond (60 ms) pour éviter les animations multiples lors de rafales CC.
 - Panneau arrière (vue patch) : les sections de jacks s'empilent désormais verticalement sur les écrans de téléphone (< 480 dp) au lieu de déborder horizontalement.
 - Vue patch : les câbles entre plugins restent visibles même quand un connecteur est hors de l'écran. La vue patch utilise maintenant un défilement non-virtualisé pour que toutes les `GlobalKey` de jacks restent montées en permanence.
 - Vue patch : commencer un glisser de câble près du bord supérieur ou inférieur de la liste fait maintenant défiler automatiquement le rack, permettant de relier des jacks éloignés sans lâcher le câble.

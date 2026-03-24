@@ -473,5 +473,17 @@
   "rackAddVelocityCurveSubtitle": "Remappage de vélocité via courbe en puissance, sigmoïde ou valeur fixe (effet MIDI)",
 
   "rackAddGate": "Gate",
-  "rackAddGateSubtitle": "Filtre les notes par plage de vélocité et de hauteur (effet MIDI)"
+  "rackAddGateSubtitle": "Filtre les notes par plage de vélocité et de hauteur (effet MIDI)",
+
+  "midiFxBypass": "Bypass",
+  "midiFxCcAssign": "Assigner CC au bypass",
+  "midiFxCcAssignTitle": "Assigner un CC matériel au bypass",
+  "midiFxCcWaiting": "Bougez un bouton ou un potentiomètre sur votre contrôleur MIDI...",
+  "midiFxCcAssigned": "CC {cc} assigné au bypass",
+  "@midiFxCcAssigned": {
+    "placeholders": {
+      "cc": { "type": "int" }
+    }
+  },
+  "midiFxCcRemove": "Supprimer l'assignation CC"
 }

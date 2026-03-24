@@ -1195,9 +1195,10 @@ class AudioEngine extends ChangeNotifier {
       int data2 = packet.data.length >= 3 ? packet.data[2] : 0;
       switch (command) {
         case 0x90:
-          if (ccMappingService != null) {
-            ccMappingService!.updateLastEvent('Note On', channel, data1, data2);
-          }
+          // Note On: go straight to audio — no Flutter state updates on the
+          // hot path. lastEventNotifier is only updated for CC events because
+          // all its consumers (auto-scroll, CC-mapping UI, GFPA bypass dialog)
+          // exclusively care about CC messages.
           if (data2 > 0) {
             playNote(channel: channel, key: data1, velocity: data2);
           } else {
@@ -1205,14 +1206,7 @@ class AudioEngine extends ChangeNotifier {
           }
           break;
         case 0x80:
-          if (ccMappingService != null) {
-            ccMappingService!.updateLastEvent(
-              'Note Off',
-              channel,
-              data1,
-              data2,
-            );
-          }
+          // Note Off: same rationale — no state update, audio only.
           stopNote(channel: channel, key: data1);
           break;
         case 0xB0:
@@ -1298,16 +1292,25 @@ class AudioEngine extends ChangeNotifier {
   /// correctly stops the transposed pitch later even if the scale has moved on.
   /// Updates the active-note set for a channel **without** routing to FluidSynth
   /// or flutter_midi_pro. Use for VST3 slots where audio is handled externally.
+  /// Updates [activeNotes] for a channel without emitting audio (VST3 / MIDI-only slots).
+  ///
+  /// Deferred to the event queue for the same reason as [playNote]: the VST3
+  /// audio call happens before this in the caller, and we must not block
+  /// pending MIDI bytes with a synchronous [ValueNotifier] rebuild.
   void noteOnUiOnly({required int channel, required int key}) {
-    final current = Set<int>.from(channels[channel].activeNotes.value);
-    current.add(key);
-    channels[channel].activeNotes.value = current;
+    Timer(Duration.zero, () {
+      final current = Set<int>.from(channels[channel].activeNotes.value);
+      current.add(key);
+      channels[channel].activeNotes.value = current;
+    });
   }
 
   void noteOffUiOnly({required int channel, required int key}) {
-    final current = Set<int>.from(channels[channel].activeNotes.value);
-    current.remove(key);
-    channels[channel].activeNotes.value = current;
+    Timer(Duration.zero, () {
+      final current = Set<int>.from(channels[channel].activeNotes.value);
+      current.remove(key);
+      channels[channel].activeNotes.value = current;
+    });
   }
 
   /// Returns the scale-snapped note for [channel] and [key] without any
@@ -1339,6 +1342,18 @@ class AudioEngine extends ChangeNotifier {
     return key;
   }
 
+  /// Plays a note on [channel], prioritising audio over UI updates.
+  ///
+  /// **Audio-first design:**
+  /// All [ValueNotifier] writes (`activeNotes`, chord detection) are deferred
+  /// to `Timer(Duration.zero)`, which places them in the Dart event queue.
+  /// Pending [ReceivePort] messages from the MIDI isolate (subsequent chord
+  /// bytes) are already in the event queue and are therefore processed —
+  /// playing their audio — before any widget rebuild runs.
+  ///
+  /// This eliminates the per-note widget-rebuild delay that caused simultaneous
+  /// chord notes to sound at different times on both MIDI controllers and the
+  /// on-screen keyboard (e.g. when a Harmonizer generates multiple voices).
   void playNote({
     required int channel,
     required int key,
@@ -1347,18 +1362,17 @@ class AudioEngine extends ChangeNotifier {
     final midiControllerOnly = channels[channel].soundfontPath ==
         kMidiControllerOnlySoundfont;
 
-    // Reset expressive gestures on Note On to avoid stuck values (synth slots).
+    // Reset expressive gestures before the note-on so the synth state is
+    // clean when the new voice starts. These are direct FFI/method-channel
+    // calls with no Flutter state side-effects.
     if (!midiControllerOnly) {
       setPitchBend(channel: channel, value: 8192); // Center
       setControlChange(channel: channel, controller: 1, value: 0); // Reset Mod
     }
 
-    final currentNotes = Set<int>.from(channels[channel].activeNotes.value);
-    currentNotes.add(key);
-    channels[channel].activeNotes.value = currentNotes;
+    // Compute the pitch to actually play (scale lock / Jam Mode snapping).
+    // Pure arithmetic — no ValueNotifier reads that could trigger rebuilds.
     int keyToPlay = key;
-
-    // Classic Scale Lock (per-channel)
     if (channels[channel].isScaleLocked.value &&
         channels[channel].lastChord.value != null) {
       keyToPlay = _snapKeyToScale(
@@ -1366,9 +1380,7 @@ class AudioEngine extends ChangeNotifier {
         channels[channel].lastChord.value!,
         channels[channel].currentScaleType.value,
       );
-    }
-    // GFPA Jam Mode — per-slot scale/mode
-    else {
+    } else {
       for (final entry in gfpaJamEntries.value) {
         if (entry.followerCh == channel) {
           keyToPlay = _snapKeyToGfpaJam(key, entry);
@@ -1378,123 +1390,149 @@ class AudioEngine extends ChangeNotifier {
     }
 
     if (keyToPlay != key) {
+      // Plain Map write — no ValueNotifier, no rebuild.
       channels[channel].activeKeyMappings[key] = keyToPlay;
     }
 
-    int? currentOwner = channels[channel].snappedKeyOwners[keyToPlay];
+    // If another key already owns the snapped pitch, release it first so the
+    // synth doesn't double-voice the same note.
+    final currentOwner = channels[channel].snappedKeyOwners[keyToPlay];
     if (currentOwner != null && currentOwner != key && !midiControllerOnly) {
       if (!kIsWeb && (Platform.isLinux || Platform.isMacOS)) {
         AudioInputFFI().keyboardNoteOff(channel, keyToPlay);
       } else {
-        int sfId = _getSfIdForChannel(channel);
+        final sfId = _getSfIdForChannel(channel);
         if (sfId != -1) {
           _midiPro.stopNote(sfId: sfId, channel: channel, key: keyToPlay);
         }
       }
     }
-
+    // Plain Map write — no ValueNotifier, no rebuild.
     channels[channel].snappedKeyOwners[keyToPlay] = key;
 
-    // Skip audio emission when the channel is muted (UI tracking continues above).
-    if (channels[channel].isMuted.value) return;
-
-    if (!midiControllerOnly) {
-      // Route to Vocoder
+    // ── AUDIO FIRST ────────────────────────────────────────────────────────
+    // Emit sound before touching any Flutter state. Reading isMuted.value is
+    // a cheap read (no side-effects); audio is skipped when the channel is
+    // muted, but UI tracking (activeNotes) still runs in the deferred block.
+    if (!channels[channel].isMuted.value && !midiControllerOnly) {
       if (channels[channel].soundfontPath == vocoderMode) {
         AudioInputFFI().playNote(key: keyToPlay, velocity: velocity);
+      } else if (!kIsWeb && (Platform.isLinux || Platform.isMacOS)) {
+        AudioInputFFI().keyboardNoteOn(channel, keyToPlay, velocity);
       } else {
-        if (!kIsWeb && (Platform.isLinux || Platform.isMacOS)) {
-          AudioInputFFI().keyboardNoteOn(channel, keyToPlay, velocity);
-        } else {
-          int sfId = _getSfIdForChannel(channel);
-          if (sfId != -1) {
-            _midiPro.playNote(
-              sfId: sfId,
-              channel: channel,
-              key: keyToPlay,
-              velocity: velocity,
-            );
-          }
+        final sfId = _getSfIdForChannel(channel);
+        if (sfId != -1) {
+          _midiPro.playNote(
+            sfId: sfId,
+            channel: channel,
+            key: keyToPlay,
+            velocity: velocity,
+          );
         }
       }
     }
-    Future.microtask(() => _updateChordState(channel, isNoteOn: true));
+
+    // ── UI STATE DEFERRED ──────────────────────────────────────────────────
+    // Timer(Duration.zero) goes into the event queue — after any already-queued
+    // ReceivePort messages (remaining MIDI bytes for simultaneous chord notes
+    // or additional Harmonizer voices). Each note reschedules this work; the
+    // last one in a burst wins and the rebuild happens once, after all audio.
+    Timer(Duration.zero, () {
+      final updated = Set<int>.from(channels[channel].activeNotes.value);
+      updated.add(key);
+      channels[channel].activeNotes.value = updated;
+      // Chord detection is gated by mute (same semantics as before).
+      if (!channels[channel].isMuted.value) {
+        _updateChordState(channel, isNoteOn: true);
+      }
+    });
   }
 
+  /// Stops a note on [channel], prioritising audio over UI updates.
+  ///
+  /// Audio (note-off FFI/method-channel call) happens synchronously.
+  /// [activeNotes] and chord detection are deferred to the event queue for
+  /// the same reason as in [playNote].
   void stopNote({required int channel, required int key}) {
-    final currentNotes = Set<int>.from(channels[channel].activeNotes.value);
-    currentNotes.remove(key);
-    channels[channel].activeNotes.value = currentNotes;
-
     int keyToStop = key;
     if (channels[channel].activeKeyMappings.containsKey(key)) {
       keyToStop = channels[channel].activeKeyMappings.remove(key)!;
     }
 
-    int? currentOwner = channels[channel].snappedKeyOwners[keyToStop];
+    // ── AUDIO FIRST ────────────────────────────────────────────────────────
+    final currentOwner = channels[channel].snappedKeyOwners[keyToStop];
     if (currentOwner == key) {
       channels[channel].snappedKeyOwners.remove(keyToStop);
-
       final midiOnly =
           channels[channel].soundfontPath == kMidiControllerOnlySoundfont;
       if (!midiOnly) {
         if (channels[channel].soundfontPath == vocoderMode) {
           AudioInputFFI().stopNote(key: keyToStop);
+        } else if (!kIsWeb && (Platform.isLinux || Platform.isMacOS)) {
+          AudioInputFFI().keyboardNoteOff(channel, keyToStop);
         } else {
-          if (!kIsWeb && (Platform.isLinux || Platform.isMacOS)) {
-            AudioInputFFI().keyboardNoteOff(channel, keyToStop);
-          } else {
-            int sfId = _getSfIdForChannel(channel);
-            if (sfId != -1) {
-              _midiPro.stopNote(sfId: sfId, channel: channel, key: keyToStop);
-            }
+          final sfId = _getSfIdForChannel(channel);
+          if (sfId != -1) {
+            _midiPro.stopNote(sfId: sfId, channel: channel, key: keyToStop);
           }
         }
       }
     }
-    Future.microtask(() => _updateChordState(channel, isNoteOn: false));
+
+    // ── UI STATE DEFERRED ──────────────────────────────────────────────────
+    Timer(Duration.zero, () {
+      final updated = Set<int>.from(channels[channel].activeNotes.value);
+      updated.remove(key);
+      channels[channel].activeNotes.value = updated;
+      _updateChordState(channel, isNoteOn: false);
+    });
   }
 
-  /// Evaluates the currently held notes to mathematically determine the active chord structure.
+  /// Schedules a deferred chord-state update for [channel].
   ///
-  /// **Chord Stabilization Algorithm:**
-  /// Uses a 50ms grace period (`_chordUpdateTimers`) during 'Note Off' events.
-  /// This distinguishes between deliberate chord changes and accidental timing imperfections
-  /// when releasing a physical chord (humans rarely lift 4 fingers simultaneously on the millisecond).
-  /// If all notes are released, the system retains the last "Peak Chord" in memory so
-  /// Jam Slaves don't lose their harmony context during brief silences.
+  /// **Why timers only — never direct calls to [_performChordUpdate]:**
+  ///
+  /// MIDI bytes from a hardware controller arrive one at a time from a
+  /// secondary Dart isolate via [ReceivePort] messages. These messages queue
+  /// in the main-isolate event loop. A note-on from that path calls [playNote]
+  /// which calls this method. If we ran [_performChordUpdate] synchronously
+  /// (or via `Future.microtask`, which also runs before the next event-queue
+  /// item), the chord analysis and its [ValueNotifier] updates would execute
+  /// between the bytes of a chord — blocking notes 2, 3, 4 from being heard
+  /// on time.
+  ///
+  /// Instead, this method only cancels any pending timer and reschedules one.
+  /// `Timer(Duration.zero, …)` places the callback in the event queue, after
+  /// already-pending [ReceivePort] messages (the remaining chord bytes). Each
+  /// subsequent note cancels the previous timer, so [_performChordUpdate] runs
+  /// exactly once — after the full chord has been processed and all notes are
+  /// in [activeNotes].
+  ///
+  /// **Stabilization delays:**
+  /// - Note On  → `Duration.zero` (fires after all pending MIDI bytes, so the
+  ///   full chord is visible when the callback runs).
+  /// - Note Off → 50 ms grace period so the chord identity is preserved while
+  ///   fingers lift at slightly different times (human timing imperfection).
   void _updateChordState(int channel, {required bool isNoteOn}) {
-    // Don't update if the channel's scale is locked (classic per-channel lock).
-    if (channels[channel].isScaleLocked.value) {
-      return;
-    }
+    if (channels[channel].isScaleLocked.value) return;
 
-    // Cancel any pending "wait-and-see" timer
+    // Cancel any in-flight update — we will reschedule below.
     _chordUpdateTimers[channel]?.cancel();
-    _chordUpdateTimers[channel] = null;
 
-    final notes = channels[channel].activeNotes.value;
+    final delay = isNoteOn
+        ? Duration.zero                       // event-queue; after MIDI bytes
+        : const Duration(milliseconds: 50);   // grace period for finger release
 
-    if (isNoteOn) {
-      // Instant Enrichment (Note On)
-      _performChordUpdate(channel, notes);
-    } else {
-      // Grace Period (Note Off)
-      // We wait 50ms before updating the chord state.
-      // This allows for non-simultaneous finger releases without the chord "flickering"
-      // through simpler intermediary states (like a C5 when lifting a CMaj7).
-      _chordUpdateTimers[channel] = Timer(const Duration(milliseconds: 50), () {
-        final currentNotes = channels[channel].activeNotes.value;
-        if (currentNotes.isNotEmpty) {
-          // Deliberate Partial Release: Update identity
-          _performChordUpdate(channel, currentNotes);
-        } else {
-          // Total Release: Keep peak chord identity (no-op)
-          _lastNoteCounts[channel] = 0;
-        }
-        _chordUpdateTimers[channel] = null;
-      });
-    }
+    _chordUpdateTimers[channel] = Timer(delay, () {
+      _chordUpdateTimers[channel] = null;
+      final notes = channels[channel].activeNotes.value;
+      if (notes.isNotEmpty) {
+        _performChordUpdate(channel, notes);
+      } else if (!isNoteOn) {
+        // Total release: keep peak-chord identity (no update), reset count.
+        _lastNoteCounts[channel] = 0;
+      }
+    });
   }
 
   /// Physically runs the [ChordDetector] algorithm on the active notes and caches the result.

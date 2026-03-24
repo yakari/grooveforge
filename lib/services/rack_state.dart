@@ -13,6 +13,7 @@ import '../models/vst3_plugin_instance.dart';
 import '../plugins/gf_vocoder_plugin.dart';
 import 'audio_engine.dart';
 import 'audio_graph.dart';
+import '../models/audio_port_id.dart';
 import 'transport_engine.dart';
 import 'vst_host_service.dart';
 import 'package:grooveforge_plugin_api/grooveforge_plugin_api.dart';
@@ -219,7 +220,11 @@ class RackState extends ChangeNotifier {
 
     // Tick every registered MIDI FX instance. For non-arp plugins (harmonizer,
     // chord expand) tick() returns [] and processMidi([]) returns [] — no cost.
-    for (final plugin in _midiFxInstances.values) {
+    for (final entry in _midiFxInstances.entries) {
+      // Skip bypassed slots so they don't generate arp output while inactive.
+      final slot = _findGfpaById(entry.key);
+      if (slot != null && slot.state['__bypass'] == true) continue;
+      final plugin = entry.value;
       final events = plugin.processMidi(const [], transport);
       for (final e in events) {
         // e.midiChannel is the 0-based channel nibble from the status byte.
@@ -717,6 +722,50 @@ class RackState extends ChangeNotifier {
     _notifyChanged();
   }
 
+  /// Flips the bypass toggle of the MIDI FX slot identified by [slotId].
+  ///
+  /// When bypassed (`state['__bypass'] == true`) the slot is skipped in both
+  /// [applyMidiFxForChannel] and [_tickMidiFx], so no MIDI events pass through
+  /// it and arpeggiators stop generating notes.
+  void toggleMidiFxBypass(String slotId) {
+    final slot = _findGfpaById(slotId);
+    if (slot == null) return;
+    slot.state['__bypass'] = !(slot.state['__bypass'] == true);
+    markDirty();
+  }
+
+  /// Assigns hardware CC [cc] to the bypass toggle of MIDI FX slot [slotId].
+  ///
+  /// Pass [cc] = null to remove the assignment. The stored value is the raw
+  /// CC number (0–127) that hardware sends; it is matched in [handleBypassCcEvent].
+  void setMidiFxBypassCc(String slotId, int? cc) {
+    final slot = _findGfpaById(slotId);
+    if (slot == null) return;
+    if (cc == null) {
+      slot.state.remove('__bypassCc');
+    } else {
+      slot.state['__bypassCc'] = cc;
+    }
+    markDirty();
+  }
+
+  /// Checks incoming hardware CC [ccNumber] against every MIDI FX slot's
+  /// bypass assignment and toggles bypass for any match.
+  ///
+  /// Returns `true` if at least one slot was toggled (so the caller can skip
+  /// further processing of that CC if desired).
+  bool handleBypassCcEvent(int ccNumber) {
+    var handled = false;
+    for (final plugin in _plugins.whereType<GFpaPluginInstance>()) {
+      if (plugin.state['__bypassCc'] == ccNumber) {
+        plugin.state['__bypass'] = !(plugin.state['__bypass'] == true);
+        handled = true;
+      }
+    }
+    if (handled) markDirty();
+    return handled;
+  }
+
   // ─── MIDI FX instance registry ──────────────────────────────────────────
 
   /// Eagerly initialise a [GFMidiDescriptorPlugin] for [instance] and store it
@@ -826,15 +875,47 @@ class RackState extends ChangeNotifier {
         .map((p) => p.id)
         .toSet();
 
-    // Find MIDI FX slots whose targetSlotIds overlap with the targeted set.
-    final fxSlots = _plugins
-        .whereType<GFpaPluginInstance>()
-        .where((p) => p.targetSlotIds.any(targetedSlotIds.contains));
+    // Collect MIDI FX slot IDs applicable to this channel via two routing
+    // styles so that both the explicit-config and visual-patch-cable workflows
+    // work identically for hardware MIDI controller input.
+    //
+    // Style 1 — targetSlotIds: the MIDI FX instance explicitly names which
+    //   keyboard/synth slot IDs it should process. Used when no patch cable is
+    //   drawn and the user configured the target slot in the GFPA FX editor.
+    //
+    // Style 2 — MIDI cable: a patch cable runs from a keyboard slot's MIDI OUT
+    //   jack to the MIDI FX slot's MIDI IN jack in the audio graph. This is the
+    //   standard visual setup that also drives the on-screen keyboard path.
+    //   Without this check, hardware MIDI controller input was silently bypassing
+    //   cable-connected FX (harmonizer, transposer, …).
+    final fxSlotIds = <String>{};
 
-    // Chain events through each applicable MIDI FX plugin in rack order.
+    for (final p in _plugins.whereType<GFpaPluginInstance>()) {
+      // Style 1: the FX explicitly targets one of the active instrument slots.
+      if (p.targetSlotIds.any(targetedSlotIds.contains)) {
+        fxSlotIds.add(p.id);
+        continue;
+      }
+      // Style 2: the FX is reachable from an instrument slot via a MIDI cable.
+      // Check whether any MIDI OUT cable from a targeted slot leads to this FX.
+      final reachableViaCable = targetedSlotIds.any((slotId) =>
+          _audioGraph.connectionsFrom(slotId).any(
+            (c) => c.fromPort == AudioPortId.midiOut && c.toSlotId == p.id,
+          ));
+      if (reachableViaCable) fxSlotIds.add(p.id);
+    }
+
+    if (fxSlotIds.isEmpty) return events;
+
+    // Chain events through each applicable MIDI FX plugin in rack (display)
+    // order so the processing sequence is deterministic and matches the visual
+    // rack layout.
     var current = events;
-    for (final fx in fxSlots) {
-      final plugin = _midiFxInstances[fx.id];
+    for (final p in _plugins.whereType<GFpaPluginInstance>()) {
+      if (!fxSlotIds.contains(p.id)) continue;
+      // Skip slots that the user has bypassed via the on/off toggle.
+      if (p.state['__bypass'] == true) continue;
+      final plugin = _midiFxInstances[p.id];
       if (plugin == null) continue;
       current = plugin.processMidi(current, transport);
     }
