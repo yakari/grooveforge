@@ -660,6 +660,13 @@ class AudioEngine extends ChangeNotifier {
           _applyChannelInstrument(i);
         }
       }
+      // Web JS bridge (Gleitz melodic packs) needs an explicit bank-128 select on
+      // MIDI channel 10 so GM percussion notes and the metronome use drum samples
+      // instead of the default acoustic piano timbre.
+      const int gmDrumChannel = 9;
+      channels[gmDrumChannel].bank = 128;
+      channels[gmDrumChannel].program = 0;
+      _applyChannelInstrument(gmDrumChannel);
       stateNotifier.value++;
       debugPrint('GrooveForge Web: default soundfont loaded (sfId=$sfId)');
     } catch (e) {

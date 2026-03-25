@@ -25,6 +25,10 @@
  * ## Audio flow
  *   Soundfont.instrument() → AudioBufferSourceNode → _masterGain → AudioContext.destination
  *
+ * **Per-channel bank/program:** Flutter passes bank 128 for GM percussion (Drum Generator,
+ * metronome). Gleitz packs are melodic programs only — bank 128 routes to a lazy-loaded
+ * TR-808 map (smplr) so notes 35–81 trigger drum samples instead of piano keys.
+ *
  * This whole file is loaded as <script type="module"> in web/index.html so
  * the ES import statement is legal.
  */
@@ -135,6 +139,117 @@ function _loadPlayer(program) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Per-channel bank / program (matches Flutter ChannelState)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * MIDI bank MSB per channel (0–15). Value 128 selects GM percussion — used by
+ * DrumGeneratorEngine and native FluidSynth SF2 drum presets.
+ */
+const _chBank = Array.from({ length: 16 }, () => 0);
+
+/** Melodic program (0–127) per channel when _chBank[ch] !== 128. */
+const _chProg = Array.from({ length: 16 }, () => 0);
+
+// MIDI channel 10 (index 9) defaults to drums so metronome clicks work before
+// Flutter assigns patches; Flutter may still override via selectInstrument.
+_chBank[9] = 128;
+
+/**
+ * GM drum note → TR-808 group name (smplr / smpldsnds). Approximate but musical.
+ * @type {Object.<number, string>}
+ */
+const _GM_DRUM_TR808 = {
+  35: 'kick', 36: 'kick',
+  37: 'rimshot',
+  38: 'snare', 40: 'snare',
+  39: 'clap',
+  41: 'tom-low', 43: 'tom-low', 45: 'tom-low',
+  42: 'hihat-close', 44: 'hihat-close',
+  46: 'hihat-open',
+  47: 'mid-tom', 48: 'mid-tom',
+  49: 'cymbal', 51: 'cymbal', 52: 'cymbal', 53: 'cymbal',
+  50: 'tom-hi',
+  54: 'maraca',
+  55: 'cymbal',
+  56: 'cowbell',
+  57: 'cymbal', 59: 'cymbal',
+  60: 'conga-hi', 61: 'conga-low',
+  62: 'conga-mid', 63: 'conga-mid', 64: 'conga-low',
+  65: 'tom-hi', 66: 'tom-low',
+  69: 'maraca', 70: 'maraca', 71: 'maraca',
+  73: 'maraca',
+  74: 'clave',
+  76: 'mid-tom',
+  78: 'hihat-close', 79: 'cymbal',
+  80: 'kick', 81: 'kick',
+};
+
+/**
+ * Maps a GM percussion MIDI note to a TR-808 sample group for web playback.
+ * @param {number} midiNote - GM drum key (e.g. 36 kick, 38 snare)
+ * @returns {string} smplr DrumMachine group name
+ */
+function _gmDrumGroup(midiNote) {
+  return _GM_DRUM_TR808[midiNote] ?? 'kick';
+}
+
+/** @type {any} smplr DrumMachine instance once loaded */
+let _drumMachine = null;
+
+/** @type {Promise<any> | null} */
+let _drumLoadPromise = null;
+
+/**
+ * Lazy-loads smplr TR-808 (one shared kit for all percussion channels).
+ * Gleitz melodic packs have no bank-128 equivalent; TR-808 is compact and CDN-hosted.
+ * @returns {Promise<any>}
+ */
+function _ensureDrumMachine() {
+  if (_drumMachine) return Promise.resolve(_drumMachine);
+  if (!_drumLoadPromise) {
+    _drumLoadPromise = import('https://esm.sh/smplr@0.16.0')
+      .then(async ({ DrumMachine }) => {
+        const dm = new DrumMachine(_ctx, {
+          instrument: 'TR-808',
+          destination: _masterGain,
+          volume: 100,
+        });
+        await dm.load;
+        _drumMachine = dm;
+        console.log('grooveForgeAudio: TR-808 drum kit ready (smplr)');
+        return dm;
+      })
+      .catch((err) => {
+        console.error('grooveForgeAudio: DrumMachine load failed', err);
+        _drumLoadPromise = null;
+        return null;
+      });
+  }
+  return _drumLoadPromise;
+}
+
+/**
+ * Stops all voices on [channel] for the given sfId (note handles live in s.notes).
+ * @param {number} sfId
+ * @param {number} channel - 0–15
+ */
+function _stopChannelVoices(sfId, channel) {
+  const s = _synths[sfId];
+  if (!s?.notes) return;
+  const prefix = `${channel}_`;
+  for (const k of Object.keys(s.notes)) {
+    if (!k.startsWith(prefix)) continue;
+    const h = s.notes[k];
+    try {
+      if (typeof h === 'function') h({ time: _ctx.currentTime + 0.05 });
+      else h?.stop(_ctx.currentTime + 0.05);
+    } catch (_) {}
+    delete s.notes[k];
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // SF2 Synthesizer  (window.grooveForgeAudio)
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -142,10 +257,10 @@ function _loadPlayer(program) {
 let _sfIdCounter = 1;
 
 /**
- * Per-sfId state: which instrument player is active, and which notes are
- * currently sounding (so they can be stopped individually).
+ * Per-sfId state: sounding-note handles only (melodic AudioBufferSource wrappers
+ * or smplr stop callbacks). Bank/program live in _chBank / _chProg.
  *
- * @type {Object.<number, {player: any|null, notes: Object.<string, any>, program: number}>}
+ * @type {Object.<number, { notes: Object.<string, any> }>}
  */
 const _synths = {};
 
@@ -155,30 +270,23 @@ const _synths = {};
  * API mirrors flutter_midi_pro's FlutterMidiProPlatform so the Dart web
  * platform implementation can delegate directly to these functions.
  *
- * Note: on web the "soundfont URL" passed by Dart is ignored; instruments
- * are loaded as pre-rendered GM samples from Gleitz's MIDI.js CDN instead.
+ * Note: on web the "soundfont URL" passed by Dart is ignored; melodic channels
+ * use Gleitz MIDI.js samples; bank 128 uses smplr TR-808 groups.
  */
 window.grooveForgeAudio = {
   /**
-   * "Loads" a soundfont — on web this pre-fetches the instrument samples for
-   * the requested program from CDN and returns a numeric sfId.
+   * Registers a logical soundfont id. Per-channel instruments load lazily on
+   * first selectInstrument / playNote (no AudioContext.resume at startup).
    *
    * @param {string} _url    - Dart-side asset path (ignored on web)
-   * @param {number} _bank   - MIDI bank (ignored on web; GM only)
-   * @param {number} program - MIDI program number 0-127
+   * @param {number} _bank   - Initial bank hint (Flutter default; per-channel overrides follow)
+   * @param {number} program - Initial melodic program hint
    * @returns {Promise<number>} sfId
    */
   loadSoundfont: async (_url, _bank, program) => {
-    // Do NOT call _resumeCtx() here: AudioContext.resume() is only allowed
-    // inside a user gesture handler. Calling it during app startup (before
-    // any gesture) would cause the Promise to reject or hang in Chrome,
-    // blocking this CDN fetch forever. Context resume happens in playNote
-    // which IS called from within a gesture handler chain.
-    console.log(`grooveForgeAudio: loadSoundfont program=${program}`);
-    const player = await _loadPlayer(program);
+    console.log(`grooveForgeAudio: loadSoundfont (lazy per-channel; hint program=${program})`);
     const id = _sfIdCounter++;
-    _synths[id] = { player, notes: {}, program };
-    console.log(`grooveForgeAudio: soundfont ready (sfId=${id}, instrument=${_programName(program)})`);
+    _synths[id] = { notes: {} };
     return id;
   },
 
@@ -190,21 +298,58 @@ window.grooveForgeAudio = {
    * user-gesture requirement for AudioContext.resume().
    */
   playNote: (channel, key, velocity, sfId) => {
-    // Resume audio context on first user interaction (autoplay policy).
     _ctx.resume().catch(() => {});
     const s = _synths[sfId];
-    if (!s?.player) return;
-    const gain = Math.max(0.01, velocity / 127);
-    const node = s.player.play(key.toString(), _ctx.currentTime, { gain });
-    s.notes[`${channel}_${key}`] = node;
+    if (!s) return;
+    const ch = channel & 15;
+    const noteKey = `${ch}_${key}`;
+
+    // ── GM percussion (bank 128): smplr TR-808 ────────────────────────────
+    if (_chBank[ch] === 128) {
+      const group = _gmDrumGroup(key);
+      /** @param {any} dm */
+      const fire = (dm) => {
+        if (!dm) return;
+        try {
+          const stopFn = dm.start({
+            note: group,
+            velocity,
+            stopId: noteKey,
+          });
+          s.notes[noteKey] = stopFn;
+        } catch (e) {
+          console.warn('grooveForgeAudio: drum start failed', e);
+        }
+      };
+      if (_drumMachine) fire(_drumMachine);
+      else _ensureDrumMachine().then(fire);
+      return;
+    }
+
+    // ── Melodic: soundfont-player (per-channel program) ───────────────────
+    const prog = _chProg[ch];
+    const p = _loadPlayer(prog);
+    p.then((player) => {
+      if (!player) return;
+      const gain = Math.max(0.01, velocity / 127);
+      try {
+        const node = player.play(key.toString(), _ctx.currentTime, { gain });
+        s.notes[noteKey] = node;
+      } catch (_) {}
+    });
   },
 
   /** Sends MIDI Note Off (short release to avoid clicks). */
   stopNote: (channel, key, sfId) => {
     const s = _synths[sfId];
     if (!s) return;
-    const k = `${channel}_${key}`;
-    try { s.notes[k]?.stop(_ctx.currentTime + 0.05); } catch (_) {}
+    const k = `${channel & 15}_${key}`;
+    const h = s.notes[k];
+    if (!h) return;
+    try {
+      if (typeof h === 'function') h({ time: _ctx.currentTime + 0.05 });
+      else h.stop(_ctx.currentTime + 0.05);
+    } catch (_) {}
     delete s.notes[k];
   },
 
@@ -212,31 +357,35 @@ window.grooveForgeAudio = {
   stopAllNotes: (sfId) => {
     const s = _synths[sfId];
     if (!s) return;
-    for (const node of Object.values(s.notes)) {
-      try { node?.stop(_ctx.currentTime + 0.05); } catch (_) {}
+    for (const h of Object.values(s.notes)) {
+      try {
+        if (typeof h === 'function') h({ time: _ctx.currentTime + 0.05 });
+        else h?.stop(_ctx.currentTime + 0.05);
+      } catch (_) {}
     }
     s.notes = {};
   },
 
   /**
-   * Changes the GM instrument for the given sfId / channel.
+   * Assigns bank/program for one MIDI channel. Bank 128 enables GM drum routing.
    *
-   * The new player is loaded in the background. Notes fired before the load
-   * completes will use the previous player; subsequent notes use the new one.
-   *
-   * @param {number} sfId    - Soundfont ID returned by loadSoundfont
-   * @param {number} _channel - MIDI channel (0-15); unused on web (GM is global)
-   * @param {number} _bank   - MIDI bank (ignored; GM only)
-   * @param {number} program - MIDI program number 0-127
+   * @param {number} sfId     - Soundfont ID returned by loadSoundfont
+   * @param {number} channel  - MIDI channel 0–15
+   * @param {number} bank     - Bank MSB (128 = GM percussion in GrooveForge)
+   * @param {number} program  - Program 0–127 (melodic; ignored timbre-wise when bank === 128)
    */
-  selectInstrument: async (sfId, _channel, _bank, program) => {
+  selectInstrument: async (sfId, channel, bank, program) => {
     const s = _synths[sfId];
     if (!s) return;
-    // Stop active notes before switching to avoid orphaned AudioNodes.
-    window.grooveForgeAudio.stopAllNotes(sfId);
-    s.player = null;  // marks as loading
-    s.player = await _loadPlayer(program);
-    s.program = program;
+    const ch = channel & 15;
+    _stopChannelVoices(sfId, ch);
+    _chBank[ch] = bank;
+    _chProg[ch] = program;
+    if (bank === 128) {
+      _ensureDrumMachine();
+      return;
+    }
+    await _loadPlayer(program);
   },
 
   /** Forwards a MIDI Control Change message — no-op for the GM player. */
