@@ -2273,7 +2273,7 @@ abstract class AppLocalizations {
   /// No description provided for @drumGeneratorSwingPattern.
   ///
   /// In en, this message translates to:
-  /// **'Pattern default'**
+  /// **'Pattern'**
   String get drumGeneratorSwingPattern;
 
   /// No description provided for @drumGeneratorHumanizeLabel.

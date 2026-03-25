@@ -1206,7 +1206,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get drumGeneratorSwingLabel => 'Swing';
 
   @override
-  String get drumGeneratorSwingPattern => 'Pattern default';
+  String get drumGeneratorSwingPattern => 'Pattern';
 
   @override
   String get drumGeneratorHumanizeLabel => 'Human feel';

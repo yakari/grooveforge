@@ -107,6 +107,20 @@ class DrumGeneratorSession {
     // Re-seed so a new play gives fresh variation selection.
     _randomFillInterval = Random();
   }
+
+  /// Clears the scheduled-bars cache and pending hit queues so the next
+  /// lookahead tick re-schedules upcoming bars with current parameters.
+  ///
+  /// Unlike [reset], this preserves [grooveEpoch] so the bar clock stays in
+  /// sync with the transport.  Called by [DrumGeneratorEngine.markDirty] so
+  /// that parameter changes (swing override, humanisation amount) take effect
+  /// within the next 10 ms tick instead of waiting for the current lookahead
+  /// window to expire (~2 bars).
+  void refreshSchedule() {
+    _scheduledBars.clear();
+    _noteOns.clear();
+    _noteOffs.clear();
+  }
 }
 
 // ── DrumGeneratorEngine ───────────────────────────────────────────────────────
@@ -164,17 +178,23 @@ class DrumGeneratorEngine extends ChangeNotifier {
       _sessions[slotId] = session;
       _resolvePattern(session);
       _initDrumChannel(session);
+      // Notify only on first registration — the UI needs to redraw with
+      // the newly resolved pattern name and controls.
+      notifyListeners();
     } else {
       // Update the pattern if the instance changed.
       final existing = _sessions[slotId]!;
-      if (existing.instance.builtinPatternId != instance.builtinPatternId ||
-          existing.instance.customPatternPath != instance.customPatternPath) {
+      final patternChanged =
+          existing.instance.builtinPatternId != instance.builtinPatternId ||
+          existing.instance.customPatternPath != instance.customPatternPath;
+      if (patternChanged) {
         _resolvePattern(existing);
+        notifyListeners();
       }
       // Re-apply bank 128 in case the channel was reset by another slot.
+      // No notifyListeners — this is a silent MIDI-channel housekeeping call.
       _initDrumChannel(existing);
     }
-    notifyListeners();
   }
 
   /// Assigns a soundfont to the session's MIDI channel and re-applies the
@@ -209,12 +229,23 @@ class DrumGeneratorEngine extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Notifies all listeners that a slot's configuration has changed.
+  /// Notifies all listeners that a slot's configuration has changed, and
+  /// forces a lookahead reschedule so the change takes effect immediately.
   ///
   /// Called by the UI when the user modifies properties on
   /// [DrumGeneratorPluginInstance] directly (swing, humanisation, structure
   /// config) without going through a dedicated setter.
+  ///
+  /// Without the reschedule, bars already queued in the 2-bar lookahead
+  /// would play with the old parameters — making the slider feel broken.
   void markDirty() {
+    // If transport is playing, flush the lookahead caches so the next ticker
+    // tick (≤ 10 ms away) re-schedules upcoming bars with the new parameters.
+    if (_wasPlaying) {
+      for (final session in _sessions.values) {
+        session.refreshSchedule();
+      }
+    }
     notifyListeners();
     _notifyChanged();
   }

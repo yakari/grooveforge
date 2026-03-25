@@ -492,7 +492,7 @@
   "drumGeneratorActiveLabel": "Active",
   "drumGeneratorStyleLabel": "Style",
   "drumGeneratorSwingLabel": "Swing",
-  "drumGeneratorSwingPattern": "Pattern default",
+  "drumGeneratorSwingPattern": "Pattern",
   "drumGeneratorHumanizeLabel": "Human feel",
   "drumGeneratorHumanizeRobotic": "Robotic",
   "drumGeneratorHumanizeLive": "Live drummer",

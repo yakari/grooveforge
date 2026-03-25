@@ -47,6 +47,8 @@ Prepend a new **`[X.x.x]`** placeholder section at the top of each changelog (ab
 
 **CRITICAL — no duplicate section headers**: within a single `[X.x.x]` block there must be **exactly one** of each category heading. When adding new bullets in a follow-up session, **merge them into the existing section** — never create a second `### Added` (or `### Fixed`, etc.) block inside the same version.
 
+**CRITICAL — `### Fixed` is only for regressions in shipped code**: a bug discovered during development of a brand-new feature is **not a regression**. If the feature didn't exist in the previous release, it cannot be "fixed" — it was never broken. Such notes belong in `### Added` or `### Architecture`, or can be omitted. Test: "Was this broken in the last release?" If the feature wasn't there, the answer is no.
+
 ### Cutting a release (when the user provides the version number)
 
 1. Replace `[X.x.x]` with the version number in **both** changelogs.

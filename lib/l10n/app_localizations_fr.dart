@@ -1216,7 +1216,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get drumGeneratorSwingLabel => 'Swing';
 
   @override
-  String get drumGeneratorSwingPattern => 'Défaut du pattern';
+  String get drumGeneratorSwingPattern => 'Pattern';
 
   @override
   String get drumGeneratorHumanizeLabel => 'Feeling humain';
@@ -1228,7 +1228,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get drumGeneratorHumanizeLive => 'Batteur live';
 
   @override
-  String get drumGeneratorIntroLabel => 'Compte-rendu';
+  String get drumGeneratorIntroLabel => 'Décompte';
 
   @override
   String get drumGeneratorFillLabel => 'Fill tous les';
