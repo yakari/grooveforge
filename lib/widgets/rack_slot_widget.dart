@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../l10n/app_localizations.dart';
 import '../constants/soundfont_sentinels.dart';
+import '../models/drum_generator_plugin_instance.dart';
 import '../models/gfpa_plugin_instance.dart';
 import '../models/grooveforge_keyboard_plugin.dart';
 import '../models/looper_plugin_instance.dart';
@@ -21,6 +22,7 @@ import '../widgets/keyboard_config_dialog.dart';
 import '../widgets/virtual_piano.dart';
 import 'package:grooveforge_plugin_api/grooveforge_plugin_api.dart';
 
+import 'rack/drum_generator_slot_ui.dart';
 import 'rack/gfpa_descriptor_slot_ui.dart';
 import 'rack/gfpa_jam_mode_slot_ui.dart';
 import 'rack/gfpa_stylophone_slot_ui.dart';
@@ -50,7 +52,6 @@ class RackSlotWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    debugPrint('RackSlotWidget: build START for ${plugin.displayName}');
     final engine = context.read<AudioEngine>();
     // midiChannel == 0 for MIDI FX / effect GFPA slots — use ch 0 as fallback.
     final channelIndex = (plugin.midiChannel - 1).clamp(0, 15);
@@ -68,6 +69,14 @@ class RackSlotWidget extends StatelessWidget {
       );
     }
 
+    // ── Drum Generator: dedicated drum channel, never shows note-glow.
+    // Bypass the ValueListenableBuilder entirely — drum notes fire and release
+    // at the 10 ms tick rate, which would trigger 100+ widget rebuilds/second
+    // and cause rhythm instability and chord latency in the rest of the rack.
+    if (plugin is DrumGeneratorPluginInstance) {
+      return _buildSlotContent(context, false, channelIndex);
+    }
+
     // ── Jam Mode: glow while keys are held on the master channel ─────────────
     // Both detect modes (chord and bass-note) share the same glow condition:
     // activeNotes is non-empty ↔ the master is currently sending input.
@@ -75,13 +84,15 @@ class RackSlotWidget extends StatelessWidget {
     // (it stores the last recognised chord), which would keep the header lit
     // permanently after a single chord is played.
     // No glow when Jam Mode is disabled or no master slot is configured.
+    //
+    // Two-level listener: outer reacts to Jam Mode config changes (which master
+    // slot is selected, enabled/disabled); inner reacts only to the specific
+    // master channel's note activity. This avoids subscribing to all 16 channels
+    // and prevents drum-channel note events from triggering Jam Mode rebuilds.
     if (plugin is GFpaPluginInstance &&
         (plugin as GFpaPluginInstance).pluginId == 'com.grooveforge.jammode') {
       return ListenableBuilder(
-        listenable: Listenable.merge([
-          engine.gfpaJamEntries,
-          ...engine.channels.map((ch) => ch.activeNotes),
-        ]),
+        listenable: engine.gfpaJamEntries,
         builder: (context, _) {
           final jamPlugin = plugin as GFpaPluginInstance;
           final enabled = jamPlugin.state['enabled'] != false;
@@ -100,18 +111,20 @@ class RackSlotWidget extends StatelessWidget {
           }
 
           final masterCh = (masterSlot.midiChannel - 1).clamp(0, 15);
-          final isFlashing =
-              engine.channels[masterCh].activeNotes.value.isNotEmpty;
-
-          return _buildSlotContent(context, isFlashing, channelIndex);
+          // Subscribe only to the master channel — not all 16 — so note
+          // activity on drums or other unrelated channels never causes a rebuild.
+          return ValueListenableBuilder<Set<int>>(
+            key: ValueKey(masterCh), // re-create listener if master ch changes
+            valueListenable: engine.channels[masterCh].activeNotes,
+            builder: (context, activeNotes, _) =>
+                _buildSlotContent(context, activeNotes.isNotEmpty, channelIndex),
+          );
         },
       );
     }
 
     // ── Instrument slots: glow when notes are active on their channel ───────
     final channelState = engine.channels[channelIndex];
-    debugPrint(
-        'RackSlotWidget: building ValueListenableBuilder for ${plugin.displayName}');
     return ValueListenableBuilder<Set<int>>(
       valueListenable: channelState.activeNotes,
       builder: (context, activeNotes, _) {
@@ -198,6 +211,7 @@ class RackSlotWidget extends StatelessWidget {
   /// note-activity glow to avoid false highlights when an unconnected VP is
   /// played.  Only slots that directly produce or respond to notes should glow.
   bool get _shouldShowNoteGlow {
+    if (plugin is DrumGeneratorPluginInstance) return false;
     if (plugin is LooperPluginInstance) return false;
     if (plugin is GFpaPluginInstance) {
       final gfpa = plugin as GFpaPluginInstance;
@@ -220,7 +234,11 @@ class RackSlotWidget extends StatelessWidget {
   }
 
   Widget _buildBody(BuildContext context) {
-    debugPrint('RackSlotWidget: _buildBody for ${plugin.displayName}');
+    if (plugin is DrumGeneratorPluginInstance) {
+      return DrumGeneratorSlotUI(
+        plugin: plugin as DrumGeneratorPluginInstance,
+      );
+    }
     if (plugin is GrooveForgeKeyboardPlugin) {
       return GrooveForgeKeyboardSlotUI(
         plugin: plugin as GrooveForgeKeyboardPlugin,
@@ -245,7 +263,6 @@ class RackSlotWidget extends StatelessWidget {
         case 'com.grooveforge.vocoder':
           return GFpaVocoderSlotUI(plugin: gfpa);
         case 'com.grooveforge.jammode':
-          debugPrint('RackSlotWidget: returning GFpaJamModeSlotUI');
           return GFpaJamModeSlotUI(plugin: gfpa);
         case 'com.grooveforge.stylophone':
           return GFpaStyloPhoneSlotUI(plugin: gfpa);
@@ -371,6 +388,7 @@ class _SlotHeader extends StatelessWidget {
   }
 
   IconData _iconFor(PluginInstance p) {
+    if (p is DrumGeneratorPluginInstance) return Icons.album;
     if (p is GrooveForgeKeyboardPlugin) {
       return p.soundfontPath == kMidiControllerOnlySoundfont
           ? Icons.piano_outlined

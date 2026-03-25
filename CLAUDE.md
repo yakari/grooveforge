@@ -77,6 +77,10 @@ Add a new **`[X.x.x]`** placeholder header at the very top of each changelog (ab
 - …
 ```
 
+**CRITICAL — no duplicate section headers**: within a single `[X.x.x]` block there must be **exactly one** of each category heading (`### Added`, `### Fixed`, `### Architecture`, etc.). When adding new bullets in a follow-up session, **merge them into the existing section** — never create a second `### Added` (or `### Fixed`, etc.) block. Two `### Added` sections in the same version block is always wrong.
+
+**CRITICAL — `### Fixed` is only for regressions in shipped code**: a bug discovered during the development of a brand-new feature (which was never present in a previous release) is **not a regression** and must never appear in `### Fixed`. Such implementation details belong in `### Added` (if user-visible) or `### Architecture` (if technical), or can be omitted entirely. Asking "was this broken in the previous release?" is the test — if the feature didn't exist then, the answer is no, and `### Fixed` is wrong.
+
 ### Releasing a version (when the user supplies the version number)
 
 1. Replace `[X.x.x]` with the supplied version in **both** `CHANGELOG.md` and `CHANGELOG.fr.md`.

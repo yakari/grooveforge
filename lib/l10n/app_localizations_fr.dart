@@ -1198,4 +1198,133 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get midiFxCcRemove => 'Supprimer l\'assignation CC';
+
+  @override
+  String get drumGeneratorAddTitle => 'Générateur de batterie';
+
+  @override
+  String get drumGeneratorAddSubtitle =>
+      'Grooves de bossa nova au métal, avec le feeling humain';
+
+  @override
+  String get drumGeneratorActiveLabel => 'Actif';
+
+  @override
+  String get drumGeneratorStyleLabel => 'Style';
+
+  @override
+  String get drumGeneratorSwingLabel => 'Swing';
+
+  @override
+  String get drumGeneratorSwingPattern => 'Pattern';
+
+  @override
+  String get drumGeneratorHumanizeLabel => 'Feeling humain';
+
+  @override
+  String get drumGeneratorHumanizeRobotic => 'Robotique';
+
+  @override
+  String get drumGeneratorHumanizeLive => 'Batteur live';
+
+  @override
+  String get drumGeneratorIntroLabel => 'Décompte';
+
+  @override
+  String get drumGeneratorFillLabel => 'Fill tous les';
+
+  @override
+  String get drumGeneratorSoundfontLabel => 'Police de son';
+
+  @override
+  String get drumGeneratorLoadPattern => 'Charger un .gfdrum…';
+
+  @override
+  String get drumGeneratorFormatGuide => 'Guide du format';
+
+  @override
+  String get drumGeneratorIntroNone => 'Aucun';
+
+  @override
+  String get drumGeneratorIntroCountIn1 => '1 mesure';
+
+  @override
+  String get drumGeneratorIntroCountIn2 => '2 mesures';
+
+  @override
+  String get drumGeneratorIntroChopsticks => 'Baguettes (4 coups)';
+
+  @override
+  String get drumGeneratorFillOff => 'Non';
+
+  @override
+  String get drumGeneratorFillEvery4 => 'Toutes les 4 mesures';
+
+  @override
+  String get drumGeneratorFillEvery8 => 'Toutes les 8 mesures';
+
+  @override
+  String get drumGeneratorFillEvery16 => 'Toutes les 16 mesures';
+
+  @override
+  String get drumGeneratorFillRandom => 'Aléatoire';
+
+  @override
+  String get drumGeneratorCrashAfterFill => 'Crash après le fill';
+
+  @override
+  String get drumGeneratorDynamicBuild => 'Montée dynamique';
+
+  @override
+  String get drumGeneratorDefaultSoundfont => 'Police de son par défaut';
+
+  @override
+  String get drumGeneratorFormatGuideTitle => 'Format de pattern (.gfdrum)';
+
+  @override
+  String get drumGeneratorFormatGuideContent =>
+      'Un fichier .gfdrum est un fichier texte YAML décrivant un pattern de batterie.\n\nNotation de grille:\nX = coup fort (~100)\nx = coup moyen (~75)\no = coup doux (~55)\ng = note fantôme (~28)\n. = silence\n\nChamps de vélocité: base_velocity, velocity_range\nChamps de timing: timing_jitter, rush\nSections: groove, fill, break, crash, intro\nTypes de section: loop (aléatoire), sequence (mesures ordonnées)';
+
+  @override
+  String get drumGeneratorNoPatternsFound => 'Aucun pattern chargé';
+
+  @override
+  String get drumGeneratorFamilyRock => 'Rock';
+
+  @override
+  String get drumGeneratorFamilyJazz => 'Jazz';
+
+  @override
+  String get drumGeneratorFamilyFunk => 'Funk';
+
+  @override
+  String get drumGeneratorFamilyLatin => 'Latin';
+
+  @override
+  String get drumGeneratorFamilyCeltic => 'Celtique';
+
+  @override
+  String get drumGeneratorFamilyPop => 'Pop';
+
+  @override
+  String get drumGeneratorFamilyElectronic => 'Électronique';
+
+  @override
+  String get drumGeneratorFamilyWorld => 'Musique du monde';
+
+  @override
+  String get drumGeneratorFamilyMetal => 'Metal';
+
+  @override
+  String get drumGeneratorFamilyCountry => 'Country';
+
+  @override
+  String get drumGeneratorFamilyFolk => 'Folk';
+
+  @override
+  String get drumGeneratorCustomPattern => 'Pattern personnalisé';
+
+  @override
+  String get drumGeneratorNoSoundfonts =>
+      'Aucune soundfont — ajoutez-en une dans Préférences';
 }

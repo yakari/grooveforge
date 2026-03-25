@@ -5,6 +5,23 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/lang/fr/).
 
+## [2.9.0] - 2026-03-25
+
+### Ajouté
+- **Générateur de batterie** : nouveau module de rack avec programmation de tempo synchronisée au transport, moteur d'humanisation (jitter de vélocité, microtiming, notes fantômes), curseur de swing, et structure fills/breaks configurable.
+- **Format de pattern `.gfdrum`** : patterns de batterie déclaratifs YAML avec grilles de pas (X/x/o/g/.), configuration de vélocité et timing par instrument, types de section `loop` et `sequence`. Les utilisateurs peuvent créer et charger leurs propres patterns.
+- **Dix patterns inclus** : Classic Rock, Jazz Swing, Bossa Nova, Tight Funk, Irish Jig, Breton An Dro, Reel Écossais (caisse claire pipe-band, 150–220 BPM), Batucada (ensemble de percussions samba avec interlock surdos + carreteiro tamborim), Marche Militaire (backbeat à flam, variation roulement), Jazz Half-Time Shuffle (shuffle Rosanna/Purdie : caisse claire uniquement sur le temps 3, hi-hat swing « trip »).
+- Breton An Dro utilise `type: sequence` pour une variation authentique mesure par mesure.
+- `DrumPatternRegistry` singleton pour la découverte des patterns dans l'application.
+- **Générateur de batterie — synchronisation de la mesure** : lorsqu'un pattern de batterie est chargé, le transport adopte automatiquement la signature rythmique du pattern pour que le métronome LED et le compteur de mesures restent synchronisés avec le style (ex. 6/8 pour la Bossa Nova, 4/4 pour le Rock).
+- **Générateur de batterie — tous les patterns réécrits** à partir de sources musicologiques : Classic Rock (kick hémiolique de Bonham + variante AC/DC), Jazz Swing (ride spang-a-lang authentique), Bossa Nova (séquence clave sur 4 mesures avec variation hi-hat ouvert/fermé), Tight Funk (5 variations : Funky Drummer, Cissy Strut, Sly Stone, kick syncopé, version légère), Irish Jig (modèle bodhran DOWN/UP + variation cross-stick « tip »), Breton An Dro (double grosse caisse signature), Reel Écossais (refonte complète : la caisse claire en croches en continu à 150–220 BPM est remplacée par une hi-hat en croches + backbeat — bien plus musical), Batucada (ensemble 5 voix avec agogô cowbell, chamada tamborim, appel repique et fill chamada), Country (plage BPM étendue à 170 + variation « speedy_wagon »), Jazz Waltz (résolution 9 feel binaire pour un chabada trio naturel sans algo de swing).
+- **Générateur de batterie — sauvegarde automatique des paramètres** : le swing, l'humanisation, la soundfont, le pattern, le compte-à-rebours et la fréquence des fills sont désormais persistés automatiquement à chaque changement (via `DrumGeneratorEngine.onChanged` connecté à `ProjectService.autosave`) et sauvegardés dans les fichiers de projet `.gf`.
+
+### Architecture
+- **Générateur de batterie — boucle de reconstruction à 100 Hz éliminée** : `RackSlotWidget` enveloppait le slot Générateur de batterie dans un `ValueListenableBuilder(channelState.activeNotes)` — les notes de batterie se déclenchant à la cadence du tick 10 ms provoquaient ~100 reconstructions de widgets par seconde, dégradant le rythme en mode économie d'énergie et ajoutant de la latence aux accords des autres slots. Le Générateur de batterie contourne désormais entièrement ce `ValueListenableBuilder` (il n'affiche jamais de lueur de note). L'écouteur multi-canaux de Jam Mode est remplacé par une approche à deux niveaux : `ListenableBuilder(gfpaJamEntries)` externe pour les changements de configuration, `ValueListenableBuilder` interne sur le seul canal maître concerné.
+- **Générateur de batterie — `ensureSession()` ne déclenche plus `notifyListeners()` sans changement** : l'appel était inconditionnel, causant une reconstruction supplémentaire à chaque `addPostFrameCallback`. Désormais, la notification n'est émise qu'à la première inscription ou lors d'un changement de pattern chargé.
+- **Générateur de batterie — replanification du lookahead sur changement de paramètre** : `markDirty()` appelle `session.refreshSchedule()` sur toutes les sessions actives, vidant le cache d'anticipation de 2 mesures pour que les modifications de swing et d'humanisation prennent effet en ≤ 10 ms.
+
 ## [2.8.1] - 2026-03-24
 
 ### Ajouté

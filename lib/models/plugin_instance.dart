@@ -1,4 +1,5 @@
 import '../constants/soundfont_sentinels.dart';
+import 'drum_generator_plugin_instance.dart';
 import 'grooveforge_keyboard_plugin.dart';
 import 'gfpa_plugin_instance.dart';
 import 'keyboard_display_config.dart';
@@ -40,6 +41,8 @@ abstract class PluginInstance {
         return _keyboardPluginMigratedFromVirtualPiano(json);
       case 'looper':
         return LooperPluginInstance.fromJson(json);
+      case 'drum_generator':
+        return DrumGeneratorPluginInstance.fromJson(json);
       default:
         throw ArgumentError('Unknown plugin type: $type');
     }

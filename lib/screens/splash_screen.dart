@@ -9,6 +9,7 @@ import '../plugins/gf_theremin_plugin.dart';
 import '../plugins/gf_vocoder_plugin.dart';
 import '../services/audio_engine.dart';
 import '../services/audio_graph.dart';
+import '../services/drum_generator_engine.dart';
 import '../services/looper_engine.dart';
 import '../services/project_service.dart';
 import '../services/rack_state.dart';
@@ -46,6 +47,7 @@ class _SplashScreenState extends State<SplashScreen> {
     final transport = context.read<TransportEngine>();
     final audioGraph = context.read<AudioGraph>();
     final looperEngine = context.read<LooperEngine>();
+    final drumEngine = context.read<DrumGeneratorEngine>();
 
     // Wait for the very first frame to finish before starting the heavy lifting.
     await Future.delayed(const Duration(milliseconds: 100));
@@ -79,6 +81,12 @@ class _SplashScreenState extends State<SplashScreen> {
       () => projectService.autosave(
           rack, engine, transport, audioGraph, looperEngine),
     );
+    // Autosave whenever a drum generator parameter changes (swing, humanise,
+    // count-in, fill frequency, soundfont, pattern selection, active toggle).
+    // DrumGeneratorEngine.markDirty() fires onChanged; the debounce inside
+    // ProjectService.autosave() prevents thrashing during continuous slider drags.
+    drumEngine.onChanged = () =>
+        projectService.autosave(rack, engine, transport, audioGraph, looperEngine);
     // Autosave after a recording pass completes or is cleared.  We use the
     // dedicated onDataChanged hook instead of addListener because the latter
     // fires on every bar-boundary tick during playback (every ~10 ms), which

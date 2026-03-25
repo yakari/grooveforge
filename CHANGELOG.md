@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.9.0] - 2026-03-25
+
+### Added
+- **Drum Track Generator**: new rack module with transport-sync beat scheduling, humanization engine (velocity jitter, microtiming, ghost notes), swing slider, and structured fills/breaks.
+- **`.gfdrum` pattern format**: YAML-based declarative drum patterns with step grids (X/x/o/g/.), per-instrument velocity and timing configuration, `loop` and `sequence` section types. Users can author and load custom patterns.
+- **Ten bundled patterns**: Classic Rock, Jazz Swing, Bossa Nova, Tight Funk, Irish Jig, Breton An Dro, Scottish Reel (pipe-band snare, 150–220 BPM), Batucada (samba percussion ensemble with surdo interlock + tamborim carreteiro), Military March (flam rudiment backbeat, press-roll variation), Jazz Half-Time Shuffle (Rosanna/Purdie shuffle with half-time snare on beat 3 only and swing "trip" hi-hat).
+- Breton An Dro uses `type: sequence` for authentic bar-by-bar phrase variation.
+- `DrumPatternRegistry` singleton for pattern discovery across the app.
+- **Drum Generator — time signature sync**: when a drum pattern is loaded (and the transport is stopped), the transport automatically adopts the pattern's time signature so the metronome LED and bar counter stay in sync with the drum feel (e.g. 6/8 for Bossa Nova, 4/4 for Rock).
+- **Drum Generator — all patterns rewritten** from research for musical authenticity: Classic Rock (Bonham kick hemiola + AC/DC variant), Jazz Swing (authentic spang-a-lang ride), Bossa Nova (4-bar clave sequence with open/closed hi-hat variation), Tight Funk (5 variations: Funky Drummer, Cissy Strut, Sly Stone, synco kick, lighter), Irish Jig (bodhran DOWN/UP stroke model + cross-stick "tip" variation), Breton An Dro (double-kick signature), Scottish Reel (reworked from continuous 16th snare to 8th-note hi-hat + backbeat — much more musical at 150–220 BPM), Batucada (5-voice ensemble with agogô cowbell, featured tamborim chamada, repique call, and chamada fill), Country (BPM range extended to 170 + `speedy_wagon` variation), Jazz Waltz (9-resolution binary feel for a natural chabada trio without swing-algorithm colouring).
+- **Drum Generator — parameter autosave**: swing override, humanisation amount, soundfont, pattern selection, count-in type, and fill frequency are now persisted automatically on every change (via `DrumGeneratorEngine.onChanged` wired to `ProjectService.autosave`), and saved in `.gf` project files.
+
+### Architecture
+- **Drum Generator — eliminated ~100 Hz widget rebuild loop**: `RackSlotWidget` wrapped the Drum Generator slot in `ValueListenableBuilder(channelState.activeNotes)` — drum notes firing on the 10 ms tick caused ~100 rebuilds per second, hurting timing in battery-saver and adding latency to chord playback on other slots. The Drum Generator now skips that `ValueListenableBuilder` entirely (no note-activity glow). Jam Mode multi-channel listening is replaced with a two-level approach: outer `ListenableBuilder(gfpaJamEntries)` for config changes, inner `ValueListenableBuilder` on the single relevant master channel only.
+- **Drum Generator — `ensureSession()` no longer calls `notifyListeners()` when nothing changed**: the call was unconditional, causing an extra rebuild every `addPostFrameCallback`. Notifications now fire only on first subscribe or when the loaded pattern actually changes.
+- **Drum Generator — lookahead rescheduled on parameter change**: `markDirty()` calls `session.refreshSchedule()` on all active sessions, clearing the 2-bar lookahead cache so swing and humanisation updates apply within ≤ 10 ms.
+
 ## [2.8.1] - 2026-03-24
 
 ### Added

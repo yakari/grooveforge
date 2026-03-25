@@ -1,0 +1,169 @@
+# Salsa — Authentic 3-2 Son Clave / Mambo groove
+# Reference: Tito Puente ("Oye Como Va"), Ray Barretto, Willie Colón,
+#            Giovanni Hidalgo (congas), Nicky Marrero (timbales),
+#            "The Latin Real Book" (Chuck Sher), "Salsa and Related Genres" (Sublette)
+# The clave is the immovable rhythmic law of salsa. Everything else orbits around it.
+# This pattern uses the 3-2 son clave (3 strokes in bar 1, 2 strokes in bar 2)
+# approximated as a single-bar repeating cell: hits at pos 0, 6, 10 (the "3-side"
+# subset — in a 2-bar context bar 2 would have hits at pos 4, 12).
+#
+# Three groove variations model the main salsa sub-styles:
+#   son_montuno   — classic son-montuno: timbale cascara, tumbao congas, cencerro bell
+#   guaguanco     — Afro-Cuban guaguancó: sparser, more polyrhythmic, no timbale
+#   mambo         — driving salsa dura: all instruments at full force
+#
+# Tumbao (conga): bass stroke on beats 1 and 3 (low conga), muted on 2 and 4,
+#   open tone on "and-of-2" and "and-of-4" — the essential conga "melody" in salsa.
+# Cascara (timbale shell rim): syncopated 8th-note pattern keyed to the clave.
+# Cencerro (mambo bell / cowbell): marks the main salsa time-feel reference.
+#
+# GM notes: 75=claves, 65=hi timbale, 66=lo timbale, 62=mute hi conga,
+#           63=open hi conga, 64=low conga, 60=hi bongo, 56=cowbell (cencerro),
+#           36=kick, 49=crash
+
+#
+# ── Step grid notation ────────────────────────────────────────────────────────
+# Each character in a step grid represents one subdivision of the bar.
+# Resolution controls how many steps per bar (16 = 16th notes in 4/4; 12 = 16th notes in 6/8).
+#
+#   X   Strong accent  — velocity = base_velocity × 1.00  (full hit / downbeat)
+#   x   Medium accent  — velocity = base_velocity × 0.75  (firm stroke / upbeat)
+#   o   Soft hit       — velocity = base_velocity × 0.55  (brush / light touch)
+#   g   Ghost note     — velocity = base_velocity × 0.28  (barely audible, mostly felt)
+#   .   Rest           — no note fired at this step
+#
+# Beat positions — 4/4 at resolution 16 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
+#        1  e1 +1 a1  2  e2 +2 a2  3  e3 +3 a3  4  e4 +4 a4
+#   (1/+/2/+/3/+/4/+ = quarter beats; e = "e of"; a = "and-a of")
+#
+# Swing / feel: the 'feel' field shifts odd-indexed steps (1,3,5,7…) forward in time.
+#   straight   — no shift (all steps exactly on the grid)
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Salsa
+family: latin
+bpm_range: [160, 220]
+time_signature: [4, 4]
+resolution: 16
+feel: straight
+
+instruments:
+  clave:       { note: 75, base_velocity: 95,  velocity_range: 8,  timing_jitter: 0.008, duration_beats: 0.06 }
+  timbale_hi:  { note: 65, base_velocity: 82,  velocity_range: 12, timing_jitter: 0.010, duration_beats: 0.07 }
+  timbale_lo:  { note: 66, base_velocity: 90,  velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.08 }
+  conga_mute:  { note: 62, base_velocity: 75,  velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.07 }
+  conga_open:  { note: 63, base_velocity: 88,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.08 }
+  conga_lo:    { note: 64, base_velocity: 92,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.10 }
+  cowbell:     { note: 56, base_velocity: 88,  velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.07 }
+  kick:        { note: 36, base_velocity: 90,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.12 }
+  crash:       { note: 49, base_velocity: 100, velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.22 }
+
+humanization:
+  timing_jitter: 0.012
+  velocity_jitter: 12
+  velocity_drift: 0.05
+
+sections:
+  intro:
+    type: count_in
+    hits: 4
+    note: 75
+
+  groove:
+    bars: 1
+    variations:
+      - name: son_montuno
+        weight: 3
+        # Classic son-montuno salsa groove (Tito Puente / Willie Colón style).
+        # Clave: 3-side approximation — hits at pos 0 (beat 1), pos 6 (and-of-2),
+        #   pos 10 (and-of-3). The "2-side" hits (pos 4, 12) would complete the full
+        #   2-bar clave cycle; the single-bar loop implies the 3-side throughout.
+        # Tumbao (congas): low conga bass on 1 and 3 (pos 0, 8), muted on 2 and 4
+        #   (pos 4, 12), open tone on and-of-2 and and-of-4 (pos 6, 14).
+        # Cascara (timbale shell rim): syncopated 8th pattern — x on beats,
+        #   X on strategic upbeats derived from the clave.
+        # Cencerro (mambo cowbell): X on beat 1, and-of-2, beat 3, beat 4, and-of-4 —
+        #   the "campana" pattern that every salsa pianist and bassist locks into.
+        clave:      "X.....X...X....."
+        timbale_hi: "x.X.x.x.X.x.x.X."
+        conga_lo:   "X.......X......."
+        conga_mute: "....X.......X..."
+        conga_open: "......X.......X."
+        cowbell:    "X...X.X.X...X.X."
+        kick:       "X.......X......."
+
+      - name: guaguanco
+        weight: 2
+        # Afro-Cuban guaguancó (Celia Cruz, Los Papines style): slower, more African,
+        # less timbale, more conga improvisation. The clave is the same but the
+        # texture is sparser. No timbale cascara — the guaguancó originated before
+        # the timbale became a salsa standard instrument.
+        # Congas carry the entire rhythmic conversation: the low conga "bass" on 1
+        # and 3 plus the open "slap" tones on the offbeats create the guaguancó feel.
+        clave:      "X.....X...X....."
+        conga_lo:   "X.......X......."
+        conga_mute: "....x.......x..."
+        conga_open: "......X.......X."
+        cowbell:    "X.......X......."
+        kick:       "X..............."
+
+      - name: mambo
+        weight: 2
+        # Driving salsa dura / mambo (Machito, Mario Bauzá, Tito Puente style):
+        # all instruments at full force. Timbale plays the full cascara rim pattern
+        # while the low timbale accents the clave 3-side beat 3 (pos 8 → crossover hit).
+        # Cowbell drives with the complete campana pattern. The kick anchors beats 1
+        # and 3 underneath the percussion ensemble. Maximum energy.
+        clave:      "X.....X...X....."
+        timbale_hi: "x.X.x.x.X.x.x.X."
+        timbale_lo: "........X......."
+        conga_lo:   "X.......X......."
+        conga_mute: "....X.......X..."
+        conga_open: "......X.......X."
+        cowbell:    "X...X.X.X...X.X."
+        kick:       "X.......X......."
+
+  fill:
+    bars: 1
+    variations:
+      - name: timbale_break
+        # Classic timbale break (paila): 16th-note run on hi timbale into a crash.
+        # The low timbale punctuates every beat for maximum impact — the "remate"
+        # (punch) that tells the whole band a section change is coming.
+        timbale_hi: "XxXxXxXxXxXxXxXx"
+        timbale_lo: "X...X...X...X..."
+        kick:       "X..............."
+
+      - name: clave_accent
+        # All instruments strike clave positions simultaneously — the "clave hit"
+        # that signals section boundaries in big-band salsa arrangements. Very
+        # dramatic when everyone lands together on the 3-side positions.
+        clave:     "X.....X...X....."
+        conga_lo:  "X.....X...X....."
+        cowbell:   "X.....X...X....."
+        kick:      "X.....X...X....."
+
+      - name: remate
+        # The "remate" (ending/punch): timbale builds 16th-note density then
+        # everybody hits the downbeat together. A crowd-pleaser in every salsa concert.
+        timbale_hi: "x.x.x.x.X.X.X.X."
+        conga_lo:   "X...X...X...X..."
+        kick:       "X...X...X...X..."
+        crash:      "X..............."
+
+  crash:
+    bars: 1
+    variations:
+      - name: standard
+        crash:      "X..............."
+        timbale_hi: "x.X.x.x.X.x.x.X."
+        cowbell:    "X...X.X.X...X.X."
+        conga_lo:   "X.......X......."
+
+structure:
+  fill_every: 4
+  break_every: 0
+  break_length: 1
+  crash_after_fill: true
+  dynamic_build: false
