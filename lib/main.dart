@@ -22,16 +22,37 @@ import 'l10n/app_localizations.dart';
 
 /// Asset paths for all bundled `.gfdrum` drum pattern files.
 const _kBundledGfdrumAssets = [
+  // Rock / Pop / Funk
   'assets/drums/rock_basic.gfdrum',
-  'assets/drums/jazz_swing.gfdrum',
-  'assets/drums/latin_bossa_nova.gfdrum',
   'assets/drums/funk_tight.gfdrum',
+  'assets/drums/disco.gfdrum',
+  // Jazz
+  'assets/drums/jazz_swing.gfdrum',
+  'assets/drums/jazz_halftime_shuffle.gfdrum',
+  'assets/drums/jazz_waltz.gfdrum',
+  // Latin
+  'assets/drums/latin_bossa_nova.gfdrum',
+  'assets/drums/latin_salsa.gfdrum',
+  'assets/drums/latin_cha_cha.gfdrum',
+  'assets/drums/samba_groove.gfdrum',
+  // World
+  'assets/drums/batucada.gfdrum',
+  'assets/drums/batucada_directed.gfdrum',
+  'assets/drums/afrobeat.gfdrum',
+  'assets/drums/second_line.gfdrum',
+  // Metal
+  'assets/drums/metal.gfdrum',
+  // Country
+  'assets/drums/country.gfdrum',
+  // Folk / Celtic
   'assets/drums/celtic_irish_jig.gfdrum',
   'assets/drums/celtic_breton_an_dro.gfdrum',
   'assets/drums/celtic_scottish_reel.gfdrum',
-  'assets/drums/batucada.gfdrum',
+  'assets/drums/celtic_plinn.gfdrum',
+  'assets/drums/celtic_reel.gfdrum',
+  // Fanfare / March
   'assets/drums/fanfare_march.gfdrum',
-  'assets/drums/jazz_halftime_shuffle.gfdrum',
+  'assets/drums/festive_fanfare.gfdrum',
 ];
 
 /// Asset paths for all bundled `.gfpd` plugin descriptor files.

@@ -5,7 +5,7 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/lang/fr/).
 
-## [X.x.x]
+## [2.9.0] - 2026-03-25
 
 ### Ajouté
 - **Générateur de batterie** : nouveau module de rack avec programmation de tempo synchronisée au transport, moteur d'humanisation (jitter de vélocité, microtiming, notes fantômes), curseur de swing, et structure fills/breaks configurable.
@@ -13,8 +13,8 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 - **Dix patterns inclus** : Classic Rock, Jazz Swing, Bossa Nova, Tight Funk, Irish Jig, Breton An Dro, Reel Écossais (caisse claire pipe-band, 150–220 BPM), Batucada (ensemble de percussions samba avec interlock surdos + carreteiro tamborim), Marche Militaire (backbeat à flam, variation roulement), Jazz Half-Time Shuffle (shuffle Rosanna/Purdie : caisse claire uniquement sur le temps 3, hi-hat swing « trip »).
 - Breton An Dro utilise `type: sequence` pour une variation authentique mesure par mesure.
 - `DrumPatternRegistry` singleton pour la découverte des patterns dans l'application.
-- **Générateur de batterie — synchronisation de la mesure** : lorsqu'un pattern de batterie est chargé (et que le transport est arrêté), le transport adopte automatiquement la signature rythmique du pattern pour que le métronome LED et le compteur de mesures restent synchronisés avec le style (ex. 6/8 pour la Bossa Nova, 4/4 pour le Rock).
-- **Générateur de batterie — tous les patterns réécrits** à partir de sources musicologiques : Classic Rock (kick hémiolique de Bonham + variante AC/DC), Jazz Swing (ride spang-a-lang authentique), Bossa Nova (séquence clave sur 4 mesures avec variation hi-hat ouvert/fermé), Tight Funk (5 variations : Funky Drummer, Cissy Strut, Sly Stone, kick syncopé, version légère), Irish Jig (modèle bodhran DOWN/UP + variation cross-stick « tip »), Breton An Dro (double grosse caisse signature), Reel Écossais (refonte complète : la caisse claire en croches en continu à 150–220 BPM est remplacée par une hi-hat en croches + backbeat — bien plus musical), Batucada (ensemble 5 voix avec agogô cowbell, chamada tamborim, appel repique et fill chamada).
+- **Générateur de batterie — synchronisation de la mesure** : lorsqu'un pattern de batterie est chargé, le transport adopte automatiquement la signature rythmique du pattern pour que le métronome LED et le compteur de mesures restent synchronisés avec le style (ex. 6/8 pour la Bossa Nova, 4/4 pour le Rock).
+- **Générateur de batterie — tous les patterns réécrits** à partir de sources musicologiques : Classic Rock (kick hémiolique de Bonham + variante AC/DC), Jazz Swing (ride spang-a-lang authentique), Bossa Nova (séquence clave sur 4 mesures avec variation hi-hat ouvert/fermé), Tight Funk (5 variations : Funky Drummer, Cissy Strut, Sly Stone, kick syncopé, version légère), Irish Jig (modèle bodhran DOWN/UP + variation cross-stick « tip »), Breton An Dro (double grosse caisse signature), Reel Écossais (refonte complète : la caisse claire en croches en continu à 150–220 BPM est remplacée par une hi-hat en croches + backbeat — bien plus musical), Batucada (ensemble 5 voix avec agogô cowbell, chamada tamborim, appel repique et fill chamada), Country (plage BPM étendue à 170 + variation « speedy_wagon »), Jazz Waltz (résolution 9 feel binaire pour un chabada trio naturel sans algo de swing).
 - **Générateur de batterie — sauvegarde automatique des paramètres** : le swing, l'humanisation, la soundfont, le pattern, le compte-à-rebours et la fréquence des fills sont désormais persistés automatiquement à chaque changement (via `DrumGeneratorEngine.onChanged` connecté à `ProjectService.autosave`) et sauvegardés dans les fichiers de projet `.gf`.
 
 ### Architecture

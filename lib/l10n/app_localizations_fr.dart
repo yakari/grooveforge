@@ -1316,6 +1316,12 @@ class AppLocalizationsFr extends AppLocalizations {
   String get drumGeneratorFamilyMetal => 'Metal';
 
   @override
+  String get drumGeneratorFamilyCountry => 'Country';
+
+  @override
+  String get drumGeneratorFamilyFolk => 'Folk';
+
+  @override
   String get drumGeneratorCustomPattern => 'Pattern personnalisé';
 
   @override

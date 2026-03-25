@@ -70,7 +70,7 @@ sections:
         # snare backbeat on 2 & 4, kick on 1 & 3.
         kick:  "X.......X......."
         snare: "....X.......X..."
-        hihat: "X.x.X.x.X.x.X.x"
+        hihat: "X.x.X.x.X.x.X.x."
       - name: cut_feel
         weight: 3
         # "Cut" time snap: cross-stick rimshot on 8th upbeats (positions 2,6,10,14)
@@ -79,7 +79,7 @@ sections:
         kick:  "X.....X.X......."
         snare: "....X.......X..."
         cross: "..x...x...x...x."
-        hihat: "X.x.X.x.X.x.X.x"
+        hihat: "X.x.X.x.X.x.X.x."
       - name: strong_beat
         weight: 2
         # Stomping: kick on every quarter note — simulates the relentless
@@ -108,7 +108,7 @@ sections:
         crash: "X..............."
         kick:  "X..............."
         snare: "....X.......X..."
-        hihat: "X.x.X.x.X.x.X.x"
+        hihat: "X.x.X.x.X.x.X.x."
 
 structure:
   fill_every: 8

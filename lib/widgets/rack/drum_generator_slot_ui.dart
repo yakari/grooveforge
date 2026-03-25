@@ -336,6 +336,10 @@ class _StyleDropdown extends StatelessWidget {
         return l10n.drumGeneratorFamilyWorld;
       case 'metal':
         return l10n.drumGeneratorFamilyMetal;
+      case 'country':
+        return l10n.drumGeneratorFamilyCountry;
+      case 'folk':
+        return l10n.drumGeneratorFamilyFolk;
       default:
         return family;
     }

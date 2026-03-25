@@ -112,7 +112,7 @@ sections:
         # Deeper groove with more breathing space between ghost notes.
         kick:       "X.X.....X......."
         snare:      "....X.g.....X.g."
-        hihat:      "x.x.x.x.x.x.x.x"
+        hihat:      "x.x.x.x.x.x.x.x."
 
   fill:
     bars: 1

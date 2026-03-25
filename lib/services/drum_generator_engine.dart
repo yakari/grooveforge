@@ -270,6 +270,10 @@ class DrumGeneratorEngine extends ChangeNotifier {
     session.instance.builtinPatternId = patternId;
     session.instance.customPatternPath = null;
     _resolvePattern(session);
+    if (session.patternData != null) {
+      _transport.timeSigNumerator = session.patternData!.timeSigNumerator;
+      _transport.timeSigDenominator = session.patternData!.timeSigDenominator;
+    }
     // Reset the session so the new pattern starts cleanly.
     session.reset();
     notifyListeners();
@@ -292,6 +296,11 @@ class DrumGeneratorEngine extends ChangeNotifier {
     // Register the custom pattern so it survives session resets.
     DrumPatternRegistry.instance.register(patternData);
     session.patternData = patternData;
+    
+    // Automatically sync the transport to the new pattern's time signature.
+    _transport.timeSigNumerator = patternData.timeSigNumerator;
+    _transport.timeSigDenominator = patternData.timeSigDenominator;
+
     session.reset();
     notifyListeners();
     _notifyChanged();

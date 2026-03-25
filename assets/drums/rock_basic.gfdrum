@@ -66,19 +66,19 @@ sections:
         # The signature Bonham driving groove from "When the Levee Breaks"
         kick:  "X.....X.X.....X."
         snare: "....X.......X..."
-        hihat: "X.x.X.x.X.x.X.x"
+        hihat: "X.x.X.x.X.x.X.x."
       - name: acdcdc
         weight: 2
         # Phil Rudd / AC/DC: kick on beats 1 and 3 only — locked-in and relentless
         kick:  "X.......X......."
         snare: "....X.......X..."
-        hihat: "X.x.X.x.X.x.X.x"
+        hihat: "X.x.X.x.X.x.X.x."
       - name: bonham_push
         weight: 1
         # Bonham variation: extra kick "a of 4" (pos 15) pushing hard into the next bar
         kick:  "X.....X.X......X"
         snare: "....X.......X..."
-        hihat: "X.x.X.x.X.x.X.x"
+        hihat: "X.x.X.x.X.x.X.x."
 
   fill:
     bars: 1
@@ -108,7 +108,7 @@ sections:
       - name: standard
         crash: "X..............."
         kick:  "X..............."
-        hihat: "X.x.X.x.X.x.X.x"
+        hihat: "X.x.X.x.X.x.X.x."
 
 structure:
   fill_every: 8

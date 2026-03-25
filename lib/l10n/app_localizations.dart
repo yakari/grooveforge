@@ -2468,6 +2468,18 @@ abstract class AppLocalizations {
   /// **'Metal'**
   String get drumGeneratorFamilyMetal;
 
+  /// No description provided for @drumGeneratorFamilyCountry.
+  ///
+  /// In en, this message translates to:
+  /// **'Country'**
+  String get drumGeneratorFamilyCountry;
+
+  /// No description provided for @drumGeneratorFamilyFolk.
+  ///
+  /// In en, this message translates to:
+  /// **'Folk'**
+  String get drumGeneratorFamilyFolk;
+
   /// No description provided for @drumGeneratorCustomPattern.
   ///
   /// In en, this message translates to:

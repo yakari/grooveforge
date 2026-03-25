@@ -71,20 +71,20 @@ sections:
         # Rimshot on beat 2 (4), "+" of 3 (10), "e of 4" (13)
         kick:    "X.....XX.......X"
         rimshot: "....X.....X..X.."
-        hihat:   "X.x.X.x.X.x.X.x"
+        hihat:   "X.x.X.x.X.x.X.x."
       - # Bar 2 — Standard backbeat variation: regular snare replaces rimshot
         kick:    "X.....XX.......X"
         snare:   "....X.......X..."
-        hihat:   "X.x.X.x.X.x.X.x"
+        hihat:   "X.x.X.x.X.x.X.x."
       - # Bar 3 — Syncopated extra kick on "e of 3" (pos 9) — adds forward motion
         kick:    "X.....XX.X.....X"
         rimshot: "....X.......X..."
-        hihat:   "X.x.X.x.X.x.X.x"
+        hihat:   "X.x.X.x.X.x.X.x."
       - # Bar 4 — Driving push into bar 1; no extra accent, pure momentum
         kick:    "X.....XX.......X"
         snare:   "....X.......X..."
         rimshot: "..X...........X."
-        hihat:   "X.x.X.x.X.x.X.x"
+        hihat:   "X.x.X.x.X.x.X.x."
 
   fill:
     bars: 1
@@ -107,7 +107,7 @@ sections:
       - name: standard
         crash:  "X..............."
         kick:   "X..............."
-        hihat:  "X.x.X.x.X.x.X.x"
+        hihat:  "X.x.X.x.X.x.X.x."
 
 structure:
   fill_every: 8

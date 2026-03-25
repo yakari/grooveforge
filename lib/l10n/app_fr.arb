@@ -525,6 +525,8 @@
   "drumGeneratorFamilyElectronic": "\u00c9lectronique",
   "drumGeneratorFamilyWorld": "Musique du monde",
   "drumGeneratorFamilyMetal": "Metal",
+  "drumGeneratorFamilyCountry": "Country",
+  "drumGeneratorFamilyFolk": "Folk",
   "drumGeneratorCustomPattern": "Pattern personnalis\u00e9",
   "drumGeneratorNoSoundfonts": "Aucune soundfont — ajoutez-en une dans Pr\u00e9f\u00e9rences"
 }
