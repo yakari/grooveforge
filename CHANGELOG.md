@@ -8,11 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [X.x.x]
 
 ### Added
-- Drum Track Generator: new rack module with transport-sync beat scheduling, humanization engine (velocity jitter, microtiming, ghost notes), swing slider, and structured fills/breaks.
-- `.gfdrum` pattern format: YAML-based declarative drum patterns with step grids (X/x/o/g/.), per-instrument velocity and timing configuration, `loop` and `sequence` section types. Users can author and load custom patterns.
-- Six bundled patterns: Classic Rock, Jazz Swing, Bossa Nova, Tight Funk, Irish Jig, Breton An Dro.
+- **Drum Track Generator**: new rack module with transport-sync beat scheduling, humanization engine (velocity jitter, microtiming, ghost notes), swing slider, and structured fills/breaks.
+- **`.gfdrum` pattern format**: YAML-based declarative drum patterns with step grids (X/x/o/g/.), per-instrument velocity and timing configuration, `loop` and `sequence` section types. Users can author and load custom patterns.
+- **Ten bundled patterns**: Classic Rock, Jazz Swing, Bossa Nova, Tight Funk, Irish Jig, Breton An Dro, Scottish Reel (pipe-band snare, 150–220 BPM), Batucada (samba percussion ensemble with surdo interlock + tamborim carreteiro), Military March (flam rudiment backbeat, press-roll variation), Jazz Half-Time Shuffle (Rosanna/Purdie shuffle with half-time snare on beat 3 only and swing "trip" hi-hat).
 - Breton An Dro uses `type: sequence` for authentic bar-by-bar phrase variation.
 - `DrumPatternRegistry` singleton for pattern discovery across the app.
+- **Drum Generator — time signature sync**: when a drum pattern is loaded (and the transport is stopped), the transport automatically adopts the pattern's time signature so the metronome LED and bar counter stay in sync with the drum feel (e.g. 6/8 for Bossa Nova, 4/4 for Rock).
+- **Drum Generator — all patterns rewritten** from research for musical authenticity: Classic Rock (Bonham kick hemiola + AC/DC variant), Jazz Swing (authentic spang-a-lang ride), Bossa Nova (4-bar clave sequence with open/closed hi-hat variation), Tight Funk (5 variations: Funky Drummer, Cissy Strut, Sly Stone, synco kick, lighter), Irish Jig (bodhran DOWN/UP stroke model + cross-stick "tip" variation), Breton An Dro (double-kick signature), Scottish Reel (reworked from continuous 16th snare to 8th-note hi-hat + backbeat — much more musical at 150–220 BPM), Batucada (5-voice ensemble with agogô cowbell, featured tamborim chamada, repique call, and chamada fill).
+- **Drum Generator — parameter autosave**: swing override, humanisation amount, soundfont, pattern selection, count-in type, and fill frequency are now persisted automatically on every change (via `DrumGeneratorEngine.onChanged` wired to `ProjectService.autosave`), and saved in `.gf` project files.
+
+### Fixed
+- **Drum Generator — active toggle not updating visually**: the slot UI was not wrapped in a `ListenableBuilder`, so pressing the play/stop toggle updated the engine but the button stayed in its old state until an unrelated rebuild occurred.
+- **Drum Generator — wrong sounds / not drums**: the drum MIDI channel was initialised with bank 0 (melodic instruments) instead of bank 128 (GM percussion). The engine now calls `assignPatchToChannel(channel, 0, bank: 128)` on session creation and soundfont change, ensuring notes 35–81 play correctly as kick, snare, hi-hat, etc.
+- **Drum Generator — off-beat hi-hat**: step grids in all bundled `.gfdrum` files had a trailing character making them 17 steps instead of 16, causing the hi-hat to fall slightly ahead of the next bar.
+- **Drum Generator — soundfont selector was a file picker**: replaced with a dropdown listing all soundfonts already loaded in the app (same list as the GF Keyboard slot), so users don't need to navigate the filesystem.
+- **Drum Generator — count-in missing a beat / chopsticks firing all notes simultaneously**: the scheduler used absolute transport-beat positions for count-in hits (bars at beats −4,−3,−2,−1). Because the transport fires beat 1 immediately and advances to position 1.0 before notifying listeners, all count-in hits were already in the past on the first scheduler tick and drained at once. Fixed with epoch-based scheduling: `grooveEpoch` captures the transport position at play-start, and every bar timestamp is computed as `grooveEpoch + barIndex × barDuration`, ensuring count-in hits land in the future.
+- **Drum Generator — bar duration formula wrong for non-4/4 patterns**: `barDuration` was computed as `timeSigNumerator` (beats), which is incorrect for e.g. 6/8 (gives 6 instead of 3 quarter-note beats). Formula corrected to `timeSigNumerator × 4 ÷ timeSigDenominator`.
 
 ## [2.8.1] - 2026-03-24
 

@@ -2473,6 +2473,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Custom pattern'**
   String get drumGeneratorCustomPattern;
+
+  /// No description provided for @drumGeneratorNoSoundfonts.
+  ///
+  /// In en, this message translates to:
+  /// **'No soundfonts — add one in Preferences'**
+  String get drumGeneratorNoSoundfonts;
 }
 
 class _AppLocalizationsDelegate

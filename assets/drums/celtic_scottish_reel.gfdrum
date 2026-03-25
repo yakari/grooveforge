@@ -1,0 +1,90 @@
+# Scottish Reel — drum kit adaptation of pipe-band reel drumming
+# Reference: Celtic Rhythms for Drum Kit (csmaccath.com), traditional pipe-band tradition
+# Very fast 4/4 (150–220 BPM). KEY INSIGHT: on a real drum kit a Scottish reel does NOT
+# use continuous 16th-note snare — at 180 BPM that is 48 hits/sec and sounds like a machine
+# gun with MIDI sounds. Instead: crisp 8th-note hi-hat, backbeat on beats 2 & 4, kick
+# supporting the dance metre. The characteristic "snap" comes from the cross-stick rimshot
+# on 8th-note upbeats and a well-placed kick that pushes the dancer forward.
+# Fills: short snare bursts suggest pipe-band paradiddle/ruff rudiments.
+# GM notes: 36=kick, 38=snare, 37=cross-stick rimshot, 42=HH, 49=crash
+
+name: Scottish Reel
+family: celtic
+bpm_range: [150, 220]
+time_signature: [4, 4]
+resolution: 16
+feel: straight
+
+instruments:
+  kick:  { note: 36, base_velocity: 108, velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.10 }
+  snare: { note: 38, base_velocity: 100, velocity_range: 14, timing_jitter: 0.014, duration_beats: 0.08 }
+  cross: { note: 37, base_velocity: 82,  velocity_range: 14, timing_jitter: 0.014, duration_beats: 0.06 }
+  hihat: { note: 42, base_velocity: 88,  velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.07 }
+  crash: { note: 49, base_velocity: 100, velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.22 }
+
+humanization:
+  timing_jitter: 0.012
+  velocity_jitter: 12
+  velocity_drift: 0.05
+
+sections:
+  intro:
+    type: count_in
+    hits: 4
+    note: 37
+
+  groove:
+    bars: 1
+    variations:
+      - name: basic_drive
+        weight: 4
+        # Clean driving reel: 8th-note hi-hat (accented on beats vs upbeats),
+        # snare backbeat on 2 & 4, kick on 1 & 3.
+        kick:  "X.......X......."
+        snare: "....X.......X..."
+        hihat: "X.x.X.x.X.x.X.x"
+      - name: cut_feel
+        weight: 3
+        # "Cut" time snap: cross-stick rimshot on 8th upbeats (positions 2,6,10,14)
+        # adds crack without the weight of a full open snare. Kick pushes the
+        # "and of 2" (pos 6) to drive forward into beat 3.
+        kick:  "X.....X.X......."
+        snare: "....X.......X..."
+        cross: "..x...x...x...x."
+        hihat: "X.x.X.x.X.x.X.x"
+      - name: strong_beat
+        weight: 2
+        # Stomping: kick on every quarter note — simulates the relentless
+        # march quality of a pipe band in full stride.
+        kick:  "X...X...X...X..."
+        snare: "....X.......X..."
+        hihat: "X...X...X...X..."
+
+  fill:
+    bars: 1
+    variations:
+      - name: snare_burst
+        # 4-stroke crescendo burst at the end — suggests pipe-band ruff/paradiddle.
+        # Ghost notes build into four full-force accents landing the phrase.
+        kick:  "X..............."
+        snare: "X...X...XxXxXXXX"
+      - name: roll_landing
+        # Ghost-note swell leading to a two-stroke landing: quiet then sudden impact.
+        kick:  "X.......X......."
+        snare: "....g.g.XxXxXXXX"
+
+  crash:
+    bars: 1
+    variations:
+      - name: standard
+        crash: "X..............."
+        kick:  "X..............."
+        snare: "....X.......X..."
+        hihat: "X.x.X.x.X.x.X.x"
+
+structure:
+  fill_every: 8
+  break_every: 0
+  break_length: 1
+  crash_after_fill: true
+  dynamic_build: false

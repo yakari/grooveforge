@@ -1,3 +1,18 @@
+# Tight Funk — JB / Meters / Sly Stone groove library
+# Reference: "Funky Drummer" (Clyde Stubblefield, 1969), "Cissy Strut" (Zigaboo Modeliste, 1969),
+#            "Thank You (Falettinme Be Mice Elf Agin)" (Graham Central Station), Roland drum articles
+# Five groove variations cover the full spectrum of 1960s-70s funk pocket styles:
+#   funky_drummer   — Clyde Stubblefield's exact groove (James Brown); hemiola kick + ghost army
+#   synco_kick      — Extra kick on "e of 1" for a more urgent forward push
+#   cissy_strut     — Zigaboo Modeliste (Meters); displaced kick, heavy ghost, 16th hi-hat
+#   lighter         — Stripped-back version: sparser ghosts, cleaner pocket
+#   sly_stone       — Graham Central / Sly & Family Stone: 8th-note hi-hat, simple but deep
+# Ghost positions (0-indexed, 4/4 at 16ths):
+#   beat 1=0, e1=1, +1=2, a1=3, beat2=4, e2=5, +2=6, a2=7,
+#   beat3=8, e3=9, +3=10, a3=11, beat4=12, e4=13, +4=14, a4=15
+# GM notes: 36=kick, 38=snare+ghosts, 42=closed HH, 46=open HH, 49=crash,
+#           48=hi-tom, 41=low-floor tom
+
 name: Tight Funk
 family: funk
 bpm_range: [80, 120]
@@ -6,14 +21,13 @@ resolution: 16
 feel: straight
 
 instruments:
-  kick:    { note: 36, base_velocity: 105, velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.12 }
-  snare:   { note: 38, base_velocity: 100, velocity_range: 15, timing_jitter: 0.012, duration_beats: 0.10 }
-  snare_ghost: { note: 38, base_velocity: 28, velocity_range: 8, timing_jitter: 0.008, duration_beats: 0.08 }
-  hihat:   { note: 42, base_velocity: 80,  velocity_range: 12, timing_jitter: 0.008, duration_beats: 0.07 }
-  hihat_open: { note: 46, base_velocity: 85, velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.16 }
-  crash:   { note: 49, base_velocity: 95,  velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.22 }
-  tom_hi:  { note: 48, base_velocity: 90,  velocity_range: 15, timing_jitter: 0.015, duration_beats: 0.10 }
-  tom_lo:  { note: 41, base_velocity: 88,  velocity_range: 15, timing_jitter: 0.015, duration_beats: 0.12 }
+  kick:       { note: 36, base_velocity: 108, velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.12 }
+  snare:      { note: 38, base_velocity: 105, velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.10 }
+  hihat:      { note: 42, base_velocity: 78,  velocity_range: 10, timing_jitter: 0.008, duration_beats: 0.07 }
+  hihat_open: { note: 46, base_velocity: 88,  velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.16 }
+  crash:      { note: 49, base_velocity: 95,  velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.22 }
+  tom_hi:     { note: 48, base_velocity: 90,  velocity_range: 15, timing_jitter: 0.015, duration_beats: 0.10 }
+  tom_lo:     { note: 41, base_velocity: 88,  velocity_range: 15, timing_jitter: 0.015, duration_beats: 0.12 }
 
 humanization:
   timing_jitter: 0.010
@@ -27,40 +41,69 @@ sections:
     note: 37
 
   groove:
-    bars: 2
+    bars: 1
     variations:
-      - name: main
+      - name: funky_drummer
         weight: 3
-        kick:        "X...X.X.....X..."
-        snare:       "....X.......X..."
-        snare_ghost: "..g.....g.g....."
-        hihat:       "XxXxXxXxXxXxXxXx"
-      - name: open_hat
+        # Clyde Stubblefield's exact groove from "Funky Drummer" (1969):
+        # Kick:  beat 1 (0), "and of 2" (6), beat 3 (8), "a of 4" (15)
+        # Snare: backbeat on 2 (4) and 4 (12) — heavy accents
+        # Ghost: pos 3 (pull into beat 2), 6 (same note as kick — stacked), 9, 11, 14
+        # HH:    all 16 sixteenth notes; open HH "chick" on "e of 2" (5) and "e of 4" (13)
+        kick:       "X.....X.X......X"
+        snare:      "...gX.g..g.gX.g."
+        hihat:      "xxxxx.xxxxxxx.xx"
+        hihat_open: ".....X.......X.."
+      - name: synco_kick
         weight: 2
-        kick:        "X...X.X.....X..."
-        snare:       "....X.......X..."
-        snare_ghost: "..g.....g.g....."
-        hihat:       "XxXxXxXxXxXxXxo."
-        hihat_open:  "...............X"
-      - name: synco
+        # "Urgent push" variant: extra kick on "e of 1" (pos 1) creates a double-kick
+        # feel at the top of the bar that drives into beat 2 harder.
+        kick:       "XX....X.X......X"
+        snare:      "...gX.g..g.gX.g."
+        hihat:      "xxxxx.xxxxxxx.xx"
+        hihat_open: ".....X.......X.."
+      - name: cissy_strut
+        weight: 2
+        # Zigaboo Modeliste (Meters, 1969): displaced kick — beat 1, "and of 2" (6),
+        # beat 3 (8), "and of 4" (14). Heavy ghost regiment, all-16th hi-hat.
+        # The "pocket" feel comes from the anticipation at pos 14 instead of pos 15.
+        kick:       "X.....X.X.....X."
+        snare:      "....X.g.g...X.g."
+        hihat:      "XxXxXxXxXxXxXxXx"
+      - name: lighter
         weight: 1
-        kick:        "X.X.....X.X..X.."
-        snare:       "....X.......X..."
-        snare_ghost: "g.....g.....g..."
-        hihat:       "XxXxXxXxXxXxXxXx"
+        # Stripped-back: fewer ghosts, open hi-hat only near beat 4 — cleaner pocket.
+        # Useful contrast bar to prevent ghost-note fatigue over long passages.
+        kick:       "X.....X.X......X"
+        snare:      "....X...g.g.X..."
+        hihat:      "xxxxxxxxxxxxxxxx"
+      - name: sly_stone
+        weight: 2
+        # Sly & the Family Stone / Graham Central Station style: 8th-note hi-hat
+        # (not all 16ths), simpler ghost placement, kick on beat 1 + "e of 1" push.
+        # Deeper groove with more breathing space between ghost notes.
+        kick:       "X.X.....X......."
+        snare:      "....X.g.....X.g."
+        hihat:      "x.x.x.x.x.x.x.x"
 
   fill:
     bars: 1
     variations:
       - name: snare_ghost_run
-        snare:       "X.X.X.X.X.X.X.X."
-        snare_ghost: ".x.x.x.x.x.x.x."
-        kick:        "X..............."
+        # All-snare funky fill: accents alternate with ghost notes across the bar.
+        snare:  "X.X.X.X.gXgX.XX."
+        kick:   "X..............."
       - name: tom_run
-        tom_hi:  "X.X.X.X.X......."
-        tom_lo:  ".........X.X.X.X"
-        kick:    "X..............."
-        snare:   "..............X."
+        # Descending tom waterfall — hi tom first half, floor tom second half.
+        tom_hi: "X.X.X.X.X......."
+        tom_lo: ".........X.X.X.X"
+        kick:   "X..............."
+        snare:  "..............X."
+      - name: ghost_drop
+        # Ghost-note swell then sudden drop: everything quiet, then one loud snare.
+        # Creates maximum tension-and-release at the bar boundary.
+        snare:  "g.g.g.g.g.g.g.gX"
+        kick:   "X..............."
 
   crash:
     bars: 1

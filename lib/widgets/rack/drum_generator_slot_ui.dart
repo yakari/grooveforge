@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/drum_generator_plugin_instance.dart';
 import '../../models/drum_pattern_data.dart';
+import '../../services/audio_engine.dart';
 import '../../services/drum_generator_engine.dart';
 import '../../services/drum_pattern_parser.dart';
 import '../../services/drum_pattern_registry.dart';
@@ -61,22 +62,29 @@ class _DrumGeneratorSlotUIState extends State<DrumGeneratorSlotUI> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(8, 0, 8, 10),
-      decoration: BoxDecoration(
-        color: _kBg,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _kBorder),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final isWide = constraints.maxWidth >= 500;
-            return isWide
-                ? _WideLayout(plugin: widget.plugin)
-                : _NarrowLayout(plugin: widget.plugin);
-          },
+    // ListenableBuilder ensures the entire slot body rebuilds whenever the
+    // DrumGeneratorEngine notifies — this is what makes the active toggle,
+    // style dropdown, and other state-driven widgets stay in sync after the
+    // engine mutates the plugin instance (e.g. setActive, loadBuiltinPattern).
+    return ListenableBuilder(
+      listenable: context.read<DrumGeneratorEngine>(),
+      builder: (context, _) => Container(
+        margin: const EdgeInsets.fromLTRB(8, 0, 8, 10),
+        decoration: BoxDecoration(
+          color: _kBg,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: _kBorder),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isWide = constraints.maxWidth >= 500;
+              return isWide
+                  ? _WideLayout(plugin: widget.plugin)
+                  : _NarrowLayout(plugin: widget.plugin);
+            },
+          ),
         ),
       ),
     );
@@ -96,14 +104,17 @@ class _WideLayout extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Row 1: active toggle + style + soundfont
+        // Row 1: active toggle + style + soundfont.
+        // Both dropdowns are wrapped in Expanded so the Row provides bounded
+        // width constraints — required by DropdownButton(isExpanded: true).
+        // Style gets 3 parts, soundfont 2 parts of the shared space.
         Row(
           children: [
             _ActiveToggle(plugin: plugin),
             const SizedBox(width: 8),
-            Expanded(child: _StyleDropdown(plugin: plugin)),
+            Expanded(flex: 3, child: _StyleDropdown(plugin: plugin)),
             const SizedBox(width: 8),
-            _SoundfontButton(plugin: plugin),
+            Expanded(flex: 2, child: _SoundfontDropdown(plugin: plugin)),
           ],
         ),
         const SizedBox(height: 8),
@@ -160,7 +171,7 @@ class _NarrowLayout extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 8),
-        _SoundfontButton(plugin: plugin),
+        _SoundfontDropdown(plugin: plugin),
         const SizedBox(height: 8),
         _SwingSlider(plugin: plugin),
         const SizedBox(height: 4),
@@ -331,46 +342,122 @@ class _StyleDropdown extends StatelessWidget {
   }
 }
 
-// ── Soundfont button ──────────────────────────────────────────────────────────
+// ── Soundfont dropdown ────────────────────────────────────────────────────────
 
-/// Button that opens a file picker for a custom `.sf2` soundfont.
-class _SoundfontButton extends StatelessWidget {
+/// Dropdown that lists all soundfonts already loaded in the app (same list
+/// shown in the GF Keyboard slot) and lets the user pick one for this drum
+/// slot.
+///
+/// The dropdown is driven by [AudioEngine.loadedSoundfonts] so it stays in
+/// sync with any soundfonts added in Preferences without needing a file picker.
+/// When no soundfonts are loaded at all, a short hint is shown instead.
+class _SoundfontDropdown extends StatelessWidget {
   final DrumGeneratorPluginInstance plugin;
 
-  const _SoundfontButton({required this.plugin});
+  const _SoundfontDropdown({required this.plugin});
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final label = plugin.soundfontPath != null
-        ? plugin.soundfontPath!.split('/').last
-        : l10n.drumGeneratorDefaultSoundfont;
+    final engine = context.read<AudioEngine>();
 
-    return OutlinedButton.icon(
-      style: OutlinedButton.styleFrom(
-        foregroundColor: Colors.white70,
-        side: const BorderSide(color: _kBorder),
-      ),
-      icon: const Icon(Icons.music_note, size: 16),
-      label: Text(label, overflow: TextOverflow.ellipsis),
-      onPressed: () => _pickSoundfont(context),
+    // Rebuild this widget whenever the engine's loaded-soundfont list changes.
+    return ValueListenableBuilder<int>(
+      valueListenable: engine.stateNotifier,
+      builder: (context, _, _) {
+        final soundfonts = engine.loadedSoundfonts;
+
+        // No soundfonts loaded yet — show an informational placeholder.
+        if (soundfonts.isEmpty) {
+          return Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.black26,
+              border: Border.all(color: _kBorder),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              l10n.drumGeneratorNoSoundfonts,
+              style: const TextStyle(
+                color: Colors.white38,
+                fontSize: 12,
+                fontStyle: FontStyle.italic,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          );
+        }
+
+        // Sort: default soundfont (contains 'default_soundfont.sf2') first.
+        final sorted = List<String>.from(soundfonts)
+          ..sort((a, b) {
+            final aIsDefault = a.endsWith('default_soundfont.sf2');
+            final bIsDefault = b.endsWith('default_soundfont.sf2');
+            if (aIsDefault && !bIsDefault) return -1;
+            if (!aIsDefault && bIsDefault) return 1;
+            return a.compareTo(b);
+          });
+
+        // Determine the currently selected value, falling back to the first
+        // available soundfont if the stored path is no longer in the list.
+        final currentPath = plugin.soundfontPath;
+        final effectivePath = (currentPath != null &&
+                soundfonts.contains(currentPath))
+            ? currentPath
+            : sorted.first;
+
+        return Container(
+          height: 40,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          decoration: BoxDecoration(
+            color: Colors.black26,
+            border: Border.all(color: _kBorder),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              isExpanded: true,
+              dropdownColor: _kPanel,
+              value: effectivePath,
+              icon: const Icon(
+                Icons.arrow_drop_down,
+                color: Colors.white54,
+                size: 20,
+              ),
+              style:
+                  const TextStyle(fontSize: 13, color: Colors.white70),
+              items: sorted.map((path) {
+                final isDefault = path.endsWith('default_soundfont.sf2');
+                final name = isDefault
+                    ? l10n.patchDefaultSoundfont
+                    : path
+                        .split(kIsWeb ? '/' : Platform.pathSeparator)
+                        .last;
+                return DropdownMenuItem<String>(
+                  value: path,
+                  child: Text(
+                    name,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontWeight:
+                          isDefault ? FontWeight.bold : FontWeight.normal,
+                      color: isDefault ? Colors.blue[300] : Colors.white70,
+                    ),
+                  ),
+                );
+              }).toList(),
+              onChanged: (path) {
+                if (path == null) return;
+                context
+                    .read<DrumGeneratorEngine>()
+                    .setSoundfont(plugin.id, path);
+              },
+            ),
+          ),
+        );
+      },
     );
-  }
-
-  Future<void> _pickSoundfont(BuildContext context) async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['sf2'],
-      withData: false,
-    );
-    if (result == null || result.files.isEmpty) return;
-    final path = result.files.first.path;
-    if (path == null) return;
-
-    plugin.soundfontPath = path;
-    if (context.mounted) {
-      context.read<DrumGeneratorEngine>().markDirty();
-    }
   }
 }
 

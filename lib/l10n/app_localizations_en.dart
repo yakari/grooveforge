@@ -1307,4 +1307,8 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get drumGeneratorCustomPattern => 'Custom pattern';
+
+  @override
+  String get drumGeneratorNoSoundfonts =>
+      'No soundfonts — add one in Preferences';
 }

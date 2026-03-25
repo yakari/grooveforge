@@ -83,6 +83,15 @@ class DrumGeneratorSession {
   /// Re-seeded at session reset so patterns feel different each play.
   late Random _randomFillInterval;
 
+  /// The transport beat position at the moment this session's playback started.
+  ///
+  /// All bar timestamps are computed as `grooveEpoch + barIndex * barDuration`
+  /// rather than as raw transport-absolute beats.  This prevents count-in hits
+  /// from being in the "past" when the transport fires beat 1 immediately at
+  /// position 1.0 on startup, which would cause all count-in notes to drain
+  /// simultaneously on the very first scheduler tick.
+  double grooveEpoch = 0.0;
+
   /// Constructs a [DrumGeneratorSession] for [instance].
   DrumGeneratorSession(this.instance) {
     _randomFillInterval = Random();
@@ -94,6 +103,7 @@ class DrumGeneratorSession {
     _noteOns.clear();
     _noteOffs.clear();
     _lastSectionWasFillOrBreak = false;
+    grooveEpoch = 0.0;
     // Re-seed so a new play gives fresh variation selection.
     _randomFillInterval = Random();
   }
@@ -128,6 +138,14 @@ class DrumGeneratorEngine extends ChangeNotifier {
   /// Used to detect play→stop and stop→play transitions.
   bool _wasPlaying = false;
 
+  /// Optional callback fired (via [Timer.run]) after every mutation that
+  /// changes persisted state — pattern selection, soundfont, swing override,
+  /// humanisation amount, and structure config.
+  ///
+  /// Wired by [SplashScreen] to [ProjectService.autosave] so the project file
+  /// stays in sync without requiring the user to manually save.
+  VoidCallback? onChanged;
+
   /// Constructs a [DrumGeneratorEngine] and subscribes to the transport.
   DrumGeneratorEngine(this._transport, this._engine) {
     _transport.addListener(_onTransportChanged);
@@ -139,11 +157,13 @@ class DrumGeneratorEngine extends ChangeNotifier {
   ///
   /// Called when a slot is added to the rack or restored from a project file.
   /// If a session already exists for [slotId] its instance is updated.
+  /// Always initialises the drum MIDI channel with bank 128 (GM percussion).
   void ensureSession(String slotId, DrumGeneratorPluginInstance instance) {
     if (!_sessions.containsKey(slotId)) {
       final session = DrumGeneratorSession(instance);
       _sessions[slotId] = session;
       _resolvePattern(session);
+      _initDrumChannel(session);
     } else {
       // Update the pattern if the instance changed.
       final existing = _sessions[slotId]!;
@@ -151,8 +171,30 @@ class DrumGeneratorEngine extends ChangeNotifier {
           existing.instance.customPatternPath != instance.customPatternPath) {
         _resolvePattern(existing);
       }
+      // Re-apply bank 128 in case the channel was reset by another slot.
+      _initDrumChannel(existing);
     }
     notifyListeners();
+  }
+
+  /// Assigns a soundfont to the session's MIDI channel and re-applies the
+  /// GM drum bank (128) so the channel keeps playing percussion.
+  ///
+  /// [path] must already be registered in [AudioEngine.loadedSoundfonts].
+  /// Pass `null` to revert to the app-wide default soundfont.
+  void setSoundfont(String slotId, String? path) {
+    final session = _sessions[slotId];
+    if (session == null) return;
+    session.instance.soundfontPath = path;
+    final channel = session.instance.midiChannel - 1;
+    if (path != null) {
+      _engine.assignSoundfontToChannel(channel, path);
+    }
+    // Always re-apply bank 128 after a soundfont change so the drum channel
+    // stays mapped to the percussion bank, not the default melodic bank 0.
+    _engine.assignPatchToChannel(channel, 0, bank: 128);
+    notifyListeners();
+    _notifyChanged();
   }
 
   /// Removes the session for [slotId].
@@ -172,7 +214,14 @@ class DrumGeneratorEngine extends ChangeNotifier {
   /// Called by the UI when the user modifies properties on
   /// [DrumGeneratorPluginInstance] directly (swing, humanisation, structure
   /// config) without going through a dedicated setter.
-  void markDirty() => notifyListeners();
+  void markDirty() {
+    notifyListeners();
+    _notifyChanged();
+  }
+
+  /// Fires [onChanged] asynchronously (via [Timer.run]) so that the callback
+  /// runs after the current frame — the same pattern used by [RackState].
+  void _notifyChanged() => Timer.run(() => onChanged?.call());
 
   /// Activates or deactivates a slot identified by [slotId].
   void setActive(String slotId, bool active) {
@@ -180,6 +229,7 @@ class DrumGeneratorEngine extends ChangeNotifier {
     if (session == null) return;
     session.instance.isActive = active;
     notifyListeners();
+    _notifyChanged();
   }
 
   /// Loads a bundled pattern by [patternId] for the session at [slotId].
@@ -192,6 +242,7 @@ class DrumGeneratorEngine extends ChangeNotifier {
     // Reset the session so the new pattern starts cleanly.
     session.reset();
     notifyListeners();
+    _notifyChanged();
   }
 
   /// Loads a parsed custom pattern for the session at [slotId].
@@ -212,6 +263,7 @@ class DrumGeneratorEngine extends ChangeNotifier {
     session.patternData = patternData;
     session.reset();
     notifyListeners();
+    _notifyChanged();
   }
 
   // ── Transport listener ────────────────────────────────────────────────────
@@ -234,9 +286,15 @@ class DrumGeneratorEngine extends ChangeNotifier {
     }
 
     if (!_wasPlaying && isPlaying) {
-      // Transport just started.
+      // Transport just started.  Capture the current beat position as the
+      // epoch anchor so all scheduled hits are in the future, not the past.
+      // The transport fires beat 1 before notifying listeners, so positionInBeats
+      // is already 1.0 here — epoch-relative scheduling ensures count-in hits
+      // land at grooveEpoch, grooveEpoch+1, …, never at beats < current.
+      final epoch = _transport.positionInBeats;
       for (final session in _sessions.values) {
         session.reset();
+        session.grooveEpoch = epoch;
       }
       _startTicker();
     }
@@ -288,17 +346,26 @@ class DrumGeneratorEngine extends ChangeNotifier {
   // ── Lookahead scheduling ──────────────────────────────────────────────────
 
   /// Ensures bars up to [_kLookaheadBars] ahead of [currentBeat] are scheduled.
+  ///
+  /// Uses epoch-relative beat arithmetic so bar 0 always starts at
+  /// [DrumGeneratorSession.grooveEpoch] rather than at transport beat 0.
+  /// This prevents count-in hits from being scheduled in the past at
+  /// transport start (where beat position has already advanced to 1.0).
   void _scheduleLookahead(DrumGeneratorSession session, double currentBeat) {
     final pattern = session.patternData!;
-    final barDuration = pattern.timeSigNumerator.toDouble();
+    // Correct bar duration in beats: timeSig numerator × (4 ÷ denominator).
+    // For 4/4 → 4.0, for 6/8 → 3.0, for 3/4 → 3.0 beats per bar.
+    final barDuration =
+        pattern.timeSigNumerator * 4.0 / pattern.timeSigDenominator;
 
-    // Determine which absolute bar we are currently in.
-    final currentBar = (currentBeat / barDuration).floor();
+    // Convert absolute beat to epoch-relative beat, then find current bar.
+    final relativeBeat = currentBeat - session.grooveEpoch;
+    // Clamp to 0: floating-point rounding can give tiny negative values on
+    // the very first tick, which would schedule bar -1 unexpectedly.
+    final currentBar =
+        (relativeBeat / barDuration).floor().clamp(0, 0x7fffffff);
 
-    // Schedule bars from one bar before current (catch any missed events)
-    // up to the lookahead limit.
-    for (var bar = currentBar - 1; bar <= currentBar + _kLookaheadBars; bar++) {
-      if (bar < -1) continue; // -1 is the valid count-in bar
+    for (var bar = currentBar; bar <= currentBar + _kLookaheadBars; bar++) {
       if (session._scheduledBars.contains(bar)) continue;
       _scheduleBar(session, bar);
     }
@@ -318,10 +385,13 @@ class DrumGeneratorEngine extends ChangeNotifier {
     session._scheduledBars.add(absoluteBar);
 
     final pattern = session.patternData!;
-    final barDuration = pattern.timeSigNumerator.toDouble();
+    final barDuration =
+        pattern.timeSigNumerator * 4.0 / pattern.timeSigDenominator;
 
-    // Beat position of bar start (bar -1 starts at -barDuration).
-    final barStartBeat = absoluteBar * barDuration;
+    // Beat position of bar start, anchored to the session's groove epoch.
+    // Bar 0 starts exactly at grooveEpoch (transport position when play was
+    // pressed); subsequent bars step forward by barDuration each.
+    final barStartBeat = session.grooveEpoch + absoluteBar * barDuration;
 
     // Determine the section and variation for this bar.
     final sectionResult = _selectSection(session, absoluteBar);
@@ -384,9 +454,11 @@ class DrumGeneratorEngine extends ChangeNotifier {
     final swingRatio = session.instance.swingOverride ??
         pattern.feel.defaultSwingRatio;
 
-    // Step duration in beats.
-    final stepDuration =
-        pattern.timeSigNumerator / pattern.resolution.toDouble();
+    // Step duration in beats: bar duration divided by the number of steps.
+    // For 4/4 at 16 steps: 4.0/16 = 0.25 beats.  For 6/8 at 12 steps:
+    // 3.0/12 = 0.25 beats (each step = a 16th note in both cases).
+    final barDur = pattern.timeSigNumerator * 4.0 / pattern.timeSigDenominator;
+    final stepDuration = barDur / pattern.resolution;
 
     // Humanisation amounts, scaled by the slot's humanization knob.
     final humanFactor = session.instance.humanizationAmount;
@@ -456,7 +528,8 @@ class DrumGeneratorEngine extends ChangeNotifier {
   ) {
     final hits = section.countInHits ?? 4;
     final note = section.countInNote ?? 37;
-    final barDuration = pattern.timeSigNumerator.toDouble();
+    final barDuration =
+        pattern.timeSigNumerator * 4.0 / pattern.timeSigDenominator;
     final beatInterval = barDuration / hits;
     final instrDef = DrumInstrumentDef(
       note: note,
@@ -551,34 +624,29 @@ class DrumGeneratorEngine extends ChangeNotifier {
 
   /// Determines which section name to play for [absoluteBar].
   ///
+  /// Bar indices start at 0 and are epoch-relative (0 = first bar after play
+  /// was pressed, which may be a count-in bar if intro is enabled).
+  ///
   /// Logic (in priority order):
-  /// 1. Bar -1 → count-in (if intro type is chopsticks or countIn).
-  /// 2. Intro phase bars → `'intro'` section.
-  /// 3. Fill bar → `'fill'` section.
-  /// 4. Break bar (random seeded) → `'break'` section.
-  /// 5. Default → `'groove'` section.
+  /// 1. Intro / count-in phase bars (0 … introBars-1) → `'intro'` section.
+  /// 2. Fill bar → `'fill'` section.
+  /// 3. Break bar (random seeded) → `'break'` section.
+  /// 4. Default → `'groove'` section.
   _SectionSelection _selectSection(
     DrumGeneratorSession session,
     int absoluteBar,
   ) {
     final config = session.instance.structureConfig;
     final pattern = session.patternData!;
+    final introBars = _introBarCount(config, pattern);
 
-    // Bar -1 is the count-in bar before bar 0.
-    if (absoluteBar == -1) {
-      final hasIntro = pattern.sections.containsKey('intro');
-      if (hasIntro &&
-          config.introType != DrumIntroType.none) {
+    // Intro / count-in phase: first introBars bars play the 'intro' section
+    // (which may be a countIn kind, generating evenly-spaced rimshot clicks).
+    if (absoluteBar < introBars) {
+      if (pattern.sections.containsKey('intro')) {
         return const _SectionSelection('intro');
       }
-      return const _SectionSelection('groove');
-    }
-
-    // After count-in, bar 0 and beyond use the groove.
-    // Determine intro duration in bars.
-    final introBars = _introBarCount(config, pattern);
-    if (absoluteBar < introBars) {
-      return const _SectionSelection('intro');
+      // Pattern has no 'intro' section — fall through to groove.
     }
 
     final relativeBar = absoluteBar - introBars;
@@ -602,17 +670,24 @@ class DrumGeneratorEngine extends ChangeNotifier {
   }
 
   /// Returns the number of intro bars for [config] given [pattern].
+  ///
+  /// The returned value is the number of bars (starting at bar 0) that use
+  /// the `'intro'` section before the groove begins.
   int _introBarCount(DrumStructureConfig config, DrumPatternData pattern) {
     switch (config.introType) {
       case DrumIntroType.none:
         return 0;
       case DrumIntroType.countIn1:
+        // One bar of evenly-spaced click/rimshot before groove.
         return 1;
       case DrumIntroType.countIn2:
+        // Two bars: beat 1–4, beat 5–8 (quarter-note clicks), then groove.
         return 2;
       case DrumIntroType.chopsticks:
-        // Chopsticks plays on bar -1 (virtual bar), not bar 0.
-        return 0;
+        // Chopsticks = one bar of rimshot clicks, same as countIn1.
+        // Sound difference (note, velocity) is defined in the .gfdrum intro
+        // section; the bar count is identical.
+        return 1;
     }
   }
 
@@ -704,31 +779,62 @@ class DrumGeneratorEngine extends ChangeNotifier {
     list.insert(lo, hit);
   }
 
+  // ── Channel initialisation ────────────────────────────────────────────────
+
+  /// Sets the session's MIDI channel to GM drum bank 128, program 0
+  /// (Standard Drum Kit).
+  ///
+  /// This is required because the default AudioEngine state uses bank 0
+  /// (melodic instruments) for all channels.  Without this call, notes
+  /// 35–81 on a melodic channel produce piano / string sounds instead of
+  /// kick drums and cymbals.
+  void _initDrumChannel(DrumGeneratorSession session) {
+    final channel = session.instance.midiChannel - 1; // 0-indexed
+    _engine.assignPatchToChannel(channel, 0, bank: 128);
+  }
+
   // ── Pattern resolution ────────────────────────────────────────────────────
 
   /// Resolves the pattern data for [session] from the registry.
+  ///
+  /// After resolution, propagates the pattern's time signature to the
+  /// transport (when not playing) so the metronome LED and bar counter
+  /// reflect the drum pattern's metre — e.g. 6/8 for Bossa Nova.
   void _resolvePattern(DrumGeneratorSession session) {
     final builtinId = session.instance.builtinPatternId;
     final customPath = session.instance.customPatternPath;
 
     if (builtinId != null) {
       session.patternData = DrumPatternRegistry.instance.find(builtinId);
-      return;
-    }
-
-    if (customPath != null) {
+    } else if (customPath != null) {
       // Custom patterns are registered under their file path stem.
       final stem = customPath.split('/').last.replaceAll('.gfdrum', '');
       session.patternData = DrumPatternRegistry.instance.find(stem);
-      return;
+    } else {
+      // Fall back to the first available pattern.
+      final all = DrumPatternRegistry.instance.all;
+      if (all.isNotEmpty) {
+        session.patternData = all.first;
+        session.instance.builtinPatternId = all.first.id;
+      }
     }
 
-    // Fall back to the first available pattern.
-    final all = DrumPatternRegistry.instance.all;
-    if (all.isNotEmpty) {
-      session.patternData = all.first;
-      session.instance.builtinPatternId = all.first.id;
+    // Propagate the pattern's time signature to the transport so the
+    // metronome and bar display stay in sync with the drum pattern metre.
+    if (session.patternData != null) {
+      _syncTransportTimeSignature(session.patternData!);
     }
+  }
+
+  /// Applies [pattern]'s time signature to the transport when not playing.
+  ///
+  /// Changing time signature during playback would desync all scheduled hits,
+  /// so we only apply when the transport is stopped.  The user can always
+  /// override the transport time sig manually from the transport bar.
+  void _syncTransportTimeSignature(DrumPatternData pattern) {
+    if (_transport.isPlaying) return;
+    _transport.timeSigNumerator = pattern.timeSigNumerator;
+    _transport.timeSigDenominator = pattern.timeSigDenominator;
   }
 
   // ── MIDI helpers ──────────────────────────────────────────────────────────

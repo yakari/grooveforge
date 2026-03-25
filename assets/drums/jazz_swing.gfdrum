@@ -1,3 +1,9 @@
+# Jazz Swing — "Spang-a-Lang" ride cymbal pattern
+# Reference: Jimmy Cobb (Miles Davis), Art Blakey, Elvin Jones
+# The ride hits on quarter beats (X) and the swing "trip" (x at odd steps, delayed by
+# swing_hard engine so they land ~2/3 of a beat after the downbeat — triplet feel).
+# GM notes: 36=kick (feathered), 38=snare (comping ghosts), 42=HH foot, 51=ride
+
 name: Jazz Swing
 family: jazz
 bpm_range: [100, 260]
@@ -6,15 +12,14 @@ resolution: 16
 feel: swing_hard
 
 instruments:
-  kick:    { note: 36, base_velocity: 80,  velocity_range: 20, timing_jitter: 0.025, rush: -0.01, duration_beats: 0.12 }
-  snare:   { note: 38, base_velocity: 70,  velocity_range: 22, timing_jitter: 0.028, duration_beats: 0.10 }
-  hihat:   { note: 42, base_velocity: 65,  velocity_range: 12, timing_jitter: 0.020, duration_beats: 0.07 }
-  hihat_foot: { note: 44, base_velocity: 60, velocity_range: 10, timing_jitter: 0.015, duration_beats: 0.07 }
-  ride:    { note: 51, base_velocity: 85,  velocity_range: 15, timing_jitter: 0.022, duration_beats: 0.10 }
-  ride_bell: { note: 53, base_velocity: 95, velocity_range: 10, timing_jitter: 0.018, duration_beats: 0.08 }
-  crash:   { note: 49, base_velocity: 90,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.22 }
-  tom_hi:  { note: 48, base_velocity: 85,  velocity_range: 18, timing_jitter: 0.025, duration_beats: 0.10 }
-  tom_lo:  { note: 41, base_velocity: 80,  velocity_range: 18, timing_jitter: 0.025, duration_beats: 0.12 }
+  kick:       { note: 36, base_velocity: 65,  velocity_range: 20, timing_jitter: 0.025, rush: -0.01, duration_beats: 0.12 }
+  snare:      { note: 38, base_velocity: 72,  velocity_range: 22, timing_jitter: 0.028, duration_beats: 0.10 }
+  hihat_foot: { note: 44, base_velocity: 75,  velocity_range: 10, timing_jitter: 0.015, duration_beats: 0.07 }
+  ride:       { note: 51, base_velocity: 88,  velocity_range: 14, timing_jitter: 0.022, duration_beats: 0.10 }
+  ride_bell:  { note: 53, base_velocity: 100, velocity_range: 10, timing_jitter: 0.018, duration_beats: 0.08 }
+  crash:      { note: 49, base_velocity: 90,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.22 }
+  tom_hi:     { note: 48, base_velocity: 85,  velocity_range: 18, timing_jitter: 0.025, duration_beats: 0.10 }
+  tom_lo:     { note: 41, base_velocity: 80,  velocity_range: 18, timing_jitter: 0.025, duration_beats: 0.12 }
 
 humanization:
   timing_jitter: 0.025
@@ -28,36 +33,42 @@ sections:
     note: 42
 
   groove:
-    bars: 2
+    bars: 1
     variations:
-      - name: ride_main
+      - name: ride_spang
         weight: 4
-        ride:   "X.xXx.xXx.xX.x."
-        hihat_foot: "....X.......X..."
-        kick:   "X..............."
-        snare:  "..g...g.....g..."
-      - name: ride_alt
+        # Spang-a-lang: quarter beats (X at 0,4,8,12) + swing "trip" (x at 3,7,11,15)
+        # With swing_hard the "trip" steps are delayed ~0.085 beats → triplet approximation
+        ride:       "X..xX..xX..xX..x"
+        hihat_foot: "....x.......x..."
+        kick:       "x.......x......."
+        snare:      ".....gg.......gg"
+      - name: ride_comp
         weight: 2
-        ride:   "X.xXx.xXx.xX.xx"
-        hihat_foot: "....X.......X..."
-        kick:   "X..............."
-        snare:  "..g.....g.g....."
-      - name: hihat_comp
+        # More active comping with ghost notes on additional off-beats
+        ride:       "X..xX..xX..xX..x"
+        hihat_foot: "....x.......x..."
+        kick:       "x..............."
+        snare:      "..g...g.....g..."
+      - name: ride_bell
         weight: 1
-        hihat:  "X.xXx.xXx.xX.x."
-        hihat_foot: "....X.......X..."
-        kick:   "X..............."
-        snare:  "..g...g.....g..."
+        # Bell of the ride for an energetic section — louder, brighter tone
+        ride_bell:  "X..xX..xX..xX..x"
+        hihat_foot: "....x.......x..."
+        kick:       "x.......x......."
+        snare:      ".....g........g."
 
   fill:
     bars: 1
     variations:
       - name: bebop
+        # Jazz-style fill: light snare run then accent into next bar
         snare:  "....x.x.x.X.X.X."
         tom_hi: "............X..."
         tom_lo: "..............X."
         kick:   "X..............."
-      - name: ride_roll
+      - name: ride_dense
+        # Ride-heavy fill: double-time feel on the ride
         ride:   "XxXxXxXxXxXxXxXx"
         snare:  "..............X."
         kick:   "X..............."
@@ -66,9 +77,9 @@ sections:
     bars: 1
     variations:
       - name: standard
-        crash: "X..............."
-        ride:  "..X.xXx.X.xX.x."
-        hihat_foot: "....X.......X..."
+        crash:      "X..............."
+        ride:       "...xX..xX..xX..x"
+        hihat_foot: "....x.......x..."
 
 structure:
   fill_every: 16

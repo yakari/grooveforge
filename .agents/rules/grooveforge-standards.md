@@ -58,6 +58,8 @@ Every fix and every new feature must be recorded **before ending a session** in 
 
 Add a new `[X.x.x]` placeholder header at the very top of each changelog (above existing dated versions). Use Keep a Changelog categories: `Added`, `Fixed`, `Changed`, `Removed`, `Architecture`.
 
+**CRITICAL — no duplicate section headers**: within a single `[X.x.x]` block there must be exactly one of each category heading. When adding new bullets in a follow-up session, merge them into the existing section — never create a second `### Added` (or `### Fixed`, etc.) block inside the same version.
+
 ```
 ## [X.x.x]
 

@@ -1,3 +1,26 @@
+# Irish Jig — 6/8 compound duple groove
+# Reference: Celtic Rhythms for Drum Kit (Folklore & Fiction / csmaccath.com),
+#            "The Complete Irish Drummer" (Tim Gillen), bodhran technique guides
+# 6/8 = 2 compound beats of 3 eighth notes. Resolution 12 = 12 sixteenth-note steps per bar.
+# Each 8th note = 2 steps. Compound beat 1 = steps 0-5; compound beat 2 = steps 6-11.
+#
+# Bodhran technique modelled:
+#   DOWN stroke (X) on compound beat downbeats (steps 0, 6) — strong open skin hit.
+#   UP tip (x)      on intermediate 8th notes — lighter, drier.
+#   Cross-stick "tip" (note 37) simulates the bodhran drummer's knuckle/back stroke
+#   on the skin ring: quieter, clickier, characteristic of traditional session playing.
+#
+# Step mapping (0-indexed) within a 12-step 6/8 bar:
+#   Step 0 = compound beat 1 downbeat    (8th note 1)
+#   Step 2 = "e" of compound beat 1      (8th note 2)
+#   Step 4 = "a" of compound beat 1      (8th note 3)
+#   Step 6 = compound beat 2 downbeat    (8th note 4)
+#   Step 8 = "e" of compound beat 2      (8th note 5)
+#   Step 10= "a" of compound beat 2      (8th note 6)
+#   Odd steps = 16th-note subdivisions (rarely played in traditional jig)
+# GM notes: 36=kick (low bodhran hit), 38=snare (accent), 37=cross-stick (bodhran tip),
+#           42=HH (continuous 8ths), 48=hi-tom (tonal accent), 49=crash
+
 name: Irish Jig
 family: celtic
 bpm_range: [100, 180]
@@ -6,13 +29,12 @@ resolution: 12
 feel: straight
 
 instruments:
-  kick:    { note: 36, base_velocity: 100, velocity_range: 15, timing_jitter: 0.015, duration_beats: 0.10 }
-  snare:   { note: 38, base_velocity: 90,  velocity_range: 18, timing_jitter: 0.018, duration_beats: 0.08 }
-  hihat:   { note: 42, base_velocity: 75,  velocity_range: 12, timing_jitter: 0.014, duration_beats: 0.07 }
-  crash:   { note: 49, base_velocity: 95,  velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.22 }
+  kick:    { note: 36, base_velocity: 100, velocity_range: 14, timing_jitter: 0.015, duration_beats: 0.10 }
+  snare:   { note: 38, base_velocity: 88,  velocity_range: 18, timing_jitter: 0.018, duration_beats: 0.08 }
+  cross:   { note: 37, base_velocity: 68,  velocity_range: 16, timing_jitter: 0.018, duration_beats: 0.06 }
+  hihat:   { note: 42, base_velocity: 78,  velocity_range: 12, timing_jitter: 0.014, duration_beats: 0.07 }
   tom_hi:  { note: 48, base_velocity: 90,  velocity_range: 15, timing_jitter: 0.018, duration_beats: 0.10 }
-  tom_lo:  { note: 41, base_velocity: 88,  velocity_range: 15, timing_jitter: 0.018, duration_beats: 0.12 }
-  tambourine: { note: 54, base_velocity: 70, velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.07 }
+  crash:   { note: 49, base_velocity: 95,  velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.22 }
 
 humanization:
   timing_jitter: 0.018
@@ -26,40 +48,56 @@ sections:
     note: 42
 
   groove:
-    bars: 2
+    bars: 1
     variations:
-      - name: main
+      - name: bodhran_down
+        weight: 4
+        # Classic bodhran feel: kick drives compound beats (0, 6), hi-hat continuous 8ths
+        # with compound-beat accents. Snare accent on the 3rd 8th (steps 4, 10) gives
+        # the characteristic "lilt" that distinguishes a jig from a march.
+        # Soft kick at the end of each group (steps 5, 11) suggests the bodhran lift-tip.
+        kick:  "X....xX....x"
+        snare: "...x.....x.."
+        hihat: "X.x.x.X.x.x."
+      - name: bodhran_tip
         weight: 3
-        kick:       "X..X..X..X..X..X..X..X.."
-        snare:      "...X......X......X......X."
-        hihat:      "xXxxXxxXxxXxxXxxXxxXxxXxx."
-        tambourine: "X..x..X..x..X..x..X..x.."
-      - name: alt
+        # Cross-stick "tip" strokes on the 2nd and 5th 8th notes (steps 2, 8) add
+        # the dry click of the bodhran stick's back face hitting the skin ring —
+        # the defining texture of traditional session playing.
+        kick:  "X....xX....x"
+        cross: "..x...x....."
+        hihat: "X.x.x.X.x.x."
+      - name: swell
         weight: 2
-        kick:       "X..X..X.....X..X..X....."
-        snare:      "...X......X......X......X."
-        hihat:      "xXxxXxxXxxXxxXxxXxxXxxXxx."
+        # "Swell" variation: kick adds a push on the 4th 8th note (step 6+1=7? no, step 4+2=6 = compound beat 2 downbeat).
+        # Actually: kick on step 4 ("a" of group 1) adds weight before compound beat 2.
+        # Snare and cross-stick together on upbeat steps for a denser sound.
+        kick:  "X...X.X....x"
+        snare: "...x.....x.."
+        cross: "..x...x....."
+        hihat: "X.x.x.X.x.x."
 
   fill:
     bars: 1
     variations:
-      - name: roll
+      - name: snare_roll
+        # Alternating snare/tom — leads into the next A-part repeat.
         snare:  "XxXxXxXxXxXx"
         tom_hi: "........X..."
-        tom_lo: "..........X."
         kick:   "X..........."
-      - name: toms
+      - name: tom_groups
+        # Groups of 3 on toms mirror the compound grouping of 6/8.
         tom_hi: "X..X..X....."
-        tom_lo: "..........X."
+        snare:  "..........Xx"
         kick:   "X..........."
 
   crash:
     bars: 1
     variations:
       - name: standard
-        crash:  "X..........."
-        kick:   "X..........."
-        hihat:  "xXxxXxxXxxXx"
+        crash: "X..........."
+        kick:  "X..........."
+        hihat: "X.x.x.X.x.x."
 
 structure:
   fill_every: 8

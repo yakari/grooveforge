@@ -1,4 +1,12 @@
-name: "Breton An Dro"
+# Breton An Dro — "The Turn" circle dance
+# Reference: An Dro (Wikipedia), Breton traditional music conventions
+# The defining feature is the double-kick at "a of 2" (pos 6) and beat 3 (pos 7) in 0-indexed,
+# creating a distinctive SHORT-LONG anticipation of beat 3 that drives the circular dance.
+# A 4-bar sequence where each bar has its own signature (bars 1-4 cycle and repeat).
+# GM notes: 36=kick (grosse caisse), 37=rimshot (caisse claire character),
+#            38=snare, 42=HH (steady pulse)
+
+name: Breton An Dro
 family: celtic
 bpm_range: [100, 160]
 time_signature: [4, 4]
@@ -6,9 +14,9 @@ resolution: 16
 feel: straight
 
 instruments:
-  kick:    { note: 36, base_velocity: 100, velocity_range: 14, timing_jitter: 0.016, duration_beats: 0.12 }
+  kick:    { note: 36, base_velocity: 102, velocity_range: 14, timing_jitter: 0.016, duration_beats: 0.12 }
+  rimshot: { note: 37, base_velocity: 90,  velocity_range: 15, timing_jitter: 0.016, duration_beats: 0.08 }
   snare:   { note: 38, base_velocity: 95,  velocity_range: 18, timing_jitter: 0.020, duration_beats: 0.09 }
-  rimshot: { note: 37, base_velocity: 88,  velocity_range: 15, timing_jitter: 0.016, duration_beats: 0.08 }
   hihat:   { note: 42, base_velocity: 72,  velocity_range: 12, timing_jitter: 0.014, duration_beats: 0.07 }
   crash:   { note: 49, base_velocity: 95,  velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.22 }
   tom_hi:  { note: 48, base_velocity: 90,  velocity_range: 15, timing_jitter: 0.018, duration_beats: 0.10 }
@@ -19,8 +27,6 @@ humanization:
   velocity_jitter: 15
   velocity_drift: 0.08
 
-# Breton an dro: a 4-bar phrase where each bar has its own rhythmic signature.
-# Uses 'sequence' type so bars play in order (1->2->3->4->loop) rather than random.
 sections:
   intro:
     type: count_in
@@ -28,37 +34,42 @@ sections:
     note: 37
 
   groove:
-    bars: 4
+    # 4-bar phrase: each bar has its own rhythmic identity — cycle repeats indefinitely
     type: sequence
+    bars: 4
     bar_grids:
-      - # bar 1: strong downbeat, typical binary feel
-        kick:    "X...X...X......."
+      - # Bar 1 — The signature An Dro pattern
+        # Double-kick at pos 6-7 (a-of-2 / beat-3) is THE defining marker of An Dro
+        # Rimshot on beat 2 (4), "+" of 3 (10), "e of 4" (13)
+        kick:    "X.....XX.......X"
+        rimshot: "....X.....X..X.."
+        hihat:   "X.x.X.x.X.x.X.x"
+      - # Bar 2 — Standard backbeat variation: regular snare replaces rimshot
+        kick:    "X.....XX.......X"
         snare:   "....X.......X..."
-        hihat:   "x.x.x.x.x.x.x.x."
-      - # bar 2: syncopated kick, rimshot accent
-        kick:    "X.X.....X......."
+        hihat:   "X.x.X.x.X.x.X.x"
+      - # Bar 3 — Syncopated extra kick on "e of 3" (pos 9) — adds forward motion
+        kick:    "X.....XX.X.....X"
         rimshot: "....X.......X..."
-        hihat:   "x.x.x.x.x.x.x.x."
-      - # bar 3: light bar with ghost notes
-        kick:    "X...X..........."
+        hihat:   "X.x.X.x.X.x.X.x"
+      - # Bar 4 — Driving push into bar 1; no extra accent, pure momentum
+        kick:    "X.....XX.......X"
         snare:   "....X.......X..."
-        hihat:   "x.x.x.x.x.x.x.x."
-        rimshot: "..X.....X......."
-      - # bar 4: driving push into the repeat
-        kick:    "X...X...X.X.X..."
-        snare:   "....X.......X..."
-        hihat:   "x.x.x.x.x.x.x.x."
+        rimshot: "..X...........X."
+        hihat:   "X.x.X.x.X.x.X.x"
 
   fill:
     bars: 1
     variations:
       - name: roll
-        snare:  "XxXxXxXxXxXxXxX."
-        tom_hi: "............X..."
-        tom_lo: "..............X."
-        kick:   "X..............."
-      - name: bombarde_imitation
-        tom_hi:  "X.X.X.X.X......."
+        # Snare roll landing on the bar repeat — typical Breton transition
+        snare:   "XxXxXxXxXxXxXxX."
+        tom_hi:  "............X..."
+        tom_lo:  "..............X."
+        kick:    "X..............."
+      - name: bombarde
+        # Tom-based fill imitating the bombarde (Breton bagpipe) melodic run
+        tom_hi:  "X.X.X.X........."
         tom_lo:  "..............X."
         kick:    "X..............."
 
@@ -68,7 +79,7 @@ sections:
       - name: standard
         crash:  "X..............."
         kick:   "X..............."
-        hihat:  "x.x.x.x.x.x.x.x."
+        hihat:  "X.x.X.x.X.x.X.x"
 
 structure:
   fill_every: 8

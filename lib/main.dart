@@ -28,6 +28,10 @@ const _kBundledGfdrumAssets = [
   'assets/drums/funk_tight.gfdrum',
   'assets/drums/celtic_irish_jig.gfdrum',
   'assets/drums/celtic_breton_an_dro.gfdrum',
+  'assets/drums/celtic_scottish_reel.gfdrum',
+  'assets/drums/batucada.gfdrum',
+  'assets/drums/fanfare_march.gfdrum',
+  'assets/drums/jazz_halftime_shuffle.gfdrum',
 ];
 
 /// Asset paths for all bundled `.gfpd` plugin descriptor files.

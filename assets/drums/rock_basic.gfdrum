@@ -1,3 +1,7 @@
+# Classic Rock — John Bonham / AC/DC style
+# Reference: "When the Levee Breaks" (Bonham), "Back in Black" (Phil Rudd)
+# GM notes: 36=kick, 38=snare, 42=closed HH, 49=crash, 48=hi tom, 45=mid tom, 41=floor tom
+
 name: Classic Rock
 family: rock
 bpm_range: [80, 160]
@@ -6,14 +10,13 @@ resolution: 16
 feel: straight
 
 instruments:
-  kick:   { note: 36, base_velocity: 105, velocity_range: 12, timing_jitter: 0.015, duration_beats: 0.15 }
-  snare:  { note: 38, base_velocity: 100, velocity_range: 18, timing_jitter: 0.018, duration_beats: 0.12 }
-  hihat:  { note: 42, base_velocity: 75,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.08 }
-  hihat_open: { note: 46, base_velocity: 80, velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.18 }
-  crash:  { note: 49, base_velocity: 100, velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.25 }
-  tom_hi: { note: 48, base_velocity: 95,  velocity_range: 15, timing_jitter: 0.018, duration_beats: 0.12 }
-  tom_mid: { note: 45, base_velocity: 90, velocity_range: 15, timing_jitter: 0.018, duration_beats: 0.12 }
-  tom_lo: { note: 41, base_velocity: 90,  velocity_range: 15, timing_jitter: 0.018, duration_beats: 0.15 }
+  kick:    { note: 36, base_velocity: 110, velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.15 }
+  snare:   { note: 38, base_velocity: 105, velocity_range: 15, timing_jitter: 0.018, duration_beats: 0.12 }
+  hihat:   { note: 42, base_velocity: 82,  velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.07 }
+  crash:   { note: 49, base_velocity: 100, velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.25 }
+  tom_hi:  { note: 48, base_velocity: 95,  velocity_range: 15, timing_jitter: 0.018, duration_beats: 0.12 }
+  tom_mid: { note: 45, base_velocity: 90,  velocity_range: 15, timing_jitter: 0.018, duration_beats: 0.12 }
+  tom_lo:  { note: 41, base_velocity: 90,  velocity_range: 15, timing_jitter: 0.018, duration_beats: 0.15 }
 
 humanization:
   timing_jitter: 0.015
@@ -27,37 +30,43 @@ sections:
     note: 37
 
   groove:
-    bars: 2
+    bars: 1
     variations:
-      - name: main
+      - name: bonham
         weight: 4
-        kick:   "X...X...X.X....."
-        snare:  "....X.......X..."
-        hihat:  "x.x.x.x.x.x.x.x."
-      - name: alt
+        # Kick on beat 1 (pos 0), "and of 2" (pos 6), beat 3 (pos 8), "and of 4" (pos 14)
+        # The signature Bonham driving groove from "When the Levee Breaks"
+        kick:  "X.....X.X.....X."
+        snare: "....X.......X..."
+        hihat: "X.x.X.x.X.x.X.x"
+      - name: acdcdc
+        weight: 2
+        # Phil Rudd / AC/DC: kick on beats 1 and 3 only — locked-in and relentless
+        kick:  "X.......X......."
+        snare: "....X.......X..."
+        hihat: "X.x.X.x.X.x.X.x"
+      - name: bonham_push
         weight: 1
-        kick:   "X...X...X......X"
-        snare:  "....X.......X..."
-        hihat:  "x.x.x.x.x.x.x.x."
-      - name: open_hat
-        weight: 1
-        kick:   "X...X...X.X....."
-        snare:  "....X.......X..."
-        hihat:  "x.x.x.x.x.x.x.o"
-        hihat_open: "...............X"
+        # Bonham variation: extra kick "a of 4" (pos 15) pushing hard into the next bar
+        kick:  "X.....X.X......X"
+        snare: "....X.......X..."
+        hihat: "X.x.X.x.X.x.X.x"
 
   fill:
     bars: 1
     variations:
-      - name: simple
-        snare:  "....X...X.X.X.X."
-        tom_hi: "............X..."
-        tom_lo: "..............X."
-      - name: full
-        tom_hi: "X.X.X.X.X......."
-        tom_mid: ".......X.X......"
-        tom_lo: ".........X.X.X.X"
-        kick:   "X..............."
+      - name: tom_descend
+        # Classic rock fill: kick on beat 1, crash/snare accent then descending toms
+        kick:    "X..............."
+        snare:   "....X..........."
+        tom_hi:  "......X.X......."
+        tom_mid: "..........X.X..."
+        tom_lo:  "..............XX"
+      - name: snare_run
+        # Snare-heavy fill: accent on beat 2 then fast snare/tom run to the end
+        snare:   "....X...X.X.X.X."
+        tom_lo:  "..............X."
+        kick:    "X..............."
 
   break:
     bars: 2
@@ -71,7 +80,7 @@ sections:
       - name: standard
         crash: "X..............."
         kick:  "X..............."
-        hihat: "x.x.x.x.x.x.x.x."
+        hihat: "X.x.X.x.X.x.X.x"
 
 structure:
   fill_every: 8
