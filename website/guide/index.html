@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="How to use GrooveForge — rack, transport, projects, and patch routing.">
+  <title>GrooveForge — Getting started</title>
+  <link rel="icon" type="image/png" href="../assets/icon.png">
+  <link rel="stylesheet" href="../css/site.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="../">
+        <img src="../assets/icon.png" width="40" height="40" alt="">
+        GrooveForge
+      </a>
+      <div class="header-right">
+        <nav class="site-nav" aria-label="Primary">
+          <a href="../guide/">Guide</a>
+          <a href="../modules/">Modules</a>
+          <a href="../midi-fx/">MIDI FX</a>
+          <a href="../vst/">VST3</a>
+          <a href="../gfdrum/">Rhythmic patterns</a>
+          <a href="../gfpd/">Plugin descriptors</a>
+          <a href="../features/">All features</a>
+          <a href="../demo/" class="nav-cta">Try web demo</a>
+        </nav>
+        <span class="lang-switch" aria-label="Language">
+          <span class="lang-current" aria-current="true">EN</span>
+          <span class="lang-sep" aria-hidden="true">·</span>
+          <a href="../fr/guide/" hreflang="fr">FR</a>
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <main id="main" class="prose">
+    <div class="page-hero">
+      <h1>Getting started</h1>
+      <p class="lead">A practical tour of the main surfaces: rack, transport, patch view, and projects.</p>
+    </div>
+
+    <h2>First launch</h2>
+    <p>
+      The <strong>rack</strong> is a vertical list of plugin slots. Tap <strong>+</strong> in the app bar to add instruments,
+      effects, MIDI processors, or (on desktop) VST3 plugins. Each slot can be expanded to show its panel; the small
+      cable icon toggles the <strong>back-of-rack</strong> view where MIDI and audio jacks are wired together.
+    </p>
+
+    <h2>Transport</h2>
+    <p>
+      The transport bar sets <strong>BPM</strong>, time signature, play/stop, tap tempo, and metronome.
+      Drum Generator patterns and tempo-synced effects follow this clock. Adjust BPM with the field, nudge buttons,
+      or a scroll wheel where supported.
+    </p>
+
+    <h2>Patch cables</h2>
+    <p>
+      In the patch view, each slot exposes coloured jacks: MIDI in/out, audio in/out, sends, returns, and (for Jam Mode)
+      scale/chord outputs. Long-press an <strong>output</strong> jack to start a cable, then release on a compatible
+      <strong>input</strong>. Tap an existing cable to remove it. The app validates port types and prevents invalid
+      routing (including audio cycles).
+    </p>
+
+    <h2>Projects (.gf)</h2>
+    <p>
+      Use the project menu to <strong>Open</strong>, <strong>Save</strong>, or <strong>Save As</strong>.
+      Projects are JSON files that store the rack order, cable graph, transport state, SoundFont assignments,
+      VST3 parameter snapshots, looper data, and per-slot options. Desktop and mobile autosave the last session;
+      the web build has no persistent storage — use Save As to download a <code>.gf</code> file.
+    </p>
+
+    <h2>Preferences</h2>
+    <p>
+      Open <strong>Preferences</strong> for global keyboard behaviour (key count, gesture actions, aftertouch CC),
+      MIDI device listing, <strong>CC mapping</strong> (map hardware controls to volume, patch sweep, looper actions,
+      scale cycle, and more), audio devices, and Jam Mode visual options.
+    </p>
+
+    <p><a href="../">← Home</a> · <a href="../modules/">Built-in modules →</a></p>
+  </main>
+
+  <footer class="site-footer">
+    <p><a href="https://github.com/yakari/grooveforge">GitHub</a> · <a href="../privacy/">Privacy</a></p>
+  </footer>
+</body>
+</html>

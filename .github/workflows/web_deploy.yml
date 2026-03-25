@@ -32,9 +32,8 @@ jobs:
         run: flutter pub get
 
       # ── 3. Build web (WASM) ────────────────────────────────────────────────
-      # --base-href must match the GitHub Pages sub-path, e.g.:
-      #   https://<user>.github.io/<repo>/  →  --base-href /<repo>/
-      # Change the value below if your repo name is different.
+      # Web app lives at https://<user>.github.io/<repo>/demo/ — base-href must
+      # include the /demo/ segment so asset URLs and the service worker resolve.
       #
       # --wasm compiles Dart to WebAssembly (dart2wasm) instead of JavaScript.
       # Requires Flutter >= 3.22 on the stable channel.
@@ -43,19 +42,25 @@ jobs:
           flutter build web \
             --release \
             --wasm \
-            --base-href "/${{ github.event.repository.name }}/"
+            --base-href "/${{ github.event.repository.name }}/demo/"
 
-      # ── 4. Copy docs (single source of truth for /features and /privacy) ──
-      # The HTML shells in web/features/ and web/privacy/ fetch these .md files
-      # at runtime via marked.js, so they must be present in the build output.
-      - name: Copy docs into build
-        run: cp -r docs build/web/docs
+      # ── 4. Assemble site: static marketing/docs at repo root, Flutter under demo/ ──
+      - name: Assemble GitHub Pages bundle
+        run: |
+          REPO="${{ github.event.repository.name }}"
+          rm -rf gh_pages_bundle
+          mkdir -p gh_pages_bundle/demo gh_pages_bundle/docs gh_pages_bundle/assets/screenshots
+          cp -r website/. gh_pages_bundle/
+          cp -r build/web/. gh_pages_bundle/demo/
+          cp docs/features.md docs/features.fr.md docs/privacy.md docs/privacy.fr.md gh_pages_bundle/docs/
+          cp splashscreen.png icon.png gh_pages_bundle/assets/
+          cp assets/screenshots/*.png gh_pages_bundle/assets/screenshots/
 
       # ── 5. Deploy to gh-pages ──────────────────────────────────────────────
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: build/web
+          publish_dir: gh_pages_bundle
           # Keeps gh-pages history lean — each deploy is a clean publish.
           force_orphan: true

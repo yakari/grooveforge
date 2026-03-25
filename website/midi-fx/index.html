@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="GrooveForge MIDI FX — harmonizer, arpeggiator, patch cables, and .gfpd plugins.">
+  <title>GrooveForge — MIDI FX</title>
+  <link rel="icon" type="image/png" href="../assets/icon.png">
+  <link rel="stylesheet" href="../css/site.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="../">
+        <img src="../assets/icon.png" width="40" height="40" alt="">
+        GrooveForge
+      </a>
+      <div class="header-right">
+        <nav class="site-nav" aria-label="Primary">
+          <a href="../guide/">Guide</a>
+          <a href="../modules/">Modules</a>
+          <a href="../midi-fx/">MIDI FX</a>
+          <a href="../vst/">VST3</a>
+          <a href="../gfdrum/">Rhythmic patterns</a>
+          <a href="../gfpd/">Plugin descriptors</a>
+          <a href="../features/">All features</a>
+          <a href="../demo/" class="nav-cta">Try web demo</a>
+        </nav>
+        <span class="lang-switch" aria-label="Language">
+          <span class="lang-current" aria-current="true">EN</span>
+          <span class="lang-sep" aria-hidden="true">·</span>
+          <a href="../fr/midi-fx/" hreflang="fr">FR</a>
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <main id="main" class="prose">
+    <div class="page-hero">
+      <h1>MIDI FX</h1>
+      <p class="lead">Pure-Dart MIDI processing in the rack: chain transforms between your controller and your instruments.</p>
+    </div>
+
+    <h2>What MIDI FX are</h2>
+    <p>
+      MIDI FX slots run a graph of built-in node types declared in a <code>.gfpd</code> file with <code>type: midi_fx</code>
+      (alias <code>midifx</code>). They do not generate audio by themselves — they reshape note, CC, and pitch-bend streams.
+      Examples: transpose every note, harmonize in thirds, expand single notes into chords, arpeggiate held notes, reshape
+      velocity, or gate events by threshold.
+    </p>
+
+    <h2>Wiring in the patch view</h2>
+    <p>
+      Open the <strong>back-of-rack</strong> view. Connect an instrument’s <strong>MIDI OUT</strong> (or a Virtual Piano /
+      hardware path that feeds the chain) to the MIDI FX’s <strong>MIDI IN</strong>, then connect the FX’s
+      <strong>MIDI OUT</strong> to the next instrument or another MIDI FX. Multiple chains and parallel branches follow
+      the same rules as audio cables: compatible ports only.
+    </p>
+
+    <h2>Bundled MIDI FX plugins</h2>
+    <table class="download-table">
+      <thead>
+        <tr><th>Plugin</th><th>Role</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Transposer</td><td>Shift all note numbers by semitones; other MIDI passes through.</td></tr>
+        <tr><td>Harmonizer</td><td>Add parallel harmony voices from intervals.</td></tr>
+        <tr><td>Chord expand</td><td>Turn single notes into chord shapes (voicing selectable in the panel).</td></tr>
+        <tr><td>Arpeggiator</td><td>Step through held notes with rate and order controls.</td></tr>
+        <tr><td>Velocity curve</td><td>Remap note velocities along a curve.</td></tr>
+        <tr><td>Gate</td><td>Suppress notes below a velocity threshold.</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Bypass &amp; hardware MIDI</h2>
+    <p>
+      Each MIDI FX header includes a <strong>power / bypass</strong> toggle and optional MIDI CC learn for bypass.
+      When bypassed, events do not traverse that plugin (arpeggiators stop as expected).
+    </p>
+
+    <h2>Author your own</h2>
+    <p>
+      MIDI FX graphs use the <code>midi_nodes:</code> section in <code>.gfpd</code> instead of <code>graph:</code> audio nodes.
+      See <a href="../gfpd/">Plugin descriptors (.gfpd)</a> and the repository guide
+      <a href="https://github.com/yakari/grooveforge/blob/main/assets/plugins/HOW_TO_CREATE_A_PLUGIN.md"><code>HOW_TO_CREATE_A_PLUGIN.md</code></a>.
+    </p>
+
+    <p><a href="../modules/">← Modules</a> · <a href="../vst/">VST3 →</a></p>
+  </main>
+
+  <footer class="site-footer">
+    <p><a href="https://github.com/yakari/grooveforge">GitHub</a> · <a href="../privacy/">Privacy</a></p>
+  </footer>
+</body>
+</html>

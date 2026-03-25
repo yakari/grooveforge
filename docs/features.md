@@ -16,7 +16,7 @@ GrooveForge was mainly developed as a tool to **learn scales** through the **Jam
     Unsupported for now: the iOS build has never been tested.
 
 *   **Web (WASM)**  
-    Flutter web build deployable to GitHub Pages. SF2 playback via a SpessaSynth JavaScript bridge; Stylophone and Theremin use the Web Audio API. Project “Save As…” triggers a browser download of a `.gf` file. No persistent project storage; each session starts from defaults.
+    Flutter web build deployable to GitHub Pages: the marketing and documentation site is served at the repository path root, and the interactive WASM app at `/demo/` (e.g. `https://<user>.github.io/<repo>/demo/`). A French mirror of the handbook lives under `/fr/`; long-form lists use `docs/features.fr.md` and `docs/privacy.fr.md` at `/fr/features/` and `/fr/privacy/`. SF2 playback uses a SpessaSynth JavaScript bridge; Stylophone and Theremin use the Web Audio API. Project “Save As…” triggers a browser download of a `.gf` file. No persistent project storage; each session starts from defaults.
 
 ---
 

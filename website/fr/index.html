@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="GrooveForge — station musicale multi-plateforme, synthèse SoundFont, VST3, Jam Mode, effets MIDI et patterns de batterie.">
+  <title>GrooveForge — Station musicale multi-plateforme</title>
+  <link rel="icon" type="image/png" href="../assets/icon.png">
+  <link rel="stylesheet" href="../css/site.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Aller au contenu</a>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="./">
+        <img src="../assets/icon.png" width="40" height="40" alt="">
+        GrooveForge
+      </a>
+      <div class="header-right">
+        <nav class="site-nav" aria-label="Navigation principale">
+          <a href="guide/">Guide</a>
+          <a href="modules/">Modules</a>
+          <a href="midi-fx/">MIDI FX</a>
+          <a href="vst/">VST3</a>
+          <a href="gfdrum/">Patterns (.gfdrum)</a>
+          <a href="gfpd/">Descripteurs (.gfpd)</a>
+          <a href="features/">Toutes les fonctionnalités</a>
+          <a href="../demo/" class="nav-cta">Démo web</a>
+        </nav>
+        <span class="lang-switch" aria-label="Langue">
+          <a href="../" hreflang="en">EN</a>
+          <span class="lang-sep" aria-hidden="true">·</span>
+          <span class="lang-current" aria-current="true">FR</span>
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="hero-tagline">SoundFont · VST3 · Jam Mode</p>
+        <h1>Forgez votre groove</h1>
+        <p>
+          GrooveForge est une station de travail open source sous Flutter : rack de plugins avec synthèse SoundFont
+          multi-timbrale, effets audio et MIDI décrits par fichiers, MIDI matériel, un Jam Mode intelligent pour
+          travailler les gammes, et un moteur de patterns de batterie synchronisé au transport. Exécutez-le sous
+          Linux, macOS, Windows, Android — ou essayez la version navigateur.
+        </p>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="../demo/">Ouvrir la démo web</a>
+          <a class="btn btn-secondary" href="https://github.com/yakari/grooveforge" rel="noopener noreferrer">Dépôt GitHub</a>
+          <a class="btn btn-ghost" href="guide/">Guide d’utilisation</a>
+        </div>
+      </div>
+      <div class="hero-visual">
+        <img src="../assets/splashscreen.png" width="1200" height="675" alt="Logo GrooveForge : enclume, onde sonore et clavier MIDI sur fond sombre texturé">
+      </div>
+    </section>
+
+    <h2 class="section-title">Documentation</h2>
+    <div class="card-grid three">
+      <article class="card">
+        <h3><a href="guide/">Prise en main</a></h3>
+        <p>Rack, transport, projets, câbles patch et par où commencer à l’ouverture de l’app.</p>
+      </article>
+      <article class="card">
+        <h3><a href="modules/">Modules intégrés</a></h3>
+        <p>Clavier, piano virtuel, vocodeur, Stylophone, Theremin, Jam Mode, Looper, générateur de batterie, etc.</p>
+      </article>
+      <article class="card">
+        <h3><a href="midi-fx/">MIDI FX</a></h3>
+        <p>Harmoniseur, arpégiateur, transposeur et câblage des effets MIDI en vue arrière.</p>
+      </article>
+      <article class="card">
+        <h3><a href="vst/">Hébergement VST3</a></h3>
+        <p>Chargement de plugins bureau sous Linux et macOS, routage audio et fenêtres d’édition natives.</p>
+      </article>
+      <article class="card">
+        <h3><a href="gfdrum/">Patterns (.gfdrum)</a></h3>
+        <p>Grilles YAML, humanisation, fills — et liens de téléchargement directs depuis la branche <code>main</code>.</p>
+      </article>
+      <article class="card">
+        <h3><a href="gfpd/">Descripteurs (.gfpd)</a></h3>
+        <p>Créez effets audio et MIDI FX sans Dart : le format GrooveForge Plugin Descriptor.</p>
+      </article>
+    </div>
+
+    <h2 class="section-title">Captures d’écran</h2>
+    <div class="shot-grid">
+      <figure class="figure-card">
+        <img src="../assets/screenshots/01_grooveforge_main.png" width="800" height="450" loading="lazy" alt="Vue principale du rack et barre de transport">
+        <figcaption>Rack principal et transport</figcaption>
+      </figure>
+      <figure class="figure-card">
+        <img src="../assets/screenshots/02_grooveforge_prefs.png" width="800" height="450" loading="lazy" alt="Écran des préférences MIDI et audio">
+        <figcaption>Préférences</figcaption>
+      </figure>
+      <figure class="figure-card">
+        <img src="../assets/screenshots/03_grooveforge_modules.png" width="800" height="450" loading="lazy" alt="Panneaux de modules clavier et effets">
+        <figcaption>Panneaux de modules</figcaption>
+      </figure>
+      <figure class="figure-card">
+        <img src="../assets/screenshots/04_grooveforge_back_wiring.png" width="800" height="450" loading="lazy" alt="Vue arrière du rack avec câbles MIDI et audio">
+        <figcaption>Routage patch arrière</figcaption>
+      </figure>
+      <figure class="figure-card">
+        <img src="../assets/screenshots/05_grooveforge_jam_mode.png" width="800" height="450" loading="lazy" alt="Affichage de gamme et contrôles Jam Mode">
+        <figcaption>Jam Mode</figcaption>
+      </figure>
+    </div>
+
+    <h2 class="section-title">Liens</h2>
+    <div class="prose">
+      <ul>
+        <li><a href="https://github.com/yakari/grooveforge" rel="noopener noreferrer">github.com/yakari/grooveforge</a> — code, tickets, releases</li>
+        <li><a href="../">Handbook in English</a> (racine du site, <code>/</code>)</li>
+        <li><a href="features/">Liste détaillée des fonctionnalités</a></li>
+        <li><a href="privacy/">Politique de confidentialité</a></li>
+        <li><a href="../demo/">Démo web</a> (build WASM clavier — navigateur de bureau recommandé)</li>
+      </ul>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <p>
+      <a href="https://github.com/yakari/grooveforge">GrooveForge sur GitHub</a>
+      · <a href="privacy/">Confidentialité</a>
+      · Licence MIT
+    </p>
+  </footer>
+</body>
+</html>

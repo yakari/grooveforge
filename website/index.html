@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="GrooveForge — cross-platform DAW, soundfont synth, VST3 hosting, Jam Mode, MIDI FX, and drum patterns.">
+  <title>GrooveForge — Cross-platform music workstation</title>
+  <link rel="icon" type="image/png" href="assets/icon.png">
+  <link rel="stylesheet" href="css/site.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="./">
+        <img src="assets/icon.png" width="40" height="40" alt="">
+        GrooveForge
+      </a>
+      <div class="header-right">
+        <nav class="site-nav" aria-label="Primary">
+          <a href="guide/">Guide</a>
+          <a href="modules/">Modules</a>
+          <a href="midi-fx/">MIDI FX</a>
+          <a href="vst/">VST3</a>
+          <a href="gfdrum/">Rhythmic patterns</a>
+          <a href="gfpd/">Plugin descriptors</a>
+          <a href="features/">All features</a>
+          <a href="demo/" class="nav-cta">Try web demo</a>
+        </nav>
+        <span class="lang-switch" aria-label="Language">
+          <span class="lang-current" aria-current="true">EN</span>
+          <span class="lang-sep" aria-hidden="true">·</span>
+          <a href="fr/" hreflang="fr">FR</a>
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="hero-tagline">Soundfont · VST3 · Jam Mode</p>
+        <h1>Forge your groove</h1>
+        <p>
+          GrooveForge is an open-source Flutter workstation: a plugin rack with multi-timbral SoundFont synthesis,
+          descriptor-based audio and MIDI effects, hardware MIDI, an intelligent Jam Mode for scale practice,
+          and a transport-synced drum pattern engine. Run it on Linux, macOS, Windows, Android — or try the
+          browser build.
+        </p>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="demo/">Launch web demo</a>
+          <a class="btn btn-secondary" href="https://github.com/yakari/grooveforge" rel="noopener noreferrer">GitHub repository</a>
+          <a class="btn btn-ghost" href="guide/">How to use</a>
+        </div>
+      </div>
+      <div class="hero-visual">
+        <img src="assets/splashscreen.png" width="1200" height="675" alt="GrooveForge logo: anvil, sound wave, and MIDI keyboard on a dark textured background">
+      </div>
+    </section>
+
+    <h2 class="section-title">Explore the docs</h2>
+    <div class="card-grid three">
+      <article class="card">
+        <h3><a href="guide/">Getting started</a></h3>
+        <p>Rack, transport, projects, patch cables, and where to tap first when you open the app.</p>
+      </article>
+      <article class="card">
+        <h3><a href="modules/">Built-in modules</a></h3>
+        <p>Keyboard, Virtual Piano, Vocoder, Stylophone, Theremin, Jam Mode, Looper, Drum Generator, and more.</p>
+      </article>
+      <article class="card">
+        <h3><a href="midi-fx/">MIDI FX</a></h3>
+        <p>Harmonizer, arpeggiator, transposer, and how to wire MIDI FX in the back-panel view.</p>
+      </article>
+      <article class="card">
+        <h3><a href="vst/">VST3 hosting</a></h3>
+        <p>Load desktop plugins on Linux and macOS, audio routing, and native editor windows.</p>
+      </article>
+      <article class="card">
+        <h3><a href="gfdrum/">Drum patterns (.gfdrum)</a></h3>
+        <p>YAML step grids, humanisation, fills — plus one-click downloads of every bundled pattern from <code>main</code>.</p>
+      </article>
+      <article class="card">
+        <h3><a href="gfpd/">Plugin descriptors (.gfpd)</a></h3>
+        <p>Author audio effects and MIDI FX without Dart: the GrooveForge Plugin Descriptor format.</p>
+      </article>
+    </div>
+
+    <h2 class="section-title">Screenshots</h2>
+    <div class="shot-grid">
+      <figure class="figure-card">
+        <img src="assets/screenshots/01_grooveforge_main.png" width="800" height="450" loading="lazy" alt="Main rack view with plugin slots and transport">
+        <figcaption>Main rack and transport</figcaption>
+      </figure>
+      <figure class="figure-card">
+        <img src="assets/screenshots/02_grooveforge_prefs.png" width="800" height="450" loading="lazy" alt="Preferences screen with MIDI and audio options">
+        <figcaption>Preferences</figcaption>
+      </figure>
+      <figure class="figure-card">
+        <img src="assets/screenshots/03_grooveforge_modules.png" width="800" height="450" loading="lazy" alt="Module panels including keyboard and effects">
+        <figcaption>Module panels</figcaption>
+      </figure>
+      <figure class="figure-card">
+        <img src="assets/screenshots/04_grooveforge_back_wiring.png" width="800" height="450" loading="lazy" alt="Back of rack patch view with MIDI and audio cables">
+        <figcaption>Back-panel routing</figcaption>
+      </figure>
+      <figure class="figure-card">
+        <img src="assets/screenshots/05_grooveforge_jam_mode.png" width="800" height="450" loading="lazy" alt="Jam Mode scale display and controls">
+        <figcaption>Jam Mode</figcaption>
+      </figure>
+    </div>
+
+    <h2 class="section-title">Links</h2>
+    <div class="prose">
+      <ul>
+        <li><a href="https://github.com/yakari/grooveforge" rel="noopener noreferrer">github.com/yakari/grooveforge</a> — source, issues, releases</li>
+        <li><a href="fr/">French handbook</a> (<code>/fr/</code> — same structure as this site)</li>
+        <li><a href="features/">Complete feature list</a> (detailed)</li>
+        <li><a href="privacy/">Privacy policy</a></li>
+        <li><a href="demo/">Web demo</a> (WASM keyboard build — desktop-class browsers recommended)</li>
+      </ul>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <p>
+      <a href="https://github.com/yakari/grooveforge">GrooveForge on GitHub</a>
+      · <a href="privacy/">Privacy</a>
+      · MIT License
+    </p>
+  </footer>
+</body>
+</html>

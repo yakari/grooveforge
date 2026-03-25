@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="GrooveForge built-in modules — keyboard, vocoder, Jam Mode, looper, drum generator.">
+  <title>GrooveForge — Built-in modules</title>
+  <link rel="icon" type="image/png" href="../assets/icon.png">
+  <link rel="stylesheet" href="../css/site.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="../">
+        <img src="../assets/icon.png" width="40" height="40" alt="">
+        GrooveForge
+      </a>
+      <div class="header-right">
+        <nav class="site-nav" aria-label="Primary">
+          <a href="../guide/">Guide</a>
+          <a href="../modules/">Modules</a>
+          <a href="../midi-fx/">MIDI FX</a>
+          <a href="../vst/">VST3</a>
+          <a href="../gfdrum/">Rhythmic patterns</a>
+          <a href="../gfpd/">Plugin descriptors</a>
+          <a href="../features/">All features</a>
+          <a href="../demo/" class="nav-cta">Try web demo</a>
+        </nav>
+        <span class="lang-switch" aria-label="Language">
+          <span class="lang-current" aria-current="true">EN</span>
+          <span class="lang-sep" aria-hidden="true">·</span>
+          <a href="../fr/modules/" hreflang="fr">FR</a>
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <main id="main" class="prose">
+    <div class="page-hero">
+      <h1>Built-in modules</h1>
+      <p class="lead">What each rack slot type does and how it connects to the rest of the patch.</p>
+    </div>
+
+    <h2>GrooveForge Keyboard</h2>
+    <p>
+      Multi-timbral SoundFont (<code>.sf2</code>) engine with up to 16 MIDI channels per slot, per-channel bank/program,
+      optional per-slot <strong>vocoder</strong>, and gesture actions on the on-screen keys. Wire MIDI IN from hardware
+      or from Virtual Piano / Looper; audio OUT goes to the master bus or other effects via patch cables.
+    </p>
+
+    <h2>Virtual Piano</h2>
+    <p>
+      Touch keyboard with <strong>no internal sound</strong> — it only forwards MIDI through its jacks. Ideal ahead of
+      a SoundFont or VST instrument. Connect <strong>Scale IN</strong> from Jam Mode for highlighted scale degrees and snapping.
+    </p>
+
+    <h2>Vocoder (GFPA)</h2>
+    <p>
+      Dedicated slot with carrier waveforms (saw, square, choral, natural/PSOLA), MIDI pitch bend and vibrato (CC1),
+      and microphone modulation. Multiple vocoder slots can coexist.
+    </p>
+
+    <h2>Stylophone &amp; Theremin</h2>
+    <p>
+      Monophonic Stylophone strip and Theremin pad with MIDI OUT to the rest of the rack. Theremin supports
+      <strong>CAM mode</strong> on some platforms (motion via front camera — see <a href="../privacy/">privacy policy</a>).
+    </p>
+
+    <h2>Jam Mode</h2>
+    <p>
+      Single-instance processor: choose a <strong>master</strong> channel; when the master plays chords or bass (configurable),
+      <strong>target</strong> keyboards and vocoders lock to the derived scale. Includes scale type, BPM-aligned root updates,
+      and optional pin strip under the transport. Pairs with Virtual Piano Scale IN or internal scale lock on keyboards.
+    </p>
+
+    <h2>MIDI Looper</h2>
+    <p>
+      Multi-track MIDI recorder/looper with overdub, per-track mute, reverse, speed, and quantisation. MIDI IN can be
+      any upstream source; MIDI OUT feeds instruments. State is stored inside <code>.gf</code> projects.
+    </p>
+
+    <h2>Drum Generator</h2>
+    <p>
+      Transport-synced drum machine driven by <a href="../gfdrum/"><code>.gfdrum</code></a> pattern files: step grids,
+      humanisation, swing, fills, and optional count-in. Uses General MIDI drum notes on the configured SoundFont.
+    </p>
+
+    <h2>Descriptor effects &amp; MIDI FX</h2>
+    <p>
+      Bundled <a href="../gfpd/"><code>.gfpd</code></a> plugins provide reverb, delay, wah, EQ, compressor, chorus (audio)
+      and harmonizer, arpeggiator, transposer, chord expand, velocity curve, gate (MIDI). Custom descriptors can be
+      loaded from disk.
+    </p>
+
+    <p><a href="../guide/">← Getting started</a> · <a href="../midi-fx/">MIDI FX routing →</a></p>
+  </main>
+
+  <footer class="site-footer">
+    <p><a href="https://github.com/yakari/grooveforge">GitHub</a> · <a href="../privacy/">Privacy</a></p>
+  </footer>
+</body>
+</html>

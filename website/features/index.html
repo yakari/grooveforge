@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="GrooveForge — complete feature list (from project documentation).">
+  <title>GrooveForge — Features</title>
+  <link rel="icon" type="image/png" href="../assets/icon.png">
+  <link rel="stylesheet" href="../css/site.css">
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="../">
+        <img src="../assets/icon.png" width="40" height="40" alt="">
+        GrooveForge
+      </a>
+      <div class="header-right">
+        <nav class="site-nav" aria-label="Primary">
+          <a href="../guide/">Guide</a>
+          <a href="../modules/">Modules</a>
+          <a href="../midi-fx/">MIDI FX</a>
+          <a href="../vst/">VST3</a>
+          <a href="../gfdrum/">Rhythmic patterns</a>
+          <a href="../gfpd/">Plugin descriptors</a>
+          <a href="../features/">All features</a>
+          <a href="../demo/" class="nav-cta">Try web demo</a>
+        </nav>
+        <span class="lang-switch" aria-label="Language">
+          <span class="lang-current" aria-current="true">EN</span>
+          <span class="lang-sep" aria-hidden="true">·</span>
+          <a href="../fr/features/" hreflang="fr">FR</a>
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <main id="main" style="max-width: 900px; margin: 0 auto; padding: 2rem 1.25rem 4rem;">
+    <div id="content" aria-live="polite"></div>
+    <p class="prose" style="margin-top: 2rem;"><a href="../">← Home</a> · <a href="../privacy/">Privacy →</a></p>
+  </main>
+
+  <footer class="site-footer">
+    <p><a href="https://github.com/yakari/grooveforge">GitHub</a> · <a href="../privacy/">Privacy</a></p>
+  </footer>
+  <script>
+    fetch('../docs/features.md')
+      .then(function (r) { return r.text(); })
+      .then(function (md) {
+        document.getElementById('content').innerHTML = marked.parse(md);
+      })
+      .catch(function () {
+        document.getElementById('content').textContent = 'Failed to load features. Open docs/features.md on GitHub.';
+      });
+  </script>
+</body>
+</html>

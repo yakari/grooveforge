@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="GrooveForge .gfdrum drum pattern format — YAML step grids, bundled patterns, download from main.">
+  <title>GrooveForge — .gfdrum drum patterns</title>
+  <link rel="icon" type="image/png" href="../assets/icon.png">
+  <link rel="stylesheet" href="../css/site.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="../">
+        <img src="../assets/icon.png" width="40" height="40" alt="">
+        GrooveForge
+      </a>
+      <div class="header-right">
+        <nav class="site-nav" aria-label="Primary">
+          <a href="../guide/">Guide</a>
+          <a href="../modules/">Modules</a>
+          <a href="../midi-fx/">MIDI FX</a>
+          <a href="../vst/">VST3</a>
+          <a href="../gfdrum/">Rhythmic patterns</a>
+          <a href="../gfpd/">Plugin descriptors</a>
+          <a href="../features/">All features</a>
+          <a href="../demo/" class="nav-cta">Try web demo</a>
+        </nav>
+        <span class="lang-switch" aria-label="Language">
+          <span class="lang-current" aria-current="true">EN</span>
+          <span class="lang-sep" aria-hidden="true">·</span>
+          <a href="../fr/gfdrum/" hreflang="fr">FR</a>
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <main id="main" class="prose">
+    <div class="page-hero">
+      <h1><code>.gfdrum</code> patterns</h1>
+      <p class="lead">Declarative YAML drum patterns for the Drum Generator: step grids, humanisation, and song structure.</p>
+    </div>
+
+    <h2>What a pattern file contains</h2>
+    <p>
+      Each <code>.gfdrum</code> file is human-readable YAML (comments encouraged). Top-level fields describe the groove
+      musically and drive the scheduler:
+    </p>
+    <ul>
+      <li><code>name</code>, <code>family</code> — display and grouping.</li>
+      <li><code>bpm_range</code> — suggested tempo window <code>[min, max]</code>.</li>
+      <li><code>time_signature</code> — e.g. <code>[4, 4]</code> or <code>[3, 4]</code>; loading a pattern can align the transport.</li>
+      <li><code>resolution</code> — steps per bar (e.g. 16 for sixteenth notes in 4/4; 9 for triplet grids in 3/4).</li>
+      <li><code>feel</code> — <code>straight</code>, <code>swing_soft</code>, <code>swing_hard</code>, or <code>laid_back</code> (micro-timing of odd steps).</li>
+    </ul>
+
+    <h2>Step grid notation</h2>
+    <p>Each character is one step for that instrument’s lane:</p>
+    <table class="download-table">
+      <thead><tr><th>Char</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td><code>X</code></td><td>Strong accent (full velocity multiplier)</td></tr>
+        <tr><td><code>x</code></td><td>Medium accent</td></tr>
+        <tr><td><code>o</code></td><td>Soft hit</td></tr>
+        <tr><td><code>g</code></td><td>Ghost note (very low velocity)</td></tr>
+        <tr><td><code>.</code></td><td>Rest</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Instruments block</h2>
+    <p>
+      Under <code>instruments:</code>, each lane maps to a GM drum <code>note</code> number plus <code>base_velocity</code>,
+      <code>velocity_range</code>, <code>timing_jitter</code>, and <code>duration_beats</code>. Lane names are yours
+      (kick, snare, hihat, surdo_open, …) as long as each used lane is defined.
+    </p>
+
+    <h2>Sections</h2>
+    <p>Typical keys under <code>sections:</code>:</p>
+    <ul>
+      <li><code>intro</code> with <code>type: count_in</code>, <code>hits</code>, and <code>note</code> for stick clicks or hats.</li>
+      <li><code>groove</code> — either a single-bar loop with <code>bars: 1</code> and <code>variations:</code> (weighted random), or
+        <code>type: sequence</code> with <code>bars: N</code> and <code>bar_grids:</code> for multi-bar phrases that repeat.</li>
+      <li><code>fill</code>, <code>break</code>, <code>crash</code> — one-shot sections with their own variations.</li>
+    </ul>
+
+    <h2>Structure block</h2>
+    <p>
+      <code>structure:</code> configures arrangement logic, for example <code>fill_every</code>, <code>break_every</code>,
+      <code>break_length</code>, <code>crash_after_fill</code>, and <code>dynamic_build</code> for progressive arrangement.
+    </p>
+
+    <h2>Humanisation</h2>
+    <p>
+      <code>humanization:</code> applies global timing and velocity variance (<code>timing_jitter</code>, <code>velocity_jitter</code>,
+      <code>velocity_drift</code>) so repeats are not machine-perfect.
+    </p>
+
+    <h2>Download bundled patterns (from <code>main</code>)</h2>
+    <p>
+      These links point at <code>raw.githubusercontent.com</code> so you always get the latest committed file from the
+      default branch — ideal as references when authoring your own patterns.
+    </p>
+    <table class="download-table">
+      <thead>
+        <tr><th>Pattern</th><th>Download</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Afrobeat</td><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/drums/afrobeat.gfdrum" download>afrobeat.gfdrum</a></td></tr>
+        <tr><td>Batucada</td><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/drums/batucada.gfdrum" download>batucada.gfdrum</a></td></tr>
+        <tr><td>Batucada (directed)</td><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/drums/batucada_directed.gfdrum" download>batucada_directed.gfdrum</a></td></tr>
+        <tr><td>Breton An Dro</td><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/drums/celtic_breton_an_dro.gfdrum" download>celtic_breton_an_dro.gfdrum</a></td></tr>
+        <tr><td>Irish Jig</td><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/drums/celtic_irish_jig.gfdrum" download>celtic_irish_jig.gfdrum</a></td></tr>
+        <tr><td>Plinn</td><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/drums/celtic_plinn.gfdrum" download>celtic_plinn.gfdrum</a></td></tr>
+        <tr><td>Celtic Reel</td><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/drums/celtic_reel.gfdrum" download>celtic_reel.gfdrum</a></td></tr>
+        <tr><td>Scottish Reel</td><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/drums/celtic_scottish_reel.gfdrum" download>celtic_scottish_reel.gfdrum</a></td></tr>
+        <tr><td>Country</td><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/drums/country.gfdrum" download>country.gfdrum</a></td></tr>
+        <tr><td>Disco</td><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/drums/disco.gfdrum" download>disco.gfdrum</a></td></tr>
+        <tr><td>Fanfare march</td><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/drums/fanfare_march.gfdrum" download>fanfare_march.gfdrum</a></td></tr>
+        <tr><td>Festive fanfare</td><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/drums/festive_fanfare.gfdrum" download>festive_fanfare.gfdrum</a></td></tr>
+        <tr><td>Funk (tight)</td><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/drums/funk_tight.gfdrum" download>funk_tight.gfdrum</a></td></tr>
+        <tr><td>Jazz half-time shuffle</td><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/drums/jazz_halftime_shuffle.gfdrum" download>jazz_halftime_shuffle.gfdrum</a></td></tr>
+        <tr><td>Jazz swing</td><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/drums/jazz_swing.gfdrum" download>jazz_swing.gfdrum</a></td></tr>
+        <tr><td>Jazz waltz</td><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/drums/jazz_waltz.gfdrum" download>jazz_waltz.gfdrum</a></td></tr>
+        <tr><td>Bossa Nova</td><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/drums/latin_bossa_nova.gfdrum" download>latin_bossa_nova.gfdrum</a></td></tr>
+        <tr><td>Cha-cha</td><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/drums/latin_cha_cha.gfdrum" download>latin_cha_cha.gfdrum</a></td></tr>
+        <tr><td>Salsa</td><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/drums/latin_salsa.gfdrum" download>latin_salsa.gfdrum</a></td></tr>
+        <tr><td>Metal</td><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/drums/metal.gfdrum" download>metal.gfdrum</a></td></tr>
+        <tr><td>Classic rock</td><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/drums/rock_basic.gfdrum" download>rock_basic.gfdrum</a></td></tr>
+        <tr><td>Samba groove</td><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/drums/samba_groove.gfdrum" download>samba_groove.gfdrum</a></td></tr>
+        <tr><td>Second line</td><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/drums/second_line.gfdrum" download>second_line.gfdrum</a></td></tr>
+      </tbody>
+    </table>
+
+    <p>
+      After downloading, open the Drum Generator in GrooveForge and load the file from storage (same workflow as SoundFonts).
+      Start from a file whose style is closest to yours — the comments inside each pattern explain bar maps and musical intent.
+    </p>
+
+    <p><a href="../vst/">← VST3</a> · <a href="../gfpd/">.gfpd plugins →</a></p>
+  </main>
+
+  <footer class="site-footer">
+    <p><a href="https://github.com/yakari/grooveforge">GitHub</a> · <a href="../privacy/">Privacy</a></p>
+  </footer>
+</body>
+</html>
