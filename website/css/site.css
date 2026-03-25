@@ -33,6 +33,8 @@
 
 html {
   scroll-behavior: smooth;
+  /* Sticky header (~52–64px) — in-page anchors stay visible */
+  scroll-padding-top: 4.5rem;
 }
 
 body {
@@ -97,50 +99,156 @@ button:focus-visible {
   position: sticky;
   top: 0;
   z-index: 100;
-  height: var(--header-h);
   border-bottom: 1px solid var(--border);
-  background: rgba(10, 10, 12, 0.85);
+  background: rgba(10, 10, 12, 0.92);
   backdrop-filter: blur(12px);
 }
 
-.header-inner {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 1.25rem;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
+/**
+ * Checkbox is off-screen but focusable for keyboard users who tab to it.
+ */
+.nav-toggle-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+  opacity: 0;
 }
 
-@media (max-width: 960px) {
-  .site-header {
-    height: auto;
-  }
+.header-inner {
+  position: relative;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0.5rem 1.25rem;
+  min-height: 52px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
 
+@media (min-width: 901px) {
   .header-inner {
-    flex-wrap: wrap;
-    height: auto;
-    padding-top: 0.65rem;
-    padding-bottom: 0.65rem;
+    min-height: var(--header-h);
+    padding: 0 1.25rem;
+    flex-wrap: nowrap;
+  }
+}
+
+/**
+ * Language switch + hamburger (hamburger hidden on wide screens).
+ */
+.header-triggers {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+@media (min-width: 901px) {
+  .header-triggers {
+    margin-left: 0;
+    order: 3;
+  }
+}
+
+.nav-toggle-label {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 0.4rem 0.7rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-panel);
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  user-select: none;
+}
+
+.nav-toggle-label:hover {
+  border-color: rgba(0, 229, 255, 0.35);
+  color: var(--cyan);
+}
+
+.nav-toggle-input:checked + .brand ~ .header-triggers .nav-toggle-label {
+  border-color: rgba(255, 140, 0, 0.5);
+  color: var(--orange-bright);
+}
+
+@media (max-width: 900px) {
+  .nav-toggle-label {
+    display: inline-flex;
   }
 
-  .header-right {
-    width: 100%;
-    justify-content: flex-start;
+  .brand {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 0.95rem;
   }
 
+  .brand img {
+    width: 32px;
+    height: 32px;
+  }
+
+  /**
+   * Collapsible nav: one short top row (logo + lang + Menu), links below when open.
+   */
   .site-nav {
+    flex-basis: 100%;
     width: 100%;
-    justify-content: flex-start;
+    max-height: 0;
+    overflow: hidden;
+    flex-direction: column;
+    align-items: stretch;
+    align-content: flex-start;
+    gap: 0;
+    padding: 0;
+    margin: 0;
+    border-top: 1px solid transparent;
+    transition: max-height 0.28s ease, padding 0.2s ease, border-color 0.2s ease;
   }
 
-  .lang-switch {
-    order: -1;
-    width: 100%;
-    padding-bottom: 0.25rem;
-    border-bottom: 1px solid var(--border);
+  .nav-toggle-input:checked ~ .site-nav {
+    max-height: min(75vh, 380px);
+    overflow-y: auto;
+    padding-top: 0.5rem;
+    margin-top: 0.15rem;
+    border-top-color: var(--border);
+    gap: 0.1rem;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .site-nav a {
+    padding: 0.5rem 0.35rem;
+    border-radius: 6px;
+  }
+
+  .site-nav a:hover {
+    background: rgba(0, 229, 255, 0.06);
+  }
+
+  .site-nav .nav-cta {
+    margin-top: 0.35rem;
+    justify-content: center;
+    text-align: center;
+  }
+}
+
+@media (min-width: 901px) {
+  .nav-toggle-label {
+    display: none !important;
   }
 }
 
@@ -170,16 +278,20 @@ button:focus-visible {
   box-shadow: var(--glow-orange);
 }
 
-/**
- * Wraps primary nav + language switch so the bar stays aligned on wide screens.
- */
-.header-right {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.65rem 1rem;
-  flex: 1;
+@media (min-width: 901px) {
+  .brand {
+    order: 1;
+  }
+
+  .site-nav {
+    order: 2;
+    flex: 1;
+    justify-content: flex-end;
+  }
+
+  .header-triggers {
+    order: 3;
+  }
 }
 
 /**
@@ -249,6 +361,27 @@ button:focus-visible {
   filter: brightness(1.08);
   text-decoration: none;
   color: #0a0a0c !important;
+}
+
+/**
+ * Homepage emphasis — learning / practice story (Jam, MIDI, rhythm + looper).
+ */
+.learn-strip {
+  margin: 2.5rem 0 1rem;
+  padding: 1.5rem 1.35rem;
+  border-radius: var(--radius);
+  border: 1px solid rgba(0, 229, 255, 0.18);
+  background: linear-gradient(145deg, rgba(0, 229, 255, 0.06), rgba(255, 140, 0, 0.04));
+}
+
+.learn-strip .section-title {
+  margin-top: 0;
+  margin-bottom: 1rem;
+}
+
+.learn-strip .card h3 {
+  color: var(--cyan);
+  font-size: 1rem;
 }
 
 /* ── Layout ─────────────────────────────────────────────────── */
@@ -464,22 +597,34 @@ main {
 }
 
 /* ── Screenshots ────────────────────────────────────────────── */
-.shot-grid {
-  display: grid;
-  gap: 1rem;
-  grid-template-columns: 1fr;
+/**
+ * Single screenshot inside handbook pages (prose).
+ */
+.figure-doc {
+  margin: 1.5rem 0;
 }
 
-@media (min-width: 700px) {
-  .shot-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
+.figure-doc img {
+  width: 100%;
+  height: auto;
+  display: block;
+  vertical-align: middle;
 }
 
-@media (min-width: 1000px) {
-  .shot-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
+.figure-doc figcaption {
+  padding: 0.65rem 1rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+/**
+ * One app preview on the homepage (not a gallery).
+ */
+.home-app-preview {
+  max-width: 920px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .figure-card {

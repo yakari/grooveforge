@@ -12,27 +12,29 @@
   <a class="skip-link" href="#main">Aller au contenu</a>
   <header class="site-header">
     <div class="header-inner">
+      <input type="checkbox" id="gf-nav-menu" class="nav-toggle-input">
       <a class="brand" href="../">
         <img src="../../assets/icon.png" width="40" height="40" alt="">
         GrooveForge
       </a>
-      <div class="header-right">
-        <nav class="site-nav" aria-label="Navigation principale">
-          <a href="../guide/">Guide</a>
-          <a href="../modules/">Modules</a>
-          <a href="../midi-fx/">MIDI FX</a>
-          <a href="../vst/">VST3</a>
-          <a href="../gfdrum/">Patterns (.gfdrum)</a>
-          <a href="../gfpd/">Descripteurs (.gfpd)</a>
-          <a href="../features/">Toutes les fonctionnalités</a>
-          <a href="../../demo/" class="nav-cta">Démo web</a>
-        </nav>
+      <div class="header-triggers">
         <span class="lang-switch" aria-label="Langue">
           <a href="../../midi-fx/" hreflang="en">EN</a>
           <span class="lang-sep" aria-hidden="true">·</span>
           <span class="lang-current" aria-current="true">FR</span>
         </span>
+        <label for="gf-nav-menu" class="nav-toggle-label">Menu</label>
       </div>
+      <nav class="site-nav" aria-label="Navigation principale">
+        <a href="../guide/">Guide</a>
+        <a href="../modules/">Modules</a>
+        <a href="../midi-fx/">MIDI FX</a>
+        <a href="../vst/">VST3</a>
+        <a href="../gfdrum/">Patterns (.gfdrum)</a>
+        <a href="../gfpd/">Descripteurs (.gfpd)</a>
+        <a href="../features/">Toutes les fonctionnalités</a>
+        <a href="../../demo/" class="nav-cta">Démo web</a>
+      </nav>
     </div>
   </header>
 
@@ -57,6 +59,11 @@
       vers l’instrument suivant ou un autre MIDI FX. Chaînes multiples et branches parallèles : mêmes règles que pour l’audio,
       ports compatibles uniquement.
     </p>
+
+    <figure class="figure-card figure-doc">
+      <img src="../../assets/screenshots/04_grooveforge_back_wiring.png" width="920" height="518" loading="lazy" alt="Vue arrière du rack : jacks MIDI et câbles entre slots">
+      <figcaption>Vue patch : enchaînez MIDI FX entre le contrôleur et l’instrument — mêmes règles de compatibilité de ports que pour l’audio.</figcaption>
+    </figure>
 
     <h2>Plugins MIDI FX fournis</h2>
     <table class="download-table">

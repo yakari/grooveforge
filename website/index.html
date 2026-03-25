@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="GrooveForge — cross-platform DAW, soundfont synth, VST3 hosting, Jam Mode, MIDI FX, and drum patterns.">
-  <title>GrooveForge — Cross-platform music workstation</title>
+  <meta name="description" content="GrooveForge — learn chords and scales with Jam Mode, practice with a real MIDI keyboard, drum grooves instead of a metronome, and a looper locked to the same transport.">
+  <title>GrooveForge — Learn harmony, practice with rhythm</title>
   <link rel="icon" type="image/png" href="assets/icon.png">
   <link rel="stylesheet" href="css/site.css">
 </head>
@@ -12,40 +12,48 @@
   <a class="skip-link" href="#main">Skip to content</a>
   <header class="site-header">
     <div class="header-inner">
+      <input type="checkbox" id="gf-nav-menu" class="nav-toggle-input">
       <a class="brand" href="./">
         <img src="assets/icon.png" width="40" height="40" alt="">
         GrooveForge
       </a>
-      <div class="header-right">
-        <nav class="site-nav" aria-label="Primary">
-          <a href="guide/">Guide</a>
-          <a href="modules/">Modules</a>
-          <a href="midi-fx/">MIDI FX</a>
-          <a href="vst/">VST3</a>
-          <a href="gfdrum/">Rhythmic patterns</a>
-          <a href="gfpd/">Plugin descriptors</a>
-          <a href="features/">All features</a>
-          <a href="demo/" class="nav-cta">Try web demo</a>
-        </nav>
+      <div class="header-triggers">
         <span class="lang-switch" aria-label="Language">
           <span class="lang-current" aria-current="true">EN</span>
           <span class="lang-sep" aria-hidden="true">·</span>
           <a href="fr/" hreflang="fr">FR</a>
         </span>
+        <label for="gf-nav-menu" class="nav-toggle-label">Menu</label>
       </div>
+      <nav class="site-nav" aria-label="Primary">
+        <a href="guide/">Guide</a>
+        <a href="modules/">Modules</a>
+        <a href="midi-fx/">MIDI FX</a>
+        <a href="vst/">VST3</a>
+        <a href="gfdrum/">Rhythmic patterns</a>
+        <a href="gfpd/">Plugin descriptors</a>
+        <a href="features/">All features</a>
+        <a href="demo/" class="nav-cta">Try web demo</a>
+      </nav>
     </div>
   </header>
 
   <main id="main">
     <section class="hero">
       <div class="hero-copy">
-        <p class="hero-tagline">Soundfont · VST3 · Jam Mode</p>
-        <h1>Forge your groove</h1>
+        <p class="hero-tagline">Harmony · Scales · Groove</p>
+        <h1>Practice music theory with your ears</h1>
         <p>
-          GrooveForge is an open-source Flutter workstation: a plugin rack with multi-timbral SoundFont synthesis,
-          descriptor-based audio and MIDI effects, hardware MIDI, an intelligent Jam Mode for scale practice,
-          and a transport-synced drum pattern engine. Run it on Linux, macOS, Windows, Android — or try the
-          browser build.
+          GrooveForge is an open-source workstation built around <strong>Jam Mode</strong>: follow a master part (chords or bass),
+          see harmony on a live display, and let connected instruments <strong>lock to the same scale</strong> — “wrong”
+          notes snap to the nearest degree and the keyboard lights up so you <strong>hear and see</strong> what fits.
+          Plug in a <strong>real MIDI keyboard</strong> or use the on-screen keys; the same patch rack routes everything.
+        </p>
+        <p>
+          When you practice time, skip the lonely metronome click: fire up <strong>rhythmic patterns</strong> (bundled
+          <code>.gfdrum</code> grooves with swing, fills, and humanisation) locked to the <strong>transport bar</strong>.
+          Layer phrases in the <strong>MIDI Looper</strong> while the drums run — both stay in sync because they share BPM,
+          play/stop, and time signature.
         </p>
         <div class="hero-actions">
           <a class="btn btn-primary" href="demo/">Launch web demo</a>
@@ -58,6 +66,40 @@
       </div>
     </section>
 
+    <section class="learn-strip" aria-labelledby="learn-heading">
+      <h2 class="section-title" id="learn-heading">Built for learning and practice</h2>
+      <div class="card-grid three">
+        <article class="card">
+          <h3>Jam Mode — harmony you can play with</h3>
+          <p>
+            Discover how <strong>chords imply scales</strong>, choose scale types, and keep follow instruments inside the
+            tonality. Optional highlighting shows roots, safe notes, and slips — ideal for ear training and improvisation
+            drills.
+          </p>
+        </article>
+        <article class="card">
+          <h3>Your MIDI controller, same workflow</h3>
+          <p>
+            Connect a <strong>hardware MIDI keyboard</strong> or pad controller; notes and CCs flow through Jam Mode,
+            SoundFont or VST slots, and MIDI FX exactly like the touch keyboard. Practice with the gear you already own.
+          </p>
+        </article>
+        <article class="card">
+          <h3>Grooves + looper, one transport</h3>
+          <p>
+            The <strong>Drum Generator</strong> reads expressive patterns instead of a dry tick. The <strong>MIDI Looper</strong>
+            records and overdubs alongside those drums because both follow the <strong>shared transport</strong> — always
+            aligned, always musical.
+          </p>
+        </article>
+      </div>
+    </section>
+
+    <figure class="figure-card figure-doc home-app-preview">
+      <img src="assets/screenshots/01_grooveforge_main.png" width="920" height="518" loading="lazy" alt="GrooveForge main window: vertical rack of plugin slots, transport bar with BPM and play controls">
+      <figcaption>Main rack and transport — detailed screenshots for preferences, modules, patch cables, and Jam Mode are on the matching doc pages.</figcaption>
+    </figure>
+
     <h2 class="section-title">Explore the docs</h2>
     <div class="card-grid three">
       <article class="card">
@@ -66,7 +108,7 @@
       </article>
       <article class="card">
         <h3><a href="modules/">Built-in modules</a></h3>
-        <p>Keyboard, Virtual Piano, Vocoder, Stylophone, Theremin, Jam Mode, Looper, Drum Generator, and more.</p>
+        <p>Keyboard, Virtual Piano, Vocoder, Jam Mode, Looper, Drum Generator, Stylophone, Theremin, and more.</p>
       </article>
       <article class="card">
         <h3><a href="midi-fx/">MIDI FX</a></h3>
@@ -84,30 +126,6 @@
         <h3><a href="gfpd/">Plugin descriptors (.gfpd)</a></h3>
         <p>Author audio effects and MIDI FX without Dart: the GrooveForge Plugin Descriptor format.</p>
       </article>
-    </div>
-
-    <h2 class="section-title">Screenshots</h2>
-    <div class="shot-grid">
-      <figure class="figure-card">
-        <img src="assets/screenshots/01_grooveforge_main.png" width="800" height="450" loading="lazy" alt="Main rack view with plugin slots and transport">
-        <figcaption>Main rack and transport</figcaption>
-      </figure>
-      <figure class="figure-card">
-        <img src="assets/screenshots/02_grooveforge_prefs.png" width="800" height="450" loading="lazy" alt="Preferences screen with MIDI and audio options">
-        <figcaption>Preferences</figcaption>
-      </figure>
-      <figure class="figure-card">
-        <img src="assets/screenshots/03_grooveforge_modules.png" width="800" height="450" loading="lazy" alt="Module panels including keyboard and effects">
-        <figcaption>Module panels</figcaption>
-      </figure>
-      <figure class="figure-card">
-        <img src="assets/screenshots/04_grooveforge_back_wiring.png" width="800" height="450" loading="lazy" alt="Back of rack patch view with MIDI and audio cables">
-        <figcaption>Back-panel routing</figcaption>
-      </figure>
-      <figure class="figure-card">
-        <img src="assets/screenshots/05_grooveforge_jam_mode.png" width="800" height="450" loading="lazy" alt="Jam Mode scale display and controls">
-        <figcaption>Jam Mode</figcaption>
-      </figure>
     </div>
 
     <h2 class="section-title">Links</h2>

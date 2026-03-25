@@ -12,27 +12,29 @@
   <a class="skip-link" href="#main">Skip to content</a>
   <header class="site-header">
     <div class="header-inner">
+      <input type="checkbox" id="gf-nav-menu" class="nav-toggle-input">
       <a class="brand" href="../">
         <img src="../assets/icon.png" width="40" height="40" alt="">
         GrooveForge
       </a>
-      <div class="header-right">
-        <nav class="site-nav" aria-label="Primary">
-          <a href="../guide/">Guide</a>
-          <a href="../modules/">Modules</a>
-          <a href="../midi-fx/">MIDI FX</a>
-          <a href="../vst/">VST3</a>
-          <a href="../gfdrum/">Rhythmic patterns</a>
-          <a href="../gfpd/">Plugin descriptors</a>
-          <a href="../features/">All features</a>
-          <a href="../demo/" class="nav-cta">Try web demo</a>
-        </nav>
+      <div class="header-triggers">
         <span class="lang-switch" aria-label="Language">
           <span class="lang-current" aria-current="true">EN</span>
           <span class="lang-sep" aria-hidden="true">·</span>
           <a href="../fr/gfpd/" hreflang="fr">FR</a>
         </span>
+        <label for="gf-nav-menu" class="nav-toggle-label">Menu</label>
       </div>
+      <nav class="site-nav" aria-label="Primary">
+        <a href="../guide/">Guide</a>
+        <a href="../modules/">Modules</a>
+        <a href="../midi-fx/">MIDI FX</a>
+        <a href="../vst/">VST3</a>
+        <a href="../gfdrum/">Rhythmic patterns</a>
+        <a href="../gfpd/">Plugin descriptors</a>
+        <a href="../features/">All features</a>
+        <a href="../demo/" class="nav-cta">Try web demo</a>
+      </nav>
     </div>
   </header>
 
@@ -48,6 +50,11 @@
       YAML: no Flutter UI code and no recompile for experiments (you can also load a file from disk via
       <strong>Load .gfpd from file…</strong> in the add-plugin sheet).
     </p>
+
+    <figure class="figure-card figure-doc">
+      <img src="../assets/screenshots/03_grooveforge_modules.png" width="920" height="518" loading="lazy" alt="Rack slots showing descriptor-based effect panels with rotary controls">
+      <figcaption>Descriptor plugins appear as normal rack cards — auto-generated knobs and sliders from the <code>ui:</code> block in each <code>.gfpd</code> file.</figcaption>
+    </figure>
 
     <h2>Plugin types</h2>
     <table class="download-table">

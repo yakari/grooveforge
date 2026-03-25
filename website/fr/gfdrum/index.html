@@ -12,27 +12,29 @@
   <a class="skip-link" href="#main">Aller au contenu</a>
   <header class="site-header">
     <div class="header-inner">
+      <input type="checkbox" id="gf-nav-menu" class="nav-toggle-input">
       <a class="brand" href="../">
         <img src="../../assets/icon.png" width="40" height="40" alt="">
         GrooveForge
       </a>
-      <div class="header-right">
-        <nav class="site-nav" aria-label="Navigation principale">
-          <a href="../guide/">Guide</a>
-          <a href="../modules/">Modules</a>
-          <a href="../midi-fx/">MIDI FX</a>
-          <a href="../vst/">VST3</a>
-          <a href="../gfdrum/">Patterns (.gfdrum)</a>
-          <a href="../gfpd/">Descripteurs (.gfpd)</a>
-          <a href="../features/">Toutes les fonctionnalités</a>
-          <a href="../../demo/" class="nav-cta">Démo web</a>
-        </nav>
+      <div class="header-triggers">
         <span class="lang-switch" aria-label="Langue">
           <a href="../../gfdrum/" hreflang="en">EN</a>
           <span class="lang-sep" aria-hidden="true">·</span>
           <span class="lang-current" aria-current="true">FR</span>
         </span>
+        <label for="gf-nav-menu" class="nav-toggle-label">Menu</label>
       </div>
+      <nav class="site-nav" aria-label="Navigation principale">
+        <a href="../guide/">Guide</a>
+        <a href="../modules/">Modules</a>
+        <a href="../midi-fx/">MIDI FX</a>
+        <a href="../vst/">VST3</a>
+        <a href="../gfdrum/">Patterns (.gfdrum)</a>
+        <a href="../gfpd/">Descripteurs (.gfpd)</a>
+        <a href="../features/">Toutes les fonctionnalités</a>
+        <a href="../../demo/" class="nav-cta">Démo web</a>
+      </nav>
     </div>
   </header>
 
@@ -41,6 +43,11 @@
       <h1>Patterns <code>.gfdrum</code></h1>
       <p class="lead">Fichiers YAML déclaratifs pour le générateur de batterie : grilles de pas, humanisation et structure musicale.</p>
     </div>
+
+    <figure class="figure-card figure-doc">
+      <img src="../../assets/screenshots/01_grooveforge_main.png" width="920" height="518" loading="lazy" alt="Rack avec slot générateur de batterie et barre de transport (BPM, lecture)">
+      <figcaption>Le générateur de batterie est un slot comme les autres : les patterns suivent le <strong>transport</strong> (BPM, lecture/arrêt, signature) avec le looper et le métronome.</figcaption>
+    </figure>
 
     <h2>Contenu d’un fichier pattern</h2>
     <p>

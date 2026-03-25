@@ -12,27 +12,29 @@
   <a class="skip-link" href="#main">Skip to content</a>
   <header class="site-header">
     <div class="header-inner">
+      <input type="checkbox" id="gf-nav-menu" class="nav-toggle-input">
       <a class="brand" href="../">
         <img src="../assets/icon.png" width="40" height="40" alt="">
         GrooveForge
       </a>
-      <div class="header-right">
-        <nav class="site-nav" aria-label="Primary">
-          <a href="../guide/">Guide</a>
-          <a href="../modules/">Modules</a>
-          <a href="../midi-fx/">MIDI FX</a>
-          <a href="../vst/">VST3</a>
-          <a href="../gfdrum/">Rhythmic patterns</a>
-          <a href="../gfpd/">Plugin descriptors</a>
-          <a href="../features/">All features</a>
-          <a href="../demo/" class="nav-cta">Try web demo</a>
-        </nav>
+      <div class="header-triggers">
         <span class="lang-switch" aria-label="Language">
           <span class="lang-current" aria-current="true">EN</span>
           <span class="lang-sep" aria-hidden="true">·</span>
           <a href="../fr/gfdrum/" hreflang="fr">FR</a>
         </span>
+        <label for="gf-nav-menu" class="nav-toggle-label">Menu</label>
       </div>
+      <nav class="site-nav" aria-label="Primary">
+        <a href="../guide/">Guide</a>
+        <a href="../modules/">Modules</a>
+        <a href="../midi-fx/">MIDI FX</a>
+        <a href="../vst/">VST3</a>
+        <a href="../gfdrum/">Rhythmic patterns</a>
+        <a href="../gfpd/">Plugin descriptors</a>
+        <a href="../features/">All features</a>
+        <a href="../demo/" class="nav-cta">Try web demo</a>
+      </nav>
     </div>
   </header>
 
@@ -41,6 +43,11 @@
       <h1><code>.gfdrum</code> patterns</h1>
       <p class="lead">Declarative YAML drum patterns for the Drum Generator: step grids, humanisation, and song structure.</p>
     </div>
+
+    <figure class="figure-card figure-doc">
+      <img src="../assets/screenshots/01_grooveforge_main.png" width="920" height="518" loading="lazy" alt="Rack with Drum Generator slot and transport bar showing BPM and playback">
+      <figcaption>The Drum Generator is a rack slot like any other: patterns follow the <strong>transport</strong> (BPM, play/stop, time signature) together with the looper and metronome.</figcaption>
+    </figure>
 
     <h2>What a pattern file contains</h2>
     <p>

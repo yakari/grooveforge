@@ -12,27 +12,29 @@
   <a class="skip-link" href="#main">Skip to content</a>
   <header class="site-header">
     <div class="header-inner">
+      <input type="checkbox" id="gf-nav-menu" class="nav-toggle-input">
       <a class="brand" href="../">
         <img src="../assets/icon.png" width="40" height="40" alt="">
         GrooveForge
       </a>
-      <div class="header-right">
-        <nav class="site-nav" aria-label="Primary">
-          <a href="../guide/">Guide</a>
-          <a href="../modules/">Modules</a>
-          <a href="../midi-fx/">MIDI FX</a>
-          <a href="../vst/">VST3</a>
-          <a href="../gfdrum/">Rhythmic patterns</a>
-          <a href="../gfpd/">Plugin descriptors</a>
-          <a href="../features/">All features</a>
-          <a href="../demo/" class="nav-cta">Try web demo</a>
-        </nav>
+      <div class="header-triggers">
         <span class="lang-switch" aria-label="Language">
           <span class="lang-current" aria-current="true">EN</span>
           <span class="lang-sep" aria-hidden="true">·</span>
           <a href="../fr/vst/" hreflang="fr">FR</a>
         </span>
+        <label for="gf-nav-menu" class="nav-toggle-label">Menu</label>
       </div>
+      <nav class="site-nav" aria-label="Primary">
+        <a href="../guide/">Guide</a>
+        <a href="../modules/">Modules</a>
+        <a href="../midi-fx/">MIDI FX</a>
+        <a href="../vst/">VST3</a>
+        <a href="../gfdrum/">Rhythmic patterns</a>
+        <a href="../gfpd/">Plugin descriptors</a>
+        <a href="../features/">All features</a>
+        <a href="../demo/" class="nav-cta">Try web demo</a>
+      </nav>
     </div>
   </header>
 
@@ -72,6 +74,11 @@
       master bus or additional effects. Order follows the cable graph (topological processing). Save the project to capture
       both rack layout and VST parameter snapshots in the <code>.gf</code> file.
     </p>
+
+    <figure class="figure-card figure-doc">
+      <img src="../assets/screenshots/04_grooveforge_back_wiring.png" width="920" height="518" loading="lazy" alt="Audio cables between rack slots in patch view">
+      <figcaption>Audio graph example — keyboard or effect OUT into a VST’s IN, then onward to the master bus or more inserts.</figcaption>
+    </figure>
 
     <h2>Build requirements</h2>
     <p>

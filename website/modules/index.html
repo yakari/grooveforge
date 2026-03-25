@@ -12,27 +12,29 @@
   <a class="skip-link" href="#main">Skip to content</a>
   <header class="site-header">
     <div class="header-inner">
+      <input type="checkbox" id="gf-nav-menu" class="nav-toggle-input">
       <a class="brand" href="../">
         <img src="../assets/icon.png" width="40" height="40" alt="">
         GrooveForge
       </a>
-      <div class="header-right">
-        <nav class="site-nav" aria-label="Primary">
-          <a href="../guide/">Guide</a>
-          <a href="../modules/">Modules</a>
-          <a href="../midi-fx/">MIDI FX</a>
-          <a href="../vst/">VST3</a>
-          <a href="../gfdrum/">Rhythmic patterns</a>
-          <a href="../gfpd/">Plugin descriptors</a>
-          <a href="../features/">All features</a>
-          <a href="../demo/" class="nav-cta">Try web demo</a>
-        </nav>
+      <div class="header-triggers">
         <span class="lang-switch" aria-label="Language">
           <span class="lang-current" aria-current="true">EN</span>
           <span class="lang-sep" aria-hidden="true">·</span>
           <a href="../fr/modules/" hreflang="fr">FR</a>
         </span>
+        <label for="gf-nav-menu" class="nav-toggle-label">Menu</label>
       </div>
+      <nav class="site-nav" aria-label="Primary">
+        <a href="../guide/">Guide</a>
+        <a href="../modules/">Modules</a>
+        <a href="../midi-fx/">MIDI FX</a>
+        <a href="../vst/">VST3</a>
+        <a href="../gfdrum/">Rhythmic patterns</a>
+        <a href="../gfpd/">Plugin descriptors</a>
+        <a href="../features/">All features</a>
+        <a href="../demo/" class="nav-cta">Try web demo</a>
+      </nav>
     </div>
   </header>
 
@@ -41,6 +43,11 @@
       <h1>Built-in modules</h1>
       <p class="lead">What each rack slot type does and how it connects to the rest of the patch.</p>
     </div>
+
+    <figure class="figure-card figure-doc">
+      <img src="../assets/screenshots/03_grooveforge_modules.png" width="920" height="518" loading="lazy" alt="Expanded module panels: keyboard, controls, and slot headers in the rack">
+      <figcaption>Typical slot panels — SoundFont keyboard, knobs, channel badges, and per-slot actions vary by module type.</figcaption>
+    </figure>
 
     <h2>GrooveForge Keyboard</h2>
     <p>
@@ -73,6 +80,11 @@
       <strong>target</strong> keyboards and vocoders lock to the derived scale. Includes scale type, BPM-aligned root updates,
       and optional pin strip under the transport. Pairs with Virtual Piano Scale IN or internal scale lock on keyboards.
     </p>
+
+    <figure class="figure-card figure-doc">
+      <img src="../assets/screenshots/05_grooveforge_jam_mode.png" width="920" height="518" loading="lazy" alt="Jam Mode slot showing scale name, type selector, and target routing">
+      <figcaption>Jam Mode — live scale readout, scale family, master/target configuration, and optional compact strip under the transport.</figcaption>
+    </figure>
 
     <h2>MIDI Looper</h2>
     <p>

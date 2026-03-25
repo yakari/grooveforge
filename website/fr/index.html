@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="GrooveForge — station musicale multi-plateforme, synthèse SoundFont, VST3, Jam Mode, effets MIDI et patterns de batterie.">
-  <title>GrooveForge — Station musicale multi-plateforme</title>
+  <meta name="description" content="GrooveForge — apprendre accords et gammes avec le Jam Mode, pratiquer au clavier MIDI réel, grooves plutôt qu’un métronome, looper synchronisé au transport.">
+  <title>GrooveForge — Harmonie, gammes et rythme pour pratiquer</title>
   <link rel="icon" type="image/png" href="../assets/icon.png">
   <link rel="stylesheet" href="../css/site.css">
 </head>
@@ -12,40 +12,48 @@
   <a class="skip-link" href="#main">Aller au contenu</a>
   <header class="site-header">
     <div class="header-inner">
+      <input type="checkbox" id="gf-nav-menu" class="nav-toggle-input">
       <a class="brand" href="./">
         <img src="../assets/icon.png" width="40" height="40" alt="">
         GrooveForge
       </a>
-      <div class="header-right">
-        <nav class="site-nav" aria-label="Navigation principale">
-          <a href="guide/">Guide</a>
-          <a href="modules/">Modules</a>
-          <a href="midi-fx/">MIDI FX</a>
-          <a href="vst/">VST3</a>
-          <a href="gfdrum/">Patterns (.gfdrum)</a>
-          <a href="gfpd/">Descripteurs (.gfpd)</a>
-          <a href="features/">Toutes les fonctionnalités</a>
-          <a href="../demo/" class="nav-cta">Démo web</a>
-        </nav>
+      <div class="header-triggers">
         <span class="lang-switch" aria-label="Langue">
           <a href="../" hreflang="en">EN</a>
           <span class="lang-sep" aria-hidden="true">·</span>
           <span class="lang-current" aria-current="true">FR</span>
         </span>
+        <label for="gf-nav-menu" class="nav-toggle-label">Menu</label>
       </div>
+      <nav class="site-nav" aria-label="Navigation principale">
+        <a href="guide/">Guide</a>
+        <a href="modules/">Modules</a>
+        <a href="midi-fx/">MIDI FX</a>
+        <a href="vst/">VST3</a>
+        <a href="gfdrum/">Patterns (.gfdrum)</a>
+        <a href="gfpd/">Descripteurs (.gfpd)</a>
+        <a href="features/">Toutes les fonctionnalités</a>
+        <a href="../demo/" class="nav-cta">Démo web</a>
+      </nav>
     </div>
   </header>
 
   <main id="main">
     <section class="hero">
       <div class="hero-copy">
-        <p class="hero-tagline">SoundFont · VST3 · Jam Mode</p>
-        <h1>Forgez votre groove</h1>
+        <p class="hero-tagline">Harmonie · Gammes · Groove</p>
+        <h1>Travaillez l’harmonie à l’oreille</h1>
         <p>
-          GrooveForge est une station de travail open source sous Flutter : rack de plugins avec synthèse SoundFont
-          multi-timbrale, effets audio et MIDI décrits par fichiers, MIDI matériel, un Jam Mode intelligent pour
-          travailler les gammes, et un moteur de patterns de batterie synchronisé au transport. Exécutez-le sous
-          Linux, macOS, Windows, Android — ou essayez la version navigateur.
+          GrooveForge est une station open source centrée sur le <strong>Jam Mode</strong> : suivez une piste maître (accords ou basse),
+          lisez l’harmonie sur un affichage en direct et laissez les instruments esclaves se <strong>verrouiller sur la même gamme</strong>
+          — les notes « dehors » sont ramenées au degré le plus proche et le clavier s’illumine pour que vous <strong>entendiez et voyiez</strong>
+          ce qui convient. Branchez un <strong>vrai clavier MIDI</strong> ou utilisez le clavier tactile ; le même rack route tout.
+        </p>
+        <p>
+          Pour le travail du temps, oubliez le métronome sec : lancez des <strong>patterns rythmiques</strong> (grooves <code>.gfdrum</code>
+          fournis, avec swing, fills et humanisation) calés sur la <strong>barre de transport</strong>. Superposez des idées dans le
+          <strong>MIDI Looper</strong> pendant que la batterie joue — les deux suivent le même BPM, lecture/arrêt et signature :
+          rien ne décale.
         </p>
         <div class="hero-actions">
           <a class="btn btn-primary" href="../demo/">Ouvrir la démo web</a>
@@ -58,6 +66,40 @@
       </div>
     </section>
 
+    <section class="learn-strip" aria-labelledby="learn-heading-fr">
+      <h2 class="section-title" id="learn-heading-fr">Pensé pour apprendre et pratiquer</h2>
+      <div class="card-grid three">
+        <article class="card">
+          <h3>Jam Mode — une harmonie jouable</h3>
+          <p>
+            Découvrez comment les <strong>accords suggèrent des gammes</strong>, choisissez le type de gamme et gardez les pistes suiveuses
+            dans la tonalité. La coloration optionnelle montre fondamentales, notes « sûres » et écarts — idéal pour l’oreille et
+            l’improvisation guidée.
+          </p>
+        </article>
+        <article class="card">
+          <h3>Votre contrôleur MIDI, le même flux</h3>
+          <p>
+            Connectez un <strong>clavier ou pads MIDI</strong> ; notes et CC traversent Jam Mode, SoundFont ou VST et MIDI FX comme
+            pour le clavier à l’écran. Pratiquez avec le matériel que vous avez déjà.
+          </p>
+        </article>
+        <article class="card">
+          <h3>Grooves + looper, un seul transport</h3>
+          <p>
+            Le <strong>générateur de batterie</strong> lit des grooves expressifs plutôt qu’un simple tic. Le <strong>Looper MIDI</strong>
+            enregistre et surdouble avec la batterie parce que tout est piloté par le <strong>transport partagé</strong> — toujours
+            aligné, toujours musical.
+          </p>
+        </article>
+      </div>
+    </section>
+
+    <figure class="figure-card figure-doc home-app-preview">
+      <img src="../assets/screenshots/01_grooveforge_main.png" width="920" height="518" loading="lazy" alt="Fenêtre GrooveForge : rack vertical de slots et barre de transport">
+      <figcaption>Rack principal et transport — les autres captures (préférences, modules, câblage, Jam Mode) sont dans les pages de doc correspondantes.</figcaption>
+    </figure>
+
     <h2 class="section-title">Documentation</h2>
     <div class="card-grid three">
       <article class="card">
@@ -66,7 +108,7 @@
       </article>
       <article class="card">
         <h3><a href="modules/">Modules intégrés</a></h3>
-        <p>Clavier, piano virtuel, vocodeur, Stylophone, Theremin, Jam Mode, Looper, générateur de batterie, etc.</p>
+        <p>Clavier, piano virtuel, vocodeur, Jam Mode, Looper, générateur de batterie, Stylophone, Theremin, etc.</p>
       </article>
       <article class="card">
         <h3><a href="midi-fx/">MIDI FX</a></h3>
@@ -84,30 +126,6 @@
         <h3><a href="gfpd/">Descripteurs (.gfpd)</a></h3>
         <p>Créez effets audio et MIDI FX sans Dart : le format GrooveForge Plugin Descriptor.</p>
       </article>
-    </div>
-
-    <h2 class="section-title">Captures d’écran</h2>
-    <div class="shot-grid">
-      <figure class="figure-card">
-        <img src="../assets/screenshots/01_grooveforge_main.png" width="800" height="450" loading="lazy" alt="Vue principale du rack et barre de transport">
-        <figcaption>Rack principal et transport</figcaption>
-      </figure>
-      <figure class="figure-card">
-        <img src="../assets/screenshots/02_grooveforge_prefs.png" width="800" height="450" loading="lazy" alt="Écran des préférences MIDI et audio">
-        <figcaption>Préférences</figcaption>
-      </figure>
-      <figure class="figure-card">
-        <img src="../assets/screenshots/03_grooveforge_modules.png" width="800" height="450" loading="lazy" alt="Panneaux de modules clavier et effets">
-        <figcaption>Panneaux de modules</figcaption>
-      </figure>
-      <figure class="figure-card">
-        <img src="../assets/screenshots/04_grooveforge_back_wiring.png" width="800" height="450" loading="lazy" alt="Vue arrière du rack avec câbles MIDI et audio">
-        <figcaption>Routage patch arrière</figcaption>
-      </figure>
-      <figure class="figure-card">
-        <img src="../assets/screenshots/05_grooveforge_jam_mode.png" width="800" height="450" loading="lazy" alt="Affichage de gamme et contrôles Jam Mode">
-        <figcaption>Jam Mode</figcaption>
-      </figure>
     </div>
 
     <h2 class="section-title">Liens</h2>

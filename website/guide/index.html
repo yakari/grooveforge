@@ -12,27 +12,29 @@
   <a class="skip-link" href="#main">Skip to content</a>
   <header class="site-header">
     <div class="header-inner">
+      <input type="checkbox" id="gf-nav-menu" class="nav-toggle-input">
       <a class="brand" href="../">
         <img src="../assets/icon.png" width="40" height="40" alt="">
         GrooveForge
       </a>
-      <div class="header-right">
-        <nav class="site-nav" aria-label="Primary">
-          <a href="../guide/">Guide</a>
-          <a href="../modules/">Modules</a>
-          <a href="../midi-fx/">MIDI FX</a>
-          <a href="../vst/">VST3</a>
-          <a href="../gfdrum/">Rhythmic patterns</a>
-          <a href="../gfpd/">Plugin descriptors</a>
-          <a href="../features/">All features</a>
-          <a href="../demo/" class="nav-cta">Try web demo</a>
-        </nav>
+      <div class="header-triggers">
         <span class="lang-switch" aria-label="Language">
           <span class="lang-current" aria-current="true">EN</span>
           <span class="lang-sep" aria-hidden="true">·</span>
           <a href="../fr/guide/" hreflang="fr">FR</a>
         </span>
+        <label for="gf-nav-menu" class="nav-toggle-label">Menu</label>
       </div>
+      <nav class="site-nav" aria-label="Primary">
+        <a href="../guide/">Guide</a>
+        <a href="../modules/">Modules</a>
+        <a href="../midi-fx/">MIDI FX</a>
+        <a href="../vst/">VST3</a>
+        <a href="../gfdrum/">Rhythmic patterns</a>
+        <a href="../gfpd/">Plugin descriptors</a>
+        <a href="../features/">All features</a>
+        <a href="../demo/" class="nav-cta">Try web demo</a>
+      </nav>
     </div>
   </header>
 
@@ -49,6 +51,11 @@
       cable icon toggles the <strong>back-of-rack</strong> view where MIDI and audio jacks are wired together.
     </p>
 
+    <figure class="figure-card figure-doc">
+      <img src="../assets/screenshots/01_grooveforge_main.png" width="920" height="518" loading="lazy" alt="Main rack with plugin slots and the transport bar (BPM, play, time signature)">
+      <figcaption>The vertical rack and shared transport — add slots with <strong>+</strong>, expand a card for its panel, use the cable icon for patch view.</figcaption>
+    </figure>
+
     <h2>Transport</h2>
     <p>
       The transport bar sets <strong>BPM</strong>, time signature, play/stop, tap tempo, and metronome.
@@ -64,6 +71,11 @@
       routing (including audio cycles).
     </p>
 
+    <figure class="figure-card figure-doc">
+      <img src="../assets/screenshots/04_grooveforge_back_wiring.png" width="920" height="518" loading="lazy" alt="Back-of-rack view with coloured MIDI and audio jacks and curved cables">
+      <figcaption>Patch view: long-press an output jack to drag a cable to a compatible input (MIDI, audio, scale, etc.).</figcaption>
+    </figure>
+
     <h2>Projects (.gf)</h2>
     <p>
       Use the project menu to <strong>Open</strong>, <strong>Save</strong>, or <strong>Save As</strong>.
@@ -78,6 +90,11 @@
       MIDI device listing, <strong>CC mapping</strong> (map hardware controls to volume, patch sweep, looper actions,
       scale cycle, and more), audio devices, and Jam Mode visual options.
     </p>
+
+    <figure class="figure-card figure-doc">
+      <img src="../assets/screenshots/02_grooveforge_prefs.png" width="920" height="518" loading="lazy" alt="Preferences: MIDI devices, CC mapping, keyboard defaults, and audio options">
+      <figcaption>Preferences — global keyboard behaviour, MIDI routing, CC mapping to actions (looper, patch sweep, scale cycle), and devices.</figcaption>
+    </figure>
 
     <p><a href="../">← Home</a> · <a href="../modules/">Built-in modules →</a></p>
   </main>

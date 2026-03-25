@@ -12,27 +12,29 @@
   <a class="skip-link" href="#main">Aller au contenu</a>
   <header class="site-header">
     <div class="header-inner">
+      <input type="checkbox" id="gf-nav-menu" class="nav-toggle-input">
       <a class="brand" href="../">
         <img src="../../assets/icon.png" width="40" height="40" alt="">
         GrooveForge
       </a>
-      <div class="header-right">
-        <nav class="site-nav" aria-label="Navigation principale">
-          <a href="../guide/">Guide</a>
-          <a href="../modules/">Modules</a>
-          <a href="../midi-fx/">MIDI FX</a>
-          <a href="../vst/">VST3</a>
-          <a href="../gfdrum/">Patterns (.gfdrum)</a>
-          <a href="../gfpd/">Descripteurs (.gfpd)</a>
-          <a href="../features/">Toutes les fonctionnalités</a>
-          <a href="../../demo/" class="nav-cta">Démo web</a>
-        </nav>
+      <div class="header-triggers">
         <span class="lang-switch" aria-label="Langue">
           <a href="../../gfpd/" hreflang="en">EN</a>
           <span class="lang-sep" aria-hidden="true">·</span>
           <span class="lang-current" aria-current="true">FR</span>
         </span>
+        <label for="gf-nav-menu" class="nav-toggle-label">Menu</label>
       </div>
+      <nav class="site-nav" aria-label="Navigation principale">
+        <a href="../guide/">Guide</a>
+        <a href="../modules/">Modules</a>
+        <a href="../midi-fx/">MIDI FX</a>
+        <a href="../vst/">VST3</a>
+        <a href="../gfdrum/">Patterns (.gfdrum)</a>
+        <a href="../gfpd/">Descripteurs (.gfpd)</a>
+        <a href="../features/">Toutes les fonctionnalités</a>
+        <a href="../../demo/" class="nav-cta">Démo web</a>
+      </nav>
     </div>
   </header>
 
@@ -48,6 +50,11 @@
       de nouveaux plugins en écrivant du YAML : pas de code d’interface Flutter ni recompilation pour expérimenter (vous pouvez
       aussi charger un fichier depuis le disque via <strong>Charger un fichier .gfpd…</strong> dans la feuille d’ajout de plugin).
     </p>
+
+    <figure class="figure-card figure-doc">
+      <img src="../../assets/screenshots/03_grooveforge_modules.png" width="920" height="518" loading="lazy" alt="Slots du rack : panneaux d’effets générés depuis des descripteurs avec potentiomètres">
+      <figcaption>Les plugins descripteurs apparaissent comme des cartes rack normales — potentiomètres et faders générés depuis le bloc <code>ui:</code> de chaque fichier <code>.gfpd</code>.</figcaption>
+    </figure>
 
     <h2>Types de plugins</h2>
     <table class="download-table">

@@ -12,27 +12,29 @@
   <a class="skip-link" href="#main">Aller au contenu</a>
   <header class="site-header">
     <div class="header-inner">
+      <input type="checkbox" id="gf-nav-menu" class="nav-toggle-input">
       <a class="brand" href="../">
         <img src="../../assets/icon.png" width="40" height="40" alt="">
         GrooveForge
       </a>
-      <div class="header-right">
-        <nav class="site-nav" aria-label="Navigation principale">
-          <a href="../guide/">Guide</a>
-          <a href="../modules/">Modules</a>
-          <a href="../midi-fx/">MIDI FX</a>
-          <a href="../vst/">VST3</a>
-          <a href="../gfdrum/">Patterns (.gfdrum)</a>
-          <a href="../gfpd/">Descripteurs (.gfpd)</a>
-          <a href="../features/">Toutes les fonctionnalités</a>
-          <a href="../../demo/" class="nav-cta">Démo web</a>
-        </nav>
+      <div class="header-triggers">
         <span class="lang-switch" aria-label="Langue">
           <a href="../../modules/" hreflang="en">EN</a>
           <span class="lang-sep" aria-hidden="true">·</span>
           <span class="lang-current" aria-current="true">FR</span>
         </span>
+        <label for="gf-nav-menu" class="nav-toggle-label">Menu</label>
       </div>
+      <nav class="site-nav" aria-label="Navigation principale">
+        <a href="../guide/">Guide</a>
+        <a href="../modules/">Modules</a>
+        <a href="../midi-fx/">MIDI FX</a>
+        <a href="../vst/">VST3</a>
+        <a href="../gfdrum/">Patterns (.gfdrum)</a>
+        <a href="../gfpd/">Descripteurs (.gfpd)</a>
+        <a href="../features/">Toutes les fonctionnalités</a>
+        <a href="../../demo/" class="nav-cta">Démo web</a>
+      </nav>
     </div>
   </header>
 
@@ -41,6 +43,11 @@
       <h1>Modules intégrés</h1>
       <p class="lead">Rôle de chaque type de slot et comment il se branche au reste du patch.</p>
     </div>
+
+    <figure class="figure-card figure-doc">
+      <img src="../../assets/screenshots/03_grooveforge_modules.png" width="920" height="518" loading="lazy" alt="Cartes de modules dans le rack : clavier, effets et contrôles">
+      <figcaption>Chaque slot développé montre son panneau — instruments SoundFont, effets <code>.gfpd</code>, MIDI FX, Jam Mode, looper, batterie, etc.</figcaption>
+    </figure>
 
     <h2>Clavier GrooveForge</h2>
     <p>
@@ -75,6 +82,11 @@
       fondamentale alignée sur le BPM et bandeau épinglé sous le transport. S’associe au Scale IN du piano virtuel ou au
       verrouillage de gamme interne des claviers.
     </p>
+
+    <figure class="figure-card figure-doc">
+      <img src="../../assets/screenshots/05_grooveforge_jam_mode.png" width="920" height="518" loading="lazy" alt="Jam Mode : affichage de gamme et contrôles sous le transport">
+      <figcaption>Jam Mode — canal maître, type de gamme, fondamentale et bandeau sous le transport ; les cibles se verrouillent sur la gamme dérivée.</figcaption>
+    </figure>
 
     <h2>MIDI Looper</h2>
     <p>
