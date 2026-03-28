@@ -49,14 +49,6 @@ GrooveForge was mainly developed as a tool to **learn scales** through the **Jam
 *   **Per-slot keyboard config**  
     Tap the tune icon (⊞) next to the MIDI channel badge to set visible key count, key height (Compact / Normal / Large / Extra Large), vertical/horizontal gesture actions (pitch bend, vibrato, glissando), and aftertouch destination CC. Stored in the project file.
 
-### Virtual Piano
-
-*   **On-screen piano, no built-in sound**  
-    A rack slot with a touch keyboard and MIDI IN / MIDI OUT / Scale IN jacks. Notes and expression (pitch bend, CC) are sent only through cables—e.g. to a GF Keyboard, VST3, or Looper. Ideal for driving other instruments with scale locking (Jam Mode → Scale IN).
-
-*   **Scale locking**  
-    When a Jam Mode Scale OUT (or other scale source) is wired to Scale IN, the keyboard highlights allowed notes and snaps played notes to the scale.
-
 ### Vocoder (GFPA)
 
 *   **Dedicated slot**  

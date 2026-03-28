@@ -49,10 +49,10 @@ jobs:
         run: |
           REPO="${{ github.event.repository.name }}"
           rm -rf gh_pages_bundle
-          mkdir -p gh_pages_bundle/demo gh_pages_bundle/docs gh_pages_bundle/assets/screenshots
+          mkdir -p gh_pages_bundle/demo gh_pages_bundle/docs/site gh_pages_bundle/assets/screenshots
           cp -r website/. gh_pages_bundle/
           cp -r build/web/. gh_pages_bundle/demo/
-          cp docs/features.md docs/features.fr.md docs/privacy.md docs/privacy.fr.md gh_pages_bundle/docs/
+          cp docs/site/features.md docs/site/features.fr.md docs/site/privacy.md docs/site/privacy.fr.md gh_pages_bundle/docs/site/
           cp splashscreen.png icon.png gh_pages_bundle/assets/
           cp assets/screenshots/*.png gh_pages_bundle/assets/screenshots/
 

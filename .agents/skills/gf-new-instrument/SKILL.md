@@ -8,14 +8,14 @@ Scaffold a new GrooveForge instrument (synthesizer, sampler, drum machine, effec
 
 - [ ] Create `lib/instruments/<instrument_name>/` directory.
 - [ ] Implement the instrument class extending or composing the relevant GFPA interface from `packages/grooveforge_plugin_api/`.
-- [ ] Keep the audio callback allocation-free (see [audio-safety skill](../audio-safety/SKILL.md)).
+- [ ] Keep the audio callback allocation-free (see [audio-safety skill](../gf-audio-safety/SKILL.md)).
 - [ ] Create a corresponding UI widget in `lib/instruments/<instrument_name>/<instrument_name>_panel.dart`.
 - [ ] Make the UI panel responsive — support at least `desktop`, `tablet`, and `phone` form factors using `LayoutBuilder`.
 - [ ] Add the instrument to the rack registry so it can be instantiated from the UI.
 
 ### 2. Strings
 
-- [ ] Add all user-visible labels, tooltips, and error messages via the l10n workflow (see [l10n skill](../l10n/SKILL.md)).
+- [ ] Add all user-visible labels, tooltips, and error messages via the l10n workflow (see [l10n skill](../gf-l10n/SKILL.md)).
 
 ### 3. Tests
 
@@ -24,7 +24,7 @@ Scaffold a new GrooveForge instrument (synthesizer, sampler, drum machine, effec
 
 ### 4. Changelog
 
-- [ ] Record the new instrument under `### Added` in both changelogs (see [changelog skill](../changelog/SKILL.md)).
+- [ ] Record the new instrument under `### Added` in both changelogs (see [changelog skill](../gf-changelog/SKILL.md)).
 
 ## Key packages
 
