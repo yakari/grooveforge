@@ -1,6 +1,30 @@
-# Skill: release
+---
+name: gf-release
+description: Cut a new GrooveForge release by updating changelogs and pubspec.yaml to the user-supplied version number.
+argument-hint: "<version>  e.g. 3.0.0"
+allowed-tools: Read, Edit
+---
 
-Cut a new GrooveForge release when the user provides a version number.
+## Danger zone
+
+`gf-release` makes permanent changes to version metadata. Never invent a version number — the user must supply it. If any pre-release check fails, stop and report before proceeding.
+
+---
+
+## Pre-release checklist
+
+Verify each item before making any changes:
+
+| Check | How to verify | Expected result |
+|---|---|---|
+| No analysis warnings | Run `flutter analyze` | `No issues found` |
+| Both changelogs updated | Read top of each file | A `## [X.x.x]` placeholder block exists |
+| Version in pubspec | Read `pubspec.yaml` | Shows the previous version (not the new one yet) |
+| Placeholder not already dated | Grep for `[X.x.x]` | Match found (i.e. it is still a placeholder, not yet a date) |
+
+If no `## [X.x.x]` placeholder exists in either changelog, stop and ask the user what entries to include before proceeding.
+
+---
 
 ## Steps
 
@@ -14,7 +38,6 @@ In **both** `CHANGELOG.md` and `CHANGELOG.fr.md`:
 
 1. Find the `## [X.x.x]` placeholder at the top.
 2. Replace it with `## [<version>] - <today's date in YYYY-MM-DD format>`.
-3. If no placeholder exists, ask the user what to include before proceeding.
 
 ### 3. Update `pubspec.yaml`
 
@@ -30,12 +53,24 @@ In **both** `CHANGELOG.md` and `CHANGELOG.fr.md`:
 
 ### 5. Suggest next steps (do not execute without confirmation)
 
-```
+Present the following as a copyable block for the user to run when ready:
+
+```bash
 git add CHANGELOG.md CHANGELOG.fr.md pubspec.yaml
 git commit -m "chore: release v<version>"
 git tag v<version>
+# Push when ready: git push && git push --tags
 ```
+
+---
 
 ## Version format
 
-`<major>.<minor>.<patch>+<build>` — build number increments monotonically with every release, never resets.
+`<major>.<minor>.<patch>+<build>` — the build number increments monotonically with every release and never resets to zero.
+
+| Field | Example | Rule |
+|---|---|---|
+| `major` | `3` | Breaking changes or major milestones |
+| `minor` | `1` | New features, backwards-compatible |
+| `patch` | `2` | Bug fixes only |
+| `build` | `+43` | Always `previous + 1`, never reused |
