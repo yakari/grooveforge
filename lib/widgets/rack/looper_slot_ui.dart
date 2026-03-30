@@ -398,7 +398,7 @@ class _TrackList extends StatelessWidget {
 
 // ── Track row ─────────────────────────────────────────────────────────────────
 
-/// One recorded loop track: label + chord grid + mute/reverse/speed/delete.
+/// One recorded loop track: label + bar strip + mute/reverse/speed/delete.
 class _TrackRow extends StatelessWidget {
   final String slotId;
   final LoopTrack track;
@@ -437,10 +437,11 @@ class _TrackRow extends StatelessWidget {
             ),
           ),
 
-          // Chord grid — scrollable horizontally.
+          // Bar strip — scrollable horizontally, one cell per bar.
           Expanded(
-            child: _ChordGrid(
+            child: _BarStrip(
               track: track,
+              barCount: track.barCount(engine.beatsPerBar),
               l10n: l10n,
               currentBar: engine.currentPlaybackBarForTrack(slotId, track),
             ),
@@ -461,52 +462,51 @@ class _TrackRow extends StatelessWidget {
   }
 }
 
-// ── Chord grid ────────────────────────────────────────────────────────────────
+// ── Bar strip ────────────────────────────────────────────────────────────────
 
-/// A horizontally scrollable row of bar cells, each showing the chord detected
-/// during recording for that bar (or "—" if none was identified).
+/// A horizontally scrollable row of bar-number cells, one per bar in the loop.
 ///
 /// When [currentBar] is non-null the matching cell is highlighted with a green
 /// glow to indicate the loop's current playback position.
-class _ChordGrid extends StatelessWidget {
+class _BarStrip extends StatelessWidget {
   final LoopTrack track;
+
+  /// Total number of bars in this track (derived from loop length and time
+  /// signature).
+  final int barCount;
+
   final AppLocalizations l10n;
 
   /// 0-based index of the bar currently being played back, or null when not
   /// playing (idle / recording without playback).
   final int? currentBar;
 
-  const _ChordGrid({
+  const _BarStrip({
     required this.track,
+    required this.barCount,
     required this.l10n,
     this.currentBar,
   });
 
   @override
   Widget build(BuildContext context) {
-    final bars = track.chordPerBar;
-
-    // During recording, the chordPerBar may be empty. Show a placeholder.
-    if (bars.isEmpty) {
+    // During recording the track has no length yet. Show a placeholder.
+    if (barCount == 0) {
       return Text(
-        track.lengthInBeats == null ? '…' : l10n.looperNoChord,
+        track.lengthInBeats == null ? '…' : '—',
         style: const TextStyle(color: Colors.white38, fontSize: 10),
       );
     }
-
-    final maxBar = bars.keys.reduce((a, b) => a > b ? a : b);
 
     return SizedBox(
       height: 22,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        itemCount: maxBar + 1,
+        itemCount: barCount,
         separatorBuilder: (_, _) => const SizedBox(width: 2),
         itemBuilder: (ctx, bar) {
-          final chord = bars[bar];
           return _BarCell(
             barIndex: bar,
-            chord: chord,
             l10n: l10n,
             isPlaying: bar == currentBar,
           );
@@ -516,13 +516,13 @@ class _ChordGrid extends StatelessWidget {
   }
 }
 
-/// A single bar cell in the chord grid.
+/// A single bar-number cell in the bar strip.
 ///
-/// When [isPlaying] is true the cell is highlighted with a green glow to
-/// indicate the loop's current playback position.
+/// Displays the 1-based bar number.  When [isPlaying] is true the cell is
+/// highlighted with a green glow to indicate the loop's current playback
+/// position.
 class _BarCell extends StatelessWidget {
   final int barIndex;
-  final String? chord;
   final AppLocalizations l10n;
 
   /// Whether the looper's playhead is currently inside this bar.
@@ -530,32 +530,17 @@ class _BarCell extends StatelessWidget {
 
   const _BarCell({
     required this.barIndex,
-    required this.chord,
     required this.l10n,
     this.isPlaying = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final hasChord = chord != null && chord!.isNotEmpty;
-
-    // Playhead highlight takes priority over the chord colour so the active
-    // bar is always immediately visible regardless of chord presence.
-    final borderColor = isPlaying
-        ? _kLcdText
-        : hasChord
-            ? _kPlayColor.withValues(alpha: 0.4)
-            : _kBorder;
+    final borderColor = isPlaying ? _kLcdText : _kBorder;
     final bgColor = isPlaying
         ? _kLcdText.withValues(alpha: 0.18)
-        : hasChord
-            ? _kPlayColor.withValues(alpha: 0.12)
-            : Colors.white.withValues(alpha: 0.03);
-    final textColor = isPlaying
-        ? _kLcdText
-        : hasChord
-            ? _kPlayColor
-            : Colors.white38;
+        : Colors.white.withValues(alpha: 0.03);
+    final textColor = isPlaying ? _kLcdText : Colors.white38;
 
     return Tooltip(
       message: l10n.looperBar(barIndex + 1),
@@ -578,7 +563,7 @@ class _BarCell extends StatelessWidget {
         ),
         child: Center(
           child: Text(
-            hasChord ? chord! : l10n.looperNoChord,
+            '${barIndex + 1}',
             style: TextStyle(
               color: textColor,
               fontSize: 10,

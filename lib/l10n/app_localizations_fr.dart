@@ -881,9 +881,6 @@ class AppLocalizationsFr extends AppLocalizations {
   String get looperMute => 'Muet';
 
   @override
-  String get looperNoChord => '—';
-
-  @override
   String looperBar(int n) {
     return 'Mesure $n';
   }

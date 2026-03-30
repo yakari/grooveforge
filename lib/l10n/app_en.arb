@@ -354,7 +354,6 @@
   "looperDoubleSpeed": "2×",
   "looperReverse": "Reverse",
   "looperMute": "Mute",
-  "looperNoChord": "—",
   "looperBar": "Bar {n}",
   "@looperBar": {
     "placeholders": {

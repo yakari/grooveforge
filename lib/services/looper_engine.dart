@@ -81,18 +81,6 @@ class LooperSession {
   /// Used to compute [TimestampedMidiEvent.beatOffset] for each event.
   double recordingStartBeat;
 
-  /// Notes heard per bar during the current recording pass, used for
-  /// per-bar chord detection at each bar boundary.
-  /// Key = bar index relative to recording start; value = set of MIDI pitches.
-  final Map<int, Set<int>> notesInBar;
-
-  /// The last recording-relative bar index whose notes have been flushed to
-  /// [LoopTrack.chordPerBar].  Updated each time [_detectBeatCrossings]
-  /// advances past a bar boundary.  Allows [stopRecording] to flush any
-  /// bars that crossed just before the user pressed stop (i.e. before the
-  /// next timer tick had a chance to flush them).
-  int prevRelativeBar;
-
   /// Previous beat-floor value observed by the playback ticker.
   /// Used to detect transport-downbeat crossings for UI notifications.
   double prevBeatFloor;
@@ -121,8 +109,6 @@ class LooperSession {
       : state = LooperState.idle,
         tracks = [],
         recordingStartBeat = 0.0,
-        notesInBar = {},
-        prevRelativeBar = 0,
         prevBeatFloor = 0.0,
         prevPlaybackBeat = 0.0,
         ccAssignments = {},
@@ -189,10 +175,6 @@ class LooperSession {
 /// (within [_syncToleranceBeat] beats), the engine treats it as "just missed"
 /// and starts playback immediately rather than waiting a full extra bar.
 ///
-/// ### Chord detection
-/// During recording, at each bar-crossing the engine collects all note pitches
-/// heard in the bar that just ended and calls [LoopTrack.detectAndStoreChord].
-/// The result is shown in the looper UI as a chord grid.
 class LooperEngine extends ChangeNotifier {
   final TransportEngine _transport;
 
@@ -227,6 +209,10 @@ class LooperEngine extends ChangeNotifier {
 
   /// Returns the session for [slotId], or null if not yet initialised.
   LooperSession? session(String slotId) => _sessions[slotId];
+
+  /// The current time signature numerator from the transport, exposed so the
+  /// UI can compute bar counts from [LoopTrack.lengthInBeats].
+  int get beatsPerBar => _transport.timeSigNumerator;
 
   /// Creates a session for [slotId] if one does not already exist.
   void ensureSession(String slotId) {
@@ -283,17 +269,6 @@ class LooperEngine extends ChangeNotifier {
         _applyQuantization(track);
       }
     }
-
-    // Flush any bars that have not yet been processed by the timer tick.
-    // This covers two cases:
-    //   1. The final partial bar (still being recorded when stop was pressed).
-    //   2. A bar boundary that crossed just before stop but after the last tick,
-    //      so prevRelativeBar is behind by one or more bars.
-    final finalRelBar = _currentRelativeBar(s);
-    for (int bar = s.prevRelativeBar; bar <= finalRelBar; bar++) {
-      _flushBarChord(s, barIndex: bar);
-    }
-    s.prevRelativeBar = finalRelBar;
 
     final hasPlayableTracks =
         s.tracks.any((t) => t.lengthInBeats != null && t.events.isNotEmpty);
@@ -601,7 +576,6 @@ class LooperEngine extends ChangeNotifier {
     final s = _requireSession(slotId);
     _silenceAllTracks(slotId, s);
     s.tracks.clear();
-    s.notesInBar.clear();
     s.state = LooperState.idle;
     _updateTicker();
     notifyListeners();
@@ -615,14 +589,6 @@ class LooperEngine extends ChangeNotifier {
   /// Called by the rack screen for every MIDI event arriving on the cable
   /// connected to the looper's MIDI IN jack.  Events are ignored when the
   /// session is not actively recording.
-  ///
-  /// Note-on pitches are accumulated in [LooperSession.notesInBar] per
-  /// relative bar index.  Chord identification runs only at bar boundaries
-  /// (in [_detectBeatCrossings]) and at recording stop, so the complete set
-  /// of notes played during a bar — not just the first three — is used.  This
-  /// prevents false matches caused by partial note sets (e.g. {C, G} from an
-  /// octave-doubled C before Eb and Bb are played, which a chord detector
-  /// would label as a "C5" power chord rather than the intended CmMaj7).
   void feedMidiEvent(String slotId, int status, int data1, int data2) {
     final s = _sessions[slotId];
     if (s == null || !s.isRecordingActive) return;
@@ -637,14 +603,6 @@ class LooperEngine extends ChangeNotifier {
       data1: data1,
       data2: data2,
     ));
-
-    // Accumulate note-on pitches per bar for end-of-bar chord detection.
-    // Note-offs and CC events are not relevant for chord identification.
-    final isNoteOn = (status & 0xF0) == 0x90 && data2 > 0;
-    if (!isNoteOn) return;
-
-    final relativeBar = _currentRelativeBar(s);
-    s.notesInBar.putIfAbsent(relativeBar, HashSet.new).add(data1);
   }
 
   // ── CC assignment ──────────────────────────────────────────────────────
@@ -808,8 +766,6 @@ class LooperEngine extends ChangeNotifier {
     // snapping grid is locked at recording start and persisted in the project.
     session.tracks.add(LoopTrack(id: trackId, quantize: session.quantize));
     session.recordingStartBeat = _transport.positionInBeats;
-    session.notesInBar.clear();
-    session.prevRelativeBar = 0;
     session.prevBeatFloor = _transport.positionInBeats;
   }
 
@@ -825,42 +781,6 @@ class LooperEngine extends ChangeNotifier {
     final beatsPerBar = _transport.timeSigNumerator.toDouble();
     final bars = (rawBeats / beatsPerBar).round().clamp(1, 1 << 20);
     return bars * beatsPerBar;
-  }
-
-  /// Returns the recording-relative bar index for the current transport
-  /// position.
-  ///
-  /// Bar 0 spans `[recordingStartBeat, recordingStartBeat + N)`, bar 1 spans
-  /// the next N beats, etc. (N = [TransportEngine.timeSigNumerator]).
-  ///
-  /// This is independent of the global transport bar grid: recording can start
-  /// anywhere mid-bar without causing notes to be misclassified into the wrong
-  /// relative bar.
-  int _currentRelativeBar(LooperSession session) {
-    final beats = (_transport.positionInBeats - session.recordingStartBeat)
-        .clamp(0.0, double.infinity);
-    return (beats / _transport.timeSigNumerator).floor();
-  }
-
-  /// Runs chord detection on [barIndex] (relative to recording start) and
-  /// stores the result in the active recording track.
-  ///
-  /// Called at bar boundaries (passing the bar that just *ended*) and at
-  /// recording stop (passing the current partial bar).
-  ///
-  /// Bars with no notes played (e.g. a partial tail bar the user recorded
-  /// nothing in) are skipped so they do not add empty "—" cells to the chord
-  /// grid beyond the actual recorded content.
-  void _flushBarChord(LooperSession session, {required int barIndex}) {
-    final track = session.activeRecordingTrack;
-    if (track == null) return;
-
-    // Use the full set of notes accumulated across the entire bar so that
-    // chords are identified from all notes played, not just the first three.
-    final notes = session.notesInBar[barIndex];
-    if (notes == null || notes.isEmpty) return;
-
-    track.detectAndStoreChord(barIndex, notes);
   }
 
   /// Sorts [track.events] by beat offset so playback iteration is O(scan).
@@ -1027,13 +947,13 @@ class LooperEngine extends ChangeNotifier {
 
   void _tickSession(LooperSession session, double currentBeat) {
     // If we are waiting for a bar boundary, check for it and return early —
-    // no chord detection or MIDI playback until the bar fires.
+    // no MIDI playback until the bar fires.
     if (session.state == LooperState.waitingForBar) {
       _checkWaitingForBar(session, currentBeat);
       return;
     }
 
-    // Detect beat crossings for chord detection during recording.
+    // Detect bar-boundary crossings to update the bar-strip highlight.
     _detectBeatCrossings(session, currentBeat);
 
     if (session.isPlayingActive) {
@@ -1132,33 +1052,15 @@ class LooperEngine extends ChangeNotifier {
     session.prevBeatFloor = currentBeat;
   }
 
-  /// Checks whether the recording or playback has crossed a bar boundary since
-  /// the last tick, and reacts accordingly.
+  /// Checks whether the playback has crossed a bar boundary since the last
+  /// tick and notifies listeners so the bar-strip highlight advances.
   ///
-  /// **Recording** — uses the recording-relative bar index
-  /// ([_currentRelativeBar]) which is independent of the global transport
-  /// phase.  When the relative bar advances, all completed bars since the last
-  /// flush are processed and [notifyListeners] is called so the chord grid
-  /// updates in real time.
-  ///
-  /// **Playback** — uses the transport-level beat-floor to detect downbeats
-  /// (same formula as [TransportEngine.onBeat]).  Notifies listeners on each
-  /// downbeat so the chord-grid bar highlight advances.
+  /// Uses the transport-level beat-floor to detect downbeats (same formula as
+  /// [TransportEngine.onBeat]).
   void _detectBeatCrossings(LooperSession session, double currentBeat) {
     bool needsNotify = false;
 
-    if (session.isRecordingActive) {
-      // Compare the recording-relative bar index against the last flushed bar.
-      // If the bar has advanced, flush all completed bars between them.
-      final currentRelBar = _currentRelativeBar(session);
-      if (currentRelBar > session.prevRelativeBar) {
-        for (int bar = session.prevRelativeBar; bar < currentRelBar; bar++) {
-          _flushBarChord(session, barIndex: bar);
-        }
-        session.prevRelativeBar = currentRelBar;
-        needsNotify = true;
-      }
-    } else if (session.isPlayingActive) {
+    if (session.isPlayingActive) {
       // Detect transport-level downbeats for the bar-highlight UI pulse.
       final currFloor = currentBeat.floor();
       final prevFloor = session.prevBeatFloor.floor();

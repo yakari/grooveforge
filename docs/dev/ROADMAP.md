@@ -2,7 +2,7 @@
 
 > **Current released version:** 2.9.0
 > **Next milestone:** TBD — MIDI Looper rework (remove chord detection, simplify, then add audio looper)
-> **Last updated:** 2026-03-28
+> **Last updated:** 2026-03-30
 
 ---
 
@@ -225,14 +225,14 @@ These tasks complete the distributable `.vst3` bundle story started in Phase 3b.
 
 The current looper stores per-bar chord names (detected via `ChordDetector`) and displays them in a chord grid strip. This adds complexity for marginal benefit — the bar display itself (length, current bar, overdub position) is the genuinely useful part. The goal is to strip chord detection out entirely, simplify the engine and UI down to what matters, then build the audio looper on top of the cleaner foundation.
 
-### 🎹 Step 1 — Remove chord detection
+### ✅ Step 1 — Remove chord detection
 
-- [ ] Remove `chordsPerBar` / `chordPerBar` fields from `LoopTrack` model; remove from `toJson`/`fromJson`.
-- [ ] Remove `_detectBeatCrossings` and `_flushBarChord` from `LooperEngine`.
-- [ ] Remove `LoopTrack.detectAndStoreChord` and its `ChordDetector` dependency.
-- [ ] Remove `chordPerBar` from `.gf` save/load in `ProjectService` (keep backward-compat read that silently drops the field).
-- [ ] Update `LooperSlotUI` chord grid strip: replace chord name labels with plain bar-number cells (bar 1, bar 2, …). Keep: current-bar highlight, overdub-bar indicator, tap-to-set-resume-point.
-- [ ] Remove any `ChordDetector` import from looper-related files; verify `dart analyze` clean.
+- [x] Remove `chordsPerBar` / `chordPerBar` fields from `LoopTrack` model; remove from `toJson`/`fromJson`.
+- [x] Remove `_detectBeatCrossings` and `_flushBarChord` from `LooperEngine`.
+- [x] Remove `LoopTrack.detectAndStoreChord` and its `ChordDetector` dependency.
+- [x] Remove `chordPerBar` from `.gf` save/load in `ProjectService` (keep backward-compat read that silently drops the field).
+- [x] Update `LooperSlotUI` chord grid strip: replace chord name labels with plain bar-number cells (bar 1, bar 2, …). Keep: current-bar highlight, overdub-bar indicator, tap-to-set-resume-point.
+- [x] Remove any `ChordDetector` import from looper-related files; verify `dart analyze` clean.
 
 ### 🎹 Step 2 — Simplify the engine
 
@@ -244,8 +244,8 @@ The current looper stores per-bar chord names (detected via `ChordDetector`) and
 ### 🎹 Step 3 — UI cleanup
 
 - [ ] Verify bar strip works correctly after removing chord labels: bar count, current-bar highlight, overdub indicator, resume-point tap.
-- [ ] Remove any chord-grid-related l10n keys that are now dead (`looperChordGrid`, etc. — check `app_en.arb`).
-- [ ] Run `flutter analyze` — no issues.
+- [x] Remove any chord-grid-related l10n keys that are now dead (`looperNoChord` removed from `app_en.arb` / `app_fr.arb`).
+- [x] Run `flutter analyze` — no issues.
 
 ### 🎹 Step 4 — Deferred looper features (reassess after rework)
 

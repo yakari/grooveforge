@@ -1670,12 +1670,6 @@ abstract class AppLocalizations {
   /// **'Mute'**
   String get looperMute;
 
-  /// No description provided for @looperNoChord.
-  ///
-  /// In en, this message translates to:
-  /// **'—'**
-  String get looperNoChord;
-
   /// No description provided for @looperBar.
   ///
   /// In en, this message translates to:
