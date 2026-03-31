@@ -25,7 +25,7 @@ const _kLcdText = Color(0xFF56E39F);        // LCD green text
 ///
 /// Renders hardware-style looper controls:
 /// - Transport strip: REC / PLAY / STOP / CLEAR buttons + state LCD.
-/// - Track list: one row per [LoopTrack] with chord-grid, mute, reverse, speed.
+/// - Track list: one row per [LoopTrack] with bar strip, mute, reverse, speed.
 /// - Pin toggle: pins this slot below the transport bar.
 ///
 /// The widget creates a looper session on first render (if one does not already

@@ -361,19 +361,20 @@ class LooperEngine extends ChangeNotifier {
   /// ### recordingStartBeat realignment
   ///
   /// Each [TimestampedMidiEvent.beatOffset] is `transportBeat - recordingStartBeat`
-  /// at record time.  The first event has some `firstOffset` (e.g. 1.64 beats —
-  /// the gap between pressing record and playing the first note on bar 1).
+  /// at record time.  Loop phase 0 corresponds to the moment recording began —
+  /// typically the bar downbeat the user armed against.
   ///
-  /// We want that first note to fire exactly at [anchorBeat], so:
+  /// We align phase 0 to [anchorBeat] (the bar downbeat) so every event fires
+  /// at its natural position within the bar grid:
   /// ```
-  ///   phase(anchorBeat) = firstOffset
-  ///   (anchorBeat − recordingStartBeat) % loopLen = firstOffset
-  ///   → recordingStartBeat = anchorBeat − firstOffset
+  ///   recordingStartBeat = anchorBeat
+  ///   phase(anchorBeat) = 0
   /// ```
   ///
-  /// This is correct both when the session was just recorded (same transport
-  /// session) and after a project reload where `recordingStartBeat` has been
-  /// reset to 0 — no JSON persistence of `recordingStartBeat` is required.
+  /// This preserves pickup notes that were played slightly before the downbeat
+  /// (they land at the very end of the loop, firing just before the next bar
+  /// boundary — matching the original feel).  It also works after a project
+  /// reload where `recordingStartBeat` has been reset to 0.
   ///
   /// ### prevPlaybackBeat initialisation
   ///
@@ -388,55 +389,21 @@ class LooperEngine extends ChangeNotifier {
   /// [_detectBeatCrossings] notifies listeners when it sees the beat-floor
   /// advance past [anchorBeat], while [_tickTrack] fires the MIDI events.
   void _activatePlayback(LooperSession s, double anchorBeat) {
-    // Re-anchor recordingStartBeat so the first note of the loop always fires
-    // exactly at anchorBeat (the bar downbeat), regardless of where in the
-    // transport the recording originally started.
-    //
-    // Why: all TimestampedMidiEvent.beatOffset values are relative to
-    // recordingStartBeat.  The first note has beatOffset = firstOffset (e.g.
-    // 1.64 beats after the user pressed record).  For it to fire at anchorBeat
-    // we need:
-    //   phase(anchorBeat) = firstOffset
-    //   (anchorBeat - recordingStartBeat) % loopLen = firstOffset
-    //   → recordingStartBeat = anchorBeat - firstOffset
-    //
-    // This is correct both in the "live" case (just recorded, same session)
-    // and after a project reload (recordingStartBeat defaults to 0.0, which
-    // would otherwise misalign the loop by firstOffset beats).
-    //
-    // prevPlaybackBeat is set to s.prevBeatFloor (the transport beat from the
-    // last tick before the downbeat) so the first _tickTrack window straddles
-    // anchorBeat and fires events at that exact phase.
-    final firstOffset = _firstEventOffset(s);
-    s.recordingStartBeat = anchorBeat - firstOffset;
+    // Align loop phase 0 to the bar downbeat.  Events fire at their recorded
+    // beat offsets relative to this anchor — pickup notes that were played
+    // before the downbeat (small offsets near 0) will fire right after the
+    // anchor, which is musically correct: they land at the start of bar 1.
+    s.recordingStartBeat = anchorBeat;
     s.prevPlaybackBeat = s.prevBeatFloor;
     s.state = LooperState.playing;
     _updateTicker();
     notifyListeners();
     debugPrint(
       '[Looper] _activatePlayback: anchorBeat=$anchorBeat  '
-      'firstOffset=$firstOffset  '
       'recordingStartBeat=${s.recordingStartBeat}  '
       'prevPlaybackBeat=${s.prevPlaybackBeat}  '
       'time=${DateTime.now().millisecondsSinceEpoch}',
     );
-  }
-
-  /// Returns the beat offset of the earliest event across all playable tracks.
-  ///
-  /// Used by [_activatePlayback] to compute the correct [LooperSession.recordingStartBeat]
-  /// so that the first note of the loop fires at the bar downbeat.
-  ///
-  /// Events within each track are already sorted by [_sortTrackEvents], so
-  /// index 0 is the earliest.  Returns 0.0 when no events are found.
-  double _firstEventOffset(LooperSession s) {
-    for (final track in s.tracks) {
-      if (track.lengthInBeats == null || track.events.isEmpty) continue;
-      // Tracks are ordered by recording time (base loop first, then overdubs).
-      // The first non-empty track's first event defines the loop's start.
-      return track.events[0].beatOffset;
-    }
-    return 0.0;
   }
 
   /// Pauses playback without clearing recordings.
@@ -759,14 +726,30 @@ class LooperEngine extends ChangeNotifier {
   }
 
   /// Initialises a new recording pass on [session]: creates a fresh [LoopTrack]
-  /// and captures the current transport beat as the reference point.
+  /// and snaps [recordingStartBeat] to the preceding bar-1 downbeat.
+  ///
+  /// Snapping to the bar boundary (rather than using the exact transport
+  /// position) ensures that event offsets are bar-relative from the start.
+  /// This makes playback alignment independent of the volatile
+  /// [recordingStartBeat] value: [_activatePlayback] can set
+  /// `recordingStartBeat = anchorBeat` (any downbeat) and every event fires
+  /// at the correct position within the bar grid — whether it is the first
+  /// play, a stop/restart, or a project reload.
   void _beginRecordingPass(LooperSession session) {
     final trackId = 'track_${DateTime.now().millisecondsSinceEpoch}';
     // Stamp the slot-level quantize setting onto the new track so that the
     // snapping grid is locked at recording start and persisted in the project.
     session.tracks.add(LoopTrack(id: trackId, quantize: session.quantize));
-    session.recordingStartBeat = _transport.positionInBeats;
-    session.prevBeatFloor = _transport.positionInBeats;
+
+    // Snap to the bar-1 downbeat at or before the current transport position.
+    // Transport downbeats are at beats 1, 5, 9, … → floor in bar-space then
+    // convert back to beat-space.
+    final pos = _transport.positionInBeats;
+    final beatsPerBar = _transport.timeSigNumerator.toDouble();
+    final barIndex = ((pos - 1.0) / beatsPerBar).floor();
+    session.recordingStartBeat = 1.0 + barIndex * beatsPerBar;
+
+    session.prevBeatFloor = pos;
   }
 
   /// Quantises [rawBeats] to the nearest whole-bar boundary.
@@ -910,7 +893,7 @@ class LooperEngine extends ChangeNotifier {
   ///
   /// For each playing session, advances per-track playheads and emits any
   /// MIDI events that have become due since the last tick.  Also handles:
-  /// - Beat-crossing detection for per-bar chord snapshotting during recording.
+  /// - Beat-crossing detection for bar-strip highlight updates.
   /// - "Just missed a downbeat" snap-to-start for loop phase alignment.
   /// - Transport stop detection (pauses all active sessions).
   void _tick(Timer _) {

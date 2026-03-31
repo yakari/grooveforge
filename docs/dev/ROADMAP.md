@@ -2,7 +2,7 @@
 
 > **Current released version:** 2.9.0
 > **Next milestone:** TBD — MIDI Looper rework (remove chord detection, simplify, then add audio looper)
-> **Last updated:** 2026-03-30
+> **Last updated:** 2026-03-31
 
 ---
 
@@ -234,18 +234,19 @@ The current looper stores per-bar chord names (detected via `ChordDetector`) and
 - [x] Update `LooperSlotUI` chord grid strip: replace chord name labels with plain bar-number cells (bar 1, bar 2, …). Keep: current-bar highlight, overdub-bar indicator, tap-to-set-resume-point.
 - [x] Remove any `ChordDetector` import from looper-related files; verify `dart analyze` clean.
 
-### 🎹 Step 2 — Simplify the engine
+### ✅ Step 2 — Simplify the engine
 
-- [ ] Audit `LooperEngine` for any other dead code revealed by removing chord detection.
-- [ ] Simplify `LoopTrack` state machine if any transitions were chord-detection-gated.
-- [ ] Confirm `LoopTrack.toJson`/`fromJson` round-trips cleanly with the stripped model.
-- [ ] Verify old `.gf` files with `chordsPerBar` still load without error.
+- [x] Audit `LooperEngine` for any other dead code revealed by removing chord detection.
+- [x] Simplify `LoopTrack` state machine if any transitions were chord-detection-gated.
+- [x] Confirm `LoopTrack.toJson`/`fromJson` round-trips cleanly with the stripped model.
+- [x] Verify old `.gf` files with `chordsPerBar` still load without error.
 
-### 🎹 Step 3 — UI cleanup
+### ✅ Step 3 — UI cleanup & bar-alignment fix
 
-- [ ] Verify bar strip works correctly after removing chord labels: bar count, current-bar highlight, overdub indicator, resume-point tap.
+- [x] Verify bar strip works correctly after removing chord labels: bar count, current-bar highlight, overdub indicator, resume-point tap.
 - [x] Remove any chord-grid-related l10n keys that are now dead (`looperNoChord` removed from `app_en.arb` / `app_fr.arb`).
 - [x] Run `flutter analyze` — no issues.
+- [x] Fix bar-alignment bug: `_beginRecordingPass` now snaps `recordingStartBeat` to the preceding bar-1 downbeat so event offsets are bar-relative from the start; `_activatePlayback` sets `recordingStartBeat = anchorBeat` so stop/restart and save/reload produce identical playback alignment; removed `_firstEventOffset` (no longer needed).
 
 ### 🎹 Step 4 — Deferred looper features (reassess after rework)
 
