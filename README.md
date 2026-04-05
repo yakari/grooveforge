@@ -27,26 +27,125 @@ GrooveForge is a cross-platform Flutter DAW application. It connects to physical
 ### All platforms
 
 - [Flutter SDK](https://flutter.dev/docs/get-started/install) (≥ 3.10)
+- [Dart SDK](https://dart.dev/get-dart) (≥ 3.7) — bundled with Flutter
+- Git
 
-### Linux (required for building and running)
+### Quick start with DevContainer
+
+The repository includes a [DevContainer](.devcontainer/devcontainer.json) configuration that sets up the full Flutter development environment automatically — all Linux dependencies, VST3 test plugins (Surge XT, Aeolus), PulseAudio passthrough, and display forwarding. This is the fastest way to get a working build environment.
+
+**Requirements:** Docker (or Podman), and VS Code with the Dev Containers extension _or_ any IDE with DevContainer support.
 
 ```bash
-# FluidSynth — synthesizer backend
-sudo apt-get install fluidsynth libfluidsynth-dev
+# Open in VS Code — the IDE will prompt to reopen in the container
+code .
 
-# ALSA and X11 — VST3 audio and editor window support
-sudo apt-get install libasound2-dev libx11-dev
-
-# GTK and other Flutter Linux dependencies
-sudo apt-get install libgtk-3-dev libblkid-dev liblzma-dev libgcrypt20-dev libmpv-dev
+# Or build manually with the CLI
+devcontainer up --workspace-folder .
 ```
 
-### macOS (required for building and running)
+> **Note:** The DevContainer routes audio to the host via PulseAudio socket and forwards
+> the display (Wayland/X11) for GTK dialogs and VST3 editor windows. USB devices
+> (`/dev/bus/usb`, `/dev/snd`) are passed through for MIDI hardware and ALSA.
+> If you encounter issues with display forwarding, audio passthrough, or USB access
+> (e.g. ADB for Android deployment), consider developing directly on the host instead.
+
+---
+
+### Linux
+
+GrooveForge requires a C/C++ toolchain, Flutter's GTK dependencies, and audio/synthesis libraries.
+
+#### Debian / Ubuntu (apt)
+
+```bash
+# Build toolchain
+sudo apt install clang lld cmake ninja-build pkg-config
+
+# Flutter Linux desktop dependencies
+sudo apt install libgtk-3-dev libblkid-dev liblzma-dev libgcrypt20-dev libstdc++-12-dev
+
+# Audio and MIDI
+sudo apt install libasound2-dev libpulse-dev
+
+# VST3 editor windows
+sudo apt install libx11-dev
+
+# Synthesizer engine
+sudo apt install libfluidsynth-dev
+
+# Media (optional, for media playback features)
+sudo apt install libmpv-dev
+```
+
+One-liner:
+
+```bash
+sudo apt install clang lld cmake ninja-build pkg-config \
+  libgtk-3-dev libblkid-dev liblzma-dev libgcrypt20-dev libstdc++-12-dev \
+  libasound2-dev libpulse-dev libx11-dev libfluidsynth-dev libmpv-dev
+```
+
+#### Fedora (dnf)
+
+```bash
+sudo dnf install clang lld cmake ninja-build pkg-config \
+  gtk3-devel libblkid-devel xz-devel libgcrypt-devel libstdc++-devel \
+  alsa-lib-devel pulseaudio-libs-devel libX11-devel fluidsynth-devel mpv-libs-devel
+```
+
+#### Arch / Manjaro (pacman)
+
+```bash
+sudo pacman -S clang lld cmake ninja pkg-config \
+  gtk3 util-linux-libs xz libgcrypt \
+  alsa-lib libpulse libx11 fluidsynth mpv
+```
+
+> On Arch, development headers are included in the main packages — no separate `-dev`/`-devel` packages needed.
+
+---
+
+### Android
+
+- [Android SDK](https://developer.android.com/studio) with platform tools (for `adb`)
+- Android NDK — installed automatically by Flutter on first build
+- Java Development Kit 17+ (e.g. [Eclipse Temurin](https://adoptium.net/) via [SDKMAN](https://sdkman.io/))
+- Min SDK: **26** (required for AAudio low-latency audio)
+
+Set up the environment:
+
+```bash
+export ANDROID_HOME="$HOME/Android/Sdk"
+export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH"
+```
+
+FluidSynth and all other native dependencies for Android are pre-built and bundled in the repository for all architectures (arm64-v8a, armeabi-v7a, x86, x86_64) — no extra system packages are required.
+
+---
+
+### macOS
 
 ```bash
 # CMake — required to build native audio and VST3 host
 brew install cmake
+
+# FluidSynth — synthesizer engine
+brew install fluidsynth
 ```
+
+Xcode Command Line Tools must be installed (`xcode-select --install`). macOS system frameworks (CoreAudio, AudioToolbox, Cocoa, Carbon) are provided by the OS.
+
+> **App Sandbox:** To load third-party VST3 plugins, the App Sandbox entitlement must be
+> disabled in `macos/Runner/Release.entitlements` and `DebugProfile.entitlements`.
+
+---
+
+### Windows (planned)
+
+- Visual Studio 2019+ (or Build Tools) with the C++ desktop workload
+- CMake ≥ 3.14
+- VST3 hosting plumbing is in place; WASAPI audio backend is not yet wired
 
 ### VST3 SDK (required to build on Linux or Windows)
 
