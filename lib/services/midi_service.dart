@@ -43,8 +43,8 @@ class MidiService {
     }
 
     if (!kIsWeb && (Platform.isLinux || Platform.isWindows || Platform.isMacOS)) {
-      debugPrint('MidiService: Starting 2s polling timer for ${Platform.operatingSystem}');
-      _pollingTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+      debugPrint('MidiService: Starting 5s polling timer for ${Platform.operatingSystem}');
+      _pollingTimer = Timer.periodic(const Duration(seconds: 5), (_) {
         _handleSetupChanged();
       });
     }
@@ -97,7 +97,6 @@ class MidiService {
       return;
     }
 
-    debugPrint('MidiService: Checking for device changes...');
     final devs = await _midiCommand.devices;
     if (devs == null) return;
 

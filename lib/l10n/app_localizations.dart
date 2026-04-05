@@ -668,6 +668,30 @@ abstract class AppLocalizations {
   /// **'Cancel'**
   String get cancelButton;
 
+  /// Generic confirm/OK button label used in dialogs
+  ///
+  /// In en, this message translates to:
+  /// **'OK'**
+  String get confirmButton;
+
+  /// Title for the fallback file picker dialog when the native file chooser is unavailable
+  ///
+  /// In en, this message translates to:
+  /// **'Select File'**
+  String get selectFile;
+
+  /// Title for the fallback directory picker dialog when the native file chooser is unavailable
+  ///
+  /// In en, this message translates to:
+  /// **'Select Directory'**
+  String get selectDirectory;
+
+  /// Label shown in the fallback file picker dialog indicating which file extensions are accepted
+  ///
+  /// In en, this message translates to:
+  /// **'Allowed types'**
+  String get filePickerAllowedTypes;
+
   /// No description provided for @resetEverythingButton.
   ///
   /// In en, this message translates to:
@@ -1693,6 +1717,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Remove CC binding'**
   String get looperCcRemove;
+
+  /// No description provided for @looperCcLearn.
+  ///
+  /// In en, this message translates to:
+  /// **'Move a knob or fader…'**
+  String get looperCcLearn;
+
+  /// No description provided for @looperCcBound.
+  ///
+  /// In en, this message translates to:
+  /// **'CC {cc} → {action}'**
+  String looperCcBound(int cc, String action);
+
+  /// No description provided for @looperActionToggleRecord.
+  ///
+  /// In en, this message translates to:
+  /// **'Record / Play'**
+  String get looperActionToggleRecord;
+
+  /// No description provided for @looperActionTogglePlay.
+  ///
+  /// In en, this message translates to:
+  /// **'Play / Pause'**
+  String get looperActionTogglePlay;
+
+  /// No description provided for @looperActionStop.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop'**
+  String get looperActionStop;
+
+  /// No description provided for @looperActionClearAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear all'**
+  String get looperActionClearAll;
+
+  /// No description provided for @looperActionOverdub.
+  ///
+  /// In en, this message translates to:
+  /// **'Overdub'**
+  String get looperActionOverdub;
+
+  /// No description provided for @looperVolume.
+  ///
+  /// In en, this message translates to:
+  /// **'Volume'**
+  String get looperVolume;
 
   /// No description provided for @looperQuantize.
   ///

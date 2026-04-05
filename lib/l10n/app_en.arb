@@ -165,6 +165,22 @@
   "resetPreferencesDialogTitle": "Reset All Preferences?",
   "resetPreferencesDialogBody": "This will clear all your settings, loaded soundfonts, and custom assignments. This action cannot be undone.",
   "cancelButton": "Cancel",
+  "confirmButton": "OK",
+  "@confirmButton": {
+    "description": "Generic confirm/OK button label used in dialogs"
+  },
+  "selectFile": "Select File",
+  "@selectFile": {
+    "description": "Title for the fallback file picker dialog when the native file chooser is unavailable"
+  },
+  "selectDirectory": "Select Directory",
+  "@selectDirectory": {
+    "description": "Title for the fallback directory picker dialog when the native file chooser is unavailable"
+  },
+  "filePickerAllowedTypes": "Allowed types",
+  "@filePickerAllowedTypes": {
+    "description": "Label shown in the fallback file picker dialog indicating which file extensions are accepted"
+  },
   "resetEverythingButton": "Reset Everything",
   "languageTitle": "Language",
   "languageSubtitle": "App interface language",
@@ -363,6 +379,20 @@
   "looperCcAssign": "Assign CC",
   "looperCcAssignTitle": "Assign hardware CC to looper action",
   "looperCcRemove": "Remove CC binding",
+  "looperCcLearn": "Move a knob or fader…",
+  "looperCcBound": "CC {cc} → {action}",
+  "@looperCcBound": {
+    "placeholders": {
+      "cc": { "type": "int" },
+      "action": { "type": "String" }
+    }
+  },
+  "looperActionToggleRecord": "Record / Play",
+  "looperActionTogglePlay": "Play / Pause",
+  "looperActionStop": "Stop",
+  "looperActionClearAll": "Clear all",
+  "looperActionOverdub": "Overdub",
+  "looperVolume": "Volume",
 
   "looperQuantize": "Quantize",
 

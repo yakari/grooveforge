@@ -784,7 +784,7 @@ class _RackScreenState extends State<RackScreen> {
     final service = context.read<ProjectService>();
 
     final path = await service.openProject(
-        rack, engine, transport, audioGraph, looper);
+        context, rack, engine, transport, audioGraph, looper);
     if (path != null && mounted) {
       setState(() => _currentProjectPath = path);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -803,7 +803,7 @@ class _RackScreenState extends State<RackScreen> {
     final service = context.read<ProjectService>();
 
     final path = await service.saveProjectAs(
-        rack, engine, transport, audioGraph, looper);
+        context, rack, engine, transport, audioGraph, looper);
     if (path != null && mounted) {
       // path is empty string on web (download triggered, no file path).
       setState(() => _currentProjectPath = path.isEmpty ? null : path);
@@ -1343,8 +1343,6 @@ class _RackList extends StatelessWidget {
               ),
               itemBuilder: (context, index) {
                 final plugin = rack.plugins[index];
-                debugPrint(
-                    'RackList: building item $index for plugin ${plugin.id}');
                 final slotKey =
                     slotKeys.putIfAbsent(plugin.id, () => GlobalKey());
                 return KeyedSubtree(

@@ -329,6 +329,18 @@ class AppLocalizationsFr extends AppLocalizations {
   String get cancelButton => 'Annuler';
 
   @override
+  String get confirmButton => 'OK';
+
+  @override
+  String get selectFile => 'Sélectionner un fichier';
+
+  @override
+  String get selectDirectory => 'Sélectionner un dossier';
+
+  @override
+  String get filePickerAllowedTypes => 'Types autorisés';
+
+  @override
   String get resetEverythingButton => 'Tout réinitialiser';
 
   @override
@@ -894,6 +906,32 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get looperCcRemove => 'Supprimer l\'assignation CC';
+
+  @override
+  String get looperCcLearn => 'Bougez un potard ou fader…';
+
+  @override
+  String looperCcBound(int cc, String action) {
+    return 'CC $cc → $action';
+  }
+
+  @override
+  String get looperActionToggleRecord => 'Enregistrer / Lire';
+
+  @override
+  String get looperActionTogglePlay => 'Lecture / Pause';
+
+  @override
+  String get looperActionStop => 'Stop';
+
+  @override
+  String get looperActionClearAll => 'Tout effacer';
+
+  @override
+  String get looperActionOverdub => 'Overdub';
+
+  @override
+  String get looperVolume => 'Volume';
 
   @override
   String get looperQuantize => 'Quantification';

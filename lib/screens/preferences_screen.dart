@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:file_picker/file_picker.dart';
+import '../services/file_picker_service.dart';
 import 'package:flutter_midi_command/flutter_midi_command.dart';
 import 'package:grooveforge/services/midi_service.dart';
 import 'package:grooveforge/services/audio_engine.dart';
@@ -113,16 +113,15 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
   }
 
   Future<void> _loadSoundfont() async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles(
-      type: FileType.any,
+    final path = await FilePickerService.pickFile(
+      context: context,
+      allowedExtensions: ['sf2', 'SF2'],
     );
 
-    if (result != null && result.files.single.path != null) {
-      File file = File(result.files.single.path!);
-      if (file.path.endsWith('.sf2') || file.path.endsWith('.SF2')) {
-        if (!mounted) return;
-        await context.read<AudioEngine>().loadSoundfont(file);
-      }
+    if (path != null) {
+      File file = File(path);
+      if (!mounted) return;
+      await context.read<AudioEngine>().loadSoundfont(file);
     }
   }
 

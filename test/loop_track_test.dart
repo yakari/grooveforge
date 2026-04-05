@@ -27,6 +27,7 @@ void main() {
         reversed: true,
         speed: LoopTrackSpeed.double_,
         quantize: LoopQuantize.eighth,
+        volumeScale: 0.75,
       );
 
       final json = original.toJson();
@@ -38,6 +39,7 @@ void main() {
       expect(restored.reversed, original.reversed);
       expect(restored.speed, original.speed);
       expect(restored.quantize, original.quantize);
+      expect(restored.volumeScale, 0.75);
       expect(restored.events.length, original.events.length);
       expect(restored.events[0].beatOffset, 0.0);
       expect(restored.events[0].status, 0x90);
@@ -60,6 +62,7 @@ void main() {
       expect(restored.reversed, false);
       expect(restored.speed, LoopTrackSpeed.normal);
       expect(restored.quantize, LoopQuantize.off);
+      expect(restored.volumeScale, 1.0);
     });
 
     test('toJson does not include chordPerBar', () {

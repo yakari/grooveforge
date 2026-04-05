@@ -165,6 +165,10 @@
   "resetPreferencesDialogTitle": "Tout réinitialiser ?",
   "resetPreferencesDialogBody": "Cela effacera tous vos réglages, soundfonts chargées et assignations personnalisées. Action irréversible.",
   "cancelButton": "Annuler",
+  "confirmButton": "OK",
+  "selectFile": "Sélectionner un fichier",
+  "selectDirectory": "Sélectionner un dossier",
+  "filePickerAllowedTypes": "Types autorisés",
   "resetEverythingButton": "Tout réinitialiser",
   "languageTitle": "Langue",
   "languageSubtitle": "Langue de l'interface",
@@ -363,6 +367,20 @@
   "looperCcAssign": "Assigner CC",
   "looperCcAssignTitle": "Assigner un CC matériel à une action du looper",
   "looperCcRemove": "Supprimer l'assignation CC",
+  "looperCcLearn": "Bougez un potard ou fader…",
+  "looperCcBound": "CC {cc} → {action}",
+  "@looperCcBound": {
+    "placeholders": {
+      "cc": { "type": "int" },
+      "action": { "type": "String" }
+    }
+  },
+  "looperActionToggleRecord": "Enregistrer / Lire",
+  "looperActionTogglePlay": "Lecture / Pause",
+  "looperActionStop": "Stop",
+  "looperActionClearAll": "Tout effacer",
+  "looperActionOverdub": "Overdub",
+  "looperVolume": "Volume",
 
   "looperQuantize": "Quantification",
 

@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 
-import 'package:file_picker/file_picker.dart';
+import '../../services/file_picker_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -267,7 +267,8 @@ class _FxInsertsSectionState extends State<_FxInsertsSection> {
     final rack = context.read<RackState>();
     final graph = context.read<AudioGraph>();
 
-    final selected = await FilePicker.platform.getDirectoryPath(
+    final selected = await FilePickerService.pickDirectory(
+      context: context,
       dialogTitle: l10n.vst3BrowseEffectTitle,
     );
     if (selected == null) return;

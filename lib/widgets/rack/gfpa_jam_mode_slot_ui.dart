@@ -76,7 +76,6 @@ class GFpaJamModeSlotUI extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    debugPrint('JamModeUI: build START');
     final rack = context.read<RackState>();
     final engine = context.read<AudioEngine>();
 

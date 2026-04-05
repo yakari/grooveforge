@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'package:file_picker/file_picker.dart';
+import '../services/file_picker_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:grooveforge_plugin_api/grooveforge_plugin_api.dart';
@@ -102,13 +102,10 @@ class _AddPluginSheetContentState extends State<_AddPluginSheetContent> {
   /// rack. The file is parsed by [GFDescriptorLoader.loadAndRegister], which
   /// also adds it to [GFPluginRegistry] for future use in this session.
   Future<void> _loadGfpdFromFile(BuildContext context, RackState rack) async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
+    final path = await FilePickerService.pickFile(
+      context: context,
       allowedExtensions: ['gfpd'],
-      withData: false,
     );
-    if (result == null || result.files.isEmpty) return;
-    final path = result.files.first.path;
     if (path == null) return;
 
     try {
@@ -206,7 +203,8 @@ class _AddPluginSheetContentState extends State<_AddPluginSheetContent> {
         ? l10n.vst3BrowseEffectTitle
         : l10n.vst3BrowseInstrumentTitle;
 
-    final selected = await FilePicker.platform.getDirectoryPath(
+    final selected = await FilePickerService.pickDirectory(
+      context: context,
       dialogTitle: dialogTitle,
     );
     if (selected == null) return;

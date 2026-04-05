@@ -158,6 +158,13 @@ class LoopTrack {
   /// is persisted in the project file and applies independently per track.
   LoopQuantize quantize;
 
+  /// Velocity multiplier applied during playback (0.0 = silent, 1.0 = full).
+  ///
+  /// MIDI note-on velocity is scaled by this factor in
+  /// [LooperEngine._fireEventsInRange] before being sent to the output.
+  /// Persisted in the project file.
+  double volumeScale;
+
   /// MIDI notes currently "on" during playback, packed as
   /// `(channelNibble << 7) | pitchByte`.  Not persisted — reset on load.
   ///
@@ -174,6 +181,7 @@ class LoopTrack {
     this.reversed = false,
     this.speed = LoopTrackSpeed.normal,
     this.quantize = LoopQuantize.off,
+    this.volumeScale = 1.0,
   })  : events = events ?? [],
         activePlaybackNotes = {};
 
@@ -200,6 +208,7 @@ class LoopTrack {
         'reversed': reversed,
         'speed': speed.name,
         'quantize': quantize.name,
+        'volumeScale': volumeScale,
       };
 
   /// Deserializes a [LoopTrack] from JSON.
@@ -222,6 +231,7 @@ class LoopTrack {
           (q) => q.name == (json['quantize'] as String?),
           orElse: () => LoopQuantize.off,
         ),
+        volumeScale: (json['volumeScale'] as num?)?.toDouble() ?? 1.0,
         // Note: 'chordPerBar' is intentionally not read — old files may still
         // contain it but we no longer use per-bar chord detection.
       );

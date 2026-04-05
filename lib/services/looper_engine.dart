@@ -558,7 +558,16 @@ class LooperEngine extends ChangeNotifier {
   /// session is not actively recording.
   void feedMidiEvent(String slotId, int status, int data1, int data2) {
     final s = _sessions[slotId];
-    if (s == null || !s.isRecordingActive) return;
+    if (s == null) return;
+
+    // Route CC events to the CC assignment handler (works in any state).
+    final isCc = (status & 0xF0) == 0xB0;
+    if (isCc) {
+      handleCc(slotId, data1, data2);
+      return; // CC events are not recorded into the loop.
+    }
+
+    if (!s.isRecordingActive) return;
 
     final track = s.activeRecordingTrack;
     if (track == null) return;
@@ -586,11 +595,24 @@ class LooperEngine extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Callback invoked when a CC event arrives while learn mode is active.
+  /// Set by the UI to capture the CC number, then cleared.
+  void Function(String slotId, int cc)? onCcLearn;
+
   /// Handles an incoming CC event for [slotId] if a binding exists.
+  ///
+  /// If [onCcLearn] is set, the CC number is forwarded to the callback
+  /// (learn mode) instead of triggering the bound action.
   ///
   /// Standard convention: value ≥ 64 = button press (trigger action);
   /// value < 64 = button release (ignored for toggle actions).
   void handleCc(String slotId, int cc, int value) {
+    // Learn mode: forward the CC number to the UI callback.
+    if (onCcLearn != null) {
+      onCcLearn!(slotId, cc);
+      onCcLearn = null;
+      return;
+    }
     if (value < 64) return; // ignore release half
     final action = _sessions[slotId]?.ccAssignments[cc];
     switch (action) {
@@ -624,6 +646,14 @@ class LooperEngine extends ChangeNotifier {
     final track = _findTrack(slotId, trackId);
     if (track == null) return;
     track.reversed = !track.reversed;
+    notifyListeners();
+  }
+
+  /// Sets the volume scale (0.0–1.0) for [trackId] in [slotId].
+  void setVolume(String slotId, String trackId, double volume) {
+    final track = _findTrack(slotId, trackId);
+    if (track == null) return;
+    track.volumeScale = volume.clamp(0.0, 1.0);
     notifyListeners();
   }
 
@@ -1138,17 +1168,23 @@ class LooperEngine extends ChangeNotifier {
           ? (track.lengthInBeats! - event.beatOffset)
           : event.beatOffset;
       if (offset > from && offset <= to) {
+        // Scale note-on velocity by the track's volume setting.
+        var vel = event.data2;
+        final isNoteOn = (event.status & 0xF0) == 0x90 && vel > 0;
+        if (isNoteOn) {
+          vel = (vel * track.volumeScale).round().clamp(1, 127);
+        }
         debugPrint(
           '[Looper] MIDI fire: slotId=$slotId  '
           'beatOffset=$offset  window=($from,$to]  '
           'status=0x${event.status.toRadixString(16)}  '
-          'note=${event.data1}  vel=${event.data2}  '
+          'note=${event.data1}  vel=$vel  '
           'time=${DateTime.now().millisecondsSinceEpoch}',
         );
-        onMidiPlayback?.call(slotId, event.status, event.data1, event.data2);
+        onMidiPlayback?.call(slotId, event.status, event.data1, vel);
         // Track which notes are currently "on" so we can silence them at loop
         // wrap-around or when playback stops.
-        _updateActiveNotes(track, event.status, event.data1, event.data2);
+        _updateActiveNotes(track, event.status, event.data1, vel);
       }
     }
   }

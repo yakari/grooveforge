@@ -91,6 +91,15 @@ class _LooperSlotUIState extends State<LooperSlotUI> {
             ),
           ],
 
+          // ── CC assignments ───────────────────────────────────────────────────
+          const Divider(height: 1, color: _kBorder),
+          _CcAssignStrip(
+            slotId: widget.plugin.id,
+            assignments: session?.ccAssignments ?? const {},
+            engine: engine,
+            l10n: l10n,
+          ),
+
           // ── Pin toggle ──────────────────────────────────────────────────────
           const Divider(height: 1, color: _kBorder),
           _PinToggle(plugin: widget.plugin, l10n: l10n),
@@ -449,6 +458,16 @@ class _TrackRow extends StatelessWidget {
 
           const SizedBox(width: 6),
 
+          // Volume slider — compact horizontal slider (0–100%).
+          _VolumeSlider(
+            slotId: slotId,
+            track: track,
+            engine: engine,
+            l10n: l10n,
+          ),
+
+          const SizedBox(width: 6),
+
           // Controls strip: mute · reverse · speed · delete.
           _TrackControls(
             slotId: slotId,
@@ -577,6 +596,52 @@ class _BarCell extends StatelessWidget {
 }
 
 // ── Track controls ────────────────────────────────────────────────────────────
+
+/// Compact horizontal volume slider for a single loop track.
+///
+/// Displays a narrow slider (0–100%) with a percentage tooltip.  The value
+/// maps to [LoopTrack.volumeScale] (0.0–1.0) and is applied as a velocity
+/// multiplier during playback.
+class _VolumeSlider extends StatelessWidget {
+  final String slotId;
+  final LoopTrack track;
+  final LooperEngine engine;
+  final AppLocalizations l10n;
+
+  const _VolumeSlider({
+    required this.slotId,
+    required this.track,
+    required this.engine,
+    required this.l10n,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final pct = (track.volumeScale * 100).round();
+    return Tooltip(
+      message: '${l10n.looperVolume}: $pct %',
+      child: SizedBox(
+        width: 56,
+        height: 20,
+        child: SliderTheme(
+          data: SliderThemeData(
+            trackHeight: 3,
+            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
+            overlayShape: const RoundSliderOverlayShape(overlayRadius: 10),
+            activeTrackColor: _kLcdText.withValues(alpha: 0.7),
+            inactiveTrackColor: _kBorder,
+            thumbColor: _kLcdText,
+            overlayColor: _kLcdText.withValues(alpha: 0.15),
+          ),
+          child: Slider(
+            value: track.volumeScale,
+            onChanged: (v) => engine.setVolume(slotId, track.id, v),
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 /// Compact strip: mute toggle, reverse toggle, speed chips, delete.
 class _TrackControls extends StatelessWidget {
@@ -820,6 +885,242 @@ class _QuantizeChip extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+// ── CC assignment strip ──────────────────────────────────────────────────────
+
+/// Returns a user-facing label for [action].
+String _actionLabel(LooperAction action, AppLocalizations l10n) =>
+    switch (action) {
+      LooperAction.toggleRecord => l10n.looperActionToggleRecord,
+      LooperAction.togglePlay => l10n.looperActionTogglePlay,
+      LooperAction.stop => l10n.looperActionStop,
+      LooperAction.clearAll => l10n.looperActionClearAll,
+      LooperAction.overdub => l10n.looperActionOverdub,
+    };
+
+/// Displays current CC → action bindings as compact chips, plus an
+/// "Assign CC" button that opens a learn-mode dialog.
+class _CcAssignStrip extends StatelessWidget {
+  final String slotId;
+  final Map<int, LooperAction> assignments;
+  final LooperEngine engine;
+  final AppLocalizations l10n;
+
+  const _CcAssignStrip({
+    required this.slotId,
+    required this.assignments,
+    required this.engine,
+    required this.l10n,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      child: Wrap(
+        spacing: 6,
+        runSpacing: 4,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          // Existing bindings as compact chips.
+          for (final entry in assignments.entries)
+            _CcChip(
+              cc: entry.key,
+              action: entry.value,
+              l10n: l10n,
+              onDelete: () => engine.removeCcAssignment(slotId, entry.key),
+            ),
+
+          // "Assign CC" button.
+          GestureDetector(
+            onTap: () => _showAssignDialog(context),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: _kPanel,
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: _kBorder),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.tune, size: 12, color: Colors.white54),
+                  const SizedBox(width: 4),
+                  Text(
+                    l10n.looperCcAssign,
+                    style: const TextStyle(
+                      color: Colors.white54,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Shows a two-step dialog: pick an action, then learn the CC number.
+  void _showAssignDialog(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (_) => _CcAssignDialog(
+        slotId: slotId,
+        engine: engine,
+        l10n: l10n,
+      ),
+    );
+  }
+}
+
+/// A tiny chip showing "CC N → Action" with a delete button.
+class _CcChip extends StatelessWidget {
+  final int cc;
+  final LooperAction action;
+  final AppLocalizations l10n;
+  final VoidCallback onDelete;
+
+  const _CcChip({
+    required this.cc,
+    required this.action,
+    required this.l10n,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(6, 3, 2, 3),
+      decoration: BoxDecoration(
+        color: _kLcdText.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: _kLcdText.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            l10n.looperCcBound(cc, _actionLabel(action, l10n)),
+            style: const TextStyle(
+              color: _kLcdText,
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(width: 2),
+          GestureDetector(
+            onTap: onDelete,
+            child: Icon(
+              Icons.close,
+              size: 12,
+              color: _kLcdText.withValues(alpha: 0.6),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Two-step dialog: 1) pick an action, 2) move a CC knob/fader to bind it.
+class _CcAssignDialog extends StatefulWidget {
+  final String slotId;
+  final LooperEngine engine;
+  final AppLocalizations l10n;
+
+  const _CcAssignDialog({
+    required this.slotId,
+    required this.engine,
+    required this.l10n,
+  });
+
+  @override
+  State<_CcAssignDialog> createState() => _CcAssignDialogState();
+}
+
+class _CcAssignDialogState extends State<_CcAssignDialog> {
+  /// The action the user picked in step 1.  Null = still picking.
+  LooperAction? _selectedAction;
+
+  @override
+  void dispose() {
+    // Cancel learn mode if the dialog is dismissed mid-learn.
+    widget.engine.onCcLearn = null;
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = widget.l10n;
+
+    return AlertDialog(
+      backgroundColor: _kBg,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: const BorderSide(color: _kBorder),
+      ),
+      title: Text(
+        l10n.looperCcAssignTitle,
+        style: const TextStyle(color: Colors.white, fontSize: 14),
+      ),
+      content: _selectedAction == null
+          ? _buildActionPicker(l10n)
+          : _buildLearnPrompt(l10n),
+    );
+  }
+
+  /// Step 1: pick which action to bind.
+  Widget _buildActionPicker(AppLocalizations l10n) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (final action in LooperAction.values)
+          ListTile(
+            dense: true,
+            title: Text(
+              _actionLabel(action, l10n),
+              style: const TextStyle(color: Colors.white70, fontSize: 13),
+            ),
+            onTap: () {
+              setState(() => _selectedAction = action);
+              _startLearn();
+            },
+          ),
+      ],
+    );
+  }
+
+  /// Step 2: waiting for a CC knob/fader move.
+  Widget _buildLearnPrompt(AppLocalizations l10n) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(Icons.sensors, size: 36, color: _kOdColor),
+        const SizedBox(height: 12),
+        Text(
+          l10n.looperCcLearn,
+          style: const TextStyle(color: Colors.white70, fontSize: 13),
+          textAlign: TextAlign.center,
+        ),
+      ],
+    );
+  }
+
+  /// Activates learn mode on the engine and waits for a CC event.
+  void _startLearn() {
+    widget.engine.onCcLearn = (slotId, cc) {
+      widget.engine.setCcAssignment(
+        widget.slotId,
+        cc,
+        _selectedAction!,
+      );
+      if (mounted) Navigator.of(context).pop();
+    };
   }
 }
 

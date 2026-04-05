@@ -2,8 +2,9 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'file_picker_service.dart';
 import 'package:path_provider/path_provider.dart';
 import 'audio_engine.dart';
 import 'audio_graph.dart';
@@ -126,19 +127,19 @@ class ProjectService extends ChangeNotifier {
 
   /// Opens a project using a file picker.
   Future<String?> openProject(
+    BuildContext context,
     RackState rackState,
     AudioEngine engine,
     TransportEngine transport,
     AudioGraph audioGraph,
     LooperEngine looperEngine,
   ) async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
+    final path = await FilePickerService.pickFile(
+      context: context,
       allowedExtensions: ['gf'],
     );
 
-    if (result != null && result.files.single.path != null) {
-      final path = result.files.single.path!;
+    if (path != null) {
       await loadProject(
           path, rackState, engine, transport, audioGraph, looperEngine);
       return path;
@@ -155,6 +156,7 @@ class ProjectService extends ChangeNotifier {
   /// [bytes] lets the plugin write the chosen path; we then set
   /// [_currentProjectPath] and return it.
   Future<String?> saveProjectAs(
+    BuildContext context,
     RackState rackState,
     AudioEngine engine,
     TransportEngine transport,
@@ -165,10 +167,10 @@ class ProjectService extends ChangeNotifier {
         rackState, engine, transport, audioGraph, looperEngine);
     final bytes = Uint8List.fromList(utf8.encode(jsonStr));
 
-    final result = await FilePicker.platform.saveFile(
+    final result = await FilePickerService.saveFile(
+      context: context,
       dialogTitle: 'Save Project As',
       fileName: 'project.gf',
-      type: FileType.custom,
       allowedExtensions: ['gf'],
       bytes: bytes,
     );

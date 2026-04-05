@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [X.x.x]
+
+### Added
+- **Looper — per-track volume slider**: each `LoopTrack` now has a `volumeScale` field (0.0–1.0, persisted in `.gf`). Note-on velocity is multiplied by this factor in `_fireEventsInRange` during playback. A compact `_VolumeSlider` widget appears in each `_TrackRow`.
+- **Looper — CC assignment UI**: new `_CcAssignStrip` widget in `LooperSlotUI` displays current CC → action bindings as deletable chips. The "Assign CC" button opens `_CcAssignDialog`: pick an action (Record/Play, Play/Pause, Stop, Clear, Overdub), then move any hardware knob or fader to bind it. Learn mode via `LooperEngine.onCcLearn` callback.
+- **Looper — CC routing**: `feedMidiEvent` now detects CC messages (status `0xB0`) and routes them to `handleCc` so hardware CC bindings work without separate wiring in the rack screen.
+
+### Architecture
+- **Looper — chord detection removed**: stripped `chordPerBar`, `detectAndStoreChord`, `_flushBarChord`, `_detectBeatCrossings` recording branch, `notesInBar`, and `prevRelativeBar` from `LoopTrack` and `LooperEngine`. The chord grid UI is replaced by a plain bar-number strip (`_BarStrip`). `ChordDetector` remains in the codebase (used by Jam Mode / keyboard).
+- **Looper — bar-aligned recording**: `_beginRecordingPass` now snaps `recordingStartBeat` to the preceding bar-1 downbeat so event offsets are bar-relative from the start. `_activatePlayback` sets `recordingStartBeat = anchorBeat`, making stop/restart and save/reload produce identical playback alignment.
+- **Looper — `LoopTrack.barCount(beatsPerBar)`**: new helper replacing the old `chordPerBar.keys` approach; derives bar count from `lengthInBeats` and the transport time signature.
+- **Looper — `LooperEngine.beatsPerBar` getter**: exposes `timeSigNumerator` so the UI can compute bar counts without importing `TransportEngine`.
+
 ## [2.9.0] - 2026-03-25
 
 ### Added

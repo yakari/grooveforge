@@ -160,6 +160,13 @@ class AudioEngine extends ChangeNotifier {
   /// that share the same soundfont file.
   final Map<int, int> _channelSlotSfId = {};
 
+  /// Maps MIDI channel (0–15) → the soundfont path that the dedicated synth
+  /// in [_channelSlotSfId] was created with.  Used to detect when the user
+  /// switches a keyboard slot to a different soundfont — the old synth must be
+  /// torn down and a new one created because each FluidSynth instance is bound
+  /// to a single .sf2 file.
+  final Map<int, String> _channelSlotSfPath = {};
+
   final Map<String, Map<int, Map<int, String>>> sf2Presets = {};
   final List<ChannelState> channels = List.generate(16, (i) => ChannelState());
 
@@ -1122,14 +1129,28 @@ class AudioEngine extends ChangeNotifier {
   ) async {
     if (kIsWeb || !Platform.isAndroid) return -1;
     if (soundfontPath == kMidiControllerOnlySoundfont) return -1;
-    // Idempotent: reuse existing dedicated synth for this channel.
+
+    // If the slot already has a dedicated synth loaded with the same soundfont,
+    // reuse it — no work needed.
     final existing = _channelSlotSfId[midiChannel];
-    if (existing != null) return existing;
+    final existingPath = _channelSlotSfPath[midiChannel];
+    if (existing != null && existingPath == soundfontPath) return existing;
+
+    // The soundfont changed — tear down the old synth before creating a new one
+    // so we don't leak FluidSynth instances on the AAudio bus.
+    if (existing != null) {
+      await _midiPro.unloadSoundfont(existing);
+      debugPrint(
+        'AudioEngine: replaced dedicated synth for ch$midiChannel '
+        '(old sfId=$existing, old path=$existingPath)',
+      );
+    }
 
     final sfId = await _midiPro.loadSoundfontFile(filePath: soundfontPath);
     if (sfId == -1) return -1;
 
     _channelSlotSfId[midiChannel] = sfId;
+    _channelSlotSfPath[midiChannel] = soundfontPath;
 
     // Configure the new dedicated synth with the current bank/program for this
     // channel so it plays the correct patch immediately.
@@ -2187,6 +2208,7 @@ class AudioEngine extends ChangeNotifier {
     _sfPathToIdMobile.clear();
     _sfPathToIdLinux.clear();
     _channelSlotSfId.clear();
+    _channelSlotSfPath.clear();
     sf2Presets.clear();
     for (int i = 0; i < 16; i++) {
       channels[i] = ChannelState();
