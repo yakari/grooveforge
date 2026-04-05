@@ -1,0 +1,35 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Linux Desktop",
+      "type": "dart",
+      "request": "launch",
+      "program": "lib/main.dart",
+      "deviceId": "linux"
+    },
+    {
+      "name": "Linux Desktop (Profile)",
+      "type": "dart",
+      "request": "launch",
+      "program": "lib/main.dart",
+      "deviceId": "linux",
+      "flutterMode": "profile"
+    },
+    {
+      "name": "Android (Wireless)",
+      "type": "dart",
+      "request": "launch",
+      "program": "lib/main.dart",
+      "preLaunchTask": "adb-connect"
+    },
+    {
+      "name": "Android (Wireless, Profile)",
+      "type": "dart",
+      "request": "launch",
+      "program": "lib/main.dart",
+      "preLaunchTask": "adb-connect",
+      "flutterMode": "profile"
+    }
+  ]
+}

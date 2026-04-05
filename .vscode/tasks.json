@@ -1,0 +1,19 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "adb-connect",
+      "type": "shell",
+      "command": "bash",
+      "args": [
+        "-c",
+        "${workspaceFolder}/.vscode/adb_reconnect.sh"
+      ],
+      "presentation": {
+        "reveal": "silent",
+        "close": true
+      },
+      "problemMatcher": []
+    }
+  ]
+}

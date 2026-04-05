@@ -1,0 +1,77 @@
+// For format details, see https://aka.ms/devcontainer.json.
+{
+  "name": "Flutter",
+  "image": "ghcr.io/cirruslabs/flutter:3.41.6",
+  "features": {
+    "ghcr.io/devcontainers/features/common-utils:2": {
+      "installZsh": true,
+      "configureZshAsDefaultShell": true,
+      "installOhMyZsh": true,
+      "installOhMyZshConfig": true
+    }
+  },
+  // Ensure bind-mount source directories exist on the host before Docker
+  // tries to mount them — Docker refuses to create missing bind sources.
+  "initializeCommand": "mkdir -p ${HOME}/.claude ${HOME}/.android && touch ${HOME}/.zshrc ${HOME}/.p10k.zsh",
+  // Install Linux desktop build dependencies (GTK, ninja, pkg-config, etc.)
+  // PulseAudio client libs + ALSA config route audio to the host via the
+  // mounted PulseAudio socket — no daemon runs inside the container.
+  // Surge XT and Aeolus VST3 plugins are installed for testing the VST host.
+  "postCreateCommand": "sudo apt-get update && sudo apt-get install -y cmake ninja-build clang lld pkg-config libgtk-3-dev libblkid-dev liblzma-dev libgcrypt20-dev libstdc++-12-dev libasound2-dev libx11-dev libfluidsynth-dev libmpv-dev pulseaudio-utils alsa-utils libasound2-plugins unzip zenity surge-xt && printf 'pcm.!default {\\n    type pulse\\n}\\nctl.!default {\\n    type pulse\\n}\\n' > ~/.asoundrc && flutter pub get && flutter doctor && git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k || true && curl -fsSL -o /tmp/aeolus.zip https://github.com/Archie3d/aeolus_plugin/releases/download/v0.3.0/Aeolus-vst3-linux-0.3.0.zip && sudo mkdir -p /usr/lib/vst3 && sudo unzip -o /tmp/aeolus.zip -d /usr/lib/vst3/ && rm -f /tmp/aeolus.zip",
+  // Pass through host audio (PulseAudio socket), USB and ALSA MIDI devices,
+  // display sockets (Wayland + X11 fallback), and persistent config.
+  "mounts": [
+    // Persist Claude Code configuration across rebuilds
+    "source=${localEnv:HOME}/.claude,target=/root/.claude,type=bind,consistency=cached",
+    // Persist ADB pairing keys across container rebuilds — without this,
+    // every rebuild requires re-pairing the phone via developer options.
+    "source=${localEnv:HOME}/.android,target=/root/.android,type=bind,consistency=cached",
+    // Persist zsh / powerlevel10k configuration across rebuilds
+    "source=${localEnv:HOME}/.zshrc,target=/root/.zshrc,type=bind,consistency=cached",
+    "source=${localEnv:HOME}/.p10k.zsh,target=/root/.p10k.zsh,type=bind,consistency=cached",
+    // Mount host PulseAudio socket so container audio plays through host speakers
+    "source=/run/user/1000/pulse,target=/run/user/1000/pulse,type=bind",
+    // Forward host display sockets so GTK file dialogs (file_picker, etc.)
+    // render on the host.  Both Wayland and X11 are mounted for compatibility;
+    // GDK_BACKEND=wayland,x11 tries Wayland first, falls back to X11.
+    "source=/tmp/.X11-unix,target=/tmp/.X11-unix,type=bind",
+    "source=${localEnv:XDG_RUNTIME_DIR}/${localEnv:WAYLAND_DISPLAY},target=/tmp/wayland-0,type=bind"
+  ],
+  "runArgs": [
+    "--init",
+    "--device=/dev/bus/usb",
+    "--device=/dev/snd",
+    "--device=/dev/dri",
+    "--group-add=audio"
+  ],
+  "containerEnv": {
+    // Route audio to the host PulseAudio daemon via the mounted socket.
+    "PULSE_SERVER": "unix:/run/user/1000/pulse/native",
+    // Display forwarding — Wayland preferred, X11 fallback.
+    "DISPLAY": "${localEnv:DISPLAY}",
+    "WAYLAND_DISPLAY": "wayland-0",
+    "XDG_RUNTIME_DIR": "/tmp",
+    "GDK_BACKEND": "wayland,x11",
+    // Container bind-mount filesystems can miss inotify events; polling
+    // ensures Flutter hot-reload detects every file change.
+    "CHOKIDAR_USEPOLLING": "true"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "Dart-Code.dart-code",
+        "Dart-Code.flutter",
+        "Anthropic.claude-code",
+        "esbenp.prettier-vscode"
+      ]
+    },
+    // IntelliJ / IDEA — point to the Dart and Flutter SDKs inside the
+    // Cirrus Labs image so the IDE resolves analysis without manual config.
+    "jetbrains": {
+      "settings": {
+        "dart.dartSdkPath": "/sdks/flutter/bin/cache/dart-sdk",
+        "dart.flutterSdkPath": "/sdks/flutter"
+      }
+    }
+  }
+}
