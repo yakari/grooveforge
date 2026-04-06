@@ -173,6 +173,9 @@ class AudioInputFFI {
   /// Not supported on web — keyboard audio is handled by the JS soundfont bridge.
   int keyboardInit(double sampleRate) => 0;
 
+  /// Not supported on web — no-op, returns 0.
+  int keyboardInitSlot(int slotIdx, double sampleRate) => 0;
+
   /// Not supported on web — no-op.
   void keyboardDestroy() {}
 

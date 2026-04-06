@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - **GF Keyboard — Slot 1 instrument not restored on restart**: the second GF Keyboard (odd MIDI channels) always played piano (patch 0) after restarting the app, even though the UI displayed the correct instrument. `_restoreState()` in `AudioEngine.init()` sent program changes for all 16 channels, but FluidSynth Slot 1 did not exist yet — `keyboard_program_select()` silently dropped the call when `slot->synth` was NULL. Fixed by initialising Slot 1 via `keyboardInitSlot(1)` immediately after `keyboardInit()`, before `_restoreState()` runs.
+- **Web / WASM build broken by Slot 1 fix**: `audio_input_ffi_stub.dart` (the web no-op stub) was missing the `keyboardInitSlot` method added for the Slot 1 init fix, causing `dart2wasm` and `dart2js` compilation to fail. Added the missing no-op stub.
 
 ### Architecture
 - **JACK audio backend**: `dart_vst_host_jack.cpp` replaces `dart_vst_host_alsa.cpp`. The ALSA `while(running) { snd_pcm_writei }` loop is replaced by a `jack_set_process_callback` that writes native float directly to JACK port buffers (no int16 conversion). Buffer size is negotiated dynamically via `jack_set_buffer_size_callback`. CMake dependencies changed from `find_package(ALSA)` to `pkg_check_modules(JACK REQUIRED jack)`. Dart FFI renamed: `startAlsaThread` → `startJackClient`, `stopAlsaThread` → `stopJackClient`.
