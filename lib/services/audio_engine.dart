@@ -483,6 +483,11 @@ class AudioEngine extends ChangeNotifier {
         // keyboard_init() is idempotent: safe to call on re-initialisation.
         final ok = AudioInputFFI().keyboardInit(48000.0);
         if (ok == 1) {
+          // Initialise Slot 1 immediately so that _restoreState() can send
+          // program changes to both slots.  Without this, channels routed to
+          // Slot 1 (odd channels) would have their program changes silently
+          // dropped because slot->synth is still NULL at restore time.
+          AudioInputFFI().keyboardInitSlot(1, 48000.0);
           AudioInputFFI().keyboardSetGain(fluidSynthGain.value);
           debugPrint('AudioEngine: FluidSynth initialised via FFI (${Platform.operatingSystem})');
         } else {
