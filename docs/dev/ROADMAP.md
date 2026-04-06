@@ -4,6 +4,7 @@
 > **Next milestone:** 🔥 PipeWire migration (Linux audio backend — urgent)
 > **Next after PipeWire:** Multi-USB audio (Android), then Audio Looper (PCM)
 > **Last updated:** 2026-04-06
+> **After Multi-USB:** Per-project CC mappings (move CC config into `.gf` files)
 
 ---
 
@@ -25,7 +26,8 @@
 | TBD | MIDI Looper rework | ✅ Complete | Remove chord detection; simplify engine + UI; bar-sync recording start |
 | **TBD** | **PipeWire migration (Linux)** | **🔥 Next — Urgent** | Replace direct ALSA with PipeWire/JACK; inter-app routing; lower latency |
 | TBD | Multi-USB audio (Android) | 🔜 After PipeWire | Use AAudio `setDeviceId()` to route input/output to separate USB audio devices |
-| TBD | Audio Looper (PCM) | 🔜 Likely after | Built on top of the simplified looper |
+| TBD | Per-project CC mappings | 🔜 After Multi-USB | Move CC mappings into `.gf` project files for per-song/performance configs |
+| TBD | Audio Looper (PCM) | 🔜 After CC rework | Built on top of the simplified looper |
 | TBD | Phase 8 (full) | ⏸ TBD | pub.dev publishing; plugin store; vocoder mk2 |
 | TBD | Phase 8b | ⏸ TBD | AudioUnit v3 bridge (macOS + iOS) |
 | TBD | Phase 8c | ⏸ TBD | AAP bridge (Android) — pending AAP v1.0 |
@@ -446,6 +448,65 @@ Android's default USB audio HAL binds to a single USB audio device per direction
 - [ ] Unplug USB device mid-session → graceful fallback to system default, no crash.
 - [ ] Android < 14 → multi-device option hidden, single device selector shown.
 - [ ] USB composite device (single device with both I/O) → works without needing multi-device routing.
+
+---
+
+## 🎛️ TBD — Per-Project CC Mappings
+
+CC mappings are currently stored in `SharedPreferences` as a global singleton — every project shares the same hardware-to-action routing. This means switching songs or performances requires manually reconfiguring CC bindings, which is impractical for live use. Moving CC mappings into the `.gf` project file makes them part of the creative context: each song or performance set carries its own hardware configuration, and loading a project instantly reconfigures the MIDI controller.
+
+### Why this matters
+
+- **Live performance**: a guitarist's pedalboard CC layout for a blues set is different from a synth-heavy electronic set. Switching projects should switch the entire CC map.
+- **Collaboration**: sharing a `.gf` file includes the hardware mapping, so a collaborator with the same controller model gets the same experience.
+- **Per-slot looper CC**: the looper's CC assign dialog currently creates global `CcMapping` entries via `CcMappingService`. Once mappings live in the project, looper CC bindings naturally persist per-project.
+
+### Architecture
+
+```mermaid
+graph TD
+    subgraph Current["Current — Global"]
+        SP[SharedPreferences] -->|load on app start| CMS[CcMappingService\nmappingsNotifier]
+        CMS -->|translate CC| AE[AudioEngine]
+    end
+
+    subgraph Target["Target — Per-Project"]
+        GF[".gf project file\n'ccMappings': [...]"] -->|ProjectService.load| CMS2[CcMappingService\nmappingsNotifier]
+        CMS2 -->|translate CC| AE2[AudioEngine]
+        CMS2 -->|serialize on change| GF
+    end
+```
+
+### Step 1 — Data model migration
+
+- [ ] Add a `"ccMappings"` key to the `.gf` JSON schema: an array of `{ "incomingCc": int, "targetCc": int, "targetChannel": int, "muteChannels"?: [int] }` objects.
+- [ ] `CcMappingService.loadFromProject(List<CcMapping>)` — replaces the current mappings wholesale (called by `ProjectService` on project load).
+- [ ] `CcMappingService.toJson()` — serialises current mappings for project save.
+- [ ] `ProjectService.save` / `ProjectService.load` — read/write `ccMappings` alongside the existing `plugins` array.
+- [ ] Backward compatibility: if `ccMappings` is absent in a loaded `.gf` file, fall back to the current `SharedPreferences` state and migrate it into the project on first save.
+
+### Step 2 — Remove global persistence
+
+- [ ] Remove the `SharedPreferences` storage from `CcMappingService` (`_prefsKey`, `_persist()`, `_loadMappings()`).
+- [ ] On app start with no project loaded, `CcMappingService` starts with an empty mapping set.
+- [ ] The CC preferences screen remains unchanged — it reads/writes `CcMappingService.mappingsNotifier` as before, but the backing store is now the active project.
+
+### Step 3 — UI polish
+
+- [ ] When the user modifies a CC mapping (add/remove/edit), mark the project as dirty so autosave captures the change.
+- [ ] Project info panel: show a "CC mappings: N" count so the user knows mappings are project-scoped.
+- [ ] Import/export: add "Import CC mappings from another project" option in the CC preferences screen — loads `ccMappings` from a `.gf` file without replacing the rest of the project.
+
+### Step 4 — l10n
+
+- [ ] Add EN/FR keys: `ccMappingsProjectScoped`, `ccMappingsImport`, `ccMappingsImportTitle`, `ccMappingsCount`.
+
+### 🧪 Step 5 — Smoke test
+
+- [ ] Create project A with CC 20 → Filter Cutoff. Create project B with CC 20 → Looper Button. Switch between A and B → verify CC 20 behaviour changes.
+- [ ] Load an old `.gf` file without `ccMappings` → verify mappings migrated from SharedPreferences on first save.
+- [ ] Share a `.gf` file to another device → verify CC mappings restored.
+- [ ] Delete all CC mappings, save → verify `ccMappings` is an empty array (not absent).
 
 ---
 
