@@ -18,7 +18,7 @@ import 'gfpa_android_bindings_native.dart';
 /// Desktop VST3 host service.
 ///
 /// Wraps [VstHost] from `dart_vst_host` to provide plugin loading, MIDI
-/// routing, parameter control, and ALSA audio output (Linux only).
+/// routing, parameter control, and JACK audio output (Linux only).
 ///
 /// One [VstHost] instance is shared for the lifetime of the app. Each loaded
 /// plugin is tracked by its rack slot ID so that slot removal is clean.
@@ -271,7 +271,7 @@ class VstHostService {
     return result;
   }
 
-  // ─── Audio output (Linux ALSA) ─────────────────────────────────────────────
+  // ─── Audio output (Linux JACK / macOS CoreAudio) ───────────────────────────
 
   bool _audioRunning = false;
 
@@ -312,7 +312,7 @@ class VstHostService {
     if (Platform.isMacOS) {
       ok = _host!.startMacAudio();
     } else {
-      ok = _host!.startAlsaThread();
+      ok = _host!.startJackClient();
     }
     
     if (ok) {
@@ -329,7 +329,7 @@ class VstHostService {
     if (Platform.isMacOS) {
       _host!.stopMacAudio();
     } else {
-      _host!.stopAlsaThread();
+      _host!.stopJackClient();
     }
 
     _audioRunning = false;
@@ -338,7 +338,7 @@ class VstHostService {
 
   // ─── Audio graph routing (Phase 5.4) ──────────────────────────────────────
 
-  /// Synchronises the native ALSA processing order and audio routing table
+  /// Synchronises the native JACK processing order and audio routing table
   /// with the current state of the Dart [AudioGraph].
   ///
   /// Should be called whenever:
@@ -347,7 +347,7 @@ class VstHostService {
   ///
   /// Only VST3 slots (those present in [_plugins]) participate in native
   /// routing. Built-in GFPA slots (FluidSynth, vocoder, Jam Mode) use their
-  /// own audio paths and are not routed through the ALSA loop.
+  /// own audio paths and are not routed through the JACK audio loop.
   void syncAudioRouting(
     AudioGraph graph,
     List<PluginInstance> allPlugins, {
@@ -378,7 +378,7 @@ class VstHostService {
     // masterRenders must be cleared so that instruments no longer in the rack
     // or no longer connected (e.g. a Theremin that was cabled before) are not
     // left in the list, which would cause them to be rendered twice (once via
-    // the cleared list and once via their own ALSA device) → saturation.
+    // the cleared list and once via their own audio device) → saturation.
     _host!.clearMasterInserts();
     _host!.clearMasterRenders();
 
@@ -471,8 +471,8 @@ class VstHostService {
       }
 
       // Theremin and Stylophone: when wired to a GFPA effect, add them as
-      // masterRender contributors and enable capture mode so their own ALSA
-      // device outputs silence (the ALSA thread drives the DSP instead).
+      // masterRender contributors and enable capture mode so their own miniaudio
+      // device outputs silence (the JACK audio thread drives the DSP instead).
       for (final plugin in allPlugins.whereType<GFpaPluginInstance>()) {
         if (plugin.pluginId == 'com.grooveforge.theremin' &&
             _hasAnyGfpaConnection(plugin.id, graph)) {
@@ -492,8 +492,8 @@ class VstHostService {
 
     // Enable capture mode on native synths that are routed through VST3,
     // and disable it for those that are no longer connected.
-    // Capture mode ON  → miniaudio outputs silence; ALSA thread drives DSP.
-    // Capture mode OFF → normal direct ALSA playback.
+    // Capture mode ON  → miniaudio outputs silence; JACK thread drives DSP.
+    // Capture mode OFF → normal direct miniaudio playback.
     //
     // For GF Keyboard: when routed into an effect, remove it from the
     // master-mix list (output now goes to the effect's input exclusively).
@@ -513,7 +513,7 @@ class VstHostService {
   // ─── GFPA native DSP effects ────────────────────────────────────────────────
 
   /// Create a native GFPA DSP instance for [pluginId] and store it under
-  /// [slotId].  The DSP runs on the ALSA audio thread once wired via
+  /// [slotId].  The DSP runs on the JACK audio thread once wired via
   /// [syncAudioRouting].
   ///
   /// Calling again for the same [slotId] first destroys the old instance
@@ -718,7 +718,7 @@ class VstHostService {
       GfpaAndroidBindings.instance.gfpaDspDestroy(old);
     } else {
       // Remove from all source chains and drain before destroying.
-      // The drain spin-waits for the ALSA/CoreAudio callback to finish at
+      // The drain spin-waits for the JACK/CoreAudio callback to finish at
       // least one full block after removal, ensuring no in-flight raw pointer
       // to this DSP remains before gfpa_dsp_destroy frees the memory.
       _host?.removeMasterInsertByHandle(old);

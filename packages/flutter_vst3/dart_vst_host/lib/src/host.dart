@@ -55,29 +55,35 @@ class VstHost {
     _b.dvhSetTransport(bpm, timeSigNum, timeSigDen, isPlaying ? 1 : 0, positionInBeats, positionInSamples);
   }
 
-  // ─── ALSA audio loop helpers ───────────────────────────────────────────────
+  // ─── JACK audio client helpers ──────────────────────────────────────────────
 
-  /// Register [plugin] with the host's ALSA audio thread.
+  /// Register [plugin] with the host's JACK audio callback.
   void addToAudioLoop(VstPlugin plugin) =>
       _b.dvhAudioAddPlugin(handle, plugin.handle);
 
-  /// Remove [plugin] from the host's ALSA audio thread.
+  /// Remove [plugin] from the host's JACK audio callback.
   void removeFromAudioLoop(VstPlugin plugin) =>
       _b.dvhAudioRemovePlugin(handle, plugin.handle);
 
-  /// Clear all plugins from the host's ALSA audio thread.
+  /// Clear all plugins from the host's JACK audio callback.
   void clearAudioLoop() => _b.dvhAudioClearPlugins(handle);
 
-  /// Start the ALSA output thread. [device] defaults to "default".
-  bool startAlsaThread({String device = 'default'}) {
-    final d = device.toNativeUtf8();
-    final r = _b.dvhStartAlsaThread(handle, d);
-    malloc.free(d);
+  /// Start a JACK client and activate it.  Registers stereo output ports
+  /// ("out_L", "out_R") and auto-connects to system playback.
+  /// [clientName] defaults to "GrooveForge".
+  bool startJackClient({String clientName = 'GrooveForge'}) {
+    final n = clientName.toNativeUtf8();
+    final r = _b.dvhStartJackClient(handle, n);
+    malloc.free(n);
     return r == 1;
   }
 
-  /// Stop the ALSA output thread.
-  void stopAlsaThread() => _b.dvhStopAlsaThread(handle);
+  /// Stop the JACK client.  Deactivates and closes it.
+  void stopJackClient() => _b.dvhStopJackClient(handle);
+
+  /// Return the cumulative XRUN count since the JACK client was started.
+  /// Useful for surfacing latency warnings in the UI.
+  int getXrunCount() => _b.dvhJackGetXrunCount(handle);
 
   /// macOS: Start the CoreAudio/miniaudio output thread.
   bool startMacAudio() => _b.dvhMacStartAudio(handle) == 1;
@@ -107,18 +113,18 @@ class VstHost {
 
   /// Route [from]'s stereo output to [to]'s audio input.
   ///
-  /// [from]'s output will no longer be mixed directly into the ALSA master
+  /// [from]'s output will no longer be mixed directly into the master
   /// output — it feeds exclusively into [to]'s input instead. [from] must
   /// precede [to] in the processing order set via [setProcessingOrder].
   void routeAudio(VstPlugin from, VstPlugin to) =>
       _b.dvhRouteAudio(handle, from.handle, to.handle);
 
   /// Remove all audio routing rules. Every plugin's output returns to the
-  /// default behaviour of mixing directly into the master ALSA output.
+  /// default behaviour of mixing directly into the master output.
   void clearRoutes() => _b.dvhClearRoutes(handle);
 
   /// Register a non-VST3 render function as the audio source for [plugin]'s
-  /// input. The ALSA thread will call [renderFn] each block to fill the
+  /// input. The JACK audio thread will call [renderFn] each block to fill the
   /// plugin's stereo input buffer, bypassing silence or upstream VST3 output.
   ///
   /// [renderFn] is a raw pointer to a C function with signature:
@@ -138,7 +144,7 @@ class VstHost {
 
   /// Register [renderFn] as a master-mix audio contributor.
   ///
-  /// The ALSA thread calls [renderFn] every block and mixes its stereo output
+  /// The JACK audio thread calls [renderFn] every block and mixes its stereo output
   /// directly into the master bus alongside VST3 plugin outputs. Used for
   /// GF Keyboard (libfluidsynth) when it is not routed through a VST3 effect.
   ///
@@ -164,7 +170,7 @@ class VstHost {
   /// or [nullptr] for unrecognised IDs.
   ///
   /// [sampleRate] and [blockSize] must match the values used to start the
-  /// ALSA thread so that delay-line buffers are sized correctly.
+  /// JACK client so that delay-line buffers are sized correctly.
   Pointer<Void> createGfpaDsp(String pluginId, int sampleRate, int blockSize) {
     final id = pluginId.toNativeUtf8();
     final result = _b.gfpaDspCreate(id, sampleRate, blockSize);
@@ -196,7 +202,7 @@ class VstHost {
   /// Register a GFPA DSP insert on [sourceFn]'s master-render audio path.
   ///
   /// [dspHandle] is the opaque handle returned by [createGfpaDsp].
-  /// On each ALSA block, [sourceFn]'s output is piped through the DSP effect
+  /// On each audio block, [sourceFn]'s output is piped through the DSP effect
   /// before being mixed into the master bus.
   ///
   /// Replaces any existing insert for the same [sourceFn].
@@ -219,7 +225,7 @@ class VstHost {
   /// so that any in-flight raw pointer to this DSP has retired.
   ///
   /// **Must be called BEFORE [destroyGfpaDsp]** to prevent use-after-free
-  /// crashes on the ALSA / CoreAudio audio thread.
+  /// crashes on the JACK / CoreAudio audio thread.
   void removeMasterInsertByHandle(Pointer<Void> dspHandle) =>
       _b.dvhRemoveMasterInsertByHandle(handle, dspHandle);
 

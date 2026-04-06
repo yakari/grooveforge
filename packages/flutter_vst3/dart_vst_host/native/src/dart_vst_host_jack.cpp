@@ -1,8 +1,15 @@
-// ALSA audio loop for dart_vst_host (Linux only).
+// JACK audio client for dart_vst_host (Linux only).
 //
-// Provides dvh_start_alsa_thread / dvh_stop_alsa_thread which drive all
-// registered VST3 plugins in a real-time ALSA output thread. Plugins are
-// mixed and written to the ALSA PCM device as interleaved int16.
+// Provides dvh_start_jack_client / dvh_stop_jack_client which drive all
+// registered VST3 plugins inside a JACK process callback.  Plugins are
+// mixed and written to JACK output ports as native float (no int16
+// conversion — JACK uses 32-bit float natively).
+//
+// Replaces the former ALSA backend (dart_vst_host_alsa.cpp) to gain:
+//   - Sub-10 ms latency (vs ~50 ms with ALSA dmix)
+//   - Inter-application audio routing via PipeWire / JACK
+//   - Proper port naming and session management
+//   - Compatibility with both PipeWire (JACK shim) and native JACK2
 //
 // Phase 5.4 — audio graph execution:
 //   dvh_set_processing_order  — override plugin processing order (topological)
@@ -15,7 +22,7 @@
 #include "dart_vst_host_internal.h"
 #include "../include/gfpa_dsp.h"
 
-#include <alsa/asoundlib.h>
+#include <jack/jack.h>
 #include <algorithm>
 #include <atomic>
 #include <chrono>
@@ -55,7 +62,7 @@ struct AudioState {
     /// destination plugin's input rather than the master mix bus.
     std::unordered_map<void*, void*> routes;
     /// External audio sources: destPlugin → render function.
-    /// When registered, the ALSA loop calls the function instead of using
+    /// When registered, the JACK callback calls the function instead of using
     /// silence or an upstream VST3 output as the plugin's audio input.
     /// Used to route non-VST3 generators (Theremin, Stylophone) into effects.
     std::unordered_map<void*, DvhRenderFn> externalRenders;
@@ -78,6 +85,13 @@ struct AudioState {
     /// renders into tmpBuf and it is accumulated into extBuf before the chain.
     std::vector<float> tmpBufL;
     std::vector<float> tmpBufR;
+    /// Pre-allocated mix bus buffers used inside the JACK process callback.
+    /// Sized to blockSize; resized in the buffer-size callback.
+    std::vector<float> mixL;
+    std::vector<float> mixR;
+    /// Zero buffer (silence) used as default input for plugins with no source.
+    std::vector<float> zeroL;
+    std::vector<float> zeroR;
     std::mutex          pluginsMtx;
     /// Monotonically increasing counter incremented at the end of every audio
     /// block, after all DSP processing is complete.  dvh_remove_master_insert_by_handle
@@ -85,8 +99,15 @@ struct AudioState {
     /// caller destroys the DSP object, preventing use-after-free crashes.
     std::atomic<uint64_t> callbackSeq{0};
 
-    std::thread         thread;
+    /// JACK client handle — owned by this AudioState.
+    jack_client_t*      jackClient{nullptr};
+    /// Registered JACK output ports (stereo pair).
+    jack_port_t*        portOutL{nullptr};
+    jack_port_t*        portOutR{nullptr};
+
     std::atomic<bool>   running{false};
+    /// Cumulative XRUN count reported by the JACK server.
+    std::atomic<int32_t> xrunCount{0};
 
     int32_t sampleRate{44100};
     int32_t blockSize{256};
@@ -122,15 +143,8 @@ static void removeState(DVH_Host host) {
     }
 }
 
-// Process [ordered] plugins using [routes] for signal routing.
+// ── VST3 plugin processing with audio graph routing ─────────────────────────
 //
-// Each plugin is given:
-//   - As input: the output of the upstream plugin in [routes], or silence.
-//   - Its output accumulates into [mixL]/[mixR] only when no downstream
-//     route consumes it (i.e. the plugin is a "leaf" in the signal graph).
-//
-// This allows simple send-return chains, e.g.:
-//   Synth → Effect: Effect output → master mix; Synth output → Effect input.
 // Process [ordered] plugins using [routes] for VST3→VST3 routing and
 // [extRenders] for non-VST3 → VST3 injection (e.g. Theremin → Reverb).
 //
@@ -185,129 +199,179 @@ static void _processPlugins(
     }
 }
 
-// Audio thread body. Takes ownership of the already-opened, configured [pcm].
-static void audioThreadFn(AudioState* state, snd_pcm_t* pcm) {
-    const int32_t blockSize = state->blockSize;
+/// Resize all pre-allocated scratch buffers to match [newSize].
+/// Called from the JACK buffer-size callback (non-RT thread) and during
+/// initial setup.
+static void _resizeBuffers(AudioState* s, int32_t newSize) {
+    s->blockSize = newSize;
+    s->extBufL.assign(newSize, 0.f);
+    s->extBufR.assign(newSize, 0.f);
+    s->insertBufL.assign(newSize, 0.f);
+    s->insertBufR.assign(newSize, 0.f);
+    s->tmpBufL.assign(newSize, 0.f);
+    s->tmpBufR.assign(newSize, 0.f);
+    s->mixL.assign(newSize, 0.f);
+    s->mixR.assign(newSize, 0.f);
+    s->zeroL.assign(newSize, 0.f);
+    s->zeroR.assign(newSize, 0.f);
+}
 
-    std::vector<float> zeroL(blockSize, 0.f);
-    std::vector<float> zeroR(blockSize, 0.f);
-    std::vector<float> mixL(blockSize, 0.f);
-    std::vector<float> mixR(blockSize, 0.f);
-    std::vector<int16_t> pcmBuf(blockSize * 2);
+// ── JACK callbacks ──────────────────────────────────────────────────────────
 
-    while (state->running.load()) {
-        std::fill(mixL.begin(), mixL.end(), 0.f);
-        std::fill(mixR.begin(), mixR.end(), 0.f);
+/// JACK process callback — called from the real-time audio thread.
+///
+/// This function must be allocation-free, lock-free (except the snapshot
+/// mutex which is held very briefly), and must not perform any I/O or
+/// syscalls.  JACK enforces real-time safety by contract.
+static int _jackProcessCallback(jack_nframes_t nframes, void* arg) {
+    auto* state = static_cast<AudioState*>(arg);
 
-        // Snapshot plugins, order, routes, external renders, and master-mix
-        // contributors under the lock so the audio thread never races with
-        // Dart-side mutations.
-        std::vector<void*> ordered;
-        std::unordered_map<void*, void*> routes;
-        std::unordered_map<void*, DvhRenderFn> extRenders;
-        std::vector<DvhRenderFn> masterRenders;
-        std::vector<InsertChain> masterInsertChains;
-        {
-            std::lock_guard<std::mutex> lk(state->pluginsMtx);
-            ordered             = state->processOrder.empty() ? state->plugins : state->processOrder;
-            routes              = state->routes;
-            extRenders          = state->externalRenders;
-            masterRenders       = state->masterRenders;
-            masterInsertChains  = state->masterInsertChains;
-        }
+    // Get the JACK port output buffers — these are float arrays of nframes.
+    auto* outL = static_cast<float*>(jack_port_get_buffer(state->portOutL, nframes));
+    auto* outR = static_cast<float*>(jack_port_get_buffer(state->portOutR, nframes));
 
-        // Allocate per-plugin output buffers for routing.
-        std::unordered_map<void*, std::pair<std::vector<float>, std::vector<float>>> bufs;
-        for (void* p : ordered)
-            bufs[p] = {std::vector<float>(blockSize, 0.f), std::vector<float>(blockSize, 0.f)};
+    const int32_t blockSize = static_cast<int32_t>(nframes);
 
-        _processPlugins(ordered, routes, extRenders, bufs, blockSize,
-                        zeroL, zeroR, mixL, mixR,
-                        state->extBufL, state->extBufR);
+    // If the buffer size changed between the buffer-size callback and this
+    // process call, output silence to avoid buffer overruns.
+    if (blockSize > static_cast<int32_t>(state->mixL.size())) {
+        std::memset(outL, 0, nframes * sizeof(float));
+        std::memset(outR, 0, nframes * sizeof(float));
+        return 0;
+    }
 
-        // ── Fan-in insert chains ────────────────────────────────────────────
-        // For each chain: mix all sources into extBuf (fan-in), apply effects
-        // in series, then accumulate to the master bus.  Sources listed in any
-        // chain are skipped in the bare-render loop below so they are never
-        // rendered twice.
-        for (const auto& chain : masterInsertChains) {
-            // Zero the accumulation buffer for this chain's fan-in mix.
-            std::fill(state->extBufL.begin(), state->extBufL.end(), 0.f);
-            std::fill(state->extBufR.begin(), state->extBufR.end(), 0.f);
-            // Render each source into tmpBuf and accumulate into extBuf.
-            for (DvhRenderFn fn : chain.sources) {
-                fn(state->tmpBufL.data(), state->tmpBufR.data(), blockSize);
-                for (int i = 0; i < blockSize; ++i) {
-                    state->extBufL[i] += state->tmpBufL[i];
-                    state->extBufR[i] += state->tmpBufR[i];
-                }
-            }
-            // Apply effects in series: extBuf → insertBuf → extBuf.
-            for (const auto& ins : chain.effects) {
-                ins.first(state->extBufL.data(), state->extBufR.data(),
-                          state->insertBufL.data(), state->insertBufR.data(),
-                          blockSize, ins.second);
-                std::copy(state->insertBufL.begin(), state->insertBufL.end(),
-                          state->extBufL.begin());
-                std::copy(state->insertBufR.begin(), state->insertBufR.end(),
-                          state->extBufR.begin());
-            }
-            // Accumulate processed signal to the master mix.
+    // Zero the mix bus for this block.
+    std::fill(state->mixL.begin(), state->mixL.begin() + blockSize, 0.f);
+    std::fill(state->mixR.begin(), state->mixR.begin() + blockSize, 0.f);
+
+    // Snapshot plugins, order, routes, external renders, and master-mix
+    // contributors under the lock so the JACK thread never races with
+    // Dart-side mutations.
+    std::vector<void*> ordered;
+    std::unordered_map<void*, void*> routes;
+    std::unordered_map<void*, DvhRenderFn> extRenders;
+    std::vector<DvhRenderFn> masterRenders;
+    std::vector<InsertChain> masterInsertChains;
+    {
+        std::lock_guard<std::mutex> lk(state->pluginsMtx);
+        ordered             = state->processOrder.empty() ? state->plugins : state->processOrder;
+        routes              = state->routes;
+        extRenders          = state->externalRenders;
+        masterRenders       = state->masterRenders;
+        masterInsertChains  = state->masterInsertChains;
+    }
+
+    // Allocate per-plugin output buffers for routing.
+    std::unordered_map<void*, std::pair<std::vector<float>, std::vector<float>>> bufs;
+    for (void* p : ordered)
+        bufs[p] = {std::vector<float>(blockSize, 0.f), std::vector<float>(blockSize, 0.f)};
+
+    _processPlugins(ordered, routes, extRenders, bufs, blockSize,
+                    state->zeroL, state->zeroR, state->mixL, state->mixR,
+                    state->extBufL, state->extBufR);
+
+    // ── Fan-in insert chains ────────────────────────────────────────────────
+    // For each chain: mix all sources into extBuf (fan-in), apply effects
+    // in series, then accumulate to the master bus.  Sources listed in any
+    // chain are skipped in the bare-render loop below so they are never
+    // rendered twice.
+    for (const auto& chain : masterInsertChains) {
+        // Zero the accumulation buffer for this chain's fan-in mix.
+        std::fill(state->extBufL.begin(), state->extBufL.begin() + blockSize, 0.f);
+        std::fill(state->extBufR.begin(), state->extBufR.begin() + blockSize, 0.f);
+        // Render each source into tmpBuf and accumulate into extBuf.
+        for (DvhRenderFn fn : chain.sources) {
+            fn(state->tmpBufL.data(), state->tmpBufR.data(), blockSize);
             for (int i = 0; i < blockSize; ++i) {
-                mixL[i] += state->extBufL[i];
-                mixR[i] += state->extBufR[i];
+                state->extBufL[i] += state->tmpBufL[i];
+                state->extBufR[i] += state->tmpBufR[i];
             }
         }
-
-        // ── Bare master renders (no chain) ──────────────────────────────────
-        // Render sources that are NOT part of any insert chain directly.
-        // This handles instruments with no downstream effects (e.g. KB1 bare).
-        for (DvhRenderFn fn : masterRenders) {
-            // Skip if this source is already handled by a chain above.
-            bool inChain = false;
-            for (const auto& chain : masterInsertChains) {
-                for (DvhRenderFn src : chain.sources) {
-                    if (src == fn) { inChain = true; break; }
-                }
-                if (inChain) break;
-            }
-            if (inChain) continue;
-
-            fn(state->extBufL.data(), state->extBufR.data(), blockSize);
-            for (int i = 0; i < blockSize; ++i) {
-                mixL[i] += state->extBufL[i];
-                mixR[i] += state->extBufR[i];
-            }
+        // Apply effects in series: extBuf → insertBuf → extBuf.
+        for (const auto& ins : chain.effects) {
+            ins.first(state->extBufL.data(), state->extBufR.data(),
+                      state->insertBufL.data(), state->insertBufR.data(),
+                      blockSize, ins.second);
+            std::copy(state->insertBufL.begin(), state->insertBufL.begin() + blockSize,
+                      state->extBufL.begin());
+            std::copy(state->insertBufR.begin(), state->insertBufR.begin() + blockSize,
+                      state->extBufR.begin());
         }
-
-        // Signal that this block's DSP processing is complete.
-        // dvh_remove_master_insert_by_handle spin-waits on this counter to
-        // ensure any in-flight snapshot that still held a raw DSP pointer has
-        // retired before the caller destroys the DSP object.
-        state->callbackSeq.fetch_add(1, std::memory_order_release);
-
-        // Soft-clip to [-1, 1] and convert to int16 interleaved.
+        // Accumulate processed signal to the master mix.
         for (int i = 0; i < blockSize; ++i) {
-            float l = mixL[i]; if (l >  1.f) l =  1.f; if (l < -1.f) l = -1.f;
-            float r = mixR[i]; if (r >  1.f) r =  1.f; if (r < -1.f) r = -1.f;
-            pcmBuf[i * 2 + 0] = (int16_t)(l * 32767.f);
-            pcmBuf[i * 2 + 1] = (int16_t)(r * 32767.f);
-        }
-
-        snd_pcm_sframes_t written = snd_pcm_writei(pcm, pcmBuf.data(), blockSize);
-        if (written < 0) {
-            int err = snd_pcm_recover(pcm, (int)written, /*silent=*/0);
-            if (err < 0) {
-                fprintf(stderr, "[dart_vst_host] ALSA unrecoverable error: %s — stopping\n",
-                        snd_strerror(err));
-                break;
-            }
+            state->mixL[i] += state->extBufL[i];
+            state->mixR[i] += state->extBufR[i];
         }
     }
 
-    snd_pcm_drain(pcm);
-    snd_pcm_close(pcm);
-    fprintf(stderr, "[dart_vst_host] ALSA audio thread exited\n");
+    // ── Bare master renders (no chain) ──────────────────────────────────────
+    // Render sources that are NOT part of any insert chain directly.
+    // This handles instruments with no downstream effects (e.g. KB1 bare).
+    for (DvhRenderFn fn : masterRenders) {
+        // Skip if this source is already handled by a chain above.
+        bool inChain = false;
+        for (const auto& chain : masterInsertChains) {
+            for (DvhRenderFn src : chain.sources) {
+                if (src == fn) { inChain = true; break; }
+            }
+            if (inChain) break;
+        }
+        if (inChain) continue;
+
+        fn(state->extBufL.data(), state->extBufR.data(), blockSize);
+        for (int i = 0; i < blockSize; ++i) {
+            state->mixL[i] += state->extBufL[i];
+            state->mixR[i] += state->extBufR[i];
+        }
+    }
+
+    // Signal that this block's DSP processing is complete.
+    // dvh_remove_master_insert_by_handle spin-waits on this counter to
+    // ensure any in-flight snapshot that still held a raw DSP pointer has
+    // retired before the caller destroys the DSP object.
+    state->callbackSeq.fetch_add(1, std::memory_order_release);
+
+    // Soft-clip to [-1, 1] and copy directly to JACK port buffers (float).
+    // No int16 conversion needed — JACK uses native 32-bit float.
+    for (int i = 0; i < blockSize; ++i) {
+        float l = state->mixL[i];
+        float r = state->mixR[i];
+        if (l >  1.f) l =  1.f; if (l < -1.f) l = -1.f;
+        if (r >  1.f) r =  1.f; if (r < -1.f) r = -1.f;
+        outL[i] = l;
+        outR[i] = r;
+    }
+
+    return 0;
+}
+
+/// JACK buffer-size callback — called from a non-RT thread when the server
+/// changes the buffer size (e.g. user adjusts latency in JACK settings).
+/// Allocation is permitted here.
+static int _jackBufferSizeCallback(jack_nframes_t nframes, void* arg) {
+    auto* state = static_cast<AudioState*>(arg);
+    fprintf(stderr, "[dart_vst_host] JACK buffer size changed to %u\n",
+            (unsigned)nframes);
+    std::lock_guard<std::mutex> lk(state->pluginsMtx);
+    _resizeBuffers(state, static_cast<int32_t>(nframes));
+    return 0;
+}
+
+/// JACK XRUN callback — called from a notification thread when the server
+/// detects a buffer underrun or overrun.  Keep the body trivial.
+static int _jackXrunCallback(void* arg) {
+    auto* state = static_cast<AudioState*>(arg);
+    state->xrunCount.fetch_add(1, std::memory_order_relaxed);
+    return 0;
+}
+
+/// JACK shutdown callback — called from a non-RT thread when the JACK server
+/// shuts down (e.g. PipeWire restart, JACK server killed).
+/// Cannot call jack_client_close inside this callback — just set a flag.
+static void _jackShutdownCallback(void* arg) {
+    auto* state = static_cast<AudioState*>(arg);
+    fprintf(stderr, "[dart_vst_host] JACK server shut down\n");
+    state->running.store(false);
 }
 
 extern "C" {
@@ -414,7 +478,7 @@ DVH_API void dvh_remove_master_render(DVH_Host host, DvhRenderFn fn) {
 
 /// Register a GFPA insert on [source]'s master-render audio path.
 ///
-/// On each ALSA block, [source]'s output passes through the insert chain
+/// On each audio block, [source]'s output passes through the insert chain
 /// in registration order.  Multiple inserts for the same [source] form a
 /// series chain (source → insert[0] → insert[1] → … → master mix).
 ///
@@ -497,7 +561,7 @@ DVH_API void dvh_remove_master_insert(DVH_Host host, DvhRenderFn source) {
 /// destroy the DSP.
 ///
 /// **Must be called BEFORE gfpa_dsp_destroy** to prevent use-after-free
-/// crashes on the ALSA audio thread.
+/// crashes on the JACK audio thread.
 DVH_API void dvh_remove_master_insert_by_handle(DVH_Host host, void* dspHandle) {
     if (!host || !dspHandle) return;
     auto* s = get(host);
@@ -570,72 +634,114 @@ DVH_API void dvh_clear_master_renders(DVH_Host host) {
     fprintf(stderr, "[dart_vst_host] Master renders cleared\n");
 }
 
-// Open and configure ALSA synchronously so failures are immediately visible.
-// Returns 1 on success, 0 if ALSA cannot be opened/configured.
-DVH_API int32_t dvh_start_alsa_thread(DVH_Host host, const char* alsa_device) {
+/// Open a JACK client, register stereo output ports, set up callbacks, and
+/// activate.  Auto-connects to system:playback_1 / system:playback_2.
+///
+/// Returns 1 on success, 0 if the JACK server is not available or port
+/// registration fails.
+DVH_API int32_t dvh_start_jack_client(DVH_Host host, const char* client_name) {
     if (!host) return 0;
     auto* s = getOrCreate(host);
     if (s->running.load()) {
-        fprintf(stderr, "[dart_vst_host] ALSA thread already running\n");
+        fprintf(stderr, "[dart_vst_host] JACK client already running\n");
         return 1;
     }
 
-    // Sync sample rate and block size from the host so ALSA opens at the
-    // same rate that plug-ins were resumed with. The AudioState defaults to
-    // 44100 Hz which would cause a ~1.4-semitone pitch shift vs VSTs running
-    // at 48000 Hz.
-    auto* hs = static_cast<DVH_HostState*>(host);
-    s->sampleRate = static_cast<int32_t>(hs->sr);
-    s->blockSize  = static_cast<int32_t>(hs->maxBlock);
+    const char* name = (client_name && client_name[0]) ? client_name : "GrooveForge";
+    fprintf(stderr, "[dart_vst_host] Opening JACK client: %s\n", name);
 
-    // Pre-allocate all audio scratch buffers (avoids heap allocation on the
-    // audio thread).  tmpBuf is used for fan-in source mixing in insert chains.
-    s->extBufL.assign(s->blockSize, 0.f);
-    s->extBufR.assign(s->blockSize, 0.f);
-    s->insertBufL.assign(s->blockSize, 0.f);
-    s->insertBufR.assign(s->blockSize, 0.f);
-    s->tmpBufL.assign(s->blockSize, 0.f);
-    s->tmpBufR.assign(s->blockSize, 0.f);
-
-    const char* dev = (alsa_device && alsa_device[0]) ? alsa_device : "default";
-    fprintf(stderr, "[dart_vst_host] Opening ALSA device: %s\n", dev);
-
-    snd_pcm_t* pcm = nullptr;
-    int err = snd_pcm_open(&pcm, dev, SND_PCM_STREAM_PLAYBACK, 0);
-    if (err < 0) {
-        fprintf(stderr, "[dart_vst_host] ALSA open failed: %s\n", snd_strerror(err));
+    // Open the JACK client.  JackNoStartServer prevents auto-launching a
+    // JACK server if none is running — we want to fail fast with a clear
+    // error rather than spawning an unexpected daemon.
+    jack_status_t status;
+    s->jackClient = jack_client_open(name, JackNoStartServer, &status);
+    if (!s->jackClient) {
+        fprintf(stderr, "[dart_vst_host] JACK client_open failed (status=0x%x). "
+                "Is a JACK server (PipeWire or JACK2) running?\n", status);
         return 0;
     }
 
-    err = snd_pcm_set_params(pcm,
-        SND_PCM_FORMAT_S16_LE,
-        SND_PCM_ACCESS_RW_INTERLEAVED,
-        /*channels=*/2,
-        (unsigned int)s->sampleRate,
-        /*allow_resampling=*/1,
-        /*latency_us=*/50000); // 50 ms — more forgiving for PipeWire/dmix
-    if (err < 0) {
-        fprintf(stderr, "[dart_vst_host] ALSA set_params failed: %s\n", snd_strerror(err));
-        snd_pcm_close(pcm);
-        return 0;
-    }
+    // Read the server's sample rate and buffer size — these are authoritative.
+    // The host's sample rate may differ if it was created before the JACK
+    // server was started; we update the AudioState to match.
+    s->sampleRate = static_cast<int32_t>(jack_get_sample_rate(s->jackClient));
+    s->blockSize  = static_cast<int32_t>(jack_get_buffer_size(s->jackClient));
 
-    fprintf(stderr, "[dart_vst_host] ALSA opened OK — starting audio thread (sr=%d bs=%d)\n",
+    fprintf(stderr, "[dart_vst_host] JACK server: sr=%d bs=%d\n",
             s->sampleRate, s->blockSize);
 
+    // Pre-allocate all audio scratch buffers at the server's current block
+    // size.  The buffer-size callback will resize them if the server changes.
+    _resizeBuffers(s, s->blockSize);
+
+    // Register callbacks before activation so no events are missed.
+    jack_set_process_callback(s->jackClient, _jackProcessCallback, s);
+    jack_set_buffer_size_callback(s->jackClient, _jackBufferSizeCallback, s);
+    jack_set_xrun_callback(s->jackClient, _jackXrunCallback, s);
+    jack_on_shutdown(s->jackClient, _jackShutdownCallback, s);
+
+    // Register stereo output ports.  JACK_DEFAULT_AUDIO_TYPE is "32 bit float
+    // mono audio" — one port per channel.
+    s->portOutL = jack_port_register(s->jackClient, "out_L",
+                                     JACK_DEFAULT_AUDIO_TYPE, JackPortIsOutput, 0);
+    s->portOutR = jack_port_register(s->jackClient, "out_R",
+                                     JACK_DEFAULT_AUDIO_TYPE, JackPortIsOutput, 0);
+    if (!s->portOutL || !s->portOutR) {
+        fprintf(stderr, "[dart_vst_host] JACK port registration failed\n");
+        jack_client_close(s->jackClient);
+        s->jackClient = nullptr;
+        return 0;
+    }
+
+    // Activate the client — the process callback starts firing immediately.
+    if (jack_activate(s->jackClient) != 0) {
+        fprintf(stderr, "[dart_vst_host] JACK activate failed\n");
+        jack_client_close(s->jackClient);
+        s->jackClient = nullptr;
+        return 0;
+    }
+
     s->running.store(true);
-    s->thread = std::thread(audioThreadFn, s, pcm);
+    s->xrunCount.store(0);
+
+    // Auto-connect to the system playback ports (speakers / default sink).
+    // PipeWire maps these to the default audio output device.  Failure is
+    // non-fatal — the user can connect manually via Helvum / qjackctl.
+    const char* clientPort = jack_port_name(s->portOutL);
+    if (jack_connect(s->jackClient, clientPort, "system:playback_1") != 0) {
+        fprintf(stderr, "[dart_vst_host] Auto-connect out_L → system:playback_1 failed "
+                "(non-fatal — connect manually)\n");
+    }
+    clientPort = jack_port_name(s->portOutR);
+    if (jack_connect(s->jackClient, clientPort, "system:playback_2") != 0) {
+        fprintf(stderr, "[dart_vst_host] Auto-connect out_R → system:playback_2 failed "
+                "(non-fatal — connect manually)\n");
+    }
+
+    fprintf(stderr, "[dart_vst_host] JACK client activated OK (sr=%d bs=%d)\n",
+            s->sampleRate, s->blockSize);
     return 1;
 }
 
-DVH_API void dvh_stop_alsa_thread(DVH_Host host) {
+DVH_API void dvh_stop_jack_client(DVH_Host host) {
     if (!host) return;
     auto* s = get(host);
     if (!s) return;
-    fprintf(stderr, "[dart_vst_host] Stopping ALSA thread…\n");
+    fprintf(stderr, "[dart_vst_host] Stopping JACK client…\n");
     s->running.store(false);
-    if (s->thread.joinable()) s->thread.join();
+    if (s->jackClient) {
+        jack_deactivate(s->jackClient);
+        jack_client_close(s->jackClient);
+        s->jackClient = nullptr;
+    }
     removeState(host);
+}
+
+DVH_API int32_t dvh_jack_get_xrun_count(DVH_Host host) {
+    if (!host) return 0;
+    auto* s = get(host);
+    if (!s) return 0;
+    return s->xrunCount.load(std::memory_order_relaxed);
 }
 
 } // extern "C"
@@ -648,8 +754,9 @@ extern "C" {
     void    dvh_audio_add_plugin(DVH_Host, DVH_Plugin) {}
     void    dvh_audio_remove_plugin(DVH_Host, DVH_Plugin) {}
     void    dvh_audio_clear_plugins(DVH_Host) {}
-    int32_t dvh_start_alsa_thread(DVH_Host, const char*) { return 0; }
-    void    dvh_stop_alsa_thread(DVH_Host) {}
+    int32_t dvh_start_jack_client(DVH_Host, const char*) { return 0; }
+    void    dvh_stop_jack_client(DVH_Host) {}
+    int32_t dvh_jack_get_xrun_count(DVH_Host) { return 0; }
     void    dvh_set_processing_order(DVH_Host, const DVH_Plugin*, int32_t) {}
     void    dvh_route_audio(DVH_Host, DVH_Plugin, DVH_Plugin) {}
     void    dvh_clear_routes(DVH_Host) {}

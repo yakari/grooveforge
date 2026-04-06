@@ -66,19 +66,22 @@ DVH_API float   dvh_get_param_normalized(DVH_Plugin p, int32_t param_id);
 // Set a parameter normalized value. Returns 1 on success.
 DVH_API int32_t dvh_set_param_normalized(DVH_Plugin p, int32_t param_id, float normalized);
 
-// Audio loop management (Linux ALSA only).
+// Audio loop management (Linux JACK client).
 // Add a plugin to the audio loop managed by this host.
 DVH_API void    dvh_audio_add_plugin(DVH_Host host, DVH_Plugin plugin);
 // Remove a plugin from the audio loop.
 DVH_API void    dvh_audio_remove_plugin(DVH_Host host, DVH_Plugin plugin);
 // Remove all plugins from the audio loop.
 DVH_API void    dvh_audio_clear_plugins(DVH_Host host);
-// Start an ALSA output thread mixing all registered plugins.
-// alsa_device may be null/"default" for the system default device.
+// Start a JACK client and activate it.  Registers stereo output ports
+// ("out_L", "out_R") and auto-connects to system playback.
+// client_name may be null (defaults to "GrooveForge").
 // Returns 1 on success, 0 on failure.
-DVH_API int32_t dvh_start_alsa_thread(DVH_Host host, const char* alsa_device);
-// Stop the ALSA output thread. Blocks until the thread exits.
-DVH_API void    dvh_stop_alsa_thread(DVH_Host host);
+DVH_API int32_t dvh_start_jack_client(DVH_Host host, const char* client_name);
+// Stop the JACK client.  Deactivates and closes it, blocks until clean.
+DVH_API void    dvh_stop_jack_client(DVH_Host host);
+// Return the cumulative XRUN count since the JACK client was started.
+DVH_API int32_t dvh_jack_get_xrun_count(DVH_Host host);
 
 // ── Audio graph execution ────────────────────────────────────────────────────
 
@@ -99,7 +102,7 @@ DVH_API void dvh_route_audio(DVH_Host host,
                              DVH_Plugin to_plugin);
 
 // Remove all audio routing rules. Every plugin's output returns to the
-// default behaviour of mixing directly into the master ALSA output.
+// default behaviour of mixing directly into the master output.
 DVH_API void dvh_clear_routes(DVH_Host host);
 
 // ── External audio source injection ──────────────────────────────────────────
@@ -110,13 +113,13 @@ DVH_API void dvh_clear_routes(DVH_Host host);
 //
 // The render function has signature:
 //   void render(float* outL, float* outR, int32_t frames)
-// It is called from the ALSA audio thread — must be allocation-free.
+// It is called from the JACK audio thread — must be allocation-free.
 //
 // Typical flow:
 //   1. Enable capture mode on the native synth (e.g. theremin_set_capture_mode(1))
 //      so its miniaudio device outputs silence.
 //   2. Call dvh_set_external_render(host, effectPlugin, thereminRenderBlock)
-//      so the ALSA loop feeds theremin audio into the effect's input.
+//      so the JACK audio loop feeds theremin audio into the effect's input.
 //   3. On disconnect: dvh_clear_external_render + theremin_set_capture_mode(0).
 
 typedef void (*DvhRenderFn)(float* outL, float* outR, int32_t frames);
@@ -134,10 +137,10 @@ DVH_API void dvh_clear_external_render(DVH_Host host, DVH_Plugin plugin);
 // ── Master-mix render contributors ───────────────────────────────────────────
 //
 // Allows non-VST3 audio generators (e.g. GF Keyboard via libfluidsynth) to
-// contribute audio directly to the ALSA master mix output without being
+// contribute audio directly to the master mix output without being
 // associated with any VST3 plugin input.
 //
-// [fn] is called from the ALSA audio thread each block and its output is
+// [fn] is called from the JACK audio thread each block and its output is
 // accumulated into the master mix alongside VST3 plugin outputs.
 // The function must be allocation-free and signal-safe.
 //
@@ -190,7 +193,7 @@ DVH_API int32_t  dvh_mac_editor_is_open(DVH_Plugin p);
 //
 // Allows GFPA native DSP effects (reverb, delay, wah, EQ, compressor, chorus)
 // to process the output of a master-render contributor before it reaches the
-// ALSA mix bus.  Full types are defined in gfpa_dsp.h; the API here uses
+// mix bus.  Full types are defined in gfpa_dsp.h; the API here uses
 // compatible void* / function-pointer types so that dart_vst_host.h has no
 // dependency on gfpa_dsp.h.
 //
@@ -200,7 +203,7 @@ typedef void (*GfpaInsertFn_fwd)(const float*, const float*,
                                   float*, float*, int32_t, void*);
 
 /// Register a GFPA insert on [source]'s master-render audio path.
-/// [insertFn] is called each ALSA block with the source's dry stereo output;
+/// [insertFn] is called each audio block with the source's dry stereo output;
 /// [userdata] is the GfpaDspHandle (obtained from gfpa_dsp_userdata()).
 /// Calling again for the same [source] replaces the existing insert.
 DVH_API void dvh_add_master_insert(DVH_Host host, DvhRenderFn source,
@@ -216,7 +219,7 @@ DVH_API void dvh_remove_master_insert(DVH_Host host, DvhRenderFn source);
 /// callback to complete at least one full block after removal so that any
 /// in-flight raw pointer to this DSP has retired.
 ///
-/// **Must be called BEFORE gfpa_dsp_destroy** to avoid use-after-free crashes.
+/// **Must be called BEFORE gfpa_dsp_destroy** to prevent use-after-free.
 DVH_API void dvh_remove_master_insert_by_handle(DVH_Host host, void* dspHandle);
 
 /// Remove all registered master inserts (all fan-in chains).

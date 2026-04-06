@@ -39,7 +39,7 @@ using namespace Steinberg;
 using namespace Steinberg::Vst;
 
 // DVH_HostState is defined in dart_vst_host_internal.h (shared with
-// dart_vst_host_alsa.cpp so the ALSA thread can read sr and maxBlock).
+// dart_vst_host_jack.cpp so the JACK callback can read sr and maxBlock).
 #include "dart_vst_host_internal.h"
 
 static Steinberg::Vst::ProcessContext g_transportContext{};

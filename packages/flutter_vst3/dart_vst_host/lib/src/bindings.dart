@@ -90,7 +90,7 @@ class NativeBindings {
   late final int Function(Pointer<Void>, int, double) dvhSetParam =
       lib.lookupFunction<_SetParamC, int Function(Pointer<Void>, int, double)>('dvh_set_param_normalized');
 
-  // ALSA audio thread management (Linux only, stubs on other platforms).
+  // JACK audio client management (Linux only, stubs on other platforms).
   late final void Function(Pointer<Void>, Pointer<Void>) dvhAudioAddPlugin =
       lib.lookupFunction<
           Void Function(Pointer<Void>, Pointer<Void>),
@@ -109,17 +109,24 @@ class NativeBindings {
           void Function(Pointer<Void>)
       >('dvh_audio_clear_plugins');
 
-  late final int Function(Pointer<Void>, Pointer<Utf8>) dvhStartAlsaThread =
+  late final int Function(Pointer<Void>, Pointer<Utf8>) dvhStartJackClient =
       lib.lookupFunction<
           Int32 Function(Pointer<Void>, Pointer<Utf8>),
           int Function(Pointer<Void>, Pointer<Utf8>)
-      >('dvh_start_alsa_thread');
+      >('dvh_start_jack_client');
 
-  late final void Function(Pointer<Void>) dvhStopAlsaThread =
+  late final void Function(Pointer<Void>) dvhStopJackClient =
       lib.lookupFunction<
           Void Function(Pointer<Void>),
           void Function(Pointer<Void>)
-      >('dvh_stop_alsa_thread');
+      >('dvh_stop_jack_client');
+
+  /// Return the cumulative XRUN count since the JACK client was started.
+  late final int Function(Pointer<Void>) dvhJackGetXrunCount =
+      lib.lookupFunction<
+          Int32 Function(Pointer<Void>),
+          int Function(Pointer<Void>)
+      >('dvh_jack_get_xrun_count');
 
   // Audio graph routing (Phase 5.4).
   // dvh_set_processing_order: set topological processing order.
@@ -169,7 +176,7 @@ class NativeBindings {
       >('dvh_clear_external_render');
 
   // dvh_add_master_render: register a render fn as a master-mix contributor.
-  // The fn is called each ALSA block and its stereo output is mixed into the
+  // The fn is called each audio block and its stereo output is mixed into the
   // master bus alongside VST3 plugin outputs. Deduplicated on the C side.
   late final void Function(
     Pointer<Void>,
@@ -204,7 +211,7 @@ class NativeBindings {
   //
   // Bindings for the GFPA DSP effect instances defined in gfpa_dsp.h.
   // These are used by VstHostService to create/destroy per-slot native effects
-  // and to wire them into the ALSA master-insert chain.
+  // and to wire them into the JACK master-insert chain.
 
   /// Create a native DSP instance for the given pluginId.
   /// Returns nullptr for unrecognised IDs.

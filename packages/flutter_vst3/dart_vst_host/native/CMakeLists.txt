@@ -91,14 +91,15 @@ if(APPLE)
   )
 elseif(UNIX)
   target_sources(dart_vst_host PRIVATE
-    src/dart_vst_host_alsa.cpp
+    src/dart_vst_host_jack.cpp
     src/dart_vst_host_editor_linux.cpp
     ${VST3_SDK_DIR}/public.sdk/source/vst/hosting/module_linux.cpp
     ${VST3_SDK_DIR}/public.sdk/source/common/threadchecker_linux.cpp
   )
-  find_package(ALSA REQUIRED)
-  target_link_libraries(dart_vst_host ${ALSA_LIBRARIES})
-  target_include_directories(dart_vst_host PRIVATE ${ALSA_INCLUDE_DIRS})
+  find_package(PkgConfig REQUIRED)
+  pkg_check_modules(JACK REQUIRED jack)
+  target_link_libraries(dart_vst_host ${JACK_LIBRARIES})
+  target_include_directories(dart_vst_host PRIVATE ${JACK_INCLUDE_DIRS})
   # X11 for native plugin editor windows.
   find_package(X11 REQUIRED)
   target_link_libraries(dart_vst_host ${X11_LIBRARIES})
