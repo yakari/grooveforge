@@ -43,6 +43,7 @@ class ProjectService extends ChangeNotifier {
       // No persistent filesystem on web — always start with defaults.
       debugPrint('ProjectService: web target — initializing defaults');
       rackState.initDefaults();
+      engine.ccMappingService?.clear();
       notifyListeners();
       return;
     }
@@ -58,6 +59,7 @@ class ProjectService extends ChangeNotifier {
       } catch (e) {
         debugPrint('ProjectService: autosave load failed ($e) — using defaults');
         rackState.initDefaults();
+        engine.ccMappingService?.clear();
         // Create per-slot FluidSynth instances for the default keyboard slots
         // so that GFPA routing works correctly on Android from the start.
         await rackState.initAndroidKeyboardSlots();
@@ -65,6 +67,7 @@ class ProjectService extends ChangeNotifier {
     } else {
       debugPrint('ProjectService: no autosave found — initializing defaults');
       rackState.initDefaults();
+      engine.ccMappingService?.clear();
       // Create per-slot FluidSynth instances for the default keyboard slots
       // so that GFPA routing works correctly on Android from the start.
       await rackState.initAndroidKeyboardSlots();
@@ -249,6 +252,7 @@ class ProjectService extends ChangeNotifier {
       'audioGraph': audioGraph.toJson(),
       'looperSessions': looperEngine.toJson(),
       'plugins': rackState.toJson(),
+      'ccMappings': engine.ccMappingService?.toJson() ?? [],
     };
     return const JsonEncoder.withIndent('  ').convert(data);
   }
@@ -340,10 +344,37 @@ class ProjectService extends ChangeNotifier {
         data['looperSessions'] as Map<String, dynamic>? ?? const {};
     looperEngine.loadFromJson(looperJson);
 
+    // Restore CC mappings (Phase A of per-project CC mappings).
+    // If the key is absent (older .gf files), migrate from SharedPreferences.
+    final ccMappingsJson = data['ccMappings'] as List<dynamic>?;
+    final ccService = engine.ccMappingService;
+    if (ccService != null) {
+      if (ccMappingsJson != null) {
+        ccService.loadFromJson(ccMappingsJson);
+      } else {
+        // Old project without ccMappings — migrate from SharedPreferences.
+        final migrated = await ccService.migrateFromPrefs();
+        if (migrated.isNotEmpty) {
+          ccService.loadFromJson(
+            migrated.map((m) => m.toJson()).toList(),
+          );
+          debugPrint(
+            'ProjectService: migrated ${migrated.length} CC mapping(s) '
+            'from SharedPreferences',
+          );
+          // The next autosave will persist them into the .gf file.
+          // Legacy prefs are cleaned up after the first successful save.
+        } else {
+          ccService.clear();
+        }
+      }
+    }
+
     debugPrint(
       'ProjectService: loaded from $path '
       '(${pluginsJson.length} slots, '
-      '${audioGraph.connections.length} cables)',
+      '${audioGraph.connections.length} cables, '
+      '${ccMappingsJson?.length ?? 0} CC mappings)',
     );
   }
 }

@@ -396,6 +396,9 @@ class RackState extends ChangeNotifier {
     // removed slot are automatically cleaned up (fires _onAudioGraphChanged
     // if any connections were removed).
     _audioGraph.onSlotRemoved(id);
+    // Remove any CC mappings that target the deleted slot (SlotParamTarget
+    // or SwapTarget referencing this slot ID).
+    _engine.ccMappingService?.removeOrphanedSlotMappings(id);
     _syncJamFollowerMapToEngine();
     // Sync native routing even if no cables pointed to the removed slot.
     VstHostService.instance.syncAudioRouting(

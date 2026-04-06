@@ -1317,61 +1317,15 @@ class AudioEngine extends ChangeNotifier {
         case 0xB0:
           if (ccMappingService != null) {
             ccMappingService!.updateLastEvent('CC', channel, data1, data2);
-            final mapping = ccMappingService!.getMapping(data1);
-            if (mapping != null) {
-              if (mapping.targetCc >= 1000) {
-                // Looper (1009-1013) and mute (1014) actions are channel-agnostic:
-                // fire once with the full mapping rather than once per channel.
-                if (mapping.targetCc >= 1009) {
-                  _handleSystemCommand(
-                    mapping.targetCc,
-                    channel,
-                    data2,
-                    muteChannels: mapping.muteChannels,
-                  );
-                } else if (mapping.targetChannel == -1) {
-                  // Broadcast system action to all 16 channels.
-                  for (int i = 0; i < 16; i++) {
-                    _handleSystemCommand(mapping.targetCc, i, data2);
-                  }
-                } else if (mapping.targetChannel >= 0 &&
-                    mapping.targetChannel <= 15) {
-                  _handleSystemCommand(
-                    mapping.targetCc,
-                    mapping.targetChannel,
-                    data2,
-                  );
-                } else {
-                  _handleSystemCommand(mapping.targetCc, channel, data2);
-                }
-              } else {
-                // Normal CC remapping
-                if (mapping.targetChannel == -1) {
-                  for (int i = 0; i < 16; i++) {
-                    setControlChange(
-                      channel: i,
-                      controller: mapping.targetCc,
-                      value: data2,
-                    );
-                  }
-                } else if (mapping.targetChannel == -2) {
-                  setControlChange(
-                    channel: channel,
-                    controller: mapping.targetCc,
-                    value: data2,
-                  );
-                } else {
-                  setControlChange(
-                    channel: mapping.targetChannel,
-                    controller: mapping.targetCc,
-                    value: data2,
-                  );
-                }
+            final mappings = ccMappingService!.getMappings(data1);
+            if (mappings.isNotEmpty) {
+              for (final mapping in mappings) {
+                _dispatchCcMapping(mapping.target, channel, data2);
               }
               return;
             }
           }
-          // Default: send normal CC
+          // Default: send normal CC (no mapping matched).
           setControlChange(channel: channel, controller: data1, value: data2);
           break;
         case 0xE0:
@@ -2103,6 +2057,75 @@ class AudioEngine extends ChangeNotifier {
   /// Dispatches a resolved system action coming from a CC mapping.
   ///
   /// [targetAction] is the system action code (1001-1014).
+  /// Routes a single CC mapping target to the appropriate handler.
+  ///
+  /// Called once per mapping when an incoming CC matches. Multiple mappings
+  /// can share the same incoming CC, so this may be called several times
+  /// for a single hardware event.
+  void _dispatchCcMapping(CcMappingTarget target, int channel, int ccValue) {
+    switch (target) {
+      case GmCcTarget(:final targetCc, :final targetChannel):
+        // Standard GM CC remapping — route by channel mode.
+        _sendRemappedCc(targetCc, targetChannel, channel, ccValue);
+
+      case SystemTarget(:final actionCode, :final targetChannel,
+            :final muteChannels):
+        // Legacy system actions (1001-1014).
+        if (actionCode >= 1009) {
+          // Looper and mute actions are channel-agnostic.
+          _handleSystemCommand(actionCode, channel, ccValue,
+              muteChannels: muteChannels);
+        } else if (targetChannel == -1) {
+          for (int i = 0; i < 16; i++) {
+            _handleSystemCommand(actionCode, i, ccValue);
+          }
+        } else if (targetChannel >= 0 && targetChannel <= 15) {
+          _handleSystemCommand(actionCode, targetChannel, ccValue);
+        } else {
+          _handleSystemCommand(actionCode, channel, ccValue);
+        }
+
+      case SlotParamTarget():
+        // Slot-addressed parameter control — Phase C will implement the
+        // onSlotParamCc callback.  For now, log and skip.
+        debugPrint('CC dispatch: SlotParamTarget not yet implemented '
+            '(slot=${target.slotId}, param=${target.paramKey})');
+
+      case SwapTarget():
+        // Channel-swap macro — Phase E will implement onSwapSlots callback.
+        debugPrint('CC dispatch: SwapTarget not yet implemented '
+            '(${target.slotIdA} ↔ ${target.slotIdB})');
+
+      case TransportTarget():
+        // Transport control — Phase C will implement onTransportCc callback.
+        debugPrint('CC dispatch: TransportTarget not yet implemented '
+            '(${target.action.name})');
+
+      case GlobalTarget():
+        // Global actions — Phase C will implement system volume etc.
+        debugPrint('CC dispatch: GlobalTarget not yet implemented '
+            '(${target.action.name})');
+    }
+  }
+
+  /// Sends a remapped GM CC to the target channel(s).
+  ///
+  /// [targetChannel] routing: -1 = all 16, -2 = same as incoming, 0-15 = specific.
+  void _sendRemappedCc(int targetCc, int targetChannel, int incomingChannel,
+      int value) {
+    if (targetChannel == -1) {
+      for (int i = 0; i < 16; i++) {
+        setControlChange(channel: i, controller: targetCc, value: value);
+      }
+    } else if (targetChannel == -2) {
+      setControlChange(
+          channel: incomingChannel, controller: targetCc, value: value);
+    } else {
+      setControlChange(
+          channel: targetChannel, controller: targetCc, value: value);
+    }
+  }
+
   /// [incomingChannel] is the MIDI channel on which the original CC arrived (0-15).
   /// [value] is the raw CC value (0-127).
   /// [muteChannels] carries the set of channels to toggle for action 1014;

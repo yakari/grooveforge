@@ -117,7 +117,7 @@ class CcPreferencesScreen extends StatelessWidget {
   }
 
   Widget _buildMappingsList(BuildContext context, CcMappingService ccService) {
-    return ValueListenableBuilder<Map<int, CcMapping>>(
+    return ValueListenableBuilder<List<CcMapping>>(
       valueListenable: ccService.mappingsNotifier,
       builder: (context, mappings, _) {
         if (mappings.isEmpty) {
@@ -130,11 +130,10 @@ class CcPreferencesScreen extends StatelessWidget {
           );
         }
 
-        final entries = mappings.values.toList();
         return ListView.builder(
-          itemCount: entries.length,
+          itemCount: mappings.length,
           itemBuilder: (context, index) {
-            final mapping = entries[index];
+            final mapping = mappings[index];
             return Card(
               child: ListTile(
                 leading: const Icon(Icons.swap_horiz, color: Colors.blueAccent),
@@ -142,7 +141,7 @@ class CcPreferencesScreen extends StatelessWidget {
                 subtitle: Text(_mappingSubtitle(context, mapping)),
                 trailing: IconButton(
                   icon: const Icon(Icons.delete, color: Colors.redAccent),
-                  onPressed: () => ccService.removeMapping(mapping.incomingCc),
+                  onPressed: () => ccService.removeMapping(mapping),
                 ),
               ),
             );
@@ -153,37 +152,59 @@ class CcPreferencesScreen extends StatelessWidget {
   }
 
   /// Returns the main label for a mapping list tile.
+  ///
+  /// Dispatches on the sealed [CcMappingTarget] type to produce a human-
+  /// readable description of what the mapping does.
   String _mappingTitle(BuildContext context, CcMapping mapping) {
-    final targetName =
-        CcMappingService.standardGmCcs[mapping.targetCc] ??
-        AppLocalizations.of(context)!.ccUnknownSequence(mapping.targetCc);
-    return AppLocalizations.of(
-      context,
-    )!.ccMappingHardwareToTarget(mapping.incomingCc, targetName);
+    final l10n = AppLocalizations.of(context)!;
+    final targetName = switch (mapping.target) {
+      GmCcTarget(:final targetCc) =>
+        CcMappingService.standardGmCcs[targetCc] ??
+            l10n.ccUnknownSequence(targetCc),
+      SystemTarget(:final actionCode) =>
+        CcMappingService.standardGmCcs[actionCode] ??
+            l10n.ccUnknownSequence(actionCode),
+      SlotParamTarget(:final slotId, :final paramKey) =>
+        '$paramKey on $slotId',
+      SwapTarget(:final slotIdA, :final slotIdB) =>
+        'Swap $slotIdA \u2194 $slotIdB',
+      TransportTarget(:final action) => 'Transport: ${action.name}',
+      GlobalTarget(:final action) => 'Global: ${action.name}',
+    };
+    return l10n.ccMappingHardwareToTarget(mapping.incomingCc, targetName);
   }
 
   /// Returns the subtitle for a mapping list tile.
-  ///
-  /// For the mute action (1014), shows the list of affected channels instead
-  /// of the normal channel-routing string.
   String _mappingSubtitle(BuildContext context, CcMapping mapping) {
-    // Mute action: list the channels being toggled.
-    if (CcMappingService.isMuteAction(mapping.targetCc)) {
-      final channels = mapping.muteChannels;
-      if (channels == null || channels.isEmpty) {
-        return AppLocalizations.of(context)!.ccMuteNoChannels;
+    final l10n = AppLocalizations.of(context)!;
+    return switch (mapping.target) {
+      GmCcTarget(:final targetChannel) =>
+        l10n.ccMappingRouting(_channelLabel(context, targetChannel)),
+      SystemTarget(:final actionCode, :final targetChannel,
+            :final muteChannels) =>
+        _systemSubtitle(context, actionCode, targetChannel, muteChannels),
+      SlotParamTarget(:final mode) => mode.name,
+      SwapTarget(:final swapCables) =>
+        swapCables ? 'Channels + cables' : 'Channels only',
+      TransportTarget() => '',
+      GlobalTarget() => '',
+    };
+  }
+
+  /// Subtitle for legacy system actions — handles mute, looper, and standard routing.
+  String _systemSubtitle(BuildContext context, int actionCode,
+      int targetChannel, Set<int>? muteChannels) {
+    final l10n = AppLocalizations.of(context)!;
+    if (CcMappingService.isMuteAction(actionCode)) {
+      if (muteChannels == null || muteChannels.isEmpty) {
+        return l10n.ccMuteNoChannels;
       }
-      final sorted = channels.toList()..sort();
+      final sorted = muteChannels.toList()..sort();
       final label = sorted.map((ch) => (ch + 1).toString()).join(', ');
-      return AppLocalizations.of(context)!.ccMuteChannelsSummary(label);
+      return l10n.ccMuteChannelsSummary(label);
     }
-
-    // Looper actions: channel routing is irrelevant.
-    if (CcMappingService.isLooperAction(mapping.targetCc)) return '';
-
-    // Standard routing.
-    final channelStr = _channelLabel(context, mapping.targetChannel);
-    return AppLocalizations.of(context)!.ccMappingRouting(channelStr);
+    if (CcMappingService.isLooperAction(actionCode)) return '';
+    return l10n.ccMappingRouting(_channelLabel(context, targetChannel));
   }
 
   /// Converts a [targetChannel] value to a human-readable string.
@@ -332,16 +353,27 @@ class CcPreferencesScreen extends StatelessWidget {
                   onPressed: () {
                     final incoming = int.tryParse(incomingController.text);
                     if (incoming != null) {
-                      final mapping = CcMapping(
-                        incomingCc: incoming,
-                        targetCc: targetCc,
-                        targetChannel: targetChannel,
-                        muteChannels:
-                            isMute && muteChannels.isNotEmpty
-                                ? muteChannels
-                                : null,
+                      // Build the appropriate target type based on the
+                      // selected targetCc value.
+                      final CcMappingTarget target;
+                      if (targetCc >= 1000) {
+                        target = SystemTarget(
+                          actionCode: targetCc,
+                          targetChannel: targetChannel,
+                          muteChannels:
+                              isMute && muteChannels.isNotEmpty
+                                  ? muteChannels
+                                  : null,
+                        );
+                      } else {
+                        target = GmCcTarget(
+                          targetCc: targetCc,
+                          targetChannel: targetChannel,
+                        );
+                      }
+                      ccService.addMapping(
+                        CcMapping(incomingCc: incoming, target: target),
                       );
-                      ccService.saveMapping(mapping);
                       Navigator.pop(dialogContext);
                     }
                   },
