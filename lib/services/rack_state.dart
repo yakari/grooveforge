@@ -583,10 +583,19 @@ class RackState extends ChangeNotifier {
 
   // ─── Engine sync ──────────────────────────────────────────────────────────
 
+  /// Applies all loaded plugins to the audio engine.
+  ///
+  /// Called from [loadFromJson] which is followed by [initAndroidKeyboardSlots].
+  /// We pass [skipAndroidSlotCreation] = true here because
+  /// initAndroidKeyboardSlots will create the dedicated FluidSynth instances
+  /// sequentially.  Without this flag, _applyPluginToEngine fires a concurrent
+  /// fire-and-forget createKeyboardSlotSynth that races with the sequential
+  /// one — producing two synths per channel and leaving the first one orphaned
+  /// on the audio bus.
   void _applyAllPluginsToEngine() {
     for (final p in _plugins) {
       if (p is GrooveForgeKeyboardPlugin) {
-        _applyPluginToEngine(p);
+        _applyPluginToEngine(p, skipAndroidSlotCreation: true);
       } else if (p is GFpaPluginInstance) {
         _applyGfpaPluginToEngine(p);
       }
@@ -620,7 +629,17 @@ class RackState extends ChangeNotifier {
     }
   }
 
-  void _applyPluginToEngine(GrooveForgeKeyboardPlugin plugin) {
+  /// Applies a single keyboard plugin to the audio engine (channel assignment,
+  /// program selection, and optionally dedicated FluidSynth creation on Android).
+  ///
+  /// [skipAndroidSlotCreation] — when true, skips the fire-and-forget
+  /// `createKeyboardSlotSynth` call.  Used by [_applyAllPluginsToEngine] during
+  /// project load, where [initAndroidKeyboardSlots] handles slot creation
+  /// sequentially to avoid a race condition that produces duplicate synths.
+  void _applyPluginToEngine(
+    GrooveForgeKeyboardPlugin plugin, {
+    bool skipAndroidSlotCreation = false,
+  }) {
     final idx = plugin.midiChannel - 1;
     if (idx < 0 || idx > 15) return;
 
@@ -635,7 +654,7 @@ class RackState extends ChangeNotifier {
       // the old instance must be torn down and replaced so it actually plays
       // the new file.  createKeyboardSlotSynth is a no-op if the path hasn't
       // changed, so this is safe to call unconditionally.
-      if (!kIsWeb && Platform.isAndroid) {
+      if (!skipAndroidSlotCreation && !kIsWeb && Platform.isAndroid) {
         _engine
             .createKeyboardSlotSynth(idx, plugin.soundfontPath!)
             .then((_) {

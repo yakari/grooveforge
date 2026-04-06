@@ -137,6 +137,15 @@ static float g_mixR[kMaxFrames];
 
 static AAudioStream* g_stream = nullptr;
 
+// ── Output device routing ────────────────────────────────────────────────────
+//
+// Android AudioDeviceInfo.id to pass to AAudioStreamBuilder_setDeviceId().
+// A value of 0 (AAUDIO_UNSPECIFIED) means "use the system default device".
+// Set from the Dart/JNI thread; read when (re-)opening the stream.
+// Not accessed from the audio callback, so a plain int is sufficient.
+
+static int g_outputDeviceId = 0;
+
 // ── FluidSynth render trampoline ──────────────────────────────────────────────
 
 /// Render trampoline for FluidSynth keyboard sources.
@@ -253,10 +262,28 @@ static aaudio_data_callback_result_t audioCallback(
 
 /// AAudio error callback.  Called on an internal AAudio thread when the stream
 /// encounters an unrecoverable error (e.g. audio device disconnect).
-static void errorCallback(AAudioStream* /*stream*/, void* /*userData*/,
+///
+/// On any error (including AAUDIO_ERROR_DISCONNECTED and the Android 11
+/// AAUDIO_ERROR_TIMEOUT variant), the stream is closed and reopened on a
+/// detached thread.  The device ID is reset to 0 (system default) so the
+/// new stream targets whatever device Android now considers active.
+static void errorCallback(AAudioStream* stream, void* /*userData*/,
                           aaudio_result_t error)
 {
     LOGE("AAudio stream error: %s (%d)", AAudio_convertResultToText(error), error);
+
+    // Capture sample rate before the stream becomes invalid.
+    const int sr = AAudioStream_getSampleRate(stream);
+
+    // Reopen on a detached thread — we must not block the error callback, and
+    // oboe_stream_stop/start touch the mutex and may block briefly.
+    std::thread([sr]() {
+        LOGI("AAudio error recovery: reopening stream on default device "
+             "(was device %d)", g_outputDeviceId);
+        g_outputDeviceId = 0;  // fall back to system default
+        oboe_stream_stop();
+        oboe_stream_start(sr);
+    }).detach();
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────
@@ -277,6 +304,14 @@ extern "C" void oboe_stream_start(int sampleRate)
     AAudioStreamBuilder_setFormat(builder, AAUDIO_FORMAT_PCM_FLOAT);
     AAudioStreamBuilder_setChannelCount(builder, 2);
     AAudioStreamBuilder_setSampleRate(builder, sampleRate);
+
+    // Route to a specific output device when the user has selected one.
+    // 0 (AAUDIO_UNSPECIFIED) = system default; any positive value is an
+    // Android AudioDeviceInfo.id obtained from AudioManager.getDevices().
+    if (g_outputDeviceId > 0) {
+        AAudioStreamBuilder_setDeviceId(builder, g_outputDeviceId);
+        LOGI("AAudio stream targeting device ID %d", g_outputDeviceId);
+    }
 
     // Low-latency exclusive mode for minimal device output latency.
     AAudioStreamBuilder_setPerformanceMode(
@@ -394,6 +429,38 @@ extern "C" void oboe_stream_remove_source(int busSlotId)
         }
     }
     // Caller may now safely free any resources associated with this source.
+}
+
+// ── Output device routing ────────────────────────────────────────────────────
+
+/// Sets the Android output device ID for the AAudio stream.
+///
+/// [deviceId] — Android AudioDeviceInfo.id from AudioManager.getDevices().
+///              Pass 0 (AAUDIO_UNSPECIFIED) to revert to the system default.
+///
+/// If the stream is already running, it is stopped and restarted so the new
+/// device takes effect.  AAudio does not support hot-swapping the target
+/// device on a live stream.
+extern "C" void oboe_stream_set_output_device(int deviceId)
+{
+    const int previous = g_outputDeviceId;
+    if (deviceId == previous) return;  // No change — skip restart.
+
+    g_outputDeviceId = deviceId;
+    LOGI("Output device changed: %d -> %d", previous, deviceId);
+
+    // Restart the stream if already running so the new device takes effect.
+    if (g_stream != nullptr) {
+        const int sr = AAudioStream_getSampleRate(g_stream);
+        oboe_stream_stop();
+        oboe_stream_start(sr);
+    }
+}
+
+/// Returns the currently configured output device ID (0 = system default).
+extern "C" int oboe_stream_get_output_device(void)
+{
+    return g_outputDeviceId;
 }
 
 // ── FluidSynth convenience wrappers ──────────────────────────────────────────

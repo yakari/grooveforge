@@ -5,6 +5,25 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/lang/fr/).
 
+## [X.x.x]
+
+### Ajouté
+- **Écran de débogage audio USB (Android)** : nouvel écran `UsbAudioDebugScreen` accessible depuis les Préférences, affichant chaque `AudioDeviceInfo` du système — identifiant, type, direction, fréquences d'échantillonnage, nombre de canaux, encodages et adresse. Utilisé pour investiguer le routage multi-USB sur différents constructeurs.
+- **Routage de sortie AAudio (Android)** : le flux de sortie synthétiseur (claviers FluidSynth, Theremin, Stylophone, Vocoder) peut désormais être dirigé vers un périphérique audio USB spécifique via `oboe_stream_set_output_device()` utilisant `AAudioStreamBuilder_setDeviceId()`. Auparavant, seul le chemin capture/lecture du vocoder (miniaudio) supportait la sélection de périphérique ; désormais les deux chemins audio respectent le choix de l'utilisateur.
+- **Notification de déconnexion de périphérique** : lorsqu'un périphérique audio sélectionné est débranché en cours de session, `_resetDisconnectedDevices()` bascule sur le périphérique par défaut et affiche un snackbar via `toastNotifier`. Le `errorCallback` AAudio rouvre également le flux sur le périphérique par défaut automatiquement.
+- **Filtre par niveau d'API pour le sélecteur de périphérique** : le menu déroulant de sortie dans `AudioSettingsBar` est masqué sur Android < 28, où `setDeviceId()` d'AAudio n'est pas fiable (OpenSL ES l'ignore silencieusement).
+
+### Corrigé
+- **Android — Clavier GF 1 muet après le démarrage** : `_applyAllPluginsToEngine()` lançait un `createKeyboardSlotSynth()` concurrent (fire-and-forget) pour chaque clavier, en concurrence avec l'appel séquentiel `initAndroidKeyboardSlots()` exécuté juste après par `_readGfFile()`. Les deux appels voyaient `_channelSlotSfId[channel] == null` et créaient des instances FluidSynth en double — la première restait orpheline sur le bus AAudio sans routage MIDI, rendant le clavier muet. Corrigé en passant `skipAndroidSlotCreation: true` dans `_applyAllPluginsToEngine()` pour que seul `initAndroidKeyboardSlots()` crée les synthétiseurs dédiés.
+
+### Architecture
+- **`oboe_stream_android.cpp` — routage de périphérique de sortie** : ajout de `g_outputDeviceId`, `oboe_stream_set_output_device()` et `oboe_stream_get_output_device()`. Le builder du flux appelle `AAudioStreamBuilder_setDeviceId()` quand un périphérique non par défaut est sélectionné. Une garde anti-changement évite les redémarrages inutiles du flux.
+- **`oboe_stream_android.cpp` — récupération d'erreur** : le `errorCallback` rouvre désormais le flux sur le périphérique par défaut via un thread détaché au lieu de simplement journaliser l'erreur.
+- **`native-lib.cpp` — JNI `setOutputDevice`** : nouveau point d'entrée JNI reliant le method channel Kotlin à `oboe_stream_set_output_device()`.
+- **`flutter_midi_pro` — API `setOutputDevice()`** : nouvelle méthode dans l'interface de plateforme, le method channel, le stub web et la classe publique `MidiPro`.
+- **`MainActivity.kt` — `getAudioDeviceDetails`** : nouvel appel method channel renvoyant les données complètes de `AudioDeviceInfo` (id, productName, type, isSource, isSink, sampleRates, channelCounts, encodings, address) pour l'écran de débogage. Extraction du helper `deviceTypeString()` partagé avec `enumerateDevices()`.
+- **`AudioEngine` — `androidSdkVersion`** : mis en cache une seule fois à l'initialisation via method channel ; utilisé par l'interface pour conditionner les fonctionnalités dépendantes du niveau d'API.
+
 ## [2.10.0] - 2026-04-06
 
 ### Ajouté

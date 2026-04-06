@@ -14,6 +14,7 @@ import 'package:flutter/services.dart' show rootBundle;
 import '../l10n/app_localizations.dart';
 import '../services/locale_provider.dart';
 import '../services/audio_input_ffi.dart';
+import 'usb_audio_debug_screen.dart';
 import '../services/vst_host_service.dart';
 import 'dart:async';
 
@@ -930,6 +931,21 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                   trailing: const Icon(Icons.chevron_right),
                   onTap: _showChangelogDialog,
                 ),
+                if (!kIsWeb && Platform.isAndroid) ...[
+                  const Divider(height: 1),
+                  ListTile(
+                    leading: const Icon(Icons.usb, color: Colors.grey),
+                    title: Text(loc.usbAudioDebugTitle),
+                    subtitle: Text(loc.usbAudioDebugSubtitle),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const UsbAudioDebugScreen(),
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

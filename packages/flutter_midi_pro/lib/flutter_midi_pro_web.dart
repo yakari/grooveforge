@@ -117,6 +117,11 @@ class FlutterMidiProWeb extends FlutterMidiProPlatform {
   }
 
   @override
+  Future<void> setOutputDevice(int deviceId) async {
+    // No-op on web — AAudio device routing is Android-only.
+  }
+
+  @override
   Future<void> unloadSoundfont(int sfId) async {
     _gfAudio?.unloadSoundfont(sfId.toJS);
   }

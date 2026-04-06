@@ -173,6 +173,12 @@ class AudioEngine extends ChangeNotifier {
   bool _isVocoderActive = false;
   CcMappingService? ccMappingService;
 
+  /// Android SDK version (e.g. 28 for Pie, 34 for Android 14).
+  /// Populated once during [init]; 0 on non-Android platforms.
+  /// Used to gate features that require a minimum API level (e.g. AAudio
+  /// `setDeviceId()` needs API 28+).
+  int androidSdkVersion = 0;
+
   final ValueNotifier<String?> toastNotifier = ValueNotifier(null);
   final ValueNotifier<int> stateNotifier = ValueNotifier(0);
 
@@ -295,6 +301,18 @@ class AudioEngine extends ChangeNotifier {
     );
   }
 
+  /// Forwards the current output device selection to the AAudio synth stream.
+  ///
+  /// On Android, converts the -1 "system default" sentinel to 0
+  /// (AAUDIO_UNSPECIFIED) which AAudio expects for "use the default device".
+  /// No-op on non-Android platforms.
+  void _applySynthOutputDevice() {
+    if (kIsWeb || !Platform.isAndroid) return;
+    final id = vocoderOutputAndroidDeviceId.value;
+    // Dart uses -1 for "default"; AAudio uses 0 (AAUDIO_UNSPECIFIED).
+    _midiPro.setOutputDevice(id < 0 ? 0 : id);
+  }
+
   bool _isRestartingCapture = false;
 
   /// Restart the audio capture engine (stop + start with a short delay).
@@ -345,6 +363,7 @@ class AudioEngine extends ChangeNotifier {
           'GrooveForge: Input device $currentIn gone — resetting to default.',
         );
         vocoderInputAndroidDeviceId.value = -1;
+        toastNotifier.value = 'Audio input device disconnected — using default';
       }
 
       final outputs = await getAndroidOutputDevices();
@@ -355,6 +374,8 @@ class AudioEngine extends ChangeNotifier {
           'GrooveForge: Output device $currentOut gone — resetting to default.',
         );
         vocoderOutputAndroidDeviceId.value = -1;
+        toastNotifier.value =
+            'Audio output device disconnected — using default';
       }
     } catch (e) {
       debugPrint('GrooveForge: _resetDisconnectedDevices error: $e');
@@ -417,6 +438,29 @@ class AudioEngine extends ChangeNotifier {
     }
   }
 
+  /// Returns detailed information about every audio device on the system.
+  ///
+  /// Used by the USB audio debug screen for the multi-device investigation.
+  /// Each entry contains: `id`, `productName`, `type`, `typeString`,
+  /// `isSource`, `isSink`, `sampleRates`, `channelCounts`, `encodings`,
+  /// and optionally `address` (API 28+).
+  Future<List<Map<String, dynamic>>> getAndroidAudioDeviceDetails() async {
+    if (kIsWeb || !Platform.isAndroid) return [];
+    try {
+      final List<dynamic>? devices = await audioConfigChannel.invokeMethod(
+        'getAudioDeviceDetails',
+      );
+      if (devices == null) return [];
+      return devices
+          .cast<Map<dynamic, dynamic>>()
+          .map((d) => d.cast<String, dynamic>())
+          .toList();
+    } catch (e) {
+      debugPrint('GrooveForge: getAndroidAudioDeviceDetails error: $e');
+      return [];
+    }
+  }
+
   // --- Jam Mode State ---
 
   /// GFPA-managed jam entries, updated by [RackState] whenever a Jam Mode slot
@@ -470,6 +514,15 @@ class AudioEngine extends ChangeNotifier {
         }
       } catch (e) {
         debugPrint('GrooveForge: permission_handler failed on Android: $e');
+      }
+      // Cache the SDK version so UI can gate features that require a minimum
+      // API level (e.g. AAudio setDeviceId needs API 28+).
+      try {
+        androidSdkVersion =
+            await audioConfigChannel.invokeMethod<int>('getAndroidSdkVersion') ??
+                0;
+      } catch (e) {
+        debugPrint('GrooveForge: getAndroidSdkVersion failed: $e');
       }
     }
 
@@ -575,6 +628,10 @@ class AudioEngine extends ChangeNotifier {
     vocoderOutputAndroidDeviceId.addListener(() {
       updateVocoderParameters();
       restartCapture();
+      // Also route the AAudio synth output stream to the selected device.
+      // The vocoder path (miniaudio) is handled by setCaptureDeviceConfig
+      // above; this covers the FluidSynth/instrument bus.
+      _applySynthOutputDevice();
     });
   }
 
@@ -769,8 +826,12 @@ class AudioEngine extends ChangeNotifier {
         _prefs!.getInt('vocoder_input_android_device_id') ?? -1;
     vocoderOutputAndroidDeviceId.value =
         _prefs!.getInt('vocoder_output_android_device_id') ?? -1;
-    // Apply logic to C engine immediately
+    // Apply logic to C engine immediately.
     updateVocoderParameters();
+    // Pre-set the AAudio output device so the stream opens on the right device
+    // when the first soundfont is loaded (stream not running yet — the value is
+    // stored and used by oboe_stream_start).
+    _applySynthOutputDevice();
 
     if (!kIsWeb) {
       // Native: reload soundfonts from their saved file paths and apply them.

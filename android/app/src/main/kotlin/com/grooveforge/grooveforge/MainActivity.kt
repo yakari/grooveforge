@@ -84,6 +84,35 @@ class MainActivity : FlutterActivity() {
                     val outputDevices = allDevices.filter { it.isSink }
                     result.success(enumerateDevices(outputDevices.toTypedArray(), "Output"))
                 }
+                "getAudioDeviceDetails" -> {
+                    // Returns full AudioDeviceInfo data for every device on the
+                    // system — used by the USB audio debug screen to investigate
+                    // multi-device routing support.
+                    val allDevices = am.getDevices(AudioManager.GET_DEVICES_ALL)
+                    result.success(allDevices.map { device ->
+                        val typeString = deviceTypeString(device.type)
+                        val map = mutableMapOf<String, Any>(
+                            "id" to device.id,
+                            "productName" to device.productName.toString(),
+                            "type" to device.type,
+                            "typeString" to typeString,
+                            "isSource" to device.isSource,
+                            "isSink" to device.isSink,
+                            "sampleRates" to device.sampleRates.toList(),
+                            "channelCounts" to device.channelCounts.toList(),
+                            "channelMasks" to device.channelMasks.toList(),
+                            "encodings" to device.encodings.toList(),
+                        )
+                        // API 28+ fields
+                        if (android.os.Build.VERSION.SDK_INT >= 28) {
+                            map["address"] = device.address
+                        }
+                        map
+                    })
+                }
+                "getAndroidSdkVersion" -> {
+                    result.success(android.os.Build.VERSION.SDK_INT)
+                }
                 "startBluetoothSco" -> {
                     am.startBluetoothSco()
                     am.isBluetoothScoOn = true
@@ -109,26 +138,33 @@ class MainActivity : FlutterActivity() {
         audioManager?.unregisterAudioDeviceCallback(deviceCallback)
     }
 
+    /// Human-readable label for an [AudioDeviceInfo.type] constant.
+    private fun deviceTypeString(type: Int): String = when (type) {
+        AudioDeviceInfo.TYPE_BUILTIN_MIC -> "Built-in Mic"
+        AudioDeviceInfo.TYPE_BUILTIN_SPEAKER -> "Built-in Speaker"
+        AudioDeviceInfo.TYPE_BUILTIN_EARPIECE -> "Built-in Earpiece"
+        AudioDeviceInfo.TYPE_BLUETOOTH_SCO -> "Bluetooth SCO"
+        AudioDeviceInfo.TYPE_BLUETOOTH_A2DP -> "Bluetooth A2DP"
+        AudioDeviceInfo.TYPE_USB_DEVICE -> "USB Device"
+        AudioDeviceInfo.TYPE_USB_HEADSET -> "USB Headset"
+        AudioDeviceInfo.TYPE_USB_ACCESSORY -> "USB Accessory"
+        AudioDeviceInfo.TYPE_WIRED_HEADSET -> "Wired Headset"
+        AudioDeviceInfo.TYPE_WIRED_HEADPHONES -> "Wired Headphones"
+        AudioDeviceInfo.TYPE_TELEPHONY -> "Telephony"
+        AudioDeviceInfo.TYPE_BUS -> "Bus"
+        AudioDeviceInfo.TYPE_LINE_ANALOG -> "Line Analog"
+        AudioDeviceInfo.TYPE_LINE_DIGITAL -> "Line Digital"
+        AudioDeviceInfo.TYPE_AUX_LINE -> "Aux Line"
+        AudioDeviceInfo.TYPE_HEARING_AID -> "Hearing Aid"
+        AudioDeviceInfo.TYPE_HDMI -> "HDMI"
+        AudioDeviceInfo.TYPE_HDMI_ARC -> "HDMI ARC"
+        AudioDeviceInfo.TYPE_DOCK -> "Dock"
+        else -> "Type $type"
+    }
+
     private fun enumerateDevices(devices: Array<AudioDeviceInfo>, direction: String): List<Map<String, Any>> {
         return devices.map { device ->
-            val typeString = when (device.type) {
-                AudioDeviceInfo.TYPE_BUILTIN_MIC -> "Built-in Mic"
-                AudioDeviceInfo.TYPE_BUILTIN_SPEAKER -> "Built-in Speaker"
-                AudioDeviceInfo.TYPE_BLUETOOTH_SCO -> "Bluetooth SCO"
-                AudioDeviceInfo.TYPE_BLUETOOTH_A2DP -> "Bluetooth A2DP"
-                AudioDeviceInfo.TYPE_USB_DEVICE -> "USB Device"
-                AudioDeviceInfo.TYPE_USB_HEADSET -> "USB Headset"
-                AudioDeviceInfo.TYPE_USB_ACCESSORY -> "USB Accessory"
-                AudioDeviceInfo.TYPE_WIRED_HEADSET -> "Wired Headset"
-                AudioDeviceInfo.TYPE_WIRED_HEADPHONES -> "Wired Headphones"
-                AudioDeviceInfo.TYPE_TELEPHONY -> "Telephony"
-                AudioDeviceInfo.TYPE_BUS -> "Bus"
-                AudioDeviceInfo.TYPE_LINE_ANALOG -> "Line Analog"
-                AudioDeviceInfo.TYPE_LINE_DIGITAL -> "Line Digital"
-                AudioDeviceInfo.TYPE_AUX_LINE -> "Aux Line"
-                AudioDeviceInfo.TYPE_HEARING_AID -> "Hearing Aid"
-                else -> "Type ${device.type}"
-            }
+            val typeString = deviceTypeString(device.type)
             val displayName = "${device.productName} ($typeString)"
 
             mapOf(

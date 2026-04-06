@@ -114,6 +114,20 @@ void oboe_stream_add_synth(fluid_synth_t* synth, int sfId);
 /// After this returns it is safe to call delete_fluid_synth(synth).
 void oboe_stream_remove_synth(fluid_synth_t* synth);
 
+// ── Output device routing ────────────────────────────────────────────────────
+
+/// Sets the Android output device ID for the AAudio stream.
+///
+/// [deviceId] — Android AudioDeviceInfo.id from AudioManager.getDevices().
+///              Pass 0 (AAUDIO_UNSPECIFIED) to revert to the system default.
+///
+/// If the stream is already running, it is stopped and restarted so the new
+/// device takes effect (AAudio does not support hot-swapping).
+void oboe_stream_set_output_device(int deviceId);
+
+/// Returns the currently configured output device ID (0 = system default).
+int oboe_stream_get_output_device(void);
+
 // ── Drain synchronisation (shared with other translation units) ──────────────
 
 /// Returns the current value of the per-callback sequence counter.

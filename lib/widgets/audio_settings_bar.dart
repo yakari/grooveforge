@@ -51,8 +51,11 @@ class AudioSettingsBar extends StatelessWidget {
           // ── Mic device dropdown — takes remaining space ───────────────────
           Expanded(child: _MicDeviceDropdown(engine: engine, l10n: l10n)),
 
-          // ── Output device dropdown (Android only) ────────────────────────
-          if (!kIsWeb && Platform.isAndroid) ...[
+          // ── Output device dropdown (Android API 28+ only) ─────────────────
+          // AAudio's setDeviceId() is only reliable from API 28 (Pie). On
+          // older versions the device selector is hidden because OpenSL ES
+          // silently ignores the device ID.
+          if (!kIsWeb && Platform.isAndroid && engine.androidSdkVersion >= 28) ...[
             const SizedBox(width: 12),
             const _Divider(),
             const SizedBox(width: 12),

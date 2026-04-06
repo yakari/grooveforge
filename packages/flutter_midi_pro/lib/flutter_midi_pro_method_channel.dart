@@ -64,6 +64,11 @@ class MethodChannelFlutterMidiPro extends FlutterMidiProPlatform {
   }
 
   @override
+  Future<void> setOutputDevice(int deviceId) async {
+    await _channel.invokeMethod('setOutputDevice', {'deviceId': deviceId});
+  }
+
+  @override
   Future<void> unloadSoundfont(int sfId) async {
     await _channel.invokeMethod('unloadSoundfont', {'sfId': sfId});
   }

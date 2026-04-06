@@ -2551,6 +2551,108 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No soundfonts — add one in Preferences'**
   String get drumGeneratorNoSoundfonts;
+
+  /// No description provided for @audioDeviceDisconnectedInput.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio input device disconnected — using default'**
+  String get audioDeviceDisconnectedInput;
+
+  /// No description provided for @audioDeviceDisconnectedOutput.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio output device disconnected — using default'**
+  String get audioDeviceDisconnectedOutput;
+
+  /// No description provided for @usbAudioDebugTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'USB Audio Devices'**
+  String get usbAudioDebugTitle;
+
+  /// No description provided for @usbAudioDebugSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Detailed device information for multi-USB investigation'**
+  String get usbAudioDebugSubtitle;
+
+  /// No description provided for @usbAudioDebugNoDevices.
+  ///
+  /// In en, this message translates to:
+  /// **'No audio devices found'**
+  String get usbAudioDebugNoDevices;
+
+  /// No description provided for @usbAudioDebugRefresh.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh'**
+  String get usbAudioDebugRefresh;
+
+  /// No description provided for @usbAudioDebugDeviceId.
+  ///
+  /// In en, this message translates to:
+  /// **'Device ID'**
+  String get usbAudioDebugDeviceId;
+
+  /// No description provided for @usbAudioDebugDirection.
+  ///
+  /// In en, this message translates to:
+  /// **'Direction'**
+  String get usbAudioDebugDirection;
+
+  /// No description provided for @usbAudioDebugInput.
+  ///
+  /// In en, this message translates to:
+  /// **'Input'**
+  String get usbAudioDebugInput;
+
+  /// No description provided for @usbAudioDebugOutput.
+  ///
+  /// In en, this message translates to:
+  /// **'Output'**
+  String get usbAudioDebugOutput;
+
+  /// No description provided for @usbAudioDebugInputOutput.
+  ///
+  /// In en, this message translates to:
+  /// **'Input + Output'**
+  String get usbAudioDebugInputOutput;
+
+  /// No description provided for @usbAudioDebugSampleRates.
+  ///
+  /// In en, this message translates to:
+  /// **'Sample rates'**
+  String get usbAudioDebugSampleRates;
+
+  /// No description provided for @usbAudioDebugChannelCounts.
+  ///
+  /// In en, this message translates to:
+  /// **'Channel counts'**
+  String get usbAudioDebugChannelCounts;
+
+  /// No description provided for @usbAudioDebugEncodings.
+  ///
+  /// In en, this message translates to:
+  /// **'Encodings'**
+  String get usbAudioDebugEncodings;
+
+  /// No description provided for @usbAudioDebugAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Address'**
+  String get usbAudioDebugAddress;
+
+  /// No description provided for @usbAudioDebugAny.
+  ///
+  /// In en, this message translates to:
+  /// **'Any'**
+  String get usbAudioDebugAny;
+
+  /// No description provided for @usbAudioDebugPlatformOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Android only — not available on this platform'**
+  String get usbAudioDebugPlatformOnly;
 }
 
 class _AppLocalizationsDelegate

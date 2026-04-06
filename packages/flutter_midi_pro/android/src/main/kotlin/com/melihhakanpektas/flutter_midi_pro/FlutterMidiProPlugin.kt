@@ -47,6 +47,9 @@ class FlutterMidiProPlugin: FlutterPlugin, MethodCallHandler {
     private external fun unloadSoundfont(sfId: Int)
 
     @JvmStatic
+    private external fun setOutputDevice(deviceId: Int)
+
+    @JvmStatic
     private external fun dispose()
   }
 
@@ -189,6 +192,12 @@ class FlutterMidiProPlugin: FlutterPlugin, MethodCallHandler {
         } else {
           result.error("INVALID_ARGUMENT", "sfId is required", null)
         }
+      }
+
+      "setOutputDevice" -> {
+        val deviceId = call.argument<Int>("deviceId") ?: 0
+        result.success(null)
+        audioExecutor.execute { setOutputDevice(deviceId) }
       }
 
       "dispose" -> {

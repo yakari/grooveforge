@@ -187,6 +187,16 @@ class MidiPro {
     return FlutterMidiProPlatform.instance.setGain(gain);
   }
 
+  /// Routes the AAudio output stream to a specific Android audio device.
+  ///
+  /// [deviceId] is the `AudioDeviceInfo.id` obtained from
+  /// `AudioManager.getDevices()`.  Pass 0 to revert to the system default.
+  /// If the stream is running it is restarted to apply the change.
+  /// No-op on non-Android platforms.
+  Future<void> setOutputDevice(int deviceId) async {
+    return FlutterMidiProPlatform.instance.setOutputDevice(deviceId);
+  }
+
   /// Unloads a soundfont from memory.
   /// The soundfont ID is the ID returned by the [loadSoundfont] method.
   /// If resetPresets is true, the presets will be reset to the default values.

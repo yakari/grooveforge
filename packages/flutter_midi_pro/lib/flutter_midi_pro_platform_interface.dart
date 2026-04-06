@@ -52,6 +52,15 @@ abstract class FlutterMidiProPlatform extends PlatformInterface {
     throw UnimplementedError('setGain() has not been implemented.');
   }
 
+  /// Routes the AAudio output stream to a specific Android audio device.
+  ///
+  /// [deviceId] is the Android `AudioDeviceInfo.id` obtained from
+  /// `AudioManager.getDevices()`.  Pass 0 to revert to the system default.
+  /// If the stream is running, it is restarted to apply the change.
+  Future<void> setOutputDevice(int deviceId) {
+    throw UnimplementedError('setOutputDevice() has not been implemented.');
+  }
+
   Future<void> unloadSoundfont(int sfId) {
     throw UnimplementedError('unloadSoundfont() has not been implemented.');
   }

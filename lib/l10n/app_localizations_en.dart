@@ -1349,4 +1349,59 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get drumGeneratorNoSoundfonts =>
       'No soundfonts — add one in Preferences';
+
+  @override
+  String get audioDeviceDisconnectedInput =>
+      'Audio input device disconnected — using default';
+
+  @override
+  String get audioDeviceDisconnectedOutput =>
+      'Audio output device disconnected — using default';
+
+  @override
+  String get usbAudioDebugTitle => 'USB Audio Devices';
+
+  @override
+  String get usbAudioDebugSubtitle =>
+      'Detailed device information for multi-USB investigation';
+
+  @override
+  String get usbAudioDebugNoDevices => 'No audio devices found';
+
+  @override
+  String get usbAudioDebugRefresh => 'Refresh';
+
+  @override
+  String get usbAudioDebugDeviceId => 'Device ID';
+
+  @override
+  String get usbAudioDebugDirection => 'Direction';
+
+  @override
+  String get usbAudioDebugInput => 'Input';
+
+  @override
+  String get usbAudioDebugOutput => 'Output';
+
+  @override
+  String get usbAudioDebugInputOutput => 'Input + Output';
+
+  @override
+  String get usbAudioDebugSampleRates => 'Sample rates';
+
+  @override
+  String get usbAudioDebugChannelCounts => 'Channel counts';
+
+  @override
+  String get usbAudioDebugEncodings => 'Encodings';
+
+  @override
+  String get usbAudioDebugAddress => 'Address';
+
+  @override
+  String get usbAudioDebugAny => 'Any';
+
+  @override
+  String get usbAudioDebugPlatformOnly =>
+      'Android only — not available on this platform';
 }

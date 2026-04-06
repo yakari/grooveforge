@@ -1,10 +1,10 @@
 # GrooveForge Roadmap
 
-> **Current released version:** 2.9.0
-> **Next milestone:** 🔥 PipeWire migration (Linux audio backend — urgent)
-> **Next after PipeWire:** Multi-USB audio (Android), then Audio Looper (PCM)
+> **Current released version:** 2.10.0
+> **Next milestone:** 🔜 Multi-USB audio (Android)
+> **Next after Multi-USB:** Per-project CC mappings (move CC config into `.gf` files)
 > **Last updated:** 2026-04-06
-> **After Multi-USB:** Per-project CC mappings (move CC config into `.gf` files)
+> **After CC rework:** Audio Looper (PCM)
 
 ---
 
@@ -23,9 +23,9 @@
 | 2.7.0 | Phase 8 Tier 1 | ✅ Complete | Six bundled GFPA effects as `.gfpd` + native C++ DSP |
 | 2.8.0 | Phase 8 + 10 | ✅ Complete | MIDI FX node system (6 plugins); responsive `.gfpd` UI groups |
 | 2.9.0 | Drum Generator | ✅ Complete | New Drum Generator features |
-| TBD | MIDI Looper rework | ✅ Complete | Remove chord detection; simplify engine + UI; bar-sync recording start |
-| **TBD** | **PipeWire migration (Linux)** | **🔥 Next — Urgent** | Replace direct ALSA with PipeWire/JACK; inter-app routing; lower latency |
-| TBD | Multi-USB audio (Android) | 🔜 After PipeWire | Use AAudio `setDeviceId()` to route input/output to separate USB audio devices |
+| 2.10.0 | MIDI Looper rework | ✅ Complete | Remove chord detection; simplify engine + UI; bar-sync recording start |
+| 2.10.0 | PipeWire migration (Linux) | ✅ Complete | Replace direct ALSA with PipeWire/JACK; inter-app routing; lower latency |
+| **TBD** | **Multi-USB audio (Android)** | **🔜 Next** | Device routing via `setDeviceId()`; built-in mic + USB output as reliable multi-device path |
 | TBD | Per-project CC mappings | 🔜 After Multi-USB | Move CC mappings into `.gf` project files for per-song/performance configs |
 | TBD | Audio Looper (PCM) | 🔜 After CC rework | Built on top of the simplified looper |
 | TBD | Phase 8 (full) | ⏸ TBD | pub.dev publishing; plugin store; vocoder mk2 |
@@ -237,173 +237,6 @@ These tasks complete the distributable `.vst3` bundle story started in Phase 3b.
 
 ---
 
-## ✅ MIDI Looper Rework
-
-The current looper stores per-bar chord names (detected via `ChordDetector`) and displays them in a chord grid strip. This adds complexity for marginal benefit — the bar display itself (length, current bar, overdub position) is the genuinely useful part. The goal is to strip chord detection out entirely, simplify the engine and UI down to what matters, then build the audio looper on top of the cleaner foundation.
-
-### ✅ Step 1 — Remove chord detection
-
-- [x] Remove `chordsPerBar` / `chordPerBar` fields from `LoopTrack` model; remove from `toJson`/`fromJson`.
-- [x] Remove `_detectBeatCrossings` and `_flushBarChord` from `LooperEngine`.
-- [x] Remove `LoopTrack.detectAndStoreChord` and its `ChordDetector` dependency.
-- [x] Remove `chordPerBar` from `.gf` save/load in `ProjectService` (keep backward-compat read that silently drops the field).
-- [x] Update `LooperSlotUI` chord grid strip: replace chord name labels with plain bar-number cells (bar 1, bar 2, …). Keep: current-bar highlight, overdub-bar indicator, tap-to-set-resume-point.
-- [x] Remove any `ChordDetector` import from looper-related files; verify `dart analyze` clean.
-
-### ✅ Step 2 — Simplify the engine
-
-- [x] Audit `LooperEngine` for any other dead code revealed by removing chord detection.
-- [x] Simplify `LoopTrack` state machine if any transitions were chord-detection-gated.
-- [x] Confirm `LoopTrack.toJson`/`fromJson` round-trips cleanly with the stripped model.
-- [x] Verify old `.gf` files with `chordsPerBar` still load without error.
-
-### ✅ Step 3 — UI cleanup & bar-alignment fix
-
-- [x] Verify bar strip works correctly after removing chord labels: bar count, current-bar highlight, overdub indicator, resume-point tap.
-- [x] Remove any chord-grid-related l10n keys that are now dead (`looperNoChord` removed from `app_en.arb` / `app_fr.arb`).
-- [x] Run `flutter analyze` — no issues.
-- [x] Fix bar-alignment bug: `_beginRecordingPass` now snaps `recordingStartBeat` to the preceding bar-1 downbeat so event offsets are bar-relative from the start; `_activatePlayback` sets `recordingStartBeat = anchorBeat` so stop/restart and save/reload produce identical playback alignment; removed `_firstEventOffset` (no longer needed).
-
-### ✅ Step 4 — Deferred looper features (reassessed & implemented)
-
-Features deferred during Phase 6, reassessed after the rework.
-
-**Implemented:**
-- [x] **Volume slider per track**: `LoopTrack.volumeScale` (0.0–1.0) persisted in `.gf`; velocity scaled in `_fireEventsInRange`; compact `_VolumeSlider` widget in `_TrackRow`.
-- [x] **CC assignment UI**: `_CcAssignStrip` in `LooperSlotUI` — shows current bindings as chips (deletable); "Assign CC" button opens `_CcAssignDialog` (pick action → learn mode → move a knob/fader to bind). `LooperEngine.onCcLearn` callback + CC routing via `feedMidiEvent`.
-
-**Already implemented** (no action needed):
-- [x] Smart sync: tap Play 100 ms after downbeat → starts immediately — `_isAtBarBoundary` uses 0.1-beat tolerance (~50 ms at 120 BPM).
-- [x] Smart sync: tap Play 400 ms after downbeat → waits for next downbeat — `startPlayback` already enters `waitingForBar` when mid-bar.
-
-**Deferred to Backlog** (still relevant, lower priority):
-- [x] Long-press STOP → confirm-clear dialog → moved to Backlog.
-- [x] Optional "humanize" jitter (0–50 ms random offset after quantize) → moved to Backlog.
-- [x] `looperJumpToBar` CC: map CC value 0–127 to bar index → moved to Backlog.
-- [x] Integration with global CC Mapping settings screen → moved to Backlog.
-- [x] Two looper slots playing simultaneously → no timing drift → moved to Backlog.
-
-**Moved to Chord Progression Module** (depends on that feature, not the looper rework):
-- [x] GFK → Looper → Jam Mode + GFK2 chain: scale locks follow recorded chord progression → see Chord Progression section.
-
-### ✅ Step 5 — Bar-sync recording start
-
-Recording previously started immediately when the user pressed record mid-bar, capturing stray preparation notes. Now mirrors the playback bar-sync pattern:
-
-- [x] Add `LooperState.waitingToRecord` state — when the user presses record mid-bar, the engine waits for the next bar-1 downbeat before capturing MIDI events.
-- [x] Dual-path downbeat detection: both the 10 ms ticker (`_checkWaitingToRecord`) and `feedMidiEvent` check `pendingRecordDownbeat` — whichever fires first triggers `_activateRecording`, eliminating the race condition between timer jitter and real-time MIDI input.
-- [x] Pre-downbeat tolerance: notes arriving within 0.1 beats (~50 ms at 120 BPM) before the downbeat are captured at beat offset 0 — musically "on the beat" rather than silently discarded.
-- [x] Update `LooperSlotUI` — `waitingToRecord` shows pulsing record icon with "WAITING FOR BAR" label, matching the visual pattern from playback sync.
-
-### ✅ Step 6 — Smoke test
-
-- [x] Record a 4-bar loop → bar strip shows 4 cells, current bar advances correctly during playback.
-- [x] Overdub → overdubbing bar highlighted correctly.
-- [x] Tap a bar cell → playback resumes from that bar.
-- [x] Save/load project → bar count and loop events restored; no crash on old files with `chordsPerBar`.
-
----
-
-## 🎛️ TBD — PipeWire Migration (Linux) 🔥 Urgent
-
-GrooveForge currently talks to ALSA directly via `snd_pcm_open` / `snd_pcm_writei` in a dedicated real-time thread (`dart_vst_host_alsa.cpp`). This works but has serious limitations for a professional audio application:
-
-- **No inter-application routing**: users cannot route GrooveForge audio to/from other Linux audio tools (Ardour, Bitwig, Carla, system effects) without manual JACK bridging.
-- **Exclusive device access**: ALSA PCM can only be opened by one application at a time (unless going through PulseAudio/dmix, which adds latency). The current code sets 50 ms latency as a workaround for "PipeWire/dmix compatibility."
-- **No session management**: ALSA has no concept of audio sessions, port naming, or automatic reconnection — users must manually configure routing every time.
-- **PipeWire is the standard**: Fedora, Ubuntu 22.10+, Arch, and most modern distros ship PipeWire as the default audio server. PipeWire's JACK-compatible API gives sub-5 ms latency while coexisting with desktop audio, and is the expected interface for pro audio apps on Linux in 2026.
-
-Migrating to PipeWire (via the JACK client API) unblocks inter-app routing, proper port naming, session restore, and positions GrooveForge as a first-class citizen in the Linux pro audio ecosystem. The JACK API also works transparently on native JACK2 installations (e.g. older studio setups), so a single implementation covers both.
-
-### Current architecture vs. target
-
-```mermaid
-graph LR
-    subgraph Current["Current: Direct ALSA"]
-        GF_A[GrooveForge\naudio thread] -->|snd_pcm_writei| ALSA_D[ALSA PCM\n'default' device]
-        ALSA_D --> HW[Hardware]
-    end
-
-    subgraph Target["Target: PipeWire via JACK API"]
-        GF_J[GrooveForge\nJACK client] -->|jack_port_register\njack_connect| PW[PipeWire\nJACK server]
-        PW --> HW2[Hardware]
-        PW <-->|inter-app routing| DAW[Ardour / Bitwig\n/ Carla]
-        PW <-->|system audio| DESK[Desktop apps\n/ browser]
-    end
-```
-
-### Affected files
-
-| File | Current role | Migration impact |
-|---|---|---|
-| `packages/flutter_vst3/dart_vst_host/native/src/dart_vst_host_alsa.cpp` | ALSA real-time thread, PCM write loop, plugin processing | **Replace** with JACK client: `jack_client_open`, `jack_set_process_callback`, `jack_port_register` |
-| `packages/flutter_vst3/dart_vst_host/native/CMakeLists.txt` | `find_package(ALSA REQUIRED)` | Replace with `pkg_check_modules(JACK REQUIRED jack)` |
-| `packages/flutter_vst3/dart_vst_host/linux/CMakeLists.txt` | `find_package(ALSA REQUIRED)` | Replace with `pkg_check_modules(JACK REQUIRED jack)` |
-| `packages/flutter_vst3/dart_vst_host/lib/src/bindings.dart` | FFI: `dvhStartAlsaThread` / `dvhStopAlsaThread` | Rename to `dvhStartJackClient` / `dvhStopJackClient`; add port query FFI |
-| `packages/flutter_vst3/dart_vst_host/lib/src/host.dart` | `startAlsaThread(device)` / `stopAlsaThread()` | Rename to `startJackClient(clientName)` / `stopJackClient()`; add port connection API |
-| `lib/services/vst_host_service_desktop.dart` | Calls `startAlsaThread()` | Call `startJackClient('GrooveForge')` |
-| `native_audio/audio_input.c` | miniaudio for audio capture (uses ALSA backend internally) | Investigate switching miniaudio backend to JACK, or capture directly via JACK input ports |
-| `.devcontainer/devcontainer.json` | `libasound2-dev` | Replace with or add `libjack-jackd2-dev` (or `pipewire-jack-audio-connection-kit-devel`) |
-
-### 🎛️ Step 1 — Investigation & proof of concept
-
-Before committing to the migration, validate assumptions and measure real-world latency.
-
-- [ ] **Benchmark current ALSA latency**: measure round-trip latency of the existing `dart_vst_host_alsa.cpp` thread at 48 kHz / 256 samples on a PipeWire system (expected: ~50 ms due to the dmix workaround).
-- [ ] **JACK API proof of concept**: write a standalone C program that opens a JACK client, registers stereo output ports, and plays a sine wave via `jack_set_process_callback`. Measure callback-to-hardware latency on PipeWire (target: < 10 ms at 256 samples / 48 kHz).
-- [ ] **Verify JACK API availability on target distros**: confirm `libjack-jackd2-dev` (or PipeWire's `pipewire-jack` shim) is available on Ubuntu 22.04+, Fedora 38+, Arch, and Debian 12+.
-- [ ] **Evaluate miniaudio JACK backend**: determine whether miniaudio's built-in JACK backend (`ma_backend_jack`) is suitable for the vocoder/audio-input path, or whether a direct JACK port approach is cleaner.
-- [ ] **Design decision: JACK-only or ALSA fallback?** — decide whether to drop ALSA entirely or keep it as a compile-time fallback for embedded/headless systems. Document rationale.
-
-### 🎛️ Step 2 — Engine migration
-
-Replace the ALSA audio thread with a JACK client in `dart_vst_host`.
-
-- [ ] **Create `dart_vst_host_jack.cpp`**: implement `dvh_start_jack_client(const char* clientName)` and `dvh_stop_jack_client()`; register stereo output ports (`GrooveForge:out_L`, `GrooveForge:out_R`) and optionally stereo input ports (`GrooveForge:in_L`, `GrooveForge:in_R`).
-- [ ] **Port the audio render loop**: move the VST3 plugin processing, GFPA DSP insertion, and master render contributor mixing from the ALSA `while(running)` loop into the JACK `process_callback(jack_nframes_t nframes, void* arg)`.
-  > The JACK process callback is already real-time-safe by contract (no alloc, no syscall) — the existing code mostly complies, but audit for any `snd_pcm_recover` or error-logging paths that must be removed.
-- [ ] **Sample rate negotiation**: read sample rate from `jack_get_sample_rate()` instead of hardcoding; propagate to VST3 `ProcessContext` and FluidSynth instances.
-- [ ] **Buffer size handling**: use `jack_get_buffer_size()` and handle `jack_set_buffer_size_callback` for dynamic changes; resize any internal buffers accordingly.
-- [ ] **Auto-connect to system playback**: on startup, `jack_connect` output ports to `system:playback_1` / `system:playback_2` (PipeWire maps these to the default audio sink).
-- [ ] **XRUN handling**: register `jack_set_xrun_callback` — log to a Dart-visible counter (not on the audio thread), surface in UI as a latency warning.
-- [ ] **Update CMakeLists.txt** (both locations): replace `find_package(ALSA REQUIRED)` with `pkg_check_modules(JACK REQUIRED jack)`; link `${JACK_LIBRARIES}`.
-
-### 🎛️ Step 3 — FFI & Dart API
-
-Update the Dart bindings and high-level API to reflect the new backend.
-
-- [ ] **Update `bindings.dart`**: rename `dvhStartAlsaThread` → `dvhStartJackClient`, `dvhStopAlsaThread` → `dvhStopJackClient`; add `dvhJackGetPorts()` and `dvhJackConnect(srcPort, dstPort)` for port management.
-- [ ] **Update `host.dart`**: rename `startAlsaThread(device)` → `startJackClient(clientName)`, `stopAlsaThread()` → `stopJackClient()`; add `getAvailablePorts()` and `connectPorts(src, dst)` methods.
-- [ ] **Update `vst_host_service_desktop.dart`**: call `startJackClient('GrooveForge')` instead of `startAlsaThread()`.
-- [ ] **Port routing UI (stretch goal)**: expose available JACK ports in a "Connections" panel so users can route GrooveForge to/from other apps. This can be deferred to a follow-up if the auto-connect covers the common case.
-
-### 🎛️ Step 4 — Audio input migration
-
-Migrate the vocoder/audio-input path from miniaudio's ALSA backend to JACK.
-
-- [ ] **Evaluate approach**: either switch miniaudio to `ma_backend_jack` in `audio_input.c`, or capture directly from the JACK input ports registered in Step 2.
-- [ ] **Implement chosen approach**: ensure audio capture latency matches or improves on the current miniaudio/ALSA path.
-- [ ] **Verify vocoder round-trip**: vocoder carrier + modulator must not introduce additional latency vs. the ALSA baseline.
-
-### 🎛️ Step 5 — Build & CI
-
-- [ ] **Update `.devcontainer/devcontainer.json`**: add `libjack-jackd2-dev` (or `pipewire-jack-audio-connection-kit-devel`) to `postCreateCommand`.
-- [ ] **Update GitHub Actions Linux CI** (if applicable): install JACK dev headers in the build matrix.
-- [ ] **Conditional compilation (if ALSA fallback kept)**: use a CMake option (`-DGFAUDIO_BACKEND=jack|alsa`) to select backend at build time; default to JACK.
-
-### 🧪 Step 6 — Testing
-
-- [ ] **Basic playback**: start GrooveForge on PipeWire → JACK client appears in `pw-jack`/`qjackctl` → audio plays through system speakers.
-- [ ] **Latency measurement**: measure callback-to-output latency at 48 kHz / 256 samples — target < 10 ms (vs. current ~50 ms ALSA/dmix).
-- [ ] **Inter-app routing**: route GrooveForge stereo out to Ardour input via `jack_connect` or Helvum — audio passes through.
-- [ ] **VST3 processing**: load a VST3 instrument + VST3 effect chain — no xruns over 5 minutes of continuous playback.
-- [ ] **Vocoder**: audio input capture works via JACK — vocoder processes live mic input.
-- [ ] **FluidSynth keyboards**: GF Keyboard plays notes with correct latency and no clicks/pops.
-- [ ] **Native JACK2 compatibility**: test on a system running native JACK2 (no PipeWire) — client connects and plays audio.
-- [ ] **Graceful degradation**: if JACK server is not running, GrooveForge shows a clear error message (not a crash).
-
----
-
 ## 🎙️ TBD — Multi-USB Audio Device Routing (Android)
 
 Android's default USB audio HAL binds to a single USB audio device per direction (input/output). When a user plugs a USB hub with both a jack output (for an amp/speakers) and a USB-C microphone, the system typically only activates one of them. This is an Android audio policy limitation, not a USB protocol issue.
@@ -411,8 +244,9 @@ Android's default USB audio HAL binds to a single USB audio device per direction
 ### Background
 
 - **Android ≤ 13**: the USB audio HAL selects one USB audio device per role; no app-level override.
-- **Android 14+**: `AudioTrack.setPreferredDevice()` / `AudioRecord.setPreferredDevice()` and AAudio's `AAudioStreamBuilder_setDeviceId()` allow targeting specific `AudioDeviceInfo` instances. If the system enumerates both USB devices, an app can direct output to one and input to another.
-- **OEM variability**: device enumeration through a USB hub is inconsistent across manufacturers. Some enumerate both devices; many only activate one. The OEM's `audio_policy_configuration.xml` heavily influences behavior.
+- **Android 14+**: `AAudioStreamBuilder_setDeviceId()` allows targeting a specific `AudioDeviceInfo` by ID — but only if the HAL still enumerates the device. In practice, plugging a second USB audio device causes the HAL to deactivate the first, so `setDeviceId()` cannot reach it.
+- **Combined audio routing** (Android 12+ / extended in 14): `setPreferredDevicesForStrategy()` supports multi-device routing but is a **privileged/system API** — unavailable to regular apps. Even with it, Android 14 only allows simultaneous routing for USB devices of **different audio types**, and requires kernel + vendor support.
+- **OEM variability**: device enumeration through a USB hub is inconsistent across manufacturers. Samsung (tested) deactivates the second USB audio device entirely at the HAL level — it disappears from `AudioManager.getDevices()`.
 
 ### Reliable alternatives
 
@@ -424,30 +258,50 @@ Android's default USB audio HAL binds to a single USB audio device per direction
 
 ### 🎙️ Step 1 — Investigation & proof of concept
 
-- [ ] **Enumerate USB audio devices**: add a debug screen that calls `AudioManager.getDevices(GET_DEVICES_OUTPUTS | GET_DEVICES_INPUTS)` and lists all `AudioDeviceInfo` entries with their `type`, `id`, and `productName`. Test with a USB hub + two audio devices on 3+ Android devices from different OEMs.
-- [ ] **AAudio multi-device PoC**: open two separate AAudio streams via Oboe — one output stream targeting device A (`setDeviceId(outputId)`), one input stream targeting device B (`setDeviceId(inputId)`). Verify both streams run simultaneously without errors.
-- [ ] **Measure latency**: compare round-trip latency of the multi-device setup vs. single-device baseline. Document any additional latency introduced by the hub or device switching.
-- [ ] **Document OEM compatibility matrix**: test on at least Samsung, Pixel, and Xiaomi devices; record which combinations work and which fail.
+- [x] **Enumerate USB audio devices**: add a debug screen that calls `AudioManager.getDevices(GET_DEVICES_OUTPUTS | GET_DEVICES_INPUTS)` and lists all `AudioDeviceInfo` entries with their `type`, `id`, and `productName`. Test with a USB hub + two audio devices on 3+ Android devices from different OEMs.
+- [x] **AAudio multi-device PoC**: ~~open two separate AAudio streams via Oboe~~ — **blocked by HAL**: Android's USB audio policy deactivates the second USB audio device entirely when a dock headset is plugged in. `setDeviceId()` cannot target a device Android has already removed from enumeration. See compatibility matrix below.
+- [x] **Measure latency**: N/A — multi-device routing is not possible with two separate USB audio devices on Samsung Galaxy Z Fold 6. Single-device and built-in mic + USB output paths work at existing latency levels.
+- [x] **Document OEM compatibility matrix**: tested on Samsung Galaxy Z Fold 6 (Android 15, One UI 7). See matrix below.
 
-### 🎙️ Step 2 — Integration into GrooveForge audio engine
+### 📊 OEM compatibility matrix (2026-04-06)
 
-- [ ] **Device selector UI**: add an audio settings screen where users can independently choose input and output devices from the enumerated list. Default to "System default" for backwards compatibility.
-- [ ] **Oboe stream builder changes**: when the user selects specific devices, pass `setDeviceId()` to the Oboe `AudioStreamBuilder` for each direction. Handle `ErrorDisconnected` gracefully (device unplugged mid-session).
-- [ ] **Fallback behavior**: if `setDeviceId()` fails or the target device disappears, fall back to the system default device and notify the user via a snackbar.
-- [ ] **Minimum API level gate**: guard the multi-device feature behind `Build.VERSION.SDK_INT >= 34` (Android 14). On older versions, show a single device selector with an explanation.
+> **Test device**: Samsung Galaxy Z Fold 6 (SM-F956B), Android 15, One UI 7
+> **USB dock**: generic USB-C dock with 3.5 mm jack output (chip: CS202)
+> **USB mic**: BOYA Mini 2 (USB-C, input only)
+
+| Scenario | Devices enumerated | Result |
+|---|---|---|
+| BOYA mic only (USB-C) | BOYA Mini 2 (id=302, card=2, input) | ✅ Works |
+| Dock + headset only (jack) | CS202 (id=293, card=3, output) + CS202 (id=298, card=3, input) | ✅ Works — composite device, both I/O on same chip |
+| BOYA mic + dock headset (both plugged simultaneously) | CS202 only — **BOYA disappears from enumeration** | ❌ **Android HAL drops the BOYA entirely** |
+| Built-in mic + dock headset | Built-in mic + CS202 (output) | ✅ Works — mixed built-in + USB routing |
+
+**Conclusion**: Android's USB audio HAL on Samsung (and likely most OEMs) only activates **one USB audio device** at a time. When the dock's CS202 chip activates, the BOYA is deactivated at the HAL level — it is not just deprioritized, it is **removed from `AudioManager.getDevices()` entirely**. `setDeviceId()` is therefore useless for the two-separate-USB-devices scenario.
+
+### 🎙️ Step 2 — Revised scope: single-device routing + built-in mic fallback
+
+Given the HAL limitation, the multi-USB feature pivots to:
+1. **Letting the user choose which USB device to use** when multiple are available (before one gets deactivated).
+2. **Built-in mic + USB output** as the reliable multi-device path (already works).
+3. **Synth output device routing** via `setDeviceId()` on the AAudio stream (already implemented).
+
+- [x] **Device selector UI**: the existing `_MicDeviceDropdown` and `_OutputDeviceDropdown` in `audio_settings_bar.dart` already provide independent input/output device selection with "Default" fallback. Evaluated — sufficient as-is, no dedicated page needed.
+- [x] **Oboe stream builder changes**: `oboe_stream_set_output_device()` passes `setDeviceId()` to the AAudio stream builder; the vocoder/miniaudio path already supports `g_androidDeviceId` / `g_androidOutputDeviceId`.
+- [x] **Fallback behavior**: `_resetDisconnectedDevices()` resets to system default when a device disappears; `toastNotifier` surfaces a snackbar. AAudio `errorCallback` reopens the stream on the default device via a detached thread.
+- [x] **Minimum API level gate**: output device dropdown hidden when `androidSdkVersion < 28` (fetched once during init via method channel). AAudio `setDeviceId()` is only reliable from API 28+; on older versions OpenSL ES silently ignores it.
 
 ### 🎙️ Step 3 — l10n
 
-- [ ] Add EN/FR keys: `audioDeviceInput`, `audioDeviceOutput`, `audioDeviceDefault`, `audioDeviceMultiUsbUnsupported`, `audioDeviceDisconnected`.
+- [x] Add EN/FR keys: existing keys (`audioSettingsBarMicDevice`, `audioSettingsBarOutputDevice`, `micSelectionDefault`, `audioOutputDefault`) already cover input/output/default labels. Added `audioDeviceDisconnectedInput`, `audioDeviceDisconnectedOutput` and 16 `usbAudioDebug*` keys for the debug screen.
 
 ### 🧪 Step 4 — Testing
 
-- [ ] USB hub + jack output + USB mic on Pixel (Android 14+) → both streams active, audio plays through jack while mic captures.
-- [ ] USB hub + jack output + USB mic on Samsung → document result (pass/fail).
 - [ ] Single USB audio device → works as before, no regression.
 - [ ] Unplug USB device mid-session → graceful fallback to system default, no crash.
-- [ ] Android < 14 → multi-device option hidden, single device selector shown.
-- [ ] USB composite device (single device with both I/O) → works without needing multi-device routing.
+- [ ] USB composite device (single device with both I/O, e.g. dock with jack headset) → works without needing multi-device routing.
+- [ ] Built-in mic + USB output → both streams active, audio plays through USB while built-in mic captures.
+- [x] USB hub + jack output + USB mic on Samsung → **FAIL**: Android HAL deactivates the second USB device.
+- [ ] Android < 28 → device selector hidden.
 
 ---
 
@@ -748,5 +602,7 @@ sequenceDiagram
 | Phase 8 Tier 1 | 2.7.0 | Six `.gfpd` effects (reverb, delay, EQ, compressor, chorus, wah) + native C++ DSP |
 | Phase 8 + 10 | 2.8.0 | Six MIDI FX plugins; `.gfpd` `groups:`; responsive plugin panels |
 | Drum Generator | 2.9.0 | New Drum Generator features and improvements |
+| MIDI Looper rework | 2.10.0 | Remove chord detection; simplify engine + UI; bar-sync recording start |
+| PipeWire migration | 2.10.0 | Replace ALSA with JACK client API; inter-app routing; sub-10 ms latency on PipeWire |
 
 Full implementation notes for completed phases are preserved in `git log` and the per-version `CHANGELOG.md`.

@@ -544,5 +544,24 @@
   "drumGeneratorFamilyCountry": "Country",
   "drumGeneratorFamilyFolk": "Folk",
   "drumGeneratorCustomPattern": "Pattern personnalis\u00e9",
-  "drumGeneratorNoSoundfonts": "Aucune soundfont — ajoutez-en une dans Pr\u00e9f\u00e9rences"
+  "drumGeneratorNoSoundfonts": "Aucune soundfont — ajoutez-en une dans Pr\u00e9f\u00e9rences",
+
+  "audioDeviceDisconnectedInput": "P\u00e9riph\u00e9rique d'entr\u00e9e audio d\u00e9connect\u00e9 — utilisation du d\u00e9faut",
+  "audioDeviceDisconnectedOutput": "P\u00e9riph\u00e9rique de sortie audio d\u00e9connect\u00e9 — utilisation du d\u00e9faut",
+
+  "usbAudioDebugTitle": "P\u00e9riph\u00e9riques audio USB",
+  "usbAudioDebugSubtitle": "Informations d\u00e9taill\u00e9es pour l'investigation multi-USB",
+  "usbAudioDebugNoDevices": "Aucun p\u00e9riph\u00e9rique audio trouv\u00e9",
+  "usbAudioDebugRefresh": "Actualiser",
+  "usbAudioDebugDeviceId": "ID du p\u00e9riph\u00e9rique",
+  "usbAudioDebugDirection": "Direction",
+  "usbAudioDebugInput": "Entr\u00e9e",
+  "usbAudioDebugOutput": "Sortie",
+  "usbAudioDebugInputOutput": "Entr\u00e9e + Sortie",
+  "usbAudioDebugSampleRates": "Fr\u00e9quences d'\u00e9chantillonnage",
+  "usbAudioDebugChannelCounts": "Nombre de canaux",
+  "usbAudioDebugEncodings": "Encodages",
+  "usbAudioDebugAddress": "Adresse",
+  "usbAudioDebugAny": "Quelconque",
+  "usbAudioDebugPlatformOnly": "Android uniquement — non disponible sur cette plateforme"
 }

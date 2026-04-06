@@ -1358,4 +1358,59 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get drumGeneratorNoSoundfonts =>
       'Aucune soundfont — ajoutez-en une dans Préférences';
+
+  @override
+  String get audioDeviceDisconnectedInput =>
+      'Périphérique d\'entrée audio déconnecté — utilisation du défaut';
+
+  @override
+  String get audioDeviceDisconnectedOutput =>
+      'Périphérique de sortie audio déconnecté — utilisation du défaut';
+
+  @override
+  String get usbAudioDebugTitle => 'Périphériques audio USB';
+
+  @override
+  String get usbAudioDebugSubtitle =>
+      'Informations détaillées pour l\'investigation multi-USB';
+
+  @override
+  String get usbAudioDebugNoDevices => 'Aucun périphérique audio trouvé';
+
+  @override
+  String get usbAudioDebugRefresh => 'Actualiser';
+
+  @override
+  String get usbAudioDebugDeviceId => 'ID du périphérique';
+
+  @override
+  String get usbAudioDebugDirection => 'Direction';
+
+  @override
+  String get usbAudioDebugInput => 'Entrée';
+
+  @override
+  String get usbAudioDebugOutput => 'Sortie';
+
+  @override
+  String get usbAudioDebugInputOutput => 'Entrée + Sortie';
+
+  @override
+  String get usbAudioDebugSampleRates => 'Fréquences d\'échantillonnage';
+
+  @override
+  String get usbAudioDebugChannelCounts => 'Nombre de canaux';
+
+  @override
+  String get usbAudioDebugEncodings => 'Encodages';
+
+  @override
+  String get usbAudioDebugAddress => 'Adresse';
+
+  @override
+  String get usbAudioDebugAny => 'Quelconque';
+
+  @override
+  String get usbAudioDebugPlatformOnly =>
+      'Android uniquement — non disponible sur cette plateforme';
 }

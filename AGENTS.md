@@ -179,7 +179,22 @@ int snapToScale(int midiNote, Set<int> allowedPitchClasses) {
 }
 ```
 
-## Rule 6 — Research Before Implementing
+## Rule 6 — Zero Warnings Gate
+
+**`flutter analyze` must report zero issues before any release or PR.**
+
+Run `flutter analyze` at the end of every session that touches Dart code. If new warnings or errors appear, fix them before committing. Do not rely on the release checklist alone — catching regressions early avoids shipping a version that cannot pass CI.
+
+```bash
+# Must print "No issues found"
+flutter analyze
+```
+
+Vendored third-party packages (`flutter_vst3`, `flutter_midi_pro`, `flutter_midi_command_linux`) are excluded from the root analysis via `analysis_options.yaml`. First-party packages (`grooveforge_plugin_api`, `grooveforge_plugin_ui`) are **not** excluded and must pass analysis.
+
+---
+
+## Rule 7 — Research Before Implementing
 
 Before writing non-trivial code or selecting a library/approach:
 

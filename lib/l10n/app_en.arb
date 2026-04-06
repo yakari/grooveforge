@@ -556,5 +556,24 @@
   "drumGeneratorFamilyCountry": "Country",
   "drumGeneratorFamilyFolk": "Folk",
   "drumGeneratorCustomPattern": "Custom pattern",
-  "drumGeneratorNoSoundfonts": "No soundfonts — add one in Preferences"
+  "drumGeneratorNoSoundfonts": "No soundfonts — add one in Preferences",
+
+  "audioDeviceDisconnectedInput": "Audio input device disconnected — using default",
+  "audioDeviceDisconnectedOutput": "Audio output device disconnected — using default",
+
+  "usbAudioDebugTitle": "USB Audio Devices",
+  "usbAudioDebugSubtitle": "Detailed device information for multi-USB investigation",
+  "usbAudioDebugNoDevices": "No audio devices found",
+  "usbAudioDebugRefresh": "Refresh",
+  "usbAudioDebugDeviceId": "Device ID",
+  "usbAudioDebugDirection": "Direction",
+  "usbAudioDebugInput": "Input",
+  "usbAudioDebugOutput": "Output",
+  "usbAudioDebugInputOutput": "Input + Output",
+  "usbAudioDebugSampleRates": "Sample rates",
+  "usbAudioDebugChannelCounts": "Channel counts",
+  "usbAudioDebugEncodings": "Encodings",
+  "usbAudioDebugAddress": "Address",
+  "usbAudioDebugAny": "Any",
+  "usbAudioDebugPlatformOnly": "Android only — not available on this platform"
 }

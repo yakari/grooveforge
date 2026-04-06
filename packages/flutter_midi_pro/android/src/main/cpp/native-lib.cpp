@@ -175,6 +175,13 @@ Java_com_melihhakanpektas_flutter_1midi_1pro_FlutterMidiProPlugin_setGain(
 }
 
 extern "C" JNIEXPORT void JNICALL
+Java_com_melihhakanpektas_flutter_1midi_1pro_FlutterMidiProPlugin_setOutputDevice(
+        JNIEnv* /*env*/, jclass /*clazz*/, jint deviceId)
+{
+    oboe_stream_set_output_device(static_cast<int>(deviceId));
+}
+
+extern "C" JNIEXPORT void JNICALL
 Java_com_melihhakanpektas_flutter_1midi_1pro_FlutterMidiProPlugin_dispose(
         JNIEnv* /*env*/, jclass /*clazz*/)
 {

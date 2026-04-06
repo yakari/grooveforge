@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [X.x.x]
+
+### Added
+- **USB audio debug screen (Android)**: new `UsbAudioDebugScreen` accessible from Preferences that displays every `AudioDeviceInfo` on the system — device ID, type, direction, sample rates, channel counts, encodings, and address. Used for investigating multi-USB device routing on different OEMs.
+- **AAudio output device routing (Android)**: the synth output stream (FluidSynth keyboards, Theremin, Stylophone, Vocoder) can now be directed to a specific USB audio device via `oboe_stream_set_output_device()` using `AAudioStreamBuilder_setDeviceId()`. Previously, only the vocoder capture/playback path (miniaudio) supported device selection; now both audio paths honour the user's output device choice.
+- **Device disconnect notification**: when a selected audio device is unplugged mid-session, `_resetDisconnectedDevices()` falls back to the system default and shows a snackbar via `toastNotifier`. The AAudio `errorCallback` also reopens the stream on the default device automatically.
+- **API level gate for device selector**: the output device dropdown in `AudioSettingsBar` is hidden on Android < 28, where AAudio's `setDeviceId()` is not reliable (OpenSL ES silently ignores it).
+
+### Fixed
+- **Android — GF Keyboard 1 silent after startup**: `_applyAllPluginsToEngine()` fired a concurrent `createKeyboardSlotSynth()` (fire-and-forget) for each keyboard, racing with the sequential `initAndroidKeyboardSlots()` called immediately after by `_readGfFile()`. Both calls saw `_channelSlotSfId[channel] == null` and created duplicate FluidSynth instances — the first one was orphaned on the AAudio bus with no MIDI routing, silencing the keyboard. Fixed by passing `skipAndroidSlotCreation: true` in `_applyAllPluginsToEngine()` so only `initAndroidKeyboardSlots()` creates dedicated synths.
+
+### Architecture
+- **`oboe_stream_android.cpp` — output device routing**: added `g_outputDeviceId`, `oboe_stream_set_output_device()`, and `oboe_stream_get_output_device()`. The stream builder calls `AAudioStreamBuilder_setDeviceId()` when a non-default device is selected. A no-change guard skips unnecessary stream restarts.
+- **`oboe_stream_android.cpp` — error recovery**: the `errorCallback` now reopens the stream on the default device via a detached thread instead of only logging the error.
+- **`native-lib.cpp` — JNI `setOutputDevice`**: new JNI entry point bridging the Kotlin method channel to `oboe_stream_set_output_device()`.
+- **`flutter_midi_pro` — `setOutputDevice()` API**: new method across the platform interface, method channel, web stub, and public `MidiPro` class.
+- **`MainActivity.kt` — `getAudioDeviceDetails`**: new method channel call returning full `AudioDeviceInfo` data (id, productName, type, isSource, isSink, sampleRates, channelCounts, encodings, address) for the debug screen. Extracted `deviceTypeString()` helper shared with `enumerateDevices()`.
+- **`AudioEngine` — `androidSdkVersion`**: cached once during init via method channel; used by UI to gate API-level-dependent features.
+
 ## [2.10.0] - 2026-04-06
 
 ### Added
