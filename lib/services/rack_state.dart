@@ -146,6 +146,23 @@ class RackState extends ChangeNotifier {
       _plugins,
       keyboardSfIds: _buildKeyboardSfIds(),
     );
+    // Restore bypass states from the project file so the native DSP layer
+    // matches the persisted state after a fresh routing rebuild.
+    _syncBypassStatesToNative();
+  }
+
+  /// Pushes the bypass state of every GFPA effect slot to the native DSP layer.
+  ///
+  /// Called after [syncAudioRouting] which clears and re-registers all inserts —
+  /// the native handles are fresh and default to non-bypassed, so any slots that
+  /// were bypassed in the project need their state re-applied.
+  void _syncBypassStatesToNative() {
+    for (final plugin in _plugins) {
+      if (plugin is! GFpaPluginInstance) continue;
+      if (plugin.state['__bypass'] == true) {
+        VstHostService.instance.setGfpaDspBypass(plugin.id, true);
+      }
+    }
   }
 
   /// Called whenever the [AudioGraph] changes (connection added/removed).
@@ -159,6 +176,8 @@ class RackState extends ChangeNotifier {
       _plugins,
       keyboardSfIds: _buildKeyboardSfIds(),
     );
+    // Re-apply bypass states after a full routing rebuild (inserts are fresh).
+    _syncBypassStatesToNative();
   }
 
   void _onTransportChanged() {
@@ -763,6 +782,33 @@ class RackState extends ChangeNotifier {
   void markDirty() {
     notifyListeners();
     _notifyChanged();
+  }
+
+  /// Flips the bypass toggle of the audio effect slot identified by [slotId].
+  ///
+  /// Pushes the new state to the native DSP layer so the insert callback
+  /// skips processing on the audio thread (single atomic bool load, zero CPU).
+  /// The state is persisted in `GFpaPluginInstance.state['__bypass']`.
+  void toggleEffectBypass(String slotId) {
+    final slot = _findGfpaById(slotId);
+    if (slot == null) return;
+    final bypassed = !(slot.state['__bypass'] == true);
+    slot.state['__bypass'] = bypassed;
+    VstHostService.instance.setGfpaDspBypass(slotId, bypassed);
+    notifyListeners();
+    markDirty();
+  }
+
+  /// Sets the bypass state of the audio effect slot identified by [slotId].
+  ///
+  /// Unlike [toggleEffectBypass], this sets a specific value rather than toggling.
+  void setEffectBypass(String slotId, bool bypassed) {
+    final slot = _findGfpaById(slotId);
+    if (slot == null) return;
+    slot.state['__bypass'] = bypassed;
+    VstHostService.instance.setGfpaDspBypass(slotId, bypassed);
+    notifyListeners();
+    markDirty();
   }
 
   /// Flips the bypass toggle of the MIDI FX slot identified by [slotId].

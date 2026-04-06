@@ -573,6 +573,22 @@ class VstHostService {
     _host?.setGfpaDspParam(handle, paramId, physicalValue);
   }
 
+  /// Sets the bypass state of a GFPA DSP effect identified by [slotId].
+  ///
+  /// When [bypassed] is true, the native insert callback copies input to output
+  /// unchanged — zero CPU cost on the audio thread (single atomic bool load).
+  void setGfpaDspBypass(String slotId, bool bypassed) {
+    final handle = _gfpaHandles[slotId];
+    if (handle == null || handle == nullptr) return;
+
+    if (Platform.isAndroid) {
+      GfpaAndroidBindings.instance.gfpaDspSetBypass(handle, bypassed);
+      return;
+    }
+
+    _host?.setGfpaDspBypass(handle, bypassed);
+  }
+
   /// Synchronise the Android GFPA insert chain with the current [graph].
   ///
   /// Rebuilds all per-source chains from scratch:

@@ -196,6 +196,14 @@ class VstHost {
     malloc.free(id);
   }
 
+  /// Set the bypass state of a GFPA DSP instance.
+  ///
+  /// When [bypassed] is true, the effect's insert callback copies input to
+  /// output unchanged — zero CPU cost, zero latency.
+  /// Thread-safe: the native side uses std::atomic<bool>.
+  void setGfpaDspBypass(Pointer<Void> dspHandle, bool bypassed) =>
+      _b.gfpaDspSetBypass(dspHandle, bypassed);
+
   /// Set the global BPM for all BPM-synced GFPA effects (delay, wah, chorus).
   void setGfpaBpm(double bpm) => _b.gfpaSetBpm(bpm);
 

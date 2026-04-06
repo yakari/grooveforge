@@ -688,6 +688,12 @@ enum class GfpaEffectType { Reverb, Delay, Wah, Eq, Compressor, Chorus };
 /// it dispatches to the correct effect using the instance pointer as userdata.
 struct GfpaDspInstance {
     GfpaEffectType type;
+
+    /// When true, the insert callback copies input to output unchanged
+    /// (the effect is bypassed).  Written from the Dart isolate via
+    /// gfpa_dsp_set_bypass(); read on the audio thread in insertCb().
+    std::atomic<bool> bypassed{false};
+
     /// Untagged union — only the field matching [type] is valid.
     union {
         FreeverbEffect*   reverb;
@@ -699,11 +705,22 @@ struct GfpaDspInstance {
     };
 
     /// Static C-callable insert callback dispatched to the correct effect.
+    ///
+    /// If the instance is bypassed, the input is copied directly to the output
+    /// with no DSP processing — zero latency, zero CPU cost.
     static void insertCb(const float* inL, const float* inR,
                          float* outL, float* outR,
                          int32_t frames, void* ud)
     {
         auto* inst = static_cast<GfpaDspInstance*>(ud);
+
+        // Bypass: pass-through input unchanged.
+        if (inst->bypassed.load(std::memory_order_relaxed)) {
+            std::memcpy(outL, inL, sizeof(float) * static_cast<size_t>(frames));
+            std::memcpy(outR, inR, sizeof(float) * static_cast<size_t>(frames));
+            return;
+        }
+
         switch (inst->type) {
             case GfpaEffectType::Reverb:
                 inst->reverb->process(inL, inR, outL, outR, frames); break;
@@ -768,6 +785,16 @@ void gfpa_dsp_set_param(GfpaDspHandle handle, const char* paramId, double v) {
         case GfpaEffectType::Compressor: inst->compressor->setParam(paramId, fv); break;
         case GfpaEffectType::Chorus:     inst->chorus->setParam(paramId, fv);     break;
     }
+}
+
+/// Set the bypass state of a DSP instance.
+///
+/// When [bypassed] is true, the insert callback copies input to output
+/// unchanged (zero CPU cost, zero latency).  Thread-safe: may be called
+/// from the Dart isolate while the audio thread runs.
+void gfpa_dsp_set_bypass(GfpaDspHandle handle, bool bypassed) {
+    auto* inst = static_cast<GfpaDspInstance*>(handle);
+    inst->bypassed.store(bypassed, std::memory_order_relaxed);
 }
 
 /// Return the static insert callback (shared by all instances — dispatch via userdata).

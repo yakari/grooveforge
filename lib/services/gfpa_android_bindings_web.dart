@@ -37,6 +37,9 @@ class GfpaAndroidBindings {
   void gfpaDspSetParam(int handle, String paramId, double physicalValue) {}
 
   /// Not supported on web — no-op.
+  void gfpaDspSetBypass(int handle, bool bypassed) {}
+
+  /// Not supported on web — no-op.
   void gfpaDspDestroy(int handle) {}
 
   /// Not supported on web — no-op.

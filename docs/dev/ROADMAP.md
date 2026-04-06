@@ -462,10 +462,10 @@ Static Dart registry (`CcParamRegistry`) — not embedded in `.gfpd` descriptors
 
 ### 🎛️ Phase B — Audio effect bypass
 
-- [ ] Add `state['__bypass']` support to GFPA audio effect slots in `RackState` (currently only MIDI FX have it).
-- [ ] Wire bypass into the audio render path: skip `gfpa_android_apply_chain_for_sf()` (Android) and equivalent desktop path when `state['__bypass'] == true`.
-- [ ] Add bypass UI toggle button on audio effect slot cards (same visual pattern as MIDI FX bypass LED).
-- [ ] Persist bypass state in `.gf` via existing `GFpaPluginInstance.state` serialization.
+- [x] Add `state['__bypass']` support to GFPA audio effect slots in `RackState` — `toggleEffectBypass()` and `setEffectBypass()` methods push state to native DSP via `VstHostService.setGfpaDspBypass()`.
+- [x] Wire bypass into the audio render path: `GfpaDspInstance::insertCb()` checks `std::atomic<bool> bypassed` (relaxed load, zero CPU cost) and copies input→output unchanged when bypassed. `gfpa_dsp_set_bypass()` C API added to `gfpa_dsp.h/.cpp`. Shared by Android and desktop — both platforms call the same `insertCb`.
+- [x] Add bypass UI toggle button on audio effect slot cards — reuses `_BypassHeader` widget from MIDI FX. CC assign button hidden for now (deferred to Phase C/D). `_onParamChanged()` preserves `__bypass` meta-key across DSP state writes.
+- [x] Persist bypass state in `.gf` via existing `GFpaPluginInstance.state` serialization. `_syncBypassStatesToNative()` re-applies bypass states after every routing rebuild.
 
 ### 🎛️ Phase C — Registry + slot-addressed dispatch
 

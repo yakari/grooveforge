@@ -74,6 +74,9 @@ class VstHostService {
   /// Stub: no-op.
   void setGfpaDspParam(String slotId, String paramId, double physicalValue) {}
 
+  /// Stub: no-op.
+  void setGfpaDspBypass(String slotId, bool bypassed) {}
+
   void dispose() {}
 }
 

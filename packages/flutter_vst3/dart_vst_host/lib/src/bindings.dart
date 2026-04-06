@@ -228,6 +228,16 @@ class NativeBindings {
           void Function(Pointer<Void>, Pointer<Utf8>, double)
       >('gfpa_dsp_set_param');
 
+  /// Set the bypass state of a DSP instance.
+  ///
+  /// When bypassed (true), the insert callback copies input to output unchanged.
+  /// Thread-safe: uses std::atomic<bool> internally.
+  late final void Function(Pointer<Void>, bool) gfpaDspSetBypass =
+      lib.lookupFunction<
+          Void Function(Pointer<Void>, Bool),
+          void Function(Pointer<Void>, bool)
+      >('gfpa_dsp_set_bypass');
+
   /// Return the static insert callback function pointer for this DSP instance.
   /// The type is treated as Pointer(Void) since Dart FFI cannot store function
   /// pointers in typed fields directly; the native side casts it correctly.

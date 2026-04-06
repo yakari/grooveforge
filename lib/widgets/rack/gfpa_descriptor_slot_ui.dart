@@ -107,10 +107,15 @@ class _GFpaDescriptorSlotUIState extends State<GFpaDescriptorSlotUI> {
   /// Writes the full parameter map back into [GFpaPluginInstance.state],
   /// forwards all parameter changes to the native C++ DSP engine, and asks
   /// [RackState] to schedule an auto-save.
+  ///
+  /// Preserves the `__bypass` meta-key which lives outside the DSP parameter
+  /// space — [GFDescriptorPlugin.getState] only returns declared parameters.
   void _onParamChanged() {
+    final bypass = widget.instance.state['__bypass'];
     widget.instance.state
       ..clear()
       ..addAll(_plugin.getState());
+    if (bypass != null) widget.instance.state['__bypass'] = bypass;
     _syncAllParamsToNative();
     // Use read() since we're in a listener, not a build method.
     // markDirty() triggers both a rebuild and an autosave without
@@ -161,13 +166,31 @@ class _GFpaDescriptorSlotUIState extends State<GFpaDescriptorSlotUI> {
       );
     }
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      child: GFDescriptorPluginUI(
-        plugin: _plugin,
-        paramNotifier: _paramNotifier,
-        vuController: _vuController,
-      ),
+    final bypassed = widget.instance.state['__bypass'] == true;
+    final rack = context.read<RackState>();
+    final l10n = AppLocalizations.of(context)!;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // ── Bypass header row ─────────────────────────────────────────────
+        _BypassHeader(
+          bypassed: bypassed,
+          assignedCc: null, // CC assignment is handled via Phase C
+          l10n: l10n,
+          onToggleBypass: () => rack.toggleEffectBypass(widget.instance.id),
+          onAssignCc: null, // Deferred to Phase C/D
+        ),
+        // ── Parameter controls ────────────────────────────────────────────
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          child: GFDescriptorPluginUI(
+            plugin: _plugin,
+            paramNotifier: _paramNotifier,
+            vuController: _vuController,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -346,7 +369,10 @@ class _BypassHeader extends StatelessWidget {
 
   final AppLocalizations l10n;
   final VoidCallback onToggleBypass;
-  final VoidCallback onAssignCc;
+
+  /// Callback to open the CC assignment dialog.  Null hides the CC assign button
+  /// (used by audio effects until Phase C/D implements slot-addressed CC).
+  final VoidCallback? onAssignCc;
 
   @override
   Widget build(BuildContext context) {
@@ -374,19 +400,21 @@ class _BypassHeader extends StatelessWidget {
               ),
             ),
 
-          // CC assign button.
-          Tooltip(
-            message: l10n.midiFxCcAssign,
-            child: IconButton(
-              iconSize: 18,
-              visualDensity: VisualDensity.compact,
-              icon: Icon(
-                Icons.settings_remote_outlined,
-                color: assignedCc != null ? activeColor : inactiveColor,
+          // CC assign button — hidden when onAssignCc is null (audio effects
+          // defer CC assignment to Phase C/D).
+          if (onAssignCc != null)
+            Tooltip(
+              message: l10n.midiFxCcAssign,
+              child: IconButton(
+                iconSize: 18,
+                visualDensity: VisualDensity.compact,
+                icon: Icon(
+                  Icons.settings_remote_outlined,
+                  color: assignedCc != null ? activeColor : inactiveColor,
+                ),
+                onPressed: onAssignCc,
               ),
-              onPressed: onAssignCc,
             ),
-          ),
 
           // Bypass power toggle.
           Tooltip(
