@@ -21,7 +21,7 @@ dev_dependencies:
 # Flutter's build system automatically configures the platform CMakeLists.txt,
 # compiles the native library, and bundles it — no manual cmake/make steps.
 #
-# Audio: ALSA on Linux. Windows (WASAPI) and macOS (CoreAudio) can be added
+# Audio: JACK on Linux (PipeWire / JACK2). Windows (WASAPI) and macOS (CoreAudio) can be added
 # later via platform-specific source files.
 # Editor GUI: floating X11 window on Linux.  macOS NSView embedding via
 # FlutterPlatformView is a viable future enhancement.

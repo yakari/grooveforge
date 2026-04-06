@@ -87,7 +87,7 @@ file(GLOB VST3_SDK_SOURCES
 
 add_library(${PROJECT_NAME} SHARED
   ${NATIVE_DIR}/src/dart_vst_host.cpp
-  ${NATIVE_DIR}/src/dart_vst_host_alsa.cpp
+  ${NATIVE_DIR}/src/dart_vst_host_jack.cpp
   ${NATIVE_DIR}/src/dart_vst_host_editor_linux.cpp
   ${NATIVE_DIR}/src/gfpa_dsp.cpp
   ${VST3_BASE_SOURCES}
@@ -136,9 +136,10 @@ set_source_files_properties(
   PROPERTIES COMPILE_OPTIONS "-w"
 )
 
-find_package(ALSA REQUIRED)
-target_link_libraries(${PROJECT_NAME} PRIVATE ${ALSA_LIBRARIES})
-target_include_directories(${PROJECT_NAME} PRIVATE ${ALSA_INCLUDE_DIRS})
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(JACK REQUIRED jack)
+target_link_libraries(${PROJECT_NAME} PRIVATE ${JACK_LIBRARIES})
+target_include_directories(${PROJECT_NAME} PRIVATE ${JACK_INCLUDE_DIRS})
 
 find_package(X11 REQUIRED)
 target_link_libraries(${PROJECT_NAME} PRIVATE ${X11_LIBRARIES})

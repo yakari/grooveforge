@@ -1,6 +1,6 @@
 // Non-Linux stubs for dart_vst_host.
 //
-// dart_vst_host_alsa.cpp and dart_vst_host_editor_linux.cpp are entirely
+// dart_vst_host_jack.cpp and dart_vst_host_editor_linux.cpp are entirely
 // wrapped in #ifdef __linux__, so their symbols are absent on Windows and
 // macOS. This file provides no-op stubs so the shared library links cleanly
 // on those platforms.
@@ -15,17 +15,19 @@
 
 extern "C" {
 
-// ── ALSA / audio-loop stubs ──────────────────────────────────────────────────
+// ── JACK / audio-loop stubs ─────────────────────────────────────────────────
 
 void dvh_audio_add_plugin(DVH_Host /*host*/, DVH_Plugin /*plugin*/) {}
 void dvh_audio_remove_plugin(DVH_Host /*host*/, DVH_Plugin /*plugin*/) {}
 void dvh_audio_clear_plugins(DVH_Host /*host*/) {}
 
-int32_t dvh_start_alsa_thread(DVH_Host /*host*/, const char* /*alsa_device*/) {
+int32_t dvh_start_jack_client(DVH_Host /*host*/, const char* /*client_name*/) {
     return 0; // not available on this platform
 }
 
-void dvh_stop_alsa_thread(DVH_Host /*host*/) {}
+void dvh_stop_jack_client(DVH_Host /*host*/) {}
+
+int32_t dvh_jack_get_xrun_count(DVH_Host /*host*/) { return 0; }
 
 // ── Audio graph routing stubs (Phase 5.4) ────────────────────────────────────
 

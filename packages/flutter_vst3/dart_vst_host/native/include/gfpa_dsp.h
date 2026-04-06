@@ -1,12 +1,12 @@
-// gfpa_dsp.h — Native GFPA DSP effect nodes for the dart_vst_host ALSA chain.
+// gfpa_dsp.h — Native GFPA DSP effect nodes for the dart_vst_host audio chain.
 //
 // Each GfpaDspHandle encapsulates the full signal graph of one .gfpd
 // descriptor plugin (reverb, delay, wah, EQ, compressor, chorus).
-// Instances run entirely on the ALSA audio thread — all internal buffers
+// Instances run entirely on the JACK audio thread — all internal buffers
 // are pre-allocated at construction; no heap allocation occurs in process().
 //
 // Thread safety: gfpa_dsp_set_param() uses std::atomic<float> internally and
-// is safe to call from the Dart isolate while the ALSA thread runs.
+// is safe to call from the Dart isolate while the JACK audio thread runs.
 #pragma once
 #include "dart_vst_host.h"
 
@@ -17,7 +17,7 @@ extern "C" {
 /// Opaque handle to a native GFPA DSP effect instance.
 typedef void* GfpaDspHandle;
 
-/// Insert-effect callback — called on the ALSA audio thread (allocation-free).
+/// Insert-effect callback — called on the JACK audio thread (allocation-free).
 ///
 /// Reads [frames] samples from inL/inR (the source's dry signal), writes the
 /// processed stereo result to outL/outR.  All pointers are guaranteed non-null

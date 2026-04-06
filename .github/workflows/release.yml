@@ -66,6 +66,7 @@ jobs:
           sudo apt-get install -y \
             libgtk-3-dev libblkid-dev liblzma-dev libgcrypt20-dev libmpv-dev \
             libasound2-dev \
+            libjack-jackd2-dev \
             libx11-dev \
             libfluidsynth-dev
 
@@ -136,7 +137,7 @@ jobs:
           Section: utils
           Priority: optional
           Architecture: amd64
-          Depends: fluidsynth, libasound2, libx11-6
+          Depends: fluidsynth, libasound2, libjack0, libx11-6
           Maintainer: Yann
           Description: GrooveForge MIDI Synthesizer
           EOF
