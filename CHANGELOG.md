@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [X.x.x]
+## [2.10.0] - 2026-04-06
 
 ### Added
 - **Looper — per-track volume slider**: each `LoopTrack` now has a `volumeScale` field (0.0–1.0, persisted in `.gf`). Note-on velocity is multiplied by this factor in `_fireEventsInRange` during playback. A compact `_VolumeSlider` widget appears in each `_TrackRow`.
@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **PipeWire / JACK audio backend (Linux)**: replaced the direct ALSA PCM backend (`dart_vst_host_alsa.cpp`) with a JACK client (`dart_vst_host_jack.cpp`) using `jack_client_open` / `jack_set_process_callback`. GrooveForge now registers as a proper JACK client with named stereo output ports (`out_L`, `out_R`) and auto-connects to `system:playback_1` / `system:playback_2`. Works on both PipeWire (JACK shim) and native JACK2 systems. Target latency drops from ~50 ms (ALSA dmix workaround) to < 10 ms.
 - **Inter-application audio routing**: GrooveForge audio can now be routed to/from other Linux audio applications (Ardour, Bitwig, Carla) via standard JACK connections — visible in Helvum, qjackctl, or Carla's patchbay.
 - **XRUN counter**: `dvh_jack_get_xrun_count` / `VstHost.getXrunCount()` exposes the cumulative XRUN count reported by the JACK server, ready to surface as a latency warning in the UI.
+
+### Fixed
+- **GF Keyboard — Slot 1 instrument not restored on restart**: the second GF Keyboard (odd MIDI channels) always played piano (patch 0) after restarting the app, even though the UI displayed the correct instrument. `_restoreState()` in `AudioEngine.init()` sent program changes for all 16 channels, but FluidSynth Slot 1 did not exist yet — `keyboard_program_select()` silently dropped the call when `slot->synth` was NULL. Fixed by initialising Slot 1 via `keyboardInitSlot(1)` immediately after `keyboardInit()`, before `_restoreState()` runs.
 
 ### Architecture
 - **JACK audio backend**: `dart_vst_host_jack.cpp` replaces `dart_vst_host_alsa.cpp`. The ALSA `while(running) { snd_pcm_writei }` loop is replaced by a `jack_set_process_callback` that writes native float directly to JACK port buffers (no int16 conversion). Buffer size is negotiated dynamically via `jack_set_buffer_size_callback`. CMake dependencies changed from `find_package(ALSA)` to `pkg_check_modules(JACK REQUIRED jack)`. Dart FFI renamed: `startAlsaThread` → `startJackClient`, `stopAlsaThread` → `stopJackClient`.
