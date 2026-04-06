@@ -901,8 +901,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get looperCcAssign => 'Assigner CC';
 
   @override
-  String get looperCcAssignTitle =>
-      'Assigner un CC matériel à une action du looper';
+  String get looperCcAssignTitle => 'Assigner un CC matériel au looper';
 
   @override
   String get looperCcRemove => 'Supprimer l\'assignation CC';
@@ -911,24 +910,21 @@ class AppLocalizationsFr extends AppLocalizations {
   String get looperCcLearn => 'Bougez un potard ou fader…';
 
   @override
-  String looperCcBound(int cc, String action) {
-    return 'CC $cc → $action';
-  }
-
-  @override
-  String get looperActionToggleRecord => 'Enregistrer / Lire';
-
-  @override
-  String get looperActionTogglePlay => 'Lecture / Pause';
+  String get looperActionLoop => 'Boucle';
 
   @override
   String get looperActionStop => 'Stop';
 
   @override
-  String get looperActionClearAll => 'Tout effacer';
+  String get looperCcConflictTitle => 'CC déjà assigné';
 
   @override
-  String get looperActionOverdub => 'Overdub';
+  String looperCcConflictBody(int cc, String target) {
+    return 'CC $cc est déjà assigné à $target. Écraser ?';
+  }
+
+  @override
+  String get looperCcConflictOverwrite => 'Écraser';
 
   @override
   String get looperVolume => 'Volume';

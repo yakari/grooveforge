@@ -377,21 +377,20 @@
     }
   },
   "looperCcAssign": "Assign CC",
-  "looperCcAssignTitle": "Assign hardware CC to looper action",
+  "looperCcAssignTitle": "Assign hardware CC to looper",
   "looperCcRemove": "Remove CC binding",
   "looperCcLearn": "Move a knob or fader…",
-  "looperCcBound": "CC {cc} → {action}",
-  "@looperCcBound": {
+  "looperActionLoop": "Loop",
+  "looperActionStop": "Stop",
+  "looperCcConflictTitle": "CC already assigned",
+  "looperCcConflictBody": "CC {cc} is already mapped to {target}. Overwrite?",
+  "@looperCcConflictBody": {
     "placeholders": {
       "cc": { "type": "int" },
-      "action": { "type": "String" }
+      "target": { "type": "String" }
     }
   },
-  "looperActionToggleRecord": "Record / Play",
-  "looperActionTogglePlay": "Play / Pause",
-  "looperActionStop": "Stop",
-  "looperActionClearAll": "Clear all",
-  "looperActionOverdub": "Overdub",
+  "looperCcConflictOverwrite": "Overwrite",
   "looperVolume": "Volume",
 
   "looperQuantize": "Quantize",

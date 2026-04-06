@@ -1709,7 +1709,7 @@ abstract class AppLocalizations {
   /// No description provided for @looperCcAssignTitle.
   ///
   /// In en, this message translates to:
-  /// **'Assign hardware CC to looper action'**
+  /// **'Assign hardware CC to looper'**
   String get looperCcAssignTitle;
 
   /// No description provided for @looperCcRemove.
@@ -1724,23 +1724,11 @@ abstract class AppLocalizations {
   /// **'Move a knob or fader…'**
   String get looperCcLearn;
 
-  /// No description provided for @looperCcBound.
+  /// No description provided for @looperActionLoop.
   ///
   /// In en, this message translates to:
-  /// **'CC {cc} → {action}'**
-  String looperCcBound(int cc, String action);
-
-  /// No description provided for @looperActionToggleRecord.
-  ///
-  /// In en, this message translates to:
-  /// **'Record / Play'**
-  String get looperActionToggleRecord;
-
-  /// No description provided for @looperActionTogglePlay.
-  ///
-  /// In en, this message translates to:
-  /// **'Play / Pause'**
-  String get looperActionTogglePlay;
+  /// **'Loop'**
+  String get looperActionLoop;
 
   /// No description provided for @looperActionStop.
   ///
@@ -1748,17 +1736,23 @@ abstract class AppLocalizations {
   /// **'Stop'**
   String get looperActionStop;
 
-  /// No description provided for @looperActionClearAll.
+  /// No description provided for @looperCcConflictTitle.
   ///
   /// In en, this message translates to:
-  /// **'Clear all'**
-  String get looperActionClearAll;
+  /// **'CC already assigned'**
+  String get looperCcConflictTitle;
 
-  /// No description provided for @looperActionOverdub.
+  /// No description provided for @looperCcConflictBody.
   ///
   /// In en, this message translates to:
-  /// **'Overdub'**
-  String get looperActionOverdub;
+  /// **'CC {cc} is already mapped to {target}. Overwrite?'**
+  String looperCcConflictBody(int cc, String target);
+
+  /// No description provided for @looperCcConflictOverwrite.
+  ///
+  /// In en, this message translates to:
+  /// **'Overwrite'**
+  String get looperCcConflictOverwrite;
 
   /// No description provided for @looperVolume.
   ///

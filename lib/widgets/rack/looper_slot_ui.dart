@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/loop_track.dart';
 import '../../models/looper_plugin_instance.dart';
+import '../../services/cc_mapping_service.dart';
 import '../../services/looper_engine.dart';
 import '../../services/rack_state.dart';
 
@@ -90,15 +91,6 @@ class _LooperSlotUIState extends State<LooperSlotUI> {
               l10n: l10n,
             ),
           ],
-
-          // ── CC assignments ───────────────────────────────────────────────────
-          const Divider(height: 1, color: _kBorder),
-          _CcAssignStrip(
-            slotId: widget.plugin.id,
-            assignments: session?.ccAssignments ?? const {},
-            engine: engine,
-            l10n: l10n,
-          ),
 
           // ── Pin toggle ──────────────────────────────────────────────────────
           const Divider(height: 1, color: _kBorder),
@@ -194,6 +186,12 @@ class _TransportStrip extends StatelessWidget {
             engine: engine,
             l10n: l10n,
           ),
+
+          const SizedBox(width: 4),
+
+          // CC assign button — binds hardware CCs to looper actions via
+          // CcMappingService (visible in the global CC preferences screen).
+          _CcAssignButton(l10n: l10n),
 
           const Spacer(),
 
@@ -898,154 +896,120 @@ class _QuantizeChip extends StatelessWidget {
   }
 }
 
-// ── CC assignment strip ──────────────────────────────────────────────────────
+// ── CC assign button ─────────────────────────────────────────────────────────
 
-/// Returns a user-facing label for [action].
-String _actionLabel(LooperAction action, AppLocalizations l10n) =>
-    switch (action) {
-      LooperAction.toggleRecord => l10n.looperActionToggleRecord,
-      LooperAction.togglePlay => l10n.looperActionTogglePlay,
-      LooperAction.stop => l10n.looperActionStop,
-      LooperAction.clearAll => l10n.looperActionClearAll,
-      LooperAction.overdub => l10n.looperActionOverdub,
+/// The two looper system-action codes used by [CcMappingService].
+const int _kLooperButtonAction = 1009;
+const int _kLooperStopAction = 1012;
+
+/// Maps a looper system-action code to a user-facing label.
+String _looperActionLabel(int actionCode, AppLocalizations l10n) =>
+    switch (actionCode) {
+      _kLooperButtonAction => l10n.looperActionLoop,
+      _kLooperStopAction => l10n.looperActionStop,
+      _ => '?',
     };
 
-/// Displays current CC → action bindings as compact chips, plus an
-/// "Assign CC" button that opens a learn-mode dialog.
-class _CcAssignStrip extends StatelessWidget {
-  final String slotId;
-  final Map<int, LooperAction> assignments;
-  final LooperEngine engine;
+/// A compact CC-assign button placed in the transport strip header.
+///
+/// Reads the current looper CC bindings from [CcMappingService] and opens a
+/// two-step dialog (pick action → learn CC) to create or modify them.
+/// Bindings are stored as global [CcMapping] entries — they appear in the
+/// CC preferences screen automatically.
+class _CcAssignButton extends StatelessWidget {
   final AppLocalizations l10n;
 
-  const _CcAssignStrip({
-    required this.slotId,
-    required this.assignments,
-    required this.engine,
-    required this.l10n,
-  });
+  const _CcAssignButton({required this.l10n});
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      child: Wrap(
-        spacing: 6,
-        runSpacing: 4,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          // Existing bindings as compact chips.
-          for (final entry in assignments.entries)
-            _CcChip(
-              cc: entry.key,
-              action: entry.value,
-              l10n: l10n,
-              onDelete: () => engine.removeCcAssignment(slotId, entry.key),
-            ),
+    final ccService = context.read<CcMappingService>();
 
-          // "Assign CC" button.
-          GestureDetector(
-            onTap: () => _showAssignDialog(context),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: _kPanel,
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: _kBorder),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.tune, size: 12, color: Colors.white54),
-                  const SizedBox(width: 4),
-                  Text(
-                    l10n.looperCcAssign,
-                    style: const TextStyle(
-                      color: Colors.white54,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
+    return ValueListenableBuilder<Map<int, CcMapping>>(
+      valueListenable: ccService.mappingsNotifier,
+      builder: (context, mappings, _) {
+        // Find existing looper bindings.
+        final ccLooper = _findCcFor(mappings, _kLooperButtonAction);
+        final ccStop = _findCcFor(mappings, _kLooperStopAction);
+        final hasAny = ccLooper != null || ccStop != null;
+
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (ccLooper != null)
+              _ccChip('CC $ccLooper', l10n.looperActionLoop),
+            if (ccStop != null) ...[
+              if (ccLooper != null) const SizedBox(width: 4),
+              _ccChip('CC $ccStop', l10n.looperActionStop),
+            ],
+            Tooltip(
+              message: l10n.looperCcAssign,
+              child: IconButton(
+                iconSize: 18,
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                icon: Icon(
+                  Icons.settings_remote_outlined,
+                  color: hasAny ? _kLcdText : Colors.white38,
+                ),
+                onPressed: () => _showAssignDialog(context, ccService),
               ),
             ),
-          ),
-        ],
-      ),
+          ],
+        );
+      },
     );
   }
 
-  /// Shows a two-step dialog: pick an action, then learn the CC number.
-  void _showAssignDialog(BuildContext context) {
-    showDialog<void>(
-      context: context,
-      builder: (_) => _CcAssignDialog(
-        slotId: slotId,
-        engine: engine,
-        l10n: l10n,
-      ),
-    );
+  /// Finds the incoming CC number mapped to [targetAction], or null.
+  int? _findCcFor(Map<int, CcMapping> mappings, int targetAction) {
+    for (final m in mappings.values) {
+      if (m.targetCc == targetAction) return m.incomingCc;
+    }
+    return null;
   }
-}
 
-/// A tiny chip showing "CC N → Action" with a delete button.
-class _CcChip extends StatelessWidget {
-  final int cc;
-  final LooperAction action;
-  final AppLocalizations l10n;
-  final VoidCallback onDelete;
-
-  const _CcChip({
-    required this.cc,
-    required this.action,
-    required this.l10n,
-    required this.onDelete,
-  });
-
-  @override
-  Widget build(BuildContext context) {
+  /// A tiny chip showing "CC N → Action".
+  Widget _ccChip(String ccLabel, String actionLabel) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(6, 3, 2, 3),
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
       decoration: BoxDecoration(
         color: _kLcdText.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(4),
         border: Border.all(color: _kLcdText.withValues(alpha: 0.3)),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            l10n.looperCcBound(cc, _actionLabel(action, l10n)),
-            style: const TextStyle(
-              color: _kLcdText,
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(width: 2),
-          GestureDetector(
-            onTap: onDelete,
-            child: Icon(
-              Icons.close,
-              size: 12,
-              color: _kLcdText.withValues(alpha: 0.6),
-            ),
-          ),
-        ],
+      child: Text(
+        '$ccLabel → $actionLabel',
+        style: const TextStyle(
+          color: _kLcdText,
+          fontSize: 9,
+          fontWeight: FontWeight.bold,
+        ),
       ),
+    );
+  }
+
+  void _showAssignDialog(BuildContext context, CcMappingService ccService) {
+    showDialog<void>(
+      context: context,
+      builder: (_) => _CcAssignDialog(ccService: ccService, l10n: l10n),
     );
   }
 }
 
-/// Two-step dialog: 1) pick an action, 2) move a CC knob/fader to bind it.
+/// Two-step CC assign dialog backed by [CcMappingService]:
+/// 1. Pick an action (Loop button or Stop) — shows current binding if any.
+/// 2. Move a CC knob/fader to bind it.
+///
+/// If the learned CC is already mapped to something else, the user is warned
+/// and given the option to overwrite.
 class _CcAssignDialog extends StatefulWidget {
-  final String slotId;
-  final LooperEngine engine;
+  final CcMappingService ccService;
   final AppLocalizations l10n;
 
   const _CcAssignDialog({
-    required this.slotId,
-    required this.engine,
+    required this.ccService,
     required this.l10n,
   });
 
@@ -1054,13 +1018,15 @@ class _CcAssignDialog extends StatefulWidget {
 }
 
 class _CcAssignDialogState extends State<_CcAssignDialog> {
-  /// The action the user picked in step 1.  Null = still picking.
-  LooperAction? _selectedAction;
+  /// The target action code the user picked in step 1.  Null = still picking.
+  int? _selectedAction;
+
+  /// Subscription to the MIDI event notifier for learn mode.
+  void Function()? _learnListener;
 
   @override
   void dispose() {
-    // Cancel learn mode if the dialog is dismissed mid-learn.
-    widget.engine.onCcLearn = null;
+    _stopLearn();
     super.dispose();
   }
 
@@ -1086,22 +1052,65 @@ class _CcAssignDialogState extends State<_CcAssignDialog> {
 
   /// Step 1: pick which action to bind.
   Widget _buildActionPicker(AppLocalizations l10n) {
+    final mappings = widget.ccService.mappingsNotifier.value;
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        for (final action in LooperAction.values)
-          ListTile(
-            dense: true,
-            title: Text(
-              _actionLabel(action, l10n),
-              style: const TextStyle(color: Colors.white70, fontSize: 13),
-            ),
-            onTap: () {
-              setState(() => _selectedAction = action);
-              _startLearn();
-            },
-          ),
+        for (final actionCode in [_kLooperButtonAction, _kLooperStopAction])
+          _buildActionRow(actionCode, mappings, l10n),
       ],
+    );
+  }
+
+  /// One row per action: label, current CC (if bound), assign / remove.
+  Widget _buildActionRow(
+    int actionCode,
+    Map<int, CcMapping> mappings,
+    AppLocalizations l10n,
+  ) {
+    // Find the incoming CC currently mapped to this action.
+    int? currentCc;
+    for (final m in mappings.values) {
+      if (m.targetCc == actionCode) {
+        currentCc = m.incomingCc;
+        break;
+      }
+    }
+
+    return ListTile(
+      dense: true,
+      title: Text(
+        _looperActionLabel(actionCode, l10n),
+        style: const TextStyle(color: Colors.white70, fontSize: 13),
+      ),
+      trailing: currentCc != null
+          ? Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'CC $currentCc',
+                  style: const TextStyle(color: _kLcdText, fontSize: 12),
+                ),
+                const SizedBox(width: 4),
+                GestureDetector(
+                  onTap: () {
+                    widget.ccService.removeMapping(currentCc!);
+                    Navigator.of(context).pop();
+                  },
+                  child: Icon(
+                    Icons.close,
+                    size: 16,
+                    color: _kRecColor.withValues(alpha: 0.8),
+                  ),
+                ),
+              ],
+            )
+          : null,
+      onTap: () {
+        setState(() => _selectedAction = actionCode);
+        _startLearn(actionCode);
+      },
     );
   }
 
@@ -1121,16 +1130,89 @@ class _CcAssignDialogState extends State<_CcAssignDialog> {
     );
   }
 
-  /// Activates learn mode on the engine and waits for a CC event.
-  void _startLearn() {
-    widget.engine.onCcLearn = (slotId, cc) {
-      widget.engine.setCcAssignment(
-        widget.slotId,
-        cc,
-        _selectedAction!,
-      );
-      if (mounted) Navigator.of(context).pop();
+  /// Listens to [CcMappingService.lastEventNotifier] for the next CC event.
+  void _startLearn(int actionCode) {
+    _learnListener = () {
+      final event = widget.ccService.lastEventNotifier.value;
+      if (event == null || event.type != 'CC') return;
+      final cc = event.data1;
+
+      _stopLearn();
+
+      // Check for conflict: is this CC already mapped to something else?
+      final existing = widget.ccService.mappingsNotifier.value[cc];
+      if (existing != null && existing.targetCc != actionCode) {
+        _showConflictDialog(cc, existing, actionCode);
+      } else {
+        _saveAndClose(cc, actionCode);
+      }
     };
+    widget.ccService.lastEventNotifier.addListener(_learnListener!);
+  }
+
+  void _stopLearn() {
+    if (_learnListener != null) {
+      widget.ccService.lastEventNotifier.removeListener(_learnListener!);
+      _learnListener = null;
+    }
+  }
+
+  /// Saves the mapping and closes the dialog.
+  void _saveAndClose(int cc, int actionCode) {
+    widget.ccService.saveMapping(CcMapping(
+      incomingCc: cc,
+      targetCc: actionCode,
+      targetChannel: -2,
+    ));
+    if (mounted) Navigator.of(context).pop();
+  }
+
+  /// Shows a conflict warning and offers to overwrite.
+  void _showConflictDialog(int cc, CcMapping existing, int actionCode) {
+    final targetName =
+        CcMappingService.standardGmCcs[existing.targetCc] ??
+        'CC ${existing.targetCc}';
+
+    showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: _kBg,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: const BorderSide(color: _kBorder),
+        ),
+        title: Text(
+          widget.l10n.looperCcConflictTitle,
+          style: const TextStyle(color: Colors.white, fontSize: 14),
+        ),
+        content: Text(
+          widget.l10n.looperCcConflictBody(cc, targetName),
+          style: const TextStyle(color: Colors.white70, fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(
+              MaterialLocalizations.of(ctx).cancelButtonLabel,
+              style: const TextStyle(color: Colors.white54),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(
+              widget.l10n.looperCcConflictOverwrite,
+              style: const TextStyle(color: _kOdColor),
+            ),
+          ),
+        ],
+      ),
+    ).then((overwrite) {
+      if (overwrite == true) {
+        _saveAndClose(cc, actionCode);
+      } else if (mounted) {
+        Navigator.of(context).pop();
+      }
+    });
   }
 }
 

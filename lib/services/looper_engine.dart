@@ -44,30 +44,6 @@ enum LooperState {
   overdubbing,
 }
 
-// ── CC action ─────────────────────────────────────────────────────────────────
-
-/// Looper actions that can be bound to hardware CC knobs/buttons.
-enum LooperAction {
-  /// Toggle between recording / overdubbing and playing.
-  toggleRecord,
-
-  /// Toggle play / pause without clearing the loop.
-  togglePlay,
-
-  /// Stop playback and return to idle (clears the active recording pass).
-  stop,
-
-  /// Erase all recorded tracks and return to idle.
-  clearAll,
-
-  /// Queue the next overdub pass.
-  ///
-  /// When playing: queues an overdub (transitions to [LooperState.waitingForOverdub]).
-  /// When overdubbing: stops the overdub and resumes clean playback.
-  /// Ignored in all other states.
-  overdub,
-}
-
 // ── Per-slot session ──────────────────────────────────────────────────────────
 
 /// Internal state for one looper rack slot.
@@ -98,9 +74,6 @@ class LooperSession {
   /// playback begins so the first tick fires from the correct position.
   double prevPlaybackBeat;
 
-  /// Map from CC number → action bound to that CC for this slot.
-  final Map<int, LooperAction> ccAssignments;
-
   /// Quantize grid applied to every new recording pass for this slot.
   ///
   /// Stored at the slot level so the user can set it once before recording
@@ -126,7 +99,6 @@ class LooperSession {
         prevBeatFloor = 0.0,
         prevPlaybackBeat = 0.0,
         pendingRecordDownbeat = 0.0,
-        ccAssignments = {},
         quantize = LoopQuantize.off;
 
   // ── Derived helpers ────────────────────────────────────────────────────
@@ -255,42 +227,47 @@ class LooperEngine extends ChangeNotifier {
 
   /// Begins a new recording pass for [slotId].
   ///
-  /// If the transport is playing and the position is at a bar-1 downbeat,
-  /// recording starts immediately.  If the transport is playing but mid-bar,
-  /// the session enters [LooperState.waitingToRecord] and waits for the next
-  /// downbeat — any MIDI events played during this window are intentionally
-  /// ignored so the user can prepare without capturing stray notes.
+  /// If the transport is stopped, starts it automatically — the user pressing
+  /// record implies they want to play.  Since [TransportEngine.play] fires
+  /// beat 1 immediately (a bar-1 downbeat), recording starts right away.
   ///
-  /// If the transport is stopped, the session enters [LooperState.armed] and
-  /// will begin recording automatically when play is pressed.
+  /// If the transport is already playing and the position is at a bar-1
+  /// downbeat, recording starts immediately.  If mid-bar, the session enters
+  /// [LooperState.waitingToRecord] and waits for the next downbeat — any MIDI
+  /// events played during this window are intentionally ignored so the user
+  /// can prepare without capturing stray notes.
   void startRecording(String slotId) {
     final s = _requireSession(slotId);
     final alreadyPlaying = s.state == LooperState.playing;
 
-    if (_transport.isPlaying) {
-      final pos = _transport.positionInBeats;
+    // Auto-start the transport if it is stopped — the user pressing record
+    // implies they want to play.  transport.play() fires beat 1 immediately
+    // (positionInBeats = 1.0), which is always a bar-1 downbeat, so recording
+    // can start without entering waitingToRecord.
+    if (!_transport.isPlaying) {
+      _transport.play();
+    }
 
-      if (alreadyPlaying) {
-        // Overdub: start immediately — the loop is already phase-locked, so
-        // waiting for a bar boundary would introduce an audible gap.
-        _beginRecordingPass(s);
-        s.state = LooperState.overdubbing;
-      } else if (_isAtBarBoundary(pos)) {
-        // Already on a downbeat — start recording now.
-        _beginRecordingPass(s);
-        s.state = LooperState.recording;
-      } else {
-        // Mid-bar — wait for the next bar-1 downbeat before capturing events.
-        // Pre-compute the target downbeat so both the ticker and feedMidiEvent
-        // can detect the crossing without a race condition.
-        final beatsPerBar = _transport.timeSigNumerator.toDouble();
-        final barIndex = ((pos - 1.0) / beatsPerBar).floor() + 1;
-        s.pendingRecordDownbeat = 1.0 + barIndex * beatsPerBar;
-        s.prevBeatFloor = pos;
-        s.state = LooperState.waitingToRecord;
-      }
+    final pos = _transport.positionInBeats;
+
+    if (alreadyPlaying) {
+      // Overdub: start immediately — the loop is already phase-locked, so
+      // waiting for a bar boundary would introduce an audible gap.
+      _beginRecordingPass(s);
+      s.state = LooperState.overdubbing;
+    } else if (_isAtBarBoundary(pos)) {
+      // Already on a downbeat — start recording now.
+      _beginRecordingPass(s);
+      s.state = LooperState.recording;
     } else {
-      s.state = LooperState.armed;
+      // Mid-bar — wait for the next bar-1 downbeat before capturing events.
+      // Pre-compute the target downbeat so both the ticker and feedMidiEvent
+      // can detect the crossing without a race condition.
+      final beatsPerBar = _transport.timeSigNumerator.toDouble();
+      final barIndex = ((pos - 1.0) / beatsPerBar).floor() + 1;
+      s.pendingRecordDownbeat = 1.0 + barIndex * beatsPerBar;
+      s.prevBeatFloor = pos;
+      s.state = LooperState.waitingToRecord;
     }
 
     _updateTicker();
@@ -370,6 +347,13 @@ class LooperEngine extends ChangeNotifier {
         s.state == LooperState.playing ||
         s.state == LooperState.waitingForBar) {
       return;
+    }
+
+    // Auto-start the transport if stopped — the user pressing play implies
+    // they want the loop to sound.  transport.play() lands on beat 1.0
+    // (a bar-1 downbeat), so playback starts immediately without waiting.
+    if (!_transport.isPlaying) {
+      _transport.play();
     }
 
     final pos = _transport.positionInBeats;
@@ -616,12 +600,10 @@ class LooperEngine extends ChangeNotifier {
     final s = _sessions[slotId];
     if (s == null) return;
 
-    // Route CC events to the CC assignment handler (works in any state).
+    // CC events are handled globally by CcMappingService → onLooperSystemAction
+    // (see rack_screen.dart), not recorded into the loop.
     final isCc = (status & 0xF0) == 0xB0;
-    if (isCc) {
-      handleCc(slotId, data1, data2);
-      return; // CC events are not recorded into the loop.
-    }
+    if (isCc) return;
 
     // If we are waiting for the next bar boundary to start recording, check
     // whether the transport has reached (or is within tolerance of) the target
@@ -653,56 +635,6 @@ class LooperEngine extends ChangeNotifier {
       data1: data1,
       data2: data2,
     ));
-  }
-
-  // ── CC assignment ──────────────────────────────────────────────────────
-
-  /// Binds [cc] to [action] for [slotId].
-  void setCcAssignment(String slotId, int cc, LooperAction action) {
-    _requireSession(slotId).ccAssignments[cc] = action;
-    notifyListeners();
-  }
-
-  /// Removes the CC binding for [cc] in [slotId].
-  void removeCcAssignment(String slotId, int cc) {
-    _requireSession(slotId).ccAssignments.remove(cc);
-    notifyListeners();
-  }
-
-  /// Callback invoked when a CC event arrives while learn mode is active.
-  /// Set by the UI to capture the CC number, then cleared.
-  void Function(String slotId, int cc)? onCcLearn;
-
-  /// Handles an incoming CC event for [slotId] if a binding exists.
-  ///
-  /// If [onCcLearn] is set, the CC number is forwarded to the callback
-  /// (learn mode) instead of triggering the bound action.
-  ///
-  /// Standard convention: value ≥ 64 = button press (trigger action);
-  /// value < 64 = button release (ignored for toggle actions).
-  void handleCc(String slotId, int cc, int value) {
-    // Learn mode: forward the CC number to the UI callback.
-    if (onCcLearn != null) {
-      onCcLearn!(slotId, cc);
-      onCcLearn = null;
-      return;
-    }
-    if (value < 64) return; // ignore release half
-    final action = _sessions[slotId]?.ccAssignments[cc];
-    switch (action) {
-      case LooperAction.toggleRecord:
-        toggleRecord(slotId);
-      case LooperAction.togglePlay:
-        togglePlay(slotId);
-      case LooperAction.stop:
-        stop(slotId);
-      case LooperAction.clearAll:
-        clearAll(slotId);
-      case LooperAction.overdub:
-        queueOverdub(slotId);
-      case null:
-        break;
-    }
   }
 
   // ── Track modifiers ────────────────────────────────────────────────────

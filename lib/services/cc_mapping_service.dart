@@ -110,22 +110,19 @@ class CcMappingService {
     1008: '[System] Cycle Scale Type',
 
     // --- Looper Actions ---
-    1009: '[Looper] Record / Stop Rec',
-    1010: '[Looper] Play / Pause',
-    1011: '[Looper] Overdub',
+    1009: '[Looper] Loop Button',
     1012: '[Looper] Stop',
-    1013: '[Looper] Clear All',
 
     // --- Channel Mute ---
     1014: '[System] Mute / Unmute Channels',
   };
 
-  /// Returns true if [targetCc] is a looper system action (1009-1013).
+  /// Returns true if [targetCc] is a looper system action (1009 or 1012).
   ///
   /// Used by the CC preferences UI to hide the channel-routing selector,
   /// which is irrelevant for looper actions (they target the single looper slot).
   static bool isLooperAction(int targetCc) =>
-      targetCc >= 1009 && targetCc <= 1013;
+      targetCc == 1009 || targetCc == 1012;
 
   /// Returns true if [targetCc] is the mute/unmute action (1014).
   ///

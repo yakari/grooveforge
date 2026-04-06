@@ -1,9 +1,9 @@
 # GrooveForge Roadmap
 
 > **Current released version:** 2.9.0
-> **Next milestone:** TBD — MIDI Looper rework (remove chord detection, simplify, then add audio looper)
-> **Next after looper:** 🔥 PipeWire migration (Linux audio backend — urgent)
-> **Last updated:** 2026-04-03
+> **Next milestone:** 🔥 PipeWire migration (Linux audio backend — urgent)
+> **Next after PipeWire:** Multi-USB audio (Android), then Audio Looper (PCM)
+> **Last updated:** 2026-04-06
 
 ---
 
@@ -22,8 +22,8 @@
 | 2.7.0 | Phase 8 Tier 1 | ✅ Complete | Six bundled GFPA effects as `.gfpd` + native C++ DSP |
 | 2.8.0 | Phase 8 + 10 | ✅ Complete | MIDI FX node system (6 plugins); responsive `.gfpd` UI groups |
 | 2.9.0 | Drum Generator | ✅ Complete | New Drum Generator features |
-| **TBD** | **MIDI Looper rework** | **🔜 Next** | Remove chord detection; simplify engine + UI; keep bar display |
-| TBD | PipeWire migration (Linux) | 🔥 Urgent — after looper | Replace direct ALSA with PipeWire/JACK; inter-app routing; lower latency |
+| TBD | MIDI Looper rework | ✅ Complete | Remove chord detection; simplify engine + UI; bar-sync recording start |
+| **TBD** | **PipeWire migration (Linux)** | **🔥 Next — Urgent** | Replace direct ALSA with PipeWire/JACK; inter-app routing; lower latency |
 | TBD | Multi-USB audio (Android) | 🔜 After PipeWire | Use AAudio `setDeviceId()` to route input/output to separate USB audio devices |
 | TBD | Audio Looper (PCM) | 🔜 Likely after | Built on top of the simplified looper |
 | TBD | Phase 8 (full) | ⏸ TBD | pub.dev publishing; plugin store; vocoder mk2 |
@@ -235,7 +235,7 @@ These tasks complete the distributable `.vst3` bundle story started in Phase 3b.
 
 ---
 
-## 🎹 Next — MIDI Looper Rework
+## ✅ MIDI Looper Rework
 
 The current looper stores per-bar chord names (detected via `ChordDetector`) and displays them in a chord grid strip. This adds complexity for marginal benefit — the bar display itself (length, current bar, overdub position) is the genuinely useful part. The goal is to strip chord detection out entirely, simplify the engine and UI down to what matters, then build the audio looper on top of the cleaner foundation.
 
@@ -284,12 +284,21 @@ Features deferred during Phase 6, reassessed after the rework.
 **Moved to Chord Progression Module** (depends on that feature, not the looper rework):
 - [x] GFK → Looper → Jam Mode + GFK2 chain: scale locks follow recorded chord progression → see Chord Progression section.
 
-### 🧪 Step 5 — Smoke test
+### ✅ Step 5 — Bar-sync recording start
 
-- [ ] Record a 4-bar loop → bar strip shows 4 cells, current bar advances correctly during playback.
-- [ ] Overdub → overdubbing bar highlighted correctly.
-- [ ] Tap a bar cell → playback resumes from that bar.
-- [ ] Save/load project → bar count and loop events restored; no crash on old files with `chordsPerBar`.
+Recording previously started immediately when the user pressed record mid-bar, capturing stray preparation notes. Now mirrors the playback bar-sync pattern:
+
+- [x] Add `LooperState.waitingToRecord` state — when the user presses record mid-bar, the engine waits for the next bar-1 downbeat before capturing MIDI events.
+- [x] Dual-path downbeat detection: both the 10 ms ticker (`_checkWaitingToRecord`) and `feedMidiEvent` check `pendingRecordDownbeat` — whichever fires first triggers `_activateRecording`, eliminating the race condition between timer jitter and real-time MIDI input.
+- [x] Pre-downbeat tolerance: notes arriving within 0.1 beats (~50 ms at 120 BPM) before the downbeat are captured at beat offset 0 — musically "on the beat" rather than silently discarded.
+- [x] Update `LooperSlotUI` — `waitingToRecord` shows pulsing record icon with "WAITING FOR BAR" label, matching the visual pattern from playback sync.
+
+### ✅ Step 6 — Smoke test
+
+- [x] Record a 4-bar loop → bar strip shows 4 cells, current bar advances correctly during playback.
+- [x] Overdub → overdubbing bar highlighted correctly.
+- [x] Tap a bar cell → playback resumes from that bar.
+- [x] Save/load project → bar count and loop events restored; no crash on old files with `chordsPerBar`.
 
 ---
 

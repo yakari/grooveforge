@@ -365,21 +365,20 @@
     }
   },
   "looperCcAssign": "Assigner CC",
-  "looperCcAssignTitle": "Assigner un CC matériel à une action du looper",
+  "looperCcAssignTitle": "Assigner un CC matériel au looper",
   "looperCcRemove": "Supprimer l'assignation CC",
   "looperCcLearn": "Bougez un potard ou fader…",
-  "looperCcBound": "CC {cc} → {action}",
-  "@looperCcBound": {
+  "looperActionLoop": "Boucle",
+  "looperActionStop": "Stop",
+  "looperCcConflictTitle": "CC déjà assigné",
+  "looperCcConflictBody": "CC {cc} est déjà assigné à {target}. Écraser ?",
+  "@looperCcConflictBody": {
     "placeholders": {
       "cc": { "type": "int" },
-      "action": { "type": "String" }
+      "target": { "type": "String" }
     }
   },
-  "looperActionToggleRecord": "Enregistrer / Lire",
-  "looperActionTogglePlay": "Lecture / Pause",
-  "looperActionStop": "Stop",
-  "looperActionClearAll": "Tout effacer",
-  "looperActionOverdub": "Overdub",
+  "looperCcConflictOverwrite": "Écraser",
   "looperVolume": "Volume",
 
   "looperQuantize": "Quantification",

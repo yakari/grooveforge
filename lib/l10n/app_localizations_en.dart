@@ -897,7 +897,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get looperCcAssign => 'Assign CC';
 
   @override
-  String get looperCcAssignTitle => 'Assign hardware CC to looper action';
+  String get looperCcAssignTitle => 'Assign hardware CC to looper';
 
   @override
   String get looperCcRemove => 'Remove CC binding';
@@ -906,24 +906,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get looperCcLearn => 'Move a knob or fader…';
 
   @override
-  String looperCcBound(int cc, String action) {
-    return 'CC $cc → $action';
-  }
-
-  @override
-  String get looperActionToggleRecord => 'Record / Play';
-
-  @override
-  String get looperActionTogglePlay => 'Play / Pause';
+  String get looperActionLoop => 'Loop';
 
   @override
   String get looperActionStop => 'Stop';
 
   @override
-  String get looperActionClearAll => 'Clear all';
+  String get looperCcConflictTitle => 'CC already assigned';
 
   @override
-  String get looperActionOverdub => 'Overdub';
+  String looperCcConflictBody(int cc, String target) {
+    return 'CC $cc is already mapped to $target. Overwrite?';
+  }
+
+  @override
+  String get looperCcConflictOverwrite => 'Overwrite';
 
   @override
   String get looperVolume => 'Volume';
