@@ -34,7 +34,8 @@ elseif (UNIX AND NOT APPLE)
     find_library(M_LIB m)
     find_library(DL_LIB dl)
     # Link libfluidsynth for in-process GF Keyboard rendering (Linux only).
-    # fluidsynth is available system-wide via pkg-config on Manjaro/Ubuntu.
     find_library(FLUIDSYNTH_LIB fluidsynth)
+    find_path(FLUIDSYNTH_INCLUDE_DIR fluidsynth.h)
+    target_include_directories(audio_input PRIVATE ${FLUIDSYNTH_INCLUDE_DIR})
     target_link_libraries(audio_input PRIVATE ${M_LIB} ${DL_LIB} ${FLUIDSYNTH_LIB})
 endif()
