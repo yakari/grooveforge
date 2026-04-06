@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:file_picker/file_picker.dart';
+import '../../services/file_picker_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -747,13 +747,10 @@ class _LoadPatternButton extends StatelessWidget {
   Future<void> _pickPattern(BuildContext context) async {
     if (kIsWeb) return; // File picker not available on web for this extension.
 
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
+    final path = await FilePickerService.pickFile(
+      context: context,
       allowedExtensions: ['gfdrum'],
-      withData: false,
     );
-    if (result == null || result.files.isEmpty) return;
-    final path = result.files.first.path;
     if (path == null) return;
 
     try {

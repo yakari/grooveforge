@@ -1,0 +1,12 @@
+{
+  // Only analyze the root project — sub-packages under packages/ have their
+  // own dependencies and must be analyzed independently if needed.
+  "dart.analysisExcludedFolders": [
+    "packages/flutter_vst3",
+    "packages/flutter_midi_command_linux",
+    "packages/flutter_midi_pro"
+  ],
+  // Auto-select newly connected Android devices — works with the adb-connect
+  // pre-launch task so "Android (Wireless)" targets the phone, not Linux.
+  "dart.flutterSelectDeviceWhenConnected": true
+}

@@ -174,17 +174,16 @@ class _RackScreenState extends State<RackScreen> {
     // Wire looper MIDI playback → dispatch to slots connected via MIDI OUT cable.
     _looperEngine.onMidiPlayback = _handleLooperPlayback;
 
-    // Wire global CC looper actions (1009-1013) from AudioEngine to LooperEngine.
+    // Wire global CC looper actions (1009, 1012) from AudioEngine to LooperEngine.
     // The looper enforces single-instance, so we always target the first session.
+    //   1009 = unified looper button (record/stop/play/overdub — same as on-screen)
+    //   1012 = stop
     _engine.onLooperSystemAction = (int actionCode, int ccValue) {
       final slotId = _looperEngine.sessions.keys.firstOrNull;
       if (slotId == null) return; // no looper slot in rack
       switch (actionCode) {
-        case 1009: _looperEngine.toggleRecord(slotId);
-        case 1010: _looperEngine.togglePlay(slotId);
-        case 1011: _looperEngine.queueOverdub(slotId);
+        case 1009: _looperEngine.looperButtonPress(slotId);
         case 1012: _looperEngine.stop(slotId);
-        case 1013: _looperEngine.clearAll(slotId);
       }
     };
 
@@ -193,8 +192,9 @@ class _RackScreenState extends State<RackScreen> {
 
     midiService.onMidiDataReceived = (packet) {
       // Check whether an incoming CC matches any MIDI FX bypass assignment and
-      // toggle it. This is a side-effect check — the CC still flows through
-      // the rest of the pipeline normally.
+      // toggle it, and feed CC events to all looper sessions (for CC learn
+      // mode and bound looper actions).  This is a side-effect check — the CC
+      // still flows through the rest of the pipeline normally.
       if (packet.data.length >= 2) {
         final command = packet.data[0] & 0xF0;
         if (command == 0xB0) {
@@ -751,6 +751,7 @@ class _RackScreenState extends State<RackScreen> {
     }
   }
 
+
   void _handleAutoScroll(int channel) {
     if (!_engine.autoScrollEnabled.value) return;
     if (!_scrollController.hasClients) return;
@@ -784,7 +785,7 @@ class _RackScreenState extends State<RackScreen> {
     final service = context.read<ProjectService>();
 
     final path = await service.openProject(
-        rack, engine, transport, audioGraph, looper);
+        context, rack, engine, transport, audioGraph, looper);
     if (path != null && mounted) {
       setState(() => _currentProjectPath = path);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -803,7 +804,7 @@ class _RackScreenState extends State<RackScreen> {
     final service = context.read<ProjectService>();
 
     final path = await service.saveProjectAs(
-        rack, engine, transport, audioGraph, looper);
+        context, rack, engine, transport, audioGraph, looper);
     if (path != null && mounted) {
       // path is empty string on web (download triggered, no file path).
       setState(() => _currentProjectPath = path.isEmpty ? null : path);
@@ -1343,8 +1344,6 @@ class _RackList extends StatelessWidget {
               ),
               itemBuilder: (context, index) {
                 final plugin = rack.plugins[index];
-                debugPrint(
-                    'RackList: building item $index for plugin ${plugin.id}');
                 final slotKey =
                     slotKeys.putIfAbsent(plugin.id, () => GlobalKey());
                 return KeyedSubtree(

@@ -5,6 +5,19 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/lang/fr/).
 
+## [X.x.x]
+
+### Ajouté
+- **Looper — curseur de volume par piste** : chaque `LoopTrack` dispose désormais d'un champ `volumeScale` (0.0–1.0, persisté dans `.gf`). La vélocité des note-on est multipliée par ce facteur dans `_fireEventsInRange` pendant la lecture. Un curseur compact `_VolumeSlider` apparaît dans chaque `_TrackRow`.
+- **Looper — interface d'assignation CC** : nouveau widget `_CcAssignStrip` dans `LooperSlotUI` affichant les assignations CC → action sous forme de puces supprimables. Le bouton « Assigner CC » ouvre `_CcAssignDialog` : choisir une action (Enregistrer/Lire, Lecture/Pause, Stop, Effacer, Overdub), puis bouger un potard ou fader matériel pour l'assigner. Mode apprentissage via le callback `LooperEngine.onCcLearn`.
+- **Looper — routage CC** : `feedMidiEvent` détecte désormais les messages CC (status `0xB0`) et les transmet à `handleCc`, de sorte que les assignations CC matérielles fonctionnent sans câblage séparé dans le rack.
+
+### Architecture
+- **Looper — détection d'accords supprimée** : suppression de `chordPerBar`, `detectAndStoreChord`, `_flushBarChord`, la branche enregistrement de `_detectBeatCrossings`, `notesInBar` et `prevRelativeBar` de `LoopTrack` et `LooperEngine`. L'interface grille d'accords est remplacée par une bande de numéros de mesures (`_BarStrip`). `ChordDetector` reste dans le code (utilisé par Jam Mode / clavier).
+- **Looper — enregistrement aligné sur les mesures** : `_beginRecordingPass` cale désormais `recordingStartBeat` sur le temps fort de la mesure précédente, de sorte que les offsets des événements sont relatifs à la mesure dès le départ. `_activatePlayback` définit `recordingStartBeat = anchorBeat`, garantissant un alignement identique entre stop/relance et sauvegarde/rechargement.
+- **Looper — `LoopTrack.barCount(beatsPerBar)`** : nouveau helper remplaçant l'ancien `chordPerBar.keys` ; calcule le nombre de mesures à partir de `lengthInBeats` et de la signature rythmique du transport.
+- **Looper — getter `LooperEngine.beatsPerBar`** : expose `timeSigNumerator` pour que l'interface puisse calculer le nombre de mesures sans importer `TransportEngine`.
+
 ## [2.9.0] - 2026-03-25
 
 ### Ajouté

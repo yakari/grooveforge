@@ -668,6 +668,30 @@ abstract class AppLocalizations {
   /// **'Cancel'**
   String get cancelButton;
 
+  /// Generic confirm/OK button label used in dialogs
+  ///
+  /// In en, this message translates to:
+  /// **'OK'**
+  String get confirmButton;
+
+  /// Title for the fallback file picker dialog when the native file chooser is unavailable
+  ///
+  /// In en, this message translates to:
+  /// **'Select File'**
+  String get selectFile;
+
+  /// Title for the fallback directory picker dialog when the native file chooser is unavailable
+  ///
+  /// In en, this message translates to:
+  /// **'Select Directory'**
+  String get selectDirectory;
+
+  /// Label shown in the fallback file picker dialog indicating which file extensions are accepted
+  ///
+  /// In en, this message translates to:
+  /// **'Allowed types'**
+  String get filePickerAllowedTypes;
+
   /// No description provided for @resetEverythingButton.
   ///
   /// In en, this message translates to:
@@ -1670,12 +1694,6 @@ abstract class AppLocalizations {
   /// **'Mute'**
   String get looperMute;
 
-  /// No description provided for @looperNoChord.
-  ///
-  /// In en, this message translates to:
-  /// **'—'**
-  String get looperNoChord;
-
   /// No description provided for @looperBar.
   ///
   /// In en, this message translates to:
@@ -1691,7 +1709,7 @@ abstract class AppLocalizations {
   /// No description provided for @looperCcAssignTitle.
   ///
   /// In en, this message translates to:
-  /// **'Assign hardware CC to looper action'**
+  /// **'Assign hardware CC to looper'**
   String get looperCcAssignTitle;
 
   /// No description provided for @looperCcRemove.
@@ -1699,6 +1717,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Remove CC binding'**
   String get looperCcRemove;
+
+  /// No description provided for @looperCcLearn.
+  ///
+  /// In en, this message translates to:
+  /// **'Move a knob or fader…'**
+  String get looperCcLearn;
+
+  /// No description provided for @looperActionLoop.
+  ///
+  /// In en, this message translates to:
+  /// **'Loop'**
+  String get looperActionLoop;
+
+  /// No description provided for @looperActionStop.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop'**
+  String get looperActionStop;
+
+  /// No description provided for @looperCcConflictTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'CC already assigned'**
+  String get looperCcConflictTitle;
+
+  /// No description provided for @looperCcConflictBody.
+  ///
+  /// In en, this message translates to:
+  /// **'CC {cc} is already mapped to {target}. Overwrite?'**
+  String looperCcConflictBody(int cc, String target);
+
+  /// No description provided for @looperCcConflictOverwrite.
+  ///
+  /// In en, this message translates to:
+  /// **'Overwrite'**
+  String get looperCcConflictOverwrite;
+
+  /// No description provided for @looperVolume.
+  ///
+  /// In en, this message translates to:
+  /// **'Volume'**
+  String get looperVolume;
 
   /// No description provided for @looperQuantize.
   ///

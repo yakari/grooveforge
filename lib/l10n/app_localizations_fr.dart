@@ -329,6 +329,18 @@ class AppLocalizationsFr extends AppLocalizations {
   String get cancelButton => 'Annuler';
 
   @override
+  String get confirmButton => 'OK';
+
+  @override
+  String get selectFile => 'Sélectionner un fichier';
+
+  @override
+  String get selectDirectory => 'Sélectionner un dossier';
+
+  @override
+  String get filePickerAllowedTypes => 'Types autorisés';
+
+  @override
   String get resetEverythingButton => 'Tout réinitialiser';
 
   @override
@@ -881,9 +893,6 @@ class AppLocalizationsFr extends AppLocalizations {
   String get looperMute => 'Muet';
 
   @override
-  String get looperNoChord => '—';
-
-  @override
   String looperBar(int n) {
     return 'Mesure $n';
   }
@@ -892,11 +901,33 @@ class AppLocalizationsFr extends AppLocalizations {
   String get looperCcAssign => 'Assigner CC';
 
   @override
-  String get looperCcAssignTitle =>
-      'Assigner un CC matériel à une action du looper';
+  String get looperCcAssignTitle => 'Assigner un CC matériel au looper';
 
   @override
   String get looperCcRemove => 'Supprimer l\'assignation CC';
+
+  @override
+  String get looperCcLearn => 'Bougez un potard ou fader…';
+
+  @override
+  String get looperActionLoop => 'Boucle';
+
+  @override
+  String get looperActionStop => 'Stop';
+
+  @override
+  String get looperCcConflictTitle => 'CC déjà assigné';
+
+  @override
+  String looperCcConflictBody(int cc, String target) {
+    return 'CC $cc est déjà assigné à $target. Écraser ?';
+  }
+
+  @override
+  String get looperCcConflictOverwrite => 'Écraser';
+
+  @override
+  String get looperVolume => 'Volume';
 
   @override
   String get looperQuantize => 'Quantification';

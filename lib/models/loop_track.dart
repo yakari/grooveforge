@@ -1,7 +1,3 @@
-import 'dart:collection';
-
-import 'chord_detector.dart';
-
 // ── MIDI event ────────────────────────────────────────────────────────────────
 
 /// A raw MIDI event captured during looper recording, tagged with its beat
@@ -128,8 +124,8 @@ double speedMultiplier(LoopTrackSpeed speed) => switch (speed) {
 ///
 /// Multiple [LoopTrack]s can coexist and play in parallel inside one looper
 /// slot, enabling multi-layer overdubbing.  Each track is independent: it has
-/// its own length, speed modifier, mute state, reverse flag, and per-bar
-/// chord analysis.
+/// its own length, speed modifier, mute state, reverse flag, and quantize
+/// setting.
 ///
 /// **Beat-based timing model**: all event offsets are stored in *beats* (not
 /// wall-clock milliseconds) so the loop remains in sync when the user changes
@@ -154,11 +150,6 @@ class LoopTrack {
   /// Playback speed relative to the transport tempo.
   LoopTrackSpeed speed;
 
-  /// Chord identified per bar (0-based bar index → chord name string, or null
-  /// if no chord was detected for that bar).  Populated during recording as
-  /// each bar boundary is crossed.
-  final Map<int, String?> chordPerBar;
-
   /// Grid resolution applied to recorded events when the user presses stop.
   ///
   /// When set to anything other than [LoopQuantize.off], [LooperEngine] snaps
@@ -166,6 +157,13 @@ class LoopTrack {
   /// line at the end of each recording pass (including overdubs).  The setting
   /// is persisted in the project file and applies independently per track.
   LoopQuantize quantize;
+
+  /// Velocity multiplier applied during playback (0.0 = silent, 1.0 = full).
+  ///
+  /// MIDI note-on velocity is scaled by this factor in
+  /// [LooperEngine._fireEventsInRange] before being sent to the output.
+  /// Persisted in the project file.
+  double volumeScale;
 
   /// MIDI notes currently "on" during playback, packed as
   /// `(channelNibble << 7) | pitchByte`.  Not persisted — reset on load.
@@ -183,28 +181,21 @@ class LoopTrack {
     this.reversed = false,
     this.speed = LoopTrackSpeed.normal,
     this.quantize = LoopQuantize.off,
-    Map<int, String?>? chordPerBar,
+    this.volumeScale = 1.0,
   })  : events = events ?? [],
-        chordPerBar = chordPerBar ?? {},
         activePlaybackNotes = {};
 
   // ── Helpers ─────────────────────────────────────────────────────────────
 
-  /// Returns an unmodifiable view of [chordPerBar] for safe external access.
-  UnmodifiableMapView<int, String?> get chordPerBarView =>
-      UnmodifiableMapView(chordPerBar);
-
-  /// Records the notes active during [bar] (0-based) and runs [ChordDetector]
-  /// to produce a human-readable chord name.  Stores the result in [chordPerBar].
-  ///
-  /// Called by [LooperEngine] at each bar boundary during recording.
-  void detectAndStoreChord(int bar, Set<int> notePitches) {
-    if (notePitches.length < 3) {
-      chordPerBar[bar] = null;
-      return;
-    }
-    final match = ChordDetector.identifyChord(notePitches);
-    chordPerBar[bar] = match?.name;
+  /// Returns the total number of bars in this loop, given [beatsPerBar] from
+  /// the transport's time signature numerator.  Returns 0 when the track has
+  /// not finished recording yet.
+  int barCount(int beatsPerBar) {
+    final len = lengthInBeats;
+    if (len == null || len <= 0) return 0;
+    // Bars are always whole numbers because lengthInBeats is quantised to the
+    // nearest bar boundary when recording stops.
+    return (len / beatsPerBar).round();
   }
 
   // ── JSON ─────────────────────────────────────────────────────────────────
@@ -217,11 +208,13 @@ class LoopTrack {
         'reversed': reversed,
         'speed': speed.name,
         'quantize': quantize.name,
-        'chordPerBar': chordPerBar.map(
-          (k, v) => MapEntry(k.toString(), v),
-        ),
+        'volumeScale': volumeScale,
       };
 
+  /// Deserializes a [LoopTrack] from JSON.
+  ///
+  /// Backward-compatible: silently ignores the legacy `chordPerBar` field
+  /// present in project files saved before the chord-detection removal.
   factory LoopTrack.fromJson(Map<String, dynamic> json) => LoopTrack(
         id: json['id'] as String,
         lengthInBeats: (json['lengthInBeats'] as num?)?.toDouble(),
@@ -238,9 +231,8 @@ class LoopTrack {
           (q) => q.name == (json['quantize'] as String?),
           orElse: () => LoopQuantize.off,
         ),
-        chordPerBar: (json['chordPerBar'] as Map<String, dynamic>?)?.map(
-              (k, v) => MapEntry(int.parse(k), v as String?),
-            ) ??
-            {},
+        volumeScale: (json['volumeScale'] as num?)?.toDouble() ?? 1.0,
+        // Note: 'chordPerBar' is intentionally not read — old files may still
+        // contain it but we no longer use per-bar chord detection.
       );
 }

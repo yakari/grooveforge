@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/loop_track.dart';
 import '../../models/looper_plugin_instance.dart';
+import '../../services/cc_mapping_service.dart';
 import '../../services/looper_engine.dart';
 import '../../services/rack_state.dart';
 
@@ -25,7 +26,7 @@ const _kLcdText = Color(0xFF56E39F);        // LCD green text
 ///
 /// Renders hardware-style looper controls:
 /// - Transport strip: REC / PLAY / STOP / CLEAR buttons + state LCD.
-/// - Track list: one row per [LoopTrack] with chord-grid, mute, reverse, speed.
+/// - Track list: one row per [LoopTrack] with bar strip, mute, reverse, speed.
 /// - Pin toggle: pins this slot below the transport bar.
 ///
 /// The widget creates a looper session on first render (if one does not already
@@ -186,6 +187,12 @@ class _TransportStrip extends StatelessWidget {
             l10n: l10n,
           ),
 
+          const SizedBox(width: 4),
+
+          // CC assign button — binds hardware CCs to looper actions via
+          // CcMappingService (visible in the global CC preferences screen).
+          _CcAssignButton(l10n: l10n),
+
           const Spacer(),
 
           // State LCD badge.
@@ -216,6 +223,14 @@ class _TransportStrip extends StatelessWidget {
               ),
         // Armed, waiting for transport — press to cancel.
         LooperState.armed => (
+            Icons.fiber_manual_record,
+            _kArmedColor,
+            true,
+            l10n.looperRecord,
+          ),
+        // Waiting for the next bar-1 downbeat to start recording — press to
+        // cancel.  Same visual as armed (pulsing record icon, armed colour).
+        LooperState.waitingToRecord => (
             Icons.fiber_manual_record,
             _kArmedColor,
             true,
@@ -351,6 +366,8 @@ class _StateLcd extends StatelessWidget {
       switch (state) {
         LooperState.idle => ('IDLE', Colors.white54),
         LooperState.armed => (l10n.looperArmed.toUpperCase(), _kArmedColor),
+        LooperState.waitingToRecord =>
+          (l10n.looperWaitingForBar.toUpperCase(), _kArmedColor),
         LooperState.recording => (l10n.looperRecord.toUpperCase(), _kRecColor),
         LooperState.waitingForBar =>
           (l10n.looperWaitingForBar.toUpperCase(), _kArmedColor),
@@ -398,7 +415,7 @@ class _TrackList extends StatelessWidget {
 
 // ── Track row ─────────────────────────────────────────────────────────────────
 
-/// One recorded loop track: label + chord grid + mute/reverse/speed/delete.
+/// One recorded loop track: label + bar strip + mute/reverse/speed/delete.
 class _TrackRow extends StatelessWidget {
   final String slotId;
   final LoopTrack track;
@@ -437,13 +454,24 @@ class _TrackRow extends StatelessWidget {
             ),
           ),
 
-          // Chord grid — scrollable horizontally.
+          // Bar strip — scrollable horizontally, one cell per bar.
           Expanded(
-            child: _ChordGrid(
+            child: _BarStrip(
               track: track,
+              barCount: track.barCount(engine.beatsPerBar),
               l10n: l10n,
               currentBar: engine.currentPlaybackBarForTrack(slotId, track),
             ),
+          ),
+
+          const SizedBox(width: 6),
+
+          // Volume slider — compact horizontal slider (0–100%).
+          _VolumeSlider(
+            slotId: slotId,
+            track: track,
+            engine: engine,
+            l10n: l10n,
           ),
 
           const SizedBox(width: 6),
@@ -461,52 +489,51 @@ class _TrackRow extends StatelessWidget {
   }
 }
 
-// ── Chord grid ────────────────────────────────────────────────────────────────
+// ── Bar strip ────────────────────────────────────────────────────────────────
 
-/// A horizontally scrollable row of bar cells, each showing the chord detected
-/// during recording for that bar (or "—" if none was identified).
+/// A horizontally scrollable row of bar-number cells, one per bar in the loop.
 ///
 /// When [currentBar] is non-null the matching cell is highlighted with a green
 /// glow to indicate the loop's current playback position.
-class _ChordGrid extends StatelessWidget {
+class _BarStrip extends StatelessWidget {
   final LoopTrack track;
+
+  /// Total number of bars in this track (derived from loop length and time
+  /// signature).
+  final int barCount;
+
   final AppLocalizations l10n;
 
   /// 0-based index of the bar currently being played back, or null when not
   /// playing (idle / recording without playback).
   final int? currentBar;
 
-  const _ChordGrid({
+  const _BarStrip({
     required this.track,
+    required this.barCount,
     required this.l10n,
     this.currentBar,
   });
 
   @override
   Widget build(BuildContext context) {
-    final bars = track.chordPerBar;
-
-    // During recording, the chordPerBar may be empty. Show a placeholder.
-    if (bars.isEmpty) {
+    // During recording the track has no length yet. Show a placeholder.
+    if (barCount == 0) {
       return Text(
-        track.lengthInBeats == null ? '…' : l10n.looperNoChord,
+        track.lengthInBeats == null ? '…' : '—',
         style: const TextStyle(color: Colors.white38, fontSize: 10),
       );
     }
-
-    final maxBar = bars.keys.reduce((a, b) => a > b ? a : b);
 
     return SizedBox(
       height: 22,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        itemCount: maxBar + 1,
+        itemCount: barCount,
         separatorBuilder: (_, _) => const SizedBox(width: 2),
         itemBuilder: (ctx, bar) {
-          final chord = bars[bar];
           return _BarCell(
             barIndex: bar,
-            chord: chord,
             l10n: l10n,
             isPlaying: bar == currentBar,
           );
@@ -516,13 +543,13 @@ class _ChordGrid extends StatelessWidget {
   }
 }
 
-/// A single bar cell in the chord grid.
+/// A single bar-number cell in the bar strip.
 ///
-/// When [isPlaying] is true the cell is highlighted with a green glow to
-/// indicate the loop's current playback position.
+/// Displays the 1-based bar number.  When [isPlaying] is true the cell is
+/// highlighted with a green glow to indicate the loop's current playback
+/// position.
 class _BarCell extends StatelessWidget {
   final int barIndex;
-  final String? chord;
   final AppLocalizations l10n;
 
   /// Whether the looper's playhead is currently inside this bar.
@@ -530,32 +557,17 @@ class _BarCell extends StatelessWidget {
 
   const _BarCell({
     required this.barIndex,
-    required this.chord,
     required this.l10n,
     this.isPlaying = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final hasChord = chord != null && chord!.isNotEmpty;
-
-    // Playhead highlight takes priority over the chord colour so the active
-    // bar is always immediately visible regardless of chord presence.
-    final borderColor = isPlaying
-        ? _kLcdText
-        : hasChord
-            ? _kPlayColor.withValues(alpha: 0.4)
-            : _kBorder;
+    final borderColor = isPlaying ? _kLcdText : _kBorder;
     final bgColor = isPlaying
         ? _kLcdText.withValues(alpha: 0.18)
-        : hasChord
-            ? _kPlayColor.withValues(alpha: 0.12)
-            : Colors.white.withValues(alpha: 0.03);
-    final textColor = isPlaying
-        ? _kLcdText
-        : hasChord
-            ? _kPlayColor
-            : Colors.white38;
+        : Colors.white.withValues(alpha: 0.03);
+    final textColor = isPlaying ? _kLcdText : Colors.white38;
 
     return Tooltip(
       message: l10n.looperBar(barIndex + 1),
@@ -578,7 +590,7 @@ class _BarCell extends StatelessWidget {
         ),
         child: Center(
           child: Text(
-            hasChord ? chord! : l10n.looperNoChord,
+            '${barIndex + 1}',
             style: TextStyle(
               color: textColor,
               fontSize: 10,
@@ -592,6 +604,52 @@ class _BarCell extends StatelessWidget {
 }
 
 // ── Track controls ────────────────────────────────────────────────────────────
+
+/// Compact horizontal volume slider for a single loop track.
+///
+/// Displays a narrow slider (0–100%) with a percentage tooltip.  The value
+/// maps to [LoopTrack.volumeScale] (0.0–1.0) and is applied as a velocity
+/// multiplier during playback.
+class _VolumeSlider extends StatelessWidget {
+  final String slotId;
+  final LoopTrack track;
+  final LooperEngine engine;
+  final AppLocalizations l10n;
+
+  const _VolumeSlider({
+    required this.slotId,
+    required this.track,
+    required this.engine,
+    required this.l10n,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final pct = (track.volumeScale * 100).round();
+    return Tooltip(
+      message: '${l10n.looperVolume}: $pct %',
+      child: SizedBox(
+        width: 56,
+        height: 20,
+        child: SliderTheme(
+          data: SliderThemeData(
+            trackHeight: 3,
+            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
+            overlayShape: const RoundSliderOverlayShape(overlayRadius: 10),
+            activeTrackColor: _kLcdText.withValues(alpha: 0.7),
+            inactiveTrackColor: _kBorder,
+            thumbColor: _kLcdText,
+            overlayColor: _kLcdText.withValues(alpha: 0.15),
+          ),
+          child: Slider(
+            value: track.volumeScale,
+            onChanged: (v) => engine.setVolume(slotId, track.id, v),
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 /// Compact strip: mute toggle, reverse toggle, speed chips, delete.
 class _TrackControls extends StatelessWidget {
@@ -835,6 +893,326 @@ class _QuantizeChip extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+// ── CC assign button ─────────────────────────────────────────────────────────
+
+/// The two looper system-action codes used by [CcMappingService].
+const int _kLooperButtonAction = 1009;
+const int _kLooperStopAction = 1012;
+
+/// Maps a looper system-action code to a user-facing label.
+String _looperActionLabel(int actionCode, AppLocalizations l10n) =>
+    switch (actionCode) {
+      _kLooperButtonAction => l10n.looperActionLoop,
+      _kLooperStopAction => l10n.looperActionStop,
+      _ => '?',
+    };
+
+/// A compact CC-assign button placed in the transport strip header.
+///
+/// Reads the current looper CC bindings from [CcMappingService] and opens a
+/// two-step dialog (pick action → learn CC) to create or modify them.
+/// Bindings are stored as global [CcMapping] entries — they appear in the
+/// CC preferences screen automatically.
+class _CcAssignButton extends StatelessWidget {
+  final AppLocalizations l10n;
+
+  const _CcAssignButton({required this.l10n});
+
+  @override
+  Widget build(BuildContext context) {
+    final ccService = context.read<CcMappingService>();
+
+    return ValueListenableBuilder<Map<int, CcMapping>>(
+      valueListenable: ccService.mappingsNotifier,
+      builder: (context, mappings, _) {
+        // Find existing looper bindings.
+        final ccLooper = _findCcFor(mappings, _kLooperButtonAction);
+        final ccStop = _findCcFor(mappings, _kLooperStopAction);
+        final hasAny = ccLooper != null || ccStop != null;
+
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (ccLooper != null)
+              _ccChip('CC $ccLooper', l10n.looperActionLoop),
+            if (ccStop != null) ...[
+              if (ccLooper != null) const SizedBox(width: 4),
+              _ccChip('CC $ccStop', l10n.looperActionStop),
+            ],
+            Tooltip(
+              message: l10n.looperCcAssign,
+              child: IconButton(
+                iconSize: 18,
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                icon: Icon(
+                  Icons.settings_remote_outlined,
+                  color: hasAny ? _kLcdText : Colors.white38,
+                ),
+                onPressed: () => _showAssignDialog(context, ccService),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// Finds the incoming CC number mapped to [targetAction], or null.
+  int? _findCcFor(Map<int, CcMapping> mappings, int targetAction) {
+    for (final m in mappings.values) {
+      if (m.targetCc == targetAction) return m.incomingCc;
+    }
+    return null;
+  }
+
+  /// A tiny chip showing "CC N → Action".
+  Widget _ccChip(String ccLabel, String actionLabel) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+      decoration: BoxDecoration(
+        color: _kLcdText.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: _kLcdText.withValues(alpha: 0.3)),
+      ),
+      child: Text(
+        '$ccLabel → $actionLabel',
+        style: const TextStyle(
+          color: _kLcdText,
+          fontSize: 9,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
+  void _showAssignDialog(BuildContext context, CcMappingService ccService) {
+    showDialog<void>(
+      context: context,
+      builder: (_) => _CcAssignDialog(ccService: ccService, l10n: l10n),
+    );
+  }
+}
+
+/// Two-step CC assign dialog backed by [CcMappingService]:
+/// 1. Pick an action (Loop button or Stop) — shows current binding if any.
+/// 2. Move a CC knob/fader to bind it.
+///
+/// If the learned CC is already mapped to something else, the user is warned
+/// and given the option to overwrite.
+class _CcAssignDialog extends StatefulWidget {
+  final CcMappingService ccService;
+  final AppLocalizations l10n;
+
+  const _CcAssignDialog({
+    required this.ccService,
+    required this.l10n,
+  });
+
+  @override
+  State<_CcAssignDialog> createState() => _CcAssignDialogState();
+}
+
+class _CcAssignDialogState extends State<_CcAssignDialog> {
+  /// The target action code the user picked in step 1.  Null = still picking.
+  int? _selectedAction;
+
+  /// Subscription to the MIDI event notifier for learn mode.
+  void Function()? _learnListener;
+
+  @override
+  void dispose() {
+    _stopLearn();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = widget.l10n;
+
+    return AlertDialog(
+      backgroundColor: _kBg,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: const BorderSide(color: _kBorder),
+      ),
+      title: Text(
+        l10n.looperCcAssignTitle,
+        style: const TextStyle(color: Colors.white, fontSize: 14),
+      ),
+      content: _selectedAction == null
+          ? _buildActionPicker(l10n)
+          : _buildLearnPrompt(l10n),
+    );
+  }
+
+  /// Step 1: pick which action to bind.
+  Widget _buildActionPicker(AppLocalizations l10n) {
+    final mappings = widget.ccService.mappingsNotifier.value;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (final actionCode in [_kLooperButtonAction, _kLooperStopAction])
+          _buildActionRow(actionCode, mappings, l10n),
+      ],
+    );
+  }
+
+  /// One row per action: label, current CC (if bound), assign / remove.
+  Widget _buildActionRow(
+    int actionCode,
+    Map<int, CcMapping> mappings,
+    AppLocalizations l10n,
+  ) {
+    // Find the incoming CC currently mapped to this action.
+    int? currentCc;
+    for (final m in mappings.values) {
+      if (m.targetCc == actionCode) {
+        currentCc = m.incomingCc;
+        break;
+      }
+    }
+
+    return ListTile(
+      dense: true,
+      title: Text(
+        _looperActionLabel(actionCode, l10n),
+        style: const TextStyle(color: Colors.white70, fontSize: 13),
+      ),
+      trailing: currentCc != null
+          ? Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'CC $currentCc',
+                  style: const TextStyle(color: _kLcdText, fontSize: 12),
+                ),
+                const SizedBox(width: 4),
+                GestureDetector(
+                  onTap: () {
+                    widget.ccService.removeMapping(currentCc!);
+                    Navigator.of(context).pop();
+                  },
+                  child: Icon(
+                    Icons.close,
+                    size: 16,
+                    color: _kRecColor.withValues(alpha: 0.8),
+                  ),
+                ),
+              ],
+            )
+          : null,
+      onTap: () {
+        setState(() => _selectedAction = actionCode);
+        _startLearn(actionCode);
+      },
+    );
+  }
+
+  /// Step 2: waiting for a CC knob/fader move.
+  Widget _buildLearnPrompt(AppLocalizations l10n) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(Icons.sensors, size: 36, color: _kOdColor),
+        const SizedBox(height: 12),
+        Text(
+          l10n.looperCcLearn,
+          style: const TextStyle(color: Colors.white70, fontSize: 13),
+          textAlign: TextAlign.center,
+        ),
+      ],
+    );
+  }
+
+  /// Listens to [CcMappingService.lastEventNotifier] for the next CC event.
+  void _startLearn(int actionCode) {
+    _learnListener = () {
+      final event = widget.ccService.lastEventNotifier.value;
+      if (event == null || event.type != 'CC') return;
+      final cc = event.data1;
+
+      _stopLearn();
+
+      // Check for conflict: is this CC already mapped to something else?
+      final existing = widget.ccService.mappingsNotifier.value[cc];
+      if (existing != null && existing.targetCc != actionCode) {
+        _showConflictDialog(cc, existing, actionCode);
+      } else {
+        _saveAndClose(cc, actionCode);
+      }
+    };
+    widget.ccService.lastEventNotifier.addListener(_learnListener!);
+  }
+
+  void _stopLearn() {
+    if (_learnListener != null) {
+      widget.ccService.lastEventNotifier.removeListener(_learnListener!);
+      _learnListener = null;
+    }
+  }
+
+  /// Saves the mapping and closes the dialog.
+  void _saveAndClose(int cc, int actionCode) {
+    widget.ccService.saveMapping(CcMapping(
+      incomingCc: cc,
+      targetCc: actionCode,
+      targetChannel: -2,
+    ));
+    if (mounted) Navigator.of(context).pop();
+  }
+
+  /// Shows a conflict warning and offers to overwrite.
+  void _showConflictDialog(int cc, CcMapping existing, int actionCode) {
+    final targetName =
+        CcMappingService.standardGmCcs[existing.targetCc] ??
+        'CC ${existing.targetCc}';
+
+    showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: _kBg,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: const BorderSide(color: _kBorder),
+        ),
+        title: Text(
+          widget.l10n.looperCcConflictTitle,
+          style: const TextStyle(color: Colors.white, fontSize: 14),
+        ),
+        content: Text(
+          widget.l10n.looperCcConflictBody(cc, targetName),
+          style: const TextStyle(color: Colors.white70, fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(
+              MaterialLocalizations.of(ctx).cancelButtonLabel,
+              style: const TextStyle(color: Colors.white54),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(
+              widget.l10n.looperCcConflictOverwrite,
+              style: const TextStyle(color: _kOdColor),
+            ),
+          ),
+        ],
+      ),
+    ).then((overwrite) {
+      if (overwrite == true) {
+        _saveAndClose(cc, actionCode);
+      } else if (mounted) {
+        Navigator.of(context).pop();
+      }
+    });
   }
 }
 

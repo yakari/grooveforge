@@ -54,3 +54,9 @@ packages/flutter_vst3/dart_vst_host/native/build/
 
 # Local-only documentation (not for public repo)
 /docs/local/
+
+# Claude Code local settings (contains user paths, API keys, etc.)
+.claude/settings.local.json
+
+# ADB device cache (per-machine)
+.vscode/.adb_device

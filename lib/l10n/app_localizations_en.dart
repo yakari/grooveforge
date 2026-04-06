@@ -328,6 +328,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cancelButton => 'Cancel';
 
   @override
+  String get confirmButton => 'OK';
+
+  @override
+  String get selectFile => 'Select File';
+
+  @override
+  String get selectDirectory => 'Select Directory';
+
+  @override
+  String get filePickerAllowedTypes => 'Allowed types';
+
+  @override
   String get resetEverythingButton => 'Reset Everything';
 
   @override
@@ -877,9 +889,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get looperMute => 'Mute';
 
   @override
-  String get looperNoChord => '—';
-
-  @override
   String looperBar(int n) {
     return 'Bar $n';
   }
@@ -888,10 +897,33 @@ class AppLocalizationsEn extends AppLocalizations {
   String get looperCcAssign => 'Assign CC';
 
   @override
-  String get looperCcAssignTitle => 'Assign hardware CC to looper action';
+  String get looperCcAssignTitle => 'Assign hardware CC to looper';
 
   @override
   String get looperCcRemove => 'Remove CC binding';
+
+  @override
+  String get looperCcLearn => 'Move a knob or fader…';
+
+  @override
+  String get looperActionLoop => 'Loop';
+
+  @override
+  String get looperActionStop => 'Stop';
+
+  @override
+  String get looperCcConflictTitle => 'CC already assigned';
+
+  @override
+  String looperCcConflictBody(int cc, String target) {
+    return 'CC $cc is already mapped to $target. Overwrite?';
+  }
+
+  @override
+  String get looperCcConflictOverwrite => 'Overwrite';
+
+  @override
+  String get looperVolume => 'Volume';
 
   @override
   String get looperQuantize => 'Quantize';

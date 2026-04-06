@@ -49,14 +49,6 @@ GrooveForge a d’abord été conçu pour **apprendre les gammes** grâce au plu
 *   **Configuration clavier par slot**  
     Touchez l’icône d’accord (⊞) à côté du badge de canal MIDI pour définir le nombre de touches visibles, la hauteur des touches (Compact / Normal / Large / Très large), les gestes vertical/horizontal (pitch bend, vibrato, glissando) et le CC de destination du aftertouch. Stocké dans le fichier de projet.
 
-### Piano virtuel
-
-*   **Piano à l’écran, sans son intégré**  
-    Slot avec clavier tactile et jacks MIDI IN / MIDI OUT / Scale IN. Les notes et l’expression (pitch bend, CC) ne sont envoyées que par les câbles — par ex. vers un clavier GF, un VST3 ou le Looper. Idéal pour piloter d’autres instruments avec verrouillage de gamme (Jam Mode → Scale IN).
-
-*   **Verrouillage de gamme**  
-    Lorsqu’une sortie Scale de Jam Mode (ou une autre source de gamme) est câblée vers Scale IN, le clavier met en évidence les notes autorisées et aligne les notes jouées sur la gamme.
-
 ### Vocoder (GFPA)
 
 *   **Slot dédié**  

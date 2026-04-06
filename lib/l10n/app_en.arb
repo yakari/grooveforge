@@ -165,6 +165,22 @@
   "resetPreferencesDialogTitle": "Reset All Preferences?",
   "resetPreferencesDialogBody": "This will clear all your settings, loaded soundfonts, and custom assignments. This action cannot be undone.",
   "cancelButton": "Cancel",
+  "confirmButton": "OK",
+  "@confirmButton": {
+    "description": "Generic confirm/OK button label used in dialogs"
+  },
+  "selectFile": "Select File",
+  "@selectFile": {
+    "description": "Title for the fallback file picker dialog when the native file chooser is unavailable"
+  },
+  "selectDirectory": "Select Directory",
+  "@selectDirectory": {
+    "description": "Title for the fallback directory picker dialog when the native file chooser is unavailable"
+  },
+  "filePickerAllowedTypes": "Allowed types",
+  "@filePickerAllowedTypes": {
+    "description": "Label shown in the fallback file picker dialog indicating which file extensions are accepted"
+  },
   "resetEverythingButton": "Reset Everything",
   "languageTitle": "Language",
   "languageSubtitle": "App interface language",
@@ -354,7 +370,6 @@
   "looperDoubleSpeed": "2×",
   "looperReverse": "Reverse",
   "looperMute": "Mute",
-  "looperNoChord": "—",
   "looperBar": "Bar {n}",
   "@looperBar": {
     "placeholders": {
@@ -362,8 +377,21 @@
     }
   },
   "looperCcAssign": "Assign CC",
-  "looperCcAssignTitle": "Assign hardware CC to looper action",
+  "looperCcAssignTitle": "Assign hardware CC to looper",
   "looperCcRemove": "Remove CC binding",
+  "looperCcLearn": "Move a knob or fader…",
+  "looperActionLoop": "Loop",
+  "looperActionStop": "Stop",
+  "looperCcConflictTitle": "CC already assigned",
+  "looperCcConflictBody": "CC {cc} is already mapped to {target}. Overwrite?",
+  "@looperCcConflictBody": {
+    "placeholders": {
+      "cc": { "type": "int" },
+      "target": { "type": "String" }
+    }
+  },
+  "looperCcConflictOverwrite": "Overwrite",
+  "looperVolume": "Volume",
 
   "looperQuantize": "Quantize",
 

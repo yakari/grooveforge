@@ -629,6 +629,28 @@ class RackState extends ChangeNotifier {
     } else if (plugin.soundfontPath != null &&
         _engine.loadedSoundfonts.contains(plugin.soundfontPath)) {
       _engine.assignSoundfontToChannel(idx, plugin.soundfontPath!);
+
+      // On Android each keyboard slot has a dedicated FluidSynth instance that
+      // is bound to a single .sf2 file.  When the user switches soundfonts,
+      // the old instance must be torn down and replaced so it actually plays
+      // the new file.  createKeyboardSlotSynth is a no-op if the path hasn't
+      // changed, so this is safe to call unconditionally.
+      if (!kIsWeb && Platform.isAndroid) {
+        _engine
+            .createKeyboardSlotSynth(idx, plugin.soundfontPath!)
+            .then((_) {
+          // Re-apply instrument selection on the fresh synth so the correct
+          // bank/program is active immediately.
+          _engine.assignPatchToChannel(idx, plugin.program, bank: plugin.bank);
+          // Push updated sfId map to native routing layer.
+          VstHostService.instance.syncAudioRouting(
+            _audioGraph,
+            _plugins,
+            keyboardSfIds: _buildKeyboardSfIds(),
+          );
+        });
+        return;
+      }
     }
     _engine.assignPatchToChannel(idx, plugin.program, bank: plugin.bank);
   }

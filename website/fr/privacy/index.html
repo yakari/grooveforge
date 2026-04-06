@@ -48,7 +48,7 @@
     <p><a href="https://github.com/yakari/grooveforge">GitHub</a> · <a href="../privacy/">Confidentialité</a></p>
   </footer>
   <script>
-    fetch('../../docs/privacy.fr.md')
+    fetch('../../docs/site/privacy.fr.md')
       .then(function (r) { return r.text(); })
       .then(function (md) {
         document.getElementById('content').innerHTML = marked.parse(md);
