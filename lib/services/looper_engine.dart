@@ -12,16 +12,20 @@ import 'transport_engine.dart';
 ///
 /// Transitions:
 /// ```
-/// idle ──► armed ──► recording ──► waitingForBar ──► playing
-///                                                        │
-///                                  waitingForOverdub ◄──┤
-///                                         │             │
-///                                         ▼             │
-///                                   overdubbing ────────┘
+/// idle ──► armed ──► waitingToRecord ──► recording ──► waitingForBar ──► playing
+///                                                                            │
+///                                          waitingForOverdub ◄──────────────┤
+///                                                 │                         │
+///                                                 ▼                         │
+///                                           overdubbing ────────────────────┘
 /// ```
 /// • [idle]               — no loop recorded yet; engine is quiescent.
 /// • [armed]              — transport is stopped; engine will start recording
 ///                          as soon as the transport plays.
+/// • [waitingToRecord]    — transport is playing but not at a bar-1 downbeat;
+///                          engine waits for the next downbeat before starting
+///                          to capture MIDI events.  Notes played during this
+///                          window are intentionally ignored.
 /// • [recording]          — actively accumulating MIDI events.
 /// • [waitingForBar]      — first recording done; engine counts beats until
 ///                          the next bar-1 downbeat before starting playback.
@@ -32,6 +36,7 @@ import 'transport_engine.dart';
 enum LooperState {
   idle,
   armed,
+  waitingToRecord,
   recording,
   waitingForBar,
   playing,
@@ -105,12 +110,22 @@ class LooperSession {
   /// file.
   LoopQuantize quantize;
 
+  /// The bar-1 downbeat that the session is waiting for before starting
+  /// recording.  Only meaningful when [state] is [LooperState.waitingToRecord].
+  ///
+  /// Stored at arm time so that both the 10 ms ticker and [feedMidiEvent] can
+  /// detect the transition without a race condition — a MIDI event arriving
+  /// between the actual downbeat and the next ticker fire still triggers the
+  /// recording start and is captured.
+  double pendingRecordDownbeat;
+
   LooperSession()
       : state = LooperState.idle,
         tracks = [],
         recordingStartBeat = 0.0,
         prevBeatFloor = 0.0,
         prevPlaybackBeat = 0.0,
+        pendingRecordDownbeat = 0.0,
         ccAssignments = {},
         quantize = LoopQuantize.off;
 
@@ -152,6 +167,16 @@ class LooperSession {
     );
   }
 }
+
+// ── Constants ────────────────────────────────────────────────────────────────
+
+/// Tolerance for "on the beat" detection, in beats.
+///
+/// A note-on landing within this window before a bar-1 downbeat is considered
+/// musically "on the downbeat" and is captured at loop offset 0.  At 120 BPM
+/// one beat is 500 ms, so 0.1 beats ≈ 50 ms — well within the margin of human
+/// timing imprecision.  Matches the tolerance used by [_isAtBarBoundary].
+const double _kBarBoundaryTolerance = 0.1;
 
 // ── Looper engine ─────────────────────────────────────────────────────────────
 
@@ -230,17 +255,40 @@ class LooperEngine extends ChangeNotifier {
 
   /// Begins a new recording pass for [slotId].
   ///
-  /// If the transport is playing, recording starts immediately.  If the
-  /// transport is stopped, the session enters [LooperState.armed] and will
-  /// begin recording automatically when play is pressed.
+  /// If the transport is playing and the position is at a bar-1 downbeat,
+  /// recording starts immediately.  If the transport is playing but mid-bar,
+  /// the session enters [LooperState.waitingToRecord] and waits for the next
+  /// downbeat — any MIDI events played during this window are intentionally
+  /// ignored so the user can prepare without capturing stray notes.
+  ///
+  /// If the transport is stopped, the session enters [LooperState.armed] and
+  /// will begin recording automatically when play is pressed.
   void startRecording(String slotId) {
     final s = _requireSession(slotId);
     final alreadyPlaying = s.state == LooperState.playing;
 
     if (_transport.isPlaying) {
-      _beginRecordingPass(s);
-      s.state =
-          alreadyPlaying ? LooperState.overdubbing : LooperState.recording;
+      final pos = _transport.positionInBeats;
+
+      if (alreadyPlaying) {
+        // Overdub: start immediately — the loop is already phase-locked, so
+        // waiting for a bar boundary would introduce an audible gap.
+        _beginRecordingPass(s);
+        s.state = LooperState.overdubbing;
+      } else if (_isAtBarBoundary(pos)) {
+        // Already on a downbeat — start recording now.
+        _beginRecordingPass(s);
+        s.state = LooperState.recording;
+      } else {
+        // Mid-bar — wait for the next bar-1 downbeat before capturing events.
+        // Pre-compute the target downbeat so both the ticker and feedMidiEvent
+        // can detect the crossing without a race condition.
+        final beatsPerBar = _transport.timeSigNumerator.toDouble();
+        final barIndex = ((pos - 1.0) / beatsPerBar).floor() + 1;
+        s.pendingRecordDownbeat = 1.0 + barIndex * beatsPerBar;
+        s.prevBeatFloor = pos;
+        s.state = LooperState.waitingToRecord;
+      }
     } else {
       s.state = LooperState.armed;
     }
@@ -454,6 +502,8 @@ class LooperEngine extends ChangeNotifier {
         }
       case LooperState.armed:
         stop(slotId);
+      case LooperState.waitingToRecord:
+        stop(slotId);
       case LooperState.recording:
         stopRecording(slotId);
       case LooperState.waitingForBar:
@@ -556,6 +606,12 @@ class LooperEngine extends ChangeNotifier {
   /// Called by the rack screen for every MIDI event arriving on the cable
   /// connected to the looper's MIDI IN jack.  Events are ignored when the
   /// session is not actively recording.
+  ///
+  /// When the session is in [LooperState.waitingToRecord], this method also
+  /// checks whether the transport has crossed the pending downbeat.  This
+  /// eliminates the race condition where a MIDI event arrives between the
+  /// actual downbeat and the next 10 ms ticker fire — the event triggers the
+  /// recording start and is captured instead of being silently dropped.
   void feedMidiEvent(String slotId, int status, int data1, int data2) {
     final s = _sessions[slotId];
     if (s == null) return;
@@ -567,12 +623,30 @@ class LooperEngine extends ChangeNotifier {
       return; // CC events are not recorded into the loop.
     }
 
+    // If we are waiting for the next bar boundary to start recording, check
+    // whether the transport has reached (or is within tolerance of) the target
+    // downbeat.  A human playing "on the beat" will often fire a note-on a few
+    // milliseconds early; 0.1 beats (~50 ms at 120 BPM) matches the tolerance
+    // used by _isAtBarBoundary.  Notes inside this window are captured and
+    // snapped to beat offset 0 — they are musically "on the downbeat".
+    if (s.state == LooperState.waitingToRecord) {
+      final pos = _transport.positionInBeats;
+      if (pos >= s.pendingRecordDownbeat - _kBarBoundaryTolerance) {
+        _activateRecording(s, s.pendingRecordDownbeat);
+      } else {
+        return; // Well before the downbeat — intentionally ignored.
+      }
+    }
+
     if (!s.isRecordingActive) return;
 
     final track = s.activeRecordingTrack;
     if (track == null) return;
 
-    final beatOffset = _transport.positionInBeats - s.recordingStartBeat;
+    // Clamp to 0 so that notes arriving in the pre-downbeat tolerance window
+    // are placed at the very start of the loop, not at a negative offset.
+    final beatOffset =
+        (_transport.positionInBeats - s.recordingStartBeat).clamp(0.0, double.infinity);
     track.events.add(TimestampedMidiEvent(
       beatOffset: beatOffset,
       status: status,
@@ -907,7 +981,8 @@ class LooperEngine extends ChangeNotifier {
       (s) =>
           s.isPlayingActive ||
           s.isRecordingActive ||
-          s.state == LooperState.waitingForBar,
+          s.state == LooperState.waitingForBar ||
+          s.state == LooperState.waitingToRecord,
     );
     if (needsTicker && _ticker == null) {
       _ticker = Timer.periodic(const Duration(milliseconds: 10), _tick);
@@ -945,7 +1020,8 @@ class LooperEngine extends ChangeNotifier {
       final s = entry.value;
       if (s.isPlayingActive ||
           s.isRecordingActive ||
-          s.state == LooperState.waitingForBar) {
+          s.state == LooperState.waitingForBar ||
+          s.state == LooperState.waitingToRecord) {
         // isPlayingActive already covers waitingForOverdub.
         s.state = LooperState.idle;
         _silenceAllTracks(entry.key, s);
@@ -959,8 +1035,15 @@ class LooperEngine extends ChangeNotifier {
   }
 
   void _tickSession(LooperSession session, double currentBeat) {
-    // If we are waiting for a bar boundary, check for it and return early —
-    // no MIDI playback until the bar fires.
+    // If we are waiting for a bar boundary to start recording, check for the
+    // downbeat and return early — no events are captured until the bar fires.
+    if (session.state == LooperState.waitingToRecord) {
+      _checkWaitingToRecord(session, currentBeat);
+      return;
+    }
+
+    // If we are waiting for a bar boundary to start playback, check for it
+    // and return early — no MIDI playback until the bar fires.
     if (session.state == LooperState.waitingForBar) {
       _checkWaitingForBar(session, currentBeat);
       return;
@@ -1038,6 +1121,37 @@ class LooperEngine extends ChangeNotifier {
       LooperSession session, double currentBeat, String slotId) {
     if (!_loopJustWrapped(session, currentBeat)) return;
     stopRecording(slotId);
+  }
+
+  /// Transitions a [waitingToRecord] session to [recording], anchored to
+  /// [downbeat].
+  ///
+  /// Called from both [_checkWaitingToRecord] (timer path) and [feedMidiEvent]
+  /// (MIDI-event path) so that whichever fires first after the downbeat wins
+  /// — no race condition between the 10 ms ticker and real-time MIDI input.
+  void _activateRecording(LooperSession session, double downbeat) {
+    _beginRecordingPass(session);
+    // Override the auto-snapped recordingStartBeat with the exact downbeat
+    // so that event offsets are perfectly bar-aligned.
+    session.recordingStartBeat = downbeat;
+    session.state = LooperState.recording;
+    notifyListeners();
+  }
+
+  /// Checks whether the transport has reached the pending downbeat while the
+  /// session is in [LooperState.waitingToRecord].
+  ///
+  /// This is the timer-driven path.  The MIDI-event-driven path lives in
+  /// [feedMidiEvent] — whichever detects the crossing first triggers
+  /// [_activateRecording].
+  void _checkWaitingToRecord(LooperSession session, double currentBeat) {
+    if (currentBeat >= session.pendingRecordDownbeat) {
+      _activateRecording(session, session.pendingRecordDownbeat);
+      return;
+    }
+
+    // No downbeat yet — advance the cursor and keep waiting.
+    session.prevBeatFloor = currentBeat;
   }
 
   /// Checks whether a bar-1 downbeat has arrived while the session is in

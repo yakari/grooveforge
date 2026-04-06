@@ -230,6 +230,14 @@ class _TransportStrip extends StatelessWidget {
             true,
             l10n.looperRecord,
           ),
+        // Waiting for the next bar-1 downbeat to start recording — press to
+        // cancel.  Same visual as armed (pulsing record icon, armed colour).
+        LooperState.waitingToRecord => (
+            Icons.fiber_manual_record,
+            _kArmedColor,
+            true,
+            l10n.looperRecord,
+          ),
         // Recording — press to stop recording and start playback.
         // play_circle communicates the outcome (playback will begin).
         LooperState.recording => (
@@ -360,6 +368,8 @@ class _StateLcd extends StatelessWidget {
       switch (state) {
         LooperState.idle => ('IDLE', Colors.white54),
         LooperState.armed => (l10n.looperArmed.toUpperCase(), _kArmedColor),
+        LooperState.waitingToRecord =>
+          (l10n.looperWaitingForBar.toUpperCase(), _kArmedColor),
         LooperState.recording => (l10n.looperRecord.toUpperCase(), _kRecColor),
         LooperState.waitingForBar =>
           (l10n.looperWaitingForBar.toUpperCase(), _kArmedColor),
