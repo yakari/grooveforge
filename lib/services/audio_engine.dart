@@ -244,6 +244,23 @@ class AudioEngine extends ChangeNotifier {
   /// Arguments: the system action code (1009-1013) and the CC value (0-127).
   void Function(int actionCode, int ccValue)? onLooperSystemAction;
 
+  /// Callback for slot-addressed CC parameter control.
+  /// Wired by [RackScreen] to [RackState._handleSlotParamCc].
+  void Function(String slotId, String paramKey, CcParamMode mode, int ccValue)?
+      onSlotParamCc;
+
+  /// Callback for channel-swap macro.
+  /// Wired by [RackScreen] to [RackState.swapSlots].
+  void Function(String slotIdA, String slotIdB, bool swapCables)?
+      onSwapSlots;
+
+  /// Callback for transport CC actions (play/stop, tap tempo, metronome).
+  /// Wired by [RackScreen] to [TransportEngine].
+  void Function(TransportAction action, int ccValue)? onTransportCc;
+
+  /// Callback for global CC actions (system volume).
+  void Function(GlobalAction action, int ccValue)? onGlobalCc;
+
   final ValueNotifier<int> vocoderInputDeviceIndex = ValueNotifier<int>(-1);
   final ValueNotifier<int> vocoderInputAndroidDeviceId = ValueNotifier<int>(-1);
   final ValueNotifier<int> vocoderOutputAndroidDeviceId = ValueNotifier<int>(
@@ -283,6 +300,29 @@ class AudioEngine extends ChangeNotifier {
     } else {
       MidiPro().setGain(fluidSynthGain.value);
     }
+  }
+
+  /// Sets the system media volume to [normalized] (0.0–1.0).
+  ///
+  /// Platform-specific:
+  /// - Android: `AudioManager.setStreamVolume(STREAM_MUSIC, …)` via method channel.
+  /// - Linux: `pactl set-sink-volume @DEFAULT_SINK@ X%` via `Process.run`.
+  /// - macOS: `osascript -e "set volume output volume X"` via `Process.run`.
+  /// - iOS / Web: no-op (Apple restricts programmatic volume; web has no system access).
+  void setSystemVolume(double normalized) {
+    final pct = (normalized * 100).round().clamp(0, 100);
+    if (!kIsWeb && Platform.isAndroid) {
+      audioConfigChannel.invokeMethod('setSystemVolume', {'percent': pct});
+    } else if (!kIsWeb && Platform.isLinux) {
+      Process.run('pactl', [
+        'set-sink-volume',
+        '@DEFAULT_SINK@',
+        '$pct%',
+      ]);
+    } else if (!kIsWeb && Platform.isMacOS) {
+      Process.run('osascript', ['-e', 'set volume output volume $pct']);
+    }
+    // iOS / Web: no-op.
   }
 
   void updateVocoderParameters() {
@@ -2085,26 +2125,17 @@ class AudioEngine extends ChangeNotifier {
           _handleSystemCommand(actionCode, channel, ccValue);
         }
 
-      case SlotParamTarget():
-        // Slot-addressed parameter control — Phase C will implement the
-        // onSlotParamCc callback.  For now, log and skip.
-        debugPrint('CC dispatch: SlotParamTarget not yet implemented '
-            '(slot=${target.slotId}, param=${target.paramKey})');
+      case SlotParamTarget(:final slotId, :final paramKey, :final mode):
+        onSlotParamCc?.call(slotId, paramKey, mode, ccValue);
 
-      case SwapTarget():
-        // Channel-swap macro — Phase E will implement onSwapSlots callback.
-        debugPrint('CC dispatch: SwapTarget not yet implemented '
-            '(${target.slotIdA} ↔ ${target.slotIdB})');
+      case SwapTarget(:final slotIdA, :final slotIdB, :final swapCables):
+        onSwapSlots?.call(slotIdA, slotIdB, swapCables);
 
-      case TransportTarget():
-        // Transport control — Phase C will implement onTransportCc callback.
-        debugPrint('CC dispatch: TransportTarget not yet implemented '
-            '(${target.action.name})');
+      case TransportTarget(:final action):
+        onTransportCc?.call(action, ccValue);
 
-      case GlobalTarget():
-        // Global actions — Phase C will implement system volume etc.
-        debugPrint('CC dispatch: GlobalTarget not yet implemented '
-            '(${target.action.name})');
+      case GlobalTarget(:final action):
+        onGlobalCc?.call(action, ccValue);
     }
   }
 
@@ -2169,13 +2200,13 @@ class AudioEngine extends ChangeNotifier {
             'Scale Lock [Ch $incomingChannel]: ${channels[incomingChannel].isScaleLocked.value ? "ON" : "OFF"}';
         _saveState();
       } else if (targetAction == 1001) {
-        _cycleChannelSoundfont(incomingChannel, 1);
+        cycleChannelSoundfont(incomingChannel, 1);
       } else if (targetAction == 1002) {
-        _cycleChannelSoundfont(incomingChannel, -1);
+        cycleChannelSoundfont(incomingChannel, -1);
       } else if (targetAction == 1003) {
-        _changePatchIndex(incomingChannel, 1);
+        changePatchIndex(incomingChannel, 1);
       } else if (targetAction == 1004) {
-        _changePatchIndex(incomingChannel, -1);
+        changePatchIndex(incomingChannel, -1);
       } else if (targetAction == 1008) {
         final currentTypes = ScaleType.values;
         int nextIndex =
@@ -2200,7 +2231,10 @@ class AudioEngine extends ChangeNotifier {
     }
   }
 
-  void _cycleChannelSoundfont(int channel, int delta) {
+  /// Cycles to the next/previous loaded soundfont on [channel].
+  ///
+  /// [delta] is +1 for next, -1 for previous.
+  void cycleChannelSoundfont(int channel, int delta) {
     if (loadedSoundfonts.isEmpty) {
       return;
     }
@@ -2213,7 +2247,8 @@ class AudioEngine extends ChangeNotifier {
     assignSoundfontToChannel(channel, loadedSoundfonts[nextIndex]);
   }
 
-  void _changePatchIndex(int channel, int delta) {
+  /// Changes the MIDI program number on [channel] by [delta] (+1 or -1).
+  void changePatchIndex(int channel, int delta) {
     int nextProgram = (channels[channel].program + delta) % 128;
     if (nextProgram < 0) {
       nextProgram = 127;

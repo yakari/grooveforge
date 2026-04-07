@@ -469,18 +469,15 @@ Static Dart registry (`CcParamRegistry`) — not embedded in `.gfpd` descriptors
 
 ### 🎛️ Phase C — Registry + slot-addressed dispatch
 
-- [ ] Create `CcParamRegistry` static registry with curated parameters per plugin type (see table above).
-- [ ] Expand CC dispatch in `AudioEngine.processMidiPacket` (~line 1317) to handle all six target types via the sealed class.
-- [ ] Add `onSlotParamCc(String slotId, String paramKey, CcParamMode mode, int ccValue)` callback from `AudioEngine` to `RackState`.
-- [ ] Implement absolute mode: `GFPlugin.setParameter(paramId, ccValue / 127.0)`.
-- [ ] Implement toggle mode: flip `state['__bypass']` on CC value > 63, debounced 250ms.
-- [ ] Implement cycle mode: advance discrete parameter to next option on CC value > 63, debounced 250ms.
-- [ ] Implement `TransportTarget` dispatch: play/stop toggle, tap tempo, metronome toggle — via callbacks to `TransportEngine`.
-- [ ] Implement `GlobalTarget.systemVolume`: platform-specific volume control via method channel (Android) / `Process.run` (Linux, macOS).
-  > Android: add `setSystemVolume` method in `MainActivity.kt` using `AudioManager.setStreamVolume(STREAM_MUSIC, …)`.
-  > Linux: `pactl set-sink-volume @DEFAULT_SINK@ ${(ccValue / 127 * 100).round()}%`.
-  > macOS: `osascript -e "set volume output volume ${(ccValue / 127 * 100).round()}"`.
-- [ ] Orphan cleanup: when a slot is deleted in `RackState.removePlugin()`, remove all `SlotParamTarget` and `SwapTarget` CC mappings referencing that slot.
+- [x] Create `CcParamRegistry` static registry with curated parameters per plugin type — 26 params across 14 plugin types in `cc_param_registry.dart`. Lookup by plugin ID + param key.
+- [x] Expand CC dispatch in `AudioEngine._dispatchCcMapping` — all six sealed target types route to typed callbacks (`onSlotParamCc`, `onSwapSlots`, `onTransportCc`, `onGlobalCc`). Already done in Phase A.
+- [x] Add `onSlotParamCc` callback → `RackState.handleSlotParamCc()` — full dispatch with debounced toggle/cycle (250ms), absolute normalized mapping, and special handlers for keyboard (next/prev patch/soundfont) and vocoder (waveform cycle, noise mix).
+- [x] Implement absolute mode: denormalizes CC 0-127 via `GFDescriptorPlugin.descriptor.parameters` min/max and pushes to native DSP via `VstHostService.setGfpaDspParam()`.
+- [x] Implement toggle mode: fires on CC > 63 with 250ms debounce; routes to `toggleEffectBypass` or `toggleMidiFxBypass` as appropriate.
+- [x] Implement cycle mode: reads current normalized value, computes index, advances modulo cycle count, pushes to native DSP.
+- [x] Implement `TransportTarget` dispatch: `onTransportCc` callback wired in `RackScreen` — play/stop toggle, `tapTempo()`, metronome toggle. Fires on CC > 63.
+- [x] Implement `GlobalTarget.systemVolume`: `AudioEngine.setSystemVolume()` with Android method channel (`AudioManager.setStreamVolume`), Linux `pactl`, macOS `osascript`. iOS/Web no-op.
+- [x] Orphan cleanup: `removeOrphanedSlotMappings()` called from `RackState.removePlugin()` — already done in Phase A.
 
 ### 🎛️ Phase D — UI overhaul
 

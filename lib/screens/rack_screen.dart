@@ -187,6 +187,33 @@ class _RackScreenState extends State<RackScreen> {
       }
     };
 
+    // Slot-addressed CC parameter control — routes to RackState.
+    _engine.onSlotParamCc = _rackState.handleSlotParamCc;
+
+    // Transport CC actions (play/stop, tap tempo, metronome toggle).
+    _engine.onTransportCc = (action, ccValue) {
+      if (ccValue <= 63) return; // Only fire on "press".
+      switch (action) {
+        case TransportAction.playStop:
+          _transportEngine.isPlaying
+              ? _transportEngine.stop()
+              : _transportEngine.play();
+        case TransportAction.tapTempo:
+          _transportEngine.tapTempo();
+        case TransportAction.metronomeToggle:
+          _transportEngine.metronomeEnabled =
+              !_transportEngine.metronomeEnabled;
+      }
+    };
+
+    // Global CC actions (system volume).
+    _engine.onGlobalCc = (action, ccValue) {
+      switch (action) {
+        case GlobalAction.systemVolume:
+          _engine.setSystemVolume(ccValue / 127.0);
+      }
+    };
+
     // When the transport starts playing, arm any waiting looper sessions.
     _transportEngine.addListener(_onTransportChanged);
 
@@ -281,6 +308,9 @@ class _RackScreenState extends State<RackScreen> {
     _transportEngine.removeListener(_onTransportChanged);
     _looperEngine.onMidiPlayback = null;
     _engine.onLooperSystemAction = null;
+    _engine.onSlotParamCc = null;
+    _engine.onTransportCc = null;
+    _engine.onGlobalCc = null;
     _autoScrollTimer?.cancel();
     _midiScrollDebounce?.cancel();
     _scrollController.dispose();
