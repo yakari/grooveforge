@@ -481,12 +481,13 @@ Static Dart registry (`CcParamRegistry`) — not embedded in `.gfpd` descriptors
 
 ### 🎛️ Phase D — UI overhaul
 
-- [ ] Replace flat target dropdown in `cc_preferences.dart` with hierarchical 3-step picker: Category → Slot → Parameter.
-- [ ] Display multiple mappings per CC as grouped cards (currently limited to one mapping per CC).
-- [ ] Add swap macro configuration UI: pick two instrument slots + "swap cables" checkbox.
+- [x] Replace flat target dropdown in `cc_preferences.dart` with hierarchical 3-step picker: Category → Slot → Parameter. Supports all 8 categories (GM CC, Instruments, Audio Effects, MIDI FX, Looper, Transport, Global, Macros) with slot+param sub-pickers.
+- [x] Display multiple mappings per CC — list view shows all mappings with type-specific icons and display names.
+- [x] Add swap macro configuration UI: pick two instrument slots + "swap cables" checkbox.
+- [x] Mark project dirty when CC mappings are modified (`RackState.markDirty()` on add/remove).
+- [x] Add per-module CC assign button on every rack slot card — `SlotCcAssignDialog` lists all CC-controllable params per slot with learn mode (move a knob → assign) and delete. Icon in slot header bar lights blue when mappings exist. Works on keyboards, vocoder, all effects, all MIDI FX.
 - [ ] Add "Import CC mappings from another project" — loads `ccMappings` from a `.gf` file without replacing the rest of the project.
 - [ ] Project info panel: show "CC mappings: N" count so the user knows mappings are project-scoped.
-- [ ] Mark project dirty when CC mappings are modified (add/remove/edit) so autosave captures the change.
 
 ### 🎛️ Phase E — Channel-swap macro
 

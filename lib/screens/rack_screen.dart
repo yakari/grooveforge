@@ -18,6 +18,8 @@ import '../models/vst3_plugin_instance.dart';
 import '../services/audio_engine.dart';
 import '../services/audio_graph.dart';
 import '../services/cc_mapping_service.dart';
+import 'cc_preferences.dart';
+import '../services/drum_generator_engine.dart';
 import '../services/looper_engine.dart';
 import '../services/midi_service.dart';
 import '../services/patch_drag_controller.dart';
@@ -206,6 +208,11 @@ class _RackScreenState extends State<RackScreen> {
       }
     };
 
+    // Drum Generator pattern cycling.
+    _rackState.onDrumPatternCycle = (slotId, patternId) {
+      context.read<DrumGeneratorEngine>().loadBuiltinPattern(slotId, patternId);
+    };
+
     // Global CC actions (system volume).
     _engine.onGlobalCc = (action, ccValue) {
       switch (action) {
@@ -311,6 +318,7 @@ class _RackScreenState extends State<RackScreen> {
     _engine.onSlotParamCc = null;
     _engine.onTransportCc = null;
     _engine.onGlobalCc = null;
+    _rackState.onDrumPatternCycle = null;
     _autoScrollTimer?.cancel();
     _midiScrollDebounce?.cancel();
     _scrollController.dispose();
@@ -1155,6 +1163,14 @@ class _RackScreenState extends State<RackScreen> {
                 ),
               ),
             ],
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings_remote),
+            tooltip: 'CC Mappings',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const CcPreferencesScreen()),
+            ),
           ),
           IconButton(
             icon: const Icon(Icons.help_outline),

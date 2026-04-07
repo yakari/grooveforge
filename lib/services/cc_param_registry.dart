@@ -241,6 +241,11 @@ class CcParamRegistry {
   /// GF Keyboard — slot-addressed so the user can control a specific keyboard.
   static const List<CcParamEntry> gfKeyboard = [
     CcParamEntry(
+      paramKey: 'absolute_patch',
+      displayName: 'Patch (knob)',
+      defaultMode: CcParamMode.absolute,
+    ),
+    CcParamEntry(
       paramKey: 'next_patch',
       displayName: 'Next Patch',
       defaultMode: CcParamMode.cycle,
@@ -260,6 +265,11 @@ class CcParamRegistry {
       displayName: 'Previous Soundfont',
       defaultMode: CcParamMode.cycle,
     ),
+    CcParamEntry(
+      paramKey: 'volume',
+      displayName: 'Volume',
+      defaultMode: CcParamMode.absolute,
+    ),
   ];
 
   /// Vocoder (`com.grooveforge.vocoder`).
@@ -275,6 +285,100 @@ class CcParamRegistry {
       paramKey: 'noise_mix',
       displayName: 'Noise Mix',
       defaultMode: CcParamMode.absolute,
+    ),
+    CcParamEntry(
+      paramKey: 'env_release',
+      displayName: 'Envelope Release',
+      defaultMode: CcParamMode.absolute,
+    ),
+    CcParamEntry(
+      paramKey: 'bandwidth',
+      displayName: 'Bandwidth',
+      defaultMode: CcParamMode.absolute,
+    ),
+    CcParamEntry(
+      paramKey: 'gate_threshold',
+      displayName: 'Gate Threshold',
+      defaultMode: CcParamMode.absolute,
+    ),
+    CcParamEntry(
+      paramKey: 'input_gain',
+      displayName: 'Input Gain',
+      defaultMode: CcParamMode.absolute,
+    ),
+    CcParamEntry(
+      paramKey: 'volume',
+      displayName: 'Volume',
+      defaultMode: CcParamMode.absolute,
+    ),
+  ];
+
+  // ── Other instruments ───────────────────────────────────────────────────
+
+  /// Theremin (`com.grooveforge.theremin`).
+  static const List<CcParamEntry> theremin = [
+    CcParamEntry(
+      paramKey: 'vibrato',
+      displayName: 'Vibrato Depth',
+      gfpaParamId: 2,
+      defaultMode: CcParamMode.absolute,
+    ),
+    CcParamEntry(
+      paramKey: 'base_note',
+      displayName: 'Base Note',
+      gfpaParamId: 0,
+      defaultMode: CcParamMode.absolute,
+    ),
+    CcParamEntry(
+      paramKey: 'range',
+      displayName: 'Range (octaves)',
+      gfpaParamId: 1,
+      defaultMode: CcParamMode.absolute,
+    ),
+  ];
+
+  /// Drum Generator — start/stop, swing, humanization, and pattern cycling.
+  static const List<CcParamEntry> drumGenerator = [
+    CcParamEntry(
+      paramKey: 'toggle_active',
+      displayName: 'Start / Stop',
+      defaultMode: CcParamMode.toggle,
+    ),
+    CcParamEntry(
+      paramKey: 'swing',
+      displayName: 'Swing',
+      defaultMode: CcParamMode.absolute,
+    ),
+    CcParamEntry(
+      paramKey: 'humanization',
+      displayName: 'Human Feel',
+      defaultMode: CcParamMode.absolute,
+    ),
+    CcParamEntry(
+      paramKey: 'next_pattern',
+      displayName: 'Next Pattern',
+      defaultMode: CcParamMode.cycle,
+    ),
+    CcParamEntry(
+      paramKey: 'prev_pattern',
+      displayName: 'Previous Pattern',
+      defaultMode: CcParamMode.cycle,
+    ),
+  ];
+
+  // ── Looper ─────────────────────────────────────────────────────────────
+
+  /// Looper — loop button and stop mapped as CC-triggered actions.
+  static const List<CcParamEntry> looper = [
+    CcParamEntry(
+      paramKey: 'loop_button',
+      displayName: 'Loop Button (Record/Play/Overdub)',
+      defaultMode: CcParamMode.toggle,
+    ),
+    CcParamEntry(
+      paramKey: 'stop',
+      displayName: 'Stop',
+      defaultMode: CcParamMode.toggle,
     ),
   ];
 
@@ -319,7 +423,10 @@ class CcParamRegistry {
     'com.grooveforge.jammode': jamMode,
     // Instruments
     'com.grooveforge.vocoder': vocoder,
-    // GF Keyboard uses a special key (not a pluginId)
+    'com.grooveforge.theremin': theremin,
+    // GF Keyboard, Drum Generator, Looper use special keys (not pluginIds)
     '_gf_keyboard': gfKeyboard,
+    '_drum_generator': drumGenerator,
+    '_looper': looper,
   };
 }

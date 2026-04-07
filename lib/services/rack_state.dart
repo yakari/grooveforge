@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
+import '../models/drum_generator_plugin_instance.dart';
 import '../models/gfpa_plugin_instance.dart';
 import '../models/keyboard_display_config.dart';
 import '../models/looper_plugin_instance.dart';
@@ -15,6 +16,7 @@ import 'audio_engine.dart';
 import 'audio_graph.dart';
 import 'cc_mapping_service.dart';
 import 'cc_param_registry.dart';
+import 'drum_pattern_registry.dart';
 import 'transport_engine.dart';
 import 'vst_host_service.dart';
 import 'package:grooveforge_plugin_api/grooveforge_plugin_api.dart';
@@ -901,6 +903,18 @@ class RackState extends ChangeNotifier {
       return;
     }
 
+    // ── Drum Generator special params ──────────────────────────────────
+    if (plugin is DrumGeneratorPluginInstance) {
+      _handleDrumGeneratorParamCc(plugin, paramKey, ccValue);
+      return;
+    }
+
+    // ── Looper special params ──────────────────────────────────────────
+    if (plugin is LooperPluginInstance) {
+      _handleLooperParamCc(slotId, paramKey);
+      return;
+    }
+
     // ── Vocoder special params ─────────────────────────────────────────
     if (plugin is GFpaPluginInstance &&
         plugin.pluginId == 'com.grooveforge.vocoder') {
@@ -921,6 +935,66 @@ class RackState extends ChangeNotifier {
     }
   }
 
+  /// Handles CC for Drum Generator params (swing, pattern cycling).
+  void _handleDrumGeneratorParamCc(
+    DrumGeneratorPluginInstance plugin,
+    String paramKey,
+    int ccValue,
+  ) {
+    switch (paramKey) {
+      case 'toggle_active':
+        plugin.isActive = !plugin.isActive;
+        notifyListeners();
+        markDirty();
+      case 'swing':
+        // CC 0-127 → swing ratio 0.5 (straight) to 0.75 (heavy).
+        plugin.swingOverride = 0.5 + (ccValue / 127.0) * 0.25;
+        notifyListeners();
+        markDirty();
+      case 'humanization':
+        // CC 0-127 → humanization amount 0.0–1.0.
+        plugin.humanizationAmount = ccValue / 127.0;
+        notifyListeners();
+        markDirty();
+      case 'next_pattern':
+        _cycleDrumPattern(plugin, 1);
+      case 'prev_pattern':
+        _cycleDrumPattern(plugin, -1);
+    }
+  }
+
+  /// Cycles the drum generator's builtin pattern by [delta] (+1 or -1).
+  void _cycleDrumPattern(DrumGeneratorPluginInstance plugin, int delta) {
+    final all = DrumPatternRegistry.instance.all;
+    if (all.isEmpty) return;
+    final currentId = plugin.builtinPatternId;
+    final currentIndex = currentId != null
+        ? all.indexWhere((p) => p.id == currentId)
+        : -1;
+    var nextIndex = (currentIndex + delta) % all.length;
+    if (nextIndex < 0) nextIndex = all.length - 1;
+    // Fire through the engine callback so the transport time signature
+    // is updated and the session resets cleanly.
+    onDrumPatternCycle?.call(plugin.id, all[nextIndex].id);
+  }
+
+  /// Callback for drum pattern cycling. Wired by [RackScreen] to
+  /// [DrumGeneratorEngine.loadBuiltinPattern].
+  void Function(String slotId, String patternId)? onDrumPatternCycle;
+
+  /// Handles CC for Looper slot-addressed params (loop button, stop).
+  ///
+  /// Routes through [AudioEngine.onLooperSystemAction] which is wired to
+  /// [LooperEngine] by [RackScreen].
+  void _handleLooperParamCc(String slotId, String paramKey) {
+    switch (paramKey) {
+      case 'loop_button':
+        _engine.onLooperSystemAction?.call(1009, 127);
+      case 'stop':
+        _engine.onLooperSystemAction?.call(1012, 127);
+    }
+  }
+
   /// Toggles bypass on the given slot — works for both audio effects and MIDI FX.
   void _handleBypassCcToggle(String slotId) {
     final slot = _findGfpaById(slotId);
@@ -935,7 +1009,7 @@ class RackState extends ChangeNotifier {
     }
   }
 
-  /// Handles CC for GF Keyboard slot-addressed params (next/prev patch/soundfont).
+  /// Handles CC for GF Keyboard slot-addressed params.
   void _handleKeyboardParamCc(
     GrooveForgeKeyboardPlugin plugin,
     String paramKey,
@@ -945,6 +1019,9 @@ class RackState extends ChangeNotifier {
     final ch = plugin.midiChannel - 1;
     if (ch < 0 || ch > 15) return;
     switch (paramKey) {
+      case 'absolute_patch':
+        // CC 0-127 maps directly to patch 0-127.
+        _engine.assignPatchToChannel(ch, ccValue.clamp(0, 127));
       case 'next_patch':
         _engine.changePatchIndex(ch, 1);
       case 'prev_patch':
@@ -953,19 +1030,37 @@ class RackState extends ChangeNotifier {
         _engine.cycleChannelSoundfont(ch, 1);
       case 'prev_soundfont':
         _engine.cycleChannelSoundfont(ch, -1);
+      case 'volume':
+        // CC 0-127 → gain 0.0–10.0 (FluidSynth range).
+        _engine.fluidSynthGain.value = ccValue / 127.0 * 10.0;
     }
   }
 
-  /// Handles CC for Vocoder params (waveform cycle, noise mix absolute).
+  /// Handles CC for Vocoder params — all knobs are CC-assignable.
   void _handleVocoderParamCc(String paramKey, CcParamMode mode, int ccValue) {
+    final norm = ccValue / 127.0;
     switch (paramKey) {
       case 'waveform':
         // Cycle through 4 waveforms: 0=saw, 1=square, 2=choral, 3=neutral.
         final current = _engine.vocoderWaveform.value;
         _engine.vocoderWaveform.value = (current + 1) % 4;
       case 'noise_mix':
-        // Absolute: CC 0-127 → 0.0-1.0.
-        _engine.vocoderNoiseMix.value = ccValue / 127.0;
+        _engine.vocoderNoiseMix.value = norm;
+      case 'env_release':
+        // Range 0.005–0.5 seconds.
+        _engine.vocoderEnvRelease.value = 0.005 + norm * 0.495;
+      case 'bandwidth':
+        // Range 0.05–1.0.
+        _engine.vocoderBandwidth.value = 0.05 + norm * 0.95;
+      case 'gate_threshold':
+        // Range 0.0–0.1.
+        _engine.vocoderGateThreshold.value = norm * 0.1;
+      case 'input_gain':
+        // Range 0.0–20.0.
+        _engine.vocoderInputGain.value = norm * 20.0;
+      case 'volume':
+        // CC 0-127 → gain 0.0–10.0 (FluidSynth range).
+        _engine.fluidSynthGain.value = norm * 10.0;
     }
   }
 

@@ -589,8 +589,9 @@ DVH_API void dvh_remove_master_insert_by_handle(DVH_Host host, void* dspHandle) 
             s->masterInsertChains.end());
     } // ← pluginsMtx released BEFORE drain to avoid deadlock with audio callback
     if (!removed) {
-        fprintf(stderr, "[dart_vst_host] dvh_remove_master_insert_by_handle: "
-                "handle %p not found in any chain\n", dspHandle);
+        // Expected when dvh_clear_master_inserts has already removed all chains
+        // (e.g. syncAudioRouting rebuilt the graph before the widget disposed).
+        // Not an error — skip the drain wait.
         return;
     }
     // Drain: spin-wait for the audio callback to complete at least one block
