@@ -5,7 +5,7 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/lang/fr/).
 
-## [X.x.x]
+## [2.11.0] - 2026-04-08
 
 ### Ajouté
 - **Écran de débogage audio USB (Android)** : nouvel écran `UsbAudioDebugScreen` accessible depuis les Préférences, affichant chaque `AudioDeviceInfo` du système — identifiant, type, direction, fréquences d'échantillonnage, nombre de canaux, encodages et adresse. Utilisé pour investiguer le routage multi-USB sur différents constructeurs.
