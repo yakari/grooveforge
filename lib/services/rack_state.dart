@@ -454,6 +454,88 @@ class RackState extends ChangeNotifier {
     _notifyChanged();
   }
 
+  /// Swaps two instrument slots' MIDI channels and optionally their entire
+  /// signal chains (audio cables, Jam Mode references, CC mappings).
+  ///
+  /// **Channels-only** (`swapCables == false`):
+  ///   1. Validate both slots exist and are instrument-type (midiChannel > 0).
+  ///   2. Swap MIDI channels between the two plugins.
+  ///   3. Re-apply keyboard engine state for both (re-routes FluidSynth).
+  ///   4. Re-sync Jam Mode follower map.
+  ///   5. Rebuild native audio routing.
+  ///
+  /// **Full swap** (`swapCables == true`): does everything above, plus:
+  ///   6. Rewrites AudioGraph connections referencing either slot.
+  ///   7. Swaps Jam Mode slot references (masterSlotId, targetSlotIds).
+  ///   8. Rewrites CC mappings targeting either slot.
+  void swapSlots(
+    String slotIdA,
+    String slotIdB, {
+    bool swapCables = true,
+  }) {
+    final pluginA = _findById(slotIdA);
+    final pluginB = _findById(slotIdB);
+    if (pluginA == null || pluginB == null) return;
+
+    // Both must be instrument-type slots (midiChannel > 0).
+    if (pluginA.midiChannel <= 0 || pluginB.midiChannel <= 0) return;
+
+    // 1–2. Swap MIDI channels.
+    final tmpChannel = pluginA.midiChannel;
+    pluginA.midiChannel = pluginB.midiChannel;
+    pluginB.midiChannel = tmpChannel;
+
+    // 3. Re-apply keyboard engine state so FluidSynth uses the new channels.
+    if (pluginA is GrooveForgeKeyboardPlugin) _applyPluginToEngine(pluginA);
+    if (pluginB is GrooveForgeKeyboardPlugin) _applyPluginToEngine(pluginB);
+
+    // 4–8. Full signal-chain swap.
+    if (swapCables) {
+      // 6. Rewire AudioGraph connections.
+      _audioGraph.swapSlotReferences(slotIdA, slotIdB);
+
+      // 7. Swap Jam Mode references on all GFPA plugins.
+      for (final p in _plugins) {
+        if (p is GFpaPluginInstance) {
+          if (p.masterSlotId == slotIdA) {
+            p.masterSlotId = slotIdB;
+          } else if (p.masterSlotId == slotIdB) {
+            p.masterSlotId = slotIdA;
+          }
+          _swapInList(p.targetSlotIds, slotIdA, slotIdB);
+        }
+      }
+
+      // 8. Rewrite CC mappings targeting either slot.
+      _engine.ccMappingService?.swapSlotReferences(slotIdA, slotIdB);
+    }
+
+    // Re-sync Jam Mode follower map (channels changed).
+    _syncJamFollowerMapToEngine();
+
+    // Rebuild native audio routing to reflect all changes.
+    VstHostService.instance.syncAudioRouting(
+      _audioGraph,
+      _plugins,
+      keyboardSfIds: _buildKeyboardSfIds(),
+    );
+
+    notifyListeners();
+    _notifyChanged();
+  }
+
+  /// Swaps two values in a [List] in-place: every occurrence of [a] becomes
+  /// [b] and vice versa. Used by [swapSlots] to rewrite Jam Mode target lists.
+  static void _swapInList(List<String> list, String a, String b) {
+    for (int i = 0; i < list.length; i++) {
+      if (list[i] == a) {
+        list[i] = b;
+      } else if (list[i] == b) {
+        list[i] = a;
+      }
+    }
+  }
+
   /// Update the soundfont, bank, and patch for a GrooveForge Keyboard slot.
   void setPluginSoundfont(String id, String? soundfontPath) {
     final plugin = _findGKById(id);

@@ -61,6 +61,20 @@ struct DVH_PluginState {
   int32 numAudioOutputBuses{1};
   bool  singleComponent{false};
 
+  // ── Pre-allocated process buffers (avoid heap allocation on RT thread) ──
+  // Sized once in dvh_resume() when numAudioOutputBuses and maxBlock are known.
+
+  /// Scratch buffer for secondary output buses (bus 1, 2, … — bus 0 uses
+  /// the caller-provided outL/outR pointers directly).
+  /// Layout: bus1L[maxBlock], bus1R[maxBlock], bus2L[maxBlock], …
+  std::vector<float> procScratch;
+  /// Per-bus stereo pointer pairs: outPtrs[i] = { left*, right* }.
+  std::vector<std::array<float*, 2>> procOutPtrs;
+  /// AudioBusBuffers for output buses.
+  std::vector<AudioBusBuffers> procOutBufs;
+  /// AudioBusBuffers for input buses.
+  std::vector<AudioBusBuffers> procInBufs;
+
   std::mutex mtx;
 
   DVH_PluginState()

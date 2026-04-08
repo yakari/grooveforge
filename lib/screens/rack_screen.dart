@@ -111,6 +111,12 @@ class _RackScreenState extends State<RackScreen> {
   /// drag near the top or bottom edge of the patch view.
   Timer? _autoScrollTimer;
 
+  /// Debounce timer for the CC-triggered channel-swap macro.
+  ///
+  /// Prevents rapid double-swap when a hardware button sends repeated CC
+  /// messages: only the first press within 250 ms fires the swap.
+  Timer? _swapDebounce;
+
   /// Debounce timer for MIDI-triggered auto-scroll.
   ///
   /// When hardware MIDI notes arrive in rapid succession (e.g. a chord),
@@ -221,6 +227,31 @@ class _RackScreenState extends State<RackScreen> {
       }
     };
 
+    // Channel-swap macro — debounced toggle (fire on CC > 63).
+    _engine.onSwapSlots = (slotIdA, slotIdB, swapCables) {
+      // Ignore "release" messages (CC value 0 dispatches with the same target).
+      // The AudioEngine passes the raw CC value to _dispatchCcMapping, but the
+      // callback signature doesn't include it — SwapTarget fires for any value.
+      // We rely on the debounce to prevent double-fire from press+release.
+      if (_swapDebounce?.isActive ?? false) return;
+      _swapDebounce = Timer(const Duration(milliseconds: 250), () {});
+
+      _rackState.swapSlots(slotIdA, slotIdB, swapCables: swapCables);
+
+      // Toast — show human-readable slot names.
+      final nameA = _rackState.plugins
+              .where((p) => p.id == slotIdA)
+              .firstOrNull
+              ?.displayName ??
+          slotIdA;
+      final nameB = _rackState.plugins
+              .where((p) => p.id == slotIdB)
+              .firstOrNull
+              ?.displayName ??
+          slotIdB;
+      _engine.toastNotifier.value = 'Swapped: $nameA ↔ $nameB';
+    };
+
     // When the transport starts playing, arm any waiting looper sessions.
     _transportEngine.addListener(_onTransportChanged);
 
@@ -318,7 +349,9 @@ class _RackScreenState extends State<RackScreen> {
     _engine.onSlotParamCc = null;
     _engine.onTransportCc = null;
     _engine.onGlobalCc = null;
+    _engine.onSwapSlots = null;
     _rackState.onDrumPatternCycle = null;
+    _swapDebounce?.cancel();
     _autoScrollTimer?.cancel();
     _midiScrollDebounce?.cancel();
     _scrollController.dispose();

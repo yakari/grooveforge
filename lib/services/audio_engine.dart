@@ -2129,6 +2129,9 @@ class AudioEngine extends ChangeNotifier {
         onSlotParamCc?.call(slotId, paramKey, mode, ccValue);
 
       case SwapTarget(:final slotIdA, :final slotIdB, :final swapCables):
+        // Fire on every CC event — some controllers send value=0 on press.
+        // The RackScreen debounce (250ms) prevents double-fire from
+        // press+release pairs.
         onSwapSlots?.call(slotIdA, slotIdB, swapCables);
 
       case TransportTarget(:final action):

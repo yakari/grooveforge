@@ -1,20 +1,16 @@
 // JACK audio client for dart_vst_host (Linux only).
 //
-// Provides dvh_start_jack_client / dvh_stop_jack_client which drive all
-// registered VST3 plugins inside a JACK process callback.  Plugins are
-// mixed and written to JACK output ports as native float (no int16
-// conversion — JACK uses 32-bit float natively).
+// Architecture: triple-buffered routing snapshots.
 //
-// Replaces the former ALSA backend (dart_vst_host_alsa.cpp) to gain:
-//   - Sub-10 ms latency (vs ~50 ms with ALSA dmix)
-//   - Inter-application audio routing via PipeWire / JACK
-//   - Proper port naming and session management
-//   - Compatibility with both PipeWire (JACK shim) and native JACK2
+// The Dart thread (via dvh_add_master_render, dvh_add_master_insert, etc.)
+// mutates the "authoritative" routing state under pluginsMtx, then calls
+// _publishSnapshot() which copies the state into a flat RoutingSnapshot and
+// atomically publishes its index.  The JACK RT callback reads the latest
+// published snapshot via an atomic load — zero mutex, zero allocation.
 //
-// Phase 5.4 — audio graph execution:
-//   dvh_set_processing_order  — override plugin processing order (topological)
-//   dvh_route_audio            — route one plugin's output to another's input
-//   dvh_clear_routes           — restore direct-to-master-mix routing
+// This replaces the former design where the callback copied std::vectors and
+// std::unordered_maps under a mutex on every audio frame, which caused heap
+// fragmentation, latency spikes, and eventual std::length_error crashes.
 
 #ifdef __linux__
 
@@ -32,88 +28,119 @@
 #include <mutex>
 #include <string>
 #include <thread>
-#include <unordered_map>
 #include <vector>
 
-/// One fan-in effect chain: one or more source render functions whose audio
-/// is mixed together and then passed through a series of GFPA DSP inserts.
-///
-/// Example topology — KB2 → WAH → Reverb, Theremin → WAH → Reverb:
-///   sources = [kb2RenderFn, thereminRenderFn]
-///   effects = [(wahInsertFn, wahPtr), (reverbInsertFn, reverbPtr)]
-///
-/// The audio callback mixes all sources first (fan-in), then runs effects in
-/// series on the combined signal.  Each DSP is therefore called exactly once
-/// per block regardless of how many sources feed into it.
+// ── Capacity limits ────────────────────────────────────────────────────────
+// These are hard ceilings for pre-allocated flat arrays.  Exceeding them
+// silently drops the excess entries (safe, just silent) rather than crashing.
+
+/// Maximum VST3 plugins in the process order.
+static constexpr int kMaxPlugins = 32;
+/// Maximum audio routes (plugin → plugin).
+static constexpr int kMaxRoutes = 32;
+/// Maximum external render sources (Theremin, Stylophone, …).
+static constexpr int kMaxExtRenders = 16;
+/// Maximum master-mix render contributors.
+static constexpr int kMaxMasterRenders = 16;
+/// Maximum fan-in insert chains.
+static constexpr int kMaxInsertChains = 16;
+/// Maximum sources per insert chain (fan-in).
+static constexpr int kMaxChainSources = 8;
+/// Maximum effects per insert chain (series).
+static constexpr int kMaxChainEffects = 8;
+
+// ── Flat insert chain (no heap allocation) ─────────────────────────────────
+
+/// Fixed-capacity insert chain stored in the routing snapshot.
+/// All arrays are stack-resident — no std::vector, no heap.
+struct FlatInsertChain {
+    DvhRenderFn sources[kMaxChainSources];
+    int sourceCount = 0;
+    struct Effect { GfpaInsertFn fn; void* userdata; };
+    Effect effects[kMaxChainEffects];
+    int effectCount = 0;
+};
+
+// ── Routing snapshot (read by JACK callback, written by Dart thread) ───────
+
+/// Complete routing state consumed by the JACK process callback.
+/// Every field is fixed-size — no heap allocation, no std::vector, no map.
+/// The Dart thread fills this via _publishSnapshot() under pluginsMtx.
+struct RoutingSnapshot {
+    void* ordered[kMaxPlugins];
+    int   orderedCount = 0;
+
+    struct Route { void* from; void* to; };
+    Route routes[kMaxRoutes];
+    int   routeCount = 0;
+
+    struct ExtRender { void* plugin; DvhRenderFn fn; };
+    ExtRender extRenders[kMaxExtRenders];
+    int       extRenderCount = 0;
+
+    DvhRenderFn masterRenders[kMaxMasterRenders];
+    int         masterRenderCount = 0;
+
+    FlatInsertChain insertChains[kMaxInsertChains];
+    int             insertChainCount = 0;
+};
+
+// ── Heap-allocated insert chain (used by Dart-side authoritative state) ────
+
+/// Heap-allocated version used on the Dart thread where allocation is fine.
+/// Converted to FlatInsertChain when publishing a snapshot.
 struct InsertChain {
-    /// Render functions whose audio is mixed (fan-in) before the effect chain.
     std::vector<DvhRenderFn> sources;
-    /// Effects in processing order: sources → [0] → [1] → … → master mix.
     std::vector<std::pair<GfpaInsertFn, void*>> effects;
 };
 
+// ── AudioState ─────────────────────────────────────────────────────────────
+
 struct AudioState {
+    // ── Authoritative routing state (Dart thread, under pluginsMtx) ────────
     std::vector<void*> plugins;
-    /// Topological processing order set by dvh_set_processing_order().
-    /// Empty means "use plugins insertion order".
     std::vector<void*> processOrder;
-    /// Audio routing table: fromPlugin → toPlugin.
-    /// When a route exists for plugin P, P's output feeds into the
-    /// destination plugin's input rather than the master mix bus.
-    std::unordered_map<void*, void*> routes;
-    /// External audio sources: destPlugin → render function.
-    /// When registered, the JACK callback calls the function instead of using
-    /// silence or an upstream VST3 output as the plugin's audio input.
-    /// Used to route non-VST3 generators (Theremin, Stylophone) into effects.
-    std::unordered_map<void*, DvhRenderFn> externalRenders;
-    /// Master-mix contributors: ALL active non-VST3 render functions.
-    /// Sources that belong to an InsertChain are skipped in the bare-render
-    /// loop — the chain's own fan-in loop renders them instead.
+    std::vector<std::pair<void*, void*>> routes;
+    std::vector<std::pair<void*, DvhRenderFn>> externalRenders;
     std::vector<DvhRenderFn> masterRenders;
-    /// Fan-in insert chains.  Multiple sources feeding the same first effect
-    /// are merged into one chain so each DSP runs exactly once per block.
     std::vector<InsertChain> masterInsertChains;
-    /// Pre-allocated stereo buffer for external render calls — no heap
-    /// allocation on the audio thread.
-    std::vector<float> extBufL;
-    std::vector<float> extBufR;
-    /// Pre-allocated intermediate buffers for insert chain processing.
-    /// The insert reads from extBuf and writes here, then we accumulate to mix.
-    std::vector<float> insertBufL;
-    std::vector<float> insertBufR;
-    /// Pre-allocated temporary buffer for fan-in source mixing — each source
-    /// renders into tmpBuf and it is accumulated into extBuf before the chain.
-    std::vector<float> tmpBufL;
-    std::vector<float> tmpBufR;
-    /// Pre-allocated mix bus buffers used inside the JACK process callback.
-    /// Sized to blockSize; resized in the buffer-size callback.
-    std::vector<float> mixL;
-    std::vector<float> mixR;
-    /// Zero buffer (silence) used as default input for plugins with no source.
-    std::vector<float> zeroL;
-    std::vector<float> zeroR;
-    std::mutex          pluginsMtx;
-    /// Monotonically increasing counter incremented at the end of every audio
-    /// block, after all DSP processing is complete.  dvh_remove_master_insert_by_handle
-    /// spin-waits on this to drain any in-flight callback snapshot before the
-    /// caller destroys the DSP object, preventing use-after-free crashes.
+    std::mutex pluginsMtx;
+
+    // ── Triple-buffered snapshots ──────────────────────────────────────────
+    // Index 0, 1, 2: the Dart thread writes to snapshots[writeIdx],
+    // then publishes via activeIdx.store().  The callback reads
+    // snapshots[activeIdx.load()].  The third buffer is spare.
+    RoutingSnapshot snapshots[3];
+    std::atomic<int> activeIdx{0};
+    int writeIdx = 1;
+
+    // ── Pre-allocated audio scratch buffers ────────────────────────────────
+    // All sized to blockSize; resized in _resizeBuffers (non-RT).
+    std::vector<float> extBufL, extBufR;
+    std::vector<float> insertBufL, insertBufR;
+    std::vector<float> tmpBufL, tmpBufR;
+    std::vector<float> mixL, mixR;
+    std::vector<float> zeroL, zeroR;
+
+    /// Per-plugin stereo output buffers: pluginBuf[i*2] = L, [i*2+1] = R.
+    std::vector<float> pluginBuf[kMaxPlugins * 2];
+
+    // ── Callback drain counter ─────────────────────────────────────────────
     std::atomic<uint64_t> callbackSeq{0};
 
-    /// JACK client handle — owned by this AudioState.
-    jack_client_t*      jackClient{nullptr};
-    /// Registered JACK output ports (stereo pair).
-    jack_port_t*        portOutL{nullptr};
-    jack_port_t*        portOutR{nullptr};
-
-    std::atomic<bool>   running{false};
-    /// Cumulative XRUN count reported by the JACK server.
+    // ── JACK handles ───────────────────────────────────────────────────────
+    jack_client_t* jackClient = nullptr;
+    jack_port_t* portOutL = nullptr;
+    jack_port_t* portOutR = nullptr;
+    std::atomic<bool> running{false};
     std::atomic<int32_t> xrunCount{0};
-
-    int32_t sampleRate{44100};
-    int32_t blockSize{256};
+    int32_t sampleRate = 44100;
+    int32_t blockSize = 256;
 };
 
-static std::mutex           g_mapMtx;
+// ── Global state map ───────────────────────────────────────────────────────
+
+static std::mutex g_mapMtx;
 static std::vector<std::pair<void*, AudioState*>> g_states;
 
 static AudioState* getOrCreate(DVH_Host host) {
@@ -143,65 +170,65 @@ static void removeState(DVH_Host host) {
     }
 }
 
-// ── VST3 plugin processing with audio graph routing ─────────────────────────
-//
-// Process [ordered] plugins using [routes] for VST3→VST3 routing and
-// [extRenders] for non-VST3 → VST3 injection (e.g. Theremin → Reverb).
-//
-// Input priority for each plugin:
-//   1. External render function (non-VST3 source, e.g. Theremin DSP)
-//   2. Upstream VST3 plugin output (dvh_route_audio connection)
-//   3. Silence (zero buffer) — default when no source is wired
-static void _processPlugins(
-    const std::vector<void*>& ordered,
-    const std::unordered_map<void*, void*>& routes,
-    const std::unordered_map<void*, DvhRenderFn>& extRenders,
-    std::unordered_map<void*, std::pair<std::vector<float>, std::vector<float>>>& bufs,
-    int32_t blockSize,
-    const std::vector<float>& zeroL,
-    const std::vector<float>& zeroR,
-    std::vector<float>& mixL,
-    std::vector<float>& mixR,
-    std::vector<float>& extBufL,
-    std::vector<float>& extBufR)
-{
-    for (void* p : ordered) {
-        const float* inL;
-        const float* inR;
+// ── Snapshot publishing (Dart thread, under pluginsMtx) ────────────────────
 
-        auto extIt = extRenders.find(p);
-        if (extIt != extRenders.end()) {
-            // External non-VST3 source (Theremin, Stylophone, …).
-            // Call the registered render fn to fill the pre-allocated buffers.
-            extIt->second(extBufL.data(), extBufR.data(), blockSize);
-            inL = extBufL.data();
-            inR = extBufR.data();
-        } else {
-            // Reverse-lookup: find the upstream VST3 plugin that feeds into p.
-            void* upstream = nullptr;
-            for (const auto& r : routes)
-                if (r.second == p) { upstream = r.first; break; }
+/// Copies the authoritative routing state into a flat RoutingSnapshot and
+/// atomically publishes it for the JACK callback.  Must be called under
+/// pluginsMtx after every routing mutation.
+static void _publishSnapshot(AudioState* s) {
+    auto& snap = s->snapshots[s->writeIdx];
 
-            inL = upstream ? bufs.at(upstream).first.data()  : zeroL.data();
-            inR = upstream ? bufs.at(upstream).second.data() : zeroR.data();
+    // Ordered plugins.
+    const auto& src = s->processOrder.empty() ? s->plugins : s->processOrder;
+    snap.orderedCount = std::min(static_cast<int>(src.size()), kMaxPlugins);
+    for (int i = 0; i < snap.orderedCount; ++i) snap.ordered[i] = src[i];
+
+    // Routes.
+    snap.routeCount = std::min(static_cast<int>(s->routes.size()), kMaxRoutes);
+    for (int i = 0; i < snap.routeCount; ++i) {
+        snap.routes[i] = {s->routes[i].first, s->routes[i].second};
+    }
+
+    // External renders.
+    snap.extRenderCount = std::min(static_cast<int>(s->externalRenders.size()), kMaxExtRenders);
+    for (int i = 0; i < snap.extRenderCount; ++i) {
+        snap.extRenders[i] = {s->externalRenders[i].first, s->externalRenders[i].second};
+    }
+
+    // Master renders.
+    snap.masterRenderCount = std::min(static_cast<int>(s->masterRenders.size()), kMaxMasterRenders);
+    for (int i = 0; i < snap.masterRenderCount; ++i) {
+        snap.masterRenders[i] = s->masterRenders[i];
+    }
+
+    // Insert chains.
+    snap.insertChainCount = std::min(static_cast<int>(s->masterInsertChains.size()), kMaxInsertChains);
+    for (int i = 0; i < snap.insertChainCount; ++i) {
+        auto& dst = snap.insertChains[i];
+        const auto& chain = s->masterInsertChains[i];
+        dst.sourceCount = std::min(static_cast<int>(chain.sources.size()), kMaxChainSources);
+        for (int j = 0; j < dst.sourceCount; ++j) dst.sources[j] = chain.sources[j];
+        dst.effectCount = std::min(static_cast<int>(chain.effects.size()), kMaxChainEffects);
+        for (int j = 0; j < dst.effectCount; ++j) {
+            dst.effects[j] = {chain.effects[j].first, chain.effects[j].second};
         }
+    }
 
-        auto& out = bufs[p];
-        dvh_process_stereo_f32(p, inL, inR, out.first.data(), out.second.data(), blockSize);
-
-        // Accumulate to master mix only when no downstream plugin consumes this output.
-        if (routes.count(p) == 0) {
-            for (int i = 0; i < blockSize; ++i) {
-                mixL[i] += out.first[i];
-                mixR[i] += out.second[i];
-            }
-        }
+    // Atomically publish: the callback will pick this up on the next frame.
+    // Memory order: release ensures all writes above are visible before the
+    // index becomes visible to the callback's acquire load.
+    int published = s->writeIdx;
+    // Pick a new writeIdx that is neither the old writeIdx nor the current activeIdx.
+    int current = s->activeIdx.load(std::memory_order_relaxed);
+    s->activeIdx.store(published, std::memory_order_release);
+    // The spare buffer is whichever index is not published and not the old active.
+    for (int i = 0; i < 3; ++i) {
+        if (i != published && i != current) { s->writeIdx = i; break; }
     }
 }
 
-/// Resize all pre-allocated scratch buffers to match [newSize].
-/// Called from the JACK buffer-size callback (non-RT thread) and during
-/// initial setup.
+// ── Buffer resizing (non-RT, under pluginsMtx) ────────────────────────────
+
 static void _resizeBuffers(AudioState* s, int32_t newSize) {
     s->blockSize = newSize;
     s->extBufL.assign(newSize, 0.f);
@@ -214,126 +241,157 @@ static void _resizeBuffers(AudioState* s, int32_t newSize) {
     s->mixR.assign(newSize, 0.f);
     s->zeroL.assign(newSize, 0.f);
     s->zeroR.assign(newSize, 0.f);
+    for (int i = 0; i < kMaxPlugins * 2; ++i) {
+        s->pluginBuf[i].assign(newSize, 0.f);
+    }
 }
 
-// ── JACK callbacks ──────────────────────────────────────────────────────────
+// ── JACK process callback (RT thread — zero allocation) ────────────────────
 
-/// JACK process callback — called from the real-time audio thread.
-///
-/// This function must be allocation-free, lock-free (except the snapshot
-/// mutex which is held very briefly), and must not perform any I/O or
-/// syscalls.  JACK enforces real-time safety by contract.
+/// Finds the ordinal index of [plugin] in the snapshot's ordered list.
+/// Returns -1 if not found.  Linear scan is fine for N < 32.
+static int _findPluginIdx(const RoutingSnapshot& snap, void* plugin) {
+    for (int i = 0; i < snap.orderedCount; ++i)
+        if (snap.ordered[i] == plugin) return i;
+    return -1;
+}
+
+/// Returns true if [fn] appears as a source in any insert chain.
+static bool _isInChain(const RoutingSnapshot& snap, DvhRenderFn fn) {
+    for (int c = 0; c < snap.insertChainCount; ++c) {
+        const auto& chain = snap.insertChains[c];
+        for (int s = 0; s < chain.sourceCount; ++s)
+            if (chain.sources[s] == fn) return true;
+    }
+    return false;
+}
+
 static int _jackProcessCallback(jack_nframes_t nframes, void* arg) {
     auto* state = static_cast<AudioState*>(arg);
 
-    // Get the JACK port output buffers — these are float arrays of nframes.
     auto* outL = static_cast<float*>(jack_port_get_buffer(state->portOutL, nframes));
     auto* outR = static_cast<float*>(jack_port_get_buffer(state->portOutR, nframes));
+    const int32_t bs = static_cast<int32_t>(nframes);
 
-    const int32_t blockSize = static_cast<int32_t>(nframes);
-
-    // If the buffer size changed between the buffer-size callback and this
-    // process call, output silence to avoid buffer overruns.
-    if (blockSize > static_cast<int32_t>(state->mixL.size())) {
+    // Guard: if buffers haven't been resized yet, output silence.
+    if (bs > static_cast<int32_t>(state->mixL.size())) {
         std::memset(outL, 0, nframes * sizeof(float));
         std::memset(outR, 0, nframes * sizeof(float));
         return 0;
     }
 
-    // Zero the mix bus for this block.
-    std::fill(state->mixL.begin(), state->mixL.begin() + blockSize, 0.f);
-    std::fill(state->mixR.begin(), state->mixR.begin() + blockSize, 0.f);
+    // Read the latest routing snapshot — single atomic load, no mutex.
+    const auto& snap = state->snapshots[state->activeIdx.load(std::memory_order_acquire)];
 
-    // Snapshot plugins, order, routes, external renders, and master-mix
-    // contributors under the lock so the JACK thread never races with
-    // Dart-side mutations.
-    std::vector<void*> ordered;
-    std::unordered_map<void*, void*> routes;
-    std::unordered_map<void*, DvhRenderFn> extRenders;
-    std::vector<DvhRenderFn> masterRenders;
-    std::vector<InsertChain> masterInsertChains;
-    {
-        std::lock_guard<std::mutex> lk(state->pluginsMtx);
-        ordered             = state->processOrder.empty() ? state->plugins : state->processOrder;
-        routes              = state->routes;
-        extRenders          = state->externalRenders;
-        masterRenders       = state->masterRenders;
-        masterInsertChains  = state->masterInsertChains;
+    // Zero the master mix bus.
+    std::fill_n(state->mixL.data(), bs, 0.f);
+    std::fill_n(state->mixR.data(), bs, 0.f);
+
+    // ── Process VST3 plugins ───────────────────────────────────────────────
+    for (int idx = 0; idx < snap.orderedCount; ++idx) {
+        void* p = snap.ordered[idx];
+
+        // Zero per-plugin output buffer.
+        float* pOutL = state->pluginBuf[idx * 2].data();
+        float* pOutR = state->pluginBuf[idx * 2 + 1].data();
+        std::fill_n(pOutL, bs, 0.f);
+        std::fill_n(pOutR, bs, 0.f);
+
+        // Determine input: external render > upstream plugin > silence.
+        const float* inL = state->zeroL.data();
+        const float* inR = state->zeroR.data();
+
+        // Check external render sources.
+        for (int e = 0; e < snap.extRenderCount; ++e) {
+            if (snap.extRenders[e].plugin == p) {
+                snap.extRenders[e].fn(state->extBufL.data(), state->extBufR.data(), bs);
+                inL = state->extBufL.data();
+                inR = state->extBufR.data();
+                break;
+            }
+        }
+
+        // If no external source, check for upstream VST3 plugin route.
+        if (inL == state->zeroL.data()) {
+            for (int r = 0; r < snap.routeCount; ++r) {
+                if (snap.routes[r].to == p) {
+                    int upIdx = _findPluginIdx(snap, snap.routes[r].from);
+                    if (upIdx >= 0) {
+                        inL = state->pluginBuf[upIdx * 2].data();
+                        inR = state->pluginBuf[upIdx * 2 + 1].data();
+                    }
+                    break;
+                }
+            }
+        }
+
+        dvh_process_stereo_f32(p, inL, inR, pOutL, pOutR, bs);
+
+        // Accumulate to master mix only if no downstream route exists.
+        bool hasDownstream = false;
+        for (int r = 0; r < snap.routeCount; ++r) {
+            if (snap.routes[r].from == p) { hasDownstream = true; break; }
+        }
+        if (!hasDownstream) {
+            for (int i = 0; i < bs; ++i) {
+                state->mixL[i] += pOutL[i];
+                state->mixR[i] += pOutR[i];
+            }
+        }
     }
 
-    // Allocate per-plugin output buffers for routing.
-    std::unordered_map<void*, std::pair<std::vector<float>, std::vector<float>>> bufs;
-    for (void* p : ordered)
-        bufs[p] = {std::vector<float>(blockSize, 0.f), std::vector<float>(blockSize, 0.f)};
+    // ── Fan-in insert chains ───────────────────────────────────────────────
+    // Each chain: mix sources (fan-in) → apply effects in series → master mix.
+    for (int c = 0; c < snap.insertChainCount; ++c) {
+        const auto& chain = snap.insertChains[c];
 
-    _processPlugins(ordered, routes, extRenders, bufs, blockSize,
-                    state->zeroL, state->zeroR, state->mixL, state->mixR,
-                    state->extBufL, state->extBufR);
+        // Zero the fan-in accumulation buffer.
+        std::fill_n(state->extBufL.data(), bs, 0.f);
+        std::fill_n(state->extBufR.data(), bs, 0.f);
 
-    // ── Fan-in insert chains ────────────────────────────────────────────────
-    // For each chain: mix all sources into extBuf (fan-in), apply effects
-    // in series, then accumulate to the master bus.  Sources listed in any
-    // chain are skipped in the bare-render loop below so they are never
-    // rendered twice.
-    for (const auto& chain : masterInsertChains) {
-        // Zero the accumulation buffer for this chain's fan-in mix.
-        std::fill(state->extBufL.begin(), state->extBufL.begin() + blockSize, 0.f);
-        std::fill(state->extBufR.begin(), state->extBufR.begin() + blockSize, 0.f);
-        // Render each source into tmpBuf and accumulate into extBuf.
-        for (DvhRenderFn fn : chain.sources) {
-            fn(state->tmpBufL.data(), state->tmpBufR.data(), blockSize);
-            for (int i = 0; i < blockSize; ++i) {
+        // Render each source into tmpBuf and accumulate.
+        for (int s = 0; s < chain.sourceCount; ++s) {
+            chain.sources[s](state->tmpBufL.data(), state->tmpBufR.data(), bs);
+            for (int i = 0; i < bs; ++i) {
                 state->extBufL[i] += state->tmpBufL[i];
                 state->extBufR[i] += state->tmpBufR[i];
             }
         }
+
         // Apply effects in series: extBuf → insertBuf → extBuf.
-        for (const auto& ins : chain.effects) {
-            ins.first(state->extBufL.data(), state->extBufR.data(),
-                      state->insertBufL.data(), state->insertBufR.data(),
-                      blockSize, ins.second);
-            std::copy(state->insertBufL.begin(), state->insertBufL.begin() + blockSize,
-                      state->extBufL.begin());
-            std::copy(state->insertBufR.begin(), state->insertBufR.begin() + blockSize,
-                      state->extBufR.begin());
+        for (int e = 0; e < chain.effectCount; ++e) {
+            chain.effects[e].fn(
+                state->extBufL.data(), state->extBufR.data(),
+                state->insertBufL.data(), state->insertBufR.data(),
+                bs, chain.effects[e].userdata);
+            std::copy_n(state->insertBufL.data(), bs, state->extBufL.data());
+            std::copy_n(state->insertBufR.data(), bs, state->extBufR.data());
         }
-        // Accumulate processed signal to the master mix.
-        for (int i = 0; i < blockSize; ++i) {
+
+        // Accumulate to master mix.
+        for (int i = 0; i < bs; ++i) {
             state->mixL[i] += state->extBufL[i];
             state->mixR[i] += state->extBufR[i];
         }
     }
 
-    // ── Bare master renders (no chain) ──────────────────────────────────────
-    // Render sources that are NOT part of any insert chain directly.
-    // This handles instruments with no downstream effects (e.g. KB1 bare).
-    for (DvhRenderFn fn : masterRenders) {
-        // Skip if this source is already handled by a chain above.
-        bool inChain = false;
-        for (const auto& chain : masterInsertChains) {
-            for (DvhRenderFn src : chain.sources) {
-                if (src == fn) { inChain = true; break; }
-            }
-            if (inChain) break;
-        }
-        if (inChain) continue;
+    // ── Bare master renders (not in any chain) ─────────────────────────────
+    for (int m = 0; m < snap.masterRenderCount; ++m) {
+        DvhRenderFn fn = snap.masterRenders[m];
+        if (_isInChain(snap, fn)) continue;
 
-        fn(state->extBufL.data(), state->extBufR.data(), blockSize);
-        for (int i = 0; i < blockSize; ++i) {
+        fn(state->extBufL.data(), state->extBufR.data(), bs);
+        for (int i = 0; i < bs; ++i) {
             state->mixL[i] += state->extBufL[i];
             state->mixR[i] += state->extBufR[i];
         }
     }
 
-    // Signal that this block's DSP processing is complete.
-    // dvh_remove_master_insert_by_handle spin-waits on this counter to
-    // ensure any in-flight snapshot that still held a raw DSP pointer has
-    // retired before the caller destroys the DSP object.
+    // Signal block completion for drain synchronization.
     state->callbackSeq.fetch_add(1, std::memory_order_release);
 
-    // Soft-clip to [-1, 1] and copy directly to JACK port buffers (float).
-    // No int16 conversion needed — JACK uses native 32-bit float.
-    for (int i = 0; i < blockSize; ++i) {
+    // Soft-clip and copy to JACK output ports.
+    for (int i = 0; i < bs; ++i) {
         float l = state->mixL[i];
         float r = state->mixR[i];
         if (l >  1.f) l =  1.f; if (l < -1.f) l = -1.f;
@@ -345,9 +403,8 @@ static int _jackProcessCallback(jack_nframes_t nframes, void* arg) {
     return 0;
 }
 
-/// JACK buffer-size callback — called from a non-RT thread when the server
-/// changes the buffer size (e.g. user adjusts latency in JACK settings).
-/// Allocation is permitted here.
+// ── JACK non-RT callbacks ──────────────────────────────────────────────────
+
 static int _jackBufferSizeCallback(jack_nframes_t nframes, void* arg) {
     auto* state = static_cast<AudioState*>(arg);
     fprintf(stderr, "[dart_vst_host] JACK buffer size changed to %u\n",
@@ -357,22 +414,22 @@ static int _jackBufferSizeCallback(jack_nframes_t nframes, void* arg) {
     return 0;
 }
 
-/// JACK XRUN callback — called from a notification thread when the server
-/// detects a buffer underrun or overrun.  Keep the body trivial.
 static int _jackXrunCallback(void* arg) {
     auto* state = static_cast<AudioState*>(arg);
     state->xrunCount.fetch_add(1, std::memory_order_relaxed);
     return 0;
 }
 
-/// JACK shutdown callback — called from a non-RT thread when the JACK server
-/// shuts down (e.g. PipeWire restart, JACK server killed).
-/// Cannot call jack_client_close inside this callback — just set a flag.
 static void _jackShutdownCallback(void* arg) {
     auto* state = static_cast<AudioState*>(arg);
     fprintf(stderr, "[dart_vst_host] JACK server shut down\n");
     state->running.store(false);
 }
+
+// ── C API — Dart-side routing mutations ────────────────────────────────────
+//
+// Every mutation acquires pluginsMtx, modifies the authoritative state,
+// then calls _publishSnapshot() to make the change visible to the callback.
 
 extern "C" {
 
@@ -381,6 +438,7 @@ DVH_API void dvh_audio_add_plugin(DVH_Host host, DVH_Plugin plugin) {
     auto* s = getOrCreate(host);
     std::lock_guard<std::mutex> lk(s->pluginsMtx);
     s->plugins.push_back(plugin);
+    _publishSnapshot(s);
     fprintf(stderr, "[dart_vst_host] Plugin added to audio loop (total=%zu)\n", s->plugins.size());
 }
 
@@ -391,9 +449,12 @@ DVH_API void dvh_audio_remove_plugin(DVH_Host host, DVH_Plugin plugin) {
     std::lock_guard<std::mutex> lk(s->pluginsMtx);
     s->plugins.erase(std::remove(s->plugins.begin(), s->plugins.end(), plugin), s->plugins.end());
     s->processOrder.erase(std::remove(s->processOrder.begin(), s->processOrder.end(), plugin), s->processOrder.end());
-    s->routes.erase(plugin);
-    for (auto it = s->routes.begin(); it != s->routes.end(); )
-        it = (it->second == plugin) ? s->routes.erase(it) : std::next(it);
+    // Remove routes involving this plugin.
+    s->routes.erase(
+        std::remove_if(s->routes.begin(), s->routes.end(),
+            [plugin](const auto& r) { return r.first == plugin || r.second == plugin; }),
+        s->routes.end());
+    _publishSnapshot(s);
     fprintf(stderr, "[dart_vst_host] Plugin removed from audio loop (total=%zu)\n", s->plugins.size());
 }
 
@@ -405,6 +466,7 @@ DVH_API void dvh_audio_clear_plugins(DVH_Host host) {
     s->plugins.clear();
     s->processOrder.clear();
     s->routes.clear();
+    _publishSnapshot(s);
     fprintf(stderr, "[dart_vst_host] Audio loop cleared\n");
 }
 
@@ -415,9 +477,10 @@ DVH_API void dvh_set_processing_order(DVH_Host host, const DVH_Plugin* order, in
     std::lock_guard<std::mutex> lk(s->pluginsMtx);
     if (!order || count <= 0) {
         s->processOrder.clear();
-        return;
+    } else {
+        s->processOrder.assign(order, order + count);
     }
-    s->processOrder.assign(order, order + count);
+    _publishSnapshot(s);
 }
 
 DVH_API void dvh_route_audio(DVH_Host host, DVH_Plugin from, DVH_Plugin to) {
@@ -425,7 +488,12 @@ DVH_API void dvh_route_audio(DVH_Host host, DVH_Plugin from, DVH_Plugin to) {
     auto* s = get(host);
     if (!s) return;
     std::lock_guard<std::mutex> lk(s->pluginsMtx);
-    s->routes[from] = to;
+    // Update or add.
+    for (auto& r : s->routes) {
+        if (r.first == from) { r.second = to; _publishSnapshot(s); return; }
+    }
+    s->routes.push_back({from, to});
+    _publishSnapshot(s);
 }
 
 DVH_API void dvh_clear_routes(DVH_Host host) {
@@ -434,6 +502,7 @@ DVH_API void dvh_clear_routes(DVH_Host host) {
     if (!s) return;
     std::lock_guard<std::mutex> lk(s->pluginsMtx);
     s->routes.clear();
+    _publishSnapshot(s);
 }
 
 DVH_API void dvh_set_external_render(DVH_Host host, DVH_Plugin plugin, DvhRenderFn fn) {
@@ -441,7 +510,11 @@ DVH_API void dvh_set_external_render(DVH_Host host, DVH_Plugin plugin, DvhRender
     auto* s = get(host);
     if (!s) return;
     std::lock_guard<std::mutex> lk(s->pluginsMtx);
-    s->externalRenders[plugin] = fn;
+    for (auto& er : s->externalRenders) {
+        if (er.first == plugin) { er.second = fn; _publishSnapshot(s); return; }
+    }
+    s->externalRenders.push_back({plugin, fn});
+    _publishSnapshot(s);
 }
 
 DVH_API void dvh_clear_external_render(DVH_Host host, DVH_Plugin plugin) {
@@ -449,17 +522,21 @@ DVH_API void dvh_clear_external_render(DVH_Host host, DVH_Plugin plugin) {
     auto* s = get(host);
     if (!s) return;
     std::lock_guard<std::mutex> lk(s->pluginsMtx);
-    s->externalRenders.erase(plugin);
+    s->externalRenders.erase(
+        std::remove_if(s->externalRenders.begin(), s->externalRenders.end(),
+            [plugin](const auto& er) { return er.first == plugin; }),
+        s->externalRenders.end());
+    _publishSnapshot(s);
 }
 
 DVH_API void dvh_add_master_render(DVH_Host host, DvhRenderFn fn) {
     if (!host || !fn) return;
     auto* s = getOrCreate(host);
     std::lock_guard<std::mutex> lk(s->pluginsMtx);
-    // Deduplicate: only add if not already present.
     for (auto existing : s->masterRenders)
         if (existing == fn) return;
     s->masterRenders.push_back(fn);
+    _publishSnapshot(s);
     fprintf(stderr, "[dart_vst_host] Master render added (total=%zu)\n",
             s->masterRenders.size());
 }
@@ -472,21 +549,11 @@ DVH_API void dvh_remove_master_render(DVH_Host host, DvhRenderFn fn) {
     s->masterRenders.erase(
         std::remove(s->masterRenders.begin(), s->masterRenders.end(), fn),
         s->masterRenders.end());
+    _publishSnapshot(s);
     fprintf(stderr, "[dart_vst_host] Master render removed (total=%zu)\n",
             s->masterRenders.size());
 }
 
-/// Register a GFPA insert on [source]'s master-render audio path.
-///
-/// On each audio block, [source]'s output passes through the insert chain
-/// in registration order.  Multiple inserts for the same [source] form a
-/// series chain (source → insert[0] → insert[1] → … → master mix).
-///
-/// Fan-in merging: if [userdata] is already registered in an existing chain,
-/// [source] is added to that chain's sources (fan-in).  This allows multiple
-/// render sources (e.g. KB2 + Theremin) to share the same WAH → Reverb chain:
-/// all sources are mixed first, then the effect runs once on the combined
-/// signal, preventing double-processing and the associated distortion.
 DVH_API void dvh_add_master_insert(DVH_Host host, DvhRenderFn source,
                                     GfpaInsertFn insertFn, void* userdata) {
     if (!host || !source || !insertFn) return;
@@ -498,10 +565,10 @@ DVH_API void dvh_add_master_insert(DVH_Host host, DvhRenderFn source,
     for (auto& chain : s->masterInsertChains) {
         for (const auto& ins : chain.effects) {
             if (ins.second != userdata) continue;
-            // Chain already has this DSP — add source if not already there.
             for (DvhRenderFn src : chain.sources)
-                if (src == source) return;  // already registered
+                if (src == source) return;
             chain.sources.push_back(source);
+            _publishSnapshot(s);
             fprintf(stderr, "[dart_vst_host] Fan-in: source=%p merged into chain "
                     "containing dsp=%p (sources=%zu)\n",
                     (void*)source, userdata, chain.sources.size());
@@ -514,10 +581,10 @@ DVH_API void dvh_add_master_insert(DVH_Host host, DvhRenderFn source,
     for (auto& chain : s->masterInsertChains) {
         for (DvhRenderFn src : chain.sources) {
             if (src != source) continue;
-            // This source already has a chain — append the new effect.
             for (const auto& ins : chain.effects)
-                if (ins.second == userdata) return;  // already there
+                if (ins.second == userdata) return;
             chain.effects.push_back({insertFn, userdata});
+            _publishSnapshot(s);
             fprintf(stderr, "[dart_vst_host] Chain append: source=%p dsp=%p "
                     "effects=%zu\n",
                     (void*)source, userdata, chain.effects.size());
@@ -527,12 +594,11 @@ DVH_API void dvh_add_master_insert(DVH_Host host, DvhRenderFn source,
 
     // Neither this DSP nor this source has a chain yet — create one.
     s->masterInsertChains.push_back({{source}, {{insertFn, userdata}}});
+    _publishSnapshot(s);
     fprintf(stderr, "[dart_vst_host] New chain: source=%p dsp=%p\n",
             (void*)source, userdata);
 }
 
-/// Remove [source] from all chains.  If a chain has no sources left after
-/// removal it is deleted entirely.  No-op if [source] is not in any chain.
 DVH_API void dvh_remove_master_insert(DVH_Host host, DvhRenderFn source) {
     if (!host || !source) return;
     auto* s = get(host);
@@ -543,35 +609,22 @@ DVH_API void dvh_remove_master_insert(DVH_Host host, DvhRenderFn source) {
             std::remove(chain.sources.begin(), chain.sources.end(), source),
             chain.sources.end());
     }
-    // Remove chains that no longer have any sources.
     s->masterInsertChains.erase(
         std::remove_if(s->masterInsertChains.begin(), s->masterInsertChains.end(),
             [](const InsertChain& c) { return c.sources.empty(); }),
         s->masterInsertChains.end());
+    _publishSnapshot(s);
     fprintf(stderr, "[dart_vst_host] Master insert removed for source %p\n", (void*)source);
 }
 
-/// Remove the insert matching [dspHandle] from every source chain, then drain.
-///
-/// Searches all chains for an entry whose userdata equals
-/// gfpa_dsp_userdata(dspHandle) and removes it.  After removing, this
-/// function spin-waits for the audio callback to complete at least one full
-/// block, guaranteeing that any in-flight snapshot that still held a raw
-/// pointer to this DSP object has retired.  The caller may then safely
-/// destroy the DSP.
-///
-/// **Must be called BEFORE gfpa_dsp_destroy** to prevent use-after-free
-/// crashes on the JACK audio thread.
 DVH_API void dvh_remove_master_insert_by_handle(DVH_Host host, void* dspHandle) {
     if (!host || !dspHandle) return;
     auto* s = get(host);
     if (!s) return;
-    // Resolve the userdata pointer stored in the chain entry.
     void* const ud = gfpa_dsp_userdata(dspHandle);
     bool removed = false;
     {
         std::lock_guard<std::mutex> lk(s->pluginsMtx);
-        // Remove matching effects from all chains.
         for (auto& chain : s->masterInsertChains) {
             auto it = std::remove_if(chain.effects.begin(), chain.effects.end(),
                 [ud](const std::pair<GfpaInsertFn, void*>& ins) {
@@ -582,22 +635,17 @@ DVH_API void dvh_remove_master_insert_by_handle(DVH_Host host, void* dspHandle) 
                 removed = true;
             }
         }
-        // Remove chains that have no effects left (sources become bare renders).
         s->masterInsertChains.erase(
             std::remove_if(s->masterInsertChains.begin(), s->masterInsertChains.end(),
                 [](const InsertChain& c) { return c.effects.empty(); }),
             s->masterInsertChains.end());
-    } // ← pluginsMtx released BEFORE drain to avoid deadlock with audio callback
-    if (!removed) {
-        // Expected when dvh_clear_master_inserts has already removed all chains
-        // (e.g. syncAudioRouting rebuilt the graph before the widget disposed).
-        // Not an error — skip the drain wait.
-        return;
+        if (removed) _publishSnapshot(s);
     }
-    // Drain: spin-wait for the audio callback to complete at least one block
-    // after the removal.  The callbackSeq counter is incremented at the END of
-    // each block's DSP processing, so a strictly greater value means any
-    // in-flight raw pointer reference has been retired.
+    if (!removed) return;
+
+    // Drain: wait for the callback to complete at least one full block after
+    // the snapshot was published, ensuring any in-flight reference to this DSP
+    // pointer has retired.
     const uint64_t seqBefore = s->callbackSeq.load(std::memory_order_acquire);
     const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(500);
     while (s->callbackSeq.load(std::memory_order_acquire) <= seqBefore) {
@@ -612,34 +660,28 @@ DVH_API void dvh_remove_master_insert_by_handle(DVH_Host host, void* dspHandle) 
             "drained OK for handle %p\n", dspHandle);
 }
 
-/// Remove all registered master inserts (all chains).
-/// Called from syncAudioRouting at the start of a full routing rebuild.
 DVH_API void dvh_clear_master_inserts(DVH_Host host) {
     if (!host) return;
     auto* s = get(host);
     if (!s) return;
     std::lock_guard<std::mutex> lk(s->pluginsMtx);
     s->masterInsertChains.clear();
+    _publishSnapshot(s);
     fprintf(stderr, "[dart_vst_host] Master inserts cleared\n");
 }
 
-/// Remove all master render contributors.
-/// Called from syncAudioRouting before re-registering active sources so that
-/// stale entries from previous routing states are not left in the list.
 DVH_API void dvh_clear_master_renders(DVH_Host host) {
     if (!host) return;
     auto* s = get(host);
     if (!s) return;
     std::lock_guard<std::mutex> lk(s->pluginsMtx);
     s->masterRenders.clear();
+    _publishSnapshot(s);
     fprintf(stderr, "[dart_vst_host] Master renders cleared\n");
 }
 
-/// Open a JACK client, register stereo output ports, set up callbacks, and
-/// activate.  Auto-connects to system:playback_1 / system:playback_2.
-///
-/// Returns 1 on success, 0 if the JACK server is not available or port
-/// registration fails.
+// ── JACK client lifecycle ──────────────────────────────────────────────────
+
 DVH_API int32_t dvh_start_jack_client(DVH_Host host, const char* client_name) {
     if (!host) return 0;
     auto* s = getOrCreate(host);
@@ -651,9 +693,6 @@ DVH_API int32_t dvh_start_jack_client(DVH_Host host, const char* client_name) {
     const char* name = (client_name && client_name[0]) ? client_name : "GrooveForge";
     fprintf(stderr, "[dart_vst_host] Opening JACK client: %s\n", name);
 
-    // Open the JACK client.  JackNoStartServer prevents auto-launching a
-    // JACK server if none is running — we want to fail fast with a clear
-    // error rather than spawning an unexpected daemon.
     jack_status_t status;
     s->jackClient = jack_client_open(name, JackNoStartServer, &status);
     if (!s->jackClient) {
@@ -662,27 +701,24 @@ DVH_API int32_t dvh_start_jack_client(DVH_Host host, const char* client_name) {
         return 0;
     }
 
-    // Read the server's sample rate and buffer size — these are authoritative.
-    // The host's sample rate may differ if it was created before the JACK
-    // server was started; we update the AudioState to match.
     s->sampleRate = static_cast<int32_t>(jack_get_sample_rate(s->jackClient));
     s->blockSize  = static_cast<int32_t>(jack_get_buffer_size(s->jackClient));
-
     fprintf(stderr, "[dart_vst_host] JACK server: sr=%d bs=%d\n",
             s->sampleRate, s->blockSize);
 
-    // Pre-allocate all audio scratch buffers at the server's current block
-    // size.  The buffer-size callback will resize them if the server changes.
     _resizeBuffers(s, s->blockSize);
 
-    // Register callbacks before activation so no events are missed.
+    // Publish an initial snapshot so the callback has valid data immediately.
+    {
+        std::lock_guard<std::mutex> lk(s->pluginsMtx);
+        _publishSnapshot(s);
+    }
+
     jack_set_process_callback(s->jackClient, _jackProcessCallback, s);
     jack_set_buffer_size_callback(s->jackClient, _jackBufferSizeCallback, s);
     jack_set_xrun_callback(s->jackClient, _jackXrunCallback, s);
     jack_on_shutdown(s->jackClient, _jackShutdownCallback, s);
 
-    // Register stereo output ports.  JACK_DEFAULT_AUDIO_TYPE is "32 bit float
-    // mono audio" — one port per channel.
     s->portOutL = jack_port_register(s->jackClient, "out_L",
                                      JACK_DEFAULT_AUDIO_TYPE, JackPortIsOutput, 0);
     s->portOutR = jack_port_register(s->jackClient, "out_R",
@@ -694,7 +730,6 @@ DVH_API int32_t dvh_start_jack_client(DVH_Host host, const char* client_name) {
         return 0;
     }
 
-    // Activate the client — the process callback starts firing immediately.
     if (jack_activate(s->jackClient) != 0) {
         fprintf(stderr, "[dart_vst_host] JACK activate failed\n");
         jack_client_close(s->jackClient);
@@ -705,9 +740,7 @@ DVH_API int32_t dvh_start_jack_client(DVH_Host host, const char* client_name) {
     s->running.store(true);
     s->xrunCount.store(0);
 
-    // Auto-connect to the system playback ports (speakers / default sink).
-    // PipeWire maps these to the default audio output device.  Failure is
-    // non-fatal — the user can connect manually via Helvum / qjackctl.
+    // Auto-connect to system playback ports.
     const char* clientPort = jack_port_name(s->portOutL);
     if (jack_connect(s->jackClient, clientPort, "system:playback_1") != 0) {
         fprintf(stderr, "[dart_vst_host] Auto-connect out_L → system:playback_1 failed "
@@ -765,13 +798,11 @@ extern "C" {
     void    dvh_clear_external_render(DVH_Host, DVH_Plugin) {}
     void    dvh_add_master_render(DVH_Host, DvhRenderFn) {}
     void    dvh_remove_master_render(DVH_Host, DvhRenderFn) {}
-    // GFPA insert chain stubs — no-ops on non-Linux platforms.
     void    dvh_add_master_insert(DVH_Host, DvhRenderFn, GfpaInsertFn, void*) {}
     void    dvh_remove_master_insert(DVH_Host, DvhRenderFn) {}
     void    dvh_remove_master_insert_by_handle(DVH_Host, void*) {}
     void    dvh_clear_master_inserts(DVH_Host) {}
     void    dvh_clear_master_renders(DVH_Host) {}
-    // GFPA DSP stubs — return safe no-op values.
     void*   gfpa_dsp_create(const char*, int32_t, int32_t) { return nullptr; }
     void    gfpa_dsp_set_param(void*, const char*, double) {}
     GfpaInsertFn gfpa_dsp_insert_fn(void*) { return nullptr; }

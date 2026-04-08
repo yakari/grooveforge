@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:grooveforge/l10n/app_localizations.dart';
 import 'package:grooveforge/models/gfpa_plugin_instance.dart';
 import 'package:grooveforge/models/grooveforge_keyboard_plugin.dart';
+import 'package:grooveforge/models/plugin_instance.dart';
 import 'package:grooveforge/services/cc_mapping_service.dart';
 import 'package:grooveforge/services/cc_param_registry.dart';
 import 'package:grooveforge/services/rack_state.dart';
@@ -205,11 +206,18 @@ class CcPreferencesScreen extends StatelessWidget {
     return l10n.ccRoutingChannel(targetChannel + 1);
   }
 
-  /// Human-readable display name for a rack slot.
+  /// Human-readable display name for a rack slot, disambiguated with MIDI
+  /// channel and rack position so identical plugin names are distinguishable.
   String _slotDisplayName(RackState rack, String slotId) {
-    final plugin = rack.plugins.where((p) => p.id == slotId).firstOrNull;
-    if (plugin == null) return slotId;
-    return plugin.displayName;
+    final plugins = rack.plugins;
+    for (int i = 0; i < plugins.length; i++) {
+      if (plugins[i].id != slotId) continue;
+      final p = plugins[i];
+      final ch = p.midiChannel > 0 ? 'Ch ${p.midiChannel}' : null;
+      final suffix = ch != null ? ' ($ch, #${i + 1})' : ' (#${i + 1})';
+      return '${p.displayName}$suffix';
+    }
+    return slotId;
   }
 
   String _transportLabel(TransportAction action) => switch (action) {
@@ -357,12 +365,18 @@ class _AddMappingDialogState extends State<_AddMappingDialog> {
                       child: Text('Global')),
                   DropdownMenuItem(
                       value: _TargetCategory.macros,
-                      child: Text('Macros')),
+                      child: Text('Channel Swap')),
                 ],
                 onChanged: (val) => setState(() {
                   _category = val;
                   _selectedSlotId = null;
                   _selectedParamKey = null;
+                  // Reset system action to the first valid entry for the
+                  // selected category so the dropdown never receives an
+                  // initialValue that doesn't match any item.
+                  if (val == _TargetCategory.looper) {
+                    _systemAction = _looperActions.keys.first;
+                  }
                 }),
               ),
               const SizedBox(height: 16),
@@ -501,7 +515,11 @@ class _AddMappingDialogState extends State<_AddMappingDialog> {
       children: [
         DropdownButtonFormField<int>(
           decoration: InputDecoration(labelText: l10n.ccTargetEffectLabel),
-          initialValue: _systemAction,
+          // Clamp to a valid entry so the dropdown never receives a value
+          // absent from the items list.
+          initialValue: actions.containsKey(_systemAction)
+              ? _systemAction
+              : actions.keys.first,
           isExpanded: true,
           items: actions.entries
               .map((e) => DropdownMenuItem(value: e.key, child: Text(e.value)))
@@ -626,22 +644,32 @@ class _AddMappingDialogState extends State<_AddMappingDialog> {
 
   // ── Slot helpers ───────────────────────────────────────────────────────
 
+  /// Builds a display name that disambiguates duplicate plugin names by
+  /// appending the MIDI channel and rack position (1-based).
+  /// Example: "GF Keyboard (Ch 1, #1)" vs "GF Keyboard (Ch 2, #3)".
+  String _disambiguatedName(PluginInstance p, int position) {
+    final ch = p.midiChannel > 0 ? 'Ch ${p.midiChannel}' : null;
+    final suffix = ch != null ? ' ($ch, #$position)' : ' (#$position)';
+    return '${p.displayName}$suffix';
+  }
+
   /// Returns instrument slots (GF Keyboard + Vocoder) with their CC params.
   List<_SlotInfo> get _instrumentSlots {
     final rack = context.read<RackState>();
     final result = <_SlotInfo>[];
-    for (final p in rack.plugins) {
+    for (int i = 0; i < rack.plugins.length; i++) {
+      final p = rack.plugins[i];
       if (p is GrooveForgeKeyboardPlugin) {
         result.add(_SlotInfo(
           slotId: p.id,
-          displayName: p.displayName,
+          displayName: _disambiguatedName(p, i + 1),
           params: CcParamRegistry.forPluginId('_gf_keyboard') ?? [],
         ));
       } else if (p is GFpaPluginInstance &&
           p.pluginId == 'com.grooveforge.vocoder') {
         result.add(_SlotInfo(
           slotId: p.id,
-          displayName: p.displayName,
+          displayName: _disambiguatedName(p, i + 1),
           params: CcParamRegistry.forPluginId(p.pluginId) ?? [],
         ));
       }
@@ -660,13 +688,14 @@ class _AddMappingDialogState extends State<_AddMappingDialog> {
   List<_SlotInfo> _gfpaSlotsWithParams(Set<String> pluginIds) {
     final rack = context.read<RackState>();
     final result = <_SlotInfo>[];
-    for (final p in rack.plugins) {
+    for (int i = 0; i < rack.plugins.length; i++) {
+      final p = rack.plugins[i];
       if (p is GFpaPluginInstance && pluginIds.contains(p.pluginId)) {
         final params = CcParamRegistry.forPluginId(p.pluginId);
         if (params != null && params.isNotEmpty) {
           result.add(_SlotInfo(
             slotId: p.id,
-            displayName: p.displayName,
+            displayName: _disambiguatedName(p, i + 1),
             params: params,
           ));
         }

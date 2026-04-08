@@ -457,6 +457,49 @@ class CcMappingService {
     }
   }
 
+  /// Rewrites all [SlotParamTarget] and [SwapTarget] entries so that every
+  /// reference to [slotIdA] becomes [slotIdB] and vice versa.
+  ///
+  /// Called by the channel-swap macro when `swapCables == true` to keep CC
+  /// mappings consistent after the two slots trade signal chains.
+  void swapSlotReferences(String slotIdA, String slotIdB) {
+    if (slotIdA == slotIdB) return;
+    bool changed = false;
+    final newList = mappingsNotifier.value.map((m) {
+      final t = m.target;
+      CcMappingTarget? swapped;
+      if (t is SlotParamTarget) {
+        if (t.slotId == slotIdA) {
+          swapped = SlotParamTarget(
+              slotId: slotIdB, paramKey: t.paramKey, mode: t.mode);
+        } else if (t.slotId == slotIdB) {
+          swapped = SlotParamTarget(
+              slotId: slotIdA, paramKey: t.paramKey, mode: t.mode);
+        }
+      } else if (t is SwapTarget) {
+        final a = _swapId(t.slotIdA, slotIdA, slotIdB);
+        final b = _swapId(t.slotIdB, slotIdA, slotIdB);
+        if (a != t.slotIdA || b != t.slotIdB) {
+          swapped = SwapTarget(slotIdA: a, slotIdB: b, swapCables: t.swapCables);
+        }
+      }
+      if (swapped != null) {
+        changed = true;
+        return CcMapping(incomingCc: m.incomingCc, target: swapped);
+      }
+      return m;
+    }).toList();
+    if (changed) _setMappings(newList);
+  }
+
+  /// Returns [slotIdB] if [current] equals [slotIdA], [slotIdA] if it equals
+  /// [slotIdB], or [current] unchanged.
+  static String _swapId(String current, String slotIdA, String slotIdB) {
+    if (current == slotIdA) return slotIdB;
+    if (current == slotIdB) return slotIdA;
+    return current;
+  }
+
   /// Replaces all mappings wholesale.  Called by [ProjectService] on load.
   void loadFromJson(List<dynamic> json) {
     final list = <CcMapping>[];

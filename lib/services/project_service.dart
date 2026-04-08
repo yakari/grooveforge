@@ -8,6 +8,7 @@ import 'file_picker_service.dart';
 import 'package:path_provider/path_provider.dart';
 import 'audio_engine.dart';
 import 'audio_graph.dart';
+import 'cc_mapping_service.dart';
 import 'looper_engine.dart';
 import 'project_migration_service.dart';
 import 'rack_state.dart';
@@ -16,7 +17,13 @@ import 'transport_engine.dart';
 /// Manages loading and saving current project state to a .gf file.
 class ProjectService extends ChangeNotifier {
   static const String _formatVersion = '2.0.0';
-  
+
+  /// Direct reference to the CC mapping service, set once at startup.
+  ///
+  /// This avoids going through [AudioEngine.ccMappingService] which is null
+  /// during splash screen initialisation (assigned later in RackScreen).
+  CcMappingService? ccMappingService;
+
   String? _currentProjectPath;
   String? get currentProjectPath => _currentProjectPath;
 
@@ -43,7 +50,7 @@ class ProjectService extends ChangeNotifier {
       // No persistent filesystem on web — always start with defaults.
       debugPrint('ProjectService: web target — initializing defaults');
       rackState.initDefaults();
-      engine.ccMappingService?.clear();
+      ccMappingService?.clear();
       notifyListeners();
       return;
     }
@@ -59,7 +66,7 @@ class ProjectService extends ChangeNotifier {
       } catch (e) {
         debugPrint('ProjectService: autosave load failed ($e) — using defaults');
         rackState.initDefaults();
-        engine.ccMappingService?.clear();
+        ccMappingService?.clear();
         // Create per-slot FluidSynth instances for the default keyboard slots
         // so that GFPA routing works correctly on Android from the start.
         await rackState.initAndroidKeyboardSlots();
@@ -67,7 +74,7 @@ class ProjectService extends ChangeNotifier {
     } else {
       debugPrint('ProjectService: no autosave found — initializing defaults');
       rackState.initDefaults();
-      engine.ccMappingService?.clear();
+      ccMappingService?.clear();
       // Create per-slot FluidSynth instances for the default keyboard slots
       // so that GFPA routing works correctly on Android from the start.
       await rackState.initAndroidKeyboardSlots();
@@ -252,7 +259,7 @@ class ProjectService extends ChangeNotifier {
       'audioGraph': audioGraph.toJson(),
       'looperSessions': looperEngine.toJson(),
       'plugins': rackState.toJson(),
-      'ccMappings': engine.ccMappingService?.toJson() ?? [],
+      'ccMappings': ccMappingService?.toJson() ?? [],
     };
     return const JsonEncoder.withIndent('  ').convert(data);
   }
@@ -347,7 +354,7 @@ class ProjectService extends ChangeNotifier {
     // Restore CC mappings (Phase A of per-project CC mappings).
     // If the key is absent (older .gf files), migrate from SharedPreferences.
     final ccMappingsJson = data['ccMappings'] as List<dynamic>?;
-    final ccService = engine.ccMappingService;
+    final ccService = ccMappingService;
     if (ccService != null) {
       if (ccMappingsJson != null) {
         ccService.loadFromJson(ccMappingsJson);

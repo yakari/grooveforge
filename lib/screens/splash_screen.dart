@@ -9,6 +9,7 @@ import '../plugins/gf_theremin_plugin.dart';
 import '../plugins/gf_vocoder_plugin.dart';
 import '../services/audio_engine.dart';
 import '../services/audio_graph.dart';
+import '../services/cc_mapping_service.dart';
 import '../services/drum_generator_engine.dart';
 import '../services/looper_engine.dart';
 import '../services/project_service.dart';
@@ -62,6 +63,10 @@ class _SplashScreenState extends State<SplashScreen> {
     // Use the shared ProjectService instance from the Provider so that
     // rack_screen.dart reads the same currentProjectPath.
     final projectService = context.read<ProjectService>();
+    // Give ProjectService a direct reference to the CC mapping service so it
+    // can load/save mappings without going through engine.ccMappingService
+    // (which is null until RackScreen.initState assigns it).
+    projectService.ccMappingService = context.read<CcMappingService>();
 
     // Load the last autosave (or initialise defaults) BEFORE wiring up the
     // autosave callbacks.  This prevents spurious autosaves that would fire
@@ -93,6 +98,14 @@ class _SplashScreenState extends State<SplashScreen> {
     // would thrash the disk with unnecessary writes.
     looperEngine.onDataChanged = () =>
         projectService.autosave(rack, engine, transport, audioGraph, looperEngine);
+    // Autosave whenever CC mappings change (add/remove/swap rewrite).
+    // Read from the Provider directly — engine.ccMappingService is null at
+    // this point (it is assigned later in RackScreen.initState).
+    if (!mounted) return;
+    context.read<CcMappingService>().mappingsNotifier.addListener(
+      () => projectService.autosave(
+          rack, engine, transport, audioGraph, looperEngine),
+    );
 
     // Re-load any persisted VST3 plugins into the native host so their
     // parameters are accessible immediately (they are not auto-loaded on restore).

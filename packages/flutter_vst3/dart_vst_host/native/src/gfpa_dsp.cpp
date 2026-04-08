@@ -349,10 +349,12 @@ private:
 
 /// Stereo ping-pong delay with optional BPM synchronisation.
 struct DelayEffect {
-    std::vector<float> bufL, bufR;  ///< Left and right delay lines.
+    // NOTE: maxDelaySamples and sampleRate MUST be declared before bufL/bufR
+    // — C++ initializes members in declaration order.
     int32_t maxDelaySamples;         ///< Pre-allocated buffer length.
-    int32_t writePos{0};             ///< Current write head.
     float   sampleRate;
+    std::vector<float> bufL, bufR;  ///< Left and right delay lines.
+    int32_t writePos{0};             ///< Current write head.
 
     // Physical parameters.
     std::atomic<float> timeMs{375.0f};    ///< Delay time in ms [1, 2000].
@@ -587,12 +589,15 @@ struct CompressorEffect {
 
 /// Stereo chorus with optional BPM synchronisation.
 struct ChorusEffect {
-    std::vector<float> bufL, bufR;  ///< Per-channel modulated delay lines.
+    // NOTE: maxDelaySamples and sampleRate MUST be declared before bufL/bufR
+    // because C++ initializes members in declaration order, and the buffers
+    // depend on maxDelaySamples in the constructor initializer list.
     int32_t maxDelaySamples;
+    float sampleRate;
+    std::vector<float> bufL, bufR;  ///< Per-channel modulated delay lines.
     int32_t writePos{0};
     float lfoPhaseL{0.0f};  ///< LFO phase for L (starts at 0°).
     float lfoPhaseR{0.5f};  ///< LFO phase for R (starts at 180° — stereo spread).
-    float sampleRate;
 
     std::atomic<float> rate{0.5f};       ///< LFO rate Hz [0.1, 10].
     std::atomic<float> depth{0.5f};      ///< Modulation depth [0, 1].

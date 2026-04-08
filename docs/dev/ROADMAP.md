@@ -222,6 +222,12 @@ Deferred from Phase 6 and reassessed after the looper rework (Step 4). These bui
 - [ ] **CC Mapping integration**: surface per-slot `LooperSession.ccAssignments` in the global `cc_preferences.dart` screen so users can manage looper CC bindings alongside other mappings.
 - [ ] **Two looper slots simultaneously — no timing drift**: verify that two looper slots sharing the same `TransportEngine` clock stay phase-locked over 5+ minutes of continuous playback; add a regression test if drift is found.
 
+### 📊 Project Overview Panel
+
+A read-only dashboard showing the current project's structure at a glance: every loaded module with its MIDI channel, audio/MIDI connections to other modules (and link type — audio cable, Jam follower, CC mapping), and a compact routing diagram. Useful for complex racks where scrolling through individual slot cards is tedious.
+
+- [ ] **Project overview panel**: modal or side-panel showing all loaded modules, their MIDI channels, inter-module links (audio cables, Jam follower relationships, CC mappings per slot), and a compact routing summary.
+
 ### 📦 VST3 Bundles (Phase 3b — incomplete items)
 
 These tasks complete the distributable `.vst3` bundle story started in Phase 3b. They are prerequisites for listing GrooveForge plugins in DAW plugin managers on macOS and Windows.
@@ -486,16 +492,13 @@ Static Dart registry (`CcParamRegistry`) — not embedded in `.gfpd` descriptors
 - [x] Add swap macro configuration UI: pick two instrument slots + "swap cables" checkbox.
 - [x] Mark project dirty when CC mappings are modified (`RackState.markDirty()` on add/remove).
 - [x] Add per-module CC assign button on every rack slot card — `SlotCcAssignDialog` lists all CC-controllable params per slot with learn mode (move a knob → assign) and delete. Icon in slot header bar lights blue when mappings exist. Works on keyboards, vocoder, all effects, all MIDI FX.
-- [ ] Add "Import CC mappings from another project" — loads `ccMappings` from a `.gf` file without replacing the rest of the project.
-- [ ] Project info panel: show "CC mappings: N" count so the user knows mappings are project-scoped.
-
 ### 🎛️ Phase E — Channel-swap macro
 
-- [ ] Add `AudioGraph.swapSlotReferences(String slotIdA, String slotIdB)` — atomic bulk rewrite of all connections referencing either slot.
-- [ ] Implement `RackState.swapSlots(slotIdA, slotIdB, {swapCables})` — channels-only or channels+cables mode (see algorithm above).
-- [ ] Wire `SwapTarget` dispatch in `AudioEngine` via `onSwapSlots` callback.
-- [ ] Debounce swap toggle (250ms, fire on CC value > 63) to prevent rapid double-swap.
-- [ ] Toast notification on swap: `'Swapped: Keyboard 1 ↔ Vocoder'`.
+- [x] Add `AudioGraph.swapSlotReferences(String slotIdA, String slotIdB)` — atomic bulk rewrite of all connections referencing either slot.
+- [x] Implement `RackState.swapSlots(slotIdA, slotIdB, {swapCables})` — channels-only or channels+cables mode (see algorithm above). Also added `CcMappingService.swapSlotReferences()` for CC mapping consistency.
+- [x] Wire `SwapTarget` dispatch in `AudioEngine` via `onSwapSlots` callback — gate at CC > 63 in `_dispatchCcMapping`, wired in `RackScreen.initState`.
+- [x] Debounce swap toggle (250ms `Timer` in `_RackScreenState`) to prevent rapid double-swap.
+- [x] Toast notification on swap: `'Swapped: Keyboard 1 ↔ Vocoder'` via `AudioEngine.toastNotifier`.
 
 ### 🎛️ Phase F — l10n + polish
 

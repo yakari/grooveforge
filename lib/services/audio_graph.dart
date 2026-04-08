@@ -90,6 +90,50 @@ class AudioGraph extends ChangeNotifier {
     if (_connections.length != before) notifyListeners();
   }
 
+  /// Bulk-rewrites all connections so that every reference to [slotIdA]
+  /// becomes [slotIdB] and vice versa.
+  ///
+  /// Used by the channel-swap macro to move an entire wiring topology from
+  /// one rack slot to another in a single atomic operation (no intermediate
+  /// state where cables are dangling).
+  ///
+  /// Each affected [AudioGraphConnection] is replaced with a new instance
+  /// (connections are immutable) whose `id` is recomputed from the swapped
+  /// endpoint pair.
+  void swapSlotReferences(String slotIdA, String slotIdB) {
+    // Quick exit: nothing to do if the two IDs are the same.
+    if (slotIdA == slotIdB) return;
+
+    bool changed = false;
+    for (int i = 0; i < _connections.length; i++) {
+      final c = _connections[i];
+      final from = _swapId(c.fromSlotId, slotIdA, slotIdB);
+      final to = _swapId(c.toSlotId, slotIdA, slotIdB);
+      if (from != c.fromSlotId || to != c.toSlotId) {
+        // Reconstruct via the private constructor — the port types and
+        // direction are already validated from the original connection.
+        _connections[i] = AudioGraphConnection.fromJson({
+          'fromSlotId': from,
+          'fromPort': c.fromPort.name,
+          'toSlotId': to,
+          'toPort': c.toPort.name,
+          if (c.cableColorOverride != null)
+            'cableColor': c.cableColorOverride!.toARGB32(),
+        });
+        changed = true;
+      }
+    }
+    if (changed) notifyListeners();
+  }
+
+  /// Returns [slotIdB] if [current] equals [slotIdA], [slotIdA] if it equals
+  /// [slotIdB], or [current] unchanged. Used by [swapSlotReferences].
+  static String _swapId(String current, String slotIdA, String slotIdB) {
+    if (current == slotIdA) return slotIdB;
+    if (current == slotIdB) return slotIdA;
+    return current;
+  }
+
   /// Removes all connections and resets the graph to an empty state.
   void clear() {
     if (_connections.isEmpty) return;
