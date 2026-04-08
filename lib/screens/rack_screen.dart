@@ -111,6 +111,12 @@ class _RackScreenState extends State<RackScreen> {
   /// drag near the top or bottom edge of the patch view.
   Timer? _autoScrollTimer;
 
+  /// Debounce timer for CC-triggered transport toggle actions.
+  ///
+  /// Prevents double-toggle when a controller sends both press (127) and
+  /// release (0) CC events for the same button.
+  Timer? _transportDebounce;
+
   /// Debounce timer for the CC-triggered channel-swap macro.
   ///
   /// Prevents rapid double-swap when a hardware button sends repeated CC
@@ -199,8 +205,11 @@ class _RackScreenState extends State<RackScreen> {
     _engine.onSlotParamCc = _rackState.handleSlotParamCc;
 
     // Transport CC actions (play/stop, tap tempo, metronome toggle).
+    // No CC value gate — some controllers send value=0 on press.
+    // Debounced (250ms) to prevent double-toggle from press+release pairs.
     _engine.onTransportCc = (action, ccValue) {
-      if (ccValue <= 63) return; // Only fire on "press".
+      if (_transportDebounce?.isActive ?? false) return;
+      _transportDebounce = Timer(const Duration(milliseconds: 250), () {});
       switch (action) {
         case TransportAction.playStop:
           _transportEngine.isPlaying
@@ -224,6 +233,11 @@ class _RackScreenState extends State<RackScreen> {
       switch (action) {
         case GlobalAction.systemVolume:
           _engine.setSystemVolume(ccValue / 127.0);
+          final pct = (ccValue / 127.0 * 100).round();
+          final l10n = AppLocalizations.of(context);
+          _engine.toastNotifier.value = l10n != null
+              ? l10n.toastSystemVolume(pct)
+              : 'System volume: $pct%';
       }
     };
 
@@ -249,7 +263,10 @@ class _RackScreenState extends State<RackScreen> {
               .firstOrNull
               ?.displayName ??
           slotIdB;
-      _engine.toastNotifier.value = 'Swapped: $nameA ↔ $nameB';
+      final l10n = AppLocalizations.of(context);
+      _engine.toastNotifier.value = l10n != null
+          ? l10n.toastSwapped(nameA, nameB)
+          : 'Swapped: $nameA ↔ $nameB';
     };
 
     // When the transport starts playing, arm any waiting looper sessions.
@@ -351,6 +368,7 @@ class _RackScreenState extends State<RackScreen> {
     _engine.onGlobalCc = null;
     _engine.onSwapSlots = null;
     _rackState.onDrumPatternCycle = null;
+    _transportDebounce?.cancel();
     _swapDebounce?.cancel();
     _autoScrollTimer?.cancel();
     _midiScrollDebounce?.cancel();

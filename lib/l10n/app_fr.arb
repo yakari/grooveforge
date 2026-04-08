@@ -563,5 +563,56 @@
   "usbAudioDebugEncodings": "Encodages",
   "usbAudioDebugAddress": "Adresse",
   "usbAudioDebugAny": "Quelconque",
-  "usbAudioDebugPlatformOnly": "Android uniquement — non disponible sur cette plateforme"
+  "usbAudioDebugPlatformOnly": "Android uniquement — non disponible sur cette plateforme",
+
+  "ccCategoryTargetLabel": "Catégorie de cible",
+  "ccCategoryGmCc": "CC standard GM",
+  "ccCategoryInstruments": "Instruments",
+  "ccCategoryAudioEffects": "Effets audio",
+  "ccCategoryMidiFx": "Effets MIDI",
+  "ccCategoryLooper": "Looper",
+  "ccCategoryTransport": "Transport",
+  "ccCategoryGlobal": "Global",
+  "ccCategoryChannelSwap": "Échange de canaux",
+  "ccTransportPlayStop": "Lecture / Stop",
+  "ccTransportTapTempo": "Tap Tempo",
+  "ccTransportMetronomeToggle": "Activer/Désactiver métronome",
+  "ccGlobalSystemVolume": "Volume système",
+  "ccGlobalSystemVolumeHint": "CC 0-127 → Volume média du système (0-100%)",
+  "ccSlotPickerLabel": "Slot",
+  "ccParamPickerLabel": "Paramètre",
+  "ccActionPickerLabel": "Action",
+  "ccNoSlotsOfType": "Aucun slot de ce type dans le rack.",
+  "ccSwapInstrumentA": "Instrument A",
+  "ccSwapInstrumentB": "Instrument B",
+  "ccSwapCablesLabel": "Échanger les câbles (chaînes d'effets, liens Jam Mode)",
+  "ccSwapNeedTwoSlots": "Il faut au moins 2 slots instruments dans le rack.",
+  "ccSwapDisplayLabel": "Échange : {slotA} ↔ {slotB}",
+  "@ccSwapDisplayLabel": {
+    "placeholders": {
+      "slotA": { "type": "String" },
+      "slotB": { "type": "String" }
+    }
+  },
+  "ccSwapCablesYes": "avec câbles",
+  "ccSwapCablesNo": "canaux uniquement",
+  "toastSwapped": "Échangé : {slotA} ↔ {slotB}",
+  "@toastSwapped": {
+    "placeholders": {
+      "slotA": { "type": "String" },
+      "slotB": { "type": "String" }
+    }
+  },
+  "toastBypassOn": "{slotName} — désactivé",
+  "@toastBypassOn": {
+    "placeholders": { "slotName": { "type": "String" } }
+  },
+  "toastBypassOff": "{slotName} — actif",
+  "@toastBypassOff": {
+    "placeholders": { "slotName": { "type": "String" } }
+  },
+  "toastSystemVolume": "Volume système : {percent}%",
+  "@toastSystemVolume": {
+    "placeholders": { "percent": { "type": "int" } }
+  }
 }

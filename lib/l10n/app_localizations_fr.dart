@@ -1413,4 +1413,104 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get usbAudioDebugPlatformOnly =>
       'Android uniquement — non disponible sur cette plateforme';
+
+  @override
+  String get ccCategoryTargetLabel => 'Catégorie de cible';
+
+  @override
+  String get ccCategoryGmCc => 'CC standard GM';
+
+  @override
+  String get ccCategoryInstruments => 'Instruments';
+
+  @override
+  String get ccCategoryAudioEffects => 'Effets audio';
+
+  @override
+  String get ccCategoryMidiFx => 'Effets MIDI';
+
+  @override
+  String get ccCategoryLooper => 'Looper';
+
+  @override
+  String get ccCategoryTransport => 'Transport';
+
+  @override
+  String get ccCategoryGlobal => 'Global';
+
+  @override
+  String get ccCategoryChannelSwap => 'Échange de canaux';
+
+  @override
+  String get ccTransportPlayStop => 'Lecture / Stop';
+
+  @override
+  String get ccTransportTapTempo => 'Tap Tempo';
+
+  @override
+  String get ccTransportMetronomeToggle => 'Activer/Désactiver métronome';
+
+  @override
+  String get ccGlobalSystemVolume => 'Volume système';
+
+  @override
+  String get ccGlobalSystemVolumeHint =>
+      'CC 0-127 → Volume média du système (0-100%)';
+
+  @override
+  String get ccSlotPickerLabel => 'Slot';
+
+  @override
+  String get ccParamPickerLabel => 'Paramètre';
+
+  @override
+  String get ccActionPickerLabel => 'Action';
+
+  @override
+  String get ccNoSlotsOfType => 'Aucun slot de ce type dans le rack.';
+
+  @override
+  String get ccSwapInstrumentA => 'Instrument A';
+
+  @override
+  String get ccSwapInstrumentB => 'Instrument B';
+
+  @override
+  String get ccSwapCablesLabel =>
+      'Échanger les câbles (chaînes d\'effets, liens Jam Mode)';
+
+  @override
+  String get ccSwapNeedTwoSlots =>
+      'Il faut au moins 2 slots instruments dans le rack.';
+
+  @override
+  String ccSwapDisplayLabel(String slotA, String slotB) {
+    return 'Échange : $slotA ↔ $slotB';
+  }
+
+  @override
+  String get ccSwapCablesYes => 'avec câbles';
+
+  @override
+  String get ccSwapCablesNo => 'canaux uniquement';
+
+  @override
+  String toastSwapped(String slotA, String slotB) {
+    return 'Échangé : $slotA ↔ $slotB';
+  }
+
+  @override
+  String toastBypassOn(String slotName) {
+    return '$slotName — désactivé';
+  }
+
+  @override
+  String toastBypassOff(String slotName) {
+    return '$slotName — actif';
+  }
+
+  @override
+  String toastSystemVolume(int percent) {
+    return 'Volume système : $percent%';
+  }
 }

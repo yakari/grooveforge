@@ -2653,6 +2653,180 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Android only — not available on this platform'**
   String get usbAudioDebugPlatformOnly;
+
+  /// No description provided for @ccCategoryTargetLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Target category'**
+  String get ccCategoryTargetLabel;
+
+  /// No description provided for @ccCategoryGmCc.
+  ///
+  /// In en, this message translates to:
+  /// **'Standard GM CC'**
+  String get ccCategoryGmCc;
+
+  /// No description provided for @ccCategoryInstruments.
+  ///
+  /// In en, this message translates to:
+  /// **'Instruments'**
+  String get ccCategoryInstruments;
+
+  /// No description provided for @ccCategoryAudioEffects.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio Effects'**
+  String get ccCategoryAudioEffects;
+
+  /// No description provided for @ccCategoryMidiFx.
+  ///
+  /// In en, this message translates to:
+  /// **'MIDI FX'**
+  String get ccCategoryMidiFx;
+
+  /// No description provided for @ccCategoryLooper.
+  ///
+  /// In en, this message translates to:
+  /// **'Looper'**
+  String get ccCategoryLooper;
+
+  /// No description provided for @ccCategoryTransport.
+  ///
+  /// In en, this message translates to:
+  /// **'Transport'**
+  String get ccCategoryTransport;
+
+  /// No description provided for @ccCategoryGlobal.
+  ///
+  /// In en, this message translates to:
+  /// **'Global'**
+  String get ccCategoryGlobal;
+
+  /// No description provided for @ccCategoryChannelSwap.
+  ///
+  /// In en, this message translates to:
+  /// **'Channel Swap'**
+  String get ccCategoryChannelSwap;
+
+  /// No description provided for @ccTransportPlayStop.
+  ///
+  /// In en, this message translates to:
+  /// **'Play / Stop'**
+  String get ccTransportPlayStop;
+
+  /// No description provided for @ccTransportTapTempo.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap Tempo'**
+  String get ccTransportTapTempo;
+
+  /// No description provided for @ccTransportMetronomeToggle.
+  ///
+  /// In en, this message translates to:
+  /// **'Metronome Toggle'**
+  String get ccTransportMetronomeToggle;
+
+  /// No description provided for @ccGlobalSystemVolume.
+  ///
+  /// In en, this message translates to:
+  /// **'System Volume'**
+  String get ccGlobalSystemVolume;
+
+  /// No description provided for @ccGlobalSystemVolumeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'CC 0-127 → System media volume (0-100%)'**
+  String get ccGlobalSystemVolumeHint;
+
+  /// No description provided for @ccSlotPickerLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Slot'**
+  String get ccSlotPickerLabel;
+
+  /// No description provided for @ccParamPickerLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Parameter'**
+  String get ccParamPickerLabel;
+
+  /// No description provided for @ccActionPickerLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Action'**
+  String get ccActionPickerLabel;
+
+  /// No description provided for @ccNoSlotsOfType.
+  ///
+  /// In en, this message translates to:
+  /// **'No slots of this type in the rack.'**
+  String get ccNoSlotsOfType;
+
+  /// No description provided for @ccSwapInstrumentA.
+  ///
+  /// In en, this message translates to:
+  /// **'Instrument A'**
+  String get ccSwapInstrumentA;
+
+  /// No description provided for @ccSwapInstrumentB.
+  ///
+  /// In en, this message translates to:
+  /// **'Instrument B'**
+  String get ccSwapInstrumentB;
+
+  /// No description provided for @ccSwapCablesLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Swap cables (effect chains, Jam Mode links)'**
+  String get ccSwapCablesLabel;
+
+  /// No description provided for @ccSwapNeedTwoSlots.
+  ///
+  /// In en, this message translates to:
+  /// **'Need at least 2 instrument slots in the rack.'**
+  String get ccSwapNeedTwoSlots;
+
+  /// No description provided for @ccSwapDisplayLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Swap: {slotA} ↔ {slotB}'**
+  String ccSwapDisplayLabel(String slotA, String slotB);
+
+  /// No description provided for @ccSwapCablesYes.
+  ///
+  /// In en, this message translates to:
+  /// **'with cables'**
+  String get ccSwapCablesYes;
+
+  /// No description provided for @ccSwapCablesNo.
+  ///
+  /// In en, this message translates to:
+  /// **'channels only'**
+  String get ccSwapCablesNo;
+
+  /// No description provided for @toastSwapped.
+  ///
+  /// In en, this message translates to:
+  /// **'Swapped: {slotA} ↔ {slotB}'**
+  String toastSwapped(String slotA, String slotB);
+
+  /// No description provided for @toastBypassOn.
+  ///
+  /// In en, this message translates to:
+  /// **'{slotName} — bypassed'**
+  String toastBypassOn(String slotName);
+
+  /// No description provided for @toastBypassOff.
+  ///
+  /// In en, this message translates to:
+  /// **'{slotName} — active'**
+  String toastBypassOff(String slotName);
+
+  /// No description provided for @toastSystemVolume.
+  ///
+  /// In en, this message translates to:
+  /// **'System volume: {percent}%'**
+  String toastSystemVolume(int percent);
 }
 
 class _AppLocalizationsDelegate

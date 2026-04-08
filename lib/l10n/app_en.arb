@@ -575,5 +575,56 @@
   "usbAudioDebugEncodings": "Encodings",
   "usbAudioDebugAddress": "Address",
   "usbAudioDebugAny": "Any",
-  "usbAudioDebugPlatformOnly": "Android only — not available on this platform"
+  "usbAudioDebugPlatformOnly": "Android only — not available on this platform",
+
+  "ccCategoryTargetLabel": "Target category",
+  "ccCategoryGmCc": "Standard GM CC",
+  "ccCategoryInstruments": "Instruments",
+  "ccCategoryAudioEffects": "Audio Effects",
+  "ccCategoryMidiFx": "MIDI FX",
+  "ccCategoryLooper": "Looper",
+  "ccCategoryTransport": "Transport",
+  "ccCategoryGlobal": "Global",
+  "ccCategoryChannelSwap": "Channel Swap",
+  "ccTransportPlayStop": "Play / Stop",
+  "ccTransportTapTempo": "Tap Tempo",
+  "ccTransportMetronomeToggle": "Metronome Toggle",
+  "ccGlobalSystemVolume": "System Volume",
+  "ccGlobalSystemVolumeHint": "CC 0-127 → System media volume (0-100%)",
+  "ccSlotPickerLabel": "Slot",
+  "ccParamPickerLabel": "Parameter",
+  "ccActionPickerLabel": "Action",
+  "ccNoSlotsOfType": "No slots of this type in the rack.",
+  "ccSwapInstrumentA": "Instrument A",
+  "ccSwapInstrumentB": "Instrument B",
+  "ccSwapCablesLabel": "Swap cables (effect chains, Jam Mode links)",
+  "ccSwapNeedTwoSlots": "Need at least 2 instrument slots in the rack.",
+  "ccSwapDisplayLabel": "Swap: {slotA} ↔ {slotB}",
+  "@ccSwapDisplayLabel": {
+    "placeholders": {
+      "slotA": { "type": "String" },
+      "slotB": { "type": "String" }
+    }
+  },
+  "ccSwapCablesYes": "with cables",
+  "ccSwapCablesNo": "channels only",
+  "toastSwapped": "Swapped: {slotA} ↔ {slotB}",
+  "@toastSwapped": {
+    "placeholders": {
+      "slotA": { "type": "String" },
+      "slotB": { "type": "String" }
+    }
+  },
+  "toastBypassOn": "{slotName} — bypassed",
+  "@toastBypassOn": {
+    "placeholders": { "slotName": { "type": "String" } }
+  },
+  "toastBypassOff": "{slotName} — active",
+  "@toastBypassOff": {
+    "placeholders": { "slotName": { "type": "String" } }
+  },
+  "toastSystemVolume": "System volume: {percent}%",
+  "@toastSystemVolume": {
+    "placeholders": { "percent": { "type": "int" } }
+  }
 }

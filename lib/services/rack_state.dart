@@ -480,14 +480,37 @@ class RackState extends ChangeNotifier {
     // Both must be instrument-type slots (midiChannel > 0).
     if (pluginA.midiChannel <= 0 || pluginB.midiChannel <= 0) return;
 
-    // 1–2. Swap MIDI channels.
+    // 1–2. Swap MIDI channels on the plugin instances.
+    final chA = pluginA.midiChannel - 1; // 0-based index into engine.channels
+    final chB = pluginB.midiChannel - 1;
     final tmpChannel = pluginA.midiChannel;
     pluginA.midiChannel = pluginB.midiChannel;
     pluginB.midiChannel = tmpChannel;
 
-    // 3. Re-apply keyboard engine state so FluidSynth uses the new channels.
-    if (pluginA is GrooveForgeKeyboardPlugin) _applyPluginToEngine(pluginA);
-    if (pluginB is GrooveForgeKeyboardPlugin) _applyPluginToEngine(pluginB);
+    // 3. Swap the AudioEngine channel-level state (soundfontPath, program,
+    // bank) so each MIDI channel retains the correct instrument config for
+    // its new owner. Without this, a keyboard swapping with a vocoder would
+    // leave the keyboard's soundfont on the vocoder's new channel.
+    if (chA >= 0 && chA < 16 && chB >= 0 && chB < 16) {
+      final stateA = _engine.channels[chA];
+      final stateB = _engine.channels[chB];
+      // Swap the serializable fields (soundfontPath, program, bank).
+      final tmpPath = stateA.soundfontPath;
+      final tmpProg = stateA.program;
+      final tmpBank = stateA.bank;
+      stateA.soundfontPath = stateB.soundfontPath;
+      stateA.program = stateB.program;
+      stateA.bank = stateB.bank;
+      stateB.soundfontPath = tmpPath;
+      stateB.program = tmpProg;
+      stateB.bank = tmpBank;
+    }
+
+    // 4. Re-apply all keyboard engine states to push the swapped
+    // soundfont/patch to FluidSynth on the correct channels.
+    for (final p in _plugins) {
+      if (p is GrooveForgeKeyboardPlugin) _applyPluginToEngine(p);
+    }
 
     // 4–8. Full signal-chain swap.
     if (swapCables) {
@@ -881,6 +904,8 @@ class RackState extends ChangeNotifier {
     final bypassed = !(slot.state['__bypass'] == true);
     slot.state['__bypass'] = bypassed;
     VstHostService.instance.setGfpaDspBypass(slotId, bypassed);
+    _engine.toastNotifier.value =
+        '${slot.displayName} — ${bypassed ? 'bypassed' : 'active'}';
     notifyListeners();
     markDirty();
   }
@@ -905,7 +930,10 @@ class RackState extends ChangeNotifier {
   void toggleMidiFxBypass(String slotId) {
     final slot = _findGfpaById(slotId);
     if (slot == null) return;
-    slot.state['__bypass'] = !(slot.state['__bypass'] == true);
+    final bypassed = !(slot.state['__bypass'] == true);
+    slot.state['__bypass'] = bypassed;
+    _engine.toastNotifier.value =
+        '${slot.displayName} — ${bypassed ? 'bypassed' : 'active'}';
     markDirty();
   }
 
@@ -952,8 +980,12 @@ class RackState extends ChangeNotifier {
   /// Dispatches based on [mode]:
   /// - **absolute**: maps CC 0-127 to normalized [0.0, 1.0] and sets the GFPA
   ///   parameter via native DSP, or calls a special handler for non-GFPA params.
-  /// - **toggle**: flips a boolean state on CC value > 63 (debounced 250ms).
+  /// - **toggle**: flips a boolean state (debounced 250ms).
   /// - **cycle**: advances a discrete parameter to the next option (debounced).
+  ///
+  /// No CC value gate — some controllers (e.g. Alesis Vortex Wireless 2)
+  /// send value=0 on button press. The 250ms timestamp debounce prevents
+  /// double-fire from press+release pairs that send two CC events.
   ///
   /// Called from [AudioEngine._dispatchCcMapping] via [onSlotParamCc].
   void handleSlotParamCc(
@@ -964,7 +996,6 @@ class RackState extends ChangeNotifier {
   ) {
     // ── Debounce for toggle and cycle modes ────────────────────────────
     if (mode == CcParamMode.toggle || mode == CcParamMode.cycle) {
-      if (ccValue <= 63) return; // Only fire on "press" (value > 63).
       final key = '$slotId:$paramKey';
       final now = DateTime.now().millisecondsSinceEpoch;
       final last = _ccDebounce[key] ?? 0;

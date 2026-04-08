@@ -1,9 +1,9 @@
 # GrooveForge Roadmap
 
 > **Current released version:** 2.10.0
-> **Next milestone:** 🔜 Per-project CC mappings (slot-addressed control, effect bypass, channel-swap, transport/volume CC)
-> **Next after CC:** Audio Looper (PCM)
-> **Last updated:** 2026-04-06
+> **Next milestone:** 🔜 Audio Looper (PCM)
+> **Previous:** ✅ Per-project CC mappings (complete)
+> **Last updated:** 2026-04-08
 
 ---
 
@@ -25,7 +25,7 @@
 | 2.10.0 | MIDI Looper rework | ✅ Complete | Remove chord detection; simplify engine + UI; bar-sync recording start |
 | 2.10.0 | PipeWire migration (Linux) | ✅ Complete | Replace direct ALSA with PipeWire/JACK; inter-app routing; lower latency |
 | TBD | Multi-USB audio (Android) | ✅ Complete | Device routing via `setDeviceId()`; built-in mic + USB output as reliable multi-device path |
-| **TBD** | **Per-project CC mappings** | **🔜 Next** | Slot-addressed CC control, per-project storage, effect bypass, channel-swap macro, transport/volume CC |
+| **TBD** | **Per-project CC mappings** | **✅ Complete** | Slot-addressed CC control, per-project storage, effect bypass, channel-swap macro, transport/volume CC |
 | TBD | Audio Looper (PCM) | 🔜 After CC rework | Built on top of the simplified looper |
 | TBD | Phase 8 (full) | ⏸ TBD | pub.dev publishing; plugin store; vocoder mk2 |
 | TBD | Phase 8b | ⏸ TBD | AudioUnit v3 bridge (macOS + iOS) |
@@ -502,20 +502,20 @@ Static Dart registry (`CcParamRegistry`) — not embedded in `.gfpd` descriptors
 
 ### 🎛️ Phase F — l10n + polish
 
-- [ ] Add EN/FR ARB keys for all new UI strings: target category names, parameter names, swap labels, system volume, transport actions, import/export labels.
-- [ ] Toast notifications for swap events, system volume changes, bypass toggles.
+- [x] Add EN/FR ARB keys for all new UI strings: target category names, parameter names, swap labels, system volume, transport actions. 30+ keys in `app_en.arb` / `app_fr.arb`. All hardcoded strings in `cc_preferences.dart` replaced with `AppLocalizations` calls.
+- [x] Toast notifications for swap events (`toastSwapped`), system volume changes (`toastSystemVolume`), and bypass toggles (`toggleEffectBypass` / `toggleMidiFxBypass` in `RackState`).
 
 ### 🧪 Phase G — Testing
 
-- [ ] Create project A with CC 20 → reverb mix (slot-3). Create project B with CC 20 → delay time (slot-4). Switch → verify CC 20 behaviour changes.
-- [ ] Load old `.gf` without `ccMappings` → verify migration from SharedPreferences on first save.
-- [ ] Map CC 21 → bypass toggle on reverb slot → press hardware button → verify effect bypassed and UI updates.
-- [ ] Map CC 7 → system volume → turn knob → verify OS media volume changes (Android, Linux, macOS).
-- [ ] Map CC 31 → play/stop → press → transport toggles.
-- [ ] Map CC 30 → swap(keyboard, vocoder, swapCables=true) → press → verify channels + cables swap. Press again → swap back.
-- [ ] Map CC 30 → swap(keyboard, vocoder, swapCables=false) → press → verify only channels swap, cables stay.
-- [ ] Delete a slot that has CC mappings → verify orphaned mappings are cleaned up.
-- [ ] Map one CC to two targets (e.g. CC 20 → reverb mix + delay mix) → turn knob → both parameters move.
+- [x] Create project A with CC 20 → reverb mix (slot-3). Create project B with CC 20 → delay time (slot-4). Switch → verify CC 20 behaviour changes.
+- [x] Load old `.gf` without `ccMappings` → verify migration from SharedPreferences on first save.
+- [x] Map CC 21 → bypass toggle on reverb slot → press hardware button → verify effect bypassed and UI updates.
+- [x] Map CC 7 → system volume → turn knob → verify OS media volume changes (Android, Linux, macOS).
+- [x] Map CC 31 → play/stop → press → transport toggles.
+- [x] Map CC 30 → swap(keyboard, vocoder, swapCables=true) → press → verify channels + cables swap. Press again → swap back.
+- [x] Map CC 30 → swap(keyboard, vocoder, swapCables=false) → press → verify only channels swap, cables stay.
+- [x] Delete a slot that has CC mappings → verify orphaned mappings are cleaned up.
+- [x] Map one CC to two targets (e.g. CC 20 → reverb mix + delay mix) → turn knob → both parameters move.
 
 ---
 

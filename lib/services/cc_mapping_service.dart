@@ -240,10 +240,10 @@ enum CcParamMode {
   /// CC 0-127 maps linearly to the parameter's normalized range [0.0, 1.0].
   absolute,
 
-  /// CC value > 63 toggles a boolean state (debounced 250ms).
+  /// Toggles a boolean state (debounced 250ms).
   toggle,
 
-  /// CC value > 63 advances a discrete parameter to the next option (debounced).
+  /// Advances a discrete parameter to the next option (debounced).
   cycle,
 }
 
@@ -252,7 +252,7 @@ enum TransportAction {
   /// Toggle transport play/stop.
   playStop,
 
-  /// Tap tempo — fires on CC value > 63.
+  /// Tap tempo — fires on every CC event.
   tapTempo,
 
   /// Toggle metronome click on/off.

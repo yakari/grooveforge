@@ -163,9 +163,9 @@ class CcPreferencesScreen extends StatelessWidget {
       SlotParamTarget(:final slotId, :final paramKey) =>
         '${_slotDisplayName(rack, slotId)} \u2192 $paramKey',
       SwapTarget(:final slotIdA, :final slotIdB) =>
-        'Swap: ${_slotDisplayName(rack, slotIdA)} \u2194 ${_slotDisplayName(rack, slotIdB)}',
-      TransportTarget(:final action) => _transportLabel(action),
-      GlobalTarget(:final action) => _globalLabel(action),
+        l10n.ccSwapDisplayLabel(_slotDisplayName(rack, slotIdA), _slotDisplayName(rack, slotIdB)),
+      TransportTarget(:final action) => _transportLabel(action, l10n),
+      GlobalTarget(:final action) => _globalLabel(action, l10n),
     };
     return l10n.ccMappingHardwareToTarget(mapping.incomingCc, targetName);
   }
@@ -180,7 +180,7 @@ class CcPreferencesScreen extends StatelessWidget {
         _systemSubtitle(context, actionCode, targetChannel, muteChannels),
       SlotParamTarget(:final mode) => mode.name,
       SwapTarget(:final swapCables) =>
-        swapCables ? 'Channels + cables' : 'Channels only',
+        swapCables ? l10n.ccSwapCablesYes : l10n.ccSwapCablesNo,
       TransportTarget() => '',
       GlobalTarget() => '',
     };
@@ -220,14 +220,18 @@ class CcPreferencesScreen extends StatelessWidget {
     return slotId;
   }
 
-  String _transportLabel(TransportAction action) => switch (action) {
-        TransportAction.playStop => 'Play / Stop',
-        TransportAction.tapTempo => 'Tap Tempo',
-        TransportAction.metronomeToggle => 'Metronome Toggle',
+  String _transportLabel(TransportAction action, [AppLocalizations? l10n]) =>
+      switch (action) {
+        TransportAction.playStop => l10n?.ccTransportPlayStop ?? 'Play / Stop',
+        TransportAction.tapTempo => l10n?.ccTransportTapTempo ?? 'Tap Tempo',
+        TransportAction.metronomeToggle =>
+          l10n?.ccTransportMetronomeToggle ?? 'Metronome Toggle',
       };
 
-  String _globalLabel(GlobalAction action) => switch (action) {
-        GlobalAction.systemVolume => 'System Volume',
+  String _globalLabel(GlobalAction action, [AppLocalizations? l10n]) =>
+      switch (action) {
+        GlobalAction.systemVolume =>
+          l10n?.ccGlobalSystemVolume ?? 'System Volume',
       };
 
   void _markDirty(BuildContext context) {
@@ -338,34 +342,34 @@ class _AddMappingDialogState extends State<_AddMappingDialog> {
 
               // ── Category picker ──────────────────────────────────────
               DropdownButtonFormField<_TargetCategory>(
-                decoration: const InputDecoration(labelText: 'Target category'),
+                decoration: InputDecoration(labelText: l10n.ccCategoryTargetLabel),
                 initialValue: _category,
                 isExpanded: true,
-                items: const [
+                items: [
                   DropdownMenuItem(
                       value: _TargetCategory.gmCc,
-                      child: Text('Standard GM CC')),
+                      child: Text(l10n.ccCategoryGmCc)),
                   DropdownMenuItem(
                       value: _TargetCategory.instruments,
-                      child: Text('Instruments')),
+                      child: Text(l10n.ccCategoryInstruments)),
                   DropdownMenuItem(
                       value: _TargetCategory.audioEffects,
-                      child: Text('Audio Effects')),
+                      child: Text(l10n.ccCategoryAudioEffects)),
                   DropdownMenuItem(
                       value: _TargetCategory.midiFx,
-                      child: Text('MIDI FX')),
+                      child: Text(l10n.ccCategoryMidiFx)),
                   DropdownMenuItem(
                       value: _TargetCategory.looper,
-                      child: Text('Looper')),
+                      child: Text(l10n.ccCategoryLooper)),
                   DropdownMenuItem(
                       value: _TargetCategory.transport,
-                      child: Text('Transport')),
+                      child: Text(l10n.ccCategoryTransport)),
                   DropdownMenuItem(
                       value: _TargetCategory.global,
-                      child: Text('Global')),
+                      child: Text(l10n.ccCategoryGlobal)),
                   DropdownMenuItem(
                       value: _TargetCategory.macros,
-                      child: Text('Channel Swap')),
+                      child: Text(l10n.ccCategoryChannelSwap)),
                 ],
                 onChanged: (val) => setState(() {
                   _category = val;
@@ -456,10 +460,10 @@ class _AddMappingDialogState extends State<_AddMappingDialog> {
     List<_SlotInfo> slots,
   ) {
     if (slots.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.all(8),
-        child: Text('No slots of this type in the rack.',
-            style: TextStyle(color: Colors.grey)),
+      return Padding(
+        padding: const EdgeInsets.all(8),
+        child: Text(AppLocalizations.of(context)!.ccNoSlotsOfType,
+            style: const TextStyle(color: Colors.grey)),
       );
     }
 
@@ -468,7 +472,7 @@ class _AddMappingDialogState extends State<_AddMappingDialog> {
       children: [
         // Slot dropdown.
         DropdownButtonFormField<String>(
-          decoration: const InputDecoration(labelText: 'Slot'),
+          decoration: InputDecoration(labelText: AppLocalizations.of(context)!.ccSlotPickerLabel),
           initialValue: _selectedSlotId,
           isExpanded: true,
           items: slots
@@ -493,7 +497,7 @@ class _AddMappingDialogState extends State<_AddMappingDialog> {
     final slot = slots.where((s) => s.slotId == _selectedSlotId).firstOrNull;
     if (slot == null) return const SizedBox.shrink();
     return DropdownButtonFormField<String>(
-      decoration: const InputDecoration(labelText: 'Parameter'),
+      decoration: InputDecoration(labelText: AppLocalizations.of(context)!.ccParamPickerLabel),
       initialValue: _selectedParamKey,
       isExpanded: true,
       items: slot.params
@@ -552,18 +556,21 @@ class _AddMappingDialogState extends State<_AddMappingDialog> {
   }
 
   Widget _buildTransportPicker() {
+    final l10n = AppLocalizations.of(context)!;
     return DropdownButtonFormField<TransportAction>(
-      decoration: const InputDecoration(labelText: 'Action'),
+      decoration: InputDecoration(labelText: l10n.ccActionPickerLabel),
       initialValue: _transportAction,
       isExpanded: true,
-      items: const [
+      items: [
         DropdownMenuItem(
-            value: TransportAction.playStop, child: Text('Play / Stop')),
+            value: TransportAction.playStop,
+            child: Text(l10n.ccTransportPlayStop)),
         DropdownMenuItem(
-            value: TransportAction.tapTempo, child: Text('Tap Tempo')),
+            value: TransportAction.tapTempo,
+            child: Text(l10n.ccTransportTapTempo)),
         DropdownMenuItem(
             value: TransportAction.metronomeToggle,
-            child: Text('Metronome Toggle')),
+            child: Text(l10n.ccTransportMetronomeToggle)),
       ],
       onChanged: (val) =>
           setState(() => _transportAction = val ?? TransportAction.playStop),
@@ -571,21 +578,22 @@ class _AddMappingDialogState extends State<_AddMappingDialog> {
   }
 
   Widget _buildGlobalPicker() {
-    // Only system volume for now — show as a simple confirmation.
-    return const Padding(
-      padding: EdgeInsets.all(8),
-      child: Text('CC 0-127 \u2192 System media volume (0-100%)',
-          style: TextStyle(color: Colors.grey)),
+    final l10n = AppLocalizations.of(context)!;
+    return Padding(
+      padding: const EdgeInsets.all(8),
+      child: Text(l10n.ccGlobalSystemVolumeHint,
+          style: const TextStyle(color: Colors.grey)),
     );
   }
 
   Widget _buildSwapPicker(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final instruments = _instrumentSlots;
     if (instruments.length < 2) {
-      return const Padding(
-        padding: EdgeInsets.all(8),
-        child: Text('Need at least 2 instrument slots in the rack.',
-            style: TextStyle(color: Colors.grey)),
+      return Padding(
+        padding: const EdgeInsets.all(8),
+        child: Text(l10n.ccSwapNeedTwoSlots,
+            style: const TextStyle(color: Colors.grey)),
       );
     }
     final items = instruments
@@ -596,7 +604,7 @@ class _AddMappingDialogState extends State<_AddMappingDialog> {
       mainAxisSize: MainAxisSize.min,
       children: [
         DropdownButtonFormField<String>(
-          decoration: const InputDecoration(labelText: 'Instrument A'),
+          decoration: InputDecoration(labelText: l10n.ccSwapInstrumentA),
           initialValue: _swapSlotA,
           isExpanded: true,
           items: items,
@@ -604,7 +612,7 @@ class _AddMappingDialogState extends State<_AddMappingDialog> {
         ),
         const SizedBox(height: 12),
         DropdownButtonFormField<String>(
-          decoration: const InputDecoration(labelText: 'Instrument B'),
+          decoration: InputDecoration(labelText: l10n.ccSwapInstrumentB),
           initialValue: _swapSlotB,
           isExpanded: true,
           items: items,
@@ -613,8 +621,8 @@ class _AddMappingDialogState extends State<_AddMappingDialog> {
         const SizedBox(height: 12),
         CheckboxListTile(
           contentPadding: EdgeInsets.zero,
-          title: const Text('Swap cables (effect chains, Jam Mode links)',
-              style: TextStyle(fontSize: 13)),
+          title: Text(l10n.ccSwapCablesLabel,
+              style: const TextStyle(fontSize: 13)),
           value: _swapCables,
           onChanged: (val) => setState(() => _swapCables = val ?? true),
         ),
