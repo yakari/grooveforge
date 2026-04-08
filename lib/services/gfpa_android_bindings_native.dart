@@ -36,6 +36,14 @@ typedef _GfpaDspSetParamNative = Void Function(
 typedef _GfpaDspSetParam = void Function(
     Pointer<Void> handle, Pointer<Utf8> paramId, double value);
 
+/// Native signature for gfpa_dsp_set_bypass.
+typedef _GfpaDspSetBypassNative = Void Function(
+    Pointer<Void> handle, Bool bypassed);
+
+/// Dart binding for gfpa_dsp_set_bypass.
+typedef _GfpaDspSetBypass = void Function(
+    Pointer<Void> handle, bool bypassed);
+
 /// Native signature for gfpa_dsp_destroy.
 typedef _GfpaDspDestroyNative = Void Function(Pointer<Void> handle);
 
@@ -147,6 +155,15 @@ class GfpaAndroidBindings {
       _lib.lookupFunction<_GfpaDspSetParamNative, _GfpaDspSetParam>(
           'gfpa_dsp_set_param');
 
+  /// Set the bypass state of a native GFPA DSP instance.
+  ///
+  /// Thread-safe: uses `std::atomic<bool>` internally. When bypassed, the
+  /// insert callback copies input to output unchanged (zero CPU cost on
+  /// the audio thread — single relaxed atomic bool load).
+  late final _GfpaDspSetBypass _gfpaDspSetBypass =
+      _lib.lookupFunction<_GfpaDspSetBypassNative, _GfpaDspSetBypass>(
+          'gfpa_dsp_set_bypass');
+
   /// Destroy a native GFPA DSP instance and free its resources.
   ///
   /// The caller must call [gfpaAndroidRemoveInsert] before destroying the
@@ -239,6 +256,13 @@ class GfpaAndroidBindings {
       malloc.free(nativeParam);
     }
   }
+
+  /// Set the bypass state of a native DSP instance.
+  ///
+  /// Zero CPU cost on the audio thread when bypassed — single relaxed
+  /// atomic bool load, then memcpy of input to output.
+  void gfpaDspSetBypass(Pointer<Void> handle, bool bypassed) =>
+      _gfpaDspSetBypass(handle, bypassed);
 
   /// Destroy a native DSP instance.
   ///

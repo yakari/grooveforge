@@ -107,6 +107,20 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
   RELEASE=1
 )
 
+# ── AddressSanitizer (temporary — remove after debugging) ────────────────
+# Enables ASAN for heap-use-after-free, buffer-overflow, and memory
+# corruption detection.  Run the app with:
+#   LD_PRELOAD=$(gcc -print-file-name=libasan.so) flutter run -d linux
+option(ENABLE_ASAN "Enable AddressSanitizer for native code" OFF)
+if(ENABLE_ASAN)
+  target_compile_options(${PROJECT_NAME} PRIVATE
+    -fsanitize=address -fno-omit-frame-pointer -g)
+  target_link_options(${PROJECT_NAME} PRIVATE -fsanitize=address)
+endif()
+
+# Always build with debug symbols, frame pointers, and member-reorder warnings.
+target_compile_options(${PROJECT_NAME} PRIVATE -g -fno-omit-frame-pointer -Wreorder)
+
 # Platform-specific sources.
 # Use GLOB_RECURSE so the build stays robust when the VST3 SDK is cloned at
 # a different revision than the local copy (files may live at slightly

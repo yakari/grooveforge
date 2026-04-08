@@ -48,6 +48,13 @@ DVH_API void gfpa_dsp_set_param(GfpaDspHandle handle,
                                  const char* paramId,
                                  double physicalValue);
 
+/// Set the bypass state of a DSP instance.
+///
+/// When bypassed, the insert callback copies input to output unchanged
+/// (zero CPU cost, zero latency).  Thread-safe: uses std::atomic<bool>
+/// internally; safe to call from the Dart isolate while the audio thread runs.
+DVH_API void gfpa_dsp_set_bypass(GfpaDspHandle handle, bool bypassed);
+
 /// Return the insert callback for this DSP instance.
 ///
 /// The returned function pointer is static and valid for the entire lifetime

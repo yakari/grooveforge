@@ -18,6 +18,8 @@ import '../models/vst3_plugin_instance.dart';
 import '../services/audio_engine.dart';
 import '../services/audio_graph.dart';
 import '../services/cc_mapping_service.dart';
+import 'cc_preferences.dart';
+import '../services/drum_generator_engine.dart';
 import '../services/looper_engine.dart';
 import '../services/midi_service.dart';
 import '../services/patch_drag_controller.dart';
@@ -109,6 +111,18 @@ class _RackScreenState extends State<RackScreen> {
   /// drag near the top or bottom edge of the patch view.
   Timer? _autoScrollTimer;
 
+  /// Debounce timer for CC-triggered transport toggle actions.
+  ///
+  /// Prevents double-toggle when a controller sends both press (127) and
+  /// release (0) CC events for the same button.
+  Timer? _transportDebounce;
+
+  /// Debounce timer for the CC-triggered channel-swap macro.
+  ///
+  /// Prevents rapid double-swap when a hardware button sends repeated CC
+  /// messages: only the first press within 250 ms fires the swap.
+  Timer? _swapDebounce;
+
   /// Debounce timer for MIDI-triggered auto-scroll.
   ///
   /// When hardware MIDI notes arrive in rapid succession (e.g. a chord),
@@ -185,6 +199,74 @@ class _RackScreenState extends State<RackScreen> {
         case 1009: _looperEngine.looperButtonPress(slotId);
         case 1012: _looperEngine.stop(slotId);
       }
+    };
+
+    // Slot-addressed CC parameter control — routes to RackState.
+    _engine.onSlotParamCc = _rackState.handleSlotParamCc;
+
+    // Transport CC actions (play/stop, tap tempo, metronome toggle).
+    // No CC value gate — some controllers send value=0 on press.
+    // Debounced (250ms) to prevent double-toggle from press+release pairs.
+    _engine.onTransportCc = (action, ccValue) {
+      if (_transportDebounce?.isActive ?? false) return;
+      _transportDebounce = Timer(const Duration(milliseconds: 250), () {});
+      switch (action) {
+        case TransportAction.playStop:
+          _transportEngine.isPlaying
+              ? _transportEngine.stop()
+              : _transportEngine.play();
+        case TransportAction.tapTempo:
+          _transportEngine.tapTempo();
+        case TransportAction.metronomeToggle:
+          _transportEngine.metronomeEnabled =
+              !_transportEngine.metronomeEnabled;
+      }
+    };
+
+    // Drum Generator pattern cycling.
+    _rackState.onDrumPatternCycle = (slotId, patternId) {
+      context.read<DrumGeneratorEngine>().loadBuiltinPattern(slotId, patternId);
+    };
+
+    // Global CC actions (system volume).
+    _engine.onGlobalCc = (action, ccValue) {
+      switch (action) {
+        case GlobalAction.systemVolume:
+          _engine.setSystemVolume(ccValue / 127.0);
+          final pct = (ccValue / 127.0 * 100).round();
+          final l10n = AppLocalizations.of(context);
+          _engine.toastNotifier.value = l10n != null
+              ? l10n.toastSystemVolume(pct)
+              : 'System volume: $pct%';
+      }
+    };
+
+    // Channel-swap macro — debounced toggle (fire on CC > 63).
+    _engine.onSwapSlots = (slotIdA, slotIdB, swapCables) {
+      // Ignore "release" messages (CC value 0 dispatches with the same target).
+      // The AudioEngine passes the raw CC value to _dispatchCcMapping, but the
+      // callback signature doesn't include it — SwapTarget fires for any value.
+      // We rely on the debounce to prevent double-fire from press+release.
+      if (_swapDebounce?.isActive ?? false) return;
+      _swapDebounce = Timer(const Duration(milliseconds: 250), () {});
+
+      _rackState.swapSlots(slotIdA, slotIdB, swapCables: swapCables);
+
+      // Toast — show human-readable slot names.
+      final nameA = _rackState.plugins
+              .where((p) => p.id == slotIdA)
+              .firstOrNull
+              ?.displayName ??
+          slotIdA;
+      final nameB = _rackState.plugins
+              .where((p) => p.id == slotIdB)
+              .firstOrNull
+              ?.displayName ??
+          slotIdB;
+      final l10n = AppLocalizations.of(context);
+      _engine.toastNotifier.value = l10n != null
+          ? l10n.toastSwapped(nameA, nameB)
+          : 'Swapped: $nameA ↔ $nameB';
     };
 
     // When the transport starts playing, arm any waiting looper sessions.
@@ -281,6 +363,13 @@ class _RackScreenState extends State<RackScreen> {
     _transportEngine.removeListener(_onTransportChanged);
     _looperEngine.onMidiPlayback = null;
     _engine.onLooperSystemAction = null;
+    _engine.onSlotParamCc = null;
+    _engine.onTransportCc = null;
+    _engine.onGlobalCc = null;
+    _engine.onSwapSlots = null;
+    _rackState.onDrumPatternCycle = null;
+    _transportDebounce?.cancel();
+    _swapDebounce?.cancel();
     _autoScrollTimer?.cancel();
     _midiScrollDebounce?.cancel();
     _scrollController.dispose();
@@ -1125,6 +1214,14 @@ class _RackScreenState extends State<RackScreen> {
                 ),
               ),
             ],
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings_remote),
+            tooltip: 'CC Mappings',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const CcPreferencesScreen()),
+            ),
           ),
           IconButton(
             icon: const Icon(Icons.help_outline),

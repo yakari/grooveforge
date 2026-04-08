@@ -1404,4 +1404,103 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get usbAudioDebugPlatformOnly =>
       'Android only — not available on this platform';
+
+  @override
+  String get ccCategoryTargetLabel => 'Target category';
+
+  @override
+  String get ccCategoryGmCc => 'Standard GM CC';
+
+  @override
+  String get ccCategoryInstruments => 'Instruments';
+
+  @override
+  String get ccCategoryAudioEffects => 'Audio Effects';
+
+  @override
+  String get ccCategoryMidiFx => 'MIDI FX';
+
+  @override
+  String get ccCategoryLooper => 'Looper';
+
+  @override
+  String get ccCategoryTransport => 'Transport';
+
+  @override
+  String get ccCategoryGlobal => 'Global';
+
+  @override
+  String get ccCategoryChannelSwap => 'Channel Swap';
+
+  @override
+  String get ccTransportPlayStop => 'Play / Stop';
+
+  @override
+  String get ccTransportTapTempo => 'Tap Tempo';
+
+  @override
+  String get ccTransportMetronomeToggle => 'Metronome Toggle';
+
+  @override
+  String get ccGlobalSystemVolume => 'System Volume';
+
+  @override
+  String get ccGlobalSystemVolumeHint =>
+      'CC 0-127 → System media volume (0-100%)';
+
+  @override
+  String get ccSlotPickerLabel => 'Slot';
+
+  @override
+  String get ccParamPickerLabel => 'Parameter';
+
+  @override
+  String get ccActionPickerLabel => 'Action';
+
+  @override
+  String get ccNoSlotsOfType => 'No slots of this type in the rack.';
+
+  @override
+  String get ccSwapInstrumentA => 'Instrument A';
+
+  @override
+  String get ccSwapInstrumentB => 'Instrument B';
+
+  @override
+  String get ccSwapCablesLabel => 'Swap cables (effect chains, Jam Mode links)';
+
+  @override
+  String get ccSwapNeedTwoSlots =>
+      'Need at least 2 instrument slots in the rack.';
+
+  @override
+  String ccSwapDisplayLabel(String slotA, String slotB) {
+    return 'Swap: $slotA ↔ $slotB';
+  }
+
+  @override
+  String get ccSwapCablesYes => 'with cables';
+
+  @override
+  String get ccSwapCablesNo => 'channels only';
+
+  @override
+  String toastSwapped(String slotA, String slotB) {
+    return 'Swapped: $slotA ↔ $slotB';
+  }
+
+  @override
+  String toastBypassOn(String slotName) {
+    return '$slotName — bypassed';
+  }
+
+  @override
+  String toastBypassOff(String slotName) {
+    return '$slotName — active';
+  }
+
+  @override
+  String toastSystemVolume(int percent) {
+    return 'System volume: $percent%';
+  }
 }

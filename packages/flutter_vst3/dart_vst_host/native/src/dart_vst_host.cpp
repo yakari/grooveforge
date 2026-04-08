@@ -235,6 +235,15 @@ int32_t dvh_resume(DVH_Plugin p, double sample_rate, int32_t max_block) {
   if (ps->component->setActive(true) != kResultTrue) return 0;
   if (ps->processor->setProcessing(true) != kResultTrue) return 0;
 
+  // Pre-allocate process buffers so dvh_process_stereo_f32 never allocates
+  // on the audio thread.  Secondary output buses (bus 1+) get scratch memory;
+  // bus 0 uses the caller's outL/outR pointers directly.
+  const int32_t secOut = std::max(0, numAudioOut - 1);
+  ps->procScratch.assign(secOut * 2 * max_block, 0.f);
+  ps->procOutPtrs.resize(numAudioOut);
+  ps->procOutBufs.resize(numAudioOut);
+  ps->procInBufs.resize(std::max(numAudioIn, 1));
+
   ps->active = true;
   fprintf(stderr, "[dart_vst_host] dvh_resume(p=%p) success: sr=%.1f maxBlock=%d numIn=%d numOut=%d\n",
           p, sample_rate, max_block, numAudioIn, numAudioOut);
@@ -266,36 +275,29 @@ int32_t dvh_process_stereo_f32(DVH_Plugin p,
   auto* ps = (DVH_PluginState*)p;
   std::lock_guard<std::mutex> g(ps->mtx);
 
-  // ── Output buses ─────────────────────────────────────────────────────────
-  // Provide AudioBusBuffers for every output bus the plugin declared.
-  // Bus 0 is our "main" stereo output (outL/outR). Secondary buses get
-  // scratch buffers — we don't use their content but the plugin must see
-  // valid writable memory so it doesn't skip processing entirely.
+  // ── Output buses (pre-allocated in dvh_resume — zero allocation) ────────
+  // Bus 0 = caller's outL/outR; secondary buses → procScratch.
   const int32 numOut = ps->numAudioOutputBuses;
-  // Scratch storage for secondary output buses (layout: bus1L, bus1R, bus2L…)
-  std::vector<float> scratch(std::max(0, numOut - 1) * 2 * num_frames, 0.f);
-
-  std::vector<std::array<float*, 2>> outPtrs(numOut);
-  std::vector<AudioBusBuffers> outBufs(numOut);
-  outPtrs[0] = { outL, outR };
+  ps->procOutPtrs[0] = { outL, outR };
   for (int32 i = 1; i < numOut; ++i) {
-    outPtrs[i] = { scratch.data() + (i - 1) * 2 * num_frames,
-                   scratch.data() + (i - 1) * 2 * num_frames + num_frames };
+    ps->procOutPtrs[i] = {
+      ps->procScratch.data() + (i - 1) * 2 * num_frames,
+      ps->procScratch.data() + (i - 1) * 2 * num_frames + num_frames
+    };
   }
   for (int32 i = 0; i < numOut; ++i) {
-    outBufs[i] = {};
-    outBufs[i].numChannels = 2;
-    outBufs[i].channelBuffers32 = outPtrs[i].data();
+    ps->procOutBufs[i] = {};
+    ps->procOutBufs[i].numChannels = 2;
+    ps->procOutBufs[i].channelBuffers32 = ps->procOutPtrs[i].data();
   }
 
-  // ── Input buses ──────────────────────────────────────────────────────────
+  // ── Input buses (pre-allocated in dvh_resume — zero allocation) ────────
   const int32 numIn = ps->numAudioInputBuses;
   const float* inChannels[2] = { inL, inR };
-  std::vector<AudioBusBuffers> inBufs(numIn);
   for (int32 i = 0; i < numIn; ++i) {
-    inBufs[i] = {};
-    inBufs[i].numChannels = 2;
-    inBufs[i].channelBuffers32 = const_cast<float**>(inChannels);
+    ps->procInBufs[i] = {};
+    ps->procInBufs[i].numChannels = 2;
+    ps->procInBufs[i].channelBuffers32 = const_cast<float**>(inChannels);
   }
 
   // ── ProcessContext ────────────────────────────────────────────────────────
@@ -318,9 +320,9 @@ int32_t dvh_process_stereo_f32(DVH_Plugin p,
   data.symbolicSampleSize = ps->setup.symbolicSampleSize;
   data.numSamples         = num_frames;
   data.numInputs          = numIn;
-  data.inputs             = numIn  > 0 ? inBufs.data()  : nullptr;
+  data.inputs             = numIn  > 0 ? ps->procInBufs.data()  : nullptr;
   data.numOutputs         = numOut;
-  data.outputs            = numOut > 0 ? outBufs.data() : nullptr;
+  data.outputs            = numOut > 0 ? ps->procOutBufs.data() : nullptr;
   data.inputParameterChanges  = &ps->inputParamChanges;
   data.outputParameterChanges = &ps->outputParamChanges;
   data.inputEvents            = &ps->inputEvents;

@@ -134,22 +134,20 @@ jobs:
           cat <<EOF > deb/DEBIAN/control
           Package: grooveforge
           Version: $VERSION_CLEAN
-          Section: utils
+          Section: sound
           Priority: optional
           Architecture: amd64
-          Depends: fluidsynth, libasound2, libjack0, libx11-6
-          Maintainer: Yann
-          Description: GrooveForge MIDI Synthesizer
+          Depends: libgtk-3-0 | libgtk-3-0t64, libasound2 | libasound2t64, libjack-jackd2-0, libx11-6, libfluidsynth3, libpulse0, libmpv2
+          Recommends: pipewire, pipewire-jack, pipewire-alsa, pipewire-pulse, wireplumber
+          Maintainer: Yann Poirier
+          Homepage: https://grooveforge.music
+          Description: Cross-platform MIDI synthesizer and VST3 host
+           GrooveForge connects to physical MIDI keyboards, hosts VST3 plugins,
+           and features a built-in multi-timbral synthesizer with vocoder support
+           and real-time Jam Mode with scale locking.
           EOF
-          
-          cat <<EOF > deb/usr/share/applications/grooveforge.desktop
-          [Desktop Entry]
-          Name=GrooveForge
-          Exec=grooveforge
-          Icon=grooveforge
-          Type=Application
-          Categories=Audio;Music;
-          EOF
+
+          cp $GITHUB_WORKSPACE/packaging/linux/grooveforge.desktop deb/usr/share/applications/grooveforge.desktop
           
           dpkg-deb --build deb GrooveForge-Linux-$VERSION.deb
       - name: Zip Bundle
@@ -163,6 +161,225 @@ jobs:
           path: |
             GrooveForge-Linux-${{ github.ref_name }}.deb
             GrooveForge-Linux-${{ github.ref_name }}-bundle.zip
+
+  # ---------------------------------------------------------------------------
+  # Fedora RPM — repackages the Ubuntu-built bundle with Fedora runtime deps.
+  # ---------------------------------------------------------------------------
+  package-rpm:
+    needs: build-linux
+    runs-on: ubuntu-latest
+    container: fedora:latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            packaging
+            icon.png
+
+      - name: Install rpmbuild
+        run: dnf install -y rpm-build unzip
+
+      - name: Download Linux bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-build
+
+      - name: Build RPM
+        run: |
+          VERSION=${{ github.ref_name }}
+          VERSION_CLEAN=${VERSION#v}
+
+          # Unpack the bundle into a temporary root.
+          mkdir -p bundle
+          cd bundle && unzip ../GrooveForge-Linux-${VERSION}-bundle.zip && cd ..
+
+          # Populate the buildroot with the expected file layout.
+          BUILDROOT=$(mktemp -d)
+          mkdir -p $BUILDROOT/usr/bin
+          mkdir -p $BUILDROOT/usr/share/grooveforge
+          mkdir -p $BUILDROOT/usr/share/applications
+          mkdir -p $BUILDROOT/usr/share/icons/hicolor/512x512/apps
+          mkdir -p $BUILDROOT/usr/share/metainfo
+
+          cp -r bundle/* $BUILDROOT/usr/share/grooveforge/
+          ln -s /usr/share/grooveforge/grooveforge $BUILDROOT/usr/bin/grooveforge
+          cp packaging/linux/grooveforge.desktop \
+             $BUILDROOT/usr/share/applications/grooveforge.desktop
+          cp icon.png \
+             $BUILDROOT/usr/share/icons/hicolor/512x512/apps/grooveforge.png
+          cp packaging/linux/com.grooveforge.grooveforge.metainfo.xml \
+             $BUILDROOT/usr/share/metainfo/com.grooveforge.grooveforge.metainfo.xml
+
+          rpmbuild --define "_version $VERSION_CLEAN" \
+                   --define "_topdir $(pwd)/rpmbuild" \
+                   --buildroot "$BUILDROOT" \
+                   --noclean \
+                   -bb packaging/rpm/grooveforge.spec
+
+          cp rpmbuild/RPMS/x86_64/*.rpm GrooveForge-Linux-${VERSION}.rpm
+
+      - name: Upload RPM
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpm-build
+          path: GrooveForge-Linux-${{ github.ref_name }}.rpm
+
+  # ---------------------------------------------------------------------------
+  # Arch Linux package — repackages the Ubuntu-built bundle for pacman.
+  # ---------------------------------------------------------------------------
+  package-arch:
+    needs: build-linux
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            packaging
+            icon.png
+
+      - name: Install build tools
+        run: |
+          pacman -Syu --noconfirm
+          pacman -S --noconfirm base-devel fakeroot
+
+      - name: Download Linux bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-build
+
+      - name: Build pacman package
+        run: |
+          VERSION=${{ github.ref_name }}
+          VERSION_CLEAN=${VERSION#v}
+
+          # makepkg refuses to run as root — create a build user.
+          useradd -m builder
+          BUILD_DIR=/home/builder/pkg
+          mkdir -p $BUILD_DIR
+
+          # Place the bundle zip where the PKGBUILD expects it.
+          cp GrooveForge-Linux-${VERSION}-bundle.zip $BUILD_DIR/bundle.zip
+          cp icon.png $BUILD_DIR/icon.png
+          cp packaging/linux/grooveforge.desktop $BUILD_DIR/grooveforge.desktop
+          cp packaging/linux/com.grooveforge.grooveforge.metainfo.xml \
+             $BUILD_DIR/com.grooveforge.grooveforge.metainfo.xml
+
+          # Generate the PKGBUILD. Depends verified on archlinux.org/packages.
+          cat <<'PKGEOF' > $BUILD_DIR/PKGBUILD
+          # Maintainer: Yann Poirier
+          pkgname=grooveforge
+          pkgver=_PKGVER_
+          pkgrel=1
+          pkgdesc="Cross-platform MIDI synthesizer and VST3 host"
+          arch=('x86_64')
+          url="https://grooveforge.music"
+          license=('MIT')
+          depends=(
+            'gtk3'
+            'alsa-lib'
+            'pipewire-jack'
+            'libx11'
+            'fluidsynth'
+            'libpulse'
+            'mpv'
+          )
+          source=('bundle.zip' 'icon.png' 'grooveforge.desktop'
+                  'com.grooveforge.grooveforge.metainfo.xml')
+          noextract=('bundle.zip')
+          sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP')
+
+          package() {
+            install -d "$pkgdir/usr/share/grooveforge"
+            cd "$pkgdir/usr/share/grooveforge"
+            bsdtar -xf "$srcdir/bundle.zip"
+
+            install -d "$pkgdir/usr/bin"
+            ln -s /usr/share/grooveforge/grooveforge "$pkgdir/usr/bin/grooveforge"
+
+            install -Dm644 "$srcdir/grooveforge.desktop" \
+              "$pkgdir/usr/share/applications/grooveforge.desktop"
+            install -Dm644 "$srcdir/icon.png" \
+              "$pkgdir/usr/share/icons/hicolor/512x512/apps/grooveforge.png"
+            install -Dm644 "$srcdir/com.grooveforge.grooveforge.metainfo.xml" \
+              "$pkgdir/usr/share/metainfo/com.grooveforge.grooveforge.metainfo.xml"
+          }
+          PKGEOF
+
+          # Inject the real version (PKGBUILD cannot use shell variables set outside).
+          sed -i "s/_PKGVER_/${VERSION_CLEAN}/" $BUILD_DIR/PKGBUILD
+
+          chown -R builder:builder $BUILD_DIR
+          cd $BUILD_DIR
+          su builder -c "makepkg --noconfirm --nodeps"
+
+          cp $BUILD_DIR/*.pkg.tar.zst /github/workspace/GrooveForge-Linux-${VERSION}.pkg.tar.zst
+
+      - name: Upload Arch package
+        uses: actions/upload-artifact@v4
+        with:
+          name: arch-build
+          path: GrooveForge-Linux-${{ github.ref_name }}.pkg.tar.zst
+
+  # ---------------------------------------------------------------------------
+  # Flatpak bundle — self-contained, runs on any distro with Flatpak installed.
+  # ---------------------------------------------------------------------------
+  package-flatpak:
+    needs: build-linux
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            packaging
+            icon.png
+
+      - name: Install Flatpak and flatpak-builder
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak flatpak-builder
+          flatpak remote-add --user --if-not-exists \
+            flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          flatpak install --user --noninteractive \
+            flathub org.freedesktop.Platform//24.08 org.freedesktop.Sdk//24.08
+
+      - name: Download Linux bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-build
+
+      - name: Prepare Flatpak build sources
+        run: |
+          VERSION=${{ github.ref_name }}
+
+          # Assemble the directory that the Flatpak manifest references as a
+          # "type: dir" source. It must contain the unpacked bundle, the desktop
+          # file, the metainfo XML, and the icon.
+          mkdir -p packaging/flatpak/flatpak-build/bundle
+          cd packaging/flatpak/flatpak-build/bundle
+          unzip $GITHUB_WORKSPACE/GrooveForge-Linux-${VERSION}-bundle.zip
+          cd $GITHUB_WORKSPACE
+
+          cp packaging/flatpak/com.grooveforge.grooveforge.desktop \
+             packaging/flatpak/flatpak-build/com.grooveforge.grooveforge.desktop
+          cp packaging/linux/com.grooveforge.grooveforge.metainfo.xml \
+             packaging/flatpak/flatpak-build/com.grooveforge.grooveforge.metainfo.xml
+          cp icon.png packaging/flatpak/flatpak-build/icon.png
+
+      - name: Build Flatpak
+        run: |
+          flatpak-builder --user --force-clean --repo=flatpak-repo \
+            flatpak-builddir packaging/flatpak/com.grooveforge.grooveforge.yml
+
+          flatpak build-bundle flatpak-repo \
+            GrooveForge-Linux-${{ github.ref_name }}.flatpak \
+            com.grooveforge.grooveforge
+
+      - name: Upload Flatpak
+        uses: actions/upload-artifact@v4
+        with:
+          name: flatpak-build
+          path: GrooveForge-Linux-${{ github.ref_name }}.flatpak
 
   build-windows:
     runs-on: windows-latest
@@ -327,7 +544,7 @@ jobs:
           path: GrooveForge-iOS-${{ github.ref_name }}-unsigned.ipa
 
   create-release:
-    needs: [build-android, build-linux, build-windows, build-macos, build-ios]
+    needs: [build-android, build-linux, package-rpm, package-arch, package-flatpak, build-windows, build-macos, build-ios]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -355,6 +572,9 @@ jobs:
           files: |
             artifacts/android-build/*
             artifacts/linux-build/*
+            artifacts/rpm-build/*
+            artifacts/arch-build/*
+            artifacts/flatpak-build/*
             artifacts/windows-build/*
             artifacts/macos-build/*
             artifacts/ios-build/*

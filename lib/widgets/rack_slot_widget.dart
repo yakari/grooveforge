@@ -12,6 +12,9 @@ import '../models/vst3_plugin_instance.dart';
 import '../models/audio_graph_connection.dart';
 import '../models/audio_port_id.dart';
 import '../services/audio_engine.dart';
+import '../services/cc_mapping_service.dart';
+import '../services/cc_param_registry.dart';
+import 'rack/slot_cc_assign_dialog.dart';
 import '../services/audio_graph.dart';
 import '../services/looper_engine.dart';
 import '../services/rack_state.dart';
@@ -374,6 +377,22 @@ class _SlotHeader extends StatelessWidget {
             const SizedBox(width: 4),
           ],
 
+          // ── CC assign button — opens per-slot CC mapping dialog
+          if (_hasCcParams(plugin))
+            IconButton(
+              icon: Icon(
+                Icons.settings_remote_outlined,
+                size: 16,
+                color: _hasCcMappings(context, plugin)
+                    ? Colors.blueAccent
+                    : Colors.white38,
+              ),
+              tooltip: 'CC Assign',
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+              onPressed: () => _showSlotCcAssign(context, plugin),
+            ),
+
           // ── Delete button
           IconButton(
             icon: const Icon(Icons.close, size: 18, color: Colors.white38),
@@ -385,6 +404,47 @@ class _SlotHeader extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  /// Returns true if this plugin type has CC-controllable parameters in
+  /// [CcParamRegistry].
+  bool _hasCcParams(PluginInstance p) {
+    final pluginId = _pluginIdForCcRegistry(p);
+    return pluginId != null &&
+        (CcParamRegistry.forPluginId(pluginId)?.isNotEmpty ?? false);
+  }
+
+  /// Returns true if the CC mapping service currently has any [SlotParamTarget]
+  /// mappings for this slot.
+  bool _hasCcMappings(BuildContext context, PluginInstance p) {
+    final ccService = context.read<CcMappingService>();
+    return ccService.mappingsNotifier.value.any((m) {
+      final t = m.target;
+      return t is SlotParamTarget && t.slotId == p.id;
+    });
+  }
+
+  /// Opens the per-slot CC assign dialog.
+  void _showSlotCcAssign(BuildContext context, PluginInstance p) {
+    final pluginId = _pluginIdForCcRegistry(p);
+    if (pluginId == null) return;
+    showDialog(
+      context: context,
+      builder: (_) => SlotCcAssignDialog(
+        slotId: p.id,
+        pluginId: pluginId,
+        slotDisplayName: p.displayName,
+      ),
+    );
+  }
+
+  /// Maps a [PluginInstance] to the plugin ID used in [CcParamRegistry].
+  String? _pluginIdForCcRegistry(PluginInstance p) {
+    if (p is GrooveForgeKeyboardPlugin) return '_gf_keyboard';
+    if (p is LooperPluginInstance) return '_looper';
+    if (p is DrumGeneratorPluginInstance) return '_drum_generator';
+    if (p is GFpaPluginInstance) return p.pluginId;
+    return null; // VST3 — no CC params yet.
   }
 
   IconData _iconFor(PluginInstance p) {

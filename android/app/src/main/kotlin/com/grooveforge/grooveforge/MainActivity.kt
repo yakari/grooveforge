@@ -110,6 +110,15 @@ class MainActivity : FlutterActivity() {
                         map
                     })
                 }
+                "setSystemVolume" -> {
+                    // Set the system media volume to a percentage (0-100).
+                    // Maps CC 0-127 → 0-100% → 0-maxVolume on STREAM_MUSIC.
+                    val pct = call.argument<Int>("percent") ?: 50
+                    val maxVol = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+                    val vol = (pct * maxVol / 100).coerceIn(0, maxVol)
+                    am.setStreamVolume(AudioManager.STREAM_MUSIC, vol, 0)
+                    result.success(null)
+                }
                 "getAndroidSdkVersion" -> {
                     result.success(android.os.Build.VERSION.SDK_INT)
                 }

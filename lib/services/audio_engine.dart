@@ -244,6 +244,23 @@ class AudioEngine extends ChangeNotifier {
   /// Arguments: the system action code (1009-1013) and the CC value (0-127).
   void Function(int actionCode, int ccValue)? onLooperSystemAction;
 
+  /// Callback for slot-addressed CC parameter control.
+  /// Wired by [RackScreen] to [RackState._handleSlotParamCc].
+  void Function(String slotId, String paramKey, CcParamMode mode, int ccValue)?
+      onSlotParamCc;
+
+  /// Callback for channel-swap macro.
+  /// Wired by [RackScreen] to [RackState.swapSlots].
+  void Function(String slotIdA, String slotIdB, bool swapCables)?
+      onSwapSlots;
+
+  /// Callback for transport CC actions (play/stop, tap tempo, metronome).
+  /// Wired by [RackScreen] to [TransportEngine].
+  void Function(TransportAction action, int ccValue)? onTransportCc;
+
+  /// Callback for global CC actions (system volume).
+  void Function(GlobalAction action, int ccValue)? onGlobalCc;
+
   final ValueNotifier<int> vocoderInputDeviceIndex = ValueNotifier<int>(-1);
   final ValueNotifier<int> vocoderInputAndroidDeviceId = ValueNotifier<int>(-1);
   final ValueNotifier<int> vocoderOutputAndroidDeviceId = ValueNotifier<int>(
@@ -283,6 +300,29 @@ class AudioEngine extends ChangeNotifier {
     } else {
       MidiPro().setGain(fluidSynthGain.value);
     }
+  }
+
+  /// Sets the system media volume to [normalized] (0.0–1.0).
+  ///
+  /// Platform-specific:
+  /// - Android: `AudioManager.setStreamVolume(STREAM_MUSIC, …)` via method channel.
+  /// - Linux: `pactl set-sink-volume @DEFAULT_SINK@ X%` via `Process.run`.
+  /// - macOS: `osascript -e "set volume output volume X"` via `Process.run`.
+  /// - iOS / Web: no-op (Apple restricts programmatic volume; web has no system access).
+  void setSystemVolume(double normalized) {
+    final pct = (normalized * 100).round().clamp(0, 100);
+    if (!kIsWeb && Platform.isAndroid) {
+      audioConfigChannel.invokeMethod('setSystemVolume', {'percent': pct});
+    } else if (!kIsWeb && Platform.isLinux) {
+      Process.run('pactl', [
+        'set-sink-volume',
+        '@DEFAULT_SINK@',
+        '$pct%',
+      ]);
+    } else if (!kIsWeb && Platform.isMacOS) {
+      Process.run('osascript', ['-e', 'set volume output volume $pct']);
+    }
+    // iOS / Web: no-op.
   }
 
   void updateVocoderParameters() {
@@ -1317,61 +1357,15 @@ class AudioEngine extends ChangeNotifier {
         case 0xB0:
           if (ccMappingService != null) {
             ccMappingService!.updateLastEvent('CC', channel, data1, data2);
-            final mapping = ccMappingService!.getMapping(data1);
-            if (mapping != null) {
-              if (mapping.targetCc >= 1000) {
-                // Looper (1009-1013) and mute (1014) actions are channel-agnostic:
-                // fire once with the full mapping rather than once per channel.
-                if (mapping.targetCc >= 1009) {
-                  _handleSystemCommand(
-                    mapping.targetCc,
-                    channel,
-                    data2,
-                    muteChannels: mapping.muteChannels,
-                  );
-                } else if (mapping.targetChannel == -1) {
-                  // Broadcast system action to all 16 channels.
-                  for (int i = 0; i < 16; i++) {
-                    _handleSystemCommand(mapping.targetCc, i, data2);
-                  }
-                } else if (mapping.targetChannel >= 0 &&
-                    mapping.targetChannel <= 15) {
-                  _handleSystemCommand(
-                    mapping.targetCc,
-                    mapping.targetChannel,
-                    data2,
-                  );
-                } else {
-                  _handleSystemCommand(mapping.targetCc, channel, data2);
-                }
-              } else {
-                // Normal CC remapping
-                if (mapping.targetChannel == -1) {
-                  for (int i = 0; i < 16; i++) {
-                    setControlChange(
-                      channel: i,
-                      controller: mapping.targetCc,
-                      value: data2,
-                    );
-                  }
-                } else if (mapping.targetChannel == -2) {
-                  setControlChange(
-                    channel: channel,
-                    controller: mapping.targetCc,
-                    value: data2,
-                  );
-                } else {
-                  setControlChange(
-                    channel: mapping.targetChannel,
-                    controller: mapping.targetCc,
-                    value: data2,
-                  );
-                }
+            final mappings = ccMappingService!.getMappings(data1);
+            if (mappings.isNotEmpty) {
+              for (final mapping in mappings) {
+                _dispatchCcMapping(mapping.target, channel, data2);
               }
               return;
             }
           }
-          // Default: send normal CC
+          // Default: send normal CC (no mapping matched).
           setControlChange(channel: channel, controller: data1, value: data2);
           break;
         case 0xE0:
@@ -2103,6 +2097,69 @@ class AudioEngine extends ChangeNotifier {
   /// Dispatches a resolved system action coming from a CC mapping.
   ///
   /// [targetAction] is the system action code (1001-1014).
+  /// Routes a single CC mapping target to the appropriate handler.
+  ///
+  /// Called once per mapping when an incoming CC matches. Multiple mappings
+  /// can share the same incoming CC, so this may be called several times
+  /// for a single hardware event.
+  void _dispatchCcMapping(CcMappingTarget target, int channel, int ccValue) {
+    switch (target) {
+      case GmCcTarget(:final targetCc, :final targetChannel):
+        // Standard GM CC remapping — route by channel mode.
+        _sendRemappedCc(targetCc, targetChannel, channel, ccValue);
+
+      case SystemTarget(:final actionCode, :final targetChannel,
+            :final muteChannels):
+        // Legacy system actions (1001-1014).
+        if (actionCode >= 1009) {
+          // Looper and mute actions are channel-agnostic.
+          _handleSystemCommand(actionCode, channel, ccValue,
+              muteChannels: muteChannels);
+        } else if (targetChannel == -1) {
+          for (int i = 0; i < 16; i++) {
+            _handleSystemCommand(actionCode, i, ccValue);
+          }
+        } else if (targetChannel >= 0 && targetChannel <= 15) {
+          _handleSystemCommand(actionCode, targetChannel, ccValue);
+        } else {
+          _handleSystemCommand(actionCode, channel, ccValue);
+        }
+
+      case SlotParamTarget(:final slotId, :final paramKey, :final mode):
+        onSlotParamCc?.call(slotId, paramKey, mode, ccValue);
+
+      case SwapTarget(:final slotIdA, :final slotIdB, :final swapCables):
+        // Fire on every CC event — some controllers send value=0 on press.
+        // The RackScreen debounce (250ms) prevents double-fire from
+        // press+release pairs.
+        onSwapSlots?.call(slotIdA, slotIdB, swapCables);
+
+      case TransportTarget(:final action):
+        onTransportCc?.call(action, ccValue);
+
+      case GlobalTarget(:final action):
+        onGlobalCc?.call(action, ccValue);
+    }
+  }
+
+  /// Sends a remapped GM CC to the target channel(s).
+  ///
+  /// [targetChannel] routing: -1 = all 16, -2 = same as incoming, 0-15 = specific.
+  void _sendRemappedCc(int targetCc, int targetChannel, int incomingChannel,
+      int value) {
+    if (targetChannel == -1) {
+      for (int i = 0; i < 16; i++) {
+        setControlChange(channel: i, controller: targetCc, value: value);
+      }
+    } else if (targetChannel == -2) {
+      setControlChange(
+          channel: incomingChannel, controller: targetCc, value: value);
+    } else {
+      setControlChange(
+          channel: targetChannel, controller: targetCc, value: value);
+    }
+  }
+
   /// [incomingChannel] is the MIDI channel on which the original CC arrived (0-15).
   /// [value] is the raw CC value (0-127).
   /// [muteChannels] carries the set of channels to toggle for action 1014;
@@ -2146,13 +2203,13 @@ class AudioEngine extends ChangeNotifier {
             'Scale Lock [Ch $incomingChannel]: ${channels[incomingChannel].isScaleLocked.value ? "ON" : "OFF"}';
         _saveState();
       } else if (targetAction == 1001) {
-        _cycleChannelSoundfont(incomingChannel, 1);
+        cycleChannelSoundfont(incomingChannel, 1);
       } else if (targetAction == 1002) {
-        _cycleChannelSoundfont(incomingChannel, -1);
+        cycleChannelSoundfont(incomingChannel, -1);
       } else if (targetAction == 1003) {
-        _changePatchIndex(incomingChannel, 1);
+        changePatchIndex(incomingChannel, 1);
       } else if (targetAction == 1004) {
-        _changePatchIndex(incomingChannel, -1);
+        changePatchIndex(incomingChannel, -1);
       } else if (targetAction == 1008) {
         final currentTypes = ScaleType.values;
         int nextIndex =
@@ -2177,7 +2234,10 @@ class AudioEngine extends ChangeNotifier {
     }
   }
 
-  void _cycleChannelSoundfont(int channel, int delta) {
+  /// Cycles to the next/previous loaded soundfont on [channel].
+  ///
+  /// [delta] is +1 for next, -1 for previous.
+  void cycleChannelSoundfont(int channel, int delta) {
     if (loadedSoundfonts.isEmpty) {
       return;
     }
@@ -2190,7 +2250,8 @@ class AudioEngine extends ChangeNotifier {
     assignSoundfontToChannel(channel, loadedSoundfonts[nextIndex]);
   }
 
-  void _changePatchIndex(int channel, int delta) {
+  /// Changes the MIDI program number on [channel] by [delta] (+1 or -1).
+  void changePatchIndex(int channel, int delta) {
     int nextProgram = (channels[channel].program + delta) % 128;
     if (nextProgram < 0) {
       nextProgram = 127;

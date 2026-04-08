@@ -1,10 +1,9 @@
 # GrooveForge Roadmap
 
 > **Current released version:** 2.10.0
-> **Next milestone:** 🔜 Multi-USB audio (Android)
-> **Next after Multi-USB:** Per-project CC mappings (move CC config into `.gf` files)
-> **Last updated:** 2026-04-06
-> **After CC rework:** Audio Looper (PCM)
+> **Next milestone:** 🔜 Audio Looper (PCM)
+> **Previous:** ✅ Per-project CC mappings (complete)
+> **Last updated:** 2026-04-08
 
 ---
 
@@ -25,8 +24,8 @@
 | 2.9.0 | Drum Generator | ✅ Complete | New Drum Generator features |
 | 2.10.0 | MIDI Looper rework | ✅ Complete | Remove chord detection; simplify engine + UI; bar-sync recording start |
 | 2.10.0 | PipeWire migration (Linux) | ✅ Complete | Replace direct ALSA with PipeWire/JACK; inter-app routing; lower latency |
-| **TBD** | **Multi-USB audio (Android)** | **🔜 Next** | Device routing via `setDeviceId()`; built-in mic + USB output as reliable multi-device path |
-| TBD | Per-project CC mappings | 🔜 After Multi-USB | Move CC mappings into `.gf` project files for per-song/performance configs |
+| TBD | Multi-USB audio (Android) | ✅ Complete | Device routing via `setDeviceId()`; built-in mic + USB output as reliable multi-device path |
+| **TBD** | **Per-project CC mappings** | **✅ Complete** | Slot-addressed CC control, per-project storage, effect bypass, channel-swap macro, transport/volume CC |
 | TBD | Audio Looper (PCM) | 🔜 After CC rework | Built on top of the simplified looper |
 | TBD | Phase 8 (full) | ⏸ TBD | pub.dev publishing; plugin store; vocoder mk2 |
 | TBD | Phase 8b | ⏸ TBD | AudioUnit v3 bridge (macOS + iOS) |
@@ -223,6 +222,12 @@ Deferred from Phase 6 and reassessed after the looper rework (Step 4). These bui
 - [ ] **CC Mapping integration**: surface per-slot `LooperSession.ccAssignments` in the global `cc_preferences.dart` screen so users can manage looper CC bindings alongside other mappings.
 - [ ] **Two looper slots simultaneously — no timing drift**: verify that two looper slots sharing the same `TransportEngine` clock stay phase-locked over 5+ minutes of continuous playback; add a regression test if drift is found.
 
+### 📊 Project Overview Panel
+
+A read-only dashboard showing the current project's structure at a glance: every loaded module with its MIDI channel, audio/MIDI connections to other modules (and link type — audio cable, Jam follower, CC mapping), and a compact routing diagram. Useful for complex racks where scrolling through individual slot cards is tedious.
+
+- [ ] **Project overview panel**: modal or side-panel showing all loaded modules, their MIDI channels, inter-module links (audio cables, Jam follower relationships, CC mappings per slot), and a compact routing summary.
+
 ### 📦 VST3 Bundles (Phase 3b — incomplete items)
 
 These tasks complete the distributable `.vst3` bundle story started in Phase 3b. They are prerequisites for listing GrooveForge plugins in DAW plugin managers on macOS and Windows.
@@ -296,71 +301,221 @@ Given the HAL limitation, the multi-USB feature pivots to:
 
 ### 🧪 Step 4 — Testing
 
-- [ ] Single USB audio device → works as before, no regression.
-- [ ] Unplug USB device mid-session → graceful fallback to system default, no crash.
-- [ ] USB composite device (single device with both I/O, e.g. dock with jack headset) → works without needing multi-device routing.
-- [ ] Built-in mic + USB output → both streams active, audio plays through USB while built-in mic captures.
+- [x] Single USB audio device → works as before, no regression.
+- [x] Unplug USB device mid-session → graceful fallback to system default, no crash.
+- [x] USB composite device (single device with both I/O, e.g. dock with jack headset) → works without needing multi-device routing.
+- [x] Built-in mic + USB output → both streams active, audio plays through USB while built-in mic captures.
 - [x] USB hub + jack output + USB mic on Samsung → **FAIL**: Android HAL deactivates the second USB device.
-- [ ] Android < 28 → device selector hidden.
+- [x] Android < 28 → device selector hidden.
 
 ---
 
-## 🎛️ TBD — Per-Project CC Mappings
+## 🎛️ TBD — Per-Project CC Mappings 🔜 Next
 
-CC mappings are currently stored in `SharedPreferences` as a global singleton — every project shares the same hardware-to-action routing. This means switching songs or performances requires manually reconfiguring CC bindings, which is impractical for live use. Moving CC mappings into the `.gf` project file makes them part of the creative context: each song or performance set carries its own hardware configuration, and loading a project instantly reconfigures the MIDI controller.
+GrooveForge's CC mapping system is currently limited: ~12 system actions (next/prev soundfont, looper start/stop, mute, jam toggle), standard GM CC remapping, and global storage in SharedPreferences. This milestone transforms CC mappings into a comprehensive, per-project, slot-addressed control surface.
 
 ### Why this matters
 
 - **Live performance**: a guitarist's pedalboard CC layout for a blues set is different from a synth-heavy electronic set. Switching projects should switch the entire CC map.
 - **Collaboration**: sharing a `.gf` file includes the hardware mapping, so a collaborator with the same controller model gets the same experience.
-- **Per-slot looper CC**: the looper's CC assign dialog currently creates global `CcMapping` entries via `CcMappingService`. Once mappings live in the project, looper CC bindings naturally persist per-project.
+- **Deep module control**: bypass effects on the fly, sweep a wah center frequency, cycle arpeggiator patterns, change vocoder waveforms — all from hardware CC without touching the screen.
+- **Channel-swap macro**: one CC press swaps two instruments' MIDI channels (and optionally their entire signal chains), enabling instant live instrument switching.
+- **System integration**: control transport (play/stop, tap tempo, metronome) and OS media volume directly from hardware.
 
-### Architecture
+### Architecture — current vs. target
 
 ```mermaid
 graph TD
-    subgraph Current["Current — Global"]
-        SP[SharedPreferences] -->|load on app start| CMS[CcMappingService\nmappingsNotifier]
-        CMS -->|translate CC| AE[AudioEngine]
+    subgraph Current["Current — Global, flat"]
+        SP[SharedPreferences] -->|load on app start| CMS[CcMappingService\nMap‹int, CcMapping›]
+        CMS -->|"targetCc < 1000:\nGM CC remap"| AE[AudioEngine\nsetControlChange]
+        CMS -->|"targetCc >= 1000:\nsystem action"| SYS[_handleSystemCommand\n12 actions]
     end
 
-    subgraph Target["Target — Per-Project"]
-        GF[".gf project file\n'ccMappings': [...]"] -->|ProjectService.load| CMS2[CcMappingService\nmappingsNotifier]
-        CMS2 -->|translate CC| AE2[AudioEngine]
+    subgraph Target["Target — Per-project, sealed targets"]
+        GF[".gf project file\nccMappings: [...]"] -->|ProjectService.load| CMS2[CcMappingService\nList‹CcMapping›]
+        CMS2 -->|GmCcTarget| AE2[AudioEngine\nsetControlChange]
+        CMS2 -->|SystemTarget| SYS2[_handleSystemCommand\nlegacy compat]
+        CMS2 -->|SlotParamTarget| RS[RackState\nslot param dispatch]
+        CMS2 -->|SwapTarget| SWAP[RackState.swapSlots\nchannel ± cable swap]
+        CMS2 -->|TransportTarget| TR[TransportEngine\nplay/stop · tap · metronome]
+        CMS2 -->|GlobalTarget| GL[Platform APIs\nOS volume control]
         CMS2 -->|serialize on change| GF
     end
 ```
 
-### Step 1 — Data model migration
+### New data model — sealed `CcMappingTarget` hierarchy
 
-- [ ] Add a `"ccMappings"` key to the `.gf` JSON schema: an array of `{ "incomingCc": int, "targetCc": int, "targetChannel": int, "muteChannels"?: [int] }` objects.
-- [ ] `CcMappingService.loadFromProject(List<CcMapping>)` — replaces the current mappings wholesale (called by `ProjectService` on project load).
-- [ ] `CcMappingService.toJson()` — serialises current mappings for project save.
-- [ ] `ProjectService.save` / `ProjectService.load` — read/write `ccMappings` alongside the existing `plugins` array.
-- [ ] Backward compatibility: if `ccMappings` is absent in a loaded `.gf` file, fall back to the current `SharedPreferences` state and migrate it into the project on first save.
+The current `CcMapping.targetCc` field is overloaded (GM CCs 0-127, system actions 1001+). The new model uses a sealed class hierarchy with six target types:
 
-### Step 2 — Remove global persistence
+```dart
+class CcMapping {
+  final int incomingCc;           // Hardware CC 0-127
+  final CcMappingTarget target;   // Sealed — one of six types
+}
 
-- [ ] Remove the `SharedPreferences` storage from `CcMappingService` (`_prefsKey`, `_persist()`, `_loadMappings()`).
-- [ ] On app start with no project loaded, `CcMappingService` starts with an empty mapping set.
-- [ ] The CC preferences screen remains unchanged — it reads/writes `CcMappingService.mappingsNotifier` as before, but the backing store is now the active project.
+sealed class CcMappingTarget { toJson(); fromJson(); }
 
-### Step 3 — UI polish
+class GmCcTarget       { targetCc, targetChannel }           // Standard GM remap
+class SystemTarget     { actionCode, targetChannel, muteChannels? } // Legacy 1001-1014
+class SlotParamTarget  { slotId, paramKey, mode }             // Slot-addressed param
+class SwapTarget       { slotIdA, slotIdB, swapCables }       // Channel-swap macro
+class TransportTarget  { action: playStop|tapTempo|metronomeToggle }
+class GlobalTarget     { action: systemVolume }               // OS-level controls
+```
 
-- [ ] When the user modifies a CC mapping (add/remove/edit), mark the project as dirty so autosave captures the change.
-- [ ] Project info panel: show a "CC mappings: N" count so the user knows mappings are project-scoped.
-- [ ] Import/export: add "Import CC mappings from another project" option in the CC preferences screen — loads `ccMappings` from a `.gf` file without replacing the rest of the project.
+**Multiple mappings per CC**: one hardware knob can control multiple targets (e.g. CC 20 → reverb mix + delay mix). Storage changes from `Map<int, CcMapping>` to `List<CcMapping>` with a pre-built `Map<int, List<CcMapping>>` index.
 
-### Step 4 — l10n
+#### `.gf` JSON schema
 
-- [ ] Add EN/FR keys: `ccMappingsProjectScoped`, `ccMappingsImport`, `ccMappingsImportTitle`, `ccMappingsCount`.
+```json
+{
+  "ccMappings": [
+    { "cc": 20, "target": { "type": "slotParam", "slotId": "slot-3", "paramKey": "mix", "mode": "absolute" } },
+    { "cc": 64, "target": { "type": "slotParam", "slotId": "slot-3", "paramKey": "bypass", "mode": "toggle" } },
+    { "cc": 30, "target": { "type": "swap", "slotIdA": "slot-0", "slotIdB": "slot-1", "swapCables": true } },
+    { "cc": 31, "target": { "type": "transport", "action": "playStop" } },
+    { "cc": 7,  "target": { "type": "global", "action": "systemVolume" } }
+  ]
+}
+```
 
-### 🧪 Step 5 — Smoke test
+### Curated parameter registry
 
-- [ ] Create project A with CC 20 → Filter Cutoff. Create project B with CC 20 → Looper Button. Switch between A and B → verify CC 20 behaviour changes.
-- [ ] Load an old `.gf` file without `ccMappings` → verify mappings migrated from SharedPreferences on first save.
-- [ ] Share a `.gf` file to another device → verify CC mappings restored.
-- [ ] Delete all CC mappings, save → verify `ccMappings` is an empty array (not absent).
+Static Dart registry (`CcParamRegistry`) — not embedded in `.gfpd` descriptors. Declares which parameters per plugin type are CC-controllable.
+
+| Plugin type | paramKey | GFPA paramId | Mode | Notes |
+|---|---|---|---|---|
+| **All audio effects** | `bypass` | — | toggle | `state['__bypass']` |
+| **Reverb** | `mix` | 3 | absolute | |
+| **Delay** | `mix` | 4 | absolute | |
+| **Delay** | `time` | 0 | absolute | |
+| **Delay** | `bpm_sync` | 2 | toggle | |
+| **Compressor** | `threshold` | 0 | absolute | |
+| **Chorus** | `mix` | 6 | absolute | |
+| **Chorus** | `rate` | 0 | absolute | |
+| **Wah** | `center` | 0 | absolute | |
+| **Wah** | `depth` | 3 | absolute | |
+| **All MIDI FX** | `bypass` | — | toggle | `state['__bypass']` |
+| **Arpeggiator** | `pattern` | 0 | cycle | 6 options |
+| **Arpeggiator** | `division` | 1 | cycle | 9 options |
+| **Chord Expand** | `chord_type` | 0 | cycle | 11 options |
+| **Transposer** | `semitones` | 0 | absolute | |
+| **Velocity Curve** | `amount` | 1 | absolute | |
+| **Jam Mode** | `scale_type` | 0 | cycle | 14 options |
+| **Jam Mode** | `detection_mode` | 1 | cycle | 2 options |
+| **GF Keyboard** | `next_patch` | — | cycle | `_changePatchIndex` |
+| **GF Keyboard** | `prev_patch` | — | cycle | |
+| **GF Keyboard** | `next_soundfont` | — | cycle | `_cycleChannelSoundfont` |
+| **GF Keyboard** | `prev_soundfont` | — | cycle | |
+| **Vocoder** | `waveform` | 0 | cycle | 4 (saw/square/choral/neutral) |
+| **Vocoder** | `noise_mix` | — | absolute | `vocoderNoiseMix` notifier |
+
+### Channel-swap algorithm
+
+`RackState.swapSlots(String slotIdA, String slotIdB, {bool swapCables = true})`:
+
+**Always** (channels-only):
+1. Validate both slots exist and are instrument-type (`midiChannel > 0`)
+2. Swap MIDI channels: `pluginA.midiChannel ↔ pluginB.midiChannel`
+3. Re-apply `_applyPluginToEngine()` for both (re-routes FluidSynth)
+4. Re-sync `_syncJamFollowerMapToEngine()` (Jam entries reference channels)
+5. Re-sync `VstHostService.syncAudioRouting()`
+
+**Additionally when `swapCables == true`:**
+6. Rewire `AudioGraph`: `swapSlotReferences(slotIdA, slotIdB)` — bulk rewrite all connections
+7. Swap Jam Mode slot references (`masterSlotId`, `targetSlotIds`)
+8. Update CC mappings: any `SlotParamTarget` referencing either slot gets swapped
+
+### System volume control
+
+| Platform | API | Notes |
+|---|---|---|
+| Android | `AudioManager.setStreamVolume(STREAM_MUSIC, …)` | Method channel in `MainActivity.kt` |
+| Linux | `pactl set-sink-volume @DEFAULT_SINK@ X%` | `Process.run` |
+| macOS | `osascript -e "set volume output volume X"` | `Process.run` |
+| iOS | Not possible (Apple restriction) | Toast explaining limitation |
+| Web | `AudioContext.destination.gain` | App audio only |
+
+### CC preferences UI — hierarchical target picker
+
+```
+[Category]          → [Slot]              → [Parameter]
+├─ Standard GM CC   → (channel picker)     → CC number
+├─ Instruments      → GF Keyboard 1        → Next Patch / Prev Patch / Next SF / …
+│                   → Vocoder              → Waveform / Noise Mix
+├─ Audio Effects    → Reverb (slot-3)      → Bypass / Mix
+│                   → Delay (slot-4)       → Bypass / Mix / Time / BPM Sync
+├─ MIDI FX          → Arpeggiator (slot-5) → Bypass / Pattern / Division
+│                   → Jam Mode (slot-6)    → Bypass / Scale Type / Detection
+├─ Looper           → (existing actions)
+├─ Transport        → Play/Stop / Tap Tempo / Metronome Toggle
+├─ Global           → System Volume
+└─ Macros           → Swap: [slot A] ↔ [slot B] (checkbox: swap cables?)
+```
+
+---
+
+### 🎛️ Phase A — Foundation (model + project storage)
+
+- [x] Implement sealed `CcMappingTarget` hierarchy (`GmCcTarget`, `SystemTarget`, `SlotParamTarget`, `SwapTarget`, `TransportTarget`, `GlobalTarget`) with JSON serialization in `cc_mapping_service.dart`.
+- [x] Change `CcMappingService` storage from `Map<int, CcMapping>` to `List<CcMapping>` with pre-built `Map<int, List<CcMapping>>` index for O(1) lookup.
+- [x] Implement `CcMappingService.toJson()` and `CcMappingService.loadFromJson(List<dynamic>)`.
+- [x] Remove `SharedPreferences` persistence from `CcMappingService` (`_prefsKey`, `_persist()`, `_loadMappings()`).
+- [x] Wire `ccMappings` into `ProjectService.save` / `_readGfFile` alongside existing `plugins` and `audioGraph` keys.
+- [x] Backward compatibility: if `ccMappings` absent in `.gf`, migrate from SharedPreferences on first save, then delete the prefs key.
+- [x] On app start with no project, `CcMappingService` starts with empty mapping set.
+
+### 🎛️ Phase B — Audio effect bypass
+
+- [x] Add `state['__bypass']` support to GFPA audio effect slots in `RackState` — `toggleEffectBypass()` and `setEffectBypass()` methods push state to native DSP via `VstHostService.setGfpaDspBypass()`.
+- [x] Wire bypass into the audio render path: `GfpaDspInstance::insertCb()` checks `std::atomic<bool> bypassed` (relaxed load, zero CPU cost) and copies input→output unchanged when bypassed. `gfpa_dsp_set_bypass()` C API added to `gfpa_dsp.h/.cpp`. Shared by Android and desktop — both platforms call the same `insertCb`.
+- [x] Add bypass UI toggle button on audio effect slot cards — reuses `_BypassHeader` widget from MIDI FX. CC assign button hidden for now (deferred to Phase C/D). `_onParamChanged()` preserves `__bypass` meta-key across DSP state writes.
+- [x] Persist bypass state in `.gf` via existing `GFpaPluginInstance.state` serialization. `_syncBypassStatesToNative()` re-applies bypass states after every routing rebuild.
+
+### 🎛️ Phase C — Registry + slot-addressed dispatch
+
+- [x] Create `CcParamRegistry` static registry with curated parameters per plugin type — 26 params across 14 plugin types in `cc_param_registry.dart`. Lookup by plugin ID + param key.
+- [x] Expand CC dispatch in `AudioEngine._dispatchCcMapping` — all six sealed target types route to typed callbacks (`onSlotParamCc`, `onSwapSlots`, `onTransportCc`, `onGlobalCc`). Already done in Phase A.
+- [x] Add `onSlotParamCc` callback → `RackState.handleSlotParamCc()` — full dispatch with debounced toggle/cycle (250ms), absolute normalized mapping, and special handlers for keyboard (next/prev patch/soundfont) and vocoder (waveform cycle, noise mix).
+- [x] Implement absolute mode: denormalizes CC 0-127 via `GFDescriptorPlugin.descriptor.parameters` min/max and pushes to native DSP via `VstHostService.setGfpaDspParam()`.
+- [x] Implement toggle mode: fires on CC > 63 with 250ms debounce; routes to `toggleEffectBypass` or `toggleMidiFxBypass` as appropriate.
+- [x] Implement cycle mode: reads current normalized value, computes index, advances modulo cycle count, pushes to native DSP.
+- [x] Implement `TransportTarget` dispatch: `onTransportCc` callback wired in `RackScreen` — play/stop toggle, `tapTempo()`, metronome toggle. Fires on CC > 63.
+- [x] Implement `GlobalTarget.systemVolume`: `AudioEngine.setSystemVolume()` with Android method channel (`AudioManager.setStreamVolume`), Linux `pactl`, macOS `osascript`. iOS/Web no-op.
+- [x] Orphan cleanup: `removeOrphanedSlotMappings()` called from `RackState.removePlugin()` — already done in Phase A.
+
+### 🎛️ Phase D — UI overhaul
+
+- [x] Replace flat target dropdown in `cc_preferences.dart` with hierarchical 3-step picker: Category → Slot → Parameter. Supports all 8 categories (GM CC, Instruments, Audio Effects, MIDI FX, Looper, Transport, Global, Macros) with slot+param sub-pickers.
+- [x] Display multiple mappings per CC — list view shows all mappings with type-specific icons and display names.
+- [x] Add swap macro configuration UI: pick two instrument slots + "swap cables" checkbox.
+- [x] Mark project dirty when CC mappings are modified (`RackState.markDirty()` on add/remove).
+- [x] Add per-module CC assign button on every rack slot card — `SlotCcAssignDialog` lists all CC-controllable params per slot with learn mode (move a knob → assign) and delete. Icon in slot header bar lights blue when mappings exist. Works on keyboards, vocoder, all effects, all MIDI FX.
+### 🎛️ Phase E — Channel-swap macro
+
+- [x] Add `AudioGraph.swapSlotReferences(String slotIdA, String slotIdB)` — atomic bulk rewrite of all connections referencing either slot.
+- [x] Implement `RackState.swapSlots(slotIdA, slotIdB, {swapCables})` — channels-only or channels+cables mode (see algorithm above). Also added `CcMappingService.swapSlotReferences()` for CC mapping consistency.
+- [x] Wire `SwapTarget` dispatch in `AudioEngine` via `onSwapSlots` callback — gate at CC > 63 in `_dispatchCcMapping`, wired in `RackScreen.initState`.
+- [x] Debounce swap toggle (250ms `Timer` in `_RackScreenState`) to prevent rapid double-swap.
+- [x] Toast notification on swap: `'Swapped: Keyboard 1 ↔ Vocoder'` via `AudioEngine.toastNotifier`.
+
+### 🎛️ Phase F — l10n + polish
+
+- [x] Add EN/FR ARB keys for all new UI strings: target category names, parameter names, swap labels, system volume, transport actions. 30+ keys in `app_en.arb` / `app_fr.arb`. All hardcoded strings in `cc_preferences.dart` replaced with `AppLocalizations` calls.
+- [x] Toast notifications for swap events (`toastSwapped`), system volume changes (`toastSystemVolume`), and bypass toggles (`toggleEffectBypass` / `toggleMidiFxBypass` in `RackState`).
+
+### 🧪 Phase G — Testing
+
+- [x] Create project A with CC 20 → reverb mix (slot-3). Create project B with CC 20 → delay time (slot-4). Switch → verify CC 20 behaviour changes.
+- [x] Load old `.gf` without `ccMappings` → verify migration from SharedPreferences on first save.
+- [x] Map CC 21 → bypass toggle on reverb slot → press hardware button → verify effect bypassed and UI updates.
+- [x] Map CC 7 → system volume → turn knob → verify OS media volume changes (Android, Linux, macOS).
+- [x] Map CC 31 → play/stop → press → transport toggles.
+- [x] Map CC 30 → swap(keyboard, vocoder, swapCables=true) → press → verify channels + cables swap. Press again → swap back.
+- [x] Map CC 30 → swap(keyboard, vocoder, swapCables=false) → press → verify only channels swap, cables stay.
+- [x] Delete a slot that has CC mappings → verify orphaned mappings are cleaned up.
+- [x] Map one CC to two targets (e.g. CC 20 → reverb mix + delay mix) → turn knob → both parameters move.
 
 ---
 

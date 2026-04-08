@@ -912,10 +912,23 @@ String _looperActionLabel(int actionCode, AppLocalizations l10n) =>
 
 /// A compact CC-assign button placed in the transport strip header.
 ///
+/// Finds the incoming CC number mapped to a looper [targetAction], or null.
+///
+/// Shared between [_CcAssignButton] and [_CcAssignDialogState].
+int? _findLooperCcFor(List<CcMapping> mappings, int targetAction) {
+  for (final m in mappings) {
+    final t = m.target;
+    if (t is SystemTarget && t.actionCode == targetAction) {
+      return m.incomingCc;
+    }
+  }
+  return null;
+}
+
 /// Reads the current looper CC bindings from [CcMappingService] and opens a
 /// two-step dialog (pick action → learn CC) to create or modify them.
-/// Bindings are stored as global [CcMapping] entries — they appear in the
-/// CC preferences screen automatically.
+/// Bindings are stored as project-scoped [CcMapping] entries — they appear in
+/// the CC preferences screen automatically.
 class _CcAssignButton extends StatelessWidget {
   final AppLocalizations l10n;
 
@@ -925,7 +938,7 @@ class _CcAssignButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final ccService = context.read<CcMappingService>();
 
-    return ValueListenableBuilder<Map<int, CcMapping>>(
+    return ValueListenableBuilder<List<CcMapping>>(
       valueListenable: ccService.mappingsNotifier,
       builder: (context, mappings, _) {
         // Find existing looper bindings.
@@ -962,13 +975,8 @@ class _CcAssignButton extends StatelessWidget {
     );
   }
 
-  /// Finds the incoming CC number mapped to [targetAction], or null.
-  int? _findCcFor(Map<int, CcMapping> mappings, int targetAction) {
-    for (final m in mappings.values) {
-      if (m.targetCc == targetAction) return m.incomingCc;
-    }
-    return null;
-  }
+  int? _findCcFor(List<CcMapping> mappings, int targetAction) =>
+      _findLooperCcFor(mappings, targetAction);
 
   /// A tiny chip showing "CC N → Action".
   Widget _ccChip(String ccLabel, String actionLabel) {
@@ -1066,17 +1074,11 @@ class _CcAssignDialogState extends State<_CcAssignDialog> {
   /// One row per action: label, current CC (if bound), assign / remove.
   Widget _buildActionRow(
     int actionCode,
-    Map<int, CcMapping> mappings,
+    List<CcMapping> mappings,
     AppLocalizations l10n,
   ) {
     // Find the incoming CC currently mapped to this action.
-    int? currentCc;
-    for (final m in mappings.values) {
-      if (m.targetCc == actionCode) {
-        currentCc = m.incomingCc;
-        break;
-      }
-    }
+    final currentCc = _findLooperCcFor(mappings, actionCode);
 
     return ListTile(
       dense: true,
@@ -1095,7 +1097,7 @@ class _CcAssignDialogState extends State<_CcAssignDialog> {
                 const SizedBox(width: 4),
                 GestureDetector(
                   onTap: () {
-                    widget.ccService.removeMapping(currentCc!);
+                    widget.ccService.removeAllForCc(currentCc);
                     Navigator.of(context).pop();
                   },
                   child: Icon(
@@ -1140,9 +1142,13 @@ class _CcAssignDialogState extends State<_CcAssignDialog> {
       _stopLearn();
 
       // Check for conflict: is this CC already mapped to something else?
-      final existing = widget.ccService.mappingsNotifier.value[cc];
-      if (existing != null && existing.targetCc != actionCode) {
-        _showConflictDialog(cc, existing, actionCode);
+      final existingMappings = widget.ccService.getMappings(cc);
+      final hasConflict = existingMappings.any((m) {
+        final t = m.target;
+        return !(t is SystemTarget && t.actionCode == actionCode);
+      });
+      if (hasConflict && existingMappings.isNotEmpty) {
+        _showConflictDialog(cc, existingMappings.first, actionCode);
       } else {
         _saveAndClose(cc, actionCode);
       }
@@ -1159,19 +1165,30 @@ class _CcAssignDialogState extends State<_CcAssignDialog> {
 
   /// Saves the mapping and closes the dialog.
   void _saveAndClose(int cc, int actionCode) {
-    widget.ccService.saveMapping(CcMapping(
+    // Remove any existing mapping for this CC first (replace semantics).
+    widget.ccService.removeAllForCc(cc);
+    widget.ccService.addMapping(CcMapping(
       incomingCc: cc,
-      targetCc: actionCode,
-      targetChannel: -2,
+      target: SystemTarget(
+        actionCode: actionCode,
+        targetChannel: -2,
+      ),
     ));
     if (mounted) Navigator.of(context).pop();
   }
 
   /// Shows a conflict warning and offers to overwrite.
   void _showConflictDialog(int cc, CcMapping existing, int actionCode) {
-    final targetName =
-        CcMappingService.standardGmCcs[existing.targetCc] ??
-        'CC ${existing.targetCc}';
+    final targetName = switch (existing.target) {
+      GmCcTarget(:final targetCc) =>
+        CcMappingService.standardGmCcs[targetCc] ?? 'CC $targetCc',
+      SystemTarget(:final actionCode) =>
+        CcMappingService.standardGmCcs[actionCode] ?? 'Action $actionCode',
+      SlotParamTarget(:final paramKey, :final slotId) => '$paramKey on $slotId',
+      SwapTarget(:final slotIdA, :final slotIdB) => 'Swap $slotIdA \u2194 $slotIdB',
+      TransportTarget(:final action) => 'Transport: ${action.name}',
+      GlobalTarget(:final action) => 'Global: ${action.name}',
+    };
 
     showDialog<bool>(
       context: context,

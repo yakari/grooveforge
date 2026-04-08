@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
+import '../models/drum_generator_plugin_instance.dart';
 import '../models/gfpa_plugin_instance.dart';
 import '../models/keyboard_display_config.dart';
 import '../models/looper_plugin_instance.dart';
@@ -13,6 +14,9 @@ import '../models/vst3_plugin_instance.dart';
 import '../plugins/gf_vocoder_plugin.dart';
 import 'audio_engine.dart';
 import 'audio_graph.dart';
+import 'cc_mapping_service.dart';
+import 'cc_param_registry.dart';
+import 'drum_pattern_registry.dart';
 import 'transport_engine.dart';
 import 'vst_host_service.dart';
 import 'package:grooveforge_plugin_api/grooveforge_plugin_api.dart';
@@ -146,6 +150,23 @@ class RackState extends ChangeNotifier {
       _plugins,
       keyboardSfIds: _buildKeyboardSfIds(),
     );
+    // Restore bypass states from the project file so the native DSP layer
+    // matches the persisted state after a fresh routing rebuild.
+    _syncBypassStatesToNative();
+  }
+
+  /// Pushes the bypass state of every GFPA effect slot to the native DSP layer.
+  ///
+  /// Called after [syncAudioRouting] which clears and re-registers all inserts —
+  /// the native handles are fresh and default to non-bypassed, so any slots that
+  /// were bypassed in the project need their state re-applied.
+  void _syncBypassStatesToNative() {
+    for (final plugin in _plugins) {
+      if (plugin is! GFpaPluginInstance) continue;
+      if (plugin.state['__bypass'] == true) {
+        VstHostService.instance.setGfpaDspBypass(plugin.id, true);
+      }
+    }
   }
 
   /// Called whenever the [AudioGraph] changes (connection added/removed).
@@ -159,6 +180,8 @@ class RackState extends ChangeNotifier {
       _plugins,
       keyboardSfIds: _buildKeyboardSfIds(),
     );
+    // Re-apply bypass states after a full routing rebuild (inserts are fresh).
+    _syncBypassStatesToNative();
   }
 
   void _onTransportChanged() {
@@ -396,6 +419,9 @@ class RackState extends ChangeNotifier {
     // removed slot are automatically cleaned up (fires _onAudioGraphChanged
     // if any connections were removed).
     _audioGraph.onSlotRemoved(id);
+    // Remove any CC mappings that target the deleted slot (SlotParamTarget
+    // or SwapTarget referencing this slot ID).
+    _engine.ccMappingService?.removeOrphanedSlotMappings(id);
     _syncJamFollowerMapToEngine();
     // Sync native routing even if no cables pointed to the removed slot.
     VstHostService.instance.syncAudioRouting(
@@ -426,6 +452,111 @@ class RackState extends ChangeNotifier {
     _syncJamFollowerMapToEngine();
     notifyListeners();
     _notifyChanged();
+  }
+
+  /// Swaps two instrument slots' MIDI channels and optionally their entire
+  /// signal chains (audio cables, Jam Mode references, CC mappings).
+  ///
+  /// **Channels-only** (`swapCables == false`):
+  ///   1. Validate both slots exist and are instrument-type (midiChannel > 0).
+  ///   2. Swap MIDI channels between the two plugins.
+  ///   3. Re-apply keyboard engine state for both (re-routes FluidSynth).
+  ///   4. Re-sync Jam Mode follower map.
+  ///   5. Rebuild native audio routing.
+  ///
+  /// **Full swap** (`swapCables == true`): does everything above, plus:
+  ///   6. Rewrites AudioGraph connections referencing either slot.
+  ///   7. Swaps Jam Mode slot references (masterSlotId, targetSlotIds).
+  ///   8. Rewrites CC mappings targeting either slot.
+  void swapSlots(
+    String slotIdA,
+    String slotIdB, {
+    bool swapCables = true,
+  }) {
+    final pluginA = _findById(slotIdA);
+    final pluginB = _findById(slotIdB);
+    if (pluginA == null || pluginB == null) return;
+
+    // Both must be instrument-type slots (midiChannel > 0).
+    if (pluginA.midiChannel <= 0 || pluginB.midiChannel <= 0) return;
+
+    // 1–2. Swap MIDI channels on the plugin instances.
+    final chA = pluginA.midiChannel - 1; // 0-based index into engine.channels
+    final chB = pluginB.midiChannel - 1;
+    final tmpChannel = pluginA.midiChannel;
+    pluginA.midiChannel = pluginB.midiChannel;
+    pluginB.midiChannel = tmpChannel;
+
+    // 3. Swap the AudioEngine channel-level state (soundfontPath, program,
+    // bank) so each MIDI channel retains the correct instrument config for
+    // its new owner. Without this, a keyboard swapping with a vocoder would
+    // leave the keyboard's soundfont on the vocoder's new channel.
+    if (chA >= 0 && chA < 16 && chB >= 0 && chB < 16) {
+      final stateA = _engine.channels[chA];
+      final stateB = _engine.channels[chB];
+      // Swap the serializable fields (soundfontPath, program, bank).
+      final tmpPath = stateA.soundfontPath;
+      final tmpProg = stateA.program;
+      final tmpBank = stateA.bank;
+      stateA.soundfontPath = stateB.soundfontPath;
+      stateA.program = stateB.program;
+      stateA.bank = stateB.bank;
+      stateB.soundfontPath = tmpPath;
+      stateB.program = tmpProg;
+      stateB.bank = tmpBank;
+    }
+
+    // 4. Re-apply all keyboard engine states to push the swapped
+    // soundfont/patch to FluidSynth on the correct channels.
+    for (final p in _plugins) {
+      if (p is GrooveForgeKeyboardPlugin) _applyPluginToEngine(p);
+    }
+
+    // 4–8. Full signal-chain swap.
+    if (swapCables) {
+      // 6. Rewire AudioGraph connections.
+      _audioGraph.swapSlotReferences(slotIdA, slotIdB);
+
+      // 7. Swap Jam Mode references on all GFPA plugins.
+      for (final p in _plugins) {
+        if (p is GFpaPluginInstance) {
+          if (p.masterSlotId == slotIdA) {
+            p.masterSlotId = slotIdB;
+          } else if (p.masterSlotId == slotIdB) {
+            p.masterSlotId = slotIdA;
+          }
+          _swapInList(p.targetSlotIds, slotIdA, slotIdB);
+        }
+      }
+
+      // 8. Rewrite CC mappings targeting either slot.
+      _engine.ccMappingService?.swapSlotReferences(slotIdA, slotIdB);
+    }
+
+    // Re-sync Jam Mode follower map (channels changed).
+    _syncJamFollowerMapToEngine();
+
+    // Rebuild native audio routing to reflect all changes.
+    VstHostService.instance.syncAudioRouting(
+      _audioGraph,
+      _plugins,
+      keyboardSfIds: _buildKeyboardSfIds(),
+    );
+
+    notifyListeners();
+    _notifyChanged();
+  }
+
+  /// Swaps two values in a [List] in-place: every occurrence of [a] becomes
+  /// [b] and vice versa. Used by [swapSlots] to rewrite Jam Mode target lists.
+  static void _swapInList(List<String> list, String a, String b) {
+    for (int i = 0; i < list.length; i++) {
+      if (list[i] == a) {
+        list[i] = b;
+      } else if (list[i] == b) {
+        list[i] = a;
+      }
+    }
   }
 
   /// Update the soundfont, bank, and patch for a GrooveForge Keyboard slot.
@@ -762,6 +893,35 @@ class RackState extends ChangeNotifier {
     _notifyChanged();
   }
 
+  /// Flips the bypass toggle of the audio effect slot identified by [slotId].
+  ///
+  /// Pushes the new state to the native DSP layer so the insert callback
+  /// skips processing on the audio thread (single atomic bool load, zero CPU).
+  /// The state is persisted in `GFpaPluginInstance.state['__bypass']`.
+  void toggleEffectBypass(String slotId) {
+    final slot = _findGfpaById(slotId);
+    if (slot == null) return;
+    final bypassed = !(slot.state['__bypass'] == true);
+    slot.state['__bypass'] = bypassed;
+    VstHostService.instance.setGfpaDspBypass(slotId, bypassed);
+    _engine.toastNotifier.value =
+        '${slot.displayName} — ${bypassed ? 'bypassed' : 'active'}';
+    notifyListeners();
+    markDirty();
+  }
+
+  /// Sets the bypass state of the audio effect slot identified by [slotId].
+  ///
+  /// Unlike [toggleEffectBypass], this sets a specific value rather than toggling.
+  void setEffectBypass(String slotId, bool bypassed) {
+    final slot = _findGfpaById(slotId);
+    if (slot == null) return;
+    slot.state['__bypass'] = bypassed;
+    VstHostService.instance.setGfpaDspBypass(slotId, bypassed);
+    notifyListeners();
+    markDirty();
+  }
+
   /// Flips the bypass toggle of the MIDI FX slot identified by [slotId].
   ///
   /// When bypassed (`state['__bypass'] == true`) the slot is skipped in both
@@ -770,7 +930,10 @@ class RackState extends ChangeNotifier {
   void toggleMidiFxBypass(String slotId) {
     final slot = _findGfpaById(slotId);
     if (slot == null) return;
-    slot.state['__bypass'] = !(slot.state['__bypass'] == true);
+    final bypassed = !(slot.state['__bypass'] == true);
+    slot.state['__bypass'] = bypassed;
+    _engine.toastNotifier.value =
+        '${slot.displayName} — ${bypassed ? 'bypassed' : 'active'}';
     markDirty();
   }
 
@@ -804,6 +967,265 @@ class RackState extends ChangeNotifier {
     }
     if (handled) markDirty();
     return handled;
+  }
+
+  // ─── Slot-addressed CC parameter dispatch ────────────────────────────────
+
+  /// Debounce timestamps per (slotId, paramKey) to prevent rapid-fire toggles
+  /// and cycles from a jittery CC knob.
+  final Map<String, int> _ccDebounce = {};
+
+  /// Handles an incoming CC event targeted at a specific slot parameter.
+  ///
+  /// Dispatches based on [mode]:
+  /// - **absolute**: maps CC 0-127 to normalized [0.0, 1.0] and sets the GFPA
+  ///   parameter via native DSP, or calls a special handler for non-GFPA params.
+  /// - **toggle**: flips a boolean state (debounced 250ms).
+  /// - **cycle**: advances a discrete parameter to the next option (debounced).
+  ///
+  /// No CC value gate — some controllers (e.g. Alesis Vortex Wireless 2)
+  /// send value=0 on button press. The 250ms timestamp debounce prevents
+  /// double-fire from press+release pairs that send two CC events.
+  ///
+  /// Called from [AudioEngine._dispatchCcMapping] via [onSlotParamCc].
+  void handleSlotParamCc(
+    String slotId,
+    String paramKey,
+    CcParamMode mode,
+    int ccValue,
+  ) {
+    // ── Debounce for toggle and cycle modes ────────────────────────────
+    if (mode == CcParamMode.toggle || mode == CcParamMode.cycle) {
+      final key = '$slotId:$paramKey';
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final last = _ccDebounce[key] ?? 0;
+      if (now - last < 250) return; // 250ms debounce.
+      _ccDebounce[key] = now;
+    }
+
+    // ── Bypass (shared by all effect and MIDI FX slots) ────────────────
+    if (paramKey == 'bypass') {
+      _handleBypassCcToggle(slotId);
+      return;
+    }
+
+    // ── GF Keyboard special params ─────────────────────────────────────
+    final plugin = _findById(slotId);
+    if (plugin is GrooveForgeKeyboardPlugin) {
+      _handleKeyboardParamCc(plugin, paramKey, mode, ccValue);
+      return;
+    }
+
+    // ── Drum Generator special params ──────────────────────────────────
+    if (plugin is DrumGeneratorPluginInstance) {
+      _handleDrumGeneratorParamCc(plugin, paramKey, ccValue);
+      return;
+    }
+
+    // ── Looper special params ──────────────────────────────────────────
+    if (plugin is LooperPluginInstance) {
+      _handleLooperParamCc(slotId, paramKey);
+      return;
+    }
+
+    // ── Vocoder special params ─────────────────────────────────────────
+    if (plugin is GFpaPluginInstance &&
+        plugin.pluginId == 'com.grooveforge.vocoder') {
+      _handleVocoderParamCc(paramKey, mode, ccValue);
+      return;
+    }
+
+    // ── Standard GFPA parameter (absolute or cycle via paramId) ────────
+    if (plugin is GFpaPluginInstance) {
+      final entry = CcParamRegistry.findParam(plugin.pluginId, paramKey);
+      if (entry == null || entry.gfpaParamId == null) return;
+
+      if (mode == CcParamMode.absolute) {
+        _setGfpaParamFromCc(slotId, plugin, entry, ccValue);
+      } else if (mode == CcParamMode.cycle && entry.cycleCount != null) {
+        _cycleGfpaParam(slotId, plugin, entry);
+      }
+    }
+  }
+
+  /// Handles CC for Drum Generator params (swing, pattern cycling).
+  void _handleDrumGeneratorParamCc(
+    DrumGeneratorPluginInstance plugin,
+    String paramKey,
+    int ccValue,
+  ) {
+    switch (paramKey) {
+      case 'toggle_active':
+        plugin.isActive = !plugin.isActive;
+        notifyListeners();
+        markDirty();
+      case 'swing':
+        // CC 0-127 → swing ratio 0.5 (straight) to 0.75 (heavy).
+        plugin.swingOverride = 0.5 + (ccValue / 127.0) * 0.25;
+        notifyListeners();
+        markDirty();
+      case 'humanization':
+        // CC 0-127 → humanization amount 0.0–1.0.
+        plugin.humanizationAmount = ccValue / 127.0;
+        notifyListeners();
+        markDirty();
+      case 'next_pattern':
+        _cycleDrumPattern(plugin, 1);
+      case 'prev_pattern':
+        _cycleDrumPattern(plugin, -1);
+    }
+  }
+
+  /// Cycles the drum generator's builtin pattern by [delta] (+1 or -1).
+  void _cycleDrumPattern(DrumGeneratorPluginInstance plugin, int delta) {
+    final all = DrumPatternRegistry.instance.all;
+    if (all.isEmpty) return;
+    final currentId = plugin.builtinPatternId;
+    final currentIndex = currentId != null
+        ? all.indexWhere((p) => p.id == currentId)
+        : -1;
+    var nextIndex = (currentIndex + delta) % all.length;
+    if (nextIndex < 0) nextIndex = all.length - 1;
+    // Fire through the engine callback so the transport time signature
+    // is updated and the session resets cleanly.
+    onDrumPatternCycle?.call(plugin.id, all[nextIndex].id);
+  }
+
+  /// Callback for drum pattern cycling. Wired by [RackScreen] to
+  /// [DrumGeneratorEngine.loadBuiltinPattern].
+  void Function(String slotId, String patternId)? onDrumPatternCycle;
+
+  /// Handles CC for Looper slot-addressed params (loop button, stop).
+  ///
+  /// Routes through [AudioEngine.onLooperSystemAction] which is wired to
+  /// [LooperEngine] by [RackScreen].
+  void _handleLooperParamCc(String slotId, String paramKey) {
+    switch (paramKey) {
+      case 'loop_button':
+        _engine.onLooperSystemAction?.call(1009, 127);
+      case 'stop':
+        _engine.onLooperSystemAction?.call(1012, 127);
+    }
+  }
+
+  /// Toggles bypass on the given slot — works for both audio effects and MIDI FX.
+  void _handleBypassCcToggle(String slotId) {
+    final slot = _findGfpaById(slotId);
+    if (slot == null) return;
+    // Use the appropriate method based on whether this is an audio effect
+    // (has a native DSP handle) or a MIDI FX.
+    final isMidiFx = _midiFxInstances.containsKey(slotId);
+    if (isMidiFx) {
+      toggleMidiFxBypass(slotId);
+    } else {
+      toggleEffectBypass(slotId);
+    }
+  }
+
+  /// Handles CC for GF Keyboard slot-addressed params.
+  void _handleKeyboardParamCc(
+    GrooveForgeKeyboardPlugin plugin,
+    String paramKey,
+    CcParamMode mode,
+    int ccValue,
+  ) {
+    final ch = plugin.midiChannel - 1;
+    if (ch < 0 || ch > 15) return;
+    switch (paramKey) {
+      case 'absolute_patch':
+        // CC 0-127 maps directly to patch 0-127.
+        _engine.assignPatchToChannel(ch, ccValue.clamp(0, 127));
+      case 'next_patch':
+        _engine.changePatchIndex(ch, 1);
+      case 'prev_patch':
+        _engine.changePatchIndex(ch, -1);
+      case 'next_soundfont':
+        _engine.cycleChannelSoundfont(ch, 1);
+      case 'prev_soundfont':
+        _engine.cycleChannelSoundfont(ch, -1);
+      case 'volume':
+        // CC 0-127 → gain 0.0–10.0 (FluidSynth range).
+        _engine.fluidSynthGain.value = ccValue / 127.0 * 10.0;
+    }
+  }
+
+  /// Handles CC for Vocoder params — all knobs are CC-assignable.
+  void _handleVocoderParamCc(String paramKey, CcParamMode mode, int ccValue) {
+    final norm = ccValue / 127.0;
+    switch (paramKey) {
+      case 'waveform':
+        // Cycle through 4 waveforms: 0=saw, 1=square, 2=choral, 3=neutral.
+        final current = _engine.vocoderWaveform.value;
+        _engine.vocoderWaveform.value = (current + 1) % 4;
+      case 'noise_mix':
+        _engine.vocoderNoiseMix.value = norm;
+      case 'env_release':
+        // Range 0.005–0.5 seconds.
+        _engine.vocoderEnvRelease.value = 0.005 + norm * 0.495;
+      case 'bandwidth':
+        // Range 0.05–1.0.
+        _engine.vocoderBandwidth.value = 0.05 + norm * 0.95;
+      case 'gate_threshold':
+        // Range 0.0–0.1.
+        _engine.vocoderGateThreshold.value = norm * 0.1;
+      case 'input_gain':
+        // Range 0.0–20.0.
+        _engine.vocoderInputGain.value = norm * 20.0;
+      case 'volume':
+        // CC 0-127 → gain 0.0–10.0 (FluidSynth range).
+        _engine.fluidSynthGain.value = norm * 10.0;
+    }
+  }
+
+  /// Sets a standard GFPA parameter from a CC absolute value.
+  ///
+  /// Converts CC 0-127 to normalized [0.0, 1.0] and pushes to native DSP.
+  void _setGfpaParamFromCc(
+    String slotId,
+    GFpaPluginInstance plugin,
+    CcParamEntry entry,
+    int ccValue,
+  ) {
+    final normalized = ccValue / 127.0;
+    // Find the descriptor parameter for denormalization.
+    final regPlugin = GFPluginRegistry.instance.findById(plugin.pluginId);
+    if (regPlugin is! GFDescriptorPlugin) return;
+    final descParam = regPlugin.descriptor.parameters
+        .where((p) => p.paramId == entry.gfpaParamId)
+        .firstOrNull;
+    if (descParam == null) return;
+
+    final physical = descParam.min + normalized * (descParam.max - descParam.min);
+    VstHostService.instance.setGfpaDspParam(slotId, descParam.id, physical);
+    // Also update the state map so the UI reflects the change.
+    plugin.state[descParam.id] = normalized;
+    notifyListeners();
+  }
+
+  /// Advances a discrete GFPA parameter to the next option.
+  void _cycleGfpaParam(
+    String slotId,
+    GFpaPluginInstance plugin,
+    CcParamEntry entry,
+  ) {
+    final count = entry.cycleCount!;
+    final regPlugin = GFPluginRegistry.instance.findById(plugin.pluginId);
+    if (regPlugin is! GFDescriptorPlugin) return;
+    final descParam = regPlugin.descriptor.parameters
+        .where((p) => p.paramId == entry.gfpaParamId)
+        .firstOrNull;
+    if (descParam == null) return;
+
+    // Read current normalized value, compute current index, advance.
+    final currentNorm = (plugin.state[descParam.id] as num?)?.toDouble() ?? 0.0;
+    final currentIndex = (currentNorm * (count - 1)).round().clamp(0, count - 1);
+    final nextIndex = (currentIndex + 1) % count;
+    final maxIdx = (count - 1).clamp(1, count);
+    final nextNorm = nextIndex / maxIdx;
+    final physical = descParam.min + nextNorm * (descParam.max - descParam.min);
+    VstHostService.instance.setGfpaDspParam(slotId, descParam.id, physical);
+    plugin.state[descParam.id] = nextNorm;
+    notifyListeners();
   }
 
   // ─── MIDI FX instance registry ──────────────────────────────────────────

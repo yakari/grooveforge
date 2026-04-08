@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.grooveforge.grooveforge</id>
+  <name>GrooveForge</name>
+  <summary>Cross-platform MIDI synthesizer and VST3 host</summary>
+  <metadata_license>MIT</metadata_license>
+  <project_license>MIT</project_license>
+  <description>
+    <p>
+      GrooveForge connects to physical MIDI keyboards, hosts VST3 plugins,
+      and features a built-in multi-timbral synthesizer with vocoder support
+      and real-time Jam Mode with scale locking across multiple plugin slots.
+    </p>
+    <p>
+      Features include a drag-and-drop plugin rack, per-slot soundfont selection,
+      advanced CC mapping for hardware knobs and sliders, and project file
+      save/restore for complete rack configurations.
+    </p>
+  </description>
+  <launchable type="desktop-id">grooveforge.desktop</launchable>
+  <url type="homepage">https://grooveforge.music</url>
+  <categories>
+    <category>Audio</category>
+    <category>Music</category>
+    <category>Midi</category>
+  </categories>
+  <provides>
+    <binary>grooveforge</binary>
+  </provides>
+  <content_rating type="oars-1.1" />
+</component>

@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../models/gfpa_plugin_instance.dart';
-import '../../services/cc_mapping_service.dart';
 import '../../services/rack_state.dart';
 import '../../services/vst_host_service.dart';
 
@@ -107,10 +106,16 @@ class _GFpaDescriptorSlotUIState extends State<GFpaDescriptorSlotUI> {
   /// Writes the full parameter map back into [GFpaPluginInstance.state],
   /// forwards all parameter changes to the native C++ DSP engine, and asks
   /// [RackState] to schedule an auto-save.
+  ///
+  /// Preserves the `__bypass` meta-key which lives outside the DSP parameter
+  /// space — [GFDescriptorPlugin.getState] only returns declared parameters.
   void _onParamChanged() {
+    if (!mounted) return;
+    final bypass = widget.instance.state['__bypass'];
     widget.instance.state
       ..clear()
       ..addAll(_plugin.getState());
+    if (bypass != null) widget.instance.state['__bypass'] = bypass;
     _syncAllParamsToNative();
     // Use read() since we're in a listener, not a build method.
     // markDirty() triggers both a rebuild and an autosave without
@@ -161,13 +166,29 @@ class _GFpaDescriptorSlotUIState extends State<GFpaDescriptorSlotUI> {
       );
     }
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      child: GFDescriptorPluginUI(
-        plugin: _plugin,
-        paramNotifier: _paramNotifier,
-        vuController: _vuController,
-      ),
+    final bypassed = widget.instance.state['__bypass'] == true;
+    final rack = context.read<RackState>();
+    final l10n = AppLocalizations.of(context)!;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // ── Bypass toggle (CC assign is in the slot header bar) ──────────
+        _BypassHeader(
+          bypassed: bypassed,
+          l10n: l10n,
+          onToggleBypass: () => rack.toggleEffectBypass(widget.instance.id),
+        ),
+        // ── Parameter controls ────────────────────────────────────────────
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          child: GFDescriptorPluginUI(
+            plugin: _plugin,
+            paramNotifier: _paramNotifier,
+            vuController: _vuController,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -233,6 +254,7 @@ class _GFpaMidiFxDescriptorSlotUIState
   /// prefix, so we snapshot and restore them to avoid losing them on every
   /// knob turn.
   void _onParamChanged() {
+    if (!mounted) return;
     final rack = context.read<RackState>();
     final plugin = rack.midiFxInstanceForSlot(widget.instance.id);
     if (plugin == null) return;
@@ -248,28 +270,8 @@ class _GFpaMidiFxDescriptorSlotUIState
     rack.markDirty();
   }
 
-  /// Shows a dialog that waits for the user to move a MIDI CC control and
-  /// assigns that CC number to this slot's bypass toggle.
-  Future<void> _showCcAssignDialog(BuildContext context) async {
-    final rack = context.read<RackState>();
-    final currentCc = widget.instance.state['__bypassCc'] as int?;
-
-    final result = await showDialog<int?>(
-      context: context,
-      builder: (_) => _CcAssignDialog(currentCc: currentCc),
-    );
-
-    if (!mounted) return;
-    if (result == _CcAssignDialog.kRemove) {
-      // User tapped "Remove CC binding".
-      rack.setMidiFxBypassCc(widget.instance.id, null);
-    } else if (result != null) {
-      // User moved a hardware CC — assign it.
-      rack.setMidiFxBypassCc(widget.instance.id, result);
-    }
-    // null result means the dialog was cancelled — do nothing.
-  }
-
+  /// Opens the per-slot CC assign dialog listing all CC-controllable
+  /// parameters for this MIDI FX plugin.
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -293,18 +295,15 @@ class _GFpaMidiFxDescriptorSlotUIState
     }
 
     final bypassed = widget.instance.state['__bypass'] == true;
-    final assignedCc = widget.instance.state['__bypassCc'] as int?;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // ── Bypass header row ─────────────────────────────────────────────
+        // ── Bypass toggle (CC assign is in the slot header bar) ──────────
         _BypassHeader(
           bypassed: bypassed,
-          assignedCc: assignedCc,
           l10n: l10n,
           onToggleBypass: () => rack.toggleMidiFxBypass(widget.instance.id),
-          onAssignCc: () => _showCcAssignDialog(context),
         ),
         // ── Parameter controls ────────────────────────────────────────────
         Padding(
@@ -329,24 +328,21 @@ class _GFpaMidiFxDescriptorSlotUIState
 ///
 /// Both controls write to [GFpaPluginInstance.state] via [RackState] so the
 /// bypass state and CC assignment survive project saves.
+/// Compact bypass toggle row shown inside effect and MIDI FX slot bodies.
+///
+/// The CC assign button has been moved to the slot header bar in
+/// [RackSlotWidget] for a consistent UI across all module types.
 class _BypassHeader extends StatelessWidget {
   const _BypassHeader({
     required this.bypassed,
-    required this.assignedCc,
     required this.l10n,
     required this.onToggleBypass,
-    required this.onAssignCc,
   });
 
-  /// Whether the MIDI FX is currently bypassed (off).
+  /// Whether the effect is currently bypassed (off).
   final bool bypassed;
-
-  /// Hardware CC number currently assigned to the bypass toggle, or null.
-  final int? assignedCc;
-
   final AppLocalizations l10n;
   final VoidCallback onToggleBypass;
-  final VoidCallback onAssignCc;
 
   @override
   Widget build(BuildContext context) {
@@ -358,37 +354,6 @@ class _BypassHeader extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          // CC assignment chip — shows the assigned CC number when set.
-          if (assignedCc != null)
-            Padding(
-              padding: const EdgeInsets.only(right: 4),
-              child: Chip(
-                label: Text(
-                  'CC $assignedCc',
-                  style: const TextStyle(fontSize: 11),
-                ),
-                padding: EdgeInsets.zero,
-                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                visualDensity: VisualDensity.compact,
-                side: BorderSide(color: activeColor.withAlpha(120)),
-              ),
-            ),
-
-          // CC assign button.
-          Tooltip(
-            message: l10n.midiFxCcAssign,
-            child: IconButton(
-              iconSize: 18,
-              visualDensity: VisualDensity.compact,
-              icon: Icon(
-                Icons.settings_remote_outlined,
-                color: assignedCc != null ? activeColor : inactiveColor,
-              ),
-              onPressed: onAssignCc,
-            ),
-          ),
-
-          // Bypass power toggle.
           Tooltip(
             message: l10n.midiFxBypass,
             child: IconButton(
@@ -396,7 +361,6 @@ class _BypassHeader extends StatelessWidget {
               visualDensity: VisualDensity.compact,
               icon: Icon(
                 Icons.power_settings_new,
-                // Green when active (not bypassed), grey when bypassed.
                 color: bypassed ? inactiveColor : activeColor,
               ),
               onPressed: onToggleBypass,
@@ -413,85 +377,3 @@ class _BypassHeader extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Modal dialog that listens for incoming MIDI CC events and returns the first
-/// CC number received, so the user can assign a hardware knob or button to the
-/// MIDI FX bypass toggle by simply moving the control.
-///
-/// Returns:
-/// - A positive [int] (0–127): the captured CC number to assign.
-/// - [kRemove] (−1): the user tapped "Remove CC binding".
-/// - `null`: the user cancelled without assigning anything.
-class _CcAssignDialog extends StatefulWidget {
-  const _CcAssignDialog({required this.currentCc});
-
-  /// Sentinel return value meaning "remove the existing assignment".
-  static const int kRemove = -1;
-
-  /// Currently assigned CC, or null if none. Displayed in the dialog.
-  final int? currentCc;
-
-  @override
-  State<_CcAssignDialog> createState() => _CcAssignDialogState();
-}
-
-class _CcAssignDialogState extends State<_CcAssignDialog> {
-  late final CcMappingService _ccService;
-
-  @override
-  void initState() {
-    super.initState();
-    _ccService = context.read<CcMappingService>();
-    _ccService.lastEventNotifier.addListener(_onMidiEvent);
-  }
-
-  @override
-  void dispose() {
-    _ccService.lastEventNotifier.removeListener(_onMidiEvent);
-    super.dispose();
-  }
-
-  /// Fires for every incoming MIDI event. Captures the first CC event and
-  /// closes the dialog, returning the CC number to the caller.
-  void _onMidiEvent() {
-    if (!mounted) return;
-    final event = _ccService.lastEventNotifier.value;
-    // Only react to control-change events; ignore notes and pitch bend.
-    if (event == null || event.type != 'CC') return;
-    Navigator.of(context).pop(event.data1);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    return AlertDialog(
-      title: Text(l10n.midiFxCcAssignTitle),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(l10n.midiFxCcWaiting),
-          if (widget.currentCc != null) ...[
-            const SizedBox(height: 12),
-            Text(
-              l10n.midiFxCcAssigned(widget.currentCc!),
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.primary,
-                fontSize: 13,
-              ),
-            ),
-          ],
-        ],
-      ),
-      actions: [
-        if (widget.currentCc != null)
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(_CcAssignDialog.kRemove),
-            child: Text(l10n.midiFxCcRemove),
-          ),
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(null),
-          child: Text(l10n.actionCancel),
-        ),
-      ],
-    );
-  }
-}
