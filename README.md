@@ -54,7 +54,7 @@ devcontainer up --workspace-folder .
 
 ### Linux
 
-GrooveForge requires a C/C++ toolchain, Flutter's GTK dependencies, and audio/synthesis libraries.
+GrooveForge requires a C/C++ toolchain, Flutter's GTK dependencies, audio/synthesis libraries, and a **JACK-compatible audio server** (PipeWire with `pipewire-jack` is recommended on modern distros).
 
 #### Debian / Ubuntu (apt)
 
@@ -67,6 +67,10 @@ sudo apt install libgtk-3-dev libblkid-dev liblzma-dev libgcrypt20-dev libstdc++
 
 # Audio and MIDI
 sudo apt install libasound2-dev libpulse-dev
+
+# Audio server runtime — GrooveForge opens a JACK client for audio output;
+# PipeWire with its JACK compatibility layer is the recommended setup.
+sudo apt install pipewire pipewire-jack pipewire-alsa pipewire-pulse wireplumber
 
 # VST3 editor windows
 sudo apt install libx11-dev
@@ -83,7 +87,8 @@ One-liner:
 ```bash
 sudo apt install clang lld cmake ninja-build pkg-config \
   libgtk-3-dev libblkid-dev liblzma-dev libgcrypt20-dev libstdc++-12-dev \
-  libasound2-dev libpulse-dev libx11-dev libfluidsynth-dev libmpv-dev
+  libasound2-dev libpulse-dev libx11-dev libfluidsynth-dev libmpv-dev \
+  pipewire pipewire-jack pipewire-alsa pipewire-pulse wireplumber
 ```
 
 #### Fedora (dnf)
@@ -91,7 +96,8 @@ sudo apt install clang lld cmake ninja-build pkg-config \
 ```bash
 sudo dnf install clang lld cmake ninja-build pkg-config \
   gtk3-devel libblkid-devel xz-devel libgcrypt-devel libstdc++-devel \
-  alsa-lib-devel pulseaudio-libs-devel libX11-devel fluidsynth-devel mpv-libs-devel
+  alsa-lib-devel pulseaudio-libs-devel libX11-devel fluidsynth-devel mpv-libs-devel \
+  pipewire pipewire-jack-audio-connection-kit pipewire-alsa pipewire-pulseaudio wireplumber
 ```
 
 #### Arch / Manjaro (pacman)
@@ -99,10 +105,17 @@ sudo dnf install clang lld cmake ninja-build pkg-config \
 ```bash
 sudo pacman -S clang lld cmake ninja pkg-config \
   gtk3 util-linux-libs xz libgcrypt \
-  alsa-lib libpulse libx11 fluidsynth mpv
+  alsa-lib libpulse libx11 fluidsynth mpv \
+  pipewire pipewire-jack pipewire-alsa pipewire-pulse wireplumber
 ```
 
 > On Arch, development headers are included in the main packages — no separate `-dev`/`-devel` packages needed.
+>
+> **Audio server:** GrooveForge uses JACK for audio output. The `pipewire-jack` package provides JACK compatibility through PipeWire (the default audio server on modern Arch and Manjaro). If you have `jack2` installed and get "jack server is not running" errors, replace it with `pipewire-jack`. After installing, ensure the PipeWire services are running:
+>
+> ```bash
+> systemctl --user enable --now pipewire pipewire-pulse wireplumber
+> ```
 
 ---
 

@@ -1,0 +1,71 @@
+# Flatpak manifest for GrooveForge.
+# Packages the pre-built Flutter bundle and builds FluidSynth from source
+# (not included in the freedesktop runtime).
+
+id: com.grooveforge.grooveforge
+runtime: org.freedesktop.Platform
+runtime-version: '24.08'
+sdk: org.freedesktop.Sdk
+command: grooveforge-wrapper
+
+finish-args:
+  # Display — GTK needs X11 or Wayland.
+  - --share=ipc
+  - --socket=x11
+  - --socket=wayland
+
+  # Audio — PulseAudio / PipeWire for playback, JACK for the VST3 host engine.
+  - --socket=pulseaudio
+
+  # Devices — USB MIDI controllers and ALSA raw MIDI.
+  - --device=all
+
+  # Filesystem — project files (.gf), soundfonts (.sf2), VST3 plugins.
+  - --filesystem=home
+  - --filesystem=/usr/lib/vst3:ro
+  - --filesystem=~/.vst3:ro
+
+  # Portal access for native file dialogs.
+  - --talk-name=org.freedesktop.portal.*
+
+modules:
+  # FluidSynth is not in the freedesktop runtime — build from source.
+  - name: fluidsynth
+    buildsystem: cmake-ninja
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DLIB_SUFFIX=
+    sources:
+      - type: git
+        url: https://github.com/FluidSynth/fluidsynth.git
+        tag: v2.4.3
+
+  # GrooveForge pre-built bundle from CI.
+  - name: grooveforge
+    buildsystem: simple
+    build-commands:
+      # Application bundle.
+      - install -d /app/share/grooveforge
+      - cp -r bundle/* /app/share/grooveforge/
+      - chmod 755 /app/share/grooveforge/grooveforge
+
+      # Wrapper script — sets LD_LIBRARY_PATH so the binary finds FluidSynth
+      # and its own bundled .so files next to the executable.
+      - |
+        cat > /app/bin/grooveforge-wrapper <<'WRAPPER'
+        #!/bin/sh
+        export LD_LIBRARY_PATH=/app/lib:/app/share/grooveforge/lib:$LD_LIBRARY_PATH
+        exec /app/share/grooveforge/grooveforge "$@"
+        WRAPPER
+      - chmod 755 /app/bin/grooveforge-wrapper
+
+      # Desktop integration.
+      - install -Dm644 com.grooveforge.grooveforge.desktop
+          /app/share/applications/com.grooveforge.grooveforge.desktop
+      - install -Dm644 com.grooveforge.grooveforge.metainfo.xml
+          /app/share/metainfo/com.grooveforge.grooveforge.metainfo.xml
+      - install -Dm644 icon.png
+          /app/share/icons/hicolor/512x512/apps/com.grooveforge.grooveforge.png
+    sources:
+      - type: dir
+        path: flatpak-build

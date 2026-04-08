@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=GrooveForge
+Comment=Cross-platform MIDI synthesizer and VST3 host
+GenericName=Music Production
+Exec=grooveforge-wrapper
+Icon=com.grooveforge.grooveforge
+Type=Application
+Categories=Audio;Music;Midi;
+Keywords=music;midi;synthesizer;vst;daw;
+StartupNotify=true
