@@ -536,6 +536,7 @@ class _AddMappingDialogState extends State<_AddMappingDialog> {
           }),
         ),
         if (!CcMappingService.isLooperAction(_systemAction) &&
+            !CcMappingService.isAudioLooperAction(_systemAction) &&
             !CcMappingService.isMuteAction(_systemAction)) ...[
           const SizedBox(height: 12),
           _buildChannelDropdown(
@@ -732,8 +733,10 @@ class _AddMappingDialogState extends State<_AddMappingDialog> {
   };
 
   static const Map<int, String> _looperActions = {
-    1009: '[Looper] Loop Button',
-    1012: '[Looper] Stop',
+    1009: '[MIDI Looper] Loop Button',
+    1012: '[MIDI Looper] Stop',
+    1015: '[Audio Looper] Loop Button',
+    1016: '[Audio Looper] Stop',
   };
 
   // ── Build & save target ────────────────────────────────────────────────

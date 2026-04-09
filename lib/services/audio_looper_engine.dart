@@ -38,6 +38,10 @@ class AudioLooperClip {
   /// Target loop length in beats (0 = free-form).
   double targetLengthBeats = 0.0;
 
+  /// Whether recording waits for the next downbeat (true) or starts
+  /// immediately (false).
+  bool barSyncEnabled = true;
+
   /// Recorded length in frames (polled from native).
   int lengthFrames = 0;
 
@@ -74,6 +78,7 @@ class AudioLooperClip {
         'volume': volume,
         'reversed': reversed,
         'targetLengthBeats': targetLengthBeats,
+        'barSyncEnabled': barSyncEnabled,
         'sampleRate': sampleRate,
         // PCM data is stored as sidecar WAV, not in JSON.
       };
@@ -88,7 +93,8 @@ class AudioLooperClip {
         ..volume = (json['volume'] as num?)?.toDouble() ?? 1.0
         ..reversed = json['reversed'] as bool? ?? false
         ..targetLengthBeats =
-            (json['targetLengthBeats'] as num?)?.toDouble() ?? 0.0;
+            (json['targetLengthBeats'] as num?)?.toDouble() ?? 0.0
+        ..barSyncEnabled = json['barSyncEnabled'] as bool? ?? true;
 }
 
 /// Manages audio looper clips for GrooveForge.
@@ -169,21 +175,59 @@ class AudioLooperEngine extends ChangeNotifier {
     onDataChanged?.call();
   }
 
-  /// Arms the clip for [slotId] — recording starts at the next downbeat.
+  /// Single-button handler — cycles through looper states like the MIDI looper.
   ///
-  /// If the transport is stopped, starts it first (same UX as the MIDI looper:
-  /// pressing record implies the user wants to play).
+  /// idle (empty) → arm → recording → playing → overdubbing → playing.
+  void looperButtonPress(String slotId) {
+    final clip = _clips[slotId];
+    if (clip == null) return;
+    switch (clip.state) {
+      case AudioLooperState.idle:
+        (clip.lengthFrames > 0) ? play(slotId) : arm(slotId);
+      case AudioLooperState.armed:
+        stop(slotId);
+      case AudioLooperState.recording:
+        // Stop recording → auto-play.
+        final host = VstHostService.instance.host;
+        host?.setAudioLooperState(clip.nativeIdx, AudioLooperState.playing.index);
+        clip.state = AudioLooperState.playing;
+        _updatePollTimer();
+        notifyListeners();
+        onDataChanged?.call();
+      case AudioLooperState.playing:
+        overdub(slotId);
+      case AudioLooperState.overdubbing:
+        play(slotId);
+    }
+  }
+
+  /// Toggles bar-sync mode for [slotId].
+  void toggleBarSync(String slotId) {
+    final clip = _clips[slotId];
+    if (clip == null) return;
+    clip.barSyncEnabled = !clip.barSyncEnabled;
+    VstHostService.instance.host
+        ?.setAudioLooperBarSync(clip.nativeIdx, clip.barSyncEnabled);
+    notifyListeners();
+  }
+
+  /// Arms the clip for [slotId] — recording starts at the next downbeat
+  /// (if bar-synced) or immediately (if free-form).
+  ///
+  /// If the transport is stopped and bar sync is on, starts the transport
+  /// first (same UX as the MIDI looper).
   void arm(String slotId) {
     final clip = _clips[slotId];
     if (clip == null) return;
 
-    // Start the transport if needed.
-    if (!_transport.isPlaying) _transport.play();
+    // Start the transport if bar sync is on and it's not playing.
+    if (clip.barSyncEnabled && !_transport.isPlaying) _transport.play();
 
     final host = VstHostService.instance.host;
     if (host == null) return;
 
-    // Set target length if configured.
+    // Push bar sync and target length settings to native.
+    host.setAudioLooperBarSync(clip.nativeIdx, clip.barSyncEnabled);
     if (clip.targetLengthBeats > 0) {
       host.setAudioLooperLengthBeats(clip.nativeIdx, clip.targetLengthBeats);
     }

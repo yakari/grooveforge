@@ -23,15 +23,8 @@ const _kHeadColor = Color(0xFFFFFFFF);
 // ── Main widget ───────────────────────────────────────────────────────────────
 
 /// Front-panel UI body for an [AudioLooperPluginInstance] rack slot.
-///
-/// Renders hardware-style audio looper controls:
-/// - Waveform display with playback head indicator.
-/// - Transport strip: ARM / PLAY / STOP / OVERDUB / CLEAR / REVERSE buttons.
-/// - Volume slider.
-/// - Status indicator (idle / armed / recording / playing / overdubbing).
 class AudioLooperSlotUI extends StatefulWidget {
   final AudioLooperPluginInstance plugin;
-
   const AudioLooperSlotUI({super.key, required this.plugin});
 
   @override
@@ -42,7 +35,6 @@ class _AudioLooperSlotUIState extends State<AudioLooperSlotUI> {
   @override
   void initState() {
     super.initState();
-    // Ensure a native clip is allocated for this slot.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<AudioLooperEngine>().createClip(widget.plugin.id);
     });
@@ -62,13 +54,10 @@ class _AudioLooperSlotUIState extends State<AudioLooperSlotUI> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // ── Waveform display ────────────────────────────────────────
-          _WaveformDisplay(clip: clip, slotId: widget.plugin.id),
+          _WaveformDisplay(clip: clip),
           const SizedBox(height: 8),
-          // ── Transport controls ──────────────────────────────────────
           _TransportStrip(clip: clip, slotId: widget.plugin.id),
           const SizedBox(height: 6),
-          // ── Volume + status ─────────────────────────────────────────
           _VolumeRow(clip: clip, slotId: widget.plugin.id),
         ],
       ),
@@ -78,16 +67,16 @@ class _AudioLooperSlotUIState extends State<AudioLooperSlotUI> {
 
 // ── Waveform display ──────────────────────────────────────────────────────────
 
-/// Draws a simplified waveform (RMS envelope) from the native clip buffer
-/// with a playback head indicator overlay.
 class _WaveformDisplay extends StatelessWidget {
   final AudioLooperClip? clip;
-  final String slotId;
-
-  const _WaveformDisplay({required this.clip, required this.slotId});
+  const _WaveformDisplay({required this.clip});
 
   @override
   Widget build(BuildContext context) {
+    final hasAudio = (clip?.lengthFrames ?? 0) > 0;
+    final noSource = clip != null && !hasAudio &&
+        clip!.state == AudioLooperState.idle;
+
     return Container(
       height: 60,
       decoration: BoxDecoration(
@@ -95,10 +84,13 @@ class _WaveformDisplay extends StatelessWidget {
         borderRadius: BorderRadius.circular(4),
         border: Border.all(color: _kBorder, width: 0.5),
       ),
-      child: clip == null || clip!.lengthFrames == 0
-          ? const Center(
-              child: Text('No audio recorded',
-                  style: TextStyle(color: Colors.grey, fontSize: 11)))
+      child: !hasAudio
+          ? Center(
+              child: Text(
+                noSource ? 'Cable an instrument to Audio IN' : 'No audio recorded',
+                style: const TextStyle(color: Colors.grey, fontSize: 11),
+              ),
+            )
           : CustomPaint(
               painter: _WaveformPainter(clip: clip!),
               size: Size.infinite,
@@ -107,14 +99,9 @@ class _WaveformDisplay extends StatelessWidget {
   }
 }
 
-/// CustomPainter that draws an RMS waveform from native PCM data.
-///
-/// Decimates the clip into ~300 RMS bins for display, avoiding per-sample
-/// iteration at full resolution.  The playback head is drawn as a thin
-/// vertical white line.
+/// Draws an RMS waveform from native PCM data with playback head overlay.
 class _WaveformPainter extends CustomPainter {
   final AudioLooperClip clip;
-
   _WaveformPainter({required this.clip});
 
   @override
@@ -122,28 +109,21 @@ class _WaveformPainter extends CustomPainter {
     final length = clip.lengthFrames;
     if (length == 0) return;
 
-    // ── Draw waveform RMS envelope ─────────────────────────────────
-    final host =
-        // ignore: depend_on_referenced_packages
-        _getNativeDataPointers();
-    if (host == null) return;
-    final (dataL, dataR) = host;
+    final ptrs = _getNativeDataPointers();
+    if (ptrs == null) return;
+    final (dataL, dataR) = ptrs;
 
     final bins = math.min(size.width.toInt(), 300);
     final samplesPerBin = length / bins;
     final wavePaint = Paint()
       ..color = _kWaveColor
-      ..strokeWidth = 1.5
       ..style = PaintingStyle.fill;
-
     final midY = size.height / 2;
 
     for (int b = 0; b < bins; b++) {
       final start = (b * samplesPerBin).toInt();
       final end = math.min(((b + 1) * samplesPerBin).toInt(), length);
       if (start >= end) continue;
-
-      // Compute RMS for this bin.
       double sumSq = 0;
       for (int i = start; i < end; i++) {
         final l = dataL[i];
@@ -151,40 +131,35 @@ class _WaveformPainter extends CustomPainter {
         sumSq += (l * l + r * r) * 0.5;
       }
       final rms = math.sqrt(sumSq / (end - start));
-
-      // Map RMS to height (clamp at 1.0 for normalised audio).
       final h = (rms.clamp(0.0, 1.0) * midY).toDouble();
       final x = b * size.width / bins;
       final w = math.max(size.width / bins - 0.5, 1.0);
-
       canvas.drawRect(
         Rect.fromCenter(center: Offset(x + w / 2, midY), width: w, height: h * 2),
         wavePaint,
       );
     }
 
-    // ── Draw playback head ─────────────────────────────────────────
+    // Playback head.
     if (clip.state == AudioLooperState.playing ||
         clip.state == AudioLooperState.overdubbing) {
       final headX = clip.progress * size.width;
-      final headPaint = Paint()
-        ..color = _kHeadColor
-        ..strokeWidth = 1.5;
-      canvas.drawLine(Offset(headX, 0), Offset(headX, size.height), headPaint);
+      canvas.drawLine(
+        Offset(headX, 0), Offset(headX, size.height),
+        Paint()..color = _kHeadColor..strokeWidth = 1.5,
+      );
     }
 
-    // ── Draw recording progress ────────────────────────────────────
+    // Recording progress.
     if (clip.state == AudioLooperState.recording && clip.capacityFrames > 0) {
       final recX = clip.lengthFrames / clip.capacityFrames * size.width;
-      final recPaint = Paint()
-        ..color = _kRecColor.withValues(alpha: 0.5)
-        ..strokeWidth = 2;
-      canvas.drawLine(Offset(recX, 0), Offset(recX, size.height), recPaint);
+      canvas.drawLine(
+        Offset(recX, 0), Offset(recX, size.height),
+        Paint()..color = _kRecColor.withValues(alpha: 0.5)..strokeWidth = 2,
+      );
     }
   }
 
-  /// Reads native data pointers from VstHostService.
-  /// Returns null if the host or data is unavailable.
   (Pointer<Float>, Pointer<Float>)? _getNativeDataPointers() {
     final host = VstHostService.instance.host;
     if (host == null) return null;
@@ -203,7 +178,6 @@ class _WaveformPainter extends CustomPainter {
 class _TransportStrip extends StatelessWidget {
   final AudioLooperClip? clip;
   final String slotId;
-
   const _TransportStrip({required this.clip, required this.slotId});
 
   @override
@@ -212,90 +186,55 @@ class _TransportStrip extends StatelessWidget {
     final state = clip?.state ?? AudioLooperState.idle;
     final hasAudio = (clip?.lengthFrames ?? 0) > 0;
 
+    // Single loop button props.
+    final (loopIcon, loopColor, loopActive, loopTooltip) = _loopButtonProps(state, hasAudio);
+
     return Row(
       children: [
-        // ── ARM / REC ────────────────────────────────────────────
+        // ── Single loop button (large) ───────────────────────────
         _ControlButton(
-          icon: Icons.fiber_manual_record,
-          color: state == AudioLooperState.armed
-              ? _kArmedColor
-              : state == AudioLooperState.recording
-                  ? _kRecColor
-                  : Colors.grey,
-          active: state == AudioLooperState.armed ||
-              state == AudioLooperState.recording,
-          onPressed: () {
-            if (state == AudioLooperState.idle) {
-              engine.arm(slotId);
-            } else if (state == AudioLooperState.recording) {
-              engine.stop(slotId);
-              // After stopping recording, auto-play.
-              Future.delayed(const Duration(milliseconds: 50), () {
-                engine.play(slotId);
-              });
-            }
-          },
-          tooltip: state == AudioLooperState.recording ? 'Stop' : 'Record',
+          icon: loopIcon,
+          color: loopColor,
+          active: loopActive,
+          onPressed: () => engine.looperButtonPress(slotId),
+          tooltip: loopTooltip,
+          large: true,
         ),
-        const SizedBox(width: 4),
-        // ── PLAY / STOP ──────────────────────────────────────────
+        const SizedBox(width: 8),
+        // ── Stop ─────────────────────────────────────────────────
         _ControlButton(
-          icon: state == AudioLooperState.playing ||
-                  state == AudioLooperState.overdubbing
-              ? Icons.stop
-              : Icons.play_arrow,
-          color: state == AudioLooperState.playing
-              ? _kPlayColor
-              : state == AudioLooperState.overdubbing
-                  ? _kOdColor
-                  : Colors.grey,
-          active: state == AudioLooperState.playing ||
-              state == AudioLooperState.overdubbing,
-          onPressed: hasAudio
-              ? () {
-                  if (state == AudioLooperState.playing ||
-                      state == AudioLooperState.overdubbing) {
-                    engine.stop(slotId);
-                  } else {
-                    engine.play(slotId);
-                  }
-                }
+          icon: Icons.stop,
+          color: Colors.grey,
+          active: false,
+          onPressed: state != AudioLooperState.idle
+              ? () => engine.stop(slotId)
               : null,
-          tooltip: state == AudioLooperState.playing ? 'Stop' : 'Play',
+          tooltip: 'Stop',
         ),
         const SizedBox(width: 4),
-        // ── OVERDUB ──────────────────────────────────────────────
-        _ControlButton(
-          icon: Icons.layers,
-          color:
-              state == AudioLooperState.overdubbing ? _kOdColor : Colors.grey,
-          active: state == AudioLooperState.overdubbing,
-          onPressed: hasAudio
-              ? () {
-                  if (state == AudioLooperState.overdubbing) {
-                    engine.play(slotId); // back to play
-                  } else if (state == AudioLooperState.playing) {
-                    engine.overdub(slotId);
-                  }
-                }
-              : null,
-          tooltip: 'Overdub',
-        ),
-        const SizedBox(width: 4),
-        // ── REVERSE ──────────────────────────────────────────────
+        // ── Reverse ──────────────────────────────────────────────
         _ControlButton(
           icon: Icons.swap_horiz,
           color: (clip?.reversed ?? false) ? _kWaveColor : Colors.grey,
           active: clip?.reversed ?? false,
-          onPressed:
-              hasAudio ? () => engine.toggleReversed(slotId) : null,
+          onPressed: hasAudio ? () => engine.toggleReversed(slotId) : null,
           tooltip: 'Reverse',
         ),
+        const SizedBox(width: 4),
+        // ── Bar sync toggle ──────────────────────────────────────
+        _ControlButton(
+          icon: Icons.timer,
+          color: (clip?.barSyncEnabled ?? true) ? _kArmedColor : Colors.grey,
+          active: clip?.barSyncEnabled ?? true,
+          onPressed: () => engine.toggleBarSync(slotId),
+          tooltip: (clip?.barSyncEnabled ?? true)
+              ? 'Bar sync: ON' : 'Bar sync: OFF',
+        ),
         const Spacer(),
-        // ── Status label ─────────────────────────────────────────
+        // ── Status ───────────────────────────────────────────────
         _StatusChip(state: state),
         const SizedBox(width: 8),
-        // ── CLEAR ────────────────────────────────────────────────
+        // ── Clear ────────────────────────────────────────────────
         _ControlButton(
           icon: Icons.delete_outline,
           color: Colors.redAccent,
@@ -306,6 +245,23 @@ class _TransportStrip extends StatelessWidget {
       ],
     );
   }
+
+  /// Returns (icon, color, isActive, tooltip) for the single loop button.
+  (IconData, Color, bool, String) _loopButtonProps(AudioLooperState state, bool hasAudio) =>
+      switch (state) {
+        AudioLooperState.idle when !hasAudio =>
+          (Icons.fiber_manual_record, _kRecColor, false, 'Record'),
+        AudioLooperState.idle =>
+          (Icons.play_arrow, _kPlayColor, false, 'Play'),
+        AudioLooperState.armed =>
+          (Icons.fiber_manual_record, _kArmedColor, true, 'Cancel'),
+        AudioLooperState.recording =>
+          (Icons.play_arrow, _kRecColor, true, 'Stop recording & play'),
+        AudioLooperState.playing =>
+          (Icons.layers, _kPlayColor, true, 'Overdub'),
+        AudioLooperState.overdubbing =>
+          (Icons.play_arrow, _kOdColor, true, 'Stop overdub'),
+      };
 }
 
 // ── Volume row ────────────────────────────────────────────────────────────────
@@ -313,7 +269,6 @@ class _TransportStrip extends StatelessWidget {
 class _VolumeRow extends StatelessWidget {
   final AudioLooperClip? clip;
   final String slotId;
-
   const _VolumeRow({required this.clip, required this.slotId});
 
   @override
@@ -328,14 +283,11 @@ class _VolumeRow extends StatelessWidget {
         Expanded(
           child: Slider(
             value: vol,
-            min: 0.0,
-            max: 1.0,
             onChanged: (v) => engine.setVolume(slotId, v),
             activeColor: _kWaveColor,
             inactiveColor: _kBorder,
           ),
         ),
-        // Duration display.
         SizedBox(
           width: 50,
           child: Text(
@@ -345,19 +297,15 @@ class _VolumeRow extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 4),
-        // Memory badge.
-        Text(
-          _memoryLabel(clip),
-          style: const TextStyle(color: Colors.grey, fontSize: 10),
-        ),
+        Text(_memoryLabel(clip),
+            style: const TextStyle(color: Colors.grey, fontSize: 10)),
       ],
     );
   }
 
-  /// Formats the clip's buffer memory usage as a compact label.
   String _memoryLabel(AudioLooperClip? clip) {
     if (clip == null) return '';
-    final bytes = clip.lengthFrames * 2 * 4; // stereo float32
+    final bytes = clip.lengthFrames * 2 * 4;
     if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(0)} KB';
     return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
   }
@@ -371,6 +319,7 @@ class _ControlButton extends StatelessWidget {
   final bool active;
   final VoidCallback? onPressed;
   final String tooltip;
+  final bool large;
 
   const _ControlButton({
     required this.icon,
@@ -378,10 +327,13 @@ class _ControlButton extends StatelessWidget {
     required this.active,
     required this.onPressed,
     required this.tooltip,
+    this.large = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    final size = large ? 26.0 : 20.0;
+    final pad = large ? 8.0 : 6.0;
     return Tooltip(
       message: tooltip,
       child: Material(
@@ -391,8 +343,9 @@ class _ControlButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(4),
           onTap: onPressed,
           child: Padding(
-            padding: const EdgeInsets.all(6),
-            child: Icon(icon, size: 20, color: onPressed != null ? color : color.withValues(alpha: 0.3)),
+            padding: EdgeInsets.all(pad),
+            child: Icon(icon, size: size,
+                color: onPressed != null ? color : color.withValues(alpha: 0.3)),
           ),
         ),
       ),
@@ -404,7 +357,6 @@ class _ControlButton extends StatelessWidget {
 
 class _StatusChip extends StatelessWidget {
   final AudioLooperState state;
-
   const _StatusChip({required this.state});
 
   @override

@@ -375,17 +375,25 @@ class CcMappingService {
     1007: '[System] Start/Stop Jam Mode',
     1008: '[System] Cycle Scale Type',
 
-    // --- Looper Actions ---
-    1009: '[Looper] Loop Button',
-    1012: '[Looper] Stop',
+    // --- MIDI Looper Actions ---
+    1009: '[MIDI Looper] Loop Button',
+    1012: '[MIDI Looper] Stop',
+
+    // --- Audio Looper Actions ---
+    1015: '[Audio Looper] Loop Button',
+    1016: '[Audio Looper] Stop',
 
     // --- Channel Mute ---
     1014: '[System] Mute / Unmute Channels',
   };
 
-  /// Returns true if [targetCc] is a looper system action (1009 or 1012).
+  /// Returns true if [targetCc] is a MIDI looper system action (1009 or 1012).
   static bool isLooperAction(int targetCc) =>
       targetCc == 1009 || targetCc == 1012;
+
+  /// Returns true if [targetCc] is an audio looper system action (1015 or 1016).
+  static bool isAudioLooperAction(int targetCc) =>
+      targetCc == 1015 || targetCc == 1016;
 
   /// Returns true if [targetCc] is the mute/unmute action (1014).
   static bool isMuteAction(int targetCc) => targetCc == 1014;

@@ -123,9 +123,19 @@ struct AudioState {
     std::vector<float> mixL, mixR;
     std::vector<float> zeroL, zeroR;
 
-    /// Pre-mix snapshot for audio looper recording.  Captures the master mix
-    /// BEFORE looper playback is injected, preventing overdub feedback.
-    std::vector<float> preMixL, preMixR;
+    /// Per-clip audio looper source buffers.  Filled by the JACK callback
+    /// before dvh_alooper_process: copied from the master render capture
+    /// or from pluginBuf (VST3 source).  NULL-initialized each block.
+    std::vector<float> alooperSrcL[ALOOPER_MAX_CLIPS];
+    std::vector<float> alooperSrcR[ALOOPER_MAX_CLIPS];
+
+    /// Per-master-render capture buffers.  During the bare render pass, each
+    /// render function's output is saved here so the audio looper can read it
+    /// without calling the function a second time (which would double-render
+    /// FluidSynth and cause saturation).
+    /// Index matches the masterRenders[] ordinal in the routing snapshot.
+    std::vector<float> renderCaptureL[kMaxMasterRenders];
+    std::vector<float> renderCaptureR[kMaxMasterRenders];
 
     /// Per-plugin stereo output buffers: pluginBuf[i*2] = L, [i*2+1] = R.
     std::vector<float> pluginBuf[kMaxPlugins * 2];
@@ -253,8 +263,14 @@ static void _resizeBuffers(AudioState* s, int32_t newSize) {
     s->mixR.assign(newSize, 0.f);
     s->zeroL.assign(newSize, 0.f);
     s->zeroR.assign(newSize, 0.f);
-    s->preMixL.assign(newSize, 0.f);
-    s->preMixR.assign(newSize, 0.f);
+    for (int i = 0; i < ALOOPER_MAX_CLIPS; ++i) {
+        s->alooperSrcL[i].assign(newSize, 0.f);
+        s->alooperSrcR[i].assign(newSize, 0.f);
+    }
+    for (int i = 0; i < kMaxMasterRenders; ++i) {
+        s->renderCaptureL[i].assign(newSize, 0.f);
+        s->renderCaptureR[i].assign(newSize, 0.f);
+    }
     for (int i = 0; i < kMaxPlugins * 2; ++i) {
         s->pluginBuf[i].assign(newSize, 0.f);
     }
@@ -366,6 +382,15 @@ static int _jackProcessCallback(jack_nframes_t nframes, void* arg) {
         // Render each source into tmpBuf and accumulate.
         for (int s = 0; s < chain.sourceCount; ++s) {
             chain.sources[s](state->tmpBufL.data(), state->tmpBufR.data(), bs);
+            // Save a capture of this source's DRY output (before effects) so
+            // the audio looper can read it without re-rendering.
+            for (int m = 0; m < snap.masterRenderCount && m < kMaxMasterRenders; ++m) {
+                if (snap.masterRenders[m] == chain.sources[s]) {
+                    std::copy_n(state->tmpBufL.data(), bs, state->renderCaptureL[m].data());
+                    std::copy_n(state->tmpBufR.data(), bs, state->renderCaptureR[m].data());
+                    break;
+                }
+            }
             for (int i = 0; i < bs; ++i) {
                 state->extBufL[i] += state->tmpBufL[i];
                 state->extBufR[i] += state->tmpBufR[i];
@@ -390,26 +415,83 @@ static int _jackProcessCallback(jack_nframes_t nframes, void* arg) {
     }
 
     // ── Bare master renders (not in any chain) ─────────────────────────────
+    // Each render's output is also saved into renderCapture[m] so the audio
+    // looper can read it without re-calling the function (which would double-
+    // render FluidSynth and cause saturation).
     for (int m = 0; m < snap.masterRenderCount; ++m) {
         DvhRenderFn fn = snap.masterRenders[m];
         if (_isInChain(snap, fn)) continue;
 
         fn(state->extBufL.data(), state->extBufR.data(), bs);
+        // Save a copy for the audio looper.
+        if (m < kMaxMasterRenders) {
+            std::copy_n(state->extBufL.data(), bs, state->renderCaptureL[m].data());
+            std::copy_n(state->extBufR.data(), bs, state->renderCaptureR[m].data());
+        }
         for (int i = 0; i < bs; ++i) {
             state->mixL[i] += state->extBufL[i];
             state->mixR[i] += state->extBufR[i];
         }
     }
 
-    // ── Audio Looper ────────────────────────────────────────────────────────
-    // 1. Snapshot the master mix BEFORE looper playback injection.
-    //    This is what the looper records from — prevents overdub feedback.
-    std::copy_n(state->mixL.data(), bs, state->preMixL.data());
-    std::copy_n(state->mixR.data(), bs, state->preMixR.data());
+    // ── Audio Looper — fill per-clip source buffers ─────────────────────────
+    // Each clip may have MULTIPLE sources (keyboards, drums, VST3 plugins all
+    // cabled to the same looper).  We mix (sum) all connected sources into the
+    // per-clip source buffer.
+    //
+    // For render function sources (keyboard, theremin, etc.): we read from
+    // renderCapture[m] which was already filled during the master render /
+    // insert chain passes above — never re-call the function (double-render).
+    //
+    // For VST3 plugin sources: read from pluginBuf[ordinal].
+    const float* aloopSrcL[ALOOPER_MAX_CLIPS] = {};
+    const float* aloopSrcR[ALOOPER_MAX_CLIPS] = {};
+    for (int c = 0; c < ALOOPER_MAX_CLIPS; ++c) {
+        if (!dvh_alooper_is_active(c)) continue;
 
-    // 2. Process all active looper clips (record from preMix, play into mix).
+        const int nRender = dvh_alooper_get_render_source_count(c);
+        const int nPlugin = dvh_alooper_get_plugin_source_count(c);
+        if (nRender == 0 && nPlugin == 0) continue; // no sources → silence
+
+        // Zero the per-clip accumulation buffer.
+        std::fill_n(state->alooperSrcL[c].data(), bs, 0.f);
+        std::fill_n(state->alooperSrcR[c].data(), bs, 0.f);
+
+        // Sum all render function sources from their pre-captured buffers.
+        for (int s = 0; s < nRender; ++s) {
+            DvhRenderFn fn = dvh_alooper_get_render_source(c, s);
+            if (!fn) continue;
+            // Find the matching renderCapture buffer.
+            for (int m = 0; m < snap.masterRenderCount && m < kMaxMasterRenders; ++m) {
+                if (snap.masterRenders[m] == fn) {
+                    for (int i = 0; i < bs; ++i) {
+                        state->alooperSrcL[c][i] += state->renderCaptureL[m][i];
+                        state->alooperSrcR[c][i] += state->renderCaptureR[m][i];
+                    }
+                    break;
+                }
+            }
+        }
+
+        // Sum all VST3 plugin sources from their per-plugin output buffers.
+        for (int s = 0; s < nPlugin; ++s) {
+            const int plugIdx = dvh_alooper_get_plugin_source(c, s);
+            if (plugIdx < 0 || plugIdx >= snap.orderedCount) continue;
+            const float* pL = state->pluginBuf[plugIdx * 2].data();
+            const float* pR = state->pluginBuf[plugIdx * 2 + 1].data();
+            for (int i = 0; i < bs; ++i) {
+                state->alooperSrcL[c][i] += pL[i];
+                state->alooperSrcR[c][i] += pR[i];
+            }
+        }
+
+        aloopSrcL[c] = state->alooperSrcL[c].data();
+        aloopSrcR[c] = state->alooperSrcR[c].data();
+    }
+
+    // Process all active looper clips.
     dvh_alooper_process(
-        state->preMixL.data(), state->preMixR.data(),
+        aloopSrcL, aloopSrcR,
         state->mixL.data(), state->mixR.data(),
         bs,
         state->transportBpm.load(std::memory_order_relaxed),
@@ -861,7 +943,7 @@ extern "C" {
     int32_t dvh_alooper_get_state(DVH_Host, int32_t) { return 0; }
     void    dvh_alooper_set_volume(DVH_Host, int32_t, float) {}
     void    dvh_alooper_set_reversed(DVH_Host, int32_t, int32_t) {}
-    void    dvh_alooper_set_source(DVH_Host, int32_t, int32_t, int32_t) {}
+    // dvh_alooper_set_source removed — replaced by set_render_source + set_source_plugin
     void    dvh_alooper_set_length_beats(DVH_Host, int32_t, double) {}
     const float* dvh_alooper_get_data_l(DVH_Host, int32_t) { return nullptr; }
     const float* dvh_alooper_get_data_r(DVH_Host, int32_t) { return nullptr; }
@@ -870,6 +952,15 @@ extern "C" {
     int32_t dvh_alooper_get_head(DVH_Host, int32_t) { return 0; }
     int64_t dvh_alooper_memory_used(DVH_Host) { return 0; }
     int32_t dvh_alooper_load_data(DVH_Host, int32_t, const float*, const float*, int32_t) { return 0; }
+    void    dvh_alooper_clear_sources(int32_t) {}
+    void    dvh_alooper_add_render_source(int32_t, DvhRenderFn) {}
+    void    dvh_alooper_add_source_plugin(int32_t, int32_t) {}
+    void    dvh_alooper_set_bar_sync(int32_t, int32_t) {}
+    int32_t dvh_alooper_get_render_source_count(int32_t) { return 0; }
+    DvhRenderFn dvh_alooper_get_render_source(int32_t, int32_t) { return nullptr; }
+    int32_t dvh_alooper_get_plugin_source_count(int32_t) { return 0; }
+    int32_t dvh_alooper_get_plugin_source(int32_t, int32_t) { return -1; }
+    int32_t dvh_alooper_is_active(int32_t) { return 0; }
 }
 
 // Non-Linux stub for the transport broadcast.

@@ -274,11 +274,22 @@ class VstHost {
   void setAudioLooperReversed(int idx, bool reversed) =>
       _b.alooperSetReversed(handle, idx, reversed ? 1 : 0);
 
-  /// Set the recording source for clip [idx].
-  /// [sourceType]: 0 = master mix, 1 = specific plugin.
-  /// [sourcePluginIdx]: only used when sourceType == 1.
-  void setAudioLooperSource(int idx, {int sourceType = 0, int sourcePluginIdx = 0}) =>
-      _b.alooperSetSource(handle, idx, sourceType, sourcePluginIdx);
+  /// Remove all audio sources from clip [idx].
+  void clearAudioLooperSources(int idx) => _b.alooperClearSources(idx);
+
+  /// Add a render function as an audio source for clip [idx].
+  /// Multiple sources are mixed (summed) by the JACK callback.
+  void addAudioLooperRenderSource(int idx,
+      Pointer<NativeFunction<Void Function(Pointer<Float>, Pointer<Float>, Int32)>> fn) =>
+      _b.alooperAddRenderSource(idx, fn);
+
+  /// Add a VST3 plugin output as an audio source for clip [idx].
+  void addAudioLooperSourcePlugin(int idx, int pluginOrdinalIdx) =>
+      _b.alooperAddSourcePlugin(idx, pluginOrdinalIdx);
+
+  /// Enable or disable bar-sync for clip [idx].
+  void setAudioLooperBarSync(int idx, bool enabled) =>
+      _b.alooperSetBarSync(idx, enabled ? 1 : 0);
 
   /// Set target loop length in beats.  0 = record until manually stopped.
   void setAudioLooperLengthBeats(int idx, double lengthBeats) =>

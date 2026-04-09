@@ -69,6 +69,8 @@ class _SplashScreenState extends State<SplashScreen> {
     // (which is null until RackScreen.initState assigns it).
     projectService.ccMappingService = context.read<CcMappingService>();
     projectService.audioLooperEngine = context.read<AudioLooperEngine>();
+    // Also give VstHostService a reference for syncAudioRouting.
+    VstHostService.instance.audioLooperEngine = projectService.audioLooperEngine;
 
     // Load the last autosave (or initialise defaults) BEFORE wiring up the
     // autosave callbacks.  This prevents spurious autosaves that would fire

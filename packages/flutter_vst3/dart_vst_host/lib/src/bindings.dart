@@ -415,11 +415,29 @@ class NativeBindings {
           void Function(Pointer<Void>, int, int)
       >('dvh_alooper_set_reversed');
 
-  late final void Function(Pointer<Void>, int, int, int) alooperSetSource =
+  late final void Function(int) alooperClearSources =
       lib.lookupFunction<
-          Void Function(Pointer<Void>, Int32, Int32, Int32),
-          void Function(Pointer<Void>, int, int, int)
-      >('dvh_alooper_set_source');
+          Void Function(Int32),
+          void Function(int)
+      >('dvh_alooper_clear_sources');
+
+  late final void Function(int, Pointer<NativeFunction<Void Function(Pointer<Float>, Pointer<Float>, Int32)>>)
+      alooperAddRenderSource = lib.lookupFunction<
+          Void Function(Int32, Pointer<NativeFunction<Void Function(Pointer<Float>, Pointer<Float>, Int32)>>),
+          void Function(int, Pointer<NativeFunction<Void Function(Pointer<Float>, Pointer<Float>, Int32)>>)
+      >('dvh_alooper_add_render_source');
+
+  late final void Function(int, int) alooperAddSourcePlugin =
+      lib.lookupFunction<
+          Void Function(Int32, Int32),
+          void Function(int, int)
+      >('dvh_alooper_add_source_plugin');
+
+  late final void Function(int, int) alooperSetBarSync =
+      lib.lookupFunction<
+          Void Function(Int32, Int32),
+          void Function(int, int)
+      >('dvh_alooper_set_bar_sync');
 
   late final void Function(Pointer<Void>, int, double) alooperSetLengthBeats =
       lib.lookupFunction<

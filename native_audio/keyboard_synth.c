@@ -37,8 +37,14 @@
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-/** Maximum number of concurrent GF Keyboard slots (FluidSynth instances). */
-#define MAX_KB_SLOTS 2
+/** Maximum number of concurrent GF Keyboard slots (FluidSynth instances).
+ *  Slot 0 = even MIDI channels (0,2,4,6,8,10,12,14) — GF Keyboard 1.
+ *  Slot 1 = odd MIDI channels EXCEPT 9 (1,3,5,7,11,13,15) — GF Keyboard 2.
+ *  Slot 2 = channel 9 only — GM percussion (metronome, drum generator).
+ *  Isolating channel 9 prevents metronome clicks from bleeding into keyboard
+ *  renders when the audio looper captures a keyboard slot.
+ */
+#define MAX_KB_SLOTS 3
 
 /** Maximum number of soundfonts that can be loaded globally. */
 #define MAX_LOADED_SF 16
@@ -72,9 +78,13 @@ static int  g_loaded_sf_count = 0;
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
-/** Returns the slot index that owns [channel] (0-based MIDI channel 0–15). */
+/** Returns the slot index that owns [channel] (0-based MIDI channel 0–15).
+ *  Channel 9 (GM percussion) is isolated in slot 2 so metronome clicks
+ *  don't bleed into keyboard renders captured by the audio looper.
+ */
 static int _slot_for_channel(int channel) {
-    return channel % MAX_KB_SLOTS;
+    if (channel == 9) return 2;
+    return channel % 2;
 }
 
 /**
@@ -330,6 +340,17 @@ EXPORT void keyboard_render_block_1(float* outL, float* outR, int frames) {
     fluid_synth_write_float(slot->synth, frames, outL, 0, 1, outR, 0, 1);
 }
 
+/** Render one block from slot 2 (GM percussion / metronome). */
+EXPORT void keyboard_render_block_2(float* outL, float* outR, int frames) {
+    KbSlot* slot = &g_kb_slots[2];
+    if (!slot->synth) {
+        memset(outL, 0, (size_t)frames * sizeof(float));
+        memset(outR, 0, (size_t)frames * sizeof(float));
+        return;
+    }
+    fluid_synth_write_float(slot->synth, frames, outL, 0, 1, outR, 0, 1);
+}
+
 /**
  * Return the render function pointer for [slotIdx].
  *
@@ -340,6 +361,7 @@ EXPORT void* keyboard_render_fn_for_slot(int slotIdx) {
     switch (slotIdx) {
         case 0: return (void*)keyboard_render_block_0;
         case 1: return (void*)keyboard_render_block_1;
+        case 2: return (void*)keyboard_render_block_2;
         default: return NULL;
     }
 }
@@ -372,6 +394,7 @@ EXPORT void  keyboard_set_gain(float g)                               { (void)g;
 EXPORT void* keyboard_render_fn_for_slot(int i)                       { (void)i; return NULL; }
 EXPORT void  keyboard_render_block_0(float* l, float* r, int f)       { memset(l,0,(size_t)f*4); memset(r,0,(size_t)f*4); }
 EXPORT void  keyboard_render_block_1(float* l, float* r, int f)       { memset(l,0,(size_t)f*4); memset(r,0,(size_t)f*4); }
+EXPORT void  keyboard_render_block_2(float* l, float* r, int f)       { memset(l,0,(size_t)f*4); memset(r,0,(size_t)f*4); }
 EXPORT void  keyboard_render_block(float* l, float* r, int f)         { memset(l,0,(size_t)f*4); memset(r,0,(size_t)f*4); }
 
 #endif

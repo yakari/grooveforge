@@ -4,6 +4,7 @@ import 'package:grooveforge_plugin_api/grooveforge_plugin_api.dart'
 import 'package:provider/provider.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../../models/audio_looper_plugin_instance.dart';
 import '../../models/audio_port_id.dart';
 import '../../models/gfpa_plugin_instance.dart';
 import '../../models/grooveforge_keyboard_plugin.dart';
@@ -42,6 +43,15 @@ class SlotBackPanelWidget extends StatelessWidget {
   // ── Port layout per plugin type ──────────────────────────────────────────
 
   List<AudioPortId> _portsFor(PluginInstance plugin) {
+    if (plugin is AudioLooperPluginInstance) {
+      // The audio looper accepts stereo audio IN (from cabled instruments).
+      // No audio OUT — playback goes directly to the master mix in C++.
+      return [
+        AudioPortId.audioInL,
+        AudioPortId.audioInR,
+      ];
+    }
+
     if (plugin is LooperPluginInstance) {
       // The looper accepts MIDI IN (to record) and emits MIDI OUT (to replay
       // recorded events to connected instrument / Jam Mode slots).
