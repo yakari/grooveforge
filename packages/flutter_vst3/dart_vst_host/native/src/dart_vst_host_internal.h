@@ -8,6 +8,15 @@
 #include <string>
 #include <vector>
 
+// ── Cross-TU helpers (JACK ↔ main) ──────────────────────────────────────────
+
+/// Broadcast transport state to all JACK AudioState instances so the audio
+/// looper can detect downbeats at sample precision.  Called from
+/// dvh_set_transport() in dart_vst_host.cpp.  Defined in dart_vst_host_jack.cpp
+/// (no-op on non-Linux platforms).
+void dvh_jack_update_transport(double bpm, int32_t timeSigNum,
+                                int32_t isPlaying, double positionInBeats);
+
 #include "pluginterfaces/base/funknown.h"
 #include "pluginterfaces/base/ipluginbase.h"
 #include "pluginterfaces/vst/ivstaudioprocessor.h"

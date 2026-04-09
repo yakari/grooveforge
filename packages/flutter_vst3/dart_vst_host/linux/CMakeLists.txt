@@ -90,6 +90,7 @@ add_library(${PROJECT_NAME} SHARED
   ${NATIVE_DIR}/src/dart_vst_host_jack.cpp
   ${NATIVE_DIR}/src/dart_vst_host_editor_linux.cpp
   ${NATIVE_DIR}/src/gfpa_dsp.cpp
+  ${NATIVE_DIR}/src/audio_looper.cpp
   ${VST3_BASE_SOURCES}
   ${VST3_SDK_SOURCES}
 )

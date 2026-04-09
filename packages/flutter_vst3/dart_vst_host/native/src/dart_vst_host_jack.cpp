@@ -17,6 +17,7 @@
 #include "dart_vst_host.h"
 #include "dart_vst_host_internal.h"
 #include "../include/gfpa_dsp.h"
+#include "../include/audio_looper.h"
 
 #include <jack/jack.h>
 #include <algorithm>
@@ -122,8 +123,19 @@ struct AudioState {
     std::vector<float> mixL, mixR;
     std::vector<float> zeroL, zeroR;
 
+    /// Pre-mix snapshot for audio looper recording.  Captures the master mix
+    /// BEFORE looper playback is injected, preventing overdub feedback.
+    std::vector<float> preMixL, preMixR;
+
     /// Per-plugin stereo output buffers: pluginBuf[i*2] = L, [i*2+1] = R.
     std::vector<float> pluginBuf[kMaxPlugins * 2];
+
+    // ── Transport state for audio looper bar-sync ──────────────────────────
+    // Updated from dvh_set_transport(); read by dvh_alooper_process().
+    std::atomic<double> transportBpm{120.0};
+    std::atomic<int32_t> transportTimeSigNum{4};
+    std::atomic<int32_t> transportIsPlaying{0};
+    std::atomic<double> transportPositionBeats{0.0};
 
     // ── Callback drain counter ─────────────────────────────────────────────
     std::atomic<uint64_t> callbackSeq{0};
@@ -241,6 +253,8 @@ static void _resizeBuffers(AudioState* s, int32_t newSize) {
     s->mixR.assign(newSize, 0.f);
     s->zeroL.assign(newSize, 0.f);
     s->zeroR.assign(newSize, 0.f);
+    s->preMixL.assign(newSize, 0.f);
+    s->preMixR.assign(newSize, 0.f);
     for (int i = 0; i < kMaxPlugins * 2; ++i) {
         s->pluginBuf[i].assign(newSize, 0.f);
     }
@@ -387,6 +401,23 @@ static int _jackProcessCallback(jack_nframes_t nframes, void* arg) {
         }
     }
 
+    // ── Audio Looper ────────────────────────────────────────────────────────
+    // 1. Snapshot the master mix BEFORE looper playback injection.
+    //    This is what the looper records from — prevents overdub feedback.
+    std::copy_n(state->mixL.data(), bs, state->preMixL.data());
+    std::copy_n(state->mixR.data(), bs, state->preMixR.data());
+
+    // 2. Process all active looper clips (record from preMix, play into mix).
+    dvh_alooper_process(
+        state->preMixL.data(), state->preMixR.data(),
+        state->mixL.data(), state->mixR.data(),
+        bs,
+        state->transportBpm.load(std::memory_order_relaxed),
+        state->transportTimeSigNum.load(std::memory_order_relaxed),
+        state->sampleRate,
+        state->transportIsPlaying.load(std::memory_order_relaxed) != 0,
+        state->transportPositionBeats.load(std::memory_order_relaxed));
+
     // Signal block completion for drain synchronization.
     state->callbackSeq.fetch_add(1, std::memory_order_release);
 
@@ -424,6 +455,20 @@ static void _jackShutdownCallback(void* arg) {
     auto* state = static_cast<AudioState*>(arg);
     fprintf(stderr, "[dart_vst_host] JACK server shut down\n");
     state->running.store(false);
+}
+
+// ── Transport broadcast (called from dart_vst_host.cpp) ─────────────────────
+
+void dvh_jack_update_transport(double bpm, int32_t timeSigNum,
+                                int32_t isPlaying, double positionInBeats) {
+    std::lock_guard<std::mutex> lk(g_mapMtx);
+    for (auto& kv : g_states) {
+        auto* s = kv.second;
+        s->transportBpm.store(bpm, std::memory_order_relaxed);
+        s->transportTimeSigNum.store(timeSigNum, std::memory_order_relaxed);
+        s->transportIsPlaying.store(isPlaying, std::memory_order_relaxed);
+        s->transportPositionBeats.store(positionInBeats, std::memory_order_relaxed);
+    }
 }
 
 // ── C API — Dart-side routing mutations ────────────────────────────────────
@@ -809,5 +854,24 @@ extern "C" {
     void*   gfpa_dsp_userdata(void*) { return nullptr; }
     void    gfpa_dsp_destroy(void*) {}
     void    gfpa_set_bpm(double) {}
+    // Audio looper stubs.
+    int32_t dvh_alooper_create(DVH_Host, float, int32_t) { return -1; }
+    void    dvh_alooper_destroy(DVH_Host, int32_t) {}
+    void    dvh_alooper_set_state(DVH_Host, int32_t, int32_t) {}
+    int32_t dvh_alooper_get_state(DVH_Host, int32_t) { return 0; }
+    void    dvh_alooper_set_volume(DVH_Host, int32_t, float) {}
+    void    dvh_alooper_set_reversed(DVH_Host, int32_t, int32_t) {}
+    void    dvh_alooper_set_source(DVH_Host, int32_t, int32_t, int32_t) {}
+    void    dvh_alooper_set_length_beats(DVH_Host, int32_t, double) {}
+    const float* dvh_alooper_get_data_l(DVH_Host, int32_t) { return nullptr; }
+    const float* dvh_alooper_get_data_r(DVH_Host, int32_t) { return nullptr; }
+    int32_t dvh_alooper_get_length(DVH_Host, int32_t) { return 0; }
+    int32_t dvh_alooper_get_capacity(DVH_Host, int32_t) { return 0; }
+    int32_t dvh_alooper_get_head(DVH_Host, int32_t) { return 0; }
+    int64_t dvh_alooper_memory_used(DVH_Host) { return 0; }
 }
+
+// Non-Linux stub for the transport broadcast.
+void dvh_jack_update_transport(double, int32_t, int32_t, double) {}
+
 #endif
