@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'dart:ffi';
 import 'dart:io';
 
-import 'package:ffi/ffi.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'file_picker_service.dart';
@@ -394,12 +393,11 @@ class ProjectService extends ChangeNotifier {
     final alooperJson =
         data['audioLooperSessions'] as Map<String, dynamic>? ?? const {};
     if (audioLooperEngine != null && alooperJson.isNotEmpty) {
+      // Save metadata and .gf path for deferred load.  Native clips can't be
+      // created yet (_host is null — JACK starts later).  The widget's
+      // initState calls finalizeLoad() after the host is available.
       audioLooperEngine!.loadFromJson(alooperJson);
-      await _importAudioLooperWavs(path);
-      // Note: render sources are NOT wired here because _host is null at this
-      // point (JACK client starts later).  The AudioLooperSlotUI.initState
-      // creates the native clip and triggers a routing rebuild via
-      // audioGraph.notifyListeners() after the widget mounts.
+      audioLooperEngine!.setPendingGfPath(path);
     }
 
     debugPrint(
@@ -478,50 +476,4 @@ class ProjectService extends ChangeNotifier {
     }
   }
 
-  /// Imports sidecar WAV files into the native audio looper buffers.
-  ///
-  /// Must be called AFTER [AudioLooperEngine.loadFromJson] so that the native
-  /// clips are allocated and ready to receive data.
-  Future<void> _importAudioLooperWavs(String gfPath) async {
-    final engine = audioLooperEngine;
-    if (engine == null) return;
-
-    final host = VstHostService.instance.host;
-    if (host == null) return;
-
-    final dir = Directory('$gfPath.audio');
-    if (!await dir.exists()) return;
-
-    for (final entry in engine.clips.entries) {
-      final slotId = entry.key;
-      final clip = entry.value;
-      final wavPath = '${dir.path}/loop_$slotId.wav';
-
-      if (!await File(wavPath).exists()) continue;
-
-      try {
-        final wav = readWavFile(wavPath);
-        // Allocate native memory and copy the Dart Float32List into it.
-        final srcL = malloc<Float>(wav.lengthFrames);
-        final srcR = malloc<Float>(wav.lengthFrames);
-        srcL.asTypedList(wav.lengthFrames).setAll(0, wav.left);
-        srcR.asTypedList(wav.lengthFrames).setAll(0, wav.right);
-
-        final ok = host.loadAudioLooperData(
-            clip.nativeIdx, srcL, srcR, wav.lengthFrames);
-        malloc.free(srcL);
-        malloc.free(srcR);
-
-        if (ok) {
-          clip.lengthFrames = wav.lengthFrames;
-          debugPrint(
-              'ProjectService: imported loop_$slotId.wav (${wav.lengthFrames} frames)');
-        } else {
-          debugPrint('ProjectService: native loadData failed for $slotId');
-        }
-      } catch (e) {
-        debugPrint('ProjectService: failed to import loop_$slotId.wav: $e');
-      }
-    }
-  }
 }

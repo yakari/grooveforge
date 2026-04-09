@@ -37,13 +37,24 @@ class _AudioLooperSlotUIState extends State<AudioLooperSlotUI> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       final engine = context.read<AudioLooperEngine>();
-      if (engine.clips.containsKey(widget.plugin.id)) return;
-      engine.createClip(widget.plugin.id);
+
+      // If there's pending metadata from a project load (native clips couldn't
+      // be created earlier because the JACK host wasn't ready), finalize now.
+      if (engine.hasPendingLoad) {
+        await engine.finalizeLoad();
+      }
+
+      // Ensure a native clip exists for this slot (covers the "freshly added"
+      // case where there's no pending load).
+      if (!engine.clips.containsKey(widget.plugin.id)) {
+        engine.createClip(widget.plugin.id);
+      }
+
       // Trigger a routing rebuild so syncAudioRouting wires the render sources
-      // for any cables already connected to this looper (e.g. from a persisted
-      // project loaded before the JACK client was available).
+      // for any cables already connected to this looper (persisted project).
+      if (!mounted) return;
       final rackState = context.read<RackState>();
       final graph = context.read<AudioGraph>();
       VstHostService.instance.syncAudioRouting(graph, rackState.plugins);

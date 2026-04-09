@@ -1,9 +1,13 @@
 import 'dart:async';
+import 'dart:ffi' hide Size;
+import 'dart:io';
 
+import 'package:ffi/ffi.dart';
 import 'package:flutter/foundation.dart';
 
 import 'transport_engine.dart';
 import 'vst_host_service.dart';
+import 'wav_utils.dart';
 
 /// State of an audio looper clip.  Mirrors the C enum in audio_looper.h.
 enum AudioLooperState {
@@ -328,10 +332,38 @@ class AudioLooperEngine extends ChangeNotifier {
     return result;
   }
 
-  /// Restore clip metadata from JSON.  The caller must also load sidecar WAV
-  /// files and push PCM data into the native buffers separately.
+  /// Pending clip metadata from project load.  Stored here because the native
+  /// host is not yet available when loadFromJson runs (JACK starts later).
+  /// Consumed by [finalizeLoad] after the host is ready.
+  Map<String, dynamic>? _pendingJson;
+
+  /// Path to the .gf file for WAV sidecar import.
+  String? _pendingGfPath;
+
+  /// Restore clip metadata from JSON.
+  ///
+  /// At this point the native host is typically not available (JACK hasn't
+  /// started).  The metadata is saved as [_pendingJson] and the native clips
+  /// are created later by [finalizeLoad] (called from the widget or splash).
   void loadFromJson(Map<String, dynamic> json) {
-    // Destroy existing clips first.
+    _pendingJson = json;
+    notifyListeners();
+  }
+
+  /// Set the .gf path so [finalizeLoad] can import sidecar WAVs.
+  void setPendingGfPath(String path) {
+    _pendingGfPath = path;
+  }
+
+  /// Creates native clips from [_pendingJson] and loads sidecar WAV data.
+  ///
+  /// Must be called after the native host is available (JACK client running).
+  /// Called from [AudioLooperSlotUI.initState] or explicitly after startAudio.
+  Future<void> finalizeLoad() async {
+    final json = _pendingJson;
+    if (json == null || json.isEmpty) return;
+    _pendingJson = null;
+
     for (final slotId in _clips.keys.toList()) {
       destroyClip(slotId);
     }
@@ -345,12 +377,56 @@ class AudioLooperEngine extends ChangeNotifier {
       clip.reversed = clipJson['reversed'] as bool? ?? false;
       clip.targetLengthBeats =
           (clipJson['targetLengthBeats'] as num?)?.toDouble() ?? 0.0;
-      // Apply volume and reversed to native.
+      clip.barSyncEnabled = clipJson['barSyncEnabled'] as bool? ?? true;
       final host = VstHostService.instance.host;
       host?.setAudioLooperVolume(clip.nativeIdx, clip.volume);
       host?.setAudioLooperReversed(clip.nativeIdx, clip.reversed);
+      host?.setAudioLooperBarSync(clip.nativeIdx, clip.barSyncEnabled);
     }
+
+    // Import sidecar WAV data if a .gf path is available.
+    if (_pendingGfPath != null) {
+      await _importWavs(_pendingGfPath!);
+      _pendingGfPath = null;
+    }
+
     notifyListeners();
+  }
+
+  /// Has pending metadata that needs [finalizeLoad] to complete.
+  bool get hasPendingLoad => _pendingJson != null && _pendingJson!.isNotEmpty;
+
+  /// Import sidecar WAVs — extracted from ProjectService so the engine can
+  /// do it self-contained after native clips exist.
+  Future<void> _importWavs(String gfPath) async {
+    final host = VstHostService.instance.host;
+    if (host == null) return;
+    final dir = Directory('$gfPath.audio');
+    if (!await dir.exists()) return;
+
+    for (final entry in _clips.entries) {
+      final slotId = entry.key;
+      final clip = entry.value;
+      final wavPath = '${dir.path}/loop_$slotId.wav';
+      if (!await File(wavPath).exists()) continue;
+      try {
+        final wav = readWavFile(wavPath);
+        final srcL = malloc<Float>(wav.lengthFrames);
+        final srcR = malloc<Float>(wav.lengthFrames);
+        srcL.asTypedList(wav.lengthFrames).setAll(0, wav.left);
+        srcR.asTypedList(wav.lengthFrames).setAll(0, wav.right);
+        final ok = host.loadAudioLooperData(
+            clip.nativeIdx, srcL, srcR, wav.lengthFrames);
+        malloc.free(srcL);
+        malloc.free(srcR);
+        if (ok) {
+          clip.lengthFrames = wav.lengthFrames;
+          debugPrint('AudioLooperEngine: imported $slotId (${wav.lengthFrames} frames)');
+        }
+      } catch (e) {
+        debugPrint('AudioLooperEngine: failed to import $slotId: $e');
+      }
+    }
   }
 
   // ── Polling ─────────────────────────────────────────────────────────────
