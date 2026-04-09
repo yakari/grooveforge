@@ -415,4 +415,22 @@ int64_t dvh_alooper_memory_used(DVH_Host /*host*/) {
     return total;
 }
 
+int32_t dvh_alooper_load_data(DVH_Host /*host*/, int32_t idx,
+                               const float* srcL, const float* srcR,
+                               int32_t lengthFrames) {
+    auto* clip = _getClip(idx);
+    if (!clip || !srcL || !srcR) return 0;
+    if (clip->state.load(std::memory_order_relaxed) != ALOOPER_IDLE) return 0;
+    if (lengthFrames <= 0 || lengthFrames > clip->capacity) return 0;
+
+    std::memcpy(clip->dataL, srcL, lengthFrames * sizeof(float));
+    std::memcpy(clip->dataR, srcR, lengthFrames * sizeof(float));
+    clip->length.store(lengthFrames, std::memory_order_relaxed);
+    clip->head.store(0, std::memory_order_relaxed);
+
+    fprintf(stderr, "[audio_looper] Loaded %d frames into clip %d\n",
+            lengthFrames, idx);
+    return 1;
+}
+
 } // extern "C"

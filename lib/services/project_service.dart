@@ -1,14 +1,19 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:ffi';
 import 'dart:io';
 
+import 'package:ffi/ffi.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'file_picker_service.dart';
 import 'package:path_provider/path_provider.dart';
+import 'vst_host_service.dart';
 import 'audio_engine.dart';
 import 'audio_graph.dart';
+import 'audio_looper_engine.dart';
 import 'cc_mapping_service.dart';
+import 'wav_utils.dart';
 import 'looper_engine.dart';
 import 'project_migration_service.dart';
 import 'rack_state.dart';
@@ -23,6 +28,9 @@ class ProjectService extends ChangeNotifier {
   /// This avoids going through [AudioEngine.ccMappingService] which is null
   /// during splash screen initialisation (assigned later in RackScreen).
   CcMappingService? ccMappingService;
+
+  /// Direct reference to the audio looper engine for save/load.
+  AudioLooperEngine? audioLooperEngine;
 
   String? _currentProjectPath;
   String? get currentProjectPath => _currentProjectPath;
@@ -260,6 +268,7 @@ class ProjectService extends ChangeNotifier {
       'looperSessions': looperEngine.toJson(),
       'plugins': rackState.toJson(),
       'ccMappings': ccMappingService?.toJson() ?? [],
+      'audioLooperSessions': audioLooperEngine?.toJson() ?? {},
     };
     return const JsonEncoder.withIndent('  ').convert(data);
   }
@@ -287,6 +296,10 @@ class ProjectService extends ChangeNotifier {
       }
 
       await tmpFile.rename(path);
+
+      // Export audio looper clips as sidecar WAV files.
+      await _exportAudioLooperWavs(path);
+
       debugPrint('ProjectService: saved to $path');
     } catch (e) {
       debugPrint('ProjectService: Failed to save project: $e');
@@ -377,11 +390,134 @@ class ProjectService extends ChangeNotifier {
       }
     }
 
+    // Restore audio looper clips (PCM data from sidecar WAVs).
+    final alooperJson =
+        data['audioLooperSessions'] as Map<String, dynamic>? ?? const {};
+    if (audioLooperEngine != null && alooperJson.isNotEmpty) {
+      audioLooperEngine!.loadFromJson(alooperJson);
+      await _importAudioLooperWavs(path);
+    }
+
     debugPrint(
       'ProjectService: loaded from $path '
       '(${pluginsJson.length} slots, '
       '${audioGraph.connections.length} cables, '
-      '${ccMappingsJson?.length ?? 0} CC mappings)',
+      '${ccMappingsJson?.length ?? 0} CC mappings, '
+      '${alooperJson.length} audio looper clips)',
     );
+  }
+
+  // ── Audio looper WAV sidecar I/O ────────────────────────────────────────
+
+  /// Returns the sidecar audio directory for the project at [gfPath].
+  /// Creates it if it doesn't exist.
+  static Future<Directory> _audioDir(String gfPath) async {
+    final dir = Directory('$gfPath.audio');
+    if (!await dir.exists()) await dir.create(recursive: true);
+    return dir;
+  }
+
+  /// Exports all audio looper clips as sidecar WAV files.
+  ///
+  /// Each clip with recorded data is written as `loop_{slotId}.wav` in the
+  /// `.gf.audio/` directory.  Orphan WAVs (from deleted clips) are cleaned up.
+  Future<void> _exportAudioLooperWavs(String gfPath) async {
+    final engine = audioLooperEngine;
+    if (engine == null || engine.clips.isEmpty) return;
+
+    final host = VstHostService.instance.host;
+    if (host == null) return;
+
+    final dir = await _audioDir(gfPath);
+    final writtenFiles = <String>{};
+
+    for (final entry in engine.clips.entries) {
+      final slotId = entry.key;
+      final clip = entry.value;
+      final length = host.getAudioLooperLength(clip.nativeIdx);
+      if (length <= 0) continue;
+
+      final dataL = host.getAudioLooperDataL(clip.nativeIdx);
+      final dataR = host.getAudioLooperDataR(clip.nativeIdx);
+      if (dataL == nullptr || dataR == nullptr) continue;
+
+      final filename = 'loop_$slotId.wav';
+      final wavPath = '${dir.path}/$filename';
+      try {
+        writeWavFile(
+          dataL: dataL,
+          dataR: dataR,
+          lengthFrames: length,
+          sampleRate: clip.sampleRate,
+          path: wavPath,
+        );
+        writtenFiles.add(filename);
+        debugPrint('ProjectService: exported $filename ($length frames)');
+      } catch (e) {
+        debugPrint('ProjectService: failed to export $filename: $e');
+      }
+    }
+
+    // Clean up orphan WAVs from deleted clips.
+    try {
+      await for (final entity in dir.list()) {
+        if (entity is File && entity.path.endsWith('.wav')) {
+          final name = entity.uri.pathSegments.last;
+          if (!writtenFiles.contains(name)) {
+            await entity.delete();
+            debugPrint('ProjectService: cleaned up orphan $name');
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('ProjectService: orphan cleanup failed: $e');
+    }
+  }
+
+  /// Imports sidecar WAV files into the native audio looper buffers.
+  ///
+  /// Must be called AFTER [AudioLooperEngine.loadFromJson] so that the native
+  /// clips are allocated and ready to receive data.
+  Future<void> _importAudioLooperWavs(String gfPath) async {
+    final engine = audioLooperEngine;
+    if (engine == null) return;
+
+    final host = VstHostService.instance.host;
+    if (host == null) return;
+
+    final dir = Directory('$gfPath.audio');
+    if (!await dir.exists()) return;
+
+    for (final entry in engine.clips.entries) {
+      final slotId = entry.key;
+      final clip = entry.value;
+      final wavPath = '${dir.path}/loop_$slotId.wav';
+
+      if (!await File(wavPath).exists()) continue;
+
+      try {
+        final wav = readWavFile(wavPath);
+        // Allocate native memory and copy the Dart Float32List into it.
+        final srcL = malloc<Float>(wav.lengthFrames);
+        final srcR = malloc<Float>(wav.lengthFrames);
+        srcL.asTypedList(wav.lengthFrames).setAll(0, wav.left);
+        srcR.asTypedList(wav.lengthFrames).setAll(0, wav.right);
+
+        final ok = host.loadAudioLooperData(
+            clip.nativeIdx, srcL, srcR, wav.lengthFrames);
+        malloc.free(srcL);
+        malloc.free(srcR);
+
+        if (ok) {
+          clip.lengthFrames = wav.lengthFrames;
+          debugPrint(
+              'ProjectService: imported loop_$slotId.wav (${wav.lengthFrames} frames)');
+        } else {
+          debugPrint('ProjectService: native loadData failed for $slotId');
+        }
+      } catch (e) {
+        debugPrint('ProjectService: failed to import loop_$slotId.wav: $e');
+      }
+    }
   }
 }

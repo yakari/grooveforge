@@ -35,6 +35,12 @@ class VstHostService {
 
   VstHost? _host;
 
+  /// Public read-only access to the native host handle.
+  ///
+  /// Used by [AudioLooperEngine] to call audio looper C API functions.
+  /// Returns null before [initialize] is called or on unsupported platforms.
+  VstHost? get host => _host;
+
   // Map from rack slot ID → loaded VstPlugin handle.
   final Map<String, VstPlugin> _plugins = {};
 

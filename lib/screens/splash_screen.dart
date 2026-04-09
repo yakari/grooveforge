@@ -9,6 +9,7 @@ import '../plugins/gf_theremin_plugin.dart';
 import '../plugins/gf_vocoder_plugin.dart';
 import '../services/audio_engine.dart';
 import '../services/audio_graph.dart';
+import '../services/audio_looper_engine.dart';
 import '../services/cc_mapping_service.dart';
 import '../services/drum_generator_engine.dart';
 import '../services/looper_engine.dart';
@@ -67,6 +68,7 @@ class _SplashScreenState extends State<SplashScreen> {
     // can load/save mappings without going through engine.ccMappingService
     // (which is null until RackScreen.initState assigns it).
     projectService.ccMappingService = context.read<CcMappingService>();
+    projectService.audioLooperEngine = context.read<AudioLooperEngine>();
 
     // Load the last autosave (or initialise defaults) BEFORE wiring up the
     // autosave callbacks.  This prevents spurious autosaves that would fire
@@ -106,6 +108,9 @@ class _SplashScreenState extends State<SplashScreen> {
       () => projectService.autosave(
           rack, engine, transport, audioGraph, looperEngine),
     );
+    // Autosave when audio looper recording completes or a clip is cleared.
+    context.read<AudioLooperEngine>().onDataChanged = () =>
+        projectService.autosave(rack, engine, transport, audioGraph, looperEngine);
 
     // Re-load any persisted VST3 plugins into the native host so their
     // parameters are accessible immediately (they are not auto-loaded on restore).

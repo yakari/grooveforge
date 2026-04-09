@@ -26,7 +26,7 @@
 | 2.10.0 | PipeWire migration (Linux) | ✅ Complete | Replace direct ALSA with PipeWire/JACK; inter-app routing; lower latency |
 | TBD | Multi-USB audio (Android) | ✅ Complete | Device routing via `setDeviceId()`; built-in mic + USB output as reliable multi-device path |
 | **TBD** | **Per-project CC mappings** | **✅ Complete** | Slot-addressed CC control, per-project storage, effect bypass, channel-swap macro, transport/volume CC |
-| TBD | Audio Looper (PCM) | 🔜 After CC rework | Built on top of the simplified looper |
+| TBD | Audio Looper (PCM) | **🔜 In progress** | C++ core + Dart engine done; serialisation + UI remaining |
 | TBD | Phase 8 (full) | ⏸ TBD | pub.dev publishing; plugin store; vocoder mk2 |
 | TBD | Phase 8b | ⏸ TBD | AudioUnit v3 bridge (macOS + iOS) |
 | TBD | Phase 8c | ⏸ TBD | AAP bridge (Android) — pending AAP v1.0 |
@@ -519,48 +519,99 @@ Static Dart registry (`CcParamRegistry`) — not embedded in `.gfpd` descriptors
 
 ---
 
-## 🔊 TBD — Audio Looper (PCM)
+## 🔊 TBD — Audio Looper (PCM) 🔜 Next
 
 > Builds on the simplified MIDI looper. Adds PCM recording alongside or instead of MIDI.
 
 The Audio Looper extends the looper slot concept from MIDI events to raw PCM audio. This lets users layer live audio (vocals, guitar, synth output) the same way they layer MIDI — arm, record on the next downbeat, overdub, reverse. It also enables a hardware-style workflow where the entire rack output can be captured into a loop clip, not just MIDI note data.
 
-### PCM signal flow
+### Architecture — triple-layer design
 
 ```mermaid
 graph TD
-    IN[Audio Input Bus] -->|audio frames per callback| WH[Ring Buffer\nWrite Head]
-    WH -->|on loop boundary| CLIP[AudioLoopClip\nPCM buffer L+R]
-    CLIP -->|readHead advance| RH[Playback Read Head]
-    RH -->|× volumeScale| MIX[Output Bus Mix]
-    RH -->|overdub: old buffer to output| WH
+    subgraph Native["C++ — RT audio thread (zero allocation)"]
+        CLIP[ALooperClip\npre-allocated float* L/R\natomic state/head/length]
+        PROC[dvh_alooper_process\ncalled every JACK block]
+        PROC -->|record from preMix| CLIP
+        PROC -->|playback into mix| MIX[Master Mix Bus]
+    end
+
+    subgraph Dart["Dart — control plane"]
+        ENGINE[AudioLooperEngine\nChangeNotifier]
+        ENGINE -->|FFI: set_state, set_volume| CLIP
+        ENGINE -->|30Hz poll: get_state, get_head| CLIP
+        ENGINE -->|toJson / loadFromJson| PROJ[ProjectService]
+    end
+
+    subgraph UI["Flutter — widgets"]
+        CARD[AudioLooperSlotUI]
+        WAVE[Waveform CustomPainter]
+        CARD --> ENGINE
+        WAVE -->|FFI: get_data_l/r| CLIP
+    end
 ```
 
-### 🔊 Engine
+**Recording tap point**: `preMixL/R` snapshot taken BEFORE looper playback injection → prevents overdub feedback.
 
-- [ ] `AudioLoopEngine` (`ChangeNotifier`) — manages `List<AudioLoopClip>`.
-- [ ] `armClip(clipId)` — allocates `bufferL/R`; waits for next downbeat.
-- [ ] Recording: write `frameCount` PCM frames per audio callback into ring buffer.
-- [ ] On loop boundary: switch to `playing`, reset `readHead = 0`.
-- [ ] Playback: add `buffer[readHead…] × volumeScale` to target bus; advance `readHead`.
-- [ ] Overdub: simultaneously read old buffer to output AND write new audio (summed).
-- [ ] Latency compensation: measure round-trip latency, shift `writeHead` back by that amount.
+**Bar-sync**: C++ callback detects downbeat crossing at sample precision using transport BPM/timeSig atomics (broadcast from `dvh_set_transport`).
+
+**Serialisation**: PCM data as sidecar `.wav` files alongside `.gf` JSON. Metadata (volume, reversed, target length) in JSON.
+
+### 🔊 Phase 1 — C++ core (RT-safe native layer)
+
+- [x] `audio_looper.h` — `ALooperClip` struct, `ALooperState` enum, 14-function C API (`dvh_alooper_create/destroy/set_state/get_state/set_volume/set_reversed/set_source/set_length_beats/get_data_l/get_data_r/get_length/get_capacity/get_head/memory_used`).
+- [x] `audio_looper.cpp` — clip lifecycle (pre-allocated `float*` L/R, max 60s × 48kHz ≈ 22MB per clip, pool of 8), RT process function covering all 5 states (idle/armed/recording/playing/overdubbing).
+- [x] Bar-sync detection in `dvh_alooper_process`: scans block for exact downbeat sample, transitions armed→recording at that frame.
+- [x] Recording auto-stop: when `targetLengthBeats > 0`, recording→playing transition fires at the computed frame count.
+- [x] Overdub: single-pass read-add-write (old buffer → output, new input summed → write back), no data race by construction (single-threaded RT callback).
+- [x] JACK callback integration: `preMixL/R` snapshot + `dvh_alooper_process` call injected between master mix accumulation and soft-clip in `_jackProcessCallback`.
+- [x] Transport broadcast: `dvh_jack_update_transport()` pushes BPM/timeSig/positionInBeats atomics from `dvh_set_transport()` to all JACK `AudioState` instances.
+- [x] Non-Linux stubs for all 14 C API functions + transport broadcast.
+
+### 🔊 Phase 2 — Dart FFI bindings + engine
+
+- [x] 14 FFI bindings in `bindings.dart` (`alooperCreate`, `alooperDestroy`, `alooperSetState`, etc.) following the existing `lookupFunction` pattern.
+- [x] 14 high-level wrapper methods on `VstHost` in `host.dart` (`createAudioLooperClip`, `setAudioLooperState`, `getAudioLooperDataL`, etc.).
+- [x] `AudioLooperEngine` (`ChangeNotifier`) in `lib/services/audio_looper_engine.dart` — clip creation/destruction, state transitions (arm/stop/play/overdub/clear), volume/reverse control, 30Hz native state polling, `toJson`/`loadFromJson`, `onDataChanged` callback, `memoryUsedBytes` getter.
+- [x] `AudioLooperClip` model — wraps native clip index, exposes `durationSeconds`, `progress`, serialisation.
+- [x] `VstHostService.host` public getter exposed for the looper engine.
+
+### 🔊 Phase 3 — Serialisation (sidecar WAV)
+
+- [x] `wav_utils.dart` — `writeWavFile()`: writes 32-bit float stereo WAV from native `Pointer<Float>` L/R + length. Standard WAV header (44 bytes) + interleaved data chunk.
+- [x] `wav_utils.dart` — `readWavFile()`: reads 32-bit float stereo WAV, returns deinterleaved `Float32List` pair + sample rate. Validates RIFF/WAVE/fmt/data chunks.
+- [x] `dvh_alooper_load_data()` C API + FFI binding: copies Dart-side `Float32List` into native clip buffers for WAV import.
+- [x] `.gf.audio/` directory management in `ProjectService`: `_audioDir()` creates sidecar directory, `_exportAudioLooperWavs()` writes clips as `loop_{slotId}.wav`, cleans up orphan WAVs from deleted clips.
+- [x] `ProjectService._writeGfFile` extended: calls `_exportAudioLooperWavs()` after JSON write.
+- [x] `ProjectService._readGfFile` extended: calls `_importAudioLooperWavs()` after restoring JSON metadata — allocates native memory, copies WAV data into clip buffers via `loadAudioLooperData()`.
+- [x] `audioLooperSessions` key in `.gf` JSON — clip metadata (label, volume, reversed, targetLengthBeats, sampleRate).
+- [x] `AudioLooperEngine` registered as `ChangeNotifierProxyProvider` in `main.dart`.
+- [x] `ProjectService.audioLooperEngine` reference set in `splash_screen.dart` (same pattern as `ccMappingService`).
+- [x] Autosave hook: `AudioLooperEngine.onDataChanged` wired to `ProjectService.autosave` in `splash_screen.dart`.
+
+### 🔊 Phase 4 — UI
+
+- [ ] `AudioLooperSlotUI` widget — rack card visually distinct from MIDI looper cards.
+- [ ] Waveform preview: `CustomPainter` draws RMS envelope from native `float*` via FFI (decimated to ~300 points).
+- [ ] Clip controls: Arm/Record, Play/Stop, Overdub, Clear, Mute, Reverse toggle.
+- [ ] Source bus selector: pick which audio bus to capture (Master mix, or specific slot output).
+- [ ] Progress indicator: playback head position on the waveform.
+- [ ] Memory usage indicator: total clip memory in the looper panel header.
+
+### 🔊 Phase 5 — Polish
+
+- [ ] Latency compensation: measure round-trip latency via `jack_port_get_latency_range()`, shift `writeHead` back by that amount.
 - [ ] Memory cap: warn if total clip memory exceeds 256 MB (configurable in preferences).
+- [ ] l10n: EN/FR ARB keys for all audio looper UI strings.
 
-### 🔊 UI
+### 🧪 Phase 6 — Testing
 
-- [ ] `AudioLoopClipCard` in the Looper Panel (visually distinct from MIDI track cards).
-- [ ] Waveform preview: `CustomPainter` draws RMS envelope (decimated to ~300 points).
-- [ ] Clip controls: Record, Play/Stop, Overdub, Clear, Mute, Reverse toggle.
-- [ ] Source bus selector: pick which audio bus to capture (Main, or specific slot audio out).
-
-### 🧪 Testing
-
-- [ ] Record 4 bars of Surge XT output → seamless loop playback.
-- [ ] Overdub adds audio without gaps.
+- [ ] Record 4 bars of keyboard output → seamless loop playback.
+- [ ] Overdub adds audio without gaps or feedback.
 - [ ] Reverse plays clip backwards correctly.
 - [ ] Memory warning appears when clips exceed threshold.
-- [ ] Save/load project → clips preserved (base64 embedded or sidecar `.pcm`).
+- [ ] Save/load project → clips preserved as sidecar WAV files.
+- [ ] Delete a clip → WAV file cleaned up on next save.
 
 ---
 

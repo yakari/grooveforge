@@ -869,6 +869,7 @@ extern "C" {
     int32_t dvh_alooper_get_capacity(DVH_Host, int32_t) { return 0; }
     int32_t dvh_alooper_get_head(DVH_Host, int32_t) { return 0; }
     int64_t dvh_alooper_memory_used(DVH_Host) { return 0; }
+    int32_t dvh_alooper_load_data(DVH_Host, int32_t, const float*, const float*, int32_t) { return 0; }
 }
 
 // Non-Linux stub for the transport broadcast.

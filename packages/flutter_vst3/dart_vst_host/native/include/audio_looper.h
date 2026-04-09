@@ -136,6 +136,17 @@ DVH_API int32_t dvh_alooper_get_head(DVH_Host host, int32_t idx);
 /// Returns total memory used by all clips in bytes.
 DVH_API int64_t dvh_alooper_memory_used(DVH_Host host);
 
+/// Load PCM data into clip [idx] from Dart-side buffers.
+///
+/// Copies [lengthFrames] stereo samples from [srcL] and [srcR] into the
+/// clip's pre-allocated buffers.  Sets the clip length accordingly.
+/// The clip must be idle (not recording or playing).
+/// Returns 1 on success, 0 on failure (invalid idx, clip active, or
+/// lengthFrames > capacity).
+DVH_API int32_t dvh_alooper_load_data(DVH_Host host, int32_t idx,
+                                       const float* srcL, const float* srcR,
+                                       int32_t lengthFrames);
+
 // ── RT process function (called from JACK/AAudio callback) ─────────────────
 // NOT part of the Dart-facing C API. Called directly from the audio callback
 // after the master mix is accumulated but before soft-clipping.
