@@ -141,6 +141,7 @@ class AudioInputFFI {
 
   /// No-op on web — capture mode and bus routing are Android-only.
   void thereminSetCaptureMode({required bool enabled}) {}
+  void vocoderSetCaptureMode({required bool enabled}) {}
 
   /// Returns 0 on web — bus render function addresses are Android-only.
   int thereminBusRenderFnAddr() => 0;

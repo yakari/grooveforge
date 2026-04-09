@@ -77,6 +77,12 @@ static float g_effectivePitchFactor = 1.0f; // = g_pitchBendFactor × vibrato LF
 static float g_inputPeak = 0.0f;
 static float g_outputPeak = 0.0f;
 static float g_inputGain = 1.0f;
+
+/// Vocoder capture mode flag.
+/// 0 = normal playback via miniaudio (default).
+/// 1 = routed through JACK audio thread — data_callback outputs silence and
+///     does NOT advance DSP state.  vocoder_render_block() drives the DSP.
+static volatile int g_vocoderCaptureMode = 0;
 static int g_selectedCaptureDeviceIndex = -1; // -1 means default
 static int g_androidDeviceId = -1; // Specific Android Device ID for AAudio
 static int g_androidOutputDeviceId = -1; // Specific Android Output Device ID for AAudio
@@ -326,6 +332,13 @@ void mic_capture_callback(ma_device* pDevice, void* pOutput, const void* pInput,
 // Main audio loop.
 // Optimization: move voice counting OUT of the sample loop for speed.
 void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount) {
+    // When capture mode is active, the JACK thread owns the DSP.
+    // Output silence so we don't double-render.
+    if (g_vocoderCaptureMode) {
+        if (pOutput) memset(pOutput, 0, frameCount * sizeof(float));
+        return;
+    }
+
     if (g_latencyDebugEnabled) {
         int64_t now = _get_monotonic_ns();
         if (g_lastCallbackStartNs != 0) {
@@ -504,11 +517,159 @@ void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uin
     if (outPeak > g_outputPeak) g_outputPeak = outPeak;
 }
 
+// ── Vocoder capture mode + render block ──────────────────────────────────────
+//
+// When capture mode is enabled, the miniaudio playback device outputs silence
+// and vocoder_render_block() produces the vocoder audio.  This allows the JACK
+// audio thread (and the audio looper) to capture the vocoder's output.
+//
+// Same pattern as theremin_render_block / theremin_set_capture_mode.
+
+/// Renders [frames] samples of vocoder DSP into [outL] and [outR] (stereo f32).
+///
+/// Must ONLY be called when capture mode is enabled (vocoder_set_capture_mode(1)).
+/// Reads from the mic ring buffer (filled by the capture device) and runs the
+/// full vocoder pipeline: filter bank analysis, carrier synthesis, sibilance.
+///
+/// This function is allocation-free and safe on the audio thread.
+static void _vocoder_render_block_impl(float* outL, float* outR, int frames) {
+    ma_uint32 writePos = __atomic_load_n(&g_micWriteCursor, __ATOMIC_ACQUIRE);
+    ma_uint32 readStart = (writePos - (ma_uint32)frames) & MIC_RING_MASK;
+
+    static float squelchEnv = 0.0f;
+    const float squelchThreshold = 0.003f;
+    const float squelchAttack = 0.05f;
+    const float squelchRelease = 0.002f;
+
+    static float sibilanceZ1 = 0.0f;
+    static float sibilanceZ2 = 0.0f;
+    const float hp_b0 = 0.65f, hp_b1 = -1.3f, hp_b2 = 0.65f, hp_a1 = -0.8f, hp_a2 = 0.2f;
+
+    int activeVoiceCount = 0;
+    for (int v = 0; v < MAX_POLYPHONY; ++v) {
+        if (voices[v].active || voices[v].releaseSamples > 0) activeVoiceCount++;
+    }
+
+    // ACF pitch detection (NATURAL mode only).
+    if (g_vocoderWaveform == 3 && activeVoiceCount > 0) {
+        for (int i = 0; i < frames; i++) {
+            g_acfBuffer[g_acfCounter++] = g_micRing[(readStart + (ma_uint32)i) & MIC_RING_MASK];
+            if (g_acfCounter >= ACF_WINDOW) {
+                float maxCorr = -1.0f;
+                int bestLag = -1;
+                for (int lag = ACF_MIN_LAG; lag < ACF_MAX_LAG; lag++) {
+                    float corr = 0.0f;
+                    for (int j = 0; j < ACF_WINDOW - lag; j++) {
+                        corr += g_acfBuffer[j] * g_acfBuffer[j + lag];
+                    }
+                    if (corr > maxCorr) { maxCorr = corr; bestLag = lag; }
+                }
+                if (bestLag > 0) {
+                    float detectedHz = (float)SAMPLE_RATE / (float)bestLag;
+                    g_micPitchHz = g_micPitchHz * 0.9f + detectedHz * 0.1f;
+                    if (maxCorr > g_naturalMaxCorr * 0.8f || maxCorr > 0.5f) {
+                        g_naturalMaxCorr = maxCorr;
+                        capture_psola_grain(&g_acfBuffer[0], bestLag);
+                    }
+                }
+                g_acfCounter = 0;
+            }
+        }
+    }
+
+    for (int i = 0; i < frames; ++i) {
+        g_lfoPhase += 5.5f / (float)SAMPLE_RATE;
+        if (g_lfoPhase >= 1.0f) g_lfoPhase -= 1.0f;
+        float lfoSin = sinf(g_lfoPhase * 6.2831853f);
+        g_effectivePitchFactor = g_pitchBendFactor * (1.0f + lfoSin * g_vibratoDepth * 0.05946f);
+
+        float micInput = g_micRing[(readStart + (ma_uint32)i) & MIC_RING_MASK] * g_inputGain;
+
+        float synthMix = 0.0f;
+        if (activeVoiceCount > 0) {
+            for (int v = 0; v < MAX_POLYPHONY; ++v) {
+                Oscillator* osc = &voices[v];
+                if (osc->active || osc->releaseSamples > 0) {
+                    if (!osc->active && osc->releaseSamples > 0) {
+                        osc->envelope -= (1.0f / 240.0f);
+                        osc->releaseSamples--;
+                        if (osc->envelope <= 0.0f) { osc->envelope = 0.0f; osc->releaseSamples = 0; }
+                    }
+                    float voiceGain = (g_vocoderWaveform == 3) ? 1.2f : 0.8f;
+                    synthMix += renderOscillator(osc) * (osc->velocity / 127.0f) * osc->envelope * voiceGain;
+                }
+            }
+        }
+
+        micInput = pre_filter_mic(micInput);
+        if (fabsf(micInput) < g_gateThreshold) micInput = 0.0f;
+
+        if (activeVoiceCount == 0) {
+            float absRawMic = fabsf(micInput);
+            if (absRawMic > squelchEnv) squelchEnv = squelchEnv * (1.0f - squelchAttack) + absRawMic * squelchAttack;
+            else squelchEnv = squelchEnv * (1.0f - squelchRelease) + absRawMic * squelchRelease;
+            if (squelchEnv < squelchThreshold) { micInput = 0.0f; squelchEnv = 0.0f; }
+        } else {
+            squelchEnv = fabsf(micInput);
+        }
+
+        float vocoderOutput = 0.0f;
+
+        for (int b = 0; b < NUM_BANDS; ++b) {
+            float modSignal = processBiquad(&bands[b].modFilter, micInput);
+            float absMod = fabsf(modSignal);
+            if (absMod > bands[b].envelope) bands[b].envelope = bands[b].envelope * (1.0f - 0.01f) + absMod * 0.01f;
+            else bands[b].envelope = bands[b].envelope * (1.0f - g_vocoderEnvRelease) + absMod * g_vocoderEnvRelease;
+            if (bands[b].envelope < 1e-6f) bands[b].envelope = 0.0f;
+        }
+
+        if (activeVoiceCount > 0) {
+            for (int b = 0; b < NUM_BANDS; ++b) {
+                vocoderOutput += processBiquad(&bands[b].carFilter, synthMix) * bands[b].envelope;
+            }
+            float modeScale = (g_vocoderWaveform == 0) ? 18.0f :
+                              (g_vocoderWaveform == 1) ? 15.0f :
+                              (g_vocoderWaveform == 2) ? 20.0f : 15.0f;
+            vocoderOutput *= modeScale;
+
+            float sibilance = micInput * hp_b0 + sibilanceZ1;
+            sibilanceZ1 = micInput * hp_b1 - sibilance * hp_a1 + sibilanceZ2;
+            sibilanceZ2 = micInput * hp_b2 - sibilance * hp_a2;
+            float sibScale = (g_vocoderWaveform <= 1) ? 4.5f :
+                             (g_vocoderWaveform == 2) ? 2.5f : 1.5f;
+            vocoderOutput += sibilance * g_vocoderNoiseMix * sibScale;
+        } else {
+            float sibilance = micInput * hp_b0 + sibilanceZ1;
+            sibilanceZ1 = micInput * hp_b1 - sibilance * hp_a1 + sibilanceZ2;
+            sibilanceZ2 = micInput * hp_b2 - sibilance * hp_a2;
+        }
+
+        vocoderOutput = soft_clip(vocoderOutput) * 0.95f;
+        // Mono → stereo.
+        outL[i] = vocoderOutput;
+        outR[i] = vocoderOutput;
+    }
+}
+
 #ifdef _WIN32
   #define EXPORT __declspec(dllexport)
 #else
   #define EXPORT __attribute__((visibility("default"))) __attribute__((used))
 #endif
+
+/// Enable or disable vocoder capture mode.
+/// When enabled, the miniaudio playback device outputs silence and
+/// vocoder_render_block() drives the DSP (called by the JACK thread).
+EXPORT void vocoder_set_capture_mode(int enabled) {
+    g_vocoderCaptureMode = enabled ? 1 : 0;
+    fprintf(stderr, "[vocoder] capture mode %s\n", enabled ? "ON" : "OFF");
+}
+
+/// Renders vocoder audio for the JACK audio thread / audio looper.
+/// Only valid when capture mode is enabled.
+EXPORT void vocoder_render_block(float* outL, float* outR, int frames) {
+    _vocoder_render_block_impl(outL, outR, frames);
+}
 
 // --- FFI Interface ---
 
