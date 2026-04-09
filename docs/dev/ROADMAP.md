@@ -591,12 +591,15 @@ graph TD
 
 ### 🔊 Phase 4 — UI
 
-- [ ] `AudioLooperSlotUI` widget — rack card visually distinct from MIDI looper cards.
-- [ ] Waveform preview: `CustomPainter` draws RMS envelope from native `float*` via FFI (decimated to ~300 points).
-- [ ] Clip controls: Arm/Record, Play/Stop, Overdub, Clear, Mute, Reverse toggle.
+- [x] `AudioLooperPluginInstance` model with `type: 'audio_looper'` JSON serialisation, registered in `PluginInstance.fromJson`.
+- [x] `AudioLooperSlotUI` widget — rack card with dark hardware-style design, waveform display, transport strip, volume row, status chip.
+- [x] Waveform preview: `_WaveformPainter` (`CustomPainter`) draws RMS envelope from native `float*` via FFI (decimated to ~300 bins), playback head line, recording progress indicator.
+- [x] Clip controls: Arm/Record, Play/Stop, Overdub, Clear, Reverse toggle — all routed through `AudioLooperEngine`.
+- [x] Registered in `add_plugin_sheet.dart` as "Audio Looper" with red accent icon, EN/FR l10n keys.
+- [x] Registered in `rack_slot_widget.dart` — `_buildBody` switch + `_shouldShowNoteGlow` exclusion.
 - [ ] Source bus selector: pick which audio bus to capture (Master mix, or specific slot output).
-- [ ] Progress indicator: playback head position on the waveform.
-- [ ] Memory usage indicator: total clip memory in the looper panel header.
+- [x] Progress indicator: playback head position rendered as white vertical line on waveform.
+- [x] Memory usage indicator: clip memory shown in the volume row as compact label (KB/MB).
 
 ### 🔊 Phase 5 — Polish
 

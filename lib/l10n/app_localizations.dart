@@ -1586,6 +1586,18 @@ abstract class AppLocalizations {
   /// **'Record and loop MIDI patterns with bar sync'**
   String get addLooperSubtitle;
 
+  /// No description provided for @rackAddAudioLooper.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio Looper'**
+  String get rackAddAudioLooper;
+
+  /// No description provided for @rackAddAudioLooperSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Record and loop live audio (PCM) with bar sync, overdub, and reverse'**
+  String get rackAddAudioLooperSubtitle;
+
   /// No description provided for @addLooperAlreadyExists.
   ///
   /// In en, this message translates to:

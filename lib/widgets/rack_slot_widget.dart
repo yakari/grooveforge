@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../l10n/app_localizations.dart';
 import '../constants/soundfont_sentinels.dart';
+import '../models/audio_looper_plugin_instance.dart';
 import '../models/drum_generator_plugin_instance.dart';
 import '../models/gfpa_plugin_instance.dart';
 import '../models/grooveforge_keyboard_plugin.dart';
@@ -32,6 +33,7 @@ import 'rack/gfpa_stylophone_slot_ui.dart';
 import 'rack/gfpa_theremin_slot_ui.dart';
 import 'rack/gfpa_vocoder_slot_ui.dart';
 import 'rack/grooveforge_keyboard_slot_ui.dart';
+import 'rack/audio_looper_slot_ui.dart';
 import 'rack/looper_slot_ui.dart';
 import 'rack/vst3_effect_slot_ui.dart';
 import 'rack/vst3_slot_ui.dart';
@@ -214,6 +216,7 @@ class RackSlotWidget extends StatelessWidget {
   /// note-activity glow to avoid false highlights when an unconnected VP is
   /// played.  Only slots that directly produce or respond to notes should glow.
   bool get _shouldShowNoteGlow {
+    if (plugin is AudioLooperPluginInstance) return false;
     if (plugin is DrumGeneratorPluginInstance) return false;
     if (plugin is LooperPluginInstance) return false;
     if (plugin is GFpaPluginInstance) {
@@ -249,6 +252,9 @@ class RackSlotWidget extends StatelessWidget {
     }
     if (plugin is LooperPluginInstance) {
       return LooperSlotUI(plugin: plugin as LooperPluginInstance);
+    }
+    if (plugin is AudioLooperPluginInstance) {
+      return AudioLooperSlotUI(plugin: plugin as AudioLooperPluginInstance);
     }
     if (plugin is Vst3PluginInstance) {
       final vst3 = plugin as Vst3PluginInstance;
