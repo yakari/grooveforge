@@ -396,6 +396,10 @@ class ProjectService extends ChangeNotifier {
     if (audioLooperEngine != null && alooperJson.isNotEmpty) {
       audioLooperEngine!.loadFromJson(alooperJson);
       await _importAudioLooperWavs(path);
+      // Note: render sources are NOT wired here because _host is null at this
+      // point (JACK client starts later).  The AudioLooperSlotUI.initState
+      // creates the native clip and triggers a routing rebuild via
+      // audioGraph.notifyListeners() after the widget mounts.
     }
 
     debugPrint(

@@ -393,7 +393,11 @@ class AudioLooperEngine extends ChangeNotifier {
       clip.lengthFrames = host.getAudioLooperLength(clip.nativeIdx);
       clip.headFrames = host.getAudioLooperHead(clip.nativeIdx);
     }
-    if (changed) notifyListeners();
+    // Always notify when any clip is active — the waveform painter needs
+    // continuous head position updates for a smooth playback cursor.
+    final anyActive = _clips.values.any(
+        (c) => c.state != AudioLooperState.idle);
+    if (changed || anyActive) notifyListeners();
   }
 
   @override

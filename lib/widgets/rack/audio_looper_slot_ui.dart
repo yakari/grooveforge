@@ -5,7 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/audio_looper_plugin_instance.dart';
+import '../../services/audio_graph.dart';
 import '../../services/audio_looper_engine.dart';
+import '../../services/rack_state.dart';
 import '../../services/vst_host_service.dart';
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
@@ -36,7 +38,15 @@ class _AudioLooperSlotUIState extends State<AudioLooperSlotUI> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<AudioLooperEngine>().createClip(widget.plugin.id);
+      final engine = context.read<AudioLooperEngine>();
+      if (engine.clips.containsKey(widget.plugin.id)) return;
+      engine.createClip(widget.plugin.id);
+      // Trigger a routing rebuild so syncAudioRouting wires the render sources
+      // for any cables already connected to this looper (e.g. from a persisted
+      // project loaded before the JACK client was available).
+      final rackState = context.read<RackState>();
+      final graph = context.read<AudioGraph>();
+      VstHostService.instance.syncAudioRouting(graph, rackState.plugins);
     });
   }
 
