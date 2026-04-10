@@ -292,6 +292,10 @@ class VstHost {
   void setAudioLooperBarSync(int idx, bool enabled) =>
       _b.alooperSetBarSync(idx, enabled ? 1 : 0);
 
+  /// Set the number of bars to skip before recording starts (count-in).
+  void setAudioLooperSkipBars(int idx, int bars) =>
+      _b.alooperSetSkipBars(idx, bars);
+
   /// Set target loop length in beats.  0 = record until manually stopped.
   void setAudioLooperLengthBeats(int idx, double lengthBeats) =>
       _b.alooperSetLengthBeats(handle, idx, lengthBeats);

@@ -20,6 +20,8 @@ class TransportEngine extends ChangeNotifier {
 
   // Fires on each beat boundary while playing. [isDownbeat] == true on beat 1 of each bar.
   void Function(bool isDownbeat)? onBeat;
+  /// Additional beat callback for the audio looper bar-sync.
+  void Function(bool isDownbeat)? onBeatAudioLooper;
 
   // Incremented on each beat; listen with ValueListenableBuilder for visual pulse.
   final ValueNotifier<int> beatCount = ValueNotifier(0);
@@ -46,6 +48,7 @@ class TransportEngine extends ChangeNotifier {
     // and the metronome click sounds the instant play is pressed.
     beatCount.value = 1;
     onBeat?.call(true);
+    onBeatAudioLooper?.call(true);
     // Advance past beat-1 so the next tick crossing (b=2) is beat 2, not a
     // second downbeat.
     _positionInBeats = 1.0;
@@ -81,7 +84,10 @@ class TransportEngine extends ChangeNotifier {
         // so downbeat formula is (b-1) % numerator == 0.
         final isDownbeat = (b - 1) % _timeSigNumerator == 0;
         beatCount.value++;
+        debugPrint('[TRANSPORT] beat $b (pos=${_positionInBeats.toStringAsFixed(1)}) '
+            '${isDownbeat ? "* BAR" : ""}');
         onBeat?.call(isDownbeat);
+        onBeatAudioLooper?.call(isDownbeat);
       }
     }
 

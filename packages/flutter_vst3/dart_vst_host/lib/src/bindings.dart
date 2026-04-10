@@ -433,6 +433,12 @@ class NativeBindings {
           void Function(int, int)
       >('dvh_alooper_add_source_plugin');
 
+  late final void Function(int, int) alooperSetSkipBars =
+      lib.lookupFunction<
+          Void Function(Int32, Int32),
+          void Function(int, int)
+      >('dvh_alooper_set_skip_bars');
+
   late final void Function(int, int) alooperSetBarSync =
       lib.lookupFunction<
           Void Function(Int32, Int32),

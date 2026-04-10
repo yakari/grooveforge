@@ -39,6 +39,13 @@ struct ALooperClip {
     /// Bar-sync mode: 1 = wait for downbeat, 0 = start immediately.
     std::atomic<int32_t> barSync{1};
 
+    /// Number of bar downbeats to skip before starting recording.
+    /// 0 = record on the very next downbeat.  1 = skip 1 bar (count-in).
+    std::atomic<int32_t> skipBars{0};
+
+    /// Counter for downbeats seen since arming (used with skipBars).
+    int32_t downbeatsSeen = 0;
+
     // ── Transport-sync fields ──────────────────────────────────────────
     /// Beat position where the loop starts (exact bar boundary).
     double loopStartBeat = 0.0;
@@ -97,6 +104,12 @@ void dvh_alooper_process(
     const double beatsPerSample = (bpm > 0.0 && sampleRate > 0)
         ? bpm / (60.0 * sampleRate) : 0.0;
     const double tsNum = static_cast<double>(timeSigNum > 0 ? timeSigNum : 4);
+    // The Dart transport starts at positionInBeats = 1.0 (skips past beat 1).
+    // This means Dart's bar boundaries are at positions 1, 5, 9, 13, ...
+    // (i.e. offset by 1 from the mathematical fmod(pos, timeSig) == 0).
+    // We subtract 1 before the fmod check so the C++ bar detection matches
+    // the Dart metronome / drum generator bar timing.
+    const double barOffset = 1.0;
 
     for (int c = 0; c < ALOOPER_MAX_CLIPS; ++c) {
         auto& clip = g_clips[c];
@@ -108,12 +121,12 @@ void dvh_alooper_process(
         const float* srcL = clipSrcL[c];
         const float* srcR = clipSrcR[c];
 
-        // ── Armed ──────────────────────────────────────────────────────
+        // ── Armed: wait for the next bar downbeat ──────────────────────
         if (st == ALOOPER_ARMED) {
             const bool sync = clip.barSync.load(std::memory_order_relaxed) != 0;
 
-            if (!sync || !isPlaying) {
-                // Free-form: start immediately.
+            if (!sync) {
+                // Free-form mode: start recording immediately.
                 clip.state.store(ALOOPER_RECORDING, std::memory_order_relaxed);
                 clip.head.store(0, std::memory_order_relaxed);
                 clip.length.store(0, std::memory_order_relaxed);
@@ -127,16 +140,25 @@ void dvh_alooper_process(
                 continue;
             }
 
-            // Bar-synced: find exact downbeat sample.
+            // Bar-synced: wait for transport AND a downbeat.
+            // If transport hasn't started yet, just keep waiting.
+            if (!isPlaying || beatsPerSample <= 0.0) continue;
+
             for (int i = 0; i < blockSize; ++i) {
                 const double beatAtSample = positionInBeats + i * beatsPerSample;
-                const double barBeat = std::fmod(beatAtSample, tsNum);
+                const double barBeat = std::fmod(beatAtSample - barOffset, tsNum);
                 if (barBeat < beatsPerSample || barBeat > (tsNum - beatsPerSample)) {
+                    clip.downbeatsSeen++;
+                    const int32_t skip = clip.skipBars.load(std::memory_order_relaxed);
+                    if (clip.downbeatsSeen <= skip) continue;
+
+                    fprintf(stderr, "[ALOOPER-C] ARMED→RECORDING at beat=%.1f "
+                            "(downbeats=%d, skip=%d)\n",
+                            beatAtSample, clip.downbeatsSeen, skip);
                     clip.state.store(ALOOPER_RECORDING, std::memory_order_relaxed);
                     clip.head.store(0, std::memory_order_relaxed);
                     clip.length.store(0, std::memory_order_relaxed);
-                    // Snap to exact bar boundary.
-                    clip.loopStartBeat = std::floor(beatAtSample / tsNum) * tsNum;
+                    clip.loopStartBeat = std::floor((beatAtSample - barOffset) / tsNum) * tsNum + barOffset;
                     clip.recordBpm = bpm;
                     int32_t h = 0;
                     for (int j = i; j < blockSize && h < clip.capacity; ++j)
@@ -149,13 +171,11 @@ void dvh_alooper_process(
             continue;
         }
 
-        // ── Recording ──────────────────────────────────────────────────
+        // ── Recording: write samples until buffer full ─────────────────
         if (st == ALOOPER_RECORDING) {
             int32_t h = clip.head.load(std::memory_order_relaxed);
-
             for (int i = 0; i < blockSize; ++i) {
                 if (h >= clip.capacity) {
-                    // Buffer full — finalize.
                     clip.loopLengthFrames = h;
                     clip.loopLengthBeats = (bpm > 0.0)
                         ? h / (sampleRate * 60.0 / bpm) : 0.0;
@@ -171,32 +191,48 @@ void dvh_alooper_process(
             continue;
         }
 
-        // ── Stopping (padding silence to next bar boundary) ────────────
+        // ── Stopping: keep recording until the next bar downbeat ───────
+        // This ensures the loop always ends exactly on a bar boundary.
+        // If slightly past a downbeat, trim back. If before, pad with silence.
         if (st == ALOOPER_STOPPING) {
             int32_t h = clip.head.load(std::memory_order_relaxed);
 
-            // Compute target frame count for the next bar boundary.
-            const double beatsRecorded = (bpm > 0.0)
-                ? h / (sampleRate * 60.0 / bpm) : 0.0;
-            const double barsRecorded = beatsRecorded / tsNum;
-            const double targetBars = std::ceil(barsRecorded);
-            const double targetBeats = targetBars * tsNum;
-            const int32_t targetFrames = static_cast<int32_t>(
-                targetBeats * 60.0 / bpm * sampleRate + 0.5);
-
             for (int i = 0; i < blockSize; ++i) {
-                if (h >= targetFrames || h >= clip.capacity) {
-                    // Padding complete — finalize loop.
+                if (h >= clip.capacity) break;
+
+                const double beatAtSample = positionInBeats + i * beatsPerSample;
+                const double barBeat = std::fmod(beatAtSample - barOffset, tsNum);
+
+                if (barBeat < beatsPerSample || barBeat > (tsNum - beatsPerSample)) {
+                    // We hit a bar downbeat — finalize the loop HERE.
+                    // The loop length is exactly the frames recorded up to
+                    // this sample (which is a bar boundary).
                     clip.loopLengthFrames = h;
-                    clip.loopLengthBeats = targetBeats;
-                    clip.length.store(h, std::memory_order_relaxed);
+                    const double beatsFromStart = beatAtSample - clip.loopStartBeat;
+                    clip.loopLengthBeats = std::round(beatsFromStart / tsNum) * tsNum;
+                    if (clip.loopLengthBeats < tsNum) clip.loopLengthBeats = tsNum;
+                    // Recompute frames from beats for exact alignment.
+                    clip.loopLengthFrames = static_cast<int32_t>(
+                        clip.loopLengthBeats * 60.0 / bpm * sampleRate + 0.5);
+                    // Ensure we don't exceed what we actually recorded.
+                    if (clip.loopLengthFrames > h) {
+                        // Pad with silence up to the bar boundary.
+                        for (int32_t j = h; j < clip.loopLengthFrames && j < clip.capacity; ++j) {
+                            clip.dataL[j] = 0.0f;
+                            clip.dataR[j] = 0.0f;
+                        }
+                    }
+                    clip.length.store(clip.loopLengthFrames, std::memory_order_relaxed);
                     clip.state.store(ALOOPER_PLAYING, std::memory_order_relaxed);
                     clip.head.store(0, std::memory_order_relaxed);
-                    fprintf(stderr, "[audio_looper] Clip %d: padded to %.1f beats "
-                            "(%d frames)\n", c, targetBeats, h);
+                    fprintf(stderr, "[ALOOPER-C] STOPPING→PLAYING at beat=%.1f, "
+                            "loop=%.0f beats (%d frames)\n",
+                            beatAtSample, clip.loopLengthBeats, clip.loopLengthFrames);
                     goto next_clip;
                 }
-                h = _recordSilence(clip, h);
+
+                // Not at a downbeat yet — keep recording.
+                h = _recordSample(clip, h, srcL, srcR, i);
             }
             clip.head.store(h, std::memory_order_relaxed);
             clip.length.store(h, std::memory_order_relaxed);
@@ -340,6 +376,7 @@ void dvh_alooper_set_state(DVH_Host /*host*/, int32_t idx, int32_t state) {
         clip->length.store(0, std::memory_order_relaxed);
         clip->loopLengthBeats = 0.0;
         clip->loopLengthFrames = 0;
+        clip->downbeatsSeen = 0;
     }
     // Dart sets PLAYING to stop recording → we transition to STOPPING
     // so the C++ callback can pad silence to the next bar boundary.
@@ -347,7 +384,8 @@ void dvh_alooper_set_state(DVH_Host /*host*/, int32_t idx, int32_t state) {
         clip->state.load(std::memory_order_relaxed) == ALOOPER_RECORDING &&
         clip->barSync.load(std::memory_order_relaxed) != 0) {
         clip->state.store(ALOOPER_STOPPING, std::memory_order_release);
-        fprintf(stderr, "[audio_looper] Clip %d state → STOPPING (bar-pad)\n", idx);
+        fprintf(stderr, "[ALOOPER-C] set_state: RECORDING→STOPPING (bar-pad), "
+                "head=%d frames\n", clip->head.load(std::memory_order_relaxed));
         return;
     }
     if (state == ALOOPER_PLAYING &&
@@ -428,6 +466,11 @@ void dvh_alooper_add_source_plugin(int32_t idx, int32_t pluginOrdinalIdx) {
 void dvh_alooper_set_bar_sync(int32_t idx, int32_t enabled) {
     auto* clip = _getClip(idx);
     if (clip) clip->barSync.store(enabled, std::memory_order_relaxed);
+}
+
+void dvh_alooper_set_skip_bars(int32_t idx, int32_t bars) {
+    auto* clip = _getClip(idx);
+    if (clip) clip->skipBars.store(bars, std::memory_order_relaxed);
 }
 
 int32_t dvh_alooper_get_render_source_count(int32_t idx) {

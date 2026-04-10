@@ -138,9 +138,6 @@ static int _create_synth(KbSlot* slot, float sampleRate) {
     }
 
     // Apply the current master gain so this slot matches existing slots.
-    // Slot 1 is created lazily (after the first keyboard_set_gain call), so
-    // without this it would start at FluidSynth's factory default (0.2) while
-    // slot 0 already has the application gain (3.0 on Linux/macOS).
     fluid_synth_set_gain(slot->synth, g_current_gain);
 
     // Replay all loaded soundfonts so sfIds match slot 0.
@@ -302,7 +299,6 @@ EXPORT void keyboard_control_change(int channel, int cc, int value) {
 
 /** Set the output gain on ALL active slots and remember it for future slots. */
 EXPORT void keyboard_set_gain(float gain) {
-    // Persist the value so _create_synth() applies it to slots initialised later.
     g_current_gain = gain;
     for (int i = 0; i < MAX_KB_SLOTS; ++i) {
         if (g_kb_slots[i].in_use && g_kb_slots[i].synth) {
