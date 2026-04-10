@@ -15,6 +15,7 @@ import '../models/grooveforge_keyboard_plugin.dart';
 import '../models/looper_plugin_instance.dart';
 import '../models/plugin_instance.dart';
 import '../models/vst3_plugin_instance.dart';
+import '../models/drum_generator_plugin_instance.dart';
 import '../services/audio_engine.dart';
 import '../services/audio_graph.dart';
 import '../services/audio_looper_engine.dart';
@@ -939,10 +940,54 @@ class _RackScreenState extends State<RackScreen> {
       ),
     );
     if (confirmed == true && mounted) {
-      // Clear the audio graph before initialising defaults so stale cables
-      // from the previous project don't linger in the patch view.
-      context.read<AudioGraph>().clear();
-      context.read<RackState>().initDefaults();
+      // Reset ALL state so nothing leaks from the previous project.
+
+      // Stop the transport first so drum generator / looper stop ticking.
+      _transportEngine.stop();
+
+      // Clear audio graph cables.
+      final audioGraph = context.read<AudioGraph>();
+      audioGraph.clear();
+
+      // Clear CC mappings.
+      _engine.ccMappingService?.clear();
+
+      // Clear MIDI looper sessions.
+      final looperEngine = context.read<LooperEngine>();
+      for (final slotId in looperEngine.sessions.keys.toList()) {
+        looperEngine.removeSession(slotId);
+      }
+
+      // Clear audio looper clips.
+      final audioLooperEngine = context.read<AudioLooperEngine>();
+      for (final slotId in audioLooperEngine.clips.keys.toList()) {
+        audioLooperEngine.destroyClip(slotId);
+      }
+
+      // Clear drum generator sessions — iterate the rack to find drum slots
+      // since DrumGeneratorEngine._sessions is private.
+      final drumEngine = context.read<DrumGeneratorEngine>();
+      for (final p in _rackState.plugins) {
+        if (p is DrumGeneratorPluginInstance) {
+          drumEngine.removeSession(p.id);
+        }
+      }
+
+      // Reset rack plugins to defaults.
+      _rackState.initDefaults();
+
+      // Re-apply default soundfont to all channels so keyboards aren't silent.
+      if (_engine.loadedSoundfonts.isNotEmpty) {
+        final defaultSf = _engine.loadedSoundfonts.first;
+        for (int ch = 0; ch < 16; ch++) {
+          _engine.assignSoundfontToChannel(ch, defaultSf);
+          _engine.assignPatchToChannel(ch, 0, bank: 0);
+        }
+      }
+
+      // Rebuild native audio routing (clears stale master renders / inserts).
+      VstHostService.instance.syncAudioRouting(audioGraph, _rackState.plugins);
+
       setState(() => _currentProjectPath = null);
     }
   }

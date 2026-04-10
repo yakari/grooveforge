@@ -296,6 +296,19 @@ class RackState extends ChangeNotifier {
         debugPrint('RackState: skipping unknown plugin entry — $e');
       }
     }
+    // Fix keyboards with null soundfontPath — assign the default soundfont
+    // so they aren't silent.  This handles corrupt/old .gf files.
+    final defaultSf = _engine.loadedSoundfonts.isNotEmpty
+        ? _engine.loadedSoundfonts.first
+        : null;
+    if (defaultSf != null) {
+      for (final p in _plugins) {
+        if (p is GrooveForgeKeyboardPlugin && p.soundfontPath == null) {
+          p.soundfontPath = defaultSf;
+        }
+      }
+    }
+
     _applyAllPluginsToEngine();
     _syncJamFollowerMapToEngine();
 
@@ -318,25 +331,31 @@ class RackState extends ChangeNotifier {
   void initDefaults() {
     _plugins.clear();
 
-    final ch0 = _engine.channels[0];
+    // Use the first loaded soundfont as the default for new keyboards.
+    // Reading from _engine.channels[] is unreliable — the channel state may
+    // be null if _restoreState hasn't populated it yet or if SharedPreferences
+    // are missing.
+    final defaultSf = _engine.loadedSoundfonts.isNotEmpty
+        ? _engine.loadedSoundfonts.first
+        : null;
+
     _plugins.add(
       GrooveForgeKeyboardPlugin(
         id: 'slot-0',
         midiChannel: 1,
-        soundfontPath: ch0.soundfontPath,
-        bank: ch0.bank,
-        program: ch0.program,
+        soundfontPath: defaultSf,
+        bank: 0,
+        program: 0,
       ),
     );
 
-    final ch1 = _engine.channels[1];
     _plugins.add(
       GrooveForgeKeyboardPlugin(
         id: 'slot-1',
         midiChannel: 2,
-        soundfontPath: ch1.soundfontPath,
-        bank: ch1.bank,
-        program: ch1.program,
+        soundfontPath: defaultSf,
+        bank: 0,
+        program: 0,
       ),
     );
 

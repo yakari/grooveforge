@@ -298,6 +298,7 @@ class AudioEngine extends ChangeNotifier {
   ///   `flutter_midi_pro` method channel to `fluid_synth_set_gain()` on every
   ///   loaded synth instance.
   void applyFluidSynthGain() {
+    debugPrint('AudioEngine: gain changed to ${fluidSynthGain.value.toStringAsFixed(2)}');
     if (!kIsWeb && (Platform.isLinux || Platform.isMacOS)) {
       AudioInputFFI().keyboardSetGain(fluidSynthGain.value);
     } else {
