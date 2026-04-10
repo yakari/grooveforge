@@ -503,7 +503,7 @@ static int _jackProcessCallback(jack_nframes_t nframes, void* arg) {
     // Signal block completion for drain synchronization.
     state->callbackSeq.fetch_add(1, std::memory_order_release);
 
-    // Soft-clip and copy to JACK output ports.
+    // Hard-clip to [-1, 1] and copy to JACK output ports.
     for (int i = 0; i < bs; ++i) {
         float l = state->mixL[i];
         float r = state->mixR[i];
