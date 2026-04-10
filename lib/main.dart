@@ -9,6 +9,7 @@ import 'services/cc_mapping_service.dart';
 import 'services/drum_generator_engine.dart';
 import 'services/drum_pattern_parser.dart';
 import 'services/drum_pattern_registry.dart';
+import 'services/audio_looper_engine.dart';
 import 'services/looper_engine.dart';
 import 'services/midi_service.dart';
 import 'services/locale_provider.dart';
@@ -139,6 +140,12 @@ void main() async {
           create: (ctx) => LooperEngine(ctx.read<TransportEngine>()),
           update: (ctx, transport, previous) =>
               previous ?? LooperEngine(transport),
+        ),
+        // AudioLooperEngine — PCM audio looper (same transport dependency).
+        ChangeNotifierProxyProvider<TransportEngine, AudioLooperEngine>(
+          create: (ctx) => AudioLooperEngine(ctx.read<TransportEngine>()),
+          update: (ctx, transport, previous) =>
+              previous ?? AudioLooperEngine(transport),
         ),
         // DrumGeneratorEngine needs both TransportEngine and AudioEngine.
         ChangeNotifierProxyProvider2<TransportEngine, AudioEngine,

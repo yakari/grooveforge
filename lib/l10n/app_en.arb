@@ -347,6 +347,8 @@
   "looperSlotName": "MIDI Looper",
   "addLooper": "MIDI Looper",
   "addLooperSubtitle": "Record and loop MIDI patterns with bar sync",
+  "rackAddAudioLooper": "Audio Looper",
+  "rackAddAudioLooperSubtitle": "Record and loop live audio (PCM) with bar sync, overdub, and reverse",
   "addLooperAlreadyExists": "A MIDI Looper is already in the rack. Only one is allowed.",
   "addJamModeAlreadyExists": "A Jam Mode is already in the rack. Only one is allowed.",
   "looperRecord": "Record",

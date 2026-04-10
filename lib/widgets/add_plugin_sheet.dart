@@ -9,7 +9,9 @@ import '../l10n/app_localizations.dart';
 import '../models/drum_generator_plugin_instance.dart';
 import '../models/gfpa_plugin_instance.dart';
 import '../models/grooveforge_keyboard_plugin.dart';
+import '../models/audio_looper_plugin_instance.dart';
 import '../models/looper_plugin_instance.dart';
+import '../services/audio_looper_engine.dart';
 import '../services/drum_generator_engine.dart';
 import '../services/looper_engine.dart';
 import '../services/rack_state.dart';
@@ -497,6 +499,21 @@ class _AddPluginSheetContentState extends State<_AddPluginSheetContent> {
                 rack.addPlugin(looper);
                 // Register a session in the engine as soon as the slot is added.
                 context.read<LooperEngine>().ensureSession(slotId);
+              },
+            ),
+
+            // ── Audio Looper (PCM)
+            _PluginTile(
+              icon: Icons.radio_button_checked,
+              iconColor: Colors.redAccent,
+              title: l10n.rackAddAudioLooper,
+              subtitle: l10n.rackAddAudioLooperSubtitle,
+              onTap: () {
+                Navigator.pop(context);
+                final slotId = rack.generateSlotId();
+                final plugin = AudioLooperPluginInstance(id: slotId);
+                rack.addPlugin(plugin);
+                context.read<AudioLooperEngine>().createClip(slotId);
               },
             ),
 

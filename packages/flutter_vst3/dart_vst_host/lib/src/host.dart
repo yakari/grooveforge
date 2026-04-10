@@ -249,6 +249,76 @@ class VstHost {
   /// before but now has no cables) are not left in the list.
   void clearMasterRenders() => _b.dvhClearMasterRenders(handle);
 
+  // ── Audio Looper ────────────────────────────────────────────────────────
+
+  /// Create a new audio looper clip with [maxSeconds] of pre-allocated buffer.
+  /// Returns the clip index (0–7) or -1 if the pool is full.
+  int createAudioLooperClip(double maxSeconds, {int sampleRate = 48000}) =>
+      _b.alooperCreate(handle, maxSeconds, sampleRate);
+
+  /// Destroy clip [idx] and free its buffers.
+  void destroyAudioLooperClip(int idx) => _b.alooperDestroy(handle, idx);
+
+  /// Set the state of clip [idx] (see ALooperState enum in audio_looper.h).
+  void setAudioLooperState(int idx, int state) =>
+      _b.alooperSetState(handle, idx, state);
+
+  /// Read the current state of clip [idx].
+  int getAudioLooperState(int idx) => _b.alooperGetState(handle, idx);
+
+  /// Set playback volume (0.0–1.0) for clip [idx].
+  void setAudioLooperVolume(int idx, double volume) =>
+      _b.alooperSetVolume(handle, idx, volume);
+
+  /// Toggle reverse playback for clip [idx].
+  void setAudioLooperReversed(int idx, bool reversed) =>
+      _b.alooperSetReversed(handle, idx, reversed ? 1 : 0);
+
+  /// Remove all audio sources from clip [idx].
+  void clearAudioLooperSources(int idx) => _b.alooperClearSources(idx);
+
+  /// Add a render function as an audio source for clip [idx].
+  /// Multiple sources are mixed (summed) by the JACK callback.
+  void addAudioLooperRenderSource(int idx,
+      Pointer<NativeFunction<Void Function(Pointer<Float>, Pointer<Float>, Int32)>> fn) =>
+      _b.alooperAddRenderSource(idx, fn);
+
+  /// Add a VST3 plugin output as an audio source for clip [idx].
+  void addAudioLooperSourcePlugin(int idx, int pluginOrdinalIdx) =>
+      _b.alooperAddSourcePlugin(idx, pluginOrdinalIdx);
+
+  /// Enable or disable bar-sync for clip [idx].
+  void setAudioLooperBarSync(int idx, bool enabled) =>
+      _b.alooperSetBarSync(idx, enabled ? 1 : 0);
+
+  /// Set target loop length in beats.  0 = record until manually stopped.
+  void setAudioLooperLengthBeats(int idx, double lengthBeats) =>
+      _b.alooperSetLengthBeats(handle, idx, lengthBeats);
+
+  /// Raw pointer to the left channel PCM data (for waveform preview / WAV export).
+  Pointer<Float> getAudioLooperDataL(int idx) => _b.alooperGetDataL(handle, idx);
+
+  /// Raw pointer to the right channel PCM data.
+  Pointer<Float> getAudioLooperDataR(int idx) => _b.alooperGetDataR(handle, idx);
+
+  /// Current recorded length in frames.
+  int getAudioLooperLength(int idx) => _b.alooperGetLength(handle, idx);
+
+  /// Pre-allocated capacity in frames.
+  int getAudioLooperCapacity(int idx) => _b.alooperGetCapacity(handle, idx);
+
+  /// Current playback/record head position in frames.
+  int getAudioLooperHead(int idx) => _b.alooperGetHead(handle, idx);
+
+  /// Total memory used by all audio looper clips (bytes).
+  int getAudioLooperMemoryUsed() => _b.alooperMemoryUsed(handle);
+
+  /// Load PCM data into clip [idx] from Dart-side Float32Lists.
+  /// Returns true on success.
+  bool loadAudioLooperData(int idx, Pointer<Float> srcL, Pointer<Float> srcR,
+          int lengthFrames) =>
+      _b.alooperLoadData(handle, idx, srcL, srcR, lengthFrames) == 1;
+
   /// Load a VST plug‑in from [modulePath]. Optionally specify
   /// [classUid] to select a specific class from a multi‑class module.
   /// Returns a VstPlugin on success; throws StateError on failure.

@@ -502,6 +502,12 @@ DVH_API void dvh_set_transport(double bpm, int32_t timeSigNum, int32_t timeSigDe
   g_transportContext.state |= Steinberg::Vst::ProcessContext::kTempoValid |
                               Steinberg::Vst::ProcessContext::kTimeSigValid |
                               Steinberg::Vst::ProcessContext::kProjectTimeMusicValid;
+
+  // Broadcast to JACK AudioState atomics for the audio looper's bar-sync.
+  // Use the running projectTimeMusic (not the Dart-side positionInBeats which
+  // is only non-zero on reset) so the looper tracks the live beat position.
+  dvh_jack_update_transport(bpm, timeSigNum, isPlaying,
+                            g_transportContext.projectTimeMusic);
 }
 
 } // extern "C"

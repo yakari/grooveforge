@@ -835,6 +835,13 @@ class AppLocalizationsFr extends AppLocalizations {
       'Enregistrez et bouclez des séquences MIDI avec synchro de mesure';
 
   @override
+  String get rackAddAudioLooper => 'Looper Audio';
+
+  @override
+  String get rackAddAudioLooperSubtitle =>
+      'Enregistrez et bouclez de l\'audio en temps réel (PCM) avec synchro, overdub et reverse';
+
+  @override
   String get addLooperAlreadyExists =>
       'Un Looper MIDI est déjà dans le rack. Un seul est autorisé.';
 

@@ -831,6 +831,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get addLooperSubtitle => 'Record and loop MIDI patterns with bar sync';
 
   @override
+  String get rackAddAudioLooper => 'Audio Looper';
+
+  @override
+  String get rackAddAudioLooperSubtitle =>
+      'Record and loop live audio (PCM) with bar sync, overdub, and reverse';
+
+  @override
   String get addLooperAlreadyExists =>
       'A MIDI Looper is already in the rack. Only one is allowed.';
 

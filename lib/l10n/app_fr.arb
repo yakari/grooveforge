@@ -335,6 +335,8 @@
   "looperSlotName": "Looper MIDI",
   "addLooper": "Looper MIDI",
   "addLooperSubtitle": "Enregistrez et bouclez des séquences MIDI avec synchro de mesure",
+  "rackAddAudioLooper": "Looper Audio",
+  "rackAddAudioLooperSubtitle": "Enregistrez et bouclez de l'audio en temps réel (PCM) avec synchro, overdub et reverse",
   "addLooperAlreadyExists": "Un Looper MIDI est déjà dans le rack. Un seul est autorisé.",
   "addJamModeAlreadyExists": "Un Jam Mode est déjà dans le rack. Un seul est autorisé.",
   "looperRecord": "Enregistrer",

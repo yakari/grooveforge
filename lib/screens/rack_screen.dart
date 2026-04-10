@@ -17,6 +17,7 @@ import '../models/plugin_instance.dart';
 import '../models/vst3_plugin_instance.dart';
 import '../services/audio_engine.dart';
 import '../services/audio_graph.dart';
+import '../services/audio_looper_engine.dart';
 import '../services/cc_mapping_service.dart';
 import 'cc_preferences.dart';
 import '../services/drum_generator_engine.dart';
@@ -201,6 +202,17 @@ class _RackScreenState extends State<RackScreen> {
       }
     };
 
+    // Wire audio looper CC actions (1015, 1016).
+    final audioLooperEngine = context.read<AudioLooperEngine>();
+    _engine.onAudioLooperSystemAction = (int actionCode, int ccValue) {
+      final slotId = audioLooperEngine.clips.keys.firstOrNull;
+      if (slotId == null) return;
+      switch (actionCode) {
+        case 1015: audioLooperEngine.looperButtonPress(slotId);
+        case 1016: audioLooperEngine.stop(slotId);
+      }
+    };
+
     // Slot-addressed CC parameter control — routes to RackState.
     _engine.onSlotParamCc = _rackState.handleSlotParamCc;
 
@@ -367,6 +379,7 @@ class _RackScreenState extends State<RackScreen> {
     _engine.onTransportCc = null;
     _engine.onGlobalCc = null;
     _engine.onSwapSlots = null;
+    _engine.onAudioLooperSystemAction = null;
     _rackState.onDrumPatternCycle = null;
     _transportDebounce?.cancel();
     _swapDebounce?.cancel();

@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [X.x.x]
+
+### Added
+- **Audio Looper (PCM)**: new rack module that records and loops live stereo audio with bar-sync, overdub, and reverse. Cable instrument audio outputs into the looper's Audio IN ports on the back panel — only cabled sources are recorded (no metronome, no unwanted instruments). Single-button workflow: idle → arm → record → play → overdub → play, matching the MIDI looper pattern.
+- **Audio looper — cabled input routing**: multiple instruments can be cabled to one looper simultaneously. `syncAudioRouting` wires render sources (GF Keyboard, Vocoder, Theremin, Stylophone, Drum Generator) and VST3 plugin outputs to per-clip source buffers, mixed in the JACK callback. No source connected = silence.
+- **Audio looper — bar-synced recording with silence padding**: when bar-sync is enabled, recording starts at the exact downbeat sample. When the user stops recording, the `ALOOPER_STOPPING` state pads silence to the next bar boundary so the loop is always whole-bar aligned.
+- **Audio looper — optional bar sync**: toggle per clip between bar-synced mode (wait for downbeat) and free-form mode (start immediately). Timer icon button on the looper card.
+- **Audio looper — single-pass overdub**: overdub records one full loop pass then auto-returns to playing, matching the MIDI looper behaviour.
+- **Audio looper — waveform preview**: `_WaveformPainter` draws RMS envelope from native PCM buffers via FFI with playback head overlay and recording progress indicator.
+- **Audio looper — WAV sidecar persistence**: clips saved as 32-bit float stereo WAV files in a `.gf.audio/` directory alongside the project JSON. Deferred load architecture (`finalizeLoad`) handles the JACK-not-ready-at-startup timing.
+- **Audio looper — CC bindings**: action codes 1015 (Loop Button) and 1016 (Stop) in CC preferences, wired via `onAudioLooperSystemAction` callback.
+- **Vocoder integration into JACK render pipeline**: `vocoder_render_block()` and `vocoder_set_capture_mode()` added to `audio_input.c`. When the vocoder is cabled to the audio looper or a GFPA effect, its miniaudio playback outputs silence and the JACK thread drives the DSP. Vocoder audio can now be captured by the audio looper.
+- **Percussion isolation (FluidSynth slot 2)**: `MAX_KB_SLOTS` increased to 3; channel 9 (GM percussion) routed to dedicated slot 2 instead of sharing slot 1 with GF Keyboard 2. Prevents metronome clicks from bleeding into keyboard captures.
+
+### Architecture
+- **`audio_looper.h` / `audio_looper.cpp`**: new C module with `ALooperClip` struct (pre-allocated stereo buffers, atomic state machine), 5-state lifecycle (idle/armed/recording/playing/overdubbing + stopping), per-clip multi-source mixing (up to 8 render functions + plugin indices), bar-boundary detection at sample precision.
+- **JACK callback — per-clip source buffers**: `alooperSrcL/R[8]` pre-allocated in `AudioState`. Sources filled from `renderCapture[m]` (pre-captured master/chain render outputs) or `pluginBuf[]` (VST3). No double-rendering of FluidSynth.
+- **`AudioLooperEngine`** (`ChangeNotifier`): Dart control plane for the C++ looper — clip lifecycle, state transitions, 30Hz native state polling, deferred project load (`finalizeLoad`), WAV import/export, `onDataChanged` autosave hook.
+- **`AudioLooperPluginInstance`**: rack slot model (`type: 'audio_looper'`), registered in `PluginInstance.fromJson`, back panel exposes `audioInL`/`audioInR`.
+- **Triple-layer render capture**: insert chain sources captured into `renderCapture[m]` during the chain pass, bare master renders captured during the bare pass. Audio looper reads from captures by function pointer matching — never re-calls render functions.
+- **`wav_utils.dart`**: `writeWavFile()` / `readWavFile()` for 32-bit float stereo WAV sidecar files.
+
 ## [2.11.0] - 2026-04-08
 
 ### Added

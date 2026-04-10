@@ -9,6 +9,7 @@ import '../plugins/gf_theremin_plugin.dart';
 import '../plugins/gf_vocoder_plugin.dart';
 import '../services/audio_engine.dart';
 import '../services/audio_graph.dart';
+import '../services/audio_looper_engine.dart';
 import '../services/cc_mapping_service.dart';
 import '../services/drum_generator_engine.dart';
 import '../services/looper_engine.dart';
@@ -67,6 +68,9 @@ class _SplashScreenState extends State<SplashScreen> {
     // can load/save mappings without going through engine.ccMappingService
     // (which is null until RackScreen.initState assigns it).
     projectService.ccMappingService = context.read<CcMappingService>();
+    projectService.audioLooperEngine = context.read<AudioLooperEngine>();
+    // Also give VstHostService a reference for syncAudioRouting.
+    VstHostService.instance.audioLooperEngine = projectService.audioLooperEngine;
 
     // Load the last autosave (or initialise defaults) BEFORE wiring up the
     // autosave callbacks.  This prevents spurious autosaves that would fire
@@ -106,6 +110,9 @@ class _SplashScreenState extends State<SplashScreen> {
       () => projectService.autosave(
           rack, engine, transport, audioGraph, looperEngine),
     );
+    // Autosave when audio looper recording completes or a clip is cleared.
+    context.read<AudioLooperEngine>().onDataChanged = () =>
+        projectService.autosave(rack, engine, transport, audioGraph, looperEngine);
 
     // Re-load any persisted VST3 plugins into the native host so their
     // parameters are accessible immediately (they are not auto-loaded on restore).
@@ -115,13 +122,11 @@ class _SplashScreenState extends State<SplashScreen> {
     if (vstSvc.isSupported) {
       debugPrint('SplashScreen: vstSvc.initialize()');
       await vstSvc.initialize();
-      bool anyVst3Loaded = false;
       for (final plugin in rack.plugins) {
         if (plugin is! Vst3PluginInstance || plugin.path.isEmpty) continue;
         engine.initStatus.value = 'Loading ${plugin.pluginName}…';
         debugPrint('SplashScreen: Loading VST3 ${plugin.pluginName}');
-        final loaded = await vstSvc.loadPlugin(plugin.path, plugin.id);
-        if (loaded != null) anyVst3Loaded = true;
+        await vstSvc.loadPlugin(plugin.path, plugin.id);
       }
       // Always start the ALSA/CoreAudio thread so the GF Keyboard (FluidSynth)
       // can render audio even when no VST3 plugins are in the rack. On Linux
@@ -129,13 +134,12 @@ class _SplashScreenState extends State<SplashScreen> {
       // produces sound once that thread is running.
       debugPrint('SplashScreen: vstSvc.startAudio()');
       vstSvc.startAudio();
-      if (anyVst3Loaded) {
-        // Re-apply saved cable routing now that the ALSA thread is live and
-        // all VST3 effect plugins are in _plugins. The syncAudioRouting call
-        // that fires during audioGraph.loadFromJson() above returns early
-        // because _host is still null at that point.
-        vstSvc.syncAudioRouting(audioGraph, rack.plugins);
-      }
+      // Re-apply saved cable routing now that the JACK thread is live.
+      // The syncAudioRouting calls that fire during project load (from
+      // audioGraph.loadFromJson and _readGfFile) return early because _host
+      // is still null at that point.  This call wires everything up: GFPA
+      // insert chains, master renders, audio looper sources, and capture modes.
+      vstSvc.syncAudioRouting(audioGraph, rack.plugins);
     }
 
     if (!mounted) return;

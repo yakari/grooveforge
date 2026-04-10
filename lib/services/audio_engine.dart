@@ -244,6 +244,9 @@ class AudioEngine extends ChangeNotifier {
   /// Arguments: the system action code (1009-1013) and the CC value (0-127).
   void Function(int actionCode, int ccValue)? onLooperSystemAction;
 
+  /// Callback for audio looper CC actions (1015 = loop button, 1016 = stop).
+  void Function(int actionCode, int ccValue)? onAudioLooperSystemAction;
+
   /// Callback for slot-addressed CC parameter control.
   /// Wired by [RackScreen] to [RackState._handleSlotParamCc].
   void Function(String slotId, String paramKey, CcParamMode mode, int ccValue)?
@@ -2170,9 +2173,15 @@ class AudioEngine extends ChangeNotifier {
     int value, {
     Set<int>? muteChannels,
   }) {
-    // ── Looper actions (1009-1013): delegate to LooperEngine via callback ──
+    // ── MIDI Looper actions (1009-1013): delegate to LooperEngine ──
     if (targetAction >= 1009 && targetAction <= 1013) {
       onLooperSystemAction?.call(targetAction, value);
+      return;
+    }
+
+    // ── Audio Looper actions (1015-1016): delegate to AudioLooperEngine ──
+    if (targetAction == 1015 || targetAction == 1016) {
+      onAudioLooperSystemAction?.call(targetAction, value);
       return;
     }
 

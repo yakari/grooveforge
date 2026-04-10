@@ -4,10 +4,13 @@ import 'dart:io';
 import 'package:dart_vst_host/dart_vst_host.dart';
 import 'package:flutter/foundation.dart';
 
+import '../models/audio_looper_plugin_instance.dart';
 import '../models/audio_port_id.dart';
+import '../models/drum_generator_plugin_instance.dart';
 import '../models/gfpa_plugin_instance.dart';
 import '../models/grooveforge_keyboard_plugin.dart';
 import '../models/plugin_instance.dart';
+import 'audio_looper_engine.dart';
 import '../models/vst3_plugin_instance.dart';
 // Vst3PluginType used in loadPlugin signature.
 export '../models/vst3_plugin_instance.dart' show Vst3PluginType;
@@ -34,6 +37,16 @@ class VstHostService {
           Platform.isAndroid);
 
   VstHost? _host;
+
+  /// Public read-only access to the native host handle.
+  ///
+  /// Used by [AudioLooperEngine] to call audio looper C API functions.
+  /// Returns null before [initialize] is called or on unsupported platforms.
+  VstHost? get host => _host;
+
+  /// Reference to the audio looper engine, set by splash_screen.dart.
+  /// Used by [syncAudioRouting] to wire audio cable sources to looper clips.
+  AudioLooperEngine? audioLooperEngine;
 
   // Map from rack slot ID → loaded VstPlugin handle.
   final Map<String, VstPlugin> _plugins = {};
@@ -304,8 +317,10 @@ class VstHostService {
     if (Platform.isLinux || Platform.isMacOS) {
       AudioInputFFI().keyboardInitSlot(0, 48000.0);
       AudioInputFFI().keyboardInitSlot(1, 48000.0);
+      AudioInputFFI().keyboardInitSlot(2, 48000.0); // percussion (channel 9)
       _host!.addMasterRender(AudioInputFFI().keyboardRenderFnForSlot(0));
       _host!.addMasterRender(AudioInputFFI().keyboardRenderFnForSlot(1));
+      _host!.addMasterRender(AudioInputFFI().keyboardRenderFnForSlot(2));
     }
 
     bool ok = false;
@@ -383,13 +398,18 @@ class VstHostService {
     _host!.clearMasterRenders();
 
     // Re-register each GF Keyboard slot as a master-mix contributor.
+    // Slot 2 (percussion/metronome) is always registered — it's not tied to
+    // a specific GrooveForgeKeyboardPlugin rack slot.
     if (Platform.isLinux || Platform.isMacOS) {
       for (final plugin in allPlugins.whereType<GrooveForgeKeyboardPlugin>()) {
-        // MIDI channels are 1-based; map to 0-based slot index mod MAX_KB_SLOTS.
+        // MIDI channels are 1-based; map to 0-based slot index mod 2.
         final slotIdx = (plugin.midiChannel - 1) % 2;
         AudioInputFFI().keyboardInitSlot(slotIdx, 48000.0);
         _host!.addMasterRender(AudioInputFFI().keyboardRenderFnForSlot(slotIdx));
       }
+      // Always register percussion slot so metronome and drum generator are heard.
+      AudioInputFFI().keyboardInitSlot(2, 48000.0);
+      _host!.addMasterRender(AudioInputFFI().keyboardRenderFnForSlot(2));
     }
 
     // Track which built-in instruments now have audio routes so we can
@@ -462,6 +482,7 @@ class VstHostService {
     // effects such as Keyboard → WAH → Reverb are registered in the correct
     // order into the source's insert chain.  A single-hop lookup would miss
     // the second effect in the chain.
+    final vocoderHasRoute = <String>{};
     if (Platform.isLinux || Platform.isMacOS) {
       // GF Keyboard sources.
       for (final plugin in allPlugins.whereType<GrooveForgeKeyboardPlugin>()) {
@@ -470,11 +491,17 @@ class VstHostService {
             plugin.id, AudioInputFFI().keyboardRenderFnForSlot(slotIdx), graph);
       }
 
-      // Theremin and Stylophone: when wired to a GFPA effect, add them as
-      // masterRender contributors and enable capture mode so their own miniaudio
-      // device outputs silence (the JACK audio thread drives the DSP instead).
+      // Theremin, Stylophone, and Vocoder: when wired to a GFPA effect or
+      // audio looper, register as masterRender contributors and enable capture
+      // mode so their miniaudio device outputs silence (JACK thread drives DSP).
       for (final plugin in allPlugins.whereType<GFpaPluginInstance>()) {
-        if (plugin.pluginId == 'com.grooveforge.theremin' &&
+        if (plugin.pluginId == 'com.grooveforge.vocoder' &&
+            _hasAnyConnection(plugin.id, graph)) {
+          _host!.addMasterRender(AudioInputFFI().vocoderRenderBlockPtr);
+          vocoderHasRoute.add(plugin.id);
+          _addChainInsertsDesktop(
+              plugin.id, AudioInputFFI().vocoderRenderBlockPtr, graph);
+        } else if (plugin.pluginId == 'com.grooveforge.theremin' &&
             _hasAnyGfpaConnection(plugin.id, graph)) {
           _host!.addMasterRender(AudioInputFFI().thereminRenderBlockPtr);
           thereminHasRoute.add(plugin.id);
@@ -490,6 +517,68 @@ class VstHostService {
       }
     }
 
+    // ── Audio looper source routing ─────────────────────────────────────────
+    // Multiple instruments can be cabled to one looper — all sources are
+    // summed (mixed) in the JACK callback.  We clear and re-add all sources
+    // on every routing rebuild, same pattern as master renders / inserts.
+    final alooperEngine = audioLooperEngine;
+    if (alooperEngine != null && (Platform.isLinux || Platform.isMacOS)) {
+      // Clear all existing sources on every clip.
+      for (final clip in alooperEngine.clips.values) {
+        _host!.clearAudioLooperSources(clip.nativeIdx);
+      }
+      // Wire connections — only process audioInL (audioInR is implicit stereo pair).
+      for (final conn in graph.connections) {
+        if (conn.toPort != AudioPortId.audioInL) continue;
+        final toPlugin = allPlugins.where((p) => p.id == conn.toSlotId).firstOrNull;
+        if (toPlugin is! AudioLooperPluginInstance) continue;
+        final clip = alooperEngine.clips[toPlugin.id];
+        if (clip == null) continue;
+
+        final fromPlugin = allPlugins.where((p) => p.id == conn.fromSlotId).firstOrNull;
+        if (fromPlugin == null) continue;
+
+        // GF Keyboard → render function per slot.
+        if (fromPlugin is GrooveForgeKeyboardPlugin) {
+          final slotIdx = (fromPlugin.midiChannel - 1) % 2;
+          _host!.addAudioLooperRenderSource(
+              clip.nativeIdx, AudioInputFFI().keyboardRenderFnForSlot(slotIdx));
+        }
+        // Drum Generator plays on channel 9 → dedicated percussion slot 2.
+        else if (fromPlugin is DrumGeneratorPluginInstance) {
+          _host!.addAudioLooperRenderSource(
+              clip.nativeIdx, AudioInputFFI().keyboardRenderFnForSlot(2));
+        }
+        // Theremin / Stylophone — dedicated render functions.
+        else if (fromPlugin is GFpaPluginInstance) {
+          if (fromPlugin.pluginId == 'com.grooveforge.theremin') {
+            _host!.addAudioLooperRenderSource(
+                clip.nativeIdx, AudioInputFFI().thereminRenderBlockPtr);
+          } else if (fromPlugin.pluginId == 'com.grooveforge.stylophone') {
+            _host!.addAudioLooperRenderSource(
+                clip.nativeIdx, AudioInputFFI().styloRenderBlockPtr);
+          } else if (fromPlugin.pluginId == 'com.grooveforge.vocoder') {
+            _host!.addAudioLooperRenderSource(
+                clip.nativeIdx, AudioInputFFI().vocoderRenderBlockPtr);
+          }
+        }
+        // VST3 plugin — ordinal index in processing order.
+        else if (fromPlugin is Vst3PluginInstance) {
+          final vst3Handle = _plugins[fromPlugin.id];
+          if (vst3Handle != null) {
+            final orderedIds = graph.topologicalOrder(allSlotIds);
+            final vst3Slots = orderedIds
+                .where((id) => _plugins.containsKey(id))
+                .toList();
+            final ordIdx = vst3Slots.indexOf(fromPlugin.id);
+            if (ordIdx >= 0) {
+              _host!.addAudioLooperSourcePlugin(clip.nativeIdx, ordIdx);
+            }
+          }
+        }
+      }
+    }
+
     // Enable capture mode on native synths that are routed through VST3,
     // and disable it for those that are no longer connected.
     // Capture mode ON  → miniaudio outputs silence; JACK thread drives DSP.
@@ -500,10 +589,11 @@ class VstHostService {
     // When not routed, add it back as a master-mix contributor.
     final thereminActive = thereminHasRoute.isNotEmpty;
     final styloActive    = styloHasRoute.isNotEmpty;
+    final vocoderActive  = vocoderHasRoute.isNotEmpty;
     try {
       AudioInputFFI().thereminSetCaptureMode(enabled: thereminActive);
       AudioInputFFI().styloSetCaptureMode(enabled: styloActive);
-
+      AudioInputFFI().vocoderSetCaptureMode(enabled: vocoderActive);
     } catch (_) {
       // AudioInputFFI may not be initialised on non-Linux builds (web, macOS
       // without the native lib). Silently ignore — routing is no-op there.
@@ -711,6 +801,21 @@ class VstHostService {
       }
       final handle = _gfpaHandles[conn.toSlotId];
       if (handle != null && handle != nullptr) return true;
+    }
+    return false;
+  }
+
+  /// Returns true if [slotId] has any outgoing audio connection (to GFPA
+  /// effects, VST3 plugins, or audio looper slots).
+  bool _hasAnyConnection(String slotId, AudioGraph graph) {
+    for (final conn in graph.connections) {
+      if (conn.fromSlotId != slotId) continue;
+      if (conn.fromPort.isDataPort || conn.toPort.isDataPort) continue;
+      if (conn.fromPort == AudioPortId.midiOut ||
+          conn.toPort == AudioPortId.midiIn) {
+        continue;
+      }
+      return true;
     }
     return false;
   }

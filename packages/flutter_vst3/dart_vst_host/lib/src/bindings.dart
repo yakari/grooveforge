@@ -376,6 +376,116 @@ class NativeBindings {
 
   late final int Function(Pointer<Void>) dvhMacEditorIsOpen =
       lib.lookupFunction<Int32 Function(Pointer<Void>), int Function(Pointer<Void>)>('dvh_mac_editor_is_open');
+
+  // ── Audio Looper bindings (audio_looper.h) ──────────────────────────────
+
+  late final int Function(Pointer<Void>, double, int) alooperCreate =
+      lib.lookupFunction<
+          Int32 Function(Pointer<Void>, Float, Int32),
+          int Function(Pointer<Void>, double, int)
+      >('dvh_alooper_create');
+
+  late final void Function(Pointer<Void>, int) alooperDestroy =
+      lib.lookupFunction<
+          Void Function(Pointer<Void>, Int32),
+          void Function(Pointer<Void>, int)
+      >('dvh_alooper_destroy');
+
+  late final void Function(Pointer<Void>, int, int) alooperSetState =
+      lib.lookupFunction<
+          Void Function(Pointer<Void>, Int32, Int32),
+          void Function(Pointer<Void>, int, int)
+      >('dvh_alooper_set_state');
+
+  late final int Function(Pointer<Void>, int) alooperGetState =
+      lib.lookupFunction<
+          Int32 Function(Pointer<Void>, Int32),
+          int Function(Pointer<Void>, int)
+      >('dvh_alooper_get_state');
+
+  late final void Function(Pointer<Void>, int, double) alooperSetVolume =
+      lib.lookupFunction<
+          Void Function(Pointer<Void>, Int32, Float),
+          void Function(Pointer<Void>, int, double)
+      >('dvh_alooper_set_volume');
+
+  late final void Function(Pointer<Void>, int, int) alooperSetReversed =
+      lib.lookupFunction<
+          Void Function(Pointer<Void>, Int32, Int32),
+          void Function(Pointer<Void>, int, int)
+      >('dvh_alooper_set_reversed');
+
+  late final void Function(int) alooperClearSources =
+      lib.lookupFunction<
+          Void Function(Int32),
+          void Function(int)
+      >('dvh_alooper_clear_sources');
+
+  late final void Function(int, Pointer<NativeFunction<Void Function(Pointer<Float>, Pointer<Float>, Int32)>>)
+      alooperAddRenderSource = lib.lookupFunction<
+          Void Function(Int32, Pointer<NativeFunction<Void Function(Pointer<Float>, Pointer<Float>, Int32)>>),
+          void Function(int, Pointer<NativeFunction<Void Function(Pointer<Float>, Pointer<Float>, Int32)>>)
+      >('dvh_alooper_add_render_source');
+
+  late final void Function(int, int) alooperAddSourcePlugin =
+      lib.lookupFunction<
+          Void Function(Int32, Int32),
+          void Function(int, int)
+      >('dvh_alooper_add_source_plugin');
+
+  late final void Function(int, int) alooperSetBarSync =
+      lib.lookupFunction<
+          Void Function(Int32, Int32),
+          void Function(int, int)
+      >('dvh_alooper_set_bar_sync');
+
+  late final void Function(Pointer<Void>, int, double) alooperSetLengthBeats =
+      lib.lookupFunction<
+          Void Function(Pointer<Void>, Int32, Double),
+          void Function(Pointer<Void>, int, double)
+      >('dvh_alooper_set_length_beats');
+
+  late final Pointer<Float> Function(Pointer<Void>, int) alooperGetDataL =
+      lib.lookupFunction<
+          Pointer<Float> Function(Pointer<Void>, Int32),
+          Pointer<Float> Function(Pointer<Void>, int)
+      >('dvh_alooper_get_data_l');
+
+  late final Pointer<Float> Function(Pointer<Void>, int) alooperGetDataR =
+      lib.lookupFunction<
+          Pointer<Float> Function(Pointer<Void>, Int32),
+          Pointer<Float> Function(Pointer<Void>, int)
+      >('dvh_alooper_get_data_r');
+
+  late final int Function(Pointer<Void>, int) alooperGetLength =
+      lib.lookupFunction<
+          Int32 Function(Pointer<Void>, Int32),
+          int Function(Pointer<Void>, int)
+      >('dvh_alooper_get_length');
+
+  late final int Function(Pointer<Void>, int) alooperGetCapacity =
+      lib.lookupFunction<
+          Int32 Function(Pointer<Void>, Int32),
+          int Function(Pointer<Void>, int)
+      >('dvh_alooper_get_capacity');
+
+  late final int Function(Pointer<Void>, int) alooperGetHead =
+      lib.lookupFunction<
+          Int32 Function(Pointer<Void>, Int32),
+          int Function(Pointer<Void>, int)
+      >('dvh_alooper_get_head');
+
+  late final int Function(Pointer<Void>) alooperMemoryUsed =
+      lib.lookupFunction<
+          Int64 Function(Pointer<Void>),
+          int Function(Pointer<Void>)
+      >('dvh_alooper_memory_used');
+
+  late final int Function(Pointer<Void>, int, Pointer<Float>, Pointer<Float>, int)
+      alooperLoadData = lib.lookupFunction<
+          Int32 Function(Pointer<Void>, Int32, Pointer<Float>, Pointer<Float>, Int32),
+          int Function(Pointer<Void>, int, Pointer<Float>, Pointer<Float>, int)
+      >('dvh_alooper_load_data');
 }
 
 /// Load the native library. The optional [path] may be used to point

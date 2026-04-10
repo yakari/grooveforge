@@ -270,6 +270,13 @@ class AudioInputFFI {
   /// external render fn when the Theremin is cabled into a VST3 effect.
   late final Pointer<NativeFunction<ThereminRenderBlockC>> thereminRenderBlockPtr;
 
+  /// Raw pointer to `vocoder_render_block` — passed to dart_vst_host as an
+  /// external render fn when the Vocoder is cabled into the audio looper.
+  late final Pointer<NativeFunction<ThereminRenderBlockC>> vocoderRenderBlockPtr;
+
+  /// Dart-callable bound to `vocoder_set_capture_mode`.
+  late final ThereminSetCaptureModeDart _vocoderSetCaptureMode;
+
   /// Dart-callable bound to `theremin_set_capture_mode`.
   late final ThereminSetCaptureModeDart _thereminSetCaptureMode;
 
@@ -409,6 +416,12 @@ class AudioInputFFI {
             .lookup<NativeFunction<SetCaptureDeviceConfigC>>(
               'set_capture_device_config',
             )
+            .asFunction();
+    vocoderRenderBlockPtr =
+        _lib.lookup<NativeFunction<ThereminRenderBlockC>>('vocoder_render_block');
+    _vocoderSetCaptureMode =
+        _lib
+            .lookup<NativeFunction<ThereminSetCaptureModeC>>('vocoder_set_capture_mode')
             .asFunction();
     _getVocoderInputPeak =
         _lib
@@ -683,6 +696,13 @@ class AudioInputFFI {
   /// Set to false to restore direct ALSA playback.
   void thereminSetCaptureMode({required bool enabled}) =>
       _thereminSetCaptureMode(enabled ? 1 : 0);
+
+  /// Enable/disable vocoder capture mode.
+  ///
+  /// When enabled, the miniaudio playback device outputs silence and the JACK
+  /// thread drives the vocoder DSP via [vocoderRenderBlockPtr].
+  void vocoderSetCaptureMode({required bool enabled}) =>
+      _vocoderSetCaptureMode(enabled ? 1 : 0);
 
   /// Returns the address of the `theremin_bus_render` trampoline function.
   ///
