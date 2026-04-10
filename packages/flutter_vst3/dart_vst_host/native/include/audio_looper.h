@@ -83,6 +83,13 @@ DVH_API void dvh_alooper_add_source_plugin(int32_t idx, int32_t pluginOrdinalIdx
 /// When disabled, armed→recording starts immediately.
 DVH_API void dvh_alooper_set_bar_sync(int32_t idx, int32_t enabled);
 
+/// Set the number of bars to skip after arming before recording starts.
+/// When > 0, the ARMED state counts downbeat crossings and only transitions
+/// to RECORDING after [bars] downbeats have passed.  Used for count-in:
+/// the drum generator plays 4 stick hits in bar 1, so skipBars=1 waits
+/// for bar 2 before recording.  Set to 0 to start on the next downbeat.
+DVH_API void dvh_alooper_set_skip_bars(int32_t idx, int32_t bars);
+
 // ── Buffer access ──────────────────────────────────────────────────────────
 
 DVH_API const float* dvh_alooper_get_data_l(DVH_Host host, int32_t idx);

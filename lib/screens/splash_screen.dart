@@ -117,8 +117,10 @@ class _SplashScreenState extends State<SplashScreen> {
       () => projectService.autosave(
           rack, engine, transport, audioGraph, looperEngine),
     );
+    // Wire audio looper bar-sync to transport beats.
+    transport.onBeatAudioLooper = audioLooper.onTransportBeat;
     // Autosave when audio looper recording completes or a clip is cleared.
-    context.read<AudioLooperEngine>().onDataChanged = () =>
+    audioLooper.onDataChanged = () =>
         projectService.autosave(rack, engine, transport, audioGraph, looperEngine);
 
     // Re-load any persisted VST3 plugins into the native host so their

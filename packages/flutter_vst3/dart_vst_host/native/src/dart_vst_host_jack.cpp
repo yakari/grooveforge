@@ -992,6 +992,7 @@ extern "C" {
     void    dvh_alooper_add_render_source(int32_t, DvhRenderFn) {}
     void    dvh_alooper_add_source_plugin(int32_t, int32_t) {}
     void    dvh_alooper_set_bar_sync(int32_t, int32_t) {}
+    void    dvh_alooper_set_skip_bars(int32_t, int32_t) {}
     int32_t dvh_alooper_get_render_source_count(int32_t) { return 0; }
     DvhRenderFn dvh_alooper_get_render_source(int32_t, int32_t) { return nullptr; }
     int32_t dvh_alooper_get_plugin_source_count(int32_t) { return 0; }

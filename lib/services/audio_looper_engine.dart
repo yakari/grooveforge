@@ -128,10 +128,73 @@ class AudioLooperEngine extends ChangeNotifier {
   /// Used to trigger project autosave.
   VoidCallback? onDataChanged;
 
+  /// Slot ID waiting for the next bar downbeat to start recording.
+  /// Set by [arm], cleared when the downbeat fires.
+  String? _pendingArmSlotId;
+
+  /// Number of bar downbeats to skip before starting (count-in).
+  int _pendingArmSkipBars = 0;
+
+  /// Number of bar downbeats seen since arming.
+  int _pendingArmDownbeats = 0;
+
+  /// Slot ID waiting for the next bar downbeat to stop recording.
+  String? _pendingStopSlotId;
+
   /// Maximum seconds per clip (pre-allocated buffer).
   static const double maxClipSeconds = 60.0;
 
   AudioLooperEngine(this._transport);
+
+  /// Called by the transport on every beat.  Handles bar-synced arm/stop.
+  /// Must be wired up in splash_screen or rack_screen via [TransportEngine.onBeat].
+  void onTransportBeat(bool isDownbeat) {
+    if (!isDownbeat) return;
+
+    // ── Pending arm: start recording on this downbeat ──────────────
+    if (_pendingArmSlotId != null) {
+      _pendingArmDownbeats++;
+      if (_pendingArmDownbeats <= _pendingArmSkipBars) {
+        debugPrint('[ALOOPER] skipping downbeat $_pendingArmDownbeats/$_pendingArmSkipBars');
+        return;
+      }
+      final slotId = _pendingArmSlotId!;
+      _pendingArmSlotId = null;
+      final clip = _clips[slotId];
+      if (clip == null) return;
+
+      debugPrint('[ALOOPER] BAR → start RECORDING for $slotId at beat=${_transport.positionInBeats.toStringAsFixed(1)}');
+
+      final host = VstHostService.instance.host;
+      // Tell C++ to start recording NOW (no bar detection in C++).
+      host?.setAudioLooperBarSync(clip.nativeIdx, false); // disable C++ bar detection
+      host?.setAudioLooperState(clip.nativeIdx, AudioLooperState.armed.index);
+      // The C++ ARMED handler with sync=false starts recording immediately.
+      clip.state = AudioLooperState.recording;
+      _updatePollTimer();
+      notifyListeners();
+      return;
+    }
+
+    // ── Pending stop: stop recording on this downbeat ──────────────
+    if (_pendingStopSlotId != null) {
+      final slotId = _pendingStopSlotId!;
+      _pendingStopSlotId = null;
+      final clip = _clips[slotId];
+      if (clip == null) return;
+
+      debugPrint('[ALOOPER] BAR → stop RECORDING for $slotId at beat=${_transport.positionInBeats.toStringAsFixed(1)}');
+
+      final host = VstHostService.instance.host;
+      // Tell C++ to finalize immediately (PLAYING state).
+      // C++ will set loopLengthFrames from current head position.
+      host?.setAudioLooperState(clip.nativeIdx, AudioLooperState.playing.index);
+      clip.state = AudioLooperState.playing;
+      _updatePollTimer();
+      notifyListeners();
+      onDataChanged?.call();
+    }
+  }
 
   // ── Public API ──────────────────────────────────────────────────────────
 
@@ -187,19 +250,29 @@ class AudioLooperEngine extends ChangeNotifier {
   void looperButtonPress(String slotId) {
     final clip = _clips[slotId];
     if (clip == null) return;
+    debugPrint('[ALOOPER] buttonPress: state=${clip.state}, len=${clip.lengthFrames}, '
+        'transport=${_transport.isPlaying}, beat=${_transport.positionInBeats.toStringAsFixed(1)}');
     switch (clip.state) {
       case AudioLooperState.idle:
         (clip.lengthFrames > 0) ? play(slotId) : arm(slotId);
       case AudioLooperState.armed:
         stop(slotId);
       case AudioLooperState.recording:
-        // Stop recording → auto-play.
-        final host = VstHostService.instance.host;
-        host?.setAudioLooperState(clip.nativeIdx, AudioLooperState.playing.index);
-        clip.state = AudioLooperState.playing;
-        _updatePollTimer();
-        notifyListeners();
-        onDataChanged?.call();
+        debugPrint('[ALOOPER] stop requested at beat=${_transport.positionInBeats.toStringAsFixed(1)}');
+        if (clip.barSyncEnabled) {
+          // Bar-synced: wait for next bar downbeat via onTransportBeat.
+          _pendingStopSlotId = slotId;
+          clip.state = AudioLooperState.stopping;
+          notifyListeners();
+        } else {
+          // Free-form: stop immediately.
+          final host = VstHostService.instance.host;
+          host?.setAudioLooperState(clip.nativeIdx, AudioLooperState.playing.index);
+          clip.state = AudioLooperState.playing;
+          _updatePollTimer();
+          notifyListeners();
+          onDataChanged?.call();
+        }
       case AudioLooperState.playing:
         overdub(slotId);
       case AudioLooperState.stopping:
@@ -229,22 +302,35 @@ class AudioLooperEngine extends ChangeNotifier {
     final clip = _clips[slotId];
     if (clip == null) return;
 
-    // Start the transport if bar sync is on and it's not playing.
-    if (clip.barSyncEnabled && !_transport.isPlaying) _transport.play();
+    if (clip.barSyncEnabled) {
+      // Bar-synced: Dart handles the bar detection via onTransportBeat.
+      final startedTransport = !_transport.isPlaying;
+      debugPrint('[ALOOPER] arm: barSync=true, startingTransport=$startedTransport');
+      if (startedTransport) _transport.play();
 
-    final host = VstHostService.instance.host;
-    if (host == null) return;
-
-    // Push bar sync and target length settings to native.
-    host.setAudioLooperBarSync(clip.nativeIdx, clip.barSyncEnabled);
-    if (clip.targetLengthBeats > 0) {
-      host.setAudioLooperLengthBeats(clip.nativeIdx, clip.targetLengthBeats);
+      // Register pending arm — onTransportBeat will fire recording on the
+      // next bar downbeat.  Skip 1 bar if we just started the transport
+      // (count-in bar).
+      _pendingArmSlotId = slotId;
+      // No skip needed: _transport.play() fires beat 1 synchronously BEFORE
+      // _pendingArmSlotId is set, so the looper never sees beat 1's downbeat.
+      // The first downbeat it receives is beat 5 (bar 2) = after the count-in.
+      _pendingArmSkipBars = 0;
+      _pendingArmDownbeats = 0;
+      clip.state = AudioLooperState.armed;
+      _updatePollTimer();
+      notifyListeners();
+    } else {
+      // Free-form: start recording immediately via C++.
+      debugPrint('[ALOOPER] arm: barSync=false, starting immediately');
+      final host = VstHostService.instance.host;
+      if (host == null) return;
+      host.setAudioLooperBarSync(clip.nativeIdx, false);
+      host.setAudioLooperState(clip.nativeIdx, AudioLooperState.armed.index);
+      clip.state = AudioLooperState.recording;
+      _updatePollTimer();
+      notifyListeners();
     }
-
-    host.setAudioLooperState(clip.nativeIdx, AudioLooperState.armed.index);
-    clip.state = AudioLooperState.armed;
-    _updatePollTimer();
-    notifyListeners();
   }
 
   /// Stops recording/playback and resets the clip to idle.
