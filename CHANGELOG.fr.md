@@ -5,7 +5,7 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/lang/fr/).
 
-## [X.x.x]
+## [2.12.0] - 2026-04-11
 
 ### Ajouté
 - **Looper Audio (PCM)** : nouveau module de rack qui enregistre et boucle de l'audio stéréo en temps réel avec synchro de mesure, overdub et reverse. Câbler les sorties audio des instruments dans les ports Audio IN du looper sur le panneau arrière — seules les sources câblées sont enregistrées (pas de métronome, pas d'instruments indésirables). Workflow à un seul bouton : idle → arm → enregistrement → lecture → overdub → lecture, identique au looper MIDI.
