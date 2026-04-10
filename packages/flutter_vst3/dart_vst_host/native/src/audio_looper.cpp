@@ -1,8 +1,12 @@
 // audio_looper.cpp — PCM audio looper implementation.
 //
-// Per-clip audio sources: each clip reads from its own source buffer
-// (filled by the JACK callback from a render function or plugin output).
-// No source = silence (the user must cable an instrument into the looper).
+// Transport-synced design:
+//   - Recording starts on exact bar boundary (bar-sync mode).
+//   - When the user stops recording, silence is padded to the next bar
+//     boundary (STOPPING state) so the loop is always whole-bar aligned.
+//   - Playback head is computed from the transport beat position, not a
+//     sample counter. This keeps the loop in sync with tempo changes.
+//   - Overdub records one full loop pass and auto-returns to playing.
 
 #include "../include/audio_looper.h"
 
@@ -27,15 +31,25 @@ struct ALooperClip {
     std::atomic<double>  targetLengthBeats{0.0};
 
     /// Per-clip audio sources (multiple allowed, mixed/summed).
-    /// Protected by g_looperMtx for add/clear (non-RT).
-    /// The JACK callback reads these under a simple count + array scan.
     DvhRenderFn renderSources[ALOOPER_MAX_SOURCES] = {};
     int32_t     renderSourceCount = 0;
-    int32_t     pluginSources[ALOOPER_MAX_SOURCES] = {};  // ordinal indices, -1 = unused
+    int32_t     pluginSources[ALOOPER_MAX_SOURCES] = {};
     int32_t     pluginSourceCount = 0;
 
     /// Bar-sync mode: 1 = wait for downbeat, 0 = start immediately.
     std::atomic<int32_t> barSync{1};
+
+    // ── Transport-sync fields ──────────────────────────────────────────
+    /// Beat position where the loop starts (exact bar boundary).
+    double loopStartBeat = 0.0;
+    /// Loop length in beats (set when recording→playing, always whole bars).
+    double loopLengthBeats = 0.0;
+    /// Authoritative frame count (may include silence padding to bar boundary).
+    int32_t loopLengthFrames = 0;
+    /// Head position when overdub started — auto-stop after one full pass.
+    int32_t overdubStartHead = -1;
+    /// BPM at which the loop was recorded (for frame↔beat conversion).
+    double recordBpm = 120.0;
 
     int32_t sampleRate = 48000;
     double recordStartBeat = 0.0;
@@ -53,16 +67,21 @@ static ALooperClip* _getClip(int32_t idx) {
     return &g_clips[idx];
 }
 
-// ── Helper: record one sample from source into clip ────────────────────────
+// ── Helper: record one sample ──────────────────────────────────────────────
 
-/// Writes one frame from [srcL/R] at position [srcIdx] into the clip at
-/// position [h].  Returns the new head position (h+1).
 static inline int32_t _recordSample(
     ALooperClip& clip, int32_t h,
     const float* srcL, const float* srcR, int i)
 {
     clip.dataL[h] = srcL ? srcL[i] : 0.0f;
     clip.dataR[h] = srcR ? srcR[i] : 0.0f;
+    return h + 1;
+}
+
+/// Write a silence sample at position [h].
+static inline int32_t _recordSilence(ALooperClip& clip, int32_t h) {
+    clip.dataL[h] = 0.0f;
+    clip.dataR[h] = 0.0f;
     return h + 1;
 }
 
@@ -77,6 +96,7 @@ void dvh_alooper_process(
 {
     const double beatsPerSample = (bpm > 0.0 && sampleRate > 0)
         ? bpm / (60.0 * sampleRate) : 0.0;
+    const double tsNum = static_cast<double>(timeSigNum > 0 ? timeSigNum : 4);
 
     for (int c = 0; c < ALOOPER_MAX_CLIPS; ++c) {
         auto& clip = g_clips[c];
@@ -85,42 +105,42 @@ void dvh_alooper_process(
         const int32_t st = clip.state.load(std::memory_order_relaxed);
         if (st == ALOOPER_IDLE) continue;
 
-        // Per-clip source buffers (may be NULL if no source connected).
         const float* srcL = clipSrcL[c];
         const float* srcR = clipSrcR[c];
 
-        // ── Armed ──────────────────────────────────────────────────
+        // ── Armed ──────────────────────────────────────────────────────
         if (st == ALOOPER_ARMED) {
             const bool sync = clip.barSync.load(std::memory_order_relaxed) != 0;
 
             if (!sync || !isPlaying) {
-                // Free-form mode or transport stopped: start immediately.
+                // Free-form: start immediately.
                 clip.state.store(ALOOPER_RECORDING, std::memory_order_relaxed);
                 clip.head.store(0, std::memory_order_relaxed);
                 clip.length.store(0, std::memory_order_relaxed);
-                clip.recordStartBeat = positionInBeats;
+                clip.loopStartBeat = positionInBeats;
+                clip.recordBpm = bpm;
                 int32_t h = 0;
-                for (int j = 0; j < blockSize && h < clip.capacity; ++j) {
+                for (int j = 0; j < blockSize && h < clip.capacity; ++j)
                     h = _recordSample(clip, h, srcL, srcR, j);
-                }
                 clip.head.store(h, std::memory_order_relaxed);
                 clip.length.store(h, std::memory_order_relaxed);
                 continue;
             }
 
-            // Bar-synced: find exact downbeat sample in this block.
+            // Bar-synced: find exact downbeat sample.
             for (int i = 0; i < blockSize; ++i) {
                 const double beatAtSample = positionInBeats + i * beatsPerSample;
-                const double barBeat = std::fmod(beatAtSample, static_cast<double>(timeSigNum));
-                if (barBeat < beatsPerSample || barBeat > (timeSigNum - beatsPerSample)) {
+                const double barBeat = std::fmod(beatAtSample, tsNum);
+                if (barBeat < beatsPerSample || barBeat > (tsNum - beatsPerSample)) {
                     clip.state.store(ALOOPER_RECORDING, std::memory_order_relaxed);
                     clip.head.store(0, std::memory_order_relaxed);
                     clip.length.store(0, std::memory_order_relaxed);
-                    clip.recordStartBeat = beatAtSample;
+                    // Snap to exact bar boundary.
+                    clip.loopStartBeat = std::floor(beatAtSample / tsNum) * tsNum;
+                    clip.recordBpm = bpm;
                     int32_t h = 0;
-                    for (int j = i; j < blockSize && h < clip.capacity; ++j) {
+                    for (int j = i; j < blockSize && h < clip.capacity; ++j)
                         h = _recordSample(clip, h, srcL, srcR, j);
-                    }
                     clip.head.store(h, std::memory_order_relaxed);
                     clip.length.store(h, std::memory_order_relaxed);
                     break;
@@ -129,36 +149,19 @@ void dvh_alooper_process(
             continue;
         }
 
-        // ── Recording ──────────────────────────────────────────────
+        // ── Recording ──────────────────────────────────────────────────
         if (st == ALOOPER_RECORDING) {
             int32_t h = clip.head.load(std::memory_order_relaxed);
-            const double targetBeats = clip.targetLengthBeats.load(std::memory_order_relaxed);
-            int32_t targetFrames = 0;
-            if (targetBeats > 0.0 && bpm > 0.0) {
-                targetFrames = static_cast<int32_t>(
-                    targetBeats * 60.0 / bpm * sampleRate + 0.5);
-            }
 
             for (int i = 0; i < blockSize; ++i) {
-                if (h >= clip.capacity || (targetFrames > 0 && h >= targetFrames)) {
-                    // Stop recording → start playing.
+                if (h >= clip.capacity) {
+                    // Buffer full — finalize.
+                    clip.loopLengthFrames = h;
+                    clip.loopLengthBeats = (bpm > 0.0)
+                        ? h / (sampleRate * 60.0 / bpm) : 0.0;
                     clip.length.store(h, std::memory_order_relaxed);
                     clip.state.store(ALOOPER_PLAYING, std::memory_order_relaxed);
                     clip.head.store(0, std::memory_order_relaxed);
-                    // Play back remaining samples.
-                    const int32_t len = h;
-                    if (len > 0) {
-                        const float vol = clip.volume.load(std::memory_order_relaxed);
-                        const bool rev = clip.reversed.load(std::memory_order_relaxed) != 0;
-                        int32_t ph = 0;
-                        for (int j = i; j < blockSize; ++j) {
-                            const int32_t ri = rev ? (len - 1 - ph) : ph;
-                            mixL[j] += clip.dataL[ri] * vol;
-                            mixR[j] += clip.dataR[ri] * vol;
-                            ph = (ph + 1) % len;
-                        }
-                        clip.head.store(ph, std::memory_order_relaxed);
-                    }
                     goto next_clip;
                 }
                 h = _recordSample(clip, h, srcL, srcR, i);
@@ -168,13 +171,49 @@ void dvh_alooper_process(
             continue;
         }
 
-        // ── Playing ────────────────────────────────────────────────
+        // ── Stopping (padding silence to next bar boundary) ────────────
+        if (st == ALOOPER_STOPPING) {
+            int32_t h = clip.head.load(std::memory_order_relaxed);
+
+            // Compute target frame count for the next bar boundary.
+            const double beatsRecorded = (bpm > 0.0)
+                ? h / (sampleRate * 60.0 / bpm) : 0.0;
+            const double barsRecorded = beatsRecorded / tsNum;
+            const double targetBars = std::ceil(barsRecorded);
+            const double targetBeats = targetBars * tsNum;
+            const int32_t targetFrames = static_cast<int32_t>(
+                targetBeats * 60.0 / bpm * sampleRate + 0.5);
+
+            for (int i = 0; i < blockSize; ++i) {
+                if (h >= targetFrames || h >= clip.capacity) {
+                    // Padding complete — finalize loop.
+                    clip.loopLengthFrames = h;
+                    clip.loopLengthBeats = targetBeats;
+                    clip.length.store(h, std::memory_order_relaxed);
+                    clip.state.store(ALOOPER_PLAYING, std::memory_order_relaxed);
+                    clip.head.store(0, std::memory_order_relaxed);
+                    fprintf(stderr, "[audio_looper] Clip %d: padded to %.1f beats "
+                            "(%d frames)\n", c, targetBeats, h);
+                    goto next_clip;
+                }
+                h = _recordSilence(clip, h);
+            }
+            clip.head.store(h, std::memory_order_relaxed);
+            clip.length.store(h, std::memory_order_relaxed);
+            continue;
+        }
+
+        // ── Playing (sample-based, bar-aligned wrap) ──────────────────
+        // Playback advances sample-by-sample at the original recording
+        // speed (no pitch shift).  The loop wraps at loopLengthFrames
+        // which is always bar-aligned.
         if (st == ALOOPER_PLAYING) {
-            const int32_t len = clip.length.load(std::memory_order_relaxed);
+            const int32_t len = clip.loopLengthFrames;
             if (len == 0) continue;
             const float vol = clip.volume.load(std::memory_order_relaxed);
             const bool rev = clip.reversed.load(std::memory_order_relaxed) != 0;
             int32_t h = clip.head.load(std::memory_order_relaxed);
+
             for (int i = 0; i < blockSize; ++i) {
                 const int32_t ri = rev ? (len - 1 - h) : h;
                 mixL[i] += clip.dataL[ri] * vol;
@@ -185,23 +224,44 @@ void dvh_alooper_process(
             continue;
         }
 
-        // ── Overdubbing ────────────────────────────────────────────
+        // ── Overdubbing (sample-based, single pass) ────────────────────
+        // Same sample-by-sample advance as playing.  Auto-returns to
+        // PLAYING after one full loop (when head wraps past overdubStartHead).
         if (st == ALOOPER_OVERDUBBING) {
-            const int32_t len = clip.length.load(std::memory_order_relaxed);
+            const int32_t len = clip.loopLengthFrames;
             if (len == 0) continue;
             const float vol = clip.volume.load(std::memory_order_relaxed);
             const bool rev = clip.reversed.load(std::memory_order_relaxed) != 0;
             int32_t h = clip.head.load(std::memory_order_relaxed);
+            const int32_t odStart = clip.overdubStartHead;
+
             for (int i = 0; i < blockSize; ++i) {
                 const int32_t ri = rev ? (len - 1 - h) : h;
                 const float oldL = clip.dataL[ri];
                 const float oldR = clip.dataR[ri];
                 mixL[i] += oldL * vol;
                 mixR[i] += oldR * vol;
-                // Sum new source input on top of existing audio.
                 clip.dataL[ri] = oldL + (srcL ? srcL[i] : 0.0f);
                 clip.dataR[ri] = oldR + (srcR ? srcR[i] : 0.0f);
+
+                int32_t prevH = h;
                 h = (h + 1) % len;
+
+                // Single-pass check: detect when head wraps past the start.
+                // prevH was near the end, h wrapped to near the start.
+                if (odStart >= 0 && prevH > len / 2 && h <= odStart + 1) {
+                    clip.head.store(h, std::memory_order_relaxed);
+                    clip.state.store(ALOOPER_PLAYING, std::memory_order_relaxed);
+                    // Play remaining samples.
+                    for (int j = i + 1; j < blockSize; ++j) {
+                        const int32_t rri = rev ? (len - 1 - h) : h;
+                        mixL[j] += clip.dataL[rri] * vol;
+                        mixR[j] += clip.dataR[rri] * vol;
+                        h = (h + 1) % len;
+                    }
+                    clip.head.store(h, std::memory_order_relaxed);
+                    goto next_clip;
+                }
             }
             clip.head.store(h, std::memory_order_relaxed);
             continue;
@@ -239,6 +299,11 @@ int32_t dvh_alooper_create(DVH_Host /*host*/, float maxSeconds, int32_t sampleRa
     clip.renderSourceCount = 0;
     clip.pluginSourceCount = 0;
     clip.barSync.store(1, std::memory_order_relaxed);
+    clip.loopStartBeat = 0.0;
+    clip.loopLengthBeats = 0.0;
+    clip.loopLengthFrames = 0;
+    clip.overdubStartHead = -1;
+    clip.recordBpm = 120.0;
     clip.recordStartBeat = 0.0;
     clip.active = true;
 
@@ -269,13 +334,40 @@ void dvh_alooper_destroy(DVH_Host /*host*/, int32_t idx) {
 void dvh_alooper_set_state(DVH_Host /*host*/, int32_t idx, int32_t state) {
     auto* clip = _getClip(idx);
     if (!clip) return;
+
     if (state == ALOOPER_ARMED) {
         clip->head.store(0, std::memory_order_relaxed);
         clip->length.store(0, std::memory_order_relaxed);
+        clip->loopLengthBeats = 0.0;
+        clip->loopLengthFrames = 0;
     }
-    if (state == ALOOPER_PLAYING) {
+    // Dart sets PLAYING to stop recording → we transition to STOPPING
+    // so the C++ callback can pad silence to the next bar boundary.
+    if (state == ALOOPER_PLAYING &&
+        clip->state.load(std::memory_order_relaxed) == ALOOPER_RECORDING &&
+        clip->barSync.load(std::memory_order_relaxed) != 0) {
+        clip->state.store(ALOOPER_STOPPING, std::memory_order_release);
+        fprintf(stderr, "[audio_looper] Clip %d state → STOPPING (bar-pad)\n", idx);
+        return;
+    }
+    if (state == ALOOPER_PLAYING &&
+        clip->state.load(std::memory_order_relaxed) == ALOOPER_RECORDING) {
+        // Free-form: finalize immediately.
+        int32_t h = clip->head.load(std::memory_order_relaxed);
+        clip->loopLengthFrames = h;
+        clip->loopLengthBeats = (clip->recordBpm > 0.0)
+            ? h / (clip->sampleRate * 60.0 / clip->recordBpm) : 0.0;
+        clip->length.store(h, std::memory_order_relaxed);
         clip->head.store(0, std::memory_order_relaxed);
     }
+    if (state == ALOOPER_OVERDUBBING) {
+        // Record the current head position for single-pass auto-stop.
+        clip->overdubStartHead = clip->head.load(std::memory_order_relaxed);
+    }
+    if (state == ALOOPER_IDLE) {
+        clip->head.store(0, std::memory_order_relaxed);
+    }
+
     clip->state.store(state, std::memory_order_release);
     fprintf(stderr, "[audio_looper] Clip %d state → %d\n", idx, state);
 }
@@ -312,7 +404,6 @@ void dvh_alooper_add_render_source(int32_t idx, DvhRenderFn fn) {
     std::lock_guard<std::mutex> lk(g_looperMtx);
     if (idx < 0 || idx >= ALOOPER_MAX_CLIPS || !g_clips[idx].active) return;
     auto& clip = g_clips[idx];
-    // Dedup.
     for (int i = 0; i < clip.renderSourceCount; ++i)
         if (clip.renderSources[i] == fn) return;
     if (clip.renderSourceCount >= ALOOPER_MAX_SOURCES) return;
@@ -324,7 +415,6 @@ void dvh_alooper_add_source_plugin(int32_t idx, int32_t pluginOrdinalIdx) {
     std::lock_guard<std::mutex> lk(g_looperMtx);
     if (idx < 0 || idx >= ALOOPER_MAX_CLIPS || !g_clips[idx].active) return;
     auto& clip = g_clips[idx];
-    // Dedup.
     for (int i = 0; i < clip.pluginSourceCount; ++i)
         if (clip.pluginSources[i] == pluginOrdinalIdx) return;
     if (clip.pluginSourceCount >= ALOOPER_MAX_SOURCES) return;
@@ -334,6 +424,33 @@ void dvh_alooper_add_source_plugin(int32_t idx, int32_t pluginOrdinalIdx) {
 void dvh_alooper_set_bar_sync(int32_t idx, int32_t enabled) {
     auto* clip = _getClip(idx);
     if (clip) clip->barSync.store(enabled, std::memory_order_relaxed);
+}
+
+int32_t dvh_alooper_get_render_source_count(int32_t idx) {
+    if (idx < 0 || idx >= ALOOPER_MAX_CLIPS || !g_clips[idx].active) return 0;
+    return g_clips[idx].renderSourceCount;
+}
+
+DvhRenderFn dvh_alooper_get_render_source(int32_t idx, int32_t srcIdx) {
+    if (idx < 0 || idx >= ALOOPER_MAX_CLIPS || !g_clips[idx].active) return nullptr;
+    if (srcIdx < 0 || srcIdx >= g_clips[idx].renderSourceCount) return nullptr;
+    return g_clips[idx].renderSources[srcIdx];
+}
+
+int32_t dvh_alooper_get_plugin_source_count(int32_t idx) {
+    if (idx < 0 || idx >= ALOOPER_MAX_CLIPS || !g_clips[idx].active) return 0;
+    return g_clips[idx].pluginSourceCount;
+}
+
+int32_t dvh_alooper_get_plugin_source(int32_t idx, int32_t srcIdx) {
+    if (idx < 0 || idx >= ALOOPER_MAX_CLIPS || !g_clips[idx].active) return -1;
+    if (srcIdx < 0 || srcIdx >= g_clips[idx].pluginSourceCount) return -1;
+    return g_clips[idx].pluginSources[srcIdx];
+}
+
+int32_t dvh_alooper_is_active(int32_t idx) {
+    if (idx < 0 || idx >= ALOOPER_MAX_CLIPS) return 0;
+    return g_clips[idx].active ? 1 : 0;
 }
 
 const float* dvh_alooper_get_data_l(DVH_Host /*host*/, int32_t idx) {
@@ -371,33 +488,6 @@ int64_t dvh_alooper_memory_used(DVH_Host /*host*/) {
     return total;
 }
 
-int32_t dvh_alooper_get_render_source_count(int32_t idx) {
-    if (idx < 0 || idx >= ALOOPER_MAX_CLIPS || !g_clips[idx].active) return 0;
-    return g_clips[idx].renderSourceCount;
-}
-
-DvhRenderFn dvh_alooper_get_render_source(int32_t idx, int32_t srcIdx) {
-    if (idx < 0 || idx >= ALOOPER_MAX_CLIPS || !g_clips[idx].active) return nullptr;
-    if (srcIdx < 0 || srcIdx >= g_clips[idx].renderSourceCount) return nullptr;
-    return g_clips[idx].renderSources[srcIdx];
-}
-
-int32_t dvh_alooper_get_plugin_source_count(int32_t idx) {
-    if (idx < 0 || idx >= ALOOPER_MAX_CLIPS || !g_clips[idx].active) return 0;
-    return g_clips[idx].pluginSourceCount;
-}
-
-int32_t dvh_alooper_get_plugin_source(int32_t idx, int32_t srcIdx) {
-    if (idx < 0 || idx >= ALOOPER_MAX_CLIPS || !g_clips[idx].active) return -1;
-    if (srcIdx < 0 || srcIdx >= g_clips[idx].pluginSourceCount) return -1;
-    return g_clips[idx].pluginSources[srcIdx];
-}
-
-int32_t dvh_alooper_is_active(int32_t idx) {
-    if (idx < 0 || idx >= ALOOPER_MAX_CLIPS) return 0;
-    return g_clips[idx].active ? 1 : 0;
-}
-
 int32_t dvh_alooper_load_data(DVH_Host /*host*/, int32_t idx,
                                const float* srcL, const float* srcR,
                                int32_t lengthFrames) {
@@ -408,6 +498,7 @@ int32_t dvh_alooper_load_data(DVH_Host /*host*/, int32_t idx,
     std::memcpy(clip->dataL, srcL, lengthFrames * sizeof(float));
     std::memcpy(clip->dataR, srcR, lengthFrames * sizeof(float));
     clip->length.store(lengthFrames, std::memory_order_relaxed);
+    clip->loopLengthFrames = lengthFrames;
     clip->head.store(0, std::memory_order_relaxed);
     fprintf(stderr, "[audio_looper] Loaded %d frames into clip %d\n", lengthFrames, idx);
     return 1;

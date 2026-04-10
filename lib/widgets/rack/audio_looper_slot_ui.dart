@@ -278,6 +278,8 @@ class _TransportStrip extends StatelessWidget {
           (Icons.fiber_manual_record, _kArmedColor, true, 'Cancel'),
         AudioLooperState.recording =>
           (Icons.play_arrow, _kRecColor, true, 'Stop recording & play'),
+        AudioLooperState.stopping =>
+          (Icons.hourglass_top, _kArmedColor, true, 'Padding to bar...'),
         AudioLooperState.playing =>
           (Icons.layers, _kPlayColor, true, 'Overdub'),
         AudioLooperState.overdubbing =>
@@ -388,6 +390,7 @@ class _StatusChip extends StatelessWidget {
       AudioLooperState.recording => ('REC', _kRecColor),
       AudioLooperState.playing => ('PLAY', _kPlayColor),
       AudioLooperState.overdubbing => ('ODUB', _kOdColor),
+      AudioLooperState.stopping => ('PAD', _kArmedColor),
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),

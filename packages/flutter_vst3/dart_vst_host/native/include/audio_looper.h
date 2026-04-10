@@ -36,6 +36,7 @@ enum ALooperState {
     ALOOPER_RECORDING  = 2,
     ALOOPER_PLAYING    = 3,
     ALOOPER_OVERDUBBING = 4,
+    ALOOPER_STOPPING   = 5,  // padding silence to next bar boundary
 };
 
 /// Opaque handle (unused — looper uses a global clip pool).

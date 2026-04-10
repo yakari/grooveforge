@@ -5,6 +5,28 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/lang/fr/).
 
+## [X.x.x]
+
+### Ajouté
+- **Looper Audio (PCM)** : nouveau module de rack qui enregistre et boucle de l'audio stéréo en temps réel avec synchro de mesure, overdub et reverse. Câbler les sorties audio des instruments dans les ports Audio IN du looper sur le panneau arrière — seules les sources câblées sont enregistrées (pas de métronome, pas d'instruments indésirables). Workflow à un seul bouton : idle → arm → enregistrement → lecture → overdub → lecture, identique au looper MIDI.
+- **Looper audio — routage d'entrée par câbles** : plusieurs instruments peuvent être câblés à un même looper simultanément. `syncAudioRouting` connecte les sources de rendu (clavier GF, vocoder, theremin, stylophone, générateur de batterie) et les sorties VST3 aux tampons source par clip, mixés dans le callback JACK. Aucune source connectée = silence.
+- **Looper audio — enregistrement synchronisé avec remplissage de silence** : en mode synchro mesure, l'enregistrement démarre au sample exact du temps fort. À l'arrêt, l'état `ALOOPER_STOPPING` remplit de silence jusqu'à la prochaine limite de mesure pour que la boucle soit toujours alignée sur des mesures complètes.
+- **Looper audio — synchro de mesure optionnelle** : bascule par clip entre mode synchronisé (attente du temps fort) et mode libre (démarrage immédiat). Bouton icône chronomètre sur la carte du looper.
+- **Looper audio — overdub en un seul passage** : l'overdub enregistre un tour complet de la boucle puis revient automatiquement en lecture, comme le looper MIDI.
+- **Looper audio — aperçu de forme d'onde** : `_WaveformPainter` dessine l'enveloppe RMS depuis les tampons PCM natifs via FFI avec curseur de lecture et indicateur de progression d'enregistrement.
+- **Looper audio — persistance WAV sidecar** : les clips sont sauvegardés en fichiers WAV stéréo float 32 bits dans un répertoire `.gf.audio/` à côté du JSON projet. Architecture de chargement différé (`finalizeLoad`) pour gérer le timing JACK-pas-encore-prêt au démarrage.
+- **Looper audio — assignations CC** : codes d'action 1015 (bouton Loop) et 1016 (Stop) dans les préférences CC, reliés via le callback `onAudioLooperSystemAction`.
+- **Intégration du vocoder dans le pipeline JACK** : `vocoder_render_block()` et `vocoder_set_capture_mode()` ajoutés à `audio_input.c`. Quand le vocoder est câblé au looper audio ou à un effet GFPA, la lecture miniaudio sort du silence et le thread JACK pilote le DSP. L'audio du vocoder peut désormais être capturé par le looper.
+- **Isolation de la percussion (FluidSynth slot 2)** : `MAX_KB_SLOTS` augmenté à 3 ; le canal 9 (percussion GM) routé vers le slot dédié 2 au lieu de partager le slot 1 avec le clavier GF 2. Empêche les clics du métronome de contaminer les captures clavier.
+
+### Architecture
+- **`audio_looper.h` / `audio_looper.cpp`** : nouveau module C avec structure `ALooperClip` (tampons stéréo pré-alloués, machine d'état atomique), cycle de vie à 5 états (idle/armed/recording/playing/overdubbing + stopping), mixage multi-source par clip (jusqu'à 8 fonctions de rendu + indices plugin), détection de limite de mesure à la précision du sample.
+- **Callback JACK — tampons source par clip** : `alooperSrcL/R[8]` pré-alloués dans `AudioState`. Sources remplies depuis `renderCapture[m]` (sorties de rendu master/chaîne pré-capturées) ou `pluginBuf[]` (VST3). Pas de double rendu FluidSynth.
+- **`AudioLooperEngine`** (`ChangeNotifier`) : plan de contrôle Dart pour le looper C++ — cycle de vie des clips, transitions d'état, polling natif à 30 Hz, chargement différé de projet (`finalizeLoad`), import/export WAV, hook autosave `onDataChanged`.
+- **`AudioLooperPluginInstance`** : modèle de slot rack (`type: 'audio_looper'`), enregistré dans `PluginInstance.fromJson`, panneau arrière expose `audioInL`/`audioInR`.
+- **Capture de rendu à triple couche** : les sources des chaînes d'insert capturées dans `renderCapture[m]` pendant la passe chaîne, les rendus master nus capturés pendant la passe master. Le looper lit depuis les captures par correspondance de pointeur de fonction — n'appelle jamais les fonctions de rendu une seconde fois.
+- **`wav_utils.dart`** : `writeWavFile()` / `readWavFile()` pour les fichiers WAV sidecar stéréo float 32 bits.
+
 ## [2.11.0] - 2026-04-08
 
 ### Ajouté

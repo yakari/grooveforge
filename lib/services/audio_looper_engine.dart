@@ -11,11 +11,12 @@ import 'wav_utils.dart';
 
 /// State of an audio looper clip.  Mirrors the C enum in audio_looper.h.
 enum AudioLooperState {
-  idle,     // 0
-  armed,    // 1
-  recording,// 2
-  playing,  // 3
+  idle,        // 0
+  armed,       // 1
+  recording,   // 2
+  playing,     // 3
   overdubbing, // 4
+  stopping,    // 5 — padding silence to next bar boundary
 }
 
 /// Dart-side representation of one audio looper clip.
@@ -200,6 +201,9 @@ class AudioLooperEngine extends ChangeNotifier {
         onDataChanged?.call();
       case AudioLooperState.playing:
         overdub(slotId);
+      case AudioLooperState.stopping:
+        // Already padding to bar — ignore button press during pad.
+        break;
       case AudioLooperState.overdubbing:
         play(slotId);
     }
@@ -453,7 +457,7 @@ class AudioLooperEngine extends ChangeNotifier {
     bool changed = false;
     for (final clip in _clips.values) {
       final nativeState = host.getAudioLooperState(clip.nativeIdx);
-      final newState = AudioLooperState.values[nativeState.clamp(0, 4)];
+      final newState = AudioLooperState.values[nativeState.clamp(0, 5)];
 
       // Detect state transitions made by the C++ callback
       // (armed→recording, recording→playing).

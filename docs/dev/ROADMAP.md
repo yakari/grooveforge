@@ -27,6 +27,8 @@
 | TBD | Multi-USB audio (Android) | ✅ Complete | Device routing via `setDeviceId()`; built-in mic + USB output as reliable multi-device path |
 | **TBD** | **Per-project CC mappings** | **✅ Complete** | Slot-addressed CC control, per-project storage, effect bypass, channel-swap macro, transport/volume CC |
 | TBD | Audio Looper (PCM) | **🔜 In progress** | C++ core + Dart engine done; serialisation + UI remaining |
+| TBD | Phase Vocoder DSP Library | 🔜 After Audio Looper | Shared time-stretch + pitch-shift engine; enables looper tempo sync, harmonizer effect, vocoder NATURAL fix |
+| TBD | Audio Harmonizer | ⏸ After Phase Vocoder | Real-time pitch-shifted harmony voices using the shared phase vocoder |
 | TBD | Phase 8 (full) | ⏸ TBD | pub.dev publishing; plugin store; vocoder mk2 |
 | TBD | Phase 8b | ⏸ TBD | AudioUnit v3 bridge (macOS + iOS) |
 | TBD | Phase 8c | ⏸ TBD | AAP bridge (Android) — pending AAP v1.0 |
@@ -198,6 +200,7 @@ The current SF2 stack (`flutter_midi_pro`) lacks SF3 support, web compatibility,
 
 - [ ] **Migrate to `flutter_midi_engine`**: replace `flutter_midi_pro` to gain SF3 support, built-in reverb/chorus, 16-channel support, pitch bend, standard CC messages.
 - [ ] **MuseScore General SF3**: switch to `MuseScore_General.sf3` (MIT) as the default soundfont once SF3 support lands on all platforms.
+- [ ] **Vocoder NATURAL mode — choppy audio**: the current PSOLA implementation in `audio_input.c` produces audible chopping artifacts on the Natural waveform. Migrate to the shared phase vocoder library (`gf_phase_vocoder`) once it is built — see the Phase Vocoder DSP Library milestone.
 
 ### 🎸 Instruments
 
@@ -615,6 +618,72 @@ graph TD
 - [ ] Memory warning appears when clips exceed threshold.
 - [ ] Save/load project → clips preserved as sidecar WAV files.
 - [ ] Delete a clip → WAV file cleaned up on next save.
+
+---
+
+## 🎛️ TBD — Phase Vocoder DSP Library 🔜 After Audio Looper
+
+> A shared, allocation-free C library for high-quality time-stretching and pitch-shifting of arbitrary audio. Enables three downstream features: audio looper tempo sync, real-time harmonizer effect, and a fix for the vocoder's choppy NATURAL mode.
+
+### Why a shared library
+
+The current codebase has PSOLA in the vocoder (`audio_input.c`) for monophonic voice pitch correction, but it produces choppy artifacts on the NATURAL waveform and cannot time-stretch. A proper **phase vocoder** (FFT analysis → modify magnitudes/phases → IFFT resynthesis) handles:
+
+- **Time-stretching** (change speed, preserve pitch) — needed for audio looper tempo sync
+- **Pitch-shifting** (change pitch, preserve speed) — needed for the harmonizer
+- **Both** on polyphonic audio (not just monophonic voice)
+
+### Architecture
+
+```mermaid
+graph TD
+    subgraph PhaseVocoder["libgf_pv — shared C library"]
+        PV[gf_pv_context\nFFT size, hop, overlap]
+        TS[gf_pv_time_stretch\nstretch_ratio → resynth]
+        PS[gf_pv_pitch_shift\nsemitones → resample + stretch]
+    end
+
+    subgraph Consumers["Consumer modules"]
+        LOOP[Audio Looper\ngf_pv_time_stretch\nfor tempo-synced playback]
+        HARM[Harmonizer GFPA Effect\ngf_pv_pitch_shift × N voices]
+        VOC[Vocoder NATURAL mode\ngf_pv_pitch_shift\nreplaces choppy PSOLA]
+    end
+
+    PV --> TS
+    PV --> PS
+    TS --> LOOP
+    PS --> HARM
+    PS --> VOC
+```
+
+### Tasks
+
+- [ ] `native_audio/gf_phase_vocoder.h` — C API: `gf_pv_create`, `gf_pv_destroy`, `gf_pv_time_stretch`, `gf_pv_pitch_shift`, `gf_pv_process_block`.
+- [ ] `native_audio/gf_phase_vocoder.c` — FFT-based phase vocoder (STFT analysis, phase accumulation, overlap-add resynthesis). Pre-allocated FFT buffers (no RT allocation). Configurable FFT size (1024–4096), hop size, window function.
+- [ ] Audio looper integration: `dvh_alooper_process` PLAYING state uses `gf_pv_time_stretch` when BPM differs from `recordBpm`, producing tempo-synced playback without pitch change.
+- [ ] Vocoder NATURAL mode migration: replace PSOLA grain capture/playback in `audio_input.c` with `gf_pv_pitch_shift` for smoother, artifact-free pitch correction.
+- [ ] Dart FFI bindings for standalone use (future harmonizer).
+- [ ] Smoke test: time-stretch a 4-bar loop from 120→140 BPM — verify no pitch change, clean transients.
+
+---
+
+## 🎵 TBD — Audio Harmonizer (GFPA Effect)
+
+> Real-time pitch-shifted harmony voices using the shared phase vocoder library. Takes audio in, produces N parallel pitch-shifted copies at configurable intervals (3rd, 5th, octave, etc.), mixed with the dry signal.
+
+### Depends on
+
+- Phase Vocoder DSP Library (above)
+- GFPA effect plugin architecture (already exists)
+
+### Tasks
+
+- [ ] `com.grooveforge.harmonizer` GFPA effect plugin — audio in → N pitch-shifted voices → audio out.
+- [ ] Parameters: voice count (1–4), interval per voice (semitones, ±24), mix per voice, dry/wet.
+- [ ] Integration with Jam Mode: when scale-locked, snap harmony intervals to the active scale.
+- [ ] `.gfpd` descriptor file with parameter layout.
+- [ ] l10n: EN/FR ARB keys.
+- [ ] Smoke test: play a melody through the harmonizer → verify clean parallel harmonies.
 
 ---
 
