@@ -21,6 +21,7 @@
 
 #include <jack/jack.h>
 #include <algorithm>
+#include <cmath>
 #include <atomic>
 #include <chrono>
 #include <cmath>
@@ -146,6 +147,12 @@ struct AudioState {
     std::atomic<int32_t> transportTimeSigNum{4};
     std::atomic<int32_t> transportIsPlaying{0};
     std::atomic<double> transportPositionBeats{0.0};
+
+    // ── Output limiter state ───────────────────────────────────────────────
+    // Brickwall limiter with smooth gain reduction to prevent speaker damage.
+    // Threshold: 0.95 (leaves headroom for DAC reconstruction).
+    // Attack: instant (brickwall). Release: ~50ms exponential decay.
+    float limiterGain = 1.0f;
 
     // ── Callback drain counter ─────────────────────────────────────────────
     std::atomic<uint64_t> callbackSeq{0};
@@ -503,14 +510,43 @@ static int _jackProcessCallback(jack_nframes_t nframes, void* arg) {
     // Signal block completion for drain synchronization.
     state->callbackSeq.fetch_add(1, std::memory_order_release);
 
-    // Hard-clip to [-1, 1] and copy to JACK output ports.
-    for (int i = 0; i < bs; ++i) {
-        float l = state->mixL[i];
-        float r = state->mixR[i];
-        if (l >  1.f) l =  1.f; if (l < -1.f) l = -1.f;
-        if (r >  1.f) r =  1.f; if (r < -1.f) r = -1.f;
-        outL[i] = l;
-        outR[i] = r;
+    // ── Output limiter — speaker protection ────────────────────────────────
+    // Brickwall limiter that smoothly reduces gain when peaks exceed the
+    // threshold.  Prevents the hard-clipped square waves that destroy
+    // laptop speakers.
+    //
+    // - Threshold: 0.95 (leaves headroom for DAC inter-sample peaks).
+    // - Attack: instant — gain is reduced within the same sample.
+    // - Release: ~50ms exponential decay back to unity (1.0).
+    //
+    // This runs per-sample after all mixing is complete, just before the
+    // JACK output.  The limiter gain state persists across blocks.
+    {
+        constexpr float threshold = 0.95f;
+        // Release coefficient: at 48kHz, 0.9999 ≈ 50ms to recover from
+        // -6dB reduction.  Slower release = smoother but more audible pumping.
+        const float releaseCoeff = 1.0f - (1.0f / (0.050f * state->sampleRate));
+        float g = state->limiterGain;
+
+        for (int i = 0; i < bs; ++i) {
+            const float l = state->mixL[i];
+            const float r = state->mixR[i];
+            // Find the peak of this sample (stereo).
+            const float peak = std::max(std::abs(l), std::abs(r));
+
+            if (peak * g > threshold) {
+                // Instant attack: set gain so peak * g == threshold.
+                g = threshold / peak;
+            } else {
+                // Exponential release back towards 1.0.
+                g = g * releaseCoeff + (1.0f - releaseCoeff);
+                if (g > 1.0f) g = 1.0f;
+            }
+
+            outL[i] = l * g;
+            outR[i] = r * g;
+        }
+        state->limiterGain = g;
     }
 
     return 0;
