@@ -1,5 +1,14 @@
 # RPM spec for GrooveForge — packages a pre-built Flutter bundle.
 # The binary is built on Ubuntu CI and is glibc-compatible with Fedora.
+#
+# Usage (from the workflow):
+#   rpmbuild --define "_version 2.12.0" \
+#            --define "_topdir $(pwd)/rpmbuild" \
+#            --define "_stagedir $(pwd)/stage" \
+#            -bb packaging/rpm/grooveforge.spec
+#
+# The workflow must populate _stagedir with the full file layout before
+# invoking rpmbuild.
 
 Name:           grooveforge
 Version:        %{_version}
@@ -9,7 +18,7 @@ Summary:        Cross-platform MIDI synthesizer and VST3 host
 License:        MIT
 URL:            https://grooveforge.music
 
-# Disable debug-info generation — the Flutter bundle has no debuginfo to extract.
+# Disable debug-info generation — the Flutter bundle has no debuginfo.
 %global debug_package %{nil}
 
 # Runtime dependencies — verified on packages.fedoraproject.org.
@@ -30,9 +39,9 @@ GrooveForge connects to physical MIDI keyboards, hosts VST3 plugins,
 and features a built-in multi-timbral synthesizer with vocoder support
 and real-time Jam Mode with scale locking across multiple plugin slots.
 
-# No source archive — files are copied into the buildroot directly by CI.
 %install
-# CI populates BUILDROOT before rpmbuild --noclean runs.
+# Copy the pre-staged file tree into the RPM buildroot.
+cp -a %{_stagedir}/* %{buildroot}/
 
 %files
 %{_bindir}/grooveforge

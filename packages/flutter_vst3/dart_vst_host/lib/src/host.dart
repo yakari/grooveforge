@@ -6,6 +6,7 @@ library;
 
 import 'dart:ffi';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
 import 'package:flutter/foundation.dart';
@@ -295,11 +296,28 @@ class VstHost {
   void setAudioLooperLengthBeats(int idx, double lengthBeats) =>
       _b.alooperSetLengthBeats(handle, idx, lengthBeats);
 
-  /// Raw pointer to the left channel PCM data (for waveform preview / WAV export).
+  /// Raw pointer to the left channel PCM data (for WAV export).
   Pointer<Float> getAudioLooperDataL(int idx) => _b.alooperGetDataL(handle, idx);
 
-  /// Raw pointer to the right channel PCM data.
+  /// Raw pointer to the right channel PCM data (for WAV export).
   Pointer<Float> getAudioLooperDataR(int idx) => _b.alooperGetDataR(handle, idx);
+
+  /// Returns the left channel PCM data as a Dart Float32List view.
+  /// Returns null if the clip has no data.
+  Float32List? getAudioLooperDataAsListL(int idx, int length) {
+    if (length <= 0) return null;
+    final ptr = _b.alooperGetDataL(handle, idx);
+    if (ptr == nullptr) return null;
+    return ptr.asTypedList(length);
+  }
+
+  /// Returns the right channel PCM data as a Dart Float32List view.
+  Float32List? getAudioLooperDataAsListR(int idx, int length) {
+    if (length <= 0) return null;
+    final ptr = _b.alooperGetDataR(handle, idx);
+    if (ptr == nullptr) return null;
+    return ptr.asTypedList(length);
+  }
 
   /// Current recorded length in frames.
   int getAudioLooperLength(int idx) => _b.alooperGetLength(handle, idx);

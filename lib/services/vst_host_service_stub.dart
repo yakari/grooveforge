@@ -13,6 +13,12 @@ class VstHostService {
 
   bool get isSupported => false;
 
+  /// Stub: always null on unsupported platforms.
+  dynamic get host => null;
+
+  /// Stub: no-op — audio looper engine reference not needed on web.
+  set audioLooperEngine(dynamic _) {}
+
   Future<void> initialize() async {}
 
   Future<Vst3PluginInstance?> loadPlugin(
@@ -76,6 +82,9 @@ class VstHostService {
 
   /// Stub: no-op.
   void setGfpaDspBypass(String slotId, bool bypassed) {}
+
+  /// Stub: no-op on web — audio looper WAV import not supported.
+  Future<void> importAudioLooperWavs(String gfPath, Map<String, dynamic> clips) async {}
 
   void dispose() {}
 }

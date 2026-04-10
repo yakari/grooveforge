@@ -1,13 +1,10 @@
 import 'dart:async';
-import 'dart:ffi' hide Size;
-import 'dart:io';
+import 'dart:math' show sqrt;
 
-import 'package:ffi/ffi.dart';
 import 'package:flutter/foundation.dart';
 
 import 'transport_engine.dart';
 import 'vst_host_service.dart';
-import 'wav_utils.dart';
 
 /// State of an audio looper clip.  Mirrors the C enum in audio_looper.h.
 enum AudioLooperState {
@@ -46,6 +43,10 @@ class AudioLooperClip {
   /// Whether recording waits for the next downbeat (true) or starts
   /// immediately (false).
   bool barSyncEnabled = true;
+
+  /// Decimated RMS waveform for display (~300 bins).
+  /// Updated when recording finishes or clip is loaded from WAV.
+  List<double> waveformRms = const [];
 
   /// Recorded length in frames (polled from native).
   int lengthFrames = 0;
@@ -294,6 +295,7 @@ class AudioLooperEngine extends ChangeNotifier {
     clip.state = AudioLooperState.idle;
     clip.lengthFrames = 0;
     clip.headFrames = 0;
+    clip.waveformRms = const [];
     notifyListeners();
     onDataChanged?.call();
   }
@@ -323,6 +325,53 @@ class AudioLooperEngine extends ChangeNotifier {
   /// Total memory used by all clips (bytes).
   int get memoryUsedBytes =>
       VstHostService.instance.host?.getAudioLooperMemoryUsed() ?? 0;
+
+  /// Recomputes the decimated waveform RMS for [slotId] from native PCM data.
+  ///
+  /// Called when recording finishes, clip loads from WAV, or overdub completes.
+  /// Reads native float pointers via VstHost (dart:ffi accessed via dynamic
+  /// dispatch through the host object — no dart:ffi import needed here).
+  void updateWaveform(String slotId, {int bins = 300}) {
+    final clip = _clips[slotId];
+    if (clip == null) return;
+
+    final dynamic host = VstHostService.instance.host;
+    if (host == null) { clip.waveformRms = const []; return; }
+
+    try {
+      // Read length directly from native — the Dart cache may be stale.
+      final int length = (host.getAudioLooperLength(clip.nativeIdx) as num).toInt();
+      if (length <= 0) { clip.waveformRms = const []; return; }
+      clip.lengthFrames = length;
+
+      // Read the PCM data as a Dart Float32List via VstHost's asTypedList helper.
+      // We cannot use Pointer<Float> directly here (no dart:ffi import), so we
+      // call a helper on VstHost that returns Float32List.
+      final dynamic dataL = host.getAudioLooperDataAsListL(clip.nativeIdx, length);
+      final dynamic dataR = host.getAudioLooperDataAsListR(clip.nativeIdx, length);
+      if (dataL == null || dataR == null) { clip.waveformRms = const []; return; }
+
+      final actualBins = length < bins ? length : bins;
+      final samplesPerBin = length / actualBins;
+      final rms = List<double>.filled(actualBins, 0.0);
+
+      for (int b = 0; b < actualBins; b++) {
+        final start = (b * samplesPerBin).toInt();
+        final end = ((b + 1) * samplesPerBin).toInt().clamp(start + 1, length);
+        double sumSq = 0;
+        for (int i = start; i < end; i++) {
+          final double l = (dataL[i] as num).toDouble();
+          final double r = (dataR[i] as num).toDouble();
+          sumSq += (l * l + r * r) * 0.5;
+        }
+        rms[b] = sqrt(sumSq / (end - start));
+      }
+      clip.waveformRms = rms;
+    } catch (e) {
+      debugPrint('updateWaveform error: $e');
+      clip.waveformRms = const [];
+    }
+  }
 
   // ── Serialisation ───────────────────────────────────────────────────────
 
@@ -392,6 +441,10 @@ class AudioLooperEngine extends ChangeNotifier {
     if (_pendingGfPath != null) {
       await _importWavs(_pendingGfPath!);
       _pendingGfPath = null;
+      // Compute waveforms for all loaded clips.
+      for (final slotId in _clips.keys) {
+        updateWaveform(slotId);
+      }
     }
 
     notifyListeners();
@@ -400,38 +453,19 @@ class AudioLooperEngine extends ChangeNotifier {
   /// Has pending metadata that needs [finalizeLoad] to complete.
   bool get hasPendingLoad => _pendingJson != null && _pendingJson!.isNotEmpty;
 
-  /// Import sidecar WAVs — extracted from ProjectService so the engine can
-  /// do it self-contained after native clips exist.
+  /// Import sidecar WAVs into native clip buffers.
+  /// Delegated to [wavImporter] which is set by the platform-specific startup
+  /// code (splash_screen.dart) to keep dart:ffi imports out of this file.
   Future<void> _importWavs(String gfPath) async {
-    final host = VstHostService.instance.host;
-    if (host == null) return;
-    final dir = Directory('$gfPath.audio');
-    if (!await dir.exists()) return;
-
-    for (final entry in _clips.entries) {
-      final slotId = entry.key;
-      final clip = entry.value;
-      final wavPath = '${dir.path}/loop_$slotId.wav';
-      if (!await File(wavPath).exists()) continue;
-      try {
-        final wav = readWavFile(wavPath);
-        final srcL = malloc<Float>(wav.lengthFrames);
-        final srcR = malloc<Float>(wav.lengthFrames);
-        srcL.asTypedList(wav.lengthFrames).setAll(0, wav.left);
-        srcR.asTypedList(wav.lengthFrames).setAll(0, wav.right);
-        final ok = host.loadAudioLooperData(
-            clip.nativeIdx, srcL, srcR, wav.lengthFrames);
-        malloc.free(srcL);
-        malloc.free(srcR);
-        if (ok) {
-          clip.lengthFrames = wav.lengthFrames;
-          debugPrint('AudioLooperEngine: imported $slotId (${wav.lengthFrames} frames)');
-        }
-      } catch (e) {
-        debugPrint('AudioLooperEngine: failed to import $slotId: $e');
-      }
-    }
+    if (kIsWeb || wavImporter == null) return;
+    await wavImporter!(gfPath, _clips);
   }
+
+  /// Platform-specific WAV importer.  Set by splash_screen on desktop to a
+  /// function that reads WAV files and pushes PCM data into native buffers.
+  /// Null on web.
+  Future<void> Function(String gfPath, Map<String, AudioLooperClip> clips)?
+      wavImporter;
 
   // ── Polling ─────────────────────────────────────────────────────────────
 
@@ -464,14 +498,30 @@ class AudioLooperEngine extends ChangeNotifier {
       if (newState != clip.state) {
         clip.state = newState;
         changed = true;
-        // If transitioned to playing from recording, data changed.
+        // If transitioned to playing (from recording/stopping/overdub),
+        // recompute waveform and trigger autosave.
         if (newState == AudioLooperState.playing) {
+          // Find the slotId for this clip.
+          final slotId = _clips.entries
+              .where((e) => e.value == clip)
+              .firstOrNull?.key;
+          if (slotId != null) updateWaveform(slotId);
           onDataChanged?.call();
         }
       }
 
       clip.lengthFrames = host.getAudioLooperLength(clip.nativeIdx);
       clip.headFrames = host.getAudioLooperHead(clip.nativeIdx);
+
+      // If the clip is playing/idle with audio but no waveform, compute it.
+      if (clip.lengthFrames > 0 && clip.waveformRms.isEmpty &&
+          (clip.state == AudioLooperState.playing ||
+           clip.state == AudioLooperState.idle)) {
+        final slotId = _clips.entries
+            .where((e) => e.value == clip)
+            .firstOrNull?.key;
+        if (slotId != null) updateWaveform(slotId);
+      }
     }
     // Always notify when any clip is active — the waveform painter needs
     // continuous head position updates for a smooth playback cursor.

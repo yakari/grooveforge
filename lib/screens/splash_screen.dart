@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:grooveforge_plugin_api/grooveforge_plugin_api.dart';
 import 'package:provider/provider.dart';
@@ -68,9 +69,15 @@ class _SplashScreenState extends State<SplashScreen> {
     // can load/save mappings without going through engine.ccMappingService
     // (which is null until RackScreen.initState assigns it).
     projectService.ccMappingService = context.read<CcMappingService>();
-    projectService.audioLooperEngine = context.read<AudioLooperEngine>();
+    final audioLooper = context.read<AudioLooperEngine>();
+    projectService.audioLooperEngine = audioLooper;
     // Also give VstHostService a reference for syncAudioRouting.
-    VstHostService.instance.audioLooperEngine = projectService.audioLooperEngine;
+    VstHostService.instance.audioLooperEngine = audioLooper;
+    // Set the WAV importer for desktop.  VstHostService conditionally exports
+    // the desktop implementation which has access to dart:ffi for WAV import.
+    if (!kIsWeb) {
+      audioLooper.wavImporter = VstHostService.instance.importAudioLooperWavs;
+    }
 
     // Load the last autosave (or initialise defaults) BEFORE wiring up the
     // autosave callbacks.  This prevents spurious autosaves that would fire

@@ -1,4 +1,3 @@
-import 'dart:ffi' hide Size;
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -88,34 +87,85 @@ class _AudioLooperSlotUIState extends State<AudioLooperSlotUI> {
 
 // ── Waveform display ──────────────────────────────────────────────────────────
 
-class _WaveformDisplay extends StatelessWidget {
+class _WaveformDisplay extends StatefulWidget {
   final AudioLooperClip? clip;
   const _WaveformDisplay({required this.clip});
 
   @override
-  Widget build(BuildContext context) {
-    final hasAudio = (clip?.lengthFrames ?? 0) > 0;
-    final noSource = clip != null && !hasAudio &&
-        clip!.state == AudioLooperState.idle;
+  State<_WaveformDisplay> createState() => _WaveformDisplayState();
+}
 
-    return Container(
-      height: 60,
-      decoration: BoxDecoration(
-        color: _kWaveBg,
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: _kBorder, width: 0.5),
-      ),
-      child: !hasAudio
-          ? Center(
-              child: Text(
-                noSource ? 'Cable an instrument to Audio IN' : 'No audio recorded',
-                style: const TextStyle(color: Colors.grey, fontSize: 11),
-              ),
-            )
-          : CustomPaint(
-              painter: _WaveformPainter(clip: clip!),
-              size: Size.infinite,
+class _WaveformDisplayState extends State<_WaveformDisplay>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pulseCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _pulseCtrl.dispose();
+    super.dispose();
+  }
+
+  bool get _isRecording {
+    final st = widget.clip?.state;
+    return st == AudioLooperState.recording ||
+           st == AudioLooperState.armed ||
+           st == AudioLooperState.stopping;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final clip = widget.clip;
+    final hasWaveform = clip != null && clip.waveformRms.isNotEmpty;
+    final noSource = clip != null &&
+        clip.lengthFrames == 0 &&
+        clip.state == AudioLooperState.idle;
+
+    return AnimatedBuilder(
+      animation: _pulseCtrl,
+      builder: (context, child) {
+        final recAlpha = _isRecording ? 0.08 + _pulseCtrl.value * 0.12 : 0.0;
+        return Container(
+          height: 60,
+          decoration: BoxDecoration(
+            color: Color.lerp(_kWaveBg, _kRecColor, recAlpha)!,
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(
+              color: _isRecording
+                  ? _kRecColor.withValues(alpha: 0.4 + _pulseCtrl.value * 0.3)
+                  : _kBorder,
+              width: _isRecording ? 1.0 : 0.5,
             ),
+          ),
+          child: hasWaveform
+              ? CustomPaint(
+                  painter: _WaveformPainter(clip: clip),
+                  size: Size.infinite,
+                )
+              : Center(
+                  child: Text(
+                    _isRecording
+                        ? 'Recording…'
+                        : noSource
+                            ? 'Cable an instrument to Audio IN'
+                            : 'No audio recorded',
+                    style: TextStyle(
+                      color: _isRecording ? _kRecColor : Colors.grey,
+                      fontSize: 11,
+                      fontWeight: _isRecording ? FontWeight.w600 : FontWeight.normal,
+                    ),
+                  ),
+                ),
+        );
+      },
     );
   }
 }
@@ -128,42 +178,16 @@ class _WaveformPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final length = clip.lengthFrames;
-    if (length == 0) return;
 
-    final ptrs = _getNativeDataPointers();
-    if (ptrs == null) return;
-    final (dataL, dataR) = ptrs;
-
-    final bins = math.min(size.width.toInt(), 300);
-    final samplesPerBin = length / bins;
-    final wavePaint = Paint()
-      ..color = _kWaveColor
-      ..style = PaintingStyle.fill;
-    final midY = size.height / 2;
-
-    for (int b = 0; b < bins; b++) {
-      final start = (b * samplesPerBin).toInt();
-      final end = math.min(((b + 1) * samplesPerBin).toInt(), length);
-      if (start >= end) continue;
-      double sumSq = 0;
-      for (int i = start; i < end; i++) {
-        final l = dataL[i];
-        final r = dataR[i];
-        sumSq += (l * l + r * r) * 0.5;
-      }
-      final rms = math.sqrt(sumSq / (end - start));
-      final h = (rms.clamp(0.0, 1.0) * midY).toDouble();
-      final x = b * size.width / bins;
-      final w = math.max(size.width / bins - 0.5, 1.0);
-      canvas.drawRect(
-        Rect.fromCenter(center: Offset(x + w / 2, midY), width: w, height: h * 2),
-        wavePaint,
-      );
+    // ── Waveform (from pre-computed RMS cache — no FFI access) ─────────
+    if (clip.waveformRms.isNotEmpty) {
+      _paintWaveform(canvas, size, clip.waveformRms);
     }
 
-    // Playback head.
-    if (clip.state == AudioLooperState.playing ||
-        clip.state == AudioLooperState.overdubbing) {
+    // ── Playback head ──────────────────────────────────────────────────
+    if (length > 0 &&
+        (clip.state == AudioLooperState.playing ||
+         clip.state == AudioLooperState.overdubbing)) {
       final headX = clip.progress * size.width;
       canvas.drawLine(
         Offset(headX, 0), Offset(headX, size.height),
@@ -171,8 +195,10 @@ class _WaveformPainter extends CustomPainter {
       );
     }
 
-    // Recording progress.
-    if (clip.state == AudioLooperState.recording && clip.capacityFrames > 0) {
+    // ── Recording progress ─────────────────────────────────────────────
+    if ((clip.state == AudioLooperState.recording ||
+         clip.state == AudioLooperState.stopping) &&
+        clip.capacityFrames > 0) {
       final recX = clip.lengthFrames / clip.capacityFrames * size.width;
       canvas.drawLine(
         Offset(recX, 0), Offset(recX, size.height),
@@ -181,13 +207,25 @@ class _WaveformPainter extends CustomPainter {
     }
   }
 
-  (Pointer<Float>, Pointer<Float>)? _getNativeDataPointers() {
-    final host = VstHostService.instance.host;
-    if (host == null) return null;
-    final dataL = host.getAudioLooperDataL(clip.nativeIdx);
-    final dataR = host.getAudioLooperDataR(clip.nativeIdx);
-    if (dataL == nullptr || dataR == nullptr) return null;
-    return (dataL, dataR);
+  /// Draws the waveform from the pre-computed RMS cache (no FFI access).
+  void _paintWaveform(Canvas canvas, Size size, List<double> rms) {
+    final bins = rms.length;
+    if (bins == 0) return;
+    final wavePaint = Paint()
+      ..color = _kWaveColor
+      ..style = PaintingStyle.fill;
+    final midY = size.height / 2;
+    final binWidth = size.width / bins;
+
+    for (int b = 0; b < bins; b++) {
+      final h = (rms[b].clamp(0.0, 1.0) * midY).toDouble();
+      final x = b * binWidth;
+      final w = math.max(binWidth - 0.5, 1.0);
+      canvas.drawRect(
+        Rect.fromCenter(center: Offset(x + w / 2, midY), width: w, height: h * 2),
+        wavePaint,
+      );
+    }
   }
 
   @override

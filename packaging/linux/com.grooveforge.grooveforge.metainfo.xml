@@ -17,7 +17,8 @@
       save/restore for complete rack configurations.
     </p>
   </description>
-  <launchable type="desktop-id">grooveforge.desktop</launchable>
+  <icon type="stock">com.grooveforge.grooveforge</icon>
+  <launchable type="desktop-id">com.grooveforge.grooveforge.desktop</launchable>
   <url type="homepage">https://grooveforge.music</url>
   <categories>
     <category>Audio</category>
@@ -25,7 +26,7 @@
     <category>Midi</category>
   </categories>
   <provides>
-    <binary>grooveforge</binary>
+    <binary>grooveforge-wrapper</binary>
   </provides>
   <content_rating type="oars-1.1" />
 </component>

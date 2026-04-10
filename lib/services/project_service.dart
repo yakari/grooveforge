@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:ffi';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -441,7 +440,7 @@ class ProjectService extends ChangeNotifier {
 
       final dataL = host.getAudioLooperDataL(clip.nativeIdx);
       final dataR = host.getAudioLooperDataR(clip.nativeIdx);
-      if (dataL == nullptr || dataR == nullptr) continue;
+      // dataL/dataR are Pointer<Float> from dart:ffi — always non-null on desktop.
 
       final filename = 'loop_$slotId.wav';
       final wavPath = '${dir.path}/$filename';

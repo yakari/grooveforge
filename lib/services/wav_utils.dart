@@ -1,4 +1,3 @@
-import 'dart:ffi';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -28,9 +27,11 @@ const int _wavFormatFloat = 3;
 ///
 /// The samples are interleaved (L0, R0, L1, R1, …) in the WAV data chunk.
 /// This function runs synchronously — call from an isolate for large files.
+/// [dataL] and [dataR] are native float pointers (Pointer from dart:ffi).
+/// Passed as dynamic to avoid importing dart:ffi in this file (web compat).
 void writeWavFile({
-  required Pointer<Float> dataL,
-  required Pointer<Float> dataR,
+  required dynamic dataL,
+  required dynamic dataR,
   required int lengthFrames,
   required int sampleRate,
   required String path,

@@ -502,8 +502,8 @@ class _AddPluginSheetContentState extends State<_AddPluginSheetContent> {
               },
             ),
 
-            // ── Audio Looper (PCM)
-            _PluginTile(
+            // ── Audio Looper (PCM) — desktop only (requires JACK + native FFI).
+            if (!kIsWeb) _PluginTile(
               icon: Icons.radio_button_checked,
               iconColor: Colors.redAccent,
               title: l10n.rackAddAudioLooper,

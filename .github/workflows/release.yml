@@ -189,31 +189,30 @@ jobs:
           VERSION=${{ github.ref_name }}
           VERSION_CLEAN=${VERSION#v}
 
-          # Unpack the bundle into a temporary root.
+          # Unpack the bundle.
           mkdir -p bundle
           cd bundle && unzip ../GrooveForge-Linux-${VERSION}-bundle.zip && cd ..
 
-          # Populate the buildroot with the expected file layout.
-          BUILDROOT=$(mktemp -d)
-          mkdir -p $BUILDROOT/usr/bin
-          mkdir -p $BUILDROOT/usr/share/grooveforge
-          mkdir -p $BUILDROOT/usr/share/applications
-          mkdir -p $BUILDROOT/usr/share/icons/hicolor/512x512/apps
-          mkdir -p $BUILDROOT/usr/share/metainfo
+          # Stage the full file layout that %install copies into the buildroot.
+          STAGE=$(pwd)/stage
+          mkdir -p $STAGE/usr/bin
+          mkdir -p $STAGE/usr/share/grooveforge
+          mkdir -p $STAGE/usr/share/applications
+          mkdir -p $STAGE/usr/share/icons/hicolor/512x512/apps
+          mkdir -p $STAGE/usr/share/metainfo
 
-          cp -r bundle/* $BUILDROOT/usr/share/grooveforge/
-          ln -s /usr/share/grooveforge/grooveforge $BUILDROOT/usr/bin/grooveforge
+          cp -r bundle/* $STAGE/usr/share/grooveforge/
+          ln -s /usr/share/grooveforge/grooveforge $STAGE/usr/bin/grooveforge
           cp packaging/linux/grooveforge.desktop \
-             $BUILDROOT/usr/share/applications/grooveforge.desktop
+             $STAGE/usr/share/applications/grooveforge.desktop
           cp icon.png \
-             $BUILDROOT/usr/share/icons/hicolor/512x512/apps/grooveforge.png
+             $STAGE/usr/share/icons/hicolor/512x512/apps/grooveforge.png
           cp packaging/linux/com.grooveforge.grooveforge.metainfo.xml \
-             $BUILDROOT/usr/share/metainfo/com.grooveforge.grooveforge.metainfo.xml
+             $STAGE/usr/share/metainfo/com.grooveforge.grooveforge.metainfo.xml
 
           rpmbuild --define "_version $VERSION_CLEAN" \
                    --define "_topdir $(pwd)/rpmbuild" \
-                   --buildroot "$BUILDROOT" \
-                   --noclean \
+                   --define "_stagedir $STAGE" \
                    -bb packaging/rpm/grooveforge.spec
 
           cp rpmbuild/RPMS/x86_64/*.rpm GrooveForge-Linux-${VERSION}.rpm
@@ -306,14 +305,14 @@ jobs:
           }
           PKGEOF
 
-          # Inject the real version (PKGBUILD cannot use shell variables set outside).
-          sed -i "s/_PKGVER_/${VERSION_CLEAN}/" $BUILD_DIR/PKGBUILD
+          # Inject the real version and strip leading whitespace from heredoc.
+          sed -i "s/_PKGVER_/${VERSION_CLEAN}/; s/^          //" $BUILD_DIR/PKGBUILD
 
           chown -R builder:builder $BUILD_DIR
           cd $BUILD_DIR
           su builder -c "makepkg --noconfirm --nodeps"
 
-          cp $BUILD_DIR/*.pkg.tar.zst /github/workspace/GrooveForge-Linux-${VERSION}.pkg.tar.zst
+          cp $BUILD_DIR/*.pkg.tar.zst $GITHUB_WORKSPACE/GrooveForge-Linux-${VERSION}.pkg.tar.zst
 
       - name: Upload Arch package
         uses: actions/upload-artifact@v4

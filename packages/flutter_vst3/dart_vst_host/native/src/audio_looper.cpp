@@ -366,6 +366,10 @@ void dvh_alooper_set_state(DVH_Host /*host*/, int32_t idx, int32_t state) {
     }
     if (state == ALOOPER_IDLE) {
         clip->head.store(0, std::memory_order_relaxed);
+        clip->length.store(0, std::memory_order_relaxed);
+        clip->loopLengthFrames = 0;
+        clip->loopLengthBeats = 0.0;
+        clip->overdubStartHead = -1;
     }
 
     clip->state.store(state, std::memory_order_release);

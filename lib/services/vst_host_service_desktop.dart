@@ -1,6 +1,8 @@
 import 'dart:ffi';
 import 'dart:io';
 
+import 'package:ffi/ffi.dart';
+
 import 'package:dart_vst_host/dart_vst_host.dart';
 import 'package:flutter/foundation.dart';
 
@@ -11,6 +13,7 @@ import '../models/gfpa_plugin_instance.dart';
 import '../models/grooveforge_keyboard_plugin.dart';
 import '../models/plugin_instance.dart';
 import 'audio_looper_engine.dart';
+import 'wav_utils.dart';
 import '../models/vst3_plugin_instance.dart';
 // Vst3PluginType used in loadPlugin signature.
 export '../models/vst3_plugin_instance.dart' show Vst3PluginType;
@@ -67,6 +70,42 @@ class VstHostService {
 
     _host = VstHost.create(sampleRate: 48000.0, maxBlock: 256);
     debugPrint('VstHostService: host created (version: ${_host!.getVersion()})');
+  }
+
+  /// Imports sidecar WAV files into native audio looper clip buffers.
+  ///
+  /// Called as the [AudioLooperEngine.wavImporter] callback on desktop.
+  /// Uses dart:ffi (Pointer, malloc) which is only available on
+  /// non-web platforms — the stub returns a no-op.
+  Future<void> importAudioLooperWavs(
+      String gfPath, Map<String, AudioLooperClip> clips) async {
+    if (_host == null) return;
+    final dir = Directory('$gfPath.audio');
+    if (!await dir.exists()) return;
+
+    for (final entry in clips.entries) {
+      final slotId = entry.key;
+      final clip = entry.value;
+      final wavPath = '${dir.path}/loop_$slotId.wav';
+      if (!await File(wavPath).exists()) continue;
+      try {
+        final wav = readWavFile(wavPath);
+        final srcL = malloc<Float>(wav.lengthFrames);
+        final srcR = malloc<Float>(wav.lengthFrames);
+        srcL.asTypedList(wav.lengthFrames).setAll(0, wav.left);
+        srcR.asTypedList(wav.lengthFrames).setAll(0, wav.right);
+        final ok = _host!.loadAudioLooperData(
+            clip.nativeIdx, srcL, srcR, wav.lengthFrames);
+        malloc.free(srcL);
+        malloc.free(srcR);
+        if (ok) {
+          clip.lengthFrames = wav.lengthFrames;
+          debugPrint('VstHostService: imported loop $slotId (${wav.lengthFrames} frames)');
+        }
+      } catch (e) {
+        debugPrint('VstHostService: failed to import loop $slotId: $e');
+      }
+    }
   }
 
   void dispose() {
