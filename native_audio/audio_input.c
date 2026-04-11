@@ -836,10 +836,17 @@ EXPORT int start_audio_capture() {
     playConfig.playback.channels         = CHANNELS;
     playConfig.sampleRate                = SAMPLE_RATE;
     playConfig.dataCallback              = data_callback;
-    playConfig.periodSizeInFrames        = 512;
-    playConfig.periods                   = 3;
+    playConfig.periodSizeInFrames        = 256;  // ~5.3ms — matches capture latency
+    playConfig.periods                   = 2;   // total ~10.7ms (was 512×3 = 32ms)
     playConfig.noPreSilencedOutputBuffer = MA_TRUE;
     playConfig.noClip                    = MA_TRUE;
+    playConfig.performanceProfile        = ma_performance_profile_low_latency;
+#ifdef __ANDROID__
+    // Enable the low-latency audio path on Android.  AAUDIO_USAGE_GAME maps
+    // to the "fast mixer" hardware path on most devices, reducing output
+    // latency from ~30ms to ~10ms.
+    playConfig.aaudio.usage = ma_aaudio_usage_game;
+#endif
 
 #ifdef __ANDROID__
     static ma_device_id customOutputDeviceId;

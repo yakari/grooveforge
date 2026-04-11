@@ -201,6 +201,14 @@ The current SF2 stack (`flutter_midi_pro`) lacks SF3 support, web compatibility,
 - [ ] **Migrate to `flutter_midi_engine`**: replace `flutter_midi_pro` to gain SF3 support, built-in reverb/chorus, 16-channel support, pitch bend, standard CC messages.
 - [ ] **MuseScore General SF3**: switch to `MuseScore_General.sf3` (MIT) as the default soundfont once SF3 support lands on all platforms.
 - [ ] **Vocoder NATURAL mode — choppy audio**: the current PSOLA implementation in `audio_input.c` produces audible chopping artifacts on the Natural waveform. Migrate to the shared phase vocoder library (`gf_phase_vocoder`) once it is built — see the Phase Vocoder DSP Library milestone.
+- [ ] **Android note-on latency**: `playNote()` sends 3 sequential Dart→Java→JNI method-channel calls (pitchBend reset, CC reset, note-on) before any sound. Remove redundant resets or batch into a single platform call.
+- [ ] **Android chord stagger**: chord notes are serialized — each finger triggers a separate `playNote()`. Accumulate notes within a microtask frame and batch into a single platform call.
+- [ ] **Native transport beat tracking**: the 10ms Dart timer causes up to 10ms jitter on beat detection. Move beat tracking into the native audio callback (JACK/Oboe/CoreAudio) where it's sample-accurate.
+- [ ] **Metronome note-off via `Future.delayed`**: inconsistent click length. Send note-off duration to native and count samples instead.
+- [ ] **`volatile` on ARM (Android)**: `g_pitchBendFactor`, `g_vocoderCaptureMode`, callback timestamps use `volatile` instead of C11 `_Atomic` — potential torn reads of 64-bit values on 32-bit ARM.
+- [ ] **Audio looper source array data race**: `renderSources[]` modified under mutex by Dart thread, read without mutex by JACK callback. Use atomic count or triple-buffer.
+- [ ] **Duplicated vocoder DSP**: `data_callback` and `_vocoder_render_block_impl` in `audio_input.c` share ~80 lines of identical code. Factor into a shared function.
+- [ ] **ACF pitch detection O(n×m)**: ~400K multiply-adds every 21ms on the audio thread. Consider YIN or downsampled autocorrelation.
 
 ### 🎸 Instruments
 
@@ -610,7 +618,23 @@ graph TD
 - [ ] Memory cap: warn if total clip memory exceeds 256 MB (configurable in preferences).
 - [ ] l10n: EN/FR ARB keys for all audio looper UI strings.
 
-### 🧪 Phase 6 — Testing
+### 🖥️ Phase 6 — Multi-platform (Android + macOS)
+
+The audio looper is currently Linux-only (JACK callback). It must be ported to:
+
+| Platform | Audio backend | Integration point |
+|----------|--------------|-------------------|
+| **Android** | Oboe/AAudio | Integrate `dvh_alooper_process()` into the Oboe render callback or create a standalone Oboe stream |
+| **macOS** | CoreAudio/miniaudio | Integrate into `dart_vst_host_audio_mac.cpp` callback (same pattern as Linux JACK) |
+
+- [ ] Android: create Oboe audio stream that calls `dvh_alooper_process()` each buffer callback.
+- [ ] Android: wire `AudioLooperEngine` to the Oboe-based looper (replace null `host` path).
+- [ ] Android: per-clip source routing via Oboe bus renders (keyboard slot render functions).
+- [ ] macOS: integrate `dvh_alooper_process()` into `dart_vst_host_audio_mac.cpp` `dataCallback`.
+- [ ] macOS: per-clip source routing via CoreAudio render captures.
+- [ ] All platforms: ensure WAV sidecar persistence works on Android/macOS file paths.
+
+### 🧪 Phase 7 — Testing
 
 - [ ] Record 4 bars of keyboard output → seamless loop playback.
 - [ ] Overdub adds audio without gaps or feedback.
@@ -618,6 +642,8 @@ graph TD
 - [ ] Memory warning appears when clips exceed threshold.
 - [ ] Save/load project → clips preserved as sidecar WAV files.
 - [ ] Delete a clip → WAV file cleaned up on next save.
+- [ ] Android: record + playback with bar-sync (Oboe backend).
+- [ ] macOS: record + playback with bar-sync (CoreAudio backend).
 
 ---
 

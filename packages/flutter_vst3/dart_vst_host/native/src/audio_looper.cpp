@@ -115,7 +115,10 @@ void dvh_alooper_process(
         auto& clip = g_clips[c];
         if (!clip.active) continue;
 
-        const int32_t st = clip.state.load(std::memory_order_relaxed);
+        // Acquire ensures visibility of non-atomic fields (loopLengthBeats,
+        // loopLengthFrames, etc.) written before the release store in
+        // dvh_alooper_set_state.
+        const int32_t st = clip.state.load(std::memory_order_acquire);
         if (st == ALOOPER_IDLE) continue;
 
         const float* srcL = clipSrcL[c];

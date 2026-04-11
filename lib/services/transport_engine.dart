@@ -4,8 +4,8 @@ import 'package:grooveforge_plugin_api/grooveforge_plugin_api.dart'
     show GFTransportContext;
 import 'vst_host_service.dart';
 
-// Approximate sample rate for positionInSamples advancement – good enough for VST3 context.
-const int _kSampleRate = 44100;
+// Sample rate for positionInSamples advancement — must match the audio engine.
+const int _kSampleRate = 48000;
 
 class TransportEngine extends ChangeNotifier {
   double _bpm = 120.0;
