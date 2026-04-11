@@ -177,7 +177,7 @@ jobs:
             icon.png
 
       - name: Install rpmbuild
-        run: dnf install -y rpm-build unzip
+        run: dnf install -y rpm-build unzip patchelf
 
       - name: Download Linux bundle
         uses: actions/download-artifact@v4
@@ -202,6 +202,12 @@ jobs:
           mkdir -p $STAGE/usr/share/metainfo
 
           cp -r bundle/* $STAGE/usr/share/grooveforge/
+          # Strip invalid RPATHs from Flutter-built .so files. The Flutter build
+          # bakes in CI-specific paths that Fedora's check-rpaths rejects.
+          for so in $STAGE/usr/share/grooveforge/lib/*.so; do
+            patchelf --remove-rpath "$so" 2>/dev/null || true
+          done
+          patchelf --set-rpath '$ORIGIN/lib' $STAGE/usr/share/grooveforge/grooveforge 2>/dev/null || true
           ln -s /usr/share/grooveforge/grooveforge $STAGE/usr/bin/grooveforge
           cp packaging/linux/grooveforge.desktop \
              $STAGE/usr/share/applications/grooveforge.desktop
@@ -308,11 +314,14 @@ jobs:
           # Inject the real version and strip leading whitespace from heredoc.
           sed -i "s/_PKGVER_/${VERSION_CLEAN}/; s/^          //" $BUILD_DIR/PKGBUILD
 
+          WORKSPACE_DIR=$(pwd)
           chown -R builder:builder $BUILD_DIR
           cd $BUILD_DIR
           su builder -c "makepkg --noconfirm --nodeps"
 
-          cp $BUILD_DIR/*.pkg.tar.zst $GITHUB_WORKSPACE/GrooveForge-Linux-${VERSION}.pkg.tar.zst
+          # Copy only the main package (not -debug) to the workspace root.
+          MAIN_PKG=$(ls grooveforge-${VERSION_CLEAN}-*.pkg.tar.zst | grep -v debug | head -1)
+          cp "$MAIN_PKG" "${WORKSPACE_DIR}/GrooveForge-Linux-${VERSION}.pkg.tar.zst"
 
       - name: Upload Arch package
         uses: actions/upload-artifact@v4
@@ -336,7 +345,7 @@ jobs:
       - name: Install Flatpak and flatpak-builder
         run: |
           sudo apt-get update
-          sudo apt-get install -y flatpak flatpak-builder
+          sudo apt-get install -y flatpak flatpak-builder imagemagick
           flatpak remote-add --user --if-not-exists \
             flathub https://dl.flathub.org/repo/flathub.flatpakrepo
           flatpak install --user --noninteractive \
@@ -363,7 +372,8 @@ jobs:
              packaging/flatpak/flatpak-build/com.grooveforge.grooveforge.desktop
           cp packaging/linux/com.grooveforge.grooveforge.metainfo.xml \
              packaging/flatpak/flatpak-build/com.grooveforge.grooveforge.metainfo.xml
-          cp icon.png packaging/flatpak/flatpak-build/icon.png
+          # Resize icon to 512x512 — Flatpak rejects icons larger than 512x512.
+          convert icon.png -resize 512x512 packaging/flatpak/flatpak-build/icon.png
 
       - name: Build Flatpak
         run: |

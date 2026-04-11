@@ -507,7 +507,9 @@ DVH_API void dvh_set_transport(double bpm, int32_t timeSigNum, int32_t timeSigDe
   // Use the Dart-side positionInBeats for the looper so it knows the actual
   // transport position immediately (not the stale projectTimeMusic which may
   // not have been updated if positionInBeats != 0).
+#ifdef __linux__
   dvh_jack_update_transport(bpm, timeSigNum, isPlaying, positionInBeats);
+#endif
 }
 
 } // extern "C"
