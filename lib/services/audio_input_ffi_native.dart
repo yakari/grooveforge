@@ -358,15 +358,25 @@ class AudioInputFFI {
     return _instance!;
   }
 
+  /// On Android, the looper symbols live in libnative-lib.so (flutter_midi_pro),
+  /// not in libaudio_input.so. This separate handle provides access to them.
+  late final DynamicLibrary _looperLib;
+
   AudioInputFFI._internal() {
     if (Platform.isAndroid || Platform.isLinux) {
       _lib = DynamicLibrary.open('libaudio_input.so');
     } else if (Platform.isMacOS) {
-      // For development, we can try to find it in the project root or use an absolute path.
-      // In a real app, it would be bundled in the app's Frameworks or Resources.
       _lib = DynamicLibrary.open('libaudio_input.dylib');
     } else {
       throw UnsupportedError('This platform is not supported');
+    }
+    // On Android, looper/transport symbols are in libnative-lib.so.
+    // On desktop they don't exist in libaudio_input at all (they're in
+    // libdart_vst_host, accessed via VstHost).  On Android we load them here.
+    if (Platform.isAndroid) {
+      _looperLib = DynamicLibrary.open('libnative-lib.so');
+    } else {
+      _looperLib = _lib; // unused on desktop, but avoids late init errors
     }
 
     _startCapture =
@@ -810,4 +820,93 @@ class AudioInputFFI {
     final raw = _keyboardRenderFnForSlot(slotIdx);
     return raw.cast<NativeFunction<KeyboardRenderBlockC>>();
   }
+
+  // ── Audio Looper FFI (Android — symbols in libnative-lib.so) ──────────────
+  //
+  // On Linux/macOS these functions are accessed via VstHost (libdart_vst_host.so).
+  // On Android, VstHost is null — we access them directly from libnative-lib.so.
+
+  late final int Function(Pointer<Void>, double, int) _alooperCreate =
+      _looperLib.lookupFunction<Int32 Function(Pointer<Void>, Float, Int32),
+          int Function(Pointer<Void>, double, int)>('dvh_alooper_create');
+
+  late final void Function(Pointer<Void>, int) _alooperDestroy =
+      _looperLib.lookupFunction<Void Function(Pointer<Void>, Int32),
+          void Function(Pointer<Void>, int)>('dvh_alooper_destroy');
+
+  late final void Function(Pointer<Void>, int, int) _alooperSetState =
+      _looperLib.lookupFunction<Void Function(Pointer<Void>, Int32, Int32),
+          void Function(Pointer<Void>, int, int)>('dvh_alooper_set_state');
+
+  late final int Function(Pointer<Void>, int) _alooperGetState =
+      _looperLib.lookupFunction<Int32 Function(Pointer<Void>, Int32),
+          int Function(Pointer<Void>, int)>('dvh_alooper_get_state');
+
+  late final void Function(Pointer<Void>, int, double) _alooperSetVolume =
+      _looperLib.lookupFunction<Void Function(Pointer<Void>, Int32, Float),
+          void Function(Pointer<Void>, int, double)>('dvh_alooper_set_volume');
+
+  late final void Function(Pointer<Void>, int, int) _alooperSetReversed =
+      _looperLib.lookupFunction<Void Function(Pointer<Void>, Int32, Int32),
+          void Function(Pointer<Void>, int, int)>('dvh_alooper_set_reversed');
+
+  late final void Function(Pointer<Void>, int, double) _alooperSetLengthBeats =
+      _looperLib.lookupFunction<Void Function(Pointer<Void>, Int32, Double),
+          void Function(Pointer<Void>, int, double)>('dvh_alooper_set_length_beats');
+
+  late final void Function(int, int) _alooperSetBarSync =
+      _looperLib.lookupFunction<Void Function(Int32, Int32),
+          void Function(int, int)>('dvh_alooper_set_bar_sync');
+
+  late final int Function(Pointer<Void>, int) _alooperGetLength =
+      _looperLib.lookupFunction<Int32 Function(Pointer<Void>, Int32),
+          int Function(Pointer<Void>, int)>('dvh_alooper_get_length');
+
+  late final int Function(Pointer<Void>, int) _alooperGetCapacity =
+      _looperLib.lookupFunction<Int32 Function(Pointer<Void>, Int32),
+          int Function(Pointer<Void>, int)>('dvh_alooper_get_capacity');
+
+  late final int Function(Pointer<Void>, int) _alooperGetHead =
+      _looperLib.lookupFunction<Int32 Function(Pointer<Void>, Int32),
+          int Function(Pointer<Void>, int)>('dvh_alooper_get_head');
+
+  late final void Function(int) _alooperClearSources =
+      _looperLib.lookupFunction<Void Function(Int32),
+          void Function(int)>('dvh_alooper_clear_sources');
+
+  late final void Function(int, int) _alooperAddSourcePlugin =
+      _looperLib.lookupFunction<Void Function(Int32, Int32),
+          void Function(int, int)>('dvh_alooper_add_source_plugin');
+
+  late final void Function(double, int, int, double) _alooperAndroidSetTransport =
+      _looperLib.lookupFunction<
+          Void Function(Double, Int32, Int32, Double),
+          void Function(double, int, int, double)
+      >('alooper_android_set_transport');
+
+  /// Create a native audio looper clip (Android path).
+  int alooperCreate(double maxSeconds, {int sampleRate = 48000}) =>
+      _alooperCreate(nullptr, maxSeconds, sampleRate);
+
+  void alooperDestroy(int idx) => _alooperDestroy(nullptr, idx);
+  void alooperSetState(int idx, int state) => _alooperSetState(nullptr, idx, state);
+  int alooperGetState(int idx) => _alooperGetState(nullptr, idx);
+  void alooperSetVolume(int idx, double volume) => _alooperSetVolume(nullptr, idx, volume);
+  void alooperSetReversed(int idx, bool reversed) =>
+      _alooperSetReversed(nullptr, idx, reversed ? 1 : 0);
+  void alooperSetLengthBeats(int idx, double beats) =>
+      _alooperSetLengthBeats(nullptr, idx, beats);
+  void alooperSetBarSync(int idx, bool enabled) =>
+      _alooperSetBarSync(idx, enabled ? 1 : 0);
+  int alooperGetLength(int idx) => _alooperGetLength(nullptr, idx);
+  int alooperGetCapacity(int idx) => _alooperGetCapacity(nullptr, idx);
+  int alooperGetHead(int idx) => _alooperGetHead(nullptr, idx);
+  void alooperClearSources(int idx) => _alooperClearSources(idx);
+  void alooperAddSourcePlugin(int idx, int sourceIdx) =>
+      _alooperAddSourcePlugin(idx, sourceIdx);
+
+  /// Push transport state to the Android audio looper.
+  void alooperSetTransport(double bpm, int timeSigNum, bool isPlaying,
+          double positionInBeats) =>
+      _alooperAndroidSetTransport(bpm, timeSigNum, isPlaying ? 1 : 0, positionInBeats);
 }

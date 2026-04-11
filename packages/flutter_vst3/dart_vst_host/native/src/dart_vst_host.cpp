@@ -509,6 +509,8 @@ DVH_API void dvh_set_transport(double bpm, int32_t timeSigNum, int32_t timeSigDe
   // not have been updated if positionInBeats != 0).
 #ifdef __linux__
   dvh_jack_update_transport(bpm, timeSigNum, isPlaying, positionInBeats);
+#elif defined(__APPLE__)
+  dvh_mac_update_transport(bpm, timeSigNum, isPlaying, positionInBeats);
 #endif
 }
 

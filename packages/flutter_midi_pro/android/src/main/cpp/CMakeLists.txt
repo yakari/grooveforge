@@ -77,6 +77,7 @@ add_library(native-lib SHARED
         gfpa_audio_android.cpp
         oboe_stream_android.cpp
         ../../../../../flutter_vst3/dart_vst_host/native/src/gfpa_dsp.cpp
+        ../../../../../flutter_vst3/dart_vst_host/native/src/audio_looper.cpp
 )
 
 # Include directories:

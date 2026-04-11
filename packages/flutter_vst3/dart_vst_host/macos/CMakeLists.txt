@@ -81,6 +81,8 @@ add_library(${PROJECT_NAME} SHARED
   ${NATIVE_DIR}/src/dart_vst_host_platform_stubs.cpp
   # GFPA built-in DSP effects (reverb, delay, wah, EQ, compressor, chorus)
   ${NATIVE_DIR}/src/gfpa_dsp.cpp
+  # Audio looper (PCM recording/playback — shared across all platforms)
+  ${NATIVE_DIR}/src/audio_looper.cpp
   # macOS specific implementation
   ${NATIVE_DIR}/src/dart_vst_host_audio_mac.cpp
   ${NATIVE_DIR}/src/dart_vst_host_editor_mac.mm

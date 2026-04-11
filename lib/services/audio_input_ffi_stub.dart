@@ -203,4 +203,21 @@ class AudioInputFFI {
 
   /// Not supported on web — no-op.
   void keyboardSetGain(double gain) {}
+
+  // ── Audio Looper stubs (web) ──────────────────────────────────────────
+  int alooperCreate(double maxSeconds, {int sampleRate = 48000}) => -1;
+  void alooperDestroy(int idx) {}
+  void alooperSetState(int idx, int state) {}
+  int alooperGetState(int idx) => 0;
+  void alooperSetVolume(int idx, double volume) {}
+  void alooperSetReversed(int idx, bool reversed) {}
+  void alooperSetLengthBeats(int idx, double beats) {}
+  void alooperSetBarSync(int idx, bool enabled) {}
+  int alooperGetLength(int idx) => 0;
+  int alooperGetCapacity(int idx) => 0;
+  int alooperGetHead(int idx) => 0;
+  void alooperClearSources(int idx) {}
+  void alooperAddSourcePlugin(int idx, int sourceIdx) {}
+  void alooperSetTransport(double bpm, int timeSigNum, bool isPlaying,
+      double positionInBeats) {}
 }

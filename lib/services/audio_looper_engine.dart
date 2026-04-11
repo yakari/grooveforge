@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math' show sqrt;
 
 import 'package:flutter/foundation.dart';
 
+import 'audio_input_ffi.dart';
 import 'transport_engine.dart';
 import 'vst_host_service.dart';
 
@@ -146,6 +148,48 @@ class AudioLooperEngine extends ChangeNotifier {
 
   AudioLooperEngine(this._transport);
 
+  /// True when running on Android (audio looper accessed via AudioInputFFI
+  /// instead of VstHostService.host).
+  bool get _useAndroidPath => !kIsWeb && Platform.isAndroid;
+
+  // ── Platform-dispatch helpers ────────────────────────────────────────
+  void _nSetState(int idx, int state) {
+    if (_useAndroidPath) { AudioInputFFI().alooperSetState(idx, state); }
+    else { VstHostService.instance.host?.setAudioLooperState(idx, state); }
+  }
+  int _nGetState(int idx) {
+    if (_useAndroidPath) return AudioInputFFI().alooperGetState(idx);
+    return VstHostService.instance.host?.getAudioLooperState(idx) ?? 0;
+  }
+  void _nSetVolume(int idx, double v) {
+    if (_useAndroidPath) { AudioInputFFI().alooperSetVolume(idx, v); }
+    else { VstHostService.instance.host?.setAudioLooperVolume(idx, v); }
+  }
+  void _nSetReversed(int idx, bool r) {
+    if (_useAndroidPath) { AudioInputFFI().alooperSetReversed(idx, r); }
+    else { VstHostService.instance.host?.setAudioLooperReversed(idx, r); }
+  }
+  void _nSetBarSync(int idx, bool e) {
+    if (_useAndroidPath) { AudioInputFFI().alooperSetBarSync(idx, e); }
+    else { VstHostService.instance.host?.setAudioLooperBarSync(idx, e); }
+  }
+  void _nSetLengthBeats(int idx, double b) {
+    if (_useAndroidPath) { AudioInputFFI().alooperSetLengthBeats(idx, b); }
+    else { VstHostService.instance.host?.setAudioLooperLengthBeats(idx, b); }
+  }
+  int _nGetLength(int idx) {
+    if (_useAndroidPath) return AudioInputFFI().alooperGetLength(idx);
+    return VstHostService.instance.host?.getAudioLooperLength(idx) ?? 0;
+  }
+  int _nGetHead(int idx) {
+    if (_useAndroidPath) return AudioInputFFI().alooperGetHead(idx);
+    return VstHostService.instance.host?.getAudioLooperHead(idx) ?? 0;
+  }
+  void _nDestroy(int idx) {
+    if (_useAndroidPath) { AudioInputFFI().alooperDestroy(idx); }
+    else { VstHostService.instance.host?.destroyAudioLooperClip(idx); }
+  }
+
   /// Called by the transport on every beat.  Handles bar-synced arm/stop.
   /// Must be wired up in splash_screen or rack_screen via [TransportEngine.onBeat].
   void onTransportBeat(bool isDownbeat) {
@@ -165,10 +209,9 @@ class AudioLooperEngine extends ChangeNotifier {
 
       debugPrint('[ALOOPER] BAR → start RECORDING for $slotId at beat=${_transport.positionInBeats.toStringAsFixed(1)}');
 
-      final host = VstHostService.instance.host;
       // Tell C++ to start recording NOW (no bar detection in C++).
-      host?.setAudioLooperBarSync(clip.nativeIdx, false); // disable C++ bar detection
-      host?.setAudioLooperState(clip.nativeIdx, AudioLooperState.armed.index);
+      _nSetBarSync(clip.nativeIdx, false);
+      _nSetState(clip.nativeIdx, AudioLooperState.armed.index);
       // The C++ ARMED handler with sync=false starts recording immediately.
       clip.state = AudioLooperState.recording;
       _updatePollTimer();
@@ -185,10 +228,8 @@ class AudioLooperEngine extends ChangeNotifier {
 
       debugPrint('[ALOOPER] BAR → stop RECORDING for $slotId at beat=${_transport.positionInBeats.toStringAsFixed(1)}');
 
-      final host = VstHostService.instance.host;
       // Tell C++ to finalize immediately (PLAYING state).
-      // C++ will set loopLengthFrames from current head position.
-      host?.setAudioLooperState(clip.nativeIdx, AudioLooperState.playing.index);
+      _nSetState(clip.nativeIdx, AudioLooperState.playing.index);
       clip.state = AudioLooperState.playing;
       _updatePollTimer();
       notifyListeners();
@@ -209,14 +250,26 @@ class AudioLooperEngine extends ChangeNotifier {
   AudioLooperClip? createClip(String slotId) {
     if (_clips.containsKey(slotId)) return _clips[slotId];
 
-    final host = VstHostService.instance.host;
-    if (host == null) return null;
+    const sr = 48000;
+    int nativeIdx;
+    int capacityFrames;
 
-    final sr = 48000;
-    final nativeIdx = host.createAudioLooperClip(maxClipSeconds, sampleRate: sr);
-    if (nativeIdx < 0) {
-      debugPrint('AudioLooperEngine: native pool full, cannot create clip');
-      return null;
+    if (_useAndroidPath) {
+      nativeIdx = AudioInputFFI().alooperCreate(maxClipSeconds, sampleRate: sr);
+      if (nativeIdx < 0) {
+        debugPrint('AudioLooperEngine: native pool full (Android)');
+        return null;
+      }
+      capacityFrames = AudioInputFFI().alooperGetCapacity(nativeIdx);
+    } else {
+      final host = VstHostService.instance.host;
+      if (host == null) return null;
+      nativeIdx = host.createAudioLooperClip(maxClipSeconds, sampleRate: sr);
+      if (nativeIdx < 0) {
+        debugPrint('AudioLooperEngine: native pool full');
+        return null;
+      }
+      capacityFrames = host.getAudioLooperCapacity(nativeIdx);
     }
 
     final clip = AudioLooperClip(
@@ -224,7 +277,7 @@ class AudioLooperEngine extends ChangeNotifier {
       label: 'Clip ${_clips.length + 1}',
       sampleRate: sr,
     );
-    clip.capacityFrames = host.getAudioLooperCapacity(nativeIdx);
+    clip.capacityFrames = capacityFrames;
     _clips[slotId] = clip;
     debugPrint('AudioLooperEngine: created clip for $slotId (native=$nativeIdx)');
     notifyListeners();
@@ -236,9 +289,8 @@ class AudioLooperEngine extends ChangeNotifier {
     final clip = _clips.remove(slotId);
     if (clip == null) return;
 
-    final host = VstHostService.instance.host;
-    host?.setAudioLooperState(clip.nativeIdx, AudioLooperState.idle.index);
-    host?.destroyAudioLooperClip(clip.nativeIdx);
+    _nSetState(clip.nativeIdx, AudioLooperState.idle.index);
+    _nDestroy(clip.nativeIdx);
     _updatePollTimer();
     notifyListeners();
     onDataChanged?.call();
@@ -266,8 +318,7 @@ class AudioLooperEngine extends ChangeNotifier {
           notifyListeners();
         } else {
           // Free-form: stop immediately.
-          final host = VstHostService.instance.host;
-          host?.setAudioLooperState(clip.nativeIdx, AudioLooperState.playing.index);
+          _nSetState(clip.nativeIdx, AudioLooperState.playing.index);
           clip.state = AudioLooperState.playing;
           _updatePollTimer();
           notifyListeners();
@@ -288,8 +339,7 @@ class AudioLooperEngine extends ChangeNotifier {
     final clip = _clips[slotId];
     if (clip == null) return;
     clip.barSyncEnabled = !clip.barSyncEnabled;
-    VstHostService.instance.host
-        ?.setAudioLooperBarSync(clip.nativeIdx, clip.barSyncEnabled);
+    _nSetBarSync(clip.nativeIdx, clip.barSyncEnabled);
     notifyListeners();
   }
 
@@ -323,10 +373,8 @@ class AudioLooperEngine extends ChangeNotifier {
     } else {
       // Free-form: start recording immediately via C++.
       debugPrint('[ALOOPER] arm: barSync=false, starting immediately');
-      final host = VstHostService.instance.host;
-      if (host == null) return;
-      host.setAudioLooperBarSync(clip.nativeIdx, false);
-      host.setAudioLooperState(clip.nativeIdx, AudioLooperState.armed.index);
+      _nSetBarSync(clip.nativeIdx, false);
+      _nSetState(clip.nativeIdx, AudioLooperState.armed.index);
       clip.state = AudioLooperState.recording;
       _updatePollTimer();
       notifyListeners();
@@ -338,8 +386,7 @@ class AudioLooperEngine extends ChangeNotifier {
     final clip = _clips[slotId];
     if (clip == null) return;
 
-    final host = VstHostService.instance.host;
-    host?.setAudioLooperState(clip.nativeIdx, AudioLooperState.idle.index);
+    _nSetState(clip.nativeIdx, AudioLooperState.idle.index);
     clip.state = AudioLooperState.idle;
     _updatePollTimer();
     notifyListeners();
@@ -352,8 +399,7 @@ class AudioLooperEngine extends ChangeNotifier {
     final clip = _clips[slotId];
     if (clip == null || clip.lengthFrames == 0) return;
 
-    final host = VstHostService.instance.host;
-    host?.setAudioLooperState(clip.nativeIdx, AudioLooperState.playing.index);
+    _nSetState(clip.nativeIdx, AudioLooperState.playing.index);
     clip.state = AudioLooperState.playing;
     _updatePollTimer();
     notifyListeners();
@@ -364,8 +410,7 @@ class AudioLooperEngine extends ChangeNotifier {
     final clip = _clips[slotId];
     if (clip == null || clip.lengthFrames == 0) return;
 
-    final host = VstHostService.instance.host;
-    host?.setAudioLooperState(clip.nativeIdx, AudioLooperState.overdubbing.index);
+    _nSetState(clip.nativeIdx, AudioLooperState.overdubbing.index);
     clip.state = AudioLooperState.overdubbing;
     _updatePollTimer();
     notifyListeners();
@@ -376,8 +421,7 @@ class AudioLooperEngine extends ChangeNotifier {
     final clip = _clips[slotId];
     if (clip == null) return;
 
-    final host = VstHostService.instance.host;
-    host?.setAudioLooperState(clip.nativeIdx, AudioLooperState.idle.index);
+    _nSetState(clip.nativeIdx, AudioLooperState.idle.index);
     clip.state = AudioLooperState.idle;
     clip.lengthFrames = 0;
     clip.headFrames = 0;
@@ -392,8 +436,7 @@ class AudioLooperEngine extends ChangeNotifier {
     if (clip == null) return;
 
     clip.volume = volume.clamp(0.0, 1.0);
-    VstHostService.instance.host
-        ?.setAudioLooperVolume(clip.nativeIdx, clip.volume);
+    _nSetVolume(clip.nativeIdx, clip.volume);
     notifyListeners();
   }
 
@@ -403,8 +446,7 @@ class AudioLooperEngine extends ChangeNotifier {
     if (clip == null) return;
 
     clip.reversed = !clip.reversed;
-    VstHostService.instance.host
-        ?.setAudioLooperReversed(clip.nativeIdx, clip.reversed);
+    _nSetReversed(clip.nativeIdx, clip.reversed);
     notifyListeners();
   }
 
@@ -517,10 +559,9 @@ class AudioLooperEngine extends ChangeNotifier {
       clip.targetLengthBeats =
           (clipJson['targetLengthBeats'] as num?)?.toDouble() ?? 0.0;
       clip.barSyncEnabled = clipJson['barSyncEnabled'] as bool? ?? true;
-      final host = VstHostService.instance.host;
-      host?.setAudioLooperVolume(clip.nativeIdx, clip.volume);
-      host?.setAudioLooperReversed(clip.nativeIdx, clip.reversed);
-      host?.setAudioLooperBarSync(clip.nativeIdx, clip.barSyncEnabled);
+      _nSetVolume(clip.nativeIdx, clip.volume);
+      _nSetReversed(clip.nativeIdx, clip.reversed);
+      _nSetBarSync(clip.nativeIdx, clip.barSyncEnabled);
     }
 
     // Import sidecar WAV data if a .gf path is available.
@@ -571,12 +612,9 @@ class AudioLooperEngine extends ChangeNotifier {
   /// Reads native clip state and updates Dart-side metadata.
   /// Called ~30 times/second when clips are active.
   void _pollNativeState() {
-    final host = VstHostService.instance.host;
-    if (host == null) return;
-
     bool changed = false;
     for (final clip in _clips.values) {
-      final nativeState = host.getAudioLooperState(clip.nativeIdx);
+      final nativeState = _nGetState(clip.nativeIdx);
       final newState = AudioLooperState.values[nativeState.clamp(0, 5)];
 
       // Detect state transitions made by the C++ callback
@@ -596,8 +634,8 @@ class AudioLooperEngine extends ChangeNotifier {
         }
       }
 
-      clip.lengthFrames = host.getAudioLooperLength(clip.nativeIdx);
-      clip.headFrames = host.getAudioLooperHead(clip.nativeIdx);
+      clip.lengthFrames = _nGetLength(clip.nativeIdx);
+      clip.headFrames = _nGetHead(clip.nativeIdx);
 
       // If the clip is playing/idle with audio but no waveform, compute it.
       if (clip.lengthFrames > 0 && clip.waveformRms.isEmpty &&
@@ -620,10 +658,9 @@ class AudioLooperEngine extends ChangeNotifier {
   void dispose() {
     _pollTimer?.cancel();
     // Destroy all native clips.
-    final host = VstHostService.instance.host;
     for (final clip in _clips.values) {
-      host?.setAudioLooperState(clip.nativeIdx, AudioLooperState.idle.index);
-      host?.destroyAudioLooperClip(clip.nativeIdx);
+      _nSetState(clip.nativeIdx, AudioLooperState.idle.index);
+      _nDestroy(clip.nativeIdx);
     }
     _clips.clear();
     super.dispose();

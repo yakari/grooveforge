@@ -1,7 +1,10 @@
 import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:grooveforge_plugin_api/grooveforge_plugin_api.dart'
     show GFTransportContext;
+import 'audio_input_ffi.dart';
 import 'vst_host_service.dart';
 
 // Sample rate for positionInSamples advancement — must match the audio engine.
@@ -38,6 +41,12 @@ class TransportEngine extends ChangeNotifier {
       positionInBeats: _positionInBeats,
       positionInSamples: _positionInSamples,
     );
+    // On Android, VstHostService.setTransport is a no-op — push transport
+    // state directly to the audio looper via AudioInputFFI.
+    if (!kIsWeb && Platform.isAndroid) {
+      AudioInputFFI().alooperSetTransport(
+          _bpm, _timeSigNumerator, _isPlaying, _positionInBeats);
+    }
   }
 
   void _startTicker() {

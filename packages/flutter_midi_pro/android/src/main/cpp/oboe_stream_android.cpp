@@ -36,6 +36,7 @@
 
 #include "oboe_stream_android.h"
 #include "gfpa_audio_android.h"
+#include "audio_looper.h"
 
 #include <aaudio/AAudio.h>
 #include <android/log.h>
@@ -132,6 +133,20 @@ static float g_mixL[kMaxFrames];
 
 /// Final summed right-channel master mix.
 static float g_mixR[kMaxFrames];
+
+// ── Audio looper pre-allocated buffers ───────────────────────────────────────
+
+/// Per-clip source buffers for the audio looper.
+static float g_alooperSrcL[ALOOPER_MAX_CLIPS][kMaxFrames];
+static float g_alooperSrcR[ALOOPER_MAX_CLIPS][kMaxFrames];
+
+// ── Transport state for audio looper bar-sync ────────────────────────────────
+
+static std::atomic<double>  g_transportBpm{120.0};
+static std::atomic<int32_t> g_transportTimeSigNum{4};
+static std::atomic<int32_t> g_transportIsPlaying{0};
+static std::atomic<double>  g_transportPositionBeats{0.0};
+static int32_t g_sampleRate = 48000;
 
 // ── AAudio stream handle ──────────────────────────────────────────────────────
 
@@ -235,6 +250,33 @@ static aaudio_data_callback_result_t audioCallback(
             g_mixL[i] += g_srcL[s][i];
             g_mixR[i] += g_srcR[s][i];
         }
+    }
+
+    // ── 3b. Audio Looper — record from master mix, play into master mix ───
+    //
+    // On Android, the looper records from the master mix (all sources combined).
+    // Per-source cable routing is not yet implemented (requires mapping bus
+    // slot IDs to clip sources via Dart-side routing).
+    // The master mix is used as the source for ALL active clips.
+    {
+        const float* aloopSrcL[ALOOPER_MAX_CLIPS] = {};
+        const float* aloopSrcR[ALOOPER_MAX_CLIPS] = {};
+        for (int c = 0; c < ALOOPER_MAX_CLIPS; ++c) {
+            if (!dvh_alooper_is_active(c)) continue;
+            // Use the master mix as source for recording.
+            aloopSrcL[c] = g_mixL;
+            aloopSrcR[c] = g_mixR;
+        }
+
+        dvh_alooper_process(
+            aloopSrcL, aloopSrcR,
+            g_mixL, g_mixR,
+            frames,
+            g_transportBpm.load(std::memory_order_relaxed),
+            g_transportTimeSigNum.load(std::memory_order_relaxed),
+            g_sampleRate,
+            g_transportIsPlaying.load(std::memory_order_relaxed) != 0,
+            g_transportPositionBeats.load(std::memory_order_relaxed));
     }
 
     // ── 4. Interleave non-interleaved L/R into AAudio's stereo buffer ─────
@@ -501,4 +543,20 @@ extern "C" void oboe_stream_remove_synth(fluid_synth_t* synth)
         }
     }
     if (busSlotId >= 0) oboe_stream_remove_source(busSlotId);
+}
+
+// ── Audio looper transport sync ──────────────────────────────────────────────
+//
+// Called from Dart via FFI to push the transport state to the audio looper.
+// On Linux/macOS this is handled by dvh_set_transport → dvh_jack/mac_update_transport.
+// On Android, VstHostService.setTransport is a no-op, so the transport engine
+// calls this function directly.
+
+extern "C" void alooper_android_set_transport(
+    double bpm, int32_t timeSigNum, int32_t isPlaying, double positionInBeats)
+{
+    g_transportBpm.store(bpm, std::memory_order_relaxed);
+    g_transportTimeSigNum.store(timeSigNum, std::memory_order_relaxed);
+    g_transportIsPlaying.store(isPlaying, std::memory_order_relaxed);
+    g_transportPositionBeats.store(positionInBeats, std::memory_order_relaxed);
 }

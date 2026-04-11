@@ -10,12 +10,13 @@
 
 // ── Cross-TU helpers (JACK ↔ main) ──────────────────────────────────────────
 
-/// Broadcast transport state to all JACK AudioState instances so the audio
-/// looper can detect downbeats at sample precision.  Called from
-/// dvh_set_transport() in dart_vst_host.cpp.  Defined in dart_vst_host_jack.cpp
-/// (no-op on non-Linux platforms).
+/// Broadcast transport state to all JACK AudioState instances (Linux).
 void dvh_jack_update_transport(double bpm, int32_t timeSigNum,
                                 int32_t isPlaying, double positionInBeats);
+
+/// Broadcast transport state to all macOS AudioState instances.
+void dvh_mac_update_transport(double bpm, int32_t timeSigNum,
+                               int32_t isPlaying, double positionInBeats);
 
 #include "pluginterfaces/base/funknown.h"
 #include "pluginterfaces/base/ipluginbase.h"
