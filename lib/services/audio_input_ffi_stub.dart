@@ -219,6 +219,11 @@ class AudioInputFFI {
   void alooperClearSources(int idx) {}
   void alooperAddSourcePlugin(int idx, int sourceIdx) {}
   void alooperAddBusSource(int idx, int busSlotId) {}
+  dynamic alooperGetDataL(int idx) => null;
+  dynamic alooperGetDataR(int idx) => null;
+  dynamic alooperGetDataAsListL(int idx, int length) => null;
+  dynamic alooperGetDataAsListR(int idx, int length) => null;
+  int alooperLoadData(int idx, dynamic srcL, dynamic srcR, int lengthFrames) => 0;
   void alooperSetTransport(double bpm, int timeSigNum, bool isPlaying,
       double positionInBeats) {}
 }

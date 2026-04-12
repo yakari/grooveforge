@@ -142,6 +142,12 @@ class RackState extends ChangeNotifier {
   /// "cable the drum generator to an effect chain".
   ///
   /// Returns an empty map on all non-Android platforms.
+  ///
+  /// Public alias: [buildKeyboardSfIds] — exposed so `SplashScreen` and any
+  /// other external caller of [VstHostService.syncAudioRouting] can pass the
+  /// correct map without reimplementing the channel → sfId lookup.
+  Map<String, int> buildKeyboardSfIds() => _buildKeyboardSfIds();
+
   Map<String, int> _buildKeyboardSfIds() {
     final result = <String, int>{};
     for (final plugin in _plugins) {

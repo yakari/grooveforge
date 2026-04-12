@@ -838,6 +838,70 @@ class AppLocalizationsEn extends AppLocalizations {
       'Record and loop live audio (PCM) with bar sync, overdub, and reverse';
 
   @override
+  String get audioLooperWaveformRecording => 'Recording…';
+
+  @override
+  String get audioLooperWaveformCableInstrument =>
+      'Cable an instrument to Audio IN';
+
+  @override
+  String get audioLooperWaveformEmpty => 'No audio recorded';
+
+  @override
+  String get audioLooperTooltipStop => 'Stop';
+
+  @override
+  String get audioLooperTooltipReverse => 'Reverse';
+
+  @override
+  String get audioLooperTooltipBarSyncOn => 'Bar sync: ON';
+
+  @override
+  String get audioLooperTooltipBarSyncOff => 'Bar sync: OFF';
+
+  @override
+  String get audioLooperTooltipClear => 'Clear';
+
+  @override
+  String get audioLooperTooltipRecord => 'Record';
+
+  @override
+  String get audioLooperTooltipPlay => 'Play';
+
+  @override
+  String get audioLooperTooltipCancel => 'Cancel';
+
+  @override
+  String get audioLooperTooltipStopRecordingAndPlay => 'Stop recording & play';
+
+  @override
+  String get audioLooperTooltipPaddingToBar => 'Padding to bar…';
+
+  @override
+  String get audioLooperTooltipOverdub => 'Overdub';
+
+  @override
+  String get audioLooperTooltipStopOverdub => 'Stop overdub';
+
+  @override
+  String get audioLooperStatusIdle => 'IDLE';
+
+  @override
+  String get audioLooperStatusArmed => 'ARMED';
+
+  @override
+  String get audioLooperStatusRecording => 'REC';
+
+  @override
+  String get audioLooperStatusPlaying => 'PLAY';
+
+  @override
+  String get audioLooperStatusOverdubbing => 'ODUB';
+
+  @override
+  String get audioLooperStatusStopping => 'PAD';
+
+  @override
   String get addLooperAlreadyExists =>
       'A MIDI Looper is already in the rack. Only one is allowed.';
 

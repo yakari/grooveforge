@@ -320,7 +320,13 @@ class _FxInsertsSectionState extends State<_FxInsertsSection> {
     );
 
     // Sync native audio routing so the effect is active immediately.
-    vstSvc.syncAudioRouting(graph, rack.plugins);
+    // `keyboardSfIds` is required on Android so audio looper bus routing
+    // survives this rebuild (see `RackState.buildKeyboardSfIds`).
+    vstSvc.syncAudioRouting(
+      graph,
+      rack.plugins,
+      keyboardSfIds: rack.buildKeyboardSfIds(),
+    );
   }
 
   // ── Build ─────────────────────────────────────────────────────────────────
@@ -489,7 +495,11 @@ class _InsertEffectRow extends StatelessWidget {
         c.toSlotId == effect.id &&
         c.toPort == AudioPortId.audioInR).firstOrNull;
     if (rightCable != null) graph.disconnect(rightCable.id);
-    vstSvc.syncAudioRouting(graph, rack.plugins);
+    vstSvc.syncAudioRouting(
+      graph,
+      rack.plugins,
+      keyboardSfIds: rack.buildKeyboardSfIds(),
+    );
   }
 }
 

@@ -997,7 +997,13 @@ class _RackScreenState extends State<RackScreen> {
       }
 
       // Rebuild native audio routing (clears stale master renders / inserts).
-      VstHostService.instance.syncAudioRouting(audioGraph, _rackState.plugins);
+      // `keyboardSfIds` is required on Android so audio looper cable routing
+      // survives the rebuild (see `RackState.buildKeyboardSfIds`).
+      VstHostService.instance.syncAudioRouting(
+        audioGraph,
+        _rackState.plugins,
+        keyboardSfIds: _rackState.buildKeyboardSfIds(),
+      );
 
       setState(() => _currentProjectPath = null);
     }

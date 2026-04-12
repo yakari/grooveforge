@@ -74,14 +74,23 @@ class VstHostService {
 
   /// Imports sidecar WAV files into native audio looper clip buffers.
   ///
-  /// Called as the [AudioLooperEngine.wavImporter] callback on desktop.
-  /// Uses dart:ffi (Pointer, malloc) which is only available on
-  /// non-web platforms — the stub returns a no-op.
+  /// Called as the [AudioLooperEngine.wavImporter] callback on all native
+  /// platforms. Uses `dart:ffi` (`Pointer`, `malloc`) for the bulk PCM copy,
+  /// which is only available off-web — the stub export of this class
+  /// returns a no-op.
+  ///
+  /// On Linux/macOS, the native buffers are owned by `libdart_vst_host.so`
+  /// and accessed through [VstHost.loadAudioLooperData].  On Android the
+  /// same C symbols live in `libnative-lib.so` and are reached directly
+  /// through [AudioInputFFI] since `VstHost` is null there.
   Future<void> importAudioLooperWavs(
       String gfPath, Map<String, AudioLooperClip> clips) async {
-    if (_host == null) return;
+    // Bail on platforms where no sidecar directory is expected.
     final dir = Directory('$gfPath.audio');
     if (!await dir.exists()) return;
+
+    final isAndroid = !kIsWeb && Platform.isAndroid;
+    if (_host == null && !isAndroid) return;
 
     for (final entry in clips.entries) {
       final slotId = entry.key;
@@ -90,17 +99,31 @@ class VstHostService {
       if (!await File(wavPath).exists()) continue;
       try {
         final wav = readWavFile(wavPath);
+        // Allocate a native scratch pair, fill it with the WAV PCM, hand it
+        // to the native loader, and free immediately. The loader copies the
+        // data into the clip's pre-allocated internal buffer so lifetime
+        // is bounded to this call.
         final srcL = malloc<Float>(wav.lengthFrames);
         final srcR = malloc<Float>(wav.lengthFrames);
         srcL.asTypedList(wav.lengthFrames).setAll(0, wav.left);
         srcR.asTypedList(wav.lengthFrames).setAll(0, wav.right);
-        final ok = _host!.loadAudioLooperData(
-            clip.nativeIdx, srcL, srcR, wav.lengthFrames);
+        bool ok;
+        if (isAndroid) {
+          // Android path: FFI straight into libnative-lib.so.
+          final rc = AudioInputFFI()
+              .alooperLoadData(clip.nativeIdx, srcL, srcR, wav.lengthFrames);
+          ok = rc != 0;
+        } else {
+          // Desktop path: through the VstHost-owned DVH C API.
+          ok = _host!.loadAudioLooperData(
+              clip.nativeIdx, srcL, srcR, wav.lengthFrames);
+        }
         malloc.free(srcL);
         malloc.free(srcR);
         if (ok) {
           clip.lengthFrames = wav.lengthFrames;
-          debugPrint('VstHostService: imported loop $slotId (${wav.lengthFrames} frames)');
+          debugPrint(
+              'VstHostService: imported loop $slotId (${wav.lengthFrames} frames)');
         }
       } catch (e) {
         debugPrint('VstHostService: failed to import loop $slotId: $e');
@@ -411,6 +434,18 @@ class VstHostService {
 
     // On Android, the GFPA insert chain lives in gfpa_audio_android.cpp.
     if (Platform.isAndroid) {
+      // Defensive check: an empty `keyboardSfIds` when keyboards exist in
+      // the rack is almost always a call-site bug — it silently breaks
+      // GFPA effect routing AND audio looper cabled input routing. Log
+      // loudly so it gets noticed in development, and avoids the "record
+      // produces silence" mystery from v2.12.x.
+      if (keyboardSfIds.isEmpty &&
+          allPlugins.whereType<GrooveForgeKeyboardPlugin>().isNotEmpty) {
+        debugPrint(
+            'VstHostService: syncAudioRouting called with empty keyboardSfIds '
+            'but ${allPlugins.whereType<GrooveForgeKeyboardPlugin>().length} '
+            'keyboard(s) in rack — call site must pass RackState.buildKeyboardSfIds()');
+      }
       _syncAudioRoutingAndroid(graph, allPlugins, keyboardSfIds);
       return;
     }

@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../models/audio_looper_plugin_instance.dart';
 import '../../services/audio_graph.dart';
 import '../../services/audio_looper_engine.dart';
@@ -53,10 +54,19 @@ class _AudioLooperSlotUIState extends State<AudioLooperSlotUI> {
 
       // Trigger a routing rebuild so syncAudioRouting wires the render sources
       // for any cables already connected to this looper (persisted project).
+      //
+      // `keyboardSfIds` must be passed explicitly — on Android the audio
+      // looper's cabled-input routing depends on this map to resolve
+      // upstream keyboard slots to their Oboe bus IDs. Omitting it records
+      // silence from any keyboard cabled to this slot.
       if (!mounted) return;
       final rackState = context.read<RackState>();
       final graph = context.read<AudioGraph>();
-      VstHostService.instance.syncAudioRouting(graph, rackState.plugins);
+      VstHostService.instance.syncAudioRouting(
+        graph,
+        rackState.plugins,
+        keyboardSfIds: rackState.buildKeyboardSfIds(),
+      );
     });
   }
 
@@ -128,6 +138,12 @@ class _WaveformDisplayState extends State<_WaveformDisplay>
     final noSource = clip != null &&
         clip.lengthFrames == 0 &&
         clip.state == AudioLooperState.idle;
+    final l10n = AppLocalizations.of(context)!;
+    final placeholder = _isRecording
+        ? l10n.audioLooperWaveformRecording
+        : noSource
+            ? l10n.audioLooperWaveformCableInstrument
+            : l10n.audioLooperWaveformEmpty;
 
     return AnimatedBuilder(
       animation: _pulseCtrl,
@@ -152,11 +168,7 @@ class _WaveformDisplayState extends State<_WaveformDisplay>
                 )
               : Center(
                   child: Text(
-                    _isRecording
-                        ? 'Recording…'
-                        : noSource
-                            ? 'Cable an instrument to Audio IN'
-                            : 'No audio recorded',
+                    placeholder,
                     style: TextStyle(
                       color: _isRecording ? _kRecColor : Colors.grey,
                       fontSize: 11,
@@ -242,11 +254,13 @@ class _TransportStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final engine = context.read<AudioLooperEngine>();
+    final l10n = AppLocalizations.of(context)!;
     final state = clip?.state ?? AudioLooperState.idle;
     final hasAudio = (clip?.lengthFrames ?? 0) > 0;
 
     // Single loop button props.
-    final (loopIcon, loopColor, loopActive, loopTooltip) = _loopButtonProps(state, hasAudio);
+    final (loopIcon, loopColor, loopActive, loopTooltip) =
+        _loopButtonProps(state, hasAudio, l10n);
 
     return Row(
       children: [
@@ -268,7 +282,7 @@ class _TransportStrip extends StatelessWidget {
           onPressed: state != AudioLooperState.idle
               ? () => engine.stop(slotId)
               : null,
-          tooltip: 'Stop',
+          tooltip: l10n.audioLooperTooltipStop,
         ),
         const SizedBox(width: 4),
         // ── Reverse ──────────────────────────────────────────────
@@ -277,7 +291,7 @@ class _TransportStrip extends StatelessWidget {
           color: (clip?.reversed ?? false) ? _kWaveColor : Colors.grey,
           active: clip?.reversed ?? false,
           onPressed: hasAudio ? () => engine.toggleReversed(slotId) : null,
-          tooltip: 'Reverse',
+          tooltip: l10n.audioLooperTooltipReverse,
         ),
         const SizedBox(width: 4),
         // ── Bar sync toggle ──────────────────────────────────────
@@ -287,7 +301,8 @@ class _TransportStrip extends StatelessWidget {
           active: clip?.barSyncEnabled ?? true,
           onPressed: () => engine.toggleBarSync(slotId),
           tooltip: (clip?.barSyncEnabled ?? true)
-              ? 'Bar sync: ON' : 'Bar sync: OFF',
+              ? l10n.audioLooperTooltipBarSyncOn
+              : l10n.audioLooperTooltipBarSyncOff,
         ),
         const Spacer(),
         // ── Status ───────────────────────────────────────────────
@@ -299,29 +314,67 @@ class _TransportStrip extends StatelessWidget {
           color: Colors.redAccent,
           active: false,
           onPressed: hasAudio ? () => engine.clear(slotId) : null,
-          tooltip: 'Clear',
+          tooltip: l10n.audioLooperTooltipClear,
         ),
       ],
     );
   }
 
   /// Returns (icon, color, isActive, tooltip) for the single loop button.
-  (IconData, Color, bool, String) _loopButtonProps(AudioLooperState state, bool hasAudio) =>
+  ///
+  /// The tooltip branches on both the current [state] and whether the clip
+  /// has any recorded audio — the "idle" state has two meanings: "empty,
+  /// press to record" and "has content, press to play". [l10n] is threaded
+  /// in rather than fetched per call so the compiler keeps one lookup for
+  /// the whole switch.
+  (IconData, Color, bool, String) _loopButtonProps(
+    AudioLooperState state,
+    bool hasAudio,
+    AppLocalizations l10n,
+  ) =>
       switch (state) {
-        AudioLooperState.idle when !hasAudio =>
-          (Icons.fiber_manual_record, _kRecColor, false, 'Record'),
-        AudioLooperState.idle =>
-          (Icons.play_arrow, _kPlayColor, false, 'Play'),
-        AudioLooperState.armed =>
-          (Icons.fiber_manual_record, _kArmedColor, true, 'Cancel'),
-        AudioLooperState.recording =>
-          (Icons.play_arrow, _kRecColor, true, 'Stop recording & play'),
-        AudioLooperState.stopping =>
-          (Icons.hourglass_top, _kArmedColor, true, 'Padding to bar...'),
-        AudioLooperState.playing =>
-          (Icons.layers, _kPlayColor, true, 'Overdub'),
-        AudioLooperState.overdubbing =>
-          (Icons.play_arrow, _kOdColor, true, 'Stop overdub'),
+        AudioLooperState.idle when !hasAudio => (
+            Icons.fiber_manual_record,
+            _kRecColor,
+            false,
+            l10n.audioLooperTooltipRecord,
+          ),
+        AudioLooperState.idle => (
+            Icons.play_arrow,
+            _kPlayColor,
+            false,
+            l10n.audioLooperTooltipPlay,
+          ),
+        AudioLooperState.armed => (
+            Icons.fiber_manual_record,
+            _kArmedColor,
+            true,
+            l10n.audioLooperTooltipCancel,
+          ),
+        AudioLooperState.recording => (
+            Icons.play_arrow,
+            _kRecColor,
+            true,
+            l10n.audioLooperTooltipStopRecordingAndPlay,
+          ),
+        AudioLooperState.stopping => (
+            Icons.hourglass_top,
+            _kArmedColor,
+            true,
+            l10n.audioLooperTooltipPaddingToBar,
+          ),
+        AudioLooperState.playing => (
+            Icons.layers,
+            _kPlayColor,
+            true,
+            l10n.audioLooperTooltipOverdub,
+          ),
+        AudioLooperState.overdubbing => (
+            Icons.play_arrow,
+            _kOdColor,
+            true,
+            l10n.audioLooperTooltipStopOverdub,
+          ),
       };
 }
 
@@ -422,13 +475,14 @@ class _StatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final (label, color) = switch (state) {
-      AudioLooperState.idle => ('IDLE', Colors.grey),
-      AudioLooperState.armed => ('ARMED', _kArmedColor),
-      AudioLooperState.recording => ('REC', _kRecColor),
-      AudioLooperState.playing => ('PLAY', _kPlayColor),
-      AudioLooperState.overdubbing => ('ODUB', _kOdColor),
-      AudioLooperState.stopping => ('PAD', _kArmedColor),
+      AudioLooperState.idle => (l10n.audioLooperStatusIdle, Colors.grey),
+      AudioLooperState.armed => (l10n.audioLooperStatusArmed, _kArmedColor),
+      AudioLooperState.recording => (l10n.audioLooperStatusRecording, _kRecColor),
+      AudioLooperState.playing => (l10n.audioLooperStatusPlaying, _kPlayColor),
+      AudioLooperState.overdubbing => (l10n.audioLooperStatusOverdubbing, _kOdColor),
+      AudioLooperState.stopping => (l10n.audioLooperStatusStopping, _kArmedColor),
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),

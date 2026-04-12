@@ -453,27 +453,53 @@ class AudioLooperEngine extends ChangeNotifier {
   /// Recomputes the decimated waveform RMS for [slotId] from native PCM data.
   ///
   /// Called when recording finishes, clip loads from WAV, or overdub completes.
-  /// Reads native float pointers via VstHost (dart:ffi accessed via dynamic
-  /// dispatch through the host object — no dart:ffi import needed here).
+  /// Reads native PCM buffers and computes an RMS envelope for the waveform
+  /// preview. Runs on every recording stop, overdub stop, and WAV import.
+  ///
+  /// Uses `dynamic`-typed handles so this file doesn't need to import
+  /// `dart:ffi`. Both platform branches go through a helper that
+  /// internally wraps the native `Pointer<Float>` as a zero-copy
+  /// [Float32List] view *before* returning — so dynamic dispatch on `[i]`
+  /// works.
+  ///
+  /// **Critical:** indexing a raw `Pointer<Float>` through a `dynamic`
+  /// receiver silently fails with `NoSuchMethodError` because `FloatPointer`
+  /// extensions (including `operator []` and `asTypedList`) are static.
+  /// The helpers below must always return `Float32List`, never a pointer.
+  ///
+  ///   - **Desktop** (Linux/macOS): [VstHost.getAudioLooperDataAsListL/R]
+  ///     wraps the pointer inside the `package:dart_vst_host` library.
+  ///   - **Android**: [AudioInputFFI.alooperGetDataAsListL/R] wraps the
+  ///     pointer inside [audio_input_ffi_native.dart], which is the only
+  ///     file in this subtree that imports `dart:ffi`.
   void updateWaveform(String slotId, {int bins = 300}) {
     final clip = _clips[slotId];
     if (clip == null) return;
 
-    final dynamic host = VstHostService.instance.host;
-    if (host == null) { clip.waveformRms = const []; return; }
-
     try {
-      // Read length directly from native — the Dart cache may be stale.
-      final int length = (host.getAudioLooperLength(clip.nativeIdx) as num).toInt();
-      if (length <= 0) { clip.waveformRms = const []; return; }
-      clip.lengthFrames = length;
+      final int length;
+      final dynamic dataL;
+      final dynamic dataR;
 
-      // Read the PCM data as a Dart Float32List via VstHost's asTypedList helper.
-      // We cannot use Pointer<Float> directly here (no dart:ffi import), so we
-      // call a helper on VstHost that returns Float32List.
-      final dynamic dataL = host.getAudioLooperDataAsListL(clip.nativeIdx, length);
-      final dynamic dataR = host.getAudioLooperDataAsListR(clip.nativeIdx, length);
-      if (dataL == null || dataR == null) { clip.waveformRms = const []; return; }
+      if (_useAndroidPath) {
+        length = AudioInputFFI().alooperGetLength(clip.nativeIdx);
+        if (length <= 0) { clip.waveformRms = const []; return; }
+        clip.lengthFrames = length;
+        dataL = AudioInputFFI().alooperGetDataAsListL(clip.nativeIdx, length);
+        dataR = AudioInputFFI().alooperGetDataAsListR(clip.nativeIdx, length);
+      } else {
+        final dynamic host = VstHostService.instance.host;
+        if (host == null) { clip.waveformRms = const []; return; }
+        length = (host.getAudioLooperLength(clip.nativeIdx) as num).toInt();
+        if (length <= 0) { clip.waveformRms = const []; return; }
+        clip.lengthFrames = length;
+        dataL = host.getAudioLooperDataAsListL(clip.nativeIdx, length);
+        dataR = host.getAudioLooperDataAsListR(clip.nativeIdx, length);
+      }
+      if (dataL == null || dataR == null) {
+        clip.waveformRms = const [];
+        return;
+      }
 
       final actualBins = length < bins ? length : bins;
       final samplesPerBin = length / actualBins;

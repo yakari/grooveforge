@@ -349,6 +349,90 @@
   "addLooperSubtitle": "Record and loop MIDI patterns with bar sync",
   "rackAddAudioLooper": "Audio Looper",
   "rackAddAudioLooperSubtitle": "Record and loop live audio (PCM) with bar sync, overdub, and reverse",
+  "audioLooperWaveformRecording": "Recording…",
+  "@audioLooperWaveformRecording": {
+    "description": "Placeholder shown inside the audio looper waveform area while a clip is actively recording and no waveform has been computed yet."
+  },
+  "audioLooperWaveformCableInstrument": "Cable an instrument to Audio IN",
+  "@audioLooperWaveformCableInstrument": {
+    "description": "Placeholder shown when an audio looper slot has no cables on its back-panel Audio IN ports — recording would produce silence."
+  },
+  "audioLooperWaveformEmpty": "No audio recorded",
+  "@audioLooperWaveformEmpty": {
+    "description": "Placeholder shown when an audio looper slot has cables wired but the clip has no recorded audio yet."
+  },
+  "audioLooperTooltipStop": "Stop",
+  "@audioLooperTooltipStop": {
+    "description": "Tooltip for the audio looper Stop button."
+  },
+  "audioLooperTooltipReverse": "Reverse",
+  "@audioLooperTooltipReverse": {
+    "description": "Tooltip for the audio looper Reverse-playback toggle button."
+  },
+  "audioLooperTooltipBarSyncOn": "Bar sync: ON",
+  "@audioLooperTooltipBarSyncOn": {
+    "description": "Tooltip for the audio looper bar-sync toggle when it is enabled — recording will wait for the next downbeat."
+  },
+  "audioLooperTooltipBarSyncOff": "Bar sync: OFF",
+  "@audioLooperTooltipBarSyncOff": {
+    "description": "Tooltip for the audio looper bar-sync toggle when it is disabled — recording will start immediately."
+  },
+  "audioLooperTooltipClear": "Clear",
+  "@audioLooperTooltipClear": {
+    "description": "Tooltip for the audio looper Clear button (erases the clip)."
+  },
+  "audioLooperTooltipRecord": "Record",
+  "@audioLooperTooltipRecord": {
+    "description": "Tooltip for the audio looper main loop button when idle with no audio — next press starts recording."
+  },
+  "audioLooperTooltipPlay": "Play",
+  "@audioLooperTooltipPlay": {
+    "description": "Tooltip for the audio looper main loop button when idle with existing audio — next press starts playback."
+  },
+  "audioLooperTooltipCancel": "Cancel",
+  "@audioLooperTooltipCancel": {
+    "description": "Tooltip for the audio looper main loop button while armed — next press cancels the arm."
+  },
+  "audioLooperTooltipStopRecordingAndPlay": "Stop recording & play",
+  "@audioLooperTooltipStopRecordingAndPlay": {
+    "description": "Tooltip for the audio looper main loop button while recording — next press ends recording and begins playback."
+  },
+  "audioLooperTooltipPaddingToBar": "Padding to bar…",
+  "@audioLooperTooltipPaddingToBar": {
+    "description": "Tooltip for the audio looper main loop button while silence is being padded to the next bar boundary (STOPPING state)."
+  },
+  "audioLooperTooltipOverdub": "Overdub",
+  "@audioLooperTooltipOverdub": {
+    "description": "Tooltip for the audio looper main loop button while playing — next press starts overdubbing new audio on top."
+  },
+  "audioLooperTooltipStopOverdub": "Stop overdub",
+  "@audioLooperTooltipStopOverdub": {
+    "description": "Tooltip for the audio looper main loop button while overdubbing — next press ends the overdub pass and returns to playing."
+  },
+  "audioLooperStatusIdle": "IDLE",
+  "@audioLooperStatusIdle": {
+    "description": "Short status chip label for the audio looper IDLE state (uppercase; kept short to fit the chip)."
+  },
+  "audioLooperStatusArmed": "ARMED",
+  "@audioLooperStatusArmed": {
+    "description": "Short status chip label for the audio looper ARMED state (waiting for the next downbeat to start recording)."
+  },
+  "audioLooperStatusRecording": "REC",
+  "@audioLooperStatusRecording": {
+    "description": "Short status chip label for the audio looper RECORDING state."
+  },
+  "audioLooperStatusPlaying": "PLAY",
+  "@audioLooperStatusPlaying": {
+    "description": "Short status chip label for the audio looper PLAYING state."
+  },
+  "audioLooperStatusOverdubbing": "ODUB",
+  "@audioLooperStatusOverdubbing": {
+    "description": "Short status chip label for the audio looper OVERDUBBING state."
+  },
+  "audioLooperStatusStopping": "PAD",
+  "@audioLooperStatusStopping": {
+    "description": "Short status chip label for the audio looper STOPPING state (padding silence to the next bar boundary)."
+  },
   "addLooperAlreadyExists": "A MIDI Looper is already in the rack. Only one is allowed.",
   "addJamModeAlreadyExists": "A Jam Mode is already in the rack. Only one is allowed.",
   "looperRecord": "Record",

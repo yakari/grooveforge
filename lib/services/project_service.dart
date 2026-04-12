@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:ffi';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -9,6 +10,7 @@ import 'package:path_provider/path_provider.dart';
 import 'vst_host_service.dart';
 import 'audio_engine.dart';
 import 'audio_graph.dart';
+import 'audio_input_ffi.dart';
 import 'audio_looper_engine.dart';
 import 'cc_mapping_service.dart';
 import 'wav_utils.dart';
@@ -422,12 +424,20 @@ class ProjectService extends ChangeNotifier {
   ///
   /// Each clip with recorded data is written as `loop_{slotId}.wav` in the
   /// `.gf.audio/` directory.  Orphan WAVs (from deleted clips) are cleaned up.
+  ///
+  /// The buffer pointers come from two different native libraries depending
+  /// on platform: `libdart_vst_host.so` on Linux/macOS (via [VstHost]), and
+  /// `libnative-lib.so` on Android (via [AudioInputFFI]). Both expose the
+  /// identical `dvh_alooper_*` C symbols — they share the same
+  /// `audio_looper.cpp` compiled into each target — so the remainder of
+  /// this method stays platform-agnostic once the pointers are resolved.
   Future<void> _exportAudioLooperWavs(String gfPath) async {
     final engine = audioLooperEngine;
     if (engine == null || engine.clips.isEmpty) return;
 
+    final isAndroid = !kIsWeb && Platform.isAndroid;
     final host = VstHostService.instance.host;
-    if (host == null) return;
+    if (host == null && !isAndroid) return;
 
     final dir = await _audioDir(gfPath);
     final writtenFiles = <String>{};
@@ -435,12 +445,44 @@ class ProjectService extends ChangeNotifier {
     for (final entry in engine.clips.entries) {
       final slotId = entry.key;
       final clip = entry.value;
-      final length = host.getAudioLooperLength(clip.nativeIdx);
-      if (length <= 0) continue;
-
-      final dataL = host.getAudioLooperDataL(clip.nativeIdx);
-      final dataR = host.getAudioLooperDataR(clip.nativeIdx);
-      // dataL/dataR are Pointer<Float> from dart:ffi — always non-null on desktop.
+      // Resolve clip length + native pointers via the platform's host, then
+      // wrap the raw C buffers as zero-copy [Float32List] views so
+      // [writeWavFile] can index them with plain `[i]`.
+      //
+      // Why the `asTypedList` wrap matters: `Pointer<Float>` has no instance
+      // `operator []` — the `FloatPointer` extension provides indexing only
+      // through static dispatch. Since [writeWavFile] takes its buffers as
+      // `dynamic` (to keep `dart:ffi` out of `wav_utils.dart` for web
+      // compatibility), dynamic invocation of `[]` on a raw pointer fails
+      // with `NoSuchMethodError: Class 'Pointer<Never>' has no instance
+      // method '[]'` at runtime. A `Float32List` view has a real instance
+      // `operator []`, so dynamic dispatch finds it immediately.
+      final int length;
+      final Float32List dataL;
+      final Float32List dataR;
+      if (isAndroid) {
+        length = AudioInputFFI().alooperGetLength(clip.nativeIdx);
+        if (length <= 0) continue;
+        final ptrL = AudioInputFFI().alooperGetDataL(clip.nativeIdx);
+        final ptrR = AudioInputFFI().alooperGetDataR(clip.nativeIdx);
+        if (ptrL == nullptr || ptrR == nullptr) {
+          debugPrint('ProjectService: skip loop_$slotId — native buffer null');
+          continue;
+        }
+        dataL = ptrL.asTypedList(length);
+        dataR = ptrR.asTypedList(length);
+      } else {
+        length = host!.getAudioLooperLength(clip.nativeIdx);
+        if (length <= 0) continue;
+        final ptrL = host.getAudioLooperDataL(clip.nativeIdx);
+        final ptrR = host.getAudioLooperDataR(clip.nativeIdx);
+        if (ptrL == nullptr || ptrR == nullptr) {
+          debugPrint('ProjectService: skip loop_$slotId — native buffer null');
+          continue;
+        }
+        dataL = ptrL.asTypedList(length);
+        dataR = ptrR.asTypedList(length);
+      }
 
       final filename = 'loop_$slotId.wav';
       final wavPath = '${dir.path}/$filename';

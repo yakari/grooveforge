@@ -1598,6 +1598,132 @@ abstract class AppLocalizations {
   /// **'Record and loop live audio (PCM) with bar sync, overdub, and reverse'**
   String get rackAddAudioLooperSubtitle;
 
+  /// Placeholder shown inside the audio looper waveform area while a clip is actively recording and no waveform has been computed yet.
+  ///
+  /// In en, this message translates to:
+  /// **'Recording…'**
+  String get audioLooperWaveformRecording;
+
+  /// Placeholder shown when an audio looper slot has no cables on its back-panel Audio IN ports — recording would produce silence.
+  ///
+  /// In en, this message translates to:
+  /// **'Cable an instrument to Audio IN'**
+  String get audioLooperWaveformCableInstrument;
+
+  /// Placeholder shown when an audio looper slot has cables wired but the clip has no recorded audio yet.
+  ///
+  /// In en, this message translates to:
+  /// **'No audio recorded'**
+  String get audioLooperWaveformEmpty;
+
+  /// Tooltip for the audio looper Stop button.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop'**
+  String get audioLooperTooltipStop;
+
+  /// Tooltip for the audio looper Reverse-playback toggle button.
+  ///
+  /// In en, this message translates to:
+  /// **'Reverse'**
+  String get audioLooperTooltipReverse;
+
+  /// Tooltip for the audio looper bar-sync toggle when it is enabled — recording will wait for the next downbeat.
+  ///
+  /// In en, this message translates to:
+  /// **'Bar sync: ON'**
+  String get audioLooperTooltipBarSyncOn;
+
+  /// Tooltip for the audio looper bar-sync toggle when it is disabled — recording will start immediately.
+  ///
+  /// In en, this message translates to:
+  /// **'Bar sync: OFF'**
+  String get audioLooperTooltipBarSyncOff;
+
+  /// Tooltip for the audio looper Clear button (erases the clip).
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get audioLooperTooltipClear;
+
+  /// Tooltip for the audio looper main loop button when idle with no audio — next press starts recording.
+  ///
+  /// In en, this message translates to:
+  /// **'Record'**
+  String get audioLooperTooltipRecord;
+
+  /// Tooltip for the audio looper main loop button when idle with existing audio — next press starts playback.
+  ///
+  /// In en, this message translates to:
+  /// **'Play'**
+  String get audioLooperTooltipPlay;
+
+  /// Tooltip for the audio looper main loop button while armed — next press cancels the arm.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get audioLooperTooltipCancel;
+
+  /// Tooltip for the audio looper main loop button while recording — next press ends recording and begins playback.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop recording & play'**
+  String get audioLooperTooltipStopRecordingAndPlay;
+
+  /// Tooltip for the audio looper main loop button while silence is being padded to the next bar boundary (STOPPING state).
+  ///
+  /// In en, this message translates to:
+  /// **'Padding to bar…'**
+  String get audioLooperTooltipPaddingToBar;
+
+  /// Tooltip for the audio looper main loop button while playing — next press starts overdubbing new audio on top.
+  ///
+  /// In en, this message translates to:
+  /// **'Overdub'**
+  String get audioLooperTooltipOverdub;
+
+  /// Tooltip for the audio looper main loop button while overdubbing — next press ends the overdub pass and returns to playing.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop overdub'**
+  String get audioLooperTooltipStopOverdub;
+
+  /// Short status chip label for the audio looper IDLE state (uppercase; kept short to fit the chip).
+  ///
+  /// In en, this message translates to:
+  /// **'IDLE'**
+  String get audioLooperStatusIdle;
+
+  /// Short status chip label for the audio looper ARMED state (waiting for the next downbeat to start recording).
+  ///
+  /// In en, this message translates to:
+  /// **'ARMED'**
+  String get audioLooperStatusArmed;
+
+  /// Short status chip label for the audio looper RECORDING state.
+  ///
+  /// In en, this message translates to:
+  /// **'REC'**
+  String get audioLooperStatusRecording;
+
+  /// Short status chip label for the audio looper PLAYING state.
+  ///
+  /// In en, this message translates to:
+  /// **'PLAY'**
+  String get audioLooperStatusPlaying;
+
+  /// Short status chip label for the audio looper OVERDUBBING state.
+  ///
+  /// In en, this message translates to:
+  /// **'ODUB'**
+  String get audioLooperStatusOverdubbing;
+
+  /// Short status chip label for the audio looper STOPPING state (padding silence to the next bar boundary).
+  ///
+  /// In en, this message translates to:
+  /// **'PAD'**
+  String get audioLooperStatusStopping;
+
   /// No description provided for @addLooperAlreadyExists.
   ///
   /// In en, this message translates to:

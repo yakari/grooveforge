@@ -1,5 +1,6 @@
 import 'dart:ffi';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:ffi/ffi.dart';
 
 typedef StartAudioCaptureC = Int32 Function();
@@ -882,6 +883,30 @@ class AudioInputFFI {
       _looperLib.lookupFunction<Void Function(Int32, Int32),
           void Function(int, int)>('dvh_alooper_add_bus_source');
 
+  // ── WAV sidecar round-trip (Android persistence) ────────────────────────
+  //
+  // These three symbols expose the raw clip buffers + a loader so Dart can
+  // round-trip audio looper clip data to/from disk on Android without going
+  // through VstHost (which is null on Android). Same native symbols the
+  // desktop path uses via libdart_vst_host.so — we just look them up in
+  // libnative-lib.so directly.
+
+  late final Pointer<Float> Function(Pointer<Void>, int) _alooperGetDataL =
+      _looperLib.lookupFunction<Pointer<Float> Function(Pointer<Void>, Int32),
+          Pointer<Float> Function(Pointer<Void>, int)>('dvh_alooper_get_data_l');
+
+  late final Pointer<Float> Function(Pointer<Void>, int) _alooperGetDataR =
+      _looperLib.lookupFunction<Pointer<Float> Function(Pointer<Void>, Int32),
+          Pointer<Float> Function(Pointer<Void>, int)>('dvh_alooper_get_data_r');
+
+  late final int Function(Pointer<Void>, int, Pointer<Float>, Pointer<Float>,
+          int) _alooperLoadData =
+      _looperLib.lookupFunction<
+          Int32 Function(
+              Pointer<Void>, Int32, Pointer<Float>, Pointer<Float>, Int32),
+          int Function(Pointer<Void>, int, Pointer<Float>, Pointer<Float>,
+              int)>('dvh_alooper_load_data');
+
   late final void Function(double, int, int, double) _alooperAndroidSetTransport =
       _looperLib.lookupFunction<
           Void Function(Double, Int32, Int32, Double),
@@ -908,6 +933,50 @@ class AudioInputFFI {
   void alooperClearSources(int idx) => _alooperClearSources(idx);
   void alooperAddSourcePlugin(int idx, int sourceIdx) =>
       _alooperAddSourcePlugin(idx, sourceIdx);
+
+  /// Returns the native `float*` left-channel buffer for clip [idx], or
+  /// `nullptr` if the clip is not active.
+  ///
+  /// Consumers that already import `dart:ffi` can call [asTypedList] on the
+  /// returned pointer directly. Everyone else should prefer
+  /// [alooperGetDataAsListL] which returns a zero-copy [Float32List] view.
+  Pointer<Float> alooperGetDataL(int idx) => _alooperGetDataL(nullptr, idx);
+
+  /// Returns the native `float*` right-channel buffer for clip [idx].
+  /// See [alooperGetDataL].
+  Pointer<Float> alooperGetDataR(int idx) => _alooperGetDataR(nullptr, idx);
+
+  /// Returns a zero-copy [Float32List] view over the clip's left channel,
+  /// or `null` if the clip is inactive / the native buffer is [nullptr].
+  ///
+  /// This is the **typed-list entrypoint** — use it from files that do not
+  /// import `dart:ffi` (e.g. [AudioLooperEngine]). Reading `[i]` on the
+  /// returned list uses a real instance `operator []`, so dynamic dispatch
+  /// works correctly. Reading `[i]` on the raw [Pointer<Float>] silently
+  /// fails through a `dynamic` receiver because `FloatPointer.[]` is a
+  /// static extension method.
+  Float32List? alooperGetDataAsListL(int idx, int length) {
+    final ptr = _alooperGetDataL(nullptr, idx);
+    if (ptr.address == 0 || length <= 0) return null;
+    return ptr.asTypedList(length);
+  }
+
+  /// Returns a zero-copy [Float32List] view over the clip's right channel.
+  /// See [alooperGetDataAsListL].
+  Float32List? alooperGetDataAsListR(int idx, int length) {
+    final ptr = _alooperGetDataR(nullptr, idx);
+    if (ptr.address == 0 || length <= 0) return null;
+    return ptr.asTypedList(length);
+  }
+
+  /// Copies [lengthFrames] stereo frames from [srcL] / [srcR] into the native
+  /// clip buffer for [idx] and updates the clip's stored length.
+  ///
+  /// Returns 1 on success, 0 on failure (clip inactive, out-of-range,
+  /// capacity exceeded).  Used by the Android WAV sidecar import path.
+  int alooperLoadData(int idx, Pointer<Float> srcL, Pointer<Float> srcR,
+          int lengthFrames) =>
+      _alooperLoadData(nullptr, idx, srcL, srcR, lengthFrames);
 
   /// Register an Android Oboe bus slot as an audio source for clip [idx].
   ///

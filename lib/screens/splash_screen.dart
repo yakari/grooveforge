@@ -187,7 +187,15 @@ class _SplashScreenState extends State<SplashScreen> {
       // audioGraph.loadFromJson and _readGfFile) return early because _host
       // is still null at that point.  This call wires everything up: GFPA
       // insert chains, master renders, audio looper sources, and capture modes.
-      vstSvc.syncAudioRouting(audioGraph, rack.plugins);
+      //
+      // `keyboardSfIds` must be passed explicitly on Android — without it
+      // the Android branch can't resolve keyboard slots to their Oboe bus IDs
+      // and any cable from a keyboard to the audio looper records silence.
+      vstSvc.syncAudioRouting(
+        audioGraph,
+        rack.plugins,
+        keyboardSfIds: rack.buildKeyboardSfIds(),
+      );
 
       // Audio looper: now that the JACK host is live we can materialise the
       // pending clips (metadata was parsed earlier from the .gf file but
@@ -212,11 +220,26 @@ class _SplashScreenState extends State<SplashScreen> {
       // full rationale.
       await rack.initializeAudioEffects();
 
-      // Re-sync routing now that all native DSP handles exist — the
-      // syncAudioRouting call above ran before registerGfpaDsp for slots
-      // with audio effects, so the insert chain needs another pass to pick
-      // up the freshly-created handles.
-      vstSvc.syncAudioRouting(audioGraph, rack.plugins);
+      // Re-sync routing now that all native DSP handles exist AND the audio
+      // looper clips have been created by `finalizeLoad` / `createClip`.
+      // Three reasons this second sync is load-bearing:
+      //   1. GFPA audio-effect inserts need the DSP handles registered in
+      //      step `initializeAudioEffects` above to be wired into their
+      //      source's insert chain.
+      //   2. Audio looper bus sources can only be registered now that the
+      //      native clips exist — the first sync ran before `finalizeLoad`
+      //      / `createClip` and saw an empty `audioLooperEngine.clips` map.
+      //   3. The earlier startup sync (when `initAndroidKeyboardSlots`
+      //      fires `syncAudioRouting` from `loadFromJson`) also saw empty
+      //      clips, so this is the first call that can actually push bus
+      //      sources to a freshly created audio looper.
+      //
+      // `keyboardSfIds` is built here — see comment on the earlier call.
+      vstSvc.syncAudioRouting(
+        audioGraph,
+        rack.plugins,
+        keyboardSfIds: rack.buildKeyboardSfIds(),
+      );
     }
 
     if (!mounted) return;

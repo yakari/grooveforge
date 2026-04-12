@@ -842,6 +842,71 @@ class AppLocalizationsFr extends AppLocalizations {
       'Enregistrez et bouclez de l\'audio en temps réel (PCM) avec synchro, overdub et reverse';
 
   @override
+  String get audioLooperWaveformRecording => 'Enregistrement…';
+
+  @override
+  String get audioLooperWaveformCableInstrument =>
+      'Câblez un instrument sur Audio IN';
+
+  @override
+  String get audioLooperWaveformEmpty => 'Aucun audio enregistré';
+
+  @override
+  String get audioLooperTooltipStop => 'Stop';
+
+  @override
+  String get audioLooperTooltipReverse => 'Inverser';
+
+  @override
+  String get audioLooperTooltipBarSyncOn => 'Synchro mesure : ON';
+
+  @override
+  String get audioLooperTooltipBarSyncOff => 'Synchro mesure : OFF';
+
+  @override
+  String get audioLooperTooltipClear => 'Effacer';
+
+  @override
+  String get audioLooperTooltipRecord => 'Enregistrer';
+
+  @override
+  String get audioLooperTooltipPlay => 'Lecture';
+
+  @override
+  String get audioLooperTooltipCancel => 'Annuler';
+
+  @override
+  String get audioLooperTooltipStopRecordingAndPlay =>
+      'Arrêter l\'enregistrement & lire';
+
+  @override
+  String get audioLooperTooltipPaddingToBar => 'Complément jusqu\'à la mesure…';
+
+  @override
+  String get audioLooperTooltipOverdub => 'Overdub';
+
+  @override
+  String get audioLooperTooltipStopOverdub => 'Arrêter l\'overdub';
+
+  @override
+  String get audioLooperStatusIdle => 'VIDE';
+
+  @override
+  String get audioLooperStatusArmed => 'ARMÉ';
+
+  @override
+  String get audioLooperStatusRecording => 'REC';
+
+  @override
+  String get audioLooperStatusPlaying => 'LECT';
+
+  @override
+  String get audioLooperStatusOverdubbing => 'ODUB';
+
+  @override
+  String get audioLooperStatusStopping => 'PAD';
+
+  @override
   String get addLooperAlreadyExists =>
       'Un Looper MIDI est déjà dans le rack. Un seul est autorisé.';
 
