@@ -5,7 +5,7 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/lang/fr/).
 
-## [X.x.x]
+## [2.12.4] - 2026-04-12
 
 ### Ajouté
 - **Looper audio — sélecteur de source** : le slot du looper audio dispose maintenant d'un sélecteur « Source » compact au-dessus de la zone waveform. L'utilisateur peut choisir n'importe quel slot du rack produisant de l'audio (GF Keyboard, Drum Generator, Theremin, Stylophone, Vocoder, effets audio GFPA, instruments et effets VST3) sans avoir à basculer sur le panneau arrière pour câbler manuellement. Le choix d'une source réécrit les câbles audio : les câbles existants vers le looper sont effacés, et de nouveaux câbles `audioOutL → audioInL` + `audioOutR → audioInR` sont tirés en une seule opération atomique. Choisir « Aucune » efface tous les câbles. Une étiquette « Multiples (N sources) » s'affiche quand l'utilisateur a câblé à la main plusieurs slots amont depuis le panneau arrière — le sélecteur reste fonctionnel et remplace tout à la prochaine sélection. Le sélecteur dérive son état courant du `AudioGraph` à chaque rebuild, donc il n'y a aucun état par clip dupliqué à maintenir synchro avec la vue panneau arrière. La capture du « Master mix » est reportée à un prochain milestone — elle nécessite un nouveau type de routage natif.

@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [X.x.x]
+## [2.12.4] - 2026-04-12
 
 ### Added
 - **Audio Looper — source selector**: the audio looper slot now has a compact "Source" dropdown above the waveform display. Users can pick any audio-producing slot in the rack (GF Keyboard, Drum Generator, Theremin, Stylophone, Vocoder, GFPA audio effects, VST3 instruments/effects) without flipping to the back panel and drawing a cable manually. Picking a source rewrites the audio cables: existing cables into the looper are cleared, and new `audioOutL → audioInL` + `audioOutR → audioInR` cables are drawn in one atomic operation. Picking "None" clears all cables. A "Multiple (N sources)" label is shown when the user has hand-wired several upstream slots from the back panel — the dropdown stays functional and overrides on the next selection. The selector derives its current state from the `AudioGraph` every rebuild, so there is no duplicated per-clip state to keep in sync with the back panel view. "Master mix" capture is deferred to a future milestone — it requires a new native routing kind.
