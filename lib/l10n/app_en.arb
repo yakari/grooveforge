@@ -456,6 +456,14 @@
       "count": { "type": "int" }
     }
   },
+  "audioLooperMemoryCapWarning": "Audio looper memory: {usedMb} MB / {capMb} MB cap — consider clearing unused clips",
+  "@audioLooperMemoryCapWarning": {
+    "description": "Toast shown once per session the first time the audio looper's total allocated pool memory crosses its soft cap. Not a hard cap — recording continues, but the user is nudged to clear clips.",
+    "placeholders": {
+      "usedMb": { "type": "String", "example": "180.5" },
+      "capMb":  { "type": "int",    "example": "256" }
+    }
+  },
   "addLooperAlreadyExists": "A MIDI Looper is already in the rack. Only one is allowed.",
   "addJamModeAlreadyExists": "A Jam Mode is already in the rack. Only one is allowed.",
   "looperRecord": "Record",

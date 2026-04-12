@@ -214,6 +214,20 @@ class _RackScreenState extends State<RackScreen> {
       }
     };
 
+    // Surface a toast the first time the audio looper's total allocated
+    // memory crosses its soft cap. Fires at most once per session (the
+    // engine re-arms the guard when the user frees a clip). Not a hard
+    // cap — recording continues past this threshold on purpose so a live
+    // performance never gets silently truncated.
+    audioLooperEngine.onMemoryCapExceeded = (usedBytes, capBytes) {
+      final l10n = AppLocalizations.of(context);
+      final usedMb = (usedBytes / (1024 * 1024)).toStringAsFixed(1);
+      final capMb = (capBytes / (1024 * 1024)).round();
+      _engine.toastNotifier.value = l10n != null
+          ? l10n.audioLooperMemoryCapWarning(usedMb, capMb)
+          : 'Audio looper memory: $usedMb MB / $capMb MB cap';
+    };
+
     // Slot-addressed CC parameter control — routes to RackState.
     _engine.onSlotParamCc = _rackState.handleSlotParamCc;
 
@@ -393,6 +407,7 @@ class _RackScreenState extends State<RackScreen> {
     _engine.onAudioLooperSystemAction = null;
     _rackState.onDrumPatternCycle = null;
     _rackState.onAudioLooperParamCc = null;
+    context.read<AudioLooperEngine>().onMemoryCapExceeded = null;
     _transportDebounce?.cancel();
     _swapDebounce?.cancel();
     _autoScrollTimer?.cancel();

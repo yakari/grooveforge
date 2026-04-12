@@ -363,6 +363,7 @@
   "audioLooperSourceNone": "Aucune",
   "audioLooperSourceUnknown": "Source inconnue",
   "audioLooperSourceMultiple": "{count, plural, =2{Multiples (2 sources)} other{Multiples ({count} sources)}}",
+  "audioLooperMemoryCapWarning": "Mémoire du looper audio : {usedMb} Mo / {capMb} Mo — pensez à effacer les clips inutiles",
   "addLooperAlreadyExists": "Un Looper MIDI est déjà dans le rack. Un seul est autorisé.",
   "addJamModeAlreadyExists": "Un Jam Mode est déjà dans le rack. Un seul est autorisé.",
   "looperRecord": "Enregistrer",

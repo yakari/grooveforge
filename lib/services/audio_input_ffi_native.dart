@@ -859,6 +859,10 @@ class AudioInputFFI {
       _looperLib.lookupFunction<Void Function(Int32, Int32),
           void Function(int, int)>('dvh_alooper_set_bar_sync');
 
+  late final int Function(Pointer<Void>) _alooperMemoryUsed =
+      _looperLib.lookupFunction<Int64 Function(Pointer<Void>),
+          int Function(Pointer<Void>)>('dvh_alooper_memory_used');
+
   late final int Function(Pointer<Void>, int) _alooperGetLength =
       _looperLib.lookupFunction<Int32 Function(Pointer<Void>, Int32),
           int Function(Pointer<Void>, int)>('dvh_alooper_get_length');
@@ -912,6 +916,13 @@ class AudioInputFFI {
           Void Function(Double, Int32, Int32, Double),
           void Function(double, int, int, double)
       >('alooper_android_set_transport');
+
+  /// Total memory (bytes) allocated across every active audio looper clip
+  /// in the native pool.  Matches the desktop equivalent
+  /// [VstHost.getAudioLooperMemoryUsed] — both call the same
+  /// `dvh_alooper_memory_used` symbol, which sums `capacity * 2 * sizeof(float)`
+  /// for every active clip.  Returns 0 when no clips are allocated.
+  int alooperMemoryUsed() => _alooperMemoryUsed(nullptr);
 
   /// Create a native audio looper clip (Android path).
   int alooperCreate(double maxSeconds, {int sampleRate = 48000}) =>

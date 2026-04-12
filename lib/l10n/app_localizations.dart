@@ -1754,6 +1754,12 @@ abstract class AppLocalizations {
   /// **'{count, plural, =2{Multiple (2 sources)} other{Multiple ({count} sources)}}'**
   String audioLooperSourceMultiple(int count);
 
+  /// Toast shown once per session the first time the audio looper's total allocated pool memory crosses its soft cap. Not a hard cap — recording continues, but the user is nudged to clear clips.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio looper memory: {usedMb} MB / {capMb} MB cap — consider clearing unused clips'**
+  String audioLooperMemoryCapWarning(String usedMb, int capMb);
+
   /// No description provided for @addLooperAlreadyExists.
   ///
   /// In en, this message translates to:

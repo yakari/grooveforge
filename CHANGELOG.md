@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [X.x.x]
+
+### Added
+- **Audio Looper — memory cap warning**: the audio looper engine now tracks total pool memory against a soft cap (default 256 MB) and surfaces a toast the first time the cap is crossed in a session, nudging the user to clear unused clips. The per-clip memory label in the volume row tints amber at ≥ 75% and red/bold at ≥ 90% of the cap so the approach to the ceiling is visible before the toast fires. **Not a hard cap** — recording continues past the threshold on purpose so a live performance never gets silently truncated. The warning re-arms when a clip is destroyed, so clearing memory and re-crossing produces a fresh toast.
+
+### Fixed
+- **Audio Looper — `memoryUsedBytes` returned 0 on Android**: the getter routed through `VstHostService.instance.host` which is null on Android, so the memory label always showed "0 KB" on that platform. Fixed by adding an `alooperMemoryUsed` FFI shim on `AudioInputFFI` and branching on `_useAndroidPath` inside the getter. Both paths now reach the same `dvh_alooper_memory_used` symbol (compiled into `libdart_vst_host.so` on desktop and `libnative-lib.so` on Android).
+
 ## [2.12.4] - 2026-04-12
 
 ### Added

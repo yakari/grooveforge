@@ -5,6 +5,14 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/lang/fr/).
 
+## [X.x.x]
+
+### Ajouté
+- **Looper audio — avertissement de plafond mémoire** : le moteur du looper audio suit désormais la mémoire totale du pool par rapport à un plafond souple (256 Mo par défaut) et affiche un toast la première fois que le plafond est dépassé dans une session, invitant l'utilisateur à effacer les clips inutiles. Dans la rangée de volume, l'étiquette de mémoire par clip passe à l'ambre à ≥ 75 % et au rouge gras à ≥ 90 % du plafond, pour que l'approche du plafond soit visible avant que le toast ne se déclenche. **Pas un plafond dur** — l'enregistrement continue au-delà du seuil volontairement, pour qu'une performance live ne soit jamais silencieusement tronquée. L'avertissement se réarme quand un clip est détruit, donc libérer de la mémoire puis recroiser produit un nouveau toast.
+
+### Corrigé
+- **Looper audio — `memoryUsedBytes` retournait 0 sur Android** : le getter passait par `VstHostService.instance.host` qui est nul sur Android, donc l'étiquette de mémoire affichait toujours « 0 KB » sur cette plateforme. Corrigé en ajoutant un stub FFI `alooperMemoryUsed` sur `AudioInputFFI` et en branchant sur `_useAndroidPath` dans le getter. Les deux chemins atteignent désormais le même symbole `dvh_alooper_memory_used` (compilé dans `libdart_vst_host.so` sur desktop et `libnative-lib.so` sur Android).
+
 ## [2.12.4] - 2026-04-12
 
 ### Ajouté

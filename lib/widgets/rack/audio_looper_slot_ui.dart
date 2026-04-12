@@ -396,7 +396,10 @@ class _VolumeRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final engine = context.read<AudioLooperEngine>();
+    // Watch (not read) — total pool memory changes when clips are
+    // created/destroyed, and the label tint depends on a ratio over the
+    // whole engine, not just this clip.
+    final engine = context.watch<AudioLooperEngine>();
     final vol = clip?.volume ?? 1.0;
     final duration = clip?.durationSeconds ?? 0.0;
 
@@ -420,8 +423,16 @@ class _VolumeRow extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 4),
-        Text(_memoryLabel(clip),
-            style: const TextStyle(color: Colors.grey, fontSize: 10)),
+        Text(
+          _memoryLabel(clip),
+          style: TextStyle(
+            color: _memoryLabelColor(engine.memoryUsedRatio),
+            fontSize: 10,
+            fontWeight: engine.memoryUsedRatio >= 0.9
+                ? FontWeight.w600
+                : FontWeight.normal,
+          ),
+        ),
       ],
     );
   }
@@ -431,6 +442,18 @@ class _VolumeRow extends StatelessWidget {
     final bytes = clip.lengthFrames * 2 * 4;
     if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(0)} KB';
     return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+
+  /// Picks a colour for the per-clip memory label based on the total pool
+  /// usage ratio. Warning tinting kicks in well before the hard cap so the
+  /// user has time to react:
+  ///   - < 0.75 → grey (normal)
+  ///   - 0.75 – 0.9 → amber (approaching cap)
+  ///   - ≥ 0.9 → red (at/over cap)
+  Color _memoryLabelColor(double ratio) {
+    if (ratio >= 0.9) return Colors.redAccent;
+    if (ratio >= 0.75) return _kArmedColor; // amber accent reused from transport
+    return Colors.grey;
   }
 }
 

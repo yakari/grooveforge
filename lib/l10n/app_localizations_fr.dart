@@ -931,6 +931,11 @@ class AppLocalizationsFr extends AppLocalizations {
   }
 
   @override
+  String audioLooperMemoryCapWarning(String usedMb, int capMb) {
+    return 'Mémoire du looper audio : $usedMb Mo / $capMb Mo — pensez à effacer les clips inutiles';
+  }
+
+  @override
   String get addLooperAlreadyExists =>
       'Un Looper MIDI est déjà dans le rack. Un seul est autorisé.';
 

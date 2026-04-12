@@ -224,6 +224,7 @@ class AudioInputFFI {
   dynamic alooperGetDataAsListL(int idx, int length) => null;
   dynamic alooperGetDataAsListR(int idx, int length) => null;
   int alooperLoadData(int idx, dynamic srcL, dynamic srcR, int lengthFrames) => 0;
+  int alooperMemoryUsed() => 0;
   void alooperSetTransport(double bpm, int timeSigNum, bool isPlaying,
       double positionInBeats) {}
 }

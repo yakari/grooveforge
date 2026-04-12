@@ -276,6 +276,11 @@ class AudioLooperEngine extends ChangeNotifier {
     clip.capacityFrames = capacityFrames;
     _clips[slotId] = clip;
     debugPrint('AudioLooperEngine: created clip for $slotId (native=$nativeIdx)');
+    // Total pool memory only grows on create — the native cap is computed
+    // from `capacity`, not `length`, so there is no need to poll during
+    // recording. One check here covers every growth path (user adds a
+    // new slot, `finalizeLoad` recreates clips from a project file, etc.).
+    _checkMemoryCap();
     notifyListeners();
     return clip;
   }
@@ -288,6 +293,10 @@ class AudioLooperEngine extends ChangeNotifier {
     _nSetState(clip.nativeIdx, AudioLooperState.idle.index);
     _nDestroy(clip.nativeIdx);
     _updatePollTimer();
+    // Re-arm the cap warning since freeing a clip drops the total used
+    // bytes — the next crossing should produce a fresh toast rather than
+    // being silently suppressed by the once-per-session guard.
+    resetMemoryCapWarning();
     notifyListeners();
     onDataChanged?.call();
   }
@@ -446,9 +455,64 @@ class AudioLooperEngine extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Total memory used by all clips (bytes).
-  int get memoryUsedBytes =>
-      VstHostService.instance.host?.getAudioLooperMemoryUsed() ?? 0;
+  /// Total memory (bytes) allocated across every active audio looper clip
+  /// in the native pool.  Platform-branched: desktop reads from the
+  /// `libdart_vst_host.so` host, Android reads from `libnative-lib.so`
+  /// directly through [AudioInputFFI].  Both resolve to the same underlying
+  /// `dvh_alooper_memory_used` C symbol.
+  int get memoryUsedBytes {
+    if (_useAndroidPath) return AudioInputFFI().alooperMemoryUsed();
+    return VstHostService.instance.host?.getAudioLooperMemoryUsed() ?? 0;
+  }
+
+  /// Maximum memory (bytes) the audio looper pool is allowed to allocate
+  /// before the engine fires a warning toast. Defaults to 256 MB which is
+  /// a generous headroom compared to the hard native ceiling of
+  /// `ALOOPER_MAX_CLIPS × maxClipSeconds × sampleRate × 2ch × 4B`
+  /// (~176 MB with the current defaults of 8 clips × 60s × 48kHz).
+  ///
+  /// Not a hard cap — recording continues past this threshold on purpose,
+  /// since silently truncating a live performance would be worse than a
+  /// memory blip. The cap exists so users notice before they hit a device
+  /// limit on memory-constrained platforms (mobile).
+  int memoryCapBytes = 256 * 1024 * 1024;
+
+  /// Fraction of [memoryCapBytes] currently used. Values > 1.0 mean the
+  /// soft cap has been exceeded.
+  double get memoryUsedRatio {
+    if (memoryCapBytes <= 0) return 0.0;
+    return memoryUsedBytes / memoryCapBytes;
+  }
+
+  /// Once-per-session guard so the warning toast fires exactly once the
+  /// first time the cap is crossed. Reset to false via [resetMemoryCapWarning]
+  /// when the user clears clips or starts a new project.
+  bool _memoryCapWarningFired = false;
+
+  /// Callback fired the first time [memoryUsedBytes] crosses
+  /// [memoryCapBytes] within a session. Wired by `RackScreen` to surface a
+  /// toast via `AudioEngine.toastNotifier`. Keeps [AudioLooperEngine] free
+  /// of any direct `AudioEngine` / UI dependency.
+  void Function(int usedBytes, int capBytes)? onMemoryCapExceeded;
+
+  /// Re-arms the memory cap warning. Call this after the user has freed
+  /// memory by clearing clips so the toast can fire again on the next
+  /// crossing.
+  void resetMemoryCapWarning() {
+    _memoryCapWarningFired = false;
+  }
+
+  /// Checks the current memory usage against [memoryCapBytes] and fires
+  /// [onMemoryCapExceeded] exactly once if the threshold has been crossed.
+  /// Called from the state poller so repeated growth is caught without
+  /// adding hot-path overhead.
+  void _checkMemoryCap() {
+    if (_memoryCapWarningFired) return;
+    final used = memoryUsedBytes;
+    if (used < memoryCapBytes) return;
+    _memoryCapWarningFired = true;
+    onMemoryCapExceeded?.call(used, memoryCapBytes);
+  }
 
   /// Recomputes the decimated waveform RMS for [slotId] from native PCM data.
   ///
