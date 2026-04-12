@@ -78,10 +78,14 @@ class _SplashScreenState extends State<SplashScreen> {
     projectService.audioLooperEngine = audioLooper;
     // Also give VstHostService a reference for syncAudioRouting.
     VstHostService.instance.audioLooperEngine = audioLooper;
-    // Set the WAV importer for desktop.  VstHostService conditionally exports
-    // the desktop implementation which has access to dart:ffi for WAV import.
+    // Set the WAV importer + exporter for native platforms.
+    // VstHostService conditionally exports the desktop implementation which
+    // has access to `dart:ffi` for the raw PCM I/O — the web stub has no-op
+    // versions so `dart2js` / `dart2wasm` don't pull `dart:ffi` into the
+    // web build's import tree.
     if (!kIsWeb) {
       audioLooper.wavImporter = VstHostService.instance.importAudioLooperWavs;
+      audioLooper.wavExporter = VstHostService.instance.exportAudioLooperWavs;
     }
 
     // Load the last autosave (or initialise defaults) BEFORE wiring up the

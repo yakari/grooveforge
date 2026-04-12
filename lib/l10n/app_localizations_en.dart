@@ -902,6 +902,30 @@ class AppLocalizationsEn extends AppLocalizations {
   String get audioLooperStatusStopping => 'PAD';
 
   @override
+  String get audioLooperSourceLabel => 'Source';
+
+  @override
+  String get audioLooperSourceTooltip =>
+      'Pick which instrument feeds this looper';
+
+  @override
+  String get audioLooperSourceNone => 'None';
+
+  @override
+  String get audioLooperSourceUnknown => 'Unknown source';
+
+  @override
+  String audioLooperSourceMultiple(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Multiple ($count sources)',
+      two: 'Multiple (2 sources)',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get addLooperAlreadyExists =>
       'A MIDI Looper is already in the rack. Only one is allowed.';
 

@@ -4,7 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../../models/audio_graph_connection.dart';
 import '../../models/audio_looper_plugin_instance.dart';
+import '../../models/audio_port_id.dart';
+import '../../models/drum_generator_plugin_instance.dart';
+import '../../models/gfpa_plugin_instance.dart';
+import '../../models/grooveforge_keyboard_plugin.dart';
+import '../../models/plugin_instance.dart';
+import '../../models/vst3_plugin_instance.dart';
 import '../../services/audio_graph.dart';
 import '../../services/audio_looper_engine.dart';
 import '../../services/rack_state.dart';
@@ -84,6 +91,8 @@ class _AudioLooperSlotUIState extends State<AudioLooperSlotUI> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          _SourceSelector(looperSlotId: widget.plugin.id),
+          const SizedBox(height: 6),
           _WaveformDisplay(clip: clip),
           const SizedBox(height: 8),
           _TransportStrip(clip: clip, slotId: widget.plugin.id),
@@ -494,5 +503,250 @@ class _StatusChip extends StatelessWidget {
       child: Text(label,
           style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w600)),
     );
+  }
+}
+
+// ── Source selector ──────────────────────────────────────────────────────────
+
+/// Compact "Source" row shown above the waveform.
+///
+/// Gives users a quick way to pick which instrument gets recorded into this
+/// audio looper slot — a front-end affordance for what would otherwise
+/// require flipping to the back panel and drawing a cable manually.
+///
+/// The selector does NOT maintain its own state: the current source is
+/// derived from the [AudioGraph] every rebuild. If the user has hand-wired
+/// multiple cables to this looper from the back panel, the label shows
+/// "Multiple (N)" so the state is never misleading.
+///
+/// Picking an item rewrites the cables:
+///   - **None** → disconnect every audio cable terminating at this looper.
+///   - **Slot** → disconnect every audio cable terminating at this looper,
+///     then connect `<slot>.audioOutL → looper.audioInL` and
+///     `<slot>.audioOutR → looper.audioInR`.
+///
+/// **Master mix** capture is deferred to a future milestone — it requires a
+/// new native routing kind (the audio looper clip would need to read the
+/// final master mix buffer instead of a per-slot dry buffer), which is not
+/// yet implemented on any of the three backends.
+class _SourceSelector extends StatelessWidget {
+  final String looperSlotId;
+  const _SourceSelector({required this.looperSlotId});
+
+  @override
+  Widget build(BuildContext context) {
+    // Watch both: the graph for cable topology, the rack for slot identity.
+    final graph = context.watch<AudioGraph>();
+    final rack = context.watch<RackState>();
+    final l10n = AppLocalizations.of(context)!;
+
+    final audioSources = _collectAudioSources(rack.plugins);
+    final currentCables = _currentAudioInputCables(graph);
+    final label = _currentLabel(currentCables, audioSources, l10n);
+
+    return Row(
+      children: [
+        Icon(Icons.input, size: 14, color: Colors.grey.shade400),
+        const SizedBox(width: 6),
+        Text(
+          l10n.audioLooperSourceLabel,
+          style: TextStyle(color: Colors.grey.shade400, fontSize: 11),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: PopupMenuButton<String?>(
+            tooltip: l10n.audioLooperSourceTooltip,
+            onSelected: (selectedSlotId) => _applySelection(
+              graph,
+              rack,
+              selectedSlotId,
+            ),
+            itemBuilder: (context) => <PopupMenuEntry<String?>>[
+              PopupMenuItem<String?>(
+                value: null,
+                child: Text(l10n.audioLooperSourceNone),
+              ),
+              if (audioSources.isNotEmpty) const PopupMenuDivider(),
+              for (final source in audioSources)
+                PopupMenuItem<String?>(
+                  value: source.id,
+                  child: Text(_labelFor(source, rack.plugins)),
+                ),
+            ],
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: _kWaveBg,
+                borderRadius: BorderRadius.circular(3),
+                border: Border.all(color: _kBorder),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      label,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          color: Colors.white70, fontSize: 11),
+                    ),
+                  ),
+                  Icon(Icons.arrow_drop_down,
+                      size: 16, color: Colors.grey.shade400),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Enumerates every plugin in the rack that produces stereo audio output
+  /// and therefore makes sense as an audio looper source — keyboards, drum
+  /// generators, theremin/stylophone/vocoder, GFPA audio effects, and VST3
+  /// slots. The looper itself is excluded to prevent self-cabling (the
+  /// graph cycle check would reject it anyway, but filtering up front keeps
+  /// the dropdown uncluttered).
+  List<PluginInstance> _collectAudioSources(List<PluginInstance> plugins) {
+    final result = <PluginInstance>[];
+    for (final p in plugins) {
+      if (p.id == looperSlotId) continue;
+      if (p is AudioLooperPluginInstance) continue;
+      if (_producesAudio(p)) result.add(p);
+    }
+    return result;
+  }
+
+  /// Returns true if [plugin] exposes an `audioOutL` port on its back panel
+  /// — matching the logic in [slot_back_panel_widget.dart]. Kept in sync
+  /// manually; a mismatch just means a slot type is missing from the
+  /// dropdown, not a crash.
+  bool _producesAudio(PluginInstance plugin) {
+    if (plugin is GrooveForgeKeyboardPlugin) return true;
+    if (plugin is DrumGeneratorPluginInstance) return true;
+    if (plugin is Vst3PluginInstance) return true;
+    if (plugin is GFpaPluginInstance) {
+      // Jam Mode and bare MIDI FX plugins don't produce audio.
+      const audioPluginIds = {
+        'com.grooveforge.vocoder',
+        'com.grooveforge.theremin',
+        'com.grooveforge.stylophone',
+      };
+      if (audioPluginIds.contains(plugin.pluginId)) return true;
+      // Any GFPA audio-effect descriptor (reverb, delay, EQ, …) also has
+      // stereo audio out. We can't easily tell from Dart-side whether a
+      // given pluginId is an effect vs MIDI FX without touching the
+      // registry, so we fall back to a conservative heuristic: anything
+      // that is NOT a known MIDI-FX plugin is assumed to pass audio.
+      const midiFxPluginIds = {
+        'com.grooveforge.jammode',
+        'com.grooveforge.arpeggiator',
+        'com.grooveforge.chord',
+        'com.grooveforge.transposer',
+        'com.grooveforge.velocity_curve',
+        'com.grooveforge.gate',
+        'com.grooveforge.harmonizer',
+      };
+      return !midiFxPluginIds.contains(plugin.pluginId);
+    }
+    return false;
+  }
+
+  /// Lists every audio cable terminating at this looper's audioInL or
+  /// audioInR. Used both for the current-source label and for the
+  /// disconnect-everything pass during selection.
+  List<AudioGraphConnection> _currentAudioInputCables(AudioGraph graph) {
+    return graph.connections
+        .where((c) =>
+            c.toSlotId == looperSlotId &&
+            (c.toPort == AudioPortId.audioInL ||
+                c.toPort == AudioPortId.audioInR))
+        .toList();
+  }
+
+  /// Derives the label shown inside the dropdown button from the current
+  /// cable state:
+  ///   - 0 audio cables → "None"
+  ///   - ≥1 distinct source slots → the single source's display name, OR
+  ///     "Multiple (N)" if there are two or more distinct upstream slots.
+  ///     Two cables from the same slot (L + R stereo pair) count as one
+  ///     source and show the slot's name.
+  String _currentLabel(
+    List<AudioGraphConnection> cables,
+    List<PluginInstance> sources,
+    AppLocalizations l10n,
+  ) {
+    if (cables.isEmpty) return l10n.audioLooperSourceNone;
+    final distinctSourceIds = cables.map((c) => c.fromSlotId).toSet();
+    if (distinctSourceIds.length == 1) {
+      final sourceId = distinctSourceIds.first;
+      final source = sources.where((p) => p.id == sourceId).firstOrNull;
+      if (source != null) return _labelFor(source, sources);
+      // Source exists in the graph but not in our "audio producers" list —
+      // probably a slot that was removed or a type we don't recognise.
+      // Fall through to a generic label.
+      return l10n.audioLooperSourceUnknown;
+    }
+    return l10n.audioLooperSourceMultiple(distinctSourceIds.length);
+  }
+
+  /// Builds a human-readable label for a source slot, disambiguating
+  /// duplicate plugin types by appending a numeric index (1-based) counted
+  /// over slots of the same class in display order.
+  String _labelFor(PluginInstance source, List<PluginInstance> allPlugins) {
+    // If multiple slots share the same displayName, append an index so the
+    // dropdown can distinguish "GrooveForge Keyboard" #1 from #2.
+    final siblings = allPlugins
+        .where((p) => p.displayName == source.displayName)
+        .toList();
+    if (siblings.length <= 1) return source.displayName;
+    final idx = siblings.indexOf(source) + 1;
+    return '${source.displayName} $idx';
+  }
+
+  /// Applies a selection from the dropdown: disconnect every existing
+  /// audio cable targeting this looper, then (for a non-null target)
+  /// connect the selected source's stereo outputs to the looper's stereo
+  /// inputs.  The routing sync is fired implicitly by `AudioGraph`'s
+  /// `notifyListeners` call, which `RackState._onAudioGraphChanged` hooks.
+  void _applySelection(
+    AudioGraph graph,
+    RackState rack,
+    String? selectedSlotId,
+  ) {
+    // Disconnect everything first so picking the same slot twice is a no-op
+    // on the second call (and so switching between slots produces exactly
+    // one effective source).
+    for (final cable in _currentAudioInputCables(graph)) {
+      graph.disconnect(cable.id);
+    }
+    if (selectedSlotId == null) return;
+
+    // Validate the chosen slot still exists — the list could be stale if a
+    // rebuild fired between `itemBuilder` and `onSelected`.
+    final source =
+        rack.plugins.where((p) => p.id == selectedSlotId).firstOrNull;
+    if (source == null) return;
+
+    try {
+      graph.connect(
+        source.id,
+        AudioPortId.audioOutL,
+        looperSlotId,
+        AudioPortId.audioInL,
+      );
+      graph.connect(
+        source.id,
+        AudioPortId.audioOutR,
+        looperSlotId,
+        AudioPortId.audioInR,
+      );
+    } on ArgumentError catch (e) {
+      // Cycle rejection or duplicate edge — AudioGraph.connect throws. The
+      // dropdown filter should prevent this (we exclude the looper itself),
+      // but a race between rack mutations and menu selection could still
+      // produce one. Swallow rather than crash the UI.
+      debugPrint('_SourceSelector: connect failed — $e');
+    }
   }
 }

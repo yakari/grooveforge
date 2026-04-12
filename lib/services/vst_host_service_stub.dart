@@ -86,6 +86,9 @@ class VstHostService {
   /// Stub: no-op on web — audio looper WAV import not supported.
   Future<void> importAudioLooperWavs(String gfPath, Map<String, dynamic> clips) async {}
 
+  /// Stub: no-op on web — audio looper WAV export not supported.
+  Future<void> exportAudioLooperWavs(String gfPath, Map<String, dynamic> clips) async {}
+
   void dispose() {}
 }
 

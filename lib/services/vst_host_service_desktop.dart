@@ -72,6 +72,98 @@ class VstHostService {
     debugPrint('VstHostService: host created (version: ${_host!.getVersion()})');
   }
 
+  /// Exports every audio-looper clip as a 32-bit float stereo WAV sidecar
+  /// file inside `.gf.audio/` next to the project's `.gf` JSON.
+  ///
+  /// Called as the [AudioLooperEngine.wavExporter] callback on native
+  /// platforms.  Web falls through to the stub and silently no-ops.
+  ///
+  /// Reads native clip buffers through two different libraries depending on
+  /// platform: `libdart_vst_host.so` on Linux/macOS (via [VstHost]) and
+  /// `libnative-lib.so` on Android (via [AudioInputFFI]).  Both compile the
+  /// identical `audio_looper.cpp` source file, so the `dvh_alooper_*`
+  /// symbols behave the same way — the only difference is which handle
+  /// returns the raw `Pointer<Float>`.
+  ///
+  /// The pointers are wrapped as zero-copy [Float32List] views via
+  /// `ptr.asTypedList(length)` **before** being handed to [writeWavFile],
+  /// because `writeWavFile` takes its buffers as `dynamic` to keep
+  /// `dart:ffi` out of `wav_utils.dart` for web compatibility — and
+  /// indexing a raw `Pointer<Float>` through a `dynamic` receiver fails at
+  /// runtime (see v2.12.3 fix).
+  Future<void> exportAudioLooperWavs(
+      String gfPath, Map<String, AudioLooperClip> clips) async {
+    if (clips.isEmpty) return;
+    final isAndroid = Platform.isAndroid;
+    if (_host == null && !isAndroid) return;
+
+    final dir = Directory('$gfPath.audio');
+    if (!await dir.exists()) await dir.create(recursive: true);
+    final writtenFiles = <String>{};
+
+    for (final entry in clips.entries) {
+      final slotId = entry.key;
+      final clip = entry.value;
+      final int length;
+      final Float32List dataL;
+      final Float32List dataR;
+      if (isAndroid) {
+        length = AudioInputFFI().alooperGetLength(clip.nativeIdx);
+        if (length <= 0) continue;
+        final ptrL = AudioInputFFI().alooperGetDataL(clip.nativeIdx);
+        final ptrR = AudioInputFFI().alooperGetDataR(clip.nativeIdx);
+        if (ptrL == nullptr || ptrR == nullptr) {
+          debugPrint('VstHostService: skip loop_$slotId — native buffer null');
+          continue;
+        }
+        dataL = ptrL.asTypedList(length);
+        dataR = ptrR.asTypedList(length);
+      } else {
+        length = _host!.getAudioLooperLength(clip.nativeIdx);
+        if (length <= 0) continue;
+        final ptrL = _host!.getAudioLooperDataL(clip.nativeIdx);
+        final ptrR = _host!.getAudioLooperDataR(clip.nativeIdx);
+        if (ptrL == nullptr || ptrR == nullptr) {
+          debugPrint('VstHostService: skip loop_$slotId — native buffer null');
+          continue;
+        }
+        dataL = ptrL.asTypedList(length);
+        dataR = ptrR.asTypedList(length);
+      }
+
+      final filename = 'loop_$slotId.wav';
+      final wavPath = '${dir.path}/$filename';
+      try {
+        writeWavFile(
+          dataL: dataL,
+          dataR: dataR,
+          lengthFrames: length,
+          sampleRate: clip.sampleRate,
+          path: wavPath,
+        );
+        writtenFiles.add(filename);
+        debugPrint('VstHostService: exported $filename ($length frames)');
+      } catch (e) {
+        debugPrint('VstHostService: failed to export $filename: $e');
+      }
+    }
+
+    // Clean up orphan WAVs from deleted clips.
+    try {
+      await for (final entity in dir.list()) {
+        if (entity is File && entity.path.endsWith('.wav')) {
+          final name = entity.uri.pathSegments.last;
+          if (!writtenFiles.contains(name)) {
+            await entity.delete();
+            debugPrint('VstHostService: cleaned up orphan $name');
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('VstHostService: orphan cleanup failed: $e');
+    }
+  }
+
   /// Imports sidecar WAV files into native audio looper clip buffers.
   ///
   /// Called as the [AudioLooperEngine.wavImporter] callback on all native

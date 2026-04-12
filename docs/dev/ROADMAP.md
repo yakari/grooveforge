@@ -242,7 +242,8 @@ A read-only dashboard showing the current project's structure at a glance: every
 
 Shipped in v2.12.0 (Linux, cabled input routing, WAV persistence). These tasks extend coverage to Android/macOS and add polish features deferred from the initial release.
 
-- [ ] **Source bus selector**: pick which audio bus to capture (Master mix, or specific slot output) in `AudioLooperSlotUI`.
+- [x] **Source bus selector** (partial): `AudioLooperSlotUI` now ships a compact `_SourceSelector` dropdown that lets the user pick any audio-producing slot in the rack and rewrites the audio cables into the looper in one atomic operation (clear existing cables → connect `audioOutL/R → audioInL/R` of the selected source). The current source is derived from the `AudioGraph` every rebuild so there is no duplicated state. **Master mix capture is still deferred** — it requires a new native routing kind (the audio looper clip would need to read the final master mix buffer instead of a per-slot dry buffer), and every backend callback would need a new source-list branch. Tracked separately.
+- [ ] **Source bus selector — Master mix**: extend the `_SourceSelector` dropdown with a "Master mix" entry that captures the full post-master-mix buffer. Requires a new `dvh_alooper_set_capture_master` C API, a new clip state field, and matching fill-loop branches in `dart_vst_host_jack.cpp` / `dart_vst_host_audio_mac.cpp` / `oboe_stream_android.cpp`.
 - [ ] **Latency compensation**: measure round-trip latency via `jack_port_get_latency_range()`, shift `writeHead` back by that amount.
 - [ ] **Memory cap**: warn if total clip memory exceeds 256 MB (configurable in preferences).
 - [x] **l10n**: EN/FR ARB keys for all audio looper UI strings — waveform placeholders, transport tooltips, status chip labels all flow through `AppLocalizations` in `audio_looper_slot_ui.dart`.

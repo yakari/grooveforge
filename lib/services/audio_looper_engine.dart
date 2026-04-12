@@ -616,6 +616,22 @@ class AudioLooperEngine extends ChangeNotifier {
   Future<void> Function(String gfPath, Map<String, AudioLooperClip> clips)?
       wavImporter;
 
+  /// Platform-specific WAV exporter.  Symmetric to [wavImporter] — set by
+  /// splash_screen on native platforms to a function that reads PCM from the
+  /// native clip buffers and writes them as `loop_{slotId}.wav` sidecar
+  /// files alongside the `.gf` project path.
+  ///
+  /// Null on web; the engine checks for null before delegating so a web
+  /// build can be compiled without pulling `dart:ffi` into this file.
+  ///
+  /// Called from [ProjectService._exportAudioLooperWavs] which hands over
+  /// the gfPath and expects the callback to do the sidecar I/O. Keeping the
+  /// callback here (rather than in `ProjectService` directly) means the
+  /// `project_service.dart` file does not need to import `dart:ffi`, so the
+  /// web build's `dart2js` / `dart2wasm` compilation stays happy.
+  Future<void> Function(String gfPath, Map<String, AudioLooperClip> clips)?
+      wavExporter;
+
   // ── Polling ─────────────────────────────────────────────────────────────
 
   /// Starts or stops the poll timer based on whether any clip is active.

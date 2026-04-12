@@ -1724,6 +1724,36 @@ abstract class AppLocalizations {
   /// **'PAD'**
   String get audioLooperStatusStopping;
 
+  /// Label preceding the audio looper's source-selector dropdown — shows which instrument feeds the clip.
+  ///
+  /// In en, this message translates to:
+  /// **'Source'**
+  String get audioLooperSourceLabel;
+
+  /// Tooltip for the audio looper source-selector dropdown button.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick which instrument feeds this looper'**
+  String get audioLooperSourceTooltip;
+
+  /// Source-selector entry shown when no audio cable feeds the looper (recording would be silent).
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get audioLooperSourceNone;
+
+  /// Source-selector label when the current upstream slot cannot be matched to any known audio-producing plugin type — usually a stale reference to a removed slot.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown source'**
+  String get audioLooperSourceUnknown;
+
+  /// Source-selector label when the user has wired multiple upstream slots to the looper by hand from the back panel. Shown as a non-destructive informational state — selecting a new item from the dropdown still overrides it.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =2{Multiple (2 sources)} other{Multiple ({count} sources)}}'**
+  String audioLooperSourceMultiple(int count);
+
   /// No description provided for @addLooperAlreadyExists.
   ///
   /// In en, this message translates to:

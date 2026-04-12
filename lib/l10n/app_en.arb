@@ -433,6 +433,29 @@
   "@audioLooperStatusStopping": {
     "description": "Short status chip label for the audio looper STOPPING state (padding silence to the next bar boundary)."
   },
+  "audioLooperSourceLabel": "Source",
+  "@audioLooperSourceLabel": {
+    "description": "Label preceding the audio looper's source-selector dropdown — shows which instrument feeds the clip."
+  },
+  "audioLooperSourceTooltip": "Pick which instrument feeds this looper",
+  "@audioLooperSourceTooltip": {
+    "description": "Tooltip for the audio looper source-selector dropdown button."
+  },
+  "audioLooperSourceNone": "None",
+  "@audioLooperSourceNone": {
+    "description": "Source-selector entry shown when no audio cable feeds the looper (recording would be silent)."
+  },
+  "audioLooperSourceUnknown": "Unknown source",
+  "@audioLooperSourceUnknown": {
+    "description": "Source-selector label when the current upstream slot cannot be matched to any known audio-producing plugin type — usually a stale reference to a removed slot."
+  },
+  "audioLooperSourceMultiple": "{count, plural, =2{Multiple (2 sources)} other{Multiple ({count} sources)}}",
+  "@audioLooperSourceMultiple": {
+    "description": "Source-selector label when the user has wired multiple upstream slots to the looper by hand from the back panel. Shown as a non-destructive informational state — selecting a new item from the dropdown still overrides it.",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
   "addLooperAlreadyExists": "A MIDI Looper is already in the rack. Only one is allowed.",
   "addJamModeAlreadyExists": "A Jam Mode is already in the rack. Only one is allowed.",
   "looperRecord": "Record",
