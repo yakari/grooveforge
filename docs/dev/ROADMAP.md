@@ -1,9 +1,9 @@
 # GrooveForge Roadmap
 
-> **Current released version:** 2.10.0
-> **Next milestone:** 🔜 Audio Looper (PCM)
-> **Previous:** ✅ Per-project CC mappings (complete)
-> **Last updated:** 2026-04-08
+> **Current released version:** 2.12.0
+> **Next milestone:** 🔜 Phase Vocoder DSP Library
+> **Previous:** ✅ Audio Looper (PCM) (complete)
+> **Last updated:** 2026-04-11
 
 ---
 
@@ -24,10 +24,9 @@
 | 2.9.0 | Drum Generator | ✅ Complete | New Drum Generator features |
 | 2.10.0 | MIDI Looper rework | ✅ Complete | Remove chord detection; simplify engine + UI; bar-sync recording start |
 | 2.10.0 | PipeWire migration (Linux) | ✅ Complete | Replace direct ALSA with PipeWire/JACK; inter-app routing; lower latency |
-| TBD | Multi-USB audio (Android) | ✅ Complete | Device routing via `setDeviceId()`; built-in mic + USB output as reliable multi-device path |
-| **TBD** | **Per-project CC mappings** | **✅ Complete** | Slot-addressed CC control, per-project storage, effect bypass, channel-swap macro, transport/volume CC |
-| TBD | Audio Looper (PCM) | **🔜 In progress** | C++ core + Dart engine done; serialisation + UI remaining |
-| TBD | Phase Vocoder DSP Library | 🔜 After Audio Looper | Shared time-stretch + pitch-shift engine; enables looper tempo sync, harmonizer effect, vocoder NATURAL fix |
+| 2.11.0 | Multi-USB audio + CC mappings | ✅ Complete | USB device routing (Android), per-project CC storage, channel-swap macro, Linux packaging |
+| 2.12.0 | Audio Looper (PCM) | ✅ Complete | C++ RT core, Dart engine, sidecar WAV persistence, cabled input routing, waveform UI |
+| TBD | Phase Vocoder DSP Library | **🔜 Next** | Shared time-stretch + pitch-shift engine; enables looper tempo sync, harmonizer effect, vocoder NATURAL fix |
 | TBD | Audio Harmonizer | ⏸ After Phase Vocoder | Real-time pitch-shifted harmony voices using the shared phase vocoder |
 | TBD | Phase 8 (full) | ⏸ TBD | pub.dev publishing; plugin store; vocoder mk2 |
 | TBD | Phase 8b | ⏸ TBD | AudioUnit v3 bridge (macOS + iOS) |
@@ -239,6 +238,21 @@ A read-only dashboard showing the current project's structure at a glance: every
 
 - [ ] **Project overview panel**: modal or side-panel showing all loaded modules, their MIDI channels, inter-module links (audio cables, Jam follower relationships, CC mappings per slot), and a compact routing summary.
 
+### 🔊 Audio Looper — Remaining Polish + Multi-platform
+
+Shipped in v2.12.0 (Linux, cabled input routing, WAV persistence). These tasks extend coverage to Android/macOS and add polish features deferred from the initial release.
+
+- [ ] **Source bus selector**: pick which audio bus to capture (Master mix, or specific slot output) in `AudioLooperSlotUI`.
+- [ ] **Latency compensation**: measure round-trip latency via `jack_port_get_latency_range()`, shift `writeHead` back by that amount.
+- [ ] **Memory cap**: warn if total clip memory exceeds 256 MB (configurable in preferences).
+- [ ] **l10n**: EN/FR ARB keys for all audio looper UI strings.
+- [ ] **Android**: create Oboe audio stream that calls `dvh_alooper_process()` each buffer callback.
+- [ ] **Android**: wire `AudioLooperEngine` to the Oboe-based looper (replace null `host` path).
+- [ ] **Android**: per-clip source routing via Oboe bus renders (keyboard slot render functions).
+- [ ] **macOS**: integrate `dvh_alooper_process()` into `dart_vst_host_audio_mac.cpp` `dataCallback`.
+- [ ] **macOS**: per-clip source routing via CoreAudio render captures.
+- [ ] **All platforms**: ensure WAV sidecar persistence works on Android/macOS file paths.
+
 ### 📦 VST3 Bundles (Phase 3b — incomplete items)
 
 These tasks complete the distributable `.vst3` bundle story started in Phase 3b. They are prerequisites for listing GrooveForge plugins in DAW plugin managers on macOS and Windows.
@@ -253,7 +267,7 @@ These tasks complete the distributable `.vst3` bundle story started in Phase 3b.
 
 ---
 
-## 🎙️ TBD — Multi-USB Audio Device Routing (Android)
+## ✅ 🎙️ 2.11.0 — Multi-USB Audio Device Routing (Android)
 
 Android's default USB audio HAL binds to a single USB audio device per direction (input/output). When a user plugs a USB hub with both a jack output (for an amp/speakers) and a USB-C microphone, the system typically only activates one of them. This is an Android audio policy limitation, not a USB protocol issue.
 
@@ -321,7 +335,7 @@ Given the HAL limitation, the multi-USB feature pivots to:
 
 ---
 
-## 🎛️ TBD — Per-Project CC Mappings 🔜 Next
+## ✅ 🎛️ 2.11.0 — Per-Project CC Mappings
 
 GrooveForge's CC mapping system is currently limited: ~12 system actions (next/prev soundfont, looper start/stop, mute, jam toggle), standard GM CC remapping, and global storage in SharedPreferences. This milestone transforms CC mappings into a comprehensive, per-project, slot-addressed control surface.
 
@@ -530,124 +544,7 @@ Static Dart registry (`CcParamRegistry`) — not embedded in `.gfpd` descriptors
 
 ---
 
-## 🔊 TBD — Audio Looper (PCM) 🔜 Next
-
-> Builds on the simplified MIDI looper. Adds PCM recording alongside or instead of MIDI.
-
-The Audio Looper extends the looper slot concept from MIDI events to raw PCM audio. This lets users layer live audio (vocals, guitar, synth output) the same way they layer MIDI — arm, record on the next downbeat, overdub, reverse. It also enables a hardware-style workflow where the entire rack output can be captured into a loop clip, not just MIDI note data.
-
-### Architecture — triple-layer design
-
-```mermaid
-graph TD
-    subgraph Native["C++ — RT audio thread (zero allocation)"]
-        CLIP[ALooperClip\npre-allocated float* L/R\natomic state/head/length]
-        PROC[dvh_alooper_process\ncalled every JACK block]
-        PROC -->|record from preMix| CLIP
-        PROC -->|playback into mix| MIX[Master Mix Bus]
-    end
-
-    subgraph Dart["Dart — control plane"]
-        ENGINE[AudioLooperEngine\nChangeNotifier]
-        ENGINE -->|FFI: set_state, set_volume| CLIP
-        ENGINE -->|30Hz poll: get_state, get_head| CLIP
-        ENGINE -->|toJson / loadFromJson| PROJ[ProjectService]
-    end
-
-    subgraph UI["Flutter — widgets"]
-        CARD[AudioLooperSlotUI]
-        WAVE[Waveform CustomPainter]
-        CARD --> ENGINE
-        WAVE -->|FFI: get_data_l/r| CLIP
-    end
-```
-
-**Recording tap point**: `preMixL/R` snapshot taken BEFORE looper playback injection → prevents overdub feedback.
-
-**Bar-sync**: C++ callback detects downbeat crossing at sample precision using transport BPM/timeSig atomics (broadcast from `dvh_set_transport`).
-
-**Serialisation**: PCM data as sidecar `.wav` files alongside `.gf` JSON. Metadata (volume, reversed, target length) in JSON.
-
-### 🔊 Phase 1 — C++ core (RT-safe native layer)
-
-- [x] `audio_looper.h` — `ALooperClip` struct, `ALooperState` enum, 14-function C API (`dvh_alooper_create/destroy/set_state/get_state/set_volume/set_reversed/set_source/set_length_beats/get_data_l/get_data_r/get_length/get_capacity/get_head/memory_used`).
-- [x] `audio_looper.cpp` — clip lifecycle (pre-allocated `float*` L/R, max 60s × 48kHz ≈ 22MB per clip, pool of 8), RT process function covering all 5 states (idle/armed/recording/playing/overdubbing).
-- [x] Bar-sync detection in `dvh_alooper_process`: scans block for exact downbeat sample, transitions armed→recording at that frame.
-- [x] Recording auto-stop: when `targetLengthBeats > 0`, recording→playing transition fires at the computed frame count.
-- [x] Overdub: single-pass read-add-write (old buffer → output, new input summed → write back), no data race by construction (single-threaded RT callback).
-- [x] JACK callback integration: `preMixL/R` snapshot + `dvh_alooper_process` call injected between master mix accumulation and soft-clip in `_jackProcessCallback`.
-- [x] Transport broadcast: `dvh_jack_update_transport()` pushes BPM/timeSig/positionInBeats atomics from `dvh_set_transport()` to all JACK `AudioState` instances.
-- [x] Non-Linux stubs for all 14 C API functions + transport broadcast.
-
-### 🔊 Phase 2 — Dart FFI bindings + engine
-
-- [x] 14 FFI bindings in `bindings.dart` (`alooperCreate`, `alooperDestroy`, `alooperSetState`, etc.) following the existing `lookupFunction` pattern.
-- [x] 14 high-level wrapper methods on `VstHost` in `host.dart` (`createAudioLooperClip`, `setAudioLooperState`, `getAudioLooperDataL`, etc.).
-- [x] `AudioLooperEngine` (`ChangeNotifier`) in `lib/services/audio_looper_engine.dart` — clip creation/destruction, state transitions (arm/stop/play/overdub/clear), volume/reverse control, 30Hz native state polling, `toJson`/`loadFromJson`, `onDataChanged` callback, `memoryUsedBytes` getter.
-- [x] `AudioLooperClip` model — wraps native clip index, exposes `durationSeconds`, `progress`, serialisation.
-- [x] `VstHostService.host` public getter exposed for the looper engine.
-
-### 🔊 Phase 3 — Serialisation (sidecar WAV)
-
-- [x] `wav_utils.dart` — `writeWavFile()`: writes 32-bit float stereo WAV from native `Pointer<Float>` L/R + length. Standard WAV header (44 bytes) + interleaved data chunk.
-- [x] `wav_utils.dart` — `readWavFile()`: reads 32-bit float stereo WAV, returns deinterleaved `Float32List` pair + sample rate. Validates RIFF/WAVE/fmt/data chunks.
-- [x] `dvh_alooper_load_data()` C API + FFI binding: copies Dart-side `Float32List` into native clip buffers for WAV import.
-- [x] `.gf.audio/` directory management in `ProjectService`: `_audioDir()` creates sidecar directory, `_exportAudioLooperWavs()` writes clips as `loop_{slotId}.wav`, cleans up orphan WAVs from deleted clips.
-- [x] `ProjectService._writeGfFile` extended: calls `_exportAudioLooperWavs()` after JSON write.
-- [x] `ProjectService._readGfFile` extended: calls `_importAudioLooperWavs()` after restoring JSON metadata — allocates native memory, copies WAV data into clip buffers via `loadAudioLooperData()`.
-- [x] `audioLooperSessions` key in `.gf` JSON — clip metadata (label, volume, reversed, targetLengthBeats, sampleRate).
-- [x] `AudioLooperEngine` registered as `ChangeNotifierProxyProvider` in `main.dart`.
-- [x] `ProjectService.audioLooperEngine` reference set in `splash_screen.dart` (same pattern as `ccMappingService`).
-- [x] Autosave hook: `AudioLooperEngine.onDataChanged` wired to `ProjectService.autosave` in `splash_screen.dart`.
-
-### 🔊 Phase 4 — UI
-
-- [x] `AudioLooperPluginInstance` model with `type: 'audio_looper'` JSON serialisation, registered in `PluginInstance.fromJson`.
-- [x] `AudioLooperSlotUI` widget — rack card with dark hardware-style design, waveform display, transport strip, volume row, status chip.
-- [x] Waveform preview: `_WaveformPainter` (`CustomPainter`) draws RMS envelope from native `float*` via FFI (decimated to ~300 bins), playback head line, recording progress indicator.
-- [x] Clip controls: Arm/Record, Play/Stop, Overdub, Clear, Reverse toggle — all routed through `AudioLooperEngine`.
-- [x] Registered in `add_plugin_sheet.dart` as "Audio Looper" with red accent icon, EN/FR l10n keys.
-- [x] Registered in `rack_slot_widget.dart` — `_buildBody` switch + `_shouldShowNoteGlow` exclusion.
-- [ ] Source bus selector: pick which audio bus to capture (Master mix, or specific slot output).
-- [x] Progress indicator: playback head position rendered as white vertical line on waveform.
-- [x] Memory usage indicator: clip memory shown in the volume row as compact label (KB/MB).
-
-### 🔊 Phase 5 — Polish
-
-- [ ] Latency compensation: measure round-trip latency via `jack_port_get_latency_range()`, shift `writeHead` back by that amount.
-- [ ] Memory cap: warn if total clip memory exceeds 256 MB (configurable in preferences).
-- [ ] l10n: EN/FR ARB keys for all audio looper UI strings.
-
-### 🖥️ Phase 6 — Multi-platform (Android + macOS)
-
-The audio looper is currently Linux-only (JACK callback). It must be ported to:
-
-| Platform | Audio backend | Integration point |
-|----------|--------------|-------------------|
-| **Android** | Oboe/AAudio | Integrate `dvh_alooper_process()` into the Oboe render callback or create a standalone Oboe stream |
-| **macOS** | CoreAudio/miniaudio | Integrate into `dart_vst_host_audio_mac.cpp` callback (same pattern as Linux JACK) |
-
-- [ ] Android: create Oboe audio stream that calls `dvh_alooper_process()` each buffer callback.
-- [ ] Android: wire `AudioLooperEngine` to the Oboe-based looper (replace null `host` path).
-- [ ] Android: per-clip source routing via Oboe bus renders (keyboard slot render functions).
-- [ ] macOS: integrate `dvh_alooper_process()` into `dart_vst_host_audio_mac.cpp` `dataCallback`.
-- [ ] macOS: per-clip source routing via CoreAudio render captures.
-- [ ] All platforms: ensure WAV sidecar persistence works on Android/macOS file paths.
-
-### 🧪 Phase 7 — Testing
-
-- [ ] Record 4 bars of keyboard output → seamless loop playback.
-- [ ] Overdub adds audio without gaps or feedback.
-- [ ] Reverse plays clip backwards correctly.
-- [ ] Memory warning appears when clips exceed threshold.
-- [ ] Save/load project → clips preserved as sidecar WAV files.
-- [ ] Delete a clip → WAV file cleaned up on next save.
-- [ ] Android: record + playback with bar-sync (Oboe backend).
-- [ ] macOS: record + playback with bar-sync (CoreAudio backend).
-
----
-
-## 🎛️ TBD — Phase Vocoder DSP Library 🔜 After Audio Looper
+## 🎛️ TBD — Phase Vocoder DSP Library 🔜 Next
 
 > A shared, allocation-free C library for high-quality time-stretching and pitch-shifting of arbitrary audio. Enables three downstream features: audio looper tempo sync, real-time harmonizer effect, and a fix for the vocoder's choppy NATURAL mode.
 
@@ -908,5 +805,7 @@ sequenceDiagram
 | Drum Generator | 2.9.0 | New Drum Generator features and improvements |
 | MIDI Looper rework | 2.10.0 | Remove chord detection; simplify engine + UI; bar-sync recording start |
 | PipeWire migration | 2.10.0 | Replace ALSA with JACK client API; inter-app routing; sub-10 ms latency on PipeWire |
+| Multi-USB audio + CC mappings | 2.11.0 | USB device routing (Android), per-project CC storage, channel-swap macro, Linux packaging (.rpm/.pkg.tar.zst/.flatpak) |
+| Audio Looper (PCM) | 2.12.0 | C++ RT core, Dart engine, cabled input routing, sidecar WAV persistence, waveform UI, CC bindings, vocoder JACK integration |
 
 Full implementation notes for completed phases are preserved in `git log` and the per-version `CHANGELOG.md`.

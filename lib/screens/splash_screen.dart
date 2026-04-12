@@ -2,6 +2,10 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:grooveforge_plugin_api/grooveforge_plugin_api.dart';
 import 'package:provider/provider.dart';
+import '../models/audio_looper_plugin_instance.dart';
+import '../models/drum_generator_plugin_instance.dart';
+import '../models/gfpa_plugin_instance.dart';
+import '../models/looper_plugin_instance.dart';
 import '../models/vst3_plugin_instance.dart';
 import '../plugins/gf_keyboard_plugin.dart';
 import '../plugins/gf_jam_mode_plugin.dart';
@@ -14,6 +18,7 @@ import '../services/audio_looper_engine.dart';
 import '../services/cc_mapping_service.dart';
 import '../services/drum_generator_engine.dart';
 import '../services/looper_engine.dart';
+import '../services/native_instrument_controller.dart';
 import '../services/project_service.dart';
 import '../services/rack_state.dart';
 import '../services/vst_host_service.dart';
@@ -88,6 +93,40 @@ class _SplashScreenState extends State<SplashScreen> {
         rack, engine, transport, audioGraph, looperEngine);
     debugPrint('SplashScreen: loadOrInitDefault returned');
 
+    // ── Eager slot initialisation ───────────────────────────────────────
+    //
+    // The rack is a lazy ReorderableListView.builder — off-screen slot
+    // widgets never mount, so any audio-critical work that used to live in
+    // `initState()` (session registration, native resource allocation, DSP
+    // wiring) would be silently skipped until the user scrolled to the slot.
+    // That turned CC-triggered actions into no-ops for below-the-fold slots.
+    //
+    // Fix: walk the restored rack here and bring every module up to a fully
+    // playable state BEFORE the first frame ever renders. Each slot UI then
+    // becomes purely cosmetic — mounting or unmounting the widget never
+    // affects audio.
+    for (final plugin in rack.plugins) {
+      if (plugin is DrumGeneratorPluginInstance) {
+        drumEngine.ensureSession(plugin.id, plugin);
+      } else if (plugin is LooperPluginInstance) {
+        looperEngine.ensureSession(plugin.id);
+      } else if (plugin is GFpaPluginInstance) {
+        // Global-singleton monophonic instruments must exist on the native
+        // side as soon as the project is loaded — the rack is a lazy list,
+        // so the slot widget's initState may never fire. See
+        // [NativeInstrumentController] for the full rationale.
+        switch (plugin.pluginId) {
+          case 'com.grooveforge.stylophone':
+            NativeInstrumentController.instance.onStylophoneAdded(plugin);
+          case 'com.grooveforge.theremin':
+            NativeInstrumentController.instance.onThereminAdded(plugin);
+        }
+      }
+    }
+    // Audio looper: finalizeLoad() iterates every pending-load slot and
+    // calls createClip on the native host, which is only valid after the
+    // VstHostService is initialised. It runs later, right after vstSvc.startAudio().
+
     // Register autosave callbacks only AFTER the initial project load so
     // that every subsequent mutation (new slots, cable changes, etc.) is
     // persisted, without risking a race condition during restore.
@@ -148,6 +187,35 @@ class _SplashScreenState extends State<SplashScreen> {
       // audioGraph.loadFromJson and _readGfFile) return early because _host
       // is still null at that point.  This call wires everything up: GFPA
       // insert chains, master renders, audio looper sources, and capture modes.
+      vstSvc.syncAudioRouting(audioGraph, rack.plugins);
+
+      // Audio looper: now that the JACK host is live we can materialise the
+      // pending clips (metadata was parsed earlier from the .gf file but
+      // creation was deferred because the native host wasn't ready).
+      if (audioLooper.hasPendingLoad) {
+        await audioLooper.finalizeLoad();
+      }
+      // Also cover the (rare) case where a brand-new audio looper slot was
+      // added by initDefaults — it will have a plugin entry but no pending
+      // load and no clip yet. Loop and create any missing clips.
+      for (final plugin in rack.plugins) {
+        if (plugin is AudioLooperPluginInstance &&
+            !audioLooper.clips.containsKey(plugin.id)) {
+          audioLooper.createClip(plugin.id);
+        }
+      }
+
+      // Audio effect descriptor slots (reverb, delay, EQ, …): create the
+      // per-slot Dart plugin, register its native DSP handle and seed every
+      // parameter into the native state. Must happen AFTER startAudio() so
+      // the VST host is live. See RackState.initializeAudioEffects for the
+      // full rationale.
+      await rack.initializeAudioEffects();
+
+      // Re-sync routing now that all native DSP handles exist — the
+      // syncAudioRouting call above ran before registerGfpaDsp for slots
+      // with audio effects, so the insert chain needs another pass to pick
+      // up the freshly-created handles.
       vstSvc.syncAudioRouting(audioGraph, rack.plugins);
     }
 

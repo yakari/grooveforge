@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import '../models/drum_generator_plugin_instance.dart';
 import '../models/gfpa_plugin_instance.dart';
 import '../models/keyboard_display_config.dart';
+import '../models/audio_looper_plugin_instance.dart';
 import '../models/looper_plugin_instance.dart';
 import '../models/plugin_instance.dart';
 import '../models/grooveforge_keyboard_plugin.dart';
@@ -17,6 +18,7 @@ import 'audio_graph.dart';
 import 'cc_mapping_service.dart';
 import 'cc_param_registry.dart';
 import 'drum_pattern_registry.dart';
+import 'native_instrument_controller.dart';
 import 'transport_engine.dart';
 import 'vst_host_service.dart';
 import 'package:grooveforge_plugin_api/grooveforge_plugin_api.dart';
@@ -49,6 +51,27 @@ class RackState extends ChangeNotifier {
   /// unmounts. The apply method [applyMidiFxForChannel] reads from this map
   /// to transform events before dispatch.
   final Map<String, GFMidiDescriptorPlugin> _midiFxInstances = {};
+
+  /// Initialized [GFDescriptorPlugin] instances for descriptor-backed **audio
+  /// effects** (reverb, delay, EQ, compressor, chorus, wah, …), keyed by rack
+  /// slot ID.
+  ///
+  /// The rack is a lazy [ReorderableListView.builder] — off-screen slot
+  /// widgets never mount, so any audio-critical work done in their
+  /// `initState` (creating the Dart plugin, initialising the native DSP,
+  /// syncing saved parameters) would silently skip. We therefore own the
+  /// audio-effect plugin lifetime here in [RackState] and populate this map
+  /// eagerly at project-load and add-plugin time.
+  final Map<String, GFDescriptorPlugin> _audioEffectInstances = {};
+
+  /// Param-change notifier per audio-effect slot.
+  ///
+  /// Shared ownership: [RackState] creates the notifier alongside the plugin
+  /// and subscribes [_onAudioEffectParamChanged]; the slot widget reads it
+  /// out and hands it to [GFDescriptorPluginUI] so knob turns increment it
+  /// exactly as before. The listener writes `plugin.getState()` back into the
+  /// model, pushes the changes to the native DSP, and schedules an autosave.
+  final Map<String, ValueNotifier<int>> _audioEffectParamNotifiers = {};
 
   /// Called after every mutation; use to trigger autosave.
   VoidCallback? onChanged;
@@ -270,6 +293,9 @@ class RackState extends ChangeNotifier {
       plugin.dispose();
     }
     _midiFxInstances.clear();
+    for (final slotId in _audioEffectInstances.keys.toList()) {
+      _disposeAudioEffectPlugin(slotId);
+    }
     super.dispose();
   }
 
@@ -287,6 +313,10 @@ class RackState extends ChangeNotifier {
       plugin.dispose();
     }
     _midiFxInstances.clear();
+    // Dispose any existing audio-effect plugin instances too.
+    for (final slotId in _audioEffectInstances.keys.toList()) {
+      _disposeAudioEffectPlugin(slotId);
+    }
 
     _plugins.clear();
     for (final entry in pluginsJson) {
@@ -410,6 +440,19 @@ class RackState extends ChangeNotifier {
       // Eagerly init so the MIDI FX is available immediately, even before the
       // slot widget scrolls into view.
       _initMidiFxPlugin(plugin); // fire-and-forget; errors caught inside
+      // Same rationale for descriptor-backed audio effects — see
+      // [_initAudioEffectPlugin] for the full explanation.
+      _initAudioEffectPlugin(plugin); // fire-and-forget
+      // Global-singleton monophonic instruments (stylophone, theremin) have
+      // their native oscillator lifetime managed by [NativeInstrumentController]
+      // so it stays alive while the slot is in the rack — independent of
+      // whether the widget is currently mounted by the lazy list builder.
+      switch (plugin.pluginId) {
+        case 'com.grooveforge.stylophone':
+          NativeInstrumentController.instance.onStylophoneAdded(plugin);
+        case 'com.grooveforge.theremin':
+          NativeInstrumentController.instance.onThereminAdded(plugin);
+      }
     }
     _syncJamFollowerMapToEngine();
     // Sync native routing: new slot may alter the topological sort order.
@@ -425,6 +468,21 @@ class RackState extends ChangeNotifier {
   void removePlugin(String id) {
     // Dispose and remove any eagerly-initialised MIDI FX plugin for this slot.
     _midiFxInstances.remove(id)?.dispose();
+    // Same for eagerly-initialised audio-effect plugins (also unregisters
+    // the native DSP handle).
+    _disposeAudioEffectPlugin(id);
+    // Global-singleton monophonic instruments — decrement ref count and, on
+    // the last slot removed, stop the native oscillator. See
+    // [NativeInstrumentController] for rationale.
+    final removed = _findById(id);
+    if (removed is GFpaPluginInstance) {
+      switch (removed.pluginId) {
+        case 'com.grooveforge.stylophone':
+          NativeInstrumentController.instance.onStylophoneRemoved();
+        case 'com.grooveforge.theremin':
+          NativeInstrumentController.instance.onThereminRemoved();
+      }
+    }
 
     // Clear references to the removed slot on all dependent plugins.
     for (final p in _plugins) {
@@ -1047,6 +1105,12 @@ class RackState extends ChangeNotifier {
       return;
     }
 
+    // ── Audio Looper special params ────────────────────────────────────
+    if (plugin is AudioLooperPluginInstance) {
+      onAudioLooperParamCc?.call(slotId, paramKey);
+      return;
+    }
+
     // ── Vocoder special params ─────────────────────────────────────────
     if (plugin is GFpaPluginInstance &&
         plugin.pluginId == 'com.grooveforge.vocoder') {
@@ -1113,6 +1177,12 @@ class RackState extends ChangeNotifier {
   /// Callback for drum pattern cycling. Wired by [RackScreen] to
   /// [DrumGeneratorEngine.loadBuiltinPattern].
   void Function(String slotId, String patternId)? onDrumPatternCycle;
+
+  /// Callback for audio looper CC actions (slot-addressed loop button / stop).
+  ///
+  /// Wired by [RackScreen] to [AudioLooperEngine.looperButtonPress] and
+  /// [AudioLooperEngine.stop].
+  void Function(String slotId, String paramKey)? onAudioLooperParamCc;
 
   /// Handles CC for Looper slot-addressed params (loop button, stop).
   ///
@@ -1294,6 +1364,137 @@ class RackState extends ChangeNotifier {
       debugPrint('[RackState] MIDI FX init failed for ${instance.id}: $e');
     }
   }
+
+  // ─── Audio effect instance registry ────────────────────────────────────
+
+  /// Eagerly initialise every descriptor-backed **audio effect** slot that is
+  /// currently in the rack.
+  ///
+  /// Must be called from the splash-screen startup sequence AFTER
+  /// [VstHostService.startAudio] has brought the native host up — the
+  /// `registerGfpaDsp` call inside [_initAudioEffectPlugin] will no-op
+  /// silently while `_host` is still null.
+  ///
+  /// Idempotent: already-initialised slots are skipped.
+  Future<void> initializeAudioEffects() async {
+    for (final plugin in _plugins) {
+      if (plugin is GFpaPluginInstance &&
+          !_audioEffectInstances.containsKey(plugin.id)) {
+        await _initAudioEffectPlugin(plugin);
+      }
+    }
+  }
+
+  /// Eagerly initialise a [GFDescriptorPlugin] for [instance], register its
+  /// native DSP, and wire a listener that keeps the rack model, the native
+  /// DSP and the autosave pipeline in sync on every knob change.
+  ///
+  /// Returns immediately for plugin IDs that are not audio-effect descriptors
+  /// (e.g. MIDI FX, instruments, or unknown).
+  ///
+  /// This replaces the work that used to live in
+  /// `GFpaDescriptorSlotUI._initPlugin()` inside the widget's `initState` —
+  /// which was skipped whenever the slot was scrolled off-screen (lazy list).
+  Future<void> _initAudioEffectPlugin(GFpaPluginInstance instance) async {
+    final registered = GFPluginRegistry.instance.findById(instance.pluginId);
+    if (registered is! GFDescriptorPlugin) return;
+
+    // A fresh per-slot Dart plugin so two reverb slots never share knob state.
+    final plugin = GFDescriptorPlugin(registered.descriptor);
+    try {
+      await plugin.initialize(
+        const GFPluginContext(sampleRate: 44100, maxFramesPerBlock: 512),
+      );
+      plugin.loadState(Map<String, dynamic>.from(instance.state));
+    } catch (e) {
+      debugPrint('[RackState] audio effect init failed for ${instance.id}: $e');
+      return;
+    }
+
+    _audioEffectInstances[instance.id] = plugin;
+
+    // Register the matching native C++ DSP so the JACK/Oboe insert chain can
+    // call into it. Guarded: if the symbol is missing (e.g. outdated .so) we
+    // fall back to UI-only mode so the rest of the rack keeps producing sound.
+    try {
+      VstHostService.instance.registerGfpaDsp(instance.id, instance.pluginId);
+      _syncAudioEffectParamsToNative(instance.id);
+    } catch (e) {
+      debugPrint('[RackState] registerGfpaDsp unavailable for ${instance.id} — $e');
+    }
+
+    // One param notifier per slot — the UI widget bumps this on every knob
+    // turn. Listener below writes the state back and pushes to native.
+    final notifier = ValueNotifier<int>(0);
+    notifier.addListener(() => _onAudioEffectParamChanged(instance.id));
+    _audioEffectParamNotifiers[instance.id] = notifier;
+
+    notifyListeners();
+  }
+
+  /// Called by the slot UI whenever a knob moves (via the shared param
+  /// notifier). Reads the full parameter map from the Dart plugin, writes it
+  /// back into the rack-model state while preserving meta-keys (`__bypass`
+  /// etc.), pushes every parameter to the native DSP, and marks the project
+  /// dirty so the debounced autosave picks it up.
+  void _onAudioEffectParamChanged(String slotId) {
+    final plugin = _audioEffectInstances[slotId];
+    if (plugin == null) return;
+    final instance = _findById(slotId);
+    if (instance is! GFpaPluginInstance) return;
+
+    // Snapshot meta-keys that live outside the declared parameter space.
+    final bypass = instance.state['__bypass'];
+    instance.state
+      ..clear()
+      ..addAll(plugin.getState());
+    if (bypass != null) instance.state['__bypass'] = bypass;
+
+    _syncAudioEffectParamsToNative(slotId);
+    markDirty();
+  }
+
+  /// Push every parameter on the audio-effect plugin for [slotId] to its
+  /// native DSP counterpart.
+  ///
+  /// Each normalised `[0,1]` value is converted to the parameter's declared
+  /// physical range before the FFI call, matching what the widget used to do.
+  void _syncAudioEffectParamsToNative(String slotId) {
+    final plugin = _audioEffectInstances[slotId];
+    if (plugin == null) return;
+    final vst = VstHostService.instance;
+    for (final p in plugin.descriptor.parameters) {
+      final norm = plugin.getParameter(p.paramId);
+      final physical = p.min + norm * (p.max - p.min);
+      vst.setGfpaDspParam(slotId, p.id, physical);
+    }
+  }
+
+  /// Tear down the audio-effect plugin owned by [slotId] (if any): disposes
+  /// the Dart plugin, unregisters the native DSP, and disposes the shared
+  /// param notifier.
+  void _disposeAudioEffectPlugin(String slotId) {
+    _audioEffectParamNotifiers.remove(slotId)?.dispose();
+    final plugin = _audioEffectInstances.remove(slotId);
+    if (plugin != null) {
+      try {
+        plugin.dispose();
+      } catch (_) {}
+      VstHostService.instance.unregisterGfpaDsp(slotId);
+    }
+  }
+
+  /// Returns the eagerly-initialised audio-effect plugin for [slotId], or
+  /// null if this slot is not an audio effect or has not finished
+  /// initialising yet.
+  GFDescriptorPlugin? audioEffectInstanceForSlot(String slotId) =>
+      _audioEffectInstances[slotId];
+
+  /// Returns the shared param-change notifier for [slotId]. The slot UI
+  /// widget hands this to [GFDescriptorPluginUI] so knob turns funnel back
+  /// through [_onAudioEffectParamChanged].
+  ValueNotifier<int>? audioEffectParamNotifierForSlot(String slotId) =>
+      _audioEffectParamNotifiers[slotId];
 
   /// Returns the MIDI channel index (0-based) of the first configured target
   /// slot for [instance], or 0 if no target is set.

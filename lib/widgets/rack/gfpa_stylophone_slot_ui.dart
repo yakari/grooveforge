@@ -57,29 +57,13 @@ class _GFpaStyloPhoneSlotUIState extends State<GFpaStyloPhoneSlotUI> {
   static const int _numKeys = 25;
 
   // ─── Lifecycle ────────────────────────────────────────────────────────────
-
-  @override
-  void initState() {
-    super.initState();
-    // Start the native C oscillator for this slot.
-    AudioInputFFI().styloStart();
-    // Sync waveform if it was persisted from a previous session.
-    final saved = _waveform;
-    if (saved != 0) {
-      AudioInputFFI().styloSetWaveform(saved);
-    }
-    // Sync vibrato if it was persisted from a previous session.
-    final savedVib = _vibrato;
-    if (savedVib > 0.0) AudioInputFFI().styloSetVibrato(savedVib);
-  }
-
-  @override
-  void dispose() {
-    // Silence and stop the native device before releasing resources.
-    AudioInputFFI().styloNoteOff();
-    AudioInputFFI().styloStop();
-    super.dispose();
-  }
+  //
+  // Native-oscillator start/stop is owned by [NativeInstrumentController] and
+  // keyed to the slot's presence in the rack — NOT to this widget's mount
+  // status. The rack is a lazy [ReorderableListView.builder], so if we did
+  // `styloStart()` in `initState` / `styloStop()` in `dispose`, scrolling the
+  // slot off-screen would silence the instrument entirely. See
+  // [RackState.addPlugin] / [RackState.removePlugin] for the real wiring.
 
   // ─── State helpers ────────────────────────────────────────────────────────
 

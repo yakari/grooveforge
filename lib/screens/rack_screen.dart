@@ -241,6 +241,16 @@ class _RackScreenState extends State<RackScreen> {
       context.read<DrumGeneratorEngine>().loadBuiltinPattern(slotId, patternId);
     };
 
+    // Audio Looper slot-addressed CC actions.
+    _rackState.onAudioLooperParamCc = (slotId, paramKey) {
+      switch (paramKey) {
+        case 'loop_button':
+          audioLooperEngine.looperButtonPress(slotId);
+        case 'stop':
+          audioLooperEngine.stop(slotId);
+      }
+    };
+
     // Global CC actions (system volume).
     _engine.onGlobalCc = (action, ccValue) {
       switch (action) {
@@ -382,6 +392,7 @@ class _RackScreenState extends State<RackScreen> {
     _engine.onSwapSlots = null;
     _engine.onAudioLooperSystemAction = null;
     _rackState.onDrumPatternCycle = null;
+    _rackState.onAudioLooperParamCc = null;
     _transportDebounce?.cancel();
     _swapDebounce?.cancel();
     _autoScrollTimer?.cancel();

@@ -368,11 +368,29 @@ class CcParamRegistry {
 
   // ── Looper ─────────────────────────────────────────────────────────────
 
-  /// Looper — loop button and stop mapped as CC-triggered actions.
+  /// MIDI Looper — loop button and stop mapped as CC-triggered actions.
   static const List<CcParamEntry> looper = [
     CcParamEntry(
       paramKey: 'loop_button',
       displayName: 'Loop Button (Record/Play/Overdub)',
+      defaultMode: CcParamMode.toggle,
+    ),
+    CcParamEntry(
+      paramKey: 'stop',
+      displayName: 'Stop',
+      defaultMode: CcParamMode.toggle,
+    ),
+  ];
+
+  // ── Audio Looper ──────────────────────────────────────────────────────
+
+  /// Audio Looper — loop button (arm/record/play/overdub cycle) and stop,
+  /// mirroring the MIDI looper CC surface but routed to
+  /// [AudioLooperEngine] instead.
+  static const List<CcParamEntry> audioLooper = [
+    CcParamEntry(
+      paramKey: 'loop_button',
+      displayName: 'Loop Button (Arm/Record/Play/Overdub)',
       defaultMode: CcParamMode.toggle,
     ),
     CcParamEntry(
@@ -428,5 +446,6 @@ class CcParamRegistry {
     '_gf_keyboard': gfKeyboard,
     '_drum_generator': drumGenerator,
     '_looper': looper,
+    '_audio_looper': audioLooper,
   };
 }

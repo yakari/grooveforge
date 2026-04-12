@@ -173,10 +173,6 @@ class AudioLooperEngine extends ChangeNotifier {
     if (_useAndroidPath) { AudioInputFFI().alooperSetBarSync(idx, e); }
     else { VstHostService.instance.host?.setAudioLooperBarSync(idx, e); }
   }
-  void _nSetLengthBeats(int idx, double b) {
-    if (_useAndroidPath) { AudioInputFFI().alooperSetLengthBeats(idx, b); }
-    else { VstHostService.instance.host?.setAudioLooperLengthBeats(idx, b); }
-  }
   int _nGetLength(int idx) {
     if (_useAndroidPath) return AudioInputFFI().alooperGetLength(idx);
     return VstHostService.instance.host?.getAudioLooperLength(idx) ?? 0;

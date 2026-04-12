@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.12.1] - 2026-04-12
+
+### Added
+- **Audio Looper — CC assign button**: the audio looper slot now has the per-slot CC assign button (settings remote icon) in its header, matching all other modules. Supports "Loop Button" (arm/record/play/overdub cycle) and "Stop" as CC-mappable parameters via the standard `SlotCcAssignDialog` with learn mode.
+
+### Fixed
+- **Rack modules silent until scrolled into view**: the rack is a lazy `ReorderableListView.builder`, so any audio-critical work that lived inside a slot widget's `initState()` — session registration, native resource allocation, DSP handle creation, Android AAudio bus wiring — was silently skipped whenever the slot was off-screen. A CC-mapped "start" action aimed at a below-the-fold module would launch the transport but produce silence until the user manually scrolled to the slot. Every audio-producing module type was affected:
+  - **Drum Generator**: session registration (`DrumGeneratorEngine.ensureSession`) now runs eagerly in `SplashScreen` for every persisted drum slot, before the first frame renders.
+  - **MIDI Looper**: same treatment — `LooperEngine.ensureSession` is called eagerly for every persisted looper slot.
+  - **Audio Looper (PCM)**: `AudioLooperEngine.finalizeLoad` is now invoked eagerly in `SplashScreen` right after `vstSvc.startAudio()` so native clips exist before the widget is ever mounted; any missing clips are created in a second pass for brand-new slots.
+  - **GFPA audio effect descriptors** (reverb, delay, EQ, compressor, chorus, wah): plugin ownership moved out of `GFpaDescriptorSlotUI` into `RackState`. New `_audioEffectInstances` registry + `initializeAudioEffects()` is called from `SplashScreen` after the VST host is live. `RackState` now owns the `GFDescriptorPlugin` lifetime, the native DSP handle, and the shared param notifier; the widget is purely cosmetic and reads everything via `audioEffectInstanceForSlot` / `audioEffectParamNotifierForSlot`, mirroring the MIDI FX pattern.
+  - **Stylophone / Theremin**: new `NativeInstrumentController` service ref-counts the global-singleton native oscillators against rack slot presence. `RackState.addPlugin` / `removePlugin` bring the native synth up/down — not the widget. `initState` / `dispose` no longer touch `AudioInputFFI.styloStart/Stop` or `thereminStart/Stop` / Android AAudio bus, so scrolling the slot off-screen no longer silences the instrument.
+
 ## [2.12.0] - 2026-04-11
 
 ### Added

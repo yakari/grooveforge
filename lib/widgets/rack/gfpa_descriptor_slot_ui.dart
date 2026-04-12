@@ -6,7 +6,6 @@ import 'package:provider/provider.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/gfpa_plugin_instance.dart';
 import '../../services/rack_state.dart';
-import '../../services/vst_host_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Effect slot UI (type: effect / instrument)
@@ -14,15 +13,18 @@ import '../../services/vst_host_service.dart';
 
 /// Rack slot UI for descriptor-backed GFPA effect plugins (`.gfpd`).
 ///
-/// This widget bridges the rack model ([GFpaPluginInstance]) and the
-/// auto-generated UI ([GFDescriptorPluginUI]):
+/// [RackState] now eagerly owns the per-slot [GFDescriptorPlugin] and its
+/// native DSP handle — it creates them at project-load time (and on
+/// [RackState.addPlugin] for runtime additions), so audio processing is
+/// active regardless of whether this widget has ever been mounted.
 ///
-/// 1. It creates a fresh [GFDescriptorPlugin] instance per slot (so two Reverb
-///    slots don't share DSP state).
-/// 2. It restores the parameter state from [GFpaPluginInstance.state] after
-///    initialization.
-/// 3. It syncs every parameter change back to [GFpaPluginInstance.state] and
-///    notifies [RackState] so the project auto-saves.
+/// This widget is therefore purely cosmetic: it reads the already-initialised
+/// plugin + param notifier from [RackState] and renders
+/// [GFDescriptorPluginUI]. It does NOT own the plugin lifetime, does NOT call
+/// `initialize()` / `dispose()`, and does NOT `registerGfpaDsp` — all of that
+/// happens in [RackState._initAudioEffectPlugin] /
+/// [RackState._disposeAudioEffectPlugin], which are wired to the slot's
+/// presence in the rack, not to widget mount/unmount.
 class GFpaDescriptorSlotUI extends StatefulWidget {
   const GFpaDescriptorSlotUI({
     super.key,
@@ -33,7 +35,9 @@ class GFpaDescriptorSlotUI extends StatefulWidget {
   /// The rack model — holds the persisted state map and plugin identity.
   final GFpaPluginInstance instance;
 
-  /// The descriptor from the registry, used to create a fresh plugin instance.
+  /// The descriptor from the registry; used only for the loading placeholder
+  /// if the eager init has not finished yet. The live plugin is fetched from
+  /// [RackState.audioEffectInstanceForSlot].
   final GFPluginDescriptor descriptor;
 
   @override
@@ -41,119 +45,28 @@ class GFpaDescriptorSlotUI extends StatefulWidget {
 }
 
 class _GFpaDescriptorSlotUIState extends State<GFpaDescriptorSlotUI> {
-  /// Per-slot plugin instance — owns its own DSP state, independent of the
-  /// singleton template stored in [GFPluginRegistry].
-  late final GFDescriptorPlugin _plugin;
-
-  /// Incrementing counter that triggers a rebuild of [GFDescriptorPluginUI]
-  /// whenever any parameter changes.
-  late final ValueNotifier<int> _paramNotifier;
-
-  /// Optional VU meter controller — wired to the plugin once it initialises.
+  /// Per-widget VU meter controller — UI-local, not tied to audio lifetime.
   final GFVuMeterController _vuController = GFVuMeterController();
-
-  bool _initialized = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _plugin = GFDescriptorPlugin(widget.descriptor);
-    _paramNotifier = ValueNotifier(0);
-    _initPlugin();
-  }
-
-  /// Asynchronously initialise the DSP plugin and restore saved state.
-  Future<void> _initPlugin() async {
-    // Use a standard audio context. The sample rate will be updated once the
-    // native engine exposes it; 44100 Hz covers the vast majority of devices.
-    await _plugin.initialize(
-      const GFPluginContext(sampleRate: 44100, maxFramesPerBlock: 512),
-    );
-    // Restore the last-saved parameter state from the rack model.
-    _plugin.loadState(Map<String, dynamic>.from(widget.instance.state));
-
-    // Register this slot's native C++ DSP in the ALSA insert chain.
-    // Must happen after initialize() so the descriptor is fully loaded.
-    // Guarded by try/catch: if the native symbol is unavailable (e.g. an
-    // older .so in the bundle before a rebuild), we fall back to UI-only
-    // mode so the keyboard still produces sound through direct master render.
-    if (mounted) {
-      try {
-        context.read<VstHostService>().registerGfpaDsp(
-          widget.instance.id,
-          widget.instance.pluginId,
-        );
-        // Seed initial parameter values into the native DSP from saved state.
-        _syncAllParamsToNative();
-      } catch (e) {
-        debugPrint('GFpaDescriptorSlotUI: native DSP unavailable — $e');
-      }
-      // Always rebuild routing so the keyboard stays in masterRenders
-      // regardless of whether native DSP registration succeeded.
-      context.read<RackState>().syncAudioRoutingIfNeeded();
-    }
-
-    // Listen to param changes: sync back to the rack model for persistence.
-    // Guard: widget may have been disposed during the preceding await.
-    if (!mounted) return;
-    _paramNotifier.addListener(_onParamChanged);
-
-    if (mounted) setState(() => _initialized = true);
-  }
-
-  /// Called whenever a parameter changes in [GFDescriptorPluginUI].
-  ///
-  /// Writes the full parameter map back into [GFpaPluginInstance.state],
-  /// forwards all parameter changes to the native C++ DSP engine, and asks
-  /// [RackState] to schedule an auto-save.
-  ///
-  /// Preserves the `__bypass` meta-key which lives outside the DSP parameter
-  /// space — [GFDescriptorPlugin.getState] only returns declared parameters.
-  void _onParamChanged() {
-    if (!mounted) return;
-    final bypass = widget.instance.state['__bypass'];
-    widget.instance.state
-      ..clear()
-      ..addAll(_plugin.getState());
-    if (bypass != null) widget.instance.state['__bypass'] = bypass;
-    _syncAllParamsToNative();
-    // Use read() since we're in a listener, not a build method.
-    // markDirty() triggers both a rebuild and an autosave without
-    // calling the protected notifyListeners() from outside the class.
-    context.read<RackState>().markDirty();
-  }
-
-  /// Push all current parameter values from the Dart plugin to the native DSP.
-  ///
-  /// Each normalised value [0,1] is converted to the parameter's physical
-  /// range (min + norm*(max-min)) before calling [VstHostService.setGfpaDspParam].
-  void _syncAllParamsToNative() {
-    final vstService = context.read<VstHostService>();
-    final params = _plugin.descriptor.parameters;
-    for (final p in params) {
-      final norm = _plugin.getParameter(p.paramId);
-      final physical = p.min + norm * (p.max - p.min);
-      vstService.setGfpaDspParam(widget.instance.id, p.id, physical);
-    }
-  }
 
   @override
   void dispose() {
-    _paramNotifier.removeListener(_onParamChanged);
-    _paramNotifier.dispose();
     _vuController.dispose();
-    _plugin.dispose();
-    // Unregister the native DSP instance so its memory is freed and the ALSA
-    // insert chain no longer holds a dangling function pointer.
-    // Use the singleton directly to avoid context.read() in dispose().
-    VstHostService.instance.unregisterGfpaDsp(widget.instance.id);
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (!_initialized) {
-      // Show a minimal loading indicator while the DSP initialises.
+    // Watch RackState so the widget rebuilds once the eager init completes
+    // (RackState calls notifyListeners() at the end of _initAudioEffectPlugin).
+    final rack = context.watch<RackState>();
+    final plugin = rack.audioEffectInstanceForSlot(widget.instance.id);
+    final notifier = rack.audioEffectParamNotifierForSlot(widget.instance.id);
+
+    if (plugin == null || notifier == null) {
+      // The engine hasn't finished initialising this slot yet (either the
+      // async init is still running, or registerGfpaDsp failed silently on
+      // an outdated native .so). Show a spinner — the UI will rebuild once
+      // notifyListeners fires.
       return const Padding(
         padding: EdgeInsets.all(16),
         child: Center(
@@ -167,7 +80,6 @@ class _GFpaDescriptorSlotUIState extends State<GFpaDescriptorSlotUI> {
     }
 
     final bypassed = widget.instance.state['__bypass'] == true;
-    final rack = context.read<RackState>();
     final l10n = AppLocalizations.of(context)!;
 
     return Column(
@@ -183,8 +95,8 @@ class _GFpaDescriptorSlotUIState extends State<GFpaDescriptorSlotUI> {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
           child: GFDescriptorPluginUI(
-            plugin: _plugin,
-            paramNotifier: _paramNotifier,
+            plugin: plugin,
+            paramNotifier: notifier,
             vuController: _vuController,
           ),
         ),

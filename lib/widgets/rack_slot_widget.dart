@@ -448,6 +448,7 @@ class _SlotHeader extends StatelessWidget {
   String? _pluginIdForCcRegistry(PluginInstance p) {
     if (p is GrooveForgeKeyboardPlugin) return '_gf_keyboard';
     if (p is LooperPluginInstance) return '_looper';
+    if (p is AudioLooperPluginInstance) return '_audio_looper';
     if (p is DrumGeneratorPluginInstance) return '_drum_generator';
     if (p is GFpaPluginInstance) return p.pluginId;
     return null; // VST3 — no CC params yet.
