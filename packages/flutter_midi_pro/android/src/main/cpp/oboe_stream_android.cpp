@@ -117,10 +117,25 @@ static std::atomic<uint64_t> g_callbackDoneSeq{0};
 
 /// Per-source non-interleaved left-channel render buffers.
 /// Zeroed before each renderFn() call to prevent any accumulation artifact.
+/// These hold the **post-FX** signal after the source's GFPA insert chain
+/// has been applied in place — i.e. what reaches the master mix.
 static float g_srcL[kMaxSources][kMaxFrames];
 
-/// Per-source non-interleaved right-channel render buffers.
+/// Per-source non-interleaved right-channel render buffers (post-FX).
 static float g_srcR[kMaxSources][kMaxFrames];
+
+/// Dry (pre-GFPA-chain) copies of g_srcL/R, captured right after the source's
+/// renderFn() returns and before `gfpa_android_apply_chain_for_sf` runs.
+///
+/// Used ONLY by the audio-looper fill pass: a clip cabled to a source records
+/// its dry signal so that the looper captures the instrument, not the
+/// instrument-plus-insert-effects.  This matches the Linux JACK semantic
+/// where `renderCaptureL/R[m]` snapshots the dry render output.
+///
+/// Kept separate from g_srcL/R to avoid a second `memcpy` back after the
+/// chain is applied — a single copy before the chain is cheapest.
+static float g_srcDryL[kMaxSources][kMaxFrames];
+static float g_srcDryR[kMaxSources][kMaxFrames];
 
 /// Sink buffers for FluidSynth's built-in reverb/chorus wet signal.
 /// Kept separate from g_srcL/g_srcR so that FX output cannot corrupt the
@@ -227,7 +242,7 @@ static aaudio_data_callback_result_t audioCallback(
     std::memset(g_mixL, 0, sizeof(float) * static_cast<size_t>(frames));
     std::memset(g_mixR, 0, sizeof(float) * static_cast<size_t>(frames));
 
-    // ── 3. Render each source, apply its GFPA chain, accumulate into mix ─
+    // ── 3. Render each source, capture dry, apply chain, accumulate ───────
     for (int s = 0; s < sourceCount; ++s) {
         // Zero the render buffers before calling renderFn.  Some sources
         // (e.g. FluidSynth pre-built builds) accumulate rather than replace,
@@ -237,6 +252,16 @@ static aaudio_data_callback_result_t audioCallback(
 
         // Render this source into its dedicated L/R buffers.
         snapshot[s].renderFn(g_srcL[s], g_srcR[s], frames, snapshot[s].userdata);
+
+        // Snapshot the DRY signal before the GFPA chain runs, so the audio
+        // looper can record the instrument's raw output rather than the
+        // post-FX signal.  Linux does the equivalent via `renderCapture[m]`
+        // in dart_vst_host_jack.cpp — this memcpy is the Android analog.
+        // Cheap: one 8-byte-per-frame copy per source per block.
+        std::memcpy(g_srcDryL[s], g_srcL[s],
+                    sizeof(float) * static_cast<size_t>(frames));
+        std::memcpy(g_srcDryR[s], g_srcR[s],
+                    sizeof(float) * static_cast<size_t>(frames));
 
         // Apply this source's GFPA insert chain (WAH, EQ, reverb, delay, …)
         // in-place before accumulating into the master mix.
@@ -252,20 +277,50 @@ static aaudio_data_callback_result_t audioCallback(
         }
     }
 
-    // ── 3b. Audio Looper — record from master mix, play into master mix ───
+    // ── 3b. Audio Looper — cabled-input routing ──────────────────────────
     //
-    // On Android, the looper records from the master mix (all sources combined).
-    // Per-source cable routing is not yet implemented (requires mapping bus
-    // slot IDs to clip sources via Dart-side routing).
-    // The master mix is used as the source for ALL active clips.
+    // For each active clip we consult the bus-source list configured by the
+    // Dart side (VstHostService._syncAudioLooperSourcesAndroid) and sum the
+    // dry output of every matching source into the clip's private source
+    // buffer.  A clip with no bus sources records silence (same semantic as
+    // the Linux path). Then `dvh_alooper_process` mixes clip playback back
+    // into the master mix.
     {
         const float* aloopSrcL[ALOOPER_MAX_CLIPS] = {};
         const float* aloopSrcR[ALOOPER_MAX_CLIPS] = {};
         for (int c = 0; c < ALOOPER_MAX_CLIPS; ++c) {
             if (!dvh_alooper_is_active(c)) continue;
-            // Use the master mix as source for recording.
-            aloopSrcL[c] = g_mixL;
-            aloopSrcR[c] = g_mixR;
+            const int32_t nBus = dvh_alooper_get_bus_source_count(c);
+            if (nBus <= 0) continue; // No cables → leave aloopSrc[c] = NULL.
+
+            // Zero the clip's scratch buffer — multiple upstream sources sum
+            // into it, so we must start from silence each block.
+            std::memset(g_alooperSrcL[c], 0,
+                        sizeof(float) * static_cast<size_t>(frames));
+            std::memset(g_alooperSrcR[c], 0,
+                        sizeof(float) * static_cast<size_t>(frames));
+
+            // For every cabled bus slot, find the matching source in the
+            // current snapshot and sum its dry stereo into the clip buffer.
+            // `busSlotId` is the stable lookup key:
+            //   - Keyboards : dynamic FluidSynth sfId assigned at load time.
+            //   - Theremin  : kBusSlotTheremin (100).
+            // Stylophone and vocoder are not on the shared bus and are never
+            // added here — cabling them is a known Android limitation.
+            for (int b = 0; b < nBus; ++b) {
+                const int32_t busId = dvh_alooper_get_bus_source(c, b);
+                for (int s = 0; s < sourceCount; ++s) {
+                    if (snapshot[s].busSlotId != busId) continue;
+                    for (int i = 0; i < frames; ++i) {
+                        g_alooperSrcL[c][i] += g_srcDryL[s][i];
+                        g_alooperSrcR[c][i] += g_srcDryR[s][i];
+                    }
+                    break; // Each busSlotId is unique in the snapshot.
+                }
+            }
+
+            aloopSrcL[c] = g_alooperSrcL[c];
+            aloopSrcR[c] = g_alooperSrcR[c];
         }
 
         dvh_alooper_process(

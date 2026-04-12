@@ -31,10 +31,17 @@ struct ALooperClip {
     std::atomic<double>  targetLengthBeats{0.0};
 
     /// Per-clip audio sources (multiple allowed, mixed/summed).
+    ///
+    /// Three kinds in parallel — see [audio_looper.h] for the rationale.
+    /// On Linux/macOS only [renderSources] and [pluginSources] are populated;
+    /// on Android only [busSources] is populated. The audio callback reads
+    /// whichever list applies to its platform.
     DvhRenderFn renderSources[ALOOPER_MAX_SOURCES] = {};
     int32_t     renderSourceCount = 0;
     int32_t     pluginSources[ALOOPER_MAX_SOURCES] = {};
     int32_t     pluginSourceCount = 0;
+    int32_t     busSources[ALOOPER_MAX_SOURCES] = {};
+    int32_t     busSourceCount = 0;
 
     /// Bar-sync mode: 1 = wait for downbeat, 0 = start immediately.
     std::atomic<int32_t> barSync{1};
@@ -442,6 +449,7 @@ void dvh_alooper_clear_sources(int32_t idx) {
     if (idx < 0 || idx >= ALOOPER_MAX_CLIPS) return;
     g_clips[idx].renderSourceCount = 0;
     g_clips[idx].pluginSourceCount = 0;
+    g_clips[idx].busSourceCount = 0;
 }
 
 void dvh_alooper_add_render_source(int32_t idx, DvhRenderFn fn) {
@@ -464,6 +472,20 @@ void dvh_alooper_add_source_plugin(int32_t idx, int32_t pluginOrdinalIdx) {
         if (clip.pluginSources[i] == pluginOrdinalIdx) return;
     if (clip.pluginSourceCount >= ALOOPER_MAX_SOURCES) return;
     clip.pluginSources[clip.pluginSourceCount++] = pluginOrdinalIdx;
+}
+
+void dvh_alooper_add_bus_source(int32_t idx, int32_t busSlotId) {
+    // Bus slot IDs are non-negative on Android (sfId is 1-based for
+    // keyboards, fixed ≥100 for theremin/stylophone). Reject invalid values.
+    if (busSlotId < 0) return;
+    std::lock_guard<std::mutex> lk(g_looperMtx);
+    if (idx < 0 || idx >= ALOOPER_MAX_CLIPS || !g_clips[idx].active) return;
+    auto& clip = g_clips[idx];
+    // Dedupe — two cables terminating at the same bus are recorded once.
+    for (int i = 0; i < clip.busSourceCount; ++i)
+        if (clip.busSources[i] == busSlotId) return;
+    if (clip.busSourceCount >= ALOOPER_MAX_SOURCES) return;
+    clip.busSources[clip.busSourceCount++] = busSlotId;
 }
 
 void dvh_alooper_set_bar_sync(int32_t idx, int32_t enabled) {
@@ -496,6 +518,17 @@ int32_t dvh_alooper_get_plugin_source(int32_t idx, int32_t srcIdx) {
     if (idx < 0 || idx >= ALOOPER_MAX_CLIPS || !g_clips[idx].active) return -1;
     if (srcIdx < 0 || srcIdx >= g_clips[idx].pluginSourceCount) return -1;
     return g_clips[idx].pluginSources[srcIdx];
+}
+
+int32_t dvh_alooper_get_bus_source_count(int32_t idx) {
+    if (idx < 0 || idx >= ALOOPER_MAX_CLIPS || !g_clips[idx].active) return 0;
+    return g_clips[idx].busSourceCount;
+}
+
+int32_t dvh_alooper_get_bus_source(int32_t idx, int32_t srcIdx) {
+    if (idx < 0 || idx >= ALOOPER_MAX_CLIPS || !g_clips[idx].active) return -1;
+    if (srcIdx < 0 || srcIdx >= g_clips[idx].busSourceCount) return -1;
+    return g_clips[idx].busSources[srcIdx];
 }
 
 int32_t dvh_alooper_is_active(int32_t idx) {

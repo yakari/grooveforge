@@ -760,6 +760,90 @@ class VstHostService {
         _addChainInserts(plugin.id, kBusSlotStylophone, graph);
       }
     }
+
+    // ── Audio looper cabled-input routing ──────────────────────────────────
+    _syncAudioLooperSourcesAndroid(graph, allPlugins, keyboardSfIds);
+  }
+
+  /// Rebuilds the cabled-input list for every audio-looper slot on Android.
+  ///
+  /// For each [AudioLooperPluginInstance] in [allPlugins], walks the incoming
+  /// audio cables in [graph] and calls `alooperAddBusSource` with the Oboe
+  /// bus slot ID of each upstream source.  Runs on every routing rebuild so
+  /// that reconnecting cables — or the user swapping a keyboard's soundfont
+  /// (which changes its sfId) — is reflected immediately.
+  ///
+  /// **Supported upstream source types on Android:**
+  ///   - [GrooveForgeKeyboardPlugin] — resolved via [keyboardSfIds].
+  ///   - [DrumGeneratorPluginInstance] — resolved via [keyboardSfIds]; drum
+  ///     MIDI events feed the keyboard FluidSynth on their channel, so they
+  ///     ride that keyboard's bus.
+  ///   - [GFpaPluginInstance] with `pluginId == 'com.grooveforge.theremin'` —
+  ///     uses [kBusSlotTheremin].
+  ///
+  /// **NOT supported on Android** (known limitation): stylophone, vocoder
+  /// and VST3 plugins. They do not live on the shared Oboe AAudio bus, so
+  /// there is no bus slot ID to reference them by. Cables from those sources
+  /// to an audio looper are silently ignored on Android and recorded as
+  /// silence. Parity with Linux will ship when those sources are migrated
+  /// onto the shared bus.
+  void _syncAudioLooperSourcesAndroid(
+    AudioGraph graph,
+    List<PluginInstance> allPlugins,
+    Map<String, int> keyboardSfIds,
+  ) {
+    final alooperEngine = audioLooperEngine;
+    if (alooperEngine == null) return;
+
+    // Clear every clip's source lists up-front so stale routing from the
+    // previous sync cannot linger.
+    for (final clip in alooperEngine.clips.values) {
+      AudioInputFFI().alooperClearSources(clip.nativeIdx);
+    }
+
+    // Walk incoming audio cables to each audio looper slot.  Only the left
+    // audio-in port is followed — stereo pairs are implicit in the looper.
+    for (final conn in graph.connections) {
+      if (conn.toPort != AudioPortId.audioInL) continue;
+      final toPlugin = allPlugins
+          .where((p) => p.id == conn.toSlotId)
+          .firstOrNull;
+      if (toPlugin is! AudioLooperPluginInstance) continue;
+      final clip = alooperEngine.clips[toPlugin.id];
+      if (clip == null) continue;
+
+      final fromPlugin = allPlugins
+          .where((p) => p.id == conn.fromSlotId)
+          .firstOrNull;
+      if (fromPlugin == null) continue;
+
+      // Resolve the upstream source to its Android Oboe bus slot ID.
+      final int? busId = _resolveAndroidBusSlotId(fromPlugin, keyboardSfIds);
+      if (busId == null) continue; // Unsupported source — silently skip.
+
+      AudioInputFFI().alooperAddBusSource(clip.nativeIdx, busId);
+    }
+  }
+
+  /// Returns the Oboe bus slot ID for [plugin], or null if [plugin] is not
+  /// a bus-routable source on Android.
+  ///
+  /// See [_syncAudioLooperSourcesAndroid] for the supported-source matrix.
+  int? _resolveAndroidBusSlotId(
+    PluginInstance plugin,
+    Map<String, int> keyboardSfIds,
+  ) {
+    if (plugin is GrooveForgeKeyboardPlugin ||
+        plugin is DrumGeneratorPluginInstance) {
+      final sfId = keyboardSfIds[plugin.id] ?? -1;
+      return sfId >= 1 ? sfId : null;
+    }
+    if (plugin is GFpaPluginInstance &&
+        plugin.pluginId == 'com.grooveforge.theremin') {
+      return kBusSlotTheremin;
+    }
+    // Stylophone, vocoder, VST3 — not bus-routed on Android.
+    return null;
   }
 
   /// Depth-first traversal of [graph] starting from [sourceSlotId].

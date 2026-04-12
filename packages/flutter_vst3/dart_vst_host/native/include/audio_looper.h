@@ -61,13 +61,23 @@ DVH_API void dvh_alooper_set_length_beats(DVH_Host host, int32_t idx, double len
 // ── Audio source routing (multiple sources per clip) ──────────────────────
 //
 // A clip can have multiple audio sources (e.g. two keyboards + a drum
-// generator all cabled to the same looper).  The JACK callback mixes all
+// generator all cabled to the same looper).  The audio callback mixes all
 // connected sources into the clip's source buffer each block.
+//
+// Three source kinds exist:
+//   1. Render function sources (DvhRenderFn pointers) — used on Linux/macOS,
+//      where each slot has a distinct exported C symbol.
+//   2. Plugin ordinal sources — used on Linux/macOS for VST3 plugin outputs.
+//   3. Bus slot sources (int IDs) — used on Android, where the Oboe bus keeps
+//      one slot per source and a single shared render function cannot
+//      disambiguate two instances of the same instrument class.
 
-/// Maximum audio sources per clip (render functions + plugin indices combined).
+/// Maximum audio sources per clip, per kind (render / plugin / bus).
 #define ALOOPER_MAX_SOURCES 8
 
-/// Remove all audio sources from clip [idx].
+/// Remove all audio sources from clip [idx] — clears render, plugin AND bus
+/// source lists.  Called at the start of every routing sync so the clip
+/// always reflects the current cable topology exactly.
 DVH_API void dvh_alooper_clear_sources(int32_t idx);
 
 /// Add a render function as an audio source for clip [idx].
@@ -77,6 +87,16 @@ DVH_API void dvh_alooper_add_render_source(int32_t idx, DvhRenderFn fn);
 /// Add a VST3 plugin output as an audio source for clip [idx].
 /// [pluginOrdinalIdx] is the plugin's ordinal in the routing snapshot.
 DVH_API void dvh_alooper_add_source_plugin(int32_t idx, int32_t pluginOrdinalIdx);
+
+/// Add an Android Oboe bus slot as an audio source for clip [idx].
+///
+/// [busSlotId] matches the ID passed to `oboe_stream_add_source`:
+///   - Keyboards: the dynamic FluidSynth `sfId` assigned at load time.
+///   - Theremin:  `OBOE_BUS_SLOT_THEREMIN` (100).
+///   - (Stylophone and vocoder are not bus-routed on Android and cannot be
+///      cabled to the audio looper — their audio lives on separate miniaudio
+///      devices that never reach the shared AAudio render pipeline.)
+DVH_API void dvh_alooper_add_bus_source(int32_t idx, int32_t busSlotId);
 
 /// Enable or disable bar-sync for clip [idx].
 /// When enabled (default), armed→recording waits for the next downbeat.
@@ -115,6 +135,12 @@ int32_t dvh_alooper_get_plugin_source_count(int32_t idx);
 
 /// Returns the [srcIdx]-th plugin ordinal index for clip [idx].
 int32_t dvh_alooper_get_plugin_source(int32_t idx, int32_t srcIdx);
+
+/// Returns the number of bus slot sources for clip [idx] (Android only).
+int32_t dvh_alooper_get_bus_source_count(int32_t idx);
+
+/// Returns the [srcIdx]-th bus slot ID for clip [idx], or -1 if out of range.
+int32_t dvh_alooper_get_bus_source(int32_t idx, int32_t srcIdx);
 
 /// Returns 1 if clip [idx] is active (has allocated buffers), 0 otherwise.
 int32_t dvh_alooper_is_active(int32_t idx);

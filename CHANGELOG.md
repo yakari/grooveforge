@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.12.2] - 2026-04-12
+
+### Added
+- **Audio Looper — Android cabled-input routing**: the Android audio looper now records only the instruments cabled to its Audio IN ports, matching the Linux behaviour. Previously every active clip recorded the full master mix, which meant loop overdubs captured their own playback and there was no way to record a single instrument. Supported upstream sources on Android: GF Keyboard slots, Drum Generator slots (which ride their MIDI channel's FluidSynth bus), and the Theremin. Stylophone and vocoder remain unsupported upstream sources on Android because they run on separate miniaudio devices that never reach the shared Oboe bus.
+
+### Architecture
+- **`audio_looper.h/.cpp` — bus source list**: third per-clip source kind `busSources[ALOOPER_MAX_SOURCES]` (int32 Oboe bus slot IDs) alongside the existing `renderSources` and `pluginSources`. New C API: `dvh_alooper_add_bus_source`, `dvh_alooper_get_bus_source_count`, `dvh_alooper_get_bus_source`. `dvh_alooper_clear_sources` now clears all three lists at once so every routing sync starts from a clean slate.
+- **`oboe_stream_android.cpp` — dry capture**: new per-source `g_srcDryL/R[kMaxSources]` scratch buffers. The AAudio callback `memcpy`s each source's render output into the dry buffer BEFORE `gfpa_android_apply_chain_for_sf` runs, so the audio looper records the instrument's raw signal rather than its post-FX signal — matching the Linux `renderCapture[m]` semantic.
+- **`oboe_stream_android.cpp` — cabled fill loop**: the previous "feed every clip the master mix" block is replaced with a per-clip fill that iterates `dvh_alooper_get_bus_source`, finds the matching source in the snapshot by `busSlotId`, and sums its dry stereo into `g_alooperSrcL/R[c]`. A clip with no bus sources is skipped (records silence). Zero allocation, zero locks, pointer comparison only.
+- **`VstHostService._syncAudioLooperSourcesAndroid`**: called from `_syncAudioRoutingAndroid` on every routing rebuild. Walks incoming audio cables to each `AudioLooperPluginInstance`, resolves each upstream slot to its Oboe bus slot ID (`keyboardSfIds` map for keyboards and drum generators, `kBusSlotTheremin` for the theremin), and pushes the list through `alooperAddBusSource`. The existing pull-based routing discipline (clear + re-add on every sync) handles soundfont swaps automatically because a new soundfont produces a new sfId and the next `_onAudioGraphChanged` rebuilds the list.
+- **`RackState._buildKeyboardSfIds` now covers drum generators**: drum slots inherit the FluidSynth sfId of their MIDI channel's keyboard instance, so the same map resolves both keyboard and drum cabling on Android.
+
 ## [2.12.1] - 2026-04-12
 
 ### Added

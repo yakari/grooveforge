@@ -878,6 +878,10 @@ class AudioInputFFI {
       _looperLib.lookupFunction<Void Function(Int32, Int32),
           void Function(int, int)>('dvh_alooper_add_source_plugin');
 
+  late final void Function(int, int) _alooperAddBusSource =
+      _looperLib.lookupFunction<Void Function(Int32, Int32),
+          void Function(int, int)>('dvh_alooper_add_bus_source');
+
   late final void Function(double, int, int, double) _alooperAndroidSetTransport =
       _looperLib.lookupFunction<
           Void Function(Double, Int32, Int32, Double),
@@ -904,6 +908,19 @@ class AudioInputFFI {
   void alooperClearSources(int idx) => _alooperClearSources(idx);
   void alooperAddSourcePlugin(int idx, int sourceIdx) =>
       _alooperAddSourcePlugin(idx, sourceIdx);
+
+  /// Register an Android Oboe bus slot as an audio source for clip [idx].
+  ///
+  /// [busSlotId] is the ID passed to `oboe_stream_add_source`:
+  ///   - Keyboards (and drum generators that share their MIDI channel's
+  ///     keyboard slot): the dynamic FluidSynth sfId, obtained via
+  ///     `AudioEngine.sfIdForChannel(midiChannel - 1)`.
+  ///   - Theremin: [kBusSlotTheremin] (100).
+  ///
+  /// Stylophone and vocoder live on separate miniaudio devices and are NOT
+  /// routable to the audio looper on Android — do not pass their bus IDs.
+  void alooperAddBusSource(int idx, int busSlotId) =>
+      _alooperAddBusSource(idx, busSlotId);
 
   /// Push transport state to the Android audio looper.
   void alooperSetTransport(double bpm, int timeSigNum, bool isPlaying,

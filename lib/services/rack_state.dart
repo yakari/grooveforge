@@ -127,7 +127,7 @@ class RackState extends ChangeNotifier {
   }
 
   /// Builds a map of keyboard slot plugin ID → per-slot FluidSynth sfId for
-  /// Android GFPA routing.
+  /// Android GFPA routing — maps rack slot ID → Oboe bus slot sfId.
   ///
   /// Each GF Keyboard slot gets its own FluidSynth instance on Android
   /// (provisioned by [initAndroidKeyboardSlots]).  This map tells
@@ -135,17 +135,29 @@ class RackState extends ChangeNotifier {
   /// so that an effect connected to keyboard A's output cannot affect keyboard
   /// B's audio path.
   ///
+  /// **Drum generators** are also included: they render MIDI events through
+  /// the FluidSynth instance associated with their MIDI channel (typically
+  /// channel 10 = percussion slot), so the same `sfIdForChannel` lookup
+  /// returns the right bus ID for "cable the drum generator to a looper" or
+  /// "cable the drum generator to an effect chain".
+  ///
   /// Returns an empty map on all non-Android platforms.
   Map<String, int> _buildKeyboardSfIds() {
     final result = <String, int>{};
     for (final plugin in _plugins) {
-      if (plugin is! GrooveForgeKeyboardPlugin) continue;
       // Use the per-slot dedicated sfId (set by initAndroidKeyboardSlots).
       // If the dedicated synth has not been created yet, sfIdForChannel returns
       // -1 and this slot is omitted from the routing map — GFPA inserts simply
       // have no effect until the next syncAudioRouting after init completes.
-      final sfId = _engine.sfIdForChannel(plugin.midiChannel - 1);
-      if (sfId >= 1) result[plugin.id] = sfId;
+      if (plugin is GrooveForgeKeyboardPlugin) {
+        final sfId = _engine.sfIdForChannel(plugin.midiChannel - 1);
+        if (sfId >= 1) result[plugin.id] = sfId;
+      } else if (plugin is DrumGeneratorPluginInstance) {
+        // Drum generator MIDI events feed the keyboard FluidSynth on their
+        // channel — it rides the same AAudio bus slot.
+        final sfId = _engine.sfIdForChannel(plugin.midiChannel - 1);
+        if (sfId >= 1) result[plugin.id] = sfId;
+      }
     }
     return result;
   }

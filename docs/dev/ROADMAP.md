@@ -246,11 +246,13 @@ Shipped in v2.12.0 (Linux, cabled input routing, WAV persistence). These tasks e
 - [ ] **Latency compensation**: measure round-trip latency via `jack_port_get_latency_range()`, shift `writeHead` back by that amount.
 - [ ] **Memory cap**: warn if total clip memory exceeds 256 MB (configurable in preferences).
 - [ ] **l10n**: EN/FR ARB keys for all audio looper UI strings.
-- [ ] **Android**: create Oboe audio stream that calls `dvh_alooper_process()` each buffer callback.
-- [ ] **Android**: wire `AudioLooperEngine` to the Oboe-based looper (replace null `host` path).
-- [ ] **Android**: per-clip source routing via Oboe bus renders (keyboard slot render functions).
-- [ ] **macOS**: integrate `dvh_alooper_process()` into `dart_vst_host_audio_mac.cpp` `dataCallback`.
-- [ ] **macOS**: per-clip source routing via CoreAudio render captures.
+- [x] **Android**: create Oboe audio stream that calls `dvh_alooper_process()` each buffer callback — shipped in v2.12.0 as part of the initial Android looper work.
+- [x] **Android**: wire `AudioLooperEngine` to the Oboe-based looper (replace null `host` path) — also shipped in v2.12.0 via the `AudioInputFFI.alooper*` path.
+- [x] **Android**: per-clip source routing via Oboe bus IDs. New `dvh_alooper_add_bus_source` C API + `_syncAudioLooperSourcesAndroid` in `VstHostService` walk each looper's audio cables and push the upstream bus slot IDs (keyboard sfId / drum channel sfId / `kBusSlotTheremin`). The Android audio callback fills each clip's source buffer by matching bus IDs against its snapshot of `g_sources[]`, summing the **dry** pre-FX signal from `g_srcDryL/R[s]` so the looper captures the instrument, not its insert effects.
+- [ ] **Android**: stylophone → audio looper (blocked — stylophone runs a separate miniaudio device and is not on the shared Oboe bus).
+- [ ] **Android**: vocoder → audio looper (blocked — same reason; vocoder uses its own miniaudio I/O path).
+- [ ] **macOS**: integrate `dvh_alooper_process()` into `dart_vst_host_audio_mac.cpp` `dataCallback` — already done; the render-source path matches Linux. Remaining gap is the VST3 plugin-source path (`pluginBuf[]` TODO).
+- [ ] **macOS**: VST3 plugin-source routing for audio looper — pre-allocate `pluginBuf[kMaxPlugins*2]` and mirror the Linux fill pass for plugin sources.
 - [ ] **All platforms**: ensure WAV sidecar persistence works on Android/macOS file paths.
 
 ### 📦 VST3 Bundles (Phase 3b — incomplete items)
