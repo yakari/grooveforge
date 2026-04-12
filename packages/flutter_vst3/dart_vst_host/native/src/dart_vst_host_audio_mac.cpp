@@ -241,6 +241,25 @@ static void dataCallback(ma_device* pDevice, void* pOutput, const void* /*pInput
     }
 
     // ── Audio Looper — fill per-clip source buffers ──────────────────────
+    //
+    // For each active clip we mix two kinds of sources:
+    //
+    //   1. Render-function sources (keyboards, theremin, stylophone, …) —
+    //      looked up by function-pointer equality in `masterRenders[]` and
+    //      read from the `renderCapture` scratch buffers populated during
+    //      the fan-in / bare-master passes above.
+    //
+    //   2. VST3 plugin-output sources — read from the per-plugin `bufs`
+    //      map that `_processPlugins` already filled. The clip stores each
+    //      source as an *ordinal* (index into `ordered[]`), so we just
+    //      resolve `ordered[plugIdx]` back to a void* plugin handle and
+    //      look it up in `bufs`. This mirrors the Linux `pluginBuf[]`
+    //      indexing — the storage type differs (vector vs. map) because
+    //      macOS hasn't had its pre-allocated buffer refactor yet, but
+    //      the semantics are identical.
+    //
+    // A clip with zero sources is skipped (records silence — same as Linux
+    // and Android).
     const float* aloopSrcL[ALOOPER_MAX_CLIPS] = {};
     const float* aloopSrcR[ALOOPER_MAX_CLIPS] = {};
     for (int c = 0; c < ALOOPER_MAX_CLIPS; ++c) {
@@ -252,6 +271,7 @@ static void dataCallback(ma_device* pDevice, void* pOutput, const void* /*pInput
         std::fill_n(state->alooperSrcL[c].data(), bs, 0.f);
         std::fill_n(state->alooperSrcR[c].data(), bs, 0.f);
 
+        // Sum render-function sources from the per-master-render captures.
         for (int s = 0; s < nRender; ++s) {
             DvhRenderFn fn = dvh_alooper_get_render_source(c, s);
             if (!fn) continue;
@@ -265,6 +285,26 @@ static void dataCallback(ma_device* pDevice, void* pOutput, const void* /*pInput
                 }
             }
         }
+
+        // Sum VST3 plugin-output sources from the `bufs` map populated by
+        // `_processPlugins`. Guard against stale ordinals (a rack mutation
+        // mid-callback could race with the cable list): bounds-check
+        // against `ordered.size()` and verify the `bufs` lookup before
+        // dereferencing the vectors.
+        for (int s = 0; s < nPlugin; ++s) {
+            const int plugIdx = dvh_alooper_get_plugin_source(c, s);
+            if (plugIdx < 0 || plugIdx >= static_cast<int>(ordered.size())) continue;
+            void* handle = ordered[plugIdx];
+            auto it = bufs.find(handle);
+            if (it == bufs.end()) continue;
+            const float* pL = it->second.first.data();
+            const float* pR = it->second.second.data();
+            for (int32_t i = 0; i < bs; ++i) {
+                state->alooperSrcL[c][i] += pL[i];
+                state->alooperSrcR[c][i] += pR[i];
+            }
+        }
+
         aloopSrcL[c] = state->alooperSrcL[c].data();
         aloopSrcR[c] = state->alooperSrcR[c].data();
     }
