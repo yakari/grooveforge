@@ -671,6 +671,32 @@ EXPORT void vocoder_render_block(float* outL, float* outR, int frames) {
     _vocoder_render_block_impl(outL, outR, frames);
 }
 
+/// AAudio-bus render wrapper for the Vocoder.
+///
+/// Matches the AudioSourceRenderFn signature expected by oboe_stream_add_source()
+/// in libnative-lib.so.  The [userdata] parameter is unused — the Vocoder uses
+/// singleton DSP state.
+///
+/// Must be called with capture mode enabled (vocoder_set_capture_mode(1)) so
+/// that the miniaudio playback device outputs silence and this function owns
+/// the DSP state exclusively. The mic capture device keeps filling the ring
+/// buffer independently of capture mode — `_vocoder_render_block_impl` reads
+/// from that ring to drive the carrier oscillator.
+EXPORT void vocoder_bus_render(float* outL, float* outR, int frames, void* userdata) {
+    (void)userdata;
+    _vocoder_render_block_impl(outL, outR, frames);
+}
+
+/// Returns the address of vocoder_bus_render as an intptr_t.
+///
+/// Called from Dart so the function pointer can be passed to
+/// oboe_stream_add_source() in libnative-lib.so, registering the Vocoder on
+/// the shared AAudio bus so GFPA effects can be applied to its audio output
+/// and so the audio looper can cable directly into it.
+EXPORT intptr_t vocoder_bus_render_fn_addr(void) {
+    return (intptr_t)(void*)vocoder_bus_render;
+}
+
 // --- FFI Interface ---
 
 EXPORT void VocoderNoteOn(int key, int velocity) {
@@ -1563,4 +1589,28 @@ EXPORT void stylophone_render_block(float* outL, float* outR, int frames) {
         outL[i] = s;
         outR[i] = s;
     }
+}
+
+/// AAudio-bus render wrapper for the Stylophone.
+///
+/// Matches the AudioSourceRenderFn signature expected by oboe_stream_add_source()
+/// in libnative-lib.so.  The [userdata] parameter is unused — the Stylophone
+/// uses singleton DSP state.
+///
+/// Must be called with capture mode enabled (stylophone_set_capture_mode(1))
+/// so that the miniaudio device outputs silence and this function owns the
+/// DSP state exclusively.
+EXPORT void stylophone_bus_render(float* outL, float* outR, int frames, void* userdata) {
+    (void)userdata;
+    stylophone_render_block(outL, outR, frames);
+}
+
+/// Returns the address of stylophone_bus_render as an intptr_t.
+///
+/// Called from Dart so the function pointer can be passed to
+/// oboe_stream_add_source() in libnative-lib.so, registering the Stylophone
+/// on the shared AAudio bus so GFPA effects can be applied to its audio
+/// output and so the audio looper can cable directly into it.
+EXPORT intptr_t stylophone_bus_render_fn_addr(void) {
+    return (intptr_t)(void*)stylophone_bus_render;
 }

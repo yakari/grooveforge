@@ -42,10 +42,17 @@ class NativeInstrumentController {
 
   int _stylophoneRefCount = 0;
   int _thereminRefCount = 0;
+  int _vocoderRefCount = 0;
 
   /// Bring up the stylophone for a rack slot that has just been added or
   /// restored from disk. Starts the native oscillator on the first call and
   /// syncs any saved waveform / vibrato state from [instance].
+  ///
+  /// **On Android**, also routes the native render function onto the shared
+  /// AAudio bus on slot [kBusSlotStylophone] (101) so GFPA effects can
+  /// process the stylophone's output AND so the audio looper can cable
+  /// directly into it. Miniaudio playback is silenced via capture mode to
+  /// prevent double output.
   ///
   /// Idempotent per slot: calling twice for the same slot is handled by the
   /// caller (rack-level add-plugin is single-shot).
@@ -53,6 +60,15 @@ class NativeInstrumentController {
     _stylophoneRefCount += 1;
     if (_stylophoneRefCount == 1) {
       AudioInputFFI().styloStart();
+      if (!kIsWeb && Platform.isAndroid) {
+        // Silence miniaudio; let the Oboe bus render the oscillator instead.
+        // Mirrors the theremin pattern — the native DSP state stays
+        // singleton, but the audio path flows through the shared bus.
+        AudioInputFFI().styloSetCaptureMode(enabled: true);
+        final fnAddr = AudioInputFFI().styloBusRenderFnAddr();
+        GfpaAndroidBindings.instance
+            .oboeStreamAddSource(fnAddr, kBusSlotStylophone);
+      }
     }
     _syncStylophoneState(instance);
   }
@@ -60,11 +76,20 @@ class NativeInstrumentController {
   /// Tear down the stylophone when a rack slot is removed. Decrements the
   /// ref count and stops the native oscillator only when the last slot goes
   /// away.
+  ///
+  /// On Android, the Oboe bus source is removed BEFORE the native device is
+  /// stopped so the audio callback cannot dereference freed DSP state — the
+  /// remove call blocks until any in-flight snapshot drains. This mirrors
+  /// the theremin teardown order for the same reason.
   void onStylophoneRemoved() {
     if (_stylophoneRefCount == 0) return;
     _stylophoneRefCount -= 1;
     if (_stylophoneRefCount == 0) {
       AudioInputFFI().styloNoteOff();
+      if (!kIsWeb && Platform.isAndroid) {
+        GfpaAndroidBindings.instance.oboeStreamRemoveSource(kBusSlotStylophone);
+        AudioInputFFI().styloSetCaptureMode(enabled: false);
+      }
       AudioInputFFI().styloStop();
     }
   }
@@ -126,5 +151,56 @@ class NativeInstrumentController {
     final vibrato =
         (instance.state['vibrato'] as num?)?.toDouble().clamp(0.0, 1.0) ?? 0.0;
     AudioInputFFI().thereminSetVibrato(vibrato);
+  }
+
+  /// Bring up Android Oboe-bus routing for the vocoder when a rack slot is
+  /// added or restored from disk.
+  ///
+  /// **This method is Android-only and a pure routing switch.** Unlike
+  /// [onStylophoneAdded] / [onThereminAdded], it does NOT start or stop any
+  /// miniaudio device — the vocoder's mic capture device is managed
+  /// independently by [AudioEngine.startCapture] / [stopCapture] (called
+  /// from the preferences screen and on-demand when the user grants mic
+  /// permission). What changes here is only which code path produces the
+  /// playback signal:
+  ///
+  ///   - **Without a vocoder slot in the rack** (ref count 0): miniaudio's
+  ///     `data_callback` owns playback and writes the DSP output directly
+  ///     to the device.
+  ///   - **With ≥1 vocoder slot in the rack** (ref count > 0): capture mode
+  ///     is enabled — miniaudio writes silence — and `vocoder_bus_render`
+  ///     is registered on Oboe bus slot [kBusSlotVocoder] so the shared
+  ///     AAudio callback pulls the DSP on demand. This is what makes
+  ///     GFPA effect insert chains and the audio looper able to see the
+  ///     vocoder signal.
+  ///
+  /// On non-Android platforms the call is a no-op because desktop drives
+  /// the vocoder through the JACK / CoreAudio master-render list instead.
+  void onVocoderAdded() {
+    _vocoderRefCount += 1;
+    if (kIsWeb || !Platform.isAndroid) return;
+    if (_vocoderRefCount == 1) {
+      AudioInputFFI().vocoderSetCaptureMode(enabled: true);
+      final fnAddr = AudioInputFFI().vocoderBusRenderFnAddr();
+      GfpaAndroidBindings.instance
+          .oboeStreamAddSource(fnAddr, kBusSlotVocoder);
+    }
+  }
+
+  /// Tear down Android Oboe-bus routing for the vocoder when a rack slot is
+  /// removed. On the last slot removal, removes the bus source BEFORE
+  /// disabling capture mode so the audio callback cannot dereference the
+  /// render function after it may have been unloaded. Mirrors the theremin
+  /// teardown order.
+  ///
+  /// No-op on non-Android platforms.
+  void onVocoderRemoved() {
+    if (_vocoderRefCount == 0) return;
+    _vocoderRefCount -= 1;
+    if (kIsWeb || !Platform.isAndroid) return;
+    if (_vocoderRefCount == 0) {
+      GfpaAndroidBindings.instance.oboeStreamRemoveSource(kBusSlotVocoder);
+      AudioInputFFI().vocoderSetCaptureMode(enabled: false);
+    }
   }
 }

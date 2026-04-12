@@ -403,6 +403,12 @@ class NativeBindings {
           int Function(Pointer<Void>, int)
       >('dvh_alooper_get_state');
 
+  late final void Function(int) alooperClearData =
+      lib.lookupFunction<
+          Void Function(Int32),
+          void Function(int)
+      >('dvh_alooper_clear_data');
+
   late final void Function(Pointer<Void>, int, double) alooperSetVolume =
       lib.lookupFunction<
           Void Function(Pointer<Void>, Int32, Float),

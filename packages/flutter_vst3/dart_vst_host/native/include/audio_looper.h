@@ -52,6 +52,14 @@ DVH_API void    dvh_alooper_destroy(DVH_Host host, int32_t idx);
 DVH_API void    dvh_alooper_set_state(DVH_Host host, int32_t idx, int32_t state);
 DVH_API int32_t dvh_alooper_get_state(DVH_Host host, int32_t idx);
 
+/// Erases the recorded PCM data for clip [idx] without changing its state.
+///
+/// Dart's clear() calls this after a set_state(IDLE) transition to wipe
+/// the clip's audio while keeping the slot alive. Separate from set_state
+/// so that pausing playback (IDLE) does not discard recorded content —
+/// required for autosave round-trip to work across stop → relaunch.
+DVH_API void    dvh_alooper_clear_data(int32_t idx);
+
 // ── Parameters ─────────────────────────────────────────────────────────────
 
 DVH_API void dvh_alooper_set_volume(DVH_Host host, int32_t idx, float volume);

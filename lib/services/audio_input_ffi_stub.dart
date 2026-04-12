@@ -141,10 +141,13 @@ class AudioInputFFI {
 
   /// No-op on web — capture mode and bus routing are Android-only.
   void thereminSetCaptureMode({required bool enabled}) {}
+  void styloSetCaptureMode({required bool enabled}) {}
   void vocoderSetCaptureMode({required bool enabled}) {}
 
   /// Returns 0 on web — bus render function addresses are Android-only.
   int thereminBusRenderFnAddr() => 0;
+  int styloBusRenderFnAddr() => 0;
+  int vocoderBusRenderFnAddr() => 0;
 
   // ── Stylophone — forwarded to Web Audio oscillator ─────────────────────
 
@@ -208,6 +211,7 @@ class AudioInputFFI {
   int alooperCreate(double maxSeconds, {int sampleRate = 48000}) => -1;
   void alooperDestroy(int idx) {}
   void alooperSetState(int idx, int state) {}
+  void alooperClearData(int idx) {}
   int alooperGetState(int idx) => 0;
   void alooperSetVolume(int idx, double volume) {}
   void alooperSetReversed(int idx, bool reversed) {}

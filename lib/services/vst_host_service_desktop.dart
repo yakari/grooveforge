@@ -179,16 +179,27 @@ class VstHostService {
       String gfPath, Map<String, AudioLooperClip> clips) async {
     // Bail on platforms where no sidecar directory is expected.
     final dir = Directory('$gfPath.audio');
-    if (!await dir.exists()) return;
+    final dirExists = await dir.exists();
+    debugPrint('VstHostService: importAudioLooperWavs '
+        'gfPath=$gfPath, dir=${dir.path}, exists=$dirExists, '
+        'clipCount=${clips.length}');
+    if (!dirExists) return;
 
     final isAndroid = !kIsWeb && Platform.isAndroid;
-    if (_host == null && !isAndroid) return;
+    if (_host == null && !isAndroid) {
+      debugPrint('VstHostService: importAudioLooperWavs — host null on '
+          'non-Android, skipping');
+      return;
+    }
 
     for (final entry in clips.entries) {
       final slotId = entry.key;
       final clip = entry.value;
       final wavPath = '${dir.path}/loop_$slotId.wav';
-      if (!await File(wavPath).exists()) continue;
+      final wavExists = await File(wavPath).exists();
+      debugPrint('VstHostService: importAudioLooperWavs — check $wavPath '
+          'exists=$wavExists nativeIdx=${clip.nativeIdx}');
+      if (!wavExists) continue;
       try {
         final wav = readWavFile(wavPath);
         // Allocate a native scratch pair, fill it with the WAV PCM, hand it
@@ -205,6 +216,8 @@ class VstHostService {
           final rc = AudioInputFFI()
               .alooperLoadData(clip.nativeIdx, srcL, srcR, wav.lengthFrames);
           ok = rc != 0;
+          debugPrint('VstHostService: alooperLoadData($slotId, ${wav.lengthFrames}'
+              ' frames) → rc=$rc');
         } else {
           // Desktop path: through the VstHost-owned DVH C API.
           ok = _host!.loadAudioLooperData(
@@ -216,6 +229,9 @@ class VstHostService {
           clip.lengthFrames = wav.lengthFrames;
           debugPrint(
               'VstHostService: imported loop $slotId (${wav.lengthFrames} frames)');
+        } else {
+          debugPrint('VstHostService: load FAILED for $slotId — native '
+              'loader returned 0');
         }
       } catch (e) {
         debugPrint('VstHostService: failed to import loop $slotId: $e');
@@ -905,15 +921,18 @@ class VstHostService {
   ///   - [DrumGeneratorPluginInstance] — resolved via [keyboardSfIds]; drum
   ///     MIDI events feed the keyboard FluidSynth on their channel, so they
   ///     ride that keyboard's bus.
-  ///   - [GFpaPluginInstance] with `pluginId == 'com.grooveforge.theremin'` —
-  ///     uses [kBusSlotTheremin].
+  ///   - [GFpaPluginInstance] `com.grooveforge.theremin` → [kBusSlotTheremin].
+  ///   - [GFpaPluginInstance] `com.grooveforge.stylophone` →
+  ///     [kBusSlotStylophone] (v2.12.5 — migrated from a dedicated miniaudio
+  ///     device onto the shared Oboe bus via `NativeInstrumentController`).
+  ///   - [GFpaPluginInstance] `com.grooveforge.vocoder` → [kBusSlotVocoder]
+  ///     (v2.12.5 — same migration). The vocoder's mic capture is still
+  ///     driven by the miniaudio capture device; only the playback side
+  ///     moves onto the bus.
   ///
-  /// **NOT supported on Android** (known limitation): stylophone, vocoder
-  /// and VST3 plugins. They do not live on the shared Oboe AAudio bus, so
-  /// there is no bus slot ID to reference them by. Cables from those sources
-  /// to an audio looper are silently ignored on Android and recorded as
-  /// silence. Parity with Linux will ship when those sources are migrated
-  /// onto the shared bus.
+  /// **Still NOT supported on Android**: VST3 plugins. Android does not host
+  /// VST3 plugins at all, so the question doesn't arise — cables from a
+  /// VST3 slot to an audio looper are silently ignored.
   void _syncAudioLooperSourcesAndroid(
     AudioGraph graph,
     List<PluginInstance> allPlugins,
@@ -965,11 +984,17 @@ class VstHostService {
       final sfId = keyboardSfIds[plugin.id] ?? -1;
       return sfId >= 1 ? sfId : null;
     }
-    if (plugin is GFpaPluginInstance &&
-        plugin.pluginId == 'com.grooveforge.theremin') {
-      return kBusSlotTheremin;
+    if (plugin is GFpaPluginInstance) {
+      switch (plugin.pluginId) {
+        case 'com.grooveforge.theremin':
+          return kBusSlotTheremin;
+        case 'com.grooveforge.stylophone':
+          return kBusSlotStylophone;
+        case 'com.grooveforge.vocoder':
+          return kBusSlotVocoder;
+      }
     }
-    // Stylophone, vocoder, VST3 — not bus-routed on Android.
+    // VST3 — not hosted on Android at all.
     return null;
   }
 

@@ -185,6 +185,10 @@ class AudioLooperEngine extends ChangeNotifier {
     if (_useAndroidPath) { AudioInputFFI().alooperDestroy(idx); }
     else { VstHostService.instance.host?.destroyAudioLooperClip(idx); }
   }
+  void _nClearData(int idx) {
+    if (_useAndroidPath) { AudioInputFFI().alooperClearData(idx); }
+    else { VstHostService.instance.host?.clearAudioLooperData(idx); }
+  }
 
   /// Called by the transport on every beat.  Handles bar-synced arm/stop.
   /// Must be wired up in splash_screen or rack_screen via [TransportEngine.onBeat].
@@ -422,11 +426,19 @@ class AudioLooperEngine extends ChangeNotifier {
   }
 
   /// Clears all recorded audio from the clip (resets to empty, idle).
+  ///
+  /// Transitions the native clip to IDLE (pause) and then explicitly erases
+  /// its PCM buffer via [_nClearData]. The two-step dance exists because
+  /// set_state(IDLE) no longer zeroes the recorded length — see the
+  /// [dvh_alooper_clear_data] doc comment for the full rationale. Before
+  /// that split, set_state(IDLE) wiped the length, which broke the
+  /// stop-then-autosave round-trip (`stop` intends to pause, not erase).
   void clear(String slotId) {
     final clip = _clips[slotId];
     if (clip == null) return;
 
     _nSetState(clip.nativeIdx, AudioLooperState.idle.index);
+    _nClearData(clip.nativeIdx);
     clip.state = AudioLooperState.idle;
     clip.lengthFrames = 0;
     clip.headFrames = 0;
@@ -628,7 +640,12 @@ class AudioLooperEngine extends ChangeNotifier {
   /// Called from [AudioLooperSlotUI.initState] or explicitly after startAudio.
   Future<void> finalizeLoad() async {
     final json = _pendingJson;
-    if (json == null || json.isEmpty) return;
+    if (json == null || json.isEmpty) {
+      debugPrint('[ALOOPER] finalizeLoad: no pending json, skipping');
+      return;
+    }
+    debugPrint('[ALOOPER] finalizeLoad: ${json.length} pending clip(s), '
+        'gfPath=${_pendingGfPath ?? "<null>"}');
     _pendingJson = null;
 
     for (final slotId in _clips.keys.toList()) {
@@ -638,7 +655,10 @@ class AudioLooperEngine extends ChangeNotifier {
       final slotId = entry.key;
       final clipJson = entry.value as Map<String, dynamic>;
       final clip = createClip(slotId);
-      if (clip == null) continue;
+      if (clip == null) {
+        debugPrint('[ALOOPER] finalizeLoad: createClip($slotId) returned null');
+        continue;
+      }
       clip.label = clipJson['label'] as String? ?? clip.label;
       clip.volume = (clipJson['volume'] as num?)?.toDouble() ?? 1.0;
       clip.reversed = clipJson['reversed'] as bool? ?? false;
@@ -648,16 +668,24 @@ class AudioLooperEngine extends ChangeNotifier {
       _nSetVolume(clip.nativeIdx, clip.volume);
       _nSetReversed(clip.nativeIdx, clip.reversed);
       _nSetBarSync(clip.nativeIdx, clip.barSyncEnabled);
+      debugPrint('[ALOOPER] finalizeLoad: created native clip for $slotId '
+          '(nativeIdx=${clip.nativeIdx})');
     }
 
     // Import sidecar WAV data if a .gf path is available.
     if (_pendingGfPath != null) {
+      debugPrint('[ALOOPER] finalizeLoad: importing WAVs from ${_pendingGfPath!}');
       await _importWavs(_pendingGfPath!);
       _pendingGfPath = null;
       // Compute waveforms for all loaded clips.
       for (final slotId in _clips.keys) {
+        final clip = _clips[slotId];
+        debugPrint('[ALOOPER] finalizeLoad: post-import clip $slotId '
+            'lengthFrames=${clip?.lengthFrames ?? -1}');
         updateWaveform(slotId);
       }
+    } else {
+      debugPrint('[ALOOPER] finalizeLoad: no gfPath set — skipping WAV import');
     }
 
     notifyListeners();

@@ -286,6 +286,17 @@ class AudioInputFFI {
   /// oboe_stream_add_source() in libnative-lib.so via GfpaAndroidBindings.
   late final int Function() _thereminBusRenderFnAddr;
 
+  /// Bound to `stylophone_bus_render_fn_addr` — same pattern as the theremin
+  /// entry above. Used by `NativeInstrumentController` on Android to register
+  /// the stylophone on the shared Oboe bus so GFPA effects and the audio
+  /// looper can process its output.
+  late final int Function() _styloBusRenderFnAddr;
+
+  /// Bound to `vocoder_bus_render_fn_addr` — same pattern as the theremin
+  /// entry above. Used by `NativeInstrumentController` on Android to register
+  /// the vocoder on the shared Oboe bus.
+  late final int Function() _vocoderBusRenderFnAddr;
+
   // ── Stylophone FFI function references ─────────────────────────────────────
 
   /// Bound reference to `stylophone_start` in the native library.
@@ -505,6 +516,14 @@ class AudioInputFFI {
         _lib
             .lookup<NativeFunction<IntPtr Function()>>('theremin_bus_render_fn_addr')
             .asFunction<int Function()>();
+    _styloBusRenderFnAddr =
+        _lib
+            .lookup<NativeFunction<IntPtr Function()>>('stylophone_bus_render_fn_addr')
+            .asFunction<int Function()>();
+    _vocoderBusRenderFnAddr =
+        _lib
+            .lookup<NativeFunction<IntPtr Function()>>('vocoder_bus_render_fn_addr')
+            .asFunction<int Function()>();
 
     // ── Stylophone bindings ───────────────────────────────────────────────
     _styloStart =
@@ -722,6 +741,20 @@ class AudioInputFFI {
   /// GFPA effects (WAH, reverb, etc.) can be applied to its audio output.
   int thereminBusRenderFnAddr() => _thereminBusRenderFnAddr();
 
+  /// Returns the address of the `stylophone_bus_render` trampoline function.
+  ///
+  /// Same contract as [thereminBusRenderFnAddr] — pass to
+  /// [GfpaAndroidBindings.oboeStreamAddSource] with [kBusSlotStylophone] to
+  /// route the stylophone through the shared Oboe bus on Android.
+  int styloBusRenderFnAddr() => _styloBusRenderFnAddr();
+
+  /// Returns the address of the `vocoder_bus_render` trampoline function.
+  ///
+  /// Same contract as [thereminBusRenderFnAddr] — pass to
+  /// [GfpaAndroidBindings.oboeStreamAddSource] with [kBusSlotVocoder] to
+  /// route the vocoder through the shared Oboe bus on Android.
+  int vocoderBusRenderFnAddr() => _vocoderBusRenderFnAddr();
+
   // ── Stylophone public API ─────────────────────────────────────────────────
 
   /// Starts the stylophone native synthesis device.
@@ -843,6 +876,10 @@ class AudioInputFFI {
       _looperLib.lookupFunction<Int32 Function(Pointer<Void>, Int32),
           int Function(Pointer<Void>, int)>('dvh_alooper_get_state');
 
+  late final void Function(int) _alooperClearData =
+      _looperLib.lookupFunction<Void Function(Int32),
+          void Function(int)>('dvh_alooper_clear_data');
+
   late final void Function(Pointer<Void>, int, double) _alooperSetVolume =
       _looperLib.lookupFunction<Void Function(Pointer<Void>, Int32, Float),
           void Function(Pointer<Void>, int, double)>('dvh_alooper_set_volume');
@@ -930,6 +967,11 @@ class AudioInputFFI {
 
   void alooperDestroy(int idx) => _alooperDestroy(nullptr, idx);
   void alooperSetState(int idx, int state) => _alooperSetState(nullptr, idx, state);
+
+  /// Erases the recorded PCM data for clip [idx] without changing its
+  /// state. Called by [AudioLooperEngine.clear] after the state transition
+  /// to IDLE. Keeps the clip slot alive but wipes its audio.
+  void alooperClearData(int idx) => _alooperClearData(idx);
   int alooperGetState(int idx) => _alooperGetState(nullptr, idx);
   void alooperSetVolume(int idx, double volume) => _alooperSetVolume(nullptr, idx, volume);
   void alooperSetReversed(int idx, bool reversed) =>

@@ -193,6 +193,26 @@ class ProjectService extends ChangeNotifier {
     if (result != null) {
       final path = result.endsWith('.gf') ? result : '$result.gf';
       _currentProjectPath = path;
+      // The file_picker plugin has already written the JSON bytes to [path].
+      // We still need to write the audio looper WAV sidecars next to it,
+      // otherwise reloading the project picks up the JSON metadata but finds
+      // no PCM data on disk. This is a pure export pass — the JSON is
+      // already on disk and we do NOT rewrite it to avoid racing with the
+      // plugin's own write. Only valid when the returned path is a real
+      // filesystem path (desktop always, Android only when SAF returns a
+      // POSIX-style path — some vendors do, others return content:// URIs
+      // which we can't use for sidecar I/O).
+      if (!kIsWeb && path.startsWith('/')) {
+        try {
+          await _exportAudioLooperWavs(path);
+        } catch (e) {
+          debugPrint('ProjectService: saveProjectAs sidecar export failed: $e');
+        }
+      } else if (!kIsWeb) {
+        debugPrint('ProjectService: saveProjectAs returned non-filesystem '
+            'path ($path) — audio looper WAV sidecars NOT written. '
+            'Reopening this project will restore clip metadata only.');
+      }
       notifyListeners();
       return path;
     }
@@ -390,12 +410,15 @@ class ProjectService extends ChangeNotifier {
     // Restore audio looper clips (PCM data from sidecar WAVs).
     final alooperJson =
         data['audioLooperSessions'] as Map<String, dynamic>? ?? const {};
+    debugPrint('ProjectService: _readGfFile alooperJson has '
+        '${alooperJson.length} clip(s), engine=${audioLooperEngine != null}');
     if (audioLooperEngine != null && alooperJson.isNotEmpty) {
       // Save metadata and .gf path for deferred load.  Native clips can't be
       // created yet (_host is null — JACK starts later).  The widget's
       // initState calls finalizeLoad() after the host is available.
       audioLooperEngine!.loadFromJson(alooperJson);
       audioLooperEngine!.setPendingGfPath(path);
+      debugPrint('ProjectService: _readGfFile pendingGfPath set to $path');
     }
 
     debugPrint(

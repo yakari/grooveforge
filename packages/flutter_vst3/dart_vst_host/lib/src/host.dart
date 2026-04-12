@@ -267,6 +267,12 @@ class VstHost {
   /// Read the current state of clip [idx].
   int getAudioLooperState(int idx) => _b.alooperGetState(handle, idx);
 
+  /// Erases the recorded PCM data for clip [idx] without changing its
+  /// state. Used by Dart's [AudioLooperEngine.clear] to wipe the audio
+  /// while keeping the clip slot alive — separate from `setState(IDLE)`
+  /// so that pausing playback does not discard recorded content.
+  void clearAudioLooperData(int idx) => _b.alooperClearData(idx);
+
   /// Set playback volume (0.0–1.0) for clip [idx].
   void setAudioLooperVolume(int idx, double volume) =>
       _b.alooperSetVolume(handle, idx, volume);

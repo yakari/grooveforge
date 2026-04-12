@@ -115,15 +115,22 @@ class _SplashScreenState extends State<SplashScreen> {
       } else if (plugin is LooperPluginInstance) {
         looperEngine.ensureSession(plugin.id);
       } else if (plugin is GFpaPluginInstance) {
-        // Global-singleton monophonic instruments must exist on the native
-        // side as soon as the project is loaded — the rack is a lazy list,
-        // so the slot widget's initState may never fire. See
+        // Global-singleton monophonic instruments + vocoder must exist on
+        // the native side as soon as the project is loaded — the rack is
+        // a lazy list, so the slot widget's initState may never fire. See
         // [NativeInstrumentController] for the full rationale.
+        //
+        // For the vocoder on Android, this registers `vocoder_bus_render`
+        // on Oboe slot 102 so GFPA effects and the audio looper can cable
+        // into it. On desktop the call is a no-op because playback goes
+        // through the VstHost master-render list instead.
         switch (plugin.pluginId) {
           case 'com.grooveforge.stylophone':
             NativeInstrumentController.instance.onStylophoneAdded(plugin);
           case 'com.grooveforge.theremin':
             NativeInstrumentController.instance.onThereminAdded(plugin);
+          case 'com.grooveforge.vocoder':
+            NativeInstrumentController.instance.onVocoderAdded();
         }
       }
     }

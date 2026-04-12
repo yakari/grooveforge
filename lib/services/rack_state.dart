@@ -461,15 +461,19 @@ class RackState extends ChangeNotifier {
       // Same rationale for descriptor-backed audio effects — see
       // [_initAudioEffectPlugin] for the full explanation.
       _initAudioEffectPlugin(plugin); // fire-and-forget
-      // Global-singleton monophonic instruments (stylophone, theremin) have
-      // their native oscillator lifetime managed by [NativeInstrumentController]
-      // so it stays alive while the slot is in the rack — independent of
-      // whether the widget is currently mounted by the lazy list builder.
+      // Global-singleton monophonic instruments (stylophone, theremin) and
+      // the vocoder have their native lifetime managed by
+      // [NativeInstrumentController] so the Oboe-bus registration stays
+      // active while the slot is in the rack — independent of whether the
+      // widget is currently mounted by the lazy list builder. On Android
+      // this also lets the audio looper and GFPA effects cable into them.
       switch (plugin.pluginId) {
         case 'com.grooveforge.stylophone':
           NativeInstrumentController.instance.onStylophoneAdded(plugin);
         case 'com.grooveforge.theremin':
           NativeInstrumentController.instance.onThereminAdded(plugin);
+        case 'com.grooveforge.vocoder':
+          NativeInstrumentController.instance.onVocoderAdded();
       }
     }
     _syncJamFollowerMapToEngine();
@@ -490,8 +494,8 @@ class RackState extends ChangeNotifier {
     // the native DSP handle).
     _disposeAudioEffectPlugin(id);
     // Global-singleton monophonic instruments — decrement ref count and, on
-    // the last slot removed, stop the native oscillator. See
-    // [NativeInstrumentController] for rationale.
+    // the last slot removed, stop the native oscillator and unregister the
+    // Oboe bus source. See [NativeInstrumentController] for rationale.
     final removed = _findById(id);
     if (removed is GFpaPluginInstance) {
       switch (removed.pluginId) {
@@ -499,6 +503,8 @@ class RackState extends ChangeNotifier {
           NativeInstrumentController.instance.onStylophoneRemoved();
         case 'com.grooveforge.theremin':
           NativeInstrumentController.instance.onThereminRemoved();
+        case 'com.grooveforge.vocoder':
+          NativeInstrumentController.instance.onVocoderRemoved();
       }
     }
 

@@ -413,15 +413,41 @@ void dvh_alooper_set_state(DVH_Host /*host*/, int32_t idx, int32_t state) {
         clip->overdubStartHead = clip->head.load(std::memory_order_relaxed);
     }
     if (state == ALOOPER_IDLE) {
+        // IDLE means "not playing or recording right now" — it is the
+        // natural pause state, and a clip with previously-recorded content
+        // must survive an IDLE transition so the user can hit Play again
+        // and so autosave can persist the PCM. We only reset the playback
+        // cursor and the overdub-start marker; the actual audio data and
+        // its length are preserved.
+        //
+        // See dvh_alooper_clear_data for the explicit "erase recorded
+        // audio" path — Dart's clear() calls that AFTER going to IDLE.
         clip->head.store(0, std::memory_order_relaxed);
-        clip->length.store(0, std::memory_order_relaxed);
-        clip->loopLengthFrames = 0;
-        clip->loopLengthBeats = 0.0;
         clip->overdubStartHead = -1;
     }
 
     clip->state.store(state, std::memory_order_release);
     fprintf(stderr, "[audio_looper] Clip %d state → %d\n", idx, state);
+}
+
+/// Erases the recorded PCM data for clip [idx] without changing its state.
+///
+/// Used by Dart's [AudioLooperEngine.clear] to implement the "wipe this
+/// clip but keep the slot" operation. Previously this was conflated with
+/// the IDLE state transition — which broke stop/reload because IDLE is
+/// also the "paused with content" state and we were zeroing the length
+/// out from under an autosave.
+///
+/// Safe to call at any time; the RT callback reads `length` as an atomic.
+DVH_API void dvh_alooper_clear_data(int32_t idx) {
+    auto* clip = _getClip(idx);
+    if (!clip) return;
+    clip->head.store(0, std::memory_order_relaxed);
+    clip->length.store(0, std::memory_order_relaxed);
+    clip->loopLengthFrames = 0;
+    clip->loopLengthBeats = 0.0;
+    clip->overdubStartHead = -1;
+    fprintf(stderr, "[audio_looper] Clip %d data cleared\n", idx);
 }
 
 int32_t dvh_alooper_get_state(DVH_Host /*host*/, int32_t idx) {
