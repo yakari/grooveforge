@@ -231,4 +231,10 @@ class AudioInputFFI {
   int alooperMemoryUsed() => 0;
   void alooperSetTransport(double bpm, int timeSigNum, bool isPlaying,
       double positionInBeats) {}
+
+  // Android direct-FFI MIDI dispatch — no-ops on web (no native libs).
+  void gfNativeNoteOn(int sfId, int channel, int key, int velocity) {}
+  void gfNativeNoteOff(int sfId, int channel, int key) {}
+  void gfNativeCc(int sfId, int channel, int controller, int value) {}
+  void gfNativePitchBend(int sfId, int channel, int value) {}
 }

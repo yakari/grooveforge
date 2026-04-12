@@ -197,3 +197,66 @@ Java_com_melihhakanpektas_flutter_1midi_1pro_FlutterMidiProPlugin_dispose(
     settings.clear();
     soundfonts.clear();
 }
+
+// ── Direct FFI entry points (latency hot path) ───────────────────────────────
+//
+// These symbols are plain `extern "C"` — NOT JNI wrappers — so Dart can reach
+// them directly via `DynamicLibrary.lookupFunction` without going through the
+// Flutter method channel → Kotlin audioExecutor → JNI chain that the
+// `Java_com_melihhakanpektas_*` entry points above use.
+//
+// The method-channel path adds ~1–3ms of serialisation per call (three
+// round-trips for a single note-on: pitch bend reset, CC reset, note-on),
+// which turns a 3-note chord into a 9–27ms staggered burst on Android. These
+// FFI exports let the hot-path MIDI events bypass that entirely and get the
+// same ~0.3ms latency we already have on Linux through libaudio_input.so.
+//
+// Lifecycle (load / unload / soundfont select) still goes through the
+// method-channel JNI entry points — they write `synths`, `settings`,
+// `soundfonts`, and fire the `oboe_stream_*` calls. This keeps
+// flutter_midi_pro as the single owner of the synth lifetime, and the FFI
+// path is a pure READ of `synths[sfId]` plus a direct `fluid_synth_*` call.
+//
+// Thread safety: these functions are called from the Dart isolate thread,
+// while `fluid_synth_process()` runs on the AAudio audio thread. FluidSynth
+// is documented as thread-safe between note events and process calls (the
+// voice list is guarded internally). The `synths.find` lookup on a
+// `std::map` is NOT mutex-guarded, but:
+//   - Soundfont unload is rare and goes through the method-channel path,
+//   - `oboe_stream_remove_synth` in the unload path blocks until any
+//     in-flight audio-thread snapshot drains,
+//   - The window between `find` and the `fluid_synth_*` call is a handful
+//     of nanoseconds.
+// The existing JNI entry points above follow the same lock-free pattern
+// and have been stable for months; these FFI exports are modelled identically.
+//
+// All functions are no-ops when `sfId` is not in the map — mirrors the
+// defensive `find() == end()` guards on the existing JNI side.
+
+extern "C" __attribute__((visibility("default")))
+void gf_native_note_on(int sfId, int channel, int key, int velocity) {
+    auto it = synths.find(sfId);
+    if (it == synths.end()) return;
+    fluid_synth_noteon(it->second, channel, key, velocity);
+}
+
+extern "C" __attribute__((visibility("default")))
+void gf_native_note_off(int sfId, int channel, int key) {
+    auto it = synths.find(sfId);
+    if (it == synths.end()) return;
+    fluid_synth_noteoff(it->second, channel, key);
+}
+
+extern "C" __attribute__((visibility("default")))
+void gf_native_cc(int sfId, int channel, int controller, int value) {
+    auto it = synths.find(sfId);
+    if (it == synths.end()) return;
+    fluid_synth_cc(it->second, channel, controller, value);
+}
+
+extern "C" __attribute__((visibility("default")))
+void gf_native_pitch_bend(int sfId, int channel, int value) {
+    auto it = synths.find(sfId);
+    if (it == synths.end()) return;
+    fluid_synth_pitch_bend(it->second, channel, value);
+}

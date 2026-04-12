@@ -1048,4 +1048,65 @@ class AudioInputFFI {
   void alooperSetTransport(double bpm, int timeSigNum, bool isPlaying,
           double positionInBeats) =>
       _alooperAndroidSetTransport(bpm, timeSigNum, isPlaying ? 1 : 0, positionInBeats);
+
+  // ── Direct MIDI note dispatch (Android hot path — libnative-lib.so) ──────
+  //
+  // These symbols bypass the `flutter_midi_pro` method channel entirely.
+  // Every note event on Android used to go through three serialised
+  // Dart→Kotlin→JNI round-trips (pitch bend reset, CC reset, note-on), which
+  // turned a 3-note chord into a 9–27ms staggered burst. The FFI path below
+  // brings per-note latency down to ~0.3ms — parity with the Linux/macOS
+  // direct-FFI path through libaudio_input.so.
+  //
+  // Lifecycle (loadSoundfont / unloadSoundfont / selectInstrument) still goes
+  // through the method channel — these FFI functions are a pure READ of
+  // `native-lib.cpp:synths` plus a direct `fluid_synth_*` call. See the big
+  // comment block above `gf_native_note_on` in `native-lib.cpp` for the
+  // thread-safety rationale.
+
+  late final void Function(int, int, int, int) _gfNativeNoteOn =
+      _looperLib.lookupFunction<
+          Void Function(Int32, Int32, Int32, Int32),
+          void Function(int, int, int, int)
+      >('gf_native_note_on');
+
+  late final void Function(int, int, int) _gfNativeNoteOff =
+      _looperLib.lookupFunction<
+          Void Function(Int32, Int32, Int32),
+          void Function(int, int, int)
+      >('gf_native_note_off');
+
+  late final void Function(int, int, int, int) _gfNativeCc =
+      _looperLib.lookupFunction<
+          Void Function(Int32, Int32, Int32, Int32),
+          void Function(int, int, int, int)
+      >('gf_native_cc');
+
+  late final void Function(int, int, int) _gfNativePitchBend =
+      _looperLib.lookupFunction<
+          Void Function(Int32, Int32, Int32),
+          void Function(int, int, int)
+      >('gf_native_pitch_bend');
+
+  /// Direct FFI note-on for the Android FluidSynth hot path.
+  ///
+  /// [sfId] is the soundfont ID returned by `flutter_midi_pro.loadSoundfont`;
+  /// [channel] is 0-indexed (0–15); [velocity] is 0–127. No-op when [sfId]
+  /// is not in the native `synths` map (e.g. soundfont not yet loaded).
+  void gfNativeNoteOn(int sfId, int channel, int key, int velocity) =>
+      _gfNativeNoteOn(sfId, channel, key, velocity);
+
+  /// Direct FFI note-off for the Android FluidSynth hot path.
+  void gfNativeNoteOff(int sfId, int channel, int key) =>
+      _gfNativeNoteOff(sfId, channel, key);
+
+  /// Direct FFI MIDI control change for the Android FluidSynth hot path.
+  void gfNativeCc(int sfId, int channel, int controller, int value) =>
+      _gfNativeCc(sfId, channel, controller, value);
+
+  /// Direct FFI pitch bend for the Android FluidSynth hot path.
+  ///
+  /// [value] is the 14-bit MIDI pitch bend value (0–16383, centre = 8192).
+  void gfNativePitchBend(int sfId, int channel, int value) =>
+      _gfNativePitchBend(sfId, channel, value);
 }

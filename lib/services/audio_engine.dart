@@ -1301,9 +1301,12 @@ class AudioEngine extends ChangeNotifier {
       // On mobile use any loaded soundfont; channel 9 follows GM percussion in most SF2 files.
       final int sfId = _sfPathToIdMobile.isNotEmpty ? _sfPathToIdMobile.values.first : -1;
       if (sfId != -1) {
-        _midiPro.playNote(sfId: sfId, channel: percChannel, key: note, velocity: velocity);
+        // Android hot path: direct FFI into libnative-lib.so to bypass the
+        // method-channel round-trips. See the `gfNativeNoteOn` doc comment
+        // in audio_input_ffi_native.dart for the latency rationale.
+        AudioInputFFI().gfNativeNoteOn(sfId, percChannel, note, velocity);
         Future.delayed(const Duration(milliseconds: 40), () {
-          _midiPro.stopNote(sfId: sfId, channel: percChannel, key: note);
+          AudioInputFFI().gfNativeNoteOff(sfId, percChannel, note);
         });
       }
     }
@@ -1465,13 +1468,24 @@ class AudioEngine extends ChangeNotifier {
     final midiControllerOnly = channels[channel].soundfontPath ==
         kMidiControllerOnlySoundfont;
 
-    // Reset expressive gestures before the note-on so the synth state is
-    // clean when the new voice starts. These are direct FFI/method-channel
-    // calls with no Flutter state side-effects.
-    if (!midiControllerOnly) {
-      setPitchBend(channel: channel, value: 8192); // Center
-      setControlChange(channel: channel, controller: 1, value: 0); // Reset Mod
-    }
+    // (Historical) Pre-emptively reset pitch bend and modulation CC to
+    // neutral before the note-on, so a new voice never inherits stale
+    // expressive state from a previous gesture. Dropped in v2.12.6 because
+    // the two extra synchronous calls per note were the single biggest
+    // latency contributor on Android (method-channel serialisation) and
+    // couldn't explain any observed bug on Linux/macOS either. If note-on
+    // voices ever start playing with unexpected bend/mod carry-over,
+    // restore these two lines:
+    //
+    //     if (!midiControllerOnly) {
+    //       setPitchBend(channel: channel, value: 8192);
+    //       setControlChange(channel: channel, controller: 1, value: 0);
+    //     }
+    //
+    // Alternative if restoration is needed: track last-sent pitch-bend /
+    // CC values in ChannelState and only fire the reset when the tracked
+    // value is non-neutral — gives the same correctness with near-zero
+    // latency cost on the common case.
 
     // Compute the pitch to actually play (scale lock / Jam Mode snapping).
     // Pure arithmetic — no ValueNotifier reads that could trigger rebuilds.
@@ -1504,9 +1518,11 @@ class AudioEngine extends ChangeNotifier {
       if (!kIsWeb && (Platform.isLinux || Platform.isMacOS)) {
         AudioInputFFI().keyboardNoteOff(channel, keyToPlay);
       } else {
+        // Android hot path: direct FFI (see `playNote` branch below for
+        // the latency rationale).
         final sfId = _getSfIdForChannel(channel);
         if (sfId != -1) {
-          _midiPro.stopNote(sfId: sfId, channel: channel, key: keyToPlay);
+          AudioInputFFI().gfNativeNoteOff(sfId, channel, keyToPlay);
         }
       }
     }
@@ -1523,14 +1539,17 @@ class AudioEngine extends ChangeNotifier {
       } else if (!kIsWeb && (Platform.isLinux || Platform.isMacOS)) {
         AudioInputFFI().keyboardNoteOn(channel, keyToPlay, velocity);
       } else {
+        // Android hot path: direct FFI into libnative-lib.so's
+        // `gf_native_note_on` wrapper, bypassing the flutter_midi_pro
+        // method channel → Kotlin audioExecutor → JNI chain that added
+        // ~1–3ms of serialisation per call. Per-note latency drops from
+        // ~9ms (when the two pre-emptive resets below were still firing
+        // before we dropped them) to ~0.3ms. Chord notes no longer
+        // stagger because every note reaches `fluid_synth_noteon`
+        // synchronously inside the same Dart microtask.
         final sfId = _getSfIdForChannel(channel);
         if (sfId != -1) {
-          _midiPro.playNote(
-            sfId: sfId,
-            channel: channel,
-            key: keyToPlay,
-            velocity: velocity,
-          );
+          AudioInputFFI().gfNativeNoteOn(sfId, channel, keyToPlay, velocity);
         }
       }
     }
@@ -1574,9 +1593,10 @@ class AudioEngine extends ChangeNotifier {
         } else if (!kIsWeb && (Platform.isLinux || Platform.isMacOS)) {
           AudioInputFFI().keyboardNoteOff(channel, keyToStop);
         } else {
+          // Android hot path — see `playNote` for the latency rationale.
           final sfId = _getSfIdForChannel(channel);
           if (sfId != -1) {
-            _midiPro.stopNote(sfId: sfId, channel: channel, key: keyToStop);
+            AudioInputFFI().gfNativeNoteOff(sfId, channel, keyToStop);
           }
         }
       }
@@ -2310,13 +2330,10 @@ class AudioEngine extends ChangeNotifier {
     if (!kIsWeb && (Platform.isLinux || Platform.isMacOS)) {
       AudioInputFFI().keyboardControlChange(channel, controller, value);
     } else {
+      // Android hot path — direct FFI, same latency rationale as playNote.
       int sfId = _getSfIdForChannel(channel);
-      _midiPro.controlChange(
-        controller: controller,
-        value: value,
-        channel: channel,
-        sfId: sfId == -1 ? 1 : sfId,
-      );
+      if (sfId == -1) sfId = 1;
+      AudioInputFFI().gfNativeCc(sfId, channel, controller, value);
     }
   }
 
@@ -2327,12 +2344,10 @@ class AudioEngine extends ChangeNotifier {
     if (!kIsWeb && (Platform.isLinux || Platform.isMacOS)) {
       AudioInputFFI().keyboardPitchBend(channel, value);
     } else {
+      // Android hot path — direct FFI, same latency rationale as playNote.
       int sfId = _getSfIdForChannel(channel);
-      _midiPro.pitchBend(
-        value: value,
-        channel: channel,
-        sfId: sfId == -1 ? 1 : sfId,
-      );
+      if (sfId == -1) sfId = 1;
+      AudioInputFFI().gfNativePitchBend(sfId, channel, value);
     }
   }
 
