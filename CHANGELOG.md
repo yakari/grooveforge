@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [X.x.x]
+
+### Architecture
+- **Phase vocoder DSP library** (foundation for audio looper tempo sync, harmonizer effect, and a fix for the vocoder's choppy NATURAL mode). New allocation-free C module [native_audio/gf_phase_vocoder.h](native_audio/gf_phase_vocoder.h) + [gf_phase_vocoder.c](native_audio/gf_phase_vocoder.c) implementing a phase-locked short-time Fourier transform: spectral peaks are detected per analysis frame, their instantaneous-frequency phase advance is computed from the measured phase increment, and the phases of surrounding bins are locked to the peak's rotation (Laroche & Dolson 1999). This preserves vertical phase coherence across partials and keeps transients crisp under stretching — important for drum loops where a classic phase vocoder smears hits. Includes a self-contained iterative radix-2 Cooley-Tukey complex FFT with precomputed twiddles and bit-reversal table (no KissFFT / pffft dependency yet — can be swapped later if profiling demands it). Public API: `gf_pv_create` / `gf_pv_destroy` / `gf_pv_reset` / `gf_pv_set_stretch` / `gf_pv_set_pitch_semitones` / `gf_pv_process_block`, plus an offline helper `gf_pv_time_stretch_offline`. The context owns all buffers (FFT work, mag/phase scratch, per-channel overlap-add tails and ring buffers), so `gf_pv_process_block` is safe to call from the audio thread. OLA compensation is computed from the actual analysis/synthesis window overlap at context creation, so any valid hop size (≤ fft_size/4) yields unity gain through the analysis/synthesis chain. Compiled into `libaudio_input.so` on all desktop platforms; not yet wired into any consumer — the looper and vocoder integrations land in follow-up versions.
+- **Phase vocoder offline smoke test** [native_audio/gf_pv_smoke_test.c](native_audio/gf_pv_smoke_test.c): generates a 4-bar 120 BPM loop (440 Hz sine plus per-beat click), time-stretches to 140 BPM via `gf_pv_time_stretch_offline`, writes source and stretched WAVs under `/tmp`, and asserts three properties: duration ratio within 5%, RMS gain drift within 3 dB, and 440 Hz DFT magnitude still dominant after stretching (pitch preservation). Built as a host-only CMake target; not included in Android/iOS builds.
+
 ## [2.12.6] - 2026-04-12
 
 ### Fixed

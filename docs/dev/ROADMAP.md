@@ -160,7 +160,7 @@ When this file is opened on Android or iOS, `ProjectService` detects the `"platf
 | External VST3 hosting | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
 | MIDI Looper | ✅ | ✅ | ✅ | ✅ | ✅ | ⚠️ |
 | Drum Generator | ✅ | ✅ | ✅ | ✅ | ✅ | ⚠️ |
-| Audio Looper (PCM) | 🔜 | 🔜 | 🔜 | 🔜 | 🔜 | ❌ |
+| Audio Looper (PCM) | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
 | AUv3 hosting | ❌ | 🔜 | ❌ | ❌ | 🔜 | ❌ |
 | AAP hosting | ❌ | ❌ | ❌ | 🔜 | ❌ | ❌ |
 | Web MIDI | ❌ | ❌ | ❌ | ❌ | ❌ | 🔜 |

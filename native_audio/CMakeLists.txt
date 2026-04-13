@@ -6,7 +6,11 @@ set(CMAKE_C_STANDARD 99)
 # Build a shared library that Dart can load via FFI.
 # keyboard_synth.c is compiled on all platforms (with Linux-only implementation
 # and no-op stubs on other platforms).
-add_library(audio_input SHARED audio_input.c keyboard_synth.c)
+add_library(audio_input SHARED
+    audio_input.c
+    keyboard_synth.c
+    gf_phase_vocoder.c
+)
 
 find_package(Threads REQUIRED)
 target_link_libraries(audio_input PRIVATE Threads::Threads)
@@ -38,4 +42,13 @@ elseif (UNIX AND NOT APPLE)
     find_path(FLUIDSYNTH_INCLUDE_DIR fluidsynth.h)
     target_include_directories(audio_input PRIVATE ${FLUIDSYNTH_INCLUDE_DIR})
     target_link_libraries(audio_input PRIVATE ${M_LIB} ${DL_LIB} ${FLUIDSYNTH_LIB})
+endif()
+
+# Offline smoke test for the phase vocoder. Host-side only (not included
+# in any platform build). Uses miniaudio's built-in WAV encoder.
+if (NOT ANDROID AND NOT IOS)
+    add_executable(gf_pv_smoke_test gf_pv_smoke_test.c gf_phase_vocoder.c)
+    if (UNIX)
+        target_link_libraries(gf_pv_smoke_test PRIVATE m ${CMAKE_DL_LIBS})
+    endif()
 endif()
