@@ -349,6 +349,34 @@
   "addLooperSubtitle": "Record and loop MIDI patterns with bar sync",
   "rackAddAudioLooper": "Audio Looper",
   "rackAddAudioLooperSubtitle": "Record and loop live audio (PCM) with bar sync, overdub, and reverse",
+  "rackAddSourcesSectionLabel": "Audio Sources",
+  "@rackAddSourcesSectionLabel": {
+    "description": "Section header in the Add Plugin sheet for hardware audio source slots (microphone, line-in)."
+  },
+  "rackAddLiveInputSource": "Live Input",
+  "@rackAddLiveInputSource": {
+    "description": "Tile title for the Live Input source slot that exposes a hardware audio input as a cable-able audio output."
+  },
+  "rackAddLiveInputSourceSubtitle": "Route a microphone or line-in into any effect (harmonizer, vocoder, reverb…)",
+  "@rackAddLiveInputSourceSubtitle": {
+    "description": "Subtitle for the Live Input source slot tile."
+  },
+  "liveInputNoDevice": "No input device detected",
+  "@liveInputNoDevice": {
+    "description": "Shown in the Live Input slot when no capture device is available."
+  },
+  "liveInputRefreshDevices": "Refresh device list",
+  "@liveInputRefreshDevices": {
+    "description": "Tooltip on the refresh button in the Live Input slot device picker."
+  },
+  "liveInputGainLabel": "Gain",
+  "@liveInputGainLabel": {
+    "description": "Label for the input gain slider in the Live Input slot."
+  },
+  "liveInputMonitorMute": "Mute local monitor (still feeds effects)",
+  "@liveInputMonitorMute": {
+    "description": "Tooltip for the monitor-mute toggle in the Live Input slot."
+  },
   "audioLooperWaveformRecording": "Recording…",
   "@audioLooperWaveformRecording": {
     "description": "Placeholder shown inside the audio looper waveform area while a clip is actively recording and no waveform has been computed yet."

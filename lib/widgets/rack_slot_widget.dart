@@ -5,6 +5,7 @@ import '../l10n/app_localizations.dart';
 import '../constants/soundfont_sentinels.dart';
 import '../models/audio_looper_plugin_instance.dart';
 import '../models/drum_generator_plugin_instance.dart';
+import '../models/live_input_source_plugin_instance.dart';
 import '../models/gfpa_plugin_instance.dart';
 import '../models/grooveforge_keyboard_plugin.dart';
 import '../models/looper_plugin_instance.dart';
@@ -34,6 +35,7 @@ import 'rack/gfpa_theremin_slot_ui.dart';
 import 'rack/gfpa_vocoder_slot_ui.dart';
 import 'rack/grooveforge_keyboard_slot_ui.dart';
 import 'rack/audio_looper_slot_ui.dart';
+import 'rack/live_input_source_slot_ui.dart';
 import 'rack/looper_slot_ui.dart';
 import 'rack/vst3_effect_slot_ui.dart';
 import 'rack/vst3_slot_ui.dart';
@@ -217,6 +219,7 @@ class RackSlotWidget extends StatelessWidget {
   /// played.  Only slots that directly produce or respond to notes should glow.
   bool get _shouldShowNoteGlow {
     if (plugin is AudioLooperPluginInstance) return false;
+    if (plugin is LiveInputSourcePluginInstance) return false;
     if (plugin is DrumGeneratorPluginInstance) return false;
     if (plugin is LooperPluginInstance) return false;
     if (plugin is GFpaPluginInstance) {
@@ -255,6 +258,11 @@ class RackSlotWidget extends StatelessWidget {
     }
     if (plugin is AudioLooperPluginInstance) {
       return AudioLooperSlotUI(plugin: plugin as AudioLooperPluginInstance);
+    }
+    if (plugin is LiveInputSourcePluginInstance) {
+      return LiveInputSourceSlotUI(
+        plugin: plugin as LiveInputSourcePluginInstance,
+      );
     }
     if (plugin is Vst3PluginInstance) {
       final vst3 = plugin as Vst3PluginInstance;
@@ -462,6 +470,7 @@ class _SlotHeader extends StatelessWidget {
           : Icons.piano;
     }
     if (p is LooperPluginInstance) return Icons.loop;
+    if (p is LiveInputSourcePluginInstance) return Icons.mic;
     if (p is Vst3PluginInstance) {
       // Effect and analyzer plugins use a wand icon to distinguish them from
       // instrument slots (generic extension icon).

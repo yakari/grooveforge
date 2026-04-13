@@ -156,32 +156,31 @@ class _TransportBarState extends State<TransportBar>
     bool isPlaying,
     AppLocalizations l10n,
   ) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        // Left cluster: toggle · LED · play · BPM controls
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _supplementaryToggle(l10n),
-            _beatLed(isPlaying),
-            const SizedBox(width: 6),
-            _playStopButton(transport, isPlaying, l10n, compact: true),
-            const SizedBox(width: 2),
-            _bpmControl(context, transport, l10n, compact: true),
-          ],
-        ),
-        // Right cluster: TAP · time sig · metronome
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _tapButton(transport, l10n, compact: true),
-            const SizedBox(width: 4),
-            _timeSigButton(context, transport, l10n, compact: true),
-            _metronomeButton(transport, l10n, compact: true),
-          ],
-        ),
-      ],
+    // On very narrow phones (≤ ~350 dp) the "already compact" controls can
+    // still exceed the available width. FittedBox scales the row down so
+    // it never overflows — on normal-width phones the scale stays 1.0 and
+    // the layout is identical to the pre-existing compact variant.
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: Alignment.center,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Left cluster: toggle · LED · play · BPM controls
+          _supplementaryToggle(l10n),
+          _beatLed(isPlaying),
+          const SizedBox(width: 6),
+          _playStopButton(transport, isPlaying, l10n, compact: true),
+          const SizedBox(width: 2),
+          _bpmControl(context, transport, l10n, compact: true),
+          const SizedBox(width: 8),
+          // Right cluster: TAP · time sig · metronome
+          _tapButton(transport, l10n, compact: true),
+          const SizedBox(width: 4),
+          _timeSigButton(context, transport, l10n, compact: true),
+          _metronomeButton(transport, l10n, compact: true),
+        ],
+      ),
     );
   }
 

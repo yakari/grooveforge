@@ -78,6 +78,14 @@ typedef VocoderPitchBendDart = void Function(int rawValue);
 typedef VocoderControlChangeC = Void Function(Int32 cc, Int32 value);
 typedef VocoderControlChangeDart = void Function(int cc, int value);
 
+// ── Live Input Source typedefs ───────────────────────────────────────────────
+
+/// C signature: `void live_input_set_gain_db(float gainDb)`
+typedef LiveInputSetGainDbC = Void Function(Float);
+
+/// C signature: `void live_input_set_monitor_mute(int muted)`
+typedef LiveInputSetMonitorMuteC = Void Function(Int32);
+
 // ── Theremin render-block typedefs (for VST3 routing) ────────────────────────
 
 /// C signature: `void theremin_render_block(float* outL, float* outR, int frames)`
@@ -275,6 +283,28 @@ class AudioInputFFI {
   /// external render fn when the Vocoder is cabled into the audio looper.
   late final Pointer<NativeFunction<ThereminRenderBlockC>> vocoderRenderBlockPtr;
 
+  /// Raw pointer to `live_input_render_block` — passed to dart_vst_host as
+  /// an external render fn when the Live Input Source slot is cabled into
+  /// a GFPA effect or the audio looper. Produces stereo samples by reading
+  /// the mic ring buffer that the shared capture device fills.
+  late final Pointer<NativeFunction<ThereminRenderBlockC>> liveInputRenderBlockPtr;
+
+  /// Dart-callable bound to `live_input_set_gain_db`.
+  late final void Function(double) _liveInputSetGainDb;
+
+  /// Dart-callable bound to `live_input_set_monitor_mute`.
+  late final void Function(int) _liveInputSetMonitorMute;
+
+  /// Dart-callable bound to `get_live_input_peak`.
+  late final double Function() _getLiveInputPeak;
+
+  /// Bound to `live_input_bus_render_fn_addr` — same pattern as the
+  /// theremin/vocoder bus addr getters. On Android the returned integer
+  /// is handed to [GfpaAndroidBindings.oboeStreamAddSource] with
+  /// [kBusSlotLiveInput] to register the mic passthrough on the shared
+  /// AAudio bus so GFPA effects and the audio looper can cable into it.
+  late final int Function() _liveInputBusRenderFnAddr;
+
   /// Dart-callable bound to `vocoder_set_capture_mode`.
   late final ThereminSetCaptureModeDart _vocoderSetCaptureMode;
 
@@ -441,6 +471,22 @@ class AudioInputFFI {
             .asFunction();
     vocoderRenderBlockPtr =
         _lib.lookup<NativeFunction<ThereminRenderBlockC>>('vocoder_render_block');
+    liveInputRenderBlockPtr = _lib
+        .lookup<NativeFunction<ThereminRenderBlockC>>('live_input_render_block');
+    _liveInputSetGainDb = _lib
+        .lookup<NativeFunction<LiveInputSetGainDbC>>('live_input_set_gain_db')
+        .asFunction();
+    _liveInputSetMonitorMute = _lib
+        .lookup<NativeFunction<LiveInputSetMonitorMuteC>>(
+            'live_input_set_monitor_mute')
+        .asFunction();
+    _getLiveInputPeak = _lib
+        .lookup<NativeFunction<NativeFloatFunctionC>>('get_live_input_peak')
+        .asFunction();
+    _liveInputBusRenderFnAddr = _lib
+        .lookup<NativeFunction<IntPtr Function()>>(
+            'live_input_bus_render_fn_addr')
+        .asFunction();
     _vocoderSetCaptureMode =
         _lib
             .lookup<NativeFunction<ThereminSetCaptureModeC>>('vocoder_set_capture_mode')
@@ -650,6 +696,28 @@ class AudioInputFFI {
   double getVocoderOutputPeak() {
     return _getVocoderOutputPeak();
   }
+
+  // ── Live Input Source ───────────────────────────────────────────────────
+
+  /// Pushes the input gain (in dB) to the native live-input passthrough.
+  /// Clamped on the C side; callers are expected to pre-clamp for UI sanity.
+  void liveInputSetGainDb(double gainDb) => _liveInputSetGainDb(gainDb);
+
+  /// Toggles the native direct-monitor mute flag. The cabled output is
+  /// unaffected — this only gates a future direct-monitor path.
+  void liveInputSetMonitorMute({required bool muted}) =>
+      _liveInputSetMonitorMute(muted ? 1 : 0);
+
+  /// Returns the most recent peak amplitude (linear, 0.0–~1.0) of the
+  /// live input render block. Decays on each call so it can drive a
+  /// smooth meter without a separate envelope follower.
+  double getLiveInputPeak() => _getLiveInputPeak();
+
+  /// Returns the address of the `live_input_bus_render` trampoline.
+  /// Pass to [GfpaAndroidBindings.oboeStreamAddSource] with
+  /// [kBusSlotLiveInput] to register the mic passthrough on the shared
+  /// AAudio bus so GFPA effects and the audio looper can consume it.
+  int liveInputBusRenderFnAddr() => _liveInputBusRenderFnAddr();
 
   /// Enable or disable C-level latency logging to Android logcat.
   /// When enabled, logs a rolling average callback period every ~1 second.

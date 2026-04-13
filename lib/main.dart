@@ -10,6 +10,7 @@ import 'services/drum_generator_engine.dart';
 import 'services/drum_pattern_parser.dart';
 import 'services/drum_pattern_registry.dart';
 import 'services/audio_looper_engine.dart';
+import 'services/live_input_source_engine.dart';
 import 'services/looper_engine.dart';
 import 'services/midi_service.dart';
 import 'services/locale_provider.dart';
@@ -147,6 +148,13 @@ void main() async {
           create: (ctx) => AudioLooperEngine(ctx.read<TransportEngine>()),
           update: (ctx, transport, previous) =>
               previous ?? AudioLooperEngine(transport),
+        ),
+        // LiveInputSourceEngine — hardware input source slots. Depends on
+        // AudioEngine for Android-side capture device enumeration.
+        ChangeNotifierProxyProvider<AudioEngine, LiveInputSourceEngine>(
+          create: (ctx) => LiveInputSourceEngine(ctx.read<AudioEngine>()),
+          update: (ctx, audio, previous) =>
+              previous ?? LiveInputSourceEngine(audio),
         ),
         // DrumGeneratorEngine needs both TransportEngine and AudioEngine.
         ChangeNotifierProxyProvider2<TransportEngine, AudioEngine,

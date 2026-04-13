@@ -1,7 +1,7 @@
 # GrooveForge Roadmap
 
 > **Current released version:** 2.12.7
-> **Next milestone:** 🔜 Phase 8 Full (pub.dev + Plugin Store)
+> **Next milestone:** 🔜 v2.13.0 — Live Audio Input Source
 > **Previous:** ✅ Phase Vocoder + Audio Harmonizer (2.12.7)
 > **Last updated:** 2026-04-13
 >
@@ -20,7 +20,8 @@
 | 2.12.0 | Audio Looper (PCM) | ✅ Complete | C++ RT core, cabled input routing, sidecar WAV persistence, waveform UI |
 | 2.12.1 – 2.12.6 | Audio Looper polish + Android MIDI latency | ✅ Complete | CC assign, Android cabled inputs, bar-sync stop padding, Android note-on latency fix |
 | 2.12.7 | Phase Vocoder + Audio Harmonizer + NATURAL rewrite | ✅ Complete | Shared FFT time-stretch/pitch-shift library; audio looper tempo sync; 4-voice harmonizer GFPA effect; NATURAL vocoder mode loop-resample rewrite |
-| TBD | Phase 8 Full | **🔜 Next** | pub.dev publishing of `grooveforge_plugin_api`, in-app plugin store browser |
+| 2.13.0 | Live Audio Input Source | **🔜 Next** | New rack source module that exposes a chosen hardware input (mic / line-in) as an audio output jack, cable-able into any GFPA effect |
+| TBD | Phase 8 Full | 🔜 | pub.dev publishing of `grooveforge_plugin_api`, in-app plugin store browser |
 | TBD | Phase 8b | ⏸ TBD | AudioUnit v3 bridge (macOS + iOS) |
 | TBD | Phase 8c | ⏸ TBD | AAP bridge (Android) — pending AAP v1.0 |
 | TBD | Chord Progression Module | ⏸ TBD | Bar-indexed chord grid synced with transport and Jam Mode |
@@ -278,6 +279,81 @@ These tasks complete the distributable `.vst3` bundle story started in Phase 3b.
 - [ ] Load keyboard in Reaper (Linux) — MIDI note on/off, bank/program, state save/restore.
 - [ ] Load vocoder in Reaper (Linux) — sidechain audio input, carrier oscillator modes.
 - [ ] Save/restore plugin state in DAW project.
+
+## 🎙️ v2.13.0 — Live Audio Input Source
+
+Today, hardware audio inputs (microphone, line-in, instrument) can only reach effects **indirectly**: the Audio Looper owns the capture path, so wiring a mic into the Audio Harmonizer or Vocoder Mk2 means recording a loop first. Users want to sing or play live and hear the effect in real time — the same way a guitar pedalboard works.
+
+This milestone introduces a dedicated **Live Input source slot** for the rack. It selects a hardware capture device (including a specific channel pair on multi-channel interfaces) and exposes its PCM stream as a standard audio output jack, cable-able into any GFPA effect via the existing `AudioGraph` cable system. No DSP, no recording — it's a pure source node.
+
+### Motivation
+
+- **Live vocal processing**: sing through `com.grooveforge.audio_harmonizer` or the vocoder without going through the looper.
+- **Live instrument effects**: guitar / bass / external synth → any effect chain.
+- **Multi-input cards**: users with audio interfaces that expose several inputs (line 1/2, XLR, Hi-Z) can pick which pair feeds the rack.
+- **Reuses existing plumbing**: capture devices, cabled routing, and GFPA effect slots already exist — this milestone is mostly glue and a new UI slot.
+
+### Data flow
+
+```mermaid
+graph LR
+    HW[Hardware Input\nmic / line / instrument] --> CAP[Capture Device\nminiaudio / Oboe / AAudio]
+    CAP --> LIS[LiveInputSource slot\nRackState node]
+    LIS -->|audio out jack| CABLE[AudioGraph cable]
+    CABLE --> FX1[GFEffectPlugin\ne.g. Audio Harmonizer]
+    FX1 --> CABLE2[AudioGraph cable]
+    CABLE2 --> OUT[Master Bus]
+```
+
+### Platform support
+
+| Platform | Capture backend | Multi-input device enumeration | Status |
+|---|---|---|---|
+| Linux (PipeWire/JACK) | miniaudio + JACK client | ✅ via `dvh_list_capture_devices` | 🔜 |
+| Linux (ALSA fallback) | miniaudio | ✅ | 🔜 |
+| macOS | miniaudio (CoreAudio) | ✅ | 🔜 |
+| Windows | miniaudio (WASAPI) | ✅ | 🔜 |
+| Android | Oboe / AAudio | Partial — USB class-compliant only | 🔜 |
+| iOS | AVAudioSession | Single input at a time | ⏸ Phase 8b |
+
+### Step 1 — Engine (Dart + C++)
+
+- [ ] Add `LiveInputSourceEngine` in `lib/services/live_input_source_engine.dart` — thin Dart wrapper around a new `dvh_liveinput_*` FFI surface that mirrors the `dvh_alooper_*` shape (open device, start/stop, push PCM into an audio-graph bus).
+- [ ] Add `live_input_source.cpp` in `native/` — allocation-free capture callback that writes interleaved float frames into a lock-free ring buffer, then drains that ring into the assigned `AudioGraph` bus on the render tick. Must respect Rule 2 (no allocation, no locks on the audio thread).
+- [ ] Expose `AudioInputFFI.liveInput*` bindings for Android, reusing the existing shared Oboe bus that `NativeInstrumentController` already owns — avoid opening a second capture stream.
+- [ ] Reuse `dvh_list_capture_devices` for device enumeration; extend it to report channel count and a per-device list of selectable channel pairs (e.g. `"Focusrite 2i2 — In 1+2"`, `"In 1 (mono)"`, `"In 2 (mono)"`).
+
+### Step 2 — Rack integration
+
+- [ ] New `LiveInputSourcePluginInstance` registered in `RackState` alongside `LooperPluginInstance` and `GFpaPluginInstance`. It has **zero MIDI I/O** and exactly **one stereo audio output jack**.
+- [ ] Add slot type `"live_input_source"` to `.gf` JSON schema — persisted fields: `deviceId` (string, matches miniaudio device name), `channelPair` ("1+2" | "1" | "2" | …), `gainDb` (−24…+24), `monitorMute` (bool — mute local monitor to avoid feedback when headphones are not used).
+- [ ] Migration: bump `.gf` version and add a no-op migration step for existing projects.
+- [ ] `ProjectService._serializePlugin` / `_deserializePlugin` branches for the new slot type.
+
+### Step 3 — UI
+
+- [ ] New `LiveInputSourceSlotUI` widget under `lib/widgets/rack/` — front panel shows: device dropdown, channel-pair dropdown, input level meter (peak + RMS), gain knob, monitor-mute toggle, and a clipping LED.
+- [ ] Back panel shows the single audio output jack, wired through the existing cable-drawing layer.
+- [ ] Add the slot to `AddPluginSheet` under a new "Sources" category (create the category — currently only Instruments / Effects / MIDI FX exist).
+- [ ] Responsive layout per Rule 1: desktop shows meter + knob side-by-side, phone portrait stacks them vertically.
+
+  > Design note: the VU meter reads from a small shared-memory snapshot updated by the capture callback (one atomic float per frame block). No FFI call per frame — the UI polls at 30 Hz via `Ticker`.
+
+### Step 4 — Localization (Rule 4)
+
+- [ ] Add EN keys to `app_en.arb`: `liveInputSource`, `liveInputDeviceLabel`, `liveInputChannelLabel`, `liveInputGainLabel`, `liveInputMonitorMute`, `liveInputNoDevice`, `liveInputClipping`, `sourcesCategory`.
+- [ ] Add FR translations to `app_fr.arb` (keep "Live Input" in English if the literal French is awkward — per memory rule).
+
+### 🧪 Smoke test
+
+- [ ] Linux + Focusrite 2i2: add Live Input slot → pick "In 1+2" → cable into Audio Harmonizer → sing → hear 4-voice harmonies in real time with < 20 ms round-trip latency.
+- [ ] Linux + built-in mic: add Live Input slot → cable into Vocoder Mk1 (carrier = keyboard slot) → talk while playing chords → hear vocoded output.
+- [ ] Save project → close app → reopen → verify device, channel pair, gain, and cable connection all restored.
+- [ ] Android + USB interface: Live Input slot picks the USB device; cable into Audio Harmonizer produces audible output without crashing Oboe.
+- [ ] Unplug device while slot is active → slot shows "No device" placeholder, no crash, audio thread keeps running.
+- [ ] `flutter analyze` → "No issues found" (Rule 6).
+
+---
 
 ## 📦 TBD — Phase 8 Full (pub.dev + Plugin Store)
 

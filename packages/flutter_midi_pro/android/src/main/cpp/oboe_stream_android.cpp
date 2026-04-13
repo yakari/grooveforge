@@ -127,15 +127,18 @@ static float g_srcR[kMaxSources][kMaxFrames];
 /// Dry (pre-GFPA-chain) copies of g_srcL/R, captured right after the source's
 /// renderFn() returns and before `gfpa_android_apply_chain_for_sf` runs.
 ///
-/// Used ONLY by the audio-looper fill pass: a clip cabled to a source records
-/// its dry signal so that the looper captures the instrument, not the
-/// instrument-plus-insert-effects.  This matches the Linux JACK semantic
-/// where `renderCaptureL/R[m]` snapshots the dry render output.
+/// Used ONLY by the audio-looper fill pass: per-source post-chain (wet)
+/// snapshot. Holds the audio that comes out of a source AFTER its GFPA
+/// insert chain has been applied, so a clip cabled to e.g. Live Input →
+/// Audio Harmonizer → Audio Looper records the harmonized output rather
+/// than the dry mic. Mirrors the Linux JACK semantic where the post-
+/// chain extBuf is written into renderCaptureL/R[m] for each chain
+/// source.
 ///
-/// Kept separate from g_srcL/R to avoid a second `memcpy` back after the
-/// chain is applied — a single copy before the chain is cheapest.
-static float g_srcDryL[kMaxSources][kMaxFrames];
-static float g_srcDryR[kMaxSources][kMaxFrames];
+/// Kept separate from g_srcL/R so the looper read doesn't race with
+/// further mutation of the master accumulation buffers.
+static float g_srcCaptureL[kMaxSources][kMaxFrames];
+static float g_srcCaptureR[kMaxSources][kMaxFrames];
 
 /// Sink buffers for FluidSynth's built-in reverb/chorus wet signal.
 /// Kept separate from g_srcL/g_srcR so that FX output cannot corrupt the
@@ -253,22 +256,23 @@ static aaudio_data_callback_result_t audioCallback(
         // Render this source into its dedicated L/R buffers.
         snapshot[s].renderFn(g_srcL[s], g_srcR[s], frames, snapshot[s].userdata);
 
-        // Snapshot the DRY signal before the GFPA chain runs, so the audio
-        // looper can record the instrument's raw output rather than the
-        // post-FX signal.  Linux does the equivalent via `renderCapture[m]`
-        // in dart_vst_host_jack.cpp — this memcpy is the Android analog.
-        // Cheap: one 8-byte-per-frame copy per source per block.
-        std::memcpy(g_srcDryL[s], g_srcL[s],
-                    sizeof(float) * static_cast<size_t>(frames));
-        std::memcpy(g_srcDryR[s], g_srcR[s],
-                    sizeof(float) * static_cast<size_t>(frames));
-
         // Apply this source's GFPA insert chain (WAH, EQ, reverb, delay, …)
         // in-place before accumulating into the master mix.
         // This ensures an effect wired to the Theremin cannot reach keyboard or
         // vocoder audio, and vice versa.  No-op when the chain is empty.
         gfpa_android_apply_chain_for_sf(snapshot[s].busSlotId,
                                         g_srcL[s], g_srcR[s], frames);
+
+        // Snapshot the POST-chain (wet) signal so the audio looper can
+        // record the effect-processed output. Cabling Live Input → Audio
+        // Harmonizer → Audio Looper records the harmonized audio, not
+        // the dry mic. Linux does the equivalent via `renderCapture[m]`
+        // in dart_vst_host_jack.cpp.
+        // Cheap: one 8-byte-per-frame copy per source per block.
+        std::memcpy(g_srcCaptureL[s], g_srcL[s],
+                    sizeof(float) * static_cast<size_t>(frames));
+        std::memcpy(g_srcCaptureR[s], g_srcR[s],
+                    sizeof(float) * static_cast<size_t>(frames));
 
         // Accumulate into the master mix.
         for (int i = 0; i < frames; ++i) {
@@ -312,8 +316,8 @@ static aaudio_data_callback_result_t audioCallback(
                 for (int s = 0; s < sourceCount; ++s) {
                     if (snapshot[s].busSlotId != busId) continue;
                     for (int i = 0; i < frames; ++i) {
-                        g_alooperSrcL[c][i] += g_srcDryL[s][i];
-                        g_alooperSrcR[c][i] += g_srcDryR[s][i];
+                        g_alooperSrcL[c][i] += g_srcCaptureL[s][i];
+                        g_alooperSrcR[c][i] += g_srcCaptureR[s][i];
                     }
                     break; // Each busSlotId is unique in the snapshot.
                 }

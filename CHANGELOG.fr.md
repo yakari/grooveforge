@@ -5,6 +5,15 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/lang/fr/).
 
+## [2.13.0] - 2026-04-13
+
+### Ajouté
+- **Slot source Live Input** (Linux, macOS, Android). Une nouvelle catégorie Sources audio ajoute un slot « Live Input » qui expose votre micro ou entrée ligne comme une source audio câblable, avec un sélecteur de périphérique, un gain de ±24 dB, un monitor-mute et un vumètre en temps réel. Câblez-le dans l'Audio Harmonizer pour chanter des harmonies à quatre voix en direct, dans n'importe quel autre effet, ou dans le Looper Audio pour enregistrer votre micro directement dans un clip.
+- **Le Looper Audio enregistre désormais le signal post-effet**. Câbler Source → Effet → Looper (par exemple Live Input → Harmonizer → Looper) enregistre maintenant l'audio harmonisé / réverbéré plutôt que la source brute.
+
+### Corrigé
+- **Audio Harmonizer : CPU divisé par deux sur les entrées mono**. Chanter ou jouer une source mono via l'harmonizer ne sature plus le thread audio sur Android : l'effet ignore désormais le travail redondant du phase-vocoder lorsque les deux canaux stéréo portent le même signal.
+
 ## [2.12.7] - 2026-04-13
 
 ### Ajouté

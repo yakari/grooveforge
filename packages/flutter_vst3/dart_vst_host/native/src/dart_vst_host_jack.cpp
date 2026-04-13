@@ -389,15 +389,6 @@ static int _jackProcessCallback(jack_nframes_t nframes, void* arg) {
         // Render each source into tmpBuf and accumulate.
         for (int s = 0; s < chain.sourceCount; ++s) {
             chain.sources[s](state->tmpBufL.data(), state->tmpBufR.data(), bs);
-            // Save a capture of this source's DRY output (before effects) so
-            // the audio looper can read it without re-rendering.
-            for (int m = 0; m < snap.masterRenderCount && m < kMaxMasterRenders; ++m) {
-                if (snap.masterRenders[m] == chain.sources[s]) {
-                    std::copy_n(state->tmpBufL.data(), bs, state->renderCaptureL[m].data());
-                    std::copy_n(state->tmpBufR.data(), bs, state->renderCaptureR[m].data());
-                    break;
-                }
-            }
             for (int i = 0; i < bs; ++i) {
                 state->extBufL[i] += state->tmpBufL[i];
                 state->extBufR[i] += state->tmpBufR[i];
@@ -412,6 +403,26 @@ static int _jackProcessCallback(jack_nframes_t nframes, void* arg) {
                 bs, chain.effects[e].userdata);
             std::copy_n(state->insertBufL.data(), bs, state->extBufL.data());
             std::copy_n(state->insertBufR.data(), bs, state->extBufR.data());
+        }
+
+        // Save the post-chain (wet) output into renderCapture for every
+        // source feeding this chain. The audio looper later pulls from
+        // renderCapture[m] keyed by the source render fn — by writing the
+        // post-effects buffer here we make the looper record the effect-
+        // processed signal (e.g. mic → Harmonizer → Looper records the
+        // harmonized audio, not the dry mic).
+        //
+        // For multi-source fan-in chains, every contributing source ends
+        // up pointing at the same mixed wet buffer, which is also the
+        // intuitive "what you'd hear on this chain" semantic.
+        for (int s = 0; s < chain.sourceCount; ++s) {
+            for (int m = 0; m < snap.masterRenderCount && m < kMaxMasterRenders; ++m) {
+                if (snap.masterRenders[m] == chain.sources[s]) {
+                    std::copy_n(state->extBufL.data(), bs, state->renderCaptureL[m].data());
+                    std::copy_n(state->extBufR.data(), bs, state->renderCaptureR[m].data());
+                    break;
+                }
+            }
         }
 
         // Accumulate to master mix.

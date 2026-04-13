@@ -8,6 +8,7 @@ import '../../models/audio_looper_plugin_instance.dart';
 import '../../models/audio_port_id.dart';
 import '../../models/gfpa_plugin_instance.dart';
 import '../../models/grooveforge_keyboard_plugin.dart';
+import '../../models/live_input_source_plugin_instance.dart';
 import '../../models/looper_plugin_instance.dart';
 import '../../models/plugin_instance.dart';
 import '../../models/vst3_plugin_instance.dart'; // Vst3PluginInstance, Vst3PluginType
@@ -49,6 +50,14 @@ class SlotBackPanelWidget extends StatelessWidget {
       return [
         AudioPortId.audioInL,
         AudioPortId.audioInR,
+      ];
+    }
+
+    if (plugin is LiveInputSourcePluginInstance) {
+      // Pure source node: stereo audio OUT only, cable into any effect.
+      return [
+        AudioPortId.audioOutL,
+        AudioPortId.audioOutR,
       ];
     }
 

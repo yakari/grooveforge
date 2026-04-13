@@ -7,6 +7,7 @@ import '../models/drum_generator_plugin_instance.dart';
 import '../models/gfpa_plugin_instance.dart';
 import '../models/keyboard_display_config.dart';
 import '../models/audio_looper_plugin_instance.dart';
+import '../models/live_input_source_plugin_instance.dart';
 import '../models/looper_plugin_instance.dart';
 import '../models/plugin_instance.dart';
 import '../models/grooveforge_keyboard_plugin.dart';
@@ -475,6 +476,12 @@ class RackState extends ChangeNotifier {
         case 'com.grooveforge.vocoder':
           NativeInstrumentController.instance.onVocoderAdded();
       }
+    } else if (plugin is LiveInputSourcePluginInstance) {
+      // The Live Input slot has its own rack-lifetime lifecycle so the
+      // Oboe bus registration (Android) and shared capture device stay
+      // active while the slot is in the rack — independent of whether
+      // the widget is currently mounted by the lazy list builder.
+      NativeInstrumentController.instance.onLiveInputAdded();
     }
     _syncJamFollowerMapToEngine();
     // Sync native routing: new slot may alter the topological sort order.
@@ -506,6 +513,8 @@ class RackState extends ChangeNotifier {
         case 'com.grooveforge.vocoder':
           NativeInstrumentController.instance.onVocoderRemoved();
       }
+    } else if (removed is LiveInputSourcePluginInstance) {
+      NativeInstrumentController.instance.onLiveInputRemoved();
     }
 
     // Clear references to the removed slot on all dependent plugins.

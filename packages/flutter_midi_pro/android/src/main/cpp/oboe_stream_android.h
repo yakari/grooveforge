@@ -46,6 +46,11 @@ extern "C" {
 /// Fixed bus slot ID for the Vocoder instrument.
 #define OBOE_BUS_SLOT_VOCODER    102
 
+/// Fixed bus slot ID for the Live Input source (mic / line-in passthrough).
+/// Not an "instrument" — it is a hardware capture passthrough that the
+/// rack can cable into any GFPA effect or the audio looper.
+#define OBOE_BUS_SLOT_LIVE_INPUT 103
+
 // ── Generic audio source render callback ─────────────────────────────────────
 
 /// Render callback type for a generic audio source.

@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../models/audio_looper_plugin_instance.dart';
 import '../models/drum_generator_plugin_instance.dart';
 import '../models/gfpa_plugin_instance.dart';
+import '../models/live_input_source_plugin_instance.dart';
 import '../models/looper_plugin_instance.dart';
 import '../models/vst3_plugin_instance.dart';
 import '../plugins/gf_keyboard_plugin.dart';
@@ -132,6 +133,11 @@ class _SplashScreenState extends State<SplashScreen> {
           case 'com.grooveforge.vocoder':
             NativeInstrumentController.instance.onVocoderAdded();
         }
+      } else if (plugin is LiveInputSourcePluginInstance) {
+        // Register the mic passthrough on the shared Oboe bus (Android)
+        // and start the shared miniaudio capture device immediately so
+        // the slot is audible even before its widget mounts.
+        NativeInstrumentController.instance.onLiveInputAdded();
       }
     }
     // Audio looper: finalizeLoad() iterates every pending-load slot and

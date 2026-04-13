@@ -1598,6 +1598,48 @@ abstract class AppLocalizations {
   /// **'Record and loop live audio (PCM) with bar sync, overdub, and reverse'**
   String get rackAddAudioLooperSubtitle;
 
+  /// Section header in the Add Plugin sheet for hardware audio source slots (microphone, line-in).
+  ///
+  /// In en, this message translates to:
+  /// **'Audio Sources'**
+  String get rackAddSourcesSectionLabel;
+
+  /// Tile title for the Live Input source slot that exposes a hardware audio input as a cable-able audio output.
+  ///
+  /// In en, this message translates to:
+  /// **'Live Input'**
+  String get rackAddLiveInputSource;
+
+  /// Subtitle for the Live Input source slot tile.
+  ///
+  /// In en, this message translates to:
+  /// **'Route a microphone or line-in into any effect (harmonizer, vocoder, reverb…)'**
+  String get rackAddLiveInputSourceSubtitle;
+
+  /// Shown in the Live Input slot when no capture device is available.
+  ///
+  /// In en, this message translates to:
+  /// **'No input device detected'**
+  String get liveInputNoDevice;
+
+  /// Tooltip on the refresh button in the Live Input slot device picker.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh device list'**
+  String get liveInputRefreshDevices;
+
+  /// Label for the input gain slider in the Live Input slot.
+  ///
+  /// In en, this message translates to:
+  /// **'Gain'**
+  String get liveInputGainLabel;
+
+  /// Tooltip for the monitor-mute toggle in the Live Input slot.
+  ///
+  /// In en, this message translates to:
+  /// **'Mute local monitor (still feeds effects)'**
+  String get liveInputMonitorMute;
+
   /// Placeholder shown inside the audio looper waveform area while a clip is actively recording and no waveform has been computed yet.
   ///
   /// In en, this message translates to:

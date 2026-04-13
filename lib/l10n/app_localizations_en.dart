@@ -838,6 +838,28 @@ class AppLocalizationsEn extends AppLocalizations {
       'Record and loop live audio (PCM) with bar sync, overdub, and reverse';
 
   @override
+  String get rackAddSourcesSectionLabel => 'Audio Sources';
+
+  @override
+  String get rackAddLiveInputSource => 'Live Input';
+
+  @override
+  String get rackAddLiveInputSourceSubtitle =>
+      'Route a microphone or line-in into any effect (harmonizer, vocoder, reverb…)';
+
+  @override
+  String get liveInputNoDevice => 'No input device detected';
+
+  @override
+  String get liveInputRefreshDevices => 'Refresh device list';
+
+  @override
+  String get liveInputGainLabel => 'Gain';
+
+  @override
+  String get liveInputMonitorMute => 'Mute local monitor (still feeds effects)';
+
+  @override
   String get audioLooperWaveformRecording => 'Recording…';
 
   @override

@@ -4,6 +4,7 @@ import 'drum_generator_plugin_instance.dart';
 import 'grooveforge_keyboard_plugin.dart';
 import 'gfpa_plugin_instance.dart';
 import 'keyboard_display_config.dart';
+import 'live_input_source_plugin_instance.dart';
 import 'looper_plugin_instance.dart';
 import 'vst3_plugin_instance.dart';
 
@@ -46,6 +47,8 @@ abstract class PluginInstance {
         return DrumGeneratorPluginInstance.fromJson(json);
       case 'audio_looper':
         return AudioLooperPluginInstance.fromJson(json);
+      case 'live_input_source':
+        return LiveInputSourcePluginInstance.fromJson(json);
       default:
         throw ArgumentError('Unknown plugin type: $type');
     }

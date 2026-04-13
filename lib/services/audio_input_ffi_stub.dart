@@ -98,6 +98,20 @@ class AudioInputFFI {
   /// Not supported on web — returns 0.0.
   double getVocoderOutputPeak() => 0.0;
 
+  // ── Live Input Source — all no-ops on web. ─────────────────────────────
+
+  /// Not supported on web — no-op.
+  void liveInputSetGainDb(double gainDb) {}
+
+  /// Not supported on web — no-op.
+  void liveInputSetMonitorMute({required bool muted}) {}
+
+  /// Not supported on web — returns 0.0.
+  double getLiveInputPeak() => 0.0;
+
+  /// Not supported on web — returns 0.
+  int liveInputBusRenderFnAddr() => 0;
+
   /// Not supported on web — no-op.
   void setLatencyDebug({required bool enabled}) {}
 

@@ -10,6 +10,7 @@ import '../models/drum_generator_plugin_instance.dart';
 import '../models/gfpa_plugin_instance.dart';
 import '../models/grooveforge_keyboard_plugin.dart';
 import '../models/audio_looper_plugin_instance.dart';
+import '../models/live_input_source_plugin_instance.dart';
 import '../models/looper_plugin_instance.dart';
 import '../services/audio_looper_engine.dart';
 import '../services/drum_generator_engine.dart';
@@ -514,6 +515,36 @@ class _AddPluginSheetContentState extends State<_AddPluginSheetContent> {
                 final plugin = AudioLooperPluginInstance(id: slotId);
                 rack.addPlugin(plugin);
                 context.read<AudioLooperEngine>().createClip(slotId);
+              },
+            ),
+
+            // ═══════════════════════════════════════════════════════════════
+            // Audio Sources — hardware inputs exposed as source slots
+            // ═══════════════════════════════════════════════════════════════
+            if (!kIsWeb)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                child: Text(
+                  l10n.rackAddSourcesSectionLabel,
+                  style: const TextStyle(
+                    color: Colors.white54,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.0,
+                  ),
+                ),
+              ),
+
+            // ── Live Input Source (mic / line-in → any effect)
+            if (!kIsWeb) _PluginTile(
+              icon: Icons.mic,
+              iconColor: Colors.lightBlueAccent,
+              title: l10n.rackAddLiveInputSource,
+              subtitle: l10n.rackAddLiveInputSourceSubtitle,
+              onTap: () {
+                Navigator.pop(context);
+                final slotId = rack.generateSlotId();
+                rack.addPlugin(LiveInputSourcePluginInstance(id: slotId));
               },
             ),
 

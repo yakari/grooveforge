@@ -43,6 +43,7 @@ class NativeInstrumentController {
   int _stylophoneRefCount = 0;
   int _thereminRefCount = 0;
   int _vocoderRefCount = 0;
+  int _liveInputRefCount = 0;
 
   /// Bring up the stylophone for a rack slot that has just been added or
   /// restored from disk. Starts the native oscillator on the first call and
@@ -202,5 +203,61 @@ class NativeInstrumentController {
       GfpaAndroidBindings.instance.oboeStreamRemoveSource(kBusSlotVocoder);
       AudioInputFFI().vocoderSetCaptureMode(enabled: false);
     }
+  }
+
+  /// Bring up shared capture for a Live Input Source slot. First slot
+  /// added starts the shared miniaudio capture device; subsequent slots
+  /// are a no-op. Capture is shared with the vocoder, so it is left
+  /// running until the last capture consumer goes away.
+  ///
+  /// The Android Oboe-bus source registration is **not** done here — it
+  /// lives in [syncLiveInputBusSource] because the bus mixer always sums
+  /// the source into the master output, and a Live Input slot with no
+  /// downstream cable would leak raw mic audio into everything.
+  void onLiveInputAdded() {
+    _liveInputRefCount += 1;
+    if (_liveInputRefCount != 1) return;
+    AudioInputFFI().startCapture();
+  }
+
+  /// Decrement the Live Input ref count on slot removal. The Oboe bus
+  /// source (if any) is torn down separately via [syncLiveInputBusSource]
+  /// on the next routing rebuild.
+  ///
+  /// Capture itself is left running because it is shared with the vocoder.
+  /// Stopping it here would silence the vocoder too.
+  void onLiveInputRemoved() {
+    if (_liveInputRefCount == 0) return;
+    _liveInputRefCount -= 1;
+  }
+
+  /// Whether the Live Input Source is currently registered as a source on
+  /// the shared Oboe bus (Android only). Tracked here so the routing sync
+  /// path can call add/remove exactly once per transition without having
+  /// to probe the native layer.
+  bool _liveInputBusActive = false;
+
+  /// Drive Oboe bus registration for the Live Input Source from routing
+  /// state. Called by `_syncAudioRoutingAndroid` on every rebuild.
+  ///
+  /// [shouldBeActive] is true when at least one Live Input slot has an
+  /// outgoing audio cable (into a GFPA effect or the audio looper).
+  /// Transitions register/unregister `live_input_bus_render` on bus slot
+  /// [kBusSlotLiveInput]; same-state calls are no-ops.
+  ///
+  /// Idle slots therefore stay silent — unlike the theremin/stylophone,
+  /// which are user-driven instruments where always-in-mix makes sense.
+  void syncLiveInputBusSource({required bool shouldBeActive}) {
+    if (kIsWeb || !Platform.isAndroid) return;
+    if (shouldBeActive == _liveInputBusActive) return;
+    if (shouldBeActive) {
+      final fnAddr = AudioInputFFI().liveInputBusRenderFnAddr();
+      GfpaAndroidBindings.instance
+          .oboeStreamAddSource(fnAddr, kBusSlotLiveInput);
+    } else {
+      GfpaAndroidBindings.instance
+          .oboeStreamRemoveSource(kBusSlotLiveInput);
+    }
+    _liveInputBusActive = shouldBeActive;
   }
 }

@@ -18,6 +18,10 @@ const int kBusSlotStylophone = 101;
 /// AAudio bus slot ID for the Vocoder.  Matches OBOE_BUS_SLOT_VOCODER (102).
 const int kBusSlotVocoder = 102;
 
+/// AAudio bus slot ID for the Live Input source.  Unique integer above the
+/// other instrument slots so it never collides with a FluidSynth sfId.
+const int kBusSlotLiveInput = 103;
+
 // ── Native function type definitions ─────────────────────────────────────────
 
 /// Native signature for gfpa_dsp_create.

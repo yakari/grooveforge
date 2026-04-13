@@ -779,10 +779,27 @@ struct HarmonizerEffect {
         if (active < 1) active = 1;
         if (active > kMaxVoices) active = kMaxVoices;
 
+        // Mono-input shortcut: when inL and inR are bit-identical (Live
+        // Input Source passthrough, mono keyboard, theremin, stylophone),
+        // every PV context on the R channel would compute the exact same
+        // FFT as its L counterpart — pure waste. Detect this once per
+        // block via memcmp and process only the L channel, then copy the
+        // result into R. Halves the phase-vocoder load for mono sources,
+        // which is the difference between the harmonizer being realtime
+        // and running ~100 ms late on modest Android hardware.
+        const bool mono =
+            (inL == inR) ||
+            (std::memcmp(inL, inR,
+                         static_cast<size_t>(n) * sizeof(float)) == 0);
+
         // Seed the output with the dry signal scaled by (1 - dryWet).
         for (int32_t i = 0; i < n; ++i) {
             outL[i] = inL[i] * dryGain;
-            outR[i] = inR[i] * dryGain;
+        }
+        if (!mono) {
+            for (int32_t i = 0; i < n; ++i) {
+                outR[i] = inR[i] * dryGain;
+            }
         }
 
         // Process each active voice. Push the input block into the voice's
@@ -794,18 +811,30 @@ struct HarmonizerEffect {
         for (int v = 0; v < active; ++v) {
             const float semis = voiceSemitones[v].load(std::memory_order_relaxed);
             gf_pv_set_pitch_semitones(pvL[v], semis);
-            gf_pv_set_pitch_semitones(pvR[v], semis);
 
             const int gotL = gf_pv_process_block(
                 pvL[v], inL, n, scratchOutL.data(), n);
-            const int gotR = gf_pv_process_block(
-                pvR[v], inR, n, scratchOutR.data(), n);
 
             const float vGain =
                 voiceMix[v].load(std::memory_order_relaxed) * wetGain;
 
             for (int32_t i = 0; i < gotL; ++i) outL[i] += scratchOutL[i] * vGain;
-            for (int32_t i = 0; i < gotR; ++i) outR[i] += scratchOutR[i] * vGain;
+
+            if (!mono) {
+                gf_pv_set_pitch_semitones(pvR[v], semis);
+                const int gotR = gf_pv_process_block(
+                    pvR[v], inR, n, scratchOutR.data(), n);
+                for (int32_t i = 0; i < gotR; ++i) {
+                    outR[i] += scratchOutR[i] * vGain;
+                }
+            }
+        }
+
+        // Mirror the final mixed L output into R for the mono-source case,
+        // done once at the end so the downstream mixer sees a stereo pair.
+        if (mono) {
+            std::memcpy(outR, outL,
+                        static_cast<size_t>(n) * sizeof(float));
         }
     }
 };

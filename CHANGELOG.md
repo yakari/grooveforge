@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.13.0] - 2026-04-13
+
+### Added
+- **Live Input source slot** (Linux, macOS, Android). A new Audio Sources category in the rack adds a "Live Input" slot that exposes your microphone or line-in as a cable-able audio source, with a device picker, ±24 dB gain, monitor-mute, and a real-time peak meter. Cable it into the Audio Harmonizer to sing live four-voice harmonies, into any other effect, or into the Audio Looper to record your mic straight to a clip.
+- **Audio Looper now records the post-effect signal**. Cabling Source → Effect → Looper (e.g. Live Input → Harmonizer → Looper) now records the harmonized / reverberated audio rather than the dry source.
+
+### Fixed
+- **Audio Harmonizer CPU halved on mono inputs**. Singing or playing a mono source through the harmonizer no longer overruns the audio thread on Android: the effect now skips redundant phase-vocoder work when both stereo channels carry the same signal.
+
 ## [2.12.7] - 2026-04-13
 
 ### Added

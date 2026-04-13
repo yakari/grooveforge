@@ -20,6 +20,9 @@ const int kBusSlotStylophone = 101;
 /// AAudio bus slot ID for the Vocoder.  Matches OBOE_BUS_SLOT_VOCODER (102).
 const int kBusSlotVocoder = 102;
 
+/// AAudio bus slot ID for the Live Input source. Web stub — unused at runtime.
+const int kBusSlotLiveInput = 103;
+
 /// Web stub that mirrors the [GfpaAndroidBindings] public API.
 ///
 /// All methods are no-ops — the Android AAudio bus and GFPA DSP chain are not

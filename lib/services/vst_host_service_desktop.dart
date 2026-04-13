@@ -10,6 +10,7 @@ import '../models/audio_looper_plugin_instance.dart';
 import '../models/audio_port_id.dart';
 import '../models/drum_generator_plugin_instance.dart';
 import '../models/gfpa_plugin_instance.dart';
+import '../models/live_input_source_plugin_instance.dart';
 import '../models/grooveforge_keyboard_plugin.dart';
 import '../models/plugin_instance.dart';
 import 'audio_looper_engine.dart';
@@ -20,6 +21,7 @@ export '../models/vst3_plugin_instance.dart' show Vst3PluginType;
 import 'audio_graph.dart';
 import 'audio_input_ffi_native.dart';
 import 'gfpa_android_bindings_native.dart';
+import 'native_instrument_controller.dart';
 
 /// Desktop VST3 host service.
 ///
@@ -640,6 +642,15 @@ class VstHostService {
           continue;
         }
 
+        // Live Input Source → VST3 effect: register the mic passthrough
+        // render function as the external renderer so the VST3 plugin
+        // receives the hardware input as its audio in.
+        if (fromPlugin is LiveInputSourcePluginInstance) {
+          _host!.setExternalRender(
+              to, AudioInputFFI().liveInputRenderBlockPtr);
+          continue;
+        }
+
         // Theremin and Stylophone are GFpaPluginInstance subclasses.
         if (fromPlugin is! GFpaPluginInstance) continue;
 
@@ -671,6 +682,19 @@ class VstHostService {
         final slotIdx = (plugin.midiChannel - 1) % 2;
         _addChainInsertsDesktop(
             plugin.id, AudioInputFFI().keyboardRenderFnForSlot(slotIdx), graph);
+      }
+
+      // Live Input Source slots: when cabled into any effect (GFPA or
+      // VST3) or the audio looper, register the passthrough as a
+      // master-render contributor and walk the DFS insert chain so the
+      // full effect chain downstream (e.g. mic → Harmonizer → Reverb)
+      // is wired into the JACK callback.
+      for (final plugin
+          in allPlugins.whereType<LiveInputSourcePluginInstance>()) {
+        if (!_hasAnyConnection(plugin.id, graph)) continue;
+        _host!.addMasterRender(AudioInputFFI().liveInputRenderBlockPtr);
+        _addChainInsertsDesktop(
+            plugin.id, AudioInputFFI().liveInputRenderBlockPtr, graph);
       }
 
       // Theremin, Stylophone, and Vocoder: when wired to a GFPA effect or
@@ -727,7 +751,19 @@ class VstHostService {
         final clip = alooperEngine.clips[toPlugin.id];
         if (clip == null) continue;
 
-        final fromPlugin = allPlugins.where((p) => p.id == conn.fromSlotId).firstOrNull;
+        var fromPlugin = allPlugins
+            .where((p) => p.id == conn.fromSlotId)
+            .firstOrNull;
+        if (fromPlugin == null) continue;
+
+        // If the looper is wired to the output of an audio effect (e.g.
+        // Live Input → Audio Harmonizer → Looper), walk upstream through
+        // audio cables until we reach a real source (keyboard, theremin,
+        // live input, …). The looper then sources from that root, and the
+        // JACK callback's renderCapture buffer for that root holds the
+        // post-chain wet signal — so the recording captures the harmonized
+        // / reverberated audio rather than the dry source.
+        fromPlugin = _walkUpToAudioSource(fromPlugin, allPlugins, graph);
         if (fromPlugin == null) continue;
 
         // GF Keyboard → render function per slot.
@@ -735,6 +771,11 @@ class VstHostService {
           final slotIdx = (fromPlugin.midiChannel - 1) % 2;
           _host!.addAudioLooperRenderSource(
               clip.nativeIdx, AudioInputFFI().keyboardRenderFnForSlot(slotIdx));
+        }
+        // Live Input Source → mic passthrough as looper source.
+        else if (fromPlugin is LiveInputSourcePluginInstance) {
+          _host!.addAudioLooperRenderSource(
+              clip.nativeIdx, AudioInputFFI().liveInputRenderBlockPtr);
         }
         // Drum Generator plays on channel 9 → dedicated percussion slot 2.
         else if (fromPlugin is DrumGeneratorPluginInstance) {
@@ -914,6 +955,26 @@ class VstHostService {
       }
     }
 
+    // ── Live Input Source (bus slot 103) ──────────────────────────────────
+    //
+    // The mic passthrough lives on the shared Oboe bus only when at least
+    // one Live Input slot is actually cabled to something downstream. The
+    // bus mixer always sums source output into the master mix, so keeping
+    // an uncabled slot "registered" would leak raw mic audio on top of
+    // every keyboard, theremin, and drum track. Teardown + reconnect is
+    // handled in [NativeInstrumentController.syncLiveInputBusSource].
+    bool liveInputShouldBeActive = false;
+    for (final plugin
+        in allPlugins.whereType<LiveInputSourcePluginInstance>()) {
+      if (!_hasAnyConnection(plugin.id, graph)) continue;
+      liveInputShouldBeActive = true;
+      // DFS insert-chain so mic → Harmonizer → Reverb all run in order
+      // inside the bus slot's render path.
+      _addChainInserts(plugin.id, kBusSlotLiveInput, graph);
+    }
+    NativeInstrumentController.instance
+        .syncLiveInputBusSource(shouldBeActive: liveInputShouldBeActive);
+
     // ── Audio looper cabled-input routing ──────────────────────────────────
     _syncAudioLooperSourcesAndroid(graph, allPlugins, keyboardSfIds);
   }
@@ -968,9 +1029,15 @@ class VstHostService {
       final clip = alooperEngine.clips[toPlugin.id];
       if (clip == null) continue;
 
-      final fromPlugin = allPlugins
+      var fromPlugin = allPlugins
           .where((p) => p.id == conn.fromSlotId)
           .firstOrNull;
+      if (fromPlugin == null) continue;
+
+      // Walk past any effect chain so the looper records the post-chain
+      // wet output of the root source rather than failing to register
+      // (Effect → Looper cable). See the desktop branch for full rationale.
+      fromPlugin = _walkUpToAudioSource(fromPlugin, allPlugins, graph);
       if (fromPlugin == null) continue;
 
       // Resolve the upstream source to its Android Oboe bus slot ID.
@@ -979,6 +1046,51 @@ class VstHostService {
 
       AudioInputFFI().alooperAddBusSource(clip.nativeIdx, busId);
     }
+  }
+
+  /// Walks the audio graph backwards from [plugin] through audio cables,
+  /// returning the first plugin that is a recognised audio *source*
+  /// (keyboard, drum generator, theremin, stylophone, vocoder, live
+  /// input, VST3 plugin) rather than a pure-effect node.
+  ///
+  /// Used by the audio-looper routing pass so that cabling
+  /// `Source → Effect → Looper` records the post-effect signal: the
+  /// looper sources from the root, and the native callback writes the
+  /// chain's wet output into that root's per-source render-capture
+  /// buffer (Linux: `renderCapture[m]`, Android: `g_srcCaptureL/R`).
+  ///
+  /// Returns [plugin] itself if it is already a source, or null if no
+  /// upstream source is found within [maxHops] steps (protects against
+  /// pathological graphs).
+  PluginInstance? _walkUpToAudioSource(
+    PluginInstance plugin,
+    List<PluginInstance> allPlugins,
+    AudioGraph graph, {
+    int maxHops = 8,
+  }) {
+    PluginInstance? current = plugin;
+    for (int hop = 0; hop < maxHops; hop++) {
+      if (current == null) return null;
+      // Anything that is NOT a generic GFPA effect is treated as a source
+      // (keyboards, drum gen, theremin/stylo/vocoder, live input, VST3).
+      // GFPA descriptor effects fall through and we walk further upstream.
+      final isPureEffect = current is GFpaPluginInstance &&
+          !{
+            'com.grooveforge.theremin',
+            'com.grooveforge.stylophone',
+            'com.grooveforge.vocoder',
+          }.contains(current.pluginId);
+      if (!isPureEffect) return current;
+
+      // Find an audio cable feeding `current`'s audioInL.
+      final upstream = graph.connections.where((c) =>
+          c.toSlotId == current!.id && c.toPort == AudioPortId.audioInL).firstOrNull;
+      if (upstream == null) return null;
+      current = allPlugins
+          .where((p) => p.id == upstream.fromSlotId)
+          .firstOrNull;
+    }
+    return null; // exceeded maxHops
   }
 
   /// Returns the Oboe bus slot ID for [plugin], or null if [plugin] is not
@@ -1003,6 +1115,9 @@ class VstHostService {
         case 'com.grooveforge.vocoder':
           return kBusSlotVocoder;
       }
+    }
+    if (plugin is LiveInputSourcePluginInstance) {
+      return kBusSlotLiveInput;
     }
     // VST3 — not hosted on Android at all.
     return null;

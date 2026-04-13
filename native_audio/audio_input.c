@@ -844,6 +844,153 @@ EXPORT void vocoder_bus_render(float* outL, float* outR, int frames, void* userd
     _vocoder_render_block_impl(outL, outR, frames);
 }
 
+// ── Live Input Source ─────────────────────────────────────────────────────────
+//
+// Pure passthrough source: reads mono mic samples from the capture ring
+// buffer `g_micRing` (filled by `mic_capture_callback`), applies a user-
+// supplied input gain, and writes the result duplicated to both L and R
+// of the caller's output buffer. No DSP, no extra buffering beyond the
+// capture device latency.
+//
+// The underlying capture device must already be running — i.e. someone
+// (usually Dart at Live Input slot attach time) must have called
+// `start_audio_capture()` first. Starting capture is out of scope for
+// this source because it is shared with the vocoder and is lifecycle-
+// managed by `AudioEngine` in Dart.
+//
+// Called from the JACK audio thread via the dart_vst_host render-function
+// routing, exactly like `vocoder_render_block`. Allocation-free,
+// lock-free, single atomic read on `g_micWriteCursor`.
+
+static volatile float    g_liveInputGainLin    = 1.0f;  // linear, 0.0 = mute
+static volatile int      g_liveInputMonitorMute = 1;    // 1 = local monitor muted
+static volatile float    g_liveInputPeak       = 0.0f;  // for UI meter (decays)
+
+// Independent read cursor into g_micRing maintained by the live-input
+// reader. Critical on Android, where mic_capture_callback delivers samples
+// in 1536-frame bursts every 32 ms while the Oboe output callback pulls
+// tiny 96-frame blocks every 2 ms. A naive "writePos - frames - 256"
+// sample-and-holds between bursts and jumps on each burst, producing
+// severe zipper/aliasing artifacts in any downstream effect.
+//
+// The read cursor advances monotonically by `frames` on every pull so the
+// reader consumes each sample exactly once. It is primed to trail the
+// writer by LIVE_INPUT_PREBUFFER frames so we never underrun between
+// bursts. Access is single-threaded (the reader is always called from the
+// same audio thread), so no atomics are needed.
+#define LIVE_INPUT_PREBUFFER 3072u   // ~64 ms @ 48 kHz — > 1 Android mic burst
+
+static ma_uint32 g_liveInputReadCursor = 0;
+static int       g_liveInputReadPrimed = 0;
+
+/// Sets the input gain in dB. Clamped to ±48 dB as a safety rail.
+/// Called from Dart when the user drags the gain slider in the slot UI.
+EXPORT void live_input_set_gain_db(float gainDb) {
+    if (gainDb >  48.0f) gainDb =  48.0f;
+    if (gainDb < -48.0f) gainDb = -48.0f;
+    g_liveInputGainLin = powf(10.0f, gainDb / 20.0f);
+}
+
+/// Toggles the local direct-monitor mute. Reserved for a future direct
+/// monitor path — the cable-routed output is never affected, so the
+/// user can always hear the signal through a connected effect chain.
+EXPORT void live_input_set_monitor_mute(int muted) {
+    g_liveInputMonitorMute = muted ? 1 : 0;
+}
+
+/// Returns the rolling peak level of the most recent render block in
+/// linear amplitude (0.0–~1.0). Decays each time it is read so the UI
+/// meter falls off smoothly without needing a separate envelope tracker.
+EXPORT float get_live_input_peak() {
+    float p = g_liveInputPeak;
+    g_liveInputPeak = p * 0.85f;  // visual decay per poll (~30 Hz)
+    return p;
+}
+
+/// RT render callback: produces stereo samples from the mic ring buffer.
+///
+/// Signature matches DvhRenderFn: `void(float* outL, float* outR, int32_t frames)`.
+///
+/// Uses [g_liveInputReadCursor] — a reader-side cursor that advances
+/// monotonically by `frames` each call — so each mic sample is consumed
+/// exactly once even when the producer delivers samples in large bursts
+/// (Android: 1536 frames every 32 ms). Falls back to silence on underrun
+/// and re-primes the cursor on massive lag (e.g. capture restarted).
+EXPORT void live_input_render_block(float* outL, float* outR, int frames) {
+    const float gain = g_liveInputGainLin;
+
+    ma_uint32 writePos = __atomic_load_n(&g_micWriteCursor, __ATOMIC_ACQUIRE);
+
+    // First call after startup (or after a prime-reset below): place the
+    // read cursor LIVE_INPUT_PREBUFFER samples behind the writer so there
+    // is always a full mic burst in flight between writer and reader.
+    if (!g_liveInputReadPrimed) {
+        g_liveInputReadCursor =
+            (writePos - LIVE_INPUT_PREBUFFER) & MIC_RING_MASK;
+        g_liveInputReadPrimed = 1;
+    }
+
+    // Samples available between the reader and the writer, modulo the
+    // ring. `(writePos - readCursor) & MASK` gives the correct distance
+    // because the writer is always monotonically ahead (or equal) modulo
+    // the ring size.
+    ma_uint32 available =
+        (writePos - g_liveInputReadCursor) & MIC_RING_MASK;
+
+    // Catch-up: if the reader has fallen more than 3/4 of the ring
+    // behind, the producer clearly wrapped past us (capture restart,
+    // xrun, cold start). Re-prime to keep latency bounded.
+    if (available > (MIC_RING_FRAMES * 3u / 4u)) {
+        g_liveInputReadCursor =
+            (writePos - LIVE_INPUT_PREBUFFER) & MIC_RING_MASK;
+        available = LIVE_INPUT_PREBUFFER;
+    }
+
+    // Underrun: not enough produced samples for this pull. Emit silence
+    // and leave the cursor where it is — the next pull will try again.
+    if (available < (ma_uint32)frames) {
+        for (int i = 0; i < frames; i++) {
+            outL[i] = 0.0f;
+            outR[i] = 0.0f;
+        }
+        return;
+    }
+
+    ma_uint32 readStart = g_liveInputReadCursor;
+    float peak = 0.0f;  // fresh peak per block so the meter reflects NOW
+    for (int i = 0; i < frames; i++) {
+        float s = g_micRing[(readStart + (ma_uint32)i) & MIC_RING_MASK] * gain;
+        float abs_s = s < 0.0f ? -s : s;
+        if (abs_s > peak) peak = abs_s;
+        outL[i] = s;
+        outR[i] = s;  // mono duplicated — Session 2 scope
+    }
+    g_liveInputReadCursor = (readStart + (ma_uint32)frames) & MIC_RING_MASK;
+    if (peak > g_liveInputPeak) g_liveInputPeak = peak;
+}
+
+/// AAudio-bus render wrapper for the Live Input Source.
+///
+/// Matches the AudioSourceRenderFn signature expected by oboe_stream_add_source()
+/// in libnative-lib.so. The [userdata] parameter is unused — the live input
+/// uses the global g_micRing singleton like the vocoder does.
+///
+/// Registered by NativeInstrumentController when the first Live Input slot
+/// is added. Feeds the shared Oboe bus on [kBusSlotLiveInput] (103) so GFPA
+/// effect insert chains and the audio looper can cable directly into it
+/// on Android.
+EXPORT void live_input_bus_render(float* outL, float* outR, int frames, void* userdata) {
+    (void)userdata;
+    live_input_render_block(outL, outR, frames);
+}
+
+/// Returns the address of live_input_bus_render as an intptr_t so Dart can
+/// hand it to oboe_stream_add_source() in libnative-lib.so. Same pattern as
+/// vocoder_bus_render_fn_addr / theremin_bus_render_fn_addr.
+EXPORT intptr_t live_input_bus_render_fn_addr(void) {
+    return (intptr_t)(void*)live_input_bus_render;
+}
+
 /// Returns the address of vocoder_bus_render as an intptr_t.
 ///
 /// Called from Dart so the function pointer can be passed to
@@ -940,6 +1087,12 @@ EXPORT int start_audio_capture() {
     for (int i = 0; i < MIC_RING_FRAMES; i++) g_micRing[i] = 0.0f;
     g_micWriteCursor = 0;
 
+    // Force the live-input reader to re-prime against the fresh writer
+    // position on its next pull. Without this reset, a capture restart
+    // would leave the reader cursor pointing into stale ring data and
+    // playback would either underrun forever or churn on old samples.
+    g_liveInputReadPrimed = 0;
+
     ma_result result;
     ma_context_config ctxConfig = ma_context_config_init();
     result = ma_context_init(NULL, 0, &ctxConfig, &context);
@@ -1012,6 +1165,17 @@ EXPORT int start_audio_capture() {
     LOGI("[Latency] CAPTURE device: %u frames x %u periods = %.1fms (requested 256)",
          capFrames, capPeriods, capLatencyMs);
 
+#ifdef __ANDROID__
+    // On Android, all audio playback flows through the Oboe bus (keyboards,
+    // theremin, stylophone, vocoder, live input are all shared-bus sources
+    // consumed by oboe_stream_android.cpp). The miniaudio playback device
+    // below exists for desktop only — on Android it would be a second,
+    // silently-running audio output that fights Oboe for the same hardware,
+    // causing xruns and click/dropouts on every source. Skip it entirely.
+    isInitialized = true;
+    LOGI("[Latency] PLAYBACK device: skipped (Android uses Oboe bus)");
+    return 0;
+#else
     // ---- 2. Playback-Only Device (512 frames = 10.7ms per callback) ----
     ma_device_config playConfig = ma_device_config_init(ma_device_type_playback);
     playConfig.performanceProfile        = ma_performance_profile_low_latency;
@@ -1078,6 +1242,7 @@ EXPORT int start_audio_capture() {
 
     isInitialized = true;
     return 0; // Success
+#endif  // __ANDROID__
 }
 
 EXPORT void stop_audio_capture() {
@@ -1096,8 +1261,12 @@ EXPORT void stop_audio_capture() {
         g_micDeviceRunning = false;
     }
 
+#ifndef __ANDROID__
+    // Desktop only — on Android the miniaudio playback device is never
+    // initialised (Oboe bus owns playback), so there is nothing to stop.
     ma_device_stop(&device);
     ma_device_uninit(&device);
+#endif
     ma_context_uninit(&context);
 
     isInitialized = false;

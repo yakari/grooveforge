@@ -842,6 +842,29 @@ class AppLocalizationsFr extends AppLocalizations {
       'Enregistrez et bouclez de l\'audio en temps réel (PCM) avec synchro, overdub et reverse';
 
   @override
+  String get rackAddSourcesSectionLabel => 'Sources audio';
+
+  @override
+  String get rackAddLiveInputSource => 'Live Input';
+
+  @override
+  String get rackAddLiveInputSourceSubtitle =>
+      'Envoyez un micro ou une entrée ligne vers n\'importe quel effet (harmonizer, vocodeur, reverb…)';
+
+  @override
+  String get liveInputNoDevice => 'Aucun périphérique d\'entrée détecté';
+
+  @override
+  String get liveInputRefreshDevices => 'Rafraîchir la liste des périphériques';
+
+  @override
+  String get liveInputGainLabel => 'Gain';
+
+  @override
+  String get liveInputMonitorMute =>
+      'Couper le monitoring local (les effets reçoivent toujours le signal)';
+
+  @override
   String get audioLooperWaveformRecording => 'Enregistrement…';
 
   @override
