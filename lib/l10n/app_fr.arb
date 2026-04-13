@@ -498,6 +498,8 @@
   "rackAddCompressorSubtitle": "Compresseur RMS à genou doux",
   "rackAddChorus": "Chorus / Flanger",
   "rackAddChorusSubtitle": "Chorus stéréo synchronisable sur le BPM",
+  "rackAddAudioHarmonizer": "Harmoniseur Audio",
+  "rackAddAudioHarmonizerSubtitle": "Jusqu'à 4 voix d'harmonie transposées à partir d'une entrée audio",
   "rackAddLoadGfpd": "Charger un fichier .gfpd…",
   "rackAddLoadGfpdSubtitle": "Importer un descripteur de plugin GrooveForge personnalisé",
 

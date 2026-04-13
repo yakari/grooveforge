@@ -1,12 +1,13 @@
 // gfpa_dsp.cpp — Native C++ DSP implementations for GFPA effect plugins.
 //
-// All six built-in descriptor effects are implemented here:
-//   Reverb    — Freeverb (8 comb + 4 allpass per channel)
-//   Delay     — Stereo ping-pong with optional BPM sync
-//   Wah       — Chamberlin SVF bandpass + LFO
-//   EQ        — 4-band (low shelf, 2× peaking, high shelf) biquad chain
-//   Compressor— Feed-forward RMS compressor with attack/release
-//   Chorus    — Stereo chorus/flanger with LFO and cross-feedback
+// Built-in descriptor effects implemented here:
+//   Reverb     — Freeverb (8 comb + 4 allpass per channel)
+//   Delay      — Stereo ping-pong with optional BPM sync
+//   Wah        — Chamberlin SVF bandpass + LFO
+//   EQ         — 4-band (low shelf, 2× peaking, high shelf) biquad chain
+//   Compressor — Feed-forward RMS compressor with attack/release
+//   Chorus     — Stereo chorus/flanger with LFO and cross-feedback
+//   Harmonizer — Up to 4 phase-vocoder-pitched harmony voices + dry mix
 //
 // Audio-thread guarantees:
 //   - All buffers are pre-allocated in each effect's constructor.
@@ -15,6 +16,7 @@
 //   - No heap allocation, no logging, no locks inside any process() method.
 
 #include "../include/gfpa_dsp.h"
+#include "gf_phase_vocoder.h"
 
 #include <atomic>
 #include <cmath>
@@ -682,10 +684,138 @@ struct ChorusEffect {
     }
 };
 
+// ── Harmonizer ────────────────────────────────────────────────────────────────
+//
+// Up to four phase-vocoder-pitched harmony voices summed with the dry
+// signal. Each voice is an independent `gf_pv_context` per channel
+// (running in mono mode), so a 4-voice harmonizer holds 8 PV contexts
+// total. They run in parallel — each consumes the same input block, each
+// produces its own pitch-shifted version, and the results are mixed with
+// per-voice gains and a master dry/wet.
+//
+// The pitch shift uses `gf_pv_set_pitch_semitones`, which (as of the
+// session 4 implementation) routes through the time-stretch + resample
+// pipeline inside `gf_phase_vocoder.c`. A phase-vocoder pitch shift
+// preserves transients better than a naive resampler and works on any
+// audio content (not just monophonic voice), which is exactly what the
+// harmonizer needs.
+//
+// First-block ring-in: each voice's PV has the usual ~46 ms warm-up at
+// 2048 FFT / 512 hop. During that window, the voice contributes nothing
+// (dry signal still passes through untouched). For sustained harmony
+// this is inaudible; for staccato stabs it's a soft attack. Tracked in
+// the roadmap as session 4b "harmonizer transient handling".
+struct HarmonizerEffect {
+    static constexpr int kMaxVoices = 4;
+
+    int32_t blockSize;
+
+    // Two PV contexts per voice — one per channel — running in mono mode.
+    // Allocated once in the constructor; never reallocated. The audio
+    // thread only ever reads / processes through these.
+    gf_pv_context* pvL[kMaxVoices] = {nullptr, nullptr, nullptr, nullptr};
+    gf_pv_context* pvR[kMaxVoices] = {nullptr, nullptr, nullptr, nullptr};
+
+    // Output scratch — one block worth of mono output per channel, reused
+    // across voices. We sum into outL/outR after each voice.
+    std::vector<float> scratchOutL;
+    std::vector<float> scratchOutR;
+
+    // Atomic parameters. All written by Dart, read on the audio thread.
+    std::atomic<float> voiceCount{2.0f};       // 1..4
+    std::atomic<float> voiceSemitones[kMaxVoices] = {
+        std::atomic<float>(7.0f),   // perfect fifth
+        std::atomic<float>(12.0f),  // octave
+        std::atomic<float>(4.0f),   // major third
+        std::atomic<float>(-5.0f),  // perfect fourth down
+    };
+    std::atomic<float> voiceMix[kMaxVoices] = {
+        std::atomic<float>(0.7f),
+        std::atomic<float>(0.7f),
+        std::atomic<float>(0.5f),
+        std::atomic<float>(0.5f),
+    };
+    std::atomic<float> dryWet{0.5f}; // 0 = dry only, 1 = wet only
+
+    HarmonizerEffect(int32_t block)
+        : blockSize(block)
+        , scratchOutL(block, 0.0f)
+        , scratchOutR(block, 0.0f)
+    {
+        for (int v = 0; v < kMaxVoices; ++v) {
+            pvL[v] = gf_pv_create(2048, 512, 1);
+            pvR[v] = gf_pv_create(2048, 512, 1);
+        }
+    }
+
+    ~HarmonizerEffect() {
+        for (int v = 0; v < kMaxVoices; ++v) {
+            gf_pv_destroy(pvL[v]);
+            gf_pv_destroy(pvR[v]);
+        }
+    }
+
+    void setParam(const char* id, float v) {
+        if      (strcmp(id, "voice_count")      == 0) voiceCount.store(v);
+        else if (strcmp(id, "voice1_semitones") == 0) voiceSemitones[0].store(v);
+        else if (strcmp(id, "voice2_semitones") == 0) voiceSemitones[1].store(v);
+        else if (strcmp(id, "voice3_semitones") == 0) voiceSemitones[2].store(v);
+        else if (strcmp(id, "voice4_semitones") == 0) voiceSemitones[3].store(v);
+        else if (strcmp(id, "voice1_mix")       == 0) voiceMix[0].store(v);
+        else if (strcmp(id, "voice2_mix")       == 0) voiceMix[1].store(v);
+        else if (strcmp(id, "voice3_mix")       == 0) voiceMix[2].store(v);
+        else if (strcmp(id, "voice4_mix")       == 0) voiceMix[3].store(v);
+        else if (strcmp(id, "dry_wet")          == 0) dryWet.store(v);
+    }
+
+    void process(const float* inL, const float* inR,
+                 float* outL, float* outR, int32_t n)
+    {
+        // Snapshot atomics once so the per-sample loop sees a stable value.
+        const float dw      = dryWet.load(std::memory_order_relaxed);
+        const float dryGain = 1.0f - dw;
+        const float wetGain = dw;
+        int active = (int)voiceCount.load(std::memory_order_relaxed);
+        if (active < 1) active = 1;
+        if (active > kMaxVoices) active = kMaxVoices;
+
+        // Seed the output with the dry signal scaled by (1 - dryWet).
+        for (int32_t i = 0; i < n; ++i) {
+            outL[i] = inL[i] * dryGain;
+            outR[i] = inR[i] * dryGain;
+        }
+
+        // Process each active voice. Push the input block into the voice's
+        // pair of PV contexts, drain whatever output the PV can produce
+        // this block, and sum it into the dry-seeded output. During the
+        // first ~fft_size samples after a fresh PV context (post-create
+        // or post-reset) the drain produces 0 frames, so the voice is
+        // silently absent for the warm-up — the dry signal is unaffected.
+        for (int v = 0; v < active; ++v) {
+            const float semis = voiceSemitones[v].load(std::memory_order_relaxed);
+            gf_pv_set_pitch_semitones(pvL[v], semis);
+            gf_pv_set_pitch_semitones(pvR[v], semis);
+
+            const int gotL = gf_pv_process_block(
+                pvL[v], inL, n, scratchOutL.data(), n);
+            const int gotR = gf_pv_process_block(
+                pvR[v], inR, n, scratchOutR.data(), n);
+
+            const float vGain =
+                voiceMix[v].load(std::memory_order_relaxed) * wetGain;
+
+            for (int32_t i = 0; i < gotL; ++i) outL[i] += scratchOutL[i] * vGain;
+            for (int32_t i = 0; i < gotR; ++i) outR[i] += scratchOutR[i] * vGain;
+        }
+    }
+};
+
 // ── Plugin instance wrapper ───────────────────────────────────────────────────
 
 /// Discriminator for the union inside GfpaDspInstance.
-enum class GfpaEffectType { Reverb, Delay, Wah, Eq, Compressor, Chorus };
+enum class GfpaEffectType {
+    Reverb, Delay, Wah, Eq, Compressor, Chorus, Harmonizer
+};
 
 /// Opaque wrapper that holds one GFPA effect instance and its type tag.
 ///
@@ -707,6 +837,7 @@ struct GfpaDspInstance {
         EqEffect*         eq;
         CompressorEffect* compressor;
         ChorusEffect*     chorus;
+        HarmonizerEffect* harmonizer;
     };
 
     /// Static C-callable insert callback dispatched to the correct effect.
@@ -739,6 +870,8 @@ struct GfpaDspInstance {
                 inst->compressor->process(inL, inR, outL, outR, frames); break;
             case GfpaEffectType::Chorus:
                 inst->chorus->process(inL, inR, outL, outR, frames); break;
+            case GfpaEffectType::Harmonizer:
+                inst->harmonizer->process(inL, inR, outL, outR, frames); break;
         }
     }
 };
@@ -771,6 +904,9 @@ GfpaDspHandle gfpa_dsp_create(const char* pluginId, int32_t sr, int32_t block) {
     } else if (id == "com.grooveforge.chorus") {
         inst->type   = GfpaEffectType::Chorus;
         inst->chorus = new ChorusEffect(static_cast<float>(sr), block);
+    } else if (id == "com.grooveforge.audio_harmonizer") {
+        inst->type       = GfpaEffectType::Harmonizer;
+        inst->harmonizer = new HarmonizerEffect(block);
     } else {
         delete inst;
         return nullptr;
@@ -789,6 +925,7 @@ void gfpa_dsp_set_param(GfpaDspHandle handle, const char* paramId, double v) {
         case GfpaEffectType::Eq:         inst->eq->setParam(paramId, fv);         break;
         case GfpaEffectType::Compressor: inst->compressor->setParam(paramId, fv); break;
         case GfpaEffectType::Chorus:     inst->chorus->setParam(paramId, fv);     break;
+        case GfpaEffectType::Harmonizer: inst->harmonizer->setParam(paramId, fv); break;
     }
 }
 
@@ -822,6 +959,7 @@ void gfpa_dsp_destroy(GfpaDspHandle handle) {
         case GfpaEffectType::Eq:         delete inst->eq;         break;
         case GfpaEffectType::Compressor: delete inst->compressor; break;
         case GfpaEffectType::Chorus:     delete inst->chorus;     break;
+        case GfpaEffectType::Harmonizer: delete inst->harmonizer; break;
     }
     delete inst;
 }

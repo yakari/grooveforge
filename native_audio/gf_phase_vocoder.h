@@ -109,6 +109,18 @@ int gf_pv_time_stretch_offline(const float* input,
                                float* output,
                                int output_capacity);
 
+/// Convenience: offline pitch shift by [semitones]. Same duration as the
+/// input (no stretching). Shift is clamped to ±24 semitones. Intended for
+/// smoke tests and offline rendering.
+int gf_pv_pitch_shift_offline(const float* input,
+                              int num_frames,
+                              int channels,
+                              int sample_rate,
+                              float semitones,
+                              int fft_size,
+                              float* output,
+                              int output_capacity);
+
 #ifdef __cplusplus
 }
 #endif

@@ -598,6 +598,8 @@
   "rackAddCompressorSubtitle": "RMS compressor with soft knee",
   "rackAddChorus": "Chorus / Flanger",
   "rackAddChorusSubtitle": "Stereo chorus with BPM sync",
+  "rackAddAudioHarmonizer": "Audio Harmonizer",
+  "rackAddAudioHarmonizerSubtitle": "Up to 4 pitch-shifted harmony voices from any audio input",
   "rackAddLoadGfpd": "Load .gfpd from file…",
   "rackAddLoadGfpdSubtitle": "Import a custom GrooveForge plugin descriptor",
 

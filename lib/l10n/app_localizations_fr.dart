@@ -1259,6 +1259,13 @@ class AppLocalizationsFr extends AppLocalizations {
   String get rackAddChorusSubtitle => 'Chorus stéréo synchronisable sur le BPM';
 
   @override
+  String get rackAddAudioHarmonizer => 'Harmoniseur Audio';
+
+  @override
+  String get rackAddAudioHarmonizerSubtitle =>
+      'Jusqu\'à 4 voix d\'harmonie transposées à partir d\'une entrée audio';
+
+  @override
   String get rackAddLoadGfpd => 'Charger un fichier .gfpd…';
 
   @override

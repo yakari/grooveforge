@@ -146,6 +146,75 @@ int main(int argc, char** argv) {
         fails++;
     }
 
+    // ── Pitch-shift tests ──────────────────────────────────────────────
+    //
+    // Generate a pure 440 Hz tone, shift it up an octave (+12 semitones)
+    // and down an octave (-12 semitones), and verify the output energy
+    // concentrates at 880 Hz / 220 Hz respectively. We compare the DFT
+    // magnitude at the expected shifted frequency against the magnitude
+    // at the original 440 Hz — a clean pitch shift should have the new
+    // frequency dominate by ≥ 3× (a simple but effective sanity bound;
+    // a perfect shift would give near-total dominance, but linear
+    // interpolation in the resample step leaves a small residue).
+    const int pv_sine_len = SR * 2;
+    float* sine_in   = (float*)calloc((size_t)pv_sine_len, sizeof(float));
+    float* sine_up   = (float*)calloc((size_t)pv_sine_len + FFT_SIZE, sizeof(float));
+    float* sine_down = (float*)calloc((size_t)pv_sine_len + FFT_SIZE, sizeof(float));
+    for (int i = 0; i < pv_sine_len; i++) {
+        sine_in[i] = (float)(0.5 * sin(2.0 * M_PI * 440.0 * (double)i / (double)SR));
+    }
+
+    int up_frames = gf_pv_pitch_shift_offline(
+        sine_in, pv_sine_len, /*channels*/1, SR, /*semitones*/+12.0f,
+        FFT_SIZE, sine_up, pv_sine_len + FFT_SIZE);
+    int down_frames = gf_pv_pitch_shift_offline(
+        sine_in, pv_sine_len, 1, SR, -12.0f,
+        FFT_SIZE, sine_down, pv_sine_len + FFT_SIZE);
+
+    printf("\n  pitch-shift up +12: %d frames out of %d\n", up_frames, pv_sine_len);
+    printf("  pitch-shift dn -12: %d frames out of %d\n", down_frames, pv_sine_len);
+
+    // Use a middle slice well past the ring-in.
+    int slice_start = pv_sine_len / 3;
+    int slice_len   = pv_sine_len / 3;
+
+    if (up_frames >= slice_start + slice_len) {
+        double u_880 = dft_mag_at(sine_up   + slice_start, slice_len, SR, 880.0);
+        double u_440 = dft_mag_at(sine_up   + slice_start, slice_len, SR, 440.0);
+        printf("  +12: |X(880)|=%.5f  |X(440 residue)|=%.5f\n", u_880, u_440);
+        if (u_880 < u_440 * 3.0) {
+            printf("    FAIL: +12 semitone shift did not move energy to 880 Hz\n");
+            fails++;
+        }
+    } else {
+        printf("    FAIL: +12 pitch-shift produced too few frames\n");
+        fails++;
+    }
+
+    if (down_frames >= slice_start + slice_len) {
+        double d_220 = dft_mag_at(sine_down + slice_start, slice_len, SR, 220.0);
+        double d_440 = dft_mag_at(sine_down + slice_start, slice_len, SR, 440.0);
+        printf("  -12: |X(220)|=%.5f  |X(440 residue)|=%.5f\n", d_220, d_440);
+        if (d_220 < d_440 * 3.0) {
+            printf("    FAIL: -12 semitone shift did not move energy to 220 Hz\n");
+            fails++;
+        }
+    } else {
+        printf("    FAIL: -12 pitch-shift produced too few frames\n");
+        fails++;
+    }
+
+    // Write the pitch-shifted WAVs for auditioning.
+    char up_path[512], down_path[512];
+    snprintf(up_path,   sizeof(up_path),   "%s/gf_pv_up12.wav",   out_dir);
+    snprintf(down_path, sizeof(down_path), "%s/gf_pv_down12.wav", out_dir);
+    write_wav_mono(up_path,   sine_up,   up_frames,   SR);
+    write_wav_mono(down_path, sine_down, down_frames, SR);
+    printf("  wrote %s\n  wrote %s\n", up_path, down_path);
+
+    free(sine_in);
+    free(sine_up);
+    free(sine_down);
     free(src);
     free(dst);
     if (fails == 0) {

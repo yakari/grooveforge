@@ -587,6 +587,18 @@ class _AddPluginSheetContentState extends State<_AddPluginSheetContent> {
                 context, rack, 'com.grooveforge.chorus',
               ),
             ),
+            _PluginTile(
+              icon: Icons.queue_music,
+              iconColor: Colors.pinkAccent,
+              title: l10n.rackAddAudioHarmonizer,
+              subtitle: l10n.rackAddAudioHarmonizerSubtitle,
+              onTap: () => _addDescriptorPlugin(
+                // Distinct id from `com.grooveforge.harmonizer` (MIDI FX) —
+                // the audio Harmonizer is a separate plugin that pitch-shifts
+                // an incoming audio stream via the phase-vocoder library.
+                context, rack, 'com.grooveforge.audio_harmonizer',
+              ),
+            ),
 
             // ═══════════════════════════════════════════════════════════════
             // Built-in MIDI FX (.gfpd descriptor plugins — all platforms)

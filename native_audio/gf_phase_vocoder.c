@@ -182,6 +182,14 @@ typedef struct {
     // residue across frames and step the output cursor by an integer
     // count each time.
     float  out_hop_accum;
+
+    // Fractional read position within the output ring, used only when
+    // pitch shifting is active (pitch_ratio != 1). Each output frame we
+    // emit consumes `pitch_ratio` samples from the ring — less than 1 for
+    // downshifts, more than 1 for upshifts — implemented via linear
+    // interpolation between adjacent ring samples. Zero when pitch_ratio
+    // is 1 so the fast path degenerates into the old integer drain.
+    float  out_frac_pos;
 } gf_pv_channel;
 
 // -------------------------------------------------------------------------
@@ -304,6 +312,7 @@ void gf_pv_reset(gf_pv_context* ctx) {
         ch->in_write = ch->in_read = ch->in_count = 0;
         ch->out_write = ch->out_read = ch->out_count = 0;
         ch->out_hop_accum = 0.0f;
+        ch->out_frac_pos  = 0.0f;
     }
 }
 
@@ -495,12 +504,37 @@ int gf_pv_process_block(gf_pv_context* ctx,
     // 2. As long as channel 0 has enough samples (N from the read cursor),
     //    produce one synthesis frame per channel. Channels are in lock-step
     //    — they all consume the same hop_in and produce the same hop_out.
+    //
+    // Pitch shift is implemented by time-stretching the input internally
+    // and then resampling the output ring back to the requested duration
+    // in the drain stage below. The composition is:
+    //
+    //   stretched_length = input_length * (user_stretch * pitch_ratio)
+    //   resample by pitch_ratio → output_length = stretched_length / pitch_ratio
+    //                                            = input_length * user_stretch
+    //
+    // The pitch axis sits in the resample step: a phase-vocoder time
+    // stretch preserves the input pitch, so the stretched audio still has
+    // the original frequency content. Resampling by pitch_ratio plays it
+    // back at pitch_ratio× the rate, multiplying every frequency by
+    // pitch_ratio — exactly the desired shift.
+    //
+    // So internal_stretch = user_stretch * pitch_ratio.
+    const float pitch_ratio = (ctx->pitch_ratio > 0.0f) ? ctx->pitch_ratio : 1.0f;
+    const float user_stretch = ctx->stretch;
+    float internal_stretch = user_stretch * pitch_ratio;
+    // Clamp internal stretch to the PV's working range. The user setters
+    // clamp the user-facing ratios, but their composition can escape the
+    // safe band (e.g. user_stretch=4 × pitch_ratio=4 → internal=16).
+    if (internal_stretch < 0.125f) internal_stretch = 0.125f;
+    if (internal_stretch > 8.0f)   internal_stretch = 8.0f;
+
     while (ctx->ch[0].in_count >= N) {
         // Compute this frame's integer output hop from the running
         // fractional accumulator. This keeps the long-run stretch ratio
         // accurate even when stretch * hop_in is non-integer.
         gf_pv_channel* ch0 = &ctx->ch[0];
-        float want = (float)hop_in * ctx->stretch + ch0->out_hop_accum;
+        float want = (float)hop_in * internal_stretch + ch0->out_hop_accum;
         int   hop_out_int = (int)floorf(want);
         if (hop_out_int < 1) hop_out_int = 1;
         if (hop_out_int > N) hop_out_int = N;  // safety clamp
@@ -513,22 +547,88 @@ int gf_pv_process_block(gf_pv_context* ctx,
     }
 
     // 3. Drain each channel's output ring into the interleaved output.
-    //    The number of frames we can emit is the minimum across channels
-    //    (they should match exactly, but we take the min for safety) and
-    //    the caller's capacity.
-    int avail = ctx->ch[0].out_count;
-    for (int c = 1; c < C; c++) {
-        if (ctx->ch[c].out_count < avail) avail = ctx->ch[c].out_count;
+    //
+    // Two paths:
+    //
+    //   Fast path (pitch_ratio == 1): integer-step drain, one ring sample
+    //   per output sample. This is the original time-stretch behaviour —
+    //   the ring already contains audio at the desired rate.
+    //
+    //   Pitch-shift path: fractional-step drain. Each output sample reads
+    //   a linearly-interpolated value at `out_frac_pos` within the ring
+    //   and advances the cursor by `pitch_ratio`. For pitch_ratio > 1 we
+    //   consume more than one ring sample per output frame (upshift); for
+    //   pitch_ratio < 1 we emit multiple output frames per ring sample
+    //   (downshift). Because the stretched audio has been compressed /
+    //   expanded by 1/pitch_ratio, the net output duration matches the
+    //   user's stretch request while the frequency content is scaled by
+    //   pitch_ratio.
+
+    // How many output frames can we safely emit? Fast path: one per ring
+    // sample. Pitch path: approximately out_count / pitch_ratio, but we
+    // need at least 2 ring samples to interpolate the last one, so we
+    // cap at (out_count - 1) / pitch_ratio rounded down. Min across
+    // channels for safety.
+    int avail;
+    if (pitch_ratio == 1.0f) {
+        avail = ctx->ch[0].out_count;
+        for (int c = 1; c < C; c++) {
+            if (ctx->ch[c].out_count < avail) avail = ctx->ch[c].out_count;
+        }
+    } else {
+        // Each channel's current cursor eats pitch_ratio ring samples per
+        // output frame. We need the next sample for interpolation, so
+        // effective budget is (out_count - 1 - out_frac_pos) / pitch_ratio.
+        avail = 0;
+        if (ctx->ch[0].out_count >= 2) {
+            float budget =
+                ((float)ctx->ch[0].out_count - 1.0f - ctx->ch[0].out_frac_pos)
+                / pitch_ratio;
+            avail = (int)floorf(budget);
+            if (avail < 0) avail = 0;
+            for (int c = 1; c < C; c++) {
+                if (ctx->ch[c].out_count < 2) { avail = 0; break; }
+                float cb =
+                    ((float)ctx->ch[c].out_count - 1.0f - ctx->ch[c].out_frac_pos)
+                    / pitch_ratio;
+                int ca = (int)floorf(cb);
+                if (ca < avail) avail = ca;
+            }
+        }
     }
     int emit = (avail < output_capacity_frames) ? avail : output_capacity_frames;
 
-    for (int i = 0; i < emit; i++) {
-        for (int c = 0; c < C; c++) {
-            gf_pv_channel* ch = &ctx->ch[c];
-            int idx = ch->out_read;
-            output_interleaved[i * C + c] = ch->out_ring[idx];
-            ch->out_read = (ch->out_read + 1) & (GF_PV_OUT_RING_CAP - 1);
-            ch->out_count--;
+    if (pitch_ratio == 1.0f) {
+        // Fast integer drain.
+        for (int i = 0; i < emit; i++) {
+            for (int c = 0; c < C; c++) {
+                gf_pv_channel* ch = &ctx->ch[c];
+                output_interleaved[i * C + c] = ch->out_ring[ch->out_read];
+                ch->out_read = (ch->out_read + 1) & (GF_PV_OUT_RING_CAP - 1);
+                ch->out_count--;
+            }
+        }
+    } else {
+        // Fractional drain with linear interpolation.
+        for (int i = 0; i < emit; i++) {
+            for (int c = 0; c < C; c++) {
+                gf_pv_channel* ch = &ctx->ch[c];
+                int r0 = ch->out_read;
+                int r1 = (r0 + 1) & (GF_PV_OUT_RING_CAP - 1);
+                float s0 = ch->out_ring[r0];
+                float s1 = ch->out_ring[r1];
+                float f  = ch->out_frac_pos;
+                output_interleaved[i * C + c] = s0 * (1.0f - f) + s1 * f;
+
+                ch->out_frac_pos += pitch_ratio;
+                // Advance by as many whole samples as the fractional
+                // accumulator has crossed.
+                while (ch->out_frac_pos >= 1.0f) {
+                    ch->out_frac_pos -= 1.0f;
+                    ch->out_read = (ch->out_read + 1) & (GF_PV_OUT_RING_CAP - 1);
+                    ch->out_count--;
+                }
+            }
         }
     }
     return emit;
@@ -570,6 +670,57 @@ int gf_pv_time_stretch_offline(const float* input,
         if (total_out >= output_capacity) break;
     }
     // Flush: feed zeros to drain the tail.
+    int tail = fft_size * 2;
+    static float zeros[GF_PV_MAX_FFT * 2 * GF_PV_MAX_CHANNELS] = {0};
+    while (tail > 0 && total_out < output_capacity) {
+        int to_feed = (tail < chunk) ? tail : chunk;
+        int produced = gf_pv_process_block(
+            ctx, zeros, to_feed,
+            output + total_out * channels,
+            output_capacity - total_out);
+        total_out += produced;
+        tail -= to_feed;
+        if (produced == 0) break;
+    }
+
+    gf_pv_destroy(ctx);
+    return total_out;
+}
+
+// Offline pitch shift — same shape as gf_pv_time_stretch_offline but drives
+// the pitch axis instead. Shifts [input] by [semitones] and writes the
+// result (same duration as input) to [output]. Host-only convenience for
+// smoke tests and offline rendering.
+int gf_pv_pitch_shift_offline(const float* input,
+                              int num_frames,
+                              int channels,
+                              int sample_rate,
+                              float semitones,
+                              int fft_size,
+                              float* output,
+                              int output_capacity) {
+    (void)sample_rate;
+    if (channels < 1 || channels > GF_PV_MAX_CHANNELS) return 0;
+
+    gf_pv_context* ctx = gf_pv_create(fft_size, fft_size / 4, channels);
+    if (!ctx) return 0;
+    gf_pv_set_stretch(ctx, 1.0f);
+    gf_pv_set_pitch_semitones(ctx, semitones);
+
+    int total_out = 0;
+    int in_pos = 0;
+    const int chunk = 1024;
+    while (in_pos < num_frames && total_out < output_capacity) {
+        int to_feed = (num_frames - in_pos < chunk) ? (num_frames - in_pos) : chunk;
+        int produced = gf_pv_process_block(
+            ctx,
+            input + in_pos * channels,
+            to_feed,
+            output + total_out * channels,
+            output_capacity - total_out);
+        total_out += produced;
+        in_pos    += to_feed;
+    }
     int tail = fft_size * 2;
     static float zeros[GF_PV_MAX_FFT * 2 * GF_PV_MAX_CHANNELS] = {0};
     while (tail > 0 && total_out < output_capacity) {

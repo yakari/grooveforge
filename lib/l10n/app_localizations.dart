@@ -2348,6 +2348,18 @@ abstract class AppLocalizations {
   /// **'Stereo chorus with BPM sync'**
   String get rackAddChorusSubtitle;
 
+  /// No description provided for @rackAddAudioHarmonizer.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio Harmonizer'**
+  String get rackAddAudioHarmonizer;
+
+  /// No description provided for @rackAddAudioHarmonizerSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Up to 4 pitch-shifted harmony voices from any audio input'**
+  String get rackAddAudioHarmonizerSubtitle;
+
   /// No description provided for @rackAddLoadGfpd.
   ///
   /// In en, this message translates to:

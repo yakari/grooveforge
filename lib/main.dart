@@ -65,6 +65,7 @@ const _kBundledGfpdAssets = [
   'assets/plugins/eq.gfpd',
   'assets/plugins/compressor.gfpd',
   'assets/plugins/chorus.gfpd',
+  'assets/plugins/audio_harmonizer.gfpd',
   // MIDI FX plugins.
   'assets/plugins/harmonizer.gfpd',
   'assets/plugins/chord_expand.gfpd',

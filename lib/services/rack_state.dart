@@ -545,11 +545,38 @@ class RackState extends ChangeNotifier {
   }
 
   /// Update the MIDI channel of a slot.
+  ///
+  /// Both [GrooveForgeKeyboardPlugin] and [GFpaPluginInstance] need their
+  /// engine state re-applied after a channel change — otherwise the audio
+  /// engine's per-channel mapping (`AudioEngine.channels[].soundfontPath`)
+  /// stays pointed at the old channel and notes on the new channel fall
+  /// through to whatever was there before. For the Vocoder plugin in
+  /// particular this means notes get dispatched to FluidSynth instead of
+  /// the vocoder DSP, which can sound like a stray piano voice on the new
+  /// channel (because FluidSynth slot allocation collapses every odd-
+  /// indexed channel into slot 0).
   void setPluginMidiChannel(String id, int midiChannel) {
     final plugin = _findById(id);
     if (plugin == null) return;
+    final oldChannel = plugin.midiChannel;
     plugin.midiChannel = midiChannel;
-    if (plugin is GrooveForgeKeyboardPlugin) _applyPluginToEngine(plugin);
+    if (plugin is GrooveForgeKeyboardPlugin) {
+      _applyPluginToEngine(plugin);
+    } else if (plugin is GFpaPluginInstance) {
+      // Clear the old channel's vocoderMode marker if this plugin owned it.
+      // Without this, a vocoder that moved from channel A to channel B
+      // would leave channel A's soundfontPath stuck at 'vocoderMode' and
+      // any future plugin landing on channel A would see that stale state.
+      if (plugin.pluginId == 'com.grooveforge.vocoder' &&
+          oldChannel > 0 &&
+          oldChannel <= _engine.channels.length) {
+        final oldIdx = oldChannel - 1;
+        if (_engine.channels[oldIdx].soundfontPath == vocoderMode) {
+          _engine.channels[oldIdx].soundfontPath = null;
+        }
+      }
+      _applyGfpaPluginToEngine(plugin);
+    }
     _syncJamFollowerMapToEngine();
     notifyListeners();
     _notifyChanged();
@@ -840,7 +867,7 @@ class RackState extends ChangeNotifier {
         if (plugin.midiChannel > 0) {
           _engine.assignSoundfontToChannel(
             plugin.midiChannel - 1,
-            'vocoderMode',
+            vocoderMode,
           );
           // Restore saved params into the engine.
           final s = plugin.state;
