@@ -676,6 +676,16 @@ class VstHostService {
       // Theremin, Stylophone, and Vocoder: when wired to a GFPA effect or
       // audio looper, register as masterRender contributors and enable capture
       // mode so their miniaudio device outputs silence (JACK thread drives DSP).
+      //
+      // When the vocoder is *also* registered as an audio-looper source below,
+      // both the master-render pull and the looper-source pull call
+      // `vocoder_render_block` inside the same JACK callback. That used to
+      // corrupt shared DSP state (voice envelopes, LFO phase, ACF cursor,
+      // filter-bank biquads). It no longer does: `_vocoder_render_block_impl`
+      // in `native_audio/audio_input.c` now caches its per-block output and
+      // returns the cache on any call from the same audio block, so both
+      // pulls see identical audio and DSP state advances exactly once per
+      // block.
       for (final plugin in allPlugins.whereType<GFpaPluginInstance>()) {
         if (plugin.pluginId == 'com.grooveforge.vocoder' &&
             _hasAnyConnection(plugin.id, graph)) {
@@ -1063,6 +1073,26 @@ class VstHostService {
     }
   }
 
+  /// Returns true if [slotId] has any outgoing audio connection (to GFPA
+  /// effects, VST3 plugins, or audio looper slots). Used to decide whether
+  /// to add the Vocoder as a masterRender contributor — unlike theremin and
+  /// stylophone, the vocoder needs master render whenever it's routed to
+  /// anything at all (including a looper) because its DSP needs a single
+  /// driver per block, and master render is the always-called path; the
+  /// looper-source pull only fires during recording.
+  bool _hasAnyConnection(String slotId, AudioGraph graph) {
+    for (final conn in graph.connections) {
+      if (conn.fromSlotId != slotId) continue;
+      if (conn.fromPort.isDataPort || conn.toPort.isDataPort) continue;
+      if (conn.fromPort == AudioPortId.midiOut ||
+          conn.toPort == AudioPortId.midiIn) {
+        continue;
+      }
+      return true;
+    }
+    return false;
+  }
+
   /// Returns true if [slotId] has at least one audio connection to a slot
   /// that has an active GFPA DSP handle.  Used to decide whether to add a
   /// Theremin/Stylophone as a masterRender contributor.
@@ -1076,21 +1106,6 @@ class VstHostService {
       }
       final handle = _gfpaHandles[conn.toSlotId];
       if (handle != null && handle != nullptr) return true;
-    }
-    return false;
-  }
-
-  /// Returns true if [slotId] has any outgoing audio connection (to GFPA
-  /// effects, VST3 plugins, or audio looper slots).
-  bool _hasAnyConnection(String slotId, AudioGraph graph) {
-    for (final conn in graph.connections) {
-      if (conn.fromSlotId != slotId) continue;
-      if (conn.fromPort.isDataPort || conn.toPort.isDataPort) continue;
-      if (conn.fromPort == AudioPortId.midiOut ||
-          conn.toPort == AudioPortId.midiIn) {
-        continue;
-      }
-      return true;
     }
     return false;
   }

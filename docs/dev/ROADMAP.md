@@ -587,12 +587,57 @@ graph TD
 
 ### Tasks
 
-- [ ] `native_audio/gf_phase_vocoder.h` — C API: `gf_pv_create`, `gf_pv_destroy`, `gf_pv_time_stretch`, `gf_pv_pitch_shift`, `gf_pv_process_block`.
-- [ ] `native_audio/gf_phase_vocoder.c` — FFT-based phase vocoder (STFT analysis, phase accumulation, overlap-add resynthesis). Pre-allocated FFT buffers (no RT allocation). Configurable FFT size (1024–4096), hop size, window function.
-- [ ] Audio looper integration: `dvh_alooper_process` PLAYING state uses `gf_pv_time_stretch` when BPM differs from `recordBpm`, producing tempo-synced playback without pitch change.
-- [ ] Vocoder NATURAL mode migration: replace PSOLA grain capture/playback in `audio_input.c` with `gf_pv_pitch_shift` for smoother, artifact-free pitch correction.
+- [x] `native_audio/gf_phase_vocoder.h` — C API: `gf_pv_create`, `gf_pv_destroy`, `gf_pv_time_stretch`, `gf_pv_pitch_shift`, `gf_pv_process_block`.
+- [x] `native_audio/gf_phase_vocoder.c` — FFT-based phase vocoder (STFT analysis, phase accumulation, overlap-add resynthesis). Pre-allocated FFT buffers (no RT allocation). Configurable FFT size (1024–4096), hop size, window function. Phase-locked (Laroche & Dolson 1999) for better transient preservation. **Note:** `gf_pv_pitch_shift` API is stubbed but not yet implemented — only time-stretch is live. Pitch shift implementation deferred to the Audio Harmonizer milestone where it's actually needed.
+- [x] Audio looper integration: `dvh_alooper_process` PLAYING state uses the phase vocoder in stretch mode when BPM differs from `recordBpm`, producing tempo-synced playback without pitch change. Per-clip `gf_pv_context` allocated in `dvh_alooper_create`; fast path preserved when `|1 − recordBpm/bpm| < 0.005`. Wired into Linux, macOS, and Android.
+- [x] Smoke test: time-stretch a 4-bar 120→140 BPM loop — verify no pitch change, clean transients. Duration error 0.72%, gain drift +1.3 dB, 440 Hz component preserved.
+- [ ] **Session 2b — Startup latency compensation for looper PV path.** First block after entering PLAYING has ~46 ms ring-in fade (Hann+4x-overlap warm-up). Options: (a) pre-feed N-H input samples during `set_state` before PLAYING transition; (b) offset head start by the ring-in length; (c) accept it as-is since the audio is only slightly quieter for two beats, not silent. Session 2 shipped with (c).
 - [ ] Dart FFI bindings for standalone use (future harmonizer).
-- [ ] Smoke test: time-stretch a 4-bar loop from 120→140 BPM — verify no pitch change, clean transients.
+
+### NATURAL vocoder mode — reality check (decision log, 2026-04-13)
+
+The original plan was "replace PSOLA in `audio_input.c` with `gf_pv_pitch_shift` for smoother pitch correction". When we actually mapped the code in session 3 planning, the premise turned out to be wrong. Recording the reasoning here so we can revisit if option 1 (below) disappoints:
+
+**What NATURAL mode actually does.** It is *not* autotune-style pitch correction of a live mic. It is a **captured-grain resynth**:
+
+1. ACF detects the mic voice pitch every ~21 ms and captures a 2-period Hann-windowed voice grain (`capture_psola_grain` in [audio_input.c:201](native_audio/audio_input.c#L201)). The grain carries the voice's timbre and formants.
+2. A MIDI note defines the *target* frequency. The PSOLA engine retriggers the captured grain every `SR/targetHz` samples into an overlap-add buffer, synthesizing a sustained tone at the MIDI pitch.
+3. The result passes through a 32-band vocoder filter bank modulated by the mic envelope.
+
+So: mic = grain color, MIDI = pitch, filter bank = vocoder effect. A granular/wavetable synth, not a pitch corrector.
+
+**Why it sounds choppy.** The retrigger period is `SR/targetHz`. The grain length is `2 × detectedPeriod = 2 × SR/detectedHz`. When `targetHz < detectedHz`, the retrigger period exceeds the grain length and there is audible **silence between grains**. When `targetHz > detectedHz`, grains overlap and it smooths out. Users sing ~200 Hz and play ~110–220 Hz on the controller, so the gap case dominates in practice.
+
+**Why phase vocoder is the wrong tool for this.** A phase vocoder operates on a streaming input and produces a pitch-shifted streaming output. NATURAL mode needs the opposite: generate a **sustained** tone from a short captured snippet, *long after the mic has gone silent*. There is no continuous input to pitch-shift. You would have to loop-feed the PV from a captured buffer — doable but ~150 lines with ring-in latency artifacts on every note-on, for a feature that doesn't actually need FFT-grade resynthesis.
+
+### Options considered
+
+| # | Approach | LOC | Pros | Cons |
+|---|---|---|---|---|
+| 1 | **Large-grain looped resampling.** Capture ~2048 mic samples on ACF convergence. Play the buffer back in a continuous loop at rate `targetHz/detectedHz` with linear interpolation; cross-fade a ~64-sample loop seam. | ~40 | Simple. Zero FFT cost. No ring-in latency. No gap problem. Uses existing ACF pitch estimate. | Formants shift with extreme ratios (chipmunk / giant effect). Seam cross-fade artifacts on very short grains. |
+| 2 | **Phase vocoder driving a looped grain buffer.** Capture 2048+ samples. Feed them looped into `gf_pv_process_block` each callback. Implement real `gf_pv_pitch_shift` (resample + stretch). | ~150 across 2 files | FFT-grade quality. Formant preservation via phase-locked resynth. | Large complexity increase. Requires implementing pitch shift in `gf_phase_vocoder.c` first. ~46 ms ring-in latency on every note-on — noticeable for a keyboard-driven instrument. |
+| 3 | **Hybrid.** Keep PSOLA when `targetHz > detectedHz` (already smooth). Use option 1 when `targetHz < detectedHz`. | ~60 | Best worst-case quality. Minimal disruption to the overlap case. | Two code paths to maintain. No real quality advantage over option 1 in practice. |
+
+### Decision: ship option 1 first
+
+Chosen 2026-04-13 by Yann. Rationale: the current NATURAL mode is "really bad" (user's words), so the bar for improvement is low and even a simple loop-resample should clearly win. If option 1 disappoints after real-world testing, this decision log makes it easy to pivot to option 2 — the phase vocoder library is already in place in `libaudio_input.so`, we would only need to implement real pitch shift in `gf_phase_vocoder.c`.
+
+### Session 3 tasks (option 1)
+
+- [ ] `capture_psola_grain` → capture **2048 samples** of raw mic audio (not 2-period Hann grain) when ACF correlation crosses the confidence threshold. Store detected period alongside so the renderer knows the natural frequency.
+- [ ] Replace NATURAL branch in `renderOscillator` ([audio_input.c:277–303](native_audio/audio_input.c#L277)): read from the captured buffer at a fractional cursor advancing by `detectedPeriod/targetPeriod` = `targetHz/detectedHz` samples per output sample, wrapping the cursor at buffer end with a short cross-fade into buffer start.
+- [ ] Linear interpolation between adjacent captured samples for fractional reads — fast and sufficient for the frequency range (80–1000 Hz voice).
+- [ ] ~64-sample loop-seam cross-fade to kill the boundary click. Sliding window that blends tail-into-head for the last 64 samples of each loop pass.
+- [ ] Bypass cleanly when no grain has been captured yet (first note-on before the mic has been singing) — fall back to silence or the current overlap-add buffer behavior.
+- [ ] Smoke test: with a recorded voice and a descending MIDI scale from the controller, verify the gap artifacts are gone and the output is continuous. No automated test — this is a listening check.
+
+### Future: if option 1 is not good enough
+
+If real-world use reveals option 1 is insufficient (formant shift too audible on large intervals, cross-fade seams too noticeable, etc.), the fallback is to implement option 2:
+
+- [ ] Add real pitch shift to `gf_phase_vocoder.c` — currently the API exists (`gf_pv_set_pitch_semitones`) but the processing loop only applies stretch. Proper implementation: time-stretch by `1/r` internally, then linearly resample by `r` so input duration and output duration match.
+- [ ] Replace NATURAL branch with a looped feed/drain against the captured buffer, similar to the looper integration pattern from session 2.
+- [ ] Expect ~46 ms ring-in artifact per note-on; mitigate by pre-feeding the PV with `fft_size` samples before the MIDI note-on is routed to the renderer.
 
 ---
 

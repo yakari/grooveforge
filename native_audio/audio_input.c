@@ -37,7 +37,38 @@ static VocoderBand bands[NUM_BANDS];
 // Envelope follower release coefficient (approx 20ms)
 static float envRelease = 0.0f;
 
-#define PSOLA_OA_SIZE 1024
+// ── NATURAL-mode (looped voice-grain resampler) config ──────────────────
+//
+// Replaces the old PSOLA grain engine. Rationale in docs/dev/ROADMAP.md
+// ("NATURAL vocoder mode — reality check" section). The idea:
+//   1. ACF detects the mic's voice pitch and captures raw mic audio into
+//      g_natLoopBuf[]. The captured length is set to the largest integer
+//      multiple of the detected pitch period that fits — *integer-period
+//      looping* is what makes the loop wrap seamlessly without a click.
+//      For a truly periodic signal, sample N·P equals sample 0, so the
+//      seam is continuous by construction. No cross-fade needed.
+//   2. Each polyphonic voice maintains a fractional read cursor into the
+//      loop. Cursor advance per output sample = targetHz / detectedHz —
+//      so the same captured snippet plays back at the MIDI target pitch.
+//
+// An earlier attempt used a fixed 1024-sample loop plus a 64-sample
+// tail-to-head linear cross-fade. That was wrong on two counts: the
+// cross-fade *introduced* its own discontinuity at the wrap point (it
+// made sample N−1 equal head[63], but sample 0 was still head[0]), and
+// the arbitrary loop length produced an audible subharmonic modulation
+// at ~SR/1024 ≈ 47 Hz on top of the fundamental. Integer-period looping
+// fixes both.
+//
+// Chosen over a phase-vocoder implementation because NATURAL mode needs
+// to sustain a tone from a short snippet long after the mic has gone
+// silent — a streaming phase vocoder is the wrong tool for that workload.
+#define NAT_LOOP_CAPACITY 1024  // Buffer size (must equal ACF_WINDOW so we
+                                // can copy straight out of g_acfBuffer).
+#define NAT_LOOP_MIN_PERIODS 2  // Refuse to capture if we can't fit at
+                                // least 2 full pitch periods — a one-
+                                // period loop is just a single waveform
+                                // cycle and tends to sound unnaturally
+                                // flat/buzzy for voice content.
 
 // --- Oscillator State ---
 typedef struct {
@@ -50,10 +81,12 @@ typedef struct {
     float velocity;
     float envelope;
     int releaseSamples;
-    float filterState; // Used for glottal pulse low-pass
-    float pulseTimer;  // PSOLA: samples until next grain trigger
-    float oaBuffer[PSOLA_OA_SIZE]; // PSOLA: overlap-add buffer
-    int   oaCursor;    // PSOLA: current sample position in OA buffer
+    float filterState;   // Used for glottal pulse low-pass (mode 2)
+    float natReadPos;    // NATURAL mode: fractional cursor into g_natLoopBuf.
+                         // Advances by targetHz/detectedHz per output sample.
+                         // Wraps at NAT_LOOP_LEN. Zero-initialised with the
+                         // voices[] static array; never reset per note-on
+                         // (different notes keep phase continuity).
 } Oscillator;
 
 // --- Vocoder Adjustable Parameters ---
@@ -109,10 +142,27 @@ static float g_micPitchHz = 150.0f;
 static int   g_acfCounter   = 0;
 static float g_acfBuffer[ACF_WINDOW];
 
-// --- Natural PSOLA Grain Capture ---
-// We capture 2 periods of the voice to create a smooth Hanning-windowed grain.
-static float g_naturalWavetable[ACF_MAX_LAG * 2];
-static int   g_naturalWavetableLen = 100; // This will be 2 * bestLag
+// --- NATURAL-mode looped voice-grain state ---
+// g_natLoopBuf holds a pitch-validated snippet of raw mic audio, amplitude-
+// normalised and trimmed to an integer multiple of the detected pitch
+// period. Captured whenever the ACF pitch detector's correlation is high
+// (see capture_natural_loop). Read by renderOscillator in NATURAL mode
+// via a fractional cursor that wraps at g_natLoopLen.
+static float g_natLoopBuf[NAT_LOOP_CAPACITY];
+/// Valid length of the loop in samples. Always an integer multiple of the
+/// detected pitch period, so wrapping from sample (len-1) to sample 0 lands
+/// on a continuous waveform point. 0 until the first good capture.
+static int   g_natLoopLen = 0;
+/// 0 until the first good capture has landed. Until then NATURAL mode
+/// outputs silence so MIDI notes with no mic input produce nothing.
+static int   g_natLoopValid = 0;
+/// Pitch (Hz) of the loop at capture time. Cursor-advance rate per output
+/// sample = targetHz / g_natLoopDetectedHz, so the loop plays at the
+/// MIDI-requested pitch.
+static float g_natLoopDetectedHz = 0.0f;
+/// Rolling correlation gate for capture. New captures only overwrite the
+/// loop when ACF correlation is within 80% of the last peak (or absolutely
+/// high) — same gating logic as the previous PSOLA implementation.
 static float g_naturalMaxCorr = 0.0f;
 
 static int64_t _get_monotonic_ns(void) {
@@ -196,27 +246,54 @@ static float noteToFreq(int midiNote) {
     return 440.0f * powf(2.0f, (midiNote - 69) / 12.0f);
 }
 
-// --- PSOLA: Hanning Window Capture ---
-// Captures 2 periods of the voice and applies a Hanning window to create a stable grain.
-static void capture_psola_grain(const float* source, int lag) {
-    if (lag < ACF_MIN_LAG || lag > ACF_MAX_LAG) return;
-    
-    int grainLen = lag * 2; 
-    g_naturalWavetableLen = grainLen;
-    
-    // Calculate RMS for normalization
+// --- NATURAL mode: capture a loopable voice snippet ---
+//
+// Copies an integer number of pitch periods of raw mic audio into
+// g_natLoopBuf and amplitude-normalises them to ~0.4 RMS. The loop
+// length is deliberately `numPeriods × detectedLag` so the signal is
+// continuous across the wrap point — for a periodic waveform, sample
+// N·P equals sample 0 by definition. No cross-fade is needed, and any
+// cross-fade would actually *introduce* a discontinuity.
+//
+// [source] is expected to point at an ACF-validated window of at least
+// NAT_LOOP_CAPACITY samples (in practice `g_acfBuffer`, which is exactly
+// that size). [detectedLag] is the ACF-estimated pitch period in samples;
+// its reciprocal gives the captured tone's natural frequency, which the
+// renderer uses to compute each voice's playback advance rate.
+static void capture_natural_loop(const float* source, int detectedLag) {
+    if (detectedLag < ACF_MIN_LAG || detectedLag > ACF_MAX_LAG) return;
+
+    // 1. Pick an integer-period loop length that fits in the capacity.
+    //    With detectedLag ≥ 48 (1000 Hz) and capacity 1024 we get 21
+    //    periods. With detectedLag ≤ 600 (80 Hz) we get 1 period, which
+    //    falls below our minimum — such low voices are rejected. Users
+    //    singing in a sensible range (G2–G5 ≈ 98–784 Hz) always fit
+    //    ≥ 2 periods.
+    int numPeriods = NAT_LOOP_CAPACITY / detectedLag;
+    if (numPeriods < NAT_LOOP_MIN_PERIODS) return;
+    int loopLen = numPeriods * detectedLag;
+
+    // 2. RMS-normalise to target ~0.4 so the downstream vocoder filter
+    //    bank receives a consistent carrier level regardless of how loudly
+    //    the user sings. Gain capped at 4× so a silent window doesn't
+    //    amplify noise into a screech.
     float sumSq = 0.0f;
-    for (int i = 0; i < grainLen; i++) sumSq += source[i] * source[i];
-    float rms = sqrtf(sumSq / (float)grainLen) + 1e-9f;
-    // Target a healthy internal amplitude (approx 0.4 RMS)
+    for (int i = 0; i < loopLen; i++) sumSq += source[i] * source[i];
+    float rms  = sqrtf(sumSq / (float)loopLen) + 1e-9f;
     float norm = 0.4f / rms;
-    if (norm > 4.0f) norm = 4.0f; // Limit extreme gain on silence
-    
-    for (int i = 0; i < grainLen; i++) {
-        // Hanning window over 2 periods
-        float window = 0.5f * (1.0f - cosf(6.2831853f * (float)i / (float)(grainLen - 1)));
-        g_naturalWavetable[i] = source[i] * window * norm;
-    }
+    if (norm > 4.0f) norm = 4.0f;
+    for (int i = 0; i < loopLen; i++) g_natLoopBuf[i] = source[i] * norm;
+
+    // 3. Publish the new loop. Order matters: the renderer reads len
+    //    first, and valid last, so writing `valid = 1` after everything
+    //    else means the audio thread either sees the old loop (valid=1,
+    //    old len) or the new one (valid=1, new len) but never half-torn
+    //    state. Acceptable because the window is scalar and len/validity
+    //    are plain ints (torn reads are impossible at this size on
+    //    ARM/x86).
+    g_natLoopLen        = loopLen;
+    g_natLoopDetectedHz = (float)SAMPLE_RATE / (float)detectedLag;
+    g_natLoopValid      = 1;
 }
 
 // Render Oscillator (Polyphonic Carrier) — used by modes 0, 1, 2.
@@ -275,28 +352,58 @@ static float renderOscillator(Oscillator* osc) {
         if (osc->phase2 >= 1.0f) osc->phase2 -= 1.0f;
         if (osc->phase3 >= 1.0f) osc->phase3 -= 1.0f;
     } else if (g_vocoderWaveform == 3) {
-        // --- Natural (PSOLA) Mode: Pulse-Train Grain Synthesis ---
-        // This triggers a fixed-duration vocal pulse at the target MIDI frequency.
-        // It's superior to wavetable looping because it doesn't stretch formants.
-        osc->pulseTimer -= 1.0f;
-        if (osc->pulseTimer <= 0.0f) {
-            float targetPeriod = (float)SAMPLE_RATE / (osc->frequency * g_effectivePitchFactor);
-            if (targetPeriod < 10.0f) targetPeriod = 10.0f; // Limit to 4.8kHz (ultrasound)
-            
-            // Trigger a new grain: add g_naturalWavetable into the circular oaBuffer
-            int grainLen = g_naturalWavetableLen;
-            if (grainLen > ACF_MAX_LAG * 2) grainLen = ACF_MAX_LAG * 2;
-            
-            for (int j = 0; j < grainLen; j++) {
-                int oaIdx = (osc->oaCursor + j) % PSOLA_OA_SIZE;
-                osc->oaBuffer[oaIdx] += g_naturalWavetable[j];
-            }
-            osc->pulseTimer += targetPeriod;
-        }
+        // --- NATURAL mode (loop resampler) ---
+        //
+        // Reads the mic-captured voice loop at a fractional cursor and
+        // produces a sample at the MIDI-requested pitch. Cursor advance
+        // per output sample = targetHz / capturedHz, so a captured voice
+        // at 200 Hz played at a MIDI target of 100 Hz advances the cursor
+        // by 0.5 samples/sample (pitch drops an octave) and at 400 Hz
+        // advances by 2.0 (pitch rises an octave).
+        //
+        // Replaces the old PSOLA grain engine (see roadmap session 3).
+        // The old code had audible gaps when targetHz < capturedHz because
+        // the retrigger period exceeded the 2-period Hanning grain length;
+        // this approach has no gaps because the loop is continuously
+        // traversed.
+        int loopLen = g_natLoopLen; // snapshot — the capture thread may
+                                    // write a new length between samples.
+        if (!g_natLoopValid || loopLen <= 0 || g_natLoopDetectedHz <= 0.0f) {
+            sample = 0.0f;
+        } else {
+            float targetHz = osc->frequency * g_effectivePitchFactor;
+            float advance  = targetHz / g_natLoopDetectedHz;
 
-        sample = osc->oaBuffer[osc->oaCursor];
-        osc->oaBuffer[osc->oaCursor] = 0.0f; // Consume and clear
-        osc->oaCursor = (osc->oaCursor + 1) % PSOLA_OA_SIZE;
+            // If the loop length changed under us (new capture just
+            // published a shorter buffer), clamp the cursor back into
+            // range so we don't read out of bounds.
+            if (osc->natReadPos >= (float)loopLen) {
+                osc->natReadPos = fmodf(osc->natReadPos, (float)loopLen);
+            }
+
+            // Linear interpolation between adjacent samples. Fast and more
+            // than good enough for the 80–1000 Hz voice range (aliasing is
+            // below audibility at these ratios on realistic pitch shifts).
+            int pos0 = (int)osc->natReadPos;
+            if (pos0 < 0) pos0 = 0;
+            if (pos0 >= loopLen) pos0 = loopLen - 1;
+            float frac = osc->natReadPos - (float)pos0;
+            int pos1 = pos0 + 1;
+            if (pos1 >= loopLen) pos1 = 0; // integer-period wrap is continuous
+            sample = g_natLoopBuf[pos0] * (1.0f - frac) +
+                     g_natLoopBuf[pos1] * frac;
+
+            // Advance the cursor and wrap. Use a while-loop so extreme
+            // stretch ratios (natReadPos near end, advance > loopLen)
+            // still land safely inside the buffer.
+            osc->natReadPos += advance;
+            while (osc->natReadPos >= (float)loopLen) {
+                osc->natReadPos -= (float)loopLen;
+            }
+            while (osc->natReadPos < 0.0f) {
+                osc->natReadPos += (float)loopLen;
+            }
+        }
     }
 
     return sample;
@@ -420,8 +527,9 @@ void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uin
 
                     if (maxCorr > g_naturalMaxCorr * 0.8f || maxCorr > 0.5f) {
                         g_naturalMaxCorr = maxCorr;
-                        // Capture PSOLA grain (2 periods, Hanning windowed)
-                        capture_psola_grain(&g_acfBuffer[0], bestLag);
+                        // Capture a NAT_LOOP_LEN-sample seamless loop
+                        // from the pitch-validated ACF window.
+                        capture_natural_loop(&g_acfBuffer[0], bestLag);
                     }
                 }
                 g_acfCounter = 0;
@@ -525,6 +633,32 @@ void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uin
 //
 // Same pattern as theremin_render_block / theremin_set_capture_mode.
 
+/// Per-block output cache for the vocoder.
+///
+/// When the host JACK callback registers the vocoder as BOTH a master-render
+/// contributor AND an audio-looper source (the common case: vocoder cabled
+/// into a looper slot and also audible through the main output), this
+/// function is called twice inside the same audio block. Running the DSP
+/// twice would corrupt shared state — voice envelopes, LFO phase, the ACF
+/// pitch-detection cursor, the 32-band filter-bank biquads, and per-voice
+/// `natReadPos` — because the second call would see the state already
+/// mutated by the first.
+///
+/// The fix: detect a same-block repeat call by timestamp and return the
+/// cached audio without touching DSP state. 1 ms is shorter than any
+/// plausible JACK block period (the smallest practical block at 48 kHz is
+/// 64 frames = 1.33 ms) but vastly longer than the microsecond-scale gap
+/// between the two calls within one callback, so the cache hit is
+/// unambiguous. Cache size caps at 4096 frames — larger buffers would
+/// cause a cache miss and the double-call bug would re-emerge, but no
+/// realistic JACK block reaches that size on Linux.
+#define VOC_CACHE_MAX_FRAMES 4096
+#define VOC_CACHE_WINDOW_NS  1000000 // 1 ms
+static int64_t g_vocCacheStampNs = 0;
+static int     g_vocCacheFrames  = 0;
+static float   g_vocCacheL[VOC_CACHE_MAX_FRAMES];
+static float   g_vocCacheR[VOC_CACHE_MAX_FRAMES];
+
 /// Renders [frames] samples of vocoder DSP into [outL] and [outR] (stereo f32).
 ///
 /// Must ONLY be called when capture mode is enabled (vocoder_set_capture_mode(1)).
@@ -533,6 +667,17 @@ void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uin
 ///
 /// This function is allocation-free and safe on the audio thread.
 static void _vocoder_render_block_impl(float* outL, float* outR, int frames) {
+    // Same-block cache hit: master-render and looper-source both pulled us
+    // within the same audio callback, and the DSP must only advance once.
+    int64_t nowNs = _get_monotonic_ns();
+    if (frames == g_vocCacheFrames &&
+        frames <= VOC_CACHE_MAX_FRAMES &&
+        (nowNs - g_vocCacheStampNs) < VOC_CACHE_WINDOW_NS) {
+        memcpy(outL, g_vocCacheL, (size_t)frames * sizeof(float));
+        memcpy(outR, g_vocCacheR, (size_t)frames * sizeof(float));
+        return;
+    }
+
     ma_uint32 writePos = __atomic_load_n(&g_micWriteCursor, __ATOMIC_ACQUIRE);
     ma_uint32 readStart = (writePos - (ma_uint32)frames) & MIC_RING_MASK;
 
@@ -569,7 +714,7 @@ static void _vocoder_render_block_impl(float* outL, float* outR, int frames) {
                     g_micPitchHz = g_micPitchHz * 0.9f + detectedHz * 0.1f;
                     if (maxCorr > g_naturalMaxCorr * 0.8f || maxCorr > 0.5f) {
                         g_naturalMaxCorr = maxCorr;
-                        capture_psola_grain(&g_acfBuffer[0], bestLag);
+                        capture_natural_loop(&g_acfBuffer[0], bestLag);
                     }
                 }
                 g_acfCounter = 0;
@@ -648,6 +793,18 @@ static void _vocoder_render_block_impl(float* outL, float* outR, int frames) {
         // Mono → stereo.
         outL[i] = vocoderOutput;
         outR[i] = vocoderOutput;
+    }
+
+    // Publish to the per-block cache so a second call from the same JACK
+    // callback (e.g. looper source pull after master render) returns the
+    // same audio without re-running the DSP. Only the first N frames are
+    // cached; callers with frames > VOC_CACHE_MAX_FRAMES fall through to
+    // a fresh compute every time (no realistic JACK block hits that cap).
+    if (frames <= VOC_CACHE_MAX_FRAMES) {
+        memcpy(g_vocCacheL, outL, (size_t)frames * sizeof(float));
+        memcpy(g_vocCacheR, outR, (size_t)frames * sizeof(float));
+        g_vocCacheFrames  = frames;
+        g_vocCacheStampNs = nowNs;
     }
 }
 
