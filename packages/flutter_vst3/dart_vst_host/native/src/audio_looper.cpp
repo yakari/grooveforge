@@ -9,12 +9,38 @@
 //   - Overdub records one full loop pass and auto-returns to playing.
 
 #include "../include/audio_looper.h"
+#include "gf_phase_vocoder.h"
 
 #include <atomic>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
 #include <mutex>
+
+// ── Phase vocoder config ───────────────────────────────────────────────────
+//
+// A per-clip phase vocoder is used when the current transport BPM differs
+// from the BPM at which the loop was recorded. This lets a 120-BPM loop
+// play back at 140 BPM without pitch change. When the BPMs match (within a
+// small epsilon) the vocoder is bypassed entirely and the classic sample-
+// per-sample fast path runs.
+//
+// FFT_SIZE = 2048 gives good spectral resolution for music without excessive
+// latency; HOP = FFT_SIZE/4 yields a 4x overlap which is the sweet spot for
+// Hann-window analysis/synthesis reconstruction.
+//
+// The ring-in transient (first ~N output samples after a reset) is a known
+// limitation — tracked as session 2b latency compensation in the roadmap.
+static constexpr int kPvFftSize = 2048;
+static constexpr int kPvHopSize = 512;
+// Max single-block output drained from the vocoder into the scratch buffer.
+// Sized to comfortably exceed any plausible audio callback blockSize.
+static constexpr int kPvOutScratchFrames = 4096;
+
+// Stretch epsilon: if |1 - ratio| is below this, bypass the vocoder and
+// take the original zero-cost fast path. 0.005 corresponds to ~0.6 BPM at
+// 120, well below human detection of tempo drift.
+static constexpr float kPvBypassEpsilon = 0.005f;
 
 // ── Clip data structure ────────────────────────────────────────────────────
 
@@ -68,6 +94,24 @@ struct ALooperClip {
     int32_t sampleRate = 48000;
     double recordStartBeat = 0.0;
     bool active = false;
+
+    // ── Phase vocoder (tempo-synced playback) ──────────────────────────
+    /// Per-clip phase vocoder context. Allocated in dvh_alooper_create,
+    /// freed in dvh_alooper_destroy — never touched from the audio thread.
+    /// Always non-null between create/destroy so the RT path never branches
+    /// on allocation.
+    gf_pv_context* pv = nullptr;
+    /// Interleaved stereo scratch for feeding one analysis hop into the
+    /// vocoder. Size: kPvHopSize frames × 2 channels.
+    float* pvScratchIn = nullptr;
+    /// Interleaved stereo scratch for draining output from the vocoder.
+    /// Size: kPvOutScratchFrames frames × 2 channels.
+    float* pvScratchOut = nullptr;
+    /// Set to 1 by any state transition that should flush the vocoder's
+    /// internal phase accumulators and OLA tail (entering PLAYING fresh,
+    /// clearing clip data, etc.). The RT path reads + clears this with an
+    /// exchange so the reset happens at most once per transition.
+    std::atomic<int32_t> pvNeedsReset{0};
 };
 
 // ── Global clip pool ───────────────────────────────────────────────────────
@@ -79,6 +123,104 @@ static ALooperClip* _getClip(int32_t idx) {
     if (idx < 0 || idx >= ALOOPER_MAX_CLIPS) return nullptr;
     if (!g_clips[idx].active) return nullptr;
     return &g_clips[idx];
+}
+
+// ── Helper: read one stereo frame from a clip's recorded buffer ────────────
+//
+// Honors the reverse-playback flag by mirroring the index against the loop
+// length. Pure function of inputs; used by both the fast playback path and
+// the phase vocoder feed loop.
+static inline void _readClipFrame(
+    const ALooperClip& clip, int32_t h, int32_t len, bool reversed,
+    float* outL, float* outR)
+{
+    const int32_t ri = reversed ? (len - 1 - h) : h;
+    *outL = clip.dataL[ri];
+    *outR = clip.dataR[ri];
+}
+
+// ── Helper: drain already-queued PV output into the mix bus ────────────────
+//
+// Pulls up to [wanted] stereo frames out of the phase vocoder's output ring
+// via a single gf_pv_process_block call (no input fed), deinterleaves them,
+// and sums them into mixL/mixR with the clip volume applied. Returns the
+// number of frames actually emitted (may be less than [wanted] if the PV
+// output ring is currently empty).
+static inline int _drainPvInto(
+    ALooperClip& clip, float vol,
+    float* mixL, float* mixR, int startIdx, int wanted)
+{
+    const int cap = wanted;
+    const int got = gf_pv_process_block(
+        clip.pv, /*input*/nullptr, /*num_frames*/0,
+        clip.pvScratchOut, cap);
+    for (int i = 0; i < got; ++i) {
+        mixL[startIdx + i] += clip.pvScratchOut[i * 2]     * vol;
+        mixR[startIdx + i] += clip.pvScratchOut[i * 2 + 1] * vol;
+    }
+    return got;
+}
+
+// ── Helper: feed one analysis hop of clip audio into the PV ────────────────
+//
+// Reads kPvHopSize stereo frames starting at [h] (wrapping at loop length,
+// honoring reverse), interleaves them into pvScratchIn, and pushes them to
+// the vocoder with zero output drained. Advances and returns the updated
+// playback head.
+static inline int32_t _feedPvOneHop(
+    ALooperClip& clip, int32_t h, int32_t len, bool reversed)
+{
+    for (int i = 0; i < kPvHopSize; ++i) {
+        float l, r;
+        _readClipFrame(clip, h, len, reversed, &l, &r);
+        clip.pvScratchIn[i * 2]     = l;
+        clip.pvScratchIn[i * 2 + 1] = r;
+        h = (h + 1) % len;
+    }
+    gf_pv_process_block(
+        clip.pv, clip.pvScratchIn, kPvHopSize,
+        /*output*/nullptr, /*capacity*/0);
+    return h;
+}
+
+// ── Helper: stretched playback via phase vocoder ───────────────────────────
+//
+// Fills [blockSize] stereo output samples by alternately draining the
+// vocoder and feeding it new input from the clip buffer. Stretch ratio is
+// recordBpm/currentBpm so a loop captured at 120 BPM and played at 140 BPM
+// comes out shorter (0.857×) without pitch change.
+//
+// Loop safety bound: each feed adds one synthesis frame to the output ring,
+// and each iteration either emits frames or feeds more. A single callback
+// never needs more than ~16 iterations even under the coldest-start +
+// extreme-stretch case (blockSize=2048, stretch=0.25). The safety counter
+// exists so any future bug cannot hang the audio thread.
+static void _processPlayingStretched(
+    ALooperClip& clip, double currentBpm,
+    float* mixL, float* mixR, int blockSize)
+{
+    const int32_t len = clip.loopLengthFrames;
+    if (len == 0) return;
+    const float vol = clip.volume.load(std::memory_order_relaxed);
+    const bool  rev = clip.reversed.load(std::memory_order_relaxed) != 0;
+    int32_t h = clip.head.load(std::memory_order_relaxed);
+
+    // Flush phase accumulators + OLA tail if we just entered PLAYING.
+    if (clip.pvNeedsReset.exchange(0, std::memory_order_relaxed) != 0) {
+        gf_pv_reset(clip.pv);
+    }
+    const float ratio = static_cast<float>(clip.recordBpm / currentBpm);
+    gf_pv_set_stretch(clip.pv, ratio);
+
+    int emitted = 0;
+    int safety  = 64;
+    while (emitted < blockSize && safety-- > 0) {
+        const int wanted = blockSize - emitted;
+        emitted += _drainPvInto(clip, vol, mixL, mixR, emitted, wanted);
+        if (emitted >= blockSize) break;
+        h = _feedPvOneHop(clip, h, len, rev);
+    }
+    clip.head.store(h, std::memory_order_relaxed);
 }
 
 // ── Helper: record one sample ──────────────────────────────────────────────
@@ -190,6 +332,7 @@ void dvh_alooper_process(
                     clip.loopLengthBeats = (bpm > 0.0)
                         ? h / (sampleRate * 60.0 / bpm) : 0.0;
                     clip.length.store(h, std::memory_order_relaxed);
+                    clip.pvNeedsReset.store(1, std::memory_order_relaxed);
                     clip.state.store(ALOOPER_PLAYING, std::memory_order_relaxed);
                     clip.head.store(0, std::memory_order_relaxed);
                     goto next_clip;
@@ -233,6 +376,7 @@ void dvh_alooper_process(
                         }
                     }
                     clip.length.store(clip.loopLengthFrames, std::memory_order_relaxed);
+                    clip.pvNeedsReset.store(1, std::memory_order_relaxed);
                     clip.state.store(ALOOPER_PLAYING, std::memory_order_relaxed);
                     clip.head.store(0, std::memory_order_relaxed);
                     fprintf(stderr, "[ALOOPER-C] STOPPING→PLAYING at beat=%.1f, "
@@ -249,13 +393,31 @@ void dvh_alooper_process(
             continue;
         }
 
-        // ── Playing (sample-based, bar-aligned wrap) ──────────────────
-        // Playback advances sample-by-sample at the original recording
-        // speed (no pitch shift).  The loop wraps at loopLengthFrames
-        // which is always bar-aligned.
+        // ── Playing (bar-aligned wrap, optional tempo-sync stretch) ────
+        // Two sub-paths:
+        //   1. Fast path (unchanged): loop BPM matches transport BPM, so
+        //      we advance one sample per output frame. Zero overhead.
+        //   2. Phase-vocoder path: transport BPM differs from recordBpm,
+        //      so we run the clip through gf_phase_vocoder to stretch the
+        //      playback rate without pitch change.
         if (st == ALOOPER_PLAYING) {
             const int32_t len = clip.loopLengthFrames;
             if (len == 0) continue;
+
+            // Decide whether we need tempo-sync stretching.
+            const double recBpm = clip.recordBpm;
+            const bool validBpms = (recBpm > 0.0 && bpm > 0.0);
+            const float stretch  = validBpms
+                ? static_cast<float>(recBpm / bpm) : 1.0f;
+            const bool bypass = !validBpms ||
+                std::fabs(stretch - 1.0f) < kPvBypassEpsilon;
+
+            if (!bypass && clip.pv != nullptr) {
+                _processPlayingStretched(clip, bpm, mixL, mixR, blockSize);
+                continue;
+            }
+
+            // Fast path: untouched sample-per-sample playback.
             const float vol = clip.volume.load(std::memory_order_relaxed);
             const bool rev = clip.reversed.load(std::memory_order_relaxed) != 0;
             int32_t h = clip.head.load(std::memory_order_relaxed);
@@ -297,6 +459,7 @@ void dvh_alooper_process(
                 // prevH was near the end, h wrapped to near the start.
                 if (odStart >= 0 && prevH > len / 2 && h <= odStart + 1) {
                     clip.head.store(h, std::memory_order_relaxed);
+                    clip.pvNeedsReset.store(1, std::memory_order_relaxed);
                     clip.state.store(ALOOPER_PLAYING, std::memory_order_relaxed);
                     // Play remaining samples.
                     for (int j = i + 1; j < blockSize; ++j) {
@@ -335,6 +498,26 @@ int32_t dvh_alooper_create(DVH_Host /*host*/, float maxSeconds, int32_t sampleRa
 
     clip.dataL = new float[clip.capacity]();
     clip.dataR = new float[clip.capacity]();
+
+    // Allocate the per-clip phase vocoder and its interleaved scratch
+    // buffers. All allocation happens here, on the Dart thread, never on
+    // the RT audio thread. If any allocation fails we bail out of the
+    // whole create — the half-constructed clip is then cleaned up below.
+    clip.pv = gf_pv_create(kPvFftSize, kPvHopSize, 2);
+    clip.pvScratchIn  = new float[kPvHopSize * 2]();
+    clip.pvScratchOut = new float[kPvOutScratchFrames * 2]();
+    clip.pvNeedsReset.store(1, std::memory_order_relaxed);
+    if (!clip.pv) {
+        delete[] clip.dataL;
+        delete[] clip.dataR;
+        delete[] clip.pvScratchIn;
+        delete[] clip.pvScratchOut;
+        clip.dataL = clip.dataR = nullptr;
+        clip.pvScratchIn = clip.pvScratchOut = nullptr;
+        fprintf(stderr, "[audio_looper] FATAL: gf_pv_create failed for clip %d\n", idx);
+        return -1;
+    }
+
     clip.sampleRate = sampleRate;
     clip.length.store(0, std::memory_order_relaxed);
     clip.head.store(0, std::memory_order_relaxed);
@@ -371,6 +554,15 @@ void dvh_alooper_destroy(DVH_Host /*host*/, int32_t idx) {
     delete[] clip.dataR;
     clip.dataL = nullptr;
     clip.dataR = nullptr;
+
+    // Phase vocoder teardown. gf_pv_destroy tolerates nullptr.
+    gf_pv_destroy(clip.pv);
+    clip.pv = nullptr;
+    delete[] clip.pvScratchIn;
+    delete[] clip.pvScratchOut;
+    clip.pvScratchIn = nullptr;
+    clip.pvScratchOut = nullptr;
+
     clip.capacity = 0;
     clip.length.store(0, std::memory_order_relaxed);
     clip.head.store(0, std::memory_order_relaxed);
@@ -380,6 +572,14 @@ void dvh_alooper_destroy(DVH_Host /*host*/, int32_t idx) {
 void dvh_alooper_set_state(DVH_Host /*host*/, int32_t idx, int32_t state) {
     auto* clip = _getClip(idx);
     if (!clip) return;
+
+    // Any external transition into PLAYING resets the phase vocoder so the
+    // first block doesn't inherit stale phase/OLA state from a prior session.
+    // (Internal RECORDING→PLAYING / STOPPING→PLAYING transitions happen on
+    // the RT thread and set this flag there too.)
+    if (state == ALOOPER_PLAYING) {
+        clip->pvNeedsReset.store(1, std::memory_order_relaxed);
+    }
 
     if (state == ALOOPER_ARMED) {
         clip->head.store(0, std::memory_order_relaxed);
@@ -447,6 +647,7 @@ DVH_API void dvh_alooper_clear_data(int32_t idx) {
     clip->loopLengthFrames = 0;
     clip->loopLengthBeats = 0.0;
     clip->overdubStartHead = -1;
+    clip->pvNeedsReset.store(1, std::memory_order_relaxed);
     fprintf(stderr, "[audio_looper] Clip %d data cleared\n", idx);
 }
 

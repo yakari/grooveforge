@@ -78,6 +78,9 @@ add_library(native-lib SHARED
         oboe_stream_android.cpp
         ../../../../../flutter_vst3/dart_vst_host/native/src/gfpa_dsp.cpp
         ../../../../../flutter_vst3/dart_vst_host/native/src/audio_looper.cpp
+        # Phase vocoder — tempo-sync stretching for the audio looper.
+        # Source of truth at repo-root native_audio/.
+        ../../../../../../native_audio/gf_phase_vocoder.c
 )
 
 # Include directories:
@@ -88,6 +91,7 @@ target_include_directories(native-lib PRIVATE
         ${fluidsynth_DIR}/include
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../flutter_vst3/dart_vst_host/native/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../../native_audio
 )
 
 # Link everything alltogether. Notice that native-lib should be the first element in the list.

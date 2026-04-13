@@ -10,7 +10,7 @@
 
 cmake_minimum_required(VERSION 3.13)
 set(PROJECT_NAME "dart_vst_host")
-project(${PROJECT_NAME} LANGUAGES CXX)
+project(${PROJECT_NAME} LANGUAGES C CXX)
 
 cmake_policy(SET CMP0063 NEW)
 
@@ -30,6 +30,11 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 get_filename_component(REAL_PLUGIN_DIR "${CMAKE_CURRENT_SOURCE_DIR}/.." REALPATH)
 
 set(NATIVE_DIR "${REAL_PLUGIN_DIR}/native")
+
+# Shared DSP modules live at repo root in native_audio/ (source of truth
+# for gf_phase_vocoder used by both libaudio_input.so and the looper).
+get_filename_component(GF_NATIVE_AUDIO_DIR
+  "${REAL_PLUGIN_DIR}/../../../native_audio" REALPATH)
 
 # The VST3 SDK is vendored at packages/flutter_vst3/vst3sdk/.
 # Allow override via environment variable for custom build environments.
@@ -91,6 +96,7 @@ add_library(${PROJECT_NAME} SHARED
   ${NATIVE_DIR}/src/dart_vst_host_editor_linux.cpp
   ${NATIVE_DIR}/src/gfpa_dsp.cpp
   ${NATIVE_DIR}/src/audio_looper.cpp
+  ${GF_NATIVE_AUDIO_DIR}/gf_phase_vocoder.c
   ${VST3_BASE_SOURCES}
   ${VST3_SDK_SOURCES}
 )
@@ -101,6 +107,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
   ${VST3_SDK_DIR}/public.sdk/source
   ${VST3_SDK_DIR}/base/thread/include
   ${NATIVE_DIR}/include
+  ${GF_NATIVE_AUDIO_DIR}
 )
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE

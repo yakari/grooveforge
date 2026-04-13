@@ -12,7 +12,7 @@
 
 cmake_minimum_required(VERSION 3.14)
 set(PROJECT_NAME "dart_vst_host")
-project(${PROJECT_NAME} LANGUAGES CXX OBJCXX)
+project(${PROJECT_NAME} LANGUAGES C CXX OBJCXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_OBJCXX_STANDARD 17)
@@ -22,6 +22,11 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 get_filename_component(REAL_PLUGIN_DIR "${CMAKE_CURRENT_SOURCE_DIR}/.." REALPATH)
 
 set(NATIVE_DIR "${REAL_PLUGIN_DIR}/native")
+
+# Shared DSP modules at repo root in native_audio/ (source of truth for
+# gf_phase_vocoder, used by both libaudio_input and the looper).
+get_filename_component(GF_NATIVE_AUDIO_DIR
+  "${REAL_PLUGIN_DIR}/../../../native_audio" REALPATH)
 
 if(DEFINED ENV{VST3_SDK_DIR})
   set(VST3_SDK_DIR "$ENV{VST3_SDK_DIR}")
@@ -83,6 +88,8 @@ add_library(${PROJECT_NAME} SHARED
   ${NATIVE_DIR}/src/gfpa_dsp.cpp
   # Audio looper (PCM recording/playback — shared across all platforms)
   ${NATIVE_DIR}/src/audio_looper.cpp
+  # Phase vocoder (tempo-sync stretching for the looper)
+  ${GF_NATIVE_AUDIO_DIR}/gf_phase_vocoder.c
   # macOS specific implementation
   ${NATIVE_DIR}/src/dart_vst_host_audio_mac.cpp
   ${NATIVE_DIR}/src/dart_vst_host_editor_mac.mm
@@ -106,6 +113,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
   ${VST3_SDK_DIR}/public.sdk/source
   ${VST3_SDK_DIR}/base/thread/include
   ${NATIVE_DIR}/include
+  ${GF_NATIVE_AUDIO_DIR}
 )
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE
