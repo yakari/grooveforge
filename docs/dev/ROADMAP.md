@@ -1,9 +1,11 @@
 # GrooveForge Roadmap
 
-> **Current released version:** 2.12.0
-> **Next milestone:** 🔜 Phase Vocoder DSP Library
-> **Previous:** ✅ Audio Looper (PCM) (complete)
-> **Last updated:** 2026-04-11
+> **Current released version:** 2.12.7
+> **Next milestone:** 🔜 Phase 8 Full (pub.dev + Plugin Store)
+> **Previous:** ✅ Phase Vocoder + Audio Harmonizer (2.12.7)
+> **Last updated:** 2026-04-13
+>
+> Historical design notes and shipped-milestone details have been moved to [ROADMAP_ARCHIVE.md](ROADMAP_ARCHIVE.md) to keep this document focused on pending work.
 
 ---
 
@@ -11,26 +13,17 @@
 
 | Version | Phase | Status | Description |
 |---|---|---|---|
-| 2.0.0 | Phase 1 | ✅ Complete | Rack UI + built-in plugin + .gf project files |
-| 2.1.0 | Phase 2 | ✅ Complete | External VST3 hosting (desktop) |
-| 2.2.0 | Phase 3 | ✅ Complete | GFPA core + Keyboard / Vocoder / Jam Mode (all platforms) |
-| 2.2.1 | Phase 3b | ✅ Complete | Distributable `.vst3` bundles (Linux) |
-| 2.3.0 | Phase 4 | ✅ Complete | Transport engine: BPM, play/stop, tap tempo, VST3 ProcessContext |
-| 2.4.0 | Phase 5 | ✅ Complete | Audio signal graph + "Back of Rack" cable patching UI |
-| 2.5.0 | Phase 6 | ✅ Complete | MIDI Looper (multi-track, overdub, quantization) |
-| 2.6.0 | Phase 7 | ✅ Complete | VST3 effect support + insert FX chain |
-| 2.7.0 | Phase 8 Tier 1 | ✅ Complete | Six bundled GFPA effects as `.gfpd` + native C++ DSP |
-| 2.8.0 | Phase 8 + 10 | ✅ Complete | MIDI FX node system (6 plugins); responsive `.gfpd` UI groups |
-| 2.9.0 | Drum Generator | ✅ Complete | New Drum Generator features |
-| 2.10.0 | MIDI Looper rework | ✅ Complete | Remove chord detection; simplify engine + UI; bar-sync recording start |
-| 2.10.0 | PipeWire migration (Linux) | ✅ Complete | Replace direct ALSA with PipeWire/JACK; inter-app routing; lower latency |
-| 2.11.0 | Multi-USB audio + CC mappings | ✅ Complete | USB device routing (Android), per-project CC storage, channel-swap macro, Linux packaging |
-| 2.12.0 | Audio Looper (PCM) | ✅ Complete | C++ RT core, Dart engine, sidecar WAV persistence, cabled input routing, waveform UI |
-| TBD | Phase Vocoder DSP Library | **🔜 Next** | Shared time-stretch + pitch-shift engine; enables looper tempo sync, harmonizer effect, vocoder NATURAL fix |
-| TBD | Audio Harmonizer | ⏸ After Phase Vocoder | Real-time pitch-shifted harmony voices using the shared phase vocoder |
-| TBD | Phase 8 (full) | ⏸ TBD | pub.dev publishing; plugin store; vocoder mk2 |
+| 2.0.0 – 2.8.0 | Phases 1–8 Tier 1 + MIDI FX | ✅ Complete | See Completed Phases table below |
+| 2.9.0 | Drum Generator | ✅ Complete | `.gfdrum` pattern format, 10 bundled grooves, humanization, time-signature sync |
+| 2.10.0 | MIDI Looper rework + PipeWire/JACK (Linux) | ✅ Complete | Simplified engine, bar-sync recording, per-track volume; JACK audio backend with inter-app routing |
+| 2.11.0 | Multi-USB audio + per-project CC mappings | ✅ Complete | USB device routing (Android), per-project CC storage, channel-swap macro, Linux packaging |
+| 2.12.0 | Audio Looper (PCM) | ✅ Complete | C++ RT core, cabled input routing, sidecar WAV persistence, waveform UI |
+| 2.12.1 – 2.12.6 | Audio Looper polish + Android MIDI latency | ✅ Complete | CC assign, Android cabled inputs, bar-sync stop padding, Android note-on latency fix |
+| 2.12.7 | Phase Vocoder + Audio Harmonizer + NATURAL rewrite | ✅ Complete | Shared FFT time-stretch/pitch-shift library; audio looper tempo sync; 4-voice harmonizer GFPA effect; NATURAL vocoder mode loop-resample rewrite |
+| TBD | Phase 8 Full | **🔜 Next** | pub.dev publishing of `grooveforge_plugin_api`, in-app plugin store browser |
 | TBD | Phase 8b | ⏸ TBD | AudioUnit v3 bridge (macOS + iOS) |
 | TBD | Phase 8c | ⏸ TBD | AAP bridge (Android) — pending AAP v1.0 |
+| TBD | Chord Progression Module | ⏸ TBD | Bar-indexed chord grid synced with transport and Jam Mode |
 
 ---
 
@@ -161,6 +154,8 @@ When this file is opened on Android or iOS, `ProjectService` detects the `"platf
 | MIDI Looper | ✅ | ✅ | ✅ | ✅ | ✅ | ⚠️ |
 | Drum Generator | ✅ | ✅ | ✅ | ✅ | ✅ | ⚠️ |
 | Audio Looper (PCM) | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Audio Looper tempo-sync (phase vocoder) | ✅ | ✅ | ❌ | ✅ | ❌ | ❌ |
+| Audio Harmonizer effect | ✅ | ✅ | ❌ | ✅ | ❌ | ❌ |
 | AUv3 hosting | ❌ | 🔜 | ❌ | ❌ | 🔜 | ❌ |
 | AAP hosting | ❌ | ❌ | ❌ | 🔜 | ❌ | ❌ |
 | Web MIDI | ❌ | ❌ | ❌ | ❌ | ❌ | 🔜 |
@@ -208,6 +203,19 @@ The current SF2 stack (`flutter_midi_pro`) lacks SF3 support, web compatibility,
 - [ ] **Audio looper source array data race**: `renderSources[]` modified under mutex by Dart thread, read without mutex by JACK callback. Use atomic count or triple-buffer.
 - [ ] **Duplicated vocoder DSP**: `data_callback` and `_vocoder_render_block_impl` in `audio_input.c` share ~80 lines of identical code. Factor into a shared function.
 - [ ] **ACF pitch detection O(n×m)**: ~400K multiply-adds every 21ms on the audio thread. Consider YIN or downsampled autocorrelation.
+
+### 🎛️ Phase Vocoder — Polish
+
+The phase vocoder DSP library and its first two consumers (audio looper tempo sync, audio harmonizer) shipped in v2.12.7. Detailed history lives in [ROADMAP_ARCHIVE.md](ROADMAP_ARCHIVE.md). Remaining work:
+
+- [ ] **First-block ring-in latency compensation**. The first audio block after entering PLAYING on a stretched looper clip — and the first block of each note played through the harmonizer — has a ~46 ms ring-in fade (Hann+4×-overlap warm-up). Options: pre-feed input samples before the state transition, offset the head start by the ring-in length, or accept as-is. Audible as a very soft fade-in over the first two beats of sustained playback; more noticeable on staccato harmonizer attacks.
+- [ ] **Dart FFI bindings for the phase vocoder library** so future consumers (tests, offline rendering tools) can use it without going through an existing effect.
+
+### 🎵 Audio Harmonizer — Polish
+
+The harmonizer GFPA effect shipped in v2.12.7. Detailed history in [ROADMAP_ARCHIVE.md](ROADMAP_ARCHIVE.md). Remaining work:
+
+- [ ] **Jam Mode scale snap**: when the rack has Jam Mode active and scale-locked, the harmonizer's voice intervals should be snapped to the active scale instead of being treated as raw chromatic offsets. Pure Dart wrapper, no DSP changes.
 
 ### 🎸 Instruments
 
@@ -270,396 +278,6 @@ These tasks complete the distributable `.vst3` bundle story started in Phase 3b.
 - [ ] Load keyboard in Reaper (Linux) — MIDI note on/off, bank/program, state save/restore.
 - [ ] Load vocoder in Reaper (Linux) — sidechain audio input, carrier oscillator modes.
 - [ ] Save/restore plugin state in DAW project.
-
----
-
-## ✅ 🎙️ 2.11.0 — Multi-USB Audio Device Routing (Android)
-
-Android's default USB audio HAL binds to a single USB audio device per direction (input/output). When a user plugs a USB hub with both a jack output (for an amp/speakers) and a USB-C microphone, the system typically only activates one of them. This is an Android audio policy limitation, not a USB protocol issue.
-
-### Background
-
-- **Android ≤ 13**: the USB audio HAL selects one USB audio device per role; no app-level override.
-- **Android 14+**: `AAudioStreamBuilder_setDeviceId()` allows targeting a specific `AudioDeviceInfo` by ID — but only if the HAL still enumerates the device. In practice, plugging a second USB audio device causes the HAL to deactivate the first, so `setDeviceId()` cannot reach it.
-- **Combined audio routing** (Android 12+ / extended in 14): `setPreferredDevicesForStrategy()` supports multi-device routing but is a **privileged/system API** — unavailable to regular apps. Even with it, Android 14 only allows simultaneous routing for USB devices of **different audio types**, and requires kernel + vendor support.
-- **OEM variability**: device enumeration through a USB hub is inconsistent across manufacturers. Samsung (tested) deactivates the second USB audio device entirely at the HAL level — it disappears from `AudioManager.getDevices()`.
-
-### Reliable alternatives
-
-| Approach | Reliability | Notes |
-|---|---|---|
-| USB composite audio device (single USB device exposing both input + output interfaces) | ✅ High | HAL sees one device; best option if user hardware supports it |
-| Built-in mic + USB jack output | ✅ High | Android handles mixed built-in + USB routing well |
-| Two separate USB devices on a hub + `setDeviceId()` | ⚠️ Variable | Works on some OEMs (Android 14+), fails on others |
-
-### 🎙️ Step 1 — Investigation & proof of concept
-
-- [x] **Enumerate USB audio devices**: add a debug screen that calls `AudioManager.getDevices(GET_DEVICES_OUTPUTS | GET_DEVICES_INPUTS)` and lists all `AudioDeviceInfo` entries with their `type`, `id`, and `productName`. Test with a USB hub + two audio devices on 3+ Android devices from different OEMs.
-- [x] **AAudio multi-device PoC**: ~~open two separate AAudio streams via Oboe~~ — **blocked by HAL**: Android's USB audio policy deactivates the second USB audio device entirely when a dock headset is plugged in. `setDeviceId()` cannot target a device Android has already removed from enumeration. See compatibility matrix below.
-- [x] **Measure latency**: N/A — multi-device routing is not possible with two separate USB audio devices on Samsung Galaxy Z Fold 6. Single-device and built-in mic + USB output paths work at existing latency levels.
-- [x] **Document OEM compatibility matrix**: tested on Samsung Galaxy Z Fold 6 (Android 15, One UI 7). See matrix below.
-
-### 📊 OEM compatibility matrix (2026-04-06)
-
-> **Test device**: Samsung Galaxy Z Fold 6 (SM-F956B), Android 15, One UI 7
-> **USB dock**: generic USB-C dock with 3.5 mm jack output (chip: CS202)
-> **USB mic**: BOYA Mini 2 (USB-C, input only)
-
-| Scenario | Devices enumerated | Result |
-|---|---|---|
-| BOYA mic only (USB-C) | BOYA Mini 2 (id=302, card=2, input) | ✅ Works |
-| Dock + headset only (jack) | CS202 (id=293, card=3, output) + CS202 (id=298, card=3, input) | ✅ Works — composite device, both I/O on same chip |
-| BOYA mic + dock headset (both plugged simultaneously) | CS202 only — **BOYA disappears from enumeration** | ❌ **Android HAL drops the BOYA entirely** |
-| Built-in mic + dock headset | Built-in mic + CS202 (output) | ✅ Works — mixed built-in + USB routing |
-
-**Conclusion**: Android's USB audio HAL on Samsung (and likely most OEMs) only activates **one USB audio device** at a time. When the dock's CS202 chip activates, the BOYA is deactivated at the HAL level — it is not just deprioritized, it is **removed from `AudioManager.getDevices()` entirely**. `setDeviceId()` is therefore useless for the two-separate-USB-devices scenario.
-
-### 🎙️ Step 2 — Revised scope: single-device routing + built-in mic fallback
-
-Given the HAL limitation, the multi-USB feature pivots to:
-1. **Letting the user choose which USB device to use** when multiple are available (before one gets deactivated).
-2. **Built-in mic + USB output** as the reliable multi-device path (already works).
-3. **Synth output device routing** via `setDeviceId()` on the AAudio stream (already implemented).
-
-- [x] **Device selector UI**: the existing `_MicDeviceDropdown` and `_OutputDeviceDropdown` in `audio_settings_bar.dart` already provide independent input/output device selection with "Default" fallback. Evaluated — sufficient as-is, no dedicated page needed.
-- [x] **Oboe stream builder changes**: `oboe_stream_set_output_device()` passes `setDeviceId()` to the AAudio stream builder; the vocoder/miniaudio path already supports `g_androidDeviceId` / `g_androidOutputDeviceId`.
-- [x] **Fallback behavior**: `_resetDisconnectedDevices()` resets to system default when a device disappears; `toastNotifier` surfaces a snackbar. AAudio `errorCallback` reopens the stream on the default device via a detached thread.
-- [x] **Minimum API level gate**: output device dropdown hidden when `androidSdkVersion < 28` (fetched once during init via method channel). AAudio `setDeviceId()` is only reliable from API 28+; on older versions OpenSL ES silently ignores it.
-
-### 🎙️ Step 3 — l10n
-
-- [x] Add EN/FR keys: existing keys (`audioSettingsBarMicDevice`, `audioSettingsBarOutputDevice`, `micSelectionDefault`, `audioOutputDefault`) already cover input/output/default labels. Added `audioDeviceDisconnectedInput`, `audioDeviceDisconnectedOutput` and 16 `usbAudioDebug*` keys for the debug screen.
-
-### 🧪 Step 4 — Testing
-
-- [x] Single USB audio device → works as before, no regression.
-- [x] Unplug USB device mid-session → graceful fallback to system default, no crash.
-- [x] USB composite device (single device with both I/O, e.g. dock with jack headset) → works without needing multi-device routing.
-- [x] Built-in mic + USB output → both streams active, audio plays through USB while built-in mic captures.
-- [x] USB hub + jack output + USB mic on Samsung → **FAIL**: Android HAL deactivates the second USB device.
-- [x] Android < 28 → device selector hidden.
-
----
-
-## ✅ 🎛️ 2.11.0 — Per-Project CC Mappings
-
-GrooveForge's CC mapping system is currently limited: ~12 system actions (next/prev soundfont, looper start/stop, mute, jam toggle), standard GM CC remapping, and global storage in SharedPreferences. This milestone transforms CC mappings into a comprehensive, per-project, slot-addressed control surface.
-
-### Why this matters
-
-- **Live performance**: a guitarist's pedalboard CC layout for a blues set is different from a synth-heavy electronic set. Switching projects should switch the entire CC map.
-- **Collaboration**: sharing a `.gf` file includes the hardware mapping, so a collaborator with the same controller model gets the same experience.
-- **Deep module control**: bypass effects on the fly, sweep a wah center frequency, cycle arpeggiator patterns, change vocoder waveforms — all from hardware CC without touching the screen.
-- **Channel-swap macro**: one CC press swaps two instruments' MIDI channels (and optionally their entire signal chains), enabling instant live instrument switching.
-- **System integration**: control transport (play/stop, tap tempo, metronome) and OS media volume directly from hardware.
-
-### Architecture — current vs. target
-
-```mermaid
-graph TD
-    subgraph Current["Current — Global, flat"]
-        SP[SharedPreferences] -->|load on app start| CMS[CcMappingService\nMap‹int, CcMapping›]
-        CMS -->|"targetCc < 1000:\nGM CC remap"| AE[AudioEngine\nsetControlChange]
-        CMS -->|"targetCc >= 1000:\nsystem action"| SYS[_handleSystemCommand\n12 actions]
-    end
-
-    subgraph Target["Target — Per-project, sealed targets"]
-        GF[".gf project file\nccMappings: [...]"] -->|ProjectService.load| CMS2[CcMappingService\nList‹CcMapping›]
-        CMS2 -->|GmCcTarget| AE2[AudioEngine\nsetControlChange]
-        CMS2 -->|SystemTarget| SYS2[_handleSystemCommand\nlegacy compat]
-        CMS2 -->|SlotParamTarget| RS[RackState\nslot param dispatch]
-        CMS2 -->|SwapTarget| SWAP[RackState.swapSlots\nchannel ± cable swap]
-        CMS2 -->|TransportTarget| TR[TransportEngine\nplay/stop · tap · metronome]
-        CMS2 -->|GlobalTarget| GL[Platform APIs\nOS volume control]
-        CMS2 -->|serialize on change| GF
-    end
-```
-
-### New data model — sealed `CcMappingTarget` hierarchy
-
-The current `CcMapping.targetCc` field is overloaded (GM CCs 0-127, system actions 1001+). The new model uses a sealed class hierarchy with six target types:
-
-```dart
-class CcMapping {
-  final int incomingCc;           // Hardware CC 0-127
-  final CcMappingTarget target;   // Sealed — one of six types
-}
-
-sealed class CcMappingTarget { toJson(); fromJson(); }
-
-class GmCcTarget       { targetCc, targetChannel }           // Standard GM remap
-class SystemTarget     { actionCode, targetChannel, muteChannels? } // Legacy 1001-1014
-class SlotParamTarget  { slotId, paramKey, mode }             // Slot-addressed param
-class SwapTarget       { slotIdA, slotIdB, swapCables }       // Channel-swap macro
-class TransportTarget  { action: playStop|tapTempo|metronomeToggle }
-class GlobalTarget     { action: systemVolume }               // OS-level controls
-```
-
-**Multiple mappings per CC**: one hardware knob can control multiple targets (e.g. CC 20 → reverb mix + delay mix). Storage changes from `Map<int, CcMapping>` to `List<CcMapping>` with a pre-built `Map<int, List<CcMapping>>` index.
-
-#### `.gf` JSON schema
-
-```json
-{
-  "ccMappings": [
-    { "cc": 20, "target": { "type": "slotParam", "slotId": "slot-3", "paramKey": "mix", "mode": "absolute" } },
-    { "cc": 64, "target": { "type": "slotParam", "slotId": "slot-3", "paramKey": "bypass", "mode": "toggle" } },
-    { "cc": 30, "target": { "type": "swap", "slotIdA": "slot-0", "slotIdB": "slot-1", "swapCables": true } },
-    { "cc": 31, "target": { "type": "transport", "action": "playStop" } },
-    { "cc": 7,  "target": { "type": "global", "action": "systemVolume" } }
-  ]
-}
-```
-
-### Curated parameter registry
-
-Static Dart registry (`CcParamRegistry`) — not embedded in `.gfpd` descriptors. Declares which parameters per plugin type are CC-controllable.
-
-| Plugin type | paramKey | GFPA paramId | Mode | Notes |
-|---|---|---|---|---|
-| **All audio effects** | `bypass` | — | toggle | `state['__bypass']` |
-| **Reverb** | `mix` | 3 | absolute | |
-| **Delay** | `mix` | 4 | absolute | |
-| **Delay** | `time` | 0 | absolute | |
-| **Delay** | `bpm_sync` | 2 | toggle | |
-| **Compressor** | `threshold` | 0 | absolute | |
-| **Chorus** | `mix` | 6 | absolute | |
-| **Chorus** | `rate` | 0 | absolute | |
-| **Wah** | `center` | 0 | absolute | |
-| **Wah** | `depth` | 3 | absolute | |
-| **All MIDI FX** | `bypass` | — | toggle | `state['__bypass']` |
-| **Arpeggiator** | `pattern` | 0 | cycle | 6 options |
-| **Arpeggiator** | `division` | 1 | cycle | 9 options |
-| **Chord Expand** | `chord_type` | 0 | cycle | 11 options |
-| **Transposer** | `semitones` | 0 | absolute | |
-| **Velocity Curve** | `amount` | 1 | absolute | |
-| **Jam Mode** | `scale_type` | 0 | cycle | 14 options |
-| **Jam Mode** | `detection_mode` | 1 | cycle | 2 options |
-| **GF Keyboard** | `next_patch` | — | cycle | `_changePatchIndex` |
-| **GF Keyboard** | `prev_patch` | — | cycle | |
-| **GF Keyboard** | `next_soundfont` | — | cycle | `_cycleChannelSoundfont` |
-| **GF Keyboard** | `prev_soundfont` | — | cycle | |
-| **Vocoder** | `waveform` | 0 | cycle | 4 (saw/square/choral/neutral) |
-| **Vocoder** | `noise_mix` | — | absolute | `vocoderNoiseMix` notifier |
-
-### Channel-swap algorithm
-
-`RackState.swapSlots(String slotIdA, String slotIdB, {bool swapCables = true})`:
-
-**Always** (channels-only):
-1. Validate both slots exist and are instrument-type (`midiChannel > 0`)
-2. Swap MIDI channels: `pluginA.midiChannel ↔ pluginB.midiChannel`
-3. Re-apply `_applyPluginToEngine()` for both (re-routes FluidSynth)
-4. Re-sync `_syncJamFollowerMapToEngine()` (Jam entries reference channels)
-5. Re-sync `VstHostService.syncAudioRouting()`
-
-**Additionally when `swapCables == true`:**
-6. Rewire `AudioGraph`: `swapSlotReferences(slotIdA, slotIdB)` — bulk rewrite all connections
-7. Swap Jam Mode slot references (`masterSlotId`, `targetSlotIds`)
-8. Update CC mappings: any `SlotParamTarget` referencing either slot gets swapped
-
-### System volume control
-
-| Platform | API | Notes |
-|---|---|---|
-| Android | `AudioManager.setStreamVolume(STREAM_MUSIC, …)` | Method channel in `MainActivity.kt` |
-| Linux | `pactl set-sink-volume @DEFAULT_SINK@ X%` | `Process.run` |
-| macOS | `osascript -e "set volume output volume X"` | `Process.run` |
-| iOS | Not possible (Apple restriction) | Toast explaining limitation |
-| Web | `AudioContext.destination.gain` | App audio only |
-
-### CC preferences UI — hierarchical target picker
-
-```
-[Category]          → [Slot]              → [Parameter]
-├─ Standard GM CC   → (channel picker)     → CC number
-├─ Instruments      → GF Keyboard 1        → Next Patch / Prev Patch / Next SF / …
-│                   → Vocoder              → Waveform / Noise Mix
-├─ Audio Effects    → Reverb (slot-3)      → Bypass / Mix
-│                   → Delay (slot-4)       → Bypass / Mix / Time / BPM Sync
-├─ MIDI FX          → Arpeggiator (slot-5) → Bypass / Pattern / Division
-│                   → Jam Mode (slot-6)    → Bypass / Scale Type / Detection
-├─ Looper           → (existing actions)
-├─ Transport        → Play/Stop / Tap Tempo / Metronome Toggle
-├─ Global           → System Volume
-└─ Macros           → Swap: [slot A] ↔ [slot B] (checkbox: swap cables?)
-```
-
----
-
-### 🎛️ Phase A — Foundation (model + project storage)
-
-- [x] Implement sealed `CcMappingTarget` hierarchy (`GmCcTarget`, `SystemTarget`, `SlotParamTarget`, `SwapTarget`, `TransportTarget`, `GlobalTarget`) with JSON serialization in `cc_mapping_service.dart`.
-- [x] Change `CcMappingService` storage from `Map<int, CcMapping>` to `List<CcMapping>` with pre-built `Map<int, List<CcMapping>>` index for O(1) lookup.
-- [x] Implement `CcMappingService.toJson()` and `CcMappingService.loadFromJson(List<dynamic>)`.
-- [x] Remove `SharedPreferences` persistence from `CcMappingService` (`_prefsKey`, `_persist()`, `_loadMappings()`).
-- [x] Wire `ccMappings` into `ProjectService.save` / `_readGfFile` alongside existing `plugins` and `audioGraph` keys.
-- [x] Backward compatibility: if `ccMappings` absent in `.gf`, migrate from SharedPreferences on first save, then delete the prefs key.
-- [x] On app start with no project, `CcMappingService` starts with empty mapping set.
-
-### 🎛️ Phase B — Audio effect bypass
-
-- [x] Add `state['__bypass']` support to GFPA audio effect slots in `RackState` — `toggleEffectBypass()` and `setEffectBypass()` methods push state to native DSP via `VstHostService.setGfpaDspBypass()`.
-- [x] Wire bypass into the audio render path: `GfpaDspInstance::insertCb()` checks `std::atomic<bool> bypassed` (relaxed load, zero CPU cost) and copies input→output unchanged when bypassed. `gfpa_dsp_set_bypass()` C API added to `gfpa_dsp.h/.cpp`. Shared by Android and desktop — both platforms call the same `insertCb`.
-- [x] Add bypass UI toggle button on audio effect slot cards — reuses `_BypassHeader` widget from MIDI FX. CC assign button hidden for now (deferred to Phase C/D). `_onParamChanged()` preserves `__bypass` meta-key across DSP state writes.
-- [x] Persist bypass state in `.gf` via existing `GFpaPluginInstance.state` serialization. `_syncBypassStatesToNative()` re-applies bypass states after every routing rebuild.
-
-### 🎛️ Phase C — Registry + slot-addressed dispatch
-
-- [x] Create `CcParamRegistry` static registry with curated parameters per plugin type — 26 params across 14 plugin types in `cc_param_registry.dart`. Lookup by plugin ID + param key.
-- [x] Expand CC dispatch in `AudioEngine._dispatchCcMapping` — all six sealed target types route to typed callbacks (`onSlotParamCc`, `onSwapSlots`, `onTransportCc`, `onGlobalCc`). Already done in Phase A.
-- [x] Add `onSlotParamCc` callback → `RackState.handleSlotParamCc()` — full dispatch with debounced toggle/cycle (250ms), absolute normalized mapping, and special handlers for keyboard (next/prev patch/soundfont) and vocoder (waveform cycle, noise mix).
-- [x] Implement absolute mode: denormalizes CC 0-127 via `GFDescriptorPlugin.descriptor.parameters` min/max and pushes to native DSP via `VstHostService.setGfpaDspParam()`.
-- [x] Implement toggle mode: fires on CC > 63 with 250ms debounce; routes to `toggleEffectBypass` or `toggleMidiFxBypass` as appropriate.
-- [x] Implement cycle mode: reads current normalized value, computes index, advances modulo cycle count, pushes to native DSP.
-- [x] Implement `TransportTarget` dispatch: `onTransportCc` callback wired in `RackScreen` — play/stop toggle, `tapTempo()`, metronome toggle. Fires on CC > 63.
-- [x] Implement `GlobalTarget.systemVolume`: `AudioEngine.setSystemVolume()` with Android method channel (`AudioManager.setStreamVolume`), Linux `pactl`, macOS `osascript`. iOS/Web no-op.
-- [x] Orphan cleanup: `removeOrphanedSlotMappings()` called from `RackState.removePlugin()` — already done in Phase A.
-
-### 🎛️ Phase D — UI overhaul
-
-- [x] Replace flat target dropdown in `cc_preferences.dart` with hierarchical 3-step picker: Category → Slot → Parameter. Supports all 8 categories (GM CC, Instruments, Audio Effects, MIDI FX, Looper, Transport, Global, Macros) with slot+param sub-pickers.
-- [x] Display multiple mappings per CC — list view shows all mappings with type-specific icons and display names.
-- [x] Add swap macro configuration UI: pick two instrument slots + "swap cables" checkbox.
-- [x] Mark project dirty when CC mappings are modified (`RackState.markDirty()` on add/remove).
-- [x] Add per-module CC assign button on every rack slot card — `SlotCcAssignDialog` lists all CC-controllable params per slot with learn mode (move a knob → assign) and delete. Icon in slot header bar lights blue when mappings exist. Works on keyboards, vocoder, all effects, all MIDI FX.
-### 🎛️ Phase E — Channel-swap macro
-
-- [x] Add `AudioGraph.swapSlotReferences(String slotIdA, String slotIdB)` — atomic bulk rewrite of all connections referencing either slot.
-- [x] Implement `RackState.swapSlots(slotIdA, slotIdB, {swapCables})` — channels-only or channels+cables mode (see algorithm above). Also added `CcMappingService.swapSlotReferences()` for CC mapping consistency.
-- [x] Wire `SwapTarget` dispatch in `AudioEngine` via `onSwapSlots` callback — gate at CC > 63 in `_dispatchCcMapping`, wired in `RackScreen.initState`.
-- [x] Debounce swap toggle (250ms `Timer` in `_RackScreenState`) to prevent rapid double-swap.
-- [x] Toast notification on swap: `'Swapped: Keyboard 1 ↔ Vocoder'` via `AudioEngine.toastNotifier`.
-
-### 🎛️ Phase F — l10n + polish
-
-- [x] Add EN/FR ARB keys for all new UI strings: target category names, parameter names, swap labels, system volume, transport actions. 30+ keys in `app_en.arb` / `app_fr.arb`. All hardcoded strings in `cc_preferences.dart` replaced with `AppLocalizations` calls.
-- [x] Toast notifications for swap events (`toastSwapped`), system volume changes (`toastSystemVolume`), and bypass toggles (`toggleEffectBypass` / `toggleMidiFxBypass` in `RackState`).
-
-### 🧪 Phase G — Testing
-
-- [x] Create project A with CC 20 → reverb mix (slot-3). Create project B with CC 20 → delay time (slot-4). Switch → verify CC 20 behaviour changes.
-- [x] Load old `.gf` without `ccMappings` → verify migration from SharedPreferences on first save.
-- [x] Map CC 21 → bypass toggle on reverb slot → press hardware button → verify effect bypassed and UI updates.
-- [x] Map CC 7 → system volume → turn knob → verify OS media volume changes (Android, Linux, macOS).
-- [x] Map CC 31 → play/stop → press → transport toggles.
-- [x] Map CC 30 → swap(keyboard, vocoder, swapCables=true) → press → verify channels + cables swap. Press again → swap back.
-- [x] Map CC 30 → swap(keyboard, vocoder, swapCables=false) → press → verify only channels swap, cables stay.
-- [x] Delete a slot that has CC mappings → verify orphaned mappings are cleaned up.
-- [x] Map one CC to two targets (e.g. CC 20 → reverb mix + delay mix) → turn knob → both parameters move.
-
----
-
-## 🎛️ TBD — Phase Vocoder DSP Library 🔜 Next
-
-> A shared, allocation-free C library for high-quality time-stretching and pitch-shifting of arbitrary audio. Enables three downstream features: audio looper tempo sync, real-time harmonizer effect, and a fix for the vocoder's choppy NATURAL mode.
-
-### Why a shared library
-
-The current codebase has PSOLA in the vocoder (`audio_input.c`) for monophonic voice pitch correction, but it produces choppy artifacts on the NATURAL waveform and cannot time-stretch. A proper **phase vocoder** (FFT analysis → modify magnitudes/phases → IFFT resynthesis) handles:
-
-- **Time-stretching** (change speed, preserve pitch) — needed for audio looper tempo sync
-- **Pitch-shifting** (change pitch, preserve speed) — needed for the harmonizer
-- **Both** on polyphonic audio (not just monophonic voice)
-
-### Architecture
-
-```mermaid
-graph TD
-    subgraph PhaseVocoder["libgf_pv — shared C library"]
-        PV[gf_pv_context\nFFT size, hop, overlap]
-        TS[gf_pv_time_stretch\nstretch_ratio → resynth]
-        PS[gf_pv_pitch_shift\nsemitones → resample + stretch]
-    end
-
-    subgraph Consumers["Consumer modules"]
-        LOOP[Audio Looper\ngf_pv_time_stretch\nfor tempo-synced playback]
-        HARM[Harmonizer GFPA Effect\ngf_pv_pitch_shift × N voices]
-        VOC[Vocoder NATURAL mode\ngf_pv_pitch_shift\nreplaces choppy PSOLA]
-    end
-
-    PV --> TS
-    PV --> PS
-    TS --> LOOP
-    PS --> HARM
-    PS --> VOC
-```
-
-### Tasks
-
-- [x] `native_audio/gf_phase_vocoder.h` — C API: `gf_pv_create`, `gf_pv_destroy`, `gf_pv_time_stretch`, `gf_pv_pitch_shift`, `gf_pv_process_block`.
-- [x] `native_audio/gf_phase_vocoder.c` — FFT-based phase vocoder (STFT analysis, phase accumulation, overlap-add resynthesis). Pre-allocated FFT buffers (no RT allocation). Configurable FFT size (1024–4096), hop size, window function. Phase-locked (Laroche & Dolson 1999) for better transient preservation. **Note:** `gf_pv_pitch_shift` API is stubbed but not yet implemented — only time-stretch is live. Pitch shift implementation deferred to the Audio Harmonizer milestone where it's actually needed.
-- [x] Audio looper integration: `dvh_alooper_process` PLAYING state uses the phase vocoder in stretch mode when BPM differs from `recordBpm`, producing tempo-synced playback without pitch change. Per-clip `gf_pv_context` allocated in `dvh_alooper_create`; fast path preserved when `|1 − recordBpm/bpm| < 0.005`. Wired into Linux, macOS, and Android.
-- [x] Smoke test: time-stretch a 4-bar 120→140 BPM loop — verify no pitch change, clean transients. Duration error 0.72%, gain drift +1.3 dB, 440 Hz component preserved.
-- [ ] **Session 2b — Startup latency compensation for looper PV path.** First block after entering PLAYING has ~46 ms ring-in fade (Hann+4x-overlap warm-up). Options: (a) pre-feed N-H input samples during `set_state` before PLAYING transition; (b) offset head start by the ring-in length; (c) accept it as-is since the audio is only slightly quieter for two beats, not silent. Session 2 shipped with (c).
-- [ ] Dart FFI bindings for standalone use (future harmonizer).
-
-### NATURAL vocoder mode — reality check (decision log, 2026-04-13)
-
-The original plan was "replace PSOLA in `audio_input.c` with `gf_pv_pitch_shift` for smoother pitch correction". When we actually mapped the code in session 3 planning, the premise turned out to be wrong. Recording the reasoning here so we can revisit if option 1 (below) disappoints:
-
-**What NATURAL mode actually does.** It is *not* autotune-style pitch correction of a live mic. It is a **captured-grain resynth**:
-
-1. ACF detects the mic voice pitch every ~21 ms and captures a 2-period Hann-windowed voice grain (`capture_psola_grain` in [audio_input.c:201](native_audio/audio_input.c#L201)). The grain carries the voice's timbre and formants.
-2. A MIDI note defines the *target* frequency. The PSOLA engine retriggers the captured grain every `SR/targetHz` samples into an overlap-add buffer, synthesizing a sustained tone at the MIDI pitch.
-3. The result passes through a 32-band vocoder filter bank modulated by the mic envelope.
-
-So: mic = grain color, MIDI = pitch, filter bank = vocoder effect. A granular/wavetable synth, not a pitch corrector.
-
-**Why it sounds choppy.** The retrigger period is `SR/targetHz`. The grain length is `2 × detectedPeriod = 2 × SR/detectedHz`. When `targetHz < detectedHz`, the retrigger period exceeds the grain length and there is audible **silence between grains**. When `targetHz > detectedHz`, grains overlap and it smooths out. Users sing ~200 Hz and play ~110–220 Hz on the controller, so the gap case dominates in practice.
-
-**Why phase vocoder is the wrong tool for this.** A phase vocoder operates on a streaming input and produces a pitch-shifted streaming output. NATURAL mode needs the opposite: generate a **sustained** tone from a short captured snippet, *long after the mic has gone silent*. There is no continuous input to pitch-shift. You would have to loop-feed the PV from a captured buffer — doable but ~150 lines with ring-in latency artifacts on every note-on, for a feature that doesn't actually need FFT-grade resynthesis.
-
-### Options considered
-
-| # | Approach | LOC | Pros | Cons |
-|---|---|---|---|---|
-| 1 | **Large-grain looped resampling.** Capture ~2048 mic samples on ACF convergence. Play the buffer back in a continuous loop at rate `targetHz/detectedHz` with linear interpolation; cross-fade a ~64-sample loop seam. | ~40 | Simple. Zero FFT cost. No ring-in latency. No gap problem. Uses existing ACF pitch estimate. | Formants shift with extreme ratios (chipmunk / giant effect). Seam cross-fade artifacts on very short grains. |
-| 2 | **Phase vocoder driving a looped grain buffer.** Capture 2048+ samples. Feed them looped into `gf_pv_process_block` each callback. Implement real `gf_pv_pitch_shift` (resample + stretch). | ~150 across 2 files | FFT-grade quality. Formant preservation via phase-locked resynth. | Large complexity increase. Requires implementing pitch shift in `gf_phase_vocoder.c` first. ~46 ms ring-in latency on every note-on — noticeable for a keyboard-driven instrument. |
-| 3 | **Hybrid.** Keep PSOLA when `targetHz > detectedHz` (already smooth). Use option 1 when `targetHz < detectedHz`. | ~60 | Best worst-case quality. Minimal disruption to the overlap case. | Two code paths to maintain. No real quality advantage over option 1 in practice. |
-
-### Decision: ship option 1 first
-
-Chosen 2026-04-13 by Yann. Rationale: the current NATURAL mode is "really bad" (user's words), so the bar for improvement is low and even a simple loop-resample should clearly win. If option 1 disappoints after real-world testing, this decision log makes it easy to pivot to option 2 — the phase vocoder library is already in place in `libaudio_input.so`, we would only need to implement real pitch shift in `gf_phase_vocoder.c`.
-
-### Session 3 tasks (option 1)
-
-- [ ] `capture_psola_grain` → capture **2048 samples** of raw mic audio (not 2-period Hann grain) when ACF correlation crosses the confidence threshold. Store detected period alongside so the renderer knows the natural frequency.
-- [ ] Replace NATURAL branch in `renderOscillator` ([audio_input.c:277–303](native_audio/audio_input.c#L277)): read from the captured buffer at a fractional cursor advancing by `detectedPeriod/targetPeriod` = `targetHz/detectedHz` samples per output sample, wrapping the cursor at buffer end with a short cross-fade into buffer start.
-- [ ] Linear interpolation between adjacent captured samples for fractional reads — fast and sufficient for the frequency range (80–1000 Hz voice).
-- [ ] ~64-sample loop-seam cross-fade to kill the boundary click. Sliding window that blends tail-into-head for the last 64 samples of each loop pass.
-- [ ] Bypass cleanly when no grain has been captured yet (first note-on before the mic has been singing) — fall back to silence or the current overlap-add buffer behavior.
-- [ ] Smoke test: with a recorded voice and a descending MIDI scale from the controller, verify the gap artifacts are gone and the output is continuous. No automated test — this is a listening check.
-
-### Future: if option 1 is not good enough
-
-If real-world use reveals option 1 is insufficient (formant shift too audible on large intervals, cross-fade seams too noticeable, etc.), the fallback is to implement option 2:
-
-- [ ] Add real pitch shift to `gf_phase_vocoder.c` — currently the API exists (`gf_pv_set_pitch_semitones`) but the processing loop only applies stretch. Proper implementation: time-stretch by `1/r` internally, then linearly resample by `r` so input duration and output duration match.
-- [ ] Replace NATURAL branch with a looped feed/drain against the captured buffer, similar to the looper integration pattern from session 2.
-- [ ] Expect ~46 ms ring-in artifact per note-on; mitigate by pre-feeding the PV with `fft_size` samples before the MIDI note-on is routed to the renderer.
-
----
-
-## 🎵 TBD — Audio Harmonizer (GFPA Effect)
-
-> Real-time pitch-shifted harmony voices using the shared phase vocoder library. Takes audio in, produces N parallel pitch-shifted copies at configurable intervals (3rd, 5th, octave, etc.), mixed with the dry signal.
-
-### Depends on
-
-- Phase Vocoder DSP Library (above)
-- GFPA effect plugin architecture (already exists)
-
-### Tasks
-
-- [ ] `com.grooveforge.harmonizer` GFPA effect plugin — audio in → N pitch-shifted voices → audio out.
-- [ ] Parameters: voice count (1–4), interval per voice (semitones, ±24), mix per voice, dry/wet.
-- [ ] Integration with Jam Mode: when scale-locked, snap harmony intervals to the active scale.
-- [ ] `.gfpd` descriptor file with parameter layout.
-- [ ] l10n: EN/FR ARB keys.
-- [ ] Smoke test: play a melody through the harmonizer → verify clean parallel harmonies.
-
----
 
 ## 📦 TBD — Phase 8 Full (pub.dev + Plugin Store)
 
@@ -858,5 +476,7 @@ sequenceDiagram
 | PipeWire migration | 2.10.0 | Replace ALSA with JACK client API; inter-app routing; sub-10 ms latency on PipeWire |
 | Multi-USB audio + CC mappings | 2.11.0 | USB device routing (Android), per-project CC storage, channel-swap macro, Linux packaging (.rpm/.pkg.tar.zst/.flatpak) |
 | Audio Looper (PCM) | 2.12.0 | C++ RT core, Dart engine, cabled input routing, sidecar WAV persistence, waveform UI, CC bindings, vocoder JACK integration |
+| Audio Looper polish | 2.12.1 – 2.12.6 | CC assign, Android cabled inputs, bar-sync stop padding, memory cap warning, looper/vocoder fixes, Android MIDI note-on latency fix |
+| Phase Vocoder + Audio Harmonizer | 2.12.7 | Shared FFT time-stretch/pitch-shift DSP library, audio looper tempo sync (Linux/macOS/Android), 4-voice Audio Harmonizer GFPA effect, NATURAL vocoder mode loop-resample rewrite |
 
-Full implementation notes for completed phases are preserved in `git log` and the per-version `CHANGELOG.md`.
+Full implementation notes for completed phases are preserved in `git log`, the per-version `CHANGELOG.md`, and [ROADMAP_ARCHIVE.md](ROADMAP_ARCHIVE.md) for the most recent milestones.

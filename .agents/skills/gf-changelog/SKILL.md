@@ -37,6 +37,22 @@ If arguments are provided, use them directly as the basis for the entries. If no
 - **No duplicate section headers** within a single version block. If `### Added` already exists, merge new bullets into it — never create a second one.
 - **`### Fixed` is only for regressions in previously shipped code.** Ask: "Was this broken in the last release?" If the feature didn't exist then, the answer is no — use `### Added` or `### Architecture` instead.
 
+### Conciseness — hard rule
+
+**A changelog is a release note for end users, not a design doc.** Readers skim it. Every entry must survive being read at a glance.
+
+- **Top bullet: one sentence.** What changed, from the user's perspective, in plain language. Target 25 words, hard cap at 40.
+- **Sub-bullets are optional and rare.** At most 2 or 3, only when the *why* or a specific gotcha genuinely helps a reader. Never use sub-bullets to narrate the implementation.
+- **No code identifiers.** No class names, no method names, no variable names, no file paths, no FFI symbol names, no CMake targets. The changelog is for users, and users don't read the code. If an entry can't be written without naming `FooEngine.process()`, rewrite it around the user-visible behavior instead.
+- **No markdown links to source files.** Links are for the roadmap and commit messages, not user-facing release notes.
+- **Never recount the debugging story, the options considered, the first attempt that didn't work, the session number, or what was deferred.** That belongs in commit messages, the roadmap, or decision logs — not the changelog.
+- **No tables, no ASCII diagrams, no code fences** inside a changelog entry.
+- **No "known limitations" paragraphs.** If a limitation matters, file a roadmap task. The changelog doesn't mention it.
+- **Strip hedges and meta-commentary**: "we realised", "it turned out", "worth noting", "the first attempt", "tracked but not implemented", "as of this session". Deletable.
+- If a single entry is longer than **3 rendered lines** it is almost certainly too long. Cut until it fits.
+
+Think of each entry as a tweet-length announcement a user would read in the app's "What's new" dialog. If technical detail feels essential, it belongs in the commit message or the roadmap — not here.
+
 ---
 
 ## Workflow
@@ -54,13 +70,13 @@ If arguments are provided, use them directly as the basis for the entries. If no
 ## [X.x.x]
 
 ### Added
-- <English description of new feature — include class/method names and user scenario>
+- <One sentence describing the user-visible behavior. Plain language. No class or file names.>
 
 ### Fixed
-- <English description of regression fix — only if it existed in a previous release>
+- <One sentence describing the regression fix and the user symptom. Only if it shipped before.>
 
 ### Architecture
-- <Internal/technical change not directly visible to users>
+- <Internal change too technical to phrase for users. Still one sentence, still no code identifiers.>
 ```
 
 ---
@@ -71,25 +87,31 @@ If arguments are provided, use them directly as the basis for the entries. If no
 
 ```markdown
 ### Added
-- New `ChordGridEngine` that advances the active chord on each beat tick from `TransportEngine`, enabling transport-synced scale locking in Jam Mode.
-- `LooperEngine.snapToBeat()` — when the user taps Play within the last 100 ms of a bar, playback now starts precisely on the next downbeat instead of the tap position.
+- Jam Mode can now lock the active chord to the transport, so the scale stays in sync when the tempo changes.
+- The audio looper snaps playback to the next downbeat when you press Play within the last 100 ms of a bar.
 
 ### Fixed
-- `LooperEngine` could produce a 1-beat timing offset when tapping Play within 100 ms of a downbeat — now snaps immediately. (Regression introduced in v2.3.0.)
+- The looper could start playback one beat early when Play was pressed near a downbeat. (Regression from v2.3.0.)
 
 ### Architecture
-- Replaced `List<Note>` live allocation in `SynthEngine.process()` with a pre-allocated `_noteBuffer` pool to eliminate GC pressure on the audio thread.
+- Removed per-block heap allocations from the synth audio callback to eliminate GC pressure on the audio thread.
 ```
 
 ### Bad entries (do not write these)
 
 ```markdown
 ### Fixed
-- Fixed looper bug          ← too vague, no class names, unclear if regression
-- Added chord stuff         ← no class names, no user scenario
-- Various improvements      ← meaningless
-- Fixed crash in new feature ← new feature was never shipped; belongs in Added/Architecture
+- Fixed `LooperEngine.snapToBeat()` bug              ← names a method; users don't know what that is
+- Fixed looper bug                                    ← too vague; no user symptom
+- Various improvements                                ← meaningless
+- Fixed crash in new feature added this release       ← not a regression; belongs in Added/Architecture
+
+### Added
+- New `ChordGridEngine` class in `lib/engine/chord_grid.dart` ← names a class and a file; rewrite around behavior
+- First we tried approach A, then switched to approach B ← debugging narrative
 ```
+
+Good bullets describe what a user *experiences*. Bad bullets describe what a developer *did*.
 
 ---
 
