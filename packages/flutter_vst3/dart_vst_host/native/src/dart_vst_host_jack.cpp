@@ -17,6 +17,7 @@
 #include "dart_vst_host.h"
 #include "dart_vst_host_internal.h"
 #include "../include/gfpa_dsp.h"
+#include "../include/gf_insert_chain.h"
 #include "../include/audio_looper.h"
 
 #include <jack/jack.h>
@@ -395,15 +396,20 @@ static int _jackProcessCallback(jack_nframes_t nframes, void* arg) {
             }
         }
 
-        // Apply effects in series: extBuf → insertBuf → extBuf.
+        // Apply effects in series via the shared helper. The helper uses
+        // insertBuf as the ping-pong partner and leaves the final wet
+        // signal in extBuf, so the post-chain capture below can read it
+        // from the same place unconditionally. See `gf_insert_chain.h`
+        // for the contract.
+        gf_ic_effect_t chainEffects[kMaxChainEffects];
         for (int e = 0; e < chain.effectCount; ++e) {
-            chain.effects[e].fn(
-                state->extBufL.data(), state->extBufR.data(),
-                state->insertBufL.data(), state->insertBufR.data(),
-                bs, chain.effects[e].userdata);
-            std::copy_n(state->insertBufL.data(), bs, state->extBufL.data());
-            std::copy_n(state->insertBufR.data(), bs, state->extBufR.data());
+            chainEffects[e].fn       = chain.effects[e].fn;
+            chainEffects[e].userdata = chain.effects[e].userdata;
         }
+        gf_ic_run_effects(
+            state->extBufL.data(), state->extBufR.data(),
+            state->insertBufL.data(), state->insertBufR.data(),
+            chainEffects, chain.effectCount, bs);
 
         // Save the post-chain (wet) output into renderCapture for every
         // source feeding this chain. The audio looper later pulls from

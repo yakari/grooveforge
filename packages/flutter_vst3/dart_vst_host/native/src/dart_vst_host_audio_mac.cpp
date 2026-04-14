@@ -11,6 +11,7 @@
 #define MINIAUDIO_IMPLEMENTATION
 #include "dart_vst_host.h"
 #include "../include/gfpa_dsp.h"
+#include "../include/gf_insert_chain.h"
 #include "../include/audio_looper.h"
 #include "miniaudio.h"
 
@@ -34,6 +35,11 @@ struct InsertChain {
 
 /// Maximum master render contributors.
 static constexpr int kMaxMasterRenders = 16;
+/// Maximum effects per insert chain — stack-array upper bound used by
+/// the shared `gf_ic_run_effects` helper. Must match the JACK value in
+/// `dart_vst_host_jack.cpp` so chains that round-trip through both
+/// backends share the same ceiling.
+static constexpr int kMaxChainEffects = 8;
 
 struct AudioState {
     std::vector<void*> plugins;
@@ -193,31 +199,62 @@ static void dataCallback(ma_device* pDevice, void* pOutput, const void* /*pInput
     }
 
     // ── Fan-in insert chains ─────────────────────────────────────────────
+    //
+    // Phase C unification: effect execution goes through the shared
+    // `gf_ic_run_effects` helper so the post-chain signal invariant and
+    // ping-pong scratch contract are identical to the JACK and Android
+    // backends. This fixes a macOS-only post-chain capture bug that
+    // shipped before Phase C: prior to this refactor, the render-capture
+    // buffer was populated from the **dry** `tmpBufL/tmpBufR` before
+    // the effect chain ran, so the audio looper recorded the pre-effect
+    // signal on macOS even when JACK and Android recorded the wet
+    // signal after the v2.13.0 Live Input → Harmonizer → Looper fix.
+    // The capture now runs after the chain so all three platforms agree.
     for (const auto& chain : masterInsertChains) {
+        // Sum sources (fan-in) into extBuf. No capture here — we want
+        // the post-chain signal, not the dry signal.
         std::fill_n(state->extBufL.data(), bs, 0.f);
         std::fill_n(state->extBufR.data(), bs, 0.f);
         for (DvhRenderFn fn : chain.sources) {
             fn(state->tmpBufL.data(), state->tmpBufR.data(), bs);
-            // Save render capture for audio looper source matching.
-            for (int m = 0; m < static_cast<int>(masterRenders.size()) && m < kMaxMasterRenders; ++m) {
-                if (masterRenders[m] == fn) {
-                    std::copy_n(state->tmpBufL.data(), bs, state->renderCaptureL[m].data());
-                    std::copy_n(state->tmpBufR.data(), bs, state->renderCaptureR[m].data());
-                    break;
-                }
-            }
             for (int32_t i = 0; i < bs; ++i) {
                 state->extBufL[i] += state->tmpBufL[i];
                 state->extBufR[i] += state->tmpBufR[i];
             }
         }
-        for (const auto& ins : chain.effects) {
-            ins.first(state->extBufL.data(), state->extBufR.data(),
-                      state->insertBufL.data(), state->insertBufR.data(),
-                      bs, ins.second);
-            std::copy_n(state->insertBufL.data(), bs, state->extBufL.data());
-            std::copy_n(state->insertBufR.data(), bs, state->extBufR.data());
+
+        // Apply effects in series via the shared runner.
+        const int effectCount = static_cast<int>(chain.effects.size());
+        gf_ic_effect_t chainEffects[kMaxChainEffects];
+        for (int e = 0; e < effectCount && e < kMaxChainEffects; ++e) {
+            chainEffects[e].fn       = chain.effects[e].first;
+            chainEffects[e].userdata = chain.effects[e].second;
         }
+        gf_ic_run_effects(
+            state->extBufL.data(), state->extBufR.data(),
+            state->insertBufL.data(), state->insertBufR.data(),
+            chainEffects,
+            (effectCount < kMaxChainEffects ? effectCount : kMaxChainEffects),
+            bs);
+
+        // Save the post-chain (wet) output into renderCapture for every
+        // source feeding this chain — mirrors the JACK path at
+        // `dart_vst_host_jack.cpp`'s Pass 2. The audio looper reads
+        // from renderCapture[m] keyed by the source render fn, so
+        // cabling `Source → Effect → Looper` records the wet signal.
+        for (DvhRenderFn fn : chain.sources) {
+            for (int m = 0;
+                 m < static_cast<int>(masterRenders.size()) && m < kMaxMasterRenders;
+                 ++m) {
+                if (masterRenders[m] == fn) {
+                    std::copy_n(state->extBufL.data(), bs, state->renderCaptureL[m].data());
+                    std::copy_n(state->extBufR.data(), bs, state->renderCaptureR[m].data());
+                    break;
+                }
+            }
+        }
+
+        // Accumulate to master mix.
         for (int32_t i = 0; i < bs; ++i) {
             state->mixL[i] += state->extBufL[i];
             state->mixR[i] += state->extBufR[i];

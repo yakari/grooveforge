@@ -27,8 +27,7 @@ void main() {
         soundfontPath: null,
       );
       final descriptor = kb.describeAudioSource();
-      expect(descriptor, isNotNull);
-      expect(descriptor!.kind, AudioSourceKind.gfKeyboard);
+      expect(descriptor.kind, AudioSourceKind.gfKeyboard);
       expect(descriptor.midiChannel, 3);
     });
   });
@@ -41,7 +40,7 @@ void main() {
         builtinPatternId: 'rock_basic',
       );
       expect(
-        drums.describeAudioSource()?.kind,
+        drums.describeAudioSource().kind,
         AudioSourceKind.drumGenerator,
       );
     });
@@ -51,7 +50,7 @@ void main() {
     test('describes itself as a liveInput source', () {
       final li = LiveInputSourcePluginInstance(id: 'li-1');
       expect(
-        li.describeAudioSource()?.kind,
+        li.describeAudioSource().kind,
         AudioSourceKind.liveInput,
       );
     });

@@ -26,6 +26,7 @@
 
 #include "gfpa_audio_android.h"
 #include "gfpa_dsp.h"
+#include "gf_insert_chain.h"
 #include "oboe_stream_android.h"
 
 #include <android/log.h>
@@ -82,39 +83,16 @@ static std::mutex g_chainsMtx;
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
-/// Apply [count] inserts to the stereo signal in [outL]/[outR].
-///
-/// [tmpL]/[tmpR] are caller-owned scratch buffers (stack-allocated) used for
-/// the ping-pong between successive effects.  No heap allocation occurs here.
-///
-/// [outL], [outR] — in/out stereo buffers (overwritten with final result).
-/// [tmpL], [tmpR] — scratch buffers, each at least [frames] floats.
-/// [inserts]      — on-stack snapshot of the active chain.
-/// [count]        — number of valid entries in [inserts].
-/// [frames]       — number of sample frames to process.
-static void applyInsertChain(float* outL, float* outR,
-                              float* tmpL, float* tmpR,
-                              const GfpaInsert* inserts, int count,
-                              int frames)
-{
-    // Start with the raw synth audio as the source for the first effect.
-    const float* srcL = outL;
-    const float* srcR = outR;
-
-    for (int i = 0; i < count; ++i) {
-        // Effect reads from srcL/srcR and writes into tmpL/tmpR.
-        // We copy back into outL/outR so the final processed signal always
-        // lives there, ready for the caller to accumulate into the master mix.
-        inserts[i].fn(srcL, srcR, tmpL, tmpR,
-                      static_cast<int32_t>(frames), inserts[i].userdata);
-
-        std::memcpy(outL, tmpL, sizeof(float) * static_cast<size_t>(frames));
-        std::memcpy(outR, tmpR, sizeof(float) * static_cast<size_t>(frames));
-
-        srcL = outL;
-        srcR = outR;
-    }
-}
+// ── Shared insert-chain runner ─────────────────────────────────────────────
+//
+// Phase C of the audio routing redesign unified every backend's
+// effect-chain loop into `gf_ic_run_effects` (see
+// `dart_vst_host/native/include/gf_insert_chain.h`). The Android
+// `applyInsertChain` helper used to live here; it has been deleted in
+// favour of a one-line call-site copy from `GfpaInsert[]` into
+// `gf_ic_effect_t[]` before invoking the shared runner. All three
+// backends (JACK, CoreAudio, Oboe) now use the same helper, which
+// guarantees bit-identical effect semantics across platforms.
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
@@ -259,7 +237,16 @@ extern "C" void gfpa_android_apply_chain_for_sf(int sfId,
     // Stack cost: 2 × kMaxFrames × 4 bytes = 32 KB per call.
     float tmpL[kMaxFrames];
     float tmpR[kMaxFrames];
-    applyInsertChain(outL, outR, tmpL, tmpR, snapshot, snapshotCount, frames);
+    // Convert GfpaInsert → gf_ic_effect_t (both are `{GfpaInsertFn, void*}`
+    // so the copy is a plain two-field assignment per entry) and invoke
+    // the shared runner. Allocation-free — the gf_ic_effect_t array lives
+    // on the audio-thread stack alongside tmpL/tmpR.
+    gf_ic_effect_t effects[kMaxInserts];
+    for (int i = 0; i < snapshotCount; ++i) {
+        effects[i].fn       = snapshot[i].fn;
+        effects[i].userdata = snapshot[i].userdata;
+    }
+    gf_ic_run_effects(outL, outR, tmpL, tmpR, effects, snapshotCount, frames);
 }
 
 extern "C" void gfpa_android_set_bpm(double bpm)
