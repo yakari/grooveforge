@@ -6,11 +6,6 @@ import 'package:ffi/ffi.dart';
 import 'package:dart_vst_host/dart_vst_host.dart';
 import 'package:flutter/foundation.dart';
 
-import '../models/audio_looper_plugin_instance.dart';
-import '../models/audio_port_id.dart';
-import '../models/drum_generator_plugin_instance.dart';
-import '../models/gfpa_plugin_instance.dart';
-import '../models/live_input_source_plugin_instance.dart';
 import '../models/grooveforge_keyboard_plugin.dart';
 import '../models/plugin_instance.dart';
 import 'audio_looper_engine.dart';
@@ -18,6 +13,9 @@ import 'wav_utils.dart';
 import '../models/vst3_plugin_instance.dart';
 // Vst3PluginType used in loadPlugin signature.
 export '../models/vst3_plugin_instance.dart' show Vst3PluginType;
+import '../audio/audio_source_descriptor.dart';
+import '../audio/routing_plan.dart';
+import '../audio/routing_plan_builder.dart';
 import 'audio_graph.dart';
 import 'audio_input_ffi_native.dart';
 import 'gfpa_android_bindings_native.dart';
@@ -562,275 +560,333 @@ class VstHostService {
 
     if (_host == null) return;
 
-    // Build the topological processing order — VST3 slots only.
+    // ── Desktop (Linux / macOS) routing — plan-driven since v2.13.x ───────
+    //
+    // The routing sync now flows through a single `RoutingPlan` built by
+    // `buildRoutingPlan(…)` in `lib/audio/`. The plan is a platform-
+    // agnostic POD that is unit-tested in isolation and shared with the
+    // future macOS / Windows / iOS adapters. All the per-source dispatch
+    // that used to live here (GF keyboard / theremin / stylophone /
+    // vocoder / live input / VST3) is now expressed as a few fields on
+    // `ResolvedSource`, and `_applyPlanDesktop` is a dumb translator from
+    // plan entries to `_host` FFI calls.
+    //
+    // The behaviour should be **exactly** what the previous ~270 lines of
+    // hand-written branches did, because the plan was designed by reading
+    // that code. If you see a routing regression after this change, diff
+    // the FFI call sequence between old and new paths — not the Dart
+    // logic.
+    final plan = _buildDesktopPlan(graph, allPlugins);
+    _applyPlanDesktop(plan: plan, graph: graph, allPlugins: allPlugins);
+  }
+
+  // ── Desktop plan builder + apply helpers ────────────────────────────────
+
+  /// Turns the current rack state into a [RoutingPlan] for the desktop
+  /// backend. Thin wrapper around [buildRoutingPlan] that supplies the
+  /// production handle resolvers (which touch `AudioInputFFI` and
+  /// `_gfpaHandles`) and picks the JACK capability profile.
+  ///
+  /// The `DrumGeneratorPluginInstance` is a virtual source that shares
+  /// percussion slot 2 with the rack metronome; its resolver hands back
+  /// the slot-2 render function so the plan sees it as a normal source.
+  RoutingPlan _buildDesktopPlan(
+    AudioGraph graph,
+    List<PluginInstance> allPlugins,
+  ) {
+    return buildRoutingPlan(
+      plugins: allPlugins,
+      graph: graph,
+      caps: BackendCapabilities.jack,
+      resolveSource: _resolveDesktopSource,
+      resolveEffect: _resolveDesktopEffect,
+    );
+  }
+
+  /// Resolves a rack slot to the pointer address of its native render
+  /// function (or a VST3 ordinal marker), along with the mix-strategy
+  /// and capture-group metadata the adapter needs.
+  ///
+  /// Phase B structure: the plugin class itself declares its audio
+  /// role via [AudioSourcePlugin.describeAudioSource]. We switch on
+  /// the returned [AudioSourceKind], which is exhaustiveness-checked
+  /// by the Dart 3 analyser — adding a new enum value without a case
+  /// here produces a static error rather than a silent null return.
+  ResolvedSource? _resolveDesktopSource(PluginInstance plugin) {
+    if (plugin is! AudioSourcePlugin) return null;
+    final descriptor =
+        (plugin as AudioSourcePlugin).describeAudioSource();
+    if (descriptor == null) return null;
+
+    final ffi = AudioInputFFI();
+    switch (descriptor.kind) {
+      case AudioSourceKind.gfKeyboard:
+        final slotIdx = (descriptor.midiChannel - 1) % 2;
+        ffi.keyboardInitSlot(slotIdx, 48000.0);
+        return ResolvedSource(
+          kind: SourceKind.renderFunction,
+          handle: ffi.keyboardRenderFnForSlot(slotIdx).address,
+          masterMixStrategy: MasterMixStrategy.alwaysRender,
+        );
+      case AudioSourceKind.drumGenerator:
+        // Percussion slot 2 is shared with the metronome and is
+        // always primed; its handle is the same slot-2 render function.
+        ffi.keyboardInitSlot(2, 48000.0);
+        return ResolvedSource(
+          kind: SourceKind.renderFunction,
+          handle: ffi.keyboardRenderFnForSlot(2).address,
+          masterMixStrategy: MasterMixStrategy.alwaysRender,
+        );
+      case AudioSourceKind.theremin:
+        return ResolvedSource(
+          kind: SourceKind.renderFunction,
+          handle: ffi.thereminRenderBlockPtr.address,
+          captureGroup: CaptureModeGroup.theremin,
+        );
+      case AudioSourceKind.stylophone:
+        return ResolvedSource(
+          kind: SourceKind.renderFunction,
+          handle: ffi.styloRenderBlockPtr.address,
+          captureGroup: CaptureModeGroup.stylophone,
+        );
+      case AudioSourceKind.vocoder:
+        return ResolvedSource(
+          kind: SourceKind.renderFunction,
+          handle: ffi.vocoderRenderBlockPtr.address,
+          captureGroup: CaptureModeGroup.vocoder,
+        );
+      case AudioSourceKind.liveInput:
+        return ResolvedSource(
+          kind: SourceKind.renderFunction,
+          handle: ffi.liveInputRenderBlockPtr.address,
+        );
+      case AudioSourceKind.vst3Instrument:
+        // VST3 instruments are addressed by ordinal, not function
+        // pointer. The ordinal is not stable across calls, so we
+        // store `-1` here and let the adapter resolve it from
+        // `_plugins` + topological order at apply time.
+        return const ResolvedSource(
+          kind: SourceKind.vst3Plugin,
+          handle: -1,
+        );
+    }
+  }
+
+  /// Looks up the native GFPA DSP handle for an effect slot, as an
+  /// integer address for the plan's opaque field. Returns `null` if the
+  /// slot has no registered DSP yet (the next sync will pick it up).
+  int? _resolveDesktopEffect(PluginInstance plugin) {
+    final handle = _gfpaHandles[plugin.id];
+    if (handle == null || handle == nullptr) return null;
+    return handle.address;
+  }
+
+  /// Translates a [RoutingPlan] into `_host` FFI calls for the desktop
+  /// backend. Mirrors the behaviour of the previous hand-written routing
+  /// code one-to-one:
+  ///
+  ///   1. `clearMasterInserts` / `clearMasterRenders` / `clearRoutes`
+  ///      wipe stale native state before we re-register anything.
+  ///   2. Percussion slot 2 is always added to the master mix, even when
+  ///      no keyboard exists, so the metronome is audible.
+  ///   3. For every source in the plan: if its strategy is
+  ///      `alwaysRender` OR it participates in any chain / looper sink,
+  ///      register it as a master render contributor.
+  ///   4. For every chain with GFPA effects: add each effect to each
+  ///      participating source's master insert chain.
+  ///   5. For every empty chain (source → VST3 direct cable): register
+  ///      an external render so the VST3 plugin sees the source on its
+  ///      audio input.
+  ///   6. For every VST3 → VST3 route in `plan.vstRoutes`: route audio.
+  ///   7. For every looper sink: register the root source against the
+  ///      clip's native index (or a VST3 ordinal for VST3 sources).
+  ///   8. Aggregate capture-group usage and push one `setCaptureMode`
+  ///      call per group.
+  void _applyPlanDesktop({
+    required RoutingPlan plan,
+    required AudioGraph graph,
+    required List<PluginInstance> allPlugins,
+  }) {
+    final host = _host;
+    if (host == null) return;
+
+    // Topological order of all slot IDs — needed for VST3 processing
+    // order and for resolving VST3 ordinals in looper sinks.
     final allSlotIds = allPlugins.map((p) => p.id).toList();
     final orderedIds = graph.topologicalOrder(allSlotIds);
-    final orderedPlugins = orderedIds
+    final orderedVst3Plugins = orderedIds
         .map((id) => _plugins[id])
         .whereType<VstPlugin>()
         .toList();
+    host.setProcessingOrder(orderedVst3Plugins);
+    final vst3SlotOrder =
+        orderedIds.where((id) => _plugins.containsKey(id)).toList();
 
-    _host!.setProcessingOrder(orderedPlugins);
-
-    // Clear all inserts and all render contributors at the start of each
-    // rebuild so stale registrations from prior routing states are removed.
-    // masterRenders must be cleared so that instruments no longer in the rack
-    // or no longer connected (e.g. a Theremin that was cabled before) are not
-    // left in the list, which would cause them to be rendered twice (once via
-    // the cleared list and once via their own audio device) → saturation.
-    _host!.clearMasterInserts();
-    _host!.clearMasterRenders();
-
-    // Re-register each GF Keyboard slot as a master-mix contributor.
-    // Slot 2 (percussion/metronome) is always registered — it's not tied to
-    // a specific GrooveForgeKeyboardPlugin rack slot.
-    if (Platform.isLinux || Platform.isMacOS) {
-      for (final plugin in allPlugins.whereType<GrooveForgeKeyboardPlugin>()) {
-        // MIDI channels are 1-based; map to 0-based slot index mod 2.
-        final slotIdx = (plugin.midiChannel - 1) % 2;
-        AudioInputFFI().keyboardInitSlot(slotIdx, 48000.0);
-        _host!.addMasterRender(AudioInputFFI().keyboardRenderFnForSlot(slotIdx));
-      }
-      // Always register percussion slot so metronome and drum generator are heard.
-      AudioInputFFI().keyboardInitSlot(2, 48000.0);
-      _host!.addMasterRender(AudioInputFFI().keyboardRenderFnForSlot(2));
-    }
-
-    // Track which built-in instruments now have audio routes so we can
-    // enable/disable capture mode on the native synth side.
-    final thereminHasRoute = <String>{};
-    final styloHasRoute    = <String>{};
-
-    // Rebuild routing table from audio connections.
-    _host!.clearRoutes();
-    // Clear all previous external renders before re-registering them.
+    // Clear every per-sync registry so stale state from a previous
+    // topology cannot linger.
+    host.clearMasterInserts();
+    host.clearMasterRenders();
+    host.clearRoutes();
     for (final plugin in _plugins.values) {
-      _host!.clearExternalRender(plugin);
+      host.clearExternalRender(plugin);
     }
 
-    for (final conn in graph.connections) {
-      // Only audio-family ports — skip MIDI and data cables.
-      if (conn.fromPort.isDataPort || conn.toPort.isDataPort) continue;
-      if (conn.fromPort == AudioPortId.midiOut ||
-          conn.toPort == AudioPortId.midiIn) {
-        continue;
-      }
+    // Percussion slot 2 — unconditional master render so the metronome
+    // and drum generator are always heard. Matches the pre-plan code.
+    final ffi = AudioInputFFI();
+    ffi.keyboardInitSlot(2, 48000.0);
+    host.addMasterRender(ffi.keyboardRenderFnForSlot(2));
 
-      final from = _plugins[conn.fromSlotId];
-      final to   = _plugins[conn.toSlotId];
-
-      if (from != null && to != null) {
-        // VST3 → VST3: standard dart_vst_host routing.
-        _host!.routeAudio(from, to);
-        continue;
-      }
-
-      if (from == null && to != null) {
-        // Non-VST3 → VST3: identify the source plugin by slot ID.
-        final fromPlugin = allPlugins.firstWhere(
-          (p) => p.id == conn.fromSlotId,
-          orElse: () => allPlugins.first,
-        );
-
-        // GF Keyboard uses GrooveForgeKeyboardPlugin (not GFpaPluginInstance),
-        // so it must be handled before the GFpaPluginInstance type guard.
-        if (fromPlugin is GrooveForgeKeyboardPlugin) {
-          // Use the per-slot render function so this VST3 effect only receives
-          // audio from the keyboard slot it is cabled to.
-          final slotIdx = (fromPlugin.midiChannel - 1) % 2;
-          _host!.setExternalRender(to, AudioInputFFI().keyboardRenderFnForSlot(slotIdx));
-          continue;
-        }
-
-        // Live Input Source → VST3 effect: register the mic passthrough
-        // render function as the external renderer so the VST3 plugin
-        // receives the hardware input as its audio in.
-        if (fromPlugin is LiveInputSourcePluginInstance) {
-          _host!.setExternalRender(
-              to, AudioInputFFI().liveInputRenderBlockPtr);
-          continue;
-        }
-
-        // Theremin and Stylophone are GFpaPluginInstance subclasses.
-        if (fromPlugin is! GFpaPluginInstance) continue;
-
-        if (fromPlugin.pluginId == 'com.grooveforge.theremin') {
-          _host!.setExternalRender(to, AudioInputFFI().thereminRenderBlockPtr);
-          thereminHasRoute.add(fromPlugin.id);
-        } else if (fromPlugin.pluginId == 'com.grooveforge.stylophone') {
-          _host!.setExternalRender(to, AudioInputFFI().styloRenderBlockPtr);
-          styloHasRoute.add(fromPlugin.id);
-        }
-        // Other built-in instruments (Vocoder, JamMode) are not routable
-        // through the VST3 chain — they use separate audio paths.
-        continue;
-      }
-
-      // Non-VST3 → GFPA: handled below via DFS traversal after this loop.
+    // Determine which sources are referenced by a chain or looper sink.
+    // `onlyWhenConnected` strategies only get a master render when they
+    // actually feed something; `alwaysRender` strategies are registered
+    // unconditionally so the raw source remains audible.
+    final referencedSourceIndices = <int>{};
+    for (final chain in plan.insertChains) {
+      referencedSourceIndices.addAll(chain.sourceIndices);
+    }
+    for (final sink in plan.looperSinks) {
+      referencedSourceIndices.add(sink.sourceIndex);
     }
 
-    // ── GFPA insert chains (Linux/macOS): DFS from each source ───────────────
-    //
-    // Using DFS (same approach as the Android path) ensures that chained
-    // effects such as Keyboard → WAH → Reverb are registered in the correct
-    // order into the source's insert chain.  A single-hop lookup would miss
-    // the second effect in the chain.
-    final vocoderHasRoute = <String>{};
-    if (Platform.isLinux || Platform.isMacOS) {
-      // GF Keyboard sources.
-      for (final plugin in allPlugins.whereType<GrooveForgeKeyboardPlugin>()) {
-        final slotIdx = (plugin.midiChannel - 1) % 2;
-        _addChainInsertsDesktop(
-            plugin.id, AudioInputFFI().keyboardRenderFnForSlot(slotIdx), graph);
-      }
-
-      // Live Input Source slots: when cabled into any effect (GFPA or
-      // VST3) or the audio looper, register the passthrough as a
-      // master-render contributor and walk the DFS insert chain so the
-      // full effect chain downstream (e.g. mic → Harmonizer → Reverb)
-      // is wired into the JACK callback.
-      for (final plugin
-          in allPlugins.whereType<LiveInputSourcePluginInstance>()) {
-        if (!_hasAnyConnection(plugin.id, graph)) continue;
-        _host!.addMasterRender(AudioInputFFI().liveInputRenderBlockPtr);
-        _addChainInsertsDesktop(
-            plugin.id, AudioInputFFI().liveInputRenderBlockPtr, graph);
-      }
-
-      // Theremin, Stylophone, and Vocoder: when wired to a GFPA effect or
-      // audio looper, register as masterRender contributors and enable capture
-      // mode so their miniaudio device outputs silence (JACK thread drives DSP).
-      //
-      // When the vocoder is *also* registered as an audio-looper source below,
-      // both the master-render pull and the looper-source pull call
-      // `vocoder_render_block` inside the same JACK callback. That used to
-      // corrupt shared DSP state (voice envelopes, LFO phase, ACF cursor,
-      // filter-bank biquads). It no longer does: `_vocoder_render_block_impl`
-      // in `native_audio/audio_input.c` now caches its per-block output and
-      // returns the cache on any call from the same audio block, so both
-      // pulls see identical audio and DSP state advances exactly once per
-      // block.
-      for (final plugin in allPlugins.whereType<GFpaPluginInstance>()) {
-        if (plugin.pluginId == 'com.grooveforge.vocoder' &&
-            _hasAnyConnection(plugin.id, graph)) {
-          _host!.addMasterRender(AudioInputFFI().vocoderRenderBlockPtr);
-          vocoderHasRoute.add(plugin.id);
-          _addChainInsertsDesktop(
-              plugin.id, AudioInputFFI().vocoderRenderBlockPtr, graph);
-        } else if (plugin.pluginId == 'com.grooveforge.theremin' &&
-            _hasAnyGfpaConnection(plugin.id, graph)) {
-          _host!.addMasterRender(AudioInputFFI().thereminRenderBlockPtr);
-          thereminHasRoute.add(plugin.id);
-          _addChainInsertsDesktop(
-              plugin.id, AudioInputFFI().thereminRenderBlockPtr, graph);
-        } else if (plugin.pluginId == 'com.grooveforge.stylophone' &&
-            _hasAnyGfpaConnection(plugin.id, graph)) {
-          _host!.addMasterRender(AudioInputFFI().styloRenderBlockPtr);
-          styloHasRoute.add(plugin.id);
-          _addChainInsertsDesktop(
-              plugin.id, AudioInputFFI().styloRenderBlockPtr, graph);
-        }
-      }
+    // Master renders. Keyboards and the percussion slot come through as
+    // `alwaysRender`; theremin / stylo / vocoder / live input only when
+    // they are wired into something.
+    for (var i = 0; i < plan.sources.length; i++) {
+      final source = plan.sources[i];
+      if (source.kind != SourceKind.renderFunction) continue;
+      final isReferenced = referencedSourceIndices.contains(i);
+      final shouldRender =
+          source.masterMixStrategy == MasterMixStrategy.alwaysRender ||
+              isReferenced;
+      if (!shouldRender) continue;
+      host.addMasterRender(_renderFnFromHandle(source.renderFnHandle));
     }
 
-    // ── Audio looper source routing ─────────────────────────────────────────
-    // Multiple instruments can be cabled to one looper — all sources are
-    // summed (mixed) in the JACK callback.  We clear and re-add all sources
-    // on every routing rebuild, same pattern as master renders / inserts.
+    // Insert chains and their destinations. A chain with no effects and
+    // a VST3 destination becomes a `setExternalRender`. A chain with
+    // effects and any destination becomes per-source `addMasterInsert`
+    // calls (matching the old `_addChainInsertsDesktop` walk).
+    for (final chain in plan.insertChains) {
+      _applyChainDesktop(
+        host: host,
+        chain: chain,
+        plan: plan,
+      );
+    }
+
+    // VST3 → VST3 direct audio routes.
+    for (final route in plan.vstRoutes) {
+      final from = _plugins[route.fromSlotId];
+      final to = _plugins[route.toSlotId];
+      if (from == null || to == null) continue;
+      host.routeAudio(from, to);
+    }
+
+    // Audio looper sources. The plan's looper sinks already point at the
+    // root source (post-upstream-walk), so we just translate the source
+    // kind to the matching `addAudioLooperRenderSource` /
+    // `addAudioLooperSourcePlugin` call.
     final alooperEngine = audioLooperEngine;
-    if (alooperEngine != null && (Platform.isLinux || Platform.isMacOS)) {
-      // Clear all existing sources on every clip.
+    if (alooperEngine != null) {
       for (final clip in alooperEngine.clips.values) {
-        _host!.clearAudioLooperSources(clip.nativeIdx);
+        host.clearAudioLooperSources(clip.nativeIdx);
       }
-      // Wire connections — only process audioInL (audioInR is implicit stereo pair).
-      for (final conn in graph.connections) {
-        if (conn.toPort != AudioPortId.audioInL) continue;
-        final toPlugin = allPlugins.where((p) => p.id == conn.toSlotId).firstOrNull;
-        if (toPlugin is! AudioLooperPluginInstance) continue;
-        final clip = alooperEngine.clips[toPlugin.id];
+      for (final sink in plan.looperSinks) {
+        final clip = alooperEngine.clips[sink.clipSlotId];
         if (clip == null) continue;
-
-        var fromPlugin = allPlugins
-            .where((p) => p.id == conn.fromSlotId)
-            .firstOrNull;
-        if (fromPlugin == null) continue;
-
-        // If the looper is wired to the output of an audio effect (e.g.
-        // Live Input → Audio Harmonizer → Looper), walk upstream through
-        // audio cables until we reach a real source (keyboard, theremin,
-        // live input, …). The looper then sources from that root, and the
-        // JACK callback's renderCapture buffer for that root holds the
-        // post-chain wet signal — so the recording captures the harmonized
-        // / reverberated audio rather than the dry source.
-        fromPlugin = _walkUpToAudioSource(fromPlugin, allPlugins, graph);
-        if (fromPlugin == null) continue;
-
-        // GF Keyboard → render function per slot.
-        if (fromPlugin is GrooveForgeKeyboardPlugin) {
-          final slotIdx = (fromPlugin.midiChannel - 1) % 2;
-          _host!.addAudioLooperRenderSource(
-              clip.nativeIdx, AudioInputFFI().keyboardRenderFnForSlot(slotIdx));
-        }
-        // Live Input Source → mic passthrough as looper source.
-        else if (fromPlugin is LiveInputSourcePluginInstance) {
-          _host!.addAudioLooperRenderSource(
-              clip.nativeIdx, AudioInputFFI().liveInputRenderBlockPtr);
-        }
-        // Drum Generator plays on channel 9 → dedicated percussion slot 2.
-        else if (fromPlugin is DrumGeneratorPluginInstance) {
-          _host!.addAudioLooperRenderSource(
-              clip.nativeIdx, AudioInputFFI().keyboardRenderFnForSlot(2));
-        }
-        // Theremin / Stylophone — dedicated render functions.
-        else if (fromPlugin is GFpaPluginInstance) {
-          if (fromPlugin.pluginId == 'com.grooveforge.theremin') {
-            _host!.addAudioLooperRenderSource(
-                clip.nativeIdx, AudioInputFFI().thereminRenderBlockPtr);
-          } else if (fromPlugin.pluginId == 'com.grooveforge.stylophone') {
-            _host!.addAudioLooperRenderSource(
-                clip.nativeIdx, AudioInputFFI().styloRenderBlockPtr);
-          } else if (fromPlugin.pluginId == 'com.grooveforge.vocoder') {
-            _host!.addAudioLooperRenderSource(
-                clip.nativeIdx, AudioInputFFI().vocoderRenderBlockPtr);
-          }
-        }
-        // VST3 plugin — ordinal index in processing order.
-        else if (fromPlugin is Vst3PluginInstance) {
-          final vst3Handle = _plugins[fromPlugin.id];
-          if (vst3Handle != null) {
-            final orderedIds = graph.topologicalOrder(allSlotIds);
-            final vst3Slots = orderedIds
-                .where((id) => _plugins.containsKey(id))
-                .toList();
-            final ordIdx = vst3Slots.indexOf(fromPlugin.id);
-            if (ordIdx >= 0) {
-              _host!.addAudioLooperSourcePlugin(clip.nativeIdx, ordIdx);
-            }
+        final source = plan.sources[sink.sourceIndex];
+        if (source.kind == SourceKind.renderFunction) {
+          host.addAudioLooperRenderSource(
+            clip.nativeIdx,
+            _renderFnFromHandle(source.renderFnHandle),
+          );
+        } else if (source.kind == SourceKind.vst3Plugin) {
+          final ordIdx = vst3SlotOrder.indexOf(source.slotId);
+          if (ordIdx >= 0) {
+            host.addAudioLooperSourcePlugin(clip.nativeIdx, ordIdx);
           }
         }
       }
     }
 
-    // Enable capture mode on native synths that are routed through VST3,
-    // and disable it for those that are no longer connected.
-    // Capture mode ON  → miniaudio outputs silence; JACK thread drives DSP.
-    // Capture mode OFF → normal direct miniaudio playback.
-    //
-    // For GF Keyboard: when routed into an effect, remove it from the
-    // master-mix list (output now goes to the effect's input exclusively).
-    // When not routed, add it back as a master-mix contributor.
-    final thereminActive = thereminHasRoute.isNotEmpty;
-    final styloActive    = styloHasRoute.isNotEmpty;
-    final vocoderActive  = vocoderHasRoute.isNotEmpty;
-    try {
-      AudioInputFFI().thereminSetCaptureMode(enabled: thereminActive);
-      AudioInputFFI().styloSetCaptureMode(enabled: styloActive);
-      AudioInputFFI().vocoderSetCaptureMode(enabled: vocoderActive);
-    } catch (_) {
-      // AudioInputFFI may not be initialised on non-Linux builds (web, macOS
-      // without the native lib). Silently ignore — routing is no-op there.
+    // Capture-mode toggles. Enabled when any source of the given group
+    // is referenced by a chain or looper sink — matches the previous
+    // `thereminHasRoute.isNotEmpty` / `vocoderHasRoute.isNotEmpty`
+    // aggregates.
+    bool captureActiveFor(CaptureModeGroup group) {
+      for (var i = 0; i < plan.sources.length; i++) {
+        if (plan.sources[i].captureGroup != group) continue;
+        if (referencedSourceIndices.contains(i)) return true;
+      }
+      return false;
     }
+
+    try {
+      ffi.thereminSetCaptureMode(
+          enabled: captureActiveFor(CaptureModeGroup.theremin));
+      ffi.styloSetCaptureMode(
+          enabled: captureActiveFor(CaptureModeGroup.stylophone));
+      ffi.vocoderSetCaptureMode(
+          enabled: captureActiveFor(CaptureModeGroup.vocoder));
+    } catch (_) {
+      // AudioInputFFI may not be initialised on web / minimal builds.
+      // Silently ignore — routing is a no-op there anyway.
+    }
+  }
+
+  /// Applies a single [InsertChainEntry] to the desktop host. Handles
+  /// the three destination cases: master mix (pure insert-chain walk),
+  /// VST3 plugin (external render for empty chains, or insert chain
+  /// into master for non-empty — matches the pre-plan behaviour which
+  /// did not route effect-chain output into VST3 inputs), and looper
+  /// clip (insert chain runs and the looper reads from the captured
+  /// post-chain signal — handled by Pass 7 above).
+  void _applyChainDesktop({
+    required VstHost host,
+    required InsertChainEntry chain,
+    required RoutingPlan plan,
+  }) {
+    if (chain.effects.isEmpty &&
+        chain.destination.kind == ChainDestinationKind.vst3Plugin) {
+      // Direct source → VST3 cable: register an external render.
+      final vst3 = _plugins[chain.destination.slotId];
+      if (vst3 == null) return;
+      for (final sourceIndex in chain.sourceIndices) {
+        final source = plan.sources[sourceIndex];
+        if (source.kind != SourceKind.renderFunction) continue;
+        host.setExternalRender(
+          vst3,
+          _renderFnFromHandle(source.renderFnHandle),
+        );
+      }
+      return;
+    }
+
+    // Non-empty chain: push each effect into each contributing source's
+    // master insert chain. This is the DFS traversal the pre-2.13
+    // `_addChainInsertsDesktop` helper did, now collapsed into a flat
+    // array walk thanks to the builder.
+    for (final sourceIndex in chain.sourceIndices) {
+      final source = plan.sources[sourceIndex];
+      if (source.kind != SourceKind.renderFunction) continue;
+      final renderFn = _renderFnFromHandle(source.renderFnHandle);
+      for (final effect in chain.effects) {
+        final dspHandle = Pointer<Void>.fromAddress(effect.dspHandle);
+        host.addMasterInsert(renderFn, dspHandle);
+      }
+    }
+  }
+
+  /// Rehydrates a render function pointer from its opaque integer
+  /// handle. The plan carries `int` addresses so it can be serialised
+  /// and unit-tested without a `dart:ffi` dependency on the test side.
+  Pointer<NativeFunction<Void Function(Pointer<Float>, Pointer<Float>, Int32)>>
+      _renderFnFromHandle(int address) {
+    return Pointer<
+        NativeFunction<
+            Void Function(Pointer<Float>, Pointer<Float>,
+                Int32)>>.fromAddress(address);
   }
 
   // ─── GFPA native DSP effects ────────────────────────────────────────────────
@@ -928,301 +984,214 @@ class VstHostService {
   /// (the 1-based integer returned by [loadSoundfont]).  The native layer uses
   /// this to route each effect to only the keyboard it is connected to, so
   /// WAH on keyboard A cannot bleed into keyboard B's audio path.
+  /// Android routing sync — plan-driven since v2.13.x.
+  ///
+  /// Behaviour-identical to the previous hand-rolled Android branch, but
+  /// delegated to a single [RoutingPlan] produced by the shared builder
+  /// and applied by [_applyPlanAndroid]. The Android plan uses the
+  /// [BackendCapabilities.oboe] profile, so VST3 routes are never
+  /// emitted and sources are keyed by their Oboe bus slot ID rather
+  /// than by function pointer.
   void _syncAudioRoutingAndroid(
       AudioGraph graph,
       List<PluginInstance> allPlugins,
       Map<String, int> keyboardSfIds) {
-    // Clear all per-source chains — rebuilt from scratch on each call.
-    GfpaAndroidBindings.instance.gfpaAndroidClearAllInserts();
-
-    // ── GF Keyboards: one bus slot per soundfont ID ────────────────────────
-    for (final plugin in allPlugins.whereType<GrooveForgeKeyboardPlugin>()) {
-      final sfId = keyboardSfIds[plugin.id] ?? -1;
-      if (sfId < 1) continue; // Not yet loaded — skip.
-      _addChainInserts(plugin.id, sfId, graph);
-    }
-
-    // ── Theremin (bus slot 5) and Stylophone (bus slot 6) ─────────────────
-    //
-    // These are GFpaPluginInstance slots with well-known plugin IDs. Their
-    // audio flows through the shared AAudio bus, so the bus slot ID is the
-    // key the native insert chain uses.
-    for (final plugin in allPlugins.whereType<GFpaPluginInstance>()) {
-      if (plugin.pluginId == 'com.grooveforge.theremin') {
-        _addChainInserts(plugin.id, kBusSlotTheremin, graph);
-      } else if (plugin.pluginId == 'com.grooveforge.stylophone') {
-        _addChainInserts(plugin.id, kBusSlotStylophone, graph);
-      }
-    }
-
-    // ── Live Input Source (bus slot 103) ──────────────────────────────────
-    //
-    // The mic passthrough lives on the shared Oboe bus only when at least
-    // one Live Input slot is actually cabled to something downstream. The
-    // bus mixer always sums source output into the master mix, so keeping
-    // an uncabled slot "registered" would leak raw mic audio on top of
-    // every keyboard, theremin, and drum track. Teardown + reconnect is
-    // handled in [NativeInstrumentController.syncLiveInputBusSource].
-    bool liveInputShouldBeActive = false;
-    for (final plugin
-        in allPlugins.whereType<LiveInputSourcePluginInstance>()) {
-      if (!_hasAnyConnection(plugin.id, graph)) continue;
-      liveInputShouldBeActive = true;
-      // DFS insert-chain so mic → Harmonizer → Reverb all run in order
-      // inside the bus slot's render path.
-      _addChainInserts(plugin.id, kBusSlotLiveInput, graph);
-    }
-    NativeInstrumentController.instance
-        .syncLiveInputBusSource(shouldBeActive: liveInputShouldBeActive);
-
-    // ── Audio looper cabled-input routing ──────────────────────────────────
-    _syncAudioLooperSourcesAndroid(graph, allPlugins, keyboardSfIds);
+    final plan = _buildAndroidPlan(graph, allPlugins, keyboardSfIds);
+    _applyPlanAndroid(plan: plan, allPlugins: allPlugins);
   }
 
-  /// Rebuilds the cabled-input list for every audio-looper slot on Android.
-  ///
-  /// For each [AudioLooperPluginInstance] in [allPlugins], walks the incoming
-  /// audio cables in [graph] and calls `alooperAddBusSource` with the Oboe
-  /// bus slot ID of each upstream source.  Runs on every routing rebuild so
-  /// that reconnecting cables — or the user swapping a keyboard's soundfont
-  /// (which changes its sfId) — is reflected immediately.
-  ///
-  /// **Supported upstream source types on Android:**
-  ///   - [GrooveForgeKeyboardPlugin] — resolved via [keyboardSfIds].
-  ///   - [DrumGeneratorPluginInstance] — resolved via [keyboardSfIds]; drum
-  ///     MIDI events feed the keyboard FluidSynth on their channel, so they
-  ///     ride that keyboard's bus.
-  ///   - [GFpaPluginInstance] `com.grooveforge.theremin` → [kBusSlotTheremin].
-  ///   - [GFpaPluginInstance] `com.grooveforge.stylophone` →
-  ///     [kBusSlotStylophone] (v2.12.5 — migrated from a dedicated miniaudio
-  ///     device onto the shared Oboe bus via `NativeInstrumentController`).
-  ///   - [GFpaPluginInstance] `com.grooveforge.vocoder` → [kBusSlotVocoder]
-  ///     (v2.12.5 — same migration). The vocoder's mic capture is still
-  ///     driven by the miniaudio capture device; only the playback side
-  ///     moves onto the bus.
-  ///
-  /// **Still NOT supported on Android**: VST3 plugins. Android does not host
-  /// VST3 plugins at all, so the question doesn't arise — cables from a
-  /// VST3 slot to an audio looper are silently ignored.
-  void _syncAudioLooperSourcesAndroid(
+  // ── Android plan builder + apply ─────────────────────────────────────────
+
+  /// Produces a [RoutingPlan] for the Android Oboe backend. Keyboards and
+  /// drum generators resolve via [keyboardSfIds] (the 1-based FluidSynth
+  /// sfId is also the Oboe bus slot ID). Theremin / stylophone / vocoder /
+  /// live input resolve to their fixed `kBusSlot*` constants. VST3
+  /// instances are rejected — Android does not host VST3 at all.
+  RoutingPlan _buildAndroidPlan(
     AudioGraph graph,
     List<PluginInstance> allPlugins,
     Map<String, int> keyboardSfIds,
   ) {
-    final alooperEngine = audioLooperEngine;
-    if (alooperEngine == null) return;
-
-    // Clear every clip's source lists up-front so stale routing from the
-    // previous sync cannot linger.
-    for (final clip in alooperEngine.clips.values) {
-      AudioInputFFI().alooperClearSources(clip.nativeIdx);
-    }
-
-    // Walk incoming audio cables to each audio looper slot.  Only the left
-    // audio-in port is followed — stereo pairs are implicit in the looper.
-    for (final conn in graph.connections) {
-      if (conn.toPort != AudioPortId.audioInL) continue;
-      final toPlugin = allPlugins
-          .where((p) => p.id == conn.toSlotId)
-          .firstOrNull;
-      if (toPlugin is! AudioLooperPluginInstance) continue;
-      final clip = alooperEngine.clips[toPlugin.id];
-      if (clip == null) continue;
-
-      var fromPlugin = allPlugins
-          .where((p) => p.id == conn.fromSlotId)
-          .firstOrNull;
-      if (fromPlugin == null) continue;
-
-      // Walk past any effect chain so the looper records the post-chain
-      // wet output of the root source rather than failing to register
-      // (Effect → Looper cable). See the desktop branch for full rationale.
-      fromPlugin = _walkUpToAudioSource(fromPlugin, allPlugins, graph);
-      if (fromPlugin == null) continue;
-
-      // Resolve the upstream source to its Android Oboe bus slot ID.
-      final int? busId = _resolveAndroidBusSlotId(fromPlugin, keyboardSfIds);
-      if (busId == null) continue; // Unsupported source — silently skip.
-
-      AudioInputFFI().alooperAddBusSource(clip.nativeIdx, busId);
-    }
+    // Defensive: capture the map at closure creation time so the resolver
+    // callback sees the value the caller intended, even if the caller
+    // mutates its local map later.
+    final sfIds = Map<String, int>.of(keyboardSfIds);
+    return buildRoutingPlan(
+      plugins: allPlugins,
+      graph: graph,
+      caps: BackendCapabilities.oboe,
+      resolveSource: (plugin) => _resolveAndroidSource(plugin, sfIds),
+      resolveEffect: _resolveAndroidEffect,
+    );
   }
 
-  /// Walks the audio graph backwards from [plugin] through audio cables,
-  /// returning the first plugin that is a recognised audio *source*
-  /// (keyboard, drum generator, theremin, stylophone, vocoder, live
-  /// input, VST3 plugin) rather than a pure-effect node.
+  /// Android resolver: turns a plugin into an `oboeBusSlot` source entry
+  /// with its bus slot ID in [ResolvedSource.busSlotId]. Returns `null`
+  /// for VST3 plugins and for keyboards whose soundfont has not yet been
+  /// loaded (the next routing sync will pick them up once they are).
   ///
-  /// Used by the audio-looper routing pass so that cabling
-  /// `Source → Effect → Looper` records the post-effect signal: the
-  /// looper sources from the root, and the native callback writes the
-  /// chain's wet output into that root's per-source render-capture
-  /// buffer (Linux: `renderCapture[m]`, Android: `g_srcCaptureL/R`).
-  ///
-  /// Returns [plugin] itself if it is already a source, or null if no
-  /// upstream source is found within [maxHops] steps (protects against
-  /// pathological graphs).
-  PluginInstance? _walkUpToAudioSource(
-    PluginInstance plugin,
-    List<PluginInstance> allPlugins,
-    AudioGraph graph, {
-    int maxHops = 8,
-  }) {
-    PluginInstance? current = plugin;
-    for (int hop = 0; hop < maxHops; hop++) {
-      if (current == null) return null;
-      // Anything that is NOT a generic GFPA effect is treated as a source
-      // (keyboards, drum gen, theremin/stylo/vocoder, live input, VST3).
-      // GFPA descriptor effects fall through and we walk further upstream.
-      final isPureEffect = current is GFpaPluginInstance &&
-          !{
-            'com.grooveforge.theremin',
-            'com.grooveforge.stylophone',
-            'com.grooveforge.vocoder',
-          }.contains(current.pluginId);
-      if (!isPureEffect) return current;
-
-      // Find an audio cable feeding `current`'s audioInL.
-      final upstream = graph.connections.where((c) =>
-          c.toSlotId == current!.id && c.toPort == AudioPortId.audioInL).firstOrNull;
-      if (upstream == null) return null;
-      current = allPlugins
-          .where((p) => p.id == upstream.fromSlotId)
-          .firstOrNull;
-    }
-    return null; // exceeded maxHops
-  }
-
-  /// Returns the Oboe bus slot ID for [plugin], or null if [plugin] is not
-  /// a bus-routable source on Android.
-  ///
-  /// See [_syncAudioLooperSourcesAndroid] for the supported-source matrix.
-  int? _resolveAndroidBusSlotId(
+  /// Phase B structure: same as [_resolveDesktopSource], the resolver
+  /// switches on [AudioSourceKind] rather than runtime plugin types, so
+  /// adding a new source kind without an Android case becomes a static
+  /// analyser error rather than silent drop.
+  ResolvedSource? _resolveAndroidSource(
     PluginInstance plugin,
     Map<String, int> keyboardSfIds,
   ) {
-    if (plugin is GrooveForgeKeyboardPlugin ||
-        plugin is DrumGeneratorPluginInstance) {
-      final sfId = keyboardSfIds[plugin.id] ?? -1;
-      return sfId >= 1 ? sfId : null;
+    if (plugin is! AudioSourcePlugin) return null;
+    final descriptor =
+        (plugin as AudioSourcePlugin).describeAudioSource();
+    if (descriptor == null) return null;
+
+    switch (descriptor.kind) {
+      case AudioSourceKind.gfKeyboard:
+      case AudioSourceKind.drumGenerator:
+        // Keyboards and drum generator share the per-soundfont bus slot
+        // ID. The drum generator plays MIDI on its declared channel and
+        // relies on the keyboard FluidSynth on that channel — the same
+        // bus slot owns its audio path.
+        final sfId = keyboardSfIds[plugin.id] ?? -1;
+        if (sfId < 1) return null; // not yet loaded — try again next sync.
+        return ResolvedSource(
+          kind: SourceKind.oboeBusSlot,
+          handle: 0,
+          busSlotId: sfId,
+        );
+      case AudioSourceKind.theremin:
+        return const ResolvedSource(
+          kind: SourceKind.oboeBusSlot,
+          handle: 0,
+          busSlotId: kBusSlotTheremin,
+        );
+      case AudioSourceKind.stylophone:
+        return const ResolvedSource(
+          kind: SourceKind.oboeBusSlot,
+          handle: 0,
+          busSlotId: kBusSlotStylophone,
+        );
+      case AudioSourceKind.vocoder:
+        return const ResolvedSource(
+          kind: SourceKind.oboeBusSlot,
+          handle: 0,
+          busSlotId: kBusSlotVocoder,
+        );
+      case AudioSourceKind.liveInput:
+        return const ResolvedSource(
+          kind: SourceKind.oboeBusSlot,
+          handle: 0,
+          busSlotId: kBusSlotLiveInput,
+        );
+      case AudioSourceKind.vst3Instrument:
+        // VST3 is not hosted on Android — silently drop so downstream
+        // cable resolution fails cleanly in the plan builder.
+        return null;
     }
-    if (plugin is GFpaPluginInstance) {
-      switch (plugin.pluginId) {
-        case 'com.grooveforge.theremin':
-          return kBusSlotTheremin;
-        case 'com.grooveforge.stylophone':
-          return kBusSlotStylophone;
-        case 'com.grooveforge.vocoder':
-          return kBusSlotVocoder;
-      }
-    }
-    if (plugin is LiveInputSourcePluginInstance) {
-      return kBusSlotLiveInput;
-    }
-    // VST3 — not hosted on Android at all.
-    return null;
   }
 
-  /// Depth-first traversal of [graph] starting from [sourceSlotId].
+  /// Android effect resolver: returns the native GFPA DSP handle for the
+  /// slot as an `int` address, or `null` if no handle is registered yet.
+  /// Identical shape to [_resolveDesktopEffect] — both platforms share
+  /// the same `_gfpaHandles` map because `registerGfpaDsp` already
+  /// branches on `Platform.isAndroid` internally.
+  int? _resolveAndroidEffect(PluginInstance plugin) {
+    final handle = _gfpaHandles[plugin.id];
+    if (handle == null || handle == nullptr) return null;
+    return handle.address;
+  }
+
+  /// Translates a [RoutingPlan] into Android Oboe-bus FFI calls.
   ///
-  /// Registers every reachable GFPA DSP handle into [busSlotId]'s insert
-  /// chain in traversal order (source → first effect → chained effects).
-  /// [visited] tracks visited slot IDs to avoid infinite loops in cycles
-  /// (cycles are prevented by [AudioGraph.wouldCreateCycle] but the guard
-  /// also protects against future graph changes).
+  /// Mirrors the previous hand-rolled Android branch:
   ///
-  /// Only audio connections are followed — MIDI and data ports are skipped.
-  void _addChainInserts(
-      String sourceSlotId, int busSlotId, AudioGraph graph, [Set<String>? visited]) {
-    final seen = visited ?? {sourceSlotId};
-
-    for (final conn in graph.connections) {
-      // Only follow audio cables from the current node.
-      if (conn.fromSlotId != sourceSlotId) continue;
-      if (conn.fromPort.isDataPort || conn.toPort.isDataPort) continue;
-      if (conn.fromPort == AudioPortId.midiOut ||
-          conn.toPort == AudioPortId.midiIn) {
-        continue;
-      }
-
-      // Guard against cycles.
-      if (seen.contains(conn.toSlotId)) continue;
-      seen.add(conn.toSlotId);
-
-      // Register the downstream GFPA effect handle if available.
-      final handle = _gfpaHandles[conn.toSlotId];
-      if (handle != null && handle != nullptr) {
-        GfpaAndroidBindings.instance.gfpaAndroidAddInsertForSf(busSlotId, handle);
-      }
-
-      // Recurse to pick up chained effects (e.g. WAH → Reverb).
-      _addChainInserts(conn.toSlotId, busSlotId, graph, seen);
-    }
-  }
-
-  /// Depth-first traversal of [graph] starting from [sourceSlotId] for the
-  /// desktop (Linux/macOS) GFPA insert chain.
+  ///   1. `gfpa_android_clear_all_inserts` wipes every per-bus insert chain.
+  ///   2. For every insert chain in the plan whose destination is NOT the
+  ///      audio looper: push each effect handle into *each* participating
+  ///      source's bus slot via `gfpa_android_add_insert_for_sf`.
+  ///   3. The Live Input Source bus slot is registered with Oboe only when
+  ///      a Live Input appears in any chain or looper sink — matches the
+  ///      "no raw mic in master when uncabled" rule from v2.13.0.
+  ///   4. For every looper sink: call `alooperAddBusSource` with the root
+  ///      source's bus slot ID (already walked past the effect chain by
+  ///      the builder in Pass 3).
   ///
-  /// Registers every reachable GFPA DSP handle into [renderFn]'s masterInsert
-  /// chain in DFS traversal order, enabling series chains such as
-  /// Keyboard → WAH → Reverb.  Only audio connections are followed.
-  void _addChainInsertsDesktop(
-      String sourceSlotId,
-      Pointer<NativeFunction<Void Function(Pointer<Float>, Pointer<Float>, Int32)>> renderFn,
-      AudioGraph graph, [Set<String>? visited]) {
-    final seen = visited ?? {sourceSlotId};
-    for (final conn in graph.connections) {
-      if (conn.fromSlotId != sourceSlotId) continue;
-      if (conn.fromPort.isDataPort || conn.toPort.isDataPort) continue;
-      if (conn.fromPort == AudioPortId.midiOut ||
-          conn.toPort == AudioPortId.midiIn) {
-        continue;
-      }
-      if (seen.contains(conn.toSlotId)) continue;
-      seen.add(conn.toSlotId);
-      final handle = _gfpaHandles[conn.toSlotId];
-      if (handle != null && handle != nullptr) {
-        _host!.addMasterInsert(renderFn, handle);
-      }
-      _addChainInsertsDesktop(conn.toSlotId, renderFn, graph, seen);
-    }
-  }
+  /// The Android path does NOT need:
+  ///   - `setExternalRender` — there is no external-render concept here.
+  ///   - `routeAudio` — no VST3 → VST3 routes exist.
+  ///   - Capture-mode toggles — theremin / stylo / vocoder are already
+  ///     routed through the Oboe bus instead of their miniaudio playback
+  ///     devices. The native-instrument lifecycle controller owns that
+  ///     state on Android.
+  void _applyPlanAndroid({
+    required RoutingPlan plan,
+    required List<PluginInstance> allPlugins,
+  }) {
+    // Clear every per-source insert chain before rebuilding. Cheap and
+    // matches the old call-site.
+    GfpaAndroidBindings.instance.gfpaAndroidClearAllInserts();
 
-  /// Returns true if [slotId] has any outgoing audio connection (to GFPA
-  /// effects, VST3 plugins, or audio looper slots). Used to decide whether
-  /// to add the Vocoder as a masterRender contributor — unlike theremin and
-  /// stylophone, the vocoder needs master render whenever it's routed to
-  /// anything at all (including a looper) because its DSP needs a single
-  /// driver per block, and master render is the always-called path; the
-  /// looper-source pull only fires during recording.
-  bool _hasAnyConnection(String slotId, AudioGraph graph) {
-    for (final conn in graph.connections) {
-      if (conn.fromSlotId != slotId) continue;
-      if (conn.fromPort.isDataPort || conn.toPort.isDataPort) continue;
-      if (conn.fromPort == AudioPortId.midiOut ||
-          conn.toPort == AudioPortId.midiIn) {
-        continue;
-      }
-      return true;
+    // Determine which sources actually feed something downstream.
+    // Used by both the Live Input bus-source toggle and as a belt to
+    // filter out chains whose sources could not be resolved by the
+    // builder (e.g. a VST3 source that returned null on Android).
+    final referencedSourceIndices = <int>{};
+    for (final chain in plan.insertChains) {
+      referencedSourceIndices.addAll(chain.sourceIndices);
     }
-    return false;
-  }
+    for (final sink in plan.looperSinks) {
+      referencedSourceIndices.add(sink.sourceIndex);
+    }
 
-  /// Returns true if [slotId] has at least one audio connection to a slot
-  /// that has an active GFPA DSP handle.  Used to decide whether to add a
-  /// Theremin/Stylophone as a masterRender contributor.
-  bool _hasAnyGfpaConnection(String slotId, AudioGraph graph) {
-    for (final conn in graph.connections) {
-      if (conn.fromSlotId != slotId) continue;
-      if (conn.fromPort.isDataPort || conn.toPort.isDataPort) continue;
-      if (conn.fromPort == AudioPortId.midiOut ||
-          conn.toPort == AudioPortId.midiIn) {
-        continue;
+    // Insert chains: each effect is added to each contributing source's
+    // bus slot. The builder collapsed the DFS traversal into a flat
+    // sourceIndices + effects pair, so this is a plain nested loop.
+    for (final chain in plan.insertChains) {
+      for (final sourceIndex in chain.sourceIndices) {
+        final source = plan.sources[sourceIndex];
+        if (source.kind != SourceKind.oboeBusSlot) continue;
+        if (source.busSlotId < 0) continue;
+        for (final effect in chain.effects) {
+          final handle = Pointer<Void>.fromAddress(effect.dspHandle);
+          GfpaAndroidBindings.instance
+              .gfpaAndroidAddInsertForSf(source.busSlotId, handle);
+        }
       }
-      final handle = _gfpaHandles[conn.toSlotId];
-      if (handle != null && handle != nullptr) return true;
     }
-    return false;
+
+    // Live Input bus-source lifecycle. The Oboe bus mixer always sums
+    // registered sources into the master output, so we only register
+    // the live input when at least one Live Input Source slot is
+    // referenced by a chain or a looper sink — matches the 2.13.0
+    // "don't leak raw mic" rule.
+    var liveInputActive = false;
+    for (var i = 0; i < plan.sources.length; i++) {
+      final source = plan.sources[i];
+      if (source.kind != SourceKind.oboeBusSlot) continue;
+      if (source.busSlotId != kBusSlotLiveInput) continue;
+      if (!referencedSourceIndices.contains(i)) continue;
+      liveInputActive = true;
+      break;
+    }
+    NativeInstrumentController.instance
+        .syncLiveInputBusSource(shouldBeActive: liveInputActive);
+
+    // Audio looper cabled-input routing. Plan already walked upstream
+    // past any effect chain, so each sink points at a root source's
+    // index. Translate to `alooperAddBusSource` calls keyed by bus slot.
+    final alooperEngine = audioLooperEngine;
+    if (alooperEngine == null) return;
+
+    // Clear all clip source lists up-front (mirrors the old behaviour).
+    for (final clip in alooperEngine.clips.values) {
+      AudioInputFFI().alooperClearSources(clip.nativeIdx);
+    }
+    for (final sink in plan.looperSinks) {
+      final clip = alooperEngine.clips[sink.clipSlotId];
+      if (clip == null) continue;
+      final source = plan.sources[sink.sourceIndex];
+      if (source.kind != SourceKind.oboeBusSlot) continue;
+      if (source.busSlotId < 0) continue;
+      AudioInputFFI().alooperAddBusSource(clip.nativeIdx, source.busSlotId);
+    }
   }
 
   /// Internal: destroy and remove the DSP handle for [slotId] if present.

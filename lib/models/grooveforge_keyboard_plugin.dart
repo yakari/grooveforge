@@ -1,3 +1,4 @@
+import '../audio/audio_source_descriptor.dart';
 import 'keyboard_display_config.dart';
 import 'plugin_instance.dart';
 
@@ -12,7 +13,15 @@ import 'plugin_instance.dart';
 ///
 /// Vocoder mode has been removed from keyboard slots — use the standalone
 /// GFPA Vocoder plugin ([com.grooveforge.vocoder]) instead.
-class GrooveForgeKeyboardPlugin implements PluginInstance {
+class GrooveForgeKeyboardPlugin
+    with AudioSourcePlugin
+    implements PluginInstance {
+  @override
+  AudioSourceDescriptor describeAudioSource() => AudioSourceDescriptor(
+        kind: AudioSourceKind.gfKeyboard,
+        midiChannel: midiChannel,
+      );
+
   @override
   final String id;
 
