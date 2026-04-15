@@ -710,6 +710,14 @@ class VstHostService {
     final host = _host;
     if (host == null) return;
 
+    // Phase H diagnostics: log every dropped shared-effect cable so
+    // the user can see in the debug console why part of their cable
+    // graph is not producing the expected audio. A future UI pass
+    // will surface these as a patch-view overlay.
+    for (final diag in plan.diagnostics) {
+      debugPrint('[routing] $diag');
+    }
+
     // Topological order of all slot IDs — needed for VST3 processing
     // order and for resolving VST3 ordinals in looper sinks.
     final allSlotIds = allPlugins.map((p) => p.id).toList();
@@ -835,21 +843,31 @@ class VstHostService {
     }
   }
 
-  /// Applies a single [InsertChainEntry] to the desktop host. Handles
-  /// the three destination cases: master mix (pure insert-chain walk),
-  /// VST3 plugin (external render for empty chains, or insert chain
-  /// into master for non-empty — matches the pre-plan behaviour which
-  /// did not route effect-chain output into VST3 inputs), and looper
-  /// clip (insert chain runs and the looper reads from the captured
-  /// post-chain signal — handled by Pass 7 above).
+  /// Applies a single [InsertChainEntry] to the desktop host using the
+  /// Phase H atomic chain-commit API.
+  ///
+  /// Three destination cases:
+  ///   1. Empty chain + VST3 destination: register an external render
+  ///      for each source, so the VST3 plugin receives the source's
+  ///      dry audio on its audio input.
+  ///   2. Non-empty chain (any destination): issue ONE
+  ///      [VstHost.setMasterInsertChain] call with all source fns and
+  ///      all effect handles in order. The Phase H native entry point
+  ///      commits the chain atomically with no merge logic, so the
+  ///      v2.13.0 "grésillement" topology (where the old merge
+  ///      heuristic reordered chains and double-called source render
+  ///      functions) cannot recur.
+  ///   3. Empty chain + master mix: no call needed. The bare master-
+  ///      render registration earlier in [_applyPlanDesktop] already
+  ///      routes the source directly into the mix.
   void _applyChainDesktop({
     required VstHost host,
     required InsertChainEntry chain,
     required RoutingPlan plan,
   }) {
+    // Case 1 — direct source → VST3 external render (no effects).
     if (chain.effects.isEmpty &&
         chain.destination.kind == ChainDestinationKind.vst3Plugin) {
-      // Direct source → VST3 cable: register an external render.
       final vst3 = _plugins[chain.destination.slotId];
       if (vst3 == null) return;
       for (final sourceIndex in chain.sourceIndices) {
@@ -863,19 +881,29 @@ class VstHostService {
       return;
     }
 
-    // Non-empty chain: push each effect into each contributing source's
-    // master insert chain. This is the DFS traversal the pre-2.13
-    // `_addChainInsertsDesktop` helper did, now collapsed into a flat
-    // array walk thanks to the builder.
+    // Case 3 — no effects, no VST3 destination: nothing to do here.
+    if (chain.effects.isEmpty) return;
+
+    // Case 2 — atomic chain commit. Collect source render fns and
+    // effect DSP handles into flat Dart lists, then hand the whole
+    // chain to the native layer in one shot.
+    final sourceFns = <
+        Pointer<
+            NativeFunction<
+                Void Function(Pointer<Float>, Pointer<Float>, Int32)>>>[];
     for (final sourceIndex in chain.sourceIndices) {
       final source = plan.sources[sourceIndex];
       if (source.kind != SourceKind.renderFunction) continue;
-      final renderFn = _renderFnFromHandle(source.renderFnHandle);
-      for (final effect in chain.effects) {
-        final dspHandle = Pointer<Void>.fromAddress(effect.dspHandle);
-        host.addMasterInsert(renderFn, dspHandle);
-      }
+      sourceFns.add(_renderFnFromHandle(source.renderFnHandle));
     }
+    if (sourceFns.isEmpty) return;
+
+    final dspHandles = [
+      for (final effect in chain.effects)
+        Pointer<Void>.fromAddress(effect.dspHandle),
+    ];
+
+    host.setMasterInsertChain(sourceFns: sourceFns, dspHandles: dspHandles);
   }
 
   /// Rehydrates a render function pointer from its opaque integer
@@ -913,7 +941,15 @@ class VstHostService {
 
     if (_host == null) return;
     _destroyGfpaDspForSlot(slotId);
-    final handle = _host!.createGfpaDsp(pluginId, 48000, 256);
+    // Size the DSP's internal scratch buffers for the largest block
+    // JACK will ever deliver. PipeWire commonly uses 1024 or 2048 and
+    // can bump up to 4096 on some systems; 8192 matches the native
+    // host's `kStartupBuffer` floor for state vectors so every effect
+    // can process a full JACK block without re-allocating. The old
+    // hardcoded `256` was left over from a miniaudio-era assumption
+    // and triggered a libstdc++ `operator[]` bounds assertion at
+    // startup when JACK delivered 2048-frame blocks.
+    final handle = _host!.createGfpaDsp(pluginId, 48000, 8192);
     if (handle == nullptr) {
       debugPrint('VstHostService: gfpa_dsp_create returned null for $pluginId');
       return;
@@ -1125,8 +1161,17 @@ class VstHostService {
     required RoutingPlan plan,
     required List<PluginInstance> allPlugins,
   }) {
-    // Clear every per-source insert chain before rebuilding. Cheap and
-    // matches the old call-site.
+    // Phase H diagnostics: log every dropped shared-effect cable so
+    // the user can see in logcat why part of their cable graph is
+    // not producing the expected audio.
+    for (final diag in plan.diagnostics) {
+      debugPrint('[routing] $diag');
+    }
+
+    // Clear every per-source insert chain before rebuilding. The
+    // Phase H atomic commit (`setChainForSlot`) replaces slots
+    // individually, so wiping first guarantees stale effects from
+    // last sync are gone.
     GfpaAndroidBindings.instance.gfpaAndroidClearAllInserts();
 
     // Determine which sources actually feed something downstream.
@@ -1141,19 +1186,62 @@ class VstHostService {
       referencedSourceIndices.add(sink.sourceIndex);
     }
 
-    // Insert chains: each effect is added to each contributing source's
-    // bus slot. The builder collapsed the DFS traversal into a flat
-    // sourceIndices + effects pair, so this is a plain nested loop.
+    // Phase H — atomic chain commit per bus slot.
+    //
+    // Android's native chain store is keyed by bus slot ID, one
+    // chain per slot. Multi-source fan-in (e.g. two keyboards → one
+    // reverb) cannot be represented as a shared chain because the
+    // Oboe callback iterates bus slots independently, applying each
+    // slot's chain to that slot's audio output alone. Sharing a
+    // stateful DSP handle across two bus-slot chains would trigger
+    // the v2.13.0 double-call bug again.
+    //
+    // Strategy: for each plan chain, commit its effect list to the
+    // FIRST source's bus slot only. Subsequent sources of the same
+    // chain output dry — a degraded but honest result. The plan
+    // builder has already dedup'd across chains, so no DSP handle
+    // is written into more than one bus slot by this loop.
+    //
+    // Users who actually want fan-in-with-effect on Android must
+    // create one effect slot per source. A future Phase F.5 will
+    // surface this as a patch-view warning.
     for (final chain in plan.insertChains) {
+      if (chain.effects.isEmpty) continue;
+      if (chain.sourceIndices.isEmpty) continue;
+
+      // Pick the first resolvable source's bus slot. Skip any sources
+      // that did not resolve to a bus slot (e.g. VST3 rejected on
+      // Android — should not happen after the plan builder's own
+      // capability filtering, but cheap to guard against).
+      int? targetBusSlot;
       for (final sourceIndex in chain.sourceIndices) {
         final source = plan.sources[sourceIndex];
         if (source.kind != SourceKind.oboeBusSlot) continue;
         if (source.busSlotId < 0) continue;
-        for (final effect in chain.effects) {
-          final handle = Pointer<Void>.fromAddress(effect.dspHandle);
-          GfpaAndroidBindings.instance
-              .gfpaAndroidAddInsertForSf(source.busSlotId, handle);
-        }
+        targetBusSlot = source.busSlotId;
+        break;
+      }
+      if (targetBusSlot == null) continue;
+
+      final dspHandles = [
+        for (final effect in chain.effects)
+          Pointer<Void>.fromAddress(effect.dspHandle),
+      ];
+      GfpaAndroidBindings.instance
+          .gfpaAndroidSetChainForSlot(targetBusSlot, dspHandles);
+
+      // Diagnostic for any additional sources that were dropped by
+      // this one-slot strategy — helps the user realise why kb2's
+      // reverb is missing when they cabled both keyboards into the
+      // same effect.
+      if (chain.sourceIndices.length > 1) {
+        debugPrint(
+          '[routing] Android: multi-source chain with effects '
+          '${chain.effects.map((e) => e.slotId).toList()} committed '
+          'to bus slot $targetBusSlot only. Additional sources in '
+          'this chain will output dry — duplicate the effect slot '
+          'to apply it to each source independently.',
+        );
       }
     }
 

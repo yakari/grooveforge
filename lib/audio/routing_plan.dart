@@ -388,6 +388,72 @@ class BackendCapabilities {
   );
 }
 
+/// Non-fatal warning emitted by the plan builder when it had to drop or
+/// alter part of the user's cable graph to avoid a correctness failure.
+///
+/// The canonical case is the Phase H "shared effect" scenario: the user
+/// cabled the same stateful GFPA DSP instance into two disjoint sub-
+/// topologies (e.g. `kb1 → reverb` AND `kb2 → harmonizer → reverb`).
+/// Stateful effects cannot be processed twice per audio block with
+/// different inputs without corrupting their internal filter buffers,
+/// so the builder keeps the first chain containing the shared effect
+/// and drops the others. This diagnostic carries the information the
+/// UI will eventually surface as a warning overlay.
+@immutable
+class RoutingDiagnostic {
+  /// Kind of diagnostic — lets callers filter or bucket by category
+  /// when the list grows beyond the current single entry.
+  final RoutingDiagnosticKind kind;
+
+  /// Human-readable explanation, suitable for a debugPrint or UI tooltip.
+  /// No localisation — this is debug-facing for now.
+  final String message;
+
+  /// Slot ID of the plugin at the centre of the diagnostic. For
+  /// `sharedStatefulEffect`, this is the effect slot that is referenced
+  /// by more than one chain.
+  final String slotId;
+
+  const RoutingDiagnostic({
+    required this.kind,
+    required this.message,
+    required this.slotId,
+  });
+
+  @override
+  bool operator ==(Object other) =>
+      other is RoutingDiagnostic &&
+      other.kind == kind &&
+      other.message == message &&
+      other.slotId == slotId;
+
+  @override
+  int get hashCode => Object.hash(kind, message, slotId);
+
+  @override
+  String toString() =>
+      'RoutingDiagnostic(kind: $kind, slot: $slotId, "$message")';
+}
+
+/// Discriminator for [RoutingDiagnostic].
+enum RoutingDiagnosticKind {
+  /// One GFPA DSP handle is referenced by more than one insert chain.
+  /// Stateful effects (reverb, delay, chorus, harmonizer, …) cannot be
+  /// shared across chains without corrupting internal state — see the
+  /// v2.13.0 "gresillant" bug. The builder keeps the first occurrence
+  /// and drops the rest.
+  sharedStatefulEffect,
+
+  /// One insert chain has multiple fan-in sources under the Oboe
+  /// (Android) backend. Android's per-bus-slot chain model cannot run
+  /// a single stateful DSP instance against more than one source
+  /// without state corruption. The adapter commits the chain to the
+  /// first source only; other sources in the same chain output dry.
+  /// The user can work around this by creating one effect slot per
+  /// source.
+  androidFanInNotSupported,
+}
+
 /// The complete, flat, immutable description of how the audio graph
 /// should be executed for one topology. Produced by the plan builder
 /// (Phase A.2) and consumed by backend adapters (Phase A.3+).
@@ -412,11 +478,17 @@ class RoutingPlan {
   /// VST3 → VST3 routes (desktop only).
   final List<VstRouteEntry> vstRoutes;
 
+  /// Non-fatal warnings from the builder. Callers should `debugPrint`
+  /// these after applying the plan, and future UI work will surface
+  /// them as patch-view overlays.
+  final List<RoutingDiagnostic> diagnostics;
+
   const RoutingPlan({
     this.sources = const [],
     this.insertChains = const [],
     this.looperSinks = const [],
     this.vstRoutes = const [],
+    this.diagnostics = const [],
   });
 
   /// Empty plan — applying it clears every native registry.
@@ -428,7 +500,8 @@ class RoutingPlan {
     return _listEquals(sources, other.sources) &&
         _listEquals(insertChains, other.insertChains) &&
         _listEquals(looperSinks, other.looperSinks) &&
-        _listEquals(vstRoutes, other.vstRoutes);
+        _listEquals(vstRoutes, other.vstRoutes) &&
+        _listEquals(diagnostics, other.diagnostics);
   }
 
   @override
@@ -437,6 +510,7 @@ class RoutingPlan {
         Object.hashAll(insertChains),
         Object.hashAll(looperSinks),
         Object.hashAll(vstRoutes),
+        Object.hashAll(diagnostics),
       );
 }
 

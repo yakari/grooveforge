@@ -35,6 +35,8 @@ struct InsertChain {
 
 /// Maximum master render contributors.
 static constexpr int kMaxMasterRenders = 16;
+/// Maximum fan-in sources per insert chain — must match the JACK value.
+static constexpr int kMaxChainSources = 8;
 /// Maximum effects per insert chain — stack-array upper bound used by
 /// the shared `gf_ic_run_effects` helper. Must match the JACK value in
 /// `dart_vst_host_jack.cpp` so chains that round-trip through both
@@ -566,49 +568,45 @@ DVH_API void dvh_remove_master_render(DVH_Host host, DvhRenderFn fn) {
 
 // ─── GFPA insert chain ───────────────────────────────────────────────────────
 
-/// Register a GFPA DSP insert on [source]'s master-render path.
-/// Fan-in merging: if [userdata] is already in an existing chain, [source]
-/// is added to that chain's sources instead of creating a duplicate.
-/// See dart_vst_host_alsa.cpp for full documentation.
-DVH_API void dvh_add_master_insert(DVH_Host host, DvhRenderFn source,
-                                   GfpaInsertFn insertFn, void* userdata) {
-    if (!host || !source || !insertFn) return;
+/// Phase H — atomically commit one complete insert chain on macOS.
+/// See the Linux-side documentation in `dart_vst_host_jack.cpp` for the
+/// full rationale. Both backends share the same semantic: no merge
+/// heuristic, one chain per call, caller guarantees DSP handle
+/// uniqueness across chains.
+DVH_API void dvh_set_master_insert_chain(
+    DVH_Host host,
+    const DvhRenderFn* sources, int32_t sourceCount,
+    const GfpaInsertFn* effects,
+    void* const* effectUserdatas,
+    int32_t effectCount)
+{
+    if (!host || !sources || sourceCount <= 0) return;
+    if (effectCount < 0) effectCount = 0;
+    if (effectCount > 0 && (!effects || !effectUserdatas)) return;
+
     auto* s = getOrCreate(host);
     std::lock_guard<std::mutex> lk(s->pluginsMtx);
 
-    // Search all chains for one that already contains this DSP.
-    // If found: merge [source] into that chain (fan-in).
-    for (auto& chain : s->masterInsertChains) {
-        for (const auto& ins : chain.effects) {
-            if (ins.second != userdata) continue;
-            for (DvhRenderFn src : chain.sources)
-                if (src == source) return;  // already registered
-            chain.sources.push_back(source);
-            fprintf(stderr, "[dart_vst_host] Fan-in: source=%p merged into chain "
-                    "containing dsp=%p (sources=%zu)\n",
-                    (void*)source, userdata, chain.sources.size());
-            return;
+    InsertChain chain;
+    const int32_t srcLimit =
+        sourceCount < kMaxChainSources ? sourceCount : kMaxChainSources;
+    for (int32_t i = 0; i < srcLimit; ++i) {
+        if (sources[i]) chain.sources.push_back(sources[i]);
+    }
+    if (chain.sources.empty()) return;
+
+    const int32_t fxLimit =
+        effectCount < kMaxChainEffects ? effectCount : kMaxChainEffects;
+    for (int32_t i = 0; i < fxLimit; ++i) {
+        if (effects[i]) {
+            chain.effects.emplace_back(effects[i], effectUserdatas[i]);
         }
     }
 
-    // No chain contains this DSP yet.  Find a chain for [source] and append.
-    for (auto& chain : s->masterInsertChains) {
-        for (DvhRenderFn src : chain.sources) {
-            if (src != source) continue;
-            for (const auto& ins : chain.effects)
-                if (ins.second == userdata) return;  // already there
-            chain.effects.push_back({insertFn, userdata});
-            fprintf(stderr, "[dart_vst_host] Chain append: source=%p dsp=%p "
-                    "effects=%zu\n",
-                    (void*)source, userdata, chain.effects.size());
-            return;
-        }
-    }
-
-    // Create a new chain.
-    s->masterInsertChains.push_back({{source}, {{insertFn, userdata}}});
-    fprintf(stderr, "[dart_vst_host] New chain: source=%p dsp=%p\n",
-            (void*)source, userdata);
+    s->masterInsertChains.push_back(std::move(chain));
+    fprintf(stderr, "[dart_vst_host] set_master_insert_chain: sources=%zu effects=%zu\n",
+            s->masterInsertChains.back().sources.size(),
+            s->masterInsertChains.back().effects.size());
 }
 
 /// Remove [source] from all chains.  Chains with no sources left are deleted.

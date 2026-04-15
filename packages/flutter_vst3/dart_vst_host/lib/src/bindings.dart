@@ -267,28 +267,46 @@ class NativeBindings {
 
   // ── GFPA master-insert chain ───────────────────────────────────────────────
 
-  /// Register a GFPA insert on a master-render source.
-  /// insertFnPtr and userdata are both Pointer(Void) at the FFI boundary;
-  /// the native side casts them back to the correct function pointer types.
+  /// Phase H — atomic master insert chain commit.
+  ///
+  /// Takes flat C arrays of sources / effect fn pointers / effect
+  /// userdatas and installs a complete chain in one native call. No
+  /// merge heuristic runs: the caller (the Dart plan builder) has
+  /// already guaranteed that each effectUserdata is unique across
+  /// chains, so the native side just appends the chain as-is.
+  ///
+  /// Both the sources array and the effects array are typed as
+  /// `Pointer<Pointer<Void>>` at the FFI boundary (the same size and
+  /// ABI as a true array of function pointers). The native side casts
+  /// each entry back to the correct function-pointer type. Keeping the
+  /// FFI binding weakly typed here lets us populate the array from
+  /// `gfpaDspInsertFn(...)` which returns `Pointer<Void>` — otherwise
+  /// we would have to `.cast<NativeFunction<…>>()` every single entry.
   late final void Function(
     Pointer<Void>,
-    Pointer<NativeFunction<Void Function(Pointer<Float>, Pointer<Float>, Int32)>>,
-    Pointer<Void>,
-    Pointer<Void>,
-  ) dvhAddMasterInsert = lib.lookupFunction<
+    Pointer<Pointer<Void>>,
+    int,
+    Pointer<Pointer<Void>>,
+    Pointer<Pointer<Void>>,
+    int,
+  ) dvhSetMasterInsertChain = lib.lookupFunction<
       Void Function(
         Pointer<Void>,
-        Pointer<NativeFunction<Void Function(Pointer<Float>, Pointer<Float>, Int32)>>,
-        Pointer<Void>,
-        Pointer<Void>,
+        Pointer<Pointer<Void>>,
+        Int32,
+        Pointer<Pointer<Void>>,
+        Pointer<Pointer<Void>>,
+        Int32,
       ),
       void Function(
         Pointer<Void>,
-        Pointer<NativeFunction<Void Function(Pointer<Float>, Pointer<Float>, Int32)>>,
-        Pointer<Void>,
-        Pointer<Void>,
+        Pointer<Pointer<Void>>,
+        int,
+        Pointer<Pointer<Void>>,
+        Pointer<Pointer<Void>>,
+        int,
       )
-  >('dvh_add_master_insert');
+  >('dvh_set_master_insert_chain');
 
   /// Remove all inserts for a specific source render function.
   late final void Function(

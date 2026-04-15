@@ -54,17 +54,6 @@ typedef _GfpaDspDestroyNative = Void Function(Pointer<Void> handle);
 /// Dart binding for gfpa_dsp_destroy.
 typedef _GfpaDspDestroy = void Function(Pointer<Void> handle);
 
-/// Native signature for gfpa_android_add_insert_for_sf.
-///
-/// [sfId] is the 1-based soundfont ID returned by loadSoundfont.
-/// [handle] is the opaque GFPA DSP handle to insert into that keyboard's chain.
-typedef _GfpaAndroidAddInsertForSfNative = Void Function(
-    Int32 sfId, Pointer<Void> handle);
-
-/// Dart binding for gfpa_android_add_insert_for_sf.
-typedef _GfpaAndroidAddInsertForSf = void Function(
-    int sfId, Pointer<Void> handle);
-
 /// Native signature for gfpa_android_remove_insert.
 typedef _GfpaAndroidRemoveInsertNative = Void Function(Pointer<Void> handle);
 
@@ -76,6 +65,14 @@ typedef _GfpaAndroidClearAllInsertsNative = Void Function();
 
 /// Dart binding for gfpa_android_clear_all_inserts.
 typedef _GfpaAndroidClearAllInserts = void Function();
+
+/// Native signature for gfpa_android_set_chain_for_slot (Phase H).
+typedef _GfpaAndroidSetChainForSlotNative = Void Function(
+    Int32 busSlotId, Pointer<Pointer<Void>> dspHandles, Int32 handleCount);
+
+/// Dart binding for gfpa_android_set_chain_for_slot.
+typedef _GfpaAndroidSetChainForSlot = void Function(
+    int busSlotId, Pointer<Pointer<Void>> dspHandles, int handleCount);
 
 /// Native signature for gfpa_android_set_bpm.
 typedef _GfpaAndroidSetBpmNative = Void Function(Double bpm);
@@ -125,7 +122,7 @@ typedef _OboeStreamRemoveSource = void Function(int busSlotId);
 /// ```dart
 /// final h = GfpaAndroidBindings.instance.createDsp('com.grooveforge.reverb');
 /// GfpaAndroidBindings.instance.gfpaDspSetParam(h, 'mix', 0.4);
-/// GfpaAndroidBindings.instance.gfpaAndroidAddInsertForSf(sfId, h);
+/// GfpaAndroidBindings.instance.gfpaAndroidSetChainForSlot(busSlot, [h]);
 /// // … later …
 /// GfpaAndroidBindings.instance.gfpaAndroidRemoveInsert(h);
 /// GfpaAndroidBindings.instance.gfpaDspDestroy(h);
@@ -176,15 +173,6 @@ class GfpaAndroidBindings {
       _lib.lookupFunction<_GfpaDspDestroyNative, _GfpaDspDestroy>(
           'gfpa_dsp_destroy');
 
-  /// Register a DSP handle as an insert in the per-keyboard chain for [sfId].
-  ///
-  /// [sfId] is the 1-based soundfont ID returned by [loadSoundfont].
-  /// The effect will only be applied to the audio from that keyboard slot.
-  /// Idempotent: calling again with the same handle and sfId has no effect.
-  late final _GfpaAndroidAddInsertForSf _gfpaAndroidAddInsertForSf = _lib
-      .lookupFunction<_GfpaAndroidAddInsertForSfNative,
-          _GfpaAndroidAddInsertForSf>('gfpa_android_add_insert_for_sf');
-
   /// Remove a DSP handle from whichever per-keyboard chain it belongs to.
   ///
   /// Searches all chains.  No-op if the handle is not currently registered.
@@ -199,6 +187,15 @@ class GfpaAndroidBindings {
   late final _GfpaAndroidClearAllInserts _gfpaAndroidClearAllInserts = _lib
       .lookupFunction<_GfpaAndroidClearAllInsertsNative,
           _GfpaAndroidClearAllInserts>('gfpa_android_clear_all_inserts');
+
+  /// Phase H — atomic chain commit for one Oboe bus slot.
+  ///
+  /// Replaces the entire per-slot insert chain with a new ordered
+  /// list of DSP handles in a single FFI call. Preferred entry point
+  /// for the plan-driven routing adapter.
+  late final _GfpaAndroidSetChainForSlot _gfpaAndroidSetChainForSlot = _lib
+      .lookupFunction<_GfpaAndroidSetChainForSlotNative,
+          _GfpaAndroidSetChainForSlot>('gfpa_android_set_chain_for_slot');
 
   /// Forward the current transport BPM to all BPM-synced GFPA effects.
   ///
@@ -274,18 +271,40 @@ class GfpaAndroidBindings {
   /// audio thread.
   void gfpaDspDestroy(Pointer<Void> handle) => _gfpaDspDestroy(handle);
 
-  /// Register [handle] as an insert in the per-keyboard chain for [sfId].
-  ///
-  /// [sfId] is the 1-based soundfont ID returned by [loadSoundfont].
-  void gfpaAndroidAddInsertForSf(int sfId, Pointer<Void> handle) =>
-      _gfpaAndroidAddInsertForSf(sfId, handle);
-
   /// Remove [handle] from whichever per-keyboard chain it belongs to.
   void gfpaAndroidRemoveInsert(Pointer<Void> handle) =>
       _gfpaAndroidRemoveInsert(handle);
 
   /// Clear every insert from every per-keyboard chain.
   void gfpaAndroidClearAllInserts() => _gfpaAndroidClearAllInserts();
+
+  /// Phase H — atomic chain commit.
+  ///
+  /// Replaces the entire insert chain for [busSlotId] with the ordered
+  /// list of [dspHandles]. Matches the desktop
+  /// [VstHost.setMasterInsertChain] API: single native call, no merge
+  /// heuristic, caller guarantees each handle appears in at most one
+  /// chain across the whole host.
+  ///
+  /// Allocates a temporary native `Pointer<Pointer<Void>>` scratch
+  /// array, calls into `libnative-lib.so`, and frees the array before
+  /// returning.
+  void gfpaAndroidSetChainForSlot(
+      int busSlotId, List<Pointer<Void>> dspHandles) {
+    if (dspHandles.isEmpty) {
+      _gfpaAndroidSetChainForSlot(busSlotId, nullptr, 0);
+      return;
+    }
+    final arr = calloc<Pointer<Void>>(dspHandles.length);
+    try {
+      for (var i = 0; i < dspHandles.length; i++) {
+        arr[i] = dspHandles[i];
+      }
+      _gfpaAndroidSetChainForSlot(busSlotId, arr, dspHandles.length);
+    } finally {
+      calloc.free(arr);
+    }
+  }
 
   /// Forward [bpm] to all BPM-synced GFPA effects (delay, wah, chorus).
   void gfpaAndroidSetBpm(double bpm) => _gfpaAndroidSetBpm(bpm);

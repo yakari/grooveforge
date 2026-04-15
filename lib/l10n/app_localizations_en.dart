@@ -460,6 +460,17 @@ class AppLocalizationsEn extends AppLocalizations {
       'Purple data cables represent the Jam Mode harmony flow between slots. Drawing a CHORD OUT → CHORD IN cable is the same as selecting a Jam Mode master in the dropdown — both controls stay in sync. Similarly, a SCALE OUT → SCALE IN cable corresponds to a target follower slot.';
 
   @override
+  String get guidePatchSharedEffectTitle => 'One signal path per effect slot';
+
+  @override
+  String get guidePatchSharedEffectBody =>
+      'Audio effects (reverb, delay, chorus, harmonizer, wah, EQ, compressor, …) hold internal filter state that is updated every audio block. An effect slot can therefore only be fed by one distinct signal path. Simple fan-in works: two keyboards cabled directly into the same reverb are mixed and processed together. Divergent paths do not: cabling kb1 → reverb AND kb2 → harmonizer → reverb asks the reverb to process two different signals in the same block, which would corrupt its filter state.';
+
+  @override
+  String get guidePatchSharedEffectWorkaround =>
+      'When GrooveForge blocks a cable with this rule, duplicate the effect slot so each signal path has its own instance. Add a second reverb from the plugin list and cable it into the second path.';
+
+  @override
   String get guidePatchTip =>
       'Tip: Cables are saved as part of your project (.gf file). Open a saved project to restore all connections exactly as you left them.';
 
@@ -784,6 +795,11 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get connectionCycleError =>
       'Cycle detected: this connection would create a feedback loop';
+
+  @override
+  String connectionSharedEffectError(String effectName) {
+    return '$effectName is already cabled from another signal path. Duplicate the effect slot so each path has its own instance.';
+  }
 
   @override
   String get portMidiIn => 'MIDI IN';

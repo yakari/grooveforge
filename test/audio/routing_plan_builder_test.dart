@@ -547,6 +547,367 @@ void main() {
     });
   });
 
+  group('Phase H — shared stateful-effect dedup', () {
+    // Topology: kb1 → reverb, kb2 → harmonizer → reverb, theremin →
+    // harmonizer → reverb. This is the v2.13.0 "grésillement" bug:
+    // the reverb handle would otherwise end up in two distinct chains
+    // (one direct [kb1] → [reverb], one [kb2, theremin] → [harmonizer,
+    // reverb]) and get its stateful filters trashed by being called
+    // twice per audio block with different inputs. The builder must
+    // keep the first chain that claimed the reverb DSP and drop the
+    // effect from any subsequent chain, with a diagnostic for each drop.
+    test(
+        'grésillement topology: reverb is kept in first chain only, '
+        'second chain loses it but stays as harmonizer chain, diagnostic emitted',
+        () {
+      final harmonizer = _harmonizer('hm');
+      final reverb = _reverb('rv');
+      final graph = _graphFromCables([
+        _audioCable('kb1', 'rv'),
+        _audioCable('kb2', 'hm'),
+        _audioCable('th', 'hm'),
+        _audioCable('hm', 'rv'),
+      ]);
+      final plan = buildRoutingPlan(
+        plugins: [
+          _keyboard('kb1', channel: 1),
+          _keyboard('kb2', channel: 2),
+          _theremin('th'),
+          harmonizer,
+          reverb,
+        ],
+        graph: graph,
+        caps: BackendCapabilities.jack,
+        resolveSource: _fakeSourceResolver(),
+        resolveEffect: _fakeEffectResolver(),
+      );
+
+      // Exactly one diagnostic about a dropped reverb reference.
+      expect(plan.diagnostics, hasLength(1));
+      final diag = plan.diagnostics.single;
+      expect(diag.kind, RoutingDiagnosticKind.sharedStatefulEffect);
+      expect(diag.slotId, 'rv');
+
+      // We expect two chains: the first claims the reverb, the second
+      // used to contain the reverb but had it stripped by dedup and
+      // now only contains the harmonizer.
+      expect(plan.insertChains, hasLength(2));
+
+      // Find the chain that still contains the reverb — exactly one
+      // such chain is allowed after dedup.
+      final chainsWithReverb = plan.insertChains
+          .where((c) => c.effects.any((e) => e.slotId == 'rv'))
+          .toList();
+      expect(chainsWithReverb, hasLength(1));
+
+      // The surviving harmonizer-only chain must still exist so that
+      // kb2 and theremin still reach the master mix via the harmonizer.
+      final harmonizerOnly = plan.insertChains.firstWhere(
+        (c) =>
+            c.effects.length == 1 && c.effects.single.slotId == 'hm',
+        orElse: () => throw StateError('no harmonizer-only chain'),
+      );
+      expect(harmonizerOnly.effects.single.slotId, 'hm');
+    });
+
+    test(
+        'two keyboards fan-in into same reverb is NOT dedup — it stays as '
+        'one merged chain with two sources', () {
+      // Straight fan-in: kb1 and kb2 both go directly into the same
+      // reverb. This is a SINGLE chain from the builder's point of view
+      // (same effect sequence + same destination), and must remain a
+      // single chain with sourceCount == 2. No dedup, no diagnostics.
+      final graph = _graphFromCables([
+        _audioCable('kb1', 'rv'),
+        _audioCable('kb2', 'rv'),
+      ]);
+      final plan = buildRoutingPlan(
+        plugins: [
+          _keyboard('kb1', channel: 1),
+          _keyboard('kb2', channel: 2),
+          _reverb('rv'),
+        ],
+        graph: graph,
+        caps: BackendCapabilities.jack,
+        resolveSource: _fakeSourceResolver(),
+        resolveEffect: _fakeEffectResolver(),
+      );
+      expect(plan.diagnostics, isEmpty);
+      expect(plan.insertChains, hasLength(1));
+      expect(plan.insertChains.single.sourceIndices.length, 2);
+      expect(
+        plan.insertChains.single.effects.map((e) => e.slotId).toList(),
+        ['rv'],
+      );
+    });
+
+    test(
+        'chain emptied entirely by dedup is dropped when destination is '
+        'masterMix', () {
+      // Two sources share a single reverb with no other effect on
+      // either side. First chain wins and the second chain becomes
+      // effectless → entirely dropped since it goes to masterMix.
+      //
+      // This is the same as the fan-in case topologically, but we
+      // construct it as two SEPARATE source chains because each source
+      // has its own divergent upstream (kb1 alone, kb2 → harmonizer).
+      // The only shared element is reverb, and dropping it from the
+      // second chain means the harmonizer output never reaches master.
+      //
+      // We expect one diagnostic for the dropped reverb and one
+      // remaining chain (harmonizer-only, because the harmonizer is
+      // NOT shared).
+      final graph = _graphFromCables([
+        _audioCable('kb1', 'rv'),
+        _audioCable('kb2', 'hm'),
+        _audioCable('hm', 'rv'),
+      ]);
+      final plan = buildRoutingPlan(
+        plugins: [
+          _keyboard('kb1', channel: 1),
+          _keyboard('kb2', channel: 2),
+          _harmonizer('hm'),
+          _reverb('rv'),
+        ],
+        graph: graph,
+        caps: BackendCapabilities.jack,
+        resolveSource: _fakeSourceResolver(),
+        resolveEffect: _fakeEffectResolver(),
+      );
+      expect(plan.diagnostics, hasLength(1));
+      expect(plan.diagnostics.single.slotId, 'rv');
+
+      // Two chains survive: one with reverb, one with only harmonizer.
+      expect(plan.insertChains, hasLength(2));
+      final reverbChains = plan.insertChains
+          .where((c) => c.effects.any((e) => e.slotId == 'rv'));
+      expect(reverbChains, hasLength(1));
+      final harmOnly = plan.insertChains
+          .where((c) => c.effects.every((e) => e.slotId == 'hm') &&
+              c.effects.isNotEmpty);
+      expect(harmOnly, hasLength(1));
+    });
+
+    test(
+        'Android: multi-source fan-in chain emits androidFanInNotSupported '
+        'diagnostic (Oboe cannot share a stateful effect across bus slots)',
+        () {
+      // Same topology as the "two keyboards fan-in into same reverb"
+      // test, but under Oboe caps: the plan builder should still emit
+      // one chain with two sources (desktop semantics are preserved),
+      // but also attach a new diagnostic telling the adapter that
+      // Android will only apply the effect to the first source.
+      final graph = _graphFromCables([
+        _audioCable('kb1', 'rv'),
+        _audioCable('kb2', 'rv'),
+      ]);
+      final plan = buildRoutingPlan(
+        plugins: [
+          _keyboard('kb1', channel: 1),
+          _keyboard('kb2', channel: 2),
+          _reverb('rv'),
+        ],
+        graph: graph,
+        caps: BackendCapabilities.oboe,
+        resolveSource: _fakeSourceResolver(),
+        resolveEffect: _fakeEffectResolver(),
+      );
+      expect(plan.insertChains, hasLength(1));
+      expect(plan.insertChains.single.sourceIndices.length, 2);
+      expect(plan.diagnostics, hasLength(1));
+      expect(
+        plan.diagnostics.single.kind,
+        RoutingDiagnosticKind.androidFanInNotSupported,
+      );
+      expect(plan.diagnostics.single.slotId, 'rv');
+    });
+
+    test(
+        'desktop JACK caps: fan-in chains do NOT get the Android '
+        'diagnostic', () {
+      final graph = _graphFromCables([
+        _audioCable('kb1', 'rv'),
+        _audioCable('kb2', 'rv'),
+      ]);
+      final plan = buildRoutingPlan(
+        plugins: [
+          _keyboard('kb1', channel: 1),
+          _keyboard('kb2', channel: 2),
+          _reverb('rv'),
+        ],
+        graph: graph,
+        caps: BackendCapabilities.jack,
+        resolveSource: _fakeSourceResolver(),
+        resolveEffect: _fakeEffectResolver(),
+      );
+      expect(plan.diagnostics, isEmpty);
+    });
+
+    test(
+        'no shared effects → no diagnostics, no dedup', () {
+      final graph = _graphFromCables([_audioCable('kb', 'rv')]);
+      final plan = buildRoutingPlan(
+        plugins: [_keyboard('kb'), _reverb('rv')],
+        graph: graph,
+        caps: BackendCapabilities.jack,
+        resolveSource: _fakeSourceResolver(),
+        resolveEffect: _fakeEffectResolver(),
+      );
+      expect(plan.diagnostics, isEmpty);
+      expect(plan.insertChains, hasLength(1));
+    });
+  });
+
+  group('wouldCauseSharedStatefulEffect — drag-time validator', () {
+    test(
+        'adding a second divergent upstream into reverb returns the '
+        'reverb slot ID', () {
+      // Setup: kb2 → harmonizer → reverb already exists.
+      // Proposed new cable: kb1 → reverb. This is the grésillement
+      // topology; the validator must block it and return "rv".
+      final graph = _graphFromCables([
+        _audioCable('kb2', 'hm'),
+        _audioCable('hm', 'rv'),
+      ]);
+      final conflict = wouldCauseSharedStatefulEffect(
+        plugins: [
+          _keyboard('kb1', channel: 1),
+          _keyboard('kb2', channel: 2),
+          _harmonizer('hm'),
+          _reverb('rv'),
+        ],
+        graph: graph,
+        fromSlotId: 'kb1',
+        fromPort: AudioPortId.audioOutL,
+        toSlotId: 'rv',
+        toPort: AudioPortId.audioInL,
+      );
+      expect(conflict, 'rv');
+    });
+
+    test(
+        'simple fan-in (two keyboards directly into one reverb) is '
+        'allowed — builder does not dedup it', () {
+      final graph = _graphFromCables([_audioCable('kb1', 'rv')]);
+      final conflict = wouldCauseSharedStatefulEffect(
+        plugins: [
+          _keyboard('kb1', channel: 1),
+          _keyboard('kb2', channel: 2),
+          _reverb('rv'),
+        ],
+        graph: graph,
+        fromSlotId: 'kb2',
+        fromPort: AudioPortId.audioOutL,
+        toSlotId: 'rv',
+        toPort: AudioPortId.audioInL,
+      );
+      expect(conflict, isNull);
+    });
+
+    test(
+        'single direct cable into an effect is always allowed', () {
+      final conflict = wouldCauseSharedStatefulEffect(
+        plugins: [_keyboard('kb'), _reverb('rv')],
+        graph: AudioGraph(),
+        fromSlotId: 'kb',
+        fromPort: AudioPortId.audioOutL,
+        toSlotId: 'rv',
+        toPort: AudioPortId.audioInL,
+      );
+      expect(conflict, isNull);
+    });
+
+    test(
+        'chaining a second effect after an existing effect does not '
+        'trigger the validator (single upstream root)', () {
+      // kb → hm is already cabled. Adding hm → rv means rv has one
+      // upstream chain and is fine.
+      final graph = _graphFromCables([_audioCable('kb', 'hm')]);
+      final conflict = wouldCauseSharedStatefulEffect(
+        plugins: [_keyboard('kb'), _harmonizer('hm'), _reverb('rv')],
+        graph: graph,
+        fromSlotId: 'hm',
+        fromPort: AudioPortId.audioOutL,
+        toSlotId: 'rv',
+        toPort: AudioPortId.audioInL,
+      );
+      expect(conflict, isNull);
+    });
+
+    test(
+        'cabling a keyboard into a fresh effect slot is always '
+        'allowed, even when the rack has pre-existing shared-effect '
+        'topologies (regression for the slot-6 wah block)', () {
+      // Mirrors the exact rack state from the user's logcat:
+      //   slot-0 kb, slot-1 kb, slot-3 theremin,
+      //   slot-4 harmonizer, slot-5 reverb (pre-existing shared),
+      //   slot-6 wah (freshly added, zero cables yet).
+      // Cables:
+      //   kb → rv
+      //   kb2 → hm
+      //   th → hm
+      //   hm → rv   (← the divergent upstream on reverb)
+      // Proposed new cable: kb → wah. Must be allowed.
+      final wah = GFpaPluginInstance(
+          id: 'slot-6', pluginId: 'com.grooveforge.wah', midiChannel: 0);
+      final graph = _graphFromCables([
+        _audioCable('slot-0', 'slot-5'),
+        _audioCable('slot-1', 'slot-4'),
+        _audioCable('slot-3', 'slot-4'),
+        _audioCable('slot-4', 'slot-5'),
+      ]);
+      final conflict = wouldCauseSharedStatefulEffect(
+        plugins: [
+          _keyboard('slot-0', channel: 1),
+          _keyboard('slot-1', channel: 2),
+          _theremin('slot-3'),
+          _harmonizer('slot-4'),
+          _reverb('slot-5'),
+          wah,
+        ],
+        graph: graph,
+        fromSlotId: 'slot-0',
+        fromPort: AudioPortId.audioOutL,
+        toSlotId: 'slot-6',
+        toPort: AudioPortId.audioInL,
+      );
+      expect(conflict, isNull);
+    });
+
+    test(
+        'pre-existing conflict is NOT blamed on an unrelated new '
+        'cable — only the newly-introduced conflict is reported', () {
+      // The project already contains a broken topology: kb1 → rv and
+      // kb2 → hm → rv, loaded from an old .gf file. The user now adds
+      // an unrelated cable kb3 → wh. The validator must NOT flag rv
+      // as a conflict caused by kb3 → wh, because rv was already
+      // broken before.
+      final wah = GFpaPluginInstance(
+          id: 'wh', pluginId: 'com.grooveforge.wah', midiChannel: 0);
+      final graph = _graphFromCables([
+        _audioCable('kb1', 'rv'),
+        _audioCable('kb2', 'hm'),
+        _audioCable('hm', 'rv'),
+      ]);
+      final conflict = wouldCauseSharedStatefulEffect(
+        plugins: [
+          _keyboard('kb1', channel: 1),
+          _keyboard('kb2', channel: 2),
+          _keyboard('kb3', channel: 3),
+          _harmonizer('hm'),
+          _reverb('rv'),
+          wah,
+        ],
+        graph: graph,
+        fromSlotId: 'kb3',
+        fromPort: AudioPortId.audioOutL,
+        toSlotId: 'wh',
+        toPort: AudioPortId.audioInL,
+      );
+      expect(conflict, isNull);
+    });
+  });
+
   group('equality + determinism', () {
     test('building the same topology twice produces equal plans', () {
       PluginInstance k() => _keyboard('kb');

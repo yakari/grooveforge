@@ -208,20 +208,73 @@ class VstHost {
   /// Set the global BPM for all BPM-synced GFPA effects (delay, wah, chorus).
   void setGfpaBpm(double bpm) => _b.gfpaSetBpm(bpm);
 
-  /// Register a GFPA DSP insert on [sourceFn]'s master-render audio path.
+  /// Phase H — atomically install ONE complete master insert chain.
   ///
-  /// [dspHandle] is the opaque handle returned by [createGfpaDsp].
-  /// On each audio block, [sourceFn]'s output is piped through the DSP effect
-  /// before being mixed into the master bus.
+  /// This is the routing adapter's preferred entry point. Unlike
+  /// [addMasterInsert] which relies on a per-call merge heuristic
+  /// that can produce wrong chains when the same DSP is reachable
+  /// from divergent upstream sources (the v2.13.0 "grésillement"
+  /// bug), this method commits the whole `(sources[], effects[])`
+  /// pair in a single native call with no merge logic.
   ///
-  /// Replaces any existing insert for the same [sourceFn].
-  void addMasterInsert(
-    Pointer<NativeFunction<Void Function(Pointer<Float>, Pointer<Float>, Int32)>> sourceFn,
-    Pointer<Void> dspHandle,
-  ) {
-    final insertFn = _b.gfpaDspInsertFn(dspHandle);
-    final userdata = _b.gfpaDspUserdata(dspHandle);
-    _b.dvhAddMasterInsert(handle, sourceFn, insertFn, userdata);
+  /// Contract: each [dspHandles] entry MUST be unique across every
+  /// chain committed to this host between `clearMasterInserts()`
+  /// calls. The plan builder dedups shared DSPs upstream of this
+  /// wrapper; the native side does not re-check.
+  ///
+  /// Allocates native scratch arrays, calls into the host, and frees
+  /// the arrays before returning. Safe to call from the Dart isolate.
+  void setMasterInsertChain({
+    required List<
+            Pointer<
+                NativeFunction<
+                    Void Function(Pointer<Float>, Pointer<Float>, Int32)>>>
+        sourceFns,
+    required List<Pointer<Void>> dspHandles,
+  }) {
+    if (sourceFns.isEmpty) return;
+
+    // Allocate temporary native arrays for sources, effect fns, and
+    // effect userdatas. All three are typed as `Pointer<Pointer<Void>>`
+    // to match the FFI binding, which keeps the function pointers
+    // weakly typed so that `gfpaDspInsertFn` (which returns
+    // `Pointer<Void>`) can be stored without per-entry casts.
+    //
+    // The three arrays are freed in the `finally` block so a failure
+    // during effect-fn lookup cannot leak native memory.
+    final srcArr = calloc<Pointer<Void>>(sourceFns.length);
+    final fxArr = dspHandles.isEmpty
+        ? nullptr.cast<Pointer<Void>>()
+        : calloc<Pointer<Void>>(dspHandles.length);
+    final udArr = dspHandles.isEmpty
+        ? nullptr.cast<Pointer<Void>>()
+        : calloc<Pointer<Void>>(dspHandles.length);
+
+    try {
+      for (var i = 0; i < sourceFns.length; i++) {
+        // A function pointer and a `Pointer<Void>` share the same ABI,
+        // so a cast is enough — no conversion happens at runtime.
+        srcArr[i] = sourceFns[i].cast<Void>();
+      }
+      for (var i = 0; i < dspHandles.length; i++) {
+        fxArr[i] = _b.gfpaDspInsertFn(dspHandles[i]);
+        udArr[i] = _b.gfpaDspUserdata(dspHandles[i]);
+      }
+      _b.dvhSetMasterInsertChain(
+        handle,
+        srcArr,
+        sourceFns.length,
+        fxArr,
+        udArr,
+        dspHandles.length,
+      );
+    } finally {
+      calloc.free(srcArr);
+      if (dspHandles.isNotEmpty) {
+        calloc.free(fxArr);
+        calloc.free(udArr);
+      }
+    }
   }
 
   /// Remove all inserts for [sourceFn] from the chain.

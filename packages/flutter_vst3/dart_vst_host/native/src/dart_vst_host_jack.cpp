@@ -257,30 +257,67 @@ static void _publishSnapshot(AudioState* s) {
     }
 }
 
-// ── Buffer resizing (non-RT, under pluginsMtx) ────────────────────────────
+// ── Buffer sizing (non-RT, under pluginsMtx) ──────────────────────────────
+//
+// The audio callback uses `bs = nframes` as its iteration count, never
+// `vector.size()`, so the only correctness requirement is that every
+// state vector is at least [bs] floats long.
+//
+// **Grow only, never shrink.** Past implementations called `.assign(n,
+// 0.f)` on every vector every time the JACK buffer size changed. That
+// introduced a race: libstdc++'s `assign` goes through an intermediate
+// state where `size()` briefly returns the old size, zero, or the new
+// size depending on whether the allocator reused the existing storage.
+// When the process callback races with `_jackBufferSizeCallback` during
+// PipeWire startup (which bounces the block size between 1024 and
+// 2048), the callback can observe `size() == 0` and trip the libstdc++
+// debug assertion in `operator[]`. Since we never want to reduce the
+// vector capacity anyway (the startup path is the only time bs changes
+// and it only goes up), growing is the only operation we ever need.
+//
+// To further eliminate the cold-start window, every state vector is
+// pre-sized to [kStartupBuffer] floats in [_ensureBufferFloor] the
+// first time this function is called, so a process callback that fires
+// before JACK reports the final block size still sees a usable vector.
+static constexpr int32_t kStartupBuffer = 8192;
+
+static void _growVector(std::vector<float>& v, int32_t newSize) {
+    if (static_cast<int32_t>(v.size()) >= newSize) return;
+    v.resize(static_cast<size_t>(newSize), 0.f);
+}
 
 static void _resizeBuffers(AudioState* s, int32_t newSize) {
+    // Record the logical block size the callback should iterate over.
+    // Vectors may be larger than this — that's fine.
     s->blockSize = newSize;
-    s->extBufL.assign(newSize, 0.f);
-    s->extBufR.assign(newSize, 0.f);
-    s->insertBufL.assign(newSize, 0.f);
-    s->insertBufR.assign(newSize, 0.f);
-    s->tmpBufL.assign(newSize, 0.f);
-    s->tmpBufR.assign(newSize, 0.f);
-    s->mixL.assign(newSize, 0.f);
-    s->mixR.assign(newSize, 0.f);
-    s->zeroL.assign(newSize, 0.f);
-    s->zeroR.assign(newSize, 0.f);
+
+    // Floor at kStartupBuffer so JACK can bump the block size up to
+    // 8192 without re-entering this code path. Below that floor we
+    // never shrink, so a transient callback overlap cannot observe a
+    // shorter-than-expected vector.
+    const int32_t target =
+        newSize > kStartupBuffer ? newSize : kStartupBuffer;
+
+    _growVector(s->extBufL, target);
+    _growVector(s->extBufR, target);
+    _growVector(s->insertBufL, target);
+    _growVector(s->insertBufR, target);
+    _growVector(s->tmpBufL, target);
+    _growVector(s->tmpBufR, target);
+    _growVector(s->mixL, target);
+    _growVector(s->mixR, target);
+    _growVector(s->zeroL, target);
+    _growVector(s->zeroR, target);
     for (int i = 0; i < ALOOPER_MAX_CLIPS; ++i) {
-        s->alooperSrcL[i].assign(newSize, 0.f);
-        s->alooperSrcR[i].assign(newSize, 0.f);
+        _growVector(s->alooperSrcL[i], target);
+        _growVector(s->alooperSrcR[i], target);
     }
     for (int i = 0; i < kMaxMasterRenders; ++i) {
-        s->renderCaptureL[i].assign(newSize, 0.f);
-        s->renderCaptureR[i].assign(newSize, 0.f);
+        _growVector(s->renderCaptureL[i], target);
+        _growVector(s->renderCaptureR[i], target);
     }
     for (int i = 0; i < kMaxPlugins * 2; ++i) {
-        s->pluginBuf[i].assign(newSize, 0.f);
+        _growVector(s->pluginBuf[i], target);
     }
 }
 
@@ -311,8 +348,26 @@ static int _jackProcessCallback(jack_nframes_t nframes, void* arg) {
     auto* outR = static_cast<float*>(jack_port_get_buffer(state->portOutR, nframes));
     const int32_t bs = static_cast<int32_t>(nframes);
 
-    // Guard: if buffers haven't been resized yet, output silence.
-    if (bs > static_cast<int32_t>(state->mixL.size())) {
+    // Guard: if ANY buffer isn't sized for [bs] yet, output silence.
+    // The non-RT `_resizeBuffers` path mutates every state buffer under
+    // `pluginsMtx`, but JACK/PipeWire can invoke this callback in
+    // parallel with the buffer-size callback, so we cannot assume the
+    // resize has finished when we enter here. Checking every buffer
+    // the chain-processing path actually reads gives us a belt-and-
+    // braces safety net that costs ~6 integer comparisons per block —
+    // invisible in RT cost, invaluable for the bounds-checked libstdc++
+    // build that asserts on `operator[]` out of range.
+    const size_t mn = static_cast<size_t>(bs);
+    if (state->mixL.size() < mn ||
+        state->mixR.size() < mn ||
+        state->extBufL.size() < mn ||
+        state->extBufR.size() < mn ||
+        state->insertBufL.size() < mn ||
+        state->insertBufR.size() < mn ||
+        state->tmpBufL.size() < mn ||
+        state->tmpBufR.size() < mn ||
+        state->zeroL.size() < mn ||
+        state->zeroR.size() < mn) {
         std::memset(outL, 0, nframes * sizeof(float));
         std::memset(outR, 0, nframes * sizeof(float));
         return 0;
@@ -734,49 +789,74 @@ DVH_API void dvh_remove_master_render(DVH_Host host, DvhRenderFn fn) {
             s->masterRenders.size());
 }
 
-DVH_API void dvh_add_master_insert(DVH_Host host, DvhRenderFn source,
-                                    GfpaInsertFn insertFn, void* userdata) {
-    if (!host || !source || !insertFn) return;
+// ── Phase H — atomic chain commit (dvh_set_master_insert_chain) ────────────
+//
+// Appends a single complete chain to `masterInsertChains` in one shot.
+// No merge heuristic runs: the caller (the Dart plan builder) has
+// already guaranteed that each `effectUserdatas[i]` is unique across
+// chains, so there is nothing to merge. Callers use this in the usual
+// `clear + rebuild` pattern:
+//
+//     dvh_clear_master_inserts(host);
+//     for each chain:
+//         dvh_set_master_insert_chain(host, ...);
+//
+// Any attempt to commit a chain that would overflow the snapshot's
+// fixed-capacity arrays is truncated to the allowed count and logged
+// once per call.
+DVH_API void dvh_set_master_insert_chain(
+    DVH_Host host,
+    const DvhRenderFn* sources, int32_t sourceCount,
+    const GfpaInsertFn_fwd* effects,
+    void* const* effectUserdatas,
+    int32_t effectCount)
+{
+    if (!host || !sources || sourceCount <= 0) return;
+    if (effectCount < 0) effectCount = 0;
+    if (effectCount > 0 && (!effects || !effectUserdatas)) return;
+
     auto* s = getOrCreate(host);
     std::lock_guard<std::mutex> lk(s->pluginsMtx);
 
-    // Search all chains for one that already contains this DSP.
-    // If found: merge [source] into that chain (fan-in).
-    for (auto& chain : s->masterInsertChains) {
-        for (const auto& ins : chain.effects) {
-            if (ins.second != userdata) continue;
-            for (DvhRenderFn src : chain.sources)
-                if (src == source) return;
-            chain.sources.push_back(source);
-            _publishSnapshot(s);
-            fprintf(stderr, "[dart_vst_host] Fan-in: source=%p merged into chain "
-                    "containing dsp=%p (sources=%zu)\n",
-                    (void*)source, userdata, chain.sources.size());
-            return;
-        }
+    InsertChain chain;
+    const int32_t srcLimit = std::min<int32_t>(sourceCount, kMaxChainSources);
+    if (srcLimit < sourceCount) {
+        fprintf(stderr,
+                "[dart_vst_host] dvh_set_master_insert_chain: truncated "
+                "sources %d→%d (kMaxChainSources)\n",
+                sourceCount, srcLimit);
+    }
+    for (int32_t i = 0; i < srcLimit; ++i) {
+        if (!sources[i]) continue;
+        chain.sources.push_back(sources[i]);
+    }
+    if (chain.sources.empty()) return;
+
+    const int32_t fxLimit = std::min<int32_t>(effectCount, kMaxChainEffects);
+    if (fxLimit < effectCount) {
+        fprintf(stderr,
+                "[dart_vst_host] dvh_set_master_insert_chain: truncated "
+                "effects %d→%d (kMaxChainEffects)\n",
+                effectCount, fxLimit);
+    }
+    for (int32_t i = 0; i < fxLimit; ++i) {
+        if (!effects[i]) continue;
+        chain.effects.emplace_back(
+            reinterpret_cast<GfpaInsertFn>(effects[i]),
+            effectUserdatas[i]);
     }
 
-    // No chain contains this DSP yet.  Find an existing chain for [source]
-    // and append the effect to it.
-    for (auto& chain : s->masterInsertChains) {
-        for (DvhRenderFn src : chain.sources) {
-            if (src != source) continue;
-            for (const auto& ins : chain.effects)
-                if (ins.second == userdata) return;
-            chain.effects.push_back({insertFn, userdata});
-            _publishSnapshot(s);
-            fprintf(stderr, "[dart_vst_host] Chain append: source=%p dsp=%p "
-                    "effects=%zu\n",
-                    (void*)source, userdata, chain.effects.size());
-            return;
-        }
-    }
-
-    // Neither this DSP nor this source has a chain yet — create one.
-    s->masterInsertChains.push_back({{source}, {{insertFn, userdata}}});
+    // Snapshot counts BEFORE moving the chain in, since we can't read
+    // from the moved-from object after push_back.
+    const size_t committedSources = chain.sources.size();
+    const size_t committedEffects = chain.effects.size();
+    s->masterInsertChains.push_back(std::move(chain));
+    fprintf(stderr,
+            "[dart_vst_host] set_master_insert_chain: sources=%zu effects=%zu "
+            "(total chains=%zu)\n",
+            committedSources, committedEffects,
+            s->masterInsertChains.size());
     _publishSnapshot(s);
-    fprintf(stderr, "[dart_vst_host] New chain: source=%p dsp=%p\n",
-            (void*)source, userdata);
 }
 
 DVH_API void dvh_remove_master_insert(DVH_Host host, DvhRenderFn source) {
@@ -978,7 +1058,9 @@ extern "C" {
     void    dvh_clear_external_render(DVH_Host, DVH_Plugin) {}
     void    dvh_add_master_render(DVH_Host, DvhRenderFn) {}
     void    dvh_remove_master_render(DVH_Host, DvhRenderFn) {}
-    void    dvh_add_master_insert(DVH_Host, DvhRenderFn, GfpaInsertFn, void*) {}
+    void    dvh_set_master_insert_chain(DVH_Host,
+        const DvhRenderFn*, int32_t,
+        const GfpaInsertFn*, void* const*, int32_t) {}
     void    dvh_remove_master_insert(DVH_Host, DvhRenderFn) {}
     void    dvh_remove_master_insert_by_handle(DVH_Host, void*) {}
     void    dvh_clear_master_inserts(DVH_Host) {}

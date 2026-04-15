@@ -136,6 +136,122 @@ typedef SourceHandleResolver =
 /// rebuild will include it once registration completes.
 typedef EffectHandleResolver = int? Function(PluginInstance plugin);
 
+// ── Drag-time validation (Phase H UI feedback) ──────────────────────────────
+
+/// Returns true if [plugin] is a GFPA effect slot — a descriptor-backed
+/// GFPA instance that is not one of the three instrument plugin IDs.
+/// Used by the drag-time validator below to decide whether a cable
+/// endpoint is "an effect" (which has mutable filter state and cannot
+/// be fed from divergent paths) or "a source" (which is free to fan in).
+bool _isValidatorEffect(PluginInstance plugin) {
+  if (plugin is! GFpaPluginInstance) return false;
+  return plugin.describeAudioSource() == null;
+}
+
+/// Drag-time validator for the "shared stateful effect" constraint.
+///
+/// Rejects the exact topology that the v2.13.0 grésillement bug
+/// exposed: an audio effect slot receiving two or more incoming audio
+/// cables where at least one of them originates from *another effect*.
+/// Stateful effects (reverb, delay, chorus, harmonizer, wah, …) hold
+/// internal filter state that is advanced on every `process()` call;
+/// if the callback ran them once per incoming cable with different
+/// inputs, each call would corrupt the next one's filter history.
+///
+/// The rule is deliberately **local** (O(incoming cables on `toSlotId`))
+/// rather than a whole-plan dedup replay. It gives a clean, predictable
+/// answer regardless of the rest of the rack, and never false-positives
+/// on unrelated pre-existing conflicts in the loaded project.
+///
+/// Allowed shapes:
+/// * 0 or 1 incoming cables on the target effect → always OK.
+/// * 2+ incoming cables where ALL come directly from audio sources
+///   (keyboards, theremin, live input, …) → pure fan-in, handled
+///   correctly by every backend's chain machinery.
+///
+/// Blocked shape:
+/// * 2+ incoming cables where AT LEAST ONE comes from another effect
+///   → divergent-upstream fan-in into a stateful effect. Block and
+///   return the target effect's slotId so the UI can name it in a
+///   SnackBar.
+///
+/// * [plugins] — current rack contents (used to look up the target
+///   plugin kind and the upstream plugin kind for each incoming cable).
+/// * [graph] — current cable graph (not mutated).
+/// * [fromSlotId] / [fromPort] / [toSlotId] / [toPort] — the proposed
+///   cable. Only audio-input ports trigger the check; other target
+///   ports return null unconditionally.
+///
+/// Returns `null` if the cable is allowed, or the target effect's slot
+/// ID string if the rule is violated.
+String? wouldCauseSharedStatefulEffect({
+  required List<PluginInstance> plugins,
+  required AudioGraph graph,
+  required String fromSlotId,
+  required AudioPortId fromPort,
+  required String toSlotId,
+  required AudioPortId toPort,
+}) {
+  // Only audio cables (fromPort = audioOutL) are subject to the rule.
+  // MIDI and data cables bypass the check — they cannot participate in
+  // an effect-chain shared-state conflict.
+  if (fromPort != AudioPortId.audioOutL) return null;
+  if (toPort != AudioPortId.audioInL) return null;
+
+  // Look up the target plugin. If it is not a GFPA effect slot, the
+  // rule does not apply — the target is either a source (which has no
+  // state to corrupt), a looper, or a VST3 plugin (handled by its own
+  // routing code).
+  final targetPlugin = plugins.where((p) => p.id == toSlotId).firstOrNull;
+  if (targetPlugin == null) return null;
+  if (!_isValidatorEffect(targetPlugin)) return null;
+
+  // Collect the upstream slot IDs of every *existing* incoming audio
+  // cable on the target effect, plus the proposed new cable.
+  // `audioInR` is the stereo pair of `audioInL` and contributes the
+  // same logical "incoming signal path" — we treat both as the same
+  // edge for validation purposes, which is why we count cables per
+  // fromSlotId rather than per port.
+  final existingUpstreamSlotIds = <String>{};
+  for (final conn in graph.connections) {
+    if (conn.toSlotId != toSlotId) continue;
+    if (conn.toPort != AudioPortId.audioInL &&
+        conn.toPort != AudioPortId.audioInR) {
+      continue;
+    }
+    existingUpstreamSlotIds.add(conn.fromSlotId);
+  }
+
+  // If the proposed source is already in the set, nothing changes —
+  // the cable is a duplicate that the graph will reject at commit time
+  // anyway. Defer to the graph's duplicate check by returning null.
+  if (existingUpstreamSlotIds.contains(fromSlotId)) return null;
+
+  // Build the post-add set of upstream slot IDs (existing + new).
+  final allUpstreamSlotIds = <String>{
+    ...existingUpstreamSlotIds,
+    fromSlotId,
+  };
+
+  // 0 or 1 upstream: impossible at this point (we just added one), but
+  // defensive — nothing to check.
+  if (allUpstreamSlotIds.length < 2) return null;
+
+  // 2+ upstream sources. Block if ANY of them is another effect.
+  for (final upstreamSlotId in allUpstreamSlotIds) {
+    final upstreamPlugin =
+        plugins.where((p) => p.id == upstreamSlotId).firstOrNull;
+    if (upstreamPlugin == null) continue;
+    if (_isValidatorEffect(upstreamPlugin)) {
+      return toSlotId;
+    }
+  }
+
+  // All upstream cables come from audio sources — pure fan-in, allowed
+  // by every backend.
+  return null;
+}
+
 // ── The builder ─────────────────────────────────────────────────────────────
 
 /// Produces a flat [RoutingPlan] from the current rack topology.
@@ -257,6 +373,98 @@ RoutingPlan buildRoutingPlan({
     for (final chain in chainsByKey.values) chain.build(),
   ];
 
+  // ── Pass 2b: shared stateful-effect dedup ───────────────────────────────
+  //
+  // Phase H of the audio routing redesign: stateful GFPA effects
+  // (reverb, delay, chorus, harmonizer, …) hold internal filter state
+  // that is updated on every `process()` call. Calling the same DSP
+  // instance twice per audio block with different inputs interleaves
+  // both signals into the shared state and produces corrupted output —
+  // the v2.13.0 "grésillement" bug. Neither the desktop JACK callback
+  // nor the Oboe callback can call an effect twice per block safely, so
+  // the plan builder guarantees each native DSP handle appears in at
+  // most one chain.
+  //
+  // When two chains reference the same `dspHandle`, we keep the first
+  // one (stable ordering = first encountered) and drop the shared
+  // effect from every subsequent chain. If dropping the shared effect
+  // empties a chain (i.e. the chain's only effect was the shared one),
+  // the whole chain is removed. A diagnostic is emitted for every drop
+  // so the adapter can debugPrint it — and a future Phase F.5 will
+  // surface the warnings in the patch view.
+  final dedupedChains = <InsertChainEntry>[];
+  final diagnostics = <RoutingDiagnostic>[];
+  final chainIndexByDspHandle = <int, int>{};
+  for (final chain in insertChains) {
+    final keptEffects = <EffectEntry>[];
+    for (final effect in chain.effects) {
+      final firstChainIdx = chainIndexByDspHandle[effect.dspHandle];
+      if (firstChainIdx == null) {
+        // First time we see this DSP handle — claim it for this chain.
+        chainIndexByDspHandle[effect.dspHandle] = dedupedChains.length;
+        keptEffects.add(effect);
+      } else {
+        // Already claimed by an earlier chain. Drop the effect from this
+        // chain and emit a diagnostic so the user can see why their
+        // cable is not producing audio.
+        diagnostics.add(
+          RoutingDiagnostic(
+            kind: RoutingDiagnosticKind.sharedStatefulEffect,
+            slotId: effect.slotId,
+            message:
+                'Effect "${effect.slotId}" is cabled into multiple signal '
+                'paths with different upstream sources. Stateful effects '
+                'cannot be shared across chains — duplicate the effect '
+                'slot so each path has its own instance. Dropping this '
+                'cable for now.',
+          ),
+        );
+      }
+    }
+    // If the chain still has content after dedup, keep it. A chain with
+    // no effects AND no audio destination (looper / VST3) is pointless;
+    // drop it entirely. A chain with no effects but a looper/VST3
+    // destination is still valid (it's a direct source → sink cable).
+    final keepChain = keptEffects.isNotEmpty ||
+        chain.destination.kind != ChainDestinationKind.masterMix;
+    if (keepChain) {
+      dedupedChains.add(
+        InsertChainEntry(
+          sourceIndices: chain.sourceIndices,
+          effects: keptEffects,
+          destination: chain.destination,
+        ),
+      );
+
+      // Android fan-in limitation: a multi-source chain with effects
+      // can only be applied to the first source's bus slot. Emit a
+      // diagnostic so the user sees in logcat why additional sources
+      // are not getting the effect applied. Desktop backends support
+      // fan-in natively and do not get this warning.
+      if (caps.prefersOboeBus &&
+          chain.sourceIndices.length > 1 &&
+          keptEffects.isNotEmpty) {
+        final droppedSourceCount = chain.sourceIndices.length - 1;
+        final effectNames = keptEffects.map((e) => e.slotId).join(', ');
+        diagnostics.add(
+          RoutingDiagnostic(
+            kind: RoutingDiagnosticKind.androidFanInNotSupported,
+            // Flag the first effect in the chain — it's the handle
+            // that will actually run. Downstream UI work may choose
+            // to highlight the effect slot in the patch view.
+            slotId: keptEffects.first.slotId,
+            message:
+                'Android: effect chain [$effectNames] has '
+                '${chain.sourceIndices.length} fan-in sources. Only the '
+                'first source will get the effect; $droppedSourceCount '
+                'additional source(s) will output dry. Duplicate the '
+                'effect slot so each source has its own instance.',
+          ),
+        );
+      }
+    }
+  }
+
   // ── Pass 3: looper sinks ───────────────────────────────────────────────
   //
   // For every audio cable into an audio looper clip, walk upstream past
@@ -310,9 +518,10 @@ RoutingPlan buildRoutingPlan({
 
   return RoutingPlan(
     sources: List.unmodifiable(sources),
-    insertChains: List.unmodifiable(insertChains),
+    insertChains: List.unmodifiable(dedupedChains),
     looperSinks: List.unmodifiable(looperSinks),
     vstRoutes: List.unmodifiable(vstRoutes),
+    diagnostics: List.unmodifiable(diagnostics),
   );
 }
 
