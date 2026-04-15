@@ -1,11 +1,23 @@
-// macOS Audio backend for dart_vst_host using miniaudio.
-// Drives VST3 plugins in a real-time CoreAudio playback thread via miniaudio.
+// Desktop audio backend for dart_vst_host using miniaudio.
+//
+// Drives VST3 plugins in a real-time miniaudio playback thread.
+// miniaudio picks the platform-native backend automatically:
+//   - macOS   → CoreAudio
+//   - Windows → WASAPI
+//   - iOS     → AudioUnit (unused for now; dvh_start_jack_client is Linux-only)
+//
+// This file is compiled on **both macOS and Windows** (see the
+// CMakeLists.txt branches). Linux has its own dedicated JACK backend in
+// `dart_vst_host_jack.cpp` — JACK gives us lower latency and xrun
+// reporting than miniaudio's ALSA fallback, and PipeWire provides a
+// JACK interface out of the box, so the Linux path stays on JACK
+// while the other two desktops share this file.
 //
 // Phase 5.4 — audio graph execution:
 //   dvh_set_processing_order, dvh_route_audio, dvh_clear_routes
-//   (same semantics as the ALSA backend — see dart_vst_host_alsa.cpp).
+//   (same semantics as the JACK backend — see dart_vst_host_jack.cpp).
 
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(_WIN32)
 
 #define MA_API static
 #define MINIAUDIO_IMPLEMENTATION
@@ -444,12 +456,12 @@ DVH_API void dvh_clear_routes(DVH_Host host) {
     s->routes.clear();
 }
 
-DVH_API int32_t dvh_mac_start_audio(DVH_Host host) {
+DVH_API int32_t dvh_start_desktop_audio(DVH_Host host) {
     if (!host) return 0;
     auto* s = getOrCreate(host);
     if (s->running.load()) return 1;
 
-    fprintf(stderr, "[dart_vst_host] dvh_mac_start_audio(host=%p) called\n", host);
+    fprintf(stderr, "[dart_vst_host] dvh_start_desktop_audio(host=%p) called\n", host);
     fflush(stderr);
 
     // Pre-allocate all audio scratch buffers so the CoreAudio callback never
@@ -507,12 +519,12 @@ DVH_API int32_t dvh_mac_start_audio(DVH_Host host) {
     }
 
     s->running.store(true);
-    fprintf(stderr, "[dart_vst_host] macOS CoreAudio device started OK\n");
+    fprintf(stderr, "[dart_vst_host] miniaudio device started OK\n");
     fflush(stderr);
     return 1;
 }
 
-DVH_API void dvh_mac_stop_audio(DVH_Host host) {
+DVH_API void dvh_stop_desktop_audio(DVH_Host host) {
     if (!host) return;
     auto* s = get(host);
     if (!s) return;
@@ -520,7 +532,7 @@ DVH_API void dvh_mac_stop_audio(DVH_Host host) {
     ma_device_stop(&s->device);
     ma_device_uninit(&s->device);
     removeState(host);
-    fprintf(stderr, "[dart_vst_host] dvh_mac_stop_audio(host=%p) done\n", host);
+    fprintf(stderr, "[dart_vst_host] dvh_stop_desktop_audio(host=%p) done\n", host);
     fflush(stderr);
 }
 
@@ -531,9 +543,11 @@ DVH_API void dvh_mac_stop_audio(DVH_Host host) {
 DVH_API void dvh_set_external_render(DVH_Host /*host*/, DVH_Plugin /*plugin*/, DvhRenderFn /*fn*/) {}
 DVH_API void dvh_clear_external_render(DVH_Host /*host*/, DVH_Plugin /*plugin*/) {}
 
-// Keep ALSA stubs for compatibility — ALSA is not used on macOS.
+// Keep ALSA stubs for compatibility — ALSA is Linux-only. On macOS and
+// Windows the caller should be using dvh_start_desktop_audio instead.
 DVH_API int32_t dvh_start_alsa_thread(DVH_Host /*host*/, const char* /*device*/) {
-    fprintf(stderr, "[dart_vst_host] dvh_start_alsa_thread called on macOS (IGNORING: use dvh_mac_start_audio)\n");
+    fprintf(stderr, "[dart_vst_host] dvh_start_alsa_thread called on non-Linux "
+                    "(IGNORING: use dvh_start_desktop_audio)\n");
     fflush(stderr);
     return 0;
 }
@@ -695,8 +709,8 @@ DVH_API void dvh_clear_master_renders(DVH_Host host) {
 
 // ── Transport broadcast (called from dart_vst_host.cpp) ─────────────────────
 
-void dvh_mac_update_transport(double bpm, int32_t timeSigNum,
-                               int32_t isPlaying, double positionInBeats) {
+void dvh_desktop_update_transport(double bpm, int32_t timeSigNum,
+                                   int32_t isPlaying, double positionInBeats) {
     std::lock_guard<std::mutex> lk(g_mapMtx);
     for (auto& kv : g_states) {
         auto* s = kv.second;
@@ -707,7 +721,8 @@ void dvh_mac_update_transport(double bpm, int32_t timeSigNum,
     }
 }
 
-#else // !__APPLE__
-// Stub when not compiling for macOS.
-void dvh_mac_update_transport(double, int32_t, int32_t, double) {}
-#endif // __APPLE__
+#else // !(__APPLE__ || _WIN32)
+// Stub when compiling for Linux — the JACK backend lives in its own file
+// and Linux builds this file as an empty translation unit.
+void dvh_desktop_update_transport(double, int32_t, int32_t, double) {}
+#endif // __APPLE__ || _WIN32

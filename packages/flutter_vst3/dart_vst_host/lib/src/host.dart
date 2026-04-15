@@ -86,11 +86,13 @@ class VstHost {
   /// Useful for surfacing latency warnings in the UI.
   int getXrunCount() => _b.dvhJackGetXrunCount(handle);
 
-  /// macOS: Start the CoreAudio/miniaudio output thread.
-  bool startMacAudio() => _b.dvhMacStartAudio(handle) == 1;
+  /// Start the desktop miniaudio playback thread (macOS CoreAudio,
+  /// Windows WASAPI). miniaudio picks the OS backend automatically.
+  /// Linux uses [startJackClient] instead.
+  bool startDesktopAudio() => _b.dvhStartDesktopAudio(handle) == 1;
 
-  /// macOS: Stop the CoreAudio/miniaudio output thread.
-  void stopMacAudio() => _b.dvhMacStopAudio(handle);
+  /// Stop the desktop miniaudio playback thread (macOS + Windows).
+  void stopDesktopAudio() => _b.dvhStopDesktopAudio(handle);
 
   // ─── Audio graph routing (Phase 5.4) ──────────────────────────────────────
 

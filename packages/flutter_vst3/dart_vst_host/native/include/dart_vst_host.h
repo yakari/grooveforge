@@ -159,9 +159,12 @@ DVH_API void dvh_add_master_render(DVH_Host host, DvhRenderFn fn);
 // No-op if [fn] was not registered.
 DVH_API void dvh_remove_master_render(DVH_Host host, DvhRenderFn fn);
 
-// macOS specific audio device management (CoreAudio/miniaudio)
-DVH_API int32_t dvh_mac_start_audio(DVH_Host host);
-DVH_API void    dvh_mac_stop_audio(DVH_Host host);
+// Desktop audio device management via miniaudio (macOS CoreAudio,
+// Windows WASAPI). Linux uses dvh_start_jack_client instead — JACK
+// gives us lower latency and xrun reporting than miniaudio's ALSA
+// fallback, and PipeWire provides a JACK interface out of the box.
+DVH_API int32_t dvh_start_desktop_audio(DVH_Host host);
+DVH_API void    dvh_stop_desktop_audio(DVH_Host host);
 
 // Parameter unit/group API — for grouping parameters by category.
 // Returns the unitId for the parameter at [index]. Returns -1 on failure.

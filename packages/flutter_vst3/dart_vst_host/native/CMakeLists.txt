@@ -71,7 +71,11 @@ set(VstSources
   src/gfpa_dsp.cpp
 )
 
-if(NOT APPLE AND NOT UNIX)
+# Platform stubs: provide no-op fallbacks for symbols that are absent
+# on non-Linux targets (JACK client entry points on macOS + Windows,
+# plus Win32 editor-window stubs until we ship an HWND wrapper).
+# Linux does not need this file — its jack backend provides everything.
+if(NOT UNIX OR APPLE)
   list(APPEND VstSources src/dart_vst_host_platform_stubs.cpp)
 endif()
 
@@ -81,10 +85,23 @@ add_library(dart_vst_host SHARED
   ${VST3_SDK_SOURCES}
 )
 
-# Add platform-specific module files
+# Add platform-specific module files.
+#
+# The real-time audio backend splits across two files:
+#   * Linux         → src/dart_vst_host_jack.cpp          (JACK / PipeWire)
+#   * macOS/Windows → src/dart_vst_host_audio_desktop.cpp (miniaudio, backend
+#                                                          auto-selected:
+#                                                          CoreAudio on mac,
+#                                                          WASAPI on Windows)
+#
+# Linux stays on JACK because PipeWire exposes a JACK server interface
+# out of the box and gives us xrun reporting + lower latency than
+# miniaudio's ALSA fallback. macOS and Windows share the miniaudio
+# file because the code is nearly identical — only the miniaudio
+# `ma_backend` selection differs, and that's automatic.
 if(APPLE)
   target_sources(dart_vst_host PRIVATE
-    src/dart_vst_host_audio_mac.cpp
+    src/dart_vst_host_audio_desktop.cpp
     src/dart_vst_host_editor_mac.mm
     ${VST3_SDK_DIR}/public.sdk/source/vst/hosting/module_mac.mm
     ${VST3_SDK_DIR}/public.sdk/source/common/threadchecker_mac.mm
@@ -106,9 +123,13 @@ elseif(UNIX)
   target_include_directories(dart_vst_host PRIVATE ${X11_INCLUDE_DIR})
 elseif(WIN32)
   target_sources(dart_vst_host PRIVATE
+    src/dart_vst_host_audio_desktop.cpp
     ${VST3_SDK_DIR}/public.sdk/source/vst/hosting/module_win32.cpp
     ${VST3_SDK_DIR}/public.sdk/source/common/threadchecker_win32.cpp
   )
+  # miniaudio's WASAPI backend needs the Windows multimedia + COM libs.
+  # It auto-includes the right headers, we just have to link the libs.
+  target_link_libraries(dart_vst_host ole32 winmm ksuser avrt uuid)
 endif()
 
 target_compile_definitions(dart_vst_host PRIVATE 

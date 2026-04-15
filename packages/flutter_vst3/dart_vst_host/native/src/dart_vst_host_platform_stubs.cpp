@@ -1,52 +1,60 @@
-// Non-Linux stubs for dart_vst_host.
+// Non-Linux thin stubs for dart_vst_host.
 //
-// dart_vst_host_jack.cpp and dart_vst_host_editor_linux.cpp are entirely
-// wrapped in #ifdef __linux__, so their symbols are absent on Windows and
-// macOS. This file provides no-op stubs so the shared library links cleanly
-// on those platforms.
+// macOS and Windows share the miniaudio-based audio backend defined in
+// `dart_vst_host_audio_desktop.cpp`, which provides every audio-graph
+// routing symbol (`dvh_set_processing_order`, `dvh_route_audio`,
+// `dvh_clear_routes`, `dvh_add_master_render`, etc.). Linux has its
+// dedicated JACK backend in `dart_vst_host_jack.cpp`.
 //
-// On Windows, CoreAudio/WASAPI audio output and Win32/HWND editor windows
-// can be implemented here in the future. On macOS, CoreAudio and NSView/
-// Cocoa PlatformView are the equivalents.
+// This file only has to plug the gaps that are Linux-specific OR not
+// yet implemented on a particular desktop:
+//
+//   1. JACK client entry points — Linux-only. macOS and Windows both
+//      use `dvh_start_desktop_audio`/`dvh_stop_desktop_audio`
+//      instead. The no-op stubs below satisfy the Dart FFI loader so
+//      the shared library links cleanly on every desktop.
+//
+//   2. Native plugin editor window — macOS provides `dvh_open_editor`
+//      directly from `dart_vst_host_editor_mac.mm`, and Linux from
+//      `dart_vst_host_editor_linux.cpp`. Windows would need a Win32
+//      HWND wrapper which is deferred to a future "editor windows"
+//      phase; for now, opening a VST3 editor on Windows is a no-op
+//      and plugins are controlled through GrooveForge's built-in
+//      parameter UI.
 
-#if !defined(__linux__) && !defined(__APPLE__)
+#if !defined(__linux__)
 
 #include "dart_vst_host.h"
 
 extern "C" {
 
-// ── JACK / audio-loop stubs ─────────────────────────────────────────────────
-
-void dvh_audio_add_plugin(DVH_Host /*host*/, DVH_Plugin /*plugin*/) {}
-void dvh_audio_remove_plugin(DVH_Host /*host*/, DVH_Plugin /*plugin*/) {}
-void dvh_audio_clear_plugins(DVH_Host /*host*/) {}
+// ── JACK client stubs (macOS + Windows) ─────────────────────────────────────
 
 int32_t dvh_start_jack_client(DVH_Host /*host*/, const char* /*client_name*/) {
-    return 0; // not available on this platform
-}
-
-void dvh_stop_jack_client(DVH_Host /*host*/) {}
-
-int32_t dvh_jack_get_xrun_count(DVH_Host /*host*/) { return 0; }
-
-// ── Audio graph routing stubs (Phase 5.4) ────────────────────────────────────
-
-void dvh_set_processing_order(DVH_Host /*host*/, const DVH_Plugin* /*order*/, int32_t /*count*/) {}
-void dvh_route_audio(DVH_Host /*host*/, DVH_Plugin /*from*/, DVH_Plugin /*to*/) {}
-void dvh_clear_routes(DVH_Host /*host*/) {}
-
-// ── Plugin editor stubs ──────────────────────────────────────────────────────
-
-intptr_t dvh_open_editor(DVH_Plugin /*p*/, const char* /*title*/) {
-    return 0; // no native GUI support yet on this platform
-}
-
-void dvh_close_editor(DVH_Plugin /*p*/) {}
-
-int32_t dvh_editor_is_open(DVH_Plugin /*p*/) {
     return 0;
 }
+void    dvh_stop_jack_client(DVH_Host /*host*/) {}
+int32_t dvh_jack_get_xrun_count(DVH_Host /*host*/) { return 0; }
 
 } // extern "C"
 
 #endif // !__linux__
+
+// ── Plugin editor stubs (Windows only) ─────────────────────────────────────
+//
+// macOS provides the real `dvh_open_editor` / `dvh_close_editor` /
+// `dvh_editor_is_open` implementations in `dart_vst_host_editor_mac.mm`,
+// so this block is Windows-exclusive to avoid duplicate symbols.
+#if defined(_WIN32)
+
+#include "dart_vst_host.h"
+
+extern "C" {
+
+intptr_t dvh_open_editor(DVH_Plugin /*p*/, const char* /*title*/) { return 0; }
+void     dvh_close_editor(DVH_Plugin /*p*/) {}
+int32_t  dvh_editor_is_open(DVH_Plugin /*p*/) { return 0; }
+
+} // extern "C"
+
+#endif // _WIN32

@@ -484,7 +484,10 @@ class VstHostService {
     // audio_engine.dart's keyboard_init(); slot 1 is initialised here so it is
     // ready before syncAudioRouting() fires (which only runs on connection or
     // plugin changes, not on plain rack startup with no effects).
-    if (Platform.isLinux || Platform.isMacOS) {
+    // All three desktop platforms use the same FluidSynth keyboard slot
+    // render functions — the miniaudio path on mac/Windows and the JACK
+    // path on Linux both pull from these master-render contributors.
+    if (Platform.isLinux || Platform.isMacOS || Platform.isWindows) {
       AudioInputFFI().keyboardInitSlot(0, 48000.0);
       AudioInputFFI().keyboardInitSlot(1, 48000.0);
       AudioInputFFI().keyboardInitSlot(2, 48000.0); // percussion (channel 9)
@@ -493,9 +496,13 @@ class VstHostService {
       _host!.addMasterRender(AudioInputFFI().keyboardRenderFnForSlot(2));
     }
 
+    // macOS and Windows share the miniaudio desktop backend (CoreAudio
+    // and WASAPI respectively); Linux uses JACK. See the native
+    // `dart_vst_host_audio_desktop.cpp` vs `dart_vst_host_jack.cpp`
+    // split for the rationale.
     bool ok = false;
-    if (Platform.isMacOS) {
-      ok = _host!.startMacAudio();
+    if (Platform.isMacOS || Platform.isWindows) {
+      ok = _host!.startDesktopAudio();
     } else {
       ok = _host!.startJackClient();
     }
@@ -511,8 +518,8 @@ class VstHostService {
   void stopAudio() {
     if (!_audioRunning || _host == null) return;
 
-    if (Platform.isMacOS) {
-      _host!.stopMacAudio();
+    if (Platform.isMacOS || Platform.isWindows) {
+      _host!.stopDesktopAudio();
     } else {
       _host!.stopJackClient();
     }

@@ -346,11 +346,15 @@ class NativeBindings {
       >('dvh_clear_master_renders');
 
   // macOS specific audio management
-  late final int Function(Pointer<Void>) dvhMacStartAudio =
-      lib.lookupFunction<Int32 Function(Pointer<Void>), int Function(Pointer<Void>)>('dvh_mac_start_audio');
+  /// Start the miniaudio playback thread (macOS CoreAudio, Windows WASAPI).
+  /// The native backend picks the platform backend automatically — this
+  /// one function is used on both desktops. Linux uses dvhStartJackClient.
+  late final int Function(Pointer<Void>) dvhStartDesktopAudio =
+      lib.lookupFunction<Int32 Function(Pointer<Void>), int Function(Pointer<Void>)>('dvh_start_desktop_audio');
 
-  late final void Function(Pointer<Void>) dvhMacStopAudio =
-      lib.lookupFunction<Void Function(Pointer<Void>), void Function(Pointer<Void>)>('dvh_mac_stop_audio');
+  /// Stop the miniaudio playback thread (macOS + Windows).
+  late final void Function(Pointer<Void>) dvhStopDesktopAudio =
+      lib.lookupFunction<Void Function(Pointer<Void>), void Function(Pointer<Void>)>('dvh_stop_desktop_audio');
 
   // Parameter unit/group API.
   late final int Function(Pointer<Void>, int) dvhParamUnitId =
