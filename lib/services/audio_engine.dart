@@ -299,7 +299,7 @@ class AudioEngine extends ChangeNotifier {
   ///   loaded synth instance.
   void applyFluidSynthGain() {
     debugPrint('AudioEngine: gain changed to ${fluidSynthGain.value.toStringAsFixed(2)}');
-    if (!kIsWeb && (Platform.isLinux || Platform.isMacOS)) {
+    if (!kIsWeb && (Platform.isLinux || Platform.isMacOS || Platform.isWindows)) {
       AudioInputFFI().keyboardSetGain(fluidSynthGain.value);
     } else {
       MidiPro().setGain(fluidSynthGain.value);
@@ -571,7 +571,7 @@ class AudioEngine extends ChangeNotifier {
     }
 
     if (!kIsWeb) {
-      if (Platform.isLinux || Platform.isMacOS) {
+      if (Platform.isLinux || Platform.isMacOS || Platform.isWindows) {
         initStatus.value = 'Starting FluidSynth backend...';
         // Use libfluidsynth directly (in-process, no audio driver) so that
         // the dart_vst_host audio thread can drive rendering via
@@ -895,7 +895,7 @@ class AudioEngine extends ChangeNotifier {
       final List<String>? savedChannels =
           _prefs!.getStringList('channels_state');
       if (savedChannels != null && savedChannels.length == 16) {
-        if ((Platform.isLinux || Platform.isMacOS) && savedSfs != null && savedSfs.isNotEmpty) {
+        if ((Platform.isLinux || Platform.isMacOS || Platform.isWindows) && savedSfs != null && savedSfs.isNotEmpty) {
           await Future.delayed(const Duration(milliseconds: 1500));
         }
         for (int i = 0; i < 16; i++) {
@@ -1014,7 +1014,7 @@ class AudioEngine extends ChangeNotifier {
       }
       loadedSoundfonts.add(targetPath);
 
-      if (Platform.isLinux || Platform.isMacOS) {
+      if (Platform.isLinux || Platform.isMacOS || Platform.isWindows) {
         // keyboard_load_sf() returns the FluidSynth-assigned sfId directly.
         // Works on both Linux (ALSA) and macOS (CoreAudio).
         final sfId = AudioInputFFI().keyboardLoadSf(targetPath);
@@ -1056,7 +1056,7 @@ class AudioEngine extends ChangeNotifier {
     if (!loadedSoundfonts.contains(path)) {
       return;
     }
-    if (!kIsWeb && (Platform.isLinux || Platform.isMacOS)) {
+    if (!kIsWeb && (Platform.isLinux || Platform.isMacOS || Platform.isWindows)) {
       int? sfId = _sfPathToIdLinux[path];
       if (sfId != null) {
         AudioInputFFI().keyboardUnloadSf(sfId);
@@ -1161,7 +1161,7 @@ class AudioEngine extends ChangeNotifier {
         state.soundfontPath == kMidiControllerOnlySoundfont) {
       return;
     }
-    if (!kIsWeb && (Platform.isLinux || Platform.isMacOS)) {
+    if (!kIsWeb && (Platform.isLinux || Platform.isMacOS || Platform.isWindows)) {
       int? sfId = _sfPathToIdLinux[state.soundfontPath!];
       if (sfId != null) {
         AudioInputFFI().keyboardProgramSelect(channel, sfId, state.bank, state.program);
@@ -1198,7 +1198,7 @@ class AudioEngine extends ChangeNotifier {
       // brief window between startup and initAndroidKeyboardSlots completing.
       return _channelSlotSfId[channel] ?? (_sfPathToIdMobile[path] ?? -1);
     }
-    return (!kIsWeb && (Platform.isLinux || Platform.isMacOS))
+    return (!kIsWeb && (Platform.isLinux || Platform.isMacOS || Platform.isWindows))
         ? (_sfPathToIdLinux[path] ?? -1)
         : (_sfPathToIdMobile[path] ?? -1);
   }
@@ -1292,7 +1292,7 @@ class AudioEngine extends ChangeNotifier {
     // GM drum notes: 37 = side stick (downbeat accent), 76 = high wood block (regular beat).
     final int note = isDownbeat ? 37 : 76;
     final int velocity = isDownbeat ? 100 : 75;
-    if (!kIsWeb && (Platform.isLinux || Platform.isMacOS)) {
+    if (!kIsWeb && (Platform.isLinux || Platform.isMacOS || Platform.isWindows)) {
       AudioInputFFI().keyboardNoteOn(percChannel, note, velocity);
       Future.delayed(const Duration(milliseconds: 40), () {
         AudioInputFFI().keyboardNoteOff(percChannel, note);
@@ -1515,7 +1515,7 @@ class AudioEngine extends ChangeNotifier {
     // synth doesn't double-voice the same note.
     final currentOwner = channels[channel].snappedKeyOwners[keyToPlay];
     if (currentOwner != null && currentOwner != key && !midiControllerOnly) {
-      if (!kIsWeb && (Platform.isLinux || Platform.isMacOS)) {
+      if (!kIsWeb && (Platform.isLinux || Platform.isMacOS || Platform.isWindows)) {
         AudioInputFFI().keyboardNoteOff(channel, keyToPlay);
       } else {
         // Android hot path: direct FFI (see `playNote` branch below for
@@ -1536,7 +1536,7 @@ class AudioEngine extends ChangeNotifier {
     if (!channels[channel].isMuted.value && !midiControllerOnly) {
       if (channels[channel].soundfontPath == vocoderMode) {
         AudioInputFFI().playNote(key: keyToPlay, velocity: velocity);
-      } else if (!kIsWeb && (Platform.isLinux || Platform.isMacOS)) {
+      } else if (!kIsWeb && (Platform.isLinux || Platform.isMacOS || Platform.isWindows)) {
         AudioInputFFI().keyboardNoteOn(channel, keyToPlay, velocity);
       } else {
         // Android hot path: direct FFI into libnative-lib.so's
@@ -1590,7 +1590,7 @@ class AudioEngine extends ChangeNotifier {
       if (!midiOnly) {
         if (channels[channel].soundfontPath == vocoderMode) {
           AudioInputFFI().stopNote(key: keyToStop);
-        } else if (!kIsWeb && (Platform.isLinux || Platform.isMacOS)) {
+        } else if (!kIsWeb && (Platform.isLinux || Platform.isMacOS || Platform.isWindows)) {
           AudioInputFFI().keyboardNoteOff(channel, keyToStop);
         } else {
           // Android hot path — see `playNote` for the latency rationale.
@@ -2327,7 +2327,7 @@ class AudioEngine extends ChangeNotifier {
     if (channels[channel].soundfontPath == kMidiControllerOnlySoundfont) {
       return;
     }
-    if (!kIsWeb && (Platform.isLinux || Platform.isMacOS)) {
+    if (!kIsWeb && (Platform.isLinux || Platform.isMacOS || Platform.isWindows)) {
       AudioInputFFI().keyboardControlChange(channel, controller, value);
     } else {
       // Android hot path — direct FFI, same latency rationale as playNote.
@@ -2341,7 +2341,7 @@ class AudioEngine extends ChangeNotifier {
     if (channels[channel].soundfontPath == kMidiControllerOnlySoundfont) {
       return;
     }
-    if (!kIsWeb && (Platform.isLinux || Platform.isMacOS)) {
+    if (!kIsWeb && (Platform.isLinux || Platform.isMacOS || Platform.isWindows)) {
       AudioInputFFI().keyboardPitchBend(channel, value);
     } else {
       // Android hot path — direct FFI, same latency rationale as playNote.

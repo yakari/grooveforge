@@ -26,9 +26,9 @@
   #define EXPORT __attribute__((visibility("default"))) __attribute__((used))
 #endif
 
-// FluidSynth is available on Linux and macOS desktop.
+// FluidSynth is available on Linux, macOS, and Windows desktop.
 // Android also defines __linux__, so we explicitly exclude it.
-#if (defined(__linux__) || defined(__APPLE__)) && !defined(__ANDROID__)
+#if (defined(__linux__) || defined(__APPLE__) || defined(_WIN32)) && !defined(__ANDROID__)
 
 #include <fluidsynth.h>
 #include <stdlib.h>

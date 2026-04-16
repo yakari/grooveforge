@@ -43,8 +43,22 @@ elseif (UNIX AND NOT APPLE)
     target_include_directories(audio_input PRIVATE ${FLUIDSYNTH_INCLUDE_DIR})
     target_link_libraries(audio_input PRIVATE ${M_LIB} ${DL_LIB} ${FLUIDSYNTH_LIB})
 elseif (WIN32)
+    # FluidSynth prebuilt SDK (cpp11 variant — no GLib dependency).
+    set(FLUIDSYNTH_WIN_DIR "${CMAKE_CURRENT_SOURCE_DIR}/fluidsynth_win64")
+    find_library(FLUIDSYNTH_LIB libfluidsynth-3
+                 HINTS "${FLUIDSYNTH_WIN_DIR}/lib")
+    find_path(FLUIDSYNTH_INCLUDE_DIR fluidsynth.h
+              HINTS "${FLUIDSYNTH_WIN_DIR}/include")
+    if(FLUIDSYNTH_LIB AND FLUIDSYNTH_INCLUDE_DIR)
+        target_include_directories(audio_input PRIVATE ${FLUIDSYNTH_INCLUDE_DIR})
+        target_link_libraries(audio_input PRIVATE ${FLUIDSYNTH_LIB})
+    else()
+        message(FATAL_ERROR
+          "FluidSynth not found at ${FLUIDSYNTH_WIN_DIR}.\n"
+          "Run the setup script or download the cpp11 build from "
+          "https://github.com/FluidSynth/fluidsynth/releases")
+    endif()
     # miniaudio's WASAPI backend needs COM + multimedia libs.
-    # keyboard_synth.c compiles as no-op stubs (FluidSynth not yet available).
     target_link_libraries(audio_input PRIVATE ole32 winmm ksuser avrt)
     target_compile_definitions(audio_input PRIVATE NOMINMAX)
 endif()

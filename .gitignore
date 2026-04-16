@@ -52,6 +52,9 @@ app.*.map.json
 native_audio/build_mac/
 packages/flutter_vst3/dart_vst_host/native/build/
 
+# Downloaded FluidSynth Windows SDK (prebuilt binaries, ~5MB)
+native_audio/fluidsynth_win64/
+
 # Local-only documentation (not for public repo)
 /docs/local/
 
