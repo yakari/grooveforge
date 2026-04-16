@@ -409,6 +409,8 @@ class AudioInputFFI {
       _lib = DynamicLibrary.open('libaudio_input.so');
     } else if (Platform.isMacOS) {
       _lib = DynamicLibrary.open('libaudio_input.dylib');
+    } else if (Platform.isWindows) {
+      _lib = DynamicLibrary.open('audio_input.dll');
     } else {
       throw UnsupportedError('This platform is not supported');
     }

@@ -11,7 +11,7 @@
 
 cmake_minimum_required(VERSION 3.14)
 set(PROJECT_NAME "dart_vst_host")
-project(${PROJECT_NAME} LANGUAGES CXX)
+project(${PROJECT_NAME} LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
@@ -21,6 +21,11 @@ get_filename_component(REAL_PLUGIN_DIR "${CMAKE_CURRENT_SOURCE_DIR}/.." REALPATH
 file(TO_CMAKE_PATH "${REAL_PLUGIN_DIR}" REAL_PLUGIN_DIR)
 
 set(NATIVE_DIR "${REAL_PLUGIN_DIR}/native")
+
+# Shared DSP modules at repo root in native_audio/ (source of truth for
+# gf_phase_vocoder, used by both libaudio_input and the looper).
+get_filename_component(GF_NATIVE_AUDIO_DIR
+  "${REAL_PLUGIN_DIR}/../../../native_audio" REALPATH)
 
 if(DEFINED ENV{VST3_SDK_DIR})
   set(VST3_SDK_DIR "$ENV{VST3_SDK_DIR}")
@@ -94,7 +99,15 @@ endif()
 
 add_library(${PROJECT_NAME} SHARED
   ${NATIVE_DIR}/src/dart_vst_host.cpp
-  # Platform stubs (ALSA + Linux editor → no-ops on Windows)
+  # Native DSP implementations for GFPA descriptor effects
+  ${NATIVE_DIR}/src/gfpa_dsp.cpp
+  # Audio looper (record / overdub / playback with phase vocoder)
+  ${NATIVE_DIR}/src/audio_looper.cpp
+  # Phase vocoder from repo-root native_audio/ (shared DSP module)
+  ${GF_NATIVE_AUDIO_DIR}/gf_phase_vocoder.c
+  # miniaudio-based audio backend (WASAPI on Windows, CoreAudio on macOS)
+  ${NATIVE_DIR}/src/dart_vst_host_audio_desktop.cpp
+  # Platform stubs (JACK + Linux editor → no-ops on Windows)
   ${NATIVE_DIR}/src/dart_vst_host_platform_stubs.cpp
   ${VST3_BASE_SOURCES}
   ${VST3_SDK_SOURCES}
@@ -108,6 +121,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
   ${VST3_SDK_DIR}/public.sdk/source
   ${VST3_SDK_DIR}/base/thread/include
   ${NATIVE_DIR}/include
+  ${GF_NATIVE_AUDIO_DIR}
 )
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE
@@ -115,15 +129,20 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
   RELEASE=1
   # Suppress MSVC warnings from VST3 SDK
   _CRT_SECURE_NO_WARNINGS
+  # Prevent windows.h from defining min/max macros that break std::max/std::min
+  NOMINMAX
 )
 
-# Windows system libraries required by VST3 hosting
+# Windows system libraries required by VST3 hosting + miniaudio WASAPI backend
 target_link_libraries(${PROJECT_NAME} PRIVATE
   ole32
   uuid
   user32
   gdi32
   shell32
+  winmm
+  ksuser
+  avrt
 )
 
 # ── Flutter FFI plugin bundling ────────────────────────────────────────────────

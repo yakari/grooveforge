@@ -42,6 +42,11 @@ elseif (UNIX AND NOT APPLE)
     find_path(FLUIDSYNTH_INCLUDE_DIR fluidsynth.h)
     target_include_directories(audio_input PRIVATE ${FLUIDSYNTH_INCLUDE_DIR})
     target_link_libraries(audio_input PRIVATE ${M_LIB} ${DL_LIB} ${FLUIDSYNTH_LIB})
+elseif (WIN32)
+    # miniaudio's WASAPI backend needs COM + multimedia libs.
+    # keyboard_synth.c compiles as no-op stubs (FluidSynth not yet available).
+    target_link_libraries(audio_input PRIVATE ole32 winmm ksuser avrt)
+    target_compile_definitions(audio_input PRIVATE NOMINMAX)
 endif()
 
 # Offline smoke test for the phase vocoder. Host-side only (not included
