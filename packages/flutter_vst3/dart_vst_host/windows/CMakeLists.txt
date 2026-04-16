@@ -24,8 +24,27 @@ set(NATIVE_DIR "${REAL_PLUGIN_DIR}/native")
 
 # Shared DSP modules at repo root in native_audio/ (source of truth for
 # gf_phase_vocoder, used by both libaudio_input and the looper).
+#
+# Path resolution gotcha: on CI runners, Flutter creates `.plugin_symlinks/`
+# as Windows directory junctions. CMake's `get_filename_component(REALPATH)`
+# does NOT resolve junctions, so walking `../../../native_audio` from the
+# junction target stays inside `windows/flutter/ephemeral/` instead of
+# reaching the repo root. We try the plugin-relative path first, and if the
+# target file does not exist, fall back to CMAKE_SOURCE_DIR/.. which on a
+# Flutter Windows build is reliably `<repo>/windows/..` = the repo root.
 get_filename_component(GF_NATIVE_AUDIO_DIR
   "${REAL_PLUGIN_DIR}/../../../native_audio" REALPATH)
+if(NOT EXISTS "${GF_NATIVE_AUDIO_DIR}/gf_phase_vocoder.c")
+  get_filename_component(GF_NATIVE_AUDIO_DIR
+    "${CMAKE_SOURCE_DIR}/../native_audio" ABSOLUTE)
+endif()
+if(NOT EXISTS "${GF_NATIVE_AUDIO_DIR}/gf_phase_vocoder.c")
+  message(FATAL_ERROR
+    "gf_phase_vocoder.c not found. Tried:\n"
+    "  ${REAL_PLUGIN_DIR}/../../../native_audio\n"
+    "  ${CMAKE_SOURCE_DIR}/../native_audio\n"
+    "Check that native_audio/ exists at the repo root.")
+endif()
 
 if(DEFINED ENV{VST3_SDK_DIR})
   set(VST3_SDK_DIR "$ENV{VST3_SDK_DIR}")
@@ -34,14 +53,18 @@ if(DEFINED ENV{VST3_SDK_DIR})
   # so paths from Windows environment variables must be normalised first.
   file(TO_CMAKE_PATH "${VST3_SDK_DIR}" VST3_SDK_DIR)
 else()
+  # Same junction-resolution fallback as GF_NATIVE_AUDIO_DIR above.
   set(VST3_SDK_DIR "${REAL_PLUGIN_DIR}/../vst3sdk")
+  if(NOT EXISTS "${VST3_SDK_DIR}/CMakeLists.txt")
+    get_filename_component(VST3_SDK_DIR
+      "${CMAKE_SOURCE_DIR}/../packages/flutter_vst3/vst3sdk" ABSOLUTE)
+  endif()
 endif()
 
 if(NOT EXISTS "${VST3_SDK_DIR}/CMakeLists.txt")
   message(FATAL_ERROR
     "VST3 SDK not found at ${VST3_SDK_DIR}.\n"
-    "It should be vendored at packages/flutter_vst3/vst3sdk/ in the repo."
-  )
+    "It should be vendored at packages/flutter_vst3/vst3sdk/ in the repo.")
 endif()
 
 # ── VST3 SDK sources (cross-platform) ─────────────────────────────────────────
