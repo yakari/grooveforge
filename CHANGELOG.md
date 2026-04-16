@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.13.1] - 2026-04-15
+
+### Added
+- **Windows support**. GrooveForge now runs on Windows with full VST3 plugin hosting, audio processing via WASAPI, and project save/restore. Plugin editor GUI windows are not yet available — plugins are controlled through GrooveForge's built-in parameter UI.
+- **Cable validator blocks shared-effect wiring**. Dragging a cable that would feed the same stateful effect from two divergent signal paths is now blocked at drop time with a clear message naming the effect and suggesting the workaround (duplicate the effect slot). The help modal documents the rule under "Rack & Cables".
+
+### Fixed
+- **Crackling audio when two signal paths shared a downstream effect**. Cabling e.g. kb1 → reverb AND kb2 → harmonizer → reverb no longer corrupts the reverb's internal filter state and no longer causes callback overruns on any platform.
+- **Startup crash on Linux with large JACK block sizes**. Effect scratch buffers were undersized for JACK's actual block size, causing a bounds-check assertion on PipeWire systems that deliver 2048-frame blocks.
+- **Transport bar overflow on narrow Android phones**. The compact transport row now scales down instead of overflowing on screens narrower than ~350 dp.
+
+### Architecture
+- Unified audio routing: a single plan builder now drives both the desktop and Android routing adapters, replacing ~500 lines of duplicated per-platform graph-walking code.
+- Shared effect-chain runner across all three native backends (JACK, CoreAudio, WASAPI/Oboe).
+- Grow-only real-time buffer resizing eliminates a race between PipeWire's buffer-size bouncing and the audio callback.
+
 ## [2.13.0] - 2026-04-13
 
 ### Added
