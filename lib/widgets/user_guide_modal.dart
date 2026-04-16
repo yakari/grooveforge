@@ -347,9 +347,43 @@ class _PatchViewTab extends StatelessWidget {
         const SizedBox(height: 20),
         _buildSubTitle(l10n.guidePatchDataTitle),
         _buildParagraph(l10n.guidePatchDataBody),
+        const SizedBox(height: 20),
+        _buildSubTitle(l10n.guidePatchSharedEffectTitle),
+        _buildParagraph(l10n.guidePatchSharedEffectBody),
+        const SizedBox(height: 8),
+        _buildWarningBox(l10n.guidePatchSharedEffectWorkaround),
         const SizedBox(height: 12),
         _buildInfoBox(l10n.guidePatchTip),
       ],
+    );
+  }
+
+  /// A warning-styled box used to flag routing constraints that will
+  /// block a drag-drop attempt. Visually distinct from
+  /// [_buildDesktopOnlyBox] (amber / desktop) and [_buildInfoBox]
+  /// (neutral / info) so users recognise it as "this will produce a
+  /// rejection toast if you try it".
+  Widget _buildWarningBox(String text) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.redAccent.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.redAccent.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.warning_amber_outlined,
+              color: Colors.redAccent, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(color: Colors.redAccent, fontSize: 13),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

@@ -61,7 +61,7 @@ class MidiService {
   void _setHangFlagSync(bool value) {
     if (kIsWeb) return;  // No filesystem on web; hang-detection is native-only.
     try {
-      final path = '/tmp/grooveforge_midi_hang.flag';
+      final path = '${Directory.systemTemp.path}/grooveforge_midi_hang.flag';
       final file = File(path);
       if (value) {
         file.writeAsStringSync('hanging', flush: true);
@@ -76,7 +76,7 @@ class MidiService {
   bool _isHangFlagSetSync() {
     if (kIsWeb) return false;  // No filesystem on web.
     try {
-      return File('/tmp/grooveforge_midi_hang.flag').existsSync();
+      return File('${Directory.systemTemp.path}/grooveforge_midi_hang.flag').existsSync();
     } catch (_) {
       return false;
     }

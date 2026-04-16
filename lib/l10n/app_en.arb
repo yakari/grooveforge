@@ -217,6 +217,9 @@
   "guidePatchDisconnectBody": "Each cable has a small ✕ badge at its midpoint. Tap the badge to bring up the Disconnect menu. The badge is also the cable's hit zone, so aim for the circle with the coloured ring.",
   "guidePatchDataTitle": "Data Cables (Jam Mode)",
   "guidePatchDataBody": "Purple data cables represent the Jam Mode harmony flow between slots. Drawing a CHORD OUT → CHORD IN cable is the same as selecting a Jam Mode master in the dropdown — both controls stay in sync. Similarly, a SCALE OUT → SCALE IN cable corresponds to a target follower slot.",
+  "guidePatchSharedEffectTitle": "One signal path per effect slot",
+  "guidePatchSharedEffectBody": "Audio effects (reverb, delay, chorus, harmonizer, wah, EQ, compressor, …) hold internal filter state that is updated every audio block. An effect slot can therefore only be fed by one distinct signal path. Simple fan-in works: two keyboards cabled directly into the same reverb are mixed and processed together. Divergent paths do not: cabling kb1 → reverb AND kb2 → harmonizer → reverb asks the reverb to process two different signals in the same block, which would corrupt its filter state.",
+  "guidePatchSharedEffectWorkaround": "When GrooveForge blocks a cable with this rule, duplicate the effect slot so each signal path has its own instance. Add a second reverb from the plugin list and cable it into the second path.",
   "guidePatchTip": "Tip: Cables are saved as part of your project (.gf file). Open a saved project to restore all connections exactly as you left them.",
   "guideJamModeTitle": "Jam Mode (Auto-Harmony)",
   "guideJamModeBody": "Jam Mode allows you to play flawlessly by locking all keys to a specific scale. In Jam Mode, one channel acts as the 'Master' (transmitting its scale/harmony) while other channels act as 'Slaves'. Use the top controls to define the root note and scale type.",
@@ -332,6 +335,13 @@
   "disconnectCable": "Disconnect",
   "cableColour": "Cable colour",
   "connectionCycleError": "Cycle detected: this connection would create a feedback loop",
+  "connectionSharedEffectError": "{effectName} is already cabled from another signal path. Duplicate the effect slot so each path has its own instance.",
+  "@connectionSharedEffectError": {
+    "description": "Shown when a user tries to cable two divergent signal paths into the same stateful effect. Named the 'Phase H block' in the audio routing redesign.",
+    "placeholders": {
+      "effectName": { "type": "String" }
+    }
+  },
   "portMidiIn": "MIDI IN",
   "portMidiOut": "MIDI OUT",
   "portAudioInL": "AUDIO IN L",

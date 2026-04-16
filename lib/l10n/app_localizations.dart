@@ -908,6 +908,24 @@ abstract class AppLocalizations {
   /// **'Purple data cables represent the Jam Mode harmony flow between slots. Drawing a CHORD OUT → CHORD IN cable is the same as selecting a Jam Mode master in the dropdown — both controls stay in sync. Similarly, a SCALE OUT → SCALE IN cable corresponds to a target follower slot.'**
   String get guidePatchDataBody;
 
+  /// No description provided for @guidePatchSharedEffectTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'One signal path per effect slot'**
+  String get guidePatchSharedEffectTitle;
+
+  /// No description provided for @guidePatchSharedEffectBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio effects (reverb, delay, chorus, harmonizer, wah, EQ, compressor, …) hold internal filter state that is updated every audio block. An effect slot can therefore only be fed by one distinct signal path. Simple fan-in works: two keyboards cabled directly into the same reverb are mixed and processed together. Divergent paths do not: cabling kb1 → reverb AND kb2 → harmonizer → reverb asks the reverb to process two different signals in the same block, which would corrupt its filter state.'**
+  String get guidePatchSharedEffectBody;
+
+  /// No description provided for @guidePatchSharedEffectWorkaround.
+  ///
+  /// In en, this message translates to:
+  /// **'When GrooveForge blocks a cable with this rule, duplicate the effect slot so each signal path has its own instance. Add a second reverb from the plugin list and cable it into the second path.'**
+  String get guidePatchSharedEffectWorkaround;
+
   /// No description provided for @guidePatchTip.
   ///
   /// In en, this message translates to:
@@ -1495,6 +1513,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Cycle detected: this connection would create a feedback loop'**
   String get connectionCycleError;
+
+  /// Shown when a user tries to cable two divergent signal paths into the same stateful effect. Named the 'Phase H block' in the audio routing redesign.
+  ///
+  /// In en, this message translates to:
+  /// **'{effectName} is already cabled from another signal path. Duplicate the effect slot so each path has its own instance.'**
+  String connectionSharedEffectError(String effectName);
 
   /// No description provided for @portMidiIn.
   ///

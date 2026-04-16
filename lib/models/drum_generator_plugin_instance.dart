@@ -1,3 +1,4 @@
+import '../audio/audio_source_descriptor.dart';
 import 'plugin_instance.dart';
 
 /// How the drum generator introduces itself before the first bar.
@@ -162,7 +163,14 @@ class DrumStructureConfig {
 ///
 /// The engine ([DrumGeneratorEngine]) holds the runtime state and scheduling
 /// for each slot; this model is purely data and survives project saves.
-class DrumGeneratorPluginInstance implements PluginInstance {
+class DrumGeneratorPluginInstance
+    with AudioSourcePlugin
+    implements PluginInstance {
+  @override
+  AudioSourceDescriptor describeAudioSource() => const AudioSourceDescriptor(
+        kind: AudioSourceKind.drumGenerator,
+      );
+
   @override
   final String id;
 

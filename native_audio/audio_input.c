@@ -1,3 +1,17 @@
+// ── MSVC compatibility shims ─────────────────────────────────────────────────
+#ifdef _MSC_VER
+  #define _USE_MATH_DEFINES          // M_PI from <math.h>
+  #include <stdint.h>                // int64_t, etc. (not implicit in MSVC C mode)
+  #include <intrin.h>
+  // Map GCC __atomic builtins to MSVC intrinsics (32-bit atomics only here).
+  #define __atomic_store_n(ptr, val, order) \
+      _InterlockedExchange((volatile long*)(ptr), (long)(val))
+  #define __atomic_load_n(ptr, order) \
+      _InterlockedCompareExchange((volatile long*)(ptr), 0, 0)
+  #define __ATOMIC_RELEASE 0
+  #define __ATOMIC_ACQUIRE 0
+#endif
+
 #define MA_API static
 #define MINIAUDIO_IMPLEMENTATION
 #include "miniaudio.h"
@@ -165,11 +179,21 @@ static float g_natLoopDetectedHz = 0.0f;
 /// high) — same gating logic as the previous PSOLA implementation.
 static float g_naturalMaxCorr = 0.0f;
 
+#ifdef _WIN32
+static int64_t _get_monotonic_ns(void) {
+    static LARGE_INTEGER freq = {0};
+    if (freq.QuadPart == 0) QueryPerformanceFrequency(&freq);
+    LARGE_INTEGER counter;
+    QueryPerformanceCounter(&counter);
+    return (int64_t)(counter.QuadPart * 1000000000LL / freq.QuadPart);
+}
+#else
 static int64_t _get_monotonic_ns(void) {
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return (int64_t)ts.tv_sec * 1000000000LL + ts.tv_nsec;
 }
+#endif
 
 // Global state
 static ma_context context;

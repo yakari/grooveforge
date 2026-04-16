@@ -8,15 +8,17 @@
 #include <string>
 #include <vector>
 
-// ── Cross-TU helpers (JACK ↔ main) ──────────────────────────────────────────
+// ── Cross-TU helpers (audio backend ↔ main) ────────────────────────────────
 
 /// Broadcast transport state to all JACK AudioState instances (Linux).
 void dvh_jack_update_transport(double bpm, int32_t timeSigNum,
                                 int32_t isPlaying, double positionInBeats);
 
-/// Broadcast transport state to all macOS AudioState instances.
-void dvh_mac_update_transport(double bpm, int32_t timeSigNum,
-                               int32_t isPlaying, double positionInBeats);
+/// Broadcast transport state to all desktop AudioState instances
+/// (macOS CoreAudio + Windows WASAPI, both via miniaudio). Defined in
+/// `dart_vst_host_audio_desktop.cpp`.
+void dvh_desktop_update_transport(double bpm, int32_t timeSigNum,
+                                   int32_t isPlaying, double positionInBeats);
 
 #include "pluginterfaces/base/funknown.h"
 #include "pluginterfaces/base/ipluginbase.h"

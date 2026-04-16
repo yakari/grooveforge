@@ -159,9 +159,12 @@ DVH_API void dvh_add_master_render(DVH_Host host, DvhRenderFn fn);
 // No-op if [fn] was not registered.
 DVH_API void dvh_remove_master_render(DVH_Host host, DvhRenderFn fn);
 
-// macOS specific audio device management (CoreAudio/miniaudio)
-DVH_API int32_t dvh_mac_start_audio(DVH_Host host);
-DVH_API void    dvh_mac_stop_audio(DVH_Host host);
+// Desktop audio device management via miniaudio (macOS CoreAudio,
+// Windows WASAPI). Linux uses dvh_start_jack_client instead — JACK
+// gives us lower latency and xrun reporting than miniaudio's ALSA
+// fallback, and PipeWire provides a JACK interface out of the box.
+DVH_API int32_t dvh_start_desktop_audio(DVH_Host host);
+DVH_API void    dvh_stop_desktop_audio(DVH_Host host);
 
 // Parameter unit/group API — for grouping parameters by category.
 // Returns the unitId for the parameter at [index]. Returns -1 on failure.
@@ -202,12 +205,56 @@ DVH_API int32_t  dvh_mac_editor_is_open(DVH_Plugin p);
 typedef void (*GfpaInsertFn_fwd)(const float*, const float*,
                                   float*, float*, int32_t, void*);
 
-/// Register a GFPA insert on [source]'s master-render audio path.
-/// [insertFn] is called each audio block with the source's dry stereo output;
-/// [userdata] is the GfpaDspHandle (obtained from gfpa_dsp_userdata()).
-/// Calling again for the same [source] replaces the existing insert.
-DVH_API void dvh_add_master_insert(DVH_Host host, DvhRenderFn source,
-                                    GfpaInsertFn_fwd insertFn, void* userdata);
+/// Atomically create or replace ONE complete master insert chain.
+///
+/// A chain consists of:
+///   - `sources[sourceCount]` — one or more render functions whose
+///     output is summed (fan-in) into a single stereo accumulation
+///     buffer before any effect runs.
+///   - `effects[effectCount]` / `effectUserdatas[effectCount]` — an
+///     ordered list of GFPA DSP inserts applied in series. The output
+///     of effect N is the input of effect N+1.
+///
+/// **Atomic commit**: the entire `(sources, effects)` pair is installed
+/// in a single call to the routing snapshot publisher. No merge
+/// heuristic runs: any existing chain whose source or effect handle
+/// collides with the new chain is **replaced**, not merged into the
+/// new one. This is the Phase H fix for the v2.13.0 grésillement bug.
+///
+/// **Uniqueness contract**: every `effectUserdatas[i]` entry must appear
+/// in at most one chain across the whole host. The caller (the Dart
+/// plan builder) is responsible for enforcing this; the native side
+/// does not re-check. Sharing a stateful DSP across chains corrupts
+/// its internal filter state and produces audibly garbled output.
+///
+/// Callers typically use this as part of a rebuild loop:
+///
+///     dvh_clear_master_inserts(host);
+///     for each chain in plan.insertChains:
+///         dvh_set_master_insert_chain(host, ...);
+///
+/// The clear + per-chain pattern keeps the snapshot consistent even if
+/// the set of chains shrinks between rebuilds.
+///
+/// Parameters:
+///   host             — the host handle.
+///   sources          — pointer to an array of [sourceCount] render fns.
+///   sourceCount      — number of fan-in sources. Must be ≥ 1.
+///   effects          — pointer to an array of [effectCount] insert fns.
+///                      May be NULL if [effectCount] is 0.
+///   effectUserdatas  — pointer to an array of [effectCount] userdata
+///                      pointers, one per effect.
+///   effectCount      — number of effects in series. 0 is valid and
+///                      produces a pure fan-in chain (sources summed
+///                      into master mix with no DSP).
+///
+/// No-op if any required pointer is NULL or if [sourceCount] <= 0.
+DVH_API void dvh_set_master_insert_chain(
+    DVH_Host host,
+    const DvhRenderFn* sources, int32_t sourceCount,
+    const GfpaInsertFn_fwd* effects,
+    void* const* effectUserdatas,
+    int32_t effectCount);
 
 /// Remove all inserts for [source] from the chain. No-op if none registered.
 DVH_API void dvh_remove_master_insert(DVH_Host host, DvhRenderFn source);

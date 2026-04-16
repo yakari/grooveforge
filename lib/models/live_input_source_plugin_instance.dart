@@ -1,3 +1,4 @@
+import '../audio/audio_source_descriptor.dart';
 import 'plugin_instance.dart';
 
 /// A rack source slot that exposes a hardware audio input (microphone,
@@ -17,7 +18,13 @@ import 'plugin_instance.dart';
 /// The actual capture stream lives in C++ (miniaudio on desktop, Oboe on
 /// Android). This Dart class holds only the persisted selection state and
 /// the render-function pointer handed to [VstHostService.syncAudioRouting].
-class LiveInputSourcePluginInstance extends PluginInstance {
+class LiveInputSourcePluginInstance extends PluginInstance
+    with AudioSourcePlugin {
+  @override
+  AudioSourceDescriptor describeAudioSource() => const AudioSourceDescriptor(
+        kind: AudioSourceKind.liveInput,
+      );
+
   @override
   final String id;
 

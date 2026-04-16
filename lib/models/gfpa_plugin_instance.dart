@@ -1,3 +1,4 @@
+import '../audio/audio_source_descriptor.dart';
 import 'keyboard_display_config.dart';
 import 'plugin_instance.dart';
 
@@ -9,7 +10,23 @@ import 'plugin_instance.dart';
 /// handled.
 ///
 /// Serialised as `"type": "gfpa"` in `.gf` project files.
-class GFpaPluginInstance implements PluginInstance {
+class GFpaPluginInstance with AudioSourcePlugin implements PluginInstance {
+  /// Returns a descriptor for the three GFPA instruments that produce
+  /// audio (theremin, stylophone, vocoder), or `null` for any other
+  /// `pluginId` (effects, MIDI FX, and unrecognised slots). The plan
+  /// builder uses `null` as the "skip — this is not a source" signal.
+  @override
+  AudioSourceDescriptor? describeAudioSource() => switch (pluginId) {
+        'com.grooveforge.theremin' =>
+          const AudioSourceDescriptor(kind: AudioSourceKind.theremin),
+        'com.grooveforge.stylophone' =>
+          const AudioSourceDescriptor(kind: AudioSourceKind.stylophone),
+        'com.grooveforge.vocoder' =>
+          const AudioSourceDescriptor(kind: AudioSourceKind.vocoder),
+        _ => null,
+      };
+
+
   @override
   final String id;
 

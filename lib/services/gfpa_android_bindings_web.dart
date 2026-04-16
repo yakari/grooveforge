@@ -46,13 +46,14 @@ class GfpaAndroidBindings {
   void gfpaDspDestroy(int handle) {}
 
   /// Not supported on web — no-op.
-  void gfpaAndroidAddInsertForSf(int sfId, int handle) {}
-
-  /// Not supported on web — no-op.
   void gfpaAndroidRemoveInsert(int handle) {}
 
   /// Not supported on web — no-op.
   void gfpaAndroidClearAllInserts() {}
+
+  /// Not supported on web — no-op. Signature mirrors the native side so
+  /// call sites that conditionally import this file type-check.
+  void gfpaAndroidSetChainForSlot(int busSlotId, List<int> dspHandles) {}
 
   /// Not supported on web — no-op.
   void gfpaAndroidSetBpm(double bpm) {}

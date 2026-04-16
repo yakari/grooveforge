@@ -12,19 +12,13 @@
 //   7    : Vocoder
 //
 // The Dart layer (gfpa_android_bindings.dart / vst_host_service_desktop.dart)
-// calls gfpa_android_add_insert_for_sf() once per routing sync, passing the
+// calls gfpa_android_set_chain_for_slot() once per routing sync, passing the
 // correct bus slot ID for each source → GFPA cable.
 #pragma once
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-/// Register [dspHandle] as the next insert in the chain for [sfId].
-///
-/// [sfId] is the integer returned by flutter_midi_pro's loadSoundfont (1-based,
-/// max kMaxSfId).  Idempotent: registering the same handle twice is a no-op.
-void gfpa_android_add_insert_for_sf(int sfId, void* dspHandle);
 
 /// Remove [dspHandle] from whichever per-keyboard chain it belongs to.
 ///
@@ -36,6 +30,21 @@ void gfpa_android_remove_insert(void* dspHandle);
 /// Called at the start of each syncAudioRouting rebuild so that stale
 /// connections from the previous graph configuration are removed.
 void gfpa_android_clear_all_inserts(void);
+
+/// Phase H — atomically replace the insert chain for [busSlotId] with
+/// a new ordered list of [handleCount] GFPA DSP handles.
+///
+/// Preferred entry point for the plan-driven routing adapter. The
+/// legacy `gfpa_android_add_insert_for_sf(sfId, handle)` is append-
+/// only and cannot express a full chain replacement in one call; the
+/// atomic version below is used together with `gfpa_android_clear_all_inserts`
+/// in the standard `clear + rebuild` pattern.
+///
+/// Contract: each `dspHandles[i]` entry must appear in at most one
+/// chain across the whole routing graph. The Dart plan builder
+/// guarantees this upstream — the native side does not re-check.
+void gfpa_android_set_chain_for_slot(
+    int busSlotId, void* const* dspHandles, int handleCount);
 
 /// Apply the insert chain for [sfId] to the stereo signal in [outL]/[outR].
 ///

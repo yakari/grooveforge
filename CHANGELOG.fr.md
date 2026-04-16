@@ -5,6 +5,22 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/lang/fr/).
 
+## [2.13.1] - 2026-04-15
+
+### Ajouté
+- **Support Windows**. GrooveForge tourne désormais sous Windows avec hébergement complet de plugins VST3, sortie audio via WASAPI, et sauvegarde/restauration de projets. Les fenêtres d'éditeur des plugins ne sont pas encore disponibles — les plugins se contrôlent via l'interface de paramètres intégrée de GrooveForge.
+- **Validation des câbles : blocage des effets partagés**. Glisser un câble qui alimenterait le même effet depuis deux chemins de signal divergents est désormais bloqué au moment du drop, avec un message nommant l'effet et suggérant la solution (dupliquer le slot d'effet). La modale d'aide documente la règle dans « Rack & Câbles ».
+
+### Corrigé
+- **Son grésillant quand deux chemins de signal partageaient un effet en aval**. Câbler par exemple kb1 → reverb ET kb2 → harmonizer → reverb ne corrompt plus l'état interne des filtres de la reverb et ne provoque plus de dépassements de callback sur aucune plateforme.
+- **Crash au démarrage sous Linux avec de grands blocs JACK**. Les tampons internes des effets étaient sous-dimensionnés pour la taille de bloc réelle de JACK, provoquant une assertion de vérification de bornes sur les systèmes PipeWire qui délivrent des blocs de 2048 frames.
+- **Barre de transport tronquée sur les téléphones Android étroits**. La barre de transport compacte se réduit désormais au lieu de déborder sur les écrans de moins de ~350 dp.
+
+### Architecture
+- Routage audio unifié : un seul plan builder alimente désormais les adaptateurs de routage desktop et Android, remplaçant ~500 lignes de parcours de graphe dupliqué par plateforme.
+- Exécuteur de chaîne d'effets partagé entre les trois backends natifs (JACK, CoreAudio, WASAPI/Oboe).
+- Redimensionnement des tampons temps-réel en croissance seule, éliminant une course entre les changements de taille de tampon PipeWire et le callback audio.
+
 ## [2.13.0] - 2026-04-13
 
 ### Ajouté

@@ -26,6 +26,7 @@
 
 #include "gfpa_audio_android.h"
 #include "gfpa_dsp.h"
+#include "gf_insert_chain.h"
 #include "oboe_stream_android.h"
 
 #include <android/log.h>
@@ -82,77 +83,18 @@ static std::mutex g_chainsMtx;
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
-/// Apply [count] inserts to the stereo signal in [outL]/[outR].
-///
-/// [tmpL]/[tmpR] are caller-owned scratch buffers (stack-allocated) used for
-/// the ping-pong between successive effects.  No heap allocation occurs here.
-///
-/// [outL], [outR] — in/out stereo buffers (overwritten with final result).
-/// [tmpL], [tmpR] — scratch buffers, each at least [frames] floats.
-/// [inserts]      — on-stack snapshot of the active chain.
-/// [count]        — number of valid entries in [inserts].
-/// [frames]       — number of sample frames to process.
-static void applyInsertChain(float* outL, float* outR,
-                              float* tmpL, float* tmpR,
-                              const GfpaInsert* inserts, int count,
-                              int frames)
-{
-    // Start with the raw synth audio as the source for the first effect.
-    const float* srcL = outL;
-    const float* srcR = outR;
-
-    for (int i = 0; i < count; ++i) {
-        // Effect reads from srcL/srcR and writes into tmpL/tmpR.
-        // We copy back into outL/outR so the final processed signal always
-        // lives there, ready for the caller to accumulate into the master mix.
-        inserts[i].fn(srcL, srcR, tmpL, tmpR,
-                      static_cast<int32_t>(frames), inserts[i].userdata);
-
-        std::memcpy(outL, tmpL, sizeof(float) * static_cast<size_t>(frames));
-        std::memcpy(outR, tmpR, sizeof(float) * static_cast<size_t>(frames));
-
-        srcL = outL;
-        srcR = outR;
-    }
-}
+// ── Shared insert-chain runner ─────────────────────────────────────────────
+//
+// Phase C of the audio routing redesign unified every backend's
+// effect-chain loop into `gf_ic_run_effects` (see
+// `dart_vst_host/native/include/gf_insert_chain.h`). The Android
+// `applyInsertChain` helper used to live here; it has been deleted in
+// favour of a one-line call-site copy from `GfpaInsert[]` into
+// `gf_ic_effect_t[]` before invoking the shared runner. All three
+// backends (JACK, CoreAudio, Oboe) now use the same helper, which
+// guarantees bit-identical effect semantics across platforms.
 
 // ── Public API ────────────────────────────────────────────────────────────────
-
-extern "C" void gfpa_android_add_insert_for_sf(int sfId, void* dspHandle)
-{
-    if (sfId < 1 || sfId > kMaxBusSlot) {
-        LOGE("gfpa_android_add_insert_for_sf: sfId %d out of range [1,%d]",
-             sfId, kMaxBusSlot);
-        return;
-    }
-
-    GfpaInsertFn fn = gfpa_dsp_insert_fn(dspHandle);
-    void* ud       = gfpa_dsp_userdata(dspHandle);
-
-    if (fn == nullptr) {
-        LOGE("gfpa_android_add_insert_for_sf: gfpa_dsp_insert_fn returned null");
-        return;
-    }
-
-    std::lock_guard<std::mutex> lock(g_chainsMtx);
-    SfInsertChain& chain = g_sfChains[sfId];
-
-    // Idempotency: skip if this userdata is already in this chain.
-    for (int i = 0; i < chain.count; ++i) {
-        if (chain.inserts[i].userdata == ud) return;
-    }
-
-    if (chain.count >= kMaxInserts) {
-        LOGE("gfpa_android_add_insert_for_sf: sfId %d chain full (%d slots)",
-             sfId, kMaxInserts);
-        return;
-    }
-
-    chain.inserts[chain.count] = { fn, ud };
-    ++chain.count;
-    LOGI("gfpa_android_add_insert_for_sf: sfId=%d, %d insert(s)",
-         sfId, chain.count);
-}
 
 extern "C" void gfpa_android_remove_insert(void* dspHandle)
 {
@@ -230,6 +172,71 @@ extern "C" void gfpa_android_clear_all_inserts(void)
     LOGI("gfpa_android_clear_all_inserts: all chains cleared");
 }
 
+// ── Phase H — atomic chain commit for one bus slot ──────────────────────────
+//
+// Replaces the entire insert chain for [busSlotId] with a new ordered
+// list of DSP handles. Matches the semantics of the desktop
+// `dvh_set_master_insert_chain` API: single atomic mutation, no merge
+// heuristic, caller guarantees that each DSP handle appears in at
+// most one chain across the whole host.
+//
+// Pattern used by the routing adapter:
+//
+//     gfpa_android_clear_all_inserts();
+//     for each chain in plan.insertChains:
+//         gfpa_android_set_chain_for_slot(busSlotId, dspHandles[], count);
+//
+// The native `SfInsertChain` is a plain fixed-capacity array guarded
+// by `g_chainsMtx`, so the commit is a single lock acquisition + copy.
+// No drain-wait is needed because the caller has already wiped every
+// slot via `gfpa_android_clear_all_inserts`.
+extern "C" void gfpa_android_set_chain_for_slot(
+    int busSlotId, void* const* dspHandles, int handleCount)
+{
+    if (busSlotId < 1 || busSlotId > kMaxBusSlot) {
+        LOGE("gfpa_android_set_chain_for_slot: busSlotId %d out of range "
+             "[1,%d]",
+             busSlotId, kMaxBusSlot);
+        return;
+    }
+    if (handleCount < 0) handleCount = 0;
+    if (handleCount > 0 && dspHandles == nullptr) return;
+
+    // Cap at the fixed-capacity array size.
+    if (handleCount > kMaxInserts) {
+        LOGE("gfpa_android_set_chain_for_slot: truncated chain %d→%d "
+             "(kMaxInserts)",
+             handleCount, kMaxInserts);
+        handleCount = kMaxInserts;
+    }
+
+    // Resolve each handle to its fn + userdata OUTSIDE the lock so we
+    // never call into gfpa_dsp under the chains mutex.
+    GfpaInsert staged[kMaxInserts];
+    int stagedCount = 0;
+    for (int i = 0; i < handleCount; ++i) {
+        void* h = dspHandles[i];
+        if (h == nullptr) continue;
+        GfpaInsertFn fn = gfpa_dsp_insert_fn(h);
+        if (fn == nullptr) {
+            LOGE("gfpa_android_set_chain_for_slot: gfpa_dsp_insert_fn "
+                 "returned null for handle %p",
+                 h);
+            continue;
+        }
+        staged[stagedCount++] = {fn, gfpa_dsp_userdata(h)};
+    }
+
+    std::lock_guard<std::mutex> lock(g_chainsMtx);
+    SfInsertChain& chain = g_sfChains[busSlotId];
+    for (int i = 0; i < stagedCount; ++i) {
+        chain.inserts[i] = staged[i];
+    }
+    chain.count = stagedCount;
+    LOGI("gfpa_android_set_chain_for_slot: busSlotId=%d, %d insert(s)",
+         busSlotId, chain.count);
+}
+
 extern "C" void gfpa_android_apply_chain_for_sf(int sfId,
                                                   float* outL, float* outR,
                                                   int frames)
@@ -259,7 +266,16 @@ extern "C" void gfpa_android_apply_chain_for_sf(int sfId,
     // Stack cost: 2 × kMaxFrames × 4 bytes = 32 KB per call.
     float tmpL[kMaxFrames];
     float tmpR[kMaxFrames];
-    applyInsertChain(outL, outR, tmpL, tmpR, snapshot, snapshotCount, frames);
+    // Convert GfpaInsert → gf_ic_effect_t (both are `{GfpaInsertFn, void*}`
+    // so the copy is a plain two-field assignment per entry) and invoke
+    // the shared runner. Allocation-free — the gf_ic_effect_t array lives
+    // on the audio-thread stack alongside tmpL/tmpR.
+    gf_ic_effect_t effects[kMaxInserts];
+    for (int i = 0; i < snapshotCount; ++i) {
+        effects[i].fn       = snapshot[i].fn;
+        effects[i].userdata = snapshot[i].userdata;
+    }
+    gf_ic_run_effects(outL, outR, tmpL, tmpR, effects, snapshotCount, frames);
 }
 
 extern "C" void gfpa_android_set_bpm(double bpm)

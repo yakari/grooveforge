@@ -7,6 +7,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:grooveforge_plugin_api/grooveforge_plugin_api.dart'
     show GFTransportContext, TimestampedMidiEvent;
 
+import '../audio/routing_plan_builder.dart' show wouldCauseSharedStatefulEffect;
 import '../l10n/app_localizations.dart';
 import '../models/audio_port_id.dart';
 import '../models/gfpa_plugin_instance.dart';
@@ -1180,7 +1181,7 @@ class _RackScreenState extends State<RackScreen> {
         _connectDataCable(fromSlotId, fromPort, toSlotId, toPort, rack);
       } else {
         _connectAudioMidiCable(
-            fromSlotId, fromPort, toSlotId, toPort, graph, l10n);
+            fromSlotId, fromPort, toSlotId, toPort, graph, rack, l10n);
       }
       break;
     }
@@ -1189,14 +1190,51 @@ class _RackScreenState extends State<RackScreen> {
   }
 
   /// Creates a MIDI or Audio cable by calling [AudioGraph.connect].
+  ///
+  /// Before committing the cable, runs the Phase H drag-time validator
+  /// `wouldCauseSharedStatefulEffect` to reject topologies that would
+  /// make the plan builder drop the cable at sync time (e.g. two
+  /// divergent signal paths merging on the same stateful effect). The
+  /// rejection is shown as a SnackBar that names the effect slot, so
+  /// the user can see exactly which effect is over-subscribed.
   void _connectAudioMidiCable(
     String fromSlotId,
     AudioPortId fromPort,
     String toSlotId,
     AudioPortId toPort,
     AudioGraph graph,
+    RackState rack,
     AppLocalizations l10n,
   ) {
+    // Phase H drag-time block: only run on audio cables (MIDI cables
+    // are never routed through the effect-chain builder). The
+    // validator reuses the plan builder's dedup pass, so if it
+    // returns a non-null effect slot ID the cable would have been
+    // dropped at sync time anyway.
+    if (!fromPort.isDataPort && !_isMidiPort(fromPort) && !_isMidiPort(toPort)) {
+      final conflictingEffectId = wouldCauseSharedStatefulEffect(
+        plugins: rack.plugins,
+        graph: graph,
+        fromSlotId: fromSlotId,
+        fromPort: fromPort,
+        toSlotId: toSlotId,
+        toPort: toPort,
+      );
+      if (conflictingEffectId != null) {
+        final effectName = _displayNameFor(rack, conflictingEffectId) ??
+            conflictingEffectId;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              l10n.connectionSharedEffectError(effectName),
+            ),
+            duration: const Duration(seconds: 5),
+          ),
+        );
+        return;
+      }
+    }
+
     try {
       graph.connect(fromSlotId, fromPort, toSlotId, toPort);
     } on ArgumentError catch (e) {
@@ -1211,6 +1249,22 @@ class _RackScreenState extends State<RackScreen> {
         ),
       );
     }
+  }
+
+  /// True when [port] is a MIDI port. The Phase H drag-time validator
+  /// only cares about audio cables.
+  bool _isMidiPort(AudioPortId port) =>
+      port == AudioPortId.midiIn || port == AudioPortId.midiOut;
+
+  /// Returns the display name of [slotId] from the current rack, or
+  /// null if no slot with that ID is present. Used to show the user a
+  /// friendly effect name in the "shared effect" SnackBar instead of
+  /// the internal slot-id hash.
+  String? _displayNameFor(RackState rack, String slotId) {
+    for (final p in rack.plugins) {
+      if (p.id == slotId) return p.displayName;
+    }
+    return null;
   }
 
   /// Routes a data cable drop to the appropriate [RackState] mutation.

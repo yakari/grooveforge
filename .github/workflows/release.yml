@@ -412,6 +412,25 @@ jobs:
             https://github.com/steinbergmedia/vst3sdk.git `
             packages/flutter_vst3/vst3sdk
 
+      # FluidSynth prebuilt SDK (cpp11 variant — no GLib dependency).
+      # keyboard_synth.c links against this for the GF Keyboard synthesizer.
+      - name: Cache FluidSynth SDK
+        id: cache-fluidsynth-win
+        uses: actions/cache@v4
+        with:
+          path: native_audio/fluidsynth_win64
+          key: fluidsynth-win64-v2.5.2-cpp11
+
+      - name: Download FluidSynth SDK
+        if: steps.cache-fluidsynth-win.outputs.cache-hit != 'true'
+        run: |
+          Invoke-WebRequest -Uri "https://github.com/FluidSynth/fluidsynth/releases/download/v2.5.2/fluidsynth-v2.5.2-win10-x64-cpp11.zip" `
+            -OutFile fluidsynth-win64.zip
+          Expand-Archive -Path fluidsynth-win64.zip -DestinationPath native_audio/fluidsynth_tmp
+          Move-Item native_audio/fluidsynth_tmp/fluidsynth-v2.5.2-win10-x64-cpp11 native_audio/fluidsynth_win64
+          Remove-Item -Recurse native_audio/fluidsynth_tmp
+          Remove-Item fluidsynth-win64.zip
+
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.41.2'

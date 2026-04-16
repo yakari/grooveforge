@@ -461,6 +461,18 @@ class AppLocalizationsFr extends AppLocalizations {
       'Les câbles data violets représentent le flux d\'harmonie du Mode Jam entre les slots. Tracer un câble CHORD OUT → CHORD IN revient à sélectionner un master Mode Jam dans le menu déroulant — les deux contrôles restent synchronisés. De même, un câble SCALE OUT → SCALE IN correspond à un slot follower.';
 
   @override
+  String get guidePatchSharedEffectTitle =>
+      'Un seul chemin de signal par slot d\'effet';
+
+  @override
+  String get guidePatchSharedEffectBody =>
+      'Les effets audio (reverb, delay, chorus, harmonizer, wah, EQ, compresseur, …) possèdent un état interne (filtres, lignes à retard) mis à jour à chaque bloc audio. Un slot d\'effet ne peut donc être alimenté que par un seul chemin de signal distinct. Le fan-in simple fonctionne : deux claviers câblés directement dans la même reverb sont mixés et traités ensemble. Les chemins divergents non : câbler kb1 → reverb ET kb2 → harmonizer → reverb demanderait à la reverb de traiter deux signaux différents dans le même bloc, ce qui corromprait ses filtres internes.';
+
+  @override
+  String get guidePatchSharedEffectWorkaround =>
+      'Quand GrooveForge bloque un câble avec cette règle, dupliquez le slot d\'effet pour que chaque chemin de signal ait sa propre instance. Ajoutez une seconde reverb depuis la liste des plugins et câblez-la dans le second chemin.';
+
+  @override
   String get guidePatchTip =>
       'Conseil : Les câbles sont sauvegardés dans votre projet (.gf). Ouvrez un projet sauvegardé pour restaurer toutes les connexions telles que vous les avez laissées.';
 
@@ -787,6 +799,11 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get connectionCycleError =>
       'Cycle détecté : cette connexion créerait une boucle de rétroaction';
+
+  @override
+  String connectionSharedEffectError(String effectName) {
+    return '$effectName est déjà câblé depuis un autre chemin de signal. Dupliquez le slot d\'effet pour que chaque chemin ait sa propre instance.';
+  }
 
   @override
   String get portMidiIn => 'MIDI IN';

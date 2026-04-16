@@ -1,3 +1,4 @@
+import '../audio/audio_source_descriptor.dart';
 import 'plugin_instance.dart';
 
 /// Discriminates a VST3 plugin by its audio bus configuration.
@@ -19,7 +20,20 @@ enum Vst3PluginType { instrument, effect, analyzer }
 /// VST3 hosting is desktop-only (Linux, macOS, Windows). On Android and iOS
 /// this type will still deserialise from .gf files but will render a
 /// "plugin unavailable on this platform" placeholder in the rack UI.
-class Vst3PluginInstance implements PluginInstance {
+class Vst3PluginInstance with AudioSourcePlugin implements PluginInstance {
+  /// Instrument plugins produce audio from MIDI input and therefore
+  /// appear as sources in the routing plan. Effect and analyzer
+  /// plugins do not produce audio on their own — effects are wired
+  /// via `routeAudio` (VST3 → VST3) or `setExternalRender`
+  /// (non-VST3 → VST3), and analyzers are sinks only — so they
+  /// return `null`.
+  @override
+  AudioSourceDescriptor? describeAudioSource() =>
+      pluginType == Vst3PluginType.instrument
+          ? const AudioSourceDescriptor(kind: AudioSourceKind.vst3Instrument)
+          : null;
+
+
   @override
   final String id;
 

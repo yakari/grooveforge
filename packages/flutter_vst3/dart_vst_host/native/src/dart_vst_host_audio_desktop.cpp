@@ -1,16 +1,29 @@
-// macOS Audio backend for dart_vst_host using miniaudio.
-// Drives VST3 plugins in a real-time CoreAudio playback thread via miniaudio.
+// Desktop audio backend for dart_vst_host using miniaudio.
+//
+// Drives VST3 plugins in a real-time miniaudio playback thread.
+// miniaudio picks the platform-native backend automatically:
+//   - macOS   → CoreAudio
+//   - Windows → WASAPI
+//   - iOS     → AudioUnit (unused for now; dvh_start_jack_client is Linux-only)
+//
+// This file is compiled on **both macOS and Windows** (see the
+// CMakeLists.txt branches). Linux has its own dedicated JACK backend in
+// `dart_vst_host_jack.cpp` — JACK gives us lower latency and xrun
+// reporting than miniaudio's ALSA fallback, and PipeWire provides a
+// JACK interface out of the box, so the Linux path stays on JACK
+// while the other two desktops share this file.
 //
 // Phase 5.4 — audio graph execution:
 //   dvh_set_processing_order, dvh_route_audio, dvh_clear_routes
-//   (same semantics as the ALSA backend — see dart_vst_host_alsa.cpp).
+//   (same semantics as the JACK backend — see dart_vst_host_jack.cpp).
 
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(_WIN32)
 
 #define MA_API static
 #define MINIAUDIO_IMPLEMENTATION
 #include "dart_vst_host.h"
 #include "../include/gfpa_dsp.h"
+#include "../include/gf_insert_chain.h"
 #include "../include/audio_looper.h"
 #include "miniaudio.h"
 
@@ -34,6 +47,13 @@ struct InsertChain {
 
 /// Maximum master render contributors.
 static constexpr int kMaxMasterRenders = 16;
+/// Maximum fan-in sources per insert chain — must match the JACK value.
+static constexpr int kMaxChainSources = 8;
+/// Maximum effects per insert chain — stack-array upper bound used by
+/// the shared `gf_ic_run_effects` helper. Must match the JACK value in
+/// `dart_vst_host_jack.cpp` so chains that round-trip through both
+/// backends share the same ceiling.
+static constexpr int kMaxChainEffects = 8;
 
 struct AudioState {
     std::vector<void*> plugins;
@@ -193,31 +213,62 @@ static void dataCallback(ma_device* pDevice, void* pOutput, const void* /*pInput
     }
 
     // ── Fan-in insert chains ─────────────────────────────────────────────
+    //
+    // Phase C unification: effect execution goes through the shared
+    // `gf_ic_run_effects` helper so the post-chain signal invariant and
+    // ping-pong scratch contract are identical to the JACK and Android
+    // backends. This fixes a macOS-only post-chain capture bug that
+    // shipped before Phase C: prior to this refactor, the render-capture
+    // buffer was populated from the **dry** `tmpBufL/tmpBufR` before
+    // the effect chain ran, so the audio looper recorded the pre-effect
+    // signal on macOS even when JACK and Android recorded the wet
+    // signal after the v2.13.0 Live Input → Harmonizer → Looper fix.
+    // The capture now runs after the chain so all three platforms agree.
     for (const auto& chain : masterInsertChains) {
+        // Sum sources (fan-in) into extBuf. No capture here — we want
+        // the post-chain signal, not the dry signal.
         std::fill_n(state->extBufL.data(), bs, 0.f);
         std::fill_n(state->extBufR.data(), bs, 0.f);
         for (DvhRenderFn fn : chain.sources) {
             fn(state->tmpBufL.data(), state->tmpBufR.data(), bs);
-            // Save render capture for audio looper source matching.
-            for (int m = 0; m < static_cast<int>(masterRenders.size()) && m < kMaxMasterRenders; ++m) {
-                if (masterRenders[m] == fn) {
-                    std::copy_n(state->tmpBufL.data(), bs, state->renderCaptureL[m].data());
-                    std::copy_n(state->tmpBufR.data(), bs, state->renderCaptureR[m].data());
-                    break;
-                }
-            }
             for (int32_t i = 0; i < bs; ++i) {
                 state->extBufL[i] += state->tmpBufL[i];
                 state->extBufR[i] += state->tmpBufR[i];
             }
         }
-        for (const auto& ins : chain.effects) {
-            ins.first(state->extBufL.data(), state->extBufR.data(),
-                      state->insertBufL.data(), state->insertBufR.data(),
-                      bs, ins.second);
-            std::copy_n(state->insertBufL.data(), bs, state->extBufL.data());
-            std::copy_n(state->insertBufR.data(), bs, state->extBufR.data());
+
+        // Apply effects in series via the shared runner.
+        const int effectCount = static_cast<int>(chain.effects.size());
+        gf_ic_effect_t chainEffects[kMaxChainEffects];
+        for (int e = 0; e < effectCount && e < kMaxChainEffects; ++e) {
+            chainEffects[e].fn       = chain.effects[e].first;
+            chainEffects[e].userdata = chain.effects[e].second;
         }
+        gf_ic_run_effects(
+            state->extBufL.data(), state->extBufR.data(),
+            state->insertBufL.data(), state->insertBufR.data(),
+            chainEffects,
+            (effectCount < kMaxChainEffects ? effectCount : kMaxChainEffects),
+            bs);
+
+        // Save the post-chain (wet) output into renderCapture for every
+        // source feeding this chain — mirrors the JACK path at
+        // `dart_vst_host_jack.cpp`'s Pass 2. The audio looper reads
+        // from renderCapture[m] keyed by the source render fn, so
+        // cabling `Source → Effect → Looper` records the wet signal.
+        for (DvhRenderFn fn : chain.sources) {
+            for (int m = 0;
+                 m < static_cast<int>(masterRenders.size()) && m < kMaxMasterRenders;
+                 ++m) {
+                if (masterRenders[m] == fn) {
+                    std::copy_n(state->extBufL.data(), bs, state->renderCaptureL[m].data());
+                    std::copy_n(state->extBufR.data(), bs, state->renderCaptureR[m].data());
+                    break;
+                }
+            }
+        }
+
+        // Accumulate to master mix.
         for (int32_t i = 0; i < bs; ++i) {
             state->mixL[i] += state->extBufL[i];
             state->mixR[i] += state->extBufR[i];
@@ -405,12 +456,12 @@ DVH_API void dvh_clear_routes(DVH_Host host) {
     s->routes.clear();
 }
 
-DVH_API int32_t dvh_mac_start_audio(DVH_Host host) {
+DVH_API int32_t dvh_start_desktop_audio(DVH_Host host) {
     if (!host) return 0;
     auto* s = getOrCreate(host);
     if (s->running.load()) return 1;
 
-    fprintf(stderr, "[dart_vst_host] dvh_mac_start_audio(host=%p) called\n", host);
+    fprintf(stderr, "[dart_vst_host] dvh_start_desktop_audio(host=%p) called\n", host);
     fflush(stderr);
 
     // Pre-allocate all audio scratch buffers so the CoreAudio callback never
@@ -468,12 +519,12 @@ DVH_API int32_t dvh_mac_start_audio(DVH_Host host) {
     }
 
     s->running.store(true);
-    fprintf(stderr, "[dart_vst_host] macOS CoreAudio device started OK\n");
+    fprintf(stderr, "[dart_vst_host] miniaudio device started OK\n");
     fflush(stderr);
     return 1;
 }
 
-DVH_API void dvh_mac_stop_audio(DVH_Host host) {
+DVH_API void dvh_stop_desktop_audio(DVH_Host host) {
     if (!host) return;
     auto* s = get(host);
     if (!s) return;
@@ -481,7 +532,7 @@ DVH_API void dvh_mac_stop_audio(DVH_Host host) {
     ma_device_stop(&s->device);
     ma_device_uninit(&s->device);
     removeState(host);
-    fprintf(stderr, "[dart_vst_host] dvh_mac_stop_audio(host=%p) done\n", host);
+    fprintf(stderr, "[dart_vst_host] dvh_stop_desktop_audio(host=%p) done\n", host);
     fflush(stderr);
 }
 
@@ -492,9 +543,11 @@ DVH_API void dvh_mac_stop_audio(DVH_Host host) {
 DVH_API void dvh_set_external_render(DVH_Host /*host*/, DVH_Plugin /*plugin*/, DvhRenderFn /*fn*/) {}
 DVH_API void dvh_clear_external_render(DVH_Host /*host*/, DVH_Plugin /*plugin*/) {}
 
-// Keep ALSA stubs for compatibility — ALSA is not used on macOS.
+// Keep ALSA stubs for compatibility — ALSA is Linux-only. On macOS and
+// Windows the caller should be using dvh_start_desktop_audio instead.
 DVH_API int32_t dvh_start_alsa_thread(DVH_Host /*host*/, const char* /*device*/) {
-    fprintf(stderr, "[dart_vst_host] dvh_start_alsa_thread called on macOS (IGNORING: use dvh_mac_start_audio)\n");
+    fprintf(stderr, "[dart_vst_host] dvh_start_alsa_thread called on non-Linux "
+                    "(IGNORING: use dvh_start_desktop_audio)\n");
     fflush(stderr);
     return 0;
 }
@@ -529,49 +582,45 @@ DVH_API void dvh_remove_master_render(DVH_Host host, DvhRenderFn fn) {
 
 // ─── GFPA insert chain ───────────────────────────────────────────────────────
 
-/// Register a GFPA DSP insert on [source]'s master-render path.
-/// Fan-in merging: if [userdata] is already in an existing chain, [source]
-/// is added to that chain's sources instead of creating a duplicate.
-/// See dart_vst_host_alsa.cpp for full documentation.
-DVH_API void dvh_add_master_insert(DVH_Host host, DvhRenderFn source,
-                                   GfpaInsertFn insertFn, void* userdata) {
-    if (!host || !source || !insertFn) return;
+/// Phase H — atomically commit one complete insert chain on macOS.
+/// See the Linux-side documentation in `dart_vst_host_jack.cpp` for the
+/// full rationale. Both backends share the same semantic: no merge
+/// heuristic, one chain per call, caller guarantees DSP handle
+/// uniqueness across chains.
+DVH_API void dvh_set_master_insert_chain(
+    DVH_Host host,
+    const DvhRenderFn* sources, int32_t sourceCount,
+    const GfpaInsertFn* effects,
+    void* const* effectUserdatas,
+    int32_t effectCount)
+{
+    if (!host || !sources || sourceCount <= 0) return;
+    if (effectCount < 0) effectCount = 0;
+    if (effectCount > 0 && (!effects || !effectUserdatas)) return;
+
     auto* s = getOrCreate(host);
     std::lock_guard<std::mutex> lk(s->pluginsMtx);
 
-    // Search all chains for one that already contains this DSP.
-    // If found: merge [source] into that chain (fan-in).
-    for (auto& chain : s->masterInsertChains) {
-        for (const auto& ins : chain.effects) {
-            if (ins.second != userdata) continue;
-            for (DvhRenderFn src : chain.sources)
-                if (src == source) return;  // already registered
-            chain.sources.push_back(source);
-            fprintf(stderr, "[dart_vst_host] Fan-in: source=%p merged into chain "
-                    "containing dsp=%p (sources=%zu)\n",
-                    (void*)source, userdata, chain.sources.size());
-            return;
+    InsertChain chain;
+    const int32_t srcLimit =
+        sourceCount < kMaxChainSources ? sourceCount : kMaxChainSources;
+    for (int32_t i = 0; i < srcLimit; ++i) {
+        if (sources[i]) chain.sources.push_back(sources[i]);
+    }
+    if (chain.sources.empty()) return;
+
+    const int32_t fxLimit =
+        effectCount < kMaxChainEffects ? effectCount : kMaxChainEffects;
+    for (int32_t i = 0; i < fxLimit; ++i) {
+        if (effects[i]) {
+            chain.effects.emplace_back(effects[i], effectUserdatas[i]);
         }
     }
 
-    // No chain contains this DSP yet.  Find a chain for [source] and append.
-    for (auto& chain : s->masterInsertChains) {
-        for (DvhRenderFn src : chain.sources) {
-            if (src != source) continue;
-            for (const auto& ins : chain.effects)
-                if (ins.second == userdata) return;  // already there
-            chain.effects.push_back({insertFn, userdata});
-            fprintf(stderr, "[dart_vst_host] Chain append: source=%p dsp=%p "
-                    "effects=%zu\n",
-                    (void*)source, userdata, chain.effects.size());
-            return;
-        }
-    }
-
-    // Create a new chain.
-    s->masterInsertChains.push_back({{source}, {{insertFn, userdata}}});
-    fprintf(stderr, "[dart_vst_host] New chain: source=%p dsp=%p\n",
-            (void*)source, userdata);
+    s->masterInsertChains.push_back(std::move(chain));
+    fprintf(stderr, "[dart_vst_host] set_master_insert_chain: sources=%zu effects=%zu\n",
+            s->masterInsertChains.back().sources.size(),
+            s->masterInsertChains.back().effects.size());
 }
 
 /// Remove [source] from all chains.  Chains with no sources left are deleted.
@@ -660,8 +709,8 @@ DVH_API void dvh_clear_master_renders(DVH_Host host) {
 
 // ── Transport broadcast (called from dart_vst_host.cpp) ─────────────────────
 
-void dvh_mac_update_transport(double bpm, int32_t timeSigNum,
-                               int32_t isPlaying, double positionInBeats) {
+void dvh_desktop_update_transport(double bpm, int32_t timeSigNum,
+                                   int32_t isPlaying, double positionInBeats) {
     std::lock_guard<std::mutex> lk(g_mapMtx);
     for (auto& kv : g_states) {
         auto* s = kv.second;
@@ -672,7 +721,8 @@ void dvh_mac_update_transport(double bpm, int32_t timeSigNum,
     }
 }
 
-#else // !__APPLE__
-// Stub when not compiling for macOS.
-void dvh_mac_update_transport(double, int32_t, int32_t, double) {}
-#endif // __APPLE__
+#else // !(__APPLE__ || _WIN32)
+// Stub when compiling for Linux — the JACK backend lives in its own file
+// and Linux builds this file as an empty translation unit.
+void dvh_desktop_update_transport(double, int32_t, int32_t, double) {}
+#endif // __APPLE__ || _WIN32
