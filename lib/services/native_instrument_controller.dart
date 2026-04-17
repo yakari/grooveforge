@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 
 import '../models/gfpa_plugin_instance.dart';
+import '../plugins/gf_stylophone_plugin.dart';
 import 'audio_input_ffi.dart';
 import 'gfpa_android_bindings.dart';
 
@@ -95,17 +96,49 @@ class NativeInstrumentController {
     }
   }
 
-  /// Push saved waveform and vibrato state from [instance] to the native
-  /// synth. Called on add and also on demand (e.g. after a soundfont swap).
+  /// Push saved waveform, vibrato, and chiptune state from [instance] to the
+  /// native synth. Called on add and also on demand (e.g. after a soundfont swap).
   void _syncStylophoneState(GFpaPluginInstance instance) {
-    final waveform = (instance.state['waveform'] as num?)?.toInt() ?? 0;
+    final s = instance.state;
+    final waveform = (s['waveform'] as num?)?.toInt() ?? 0;
     if (waveform > 0 && waveform <= 3) {
       AudioInputFFI().styloSetWaveform(waveform);
     }
     final vibrato =
-        (instance.state['vibrato'] as num?)?.toDouble().clamp(0.0, 1.0) ?? 0.0;
-    if (vibrato > 0.0) {
-      AudioInputFFI().styloSetVibrato(vibrato);
+        (s['vibrato'] as num?)?.toDouble().clamp(0.0, 1.0) ?? 0.0;
+    if (vibrato > 0.0) AudioInputFFI().styloSetVibrato(vibrato);
+
+    // ── Chiptune parameters ────────────────────────────────────────────────
+    final dutyCycle =
+        (s['dutyCycle'] as num?)?.toDouble().clamp(0.1, 0.9) ?? 0.5;
+    if (dutyCycle != 0.5) AudioInputFFI().styloSetDutyCycle(dutyCycle);
+
+    final noiseMix =
+        (s['noiseMix'] as num?)?.toDouble().clamp(0.0, 1.0) ?? 0.0;
+    if (noiseMix > 0.0) AudioInputFFI().styloSetNoiseMix(noiseMix);
+
+    final bitDepth = (s['bitDepth'] as num?)?.toInt().clamp(2, 16) ?? 16;
+    if (bitDepth < 16) AudioInputFFI().styloSetBitDepth(bitDepth);
+
+    final subMix =
+        (s['subMix'] as num?)?.toDouble().clamp(0.0, 1.0) ?? 0.0;
+    if (subMix > 0.0) AudioInputFFI().styloSetSubMix(subMix);
+
+    final subOctave = (s['subOctave'] as num?)?.toInt().clamp(1, 2) ?? 1;
+    if (subOctave != 1) AudioInputFFI().styloSetSubOctave(subOctave);
+
+    // ── Chiptune arp ─────────────────────────────────────────────────────
+    final chipArpEnabled = (s['chipArpEnabled'] as bool?) ?? false;
+    if (chipArpEnabled) {
+      final chordIdx = (s['chipArpChord'] as num?)?.toInt().clamp(1, 8) ?? 1;
+      final pattern = GFStyloPhonePlugin.chipArpPatterns[chordIdx];
+      if (pattern.isNotEmpty) {
+        AudioInputFFI().styloSetChipArpPattern(pattern);
+      }
+      final rate =
+          (s['chipArpRate'] as num?)?.toDouble().clamp(20.0, 120.0) ?? 60.0;
+      AudioInputFFI().styloSetChipArpRate(rate);
+      AudioInputFFI().styloSetChipArpEnabled(true);
     }
   }
 

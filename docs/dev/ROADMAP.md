@@ -222,9 +222,88 @@ The harmonizer GFPA effect shipped in v2.12.7. Detailed history in [ROADMAP_ARCH
 
 ### 🎸 Instruments
 
-These instrument-level enhancements extend the live-performance capability of the rack. MIDI OUT for the Theremin and Stylophone turns them into modulation sources that can drive any downstream slot.
+These instrument-level enhancements extend the live-performance capability of the rack. MIDI FX support and MIDI OUT for the Theremin and Stylophone are now shipped — the chiptune roadmap below builds on that foundation.
 
-- [ ] **MIDI out for Theremin + Stylophone**: add MIDI OUT jack so these instruments can drive keyboard/VST slots; add a "mute own sound" option.
+- [x] **MIDI out for Theremin + Stylophone**: MIDI OUT jack, "mute own sound" toggle — shipped in v2.13.1.
+- [x] **MIDI FX support for Theremin + Stylophone**: both instruments respond to all 6 MIDI FX modules (arpeggiator, harmonizer, transposer, chord expand, velocity curve, gate) via the `stylophoneMode` / `thereminMode` channel routing pattern — shipped in v2.14.0 (pending release).
+- [x] **Stylophone chiptune synthesis**: duty cycle (PWM), noise blend, bit crusher (2–16 bit), sub-oscillator (-1/-2 octaves) — shipped in v2.14.0 (pending release).
+
+### 🎮 Chiptune Console Presets (Stylophone)
+
+Multiple generations of gamers and musicians have deep emotional connections to the sound chips of their childhood consoles and home computers. Each chip had distinctive constraints — limited voices, specific waveform shapes, characteristic noise generators, fixed bit depths — that gave it an instantly recognisable timbre. The goal is to let users select a console/computer preset on the Stylophone and immediately get a sound that evokes that era, without needing to understand the underlying synthesis parameters.
+
+The Stylophone already has the building blocks (duty cycle, noise blend, bit crusher, sub-oscillator) shipped in v2.14.0. Console presets would configure these parameters to approximate each chip's character, and future DSP additions (ring modulation, wavetable lookup, resonant filter) would close the remaining gaps for chips that can't be faithfully approximated with the current parameter set.
+
+#### Target chips and their synthesis signatures
+
+| Console / Computer | Sound chip | Key characteristics | Current coverage |
+|---|---|---|---|
+| NES | Ricoh 2A03 | 2 pulse (12.5/25/50/75% duty), 1 triangle, 1 noise (short/long), 1 DPCM | ✅ duty cycle, ✅ noise, partial |
+| Game Boy | Sharp LR35902 | 2 pulse (12.5/25/50/75%), 1 programmable wave, 1 noise (7/15-bit LFSR) | ✅ duty cycle, ✅ noise, partial |
+| SNES | Sony SPC700 | 8 BRR-compressed sample voices, Gaussian interpolation, hardware echo/reverb | ❌ needs wavetable + filter |
+| C64 | MOS SID 6581 | 3 voices (pulse/saw/tri/noise), ring mod, hard sync, resonant multimode filter | ❌ needs ring mod + filter |
+| Amiga | Paula 8364 | 4 channels × 8-bit PCM, 3.5 MHz DMA playback, no hardware filter | ✅ bit crusher (8-bit), partial |
+| Amstrad CPC | AY-3-8910 | 3 square waves (no duty cycle), 1 noise, hardware envelope generator | ✅ square, ✅ noise, partial |
+| Sega Master System | TI SN76489 | 3 square + 1 noise (white/periodic), 4-bit volume attenuation | ✅ square, ✅ noise, ✅ 4-bit crush |
+| Sega Genesis | Yamaha YM2612 | 6-voice 4-operator FM synthesis, 1 DAC channel, 9-bit output | ❌ needs FM synthesis |
+| Atari 2600 | TIA | 2 channels, ~32 distortion waveforms, 4-bit pitch divider, extremely lo-fi | ✅ noise, ✅ 2-bit crush, partial |
+
+#### Component interaction
+
+```mermaid
+graph TD
+    PRESET[Console Preset Selector\nUI dropdown / chip grid] -->|configure| DC[Duty Cycle]
+    PRESET --> NM[Noise Mix + LFSR Mode]
+    PRESET --> BC[Bit Crusher Depth]
+    PRESET --> SO[Sub-Oscillator]
+    PRESET -->|future| RM[Ring Modulation]
+    PRESET -->|future| WT[Wavetable Lookup]
+    PRESET -->|future| FLT[Resonant Filter]
+    PRESET -->|future| FM[FM Operator Stack]
+
+    DC --> DSP[_stylophone_dsp_tick]
+    NM --> DSP
+    BC --> DSP
+    SO --> DSP
+    RM --> DSP
+    WT --> DSP
+    FLT --> DSP
+    FM --> DSP
+```
+
+#### Step 1 — Preset data model + UI
+
+- [ ] Add `chiptunePreset` field to `GFStyloPhonePlugin` state: an enum/string identifying the active preset (e.g. `nes`, `gameboy`, `c64`, `amiga`, `sms`, `custom`). `custom` means manual parameter tweaking.
+- [ ] Add a preset selector row to `GFpaStyloPhoneSlotUI` — a row of compact chip-icon buttons or a dropdown. Selecting a preset writes the appropriate duty cycle, noise mix, bit depth, sub-osc, and (future) filter values to state and native FFI in one atomic batch.
+- [ ] Presets that require unimplemented DSP (C64, Genesis, SNES) should be greyed out with a "Coming soon" tooltip until the required DSP ships.
+- [ ] l10n: EN/FR strings for each preset name and any tooltip text.
+
+#### Step 2 — DSP extensions for fuller chip coverage
+
+These native C additions to `audio_input.c` would close the gap for chips that can't be approximated with the current parameter set:
+
+- [ ] **LFSR noise mode**: replace the current LCG white noise with a configurable Linear Feedback Shift Register (7-bit or 15-bit tap configuration). The NES and Game Boy noise channels use specific LFSR polynomials that produce a distinctive metallic/periodic noise; the current LCG white noise doesn't capture this.
+- [ ] **Ring modulation**: multiply the main oscillator output by a secondary modulator oscillator. Essential for the C64 SID's metallic / bell-like timbres. Expose `stylophone_set_ring_mod(float freq, float mix)`.
+- [ ] **Resonant low-pass filter**: a simple one-pole or two-pole resonant LPF applied post-oscillator. The SID 6581's multimode filter is its most recognisable feature. Expose `stylophone_set_filter(float cutoff_hz, float resonance, int mode)` where mode = off/LP/HP/BP.
+- [ ] **Hardware envelope generator**: the AY-3-8910 and SID both have built-in ADSR or AD envelope shapes that modulate amplitude automatically. Add a simple ADSR envelope mode selectable per-preset that replaces the current linear attack / exponential release.
+- [ ] **Wavetable lookup** (stretch goal): a small table of 32 or 64 samples that the oscillator reads cyclically instead of computing a waveform mathematically. Required for SNES BRR approximation and Game Boy's programmable wave channel.
+
+#### Step 3 — Arpeggiator chiptune mode
+
+Classic chiptune trackers use rapid-fire arpeggio (cycling 3+ notes within a single "instrument" at tick speed) to simulate chords on chips with only 1–3 voices. This is faster than the standard musical arpeggiator — more like a timbral effect than a rhythmic one.
+
+- [ ] Add a "Tracker" arp pattern to `ArpeggiateNode` that cycles through held notes at 1/128 or 1/256 speed with 100% gate — producing the characteristic buzzy chord effect of SID and NES music.
+- [ ] Consider a dedicated "chip arp" mode that takes a chord quality (maj/min/dom7) and automatically adds intervals rather than requiring the user to hold multiple keys.
+
+#### 🧪 Smoke test
+
+- [ ] Select "NES" preset on Stylophone → duty cycle snaps to 25%, bit depth to 4, noise off → play chromatic scale → sounds like an NES pulse channel.
+- [ ] Select "Game Boy" preset → same as NES but 4-bit output quantisation more prominent.
+- [ ] Select "Sega SMS" preset → 50% square, 4-bit crush, no sub → clean retro square tone.
+- [ ] Select "Amiga" preset → 8-bit crusher, no duty cycle effect (saw or sine waveform).
+- [ ] Switch between presets mid-performance → parameters update immediately, no click or dropout.
+- [ ] Connect arpeggiator in "Tracker" mode → hold a C major chord → hear rapid NES-style buzzy chord.
+- [ ] Save/load project → preset selection and all parameters restored.
 
 ### 🎼 Jam / Chord Progression
 

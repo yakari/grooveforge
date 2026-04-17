@@ -5,6 +5,19 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/lang/fr/).
 
+## [2.14.0] - 2026-04-17
+
+### Ajouté
+- **Support MIDI FX pour le Stylophone et le Theremin**. Les deux instruments répondent désormais à tous les modules MIDI FX — arpégiateur, harmonizer, transposeur, chord expand, velocity curve et gate. Connectez un MIDI FX via un câble patch et il pilote l'oscillateur natif directement.
+- **Mode chiptune du Stylophone**. Quatre nouveaux contrôles de synthèse : duty cycle (modulation de largeur d'impulsion) pour l'onde carrée, mélange de bruit blanc, bit crusher (2–16 bit) et sous-oscillateur à -1 ou -2 octaves.
+- **Divisions d'arpégiateur plus rapides**. Trois nouveaux réglages de vitesse : 1/128, 1/64T et 1/128T — jusqu'à 4x plus rapide que le maximum précédent.
+- **Arpège chiptune du Stylophone**. Un moteur d'arpège intégré de type hardware qui cycle à travers les notes d'un accord (majeur, mineur, dim, 7èmes, octave, quinte) à 50 Hz (PAL) ou 60 Hz (NTSC), ne modifiant que le registre de hauteur sans redéclencher l'enveloppe de note — produisant la texture classique d'« accord chatoyant » NES/SID qu'un arpégiateur MIDI standard ne peut reproduire. Inclut un mode « LIVE » où maintenir un accord sur un contrôleur MIDI ou un écran multitouch définit le pattern d'arpège dynamiquement.
+- **Mappings CC du Stylophone**. Le bouton d'assignation CC apparaît désormais sur les slots Stylophone, avec des paramètres mappables : arpège chiptune on/off, cycle de type d'accord, bascule de vitesse PAL/NTSC, cycle de forme d'onde et bascule de vibrato.
+
+### Architecture
+- Le Stylophone et le Theremin utilisent un nouveau routage par mode de canal (même approche que le vocoder) pour que tous les chemins MIDI — tick FX, contrôleur MIDI hardware, clavier virtuel — atteignent automatiquement l'oscillateur natif.
+- L'oscillateur C natif du Stylophone étendu avec duty cycle, générateur de bruit, quantiseur de bit-depth et DSP de sous-oscillateur.
+
 ## [2.13.1] - 2026-04-15
 
 ### Ajouté

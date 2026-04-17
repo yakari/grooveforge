@@ -13,8 +13,10 @@ import '../models/plugin_instance.dart';
 import '../models/grooveforge_keyboard_plugin.dart';
 import '../constants/soundfont_sentinels.dart';
 import '../models/vst3_plugin_instance.dart';
+import '../plugins/gf_stylophone_plugin.dart';
 import '../plugins/gf_vocoder_plugin.dart';
 import 'audio_engine.dart';
+import 'audio_input_ffi.dart';
 import 'audio_graph.dart';
 import 'cc_mapping_service.dart';
 import 'cc_param_registry.dart';
@@ -572,15 +574,22 @@ class RackState extends ChangeNotifier {
     if (plugin is GrooveForgeKeyboardPlugin) {
       _applyPluginToEngine(plugin);
     } else if (plugin is GFpaPluginInstance) {
-      // Clear the old channel's vocoderMode marker if this plugin owned it.
-      // Without this, a vocoder that moved from channel A to channel B
-      // would leave channel A's soundfontPath stuck at 'vocoderMode' and
-      // any future plugin landing on channel A would see that stale state.
-      if (plugin.pluginId == 'com.grooveforge.vocoder' &&
-          oldChannel > 0 &&
-          oldChannel <= _engine.channels.length) {
+      // Clear the old channel's mode marker if this plugin owned it.
+      // Without this, a vocoder/stylophone/theremin that moved from
+      // channel A to channel B would leave channel A's soundfontPath
+      // stuck at the sentinel and any future plugin landing on channel A
+      // would see that stale state.
+      if (oldChannel > 0 && oldChannel <= _engine.channels.length) {
         final oldIdx = oldChannel - 1;
-        if (_engine.channels[oldIdx].soundfontPath == vocoderMode) {
+        final oldPath = _engine.channels[oldIdx].soundfontPath;
+        final shouldClear =
+            (plugin.pluginId == 'com.grooveforge.vocoder' &&
+                oldPath == vocoderMode) ||
+            (plugin.pluginId == 'com.grooveforge.stylophone' &&
+                oldPath == stylophoneMode) ||
+            (plugin.pluginId == 'com.grooveforge.theremin' &&
+                oldPath == thereminMode);
+        if (shouldClear) {
           _engine.channels[oldIdx].soundfontPath = null;
         }
       }
@@ -872,6 +881,20 @@ class RackState extends ChangeNotifier {
 
   void _applyGfpaPluginToEngine(GFpaPluginInstance plugin) {
     switch (plugin.pluginId) {
+      case 'com.grooveforge.stylophone':
+        if (plugin.midiChannel > 0) {
+          _engine.assignSoundfontToChannel(
+            plugin.midiChannel - 1,
+            stylophoneMode,
+          );
+        }
+      case 'com.grooveforge.theremin':
+        if (plugin.midiChannel > 0) {
+          _engine.assignSoundfontToChannel(
+            plugin.midiChannel - 1,
+            thereminMode,
+          );
+        }
       case 'com.grooveforge.vocoder':
         if (plugin.midiChannel > 0) {
           _engine.assignSoundfontToChannel(
@@ -1171,6 +1194,13 @@ class RackState extends ChangeNotifier {
       return;
     }
 
+    // ── Stylophone special params ──────────────────────────────────────
+    if (plugin is GFpaPluginInstance &&
+        plugin.pluginId == 'com.grooveforge.stylophone') {
+      _handleStylophoneParamCc(plugin, paramKey);
+      return;
+    }
+
     // ── Vocoder special params ─────────────────────────────────────────
     if (plugin is GFpaPluginInstance &&
         plugin.pluginId == 'com.grooveforge.vocoder') {
@@ -1299,6 +1329,84 @@ class RackState extends ChangeNotifier {
   }
 
   /// Handles CC for Vocoder params — all knobs are CC-assignable.
+  /// Handles CC for Stylophone chiptune arp params (toggle, chord cycling,
+  /// rate, waveform, vibrato).
+  void _handleStylophoneParamCc(
+    GFpaPluginInstance plugin,
+    String paramKey,
+  ) {
+    switch (paramKey) {
+      case 'chipArpEnabled':
+        final cur = (plugin.state['chipArpEnabled'] as bool?) ?? false;
+        plugin.state['chipArpEnabled'] = !cur;
+        AudioInputFFI().styloSetChipArpEnabled(!cur);
+        if (!cur) {
+          // Turning on: push current chord pattern and rate.
+          final chordIdx =
+              (plugin.state['chipArpChord'] as num?)?.toInt().clamp(1, 9) ?? 1;
+          if (chordIdx != GFStyloPhonePlugin.chipArpCustomIndex) {
+            final pattern = GFStyloPhonePlugin.chipArpPatterns[chordIdx];
+            if (pattern.isNotEmpty) {
+              AudioInputFFI().styloSetChipArpPattern(pattern);
+            }
+          }
+          final rate = (plugin.state['chipArpRate'] as num?)
+                  ?.toDouble()
+                  .clamp(20.0, 120.0) ??
+              60.0;
+          AudioInputFFI().styloSetChipArpRate(rate);
+        }
+        notifyListeners();
+        markDirty();
+      case 'chipArpChord':
+        final cur =
+            (plugin.state['chipArpChord'] as num?)?.toInt().clamp(1, 9) ?? 1;
+        final next = cur >= GFStyloPhonePlugin.chipArpCustomIndex ? 1 : cur + 1;
+        plugin.state['chipArpChord'] = next;
+        if (next != GFStyloPhonePlugin.chipArpCustomIndex) {
+          final pattern = GFStyloPhonePlugin.chipArpPatterns[next];
+          if (pattern.isNotEmpty) {
+            AudioInputFFI().styloSetChipArpPattern(pattern);
+          }
+        }
+        notifyListeners();
+        markDirty();
+      case 'chipArpRate':
+        final cur = (plugin.state['chipArpRate'] as num?)
+                ?.toDouble()
+                .clamp(20.0, 120.0) ??
+            60.0;
+        final next = cur >= 55.0 ? 50.0 : 60.0;
+        plugin.state['chipArpRate'] = next;
+        AudioInputFFI().styloSetChipArpRate(next);
+        notifyListeners();
+        markDirty();
+      case 'waveform':
+        final cur =
+            (plugin.state['waveform'] as num?)?.toInt().clamp(0, 3) ?? 0;
+        final next = (cur + 1) % 4;
+        plugin.state['waveform'] = next;
+        AudioInputFFI().styloSetWaveform(next);
+        notifyListeners();
+        markDirty();
+      case 'vibrato':
+        final cur = (plugin.state['vibrato'] as num?)
+                ?.toDouble()
+                .clamp(0.0, 1.0) ??
+            0.0;
+        final next = cur > 0.0 ? 0.0 : 0.7;
+        plugin.state['vibrato'] = next;
+        AudioInputFFI().styloSetVibrato(next);
+        notifyListeners();
+        markDirty();
+    }
+    // Mirror state into the registry plugin so trackNoteOn/trackNoteOff
+    // can read the current chip-arp mode.
+    final reg = GFPluginRegistry.instance
+        .findById('com.grooveforge.stylophone') as GFStyloPhonePlugin?;
+    reg?.loadState(plugin.state);
+  }
+
   void _handleVocoderParamCc(String paramKey, CcParamMode mode, int ccValue) {
     final norm = ccValue / 127.0;
     switch (paramKey) {

@@ -177,6 +177,46 @@ typedef StyloSetVibratoC = Void Function(Float depth);
 /// Dart signature for stylophone_set_vibrato.
 typedef StyloSetVibratoDart = void Function(double depth);
 
+// ── Stylophone chiptune FFI typedefs ────────────────────────────────────────
+
+/// C: `void stylophone_set_duty_cycle(float dc)` — square-wave pulse width.
+typedef StyloSetDutyCycleC = Void Function(Float dc);
+typedef StyloSetDutyCycleDart = void Function(double dc);
+
+/// C: `void stylophone_set_noise_mix(float mix)` — white noise blend level.
+typedef StyloSetNoiseMixC = Void Function(Float mix);
+typedef StyloSetNoiseMixDart = void Function(double mix);
+
+/// C: `void stylophone_set_bit_depth(int bits)` — bit-crusher resolution.
+typedef StyloSetBitDepthC = Void Function(Int32 bits);
+typedef StyloSetBitDepthDart = void Function(int bits);
+
+/// C: `void stylophone_set_sub_mix(float mix)` — sub-oscillator level.
+typedef StyloSetSubMixC = Void Function(Float mix);
+typedef StyloSetSubMixDart = void Function(double mix);
+
+/// C: `void stylophone_set_sub_octave(int oct)` — sub-oscillator octave (1 or 2).
+typedef StyloSetSubOctaveC = Void Function(Int32 oct);
+typedef StyloSetSubOctaveDart = void Function(int oct);
+
+// ── Stylophone chiptune arp FFI typedefs ─────────────────────────────────────
+
+/// C: `void stylophone_set_chip_arp_enabled(int enabled)`
+typedef StyloSetChipArpEnabledC = Void Function(Int32 enabled);
+typedef StyloSetChipArpEnabledDart = void Function(int enabled);
+
+/// C: `void stylophone_set_chip_arp_pattern(const int* offsets, int len)`
+typedef StyloSetChipArpPatternC = Void Function(Pointer<Int32> offsets, Int32 len);
+typedef StyloSetChipArpPatternDart = void Function(Pointer<Int32> offsets, int len);
+
+/// C: `void stylophone_set_chip_arp_rate(float rate)`
+typedef StyloSetChipArpRateC = Void Function(Float rate);
+typedef StyloSetChipArpRateDart = void Function(double rate);
+
+/// C: `void stylophone_set_chip_arp_base_note(int note)`
+typedef StyloSetChipArpBaseNoteC = Void Function(Int32 note);
+typedef StyloSetChipArpBaseNoteDart = void Function(int note);
+
 // ── GF Keyboard (libfluidsynth) FFI typedefs ─────────────────────────────────
 
 /// C: `int keyboard_init(float sampleRate)` — initialise FluidSynth engine.
@@ -352,6 +392,30 @@ class AudioInputFFI {
 
   /// Dart-callable bound to `stylophone_set_capture_mode`.
   late final StyloSetCaptureModeDart _styloSetCaptureMode;
+
+  // ── Stylophone chiptune FFI fields ────────────────────────────────────────
+
+  /// Bound reference to `stylophone_set_duty_cycle` in the native library.
+  late final StyloSetDutyCycleDart _styloSetDutyCycle;
+
+  /// Bound reference to `stylophone_set_noise_mix` in the native library.
+  late final StyloSetNoiseMixDart _styloSetNoiseMix;
+
+  /// Bound reference to `stylophone_set_bit_depth` in the native library.
+  late final StyloSetBitDepthDart _styloSetBitDepth;
+
+  /// Bound reference to `stylophone_set_sub_mix` in the native library.
+  late final StyloSetSubMixDart _styloSetSubMix;
+
+  /// Bound reference to `stylophone_set_sub_octave` in the native library.
+  late final StyloSetSubOctaveDart _styloSetSubOctave;
+
+  // ── Stylophone chiptune arp FFI fields ────────────────────────────────────
+
+  late final StyloSetChipArpEnabledDart _styloSetChipArpEnabled;
+  late final StyloSetChipArpPatternDart _styloSetChipArpPattern;
+  late final StyloSetChipArpRateDart _styloSetChipArpRate;
+  late final StyloSetChipArpBaseNoteDart _styloSetChipArpBaseNote;
 
   // ── GF Keyboard (libfluidsynth) FFI fields ─────────────────────────────────
 
@@ -605,6 +669,46 @@ class AudioInputFFI {
             .lookup<NativeFunction<StyloSetCaptureModeC>>('stylophone_set_capture_mode')
             .asFunction();
 
+    // ── Stylophone chiptune bindings ─────────────────────────────────────
+    _styloSetDutyCycle =
+        _lib
+            .lookup<NativeFunction<StyloSetDutyCycleC>>('stylophone_set_duty_cycle')
+            .asFunction();
+    _styloSetNoiseMix =
+        _lib
+            .lookup<NativeFunction<StyloSetNoiseMixC>>('stylophone_set_noise_mix')
+            .asFunction();
+    _styloSetBitDepth =
+        _lib
+            .lookup<NativeFunction<StyloSetBitDepthC>>('stylophone_set_bit_depth')
+            .asFunction();
+    _styloSetSubMix =
+        _lib
+            .lookup<NativeFunction<StyloSetSubMixC>>('stylophone_set_sub_mix')
+            .asFunction();
+    _styloSetSubOctave =
+        _lib
+            .lookup<NativeFunction<StyloSetSubOctaveC>>('stylophone_set_sub_octave')
+            .asFunction();
+
+    // ── Stylophone chiptune arp bindings ─────────────────────────────────
+    _styloSetChipArpEnabled =
+        _lib
+            .lookup<NativeFunction<StyloSetChipArpEnabledC>>('stylophone_set_chip_arp_enabled')
+            .asFunction();
+    _styloSetChipArpPattern =
+        _lib
+            .lookup<NativeFunction<StyloSetChipArpPatternC>>('stylophone_set_chip_arp_pattern')
+            .asFunction();
+    _styloSetChipArpRate =
+        _lib
+            .lookup<NativeFunction<StyloSetChipArpRateC>>('stylophone_set_chip_arp_rate')
+            .asFunction();
+    _styloSetChipArpBaseNote =
+        _lib
+            .lookup<NativeFunction<StyloSetChipArpBaseNoteC>>('stylophone_set_chip_arp_base_note')
+            .asFunction();
+
     // ── GF Keyboard bindings ──────────────────────────────────────────────
     _keyboardInit =
         _lib.lookup<NativeFunction<KeyboardInitC>>('keyboard_init').asFunction();
@@ -852,6 +956,64 @@ class AudioInputFFI {
   /// Enables or disables VST3 capture routing for the Stylophone.
   void styloSetCaptureMode({required bool enabled}) =>
       _styloSetCaptureMode(enabled ? 1 : 0);
+
+  // ── Stylophone chiptune public API ────────────────────────────────────────
+
+  /// Sets the square-wave duty cycle: [dc] ∈ [0.1, 0.9].
+  ///
+  /// 0.5 = standard square.  Lower values (0.125) give the classic NES pulse
+  /// timbre.  Only affects waveform 0 (Square).
+  void styloSetDutyCycle(double dc) => _styloSetDutyCycle(dc);
+
+  /// Sets the white-noise blend level: [mix] ∈ [0.0, 1.0].
+  ///
+  /// 0 = pure oscillator tone, 1 = full white noise.
+  void styloSetNoiseMix(double mix) => _styloSetNoiseMix(mix);
+
+  /// Sets the bit-crusher depth: [bits] ∈ [2, 16].
+  ///
+  /// 16 = off (full resolution).  Lower values produce lo-fi crunch.
+  void styloSetBitDepth(int bits) => _styloSetBitDepth(bits);
+
+  /// Sets the sub-oscillator mix level: [mix] ∈ [0.0, 1.0].
+  ///
+  /// 0 = no sub, 1 = sub at maximum level.
+  void styloSetSubMix(double mix) => _styloSetSubMix(mix);
+
+  /// Sets the sub-oscillator octave: 1 = -1 octave, 2 = -2 octaves.
+  void styloSetSubOctave(int oct) => _styloSetSubOctave(oct);
+
+  // ── Stylophone chiptune arp public API ────────────────────────────────────
+
+  /// Enables or disables the chiptune arp engine.
+  ///
+  /// When enabled, the audio callback cycles through semitone offsets at
+  /// 50/60 Hz, changing only pitch — no note retrigger.  This produces the
+  /// classic NES/SID "shimmering chord" effect.
+  void styloSetChipArpEnabled(bool enabled) =>
+      _styloSetChipArpEnabled(enabled ? 1 : 0);
+
+  /// Sets the chiptune arp pattern as a list of semitone offsets.
+  ///
+  /// Example: [0, 4, 7] for a major chord, [0, 3, 7] for minor.
+  /// Maximum 8 steps.
+  void styloSetChipArpPattern(List<int> offsets) {
+    final len = offsets.length.clamp(1, 8);
+    final ptr = calloc<Int32>(len);
+    for (var i = 0; i < len; i++) {
+      ptr[i] = offsets[i];
+    }
+    _styloSetChipArpPattern(ptr, len);
+    calloc.free(ptr);
+  }
+
+  /// Sets the chiptune arp tick rate in Hz.
+  ///
+  /// Standard values: 50.0 (PAL / C64), 60.0 (NTSC / NES / Game Boy).
+  void styloSetChipArpRate(double rate) => _styloSetChipArpRate(rate);
+
+  /// Sets the base MIDI note for the chiptune arp.
+  void styloSetChipArpBaseNote(int note) => _styloSetChipArpBaseNote(note);
 
   // ── GF Keyboard public API ────────────────────────────────────────────────
 

@@ -1,5 +1,3 @@
-import 'dart:math' show pow;
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -14,6 +12,7 @@ import '../../services/audio_graph.dart';
 import '../../services/audio_input_ffi.dart';
 import '../../services/looper_engine.dart';
 import '../../services/rack_state.dart';
+import '../../services/transport_engine.dart';
 import '../../services/vst_host_service.dart';
 import 'package:grooveforge_plugin_api/grooveforge_plugin_api.dart';
 
@@ -88,15 +87,47 @@ class _GFpaStyloPhoneSlotUIState extends State<GFpaStyloPhoneSlotUI> {
   /// MIDI note for key [index] (0 = lowest, 24 = highest).
   int _keyToNote(int index) => (_baseNote + index).clamp(0, 127);
 
-  /// Converts a MIDI note number to frequency in Hz.
-  ///
-  /// Uses the standard equal-temperament formula: A4 = 440 Hz, MIDI 69.
-  double _keyToHz(int keyIndex) =>
-      440.0 * pow(2.0, (_keyToNote(keyIndex) - 69.0) / 12.0).toDouble();
-
   /// Whether the native C synthesiser is muted (MIDI OUT continues to flow).
   bool get _muteSound =>
       (widget.plugin.state['muteSound'] as bool?) ?? false;
+
+  // ─── Chiptune state helpers ───────────────────────────────────────────────
+
+  /// Square-wave duty cycle from persistent slot state, defaulting to 0.5.
+  double get _dutyCycle =>
+      (widget.plugin.state['dutyCycle'] as num?)?.toDouble().clamp(0.1, 0.9) ??
+      0.5;
+
+  /// White noise blend level from persistent slot state, defaulting to 0.0.
+  double get _noiseMix =>
+      (widget.plugin.state['noiseMix'] as num?)?.toDouble().clamp(0.0, 1.0) ??
+      0.0;
+
+  /// Bit-crusher depth from persistent slot state, defaulting to 16 (off).
+  int get _bitDepth =>
+      (widget.plugin.state['bitDepth'] as num?)?.toInt().clamp(2, 16) ?? 16;
+
+  /// Sub-oscillator mix level from persistent slot state, defaulting to 0.0.
+  double get _subMix =>
+      (widget.plugin.state['subMix'] as num?)?.toDouble().clamp(0.0, 1.0) ??
+      0.0;
+
+  /// Sub-oscillator octave from persistent slot state, defaulting to 1 (-1 oct).
+  int get _subOctave =>
+      (widget.plugin.state['subOctave'] as num?)?.toInt().clamp(1, 2) ?? 1;
+
+  /// Whether the chiptune arp is enabled.
+  bool get _chipArpEnabled =>
+      (widget.plugin.state['chipArpEnabled'] as bool?) ?? false;
+
+  /// Chiptune arp chord type index (0=off, 1=maj, 2=min, ...).
+  int get _chipArpChord =>
+      (widget.plugin.state['chipArpChord'] as num?)?.toInt().clamp(0, GFStyloPhonePlugin.chipArpCustomIndex) ?? 1;
+
+  /// Chiptune arp rate in Hz.
+  double get _chipArpRate =>
+      (widget.plugin.state['chipArpRate'] as num?)?.toDouble().clamp(20.0, 120.0) ??
+      60.0;
 
   // ─── MIDI OUT dispatch ────────────────────────────────────────────────────
 
@@ -242,6 +273,172 @@ class _GFpaStyloPhoneSlotUIState extends State<GFpaStyloPhoneSlotUI> {
     setState(() {});
   }
 
+  // ─── Chiptune parameter controls ──────────────────────────────────────────
+
+  /// Changes the square-wave duty cycle by [delta] steps of 0.125.
+  void _changeDutyCycle(double delta, RackState rack) {
+    final newVal = (_dutyCycle + delta).clamp(0.1, 0.9);
+    widget.plugin.state['dutyCycle'] = newVal;
+    AudioInputFFI().styloSetDutyCycle(newVal);
+    rack.markDirty();
+    setState(() {});
+  }
+
+  /// Toggles the noise blend between off (0.0) and 50%.
+  void _changeNoiseMix(double delta, RackState rack) {
+    final newVal = (_noiseMix + delta).clamp(0.0, 1.0);
+    widget.plugin.state['noiseMix'] = newVal;
+    AudioInputFFI().styloSetNoiseMix(newVal);
+    rack.markDirty();
+    setState(() {});
+  }
+
+  /// Cycles the bit-crusher depth through preset values.
+  ///
+  /// Preset order: 16 (off) → 8 → 6 → 4 → 2 (crunchiest).
+  void _changeBitDepth(int delta, RackState rack) {
+    const presets = [16, 8, 6, 4, 2];
+    final idx = presets.indexOf(_bitDepth).clamp(0, presets.length - 1);
+    final newIdx = (idx + delta).clamp(0, presets.length - 1);
+    final newVal = presets[newIdx];
+    widget.plugin.state['bitDepth'] = newVal;
+    AudioInputFFI().styloSetBitDepth(newVal);
+    rack.markDirty();
+    setState(() {});
+  }
+
+  /// Changes the sub-oscillator mix by [delta] steps of 0.25.
+  void _changeSubMix(double delta, RackState rack) {
+    final newVal = (_subMix + delta).clamp(0.0, 1.0);
+    widget.plugin.state['subMix'] = newVal;
+    AudioInputFFI().styloSetSubMix(newVal);
+    rack.markDirty();
+    setState(() {});
+  }
+
+  /// Toggles the sub-oscillator octave between 1 (-1 oct) and 2 (-2 oct).
+  void _changeSubOctave(RackState rack) {
+    final newVal = _subOctave == 1 ? 2 : 1;
+    widget.plugin.state['subOctave'] = newVal;
+    AudioInputFFI().styloSetSubOctave(newVal);
+    rack.markDirty();
+    setState(() {});
+  }
+
+  // ─── Chiptune arp controls ────────────────────────────────────────────────
+
+  /// Mirrors the chip-arp UI state into the [GFStyloPhonePlugin] registry
+  /// instance so that [trackNoteOn] / [trackNoteOff] can read the current
+  /// mode.  Same pattern as [_changeWaveform] / [_toggleVibrato] which sync
+  /// waveform and vibrato to the registry.
+  void _syncChipArpToRegistry() {
+    final reg = GFPluginRegistry.instance
+        .findById('com.grooveforge.stylophone') as GFStyloPhonePlugin?;
+    if (reg == null) return;
+    reg.loadState(widget.plugin.state);
+  }
+
+  /// Toggles the chiptune arp on or off.
+  void _toggleChipArp(RackState rack) {
+    final newVal = !_chipArpEnabled;
+    widget.plugin.state['chipArpEnabled'] = newVal;
+    AudioInputFFI().styloSetChipArpEnabled(newVal);
+    if (newVal) {
+      // Push current chord pattern to native.
+      final chord = _chipArpChord;
+      if (chord != GFStyloPhonePlugin.chipArpCustomIndex) {
+        final pattern = GFStyloPhonePlugin.chipArpPatterns[chord];
+        if (pattern.isNotEmpty) {
+          AudioInputFFI().styloSetChipArpPattern(pattern);
+        }
+      }
+      AudioInputFFI().styloSetChipArpRate(_chipArpRate);
+    }
+    _syncChipArpToRegistry();
+    rack.markDirty();
+    setState(() {});
+  }
+
+  /// Cycles through chord types for the chiptune arp.
+  ///
+  /// Includes presets 1–8 plus index 9 = "custom" (pattern built from held
+  /// MIDI notes).
+  void _changeChipArpChord(int delta, RackState rack) {
+    final newVal = (_chipArpChord + delta)
+        .clamp(1, GFStyloPhonePlugin.chipArpCustomIndex);
+    widget.plugin.state['chipArpChord'] = newVal;
+    if (newVal != GFStyloPhonePlugin.chipArpCustomIndex) {
+      final pattern = GFStyloPhonePlugin.chipArpPatterns[newVal];
+      if (pattern.isNotEmpty) {
+        AudioInputFFI().styloSetChipArpPattern(pattern);
+      }
+    }
+    _syncChipArpToRegistry();
+    rack.markDirty();
+    setState(() {});
+  }
+
+  /// Toggles the chiptune arp rate between 50 Hz (PAL) and 60 Hz (NTSC).
+  void _toggleChipArpRate(RackState rack) {
+    final newVal = _chipArpRate == 60.0 ? 50.0 : 60.0;
+    widget.plugin.state['chipArpRate'] = newVal;
+    AudioInputFFI().styloSetChipArpRate(newVal);
+    _syncChipArpToRegistry();
+    rack.markDirty();
+    setState(() {});
+  }
+
+  // ─── MIDI FX chain ────────────────────────────────────────────────────────
+
+  /// Routes a note event through any MIDI FX slots connected to this slot's
+  /// MIDI OUT jack (arpeggiator, harmonizer, transposer, etc.).
+  ///
+  /// When [velocity] > 0 the event is a note-on (0x9n); when 0 it is a
+  /// note-off (0x8n).  Returns the (possibly expanded) event list — the caller
+  /// iterates it to play/stop notes on the native oscillator.
+  ///
+  /// When no MIDI FX are connected the list contains the single original event
+  /// unchanged, so callers never need a special-case check.
+  List<TimestampedMidiEvent> _applyMidiChain(
+    BuildContext context,
+    int note,
+    int velocity,
+  ) {
+    final ch = (widget.plugin.midiChannel - 1).clamp(0, 15);
+    final status = velocity > 0
+        ? (0x90 | (ch & 0x0F))
+        : (0x80 | (ch & 0x0F));
+
+    final event = TimestampedMidiEvent(
+      ppqPosition: 0.0,
+      status: status,
+      data1: note,
+      data2: velocity,
+    );
+
+    // Find non-bypassed MIDI FX plugins wired to this slot's MIDI OUT jack.
+    final rack = context.read<RackState>();
+    final cables = context
+        .read<AudioGraph>()
+        .connectionsFrom(widget.plugin.id)
+        .where((c) => c.fromPort == AudioPortId.midiOut);
+    final chain = cables
+        .where((cable) => !rack.isMidiFxBypassed(cable.toSlotId))
+        .map((cable) => rack.midiFxInstanceForSlot(cable.toSlotId))
+        .whereType<GFMidiDescriptorPlugin>()
+        .toList(growable: false);
+
+    if (chain.isEmpty) return [event];
+
+    // Run events through each MIDI FX in cable order.
+    final transport = context.read<TransportEngine>().toGFTransportContext();
+    var events = <TimestampedMidiEvent>[event];
+    for (final fx in chain) {
+      events = fx.processMidi(events, transport);
+    }
+    return events;
+  }
+
   // ─── Note events ──────────────────────────────────────────────────────────
 
   /// Converts a horizontal pointer position to a key index.
@@ -255,20 +452,48 @@ class _GFpaStyloPhoneSlotUIState extends State<GFpaStyloPhoneSlotUI> {
   /// Phase is preserved in the native synth so sliding between keys is
   /// click-free (no pop at transitions).
   ///
-  /// Also dispatches a MIDI note-on (and note-off for the previous key) to
-  /// any slots wired to the MIDI OUT jack.  Native audio is skipped when the
-  /// MUTE toggle is on.
+  /// Notes are routed through any connected MIDI FX chain (arpeggiator,
+  /// harmonizer, etc.) before being sent to the native oscillator via
+  /// [AudioEngine.playNote] — which recognises the stylophone channel mode
+  /// and calls [AudioInputFFI.styloNoteOn].  When no FX are connected the
+  /// chain returns the original event unchanged, preserving the same latency
+  /// as direct FFI.
+  ///
+  /// Also dispatches MIDI note events (with FX-transformed pitches) to any
+  /// slots wired to the MIDI OUT jack.
   void _pressKey(int keyIndex, BuildContext ctx) {
     if (keyIndex == _activeKeyIndex) return; // same key — nothing to do
 
     final note = _keyToNote(keyIndex);
     final prevNote = _activeKeyIndex >= 0 ? _keyToNote(_activeKeyIndex) : -1;
 
-    // Native sound — skipped when muted.
-    if (!_muteSound) AudioInputFFI().styloNoteOn(_keyToHz(keyIndex));
+    // Release previous note through the FX chain so harmonizer/chord-expand
+    // can emit symmetric note-offs for every voice they added.
+    if (prevNote >= 0) {
+      final offEvents = _applyMidiChain(ctx, prevNote, 0);
+      final engine = ctx.read<AudioEngine>();
+      final ch = (widget.plugin.midiChannel - 1).clamp(0, 15);
+      for (final e in offEvents) {
+        if (e.isNoteOff) engine.stopNote(channel: ch, key: e.data1);
+      }
+      _dispatchNoteOff(ctx, prevNote);
+    }
 
-    // MIDI OUT: release previous note then press new one.
-    if (prevNote >= 0) _dispatchNoteOff(ctx, prevNote);
+    // Route the new note through the MIDI FX chain, then play every note-on
+    // event on the native oscillator (via the engine's stylophoneMode branch).
+    final onEvents = _applyMidiChain(ctx, note, 100);
+    final engine = ctx.read<AudioEngine>();
+    final ch = (widget.plugin.midiChannel - 1).clamp(0, 15);
+    for (final e in onEvents) {
+      if (e.isNoteOn) {
+        engine.playNote(channel: ch, key: e.data1, velocity: e.data2);
+      }
+    }
+
+    // MIDI OUT: dispatch the original (un-transformed) note to connected
+    // instruments.  FX output is already played on the native oscillator
+    // above; MIDI OUT targets receive the raw note so they can apply their
+    // own FX chains independently.
     _dispatchNoteOn(ctx, note);
 
     setState(() => _activeKeyIndex = keyIndex);
@@ -276,12 +501,21 @@ class _GFpaStyloPhoneSlotUIState extends State<GFpaStyloPhoneSlotUI> {
 
   /// Releases the currently sounding key.
   ///
-  /// Silences native audio (unless muted) and sends a MIDI note-off to any
-  /// connected MIDI OUT targets.
+  /// Routes the note-off through the MIDI FX chain so every voice added by
+  /// harmonizer / chord-expand is properly terminated, then silences the
+  /// native oscillator via [AudioEngine.stopNote].
   void _releaseKey(BuildContext ctx) {
     if (_activeKeyIndex < 0) return;
     final note = _keyToNote(_activeKeyIndex);
-    if (!_muteSound) AudioInputFFI().styloNoteOff();
+
+    // Route note-off through MIDI FX chain.
+    final offEvents = _applyMidiChain(ctx, note, 0);
+    final engine = ctx.read<AudioEngine>();
+    final ch = (widget.plugin.midiChannel - 1).clamp(0, 15);
+    for (final e in offEvents) {
+      if (e.isNoteOff) engine.stopNote(channel: ch, key: e.data1);
+    }
+
     _dispatchNoteOff(ctx, note);
     setState(() => _activeKeyIndex = -1);
   }
@@ -333,6 +567,40 @@ class _GFpaStyloPhoneSlotUIState extends State<GFpaStyloPhoneSlotUI> {
           ),
           const SizedBox(height: 4),
 
+          // ── Chiptune arp ────────────────────────────────────────────────
+          _ChipArpRow(
+            enabled: _chipArpEnabled,
+            chordIndex: _chipArpChord,
+            rate: _chipArpRate,
+            onToggle: () => _toggleChipArp(rack),
+            onChordDecrement: () => _changeChipArpChord(-1, rack),
+            onChordIncrement: () => _changeChipArpChord(1, rack),
+            onRateToggle: () => _toggleChipArpRate(rack),
+            l10n: l10n,
+          ),
+          const SizedBox(height: 4),
+
+          // ── Chiptune controls ───────────────────────────────────────────
+          _ChiptuneRow(
+            dutyCycle: _dutyCycle,
+            isSquare: _waveform == 0,
+            noiseMix: _noiseMix,
+            bitDepth: _bitDepth,
+            subMix: _subMix,
+            subOctave: _subOctave,
+            onDutyCycleDecrement: () => _changeDutyCycle(-0.125, rack),
+            onDutyCycleIncrement: () => _changeDutyCycle(0.125, rack),
+            onNoiseMixDecrement: () => _changeNoiseMix(-0.25, rack),
+            onNoiseMixIncrement: () => _changeNoiseMix(0.25, rack),
+            onBitDepthDecrement: () => _changeBitDepth(-1, rack),
+            onBitDepthIncrement: () => _changeBitDepth(1, rack),
+            onSubMixDecrement: () => _changeSubMix(-0.25, rack),
+            onSubMixIncrement: () => _changeSubMix(0.25, rack),
+            onSubOctaveToggle: () => _changeSubOctave(rack),
+            l10n: l10n,
+          ),
+          const SizedBox(height: 4),
+
           // ── Key strip ────────────────────────────────────────────────────
           SizedBox(
             height: 64,
@@ -364,6 +632,256 @@ class _GFpaStyloPhoneSlotUIState extends State<GFpaStyloPhoneSlotUI> {
 }
 
 // ─── Waveform selector row ─────────────────────────────────────────────────────
+
+// ─── Chiptune arp row ────────────────────────────────────────────────────────
+
+/// A compact row for the hardware-style chiptune arpeggio: toggle, chord
+/// type selector, and PAL/NTSC rate toggle.
+///
+/// When enabled, the native C oscillator cycles through semitone offsets at
+/// 50/60 Hz — no MIDI retrigger, just pitch register updates, exactly like
+/// classic tracker instruments.
+class _ChipArpRow extends StatelessWidget {
+  final bool enabled;
+  final int chordIndex;
+  final double rate;
+  final VoidCallback onToggle;
+  final VoidCallback onChordDecrement;
+  final VoidCallback onChordIncrement;
+  final VoidCallback onRateToggle;
+  final AppLocalizations l10n;
+
+  const _ChipArpRow({
+    required this.enabled,
+    required this.chordIndex,
+    required this.rate,
+    required this.onToggle,
+    required this.onChordDecrement,
+    required this.onChordIncrement,
+    required this.onRateToggle,
+    required this.l10n,
+  });
+
+  /// Short labels for chord types matching [GFStyloPhonePlugin.chipArpPatterns].
+  static const _chordLabels = [
+    'OFF', 'MAJ', 'MIN', 'DIM', 'MAJ7', 'MIN7', 'DOM7', 'OCT', '5TH', 'LIVE',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final rateLabel = rate >= 55.0 ? 'NTSC' : 'PAL';
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // ── ARP toggle ────────────────────────────────────────────────
+        _ModeButton(
+          label: l10n.chiptuneArp,
+          selected: enabled,
+          onTap: onToggle,
+        ),
+        if (enabled) ...[
+          const SizedBox(width: 6),
+          // ── Chord type ──────────────────────────────────────────────
+          _ChipControl(
+            label: l10n.chiptuneChord,
+            value: _chordLabels[chordIndex],
+            canDecrement: chordIndex > 1,
+            canIncrement: chordIndex < GFStyloPhonePlugin.chipArpCustomIndex,
+            onDecrement: onChordDecrement,
+            onIncrement: onChordIncrement,
+          ),
+          const SizedBox(width: 6),
+          // ── Rate toggle (PAL/NTSC) ──────────────────────────────────
+          _ModeButton(
+            label: rateLabel,
+            selected: true,
+            onTap: onRateToggle,
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+// ─── Chiptune control row ────────────────────────────────────────────────────
+
+/// A compact row of chiptune parameter controls: duty cycle, noise, crush, sub.
+///
+/// Each parameter uses a small label + value + ± buttons layout, consistent
+/// with the Theremin's sidebar controls.  The duty cycle control is only
+/// visible when the square waveform is active (index 0).
+class _ChiptuneRow extends StatelessWidget {
+  final double dutyCycle;
+  final bool isSquare;
+  final double noiseMix;
+  final int bitDepth;
+  final double subMix;
+  final int subOctave;
+  final VoidCallback onDutyCycleDecrement;
+  final VoidCallback onDutyCycleIncrement;
+  final VoidCallback onNoiseMixDecrement;
+  final VoidCallback onNoiseMixIncrement;
+  final VoidCallback onBitDepthDecrement;
+  final VoidCallback onBitDepthIncrement;
+  final VoidCallback onSubMixDecrement;
+  final VoidCallback onSubMixIncrement;
+  final VoidCallback onSubOctaveToggle;
+  final AppLocalizations l10n;
+
+  const _ChiptuneRow({
+    required this.dutyCycle,
+    required this.isSquare,
+    required this.noiseMix,
+    required this.bitDepth,
+    required this.subMix,
+    required this.subOctave,
+    required this.onDutyCycleDecrement,
+    required this.onDutyCycleIncrement,
+    required this.onNoiseMixDecrement,
+    required this.onNoiseMixIncrement,
+    required this.onBitDepthDecrement,
+    required this.onBitDepthIncrement,
+    required this.onSubMixDecrement,
+    required this.onSubMixIncrement,
+    required this.onSubOctaveToggle,
+    required this.l10n,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // Duty cycle as percentage string.
+    final dutyLabel = '${(dutyCycle * 100).round()}%';
+    // Noise mix as percentage string.
+    final noiseLabel = '${(noiseMix * 100).round()}%';
+    // Bit depth display: "OFF" for 16, otherwise the bit count.
+    final crushLabel = bitDepth >= 16 ? l10n.chiptuneOff : '${bitDepth}bit';
+    // Sub mix as percentage string.
+    final subLabel = subMix <= 0.0
+        ? l10n.chiptuneOff
+        : '${(subMix * 100).round()}%';
+    // Sub octave label.
+    final subOctLabel = '-${subOctave}oct';
+
+    return Row(
+      children: [
+        // ── Duty cycle (only for square wave) ─────────────────────────
+        if (isSquare) ...[
+          _ChipControl(
+            label: l10n.chiptuneDuty,
+            value: dutyLabel,
+            canDecrement: dutyCycle > 0.15,
+            canIncrement: dutyCycle < 0.85,
+            onDecrement: onDutyCycleDecrement,
+            onIncrement: onDutyCycleIncrement,
+          ),
+          const SizedBox(width: 6),
+        ],
+        // ── Noise ─────────────────────────────────────────────────────
+        _ChipControl(
+          label: l10n.chiptuneNoise,
+          value: noiseLabel,
+          canDecrement: noiseMix > 0.0,
+          canIncrement: noiseMix < 1.0,
+          onDecrement: onNoiseMixDecrement,
+          onIncrement: onNoiseMixIncrement,
+        ),
+        const SizedBox(width: 6),
+        // ── Bit crush ─────────────────────────────────────────────────
+        _ChipControl(
+          label: l10n.chiptuneCrush,
+          value: crushLabel,
+          canDecrement: bitDepth < 16,
+          canIncrement: bitDepth > 2,
+          onDecrement: onBitDepthDecrement,
+          onIncrement: onBitDepthIncrement,
+        ),
+        const SizedBox(width: 6),
+        // ── Sub oscillator ────────────────────────────────────────────
+        _ChipControl(
+          label: l10n.chiptuneSub,
+          value: subMix > 0 ? '$subLabel $subOctLabel' : subLabel,
+          canDecrement: subMix > 0.0,
+          canIncrement: subMix < 1.0,
+          onDecrement: onSubMixDecrement,
+          onIncrement: onSubMixIncrement,
+          onTapLabel: onSubOctaveToggle,
+        ),
+      ],
+    );
+  }
+}
+
+/// A tiny labelled +/− control for the chiptune row.
+///
+/// Mirrors the visual style of the Theremin's sidebar controls.
+class _ChipControl extends StatelessWidget {
+  final String label;
+  final String value;
+  final bool canDecrement;
+  final bool canIncrement;
+  final VoidCallback onDecrement;
+  final VoidCallback onIncrement;
+
+  /// Optional tap handler on the label text — used for sub-oscillator octave toggle.
+  final VoidCallback? onTapLabel;
+
+  const _ChipControl({
+    required this.label,
+    required this.value,
+    required this.canDecrement,
+    required this.canIncrement,
+    required this.onDecrement,
+    required this.onIncrement,
+    this.onTapLabel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final labelWidget = Text(
+      label,
+      style: const TextStyle(
+        fontSize: 7,
+        color: Colors.white38,
+        letterSpacing: 0.8,
+      ),
+    );
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        onTapLabel != null
+            ? GestureDetector(onTap: onTapLabel, child: labelWidget)
+            : labelWidget,
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 8,
+            fontWeight: FontWeight.bold,
+            color: Colors.white54,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _OctaveButton(
+              icon: Icons.remove,
+              enabled: canDecrement,
+              onPressed: onDecrement,
+            ),
+            const SizedBox(width: 2),
+            _OctaveButton(
+              icon: Icons.add,
+              enabled: canIncrement,
+              onPressed: onIncrement,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
 
 /// A row of four pill-shaped toggle buttons for selecting the Stylophone waveform.
 ///

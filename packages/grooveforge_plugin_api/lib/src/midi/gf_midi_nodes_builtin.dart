@@ -580,30 +580,37 @@ class ChordExpandNode extends GFMidiNode {
 
 /// Step division durations in quarter-note beats.
 ///
-/// | Index | Name   | Beats   | At 120 BPM |
-/// |-------|--------|---------|------------|
-/// | 0     | 1/4    | 1.000   | 500 ms     |
-/// | 1     | 1/8    | 0.500   | 250 ms     |
-/// | 2     | 1/16   | 0.250   | 125 ms     |
-/// | 3     | 1/32   | 0.125   |  62 ms     |
-/// | 4     | 1/64   | 0.0625  |  31 ms     |
-/// | 5     | 1/4T   | 0.667   | 333 ms     |
-/// | 6     | 1/8T   | 0.333   | 167 ms     |
-/// | 7     | 1/16T  | 0.167   |  83 ms     |
-/// | 8     | 1/32T  | 0.083   |  42 ms     |
+/// | Index | Name    | Beats    | At 120 BPM |
+/// |-------|---------|----------|------------|
+/// | 0     | 1/4     | 1.000    | 500 ms     |
+/// | 1     | 1/8     | 0.500    | 250 ms     |
+/// | 2     | 1/16    | 0.250    | 125 ms     |
+/// | 3     | 1/32    | 0.125    |  62 ms     |
+/// | 4     | 1/64    | 0.0625   |  31 ms     |
+/// | 5     | 1/128   | 0.03125  |  16 ms     |
+/// | 6     | 1/4T    | 0.667    | 333 ms     |
+/// | 7     | 1/8T    | 0.333    | 167 ms     |
+/// | 8     | 1/16T   | 0.167    |  83 ms     |
+/// | 9     | 1/32T   | 0.083    |  42 ms     |
+/// | 10    | 1/64T   | 0.0417   |  21 ms     |
+/// | 11    | 1/128T  | 0.0208   |  10 ms     |
 ///
-/// Triplet values use exact fractions (2/3, 1/3, 1/6, 1/12 beats) so they
-/// stay precisely in a three-against-two relationship at any tempo.
+/// Triplet values use exact fractions (2/3, 1/3, 1/6, 1/12, 1/24, 1/48
+/// beats) so they stay precisely in a three-against-two relationship at any
+/// tempo.
 const List<double> _kArpDivisionBeats = [
-  1.0,      // 0 — 1/4
-  0.5,      // 1 — 1/8
-  0.25,     // 2 — 1/16
-  0.125,    // 3 — 1/32
-  0.0625,   // 4 — 1/64
-  2 / 3,    // 5 — 1/4T
-  1 / 3,    // 6 — 1/8T
-  1 / 6,    // 7 — 1/16T
-  1 / 12,   // 8 — 1/32T
+  1.0,       //  0 — 1/4
+  0.5,       //  1 — 1/8
+  0.25,      //  2 — 1/16
+  0.125,     //  3 — 1/32
+  0.0625,    //  4 — 1/64
+  0.03125,   //  5 — 1/128
+  2 / 3,     //  6 — 1/4T
+  1 / 3,     //  7 — 1/8T
+  1 / 6,     //  8 — 1/16T
+  1 / 12,    //  9 — 1/32T
+  1 / 24,    // 10 — 1/64T
+  1 / 48,    // 11 — 1/128T
 ];
 
 /// Arpeggiator playback pattern.
@@ -772,8 +779,8 @@ class ArpeggiateNode extends GFMidiNode {
         final idx = (normalizedValue * 5).round().clamp(0, 5);
         _pattern = _ArpPattern.values[idx];
       case 'division':
-        // 9 options (indices 0–8) → normalise by (9 − 1) = 8.
-        _divisionIndex = (normalizedValue * 8).round().clamp(0, 8);
+        // 12 options (indices 0–11) → normalise by (12 − 1) = 11.
+        _divisionIndex = (normalizedValue * 11).round().clamp(0, 11);
       case 'gate':
         // Map [0, 1] → [0.10, 1.0] so gate can never be fully silent.
         _gateRatio = 0.1 + normalizedValue * 0.9;
@@ -959,6 +966,21 @@ class ArpeggiateNode extends GFMidiNode {
           ppqPosition: e.ppqPosition,
           status: _noteOffStatus(ch),
           data1: state.currentPitch!,
+          data2: 0,
+        ));
+      }
+      // If tick() generated note-ons earlier in this same processMidi batch
+      // (GFMidiGraph calls tick() before processMidi), those events are about
+      // to be recognised and passed through by _processEvent. Without a
+      // matching gate note-off they would produce stuck notes — the arp state
+      // is now clear so no future tick will silence them.  Emit anticipatory
+      // note-offs for every orphaned pitch so the caller receives balanced
+      // note-on / note-off pairs.
+      for (final orphanPitch in _arpNoteOns[ch]) {
+        output.add(TimestampedMidiEvent(
+          ppqPosition: e.ppqPosition,
+          status: _noteOffStatus(ch),
+          data1: orphanPitch,
           data2: 0,
         ));
       }

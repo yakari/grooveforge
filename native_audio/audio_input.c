@@ -1740,6 +1740,77 @@ static volatile float g_styloVibDepth = 0.0f;
 /// Vibrato LFO phase [0, 1). Audio-thread only.
 static float g_styloLfoPhase = 0.0f;
 
+// ── Chiptune parameters (written by Dart thread, read by audio callback) ────
+
+/// Duty cycle for the square wave, range [0.1, 0.9].  Default 0.5 = standard
+/// 50% square.  Lower values (0.125) give the classic NES/Game Boy pulse
+/// timbre; sweeping it produces a thick PWM effect.
+static volatile float g_styloDutyCycle = 0.5f;
+
+/// White noise mix level [0.0, 1.0].  0 = clean tone, 1 = full noise.
+/// The final sample is: osc * (1 - mix) + noise * mix.
+static volatile float g_styloNoiseMix = 0.0f;
+
+/// Bit depth for the bit-crusher effect, range [2, 16].  16 = off (full
+/// resolution).  Lower values quantise the output to fewer levels, producing
+/// the crunchy lo-fi sound of vintage 4-bit or 8-bit hardware.
+static volatile int   g_styloBitDepth = 16;
+
+/// Sample-rate divisor for the bit-crusher sample-and-hold effect.
+///
+/// Derived from bit depth: lower bit depths use a lower effective sample rate
+/// to simulate vintage DAC behaviour.  The held sample and counter are
+/// audio-thread state — not settable from Dart.
+static float g_styloCrushHeld  = 0.0f;
+static int   g_styloCrushCount = 0;
+
+/// Sub-oscillator mix level [0.0, 1.0].  0 = no sub, 1 = sub at equal volume.
+static volatile float g_styloSubMix = 0.0f;
+
+/// Sub-oscillator octave: 1 = one octave below, 2 = two octaves below.
+static volatile int   g_styloSubOctave = 1;
+
+// ── Chiptune internal DSP state (audio-thread only) ─────────────────────────
+
+/// Sub-oscillator phase accumulator [0, 1).
+static float g_styloSubPhase = 0.0f;
+
+/// Simple LCG pseudo-random number generator state for white noise.
+/// 32-bit LCG (Numerical Recipes): fast, allocation-free, no stdlib needed.
+static unsigned int g_styloNoiseState = 12345;
+
+// ── Chiptune arpeggio (hardware-style, no retriggering) ─────────────────────
+//
+// Classic chiptune arps (NES, C64 SID, Game Boy) cycle through semitone
+// offsets from a base note at a fixed rate (50/60 Hz), updating only the
+// pitch register — the oscillator never stops.  This produces a fused
+// "shimmering chord" texture rather than the staccato feel of a MIDI
+// arpeggiator (which retriggers note-on/off for each step).
+//
+// The arp runs inside the audio callback at sample-accurate timing.
+// Dart writes the pattern and base note; the audio thread advances the step.
+
+/// 1 = chiptune arp enabled, 0 = disabled.  When enabled, g_styloCurrentHz
+/// is overridden each tick by the arp pattern.
+static volatile int g_styloChipArpEnabled = 0;
+
+/// Base MIDI note for the arp pattern (set by Dart via note-on).
+static volatile int g_styloChipArpBaseNote = 60;
+
+/// Semitone offset pattern, max 8 steps.  e.g. {0, 4, 7} for major chord.
+static volatile int g_styloChipArpPattern[8] = {0, 4, 7, 0, 0, 0, 0, 0};
+
+/// Number of active steps in the pattern [1, 8].
+static volatile int g_styloChipArpLen = 3;
+
+/// Arp tick rate in Hz: 50 = PAL, 60 = NTSC.  Default 60.
+static volatile float g_styloChipArpRate = 60.0f;
+
+/// Audio-thread state: sample counter for the arp step clock.
+static int   g_styloChipArpCounter = 0;
+/// Audio-thread state: current step index in the pattern.
+static int   g_styloChipArpStep    = 0;
+
 /// Attack ramp per sample: reaches 1.0 in ~2 ms at 48 kHz.
 #define STYLO_ATTACK       0.004f
 
@@ -1760,7 +1831,8 @@ static volatile int g_styloCaptureMode = 0;
 /// Only call from the thread that currently owns the DSP state:
 /// miniaudio thread when capture=0; dart_vst_host ALSA thread when capture=1.
 static inline float _stylophone_dsp_tick(float sr) {
-    // Envelope: linear attack on note-on, exponential decay on note-off.
+    // ── Envelope ─────────────────────────────────────────────────────────
+    // Linear attack on note-on, exponential decay on note-off.
     if (g_styloNoteActive) {
         g_styloEnv += STYLO_ATTACK;
         if (g_styloEnv > 1.0f) g_styloEnv = 1.0f;
@@ -1769,24 +1841,103 @@ static inline float _stylophone_dsp_tick(float sr) {
         if (g_styloEnv < 1e-5f) g_styloEnv = 0.0f;
     }
 
-    // Vibrato LFO at 5.5 Hz — modulates pitch by ±0.5 semitone at full depth.
+    // ── Chiptune arp — pitch register cycling ──────────────────────────
+    // When enabled, overrides g_styloCurrentHz with the next note in the
+    // semitone-offset pattern at a fixed tick rate (50/60 Hz).  The
+    // oscillator phase is NOT reset — only the frequency changes, exactly
+    // like writing to a hardware pitch register.
+    if (g_styloChipArpEnabled && g_styloNoteActive) {
+        // Advance the sample counter; step forward when it reaches the
+        // threshold (sr / rate = samples per arp tick).
+        g_styloChipArpCounter++;
+        const int samplesPerTick = (int)(sr / g_styloChipArpRate);
+        if (g_styloChipArpCounter >= samplesPerTick) {
+            g_styloChipArpCounter = 0;
+            g_styloChipArpStep++;
+            if (g_styloChipArpStep >= g_styloChipArpLen)
+                g_styloChipArpStep = 0;
+            // Convert base MIDI note + semitone offset → Hz.
+            const int midiNote = g_styloChipArpBaseNote
+                               + g_styloChipArpPattern[g_styloChipArpStep];
+            g_styloCurrentHz = 440.0f * powf(2.0f, (midiNote - 69.0f) / 12.0f);
+        }
+    }
+
+    // ── Vibrato LFO ──────────────────────────────────────────────────────
+    // 5.5 Hz sine wave — modulates pitch by ±0.5 semitone at full depth.
     g_styloLfoPhase += 5.5f / sr;
     if (g_styloLfoPhase >= 1.0f) g_styloLfoPhase -= 1.0f;
     const float styloLfo = sinf(g_styloLfoPhase * 6.28318530718f);
     const float styloHz  = g_styloCurrentHz * (1.0f + styloLfo * g_styloVibDepth * 0.02963f);
 
+    // ── Main oscillator ──────────────────────────────────────────────────
     const float phase = g_styloPhase;
     float s;
     switch (g_styloWaveform) {
         default:
-        case 0: s = (phase < 0.5f) ? 1.0f : -1.0f;                              break; // Square
+        case 0: // Square — duty cycle controls the pulse width (0.5 = 50%)
+            s = (phase < g_styloDutyCycle) ? 1.0f : -1.0f;
+            break;
         case 1: s = phase * 2.0f - 1.0f;                                         break; // Sawtooth
         case 2: s = sinf(phase * 6.28318530718f);                                 break; // Sine
         case 3: s = (phase < 0.5f) ? (phase * 4.0f - 1.0f) : (3.0f - phase * 4.0f); break; // Triangle
     }
 
+    // Advance main oscillator phase.
     g_styloPhase += styloHz / sr;
     if (g_styloPhase >= 1.0f) g_styloPhase -= 1.0f;
+
+    // ── Sub-oscillator ───────────────────────────────────────────────────
+    // Square wave running 1 or 2 octaves below the main oscillator.
+    // Mixed in at g_styloSubMix level to fatten the sound.
+    const float subMix = g_styloSubMix;
+    if (subMix > 0.0f) {
+        const float subPhase = g_styloSubPhase;
+        const float subSample = (subPhase < 0.5f) ? 1.0f : -1.0f;
+        // Divisor: 2 for -1 oct, 4 for -2 oct.
+        const float subDiv = (g_styloSubOctave >= 2) ? 4.0f : 2.0f;
+        g_styloSubPhase += styloHz / (sr * subDiv);
+        if (g_styloSubPhase >= 1.0f) g_styloSubPhase -= 1.0f;
+        // Mix: main + sub, normalised so the sum doesn't clip.
+        s = s * (1.0f - subMix * 0.5f) + subSample * subMix * 0.5f;
+    }
+
+    // ── Noise blend ──────────────────────────────────────────────────────
+    // White noise via LCG PRNG — fast, allocation-free, no stdlib.
+    const float noiseMix = g_styloNoiseMix;
+    if (noiseMix > 0.0f) {
+        g_styloNoiseState = g_styloNoiseState * 1664525u + 1013904223u;
+        // Convert to float in [-1, 1].
+        const float noise = ((float)(int)g_styloNoiseState) / 2147483648.0f;
+        s = s * (1.0f - noiseMix) + noise * noiseMix;
+    }
+
+    // ── Bit crusher ──────────────────────────────────────────────────────
+    // Two-stage effect: (1) quantise amplitude to 2^bits levels, and
+    // (2) sample-and-hold to reduce the effective sample rate.  Both stages
+    // are needed — quantisation alone is inaudible on simple waveforms
+    // (square/saw), and sample-and-hold alone lacks the characteristic
+    // stepped-amplitude crunch.
+    //
+    // The hold period scales with bit depth: 2-bit holds every 16th sample,
+    // 4-bit every 8th, 8-bit every 4th — roughly matching the sample rate
+    // of the vintage hardware these bit depths emulate.
+    const int bits = g_styloBitDepth;
+    if (bits < 16) {
+        // Stage 1: amplitude quantisation.
+        const float halfLevels = (float)(1 << (bits - 1));
+        s = floorf(s * halfLevels + 0.5f) / halfLevels;
+
+        // Stage 2: sample-and-hold — update the held sample every N ticks.
+        // Hold period: 2-bit → 16, 4-bit → 8, 6-bit → 4, 8-bit → 2.
+        const int holdPeriod = (bits <= 2) ? 16 : (bits <= 4) ? 8 : (bits <= 6) ? 4 : 2;
+        g_styloCrushCount++;
+        if (g_styloCrushCount >= holdPeriod) {
+            g_styloCrushHeld  = s;
+            g_styloCrushCount = 0;
+        }
+        s = g_styloCrushHeld;
+    }
 
     return s * g_styloEnv * STYLO_MASTER_VOL;
 }
@@ -1917,6 +2068,118 @@ EXPORT void stylophone_set_vibrato(float depth) {
     if (depth < 0.0f) depth = 0.0f;
     if (depth > 1.0f) depth = 1.0f;
     g_styloVibDepth = depth;
+}
+
+// ── Chiptune parameter setters ───────────────────────────────────────────────
+
+/// Set the square-wave duty cycle for the Stylophone.
+///
+/// [dc] is clamped to [0.1, 0.9].  0.5 = standard 50% square wave.
+/// Values like 0.125 or 0.25 produce the thin NES pulse timbre; sweeping
+/// the duty cycle creates classic PWM effects.  Only affects waveform 0
+/// (Square); other waveforms ignore this parameter.
+EXPORT void stylophone_set_duty_cycle(float dc) {
+    if (dc < 0.1f) dc = 0.1f;
+    if (dc > 0.9f) dc = 0.9f;
+    g_styloDutyCycle = dc;
+}
+
+/// Set the white-noise mix level for the Stylophone.
+///
+/// [mix] ∈ [0.0, 1.0]: 0 = pure oscillator tone, 1 = full white noise.
+/// The final signal is `osc * (1 - mix) + noise * mix`, so intermediate
+/// values blend noise into the tone for gritty chiptune textures.
+EXPORT void stylophone_set_noise_mix(float mix) {
+    if (mix < 0.0f) mix = 0.0f;
+    if (mix > 1.0f) mix = 1.0f;
+    g_styloNoiseMix = mix;
+}
+
+/// Set the bit-crusher depth for the Stylophone.
+///
+/// [bits] ∈ [2, 16].  16 = full resolution (no crushing).
+/// Lower values quantise the output to 2^bits levels, producing the
+/// crunchy lo-fi sound of vintage 4-bit or 8-bit hardware.
+EXPORT void stylophone_set_bit_depth(int bits) {
+    if (bits < 2)  bits = 2;
+    if (bits > 16) bits = 16;
+    g_styloBitDepth = bits;
+}
+
+/// Set the sub-oscillator mix level for the Stylophone.
+///
+/// [mix] ∈ [0.0, 1.0]: 0 = no sub, 1 = sub at maximum level.
+/// The sub-oscillator is a square wave running 1 or 2 octaves below the
+/// main oscillator, controlled by stylophone_set_sub_octave().
+EXPORT void stylophone_set_sub_mix(float mix) {
+    if (mix < 0.0f) mix = 0.0f;
+    if (mix > 1.0f) mix = 1.0f;
+    g_styloSubMix = mix;
+}
+
+/// Set the sub-oscillator octave offset for the Stylophone.
+///
+/// [oct] ∈ {1, 2}: 1 = one octave below, 2 = two octaves below.
+EXPORT void stylophone_set_sub_octave(int oct) {
+    if (oct < 1) oct = 1;
+    if (oct > 2) oct = 2;
+    g_styloSubOctave = oct;
+}
+
+// ── Chiptune arp FFI exports ─────────────────────────────────────────────────
+
+/// Enable or disable the chiptune arpeggio engine.
+///
+/// When enabled, the audio callback overrides the pitch register at the
+/// configured rate (50/60 Hz), cycling through semitone offsets from the
+/// current base note.  The oscillator never stops — only frequency changes.
+EXPORT void stylophone_set_chip_arp_enabled(int enabled) {
+    g_styloChipArpEnabled = enabled ? 1 : 0;
+    if (enabled) {
+        // Reset the step counter so the arp starts from the first offset.
+        g_styloChipArpStep    = 0;
+        g_styloChipArpCounter = 0;
+    }
+}
+
+/// Set the chiptune arp pattern as an array of semitone offsets.
+///
+/// [offsets] is an array of [len] integers (max 8).  Each value is a
+/// semitone offset from the base note: e.g. {0, 4, 7} for a major chord.
+/// [len] is clamped to [1, 8].
+EXPORT void stylophone_set_chip_arp_pattern(const int* offsets, int len) {
+    if (len < 1) len = 1;
+    if (len > 8) len = 8;
+    for (int i = 0; i < len; i++) {
+        g_styloChipArpPattern[i] = offsets[i];
+    }
+    g_styloChipArpLen = len;
+    // Reset step so the pattern starts from the beginning.
+    g_styloChipArpStep = 0;
+    g_styloChipArpCounter = 0;
+}
+
+/// Set the chiptune arp tick rate in Hz.
+///
+/// [rate] is clamped to [20, 120].  Standard values: 50 (PAL), 60 (NTSC).
+EXPORT void stylophone_set_chip_arp_rate(float rate) {
+    if (rate < 20.0f) rate = 20.0f;
+    if (rate > 120.0f) rate = 120.0f;
+    g_styloChipArpRate = rate;
+}
+
+/// Set the base MIDI note for the chiptune arp.
+///
+/// Called automatically by stylophone_note_on when chip arp is enabled —
+/// the Hz parameter is converted back to the nearest MIDI note so the
+/// offset pattern stays in semitone intervals.
+EXPORT void stylophone_set_chip_arp_base_note(int note) {
+    if (note < 0) note = 0;
+    if (note > 127) note = 127;
+    g_styloChipArpBaseNote = note;
+    // Reset step so the new base note starts from offset[0].
+    g_styloChipArpStep = 0;
+    g_styloChipArpCounter = 0;
 }
 
 /// Enables or disables VST3 capture routing for the Stylophone.

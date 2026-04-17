@@ -2210,6 +2210,48 @@ abstract class AppLocalizations {
   /// **'TRI'**
   String get styloWaveformTriangle;
 
+  /// No description provided for @chiptuneDuty.
+  ///
+  /// In en, this message translates to:
+  /// **'DUTY'**
+  String get chiptuneDuty;
+
+  /// No description provided for @chiptuneNoise.
+  ///
+  /// In en, this message translates to:
+  /// **'NOISE'**
+  String get chiptuneNoise;
+
+  /// No description provided for @chiptuneCrush.
+  ///
+  /// In en, this message translates to:
+  /// **'CRUSH'**
+  String get chiptuneCrush;
+
+  /// No description provided for @chiptuneSub.
+  ///
+  /// In en, this message translates to:
+  /// **'SUB'**
+  String get chiptuneSub;
+
+  /// No description provided for @chiptuneOff.
+  ///
+  /// In en, this message translates to:
+  /// **'OFF'**
+  String get chiptuneOff;
+
+  /// No description provided for @chiptuneArp.
+  ///
+  /// In en, this message translates to:
+  /// **'ARP'**
+  String get chiptuneArp;
+
+  /// No description provided for @chiptuneChord.
+  ///
+  /// In en, this message translates to:
+  /// **'CHORD'**
+  String get chiptuneChord;
+
   /// No description provided for @thereminVibrato.
   ///
   /// In en, this message translates to:

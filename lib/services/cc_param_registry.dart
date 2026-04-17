@@ -337,6 +337,37 @@ class CcParamRegistry {
     ),
   ];
 
+  /// Stylophone — chiptune arp toggle, chord cycling, and rate toggle.
+  static const List<CcParamEntry> stylophone = [
+    CcParamEntry(
+      paramKey: 'chipArpEnabled',
+      displayName: 'Chiptune Arp On/Off',
+      defaultMode: CcParamMode.toggle,
+    ),
+    CcParamEntry(
+      paramKey: 'chipArpChord',
+      displayName: 'Chiptune Arp Chord',
+      defaultMode: CcParamMode.cycle,
+      cycleCount: 9,
+    ),
+    CcParamEntry(
+      paramKey: 'chipArpRate',
+      displayName: 'Arp Rate (PAL/NTSC)',
+      defaultMode: CcParamMode.toggle,
+    ),
+    CcParamEntry(
+      paramKey: 'waveform',
+      displayName: 'Waveform',
+      defaultMode: CcParamMode.cycle,
+      cycleCount: 4,
+    ),
+    CcParamEntry(
+      paramKey: 'vibrato',
+      displayName: 'Vibrato',
+      defaultMode: CcParamMode.toggle,
+    ),
+  ];
+
   /// Drum Generator — start/stop, swing, humanization, and pattern cycling.
   static const List<CcParamEntry> drumGenerator = [
     CcParamEntry(
@@ -442,6 +473,7 @@ class CcParamRegistry {
     // Instruments
     'com.grooveforge.vocoder': vocoder,
     'com.grooveforge.theremin': theremin,
+    'com.grooveforge.stylophone': stylophone,
     // GF Keyboard, Drum Generator, Looper use special keys (not pluginIds)
     '_gf_keyboard': gfKeyboard,
     '_drum_generator': drumGenerator,

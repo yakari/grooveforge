@@ -186,6 +186,30 @@ class AudioInputFFI {
   /// Sets vibrato depth [0.0, 1.0] (LFO modulates oscillator frequency by ±15 Hz at depth 1).
   void styloSetVibrato(double depth) => _osc?.styloSetVibrato(depth.toJS);
 
+  // ── Stylophone chiptune — no-ops on web (not yet supported) ───────────
+
+  /// Sets the square-wave duty cycle.  No-op on web.
+  void styloSetDutyCycle(double dc) {}
+
+  /// Sets the white-noise blend level.  No-op on web.
+  void styloSetNoiseMix(double mix) {}
+
+  /// Sets the bit-crusher depth.  No-op on web.
+  void styloSetBitDepth(int bits) {}
+
+  /// Sets the sub-oscillator mix level.  No-op on web.
+  void styloSetSubMix(double mix) {}
+
+  /// Sets the sub-oscillator octave.  No-op on web.
+  void styloSetSubOctave(int oct) {}
+
+  // ── Stylophone chiptune arp — no-ops on web ──────────────────────────
+
+  void styloSetChipArpEnabled(bool enabled) {}
+  void styloSetChipArpPattern(List<int> offsets) {}
+  void styloSetChipArpRate(double rate) {}
+  void styloSetChipArpBaseNote(int note) {}
+
   // ── GF Keyboard — all no-ops on web (uses soundfont-player JS bridge) ──
 
   /// Not supported on web — keyboard audio is handled by the JS soundfont bridge.

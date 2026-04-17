@@ -16,6 +16,7 @@ import '../../services/audio_input_ffi.dart';
 import '../../services/looper_engine.dart';
 import '../../services/rack_state.dart';
 import '../../services/theremin_distance_service.dart';
+import '../../services/transport_engine.dart';
 import '../../services/vst_host_service.dart';
 import 'package:grooveforge_plugin_api/grooveforge_plugin_api.dart';
 
@@ -222,6 +223,9 @@ class _GFpaThereminSlotUIState extends State<GFpaThereminSlotUI>
   /// The mapping is:
   ///   dist = 0  → hand far from camera → lowest note (orb at bottom).
   ///   dist = 1  → hand at minimum focus → highest note (orb at top).
+  ///
+  /// Note events are routed through any connected MIDI FX chain (arpeggiator,
+  /// harmonizer, etc.) at semitone boundaries, same as [_onTouch].
   void _processDistanceFrame(double dist) {
     if (dist < _kSilenceThreshold) {
       _silenceIfActive();
@@ -240,10 +244,25 @@ class _GFpaThereminSlotUIState extends State<GFpaThereminSlotUI>
       AudioInputFFI().thereminSetVolume(1.0);
     }
 
-    // MIDI OUT: dispatch note changes at semitone boundaries.
+    // Route note changes through MIDI FX chain + MIDI OUT at semitone
+    // boundaries — mirrors the logic in [_onTouch].
     final midiNote = _hzToMidiNote(hz);
     if (midiNote != _lastMidiNoteOut) {
-      if (_lastMidiNoteOut >= 0) _dispatchNoteOff(_lastMidiNoteOut);
+      final ch = (widget.plugin.midiChannel - 1).clamp(0, 15);
+      final engine = context.read<AudioEngine>();
+
+      if (_lastMidiNoteOut >= 0) {
+        for (final e in _applyMidiChain(_lastMidiNoteOut, 0)) {
+          if (e.isNoteOff) engine.stopNote(channel: ch, key: e.data1);
+        }
+        _dispatchNoteOff(_lastMidiNoteOut);
+      }
+
+      for (final e in _applyMidiChain(midiNote, 100)) {
+        if (e.isNoteOn) {
+          engine.playNote(channel: ch, key: e.data1, velocity: e.data2);
+        }
+      }
       _dispatchNoteOn(midiNote, 100);
       _lastMidiNoteOut = midiNote;
     }
@@ -261,6 +280,12 @@ class _GFpaThereminSlotUIState extends State<GFpaThereminSlotUI>
 
     if (!_muteSound) AudioInputFFI().thereminSetVolume(0.0);
     if (_lastMidiNoteOut >= 0) {
+      // Route note-off through MIDI FX chain.
+      final ch = (widget.plugin.midiChannel - 1).clamp(0, 15);
+      final engine = context.read<AudioEngine>();
+      for (final e in _applyMidiChain(_lastMidiNoteOut, 0)) {
+        if (e.isNoteOff) engine.stopNote(channel: ch, key: e.data1);
+      }
       _dispatchNoteOff(_lastMidiNoteOut);
       _lastMidiNoteOut = -1;
     }
@@ -381,6 +406,55 @@ class _GFpaThereminSlotUIState extends State<GFpaThereminSlotUI>
     plugin.setParameter(
         GFThereminPlugin.paramRange, (_rangeOctaves - 1) / 3.0);
     plugin.setParameter(GFThereminPlugin.paramVibrato, _vibrato);
+  }
+
+  // ─── MIDI FX chain ────────────────────────────────────────────────────────
+
+  /// Routes a note event through any MIDI FX slots connected to this slot's
+  /// MIDI OUT jack (arpeggiator, harmonizer, transposer, etc.).
+  ///
+  /// When [velocity] > 0 the event is a note-on (0x9n); when 0 it is a
+  /// note-off (0x8n).  Returns the (possibly expanded) event list.
+  ///
+  /// When no MIDI FX are connected the list contains the single original event
+  /// unchanged, so callers never need a special-case check.
+  List<TimestampedMidiEvent> _applyMidiChain(
+    int note,
+    int velocity,
+  ) {
+    final ch = (widget.plugin.midiChannel - 1).clamp(0, 15);
+    final status = velocity > 0
+        ? (0x90 | (ch & 0x0F))
+        : (0x80 | (ch & 0x0F));
+
+    final event = TimestampedMidiEvent(
+      ppqPosition: 0.0,
+      status: status,
+      data1: note,
+      data2: velocity,
+    );
+
+    // Find non-bypassed MIDI FX plugins wired to this slot's MIDI OUT jack.
+    final rack = context.read<RackState>();
+    final cables = context
+        .read<AudioGraph>()
+        .connectionsFrom(widget.plugin.id)
+        .where((c) => c.fromPort == AudioPortId.midiOut);
+    final chain = cables
+        .where((cable) => !rack.isMidiFxBypassed(cable.toSlotId))
+        .map((cable) => rack.midiFxInstanceForSlot(cable.toSlotId))
+        .whereType<GFMidiDescriptorPlugin>()
+        .toList(growable: false);
+
+    if (chain.isEmpty) return [event];
+
+    // Run events through each MIDI FX in cable order.
+    final transport = context.read<TransportEngine>().toGFTransportContext();
+    var events = <TimestampedMidiEvent>[event];
+    for (final fx in chain) {
+      events = fx.processMidi(events, transport);
+    }
+    return events;
   }
 
   // ─── MIDI OUT dispatch ────────────────────────────────────────────────────
@@ -509,29 +583,51 @@ class _GFpaThereminSlotUIState extends State<GFpaThereminSlotUI>
 
   /// Called on every pointer-down/move to update pitch + volume.
   ///
-  /// Sends the continuous Hz value to the native C oscillator (unless muted)
-  /// and dispatches MIDI note-on/off via MIDI OUT whenever the pitch crosses
-  /// a semitone boundary.
+  /// When MIDI FX are connected (arpeggiator, harmonizer, etc.), notes are
+  /// routed through the FX chain at semitone boundaries and played via
+  /// [AudioEngine.playNote] — which recognises the theremin channel mode and
+  /// calls the native FFI.  When no FX are connected, the continuous Hz value
+  /// is sent directly to the native C oscillator for smooth, glide-free pitch.
   void _onTouch(Offset position) {
     final hz = _yToHz(position.dy, _padSize.height);
     final vol = _xToVolNorm(position.dx, _padSize.width);
+    final midiNote = _hzToMidiNote(hz);
+    final velocity = (vol * 127).round().clamp(1, 127);
 
     // Native sound — skip when muted so the C oscillator stays silent.
+    // When MIDI FX are connected, the engine's thereminMode branch handles
+    // playback at semitone boundaries instead; continuous pitch is still sent
+    // directly for smooth glide between discrete note changes.
     if (!_muteSound) {
       AudioInputFFI().thereminSetPitchHz(hz);
       AudioInputFFI().thereminSetVolume(vol);
     }
 
-    // MIDI OUT: emit note-off for the previous note and note-on for the new
-    // one whenever the pitch crosses a semitone boundary.
-    if (mounted) {
-      final midiNote = _hzToMidiNote(hz);
-      final velocity = (vol * 127).round().clamp(1, 127);
-      if (midiNote != _lastMidiNoteOut) {
-        if (_lastMidiNoteOut >= 0) _dispatchNoteOff(_lastMidiNoteOut);
-        _dispatchNoteOn(midiNote, velocity);
-        _lastMidiNoteOut = midiNote;
+    // Route note changes through the MIDI FX chain (if connected) and to
+    // MIDI OUT targets whenever the pitch crosses a semitone boundary.
+    if (mounted && midiNote != _lastMidiNoteOut) {
+      // Release previous note through FX chain.
+      if (_lastMidiNoteOut >= 0) {
+        final offEvents = _applyMidiChain(_lastMidiNoteOut, 0);
+        final engine = context.read<AudioEngine>();
+        final ch = (widget.plugin.midiChannel - 1).clamp(0, 15);
+        for (final e in offEvents) {
+          if (e.isNoteOff) engine.stopNote(channel: ch, key: e.data1);
+        }
+        _dispatchNoteOff(_lastMidiNoteOut);
       }
+
+      // Play new note through FX chain.
+      final onEvents = _applyMidiChain(midiNote, velocity);
+      final engine = context.read<AudioEngine>();
+      final ch = (widget.plugin.midiChannel - 1).clamp(0, 15);
+      for (final e in onEvents) {
+        if (e.isNoteOn) {
+          engine.playNote(channel: ch, key: e.data1, velocity: e.data2);
+        }
+      }
+      _dispatchNoteOn(midiNote, velocity);
+      _lastMidiNoteOut = midiNote;
     }
 
     setState(() {
@@ -544,6 +640,13 @@ class _GFpaThereminSlotUIState extends State<GFpaThereminSlotUI>
   void _onRelease() {
     if (!_muteSound) AudioInputFFI().thereminSetVolume(0.0);
     if (mounted && _lastMidiNoteOut >= 0) {
+      // Route note-off through MIDI FX chain.
+      final offEvents = _applyMidiChain(_lastMidiNoteOut, 0);
+      final engine = context.read<AudioEngine>();
+      final ch = (widget.plugin.midiChannel - 1).clamp(0, 15);
+      for (final e in offEvents) {
+        if (e.isNoteOff) engine.stopNote(channel: ch, key: e.data1);
+      }
       _dispatchNoteOff(_lastMidiNoteOut);
       _lastMidiNoteOut = -1;
     }

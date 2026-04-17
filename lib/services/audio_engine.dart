@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'dart:async';
-import 'dart:math' show min;
+import 'dart:math' show min, pow;
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -15,9 +15,21 @@ import 'package:audio_session/audio_session.dart';
 import 'package:grooveforge/constants/soundfont_sentinels.dart';
 import 'package:grooveforge/models/chord_detector.dart';
 import 'package:grooveforge/services/audio_input_ffi.dart';
+import 'package:grooveforge/plugins/gf_stylophone_plugin.dart';
+import 'package:grooveforge_plugin_api/grooveforge_plugin_api.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 const String vocoderMode = 'vocoderMode';
+
+/// Sentinel value for [ChannelState.soundfontPath] indicating that this MIDI
+/// channel drives the native C Stylophone oscillator (square/saw/sine/triangle)
+/// instead of a FluidSynth soundfont.
+const String stylophoneMode = 'stylophoneMode';
+
+/// Sentinel value for [ChannelState.soundfontPath] indicating that this MIDI
+/// channel drives the native C Theremin oscillator (sine + 3rd harmonic with
+/// portamento and vibrato) instead of a FluidSynth soundfont.
+const String thereminMode = 'thereminMode';
 
 /// A single GFPA-managed jam connection.
 ///
@@ -1081,6 +1093,8 @@ class AudioEngine extends ChangeNotifier {
   void assignSoundfontToChannel(int channel, String path) {
     if (channel < 0 || channel > 15) return;
     if (path != vocoderMode &&
+        path != stylophoneMode &&
+        path != thereminMode &&
         path != kMidiControllerOnlySoundfont &&
         !loadedSoundfonts.contains(path)) {
       return;
@@ -1158,6 +1172,8 @@ class AudioEngine extends ChangeNotifier {
     ChannelState state = channels[channel];
     if (state.soundfontPath == null ||
         state.soundfontPath == vocoderMode ||
+        state.soundfontPath == stylophoneMode ||
+        state.soundfontPath == thereminMode ||
         state.soundfontPath == kMidiControllerOnlySoundfont) {
       return;
     }
@@ -1489,15 +1505,22 @@ class AudioEngine extends ChangeNotifier {
 
     // Compute the pitch to actually play (scale lock / Jam Mode snapping).
     // Pure arithmetic — no ValueNotifier reads that could trigger rebuilds.
+    //
+    // Skip snapping for native-oscillator instruments (stylophone / theremin):
+    // their pitch is determined by the user's finger position or by MIDI FX
+    // output — double-snapping would shift the note a second time.
+    final sfPath = channels[channel].soundfontPath;
+    final isNativeOsc = sfPath == stylophoneMode || sfPath == thereminMode;
     int keyToPlay = key;
-    if (channels[channel].isScaleLocked.value &&
+    if (!isNativeOsc &&
+        channels[channel].isScaleLocked.value &&
         channels[channel].lastChord.value != null) {
       keyToPlay = _snapKeyToScale(
         key,
         channels[channel].lastChord.value!,
         channels[channel].currentScaleType.value,
       );
-    } else {
+    } else if (!isNativeOsc) {
       for (final entry in gfpaJamEntries.value) {
         if (entry.followerCh == channel) {
           keyToPlay = _snapKeyToGfpaJam(key, entry);
@@ -1513,8 +1536,11 @@ class AudioEngine extends ChangeNotifier {
 
     // If another key already owns the snapped pitch, release it first so the
     // synth doesn't double-voice the same note.
+    // Skipped for monophonic native-oscillator instruments (stylophone /
+    // theremin) — they inherently play one note at a time and have no
+    // FluidSynth voices to release.
     final currentOwner = channels[channel].snappedKeyOwners[keyToPlay];
-    if (currentOwner != null && currentOwner != key && !midiControllerOnly) {
+    if (currentOwner != null && currentOwner != key && !midiControllerOnly && !isNativeOsc) {
       if (!kIsWeb && (Platform.isLinux || Platform.isMacOS || Platform.isWindows)) {
         AudioInputFFI().keyboardNoteOff(channel, keyToPlay);
       } else {
@@ -1534,8 +1560,24 @@ class AudioEngine extends ChangeNotifier {
     // a cheap read (no side-effects); audio is skipped when the channel is
     // muted, but UI tracking (activeNotes) still runs in the deferred block.
     if (!channels[channel].isMuted.value && !midiControllerOnly) {
-      if (channels[channel].soundfontPath == vocoderMode) {
+      if (sfPath == vocoderMode) {
         AudioInputFFI().playNote(key: keyToPlay, velocity: velocity);
+      } else if (sfPath == stylophoneMode) {
+        // Convert MIDI note → Hz (A4 = 440 Hz = MIDI 69, equal temperament).
+        final hz = 440.0 * pow(2.0, (keyToPlay - 69.0) / 12.0);
+        AudioInputFFI().styloNoteOn(hz);
+        // When the chiptune arp is active, also update the base note so
+        // the C-side arp engine knows where to apply semitone offsets.
+        AudioInputFFI().styloSetChipArpBaseNote(keyToPlay);
+        // Track the held note (for polyphonic held-note set on a mono synth).
+        final styloPlugin = GFPluginRegistry.instance
+            .findById('com.grooveforge.stylophone') as GFStyloPhonePlugin?;
+        styloPlugin?.trackNoteOn(keyToPlay);
+      } else if (sfPath == thereminMode) {
+        // Convert MIDI note → Hz and velocity → volume [0, 1].
+        final hz = 440.0 * pow(2.0, (keyToPlay - 69.0) / 12.0);
+        AudioInputFFI().thereminSetPitchHz(hz);
+        AudioInputFFI().thereminSetVolume(velocity / 127.0);
       } else if (!kIsWeb && (Platform.isLinux || Platform.isMacOS || Platform.isWindows)) {
         AudioInputFFI().keyboardNoteOn(channel, keyToPlay, velocity);
       } else {
@@ -1582,21 +1624,41 @@ class AudioEngine extends ChangeNotifier {
     }
 
     // ── AUDIO FIRST ────────────────────────────────────────────────────────
-    final currentOwner = channels[channel].snappedKeyOwners[keyToStop];
-    if (currentOwner == key) {
+    final sfPath = channels[channel].soundfontPath;
+
+    // Monophonic native-oscillator instruments (stylophone / theremin) have
+    // exactly one voice — always silence it unconditionally. The polyphonic
+    // snappedKeyOwners gate is meaningless for them and can cause stuck notes
+    // when the arpeggiator's autonomous tick() and the UI's cleanup note-off
+    // disagree about which pitch currently owns the snappedKeyOwners entry.
+    if (sfPath == stylophoneMode) {
       channels[channel].snappedKeyOwners.remove(keyToStop);
-      final midiOnly =
-          channels[channel].soundfontPath == kMidiControllerOnlySoundfont;
-      if (!midiOnly) {
-        if (channels[channel].soundfontPath == vocoderMode) {
-          AudioInputFFI().stopNote(key: keyToStop);
-        } else if (!kIsWeb && (Platform.isLinux || Platform.isMacOS || Platform.isWindows)) {
-          AudioInputFFI().keyboardNoteOff(channel, keyToStop);
-        } else {
-          // Android hot path — see `playNote` for the latency rationale.
-          final sfId = _getSfIdForChannel(channel);
-          if (sfId != -1) {
-            AudioInputFFI().gfNativeNoteOff(sfId, channel, keyToStop);
+      // Track the note-off.  Only silence the oscillator when the LAST
+      // held note is released — otherwise the mono synth should keep
+      // sounding (the chiptune arp or the most-recent note stays active).
+      final styloPlugin = GFPluginRegistry.instance
+          .findById('com.grooveforge.stylophone') as GFStyloPhonePlugin?;
+      final isLastNote = styloPlugin?.trackNoteOff(keyToStop) ?? true;
+      if (isLastNote) AudioInputFFI().styloNoteOff();
+    } else if (sfPath == thereminMode) {
+      channels[channel].snappedKeyOwners.remove(keyToStop);
+      AudioInputFFI().thereminSetVolume(0.0);
+    } else {
+      final currentOwner = channels[channel].snappedKeyOwners[keyToStop];
+      if (currentOwner == key) {
+        channels[channel].snappedKeyOwners.remove(keyToStop);
+        final midiOnly = sfPath == kMidiControllerOnlySoundfont;
+        if (!midiOnly) {
+          if (sfPath == vocoderMode) {
+            AudioInputFFI().stopNote(key: keyToStop);
+          } else if (!kIsWeb && (Platform.isLinux || Platform.isMacOS || Platform.isWindows)) {
+            AudioInputFFI().keyboardNoteOff(channel, keyToStop);
+          } else {
+            // Android hot path — see `playNote` for the latency rationale.
+            final sfId = _getSfIdForChannel(channel);
+            if (sfId != -1) {
+              AudioInputFFI().gfNativeNoteOff(sfId, channel, keyToStop);
+            }
           }
         }
       }
@@ -2296,11 +2358,15 @@ class AudioEngine extends ChangeNotifier {
   }) {
     // When the channel is running the vocoder DSP, forward CC to the native C
     // engine instead of FluidSynth — the C oscillator handles CC#1 (vibrato).
-    if (channels[channel].soundfontPath == vocoderMode) {
+    final ccPath = channels[channel].soundfontPath;
+    if (ccPath == vocoderMode) {
       AudioInputFFI().controlChange(controller, value);
-    } else if (channels[channel].soundfontPath ==
-        kMidiControllerOnlySoundfont) {
-      // MIDI-controller-only slots forward expression via patch cables, not FluidSynth.
+    } else if (ccPath == kMidiControllerOnlySoundfont ||
+        ccPath == stylophoneMode ||
+        ccPath == thereminMode) {
+      // MIDI-controller-only and native-oscillator slots don't use FluidSynth.
+      // Stylophone / theremin CC handling could be added here in the future
+      // (e.g. CC#1 → vibrato depth).
     } else {
       _sendControlChange(channel: channel, controller: controller, value: value);
     }
@@ -2309,10 +2375,12 @@ class AudioEngine extends ChangeNotifier {
   void setPitchBend({required int channel, required int value}) {
     // When the channel is running the vocoder DSP, route pitch bend to the
     // native C oscillator rather than FluidSynth — the C engine owns those voices.
-    if (channels[channel].soundfontPath == vocoderMode) {
+    final pbPath = channels[channel].soundfontPath;
+    if (pbPath == vocoderMode) {
       AudioInputFFI().pitchBend(value);
-    } else if (channels[channel].soundfontPath ==
-        kMidiControllerOnlySoundfont) {
+    } else if (pbPath == kMidiControllerOnlySoundfont ||
+        pbPath == stylophoneMode ||
+        pbPath == thereminMode) {
       // See [setControlChange] — no internal synth on this channel.
     } else {
       _sendPitchBend(channel: channel, value: value);

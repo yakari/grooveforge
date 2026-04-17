@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.14.0] - 2026-04-17
+
+### Added
+- **MIDI FX support for Stylophone and Theremin**. Both instruments now respond to all MIDI FX modules — arpeggiator, harmonizer, transposer, chord expand, velocity curve, and gate. Connect a MIDI FX via patch cable and it drives the native oscillator directly.
+- **Stylophone chiptune mode**. Four new synthesis controls: duty cycle (pulse width modulation) for the square wave, white noise blend, bit crusher (2–16 bit), and sub-oscillator at -1 or -2 octaves.
+- **Faster arpeggiator divisions**. Three new speed settings: 1/128, 1/64T, and 1/128T — up to 4x faster than the previous maximum.
+- **Stylophone chiptune arp**. A built-in hardware-style arpeggio engine that cycles through chord tones (major, minor, dim, 7ths, octave, fifth) at 50 Hz (PAL) or 60 Hz (NTSC), updating only the pitch register without retriggering the note envelope — producing the classic NES/SID "shimmering chord" texture that a standard MIDI arpeggiator cannot replicate. Includes a "LIVE" mode where holding a chord on a MIDI controller or multitouch screen defines the arp pattern dynamically.
+- **Stylophone CC mappings**. The CC assignment button now appears on Stylophone slots, with mappable parameters: chiptune arp on/off, chord type cycling, PAL/NTSC rate toggle, waveform cycling, and vibrato toggle.
+
+### Architecture
+- Stylophone and Theremin use a new channel-mode routing pattern (same approach as the vocoder) so all MIDI paths — FX tick, hardware MIDI, on-screen keyboard — automatically reach the native oscillator.
+- Native C stylophone oscillator extended with duty cycle, noise generator, bit-depth quantiser, and sub-oscillator DSP.
+
 ## [2.13.1] - 2026-04-15
 
 ### Added

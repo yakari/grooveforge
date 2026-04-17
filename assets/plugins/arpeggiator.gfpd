@@ -22,15 +22,15 @@ parameters:
     options: ["Up", "Down", "UpDown", "DnUp", "Played", "Random"]
 
   # Step division — rhythmic value of each arp step.
-  # 9 options; normalised as index / 8.
+  # 12 options; normalised as index / 11.
   - id: division
     paramId: 1
     name: "Division"
     min: 0
-    max: 8
+    max: 11
     default: 1
     type: selector
-    options: ["1/4", "1/8", "1/16", "1/32", "1/64", "1/4T", "1/8T", "1/16T", "1/32T"]
+    options: ["1/4", "1/8", "1/16", "1/32", "1/64", "1/128", "1/4T", "1/8T", "1/16T", "1/32T", "1/64T", "1/128T"]
 
   # Gate — fraction of the step duration that the note sounds.
   # 0.0 → 10 %, 1.0 → 100 %. Short values give a staccato feel.

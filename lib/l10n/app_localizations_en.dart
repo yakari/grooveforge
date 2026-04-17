@@ -1184,6 +1184,27 @@ class AppLocalizationsEn extends AppLocalizations {
   String get styloWaveformTriangle => 'TRI';
 
   @override
+  String get chiptuneDuty => 'DUTY';
+
+  @override
+  String get chiptuneNoise => 'NOISE';
+
+  @override
+  String get chiptuneCrush => 'CRUSH';
+
+  @override
+  String get chiptuneSub => 'SUB';
+
+  @override
+  String get chiptuneOff => 'OFF';
+
+  @override
+  String get chiptuneArp => 'ARP';
+
+  @override
+  String get chiptuneChord => 'CHORD';
+
+  @override
   String get thereminVibrato => 'VIB';
 
   @override
