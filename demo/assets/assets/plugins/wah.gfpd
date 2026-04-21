@@ -1,0 +1,126 @@
+spec: "1.0"
+id: "com.grooveforge.wah"
+name: "Auto-Wah"
+version: "1.0.0"
+type: effect
+
+# The wah effect sweeps a resonant bandpass filter up and down using an LFO,
+# recreating the characteristic "wah-wah" vowel sound of a guitar wah pedal.
+# The LFO can run freely or lock its rate to the host BPM.
+
+parameters:
+  - id: center
+    paramId: 0
+    name: "Center"
+    min: 200.0
+    max: 4000.0
+    default: 1200.0
+    unit: "Hz"
+  - id: resonance
+    paramId: 1
+    name: "Reso"
+    min: 0.5
+    max: 20.0
+    default: 5.0
+  - id: rate
+    paramId: 2
+    name: "Rate"
+    min: 0.1
+    max: 10.0
+    default: 1.0
+    unit: "Hz"
+  - id: depth
+    paramId: 3
+    name: "Depth"
+    min: 0.0
+    max: 1.0
+    default: 0.8
+  - id: waveform
+    paramId: 4
+    name: "Wave"
+    min: 0.0
+    max: 2.0
+    default: 0.0
+    type: selector
+    options: ["Sine", "Tri", "Saw"]
+  - id: bpm_sync
+    paramId: 5
+    name: "BPM"
+    min: 0.0
+    max: 1.0
+    default: 0.0
+    type: toggle
+  - id: beat_div
+    paramId: 6
+    name: "Div"
+    min: 0.0
+    max: 5.0
+    default: 2.0
+    type: selector
+    options: ["2 bars", "1 bar", "1/2", "1/4", "1/8", "1/16"]
+  - id: mix
+    paramId: 7
+    name: "Mix"
+    min: 0.0
+    max: 100.0
+    default: 100.0
+    unit: "%"
+
+graph:
+  nodes:
+    - id: in
+      type: audio_in
+    - id: wah
+      type: wah_filter
+      params:
+        center:    { param: center }
+        resonance: { param: resonance }
+        rate:      { param: rate }
+        depth:     { param: depth }
+        waveform:  { param: waveform }
+        bpmSync:   { param: bpm_sync }
+        beatDiv:   { param: beat_div }
+    - id: mix_nd
+      type: wet_dry
+      params:
+        mix: { param: mix }
+    - id: out
+      type: audio_out
+
+  connections:
+    - from: in.out
+      to: [wah.in, mix_nd.dry]
+    - from: wah.out
+      to: mix_nd.wet
+    - from: mix_nd.out
+      to: out.in
+
+ui:
+  groups:
+    - label: "Filter"
+      controls:
+        - type: knob
+          param: center
+        - type: knob
+          param: resonance
+    - label: "LFO"
+      controls:
+        - type: knob
+          param: rate
+        - type: knob
+          param: depth
+        - type: selector
+          param: waveform
+          label: "Wave"
+        - type: toggle
+          param: bpm_sync
+          label: "BPM"
+        - type: selector
+          param: beat_div
+          label: "Div"
+    - label: "Output"
+      controls:
+        - type: knob
+          param: mix
+        - type: vumeter
+          source: out

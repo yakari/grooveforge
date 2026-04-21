@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="GrooveForge .gfpd plugin descriptors — YAML audio and MIDI FX without Dart.">
+  <title>GrooveForge — .gfpd plugin descriptors</title>
+  <link rel="icon" type="image/png" href="../assets/icon.png">
+  <link rel="stylesheet" href="../css/site.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="header-inner">
+      <input type="checkbox" id="gf-nav-menu" class="nav-toggle-input">
+      <a class="brand" href="../">
+        <img src="../assets/icon.png" width="40" height="40" alt="">
+        GrooveForge
+      </a>
+      <div class="header-triggers">
+        <span class="lang-switch" aria-label="Language">
+          <span class="lang-current" aria-current="true">EN</span>
+          <span class="lang-sep" aria-hidden="true">·</span>
+          <a href="../fr/gfpd/" hreflang="fr">FR</a>
+        </span>
+        <label for="gf-nav-menu" class="nav-toggle-label">Menu</label>
+      </div>
+      <nav class="site-nav" aria-label="Primary">
+        <a href="../guide/">Guide</a>
+        <a href="../modules/">Modules</a>
+        <a href="../midi-fx/">MIDI FX</a>
+        <a href="../vst/">VST3</a>
+        <a href="../gfdrum/">Rhythmic patterns</a>
+        <a href="../gfpd/">Plugin descriptors</a>
+        <a href="../features/">All features</a>
+        <a href="../demo/" class="nav-cta">Try web demo</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="prose">
+    <div class="page-hero">
+      <h1><code>.gfpd</code> plugins</h1>
+      <p class="lead">GrooveForge Plugin Descriptor — one YAML file for metadata, signal graph, parameters, and UI layout.</p>
+    </div>
+
+    <h2>Why it exists</h2>
+    <p>
+      Most built-in audio effects and all bundled MIDI FX are described declaratively. You can ship new plugins by writing
+      YAML: no Flutter UI code and no recompile for experiments (you can also load a file from disk via
+      <strong>Load .gfpd from file…</strong> in the add-plugin sheet).
+    </p>
+
+    <figure class="figure-card figure-doc">
+      <img src="../assets/screenshots/03_grooveforge_modules.png" width="920" height="518" loading="lazy" alt="Rack slots showing descriptor-based effect panels with rotary controls">
+      <figcaption>Descriptor plugins appear as normal rack cards — auto-generated knobs and sliders from the <code>ui:</code> block in each <code>.gfpd</code> file.</figcaption>
+    </figure>
+
+    <h2>Plugin types</h2>
+    <table class="download-table">
+      <thead><tr><th><code>type:</code></th><th>Use</th></tr></thead>
+      <tbody>
+        <tr><td><code>effect</code></td><td>Stereo insert / send effect; <code>graph:</code> with <code>audio_in</code> / <code>audio_out</code> and DSP nodes.</td></tr>
+        <tr><td><code>midi_fx</code> (or <code>midifx</code>)</td><td>MIDI processor; <code>midi_nodes:</code> chain (transpose, harmonize, arpeggiate, …).</td></tr>
+        <tr><td><code>instrument</code> / <code>analyzer</code></td><td>Reserved for advanced GFPA use cases — see API docs in the repo.</td></tr>
+      </tbody>
+    </table>
+
+    <h2>What goes in the file</h2>
+    <ul>
+      <li><code>spec: "1.0"</code>, unique <code>id</code> (reverse-DNS), <code>name</code>, <code>version</code>, <code>type</code>.</li>
+      <li><code>parameters:</code> — automatable controls with stable <code>paramId</code> integers (never reuse IDs once shipped).</li>
+      <li>Audio: <code>graph:</code> with <code>nodes</code> and <code>connections</code> (Freeverb, delay, EQ, compressor, chorus, wah, …).</li>
+      <li>MIDI: <code>midi_nodes:</code> with node <code>type</code> and <code>params</code> bound to <code>{ param: id }</code> or constants.</li>
+      <li><code>ui:</code> — knobs, sliders, toggles, selectors, meters; optional <code>groups:</code> for responsive sectioning.</li>
+    </ul>
+
+    <h2>Authoring guide (repository)</h2>
+    <p>
+      The canonical reference is
+      <a href="https://github.com/yakari/grooveforge/blob/main/assets/plugins/HOW_TO_CREATE_A_PLUGIN.md"><code>assets/plugins/HOW_TO_CREATE_A_PLUGIN.md</code></a>
+      — node catalogue, UI control types, recipes (wet/dry, BPM-synced wah), and a pre-publish checklist.
+    </p>
+
+    <h2>Download bundled <code>.gfpd</code> files (from <code>main</code>)</h2>
+    <table class="download-table">
+      <thead><tr><th>File</th><th>Kind</th></tr></thead>
+      <tbody>
+        <tr><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/plugins/reverb.gfpd" download>reverb.gfpd</a></td><td>Audio — plate reverb</td></tr>
+        <tr><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/plugins/delay.gfpd" download>delay.gfpd</a></td><td>Audio — ping-pong delay</td></tr>
+        <tr><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/plugins/wah.gfpd" download>wah.gfpd</a></td><td>Audio — auto-wah</td></tr>
+        <tr><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/plugins/eq.gfpd" download>eq.gfpd</a></td><td>Audio — 4-band EQ</td></tr>
+        <tr><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/plugins/compressor.gfpd" download>compressor.gfpd</a></td><td>Audio — dynamics</td></tr>
+        <tr><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/plugins/chorus.gfpd" download>chorus.gfpd</a></td><td>Audio — chorus / flanger</td></tr>
+        <tr><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/plugins/harmonizer.gfpd" download>harmonizer.gfpd</a></td><td>MIDI FX</td></tr>
+        <tr><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/plugins/chord_expand.gfpd" download>chord_expand.gfpd</a></td><td>MIDI FX</td></tr>
+        <tr><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/plugins/arpeggiator.gfpd" download>arpeggiator.gfpd</a></td><td>MIDI FX</td></tr>
+        <tr><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/plugins/transposer.gfpd" download>transposer.gfpd</a></td><td>MIDI FX</td></tr>
+        <tr><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/plugins/velocity_curve.gfpd" download>velocity_curve.gfpd</a></td><td>MIDI FX</td></tr>
+        <tr><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/plugins/gate.gfpd" download>gate.gfpd</a></td><td>MIDI FX</td></tr>
+      </tbody>
+    </table>
+
+    <p><a href="../gfdrum/">← .gfdrum</a> · <a href="../features/">Full feature list →</a></p>
+  </main>
+
+  <footer class="site-footer">
+    <p><a href="https://github.com/yakari/grooveforge">GitHub</a> · <a href="../privacy/">Privacy</a></p>
+  </footer>
+</body>
+</html>

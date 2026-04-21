@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Hébergement VST3 GrooveForge sous Linux et macOS — plugins, routage audio, fenêtres d’édition.">
+  <title>GrooveForge — Hébergement VST3</title>
+  <link rel="icon" type="image/png" href="../../assets/icon.png">
+  <link rel="stylesheet" href="../../css/site.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Aller au contenu</a>
+  <header class="site-header">
+    <div class="header-inner">
+      <input type="checkbox" id="gf-nav-menu" class="nav-toggle-input">
+      <a class="brand" href="../">
+        <img src="../../assets/icon.png" width="40" height="40" alt="">
+        GrooveForge
+      </a>
+      <div class="header-triggers">
+        <span class="lang-switch" aria-label="Langue">
+          <a href="../../vst/" hreflang="en">EN</a>
+          <span class="lang-sep" aria-hidden="true">·</span>
+          <span class="lang-current" aria-current="true">FR</span>
+        </span>
+        <label for="gf-nav-menu" class="nav-toggle-label">Menu</label>
+      </div>
+      <nav class="site-nav" aria-label="Navigation principale">
+        <a href="../guide/">Guide</a>
+        <a href="../modules/">Modules</a>
+        <a href="../midi-fx/">MIDI FX</a>
+        <a href="../vst/">VST3</a>
+        <a href="../gfdrum/">Patterns (.gfdrum)</a>
+        <a href="../gfpd/">Descripteurs (.gfpd)</a>
+        <a href="../features/">Toutes les fonctionnalités</a>
+        <a href="../../demo/" class="nav-cta">Démo web</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="prose">
+    <div class="page-hero">
+      <h1>Hébergement VST3</h1>
+      <p class="lead">Utilisez des instruments et effets tiers dans le rack GrooveForge sur ordinateur.</p>
+    </div>
+
+    <h2>Plateformes prises en charge (aujourd’hui)</h2>
+    <p>
+      <span class="badge badge-linux">Linux</span>
+      <span class="badge badge-macos">macOS</span>
+      — Hébergement VST3 complet : chargez des bundles <code>.vst3</code>, traitez l’audio dans le même graphe patch que les
+      modules intégrés, ouvrez l’<strong>éditeur natif</strong> de chaque plugin dans une fenêtre séparée (X11 sous Linux ;
+      toolkit natif sous macOS). BPM et transport sont transmis pour garder les effets synchronisés au tempo alignés sur GrooveForge.
+    </p>
+    <p>
+      <strong>Windows :</strong> la plomberie existe dans le code mais l’intégration audio WASAPI est encore en cours — considérez
+      le VST3 Windows comme <em>prévu</em> jusqu’à une annonce dans le journal des modifications.
+    </p>
+    <p>
+      <span class="badge badge-web">Web / Android</span>
+      — le VST3 n’est <strong>pas</strong> disponible ; utilisez le clavier GrooveForge, les effets <code>.gfpd</code> fournis
+      et les MIDI FX.
+    </p>
+
+    <h2>Charger un plugin</h2>
+    <ol>
+      <li>Touchez <strong>+</strong> dans le rack → <strong>Parcourir les VST3</strong> (bureau uniquement).</li>
+      <li>Sélectionnez le dossier ou fichier du bundle <code>.vst3</code> (sélecteur dépendant de l’OS).</li>
+      <li>Les paramètres apparaissent en potentiomètres rotatifs groupés dans la carte du slot ; <strong>Afficher l’interface du plugin</strong> ouvre la fenêtre de l’éditeur.</li>
+    </ol>
+
+    <h2>Routage audio</h2>
+    <p>
+      Dans la vue patch, reliez la sortie audio d’un clavier ou d’un autre plugin à l’entrée audio d’un VST, puis vers le bus
+      principal ou d’autres effets. L’ordre suit le graphe de câbles (traitement topologique). Enregistrez le projet pour
+      capturer à la fois le rack et les instantanés de paramètres VST dans le <code>.gf</code>.
+    </p>
+
+    <figure class="figure-card figure-doc">
+      <img src="../../assets/screenshots/04_grooveforge_back_wiring.png" width="920" height="518" loading="lazy" alt="Graphe patch : jacks audio entre slots du rack">
+      <figcaption>Les VST3 sont des slots comme les autres dans le graphe audio — reliez sorties et entrées dans la vue arrière.</figcaption>
+    </figure>
+
+    <h2>Prérequis de compilation</h2>
+    <p>
+      Le SDK VST3 de Steinberg n’est pas inclus dans le dépôt. Clonez-le dans
+      <code>packages/flutter_vst3/vst3sdk</code> (avec sous-modules) avant de compiler les cibles bureau — voir le
+      <a href="https://github.com/yakari/grooveforge#readme">README</a> sur GitHub pour la commande exacte.
+    </p>
+
+    <p><a href="../midi-fx/">← MIDI FX</a> · <a href="../gfdrum/">Patterns .gfdrum →</a></p>
+  </main>
+
+  <footer class="site-footer">
+    <p><a href="https://github.com/yakari/grooveforge">GitHub</a> · <a href="../privacy/">Confidentialité</a></p>
+  </footer>
+</body>
+</html>

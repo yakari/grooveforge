@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Politique de confidentialité GrooveForge — local d’abord, pas d’analytique.">
+  <title>GrooveForge — Politique de confidentialité</title>
+  <link rel="icon" type="image/png" href="../../assets/icon.png">
+  <link rel="stylesheet" href="../../css/site.css">
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Aller au contenu</a>
+  <header class="site-header">
+    <div class="header-inner">
+      <input type="checkbox" id="gf-nav-menu" class="nav-toggle-input">
+      <a class="brand" href="../">
+        <img src="../../assets/icon.png" width="40" height="40" alt="">
+        GrooveForge
+      </a>
+      <div class="header-triggers">
+        <span class="lang-switch" aria-label="Langue">
+          <a href="../../privacy/" hreflang="en">EN</a>
+          <span class="lang-sep" aria-hidden="true">·</span>
+          <span class="lang-current" aria-current="true">FR</span>
+        </span>
+        <label for="gf-nav-menu" class="nav-toggle-label">Menu</label>
+      </div>
+      <nav class="site-nav" aria-label="Navigation principale">
+        <a href="../guide/">Guide</a>
+        <a href="../modules/">Modules</a>
+        <a href="../midi-fx/">MIDI FX</a>
+        <a href="../vst/">VST3</a>
+        <a href="../gfdrum/">Patterns (.gfdrum)</a>
+        <a href="../gfpd/">Descripteurs (.gfpd)</a>
+        <a href="../features/">Toutes les fonctionnalités</a>
+        <a href="../../demo/" class="nav-cta">Démo web</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" style="max-width: 900px; margin: 0 auto; padding: 2rem 1.25rem 4rem;">
+    <div id="content" aria-live="polite"></div>
+    <p class="prose" style="margin-top: 2rem;"><a href="../">← Accueil</a> · <a href="../features/">Fonctionnalités →</a></p>
+  </main>
+
+  <footer class="site-footer">
+    <p><a href="https://github.com/yakari/grooveforge">GitHub</a> · <a href="../privacy/">Confidentialité</a></p>
+  </footer>
+  <script>
+    fetch('../../docs/site/privacy.fr.md')
+      .then(function (r) { return r.text(); })
+      .then(function (md) {
+        document.getElementById('content').innerHTML = marked.parse(md);
+      })
+      .catch(function () {
+        document.getElementById('content').textContent = 'Impossible de charger la politique de confidentialité.';
+      });
+  </script>
+</body>
+</html>

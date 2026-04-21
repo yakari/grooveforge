@@ -1,0 +1,189 @@
+# Batucada Directed — Brazilian Samba Escola with Director's Whistle
+# Reference: Escola de Samba tradition (Rio de Janeiro Carnaval), Mangueira, Portela,
+#            "The Brazilian Sound" (Chris McGowan / Ricardo Pessanha),
+#            Escola Portela mestre Manoel Dionísio, observations of rehearsal recordings
+# A variant of the standard Batucada groove that adds the mestre (director) whistle
+# patterns that guide an amateur escola de samba through the performance.
+# In a real escola de samba, the mestre de bateria stands in front of the bateria
+# (percussion ensemble) and signals changes with a metal whistle (apito):
+#
+#   Signal conventions used in this file:
+#     "ATTENTION" — two short whistles: the bateria should listen for the next signal
+#     "BREAK"     — one long whistle: stop the current pattern, play the break
+#     "CHANGE"    — three shorts: transition to the next pattern variation
+#     "GROOVE"    — short-short-long: return to the main groove after a break
+#     "FREE"      — rapid shorts: everyone improvises / plays at maximum energy
+#
+# The whistle signals appear in the GROOVE variations below. Each variation represents
+# a different moment in the escola rehearsal or parade:
+#   main_groove       — normal samba batucada, no signal (the reference groove)
+#   attention_signal  — mestre calls "attention": two short whistles mid-bar
+#   change_signal     — mestre signals "change pattern": three short whistles
+#   groove_return     — after a break: "short-short-long" return signal
+#   free_energy       — mestre triggers chaos: rapid short whistles + max groove
+#
+# The FILL variations show the whistle during breaks and transitions:
+#   break_whistle     — the long whistle that triggers the bateria break
+#   reentrada         — re-entry after the break, with confirming long whistle
+#
+# GM notes: 71=Short Whistle, 72=Long Whistle,
+#           35=surdo open (beat 1), 36=surdo mute (beat 3), 38=caixa (snare), 
+#           37=tamborim/caixeta, 70=chocalho (shaker), 47=repique (open hi conga), 
+#           56=agogô (cowbell), 42=chimbal (hihat), 49=crash
+
+#
+# ── Step grid notation ────────────────────────────────────────────────────────
+# Each character in a step grid represents one subdivision of the bar.
+# Resolution controls how many steps per bar (16 = 16th notes in 4/4).
+#
+#   X   Strong accent  — velocity = base_velocity × 1.00
+#   x   Medium accent  — velocity = base_velocity × 0.75
+#   o   Soft hit       — velocity = base_velocity × 0.55
+#   g   Ghost note     — velocity = base_velocity × 0.28
+#   .   Rest           — no note fired at this step
+#
+# Beat positions — 4/4 at resolution 16 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
+#        1  e1 +1 a1  2  e2 +2 a2  3  e3 +3 a3  4  e4 +4 a4
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Batucada Directed
+family: latin
+bpm_range: [110, 150]
+time_signature: [4, 4]
+resolution: 16
+feel: straight
+
+instruments:
+  surdo_open:    { note: 35, base_velocity: 110, velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.20 }
+  surdo_mute:    { note: 36, base_velocity: 95,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.12 }
+  caixa:         { note: 38, base_velocity: 85,  velocity_range: 18, timing_jitter: 0.012, duration_beats: 0.08 }
+  tamborim:      { note: 37, base_velocity: 95,  velocity_range: 14, timing_jitter: 0.014, duration_beats: 0.07 }
+  repique:       { note: 47, base_velocity: 90,  velocity_range: 12, timing_jitter: 0.014, duration_beats: 0.08 }
+  agogo:         { note: 56, base_velocity: 85,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.07 }
+  chocalho:      { note: 70, base_velocity: 65,  velocity_range: 12, timing_jitter: 0.020, duration_beats: 0.06 }
+  chimbal:       { note: 42, base_velocity: 70,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.07 }
+  whistle_short: { note: 71, base_velocity: 115, velocity_range: 4,  timing_jitter: 0.006, duration_beats: 0.08 }
+  whistle_long:  { note: 72, base_velocity: 120, velocity_range: 4,  timing_jitter: 0.006, duration_beats: 0.45 }
+  crash:         { note: 49, base_velocity: 100, velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.22 }
+
+humanization:
+  timing_jitter: 0.016
+  velocity_jitter: 18
+  velocity_drift: 0.07
+
+sections:
+  intro:
+    type: count_in
+    hits: 4
+    note: 71
+
+  groove:
+    bars: 1
+    variations:
+      - name: main_groove
+        weight: 3
+        # The standard batucada groove — no whistle, just the band playing.
+        surdo_open: "X..............."
+        surdo_mute: "........X......."
+        caixa:      "gxgxgxgXgxgxgxgX"
+        repique:    "X.x...X...x.X.x."
+        tamborim:   "X..X.X..X..X.X.."
+        agogo:      "..X...X...X...X."
+        chocalho:   "x.x.x.x.x.x.x.x."
+        chimbal:    "x.x.x.x.x.x.x.x."
+
+      - name: attention_signal
+        weight: 2
+        # The mestre blows two SHORT whistles at position 0 and 2 — "attention!"
+        surdo_open:    "X..............."
+        surdo_mute:    "........X......."
+        caixa:         "gxgxgxgXg.g.g.g."
+        repique:       "X...X...X...X..."
+        tamborim:      "X..X.X..X..X.X.."
+        agogo:         "..X...X...X...X."
+        chocalho:      "x.x.x.x.x.x.x.x."
+        whistle_short: "X.X............."
+
+      - name: change_signal
+        weight: 2
+        # Three short whistles: "change pattern!" at positions 0, 2, 4.
+        surdo_open:    "X..............."
+        surdo_mute:    "........X......."
+        caixa:         "gxgxgxgXgxgxgxgX"
+        repique:       "gXgXgXgXgXgXgXgX"
+        tamborim:      "XX.X.X..XX.X.X.."
+        agogo:         "..X...X...X...X."
+        whistle_short: "X.X.X..........."
+
+      - name: groove_return
+        weight: 1
+        # Short-short-long whistle pattern: "return to the groove!"
+        surdo_open:    "X..............."
+        surdo_mute:    "........X......."
+        caixa:         "gxgxgxgXgxgxgxgX"
+        repique:       "X.x...X...x.X.x."
+        tamborim:      "X..X.X..X..X.X.."
+        agogo:         "..X...X...X...X."
+        chocalho:      "x.x.x.x.x.x.x.x."
+        chimbal:       "x.x.x.x.x.x.x.x."
+        whistle_short: "x.x............."
+        whistle_long:  "....X..........."
+
+      - name: free_energy
+        weight: 1
+        # Rapid short whistles: "maximum energy!" — chaotic climax
+        surdo_open:    "X.......X......."
+        surdo_mute:    "....X.......X..."
+        caixa:         "XxXxXxXxXxXxXxXx"
+        repique:       "X.x.X.x.X.x.X.x."
+        tamborim:      "X.XX.XX.X.XX.XX."
+        agogo:         "X.X.X.X.X.X.X.X."
+        chocalho:      "x.x.x.x.x.x.x.x."
+        chimbal:       "x.x.x.x.x.x.x.x."
+        whistle_short: "X...X...X...X..."
+
+  fill:
+    bars: 1
+    variations:
+      - name: break_whistle
+        # The long whistle triggers the bateria break (pausa).
+        surdo_open:   "X..............."
+        whistle_long: "X..............."
+        caixa:        "X..............."
+
+      - name: reentrada
+        # Re-entry after the break: confirming long whistle, repique signals back in.
+        surdo_open:   "X..............."
+        surdo_mute:   "........X......."
+        caixa:        "g.............XX"
+        repique:      "X.x...X.x.X.x..."
+        chocalho:     "................"
+        whistle_long: "X..............."
+
+      - name: accelerando_repique
+        # Repique solo build while the mestre blows attention signals.
+        repique:       "gXgXgXgXgXgXgXgX"
+        surdo_open:    "X..............."
+        surdo_mute:    "........X......."
+        caixa:         "g.g.g.g.g.g.g.g."
+        whistle_short: "X...X.......X..."
+
+  crash:
+    bars: 1
+    variations:
+      - name: standard
+        crash:      "X..............."
+        surdo_open: "X..............."
+        surdo_mute: "........X......."
+        caixa:      "gxgxgxgXgxgxgxgX"
+        tamborim:   "X..X.X..X..X.X.."
+        agogo:      "..X...X...X...X."
+        chocalho:   "x.x.x.x.x.x.x.x."
+
+structure:
+  fill_every: 8
+  break_every: 0
+  break_length: 1
+  crash_after_fill: true
+  dynamic_build: true

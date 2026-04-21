@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Modules intégrés GrooveForge — clavier, vocodeur, Jam Mode, looper, batterie.">
+  <title>GrooveForge — Modules intégrés</title>
+  <link rel="icon" type="image/png" href="../../assets/icon.png">
+  <link rel="stylesheet" href="../../css/site.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Aller au contenu</a>
+  <header class="site-header">
+    <div class="header-inner">
+      <input type="checkbox" id="gf-nav-menu" class="nav-toggle-input">
+      <a class="brand" href="../">
+        <img src="../../assets/icon.png" width="40" height="40" alt="">
+        GrooveForge
+      </a>
+      <div class="header-triggers">
+        <span class="lang-switch" aria-label="Langue">
+          <a href="../../modules/" hreflang="en">EN</a>
+          <span class="lang-sep" aria-hidden="true">·</span>
+          <span class="lang-current" aria-current="true">FR</span>
+        </span>
+        <label for="gf-nav-menu" class="nav-toggle-label">Menu</label>
+      </div>
+      <nav class="site-nav" aria-label="Navigation principale">
+        <a href="../guide/">Guide</a>
+        <a href="../modules/">Modules</a>
+        <a href="../midi-fx/">MIDI FX</a>
+        <a href="../vst/">VST3</a>
+        <a href="../gfdrum/">Patterns (.gfdrum)</a>
+        <a href="../gfpd/">Descripteurs (.gfpd)</a>
+        <a href="../features/">Toutes les fonctionnalités</a>
+        <a href="../../demo/" class="nav-cta">Démo web</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="prose">
+    <div class="page-hero">
+      <h1>Modules intégrés</h1>
+      <p class="lead">Rôle de chaque type de slot et comment il se branche au reste du patch.</p>
+    </div>
+
+    <figure class="figure-card figure-doc">
+      <img src="../../assets/screenshots/03_grooveforge_modules.png" width="920" height="518" loading="lazy" alt="Cartes de modules dans le rack : clavier, effets et contrôles">
+      <figcaption>Chaque slot développé montre son panneau — instruments SoundFont, effets <code>.gfpd</code>, MIDI FX, Jam Mode, looper, batterie, etc.</figcaption>
+    </figure>
+
+    <h2>Clavier GrooveForge</h2>
+    <p>
+      Moteur SoundFont (<code>.sf2</code>) multi-timbre avec jusqu’à 16 canaux MIDI par slot, banque/programme par canal,
+      <strong>vocodeur</strong> optionnel par slot et gestes sur le clavier à l’écran. Branchez le MIDI IN depuis le matériel
+      ou le piano virtuel / looper ; l’audio OUT rejoint le bus principal ou d’autres effets via les câbles patch.
+    </p>
+
+    <h2>Piano virtuel</h2>
+    <p>
+      Clavier tactile <strong>sans son interne</strong> — il ne fait que transmettre le MIDI par ses jacks. Idéal devant
+      un instrument SoundFont ou VST. Connectez <strong>Scale IN</strong> depuis Jam Mode pour la coloration des degrés et
+      l’alignement sur la gamme.
+    </p>
+
+    <h2>Vocodeur (GFPA)</h2>
+    <p>
+      Slot dédié avec porteuses (dent de scie, carré, choral, naturel/PSOLA), pitch bend MIDI et vibrato (CC1), modulation
+      par micro. Plusieurs vocodeurs peuvent coexister.
+    </p>
+
+    <h2>Stylophone et Theremin</h2>
+    <p>
+      Bande monophonique Stylophone et pavé Theremin avec MIDI OUT vers le rack. Le Theremin propose le <strong>mode CAM</strong>
+      sur certaines plateformes (mouvement via caméra avant — voir la <a href="../privacy/">politique de confidentialité</a>).
+    </p>
+
+    <h2>Jam Mode</h2>
+    <p>
+      Processeur en instance unique : choisissez un canal <strong>maître</strong> ; lorsque le maître joue des accords ou une basse
+      (réglable), les claviers et vocodeurs <strong>cibles</strong> se verrouillent sur la gamme dérivée. Types de gammes,
+      fondamentale alignée sur le BPM et bandeau épinglé sous le transport. S’associe au Scale IN du piano virtuel ou au
+      verrouillage de gamme interne des claviers.
+    </p>
+
+    <figure class="figure-card figure-doc">
+      <img src="../../assets/screenshots/05_grooveforge_jam_mode.png" width="920" height="518" loading="lazy" alt="Jam Mode : affichage de gamme et contrôles sous le transport">
+      <figcaption>Jam Mode — canal maître, type de gamme, fondamentale et bandeau sous le transport ; les cibles se verrouillent sur la gamme dérivée.</figcaption>
+    </figure>
+
+    <h2>MIDI Looper</h2>
+    <p>
+      Boucleur MIDI multipiste avec surdub, muet par piste, inversion, vitesse et quantification. Le MIDI IN peut être toute
+      source en amont ; le MIDI OUT alimente les instruments. L’état est stocké dans les projets <code>.gf</code>.
+    </p>
+
+    <h2>Générateur de batterie</h2>
+    <p>
+      Boîte à rythmes synchronisée au transport, pilotée par des fichiers <a href="../gfdrum/"><code>.gfdrum</code></a> : grilles
+      de pas, humanisation, swing, fills et compte à rebours optionnel. Utilise les notes de batterie General MIDI sur la
+      SoundFont choisie.
+    </p>
+
+    <h2>Effets descripteurs et MIDI FX</h2>
+    <p>
+      Les plugins <a href="../gfpd/"><code>.gfpd</code></a> fournis incluent réverb, delay, wah, EQ, compresseur, chorus (audio)
+      et harmoniseur, arpégiateur, transposeur, expansion d’accords, courbe de vélocité, gate (MIDI). Vous pouvez charger
+      des descripteurs personnalisés depuis le disque.
+    </p>
+
+    <p><a href="../guide/">← Prise en main</a> · <a href="../midi-fx/">MIDI FX →</a></p>
+  </main>
+
+  <footer class="site-footer">
+    <p><a href="https://github.com/yakari/grooveforge">GitHub</a> · <a href="../privacy/">Confidentialité</a></p>
+  </footer>
+</body>
+</html>
