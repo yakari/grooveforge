@@ -1,6 +1,16 @@
 # GrooveForge 2.0
 
-GrooveForge is a cross-platform Flutter DAW application. It connects to physical MIDI keyboards, hosts external VST3 plugins (desktop), runs a built-in multi-timbral synthesizer / vocoder, and supports real-time collaborative Jam Mode with scale locking across multiple plugin slots.
+GrooveForge is a small cross-platform Flutter app for playing with MIDI keyboards, soundfonts, and — on desktop — VST3 plugins. It runs a built-in multi-timbral synthesizer with a vocoder, and offers a real-time "Jam Mode" that locks notes to a scale across several plugin slots.
+
+It is **not** meant to compete with established DAWs (Ableton, Bitwig, Reaper, FL Studio, …) or with the excellent free and open-source tools out there (Ardour, LMMS, Zrythm, Qtractor, …). Those projects are far more capable and more thoroughly tested. GrooveForge is a focused personal tool that happens to be shared publicly in case it is useful to someone else.
+
+## About this project
+
+GrooveForge started as a very specific itch. I wanted something easy to carry around — a lightweight Android app I could open on a tablet or phone, plug a small MIDI keyboard into, and use to help me **regain my knowledge of scales and rebuild some muscle memory** after close to 30 years away from a piano. The Jam Mode, scale lock, and keyboard highlighting all exist for that reason.
+
+What was meant to be a modest practice companion grew quite a bit — thanks in large part to **Vibe Coding** with AI assistants (mainly [Anthropic's Claude Code](https://claude.com/claude-code)). Features like VST3 hosting, the plugin rack, the vocoder, and the cross-platform build were all iterated on collaboratively with an LLM in the loop. I am a single developer working on this in my spare time; please treat it accordingly — rough edges are expected, and releases happen when I have time.
+
+If it helps anyone else dust off an old piano habit, even better.
 
 ## Features
 
