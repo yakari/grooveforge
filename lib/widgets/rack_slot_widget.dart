@@ -849,6 +849,16 @@ class _PianoBody extends StatelessWidget {
       for (final e in midiEvents) {
         if (e.isNoteOn) {
           engine.playNote(channel: channelIndex, key: e.data1, velocity: e.data2);
+        } else if (e.isNoteOff) {
+          // MIDI FX (e.g. Microtone) emit a Note-Off for the previous voice
+          // when re-attacking a cluster — route it so the old voice is
+          // properly silenced before the new pre-bent voice attacks.
+          engine.stopNote(channel: channelIndex, key: e.data1);
+        } else if (e.isPitchBend) {
+          // MIDI FX can prepend a pitch-bend to retune the upcoming Note-On.
+          // Route it to this slot's channel so the synth applies the bend
+          // before the note starts sounding.
+          engine.setPitchBend(channel: channelIndex, value: e.pitchBendValue);
         }
       }
       // Also feed any loopers connected to this slot's MIDI OUT so
@@ -873,6 +883,17 @@ class _PianoBody extends StatelessWidget {
       for (final e in _applyMidiChain(context, note, 0)) {
         if (e.isNoteOff) {
           engine.stopNote(channel: channelIndex, key: e.data1);
+        } else if (e.isNoteOn) {
+          // Microtone re-attacks on partial cluster release: a release event
+          // can also produce a Note-On for the shrunken cluster's new base
+          // pitch. Without this branch the re-attack would be silently
+          // dropped and the cluster would go quiet on the first finger lift.
+          engine.playNote(channel: channelIndex, key: e.data1, velocity: e.data2);
+        } else if (e.isPitchBend) {
+          // Mirror the note-on path so a MIDI FX that resets bend to centre
+          // on release (Microtone does this on all-notes-off) actually reaches
+          // the synth and clears any leftover bend from the previous cluster.
+          engine.setPitchBend(channel: channelIndex, value: e.pitchBendValue);
         }
       }
       // Mirror the note-on looper feed for note-off so held notes are

@@ -474,7 +474,11 @@ class _GFpaStyloPhoneSlotUIState extends State<GFpaStyloPhoneSlotUI> {
       final engine = ctx.read<AudioEngine>();
       final ch = (widget.plugin.midiChannel - 1).clamp(0, 15);
       for (final e in offEvents) {
-        if (e.isNoteOff) engine.stopNote(channel: ch, key: e.data1);
+        if (e.isNoteOff) {
+          engine.stopNote(channel: ch, key: e.data1);
+        } else if (e.isPitchBend) {
+          engine.setPitchBend(channel: ch, value: e.pitchBendValue);
+        }
       }
       _dispatchNoteOff(ctx, prevNote);
     }
@@ -487,6 +491,10 @@ class _GFpaStyloPhoneSlotUIState extends State<GFpaStyloPhoneSlotUI> {
     for (final e in onEvents) {
       if (e.isNoteOn) {
         engine.playNote(channel: ch, key: e.data1, velocity: e.data2);
+      } else if (e.isPitchBend) {
+        // FX-prepended bend (e.g. Microtone) must reach the synth before the
+        // Note-On so the note starts at the retuned pitch.
+        engine.setPitchBend(channel: ch, value: e.pitchBendValue);
       }
     }
 
@@ -513,7 +521,11 @@ class _GFpaStyloPhoneSlotUIState extends State<GFpaStyloPhoneSlotUI> {
     final engine = ctx.read<AudioEngine>();
     final ch = (widget.plugin.midiChannel - 1).clamp(0, 15);
     for (final e in offEvents) {
-      if (e.isNoteOff) engine.stopNote(channel: ch, key: e.data1);
+      if (e.isNoteOff) {
+        engine.stopNote(channel: ch, key: e.data1);
+      } else if (e.isPitchBend) {
+        engine.setPitchBend(channel: ch, value: e.pitchBendValue);
+      }
     }
 
     _dispatchNoteOff(ctx, note);

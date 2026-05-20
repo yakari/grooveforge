@@ -1325,3 +1325,616 @@ class VelocityCurveNode extends GFMidiNode {
   /// Velocity 0 is never returned to avoid it being misread as a note-off.
   int _applyFixed() => max(1, (_amount * 127.0).round());
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  MicrotoneNode  ("microtone")
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// How [MicrotoneNode] computes the cluster target pitch.
+///
+/// Two musical interpretations of "where does a cluster of held notes point?".
+enum _MicrotoneClusterMode {
+  /// Midpoint between the lowest and highest held pitch.
+  ///
+  /// Example: C (60) + E (64) → target 62 (D). C (60) + C# (61) → 60.5
+  /// (a quarter-tone above C). Behaves predictably with two-finger gestures
+  /// and ignores the inner voices of a wider cluster.
+  outerAverage,
+
+  /// Arithmetic mean of all held pitches.
+  ///
+  /// Example: C (60) + E (64) + G (67) → 63.67 (between Eb and E).
+  /// More sensitive to chord inversions than [outerAverage] — useful for
+  /// expressive shaping when the player adds inner voices to nudge the pitch.
+  meanOfAll,
+}
+
+/// How [MicrotoneNode] derives the velocity of the single output note.
+enum _MicrotoneVelocityMode {
+  /// Arithmetic mean of all currently-held note velocities.
+  ///
+  /// Smoother dynamics: harder/softer keys in the cluster average out,
+  /// matching the way a single touch surface would respond to fingertip
+  /// pressure across multiple contact points.
+  average,
+
+  /// Velocity of the most recently pressed key.
+  ///
+  /// Lets the player accent the cluster by re-pressing one of the keys —
+  /// useful as an expression gesture even though the cluster pitch does not
+  /// re-trigger a new note-on.
+  lastNote,
+}
+
+/// Combines simultaneously-held notes into a single microtonal pitch.
+///
+/// Inspired by mTonal (24-tone quarter-tone keyboards) and the MTS-ESP
+/// pitch-bend approach used by ODDSound and KOMA Monoplex. Makes a standard
+/// MIDI keyboard expressive for microtonal/xenharmonic music without special
+/// hardware: hold C + C# and you get a quarter-tone between them; hold C + E
+/// and you get a D with a slight detune.
+///
+/// **Node type key**: `"microtone"`
+///
+/// **Output behaviour — re-attack model**
+/// The plugin treats the keyboard as monotonic: only one voice sounds at a
+/// time. Every time the held set changes (note added or released) the node
+/// emits a fresh attack at the new cluster target — Note-Off the previous
+/// voice, set the pitch-bend, then Note-On the new voice. The synth always
+/// hears a clean attack that is already pre-bent to the microtonal pitch.
+///
+/// - **First key press** — Note-On at the chromatic pressed pitch (bend
+///   centred, no microtuning yet) with zero latency.
+/// - **Additional press within [chordWindow]** of the first — the press is
+///   queued so a rapid two- or three-finger stab collapses into a single
+///   re-attack at the cluster median, rather than firing one per finger.
+///   [tick()] fires the queued re-attack when the window expires.
+/// - **Additional press after the chord window** — immediate re-attack:
+///   Note-Off the old voice, PitchBend to the new microtone, Note-On the
+///   cluster's base pitch.
+/// - **Key release while other keys remain held** — immediate re-attack at
+///   the smaller cluster's new target pitch.
+/// - **Last key released** — Note-Off the voice and reset bend to centre so
+///   subsequent unrelated notes on the channel are not transposed.
+///
+/// **Parameters**
+/// | name           | normalised range | semantic meaning                                 |
+/// |----------------|------------------|--------------------------------------------------|
+/// | chordWindow    | 0.0 → 1.0        | 10–80 ms grace period for grouping rapid presses |
+/// | clusterMode    | 0.0 → 1.0        | 0 = OuterAverage, 1 = MeanOfAll                  |
+/// | bendRange      | 0.0 → 1.0        | 0 = ±2 st, 0.5 = ±12 st, 1 = ±24 st              |
+/// | velocityMode   | 0.0 → 1.0        | 0 = Average, 1 = LastNote                        |
+///
+/// **Pitch-bend encoding**
+/// MIDI pitch-bend is 14-bit, centred at 8192 (no bend). The output bend value
+/// is `8192 + round((targetPitch - basePitch) / bendRange * 8191)` where
+/// `basePitch` is the lowest currently-held pitch. The `bendRange` parameter
+/// MUST match the downstream synth's configured pitch-bend range — otherwise
+/// the audible pitch will not equal the cluster target. ±2 semitones is the
+/// General MIDI default; ±12 or ±24 require the receiving synth to support
+/// extended bend ranges (most modern soft-synths and VSTs do).
+///
+/// **Time-driven behaviour**
+/// The chord-window queue is drained by [tick()] using wall-clock time —
+/// independent of the transport — so the grouping behaviour is the same when
+/// the sequencer is stopped.
+class MicrotoneNode extends GFMidiNode {
+  // ── Parameters ──────────────────────────────────────────────────────────────
+
+  /// Cluster-gathering grace period in microseconds. Default ≈ 35 ms.
+  ///
+  /// In the re-attack model this window groups *rapid* presses that follow
+  /// the first key strike: anything arriving inside the window is held back
+  /// until [tick()] sees the window expire, then a single re-attack at the
+  /// final cluster median fires. Presses outside the window cause immediate
+  /// re-attacks.
+  int _chordWindowUs = 35 * 1000;
+
+  /// How to compute the cluster target pitch.
+  _MicrotoneClusterMode _clusterMode = _MicrotoneClusterMode.outerAverage;
+
+  /// Pitch-bend half-range in semitones — must match the downstream synth.
+  ///
+  /// Defaults to 2 semitones (General MIDI standard). When the player's
+  /// cluster spans more than this range, the bend saturates at ±8191 and the
+  /// effective target pitch is clamped — the user should raise [bendRange]
+  /// to ±12 or ±24 for wider chromatic clusters.
+  int _bendRangeSemitones = 2;
+
+  /// How to derive the output velocity.
+  _MicrotoneVelocityMode _velocityMode = _MicrotoneVelocityMode.average;
+
+  // ── Per-channel state ───────────────────────────────────────────────────────
+
+  /// Independent microtone state for each of the 16 MIDI channels.
+  final List<_MicrotoneChannelState> _channels =
+      List.generate(16, (_) => _MicrotoneChannelState());
+
+  MicrotoneNode(super.nodeId);
+
+  // ── Lifecycle ───────────────────────────────────────────────────────────────
+
+  @override
+  void initialize(GFMidiNodeContext context) {
+    // Clear stale state from a previous project / hot reload.
+    for (final ch in _channels) { ch.clear(); }
+  }
+
+  // ── Parameters ──────────────────────────────────────────────────────────────
+
+  @override
+  void setParam(String paramName, double normalizedValue) {
+    switch (paramName) {
+      case 'chordWindow':
+        // Map [0, 1] → [10 ms, 80 ms] then convert to microseconds.
+        _chordWindowUs = ((10.0 + normalizedValue * 70.0) * 1000).round();
+      case 'clusterMode':
+        // 2 options → midpoint 0.5 is the boundary.
+        _clusterMode = normalizedValue < 0.5
+            ? _MicrotoneClusterMode.outerAverage
+            : _MicrotoneClusterMode.meanOfAll;
+      case 'bendRange':
+        // 3 options → ±2 / ±12 / ±24 semitones.
+        // Boundaries at 0.33 and 0.67 keep the three zones evenly spaced.
+        if (normalizedValue < 1.0 / 3.0) {
+          _bendRangeSemitones = 2;
+        } else if (normalizedValue < 2.0 / 3.0) {
+          _bendRangeSemitones = 12;
+        } else {
+          _bendRangeSemitones = 24;
+        }
+      case 'velocityMode':
+        _velocityMode = normalizedValue < 0.5
+            ? _MicrotoneVelocityMode.average
+            : _MicrotoneVelocityMode.lastNote;
+    }
+  }
+
+  // ── Time-driven event generation ────────────────────────────────────────────
+
+  /// Drain the chord-window queue on every active channel.
+  ///
+  /// Called once per processing block by [GFMidiGraph], plus every 10 ms by
+  /// `RackState._midiFxTicker` so queued re-attacks fire even when no MIDI
+  /// events are arriving. Emits a complete re-attack sequence (Note-Off then
+  /// PitchBend then Note-On) for each channel whose chord window has just
+  /// expired.
+  @override
+  List<TimestampedMidiEvent> tick(GFTransportContext transport) {
+    final nowUs = DateTime.now().microsecondsSinceEpoch;
+    final output = <TimestampedMidiEvent>[];
+    for (var ch = 0; ch < 16; ch++) {
+      final s = _channels[ch];
+      if (s.pendingReattack &&
+          (nowUs - s.clusterStartUs) >= _chordWindowUs) {
+        // Tick-emitted events are merged back into the same node's
+        // processMidi input by GFMidiGraph (tick → merge → processMidi). Tag
+        // them as self-emitted so the upcoming processMidi pass-through them
+        // unchanged instead of re-interpreting them as user input.
+        _emitReattack(ch, s, output, fromTick: true);
+        s.pendingReattack = false;
+      }
+    }
+    return output;
+  }
+
+  // ── MIDI event processing ───────────────────────────────────────────────────
+
+  @override
+  List<TimestampedMidiEvent> processMidi(
+    List<TimestampedMidiEvent> events,
+    GFTransportContext transport,
+  ) {
+    final output = <TimestampedMidiEvent>[];
+    for (final e in events) {
+      _processEvent(e, output);
+    }
+    return output;
+  }
+
+  /// Route a single incoming event.
+  ///
+  /// - User note-on / note-off drive the cluster state machine (first attack,
+  ///   queued or immediate re-attack, release).
+  /// - Self-emitted note events are tagged in [_emittedNoteOns] /
+  ///   [_emittedNoteOffs] so the tick → processMidi feedback in [GFMidiGraph]
+  ///   passes them through without re-interpreting them as user input.
+  /// - Pitch-bend, CC, channel pressure, aftertouch — pass through unchanged.
+  void _processEvent(
+    TimestampedMidiEvent e,
+    List<TimestampedMidiEvent> output,
+  ) {
+    final ch = e.midiChannel;
+    final s = _channels[ch];
+
+    if (e.isNoteOn && s.emittedNoteOns.remove(e.data1)) {
+      output.add(e);
+      return;
+    }
+    if (e.isNoteOff && s.emittedNoteOffs.remove(e.data1)) {
+      output.add(e);
+      return;
+    }
+
+    if (e.isNoteOn) {
+      _handleUserNoteOn(e, s, output);
+      return;
+    }
+    if (e.isNoteOff) {
+      _handleUserNoteOff(e, s, output);
+      return;
+    }
+
+    output.add(e);
+  }
+
+  /// Add the pressed pitch to the held set and either fire the initial
+  /// Note-On (first press) or queue / emit a re-attack (cluster expansion).
+  ///
+  /// Three sub-cases:
+  /// 1. **First note of a fresh cluster** — fire Note-On immediately at the
+  ///    pressed chromatic pitch. The clock for [chordWindow] starts here.
+  /// 2. **Additional press within [chordWindow]** — mark the channel as
+  ///    needing a re-attack but DO NOT emit yet. [tick()] will fire the
+  ///    re-attack once the window expires, so a rapid two- or three-finger
+  ///    stab collapses into a single fresh attack at the cluster median.
+  /// 3. **Additional press after the chord window** — emit a re-attack right
+  ///    now (the user is deliberately adding a note to an existing cluster,
+  ///    not building the cluster atomically).
+  void _handleUserNoteOn(
+    TimestampedMidiEvent e,
+    _MicrotoneChannelState s,
+    List<TimestampedMidiEvent> output,
+  ) {
+    // Avoid duplicating a pitch if the same key is re-triggered.
+    if (!s.heldVelocity.containsKey(e.data1)) {
+      s.heldOrder.add(e.data1);
+    }
+    s.heldVelocity[e.data1] = e.data2;
+    s.lastVelocity = e.data2;
+
+    final nowUs = DateTime.now().microsecondsSinceEpoch;
+
+    if (!s.sounding) {
+      // Case 1: first press — fire the chromatic Note-On now with zero latency.
+      _emitInitialNoteOn(e.midiChannel, s, output, nowUs);
+      return;
+    }
+
+    final withinWindow = (nowUs - s.clusterStartUs) < _chordWindowUs;
+    if (withinWindow) {
+      // Case 2: still gathering — let tick() emit the re-attack later so we
+      // don't fire one re-attack per finger during a multi-finger stab.
+      s.pendingReattack = true;
+      return;
+    }
+
+    // Case 3: deliberate addition after the window — re-attack now.
+    _emitReattack(e.midiChannel, s, output, fromTick: false);
+  }
+
+  /// Remove the released pitch from the held set and react accordingly.
+  ///
+  /// Two sub-cases:
+  /// 1. **Last note released** — emit Note-Off for the sounding voice and
+  ///    reset pitch-bend to centre.
+  /// 2. **Release while other keys are still held** — emit a re-attack at
+  ///    the smaller cluster's new target pitch. Releases never wait on the
+  ///    chord window — the user expects the cluster to react immediately.
+  void _handleUserNoteOff(
+    TimestampedMidiEvent e,
+    _MicrotoneChannelState s,
+    List<TimestampedMidiEvent> output,
+  ) {
+    final pitch = e.data1;
+    s.heldOrder.remove(pitch);
+    s.heldVelocity.remove(pitch);
+
+    if (s.heldOrder.isEmpty) {
+      if (s.sounding) {
+        _emitClusterNoteOff(e.midiChannel, s, output);
+      }
+      s.pendingReattack = false;
+      s.clusterStartUs = 0;
+      return;
+    }
+
+    // Cluster shrank — fresh attack on the smaller held set.
+    _emitReattack(e.midiChannel, s, output, fromTick: false);
+  }
+
+  // ── Cluster emission ────────────────────────────────────────────────────────
+
+  /// Fire the very first Note-On of a fresh cluster at the pressed pitch with
+  /// bend = centre (no microtuning yet — that's what re-attacks are for).
+  ///
+  /// The initial centre-bend message is emitted explicitly so a stale bend
+  /// from a previous cluster on this channel does not transpose the new note.
+  ///
+  /// Always called from [processMidi] (never from [tick()]), so self-emitted
+  /// events do NOT need to be tagged for the tick→merge feedback loop.
+  void _emitInitialNoteOn(
+    int ch,
+    _MicrotoneChannelState s,
+    List<TimestampedMidiEvent> output,
+    int nowUs,
+  ) {
+    final basePitch = s.heldOrder.last; // == the just-pressed pitch
+    final velocity = _resolveOutputVelocity(s);
+
+    s.basePitch = basePitch;
+    s.currentBend = _bendCentre;
+    s.sounding = true;
+    s.clusterStartUs = nowUs;
+    s.pendingReattack = false;
+
+    output.add(_pitchBendEvent(ch, _bendCentre));
+    output.add(TimestampedMidiEvent(
+      ppqPosition: 0,
+      status: _noteOnStatus(ch),
+      data1: basePitch,
+      data2: velocity,
+    ));
+  }
+
+  /// Silence the currently-sounding voice and attack a fresh one at the
+  /// current cluster's target microtone.
+  ///
+  /// Sequence: Note-Off (old voice) → PitchBend (new bend) → Note-On (new
+  /// voice). The synth always hears a clean attack at a pre-bent pitch — the
+  /// envelope, vibrato LFO etc. retrigger from scratch, which is the whole
+  /// point of the re-attack model (vs. continuous pitch-bend during a single
+  /// envelope, which would feel like a slide and is NOT what this plugin
+  /// emulates).
+  ///
+  /// `basePitch` is re-locked to the lowest currently-held pitch on every
+  /// re-attack — this minimises bend saturation when the cluster moves
+  /// significantly (e.g. user releases the original lowest key and the new
+  /// lowest key is much higher).
+  ///
+  /// [fromTick] is `true` when called from [tick()] (events will be re-fed
+  /// into [processMidi] by [GFMidiGraph] and must be tagged for pass-through)
+  /// and `false` when called from a [processMidi] handler (events go straight
+  /// to the output and are not re-fed, so tagging would leave stale entries
+  /// that corrupt the next user input).
+  void _emitReattack(
+    int ch,
+    _MicrotoneChannelState s,
+    List<TimestampedMidiEvent> output, {
+    required bool fromTick,
+  }) {
+    if (s.heldOrder.isEmpty) return; // safety — caller should have checked
+
+    final oldBasePitch = s.basePitch;
+    final newBasePitch = _lowestHeld(s);
+    final targetPitch = _computeClusterTargetPitch(s);
+    final newBend = _bendForOffset(targetPitch - newBasePitch);
+    final velocity = _resolveOutputVelocity(s);
+
+    if (s.sounding) {
+      if (fromTick) s.emittedNoteOffs.add(oldBasePitch);
+      output.add(TimestampedMidiEvent(
+        ppqPosition: 0,
+        status: _noteOffStatus(ch),
+        data1: oldBasePitch,
+        data2: 0,
+      ));
+    }
+
+    output.add(_pitchBendEvent(ch, newBend));
+
+    if (fromTick) s.emittedNoteOns.add(newBasePitch);
+    output.add(TimestampedMidiEvent(
+      ppqPosition: 0,
+      status: _noteOnStatus(ch),
+      data1: newBasePitch,
+      data2: velocity,
+    ));
+
+    s.basePitch = newBasePitch;
+    s.currentBend = newBend;
+    s.sounding = true;
+  }
+
+  /// Emit the cluster Note-Off and reset pitch-bend to centre.
+  ///
+  /// Centre reset is important so a downstream synth or sequencer recording
+  /// this stream does not retain a stale bend value for subsequent unrelated
+  /// notes on the same channel.
+  ///
+  /// Always called from [processMidi]; see [_emitInitialNoteOn] for the
+  /// rationale for not tagging events.
+  void _emitClusterNoteOff(
+    int ch,
+    _MicrotoneChannelState s,
+    List<TimestampedMidiEvent> output,
+  ) {
+    output.add(TimestampedMidiEvent(
+      ppqPosition: 0,
+      status: _noteOffStatus(ch),
+      data1: s.basePitch,
+      data2: 0,
+    ));
+
+    s.currentBend = _bendCentre;
+    output.add(_pitchBendEvent(ch, _bendCentre));
+    s.sounding = false;
+  }
+
+  /// Lowest currently-held MIDI pitch — the [_emitReattack] base note.
+  ///
+  /// Returns the held-set min so the bend offset is always upward (toward the
+  /// cluster centre). Falls back to 60 (middle C) if the set is empty — a
+  /// defensive value; callers must check `heldOrder.isNotEmpty` first.
+  int _lowestHeld(_MicrotoneChannelState s) {
+    if (s.heldOrder.isEmpty) return 60;
+    var lo = s.heldOrder.first;
+    for (final p in s.heldOrder) {
+      if (p < lo) lo = p;
+    }
+    return lo;
+  }
+
+  // ── Cluster math ────────────────────────────────────────────────────────────
+
+  /// Compute the target microtonal pitch (as a fractional MIDI number) for
+  /// the current cluster, honouring [_clusterMode].
+  ///
+  /// **OuterAverage**: `(min + max) / 2` — midpoint between extremes.
+  /// Two-note clusters always land halfway between the two notes.
+  ///
+  /// **MeanOfAll**: arithmetic mean of every held pitch — sensitive to
+  /// inner-voice changes.
+  double _computeClusterTargetPitch(_MicrotoneChannelState s) {
+    if (s.heldOrder.isEmpty) return 60.0;
+    if (s.heldOrder.length == 1) return s.heldOrder.first.toDouble();
+
+    switch (_clusterMode) {
+      case _MicrotoneClusterMode.outerAverage:
+        var lo = s.heldOrder.first, hi = s.heldOrder.first;
+        for (final p in s.heldOrder) {
+          if (p < lo) lo = p;
+          if (p > hi) hi = p;
+        }
+        return (lo + hi) / 2.0;
+      case _MicrotoneClusterMode.meanOfAll:
+        var sum = 0;
+        for (final p in s.heldOrder) { sum += p; }
+        return sum / s.heldOrder.length;
+    }
+  }
+
+  /// Derive the single output velocity from the held set per [_velocityMode].
+  ///
+  /// Returns 100 (forte) as a defensive fallback for empty clusters — this
+  /// should never be hit in normal use since velocity is only read at fire
+  /// time, when at least one note is always held.
+  int _resolveOutputVelocity(_MicrotoneChannelState s) {
+    if (s.heldVelocity.isEmpty) return 100;
+
+    switch (_velocityMode) {
+      case _MicrotoneVelocityMode.average:
+        var sum = 0;
+        for (final v in s.heldVelocity.values) { sum += v; }
+        return (sum / s.heldVelocity.length).round().clamp(1, 127);
+      case _MicrotoneVelocityMode.lastNote:
+        // _lastVelocity is updated on every user note-on, so it always
+        // reflects the most recently pressed key in the cluster.
+        return s.lastVelocity.clamp(1, 127);
+    }
+  }
+
+  /// Convert a fractional semitone offset to a 14-bit pitch-bend value.
+  ///
+  /// MIDI pitch-bend uses a 14-bit unsigned integer centred at 8192:
+  /// - 0 = full down by [_bendRangeSemitones] semitones,
+  /// - 8192 = no bend,
+  /// - 16383 = full up by [_bendRangeSemitones] semitones.
+  ///
+  /// Saturates at the extremes when the cluster spans more than the
+  /// configured bend range — the user should raise [bendRange] in that case.
+  int _bendForOffset(double offsetSemitones) {
+    if (_bendRangeSemitones == 0) return _bendCentre;
+    final scaled =
+        (offsetSemitones / _bendRangeSemitones) * (_bendCentre - 1);
+    return (_bendCentre + scaled.round()).clamp(0, 16383);
+  }
+
+  /// Pack a 14-bit pitch-bend value into a [TimestampedMidiEvent] on [ch].
+  ///
+  /// MIDI pitch-bend encoding: status = 0xE0 | channel, data1 = LSB (lower
+  /// 7 bits), data2 = MSB (upper 7 bits). The receiver reconstructs the
+  /// 14-bit value as `(data2 << 7) | data1`.
+  TimestampedMidiEvent _pitchBendEvent(int ch, int bend14) {
+    final clamped = bend14.clamp(0, 16383);
+    return TimestampedMidiEvent(
+      ppqPosition: 0,
+      status: 0xE0 | (ch & 0x0F),
+      data1: clamped & 0x7F,         // LSB — low 7 bits
+      data2: (clamped >> 7) & 0x7F,  // MSB — high 7 bits
+    );
+  }
+
+  // ── Utilities ───────────────────────────────────────────────────────────────
+
+  /// Centre value of the 14-bit pitch-bend range — corresponds to "no bend".
+  static const int _bendCentre = 8192;
+
+  /// NOTE ON status byte for [channel] (0x9n, velocity > 0 required).
+  int _noteOnStatus(int channel) => 0x90 | (channel & 0x0F);
+
+  /// NOTE OFF status byte for [channel] (0x8n).
+  int _noteOffStatus(int channel) => 0x80 | (channel & 0x0F);
+}
+
+/// Per-channel state for [MicrotoneNode].
+///
+/// Each of the 16 MIDI channels owns one of these to track the in-flight
+/// cluster, the pending grace window, and the portamento glide.
+class _MicrotoneChannelState {
+  /// Pitches currently held by the player, in press order.
+  final List<int> heldOrder = [];
+
+  /// Velocity at which each held pitch was pressed.
+  final Map<int, int> heldVelocity = {};
+
+  /// Velocity of the most recently pressed key — used by [LastNote] mode.
+  int lastVelocity = 100;
+
+  /// Set of pitches that the node has emitted as Note-On so [processMidi]
+  /// can pass them straight through without re-classifying them as user input.
+  ///
+  /// Populated by [_emitClusterNoteOn] before the event is added to the
+  /// output list; drained by [_processEvent] on the corresponding incoming
+  /// pass-through.
+  final Set<int> emittedNoteOns = {};
+
+  /// Same as [emittedNoteOns] but for the cluster Note-Off events.
+  final Set<int> emittedNoteOffs = {};
+
+  /// Wall-clock timestamp (µs) when the current cluster started — i.e. when
+  /// the first note of the currently-sounding cluster was pressed.
+  ///
+  /// Cluster modifications that arrive within [_chordWindowUs] of this point
+  /// snap the bend instantly (the user is still gathering); modifications
+  /// after the window use portamento for an expressive glide.
+  int clusterStartUs = 0;
+
+  /// True while the cluster Note-On is currently sounding.
+  ///
+  /// Goes true on the first key press of a cluster; goes false on the
+  /// all-notes-off path.
+  bool sounding = false;
+
+  /// MIDI pitch of the currently-sounding Note-On.
+  ///
+  /// Re-locked to the lowest held pitch on every re-attack so the bend offset
+  /// stays small relative to the configured bend range.
+  int basePitch = 60;
+
+  /// Current 14-bit pitch-bend value held by the receiving synth — tracked
+  /// only so we can keep the synth's bend at centre when the cluster ends.
+  int currentBend = 8192;
+
+  /// True when a press arrived inside the chord window after the initial
+  /// attack and a re-attack is queued for [tick()] to fire at window expiry.
+  ///
+  /// This is what makes a rapid two- or three-finger stab collapse into one
+  /// fresh attack at the cluster median, rather than one re-attack per finger.
+  bool pendingReattack = false;
+
+  /// Reset every field — called from [MicrotoneNode.initialize] so a project
+  /// reload starts fresh.
+  void clear() {
+    heldOrder.clear();
+    heldVelocity.clear();
+    lastVelocity = 100;
+    emittedNoteOns.clear();
+    emittedNoteOffs.clear();
+    clusterStartUs = 0;
+    sounding = false;
+    basePitch = 60;
+    currentBend = 8192;
+    pendingReattack = false;
+  }
+}

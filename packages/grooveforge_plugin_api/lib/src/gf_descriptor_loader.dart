@@ -68,6 +68,7 @@ class GFDescriptorLoader {
     reg.register('chord_expand', (id) => ChordExpandNode(id));
     reg.register('arpeggiate', (id) => ArpeggiateNode(id));
     reg.register('velocity_curve', (id) => VelocityCurveNode(id));
+    reg.register('microtone', (id) => MicrotoneNode(id));
   }
 
   // ── Parse + register ───────────────────────────────────────────────────────

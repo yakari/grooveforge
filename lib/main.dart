@@ -74,6 +74,7 @@ const _kBundledGfpdAssets = [
   'assets/plugins/transposer.gfpd',
   'assets/plugins/velocity_curve.gfpd',
   'assets/plugins/gate.gfpd',
+  'assets/plugins/microtone.gfpd',
 ];
 
 /// Loads and registers all bundled `.gfdrum` patterns before the first frame.

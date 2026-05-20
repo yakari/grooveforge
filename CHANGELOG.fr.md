@@ -5,6 +5,14 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/lang/fr/).
 
+## [X.x.x]
+
+### Ajouté
+- **Microtone MIDI FX**. Nouveau module MIDI FX qui fusionne les notes tenues simultanément en une seule hauteur microtonale via un modèle de ré-attaque : chaque changement de l'ensemble des touches tenues coupe la voix précédente et attaque une nouvelle voix sur la médiane du cluster, avec le pitch-bend déjà appliqué — le synthé joue toujours une note propre pré-accordée sur le microton, jamais un glissando sur une voix tenue. Presser C + C# remplace le C par une nouvelle attaque un quart-de-ton plus haut ; presser C + E joue un D légèrement détoné ; lâcher une touche ré-attaque sur la cible du cluster réduit. Une fenêtre d'accord configurable (10–80 ms) regroupe les frappes rapides pour qu'un stab multi-doigts se condense en une seule ré-attaque au lieu d'en déclencher une par doigt. Rend n'importe quel clavier MIDI standard expressif pour la musique microtonale et xénharmonique, sans matériel spécial. Réglages : fenêtre d'accord, mode de cluster (Outer Average / Mean of All), plage de pitch-bend (±2 / ±12 / ±24 demi-tons — doit correspondre au synthé en aval) et mode de vélocité (Average / Last Note). Inspiré de mTonal et de l'approche pitch-bend MTS-ESP utilisée par ODDSound et le KOMA Monoplex.
+
+### Architecture
+- Les événements pitch-bend émis par les modules MIDI FX (sortie tick et sortie processMidi) sont désormais routés de bout en bout à travers le clavier à l'écran, le stylophone, le thérémine et le ticker MIDI FX pour que le synthé en aval applique effectivement le recalage. Les boucles de dispatch de pression et de relâchement du clavier à l'écran transmettent aussi les événements Note-Off / Note-On émis *par* la chaîne FX (en plus de la polarité de la touche d'origine), de sorte qu'un MIDI FX émettant une séquence de ré-attaque atteint le synthé intact. Auparavant la couche de routage abandonnait silencieusement les événements qui ne correspondaient pas à la polarité de la touche d'origine.
+
 ## [2.14.0] - 2026-04-17
 
 ### Ajouté

@@ -667,6 +667,9 @@
   "rackAddGate": "Gate",
   "rackAddGateSubtitle": "Filter notes by velocity range and pitch range (MIDI FX)",
 
+  "rackAddMicrotone": "Microtone",
+  "rackAddMicrotoneSubtitle": "Combine held notes into a single microtonal pitch via pitch-bend (MIDI FX)",
+
   "midiFxBypass": "Bypass",
   "midiFxCcAssign": "Assign CC to bypass",
   "midiFxCcAssignTitle": "Assign hardware CC to bypass",

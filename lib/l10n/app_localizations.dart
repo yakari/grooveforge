@@ -2558,6 +2558,18 @@ abstract class AppLocalizations {
   /// **'Filter notes by velocity range and pitch range (MIDI FX)'**
   String get rackAddGateSubtitle;
 
+  /// No description provided for @rackAddMicrotone.
+  ///
+  /// In en, this message translates to:
+  /// **'Microtone'**
+  String get rackAddMicrotone;
+
+  /// No description provided for @rackAddMicrotoneSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Combine held notes into a single microtonal pitch via pitch-bend (MIDI FX)'**
+  String get rackAddMicrotoneSubtitle;
+
   /// No description provided for @midiFxBypass.
   ///
   /// In en, this message translates to:

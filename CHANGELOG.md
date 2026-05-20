@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [X.x.x]
+
+### Added
+- **Microtone MIDI FX**. New MIDI FX plugin that combines simultaneously-held notes into a single microtonal pitch using a re-attack model: every change to the held set silences the previous voice and attacks a fresh one at the new cluster median, with the pitch-bend already in place — so the synth always plays a clean note pre-tuned to the microtone, never a sliding bend on a sustained voice. Pressing C + C# replaces the C with a fresh quarter-tone-up attack; pressing C + E plays a D with a slight detune; lifting one finger re-attacks at the smaller cluster's target. A configurable chord window (10–80 ms) groups rapid presses so a multi-finger stab collapses into one re-attack instead of firing one per finger. Makes any standard MIDI keyboard expressive for microtonal and xenharmonic music without special hardware. Parameters: chord window, cluster mode (Outer Average / Mean of All), bend range (±2 / ±12 / ±24 st — must match the downstream synth), and velocity mode (Average / Last Note). Inspired by mTonal and the MTS-ESP pitch-bend approach used by ODDSound and the KOMA Monoplex.
+
+### Architecture
+- Pitch-bend events emitted by MIDI FX plugins (tick output and processMidi output) are now routed end-to-end through the on-screen keyboard, stylophone, theremin, and MIDI FX ticker paths so the receiving synth actually applies the retuning. The on-screen keyboard's note-press and note-release dispatch loops also forward Note-Off / Note-On events emitted *by* the FX chain (in addition to the original key's polarity), so a MIDI FX that emits a re-attack sequence reaches the synth intact. Previously the routing layer silently dropped events that did not match the original key polarity.
+
 ## [2.14.0] - 2026-04-17
 
 ### Added

@@ -19,6 +19,19 @@ class TimestampedMidiEvent {
   bool get isNoteOff =>
       (status & 0xF0) == 0x80 ||
       ((status & 0xF0) == 0x90 && data2 == 0);
+
+  /// True when this event is a 14-bit pitch-bend message (status nibble 0xE0).
+  ///
+  /// The bend value is reconstructed as `(data2 << 7) | data1` — `data1` holds
+  /// the LSB (low 7 bits), `data2` holds the MSB (upper 7 bits), and 8192 is
+  /// the centre (no bend).
+  bool get isPitchBend => (status & 0xF0) == 0xE0;
+
+  /// Reassemble the 14-bit pitch-bend value from [data1] (LSB) and [data2] (MSB).
+  ///
+  /// Only meaningful when [isPitchBend] is true. Centre value is 8192.
+  int get pitchBendValue => (data2 << 7) | data1;
+
   int get midiChannel => status & 0x0F;
 
   Map<String, dynamic> toJson() => {

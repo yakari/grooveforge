@@ -540,6 +540,9 @@
   "rackAddGate": "Gate",
   "rackAddGateSubtitle": "Filtre les notes par plage de vélocité et de hauteur (effet MIDI)",
 
+  "rackAddMicrotone": "Microtone",
+  "rackAddMicrotoneSubtitle": "Fusionne les notes tenues en une hauteur microtonale via pitch-bend (effet MIDI)",
+
   "midiFxBypass": "Bypass",
   "midiFxCcAssign": "Assigner CC au bypass",
   "midiFxCcAssignTitle": "Assigner un CC matériel au bypass",

@@ -1367,6 +1367,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'Filter notes by velocity range and pitch range (MIDI FX)';
 
   @override
+  String get rackAddMicrotone => 'Microtone';
+
+  @override
+  String get rackAddMicrotoneSubtitle =>
+      'Combine held notes into a single microtonal pitch via pitch-bend (MIDI FX)';
+
+  @override
   String get midiFxBypass => 'Bypass';
 
   @override

@@ -1379,6 +1379,13 @@ class AppLocalizationsFr extends AppLocalizations {
       'Filtre les notes par plage de vélocité et de hauteur (effet MIDI)';
 
   @override
+  String get rackAddMicrotone => 'Microtone';
+
+  @override
+  String get rackAddMicrotoneSubtitle =>
+      'Fusionne les notes tenues en une hauteur microtonale via pitch-bend (effet MIDI)';
+
+  @override
   String get midiFxBypass => 'Bypass';
 
   @override

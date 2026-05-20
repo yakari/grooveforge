@@ -700,6 +700,15 @@ class _AddPluginSheetContentState extends State<_AddPluginSheetContent> {
                 context, rack, 'com.grooveforge.gate',
               ),
             ),
+            _PluginTile(
+              icon: Icons.graphic_eq,
+              iconColor: Colors.deepPurpleAccent,
+              title: l10n.rackAddMicrotone,
+              subtitle: l10n.rackAddMicrotoneSubtitle,
+              onTap: () => _addDescriptorPlugin(
+                context, rack, 'com.grooveforge.microtone',
+              ),
+            ),
 
             // ── Load a custom .gfpd plugin from storage
             _PluginTile(

@@ -253,7 +253,11 @@ class _GFpaThereminSlotUIState extends State<GFpaThereminSlotUI>
 
       if (_lastMidiNoteOut >= 0) {
         for (final e in _applyMidiChain(_lastMidiNoteOut, 0)) {
-          if (e.isNoteOff) engine.stopNote(channel: ch, key: e.data1);
+          if (e.isNoteOff) {
+            engine.stopNote(channel: ch, key: e.data1);
+          } else if (e.isPitchBend) {
+            engine.setPitchBend(channel: ch, value: e.pitchBendValue);
+          }
         }
         _dispatchNoteOff(_lastMidiNoteOut);
       }
@@ -261,6 +265,8 @@ class _GFpaThereminSlotUIState extends State<GFpaThereminSlotUI>
       for (final e in _applyMidiChain(midiNote, 100)) {
         if (e.isNoteOn) {
           engine.playNote(channel: ch, key: e.data1, velocity: e.data2);
+        } else if (e.isPitchBend) {
+          engine.setPitchBend(channel: ch, value: e.pitchBendValue);
         }
       }
       _dispatchNoteOn(midiNote, 100);
@@ -284,7 +290,11 @@ class _GFpaThereminSlotUIState extends State<GFpaThereminSlotUI>
       final ch = (widget.plugin.midiChannel - 1).clamp(0, 15);
       final engine = context.read<AudioEngine>();
       for (final e in _applyMidiChain(_lastMidiNoteOut, 0)) {
-        if (e.isNoteOff) engine.stopNote(channel: ch, key: e.data1);
+        if (e.isNoteOff) {
+          engine.stopNote(channel: ch, key: e.data1);
+        } else if (e.isPitchBend) {
+          engine.setPitchBend(channel: ch, value: e.pitchBendValue);
+        }
       }
       _dispatchNoteOff(_lastMidiNoteOut);
       _lastMidiNoteOut = -1;
@@ -612,7 +622,11 @@ class _GFpaThereminSlotUIState extends State<GFpaThereminSlotUI>
         final engine = context.read<AudioEngine>();
         final ch = (widget.plugin.midiChannel - 1).clamp(0, 15);
         for (final e in offEvents) {
-          if (e.isNoteOff) engine.stopNote(channel: ch, key: e.data1);
+          if (e.isNoteOff) {
+            engine.stopNote(channel: ch, key: e.data1);
+          } else if (e.isPitchBend) {
+            engine.setPitchBend(channel: ch, value: e.pitchBendValue);
+          }
         }
         _dispatchNoteOff(_lastMidiNoteOut);
       }
@@ -624,6 +638,8 @@ class _GFpaThereminSlotUIState extends State<GFpaThereminSlotUI>
       for (final e in onEvents) {
         if (e.isNoteOn) {
           engine.playNote(channel: ch, key: e.data1, velocity: e.data2);
+        } else if (e.isPitchBend) {
+          engine.setPitchBend(channel: ch, value: e.pitchBendValue);
         }
       }
       _dispatchNoteOn(midiNote, velocity);
@@ -645,7 +661,11 @@ class _GFpaThereminSlotUIState extends State<GFpaThereminSlotUI>
       final engine = context.read<AudioEngine>();
       final ch = (widget.plugin.midiChannel - 1).clamp(0, 15);
       for (final e in offEvents) {
-        if (e.isNoteOff) engine.stopNote(channel: ch, key: e.data1);
+        if (e.isNoteOff) {
+          engine.stopNote(channel: ch, key: e.data1);
+        } else if (e.isPitchBend) {
+          engine.setPitchBend(channel: ch, value: e.pitchBendValue);
+        }
       }
       _dispatchNoteOff(_lastMidiNoteOut);
       _lastMidiNoteOut = -1;
