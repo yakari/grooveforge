@@ -117,6 +117,21 @@ void main() {
       // Velocity = average of (100, 80) = 90.
       expect(p2.firstWhere((e) => e.isNoteOn).data2, 90);
     });
+
+    test('partial release re-attacks immediately (no settle window at delay 0)',
+        () {
+      node.processMidi([_noteOn(channel: 0, pitch: 60, velocity: 100)], transport);
+      node.processMidi([_noteOn(channel: 0, pitch: 64, velocity: 100)], transport);
+      // Lift one finger — in immediate mode the re-attack fires at once.
+      final off = node.processMidi(
+        [_noteOff(channel: 0, pitch: 64)],
+        transport,
+      );
+      expect(off.where((e) => e.isNoteOff), hasLength(1));
+      expect(off.where((e) => e.isNoteOn), hasLength(1));
+      expect(off.firstWhere((e) => e.isNoteOn).data1, 60);
+      expect(_pitchBend14(off.firstWhere(_isPitchBend)), 8192);
+    });
   });
 
   // ── Deferred mode (attack delay > 0) ───────────────────────────────────────
@@ -217,35 +232,80 @@ void main() {
       expect(_pitchBend14(p.firstWhere(_isPitchBend)), 16383);
     });
 
-    test('partial release while sounding re-attacks at the smaller cluster',
+    test('peeling one finger (held) re-attacks at the smaller cluster',
         () async {
       node.processMidi([_noteOn(channel: 0, pitch: 60, velocity: 100)], transport);
       node.processMidi([_noteOn(channel: 0, pitch: 64, velocity: 100)], transport);
       await Future<void>.delayed(const Duration(milliseconds: 60));
-      node.tick(transport); // fires the {60,64} cluster.
+      node.tick(transport); // fires the {60,64} cluster (D).
 
+      // Lift the upper key and HOLD the lower — the re-attack is deferred...
       final off = node.processMidi(
         [_noteOff(channel: 0, pitch: 64)],
         transport,
       );
-      expect(off.where((e) => e.isNoteOff), hasLength(1));
-      expect(off.where((e) => e.isNoteOn), hasLength(1));
-      expect(off.firstWhere((e) => e.isNoteOn).data1, 60);
-      expect(_pitchBend14(off.firstWhere(_isPitchBend)), 8192);
+      expect(off, isEmpty, reason: 'release re-attack is deferred a settle window');
+
+      // ...and fires once the settle window expires (no further release).
+      await Future<void>.delayed(const Duration(milliseconds: 60));
+      final fired = node.tick(transport);
+      expect(fired.where((e) => e.isNoteOff), hasLength(1),
+          reason: 're-attack silences the old voice');
+      expect(fired.where((e) => e.isNoteOn), hasLength(1),
+          reason: 're-attack starts the smaller-cluster voice');
+      expect(fired.firstWhere((e) => e.isNoteOn).data1, 60);
+      expect(_pitchBend14(fired.firstWhere(_isPitchBend)), 8192,
+          reason: 'cluster reduced to a single C → centre bend');
     });
 
-    test('all notes off emits Note-Off + bend reset to centre', () async {
+    test('releasing both keys within the settle window is a clean stop',
+        () async {
       node.processMidi([_noteOn(channel: 0, pitch: 60, velocity: 100)], transport);
+      node.processMidi([_noteOn(channel: 0, pitch: 61, velocity: 100)], transport);
       await Future<void>.delayed(const Duration(milliseconds: 60));
-      node.tick(transport); // fires C.
+      node.tick(transport); // fires the quarter-tone cluster.
 
-      final r = node.processMidi(
-        [_noteOff(channel: 0, pitch: 60)],
+      // Release C# then C in quick succession (the player's complaint scenario)
+      // — both within the 30 ms settle window, so the deferred re-attack must
+      // be cancelled and only a single Note-Off emitted.
+      final r1 = node.processMidi([_noteOff(channel: 0, pitch: 61)], transport);
+      final r2 = node.processMidi([_noteOff(channel: 0, pitch: 60)], transport);
+      // A stray tick between the releases must NOT have fired a re-attack.
+      final t = node.tick(transport);
+
+      expect(r1, isEmpty, reason: 'first release defers, emits nothing yet');
+      expect(r2.where((e) => e.isNoteOn), isEmpty,
+          reason: 'no extra note attacked when the cluster stops');
+      expect(r2.where((e) => e.isNoteOff), hasLength(1));
+      expect(r2.firstWhere((e) => e.isNoteOff).data1, 60,
+          reason: 'Note-Off targets the sounding base pitch');
+      // The bend is intentionally NOT reset on Note-Off — resetting it would
+      // snap the release tail from the microtone to the chromatic pitch (the
+      // "phantom note"). So the stop emits only a Note-Off, no pitch-bend.
+      expect(r2.where(_isPitchBend), isEmpty,
+          reason: 'no bend reset on Note-Off — tail keeps its microtone');
+      expect(t.where((e) => e.isNoteOn), isEmpty,
+          reason: 'the cancelled re-attack must never fire from tick');
+    });
+
+    test('press during a pending release re-attack cancels and re-attacks now',
+        () async {
+      node.processMidi([_noteOn(channel: 0, pitch: 60, velocity: 100)], transport);
+      node.processMidi([_noteOn(channel: 0, pitch: 64, velocity: 100)], transport);
+      await Future<void>.delayed(const Duration(milliseconds: 60));
+      node.tick(transport); // {60,64} sounding.
+
+      node.processMidi([_noteOff(channel: 0, pitch: 64)], transport); // defers
+      // Press a new key before the settle window expires.
+      final p = node.processMidi(
+        [_noteOn(channel: 0, pitch: 67, velocity: 100)],
         transport,
       );
-      expect(r.where((e) => e.isNoteOff), hasLength(1));
-      expect(_pitchBend14(r.lastWhere(_isPitchBend)), 8192,
-          reason: 'bend must reset to centre on all-notes-off');
+      // Immediate press re-attack at {60,67}; the pending release re-attack
+      // must not also fire from a later tick.
+      expect(p.where((e) => e.isNoteOn), hasLength(1));
+      expect(node.tick(transport).where((e) => e.isNoteOn), isEmpty,
+          reason: 'press cleared the pending release re-attack');
     });
 
     test('CC events pass through unchanged', () {
