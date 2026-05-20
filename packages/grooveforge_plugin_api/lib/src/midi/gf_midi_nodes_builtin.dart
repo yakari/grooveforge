@@ -1383,27 +1383,28 @@ enum _MicrotoneVelocityMode {
 /// voice, set the pitch-bend, then Note-On the new voice. The synth always
 /// hears a clean attack that is already pre-bent to the microtonal pitch.
 ///
-/// - **First key press** — Note-On at the chromatic pressed pitch (bend
-///   centred, no microtuning yet) with zero latency.
-/// - **Additional press within [chordWindow]** of the first — the press is
-///   queued so a rapid two- or three-finger stab collapses into a single
-///   re-attack at the cluster median, rather than firing one per finger.
-///   [tick()] fires the queued re-attack when the window expires.
-/// - **Additional press after the chord window** — immediate re-attack:
-///   Note-Off the old voice, PitchBend to the new microtone, Note-On the
-///   cluster's base pitch.
-/// - **Key release while other keys remain held** — immediate re-attack at
-///   the smaller cluster's new target pitch.
-/// - **Last key released** — Note-Off the voice and reset bend to centre so
-///   subsequent unrelated notes on the channel are not transposed.
+/// **[attackDelay] selects how the first note of a cluster fires:**
+/// - **0 ms (immediate)** — the first key press fires Note-On instantly at
+///   the chromatic pitch (zero latency). A two-finger microtone therefore
+///   starts with a brief chromatic onset until the second finger re-attacks.
+/// - **> 0 ms (deferred)** — the first press starts a gather window; all keys
+///   pressed within it accumulate silently, and [tick()] fires a single
+///   attack at the cluster median when the window expires. This produces a
+///   clean single microtonal note with no chromatic onset. A tap released
+///   before the window expires fires (and immediately releases) so notes are
+///   never silently dropped.
+///
+/// Once a cluster is sounding, every further press or release re-attacks at
+/// the new target pitch. The last release emits Note-Off and resets the bend
+/// to centre so subsequent unrelated notes on the channel are not transposed.
 ///
 /// **Parameters**
-/// | name           | normalised range | semantic meaning                                 |
-/// |----------------|------------------|--------------------------------------------------|
-/// | chordWindow    | 0.0 → 1.0        | 10–80 ms grace period for grouping rapid presses |
-/// | clusterMode    | 0.0 → 1.0        | 0 = OuterAverage, 1 = MeanOfAll                  |
-/// | bendRange      | 0.0 → 1.0        | 0 = ±2 st, 0.5 = ±12 st, 1 = ±24 st              |
-/// | velocityMode   | 0.0 → 1.0        | 0 = Average, 1 = LastNote                        |
+/// | name         | normalised range | semantic meaning                          |
+/// |--------------|------------------|-------------------------------------------|
+/// | chordWindow  | 0.0 → 1.0        | 0–80 ms attack delay (0 = immediate fire) |
+/// | clusterMode  | 0.0 → 1.0        | 0 = OuterAverage, 1 = MeanOfAll           |
+/// | bendRange    | 0.0 → 1.0        | 0 = ±2 st, 0.5 = ±12 st, 1 = ±24 st       |
+/// | velocityMode | 0.0 → 1.0        | 0 = Average, 1 = LastNote                 |
 ///
 /// **Pitch-bend encoding**
 /// MIDI pitch-bend is 14-bit, centred at 8192 (no bend). The output bend value
@@ -1415,20 +1416,20 @@ enum _MicrotoneVelocityMode {
 /// extended bend ranges (most modern soft-synths and VSTs do).
 ///
 /// **Time-driven behaviour**
-/// The chord-window queue is drained by [tick()] using wall-clock time —
-/// independent of the transport — so the grouping behaviour is the same when
+/// The deferred-attack gather window is drained by [tick()] using wall-clock
+/// time — independent of the transport — so the behaviour is the same when
 /// the sequencer is stopped.
 class MicrotoneNode extends GFMidiNode {
   // ── Parameters ──────────────────────────────────────────────────────────────
 
-  /// Cluster-gathering grace period in microseconds. Default ≈ 35 ms.
+  /// Attack delay in microseconds — how long to gather a cluster before
+  /// firing its first note. Default ≈ 30 ms.
   ///
-  /// In the re-attack model this window groups *rapid* presses that follow
-  /// the first key strike: anything arriving inside the window is held back
-  /// until [tick()] sees the window expire, then a single re-attack at the
-  /// final cluster median fires. Presses outside the window cause immediate
-  /// re-attacks.
-  int _chordWindowUs = 35 * 1000;
+  /// 0 fires the first press immediately (zero latency); a positive value
+  /// defers the first attack so simultaneous presses collapse into one clean
+  /// microtonal note. Named `_chordWindowUs` because the bound descriptor
+  /// parameter id is still `chord_window` for save-file stability.
+  int _chordWindowUs = 30 * 1000;
 
   /// How to compute the cluster target pitch.
   _MicrotoneClusterMode _clusterMode = _MicrotoneClusterMode.outerAverage;
@@ -1466,8 +1467,8 @@ class MicrotoneNode extends GFMidiNode {
   void setParam(String paramName, double normalizedValue) {
     switch (paramName) {
       case 'chordWindow':
-        // Map [0, 1] → [10 ms, 80 ms] then convert to microseconds.
-        _chordWindowUs = ((10.0 + normalizedValue * 70.0) * 1000).round();
+        // Map [0, 1] → [0 ms, 80 ms] then convert to microseconds.
+        _chordWindowUs = (normalizedValue * 80.0 * 1000).round();
       case 'clusterMode':
         // 2 options → midpoint 0.5 is the boundary.
         _clusterMode = normalizedValue < 0.5
@@ -1492,27 +1493,27 @@ class MicrotoneNode extends GFMidiNode {
 
   // ── Time-driven event generation ────────────────────────────────────────────
 
-  /// Drain the chord-window queue on every active channel.
+  /// Fire deferred first-attacks whose gather window has expired.
   ///
   /// Called once per processing block by [GFMidiGraph], plus every 10 ms by
-  /// `RackState._midiFxTicker` so queued re-attacks fire even when no MIDI
-  /// events are arriving. Emits a complete re-attack sequence (Note-Off then
-  /// PitchBend then Note-On) for each channel whose chord window has just
-  /// expired.
+  /// `RackState._midiFxTicker` so a deferred attack fires even when no MIDI
+  /// events are arriving (e.g. the player holds a two-finger chord and then
+  /// stops moving). Emits the first-attack sequence (PitchBend then Note-On)
+  /// for each channel still gathering past [_chordWindowUs].
   @override
   List<TimestampedMidiEvent> tick(GFTransportContext transport) {
     final nowUs = DateTime.now().microsecondsSinceEpoch;
     final output = <TimestampedMidiEvent>[];
     for (var ch = 0; ch < 16; ch++) {
       final s = _channels[ch];
-      if (s.pendingReattack &&
-          (nowUs - s.clusterStartUs) >= _chordWindowUs) {
+      if (s.gathering && (nowUs - s.gatherStartUs) >= _chordWindowUs) {
         // Tick-emitted events are merged back into the same node's
         // processMidi input by GFMidiGraph (tick → merge → processMidi). Tag
-        // them as self-emitted so the upcoming processMidi pass-through them
+        // them as self-emitted so the upcoming processMidi passes them through
         // unchanged instead of re-interpreting them as user input.
-        _emitReattack(ch, s, output, fromTick: true);
-        s.pendingReattack = false;
+        _emitFirstAttack(ch, s, output, fromTick: true);
+        s.gathering = false;
+        s.sounding = true;
       }
     }
     return output;
@@ -1534,11 +1535,12 @@ class MicrotoneNode extends GFMidiNode {
 
   /// Route a single incoming event.
   ///
-  /// - User note-on / note-off drive the cluster state machine (first attack,
-  ///   queued or immediate re-attack, release).
-  /// - Self-emitted note events are tagged in [_emittedNoteOns] /
-  ///   [_emittedNoteOffs] so the tick → processMidi feedback in [GFMidiGraph]
-  ///   passes them through without re-interpreting them as user input.
+  /// - User note-on / note-off drive the cluster state machine (deferred or
+  ///   immediate first attack, re-attack, release).
+  /// - The deferred first attack's Note-On is emitted from [tick()] and re-fed
+  ///   into this method by [GFMidiGraph]'s tick → merge → processMidi loop; it
+  ///   is tagged in [_MicrotoneChannelState.emittedNoteOns] so we pass it
+  ///   through instead of re-interpreting it as a user press.
   /// - Pitch-bend, CC, channel pressure, aftertouch — pass through unchanged.
   void _processEvent(
     TimestampedMidiEvent e,
@@ -1548,10 +1550,6 @@ class MicrotoneNode extends GFMidiNode {
     final s = _channels[ch];
 
     if (e.isNoteOn && s.emittedNoteOns.remove(e.data1)) {
-      output.add(e);
-      return;
-    }
-    if (e.isNoteOff && s.emittedNoteOffs.remove(e.data1)) {
       output.add(e);
       return;
     }
@@ -1568,19 +1566,15 @@ class MicrotoneNode extends GFMidiNode {
     output.add(e);
   }
 
-  /// Add the pressed pitch to the held set and either fire the initial
-  /// Note-On (first press) or queue / emit a re-attack (cluster expansion).
+  /// Add the pressed pitch to the held set and advance the cluster phase.
   ///
-  /// Three sub-cases:
-  /// 1. **First note of a fresh cluster** — fire Note-On immediately at the
-  ///    pressed chromatic pitch. The clock for [chordWindow] starts here.
-  /// 2. **Additional press within [chordWindow]** — mark the channel as
-  ///    needing a re-attack but DO NOT emit yet. [tick()] will fire the
-  ///    re-attack once the window expires, so a rapid two- or three-finger
-  ///    stab collapses into a single fresh attack at the cluster median.
-  /// 3. **Additional press after the chord window** — emit a re-attack right
-  ///    now (the user is deliberately adding a note to an existing cluster,
-  ///    not building the cluster atomically).
+  /// Phase transitions (see [_MicrotoneChannelState]):
+  /// - **idle** → if [_chordWindowUs] is 0, fire the first attack immediately
+  ///   (zero latency) and go *sounding*; otherwise start *gathering* and let
+  ///   [tick()] fire the deferred attack when the window expires.
+  /// - **gathering** → just accumulate; the deferred attack will see the full
+  ///   cluster.
+  /// - **sounding** → re-attack now at the new cluster target.
   void _handleUserNoteOn(
     TimestampedMidiEvent e,
     _MicrotoneChannelState s,
@@ -1595,38 +1589,65 @@ class MicrotoneNode extends GFMidiNode {
 
     final nowUs = DateTime.now().microsecondsSinceEpoch;
 
-    if (!s.sounding) {
-      // Case 1: first press — fire the chromatic Note-On now with zero latency.
-      _emitInitialNoteOn(e.midiChannel, s, output, nowUs);
+    if (s.sounding) {
+      // Established cluster — re-attack at the new target.
+      _emitReattack(e.midiChannel, s, output);
       return;
     }
 
-    final withinWindow = (nowUs - s.clusterStartUs) < _chordWindowUs;
-    if (withinWindow) {
-      // Case 2: still gathering — let tick() emit the re-attack later so we
-      // don't fire one re-attack per finger during a multi-finger stab.
-      s.pendingReattack = true;
+    if (s.gathering) {
+      // Still gathering the initial cluster — accumulate silently.
       return;
     }
 
-    // Case 3: deliberate addition after the window — re-attack now.
-    _emitReattack(e.midiChannel, s, output, fromTick: false);
+    // idle: first press of a fresh cluster.
+    if (_chordWindowUs <= 0) {
+      // Immediate mode — fire now.
+      _emitFirstAttack(e.midiChannel, s, output, fromTick: false);
+      s.sounding = true;
+    } else {
+      // Deferred mode — gather; tick() fires the attack when the window ends.
+      s.gathering = true;
+      s.gatherStartUs = nowUs;
+    }
   }
 
-  /// Remove the released pitch from the held set and react accordingly.
+  /// Remove the released pitch from the held set and advance the phase.
   ///
-  /// Two sub-cases:
-  /// 1. **Last note released** — emit Note-Off for the sounding voice and
-  ///    reset pitch-bend to centre.
-  /// 2. **Release while other keys are still held** — emit a re-attack at
-  ///    the smaller cluster's new target pitch. Releases never wait on the
-  ///    chord window — the user expects the cluster to react immediately.
+  /// - **gathering** → if this empties the held set the player did a quick
+  ///   tap; fire the gathered attack *now* (so it is audible) and immediately
+  ///   release it, instead of dropping the note. If keys remain, keep
+  ///   gathering with the smaller cluster.
+  /// - **sounding** → re-attack at the smaller cluster, or Note-Off + bend
+  ///   reset when the last key lifts.
   void _handleUserNoteOff(
     TimestampedMidiEvent e,
     _MicrotoneChannelState s,
     List<TimestampedMidiEvent> output,
   ) {
     final pitch = e.data1;
+
+    if (s.gathering) {
+      final isLastHeld =
+          s.heldOrder.length == 1 && s.heldOrder.first == pitch;
+      if (isLastHeld) {
+        // Quick tap released before the gather window expired. Fire the
+        // attack now (held set still contains `pitch`) so the note is never
+        // silently dropped, then release it for a short staccato note.
+        _emitFirstAttack(e.midiChannel, s, output, fromTick: false);
+        s.gathering = false;
+        s.sounding = true;
+        s.heldOrder.remove(pitch);
+        s.heldVelocity.remove(pitch);
+        _emitClusterNoteOff(e.midiChannel, s, output);
+        return;
+      }
+      // Keys remain — keep gathering with the reduced cluster.
+      s.heldOrder.remove(pitch);
+      s.heldVelocity.remove(pitch);
+      return;
+    }
+
     s.heldOrder.remove(pitch);
     s.heldVelocity.remove(pitch);
 
@@ -1634,41 +1655,46 @@ class MicrotoneNode extends GFMidiNode {
       if (s.sounding) {
         _emitClusterNoteOff(e.midiChannel, s, output);
       }
-      s.pendingReattack = false;
-      s.clusterStartUs = 0;
+      s.gatherStartUs = 0;
       return;
     }
 
     // Cluster shrank — fresh attack on the smaller held set.
-    _emitReattack(e.midiChannel, s, output, fromTick: false);
+    _emitReattack(e.midiChannel, s, output);
   }
 
   // ── Cluster emission ────────────────────────────────────────────────────────
 
-  /// Fire the very first Note-On of a fresh cluster at the pressed pitch with
-  /// bend = centre (no microtuning yet — that's what re-attacks are for).
+  /// Fire the first Note-On of a fresh cluster, pre-bent to the cluster's
+  /// target microtone.
   ///
-  /// The initial centre-bend message is emitted explicitly so a stale bend
-  /// from a previous cluster on this channel does not transpose the new note.
+  /// There is no prior voice to silence, so the sequence is PitchBend then
+  /// Note-On. In immediate mode (attack delay 0) the cluster usually holds a
+  /// single key, so the bend is centred and the note is chromatic; in deferred
+  /// mode the gather may have collected several keys, so the very first attack
+  /// already lands on the bent median — no chromatic onset.
   ///
-  /// Always called from [processMidi] (never from [tick()]), so self-emitted
-  /// events do NOT need to be tagged for the tick→merge feedback loop.
-  void _emitInitialNoteOn(
+  /// [fromTick] is `true` when called from [tick()] (deferred fire — events
+  /// are re-fed into [processMidi] by [GFMidiGraph] and must be tagged for
+  /// pass-through) and `false` when called from a [processMidi] handler.
+  void _emitFirstAttack(
     int ch,
     _MicrotoneChannelState s,
-    List<TimestampedMidiEvent> output,
-    int nowUs,
-  ) {
-    final basePitch = s.heldOrder.last; // == the just-pressed pitch
+    List<TimestampedMidiEvent> output, {
+    required bool fromTick,
+  }) {
+    if (s.heldOrder.isEmpty) return; // safety — caller should have checked
+
+    final basePitch = _lowestHeld(s);
+    final targetPitch = _computeClusterTargetPitch(s);
+    final bend = _bendForOffset(targetPitch - basePitch);
     final velocity = _resolveOutputVelocity(s);
 
     s.basePitch = basePitch;
-    s.currentBend = _bendCentre;
-    s.sounding = true;
-    s.clusterStartUs = nowUs;
-    s.pendingReattack = false;
+    s.currentBend = bend;
 
-    output.add(_pitchBendEvent(ch, _bendCentre));
+    output.add(_pitchBendEvent(ch, bend));
+    if (fromTick) s.emittedNoteOns.add(basePitch);
     output.add(TimestampedMidiEvent(
       ppqPosition: 0,
       status: _noteOnStatus(ch),
@@ -1692,17 +1718,14 @@ class MicrotoneNode extends GFMidiNode {
   /// significantly (e.g. user releases the original lowest key and the new
   /// lowest key is much higher).
   ///
-  /// [fromTick] is `true` when called from [tick()] (events will be re-fed
-  /// into [processMidi] by [GFMidiGraph] and must be tagged for pass-through)
-  /// and `false` when called from a [processMidi] handler (events go straight
-  /// to the output and are not re-fed, so tagging would leave stale entries
-  /// that corrupt the next user input).
+  /// Always called from a [processMidi] handler (re-attacks are never
+  /// deferred), so the emitted events go straight to the output and are not
+  /// re-fed into processMidi — no self-emission tagging is needed.
   void _emitReattack(
     int ch,
     _MicrotoneChannelState s,
-    List<TimestampedMidiEvent> output, {
-    required bool fromTick,
-  }) {
+    List<TimestampedMidiEvent> output,
+  ) {
     if (s.heldOrder.isEmpty) return; // safety — caller should have checked
 
     final oldBasePitch = s.basePitch;
@@ -1712,7 +1735,6 @@ class MicrotoneNode extends GFMidiNode {
     final velocity = _resolveOutputVelocity(s);
 
     if (s.sounding) {
-      if (fromTick) s.emittedNoteOffs.add(oldBasePitch);
       output.add(TimestampedMidiEvent(
         ppqPosition: 0,
         status: _noteOffStatus(ch),
@@ -1723,7 +1745,6 @@ class MicrotoneNode extends GFMidiNode {
 
     output.add(_pitchBendEvent(ch, newBend));
 
-    if (fromTick) s.emittedNoteOns.add(newBasePitch);
     output.add(TimestampedMidiEvent(
       ppqPosition: 0,
       status: _noteOnStatus(ch),
@@ -1742,8 +1763,8 @@ class MicrotoneNode extends GFMidiNode {
   /// this stream does not retain a stale bend value for subsequent unrelated
   /// notes on the same channel.
   ///
-  /// Always called from [processMidi]; see [_emitInitialNoteOn] for the
-  /// rationale for not tagging events.
+  /// Always called from [processMidi]; see [_emitFirstAttack] for the
+  /// rationale for not tagging events when the source is processMidi.
   void _emitClusterNoteOff(
     int ch,
     _MicrotoneChannelState s,
@@ -1869,8 +1890,8 @@ class MicrotoneNode extends GFMidiNode {
 
 /// Per-channel state for [MicrotoneNode].
 ///
-/// Each of the 16 MIDI channels owns one of these to track the in-flight
-/// cluster, the pending grace window, and the portamento glide.
+/// Each of the 16 MIDI channels owns one of these to track the held set and
+/// the cluster phase (idle → gathering → sounding).
 class _MicrotoneChannelState {
   /// Pitches currently held by the player, in press order.
   final List<int> heldOrder = [];
@@ -1881,29 +1902,27 @@ class _MicrotoneChannelState {
   /// Velocity of the most recently pressed key — used by [LastNote] mode.
   int lastVelocity = 100;
 
-  /// Set of pitches that the node has emitted as Note-On so [processMidi]
-  /// can pass them straight through without re-classifying them as user input.
-  ///
-  /// Populated by [_emitClusterNoteOn] before the event is added to the
-  /// output list; drained by [_processEvent] on the corresponding incoming
-  /// pass-through.
+  /// Set of pitches the node emitted as Note-On *from [tick()]* (the deferred
+  /// first attack) so the subsequent processMidi pass (fed by GFMidiGraph's
+  /// tick→merge) recognises them and passes them through instead of
+  /// re-classifying them as user input. processMidi-driven emissions go
+  /// straight to the output and are never re-fed, so they are not tagged.
   final Set<int> emittedNoteOns = {};
 
-  /// Same as [emittedNoteOns] but for the cluster Note-Off events.
-  final Set<int> emittedNoteOffs = {};
+  /// Wall-clock timestamp (µs) when the current gather window opened — i.e.
+  /// when the first key of a deferred cluster was pressed. [tick()] fires the
+  /// deferred attack once `now - gatherStartUs >= _chordWindowUs`.
+  int gatherStartUs = 0;
 
-  /// Wall-clock timestamp (µs) when the current cluster started — i.e. when
-  /// the first note of the currently-sounding cluster was pressed.
+  /// True while a deferred cluster is gathering keys before its first attack.
   ///
-  /// Cluster modifications that arrive within [_chordWindowUs] of this point
-  /// snap the bend instantly (the user is still gathering); modifications
-  /// after the window use portamento for an expressive glide.
-  int clusterStartUs = 0;
+  /// Set when the first key of a cluster is pressed and the attack delay is
+  /// positive; cleared when [tick()] (or an early release) fires the attack.
+  bool gathering = false;
 
   /// True while the cluster Note-On is currently sounding.
   ///
-  /// Goes true on the first key press of a cluster; goes false on the
-  /// all-notes-off path.
+  /// Goes true when the first attack fires; goes false on all-notes-off.
   bool sounding = false;
 
   /// MIDI pitch of the currently-sounding Note-On.
@@ -1916,13 +1935,6 @@ class _MicrotoneChannelState {
   /// only so we can keep the synth's bend at centre when the cluster ends.
   int currentBend = 8192;
 
-  /// True when a press arrived inside the chord window after the initial
-  /// attack and a re-attack is queued for [tick()] to fire at window expiry.
-  ///
-  /// This is what makes a rapid two- or three-finger stab collapse into one
-  /// fresh attack at the cluster median, rather than one re-attack per finger.
-  bool pendingReattack = false;
-
   /// Reset every field — called from [MicrotoneNode.initialize] so a project
   /// reload starts fresh.
   void clear() {
@@ -1930,11 +1942,10 @@ class _MicrotoneChannelState {
     heldVelocity.clear();
     lastVelocity = 100;
     emittedNoteOns.clear();
-    emittedNoteOffs.clear();
-    clusterStartUs = 0;
+    gatherStartUs = 0;
+    gathering = false;
     sounding = false;
     basePitch = 60;
     currentBend = 8192;
-    pendingReattack = false;
   }
 }

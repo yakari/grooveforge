@@ -12,10 +12,19 @@ type: midi_fx
 # a clean attack already pre-bent to the microtonal pitch (no gradual bending
 # of a sounding note).
 #
-# So pressing C alone plays a normal C; pressing C + C# at the same time
-# replaces the C with a fresh attack on a quarter-tone-up pitch; pressing
-# C + E plays a D with a slight detune. Lifting one finger re-attacks at the
-# smaller cluster's target.
+# So pressing C + E plays a D with a slight detune; pressing C + C# plays a
+# quarter-tone-up note. Lifting one finger re-attacks at the smaller cluster's
+# target.
+#
+# The Attack Delay parameter chooses how the first note of a cluster is fired:
+#   - 0 ms  → fire immediately on the first key press (zero latency). A single
+#             microtonal note then begins with a brief chromatic onset before
+#             the second finger lands and re-attacks at the bent pitch.
+#   - >0 ms → defer the first attack by that long, gathering all keys pressed
+#             within the window, then fire ONCE at the cluster median — so a
+#             two-finger press produces a clean single microtonal note with no
+#             chromatic onset. A tap released before the delay still fires (and
+#             releases) so notes are never dropped.
 #
 # Inspired by mTonal (24-tone quarter-tone keyboards) and the MTS-ESP
 # pitch-bend approach used by ODDSound and the KOMA Monoplex.
@@ -25,19 +34,18 @@ type: midi_fx
 # target.
 
 parameters:
-  # Chord window — grace period that groups rapid presses into one re-attack.
-  # The first key press fires Note-On immediately. Any additional keys pressed
-  # within the window are merged into the same cluster and a single re-attack
-  # fires when the window expires (avoids flickery per-finger re-attacks
-  # during a multi-finger stab). Releases ignore the window and re-attack
-  # immediately. Short values (10 ms) demand precise simultaneity for the
-  # grouping; longer values (80 ms) tolerate uneven finger strikes.
+  # Attack delay — how long to gather a cluster before firing the first note.
+  # 0 ms fires immediately on the first key press (zero latency, brief
+  # chromatic onset for two-finger microtones). Higher values defer the attack
+  # so simultaneous presses collapse into a single clean microtonal note; the
+  # cost is that long for every note's onset. A tap released before the delay
+  # expires still fires so notes are never dropped.
   - id: chord_window
     paramId: 0
-    name: "Chord Window"
-    min: 10.0
+    name: "Attack Delay"
+    min: 0.0
     max: 80.0
-    default: 35.0
+    default: 30.0
     unit: "ms"
 
   # Cluster mode — how to derive the target microtone from the held set.
@@ -96,7 +104,7 @@ ui:
       controls:
         - type: knob
           param: chord_window
-          label: "Window"
+          label: "Delay"
         - type: selector
           param: cluster_mode
           label: "Mode"

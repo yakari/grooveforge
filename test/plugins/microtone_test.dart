@@ -6,16 +6,17 @@
 //      down the on-disk contract so a save-file regression cannot silently
 //      drop or reorder a parameter.
 //
-//   2. The MicrotoneNode behaviour — re-attack model: the first key press
-//      fires a Note-On immediately at the chromatic pitch; every subsequent
-//      change to the held set produces a re-attack sequence (Note-Off the
-//      old voice, pitch-bend to the new microtone, Note-On the new voice).
-//      Rapid presses inside the chord window are collapsed into a single
-//      re-attack at the window's expiry.
+//   2. The MicrotoneNode behaviour. The node is a monotonic re-attack engine:
+//      every change to the held set produces a fresh attack (Note-Off old,
+//      PitchBend, Note-On new) pre-bent to the cluster median. The Attack
+//      Delay parameter selects how the FIRST note of a cluster fires:
+//        - 0 ms  → fire immediately on the first key press.
+//        - >0 ms → gather keys for the delay, then fire one clean attack at
+//                  the cluster median (tick-driven). A tap released before
+//                  the delay still fires so notes are never dropped.
 //
 // Time-dependent tests inject synthetic timestamps by sleeping briefly
-// between calls — the node uses DateTime.now() internally, mirroring the
-// real audio host.
+// between calls — the node uses DateTime.now() internally.
 
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_test/flutter_test.dart';
@@ -45,8 +46,6 @@ void main() {
     });
 
     test('exposes the 4 expected parameters in declared order', () {
-      // Order must match the paramId numbering so a saved .gf project can
-      // remap paramId → semantic role unambiguously after a future update.
       final ids = descriptor.parameters.map((p) => p.id).toList();
       expect(ids, [
         'chord_window',
@@ -56,168 +55,197 @@ void main() {
       ]);
     });
 
-    test('parameter defaults are musically sensible', () {
-      double def(String id) =>
-          descriptor.parameters.firstWhere((p) => p.id == id).defaultValue;
-      // 35 ms chord window — well above typical two-finger asynchrony (~10 ms).
-      expect(def('chord_window'), 35.0);
-      // Cluster mode 0 = OuterAverage (predictable for two-finger gestures).
-      expect(def('cluster_mode'), 0.0);
-      // Bend range 0 = ±2 st (General MIDI default).
-      expect(def('bend_range'), 0.0);
-      // Velocity mode 0 = Average (smoother dynamics across cluster).
-      expect(def('velocity_mode'), 0.0);
+    test('attack-delay parameter spans 0–80 ms and defaults to 30', () {
+      final p = descriptor.parameters.firstWhere((p) => p.id == 'chord_window');
+      expect(p.min, 0.0, reason: '0 ms = immediate-fire mode');
+      expect(p.max, 80.0);
+      expect(p.defaultValue, 30.0,
+          reason: 'deferred by default so single microtonal notes are clean');
     });
 
-    test('parameter ranges match the design spec', () {
-      GFDescriptorParameter p(String id) =>
-          descriptor.parameters.firstWhere((p) => p.id == id);
-      expect(p('chord_window').min, 10.0);
-      expect(p('chord_window').max, 80.0);
+    test('other parameter defaults are musically sensible', () {
+      double def(String id) =>
+          descriptor.parameters.firstWhere((p) => p.id == id).defaultValue;
+      expect(def('cluster_mode'), 0.0); // OuterAverage
+      expect(def('bend_range'), 0.0); // ±2 st
+      expect(def('velocity_mode'), 0.0); // Average
     });
   });
 
-  // ── MicrotoneNode runtime behaviour ────────────────────────────────────────
+  // ── Immediate mode (attack delay = 0) ──────────────────────────────────────
 
-  group('MicrotoneNode', () {
+  group('MicrotoneNode — immediate mode (delay 0)', () {
     late MicrotoneNode node;
-
-    /// Default GFMidiNodeContext — Microtone does not use scale or source
-    /// channel, but the API still requires them.
     final ctx = const GFMidiNodeContext(
       sourceChannelIndex: 0,
       scaleProvider: _nullScale,
     );
-
-    /// Stopped transport — the node ignores transport state entirely (its
-    /// timing is wall-clock based).
     const transport = GFTransportContext.stopped;
 
     setUp(() {
       node = MicrotoneNode('micro');
       node.initialize(ctx);
-      // 35 ms maps to (35 − 10) / 70 = 0.357.
-      node.setParam('chordWindow', (35.0 - 10.0) / 70.0);
+      node.setParam('chordWindow', 0.0); // 0 ms → immediate fire
       node.setParam('clusterMode', 0.0); // OuterAverage
       node.setParam('bendRange', 0.0); // ±2 st
       node.setParam('velocityMode', 0.0); // Average
     });
 
-    test('single press fires Note-On immediately with centre bend', () {
+    test('first press fires Note-On immediately at chromatic pitch', () {
       final out = node.processMidi(
         [_noteOn(channel: 0, pitch: 60, velocity: 100)],
         transport,
       );
-
-      expect(out.length, 2,
-          reason: 'expected centre pitch-bend + Note-On in the same block');
-      // Pitch-bend FIRST so the synth applies it before sounding the note.
+      expect(out.length, 2);
       expect(_isPitchBend(out[0]), isTrue);
-      expect(_pitchBend14(out[0]), 8192,
-          reason: 'single-note cluster has no offset — bend must be centre');
+      expect(_pitchBend14(out[0]), 8192, reason: 'single note → centre bend');
       expect(out[1].isNoteOn, isTrue);
       expect(out[1].data1, 60);
-      expect(out[1].data2, 100);
     });
 
-    test('two-press cluster inside chord window: queue and fire one re-attack',
-        () async {
-      // First press fires the chromatic Note-On immediately.
-      final p1 = node.processMidi(
-        [_noteOn(channel: 0, pitch: 60, velocity: 100)],
-        transport,
-      );
-      expect(p1.where((e) => e.isNoteOn), hasLength(1));
-      expect(p1.firstWhere((e) => e.isNoteOn).data1, 60);
-
-      // Second press inside the window: queued — NO immediate output.
+    test('second press re-attacks immediately at the bent pitch', () {
+      node.processMidi([_noteOn(channel: 0, pitch: 60, velocity: 100)], transport);
       final p2 = node.processMidi(
         [_noteOn(channel: 0, pitch: 61, velocity: 80)],
         transport,
       );
-      expect(p2, isEmpty,
-          reason: 'press inside the chord window must defer to tick()');
-
-      // Tick before the window expires: still nothing.
-      expect(node.tick(transport), isEmpty);
-
-      // Wait past the window — tick() now fires the queued re-attack.
-      await Future<void>.delayed(const Duration(milliseconds: 60));
-      final fired = node.tick(transport);
-
-      // Re-attack sequence: Note-Off(60) → PitchBend → Note-On(60).
-      expect(fired, hasLength(3));
-      expect(fired[0].isNoteOff, isTrue);
-      expect(fired[0].data1, 60);
-
-      expect(_isPitchBend(fired[1]), isTrue);
-      // OuterAverage of (60, 61) = 60.5 → +0.5 st above basePitch (60).
-      // bend = 8192 + round(0.5 / 2.0 * 8191) = 10240.
-      expect(_pitchBend14(fired[1]), 10240);
-
-      expect(fired[2].isNoteOn, isTrue);
-      expect(fired[2].data1, 60);
+      // Re-attack: Note-Off(60) → PitchBend → Note-On(60).
+      expect(p2.where((e) => e.isNoteOff), hasLength(1));
+      expect(p2.where((e) => e.isNoteOn), hasLength(1));
+      // OuterAverage of (60, 61) = 60.5 → +0.5 st → bend 10240.
+      expect(_pitchBend14(p2.firstWhere(_isPitchBend)), 10240);
       // Velocity = average of (100, 80) = 90.
-      expect(fired[2].data2, 90);
+      expect(p2.firstWhere((e) => e.isNoteOn).data2, 90);
+    });
+  });
+
+  // ── Deferred mode (attack delay > 0) ───────────────────────────────────────
+
+  group('MicrotoneNode — deferred mode (delay 30 ms)', () {
+    late MicrotoneNode node;
+    final ctx = const GFMidiNodeContext(
+      sourceChannelIndex: 0,
+      scaleProvider: _nullScale,
+    );
+    const transport = GFTransportContext.stopped;
+
+    setUp(() {
+      node = MicrotoneNode('micro');
+      node.initialize(ctx);
+      node.setParam('chordWindow', 30.0 / 80.0); // 30 ms
+      node.setParam('clusterMode', 0.0);
+      node.setParam('bendRange', 0.0);
+      node.setParam('velocityMode', 0.0);
     });
 
-    test('press after the chord window: immediate re-attack, no queue', () async {
+    test('first press is deferred — no immediate output', () {
+      final out = node.processMidi(
+        [_noteOn(channel: 0, pitch: 60, velocity: 100)],
+        transport,
+      );
+      expect(out, isEmpty, reason: 'attack is deferred until the window ends');
+      // tick() before the window expires still emits nothing.
+      expect(node.tick(transport), isEmpty);
+    });
+
+    test('two-key cluster fires once at the median when the window expires',
+        () async {
       node.processMidi([_noteOn(channel: 0, pitch: 60, velocity: 100)], transport);
-      // Wait past the window so the next press is a "deliberate" addition.
+      node.processMidi([_noteOn(channel: 0, pitch: 61, velocity: 80)], transport);
+      // Both accumulate silently.
       await Future<void>.delayed(const Duration(milliseconds: 60));
 
-      final p2 = node.processMidi(
+      final fired = node.tick(transport);
+      // Single clean attack: PitchBend → Note-On (no Note-Off, no prior voice).
+      expect(fired.where((e) => e.isNoteOff), isEmpty,
+          reason: 'first attack has no prior voice to silence');
+      expect(fired.where((e) => e.isNoteOn), hasLength(1));
+      // OuterAverage of (60, 61) = 60.5 → +0.5 st → bend 10240.
+      expect(_pitchBend14(fired.firstWhere(_isPitchBend)), 10240);
+      final noteOn = fired.firstWhere((e) => e.isNoteOn);
+      expect(noteOn.data1, 60, reason: 'base = lowest held pitch');
+      expect(noteOn.data2, 90, reason: 'velocity = average of 100 and 80');
+    });
+
+    test('quick tap released before the window still fires (no drop)', () {
+      // Press then release in the same synthetic instant — faster than the
+      // 30 ms window. The note must still be emitted (fire + release).
+      node.processMidi([_noteOn(channel: 0, pitch: 60, velocity: 100)], transport);
+      final off = node.processMidi(
+        [_noteOff(channel: 0, pitch: 60)],
+        transport,
+      );
+      expect(off.any((e) => e.isNoteOn && e.data1 == 60), isTrue,
+          reason: 'early release must fire the gathered note');
+      expect(off.any((e) => e.isNoteOff && e.data1 == 60), isTrue,
+          reason: 'then release it for a short staccato note');
+    });
+
+    test('a key released before the window does not cancel the cluster',
+        () async {
+      // Press C + C#, release C# (still inside the window). The cluster keeps
+      // gathering with {C}; the eventual attack is a clean C.
+      node.processMidi([_noteOn(channel: 0, pitch: 60, velocity: 100)], transport);
+      node.processMidi([_noteOn(channel: 0, pitch: 61, velocity: 100)], transport);
+      final r = node.processMidi(
+        [_noteOff(channel: 0, pitch: 61)],
+        transport,
+      );
+      expect(r, isEmpty, reason: 'still gathering — no output on a partial release');
+
+      await Future<void>.delayed(const Duration(milliseconds: 60));
+      final fired = node.tick(transport);
+      expect(fired.where((e) => e.isNoteOn), hasLength(1));
+      expect(fired.firstWhere((e) => e.isNoteOn).data1, 60);
+      expect(_pitchBend14(fired.firstWhere(_isPitchBend)), 8192,
+          reason: 'cluster reduced to a single C → centre bend');
+    });
+
+    test('press after the cluster sounds re-attacks immediately', () async {
+      node.processMidi([_noteOn(channel: 0, pitch: 60, velocity: 100)], transport);
+      await Future<void>.delayed(const Duration(milliseconds: 60));
+      node.tick(transport); // deferred first attack (C) fires here.
+
+      // Now sounding — a new press re-attacks right away (no second deferral).
+      final p = node.processMidi(
         [_noteOn(channel: 0, pitch: 64, velocity: 100)],
         transport,
       );
-
-      // Immediate re-attack: Note-Off → PitchBend → Note-On.
-      expect(p2.where((e) => e.isNoteOff), hasLength(1));
-      expect(p2.where(_isPitchBend), hasLength(1));
-      expect(p2.where((e) => e.isNoteOn), hasLength(1));
-
-      // OuterAverage of (60, 64) = 62 → +2 st → saturates at 16383.
-      expect(_pitchBend14(p2.firstWhere(_isPitchBend)), 16383);
+      expect(p.where((e) => e.isNoteOff), hasLength(1));
+      expect(p.where((e) => e.isNoteOn), hasLength(1));
+      // OuterAverage (60, 64) = 62 → +2 st → saturates at 16383.
+      expect(_pitchBend14(p.firstWhere(_isPitchBend)), 16383);
     });
 
-    test('partial release: immediate re-attack at the smaller cluster', () async {
+    test('partial release while sounding re-attacks at the smaller cluster',
+        () async {
       node.processMidi([_noteOn(channel: 0, pitch: 60, velocity: 100)], transport);
-      await Future<void>.delayed(const Duration(milliseconds: 60));
       node.processMidi([_noteOn(channel: 0, pitch: 64, velocity: 100)], transport);
-      // We now have a sounding cluster {60, 64} bent toward D.
+      await Future<void>.delayed(const Duration(milliseconds: 60));
+      node.tick(transport); // fires the {60,64} cluster.
 
-      // Release the upper key — cluster shrinks to {60}. Re-attack fires now.
       final off = node.processMidi(
         [_noteOff(channel: 0, pitch: 64)],
         transport,
       );
-
-      expect(off.where((e) => e.isNoteOff), hasLength(1),
-          reason: 're-attack must silence the old voice');
-      expect(off.where((e) => e.isNoteOn), hasLength(1),
-          reason: 're-attack must start a new voice');
-      // New cluster {60}: target = 60, bend = centre.
-      expect(_pitchBend14(off.firstWhere(_isPitchBend)), 8192);
-      // New base pitch == lowest held = 60.
+      expect(off.where((e) => e.isNoteOff), hasLength(1));
+      expect(off.where((e) => e.isNoteOn), hasLength(1));
       expect(off.firstWhere((e) => e.isNoteOn).data1, 60);
+      expect(_pitchBend14(off.firstWhere(_isPitchBend)), 8192);
     });
 
-    test('all notes off emits Note-Off + bend reset to centre', () {
+    test('all notes off emits Note-Off + bend reset to centre', () async {
       node.processMidi([_noteOn(channel: 0, pitch: 60, velocity: 100)], transport);
+      await Future<void>.delayed(const Duration(milliseconds: 60));
+      node.tick(transport); // fires C.
 
       final r = node.processMidi(
         [_noteOff(channel: 0, pitch: 60)],
         transport,
       );
-
-      final noteOff = r.where((e) => e.isNoteOff).toList();
-      expect(noteOff, hasLength(1));
-      expect(noteOff.first.data1, 60);
-
-      final centeredBend = r.where(_isPitchBend).toList();
-      expect(centeredBend, hasLength(1));
-      expect(_pitchBend14(centeredBend.first), 8192,
-          reason: 'pitch-bend must reset to centre on all-notes-off');
+      expect(r.where((e) => e.isNoteOff), hasLength(1));
+      expect(_pitchBend14(r.lastWhere(_isPitchBend)), 8192,
+          reason: 'bend must reset to centre on all-notes-off');
     });
 
     test('CC events pass through unchanged', () {
@@ -227,70 +255,13 @@ void main() {
         data1: 1,
         data2: 64,
       );
-      final out = node.processMidi([cc], transport);
-      expect(out, [cc]);
-    });
-
-    test('short tap (under chord window) still produces audible Note-On', () {
-      // Regression test for the original "swallowed taps" bug: pressing and
-      // releasing faster than the chord window must still emit a clean
-      // Note-On / Note-Off pair.
-      final onOut = node.processMidi(
-        [_noteOn(channel: 0, pitch: 60, velocity: 100)],
-        transport,
-      );
-      expect(onOut.any((e) => e.isNoteOn && e.data1 == 60), isTrue);
-
-      final offOut = node.processMidi(
-        [_noteOff(channel: 0, pitch: 60)],
-        transport,
-      );
-      expect(offOut.any((e) => e.isNoteOff && e.data1 == 60), isTrue);
-    });
-
-    test('LastNote velocity mode tracks the most recently pressed key',
-        () async {
-      node.setParam('velocityMode', 1.0); // LastNote
-
-      node.processMidi([_noteOn(channel: 0, pitch: 60, velocity: 40)], transport);
-      node.processMidi([_noteOn(channel: 0, pitch: 64, velocity: 110)], transport);
-
-      // Re-attack fires from tick() once the window expires.
-      await Future<void>.delayed(const Duration(milliseconds: 60));
-      final fired = node.tick(transport);
-      final noteOn = fired.firstWhere((e) => e.isNoteOn);
-      expect(noteOn.data2, 110,
-          reason: 'LastNote mode uses the most recently pressed key velocity');
-    });
-
-    test('basePitch re-locks to lowest held on re-attack (limits saturation)',
-        () async {
-      // Press C (60) then much later E (64). After the window, the re-attack
-      // uses basePitch = lowest held = 60. Then release C: cluster = {64},
-      // re-attack must use basePitch = 64 with bend = centre, not the saturated
-      // bend that would result from keeping basePitch = 60.
-      node.processMidi([_noteOn(channel: 0, pitch: 60, velocity: 100)], transport);
-      await Future<void>.delayed(const Duration(milliseconds: 60));
-      node.processMidi([_noteOn(channel: 0, pitch: 64, velocity: 100)], transport);
-
-      final off = node.processMidi(
-        [_noteOff(channel: 0, pitch: 60)],
-        transport,
-      );
-
-      final newNoteOn = off.firstWhere((e) => e.isNoteOn);
-      expect(newNoteOn.data1, 64,
-          reason: 'basePitch must re-lock to the new lowest held pitch');
-      expect(_pitchBend14(off.firstWhere(_isPitchBend)), 8192,
-          reason: 'single-pitch cluster centres the bend');
+      expect(node.processMidi([cc], transport), [cc]);
     });
   });
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-/// Convenience constructor: build a Note-On [TimestampedMidiEvent] with the
-/// raw MIDI status byte computed from [channel].
 TimestampedMidiEvent _noteOn({
   required int channel,
   required int pitch,
@@ -303,7 +274,6 @@ TimestampedMidiEvent _noteOn({
       data2: velocity,
     );
 
-/// Convenience constructor: build a Note-Off [TimestampedMidiEvent].
 TimestampedMidiEvent _noteOff({
   required int channel,
   required int pitch,
@@ -318,10 +288,8 @@ TimestampedMidiEvent _noteOff({
 /// True iff [e] is a pitch-bend event (status nibble 0xE0).
 bool _isPitchBend(TimestampedMidiEvent e) => (e.status & 0xF0) == 0xE0;
 
-/// Decode the 14-bit pitch-bend value from a pitch-bend event.
-///
-/// MIDI encoding: data1 = LSB (low 7 bits), data2 = MSB (high 7 bits).
+/// Decode the 14-bit pitch-bend value (data1 = LSB, data2 = MSB).
 int _pitchBend14(TimestampedMidiEvent e) => (e.data2 << 7) | e.data1;
 
-/// Stub scale provider for [GFMidiNodeContext] — Microtone does not use it.
+/// Stub scale provider — Microtone does not use it.
 Set<int>? _nullScale() => null;
