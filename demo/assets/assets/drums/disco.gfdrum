@@ -1,0 +1,145 @@
+# Disco — Classic 1970s Dance Groove
+# Reference: Nile Rodgers / CHIC ("Good Times", "Le Freak"), Giorgio Moroder,
+#            MFSB ("Love Is the Message"), Donna Summer ("I Feel Love"),
+#            Bernard Edwards (bass) + Tony Thompson (drums) — the CHIC rhythm section
+# Disco's defining characteristics:
+#   - "Four on the floor" kick: every quarter note (pos 0,4,8,12) — the heartbeat
+#     that every dancer locks onto. Before disco, the kick was syncopated; disco
+#     made it relentlessly steady to serve the dancefloor.
+#   - Open hi-hat on every 8th upbeat (pos 2,6,10,14) — the "chk-chk-chk" that
+#     defines the era and drove rock fans insane.
+#   - Snare on beats 2 and 4 — standard backbeat, often with a tight, ringy sound.
+#   - The "Philadelphia Soul" variation (MFSB): slightly sparser, orchestral approach.
+#   - Hi-NRG is the Eurodisco accelerated form (Patrick Cowley, Bobby O).
+#
+# Three variations cover the main disco sub-styles:
+#   four_on_floor  — classic NYC disco: steady kick, open hat upbeats
+#   chic_groove    — Nile Rodgers syncopated kick, all-16th hi-hat intensity
+#   philly_soul    — MFSB orchestral soul: sparser kick, ride-cymbal pulse
+#
+# GM notes: 36=kick, 38=snare, 42=closed HH, 46=open HH, 49=crash, 51=ride
+
+#
+# ── Step grid notation ────────────────────────────────────────────────────────
+# Each character in a step grid represents one subdivision of the bar.
+# Resolution controls how many steps per bar (16 = 16th notes in 4/4; 12 = 16th notes in 6/8).
+#
+#   X   Strong accent  — velocity = base_velocity × 1.00  (full hit / downbeat)
+#   x   Medium accent  — velocity = base_velocity × 0.75  (firm stroke / upbeat)
+#   o   Soft hit       — velocity = base_velocity × 0.55  (brush / light touch)
+#   g   Ghost note     — velocity = base_velocity × 0.28  (barely audible, mostly felt)
+#   .   Rest           — no note fired at this step
+#
+# Beat positions — 4/4 at resolution 16 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
+#        1  e1 +1 a1  2  e2 +2 a2  3  e3 +3 a3  4  e4 +4 a4
+#   (1/+/2/+/3/+/4/+ = quarter beats; e = "e of"; a = "and-a of")
+#
+# Swing / feel: the 'feel' field shifts odd-indexed steps (1,3,5,7…) forward in time.
+#   straight — no shift (all steps exactly on the grid) — disco must be machine-tight
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Disco
+family: funk
+bpm_range: [108, 135]
+time_signature: [4, 4]
+resolution: 16
+feel: straight
+
+instruments:
+  kick:       { note: 36, base_velocity: 110, velocity_range: 8,  timing_jitter: 0.008, duration_beats: 0.14 }
+  snare:      { note: 38, base_velocity: 100, velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.09 }
+  hihat:      { note: 42, base_velocity: 75,  velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.06 }
+  hihat_open: { note: 46, base_velocity: 88,  velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.14 }
+  ride:       { note: 51, base_velocity: 78,  velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.08 }
+  crash:      { note: 49, base_velocity: 100, velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.22 }
+
+humanization:
+  timing_jitter: 0.010
+  velocity_jitter: 10
+  velocity_drift: 0.04
+
+sections:
+  intro:
+    type: count_in
+    hits: 4
+    note: 42
+
+  groove:
+    bars: 1
+    variations:
+      - name: four_on_floor
+        weight: 3
+        # The definitive disco groove (Donna Summer, Bee Gees, KC & Sunshine Band style).
+        # KICK: four on the floor — every quarter note (pos 0,4,8,12). This is disco's
+        #   non-negotiable law. The steady kick is what made dancers move predictably and
+        #   what distinguished disco from funk's syncopated kick patterns.
+        # SNARE: beats 2 and 4 (pos 4,12) — standard backbeat.
+        # HI-HAT: closed on beats (pos 0,4,8,12), open on every 8th upbeat (pos 2,6,10,14).
+        #   The closed-open alternation at 8th-note rate is the iconic disco "chk" sound.
+        kick:       "X...X...X...X..."
+        snare:      "....X.......X..."
+        hihat:      "x.x.x.x.x.x.x.x."
+        hihat_open: "..x...x...x...x."
+
+      - name: chic_groove
+        weight: 2
+        # CHIC's signature groove (Nile Rodgers / Tony Thompson, 1978–1983).
+        # The kick is more syncopated than pure four-on-floor — it anticipates beats
+        # with an "and-of" pickup (pos 6 = and-of-2, pos 14 = and-of-4) that gives
+        # the groove a funkier forward push. All-16th hi-hat (closed) creates relentless
+        # forward motion. Snare keeps backbeat on 2 and 4 with ghost note on e-of-2 (pos 5).
+        kick:       "X...X.X.X...X.X."
+        snare:      "....X.g.....X..."
+        hihat:      "xxxxxxxxxxxxxxxx"
+        hihat_open: "..x...x...x...x."
+
+      - name: philly_soul
+        weight: 2
+        # Philadelphia soul / MFSB orchestral approach ("Love Is the Message", 1973).
+        # Sparser than pure disco — kicks on beats 1 and 3 only, leaving room for the
+        # orchestra. Ride cymbal instead of hi-hat gives a warmer, more melodic tone.
+        # Snare on 2 and 4 with a ghost on the 16th before each backbeat (pick-up ghost
+        # at pos 3 and 11) for a slight human "pre-stroke" feel.
+        kick:       "X.......X......."
+        snare:      "...gX......gX..."
+        ride:       "x.x.x.x.x.x.x.x."
+        hihat_open: "..x...x...x...x."
+
+  fill:
+    bars: 1
+    variations:
+      - name: snare_disco_fill
+        # Classic disco drum break: snare on all 4 beats plus 16th pickups —
+        # the "ratatat" fill heard in countless 12-inch remixes before the drop.
+        snare: "....X...X...XxXx"
+        kick:  "X...X...X...X..."
+
+      - name: open_hat_sweep
+        # Open hi-hat on every 16th note — a wash of cymbal leading into the next bar.
+        # Creates the "whoosh" effect common in disco and early electronic dance music.
+        hihat_open: "xxxxxxxxxxxxxxxx"
+        kick:       "X...X...X...X..."
+        snare:      "....X.......X..."
+
+      - name: kick_snare_unison
+        # All-16th kick and snare in unison — the "disco stomp" fill that signals
+        # a breakdown or key change. Very dramatic at full velocity.
+        kick:  "X.X.X.X.X.X.XxXx"
+        snare: "X.X.X.X.X.X.XxXx"
+
+  crash:
+    bars: 1
+    variations:
+      - name: standard
+        crash: "X..............."
+        kick:  "X...X...X...X..."
+        snare: "....X.......X..."
+        hihat: "x.x.x.x.x.x.x.x."
+
+structure:
+  fill_every: 4
+  break_every: 0
+  break_length: 1
+  crash_after_fill: true
+  dynamic_build: false

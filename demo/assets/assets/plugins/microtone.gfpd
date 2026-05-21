@@ -1,0 +1,118 @@
+spec: "1.0"
+id: "com.grooveforge.microtone"
+name: "Microtone"
+version: "1.0.0"
+type: midi_fx
+
+# Combines simultaneously-held notes into a single microtonal pitch.
+#
+# The plugin treats the keyboard as monotonic. On every change to the held set
+# it emits a fresh attack at the new cluster target — Note-Off the previous
+# voice, set the pitch-bend, then Note-On a new voice. The synth always hears
+# a clean attack already pre-bent to the microtonal pitch (no gradual bending
+# of a sounding note).
+#
+# So pressing C + E plays a D with a slight detune; pressing C + C# plays a
+# quarter-tone-up note. Lifting one finger re-attacks at the smaller cluster's
+# target.
+#
+# The Attack Delay parameter chooses how the first note of a cluster is fired:
+#   - 0 ms  → fire immediately on the first key press (zero latency). A single
+#             microtonal note then begins with a brief chromatic onset before
+#             the second finger lands and re-attacks at the bent pitch.
+#   - >0 ms → defer the first attack by that long, gathering all keys pressed
+#             within the window, then fire ONCE at the cluster median — so a
+#             two-finger press produces a clean single microtonal note with no
+#             chromatic onset. A tap released before the delay still fires (and
+#             releases) so notes are never dropped.
+#
+# Inspired by mTonal (24-tone quarter-tone keyboards) and the MTS-ESP
+# pitch-bend approach used by ODDSound and the KOMA Monoplex.
+#
+# IMPORTANT: the Bend Range parameter MUST match the downstream synth's own
+# pitch-bend range — otherwise the audible pitch will not equal the cluster
+# target.
+
+parameters:
+  # Attack delay — how long to gather a cluster before firing the first note.
+  # 0 ms fires immediately on the first key press (zero latency, brief
+  # chromatic onset for two-finger microtones). Higher values defer the attack
+  # so simultaneous presses collapse into a single clean microtonal note; the
+  # cost is that long for every note's onset. A tap released before the delay
+  # expires still fires so notes are never dropped.
+  - id: chord_window
+    paramId: 0
+    name: "Attack Delay"
+    min: 0.0
+    max: 80.0
+    default: 30.0
+    unit: "ms"
+
+  # Cluster mode — how to derive the target microtone from the held set.
+  # OuterAverage: midpoint between lowest and highest held pitch (predictable
+  #   for two-finger gestures, ignores inner voices).
+  # MeanOfAll: arithmetic mean of every held pitch (sensitive to inversions,
+  #   useful for shaping the pitch via inner-voice changes).
+  - id: cluster_mode
+    paramId: 1
+    name: "Cluster Mode"
+    min: 0
+    max: 1
+    default: 0
+    type: selector
+    options: ["Outer Avg", "Mean"]
+
+  # Bend range — must match the downstream synth's pitch-bend range.
+  # ±2 st is the General MIDI default; ±12 / ±24 require a synth that supports
+  # extended bend ranges. Wider settings let larger clusters span the full
+  # bend without saturating, at the cost of pitch resolution.
+  - id: bend_range
+    paramId: 2
+    name: "Bend Range"
+    min: 0
+    max: 2
+    default: 0
+    type: selector
+    options: ["±2 st", "±12 st", "±24 st"]
+
+  # Velocity mode — how to derive each re-attack's velocity from the cluster.
+  # Average: arithmetic mean of held velocities (smoother dynamics).
+  # LastNote: velocity of the most recently pressed key (lets the player
+  #   accent the cluster by re-pressing one key).
+  - id: velocity_mode
+    paramId: 3
+    name: "Velocity"
+    min: 0
+    max: 1
+    default: 0
+    type: selector
+    options: ["Average", "Last Note"]
+
+midi_nodes:
+  - id: micro
+    type: microtone
+    params:
+      chordWindow:    { param: chord_window }
+      clusterMode:    { param: cluster_mode }
+      bendRange:      { param: bend_range }
+      velocityMode:   { param: velocity_mode }
+
+ui:
+  layout: grid
+  groups:
+    - label: "Cluster"
+      controls:
+        - type: knob
+          param: chord_window
+          label: "Delay"
+        - type: selector
+          param: cluster_mode
+          label: "Mode"
+    - label: "Output"
+      controls:
+        - type: selector
+          param: bend_range
+          label: "Bend Range"
+        - type: selector
+          param: velocity_mode
+          label: "Velocity"

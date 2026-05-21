@@ -1,0 +1,53 @@
+spec: "1.0"
+id: "com.grooveforge.harmonizer"
+name: "Harmonizer"
+version: "1.0.0"
+type: midi_fx
+
+parameters:
+  - id: interval1
+    paramId: 0
+    name: "Harmony 1"
+    min: 0
+    max: 24
+    default: 4
+    unit: "st"
+  - id: interval2
+    paramId: 1
+    name: "Harmony 2"
+    min: 0
+    max: 24
+    default: 7
+    unit: "st"
+  - id: snap_to_scale
+    paramId: 2
+    name: "Scale Lock"
+    min: 0
+    max: 1
+    default: 1
+    type: toggle
+
+midi_nodes:
+  - id: harm
+    type: harmonize
+    params:
+      interval1:   { param: interval1 }
+      interval2:   { param: interval2 }
+      snapToScale: { param: snap_to_scale }
+
+ui:
+  layout: grid
+  groups:
+    - label: "Voices"
+      controls:
+        - type: knob
+          param: interval1
+          label: "Voice 1"
+        - type: knob
+          param: interval2
+          label: "Voice 2"
+    - label: "Scale"
+      controls:
+        - type: toggle
+          param: snap_to_scale
+          label: "Scale Lock"

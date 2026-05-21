@@ -1,0 +1,167 @@
+spec: "1.0"
+# NOTE: id deliberately distinct from `com.grooveforge.harmonizer` (a
+# pre-existing MIDI FX). The plugin registry de-duplicates by id, so this
+# audio effect ships under its own id `com.grooveforge.audio_harmonizer`.
+id: "com.grooveforge.audio_harmonizer"
+name: "Audio Harmonizer"
+version: "0.1.0"
+type: effect
+
+# ─── Parameters ────────────────────────────────────────────────────────────
+# All ranges below are *raw* (engineering) units. The descriptor loader
+# normalises every parameter to [0, 1] before forwarding to the DSP graph,
+# so the wet_dry node receives the master mix already in 0..1 form.
+#
+# Voice count: integer 1..4 — encoded as a float for descriptor parsing.
+# Voice semitones: -24..+24 (two octaves up/down).
+# Voice mix: 0..1 individual voice level.
+# Master Dry/Wet: 0..1 (0 = dry only, 1 = wet only).
+parameters:
+  - id: voice_count
+    paramId: 0
+    name: "Voices"
+    min: 1.0
+    max: 4.0
+    default: 2.0
+    unit: ""
+
+  - id: voice1_semitones
+    paramId: 1
+    name: "V1 Semis"
+    min: -24.0
+    max: 24.0
+    default: 7.0
+    unit: "st"
+  - id: voice2_semitones
+    paramId: 2
+    name: "V2 Semis"
+    min: -24.0
+    max: 24.0
+    default: 12.0
+    unit: "st"
+  - id: voice3_semitones
+    paramId: 3
+    name: "V3 Semis"
+    min: -24.0
+    max: 24.0
+    default: 4.0
+    unit: "st"
+  - id: voice4_semitones
+    paramId: 4
+    name: "V4 Semis"
+    min: -24.0
+    max: 24.0
+    default: -5.0
+    unit: "st"
+
+  - id: voice1_mix
+    paramId: 5
+    name: "V1 Mix"
+    min: 0.0
+    max: 1.0
+    default: 0.7
+  - id: voice2_mix
+    paramId: 6
+    name: "V2 Mix"
+    min: 0.0
+    max: 1.0
+    default: 0.7
+  - id: voice3_mix
+    paramId: 7
+    name: "V3 Mix"
+    min: 0.0
+    max: 1.0
+    default: 0.5
+  - id: voice4_mix
+    paramId: 8
+    name: "V4 Mix"
+    min: 0.0
+    max: 1.0
+    default: 0.5
+
+  - id: dry_wet
+    paramId: 9
+    name: "Dry/Wet"
+    min: 0.0
+    max: 1.0
+    default: 0.5
+
+# ─── Signal graph ──────────────────────────────────────────────────────────
+# SCAFFOLD STAGE: this graph is a pure pass-through. The four pitch-shifted
+# voices are not yet generated — once the C-side phase-vocoder harmonizer
+# DSP node (`pv_harmonizer`) is wired up, it will replace `dry_in_passthru`
+# on the wet path and be driven by all 9 voice/mix parameters above.
+#
+# For now: input goes to both the `dry` and `wet` inputs of the wet_dry
+# crossfade. With dryWet defaulting to 0.5 (or any value), the output is
+# bit-identical to the input — guaranteeing the plugin can be inserted in
+# a rack without altering the signal.
+graph:
+  nodes:
+    - id: in
+      type: audio_in
+
+    # Passthrough "wet" placeholder — will become the harmonized signal.
+    # Using a unity-gain `gain` node lets us route the input to a logical
+    # "wet" port without inventing a new node type.
+    - id: wet_passthru
+      type: gain
+      params:
+        gain: { value: 0.5 }   # normalized 0.5 → unity (×1.0)
+
+    - id: mixer
+      type: wet_dry
+      params:
+        mix: { param: dry_wet }
+
+    - id: out
+      type: audio_out
+
+  connections:
+    - from: in.out
+      to: [wet_passthru.in, mixer.dry]
+    - from: wet_passthru.out
+      to: mixer.wet
+    - from: mixer.out
+      to: out.in
+
+# ─── UI ────────────────────────────────────────────────────────────────────
+ui:
+  layout: grid
+  groups:
+    - label: "Voices"
+      controls:
+        - type: knob
+          param: voice_count
+          label: "Count"
+        - type: knob
+          param: voice1_semitones
+          label: "V1"
+        - type: knob
+          param: voice2_semitones
+          label: "V2"
+        - type: knob
+          param: voice3_semitones
+          label: "V3"
+        - type: knob
+          param: voice4_semitones
+          label: "V4"
+    - label: "Voice Mix"
+      controls:
+        - type: knob
+          param: voice1_mix
+          label: "V1"
+        - type: knob
+          param: voice2_mix
+          label: "V2"
+        - type: knob
+          param: voice3_mix
+          label: "V3"
+        - type: knob
+          param: voice4_mix
+          label: "V4"
+    - label: "Output"
+      controls:
+        - type: knob
+          param: dry_wet
+          label: "Dry/Wet"

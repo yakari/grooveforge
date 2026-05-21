@@ -1,0 +1,149 @@
+# Celtic Reel & Strathspey — Irish / Scottish Traditional Dance
+# Reference: Planxty (Christy Moore, Liam O'Flynn), The Chieftains, Battlefield Band,
+#            Altan, Solas, Dervish — and for strathspey: Bobby MacLeod, Ian Powrie,
+#            "The Fiddle Music of Scotland" (James Hunter), traditional Cape Breton fiddle
+# The reel and strathspey are the two defining dance forms of Scots-Irish traditional music.
+#
+# REEL (4/4, straight): fast, flowing, 8th-note melody in groups of 4.
+#   - Bodhran plays the "two-and-two" pattern: bass stroke on beat 1, tip strokes on
+#     the offbeats. In drum-kit terms: kick on 1 and 3, cross-stick on 2 and 4.
+#   - Hi-hat or ride drives 8ths at breakneck speed (120–180 BPM typical).
+#   - No swing — Celtic reels are machine-gun straight.
+#
+# STRATHSPEY (4/4, laid_back): slower, with the distinctive "Scotch snap".
+#   - The Scotch snap: a 16th note ON the beat followed immediately by a dotted 8th —
+#     the short-long rhythmic cell that defines Highland dancing and pipe band music.
+#   - In drum notation: accent on beat e (pos 1,5,9,13) rather than the beat itself.
+#   - Kick on beats 1 and 3; snare on 2 and 4 with the snap ghost on beat "e".
+#   - Laid-back feel (slight behind-the-beat) captures the Highland gravitas.
+#
+# JIG (6/8 or 3/4 feel approximated): bodhran-style compound metre.
+#   - Compound 6/8 feel: two groups of three 8th notes per bar.
+#   - In 4/4 res-16 approximation: kick on 1 and 3 (pos 0,8), snare fills the compound
+#     subdivisions, hi-hat drives 8ths. The six-per-bar feel is implied by the kick-ghost
+#     pattern at positions 0,2,4,8,10,12 (compound 8th grid).
+#
+# GM notes: 36=kick, 38=snare, 37=cross-stick (bodhran tip stroke), 42=closed HH,
+#           46=open HH, 49=crash
+
+#
+# ── Step grid notation ────────────────────────────────────────────────────────
+# Each character in a step grid represents one subdivision of the bar.
+# Resolution controls how many steps per bar (16 = 16th notes in 4/4).
+#
+#   X   Strong accent  — velocity = base_velocity × 1.00  (full hit / downbeat)
+#   x   Medium accent  — velocity = base_velocity × 0.75  (firm stroke / upbeat)
+#   o   Soft hit       — velocity = base_velocity × 0.55  (brush / light touch)
+#   g   Ghost note     — velocity = base_velocity × 0.28  (barely audible, mostly felt)
+#   .   Rest           — no note fired at this step
+#
+# Beat positions — 4/4 at resolution 16 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
+#        1  e1 +1 a1  2  e2 +2 a2  3  e3 +3 a3  4  e4 +4 a4
+#
+# Swing / feel: the 'feel' field shifts odd-indexed steps (1,3,5,7…) forward in time.
+#   straight  — reel: no swing, Celtic reels must be machine-tight and fast
+#   laid_back — strathspey: behind the beat, heavy, deliberate
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Celtic Reel
+family: folk
+bpm_range: [112, 180]
+time_signature: [4, 4]
+resolution: 16
+feel: straight
+
+instruments:
+  kick:       { note: 36, base_velocity: 100, velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.12 }
+  snare:      { note: 38, base_velocity: 88,  velocity_range: 14, timing_jitter: 0.012, duration_beats: 0.09 }
+  snare_rim:  { note: 37, base_velocity: 72,  velocity_range: 12, timing_jitter: 0.014, duration_beats: 0.07 }
+  hihat:      { note: 42, base_velocity: 70,  velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.07 }
+  hihat_open: { note: 46, base_velocity: 80,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.14 }
+  crash:      { note: 49, base_velocity: 100, velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.22 }
+
+humanization:
+  timing_jitter: 0.010
+  velocity_jitter: 12
+  velocity_drift: 0.05
+
+sections:
+  intro:
+    type: count_in
+    hits: 4
+    note: 37
+
+  groove:
+    bars: 1
+    variations:
+      - name: irish_reel
+        weight: 3
+        # Irish reel groove (Planxty / Altan style): fast, driving, absolutely straight.
+        # KICK: beats 1 and 3 (pos 0, 8) — the bodhran's "bass stroke," the thumb hit
+        #   that lands on the beat in traditional bodhran playing.
+        # SNARE RIM (cross-stick): beats 2 and 4 (pos 4, 12) — the bodhran "tip stroke,"
+        #   the finger flick on the offbeat. Together, kick + rim = a full bodhran part.
+        # HI-HAT: all 8th notes — the incessant driving pulse that locks reel dancers
+        #   into the music. At 160 BPM this becomes hypnotic.
+        kick:      "X.......X......."
+        snare_rim: "....X.......X..."
+        hihat:     "x.x.x.x.x.x.x.x."
+
+      - name: strathspey
+        weight: 2
+        # Scottish strathspey: the Scotch snap rhythmic cell.
+        # The Scotch snap places a 16th note accent on the "e" of each beat (pos 1,5,9,13)
+        # followed by the main beat landing an 8th later (pos 2,6,10,14). This creates
+        # the short-long pattern (|| = Scotch snap) that defines Highland dancing and
+        # pipe band music. It is the opposite of a swing (which is long-short).
+        # SNARE: ghost notes mark the "e" positions (the snap), while the full accent
+        #   falls on beat 2 and 4. The humanization makes the ghosts feel like a
+        #   genuine stroke rather than a machine-generated note.
+        # KICK: heavy on beat 1, lighter on beat 3 — the Highland bass drum gravitas.
+        kick:      "X.......x......."
+        snare:     ".g...g.X.g...g.X"
+        snare_rim: "....x.......x..."
+        hihat:     "x.x.x.x.x.x.x.x."
+
+      - name: jig_feel
+        weight: 2
+        # Irish jig feel approximated in 4/4 (compound 6/8 implied).
+        # The bodhran in a jig plays "dom-da-dom-da" — bass on 1 and "and-of-2" (pos 6)
+        # with tip strokes filling the compound subdivisions. In 16-step 4/4 notation,
+        # the compound 6/8 grouping places main beats at pos 0, 4, 8, 12 but the
+        # bodhran's compound-feel bass lands at 0, 6 (suggesting 6/8 within 4/4).
+        # Open hi-hat on every 8th upbeat adds the "chk" that jig-step dancers use.
+        kick:      "X.....X.X.....X."
+        snare_rim: "....x.......x..."
+        hihat:     "x.x.x.x.x.x.x.x."
+        hihat_open: "..x...x...x...x."
+
+  fill:
+    bars: 1
+    variations:
+      - name: reel_roll
+        # Snare roll build into a full accent — the classic session "burst" that signals
+        # the tune is about to end or go around again.
+        snare: "XxXxXxXxXxXxXxXx"
+        kick:  "X..............."
+
+      - name: highland_crash
+        # Full kit crash landing in Highland style: snare on all 16ths, crash on 1.
+        snare: "gXgXgXgXgXgXgXgX"
+        kick:  "X...X...X...X..."
+        crash: "X..............."
+
+  crash:
+    bars: 1
+    variations:
+      - name: standard
+        crash:     "X..............."
+        kick:      "X...X...X...X..."
+        snare_rim: "....X.......X..."
+        hihat:     "x.x.x.x.x.x.x.x."
+
+structure:
+  fill_every: 8
+  break_every: 0
+  break_length: 1
+  crash_after_fill: true
+  dynamic_build: false
