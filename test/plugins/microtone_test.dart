@@ -160,7 +160,7 @@ void main() {
       );
       expect(out, isEmpty, reason: 'attack is deferred until the window ends');
       // tick() before the window expires still emits nothing.
-      expect(node.tick(transport), isEmpty);
+      expect(node.processMidi(const [], transport), isEmpty);
     });
 
     test('two-key cluster fires once at the median when the window expires',
@@ -170,7 +170,7 @@ void main() {
       // Both accumulate silently.
       await Future<void>.delayed(const Duration(milliseconds: 60));
 
-      final fired = node.tick(transport);
+      final fired = node.processMidi(const [], transport);
       // Single clean attack: PitchBend → Note-On (no Note-Off, no prior voice).
       expect(fired.where((e) => e.isNoteOff), isEmpty,
           reason: 'first attack has no prior voice to silence');
@@ -209,7 +209,7 @@ void main() {
       expect(r, isEmpty, reason: 'still gathering — no output on a partial release');
 
       await Future<void>.delayed(const Duration(milliseconds: 60));
-      final fired = node.tick(transport);
+      final fired = node.processMidi(const [], transport);
       expect(fired.where((e) => e.isNoteOn), hasLength(1));
       expect(fired.firstWhere((e) => e.isNoteOn).data1, 60);
       expect(_pitchBend14(fired.firstWhere(_isPitchBend)), 8192,
@@ -219,7 +219,7 @@ void main() {
     test('press after the cluster sounds re-attacks immediately', () async {
       node.processMidi([_noteOn(channel: 0, pitch: 60, velocity: 100)], transport);
       await Future<void>.delayed(const Duration(milliseconds: 60));
-      node.tick(transport); // deferred first attack (C) fires here.
+      node.processMidi(const [], transport); // deferred first attack (C) fires here.
 
       // Now sounding — a new press re-attacks right away (no second deferral).
       final p = node.processMidi(
@@ -237,7 +237,7 @@ void main() {
       node.processMidi([_noteOn(channel: 0, pitch: 60, velocity: 100)], transport);
       node.processMidi([_noteOn(channel: 0, pitch: 64, velocity: 100)], transport);
       await Future<void>.delayed(const Duration(milliseconds: 60));
-      node.tick(transport); // fires the {60,64} cluster (D).
+      node.processMidi(const [], transport); // fires the {60,64} cluster (D).
 
       // Lift the upper key and HOLD the lower — the re-attack is deferred...
       final off = node.processMidi(
@@ -248,7 +248,7 @@ void main() {
 
       // ...and fires once the settle window expires (no further release).
       await Future<void>.delayed(const Duration(milliseconds: 60));
-      final fired = node.tick(transport);
+      final fired = node.processMidi(const [], transport);
       expect(fired.where((e) => e.isNoteOff), hasLength(1),
           reason: 're-attack silences the old voice');
       expect(fired.where((e) => e.isNoteOn), hasLength(1),
@@ -263,7 +263,7 @@ void main() {
       node.processMidi([_noteOn(channel: 0, pitch: 60, velocity: 100)], transport);
       node.processMidi([_noteOn(channel: 0, pitch: 61, velocity: 100)], transport);
       await Future<void>.delayed(const Duration(milliseconds: 60));
-      node.tick(transport); // fires the quarter-tone cluster.
+      node.processMidi(const [], transport); // fires the quarter-tone cluster.
 
       // Release C# then C in quick succession (the player's complaint scenario)
       // — both within the 30 ms settle window, so the deferred re-attack must
@@ -271,7 +271,7 @@ void main() {
       final r1 = node.processMidi([_noteOff(channel: 0, pitch: 61)], transport);
       final r2 = node.processMidi([_noteOff(channel: 0, pitch: 60)], transport);
       // A stray tick between the releases must NOT have fired a re-attack.
-      final t = node.tick(transport);
+      final t = node.processMidi(const [], transport);
 
       expect(r1, isEmpty, reason: 'first release defers, emits nothing yet');
       expect(r2.where((e) => e.isNoteOn), isEmpty,
@@ -293,7 +293,7 @@ void main() {
       node.processMidi([_noteOn(channel: 0, pitch: 60, velocity: 100)], transport);
       node.processMidi([_noteOn(channel: 0, pitch: 64, velocity: 100)], transport);
       await Future<void>.delayed(const Duration(milliseconds: 60));
-      node.tick(transport); // {60,64} sounding.
+      node.processMidi(const [], transport); // {60,64} sounding.
 
       node.processMidi([_noteOff(channel: 0, pitch: 64)], transport); // defers
       // Press a new key before the settle window expires.
@@ -304,7 +304,7 @@ void main() {
       // Immediate press re-attack at {60,67}; the pending release re-attack
       // must not also fire from a later tick.
       expect(p.where((e) => e.isNoteOn), hasLength(1));
-      expect(node.tick(transport).where((e) => e.isNoteOn), isEmpty,
+      expect(node.processMidi(const [], transport).where((e) => e.isNoteOn), isEmpty,
           reason: 'press cleared the pending release re-attack');
     });
 

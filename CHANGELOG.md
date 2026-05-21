@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.15.1] - 2026-05-21 — « Acouphène de Coccyx »
+
+### Fixed
+- **Microtone stuck and doubled notes**. Releasing a microtonal cluster could leave a note ringing forever as if a key were still held, and pressing two keys quickly could sound two separate chromatic notes instead of a single microtonal pitch. Both came from a timing race in how the plugin scheduled its deferred attacks and re-attacks; they are now fired after each block of incoming MIDI is fully processed, eliminating the race.
+
 ## [2.15.0] - 2026-05-20
 
 ### Added

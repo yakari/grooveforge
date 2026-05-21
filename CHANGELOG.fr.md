@@ -5,6 +5,11 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/lang/fr/).
 
+## [2.15.1] - 2026-05-21 — « Acouphène de Coccyx »
+
+### Corrigé
+- **Notes bloquées et doublées de Microtone**. Relâcher un cluster microtonal pouvait laisser une note sonner indéfiniment comme si une touche était toujours tenue, et presser deux touches rapidement pouvait produire deux notes chromatiques distinctes au lieu d'une seule hauteur microtonale. Les deux problèmes venaient d'une condition de course dans la planification des attaques et ré-attaques différées ; elles sont désormais déclenchées après le traitement complet de chaque bloc MIDI entrant, ce qui élimine la course.
+
 ## [2.15.0] - 2026-05-20
 
 ### Ajouté
