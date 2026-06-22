@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
-project(dart_vst_host LANGUAGES CXX)
+# C is needed in addition to CXX because the phase-vocoder DSP
+# (native_audio/gf_phase_vocoder.c) is a plain C source compiled into this lib.
+project(dart_vst_host LANGUAGES C CXX)
 
 # Build the VST host library for loading and controlling VST3 plugins.
 # When consuming from Dart you will need to load
@@ -62,13 +64,22 @@ include_directories(
   ${VST3_SDK_DIR}/public.sdk/source
   ${VST3_SDK_DIR}/base/thread/include
   ${CMAKE_CURRENT_SOURCE_DIR}/include
+  # gf_phase_vocoder.h lives in the native_audio module at the repo root,
+  # four directories above this CMakeLists.
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../../../native_audio
 )
 
 # List source files. This library provides VST3 plugin hosting functionality.
 # gfpa_dsp.cpp contains native DSP implementations for GFPA descriptor effects.
+# audio_looper.cpp provides the PCM looper (dvh_alooper_* symbols) used by every
+# real-time backend, and gf_phase_vocoder.c supplies the gf_pv_* pitch-shifting
+# DSP that both gfpa_dsp.cpp and audio_looper.cpp call into. All three are
+# platform-independent, so they live in the common source list.
 set(VstSources
   src/dart_vst_host.cpp
   src/gfpa_dsp.cpp
+  src/audio_looper.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../../../native_audio/gf_phase_vocoder.c
 )
 
 # Platform stubs: provide no-op fallbacks for symbols that are absent
