@@ -1391,6 +1391,125 @@ class AppLocalizationsEn extends AppLocalizations {
       'Hold a note, tap a scale: that note becomes the tonic, and the keyboard locks to the scale around it. Scales that are not equal-tempered — an Arabic maqam, an Indian raga, a Highland pipe chanter — also retune the keys they use, so the intervals sound as the tradition intends rather than as a piano approximates them. Unlike the Microtone module, which bends pitch one note at a time, Xen retunes each key independently: a whole chord can hold its own intonation.';
 
   @override
+  String get xenSnap => 'SNAP';
+
+  @override
+  String get xenTune => 'TUNE';
+
+  @override
+  String get xenRoot => 'ROOT';
+
+  @override
+  String get xenLatch => 'LATCH';
+
+  @override
+  String get xenTargetsLock => 'SCALE LOCK';
+
+  @override
+  String get xenTargetsTune => 'RETUNE';
+
+  @override
+  String get xenHint => 'Hold a note, then tap a scale';
+
+  @override
+  String xenHolding(String note) {
+    return 'Holding $note';
+  }
+
+  @override
+  String get xenNoSlots => 'no slots';
+
+  @override
+  String get xenNoTargets => 'not patched';
+
+  @override
+  String get xenMicrotonalTooltip => 'Retunes the keys it uses';
+
+  @override
+  String get xenTemperedTooltip => 'Equal-tempered — key layout only';
+
+  @override
+  String get xenFamilyWestern => 'Western';
+
+  @override
+  String get xenFamilyMaqam => 'Maqam';
+
+  @override
+  String get xenFamilyRaga => 'Raga';
+
+  @override
+  String get xenFamilyFarEast => 'Far East';
+
+  @override
+  String get xenFamilyCeltic => 'Celtic';
+
+  @override
+  String get xenFamilyGamelan => 'Gamelan';
+
+  @override
+  String get xenFamilyTemperament => 'Temperaments';
+
+  @override
+  String get xenScaleMajor => 'Major';
+
+  @override
+  String get xenScaleNaturalMinor => 'Natural Minor';
+
+  @override
+  String get xenScaleHarmonicMinor => 'Harmonic Minor';
+
+  @override
+  String get xenScaleMelodicMinor => 'Melodic Minor';
+
+  @override
+  String get xenScaleMajorPentatonic => 'Major Pentatonic';
+
+  @override
+  String get xenScaleMinorPentatonic => 'Minor Pentatonic';
+
+  @override
+  String get xenScaleBlues => 'Blues';
+
+  @override
+  String get xenScaleRock => 'Rock';
+
+  @override
+  String get xenScaleDorian => 'Dorian';
+
+  @override
+  String get xenScalePhrygian => 'Phrygian';
+
+  @override
+  String get xenScaleLydian => 'Lydian';
+
+  @override
+  String get xenScaleMixolydian => 'Mixolydian';
+
+  @override
+  String get xenScaleLocrian => 'Locrian';
+
+  @override
+  String get xenScalePhrygianDominant => 'Phrygian Dominant';
+
+  @override
+  String get xenScaleWholeTone => 'Whole Tone';
+
+  @override
+  String get xenScaleDiminished => 'Diminished';
+
+  @override
+  String get xenScaleJustIntonation => 'Just Intonation';
+
+  @override
+  String get xenScalePythagorean => 'Pythagorean';
+
+  @override
+  String get xenScaleMeantone => 'Quarter-comma Meantone';
+
+  @override
+  String get xenScaleWerckmeisterIII => 'Werckmeister III';
+
+  @override
   String get midiFxBypass => 'Bypass';
 
   @override

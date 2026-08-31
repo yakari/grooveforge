@@ -30,6 +30,7 @@ import 'package:grooveforge_plugin_api/grooveforge_plugin_api.dart';
 import 'rack/drum_generator_slot_ui.dart';
 import 'rack/gfpa_descriptor_slot_ui.dart';
 import 'rack/gfpa_jam_mode_slot_ui.dart';
+import 'rack/gfpa_xen_slot_ui.dart';
 import 'rack/gfpa_stylophone_slot_ui.dart';
 import 'rack/gfpa_theremin_slot_ui.dart';
 import 'rack/gfpa_vocoder_slot_ui.dart';
@@ -281,6 +282,8 @@ class RackSlotWidget extends StatelessWidget {
           return GFpaVocoderSlotUI(plugin: gfpa);
         case 'com.grooveforge.jammode':
           return GFpaJamModeSlotUI(plugin: gfpa);
+        case 'com.grooveforge.xen':
+          return GFpaXenSlotUI(plugin: gfpa);
         case 'com.grooveforge.stylophone':
           return GFpaStyloPhoneSlotUI(plugin: gfpa);
         case 'com.grooveforge.theremin':
@@ -487,6 +490,7 @@ class _SlotHeader extends StatelessWidget {
         case 'com.grooveforge.keyboard': return Icons.piano;
         case 'com.grooveforge.vocoder': return Icons.mic;
         case 'com.grooveforge.jammode': return Icons.link;
+        case 'com.grooveforge.xen': return Icons.travel_explore;
         case 'com.grooveforge.stylophone': return Icons.linear_scale;
         case 'com.grooveforge.theremin': return Icons.sensors;
         case 'com.grooveforge.reverb': return Icons.blur_on;

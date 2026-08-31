@@ -2600,6 +2600,240 @@ abstract class AppLocalizations {
   /// **'Hold a note, tap a scale: that note becomes the tonic, and the keyboard locks to the scale around it. Scales that are not equal-tempered — an Arabic maqam, an Indian raga, a Highland pipe chanter — also retune the keys they use, so the intervals sound as the tradition intends rather than as a piano approximates them. Unlike the Microtone module, which bends pitch one note at a time, Xen retunes each key independently: a whole chord can hold its own intonation.'**
   String get xenAbout;
 
+  /// No description provided for @xenSnap.
+  ///
+  /// In en, this message translates to:
+  /// **'SNAP'**
+  String get xenSnap;
+
+  /// No description provided for @xenTune.
+  ///
+  /// In en, this message translates to:
+  /// **'TUNE'**
+  String get xenTune;
+
+  /// No description provided for @xenRoot.
+  ///
+  /// In en, this message translates to:
+  /// **'ROOT'**
+  String get xenRoot;
+
+  /// No description provided for @xenLatch.
+  ///
+  /// In en, this message translates to:
+  /// **'LATCH'**
+  String get xenLatch;
+
+  /// No description provided for @xenTargetsLock.
+  ///
+  /// In en, this message translates to:
+  /// **'SCALE LOCK'**
+  String get xenTargetsLock;
+
+  /// No description provided for @xenTargetsTune.
+  ///
+  /// In en, this message translates to:
+  /// **'RETUNE'**
+  String get xenTargetsTune;
+
+  /// No description provided for @xenHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Hold a note, then tap a scale'**
+  String get xenHint;
+
+  /// No description provided for @xenHolding.
+  ///
+  /// In en, this message translates to:
+  /// **'Holding {note}'**
+  String xenHolding(String note);
+
+  /// No description provided for @xenNoSlots.
+  ///
+  /// In en, this message translates to:
+  /// **'no slots'**
+  String get xenNoSlots;
+
+  /// No description provided for @xenNoTargets.
+  ///
+  /// In en, this message translates to:
+  /// **'not patched'**
+  String get xenNoTargets;
+
+  /// No description provided for @xenMicrotonalTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Retunes the keys it uses'**
+  String get xenMicrotonalTooltip;
+
+  /// No description provided for @xenTemperedTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Equal-tempered — key layout only'**
+  String get xenTemperedTooltip;
+
+  /// No description provided for @xenFamilyWestern.
+  ///
+  /// In en, this message translates to:
+  /// **'Western'**
+  String get xenFamilyWestern;
+
+  /// No description provided for @xenFamilyMaqam.
+  ///
+  /// In en, this message translates to:
+  /// **'Maqam'**
+  String get xenFamilyMaqam;
+
+  /// No description provided for @xenFamilyRaga.
+  ///
+  /// In en, this message translates to:
+  /// **'Raga'**
+  String get xenFamilyRaga;
+
+  /// No description provided for @xenFamilyFarEast.
+  ///
+  /// In en, this message translates to:
+  /// **'Far East'**
+  String get xenFamilyFarEast;
+
+  /// No description provided for @xenFamilyCeltic.
+  ///
+  /// In en, this message translates to:
+  /// **'Celtic'**
+  String get xenFamilyCeltic;
+
+  /// No description provided for @xenFamilyGamelan.
+  ///
+  /// In en, this message translates to:
+  /// **'Gamelan'**
+  String get xenFamilyGamelan;
+
+  /// No description provided for @xenFamilyTemperament.
+  ///
+  /// In en, this message translates to:
+  /// **'Temperaments'**
+  String get xenFamilyTemperament;
+
+  /// No description provided for @xenScaleMajor.
+  ///
+  /// In en, this message translates to:
+  /// **'Major'**
+  String get xenScaleMajor;
+
+  /// No description provided for @xenScaleNaturalMinor.
+  ///
+  /// In en, this message translates to:
+  /// **'Natural Minor'**
+  String get xenScaleNaturalMinor;
+
+  /// No description provided for @xenScaleHarmonicMinor.
+  ///
+  /// In en, this message translates to:
+  /// **'Harmonic Minor'**
+  String get xenScaleHarmonicMinor;
+
+  /// No description provided for @xenScaleMelodicMinor.
+  ///
+  /// In en, this message translates to:
+  /// **'Melodic Minor'**
+  String get xenScaleMelodicMinor;
+
+  /// No description provided for @xenScaleMajorPentatonic.
+  ///
+  /// In en, this message translates to:
+  /// **'Major Pentatonic'**
+  String get xenScaleMajorPentatonic;
+
+  /// No description provided for @xenScaleMinorPentatonic.
+  ///
+  /// In en, this message translates to:
+  /// **'Minor Pentatonic'**
+  String get xenScaleMinorPentatonic;
+
+  /// No description provided for @xenScaleBlues.
+  ///
+  /// In en, this message translates to:
+  /// **'Blues'**
+  String get xenScaleBlues;
+
+  /// No description provided for @xenScaleRock.
+  ///
+  /// In en, this message translates to:
+  /// **'Rock'**
+  String get xenScaleRock;
+
+  /// No description provided for @xenScaleDorian.
+  ///
+  /// In en, this message translates to:
+  /// **'Dorian'**
+  String get xenScaleDorian;
+
+  /// No description provided for @xenScalePhrygian.
+  ///
+  /// In en, this message translates to:
+  /// **'Phrygian'**
+  String get xenScalePhrygian;
+
+  /// No description provided for @xenScaleLydian.
+  ///
+  /// In en, this message translates to:
+  /// **'Lydian'**
+  String get xenScaleLydian;
+
+  /// No description provided for @xenScaleMixolydian.
+  ///
+  /// In en, this message translates to:
+  /// **'Mixolydian'**
+  String get xenScaleMixolydian;
+
+  /// No description provided for @xenScaleLocrian.
+  ///
+  /// In en, this message translates to:
+  /// **'Locrian'**
+  String get xenScaleLocrian;
+
+  /// No description provided for @xenScalePhrygianDominant.
+  ///
+  /// In en, this message translates to:
+  /// **'Phrygian Dominant'**
+  String get xenScalePhrygianDominant;
+
+  /// No description provided for @xenScaleWholeTone.
+  ///
+  /// In en, this message translates to:
+  /// **'Whole Tone'**
+  String get xenScaleWholeTone;
+
+  /// No description provided for @xenScaleDiminished.
+  ///
+  /// In en, this message translates to:
+  /// **'Diminished'**
+  String get xenScaleDiminished;
+
+  /// No description provided for @xenScaleJustIntonation.
+  ///
+  /// In en, this message translates to:
+  /// **'Just Intonation'**
+  String get xenScaleJustIntonation;
+
+  /// No description provided for @xenScalePythagorean.
+  ///
+  /// In en, this message translates to:
+  /// **'Pythagorean'**
+  String get xenScalePythagorean;
+
+  /// No description provided for @xenScaleMeantone.
+  ///
+  /// In en, this message translates to:
+  /// **'Quarter-comma Meantone'**
+  String get xenScaleMeantone;
+
+  /// No description provided for @xenScaleWerckmeisterIII.
+  ///
+  /// In en, this message translates to:
+  /// **'Werckmeister III'**
+  String get xenScaleWerckmeisterIII;
+
   /// No description provided for @midiFxBypass.
   ///
   /// In en, this message translates to:
