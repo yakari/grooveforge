@@ -32,6 +32,25 @@ set(CMAKE_CXX_FLAGS_PROFILE "${CMAKE_CXX_FLAGS_RELEASE}")
 # Use Unicode for all projects.
 add_definitions(-DUNICODE -D_UNICODE)
 
+# Allow <experimental/coroutine> until our plugins stop using it.
+#
+# MSVC 14.51 (Visual Studio 18, which the `windows-latest` runner moved to)
+# turns the long-standing deprecation of <experimental/coroutine> into a hard
+# error, STL1011. Two plugins still include it and both are out of our hands:
+# permission_handler_windows, and universal_ble, which is pulled in
+# transitively by flutter_midi_command for BLE MIDI and so cannot be bumped on
+# its own. This macro is the escape hatch Microsoft names in the error text.
+#
+# Must stay ABOVE the generated_plugins include below: add_definitions()
+# applies to this directory and every subdirectory added after it, which is how
+# it reaches the plugin targets.
+#
+# STOPGAP: Microsoft says these headers "will be REMOVED SOON", at which point
+# the define stops working and the plugins must move to C++20 <coroutine>. The
+# real fix is upstream -- track flutter_midi_command for a universal_ble 2.x
+# bump, which dropped the experimental coroutine usage.
+add_definitions(-D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS)
+
 # Compilation settings that should be applied to most targets.
 #
 # Be cautious about adding new options here, as plugins use this function by
