@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [X.x.x]
+
+### Fixed
+- **Android output latency (~0.5 s) on the on-screen keyboard and hardware MIDI controllers**. The shared AAudio bus asked for a 4096-frame buffer *capacity*, never set a buffer *size*, and left the stream tagged as MEDIA audio. All three cost latency: the capacity request seeds a 2048-frame (~43 ms) buffer on the MMAP path and a 4096-frame (~85 ms) AudioTrack on the legacy path — where it also suppresses AAudio's own burst-based buffer sizing; the missing buffer size means the stream never settles at the minimum the device can sustain; and MEDIA usage routes output through the vendor's media post-processing chain (Dolby Atmos and equivalents), a fixed effect stage worth a further 100–200 ms on many phones and invisible to AAudio's latency reporting. The bus now leaves capacity to the platform, pins the buffer to two bursts (~4–10 ms), and declares itself GAME/MUSIC audio so the post-processing chain is bypassed. Note dispatch was already direct-FFI since 2.12.6 — the remaining delay was entirely in the output stream, not in the effects bus.
+
+### Architecture
+- The Android AAudio bus now logs the configuration the device actually granted — sample rate, burst size, buffer size in frames and milliseconds, capacity, performance mode and sharing mode — and warns explicitly when LOW_LATENCY or EXCLUSIVE (MMAP) is denied, or when the device resamples because its native rate differs from the render rate. AAudio downgrades silently and still returns success, so `adb logcat -s OboeStreamAndroid` is now the fastest way to tell a too-large buffer from a denied fast path. `oboe_stream_get_sample_rate()` and `oboe_stream_get_xrun_count()` expose the same information to callers.
+- FluidSynth instances on Android are created at the sample rate the AAudio stream actually granted instead of a hardcoded 48000, and the audio looper's bar-sync maths reads that same value. On a device whose native rate is not 48 kHz this removes a per-block resampling stage and the loop drift that came with it.
+
 ## [2.15.1] - 2026-05-21 — « Acouphène de Coccyx »
 
 ### Fixed

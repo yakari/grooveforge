@@ -40,6 +40,7 @@
 
 #include <aaudio/AAudio.h>
 #include <android/log.h>
+#include <dlfcn.h>
 #include <fluidsynth.h>
 
 #include <atomic>
@@ -387,6 +388,106 @@ static void errorCallback(AAudioStream* stream, void* /*userData*/,
     }).detach();
 }
 
+// ── Stream attributes (API 28 symbols, resolved at runtime) ──────────────────
+
+/// Tags the stream as game audio rather than the default MEDIA usage.
+///
+/// Why it matters: MEDIA-usage output is routed through the vendor's media
+/// post-processing chain on many devices (Samsung/Dolby Atmos, Xiaomi,
+/// OnePlus, ...).  That block is a fixed-latency effect stage that can add
+/// 100-200 ms on its own and is invisible to AAudio's latency accounting.
+/// GAME usage opts out of it, which is what the desktop miniaudio path always
+/// did via `playConfig.aaudio.usage = ma_aaudio_usage_game`.
+///
+/// Why dlsym: AAudioStreamBuilder_setUsage/setContentType were introduced in
+/// API 28 while GrooveForge's minSdk is 26.  The NDK marks them hard
+/// "unavailable" at API 26 and `__builtin_available` only lifts that when the
+/// build enables weak symbol references, which the Gradle/CMake setup here
+/// does not.  Looking the symbols up at runtime keeps the API-26 floor intact:
+/// on 26/27 both lookups return null and the stream simply keeps the default
+/// MEDIA usage.
+///
+/// [builder] - stream builder to tag; must not be null.
+static void applyLowLatencyAttributes(AAudioStreamBuilder* builder)
+{
+    using SetUsageFn       = void (*)(AAudioStreamBuilder*, aaudio_usage_t);
+    using SetContentTypeFn = void (*)(AAudioStreamBuilder*, aaudio_content_type_t);
+
+    // RTLD_DEFAULT searches the already-linked libaaudio.so.  Cached in
+    // statics so the lookup cost is paid once per process, not per stream open.
+    static auto setUsage = reinterpret_cast<SetUsageFn>(
+            dlsym(RTLD_DEFAULT, "AAudioStreamBuilder_setUsage"));
+    static auto setContentType = reinterpret_cast<SetContentTypeFn>(
+            dlsym(RTLD_DEFAULT, "AAudioStreamBuilder_setContentType"));
+
+    if (setUsage != nullptr)       setUsage(builder, AAUDIO_USAGE_GAME);
+    if (setContentType != nullptr) setContentType(builder, AAUDIO_CONTENT_TYPE_MUSIC);
+}
+
+// ── Stream diagnostics ────────────────────────────────────────────────────────
+
+/// Logs the configuration AAudio actually granted, alongside what was asked for.
+///
+/// AAudio downgrades silently. A LOW_LATENCY/EXCLUSIVE request the device cannot
+/// satisfy comes back as a NONE/SHARED legacy stream with AAUDIO_OK and no
+/// warning, and the difference between the two is the difference between a
+/// playable instrument and an unplayable one. Whenever Android "feels laggy",
+/// these two lines are the first thing to read:
+///
+///     adb logcat -s OboeStreamAndroid
+///
+/// Healthy output on a modern phone looks like burst=96..240,
+/// bufferSize = 2 x burst (4-10 ms), performance=LOW_LATENCY, sharing=EXCLUSIVE.
+///
+/// [requestedSampleRate] — the rate the sources render at, for mismatch checking.
+static void logStreamConfig(int requestedSampleRate)
+{
+    const int32_t rate     = AAudioStream_getSampleRate(g_stream);
+    const int32_t burst    = AAudioStream_getFramesPerBurst(g_stream);
+    const int32_t bufSize  = AAudioStream_getBufferSizeInFrames(g_stream);
+    const int32_t capacity = AAudioStream_getBufferCapacityInFrames(g_stream);
+
+    const aaudio_performance_mode_t perf = AAudioStream_getPerformanceMode(g_stream);
+    const aaudio_sharing_mode_t sharing  = AAudioStream_getSharingMode(g_stream);
+
+    // Buffer latency: how much audio sits queued ahead of the device at steady
+    // state. This is the part of end-to-end latency this file controls; the
+    // device/HAL adds its own on top.
+    const double bufferMs = (rate > 0)
+            ? 1000.0 * static_cast<double>(bufSize) / static_cast<double>(rate)
+            : 0.0;
+
+    const char* perfText =
+            (perf == AAUDIO_PERFORMANCE_MODE_LOW_LATENCY) ? "LOW_LATENCY"
+          : (perf == AAUDIO_PERFORMANCE_MODE_POWER_SAVING) ? "POWER_SAVING"
+          : "NONE";
+    const char* sharingText =
+            (sharing == AAUDIO_SHARING_MODE_EXCLUSIVE) ? "EXCLUSIVE(MMAP)" : "SHARED";
+
+    LOGI("[Latency] AAudio granted: rate=%d (sources render at %d) burst=%d "
+         "bufferSize=%d (%.1f ms) capacity=%d",
+         rate, requestedSampleRate, burst, bufSize, bufferMs, capacity);
+    LOGI("[Latency] AAudio mode: performance=%s sharing=%s", perfText, sharingText);
+
+    // Each downgrade below is worth tens to hundreds of milliseconds, so they
+    // are reported individually rather than as one generic warning.
+    if (perf != AAUDIO_PERFORMANCE_MODE_LOW_LATENCY) {
+        LOGW("[Latency] LOW_LATENCY was DENIED: the stream is on the normal "
+             "mixer path and will feel laggy no matter how small the buffer is.");
+    }
+    if (sharing != AAUDIO_SHARING_MODE_EXCLUSIVE) {
+        LOGW("[Latency] EXCLUSIVE (MMAP) was DENIED: running on a shared "
+             "AudioTrack stream, which adds the AudioFlinger mixer and HAL "
+             "buffers on top of the %.1f ms above.", bufferMs);
+    }
+    if (rate != requestedSampleRate) {
+        LOGW("[Latency] Sample-rate mismatch: device runs at %d Hz but sources "
+             "render at %d Hz, so AudioFlinger is resampling every block "
+             "(costs latency and disqualifies the fast path).",
+             rate, requestedSampleRate);
+    }
+}
+
 // ── Public API ────────────────────────────────────────────────────────────────
 
 extern "C" void oboe_stream_start(int sampleRate)
@@ -414,14 +515,46 @@ extern "C" void oboe_stream_start(int sampleRate)
         LOGI("AAudio stream targeting device ID %d", g_outputDeviceId);
     }
 
-    // Low-latency exclusive mode for minimal device output latency.
+    // ── Low-latency request ────────────────────────────────────────────────
+    //
+    // LOW_LATENCY + EXCLUSIVE asks the platform for an MMAP "fast path" stream
+    // that bypasses AudioFlinger's normal mixer. Neither is guaranteed: when
+    // the device cannot honour the request AAudio silently downgrades to a
+    // shared, AudioTrack-backed legacy stream — no error, just tens to
+    // hundreds of extra milliseconds. logStreamConfig() below reports what was
+    // actually granted instead of letting us assume.
     AAudioStreamBuilder_setPerformanceMode(
             builder, AAUDIO_PERFORMANCE_MODE_LOW_LATENCY);
     AAudioStreamBuilder_setSharingMode(
             builder, AAUDIO_SHARING_MODE_EXCLUSIVE);
 
-    // Buffer capacity hint keeps the burst well inside kMaxFrames.
-    AAudioStreamBuilder_setBufferCapacityInFrames(builder, kMaxFrames);
+    // Declare the stream as game audio instead of the default MEDIA usage.
+    //
+    // MEDIA-usage output is routed through the vendor's media post-processing
+    // chain on many devices (Samsung/Dolby Atmos, Xiaomi, OnePlus, ...). That
+    // block is a fixed-latency effect stage worth 100-200 ms on its own, and it
+    // is invisible to AAudio's own latency accounting. GAME usage opts out of
+    // it. The desktop miniaudio path already did this via
+    // `playConfig.aaudio.usage = ma_aaudio_usage_game`; the setting was lost
+    // when Android moved onto this shared bus.
+    //
+    // Resolved at runtime — see applyLowLatencyAttributes().
+    applyLowLatencyAttributes(builder);
+
+    // NOTE: buffer *capacity* is deliberately left unspecified.
+    //
+    // It used to be pinned to kMaxFrames (4096) on the assumption that this
+    // capped the callback block size. It does not — that is
+    // AAudioStreamBuilder_setFramesPerDataCallback(). Requesting a capacity
+    // costs latency on both AAudio paths:
+    //   • MMAP   — AudioStreamInternal::open() seeds the initial buffer size to
+    //     capacity/2, i.e. 2048 frames ~ 43 ms at 48 kHz.
+    //   • Legacy — the requested capacity is handed straight to AudioTrack as
+    //     its frameCount (4096 frames ~ 85 ms) *and* suppresses the "size the
+    //     buffer as N bursts" shortcut in AudioStreamTrack::open(), which only
+    //     fires when the capacity is left at 0.
+    // Unspecified lets the platform choose a burst-aligned capacity; the
+    // `frames` clamp in audioCallback still protects the fixed-size buffers.
 
     AAudioStreamBuilder_setDataCallback(builder, audioCallback, nullptr);
     AAudioStreamBuilder_setErrorCallback(builder, errorCallback, nullptr);
@@ -435,6 +568,24 @@ extern "C" void oboe_stream_start(int sampleRate)
         return;
     }
 
+    // ── Buffer size: two bursts ──────────────────────────────────────────
+    //
+    // Capacity is what the buffer *can* hold; buffer size is the high-water
+    // mark the stream actually keeps filled, and it alone sets output latency.
+    // AAudio never picks a small default for it, so it has to be set
+    // explicitly. Two bursts is the standard Oboe recommendation — one burst
+    // draining to the device while the next is being rendered.
+    const int32_t burst = AAudioStream_getFramesPerBurst(g_stream);
+    if (burst > 0) {
+        AAudioStream_setBufferSizeInFrames(g_stream, burst * 2);
+    }
+
+    // Record the rate the device actually granted. FluidSynth's render rate and
+    // the audio-looper bar-sync maths both depend on it — a stale 48000 on a
+    // 44.1 kHz device detunes every voice and drifts every loop.
+    const int32_t grantedRate = AAudioStream_getSampleRate(g_stream);
+    if (grantedRate > 0) g_sampleRate = grantedRate;
+
     result = AAudioStream_requestStart(g_stream);
     if (result != AAUDIO_OK) {
         LOGE("AAudioStream_requestStart: %s", AAudio_convertResultToText(result));
@@ -443,10 +594,7 @@ extern "C" void oboe_stream_start(int sampleRate)
         return;
     }
 
-    LOGI("AAudio stream started — sampleRate=%d actualSampleRate=%d framesPerBurst=%d",
-         sampleRate,
-         AAudioStream_getSampleRate(g_stream),
-         AAudioStream_getFramesPerBurst(g_stream));
+    logStreamConfig(sampleRate);
 }
 
 extern "C" void oboe_stream_stop(void)
@@ -610,6 +758,28 @@ extern "C" void oboe_stream_remove_synth(fluid_synth_t* synth)
 // On Linux/macOS this is handled by dvh_set_transport → dvh_jack/mac_update_transport.
 // On Android, VstHostService.setTransport is a no-op, so the transport engine
 // calls this function directly.
+
+/// Returns the sample rate the AAudio stream is actually running at.
+///
+/// Callers must create their sound sources at this rate: any mismatch means
+/// AudioFlinger resamples every block. Returns the last granted rate (or the
+/// 48000 default when the stream has never been opened).
+extern "C" int32_t oboe_stream_get_sample_rate(void)
+{
+    return g_sampleRate;
+}
+
+/// Returns the number of underruns (xruns) the stream has accumulated.
+///
+/// A steadily climbing count means the render callback is missing its deadline
+/// — too much DSP for the current buffer size. A flat count with audible lag
+/// means the opposite: the buffer is simply too large. Returns -1 when the
+/// stream is not open.
+extern "C" int32_t oboe_stream_get_xrun_count(void)
+{
+    if (g_stream == nullptr) return -1;
+    return AAudioStream_getXRunCount(g_stream);
+}
 
 extern "C" void alooper_android_set_transport(
     double bpm, int32_t timeSigNum, int32_t isPlaying, double positionInBeats)

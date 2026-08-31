@@ -133,6 +133,22 @@ void oboe_stream_set_output_device(int deviceId);
 /// Returns the currently configured output device ID (0 = system default).
 int oboe_stream_get_output_device(void);
 
+// ── Stream diagnostics ───────────────────────────────────────────────────────
+
+/// Returns the sample rate the AAudio stream is actually running at.
+///
+/// Sound sources must be created at this rate — any mismatch means
+/// AudioFlinger resamples every block, which costs latency and disqualifies
+/// the low-latency fast path.  Returns the 48000 default before the stream
+/// has ever been opened.
+int32_t oboe_stream_get_sample_rate(void);
+
+/// Returns the stream's accumulated underrun (xrun) count, or -1 if not open.
+///
+/// Climbing = the render callback misses its deadline (too much DSP for the
+/// buffer size).  Flat but laggy = the buffer is simply too large.
+int32_t oboe_stream_get_xrun_count(void);
+
 // ── Drain synchronisation (shared with other translation units) ──────────────
 
 /// Returns the current value of the per-callback sequence counter.

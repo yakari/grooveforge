@@ -5,6 +5,15 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/lang/fr/).
 
+## [X.x.x]
+
+### Corrigé
+- **Latence de sortie Android (~0,5 s) sur le clavier à l'écran et les contrôleurs MIDI**. Le bus AAudio partagé demandait une *capacité* de buffer de 4096 frames, ne fixait jamais la *taille* du buffer, et laissait le flux étiqueté comme audio MEDIA. Les trois coûtent de la latence : la demande de capacité initialise un buffer de 2048 frames (~43 ms) sur le chemin MMAP et un AudioTrack de 4096 frames (~85 ms) sur le chemin legacy — où elle désactive aussi le dimensionnement par bursts qu'AAudio applique tout seul ; l'absence de taille de buffer empêche le flux de descendre au minimum que l'appareil peut tenir ; et l'usage MEDIA fait passer la sortie par la chaîne de post-traitement média du constructeur (Dolby Atmos et équivalents), un étage d'effets à latence fixe qui ajoute 100 à 200 ms sur beaucoup de téléphones, invisible pour les mesures de latence d'AAudio. Le bus laisse maintenant la capacité au système, cale le buffer sur deux bursts (~4–10 ms) et se déclare en audio GAME/MUSIC pour contourner la chaîne de post-traitement. L'envoi des notes passait déjà en FFI direct depuis la 2.12.6 : le délai restant venait entièrement du flux de sortie, pas du bus d'effets.
+
+### Architecture
+- Le bus AAudio Android journalise désormais la configuration réellement accordée par l'appareil — fréquence d'échantillonnage, taille de burst, taille de buffer en frames et en millisecondes, capacité, performance mode et sharing mode — et avertit explicitement quand LOW_LATENCY ou EXCLUSIVE (MMAP) est refusé, ou quand l'appareil rééchantillonne parce que sa fréquence native diffère de la fréquence de rendu. AAudio dégrade silencieusement tout en renvoyant un succès : `adb logcat -s OboeStreamAndroid` est donc le moyen le plus rapide de distinguer un buffer trop grand d'un fast path refusé. `oboe_stream_get_sample_rate()` et `oboe_stream_get_xrun_count()` exposent les mêmes informations aux appelants.
+- Les instances FluidSynth sur Android sont créées à la fréquence d'échantillonnage réellement accordée par le flux AAudio au lieu d'un 48000 codé en dur, et le calcul de synchronisation à la mesure de l'audio looper lit cette même valeur. Sur un appareil dont la fréquence native n'est pas 48 kHz, cela supprime un étage de rééchantillonnage par bloc et la dérive de boucle qui allait avec.
+
 ## [2.15.1] - 2026-05-21 — « Acouphène de Coccyx »
 
 ### Corrigé

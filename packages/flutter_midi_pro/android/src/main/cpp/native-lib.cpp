@@ -37,6 +37,16 @@ extern "C" JNIEXPORT int JNICALL
 Java_com_melihhakanpektas_flutter_1midi_1pro_FlutterMidiProPlugin_loadSoundfont(
         JNIEnv* env, jclass /*clazz*/, jstring path, jint bank, jint program)
 {
+    // Start the shared AAudio stream BEFORE creating the synth.
+    //
+    // The stream is what decides the real render rate: 48000 is a request, and
+    // a device whose native rate is 44100 will hand back 44100 instead. Opening
+    // first lets us build the synth at exactly the granted rate, so nothing in
+    // the chain resamples. Subsequent loads are no-ops (oboe_stream_start
+    // returns early once the stream exists) and simply re-read the same rate.
+    oboe_stream_start(48000);
+    const double streamRate = static_cast<double>(oboe_stream_get_sample_rate());
+
     fluid_settings_t* s = new_fluid_settings();
     settings[nextSfId]  = s;
 
@@ -44,9 +54,9 @@ Java_com_melihhakanpektas_flutter_1midi_1pro_FlutterMidiProPlugin_loadSoundfont(
     // already-loaded synth.
     fluid_settings_setnum(s, "synth.gain", g_gain);
 
-    // Match the sample rate to the AAudio stream (see oboe_stream_start call
-    // below) to avoid FluidSynth resampling on every block.
-    fluid_settings_setnum(s, "synth.sample-rate", 48000.0);
+    // Render at the AAudio stream's actual rate so FluidSynth never resamples
+    // and the mixed bus never needs AudioFlinger to resample either.
+    fluid_settings_setnum(s, "synth.sample-rate", streamRate);
     fluid_settings_setint(s, "synth.polyphony", 32);
 
     // Disable FluidSynth's built-in reverb and chorus — both are applied via
@@ -73,10 +83,6 @@ Java_com_melihhakanpektas_flutter_1midi_1pro_FlutterMidiProPlugin_loadSoundfont(
     }
     env->ReleaseStringUTFChars(path, nativePath);
     soundfonts[nextSfId] = sfId;
-
-    // Start the shared AAudio stream on the first load; subsequent loads are
-    // no-ops in oboe_stream_start (it checks g_stream != nullptr).
-    oboe_stream_start(48000);
 
     // Register this synth for rendering.  The AAudio callback will mix it
     // alongside any other active synth each block.
