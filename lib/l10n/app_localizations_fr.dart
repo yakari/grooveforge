@@ -842,6 +842,12 @@ class AppLocalizationsFr extends AppLocalizations {
   String get portScaleIn => 'GAMME IN';
 
   @override
+  String get portTuningOut => 'TUNE OUT';
+
+  @override
+  String get portTuningIn => 'TUNE IN';
+
+  @override
   String get looperSlotName => 'Looper MIDI';
 
   @override
@@ -1649,6 +1655,9 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get ccParamPickerLabel => 'Paramètre';
+
+  @override
+  String get ccDirectValueLabel => 'Valeur à rappeler';
 
   @override
   String get ccActionPickerLabel => 'Action';

@@ -78,7 +78,8 @@ class SlotBackPanelWidget extends StatelessWidget {
         AudioPortId.audioOutR,
         AudioPortId.sendOut,
         AudioPortId.chordOut,  // chord data → Jam Mode chordIn
-        AudioPortId.scaleIn,   // scale data ← Jam Mode scaleOut
+        AudioPortId.scaleIn,   // scale data ← Jam Mode / Xen scaleOut
+        AudioPortId.tuningIn,  // tuning table ← Xen tuningOut
       ];
     }
 
@@ -91,7 +92,8 @@ class SlotBackPanelWidget extends StatelessWidget {
           AudioPortId.audioInR,
           AudioPortId.audioOutL,
           AudioPortId.audioOutR,
-          AudioPortId.scaleIn,   // scale data ← Jam Mode scaleOut
+          AudioPortId.scaleIn,   // scale data ← Jam Mode / Xen scaleOut
+          AudioPortId.tuningIn,  // tuning table ← Xen tuningOut
         ];
       }
       if (plugin.pluginId == 'com.grooveforge.jammode') {
@@ -100,6 +102,20 @@ class SlotBackPanelWidget extends StatelessWidget {
           AudioPortId.midiOut,
           AudioPortId.chordIn,
           AudioPortId.scaleOut,
+        ];
+      }
+      if (plugin.pluginId == 'com.grooveforge.xen') {
+        return [
+          AudioPortId.midiIn,
+          AudioPortId.midiOut,
+          // Optional: take the tonic from another slot's harmony instead of
+          // from the held-note gesture.
+          AudioPortId.chordIn,
+          // The two halves of the module, deliberately on separate jacks so a
+          // patch shows at a glance whether a keyboard is being locked to the
+          // scale, retuned to it, or both.
+          AudioPortId.scaleOut,
+          AudioPortId.tuningOut,
         ];
       }
       // Theremin and Stylophone expose a MIDI OUT jack so they can drive

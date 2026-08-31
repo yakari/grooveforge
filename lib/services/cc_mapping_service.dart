@@ -144,10 +144,22 @@ class SlotParamTarget extends CcMappingTarget {
   /// How the CC value maps to the parameter.
   final CcParamMode mode;
 
+  /// The value to apply in [CcParamMode.direct], as a string.
+  ///
+  /// Interpreted by whichever handler owns [paramKey] — a scale id for Xen's
+  /// `scale`, a decimal number for a numeric parameter. A string rather than a
+  /// number because the values worth putting on a pad are usually names:
+  /// storing `"maqamRast"` survives the scale catalogue growing an entry,
+  /// where an index would silently start recalling a different scale.
+  ///
+  /// Null for every other mode.
+  final String? directValue;
+
   const SlotParamTarget({
     required this.slotId,
     required this.paramKey,
     required this.mode,
+    this.directValue,
   });
 
   factory SlotParamTarget.fromJson(Map<String, dynamic> json) =>
@@ -155,6 +167,7 @@ class SlotParamTarget extends CcMappingTarget {
         slotId: json['slotId'] as String,
         paramKey: json['paramKey'] as String,
         mode: CcParamMode.values.byName(json['mode'] as String),
+        directValue: json['directValue'] as String?,
       );
 
   @override
@@ -163,6 +176,7 @@ class SlotParamTarget extends CcMappingTarget {
         'slotId': slotId,
         'paramKey': paramKey,
         'mode': mode.name,
+        if (directValue != null) 'directValue': directValue,
       };
 }
 
@@ -245,6 +259,15 @@ enum CcParamMode {
 
   /// Advances a discrete parameter to the next option (debounced).
   cycle,
+
+  /// Sets the parameter to one fixed value carried by the mapping
+  /// ([SlotParamTarget.directValue]), regardless of the CC value (debounced).
+  ///
+  /// This is what turns a bank of pads into a bank of recall buttons: pad 1
+  /// selects maqam Rast, pad 2 raga Yaman, pad 3 slendro. [cycle] cannot do
+  /// that — it can only step through a list, so reaching the tenth scale means
+  /// nine taps and no way back.
+  direct,
 }
 
 /// Transport-level actions that can be triggered by CC.
@@ -477,12 +500,20 @@ class CcMappingService {
       final t = m.target;
       CcMappingTarget? swapped;
       if (t is SlotParamTarget) {
+        // directValue must be carried across: dropping it would leave a
+        // "recall maqam Rast" pad pointing at nothing after a slot swap.
         if (t.slotId == slotIdA) {
           swapped = SlotParamTarget(
-              slotId: slotIdB, paramKey: t.paramKey, mode: t.mode);
+              slotId: slotIdB,
+              paramKey: t.paramKey,
+              mode: t.mode,
+              directValue: t.directValue);
         } else if (t.slotId == slotIdB) {
           swapped = SlotParamTarget(
-              slotId: slotIdA, paramKey: t.paramKey, mode: t.mode);
+              slotId: slotIdA,
+              paramKey: t.paramKey,
+              mode: t.mode,
+              directValue: t.directValue);
         }
       } else if (t is SwapTarget) {
         final a = _swapId(t.slotIdA, slotIdA, slotIdB);

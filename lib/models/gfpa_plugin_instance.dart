@@ -54,6 +54,15 @@ class GFpaPluginInstance with AudioSourcePlugin implements PluginInstance {
   /// detection. Becomes a MIDI cable in Phase 5.
   String? masterSlotId;
 
+  /// For Xen slots: the rack slots whose synth gets microtonally retuned.
+  ///
+  /// Kept separate from [targetSlotIds] because Xen's two stages are patched
+  /// on separate jacks — `scaleOut` locks a keyboard to the scale's keys,
+  /// `tuningOut` retunes them. A player can want either without the other, so
+  /// the two target lists are genuinely independent rather than one list with
+  /// a flag.
+  List<String> tuningTargetSlotIds;
+
   /// When true, this slot is rendered in a pinned panel below the transport
   /// bar for quick access without scrolling to its rack slot.
   bool pinned;
@@ -71,11 +80,13 @@ class GFpaPluginInstance with AudioSourcePlugin implements PluginInstance {
     this.midiChannel = 0,
     Map<String, dynamic>? state,
     List<String>? targetSlotIds,
+    List<String>? tuningTargetSlotIds,
     this.masterSlotId,
     this.pinned = false,
     this.keyboardConfig,
   })  : state = state ?? {},
-        targetSlotIds = targetSlotIds ?? [];
+        targetSlotIds = targetSlotIds ?? [],
+        tuningTargetSlotIds = tuningTargetSlotIds ?? [];
 
   // ─── PluginInstance ───────────────────────────────────────────────────────
 
@@ -88,6 +99,8 @@ class GFpaPluginInstance with AudioSourcePlugin implements PluginInstance {
         return 'Vocoder';
       case 'com.grooveforge.jammode':
         return 'Jam Mode';
+      case 'com.grooveforge.xen':
+        return 'Xen';
       case 'com.grooveforge.stylophone':
         return 'Stylophone';
       case 'com.grooveforge.theremin':
@@ -105,6 +118,8 @@ class GFpaPluginInstance with AudioSourcePlugin implements PluginInstance {
         'pluginId': pluginId,
         'midiChannel': midiChannel,
         if (targetSlotIds.isNotEmpty) 'targetSlotIds': targetSlotIds,
+        if (tuningTargetSlotIds.isNotEmpty)
+          'tuningTargetSlotIds': tuningTargetSlotIds,
         if (masterSlotId != null) 'masterSlotId': masterSlotId,
         if (pinned) 'pinned': true,
         'state': {
@@ -127,6 +142,12 @@ class GFpaPluginInstance with AudioSourcePlugin implements PluginInstance {
       targetSlotIds = old != null ? [old] : [];
     }
 
+    // Absent in every project saved before Xen existed — an empty list is the
+    // correct reading, not a missing value.
+    final tuningList = json['tuningTargetSlotIds'];
+    final tuningTargetSlotIds =
+        tuningList is List ? List<String>.from(tuningList) : <String>[];
+
     final stateMap = Map<String, dynamic>.from(
       (json['state'] as Map<String, dynamic>?) ?? {},
     );
@@ -141,6 +162,7 @@ class GFpaPluginInstance with AudioSourcePlugin implements PluginInstance {
       midiChannel: (json['midiChannel'] as num?)?.toInt() ?? 0,
       state: stateMap,
       targetSlotIds: targetSlotIds,
+      tuningTargetSlotIds: tuningTargetSlotIds,
       masterSlotId: json['masterSlotId'] as String?,
       pinned: (json['pinned'] as bool?) ?? false,
       keyboardConfig:
@@ -154,6 +176,7 @@ class GFpaPluginInstance with AudioSourcePlugin implements PluginInstance {
     int? midiChannel,
     Map<String, dynamic>? state,
     List<String>? targetSlotIds,
+    List<String>? tuningTargetSlotIds,
     String? masterSlotId,
     bool clearMasterSlot = false,
     bool? pinned,
@@ -166,6 +189,8 @@ class GFpaPluginInstance with AudioSourcePlugin implements PluginInstance {
         midiChannel: midiChannel ?? this.midiChannel,
         state: state ?? Map.from(this.state),
         targetSlotIds: targetSlotIds ?? List.from(this.targetSlotIds),
+        tuningTargetSlotIds:
+            tuningTargetSlotIds ?? List.from(this.tuningTargetSlotIds),
         masterSlotId: clearMasterSlot ? null : (masterSlotId ?? this.masterSlotId),
         pinned: pinned ?? this.pinned,
         keyboardConfig: clearKeyboardConfig

@@ -178,12 +178,39 @@ class CcPreferencesScreen extends StatelessWidget {
       SystemTarget(:final actionCode, :final targetChannel,
             :final muteChannels) =>
         _systemSubtitle(context, actionCode, targetChannel, muteChannels),
-      SlotParamTarget(:final mode) => mode.name,
+      // A row of pads all reading "direct" would be unreadable — name the
+      // value each one recalls instead.
+      SlotParamTarget(:final mode, :final directValue) =>
+        mode == CcParamMode.direct && directValue != null
+            ? '${mode.name} → ${_directValueLabel(context, mapping.target, directValue)}'
+            : mode.name,
       SwapTarget(:final swapCables) =>
         swapCables ? l10n.ccSwapCablesYes : l10n.ccSwapCablesNo,
       TransportTarget() => '',
       GlobalTarget() => '',
     };
+  }
+
+  /// Human label for a direct mapping's stored value ("maqamRast" → "Rast").
+  ///
+  /// Falls back to the raw value when the choice is gone — a scale removed
+  /// from the catalogue, say. Showing the id beats showing nothing: it tells
+  /// the user which mapping to repair.
+  String _directValueLabel(
+      BuildContext context, CcMappingTarget target, String value) {
+    if (target is! SlotParamTarget) return value;
+    final rack = context.read<RackState>();
+    final plugin =
+        rack.plugins.where((p) => p.id == target.slotId).firstOrNull;
+    final pluginId = plugin is GFpaPluginInstance ? plugin.pluginId : null;
+    if (pluginId == null) return value;
+    final entry = CcParamRegistry.findParam(pluginId, target.paramKey);
+    final choices = entry?.directChoices?.call();
+    if (choices == null) return value;
+    for (final c in choices) {
+      if (c.value == value) return c.label;
+    }
+    return value;
   }
 
   String _systemSubtitle(BuildContext context, int actionCode,
@@ -294,6 +321,10 @@ class _AddMappingDialogState extends State<_AddMappingDialog> {
   // Slot param
   String? _selectedSlotId;
   String? _selectedParamKey;
+
+  /// Value a [CcParamMode.direct] mapping will recall (e.g. a scale id).
+  /// Null for every other mode.
+  String? _selectedDirectValue;
 
   // Swap
   String? _swapSlotA;
@@ -482,12 +513,15 @@ class _AddMappingDialogState extends State<_AddMappingDialog> {
           onChanged: (val) => setState(() {
             _selectedSlotId = val;
             _selectedParamKey = null;
+            _selectedDirectValue = null;
           }),
         ),
         if (_selectedSlotId != null) ...[
           const SizedBox(height: 12),
           // Parameter dropdown.
           _buildParamDropdown(slots),
+          // Value dropdown — only for "recall this exact value" parameters.
+          _buildDirectValueDropdown(slots),
         ],
       ],
     );
@@ -504,8 +538,52 @@ class _AddMappingDialogState extends State<_AddMappingDialog> {
           .map((p) => DropdownMenuItem(
               value: p.paramKey, child: Text(p.displayName)))
           .toList(),
-      onChanged: (val) => setState(() => _selectedParamKey = val),
+      onChanged: (val) => setState(() {
+        _selectedParamKey = val;
+        _selectedDirectValue = null;
+      }),
     );
+  }
+
+  /// Third dropdown, shown only for parameters mapped in
+  /// [CcParamMode.direct] — the value this one CC will recall.
+  ///
+  /// This is what makes a pad bank useful: without it, a grid of pads could
+  /// only step through the scale catalogue one at a time.
+  Widget _buildDirectValueDropdown(List<_SlotInfo> slots) {
+    final entry = _selectedParamEntry(slots);
+    final choices = entry?.directChoices;
+    if (entry == null ||
+        entry.defaultMode != CcParamMode.direct ||
+        choices == null) {
+      return const SizedBox.shrink();
+    }
+    final options = choices();
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: DropdownButtonFormField<String>(
+        decoration: InputDecoration(
+          labelText: AppLocalizations.of(context)!.ccDirectValueLabel,
+        ),
+        initialValue: _selectedDirectValue,
+        isExpanded: true,
+        items: options
+            .map((c) =>
+                DropdownMenuItem(value: c.value, child: Text(c.label)))
+            .toList(),
+        onChanged: (val) => setState(() => _selectedDirectValue = val),
+      ),
+    );
+  }
+
+  /// Registry entry for the currently selected slot + parameter.
+  CcParamEntry? _selectedParamEntry(List<_SlotInfo> slots) {
+    if (_selectedParamKey == null) return null;
+    final slot = slots.where((s) => s.slotId == _selectedSlotId).firstOrNull;
+    if (slot == null) return null;
+    return slot.params
+        .where((p) => p.paramKey == _selectedParamKey)
+        .firstOrNull;
   }
 
   /// Legacy system actions (looper).
@@ -754,11 +832,7 @@ class _AddMappingDialogState extends State<_AddMappingDialog> {
         _TargetCategory.audioEffects ||
         _TargetCategory.midiFx =>
           (_selectedSlotId != null && _selectedParamKey != null)
-              ? SlotParamTarget(
-                  slotId: _selectedSlotId!,
-                  paramKey: _selectedParamKey!,
-                  mode: _resolveMode(),
-                )
+              ? _buildSlotParamTarget()
               : null,
         _TargetCategory.transport =>
           TransportTarget(action: _transportAction),
@@ -773,6 +847,19 @@ class _AddMappingDialogState extends State<_AddMappingDialog> {
                 )
               : null,
       };
+
+  /// Builds the slot-parameter target, or null when a direct mapping has no
+  /// value chosen yet — saving one would create a pad that does nothing.
+  CcMappingTarget? _buildSlotParamTarget() {
+    final mode = _resolveMode();
+    if (mode == CcParamMode.direct && _selectedDirectValue == null) return null;
+    return SlotParamTarget(
+      slotId: _selectedSlotId!,
+      paramKey: _selectedParamKey!,
+      mode: mode,
+      directValue: mode == CcParamMode.direct ? _selectedDirectValue : null,
+    );
+  }
 
   /// Resolves the CC param mode from the registry for the selected slot+param.
   CcParamMode _resolveMode() {

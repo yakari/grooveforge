@@ -1592,6 +1592,18 @@ abstract class AppLocalizations {
   /// **'SCALE IN'**
   String get portScaleIn;
 
+  /// No description provided for @portTuningOut.
+  ///
+  /// In en, this message translates to:
+  /// **'TUNE OUT'**
+  String get portTuningOut;
+
+  /// No description provided for @portTuningIn.
+  ///
+  /// In en, this message translates to:
+  /// **'TUNE IN'**
+  String get portTuningIn;
+
   /// No description provided for @looperSlotName.
   ///
   /// In en, this message translates to:
@@ -3073,6 +3085,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Parameter'**
   String get ccParamPickerLabel;
+
+  /// No description provided for @ccDirectValueLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Value to recall'**
+  String get ccDirectValueLabel;
 
   /// No description provided for @ccActionPickerLabel.
   ///

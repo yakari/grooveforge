@@ -1,4 +1,20 @@
+import 'package:grooveforge_plugin_api/grooveforge_plugin_api.dart';
+
 import 'cc_mapping_service.dart';
+
+/// One selectable value for a [CcParamMode.direct] mapping.
+///
+/// Turns "pad 3 recalls maqam Rast" into data the preferences UI can list and
+/// the mapping can persist.
+class CcDirectChoice {
+  /// Stored in [SlotParamTarget.directValue] — a stable id, never an index.
+  final String value;
+
+  /// Label shown in the target picker.
+  final String label;
+
+  const CcDirectChoice({required this.value, required this.label});
+}
 
 /// Describes one CC-controllable parameter on a plugin type.
 ///
@@ -22,12 +38,20 @@ class CcParamEntry {
   /// Null for absolute and toggle modes.
   final int? cycleCount;
 
+  /// Builds the choices offered for a [CcParamMode.direct] mapping.
+  ///
+  /// A function rather than a list because the choices come from a runtime
+  /// catalogue (the scale library) that cannot be spelled out in a `const`
+  /// entry. Null for every other mode.
+  final List<CcDirectChoice> Function()? directChoices;
+
   const CcParamEntry({
     required this.paramKey,
     required this.displayName,
     this.gfpaParamId,
     required this.defaultMode,
     this.cycleCount,
+    this.directChoices,
   });
 }
 
@@ -233,6 +257,73 @@ class CcParamRegistry {
       gfpaParamId: 1,
       defaultMode: CcParamMode.cycle,
       cycleCount: 2,
+    ),
+  ];
+
+  /// Every scale in the library, as recall choices for a pad bank.
+  static List<CcDirectChoice> xenScaleChoices() => GFScaleLibrary.all
+      .map((s) => CcDirectChoice(value: s.id, label: s.name))
+      .toList(growable: false);
+
+  /// The twelve tonics, as recall choices.
+  static List<CcDirectChoice> xenRootChoices() => const [
+        CcDirectChoice(value: '0', label: 'C'),
+        CcDirectChoice(value: '1', label: 'C#'),
+        CcDirectChoice(value: '2', label: 'D'),
+        CcDirectChoice(value: '3', label: 'D#'),
+        CcDirectChoice(value: '4', label: 'E'),
+        CcDirectChoice(value: '5', label: 'F'),
+        CcDirectChoice(value: '6', label: 'F#'),
+        CcDirectChoice(value: '7', label: 'G'),
+        CcDirectChoice(value: '8', label: 'G#'),
+        CcDirectChoice(value: '9', label: 'A'),
+        CcDirectChoice(value: '10', label: 'A#'),
+        CcDirectChoice(value: '11', label: 'B'),
+      ];
+
+  /// Xen (`com.grooveforge.xen`).
+  ///
+  /// Built for a pad bank: `scale` in [CcParamMode.direct] gives one pad per
+  /// scale, so a player can jump straight from a raga to a maqam mid-piece.
+  /// `next_scale` is kept alongside for players with one spare button rather
+  /// than a grid.
+  static const List<CcParamEntry> xen = [
+    CcParamEntry(
+      paramKey: 'bypass',
+      displayName: 'Toggle On/Off',
+      defaultMode: CcParamMode.toggle,
+    ),
+    CcParamEntry(
+      paramKey: 'scale',
+      displayName: 'Recall Scale',
+      defaultMode: CcParamMode.direct,
+      directChoices: xenScaleChoices,
+    ),
+    CcParamEntry(
+      paramKey: 'root',
+      displayName: 'Recall Root',
+      defaultMode: CcParamMode.direct,
+      directChoices: xenRootChoices,
+    ),
+    CcParamEntry(
+      paramKey: 'next_scale',
+      displayName: 'Next Scale',
+      defaultMode: CcParamMode.cycle,
+    ),
+    CcParamEntry(
+      paramKey: 'snap',
+      displayName: 'Snap On/Off',
+      defaultMode: CcParamMode.toggle,
+    ),
+    CcParamEntry(
+      paramKey: 'tune',
+      displayName: 'Tune On/Off',
+      defaultMode: CcParamMode.toggle,
+    ),
+    CcParamEntry(
+      paramKey: 'latch_root',
+      displayName: 'Latch Root from Held Notes',
+      defaultMode: CcParamMode.cycle,
     ),
   ];
 
@@ -470,6 +561,7 @@ class CcParamRegistry {
     'com.grooveforge.gate': gate,
     'com.grooveforge.harmonizer': harmonizer,
     'com.grooveforge.jammode': jamMode,
+    'com.grooveforge.xen': xen,
     // Instruments
     'com.grooveforge.vocoder': vocoder,
     'com.grooveforge.theremin': theremin,

@@ -260,9 +260,17 @@ class AudioEngine extends ChangeNotifier {
   void Function(int actionCode, int ccValue)? onAudioLooperSystemAction;
 
   /// Callback for slot-addressed CC parameter control.
-  /// Wired by [RackScreen] to [RackState._handleSlotParamCc].
-  void Function(String slotId, String paramKey, CcParamMode mode, int ccValue)?
-      onSlotParamCc;
+  ///
+  /// Wired by [RackScreen] to [RackState.handleSlotParamCc]. `directValue`
+  /// carries the value a [CcParamMode.direct] mapping should recall (a scale
+  /// id, say) and is null for every other mode.
+  void Function(
+    String slotId,
+    String paramKey,
+    CcParamMode mode,
+    int ccValue,
+    String? directValue,
+  )? onSlotParamCc;
 
   /// Callback for channel-swap macro.
   /// Wired by [RackScreen] to [RackState.swapSlots].
@@ -526,6 +534,18 @@ class AudioEngine extends ChangeNotifier {
   /// applied in [playNote] independently of any global toggle.
   final ValueNotifier<List<GFpaJamEntry>> gfpaJamEntries = ValueNotifier([]);
 
+  /// Scale locks published by Xen slots: MIDI channel → allowed pitch classes.
+  ///
+  /// Only a *result* is stored here, never the scale logic itself. Which keys
+  /// a maqam or a raga allows is decided once, by [GFScale], and read through
+  /// [GFXenPlugin] — the engine merely applies the pitch-class set it is
+  /// handed. Jam Mode's equivalent went the other way, with the scale interval
+  /// tables copied into this file and a comment asking future readers to keep
+  /// them in sync by hand; that duplication is exactly what this avoids.
+  ///
+  /// An empty map means no channel is Xen-locked.
+  final ValueNotifier<Map<int, Set<int>>> xenScaleLocks = ValueNotifier({});
+
   /// User preference to display borders around scale-mapped key groups in Jam Mode.
   final ValueNotifier<bool> showJamModeBorders = ValueNotifier(true);
 
@@ -645,6 +665,7 @@ class AudioEngine extends ChangeNotifier {
 
     pianoKeysToShow.addListener(_saveState);
     gfpaJamEntries.addListener(_propagateJamScaleUpdate);
+    xenScaleLocks.addListener(_propagateXenScaleUpdate);
     showJamModeBorders.addListener(_saveState);
     highlightWrongNotes.addListener(_saveState);
     dragToPlay.addListener(_saveState);
@@ -1442,17 +1463,50 @@ class AudioEngine extends ChangeNotifier {
     });
   }
 
+  /// Snaps [key] to the Xen scale locked onto [channel], or returns null when
+  /// no Xen slot is driving that channel.
+  ///
+  /// Xen takes priority over both the classic per-channel lock and Jam Mode:
+  /// its root is latched by an explicit player gesture, so it is the most
+  /// deliberate of the three and should not be overridden by a chord detector.
+  int? _snapKeyToXen(int channel, int key) {
+    final allowed = xenScaleLocks.value[channel];
+    if (allowed == null || allowed.isEmpty) return null;
+    return _snapKeyToPitchClasses(key, allowed);
+  }
+
+  /// Move [key] to the nearest pitch belonging to [allowed].
+  ///
+  /// Searches outward a semitone at a time, testing downward before upward so
+  /// that a tie resolves to the lower note — the same convention
+  /// [_snapKeyToScale] and [GFXenPlugin] use, which keeps a snapped melody
+  /// from drifting upward over a long run.
+  int _snapKeyToPitchClasses(int key, Set<int> allowed) {
+    if (allowed.contains(key % 12)) return key;
+    for (var distance = 1; distance <= 6; distance++) {
+      final down = key - distance;
+      if (down >= 0 && allowed.contains(down % 12)) return down;
+      final up = key + distance;
+      if (up <= 127 && allowed.contains(up % 12)) return up;
+    }
+    return key;
+  }
+
   /// Returns the scale-snapped note for [channel] and [key] without any
   /// side effects (no audio routed, no UI state changed, no mapping stored).
   ///
-  /// Applies GFPA Jam Mode snapping if an active jam entry covers [channel],
-  /// or the classic per-channel scale lock if enabled. Returns [key] unchanged
-  /// when no lock is active.
+  /// Applies, in priority order: a Xen scale lock, the classic per-channel
+  /// scale lock, then GFPA Jam Mode. Returns [key] unchanged when no lock is
+  /// active.
   ///
   /// Used by external MIDI routing in [RackScreen] to snap notes before they
   /// are forwarded through patch cables — keeping the same pitch correction
   /// that the on-screen piano and [playNote] apply.
   int snapNoteForChannel(int channel, int key) {
+    // Xen — the player's own latched scale wins over any detected harmony.
+    final xen = _snapKeyToXen(channel, key);
+    if (xen != null) return xen;
+
     // Classic per-channel scale lock (UI toggle on each GFK slot).
     if (channels[channel].isScaleLocked.value &&
         channels[channel].lastChord.value != null) {
@@ -1510,7 +1564,7 @@ class AudioEngine extends ChangeNotifier {
     // value is non-neutral — gives the same correctness with near-zero
     // latency cost on the common case.
 
-    // Compute the pitch to actually play (scale lock / Jam Mode snapping).
+    // Compute the pitch to actually play (Xen / scale lock / Jam Mode snapping).
     // Pure arithmetic — no ValueNotifier reads that could trigger rebuilds.
     //
     // Skip snapping for native-oscillator instruments (stylophone / theremin):
@@ -1519,7 +1573,10 @@ class AudioEngine extends ChangeNotifier {
     final sfPath = channels[channel].soundfontPath;
     final isNativeOsc = sfPath == stylophoneMode || sfPath == thereminMode;
     int keyToPlay = key;
-    if (!isNativeOsc &&
+    final xenSnapped = isNativeOsc ? null : _snapKeyToXen(channel, key);
+    if (xenSnapped != null) {
+      keyToPlay = xenSnapped;
+    } else if (!isNativeOsc &&
         channels[channel].isScaleLocked.value &&
         channels[channel].lastChord.value != null) {
       keyToPlay = _snapKeyToScale(
@@ -1786,6 +1843,33 @@ class AudioEngine extends ChangeNotifier {
     }
   }
 
+  /// Mirrors Xen's scale locks into the per-channel [validPitchClasses] that
+  /// the virtual piano greys its out-of-scale keys from.
+  ///
+  /// Channels that a Xen slot has stopped driving are only cleared when no
+  /// other lock owns them — [_propagateJamScaleUpdate] then decides what they
+  /// should show, exactly as it would have without Xen.
+  void _propagateXenScaleUpdate() {
+    final locks = xenScaleLocks.value;
+    for (var ch = 0; ch < 16; ch++) {
+      final allowed = locks[ch];
+      if (allowed != null && allowed.isNotEmpty) {
+        channels[ch].validPitchClasses.value = allowed;
+      } else if (_lastXenLockedChannels.contains(ch)) {
+        channels[ch].validPitchClasses.value = null;
+      }
+    }
+    _lastXenLockedChannels
+      ..clear()
+      ..addAll(locks.keys);
+    // Hand the channels Xen just released back to Jam Mode's bookkeeping.
+    _propagateJamScaleUpdate();
+  }
+
+  /// Channels the previous [xenScaleLocks] value covered, so a channel that
+  /// drops out of the map can be cleared exactly once.
+  final Set<int> _lastXenLockedChannels = {};
+
   /// Forces a resynchronization of valid pitch classes across all channels.
   ///
   /// Called when GFPA jam entries change (follower map, scale type, etc.).
@@ -1800,6 +1884,9 @@ class AudioEngine extends ChangeNotifier {
     // ── Clear non-GFPA-follower channels ──────────────────────────────────
     for (int i = 0; i < 16; i++) {
       if (gfpaFollowers.contains(i)) continue;
+      // A Xen slot owns this channel's highlighting — clearing it here would
+      // make the greyed-out keys flicker off whenever any jam entry changed.
+      if (xenScaleLocks.value.containsKey(i)) continue;
       if (!channels[i].isScaleLocked.value) {
         channels[i].validPitchClasses.value = null;
       } else {
@@ -2218,8 +2305,13 @@ class AudioEngine extends ChangeNotifier {
           _handleSystemCommand(actionCode, channel, ccValue);
         }
 
-      case SlotParamTarget(:final slotId, :final paramKey, :final mode):
-        onSlotParamCc?.call(slotId, paramKey, mode, ccValue);
+      case SlotParamTarget(
+          :final slotId,
+          :final paramKey,
+          :final mode,
+          :final directValue
+        ):
+        onSlotParamCc?.call(slotId, paramKey, mode, ccValue, directValue);
 
       case SwapTarget(:final slotIdA, :final slotIdB, :final swapCables):
         // Fire on every CC event — some controllers send value=0 on press.

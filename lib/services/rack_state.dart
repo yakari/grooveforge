@@ -15,6 +15,7 @@ import '../constants/soundfont_sentinels.dart';
 import '../models/vst3_plugin_instance.dart';
 import '../plugins/gf_stylophone_plugin.dart';
 import '../plugins/gf_vocoder_plugin.dart';
+import '../plugins/gf_xen_plugin.dart';
 import 'audio_engine.dart';
 import 'audio_input_ffi.dart';
 import 'audio_graph.dart';
@@ -367,6 +368,7 @@ class RackState extends ChangeNotifier {
 
     _applyAllPluginsToEngine();
     _syncJamFollowerMapToEngine();
+    _syncXenInstances();
 
     // Eagerly initialise all MIDI FX slots so they are ready for routing even
     // when their slot widget is scrolled off screen (lazy list rendering).
@@ -434,6 +436,7 @@ class RackState extends ChangeNotifier {
     );
 
     _syncJamFollowerMapToEngine();
+    _syncXenInstances();
     notifyListeners();
     _notifyChanged();
   }
@@ -491,6 +494,7 @@ class RackState extends ChangeNotifier {
       NativeInstrumentController.instance.onLiveInputAdded();
     }
     _syncJamFollowerMapToEngine();
+    _syncXenInstances();
     // Sync native routing: new slot may alter the topological sort order.
     VstHostService.instance.syncAudioRouting(
       _audioGraph,
@@ -525,10 +529,17 @@ class RackState extends ChangeNotifier {
     }
 
     // Clear references to the removed slot on all dependent plugins.
+    // A Xen retuning target has to be unpatched *before* the slot goes: the
+    // channel must be handed back to equal temperament while its slot can
+    // still be resolved to a MIDI channel.
     for (final p in _plugins) {
       if (p is GFpaPluginInstance) {
         if (p.masterSlotId == id) p.masterSlotId = null;
         p.targetSlotIds.remove(id);
+        if (p.tuningTargetSlotIds.remove(id)) {
+          final ch = _midiChannelForSlot(id);
+          if (ch != null) _engine.applyChannelTuning(ch, null);
+        }
       }
     }
     _plugins.removeWhere((p) => p.id == id);
@@ -540,6 +551,7 @@ class RackState extends ChangeNotifier {
     // or SwapTarget referencing this slot ID).
     _engine.ccMappingService?.removeOrphanedSlotMappings(id);
     _syncJamFollowerMapToEngine();
+    _syncXenInstances();
     // Sync native routing even if no cables pointed to the removed slot.
     VstHostService.instance.syncAudioRouting(
       _audioGraph,
@@ -601,6 +613,7 @@ class RackState extends ChangeNotifier {
       _applyGfpaPluginToEngine(plugin);
     }
     _syncJamFollowerMapToEngine();
+    _syncXenInstances();
     notifyListeners();
     _notifyChanged();
   }
@@ -686,6 +699,7 @@ class RackState extends ChangeNotifier {
 
     // Re-sync Jam Mode follower map (channels changed).
     _syncJamFollowerMapToEngine();
+    _syncXenInstances();
 
     // Rebuild native audio routing to reflect all changes.
     VstHostService.instance.syncAudioRouting(
@@ -790,6 +804,7 @@ class RackState extends ChangeNotifier {
     if (plugin == null || plugin.pluginId != 'com.grooveforge.jammode') return;
     plugin.masterSlotId = masterSlotId;
     _syncJamFollowerMapToEngine();
+    _syncXenInstances();
     notifyListeners();
     _notifyChanged();
   }
@@ -802,6 +817,7 @@ class RackState extends ChangeNotifier {
       plugin.targetSlotIds.add(targetSlotId);
     }
     _syncJamFollowerMapToEngine();
+    _syncXenInstances();
     notifyListeners();
     _notifyChanged();
   }
@@ -812,6 +828,252 @@ class RackState extends ChangeNotifier {
     if (plugin == null || plugin.pluginId != 'com.grooveforge.jammode') return;
     plugin.targetSlotIds.remove(targetSlotId);
     _syncJamFollowerMapToEngine();
+    _syncXenInstances();
+    notifyListeners();
+    _notifyChanged();
+  }
+
+  // ─── Xen (microtonal scale lock) ──────────────────────────────────────────
+  //
+  // Unlike Jam Mode — whose scale tables were copied into AudioEngine and are
+  // kept in sync by hand — Xen keeps one live [GFXenPlugin] per slot and the
+  // engine only ever receives the *result*: a set of allowed pitch classes per
+  // channel, plus a tuning table per retuned channel. All the musical
+  // knowledge stays in GFScale.
+
+  /// Live Xen plugin instances, keyed by rack slot id.
+  final Map<String, GFXenPlugin> _xenPlugins = {};
+
+  /// The live Xen plugin for [slotId], or null when that slot is not a Xen.
+  ///
+  /// The slot UI drives the module through this object, so the plugin is the
+  /// single source of truth for the selected scale and latched root; the
+  /// slot's `state` map is only its persisted shadow.
+  GFXenPlugin? xenPluginFor(String slotId) => _xenPlugins[slotId];
+
+  /// Create, remove and refresh the live Xen plugins so they match the rack.
+  ///
+  /// Idempotent — safe to call after any mutation that could add or remove a
+  /// slot, and cheap when nothing changed.
+  void _syncXenInstances() {
+    final xenSlotIds = _plugins
+        .whereType<GFpaPluginInstance>()
+        .where((p) => p.pluginId == 'com.grooveforge.xen')
+        .map((p) => p.id)
+        .toSet();
+
+    // Slots that are gone: clear their tuning before dropping the plugin, or
+    // the target channel would keep a tuning nothing owns any more.
+    for (final id in _xenPlugins.keys.toList()) {
+      if (xenSlotIds.contains(id)) continue;
+      _clearXenTuning(id);
+      _xenPlugins.remove(id);
+    }
+
+    for (final id in xenSlotIds) {
+      if (_xenPlugins.containsKey(id)) continue;
+      final plugin = GFXenPlugin(
+        heldNotesProvider: () => _heldNotesForXen(id),
+        tuningSink: (table) => _applyXenTuning(id, table),
+      );
+      // Restore whatever the project saved for this slot before the plugin
+      // starts publishing — loadState pushes the tuning as its last step.
+      final instance = _findGfpaById(id);
+      if (instance != null) plugin.loadState(instance.state);
+      _xenPlugins[id] = plugin;
+    }
+
+    _syncXenLocksToEngine();
+  }
+
+  /// Notes the player is currently holding, as seen by the Xen slot [slotId].
+  ///
+  /// Normally the targets themselves: the whole point of the module is that
+  /// you hold a note on the very keyboard you are about to lock, with no
+  /// second controller involved. When a chord cable is patched into the
+  /// module's `chordIn`, that master slot wins instead — the player has said
+  /// explicitly where the harmony comes from.
+  Set<int> _heldNotesForXen(String slotId) {
+    final instance = _findGfpaById(slotId);
+    if (instance == null) return const {};
+
+    final masterId = instance.masterSlotId;
+    if (masterId != null) {
+      return _activeNotesOnSlot(masterId);
+    }
+
+    final held = <int>{};
+    for (final targetId in instance.targetSlotIds) {
+      held.addAll(_activeNotesOnSlot(targetId));
+    }
+    return held;
+  }
+
+  Set<int> _activeNotesOnSlot(String slotId) {
+    final slot = _findById(slotId);
+    if (slot == null) return const {};
+    final ch = slot.midiChannel - 1;
+    if (ch < 0 || ch >= 16) return const {};
+    return _engine.channels[ch].activeNotes.value;
+  }
+
+  /// Push [table] (or a clear, when null) to every channel this Xen retunes.
+  void _applyXenTuning(String slotId, Float64List? table) {
+    final instance = _findGfpaById(slotId);
+    if (instance == null) return;
+    for (final targetId in instance.tuningTargetSlotIds) {
+      final ch = _midiChannelForSlot(targetId);
+      if (ch == null) continue;
+      _engine.applyChannelTuning(ch, table);
+    }
+  }
+
+  /// Return every channel this Xen retunes to equal temperament.
+  void _clearXenTuning(String slotId) => _applyXenTuning(slotId, null);
+
+  /// 0-indexed MIDI channel of [slotId], or null when it has none.
+  int? _midiChannelForSlot(String slotId) {
+    final slot = _findById(slotId);
+    if (slot == null) return null;
+    final ch = slot.midiChannel - 1;
+    return (ch < 0 || ch >= 16) ? null : ch;
+  }
+
+  /// Publish every Xen slot's allowed pitch classes to the engine.
+  ///
+  /// The engine snaps and greys keys from this map; it never sees a scale.
+  void _syncXenLocksToEngine() {
+    final locks = <int, Set<int>>{};
+    for (final entry in _xenPlugins.entries) {
+      final instance = _findGfpaById(entry.key);
+      if (instance == null) continue;
+      if (instance.state['enabled'] == false) continue;
+      final allowed = entry.value.validPitchClasses;
+      if (allowed == null || allowed.isEmpty) continue;
+      for (final targetId in instance.targetSlotIds) {
+        final ch = _midiChannelForSlot(targetId);
+        if (ch == null) continue;
+        // Two Xen slots on one channel would fight; the first wins, which is
+        // at least stable. The patch view makes the double cable visible.
+        locks.putIfAbsent(ch, () => allowed);
+      }
+    }
+    _engine.xenScaleLocks.value = locks;
+  }
+
+  /// Name the slot a Xen module takes its tonic from (the `chordOut → chordIn`
+  /// cable). Passing null returns the module to the held-note gesture.
+  ///
+  /// A no-op on any slot that is not a Xen, so the patch view can offer the
+  /// same cable to Jam Mode and Xen without knowing which it hit.
+  void setXenMaster(String id, String? masterSlotId) {
+    final plugin = _findGfpaById(id);
+    if (plugin == null || plugin.pluginId != 'com.grooveforge.xen') return;
+    plugin.masterSlotId = masterSlotId;
+    notifyListeners();
+    _notifyChanged();
+  }
+
+  /// Add a scale-lock target to a Xen slot (the `scaleOut → scaleIn` cable).
+  void addXenTarget(String id, String targetSlotId) {
+    final plugin = _findGfpaById(id);
+    if (plugin == null || plugin.pluginId != 'com.grooveforge.xen') return;
+    if (!plugin.targetSlotIds.contains(targetSlotId)) {
+      plugin.targetSlotIds.add(targetSlotId);
+    }
+    _syncXenLocksToEngine();
+    notifyListeners();
+    _notifyChanged();
+  }
+
+  /// Remove a scale-lock target from a Xen slot.
+  void removeXenTarget(String id, String targetSlotId) {
+    final plugin = _findGfpaById(id);
+    if (plugin == null || plugin.pluginId != 'com.grooveforge.xen') return;
+    plugin.targetSlotIds.remove(targetSlotId);
+    _syncXenLocksToEngine();
+    notifyListeners();
+    _notifyChanged();
+  }
+
+  /// Add a retuning target to a Xen slot (the `tuningOut → tuningIn` cable).
+  void addXenTuningTarget(String id, String targetSlotId) {
+    final plugin = _findGfpaById(id);
+    if (plugin == null || plugin.pluginId != 'com.grooveforge.xen') return;
+    if (!plugin.tuningTargetSlotIds.contains(targetSlotId)) {
+      plugin.tuningTargetSlotIds.add(targetSlotId);
+    }
+    // Push the current table down the freshly patched cable.
+    _applyXenTuning(id, _xenPlugins[id]?.tuningTable);
+    notifyListeners();
+    _notifyChanged();
+  }
+
+  /// Remove a retuning target, returning that channel to equal temperament.
+  void removeXenTuningTarget(String id, String targetSlotId) {
+    final plugin = _findGfpaById(id);
+    if (plugin == null || plugin.pluginId != 'com.grooveforge.xen') return;
+    if (!plugin.tuningTargetSlotIds.remove(targetSlotId)) return;
+    // Unpatching must undo the retune, not leave the synth detuned with
+    // nothing on screen to explain why.
+    final ch = _midiChannelForSlot(targetSlotId);
+    if (ch != null) _engine.applyChannelTuning(ch, null);
+    notifyListeners();
+    _notifyChanged();
+  }
+
+  /// Apply a scale to a Xen slot, latching the tonic from the held notes.
+  ///
+  /// This is the module's signature gesture, reached from the slot UI's scale
+  /// grid and from a mapped hardware pad.
+  void selectXenScale(String id, String scaleId) {
+    final plugin = _xenPlugins[id];
+    if (plugin == null) return;
+    plugin.selectScale(scaleId);
+    _persistXenState(id, plugin);
+  }
+
+  /// Set a Xen slot's tonic by hand, from its chromatic strip.
+  void setXenRoot(String id, int pitchClass) {
+    final plugin = _xenPlugins[id];
+    if (plugin == null) return;
+    plugin.setRoot(pitchClass);
+    _persistXenState(id, plugin);
+  }
+
+  /// Re-latch a Xen slot's tonic from whatever is held right now.
+  void latchXenRoot(String id) {
+    final plugin = _xenPlugins[id];
+    if (plugin == null) return;
+    plugin.latchRoot();
+    _persistXenState(id, plugin);
+  }
+
+  /// Turn a Xen slot's snap stage on or off.
+  void setXenSnapEnabled(String id, {required bool enabled}) {
+    final plugin = _xenPlugins[id];
+    if (plugin == null) return;
+    plugin.setSnapEnabled(enabled);
+    _persistXenState(id, plugin);
+  }
+
+  /// Turn a Xen slot's tune stage on or off.
+  void setXenTuneEnabled(String id, {required bool enabled}) {
+    final plugin = _xenPlugins[id];
+    if (plugin == null) return;
+    plugin.setTuneEnabled(enabled);
+    _persistXenState(id, plugin);
+  }
+
+  /// Mirror a Xen plugin's state into its slot, re-sync, and autosave.
+  void _persistXenState(String id, GFXenPlugin plugin) {
+    final instance = _findGfpaById(id);
+    if (instance != null) {
+      // Keep any host-level keys (such as `enabled`) that the plugin does not
+      // own — merging rather than replacing avoids a silent reset.
+      instance.state = {...instance.state, ...plugin.getState()};
+    }
+    _syncXenLocksToEngine();
     notifyListeners();
     _notifyChanged();
   }
@@ -840,6 +1102,7 @@ class RackState extends ChangeNotifier {
     if (plugin == null || plugin.pluginId != 'com.grooveforge.jammode') return;
     plugin.state = {...plugin.state, 'enabled': enabled};
     _syncJamFollowerMapToEngine();
+    _syncXenInstances();
     notifyListeners();
     _notifyChanged();
   }
@@ -854,6 +1117,7 @@ class RackState extends ChangeNotifier {
     // effect without requiring a stop/restart of Jam Mode.
     if (plugin.pluginId == 'com.grooveforge.jammode') {
       _syncJamFollowerMapToEngine();
+    _syncXenInstances();
     }
     _notifyChanged();
   }
@@ -1157,11 +1421,20 @@ class RackState extends ChangeNotifier {
     String slotId,
     String paramKey,
     CcParamMode mode,
-    int ccValue,
-  ) {
-    // ── Debounce for toggle and cycle modes ────────────────────────────
-    if (mode == CcParamMode.toggle || mode == CcParamMode.cycle) {
-      final key = '$slotId:$paramKey';
+    int ccValue, [
+    String? directValue,
+  ]) {
+    // ── Debounce for toggle, cycle and direct modes ────────────────────
+    // Direct is debounced on (slot, param, value) rather than (slot, param):
+    // two pads bound to different scales are two different intentions, and a
+    // player switching quickly between them must not have the second tap
+    // swallowed as a bounce of the first.
+    if (mode == CcParamMode.toggle ||
+        mode == CcParamMode.cycle ||
+        mode == CcParamMode.direct) {
+      final key = mode == CcParamMode.direct
+          ? '$slotId:$paramKey:$directValue'
+          : '$slotId:$paramKey';
       final now = DateTime.now().millisecondsSinceEpoch;
       final last = _ccDebounce[key] ?? 0;
       if (now - last < 250) return; // 250ms debounce.
@@ -1213,6 +1486,13 @@ class RackState extends ChangeNotifier {
       return;
     }
 
+    // ── Xen special params ─────────────────────────────────────────────
+    if (plugin is GFpaPluginInstance &&
+        plugin.pluginId == 'com.grooveforge.xen') {
+      _handleXenParamCc(slotId, paramKey, ccValue, directValue);
+      return;
+    }
+
     // ── Standard GFPA parameter (absolute or cycle via paramId) ────────
     if (plugin is GFpaPluginInstance) {
       final entry = CcParamRegistry.findParam(plugin.pluginId, paramKey);
@@ -1223,6 +1503,44 @@ class RackState extends ChangeNotifier {
       } else if (mode == CcParamMode.cycle && entry.cycleCount != null) {
         _cycleGfpaParam(slotId, plugin, entry);
       }
+    }
+  }
+
+  /// Handles CC for Xen params — the pad bank that drives the module live.
+  ///
+  /// `scale` and `root` arrive in [CcParamMode.direct] with the value the pad
+  /// was bound to, so one pad recalls one scale. `next_scale` steps through
+  /// the catalogue for players with a single spare button. `snap` and `tune`
+  /// toggle the two stages independently, which is the pair worth having
+  /// under the fingers: dropping the lock mid-solo while keeping the maqam's
+  /// intonation is a musical move, not a settings change.
+  void _handleXenParamCc(
+    String slotId,
+    String paramKey,
+    int ccValue,
+    String? directValue,
+  ) {
+    final plugin = _xenPlugins[slotId];
+    if (plugin == null) return;
+
+    switch (paramKey) {
+      case 'scale':
+        if (directValue == null) return;
+        selectXenScale(slotId, directValue);
+      case 'root':
+        final pc = int.tryParse(directValue ?? '');
+        if (pc == null) return;
+        setXenRoot(slotId, pc);
+      case 'next_scale':
+        final all = GFScaleLibrary.all;
+        final next = (all.indexOf(plugin.scale) + 1) % all.length;
+        selectXenScale(slotId, all[next].id);
+      case 'snap':
+        setXenSnapEnabled(slotId, enabled: !plugin.snapEnabled);
+      case 'tune':
+        setXenTuneEnabled(slotId, enabled: !plugin.tuneEnabled);
+      case 'latch_root':
+        latchXenRoot(slotId);
     }
   }
 

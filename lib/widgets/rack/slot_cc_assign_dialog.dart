@@ -53,7 +53,14 @@ class _SlotCcAssignDialogState extends State<SlotCcAssignDialog> {
   void initState() {
     super.initState();
     _ccService = context.read<CcMappingService>();
-    _params = CcParamRegistry.forPluginId(widget.pluginId) ?? [];
+    // Direct-mode parameters need a value chosen alongside the CC ("which
+    // scale should this pad recall?"), and this quick-assign dialog has no
+    // room for that third choice. They are offered in the full CC preferences
+    // screen instead; listing them here would only produce pads bound to
+    // nothing.
+    _params = (CcParamRegistry.forPluginId(widget.pluginId) ?? [])
+        .where((p) => p.defaultMode != CcParamMode.direct)
+        .toList(growable: false);
   }
 
   @override

@@ -710,6 +710,28 @@ class _AddPluginSheetContentState extends State<_AddPluginSheetContent> {
               ),
             ),
 
+            // ── Xen (scale lock + microtonal retuning)
+            // Not a descriptor plugin: its scale grid and held-note gesture
+            // are beyond what a .gfpd can describe, so it is added the same
+            // way as Jam Mode — as a bare GFPA slot whose live plugin
+            // RackState creates and owns.
+            _PluginTile(
+              icon: Icons.travel_explore,
+              iconColor: Colors.tealAccent,
+              title: l10n.rackAddXen,
+              subtitle: l10n.rackAddXenSubtitle,
+              onTap: () {
+                Navigator.pop(context);
+                rack.addPlugin(
+                  GFpaPluginInstance(
+                    id: rack.generateSlotId(),
+                    pluginId: 'com.grooveforge.xen',
+                    midiChannel: 0,
+                  ),
+                );
+              },
+            ),
+
             // ── Load a custom .gfpd plugin from storage
             _PluginTile(
               icon: Icons.file_open,

@@ -7,6 +7,7 @@ import '../l10n/app_localizations.dart';
 ///   - **MIDI** (yellow)   — MIDI note and CC event streams
 ///   - **Audio** (red/white/orange) — PCM audio signals
 ///   - **Data** (purple)   — Chord and scale information for Jam Mode routing
+///   - **Tuning** (teal)   — Microtonal tuning tables from a Xen slot
 enum AudioPortId {
   // ── MIDI family ──────────────────────────────────────────────────────────
   /// Receives MIDI events from hardware or another slot's MIDI OUT.
@@ -48,6 +49,20 @@ enum AudioPortId {
 
   /// Receives scale-lock information from a Jam Mode slot.
   scaleIn,
+
+  // ── Tuning family (Xen microtonal retuning) ──────────────────────────────
+  /// Outputs a microtonal tuning table from a Xen slot (connects to an
+  /// instrument's [tuningIn] port to retune its keys).
+  ///
+  /// Deliberately separate from [scaleOut]: locking a keyboard to a scale and
+  /// retuning the keys that scale uses are independent choices. A player may
+  /// want a maqam's key layout while staying in equal temperament with a
+  /// fixed-pitch band, or its intonation across the full chromatic keyboard.
+  /// Two cables mean the patch itself shows which of the two is in play.
+  tuningOut,
+
+  /// Receives a microtonal tuning table from a Xen slot.
+  tuningIn,
 }
 
 /// Extensions providing display, colour, and compatibility metadata for
@@ -75,6 +90,9 @@ extension AudioPortIdX on AudioPortId {
       case AudioPortId.scaleOut:
       case AudioPortId.scaleIn:
         return const Color(0xFFAA44FF); // purple (data)
+      case AudioPortId.tuningOut:
+      case AudioPortId.tuningIn:
+        return const Color(0xFF00E5C0); // teal (tuning)
     }
   }
 
@@ -89,6 +107,7 @@ extension AudioPortIdX on AudioPortId {
       case AudioPortId.sendOut:
       case AudioPortId.chordOut:
       case AudioPortId.scaleOut:
+      case AudioPortId.tuningOut:
         return true;
       default:
         return false;
@@ -100,18 +119,31 @@ extension AudioPortIdX on AudioPortId {
 
   // ── Family ─────────────────────────────────────────────────────────────
 
-  /// True for Jam Mode chord/scale data ports (purple family).
+  /// True for the non-audio, non-MIDI control ports — Jam Mode's chord/scale
+  /// data (purple) and Xen's tuning tables (teal).
+  ///
+  /// These are all managed by [RackState] rather than by the audio graph, so
+  /// the grouping matters beyond colour: [AudioGraphConnection] refuses them.
   bool get isDataPort {
     switch (this) {
       case AudioPortId.chordOut:
       case AudioPortId.chordIn:
       case AudioPortId.scaleOut:
       case AudioPortId.scaleIn:
+      case AudioPortId.tuningOut:
+      case AudioPortId.tuningIn:
         return true;
       default:
         return false;
     }
   }
+
+  /// True for Xen's tuning ports (teal), a subset of [isDataPort].
+  ///
+  /// Lets the patch view tint the tuning cables differently from Jam Mode's
+  /// chord/scale cables without re-listing the enum at every call site.
+  bool get isTuningPort =>
+      this == AudioPortId.tuningOut || this == AudioPortId.tuningIn;
 
   // ── Compatibility ──────────────────────────────────────────────────────
 
@@ -124,6 +156,7 @@ extension AudioPortIdX on AudioPortId {
   ///   - sendOut    → returnIn
   ///   - chordOut   → chordIn
   ///   - scaleOut   → scaleIn
+  ///   - tuningOut  → tuningIn
   bool compatibleWith(AudioPortId other) {
     switch (this) {
       case AudioPortId.midiOut:
@@ -138,6 +171,8 @@ extension AudioPortIdX on AudioPortId {
         return other == AudioPortId.chordIn;
       case AudioPortId.scaleOut:
         return other == AudioPortId.scaleIn;
+      case AudioPortId.tuningOut:
+        return other == AudioPortId.tuningIn;
       default:
         // Input ports cannot be a drag source — never compatible as "from".
         return false;
@@ -173,6 +208,10 @@ extension AudioPortIdX on AudioPortId {
         return l10n.portScaleOut;
       case AudioPortId.scaleIn:
         return l10n.portScaleIn;
+      case AudioPortId.tuningOut:
+        return l10n.portTuningOut;
+      case AudioPortId.tuningIn:
+        return l10n.portTuningIn;
     }
   }
 }

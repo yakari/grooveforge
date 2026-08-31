@@ -1269,9 +1269,13 @@ class _RackScreenState extends State<RackScreen> {
 
   /// Routes a data cable drop to the appropriate [RackState] mutation.
   ///
-  /// Data cables mirror the existing [GFpaPluginInstance.masterSlotId] and
-  /// [GFpaPluginInstance.targetSlotIds] fields, keeping the patch view and
-  /// the Jam Mode dropdowns in sync.
+  /// Data cables mirror the existing [GFpaPluginInstance.masterSlotId],
+  /// [GFpaPluginInstance.targetSlotIds] and
+  /// [GFpaPluginInstance.tuningTargetSlotIds] fields, keeping the patch view
+  /// and the module dropdowns in sync.
+  ///
+  /// Jam Mode and Xen share the `chordIn` and `scaleOut` jacks, so the source
+  /// slot's plugin decides which module's mutation runs.
   void _connectDataCable(
     String fromSlotId,
     AudioPortId fromPort,
@@ -1280,13 +1284,33 @@ class _RackScreenState extends State<RackScreen> {
     RackState rack,
   ) {
     if (fromPort == AudioPortId.chordOut && toPort == AudioPortId.chordIn) {
-      // Chord cable: designate the keyboard as the Jam Mode master.
+      // Chord cable: name the keyboard that drives the receiving module's
+      // harmony — the Jam master, or the tonic source of a Xen slot.
       rack.setJamModeMaster(toSlotId, fromSlotId);
+      rack.setXenMaster(toSlotId, fromSlotId);
     } else if (fromPort == AudioPortId.scaleOut &&
         toPort == AudioPortId.scaleIn) {
-      // Scale cable: add this keyboard as a scale-locked target of the jam slot.
-      rack.addJamModeTarget(fromSlotId, toSlotId);
+      // Scale cable: lock this keyboard to the source module's scale.
+      if (_isXenSlot(rack, fromSlotId)) {
+        rack.addXenTarget(fromSlotId, toSlotId);
+      } else {
+        rack.addJamModeTarget(fromSlotId, toSlotId);
+      }
+    } else if (fromPort == AudioPortId.tuningOut &&
+        toPort == AudioPortId.tuningIn) {
+      // Tuning cable: retune this instrument's keys to the scale's own
+      // intonation. Independent of the scale cable above by design.
+      rack.addXenTuningTarget(fromSlotId, toSlotId);
     }
+  }
+
+  /// True when [slotId] holds a Xen module.
+  bool _isXenSlot(RackState rack, String slotId) {
+    for (final p in rack.plugins) {
+      if (p.id != slotId) continue;
+      return p is GFpaPluginInstance && p.pluginId == 'com.grooveforge.xen';
+    }
+    return false;
   }
 
   // ─── Build ───────────────────────────────────────────────────────────────────
