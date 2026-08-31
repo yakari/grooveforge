@@ -71,3 +71,12 @@ if (NOT ANDROID AND NOT IOS)
         target_link_libraries(gf_pv_smoke_test PRIVATE m ${CMAKE_DL_LIBS})
     endif()
 endif()
+
+# Offline smoke test for microtonal key tuning. Host-side only. Renders real
+# FluidSynth output and measures the resulting pitch, so it needs the same
+# FluidSynth the app links against — skipped when none was found.
+if (NOT ANDROID AND NOT IOS AND FLUIDSYNTH_LIB)
+    add_executable(gf_tuning_smoke_test gf_tuning_smoke_test.c keyboard_synth.c)
+    target_include_directories(gf_tuning_smoke_test PRIVATE ${FLUIDSYNTH_INCLUDE_DIR})
+    target_link_libraries(gf_tuning_smoke_test PRIVATE ${FLUIDSYNTH_LIB} m)
+endif()

@@ -1034,6 +1034,10 @@ class AudioEngine extends ChangeNotifier {
           throw Exception('Failed to load soundfont via FluidSynth: $targetPath');
         }
         _sfPathToIdLinux[targetPath] = sfId;
+        // Loading the first SoundFont resets the synth, which drops any
+        // channel tuning assignments with it — reinstall them so a Xen scale
+        // does not silently revert to equal temperament.
+        reapplyChannelTunings();
       } else {
         int sfId = await _midiPro.loadSoundfontFile(filePath: targetPath);
         if (sfId == -1) {
@@ -1043,6 +1047,9 @@ class AudioEngine extends ChangeNotifier {
         // Apply user gain to the newly created FluidSynth instance — the
         // listener fired during _restoreState before this instance existed.
         applyFluidSynthGain();
+        // Same reason as the desktop branch above: a fresh synth starts in
+        // equal temperament and has to be told about any active Xen scale.
+        reapplyChannelTunings();
       }
 
       try {
@@ -2402,6 +2409,78 @@ class AudioEngine extends ChangeNotifier {
       int sfId = _getSfIdForChannel(channel);
       if (sfId == -1) sfId = 1;
       AudioInputFFI().gfNativeCc(sfId, channel, controller, value);
+    }
+  }
+
+  // ─── Microtonal tuning ────────────────────────────────────────────────────
+
+  /// Cent-deviation table currently installed on each channel, keyed by
+  /// channel index. Absent means the channel is in plain equal temperament.
+  ///
+  /// Kept because loading a SoundFont can reset FluidSynth's tuning
+  /// assignments, and a scale that silently reverted to equal temperament
+  /// would be a very confusing bug to chase — see [reapplyChannelTunings].
+  final Map<int, Float64List> _channelTunings = {};
+
+  /// Retune [channel] with a microtonal scale, or return it to equal
+  /// temperament when [centsOffsets] is null.
+  ///
+  /// [centsOffsets] holds 128 deviations in cents from 12-TET, one per MIDI
+  /// key — the output of [GFScale.tuningOffsetsFor]. Voices already sounding
+  /// are retuned in place, so a scale change under a held chord is audible at
+  /// once rather than on the next note.
+  ///
+  /// Only channels backed by FluidSynth can be retuned this way. VST3
+  /// instruments have no equivalent, and channels running a native oscillator
+  /// (stylophone, theremin) derive their pitch in Hz before ever reaching a
+  /// synth — both are skipped rather than silently ignored downstream.
+  void applyChannelTuning(int channel, Float64List? centsOffsets) {
+    if (channel < 0 || channel >= 16) return;
+
+    final path = channels[channel].soundfontPath;
+    if (path == kMidiControllerOnlySoundfont ||
+        path == stylophoneMode ||
+        path == thereminMode ||
+        path == vocoderMode) {
+      return;
+    }
+
+    if (centsOffsets == null) {
+      _channelTunings.remove(channel);
+      _clearTuning(channel);
+      return;
+    }
+    if (centsOffsets.length != 128) return;
+    _channelTunings[channel] = centsOffsets;
+    _sendTuning(channel, centsOffsets);
+  }
+
+  /// Reinstall every tuning table this engine believes is active.
+  ///
+  /// Loading a SoundFont with FluidSynth's reset flag clears channel tuning
+  /// assignments, which would leave a maqam playing back as equal temperament
+  /// with nothing to indicate why. Call this after any SoundFont load.
+  void reapplyChannelTunings() {
+    _channelTunings.forEach(_sendTuning);
+  }
+
+  void _sendTuning(int channel, Float64List centsOffsets) {
+    if (!kIsWeb && (Platform.isLinux || Platform.isMacOS || Platform.isWindows)) {
+      AudioInputFFI().keyboardSetKeyTuning(channel, centsOffsets);
+    } else {
+      final sfId = _getSfIdForChannel(channel);
+      if (sfId == -1) return;
+      AudioInputFFI().gfNativeSetKeyTuning(sfId, channel, centsOffsets);
+    }
+  }
+
+  void _clearTuning(int channel) {
+    if (!kIsWeb && (Platform.isLinux || Platform.isMacOS || Platform.isWindows)) {
+      AudioInputFFI().keyboardClearTuning(channel);
+    } else {
+      final sfId = _getSfIdForChannel(channel);
+      if (sfId == -1) return;
+      AudioInputFFI().gfNativeClearTuning(sfId, channel);
     }
   }
 

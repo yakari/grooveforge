@@ -1,6 +1,7 @@
 #include <jni.h>
 #include <fluidsynth.h>
 #include <unistd.h>
+#include <cstdio>
 #include <map>
 #include <android/log.h>
 #include "oboe_stream_android.h"
@@ -265,4 +266,41 @@ void gf_native_pitch_bend(int sfId, int channel, int value) {
     auto it = synths.find(sfId);
     if (it == synths.end()) return;
     fluid_synth_pitch_bend(it->second, channel, value);
+}
+
+// ── Microtonal tuning (MIDI Tuning Standard) ─────────────────────────────────
+//
+// Android counterpart of `keyboard_set_key_tuning` in native_audio/
+// keyboard_synth.c — see the comment block there for what a tuning table is
+// and why the Xen module needs one instead of pitch bend.  The only
+// difference on this side is that the synth is looked up by soundfont id
+// rather than by keyboard slot, matching the note dispatch above.
+
+extern "C" __attribute__((visibility("default")))
+void gf_native_set_key_tuning(int sfId, int channel, const double* cents_offsets) {
+    if (channel < 0 || channel >= 16 || cents_offsets == nullptr) return;
+    auto it = synths.find(sfId);
+    if (it == synths.end()) return;
+
+    // Deviations from equal temperament → absolute cents, as the MIDI Tuning
+    // Standard expects.
+    double pitch[128];
+    for (int k = 0; k < 128; ++k) {
+        pitch[k] = static_cast<double>(k) * 100.0 + cents_offsets[k];
+    }
+
+    char name[32];
+    snprintf(name, sizeof(name), "GF Xen ch%d", channel);
+
+    // Bank 0, one tuning program per channel — sixteen independent scales.
+    fluid_synth_activate_key_tuning(it->second, 0, channel, name, pitch, 1);
+    fluid_synth_activate_tuning(it->second, channel, 0, channel, 1);
+}
+
+extern "C" __attribute__((visibility("default")))
+void gf_native_clear_tuning(int sfId, int channel) {
+    if (channel < 0 || channel >= 16) return;
+    auto it = synths.find(sfId);
+    if (it == synths.end()) return;
+    fluid_synth_deactivate_tuning(it->second, channel, 1);
 }

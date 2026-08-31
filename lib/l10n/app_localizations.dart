@@ -2570,6 +2570,24 @@ abstract class AppLocalizations {
   /// **'Combine held notes into a single microtonal pitch via pitch-bend (MIDI FX)'**
   String get rackAddMicrotoneSubtitle;
 
+  /// No description provided for @rackAddXen.
+  ///
+  /// In en, this message translates to:
+  /// **'Xen'**
+  String get rackAddXen;
+
+  /// No description provided for @rackAddXenSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Lock the keyboard to a scale and retune it — maqam, raga, gamelan, historical temperaments (MIDI FX)'**
+  String get rackAddXenSubtitle;
+
+  /// No description provided for @xenAbout.
+  ///
+  /// In en, this message translates to:
+  /// **'Hold a note, tap a scale: that note becomes the tonic, and the keyboard locks to the scale around it. Scales that are not equal-tempered — an Arabic maqam, an Indian raga, a Highland pipe chanter — also retune the keys they use, so the intervals sound as the tradition intends rather than as a piano approximates them. Unlike the Microtone module, which bends pitch one note at a time, Xen retunes each key independently: a whole chord can hold its own intonation.'**
+  String get xenAbout;
+
   /// No description provided for @midiFxBypass.
   ///
   /// In en, this message translates to:

@@ -297,6 +297,84 @@ EXPORT void keyboard_control_change(int channel, int cc, int value) {
     if (slot->synth) fluid_synth_cc(slot->synth, channel, cc, value);
 }
 
+// ── Microtonal tuning (MIDI Tuning Standard) ─────────────────────────────────
+//
+// FluidSynth implements the MIDI Tuning Standard: a tuning table is a set of
+// 128 absolute pitches in cents (0 = MIDI note 0, 100 cents per equal-tempered
+// semitone), stored under a (bank, program) pair that is a namespace of its
+// own — unrelated to the SoundFont banks and presets used for instrument
+// selection.  A channel is then pointed at one of those tables.
+//
+// This is what lets the Xen module play a maqam or a raga *polyphonically*.
+// The older Microtone plugin bends pitch, and pitch bend is per channel, so it
+// can only ever detune one note at a time.  A tuning table detunes each key
+// independently, so a chord can hold three differently-tempered intervals at
+// once, and the notes already sounding are retuned in place when the table
+// changes (that is what `apply = 1` does below).
+//
+// Each channel gets its own tuning program (program = channel, bank 0), so
+// sixteen channels can carry sixteen different scales simultaneously.  Note
+// that channels sharing a slot share one FluidSynth instance — that is fine,
+// tuning is per channel inside the instance.
+
+/** Tuning bank used for every GrooveForge tuning table. */
+#define GF_TUNING_BANK 0
+
+/**
+ * Apply a microtonal tuning to [channel].
+ *
+ * [cents_offsets] is an array of 128 deviations in cents from 12-tone equal
+ * temperament, one per MIDI key — exactly what `GFScale.tuningOffsetsFor`
+ * produces on the Dart side.  Entry k of 0.0 leaves key k at its ordinary
+ * chromatic pitch, so an equal-tempered scale is expressed as an all-zero
+ * table rather than as a special case.
+ *
+ * The array is converted here to the absolute-cents form the MIDI Tuning
+ * Standard expects (`k * 100 + offset`).  Doing the conversion in C rather
+ * than in Dart keeps the Dart-facing contract in the one unit the whole scale
+ * library is written in.
+ *
+ * Safe to call while notes are sounding: `apply = 1` retunes live voices, so
+ * switching scale under a held chord glides it to the new intonation instead
+ * of waiting for the next note-on.
+ */
+EXPORT void keyboard_set_key_tuning(int channel, const double* cents_offsets) {
+    if (channel < 0 || channel >= 16 || !cents_offsets) return;
+    KbSlot* slot = &g_kb_slots[_slot_for_channel(channel)];
+    if (!slot->synth) return;
+
+    // Convert deviations → absolute pitches in cents.
+    double pitch[128];
+    for (int k = 0; k < 128; ++k) {
+        pitch[k] = (double)k * 100.0 + cents_offsets[k];
+    }
+
+    char name[32];
+    snprintf(name, sizeof(name), "GF Xen ch%d", channel);
+
+    // Store the table under (bank 0, program = channel), then point the
+    // channel at it.  Re-registering an existing program overwrites it, which
+    // is what we want: one live table per channel, no leak on scale changes.
+    fluid_synth_activate_key_tuning(slot->synth, GF_TUNING_BANK, channel,
+                                    name, pitch, /*apply=*/1);
+    fluid_synth_activate_tuning(slot->synth, channel, GF_TUNING_BANK, channel,
+                                /*apply=*/1);
+}
+
+/**
+ * Return [channel] to ordinary 12-tone equal temperament.
+ *
+ * Called when the Xen module is bypassed, unpatched, or removed.  `apply = 1`
+ * so notes currently sounding snap back rather than finishing their release
+ * tail in the old tuning.
+ */
+EXPORT void keyboard_clear_tuning(int channel) {
+    if (channel < 0 || channel >= 16) return;
+    KbSlot* slot = &g_kb_slots[_slot_for_channel(channel)];
+    if (!slot->synth) return;
+    fluid_synth_deactivate_tuning(slot->synth, channel, /*apply=*/1);
+}
+
 /** Set the output gain on ALL active slots and remember it for future slots. */
 EXPORT void keyboard_set_gain(float gain) {
     g_current_gain = gain;
@@ -386,6 +464,8 @@ EXPORT void  keyboard_note_on(int c, int k, int v)                    { (void)c;
 EXPORT void  keyboard_note_off(int c, int k)                          { (void)c;(void)k; }
 EXPORT void  keyboard_pitch_bend(int c, int v)                        { (void)c;(void)v; }
 EXPORT void  keyboard_control_change(int c, int cc, int v)            { (void)c;(void)cc;(void)v; }
+EXPORT void  keyboard_set_key_tuning(int c, const double* o)          { (void)c;(void)o; }
+EXPORT void  keyboard_clear_tuning(int c)                             { (void)c; }
 EXPORT void  keyboard_set_gain(float g)                               { (void)g; }
 EXPORT void* keyboard_render_fn_for_slot(int i)                       { (void)i; return NULL; }
 EXPORT void  keyboard_render_block_0(float* l, float* r, int f)       { memset(l,0,(size_t)f*4); memset(r,0,(size_t)f*4); }

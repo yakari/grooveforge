@@ -47,6 +47,10 @@ export 'src/dsp/gf_dsp_wah_filter.dart';
 export 'src/dsp/gf_dsp_compressor.dart';
 export 'src/dsp/gf_dsp_chorus.dart';
 
+// ── Scales and microtonal tuning ─────────────────────────────────────────────
+export 'src/tuning/gf_scale.dart';
+export 'src/tuning/gf_scale_library.dart';
+
 // ── MIDI node infrastructure ──────────────────────────────────────────────────
 export 'src/midi/gf_midi_node.dart';
 export 'src/midi/gf_midi_graph.dart';

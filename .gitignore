@@ -50,6 +50,7 @@ app.*.map.json
 # CMake build directories — contain absolute paths baked into CMakeCache.txt
 # and must never be committed (CI checkouts will have different paths).
 native_audio/build_mac/
+native_audio/build-smoke/
 packages/flutter_vst3/dart_vst_host/native/build/
 
 # Downloaded FluidSynth Windows SDK (prebuilt binaries, ~5MB)

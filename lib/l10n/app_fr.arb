@@ -543,6 +543,10 @@
   "rackAddMicrotone": "Microtone",
   "rackAddMicrotoneSubtitle": "Fusionne les notes tenues en une hauteur microtonale via pitch-bend (effet MIDI)",
 
+  "rackAddXen": "Xen",
+  "rackAddXenSubtitle": "Verrouille le clavier sur une gamme et le réaccorde — maqam, raga, gamelan, tempéraments anciens (effet MIDI)",
+  "xenAbout": "Tenez une note, appuyez sur une gamme : cette note devient la tonique et le clavier se verrouille sur la gamme construite autour d'elle. Les gammes qui ne sont pas tempérées — un maqam arabe, un raga indien, un chanter de cornemuse — réaccordent aussi les touches qu'elles utilisent, pour que les intervalles sonnent comme la tradition les entend et non comme un piano les approxime. Contrairement au module Microtone, qui plie la hauteur d'une note à la fois, Xen réaccorde chaque touche indépendamment : un accord entier peut garder sa propre intonation.",
+
   "midiFxBypass": "Bypass",
   "midiFxCcAssign": "Assigner CC au bypass",
   "midiFxCcAssignTitle": "Assigner un CC matériel au bypass",

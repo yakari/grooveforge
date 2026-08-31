@@ -7,6 +7,7 @@
 // web/js/grooveforge_audio.js.
 
 import 'dart:js_interop';
+import 'dart:typed_data';
 
 /// JS interop extension type for [window.grooveForgeOscillator].
 ///
@@ -232,6 +233,20 @@ class AudioInputFFI {
 
   /// Not supported on web — no-op.
   void keyboardNoteOn(int ch, int key, int velocity) {}
+
+  /// Not supported on web — no-op. Microtonal retuning needs FluidSynth's
+  /// MIDI Tuning Standard support, which the Web Audio bridge has no
+  /// equivalent for.
+  void keyboardSetKeyTuning(int ch, Float64List centsOffsets) {}
+
+  /// Not supported on web — no-op.
+  void keyboardClearTuning(int ch) {}
+
+  /// Not supported on web — no-op.
+  void gfNativeSetKeyTuning(int sfId, int channel, Float64List centsOffsets) {}
+
+  /// Not supported on web — no-op.
+  void gfNativeClearTuning(int sfId, int channel) {}
 
   /// Not supported on web — no-op.
   void keyboardNoteOff(int ch, int key) {}

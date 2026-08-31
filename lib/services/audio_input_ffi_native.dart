@@ -259,6 +259,20 @@ typedef KeyboardControlChangeDart = void Function(int ch, int cc, int value);
 typedef KeyboardSetGainC = Void Function(Float gain);
 typedef KeyboardSetGainDart = void Function(double gain);
 
+/// C: `void keyboard_set_key_tuning(int ch, const double* centsOffsets)`.
+///
+/// [centsOffsets] points at 128 doubles — one deviation from 12-TET per MIDI
+/// key. See `keyboard_synth.c` for why a tuning table is used here rather
+/// than pitch bend.
+typedef KeyboardSetKeyTuningC =
+    Void Function(Int32 ch, Pointer<Double> centsOffsets);
+typedef KeyboardSetKeyTuningDart =
+    void Function(int ch, Pointer<Double> centsOffsets);
+
+/// C: `void keyboard_clear_tuning(int ch)`.
+typedef KeyboardClearTuningC = Void Function(Int32 ch);
+typedef KeyboardClearTuningDart = void Function(int ch);
+
 /// C: `void keyboard_render_block(float* outL, float* outR, int frames)`.
 typedef KeyboardRenderBlockC = Void Function(Pointer<Float>, Pointer<Float>, Int32);
 
@@ -448,6 +462,12 @@ class AudioInputFFI {
 
   /// Bound reference to `keyboard_set_gain`.
   late final KeyboardSetGainDart _keyboardSetGain;
+
+  /// Bound reference to `keyboard_set_key_tuning`.
+  late final KeyboardSetKeyTuningDart _keyboardSetKeyTuning;
+
+  /// Bound reference to `keyboard_clear_tuning`.
+  late final KeyboardClearTuningDart _keyboardClearTuning;
 
   /// Raw pointer to `keyboard_render_block` — passed to dart_vst_host as a
   /// master-mix contributor or external render source for VST3 effects.
@@ -730,6 +750,10 @@ class AudioInputFFI {
         _lib.lookup<NativeFunction<KeyboardControlChangeC>>('keyboard_control_change').asFunction();
     _keyboardSetGain =
         _lib.lookup<NativeFunction<KeyboardSetGainC>>('keyboard_set_gain').asFunction();
+    _keyboardSetKeyTuning =
+        _lib.lookup<NativeFunction<KeyboardSetKeyTuningC>>('keyboard_set_key_tuning').asFunction();
+    _keyboardClearTuning =
+        _lib.lookup<NativeFunction<KeyboardClearTuningC>>('keyboard_clear_tuning').asFunction();
     // Raw pointer — passed as a C function pointer to dart_vst_host.
     keyboardRenderBlockPtr =
         _lib.lookup<NativeFunction<KeyboardRenderBlockC>>('keyboard_render_block');
@@ -1066,6 +1090,34 @@ class AudioInputFFI {
   /// is 3.0 on Linux).
   void keyboardSetGain(double gain) => _keyboardSetGain(gain);
 
+  /// Retune MIDI channel [ch] with a microtonal scale.
+  ///
+  /// [centsOffsets] must hold exactly 128 deviations from 12-tone equal
+  /// temperament, one per MIDI key — the output of `GFScale.tuningOffsetsFor`.
+  /// Calls with a wrong-length list are ignored rather than throwing: this
+  /// sits on the note path, and a malformed table should cost the player a
+  /// detune, not a crash mid-performance.
+  ///
+  /// The native side retunes voices that are already sounding, so changing
+  /// scale under a held chord is audible immediately.
+  void keyboardSetKeyTuning(int ch, Float64List centsOffsets) {
+    if (centsOffsets.length != 128) return;
+    // The native call copies the table into FluidSynth before returning, so
+    // the buffer only has to outlive this call — allocate, fill, free.
+    final ptr = calloc<Double>(128);
+    try {
+      for (var k = 0; k < 128; k++) {
+        ptr[k] = centsOffsets[k];
+      }
+      _keyboardSetKeyTuning(ch, ptr);
+    } finally {
+      calloc.free(ptr);
+    }
+  }
+
+  /// Return MIDI channel [ch] to 12-tone equal temperament.
+  void keyboardClearTuning(int ch) => _keyboardClearTuning(ch);
+
   /// Initialise FluidSynth slot [slotIdx] at [sampleRate] Hz.
   ///
   /// Idempotent — safe to call multiple times for an already-active slot.
@@ -1336,9 +1388,43 @@ class AudioInputFFI {
   void gfNativeCc(int sfId, int channel, int controller, int value) =>
       _gfNativeCc(sfId, channel, controller, value);
 
+  late final void Function(int, int, Pointer<Double>) _gfNativeSetKeyTuning =
+      _looperLib.lookupFunction<
+          Void Function(Int32, Int32, Pointer<Double>),
+          void Function(int, int, Pointer<Double>)
+      >('gf_native_set_key_tuning');
+
+  late final void Function(int, int) _gfNativeClearTuning =
+      _looperLib.lookupFunction<
+          Void Function(Int32, Int32),
+          void Function(int, int)
+      >('gf_native_clear_tuning');
+
   /// Direct FFI pitch bend for the Android FluidSynth hot path.
   ///
   /// [value] is the 14-bit MIDI pitch bend value (0–16383, centre = 8192).
   void gfNativePitchBend(int sfId, int channel, int value) =>
       _gfNativePitchBend(sfId, channel, value);
+
+  /// Direct FFI microtonal retune for the Android FluidSynth hot path.
+  ///
+  /// Android counterpart of [keyboardSetKeyTuning]; [sfId] identifies the
+  /// synth the same way [gfNativeNoteOn] does. Wrong-length tables are
+  /// ignored, matching the desktop path.
+  void gfNativeSetKeyTuning(int sfId, int channel, Float64List centsOffsets) {
+    if (centsOffsets.length != 128) return;
+    final ptr = calloc<Double>(128);
+    try {
+      for (var k = 0; k < 128; k++) {
+        ptr[k] = centsOffsets[k];
+      }
+      _gfNativeSetKeyTuning(sfId, channel, ptr);
+    } finally {
+      calloc.free(ptr);
+    }
+  }
+
+  /// Direct FFI tuning reset for the Android FluidSynth hot path.
+  void gfNativeClearTuning(int sfId, int channel) =>
+      _gfNativeClearTuning(sfId, channel);
 }
