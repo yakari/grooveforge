@@ -62,7 +62,13 @@ class _UsbAudioDebugScreenState extends State<UsbAudioDebugScreen> {
             ),
         ],
       ),
-      body: _buildBody(l10n, isAndroid),
+      body: SafeArea(
+        // Android 15+ runs the app edge-to-edge (targetSdk 36), so system bars and
+        // display cutouts overlap the window. top is false because the AppBar
+        // already covers the status-bar inset.
+        top: false,
+        child: _buildBody(l10n, isAndroid),
+      ),
     );
   }
 

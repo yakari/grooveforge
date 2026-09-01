@@ -25,19 +25,25 @@ class CcPreferencesScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(title: Text(AppLocalizations.of(context)!.ccTitle)),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            _buildLastReceivedCard(context, ccService),
-            const SizedBox(height: 24),
-            Text(
-              AppLocalizations.of(context)!.ccActiveMappings,
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            Expanded(child: _buildMappingsList(context, ccService)),
-          ],
+      body: SafeArea(
+        // Android 15+ runs the app edge-to-edge (targetSdk 36), so system bars and
+        // display cutouts overlap the window. top is false because the AppBar
+        // already covers the status-bar inset.
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              _buildLastReceivedCard(context, ccService),
+              const SizedBox(height: 24),
+              Text(
+                AppLocalizations.of(context)!.ccActiveMappings,
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              Expanded(child: _buildMappingsList(context, ccService)),
+            ],
+          ),
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(

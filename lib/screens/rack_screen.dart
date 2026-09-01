@@ -1406,103 +1406,109 @@ class _RackScreenState extends State<RackScreen> {
           ),
         ],
       ),
-      body: OrientationBuilder(
-        builder: (context, orientation) {
-          return LayoutBuilder(
-            builder: (context, constraints) {
-              final isMobileLandscape = orientation == Orientation.landscape &&
-                  constraints.maxHeight < 480;
-              return Padding(
-                padding: const EdgeInsets.all(2.0),
-                child: Column(
-                  children: [
-                    TransportBar(
-                      supplementaryBarsVisible: _supplementaryBarsVisible,
-                    ),
-                    // Collapsible supplementary bars — toggled by the chevron
-                    // icon in the TransportBar. AnimatedSize provides a smooth
-                    // slide-in/out transition so the rack list doesn't jump.
-                    ValueListenableBuilder<bool>(
-                      valueListenable: _supplementaryBarsVisible,
-                      builder: (ctx, visible, _) => AnimatedSize(
-                        duration: const Duration(milliseconds: 200),
-                        curve: Curves.easeInOut,
-                        child: visible
-                            ? const AudioSettingsBar()
-                            : const SizedBox.shrink(),
+      body: SafeArea(
+        // Android 15+ runs the app edge-to-edge (targetSdk 36), so system bars and
+        // display cutouts overlap the window. top is false because the AppBar
+        // already covers the status-bar inset.
+        top: false,
+        child: OrientationBuilder(
+          builder: (context, orientation) {
+            return LayoutBuilder(
+              builder: (context, constraints) {
+                final isMobileLandscape = orientation == Orientation.landscape &&
+                    constraints.maxHeight < 480;
+                return Padding(
+                  padding: const EdgeInsets.all(2.0),
+                  child: Column(
+                    children: [
+                      TransportBar(
+                        supplementaryBarsVisible: _supplementaryBarsVisible,
                       ),
-                    ),
-                    // Compact Jam Mode strip — shown only when at least one
-                    // Jam Mode slot has been pinned below the transport bar.
-                    const PinnedJamModeBar(),
-                    // Compact looper strip — shown only when at least one
-                    // looper slot has been pinned below the transport bar.
-                    const PinnedLooperBar(),
-                    Expanded(
-                      // ValueListenableBuilder so _RackList and the overlays
-                      // rebuild when the patch view is toggled, without
-                      // rebuilding the whole Scaffold.
-                      child: ValueListenableBuilder<bool>(
-                        valueListenable: _isPatchView,
-                        builder: (ctx, isPatch, _) => Listener(
-                          // Track pointer during cable drags.
-                          onPointerMove: (e) {
-                            if (isPatch) {
-                              ctx
-                                  .read<PatchDragController>()
-                                  .updatePosition(e.position);
-                              _handleDragAutoScroll(e.position);
-                            }
-                          },
-                          onPointerUp: (e) {
-                            if (isPatch) _handleDragEnd(e.position);
-                          },
-                          child: Stack(
-                            key: _patchAreaKey,
-                            children: [
-                              _RackList(
-                                scrollController: _scrollController,
-                                isMobileLandscape: isMobileLandscape,
-                                slotKeys: _slotKeys,
-                                jackKeys: _jackKeys,
-                                isPatchView: isPatch,
-                                onFlipToFront: () =>
-                                    _isPatchView.value = false,
-                              ),
-                              // Cable overlays — only active in patch view
-                              // so they never intercept front-panel touches
-                              // (virtual piano keys, scroll, etc.).
-                              if (isPatch) ...[
-                                Consumer2<AudioGraph, RackState>(
-                                  builder: (ctx2, graph, rack, child) =>
-                                      PatchCableOverlay(
-                                    graph: graph,
-                                    rack: rack,
-                                    jackKeys: _jackKeys,
-                                    scrollController: _scrollController,
-                                  ),
-                                ),
-                                // Always in tree (not conditional on isDragging)
-                                // so its RenderBox is ready the moment a drag
-                                // begins. ListenableBuilder inside the widget
-                                // drives repaints without an outer Consumer.
-                                DragCableOverlay(
-                                  controller:
-                                      ctx.read<PatchDragController>(),
+                      // Collapsible supplementary bars — toggled by the chevron
+                      // icon in the TransportBar. AnimatedSize provides a smooth
+                      // slide-in/out transition so the rack list doesn't jump.
+                      ValueListenableBuilder<bool>(
+                        valueListenable: _supplementaryBarsVisible,
+                        builder: (ctx, visible, _) => AnimatedSize(
+                          duration: const Duration(milliseconds: 200),
+                          curve: Curves.easeInOut,
+                          child: visible
+                              ? const AudioSettingsBar()
+                              : const SizedBox.shrink(),
+                        ),
+                      ),
+                      // Compact Jam Mode strip — shown only when at least one
+                      // Jam Mode slot has been pinned below the transport bar.
+                      const PinnedJamModeBar(),
+                      // Compact looper strip — shown only when at least one
+                      // looper slot has been pinned below the transport bar.
+                      const PinnedLooperBar(),
+                      Expanded(
+                        // ValueListenableBuilder so _RackList and the overlays
+                        // rebuild when the patch view is toggled, without
+                        // rebuilding the whole Scaffold.
+                        child: ValueListenableBuilder<bool>(
+                          valueListenable: _isPatchView,
+                          builder: (ctx, isPatch, _) => Listener(
+                            // Track pointer during cable drags.
+                            onPointerMove: (e) {
+                              if (isPatch) {
+                                ctx
+                                    .read<PatchDragController>()
+                                    .updatePosition(e.position);
+                                _handleDragAutoScroll(e.position);
+                              }
+                            },
+                            onPointerUp: (e) {
+                              if (isPatch) _handleDragEnd(e.position);
+                            },
+                            child: Stack(
+                              key: _patchAreaKey,
+                              children: [
+                                _RackList(
+                                  scrollController: _scrollController,
+                                  isMobileLandscape: isMobileLandscape,
+                                  slotKeys: _slotKeys,
                                   jackKeys: _jackKeys,
+                                  isPatchView: isPatch,
+                                  onFlipToFront: () =>
+                                      _isPatchView.value = false,
                                 ),
+                                // Cable overlays — only active in patch view
+                                // so they never intercept front-panel touches
+                                // (virtual piano keys, scroll, etc.).
+                                if (isPatch) ...[
+                                  Consumer2<AudioGraph, RackState>(
+                                    builder: (ctx2, graph, rack, child) =>
+                                        PatchCableOverlay(
+                                      graph: graph,
+                                      rack: rack,
+                                      jackKeys: _jackKeys,
+                                      scrollController: _scrollController,
+                                    ),
+                                  ),
+                                  // Always in tree (not conditional on isDragging)
+                                  // so its RenderBox is ready the moment a drag
+                                  // begins. ListenableBuilder inside the widget
+                                  // drives repaints without an outer Consumer.
+                                  DragCableOverlay(
+                                    controller:
+                                        ctx.read<PatchDragController>(),
+                                    jackKeys: _jackKeys,
+                                  ),
+                                ],
                               ],
-                            ],
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              );
-            },
-          );
-        },
+                    ],
+                  ),
+                );
+              },
+            );
+          },
+        ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => showAddPluginSheet(context),

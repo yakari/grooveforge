@@ -178,799 +178,805 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
 
     return Scaffold(
       appBar: AppBar(title: Text(loc.preferencesTitle)),
-      body: ListView(
-        padding: const EdgeInsets.all(16.0),
-        children: [
-          // ======== LANGUAGE SECTION ========
-          Text(
-            loc.languageTitle,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.lightBlueAccent,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Card(
-            child: Consumer<LocaleProvider>(
-              builder: (context, localeProvider, _) {
-                return _ResponsivePreferenceRow(
-                  icon: const Icon(
-                    Icons.language,
-                    color: Colors.lightBlueAccent,
-                  ),
-                  title: loc.languageTitle,
-                  subtitle: loc.languageSubtitle,
-                  trailing: DropdownButton<Locale?>(
-                    value: localeProvider.locale,
-                    items: [
-                      DropdownMenuItem(
-                        value: null,
-                        child: Text(loc.languageSystem),
-                      ),
-                      const DropdownMenuItem(
-                        value: Locale('en'),
-                        child: Text('English'),
-                      ),
-                      const DropdownMenuItem(
-                        value: Locale('fr'),
-                        child: Text('Français'),
-                      ),
-                    ],
-                    onChanged: (val) {
-                      localeProvider.setLocale(val);
-                    },
-                  ),
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: 32),
-
-          Text(
-            loc.midiConnectionSection,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.blueAccent,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.cable, color: Colors.blue),
-              title: Text(loc.connectMidiDevice),
-              subtitle: Text(_connectedDevice?.name ?? loc.notConnected),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: _showMidiDevicesDialog,
-            ),
-          ),
-          const SizedBox(height: 32),
-
-          Text(
-            loc.soundfontsSection,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.deepPurpleAccent,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Card(
-            child: Column(
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.add, color: Colors.deepPurple),
-                  title: Text(loc.loadSoundfont),
-                  onTap: _loadSoundfont,
-                ),
-                const Divider(height: 1),
-                Consumer<AudioEngine>(
-                  builder: (context, engine, child) {
-                    return ValueListenableBuilder<int>(
-                      valueListenable: engine.stateNotifier,
-                      builder: (context, _, child) {
-                        if (engine.loadedSoundfonts.isEmpty) {
-                          return Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Text(loc.noSoundfontsLoaded),
-                          );
-                        }
-                        // Sort: Put default soundfont at the top
-                        final sortedPaths = List<String>.from(
-                          engine.loadedSoundfonts,
-                        );
-                        sortedPaths.sort((a, b) {
-                          bool isADefault = a.endsWith('default_soundfont.sf2');
-                          bool isBDefault = b.endsWith('default_soundfont.sf2');
-                          if (isADefault && !isBDefault) return -1;
-                          if (!isADefault && isBDefault) return 1;
-                          return a.compareTo(b);
-                        });
-
-                        return ListView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: sortedPaths.length,
-                          itemBuilder: (context, index) {
-                            String path = sortedPaths[index];
-                            bool isDefault = path.endsWith(
-                              'default_soundfont.sf2',
-                            );
-                            String filename =
-                                isDefault
-                                    ? loc.defaultSoundfont
-                                    : path.split(kIsWeb ? '/' : Platform.pathSeparator).last;
-                            return ListTile(
-                              leading: Icon(
-                                Icons.piano,
-                                color: isDefault ? Colors.blue : Colors.grey,
-                              ),
-                              title: Text(
-                                filename,
-                                style: TextStyle(
-                                  fontWeight:
-                                      isDefault
-                                          ? FontWeight.bold
-                                          : FontWeight.normal,
-                                ),
-                              ),
-                              subtitle: Text(
-                                path,
-                                style: const TextStyle(fontSize: 10),
-                              ),
-                              trailing:
-                                  isDefault
-                                      ? null
-                                      : IconButton(
-                                        icon: const Icon(
-                                          Icons.delete,
-                                          color: Colors.redAccent,
-                                        ),
-                                        onPressed: () {
-                                          engine.unloadSoundfont(path);
-                                        },
-                                      ),
-                            );
-                          },
-                        );
-                      },
-                    );
-                  },
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 32),
-          // ======== AUDIO INPUT SECTION ========
-          Text(
-            loc.micSelectionTitle,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.pinkAccent,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Card(
-            child: Consumer<AudioEngine>(
-              builder: (context, engine, _) {
-                return Column(
-                  children: [
-                    FutureBuilder<List<dynamic>>(
-                      future:
-                          (!kIsWeb && Platform.isAndroid)
-                              ? engine.getAndroidInputDevices()
-                              : engine.getAvailableMicrophones(),
-                      builder: (context, snapshot) {
-                        final List<dynamic> devices = snapshot.data ?? [];
-                        return ValueListenableBuilder<int>(
-                          valueListenable: engine.vocoderInputDeviceIndex,
-                          builder: (context, deviceIndex, _) {
-                            return ValueListenableBuilder<int>(
-                              valueListenable:
-                                  engine.vocoderInputAndroidDeviceId,
-                              builder: (context, androidId, _) {
-                                String currentName = loc.micSelectionDefault;
-                                if ((!kIsWeb && Platform.isAndroid)) {
-                                  final dev = devices
-                                      .cast<dynamic>()
-                                      .firstWhere(
-                                        (d) => (d as Map)['id'] == androidId,
-                                        orElse: () => null,
-                                      );
-                                  if (dev != null) {
-                                    currentName = (dev as Map)['name'];
-                                  }
-                                } else if (deviceIndex >= 0 &&
-                                    deviceIndex < devices.length) {
-                                  currentName = devices[deviceIndex] as String;
-                                }
-
-                                final bool valueMissing =
-                                    (!kIsWeb && Platform.isAndroid)
-                                        ? (androidId != -1 &&
-                                            !devices.any(
-                                              (d) =>
-                                                  (d as Map)['id'] == androidId,
-                                            ))
-                                        : (deviceIndex != -1 &&
-                                            deviceIndex >= devices.length);
-
-                                return _ResponsivePreferenceRow(
-                                  icon: const Icon(
-                                    Icons.mic,
-                                    color: Colors.pinkAccent,
-                                  ),
-                                  title: loc.micSelectionDevice,
-                                  subtitle:
-                                      valueMissing
-                                          ? "Disconnected (ID: ${(!kIsWeb && Platform.isAndroid) ? androidId : deviceIndex})"
-                                          : currentName,
-                                  trailing: DropdownButton<int>(
-                                    value:
-                                        (!kIsWeb && Platform.isAndroid)
-                                            ? androidId
-                                            : deviceIndex,
-                                    items: [
-                                      DropdownMenuItem(
-                                        value: -1,
-                                        child: Text(loc.micSelectionDefault),
-                                      ),
-                                      if (valueMissing)
-                                        DropdownMenuItem(
-                                          value:
-                                              (!kIsWeb && Platform.isAndroid)
-                                                  ? androidId
-                                                  : deviceIndex,
-                                          child: Text(
-                                            "Disconnected (ID: ${(!kIsWeb && Platform.isAndroid) ? androidId : deviceIndex})",
-                                          ),
-                                        ),
-                                      ...List.generate(devices.length, (i) {
-                                        final device = devices[i];
-                                        final int val =
-                                            (!kIsWeb && Platform.isAndroid)
-                                                ? (device as Map)['id']
-                                                : i;
-                                        final String name =
-                                            (!kIsWeb && Platform.isAndroid)
-                                                ? (device as Map)['name']
-                                                : device as String;
-                                        return DropdownMenuItem(
-                                          value: val,
-                                          child: Text(name),
-                                        );
-                                      }),
-                                    ],
-                                    onChanged: (val) {
-                                      if (val != null) {
-                                        if ((!kIsWeb && Platform.isAndroid)) {
-                                          engine
-                                              .vocoderInputAndroidDeviceId
-                                              .value = val;
-                                          final selected = devices
-                                              .cast<dynamic>()
-                                              .firstWhere(
-                                                (d) => (d as Map)['id'] == val,
-                                                orElse: () => null,
-                                              );
-                                          debugPrint(
-                                            'GrooveForge: Selected device: ${selected?['name']} (ID: $val)',
-                                          );
-                                          if (selected != null &&
-                                              (selected
-                                                      as Map)['isBluetooth'] ==
-                                                  true) {
-                                            AudioEngine.audioConfigChannel
-                                                .invokeMethod(
-                                                  'startBluetoothSco',
-                                                );
-                                          } else {
-                                            AudioEngine.audioConfigChannel
-                                                .invokeMethod(
-                                                  'stopBluetoothSco',
-                                                );
-                                          }
-                                        } else {
-                                          engine.vocoderInputDeviceIndex.value =
-                                              val;
-                                        }
-                                        engine.stateNotifier.value++;
-                                      }
-                                    },
-                                  ),
-                                );
-                              },
-                            );
-                          },
-                        );
-                      },
-                    ),
-                    const Divider(height: 1),
-                    Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.graphic_eq,
-                                color: Colors.pinkAccent,
-                                size: 20,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(loc.micSelectionSensitivity),
-                            ],
-                          ),
-                          ValueListenableBuilder<double>(
-                            valueListenable: engine.vocoderInputGain,
-                            builder: (context, gain, _) {
-                              return Slider(
-                                value: gain,
-                                min: 0.0,
-                                max: 20.0,
-                                onChanged: (val) {
-                                  engine.vocoderInputGain.value = val;
-                                  engine.stateNotifier.value++;
-                                },
-                              );
-                            },
-                          ),
-                          const Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 8.0),
-                            child: _MicLevelMeter(),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: 32),
-          // ======== AUDIO OUTPUT SECTION ========
-          Text(
-            loc.audioOutputTitle,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.pinkAccent,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Card(
-            child: Consumer<AudioEngine>(
-              builder: (context, engine, _) {
-                return FutureBuilder<List<Map<String, dynamic>>>(
-                  future: engine.getAndroidOutputDevices(),
-                  builder: (context, snapshot) {
-                    final devices = snapshot.data ?? [];
-                    return ValueListenableBuilder<int>(
-                      valueListenable: engine.vocoderOutputAndroidDeviceId,
-                      builder: (context, androidId, _) {
-                        String currentName = loc.audioOutputDefault;
-                        final dev = devices.firstWhere(
-                          (d) => d['id'] == androidId,
-                          orElse: () => <String, dynamic>{},
-                        );
-                        if (dev.isNotEmpty) {
-                          currentName = dev['name'] as String;
-                        }
-
-                        final bool valueMissing =
-                            androidId != -1 &&
-                            !devices.any((d) => d['id'] == androidId);
-
-                        return _ResponsivePreferenceRow(
-                          icon: const Icon(
-                            Icons.headset,
-                            color: Colors.pinkAccent,
-                          ),
-                          title: loc.audioOutputDevice,
-                          subtitle:
-                              valueMissing
-                                  ? "Disconnected (ID: $androidId)"
-                                  : currentName,
-                          trailing: DropdownButton<int>(
-                            value: androidId,
-                            items: [
-                              DropdownMenuItem(
-                                value: -1,
-                                child: Text(loc.audioOutputDefault),
-                              ),
-                              if (valueMissing)
-                                DropdownMenuItem(
-                                  value: androidId,
-                                  child: Text("Disconnected (ID: $androidId)"),
-                                ),
-                              ...devices.map((device) {
-                                return DropdownMenuItem(
-                                  value: device['id'] as int,
-                                  child: Text(device['name'] as String),
-                                );
-                              }),
-                            ],
-                            onChanged: (val) {
-                              if (val != null) {
-                                engine.vocoderOutputAndroidDeviceId.value = val;
-                                engine.stateNotifier.value++;
-                              }
-                            },
-                          ),
-                        );
-                      },
-                    );
-                  },
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: 32),
-
-          Text(
-            loc.routingControlSection,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.teal,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.tune, color: Colors.teal),
-              title: Text(loc.ccMappingPreferences),
-              subtitle: Text(loc.ccMappingPreferencesSubtitle),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const CcPreferencesScreen(),
-                  ),
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: 32),
-
-          Text(
-            loc.keyGesturesSection,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.orange,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Card(
-            child: Consumer<AudioEngine>(
-              builder: (context, engine, _) {
-                return Column(
-                  children: [
-                    ValueListenableBuilder<GestureAction>(
-                      valueListenable: engine.verticalGestureAction,
-                      builder: (context, action, _) {
-                        return _ResponsivePreferenceRow(
-                          icon: const Icon(Icons.height, color: Colors.orange),
-                          title: loc.verticalInteraction,
-                          subtitle: loc.verticalInteractionSubtitle,
-                          trailing: DropdownButton<GestureAction>(
-                            value: action,
-                            items: [
-                              DropdownMenuItem(
-                                value: GestureAction.none,
-                                child: Text(loc.actionNone),
-                              ),
-                              DropdownMenuItem(
-                                value: GestureAction.pitchBend,
-                                child: Text(loc.actionPitchBend),
-                              ),
-                              DropdownMenuItem(
-                                value: GestureAction.vibrato,
-                                child: Text(loc.actionVibrato),
-                              ),
-                            ],
-                            onChanged: (val) {
-                              if (val != null) {
-                                engine.verticalGestureAction.value = val;
-                                engine.stateNotifier.value++;
-                              }
-                            },
-                          ),
-                        );
-                      },
-                    ),
-                    const Divider(height: 1),
-                    ValueListenableBuilder<GestureAction>(
-                      valueListenable: engine.horizontalGestureAction,
-                      builder: (context, action, _) {
-                        return _ResponsivePreferenceRow(
-                          icon: const Icon(
-                            Icons.unfold_more,
-                            color: Colors.blue,
-                          ),
-                          title: loc.horizontalInteraction,
-                          subtitle: loc.horizontalInteractionSubtitle,
-                          trailing: DropdownButton<GestureAction>(
-                            value: action,
-                            items: [
-                              DropdownMenuItem(
-                                value: GestureAction.none,
-                                child: Text(loc.actionNone),
-                              ),
-                              DropdownMenuItem(
-                                value: GestureAction.pitchBend,
-                                child: Text(loc.actionPitchBend),
-                              ),
-                              DropdownMenuItem(
-                                value: GestureAction.vibrato,
-                                child: Text(loc.actionVibrato),
-                              ),
-                              DropdownMenuItem(
-                                value: GestureAction.glissando,
-                                child: Text(loc.actionGlissando),
-                              ),
-                            ],
-                            onChanged: (val) {
-                              if (val != null) {
-                                engine.horizontalGestureAction.value = val;
-                                engine.stateNotifier.value++;
-                              }
-                            },
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: 32),
-
-          Text(
-            loc.virtualPianoDisplaySection,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.orange,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Card(
-            child: Consumer<AudioEngine>(
-              builder: (context, engine, _) {
-                return ValueListenableBuilder<int>(
-                  valueListenable: engine.pianoKeysToShow,
-                  builder: (context, keysToShow, _) {
-                    return _ResponsivePreferenceRow(
-                      icon: const Icon(Icons.piano, color: Colors.orange),
-                      title: loc.visibleKeysTitle,
-                      subtitle: loc.visibleKeysSubtitle,
-                      trailing: DropdownButton<int>(
-                        value: [15, 22, 29, 52].contains(keysToShow) ? keysToShow : 22,
-                        items: [
-                          DropdownMenuItem(value: 15, child: Text(loc.keys25)),
-                          DropdownMenuItem(value: 22, child: Text(loc.keys37)),
-                          DropdownMenuItem(value: 29, child: Text(loc.keys49)),
-                          DropdownMenuItem(value: 52, child: Text(loc.keys88)),
-                        ],
-                        onChanged: (val) {
-                          if (val != null) {
-                            engine.pianoKeysToShow.value = val;
-                            engine.stateNotifier.value++;
-                          }
-                        },
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: 8),
-          Card(
-            child: Consumer<AudioEngine>(
-              builder: (context, engine, _) {
-                return ValueListenableBuilder<String>(
-                  valueListenable: engine.notationFormat,
-                  builder: (context, format, _) {
-                    return _ResponsivePreferenceRow(
-                      icon: const Icon(
-                        Icons.music_note,
-                        color: Colors.blueGrey,
-                      ),
-                      title: loc.notationFormatTitle,
-                      subtitle: loc.notationFormatSubtitle,
-                      trailing: DropdownButton<String>(
-                        value: ['Standard', 'Solfege'].contains(format) ? format : 'Standard',
-                        items: [
-                          DropdownMenuItem(
-                            value: 'Standard',
-                            child: Text(loc.notationStandard),
-                          ),
-                          DropdownMenuItem(
-                            value: 'Solfege',
-                            child: Text(loc.notationSolfege),
-                          ),
-                        ],
-                        onChanged: (val) {
-                          if (val != null) {
-                            engine.notationFormat.value = val;
-                            // Forces _saveState
-                            engine.stateNotifier.value++;
-                          }
-                        },
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: 8),
-          Card(
-            child: Consumer<AudioEngine>(
-              builder: (context, engine, _) {
-                return ValueListenableBuilder<bool>(
-                  valueListenable: engine.autoScrollEnabled,
-                  builder: (context, autoScroll, _) {
-                    return _ResponsivePreferenceRow(
-                      icon: const Icon(
-                        Icons.unfold_more,
-                        color: Colors.greenAccent,
-                      ),
-                      title: loc.synthAutoScrollTitle,
-                      subtitle: loc.synthAutoScrollSubtitle,
-                      trailing: Switch(
-                        value: autoScroll,
-                        onChanged: (val) {
-                          engine.autoScrollEnabled.value = val;
-                          engine.stateNotifier.value++;
-                        },
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: 8),
-          Card(
-            child: Consumer<AudioEngine>(
-              builder: (context, engine, _) {
-                return ValueListenableBuilder<int>(
-                  valueListenable: engine.aftertouchDestCc,
-                  builder: (context, destCc, _) {
-                    final List<DropdownMenuItem<int>> ccItems = [];
-                    for (int i = 0; i <= 127; i++) {
-                      if (CcMappingService.standardGmCcs.containsKey(i)) {
-                        String name = CcMappingService.standardGmCcs[i]!;
-                        ccItems.add(
-                          DropdownMenuItem(
-                            value: i,
-                            child: Text('$name (CC $i)'),
-                          ),
-                        );
-                      }
-                    }
-                    return _ResponsivePreferenceRow(
-                      icon: const Icon(Icons.waves, color: Colors.teal),
-                      title: loc.aftertouchEffectTitle,
-                      subtitle: loc.aftertouchEffectSubtitle,
-                      alwaysStackTrailing: true,
-                      trailing: DropdownButton<int>(
-                        isExpanded: true,
-                        value: ccItems.any((item) => item.value == destCc) ? destCc : 1,
-                        items: ccItems,
-                        menuMaxHeight: 300,
-                        onChanged: (val) {
-                          if (val != null) {
-                            engine.aftertouchDestCc.value = val;
-                            engine.stateNotifier.value++;
-                          }
-                        },
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
-          ),
-          const Divider(height: 40),
-
-          // ======== VST3 SECTION (desktop only) ========
-          if (!kIsWeb && !Platform.isAndroid && !Platform.isIOS) ...[
+      body: SafeArea(
+        // Android 15+ runs the app edge-to-edge (targetSdk 36), so system bars and
+        // display cutouts overlap the window. top is false because the AppBar
+        // already covers the status-bar inset.
+        top: false,
+        child: ListView(
+          padding: const EdgeInsets.all(16.0),
+          children: [
+            // ======== LANGUAGE SECTION ========
             Text(
-              'VST3 Plugins',
+              loc.languageTitle,
               style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
-                color: Colors.tealAccent,
+                color: Colors.lightBlueAccent,
               ),
             ),
             const SizedBox(height: 8),
             Card(
-              child: _Vst3ScanTile(),
+              child: Consumer<LocaleProvider>(
+                builder: (context, localeProvider, _) {
+                  return _ResponsivePreferenceRow(
+                    icon: const Icon(
+                      Icons.language,
+                      color: Colors.lightBlueAccent,
+                    ),
+                    title: loc.languageTitle,
+                    subtitle: loc.languageSubtitle,
+                    trailing: DropdownButton<Locale?>(
+                      value: localeProvider.locale,
+                      items: [
+                        DropdownMenuItem(
+                          value: null,
+                          child: Text(loc.languageSystem),
+                        ),
+                        const DropdownMenuItem(
+                          value: Locale('en'),
+                          child: Text('English'),
+                        ),
+                        const DropdownMenuItem(
+                          value: Locale('fr'),
+                          child: Text('Français'),
+                        ),
+                      ],
+                      onChanged: (val) {
+                        localeProvider.setLocale(val);
+                      },
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 32),
+
+            Text(
+              loc.midiConnectionSection,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.blueAccent,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.cable, color: Colors.blue),
+                title: Text(loc.connectMidiDevice),
+                subtitle: Text(_connectedDevice?.name ?? loc.notConnected),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: _showMidiDevicesDialog,
+              ),
+            ),
+            const SizedBox(height: 32),
+
+            Text(
+              loc.soundfontsSection,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.deepPurpleAccent,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Card(
+              child: Column(
+                children: [
+                  ListTile(
+                    leading: const Icon(Icons.add, color: Colors.deepPurple),
+                    title: Text(loc.loadSoundfont),
+                    onTap: _loadSoundfont,
+                  ),
+                  const Divider(height: 1),
+                  Consumer<AudioEngine>(
+                    builder: (context, engine, child) {
+                      return ValueListenableBuilder<int>(
+                        valueListenable: engine.stateNotifier,
+                        builder: (context, _, child) {
+                          if (engine.loadedSoundfonts.isEmpty) {
+                            return Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: Text(loc.noSoundfontsLoaded),
+                            );
+                          }
+                          // Sort: Put default soundfont at the top
+                          final sortedPaths = List<String>.from(
+                            engine.loadedSoundfonts,
+                          );
+                          sortedPaths.sort((a, b) {
+                            bool isADefault = a.endsWith('default_soundfont.sf2');
+                            bool isBDefault = b.endsWith('default_soundfont.sf2');
+                            if (isADefault && !isBDefault) return -1;
+                            if (!isADefault && isBDefault) return 1;
+                            return a.compareTo(b);
+                          });
+
+                          return ListView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: sortedPaths.length,
+                            itemBuilder: (context, index) {
+                              String path = sortedPaths[index];
+                              bool isDefault = path.endsWith(
+                                'default_soundfont.sf2',
+                              );
+                              String filename =
+                                  isDefault
+                                      ? loc.defaultSoundfont
+                                      : path.split(kIsWeb ? '/' : Platform.pathSeparator).last;
+                              return ListTile(
+                                leading: Icon(
+                                  Icons.piano,
+                                  color: isDefault ? Colors.blue : Colors.grey,
+                                ),
+                                title: Text(
+                                  filename,
+                                  style: TextStyle(
+                                    fontWeight:
+                                        isDefault
+                                            ? FontWeight.bold
+                                            : FontWeight.normal,
+                                  ),
+                                ),
+                                subtitle: Text(
+                                  path,
+                                  style: const TextStyle(fontSize: 10),
+                                ),
+                                trailing:
+                                    isDefault
+                                        ? null
+                                        : IconButton(
+                                          icon: const Icon(
+                                            Icons.delete,
+                                            color: Colors.redAccent,
+                                          ),
+                                          onPressed: () {
+                                            engine.unloadSoundfont(path);
+                                          },
+                                        ),
+                              );
+                            },
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 32),
+            // ======== AUDIO INPUT SECTION ========
+            Text(
+              loc.micSelectionTitle,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.pinkAccent,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Card(
+              child: Consumer<AudioEngine>(
+                builder: (context, engine, _) {
+                  return Column(
+                    children: [
+                      FutureBuilder<List<dynamic>>(
+                        future:
+                            (!kIsWeb && Platform.isAndroid)
+                                ? engine.getAndroidInputDevices()
+                                : engine.getAvailableMicrophones(),
+                        builder: (context, snapshot) {
+                          final List<dynamic> devices = snapshot.data ?? [];
+                          return ValueListenableBuilder<int>(
+                            valueListenable: engine.vocoderInputDeviceIndex,
+                            builder: (context, deviceIndex, _) {
+                              return ValueListenableBuilder<int>(
+                                valueListenable:
+                                    engine.vocoderInputAndroidDeviceId,
+                                builder: (context, androidId, _) {
+                                  String currentName = loc.micSelectionDefault;
+                                  if ((!kIsWeb && Platform.isAndroid)) {
+                                    final dev = devices
+                                        .cast<dynamic>()
+                                        .firstWhere(
+                                          (d) => (d as Map)['id'] == androidId,
+                                          orElse: () => null,
+                                        );
+                                    if (dev != null) {
+                                      currentName = (dev as Map)['name'];
+                                    }
+                                  } else if (deviceIndex >= 0 &&
+                                      deviceIndex < devices.length) {
+                                    currentName = devices[deviceIndex] as String;
+                                  }
+
+                                  final bool valueMissing =
+                                      (!kIsWeb && Platform.isAndroid)
+                                          ? (androidId != -1 &&
+                                              !devices.any(
+                                                (d) =>
+                                                    (d as Map)['id'] == androidId,
+                                              ))
+                                          : (deviceIndex != -1 &&
+                                              deviceIndex >= devices.length);
+
+                                  return _ResponsivePreferenceRow(
+                                    icon: const Icon(
+                                      Icons.mic,
+                                      color: Colors.pinkAccent,
+                                    ),
+                                    title: loc.micSelectionDevice,
+                                    subtitle:
+                                        valueMissing
+                                            ? "Disconnected (ID: ${(!kIsWeb && Platform.isAndroid) ? androidId : deviceIndex})"
+                                            : currentName,
+                                    trailing: DropdownButton<int>(
+                                      value:
+                                          (!kIsWeb && Platform.isAndroid)
+                                              ? androidId
+                                              : deviceIndex,
+                                      items: [
+                                        DropdownMenuItem(
+                                          value: -1,
+                                          child: Text(loc.micSelectionDefault),
+                                        ),
+                                        if (valueMissing)
+                                          DropdownMenuItem(
+                                            value:
+                                                (!kIsWeb && Platform.isAndroid)
+                                                    ? androidId
+                                                    : deviceIndex,
+                                            child: Text(
+                                              "Disconnected (ID: ${(!kIsWeb && Platform.isAndroid) ? androidId : deviceIndex})",
+                                            ),
+                                          ),
+                                        ...List.generate(devices.length, (i) {
+                                          final device = devices[i];
+                                          final int val =
+                                              (!kIsWeb && Platform.isAndroid)
+                                                  ? (device as Map)['id']
+                                                  : i;
+                                          final String name =
+                                              (!kIsWeb && Platform.isAndroid)
+                                                  ? (device as Map)['name']
+                                                  : device as String;
+                                          return DropdownMenuItem(
+                                            value: val,
+                                            child: Text(name),
+                                          );
+                                        }),
+                                      ],
+                                      onChanged: (val) {
+                                        if (val != null) {
+                                          if ((!kIsWeb && Platform.isAndroid)) {
+                                            engine
+                                                .vocoderInputAndroidDeviceId
+                                                .value = val;
+                                            final selected = devices
+                                                .cast<dynamic>()
+                                                .firstWhere(
+                                                  (d) => (d as Map)['id'] == val,
+                                                  orElse: () => null,
+                                                );
+                                            debugPrint(
+                                              'GrooveForge: Selected device: ${selected?['name']} (ID: $val)',
+                                            );
+                                            if (selected != null &&
+                                                (selected
+                                                        as Map)['isBluetooth'] ==
+                                                    true) {
+                                              AudioEngine.audioConfigChannel
+                                                  .invokeMethod(
+                                                    'startBluetoothSco',
+                                                  );
+                                            } else {
+                                              AudioEngine.audioConfigChannel
+                                                  .invokeMethod(
+                                                    'stopBluetoothSco',
+                                                  );
+                                            }
+                                          } else {
+                                            engine.vocoderInputDeviceIndex.value =
+                                                val;
+                                          }
+                                          engine.stateNotifier.value++;
+                                        }
+                                      },
+                                    ),
+                                  );
+                                },
+                              );
+                            },
+                          );
+                        },
+                      ),
+                      const Divider(height: 1),
+                      Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.graphic_eq,
+                                  color: Colors.pinkAccent,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(loc.micSelectionSensitivity),
+                              ],
+                            ),
+                            ValueListenableBuilder<double>(
+                              valueListenable: engine.vocoderInputGain,
+                              builder: (context, gain, _) {
+                                return Slider(
+                                  value: gain,
+                                  min: 0.0,
+                                  max: 20.0,
+                                  onChanged: (val) {
+                                    engine.vocoderInputGain.value = val;
+                                    engine.stateNotifier.value++;
+                                  },
+                                );
+                              },
+                            ),
+                            const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 8.0),
+                              child: _MicLevelMeter(),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 32),
+            // ======== AUDIO OUTPUT SECTION ========
+            Text(
+              loc.audioOutputTitle,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.pinkAccent,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Card(
+              child: Consumer<AudioEngine>(
+                builder: (context, engine, _) {
+                  return FutureBuilder<List<Map<String, dynamic>>>(
+                    future: engine.getAndroidOutputDevices(),
+                    builder: (context, snapshot) {
+                      final devices = snapshot.data ?? [];
+                      return ValueListenableBuilder<int>(
+                        valueListenable: engine.vocoderOutputAndroidDeviceId,
+                        builder: (context, androidId, _) {
+                          String currentName = loc.audioOutputDefault;
+                          final dev = devices.firstWhere(
+                            (d) => d['id'] == androidId,
+                            orElse: () => <String, dynamic>{},
+                          );
+                          if (dev.isNotEmpty) {
+                            currentName = dev['name'] as String;
+                          }
+
+                          final bool valueMissing =
+                              androidId != -1 &&
+                              !devices.any((d) => d['id'] == androidId);
+
+                          return _ResponsivePreferenceRow(
+                            icon: const Icon(
+                              Icons.headset,
+                              color: Colors.pinkAccent,
+                            ),
+                            title: loc.audioOutputDevice,
+                            subtitle:
+                                valueMissing
+                                    ? "Disconnected (ID: $androidId)"
+                                    : currentName,
+                            trailing: DropdownButton<int>(
+                              value: androidId,
+                              items: [
+                                DropdownMenuItem(
+                                  value: -1,
+                                  child: Text(loc.audioOutputDefault),
+                                ),
+                                if (valueMissing)
+                                  DropdownMenuItem(
+                                    value: androidId,
+                                    child: Text("Disconnected (ID: $androidId)"),
+                                  ),
+                                ...devices.map((device) {
+                                  return DropdownMenuItem(
+                                    value: device['id'] as int,
+                                    child: Text(device['name'] as String),
+                                  );
+                                }),
+                              ],
+                              onChanged: (val) {
+                                if (val != null) {
+                                  engine.vocoderOutputAndroidDeviceId.value = val;
+                                  engine.stateNotifier.value++;
+                                }
+                              },
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 32),
+
+            Text(
+              loc.routingControlSection,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.teal,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.tune, color: Colors.teal),
+                title: Text(loc.ccMappingPreferences),
+                subtitle: Text(loc.ccMappingPreferencesSubtitle),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const CcPreferencesScreen(),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 32),
+
+            Text(
+              loc.keyGesturesSection,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.orange,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Card(
+              child: Consumer<AudioEngine>(
+                builder: (context, engine, _) {
+                  return Column(
+                    children: [
+                      ValueListenableBuilder<GestureAction>(
+                        valueListenable: engine.verticalGestureAction,
+                        builder: (context, action, _) {
+                          return _ResponsivePreferenceRow(
+                            icon: const Icon(Icons.height, color: Colors.orange),
+                            title: loc.verticalInteraction,
+                            subtitle: loc.verticalInteractionSubtitle,
+                            trailing: DropdownButton<GestureAction>(
+                              value: action,
+                              items: [
+                                DropdownMenuItem(
+                                  value: GestureAction.none,
+                                  child: Text(loc.actionNone),
+                                ),
+                                DropdownMenuItem(
+                                  value: GestureAction.pitchBend,
+                                  child: Text(loc.actionPitchBend),
+                                ),
+                                DropdownMenuItem(
+                                  value: GestureAction.vibrato,
+                                  child: Text(loc.actionVibrato),
+                                ),
+                              ],
+                              onChanged: (val) {
+                                if (val != null) {
+                                  engine.verticalGestureAction.value = val;
+                                  engine.stateNotifier.value++;
+                                }
+                              },
+                            ),
+                          );
+                        },
+                      ),
+                      const Divider(height: 1),
+                      ValueListenableBuilder<GestureAction>(
+                        valueListenable: engine.horizontalGestureAction,
+                        builder: (context, action, _) {
+                          return _ResponsivePreferenceRow(
+                            icon: const Icon(
+                              Icons.unfold_more,
+                              color: Colors.blue,
+                            ),
+                            title: loc.horizontalInteraction,
+                            subtitle: loc.horizontalInteractionSubtitle,
+                            trailing: DropdownButton<GestureAction>(
+                              value: action,
+                              items: [
+                                DropdownMenuItem(
+                                  value: GestureAction.none,
+                                  child: Text(loc.actionNone),
+                                ),
+                                DropdownMenuItem(
+                                  value: GestureAction.pitchBend,
+                                  child: Text(loc.actionPitchBend),
+                                ),
+                                DropdownMenuItem(
+                                  value: GestureAction.vibrato,
+                                  child: Text(loc.actionVibrato),
+                                ),
+                                DropdownMenuItem(
+                                  value: GestureAction.glissando,
+                                  child: Text(loc.actionGlissando),
+                                ),
+                              ],
+                              onChanged: (val) {
+                                if (val != null) {
+                                  engine.horizontalGestureAction.value = val;
+                                  engine.stateNotifier.value++;
+                                }
+                              },
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 32),
+
+            Text(
+              loc.virtualPianoDisplaySection,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.orange,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Card(
+              child: Consumer<AudioEngine>(
+                builder: (context, engine, _) {
+                  return ValueListenableBuilder<int>(
+                    valueListenable: engine.pianoKeysToShow,
+                    builder: (context, keysToShow, _) {
+                      return _ResponsivePreferenceRow(
+                        icon: const Icon(Icons.piano, color: Colors.orange),
+                        title: loc.visibleKeysTitle,
+                        subtitle: loc.visibleKeysSubtitle,
+                        trailing: DropdownButton<int>(
+                          value: [15, 22, 29, 52].contains(keysToShow) ? keysToShow : 22,
+                          items: [
+                            DropdownMenuItem(value: 15, child: Text(loc.keys25)),
+                            DropdownMenuItem(value: 22, child: Text(loc.keys37)),
+                            DropdownMenuItem(value: 29, child: Text(loc.keys49)),
+                            DropdownMenuItem(value: 52, child: Text(loc.keys88)),
+                          ],
+                          onChanged: (val) {
+                            if (val != null) {
+                              engine.pianoKeysToShow.value = val;
+                              engine.stateNotifier.value++;
+                            }
+                          },
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 8),
+            Card(
+              child: Consumer<AudioEngine>(
+                builder: (context, engine, _) {
+                  return ValueListenableBuilder<String>(
+                    valueListenable: engine.notationFormat,
+                    builder: (context, format, _) {
+                      return _ResponsivePreferenceRow(
+                        icon: const Icon(
+                          Icons.music_note,
+                          color: Colors.blueGrey,
+                        ),
+                        title: loc.notationFormatTitle,
+                        subtitle: loc.notationFormatSubtitle,
+                        trailing: DropdownButton<String>(
+                          value: ['Standard', 'Solfege'].contains(format) ? format : 'Standard',
+                          items: [
+                            DropdownMenuItem(
+                              value: 'Standard',
+                              child: Text(loc.notationStandard),
+                            ),
+                            DropdownMenuItem(
+                              value: 'Solfege',
+                              child: Text(loc.notationSolfege),
+                            ),
+                          ],
+                          onChanged: (val) {
+                            if (val != null) {
+                              engine.notationFormat.value = val;
+                              // Forces _saveState
+                              engine.stateNotifier.value++;
+                            }
+                          },
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 8),
+            Card(
+              child: Consumer<AudioEngine>(
+                builder: (context, engine, _) {
+                  return ValueListenableBuilder<bool>(
+                    valueListenable: engine.autoScrollEnabled,
+                    builder: (context, autoScroll, _) {
+                      return _ResponsivePreferenceRow(
+                        icon: const Icon(
+                          Icons.unfold_more,
+                          color: Colors.greenAccent,
+                        ),
+                        title: loc.synthAutoScrollTitle,
+                        subtitle: loc.synthAutoScrollSubtitle,
+                        trailing: Switch(
+                          value: autoScroll,
+                          onChanged: (val) {
+                            engine.autoScrollEnabled.value = val;
+                            engine.stateNotifier.value++;
+                          },
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 8),
+            Card(
+              child: Consumer<AudioEngine>(
+                builder: (context, engine, _) {
+                  return ValueListenableBuilder<int>(
+                    valueListenable: engine.aftertouchDestCc,
+                    builder: (context, destCc, _) {
+                      final List<DropdownMenuItem<int>> ccItems = [];
+                      for (int i = 0; i <= 127; i++) {
+                        if (CcMappingService.standardGmCcs.containsKey(i)) {
+                          String name = CcMappingService.standardGmCcs[i]!;
+                          ccItems.add(
+                            DropdownMenuItem(
+                              value: i,
+                              child: Text('$name (CC $i)'),
+                            ),
+                          );
+                        }
+                      }
+                      return _ResponsivePreferenceRow(
+                        icon: const Icon(Icons.waves, color: Colors.teal),
+                        title: loc.aftertouchEffectTitle,
+                        subtitle: loc.aftertouchEffectSubtitle,
+                        alwaysStackTrailing: true,
+                        trailing: DropdownButton<int>(
+                          isExpanded: true,
+                          value: ccItems.any((item) => item.value == destCc) ? destCc : 1,
+                          items: ccItems,
+                          menuMaxHeight: 300,
+                          onChanged: (val) {
+                            if (val != null) {
+                              engine.aftertouchDestCc.value = val;
+                              engine.stateNotifier.value++;
+                            }
+                          },
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
             ),
             const Divider(height: 40),
-          ],
 
-          Text(
-            loc.aboutSection,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey,
+            // ======== VST3 SECTION (desktop only) ========
+            if (!kIsWeb && !Platform.isAndroid && !Platform.isIOS) ...[
+              Text(
+                'VST3 Plugins',
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.tealAccent,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Card(
+                child: _Vst3ScanTile(),
+              ),
+              const Divider(height: 40),
+            ],
+
+            Text(
+              loc.aboutSection,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey,
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Card(
-            child: Column(
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.info_outline, color: Colors.grey),
-                  title: Text(loc.versionTitle),
-                  trailing: Text(
-                    _appVersion,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.blueAccent,
-                    ),
-                  ),
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: const Icon(Icons.history, color: Colors.grey),
-                  title: Text(loc.viewChangelogTitle),
-                  subtitle: Text(loc.viewChangelogSubtitle),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: _showChangelogDialog,
-                ),
-                if (!kIsWeb && Platform.isAndroid) ...[
-                  const Divider(height: 1),
+            const SizedBox(height: 8),
+            Card(
+              child: Column(
+                children: [
                   ListTile(
-                    leading: const Icon(Icons.usb, color: Colors.grey),
-                    title: Text(loc.usbAudioDebugTitle),
-                    subtitle: Text(loc.usbAudioDebugSubtitle),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const UsbAudioDebugScreen(),
+                    leading: const Icon(Icons.info_outline, color: Colors.grey),
+                    title: Text(loc.versionTitle),
+                    trailing: Text(
+                      _appVersion,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blueAccent,
                       ),
                     ),
                   ),
+                  const Divider(height: 1),
+                  ListTile(
+                    leading: const Icon(Icons.history, color: Colors.grey),
+                    title: Text(loc.viewChangelogTitle),
+                    subtitle: Text(loc.viewChangelogSubtitle),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: _showChangelogDialog,
+                  ),
+                  if (!kIsWeb && Platform.isAndroid) ...[
+                    const Divider(height: 1),
+                    ListTile(
+                      leading: const Icon(Icons.usb, color: Colors.grey),
+                      title: Text(loc.usbAudioDebugTitle),
+                      subtitle: Text(loc.usbAudioDebugSubtitle),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const UsbAudioDebugScreen(),
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
-          ),
 
-          const SizedBox(height: 8),
-          const Divider(height: 40),
+            const SizedBox(height: 8),
+            const Divider(height: 40),
 
-          Consumer<AudioEngine>(
-            builder: (context, engine, _) {
-              return ElevatedButton.icon(
-                onPressed: () => _showResetConfirmation(context, engine),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red.withValues(alpha: 0.1),
-                  foregroundColor: Colors.redAccent,
-                  side: const BorderSide(color: Colors.redAccent),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-                icon: const Icon(Icons.restore),
-                label: Text(loc.resetPreferencesButton),
-              );
-            },
-          ),
+            Consumer<AudioEngine>(
+              builder: (context, engine, _) {
+                return ElevatedButton.icon(
+                  onPressed: () => _showResetConfirmation(context, engine),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red.withValues(alpha: 0.1),
+                    foregroundColor: Colors.redAccent,
+                    side: const BorderSide(color: Colors.redAccent),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  icon: const Icon(Icons.restore),
+                  label: Text(loc.resetPreferencesButton),
+                );
+              },
+            ),
 
-          const SizedBox(height: 40),
-        ],
+            const SizedBox(height: 40),
+          ],
+        ),
       ),
     );
   }

@@ -62,6 +62,21 @@ android {
             path = file("../../native_audio/CMakeLists.txt")
         }
     }
+
+    packaging {
+        jniLibs {
+            // androidx.datastore (pulled in by shared_preferences_android) ships
+            // libdatastore_shared_counter.so built with NDK r20 — still true as of
+            // datastore 1.3.0-alpha10. The .so is 16 KB aligned, but Play flags the
+            // old NDK stamp as a 16 KB page-size crash risk.
+            //
+            // That counter is only used by MultiProcessCoordinator. shared_preferences
+            // uses `preferencesDataStore`, i.e. SingleProcessCoordinator, which never
+            // references SharedCounter, so the library is never loaded and dropping it
+            // is a no-op at runtime. Revisit if anything ever adopts MultiProcessDataStore.
+            excludes += "**/libdatastore_shared_counter.so"
+        }
+    }
 }
 
 flutter {
