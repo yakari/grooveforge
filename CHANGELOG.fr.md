@@ -5,6 +5,15 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/lang/fr/).
 
+## [2.17.1] - 2026-09-01
+
+### Ajouté
+- Associer une gamme par pad matériel, depuis le bouton CC du module — plusieurs pads, plusieurs gammes, chacun sautant directement à la sienne. Le mode de mapping existait mais était masqué dans le dialogue d'assignation rapide.
+- « Gamme suivante » avance dans la famille courante au lieu de tout le catalogue.
+
+### Architecture
+- Le dialogue d'assignation CC gère un mapping par valeur, défile, et s'adapte à la taille de l'écran.
+
 ## [2.17.0] - 2026-09-01
 
 ### Ajouté

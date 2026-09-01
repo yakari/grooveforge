@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.17.1] - 2026-09-01
+
+### Added
+- Bind one scale per hardware pad, from the module's own CC button — several pads, several scales, each jumping straight to its own. The mapping mode existed but was hidden from the quick-assign dialog.
+- "Next scale" steps within the current family instead of the whole catalogue.
+
+### Architecture
+- The slot CC-assign dialog handles one mapping per value, scrolls, and sizes itself to the screen.
+
 ## [2.17.0] - 2026-09-01
 
 ### Added

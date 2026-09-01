@@ -1879,6 +1879,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get ccDirectValueLabel => 'Value to recall';
 
   @override
+  String get ccAssignAddValue => 'Assign a value…';
+
+  @override
+  String get ccAssignNoValues => 'Nothing assigned yet';
+
+  @override
   String get ccActionPickerLabel => 'Action';
 
   @override

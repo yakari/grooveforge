@@ -1586,9 +1586,17 @@ class RackState extends ChangeNotifier {
         if (pc == null) return;
         setXenRoot(slotId, pc);
       case 'next_scale':
-        final all = GFScaleLibrary.all;
-        final next = (all.indexOf(plugin.scale) + 1) % all.length;
-        selectXenScale(slotId, all[next].id);
+        // Steps within the current family rather than the whole catalogue.
+        // Across all families that is a walk of forty-odd scales, which is no
+        // use on stage: reaching the fortieth means thirty-nine taps and no
+        // way back. Inside a family it is eight maqamat or six experimental
+        // tunings — a usable cycle. Jumping straight to a specific scale is
+        // what the per-value `scale` mapping is for.
+        final family = GFScaleLibrary.byFamily(plugin.scale.family);
+        if (family.isEmpty) return;
+        final current = family.indexWhere((s) => s.id == plugin.scale.id);
+        final next = (current + 1) % family.length;
+        selectXenScale(slotId, family[next].id);
       case 'snap':
         setXenSnapEnabled(slotId, enabled: !plugin.snapEnabled);
       case 'tune':

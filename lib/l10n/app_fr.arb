@@ -713,6 +713,8 @@
   "ccSlotPickerLabel": "Slot",
   "ccParamPickerLabel": "Paramètre",
   "ccDirectValueLabel": "Valeur à rappeler",
+  "ccAssignAddValue": "Assigner une valeur…",
+  "ccAssignNoValues": "Rien d'assigné",
   "ccActionPickerLabel": "Action",
   "ccNoSlotsOfType": "Aucun slot de ce type dans le rack.",
   "ccSwapInstrumentA": "Instrument A",

@@ -284,9 +284,12 @@ class CcParamRegistry {
   /// Xen (`com.grooveforge.xen`).
   ///
   /// Built for a pad bank: `scale` in [CcParamMode.direct] gives one pad per
-  /// scale, so a player can jump straight from a raga to a maqam mid-piece.
-  /// `next_scale` is kept alongside for players with one spare button rather
-  /// than a grid.
+  /// scale, so a player can jump straight from a raga to a maqam mid-piece,
+  /// and several pads can each hold their own scale.
+  ///
+  /// `next_scale` remains for players with one spare button rather than a
+  /// grid, but it steps within the current family — stepping the whole
+  /// catalogue would be a walk of forty-odd scales, which is no use on stage.
   static const List<CcParamEntry> xen = [
     CcParamEntry(
       paramKey: 'bypass',
@@ -307,7 +310,7 @@ class CcParamRegistry {
     ),
     CcParamEntry(
       paramKey: 'next_scale',
-      displayName: 'Next Scale',
+      displayName: 'Next Scale (in family)',
       defaultMode: CcParamMode.cycle,
     ),
     CcParamEntry(

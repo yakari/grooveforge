@@ -3518,6 +3518,18 @@ abstract class AppLocalizations {
   /// **'Value to recall'**
   String get ccDirectValueLabel;
 
+  /// No description provided for @ccAssignAddValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Assign a value…'**
+  String get ccAssignAddValue;
+
+  /// No description provided for @ccAssignNoValues.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing assigned yet'**
+  String get ccAssignNoValues;
+
   /// No description provided for @ccActionPickerLabel.
   ///
   /// In en, this message translates to:

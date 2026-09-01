@@ -861,6 +861,8 @@
   "ccSlotPickerLabel": "Slot",
   "ccParamPickerLabel": "Parameter",
   "ccDirectValueLabel": "Value to recall",
+  "ccAssignAddValue": "Assign a value…",
+  "ccAssignNoValues": "Nothing assigned yet",
   "ccActionPickerLabel": "Action",
   "ccNoSlotsOfType": "No slots of this type in the rack.",
   "ccSwapInstrumentA": "Instrument A",
@@ -869,30 +871,24 @@
   "ccSwapNeedTwoSlots": "Need at least 2 instrument slots in the rack.",
   "ccSwapDisplayLabel": "Swap: {slotA} ↔ {slotB}",
   "@ccSwapDisplayLabel": {
-    "placeholders": {
-      "slotA": { "type": "String" },
-      "slotB": { "type": "String" }
-    }
+    "placeholders": {"slotA": {"type": "String"}, "slotB": {"type": "String"}}
   },
   "ccSwapCablesYes": "with cables",
   "ccSwapCablesNo": "channels only",
   "toastSwapped": "Swapped: {slotA} ↔ {slotB}",
   "@toastSwapped": {
-    "placeholders": {
-      "slotA": { "type": "String" },
-      "slotB": { "type": "String" }
-    }
+    "placeholders": {"slotA": {"type": "String"}, "slotB": {"type": "String"}}
   },
   "toastBypassOn": "{slotName} — bypassed",
   "@toastBypassOn": {
-    "placeholders": { "slotName": { "type": "String" } }
+    "placeholders": {"slotName": {"type": "String"}}
   },
   "toastBypassOff": "{slotName} — active",
   "@toastBypassOff": {
-    "placeholders": { "slotName": { "type": "String" } }
+    "placeholders": {"slotName": {"type": "String"}}
   },
   "toastSystemVolume": "System volume: {percent}%",
   "@toastSystemVolume": {
-    "placeholders": { "percent": { "type": "int" } }
+    "placeholders": {"percent": {"type": "int"}}
   }
 }
