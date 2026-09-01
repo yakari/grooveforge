@@ -98,6 +98,22 @@ enum GFScaleFamily {
   /// Scales from the Celtic instrumental traditions.
   celtic,
 
+  /// Equal divisions of the octave (or of another interval), harmonic-series
+  /// scales, and other constructed tunings that belong to no tradition.
+  ///
+  /// Most of these divide the octave into more than twelve steps, so they use
+  /// [GFScaleMapping.linear] and spread one octave across more than twelve
+  /// keys.
+  experimental,
+
+  /// Scales the player built or imported themselves.
+  ///
+  /// The only family whose members are not compile-time constants, and the
+  /// only one exempt from the catalogue's "a degree stays near its key"
+  /// invariant — pulling a key far from its nominal pitch is the whole point
+  /// of a hand-made scale.
+  custom,
+
   /// Full twelve-note tunings of the keyboard itself — just intonation,
   /// Pythagorean, meantone, well temperaments. Unlike the other families
   /// these define every key, so nothing is ever out of scale.
@@ -295,6 +311,66 @@ class GFScale {
   /// Non-negative modulo 12 — `%` on a negative int already behaves this way
   /// in Dart, but stating it once keeps the call sites readable.
   static int _wrap12(int v) => v % 12;
+
+  // ── Serialisation ──────────────────────────────────────────────────────────
+
+  /// Serialises this scale, for a custom scale stored in a project file or in
+  /// the user's scale library.
+  ///
+  /// Built-in scales are never serialised this way — a saved project only
+  /// stores their [id] and looks them up again — so the format only has to be
+  /// stable for user-made scales.
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'family': family.name,
+        'mapping': mapping.name,
+        'periodCents': periodCents,
+        'provenance': provenance,
+        'degrees': [
+          for (final d in degrees) {'semitone': d.semitone, 'cents': d.cents},
+        ],
+      };
+
+  /// Rebuilds a scale from [json], or returns null when the payload is
+  /// unusable.
+  ///
+  /// Returns null rather than throwing: a scale file may have been hand-edited
+  /// or written by a newer build, and the right response is to skip that one
+  /// scale, not to fail loading the project or the whole library.
+  static GFScale? fromJson(Map<String, dynamic> json) {
+    final id = json['id'];
+    final name = json['name'];
+    if (id is! String || id.isEmpty || name is! String) return null;
+
+    final rawDegrees = json['degrees'];
+    if (rawDegrees is! List || rawDegrees.isEmpty) return null;
+
+    final degrees = <GFScaleDegree>[];
+    for (final entry in rawDegrees) {
+      if (entry is! Map) return null;
+      final semitone = (entry['semitone'] as num?)?.toInt();
+      final cents = (entry['cents'] as num?)?.toDouble();
+      if (semitone == null || cents == null) return null;
+      degrees.add(GFScaleDegree(semitone, cents));
+    }
+
+    return GFScale(
+      id: id,
+      name: name,
+      family: GFScaleFamily.values.firstWhere(
+        (f) => f.name == json['family'],
+        orElse: () => GFScaleFamily.custom,
+      ),
+      mapping: GFScaleMapping.values.firstWhere(
+        (m) => m.name == json['mapping'],
+        orElse: () => GFScaleMapping.pitchClass,
+      ),
+      periodCents: (json['periodCents'] as num?)?.toDouble() ?? 1200.0,
+      provenance: json['provenance'] as String? ?? '',
+      degrees: degrees,
+    );
+  }
 
   @override
   String toString() => 'GFScale($id, ${degrees.length} degrees'

@@ -214,12 +214,21 @@ void main() {
       }
     });
 
-    test('no degree drifts a full semitone from the key it sits on', () {
-      // A deviation beyond ±50 cents means the degree was written on the
-      // wrong key: it would be closer to its neighbour, and the greyed-out
-      // keys on the piano would no longer match what the player hears.
+    test('no traditional degree drifts a full semitone from its key', () {
+      // For a scale that belongs to a tradition, a deviation beyond ±50 cents
+      // means the degree was written on the wrong key: it would be closer to
+      // its neighbour, and the greyed-out keys on the piano would no longer
+      // match what the player hears.
+      //
+      // The experimental family is deliberately exempt. Pulling a key far from
+      // its nominal pitch is the entire point there — the quarter-tone cluster
+      // drops one key a full semitone on purpose — so applying the check to it
+      // would be enforcing a rule that only makes sense for music that has a
+      // notation to be faithful to.
       for (final scale in GFScaleLibrary.all) {
         if (scale.mapping != GFScaleMapping.pitchClass) continue;
+        if (scale.family == GFScaleFamily.experimental) continue;
+        if (scale.family == GFScaleFamily.custom) continue;
         for (final degree in scale.degrees) {
           expect(degree.cents.abs(), lessThanOrEqualTo(50.0),
               reason: '${scale.id} degree ${degree.semitone} is mis-keyed');
@@ -233,8 +242,14 @@ void main() {
       }
     });
 
-    test('every family is represented', () {
+    test('every family is represented, except custom', () {
       for (final family in GFScaleFamily.values) {
+        if (family == GFScaleFamily.custom) {
+          // Custom scales are made by the player; the catalogue ships none,
+          // and shipping one would be a bug.
+          expect(GFScaleLibrary.byFamily(family), isEmpty);
+          continue;
+        }
         expect(GFScaleLibrary.byFamily(family), isNotEmpty,
             reason: '$family has no scales');
       }

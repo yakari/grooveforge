@@ -1450,6 +1450,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get xenFamilyTemperament => 'Temperaments';
 
   @override
+  String get xenFamilyExperimental => 'Experimental';
+
+  @override
+  String get xenFamilyCustom => 'My Scales';
+
+  @override
   String get xenScaleMajor => 'Major';
 
   @override

@@ -673,13 +673,150 @@ class GFScaleLibrary {
     ],
   );
 
+  // ═══ Experimental — constructed tunings ═══════════════════════════════════
+  //
+  // These belong to no tradition: they are the result of dividing an interval
+  // into equal parts, or of following the harmonic series. Most divide the
+  // octave into more than twelve steps, which no keyboard can spell — they use
+  // the linear layout, so one octave spans as many keys as the scale has
+  // degrees and the black/white pattern stops meaning anything.
+
+  /// Builds an equal division of [periodCents] into [steps] parts, laid out
+  /// one degree per key.
+  ///
+  /// Written as a factory rather than a literal because a 31-note table typed
+  /// out by hand is a table with a typo in it. Degree *i* sounds at
+  /// `i * periodCents / steps` while the keyboard writes it at `i * 100`, so
+  /// the deviation is the difference.
+  static GFScale _equalDivision({
+    required String id,
+    required String name,
+    required String provenance,
+    required int steps,
+    double periodCents = 1200.0,
+  }) {
+    final stepCents = periodCents / steps;
+    return GFScale(
+      id: id,
+      name: name,
+      family: GFScaleFamily.experimental,
+      provenance: provenance,
+      mapping: GFScaleMapping.linear,
+      periodCents: periodCents,
+      degrees: [
+        for (var i = 0; i < steps; i++)
+          GFScaleDegree(i, i * stepCents - i * 100.0),
+      ],
+    );
+  }
+
+  /// 24 equal divisions of the octave — quarter-tones.
+  ///
+  /// The system King Gizzard's refretted guitars play in: every equal-tempered
+  /// semitone is split in two. Two keyboard octaves cover one sounding octave.
+  static final quarterTone24Edo = _equalDivision(
+    id: 'edo24',
+    name: '24-EDO (quarter-tone)',
+    provenance: '24 equal divisions of the octave, 50 cents apart',
+    steps: 24,
+  );
+
+  /// 19 equal divisions of the octave.
+  ///
+  /// Close to quarter-comma meantone, with a distinct sharp and flat for every
+  /// accidental — C sharp and D flat are different notes.
+  static final edo19 = _equalDivision(
+    id: 'edo19',
+    name: '19-EDO',
+    provenance: '19 equal divisions of the octave, 63.16 cents apart',
+    steps: 19,
+  );
+
+  /// 31 equal divisions of the octave.
+  ///
+  /// Huygens' division: near-just major thirds and a usable harmonic seventh,
+  /// the classical answer to what meantone was approximating.
+  static final edo31 = _equalDivision(
+    id: 'edo31',
+    name: '31-EDO',
+    provenance: '31 equal divisions of the octave, 38.71 cents apart',
+    steps: 31,
+  );
+
+  /// Bohlen-Pierce — 13 equal divisions of the tritave (3:1), not the octave.
+  ///
+  /// The one scale in the catalogue with no octave at all: doubling a
+  /// frequency lands between two degrees. Built on odd harmonics, so it
+  /// consonates against odd-harmonic timbres (clarinets) and fights
+  /// everything else.
+  static final bohlenPierce = _equalDivision(
+    id: 'bohlenPierce',
+    name: 'Bohlen-Pierce',
+    provenance: '13 equal divisions of the 3:1 tritave — no octave',
+    steps: 13,
+    periodCents: 1901.955,
+  );
+
+  /// Harmonics 8 through 16 of the natural series.
+  ///
+  /// What a brass instrument plays without valves in its top register. Sounds
+  /// like a major scale with the fourth pulled sharp (harmonic 11) and the
+  /// seventh flat (harmonic 7's octave, harmonic 14).
+  static const harmonicSeries = GFScale(
+    id: 'harmonicSeries',
+    name: 'Harmonic Series 8-16',
+    family: GFScaleFamily.experimental,
+    provenance: 'Harmonics 8-16: 9/8, 5/4, 11/8, 3/2, 13/8, 7/4, 15/8',
+    degrees: [
+      GFScaleDegree(0),
+      GFScaleDegree(2, 3.910),    //  9/8  = 203.910
+      GFScaleDegree(4, -13.686),  //  5/4  = 386.314
+      GFScaleDegree(6, -48.682),  // 11/8  = 551.318
+      GFScaleDegree(7, 1.955),    //  3/2  = 701.955
+      GFScaleDegree(8, 40.528),   // 13/8  = 840.528
+      GFScaleDegree(10, -31.174), //  7/4  = 968.826
+      GFScaleDegree(11, -11.731), // 15/8  = 1088.269
+    ],
+  );
+
+  /// Four quarter-tone steps, then the rest of the octave untouched.
+  ///
+  /// A demonstration of what the pitch-class layout can do that a tradition
+  /// never asks for: the first four keys are compressed into a single
+  /// semitone's worth of pitch, leaving a wide gap before the fifth degree.
+  /// The third key is pulled a whole semitone below where it is written —
+  /// which is exactly why the catalogue's "a degree stays near its key" check
+  /// does not apply to this family.
+  static const quarterToneCluster = GFScale(
+    id: 'quarterToneCluster',
+    name: 'Quarter-tone Cluster',
+    family: GFScaleFamily.experimental,
+    provenance: 'Four keys at 0, 50, 100 and 150 cents, then the octave '
+        'resumes',
+    degrees: [
+      GFScaleDegree(0),
+      GFScaleDegree(1, -50.0),   // sounds 50
+      GFScaleDegree(2, -100.0),  // sounds 100
+      GFScaleDegree(3, -150.0),  // sounds 150
+      GFScaleDegree(4),
+      GFScaleDegree(5),
+      GFScaleDegree(7),
+      GFScaleDegree(9),
+      GFScaleDegree(11),
+    ],
+  );
+
   // ═══ Catalogue ════════════════════════════════════════════════════════════
 
   /// Every built-in scale, in the order the UI presents them.
   ///
   /// Grouped by family so the scale grid can be built by a single pass with
   /// a tab break wherever [GFScale.family] changes.
-  static const List<GFScale> all = [
+  ///
+  /// `final` rather than `const` because the equal divisions are generated by
+  /// [_equalDivision] — a 31-note table typed out by hand is a table with a
+  /// typo in it.
+  static final List<GFScale> all = [
     // Western
     major, naturalMinor, harmonicMinor, melodicMinor,
     majorPentatonic, minorPentatonic, blues, rock,
@@ -698,13 +835,57 @@ class GFScaleLibrary {
     slendro, pelog,
     // Temperaments
     justIntonation, pythagorean, meantone, werckmeisterIII,
+    // Experimental
+    quarterTone24Edo, edo19, edo31, bohlenPierce, harmonicSeries,
+    quarterToneCluster,
   ];
 
-  /// The scales of one [family], in catalogue order.
-  static List<GFScale> byFamily(GFScaleFamily family) =>
-      all.where((s) => s.family == family).toList(growable: false);
+  // ── Custom scales ─────────────────────────────────────────────────────────
+  //
+  // Player-made and imported scales live in a runtime registry rather than in
+  // [all], which stays a pure compile-time catalogue. Keeping one lookup point
+  // ([byId]) is what matters: a saved project names a scale by id and must not
+  // have to know whether it was shipped or hand-made.
 
-  /// Looks a scale up by its [GFScale.id], or returns null when unknown.
+  static final Map<String, GFScale> _custom = {};
+
+  /// Registers a custom scale, replacing any earlier one with the same id.
+  ///
+  /// Called both when the player's library is loaded and when a project brings
+  /// its own copy of a scale — a project is self-contained, so opening one on
+  /// a machine that has never seen that scale still plays it correctly.
+  static void registerCustom(GFScale scale) {
+    _custom[scale.id] = scale;
+  }
+
+  /// Forgets a custom scale. No-op for built-in ids.
+  static void unregisterCustom(String id) {
+    _custom.remove(id);
+  }
+
+  /// Drops every registered custom scale — for tests and project switches.
+  static void clearCustom() {
+    _custom.clear();
+  }
+
+  /// Every registered custom scale, in registration order.
+  static List<GFScale> get customScales =>
+      List<GFScale>.unmodifiable(_custom.values);
+
+  // ── Lookup ─────────────────────────────────────────────────────────────
+
+  /// The scales of one [family], in catalogue order.
+  ///
+  /// [GFScaleFamily.custom] returns the runtime registry instead of the
+  /// catalogue, so the module's scale grid can render every family the same
+  /// way without special-casing.
+  static List<GFScale> byFamily(GFScaleFamily family) {
+    if (family == GFScaleFamily.custom) return customScales;
+    return all.where((s) => s.family == family).toList(growable: false);
+  }
+
+  /// Looks a scale up by its [GFScale.id], built-in or custom, or returns null
+  /// when unknown.
   ///
   /// Returning null rather than throwing matters for project loading: a `.gf`
   /// file saved by a newer build may name a scale this build has never heard
@@ -714,7 +895,7 @@ class GFScaleLibrary {
     for (final scale in all) {
       if (scale.id == id) return scale;
     }
-    return null;
+    return _custom[id];
   }
 
   /// The default scale used when none is selected or a saved id is unknown.

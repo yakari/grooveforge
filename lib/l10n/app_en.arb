@@ -698,6 +698,8 @@
   "xenFamilyCeltic": "Celtic",
   "xenFamilyGamelan": "Gamelan",
   "xenFamilyTemperament": "Temperaments",
+  "xenFamilyExperimental": "Experimental",
+  "xenFamilyCustom": "My Scales",
   "xenScaleMajor": "Major",
   "xenScaleNaturalMinor": "Natural Minor",
   "xenScaleHarmonicMinor": "Harmonic Minor",

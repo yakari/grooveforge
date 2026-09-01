@@ -50,6 +50,7 @@ export 'src/dsp/gf_dsp_chorus.dart';
 // ── Scales and microtonal tuning ─────────────────────────────────────────────
 export 'src/tuning/gf_scale.dart';
 export 'src/tuning/gf_scale_library.dart';
+export 'src/tuning/gf_scala_file.dart';
 
 // ── MIDI node infrastructure ──────────────────────────────────────────────────
 export 'src/midi/gf_midi_node.dart';

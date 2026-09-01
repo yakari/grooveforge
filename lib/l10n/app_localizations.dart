@@ -2714,6 +2714,18 @@ abstract class AppLocalizations {
   /// **'Temperaments'**
   String get xenFamilyTemperament;
 
+  /// No description provided for @xenFamilyExperimental.
+  ///
+  /// In en, this message translates to:
+  /// **'Experimental'**
+  String get xenFamilyExperimental;
+
+  /// No description provided for @xenFamilyCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'My Scales'**
+  String get xenFamilyCustom;
+
   /// No description provided for @xenScaleMajor.
   ///
   /// In en, this message translates to:

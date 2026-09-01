@@ -1147,6 +1147,8 @@ String xenFamilyLabel(AppLocalizations l10n, GFScaleFamily family) {
     case GFScaleFamily.celtic: return l10n.xenFamilyCeltic;
     case GFScaleFamily.gamelan: return l10n.xenFamilyGamelan;
     case GFScaleFamily.temperament: return l10n.xenFamilyTemperament;
+    case GFScaleFamily.experimental: return l10n.xenFamilyExperimental;
+    case GFScaleFamily.custom: return l10n.xenFamilyCustom;
   }
 }
 

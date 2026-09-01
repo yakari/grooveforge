@@ -568,6 +568,8 @@
   "xenFamilyCeltic": "Celtique",
   "xenFamilyGamelan": "Gamelan",
   "xenFamilyTemperament": "Tempéraments",
+  "xenFamilyExperimental": "Expérimental",
+  "xenFamilyCustom": "Mes gammes",
   "xenScaleMajor": "Majeure",
   "xenScaleNaturalMinor": "Mineure naturelle",
   "xenScaleHarmonicMinor": "Mineure harmonique",
