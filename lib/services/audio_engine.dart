@@ -83,6 +83,44 @@ enum ScaleType {
 
 enum GestureAction { none, pitchBend, vibrato, glissando }
 
+/// What one Xen slot publishes about one MIDI channel it drives.
+///
+/// Carries the two halves of the module separately, because the player can
+/// patch them separately: a channel may be scale-locked without being
+/// retuned, retuned without being locked, or both.
+class XenChannelLock {
+  /// Keys the scale allows, or empty when nothing is constrained — the snap
+  /// stage is off, or the scale covers every key (a temperament, slendro).
+  final Set<int> allowedPitchClasses;
+
+  /// Cent deviation of each detuned pitch class, for the piano's markers.
+  /// Empty when the tune stage is off or the scale is equal-tempered.
+  final Map<int, double> centsByPitchClass;
+
+  /// Tonic of the scale, so the piano can mark it the way Jam Mode does.
+  final int rootPitchClass;
+
+  const XenChannelLock({
+    required this.allowedPitchClasses,
+    required this.centsByPitchClass,
+    required this.rootPitchClass,
+  });
+
+  @override
+  bool operator ==(Object other) =>
+      other is XenChannelLock &&
+      other.rootPitchClass == rootPitchClass &&
+      setEquals(other.allowedPitchClasses, allowedPitchClasses) &&
+      mapEquals(other.centsByPitchClass, centsByPitchClass);
+
+  @override
+  int get hashCode => Object.hash(
+        rootPitchClass,
+        Object.hashAllUnordered(allowedPitchClasses),
+        Object.hashAllUnordered(centsByPitchClass.keys),
+      );
+}
+
 /// Represents the current configuration and playback state for a single MIDI channel.
 ///
 /// Holds the selected soundfont, bank, and program, as well as real-time performance
@@ -534,17 +572,20 @@ class AudioEngine extends ChangeNotifier {
   /// applied in [playNote] independently of any global toggle.
   final ValueNotifier<List<GFpaJamEntry>> gfpaJamEntries = ValueNotifier([]);
 
-  /// Scale locks published by Xen slots: MIDI channel → allowed pitch classes.
+  /// What Xen slots publish about the channels they drive, keyed by MIDI
+  /// channel.
   ///
   /// Only a *result* is stored here, never the scale logic itself. Which keys
-  /// a maqam or a raga allows is decided once, by [GFScale], and read through
-  /// [GFXenPlugin] — the engine merely applies the pitch-class set it is
-  /// handed. Jam Mode's equivalent went the other way, with the scale interval
-  /// tables copied into this file and a comment asking future readers to keep
-  /// them in sync by hand; that duplication is exactly what this avoids.
+  /// a maqam or a raga allows, and by how many cents each is detuned, is
+  /// decided once by [GFScale] and read through [GFXenPlugin] — the engine
+  /// merely applies what it is handed. Jam Mode's equivalent went the other
+  /// way, with the scale interval tables copied into this file under a comment
+  /// asking future readers to keep the two copies in sync by hand; that
+  /// duplication is exactly what this avoids.
   ///
-  /// An empty map means no channel is Xen-locked.
-  final ValueNotifier<Map<int, Set<int>>> xenScaleLocks = ValueNotifier({});
+  /// An empty map means no channel is driven by a Xen slot.
+  final ValueNotifier<Map<int, XenChannelLock>> xenScaleLocks =
+      ValueNotifier({});
 
   /// User preference to display borders around scale-mapped key groups in Jam Mode.
   final ValueNotifier<bool> showJamModeBorders = ValueNotifier(true);
@@ -1470,7 +1511,10 @@ class AudioEngine extends ChangeNotifier {
   /// its root is latched by an explicit player gesture, so it is the most
   /// deliberate of the three and should not be overridden by a chord detector.
   int? _snapKeyToXen(int channel, int key) {
-    final allowed = xenScaleLocks.value[channel];
+    final lock = xenScaleLocks.value[channel];
+    final allowed = lock?.allowedPitchClasses;
+    // Empty rather than absent when the player has turned the snap stage off,
+    // or the scale is one that allows every key (a temperament, slendro).
     if (allowed == null || allowed.isEmpty) return null;
     return _snapKeyToPitchClasses(key, allowed);
   }
@@ -1852,7 +1896,7 @@ class AudioEngine extends ChangeNotifier {
   void _propagateXenScaleUpdate() {
     final locks = xenScaleLocks.value;
     for (var ch = 0; ch < 16; ch++) {
-      final allowed = locks[ch];
+      final allowed = locks[ch]?.allowedPitchClasses;
       if (allowed != null && allowed.isNotEmpty) {
         channels[ch].validPitchClasses.value = allowed;
       } else if (_lastXenLockedChannels.contains(ch)) {

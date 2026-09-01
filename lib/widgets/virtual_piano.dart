@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show mapEquals;
 import 'package:flutter/material.dart';
 import 'package:grooveforge/services/audio_engine.dart';
 
@@ -19,6 +20,7 @@ String _noteName(int note) {
 /// - Maps screen touches to MIDI notes accurately (black keys overlay white keys).
 /// - Supports expressive gestures: Y-axis (Vibrato/Pitchbend) and X-axis (Glissando).
 /// - Adapts to Jam Mode by snapping "wrong" keys to allowed [validPitchClasses].
+/// - Shows a Xen slot's microtonal detuning per key via [centsOffsets].
 /// - Auto-scrolls to ensure externally played notes remain visible.
 class VirtualPiano extends StatefulWidget {
   final Set<int> activeNotes;
@@ -35,6 +37,15 @@ class VirtualPiano extends StatefulWidget {
   final bool showJamModeBorders;
   final bool highlightWrongNotes;
 
+  /// Cent deviation of each retuned pitch class, from a Xen slot's tuning
+  /// table. Empty when nothing on this channel is microtonally retuned.
+  ///
+  /// Drawn as a tinted band and a signed number at the top of each affected
+  /// key. Without it a maqam looks exactly like the major scale it borrows its
+  /// keys from — the quarter-tones are audible but invisible, which is the
+  /// hardest kind of state to reason about while playing.
+  final Map<int, double> centsOffsets;
+
   const VirtualPiano({
     super.key,
     required this.activeNotes,
@@ -50,6 +61,7 @@ class VirtualPiano extends StatefulWidget {
     this.rootPitchClass,
     this.showJamModeBorders = true,
     this.highlightWrongNotes = true,
+    this.centsOffsets = const {},
   });
 
   @override
@@ -347,6 +359,7 @@ class _VirtualPianoState extends State<VirtualPiano> {
                           wrongNotes: wrong,
                           validPitchClasses: widget.validPitchClasses,
                           rootPitchClass: widget.rootPitchClass,
+                          centsOffsets: widget.centsOffsets,
                         ),
                       ),
                     ),
@@ -408,6 +421,7 @@ class _PianoKeysPainter extends CustomPainter {
   final Set<int> wrongNotes;
   final Set<int>? validPitchClasses;
   final int? rootPitchClass;
+  final Map<int, double> centsOffsets;
 
   const _PianoKeysPainter({
     required this.whiteKeys,
@@ -419,6 +433,7 @@ class _PianoKeysPainter extends CustomPainter {
     required this.wrongNotes,
     this.validPitchClasses,
     this.rootPitchClass,
+    this.centsOffsets = const {},
   });
 
   Color _wFill(int note) {
@@ -435,6 +450,64 @@ class _PianoKeysPainter extends CustomPainter {
     if (snappedNotes.contains(note)) return Color.alphaBlend(Colors.blueAccent.withValues(alpha: 0.8), base);
     if (wrongNotes.contains(note)) return Color.alphaBlend(Colors.redAccent.withValues(alpha: 0.8), base);
     return base;
+  }
+
+  /// Teal used for every microtonal marking — the same colour as the Xen
+  /// module's `tuningOut` jack and its panel accents, so one signal keeps one
+  /// colour across the whole app.
+  static const Color _kCentsColor = Color(0xFF00E5C0);
+
+  /// Draws the detuning marker on one key: a tinted band and, when the key is
+  /// wide enough to hold it, the signed cent value.
+  ///
+  /// The band carries the information on its own. The number is the detail,
+  /// and it is dropped rather than clipped on narrow keys — a truncated "-5"
+  /// where the truth is "-50" would be worse than no number at all.
+  ///
+  /// [top] is where the marker starts. Black keys are marked at their very
+  /// top; white keys are marked *below* the black keys' lower edge, because
+  /// the black layer is painted over the white one and would otherwise cover
+  /// half of every marker — E and B would survive it, C and F would not.
+  void _centsMark(
+    Canvas canvas,
+    int note,
+    double x,
+    double width,
+    double top, {
+    required bool onBlackKey,
+  }) {
+    final cents = centsOffsets[note % 12];
+    // Sub-cent deviations are inaudible; drawing them would only add noise.
+    if (cents == null || cents.abs() < 1.0) return;
+
+    final band = Paint()
+      ..style = PaintingStyle.fill
+      ..color = _kCentsColor.withValues(alpha: onBlackKey ? 0.9 : 0.8);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(x + 1.5, top, width - 3, 3),
+        const Radius.circular(1.5),
+      ),
+      band,
+    );
+
+    if (width < 17) return;
+    final rounded = cents.round();
+    final tp = TextPainter(
+      text: TextSpan(
+        text: rounded > 0 ? '+$rounded' : '$rounded',
+        style: TextStyle(
+          // Dark teal on a white key, bright teal on a black one — the band
+          // is the same colour on both, only the text has to invert.
+          color: onBlackKey ? _kCentsColor : const Color(0xFF006B5C),
+          fontSize: 8,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    if (tp.width > width - 3) return;
+    tp.paint(canvas, Offset(x + width / 2 - tp.width / 2, top + 5));
   }
 
   void _label(Canvas canvas, String text, Color color, double fontSize, double cx, double bottomY) {
@@ -472,6 +545,8 @@ class _PianoKeysPainter extends CustomPainter {
       );
       canvas.drawRRect(rr, fill);
       canvas.drawRRect(rr, whiteBorder);
+      _centsMark(canvas, note, x, wkw, keyHeight * 0.65 + 6,
+          onBlackKey: false);
       final isActive = snappedNotes.contains(note);
       final isRoot = rootPitchClass != null && note % 12 == rootPitchClass;
       if (isActive || isRoot) {
@@ -496,6 +571,7 @@ class _PianoKeysPainter extends CustomPainter {
       );
       canvas.drawRRect(rr, fill);
       canvas.drawRRect(rr, blackBorder);
+      _centsMark(canvas, note, x, bkw, 4, onBlackKey: true);
       final isActive = snappedNotes.contains(note);
       final isRoot = rootPitchClass != null && note % 12 == rootPitchClass;
       if (isActive || isRoot) {
@@ -514,7 +590,8 @@ class _PianoKeysPainter extends CustomPainter {
       old.wkw != wkw ||
       old.keyHeight != keyHeight ||
       old.validPitchClasses != validPitchClasses ||
-      old.rootPitchClass != rootPitchClass;
+      old.rootPitchClass != rootPitchClass ||
+      !mapEquals(old.centsOffsets, centsOffsets);
 }
 
 typedef TargetResolver = int Function(int note);

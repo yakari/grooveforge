@@ -1,9 +1,11 @@
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
 import '../models/audio_graph_connection.dart';
 import '../models/audio_port_id.dart';
 import '../models/gfpa_plugin_instance.dart';
+import '../models/plugin_instance.dart';
 import '../services/audio_graph.dart';
 import '../services/patch_drag_controller.dart';
 import '../services/rack_state.dart';
@@ -112,39 +114,9 @@ class PatchCableOverlayState extends State<PatchCableOverlay> {
 
   // ── Data cable derivation ───────────────────────────────────────────────────
 
-  /// Derives virtual data cables from the Jam Mode routing fields.
-  ///
-  /// These are NOT stored in [AudioGraph]; they mirror [GFpaPluginInstance]
-  /// `masterSlotId` / `targetSlotIds` and stay in sync with the Jam Mode
-  /// dropdowns.
-  List<_VirtualCable> _deriveDataCables() {
-    final cables = <_VirtualCable>[];
-    for (final plugin in widget.rack.plugins) {
-      if (plugin is! GFpaPluginInstance) continue;
-      if (plugin.pluginId != 'com.grooveforge.jammode') continue;
-
-      final masterId = plugin.masterSlotId;
-      if (masterId != null) {
-        cables.add(_VirtualCable(
-          id: '$masterId:chordOut>${plugin.id}:chordIn',
-          fromSlotId: masterId,
-          fromPort: AudioPortId.chordOut,
-          toSlotId: plugin.id,
-          toPort: AudioPortId.chordIn,
-        ));
-      }
-      for (final targetId in plugin.targetSlotIds) {
-        cables.add(_VirtualCable(
-          id: '${plugin.id}:scaleOut>$targetId:scaleIn',
-          fromSlotId: plugin.id,
-          fromPort: AudioPortId.scaleOut,
-          toSlotId: targetId,
-          toPort: AudioPortId.scaleIn,
-        ));
-      }
-    }
-    return cables;
-  }
+  /// Data cables for the current rack — see [deriveDataCables].
+  List<PatchDataCable> _deriveDataCables() =>
+      deriveDataCables(widget.rack.plugins);
 
   // ── Disconnect UI ───────────────────────────────────────────────────────────
 
@@ -196,10 +168,21 @@ class PatchCableOverlayState extends State<PatchCableOverlay> {
     final fromPortName = fromParts.last;
     final toSlotId = toParts.first;
 
+    final fromSlotId = fromParts.first;
+
+    // Jam Mode and Xen share the chord and scale jacks, and each mutation is a
+    // no-op on the other module's slots — so calling both is simpler and
+    // safer than re-deriving which module owns this slot.
     if (fromPortName == AudioPortId.chordOut.name) {
       widget.rack.setJamModeMaster(toSlotId, null);
+      widget.rack.setXenMaster(toSlotId, null);
     } else if (fromPortName == AudioPortId.scaleOut.name) {
-      widget.rack.removeJamModeTarget(fromParts.first, toSlotId);
+      widget.rack.removeJamModeTarget(fromSlotId, toSlotId);
+      widget.rack.removeXenTarget(fromSlotId, toSlotId);
+    } else if (fromPortName == AudioPortId.tuningOut.name) {
+      // Also returns the target channel to equal temperament — unpatching
+      // must undo the retune, not leave the synth detuned.
+      widget.rack.removeXenTuningTarget(fromSlotId, toSlotId);
     }
   }
 }
@@ -259,14 +242,14 @@ class _DragCableOverlayState extends State<DragCableOverlay> {
 
 /// Transient representation of a Jam Mode data cable derived from
 /// [RackState]'s `masterSlotId` / `targetSlotIds` fields.
-class _VirtualCable {
+class PatchDataCable {
   final String id;
   final String fromSlotId;
   final AudioPortId fromPort;
   final String toSlotId;
   final AudioPortId toPort;
 
-  const _VirtualCable({
+  const PatchDataCable({
     required this.id,
     required this.fromSlotId,
     required this.fromPort,
@@ -275,6 +258,78 @@ class _VirtualCable {
   });
 
   Color get color => fromPort.color;
+
+  /// Value equality, so [_CablePainter.shouldRepaint] can tell "the same
+  /// cables, freshly derived" from "the cables changed".
+  ///
+  /// Without it the derivation's new list identity made `shouldRepaint`
+  /// return true on every build, and since painting schedules a `setState` to
+  /// reposition the disconnect badges, the patch view repainted in a loop for
+  /// as long as it stayed open.
+  @override
+  bool operator ==(Object other) =>
+      other is PatchDataCable && other.id == id;
+
+  @override
+  int get hashCode => id.hashCode;
+}
+
+/// Derives the virtual data cables for [plugins].
+///
+/// Data cables are not stored in [AudioGraph]; they mirror the routing fields
+/// of the modules that own them — [GFpaPluginInstance.masterSlotId],
+/// `targetSlotIds` and `tuningTargetSlotIds` — so the patch view and the
+/// modules' own dropdowns can never disagree.
+///
+/// Top-level and public so the derivation can be tested directly: the failure
+/// mode it guards against is a module being silently left out, which draws
+/// nothing while the patch still works — the patch view denying a connection
+/// that is plainly in effect.
+List<PatchDataCable> deriveDataCables(List<PluginInstance> plugins) {
+  // Jam Mode and Xen both route through the chord and scale jacks.
+  const routingModules = {
+    'com.grooveforge.jammode',
+    'com.grooveforge.xen',
+  };
+
+  final cables = <PatchDataCable>[];
+  for (final plugin in plugins) {
+    if (plugin is! GFpaPluginInstance) continue;
+    if (!routingModules.contains(plugin.pluginId)) continue;
+
+    final masterId = plugin.masterSlotId;
+    if (masterId != null) {
+      cables.add(PatchDataCable(
+        id: '$masterId:chordOut>${plugin.id}:chordIn',
+        fromSlotId: masterId,
+        fromPort: AudioPortId.chordOut,
+        toSlotId: plugin.id,
+        toPort: AudioPortId.chordIn,
+      ));
+    }
+    for (final targetId in plugin.targetSlotIds) {
+      cables.add(PatchDataCable(
+        id: '${plugin.id}:scaleOut>$targetId:scaleIn',
+        fromSlotId: plugin.id,
+        fromPort: AudioPortId.scaleOut,
+        toSlotId: targetId,
+        toPort: AudioPortId.scaleIn,
+      ));
+    }
+    // Xen's second cable: the tuning table. Drawn separately from the scale
+    // cable because the two are patched independently — seeing which of the
+    // two is connected is the whole reason they are separate jacks.
+    for (final targetId in plugin.tuningTargetSlotIds) {
+      cables.add(PatchDataCable(
+        id: '${plugin.id}:tuningOut>$targetId:tuningIn',
+        fromSlotId: plugin.id,
+        fromPort: AudioPortId.tuningOut,
+        toSlotId: targetId,
+        toPort: AudioPortId.tuningIn,
+      ));
+    }
+  }
+  return cables;
 }
 
 // ── Bezier geometry helpers ───────────────────────────────────────────────────
@@ -322,7 +377,7 @@ Offset? _jackCenter(GlobalKey jackKey, RenderBox? overlayBox) {
 /// Draws all MIDI/Audio and Data cables as bezier curves with plug endpoints.
 class _CablePainter extends CustomPainter {
   final List<AudioGraphConnection> connections;
-  final List<_VirtualCable> dataCables;
+  final List<PatchDataCable> dataCables;
   final Map<String, GlobalKey> jackKeys;
   final RenderBox? Function() overlayBoxGetter;
   final void Function(Map<String, Offset>) onMidpointsComputed;
@@ -422,8 +477,8 @@ class _CablePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_CablePainter old) =>
-      old.connections != connections ||
-      old.dataCables != dataCables ||
+      !listEquals(old.connections, connections) ||
+      !listEquals(old.dataCables, dataCables) ||
       old.jackKeys != jackKeys;
 }
 

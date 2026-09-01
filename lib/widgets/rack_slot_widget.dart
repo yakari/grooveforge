@@ -672,6 +672,7 @@ class _RackSlotPiano extends StatelessWidget {
           engine.horizontalGestureAction,
           state.validPitchClasses,
           engine.gfpaJamEntries,
+          engine.xenScaleLocks,
           // Cross-channel notifiers removed: followers subscribe to exactly one
           // master-channel notifier inside _PianoBody (layer 2), and
           // non-followers skip straight to the activeNotes layer (layer 3).
@@ -691,11 +692,16 @@ class _RackSlotPiano extends StatelessWidget {
               .where((e) => e.followerCh == channelIndex)
               .firstOrNull;
 
+          // …or is driven by a Xen slot, which greys and annotates keys the
+          // same way but has no jam entry behind it.
+          final xenLock = engine.xenScaleLocks.value[channelIndex];
+
           return _PianoBody(
             engine: engine,
             channelIndex: channelIndex,
             plugin: plugin,
             gfpaEntry: gfpaEntry,
+            xenLock: xenLock,
             keysToShow: keysToShow,
             vAction: vAction,
             hAction: hAction,
@@ -728,6 +734,9 @@ class _PianoBody extends StatelessWidget {
   /// Jam follower entry for this channel, or null if not a follower.
   final GFpaJamEntry? gfpaEntry;
 
+  /// What a Xen slot publishes about this channel, or null when none does.
+  final XenChannelLock? xenLock;
+
   final int keysToShow;
   final GestureAction vAction;
   final GestureAction hAction;
@@ -743,12 +752,21 @@ class _PianoBody extends StatelessWidget {
     required this.channelIndex,
     required this.plugin,
     required this.gfpaEntry,
+    required this.xenLock,
     required this.keysToShow,
     required this.vAction,
     required this.hAction,
     required this.validPcs,
     required this.keyboardConfig,
   });
+
+  /// True when a Xen slot is constraining this channel's keys.
+  ///
+  /// A Xen slot patched only to `tuningOut` retunes without locking, and its
+  /// lock carries an empty pitch-class set — the keyboard must stay fully
+  /// chromatic in that case.
+  bool get _xenLocksScale =>
+      xenLock != null && xenLock!.allowedPitchClasses.isNotEmpty;
 
   @override
   Widget build(BuildContext context) {
@@ -811,8 +829,13 @@ class _PianoBody extends StatelessWidget {
       verticalAction: vAction,
       horizontalAction: hAction,
       keysToShow: keysToShow,
-      validPitchClasses: gfpaEntry != null ? validPcs : null,
-      rootPitchClass: rootPitchClass,
+      // A channel can be scale-locked by either module. Jam Mode publishes a
+      // follower entry; Xen publishes a channel lock — checking only the
+      // former would leave a Xen-locked keyboard with no greyed-out keys.
+      validPitchClasses:
+          (gfpaEntry != null || _xenLocksScale) ? validPcs : null,
+      rootPitchClass: rootPitchClass ?? xenLock?.rootPitchClass,
+      centsOffsets: xenLock?.centsByPitchClass ?? const {},
       showJamModeBorders: engine.showJamModeBorders.value,
       highlightWrongNotes: engine.highlightWrongNotes.value,
       onNotePressed: (note) => _onNotePressed(context, note),

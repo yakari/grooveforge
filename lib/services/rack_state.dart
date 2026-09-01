@@ -939,26 +939,54 @@ class RackState extends ChangeNotifier {
     return (ch < 0 || ch >= 16) ? null : ch;
   }
 
-  /// Publish every Xen slot's allowed pitch classes to the engine.
+  /// Publish what every Xen slot knows about the channels it drives.
   ///
-  /// The engine snaps and greys keys from this map; it never sees a scale.
+  /// The engine snaps, greys and annotates keys from this map; it never sees a
+  /// scale. A channel appears here if it is a scale-lock target, a retuning
+  /// target, or both — the two cables are patched independently, so a channel
+  /// can carry either half of the module on its own.
   void _syncXenLocksToEngine() {
-    final locks = <int, Set<int>>{};
+    final locks = <int, XenChannelLock>{};
     for (final entry in _xenPlugins.entries) {
       final instance = _findGfpaById(entry.key);
       if (instance == null) continue;
       if (instance.state['enabled'] == false) continue;
-      final allowed = entry.value.validPitchClasses;
-      if (allowed == null || allowed.isEmpty) continue;
-      for (final targetId in instance.targetSlotIds) {
-        final ch = _midiChannelForSlot(targetId);
-        if (ch == null) continue;
+      final plugin = entry.value;
+
+      final lockedChannels = _channelsForSlots(instance.targetSlotIds);
+      final tunedChannels = _channelsForSlots(instance.tuningTargetSlotIds);
+
+      for (final ch in {...lockedChannels, ...tunedChannels}) {
         // Two Xen slots on one channel would fight; the first wins, which is
         // at least stable. The patch view makes the double cable visible.
-        locks.putIfAbsent(ch, () => allowed);
+        locks.putIfAbsent(
+          ch,
+          () => XenChannelLock(
+            // Only a scale cable greys and snaps keys; only a tuning cable
+            // marks their detuning. A channel patched to one jack must not
+            // show the other's effect.
+            allowedPitchClasses: lockedChannels.contains(ch)
+                ? (plugin.validPitchClasses ?? const {})
+                : const {},
+            centsByPitchClass: tunedChannels.contains(ch)
+                ? plugin.centsByPitchClass
+                : const {},
+            rootPitchClass: plugin.rootPc,
+          ),
+        );
       }
     }
     _engine.xenScaleLocks.value = locks;
+  }
+
+  /// The MIDI channels behind a list of slot ids, skipping slots with none.
+  Set<int> _channelsForSlots(List<String> slotIds) {
+    final channels = <int>{};
+    for (final id in slotIds) {
+      final ch = _midiChannelForSlot(id);
+      if (ch != null) channels.add(ch);
+    }
+    return channels;
   }
 
   /// Name the slot a Xen module takes its tonic from (the `chordOut → chordIn`
@@ -1003,8 +1031,10 @@ class RackState extends ChangeNotifier {
     if (!plugin.tuningTargetSlotIds.contains(targetSlotId)) {
       plugin.tuningTargetSlotIds.add(targetSlotId);
     }
-    // Push the current table down the freshly patched cable.
+    // Push the current table down the freshly patched cable, and republish so
+    // the target's piano starts showing the cent markers.
     _applyXenTuning(id, _xenPlugins[id]?.tuningTable);
+    _syncXenLocksToEngine();
     notifyListeners();
     _notifyChanged();
   }
@@ -1018,6 +1048,7 @@ class RackState extends ChangeNotifier {
     // nothing on screen to explain why.
     final ch = _midiChannelForSlot(targetSlotId);
     if (ch != null) _engine.applyChannelTuning(ch, null);
+    _syncXenLocksToEngine();
     notifyListeners();
     _notifyChanged();
   }

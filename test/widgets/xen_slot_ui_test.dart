@@ -113,6 +113,21 @@ void main() {
         expect(find.text('Hold a note, then tap a scale'), findsOneWidget);
       });
     });
+
+    testWidgets('tapping the LCD explains the module', (tester) async {
+      await withXenPanel(tester, width: 1000, body: (rack) async {
+        // The LCD is the panel's only explanatory surface; if it stops
+        // opening, the module ships with an unreachable description.
+        // "Major" appears twice — on the LCD and on its grid button. The
+        // LCD's is the larger one.
+        await tester.tap(find.text('Major').first);
+        await tester.pumpAndSettle();
+        expect(find.textContaining('Hold a note, tap a scale'), findsOneWidget);
+
+        await tester.tap(find.text('Close'));
+        await tester.pumpAndSettle();
+      });
+    });
   });
 
   group('the two stages', () {

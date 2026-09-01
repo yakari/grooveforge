@@ -253,7 +253,15 @@ class _HeaderRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Expanded(child: _ScaleLcd(xen: xen, enabled: enabled, l10n: l10n)),
+        Expanded(
+          child: GestureDetector(
+            // Tapping the LCD explains the module, the way the Jam Mode LCD
+            // opens its scale menu — a tappable display is already the idiom
+            // on these panels, and it costs no room on a phone.
+            onTap: () => _showAbout(context, l10n),
+            child: _ScaleLcd(xen: xen, enabled: enabled, l10n: l10n),
+          ),
+        ),
         const SizedBox(width: 8),
         _StageToggle(
           label: l10n.xenSnap,
@@ -275,6 +283,32 @@ class _HeaderRow extends StatelessWidget {
       ],
     );
   }
+}
+
+/// Explains what the module does, reached by tapping the LCD.
+void _showAbout(BuildContext context, AppLocalizations l10n) {
+  showDialog<void>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      backgroundColor: const Color(0xFF1A1A1A),
+      title: Text(
+        l10n.rackAddXen,
+        style: const TextStyle(color: _kLcdAmber, fontWeight: FontWeight.w800),
+      ),
+      content: SingleChildScrollView(
+        child: Text(
+          l10n.xenAbout,
+          style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(),
+          child: Text(l10n.closeButton),
+        ),
+      ],
+    ),
+  );
 }
 
 /// Amber LCD naming the scale, its tonic, and whether it retunes anything.
