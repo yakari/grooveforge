@@ -4,6 +4,7 @@ import 'package:grooveforge_plugin_api/grooveforge_plugin_api.dart';
 import 'package:provider/provider.dart';
 
 import 'services/audio_engine.dart';
+import 'package:grooveforge/services/custom_scale_library.dart';
 import 'services/audio_graph.dart';
 import 'services/cc_mapping_service.dart';
 import 'services/drum_generator_engine.dart';
@@ -124,12 +125,17 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await _loadBundledGfdrumPatterns();
   await _loadBundledGfpdPlugins();
+  // The player's own scales, loaded before the first frame so a project that
+  // opens straight into a Xen slot finds its custom scale already registered.
+  final customScales = CustomScaleLibrary();
+  await customScales.load();
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider<LocaleProvider>(create: (_) => LocaleProvider()),
         Provider<CcMappingService>(create: (_) => CcMappingService()),
         Provider<MidiService>(create: (_) => MidiService()),
+        ChangeNotifierProvider<CustomScaleLibrary>.value(value: customScales),
         ChangeNotifierProvider<AudioEngine>(create: (_) => AudioEngine()),
         ChangeNotifierProvider<TransportEngine>(create: (_) => TransportEngine()),
         // AudioGraph must be registered before RackState so that RackState can

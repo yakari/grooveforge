@@ -32,8 +32,30 @@ class GFScaleDegree {
   /// tone. Zero means the degree is a plain equal-tempered key.
   final double cents;
 
+  /// Whether the snap stage may move a note onto this degree.
+  ///
+  /// An inactive ("muted") degree still sounds, and still carries its own
+  /// tuning — the key is playable and retuned. It is simply not a destination
+  /// the snap stage will pull a wrong note towards.
+  ///
+  /// This is what separates *muting* a degree from *removing* it: removing
+  /// leaves the key chromatic and out of the scale, while muting keeps its
+  /// colour available to the fingers and out of the way of the quantiser.
+  /// Adding a quarter-tone next to the flat fifth of a blues scale to lean on
+  /// during a solo — without having every nearby note snap onto it — is
+  /// exactly this distinction.
+  final bool active;
+
   /// Creates a degree on key [semitone], detuned by [cents] (default: none).
-  const GFScaleDegree(this.semitone, [this.cents = 0.0]);
+  const GFScaleDegree(this.semitone, [this.cents = 0.0, this.active = true]);
+
+  /// A copy of this degree with individual fields replaced.
+  GFScaleDegree copyWith({int? semitone, double? cents, bool? active}) =>
+      GFScaleDegree(
+        semitone ?? this.semitone,
+        cents ?? this.cents,
+        active ?? this.active,
+      );
 
   /// Absolute pitch of this degree above the root, in cents.
   ///
@@ -45,8 +67,9 @@ class GFScaleDegree {
   bool get isTempered => cents == 0.0;
 
   @override
-  String toString() =>
-      'GFScaleDegree($semitone${cents == 0 ? '' : ', ${cents.toStringAsFixed(1)}c'})';
+  String toString() => 'GFScaleDegree($semitone'
+      '${cents == 0 ? '' : ', ${cents.toStringAsFixed(1)}c'}'
+      '${active ? '' : ', muted'})';
 }
 
 /// How a [GFScale]'s degrees are laid out across the keyboard.
@@ -207,7 +230,14 @@ class GFScale {
   /// Holds for temperaments (all twelve degrees present) and for every linear
   /// scale (successive keys are successive degrees by construction).
   bool get coversEveryKey =>
-      mapping == GFScaleMapping.linear || degrees.length >= 12;
+      mapping == GFScaleMapping.linear || activeDegreeCount >= 12;
+
+  /// How many degrees the snap stage can land on.
+  int get activeDegreeCount => degrees.where((d) => d.active).length;
+
+  /// True when at least one degree is muted — playable and tuned, but not a
+  /// snap destination.
+  bool get hasMutedDegrees => degrees.any((d) => !d.active);
 
   // ── Snapping / display ─────────────────────────────────────────────────────
 
@@ -220,7 +250,12 @@ class GFScale {
   Set<int>? pitchClassesFor(int rootPc) {
     if (coversEveryKey) return null;
     final root = _wrap12(rootPc);
-    return degrees.map((d) => (root + d.semitone) % 12).toSet();
+    // Muted degrees are deliberately absent: the key stays playable and
+    // retuned, but the snap stage will not pull anything onto it.
+    return degrees
+        .where((d) => d.active)
+        .map((d) => (root + d.semitone) % 12)
+        .toSet();
   }
 
   /// Cent deviations keyed by pitch class, for drawing "↑12¢" style markers
@@ -328,7 +363,14 @@ class GFScale {
         'periodCents': periodCents,
         'provenance': provenance,
         'degrees': [
-          for (final d in degrees) {'semitone': d.semitone, 'cents': d.cents},
+          for (final d in degrees)
+            {
+              'semitone': d.semitone,
+              'cents': d.cents,
+              // Omitted when true so hand-written files stay readable and
+              // every pre-existing payload keeps meaning "active".
+              if (!d.active) 'active': false,
+            },
         ],
       };
 
@@ -352,7 +394,7 @@ class GFScale {
       final semitone = (entry['semitone'] as num?)?.toInt();
       final cents = (entry['cents'] as num?)?.toDouble();
       if (semitone == null || cents == null) return null;
-      degrees.add(GFScaleDegree(semitone, cents));
+      degrees.add(GFScaleDegree(semitone, cents, entry['active'] as bool? ?? true));
     }
 
     return GFScale(

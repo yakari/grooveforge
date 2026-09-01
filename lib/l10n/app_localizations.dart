@@ -2726,6 +2726,186 @@ abstract class AppLocalizations {
   /// **'My Scales'**
   String get xenFamilyCustom;
 
+  /// No description provided for @xenEditorTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Scale editor'**
+  String get xenEditorTitle;
+
+  /// No description provided for @xenEditorName.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get xenEditorName;
+
+  /// No description provided for @xenEditorLayout.
+  ///
+  /// In en, this message translates to:
+  /// **'Layout'**
+  String get xenEditorLayout;
+
+  /// No description provided for @xenEditorLayoutKeyboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Keyboard'**
+  String get xenEditorLayoutKeyboard;
+
+  /// No description provided for @xenEditorLayoutLinear.
+  ///
+  /// In en, this message translates to:
+  /// **'Linear'**
+  String get xenEditorLayoutLinear;
+
+  /// No description provided for @xenEditorLayoutKeyboardHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Each degree keeps its own key; the pattern repeats every octave.'**
+  String get xenEditorLayoutKeyboardHint;
+
+  /// No description provided for @xenEditorLayoutLinearHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Degrees take successive keys; one period spans {count} keys.'**
+  String xenEditorLayoutLinearHint(int count);
+
+  /// No description provided for @xenEditorPeriod.
+  ///
+  /// In en, this message translates to:
+  /// **'Period (cents)'**
+  String get xenEditorPeriod;
+
+  /// No description provided for @xenEditorKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Key'**
+  String get xenEditorKey;
+
+  /// No description provided for @xenEditorOffset.
+  ///
+  /// In en, this message translates to:
+  /// **'Offset'**
+  String get xenEditorOffset;
+
+  /// No description provided for @xenEditorSounds.
+  ///
+  /// In en, this message translates to:
+  /// **'sounds {cents}¢'**
+  String xenEditorSounds(String cents);
+
+  /// No description provided for @xenEditorAddDegree.
+  ///
+  /// In en, this message translates to:
+  /// **'Add degree'**
+  String get xenEditorAddDegree;
+
+  /// No description provided for @xenEditorRemoveDegree.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get xenEditorRemoveDegree;
+
+  /// No description provided for @xenEditorMute.
+  ///
+  /// In en, this message translates to:
+  /// **'Mute — playable and tuned, but the snap ignores it'**
+  String get xenEditorMute;
+
+  /// No description provided for @xenEditorSeed.
+  ///
+  /// In en, this message translates to:
+  /// **'Start from'**
+  String get xenEditorSeed;
+
+  /// No description provided for @xenEditorSeedNone.
+  ///
+  /// In en, this message translates to:
+  /// **'Empty'**
+  String get xenEditorSeedNone;
+
+  /// No description provided for @xenEditorSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get xenEditorSave;
+
+  /// No description provided for @xenEditorCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get xenEditorCancel;
+
+  /// No description provided for @xenEditorImport.
+  ///
+  /// In en, this message translates to:
+  /// **'Import'**
+  String get xenEditorImport;
+
+  /// No description provided for @xenEditorExport.
+  ///
+  /// In en, this message translates to:
+  /// **'Export'**
+  String get xenEditorExport;
+
+  /// No description provided for @xenEditorExportJson.
+  ///
+  /// In en, this message translates to:
+  /// **'GrooveForge scale (.json)'**
+  String get xenEditorExportJson;
+
+  /// No description provided for @xenEditorExportScala.
+  ///
+  /// In en, this message translates to:
+  /// **'Scala tuning (.scl)'**
+  String get xenEditorExportScala;
+
+  /// No description provided for @xenEditorDegreeCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} degrees, {active} active'**
+  String xenEditorDegreeCount(int count, int active);
+
+  /// No description provided for @xenEditorNoDegrees.
+  ///
+  /// In en, this message translates to:
+  /// **'No degrees yet — add one, or start from an existing scale.'**
+  String get xenEditorNoDegrees;
+
+  /// No description provided for @xenEditorDuplicateKeys.
+  ///
+  /// In en, this message translates to:
+  /// **'Two degrees share a key; the scale will use the linear layout.'**
+  String get xenEditorDuplicateKeys;
+
+  /// No description provided for @xenEditorImportFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not read that file: {reason}'**
+  String xenEditorImportFailed(String reason);
+
+  /// No description provided for @xenEditorImported.
+  ///
+  /// In en, this message translates to:
+  /// **'Imported “{name}”'**
+  String xenEditorImported(String name);
+
+  /// No description provided for @xenEditorExported.
+  ///
+  /// In en, this message translates to:
+  /// **'Exported to {path}'**
+  String xenEditorExported(String path);
+
+  /// No description provided for @xenEditorDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete scale'**
+  String get xenEditorDelete;
+
+  /// No description provided for @xenEditorUnnamed.
+  ///
+  /// In en, this message translates to:
+  /// **'Untitled scale'**
+  String get xenEditorUnnamed;
+
   /// No description provided for @xenScaleMajor.
   ///
   /// In en, this message translates to:

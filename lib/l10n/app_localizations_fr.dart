@@ -1469,6 +1469,112 @@ class AppLocalizationsFr extends AppLocalizations {
   String get xenFamilyCustom => 'Mes gammes';
 
   @override
+  String get xenEditorTitle => 'Éditeur de gamme';
+
+  @override
+  String get xenEditorName => 'Nom';
+
+  @override
+  String get xenEditorLayout => 'Disposition';
+
+  @override
+  String get xenEditorLayoutKeyboard => 'Clavier';
+
+  @override
+  String get xenEditorLayoutLinear => 'Linéaire';
+
+  @override
+  String get xenEditorLayoutKeyboardHint =>
+      'Chaque degré garde sa touche ; le motif se répète à chaque octave.';
+
+  @override
+  String xenEditorLayoutLinearHint(int count) {
+    return 'Les degrés occupent des touches successives ; une période couvre $count touches.';
+  }
+
+  @override
+  String get xenEditorPeriod => 'Période (cents)';
+
+  @override
+  String get xenEditorKey => 'Touche';
+
+  @override
+  String get xenEditorOffset => 'Écart';
+
+  @override
+  String xenEditorSounds(String cents) {
+    return 'sonne à $cents ¢';
+  }
+
+  @override
+  String get xenEditorAddDegree => 'Ajouter un degré';
+
+  @override
+  String get xenEditorRemoveDegree => 'Retirer';
+
+  @override
+  String get xenEditorMute =>
+      'Muter — jouable et accordé, mais le snap l\'ignore';
+
+  @override
+  String get xenEditorSeed => 'Partir de';
+
+  @override
+  String get xenEditorSeedNone => 'Vide';
+
+  @override
+  String get xenEditorSave => 'Enregistrer';
+
+  @override
+  String get xenEditorCancel => 'Annuler';
+
+  @override
+  String get xenEditorImport => 'Importer';
+
+  @override
+  String get xenEditorExport => 'Exporter';
+
+  @override
+  String get xenEditorExportJson => 'Gamme GrooveForge (.json)';
+
+  @override
+  String get xenEditorExportScala => 'Accordage Scala (.scl)';
+
+  @override
+  String xenEditorDegreeCount(int count, int active) {
+    return '$count degrés, $active actifs';
+  }
+
+  @override
+  String get xenEditorNoDegrees =>
+      'Aucun degré — ajoutez-en un, ou partez d\'une gamme existante.';
+
+  @override
+  String get xenEditorDuplicateKeys =>
+      'Deux degrés partagent une touche ; la gamme utilisera la disposition linéaire.';
+
+  @override
+  String xenEditorImportFailed(String reason) {
+    return 'Lecture impossible : $reason';
+  }
+
+  @override
+  String xenEditorImported(String name) {
+    return '« $name » importée';
+  }
+
+  @override
+  String xenEditorExported(String path) {
+    return 'Exporté vers $path';
+  }
+
+  @override
+  String get xenEditorDelete => 'Supprimer la gamme';
+
+  @override
+  String get xenEditorUnnamed => 'Gamme sans titre';
+
+  @override
   String get xenScaleMajor => 'Majeure';
 
   @override

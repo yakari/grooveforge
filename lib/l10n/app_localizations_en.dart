@@ -1456,6 +1456,112 @@ class AppLocalizationsEn extends AppLocalizations {
   String get xenFamilyCustom => 'My Scales';
 
   @override
+  String get xenEditorTitle => 'Scale editor';
+
+  @override
+  String get xenEditorName => 'Name';
+
+  @override
+  String get xenEditorLayout => 'Layout';
+
+  @override
+  String get xenEditorLayoutKeyboard => 'Keyboard';
+
+  @override
+  String get xenEditorLayoutLinear => 'Linear';
+
+  @override
+  String get xenEditorLayoutKeyboardHint =>
+      'Each degree keeps its own key; the pattern repeats every octave.';
+
+  @override
+  String xenEditorLayoutLinearHint(int count) {
+    return 'Degrees take successive keys; one period spans $count keys.';
+  }
+
+  @override
+  String get xenEditorPeriod => 'Period (cents)';
+
+  @override
+  String get xenEditorKey => 'Key';
+
+  @override
+  String get xenEditorOffset => 'Offset';
+
+  @override
+  String xenEditorSounds(String cents) {
+    return 'sounds $cents¢';
+  }
+
+  @override
+  String get xenEditorAddDegree => 'Add degree';
+
+  @override
+  String get xenEditorRemoveDegree => 'Remove';
+
+  @override
+  String get xenEditorMute =>
+      'Mute — playable and tuned, but the snap ignores it';
+
+  @override
+  String get xenEditorSeed => 'Start from';
+
+  @override
+  String get xenEditorSeedNone => 'Empty';
+
+  @override
+  String get xenEditorSave => 'Save';
+
+  @override
+  String get xenEditorCancel => 'Cancel';
+
+  @override
+  String get xenEditorImport => 'Import';
+
+  @override
+  String get xenEditorExport => 'Export';
+
+  @override
+  String get xenEditorExportJson => 'GrooveForge scale (.json)';
+
+  @override
+  String get xenEditorExportScala => 'Scala tuning (.scl)';
+
+  @override
+  String xenEditorDegreeCount(int count, int active) {
+    return '$count degrees, $active active';
+  }
+
+  @override
+  String get xenEditorNoDegrees =>
+      'No degrees yet — add one, or start from an existing scale.';
+
+  @override
+  String get xenEditorDuplicateKeys =>
+      'Two degrees share a key; the scale will use the linear layout.';
+
+  @override
+  String xenEditorImportFailed(String reason) {
+    return 'Could not read that file: $reason';
+  }
+
+  @override
+  String xenEditorImported(String name) {
+    return 'Imported “$name”';
+  }
+
+  @override
+  String xenEditorExported(String path) {
+    return 'Exported to $path';
+  }
+
+  @override
+  String get xenEditorDelete => 'Delete scale';
+
+  @override
+  String get xenEditorUnnamed => 'Untitled scale';
+
+  @override
   String get xenScaleMajor => 'Major';
 
   @override

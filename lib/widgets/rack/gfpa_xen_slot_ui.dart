@@ -8,7 +8,9 @@ import '../../models/gfpa_plugin_instance.dart';
 import '../../models/plugin_instance.dart';
 import '../../plugins/gf_xen_plugin.dart';
 import '../../services/audio_engine.dart';
+import '../../services/custom_scale_library.dart';
 import '../../services/rack_state.dart';
+import 'xen_scale_editor_dialog.dart';
 
 // ─── Design tokens ───────────────────────────────────────────────────────────
 //
@@ -134,6 +136,7 @@ class _GFpaXenSlotUIState extends State<GFpaXenSlotUI> {
               heldSources: _heldNoteSources(rack, engine),
               onFamily: (f) => setState(() => _family = f),
               onSelect: (id) => rack.selectXenScale(widget.plugin.id, id),
+              onEditScale: (scale) => _openEditor(context, rack, scale),
               l10n: l10n,
             ),
           ),
@@ -203,6 +206,28 @@ class _GFpaXenSlotUIState extends State<GFpaXenSlotUI> {
         ],
       ),
     );
+  }
+
+  /// Opens the scale editor, and selects whatever comes back.
+  ///
+  /// Passing null starts a new scale; passing an existing custom scale edits
+  /// it in place, keeping its id so any CC pad already bound to it still
+  /// points at the right thing.
+  Future<void> _openEditor(
+    BuildContext context,
+    RackState rack,
+    GFScale? scale,
+  ) async {
+    final library = context.read<CustomScaleLibrary>();
+    final saved = await showDialog<GFScale>(
+      context: context,
+      builder: (_) => XenScaleEditorDialog(library: library, initial: scale),
+    );
+    if (saved == null || !mounted) return;
+    rack.selectXenScale(widget.plugin.id, saved.id);
+    // Jump to the tab the new scale lives in, so it is visible straight away
+    // rather than filed away behind a tab the player has to go find.
+    setState(() => _family = saved.family);
   }
 
   /// The engine notifiers carrying the notes this module would latch from.
@@ -574,6 +599,7 @@ class _ScaleGrid extends StatelessWidget {
     required this.heldSources,
     required this.onFamily,
     required this.onSelect,
+    required this.onEditScale,
     required this.l10n,
   });
 
@@ -583,6 +609,10 @@ class _ScaleGrid extends StatelessWidget {
   final List<ValueListenable<Set<int>>> heldSources;
   final ValueChanged<GFScaleFamily> onFamily;
   final ValueChanged<String> onSelect;
+
+  /// Opens the editor. Null means "start a new scale".
+  final ValueChanged<GFScale?> onEditScale;
+
   final AppLocalizations l10n;
 
   @override
@@ -614,6 +644,7 @@ class _ScaleGrid extends StatelessWidget {
         Wrap(
           spacing: 4,
           runSpacing: 4,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             for (final scale in GFScaleLibrary.byFamily(family))
               _ScaleButton(
@@ -621,7 +652,20 @@ class _ScaleGrid extends StatelessWidget {
                 microtonal: scale.isMicrotonal,
                 selected: scale.id == xen.scale.id,
                 enabled: enabled,
+                // A custom scale is the player's own, so it is editable in
+                // place — long-press, the same gesture that edits elsewhere
+                // in the rack.
+                onLongPress: scale.family == GFScaleFamily.custom
+                    ? () => onEditScale(scale)
+                    : null,
                 onTap: () => onSelect(scale.id),
+              ),
+            // "New scale" lives in the custom tab, where its results appear.
+            if (family == GFScaleFamily.custom)
+              _NewScaleButton(
+                enabled: enabled,
+                onTap: () => onEditScale(null),
+                l10n: l10n,
               ),
           ],
         ),
@@ -693,6 +737,7 @@ class _ScaleButton extends StatelessWidget {
     required this.selected,
     required this.enabled,
     required this.onTap,
+    this.onLongPress,
   });
 
   final String label;
@@ -701,10 +746,14 @@ class _ScaleButton extends StatelessWidget {
   final bool enabled;
   final VoidCallback onTap;
 
+  /// Opens the editor for a player-made scale; null for built-ins.
+  final VoidCallback? onLongPress;
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: enabled ? onTap : null,
+      onLongPress: enabled ? onLongPress : null,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 120),
         padding: const EdgeInsets.fromLTRB(9, 6, 9, 5),
@@ -745,6 +794,51 @@ class _ScaleButton extends StatelessWidget {
                 color: microtonal && enabled
                     ? _kTuneColor.withValues(alpha: selected ? 0.95 : 0.5)
                     : Colors.transparent,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The button that opens an empty scale editor, shown in the custom tab.
+class _NewScaleButton extends StatelessWidget {
+  const _NewScaleButton({
+    required this.enabled,
+    required this.onTap,
+    required this.l10n,
+  });
+
+  final bool enabled;
+  final VoidCallback onTap;
+  final AppLocalizations l10n;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: enabled ? onTap : null,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(8, 6, 9, 5),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(3),
+          border: Border.all(
+            color: enabled ? _kSelected.withValues(alpha: 0.5) : Colors.white12,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.add,
+                size: 13, color: enabled ? _kSelected : Colors.white24),
+            const SizedBox(width: 3),
+            Text(
+              l10n.xenEditorTitle,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: enabled ? _kSelected : Colors.white24,
               ),
             ),
           ],

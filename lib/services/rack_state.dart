@@ -879,7 +879,14 @@ class RackState extends ChangeNotifier {
       // Restore whatever the project saved for this slot before the plugin
       // starts publishing — loadState pushes the tuning as its last step.
       final instance = _findGfpaById(id);
-      if (instance != null) plugin.loadState(instance.state);
+      if (instance != null) {
+        // A project carries its own copy of any custom scale it uses, so it
+        // plays correctly on a machine that has never seen that scale.
+        // Register it *before* loadState, or the id lookup would miss and the
+        // slot would silently fall back to the default scale.
+        _registerEmbeddedScale(instance);
+        plugin.loadState(instance.state);
+      }
       _xenPlugins[id] = plugin;
     }
 
@@ -1096,6 +1103,14 @@ class RackState extends ChangeNotifier {
     _persistXenState(id, plugin);
   }
 
+  /// Reads back the custom scale a project embedded in [instance], if any.
+  void _registerEmbeddedScale(GFpaPluginInstance instance) {
+    final embedded = instance.state['customScale'];
+    if (embedded is! Map) return;
+    final scale = GFScale.fromJson(Map<String, dynamic>.from(embedded));
+    if (scale != null) GFScaleLibrary.registerCustom(scale);
+  }
+
   /// Mirror a Xen plugin's state into its slot, re-sync, and autosave.
   void _persistXenState(String id, GFXenPlugin plugin) {
     final instance = _findGfpaById(id);
@@ -1103,6 +1118,14 @@ class RackState extends ChangeNotifier {
       // Keep any host-level keys (such as `enabled`) that the plugin does not
       // own — merging rather than replacing avoids a silent reset.
       instance.state = {...instance.state, ...plugin.getState()};
+      // Carry a full copy of a custom scale inside the project, so the `.gf`
+      // stays self-contained. Built-in scales only need their id: they ship
+      // with the app and embedding them would bloat every save.
+      if (plugin.scale.family == GFScaleFamily.custom) {
+        instance.state['customScale'] = plugin.scale.toJson();
+      } else {
+        instance.state.remove('customScale');
+      }
     }
     _syncXenLocksToEngine();
     notifyListeners();

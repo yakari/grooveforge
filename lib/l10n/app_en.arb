@@ -700,6 +700,55 @@
   "xenFamilyTemperament": "Temperaments",
   "xenFamilyExperimental": "Experimental",
   "xenFamilyCustom": "My Scales",
+
+  "xenEditorTitle": "Scale editor",
+  "xenEditorName": "Name",
+  "xenEditorLayout": "Layout",
+  "xenEditorLayoutKeyboard": "Keyboard",
+  "xenEditorLayoutLinear": "Linear",
+  "xenEditorLayoutKeyboardHint": "Each degree keeps its own key; the pattern repeats every octave.",
+  "xenEditorLayoutLinearHint": "Degrees take successive keys; one period spans {count} keys.",
+  "@xenEditorLayoutLinearHint": {
+    "placeholders": {"count": {"type": "int"}}
+  },
+  "xenEditorPeriod": "Period (cents)",
+  "xenEditorKey": "Key",
+  "xenEditorOffset": "Offset",
+  "xenEditorSounds": "sounds {cents}¢",
+  "@xenEditorSounds": {
+    "placeholders": {"cents": {"type": "String"}}
+  },
+  "xenEditorAddDegree": "Add degree",
+  "xenEditorRemoveDegree": "Remove",
+  "xenEditorMute": "Mute — playable and tuned, but the snap ignores it",
+  "xenEditorSeed": "Start from",
+  "xenEditorSeedNone": "Empty",
+  "xenEditorSave": "Save",
+  "xenEditorCancel": "Cancel",
+  "xenEditorImport": "Import",
+  "xenEditorExport": "Export",
+  "xenEditorExportJson": "GrooveForge scale (.json)",
+  "xenEditorExportScala": "Scala tuning (.scl)",
+  "xenEditorDegreeCount": "{count} degrees, {active} active",
+  "@xenEditorDegreeCount": {
+    "placeholders": {"count": {"type": "int"}, "active": {"type": "int"}}
+  },
+  "xenEditorNoDegrees": "No degrees yet — add one, or start from an existing scale.",
+  "xenEditorDuplicateKeys": "Two degrees share a key; the scale will use the linear layout.",
+  "xenEditorImportFailed": "Could not read that file: {reason}",
+  "@xenEditorImportFailed": {
+    "placeholders": {"reason": {"type": "String"}}
+  },
+  "xenEditorImported": "Imported “{name}”",
+  "@xenEditorImported": {
+    "placeholders": {"name": {"type": "String"}}
+  },
+  "xenEditorExported": "Exported to {path}",
+  "@xenEditorExported": {
+    "placeholders": {"path": {"type": "String"}}
+  },
+  "xenEditorDelete": "Delete scale",
+  "xenEditorUnnamed": "Untitled scale",
   "xenScaleMajor": "Major",
   "xenScaleNaturalMinor": "Natural Minor",
   "xenScaleHarmonicMinor": "Harmonic Minor",

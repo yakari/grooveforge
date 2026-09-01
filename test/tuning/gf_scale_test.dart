@@ -173,6 +173,120 @@ void main() {
     });
   });
 
+  group('muted degrees', () {
+    // A muted degree sounds and is retuned, but the snap stage ignores it.
+    // The blues case the feature exists for: add a quarter-tone next to the
+    // flat fifth to lean on during a solo, without every nearby note being
+    // dragged onto it.
+    const bluesWithColour = GFScale(
+      id: 'test-blues-colour',
+      name: 'Blues + colour tone',
+      family: GFScaleFamily.custom,
+      provenance: 'test',
+      degrees: [
+        GFScaleDegree(0),
+        GFScaleDegree(3),
+        GFScaleDegree(5),
+        GFScaleDegree(6, -50.0, false), // quarter-flat fifth, muted
+        GFScaleDegree(7),
+        GFScaleDegree(10),
+      ],
+    );
+
+    test('a muted degree is not a snap destination', () {
+      final allowed = bluesWithColour.pitchClassesFor(0)!;
+      expect(allowed, {0, 3, 5, 7, 10});
+      expect(allowed, isNot(contains(6)),
+          reason: 'the coloured key must not attract nearby notes');
+    });
+
+    test('a muted degree is still retuned', () {
+      // The whole point: the key stays playable at its own pitch.
+      final table = bluesWithColour.tuningOffsetsFor(0);
+      expect(table[66], -50.0);
+      expect(table[54], -50.0, reason: 'in every octave');
+    });
+
+    test('a muted degree is still marked on the piano', () {
+      expect(bluesWithColour.centsByPitchClassFor(0), {6: -50.0});
+    });
+
+    test('muting differs from removing', () {
+      // Removing the degree leaves the key chromatic; muting leaves it tuned.
+      const removed = GFScale(
+        id: 'test-blues-plain',
+        name: 'Blues',
+        family: GFScaleFamily.custom,
+        provenance: 'test',
+        degrees: [
+          GFScaleDegree(0),
+          GFScaleDegree(3),
+          GFScaleDegree(5),
+          GFScaleDegree(7),
+          GFScaleDegree(10),
+        ],
+      );
+      expect(removed.pitchClassesFor(0), bluesWithColour.pitchClassesFor(0),
+          reason: 'neither is a snap destination');
+      expect(removed.tuningOffsetsFor(0)[66], 0.0);
+      expect(bluesWithColour.tuningOffsetsFor(0)[66], -50.0);
+    });
+
+    test('counts report active degrees, not rows', () {
+      expect(bluesWithColour.degreeCount, 6);
+      expect(bluesWithColour.activeDegreeCount, 5);
+      expect(bluesWithColour.hasMutedDegrees, isTrue);
+      expect(GFScaleLibrary.major.hasMutedDegrees, isFalse);
+    });
+
+    test('muting cannot silently make a scale unconstrained', () {
+      // coversEveryKey counts active degrees: a twelve-row scale with three
+      // muted rows still constrains the keyboard.
+      const twelveRowsThreeMuted = GFScale(
+        id: 'test-twelve',
+        name: 'Twelve rows',
+        family: GFScaleFamily.custom,
+        provenance: 'test',
+        degrees: [
+          GFScaleDegree(0), GFScaleDegree(1), GFScaleDegree(2),
+          GFScaleDegree(3), GFScaleDegree(4), GFScaleDegree(5),
+          GFScaleDegree(6), GFScaleDegree(7), GFScaleDegree(8),
+          GFScaleDegree(9, 0.0, false),
+          GFScaleDegree(10, 0.0, false),
+          GFScaleDegree(11, 0.0, false),
+        ],
+      );
+      expect(twelveRowsThreeMuted.coversEveryKey, isFalse);
+      expect(twelveRowsThreeMuted.pitchClassesFor(0), hasLength(9));
+    });
+
+    test('the flag round-trips through JSON', () {
+      final restored = GFScale.fromJson(bluesWithColour.toJson())!;
+      expect(restored.degrees[3].active, isFalse);
+      expect(restored.degrees[0].active, isTrue);
+      expect(restored.pitchClassesFor(0), bluesWithColour.pitchClassesFor(0));
+    });
+
+    test('a payload without the flag reads as active', () {
+      // Every scale saved before muting existed must keep working.
+      final restored = GFScale.fromJson({
+        'id': 'legacy',
+        'name': 'Legacy',
+        'degrees': [
+          {'semitone': 0, 'cents': 0.0},
+          {'semitone': 7, 'cents': 0.0},
+        ],
+      })!;
+      expect(restored.degrees.every((d) => d.active), isTrue);
+    });
+
+    test('built-in scales have every degree active', () {
+      for (final scale in GFScaleLibrary.all) {
+        expect(scale.hasMutedDegrees, isFalse, reason: scale.id);
+      }
+    });
+  });
+
   group('catalogue integrity', () {
     test('ids are unique', () {
       final ids = GFScaleLibrary.all.map((s) => s.id).toList();
