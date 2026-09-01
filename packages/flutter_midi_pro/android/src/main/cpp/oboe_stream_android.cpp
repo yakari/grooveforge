@@ -12,7 +12,9 @@
 //        busSlotId as the chain key.  This ensures an effect wired to the
 //        Theremin cannot bleed into Keyboard or Vocoder audio.
 //     3. All per-source outputs are summed into shared mix buffers.
-//     4. The non-interleaved L/R mix is interleaved into AAudio's output buffer.
+//     4. The non-interleaved L/R mix is interleaved into AAudio's output buffer,
+//        with an inaudible keep-alive offset so the stream is never digitally
+//        silent (see kKeepAliveAmplitude).
 //
 // Thread safety:
 //   The source list (g_sources, g_sourceCount) is guarded by g_sourcesMtx.
@@ -67,6 +69,39 @@ static constexpr int kMaxSources = 8;
 /// callback never allocates on the heap.
 /// 4096 frames @ 48 kHz ≈ 85 ms; actual Oboe bursts are typically 96–256.
 static constexpr int kMaxFrames = 4096;
+
+/// Amplitude of the keep-alive signal that rides along with the output mix,
+/// as a linear gain (-50 dBFS).
+///
+/// Why it exists: USB-C DAC dongles routinely power their headphone amp down
+/// after about a second of *digitally silent* input, and bring it back with a
+/// soft-start anti-pop ramp. The audible result is that a note played after a
+/// pause arrives without its attack. GrooveForge walked into this because the
+/// stream stays open and simply writes zeros between notes, which is precisely
+/// the pattern those chips watch for. The phone's own speaker has no such
+/// logic and neither does the Linux backend, which is why the symptom only
+/// ever showed up through a dongle.
+///
+/// Why this waveform and this level -- both established by measurement on a
+/// Galaxy Z Fold 6 with a USB-C-to-jack dongle, not by guesswork:
+///
+///   - The detector reads the incoming samples, not the analogue output. So all
+///     of the energy is placed at Nyquist (24 kHz at 48 kHz): full scale as far
+///     as the detector is concerned, outside the audible band, and crushed
+///     further by the DAC's reconstruction filter. Confirmed inaudible.
+///
+///   - It is a level threshold, not a zero-detector. Broadband noise woke the
+///     dongle at -40 dBFS and failed at -90 dBFS; a Nyquist square at -90 dBFS
+///     failed too, which is what ruled the level in and the waveform out as the
+///     reason. -50 dBFS clears the threshold with 40 dB of margin, which gives
+///     it a fair chance on dongles with a higher threshold. If one is ever
+///     found that still sleeps through this, raising this constant is the knob
+///     to turn -- there is a lot of headroom before anything becomes audible.
+///
+/// Added only to AAudio's output buffer, never to g_mixL/g_mixR: the audio
+/// looper records from g_srcCaptureL/R upstream of this, so recordings stay
+/// bit-identical.
+static constexpr float kKeepAliveAmplitude = 3.1622777e-03f;
 
 // ── Audio source registry ─────────────────────────────────────────────────────
 
@@ -179,6 +214,11 @@ static AAudioStream* g_stream = nullptr;
 // Not accessed from the audio callback, so a plain int is sufficient.
 
 static int g_outputDeviceId = 0;
+
+/// Sign of the keep-alive sample, flipped every frame so the signal is a
+/// Nyquist-rate square wave: DC-free, and above the audible band at any
+/// supported sample rate. Audio-thread only, so a plain int is sufficient.
+static int g_keepAliveSign = 1;
 
 // ── FluidSynth render trampoline ──────────────────────────────────────────────
 
@@ -342,9 +382,16 @@ static aaudio_data_callback_result_t audioCallback(
     // ── 4. Interleave non-interleaved L/R into AAudio's stereo buffer ─────
     //
     // AAudio expects interleaved samples: [L0, R0, L1, R1, …]
+    //
+    // The keep-alive offset is added here, on the way out, so that the stream
+    // is never digitally silent -- see kKeepAliveAmplitude for why.
     for (int i = 0; i < frames; ++i) {
-        output[i * 2]     = g_mixL[i];
-        output[i * 2 + 1] = g_mixR[i];
+        g_keepAliveSign = -g_keepAliveSign;
+        const float keepAlive =
+                kKeepAliveAmplitude * static_cast<float>(g_keepAliveSign);
+
+        output[i * 2]     = g_mixL[i] + keepAlive;
+        output[i * 2 + 1] = g_mixR[i] + keepAlive;
     }
 
     // Silence any frames beyond the kMaxFrames cap (should never happen in practice).
