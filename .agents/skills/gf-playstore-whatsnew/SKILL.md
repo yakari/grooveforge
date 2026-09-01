@@ -7,7 +7,7 @@ allowed-tools: Read
 
 ## Purpose
 
-Produce a **Play Store Console "What's new"** text, in **English and French**, summarizing the most important user-facing changes from one or more recent GrooveForge versions. Each language block is capped at **500 characters** (Google Play's hard limit) and each bullet sits on its own line, prefixed with a lively emoji.
+Produce a **Play Store Console "What's new"** text, in **English and French**, summarizing the most important user-facing changes from one or more recent GrooveForge versions. Each language block is capped at **500 characters** (Google Play's hard limit) and each bullet sits on its own line.
 
 This skill is read-only — it never edits files. Its only output is the two text blocks for the user to paste into the Play Console.
 
@@ -54,19 +54,8 @@ The raw changelog bullets are too long and too technical for a 500-char store li
 
 ### Writing rules
 - **One bullet per line.** No wrapping, no sub-bullets.
-- **Start each line with a single emoji** that matches the item's vibe. Examples:
-  - 🎹 new instrument / synth
-  - 🎚️ new effect / mixer feature
-  - 🎤 vocals / mic / vocoder / harmonizer
-  - 🔁 looper / sequencer / transport
-  - 🎛️ VST3 / plugin / routing
-  - 🎵 MIDI / notes / scale
-  - ⚡ performance / latency
-  - 🐛 bug fix
-  - ✨ polish / UX
-  - 📱 mobile-specific
-  - 🔊 audio engine
-  Pick what fits; don't reuse the same emoji twice in a row if you can avoid it.
+- **No emojis.** Yann's standing preference: they read as AI-generated output. Lines carry no marker at all — the Play Console does not render markdown, so a leading `-` or `*` would show up literally. `•` is acceptable if the user asks for a visible bullet.
+- **Lead with the thing itself.** With no emoji to set the tone, the first two or three words have to do that work: name the feature or the benefit, not the category.
 - **Short, punchy, benefit-first.** "Sing live four-voice harmonies with the new Harmonizer effect" beats "Added Audio Harmonizer effect with four pitch-shifted voices".
 - **No version numbers, no dates, no platform tags** in the copy itself (the Play Store already shows the version).
 - **No markdown.** Plain text only — the Play Console does not render markdown.
@@ -75,7 +64,7 @@ The raw changelog bullets are too long and too technical for a 500-char store li
 
 ## Step 4 — Enforce the 500-character limit
 
-Count characters **including emojis, spaces, and newlines** for each language block independently. The hard cap is **500**. If either block is over:
+Count characters **including spaces and newlines** for each language block independently. Count in UTF-16 code units, which is the most conservative reading of Google's limit. The hard cap is **500**. If either block is over:
 
 1. Drop the lowest-priority bullet (fixes before features).
 2. If still over, tighten wording on the remaining bullets.
@@ -106,16 +95,20 @@ Present the result like this, and nothing else:
 ```
 ## English (NNN / 500 chars)
 
-🎤 <line 1>
-🔁 <line 2>
+<line 1>
+<line 2>
 …
 
 ## Français (NNN / 500 chars)
 
-🎤 <ligne 1>
-🔁 <ligne 2>
+<ligne 1>
+<ligne 2>
 …
 ```
+
+Print both blocks **inside a fenced code block**. Their line breaks are the format: rendered as ordinary markdown, a terminal or chat client collapses single newlines and runs every bullet into one paragraph, which makes the result impossible to check against the 500-character budget or to paste.
+
+If the user supplied a template (for instance `<en-US>` / `<fr-FR>` tags), use theirs instead of the headings above — still inside a code block.
 
 No preamble, no trailing commentary, no "let me know if you want changes" — the user will ask if they want a revision.
 
@@ -125,4 +118,4 @@ No preamble, no trailing commentary, no "let me know if you want changes" — th
 
 - **Never invent features.** Every bullet must trace back to a real changelog entry in the selected range.
 - **If the range is empty** (no released version blocks match), stop and tell the user — do not fabricate release notes from the `[X.x.x]` placeholder.
-- **If the range contains only fixes**, that's fine — write a fix-only "What's new" with 🐛 / ⚡ / ✨ leading each line.
+- **If the range contains only fixes**, that's fine — write a fix-only "What's new".
