@@ -63,20 +63,36 @@ elseif (WIN32)
     target_compile_definitions(audio_input PRIVATE NOMINMAX)
 endif()
 
-# Offline smoke test for the phase vocoder. Host-side only (not included
-# in any platform build). Uses miniaudio's built-in WAV encoder.
+# ── Offline smoke tests ───────────────────────────────────────────────────────
+#
+# Developer tools, not part of the app. EXCLUDE_FROM_ALL keeps them out of the
+# default build, so `flutter build` on any platform ignores them entirely and
+# only `scripts/run_smoke_tests.sh` — which builds them by name — pays for
+# them. Without it they were compiled into every desktop release build, which
+# cost CI time and meant a mistake in a test-only target could break a
+# platform build.
+
+# Phase vocoder time-stretching. Uses miniaudio's built-in WAV encoder.
 if (NOT ANDROID AND NOT IOS)
-    add_executable(gf_pv_smoke_test gf_pv_smoke_test.c gf_phase_vocoder.c)
+    add_executable(gf_pv_smoke_test EXCLUDE_FROM_ALL
+        gf_pv_smoke_test.c gf_phase_vocoder.c)
     if (UNIX)
         target_link_libraries(gf_pv_smoke_test PRIVATE m ${CMAKE_DL_LIBS})
     endif()
 endif()
 
-# Offline smoke test for microtonal key tuning. Host-side only. Renders real
-# FluidSynth output and measures the resulting pitch, so it needs the same
-# FluidSynth the app links against — skipped when none was found.
+# Microtonal key tuning. Renders real FluidSynth output and measures the
+# resulting pitch, so it needs the same FluidSynth the app links against —
+# skipped when none was found.
 if (NOT ANDROID AND NOT IOS AND FLUIDSYNTH_LIB)
-    add_executable(gf_tuning_smoke_test gf_tuning_smoke_test.c keyboard_synth.c)
+    add_executable(gf_tuning_smoke_test EXCLUDE_FROM_ALL
+        gf_tuning_smoke_test.c keyboard_synth.c)
     target_include_directories(gf_tuning_smoke_test PRIVATE ${FLUIDSYNTH_INCLUDE_DIR})
-    target_link_libraries(gf_tuning_smoke_test PRIVATE ${FLUIDSYNTH_LIB} m)
+    target_link_libraries(gf_tuning_smoke_test PRIVATE ${FLUIDSYNTH_LIB})
+    # libm is a separate library only on Unix; on MSVC the math functions live
+    # in the CRT and asking for "m" makes the linker look for a nonexistent
+    # m.lib.
+    if (UNIX)
+        target_link_libraries(gf_tuning_smoke_test PRIVATE m)
+    endif()
 endif()
