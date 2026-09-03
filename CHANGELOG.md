@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Default rack: one keyboard driven by a Xen module, replacing the two-keyboard Jam Mode setup. Jam Mode stays available; existing projects are untouched.
 - User guide: added a Xen section and the teal tuning jacks, dropped the dual-keyboard recommendation.
+- Xen panel: family tabs are underlined labels instead of buttons, and the family and tonic rows wrap instead of scrolling off screen on a phone.
 
 ### Fixed
 - Xen's on/off button and its bypass CC had no effect.

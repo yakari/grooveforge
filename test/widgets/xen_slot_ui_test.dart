@@ -88,7 +88,7 @@ void main() {
         expect(rack.xenPluginFor('slot-xen')!.scale.id, 'major');
 
         // Cross to the Maqam family and pick Rast — the headline case.
-        await tester.tap(find.text('Maqam'));
+        await tester.tap(find.text('MAQAM'));
         await tester.pumpAndSettle();
         await tester.tap(find.text('Rast'));
         await tester.pumpAndSettle();
@@ -178,13 +178,15 @@ void main() {
   group('every family is browsable', () {
     testWidgets('each tab lists its scales', (tester) async {
       await withXenPanel(tester, width: 1280, body: (rack) async {
+        // Tab labels are uppercased so a family reads as a category rather
+        // than as one more scale chip.
         for (final tab in const [
-          ('Maqam', 'Rast'),
-          ('Raga', 'Yaman'),
-          ('Far East', 'Hirajoshi'),
-          ('Celtic', 'Highland Pipe'),
-          ('Gamelan', 'Slendro'),
-          ('Temperaments', 'Pythagorean'),
+          ('MAQAM', 'Rast'),
+          ('RAGA', 'Yaman'),
+          ('FAR EAST', 'Hirajoshi'),
+          ('CELTIC', 'Highland Pipe'),
+          ('GAMELAN', 'Slendro'),
+          ('TEMPERAMENTS', 'Pythagorean'),
         ]) {
           await tester.tap(find.text(tab.$1));
           await tester.pumpAndSettle();

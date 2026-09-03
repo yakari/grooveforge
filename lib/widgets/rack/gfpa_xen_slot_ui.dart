@@ -97,9 +97,10 @@ class _GFpaXenSlotUIState extends State<GFpaXenSlotUI> {
 
     final enabled = _isActive(rack);
 
-    final slots = rack.plugins
-        .where((p) => p.midiChannel > 0 && p.id != widget.plugin.id)
-        .toList();
+    final slots =
+        rack.plugins
+            .where((p) => p.midiChannel > 0 && p.id != widget.plugin.id)
+            .toList();
 
     return Container(
       margin: const EdgeInsets.fromLTRB(8, 4, 8, 8),
@@ -116,16 +117,18 @@ class _GFpaXenSlotUIState extends State<GFpaXenSlotUI> {
             child: _HeaderRow(
               xen: xen,
               enabled: enabled,
-              onToggleEnabled: () =>
-                  rack.setXenEnabled(widget.plugin.id, enabled: !enabled),
-              onToggleSnap: () => rack.setXenSnapEnabled(
-                widget.plugin.id,
-                enabled: !xen.snapEnabled,
-              ),
-              onToggleTune: () => rack.setXenTuneEnabled(
-                widget.plugin.id,
-                enabled: !xen.tuneEnabled,
-              ),
+              onToggleEnabled:
+                  () => rack.setXenEnabled(widget.plugin.id, enabled: !enabled),
+              onToggleSnap:
+                  () => rack.setXenSnapEnabled(
+                    widget.plugin.id,
+                    enabled: !xen.snapEnabled,
+                  ),
+              onToggleTune:
+                  () => rack.setXenTuneEnabled(
+                    widget.plugin.id,
+                    enabled: !xen.tuneEnabled,
+                  ),
               l10n: l10n,
             ),
           ),
@@ -174,8 +177,7 @@ class _GFpaXenSlotUIState extends State<GFpaXenSlotUI> {
                   targetIds: widget.plugin.targetSlotIds,
                   allSlots: slots,
                   onAdd: (id) => rack.addXenTarget(widget.plugin.id, id),
-                  onRemove: (id) =>
-                      rack.removeXenTarget(widget.plugin.id, id),
+                  onRemove: (id) => rack.removeXenTarget(widget.plugin.id, id),
                   l10n: l10n,
                 );
                 final tune = _TargetList(
@@ -183,10 +185,9 @@ class _GFpaXenSlotUIState extends State<GFpaXenSlotUI> {
                   accent: _kTuneColor,
                   targetIds: widget.plugin.tuningTargetSlotIds,
                   allSlots: slots,
-                  onAdd: (id) =>
-                      rack.addXenTuningTarget(widget.plugin.id, id),
-                  onRemove: (id) =>
-                      rack.removeXenTuningTarget(widget.plugin.id, id),
+                  onAdd: (id) => rack.addXenTuningTarget(widget.plugin.id, id),
+                  onRemove:
+                      (id) => rack.removeXenTuningTarget(widget.plugin.id, id),
                   l10n: l10n,
                 );
                 // Side by side once there is room; stacked on a phone, where
@@ -246,9 +247,10 @@ class _GFpaXenSlotUIState extends State<GFpaXenSlotUI> {
     RackState rack,
     AudioEngine engine,
   ) {
-    final sources = widget.plugin.masterSlotId != null
-        ? [widget.plugin.masterSlotId!]
-        : widget.plugin.targetSlotIds;
+    final sources =
+        widget.plugin.masterSlotId != null
+            ? [widget.plugin.masterSlotId!]
+            : widget.plugin.targetSlotIds;
     final notifiers = <ValueListenable<Set<int>>>[];
     for (final id in sources) {
       final slot = rack.plugins.where((p) => p.id == id).firstOrNull;
@@ -320,25 +322,33 @@ class _HeaderRow extends StatelessWidget {
 void _showAbout(BuildContext context, AppLocalizations l10n) {
   showDialog<void>(
     context: context,
-    builder: (ctx) => AlertDialog(
-      backgroundColor: const Color(0xFF1A1A1A),
-      title: Text(
-        l10n.rackAddXen,
-        style: const TextStyle(color: _kLcdAmber, fontWeight: FontWeight.w800),
-      ),
-      content: SingleChildScrollView(
-        child: Text(
-          l10n.xenAbout,
-          style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
+    builder:
+        (ctx) => AlertDialog(
+          backgroundColor: const Color(0xFF1A1A1A),
+          title: Text(
+            l10n.rackAddXen,
+            style: const TextStyle(
+              color: _kLcdAmber,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          content: SingleChildScrollView(
+            child: Text(
+              l10n.xenAbout,
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 13,
+                height: 1.4,
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: Text(l10n.closeButton),
+            ),
+          ],
         ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(ctx).pop(),
-          child: Text(l10n.closeButton),
-        ),
-      ],
-    ),
   );
 }
 
@@ -366,19 +376,21 @@ class _ScaleLcd extends StatelessWidget {
         color: _kLcdBg,
         borderRadius: BorderRadius.circular(3),
         border: Border.all(
-          color: enabled
-              ? _kLcdAmber.withValues(alpha: 0.35)
-              : Colors.white.withValues(alpha: 0.06),
+          color:
+              enabled
+                  ? _kLcdAmber.withValues(alpha: 0.35)
+                  : Colors.white.withValues(alpha: 0.06),
         ),
-        boxShadow: enabled
-            ? [
-                BoxShadow(
-                  color: _kLcdAmber.withValues(alpha: 0.07),
-                  blurRadius: 10,
-                  spreadRadius: 2,
-                ),
-              ]
-            : [],
+        boxShadow:
+            enabled
+                ? [
+                  BoxShadow(
+                    color: _kLcdAmber.withValues(alpha: 0.07),
+                    blurRadius: 10,
+                    spreadRadius: 2,
+                  ),
+                ]
+                : [],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -494,7 +506,8 @@ class _StageToggle extends StatelessWidget {
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
         decoration: BoxDecoration(
-          color: live ? accent.withValues(alpha: 0.14) : const Color(0xFF1A1A1A),
+          color:
+              live ? accent.withValues(alpha: 0.14) : const Color(0xFF1A1A1A),
           borderRadius: BorderRadius.circular(3),
           border: Border.all(
             color: live ? accent.withValues(alpha: 0.8) : Colors.white12,
@@ -548,20 +561,23 @@ class _LedButton extends StatelessWidget {
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color:
-              enabled ? _kLedOn.withValues(alpha: 0.1) : const Color(0xFF1A1A1A),
+              enabled
+                  ? _kLedOn.withValues(alpha: 0.1)
+                  : const Color(0xFF1A1A1A),
           border: Border.all(
             color: enabled ? _kLedOn : Colors.white24,
             width: enabled ? 2.0 : 1.5,
           ),
-          boxShadow: enabled
-              ? [
-                  BoxShadow(
-                    color: _kLedOn.withValues(alpha: 0.45),
-                    blurRadius: 12,
-                    spreadRadius: 1,
-                  ),
-                ]
-              : [],
+          boxShadow:
+              enabled
+                  ? [
+                    BoxShadow(
+                      color: _kLedOn.withValues(alpha: 0.45),
+                      blurRadius: 12,
+                      spreadRadius: 1,
+                    ),
+                  ]
+                  : [],
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -627,29 +643,29 @@ class _ScaleGrid extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Tabs scroll horizontally so seven families fit a phone without
-        // wrapping into a second row that would push the grid off screen.
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: [
-              for (final f in GFScaleFamily.values)
-                Padding(
-                  padding: const EdgeInsets.only(right: 4),
-                  child: _FamilyTab(
-                    label: xenFamilyLabel(l10n, f),
-                    selected: f == family,
-                    enabled: enabled,
-                    onTap: () => onFamily(f),
-                  ),
-                ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 7),
+        // Wrapped, not scrolled. A horizontal scroller clipped the last
+        // family mid-word on a phone with nothing to say it could be
+        // scrolled, so a third of the catalogue was effectively invisible.
         Wrap(
-          spacing: 4,
-          runSpacing: 4,
+          spacing: 14,
+          runSpacing: 2,
+          children: [
+            for (final f in GFScaleFamily.values)
+              _FamilyTab(
+                label: xenFamilyLabel(l10n, f),
+                selected: f == family,
+                enabled: enabled,
+                onTap: () => onFamily(f),
+              ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        // Separates the two rows, which read as one wall of pills otherwise.
+        Container(height: 1, color: Colors.white10),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 5,
+          runSpacing: 5,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             for (final scale in GFScaleLibrary.byFamily(family))
@@ -661,9 +677,10 @@ class _ScaleGrid extends StatelessWidget {
                 // A custom scale is the player's own, so it is editable in
                 // place — long-press, the same gesture that edits elsewhere
                 // in the rack.
-                onLongPress: scale.family == GFScaleFamily.custom
-                    ? () => onEditScale(scale)
-                    : null,
+                onLongPress:
+                    scale.family == GFScaleFamily.custom
+                        ? () => onEditScale(scale)
+                        : null,
                 onTap: () => onSelect(scale.id),
               ),
             // "New scale" lives in the custom tab, where its results appear.
@@ -680,11 +697,12 @@ class _ScaleGrid extends StatelessWidget {
         // scale buttons on every note-on.
         ListenableBuilder(
           listenable: Listenable.merge(heldSources),
-          builder: (context, _) => _GestureHint(
-            heldNotes: {for (final n in heldSources) ...n.value},
-            enabled: enabled,
-            l10n: l10n,
-          ),
+          builder:
+              (context, _) => _GestureHint(
+                heldNotes: {for (final n in heldSources) ...n.value},
+                enabled: enabled,
+                l10n: l10n,
+              ),
         ),
       ],
     );
@@ -706,28 +724,46 @@ class _FamilyTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Underlined text rather than a bordered pill. Families and scales were
+    // drawn identically, so nothing said the first row picked a category and
+    // the rows below picked a scale — the panel read as one undifferentiated
+    // wall of buttons. Dropping nine borders is most of the legibility win.
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-        decoration: BoxDecoration(
-          color: selected ? const Color(0xFF242424) : Colors.transparent,
-          borderRadius: BorderRadius.circular(3),
-          border: Border.all(
-            color: selected ? _kSelected.withValues(alpha: 0.6) : Colors.white12,
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 0.5,
-            color: !enabled
-                ? Colors.white24
-                : selected
-                    ? _kSelected
-                    : Colors.white60,
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 5),
+        // Without this the underline's `double.infinity` width makes the whole
+        // column claim the row, stacking the tabs one per line.
+        child: IntrinsicWidth(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                label.toUpperCase(),
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: selected ? FontWeight.w900 : FontWeight.w600,
+                  letterSpacing: 0.6,
+                  color:
+                      !enabled
+                          ? Colors.white24
+                          : selected
+                          ? _kSelected
+                          : Colors.white54,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Container(
+                height: 2,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(1),
+                  color: selected && enabled ? _kSelected : Colors.transparent,
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -764,15 +800,18 @@ class _ScaleButton extends StatelessWidget {
         duration: const Duration(milliseconds: 120),
         padding: const EdgeInsets.fromLTRB(9, 6, 9, 5),
         decoration: BoxDecoration(
-          color: selected
-              ? _kSelected.withValues(alpha: 0.16)
-              : const Color(0xFF1A1A1A),
-          borderRadius: BorderRadius.circular(3),
-          border: Border.all(
-            color: selected
-                ? _kSelected.withValues(alpha: 0.85)
-                : Colors.white12,
-          ),
+          color:
+              selected
+                  ? _kSelected.withValues(alpha: 0.18)
+                  : const Color(0xFF212121),
+          borderRadius: BorderRadius.circular(4),
+          // Only the selected chip is outlined. Outlining all forty put a box
+          // around every word on screen, which is what made the grid look
+          // cluttered rather than dense.
+          border:
+              selected
+                  ? Border.all(color: _kSelected.withValues(alpha: 0.9))
+                  : null,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -782,9 +821,10 @@ class _ScaleButton extends StatelessWidget {
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-                color: !enabled
-                    ? Colors.white24
-                    : selected
+                color:
+                    !enabled
+                        ? Colors.white24
+                        : selected
                         ? _kSelected
                         : Colors.white70,
               ),
@@ -797,9 +837,10 @@ class _ScaleButton extends StatelessWidget {
               width: 16,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(1),
-                color: microtonal && enabled
-                    ? _kTuneColor.withValues(alpha: selected ? 0.95 : 0.5)
-                    : Colors.transparent,
+                color:
+                    microtonal && enabled
+                        ? _kTuneColor.withValues(alpha: selected ? 0.95 : 0.5)
+                        : Colors.transparent,
               ),
             ),
           ],
@@ -836,8 +877,11 @@ class _NewScaleButton extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.add,
-                size: 13, color: enabled ? _kSelected : Colors.white24),
+            Icon(
+              Icons.add,
+              size: 13,
+              color: enabled ? _kSelected : Colors.white24,
+            ),
             const SizedBox(width: 3),
             Text(
               l10n.xenEditorTitle,
@@ -932,64 +976,86 @@ class _RootStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    final label = Text(
+      l10n.xenRoot,
+      style: const TextStyle(
+        fontSize: 9,
+        fontWeight: FontWeight.w900,
+        color: Colors.white38,
+        letterSpacing: 1.2,
+      ),
+    );
+
+    // Wrapped rather than scrolled, for the same reason as the family tabs:
+    // in portrait the strip was clipped after the seventh key, and the LATCH
+    // button sat off screen entirely.
+    final keys = Wrap(
+      spacing: 3,
+      runSpacing: 3,
       children: [
-        Text(
-          l10n.xenRoot,
-          style: const TextStyle(
+        for (var pc = 0; pc < 12; pc++)
+          _RootKey(
+            label: xenRootName(pc),
+            // Accidentals are drawn darker, so the strip reads like a
+            // keyboard rather than twelve identical buttons.
+            accidental: _isAccidental(pc),
+            selected: pc == rootPc,
+            enabled: enabled,
+            onTap: () => onRoot(pc),
+          ),
+      ],
+    );
+
+    final latch = GestureDetector(
+      onTap: enabled ? onLatch : null,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1A1A1A),
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(
+            color: enabled ? _kLcdAmber.withValues(alpha: 0.5) : Colors.white12,
+          ),
+        ),
+        child: Text(
+          l10n.xenLatch,
+          style: TextStyle(
             fontSize: 9,
             fontWeight: FontWeight.w900,
-            color: Colors.white38,
-            letterSpacing: 1.2,
+            letterSpacing: 0.8,
+            color: enabled ? _kLcdAmber : Colors.white24,
           ),
         ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                for (var pc = 0; pc < 12; pc++)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 3),
-                    child: _RootKey(
-                      label: xenRootName(pc),
-                      // Accidentals are drawn darker, so the strip reads like
-                      // a keyboard rather than twelve identical buttons.
-                      accidental: _isAccidental(pc),
-                      selected: pc == rootPc,
-                      enabled: enabled,
-                      onTap: () => onRoot(pc),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(width: 6),
-        GestureDetector(
-          onTap: enabled ? onLatch : null,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1A1A1A),
-              borderRadius: BorderRadius.circular(3),
-              border: Border.all(
-                color: enabled ? _kLcdAmber.withValues(alpha: 0.5) : Colors.white12,
+      ),
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Twelve keys plus a label plus LATCH do not fit one phone row.
+        if (constraints.maxWidth < 400) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [label, latch],
               ),
-            ),
-            child: Text(
-              l10n.xenLatch,
-              style: TextStyle(
-                fontSize: 9,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 0.8,
-                color: enabled ? _kLcdAmber : Colors.white24,
-              ),
-            ),
-          ),
-        ),
-      ],
+              const SizedBox(height: 6),
+              keys,
+            ],
+          );
+        }
+        return Row(
+          children: [
+            label,
+            const SizedBox(width: 8),
+            Expanded(child: keys),
+            const SizedBox(width: 6),
+            latch,
+          ],
+        );
+      },
     );
   }
 
@@ -1022,9 +1088,10 @@ class _RootKey extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 6),
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: selected
-              ? _kSelected.withValues(alpha: 0.2)
-              : accidental
+          color:
+              selected
+                  ? _kSelected.withValues(alpha: 0.2)
+                  : accidental
                   ? const Color(0xFF101010)
                   : const Color(0xFF1E1E1E),
           borderRadius: BorderRadius.circular(3),
@@ -1038,9 +1105,10 @@ class _RootKey extends StatelessWidget {
           style: TextStyle(
             fontSize: 10,
             fontWeight: selected ? FontWeight.w900 : FontWeight.w600,
-            color: !enabled
-                ? Colors.white24
-                : selected
+            color:
+                !enabled
+                    ? Colors.white24
+                    : selected
                     ? _kSelected
                     : Colors.white60,
           ),
@@ -1074,8 +1142,7 @@ class _TargetList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final available =
-        allSlots.where((s) => !targetIds.contains(s.id)).toList();
+    final available = allSlots.where((s) => !targetIds.contains(s.id)).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1087,10 +1154,7 @@ class _TargetList extends StatelessWidget {
             Container(
               width: 6,
               height: 6,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: accent,
-              ),
+              decoration: BoxDecoration(shape: BoxShape.circle, color: accent),
             ),
             const SizedBox(width: 4),
             Text(
@@ -1126,9 +1190,8 @@ class _TargetList extends StatelessWidget {
 
   Widget _chip(String id) {
     final slot = allSlots.where((s) => s.id == id).firstOrNull;
-    final label = slot != null
-        ? 'CH ${slot.midiChannel} ${_shortName(slot)}'
-        : '?';
+    final label =
+        slot != null ? 'CH ${slot.midiChannel} ${_shortName(slot)}' : '?';
 
     return Container(
       padding: const EdgeInsets.fromLTRB(7, 3, 5, 3),
@@ -1179,17 +1242,18 @@ class _AddTargetButton extends StatelessWidget {
       color: const Color(0xFF1C1C1C),
       tooltip: '',
       padding: EdgeInsets.zero,
-      itemBuilder: (context) => [
-        for (final slot in available)
-          PopupMenuItem(
-            value: slot.id,
-            height: 34,
-            child: Text(
-              'CH ${slot.midiChannel} · ${slot.displayName}',
-              style: const TextStyle(fontSize: 11, color: Colors.white70),
-            ),
-          ),
-      ],
+      itemBuilder:
+          (context) => [
+            for (final slot in available)
+              PopupMenuItem(
+                value: slot.id,
+                height: 34,
+                child: Text(
+                  'CH ${slot.midiChannel} · ${slot.displayName}',
+                  style: const TextStyle(fontSize: 11, color: Colors.white70),
+                ),
+              ),
+          ],
       onSelected: onAdd,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
@@ -1213,42 +1277,72 @@ class _AddTargetButton extends StatelessWidget {
 /// them up will find them.
 String xenScaleLabel(AppLocalizations l10n, GFScale scale) {
   switch (scale.id) {
-    case 'major': return l10n.xenScaleMajor;
-    case 'naturalMinor': return l10n.xenScaleNaturalMinor;
-    case 'harmonicMinor': return l10n.xenScaleHarmonicMinor;
-    case 'melodicMinor': return l10n.xenScaleMelodicMinor;
-    case 'majorPentatonic': return l10n.xenScaleMajorPentatonic;
-    case 'minorPentatonic': return l10n.xenScaleMinorPentatonic;
-    case 'blues': return l10n.xenScaleBlues;
-    case 'rock': return l10n.xenScaleRock;
-    case 'dorian': return l10n.xenScaleDorian;
-    case 'phrygian': return l10n.xenScalePhrygian;
-    case 'lydian': return l10n.xenScaleLydian;
-    case 'mixolydian': return l10n.xenScaleMixolydian;
-    case 'locrian': return l10n.xenScaleLocrian;
-    case 'phrygianDominant': return l10n.xenScalePhrygianDominant;
-    case 'wholeTone': return l10n.xenScaleWholeTone;
-    case 'diminished': return l10n.xenScaleDiminished;
-    case 'justIntonation': return l10n.xenScaleJustIntonation;
-    case 'pythagorean': return l10n.xenScalePythagorean;
-    case 'meantone': return l10n.xenScaleMeantone;
-    case 'werckmeisterIII': return l10n.xenScaleWerckmeisterIII;
-    default: return scale.name;
+    case 'major':
+      return l10n.xenScaleMajor;
+    case 'naturalMinor':
+      return l10n.xenScaleNaturalMinor;
+    case 'harmonicMinor':
+      return l10n.xenScaleHarmonicMinor;
+    case 'melodicMinor':
+      return l10n.xenScaleMelodicMinor;
+    case 'majorPentatonic':
+      return l10n.xenScaleMajorPentatonic;
+    case 'minorPentatonic':
+      return l10n.xenScaleMinorPentatonic;
+    case 'blues':
+      return l10n.xenScaleBlues;
+    case 'rock':
+      return l10n.xenScaleRock;
+    case 'dorian':
+      return l10n.xenScaleDorian;
+    case 'phrygian':
+      return l10n.xenScalePhrygian;
+    case 'lydian':
+      return l10n.xenScaleLydian;
+    case 'mixolydian':
+      return l10n.xenScaleMixolydian;
+    case 'locrian':
+      return l10n.xenScaleLocrian;
+    case 'phrygianDominant':
+      return l10n.xenScalePhrygianDominant;
+    case 'wholeTone':
+      return l10n.xenScaleWholeTone;
+    case 'diminished':
+      return l10n.xenScaleDiminished;
+    case 'justIntonation':
+      return l10n.xenScaleJustIntonation;
+    case 'pythagorean':
+      return l10n.xenScalePythagorean;
+    case 'meantone':
+      return l10n.xenScaleMeantone;
+    case 'werckmeisterIII':
+      return l10n.xenScaleWerckmeisterIII;
+    default:
+      return scale.name;
   }
 }
 
 /// Localised tab label for a scale family.
 String xenFamilyLabel(AppLocalizations l10n, GFScaleFamily family) {
   switch (family) {
-    case GFScaleFamily.western: return l10n.xenFamilyWestern;
-    case GFScaleFamily.maqam: return l10n.xenFamilyMaqam;
-    case GFScaleFamily.raga: return l10n.xenFamilyRaga;
-    case GFScaleFamily.farEast: return l10n.xenFamilyFarEast;
-    case GFScaleFamily.celtic: return l10n.xenFamilyCeltic;
-    case GFScaleFamily.gamelan: return l10n.xenFamilyGamelan;
-    case GFScaleFamily.temperament: return l10n.xenFamilyTemperament;
-    case GFScaleFamily.experimental: return l10n.xenFamilyExperimental;
-    case GFScaleFamily.custom: return l10n.xenFamilyCustom;
+    case GFScaleFamily.western:
+      return l10n.xenFamilyWestern;
+    case GFScaleFamily.maqam:
+      return l10n.xenFamilyMaqam;
+    case GFScaleFamily.raga:
+      return l10n.xenFamilyRaga;
+    case GFScaleFamily.farEast:
+      return l10n.xenFamilyFarEast;
+    case GFScaleFamily.celtic:
+      return l10n.xenFamilyCeltic;
+    case GFScaleFamily.gamelan:
+      return l10n.xenFamilyGamelan;
+    case GFScaleFamily.temperament:
+      return l10n.xenFamilyTemperament;
+    case GFScaleFamily.experimental:
+      return l10n.xenFamilyExperimental;
+    case GFScaleFamily.custom:
+      return l10n.xenFamilyCustom;
   }
 }
 
@@ -1259,7 +1353,18 @@ String xenFamilyLabel(AppLocalizations l10n, GFScaleFamily family) {
 /// enharmonic choice, and a stable strip is easier to aim at than one whose
 /// labels change under the finger.
 const List<String> _kPitchClassNames = [
-  'C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B',
+  'C',
+  'C#',
+  'D',
+  'D#',
+  'E',
+  'F',
+  'F#',
+  'G',
+  'G#',
+  'A',
+  'A#',
+  'B',
 ];
 
 /// Name of a pitch class, 0 = C … 11 = B. Not localised — note letters are

@@ -100,6 +100,12 @@ enum GFScaleMapping {
 ///
 /// Purely an organisational axis — it drives the tab grouping in the Xen
 /// module's scale grid and carries no musical behaviour.
+///
+/// **Declaration order is the tab order.** Traditions come first, then the
+/// constructed tunings, then the player's own — so the two families that need
+/// explaining sit at the end rather than between a raga and a temperament.
+/// Nothing persists a family's index (saved scales store the name), so this
+/// order can be changed freely.
 enum GFScaleFamily {
   /// Western modes, pentatonics and blues — all plain 12-TET.
   western,
@@ -121,6 +127,11 @@ enum GFScaleFamily {
   /// Scales from the Celtic instrumental traditions.
   celtic,
 
+  /// Full twelve-note tunings of the keyboard itself — just intonation,
+  /// Pythagorean, meantone, well temperaments. Unlike the other families
+  /// these define every key, so nothing is ever out of scale.
+  temperament,
+
   /// Equal divisions of the octave (or of another interval), harmonic-series
   /// scales, and other constructed tunings that belong to no tradition.
   ///
@@ -136,11 +147,6 @@ enum GFScaleFamily {
   /// invariant — pulling a key far from its nominal pitch is the whole point
   /// of a hand-made scale.
   custom,
-
-  /// Full twelve-note tunings of the keyboard itself — just intonation,
-  /// Pythagorean, meantone, well temperaments. Unlike the other families
-  /// these define every key, so nothing is ever out of scale.
-  temperament,
 }
 
 /// A scale defined as a set of degrees, each with its own tuning.

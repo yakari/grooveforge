@@ -835,7 +835,7 @@ class GFScaleLibrary {
     slendro, pelog,
     // Temperaments
     justIntonation, pythagorean, meantone, werckmeisterIII,
-    // Experimental
+    // Experimental — last, matching the family tab order.
     quarterTone24Edo, edo19, edo31, bohlenPierce, harmonicSeries,
     quarterToneCluster,
   ];
