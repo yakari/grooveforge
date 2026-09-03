@@ -1,3 +1,5 @@
+import 'package:grooveforge_plugin_api/grooveforge_plugin_api.dart';
+
 import '../audio/audio_source_descriptor.dart';
 import 'keyboard_display_config.dart';
 import 'plugin_instance.dart';
@@ -106,6 +108,14 @@ class GFpaPluginInstance with AudioSourcePlugin implements PluginInstance {
       case 'com.grooveforge.theremin':
         return 'Theremin';
       default:
+        // Everything else is a descriptor-defined plugin loaded from a .gfpd
+        // file, which carries a human-readable `name` ("Harmonizer",
+        // "Plate Reverb", "4-Band EQ"…). Use it rather than the plugin id.
+        final registered = GFPluginRegistry.instance.findById(pluginId);
+        if (registered != null) return registered.name;
+
+        // Not installed: the slot is a placeholder for a plugin this build
+        // does not have, so the id's last segment is all we can show.
         final parts = pluginId.split('.');
         return parts.isNotEmpty ? parts.last : pluginId;
     }

@@ -968,6 +968,54 @@ abstract class AppLocalizations {
   /// **'The Vocoder uses your device microphone to modulate the synth sound. Access it by selecting the \'VOCODER\' preset in the soundfont dropdown. For best results:\n• Use wired headphones or speakers (latency over Bluetooth is too high).\n• Setup mic levels with the gain knobs.\n• Android Limitation: You cannot use separate USB devices for input and output. Use a single USB hub/interface that handles both, or the internal mic.\n• Experiment with different carrier waves (Saw, Pulse, Neutral).'**
   String get guideVocoderBody;
 
+  /// No description provided for @guideThereminTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Theremin and Stylophone'**
+  String get guideThereminTitle;
+
+  /// No description provided for @guideThereminBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The Theremin has two input modes. PAD is a touch pad: slide up and down for pitch, left and right for volume. CAM (Android, iOS and macOS) uses the front camera\'s autofocus to sense how far away your hand is — closer plays higher, and moving far enough away silences the note; volume stays full in this mode. BASE sets the lowest note, RANGE the span in octaves, VIB the vibrato depth, and HEIGHT the size of the pad.\nThe Stylophone is a 25-key chromatic strip played by touching or sliding along it. It is monophonic like the original, and sliding from one key to the next glides without a click. SQR, SAW, SIN and TRI pick the waveform.'**
+  String get guideThereminBody;
+
+  /// No description provided for @guideDrumGeneratorTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Drum Generator'**
+  String get guideDrumGeneratorTitle;
+
+  /// No description provided for @guideDrumGeneratorBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Plays a drum pattern on MIDI channel 10, from bossa nova to metal. Pick a pattern, then shape how it is played: Swing pushes the off-beats late, and Human feel moves the whole kit between a robotic grid and a drummer who breathes. Count-in plays a few hits before the pattern starts, and Fill every drops a fill at a chosen number of bars.\nPatterns are plain .gfdrum files, so the bundled ones can be replaced or extended with your own.'**
+  String get guideDrumGeneratorBody;
+
+  /// No description provided for @guideLoopersTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Loopers'**
+  String get guideLoopersTitle;
+
+  /// No description provided for @guideLoopersBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The MIDI Looper records what you play and loops it. The Audio Looper does the same with live audio, and adds overdub and reverse.\nBoth are bar-synced: recording does not start the instant you tap record, it waits for the next downbeat, and the loop length is rounded to whole bars. That is what keeps a stack of loops lining up instead of drifting apart.\nThe Audio Looper records whatever is cabled into its Audio IN, so patch an instrument or a Live Input into it first.'**
+  String get guideLoopersBody;
+
+  /// No description provided for @guideMidiFxTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Harmonizer and the other MIDI FX'**
+  String get guideMidiFxTitle;
+
+  /// No description provided for @guideMidiFxBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The Harmonizer adds up to two harmony voices to anything you play. Voice 1 and Voice 2 set each interval in semitones — 4 and 7 by default, a major third and a perfect fifth. With Scale Lock on, those intervals bend to stay inside the current scale, so the harmony follows the key instead of wandering outside it.\nThe other MIDI FX modules sit in the same place, between a keyboard and its sound: Chord Expand turns single notes into full chords, Arpeggiator spreads held notes into a rhythm, Transposer shifts everything by up to two octaves, Velocity Curve remaps how hard you play, Gate filters notes by velocity or pitch range, and Microtone folds held notes into a single microtonal pitch.'**
+  String get guideMidiFxBody;
+
   /// No description provided for @guideMidiTitle.
   ///
   /// In en, this message translates to:

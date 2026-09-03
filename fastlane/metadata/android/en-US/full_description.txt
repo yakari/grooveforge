@@ -1,0 +1,34 @@
+GrooveForge is a portable MIDI keyboard studio for Android. Plug in a MIDI controller, pick a soundfont, and play.
+
+It began as a practice companion: something light enough to carry on a phone or tablet, used to rebuild scale knowledge and muscle memory at a keyboard. It grew well beyond that, but the focus remains — a tool for practising and playing, not a DAW.
+
+Instruments
+
+GrooveForge Keyboard — soundfont synth (.sf2) with bank and patch selection and MIDI channel routing. Every slot is independent.
+Vocoder — mic-driven voice synthesis.
+Stylophone — monophonic metal-strip instrument.
+Theremin — touch pad with vertical pitch and horizontal volume.
+Drum Generator — beat patterns from bossa nova to metal, with human feel.
+
+Xen: microtonal scales
+
+Lock the keyboard to a scale and retune it to match. Western modes, Arabic maqamat, Indian ragas, Far Eastern and gamelan scales, Celtic modes, historical temperaments, and your own custom scales. Retuning uses a full MIDI tuning table rather than pitch bend, so every note of a chord sounds at its own correct pitch.
+
+Loopers
+
+MIDI Looper — record and loop MIDI patterns with bar sync.
+Audio Looper — record and loop live audio with bar sync, overdub and reverse.
+
+Effects
+
+Plate reverb, ping-pong delay, auto-wah, 4-band EQ, compressor and chorus/flanger, with BPM sync where it makes sense. Live Input routes a microphone or line-in through any of them.
+
+And the rest
+
+Plugin rack — an ordered, drag-and-drop rack of module slots, reorderable at any time.
+Scale lock and highlighting — root, in-scale and out-of-scale keys coloured on the on-screen keyboard.
+Jam Mode — one slot leads; the slots after it lock to its harmony.
+CC mapping — map hardware knobs, sliders and pads to MIDI effects or application actions.
+Projects — save and restore complete rack configurations to a .gf file. The last session is autosaved on every change.
+
+GrooveForge is free software, built by one developer in their spare time. Rough edges are expected, and releases happen when time allows.

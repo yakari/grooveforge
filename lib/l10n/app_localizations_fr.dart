@@ -498,6 +498,34 @@ class AppLocalizationsFr extends AppLocalizations {
       'Le vocodeur utilise le micro pour moduler le son du synthé. Accédez-y via le preset \'VOCODER\' dans le sélecteur de patchs. Pour de meilleurs résultats :\n• Utilisez un casque ou des enceintes filaires (la latence Bluetooth est trop élevée).\n• Réglez les niveaux avec les boutons de gain.\n• Limitation Android : Vous ne pouvez pas utiliser deux périphériques USB séparés pour l\'entrée et la sortie. Utilisez un seul hub USB ou le micro interne.\n• Expérimentez avec les différentes ondes porteuses (Saw, Pulse, Neutral).';
 
   @override
+  String get guideThereminTitle => 'Thérémine et Stylophone';
+
+  @override
+  String get guideThereminBody =>
+      'La Thérémine a deux modes de jeu. PAD est un pad tactile : on glisse de haut en bas pour la hauteur, de gauche à droite pour le volume. CAM (Android, iOS et macOS) se sert de l\'autofocus de la caméra frontale pour évaluer la distance de la main — plus elle est proche, plus le son est aigu, et en l\'éloignant suffisamment la note se tait ; le volume reste au maximum dans ce mode. BASE règle la note la plus grave, RANGE l\'étendue en octaves, VIB la profondeur du vibrato et HEIGHT la taille du pad.\nLe Stylophone est une bande chromatique de 25 touches, que l\'on joue en touchant ou en glissant dessus. Il est monophonique comme l\'original, et le glissé d\'une touche à l\'autre passe sans clic. SQR, SAW, SIN et TRI choisissent la forme d\'onde.';
+
+  @override
+  String get guideDrumGeneratorTitle => 'Générateur de batterie';
+
+  @override
+  String get guideDrumGeneratorBody =>
+      'Joue un motif de batterie sur le canal MIDI 10, de la bossa nova au métal. Choisissez un motif, puis réglez la façon dont il est joué : Swing retarde les contretemps, et Human feel fait passer tout le kit d\'une grille robotique à un batteur qui respire. Le Count-in joue quelques frappes avant le départ, et Fill every place un break toutes les N mesures.\nLes motifs sont de simples fichiers .gfdrum : ceux fournis peuvent être remplacés ou complétés par les vôtres.';
+
+  @override
+  String get guideLoopersTitle => 'Loopers';
+
+  @override
+  String get guideLoopersBody =>
+      'Le Looper MIDI enregistre ce que vous jouez et le met en boucle. Le Looper Audio fait de même avec de l\'audio en temps réel, avec en plus l\'overdub et le reverse.\nLes deux sont calés sur la mesure : l\'enregistrement ne démarre pas à l\'instant où vous appuyez, il attend le prochain premier temps, et la longueur de boucle est arrondie à des mesures entières. C\'est ce qui fait qu\'un empilement de boucles reste aligné au lieu de dériver.\nLe Looper Audio enregistre ce qui est câblé sur son Audio IN : reliez-lui d\'abord un instrument ou un Live Input.';
+
+  @override
+  String get guideMidiFxTitle => 'Harmonizer et les autres MIDI FX';
+
+  @override
+  String get guideMidiFxBody =>
+      'L\'Harmonizer ajoute jusqu\'à deux voix d\'harmonie à tout ce que vous jouez. Voice 1 et Voice 2 règlent chaque intervalle en demi-tons — 4 et 7 par défaut, soit une tierce majeure et une quinte juste. Avec Scale Lock activé, ces intervalles s\'ajustent pour rester dans la gamme en cours : l\'harmonie suit la tonalité au lieu d\'en sortir.\nLes autres modules MIDI FX se placent au même endroit, entre un clavier et son son : Chord Expand transforme chaque note en accord complet, Arpeggiator égrène les notes tenues en rythme, Transposer décale le tout jusqu\'à deux octaves, Velocity Curve remappe la dynamique du jeu, Gate filtre les notes par vélocité ou par tessiture, et Microtone fond les notes tenues en une seule hauteur microtonale.';
+
+  @override
   String get guideMidiTitle => 'Connectivité MIDI';
 
   @override

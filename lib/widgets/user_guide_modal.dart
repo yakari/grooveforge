@@ -69,13 +69,26 @@ class _UserGuideModalState extends State<UserGuideModal> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    l10n.guideTitle.toUpperCase(),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.5,
+                  // Expanded + FittedBox: the title is a translated string, so
+                  // its width is not knowable here. "GUIDE DE L'UTILISATEUR"
+                  // overflows the dialog by ~50 px at this size, and a longer
+                  // translation would overflow further. Scaling down only when
+                  // it does not fit keeps every language on one line without
+                  // shrinking the languages that already fit.
+                  Expanded(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        l10n.guideTitle.toUpperCase(),
+                        maxLines: 1,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.5,
+                        ),
+                      ),
                     ),
                   ),
                   IconButton(
@@ -84,36 +97,50 @@ class _UserGuideModalState extends State<UserGuideModal> {
                   ),
                 ],
               ),
+              // Icon-only tabs.
+              //
+              // Five labels do not fit the dialog width: they were clipped to
+              // "FEA", "MID", "SOU", ... which identifies nothing, and longer
+              // translations clipped harder (the French set read "FON", "CON",
+              // "SOU", "CON", "RAC" — two of them identical). Each icon keeps
+              // its translated label as a tooltip, so the wording is still
+              // reachable on long-press and still announced to screen readers.
               TabBar(
                 tabs: [
                   Tab(
-                    icon: const Icon(Icons.auto_awesome),
-                    text: l10n.guideTabFeatures.toUpperCase(),
+                    icon: Tooltip(
+                      message: l10n.guideTabFeatures,
+                      child: const Icon(Icons.auto_awesome),
+                    ),
                   ),
                   Tab(
-                    icon: const Icon(Icons.usb),
-                    text: l10n.guideTabMidi.toUpperCase(),
+                    icon: Tooltip(
+                      message: l10n.guideTabMidi,
+                      child: const Icon(Icons.usb),
+                    ),
                   ),
                   Tab(
-                    icon: const Icon(Icons.library_music),
-                    text: l10n.guideTabSoundfonts.toUpperCase(),
+                    icon: Tooltip(
+                      message: l10n.guideTabSoundfonts,
+                      child: const Icon(Icons.library_music),
+                    ),
                   ),
                   Tab(
-                    icon: const Icon(Icons.music_note),
-                    text: l10n.guideTabTips.toUpperCase(),
+                    icon: Tooltip(
+                      message: l10n.guideTabTips,
+                      child: const Icon(Icons.music_note),
+                    ),
                   ),
                   Tab(
-                    icon: const Icon(Icons.cable_outlined),
-                    text: l10n.guideTabPatch.toUpperCase(),
+                    icon: Tooltip(
+                      message: l10n.guideTabPatch,
+                      child: const Icon(Icons.cable_outlined),
+                    ),
                   ),
                 ],
                 indicatorColor: Colors.blueAccent,
                 labelColor: Colors.blueAccent,
                 unselectedLabelColor: Colors.white54,
-                labelStyle: const TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                ),
               ),
               Expanded(
                 child: TabBarView(
@@ -164,6 +191,22 @@ class _FeaturesTab extends StatelessWidget {
         _buildInfoBox(
           l10n.guideVocoderBody.split('\n').last,
         ), // The latency warning
+        // The remaining rack modules, in the order a player is most likely to
+        // reach for them: instruments first, then the rhythm section, then the
+        // loopers that layer on top, and finally the MIDI FX that reshape what
+        // any of them receive.
+        const SizedBox(height: 20),
+        _buildSectionTitle(l10n.guideThereminTitle),
+        _buildParagraph(l10n.guideThereminBody),
+        const SizedBox(height: 20),
+        _buildSectionTitle(l10n.guideDrumGeneratorTitle),
+        _buildParagraph(l10n.guideDrumGeneratorBody),
+        const SizedBox(height: 20),
+        _buildSectionTitle(l10n.guideLoopersTitle),
+        _buildParagraph(l10n.guideLoopersBody),
+        const SizedBox(height: 20),
+        _buildSectionTitle(l10n.guideMidiFxTitle),
+        _buildParagraph(l10n.guideMidiFxBody),
       ],
     );
   }

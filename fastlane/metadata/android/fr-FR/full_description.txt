@@ -1,0 +1,34 @@
+GrooveForge est un studio à clavier MIDI portable pour Android. Branchez un contrôleur MIDI, choisissez une soundfont, et jouez.
+
+À l'origine, c'était un compagnon de travail : quelque chose d'assez léger pour tenir dans un téléphone ou une tablette, pour retrouver ses gammes et sa mémoire des doigts au clavier. Le projet a beaucoup grandi depuis, mais l'objectif reste le même : un outil pour travailler et pour jouer, pas une station de travail audionumérique.
+
+Instruments
+
+GrooveForge Keyboard — synthé soundfont (.sf2) avec choix de banque et de patch, et routage de canal MIDI. Chaque slot est indépendant.
+Vocodeur — synthèse vocale au micro.
+Stylophone — instrument monophonique à lamelles métalliques.
+Thérémine — pad tactile, hauteur en vertical et volume en horizontal.
+Générateur de batterie — grooves de la bossa nova au métal, avec du feeling humain.
+
+Xen : gammes microtonales
+
+Verrouillez le clavier sur une gamme et accordez-le en conséquence. Modes occidentaux, maqamat arabes, ragas indiens, gammes d'Extrême-Orient et de gamelan, modes celtiques, tempéraments historiques, et vos propres gammes. L'accordage passe par une table de tuning MIDI complète plutôt que par le pitch bend : chaque note d'un accord sonne donc à sa hauteur exacte.
+
+Loopers
+
+Looper MIDI — enregistrez et bouclez des séquences MIDI avec synchro de mesure.
+Looper Audio — enregistrez et bouclez de l'audio en temps réel, avec synchro, overdub et reverse.
+
+Effets
+
+Réverb à plaque, delay ping-pong, auto-wah, EQ 4 bandes, compresseur et chorus/flanger, synchronisables sur le BPM là où c'est pertinent. Le Live Input envoie un micro ou une entrée ligne dans n'importe lequel d'entre eux.
+
+Et le reste
+
+Rack de modules — un rack ordonné, réorganisable par glisser-déposer à tout moment.
+Verrouillage de gamme et surbrillance — tonique, notes de la gamme et notes hors gamme colorées sur le clavier à l'écran.
+Jam Mode — un slot mène la danse, les slots suivants se calent sur son harmonie.
+Assignation de CC — associez potentiomètres, faders et pads de votre matériel à des effets MIDI ou à des actions de l'application.
+Projets — enregistrez et rechargez une configuration de rack complète dans un fichier .gf. La dernière session est sauvegardée automatiquement à chaque modification.
+
+GrooveForge est un logiciel libre, développé par une seule personne sur son temps libre. Les aspérités font partie du voyage, et les versions sortent quand le temps le permet.

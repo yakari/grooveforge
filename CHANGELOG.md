@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [X.x.x]
+
+### Changed
+- User guide: added sections for the Theremin and Stylophone, the Drum Generator, the loopers and the MIDI FX.
+- User guide: the tab bar is icon-only. Five labels never fitted the dialog and were clipped to three letters; each icon now carries its label as a tooltip.
+
+### Fixed
+- Audio went silent when another app held the device's exclusive low-latency stream. The stream failed to start and was never retried, so nothing was rendered until the app was restarted; it now falls back to a shared stream.
+- A microtonal scale restored at startup snapped notes to the scale but played them in equal temperament, because the tuning was never sent to the synth created after the rack was restored.
+- User guide: the title overflowed the dialog in French and any other language whose translation is longer than the English one.
+- Rack headers showed the plugin id's last segment for every .gfpd module — "harmonizer", "reverb", "eq", "wah" — instead of the name the descriptor declares.
+
+### Architecture
+- Android: FluidSynth is built from source as a pinned git submodule (osal=cpp11, no GLib) instead of ~90 MB of prebuilt libraries. The release APK is about 26 MiB smaller.
+
 ## [2.17.2] - 2026-09-03
 
 ### Changed

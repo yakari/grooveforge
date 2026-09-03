@@ -1,0 +1,7 @@
+Modifié
+- Rack par défaut : un clavier piloté par un module Xen, à la place du montage à deux claviers. Le Jam Mode reste disponible ; les projets existants ne sont pas touchés.
+- Panneau Xen : onglets de famille en libellés soulignés, et rangées qui se replient au lieu de sortir de l'écran sur téléphone.
+
+Corrigé
+- Le bouton on/off de Xen et son CC de bypass n'avaient aucun effet.
+- Le panneau « quoi de neuf » du guide restait vide pour une version sans section Ajouté.
