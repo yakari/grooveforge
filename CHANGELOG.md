@@ -5,12 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [X.x.x]
+## [2.17.2] - 2026-09-03
 
 ### Changed
 - Default rack: one keyboard driven by a Xen module, replacing the two-keyboard Jam Mode setup. Jam Mode stays available; existing projects are untouched.
 - User guide: added a Xen section and the teal tuning jacks, dropped the dual-keyboard recommendation.
-- Xen panel: family tabs are underlined labels instead of buttons, and the family and tonic rows wrap instead of scrolling off screen on a phone.
+- Xen panel: family tabs are underlined labels instead of buttons, the family and tonic rows wrap instead of scrolling off screen on a phone, and Experimental and My Scales moved to the end.
 
 ### Fixed
 - Xen's on/off button and its bypass CC had no effect.

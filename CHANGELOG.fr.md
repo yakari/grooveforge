@@ -5,12 +5,12 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/lang/fr/).
 
-## [X.x.x]
+## [2.17.2] - 2026-09-03
 
 ### Modifié
 - Rack par défaut : un clavier piloté par un module Xen, à la place du montage à deux claviers avec Jam Mode. Le Jam Mode reste disponible ; les projets existants ne sont pas touchés.
 - Guide : section Xen et jacks d'accordage turquoise ajoutés, recommandation du double clavier retirée.
-- Panneau Xen : les onglets de famille sont des libellés soulignés plutôt que des boutons, et les rangées de familles et de toniques se replient au lieu de sortir de l'écran sur téléphone.
+- Panneau Xen : les onglets de famille sont des libellés soulignés plutôt que des boutons, les rangées de familles et de toniques se replient au lieu de sortir de l'écran sur téléphone, et Expérimental et Mes gammes passent en fin de liste.
 
 ### Corrigé
 - Le bouton on/off de Xen et son CC de bypass n'avaient aucun effet.
