@@ -12,6 +12,13 @@ jobs:
       ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
     steps:
       - uses: actions/checkout@v4
+        with:
+          # FluidSynth is a git submodule that the NDK build compiles from
+          # source. Without this the CMake configure fails with
+          # "fluidsynth-src does not contain a CMakeLists.txt file".
+          # Deliberately non-recursive: FluidSynth's own submodules (test data,
+          # gcem) are large and are not needed to build the library.
+          submodules: true
       - uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
