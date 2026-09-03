@@ -1,72 +1,68 @@
+# GrooveForge Android native build.
+#
 # For more information about using CMake with Android Studio, read the
 # documentation: https://d.android.com/studio/projects/add-native-code.html
 
-# Sets the minimum version of CMake required to build the native library.
-cmake_minimum_required(VERSION 3.4.1)
+cmake_minimum_required(VERSION 3.22.1)
 
-# Create a variable fluidsynth_DIR to specify where the fluidsynth library is located.
-set(fluidsynth_DIR ${CMAKE_CURRENT_SOURCE_DIR}/fluidsynth)
-# Our code (native-lib.cpp) will be calling fluidsynth functions, so we add the fluidsynth binaries as dependencies of our code.
+# ── FluidSynth, built from source ─────────────────────────────────────────────
+#
+# This file used to link ~20 prebuilt .so files vendored under fluidsynth/lib/
+# (90 MB across three ABIs). Those blobs are gone: F-Droid's inclusion policy
+# rejects prebuilt binaries outright, and nearly all of them were dead weight
+# anyway — Oboe was never called (we use raw AAudio), libsndfile only matters
+# for SF3, libinstpatch only for DLS/GIG, and the whole glib stack was merely
+# FluidSynth's internal OS abstraction.
+#
+# FluidSynth >= 2.5.0 can drop GLib entirely via `osal=cpp11`, which collapses
+# glib/gio/gobject/gmodule/gthread/pcre into the C++11 standard library. What
+# survives is a single libfluidsynth.so (~3.3 MB/ABI) whose only NEEDED entries
+# are NDK libraries: libm, liblog, libc++_shared, libdl, libc.
+#
+# GrooveForge uses FluidSynth strictly as an SF2 sample-playback engine:
+#   - no audio driver — fluid_synth_process() is driven from our own AAudio
+#     callback in oboe_stream_android.cpp, so every driver below is off;
+#   - no reverb/chorus — disabled in native-lib.cpp, we run our own insert
+#     chain in gfpa_dsp.cpp so effects can also cover VST3 and the looper;
+#   - no SF3/DLS — the soundfont picker accepts .sf2 only.
+# Everything not on that list is switched off to keep the build minimal.
 
-add_library(libc++_shared SHARED IMPORTED)
-set_target_properties(libc++_shared PROPERTIES IMPORTED_LOCATION ${fluidsynth_DIR}/lib/${ANDROID_ABI}/libc++_shared.so)
+set(osal                "cpp11" CACHE STRING "" FORCE)  # no glib
+set(BUILD_SHARED_LIBS   ON      CACHE BOOL   "" FORCE)
 
-add_library(libomp SHARED IMPORTED)
-set_target_properties(libomp PROPERTIES IMPORTED_LOCATION ${fluidsynth_DIR}/lib/${ANDROID_ABI}/libomp.so)
+set(enable-libinstpatch OFF CACHE BOOL "" FORCE)  # DLS/GIG loader — unused
+set(enable-libsndfile   OFF CACHE BOOL "" FORCE)  # SF3 + file rendering — unused
+set(enable-openmp       OFF CACHE BOOL "" FORCE)  # drops libomp; cpp11 threads suffice
 
-add_library(libFLAC SHARED IMPORTED)
-set_target_properties(libFLAC PROPERTIES IMPORTED_LOCATION ${fluidsynth_DIR}/lib/${ANDROID_ABI}/libFLAC.so)
+# Audio/MIDI drivers: all unused, we render the synth ourselves.
+set(enable-oboe         OFF CACHE BOOL "" FORCE)
+set(enable-opensles     OFF CACHE BOOL "" FORCE)
+set(enable-alsa         OFF CACHE BOOL "" FORCE)
+set(enable-jack         OFF CACHE BOOL "" FORCE)
+set(enable-oss          OFF CACHE BOOL "" FORCE)
+set(enable-pulseaudio   OFF CACHE BOOL "" FORCE)
+set(enable-pipewire     OFF CACHE BOOL "" FORCE)
+set(enable-sdl3         OFF CACHE BOOL "" FORCE)
+set(enable-midishare    OFF CACHE BOOL "" FORCE)
+set(enable-aufile       OFF CACHE BOOL "" FORCE)
 
-add_library(libfluidsynth SHARED IMPORTED)
-set_target_properties(libfluidsynth PROPERTIES IMPORTED_LOCATION ${fluidsynth_DIR}/lib/${ANDROID_ABI}/libfluidsynth.so)
+# Desktop-only extras with no meaning on Android.
+set(enable-dbus         OFF CACHE BOOL "" FORCE)
+set(enable-ladspa       OFF CACHE BOOL "" FORCE)
+set(enable-network      OFF CACHE BOOL "" FORCE)
+set(enable-ipv6         OFF CACHE BOOL "" FORCE)
+set(enable-readline     OFF CACHE BOOL "" FORCE)
 
-add_library(libfluidsynth-assetloader SHARED IMPORTED)
-set_target_properties(libfluidsynth-assetloader PROPERTIES IMPORTED_LOCATION ${fluidsynth_DIR}/lib/${ANDROID_ABI}/libfluidsynth-assetloader.so)
+# EXCLUDE_FROM_ALL: FluidSynth unconditionally declares a CLI executable plus
+# test/ and doc/ subdirectories. Excluding them from the default target means
+# only libfluidsynth gets built, as a dependency of native-lib below.
+add_subdirectory(fluidsynth-src EXCLUDE_FROM_ALL)
 
-add_library(libgio-2.0 SHARED IMPORTED)
-set_target_properties(libgio-2.0 PROPERTIES IMPORTED_LOCATION ${fluidsynth_DIR}/lib/${ANDROID_ABI}/libgio-2.0.so)
-
-add_library(libglib-2.0 SHARED IMPORTED)
-set_target_properties(libglib-2.0 PROPERTIES IMPORTED_LOCATION ${fluidsynth_DIR}/lib/${ANDROID_ABI}/libglib-2.0.so)
-
-add_library(libgmodule-2.0 SHARED IMPORTED)
-set_target_properties(libgmodule-2.0 PROPERTIES IMPORTED_LOCATION ${fluidsynth_DIR}/lib/${ANDROID_ABI}/libgmodule-2.0.so)
-
-add_library(libgobject-2.0 SHARED IMPORTED)
-set_target_properties(libgobject-2.0 PROPERTIES IMPORTED_LOCATION ${fluidsynth_DIR}/lib/${ANDROID_ABI}/libgobject-2.0.so)
-
-add_library(libgthread-2.0 SHARED IMPORTED)
-set_target_properties(libgthread-2.0 PROPERTIES IMPORTED_LOCATION ${fluidsynth_DIR}/lib/${ANDROID_ABI}/libgthread-2.0.so)
-
-add_library(libinstpatch-1.0 SHARED IMPORTED)
-set_target_properties(libinstpatch-1.0 PROPERTIES IMPORTED_LOCATION ${fluidsynth_DIR}/lib/${ANDROID_ABI}/libinstpatch-1.0.so)
-
-add_library(liboboe SHARED IMPORTED)
-set_target_properties(liboboe PROPERTIES IMPORTED_LOCATION ${fluidsynth_DIR}/lib/${ANDROID_ABI}/liboboe.so)
-
-add_library(libogg SHARED IMPORTED)
-set_target_properties(libogg PROPERTIES IMPORTED_LOCATION ${fluidsynth_DIR}/lib/${ANDROID_ABI}/libogg.so)
-
-add_library(libopus SHARED IMPORTED)
-set_target_properties(libopus PROPERTIES IMPORTED_LOCATION ${fluidsynth_DIR}/lib/${ANDROID_ABI}/libopus.so)
-
-add_library(libpcre SHARED IMPORTED)
-set_target_properties(libpcre PROPERTIES IMPORTED_LOCATION ${fluidsynth_DIR}/lib/${ANDROID_ABI}/libpcre.so)
-
-add_library(libpcreposix SHARED IMPORTED)
-set_target_properties(libpcreposix PROPERTIES IMPORTED_LOCATION ${fluidsynth_DIR}/lib/${ANDROID_ABI}/libpcreposix.so)
-
-add_library(libsndfile SHARED IMPORTED)
-set_target_properties(libsndfile PROPERTIES IMPORTED_LOCATION ${fluidsynth_DIR}/lib/${ANDROID_ABI}/libsndfile.so)
-
-add_library(libvorbis SHARED IMPORTED)
-set_target_properties(libvorbis PROPERTIES IMPORTED_LOCATION ${fluidsynth_DIR}/lib/${ANDROID_ABI}/libvorbis.so)
-
-add_library(libvorbisenc SHARED IMPORTED)
-set_target_properties(libvorbisenc PROPERTIES IMPORTED_LOCATION ${fluidsynth_DIR}/lib/${ANDROID_ABI}/libvorbisenc.so)
-
-add_library(libvorbisfile SHARED IMPORTED)
-set_target_properties(libvorbisfile PROPERTIES IMPORTED_LOCATION ${fluidsynth_DIR}/lib/${ANDROID_ABI}/libvorbisfile.so)
+# The Android Gradle Plugin packages shared libraries it finds in the ABI's
+# output directory, so make sure libfluidsynth.so lands beside libnative-lib.so
+# instead of staying in fluidsynth-src/src/.
+set_target_properties(libfluidsynth PROPERTIES
+        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
 
 # Library that will be called directly from JAVA.
 # gfpa_audio_android.cpp provides the FluidSynth audio callback and insert chain.
@@ -84,11 +80,15 @@ add_library(native-lib SHARED
 )
 
 # Include directories:
-#  - fluidsynth_DIR/include   : FluidSynth public headers (fluidsynth.h, etc.)
+#  - FluidSynth_SOURCE_DIR/include : public headers (fluidsynth.h, fluidsynth/*.h)
+#  - FluidSynth_BINARY_DIR/include : generated version.h
+#    (libfluidsynth keeps its include dirs PRIVATE, so they are not inherited
+#     through target_link_libraries and must be named here)
 #  - CMAKE_CURRENT_SOURCE_DIR : gfpa_audio_android.h (local header)
 #  - flutter_vst3 native/include : gfpa_dsp.h and dart_vst_host.h
 target_include_directories(native-lib PRIVATE
-        ${fluidsynth_DIR}/include
+        ${FluidSynth_SOURCE_DIR}/include
+        ${FluidSynth_BINARY_DIR}/include
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../flutter_vst3/dart_vst_host/native/include
         ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../../native_audio
@@ -97,26 +97,7 @@ target_include_directories(native-lib PRIVATE
 # Link everything alltogether. Notice that native-lib should be the first element in the list.
 target_link_libraries(
         native-lib
-        libomp
-        libc++_shared
-        libFLAC
         libfluidsynth
-        libfluidsynth-assetloader
-        libgio-2.0
-        libglib-2.0
-        libgmodule-2.0
-        libgobject-2.0
-        libgthread-2.0
-        libinstpatch-1.0
-        liboboe
-        libogg
-        libopus
-        libpcre
-        libpcreposix
-        libsndfile
-        libvorbis
-        libvorbisenc
-        libvorbisfile
         android
         aaudio
         log
