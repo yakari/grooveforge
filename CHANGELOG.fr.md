@@ -5,7 +5,7 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/lang/fr/).
 
-## [X.x.x]
+## [2.17.3] - 2026-09-03
 
 ### Modifié
 - Guide : sections ajoutées pour la Thérémine et le Stylophone, le Générateur de batterie, les loopers et les MIDI FX.
@@ -19,6 +19,7 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 
 ### Architecture
 - Android : FluidSynth est compilé depuis les sources via un sous-module git figé (osal=cpp11, sans GLib) au lieu d'embarquer ~90 Mo de bibliothèques précompilées. L'APK de release perd environ 26 Mio.
+- Android : les builds par ABI (--split-per-abi) écrivaient les trois sorties sous le même nom de fichier ; elles s'écrasaient et chaque APK « split » contenait donc la même unique ABI. Le nom de fichier porte désormais l'ABI ; chaque APK pèse environ 30 Mio contre 70 Mio pour l'universel.
 
 ## [2.17.2] - 2026-09-03
 

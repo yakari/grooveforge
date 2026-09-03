@@ -299,11 +299,18 @@ GrooveForge saves projects as plain JSON with a `.gf` extension. The file stores
 
 - **[Flutter](https://flutter.dev/)** — framework and SDK.
 - **[FluidSynth](https://www.fluidsynth.org/)** — soundfont synthesis engine, built from source on every platform (LGPL-2.1+).
+- **TimGM6mb** by Tim Brechbill — the bundled default soundfont (`assets/soundfonts/default.sf2`), long shipped with older versions of MuseScore (GPL-2.0).
 - **[VST3 SDK](https://github.com/steinbergmedia/vst3sdk)** — Steinberg VST3 interfaces (MIT license, v3.8+).
 - **[flutter_midi_command](https://pub.dev/packages/flutter_midi_command)** — hardware MIDI routing.
 - **[provider](https://pub.dev/packages/provider)** — reactive state management.
 - **[file_picker](https://pub.dev/packages/file_picker)** & **[path_provider](https://pub.dev/packages/path_provider)** — file system access.
 - **[shared_preferences](https://pub.dev/packages/shared_preferences)** — lightweight preference persistence.
+
+> **A note on licensing.** GrooveForge's own source is MIT, but the bundled soundfont is
+> GPL-2.0. It is sample data read at runtime rather than linked code, so this is ordinary
+> aggregation — the source stays MIT. It does mean a *built APK* cannot be redistributed
+> as MIT-only, since it contains GPL-2.0 material. The soundfont's licence travels with it
+> in `assets/soundfonts/LICENSE.txt`, which is packaged inside the APK.
 
 ### Embedded packages (modified)
 

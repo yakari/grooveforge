@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [X.x.x]
+## [2.17.3] - 2026-09-03
 
 ### Changed
 - User guide: added sections for the Theremin and Stylophone, the Drum Generator, the loopers and the MIDI FX.
@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Architecture
 - Android: FluidSynth is built from source as a pinned git submodule (osal=cpp11, no GLib) instead of ~90 MB of prebuilt libraries. The release APK is about 26 MiB smaller.
+- Android: per-ABI builds (--split-per-abi) wrote all three outputs to the same filename, so they overwrote each other and every "split" APK ended up containing the same single ABI. The filename now carries the ABI; each APK is roughly 30 MiB against 70 MiB for the universal one.
 
 ## [2.17.2] - 2026-09-03
 

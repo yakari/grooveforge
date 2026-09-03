@@ -1,0 +1,7 @@
+Corrigé
+- Plus aucun son lorsqu'une autre application occupait la sortie audio à faible latence. Le son bascule désormais sur un flux partagé.
+- Une gamme microtonale restaurée au démarrage calait les notes sur la gamme mais les jouait en tempérament égal.
+- Les en-têtes de rack affichaient des identifiants internes (« harmonizer », « reverb ») au lieu du nom des modules.
+
+Modifié
+- Le guide couvre désormais la Thérémine, le Stylophone, le Générateur de batterie, les loopers et les MIDI FX.
