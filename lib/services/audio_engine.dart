@@ -1363,6 +1363,14 @@ class AudioEngine extends ChangeNotifier {
     // inherit FluidSynth's internal default instead of the saved value.
     applyFluidSynthGain();
 
+    // Reinstall this channel's Xen tuning for the same reason as the gain
+    // above: a fresh synth starts in equal temperament, and _getSfIdForChannel
+    // now resolves to this instance rather than the one the tuning was sent to.
+    // Without this a restored microtonal scale still snaps notes (that part is
+    // pure Dart) but sounds in 12-TET, with nothing to indicate why.
+    final activeTuning = _channelTunings[midiChannel];
+    if (activeTuning != null) _sendTuning(midiChannel, activeTuning);
+
     debugPrint(
       'AudioEngine: created dedicated synth for ch$midiChannel '
       '→ sfId=$sfId ($soundfontPath)',

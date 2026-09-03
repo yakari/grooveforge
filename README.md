@@ -1,6 +1,6 @@
-# GrooveForge 2.0
+# GrooveForge
 
-GrooveForge is a small cross-platform Flutter app for playing with MIDI keyboards, soundfonts, and — on desktop — VST3 plugins. It runs a built-in multi-timbral synthesizer with a vocoder, and offers a real-time "Jam Mode" that locks notes to a scale across several plugin slots.
+GrooveForge is a small cross-platform Flutter app for playing with MIDI keyboards, soundfonts, and — on desktop — VST3 plugins. It runs a built-in multi-timbral synthesizer, a rack of instruments and effects, MIDI and audio loopers, and a microtonal scale engine that can retune the keyboard to maqamat, ragas, gamelan scales or historical temperaments.
 
 It is **not** meant to compete with established DAWs (Ableton, Bitwig, Reaper, FL Studio, …) or with the excellent free and open-source tools out there (Ardour, LMMS, Zrythm, Qtractor, …). Those projects are far more capable and more thoroughly tested. GrooveForge is a focused personal tool that happens to be shared publicly in case it is useful to someone else.
 
@@ -14,10 +14,49 @@ If it helps anyone else dust off an old piano habit, even better.
 
 ## Features
 
-- **Plugin Rack** — an ordered, drag-and-drop rack of plugin slots. Add, remove, and reorder plugins at any time.
-- **GrooveForge Keyboard** — the built-in plugin. Each slot has independent soundfont selection (`.sf2`), bank/patch assignment, a real-time vocoder, MIDI channel routing, and per-slot Jam Mode.
+Everything is built around the **plugin rack**: an ordered, drag-and-drop stack of module slots that can be added, removed and reordered at any time. Modules are wired to each other and to MIDI channels from the rack itself.
+
+### Instruments
+
+- **GrooveForge Keyboard** — the built-in instrument. Each slot has its own soundfont (`.sf2`), bank/patch assignment, MIDI channel routing and a real-time vocoder.
+- **Vocoder** — mic-driven voice synthesis.
+- **Stylophone** — monophonic metal-strip instrument.
+- **Theremin** — touch pad with vertical pitch and horizontal volume, plus base note, range, vibrato and pad-height controls.
+- **Drum Generator** — beat patterns from bossa nova to metal, with a swing control, a "human feel" slider between robotic and live drummer, count-ins and automatic fills. Patterns load from `.gfdrum` files.
+
+<img src="assets/screenshots/android_theremin.png" width="460" alt="Theremin module">
+
+<img src="assets/screenshots/android_drum_generator.png" width="460" alt="Drum Generator module">
+
+### Xen — microtonal scales
+
+Locks the keyboard to a scale and retunes it to match: Western modes, Arabic maqamat, Indian ragas, Far Eastern and gamelan scales, Celtic modes, historical temperaments, and your own custom scales.
+
+Retuning uses a full MIDI tuning table rather than pitch bend, so every note of a chord sounds at its own correct pitch — pitch bend is per-channel and can only bend one note at a time. Scale-lock and retune targets are patched independently, so one module can snap one keyboard while retuning another.
+
+### Loopers
+
+- **MIDI Looper** — record and loop MIDI patterns with bar sync.
+- **Audio Looper** — record and loop live audio (PCM) with bar sync, overdub and reverse.
+
+<img src="assets/screenshots/android_audio_looper.png" width="460" alt="Audio Looper module">
+
+### MIDI FX
+
+Harmonizer, Chord Expand, Arpeggiator, Transposer, Velocity Curve, Gate, Microtone and Xen. Each is a rack module that processes MIDI on its way to an instrument.
+
+<img src="assets/screenshots/android_harmonizer.png" width="460" alt="Harmonizer module">
+
+<img src="assets/screenshots/android_midi_fx.png" width="460" alt="Built-in MIDI FX list">
+
+### Audio effects
+
+Plate reverb, ping-pong delay, auto-wah, 4-band EQ, compressor and chorus/flanger, with BPM sync where it applies. **Live Input** routes a microphone or line-in through any of them.
+
+### And the rest
+
 - **VST3 Hosting (Linux, planned on Windows)** — load any installed VST3 instrument or effect. Parameters are displayed as rotary knobs grouped by category. The plugin's native GUI opens in a separate floating window.
-- **Jam Mode** — enable per-slot scale locking. Each slot picks a master slot; when the master plays a chord, all following slots lock to that scale. A global override pauses all following without losing individual settings.
+- **Jam Mode** — per-slot scale locking. Each slot picks a master slot; when the master plays a chord, all following slots lock to that scale. A global override pauses all following without losing individual settings.
 - **Scale Lock & Highlighting** — binds notes to the selected scale with visual feedback (root / correct / wrong note colouring) on the on-screen keyboard.
 - **Advanced CC Mapping** — map hardware knobs, sliders, and pads to MIDI effects or application actions (Patch Sweep, Global Scale Cycle, etc.).
 - **Project Files** — save and restore complete rack configurations, including VST3 parameter snapshots, to a `.gf` JSON file. The last session is autosaved on every change.
@@ -143,7 +182,9 @@ export ANDROID_HOME="$HOME/Android/Sdk"
 export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH"
 ```
 
-FluidSynth and all other native dependencies for Android are pre-built and bundled in the repository for all architectures (arm64-v8a, armeabi-v7a, x86, x86_64) — no extra system packages are required.
+FluidSynth is built from source for Android as part of the Gradle/CMake build, from the `packages/flutter_midi_pro/android/src/main/cpp/fluidsynth-src` git submodule (pinned to an upstream release tag). Initialise submodules before the first build — see step 1 below.
+
+It is configured with `osal=cpp11`, which drops the GLib dependency entirely (FluidSynth 2.5.0+), along with `enable-libinstpatch=0` and `enable-libsndfile=0` since DLS/GIG and SF3 are not used. The result is a single `libfluidsynth.so` per ABI whose only dependencies are NDK libraries, so no extra system packages are required.
 
 ---
 
@@ -196,10 +237,18 @@ flutter build linux --release
 ### 1 — Clone and fetch Dart dependencies
 
 ```bash
-git clone https://github.com/your-org/grooveforge.git
+git clone --recurse-submodules https://github.com/yakari/grooveforge.git
 cd grooveforge
 flutter pub get
 ```
+
+Already cloned without `--recurse-submodules`? The Android build needs the FluidSynth source:
+
+```bash
+git submodule update --init
+```
+
+The submodule is **only** required for Android, which compiles FluidSynth as part of its NDK build. Linux, macOS and Windows link the FluidSynth installed by the platform prerequisites above (`libfluidsynth-dev`, `brew install fluidsynth`, or the prebuilt Windows SDK fetched by CI), so a desktop-only checkout can skip it.
 
 ### 2 — Fetch the VST3 SDK (Desktop only)
 
@@ -249,12 +298,19 @@ GrooveForge saves projects as plain JSON with a `.gf` extension. The file stores
 ## Open Source Credits
 
 - **[Flutter](https://flutter.dev/)** — framework and SDK.
-- **[FluidSynth](https://www.fluidsynth.org/)** — soundfont synthesis engine (Linux native).
+- **[FluidSynth](https://www.fluidsynth.org/)** — soundfont synthesis engine, built from source on every platform (LGPL-2.1+).
+- **TimGM6mb** by Tim Brechbill — the bundled default soundfont (`assets/soundfonts/default.sf2`), long shipped with older versions of MuseScore (GPL-2.0).
 - **[VST3 SDK](https://github.com/steinbergmedia/vst3sdk)** — Steinberg VST3 interfaces (MIT license, v3.8+).
 - **[flutter_midi_command](https://pub.dev/packages/flutter_midi_command)** — hardware MIDI routing.
 - **[provider](https://pub.dev/packages/provider)** — reactive state management.
 - **[file_picker](https://pub.dev/packages/file_picker)** & **[path_provider](https://pub.dev/packages/path_provider)** — file system access.
 - **[shared_preferences](https://pub.dev/packages/shared_preferences)** — lightweight preference persistence.
+
+> **A note on licensing.** GrooveForge's own source is MIT, but the bundled soundfont is
+> GPL-2.0. It is sample data read at runtime rather than linked code, so this is ordinary
+> aggregation — the source stays MIT. It does mean a *built APK* cannot be redistributed
+> as MIT-only, since it contains GPL-2.0 material. The soundfont's licence travels with it
+> in `assets/soundfonts/LICENSE.txt`, which is packaged inside the APK.
 
 ### Embedded packages (modified)
 

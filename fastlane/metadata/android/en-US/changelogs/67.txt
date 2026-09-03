@@ -1,0 +1,7 @@
+Fixed
+- Audio could go silent when another app was holding the device's low-latency audio output. It now falls back to a shared stream.
+- A microtonal scale restored at startup snapped notes to the scale but played them in equal temperament.
+- Rack headers showed internal ids ("harmonizer", "reverb") instead of module names.
+
+Changed
+- The user guide now covers the Theremin, Stylophone, Drum Generator, loopers and MIDI FX.

@@ -53,7 +53,21 @@ android {
     applicationVariants.all {
         outputs.all {
             val output = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
-            output.outputFileName = "GrooveForge_${flutter.versionName}.apk"
+            // `--split-per-abi` emits one output per ABI. They must not share a
+            // filename: they are all written to the same directory, so the last
+            // variant built would overwrite the others and Flutter would then
+            // copy that single APK out three times under per-ABI names. The
+            // result looks like a correct split build but ships the same ABI to
+            // every device. A universal build has no ABI filter and keeps the
+            // plain name.
+            val abi = output.filters
+                .firstOrNull { it.filterType == "ABI" }
+                ?.identifier
+            output.outputFileName = if (abi == null) {
+                "GrooveForge_${flutter.versionName}.apk"
+            } else {
+                "GrooveForge_${flutter.versionName}_$abi.apk"
+            }
         }
     }
 

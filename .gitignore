@@ -64,3 +64,8 @@ native_audio/fluidsynth_win64/
 
 # ADB device cache (per-machine)
 .vscode/.adb_device
+
+# Android signing material — must never be committed
+**/*.jks
+**/*.keystore
+**/key.properties
