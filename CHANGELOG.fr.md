@@ -14,6 +14,7 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 
 ### Corrigé
 - Le bouton on/off de Xen et son CC de bypass n'avaient aucun effet.
+- Le panneau « quoi de neuf » du guide n'affichait rien pour une version sans section Ajouté, et se rabattait sur deux puces codées en dur non traduites.
 
 ### Architecture
 - Effacer l'accordage d'un canal n'appelle plus le synthé quand il n'y a rien à effacer.

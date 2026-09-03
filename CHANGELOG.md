@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Xen's on/off button and its bypass CC had no effect.
+- The guide's "what's new" panel showed nothing for a release with no Added section, and fell back to two untranslated hard-coded bullets.
 
 ### Architecture
 - Clearing a channel tuning no longer calls the synth when there is nothing to clear.

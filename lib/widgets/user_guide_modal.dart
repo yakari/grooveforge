@@ -16,7 +16,7 @@ class UserGuideModal extends StatefulWidget {
 
 class _UserGuideModalState extends State<UserGuideModal> {
   String _version = "...";
-  List<String> _latestChanges = [];
+  List<ChangelogEntry> _latestChanges = [];
 
   @override
   void initState() {
@@ -39,7 +39,7 @@ class _UserGuideModalState extends State<UserGuideModal> {
 
     try {
       final content = await rootBundle.loadString(changelogAsset);
-      final changes = _parseLatestAdded(content, isFrench);
+      final changes = parseLatestChangelogEntries(content);
       if (mounted) {
         setState(() {
           _latestChanges = changes;
@@ -50,41 +50,6 @@ class _UserGuideModalState extends State<UserGuideModal> {
     }
   }
 
-  List<String> _parseLatestAdded(String content, bool isFrench) {
-    final List<String> lines = content.split('\n');
-    final List<String> addedLines = [];
-    bool inLatestVersion = false;
-    bool inAddedSection = false;
-
-    final addedHeader = isFrench ? '### Ajouté' : '### Added';
-
-    for (var line in lines) {
-      line = line.trim();
-      if (line.startsWith('## [')) {
-        if (inLatestVersion) break; // Finished the first version block
-        inLatestVersion = true;
-        continue;
-      }
-
-      if (inLatestVersion && line.startsWith(addedHeader)) {
-        inAddedSection = true;
-        continue;
-      }
-
-      if (inAddedSection) {
-        if (line.startsWith('###')) {
-          break; // Next sub-section (Changed/Fixed)
-        }
-        if (line.startsWith('- ')) {
-          // Extract text and remove potential bolding/markdown
-          String clean = line.substring(2).replaceAll('**', '');
-          addedLines.add(clean);
-        }
-      }
-    }
-
-    return addedLines;
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -175,7 +140,7 @@ class _UserGuideModalState extends State<UserGuideModal> {
 /// Displays information about Jam Mode and the new Vocoder feature.
 class _FeaturesTab extends StatelessWidget {
   final String version;
-  final List<String> latestChanges;
+  final List<ChangelogEntry> latestChanges;
   const _FeaturesTab({required this.version, required this.latestChanges});
 
   @override
@@ -477,7 +442,7 @@ Widget _buildWelcomeHeader(
   BuildContext context,
   AppLocalizations l10n,
   String version,
-  List<String> latestChanges,
+  List<ChangelogEntry> latestChanges,
 ) {
   return Container(
     padding: const EdgeInsets.all(16),
@@ -503,10 +468,11 @@ Widget _buildWelcomeHeader(
           style: const TextStyle(color: Colors.white70, fontSize: 13),
         ),
         const SizedBox(height: 12),
-        if (latestChanges.isEmpty) ...[
-          _buildBulletItem("Stability & performance improvements"),
-          _buildBulletItem("New features & UI refinements"),
-        ] else ...[
+        // Nothing to show means show nothing. The two hard-coded English
+        // bullets that used to stand in here were worse than an empty box:
+        // they were untranslated, and they claimed a release had contents the
+        // changelog did not list.
+        if (latestChanges.isNotEmpty) ...[
           Theme(
             data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
             child: ExpansionTile(
@@ -523,14 +489,92 @@ Widget _buildWelcomeHeader(
               childrenPadding: const EdgeInsets.only(bottom: 8),
               iconColor: Colors.blueAccent,
               collapsedIconColor: Colors.blueAccent.withValues(alpha: 0.7),
-              children:
-                  latestChanges
-                      .map((change) => _buildBulletItem(change))
-                      .toList(),
+              children: [
+                for (final entry in latestChanges)
+                  if (entry.isSection)
+                    _buildChangelogSection(entry.text)
+                  else
+                    _buildBulletItem(entry.text),
+              ],
             ),
           ),
         ],
       ],
+    ),
+  );
+}
+
+/// One line of the "what's new" list: either a section heading or a bullet.
+///
+/// A typed pair rather than magic-prefixed strings — the first attempt used an
+/// invisible sentinel character, which is unreadable in a debugger and breaks
+/// any tool that touches the text.
+class ChangelogEntry {
+  final String text;
+
+  /// True for a section heading ("Fixed", "Corrigé"), false for a bullet.
+  final bool isSection;
+
+  const ChangelogEntry(this.text, {this.isSection = false});
+}
+
+/// Every bullet of the newest version block of [content], whichever section it
+/// sits in, with the section headings interleaved.
+///
+/// This used to read only `### Added`, matched against a hard-coded English or
+/// French heading. A release that changed and fixed things without adding any
+/// therefore showed an empty "what's new" — which is what 2.17.2 did — and a
+/// renamed or newly translated section would have emptied it just as silently.
+///
+/// Headings need no translation of their own: they come from the changelog the
+/// app already picked for the current locale.
+@visibleForTesting
+List<ChangelogEntry> parseLatestChangelogEntries(String content) {
+  final entries = <ChangelogEntry>[];
+  var inLatestVersion = false;
+
+  for (var line in content.split('\n')) {
+    line = line.trim();
+
+    if (line.startsWith('## [')) {
+      if (inLatestVersion) break; // Reached the previous release.
+      inLatestVersion = true;
+      continue;
+    }
+    if (!inLatestVersion) continue;
+
+    if (line.startsWith('### ')) {
+      entries.add(ChangelogEntry(line.substring(4).trim(), isSection: true));
+      continue;
+    }
+    if (line.startsWith('- ')) {
+      entries.add(ChangelogEntry(
+        line.substring(2).replaceAll('**', '').replaceAll('`', ''),
+      ));
+    }
+  }
+
+  // Headings with no bullets under them are not worth showing.
+  if (entries.every((e) => e.isSection)) return const [];
+  return entries;
+}
+
+/// A changelog section heading ("Fixed", "Corrigé") above its bullets.
+///
+/// Taken verbatim from the changelog, which the app already loaded in the
+/// current language — so a fix is never presented as a new feature, and no
+/// translation of these words is needed.
+Widget _buildChangelogSection(String title) {
+  return Padding(
+    padding: const EdgeInsets.only(top: 8, bottom: 2),
+    child: Text(
+      title.toUpperCase(),
+      style: TextStyle(
+        color: Colors.blueAccent.withValues(alpha: 0.8),
+        fontSize: 10,
+        fontWeight: FontWeight.w900,
+        letterSpacing: 0.8,
+      ),
     ),
   );
 }
