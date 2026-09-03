@@ -436,7 +436,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get guidePatchJacksBody =>
-      'Each slot exposes a set of jacks grouped by signal family:\n• MIDI (yellow) — MIDI IN / MIDI OUT for note and CC messages.\n• Audio (red / white / orange) — AUDIO IN L, AUDIO IN R, AUDIO OUT L, AUDIO OUT R for stereo audio; SEND / RETURN for effects loops.\n• Data (purple) — CHORD OUT/IN and SCALE OUT/IN for Jam Mode harmony routing.';
+      'Each slot exposes a set of jacks grouped by signal family:\n• MIDI (yellow) — MIDI IN / MIDI OUT for note and CC messages.\n• Audio (red / white / orange) — AUDIO IN L, AUDIO IN R, AUDIO OUT L, AUDIO OUT R for stereo audio; SEND / RETURN for effects loops.\n• Data (purple) — CHORD OUT/IN and SCALE OUT/IN, the harmony routing used by Jam Mode and Xen.\n• Tuning (teal) — TUNE OUT/IN, carrying a Xen module\'s microtonal tuning to an instrument.';
 
   @override
   String get guidePatchDrawTitle => 'Drawing a Cable';
@@ -453,11 +453,11 @@ class AppLocalizationsEn extends AppLocalizations {
       'Each cable has a small ✕ badge at its midpoint. Tap the badge to bring up the Disconnect menu. The badge is also the cable\'s hit zone, so aim for the circle with the coloured ring.';
 
   @override
-  String get guidePatchDataTitle => 'Data Cables (Jam Mode)';
+  String get guidePatchDataTitle => 'Data and Tuning Cables';
 
   @override
   String get guidePatchDataBody =>
-      'Purple data cables represent the Jam Mode harmony flow between slots. Drawing a CHORD OUT → CHORD IN cable is the same as selecting a Jam Mode master in the dropdown — both controls stay in sync. Similarly, a SCALE OUT → SCALE IN cable corresponds to a target follower slot.';
+      'Purple data cables carry harmony between slots. Drawing a CHORD OUT → CHORD IN cable is the same as picking a master in the module\'s dropdown, and a SCALE OUT → SCALE IN cable is the same as adding a target — the patch view and the dropdowns always agree.\nTeal TUNE OUT → TUNE IN cables carry a Xen scale\'s own tuning to an instrument. They are separate from the scale cable on purpose: you can lock a keyboard to a scale without retuning it, or retune it without locking it.';
 
   @override
   String get guidePatchSharedEffectTitle => 'One signal path per effect slot';
@@ -473,6 +473,13 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get guidePatchTip =>
       'Tip: Cables are saved as part of your project (.gf file). Open a saved project to restore all connections exactly as you left them.';
+
+  @override
+  String get guideXenTitle => 'Xen (Scales and Microtuning)';
+
+  @override
+  String get guideXenBody =>
+      'Xen locks the keyboard to a scale and, for scales that are not equal-tempered, retunes the keys that scale uses. Hold a note and tap a scale: the note you are holding becomes the tonic and stays there until you repeat the gesture.\nIts two stages switch independently. SNAP corrects out-of-scale notes — greyed keys on the piano show which. TUNE applies the scale\'s own intonation — retuned keys get a teal band and their offset in cents.\nBeside the Western modes you will find Arabic and Turkish maqamat, Indian ragas, Chinese, Japanese and Korean scales, the Highland pipe scale, gamelan tunings, historical temperaments, and equal divisions such as 24-EDO. \"My Scales\" holds the ones you build or import; Scala (.scl) files can be imported and exported.';
 
   @override
   String get guideJamModeTitle => 'Jam Mode (Auto-Harmony)';
@@ -500,7 +507,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get guideMidiBestPracticeBody =>
-      'For an optimal experience, we recommend using a split MIDI keyboard or a dual-keyboard setup:\n• Channel 2 (Left Hand): Send notes here to control chords and harmony (Jam Master).\n• Channel 1 (Right Hand): Use this channel to improvise over the generated harmony with the current scale.';
+      'One keyboard is enough: the default rack pairs a single GrooveForge Keyboard with a Xen module, and you choose the scale by holding a note and tapping a scale button.\nA split or dual-keyboard setup is still worth having if you prefer Jam Mode, where one channel plays the chords that set the scale and another improvises over them.';
 
   @override
   String get guideSoundfontsTitle => 'Soundfonts (SF2)';

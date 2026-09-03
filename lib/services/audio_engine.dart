@@ -2582,8 +2582,11 @@ class AudioEngine extends ChangeNotifier {
     }
 
     if (centsOffsets == null) {
-      _channelTunings.remove(channel);
-      _clearTuning(channel);
+      // Only reach for the synth when there is something to undo. Selecting an
+      // equal-tempered scale clears the tuning, and doing that unconditionally
+      // fired a native call on every such change — and on a freshly built rack,
+      // before any audio library was even needed.
+      if (_channelTunings.remove(channel) != null) _clearTuning(channel);
       return;
     }
     if (centsOffsets.length != 128) return;

@@ -437,7 +437,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get guidePatchJacksBody =>
-      'Chaque slot expose un ensemble de jacks regroupés par famille de signal :\n• MIDI (jaune) — MIDI IN / MIDI OUT pour les notes et messages CC.\n• Audio (rouge / blanc / orange) — AUDIO IN L, AUDIO IN R, AUDIO OUT L, AUDIO OUT R pour l\'audio stéréo ; SEND / RETURN pour les boucles d\'effets.\n• Data (violet) — CHORD OUT/IN et SCALE OUT/IN pour le routage de l\'harmonie du Mode Jam.';
+      'Chaque slot expose un ensemble de jacks groupés par famille de signal :\n• MIDI (jaune) — MIDI IN / MIDI OUT pour les notes et les CC.\n• Audio (rouge / blanc / orange) — AUDIO IN L, AUDIO IN R, AUDIO OUT L, AUDIO OUT R pour l\'audio stéréo ; SEND / RETURN pour les boucles d\'effets.\n• Data (violet) — CHORD OUT/IN et SCALE OUT/IN, le routage d\'harmonie utilisé par le Jam Mode et par Xen.\n• Accordage (turquoise) — TUNE OUT/IN, qui porte l\'accordage microtonal d\'un module Xen vers un instrument.';
 
   @override
   String get guidePatchDrawTitle => 'Tracer un câble';
@@ -454,11 +454,11 @@ class AppLocalizationsFr extends AppLocalizations {
       'Chaque câble affiche un petit badge ✕ en son milieu. Appuyez sur le badge pour ouvrir le menu Déconnecter. Le badge est aussi la zone de clic du câble — visez le cercle avec l\'anneau coloré.';
 
   @override
-  String get guidePatchDataTitle => 'Câbles Data (Mode Jam)';
+  String get guidePatchDataTitle => 'Câbles data et accordage';
 
   @override
   String get guidePatchDataBody =>
-      'Les câbles data violets représentent le flux d\'harmonie du Mode Jam entre les slots. Tracer un câble CHORD OUT → CHORD IN revient à sélectionner un master Mode Jam dans le menu déroulant — les deux contrôles restent synchronisés. De même, un câble SCALE OUT → SCALE IN correspond à un slot follower.';
+      'Les câbles data violets portent l\'harmonie entre slots. Tirer un câble CHORD OUT → CHORD IN revient à choisir un maître dans le menu du module, et un câble SCALE OUT → SCALE IN revient à ajouter une cible — la vue de patch et les menus disent toujours la même chose.\nLes câbles turquoise TUNE OUT → TUNE IN portent l\'accordage propre d\'une gamme Xen vers un instrument. Ils sont distincts du câble de gamme à dessein : on peut verrouiller un clavier sur une gamme sans le réaccorder, ou le réaccorder sans le verrouiller.';
 
   @override
   String get guidePatchSharedEffectTitle =>
@@ -475,6 +475,13 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get guidePatchTip =>
       'Conseil : Les câbles sont sauvegardés dans votre projet (.gf). Ouvrez un projet sauvegardé pour restaurer toutes les connexions telles que vous les avez laissées.';
+
+  @override
+  String get guideXenTitle => 'Xen (gammes et microtonalité)';
+
+  @override
+  String get guideXenBody =>
+      'Xen verrouille le clavier sur une gamme et, pour les gammes qui ne sont pas tempérées, réaccorde les touches qu\'elle utilise. Tenez une note et appuyez sur une gamme : la note tenue devient la tonique et y reste jusqu\'au geste suivant.\nSes deux étages s\'activent séparément. SNAP corrige les notes hors gamme — les touches grisées du piano indiquent lesquelles. TUNE applique l\'intonation propre de la gamme — les touches réaccordées reçoivent une bande turquoise et leur écart en cents.\nÀ côté des modes occidentaux se trouvent les maqamat arabes et turcs, les ragas indiens, des gammes chinoises, japonaises et coréennes, l\'échelle de la cornemuse écossaise, des accordages de gamelan, les tempéraments historiques et des divisions égales comme le 24-EDO. « Mes gammes » contient celles que vous créez ou importez ; les fichiers Scala (.scl) s\'importent et s\'exportent.';
 
   @override
   String get guideJamModeTitle => 'Mode Jam (Auto-Harmonie)';
@@ -502,7 +509,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get guideMidiBestPracticeBody =>
-      'Pour une expérience optimale, nous recommandons l\'utilisation d\'un clavier MIDI split ou de deux claviers :\n• Canal 2 (Main Gauche) : Envoyez les notes ici pour contrôler les accords et l\'harmonie (Master).\n• Canal 1 (Main Droite) : Utilisez ce canal pour improviser sur l\'harmonie générée avec la gamme actuelle.';
+      'Un seul clavier suffit : le rack par défaut associe un GrooveForge Keyboard à un module Xen, et l\'on choisit la gamme en tenant une note puis en appuyant sur un bouton de gamme.\nUn clavier split ou un montage à deux claviers reste utile si vous préférez le Jam Mode, où un canal joue les accords qui définissent la gamme pendant qu\'un autre improvise dessus.';
 
   @override
   String get guideSoundfontsTitle => 'Soundfonts (SF2)';

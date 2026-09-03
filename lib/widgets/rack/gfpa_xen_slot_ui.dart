@@ -74,7 +74,13 @@ class _GFpaXenSlotUIState extends State<GFpaXenSlotUI> {
     if (xen != null) _family = xen.scale.family;
   }
 
-  bool get _enabled => widget.plugin.state['enabled'] != false;
+  /// Whether the module is doing anything.
+  ///
+  /// Asked of [RackState] rather than read off the state map, because two
+  /// switches can turn a slot off — the LED below and the generic bypass a
+  /// mapped CC uses — and the panel must show the same answer the engine acts
+  /// on.
+  bool _isActive(RackState rack) => rack.isXenActive(widget.plugin.id);
 
   @override
   Widget build(BuildContext context) {
@@ -88,6 +94,8 @@ class _GFpaXenSlotUIState extends State<GFpaXenSlotUI> {
     if (xen == null) {
       return const SizedBox(height: 8);
     }
+
+    final enabled = _isActive(rack);
 
     final slots = rack.plugins
         .where((p) => p.midiChannel > 0 && p.id != widget.plugin.id)
@@ -107,11 +115,9 @@ class _GFpaXenSlotUIState extends State<GFpaXenSlotUI> {
             padding: const EdgeInsets.fromLTRB(10, 9, 10, 8),
             child: _HeaderRow(
               xen: xen,
-              enabled: _enabled,
-              onToggleEnabled: () => rack.setGfpaPluginState(
-                widget.plugin.id,
-                {...widget.plugin.state, 'enabled': !_enabled},
-              ),
+              enabled: enabled,
+              onToggleEnabled: () =>
+                  rack.setXenEnabled(widget.plugin.id, enabled: !enabled),
               onToggleSnap: () => rack.setXenSnapEnabled(
                 widget.plugin.id,
                 enabled: !xen.snapEnabled,
@@ -132,7 +138,7 @@ class _GFpaXenSlotUIState extends State<GFpaXenSlotUI> {
             child: _ScaleGrid(
               xen: xen,
               family: _family,
-              enabled: _enabled,
+              enabled: enabled,
               heldSources: _heldNoteSources(rack, engine),
               onFamily: (f) => setState(() => _family = f),
               onSelect: (id) => rack.selectXenScale(widget.plugin.id, id),
@@ -148,7 +154,7 @@ class _GFpaXenSlotUIState extends State<GFpaXenSlotUI> {
             padding: const EdgeInsets.fromLTRB(10, 7, 10, 7),
             child: _RootStrip(
               rootPc: xen.rootPc,
-              enabled: _enabled,
+              enabled: enabled,
               onRoot: (pc) => rack.setXenRoot(widget.plugin.id, pc),
               onLatch: () => rack.latchXenRoot(widget.plugin.id),
               l10n: l10n,

@@ -186,6 +186,10 @@ class _FeaturesTab extends StatelessWidget {
       children: [
         _buildWelcomeHeader(context, l10n, version, latestChanges),
         const SizedBox(height: 24),
+        // Xen comes first: it is what the default rack ships with, and the
+        // one a new reader will have on screen while reading this.
+        _buildSectionTitle(l10n.guideXenTitle),
+        _buildParagraph(l10n.guideXenBody),
         _buildSectionTitle(l10n.guideJamModeTitle),
         _buildParagraph(l10n.guideJamModeBody),
         const SizedBox(height: 20),

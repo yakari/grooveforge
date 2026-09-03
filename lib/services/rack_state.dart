@@ -382,10 +382,30 @@ class RackState extends ChangeNotifier {
     _notifyChanged();
   }
 
-  /// Creates the factory defaults: two independent GrooveForge Keyboard slots
-  /// (ch 1 = melody / right hand, ch 2 = harmony / left hand) plus a Jam Mode
-  /// slot pre-configured with ch 2 as master and ch 1 as target, inactive by
-  /// default so the user opts in by pressing the LED button.
+  /// Creates the factory defaults: one GrooveForge Keyboard and one Xen module
+  /// driving it, both cables patched and the module already on.
+  ///
+  /// This replaced a two-keyboard Jam Mode rack. That layout asked a new user
+  /// to grasp a master/follower relationship, enable a module that started
+  /// inactive, and play chords on one on-screen keyboard while soloing on
+  /// another — a lot of understanding before anything happens. Xen needs no
+  /// second keyboard: hold a note on the one keyboard, tap a scale, done.
+  ///
+  /// Three choices here are deliberate:
+  ///
+  /// - **Both cables are patched**, not just the scale lock. With only
+  ///   `scaleOut` connected, the first tap on a maqam would play back in equal
+  ///   temperament and the module would look broken. On the default C major
+  ///   scale the tuning cable does nothing audible — it is simply ready.
+  /// - **The module starts enabled.** Jam Mode started inactive so the user
+  ///   would opt in, which meant the default rack demonstrated nothing. Here
+  ///   the greyed-out keys explain the module on the first note, and no note
+  ///   is lost — out-of-scale keys are corrected, not silenced.
+  /// - **C major, root C**, so the keyboard behaves ordinarily until the
+  ///   player chooses otherwise.
+  ///
+  /// Jam Mode is still available from the plugin sheet, and existing projects
+  /// are untouched: this only runs for a new one.
   void initDefaults() {
     _plugins.clear();
 
@@ -407,30 +427,20 @@ class RackState extends ChangeNotifier {
       ),
     );
 
-    _plugins.add(
-      GrooveForgeKeyboardPlugin(
-        id: 'slot-1',
-        midiChannel: 2,
-        soundfontPath: defaultSf,
-        bank: 0,
-        program: 0,
-      ),
-    );
-
-    // Jam Mode slot: ch2 drives the harmony, ch1 follows.
-    // Starts inactive so the user consciously enables it.
+    // Xen drives that single keyboard: scale lock and retuning both patched.
     _plugins.add(
       GFpaPluginInstance(
-        id: 'slot-jam-0',
-        pluginId: 'com.grooveforge.jammode',
+        id: 'slot-xen-0',
+        pluginId: 'com.grooveforge.xen',
         midiChannel: 0,
-        masterSlotId: 'slot-1',
         targetSlotIds: ['slot-0'],
+        tuningTargetSlotIds: ['slot-0'],
         state: {
-          'enabled': false,
-          'scaleType': 'standard',
-          'detectionMode': 'chord',
-          'bpmLockBeats': 0,
+          'enabled': true,
+          'scaleId': GFScaleLibrary.fallback.id,
+          'rootPc': 0,
+          'snapEnabled': true,
+          'tuneEnabled': true,
         },
       ),
     );
@@ -946,6 +956,16 @@ class RackState extends ChangeNotifier {
     return (ch < 0 || ch >= 16) ? null : ch;
   }
 
+  /// True when a Xen slot should be affecting anything.
+  ///
+  /// Two independent switches can turn it off, and both must silence it or the
+  /// panel and the sound disagree: the module's own LED (`enabled`), and the
+  /// generic MIDI FX bypass (`__bypass`) that the slot header and any mapped
+  /// CC use. Only `enabled` was consulted, so bypassing a Xen slot left it
+  /// snapping and retuning while reporting itself off.
+  bool _isXenActive(GFpaPluginInstance instance) =>
+      instance.state['enabled'] != false && instance.state['__bypass'] != true;
+
   /// Publish what every Xen slot knows about the channels it drives.
   ///
   /// The engine snaps, greys and annotates keys from this map; it never sees a
@@ -957,8 +977,16 @@ class RackState extends ChangeNotifier {
     for (final entry in _xenPlugins.entries) {
       final instance = _findGfpaById(entry.key);
       if (instance == null) continue;
-      if (instance.state['enabled'] == false) continue;
       final plugin = entry.value;
+
+      if (!_isXenActive(instance)) {
+        // Switching the module off must also hand the target channel back to
+        // equal temperament. Leaving a maqam's tuning installed would keep the
+        // keyboard detuned while the panel reads OFF.
+        _applyXenTuning(entry.key, null);
+        continue;
+      }
+      _applyXenTuning(entry.key, plugin.tuningTable);
 
       final lockedChannels = _channelsForSlots(instance.targetSlotIds);
       final tunedChannels = _channelsForSlots(instance.tuningTargetSlotIds);
@@ -1005,6 +1033,37 @@ class RackState extends ChangeNotifier {
     final plugin = _findGfpaById(id);
     if (plugin == null || plugin.pluginId != 'com.grooveforge.xen') return;
     plugin.masterSlotId = masterSlotId;
+    notifyListeners();
+    _notifyChanged();
+  }
+
+  /// The Xen locks currently published to the engine. Test-only accessor.
+  @visibleForTesting
+  Map<int, XenChannelLock> get xenScaleLocksForTest => _engine.xenScaleLocks.value;
+
+  /// Whether the Xen slot [id] is currently doing anything.
+  ///
+  /// The panel's LED reads this rather than `enabled` alone, so a module
+  /// bypassed from a hardware pad shows as off instead of claiming to be on.
+  bool isXenActive(String id) {
+    final instance = _findGfpaById(id);
+    return instance != null && _isXenActive(instance);
+  }
+
+  /// Turn a Xen slot on or off from its panel.
+  ///
+  /// Turning it on clears the generic bypass as well: a player pressing the
+  /// module's own ON button means "work", and leaving a CC-set bypass in place
+  /// would make the button appear broken for the second time.
+  void setXenEnabled(String id, {required bool enabled}) {
+    final instance = _findGfpaById(id);
+    if (instance == null || instance.pluginId != 'com.grooveforge.xen') return;
+    instance.state = {
+      ...instance.state,
+      'enabled': enabled,
+      if (enabled) '__bypass': false,
+    };
+    _syncXenLocksToEngine();
     notifyListeners();
     _notifyChanged();
   }
@@ -1167,12 +1226,18 @@ class RackState extends ChangeNotifier {
     final plugin = _findGfpaById(id);
     if (plugin == null) return;
     plugin.state = state;
-    // Re-sync the engine immediately so scale/detection-mode changes take
-    // effect without requiring a stop/restart of Jam Mode.
+    // Re-sync the engine immediately so scale / detection-mode changes take
+    // effect without a stop-start of the module.
     if (plugin.pluginId == 'com.grooveforge.jammode') {
       _syncJamFollowerMapToEngine();
-    _syncXenInstances();
+    } else if (plugin.pluginId == 'com.grooveforge.xen') {
+      _syncXenLocksToEngine();
     }
+    // Without this the panel keeps showing the old value: the state map has
+    // changed but nothing tells the widget tree, so the module's own on/off
+    // LED looked dead until some unrelated rebuild — a tap on the drag handle,
+    // say — happened to repaint it.
+    notifyListeners();
     _notifyChanged();
   }
 
@@ -1415,6 +1480,9 @@ class RackState extends ChangeNotifier {
     if (slot == null) return;
     final bypassed = !(slot.state['__bypass'] == true);
     slot.state['__bypass'] = bypassed;
+    if (slot.pluginId == 'com.grooveforge.xen') {
+      _syncXenLocksToEngine();
+    }
     _engine.toastNotifier.value =
         '${slot.displayName} — ${bypassed ? 'bypassed' : 'active'}';
     markDirty();

@@ -5,6 +5,18 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/lang/fr/).
 
+## [X.x.x]
+
+### Modifié
+- Rack par défaut : un clavier piloté par un module Xen, à la place du montage à deux claviers avec Jam Mode. Le Jam Mode reste disponible ; les projets existants ne sont pas touchés.
+- Guide : section Xen et jacks d'accordage turquoise ajoutés, recommandation du double clavier retirée.
+
+### Corrigé
+- Le bouton on/off de Xen et son CC de bypass n'avaient aucun effet.
+
+### Architecture
+- Effacer l'accordage d'un canal n'appelle plus le synthé quand il n'y a rien à effacer.
+
 ## [2.17.1] - 2026-09-01
 
 ### Ajouté
