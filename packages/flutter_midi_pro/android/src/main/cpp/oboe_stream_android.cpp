@@ -537,15 +537,19 @@ static void logStreamConfig(int requestedSampleRate)
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
-extern "C" void oboe_stream_start(int sampleRate)
+/// Opens, configures and starts the shared output stream in one sharing mode.
+///
+/// Returns AAUDIO_OK with g_stream live, or the failing result with g_stream
+/// left null and any partially-opened stream already closed, so the caller can
+/// simply try again with a different mode.
+static aaudio_result_t openAndStartStream(int sampleRate,
+                                          aaudio_sharing_mode_t sharingMode)
 {
-    if (g_stream != nullptr) return; // Stream already running.
-
     AAudioStreamBuilder* builder = nullptr;
     aaudio_result_t result = AAudio_createStreamBuilder(&builder);
     if (result != AAUDIO_OK) {
         LOGE("AAudio_createStreamBuilder: %s", AAudio_convertResultToText(result));
-        return;
+        return result;
     }
 
     // Output, stereo, float32 — matches renderFn output format for all sources.
@@ -565,15 +569,17 @@ extern "C" void oboe_stream_start(int sampleRate)
     // ── Low-latency request ────────────────────────────────────────────────
     //
     // LOW_LATENCY + EXCLUSIVE asks the platform for an MMAP "fast path" stream
-    // that bypasses AudioFlinger's normal mixer. Neither is guaranteed: when
-    // the device cannot honour the request AAudio silently downgrades to a
-    // shared, AudioTrack-backed legacy stream — no error, just tens to
-    // hundreds of extra milliseconds. logStreamConfig() below reports what was
-    // actually granted instead of letting us assume.
+    // that bypasses AudioFlinger's normal mixer. Neither is guaranteed, and the
+    // downgrade is not always the silent one AAudio documents: when another app
+    // already holds the device's single exclusive MMAP endpoint, the open
+    // *succeeds* in MMAP mode and requestStart() is what then fails, with
+    // AAUDIO_ERROR_DISCONNECTED. oboe_stream_start() recovers from that by
+    // calling this function again in SHARED mode; each call attempts exactly
+    // the one mode it was handed. logStreamConfig() reports what was actually
+    // granted instead of letting us assume.
     AAudioStreamBuilder_setPerformanceMode(
             builder, AAUDIO_PERFORMANCE_MODE_LOW_LATENCY);
-    AAudioStreamBuilder_setSharingMode(
-            builder, AAUDIO_SHARING_MODE_EXCLUSIVE);
+    AAudioStreamBuilder_setSharingMode(builder, sharingMode);
 
     // Declare the stream as game audio instead of the default MEDIA usage.
     //
@@ -612,7 +618,7 @@ extern "C" void oboe_stream_start(int sampleRate)
     if (result != AAUDIO_OK) {
         LOGE("AAudioStreamBuilder_openStream: %s", AAudio_convertResultToText(result));
         g_stream = nullptr;
-        return;
+        return result;
     }
 
     // ── Buffer size: two bursts ──────────────────────────────────────────
@@ -638,6 +644,38 @@ extern "C" void oboe_stream_start(int sampleRate)
         LOGE("AAudioStream_requestStart: %s", AAudio_convertResultToText(result));
         AAudioStream_close(g_stream);
         g_stream = nullptr;
+        return result;
+    }
+
+    return AAUDIO_OK;
+}
+
+extern "C" void oboe_stream_start(int sampleRate)
+{
+    if (g_stream != nullptr) return; // Stream already running.
+
+    // Try the MMAP fast path, then fall back to a shared stream.
+    //
+    // Without the fallback a single failure here is permanent and silent: the
+    // stream is closed, nothing drives the audio callback, and every source
+    // stops being rendered until the app restarts. FluidSynth in particular
+    // keeps accepting note-ons whose events are never consumed, so its
+    // ringbuffer fills and it starts logging "Failed to allocate a synthesis
+    // process" — a symptom far from this cause. Any other app holding the
+    // device's exclusive MMAP endpoint is enough to trigger it.
+    aaudio_result_t result =
+            openAndStartStream(sampleRate, AAUDIO_SHARING_MODE_EXCLUSIVE);
+
+    if (result != AAUDIO_OK) {
+        LOGW("Exclusive (MMAP) stream unavailable (%s) — retrying in SHARED "
+             "mode. Higher latency, but working audio.",
+             AAudio_convertResultToText(result));
+        result = openAndStartStream(sampleRate, AAUDIO_SHARING_MODE_SHARED);
+    }
+
+    if (result != AAUDIO_OK) {
+        LOGE("AAudio stream could not be started in any sharing mode: %s",
+             AAudio_convertResultToText(result));
         return;
     }
 
