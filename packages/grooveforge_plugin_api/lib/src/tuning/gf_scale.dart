@@ -115,17 +115,31 @@ enum GFScaleFamily {
   /// synonym for "microtonal".
   maqam,
 
+  /// Persian dastgāh — the radif repertoire, built on the koron.
+  persian,
+
   /// North Indian ragas, tuned from the just-intonation shruti values.
   raga,
 
   /// Chinese, Japanese and Korean scales.
   farEast,
 
+  /// Mainland Southeast Asia — Thai and Burmese near-equiheptatonic tunings.
+  southeastAsia,
+
   /// Javanese and Balinese gamelan tunings.
   gamelan,
 
-  /// Scales from the Celtic instrumental traditions.
-  celtic,
+  /// African tunings — Ethiopian qenet and East African equipentatonics.
+  africa,
+
+  /// European folk and liturgical traditions outside common practice — the
+  /// Celtic instrumental repertoire, Nordic fiddle tunings, Byzantine chant.
+  ///
+  /// Renamed from `celtic` when the Nordic and Byzantine scales arrived: a
+  /// family holding a hardanger fiddle under a "Celtic" tab would have been
+  /// simply wrong.
+  europe,
 
   /// Full twelve-note tunings of the keyboard itself — just intonation,
   /// Pythagorean, meantone, well temperaments. Unlike the other families

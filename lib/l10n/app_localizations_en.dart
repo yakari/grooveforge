@@ -1479,6 +1479,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get xenFamilyCeltic => 'Celtic';
 
   @override
+  String get xenFamilyPersian => 'Persian';
+
+  @override
+  String get xenFamilySoutheastAsia => 'SE Asia';
+
+  @override
+  String get xenFamilyAfrica => 'Africa';
+
+  @override
+  String get xenFamilyEurope => 'Europe';
+
+  @override
   String get xenFamilyGamelan => 'Gamelan';
 
   @override

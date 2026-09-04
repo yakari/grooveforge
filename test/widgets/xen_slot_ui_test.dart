@@ -175,6 +175,40 @@ void main() {
     }
   });
 
+  group('family picker', () {
+    testWidgets('a phone gets a dropdown, not eleven rows of tabs',
+        (tester) async {
+      await withXenPanel(tester, width: 360, body: (rack) async {
+        // Wrapped tabs cost five or six rows at this width, which pushed the
+        // scales themselves off screen.
+        expect(find.text('WESTERN'), findsOneWidget);
+        expect(find.text('MAQAM'), findsNothing,
+            reason: 'only the selected family is shown on a phone');
+        expect(find.byIcon(Icons.arrow_drop_down), findsWidgets);
+      });
+    });
+
+    testWidgets('the dropdown switches family', (tester) async {
+      await withXenPanel(tester, width: 360, body: (rack) async {
+        await tester.tap(find.text('WESTERN'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Maqam').last);
+        await tester.pumpAndSettle();
+
+        expect(find.text('MAQAM'), findsOneWidget);
+        expect(find.text('Rast'), findsOneWidget);
+      });
+    });
+
+    testWidgets('a wide layout keeps every family visible', (tester) async {
+      await withXenPanel(tester, width: 900, body: (rack) async {
+        expect(find.text('MAQAM'), findsOneWidget);
+        expect(find.text('AFRICA'), findsOneWidget);
+        expect(find.text('PERSIAN'), findsOneWidget);
+      });
+    });
+  });
+
   group('every family is browsable', () {
     testWidgets('each tab lists its scales', (tester) async {
       await withXenPanel(tester, width: 1280, body: (rack) async {
@@ -184,7 +218,10 @@ void main() {
           ('MAQAM', 'Rast'),
           ('RAGA', 'Yaman'),
           ('FAR EAST', 'Hirajoshi'),
-          ('CELTIC', 'Highland Pipe'),
+          ('EUROPE', 'Highland Pipe'),
+          ('PERSIAN', 'Šur'),
+          ('AFRICA', 'Tizita'),
+          ('SE ASIA', 'Thai (7 equal)'),
           ('GAMELAN', 'Slendro'),
           ('TEMPERAMENTS', 'Pythagorean'),
         ]) {

@@ -354,6 +354,179 @@ class GFScaleLibrary {
     ],
   );
 
+
+  /// Maqam Sikah — built on the half-flat third degree itself, so the tonic is
+  /// a quarter-tone away from anything a piano can play.
+  static const maqamSikah = GFScale(
+    id: 'maqamSikah',
+    name: 'Sikah',
+    family: GFScaleFamily.maqam,
+    provenance: '24-tone Arabic convention (half-flats at −50 cents)',
+    degrees: [
+      GFScaleDegree(0), GFScaleDegree(2, -50.0), GFScaleDegree(4, -50.0),
+      GFScaleDegree(6, -50.0), GFScaleDegree(7), GFScaleDegree(9, -50.0),
+      GFScaleDegree(11, -50.0),
+    ],
+  );
+
+  /// Maqam Huzam — Sikah's trichord capped by a Hijaz tetrachord.
+  static const maqamHuzam = GFScale(
+    id: 'maqamHuzam',
+    name: 'Huzam',
+    family: GFScaleFamily.maqam,
+    provenance: '24-tone Arabic convention (half-flats at −50 cents)',
+    degrees: [
+      GFScaleDegree(0), GFScaleDegree(2, -50.0), GFScaleDegree(3),
+      GFScaleDegree(4), GFScaleDegree(7), GFScaleDegree(8),
+      GFScaleDegree(11, -50.0),
+    ],
+  );
+
+  /// Maqam Hijazkar — the double harmonic scale: two augmented seconds,
+  /// symmetric around the fifth. Equal-tempered, and instantly recognisable.
+  static const maqamHijazkar = GFScale(
+    id: 'maqamHijazkar',
+    name: 'Hijazkar',
+    family: GFScaleFamily.maqam,
+    provenance: 'Equal-tempered maqam — no quarter-tones',
+    degrees: [
+      GFScaleDegree(0), GFScaleDegree(1), GFScaleDegree(4), GFScaleDegree(5),
+      GFScaleDegree(7), GFScaleDegree(8), GFScaleDegree(11),
+    ],
+  );
+
+  /// Maqam Nikriz — a raised fourth over a minor third.
+  static const maqamNikriz = GFScale(
+    id: 'maqamNikriz',
+    name: 'Nikriz',
+    family: GFScaleFamily.maqam,
+    provenance: 'Equal-tempered maqam — no quarter-tones',
+    degrees: [
+      GFScaleDegree(0), GFScaleDegree(2), GFScaleDegree(3), GFScaleDegree(6),
+      GFScaleDegree(7), GFScaleDegree(9), GFScaleDegree(10),
+    ],
+  );
+
+  /// Maqam Suznak — Rast below, Hijaz above.
+  static const maqamSuznak = GFScale(
+    id: 'maqamSuznak',
+    name: 'Suznak',
+    family: GFScaleFamily.maqam,
+    provenance: '24-tone Arabic convention (half-flats at −50 cents)',
+    degrees: [
+      GFScaleDegree(0), GFScaleDegree(2), GFScaleDegree(4, -50.0),
+      GFScaleDegree(5), GFScaleDegree(7), GFScaleDegree(8),
+      GFScaleDegree(11),
+    ],
+  );
+
+  /// Makam Uşşak — the Turkish neutral second.
+  ///
+  /// Its second degree sits 8 Holdrian commas up (181 cents), between a minor
+  /// and a major second. That interval is the single most characteristic
+  /// sound of Turkish makam, and no equal-tempered scale contains it.
+  ///
+  /// Built as the Uşşak tetrachord (8, 5, 9 commas) plus the Buselik
+  /// pentachord (9, 4, 9, 9).
+  static const makamUssak = GFScale(
+    id: 'makamUssak',
+    name: 'Uşşak (Turkish)',
+    family: GFScaleFamily.maqam,
+    provenance: 'Arel-Ezgi-Uzdilek: 8, 5, 9, 9, 4, 9, 9 Holdrian commas',
+    degrees: [
+      GFScaleDegree(0),
+      GFScaleDegree(2, -18.9),   //  8 commas = 181.1
+      GFScaleDegree(3, -5.7),    // 13 commas = 294.3
+      GFScaleDegree(5, -1.9),    // 22 commas = 498.1
+      GFScaleDegree(7, 1.9),     // 31 commas = 701.9
+      GFScaleDegree(8, -7.5),    // 35 commas = 792.5
+      GFScaleDegree(10, -3.8),   // 44 commas = 996.2
+    ],
+  );
+
+  /// Makam Hüseyni — the Uşşak neutral second with a higher sixth.
+  ///
+  /// Hüseyni pentachord (8, 5, 9, 9) plus Uşşak tetrachord (8, 5, 9).
+  static const makamHuseyni = GFScale(
+    id: 'makamHuseyni',
+    name: 'Hüseyni (Turkish)',
+    family: GFScaleFamily.maqam,
+    provenance: 'Arel-Ezgi-Uzdilek: 8, 5, 9, 9, 8, 5, 9 Holdrian commas',
+    degrees: [
+      GFScaleDegree(0),
+      GFScaleDegree(2, -18.9),   //  8 commas = 181.1
+      GFScaleDegree(3, -5.7),    // 13 commas = 294.3
+      GFScaleDegree(5, -1.9),    // 22 commas = 498.1
+      GFScaleDegree(7, 1.9),     // 31 commas = 701.9
+      GFScaleDegree(9, -17.0),   // 39 commas = 883.0
+      GFScaleDegree(10, -3.8),   // 44 commas = 996.2
+    ],
+  );
+
+  // ═══ Persian — dastgāh ════════════════════════════════════════════════════
+  //
+  // The koron lowers a note by less than a semitone, and — unlike the Arabic
+  // half-flat — it has no agreed size. Sources place it anywhere from 50 to 70
+  // cents below the natural, performers place it by ear and by dastgāh, and
+  // one authority notes only that no interval in the system falls under 90
+  // cents. The −50 used here is the 24-tone notation convention, not a
+  // measurement; the sound of the radif lives in how a player leans on these
+  // degrees, which no tuning table can carry.
+
+  /// Dastgāh-e Šur — the central mode of the Persian radif, with a koron
+  /// second.
+  static const dastgahShur = GFScale(
+    id: 'dastgahShur',
+    name: 'Šur',
+    family: GFScaleFamily.persian,
+    provenance: '24-tone notation convention; performed koron size varies',
+    degrees: [
+      GFScaleDegree(0), GFScaleDegree(2, -50.0), GFScaleDegree(3),
+      GFScaleDegree(5), GFScaleDegree(7), GFScaleDegree(8),
+      GFScaleDegree(10),
+    ],
+  );
+
+  /// Dastgāh-e Čahārgāh — an augmented second either side of the fifth, with
+  /// korons: the most dramatic of the dastgāhs.
+  static const dastgahChahargah = GFScale(
+    id: 'dastgahChahargah',
+    name: 'Čahārgāh',
+    family: GFScaleFamily.persian,
+    provenance: '24-tone notation convention; performed koron size varies',
+    degrees: [
+      GFScaleDegree(0), GFScaleDegree(1), GFScaleDegree(4), GFScaleDegree(5),
+      GFScaleDegree(7), GFScaleDegree(8), GFScaleDegree(11),
+    ],
+  );
+
+  /// Dastgāh-e Segāh — rooted on a koron degree, so the tonic itself sits
+  /// between two piano keys.
+  static const dastgahSegah = GFScale(
+    id: 'dastgahSegah',
+    name: 'Segāh',
+    family: GFScaleFamily.persian,
+    provenance: '24-tone notation convention; performed koron size varies',
+    degrees: [
+      GFScaleDegree(0), GFScaleDegree(2, -50.0), GFScaleDegree(3),
+      GFScaleDegree(5), GFScaleDegree(7, -50.0), GFScaleDegree(8),
+      GFScaleDegree(10),
+    ],
+  );
+
+  /// Dastgāh-e Homāyun — Čahārgāh's intervals reordered around a minor tonic.
+  static const dastgahHomayun = GFScale(
+    id: 'dastgahHomayun',
+    name: 'Homāyun',
+    family: GFScaleFamily.persian,
+    provenance: '24-tone notation convention; performed koron size varies',
+    degrees: [
+      GFScaleDegree(0), GFScaleDegree(2, -50.0), GFScaleDegree(3),
+      GFScaleDegree(5), GFScaleDegree(7), GFScaleDegree(8),
+      GFScaleDegree(11),
+    ],
+  );
+
   // ═══ Raga — North Indian, just intonation ═════════════════════════════════
   //
   // Tuned from the shruti ratios rather than from equal temperament. The
@@ -455,6 +628,62 @@ class GFScaleLibrary {
     ],
   );
 
+
+  /// Raga Malkauns — a late-night pentatonic on komal ga, ma, komal dha and
+  /// komal ni, with no fifth. Dark and immediately recognisable.
+  static const ragaMalkauns = GFScale(
+    id: 'ragaMalkauns',
+    name: 'Malkauns',
+    family: GFScaleFamily.raga,
+    provenance: 'Just intonation from the shruti ratios (ascending form)',
+    degrees: [
+      GFScaleDegree(0), GFScaleDegree(3, -5.865), GFScaleDegree(5, -1.955),
+      GFScaleDegree(8, -7.820), GFScaleDegree(10, -3.910),
+    ],
+  );
+
+  /// Raga Darbari Kanada — its komal ga is sung deliberately flat and heavily
+  /// oscillated; the fixed pitch here is the centre of that oscillation, not
+  /// the note as performed.
+  static const ragaDarbari = GFScale(
+    id: 'ragaDarbari',
+    name: 'Darbari Kanada',
+    family: GFScaleFamily.raga,
+    provenance: 'Shruti ratios; komal ga is oscillated in performance',
+    degrees: [
+      GFScaleDegree(0), GFScaleDegree(2, 3.910), GFScaleDegree(3, -5.865),
+      GFScaleDegree(5, -1.955), GFScaleDegree(7, 1.955),
+      GFScaleDegree(8, -7.820), GFScaleDegree(10, -3.910),
+    ],
+  );
+
+  /// Raga Bhimpalasi — an afternoon raga, Kafi with the second and sixth
+  /// omitted in ascent.
+  static const ragaBhimpalasi = GFScale(
+    id: 'ragaBhimpalasi',
+    name: 'Bhimpalasi',
+    family: GFScaleFamily.raga,
+    provenance: 'Just intonation from the shruti ratios (ascending form)',
+    degrees: [
+      GFScaleDegree(0), GFScaleDegree(3, -5.865), GFScaleDegree(5, -1.955),
+      GFScaleDegree(7, 1.955), GFScaleDegree(10, -3.910),
+    ],
+  );
+
+  /// Mayamalavagowla — the raga every Carnatic student learns first, chosen
+  /// for teaching because its intervals are symmetric around the fifth.
+  static const ragaMayamalavagowla = GFScale(
+    id: 'ragaMayamalavagowla',
+    name: 'Mayamalavagowla',
+    family: GFScaleFamily.raga,
+    provenance: 'Carnatic melakarta 15, just intonation',
+    degrees: [
+      GFScaleDegree(0), GFScaleDegree(1, -9.775), GFScaleDegree(4, -13.686),
+      GFScaleDegree(5, -1.955), GFScaleDegree(7, 1.955),
+      GFScaleDegree(8, -7.820), GFScaleDegree(11, -11.731),
+    ],
+  );
+
   // ═══ Far East — China, Japan, Korea ═══════════════════════════════════════
 
   /// Chinese gong pentatonic tuned by the sanfen sunyi (三分損益) cycle of
@@ -536,7 +765,172 @@ class GFScaleLibrary {
     ],
   );
 
-  // ═══ Celtic ═══════════════════════════════════════════════════════════════
+
+  /// Shang — the second Chinese pentatonic mode, on the same cycle of fifths.
+  static const shangPentatonic = GFScale(
+    id: 'shangPentatonic',
+    name: 'Shang',
+    family: GFScaleFamily.farEast,
+    provenance: 'Sanfen sunyi cycle of fifths (Pythagorean)',
+    degrees: [
+      GFScaleDegree(0), GFScaleDegree(2, 3.910), GFScaleDegree(5, -1.955),
+      GFScaleDegree(7, 1.955), GFScaleDegree(10, -3.910),
+    ],
+  );
+
+  /// Jue — the third Chinese mode, the darkest of the five.
+  static const juePentatonic = GFScale(
+    id: 'juePentatonic',
+    name: 'Jue',
+    family: GFScaleFamily.farEast,
+    provenance: 'Sanfen sunyi cycle of fifths (Pythagorean)',
+    degrees: [
+      GFScaleDegree(0), GFScaleDegree(3, -5.865), GFScaleDegree(5, -1.955),
+      GFScaleDegree(8, -7.820), GFScaleDegree(10, -3.910),
+    ],
+  );
+
+  /// Zhi — the fourth Chinese mode.
+  static const zhiPentatonic = GFScale(
+    id: 'zhiPentatonic',
+    name: 'Zhi',
+    family: GFScaleFamily.farEast,
+    provenance: 'Sanfen sunyi cycle of fifths (Pythagorean)',
+    degrees: [
+      GFScaleDegree(0), GFScaleDegree(2, 3.910), GFScaleDegree(5, -1.955),
+      GFScaleDegree(7, 1.955), GFScaleDegree(9, 5.865),
+    ],
+  );
+
+  /// Yu — the fifth Chinese mode, the minor-sounding one.
+  static const yuPentatonic = GFScale(
+    id: 'yuPentatonic',
+    name: 'Yu',
+    family: GFScaleFamily.farEast,
+    provenance: 'Sanfen sunyi cycle of fifths (Pythagorean)',
+    degrees: [
+      GFScaleDegree(0), GFScaleDegree(3, -5.865), GFScaleDegree(5, -1.955),
+      GFScaleDegree(7, 1.955), GFScaleDegree(10, -3.910),
+    ],
+  );
+
+  /// Ryo — the bright heptatonic mode of Japanese gagaku.
+  static const ryo = GFScale(
+    id: 'ryo',
+    name: 'Ryo',
+    family: GFScaleFamily.farEast,
+    provenance: 'Gagaku mode, equal-tempered notation',
+    degrees: [
+      GFScaleDegree(0), GFScaleDegree(2), GFScaleDegree(4), GFScaleDegree(5),
+      GFScaleDegree(7), GFScaleDegree(9), GFScaleDegree(11),
+    ],
+  );
+
+  /// Ritsu — the darker gagaku counterpart to [ryo].
+  static const ritsu = GFScale(
+    id: 'ritsu',
+    name: 'Ritsu',
+    family: GFScaleFamily.farEast,
+    provenance: 'Gagaku mode, equal-tempered notation',
+    degrees: [
+      GFScaleDegree(0), GFScaleDegree(2), GFScaleDegree(3), GFScaleDegree(5),
+      GFScaleDegree(7), GFScaleDegree(9), GFScaleDegree(10),
+    ],
+  );
+
+  // ═══ Southeast Asia ═══════════════════════════════════════════════════════
+
+  /// Thai classical tuning — seven near-equal steps of about 171 cents.
+  ///
+  /// The one traditional scale in the catalogue that is an equal division of
+  /// the octave, and a happy accident for the keyboard: its seven degrees land
+  /// on the seven white keys, each pulled up to 43 cents off. Play in C major
+  /// and a piphat ensemble comes out.
+  ///
+  /// Real Thai ensembles are not exactly equal — the tuning is set by ear on
+  /// fixed-pitch percussion — but 7-fold equality is the model the theory and
+  /// the instrument makers work from.
+  static final thai7Equal = _equalDivision(
+    id: 'thai7Equal',
+    name: 'Thai (7 equal)',
+    provenance: 'Idealised 7-fold equal division, 171.4 cents per step',
+    steps: 7,
+    family: GFScaleFamily.southeastAsia,
+  );
+
+  // ═══ Africa ═══════════════════════════════════════════════════════════════
+  //
+  // Ethiopian qenet are pentatonic modes whose *degrees* are well documented
+  // but whose intonation is not tempered in performance — a krar or a masenqo
+  // is tuned by ear, and a singer bends between the degrees. What follows is
+  // the pitch structure as it is written and taught, which is what a keyboard
+  // can honestly offer; the inflections are the player's.
+
+  /// Tizita — the qenet of nostalgia, and the most widely known.
+  static const tizita = GFScale(
+    id: 'tizita',
+    name: 'Tizita',
+    family: GFScaleFamily.africa,
+    provenance: 'Ethiopian qenet; untempered in performance',
+    degrees: [
+      GFScaleDegree(0), GFScaleDegree(2), GFScaleDegree(4), GFScaleDegree(7),
+      GFScaleDegree(9),
+    ],
+  );
+
+  /// Bati — the same five degrees heard from a different tonic, giving the
+  /// major-pentatonic-with-a-flat-third colour of much Ethio-jazz.
+  static const bati = GFScale(
+    id: 'bati',
+    name: 'Bati',
+    family: GFScaleFamily.africa,
+    provenance: 'Ethiopian qenet; untempered in performance',
+    degrees: [
+      GFScaleDegree(0), GFScaleDegree(4), GFScaleDegree(5), GFScaleDegree(7),
+      GFScaleDegree(11),
+    ],
+  );
+
+  /// Ambassel — a semitone above the tonic, then a leap: the most angular of
+  /// the four.
+  static const ambassel = GFScale(
+    id: 'ambassel',
+    name: 'Ambassel',
+    family: GFScaleFamily.africa,
+    provenance: 'Ethiopian qenet; untempered in performance',
+    degrees: [
+      GFScaleDegree(0), GFScaleDegree(1), GFScaleDegree(5), GFScaleDegree(7),
+      GFScaleDegree(8),
+    ],
+  );
+
+  /// Anchihoye — the qenet most often described as having neutral degrees,
+  /// notated here at their quarter-tone positions.
+  static const anchihoye = GFScale(
+    id: 'anchihoye',
+    name: 'Anchihoye',
+    family: GFScaleFamily.africa,
+    provenance: 'Ethiopian qenet; neutral degrees at 24-tone positions',
+    degrees: [
+      GFScaleDegree(0), GFScaleDegree(1), GFScaleDegree(5), GFScaleDegree(6),
+      GFScaleDegree(8, -50.0),
+    ],
+  );
+
+  /// East African equipentatonic — the amadinda and embaire xylophones of
+  /// Uganda, tuned to five near-equal steps of 240 cents.
+  ///
+  /// The same division as the Javanese slendro, arrived at independently on
+  /// another continent — which is the point of having both.
+  static final amadinda = _equalDivision(
+    id: 'amadinda',
+    name: 'Amadinda (5 equal)',
+    provenance: 'Ganda xylophone tuning, idealised 5-fold equal division',
+    steps: 5,
+    family: GFScaleFamily.africa,
+  );
+
+  // ═══ Europe ═══════════════════════════════════════════════════════════════
 
   /// The Great Highland Bagpipe scale.
   ///
@@ -547,12 +941,62 @@ class GFScaleLibrary {
   static const highlandPipe = GFScale(
     id: 'highlandPipe',
     name: 'Highland Pipe',
-    family: GFScaleFamily.celtic,
+    family: GFScaleFamily.europe,
     provenance: 'Near-just chanter scale (9/8, 5/4, 4/3, 3/2, 27/16, 16/9)',
     degrees: [
       GFScaleDegree(0), GFScaleDegree(2, 3.910), GFScaleDegree(4, -13.686),
       GFScaleDegree(5, -1.955), GFScaleDegree(7, 1.955),
       GFScaleDegree(9, 5.865), GFScaleDegree(10, -3.910),
+    ],
+  );
+
+
+  /// Hardanger fiddle — the Norwegian "blue" tuning.
+  ///
+  /// Measurements of hardingfele players consistently show a third and a sixth
+  /// sitting between major and minor, and a fourth pulled high. The values
+  /// below are a plausible centre of those measurements, not a standard: the
+  /// instrument has no frets and every district plays it differently.
+  static const hardingfele = GFScale(
+    id: 'hardingfele',
+    name: 'Hardingfele',
+    family: GFScaleFamily.europe,
+    provenance: 'Averaged Norwegian fiddle intonation; varies by district',
+    degrees: [
+      GFScaleDegree(0), GFScaleDegree(2), GFScaleDegree(4, -35.0),
+      GFScaleDegree(5, 20.0), GFScaleDegree(7), GFScaleDegree(9, -35.0),
+      GFScaleDegree(10),
+    ],
+  );
+
+  /// Byzantine chant, soft chromatic genus.
+  ///
+  /// Greek Orthodox chant divides the octave into 72 parts, and its second
+  /// mode uses a chromatic tetrachord noticeably softer than the augmented
+  /// second a Western ear expects from Hijaz.
+  static const byzantineSoftChromatic = GFScale(
+    id: 'byzantineSoftChromatic',
+    name: 'Byzantine (soft chromatic)',
+    family: GFScaleFamily.europe,
+    provenance: '72-division Byzantine theory, soft chromatic genus',
+    degrees: [
+      GFScaleDegree(0), GFScaleDegree(1, 33.0), GFScaleDegree(3, 33.0),
+      GFScaleDegree(5), GFScaleDegree(7), GFScaleDegree(8, 33.0),
+      GFScaleDegree(10, 33.0),
+    ],
+  );
+
+  /// Byzantine chant, hard chromatic genus — the wide augmented second of the
+  /// sixth mode.
+  static const byzantineHardChromatic = GFScale(
+    id: 'byzantineHardChromatic',
+    name: 'Byzantine (hard chromatic)',
+    family: GFScaleFamily.europe,
+    provenance: '72-division Byzantine theory, hard chromatic genus',
+    degrees: [
+      GFScaleDegree(0), GFScaleDegree(1, -17.0), GFScaleDegree(4, 17.0),
+      GFScaleDegree(5), GFScaleDegree(7), GFScaleDegree(8, -17.0),
+      GFScaleDegree(11, 17.0),
     ],
   );
 
@@ -594,6 +1038,34 @@ class GFScaleLibrary {
       GFScaleDegree(0), GFScaleDegree(1, 20.0), GFScaleDegree(3, -30.0),
       GFScaleDegree(5, 40.0), GFScaleDegree(7, -30.0),
       GFScaleDegree(8, -15.0), GFScaleDegree(10, -50.0),
+    ],
+  );
+
+
+  /// Pelog barang — the pelog degrees heard from a different tonic, the second
+  /// of the two pathet a Javanese gamelan plays in.
+  static const pelogBarang = GFScale(
+    id: 'pelogBarang',
+    name: 'Pelog Barang',
+    family: GFScaleFamily.gamelan,
+    provenance: 'Averaged Javanese pelog barang; every gamelan differs',
+    degrees: [
+      GFScaleDegree(0), GFScaleDegree(2, -30.0), GFScaleDegree(4, 40.0),
+      GFScaleDegree(6, -30.0), GFScaleDegree(7, -15.0),
+      GFScaleDegree(9, -50.0), GFScaleDegree(11, 20.0),
+    ],
+  );
+
+  /// Pelog selisir — the five-tone Balinese subset, the tuning of a gong kebyar
+  /// and the sound most listeners mean by "gamelan".
+  static const pelogSelisir = GFScale(
+    id: 'pelogSelisir',
+    name: 'Pelog Selisir',
+    family: GFScaleFamily.gamelan,
+    provenance: 'Averaged Balinese selisir; every gamelan differs',
+    degrees: [
+      GFScaleDegree(0), GFScaleDegree(1, 20.0), GFScaleDegree(3, -30.0),
+      GFScaleDegree(7, -30.0), GFScaleDegree(8, -15.0),
     ],
   );
 
@@ -694,12 +1166,13 @@ class GFScaleLibrary {
     required String provenance,
     required int steps,
     double periodCents = 1200.0,
+    GFScaleFamily family = GFScaleFamily.experimental,
   }) {
     final stepCents = periodCents / steps;
     return GFScale(
       id: id,
       name: name,
-      family: GFScaleFamily.experimental,
+      family: family,
       provenance: provenance,
       mapping: GFScaleMapping.linear,
       periodCents: periodCents,
@@ -806,6 +1279,151 @@ class GFScaleLibrary {
     ],
   );
 
+
+  /// 17 equal divisions of the octave.
+  ///
+  /// The tuning The Mercury Tree play in — microtonal math rock built entirely
+  /// on it. Its fifth is wider than a just one, which tilts every chord.
+  static final edo17 = _equalDivision(
+    id: 'edo17',
+    name: '17-EDO',
+    provenance: '17 equal divisions of the octave, 70.59 cents apart',
+    steps: 17,
+  );
+
+  /// 22 equal divisions of the octave — the xenharmonic scene's workhorse,
+  /// used by Sevish and Brendan Byrnes.
+  static final edo22 = _equalDivision(
+    id: 'edo22',
+    name: '22-EDO',
+    provenance: '22 equal divisions of the octave, 54.55 cents apart',
+    steps: 22,
+  );
+
+  /// 15 equal divisions of the octave.
+  static final edo15 = _equalDivision(
+    id: 'edo15',
+    name: '15-EDO',
+    provenance: '15 equal divisions of the octave, 80 cents apart',
+    steps: 15,
+  );
+
+  /// 13 equal divisions of the octave — no usable fifth at all, which is why
+  /// it sounds like nothing else.
+  static final edo13 = _equalDivision(
+    id: 'edo13',
+    name: '13-EDO',
+    provenance: '13 equal divisions of the octave, 92.31 cents apart',
+    steps: 13,
+  );
+
+  /// 16 equal divisions of the octave, home of the mavila temperament, where
+  /// major and minor swap places.
+  static final edo16 = _equalDivision(
+    id: 'edo16',
+    name: '16-EDO',
+    provenance: '16 equal divisions of the octave, 75 cents apart',
+    steps: 16,
+  );
+
+  /// Blackwood's decatonic — ten notes of 15-EDO in a 1, 2, 1, 2… pattern.
+  ///
+  /// Easley Blackwood wrote a full etude on it. Unlike a raw EDO this is a
+  /// scale you can actually compose in: the alternating step sizes give it a
+  /// tonic and a shape.
+  static const blackwoodDecatonic = GFScale(
+    id: 'blackwoodDecatonic',
+    name: 'Blackwood Decatonic',
+    family: GFScaleFamily.experimental,
+    provenance: 'Ten notes of 15-EDO, alternating 80 and 160 cent steps',
+    mapping: GFScaleMapping.linear,
+    degrees: [
+      GFScaleDegree(0), GFScaleDegree(1, -20.0), GFScaleDegree(2, 40.0),
+      GFScaleDegree(3, 20.0), GFScaleDegree(4, 80.0), GFScaleDegree(5, 60.0),
+      GFScaleDegree(6, 120.0), GFScaleDegree(7, 100.0),
+      GFScaleDegree(8, 160.0), GFScaleDegree(9, 140.0),
+    ],
+  );
+
+  /// Carlos Alpha — Wendy Carlos's division of a perfect fifth into nine, with
+  /// no octave anywhere.
+  ///
+  /// Repeating an interval that is not the octave means the pitch never comes
+  /// back to itself: doubling a frequency lands between two degrees. Carlos
+  /// designed it to hold major and minor thirds more purely than any octave
+  /// division can.
+  static final carlosAlpha = _equalDivision(
+    id: 'carlosAlpha',
+    name: 'Carlos Alpha',
+    provenance: 'Wendy Carlos: steps of 78.0 cents, no octave',
+    steps: 9,
+    periodCents: 702.0,
+  );
+
+  /// Carlos Beta — the same idea with the fifth split eleven ways.
+  static final carlosBeta = _equalDivision(
+    id: 'carlosBeta',
+    name: 'Carlos Beta',
+    provenance: 'Wendy Carlos: steps of 63.8 cents, no octave',
+    steps: 11,
+    periodCents: 702.0,
+  );
+
+  /// Carlos Gamma — twenty steps to the fifth, so fine that triads are nearly
+  /// beatless.
+  static final carlosGamma = _equalDivision(
+    id: 'carlosGamma',
+    name: 'Carlos Gamma',
+    provenance: 'Wendy Carlos: steps of 35.1 cents, no octave',
+    steps: 20,
+    periodCents: 702.0,
+  );
+
+  /// Bohlen-Pierce Lambda — the nine-note scale composers actually write in,
+  /// drawn from the thirteen steps of [bohlenPierce].
+  static const bohlenPierceLambda = GFScale(
+    id: 'bohlenPierceLambda',
+    name: 'Bohlen-Pierce Lambda',
+    family: GFScaleFamily.experimental,
+    provenance: 'Steps 0, 1, 3, 4, 6, 7, 9, 10, 12 of 13-tone Bohlen-Pierce',
+    mapping: GFScaleMapping.linear,
+    periodCents: 1901.955,
+    degrees: [
+      GFScaleDegree(0),
+      GFScaleDegree(1, 46.3),    //  1 step  = 146.3
+      GFScaleDegree(2, 238.9),   //  3 steps = 438.9
+      GFScaleDegree(3, 285.2),   //  4 steps = 585.2
+      GFScaleDegree(4, 477.8),   //  6 steps = 877.8
+      GFScaleDegree(5, 524.1),   //  7 steps = 1024.1
+      GFScaleDegree(6, 716.7),   //  9 steps = 1316.7
+      GFScaleDegree(7, 763.0),   // 10 steps = 1463.0
+      GFScaleDegree(8, 955.7),   // 12 steps = 1755.7
+    ],
+  );
+
+  /// Subharmonic series 16 down to 8 — the mirror of [harmonicSeries].
+  ///
+  /// Where the harmonic series is built from a fundamental upward, this one
+  /// divides downward. Partch called the two otonality and utonality; the
+  /// undertone version sounds markedly darker for reasons that have more to do
+  /// with how the ear finds a root than with the intervals themselves.
+  static const subharmonicSeries = GFScale(
+    id: 'subharmonicSeries',
+    name: 'Subharmonic Series 16-8',
+    family: GFScaleFamily.experimental,
+    provenance: 'Undertones 16-8: 16/15, 8/7, 16/13, 4/3, 16/11, 8/5, 16/9',
+    degrees: [
+      GFScaleDegree(0),
+      GFScaleDegree(1, 11.731),   // 16/15 = 111.731
+      GFScaleDegree(2, 31.174),   //  8/7  = 231.174
+      GFScaleDegree(4, -40.528),  // 16/13 = 359.472
+      GFScaleDegree(5, -1.955),   //  4/3  = 498.045
+      GFScaleDegree(6, 48.682),   // 16/11 = 648.682
+      GFScaleDegree(8, 13.686),   //  8/5  = 813.686
+      GFScaleDegree(10, -3.910),  // 16/9  = 996.090
+    ],
+  );
+
   // ═══ Catalogue ════════════════════════════════════════════════════════════
 
   /// Every built-in scale, in the order the UI presents them.
@@ -824,20 +1442,33 @@ class GFScaleLibrary {
     phrygianDominant, wholeTone, diminished,
     // Maqam
     maqamRast, maqamBayati, maqamHijaz, maqamSaba,
-    maqamNahawand, maqamKurd, maqamAjam, makamRastTurkish,
+    maqamNahawand, maqamKurd, maqamAjam, maqamSikah, maqamHuzam,
+    maqamHijazkar, maqamNikriz, maqamSuznak,
+    makamRastTurkish, makamUssak, makamHuseyni,
+    // Persian
+    dastgahShur, dastgahChahargah, dastgahSegah, dastgahHomayun,
     // Raga
     ragaBhairav, ragaYaman, ragaBhairavi, ragaTodi, ragaMarwa, ragaKafi,
+    ragaMalkauns, ragaDarbari, ragaBhimpalasi, ragaMayamalavagowla,
     // Far East
-    gongPentatonic, hirajoshi, inSen, yo, pyeongjo, gyemyeonjo,
-    // Celtic
-    highlandPipe,
+    gongPentatonic, shangPentatonic, juePentatonic, zhiPentatonic,
+    yuPentatonic, hirajoshi, inSen, yo, ryo, ritsu, pyeongjo, gyemyeonjo,
+    // Southeast Asia
+    thai7Equal,
     // Gamelan
-    slendro, pelog,
+    slendro, pelog, pelogBarang, pelogSelisir,
+    // Africa
+    tizita, bati, ambassel, anchihoye, amadinda,
+    // Europe
+    highlandPipe, hardingfele,
+    byzantineSoftChromatic, byzantineHardChromatic,
     // Temperaments
     justIntonation, pythagorean, meantone, werckmeisterIII,
     // Experimental — last, matching the family tab order.
-    quarterTone24Edo, edo19, edo31, bohlenPierce, harmonicSeries,
-    quarterToneCluster,
+    quarterTone24Edo, edo19, edo31, edo17, edo22, edo15, edo13, edo16,
+    blackwoodDecatonic, bohlenPierce, bohlenPierceLambda,
+    carlosAlpha, carlosBeta, carlosGamma,
+    harmonicSeries, subharmonicSeries, quarterToneCluster,
   ];
 
   // ── Custom scales ─────────────────────────────────────────────────────────

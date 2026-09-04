@@ -1,6 +1,6 @@
 # GrooveForge
 
-GrooveForge is a small cross-platform Flutter app for playing with MIDI keyboards, soundfonts, and — on desktop — VST3 plugins. It runs a built-in multi-timbral synthesizer, a rack of instruments and effects, MIDI and audio loopers, and a microtonal scale engine that can retune the keyboard to maqamat, ragas, gamelan scales or historical temperaments.
+GrooveForge is a small cross-platform Flutter app for playing with MIDI keyboards, soundfonts, and — on desktop — VST3 plugins. It runs a built-in multi-timbral synthesizer, a rack of instruments and effects, MIDI and audio loopers, and a microtonal scale engine that can retune the keyboard to maqamat, ragas, dastgāh, gamelan scales, Ethiopian qenet or historical temperaments.
 
 It is **not** meant to compete with established DAWs (Ableton, Bitwig, Reaper, FL Studio, …) or with the excellent free and open-source tools out there (Ardour, LMMS, Zrythm, Qtractor, …). Those projects are far more capable and more thoroughly tested. GrooveForge is a focused personal tool that happens to be shared publicly in case it is useful to someone else.
 
@@ -30,9 +30,29 @@ Everything is built around the **plugin rack**: an ordered, drag-and-drop stack 
 
 ### Xen — microtonal scales
 
-Locks the keyboard to a scale and retunes it to match: Western modes, Arabic maqamat, Indian ragas, Far Eastern and gamelan scales, Celtic modes, historical temperaments, and your own custom scales.
+Locks the keyboard to a scale and retunes it to match. Hold a note, tap a scale: the note you are holding becomes the tonic and stays there until you repeat the gesture — no second keyboard needed.
+
+**92 scales across eleven families**, each carrying a note on where its tuning numbers come from:
+
+| Family | Scales |
+|---|---|
+| Western | modes, pentatonics, blues, whole tone, diminished |
+| Maqam | Arabic Rast, Bayati, Hijaz, Saba, Sikah, Huzam, Hijazkar…; Turkish Rast, Uşşak, Hüseyni in the 53-comma system |
+| Persian | the dastgāh — Šur, Čahārgāh, Segāh, Homāyun |
+| Raga | Bhairav, Yaman, Malkauns, Darbari, Todi… in just intonation; Carnatic Mayamalavagowla |
+| Far East | the five Chinese modes tuned by the cycle of fifths; Japanese hirajoshi, in sen, yo, ryo, ritsu; Korean pyeongjo, gyemyeonjo |
+| SE Asia | Thai seven-equal — its degrees land on the white keys |
+| Gamelan | Javanese slendro and pelog, Balinese selisir |
+| Africa | Ethiopian tizita, bati, ambassel, anchihoye; Ugandan amadinda |
+| Europe | Highland pipe, hardanger fiddle, Byzantine soft and hard chromatic |
+| Temperaments | just, Pythagorean, quarter-comma meantone, Werckmeister III |
+| Experimental | 13, 15, 16, 17, 19, 22, 24, 31-EDO; Bohlen-Pierce and its Lambda mode; Carlos alpha, beta, gamma; harmonic and subharmonic series |
 
 Retuning uses a full MIDI tuning table rather than pitch bend, so every note of a chord sounds at its own correct pitch — pitch bend is per-channel and can only bend one note at a time. Scale-lock and retune targets are patched independently, so one module can snap one keyboard while retuning another.
+
+Not everything in the list is equally certain, and the app says so. A temperament or an equal division has exact values; a maqam is written in the 24-tone convention that notates the practice rather than measuring it; a gamelan, an Ethiopian qenet or a hardanger fiddle is tuned by ear and differs from one instrument to the next. Each scale's `provenance` line states which of those it is, because presenting an averaged tuning as a standard would be the wrong kind of precision.
+
+Build your own scales in the editor — any number of degrees, per-key offsets, and a mute that keeps a degree playable and retuned while the snap ignores it. Import and export Scala `.scl` files, or GrooveForge's own JSON for a faithful round trip.
 
 ### Loopers
 

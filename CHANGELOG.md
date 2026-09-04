@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [X.x.x]
+
+### Added
+- 43 more scales, doubling the catalogue to 92. Persian dastgāh, Thai seven-equal, Ethiopian qenet, Ugandan amadinda, Byzantine chant and hardanger fiddle join as new families; maqam, raga, Far East and gamelan each gain several.
+- Microtonal EDOs used by contemporary bands: 13, 15, 16, 17 and 22, plus Blackwood's decatonic, Bohlen-Pierce Lambda, Wendy Carlos's non-octave alpha, beta and gamma, and the subharmonic series.
+
+### Changed
+- Xen panel: on a phone the family picker is a dropdown; eleven families wrapped to five or six rows of tabs and pushed the scales off screen.
+
 ## [2.17.3] - 2026-09-03
 
 ### Changed

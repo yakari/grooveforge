@@ -643,24 +643,38 @@ class _ScaleGrid extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Wrapped, not scrolled. A horizontal scroller clipped the last
-        // family mid-word on a phone with nothing to say it could be
-        // scrolled, so a third of the catalogue was effectively invisible.
-        Wrap(
-          spacing: 14,
-          runSpacing: 2,
-          children: [
-            for (final f in GFScaleFamily.values)
-              _FamilyTab(
-                label: xenFamilyLabel(l10n, f),
-                selected: f == family,
+        // Eleven families wrap to five or six rows on a phone, which pushes
+        // the scales themselves off screen — so narrow layouts get a dropdown
+        // and wide ones keep the tabs, where they cost two rows and let the
+        // player see the whole catalogue at once.
+        LayoutBuilder(
+          builder: (context, constraints) {
+            if (constraints.maxWidth < 520) {
+              return _FamilyDropdown(
+                family: family,
                 enabled: enabled,
-                onTap: () => onFamily(f),
-              ),
-          ],
+                onFamily: onFamily,
+                l10n: l10n,
+              );
+            }
+            return Wrap(
+              spacing: 14,
+              runSpacing: 2,
+              children: [
+                for (final f in GFScaleFamily.values)
+                  _FamilyTab(
+                    label: xenFamilyLabel(l10n, f),
+                    selected: f == family,
+                    enabled: enabled,
+                    onTap: () => onFamily(f),
+                  ),
+              ],
+            );
+          },
         ),
-        const SizedBox(height: 4),
-        // Separates the two rows, which read as one wall of pills otherwise.
+        const SizedBox(height: 6),
+        // Separates the family picker from the scales, which read as one wall
+        // of pills otherwise.
         Container(height: 1, color: Colors.white10),
         const SizedBox(height: 8),
         Wrap(
@@ -705,6 +719,100 @@ class _ScaleGrid extends StatelessWidget {
               ),
         ),
       ],
+    );
+  }
+}
+
+/// Family picker for narrow layouts.
+///
+/// Shows how many scales the chosen family holds, which the tab row could not:
+/// with families ranging from one scale to seventeen, that count is the thing
+/// a player wants before committing a tap.
+class _FamilyDropdown extends StatelessWidget {
+  const _FamilyDropdown({
+    required this.family,
+    required this.enabled,
+    required this.onFamily,
+    required this.l10n,
+  });
+
+  final GFScaleFamily family;
+  final bool enabled;
+  final ValueChanged<GFScaleFamily> onFamily;
+  final AppLocalizations l10n;
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<GFScaleFamily>(
+      color: const Color(0xFF1C1C1C),
+      tooltip: '',
+      enabled: enabled,
+      constraints: const BoxConstraints(maxHeight: 420, minWidth: 220),
+      itemBuilder: (context) => [
+        for (final f in GFScaleFamily.values)
+          PopupMenuItem(
+            value: f,
+            height: 36,
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    xenFamilyLabel(l10n, f),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight:
+                          f == family ? FontWeight.w800 : FontWeight.w500,
+                      color: f == family ? _kSelected : Colors.white70,
+                    ),
+                  ),
+                ),
+                Text(
+                  '${GFScaleLibrary.byFamily(f).length}',
+                  style: const TextStyle(fontSize: 11, color: Colors.white38),
+                ),
+              ],
+            ),
+          ),
+      ],
+      onSelected: onFamily,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1A1A1A),
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(
+            color: enabled
+                ? _kSelected.withValues(alpha: 0.45)
+                : Colors.white12,
+          ),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                xenFamilyLabel(l10n, family).toUpperCase(),
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.6,
+                  color: enabled ? _kSelected : Colors.white24,
+                ),
+              ),
+            ),
+            Text(
+              '${GFScaleLibrary.byFamily(family).length}',
+              style: const TextStyle(fontSize: 11, color: Colors.white38),
+            ),
+            Icon(
+              Icons.arrow_drop_down,
+              size: 20,
+              color: enabled ? _kSelected : Colors.white24,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -1329,14 +1437,20 @@ String xenFamilyLabel(AppLocalizations l10n, GFScaleFamily family) {
       return l10n.xenFamilyWestern;
     case GFScaleFamily.maqam:
       return l10n.xenFamilyMaqam;
+    case GFScaleFamily.persian:
+      return l10n.xenFamilyPersian;
     case GFScaleFamily.raga:
       return l10n.xenFamilyRaga;
     case GFScaleFamily.farEast:
       return l10n.xenFamilyFarEast;
-    case GFScaleFamily.celtic:
-      return l10n.xenFamilyCeltic;
+    case GFScaleFamily.southeastAsia:
+      return l10n.xenFamilySoutheastAsia;
     case GFScaleFamily.gamelan:
       return l10n.xenFamilyGamelan;
+    case GFScaleFamily.africa:
+      return l10n.xenFamilyAfrica;
+    case GFScaleFamily.europe:
+      return l10n.xenFamilyEurope;
     case GFScaleFamily.temperament:
       return l10n.xenFamilyTemperament;
     case GFScaleFamily.experimental:

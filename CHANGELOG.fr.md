@@ -5,6 +5,15 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/lang/fr/).
 
+## [X.x.x]
+
+### Ajouté
+- 43 gammes de plus, doublant le catalogue à 92. Dastgāh persan, heptatonique égal thaï, qenet éthiopiens, amadinda ougandais, chant byzantin et hardingfele arrivent en nouvelles familles ; maqam, raga, Extrême-Orient et gamelan s'étoffent.
+- Les EDO microtonales des groupes actuels : 13, 15, 16, 17 et 22, plus le décatonique de Blackwood, le Lambda de Bohlen-Pierce, les alpha, beta et gamma non octaviantes de Wendy Carlos, et la série sous-harmonique.
+
+### Modifié
+- Panneau Xen : sur téléphone, le sélecteur de famille est un menu déroulant ; onze familles se repliaient sur cinq ou six rangées d'onglets et repoussaient les gammes hors de l'écran.
+
 ## [2.17.3] - 2026-09-03
 
 ### Modifié

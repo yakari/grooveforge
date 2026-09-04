@@ -2762,6 +2762,30 @@ abstract class AppLocalizations {
   /// **'Celtic'**
   String get xenFamilyCeltic;
 
+  /// No description provided for @xenFamilyPersian.
+  ///
+  /// In en, this message translates to:
+  /// **'Persian'**
+  String get xenFamilyPersian;
+
+  /// No description provided for @xenFamilySoutheastAsia.
+  ///
+  /// In en, this message translates to:
+  /// **'SE Asia'**
+  String get xenFamilySoutheastAsia;
+
+  /// No description provided for @xenFamilyAfrica.
+  ///
+  /// In en, this message translates to:
+  /// **'Africa'**
+  String get xenFamilyAfrica;
+
+  /// No description provided for @xenFamilyEurope.
+  ///
+  /// In en, this message translates to:
+  /// **'Europe'**
+  String get xenFamilyEurope;
+
   /// No description provided for @xenFamilyGamelan.
   ///
   /// In en, this message translates to:
