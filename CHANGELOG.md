@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Harmonizer (MIDI FX): a Count knob sets how many harmony voices play, and two extra voices bring it to four — the same shape as the Audio Harmonizer.
 - Both harmonizers print their values under the knobs: the voice count as a number, and each voice's interval as signed semitones plus the interval it names (`+7 st · P5`, `5J` in French).
+- 12 drum-generator styles, more than half the previous library again: techno and electro; dub; R&B; Arabic maqsum and baladi; Turkish karşılama in 9/8 and çiftetelli; Persian shesh-o-hasht in 6/8; Indian teental and bhangra; Japanese taiko and Chinese luogu.
+- The oriental patterns are built to pair with the Xen module's scales — maqsum under Rast, karşılama under Hicaz, teental under Yaman — and each file documents which General MIDI kit piece stands in for the darbuka, tabla, dhol or taiko it was written for.
 
 ### Fixed
 - Audio Harmonizer: heavy crackling, worst on Android. Two causes — upward voices were resynthesised with too little frame overlap, stamping a tremolo on the harmony (3 dB at an octave up, 14 dB at two), and on Android the DSP was being compiled unoptimised, so it missed the audio callback's deadline outright.
@@ -17,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Audio Harmonizer: upward voices aliased, folding their high end back as an inharmonic whistle only 6 dB below the signal. A band-limiting filter ahead of the shift puts it 20 dB down.
 - Audio Looper: a tempo-synced clip changed level with the tempo, playing about 6 dB louder at half speed and 6 dB quieter at double. It now holds its level at any stretch. Same cause as the harmonizer's per-interval levels.
 - Android: effects could overrun their scratch buffers on any device whose audio callback delivers more than 512 frames. They are now sized for the 4096-frame ceiling the callback actually clamps to.
+- Drum generator: the four patterns marked `feel: swing_soft` (Afrobeat, Country, Second Line, Festive Fanfare) played dead straight. The parser only knew `swing_light`, so the spelling every bundled file and the format guide use fell back to no swing at all.
+- Drum generator: the Cha-cha's timbale fill was missing its low timbale, which the file used but never declared. A new test checks every bundled pattern for undeclared instruments and for step grids whose length does not match the pattern's resolution — both of which the parser drops silently.
 
 ### Architecture
 - The phase vocoder shortens whichever hop the stretch ratio calls for — the analysis hop when stretching, the synthesis hop when compressing — so both overlaps stay at 4x or better at every ratio. Overlap-add gain is what depends on the synthesis overlap, and it was the tremolo's cause.

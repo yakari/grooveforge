@@ -16,7 +16,7 @@
 #   modern_cha_cha   — drum-kit adaptation with snare on 2 and 4
 #   mambo_cha        — faster, higher-energy hybrid approaching mambo territory
 #
-# GM notes: 65=hi timbale, 62=mute hi conga, 63=open hi conga, 64=low conga,
+# GM notes: 65=hi timbale, 66=lo timbale, 62=mute hi conga, 63=open hi conga, 64=low conga,
 #           56=cowbell (cencerro), 75=claves, 36=kick, 38=snare, 49=crash
 
 #
@@ -48,6 +48,7 @@ feel: straight
 
 instruments:
   timbale_hi: { note: 65, base_velocity: 80,  velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.07 }
+  timbale_lo: { note: 66, base_velocity: 88,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.08 }
   conga_mute: { note: 62, base_velocity: 72,  velocity_range: 12, timing_jitter: 0.014, duration_beats: 0.07 }
   conga_open: { note: 63, base_velocity: 88,  velocity_range: 10, timing_jitter: 0.014, duration_beats: 0.08 }
   conga_lo:   { note: 64, base_velocity: 90,  velocity_range: 10, timing_jitter: 0.014, duration_beats: 0.10 }

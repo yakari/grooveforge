@@ -1,0 +1,147 @@
+# Turkish — Karşılama, aksak 9/8
+# Reference: Turkish Roman (Rom) dance repertoire, Thrace and Istanbul wedding
+#            bands, the 9/8 usul of Ottoman classical music (Aksak Semai family).
+# Pairs with the makam scales in the Xen module — Hicaz, Uşşak and Hüseyni all
+# live in this metre.
+#
+# Aksak means "limping": the bar is nine 8th notes grouped 2+2+2+3, so three
+# short beats are followed by one long one. Dancers step on the four beats, not
+# on the nine 8ths — the long fourth beat is where the hip drop lands.
+#
+#   Beat:      1       2       3       4 (long)
+#   8ths:    1  2  |  3  4  |  5  6  |  7  8  9
+#   16th pos: 0-3  |  4-7   |  8-11  |  12-17
+#
+# GM substitution: General MIDI has no darbuka, so low conga stands in for the
+# doum (bass stroke), muted high conga for the tek (rim slap) and high bongo for
+# the ka (weak-hand tek). Tambourine covers the def (frame drum) and the open
+# triangle the zil (finger cymbals).
+# GM notes: 64=low conga (doum), 62=mute hi conga (tek), 60=hi bongo (ka),
+#           54=tambourine (def), 81=open triangle (zil), 36=kick, 38=snare,
+#           42=closed HH, 49=crash
+
+#
+# ── Step grid notation ────────────────────────────────────────────────────────
+# Each character in a step grid represents one subdivision of the bar.
+# Resolution 18 = eighteen 16th notes = nine 8th notes in 9/8.
+#
+#   X   Strong accent  — velocity = base_velocity × 1.00  (full hit / downbeat)
+#   x   Medium accent  — velocity = base_velocity × 0.75  (firm stroke / upbeat)
+#   o   Soft hit       — velocity = base_velocity × 0.55  (brush / light touch)
+#   g   Ghost note     — velocity = base_velocity × 0.28  (barely audible, mostly felt)
+#   .   Rest           — no note fired at this step
+#
+# Beat positions — 9/8 at resolution 18 (one char per 16th note):
+#   pos   0  1  2  3 | 4  5  6  7 | 8  9 10 11 | 12 13 14 15 16 17
+#   8th   1     2    | 3     4    | 5     6    | 7      8      9
+#   beat  └─ 1 ──────┘└─ 2 ───────┘└─ 3 ───────┘└──── 4 (long) ────┘
+#
+# Swing / feel: straight — an aksak bar is already uneven; adding swing on top
+#   of it blurs the 2+2+2+3 grouping the dance depends on.
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Karşılama (9/8)
+family: turkish
+bpm_range: [110, 180]
+time_signature: [9, 8]
+resolution: 18
+feel: straight
+
+instruments:
+  doum:   { note: 64, base_velocity: 110, velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.14 }
+  tek:    { note: 62, base_velocity: 94,  velocity_range: 12, timing_jitter: 0.010, duration_beats: 0.07 }
+  ka:     { note: 60, base_velocity: 72,  velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.05 }
+  def:    { note: 54, base_velocity: 76,  velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.07 }
+  zil:    { note: 81, base_velocity: 68,  velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.10 }
+  kick:   { note: 36, base_velocity: 104, velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.14 }
+  snare:  { note: 38, base_velocity: 96,  velocity_range: 14, timing_jitter: 0.012, duration_beats: 0.10 }
+  hihat:  { note: 42, base_velocity: 70,  velocity_range: 12, timing_jitter: 0.010, duration_beats: 0.06 }
+  crash:  { note: 49, base_velocity: 96,  velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.24 }
+
+humanization:
+  timing_jitter: 0.012
+  velocity_jitter: 12
+  velocity_drift: 0.05
+
+sections:
+  # Nine evenly-spaced clicks across the bar — one per 8th note, so the player
+  # hears the full 9 before the 2+2+2+3 grouping starts.
+  intro:
+    type: count_in
+    hits: 9
+    note: 62
+
+  groove:
+    bars: 1
+    variations:
+      - name: karsilama
+        weight: 4
+        # The dance rhythm. Doum on beats 1 and 3 (pos 0, 8), tek on beat 2
+        # (pos 4) and then three teks filling the long fourth beat (pos 12, 14,
+        # 16) — that triple stroke is what tells the dancer the bar is ending.
+        doum: "X.......X........."
+        tek:  "....X.......X.X.X."
+        ka:   "..g.g.g.g.g.g.g.g."
+        def:  "x.x.x.x.x.x.x.x.x."
+
+      - name: roman_havasi
+        weight: 3
+        # Turkish Roman 9/8 — the clarinet-and-darbuka wedding version. All three
+        # short beats get a doum, the tek waits until the second half of beat 2
+        # (pos 6), and the zil marks the start of beats 2 and 4 so the whole
+        # ensemble hears where the long beat begins.
+        doum: "X...X...X........."
+        tek:  "......X.....X.X.X."
+        ka:   ".g.g.g.g.g.g.g.g.g"
+        def:  "x.x.x.x.x.x.x.x.x."
+        zil:  "....x.......x...x."
+
+      - name: agir_aksak
+        weight: 2
+        # Ağır aksak — the slow, heavy reading used for songs rather than dance.
+        # Doum on all four beat heads including the long one (pos 12), tek only
+        # on the second 8th of each short beat. Much more space.
+        doum: "X...X...X...X....."
+        tek:  "..x...x...x.....x."
+        def:  "x.x.x.x.x.x.x.x.x."
+
+      - name: kit_9_8
+        weight: 2
+        # Drum-kit reading for a band with no percussionist: kick on beats 1 and
+        # 3, snare where the tek was. The hi-hat stays on 8ths throughout so the
+        # nine is countable from the kit alone.
+        kick:  "X.......X........."
+        snare: "....X.......X.X.X."
+        hihat: "x.x.x.x.x.x.x.x.x."
+
+  fill:
+    bars: 1
+    variations:
+      - name: darbuka_burst
+        # Straight 16ths across the whole bar — the darbuka roll that Roman
+        # bands use to hand the tune back to the clarinet.
+        doum: "X................."
+        tek:  "XxXxXxXxXxXxXxXxXx"
+
+      - name: long_beat_accent
+        # The four beat heads accented, then the long beat broken into its three
+        # 8ths (pos 12, 14, 16) so the grouping is unmistakable before the repeat.
+        doum: "X...X...X...X.X.X."
+        tek:  "..x...x...x......."
+        def:  "x.x.x.x.x.x.x.x.x."
+
+  crash:
+    bars: 1
+    variations:
+      - name: standard
+        crash: "X................."
+        doum:  "X.......X........."
+        tek:   "....X.......X.X.X."
+        def:   "x.x.x.x.x.x.x.x.x."
+
+structure:
+  fill_every: 8
+  break_every: 0
+  break_length: 1
+  crash_after_fill: true
+  dynamic_build: false

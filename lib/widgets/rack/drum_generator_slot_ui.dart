@@ -340,6 +340,22 @@ class _StyleDropdown extends StatelessWidget {
         return l10n.drumGeneratorFamilyCountry;
       case 'folk':
         return l10n.drumGeneratorFamilyFolk;
+      case 'march':
+        return l10n.drumGeneratorFamilyMarch;
+      case 'reggae':
+        return l10n.drumGeneratorFamilyReggae;
+      case 'rnb':
+        return l10n.drumGeneratorFamilyRnb;
+      case 'arabic':
+        return l10n.drumGeneratorFamilyArabic;
+      case 'turkish':
+        return l10n.drumGeneratorFamilyTurkish;
+      case 'persian':
+        return l10n.drumGeneratorFamilyPersian;
+      case 'indian':
+        return l10n.drumGeneratorFamilyIndian;
+      case 'fareast':
+        return l10n.drumGeneratorFamilyFarEast;
       default:
         return family;
     }

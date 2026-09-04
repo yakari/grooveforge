@@ -1818,6 +1818,30 @@ class AppLocalizationsEn extends AppLocalizations {
   String get drumGeneratorFamilyFolk => 'Folk';
 
   @override
+  String get drumGeneratorFamilyMarch => 'March';
+
+  @override
+  String get drumGeneratorFamilyReggae => 'Reggae';
+
+  @override
+  String get drumGeneratorFamilyRnb => 'R&B';
+
+  @override
+  String get drumGeneratorFamilyArabic => 'Arabic';
+
+  @override
+  String get drumGeneratorFamilyTurkish => 'Turkish';
+
+  @override
+  String get drumGeneratorFamilyPersian => 'Persian';
+
+  @override
+  String get drumGeneratorFamilyIndian => 'Indian';
+
+  @override
+  String get drumGeneratorFamilyFarEast => 'Far East';
+
+  @override
   String get drumGeneratorCustomPattern => 'Custom pattern';
 
   @override

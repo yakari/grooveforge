@@ -35,6 +35,10 @@ class DrumPatternParser {
     'laid_back': DrumFeel.laidBack,
     'pushed': DrumFeel.pushed,
     'swing_light': DrumFeel.swingLight,
+    // Bundled patterns and the format guide inside the files both spell light
+    // swing 'swing_soft'; without this alias those files parse as `straight`
+    // and lose their shuffle entirely.
+    'swing_soft': DrumFeel.swingLight,
     'swing_hard': DrumFeel.swingHard,
   };
 

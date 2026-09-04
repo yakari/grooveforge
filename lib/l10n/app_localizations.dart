@@ -3398,6 +3398,54 @@ abstract class AppLocalizations {
   /// **'Folk'**
   String get drumGeneratorFamilyFolk;
 
+  /// No description provided for @drumGeneratorFamilyMarch.
+  ///
+  /// In en, this message translates to:
+  /// **'March'**
+  String get drumGeneratorFamilyMarch;
+
+  /// No description provided for @drumGeneratorFamilyReggae.
+  ///
+  /// In en, this message translates to:
+  /// **'Reggae'**
+  String get drumGeneratorFamilyReggae;
+
+  /// No description provided for @drumGeneratorFamilyRnb.
+  ///
+  /// In en, this message translates to:
+  /// **'R&B'**
+  String get drumGeneratorFamilyRnb;
+
+  /// No description provided for @drumGeneratorFamilyArabic.
+  ///
+  /// In en, this message translates to:
+  /// **'Arabic'**
+  String get drumGeneratorFamilyArabic;
+
+  /// No description provided for @drumGeneratorFamilyTurkish.
+  ///
+  /// In en, this message translates to:
+  /// **'Turkish'**
+  String get drumGeneratorFamilyTurkish;
+
+  /// No description provided for @drumGeneratorFamilyPersian.
+  ///
+  /// In en, this message translates to:
+  /// **'Persian'**
+  String get drumGeneratorFamilyPersian;
+
+  /// No description provided for @drumGeneratorFamilyIndian.
+  ///
+  /// In en, this message translates to:
+  /// **'Indian'**
+  String get drumGeneratorFamilyIndian;
+
+  /// No description provided for @drumGeneratorFamilyFarEast.
+  ///
+  /// In en, this message translates to:
+  /// **'Far East'**
+  String get drumGeneratorFamilyFarEast;
+
   /// No description provided for @drumGeneratorCustomPattern.
   ///
   /// In en, this message translates to:

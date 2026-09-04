@@ -1,0 +1,137 @@
+# Turkish — Çiftetelli
+# Reference: Turkish and Greek taverna repertoire, Anatolian wedding bands,
+#            the rhythm known in Greek as tsifteteli and across the Levant as
+#            the eight-beat "belly dance" rhythm.
+# Pairs with Hicaz, Nikriz and Hüzzam in the Xen module — the çiftetelli is the
+# rhythm those makams are most often danced to.
+#
+# The cycle is eight beats long, so it spans TWO bars of 4/4 and cannot be
+# written as a one-bar loop without losing its identity. This pattern uses a
+# `sequence` section: four bar grids = two full cycles, the second pair lightly
+# ornamented so a long repeat still breathes.
+#
+#   Cycle (16 8th notes, D = doum, T = tek):
+#     bar 1:  D  .  .  T  .  T  D  .
+#     bar 2:  .  .  T  .  T  .  .  .
+#   The two lonely teks in bar 2 are the whole character of the rhythm: the
+#   bass drops out for a bar and a half and the dancer fills the hole.
+#
+# GM substitution: no darbuka in General MIDI, so low conga stands in for the
+# doum, muted high conga for the tek, high bongo for the ka (weak-hand tek).
+# GM notes: 64=low conga (doum), 62=mute hi conga (tek), 60=hi bongo (ka),
+#           54=tambourine (def), 81=open triangle (zil), 36=kick, 49=crash
+
+#
+# ── Step grid notation ────────────────────────────────────────────────────────
+# Each character in a step grid represents one subdivision of the bar.
+# Resolution controls how many steps per bar (16 = 16th notes in 4/4).
+#
+#   X   Strong accent  — velocity = base_velocity × 1.00  (full hit / downbeat)
+#   x   Medium accent  — velocity = base_velocity × 0.75  (firm stroke / upbeat)
+#   o   Soft hit       — velocity = base_velocity × 0.55  (brush / light touch)
+#   g   Ghost note     — velocity = base_velocity × 0.28  (barely audible, mostly felt)
+#   .   Rest           — no note fired at this step
+#
+# Beat positions — 4/4 at resolution 16 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
+#        1  e1 +1 a1  2  e2 +2 a2  3  e3 +3 a3  4  e4 +4 a4
+#   The eight 8th notes of each half-cycle fall on the even positions.
+#
+# Swing / feel: straight.
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Çiftetelli
+family: turkish
+bpm_range: [90, 140]
+time_signature: [4, 4]
+resolution: 16
+feel: straight
+
+instruments:
+  doum:  { note: 64, base_velocity: 110, velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.16 }
+  tek:   { note: 62, base_velocity: 94,  velocity_range: 12, timing_jitter: 0.010, duration_beats: 0.07 }
+  ka:    { note: 60, base_velocity: 70,  velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.05 }
+  def:   { note: 54, base_velocity: 76,  velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.07 }
+  zil:   { note: 81, base_velocity: 66,  velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.10 }
+  crash: { note: 49, base_velocity: 94,  velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.24 }
+
+humanization:
+  timing_jitter: 0.012
+  velocity_jitter: 12
+  velocity_drift: 0.05
+
+sections:
+  intro:
+    type: count_in
+    hits: 4
+    note: 62
+
+  groove:
+    # Four bars = two complete çiftetelli cycles. Bars 1-2 state the rhythm
+    # plainly; bars 3-4 repeat it with zil and a denser ka so the second pass
+    # lifts rather than simply repeating.
+    type: sequence
+    bars: 4
+    bar_grids:
+      - # Bar 1 — first half of the cycle: D . . T . T D .
+        # Doum on beat 1 (pos 0) and on the 7th 8th (pos 12); teks between them
+        # at pos 6 and 10.
+        doum: "X...........X..."
+        tek:  "......X...X....."
+        ka:   ".g.g.g.g.g.g.g.g"
+        def:  "x.x.x.x.x.x.x.x."
+      - # Bar 2 — second half: . . T . T . . .
+        # No doum at all. Two teks (pos 4, 8) float over an empty bass — this is
+        # the bar dancers hear as the invitation.
+        tek:  "....X...X......."
+        ka:   ".g.g.g.g.g.g.g.g"
+        def:  "x.x.x.x.x.x.x.x."
+      - # Bar 3 — the cycle again, ornamented: zil on the doums, extra ka
+        # weight so the second pass sits a step brighter than the first.
+        doum: "X...........X..."
+        tek:  "......X...X....."
+        ka:   ".x.g.x.g.x.g.x.g"
+        def:  "x.x.x.x.x.x.x.x."
+        zil:  "X...........x..."
+      - # Bar 4 — the open bar with a tek pickup on the last 8th (pos 14),
+        # pulling the ear back to the doum that starts the next cycle.
+        tek:  "....X...X.....x."
+        ka:   ".x.g.x.g.x.g.x.g"
+        def:  "x.x.x.x.x.x.x.x."
+        zil:  "....x...x......."
+
+  fill:
+    bars: 1
+    variations:
+      - name: tek_roll
+        # 16th tek roll under a single doum — the standard darbuka break.
+        doum: "X..............."
+        tek:  "XxXxXxXxXxXxXxXx"
+
+      - name: doum_cadence
+        # Doums accelerating into the downbeat of the next cycle.
+        doum: "X...X...X.X.X.X."
+        tek:  "..x...x........."
+        def:  "x.x.x.x.x.x.x.x."
+
+      - name: zil_break
+        # Finger cymbals carry the fill; the drum answers on beat 4 only.
+        zil:  "X...x...X...x.x."
+        doum: "............X..."
+        ka:   ".g.g.g.g.g.g.g.g"
+
+  crash:
+    bars: 1
+    variations:
+      - name: standard
+        crash: "X..............."
+        doum:  "X...........X..."
+        tek:   "......X...X....."
+        def:   "x.x.x.x.x.x.x.x."
+
+structure:
+  fill_every: 8
+  break_every: 0
+  break_length: 1
+  crash_after_fill: true
+  dynamic_build: false

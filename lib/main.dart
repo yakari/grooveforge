@@ -56,6 +56,24 @@ const _kBundledGfdrumAssets = [
   // Fanfare / March
   'assets/drums/fanfare_march.gfdrum',
   'assets/drums/festive_fanfare.gfdrum',
+  // Electronic
+  'assets/drums/techno.gfdrum',
+  'assets/drums/electro.gfdrum',
+  // Reggae / Dub
+  'assets/drums/dub.gfdrum',
+  // R&B
+  'assets/drums/rnb.gfdrum',
+  // Arabic / Turkish / Persian
+  'assets/drums/arabic_maqsum.gfdrum',
+  'assets/drums/turkish_karsilama.gfdrum',
+  'assets/drums/turkish_ciftetelli.gfdrum',
+  'assets/drums/persian_shesh_o_hasht.gfdrum',
+  // Indian
+  'assets/drums/indian_teental.gfdrum',
+  'assets/drums/indian_bhangra.gfdrum',
+  // Far East
+  'assets/drums/japanese_taiko.gfdrum',
+  'assets/drums/chinese_luogu.gfdrum',
 ];
 
 /// Asset paths for all bundled `.gfpd` plugin descriptor files.

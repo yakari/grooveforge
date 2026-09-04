@@ -10,6 +10,8 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 ### Ajouté
 - Harmonizer (MIDI FX) : un potentiomètre Count règle le nombre de voix d'harmonie, et deux voix supplémentaires le portent à quatre — la même structure que l'Audio Harmonizer.
 - Les deux harmonizers affichent leurs valeurs sous les potentiomètres : le nombre de voix en chiffre, et l'intervalle de chaque voix en demi-tons signés suivi de son nom (`+7 st · 5J`).
+- 12 styles pour le générateur de batterie, soit plus de la moitié de la bibliothèque existante en plus : techno et electro ; dub ; R&B ; maqsoum et baladi arabes ; karşılama turc en 9/8 et çiftetelli ; shesh-o-hasht persan en 6/8 ; teental et bhangra indiens ; taiko japonais et luogu chinois.
+- Les patterns orientaux sont conçus pour aller avec les gammes du module Xen — maqsoum sur Rast, karşılama sur Hicaz, teental sur Yaman — et chaque fichier documente quel instrument General MIDI remplace le darbouka, le tabla, le dhol ou le taiko pour lequel il a été écrit.
 
 ### Corrigé
 - Audio Harmonizer : grésillement important, surtout sur Android. Deux causes — les voix vers l'aigu étaient resynthétisées avec un recouvrement de trames insuffisant, imposant un trémolo à l'harmonie (3 dB à l'octave supérieure, 14 dB à deux octaves), et sur Android le DSP était compilé sans optimisation, manquant purement et simplement l'échéance du callback audio.
@@ -17,6 +19,8 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 - Audio Harmonizer : les voix vers l'aigu produisaient du repliement, l'aigu revenant en sifflement inharmonique à seulement 6 dB sous le signal. Un filtre passe-bas placé avant la transposition le ramène 20 dB plus bas.
 - Audio Looper : un clip synchronisé au tempo changeait de niveau avec le tempo, environ 6 dB plus fort à mi-vitesse et 6 dB plus faible au double. Le niveau est désormais constant quel que soit l'étirement. Même cause que les niveaux par intervalle de l'harmonizer.
 - Android : les effets pouvaient déborder leurs tampons de travail sur tout appareil dont le callback audio délivre plus de 512 trames. Ils sont dimensionnés pour le plafond de 4096 trames auquel le callback se limite réellement.
+- Générateur de batterie : les quatre patterns marqués `feel: swing_soft` (Afrobeat, Country, Second Line, Fanfare festive) jouaient parfaitement droit. Le parseur ne connaissait que `swing_light`, si bien que l'orthographe utilisée par tous les fichiers fournis et par le guide du format retombait sur l'absence de swing.
+- Générateur de batterie : le fill de timbales du cha-cha n'avait pas sa timbale grave, que le fichier utilisait sans l'avoir déclarée. Un nouveau test vérifie sur tous les patterns fournis l'absence d'instrument non déclaré et la longueur des grilles de pas par rapport à la résolution — deux erreurs que le parseur ignore en silence.
 
 ### Architecture
 - Le vocodeur de phase raccourcit le pas que le facteur d'étirement impose — le pas d'analyse à l'étirement, le pas de synthèse à la compression — de sorte que les deux recouvrements restent à 4x ou mieux à tous les rapports. C'est le recouvrement de synthèse qui conditionne le gain de l'overlap-add, et qui causait le trémolo.
