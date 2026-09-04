@@ -12,8 +12,8 @@ RepoType: git
 Repo: https://github.com/yakari/grooveforge.git
 
 Builds:
-  - versionName: 2.17.3
-    versionCode: 671
+  - versionName: 2.17.4
+    versionCode: 681
     commit: REPLACE_WITH_FULL_COMMIT_HASH
     submodules: true
     output: build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
@@ -46,8 +46,8 @@ Builds:
       - $$flutter$$/bin/flutter build apk --release --split-per-abi --target-platform=android-arm
     ndk: r28c
 
-  - versionName: 2.17.3
-    versionCode: 672
+  - versionName: 2.17.4
+    versionCode: 682
     commit: REPLACE_WITH_FULL_COMMIT_HASH
     submodules: true
     output: build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
@@ -80,8 +80,8 @@ Builds:
       - $$flutter$$/bin/flutter build apk --release --split-per-abi --target-platform=android-arm64
     ndk: r28c
 
-  - versionName: 2.17.3
-    versionCode: 673
+  - versionName: 2.17.4
+    versionCode: 683
     commit: REPLACE_WITH_FULL_COMMIT_HASH
     submodules: true
     output: build/app/outputs/flutter-apk/app-x86_64-release.apk
@@ -121,5 +121,5 @@ VercodeOperation:
   - '%c * 10 + 2'
   - '%c * 10 + 3'
 UpdateCheckData: pubspec.yaml|version:\s.+\+(\d+)|.|version:\s(.+)\+
-CurrentVersion: 2.17.3
-CurrentVersionCode: 673
+CurrentVersion: 2.17.4
+CurrentVersionCode: 683

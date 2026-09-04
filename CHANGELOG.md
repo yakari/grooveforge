@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [X.x.x]
+## [2.17.4] - 2026-09-04
 
 ### Added
 - 43 more scales, doubling the catalogue to 92. Persian dastgāh, Thai seven-equal, Ethiopian qenet, Ugandan amadinda, Byzantine chant and hardanger fiddle join as new families; maqam, raga, Far East and gamelan each gain several.
@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Xen panel: on a phone the family picker is a dropdown; eleven families wrapped to five or six rows of tabs and pushed the scales off screen.
 - Xen panel: the family picker and the scale grid are labelled, and the gesture instruction sits beside the scales instead of under them.
 
+### Architecture
+- Android CI: the release workflow now checks out git submodules. Without them the FluidSynth source tree is empty and the NDK build fails at CMake configure.
+- Android CI: Flutter pinned to 3.41.6 so it matches the committed pubspec.lock; the previous 3.41.2 pin resolved different SDK-bundled packages and broke locked builds.
+- Android: per-ABI APKs now use F-Droid's version-code scheme (versionCode * 10 + ABI index) instead of Flutter's own. The universal APK keeps its plain version code.
 
 ## [2.17.3] - 2026-09-03
 

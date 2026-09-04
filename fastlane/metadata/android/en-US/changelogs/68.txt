@@ -1,0 +1,6 @@
+Added
+- 43 more scales, doubling the catalogue to 92. Persian dastgah, Thai seven-equal, Ethiopian qenet, Ugandan amadinda, Byzantine chant and hardanger fiddle join as new families.
+- Microtonal EDOs used by contemporary bands: 13, 15, 16, 17 and 22, plus Bohlen-Pierce Lambda and Wendy Carlos's alpha, beta and gamma.
+
+Changed
+- Xen panel: on a phone the family picker is a dropdown, so the scales are no longer pushed off screen.

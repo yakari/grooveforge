@@ -1,0 +1,6 @@
+Ajouté
+- 43 gammes de plus, doublant le catalogue à 92. Dastgah persan, heptatonique égal thaï, qenet éthiopiens, amadinda ougandais, chant byzantin et hardingfele arrivent en nouvelles familles.
+- Les EDO microtonales des groupes actuels : 13, 15, 16, 17 et 22, plus le Lambda de Bohlen-Pierce et les alpha, beta et gamma de Wendy Carlos.
+
+Modifié
+- Panneau Xen : sur téléphone, le sélecteur de famille est un menu déroulant, les gammes ne sont plus repoussées hors de l'écran.

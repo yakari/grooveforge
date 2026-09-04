@@ -5,7 +5,7 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/lang/fr/).
 
-## [X.x.x]
+## [2.17.4] - 2026-09-04
 
 ### Ajouté
 - 43 gammes de plus, doublant le catalogue à 92. Dastgāh persan, heptatonique égal thaï, qenet éthiopiens, amadinda ougandais, chant byzantin et hardingfele arrivent en nouvelles familles ; maqam, raga, Extrême-Orient et gamelan s'étoffent.
@@ -15,6 +15,10 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 - Panneau Xen : sur téléphone, le sélecteur de famille est un menu déroulant ; onze familles se repliaient sur cinq ou six rangées d'onglets et repoussaient les gammes hors de l'écran.
 - Panneau Xen : le sélecteur de famille et la grille de gammes sont étiquetés, et l'instruction du geste est à côté des gammes au lieu d'être en dessous.
 
+### Architecture
+- CI Android : le workflow de release récupère désormais les sous-modules git. Sans eux, les sources de FluidSynth sont absentes et la configuration CMake du build NDK échoue.
+- CI Android : Flutter figé en 3.41.6 pour correspondre au pubspec.lock versionné ; le pin 3.41.2 précédent résolvait d'autres paquets fournis par le SDK et cassait les builds verrouillés.
+- Android : les APK par ABI utilisent désormais le schéma de version code de F-Droid (versionCode * 10 + indice d'ABI) au lieu de celui de Flutter. L'APK universel conserve son version code simple.
 
 ## [2.17.3] - 2026-09-03
 
