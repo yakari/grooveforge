@@ -94,6 +94,31 @@ if (NOT ANDROID AND NOT IOS)
     endif()
 endif()
 
+# Audio Harmonizer. Links the real GFPA DSP (which lives in flutter_vst3) plus
+# the phase vocoder, and checks the properties that only exist once audio has
+# actually been rendered: headroom, block continuity, and gain flatness across
+# intervals. C++ because gfpa_dsp is C++.
+if (NOT ANDROID AND NOT IOS)
+    set(GF_GFPA_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../packages/flutter_vst3/dart_vst_host/native)
+    if (EXISTS "${GF_GFPA_DIR}/src/gfpa_dsp.cpp")
+        # This project is declared C-only; the GFPA DSP it links is C++.
+        # Enabling the language here rather than in project() keeps the
+        # requirement on the one target that actually needs it.
+        enable_language(CXX)
+        add_executable(gf_harmonizer_smoke_test EXCLUDE_FROM_ALL
+            gf_harmonizer_smoke_test.c
+            ${GF_GFPA_DIR}/src/gfpa_dsp.cpp
+            gf_phase_vocoder.c)
+        set_target_properties(gf_harmonizer_smoke_test PROPERTIES LINKER_LANGUAGE CXX)
+        target_include_directories(gf_harmonizer_smoke_test PRIVATE
+            ${GF_GFPA_DIR}/include
+            ${CMAKE_CURRENT_SOURCE_DIR})
+        if (UNIX)
+            target_link_libraries(gf_harmonizer_smoke_test PRIVATE m)
+        endif()
+    endif()
+endif()
+
 # Microtonal key tuning. Renders real FluidSynth output and measures the
 # resulting pitch, so it needs the same FluidSynth the app links against —
 # skipped when none was found.

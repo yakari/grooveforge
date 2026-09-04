@@ -817,10 +817,21 @@ struct HarmonizerEffect {
         // Snapshot atomics once so the per-sample loop sees a stable value.
         const float dw      = dryWet.load(std::memory_order_relaxed);
         const float dryGain = 1.0f - dw;
-        const float wetGain = dw;
         int active = (int)voiceCount.load(std::memory_order_relaxed);
         if (active < 1) active = 1;
         if (active > kMaxVoices) active = kMaxVoices;
+
+        // Headroom. Harmony voices are pitch-shifted copies of one signal,
+        // so on a sustained note their peaks line up and the sum is close to
+        // the arithmetic sum of the mixes — four voices at the default
+        // settings reach 2.4x the input. Nothing downstream attenuates, so
+        // that lands on the audio device as hard clipping, which is heard as
+        // crackle and gets worse the more voices are playing.
+        //
+        // Dividing by the total mix caps the wet path at unity while leaving
+        // the balance between voices alone. Only *above* unity: a single
+        // voice at 0.3 stays quiet rather than being normalised up to full.
+        const float wetGain = dw * wetHeadroom(active);
 
         // Mono-input shortcut: when inL and inR are bit-identical (Live
         // Input Source passthrough, mono keyboard, theremin, stylophone),
@@ -873,6 +884,19 @@ struct HarmonizerEffect {
     }
 
 private:
+    /// Attenuation that keeps the summed wet path at or below unity.
+    ///
+    /// Returns 1 when the voices that will actually play already sum to less
+    /// than full scale, so quiet settings are never pushed up.
+    float wetHeadroom(int active) const {
+        float total = 0.0f;
+        for (int v = 0; v < active; ++v) {
+            const float mix = voiceMix[v].load(std::memory_order_relaxed);
+            if (mix > 0.0001f) total += mix;
+        }
+        return (total > 1.0f) ? (1.0f / total) : 1.0f;
+    }
+
     /// Marks a voice as silent. Nothing is reset here: the reset happens on
     /// the way back in, so a voice that is toggled off and on again does
     /// not pay for a vocoder flush it may never need.

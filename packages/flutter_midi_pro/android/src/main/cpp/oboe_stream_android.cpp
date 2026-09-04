@@ -259,6 +259,60 @@ static void fluidSynthRenderFn(float* outL, float* outR, int frames, void* userd
 /// [userData]  — unused (NULL).
 /// [audioData] — interleaved stereo float32 output buffer owned by AAudio.
 /// [numFrames] — number of sample frames to fill this block.
+// ── Adaptive buffer size ─────────────────────────────────────────────────────
+//
+// The stream opens at two bursts, the tightest setting that can work, and on
+// this device that is 4 ms of slack. Anything that briefly steals the CPU —
+// Flutter's raster thread, another app, a frequency governor step — costs a
+// whole callback and the stream underruns, which is heard as a click.
+//
+// Growing the buffer is the remedy Oboe documents for exactly this ("if
+// glitches occur, increasing the Buffer Size is recommended"). It is applied
+// only in response to underruns that actually happened, one burst at a time,
+// so a device that never glitches keeps the lowest possible latency and one
+// that does trades a couple of milliseconds for silence.
+//
+// Growth only, never shrinkage: a device that glitched once under load will
+// do it again, and oscillating the buffer around the threshold would glitch
+// on every step down. The ceiling bounds what that can cost.
+
+/// Frames per burst, cached from the stream at open time.
+static int32_t g_burstFrames = 0;
+
+/// Buffer size currently requested, in frames.
+static int32_t g_bufferFrames = 0;
+
+/// Ceiling for [g_bufferFrames] — eight bursts, about 16 ms on a phone.
+static int32_t g_maxBufferFrames = 0;
+
+/// Underrun count at the previous check, to spot a *rise* rather than a
+/// non-zero total (every stream underruns a little at startup).
+static int32_t g_prevXRuns = 0;
+
+/// Callbacks remaining before the next check. Reading the underrun counter is
+/// cheap but not free, and underruns do not need reacting to within 2 ms.
+static int32_t g_tuneCountdown = 0;
+
+/// One burst is checked out of every this many.
+static constexpr int32_t kTuneInterval = 64;
+
+/// Grows the buffer by one burst if the stream has underrun since the last
+/// check. Audio-thread only; allocation-free and non-blocking.
+static void tuneBufferSize()
+{
+    if (g_stream == nullptr || g_burstFrames <= 0) return;
+    if (--g_tuneCountdown > 0) return;
+    g_tuneCountdown = kTuneInterval;
+
+    const int32_t xruns = AAudioStream_getXRunCount(g_stream);
+    if (xruns <= g_prevXRuns) return;   // no new underruns since last check
+    g_prevXRuns = xruns;
+
+    if (g_bufferFrames >= g_maxBufferFrames) return;   // already at the ceiling
+    g_bufferFrames += g_burstFrames;
+    AAudioStream_setBufferSizeInFrames(g_stream, g_bufferFrames);
+}
+
 static aaudio_data_callback_result_t audioCallback(
     AAudioStream* /*stream*/, void* /*userData*/,
     void* audioData, int32_t numFrames)
@@ -400,7 +454,11 @@ static aaudio_data_callback_result_t audioCallback(
                     sizeof(float) * static_cast<size_t>(numFrames - kMaxFrames) * 2);
     }
 
-    // ── 5. Signal drain waiters ───────────────────────────────────────────
+    // ── 5. Adapt the buffer size to what this device can actually keep up
+    //       with. Throttled internally; see tuneBufferSize.
+    tuneBufferSize();
+
+    // ── 6. Signal drain waiters ───────────────────────────────────────────
     //
     // Increment AFTER all work is done so oboe_stream_remove_source() can
     // safely determine when an in-flight callback has finished.
@@ -632,6 +690,16 @@ static aaudio_result_t openAndStartStream(int sampleRate,
     if (burst > 0) {
         AAudioStream_setBufferSizeInFrames(g_stream, burst * 2);
     }
+
+    // Seed the adaptive tuner. Starting from the same two bursts means a
+    // device that never underruns behaves exactly as it did before.
+    g_burstFrames  = burst;
+    g_bufferFrames = burst * 2;
+    const int32_t capacity = AAudioStream_getBufferCapacityInFrames(g_stream);
+    g_maxBufferFrames = burst * 8;
+    if (capacity > 0 && g_maxBufferFrames > capacity) g_maxBufferFrames = capacity;
+    g_prevXRuns = 0;
+    g_tuneCountdown = kTuneInterval;
 
     // Record the rate the device actually granted. FluidSynth's render rate and
     // the audio-looper bar-sync maths both depend on it — a stale 48000 on a

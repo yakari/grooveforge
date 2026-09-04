@@ -10,6 +10,13 @@
 #pragma once
 #include "dart_vst_host.h"
 
+// `bool` in the declarations below is a keyword in C++ but a library type in
+// C. Without this, any C translation unit including this header fails to
+// compile — which the C smoke test found.
+#ifndef __cplusplus
+#include <stdbool.h>
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif

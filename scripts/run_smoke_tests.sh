@@ -22,10 +22,16 @@
 #   gf_pv_smoke_test — phase vocoder time-stretching. Writes WAV files to the
 #       output directory so the result can also be auditioned.
 #
+#   gf_harmonizer_smoke_test — Audio Harmonizer headroom, block continuity and
+#       gain flatness across intervals. Every one of these has shipped broken
+#       at least once, and none of them is visible from the Dart suite: they
+#       only exist once real audio has been rendered. Needs no soundfont.
+#
 # Usage:
 #   ./scripts/run_smoke_tests.sh            # run everything
 #   ./scripts/run_smoke_tests.sh tuning     # just the tuning test
 #   ./scripts/run_smoke_tests.sh vocoder    # just the phase vocoder test
+#   ./scripts/run_smoke_tests.sh harmonizer # just the harmonizer test
 #
 # Build artefacts go to native_audio/build-smoke/ so the normal build tree is
 # left untouched.
@@ -75,18 +81,30 @@ run_vocoder() {
     "$BUILD_DIR/gf_pv_smoke_test" "$BUILD_DIR"
 }
 
+# ── Harmonizer ────────────────────────────────────────────────────────────────
+
+run_harmonizer() {
+    echo
+    echo "── Building gf_harmonizer_smoke_test"
+    cmake --build "$BUILD_DIR" --target gf_harmonizer_smoke_test -j"$(nproc 2>/dev/null || echo 4)" > /dev/null
+    echo "── Running gf_harmonizer_smoke_test"
+    "$BUILD_DIR/gf_harmonizer_smoke_test"
+}
+
 # ── Dispatch ──────────────────────────────────────────────────────────────────
 
 FAILED=0
 case "$WHICH" in
-    tuning)  run_tuning  || FAILED=1 ;;
-    vocoder) run_vocoder || FAILED=1 ;;
+    tuning)     run_tuning     || FAILED=1 ;;
+    vocoder)    run_vocoder    || FAILED=1 ;;
+    harmonizer) run_harmonizer || FAILED=1 ;;
     all)
-        run_tuning  || FAILED=1
-        run_vocoder || FAILED=1
+        run_tuning     || FAILED=1
+        run_vocoder    || FAILED=1
+        run_harmonizer || FAILED=1
         ;;
     *)
-        echo "usage: $0 [all|tuning|vocoder]" >&2
+        echo "usage: $0 [all|tuning|vocoder|harmonizer]" >&2
         exit 2
         ;;
 esac
