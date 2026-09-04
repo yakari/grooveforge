@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Xen panel: on a phone the family picker is a dropdown; eleven families wrapped to five or six rows of tabs and pushed the scales off screen.
+- Xen panel: the family picker and the scale grid are labelled, and the gesture instruction sits beside the scales instead of under them.
+
 
 ## [2.17.3] - 2026-09-03
 

@@ -1447,6 +1447,12 @@ class AppLocalizationsFr extends AppLocalizations {
   String get xenRoot => 'TONIQUE';
 
   @override
+  String get xenFamily => 'FAMILLE';
+
+  @override
+  String get xenScale => 'GAMME';
+
+  @override
   String get xenLatch => 'FIXER';
 
   @override

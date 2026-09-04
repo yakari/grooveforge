@@ -1435,6 +1435,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get xenRoot => 'ROOT';
 
   @override
+  String get xenFamily => 'FAMILY';
+
+  @override
+  String get xenScale => 'SCALE';
+
+  @override
   String get xenLatch => 'LATCH';
 
   @override

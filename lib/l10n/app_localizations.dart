@@ -2678,6 +2678,18 @@ abstract class AppLocalizations {
   /// **'ROOT'**
   String get xenRoot;
 
+  /// No description provided for @xenFamily.
+  ///
+  /// In en, this message translates to:
+  /// **'FAMILY'**
+  String get xenFamily;
+
+  /// No description provided for @xenScale.
+  ///
+  /// In en, this message translates to:
+  /// **'SCALE'**
+  String get xenScale;
+
   /// No description provided for @xenLatch.
   ///
   /// In en, this message translates to:

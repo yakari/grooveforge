@@ -562,6 +562,8 @@
   "xenSnap": "SNAP",
   "xenTune": "TUNE",
   "xenRoot": "TONIQUE",
+  "xenFamily": "FAMILLE",
+  "xenScale": "GAMME",
   "xenLatch": "FIXER",
   "xenTargetsLock": "VERROU GAMME",
   "xenTargetsTune": "ACCORDAGE",

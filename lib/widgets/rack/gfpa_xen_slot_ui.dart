@@ -193,10 +193,17 @@ class _GFpaXenSlotUIState extends State<GFpaXenSlotUI> {
                 // Side by side once there is room; stacked on a phone, where
                 // two columns of chips would each be too narrow to read.
                 if (constraints.maxWidth < 480) {
-                  return Column(
+                  return Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [lock, const SizedBox(height: 8), tune],
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [lock, const SizedBox(height: 8), tune],
+                        ),
+                      ),
+                    ],
                   );
                 }
                 return Row(
@@ -647,6 +654,8 @@ class _ScaleGrid extends StatelessWidget {
         // the scales themselves off screen — so narrow layouts get a dropdown
         // and wide ones keep the tabs, where they cost two rows and let the
         // player see the whole catalogue at once.
+        _ZoneLabel(l10n.xenFamily),
+        const SizedBox(height: 5),
         LayoutBuilder(
           builder: (context, constraints) {
             if (constraints.maxWidth < 520) {
@@ -677,6 +686,42 @@ class _ScaleGrid extends StatelessWidget {
         // of pills otherwise.
         Container(height: 1, color: Colors.white10),
         const SizedBox(height: 8),
+        // The label and the instruction share a row: the instruction belongs
+        // beside the buttons it describes, not under four rows of them, which
+        // is where it sat — the module's operating principle, buried.
+        LayoutBuilder(
+          builder: (context, constraints) {
+            // Scoped to the hint so a passing chord does not rebuild forty
+            // scale buttons on every note-on.
+            final hint = ListenableBuilder(
+              listenable: Listenable.merge(heldSources),
+              builder: (context, _) => _GestureHint(
+                heldNotes: {for (final n in heldSources) ...n.value},
+                enabled: enabled,
+                l10n: l10n,
+              ),
+            );
+            if (constraints.maxWidth < 400) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _ZoneLabel(l10n.xenScale),
+                  const SizedBox(height: 3),
+                  hint,
+                ],
+              );
+            }
+            return Row(
+              children: [
+                _ZoneLabel(l10n.xenScale),
+                const SizedBox(width: 12),
+                Flexible(child: hint),
+              ],
+            );
+          },
+        ),
+        const SizedBox(height: 6),
         Wrap(
           spacing: 5,
           runSpacing: 5,
@@ -706,19 +751,32 @@ class _ScaleGrid extends StatelessWidget {
               ),
           ],
         ),
-        const SizedBox(height: 6),
-        // Scoped to the hint so a passing chord does not rebuild forty
-        // scale buttons on every note-on.
-        ListenableBuilder(
-          listenable: Listenable.merge(heldSources),
-          builder:
-              (context, _) => _GestureHint(
-                heldNotes: {for (final n in heldSources) ...n.value},
-                enabled: enabled,
-                l10n: l10n,
-              ),
-        ),
       ],
+    );
+  }
+}
+
+/// The small caps label that introduces a zone of the panel.
+///
+/// TONIQUE, VERROU GAMME and ACCORDAGE already had one; the family picker and
+/// the scale grid — the two controls the module is actually about — did not.
+/// A newcomer saw a row of words followed by a grid of words, with nothing
+/// saying that the first chose a category for the second.
+class _ZoneLabel extends StatelessWidget {
+  const _ZoneLabel(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: const TextStyle(
+        fontSize: 9,
+        fontWeight: FontWeight.w900,
+        color: Colors.white38,
+        letterSpacing: 1.2,
+      ),
     );
   }
 }
@@ -1158,8 +1216,10 @@ class _RootStrip extends StatelessWidget {
           children: [
             label,
             const SizedBox(width: 8),
-            Expanded(child: keys),
-            const SizedBox(width: 6),
+            // Flexible, not Expanded: on a wide panel Expanded pushed LATCH
+            // to the far edge, a thousand pixels from the keys it re-reads.
+            Flexible(child: keys),
+            const SizedBox(width: 10),
             latch,
           ],
         );
@@ -1192,7 +1252,9 @@ class _RootKey extends StatelessWidget {
       onTap: enabled ? onTap : null,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 120),
-        width: 26,
+        // 24 rather than 26: at 26 the twelfth key wrapped to a row of its
+        // own on a phone, which read as a mistake.
+        width: 24,
         padding: const EdgeInsets.symmetric(vertical: 6),
         alignment: Alignment.center,
         decoration: BoxDecoration(

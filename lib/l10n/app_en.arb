@@ -689,6 +689,8 @@
   "xenSnap": "SNAP",
   "xenTune": "TUNE",
   "xenRoot": "ROOT",
+  "xenFamily": "FAMILY",
+  "xenScale": "SCALE",
   "xenLatch": "LATCH",
   "xenTargetsLock": "SCALE LOCK",
   "xenTargetsTune": "RETUNE",
