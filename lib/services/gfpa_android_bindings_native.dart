@@ -230,11 +230,18 @@ class GfpaAndroidBindings {
   /// frees the temporary string, and returns the opaque handle.
   ///
   /// [sampleRate] — output sample rate in Hz (default 48000).
-  /// [blockSize]  — maximum block size in frames (default 512).
+  /// [blockSize]  — maximum block size in frames. Defaults to 4096, which
+  ///   is the `kMaxFrames` ceiling the AAudio callback clamps every burst
+  ///   to. Effects size their scratch buffers from this number once, at
+  ///   construction, and then index them with the block size the callback
+  ///   actually delivers — so anything smaller than the ceiling is a buffer
+  ///   overrun on any device whose burst is larger. Low-latency phones do
+  ///   report 96–240 frames, but a device that falls back to a non
+  ///   low-latency path can hand over 1024 or more.
   ///
   /// Returns [nullptr] if [pluginId] is not recognised by the native DSP.
   Pointer<Void> createDsp(String pluginId,
-      {int sampleRate = 48000, int blockSize = 512}) {
+      {int sampleRate = 48000, int blockSize = 4096}) {
     final nativeId = pluginId.toNativeUtf8();
     try {
       return _gfpaDspCreate(nativeId, sampleRate, blockSize);

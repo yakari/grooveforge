@@ -161,6 +161,15 @@ class GFDescriptorLoader {
               ?.map((e) => e.toString())
               .toList(growable: false) ??
           const <String>[];
+      // `display:` opts the parameter into a numeric readout under its
+      // control. Unknown values fall back to no readout rather than
+      // failing the load, so a descriptor written against a newer spec
+      // still opens.
+      final display = switch (_str(m, 'display', fallback: '')) {
+        'integer' => GFParamDisplay.integer,
+        'interval' => GFParamDisplay.interval,
+        _ => GFParamDisplay.none,
+      };
       return GFDescriptorParameter(
         id: _str(m, 'id'),
         paramId: _int(m, 'paramId'),
@@ -171,6 +180,7 @@ class GFDescriptorLoader {
         unit: _str(m, 'unit', fallback: ''),
         type: type,
         options: opts,
+        display: display,
       );
     }).toList(growable: false);
   }

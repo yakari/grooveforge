@@ -15,6 +15,19 @@ add_library(audio_input SHARED
 find_package(Threads REQUIRED)
 target_link_libraries(audio_input PRIVATE Threads::Threads)
 
+# ── Optimisation floor for the DSP ────────────────────────────────────────
+# Flutter's debug configuration compiles native code with no -O flag at all,
+# which for clang means -O0. That is fine for glue but not for the phase
+# vocoder, which runs FFTs inside the audio callback and is several times
+# slower unoptimised. Target options are appended after
+# CMAKE_<LANG>_FLAGS_<CONFIG>, so this wins over the configuration's own
+# setting without disturbing debug symbols.
+if(MSVC)
+    target_compile_options(audio_input PRIVATE /O2)
+else()
+    target_compile_options(audio_input PRIVATE -O2 -fno-math-errno)
+endif()
+
 if (ANDROID)
     find_library(log-lib log)
     target_link_libraries(audio_input PRIVATE m ${log-lib})

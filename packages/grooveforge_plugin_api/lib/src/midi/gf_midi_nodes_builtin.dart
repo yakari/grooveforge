@@ -218,33 +218,41 @@ class GateNode extends GFMidiNode {
 //  HarmonizeNode  ("harmonize")
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Adds harmony voices above each incoming note, optionally locked to the
-/// host's active Jam Mode scale.
+/// Adds up to four harmony voices above each incoming note, optionally
+/// locked to the host's active Jam Mode scale.
 ///
 /// **Node type key**: `"harmonize"`
 ///
 /// **Parameters**
 /// | name         | normalised range | semantic meaning                          |
 /// |--------------|-----------------|-------------------------------------------|
-/// | interval1    | 0.0 → 1.0       | 1st harmony offset: 0–24 semitones (0=off)|
-/// | interval2    | 0.0 → 1.0       | 2nd harmony offset: 0–24 semitones (0=off)|
+/// | voiceCount   | 0.0 → 1.0       | how many voices play: 1–4                 |
+/// | interval1..4 | 0.0 → 1.0       | harmony offset: 0–24 semitones (0=off)    |
 /// | snapToScale  | 0.0 / 1.0       | 0 = chromatic, 1 = snap to host scale     |
+///
+/// Only the first `voiceCount` intervals are played. The rest keep their
+/// values, so turning the count back up restores the harmony the user had
+/// dialled in instead of resetting those voices.
 ///
 /// **Note-off tracking**
 /// The node stores a map of `original pitch → [harmony pitches emitted]` so
 /// that note-offs always match the note-ons that were sent, even if the
-/// interval parameters change between note-on and note-off.
+/// interval parameters or the voice count change between note-on and
+/// note-off.
 ///
 /// **Scale snapping**
 /// When `snapToScale` is on and the host's Jam Mode provides a pitch-class
 /// set, harmony pitches are moved to the nearest allowed pitch class
 /// (down-first tie-breaking).
 class HarmonizeNode extends GFMidiNode {
-  /// 1st harmony interval in semitones (0 = off).
-  int _interval1 = 0;
+  /// Largest number of harmony voices the node can play at once.
+  static const int maxVoices = 4;
 
-  /// 2nd harmony interval in semitones (0 = off).
-  int _interval2 = 0;
+  /// Harmony intervals in semitones, one per voice (0 = off).
+  final List<int> _intervals = List<int>.filled(maxVoices, 0);
+
+  /// How many of [_intervals] are actually played, 1..[maxVoices].
+  int _voiceCount = 2;
 
   /// Whether to snap harmony pitches to the host scale.
   bool _snapToScale = false;
@@ -258,7 +266,8 @@ class HarmonizeNode extends GFMidiNode {
   /// Structure: `_activeHarmonies[channel][originalPitch] = [harmonyPitch1, ...]`
   ///
   /// This guarantees that note-offs are always symmetric with their note-ons,
-  /// even when [_interval1] / [_interval2] change between note-on and note-off.
+  /// even when [_intervals] or [_voiceCount] change between note-on and
+  /// note-off.
   final List<Map<int, List<int>>> _activeHarmonies =
       List.generate(16, (_) => {});
 
@@ -273,11 +282,20 @@ class HarmonizeNode extends GFMidiNode {
   @override
   void setParam(String paramName, double normalizedValue) {
     switch (paramName) {
+      // Map [0, 1] → [0, 24] semitones.
       case 'interval1':
-        // Map [0, 1] → [0, 24] semitones.
-        _interval1 = (normalizedValue * 24).round();
+        _intervals[0] = (normalizedValue * 24).round();
       case 'interval2':
-        _interval2 = (normalizedValue * 24).round();
+        _intervals[1] = (normalizedValue * 24).round();
+      case 'interval3':
+        _intervals[2] = (normalizedValue * 24).round();
+      case 'interval4':
+        _intervals[3] = (normalizedValue * 24).round();
+      // voice_count is declared over 1..4 in the descriptor, so the
+      // normalised value spans the three steps between those bounds.
+      case 'voiceCount':
+        _voiceCount =
+            (1 + normalizedValue * (maxVoices - 1)).round().clamp(1, maxVoices);
       case 'snapToScale':
         _snapToScale = normalizedValue >= 0.5;
     }
@@ -314,7 +332,8 @@ class HarmonizeNode extends GFMidiNode {
     final originalPitch = noteOn.data1;
     final emitted = <int>[];
 
-    for (final interval in [_interval1, _interval2]) {
+    for (var voice = 0; voice < _voiceCount; voice++) {
+      final interval = _intervals[voice];
       if (interval == 0) continue; // interval 0 means "off"
 
       var pitch = (originalPitch + interval).clamp(0, 127);

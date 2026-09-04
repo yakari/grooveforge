@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/gfpa_plugin_instance.dart';
 import '../../services/rack_state.dart';
+import 'gfpa_param_readout.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Effect slot UI (type: effect / instrument)
@@ -98,6 +99,8 @@ class _GFpaDescriptorSlotUIState extends State<GFpaDescriptorSlotUI> {
             plugin: plugin,
             paramNotifier: notifier,
             vuController: _vuController,
+            valueFormatter: (param, raw) =>
+                gfpaParamReadout(l10n, param, raw),
           ),
         ),
       ],
@@ -223,6 +226,8 @@ class _GFpaMidiFxDescriptorSlotUIState
           child: GFDescriptorPluginUI(
             plugin: plugin,
             paramNotifier: _paramNotifier,
+            valueFormatter: (param, raw) =>
+                gfpaParamReadout(l10n, param, raw),
           ),
         ),
       ],

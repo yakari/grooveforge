@@ -53,6 +53,25 @@ enum GFDescriptorParamType {
   selector,
 }
 
+/// How a parameter's current value should be spelled out under its control.
+///
+/// A knob shows a position, not a number, which is fine for "how much
+/// reverb" and useless for "which interval". Declaring a display style in
+/// the `.gfpd` opts a parameter into a small readout beneath its label,
+/// without turning every knob in every plugin into a numeric field.
+enum GFParamDisplay {
+  /// No readout — the knob shows its label only. The default.
+  none,
+
+  /// The raw value rounded to a whole number, e.g. a voice count.
+  integer,
+
+  /// A musical interval: the signed semitone count plus the interval's
+  /// name, e.g. `+7 st · P5`. The name itself is supplied by the host so
+  /// it can be localised; see `GFDescriptorPluginUI.valueFormatter`.
+  interval,
+}
+
 /// A single automatable parameter declared in a `.gfpd` file.
 ///
 /// The [id] is the string key used inside the descriptor (e.g. `"room_size"`).
@@ -87,6 +106,11 @@ class GFDescriptorParameter {
   /// Each string is a display label for one discrete value.
   final List<String> options;
 
+  /// Whether the generated UI prints the current value under the control,
+  /// and in what form. Declared in the `.gfpd` as `display: integer` or
+  /// `display: interval`; absent means [GFParamDisplay.none].
+  final GFParamDisplay display;
+
   const GFDescriptorParameter({
     required this.id,
     required this.paramId,
@@ -97,6 +121,7 @@ class GFDescriptorParameter {
     this.unit = '',
     this.type = GFDescriptorParamType.float,
     this.options = const [],
+    this.display = GFParamDisplay.none,
   });
 }
 

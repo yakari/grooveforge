@@ -7,6 +7,19 @@ import 'gf_toggle_button.dart';
 import 'gf_option_selector.dart';
 import 'gf_dropdown_selector.dart';
 
+/// Formats a parameter's current value for the readout under its control.
+///
+/// Called only for parameters whose descriptor declares a
+/// [GFParamDisplay]. Returning null falls back to this package's own
+/// language-neutral formatting, which is what a host without localisation
+/// gets. The hook exists because interval names differ by locale — a
+/// perfect fifth is `P5` in English and `5J` in French — and this package
+/// deliberately holds no translations of its own.
+typedef GFParamValueFormatter = String? Function(
+  GFDescriptorParameter param,
+  double rawValue,
+);
+
 /// Auto-generates a plugin UI panel from a [GFPluginDescriptor].
 ///
 /// Instead of building bespoke Flutter widgets for every GFPA plugin,
@@ -35,6 +48,7 @@ class GFDescriptorPluginUI extends StatelessWidget {
     required this.plugin,
     required this.paramNotifier,
     this.vuController,
+    this.valueFormatter,
   });
 
   /// The plugin whose parameters are controlled by this UI.
@@ -49,6 +63,10 @@ class GFDescriptorPluginUI extends StatelessWidget {
   /// Optional VU meter controller. If provided, the [GFControlType.vumeter]
   /// control is rendered with live level data.
   final GFVuMeterController? vuController;
+
+  /// Optional host hook for localising parameter readouts. See
+  /// [GFParamValueFormatter].
+  final GFParamValueFormatter? valueFormatter;
 
   @override
   Widget build(BuildContext context) {
@@ -235,6 +253,7 @@ class GFDescriptorPluginUI extends StatelessWidget {
       min: param.min,
       max: param.max,
       label: label,
+      valueLabel: _readoutFor(param, raw),
       size: size.toDouble(),
       onChanged: (newRaw) {
         final range = param.max - param.min;
@@ -369,6 +388,30 @@ class GFDescriptorPluginUI extends StatelessWidget {
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
+
+  /// The readout to print under a control, or null for the plain
+  /// label-only look every undeclared parameter keeps.
+  String? _readoutFor(GFDescriptorParameter param, double raw) {
+    if (param.display == GFParamDisplay.none) return null;
+    final hosted = valueFormatter?.call(param, raw);
+    if (hosted != null) return hosted;
+    return switch (param.display) {
+      GFParamDisplay.integer => raw.round().toString(),
+      // Without a host formatter there are no interval names to print, so
+      // fall back to the signed semitone count on its own — still far more
+      // use than a bare knob angle.
+      GFParamDisplay.interval => _signedSemitones(raw, param.unit),
+      GFParamDisplay.none => null,
+    };
+  }
+
+  /// `+7 st` / `-5 st` — the sign is always explicit so a downward voice
+  /// reads as one at a glance.
+  static String _signedSemitones(double raw, String unit) {
+    final semis = raw.round();
+    final sign = semis > 0 ? '+' : '';
+    return unit.isEmpty ? '$sign$semis' : '$sign$semis $unit';
+  }
 
   GFDescriptorParameter? _resolveParam(
     GFDescriptorControl ctrl,

@@ -157,6 +157,17 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
 )
 
 # Windows system libraries required by VST3 hosting + miniaudio WASAPI backend
+# ── Optimisation floor for the DSP ────────────────────────────────────────
+# Flutter's debug configuration compiles native code with /Od. The
+# harmonizer runs several FFTs per audio callback and is several times
+# slower unoptimised, which turns a comfortable margin into audible
+# dropouts. /O2 is appended after the configuration flags, so it wins.
+if(MSVC)
+  target_compile_options(${PROJECT_NAME} PRIVATE /O2)
+else()
+  target_compile_options(${PROJECT_NAME} PRIVATE -O2 -fno-math-errno)
+endif()
+
 target_link_libraries(${PROJECT_NAME} PRIVATE
   ole32
   uuid

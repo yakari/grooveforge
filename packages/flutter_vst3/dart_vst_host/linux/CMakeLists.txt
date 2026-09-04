@@ -129,6 +129,16 @@ endif()
 # Always build with debug symbols, frame pointers, and member-reorder warnings.
 target_compile_options(${PROJECT_NAME} PRIVATE -g -fno-omit-frame-pointer -Wreorder)
 
+# ── Optimisation floor for the DSP ────────────────────────────────────────
+# Flutter's debug configuration compiles native code at -O0, which is fine
+# for glue but not for the signal path: the harmonizer's phase vocoder runs
+# several FFTs per audio callback and is roughly four times slower
+# unoptimised, which turns a comfortable margin into missed deadlines and
+# audible dropouts. -O2 here overrides CMAKE_<LANG>_FLAGS_<CONFIG> because
+# target options are appended after them, and -g above keeps the build
+# debuggable.
+target_compile_options(${PROJECT_NAME} PRIVATE -O2 -fno-math-errno)
+
 # Platform-specific sources.
 # Use GLOB_RECURSE so the build stays robust when the VST3 SDK is cloned at
 # a different revision than the local copy (files may live at slightly

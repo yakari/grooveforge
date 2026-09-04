@@ -523,7 +523,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get guideMidiFxBody =>
-      'L\'Harmonizer ajoute jusqu\'à deux voix d\'harmonie à tout ce que vous jouez. Voice 1 et Voice 2 règlent chaque intervalle en demi-tons — 4 et 7 par défaut, soit une tierce majeure et une quinte juste. Avec Scale Lock activé, ces intervalles s\'ajustent pour rester dans la gamme en cours : l\'harmonie suit la tonalité au lieu d\'en sortir.\nLes autres modules MIDI FX se placent au même endroit, entre un clavier et son son : Chord Expand transforme chaque note en accord complet, Arpeggiator égrène les notes tenues en rythme, Transposer décale le tout jusqu\'à deux octaves, Velocity Curve remappe la dynamique du jeu, Gate filtre les notes par vélocité ou par tessiture, et Microtone fond les notes tenues en une seule hauteur microtonale.';
+      'L\'Harmonizer ajoute jusqu\'à quatre voix d\'harmonie à tout ce que vous jouez. Count règle le nombre de voix, et Voice 1 à Voice 4 règlent chaque intervalle en demi-tons — l\'affichage sous chaque potentiomètre nomme l\'intervalle, ainsi +7 st se lit comme une quinte juste. Par défaut, deux voix à la tierce majeure et à la quinte juste. Avec Scale Lock activé, ces intervalles s\'ajustent pour rester dans la gamme en cours : l\'harmonie suit la tonalité au lieu d\'en sortir.\nLes autres modules MIDI FX se placent au même endroit, entre un clavier et son son : Chord Expand transforme chaque note en accord complet, Arpeggiator égrène les notes tenues en rythme, Transposer décale le tout jusqu\'à deux octaves, Velocity Curve remappe la dynamique du jeu, Gate filtre les notes par vélocité ou par tessiture, et Microtone fond les notes tenues en une seule hauteur microtonale.';
 
   @override
   String get guideMidiTitle => 'Connectivité MIDI';
@@ -1999,5 +1999,64 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String toastSystemVolume(int percent) {
     return 'Volume système : $percent%';
+  }
+
+  @override
+  String get intervalUnison => 'U';
+
+  @override
+  String get intervalMinor2 => '2m';
+
+  @override
+  String get intervalMajor2 => '2M';
+
+  @override
+  String get intervalMinor3 => '3m';
+
+  @override
+  String get intervalMajor3 => '3M';
+
+  @override
+  String get intervalPerfect4 => '4J';
+
+  @override
+  String get intervalTritone => 'TT';
+
+  @override
+  String get intervalPerfect5 => '5J';
+
+  @override
+  String get intervalMinor6 => '6m';
+
+  @override
+  String get intervalMajor6 => '6M';
+
+  @override
+  String get intervalMinor7 => '7m';
+
+  @override
+  String get intervalMajor7 => '7M';
+
+  @override
+  String get intervalOctave => '8J';
+
+  @override
+  String intervalCompound(String base, int octaves, String octave) {
+    return '$base+$octaves×$octave';
+  }
+
+  @override
+  String intervalReadout(String semitones, String unit, String name) {
+    return '$semitones $unit · $name';
+  }
+
+  @override
+  String intervalOctaveMultiple(int count, String octave) {
+    return '$count×$octave';
+  }
+
+  @override
+  String intervalCompoundSingle(String base, String octave) {
+    return '$base+$octave';
   }
 }

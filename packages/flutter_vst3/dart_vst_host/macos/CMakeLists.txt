@@ -127,6 +127,14 @@ find_library(CARBON_FRAMEWORK        Carbon)
 find_library(COREFOUNDATION_FRAMEWORK CoreFoundation)
 find_library(AUDIOTOOLBOX_FRAMEWORK  AudioToolbox)
 
+# ── Optimisation floor for the DSP ────────────────────────────────────────
+# Flutter's debug configuration compiles native code at -O0. The harmonizer
+# runs several FFTs per audio callback and is roughly four times slower
+# unoptimised, which turns a comfortable margin into audible dropouts.
+# Target options are appended after CMAKE_<LANG>_FLAGS_<CONFIG>, so this
+# wins over the debug configuration's -O0.
+target_compile_options(${PROJECT_NAME} PRIVATE -O2 -fno-math-errno)
+
 target_link_libraries(${PROJECT_NAME} PRIVATE
   ${COCOA_FRAMEWORK}
   ${CARBON_FRAMEWORK}

@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [X.x.x]
+
+### Added
+- Harmonizer (MIDI FX): a Count knob sets how many harmony voices play, and two extra voices bring it to four — the same shape as the Audio Harmonizer.
+- Both harmonizers print their values under the knobs: the voice count as a number, and each voice's interval as signed semitones plus the interval it names (`+7 st · P5`, `5J` in French).
+
+### Fixed
+- Audio Harmonizer: heavy crackling, worst on Android. Two causes — upward voices were resynthesised with too little frame overlap, stamping a tremolo on the harmony (3 dB at an octave up, 14 dB at two), and on Android the DSP was being compiled unoptimised, so it missed the audio callback's deadline outright.
+- Audio Harmonizer: every interval came out at a different level, an octave below landing roughly 8 dB above a third above. Voices now hold unity gain at any interval.
+- Audio Harmonizer: upward voices aliased, folding their high end back as an inharmonic whistle only 6 dB below the signal. A band-limiting filter ahead of the shift puts it 20 dB down.
+- Audio Looper: a tempo-synced clip changed level with the tempo, playing about 6 dB louder at half speed and 6 dB quieter at double. It now holds its level at any stretch. Same cause as the harmonizer's per-interval levels.
+- Android: effects could overrun their scratch buffers on any device whose audio callback delivers more than 512 frames. They are now sized for the 4096-frame ceiling the callback actually clamps to.
+
+### Architecture
+- The phase vocoder shortens whichever hop the stretch ratio calls for — the analysis hop when stretching, the synthesis hop when compressing — so both overlaps stay at 4x or better at every ratio. Overlap-add gain is what depends on the synthesis overlap, and it was the tremolo's cause.
+- Phase locking rotates each spectral peak's region with a single complex multiply per bin, so per-frame trigonometry scales with the number of peaks rather than the FFT size.
+- Harmonizer voices bank two of the vocoder's production quanta before they start, and trim the surplus at that moment, so every audio callback receives a whole block for a latency cost that does not depend on the audio device's block size.
+- Voices past the Count knob, or with their mix at zero, are skipped outright instead of running their vocoders into silence.
+- Native DSP is compiled at -O2 on every platform even in debug builds. Flutter's debug configuration compiles native code unoptimised; measured on a Galaxy Z Fold 6, that left four harmony voices at 101-219% of the audio callback's deadline against 8-16% optimised.
+
 ## [2.17.4] - 2026-09-04
 
 ### Added

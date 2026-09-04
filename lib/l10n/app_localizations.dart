@@ -1013,7 +1013,7 @@ abstract class AppLocalizations {
   /// No description provided for @guideMidiFxBody.
   ///
   /// In en, this message translates to:
-  /// **'The Harmonizer adds up to two harmony voices to anything you play. Voice 1 and Voice 2 set each interval in semitones — 4 and 7 by default, a major third and a perfect fifth. With Scale Lock on, those intervals bend to stay inside the current scale, so the harmony follows the key instead of wandering outside it.\nThe other MIDI FX modules sit in the same place, between a keyboard and its sound: Chord Expand turns single notes into full chords, Arpeggiator spreads held notes into a rhythm, Transposer shifts everything by up to two octaves, Velocity Curve remaps how hard you play, Gate filters notes by velocity or pitch range, and Microtone folds held notes into a single microtonal pitch.'**
+  /// **'The Harmonizer adds up to four harmony voices to anything you play. Count sets how many voices play, and Voice 1 to Voice 4 set each interval in semitones — the readout under each knob names the interval, so +7 st reads as a perfect fifth. Two voices at a major third and a perfect fifth are the default. With Scale Lock on, those intervals bend to stay inside the current scale, so the harmony follows the key instead of wandering outside it.\nThe other MIDI FX modules sit in the same place, between a keyboard and its sound: Chord Expand turns single notes into full chords, Arpeggiator spreads held notes into a rhythm, Transposer shifts everything by up to two octaves, Velocity Curve remaps how hard you play, Gate filters notes by velocity or pitch range, and Microtone folds held notes into a single microtonal pitch.'**
   String get guideMidiFxBody;
 
   /// No description provided for @guideMidiTitle.
@@ -3703,6 +3703,108 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'System volume: {percent}%'**
   String toastSystemVolume(int percent);
+
+  /// Musical interval abbreviation shown under a harmonizer knob: unison (0 semitones).
+  ///
+  /// In en, this message translates to:
+  /// **'U'**
+  String get intervalUnison;
+
+  /// Musical interval abbreviation: minor second (1 semitone).
+  ///
+  /// In en, this message translates to:
+  /// **'m2'**
+  String get intervalMinor2;
+
+  /// Musical interval abbreviation: major second (2 semitones).
+  ///
+  /// In en, this message translates to:
+  /// **'M2'**
+  String get intervalMajor2;
+
+  /// Musical interval abbreviation: minor third (3 semitones).
+  ///
+  /// In en, this message translates to:
+  /// **'m3'**
+  String get intervalMinor3;
+
+  /// Musical interval abbreviation: major third (4 semitones).
+  ///
+  /// In en, this message translates to:
+  /// **'M3'**
+  String get intervalMajor3;
+
+  /// Musical interval abbreviation: perfect fourth (5 semitones).
+  ///
+  /// In en, this message translates to:
+  /// **'P4'**
+  String get intervalPerfect4;
+
+  /// Musical interval abbreviation: tritone (6 semitones).
+  ///
+  /// In en, this message translates to:
+  /// **'TT'**
+  String get intervalTritone;
+
+  /// Musical interval abbreviation: perfect fifth (7 semitones).
+  ///
+  /// In en, this message translates to:
+  /// **'P5'**
+  String get intervalPerfect5;
+
+  /// Musical interval abbreviation: minor sixth (8 semitones).
+  ///
+  /// In en, this message translates to:
+  /// **'m6'**
+  String get intervalMinor6;
+
+  /// Musical interval abbreviation: major sixth (9 semitones).
+  ///
+  /// In en, this message translates to:
+  /// **'M6'**
+  String get intervalMajor6;
+
+  /// Musical interval abbreviation: minor seventh (10 semitones).
+  ///
+  /// In en, this message translates to:
+  /// **'m7'**
+  String get intervalMinor7;
+
+  /// Musical interval abbreviation: major seventh (11 semitones).
+  ///
+  /// In en, this message translates to:
+  /// **'M7'**
+  String get intervalMajor7;
+
+  /// Musical interval abbreviation: octave (12 semitones).
+  ///
+  /// In en, this message translates to:
+  /// **'8ve'**
+  String get intervalOctave;
+
+  /// An interval wider than an octave, e.g. M2 plus one octave. Pure abbreviations; nothing to translate except the ordering.
+  ///
+  /// In en, this message translates to:
+  /// **'{base}+{octaves}×{octave}'**
+  String intervalCompound(String base, int octaves, String octave);
+
+  /// Readout under a harmonizer interval knob, e.g. '+7 st · P5'. semitones already carries its sign.
+  ///
+  /// In en, this message translates to:
+  /// **'{semitones} {unit} · {name}'**
+  String intervalReadout(String semitones, String unit, String name);
+
+  /// Several whole octaves, e.g. 2×8ve for 24 semitones.
+  ///
+  /// In en, this message translates to:
+  /// **'{count}×{octave}'**
+  String intervalOctaveMultiple(int count, String octave);
+
+  /// An interval one octave wider than its simple form, e.g. a major ninth as M2+8ve.
+  ///
+  /// In en, this message translates to:
+  /// **'{base}+{octave}'**
+  String intervalCompoundSingle(String base, String octave);
 }
 
 class _AppLocalizationsDelegate

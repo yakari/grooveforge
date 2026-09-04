@@ -234,7 +234,7 @@
   "guideLoopersTitle": "Loopers",
   "guideLoopersBody": "The MIDI Looper records what you play and loops it. The Audio Looper does the same with live audio, and adds overdub and reverse.\nBoth are bar-synced: recording does not start the instant you tap record, it waits for the next downbeat, and the loop length is rounded to whole bars. That is what keeps a stack of loops lining up instead of drifting apart.\nThe Audio Looper records whatever is cabled into its Audio IN, so patch an instrument or a Live Input into it first.",
   "guideMidiFxTitle": "Harmonizer and the other MIDI FX",
-  "guideMidiFxBody": "The Harmonizer adds up to two harmony voices to anything you play. Voice 1 and Voice 2 set each interval in semitones — 4 and 7 by default, a major third and a perfect fifth. With Scale Lock on, those intervals bend to stay inside the current scale, so the harmony follows the key instead of wandering outside it.\nThe other MIDI FX modules sit in the same place, between a keyboard and its sound: Chord Expand turns single notes into full chords, Arpeggiator spreads held notes into a rhythm, Transposer shifts everything by up to two octaves, Velocity Curve remaps how hard you play, Gate filters notes by velocity or pitch range, and Microtone folds held notes into a single microtonal pitch.",
+  "guideMidiFxBody": "The Harmonizer adds up to four harmony voices to anything you play. Count sets how many voices play, and Voice 1 to Voice 4 set each interval in semitones — the readout under each knob names the interval, so +7 st reads as a perfect fifth. Two voices at a major third and a perfect fifth are the default. With Scale Lock on, those intervals bend to stay inside the current scale, so the harmony follows the key instead of wandering outside it.\nThe other MIDI FX modules sit in the same place, between a keyboard and its sound: Chord Expand turns single notes into full chords, Arpeggiator spreads held notes into a rhythm, Transposer shifts everything by up to two octaves, Velocity Curve remaps how hard you play, Gate filters notes by velocity or pitch range, and Microtone folds held notes into a single microtonal pitch.",
   "guideMidiTitle": "MIDI Connectivity",
   "guideMidiBody": "Connect hardware controllers via USB (OTG adapter) or BLE MIDI. Enable CC Mapping in preferences to bind physical knobs to internal effects or system actions like 'Next Patch'.",
   "guideMidiBestPracticeTitle": "Hardware Recommendations",
@@ -906,5 +906,91 @@
   "toastSystemVolume": "System volume: {percent}%",
   "@toastSystemVolume": {
     "placeholders": {"percent": {"type": "int"}}
+  },
+  "intervalUnison": "U",
+  "@intervalUnison": {
+    "description": "Musical interval abbreviation shown under a harmonizer knob: unison (0 semitones)."
+  },
+  "intervalMinor2": "m2",
+  "@intervalMinor2": {
+    "description": "Musical interval abbreviation: minor second (1 semitone)."
+  },
+  "intervalMajor2": "M2",
+  "@intervalMajor2": {
+    "description": "Musical interval abbreviation: major second (2 semitones)."
+  },
+  "intervalMinor3": "m3",
+  "@intervalMinor3": {
+    "description": "Musical interval abbreviation: minor third (3 semitones)."
+  },
+  "intervalMajor3": "M3",
+  "@intervalMajor3": {
+    "description": "Musical interval abbreviation: major third (4 semitones)."
+  },
+  "intervalPerfect4": "P4",
+  "@intervalPerfect4": {
+    "description": "Musical interval abbreviation: perfect fourth (5 semitones)."
+  },
+  "intervalTritone": "TT",
+  "@intervalTritone": {
+    "description": "Musical interval abbreviation: tritone (6 semitones)."
+  },
+  "intervalPerfect5": "P5",
+  "@intervalPerfect5": {
+    "description": "Musical interval abbreviation: perfect fifth (7 semitones)."
+  },
+  "intervalMinor6": "m6",
+  "@intervalMinor6": {
+    "description": "Musical interval abbreviation: minor sixth (8 semitones)."
+  },
+  "intervalMajor6": "M6",
+  "@intervalMajor6": {
+    "description": "Musical interval abbreviation: major sixth (9 semitones)."
+  },
+  "intervalMinor7": "m7",
+  "@intervalMinor7": {
+    "description": "Musical interval abbreviation: minor seventh (10 semitones)."
+  },
+  "intervalMajor7": "M7",
+  "@intervalMajor7": {
+    "description": "Musical interval abbreviation: major seventh (11 semitones)."
+  },
+  "intervalOctave": "8ve",
+  "@intervalOctave": {
+    "description": "Musical interval abbreviation: octave (12 semitones)."
+  },
+  "intervalCompound": "{base}+{octaves}\u00d7{octave}",
+  "@intervalCompound": {
+    "description": "An interval wider than an octave, e.g. M2 plus one octave. Pure abbreviations; nothing to translate except the ordering.",
+    "placeholders": {
+      "base": {"type": "String"},
+      "octaves": {"type": "int"},
+      "octave": {"type": "String"}
+    }
+  },
+  "intervalReadout": "{semitones} {unit} \u00b7 {name}",
+  "@intervalReadout": {
+    "description": "Readout under a harmonizer interval knob, e.g. '+7 st \u00b7 P5'. semitones already carries its sign.",
+    "placeholders": {
+      "semitones": {"type": "String"},
+      "unit": {"type": "String"},
+      "name": {"type": "String"}
+    }
+  },
+  "intervalOctaveMultiple": "{count}\u00d7{octave}",
+  "@intervalOctaveMultiple": {
+    "description": "Several whole octaves, e.g. 2\u00d78ve for 24 semitones.",
+    "placeholders": {
+      "count": {"type": "int"},
+      "octave": {"type": "String"}
+    }
+  },
+  "intervalCompoundSingle": "{base}+{octave}",
+  "@intervalCompoundSingle": {
+    "description": "An interval one octave wider than its simple form, e.g. a major ninth as M2+8ve.",
+    "placeholders": {
+      "base": {"type": "String"},
+      "octave": {"type": "String"}
+    }
   }
 }

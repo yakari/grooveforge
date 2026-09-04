@@ -34,7 +34,7 @@ class GfpaAndroidBindings {
   GfpaAndroidBindings._();
 
   /// Not supported on web — returns 0 (null handle).
-  int createDsp(String pluginId, {int sampleRate = 48000, int blockSize = 512}) => 0;
+  int createDsp(String pluginId, {int sampleRate = 48000, int blockSize = 4096}) => 0;
 
   /// Not supported on web — no-op.
   void gfpaDspSetParam(int handle, String paramId, double physicalValue) {}

@@ -79,6 +79,17 @@ add_library(native-lib SHARED
         ../../../../../../native_audio/gf_phase_vocoder.c
 )
 
+# ── Optimisation floor for the DSP ────────────────────────────────────────
+# Flutter's debug configuration compiles native code at -O0, which is fine
+# for JNI glue but not for the signal path: the harmonizer runs several FFTs
+# per audio callback and is roughly four times slower unoptimised. On a
+# phone, where an AAudio burst is 96-240 frames (2-5 ms), that is the
+# difference between the insert chain finishing inside the callback and
+# missing every deadline — which the user hears as continuous crackling.
+# Target options are appended after CMAKE_<LANG>_FLAGS_<CONFIG>, so this
+# wins over the -O0 the debug configuration supplies.
+target_compile_options(native-lib PRIVATE -O2 -fno-math-errno)
+
 # Include directories:
 #  - FluidSynth_SOURCE_DIR/include : public headers (fluidsynth.h, fluidsynth/*.h)
 #  - FluidSynth_BINARY_DIR/include : generated version.h

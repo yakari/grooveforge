@@ -75,9 +75,11 @@ void gf_pv_reset(gf_pv_context* ctx);
 void gf_pv_set_stretch(gf_pv_context* ctx, float ratio);
 
 /// Sets the pitch shift in semitones. 0 = no change; +12 = one octave up;
-/// -12 = one octave down. Clamped to [-24, +24]. Implemented as
-/// time-stretch by 2^(-semitones/12) followed by resampling by the inverse
-/// factor, so duration is preserved.
+/// -12 = one octave down. Clamped to [-24, +24].
+///
+/// Implemented as a time-stretch paired with a resampling of the output by
+/// the inverse factor, so duration is preserved. Upward shifts are
+/// band-limited on the way in so the faster read cannot alias.
 void gf_pv_set_pitch_semitones(gf_pv_context* ctx, float semitones);
 
 /// Pushes [num_samples] input samples (interleaved, [channels] channels) into
@@ -96,6 +98,25 @@ int gf_pv_process_block(gf_pv_context* ctx,
                         int num_frames,
                         float* output_interleaved,
                         int output_capacity_frames);
+
+/// Number of output frames [gf_pv_process_block] could return right now if
+/// given unlimited output capacity.
+///
+/// A vocoder emits output in synthesis-frame quanta, not in whatever block
+/// size the audio callback happens to use, so a caller that needs a fixed
+/// number of frames every block must let the vocoder run a little ahead and
+/// then stay that far behind it. This query is how such a caller knows when
+/// enough has been banked to start — see the harmonizer effect. Allocation-
+/// free; safe to call from the audio thread.
+int gf_pv_available(const gf_pv_context* ctx);
+
+/// How much [gf_pv_available] jumps by when the vocoder produces.
+///
+/// Output arrives one synthesis frame at a time, so a caller that must hand
+/// out a fixed number of frames every block has to stay this far behind —
+/// that is the whole buffer it needs, independent of its own block size.
+/// Allocation-free; safe to call from the audio thread.
+int gf_pv_output_quantum(const gf_pv_context* ctx);
 
 /// Convenience: processes an entire mono buffer offline. Writes
 /// time-stretched output to [out] (caller-sized). Returns frames written.

@@ -12,6 +12,16 @@ class RotaryKnob extends StatefulWidget {
   final double size;
   final bool isCompact;
 
+  /// Optional readout printed under the label, e.g. `3` for a voice count
+  /// or `+7 st · P5` for a harmony interval.
+  ///
+  /// A knob communicates a position, not a number, which is all a "how much
+  /// reverb" control needs. Parameters whose exact value is the point —
+  /// counts, intervals — pass their formatted value here instead of leaving
+  /// the user to guess it from the pointer angle. Null keeps the plain
+  /// label-only knob every other control uses.
+  final String? valueLabel;
+
   const RotaryKnob({
     super.key,
     required this.value,
@@ -22,6 +32,7 @@ class RotaryKnob extends StatefulWidget {
     required this.onChanged,
     this.size = 50.0,
     this.isCompact = false,
+    this.valueLabel,
   });
 
   @override
@@ -139,6 +150,20 @@ class _RotaryKnobState extends State<RotaryKnob> {
                               painter: _KnobPainter(value: normalizedValue),
                             ),
                           ),
+                          // The readout matters most while dragging, so the
+                          // overlay repeats it larger than the inline one.
+                          if (widget.valueLabel != null) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              widget.valueLabel!,
+                              style: const TextStyle(
+                                color: Colors.orange,
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -236,6 +261,27 @@ class _RotaryKnobState extends State<RotaryKnob> {
                     ),
                   ),
                 ],
+              ),
+            ),
+          // Bounded to roughly the knob's own width: a readout like
+          // "+14 st · M2+8ve" is far wider than a 36 px knob, and letting
+          // it size the column would stretch every row of controls it sits
+          // in. FittedBox shrinks the text instead of overflowing.
+          if (widget.valueLabel != null)
+            SizedBox(
+              width: widget.size + 28,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  widget.valueLabel!,
+                  maxLines: 1,
+                  style: const TextStyle(
+                    color: Colors.orange,
+                    fontSize: 9,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.3,
+                  ),
+                ),
               ),
             ),
         ],
