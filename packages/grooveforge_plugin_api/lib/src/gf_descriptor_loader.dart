@@ -289,8 +289,11 @@ class GFDescriptorLoader {
       _parseUi(dynamic raw) {
     if (raw is! YamlMap) return (GFUiLayout.row, const [], const []);
 
-    final layoutStr = _str(raw, 'layout', fallback: 'row');
-    final layout = layoutStr == 'grid' ? GFUiLayout.grid : GFUiLayout.row;
+    final layout = switch (_str(raw, 'layout', fallback: 'row')) {
+      'grid' => GFUiLayout.grid,
+      'lanes' => GFUiLayout.lanes,
+      _ => GFUiLayout.row,
+    };
     final controls = _parseControls(raw['controls']);
     final groups = _parseGroups(raw['groups']);
     return (layout, controls, groups);
@@ -308,8 +311,24 @@ class GFDescriptorLoader {
       return GFDescriptorControlGroup(
         label: _str(m, 'label'),
         controls: _parseControls(m['controls']),
+        activeWhen: _parseActiveWhen(m['activeWhen']),
       );
     }).toList(growable: false);
+  }
+
+  /// Parse a group's optional `activeWhen: { param: <id>, atLeast: <n> }`.
+  ///
+  /// Anything malformed yields null, which means "always active" — a
+  /// descriptor with a typo renders a live control rather than one
+  /// permanently greyed out with no way to tell why.
+  static GFGroupActiveWhen? _parseActiveWhen(dynamic raw) {
+    if (raw is! YamlMap) return null;
+    final paramId = _str(raw, 'param');
+    if (paramId.isEmpty) return null;
+    return GFGroupActiveWhen(
+      paramId: paramId,
+      atLeast: _double(raw, 'atLeast'),
+    );
   }
 
   static List<GFDescriptorControl> _parseControls(dynamic raw) {
@@ -323,6 +342,7 @@ class GFDescriptorLoader {
         'toggle' => GFControlType.toggle,
         'selector' => GFControlType.selector,
         'button' => GFControlType.button,
+        'interval' => GFControlType.interval,
         _ => GFControlType.knob,
       };
       final sizeStr = _str(m, 'size', fallback: 'medium');

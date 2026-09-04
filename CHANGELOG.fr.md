@@ -5,13 +5,18 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/lang/fr/).
 
-## [X.x.x]
+## [2.18.0] - 2026-09-04
 
 ### Ajouté
-- Harmonizer (MIDI FX) : un potentiomètre Count règle le nombre de voix d'harmonie, et deux voix supplémentaires le portent à quatre — la même structure que l'Audio Harmonizer.
-- Les deux harmonizers affichent leurs valeurs sous les potentiomètres : le nombre de voix en chiffre, et l'intervalle de chaque voix en demi-tons signés suivi de son nom (`+7 st · 5J`).
+- Harmonizer (MIDI FX) : deux voix d'harmonie supplémentaires le portent à quatre, et un sélecteur Voices règle combien en jouent — la même structure que l'Audio Harmonizer.
+- Les deux harmonizers nomment l'intervalle de chaque voix : le nombre de demi-tons signé, avec l'intervalle écrit en toutes lettres en dessous (`+7 st` / `Quinte juste`), et le tout avec sa direction en touchant l'affichage.
 - 12 styles pour le générateur de batterie, soit plus de la moitié de la bibliothèque existante en plus : techno et electro ; dub ; R&B ; maqsoum et baladi arabes ; karşılama turc en 9/8 et çiftetelli ; shesh-o-hasht persan en 6/8 ; teental et bhangra indiens ; taiko japonais et luogu chinois.
 - Les patterns orientaux sont conçus pour aller avec les gammes du module Xen — maqsoum sur Rast, karşılama sur Hicaz, teental sur Yaman — et chaque fichier documente quel instrument General MIDI remplace le darbouka, le tabla, le dhol ou le taiko pour lequel il a été écrit.
+
+### Modifié
+- Les deux harmonizers : l'intervalle d'une voix se règle sur une réglette de demi-tons plutôt qu'au potentiomètre. La position du curseur sur la règle est l'intervalle, les quatre réglettes partagent la même échelle — l'empilement des curseurs dessine l'accord — et les boutons pas-à-pas de part et d'autre tombent sur le demi-ton exact au lieu d'exiger un glissement de 150 px sur quatre octaves. Sur téléphone, l'affichage passe sous la réglette pour lui laisser toute la largeur de la ligne.
+- Audio Harmonizer : une ligne par voix, portant ensemble son intervalle et son niveau. Ils occupaient auparavant deux groupes distincts — la hauteur de V1 était à quatre contrôles de son niveau — et le Dry/Wet débordait du bord droit du panneau.
+- Les deux harmonizers : les voix au-delà du réglage Voices sont grisées. Quatre contrôles de voix allumés pour deux voix réellement audibles, c'était le panneau qui se contredisait.
 
 ### Corrigé
 - Audio Harmonizer : grésillement important, surtout sur Android. Deux causes — les voix vers l'aigu étaient resynthétisées avec un recouvrement de trames insuffisant, imposant un trémolo à l'harmonie (3 dB à l'octave supérieure, 14 dB à deux octaves), et sur Android le DSP était compilé sans optimisation, manquant purement et simplement l'échéance du callback audio.
@@ -26,7 +31,8 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 - Le vocodeur de phase raccourcit le pas que le facteur d'étirement impose — le pas d'analyse à l'étirement, le pas de synthèse à la compression — de sorte que les deux recouvrements restent à 4x ou mieux à tous les rapports. C'est le recouvrement de synthèse qui conditionne le gain de l'overlap-add, et qui causait le trémolo.
 - Le verrouillage de phase applique une seule multiplication complexe par bin sur la région de chaque pic spectral ; la trigonométrie par trame dépend donc du nombre de pics et non de la taille de la FFT.
 - Les voix de l'harmonizer accumulent deux quanta de production du vocodeur avant de démarrer, et coupent le surplus à cet instant : chaque callback audio reçoit un bloc entier pour un coût en latence indépendant de la taille de bloc du périphérique audio.
-- Les voix au-delà du potentiomètre Count, ou dont le mix est à zéro, sont ignorées au lieu de faire tourner leur vocodeur dans le vide.
+- Les voix au-delà du réglage Voices, ou dont le mix est à zéro, sont ignorées au lieu de faire tourner leur vocodeur dans le vide.
+- La spécification UI des `.gfpd` gagne une disposition `lanes` (une ligne horizontale par groupe, empilées), un type de contrôle `interval` et `activeWhen: { param, atLeast }` pour griser un groupe. Ces trois ajouts sont génériques : tout futur plugin à voix ou bandes parallèles en bénéficie sans widget dédié.
 - Le DSP natif est compilé en -O2 sur toutes les plateformes, y compris en debug. La configuration debug de Flutter compile le code natif sans optimisation ; mesuré sur un Galaxy Z Fold 6, quatre voix d'harmonie occupaient alors 101 à 219 % de l'échéance du callback audio, contre 8 à 16 % une fois optimisé.
 
 ## [2.17.4] - 2026-09-04

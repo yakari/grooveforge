@@ -3752,107 +3752,119 @@ abstract class AppLocalizations {
   /// **'System volume: {percent}%'**
   String toastSystemVolume(int percent);
 
-  /// Musical interval abbreviation shown under a harmonizer knob: unison (0 semitones).
+  /// Musical interval name shown under a harmonizer voice control.
   ///
   /// In en, this message translates to:
-  /// **'U'**
-  String get intervalUnison;
+  /// **'Unison'**
+  String get intervalNameUnison;
 
-  /// Musical interval abbreviation: minor second (1 semitone).
+  /// Musical interval name shown under a harmonizer voice control.
   ///
   /// In en, this message translates to:
-  /// **'m2'**
-  String get intervalMinor2;
+  /// **'Minor 2nd'**
+  String get intervalNameMinor2;
 
-  /// Musical interval abbreviation: major second (2 semitones).
+  /// Musical interval name shown under a harmonizer voice control.
   ///
   /// In en, this message translates to:
-  /// **'M2'**
-  String get intervalMajor2;
+  /// **'Major 2nd'**
+  String get intervalNameMajor2;
 
-  /// Musical interval abbreviation: minor third (3 semitones).
+  /// Musical interval name shown under a harmonizer voice control.
   ///
   /// In en, this message translates to:
-  /// **'m3'**
-  String get intervalMinor3;
+  /// **'Minor 3rd'**
+  String get intervalNameMinor3;
 
-  /// Musical interval abbreviation: major third (4 semitones).
+  /// Musical interval name shown under a harmonizer voice control.
   ///
   /// In en, this message translates to:
-  /// **'M3'**
-  String get intervalMajor3;
+  /// **'Major 3rd'**
+  String get intervalNameMajor3;
 
-  /// Musical interval abbreviation: perfect fourth (5 semitones).
+  /// Musical interval name shown under a harmonizer voice control.
   ///
   /// In en, this message translates to:
-  /// **'P4'**
-  String get intervalPerfect4;
+  /// **'Perfect 4th'**
+  String get intervalNamePerfect4;
 
-  /// Musical interval abbreviation: tritone (6 semitones).
+  /// Musical interval name shown under a harmonizer voice control.
   ///
   /// In en, this message translates to:
-  /// **'TT'**
-  String get intervalTritone;
+  /// **'Tritone'**
+  String get intervalNameTritone;
 
-  /// Musical interval abbreviation: perfect fifth (7 semitones).
+  /// Musical interval name shown under a harmonizer voice control.
   ///
   /// In en, this message translates to:
-  /// **'P5'**
-  String get intervalPerfect5;
+  /// **'Perfect 5th'**
+  String get intervalNamePerfect5;
 
-  /// Musical interval abbreviation: minor sixth (8 semitones).
+  /// Musical interval name shown under a harmonizer voice control.
   ///
   /// In en, this message translates to:
-  /// **'m6'**
-  String get intervalMinor6;
+  /// **'Minor 6th'**
+  String get intervalNameMinor6;
 
-  /// Musical interval abbreviation: major sixth (9 semitones).
+  /// Musical interval name shown under a harmonizer voice control.
   ///
   /// In en, this message translates to:
-  /// **'M6'**
-  String get intervalMajor6;
+  /// **'Major 6th'**
+  String get intervalNameMajor6;
 
-  /// Musical interval abbreviation: minor seventh (10 semitones).
+  /// Musical interval name shown under a harmonizer voice control.
   ///
   /// In en, this message translates to:
-  /// **'m7'**
-  String get intervalMinor7;
+  /// **'Minor 7th'**
+  String get intervalNameMinor7;
 
-  /// Musical interval abbreviation: major seventh (11 semitones).
+  /// Musical interval name shown under a harmonizer voice control.
   ///
   /// In en, this message translates to:
-  /// **'M7'**
-  String get intervalMajor7;
+  /// **'Major 7th'**
+  String get intervalNameMajor7;
 
-  /// Musical interval abbreviation: octave (12 semitones).
+  /// Musical interval name shown under a harmonizer voice control.
   ///
   /// In en, this message translates to:
-  /// **'8ve'**
-  String get intervalOctave;
+  /// **'Octave'**
+  String get intervalNameOctave;
 
-  /// An interval wider than an octave, e.g. M2 plus one octave. Pure abbreviations; nothing to translate except the ordering.
+  /// Several whole octaves, e.g. 2 octaves for 24 semitones.
   ///
   /// In en, this message translates to:
-  /// **'{base}+{octaves}×{octave}'**
-  String intervalCompound(String base, int octaves, String octave);
+  /// **'{count} octaves'**
+  String intervalNameOctaves(int count);
 
-  /// Readout under a harmonizer interval knob, e.g. '+7 st · P5'. semitones already carries its sign.
+  /// An interval wider than an octave, named by its simple form plus the octaves on top.
   ///
   /// In en, this message translates to:
-  /// **'{semitones} {unit} · {name}'**
-  String intervalReadout(String semitones, String unit, String name);
+  /// **'{base} +{octaves} oct'**
+  String intervalNameCompound(String base, int octaves);
 
-  /// Several whole octaves, e.g. 2×8ve for 24 semitones.
+  /// Primary readout under a harmonizer interval control. semitones already carries its sign.
   ///
   /// In en, this message translates to:
-  /// **'{count}×{octave}'**
-  String intervalOctaveMultiple(int count, String octave);
+  /// **'{semitones} st'**
+  String intervalSemitones(String semitones);
 
-  /// An interval one octave wider than its simple form, e.g. a major ninth as M2+8ve.
+  /// Long-press text on a harmonizer interval readout, for an upward voice.
   ///
   /// In en, this message translates to:
-  /// **'{base}+{octave}'**
-  String intervalCompoundSingle(String base, String octave);
+  /// **'{name}, {semitones} semitones above the played note'**
+  String intervalTooltipAbove(String name, int semitones);
+
+  /// Long-press text on a harmonizer interval readout, for a downward voice.
+  ///
+  /// In en, this message translates to:
+  /// **'{name}, {semitones} semitones below the played note'**
+  String intervalTooltipBelow(String name, int semitones);
+
+  /// Long-press text on a harmonizer interval readout set to zero.
+  ///
+  /// In en, this message translates to:
+  /// **'Unison — the same pitch as the played note'**
+  String get intervalTooltipUnison;
 }
 
 class _AppLocalizationsDelegate

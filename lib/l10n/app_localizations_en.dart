@@ -2012,61 +2012,70 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get intervalUnison => 'U';
+  String get intervalNameUnison => 'Unison';
 
   @override
-  String get intervalMinor2 => 'm2';
+  String get intervalNameMinor2 => 'Minor 2nd';
 
   @override
-  String get intervalMajor2 => 'M2';
+  String get intervalNameMajor2 => 'Major 2nd';
 
   @override
-  String get intervalMinor3 => 'm3';
+  String get intervalNameMinor3 => 'Minor 3rd';
 
   @override
-  String get intervalMajor3 => 'M3';
+  String get intervalNameMajor3 => 'Major 3rd';
 
   @override
-  String get intervalPerfect4 => 'P4';
+  String get intervalNamePerfect4 => 'Perfect 4th';
 
   @override
-  String get intervalTritone => 'TT';
+  String get intervalNameTritone => 'Tritone';
 
   @override
-  String get intervalPerfect5 => 'P5';
+  String get intervalNamePerfect5 => 'Perfect 5th';
 
   @override
-  String get intervalMinor6 => 'm6';
+  String get intervalNameMinor6 => 'Minor 6th';
 
   @override
-  String get intervalMajor6 => 'M6';
+  String get intervalNameMajor6 => 'Major 6th';
 
   @override
-  String get intervalMinor7 => 'm7';
+  String get intervalNameMinor7 => 'Minor 7th';
 
   @override
-  String get intervalMajor7 => 'M7';
+  String get intervalNameMajor7 => 'Major 7th';
 
   @override
-  String get intervalOctave => '8ve';
+  String get intervalNameOctave => 'Octave';
 
   @override
-  String intervalCompound(String base, int octaves, String octave) {
-    return '$base+$octaves×$octave';
+  String intervalNameOctaves(int count) {
+    return '$count octaves';
   }
 
   @override
-  String intervalReadout(String semitones, String unit, String name) {
-    return '$semitones $unit · $name';
+  String intervalNameCompound(String base, int octaves) {
+    return '$base +$octaves oct';
   }
 
   @override
-  String intervalOctaveMultiple(int count, String octave) {
-    return '$count×$octave';
+  String intervalSemitones(String semitones) {
+    return '$semitones st';
   }
 
   @override
-  String intervalCompoundSingle(String base, String octave) {
-    return '$base+$octave';
+  String intervalTooltipAbove(String name, int semitones) {
+    return '$name, $semitones semitones above the played note';
   }
+
+  @override
+  String intervalTooltipBelow(String name, int semitones) {
+    return '$name, $semitones semitones below the played note';
+  }
+
+  @override
+  String get intervalTooltipUnison =>
+      'Unison — the same pitch as the played note';
 }

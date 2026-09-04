@@ -88,47 +88,153 @@ void main() {
   }
 
   group('Audio Harmonizer panel', () {
-    testWidgets('interval knobs show the interval, not just an angle',
+    testWidgets('each voice gets its own lane, with an interval bar',
         (tester) async {
       await pumpPanel(tester,
           asset: 'assets/plugins/audio_harmonizer.gfpd', width: 1280);
 
-      // Defaults are +7, +12, +4 and -5 semitones.
-      expect(find.text('+7 st · P5'), findsOneWidget);
-      expect(find.text('+12 st · 8ve'), findsOneWidget);
-      expect(find.text('+4 st · M3'), findsOneWidget);
-      expect(find.text('-5 st · P4'), findsOneWidget);
+      // One lane per voice plus the setup lane.
+      for (final lane in ['Setup', 'V1', 'V2', 'V3', 'V4']) {
+        expect(find.text(lane), findsOneWidget);
+      }
+      expect(find.byType(GFIntervalBar), findsNWidgets(4));
+
+      // Defaults are +7, +12, +4 and -5 semitones, each shown as the count
+      // and the interval it names.
+      expect(find.text('+7 st'), findsOneWidget);
+      expect(find.text('Perfect 5th'), findsOneWidget);
+      expect(find.text('+12 st'), findsOneWidget);
+      expect(find.text('Octave'), findsOneWidget);
+      expect(find.text('+4 st'), findsOneWidget);
+      expect(find.text('Major 3rd'), findsOneWidget);
+      expect(find.text('-5 st'), findsOneWidget);
+      expect(find.text('Perfect 4th'), findsOneWidget);
     });
 
-    testWidgets('the voice count is spelled out', (tester) async {
+    testWidgets('voice count is a segmented selector, not a knob',
+        (tester) async {
       await pumpPanel(tester,
           asset: 'assets/plugins/audio_harmonizer.gfpd', width: 1280);
-      expect(find.text('2'), findsOneWidget);
+
+      // Every count is on screen as its own segment — the whole point of
+      // the change: a four-position choice should not need a drag.
+      expect(find.byType(GFOptionSelector), findsOneWidget);
+      for (final n in ['1', '2', '3', '4']) {
+        expect(find.text(n), findsOneWidget);
+      }
     });
 
-    testWidgets('mix and dry/wet knobs stay label-only', (tester) async {
-      // Only parameters that asked for a readout get one; a "how much"
-      // control is not improved by a number under it.
+    testWidgets('each voice keeps its level in its own lane', (tester) async {
+      // Pitch and level used to live in two separate groups, so V1's
+      // interval sat four controls away from V1's level.
       await pumpPanel(tester,
           asset: 'assets/plugins/audio_harmonizer.gfpd', width: 1280);
-      expect(find.text('0.7'), findsNothing);
-      expect(find.text('0.5'), findsNothing);
+      expect(find.text('Level'), findsNWidgets(4));
+
+      for (final lane in ['V1', 'V2', 'V3', 'V4']) {
+        final row = find.ancestor(
+          of: find.text(lane),
+          matching: find.byType(Row),
+        );
+        expect(
+          find.descendant(of: row.first, matching: find.text('Level')),
+          findsOneWidget,
+          reason: '$lane should carry its own level control',
+        );
+      }
+    });
+
+    testWidgets('lanes past the voice count are dimmed', (tester) async {
+      // The descriptor defaults to two voices, so V3 and V4 are silent and
+      // must not look as live as V1 and V2.
+      await pumpPanel(tester,
+          asset: 'assets/plugins/audio_harmonizer.gfpd', width: 1280);
+
+      double laneOpacity(String lane) {
+        final opacity = find
+            .ancestor(of: find.text(lane), matching: find.byType(Opacity))
+            .first;
+        return tester.widget<Opacity>(opacity).opacity;
+      }
+
+      expect(laneOpacity('V1'), 1.0);
+      expect(laneOpacity('V2'), 1.0);
+      expect(laneOpacity('V3'), lessThan(1.0));
+      expect(laneOpacity('V4'), lessThan(1.0));
+    });
+
+    testWidgets('the step button moves the interval one semitone',
+        (tester) async {
+      await pumpPanel(tester,
+          asset: 'assets/plugins/audio_harmonizer.gfpd', width: 1280);
+
+      // V1 starts at a perfect fifth; one step up is a minor sixth.
+      final bar = find.byType(GFIntervalBar).first;
+      await tester.tap(find.descendant(
+        of: bar,
+        matching: find.byIcon(Icons.add),
+      ));
+      await tester.pump();
+      await tester.pump();
+      expect(find.text('+8 st'), findsOneWidget);
+      expect(find.text('Minor 6th'), findsOneWidget);
+    });
+
+    testWidgets('dragging the track moves the voice and keeps the value',
+        (tester) async {
+      // The first cut mirrored the value locally, compared the new value
+      // against its own mirror, and so never told the host: the handle
+      // followed the finger and then snapped back on release.
+      await pumpPanel(tester,
+          asset: 'assets/plugins/audio_harmonizer.gfpd', width: 1280);
+
+      final track = find.descendant(
+        of: find.byType(GFIntervalBar).first,
+        matching: find.byType(CustomPaint),
+      );
+
+      await tester.drag(track.first, const Offset(60, 0));
+      await tester.pump();
+      await tester.pump();
+
+      // Moved up, and stayed there after the finger left.
+      expect(find.text('+7 st'), findsNothing);
+      expect(find.textContaining('st'), findsWidgets);
+      final moved = tester
+          .widgetList<GFIntervalBar>(find.byType(GFIntervalBar))
+          .first
+          .value;
+      expect(moved, greaterThan(7));
+    });
+
+    testWidgets('the readout carries a tooltip spelling the interval out',
+        (tester) async {
+      await pumpPanel(tester,
+          asset: 'assets/plugins/audio_harmonizer.gfpd', width: 1280);
+
+      final tooltip = tester.widgetList<Tooltip>(find.byType(Tooltip));
+      expect(
+        tooltip.map((t) => t.message),
+        contains('Perfect 5th, 7 semitones above the played note'),
+      );
     });
   });
 
   group('MIDI Harmonizer panel', () {
-    testWidgets('four voices and a count knob are rendered', (tester) async {
+    testWidgets('four voice lanes and a count selector', (tester) async {
       await pumpPanel(tester,
           asset: 'assets/plugins/harmonizer.gfpd', width: 1280);
 
-      expect(find.text('Count'), findsOneWidget);
-      for (final v in ['Voice 1', 'Voice 2', 'Voice 3', 'Voice 4']) {
-        expect(find.text(v), findsOneWidget);
+      for (final lane in ['Setup', 'V1', 'V2', 'V3', 'V4']) {
+        expect(find.text(lane), findsOneWidget);
       }
-      expect(find.text('+4 st · M3'), findsOneWidget);
-      expect(find.text('+7 st · P5'), findsOneWidget);
-      expect(find.text('+12 st · 8ve'), findsOneWidget);
-      expect(find.text('+16 st · M3+8ve'), findsOneWidget);
+      expect(find.byType(GFIntervalBar), findsNWidgets(4));
+      expect(find.byType(GFOptionSelector), findsOneWidget);
+      expect(find.text('+4 st'), findsOneWidget);
+      expect(find.text('+7 st'), findsOneWidget);
+      expect(find.text('+12 st'), findsOneWidget);
+      expect(find.text('+16 st'), findsOneWidget);
+      expect(find.text('Major 3rd +1 oct'), findsOneWidget);
     });
 
     testWidgets('French names the intervals its own way', (tester) async {
@@ -136,8 +242,8 @@ void main() {
           asset: 'assets/plugins/harmonizer.gfpd',
           width: 1280,
           locale: const Locale('fr'));
-      expect(find.text('+7 st · 5J'), findsOneWidget);
-      expect(find.text('+4 st · 3M'), findsOneWidget);
+      expect(find.text('Quinte juste'), findsOneWidget);
+      expect(find.text('Tierce majeure'), findsOneWidget);
     });
   });
 
@@ -148,6 +254,10 @@ void main() {
         await pumpPanel(tester,
             asset: 'assets/plugins/audio_harmonizer.gfpd', width: width);
         expect(tester.takeException(), isNull);
+        // The readout survives every width — below the track on a phone,
+        // beside it on a tablet — rather than being dropped to make room.
+        expect(find.text('+7 st'), findsOneWidget);
+        expect(find.text('Perfect 5th'), findsOneWidget);
       });
 
       testWidgets('midi harmonizer renders without overflow at $width dp',

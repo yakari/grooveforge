@@ -6,16 +6,37 @@ import 'gf_vu_meter.dart';
 import 'gf_toggle_button.dart';
 import 'gf_option_selector.dart';
 import 'gf_dropdown_selector.dart';
+import 'gf_interval_bar.dart';
 
-/// Formats a parameter's current value for the readout under its control.
+/// A parameter's value, prepared for display.
 ///
-/// Called only for parameters whose descriptor declares a
-/// [GFParamDisplay]. Returning null falls back to this package's own
-/// language-neutral formatting, which is what a host without localisation
-/// gets. The hook exists because interval names differ by locale — a
-/// perfect fifth is `P5` in English and `5J` in French — and this package
+/// Three fields because a readout is read at three distances: [value] is the
+/// number being adjusted and is always shown, [detail] is what it means and
+/// may be elided when the column is narrow, and [tooltip] is the whole thing
+/// spelled out for a long press.
+class GFParamReadout {
+  const GFParamReadout({required this.value, this.detail, this.tooltip});
+
+  /// Primary text, e.g. `"+7 st"` or `"3"`. Never truncated.
+  final String value;
+
+  /// Secondary line, e.g. `"Perfect 5th"`. Null when the value speaks for
+  /// itself.
+  final String? detail;
+
+  /// Long-press text carrying the full meaning.
+  final String? tooltip;
+}
+
+/// Formats a parameter's current value for the readout beside its control.
+///
+/// Called only for parameters whose descriptor declares a [GFParamDisplay].
+/// Returning null falls back to this package's own language-neutral
+/// formatting, which is what a host without localisation gets. The hook
+/// exists because interval names differ by locale — a perfect fifth is
+/// "Perfect 5th" in English and "Quinte juste" in French — and this package
 /// deliberately holds no translations of its own.
-typedef GFParamValueFormatter = String? Function(
+typedef GFParamValueFormatter = GFParamReadout? Function(
   GFDescriptorParameter param,
   double rawValue,
 );
@@ -78,6 +99,12 @@ class GFDescriptorPluginUI extends StatelessWidget {
         // Phase 10: when the descriptor declares groups, use the responsive
         // grouped layout. Otherwise fall back to the legacy flat layout.
         if (descriptor.groups.isNotEmpty) {
+          // Lanes are a vertical stack at every width — the whole point is
+          // that the groups line up under each other, so there is nothing to
+          // gain from collapsing them on a phone.
+          if (descriptor.uiLayout == GFUiLayout.lanes) {
+            return _buildLaneLayout(ctx, descriptor);
+          }
           return LayoutBuilder(
             builder: (_, constraints) => constraints.maxWidth >= 600
                 ? _buildWideGroupLayout(ctx, descriptor)
@@ -214,16 +241,113 @@ class GFDescriptorPluginUI extends StatelessWidget {
     );
   }
 
+  // ── Lane layout (one row per group) ───────────────────────────────────────
+
+  /// Renders every group as its own horizontal lane, stacked vertically.
+  ///
+  /// A lane is `[label] [controls…]`. Controls that can stretch — the
+  /// interval bar — take the slack, so the ruler is as wide as the panel
+  /// allows and the lanes share one scale. A group whose `activeWhen`
+  /// condition is not met renders dimmed and refuses input.
+  Widget _buildLaneLayout(
+    BuildContext context,
+    GFPluginDescriptor descriptor,
+  ) {
+    return LayoutBuilder(
+      builder: (_, constraints) {
+        // Under about a phone's width the fixed columns either side of the
+        // track have to give way, or the ruler shrinks to a stub.
+        final compact = constraints.maxWidth < 520;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: descriptor.groups
+              .map((group) => _buildLane(context, group, descriptor, compact))
+              .toList(growable: false),
+        );
+      },
+    );
+  }
+
+  Widget _buildLane(
+    BuildContext context,
+    GFDescriptorControlGroup group,
+    GFPluginDescriptor descriptor,
+    bool compact,
+  ) {
+    final active = group.isActive((id) => _rawValueOf(id, descriptor));
+
+    // Only a control that fills the lane earns the leftover width; the rest
+    // keep their natural size so knobs stay round and selectors stay tight.
+    final children = <Widget>[];
+    for (final ctrl in group.controls) {
+      final widget = _buildControl(
+        context,
+        ctrl,
+        descriptor,
+        enabled: active,
+        // Every control in a lane sits beside a 26 px track, so the roomy
+        // label spacing a knob uses in a grid would stretch the whole row.
+        dense: true,
+        narrow: compact,
+      );
+      children.add(
+        ctrl.type == GFControlType.interval ? Expanded(child: widget) : widget,
+      );
+      children.add(const SizedBox(width: 8));
+    }
+    if (children.isNotEmpty) children.removeLast();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: compact ? 30 : 46,
+            child: Opacity(
+              opacity: active ? 1.0 : 0.35,
+              child: Text(
+                group.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white54,
+                  fontSize: 9,
+                  letterSpacing: 0.8,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+          ...children,
+        ],
+      ),
+    );
+  }
+
+  /// Raw (un-normalised) value of the parameter [id], or null when the
+  /// descriptor declares no such parameter.
+  double? _rawValueOf(String id, GFPluginDescriptor descriptor) {
+    final param = descriptor.paramById(id);
+    if (param == null) return null;
+    final norm = plugin.getParameter(param.paramId);
+    return param.min + norm * (param.max - param.min);
+  }
+
   // ── Control factory ────────────────────────────────────────────────────────
 
   Widget _buildControl(
     BuildContext context,
     GFDescriptorControl ctrl,
-    GFPluginDescriptor descriptor,
-  ) {
+    GFPluginDescriptor descriptor, {
+    bool enabled = true,
+    bool dense = false,
+    bool narrow = false,
+  }) {
     switch (ctrl.type) {
       case GFControlType.knob:
-        return _buildKnob(ctrl, descriptor);
+        return _buildKnob(ctrl, descriptor, compact: dense);
       case GFControlType.slider:
         return _buildSlider(ctrl, descriptor);
       case GFControlType.toggle:
@@ -234,12 +358,54 @@ class GFDescriptorPluginUI extends StatelessWidget {
         return _buildVuMeter(ctrl);
       case GFControlType.button:
         return _buildButton(ctrl);
+      case GFControlType.interval:
+        return _buildIntervalBar(ctrl, descriptor, enabled, narrow);
     }
+  }
+
+  // ── Interval bar ──────────────────────────────────────────────────────────
+
+  Widget _buildIntervalBar(
+    GFDescriptorControl ctrl,
+    GFPluginDescriptor descriptor,
+    bool enabled,
+    bool narrow,
+  ) {
+    final param = _resolveParam(ctrl, descriptor);
+    if (param == null) return const SizedBox.shrink();
+
+    final raw = plugin.getParameter(param.paramId) * (param.max - param.min) +
+        param.min;
+
+    final readout = _readoutFor(param, raw);
+
+    return GFIntervalBar(
+      value: raw,
+      min: param.min,
+      max: param.max,
+      label: ctrl.label,
+      valueLabel: readout?.value,
+      detailLabel: readout?.detail,
+      tooltip: readout?.tooltip,
+      enabled: enabled,
+      compact: narrow,
+      onChanged: (newRaw) {
+        final range = param.max - param.min;
+        final norm =
+            range == 0 ? 0.0 : ((newRaw - param.min) / range).clamp(0.0, 1.0);
+        plugin.setParameter(param.paramId, norm);
+        paramNotifier.value++;
+      },
+    );
   }
 
   // ── Knob ──────────────────────────────────────────────────────────────────
 
-  Widget _buildKnob(GFDescriptorControl ctrl, GFPluginDescriptor descriptor) {
+  Widget _buildKnob(
+    GFDescriptorControl ctrl,
+    GFPluginDescriptor descriptor, {
+    bool compact = false,
+  }) {
     final param = _resolveParam(ctrl, descriptor);
     if (param == null) return const SizedBox.shrink();
 
@@ -253,8 +419,9 @@ class GFDescriptorPluginUI extends StatelessWidget {
       min: param.min,
       max: param.max,
       label: label,
-      valueLabel: _readoutFor(param, raw),
+      valueLabel: _readoutFor(param, raw)?.value,
       size: size.toDouble(),
+      isCompact: compact,
       onChanged: (newRaw) {
         final range = param.max - param.min;
         final norm = range == 0 ? 0.0 : ((newRaw - param.min) / range).clamp(0.0, 1.0);
@@ -389,18 +556,19 @@ class GFDescriptorPluginUI extends StatelessWidget {
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
-  /// The readout to print under a control, or null for the plain
+  /// The readout to print beside a control, or null for the plain
   /// label-only look every undeclared parameter keeps.
-  String? _readoutFor(GFDescriptorParameter param, double raw) {
+  GFParamReadout? _readoutFor(GFDescriptorParameter param, double raw) {
     if (param.display == GFParamDisplay.none) return null;
     final hosted = valueFormatter?.call(param, raw);
     if (hosted != null) return hosted;
     return switch (param.display) {
-      GFParamDisplay.integer => raw.round().toString(),
+      GFParamDisplay.integer => GFParamReadout(value: raw.round().toString()),
       // Without a host formatter there are no interval names to print, so
       // fall back to the signed semitone count on its own — still far more
       // use than a bare knob angle.
-      GFParamDisplay.interval => _signedSemitones(raw, param.unit),
+      GFParamDisplay.interval =>
+        GFParamReadout(value: _signedSemitones(raw, param.unit)),
       GFParamDisplay.none => null,
     };
   }

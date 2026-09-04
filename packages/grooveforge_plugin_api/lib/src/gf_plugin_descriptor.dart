@@ -23,6 +23,16 @@ enum GFControlType {
 
   /// Momentary push button that triggers a named action.
   button,
+
+  /// Horizontal semitone track for a musical interval, with step buttons
+  /// either side (maps to GFIntervalBar).
+  ///
+  /// A knob is the wrong instrument for an interval: the value is a small
+  /// integer the player picks deliberately, not a continuous amount they
+  /// dial in by ear, and a knob shows neither which one is set nor how it
+  /// sits against the others. The bar puts every voice on the same ruler,
+  /// so four of them stacked read as the shape of the chord.
+  interval,
 }
 
 /// Size hint for generated controls.
@@ -35,6 +45,16 @@ enum GFUiLayout {
 
   /// Controls arranged in a grid (more parameters / wider panels).
   grid,
+
+  /// One horizontal lane per group, lanes stacked vertically, each labelled
+  /// at its left edge.
+  ///
+  /// Use when the groups are parallel instances of the same thing — the
+  /// voices of a harmonizer, the bands of an EQ — rather than different
+  /// sections of one machine. Reading down the lanes then reads down the
+  /// list of voices, and every control belonging to a voice sits in that
+  /// voice's own lane instead of in a column shared with its siblings.
+  lanes,
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -283,10 +303,47 @@ class GFDescriptorControlGroup {
   /// Controls that belong to this group, in display order.
   final List<GFDescriptorControl> controls;
 
+  /// Optional condition deciding whether this group is currently doing
+  /// anything. When it evaluates false the group renders dimmed.
+  ///
+  /// A harmonizer set to two voices still shows four voice lanes, and
+  /// without this the two silent ones look exactly as live as the two that
+  /// are playing.
+  final GFGroupActiveWhen? activeWhen;
+
   const GFDescriptorControlGroup({
     required this.label,
     required this.controls,
+    this.activeWhen,
   });
+
+  /// Whether this group is active given the plugin's current parameter
+  /// values. [rawValueOf] returns a parameter's raw (un-normalised) value by
+  /// id, or null when the descriptor has no such parameter.
+  ///
+  /// Groups with no condition are always active.
+  bool isActive(double? Function(String paramId) rawValueOf) {
+    final condition = activeWhen;
+    if (condition == null) return true;
+    final value = rawValueOf(condition.paramId);
+    if (value == null) return true; // unknown parameter: never dim
+    return value >= condition.atLeast;
+  }
+}
+
+/// "This group counts only while [paramId] has reached [atLeast]."
+///
+/// Deliberately the one comparison rather than a general expression: it is
+/// what an N-of-M control needs (voice 3's lane is live once the voice count
+/// reaches 3), and it stays trivially parseable from the `.gfpd`.
+class GFGroupActiveWhen {
+  /// [GFDescriptorParameter.id] whose raw value is tested.
+  final String paramId;
+
+  /// The value the parameter must reach for the group to be active.
+  final double atLeast;
+
+  const GFGroupActiveWhen({required this.paramId, required this.atLeast});
 }
 
 // ─────────────────────────────────────────────────────────────

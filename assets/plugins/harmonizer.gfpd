@@ -75,28 +75,41 @@ midi_nodes:
       interval4:   { param: interval4 }
       snapToScale: { param: snap_to_scale }
 
+# One lane per voice, matching the Audio Harmonizer. Lanes past the voice
+# count grey out, so a three-voice setting no longer shows four live rows.
 ui:
-  layout: grid
+  layout: lanes
   groups:
-    - label: "Voices"
+    - label: "Setup"
       controls:
-        - type: knob
+        - type: selector
           param: voice_count
-          label: "Count"
-        - type: knob
-          param: interval1
-          label: "Voice 1"
-        - type: knob
-          param: interval2
-          label: "Voice 2"
-        - type: knob
-          param: interval3
-          label: "Voice 3"
-        - type: knob
-          param: interval4
-          label: "Voice 4"
-    - label: "Scale"
-      controls:
+          label: "Voices"
         - type: toggle
           param: snap_to_scale
           label: "Scale Lock"
+          size: small
+
+    - label: "V1"
+      activeWhen: { param: voice_count, atLeast: 1 }
+      controls:
+        - type: interval
+          param: interval1
+
+    - label: "V2"
+      activeWhen: { param: voice_count, atLeast: 2 }
+      controls:
+        - type: interval
+          param: interval2
+
+    - label: "V3"
+      activeWhen: { param: voice_count, atLeast: 3 }
+      controls:
+        - type: interval
+          param: interval3
+
+    - label: "V4"
+      activeWhen: { param: voice_count, atLeast: 4 }
+      controls:
+        - type: interval
+          param: interval4

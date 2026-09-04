@@ -5,13 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [X.x.x]
+## [2.18.0] - 2026-09-04
 
 ### Added
-- Harmonizer (MIDI FX): a Count knob sets how many harmony voices play, and two extra voices bring it to four — the same shape as the Audio Harmonizer.
-- Both harmonizers print their values under the knobs: the voice count as a number, and each voice's interval as signed semitones plus the interval it names (`+7 st · P5`, `5J` in French).
+- Harmonizer (MIDI FX): two extra harmony voices bring it to four, and a Voices selector sets how many play — the same shape as the Audio Harmonizer.
+- Both harmonizers name the interval each voice is set to: the signed semitone count with the interval spelled out under it (`+7 st` / `Perfect 5th`), and the whole thing plus its direction on tapping the readout.
 - 12 drum-generator styles, more than half the previous library again: techno and electro; dub; R&B; Arabic maqsum and baladi; Turkish karşılama in 9/8 and çiftetelli; Persian shesh-o-hasht in 6/8; Indian teental and bhangra; Japanese taiko and Chinese luogu.
 - The oriental patterns are built to pair with the Xen module's scales — maqsum under Rast, karşılama under Hicaz, teental under Yaman — and each file documents which General MIDI kit piece stands in for the darbuka, tabla, dhol or taiko it was written for.
+
+### Changed
+- Both harmonizers: a voice's interval is set on a semitone bar rather than a knob. The handle's position on the ruler is the interval, the four bars share one scale so the stack of handles is the shape of the chord, and step buttons either side land on an exact semitone instead of asking for a 150 px drag across four octaves. On a phone the readout drops below the track so the ruler keeps the full width of the row.
+- Audio Harmonizer: one lane per voice, carrying that voice's interval and its level together. They used to sit in separate groups, so V1's pitch was four controls away from V1's level, and Dry/Wet fell off the right edge of the panel.
+- Both harmonizers: voices past the Voices setting render dimmed. Four lit voice controls with only two of them sounding was the panel contradicting itself.
 
 ### Fixed
 - Audio Harmonizer: heavy crackling, worst on Android. Two causes — upward voices were resynthesised with too little frame overlap, stamping a tremolo on the harmony (3 dB at an octave up, 14 dB at two), and on Android the DSP was being compiled unoptimised, so it missed the audio callback's deadline outright.
@@ -26,7 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The phase vocoder shortens whichever hop the stretch ratio calls for — the analysis hop when stretching, the synthesis hop when compressing — so both overlaps stay at 4x or better at every ratio. Overlap-add gain is what depends on the synthesis overlap, and it was the tremolo's cause.
 - Phase locking rotates each spectral peak's region with a single complex multiply per bin, so per-frame trigonometry scales with the number of peaks rather than the FFT size.
 - Harmonizer voices bank two of the vocoder's production quanta before they start, and trim the surplus at that moment, so every audio callback receives a whole block for a latency cost that does not depend on the audio device's block size.
-- Voices past the Count knob, or with their mix at zero, are skipped outright instead of running their vocoders into silence.
+- Voices past the Voices setting, or with their mix at zero, are skipped outright instead of running their vocoders into silence.
+- The `.gfpd` UI spec gains a `lanes` layout (one horizontal row per group, stacked), an `interval` control type, and `activeWhen: { param, atLeast }` for greying a group out. All three are generic, so any future plugin with parallel voices or bands gets the same treatment without bespoke widget code.
 - Native DSP is compiled at -O2 on every platform even in debug builds. Flutter's debug configuration compiles native code unoptimised; measured on a Galaxy Z Fold 6, that left four harmony voices at 101-219% of the audio callback's deadline against 8-16% optimised.
 
 ## [2.17.4] - 2026-09-04

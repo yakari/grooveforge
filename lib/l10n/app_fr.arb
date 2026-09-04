@@ -11,7 +11,9 @@
   "midiConnectNewDevicePrompt": "Connecter à {deviceName} ?",
   "@midiConnectNewDevicePrompt": {
     "placeholders": {
-      "deviceName": { "type": "String" }
+      "deviceName": {
+        "type": "String"
+      }
     }
   },
   "actionConnect": "Connecter",
@@ -33,7 +35,9 @@
   "chNumber": "CH {channel}",
   "@chNumber": {
     "placeholders": {
-      "channel": { "type": "int" }
+      "channel": {
+        "type": "int"
+      }
     }
   },
   "patchLoadSoundfont": "Charger une soundfont via les préférences",
@@ -43,13 +47,17 @@
   "patchUnknownProgram": "Programme inconnu {program}",
   "@patchUnknownProgram": {
     "placeholders": {
-      "program": { "type": "int" }
+      "program": {
+        "type": "int"
+      }
     }
   },
   "patchBank": "Banque {bank}",
   "@patchBank": {
     "placeholders": {
-      "bank": { "type": "int" }
+      "bank": {
+        "type": "int"
+      }
     }
   },
   "ccTitle": "Préférences de Mapping CC",
@@ -59,22 +67,34 @@
   "ccLastEventCC": "Dernier Événement : CC {cc} (Valeur : {val})",
   "@ccLastEventCC": {
     "placeholders": {
-      "cc": { "type": "int" },
-      "val": { "type": "int" }
+      "cc": {
+        "type": "int"
+      },
+      "val": {
+        "type": "int"
+      }
     }
   },
   "ccLastEventNote": "Dernier Événement : Note {type} {note} (Vélocité : {velocity})",
   "@ccLastEventNote": {
     "placeholders": {
-      "type": { "type": "String" },
-      "note": { "type": "int" },
-      "velocity": { "type": "int" }
+      "type": {
+        "type": "String"
+      },
+      "note": {
+        "type": "int"
+      },
+      "velocity": {
+        "type": "int"
+      }
     }
   },
   "ccReceivedOnChannel": "Reçu sur le Canal {channel}",
   "@ccReceivedOnChannel": {
     "placeholders": {
-      "channel": { "type": "int" }
+      "channel": {
+        "type": "int"
+      }
     }
   },
   "ccInstructions": "Bougez un fader ou jouez une note sur votre contrôleur MIDI pour identifier instantanément ses données internes ici.",
@@ -82,7 +102,9 @@
   "ccUnknownSequence": "CC {cc}",
   "@ccUnknownSequence": {
     "placeholders": {
-      "cc": { "type": "int" }
+      "cc": {
+        "type": "int"
+      }
     }
   },
   "ccRoutingAllChannels": "Tous les Canaux",
@@ -90,20 +112,28 @@
   "ccRoutingChannel": "Canal {channel}",
   "@ccRoutingChannel": {
     "placeholders": {
-      "channel": { "type": "int" }
+      "channel": {
+        "type": "int"
+      }
     }
   },
-  "ccMappingHardwareToTarget": "CC Matériel {incoming} \u2794 Mappé vers {targetName}",
+  "ccMappingHardwareToTarget": "CC Matériel {incoming} ➔ Mappé vers {targetName}",
   "@ccMappingHardwareToTarget": {
     "placeholders": {
-      "incoming": { "type": "int" },
-      "targetName": { "type": "String" }
+      "incoming": {
+        "type": "int"
+      },
+      "targetName": {
+        "type": "String"
+      }
     }
   },
   "ccMappingRouting": "Routage : {channelStr}",
   "@ccMappingRouting": {
     "placeholders": {
-      "channelStr": { "type": "String" }
+      "channelStr": {
+        "type": "String"
+      }
     }
   },
   "ccNewMappingTitle": "Nouveau Mapping CC",
@@ -115,15 +145,21 @@
   "ccMuteChannelsSummary": "Canaux : {channels}",
   "@ccMuteChannelsSummary": {
     "placeholders": {
-      "channels": { "type": "String" }
+      "channels": {
+        "type": "String"
+      }
     }
   },
   "ccMuteNoChannels": "Aucun canal sélectionné",
   "ccTargetEffectFormat": "{name} (CC {cc})",
   "@ccTargetEffectFormat": {
     "placeholders": {
-      "name": { "type": "String" },
-      "cc": { "type": "int" }
+      "name": {
+        "type": "String"
+      },
+      "cc": {
+        "type": "int"
+      }
     }
   },
   "actionNone": "Aucun",
@@ -214,7 +250,7 @@
   "guideJamModeTitle": "Mode Jam (Auto-Harmonie)",
   "guideJamModeBody": "Le Mode Jam vous permet de jouer sans fausse note en verrouillant toutes les touches sur une gamme spécifique. Un canal fait office de 'Master' (transmettant sa gamme) tandis que les autres sont des 'Slaves'. Utilisez les contrôles supérieurs pour définir la tonique et le type de gamme.",
   "guideVocoderTitle": "Vocodeur (Synthé Vocal)",
-  "guideVocoderBody": "Le vocodeur utilise le micro pour moduler le son du synthé. Accédez-y via le preset 'VOCODER' dans le sélecteur de patchs. Pour de meilleurs résultats :\n\u2022 Utilisez un casque ou des enceintes filaires (la latence Bluetooth est trop élevée).\n\u2022 Réglez les niveaux avec les boutons de gain.\n\u2022 Limitation Android : Vous ne pouvez pas utiliser deux périphériques USB séparés pour l'entrée et la sortie. Utilisez un seul hub USB ou le micro interne.\n\u2022 Expérimentez avec les différentes ondes porteuses (Saw, Pulse, Neutral).",
+  "guideVocoderBody": "Le vocodeur utilise le micro pour moduler le son du synthé. Accédez-y via le preset 'VOCODER' dans le sélecteur de patchs. Pour de meilleurs résultats :\n• Utilisez un casque ou des enceintes filaires (la latence Bluetooth est trop élevée).\n• Réglez les niveaux avec les boutons de gain.\n• Limitation Android : Vous ne pouvez pas utiliser deux périphériques USB séparés pour l'entrée et la sortie. Utilisez un seul hub USB ou le micro interne.\n• Expérimentez avec les différentes ondes porteuses (Saw, Pulse, Neutral).",
   "guideThereminTitle": "Thérémine et Stylophone",
   "guideThereminBody": "La Thérémine a deux modes de jeu. PAD est un pad tactile : on glisse de haut en bas pour la hauteur, de gauche à droite pour le volume. CAM (Android, iOS et macOS) se sert de l'autofocus de la caméra frontale pour évaluer la distance de la main — plus elle est proche, plus le son est aigu, et en l'éloignant suffisamment la note se tait ; le volume reste au maximum dans ce mode. BASE règle la note la plus grave, RANGE l'étendue en octaves, VIB la profondeur du vibrato et HEIGHT la taille du pad.\nLe Stylophone est une bande chromatique de 25 touches, que l'on joue en touchant ou en glissant dessus. Il est monophonique comme l'original, et le glissé d'une touche à l'autre passe sans clic. SQR, SAW, SIN et TRI choisissent la forme d'onde.",
   "guideDrumGeneratorTitle": "Générateur de batterie",
@@ -230,12 +266,14 @@
   "guideSoundfontsTitle": "Soundfonts (SF2)",
   "guideSoundfontsBody": "Importez des sons d'instruments de haute qualité (.sf2) dans les préférences. Une fois chargés, vous pouvez les assigner à n'importe quel canal MIDI via le sélecteur de patch.",
   "guideTipsTitle": "Conseils & Improvisation",
-  "guideTipsBody": "Nouveau en improvisation ? Essayez ces conseils :\n\u2022 Gamme = Zone Sûre : Chaque touche de la gamme sélectionnée sonnera 'juste'.\n\u2022 La Tonique : Commencez ou terminez vos phrases sur la tonique (mise en évidence) pour créer une résolution.\n\u2022 Rythme d'abord : Concentrez-vous sur des motifs rythmiques simples plutôt que des mélodies complexes.",
+  "guideTipsBody": "Nouveau en improvisation ? Essayez ces conseils :\n• Gamme = Zone Sûre : Chaque touche de la gamme sélectionnée sonnera 'juste'.\n• La Tonique : Commencez ou terminez vos phrases sur la tonique (mise en évidence) pour créer une résolution.\n• Rythme d'abord : Concentrez-vous sur des motifs rythmiques simples plutôt que des mélodies complexes.",
   "guideScalesTitle": "Gammes disponibles",
   "guideWelcomeHeader": "Bienvenue dans GrooveForge v{version}",
   "@guideWelcomeHeader": {
     "placeholders": {
-      "version": { "type": "String" }
+      "version": {
+        "type": "String"
+      }
     }
   },
   "guideWelcomeIntro": "Cette mise à jour apporte des améliorations significatives à votre flux de travail et à vos outils créatifs :",
@@ -293,7 +331,6 @@
   "rackProjectOpened": "Projet ouvert.",
   "rackAutosaveRestored": "Session restaurée.",
   "splashRestoringRack": "Restauration du rack...",
-
   "vst3LoadFailed": "Échec du chargement du plugin VST3. Assurez-vous d'avoir sélectionné le dossier .vst3.",
   "vst3EditorOpenFailed": "Impossible d'ouvrir l'éditeur du plugin. Si le plugin utilise OpenGL, lancez GrooveForge avec LIBGL_ALWAYS_SOFTWARE=1 ou en session X11 pure (désactivez WAYLAND_DISPLAY).",
   "vst3NotLoaded": "Plugin pas encore chargé.",
@@ -308,14 +345,18 @@
   "vst3ScanFound": "{count} plugin(s) trouvé(s).",
   "@vst3ScanFound": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "vst3ScanNoneFound": "Aucun plugin .vst3 trouvé dans les chemins par défaut.",
   "vst3ScanError": "Échec de l'analyse : {error}",
   "@vst3ScanError": {
     "placeholders": {
-      "error": { "type": "String" }
+      "error": {
+        "type": "String"
+      }
     }
   },
   "transportBpm": "BPM",
@@ -327,7 +368,6 @@
   "transportTimeSigCustom": "Personnalisé",
   "transportTimeSigNumerator": "Temps / mesure",
   "transportTimeSigDenominator": "Unité de temps",
-
   "patchViewToggleTooltip": "Vue de câblage",
   "patchViewFrontButton": "FACE",
   "disconnectCable": "Déconnecter",
@@ -400,7 +440,9 @@
   "looperTrack": "Piste {n}",
   "@looperTrack": {
     "placeholders": {
-      "n": { "type": "int" }
+      "n": {
+        "type": "int"
+      }
     }
   },
   "looperPinBelow": "Épingler sous le transport",
@@ -413,7 +455,9 @@
   "looperBar": "Mesure {n}",
   "@looperBar": {
     "placeholders": {
-      "n": { "type": "int" }
+      "n": {
+        "type": "int"
+      }
     }
   },
   "looperCcAssign": "Assigner CC",
@@ -426,20 +470,24 @@
   "looperCcConflictBody": "CC {cc} est déjà assigné à {target}. Écraser ?",
   "@looperCcConflictBody": {
     "placeholders": {
-      "cc": { "type": "int" },
-      "target": { "type": "String" }
+      "cc": {
+        "type": "int"
+      },
+      "target": {
+        "type": "String"
+      }
     }
   },
   "looperCcConflictOverwrite": "Écraser",
   "looperVolume": "Volume",
-
   "looperQuantize": "Quantification",
-
   "kbConfigTitle": "Config. clavier",
   "kbConfigDefault": "Défaut ({value})",
   "@kbConfigDefault": {
     "placeholders": {
-      "value": { "type": "String" }
+      "value": {
+        "type": "String"
+      }
     }
   },
   "kbConfigKeysToShow": "Touches à afficher",
@@ -447,7 +495,9 @@
   "kbConfigKeysDefault": "Défaut ({count} touches)",
   "@kbConfigKeysDefault": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "kbConfigKeyHeight": "Hauteur des touches",
@@ -463,12 +513,10 @@
   "keyHeightNormal": "Normal",
   "keyHeightLarge": "Grand",
   "keyHeightExtraLarge": "Très grand",
-
   "rackAddStylophone": "Stylophone",
   "rackAddStyloPhoneSubtitle": "Instrument monophonique à lamelles métalliques (GFPA)",
   "rackAddTheremin": "Thérémine",
   "rackAddThereminSubtitle": "Pad tactile — hauteur verticale, volume horizontal (GFPA)",
-
   "thereminModePad": "PAD",
   "thereminModeCam": "CAM",
   "thereminCamHint": "Rapprochez ou éloignez votre main de la caméra pour jouer",
@@ -477,7 +525,6 @@
   "thereminCamErrNoCamera": "Aucune caméra compatible trouvée sur cet appareil.",
   "thereminCamErrFixedFocus": "Cette caméra a une mise au point fixe — le suivi de la main n'est pas disponible.",
   "thereminCamErrConfigError": "Erreur de configuration caméra. Veuillez passer en mode PAD.",
-
   "styloWaveformSquare": "SQR",
   "styloWaveformSawtooth": "SAW",
   "styloWaveformSine": "SIN",
@@ -492,14 +539,12 @@
   "thereminVibrato": "VIB",
   "thereminPadHeight": "HAUTEUR",
   "midiMuteOwnSound": "MUTE",
-
   "vst3BrowseInstrumentTitle": "Parcourir un instrument VST3…",
   "vst3BrowseInstrumentSubtitle": "Charger un synthétiseur ou un échantillonneur (.vst3)",
   "vst3BrowseEffectTitle": "Parcourir un effet VST3…",
   "vst3BrowseEffectSubtitle": "Charger un plugin d'effet audio (.vst3)",
   "vst3PickInstalledInstrumentTitle": "Choisir un instrument installé",
   "vst3PickInstalledEffectTitle": "Choisir un effet installé",
-
   "vst3EffectTypeReverb": "Réverbération",
   "vst3EffectTypeCompressor": "Compresseur",
   "vst3EffectTypeEq": "EQ",
@@ -508,14 +553,11 @@
   "vst3EffectTypeDistortion": "Distorsion",
   "vst3EffectTypeDynamics": "Dynamique",
   "vst3EffectTypeFx": "FX",
-
   "vst3FxInserts": "FX",
   "vst3FxAddEffect": "Ajouter un effet",
   "vst3FxNoEffects": "Aucun effet — connecter via la vue patch",
-
   "rackAddEffectsSectionLabel": "Effets intégrés",
   "rackAddVstSectionLabel": "Plugins VST3",
-
   "rackAddReverb": "Réverb à plaque",
   "rackAddReverbSubtitle": "Réverbération stéréo riche",
   "rackAddDelay": "Delay Ping-Pong",
@@ -532,33 +574,24 @@
   "rackAddAudioHarmonizerSubtitle": "Jusqu'à 4 voix d'harmonie transposées à partir d'une entrée audio",
   "rackAddLoadGfpd": "Charger un fichier .gfpd…",
   "rackAddLoadGfpdSubtitle": "Importer un descripteur de plugin GrooveForge personnalisé",
-
   "rackAddMidiFxSectionLabel": "Effets MIDI intégrés",
   "rackAddHarmonizer": "Harmoniseur",
   "rackAddHarmonizerSubtitle": "Ajoute des voix harmoniques à toute entrée MIDI (effet MIDI)",
-
   "rackAddChordExpand": "Chord Expand",
   "rackAddChordExpandSubtitle": "Développe chaque note en un accord complet (effet MIDI)",
-
   "rackAddArpeggiator": "Arpégiateur",
   "rackAddArpeggiatorSubtitle": "Arpège les notes maintenues en séquence rythmique (effet MIDI)",
-
   "rackAddTransposer": "Transposeur",
   "rackAddTransposerSubtitle": "Décale toutes les notes de ±24 demi-tons (effet MIDI)",
-
   "rackAddVelocityCurve": "Courbe de vélocité",
   "rackAddVelocityCurveSubtitle": "Remappage de vélocité via courbe en puissance, sigmoïde ou valeur fixe (effet MIDI)",
-
   "rackAddGate": "Gate",
   "rackAddGateSubtitle": "Filtre les notes par plage de vélocité et de hauteur (effet MIDI)",
-
   "rackAddMicrotone": "Microtone",
   "rackAddMicrotoneSubtitle": "Fusionne les notes tenues en une hauteur microtonale via pitch-bend (effet MIDI)",
-
   "rackAddXen": "Xen",
   "rackAddXenSubtitle": "Verrouille le clavier sur une gamme et le réaccorde — maqam, raga, gamelan, tempéraments anciens (effet MIDI)",
   "xenAbout": "Tenez une note, appuyez sur une gamme : cette note devient la tonique et le clavier se verrouille sur la gamme construite autour d'elle. Les gammes qui ne sont pas tempérées — un maqam arabe, un raga indien, un chanter de cornemuse — réaccordent aussi les touches qu'elles utilisent, pour que les intervalles sonnent comme la tradition les entend et non comme un piano les approxime. Contrairement au module Microtone, qui plie la hauteur d'une note à la fois, Xen réaccorde chaque touche indépendamment : un accord entier peut garder sa propre intonation.",
-
   "xenSnap": "SNAP",
   "xenTune": "TUNE",
   "xenRoot": "TONIQUE",
@@ -586,7 +619,6 @@
   "xenFamilyTemperament": "Tempéraments",
   "xenFamilyExperimental": "Expérimental",
   "xenFamilyCustom": "Mes gammes",
-
   "xenEditorTitle": "Éditeur de gamme",
   "xenEditorName": "Nom",
   "xenEditorLayout": "Disposition",
@@ -637,7 +669,6 @@
   "xenScalePythagorean": "Pythagoricienne",
   "xenScaleMeantone": "Mésotonique 1/4 de comma",
   "xenScaleWerckmeisterIII": "Werckmeister III",
-
   "midiFxBypass": "Bypass",
   "midiFxCcAssign": "Assigner CC au bypass",
   "midiFxCcAssignTitle": "Assigner un CC matériel au bypass",
@@ -645,13 +676,14 @@
   "midiFxCcAssigned": "CC {cc} assigné au bypass",
   "@midiFxCcAssigned": {
     "placeholders": {
-      "cc": { "type": "int" }
+      "cc": {
+        "type": "int"
+      }
     }
   },
   "midiFxCcRemove": "Supprimer l'assignation CC",
-
-  "drumGeneratorAddTitle": "G\u00e9n\u00e9rateur de batterie",
-  "drumGeneratorAddSubtitle": "Grooves de bossa nova au m\u00e9tal, avec le feeling humain",
+  "drumGeneratorAddTitle": "Générateur de batterie",
+  "drumGeneratorAddSubtitle": "Grooves de bossa nova au métal, avec le feeling humain",
   "drumGeneratorActiveLabel": "Actif",
   "drumGeneratorStyleLabel": "Style",
   "drumGeneratorSwingLabel": "Swing",
@@ -662,7 +694,7 @@
   "drumGeneratorIntroLabel": "Décompte",
   "drumGeneratorFillLabel": "Fill tous les",
   "drumGeneratorSoundfontLabel": "Police de son",
-  "drumGeneratorLoadPattern": "Charger un .gfdrum\u2026",
+  "drumGeneratorLoadPattern": "Charger un .gfdrum…",
   "drumGeneratorFormatGuide": "Guide du format",
   "drumGeneratorIntroNone": "Aucun",
   "drumGeneratorIntroCountIn1": "1 mesure",
@@ -672,20 +704,20 @@
   "drumGeneratorFillEvery4": "Toutes les 4 mesures",
   "drumGeneratorFillEvery8": "Toutes les 8 mesures",
   "drumGeneratorFillEvery16": "Toutes les 16 mesures",
-  "drumGeneratorFillRandom": "Al\u00e9atoire",
-  "drumGeneratorCrashAfterFill": "Crash apr\u00e8s le fill",
-  "drumGeneratorDynamicBuild": "Mont\u00e9e dynamique",
-  "drumGeneratorDefaultSoundfont": "Police de son par d\u00e9faut",
+  "drumGeneratorFillRandom": "Aléatoire",
+  "drumGeneratorCrashAfterFill": "Crash après le fill",
+  "drumGeneratorDynamicBuild": "Montée dynamique",
+  "drumGeneratorDefaultSoundfont": "Police de son par défaut",
   "drumGeneratorFormatGuideTitle": "Format de pattern (.gfdrum)",
-  "drumGeneratorFormatGuideContent": "Un fichier .gfdrum est un fichier texte YAML d\u00e9crivant un pattern de batterie.\n\nNotation de grille:\nX = coup fort (~100)\nx = coup moyen (~75)\no = coup doux (~55)\ng = note fant\u00f4me (~28)\n. = silence\n\nChamps de v\u00e9locit\u00e9: base_velocity, velocity_range\nChamps de timing: timing_jitter, rush\nSections: groove, fill, break, crash, intro\nTypes de section: loop (al\u00e9atoire), sequence (mesures ordonn\u00e9es)",
-  "drumGeneratorNoPatternsFound": "Aucun pattern charg\u00e9",
+  "drumGeneratorFormatGuideContent": "Un fichier .gfdrum est un fichier texte YAML décrivant un pattern de batterie.\n\nNotation de grille:\nX = coup fort (~100)\nx = coup moyen (~75)\no = coup doux (~55)\ng = note fantôme (~28)\n. = silence\n\nChamps de vélocité: base_velocity, velocity_range\nChamps de timing: timing_jitter, rush\nSections: groove, fill, break, crash, intro\nTypes de section: loop (aléatoire), sequence (mesures ordonnées)",
+  "drumGeneratorNoPatternsFound": "Aucun pattern chargé",
   "drumGeneratorFamilyRock": "Rock",
   "drumGeneratorFamilyJazz": "Jazz",
   "drumGeneratorFamilyFunk": "Funk",
   "drumGeneratorFamilyLatin": "Latin",
   "drumGeneratorFamilyCeltic": "Celtique",
   "drumGeneratorFamilyPop": "Pop",
-  "drumGeneratorFamilyElectronic": "\u00c9lectronique",
+  "drumGeneratorFamilyElectronic": "Électronique",
   "drumGeneratorFamilyWorld": "Musique du monde",
   "drumGeneratorFamilyMetal": "Metal",
   "drumGeneratorFamilyCountry": "Country",
@@ -697,29 +729,26 @@
   "drumGeneratorFamilyTurkish": "Turc",
   "drumGeneratorFamilyPersian": "Persan",
   "drumGeneratorFamilyIndian": "Indien",
-  "drumGeneratorFamilyFarEast": "Extr\u00eame-Orient",
-  "drumGeneratorCustomPattern": "Pattern personnalis\u00e9",
-  "drumGeneratorNoSoundfonts": "Aucune soundfont — ajoutez-en une dans Pr\u00e9f\u00e9rences",
-
-  "audioDeviceDisconnectedInput": "P\u00e9riph\u00e9rique d'entr\u00e9e audio d\u00e9connect\u00e9 — utilisation du d\u00e9faut",
-  "audioDeviceDisconnectedOutput": "P\u00e9riph\u00e9rique de sortie audio d\u00e9connect\u00e9 — utilisation du d\u00e9faut",
-
-  "usbAudioDebugTitle": "P\u00e9riph\u00e9riques audio USB",
-  "usbAudioDebugSubtitle": "Informations d\u00e9taill\u00e9es pour l'investigation multi-USB",
-  "usbAudioDebugNoDevices": "Aucun p\u00e9riph\u00e9rique audio trouv\u00e9",
+  "drumGeneratorFamilyFarEast": "Extrême-Orient",
+  "drumGeneratorCustomPattern": "Pattern personnalisé",
+  "drumGeneratorNoSoundfonts": "Aucune soundfont — ajoutez-en une dans Préférences",
+  "audioDeviceDisconnectedInput": "Périphérique d'entrée audio déconnecté — utilisation du défaut",
+  "audioDeviceDisconnectedOutput": "Périphérique de sortie audio déconnecté — utilisation du défaut",
+  "usbAudioDebugTitle": "Périphériques audio USB",
+  "usbAudioDebugSubtitle": "Informations détaillées pour l'investigation multi-USB",
+  "usbAudioDebugNoDevices": "Aucun périphérique audio trouvé",
   "usbAudioDebugRefresh": "Actualiser",
-  "usbAudioDebugDeviceId": "ID du p\u00e9riph\u00e9rique",
+  "usbAudioDebugDeviceId": "ID du périphérique",
   "usbAudioDebugDirection": "Direction",
-  "usbAudioDebugInput": "Entr\u00e9e",
+  "usbAudioDebugInput": "Entrée",
   "usbAudioDebugOutput": "Sortie",
-  "usbAudioDebugInputOutput": "Entr\u00e9e + Sortie",
-  "usbAudioDebugSampleRates": "Fr\u00e9quences d'\u00e9chantillonnage",
+  "usbAudioDebugInputOutput": "Entrée + Sortie",
+  "usbAudioDebugSampleRates": "Fréquences d'échantillonnage",
   "usbAudioDebugChannelCounts": "Nombre de canaux",
   "usbAudioDebugEncodings": "Encodages",
   "usbAudioDebugAddress": "Adresse",
   "usbAudioDebugAny": "Quelconque",
   "usbAudioDebugPlatformOnly": "Android uniquement — non disponible sur cette plateforme",
-
   "ccCategoryTargetLabel": "Catégorie de cible",
   "ccCategoryGmCc": "CC standard GM",
   "ccCategoryInstruments": "Instruments",
@@ -748,8 +777,12 @@
   "ccSwapDisplayLabel": "Échange : {slotA} ↔ {slotB}",
   "@ccSwapDisplayLabel": {
     "placeholders": {
-      "slotA": { "type": "String" },
-      "slotB": { "type": "String" }
+      "slotA": {
+        "type": "String"
+      },
+      "slotB": {
+        "type": "String"
+      }
     }
   },
   "ccSwapCablesYes": "avec câbles",
@@ -757,106 +790,107 @@
   "toastSwapped": "Échangé : {slotA} ↔ {slotB}",
   "@toastSwapped": {
     "placeholders": {
-      "slotA": { "type": "String" },
-      "slotB": { "type": "String" }
+      "slotA": {
+        "type": "String"
+      },
+      "slotB": {
+        "type": "String"
+      }
     }
   },
   "toastBypassOn": "{slotName} — désactivé",
   "@toastBypassOn": {
-    "placeholders": { "slotName": { "type": "String" } }
+    "placeholders": {
+      "slotName": {
+        "type": "String"
+      }
+    }
   },
   "toastBypassOff": "{slotName} — actif",
   "@toastBypassOff": {
-    "placeholders": { "slotName": { "type": "String" } }
+    "placeholders": {
+      "slotName": {
+        "type": "String"
+      }
+    }
   },
   "toastSystemVolume": "Volume système : {percent}%",
   "@toastSystemVolume": {
-    "placeholders": { "percent": { "type": "int" } }
-  },
-  "intervalUnison": "U",
-  "@intervalUnison": {
-    "description": "Musical interval abbreviation shown under a harmonizer knob: unison (0 semitones)."
-  },
-  "intervalMinor2": "2m",
-  "@intervalMinor2": {
-    "description": "Musical interval abbreviation: minor second (1 semitone)."
-  },
-  "intervalMajor2": "2M",
-  "@intervalMajor2": {
-    "description": "Musical interval abbreviation: major second (2 semitones)."
-  },
-  "intervalMinor3": "3m",
-  "@intervalMinor3": {
-    "description": "Musical interval abbreviation: minor third (3 semitones)."
-  },
-  "intervalMajor3": "3M",
-  "@intervalMajor3": {
-    "description": "Musical interval abbreviation: major third (4 semitones)."
-  },
-  "intervalPerfect4": "4J",
-  "@intervalPerfect4": {
-    "description": "Musical interval abbreviation: perfect fourth (5 semitones)."
-  },
-  "intervalTritone": "TT",
-  "@intervalTritone": {
-    "description": "Musical interval abbreviation: tritone (6 semitones)."
-  },
-  "intervalPerfect5": "5J",
-  "@intervalPerfect5": {
-    "description": "Musical interval abbreviation: perfect fifth (7 semitones)."
-  },
-  "intervalMinor6": "6m",
-  "@intervalMinor6": {
-    "description": "Musical interval abbreviation: minor sixth (8 semitones)."
-  },
-  "intervalMajor6": "6M",
-  "@intervalMajor6": {
-    "description": "Musical interval abbreviation: major sixth (9 semitones)."
-  },
-  "intervalMinor7": "7m",
-  "@intervalMinor7": {
-    "description": "Musical interval abbreviation: minor seventh (10 semitones)."
-  },
-  "intervalMajor7": "7M",
-  "@intervalMajor7": {
-    "description": "Musical interval abbreviation: major seventh (11 semitones)."
-  },
-  "intervalOctave": "8J",
-  "@intervalOctave": {
-    "description": "Musical interval abbreviation: octave (12 semitones)."
-  },
-  "intervalCompound": "{base}+{octaves}\u00d7{octave}",
-  "@intervalCompound": {
-    "description": "An interval wider than an octave, e.g. M2 plus one octave. Pure abbreviations; nothing to translate except the ordering.",
     "placeholders": {
-      "base": {"type": "String"},
-      "octaves": {"type": "int"},
-      "octave": {"type": "String"}
+      "percent": {
+        "type": "int"
+      }
     }
   },
-  "intervalReadout": "{semitones} {unit} \u00b7 {name}",
-  "@intervalReadout": {
-    "description": "Readout under a harmonizer interval knob, e.g. '+7 st \u00b7 P5'. semitones already carries its sign.",
+  "intervalNameUnison": "Unisson",
+  "intervalNameMinor2": "Seconde mineure",
+  "intervalNameMajor2": "Seconde majeure",
+  "intervalNameMinor3": "Tierce mineure",
+  "intervalNameMajor3": "Tierce majeure",
+  "intervalNamePerfect4": "Quarte juste",
+  "intervalNameTritone": "Triton",
+  "intervalNamePerfect5": "Quinte juste",
+  "intervalNameMinor6": "Sixte mineure",
+  "intervalNameMajor6": "Sixte majeure",
+  "intervalNameMinor7": "Septième mineure",
+  "intervalNameMajor7": "Septième majeure",
+  "intervalNameOctave": "Octave",
+  "intervalNameOctaves": "{count} octaves",
+  "@intervalNameOctaves": {
+    "description": "Several whole octaves, e.g. 2 octaves for 24 semitones.",
     "placeholders": {
-      "semitones": {"type": "String"},
-      "unit": {"type": "String"},
-      "name": {"type": "String"}
+      "count": {
+        "type": "int"
+      }
     }
   },
-  "intervalOctaveMultiple": "{count}\u00d7{octave}",
-  "@intervalOctaveMultiple": {
-    "description": "Several whole octaves, e.g. 2\u00d78ve for 24 semitones.",
+  "intervalNameCompound": "{base} +{octaves} oct",
+  "@intervalNameCompound": {
+    "description": "An interval wider than an octave, named by its simple form plus the octaves on top.",
     "placeholders": {
-      "count": {"type": "int"},
-      "octave": {"type": "String"}
+      "base": {
+        "type": "String"
+      },
+      "octaves": {
+        "type": "int"
+      }
     }
   },
-  "intervalCompoundSingle": "{base}+{octave}",
-  "@intervalCompoundSingle": {
-    "description": "An interval one octave wider than its simple form, e.g. a major ninth as M2+8ve.",
+  "intervalSemitones": "{semitones} st",
+  "@intervalSemitones": {
+    "description": "Primary readout under a harmonizer interval control. semitones already carries its sign.",
     "placeholders": {
-      "base": {"type": "String"},
-      "octave": {"type": "String"}
+      "semitones": {
+        "type": "String"
+      }
     }
+  },
+  "intervalTooltipAbove": "{name}, {semitones} demi-tons au-dessus de la note jouée",
+  "@intervalTooltipAbove": {
+    "description": "Long-press text on a harmonizer interval readout, for an upward voice.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "semitones": {
+        "type": "int"
+      }
+    }
+  },
+  "intervalTooltipBelow": "{name}, {semitones} demi-tons en dessous de la note jouée",
+  "@intervalTooltipBelow": {
+    "description": "Long-press text on a harmonizer interval readout, for a downward voice.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "semitones": {
+        "type": "int"
+      }
+    }
+  },
+  "intervalTooltipUnison": "Unisson — la même hauteur que la note jouée",
+  "@intervalTooltipUnison": {
+    "description": "Long-press text on a harmonizer interval readout set to zero."
   }
 }

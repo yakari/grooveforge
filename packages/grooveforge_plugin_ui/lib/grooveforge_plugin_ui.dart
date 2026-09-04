@@ -14,6 +14,7 @@
 library;
 
 export 'src/rotary_knob.dart';
+export 'src/gf_interval_bar.dart';
 export 'src/gf_parameter_knob.dart';
 export 'src/gf_parameter_grid.dart';
 export 'src/gf_slider.dart';

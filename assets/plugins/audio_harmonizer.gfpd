@@ -136,42 +136,61 @@ graph:
       to: out.in
 
 # ─── UI ────────────────────────────────────────────────────────────────────
+# One lane per voice, so everything belonging to a voice — its interval and
+# its level — sits on that voice's own row instead of being split across a
+# "Voices" group and a "Voice Mix" group the reader has to join up.
+#
+# The four interval bars share one ruler, which makes the stack of handles
+# the shape of the chord. Lanes past the voice count grey out.
 ui:
-  layout: grid
+  layout: lanes
   groups:
-    - label: "Voices"
+    - label: "Setup"
       controls:
-        - type: knob
+        - type: selector
           param: voice_count
-          label: "Count"
-        - type: knob
-          param: voice1_semitones
-          label: "V1"
-        - type: knob
-          param: voice2_semitones
-          label: "V2"
-        - type: knob
-          param: voice3_semitones
-          label: "V3"
-        - type: knob
-          param: voice4_semitones
-          label: "V4"
-    - label: "Voice Mix"
-      controls:
-        - type: knob
-          param: voice1_mix
-          label: "V1"
-        - type: knob
-          param: voice2_mix
-          label: "V2"
-        - type: knob
-          param: voice3_mix
-          label: "V3"
-        - type: knob
-          param: voice4_mix
-          label: "V4"
-    - label: "Output"
-      controls:
+          label: "Voices"
         - type: knob
           param: dry_wet
           label: "Dry/Wet"
+          size: small
+
+    - label: "V1"
+      activeWhen: { param: voice_count, atLeast: 1 }
+      controls:
+        - type: interval
+          param: voice1_semitones
+        - type: knob
+          param: voice1_mix
+          label: "Level"
+          size: small
+
+    - label: "V2"
+      activeWhen: { param: voice_count, atLeast: 2 }
+      controls:
+        - type: interval
+          param: voice2_semitones
+        - type: knob
+          param: voice2_mix
+          label: "Level"
+          size: small
+
+    - label: "V3"
+      activeWhen: { param: voice_count, atLeast: 3 }
+      controls:
+        - type: interval
+          param: voice3_semitones
+        - type: knob
+          param: voice3_mix
+          label: "Level"
+          size: small
+
+    - label: "V4"
+      activeWhen: { param: voice_count, atLeast: 4 }
+      controls:
+        - type: interval
+          param: voice4_semitones
+        - type: knob
+          param: voice4_mix
+          label: "Level"
+          size: small
