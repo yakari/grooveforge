@@ -1,0 +1,622 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    env:
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # FluidSynth is a git submodule that the NDK build compiles from
+          # source. Without this the CMake configure fails with
+          # "fluidsynth-src does not contain a CMakeLists.txt file".
+          # Deliberately non-recursive: FluidSynth's own submodules (test data,
+          # gcem) are large and are not needed to build the library.
+          submodules: true
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+          cache: 'gradle'
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: ${{ runner.os }}-android-ccache
+          max-size: 2G
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.6'
+          channel: 'stable'
+          cache: true
+      - name: Get dependencies
+        run: flutter pub get
+      - name: Decode Keystore
+        run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > android/app/release-keystore.jks
+      - name: Build APK
+        run: flutter build apk --release
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      - name: Build AppBundle
+        run: flutter build appbundle --release
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      - name: Rename artifacts
+        run: |
+          mv build/app/outputs/flutter-apk/app-release.apk GrooveForge-${{ github.ref_name }}.apk
+          mv build/app/outputs/bundle/release/app-release.aab GrooveForge-${{ github.ref_name }}.aab
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-build
+          path: |
+            GrooveForge-${{ github.ref_name }}.apk
+            GrooveForge-${{ github.ref_name }}.aab
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgtk-3-dev libblkid-dev liblzma-dev libgcrypt20-dev libmpv-dev \
+            libasound2-dev \
+            libjack-jackd2-dev \
+            libx11-dev \
+            libfluidsynth-dev
+
+      # The VST3 SDK is gitignored (too large to commit). Cache the clone so
+      # subsequent CI runs skip the download entirely.
+      # public.sdk is a git submodule — must use --recurse-submodules.
+      - name: Cache VST3 SDK
+        id: cache-vst3sdk-linux
+        uses: actions/cache@v4
+        with:
+          path: packages/flutter_vst3/vst3sdk
+          key: vst3sdk-recurse-${{ hashFiles('packages/flutter_vst3/dart_vst_host/linux/CMakeLists.txt') }}
+
+      - name: Clone VST3 SDK
+        if: steps.cache-vst3sdk-linux.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth=1 --recurse-submodules --shallow-submodules \
+            https://github.com/steinbergmedia/vst3sdk.git \
+            packages/flutter_vst3/vst3sdk
+
+      # Cache the VST3 SDK object files — the SDK is hundreds of files and the
+      # first cold compile takes several minutes. Subsequent runs are near-instant.
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: ${{ runner.os }}-linux-vst3-ccache
+          max-size: 1G
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.6'
+          channel: 'stable'
+          cache: true
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      # dart_vst_host is declared as an FFI plugin (ffiPlugin: true).
+      # Flutter builds and bundles libdart_vst_host.so automatically —
+      # no manual cmake / make / cp steps needed.
+      - name: Build Linux
+        run: flutter build linux --release
+        env:
+          # Let ccache intercept the compiler for the VST3 SDK compilation.
+          CC: ccache gcc
+          CXX: ccache g++
+          # Pass the absolute SDK path explicitly so CMakeLists.txt does not
+          # need to resolve symlinks (REALPATH does not follow junctions on
+          # some platforms, and the cloned SDK version may differ from local).
+          VST3_SDK_DIR: ${{ github.workspace }}/packages/flutter_vst3/vst3sdk
+      - name: Package .deb
+        run: |
+          VERSION=${{ github.ref_name }}
+          VERSION_CLEAN=${VERSION#v}
+          mkdir -p deb/usr/bin
+          mkdir -p deb/usr/share/grooveforge
+          mkdir -p deb/usr/share/applications
+          mkdir -p deb/usr/share/icons/hicolor/512x512/apps
+          mkdir -p deb/DEBIAN
+          
+          cp -r build/linux/x64/release/bundle/* deb/usr/share/grooveforge/
+          cp icon.png deb/usr/share/icons/hicolor/512x512/apps/grooveforge.png
+          ln -s /usr/share/grooveforge/grooveforge deb/usr/bin/grooveforge
+          
+          cat <<EOF > deb/DEBIAN/control
+          Package: grooveforge
+          Version: $VERSION_CLEAN
+          Section: sound
+          Priority: optional
+          Architecture: amd64
+          Depends: libgtk-3-0 | libgtk-3-0t64, libasound2 | libasound2t64, libjack-jackd2-0, libx11-6, libfluidsynth3, libpulse0, libmpv2
+          Recommends: pipewire, pipewire-jack, pipewire-alsa, pipewire-pulse, wireplumber
+          Maintainer: Yann Poirier
+          Homepage: https://grooveforge.music
+          Description: Cross-platform MIDI synthesizer and VST3 host
+           GrooveForge connects to physical MIDI keyboards, hosts VST3 plugins,
+           and features a built-in multi-timbral synthesizer with vocoder support
+           and real-time Jam Mode with scale locking.
+          EOF
+
+          cp $GITHUB_WORKSPACE/packaging/linux/grooveforge.desktop deb/usr/share/applications/grooveforge.desktop
+          
+          dpkg-deb --build deb GrooveForge-Linux-$VERSION.deb
+      - name: Zip Bundle
+        run: |
+          cd build/linux/x64/release/bundle
+          zip -r ../../../../../GrooveForge-Linux-${{ github.ref_name }}-bundle.zip .
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-build
+          path: |
+            GrooveForge-Linux-${{ github.ref_name }}.deb
+            GrooveForge-Linux-${{ github.ref_name }}-bundle.zip
+
+  # ---------------------------------------------------------------------------
+  # Fedora RPM — repackages the Ubuntu-built bundle with Fedora runtime deps.
+  # ---------------------------------------------------------------------------
+  package-rpm:
+    needs: build-linux
+    runs-on: ubuntu-latest
+    container: fedora:latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            packaging
+            icon.png
+
+      - name: Install rpmbuild
+        run: dnf install -y rpm-build unzip patchelf
+
+      - name: Download Linux bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-build
+
+      - name: Build RPM
+        run: |
+          VERSION=${{ github.ref_name }}
+          VERSION_CLEAN=${VERSION#v}
+
+          # Unpack the bundle.
+          mkdir -p bundle
+          cd bundle && unzip ../GrooveForge-Linux-${VERSION}-bundle.zip && cd ..
+
+          # Stage the full file layout that %install copies into the buildroot.
+          STAGE=$(pwd)/stage
+          mkdir -p $STAGE/usr/bin
+          mkdir -p $STAGE/usr/share/grooveforge
+          mkdir -p $STAGE/usr/share/applications
+          mkdir -p $STAGE/usr/share/icons/hicolor/512x512/apps
+          mkdir -p $STAGE/usr/share/metainfo
+
+          cp -r bundle/* $STAGE/usr/share/grooveforge/
+          # Strip invalid RPATHs from Flutter-built .so files. The Flutter build
+          # bakes in CI-specific paths that Fedora's check-rpaths rejects.
+          for so in $STAGE/usr/share/grooveforge/lib/*.so; do
+            patchelf --remove-rpath "$so" 2>/dev/null || true
+          done
+          patchelf --set-rpath '$ORIGIN/lib' $STAGE/usr/share/grooveforge/grooveforge 2>/dev/null || true
+          ln -s /usr/share/grooveforge/grooveforge $STAGE/usr/bin/grooveforge
+          cp packaging/linux/grooveforge.desktop \
+             $STAGE/usr/share/applications/grooveforge.desktop
+          cp icon.png \
+             $STAGE/usr/share/icons/hicolor/512x512/apps/grooveforge.png
+          cp packaging/linux/com.grooveforge.grooveforge.metainfo.xml \
+             $STAGE/usr/share/metainfo/com.grooveforge.grooveforge.metainfo.xml
+
+          rpmbuild --define "_version $VERSION_CLEAN" \
+                   --define "_topdir $(pwd)/rpmbuild" \
+                   --define "_stagedir $STAGE" \
+                   -bb packaging/rpm/grooveforge.spec
+
+          cp rpmbuild/RPMS/x86_64/*.rpm GrooveForge-Linux-${VERSION}.rpm
+
+      - name: Upload RPM
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpm-build
+          path: GrooveForge-Linux-${{ github.ref_name }}.rpm
+
+  # ---------------------------------------------------------------------------
+  # Arch Linux package — repackages the Ubuntu-built bundle for pacman.
+  # ---------------------------------------------------------------------------
+  package-arch:
+    needs: build-linux
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            packaging
+            icon.png
+
+      - name: Install build tools
+        run: |
+          pacman -Syu --noconfirm
+          pacman -S --noconfirm base-devel fakeroot
+
+      - name: Download Linux bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-build
+
+      - name: Build pacman package
+        run: |
+          VERSION=${{ github.ref_name }}
+          VERSION_CLEAN=${VERSION#v}
+
+          # makepkg refuses to run as root — create a build user.
+          useradd -m builder
+          BUILD_DIR=/home/builder/pkg
+          mkdir -p $BUILD_DIR
+
+          # Place the bundle zip where the PKGBUILD expects it.
+          cp GrooveForge-Linux-${VERSION}-bundle.zip $BUILD_DIR/bundle.zip
+          cp icon.png $BUILD_DIR/icon.png
+          cp packaging/linux/grooveforge.desktop $BUILD_DIR/grooveforge.desktop
+          cp packaging/linux/com.grooveforge.grooveforge.metainfo.xml \
+             $BUILD_DIR/com.grooveforge.grooveforge.metainfo.xml
+
+          # Generate the PKGBUILD. Depends verified on archlinux.org/packages.
+          cat <<'PKGEOF' > $BUILD_DIR/PKGBUILD
+          # Maintainer: Yann Poirier
+          pkgname=grooveforge
+          pkgver=_PKGVER_
+          pkgrel=1
+          pkgdesc="Cross-platform MIDI synthesizer and VST3 host"
+          arch=('x86_64')
+          url="https://grooveforge.music"
+          license=('MIT')
+          depends=(
+            'gtk3'
+            'alsa-lib'
+            'pipewire-jack'
+            'libx11'
+            'fluidsynth'
+            'libpulse'
+            'mpv'
+          )
+          source=('bundle.zip' 'icon.png' 'grooveforge.desktop'
+                  'com.grooveforge.grooveforge.metainfo.xml')
+          noextract=('bundle.zip')
+          sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP')
+
+          package() {
+            install -d "$pkgdir/usr/share/grooveforge"
+            cd "$pkgdir/usr/share/grooveforge"
+            bsdtar -xf "$srcdir/bundle.zip"
+
+            install -d "$pkgdir/usr/bin"
+            ln -s /usr/share/grooveforge/grooveforge "$pkgdir/usr/bin/grooveforge"
+
+            install -Dm644 "$srcdir/grooveforge.desktop" \
+              "$pkgdir/usr/share/applications/grooveforge.desktop"
+            install -Dm644 "$srcdir/icon.png" \
+              "$pkgdir/usr/share/icons/hicolor/512x512/apps/grooveforge.png"
+            install -Dm644 "$srcdir/com.grooveforge.grooveforge.metainfo.xml" \
+              "$pkgdir/usr/share/metainfo/com.grooveforge.grooveforge.metainfo.xml"
+          }
+          PKGEOF
+
+          # Inject the real version and strip leading whitespace from heredoc.
+          sed -i "s/_PKGVER_/${VERSION_CLEAN}/; s/^          //" $BUILD_DIR/PKGBUILD
+
+          WORKSPACE_DIR=$(pwd)
+          chown -R builder:builder $BUILD_DIR
+          cd $BUILD_DIR
+          su builder -c "makepkg --noconfirm --nodeps"
+
+          # Copy only the main package (not -debug) to the workspace root.
+          MAIN_PKG=$(ls grooveforge-${VERSION_CLEAN}-*.pkg.tar.zst | grep -v debug | head -1)
+          cp "$MAIN_PKG" "${WORKSPACE_DIR}/GrooveForge-Linux-${VERSION}.pkg.tar.zst"
+
+      - name: Upload Arch package
+        uses: actions/upload-artifact@v4
+        with:
+          name: arch-build
+          path: GrooveForge-Linux-${{ github.ref_name }}.pkg.tar.zst
+
+  # ---------------------------------------------------------------------------
+  # Flatpak bundle — self-contained, runs on any distro with Flatpak installed.
+  # ---------------------------------------------------------------------------
+  package-flatpak:
+    needs: build-linux
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            packaging
+            icon.png
+
+      - name: Install Flatpak and flatpak-builder
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak flatpak-builder imagemagick
+          flatpak remote-add --user --if-not-exists \
+            flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          flatpak install --user --noninteractive \
+            flathub org.freedesktop.Platform//24.08 org.freedesktop.Sdk//24.08
+
+      - name: Download Linux bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-build
+
+      - name: Prepare Flatpak build sources
+        run: |
+          VERSION=${{ github.ref_name }}
+
+          # Assemble the directory that the Flatpak manifest references as a
+          # "type: dir" source. It must contain the unpacked bundle, the desktop
+          # file, the metainfo XML, and the icon.
+          mkdir -p packaging/flatpak/flatpak-build/bundle
+          cd packaging/flatpak/flatpak-build/bundle
+          unzip $GITHUB_WORKSPACE/GrooveForge-Linux-${VERSION}-bundle.zip
+          cd $GITHUB_WORKSPACE
+
+          cp packaging/flatpak/com.grooveforge.grooveforge.desktop \
+             packaging/flatpak/flatpak-build/com.grooveforge.grooveforge.desktop
+          cp packaging/linux/com.grooveforge.grooveforge.metainfo.xml \
+             packaging/flatpak/flatpak-build/com.grooveforge.grooveforge.metainfo.xml
+          # Resize icon to 512x512 — Flatpak rejects icons larger than 512x512.
+          convert icon.png -resize 512x512 packaging/flatpak/flatpak-build/icon.png
+
+      - name: Build Flatpak
+        run: |
+          flatpak-builder --user --force-clean --repo=flatpak-repo \
+            flatpak-builddir packaging/flatpak/com.grooveforge.grooveforge.yml
+
+          flatpak build-bundle flatpak-repo \
+            GrooveForge-Linux-${{ github.ref_name }}.flatpak \
+            com.grooveforge.grooveforge
+
+      - name: Upload Flatpak
+        uses: actions/upload-artifact@v4
+        with:
+          name: flatpak-build
+          path: GrooveForge-Linux-${{ github.ref_name }}.flatpak
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The VST3 SDK is gitignored (too large to commit). Cache the clone so
+      # subsequent CI runs skip the download entirely.
+      # public.sdk is a git submodule — must use --recurse-submodules.
+      - name: Cache VST3 SDK
+        id: cache-vst3sdk-windows
+        uses: actions/cache@v4
+        with:
+          path: packages/flutter_vst3/vst3sdk
+          key: vst3sdk-recurse-${{ hashFiles('packages/flutter_vst3/dart_vst_host/windows/CMakeLists.txt') }}
+
+      - name: Clone VST3 SDK
+        if: steps.cache-vst3sdk-windows.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth=1 --recurse-submodules --shallow-submodules `
+            https://github.com/steinbergmedia/vst3sdk.git `
+            packages/flutter_vst3/vst3sdk
+
+      # FluidSynth prebuilt SDK (cpp11 variant — no GLib dependency).
+      # keyboard_synth.c links against this for the GF Keyboard synthesizer.
+      - name: Cache FluidSynth SDK
+        id: cache-fluidsynth-win
+        uses: actions/cache@v4
+        with:
+          path: native_audio/fluidsynth_win64
+          key: fluidsynth-win64-v2.5.2-cpp11
+
+      - name: Download FluidSynth SDK
+        if: steps.cache-fluidsynth-win.outputs.cache-hit != 'true'
+        run: |
+          Invoke-WebRequest -Uri "https://github.com/FluidSynth/fluidsynth/releases/download/v2.5.2/fluidsynth-v2.5.2-win10-x64-cpp11.zip" `
+            -OutFile fluidsynth-win64.zip
+          Expand-Archive -Path fluidsynth-win64.zip -DestinationPath native_audio/fluidsynth_tmp
+          Move-Item native_audio/fluidsynth_tmp/fluidsynth-v2.5.2-win10-x64-cpp11 native_audio/fluidsynth_win64
+          Remove-Item -Recurse native_audio/fluidsynth_tmp
+          Remove-Item fluidsynth-win64.zip
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.6'
+          channel: 'stable'
+          cache: true
+      - name: Get dependencies
+        run: flutter pub get
+      - name: Build Windows
+        run: flutter build windows --release
+        env:
+          # CMake's get_filename_component(REALPATH) does not follow Windows
+          # directory junctions used by Flutter's .plugin_symlinks, so we pass
+          # the absolute path explicitly to bypass junction resolution entirely.
+          VST3_SDK_DIR: ${{ github.workspace }}/packages/flutter_vst3/vst3sdk
+      - name: Zip Artifact
+        run: |
+          Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath GrooveForge-Windows-${{ github.ref_name }}.zip
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: GrooveForge-Windows-${{ github.ref_name }}.zip
+
+  build-macos:
+    # macos-latest is arm64 (M-series).  FluidSynth from Homebrew is arm64-only,
+    # so we build arm64 exclusively.  Intel Macs run arm64 apps via Rosetta 2.
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        # fluid-synth: GF Keyboard FluidSynth backend.
+        # dylibbundler: recursively copies and re-links Homebrew dylib deps so the
+        #               app bundle is self-contained (no Homebrew required on end-user Macs).
+        run: brew install cmake fluid-synth dylibbundler
+
+      # Cache VST3 SDK
+      - name: Cache VST3 SDK
+        id: cache-vst3sdk-macos
+        uses: actions/cache@v4
+        with:
+          path: packages/flutter_vst3/vst3sdk
+          key: vst3sdk-recurse-${{ hashFiles('packages/flutter_vst3/dart_vst_host/native/CMakeLists.txt') }}
+
+      - name: Clone VST3 SDK
+        if: steps.cache-vst3sdk-macos.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth=1 --recurse-submodules --shallow-submodules \
+            https://github.com/steinbergmedia/vst3sdk.git \
+            packages/flutter_vst3/vst3sdk
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.6'
+          channel: 'stable'
+          cache: true
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Build libaudio_input.dylib and bundle FluidSynth
+        # The pre-built dylib in the repo links to an absolute Homebrew path
+        # (/opt/homebrew/opt/fluid-synth/lib/libfluidsynth.3.dylib) that only
+        # exists on this CI machine.  We rebuild from source here so the path
+        # comes from the CI's own Homebrew install, then use dylibbundler to
+        # copy FluidSynth + all its transitive Homebrew dependencies into
+        # macos/Runner/ and rewrite every absolute Homebrew reference to
+        # @rpath/ so the app bundle is fully self-contained.
+        run: |
+          rm -f native_audio/build_mac/CMakeCache.txt
+          cmake -S native_audio -B native_audio/build_mac -DCMAKE_BUILD_TYPE=Release
+          cmake --build native_audio/build_mac
+
+          DYLIB=native_audio/build_mac/libaudio_input.dylib
+          RUNNER_DIR=macos/Runner
+
+          # dylibbundler copies libfluidsynth.3.dylib + its deps (glib, gthread,
+          # libsndfile, portaudio, gettext, readline…) into macos/Runner/,
+          # retargets all inter-dep references to @rpath/, and patches the
+          # top-level dylib's references to match.
+          # NOTE: use --overwrite-files (not --overwrite-dir): --overwrite-dir
+          # deletes the entire dest-dir first, wiping committed source files
+          # (AppDelegate.swift, Configs/*.xcconfig, etc.) that Xcode needs.
+          dylibbundler \
+            --overwrite-files \
+            --bundle-deps \
+            --fix-file  "$DYLIB" \
+            --dest-dir  "$RUNNER_DIR" \
+            --install-path @rpath/ \
+            --search-path "$(brew --prefix)/lib"
+
+          cp "$DYLIB" "$RUNNER_DIR/libaudio_input.dylib"
+
+      - name: Install CocoaPods dependencies
+        # flutter build macos skips pod install when Podfile.lock is up-to-date,
+        # even on a fresh checkout where macos/Pods/ doesn't exist yet (it is
+        # gitignored).  Run pod install explicitly so the Pods directory and all
+        # generated support files (xcconfig, XCFileLists) are present before
+        # xcodebuild starts.
+        run: cd macos && pod install && cd ..
+
+      - name: Build macOS
+        run: flutter build macos --release
+        env:
+          VST3_SDK_DIR: ${{ github.workspace }}/packages/flutter_vst3/vst3sdk
+
+      - name: Zip App
+        run: |
+          cd build/macos/Build/Products/Release
+          zip -r ../../../../../GrooveForge-macOS-${{ github.ref_name }}.zip GrooveForge.app
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-build
+          path: GrooveForge-macOS-${{ github.ref_name }}.zip
+
+  build-ios:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.6'
+          channel: 'stable'
+          cache: true
+      - name: Get dependencies
+        run: flutter pub get
+      - name: Build iOS
+        run: flutter build ios --release --no-codesign
+      - name: Package IPA (Unsigned)
+        run: |
+          mkdir -p Payload
+          cp -r build/ios/iphoneos/Runner.app Payload/
+          zip -r GrooveForge-iOS-${{ github.ref_name }}-unsigned.ipa Payload/
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-build
+          path: GrooveForge-iOS-${{ github.ref_name }}-unsigned.ipa
+
+  create-release:
+    needs: [build-android, build-linux, package-rpm, package-arch, package-flatpak, build-windows, build-macos, build-ios]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract Latest Changelog
+        id: extract_changelog
+        run: |
+          # Extract the first version section from CHANGELOG.md
+          # This takes everything between the first '## [' and the second '## ['
+          # Excluding the header line itself
+          awk '/^## \[/ { if (count++) exit; next } count' CHANGELOG.md > latest_changelog.txt
+          {
+            echo 'CHANGELOG_CONTENT<<EOF'
+            cat latest_changelog.txt
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/android-build/*
+            artifacts/linux-build/*
+            artifacts/rpm-build/*
+            artifacts/arch-build/*
+            artifacts/flatpak-build/*
+            artifacts/windows-build/*
+            artifacts/macos-build/*
+            artifacts/ios-build/*
+          body: |
+            ## What's Changed (Changelog)
+            ${{ steps.extract_changelog.outputs.CHANGELOG_CONTENT }}
+            
+          generate_release_notes: true
+          draft: false
+          prerelease: false
