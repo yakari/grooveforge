@@ -5,6 +5,26 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/lang/fr/).
 
+## [X.x.x]
+
+### Ajouté
+- Harmonizer (MIDI FX) : un potentiomètre Count règle le nombre de voix d'harmonie, et deux voix supplémentaires le portent à quatre — la même structure que l'Audio Harmonizer.
+- Les deux harmonizers affichent leurs valeurs sous les potentiomètres : le nombre de voix en chiffre, et l'intervalle de chaque voix en demi-tons signés suivi de son nom (`+7 st · 5J`).
+
+### Corrigé
+- Audio Harmonizer : grésillement important, surtout sur Android. Deux causes — les voix vers l'aigu étaient resynthétisées avec un recouvrement de trames insuffisant, imposant un trémolo à l'harmonie (3 dB à l'octave supérieure, 14 dB à deux octaves), et sur Android le DSP était compilé sans optimisation, manquant purement et simplement l'échéance du callback audio.
+- Audio Harmonizer : chaque intervalle sortait à un niveau différent, l'octave inférieure dépassant d'environ 8 dB une tierce supérieure. Les voix conservent désormais un gain unitaire quel que soit l'intervalle.
+- Audio Harmonizer : les voix vers l'aigu produisaient du repliement, l'aigu revenant en sifflement inharmonique à seulement 6 dB sous le signal. Un filtre passe-bas placé avant la transposition le ramène 20 dB plus bas.
+- Audio Looper : un clip synchronisé au tempo changeait de niveau avec le tempo, environ 6 dB plus fort à mi-vitesse et 6 dB plus faible au double. Le niveau est désormais constant quel que soit l'étirement. Même cause que les niveaux par intervalle de l'harmonizer.
+- Android : les effets pouvaient déborder leurs tampons de travail sur tout appareil dont le callback audio délivre plus de 512 trames. Ils sont dimensionnés pour le plafond de 4096 trames auquel le callback se limite réellement.
+
+### Architecture
+- Le vocodeur de phase raccourcit le pas que le facteur d'étirement impose — le pas d'analyse à l'étirement, le pas de synthèse à la compression — de sorte que les deux recouvrements restent à 4x ou mieux à tous les rapports. C'est le recouvrement de synthèse qui conditionne le gain de l'overlap-add, et qui causait le trémolo.
+- Le verrouillage de phase applique une seule multiplication complexe par bin sur la région de chaque pic spectral ; la trigonométrie par trame dépend donc du nombre de pics et non de la taille de la FFT.
+- Les voix de l'harmonizer accumulent deux quanta de production du vocodeur avant de démarrer, et coupent le surplus à cet instant : chaque callback audio reçoit un bloc entier pour un coût en latence indépendant de la taille de bloc du périphérique audio.
+- Les voix au-delà du potentiomètre Count, ou dont le mix est à zéro, sont ignorées au lieu de faire tourner leur vocodeur dans le vide.
+- Le DSP natif est compilé en -O2 sur toutes les plateformes, y compris en debug. La configuration debug de Flutter compile le code natif sans optimisation ; mesuré sur un Galaxy Z Fold 6, quatre voix d'harmonie occupaient alors 101 à 219 % de l'échéance du callback audio, contre 8 à 16 % une fois optimisé.
+
 ## [2.17.4] - 2026-09-04
 
 ### Ajouté
