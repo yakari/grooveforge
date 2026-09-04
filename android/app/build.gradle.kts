@@ -1,3 +1,5 @@
+import com.android.build.gradle.internal.api.ApkVariantOutputImpl
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -50,9 +52,17 @@ android {
         }
     }
 
-    applicationVariants.all {
-        outputs.all {
-            val output = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
+    // Per-ABI version codes, requested by F-Droid
+    val abiCodes = mapOf("armeabi-v7a" to 1, "arm64-v8a" to 2, "x86_64" to 3)
+
+    applicationVariants.configureEach {
+        val variant = this
+        variant.outputs.forEach { output ->
+            output as ApkVariantOutputImpl
+            val abi = output.filters
+                .firstOrNull { it.filterType == "ABI" }
+                ?.identifier
+
             // `--split-per-abi` emits one output per ABI. They must not share a
             // filename: they are all written to the same directory, so the last
             // variant built would overwrite the others and Flutter would then
@@ -60,13 +70,14 @@ android {
             // result looks like a correct split build but ships the same ABI to
             // every device. A universal build has no ABI filter and keeps the
             // plain name.
-            val abi = output.filters
-                .firstOrNull { it.filterType == "ABI" }
-                ?.identifier
             output.outputFileName = if (abi == null) {
                 "GrooveForge_${flutter.versionName}.apk"
             } else {
                 "GrooveForge_${flutter.versionName}_$abi.apk"
+            }
+
+            abiCodes[abi]?.let { abiCode ->
+                output.versionCodeOverride = variant.versionCode * 10 + abiCode
             }
         }
     }
