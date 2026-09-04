@@ -12,7 +12,15 @@ Générateur de batterie — grooves de la bossa nova au métal, avec du feeling
 
 Xen : gammes microtonales
 
-Verrouillez le clavier sur une gamme et accordez-le en conséquence. Modes occidentaux, maqamat arabes, ragas indiens, gammes d'Extrême-Orient et de gamelan, modes celtiques, tempéraments historiques, et vos propres gammes. L'accordage passe par une table de tuning MIDI complète plutôt que par le pitch bend : chaque note d'un accord sonne donc à sa hauteur exacte.
+Tenez une note, appuyez sur une gamme. La note tenue devient la tonique, le clavier se verrouille sur la gamme construite dessus, et — pour les gammes qui ne sont pas tempérées — les touches qu'elle utilise sont réaccordées pour sonner comme la tradition l'entend. Un clavier, un geste.
+
+92 gammes réparties en onze familles : modes occidentaux ; maqamat arabes et turcs ; dastgah persans ; ragas indiens en intonation juste ; modes chinois, japonais et coréens ; heptatonique égal thaï ; gamelans javanais et balinais ; qenet éthiopiens et amadinda ougandais ; cornemuse écossaise, hardingfele et chant byzantin ; tempéraments historiques ; et divisions égales de 13 à 31 tons, Bohlen-Pierce, et les alpha, beta et gamma non octaviantes de Wendy Carlos.
+
+L'accordage passe par une table de tuning MIDI complète plutôt que par le pitch bend : chaque note d'un accord sonne donc à sa hauteur exacte, là où le pitch bend, qui agit par canal, ne peut déplacer qu'une note à la fois. Sur le clavier, les touches hors gamme sont grisées et les touches réaccordées portent leur écart en cents.
+
+Chaque gamme indique d'où viennent ses valeurs : un tempérament ou une division égale est exact, un maqam est écrit dans la convention qui note la pratique, un gamelan ou un qenet éthiopien est accordé à l'oreille et diffère d'un instrument à l'autre.
+
+Créez aussi les vôtres — autant de degrés que vous voulez, un écart par touche, et un mute qui garde un degré jouable pendant que le verrouillage l'ignore. Import et export de fichiers Scala (.scl).
 
 Loopers
 

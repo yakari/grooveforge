@@ -12,7 +12,15 @@ Drum Generator — beat patterns from bossa nova to metal, with human feel.
 
 Xen: microtonal scales
 
-Lock the keyboard to a scale and retune it to match. Western modes, Arabic maqamat, Indian ragas, Far Eastern and gamelan scales, Celtic modes, historical temperaments, and your own custom scales. Retuning uses a full MIDI tuning table rather than pitch bend, so every note of a chord sounds at its own correct pitch.
+Hold a note, tap a scale. The note you are holding becomes the tonic, the keyboard locks to the scale built on it, and — for scales that are not equal-tempered — the keys it uses are retuned to sound as the tradition intends. One keyboard, one gesture.
+
+92 scales across eleven families: Western modes; Arabic and Turkish maqamat; Persian dastgah; Indian ragas in just intonation; Chinese, Japanese and Korean modes; Thai seven-equal; Javanese and Balinese gamelan; Ethiopian qenet and Ugandan amadinda; Highland pipe, hardanger fiddle and Byzantine chant; historical temperaments; and equal divisions from 13 to 31 tones, Bohlen-Pierce, and Wendy Carlos's non-octave alpha, beta and gamma.
+
+Retuning uses a full MIDI tuning table rather than pitch bend, so every note of a chord sounds at its own correct pitch — pitch bend is per channel and can only move one note at a time. On the keyboard, out-of-scale keys grey out and retuned ones carry their offset in cents.
+
+Each scale says where its numbers come from: a temperament or an equal division is exact, a maqam is written in the convention that notates the practice, a gamelan or an Ethiopian qenet is tuned by ear and differs from one instrument to the next.
+
+Build your own scales too — any number of degrees, an offset per key, and a mute that keeps a degree playable while the scale lock ignores it. Import and export Scala (.scl) files.
 
 Loopers
 

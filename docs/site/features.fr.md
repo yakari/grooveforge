@@ -1,6 +1,6 @@
 # Fonctionnalités de GrooveForge
 
-GrooveForge a d’abord été conçu pour **apprendre les gammes** grâce au plugin **Jam Mode** : jouez un accord ou une note de basse sur un instrument maître et tous les claviers connectés se verrouillent sur cette gamme, les notes « hors ton » étant ramenées au degré le plus proche et le clavier fournissant un retour visuel. À partir de ce cœur, l’application est devenue une station musicale multi-plateforme complète : rack de plugins avec synthèse **multi-timbrale**, **hébergement VST3** (bureau), **boucleur MIDI**, et instruments intégrés comme le vocodeur, le Stylophone et le Theremin. Elle tourne sous Linux, macOS, Windows, Android et en application web (WASM).
+GrooveForge a d’abord été conçu pour **apprendre les gammes**. Le module **Xen** verrouille un clavier sur l’une de 92 gammes — tenez une note, appuyez sur une gamme — et le réaccorde quand la gamme n’est pas tempérée ; le plugin **Jam Mode** fait de même depuis un instrument maître, en suivant un accord ou une note de basse jouée sur un autre canal. Les notes « hors ton » sont ramenées au degré le plus proche, et le clavier fournit un retour visuel. À partir de ce cœur, l’application est devenue une station musicale multi-plateforme complète : rack de plugins avec synthèse **multi-timbrale**, **hébergement VST3** (bureau), **boucleur MIDI**, et instruments intégrés comme le vocodeur, le Stylophone et le Theremin. Elle tourne sous Linux, macOS, Windows, Android et en application web (WASM).
 
 ---
 
@@ -92,6 +92,29 @@ GrooveForge a d’abord été conçu pour **apprendre les gammes** grâce au plu
 
 *   **Épingler sous le transport**  
     Bandeau compact d’une ligne (nom du slot, voyant ON/OFF, LCD de gamme) sous la barre de transport pour un accès rapide sans faire défiler.
+
+### Xen (GFPA, gammes et microtonalité)
+
+*   **Tenez une note, appuyez sur une gamme**  
+    La note tenue devient la tonique et le clavier se verrouille sur la gamme construite dessus. Contrairement au Jam Mode, aucun canal maître n'est nécessaire : un clavier, un geste. La tonique ne bouge plus jusqu'au geste suivant, si bien que le module accompagne votre propre harmonie plutôt que de suivre celle d'un autre.
+
+*   **92 gammes réparties en onze familles**  
+    Modes occidentaux ; maqamat arabes et turcs ; dastgah persans ; ragas indiens en intonation juste ; modes chinois, japonais et coréens ; heptatonique égal thaï ; gamelans javanais et balinais ; qenet éthiopiens et amadinda ougandais ; cornemuse écossaise, hardingfele et chant byzantin ; tempéraments historiques ; et divisions égales de 13 à 31 tons, Bohlen-Pierce, le décatonique de Blackwood et les alpha, beta et gamma non octaviantes de Wendy Carlos.
+
+*   **Deux étages, câblés séparément**  
+    SNAP quantifie les notes hors gamme ; TUNE applique l'intonation propre de la gamme. Chacun a son jack en face arrière : un clavier peut être verrouillé sans être réaccordé, ou réaccordé sans être verrouillé.
+
+*   **Réaccordage polyphonique**  
+    Passe par une table de tuning MIDI complète plutôt que par le pitch bend : chaque note d'un accord sonne à sa propre hauteur. Le pitch bend agit par canal et ne peut déplacer qu'une note à la fois — c'est ce qui limite le plugin Microtone à une seule voix microtonale.
+
+*   **Retour visuel**  
+    Les touches hors gamme sont grisées sur le clavier à l'écran ; les touches réaccordées portent une bande turquoise et leur écart en cents. Chaque gamme indique d'où viennent ses valeurs — exactes pour un tempérament ou une division égale, conventionnelles pour un maqam, moyennées pour un gamelan ou un qenet éthiopien, accordés à l'oreille et différents d'un instrument à l'autre.
+
+*   **Éditeur de gammes, import et export**  
+    Créez les vôtres : autant de degrés que vous voulez, un écart par touche, et un mute qui garde un degré jouable et accordé pendant que le snap l'ignore. Import et export de fichiers Scala (.scl), ou du JSON GrooveForge pour un aller-retour fidèle. Les gammes personnelles sont stockées à la fois dans la bibliothèque de l'app et dans le fichier de projet : un .gf se joue correctement sur une machine qui n'a jamais vu cette gamme.
+
+*   **Banc de pads**  
+    Associez une gamme par CC matériel, plusieurs à la fois, chacun sautant directement à la sienne. SNAP et TUNE sont mappables séparément.
 
 ### Boucleur MIDI (instance unique)
 

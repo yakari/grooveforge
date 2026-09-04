@@ -1,6 +1,6 @@
 # GrooveForge Features
 
-GrooveForge was mainly developed as a tool to **learn scales** through the **Jam Mode** plugin: play a chord or bass note on a master instrument and all connected keyboards lock to that scale, with wrong notes snapped to the nearest degree and key highlighting as visual feedback. From that core, it grew into a full cross-platform music workstation: a plugin rack with multi-timbral synthesis, **VST3 hosting** (desktop), a **MIDI looper**, and built-in instruments such as the vocoder, Stylophone, and Theremin. It runs on Linux, macOS, Windows, Android, and as a web app (WASM).
+GrooveForge was mainly developed as a tool to **learn scales**. The **Xen** module locks a keyboard to any of 92 scales — hold a note, tap a scale — and retunes it when the scale is not equal-tempered; the **Jam Mode** plugin does the same from a master instrument, following a chord or bass note played on another channel. Wrong notes snap to the nearest degree, with key highlighting as visual feedback. From that core, it grew into a full cross-platform music workstation: a plugin rack with multi-timbral synthesis, **VST3 hosting** (desktop), a **MIDI looper**, and built-in instruments such as the vocoder, Stylophone, and Theremin. It runs on Linux, macOS, Windows, Android, and as a web app (WASM).
 
 ---
 
@@ -92,6 +92,29 @@ GrooveForge was mainly developed as a tool to **learn scales** through the **Jam
 
 *   **Pin below transport**  
     Compact one-line strip (slot name, ON/OFF LED, scale LCD) under the transport bar for quick access without scrolling.
+
+### Xen (GFPA, scales and microtuning)
+
+*   **Hold a note, tap a scale**  
+    The note being held becomes the tonic and the keyboard locks to the scale built on it. Unlike Jam Mode it needs no master channel: one keyboard, one gesture. The tonic stays put until the gesture is repeated, so the module accompanies your own harmony rather than following someone else's.
+
+*   **92 scales across eleven families**  
+    Western modes; Arabic and Turkish maqamat; Persian dastgah; Indian ragas in just intonation; Chinese, Japanese and Korean modes; Thai seven-equal; Javanese and Balinese gamelan; Ethiopian qenet and Ugandan amadinda; Highland pipe, hardanger fiddle and Byzantine chant; historical temperaments; and equal divisions from 13 to 31 tones, Bohlen-Pierce, Blackwood's decatonic and Wendy Carlos's non-octave alpha, beta and gamma.
+
+*   **Two stages, patched separately**  
+    SNAP quantises out-of-scale notes; TUNE applies the scale's own intonation. Each has its own back-panel jack, so a keyboard can be locked without being retuned, or retuned without being locked.
+
+*   **Polyphonic retuning**  
+    Uses a full MIDI tuning table rather than pitch bend, so every note of a chord sounds at its own pitch. Pitch bend is per channel and can only move one note at a time — which is what limits the older Microtone plugin to a single microtonal voice.
+
+*   **Visual feedback**  
+    Out-of-scale keys grey out on the on-screen keyboard; retuned keys carry a teal band and their offset in cents. Each scale states where its numbers come from — exact for a temperament or an equal division, conventional for a maqam, averaged for a gamelan or an Ethiopian qenet, which are tuned by ear and differ between instruments.
+
+*   **Scale editor, import and export**  
+    Build your own: any number of degrees, an offset per key, and a mute that keeps a degree playable and retuned while the snap ignores it. Import and export Scala (.scl) files, or GrooveForge JSON for a faithful round trip. Custom scales are stored both in the app library and inside the project file, so a .gf plays correctly on a machine that has never seen that scale.
+
+*   **Pad bank**  
+    Bind one scale per hardware CC, several at once, each jumping straight to its own. SNAP and TUNE are separately mappable.
 
 ### MIDI Looper (single instance)
 
