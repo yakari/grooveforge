@@ -554,14 +554,17 @@ class VocoderButtons extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 4 carrier modes laid out in a 2×2 grid
-    const leftCol = [
-      (label: 'Saw', icon: Icons.show_chart, index: 0),
-      (label: 'Choral', icon: Icons.record_voice_over, index: 2),
+    // 4 modes laid out in a 2×2 grid. Three are synthetic carriers for the
+    // filter bank; Harmony bypasses the bank and pitch-shifts the live voice
+    // onto the held keys instead.
+    final l10n = AppLocalizations.of(context)!;
+    final leftCol = [
+      (label: l10n.vocoderWaveSaw, icon: Icons.show_chart, index: 0),
+      (label: l10n.vocoderWaveChoral, icon: Icons.record_voice_over, index: 2),
     ];
-    const rightCol = [
-      (label: 'Square', icon: Icons.water, index: 1),
-      (label: 'Natural', icon: Icons.mic, index: 3),
+    final rightCol = [
+      (label: l10n.vocoderWaveSquare, icon: Icons.water, index: 1),
+      (label: l10n.vocoderWaveHarmony, icon: Icons.diversity_3, index: 3),
     ];
 
     Widget buildBtn(({int index, IconData icon, String label}) wf, int wave) =>

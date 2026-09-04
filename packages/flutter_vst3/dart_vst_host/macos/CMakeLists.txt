@@ -90,6 +90,7 @@ add_library(${PROJECT_NAME} SHARED
   ${NATIVE_DIR}/src/audio_looper.cpp
   # Phase vocoder (tempo-sync stretching for the looper)
   ${GF_NATIVE_AUDIO_DIR}/gf_phase_vocoder.c
+  ${GF_NATIVE_AUDIO_DIR}/gf_harmony.c
   # macOS specific implementation
   ${NATIVE_DIR}/src/dart_vst_host_audio_mac.cpp
   ${NATIVE_DIR}/src/dart_vst_host_editor_mac.mm

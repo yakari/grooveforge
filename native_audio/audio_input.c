@@ -29,6 +29,8 @@
 #define LOGI(...) printf(__VA_ARGS__)
 #endif
 
+#include "gf_harmony.h"
+
 #define MAX_POLYPHONY 16
 #define SAMPLE_RATE 48000
 #define CHANNELS 1
@@ -51,39 +53,6 @@ static VocoderBand bands[NUM_BANDS];
 // Envelope follower release coefficient (approx 20ms)
 static float envRelease = 0.0f;
 
-// ── NATURAL-mode (looped voice-grain resampler) config ──────────────────
-//
-// Replaces the old PSOLA grain engine. Rationale in docs/dev/ROADMAP.md
-// ("NATURAL vocoder mode — reality check" section). The idea:
-//   1. ACF detects the mic's voice pitch and captures raw mic audio into
-//      g_natLoopBuf[]. The captured length is set to the largest integer
-//      multiple of the detected pitch period that fits — *integer-period
-//      looping* is what makes the loop wrap seamlessly without a click.
-//      For a truly periodic signal, sample N·P equals sample 0, so the
-//      seam is continuous by construction. No cross-fade needed.
-//   2. Each polyphonic voice maintains a fractional read cursor into the
-//      loop. Cursor advance per output sample = targetHz / detectedHz —
-//      so the same captured snippet plays back at the MIDI target pitch.
-//
-// An earlier attempt used a fixed 1024-sample loop plus a 64-sample
-// tail-to-head linear cross-fade. That was wrong on two counts: the
-// cross-fade *introduced* its own discontinuity at the wrap point (it
-// made sample N−1 equal head[63], but sample 0 was still head[0]), and
-// the arbitrary loop length produced an audible subharmonic modulation
-// at ~SR/1024 ≈ 47 Hz on top of the fundamental. Integer-period looping
-// fixes both.
-//
-// Chosen over a phase-vocoder implementation because NATURAL mode needs
-// to sustain a tone from a short snippet long after the mic has gone
-// silent — a streaming phase vocoder is the wrong tool for that workload.
-#define NAT_LOOP_CAPACITY 1024  // Buffer size (must equal ACF_WINDOW so we
-                                // can copy straight out of g_acfBuffer).
-#define NAT_LOOP_MIN_PERIODS 2  // Refuse to capture if we can't fit at
-                                // least 2 full pitch periods — a one-
-                                // period loop is just a single waveform
-                                // cycle and tends to sound unnaturally
-                                // flat/buzzy for voice content.
-
 // --- Oscillator State ---
 typedef struct {
     bool active;
@@ -96,15 +65,10 @@ typedef struct {
     float envelope;
     int releaseSamples;
     float filterState;   // Used for glottal pulse low-pass (mode 2)
-    float natReadPos;    // NATURAL mode: fractional cursor into g_natLoopBuf.
-                         // Advances by targetHz/detectedHz per output sample.
-                         // Wraps at NAT_LOOP_LEN. Zero-initialised with the
-                         // voices[] static array; never reset per note-on
-                         // (different notes keep phase continuity).
 } Oscillator;
 
 // --- Vocoder Adjustable Parameters ---
-int g_vocoderWaveform = 0;          // 0 = Sawtooth, 1 = Square, 2 = Choral (glottal ensemble), 3 = Neutral (Sine)
+int g_vocoderWaveform = 0;          // 0 = Sawtooth, 1 = Square, 2 = Choral (glottal ensemble), 3 = Harmony (pitch-shifted voice)
 float g_vocoderNoiseMix = 0.05f;    // Amount of white noise added to carrier for consonant intelligibility
 float g_vocoderEnvRelease = 0.02f;  // Envelope follower release time (lower = faster)
 static float g_gateThreshold = 0.01f; // Mic noise gate: mic samples below this amplitude are silenced
@@ -156,28 +120,6 @@ static float g_micPitchHz = 150.0f;
 static int   g_acfCounter   = 0;
 static float g_acfBuffer[ACF_WINDOW];
 
-// --- NATURAL-mode looped voice-grain state ---
-// g_natLoopBuf holds a pitch-validated snippet of raw mic audio, amplitude-
-// normalised and trimmed to an integer multiple of the detected pitch
-// period. Captured whenever the ACF pitch detector's correlation is high
-// (see capture_natural_loop). Read by renderOscillator in NATURAL mode
-// via a fractional cursor that wraps at g_natLoopLen.
-static float g_natLoopBuf[NAT_LOOP_CAPACITY];
-/// Valid length of the loop in samples. Always an integer multiple of the
-/// detected pitch period, so wrapping from sample (len-1) to sample 0 lands
-/// on a continuous waveform point. 0 until the first good capture.
-static int   g_natLoopLen = 0;
-/// 0 until the first good capture has landed. Until then NATURAL mode
-/// outputs silence so MIDI notes with no mic input produce nothing.
-static int   g_natLoopValid = 0;
-/// Pitch (Hz) of the loop at capture time. Cursor-advance rate per output
-/// sample = targetHz / g_natLoopDetectedHz, so the loop plays at the
-/// MIDI-requested pitch.
-static float g_natLoopDetectedHz = 0.0f;
-/// Rolling correlation gate for capture. New captures only overwrite the
-/// loop when ACF correlation is within 80% of the last peak (or absolutely
-/// high) — same gating logic as the previous PSOLA implementation.
-static float g_naturalMaxCorr = 0.0f;
 
 #ifdef _WIN32
 static int64_t _get_monotonic_ns(void) {
@@ -270,58 +212,9 @@ static float noteToFreq(int midiNote) {
     return 440.0f * powf(2.0f, (midiNote - 69) / 12.0f);
 }
 
-// --- NATURAL mode: capture a loopable voice snippet ---
-//
-// Copies an integer number of pitch periods of raw mic audio into
-// g_natLoopBuf and amplitude-normalises them to ~0.4 RMS. The loop
-// length is deliberately `numPeriods × detectedLag` so the signal is
-// continuous across the wrap point — for a periodic waveform, sample
-// N·P equals sample 0 by definition. No cross-fade is needed, and any
-// cross-fade would actually *introduce* a discontinuity.
-//
-// [source] is expected to point at an ACF-validated window of at least
-// NAT_LOOP_CAPACITY samples (in practice `g_acfBuffer`, which is exactly
-// that size). [detectedLag] is the ACF-estimated pitch period in samples;
-// its reciprocal gives the captured tone's natural frequency, which the
-// renderer uses to compute each voice's playback advance rate.
-static void capture_natural_loop(const float* source, int detectedLag) {
-    if (detectedLag < ACF_MIN_LAG || detectedLag > ACF_MAX_LAG) return;
-
-    // 1. Pick an integer-period loop length that fits in the capacity.
-    //    With detectedLag ≥ 48 (1000 Hz) and capacity 1024 we get 21
-    //    periods. With detectedLag ≤ 600 (80 Hz) we get 1 period, which
-    //    falls below our minimum — such low voices are rejected. Users
-    //    singing in a sensible range (G2–G5 ≈ 98–784 Hz) always fit
-    //    ≥ 2 periods.
-    int numPeriods = NAT_LOOP_CAPACITY / detectedLag;
-    if (numPeriods < NAT_LOOP_MIN_PERIODS) return;
-    int loopLen = numPeriods * detectedLag;
-
-    // 2. RMS-normalise to target ~0.4 so the downstream vocoder filter
-    //    bank receives a consistent carrier level regardless of how loudly
-    //    the user sings. Gain capped at 4× so a silent window doesn't
-    //    amplify noise into a screech.
-    float sumSq = 0.0f;
-    for (int i = 0; i < loopLen; i++) sumSq += source[i] * source[i];
-    float rms  = sqrtf(sumSq / (float)loopLen) + 1e-9f;
-    float norm = 0.4f / rms;
-    if (norm > 4.0f) norm = 4.0f;
-    for (int i = 0; i < loopLen; i++) g_natLoopBuf[i] = source[i] * norm;
-
-    // 3. Publish the new loop. Order matters: the renderer reads len
-    //    first, and valid last, so writing `valid = 1` after everything
-    //    else means the audio thread either sees the old loop (valid=1,
-    //    old len) or the new one (valid=1, new len) but never half-torn
-    //    state. Acceptable because the window is scalar and len/validity
-    //    are plain ints (torn reads are impossible at this size on
-    //    ARM/x86).
-    g_natLoopLen        = loopLen;
-    g_natLoopDetectedHz = (float)SAMPLE_RATE / (float)detectedLag;
-    g_natLoopValid      = 1;
-}
 
 // Render Oscillator (Polyphonic Carrier) — used by modes 0, 1, 2.
-// Mode 3 (Neutral) bypasses this entirely, pitch-shifting the raw mic signal.
+// Mode 3 (Harmony) bypasses this entirely, pitch-shifting the raw mic signal.
 static float renderOscillator(Oscillator* osc) {
     float sample = 0.0f;
 
@@ -375,59 +268,6 @@ static float renderOscillator(Oscillator* osc) {
         if (osc->phase  >= 1.0f) osc->phase  -= 1.0f;
         if (osc->phase2 >= 1.0f) osc->phase2 -= 1.0f;
         if (osc->phase3 >= 1.0f) osc->phase3 -= 1.0f;
-    } else if (g_vocoderWaveform == 3) {
-        // --- NATURAL mode (loop resampler) ---
-        //
-        // Reads the mic-captured voice loop at a fractional cursor and
-        // produces a sample at the MIDI-requested pitch. Cursor advance
-        // per output sample = targetHz / capturedHz, so a captured voice
-        // at 200 Hz played at a MIDI target of 100 Hz advances the cursor
-        // by 0.5 samples/sample (pitch drops an octave) and at 400 Hz
-        // advances by 2.0 (pitch rises an octave).
-        //
-        // Replaces the old PSOLA grain engine (see roadmap session 3).
-        // The old code had audible gaps when targetHz < capturedHz because
-        // the retrigger period exceeded the 2-period Hanning grain length;
-        // this approach has no gaps because the loop is continuously
-        // traversed.
-        int loopLen = g_natLoopLen; // snapshot — the capture thread may
-                                    // write a new length between samples.
-        if (!g_natLoopValid || loopLen <= 0 || g_natLoopDetectedHz <= 0.0f) {
-            sample = 0.0f;
-        } else {
-            float targetHz = osc->frequency * g_effectivePitchFactor;
-            float advance  = targetHz / g_natLoopDetectedHz;
-
-            // If the loop length changed under us (new capture just
-            // published a shorter buffer), clamp the cursor back into
-            // range so we don't read out of bounds.
-            if (osc->natReadPos >= (float)loopLen) {
-                osc->natReadPos = fmodf(osc->natReadPos, (float)loopLen);
-            }
-
-            // Linear interpolation between adjacent samples. Fast and more
-            // than good enough for the 80–1000 Hz voice range (aliasing is
-            // below audibility at these ratios on realistic pitch shifts).
-            int pos0 = (int)osc->natReadPos;
-            if (pos0 < 0) pos0 = 0;
-            if (pos0 >= loopLen) pos0 = loopLen - 1;
-            float frac = osc->natReadPos - (float)pos0;
-            int pos1 = pos0 + 1;
-            if (pos1 >= loopLen) pos1 = 0; // integer-period wrap is continuous
-            sample = g_natLoopBuf[pos0] * (1.0f - frac) +
-                     g_natLoopBuf[pos1] * frac;
-
-            // Advance the cursor and wrap. Use a while-loop so extreme
-            // stretch ratios (natReadPos near end, advance > loopLen)
-            // still land safely inside the buffer.
-            osc->natReadPos += advance;
-            while (osc->natReadPos >= (float)loopLen) {
-                osc->natReadPos -= (float)loopLen;
-            }
-            while (osc->natReadPos < 0.0f) {
-                osc->natReadPos += (float)loopLen;
-            }
-        }
     }
 
     return sample;
@@ -462,6 +302,11 @@ void mic_capture_callback(ma_device* pDevice, void* pOutput, const void* pInput,
 // Data callback for full-duplex audio processing
 // Main audio loop.
 // Optimization: move voice counting OUT of the sample loop for speed.
+/// Harmony mode (waveform 3) renders a whole block at a time — see its
+/// definition below, next to the rest of the harmony-mode code.
+static void render_harmony_block(float* pOut, int frames,
+                                 float* inPeak, float* outPeak);
+
 void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount) {
     // When capture mode is active, the JACK thread owns the DSP.
     // Output silence so we don't double-render.
@@ -524,7 +369,8 @@ void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uin
         if (voices[v].active || voices[v].releaseSamples > 0) activeVoiceCount++;
     }
 
-    // PRE-LOOP: Pitch Detection (ACF)
+    // PRE-LOOP: Pitch Detection (ACF) — harmony mode measures each held
+    // key against the pitch being sung, so it needs that pitch first.
     if (g_vocoderWaveform == 3 && activeVoiceCount > 0) {
         for (ma_uint32 i = 0; i < frameCount; i++) {
             g_acfBuffer[g_acfCounter++] = g_micRing[(readStart + i) & MIC_RING_MASK];
@@ -543,22 +389,19 @@ void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uin
                     float detectedHz = (float)SAMPLE_RATE / (float)bestLag;
                     g_micPitchHz = g_micPitchHz * 0.9f + detectedHz * 0.1f;
                     
-                    // Capture dynamic wavetable snapshot if correlation is healthy
-                    // Normalize by energy to keep volume consistent
-                    float energy = 0.0f;
-                    for (int j = 0; j < bestLag; j++) energy += g_acfBuffer[j] * g_acfBuffer[j];
-                    float norm = (energy > 1e-6f) ? (1.0f / sqrtf(energy / bestLag)) * 0.5f : 0.0f;
-
-                    if (maxCorr > g_naturalMaxCorr * 0.8f || maxCorr > 0.5f) {
-                        g_naturalMaxCorr = maxCorr;
-                        // Capture a NAT_LOOP_LEN-sample seamless loop
-                        // from the pitch-validated ACF window.
-                        capture_natural_loop(&g_acfBuffer[0], bestLag);
-                    }
                 }
                 g_acfCounter = 0;
             }
         }
+    }
+
+    // Harmony mode bypasses the filter bank entirely and works a block at a
+    // time, so it branches out before the per-sample loop below.
+    if (g_vocoderWaveform == 3) {
+        render_harmony_block(pOut, (int)frameCount, &inPeak, &outPeak);
+        if (inPeak > g_inputPeak) g_inputPeak = inPeak;
+        if (outPeak > g_outputPeak) g_outputPeak = outPeak;
+        return;
     }
 
     for (ma_uint32 i = 0; i < frameCount; ++i) {
@@ -606,7 +449,8 @@ void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uin
         float vocoderOutput = 0.0f;
 
         // ----------------------------------------------------------------
-        // FILTER-BANK MODES: Saw (0), Square (1), Choral (2), Neutral (3)
+        // FILTER-BANK MODES: Saw (0), Square (1), Choral (2).
+        // Harmony (3) bypasses the bank and returned above.
         // ----------------------------------------------------------------
         for (int b = 0; b < NUM_BANDS; ++b) {
             float modSignal = processBiquad(&bands[b].modFilter, micInput);
@@ -649,6 +493,219 @@ void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uin
     if (outPeak > g_outputPeak) g_outputPeak = outPeak;
 }
 
+// ── HARMONY mode (waveform 3) ────────────────────────────────────────────────
+//
+// Pitch-shifts the live microphone onto whatever keys are held, using the
+// same `gf_harmony` engine as the Audio Harmonizer effect — the phase
+// vocoders, the latency banking that lets a frame-quantised vocoder fill
+// whole audio blocks, and the headroom stage that stops summed voices
+// clipping. Sing, hold a chord, and the chord comes back in your own voice.
+//
+// This replaces a loop resampler that captured a short snippet of the voice
+// and replayed it at each key's pitch. That could sustain a note long after
+// the mic went quiet, but it only ever repeated one captured instant, so it
+// lost every word and every inflection. Pitch-shifting the live signal keeps
+// them.
+//
+// The filter bank is bypassed here, unlike the other three modes. The bank
+// exists to stamp a voice's spectrum onto a synthetic carrier; when the
+// carrier already *is* the voice, running it through the bank only takes the
+// naturalness back out again.
+//
+// Pitch comes from the ACF detector this mode already ran. Each held key
+// becomes one harmony voice at `12 * log2(keyHz / detectedHz)` semitones, so
+// the shift tracks the singer: hold a fifth above and it stays a fifth above
+// as the voice moves.
+
+/// Largest block either render path will hand the harmony engine.
+#define VOC_HARMONY_MAX_BLOCK 4096
+
+/// The engine, created in start_audio_capture() so the audio thread never
+/// allocates. NULL until then; the render paths fall back to silence.
+static gf_harmony* g_vocHarmony = NULL;
+
+/// Mic input and harmony output for the current block.
+static float g_vocHarmonyIn[VOC_HARMONY_MAX_BLOCK];
+static float g_vocHarmonyOut[VOC_HARMONY_MAX_BLOCK];
+
+/// Lowest detected pitch worth harmonising, in Hz. Below this the ACF has
+/// almost certainly locked onto rumble rather than a sung note, and shifting
+/// from a wrong reference puts every harmony voice in the wrong key.
+#define VOC_HARMONY_MIN_PITCH_HZ 60.0f
+
+/// How far behind the writer the harmony reader starts, in frames.
+///
+/// Same reasoning as the Live Input module: a phase vocoder needs a
+/// *continuous* stream, and the mic is filled by a separate capture device on
+/// its own clock, in 256-frame bursts, while the render callback pulls as
+/// little as 96 frames at a time. Sitting several bursts behind absorbs that
+/// granularity and the scheduling jitter between the two threads.
+///
+/// Four bursts rather than Live Input's twelve: this is latency a singer
+/// hears on top of the harmony engine's own, so it is worth keeping tight.
+/// Raise it if a device ever reports dropouts — an underrun costs a block of
+/// silence, which is worse than the 21 ms.
+#define VOC_HARMONY_PREBUFFER 1024u   // ~21 ms @ 48 kHz — 4 Android mic bursts
+
+/// Persistent read cursor into the mic ring, advanced by exactly the number
+/// of frames consumed.
+///
+/// The filter-bank modes read "the most recent N samples" instead, which is
+/// fine for a modulator: the band envelope followers do not care if a few
+/// samples repeat or vanish when the capture and playback clocks drift. A
+/// phase vocoder cares enormously — every repeat or skip is a step
+/// discontinuity in its input, once per audio block, which comes out as a
+/// continuous crunch.
+static ma_uint32 g_vocHarmonyReadCursor = 0;
+static int       g_vocHarmonyReadPrimed = 0;
+
+/// Gentle DC blocker for the harmony input, ~8 Hz.
+///
+/// Deliberately not `pre_filter_mic`: that one is a ~380 Hz high-pass, which
+/// suits a vocoder modulator (it favours intelligibility over body) but takes
+/// the fundamental out of most singing. Harmony mode is shifting the voice
+/// itself, so it wants the whole voice.
+static float g_vocHarmonyDcX1 = 0.0f;
+static float g_vocHarmonyDcY1 = 0.0f;
+
+/// Noise-gate envelope and the smoothed gain it drives.
+static float g_vocHarmonyGateEnv  = 0.0f;
+static float g_vocHarmonyGateGain = 0.0f;
+
+/// Advances one oscillator's release envelope across a whole block.
+///
+/// The per-sample modes decay by 1/240 per sample; matching that rate keeps a
+/// note released in harmony mode dying over the same ~5 ms.
+static void advance_release_envelope(Oscillator* osc, int frames) {
+    if (osc->active || osc->releaseSamples <= 0) return;
+    const int steps = (frames < osc->releaseSamples) ? frames : osc->releaseSamples;
+    osc->envelope -= (float)steps / 240.0f;
+    osc->releaseSamples -= steps;
+    if (osc->envelope <= 0.0f) { osc->envelope = 0.0f; osc->releaseSamples = 0; }
+}
+
+/// Maps the held keys onto the harmony engine's voices.
+///
+/// Keys beyond the engine's capacity are dropped — four voices playing the
+/// first four notes of a six-note chord is better than four trying to spread
+/// themselves thinner.
+static void assign_harmony_voices(float detectedHz) {
+    int assigned = 0;
+    for (int v = 0; v < MAX_POLYPHONY && assigned < GF_HARMONY_MAX_VOICES; ++v) {
+        Oscillator* osc = &voices[v];
+        if (!osc->active && osc->releaseSamples <= 0) continue;
+
+        const float targetHz = osc->frequency * g_effectivePitchFactor;
+        if (targetHz <= 0.0f) continue;
+
+        const float semis = 12.0f * log2f(targetHz / detectedHz);
+        const float level = (osc->velocity / 127.0f) * osc->envelope;
+        gf_harmony_set_voice(g_vocHarmony, assigned, semis, level);
+        assigned++;
+    }
+    // Silence the voices no key is using this block.
+    for (int v = assigned; v < GF_HARMONY_MAX_VOICES; ++v) {
+        gf_harmony_set_voice(g_vocHarmony, v, 0.0f, 0.0f);
+    }
+}
+
+/// Fills [g_vocHarmonyIn] with [frames] contiguous mic samples.
+///
+/// Returns 0 when the writer has not produced enough yet, in which case the
+/// cursor is left alone and the caller should emit silence rather than feed
+/// the engine a gap.
+static int collect_harmony_input(int frames, float* inPeak) {
+    const ma_uint32 writePos = __atomic_load_n(&g_micWriteCursor, __ATOMIC_ACQUIRE);
+
+    if (!g_vocHarmonyReadPrimed) {
+        g_vocHarmonyReadCursor = (writePos - VOC_HARMONY_PREBUFFER) & MIC_RING_MASK;
+        g_vocHarmonyReadPrimed = 1;
+    }
+
+    ma_uint32 available = (writePos - g_vocHarmonyReadCursor) & MIC_RING_MASK;
+
+    // The writer clearly wrapped past us (capture restart, xrun, cold start).
+    // Re-prime so latency stays bounded.
+    if (available > (MIC_RING_FRAMES * 3u / 4u)) {
+        g_vocHarmonyReadCursor = (writePos - VOC_HARMONY_PREBUFFER) & MIC_RING_MASK;
+        available = VOC_HARMONY_PREBUFFER;
+    }
+    if (available < (ma_uint32)frames) return 0;
+
+    // Gate coefficients: instant attack, ~50 ms release on the envelope, and
+    // a ~5 ms ramp on the gain itself. A gain ramp is the whole point — the
+    // other modes zero individual samples below the threshold, which for a
+    // modulator is harmless and for a signal being pitch-shifted punches a
+    // flat spot through every zero crossing.
+    const float envRelease  = 1.0f - expf(-1.0f / (0.050f * (float)SAMPLE_RATE));
+    const float gainSmooth  = 1.0f - expf(-1.0f / (0.005f * (float)SAMPLE_RATE));
+
+    const ma_uint32 readStart = g_vocHarmonyReadCursor;
+    for (int i = 0; i < frames; ++i) {
+        float mic = g_micRing[(readStart + (ma_uint32)i) & MIC_RING_MASK] * g_inputGain;
+
+        const float absRaw = fabsf(mic);
+        if (absRaw > *inPeak) *inPeak = absRaw;
+
+        // DC blocker, one pole at 0.999 (~8 Hz).
+        const float dc = mic - g_vocHarmonyDcX1 + 0.999f * g_vocHarmonyDcY1;
+        g_vocHarmonyDcX1 = mic;
+        g_vocHarmonyDcY1 = dc;
+        mic = dc;
+
+        // Envelope-following noise gate.
+        const float a = fabsf(mic);
+        if (a > g_vocHarmonyGateEnv) g_vocHarmonyGateEnv = a;
+        else g_vocHarmonyGateEnv += (a - g_vocHarmonyGateEnv) * envRelease;
+        const float target = (g_vocHarmonyGateEnv > g_gateThreshold) ? 1.0f : 0.0f;
+        g_vocHarmonyGateGain += (target - g_vocHarmonyGateGain) * gainSmooth;
+
+        g_vocHarmonyIn[i] = mic * g_vocHarmonyGateGain;
+    }
+    g_vocHarmonyReadCursor = (readStart + (ma_uint32)frames) & MIC_RING_MASK;
+    return 1;
+}
+
+/// Renders one block of harmony-mode output into [pOut].
+///
+/// Writes exactly [frames] samples, silence included, and updates the input
+/// and output peak meters the way the filter-bank path does.
+static void render_harmony_block(float* pOut, int frames,
+                                 float* inPeak, float* outPeak) {
+    if (frames > VOC_HARMONY_MAX_BLOCK) frames = VOC_HARMONY_MAX_BLOCK;
+
+    const int haveInput = collect_harmony_input(frames, inPeak);
+    const int haveEngine = (g_vocHarmony != NULL);
+    // Nothing to shift, or nothing to shift *from*: a harmony built on a
+    // wrong reference pitch is worse than none at all.
+    const int havePitch = (g_micPitchHz >= VOC_HARMONY_MIN_PITCH_HZ);
+
+    if (!haveInput || !haveEngine || !havePitch) {
+        for (int v = 0; v < MAX_POLYPHONY; ++v) advance_release_envelope(&voices[v], frames);
+        if (pOut) memset(pOut, 0, (size_t)frames * sizeof(float));
+        return;
+    }
+
+    assign_harmony_voices(g_micPitchHz);
+    gf_harmony_process(g_vocHarmony, g_vocHarmonyIn, g_vocHarmonyOut, frames);
+
+    // No soft clipping here. `soft_clip` is a waveshaper — x - x^3/3 puts
+    // about 7% third harmonic on a peak of 0.9 — which the loud filter-bank
+    // modes need as a limiter and this one does not: gf_harmony already caps
+    // its own output at unity. A plain clamp catches the impossible case
+    // without colouring anything below it.
+    for (int i = 0; i < frames; ++i) {
+        float out = g_vocHarmonyOut[i];
+        if (out >  1.0f) out =  1.0f;
+        if (out < -1.0f) out = -1.0f;
+        const float absOut = fabsf(out);
+        if (absOut > *outPeak) *outPeak = absOut;
+        if (pOut) pOut[i] = out;
+    }
+
+    for (int v = 0; v < MAX_POLYPHONY; ++v) advance_release_envelope(&voices[v], frames);
+}
+
 // ── Vocoder capture mode + render block ──────────────────────────────────────
 //
 // When capture mode is enabled, the miniaudio playback device outputs silence
@@ -664,8 +721,8 @@ void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uin
 /// into a looper slot and also audible through the main output), this
 /// function is called twice inside the same audio block. Running the DSP
 /// twice would corrupt shared state — voice envelopes, LFO phase, the ACF
-/// pitch-detection cursor, the 32-band filter-bank biquads, and per-voice
-/// `natReadPos` — because the second call would see the state already
+/// pitch-detection cursor, the 32-band filter-bank biquads, and the harmony
+/// engine's vocoders — because the second call would see the state already
 /// mutated by the first.
 ///
 /// The fix: detect a same-block repeat call by timestamp and return the
@@ -719,7 +776,8 @@ static void _vocoder_render_block_impl(float* outL, float* outR, int frames) {
         if (voices[v].active || voices[v].releaseSamples > 0) activeVoiceCount++;
     }
 
-    // ACF pitch detection (NATURAL mode only).
+    // ACF pitch detection (harmony mode only — it needs the sung pitch to
+    // measure each key's interval against).
     if (g_vocoderWaveform == 3 && activeVoiceCount > 0) {
         for (int i = 0; i < frames; i++) {
             g_acfBuffer[g_acfCounter++] = g_micRing[(readStart + (ma_uint32)i) & MIC_RING_MASK];
@@ -736,14 +794,26 @@ static void _vocoder_render_block_impl(float* outL, float* outR, int frames) {
                 if (bestLag > 0) {
                     float detectedHz = (float)SAMPLE_RATE / (float)bestLag;
                     g_micPitchHz = g_micPitchHz * 0.9f + detectedHz * 0.1f;
-                    if (maxCorr > g_naturalMaxCorr * 0.8f || maxCorr > 0.5f) {
-                        g_naturalMaxCorr = maxCorr;
-                        capture_natural_loop(&g_acfBuffer[0], bestLag);
-                    }
                 }
                 g_acfCounter = 0;
             }
         }
+    }
+
+    // Harmony mode bypasses the filter bank and works a block at a time.
+    if (g_vocoderWaveform == 3) {
+        float inPeak = 0.0f, outPeak = 0.0f;
+        render_harmony_block(outL, frames, &inPeak, &outPeak);
+        memcpy(outR, outL, (size_t)frames * sizeof(float));   // mono -> stereo
+        if (inPeak > g_inputPeak) g_inputPeak = inPeak;
+        if (outPeak > g_outputPeak) g_outputPeak = outPeak;
+        if (frames <= VOC_CACHE_MAX_FRAMES) {
+            memcpy(g_vocCacheL, outL, (size_t)frames * sizeof(float));
+            memcpy(g_vocCacheR, outR, (size_t)frames * sizeof(float));
+            g_vocCacheFrames  = frames;
+            g_vocCacheStampNs = nowNs;
+        }
+        return;
     }
 
     for (int i = 0; i < frames; ++i) {
@@ -1099,6 +1169,14 @@ static void init_vocoder_bands(float qFactor) {
 // This decouples the capture clock from the playback clock, eliminating the
 // TimeSeries sync overhead that was adding 300-400ms of mic onset delay on Android.
 EXPORT int start_audio_capture() {
+    // Built here rather than lazily in the callback: the harmony engine
+    // allocates, and the audio thread must not. It is never destroyed —
+    // tearing it down would race a callback still in flight, and one engine
+    // is a fixed cost for the process. Resetting clears the vocoder tails a
+    // previous session left behind.
+    if (!g_vocHarmony) g_vocHarmony = gf_harmony_create(VOC_HARMONY_MAX_BLOCK);
+    gf_harmony_reset(g_vocHarmony);
+    g_vocHarmonyReadPrimed = 0;
     if (isInitialized) return 0;
 
     // Initialize Vocoder DSP

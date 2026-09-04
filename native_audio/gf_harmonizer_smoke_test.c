@@ -21,10 +21,15 @@
 //      depends on the synthesis hop; get it wrong and each interval comes out
 //      at its own level, with a tremolo stamped on top of the upward ones.
 //
+//   4. **A shift that moves.** The vocoder's Harmony mode re-pitches every
+//      voice every block, from the pitch it hears being sung. That churns the
+//      vocoder's internal rates in a way a fixed interval never does.
+//
 // Build: see CMakeLists.txt — target "gf_harmonizer_smoke_test".
 // Run  : ./build/gf_harmonizer_smoke_test
 
 #include "gfpa_dsp.h"
+#include "gf_harmony.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -207,12 +212,14 @@ static void testContinuity(void) {
         }
     }
 
-    // A 220 Hz-family tone at 48 kHz moves at most a few percent of its peak
-    // per sample. A dropped block shows up an order of magnitude above that.
-    char detail[160];
+    // The test tone's own slew sets the floor: its fastest partial is 660 Hz,
+    // so at 48 kHz it moves up to 2*pi*660/48000 = 8.6% of peak per sample.
+    // The threshold sits just above that, and a dropped block is not a near
+    // miss — it steps most of the way to zero, an order of magnitude higher.
+    char detail[180];
     snprintf(detail, sizeof detail,
              "worst sample-to-sample step %.1f%% of peak, at burst %d "
-             "(a dropped block reads far above 10%%)",
+             "(the tone's own slew is 8.6%%; a dropped block reads far higher)",
              100.0 * worst, worstBurst);
     report("no block-rate discontinuities at any burst size", worst < 0.10,
            detail);
@@ -268,6 +275,76 @@ static void testIntervalGainFlatness(void) {
            detail);
 }
 
+// ── 4. A voice whose pitch moves every block ─────────────────────────────────
+
+/// The vocoder's Harmony mode drives `gf_harmony` differently from the
+/// effect: instead of a fixed interval from a knob, it recomputes each
+/// voice's offset every block from the pitch it hears the singer holding.
+/// That value never sits still — the detector smooths towards the sung
+/// pitch, so the shift wanders continuously.
+///
+/// Changing the shift changes the vocoder's internal analysis hop and drain
+/// rate, which is exactly what the output bank exists to absorb. If it
+/// cannot, a voice re-primes and goes silent for a few blocks, and a singer
+/// holding one note would hear the harmony stutter.
+static void testModulatedPitchStaysContinuous(void) {
+    printf("── Test 5: a voice re-pitched every block does not stutter\n");
+
+    const int burst = 128;
+    gf_harmony* h = gf_harmony_create(burst);
+    if (!h) { report("harmony engine could be created", 0, ""); return; }
+    gf_harmony_set_voice_count(h, 2);
+
+    static float in[128], out[128];
+    long phase = 0;
+    double prev = 0, worst = 0, peak = 0;
+    int started = 0, silentBlocks = 0, measured = 0;
+
+    for (int b = 0; b < SR * 4 / burst; b++) {
+        // A shift that drifts a whole tone up and back over a few seconds,
+        // standing in for a detector tracking a real voice.
+        const double t = (double)b * burst / SR;
+        const float wander = (float)(7.0 + 2.0 * sin(2.0 * M_PI * 0.25 * t));
+        gf_harmony_set_voice(h, 0, wander, 0.7f);
+        gf_harmony_set_voice(h, 1, wander + 5.0f, 0.7f);
+
+        for (int i = 0; i < burst; i++, phase++) in[i] = testSample(phase, 0.5);
+        gf_harmony_process(h, in, out, burst);
+
+        if (b <= SR / burst) { prev = out[burst - 1]; continue; }   // warm-up
+
+        // A block that came out silent after warm-up means a voice dropped
+        // back into re-priming.
+        double blockPeak = 0;
+        for (int i = 0; i < burst; i++) {
+            const double a = fabs(out[i]);
+            if (a > blockPeak) blockPeak = a;
+        }
+        if (blockPeak < 1e-6) silentBlocks++;
+        measured++;
+
+        for (int i = 0; i < burst; i++) {
+            if (started) {
+                const double step = fabs(out[i] - prev);
+                if (step > worst) worst = step;
+            }
+            prev = out[i];
+            started = 1;
+            if (fabs(out[i]) > peak) peak = fabs(out[i]);
+        }
+    }
+    gf_harmony_destroy(h);
+
+    const double ratio = (peak > 1e-9) ? worst / peak : 0;
+    char detail[200];
+    snprintf(detail, sizeof detail,
+             "%d silent block(s) of %d, worst step %.1f%% of peak "
+             "(the tone's own slew is 8.6%%)",
+             silentBlocks, measured, 100.0 * ratio);
+    report("continuous while the shift wanders", silentBlocks == 0 && ratio < 0.10,
+           detail);
+}
+
 // ── Entry point ──────────────────────────────────────────────────────────────
 
 int main(void) {
@@ -277,6 +354,7 @@ int main(void) {
     testLevelIsIndependentOfVoiceCount();
     testContinuity();
     testIntervalGainFlatness();
+    testModulatedPitchStaysContinuous();
 
     printf("\n");
     if (g_failures == 0) {

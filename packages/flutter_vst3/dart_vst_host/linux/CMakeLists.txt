@@ -97,6 +97,7 @@ add_library(${PROJECT_NAME} SHARED
   ${NATIVE_DIR}/src/gfpa_dsp.cpp
   ${NATIVE_DIR}/src/audio_looper.cpp
   ${GF_NATIVE_AUDIO_DIR}/gf_phase_vocoder.c
+  ${GF_NATIVE_AUDIO_DIR}/gf_harmony.c
   ${VST3_BASE_SOURCES}
   ${VST3_SDK_SOURCES}
 )

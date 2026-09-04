@@ -495,7 +495,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get guideVocoderBody =>
-      'Le vocodeur utilise le micro pour moduler le son du synthé. Accédez-y via le preset \'VOCODER\' dans le sélecteur de patchs. Pour de meilleurs résultats :\n• Utilisez un casque ou des enceintes filaires (la latence Bluetooth est trop élevée).\n• Réglez les niveaux avec les boutons de gain.\n• Limitation Android : Vous ne pouvez pas utiliser deux périphériques USB séparés pour l\'entrée et la sortie. Utilisez un seul hub USB ou le micro interne.\n• Expérimentez avec les différentes ondes porteuses (Saw, Pulse, Neutral).';
+      'Le vocodeur utilise le micro pour moduler le son du synthé. Accédez-y via le preset \'VOCODER\' dans le sélecteur de patchs. Pour de meilleurs résultats :\n• Utilisez un casque ou des enceintes filaires (la latence Bluetooth est trop élevée).\n• Réglez les niveaux avec les boutons de gain.\n• Limitation Android : Vous ne pouvez pas utiliser deux périphériques USB séparés pour l\'entrée et la sortie. Utilisez un seul hub USB ou le micro interne.\n• Expérimentez avec les ondes porteuses (Dent de scie, Carrée, Choral), ou passez en Harmonie, qui abandonne la porteuse et transpose votre propre voix sur les touches tenues.';
 
   @override
   String get guideThereminTitle => 'Thérémine et Stylophone';
@@ -2092,4 +2092,16 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get intervalTooltipUnison =>
       'Unisson — la même hauteur que la note jouée';
+
+  @override
+  String get vocoderWaveSaw => 'Dent de scie';
+
+  @override
+  String get vocoderWaveSquare => 'Carrée';
+
+  @override
+  String get vocoderWaveChoral => 'Choral';
+
+  @override
+  String get vocoderWaveHarmony => 'Harmonie';
 }

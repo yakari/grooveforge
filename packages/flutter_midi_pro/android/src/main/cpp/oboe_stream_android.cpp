@@ -474,6 +474,10 @@ static aaudio_data_callback_result_t audioCallback(
 /// AAUDIO_ERROR_TIMEOUT variant), the stream is closed and reopened on a
 /// detached thread.  The device ID is reset to 0 (system default) so the
 /// new stream targets whatever device Android now considers active.
+/// How many times the recovery thread tries to reopen before giving up.
+/// Six attempts with a rising delay spans roughly three seconds.
+static constexpr int kRecoveryAttempts = 6;
+
 static void errorCallback(AAudioStream* stream, void* /*userData*/,
                           aaudio_result_t error)
 {
@@ -482,6 +486,16 @@ static void errorCallback(AAudioStream* stream, void* /*userData*/,
     // Capture sample rate before the stream becomes invalid.
     const int sr = AAudioStream_getSampleRate(stream);
 
+    // One recovery at a time. A route change can deliver several errors in a
+    // row, and three threads racing to reopen the same stream is worse than
+    // the disconnection.
+    static std::atomic<bool> recovering{false};
+    bool expected = false;
+    if (!recovering.compare_exchange_strong(expected, true)) {
+        LOGW("AAudio error recovery already in progress — ignoring");
+        return;
+    }
+
     // Reopen on a detached thread — we must not block the error callback, and
     // oboe_stream_stop/start touch the mutex and may block briefly.
     std::thread([sr]() {
@@ -489,7 +503,31 @@ static void errorCallback(AAudioStream* stream, void* /*userData*/,
              "(was device %d)", g_outputDeviceId);
         g_outputDeviceId = 0;  // fall back to system default
         oboe_stream_stop();
-        oboe_stream_start(sr);
+
+        // Retry with a backoff rather than trying once and giving up.
+        //
+        // What disconnects the stream in the first place — a USB headset
+        // arriving, its microphone being opened, the audio server
+        // restarting — also leaves the AAudio service unable to open
+        // anything for a moment afterwards. A single immediate attempt
+        // lands squarely inside that window and comes back NO_SERVICE, and
+        // because nothing ever tried again the app stayed silent until it
+        // was restarted. That is the "no sound on my USB DAC" report.
+        for (int attempt = 1; attempt <= kRecoveryAttempts; ++attempt) {
+            oboe_stream_start(sr);
+            if (g_stream != nullptr) {
+                LOGI("AAudio stream recovered on attempt %d", attempt);
+                recovering.store(false);
+                return;
+            }
+            // 150, 300, 450 ... ms — about 3 s of patience in total.
+            std::this_thread::sleep_for(
+                    std::chrono::milliseconds(150 * attempt));
+        }
+        LOGE("AAudio stream could not be recovered after %d attempts — audio "
+             "will stay silent until the stream is restarted",
+             kRecoveryAttempts);
+        recovering.store(false);
     }).detach();
 }
 

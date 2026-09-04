@@ -250,7 +250,7 @@
   "guideJamModeTitle": "Mode Jam (Auto-Harmonie)",
   "guideJamModeBody": "Le Mode Jam vous permet de jouer sans fausse note en verrouillant toutes les touches sur une gamme spécifique. Un canal fait office de 'Master' (transmettant sa gamme) tandis que les autres sont des 'Slaves'. Utilisez les contrôles supérieurs pour définir la tonique et le type de gamme.",
   "guideVocoderTitle": "Vocodeur (Synthé Vocal)",
-  "guideVocoderBody": "Le vocodeur utilise le micro pour moduler le son du synthé. Accédez-y via le preset 'VOCODER' dans le sélecteur de patchs. Pour de meilleurs résultats :\n• Utilisez un casque ou des enceintes filaires (la latence Bluetooth est trop élevée).\n• Réglez les niveaux avec les boutons de gain.\n• Limitation Android : Vous ne pouvez pas utiliser deux périphériques USB séparés pour l'entrée et la sortie. Utilisez un seul hub USB ou le micro interne.\n• Expérimentez avec les différentes ondes porteuses (Saw, Pulse, Neutral).",
+  "guideVocoderBody": "Le vocodeur utilise le micro pour moduler le son du synthé. Accédez-y via le preset 'VOCODER' dans le sélecteur de patchs. Pour de meilleurs résultats :\n• Utilisez un casque ou des enceintes filaires (la latence Bluetooth est trop élevée).\n• Réglez les niveaux avec les boutons de gain.\n• Limitation Android : Vous ne pouvez pas utiliser deux périphériques USB séparés pour l'entrée et la sortie. Utilisez un seul hub USB ou le micro interne.\n• Expérimentez avec les ondes porteuses (Dent de scie, Carrée, Choral), ou passez en Harmonie, qui abandonne la porteuse et transpose votre propre voix sur les touches tenues.",
   "guideThereminTitle": "Thérémine et Stylophone",
   "guideThereminBody": "La Thérémine a deux modes de jeu. PAD est un pad tactile : on glisse de haut en bas pour la hauteur, de gauche à droite pour le volume. CAM (Android, iOS et macOS) se sert de l'autofocus de la caméra frontale pour évaluer la distance de la main — plus elle est proche, plus le son est aigu, et en l'éloignant suffisamment la note se tait ; le volume reste au maximum dans ce mode. BASE règle la note la plus grave, RANGE l'étendue en octaves, VIB la profondeur du vibrato et HEIGHT la taille du pad.\nLe Stylophone est une bande chromatique de 25 touches, que l'on joue en touchant ou en glissant dessus. Il est monophonique comme l'original, et le glissé d'une touche à l'autre passe sans clic. SQR, SAW, SIN et TRI choisissent la forme d'onde.",
   "guideDrumGeneratorTitle": "Générateur de batterie",
@@ -892,5 +892,9 @@
   "intervalTooltipUnison": "Unisson — la même hauteur que la note jouée",
   "@intervalTooltipUnison": {
     "description": "Long-press text on a harmonizer interval readout set to zero."
-  }
+  },
+  "vocoderWaveSaw": "Dent de scie",
+  "vocoderWaveSquare": "Carrée",
+  "vocoderWaveChoral": "Choral",
+  "vocoderWaveHarmony": "Harmonie"
 }

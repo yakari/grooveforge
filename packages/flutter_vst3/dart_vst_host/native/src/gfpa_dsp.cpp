@@ -16,6 +16,7 @@
 //   - No heap allocation, no logging, no locks inside any process() method.
 
 #include "../include/gfpa_dsp.h"
+#include "gf_harmony.h"
 #include "gf_phase_vocoder.h"
 
 #include <atomic>
@@ -686,83 +687,33 @@ struct ChorusEffect {
 
 // ── Harmonizer ────────────────────────────────────────────────────────────────
 //
-// Up to four phase-vocoder-pitched harmony voices summed with the dry
-// signal. Each voice is an independent `gf_pv_context` per channel
-// (running in mono mode), so a 4-voice harmonizer holds 8 PV contexts
-// total. They run in parallel — each consumes the same input block, each
-// produces its own pitch-shifted version, and the results are mixed with
-// per-voice gains and a master dry/wet.
+// Up to four pitch-shifted harmony voices mixed against the dry signal.
 //
-// Latency banking
-// ---------------
-// A phase vocoder emits output in synthesis-frame quanta (512 samples at
-// the settings below), never in whatever block size the audio device asks
-// for. Draining "however much is ready" into a fixed-size block therefore
-// leaves a hole at the end of most blocks — on Android, where a burst is
-// 96-240 frames and a frame arrives only every 512, the majority of blocks
-// would be part harmony, part silence. Those holes are step discontinuities
-// at block rate, which is precisely what a heavily crackling harmonizer
-// sounds like.
-//
-// The fix is to stay deliberately behind the vocoder. Each voice first
-// runs in a warm-up state where it pushes input and drains nothing; once
-// `gf_pv_available` reports [kBankFrames] banked samples the voice starts
-// emitting, and from then on it takes exactly `n` samples per block and
-// leaves the surplus inside the vocoder. The bank absorbs the quantisation
-// jitter, so every block gets a full, continuous harmony signal.
-//
-// The bank is sized from the vocoder's production quantum, not from the
-// block size. Over any stretch of blocks the vocoder produces exactly as
-// many samples as it consumes; all the bank has to absorb is the rounding —
-// the cumulative production can trail the ideal by at most one quantum,
-// whatever the block size is. Two quanta covers that with room for the
-// analysis hop drifting against the block grid.
-//
-// Sizing it from the block size instead, as an earlier revision did, made
-// the latency track the audio device: harmless at a 96-frame Android burst
-// and 85 ms of dead weight at a 2048-frame desktop period.
+// The signal engine — the phase vocoders, the latency banking that lets a
+// frame-quantised vocoder fill whole audio blocks, the headroom stage that
+// stops the summed voices clipping, the per-voice restart — lives in
+// `gf_harmony`, shared with the vocoder's harmonizer mode. What stays here is
+// the part that is specific to being an insert effect: the parameter surface,
+// the dry/wet crossfade, and the stereo handling.
 struct HarmonizerEffect {
-    static constexpr int kMaxVoices = 4;
-
-    /// FFT window and analysis hop for every voice's vocoder. 2048 at 48 kHz
-    /// gives 23 Hz bins — fine enough to resolve the partials of a low male
-    /// voice or a bass guitar, which is what peak-based phase locking needs.
-    static constexpr int kFftSize = 2048;
-    static constexpr int kHopSize = 512;
-
-    /// Production quanta a voice banks before it starts contributing.
-    /// See the note above the struct.
-    static constexpr int kBankQuanta = 2;
+    static constexpr int kMaxVoices = GF_HARMONY_MAX_VOICES;
 
     int32_t blockSize;
 
-    // Two PV contexts per voice — one per channel — running in mono mode.
-    // Allocated once in the constructor; never reallocated. The audio
-    // thread only ever reads / processes through these.
-    gf_pv_context* pvL[kMaxVoices] = {nullptr, nullptr, nullptr, nullptr};
-    gf_pv_context* pvR[kMaxVoices] = {nullptr, nullptr, nullptr, nullptr};
+    /// One engine per channel. Each is mono; the right one idles whenever
+    /// the source turns out to be mono, which is most of the time.
+    gf_harmony* harmonyL = nullptr;
+    gf_harmony* harmonyR = nullptr;
 
-    // Per-voice run state, audio thread only.
-    //
-    // `primed` is false while a voice is filling its bank (during which it
-    // contributes silence) and true once it can serve whole blocks.
-    // `running` remembers whether the voice was audible last block, so a
-    // voice that is switched back on — by the voice-count knob or by its
-    // mix coming off zero — restarts from a clean vocoder instead of
-    // replaying a stale overlap-add tail.
-    bool primed[kMaxVoices]  = {false, false, false, false};
-    bool running[kMaxVoices] = {false, false, false, false};
+    /// Harmony for this block, before the dry/wet crossfade.
+    std::vector<float> wetL;
+    std::vector<float> wetR;
 
     /// Whether the previous block took the mono shortcut. A source that
-    /// turns from mono to stereo (or back) changes which vocoders are being
-    /// fed, so every voice restarts — otherwise the right channel would
-    /// suddenly be asked for harmony it has no input backlog for.
+    /// turns from mono to stereo (or back) changes which engines are being
+    /// fed, so both restart — otherwise the right channel would suddenly be
+    /// asked for harmony it has no input backlog for.
     bool lastMono = true;
-
-    // Output scratch — one block worth of mono output per channel, reused
-    // across voices. We sum into outL/outR after each voice.
-    std::vector<float> scratchOutL;
-    std::vector<float> scratchOutR;
 
     // Atomic parameters. All written by Dart, read on the audio thread.
     std::atomic<float> voiceCount{2.0f};       // 1..4
@@ -782,20 +733,16 @@ struct HarmonizerEffect {
 
     HarmonizerEffect(int32_t block)
         : blockSize(block)
-        , scratchOutL(block, 0.0f)
-        , scratchOutR(block, 0.0f)
+        , wetL(block, 0.0f)
+        , wetR(block, 0.0f)
     {
-        for (int v = 0; v < kMaxVoices; ++v) {
-            pvL[v] = gf_pv_create(kFftSize, kHopSize, 1);
-            pvR[v] = gf_pv_create(kFftSize, kHopSize, 1);
-        }
+        harmonyL = gf_harmony_create(block);
+        harmonyR = gf_harmony_create(block);
     }
 
     ~HarmonizerEffect() {
-        for (int v = 0; v < kMaxVoices; ++v) {
-            gf_pv_destroy(pvL[v]);
-            gf_pv_destroy(pvR[v]);
-        }
+        gf_harmony_destroy(harmonyL);
+        gf_harmony_destroy(harmonyR);
     }
 
     void setParam(const char* id, float v) {
@@ -814,178 +761,64 @@ struct HarmonizerEffect {
     void process(const float* inL, const float* inR,
                  float* outL, float* outR, int32_t n)
     {
-        // Snapshot atomics once so the per-sample loop sees a stable value.
+        if (!harmonyL || !harmonyR) return;
+
+        // Snapshot atomics once so the block sees a stable value.
         const float dw      = dryWet.load(std::memory_order_relaxed);
         const float dryGain = 1.0f - dw;
-        int active = (int)voiceCount.load(std::memory_order_relaxed);
-        if (active < 1) active = 1;
-        if (active > kMaxVoices) active = kMaxVoices;
 
-        // Headroom. Harmony voices are pitch-shifted copies of one signal,
-        // so on a sustained note their peaks line up and the sum is close to
-        // the arithmetic sum of the mixes — four voices at the default
-        // settings reach 2.4x the input. Nothing downstream attenuates, so
-        // that lands on the audio device as hard clipping, which is heard as
-        // crackle and gets worse the more voices are playing.
-        //
-        // Dividing by the total mix caps the wet path at unity while leaving
-        // the balance between voices alone. Only *above* unity: a single
-        // voice at 0.3 stays quiet rather than being normalised up to full.
-        const float wetGain = dw * wetHeadroom(active);
+        pushVoiceParams();
 
         // Mono-input shortcut: when inL and inR are bit-identical (Live
         // Input Source passthrough, mono keyboard, theremin, stylophone),
-        // every PV context on the R channel would compute the exact same
-        // FFT as its L counterpart — pure waste. Detect this once per
-        // block via memcmp and process only the L channel, then copy the
-        // result into R. Halves the phase-vocoder load for mono sources,
-        // which is the difference between the harmonizer being realtime
-        // and running late on modest Android hardware.
+        // the right engine would compute the exact same FFTs as the left —
+        // pure waste. Detect it once per block and run one engine, which
+        // halves the phase-vocoder load for mono sources.
         const bool mono =
             (inL == inR) ||
             (std::memcmp(inL, inR,
                          static_cast<size_t>(n) * sizeof(float)) == 0);
 
         if (mono != lastMono) {
-            for (int v = 0; v < kMaxVoices; ++v) running[v] = false;
+            gf_harmony_reset(harmonyL);
+            gf_harmony_reset(harmonyR);
             lastMono = mono;
         }
 
-        // Seed the output with the dry signal scaled by (1 - dryWet).
+        gf_harmony_process(harmonyL, inL, wetL.data(), n);
         for (int32_t i = 0; i < n; ++i) {
-            outL[i] = inL[i] * dryGain;
-        }
-        if (!mono) {
-            for (int32_t i = 0; i < n; ++i) {
-                outR[i] = inR[i] * dryGain;
-            }
+            outL[i] = inL[i] * dryGain + wetL[i] * dw;
         }
 
-        for (int v = 0; v < kMaxVoices; ++v) {
-            // A voice past the count knob, or turned down to silence, is
-            // skipped outright — four idle vocoders are four FFTs per hop
-            // that nobody would hear.
-            const float mix = voiceMix[v].load(std::memory_order_relaxed);
-            const bool wanted = (v < active) && (mix > 0.0001f);
-            if (!wanted) {
-                stopVoice(v);
-                continue;
-            }
-            startVoiceIfNeeded(v);
-            mixVoice(v, mix * wetGain, inL, inR, outL, outR, n, mono);
-        }
-
-        // Mirror the final mixed L output into R for the mono-source case,
-        // done once at the end so the downstream mixer sees a stereo pair.
         if (mono) {
-            std::memcpy(outR, outL,
-                        static_cast<size_t>(n) * sizeof(float));
+            // Same input, same harmony — reuse the left result rather than
+            // running a second set of vocoders over identical samples.
+            std::memcpy(outR, outL, static_cast<size_t>(n) * sizeof(float));
+            return;
+        }
+
+        gf_harmony_process(harmonyR, inR, wetR.data(), n);
+        for (int32_t i = 0; i < n; ++i) {
+            outR[i] = inR[i] * dryGain + wetR[i] * dw;
         }
     }
 
 private:
-    /// Attenuation that keeps the summed wet path at or below unity.
-    ///
-    /// Returns 1 when the voices that will actually play already sum to less
-    /// than full scale, so quiet settings are never pushed up.
-    float wetHeadroom(int active) const {
-        float total = 0.0f;
-        for (int v = 0; v < active; ++v) {
-            const float mix = voiceMix[v].load(std::memory_order_relaxed);
-            if (mix > 0.0001f) total += mix;
+    /// Forwards the knob values to both engines.
+    void pushVoiceParams() {
+        int active = (int)voiceCount.load(std::memory_order_relaxed);
+        if (active < 1) active = 1;
+        if (active > kMaxVoices) active = kMaxVoices;
+
+        gf_harmony_set_voice_count(harmonyL, active);
+        gf_harmony_set_voice_count(harmonyR, active);
+
+        for (int v = 0; v < kMaxVoices; ++v) {
+            const float semis = voiceSemitones[v].load(std::memory_order_relaxed);
+            const float mix   = voiceMix[v].load(std::memory_order_relaxed);
+            gf_harmony_set_voice(harmonyL, v, semis, mix);
+            gf_harmony_set_voice(harmonyR, v, semis, mix);
         }
-        return (total > 1.0f) ? (1.0f / total) : 1.0f;
-    }
-
-    /// Marks a voice as silent. Nothing is reset here: the reset happens on
-    /// the way back in, so a voice that is toggled off and on again does
-    /// not pay for a vocoder flush it may never need.
-    void stopVoice(int v) { running[v] = false; }
-
-    /// Brings a voice back from silence with a clean vocoder.
-    ///
-    /// Without the reset, the first block after re-enabling would replay the
-    /// overlap-add tail and input backlog left over from whenever the voice
-    /// was last audible — a burst of unrelated audio at the moment the user
-    /// turns the mix up.
-    void startVoiceIfNeeded(int v) {
-        if (running[v]) return;
-        gf_pv_reset(pvL[v]);
-        gf_pv_reset(pvR[v]);
-        primed[v] = false;
-        running[v] = true;
-    }
-
-    /// Throws away everything a voice banked beyond [target] frames.
-    ///
-    /// The bank is only checked between blocks, so a large block can push it
-    /// well past the target in one step — and whatever it holds when it
-    /// starts playing is latency it keeps for as long as the voice runs.
-    /// Discarding the surplus is a one-off cut into audio that has not been
-    /// heard yet, and it pins the latency to the target no matter how big
-    /// the audio device's blocks are.
-    void trimBank(int v, int target, bool mono) {
-        dropFrames(pvL[v], scratchOutL, target);
-        if (!mono) dropFrames(pvR[v], scratchOutR, target);
-    }
-
-    /// Drains [pv] down to [target] available frames, discarding what comes
-    /// out. Reads in scratch-sized chunks so the fixed buffer is never
-    /// overrun; passing zero input frames makes the call a pure drain.
-    void dropFrames(gf_pv_context* pv, std::vector<float>& scratch, int target) {
-        const int capacity = static_cast<int>(scratch.size());
-        int surplus = gf_pv_available(pv) - target;
-        while (surplus > 0) {
-            const int take = (surplus < capacity) ? surplus : capacity;
-            const int got = gf_pv_process_block(pv, nullptr, 0, scratch.data(), take);
-            if (got <= 0) break;   // nothing more to give; stop rather than spin
-            surplus -= got;
-        }
-    }
-
-    /// Runs one voice's vocoders over this block and sums the result into
-    /// the output at [gain].
-    void mixVoice(int v, float gain,
-                  const float* inL, const float* inR,
-                  float* outL, float* outR, int32_t n, bool mono)
-    {
-        const float semis = voiceSemitones[v].load(std::memory_order_relaxed);
-        gf_pv_set_pitch_semitones(pvL[v], semis);
-        if (!mono) gf_pv_set_pitch_semitones(pvR[v], semis);
-
-        // While banking, push input and take nothing: capacity 0 leaves
-        // every produced sample inside the vocoder.
-        if (!primed[v]) {
-            gf_pv_process_block(pvL[v], inL, n, scratchOutL.data(), 0);
-            if (!mono) {
-                gf_pv_process_block(pvR[v], inR, n, scratchOutR.data(), 0);
-            }
-            // Both channels fill at the same rate, so the left one decides.
-            // The quantum shrinks as a voice is transposed up, so a voice an
-            // octave above needs half the bank of one at unison.
-            const int needed = kBankQuanta * gf_pv_output_quantum(pvL[v]);
-            if (gf_pv_available(pvL[v]) >= needed) {
-                trimBank(v, needed, mono);
-                primed[v] = true;
-            }
-            return; // voice stays silent for this block
-        }
-
-        const int gotL =
-            gf_pv_process_block(pvL[v], inL, n, scratchOutL.data(), n);
-        for (int32_t i = 0; i < gotL; ++i) outL[i] += scratchOutL[i] * gain;
-
-        if (!mono) {
-            const int gotR =
-                gf_pv_process_block(pvR[v], inR, n, scratchOutR.data(), n);
-            for (int32_t i = 0; i < gotR; ++i) outR[i] += scratchOutR[i] * gain;
-        }
-
-        // A short block means the bank ran dry — possible only right after
-        // a large pitch jump, which briefly changes the vocoder's internal
-        // rates. Rebuilding the bank costs this voice a few silent blocks
-        // and is far less audible than serving partial blocks forever.
-        if (gotL < n) primed[v] = false;
     }
 };
 

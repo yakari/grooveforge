@@ -493,7 +493,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get guideVocoderBody =>
-      'The Vocoder uses your device microphone to modulate the synth sound. Access it by selecting the \'VOCODER\' preset in the soundfont dropdown. For best results:\n• Use wired headphones or speakers (latency over Bluetooth is too high).\n• Setup mic levels with the gain knobs.\n• Android Limitation: You cannot use separate USB devices for input and output. Use a single USB hub/interface that handles both, or the internal mic.\n• Experiment with different carrier waves (Saw, Pulse, Neutral).';
+      'The Vocoder uses your device microphone to modulate the synth sound. Access it by selecting the \'VOCODER\' preset in the soundfont dropdown. For best results:\n• Use wired headphones or speakers (latency over Bluetooth is too high).\n• Setup mic levels with the gain knobs.\n• Android Limitation: You cannot use separate USB devices for input and output. Use a single USB hub/interface that handles both, or the internal mic.\n• Experiment with the carrier waves (Saw, Square, Choral), or switch to Harmony, which drops the carrier entirely and pitch-shifts your own voice onto the keys you hold.';
 
   @override
   String get guideThereminTitle => 'Theremin and Stylophone';
@@ -2078,4 +2078,16 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get intervalTooltipUnison =>
       'Unison — the same pitch as the played note';
+
+  @override
+  String get vocoderWaveSaw => 'Saw';
+
+  @override
+  String get vocoderWaveSquare => 'Square';
+
+  @override
+  String get vocoderWaveChoral => 'Choral';
+
+  @override
+  String get vocoderWaveHarmony => 'Harmony';
 }

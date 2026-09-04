@@ -965,7 +965,7 @@ abstract class AppLocalizations {
   /// No description provided for @guideVocoderBody.
   ///
   /// In en, this message translates to:
-  /// **'The Vocoder uses your device microphone to modulate the synth sound. Access it by selecting the \'VOCODER\' preset in the soundfont dropdown. For best results:\n• Use wired headphones or speakers (latency over Bluetooth is too high).\n• Setup mic levels with the gain knobs.\n• Android Limitation: You cannot use separate USB devices for input and output. Use a single USB hub/interface that handles both, or the internal mic.\n• Experiment with different carrier waves (Saw, Pulse, Neutral).'**
+  /// **'The Vocoder uses your device microphone to modulate the synth sound. Access it by selecting the \'VOCODER\' preset in the soundfont dropdown. For best results:\n• Use wired headphones or speakers (latency over Bluetooth is too high).\n• Setup mic levels with the gain knobs.\n• Android Limitation: You cannot use separate USB devices for input and output. Use a single USB hub/interface that handles both, or the internal mic.\n• Experiment with the carrier waves (Saw, Square, Choral), or switch to Harmony, which drops the carrier entirely and pitch-shifts your own voice onto the keys you hold.'**
   String get guideVocoderBody;
 
   /// No description provided for @guideThereminTitle.
@@ -3865,6 +3865,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Unison — the same pitch as the played note'**
   String get intervalTooltipUnison;
+
+  /// Vocoder carrier waveform: sawtooth.
+  ///
+  /// In en, this message translates to:
+  /// **'Saw'**
+  String get vocoderWaveSaw;
+
+  /// Vocoder carrier waveform: square.
+  ///
+  /// In en, this message translates to:
+  /// **'Square'**
+  String get vocoderWaveSquare;
+
+  /// Vocoder carrier waveform: a choral ensemble of glottal pulses.
+  ///
+  /// In en, this message translates to:
+  /// **'Choral'**
+  String get vocoderWaveChoral;
+
+  /// Vocoder mode that pitch-shifts the live voice onto the held keys instead of using a synthetic carrier.
+  ///
+  /// In en, this message translates to:
+  /// **'Harmony'**
+  String get vocoderWaveHarmony;
 }
 
 class _AppLocalizationsDelegate
