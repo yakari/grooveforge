@@ -40,7 +40,23 @@ void main() {
       expect(descriptor.type, GFPluginType.effect);
     });
 
-    test('exposes the 10 expected parameters in order', () {
+    test('scale lock is declared and defaults to off', () {
+      // Off by default: a fixed interval is what the module has always done,
+      // and Scale Lock only makes sense once a scale is actually locked.
+      final p = descriptor.paramById('scale_lock')!;
+      expect(p.paramId, 10);
+      expect(p.type, GFDescriptorParamType.toggle);
+      expect(p.defaultValue, 0);
+    });
+
+    test('the scale itself is not a parameter', () {
+      // `scale_mask` is host state pushed straight to the DSP. As a
+      // parameter it would be saved into the project, and reopening a song
+      // would apply whatever scale happened to be active when it was saved.
+      expect(descriptor.paramById('scale_mask'), isNull);
+    });
+
+    test('exposes the expected parameters in order', () {
       // Order must match the paramId numbering in the .gfpd file so a
       // user-saved .gf project can map paramId → semantic role unambiguously.
       final ids = descriptor.parameters.map((p) => p.id).toList();
@@ -55,6 +71,7 @@ void main() {
         'voice3_mix',
         'voice4_mix',
         'dry_wet',
+        'scale_lock',
       ]);
     });
 

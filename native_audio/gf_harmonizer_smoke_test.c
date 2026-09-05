@@ -345,6 +345,93 @@ static void testModulatedPitchStaysContinuous(void) {
            detail);
 }
 
+// ── 5. Scale Lock ────────────────────────────────────────────────────────────
+
+/// Frequency of a MIDI note.
+static double midi_to_hz(double note) {
+    return 440.0 * pow(2.0, (note - 69.0) / 12.0);
+}
+
+/// The semitone shift the harmonizer actually applied, found by asking which
+/// candidate output frequency came out strongest.
+static int measure_shift(int rootNote, int scaleLock, int mask) {
+    GfpaDspHandle h = gfpa_dsp_create("com.grooveforge.audio_harmonizer", SR, 4096);
+    if (!h) return -1;
+    gfpa_dsp_set_param(h, "voice_count", 1.0);
+    gfpa_dsp_set_param(h, "voice1_semitones", 4.0);   // "a third above"
+    gfpa_dsp_set_param(h, "voice1_mix", 1.0);
+    gfpa_dsp_set_param(h, "dry_wet", 1.0);
+    gfpa_dsp_set_param(h, "scale_lock", scaleLock ? 1.0 : 0.0);
+    gfpa_dsp_set_param(h, "scale_mask", (double)mask);
+    GfpaInsertFn fn = gfpa_dsp_insert_fn(h);
+    void* ud = gfpa_dsp_userdata(h);
+
+    const int burst = 256;
+    static float in[256], outL[256], outR[256];
+    static float tape[SR * 3];
+    const double f0 = midi_to_hz(rootNote);
+    long phase = 0;
+    int t = 0;
+    for (int b = 0; b < SR * 3 / burst; b++) {
+        for (int i = 0; i < burst; i++, phase++) {
+            const double tt = 2.0 * M_PI * phase / SR;
+            in[i] = (float)(0.35 * (0.5 * sin(f0 * tt) + 0.8 * sin(2 * f0 * tt) +
+                                    0.5 * sin(3 * f0 * tt)));
+        }
+        fn(in, in, outL, outR, burst, ud);
+        for (int i = 0; i < burst && t < SR * 3; i++) tape[t++] = outL[i];
+    }
+    gfpa_dsp_destroy(h);
+
+    const float* mid = tape + SR;
+    const int n = t - SR - SR / 4;
+    double best = -1;
+    int bestShift = 0;
+    for (int sh = 0; sh <= 7; sh++) {
+        double w = 2.0 * M_PI * midi_to_hz(rootNote + sh) / SR;
+        double c = 2.0 * cos(w), s1 = 0, s2 = 0;
+        for (int i = 0; i < n; i++) { double s0 = mid[i] + c * s1 - s2; s2 = s1; s1 = s0; }
+        const double e = 2.0 * sqrt(fabs(s1 * s1 + s2 * s2 - c * s1 * s2)) / n;
+        if (e > best) { best = e; bestShift = sh; }
+    }
+    return bestShift;
+}
+
+static void testScaleLock(void) {
+    printf("── Test 6: Scale Lock bends the interval to the scale\n");
+
+    const int cMajor = 0xAB5;    // C D E F G A B
+    const int degrees[7] = {60, 62, 64, 65, 67, 69, 71};
+    // A third above each degree of C major, as a musician would write it:
+    // major over the I, IV and V, minor over the ii, iii, vi and vii.
+    const int wanted[7]  = {4, 3, 3, 4, 4, 3, 3};
+    const char* names[7] = {"C", "D", "E", "F", "G", "A", "B"};
+
+    int wrong = 0;
+    char detail[220] = "";
+    for (int i = 0; i < 7; i++) {
+        const int got = measure_shift(degrees[i], 1, cMajor);
+        if (got != wanted[i]) {
+            wrong++;
+            char one[40];
+            snprintf(one, sizeof one, "%s got +%d want +%d; ", names[i], got, wanted[i]);
+            strncat(detail, one, sizeof(detail) - strlen(detail) - 1);
+        }
+    }
+    if (wrong == 0) {
+        snprintf(detail, sizeof detail,
+                 "every degree of C major took the right third (4 3 3 4 4 3 3)");
+    }
+    report("a third above follows the scale, not a fixed +4", wrong == 0, detail);
+
+    // And with the lock off the interval must stay exactly where it was put,
+    // or the feature has changed the module's existing behaviour.
+    const int off = measure_shift(62, 0, cMajor);   // D, third above
+    char d2[120];
+    snprintf(d2, sizeof d2, "lock off over D gave +%d (must stay the knob's +4)", off);
+    report("with the lock off the interval is untouched", off == 4, d2);
+}
+
 // ── Entry point ──────────────────────────────────────────────────────────────
 
 int main(void) {
@@ -355,6 +442,7 @@ int main(void) {
     testContinuity();
     testIntervalGainFlatness();
     testModulatedPitchStaysContinuous();
+    testScaleLock();
 
     printf("\n");
     if (g_failures == 0) {

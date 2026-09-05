@@ -135,12 +135,22 @@ class SlotBackPanelWidget extends StatelessWidget {
       // layout (MIDI IN + audio OUT) to match the pre-existing behaviour.
       final registered = GFPluginRegistry.instance.findById(plugin.pluginId);
       if (registered is GFEffectPlugin) {
-        return [
+        final ports = [
           AudioPortId.audioInL,
           AudioPortId.audioInR,
           AudioPortId.audioOutL,
           AudioPortId.audioOutR,
         ];
+        // The Audio Harmonizer's Scale Lock needs to be told which scale to
+        // follow, and an audio effect has no MIDI channel to infer one from.
+        // Giving it the same SCALE IN jack the keyboard and vocoder have
+        // makes the answer a cable: patch the Xen module you mean, and with
+        // several of them in the rack there is no ambiguity about which one
+        // applies.
+        if (plugin.pluginId == 'com.grooveforge.audio_harmonizer') {
+          ports.add(AudioPortId.scaleIn);
+        }
+        return ports;
       }
       return [
         AudioPortId.midiIn,

@@ -17,6 +17,7 @@
 
 #include "../include/gfpa_dsp.h"
 #include "gf_harmony.h"
+#include "gf_pitch.h"
 #include "gf_phase_vocoder.h"
 
 #include <atomic>
@@ -700,6 +701,14 @@ struct HarmonizerEffect {
 
     int32_t blockSize;
 
+    /// Tracks the pitch of the incoming signal, for Scale Lock.
+    ///
+    /// A MIDI harmonizer can snap to a scale because it is told the note. An
+    /// audio one is not, so it has to hear it: "a third above" is four
+    /// semitones over C major and three over D minor, and picking between
+    /// them needs to know which note is being sung.
+    gf_pitch* pitch = nullptr;
+
     /// One engine per channel. Each is mono; the right one idles whenever
     /// the source turns out to be mono, which is most of the time.
     gf_harmony* harmonyL = nullptr;
@@ -731,18 +740,29 @@ struct HarmonizerEffect {
     };
     std::atomic<float> dryWet{0.5f}; // 0 = dry only, 1 = wet only
 
-    HarmonizerEffect(int32_t block)
+    /// Scale Lock: when on, each voice's interval bends to the nearest note
+    /// of the host's active scale instead of staying a fixed semitone count.
+    std::atomic<float> scaleLock{0.0f};
+
+    /// The active scale as a 12-bit pitch-class mask, bit 0 = C. Pushed by
+    /// the host whenever the Xen or Jam Mode scale changes; all twelve bits
+    /// set (chromatic) means snapping cannot change anything.
+    std::atomic<int> scaleMask{0xFFF};
+
+    HarmonizerEffect(float sampleRate, int32_t block)
         : blockSize(block)
         , wetL(block, 0.0f)
         , wetR(block, 0.0f)
     {
         harmonyL = gf_harmony_create(block);
         harmonyR = gf_harmony_create(block);
+        pitch    = gf_pitch_create(sampleRate);
     }
 
     ~HarmonizerEffect() {
         gf_harmony_destroy(harmonyL);
         gf_harmony_destroy(harmonyR);
+        gf_pitch_destroy(pitch);
     }
 
     void setParam(const char* id, float v) {
@@ -756,6 +776,12 @@ struct HarmonizerEffect {
         else if (strcmp(id, "voice3_mix")       == 0) voiceMix[2].store(v);
         else if (strcmp(id, "voice4_mix")       == 0) voiceMix[3].store(v);
         else if (strcmp(id, "dry_wet")          == 0) dryWet.store(v);
+        else if (strcmp(id, "scale_lock")       == 0) scaleLock.store(v);
+        // Not a descriptor parameter: the host pushes the active scale here
+        // whenever it changes. Keeping it out of the descriptor keeps it out
+        // of the saved project too, where a stale scale would be worse than
+        // none.
+        else if (strcmp(id, "scale_mask")       == 0) scaleMask.store((int)v);
     }
 
     void process(const float* inL, const float* inR,
@@ -767,6 +793,12 @@ struct HarmonizerEffect {
         const float dw      = dryWet.load(std::memory_order_relaxed);
         const float dryGain = 1.0f - dw;
 
+        // Scale Lock needs to know what note is coming in, so the tracker
+        // sees the signal before the voices are configured. Only when the
+        // lock is on: tracking pitch nobody asked about is work for nothing.
+        const bool wantScaleLock =
+                scaleLock.load(std::memory_order_relaxed) >= 0.5f;
+        if (pitch && wantScaleLock) gf_pitch_process(pitch, inL, n);
         pushVoiceParams();
 
         // Mono-input shortcut: when inL and inR are bit-identical (Live
@@ -804,7 +836,26 @@ struct HarmonizerEffect {
     }
 
 private:
-    /// Forwards the knob values to both engines.
+    /// Nearest note of [mask] to [note], searching downwards first.
+    ///
+    /// Down-first tie-breaking matches Western harmonic convention and the
+    /// MIDI Harmonizer's Scale Lock, so the two modules agree when they are
+    /// handed the same scale.
+    static int snapToScale(int note, int mask) {
+        if (mask == 0) return note;                     // no scale: chromatic
+        const auto inScale = [mask](int n) {
+            return (mask & (1 << (((n % 12) + 12) % 12))) != 0;
+        };
+        if (inScale(note)) return note;
+        for (int d = 1; d <= 6; ++d) {
+            if (inScale(note - d)) return note - d;
+            if (inScale(note + d)) return note + d;
+        }
+        return note;                                    // empty mask
+    }
+
+    /// Forwards the knob values to both engines, bending the intervals to the
+    /// active scale when Scale Lock is on.
     void pushVoiceParams() {
         int active = (int)voiceCount.load(std::memory_order_relaxed);
         if (active < 1) active = 1;
@@ -813,9 +864,29 @@ private:
         gf_harmony_set_voice_count(harmonyL, active);
         gf_harmony_set_voice_count(harmonyR, active);
 
+        // Snapping needs a note to measure from. With no confident pitch —
+        // silence, a consonant, a chord — the intervals stay exactly as the
+        // knobs set them, which is the behaviour Scale Lock replaces rather
+        // than an error.
+        const float inNote = pitch ? gf_pitch_midi_note(pitch) : -1.0f;
+        const bool locked =
+                scaleLock.load(std::memory_order_relaxed) >= 0.5f && inNote >= 0.0f;
+        const int mask = scaleMask.load(std::memory_order_relaxed);
+        const int base = locked ? (int)lroundf(inNote) : 0;
+
         for (int v = 0; v < kMaxVoices; ++v) {
-            const float semis = voiceSemitones[v].load(std::memory_order_relaxed);
-            const float mix   = voiceMix[v].load(std::memory_order_relaxed);
+            float semis = voiceSemitones[v].load(std::memory_order_relaxed);
+            const float mix = voiceMix[v].load(std::memory_order_relaxed);
+
+            if (locked) {
+                // Snap the *destination* note, then shift by the difference.
+                // Shifting relatively rather than to an absolute pitch is
+                // what keeps the singer's own intonation and vibrato in the
+                // harmony instead of auto-tuning it flat.
+                const int target = snapToScale(base + (int)lroundf(semis), mask);
+                semis = (float)(target - base);
+            }
+
             gf_harmony_set_voice(harmonyL, v, semis, mix);
             gf_harmony_set_voice(harmonyR, v, semis, mix);
         }
@@ -918,7 +989,7 @@ GfpaDspHandle gfpa_dsp_create(const char* pluginId, int32_t sr, int32_t block) {
         inst->chorus = new ChorusEffect(static_cast<float>(sr), block);
     } else if (id == "com.grooveforge.audio_harmonizer") {
         inst->type       = GfpaEffectType::Harmonizer;
-        inst->harmonizer = new HarmonizerEffect(block);
+        inst->harmonizer = new HarmonizerEffect((float)sr, block);
     } else {
         delete inst;
         return nullptr;

@@ -96,6 +96,20 @@ parameters:
     max: 1.0
     default: 0.5
 
+  # Scale Lock: bend each voice's interval to the nearest note of the scale
+  # the Xen module (or Jam Mode) has locked, instead of holding a fixed
+  # semitone count. A third above is four semitones over C major and three
+  # over D minor; without this the harmony is wrong as soon as the chord
+  # moves. The scale itself arrives from the host as `scale_mask`, which is
+  # not a parameter — it is not the user's setting and must not be saved.
+  - id: scale_lock
+    paramId: 10
+    name: "Scale Lock"
+    min: 0
+    max: 1
+    default: 0
+    type: toggle
+
 # ─── Signal graph ──────────────────────────────────────────────────────────
 # SCAFFOLD STAGE: this graph is a pure pass-through. The four pitch-shifted
 # voices are not yet generated — once the C-side phase-vocoder harmonizer
@@ -153,6 +167,10 @@ ui:
         - type: knob
           param: dry_wet
           label: "Dry/Wet"
+          size: small
+        - type: toggle
+          param: scale_lock
+          label: "Scale Lock"
           size: small
 
     - label: "V1"

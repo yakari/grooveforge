@@ -3,6 +3,8 @@ package com.grooveforge.grooveforge
 import android.content.Context
 import android.media.AudioDeviceCallback
 import android.media.AudioDeviceInfo
+import android.media.AudioAttributes
+import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.os.Handler
 import android.os.Looper
@@ -19,6 +21,75 @@ class MainActivity : FlutterActivity() {
     private val mainHandler = Handler(Looper.getMainLooper())
     private var methodChannel: MethodChannel? = null
     private var audioManager: AudioManager? = null
+
+    // ── Audio focus ──────────────────────────────────────────────────────────
+    //
+    // Android has no way for an app to lock other apps out of the audio
+    // hardware — AAudio's EXCLUSIVE (MMAP) mode is exclusive over a device
+    // *endpoint*, not over the system, and the only thing it does when
+    // another app already holds it is make GrooveForge fall back to a shared
+    // stream. Audio focus is the mechanism that actually makes the other app
+    // stop, and without requesting it GrooveForge was simply one more player
+    // in the mix.
+    //
+    // Two symptoms this addresses. Plugging a jack makes Spotify start
+    // playing, because nothing told it not to. And a media app that was
+    // already running holds the low-latency path, which forces GrooveForge
+    // onto a contended shared stream — heard as audio cutting every few
+    // hundred milliseconds.
+    //
+    // AUDIOFOCUS_GAIN, not one of the TRANSIENT variants: a musical
+    // instrument is not a notification that borrows the output for a second
+    // and hands it back. Other media apps are expected to stop, not duck.
+    private var audioFocusRequest: AudioFocusRequest? = null
+
+    private val focusListener = AudioManager.OnAudioFocusChangeListener { change ->
+        // Deliberately no reaction beyond logging. Pausing the engine on
+        // focus loss would kill a live performance the moment a notification
+        // arrived, and GrooveForge is an instrument: the player decides when
+        // it stops.
+        Log.i(TAG, "Audio focus changed: $change")
+    }
+
+    /// Asks the system to hand this app the output and stop other players.
+    private fun requestAudioFocus() {
+        val am = audioManager ?: return
+        if (audioFocusRequest != null) return
+
+        val attributes = AudioAttributes.Builder()
+            // Matches the AAudio stream's own usage, so the platform routes
+            // and prioritises both halves of the app the same way.
+            .setUsage(AudioAttributes.USAGE_GAME)
+            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+            .build()
+
+        val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+            .setAudioAttributes(attributes)
+            // Never let the system quietly duck the instrument under a
+            // notification; a harmony dropping 20 dB mid-phrase is worse than
+            // the notification being inaudible.
+            .setWillPauseWhenDucked(false)
+            .setOnAudioFocusChangeListener(focusListener, mainHandler)
+            .build()
+
+        val result = am.requestAudioFocus(request)
+        if (result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
+            audioFocusRequest = request
+            Log.i(TAG, "Audio focus granted — other media apps asked to stop")
+        } else {
+            Log.w(TAG, "Audio focus request refused ($result); another app keeps the output")
+        }
+    }
+
+    /// Hands focus back, so whatever was playing may resume.
+    private fun abandonAudioFocus() {
+        val am = audioManager ?: return
+        audioFocusRequest?.let {
+            am.abandonAudioFocusRequest(it)
+            audioFocusRequest = null
+            Log.i(TAG, "Audio focus released")
+        }
+    }
 
     private val deviceCallback = object : AudioDeviceCallback() {
         override fun onAudioDevicesAdded(addedDevices: Array<AudioDeviceInfo>) {
@@ -140,11 +211,15 @@ class MainActivity : FlutterActivity() {
     override fun onResume() {
         super.onResume()
         audioManager?.registerAudioDeviceCallback(deviceCallback, mainHandler)
+        requestAudioFocus()
     }
 
     override fun onPause() {
         super.onPause()
         audioManager?.unregisterAudioDeviceCallback(deviceCallback)
+        // Released on pause rather than on destroy: holding focus while
+        // backgrounded would keep every other app silenced.
+        abandonAudioFocus()
     }
 
     /// Human-readable label for an [AudioDeviceInfo.type] constant.

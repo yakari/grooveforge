@@ -78,6 +78,7 @@ add_library(native-lib SHARED
         # Source of truth at repo-root native_audio/.
         ../../../../../../native_audio/gf_phase_vocoder.c
         ../../../../../../native_audio/gf_harmony.c
+        ../../../../../../native_audio/gf_pitch.c
 )
 
 # ── Optimisation floor for the DSP ────────────────────────────────────────

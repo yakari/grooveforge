@@ -278,6 +278,12 @@ static float renderOscillator(Oscillator* osc) {
 // This fires on a dedicated high-priority capture thread (short period = 256 frames
 // = 5.3ms). Samples are pushed to g_micRing so the playback callback always
 // has access to the freshest mic data without duplex clock-alignment lag.
+// Defined with the rest of the Live Input state further down; the capture
+// callback needs them to drive the input meter. Tentative declarations rather
+// than moving the definitions, so the Live Input section stays in one piece.
+static volatile float g_liveInputGainLin;
+static volatile float g_liveInputPeak;
+
 void mic_capture_callback(ma_device* pDevice, void* pOutput, const void* pInput,
                           ma_uint32 frameCount)
 {
@@ -285,9 +291,22 @@ void mic_capture_callback(ma_device* pDevice, void* pOutput, const void* pInput,
     if (!pIn || frameCount == 0) return;
 
     ma_uint32 writePos = g_micWriteCursor;  // snapshot
+    float peak = 0.0f;
     for (ma_uint32 i = 0; i < frameCount; i++) {
-        g_micRing[(writePos + i) & MIC_RING_MASK] = pIn[i];
+        const float s = pIn[i];
+        g_micRing[(writePos + i) & MIC_RING_MASK] = s;
+        const float a = s < 0.0f ? -s : s;
+        if (a > peak) peak = a;
     }
+
+    // Measure here rather than in live_input_render_block, which only runs
+    // when something downstream is pulling the slot. With nothing cabled the
+    // meter sat at zero and there was no way to check a microphone or set its
+    // gain before patching — the module looked broken. Scaled by the same
+    // input gain the render path applies, so the reading matches what the
+    // cable would carry.
+    const float scaled = peak * g_liveInputGainLin;
+    if (scaled > g_liveInputPeak) g_liveInputPeak = scaled;
     // Publish the new write position (store-release on ARM)
     __atomic_store_n(&g_micWriteCursor, (writePos + frameCount) & MIC_RING_MASK,
                      __ATOMIC_RELEASE);
@@ -1247,6 +1266,17 @@ EXPORT int start_audio_capture() {
     }
 
     result = ma_device_init(&context, &capConfig, &g_micDevice);
+    if (result == MA_SUCCESS) {
+        // The rate the device actually runs at. Everything downstream reads
+        // the mic ring assuming SAMPLE_RATE, so a device that delivers at a
+        // different rate drains or floods the ring at a fixed rate — heard
+        // as audio cutting out on a regular beat.
+        LOGI("GrooveForge: mic capture granted rate=%u (app assumes %d) "
+             "period=%u frames channels=%u",
+             (unsigned)g_micDevice.capture.internalSampleRate, SAMPLE_RATE,
+             (unsigned)g_micDevice.capture.internalPeriodSizeInFrames,
+             (unsigned)g_micDevice.capture.internalChannels);
+    }
     if (result != MA_SUCCESS) {
         LOGE("Failed to init capture device: %d", result);
         ma_context_uninit(&context);

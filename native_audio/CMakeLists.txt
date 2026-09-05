@@ -11,6 +11,7 @@ add_library(audio_input SHARED
     keyboard_synth.c
     gf_phase_vocoder.c
     gf_harmony.c
+    gf_pitch.c
 )
 
 find_package(Threads REQUIRED)
@@ -110,7 +111,8 @@ if (NOT ANDROID AND NOT IOS)
             gf_harmonizer_smoke_test.c
             ${GF_GFPA_DIR}/src/gfpa_dsp.cpp
             gf_phase_vocoder.c
-            gf_harmony.c)
+            gf_harmony.c
+            gf_pitch.c)
         set_target_properties(gf_harmonizer_smoke_test PROPERTIES LINKER_LANGUAGE CXX)
         target_include_directories(gf_harmonizer_smoke_test PRIVATE
             ${GF_GFPA_DIR}/include

@@ -122,6 +122,12 @@ class RackState extends ChangeNotifier {
     // order and routing rules to the native ALSA/CoreAudio processing loop.
     _audioGraph.addListener(_onAudioGraphChanged);
 
+    // Follow scale changes so the Audio Harmonizer's Scale Lock tracks the
+    // Xen module (or Jam Mode) live rather than only at slot creation.
+    for (final channel in _engine.channels) {
+      channel.validPitchClasses.addListener(_onScaleChanged);
+    }
+
     // Drive arpeggiators with an independent 10 ms tick so they advance even
     // when the user is holding notes and no fresh MIDI events are arriving.
     _midiFxTicker = Timer.periodic(
@@ -316,6 +322,9 @@ class RackState extends ChangeNotifier {
     _midiFxTicker?.cancel();
     _transport.removeListener(_onTransportChanged);
     _audioGraph.removeListener(_onAudioGraphChanged);
+    for (final channel in _engine.channels) {
+      channel.validPitchClasses.removeListener(_onScaleChanged);
+    }
     for (final plugin in _midiFxInstances.values) {
       plugin.dispose();
     }
@@ -1012,6 +1021,9 @@ class RackState extends ChangeNotifier {
       }
     }
     _engine.xenScaleLocks.value = locks;
+    // A scale cable to an audio effect never touches a channel, so the
+    // per-channel listener would not fire for it.
+    _onScaleChanged();
   }
 
   /// The MIDI channels behind a list of slot ids, skipping slots with none.
@@ -2088,6 +2100,77 @@ class RackState extends ChangeNotifier {
       final norm = plugin.getParameter(p.paramId);
       final physical = p.min + norm * (p.max - p.min);
       vst.setGfpaDspParam(slotId, p.id, physical);
+    }
+    _pushScaleMaskToNative(slotId);
+  }
+
+  /// Sends the scale a slot should follow to its native DSP.
+  ///
+  /// `scale_mask` is deliberately not a descriptor parameter. It is host
+  /// state, not a user setting: it changes whenever the Xen or Jam Mode scale
+  /// changes, and saving it into the project would mean reopening a song with
+  /// whatever scale happened to be active when it was saved.
+  void _pushScaleMaskToNative(String slotId) {
+    final mask = _scaleMaskForSlot(slotId);
+    // Logged because there is no other way to see this from the outside: a
+    // Scale Lock that does nothing looks identical whether the cable is not
+    // registering, the source module has no scale to give, or the pitch
+    // tracker is not hearing a note. 0xFFF means "nothing patched".
+    debugPrint('[RackState] scale mask for $slotId: '
+        '0x${mask.toRadixString(16).toUpperCase()}');
+    VstHostService.instance.setGfpaDspParam(slotId, 'scale_mask', mask.toDouble());
+  }
+
+  /// The scale patched into [slotId]'s SCALE IN jack, as a 12-bit pitch-class
+  /// mask with bit 0 = C. All twelve bits means chromatic, under which
+  /// snapping cannot move a note.
+  ///
+  /// Resolved from the cable, not from a channel. An audio effect has no MIDI
+  /// channel, so there is nothing to infer a scale from — and picking "any
+  /// scale locked anywhere", as the first cut did, is a coin toss the moment
+  /// a rack holds two Xen modules. The `scaleOut → scaleIn` cable already
+  /// names exactly which module drives which slot for the keyboard and the
+  /// vocoder; this reads the same wiring.
+  int _scaleMaskForSlot(String slotId) {
+    // Xen modules first: they are the ones with a scale worth following, and
+    // an active one cabled to this slot wins over a Jam Mode lock.
+    for (final entry in _xenPlugins.entries) {
+      final instance = _findGfpaById(entry.key);
+      if (instance == null) continue;
+      if (!instance.targetSlotIds.contains(slotId)) continue;
+      if (!_isXenActive(instance)) continue;
+      final mask = _maskFor(entry.value.validPitchClasses);
+      if (mask != null) return mask;
+    }
+
+    // Then Jam Mode, whose scaleOut jack patches the same way.
+    for (final plugin in _plugins.whereType<GFpaPluginInstance>()) {
+      if (plugin.pluginId != 'com.grooveforge.jammode') continue;
+      if (!plugin.targetSlotIds.contains(slotId)) continue;
+      final channel = (plugin.midiChannel - 1).clamp(0, 15);
+      final mask = _maskFor(_engine.channels[channel].validPitchClasses.value);
+      if (mask != null) return mask;
+    }
+
+    return 0xFFF;   // nothing patched: chromatic, so Scale Lock is a no-op
+  }
+
+  /// Packs a pitch-class set into a 12-bit mask, or null when there is no
+  /// usable scale.
+  int? _maskFor(Set<int>? pitchClasses) {
+    if (pitchClasses == null || pitchClasses.isEmpty) return null;
+    var mask = 0;
+    for (final pc in pitchClasses) {
+      mask |= 1 << (pc % 12);
+    }
+    return mask;
+  }
+
+  /// Re-sends the active scale to every audio effect that is listening for
+  /// one. Called when a scale lock changes anywhere.
+  void _onScaleChanged() {
+    for (final slotId in _audioEffectInstances.keys) {
+      _pushScaleMaskToNative(slotId);
     }
   }
 
