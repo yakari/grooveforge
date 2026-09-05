@@ -266,6 +266,7 @@ class ChordDetector {
               isMinor,
               suffix: suffix,
               extensionsMask: extraMask,
+              templateMask: templateMask,
             );
           }
         }
@@ -280,7 +281,26 @@ class ChordDetector {
       bestMatch.isMinor,
       suffix: bestMatch.suffix,
       extensionsMask: bestMatch.extensionsMask,
+      chordPitchClasses: _absolutePitchClasses(
+        bestMatch.templateMask | bestMatch.extensionsMask,
+        bestMatch.rootPc,
+      ),
     );
+  }
+
+  /// Turns a root-relative interval mask back into absolute pitch classes.
+  ///
+  /// The inverse of [_rotateMaskToRoot]: bit 4 of a C chord's template is the
+  /// major third, which is pitch class 4; the same bit on an F chord is pitch
+  /// class 9.
+  static Set<int> _absolutePitchClasses(int relativeMask, int rootPc) {
+    final pcs = <int>{};
+    for (var interval = 0; interval < 12; interval++) {
+      if ((relativeMask & (1 << interval)) != 0) {
+        pcs.add((rootPc + interval) % 12);
+      }
+    }
+    return pcs;
   }
 
   /// Rotates a 12-bit pitch mask so the root rests at bit 0.
@@ -329,6 +349,9 @@ class _ScoredMatch {
 
   /// Bitmask representing valid upper extensions beyond the core template (9th, 11th, etc.).
   final int extensionsMask;
+
+  /// The core template's own intervals, relative to the root at bit 0.
+  final int templateMask;
   _ScoredMatch(
     this.chordName,
     this.score,
@@ -337,6 +360,7 @@ class _ScoredMatch {
     this.isMinor, {
     required this.suffix,
     required this.extensionsMask,
+    required this.templateMask,
   });
 }
 
@@ -360,6 +384,15 @@ class ChordMatch {
   /// Active upper extensions identified during matching, stored as a bitmask relative to the root.
   final int extensionsMask;
 
+  /// The chord's **own** notes as absolute pitch classes — root, third, fifth,
+  /// any seventh and extensions.
+  ///
+  /// Distinct from [scalePitchClasses], which is the seven-note scale the
+  /// chord implies. A harmonizer wants these: snapping a voice to the implied
+  /// scale can land it on a passing note that clashes with the chord being
+  /// played, where snapping to the chord tones cannot.
+  final Set<int> chordPitchClasses;
+
   ChordMatch(
     this.name,
     this.scalePitchClasses,
@@ -367,5 +400,6 @@ class ChordMatch {
     this.isMinor, {
     this.suffix = '',
     this.extensionsMask = 0,
+    this.chordPitchClasses = const {},
   });
 }

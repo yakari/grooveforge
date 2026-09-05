@@ -176,6 +176,7 @@ class PatchCableOverlayState extends State<PatchCableOverlay> {
     if (fromPortName == AudioPortId.chordOut.name) {
       widget.rack.setJamModeMaster(toSlotId, null);
       widget.rack.setXenMaster(toSlotId, null);
+      widget.rack.setChordSource(toSlotId, null);
     } else if (fromPortName == AudioPortId.scaleOut.name) {
       widget.rack.removeJamModeTarget(fromSlotId, toSlotId);
       widget.rack.removeXenTarget(fromSlotId, toSlotId);
@@ -286,10 +287,12 @@ class PatchDataCable {
 /// nothing while the patch still works — the patch view denying a connection
 /// that is plainly in effect.
 List<PatchDataCable> deriveDataCables(List<PluginInstance> plugins) {
-  // Jam Mode and Xen both route through the chord and scale jacks.
+  // Jam Mode and Xen both route through the chord and scale jacks; the Audio
+  // Harmonizer takes a chord too, to voice its parts on.
   const routingModules = {
     'com.grooveforge.jammode',
     'com.grooveforge.xen',
+    'com.grooveforge.audio_harmonizer',
   };
 
   final cables = <PatchDataCable>[];

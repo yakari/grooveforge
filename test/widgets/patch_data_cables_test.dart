@@ -150,4 +150,33 @@ void main() {
       expect(before, isNot(after));
     });
   });
+
+  test('an Audio Harmonizer with a chord patched in draws its cable', () {
+    // The failure this guards: the chord source was first stored in a map
+    // inside RackState, which deriveDataCables cannot see. The drop was
+    // accepted, the harmony followed the chord — and the cable vanished the
+    // moment the finger lifted, so the patch view denied a connection that
+    // was plainly in effect.
+    final cables = deriveDataCables([
+      GFpaPluginInstance(
+        id: 'harm-1',
+        pluginId: 'com.grooveforge.audio_harmonizer',
+        midiChannel: 1,
+        masterSlotId: 'kbd-1',
+      ),
+    ]);
+
+    expect(cables.map((c) => c.id), contains('kbd-1:chordOut>harm-1:chordIn'));
+  });
+
+  test('an Audio Harmonizer with nothing patched draws no chord cable', () {
+    final cables = deriveDataCables([
+      GFpaPluginInstance(
+        id: 'harm-1',
+        pluginId: 'com.grooveforge.audio_harmonizer',
+        midiChannel: 1,
+      ),
+    ]);
+    expect(cables, isEmpty);
+  });
 }

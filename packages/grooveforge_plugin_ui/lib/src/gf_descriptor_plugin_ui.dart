@@ -70,6 +70,7 @@ class GFDescriptorPluginUI extends StatelessWidget {
     required this.paramNotifier,
     this.vuController,
     this.valueFormatter,
+    this.laneEnabled,
   });
 
   /// The plugin whose parameters are controlled by this UI.
@@ -88,6 +89,16 @@ class GFDescriptorPluginUI extends StatelessWidget {
   /// Optional host hook for localising parameter readouts. See
   /// [GFParamValueFormatter].
   final GFParamValueFormatter? valueFormatter;
+
+  /// Optional host veto on a lane being live, on top of the descriptor's own
+  /// `activeWhen`.
+  ///
+  /// For things the descriptor cannot know: the Audio Harmonizer's voice
+  /// lanes stop being editable when a chord is patched into it, because the
+  /// chord is setting them. Leaving them lit would repeat the mistake the
+  /// voice-count dimming fixed — controls that look live while something
+  /// else decides their value.
+  final bool Function(GFDescriptorControlGroup group)? laneEnabled;
 
   @override
   Widget build(BuildContext context) {
@@ -275,7 +286,8 @@ class GFDescriptorPluginUI extends StatelessWidget {
     GFPluginDescriptor descriptor,
     bool compact,
   ) {
-    final active = group.isActive((id) => _rawValueOf(id, descriptor));
+    final active = group.isActive((id) => _rawValueOf(id, descriptor)) &&
+        (laneEnabled?.call(group) ?? true);
 
     // Only a control that fills the lane earns the leftover width; the rest
     // keep their natural size so knobs stay round and selectors stay tight.

@@ -101,6 +101,13 @@ class _GFpaDescriptorSlotUIState extends State<GFpaDescriptorSlotUI> {
             vuController: _vuController,
             valueFormatter: (param, raw) =>
                 gfpaParamReadout(l10n, param, raw),
+            // A chord patched into this slot sets the voices itself, so the
+            // lanes carrying intervals go read-only rather than showing
+            // values nothing is reading.
+            laneEnabled: rack.isChordDriven(widget.instance.id)
+                ? (group) => !group.controls
+                    .any((c) => c.type == GFControlType.interval)
+                : null,
           ),
         ),
       ],

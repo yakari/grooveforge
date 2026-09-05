@@ -749,6 +749,17 @@ struct HarmonizerEffect {
     /// set (chromatic) means snapping cannot change anything.
     std::atomic<int> scaleMask{0xFFF};
 
+    /// The chord currently patched into CHORD IN, as a 12-bit pitch-class
+    /// mask; 0 when no chord source is cabled.
+    ///
+    /// A chord is a stronger statement than a scale, so it takes over rather
+    /// than refining: instead of bending each voice's dialled interval to the
+    /// nearest allowed note, the voices simply take the chord's tones in
+    /// order upward from the note being sung. The host holds the last chord
+    /// until a new one is played, so the harmony stays put when the keyboard
+    /// is released.
+    std::atomic<int> chordMask{0};
+
     HarmonizerEffect(float sampleRate, int32_t block)
         : blockSize(block)
         , wetL(block, 0.0f)
@@ -782,6 +793,7 @@ struct HarmonizerEffect {
         // of the saved project too, where a stale scale would be worse than
         // none.
         else if (strcmp(id, "scale_mask")       == 0) scaleMask.store((int)v);
+        else if (strcmp(id, "chord_mask")       == 0) chordMask.store((int)v);
     }
 
     void process(const float* inL, const float* inR,
@@ -796,9 +808,12 @@ struct HarmonizerEffect {
         // Scale Lock needs to know what note is coming in, so the tracker
         // sees the signal before the voices are configured. Only when the
         // lock is on: tracking pitch nobody asked about is work for nothing.
-        const bool wantScaleLock =
-                scaleLock.load(std::memory_order_relaxed) >= 0.5f;
-        if (pitch && wantScaleLock) gf_pitch_process(pitch, inL, n);
+        // Both Scale Lock and a patched chord need to know what note is
+        // coming in; nothing else does, so nothing else pays for it.
+        const bool wantPitch =
+                scaleLock.load(std::memory_order_relaxed) >= 0.5f ||
+                chordMask.load(std::memory_order_relaxed) != 0;
+        if (pitch && wantPitch) gf_pitch_process(pitch, inL, n);
         pushVoiceParams();
 
         // Mono-input shortcut: when inL and inR are bit-identical (Live
@@ -854,36 +869,75 @@ private:
         return note;                                    // empty mask
     }
 
+    /// Number of pitch classes set in a 12-bit mask.
+    static int maskCount(int mask) {
+        int n = 0;
+        for (int pc = 0; pc < 12; ++pc) if (mask & (1 << pc)) ++n;
+        return n;
+    }
+
+    /// The [index]-th note above [base] whose pitch class is in [mask].
+    ///
+    /// Index 0 is the first chord tone strictly above the sung note, so a
+    /// singer on the root gets the third, the fifth and the seventh stacked
+    /// upward — the voicing a backing singer would actually take.
+    static int chordToneAbove(int base, int mask, int index) {
+        int found = -1;
+        for (int semis = 1; semis <= 24; ++semis) {
+            const int note = base + semis;
+            if ((mask & (1 << (((note % 12) + 12) % 12))) == 0) continue;
+            if (++found == index) return note;
+        }
+        return base;   // mask empty: leave the voice at unison
+    }
+
     /// Forwards the knob values to both engines, bending the intervals to the
-    /// active scale when Scale Lock is on.
+    /// active scale or replacing them outright with the patched chord.
     void pushVoiceParams() {
         int active = (int)voiceCount.load(std::memory_order_relaxed);
         if (active < 1) active = 1;
         if (active > kMaxVoices) active = kMaxVoices;
 
+        // Snapping needs a note to measure from. With no confident pitch —
+        // silence, a consonant, two notes at once — the intervals stay
+        // exactly as the bars set them, which is the behaviour these modes
+        // replace rather than an error.
+        const float inNote = pitch ? gf_pitch_midi_note(pitch) : -1.0f;
+        const bool haveNote = inNote >= 0.0f;
+        const int base = haveNote ? (int)lroundf(inNote) : 0;
+
+        const int chord = chordMask.load(std::memory_order_relaxed);
+        const bool chordDriven = haveNote && chord != 0;
+        const bool scaleLocked =
+                haveNote && !chordDriven &&
+                scaleLock.load(std::memory_order_relaxed) >= 0.5f;
+
+        // A chord with three tones cannot voice four parts. The Voices
+        // setting becomes a ceiling rather than a count, so asking for four
+        // over a triad gives three rather than doubling one at random.
+        if (chordDriven) {
+            const int tones = maskCount(chord);
+            if (tones > 0 && tones < active) active = tones;
+        }
         gf_harmony_set_voice_count(harmonyL, active);
         gf_harmony_set_voice_count(harmonyR, active);
 
-        // Snapping needs a note to measure from. With no confident pitch —
-        // silence, a consonant, a chord — the intervals stay exactly as the
-        // knobs set them, which is the behaviour Scale Lock replaces rather
-        // than an error.
-        const float inNote = pitch ? gf_pitch_midi_note(pitch) : -1.0f;
-        const bool locked =
-                scaleLock.load(std::memory_order_relaxed) >= 0.5f && inNote >= 0.0f;
-        const int mask = scaleMask.load(std::memory_order_relaxed);
-        const int base = locked ? (int)lroundf(inNote) : 0;
+        const int scale = scaleMask.load(std::memory_order_relaxed);
 
         for (int v = 0; v < kMaxVoices; ++v) {
             float semis = voiceSemitones[v].load(std::memory_order_relaxed);
             const float mix = voiceMix[v].load(std::memory_order_relaxed);
 
-            if (locked) {
+            if (chordDriven) {
+                // The chord decides outright: voice 1 takes the first chord
+                // tone above the sung note, voice 2 the second, and so on.
+                semis = (float)(chordToneAbove(base, chord, v) - base);
+            } else if (scaleLocked) {
                 // Snap the *destination* note, then shift by the difference.
                 // Shifting relatively rather than to an absolute pitch is
                 // what keeps the singer's own intonation and vibrato in the
                 // harmony instead of auto-tuning it flat.
-                const int target = snapToScale(base + (int)lroundf(semis), mask);
+                const int target = snapToScale(base + (int)lroundf(semis), scale);
                 semis = (float)(target - base);
             }
 

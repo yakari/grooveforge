@@ -149,6 +149,11 @@ class SlotBackPanelWidget extends StatelessWidget {
         // applies.
         if (plugin.pluginId == 'com.grooveforge.audio_harmonizer') {
           ports.add(AudioPortId.scaleIn);
+          // A chord is a stronger statement than a scale: patched from a
+          // keyboard's CHORD OUT, it does not bend the dialled intervals but
+          // replaces them, voicing each part on a chord tone above the note
+          // being sung.
+          ports.add(AudioPortId.chordIn);
         }
         return ports;
       }

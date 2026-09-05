@@ -126,6 +126,7 @@ class RackState extends ChangeNotifier {
     // Xen module (or Jam Mode) live rather than only at slot creation.
     for (final channel in _engine.channels) {
       channel.validPitchClasses.addListener(_onScaleChanged);
+      channel.lastChord.addListener(_onChordChanged);
     }
 
     // Drive arpeggiators with an independent 10 ms tick so they advance even
@@ -324,6 +325,7 @@ class RackState extends ChangeNotifier {
     _audioGraph.removeListener(_onAudioGraphChanged);
     for (final channel in _engine.channels) {
       channel.validPitchClasses.removeListener(_onScaleChanged);
+      channel.lastChord.removeListener(_onChordChanged);
     }
     for (final plugin in _midiFxInstances.values) {
       plugin.dispose();
@@ -2102,6 +2104,80 @@ class RackState extends ChangeNotifier {
       vst.setGfpaDspParam(slotId, p.id, physical);
     }
     _pushScaleMaskToNative(slotId);
+    _pushChordMaskToNative(slotId);
+  }
+
+  /// Names the slot whose CHORD OUT drives [slotId]'s CHORD IN, or clears it
+  /// when [sourceSlotId] is null.
+  ///
+  /// Stored on the slot itself as `masterSlotId`, the same field Jam Mode and
+  /// Xen use for their chord cable — not in a map here. A map would have been
+  /// invisible to `deriveDataCables`, which redraws every data cable from the
+  /// plugin list, so the patch would take the drop and then show no cable.
+  ///
+  /// A no-op for slots that do not follow chords, so the cable handler can
+  /// call this alongside the Jam Mode and Xen equivalents without first
+  /// working out which module owns the jack.
+  void setChordSource(String slotId, String? sourceSlotId) {
+    final slot = _findGfpaById(slotId);
+    if (slot == null || slot.pluginId != 'com.grooveforge.audio_harmonizer') {
+      return;
+    }
+    if (slot.masterSlotId == sourceSlotId) return;
+    slot.masterSlotId = sourceSlotId;
+    _pushChordMaskToNative(slotId);
+    notifyListeners();
+    _notifyChanged();
+  }
+
+  /// Whether [slotId] currently has a chord patched into it. The UI greys the
+  /// voice controls out when it does, since the chord is setting them.
+  bool isChordDriven(String slotId) =>
+      _findGfpaById(slotId)?.masterSlotId != null;
+
+  /// Sends the chord a slot should voice itself on to its native DSP.
+  ///
+  /// Zero means "no chord patched", under which the DSP falls back to the
+  /// dialled intervals (bent by Scale Lock if that is on).
+  void _pushChordMaskToNative(String slotId) {
+    VstHostService.instance.setGfpaDspParam(
+      slotId,
+      'chord_mask',
+      _chordMaskForSlot(slotId).toDouble(),
+    );
+  }
+
+  /// The chord patched into [slotId], as a 12-bit pitch-class mask.
+  ///
+  /// Uses the chord's own tones rather than the scale it implies: a voice
+  /// snapped to the implied scale can land on a passing note that clashes
+  /// with the chord actually being played.
+  ///
+  /// The source channel keeps its last identified chord when the keys are
+  /// released, so the harmony holds until a new chord is played rather than
+  /// collapsing between phrases.
+  int _chordMaskForSlot(String slotId) {
+    final slot = _findGfpaById(slotId);
+    if (slot == null || slot.pluginId != 'com.grooveforge.audio_harmonizer') {
+      return 0;
+    }
+    final sourceId = slot.masterSlotId;
+    if (sourceId == null) return 0;
+
+    final source = _plugins.where((p) => p.id == sourceId).firstOrNull;
+    if (source == null) return 0;
+
+    final channel = (source.midiChannel - 1).clamp(0, 15);
+    final chord = _engine.channels[channel].lastChord.value;
+    return _maskFor(chord?.chordPitchClasses) ?? 0;
+  }
+
+  /// Re-sends the chord to every slot following one. Called when any channel's
+  /// detected chord changes.
+  void _onChordChanged() {
+    for (final slotId in _audioEffectInstances.keys) {
+      _pushChordMaskToNative(slotId);
+    }
   }
 
   /// Sends the scale a slot should follow to its native DSP.

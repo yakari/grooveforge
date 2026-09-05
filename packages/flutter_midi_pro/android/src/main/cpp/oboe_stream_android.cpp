@@ -474,9 +474,77 @@ static aaudio_data_callback_result_t audioCallback(
 /// AAUDIO_ERROR_TIMEOUT variant), the stream is closed and reopened on a
 /// detached thread.  The device ID is reset to 0 (system default) so the
 /// new stream targets whatever device Android now considers active.
-/// How many times the recovery thread tries to reopen before giving up.
-/// Six attempts with a rising delay spans roughly three seconds.
-static constexpr int kRecoveryAttempts = 6;
+/// How long to let a route change settle before touching the stream.
+///
+/// A disconnect means the platform is rebuilding the route; opening into the
+/// middle of that fails and, worse, keeps the audio service busy while it
+/// tries. Waiting costs a few hundred milliseconds of silence and turns a
+/// storm into one clean reopen.
+static constexpr int kRecoverySettleMs = 400;
+
+/// Whether the low-latency (MMAP) path has been given up on for this session.
+///
+/// Some devices cannot survive an MMAP stream being routed to a USB audio
+/// interface. On a Galaxy Fold 6 with a USB-C DAC, creating the audio patch
+/// for an MMAP playback thread aborts the *system* audio server:
+///
+///     Abort message: 'pre_lock: invalid mutex order
+///                     (previous) 18 MelReporter_Mutex> (new) 13 ThreadBase_Mutex'
+///     MelReporter::onCreateAudioPatch
+///       -> MelReporter::startMelComputationForActivePatch_l
+///          -> MmapPlaybackThread::startMelComputation_l   <-- takes the
+///                                                             thread mutex
+///                                                             out of order
+///
+/// MelReporter is the platform's sound-dose (EU volume-safety) meter; the lock
+/// order it violates is checked by an assertion this vendor ships enabled, so
+/// the result is a hard abort rather than a warning. audioserver restarts,
+/// every stream on the device is disconnected, volume curves come back
+/// uninitialised, and our stream is gone. It is a platform defect and nothing
+/// we pass to AAudio makes the patch creation safe.
+///
+/// What we can do is stop asking for the path that triggers it. Requesting
+/// SHARED is not enough — AAudio still backs a shared low-latency stream with
+/// an MMAP endpoint, so the crashing thread type is created either way. Only
+/// PERFORMANCE_MODE_NONE takes the legacy AudioTrack route, which has no
+/// MmapPlaybackThread at all. That costs latency, so it is a fallback we earn
+/// by observing the crash rather than a default we impose on every device.
+static std::atomic<bool> g_lowLatencyDenied{false};
+
+/// When the current stream started, for judging whether it died young.
+static std::atomic<long long> g_streamOpenedAtMs{0};
+
+/// Consecutive streams that died almost immediately after opening.
+static std::atomic<int> g_shortLivedStreams{0};
+
+/// A stream that dies within this window did not fail on its own merits —
+/// something tore the route down underneath it. A healthy stream survives
+/// orders of magnitude longer; the observed crash loop kills it in ~600 ms.
+static constexpr long long kShortLivedMs = 2000;
+
+/// How many short-lived streams before the low-latency path is abandoned.
+///
+/// One. Waiting for a second strike sounds prudent and is not: the error
+/// recovery and the watchdog each reopen on the low-latency path before a
+/// second strike can be counted, so every cold start with a USB DAC attached
+/// crashed the system audio server three times over ten seconds instead of
+/// once — and each of those crashes silences every app on the phone, not just
+/// this one.
+///
+/// The cost of being wrong is small and self-correcting. A false trip means
+/// this output runs at mixer latency until the route changes, and a route
+/// change re-arms the fast path; the plausible false positive, plugging
+/// headphones in within two seconds of the stream opening, is itself a route
+/// change and so undoes itself.
+static constexpr int kShortLivedStreamLimit = 1;
+
+/// Milliseconds on a monotonic clock.
+static long long nowMs()
+{
+    return std::chrono::duration_cast<std::chrono::milliseconds>(
+                   std::chrono::steady_clock::now().time_since_epoch())
+            .count();
+}
 
 static void errorCallback(AAudioStream* stream, void* /*userData*/,
                           aaudio_result_t error)
@@ -485,6 +553,29 @@ static void errorCallback(AAudioStream* stream, void* /*userData*/,
 
     // Capture sample rate before the stream becomes invalid.
     const int sr = AAudioStream_getSampleRate(stream);
+
+    // Did this stream just die young? If it keeps happening we are almost
+    // certainly driving the platform's MMAP/sound-dose crash (see
+    // g_lowLatencyDenied) rather than losing a genuine route.
+    const long long openedAt = g_streamOpenedAtMs.load(std::memory_order_relaxed);
+    const long long lifetime = openedAt > 0 ? nowMs() - openedAt : kShortLivedMs + 1;
+
+    if (lifetime < kShortLivedMs) {
+        const int strikes = g_shortLivedStreams.fetch_add(1) + 1;
+        LOGW("AAudio stream lasted only %lld ms (%d in a row)", lifetime, strikes);
+
+
+        if (strikes >= kShortLivedStreamLimit &&
+            !g_lowLatencyDenied.exchange(true)) {
+            LOGW("Repeated instant disconnects — abandoning the low-latency "
+                 "(MMAP) path for this session and reopening on the legacy "
+                 "AudioTrack path. Latency rises, but this device's audio "
+                 "server aborts when an MMAP stream is patched to this "
+                 "output, which silences every app until it restarts.");
+        }
+    } else {
+        g_shortLivedStreams.store(0, std::memory_order_relaxed);
+    }
 
     // One recovery at a time. A route change can deliver several errors in a
     // row, and three threads racing to reopen the same stream is worse than
@@ -504,29 +595,25 @@ static void errorCallback(AAudioStream* stream, void* /*userData*/,
         g_outputDeviceId = 0;  // fall back to system default
         oboe_stream_stop();
 
-        // Retry with a backoff rather than trying once and giving up.
+        // Wait for the new route to exist, then make exactly one attempt.
         //
-        // What disconnects the stream in the first place — a USB headset
-        // arriving, its microphone being opened, the audio server
-        // restarting — also leaves the AAudio service unable to open
-        // anything for a moment afterwards. A single immediate attempt
-        // lands squarely inside that window and comes back NO_SERVICE, and
-        // because nothing ever tried again the app stayed silent until it
-        // was restarted. That is the "no sound on my USB DAC" report.
-        for (int attempt = 1; attempt <= kRecoveryAttempts; ++attempt) {
-            oboe_stream_start(sr);
-            if (g_stream != nullptr) {
-                LOGI("AAudio stream recovered on attempt %d", attempt);
-                recovering.store(false);
-                return;
-            }
-            // 150, 300, 450 ... ms — about 3 s of patience in total.
-            std::this_thread::sleep_for(
-                    std::chrono::milliseconds(150 * attempt));
+        // An earlier revision retried six times with a rising backoff, on the
+        // theory that a single immediate attempt lands while the service is
+        // still tearing down. It does — but hammering is far worse. Each
+        // attempt opens twice, exclusive then shared, so a disconnect storm
+        // became a dozen opens in three seconds; that kept the audio service
+        // answering NO_SERVICE and INVALID_STATE and left the stream down
+        // almost permanently. Unplugging headphones produces exactly such a
+        // storm, and the result was no audio at all.
+        std::this_thread::sleep_for(
+                std::chrono::milliseconds(kRecoverySettleMs));
+        oboe_stream_start(sr);
+        if (g_stream != nullptr) {
+            LOGI("AAudio stream recovered after the route change");
+        } else {
+            LOGE("AAudio stream did not come back; the next device change or "
+                 "restart will try again");
         }
-        LOGE("AAudio stream could not be recovered after %d attempts — audio "
-             "will stay silent until the stream is restarted",
-             kRecoveryAttempts);
         recovering.store(false);
     }).detach();
 }
@@ -673,9 +760,16 @@ static aaudio_result_t openAndStartStream(int sampleRate,
     // calling this function again in SHARED mode; each call attempts exactly
     // the one mode it was handed. logStreamConfig() reports what was actually
     // granted instead of letting us assume.
+    //
+    // Unless the low-latency path has already been shown to crash this
+    // device's audio server, in which case PERFORMANCE_MODE_NONE is the only
+    // setting that keeps us off the MMAP thread entirely.
+    const bool lowLatency = !g_lowLatencyDenied.load(std::memory_order_relaxed);
     AAudioStreamBuilder_setPerformanceMode(
-            builder, AAUDIO_PERFORMANCE_MODE_LOW_LATENCY);
-    AAudioStreamBuilder_setSharingMode(builder, sharingMode);
+            builder, lowLatency ? AAUDIO_PERFORMANCE_MODE_LOW_LATENCY
+                                : AAUDIO_PERFORMANCE_MODE_NONE);
+    AAudioStreamBuilder_setSharingMode(
+            builder, lowLatency ? sharingMode : AAUDIO_SHARING_MODE_SHARED);
 
     // Declare the stream as game audio instead of the default MEDIA usage.
     //
@@ -753,11 +847,94 @@ static aaudio_result_t openAndStartStream(int sampleRate,
         return result;
     }
 
+    // Start of the clock the error callback uses to spot a stream that dies
+    // young. Stamped after requestStart, so it measures playing time.
+    g_streamOpenedAtMs.store(nowMs(), std::memory_order_relaxed);
+
     return AAUDIO_OK;
+}
+
+/// Serialises every open, close and restart of the output stream.
+///
+/// `g_stream` is reached from three directions: Dart (start, stop, output
+/// device changed), the AAudio error callback's recovery thread, and the
+/// device-change thread. Nothing coordinated them, so two of them could close
+/// the same handle, or one could close a handle the other had just replaced.
+/// A double close corrupts the process's AAudio client state, after which
+/// every open returns NO_SERVICE — the app is silent while every other app on
+/// the phone still plays, which is exactly the reported symptom.
+///
+/// Deliberately not held across the audio callback: the callback only reads
+/// `g_stream` for the buffer tuner, and blocking it on a mutex would be far
+/// worse than the race it closes.
+static std::mutex g_streamMtx;
+
+/// Set once the platform has refused an exclusive (MMAP) stream, so later
+/// opens go straight to shared.
+///
+/// Asking for MMAP makes the platform re-query the output device's
+/// capabilities. On a USB audio dongle that query makes the device announce
+/// itself again — `Device 12 connected = 1` in the HAL log — and that
+/// announcement is a route change, which disconnects the stream we just
+/// opened. Reopening then asks for MMAP again, and the app chases its own
+/// tail: a stream up for a fraction of a second, a disconnect, a reopen,
+/// forever. Other apps are unaffected because an ordinary AudioTrack is
+/// re-routed by AudioFlinger instead of being disconnected.
+///
+/// Cleared when the output device changes, so plugging in hardware that can
+/// do MMAP gets the low-latency path back without restarting the app.
+static bool g_exclusiveDenied = false;
+
+/// Whether the app wants audio at all, and at what rate. Set by the Dart-side
+/// start, cleared by the Dart-side stop; the watchdog below uses it to tell
+/// "the stream is down and should not be" from "the app asked for silence".
+static std::atomic<bool> g_streamWanted{false};
+static std::atomic<int>  g_wantedSampleRate{48000};
+
+/// Whether the watchdog thread is already running.
+static std::atomic<bool> g_watchdogRunning{false};
+
+/// How often the watchdog checks. Slow on purpose.
+///
+/// The failure this exists for is a stream that goes down and stays down: a
+/// USB dongle announcing itself mid-open disconnects us, the one reopen
+/// attempt lands while the device is still settling, and then nothing ever
+/// tries again — the app is silent until it is restarted, or until the phone
+/// is rebooted, neither of which is acceptable in the middle of a set.
+///
+/// Three seconds, not milliseconds. Retrying hard is what turned a route
+/// change into a dozen opens and kept the audio service unusable; this is
+/// roughly one open every three seconds, which the platform absorbs while
+/// still bringing sound back within a few seconds of the hardware settling.
+static constexpr int kWatchdogIntervalMs = 3000;
+
+/// Brings the output stream back if it is down and the app still wants it.
+static void startStreamWatchdog()
+{
+    bool expected = false;
+    if (!g_watchdogRunning.compare_exchange_strong(expected, true)) return;
+
+    std::thread([]() {
+        while (g_streamWanted.load(std::memory_order_relaxed)) {
+            std::this_thread::sleep_for(
+                    std::chrono::milliseconds(kWatchdogIntervalMs));
+            if (!g_streamWanted.load(std::memory_order_relaxed)) break;
+            if (g_stream != nullptr) continue;      // healthy, nothing to do
+
+            LOGW("Stream watchdog: output is down — trying to reopen");
+            oboe_stream_start(g_wantedSampleRate.load(std::memory_order_relaxed));
+        }
+        g_watchdogRunning.store(false);
+    }).detach();
 }
 
 extern "C" void oboe_stream_start(int sampleRate)
 {
+    g_streamWanted.store(true, std::memory_order_relaxed);
+    g_wantedSampleRate.store(sampleRate, std::memory_order_relaxed);
+    startStreamWatchdog();
+
+    std::lock_guard<std::mutex> lock(g_streamMtx);
     if (g_stream != nullptr) return; // Stream already running.
 
     // Try the MMAP fast path, then fall back to a shared stream.
@@ -769,18 +946,44 @@ extern "C" void oboe_stream_start(int sampleRate)
     // ringbuffer fills and it starts logging "Failed to allocate a synthesis
     // process" — a symptom far from this cause. Any other app holding the
     // device's exclusive MMAP endpoint is enough to trigger it.
-    aaudio_result_t result =
-            openAndStartStream(sampleRate, AAUDIO_SHARING_MODE_EXCLUSIVE);
+    aaudio_result_t result = AAUDIO_ERROR_INVALID_STATE;
+
+    if (!g_exclusiveDenied && !g_lowLatencyDenied.load(std::memory_order_relaxed)) {
+        result = openAndStartStream(sampleRate, AAUDIO_SHARING_MODE_EXCLUSIVE);
+        if (result != AAUDIO_OK) {
+            g_exclusiveDenied = true;
+            LOGW("Exclusive (MMAP) stream unavailable (%s) — using SHARED for "
+                 "the rest of this session. Higher latency, but asking again "
+                 "on every reopen re-queries the output device, which is a "
+                 "route change in itself.",
+                 AAudio_convertResultToText(result));
+        }
+    }
 
     if (result != AAUDIO_OK) {
-        LOGW("Exclusive (MMAP) stream unavailable (%s) — retrying in SHARED "
-             "mode. Higher latency, but working audio.",
-             AAudio_convertResultToText(result));
         result = openAndStartStream(sampleRate, AAUDIO_SHARING_MODE_SHARED);
     }
 
     if (result != AAUDIO_OK) {
-        LOGE("AAudio stream could not be started in any sharing mode: %s",
+        // NO_SERVICE is not an ordinary failure: it means the system audio
+        // server is not there to answer, i.e. it died and is restarting.
+        // Unplugging headphones, losing the route, another app holding the
+        // endpoint — none of those produce it. On this platform the thing
+        // that kills the audio server is the MMAP/sound-dose crash described
+        // at g_lowLatencyDenied, so treat the first NO_SERVICE as proof and
+        // stop using the low-latency path immediately.
+        //
+        // Waiting for the generic two-short-lived-streams rule to notice
+        // costs three crashes and about ten seconds of the whole phone
+        // having no audio, every cold start with a USB DAC attached.
+        if (result == AAUDIO_ERROR_NO_SERVICE &&
+            !g_lowLatencyDenied.exchange(true)) {
+            LOGW("Audio server unreachable (NO_SERVICE) — it has restarted. "
+                 "Abandoning the low-latency (MMAP) path for this session.");
+        }
+
+        LOGE("AAudio stream could not be started in any sharing mode: %s "
+             "— the watchdog will keep trying",
              AAudio_convertResultToText(result));
         return;
     }
@@ -790,6 +993,14 @@ extern "C" void oboe_stream_start(int sampleRate)
 
 extern "C" void oboe_stream_stop(void)
 {
+    // Stops the watchdog as well: a deliberate stop must not be undone three
+    // seconds later. The internal callers — error recovery and the output
+    // device change — call start() straight afterwards, which re-arms it, so
+    // the only window where the watchdog is off is the one where a reopen is
+    // already in flight.
+    g_streamWanted.store(false, std::memory_order_relaxed);
+
+    std::lock_guard<std::mutex> lock(g_streamMtx);
     if (g_stream == nullptr) return;
 
     AAudioStream_requestStop(g_stream);
@@ -887,13 +1098,25 @@ extern "C" void oboe_stream_set_output_device(int deviceId)
     if (deviceId == previous) return;  // No change — skip restart.
 
     g_outputDeviceId = deviceId;
+    // New hardware may well support MMAP even though the last one did not.
+    g_exclusiveDenied = false;
+    g_lowLatencyDenied.store(false, std::memory_order_relaxed);
+    g_shortLivedStreams.store(0, std::memory_order_relaxed);
     LOGI("Output device changed: %d -> %d", previous, deviceId);
 
     // Restart the stream if already running so the new device takes effect.
+    //
+    // On a detached thread, never on the caller's. This runs from Dart when
+    // the output device changes — which is what plugging or unplugging
+    // headphones does — and opening an AAudio stream can block for seconds
+    // while the platform rebuilds the route. Doing it inline froze the whole
+    // UI for as long as that took.
     if (g_stream != nullptr) {
         const int sr = AAudioStream_getSampleRate(g_stream);
-        oboe_stream_stop();
-        oboe_stream_start(sr);
+        std::thread([sr]() {
+            oboe_stream_stop();
+            oboe_stream_start(sr);
+        }).detach();
     }
 }
 

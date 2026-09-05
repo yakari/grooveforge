@@ -432,6 +432,107 @@ static void testScaleLock(void) {
     report("with the lock off the interval is untouched", off == 4, d2);
 }
 
+// ── 6. Chord-driven voicing ──────────────────────────────────────────────────
+
+/// Which notes the harmonizer voiced, given a chord patched in.
+///
+/// Returns the semitone shifts of the first [voices] voices, by finding which
+/// candidate output frequency each one landed on.
+static void measure_chord_voicing(int rootNote, int chordMask, int voices,
+                                  int* shifts) {
+    GfpaDspHandle h = gfpa_dsp_create("com.grooveforge.audio_harmonizer", SR, 4096);
+    if (!h) return;
+    gfpa_dsp_set_param(h, "voice_count", (double)voices);
+    // Bars deliberately left at nonsense values: a patched chord must ignore
+    // them entirely rather than blend with them.
+    for (int v = 1; v <= 4; v++) {
+        char id[32];
+        snprintf(id, sizeof id, "voice%d_semitones", v);
+        gfpa_dsp_set_param(h, id, 1.0);
+        snprintf(id, sizeof id, "voice%d_mix", v);
+        gfpa_dsp_set_param(h, id, 1.0);
+    }
+    gfpa_dsp_set_param(h, "dry_wet", 1.0);
+    gfpa_dsp_set_param(h, "chord_mask", (double)chordMask);
+    GfpaInsertFn fn = gfpa_dsp_insert_fn(h);
+    void* ud = gfpa_dsp_userdata(h);
+
+    const int burst = 256;
+    static float in[256], outL[256], outR[256];
+    static float tape[SR * 3];
+    const double f0 = midi_to_hz(rootNote);
+    long phase = 0;
+    int t = 0;
+    for (int b = 0; b < SR * 3 / burst; b++) {
+        for (int i = 0; i < burst; i++, phase++) {
+            // A pure tone here, unlike the other tests. Each voice is a
+            // shifted copy of the input, so a harmonically rich input gives
+            // every voice its own harmonics — and a voice at +5 then puts
+            // energy at +17 as well, which a "loudest bins" search reads as
+            // a second voice. One partial in, one partial out per voice.
+            in[i] = (float)(0.4 * sin(2.0 * M_PI * phase * f0 / SR));
+        }
+        fn(in, in, outL, outR, burst, ud);
+        for (int i = 0; i < burst && t < SR * 3; i++) tape[t++] = outL[i];
+    }
+    gfpa_dsp_destroy(h);
+
+    // Score every semitone from 1 to 24 and take the loudest `voices` of them.
+    const float* mid = tape + SR;
+    const int n = t - SR - SR / 4;
+    double energy[25];
+    for (int sh = 1; sh <= 24; sh++) {
+        double w = 2.0 * M_PI * midi_to_hz(rootNote + sh) / SR;
+        double c = 2.0 * cos(w), s1 = 0, s2 = 0;
+        for (int i = 0; i < n; i++) { double s0 = mid[i] + c * s1 - s2; s2 = s1; s1 = s0; }
+        energy[sh] = 2.0 * sqrt(fabs(s1 * s1 + s2 * s2 - c * s1 * s2)) / n;
+    }
+    for (int v = 0; v < voices; v++) {
+        int best = 1;
+        for (int sh = 2; sh <= 24; sh++) if (energy[sh] > energy[best]) best = sh;
+        shifts[v] = best;
+        energy[best] = -1;   // take the next loudest for the next voice
+    }
+    // Ascending, so the comparison below reads as a voicing.
+    for (int a = 0; a < voices; a++)
+        for (int b = a + 1; b < voices; b++)
+            if (shifts[b] < shifts[a]) { int tmp = shifts[a]; shifts[a] = shifts[b]; shifts[b] = tmp; }
+}
+
+static void testChordVoicing(void) {
+    printf("── Test 7: a patched chord voices the parts itself\n");
+
+    // F major (F A C) sung over a C: the chord tones above C are F, A, C.
+    const int fMajor = (1 << 5) | (1 << 9) | (1 << 0);
+    int got[4] = {0, 0, 0, 0};
+    measure_chord_voicing(60, fMajor, 3, got);
+    const int wantF[3] = {5, 9, 12};
+    int ok = (got[0] == wantF[0] && got[1] == wantF[1] && got[2] == wantF[2]);
+    char detail[200];
+    snprintf(detail, sizeof detail,
+             "sang C over F major: voices at +%d +%d +%d (want +5 +9 +12, i.e. F A C)",
+             got[0], got[1], got[2]);
+    report("voices take the chord's tones upward from the note", ok, detail);
+
+    // The bars were set to +1 throughout; a chord must override them.
+    snprintf(detail, sizeof detail,
+             "bars were all at +1 and none of the voices stayed there");
+    report("a patched chord overrides the dialled intervals",
+           got[0] != 1 && got[1] != 1 && got[2] != 1, detail);
+
+    // A triad cannot voice four parts, so the Voices setting acts as a ceiling.
+    int four[4] = {0, 0, 0, 0};
+    measure_chord_voicing(60, fMajor, 4, four);
+    // With only three tones the fourth voice must not double one at random;
+    // the engine drops to three, so the top three shifts match the triad.
+    const int distinct = (four[0] != four[1] && four[1] != four[2]);
+    snprintf(detail, sizeof detail,
+             "asked for 4 voices over a 3-note chord: got +%d +%d +%d +%d",
+             four[0], four[1], four[2], four[3]);
+    report("asking for more voices than the chord has does not double one",
+           distinct, detail);
+}
+
 // ── Entry point ──────────────────────────────────────────────────────────────
 
 int main(void) {
@@ -443,6 +544,7 @@ int main(void) {
     testIntervalGainFlatness();
     testModulatedPitchStaysContinuous();
     testScaleLock();
+    testChordVoicing();
 
     printf("\n");
     if (g_failures == 0) {

@@ -6,6 +6,10 @@ import android.media.AudioDeviceInfo
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
+import android.media.session.MediaSession
+import android.media.session.PlaybackState
+import android.content.Intent
+import android.view.KeyEvent
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -43,6 +47,18 @@ class MainActivity : FlutterActivity() {
     // and hands it back. Other media apps are expected to stop, not duck.
     private var audioFocusRequest: AudioFocusRequest? = null
 
+    /// Whether to take audio focus at all.
+    ///
+    /// On. It was parked while the output path was broken — it had landed in
+    /// the same build as an over-eager stream-recovery loop, and with no
+    /// headphone output there was no way to tell which change caused what.
+    /// The stream is stable now, and focus turns out to be load-bearing for
+    /// more than silencing other players: MediaSessionService decides who
+    /// receives the transport keys largely by who holds audio focus, so
+    /// without it the media session claimed below is passed over and the keys
+    /// go to whichever media app has focus instead.
+    private val takeAudioFocus = true
+
     private val focusListener = AudioManager.OnAudioFocusChangeListener { change ->
         // Deliberately no reaction beyond logging. Pausing the engine on
         // focus loss would kill a live performance the moment a notification
@@ -53,6 +69,7 @@ class MainActivity : FlutterActivity() {
 
     /// Asks the system to hand this app the output and stop other players.
     private fun requestAudioFocus() {
+        if (!takeAudioFocus) return
         val am = audioManager ?: return
         if (audioFocusRequest != null) return
 
@@ -89,6 +106,108 @@ class MainActivity : FlutterActivity() {
             audioFocusRequest = null
             Log.i(TAG, "Audio focus released")
         }
+    }
+
+    // ── Media buttons ────────────────────────────────────────────────────────
+    //
+    // GrooveForge has to own the transport keys while it is on screen, and the
+    // reason is not convenience.
+    //
+    // A media key that reaches the system with no app holding a media session
+    // does not get dropped: Android broadcasts ACTION_MEDIA_BUTTON, several
+    // installed apps claim it, and the user is shown a "Complete action
+    // using..." chooser — after which the key is handed to whichever media app
+    // answers, which then starts playing over the top of the performance.
+    //
+    // That is not hypothetical here. A USB-C audio dongle sends a
+    // KEYCODE_MEDIA_PLAY_PAUSE and can be re-enumerated by the platform before
+    // it sends the matching key-up; the input system then auto-repeats a key
+    // that will never be released, around twenty times a second, indefinitely.
+    // One piece of flaky hardware becomes a chooser dialog on top of the
+    // instrument and someone else's music in the monitors.
+    //
+    // Owning the keys makes a stuck key harmless: it is delivered here and
+    // discarded. Two layers, because media keys can arrive by two routes —
+    // dispatchKeyEvent for the focused window, and the media session for keys
+    // the system routes through MediaSessionService.
+    private var mediaSession: MediaSession? = null
+
+    /// Whether [keyCode] is a transport key GrooveForge should swallow.
+    ///
+    /// Volume keys are deliberately absent: the player still needs those, and
+    /// they do not trigger the chooser.
+    private fun isTransportKey(keyCode: Int): Boolean = when (keyCode) {
+        KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
+        KeyEvent.KEYCODE_MEDIA_PLAY,
+        KeyEvent.KEYCODE_MEDIA_PAUSE,
+        KeyEvent.KEYCODE_MEDIA_STOP,
+        KeyEvent.KEYCODE_MEDIA_NEXT,
+        KeyEvent.KEYCODE_MEDIA_PREVIOUS,
+        KeyEvent.KEYCODE_MEDIA_FAST_FORWARD,
+        KeyEvent.KEYCODE_MEDIA_REWIND,
+        KeyEvent.KEYCODE_HEADSETHOOK -> true
+        else -> false
+    }
+
+    /// Swallows transport keys before anything else can act on them.
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (isTransportKey(event.keyCode)) return true
+        return super.dispatchKeyEvent(event)
+    }
+
+    /// Claims the media session, so transport keys routed through
+    /// MediaSessionService land here rather than in the system's fallback.
+    ///
+    /// The session reports itself as playing: a paused or stopped session is
+    /// not the one the platform picks when deciding who owns the buttons, and
+    /// being passed over is the whole failure being fixed.
+    private fun startMediaSession() {
+        if (mediaSession != null) return
+
+        val session = MediaSession(this, "GrooveForge")
+        session.setCallback(object : MediaSession.Callback() {
+            // Accept and discard. Returning true stops the event being
+            // passed on to the broadcast fallback.
+            override fun onMediaButtonEvent(mediaButtonIntent: Intent): Boolean {
+                Log.i(TAG, "Transport key swallowed: $mediaButtonIntent")
+                return true
+            }
+
+            // The transport means nothing to an instrument — there is no
+            // track to start or stop — so these exist only to keep the
+            // platform from looking for someone who does implement them.
+            override fun onPlay() {}
+            override fun onPause() {}
+            override fun onStop() {}
+        })
+
+        session.setPlaybackState(
+            PlaybackState.Builder()
+                .setActions(
+                    PlaybackState.ACTION_PLAY_PAUSE or
+                        PlaybackState.ACTION_PLAY or
+                        PlaybackState.ACTION_PAUSE
+                )
+                .setState(
+                    PlaybackState.STATE_PLAYING,
+                    PlaybackState.PLAYBACK_POSITION_UNKNOWN,
+                    1.0f
+                )
+                .build()
+        )
+        session.isActive = true
+        mediaSession = session
+        Log.i(TAG, "Media session active — transport keys belong to GrooveForge")
+    }
+
+    /// Releases the session, handing the keys back to whatever plays next.
+    private fun stopMediaSession() {
+        mediaSession?.let {
+            it.isActive = false
+            it.release()
+            Log.i(TAG, "Media session released")
+        }
+        mediaSession = null
     }
 
     private val deviceCallback = object : AudioDeviceCallback() {
@@ -211,14 +330,18 @@ class MainActivity : FlutterActivity() {
     override fun onResume() {
         super.onResume()
         audioManager?.registerAudioDeviceCallback(deviceCallback, mainHandler)
+        startMediaSession()
         requestAudioFocus()
     }
 
     override fun onPause() {
         super.onPause()
         audioManager?.unregisterAudioDeviceCallback(deviceCallback)
-        // Released on pause rather than on destroy: holding focus while
-        // backgrounded would keep every other app silenced.
+        // Both the session and the focus go on pause rather than on destroy:
+        // holding either while backgrounded would keep every other app
+        // silenced, and would swallow the transport keys of whatever the user
+        // switched to.
+        stopMediaSession()
         abandonAudioFocus()
     }
 

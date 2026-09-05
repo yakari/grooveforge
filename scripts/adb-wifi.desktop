@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=ADB Wi-Fi
+Comment=Re-arm wireless adb for the phone plugged in over USB
+Exec=/home/yann/dev/grooveforge/grooveforge/scripts/adb-wifi.sh
+Icon=phone
+Terminal=false
+Categories=Development;
+Keywords=adb;android;wireless;debug;
