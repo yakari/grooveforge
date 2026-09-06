@@ -1,6 +1,7 @@
 package com.melihhakanpektas.flutter_midi_pro
 
 import android.content.Context
+import android.util.Log
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
@@ -51,6 +52,9 @@ class FlutterMidiProPlugin: FlutterPlugin, MethodCallHandler {
 
     @JvmStatic
     private external fun dispose()
+
+    @JvmStatic
+    private external fun stopOutputStream()
   }
 
   private lateinit var channel : MethodChannel
@@ -211,6 +215,26 @@ class FlutterMidiProPlugin: FlutterPlugin, MethodCallHandler {
 
   override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
     channel.setMethodCallHandler(null)
+
+    // Close the AAudio output stream before this process goes away.
+    //
+    // Deliberately synchronous and on this thread, not on audioExecutor: the
+    // executor is shut down two lines below and the process may not outlive
+    // this callback, so anything queued would simply never run.
+    //
+    // Leaving the stream open costs the *next* launch, not this one — the
+    // platform tears the route down over a live MMAP endpoint and aborts its
+    // own audio server, so the next run starts against a restarting server,
+    // loses the fast path on the strike rule and plays at mixer latency. See
+    // the JNI wrapper in native-lib.cpp for the abort itself.
+    try {
+      stopOutputStream()
+    } catch (t: Throwable) {
+      // Teardown is best-effort: an UnsatisfiedLinkError here (library already
+      // unloaded) must not take the whole detach down with it.
+      Log.w("FlutterMidiPro", "stopOutputStream during detach failed", t)
+    }
+
     audioExecutor.shutdown()
   }
 }

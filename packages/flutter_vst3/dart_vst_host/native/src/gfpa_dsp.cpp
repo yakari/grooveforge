@@ -749,6 +749,16 @@ struct HarmonizerEffect {
     /// set (chromatic) means snapping cannot change anything.
     std::atomic<int> scaleMask{0xFFF};
 
+    /// The chord currently patched into CHORD IN, as a 12-bit pitch-class
+    /// mask; 0 when no chord source is cabled.
+    ///
+    /// A chord is a stronger statement than a scale, so it takes over rather
+    /// than refining: instead of bending each voice's dialled interval to the
+    /// nearest allowed note, the voices simply take the chord's tones in
+    /// order upward from the note being sung. The host holds the last chord
+    /// until a new one is played, so the harmony stays put when the keyboard
+    /// is released.
+
     HarmonizerEffect(float sampleRate, int32_t block)
         : blockSize(block)
         , wetL(block, 0.0f)
@@ -796,9 +806,9 @@ struct HarmonizerEffect {
         // Scale Lock needs to know what note is coming in, so the tracker
         // sees the signal before the voices are configured. Only when the
         // lock is on: tracking pitch nobody asked about is work for nothing.
-        const bool wantScaleLock =
+        const bool wantPitch =
                 scaleLock.load(std::memory_order_relaxed) >= 0.5f;
-        if (pitch && wantScaleLock) gf_pitch_process(pitch, inL, n);
+        if (pitch && wantPitch) gf_pitch_process(pitch, inL, n);
         pushVoiceParams();
 
         // Mono-input shortcut: when inL and inR are bit-identical (Live
@@ -856,34 +866,43 @@ private:
 
     /// Forwards the knob values to both engines, bending the intervals to the
     /// active scale when Scale Lock is on.
+    ///
+    /// A chord played on a patched keyboard does not appear here: the host
+    /// writes it into the voice parameters as ordinary interval values, so by
+    /// the time the DSP sees it there is nothing to distinguish it from a
+    /// value someone dialled in. That is deliberate — it is what lets the
+    /// controls keep showing the chord and stay editable afterwards.
     void pushVoiceParams() {
         int active = (int)voiceCount.load(std::memory_order_relaxed);
         if (active < 1) active = 1;
         if (active > kMaxVoices) active = kMaxVoices;
 
+        // Snapping needs a note to measure from. With no confident pitch —
+        // silence, a consonant, two notes at once — the intervals stay
+        // exactly as the bars set them, which is the behaviour these modes
+        // replace rather than an error.
+        const float inNote = pitch ? gf_pitch_midi_note(pitch) : -1.0f;
+        const bool haveNote = inNote >= 0.0f;
+        const int base = haveNote ? (int)lroundf(inNote) : 0;
+
+        const bool scaleLocked =
+                haveNote && scaleLock.load(std::memory_order_relaxed) >= 0.5f;
+
         gf_harmony_set_voice_count(harmonyL, active);
         gf_harmony_set_voice_count(harmonyR, active);
 
-        // Snapping needs a note to measure from. With no confident pitch —
-        // silence, a consonant, a chord — the intervals stay exactly as the
-        // knobs set them, which is the behaviour Scale Lock replaces rather
-        // than an error.
-        const float inNote = pitch ? gf_pitch_midi_note(pitch) : -1.0f;
-        const bool locked =
-                scaleLock.load(std::memory_order_relaxed) >= 0.5f && inNote >= 0.0f;
-        const int mask = scaleMask.load(std::memory_order_relaxed);
-        const int base = locked ? (int)lroundf(inNote) : 0;
+        const int scale = scaleMask.load(std::memory_order_relaxed);
 
         for (int v = 0; v < kMaxVoices; ++v) {
             float semis = voiceSemitones[v].load(std::memory_order_relaxed);
             const float mix = voiceMix[v].load(std::memory_order_relaxed);
 
-            if (locked) {
+            if (scaleLocked) {
                 // Snap the *destination* note, then shift by the difference.
                 // Shifting relatively rather than to an absolute pitch is
                 // what keeps the singer's own intonation and vibrato in the
                 // harmony instead of auto-tuning it flat.
-                const int target = snapToScale(base + (int)lroundf(semis), mask);
+                const int target = snapToScale(base + (int)lroundf(semis), scale);
                 semis = (float)(target - base);
             }
 

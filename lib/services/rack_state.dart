@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 
 import '../models/drum_generator_plugin_instance.dart';
 import '../models/gfpa_plugin_instance.dart';
+import '../models/harmonizer_voicing.dart';
 import '../models/keyboard_display_config.dart';
 import '../models/audio_looper_plugin_instance.dart';
 import '../models/live_input_source_plugin_instance.dart';
@@ -127,6 +128,17 @@ class RackState extends ChangeNotifier {
     for (final channel in _engine.channels) {
       channel.validPitchClasses.addListener(_onScaleChanged);
     }
+
+    // Held keys, not the identified chord: a harmonizer needs the notes
+    // themselves, and ChordDetector reports nothing for shapes it cannot name
+    // — two-note chords among them — which would leave those doing nothing.
+    //
+    // Attached to the engine's own notifier rather than to each channel's.
+    // Loading a project replaces the ChannelState objects, which orphans any
+    // listener attached to one of them at startup: the notes kept arriving and
+    // nothing heard them, so the chord jack did nothing on any real project
+    // while working perfectly on a fresh rack.
+    _engine.activeNotesRevision.addListener(_onChordChanged);
 
     // Drive arpeggiators with an independent 10 ms tick so they advance even
     // when the user is holding notes and no fresh MIDI events are arriving.
@@ -322,6 +334,7 @@ class RackState extends ChangeNotifier {
     _midiFxTicker?.cancel();
     _transport.removeListener(_onTransportChanged);
     _audioGraph.removeListener(_onAudioGraphChanged);
+    _engine.activeNotesRevision.removeListener(_onChordChanged);
     for (final channel in _engine.channels) {
       channel.validPitchClasses.removeListener(_onScaleChanged);
     }
@@ -2102,6 +2115,175 @@ class RackState extends ChangeNotifier {
       vst.setGfpaDspParam(slotId, p.id, physical);
     }
     _pushScaleMaskToNative(slotId);
+  }
+
+  /// Names the slot whose CHORD OUT drives [slotId]'s CHORD IN, or clears it
+  /// when [sourceSlotId] is null.
+  ///
+  /// Stored on the slot itself as `masterSlotId`, the same field Jam Mode and
+  /// Xen use for their chord cable — not in a map here. A map would have been
+  /// invisible to `deriveDataCables`, which redraws every data cable from the
+  /// plugin list, so the patch would take the drop and then show no cable.
+  ///
+  /// A no-op for slots that do not follow chords, so the cable handler can
+  /// call this alongside the Jam Mode and Xen equivalents without first
+  /// working out which module owns the jack.
+  void setChordSource(String slotId, String? sourceSlotId) {
+    final slot = _findGfpaById(slotId);
+    if (slot == null || !kChordFollowingHarmonizers.contains(slot.pluginId)) {
+      return;
+    }
+    if (slot.masterSlotId == sourceSlotId) return;
+    slot.masterSlotId = sourceSlotId;
+    // Voice it now rather than waiting for the next chord: patching a cable
+    // while holding a chord should do something.
+    final notes = _chordNotesForSlot(slotId);
+    if (notes != null) _applyChordToHarmonizer(slotId, notes);
+    notifyListeners();
+    _notifyChanged();
+  }
+
+  /// Voices the harmonizer at [slotId] on the chord held on the keyboard
+  /// patched into its CHORD IN.
+  ///
+  /// The chord *sets* the interval controls; it does not take them over. The
+  /// played notes are written into the voice parameters like any other value,
+  /// so the lanes show what the chord asked for and stay editable afterwards
+  /// — the keyboard is a fast way to dial four intervals, not a mode.
+  ///
+  /// This is also why nothing needs to hold the chord when the keys are
+  /// released: the intervals are the controls' own values now, and they stay
+  /// until something changes them.
+  ///
+  /// Intervals are measured from the lowest note played, which the singer is
+  /// taken to be supplying: C-E-G asks for two voices at +4 and +7. A single
+  /// key is not a chord and is ignored, and notes past the fourth above the
+  /// root are dropped because the module has four voices.
+  void _applyChordToHarmonizer(String slotId, Set<int> notes) {
+    // Fingers never leave the keys together. Re-voicing on a shrinking set
+    // means a C-E-G becomes a two-note E-G on the way up off the keyboard and
+    // the harmony lurches as the hand lifts, so only a chord that is growing
+    // (or holding) counts. The peak resets when the keys are all released,
+    // which is what lets the next chord take over — and what leaves the last
+    // one standing in between.
+    final peak = _chordPeakCount[slotId] ?? 0;
+    if (notes.isEmpty) {
+      _chordPeakCount[slotId] = 0;
+      return;
+    }
+    if (notes.length < peak) return;
+    _chordPeakCount[slotId] = notes.length;
+
+    if (notes.length < 2) return;
+
+    // Either harmonizer: the audio effect and the MIDI FX are separate
+    // plugins in separate registries, and the user sees two modules that look
+    // almost identical. Serving only one is indistinguishable from the
+    // feature being broken.
+    final plugin = _audioEffectInstances[slotId] ?? _midiFxInstances[slotId];
+    if (plugin == null) return;
+
+    // The voice ceiling comes from the descriptor rather than a constant
+    // here, so adding a fifth voice to the module needs no change in the host.
+    final voiceParam = plugin.descriptor.parameters
+        .where((p) => p.id == 'voice_count')
+        .firstOrNull;
+    if (voiceParam == null) return;
+    final maxVoices = voiceParam.max.round();
+
+    final intervals = harmonizerVoicingFromChord(notes, maxVoices: maxVoices);
+    if (intervals.isEmpty) return;
+
+    _setGfpaParamById(plugin, 'voice_count', intervals.length.toDouble());
+    for (var i = 0; i < intervals.length; i++) {
+      // The two modules name the same thing differently — `voice1_semitones`
+      // on the audio effect, `interval1` on the MIDI FX. Whichever the module
+      // does not declare is simply not found and skipped. The MIDI one only
+      // shifts upward, which its own 0..24 range already enforces.
+      _setGfpaParamById(
+          plugin, 'voice${i + 1}_semitones', intervals[i].toDouble());
+      _setGfpaParamById(plugin, 'interval${i + 1}', intervals[i].toDouble());
+    }
+
+    final notifier = _audioEffectParamNotifiers[slotId];
+    if (notifier != null) {
+      // One bump drives the whole write-back for an audio effect: the
+      // listener copies the parameters into the rack model, pushes them to
+      // the native DSP and marks the project dirty, and the slot UI rebuilds
+      // off the same notifier.
+      notifier.value++;
+      return;
+    }
+
+    // A MIDI FX has no such notifier — its own lives inside the slot widget,
+    // which cannot see a change made from here. Persist the parameters and
+    // let the rebuild come from RackState, which that widget watches.
+    final instance = _findById(slotId);
+    if (instance is GFpaPluginInstance) {
+      final bypass = instance.state['__bypass'];
+      final bypassCc = instance.state['__bypassCc'];
+      instance.state
+        ..clear()
+        ..addAll(plugin.getState());
+      if (bypass != null) instance.state['__bypass'] = bypass;
+      if (bypassCc != null) instance.state['__bypassCc'] = bypassCc;
+    }
+    notifyListeners();
+    markDirty();
+  }
+
+  /// Writes [physical] to the descriptor parameter named [id], converting to
+  /// the normalised form plugins store.
+  void _setGfpaParamById(
+    GFAbstractDescriptorPlugin plugin,
+    String id,
+    double physical,
+  ) {
+    final param =
+        plugin.descriptor.parameters.where((p) => p.id == id).firstOrNull;
+    if (param == null) return;
+    final span = param.max - param.min;
+    if (span <= 0) return;
+    plugin.setParameter(
+      param.paramId,
+      ((physical - param.min) / span).clamp(0.0, 1.0),
+    );
+  }
+
+  /// Largest number of keys seen in the chord currently being held, per
+  /// follower slot. Cleared when the keys are released.
+  final Map<String, int> _chordPeakCount = {};
+
+  /// Re-voices every harmonizer following a chord. Called when the keys held
+  /// on any channel change.
+  ///
+  /// Reading the source channel's held notes rather than the chord that fired
+  /// keeps this correct when several keyboards are patched: a chord played on
+  /// one does not re-apply another's notes, because a channel with nothing
+  /// held fails the two-note test and is left alone.
+  void _onChordChanged() {
+    final slotIds = [..._audioEffectInstances.keys, ..._midiFxInstances.keys];
+    for (final slotId in slotIds) {
+      final notes = _chordNotesForSlot(slotId);
+      if (notes != null) _applyChordToHarmonizer(slotId, notes);
+    }
+  }
+
+  /// The notes currently held on the keyboard patched into [slotId], or null
+  /// when the slot is not a harmonizer following a chord.
+  Set<int>? _chordNotesForSlot(String slotId) {
+    final slot = _findGfpaById(slotId);
+    if (slot == null || !kChordFollowingHarmonizers.contains(slot.pluginId)) {
+      return null;
+    }
+    final sourceId = slot.masterSlotId;
+    if (sourceId == null) return null;
+
+    final source = _plugins.where((p) => p.id == sourceId).firstOrNull;
+    if (source == null) return null;
+
+    final channel = (source.midiChannel - 1).clamp(0, 15);
+    return _engine.channels[channel].activeNotes.value;
   }
 
   /// Sends the scale a slot should follow to its native DSP.

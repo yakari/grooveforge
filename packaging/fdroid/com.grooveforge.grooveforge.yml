@@ -14,7 +14,7 @@ Repo: https://github.com/yakari/grooveforge.git
 Builds:
   - versionName: 2.17.4
     versionCode: 681
-    commit: 302b0e5411bf2fb437d4be2eda890a4eea62de18
+    commit: 19a547edff1060f68711a777978a3b0618d98b90
     submodules: true
     output: build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
     srclibs:
@@ -48,7 +48,7 @@ Builds:
 
   - versionName: 2.17.4
     versionCode: 682
-    commit: 302b0e5411bf2fb437d4be2eda890a4eea62de18
+    commit: 19a547edff1060f68711a777978a3b0618d98b90
     submodules: true
     output: build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
     srclibs:
@@ -82,7 +82,7 @@ Builds:
 
   - versionName: 2.17.4
     versionCode: 683
-    commit: 302b0e5411bf2fb437d4be2eda890a4eea62de18
+    commit: 19a547edff1060f68711a777978a3b0618d98b90
     submodules: true
     output: build/app/outputs/flutter-apk/app-x86_64-release.apk
     srclibs:

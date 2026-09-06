@@ -1285,9 +1285,11 @@ class _RackScreenState extends State<RackScreen> {
   ) {
     if (fromPort == AudioPortId.chordOut && toPort == AudioPortId.chordIn) {
       // Chord cable: name the keyboard that drives the receiving module's
-      // harmony — the Jam master, or the tonic source of a Xen slot.
+      // harmony — the Jam master, the tonic source of a Xen slot, or the
+      // chord an Audio Harmonizer voices itself on.
       rack.setJamModeMaster(toSlotId, fromSlotId);
       rack.setXenMaster(toSlotId, fromSlotId);
+      rack.setChordSource(toSlotId, fromSlotId);
     } else if (fromPort == AudioPortId.scaleOut &&
         toPort == AudioPortId.scaleIn) {
       // Scale cable: lock this keyboard to the source module's scale.

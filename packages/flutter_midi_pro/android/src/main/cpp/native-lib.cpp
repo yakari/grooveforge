@@ -188,6 +188,39 @@ Java_com_melihhakanpektas_flutter_1midi_1pro_FlutterMidiProPlugin_setOutputDevic
     oboe_stream_set_output_device(static_cast<int>(deviceId));
 }
 
+/// Releases the shared AAudio output stream without touching the synths.
+///
+/// Called when the Flutter engine detaches, which is the last point this
+/// process reliably gets before it is killed — swiping the app off the recents
+/// list lands here.
+///
+/// Letting the process die with the stream still open is not free. The
+/// platform then tears the route down on our behalf, and creating the audio
+/// patch for a low-latency (MMAP) playback thread is exactly what trips this
+/// vendor's sound-dose lock-order assertion:
+///
+///     Abort message: 'pre_lock: invalid mutex order
+///                     (previous) 18 MelReporter_Mutex> (new) 13 ThreadBase_Mutex'
+///       MelReporter::onCreateAudioPatch
+///         -> MelReporter::startMelComputationForActivePatch_l
+///            -> MmapPlaybackThread::startMelComputation_l
+///
+/// audioserver aborts, and the *next* launch opens into a restarting audio
+/// server: the stream is disconnected within half a second, the fast path is
+/// denied on the strike rule, and the session runs at mixer latency. The lag
+/// the user then reports is a consequence of how the previous run ended.
+///
+/// Closing the stream ourselves, while we are still alive, makes the teardown
+/// an ordinary close instead of a route change over a live MMAP endpoint.
+/// This cannot help a `force-stop`, which SIGKILLs without callbacks — but
+/// that is not how anyone leaves an app mid-set.
+extern "C" JNIEXPORT void JNICALL
+Java_com_melihhakanpektas_flutter_1midi_1pro_FlutterMidiProPlugin_stopOutputStream(
+        JNIEnv* /*env*/, jclass /*clazz*/)
+{
+    oboe_stream_stop();
+}
+
 extern "C" JNIEXPORT void JNICALL
 Java_com_melihhakanpektas_flutter_1midi_1pro_FlutterMidiProPlugin_dispose(
         JNIEnv* /*env*/, jclass /*clazz*/)
