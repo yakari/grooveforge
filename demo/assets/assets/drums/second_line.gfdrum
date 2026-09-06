@@ -1,0 +1,140 @@
+# Second Line — New Orleans Parade / Street Beat
+# Reference: Stanton Moore "Groove Alchemy" (2010), "New Orleans Drumming" (Johnny Vidacovich),
+#            Rebirth Brass Band (Derrick Tabb), Dirty Dozen Brass Band,
+#            John Boudreaux (Meters), Zigaboo Modeliste (Meters second-line work)
+# Second Line is the New Orleans parade tradition where the public follows a brass band,
+# dancing in the street. The drum groove defines this style:
+#   - The "Big Four": the bass drum's famous "and-of-4" accent (pos 14) is the
+#     defining feature — it propels the next downbeat before it arrives, giving
+#     second-line its irresistible forward momentum.
+#   - Ghost notes on the snare are NOT optional ornamentation — they ARE the groove.
+#     A second-line snare without ghosts is just a march.
+#   - The swing_soft feel captures the "laid-back but forward" paradox of the
+#     New Orleans pocket — simultaneously behind and ahead of the beat.
+#
+# Three variations cover the main second-line contexts:
+#   big_four     — the definitive groove with Big Four kick at and-of-4
+#   street_beat  — marching parade feel: more active snare, driving kick
+#   parade_bounce — bouncier parade feel with open hi-hat decoration
+#
+# GM notes: 36=kick, 38=snare, 42=closed HH, 46=open HH, 49=crash
+
+#
+# ── Step grid notation ────────────────────────────────────────────────────────
+# Each character in a step grid represents one subdivision of the bar.
+# Resolution controls how many steps per bar (16 = 16th notes in 4/4; 12 = 16th notes in 6/8).
+#
+#   X   Strong accent  — velocity = base_velocity × 1.00  (full hit / downbeat)
+#   x   Medium accent  — velocity = base_velocity × 0.75  (firm stroke / upbeat)
+#   o   Soft hit       — velocity = base_velocity × 0.55  (brush / light touch)
+#   g   Ghost note     — velocity = base_velocity × 0.28  (barely audible, mostly felt)
+#   .   Rest           — no note fired at this step
+#
+# Beat positions — 4/4 at resolution 16 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
+#        1  e1 +1 a1  2  e2 +2 a2  3  e3 +3 a3  4  e4 +4 a4
+#   (1/+/2/+/3/+/4/+ = quarter beats; e = "e of"; a = "and-a of")
+#
+# Swing / feel: the 'feel' field shifts odd-indexed steps (1,3,5,7…) forward in time.
+#   swing_soft — odd steps delayed ~16 % of a step — the New Orleans pocket
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Second Line
+family: world
+bpm_range: [88, 126]
+time_signature: [4, 4]
+resolution: 16
+feel: swing_soft
+
+instruments:
+  kick:       { note: 36, base_velocity: 105, velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.12 }
+  snare:      { note: 38, base_velocity: 85,  velocity_range: 20, timing_jitter: 0.016, duration_beats: 0.09 }
+  hihat:      { note: 42, base_velocity: 70,  velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.07 }
+  hihat_open: { note: 46, base_velocity: 82,  velocity_range: 10, timing_jitter: 0.014, duration_beats: 0.18 }
+  crash:      { note: 49, base_velocity: 100, velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.22 }
+
+humanization:
+  timing_jitter: 0.018
+  velocity_jitter: 20
+  velocity_drift: 0.09
+
+sections:
+  intro:
+    type: count_in
+    hits: 4
+    note: 38
+
+  groove:
+    bars: 1
+    variations:
+      - name: big_four
+        weight: 3
+        # The definitive second-line groove with the "Big Four" bass drum.
+        # KICK: beat 1 (0), and-of-2 (6), and-of-3 (10), and-of-4 (14).
+        #   The and-of-4 hit (pos 14) is the Big Four — it anticipates the downbeat
+        #   and is what makes second-line impossible to stand still to. Stanton Moore
+        #   called it "the most important note in New Orleans drumming."
+        # SNARE: ghost notes throughout with backbeat on beats 2 and 4 (pos 4, 12).
+        #   The ghost notes fill every space between accents. Rudimentary technique
+        #   (flams, drags) is implied by the humanization on adjacent ghost steps.
+        kick:  "X.....X...X...X."
+        snare: "g.g.X.g.g.g.X.g."
+        hihat: "x.x.x.x.x.x.x.x."
+
+      - name: street_beat
+        weight: 2
+        # Marching parade street beat: kick drives every beat plus the Big Four pickup.
+        # Snare plays all 16th notes (ghost and accented) — the continuous "roll" of
+        # the snare drummer keeping the brass band in step. This is closer to the
+        # actual field drummer's part in a Mardi Gras Indian parade.
+        kick:  "X...X...X...X.X."
+        snare: "gXgXgXgXgXgXgXgX"
+        hihat: "x.x.x.x.x.x.x.x."
+
+      - name: parade_bounce
+        weight: 2
+        # Lighter, bouncier parade feel (Dirty Dozen / Rebirth Brass Band style).
+        # Kick is sparser — just beats 1 and 3 with the Big Four pickup on and-of-4.
+        # Open hi-hat on the 8th upbeats (pos 2, 6, 10, 14) adds the "chk" that
+        # street drummers get from high-tension snare drums.
+        kick:       "X.......X.....X."
+        snare:      "g.g.X.g.g.g.X.g."
+        hihat_open: "..x...x...x...x."
+        hihat:      "x.x.x.x.x.x.x.x."
+
+  fill:
+    bars: 1
+    variations:
+      - name: snare_flam
+        # New Orleans snare roll build: ghost notes accelerate to full accents,
+        # simulating the rudimental "rush" that street drummers use to signal
+        # a brass band section change.
+        snare: "XxXxXxXxXxXxXxXx"
+        kick:  "X..............."
+
+      - name: big_four_accent
+        # Both kick and snare driving all 16th positions — maximum street energy.
+        kick:  "X.X.X.X.X.X.X.X."
+        snare: "gXgXgXgXgXgXgXgX"
+
+      - name: roll_and_crash
+        # Snare roll culminating in crash: ghost notes build, then one massive hit.
+        # The silence before the crash makes it land harder.
+        snare: "g.g.g.g.g.g.g.gX"
+        kick:  "X..............."
+        crash: "X..............."
+
+  crash:
+    bars: 1
+    variations:
+      - name: standard
+        crash: "X..............."
+        kick:  "X...X...X...X..."
+        snare: "g.g.g.g.g.g.g.g."
+
+structure:
+  fill_every: 4
+  break_every: 0
+  break_length: 1
+  crash_after_fill: true
+  dynamic_build: false

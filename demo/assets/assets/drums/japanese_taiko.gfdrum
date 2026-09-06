@@ -1,0 +1,155 @@
+# Japanese — Taiko (matsuri-daiko)
+# Reference: the festival (matsuri) drumming of Japan and the modern ensemble
+#            style of Kodo and Ondekoza; yatai-bayashi from the Chichibu night
+#            festival is the source of the driving variation below.
+# Pairs with the Far East scales in the Xen module — hirajoshi, in sen, yo and
+# ryo all sit naturally over this.
+#
+# The ensemble is three drums and a bell, each with one job:
+#   ODAIKO      — the large barrel drum: one or two strokes per bar, felt in the
+#                 chest rather than heard
+#   CHUDAIKO    — the mid drum that plays the actual pattern
+#   SHIME-DAIKO — the small high-tuned drum playing "jiuchi", the unbroken
+#                 subdivision every other player counts against
+#   KANE        — the hand bell (atarigane) that marks the phrase
+#
+# GM substitution: General MIDI has no taiko. Low floor tom stands in for the
+# odaiko, low tom for the chudaiko, high tom for the shime-daiko, and mute
+# triangle for the kane's small metallic ping. Splash cymbal covers the chappa
+# (hand cymbals).
+# GM notes: 41=low floor tom (odaiko), 45=low tom (chudaiko),
+#           50=high tom (shime-daiko), 80=mute triangle (kane),
+#           55=splash (chappa)
+
+#
+# ── Step grid notation ────────────────────────────────────────────────────────
+# Each character in a step grid represents one subdivision of the bar.
+# Resolution controls how many steps per bar (16 = 16th notes in 4/4).
+#
+#   X   Strong accent  — velocity = base_velocity × 1.00  (full hit / downbeat)
+#   x   Medium accent  — velocity = base_velocity × 0.75  (firm stroke / upbeat)
+#   o   Soft hit       — velocity = base_velocity × 0.55  (brush / light touch)
+#   g   Ghost note     — velocity = base_velocity × 0.28  (barely audible, mostly felt)
+#   .   Rest           — no note fired at this step
+#
+# Beat positions — 4/4 at resolution 16 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
+#        1  e1 +1 a1  2  e2 +2 a2  3  e3 +3 a3  4  e4 +4 a4
+#
+# Swing / feel: straight — taiko is played square and loud; the phrasing comes
+#   from dynamics and from where the players stop, not from swing.
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Taiko (Matsuri)
+family: fareast
+bpm_range: [90, 165]
+time_signature: [4, 4]
+resolution: 16
+feel: straight
+
+# Everything is loud by design; the contrast in this music is between a full
+# stroke and a genuinely quiet one, so the velocity ranges are wide.
+instruments:
+  odaiko:   { note: 41, base_velocity: 120, velocity_range: 8,  timing_jitter: 0.012, duration_beats: 0.25 }
+  chudaiko: { note: 45, base_velocity: 106, velocity_range: 18, timing_jitter: 0.012, duration_beats: 0.14 }
+  shime:    { note: 50, base_velocity: 88,  velocity_range: 16, timing_jitter: 0.010, duration_beats: 0.07 }
+  kane:     { note: 80, base_velocity: 82,  velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.08 }
+  chappa:   { note: 55, base_velocity: 96,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.20 }
+
+humanization:
+  timing_jitter: 0.012
+  velocity_jitter: 14
+  velocity_drift: 0.06
+
+sections:
+  intro:
+    type: count_in
+    hits: 4
+    note: 50
+
+  groove:
+    bars: 1
+    variations:
+      - name: don_doko
+        weight: 4
+        # "Don doko don doko" — the first pattern any taiko student learns.
+        # A full stroke on the beat followed by two quick ones (pos 2, 3 of each
+        # group). The odaiko marks the quarters underneath; the shime keeps the
+        # 8th-note jiuchi that holds the ensemble together.
+        odaiko:   "X...X...X...X..."
+        chudaiko: "X.xxX.xxX.xxX.xx"
+        shime:    "x.x.x.x.x.x.x.x."
+        kane:     "X...x...X...x..."
+
+      - name: yatai_bayashi
+        weight: 3
+        # Yatai-bayashi: relentless 16ths with the accents falling in 3+3+2
+        # groups, so the pattern pulls against its own metre. Played sitting on
+        # the floor of a festival float, for as long as the float is moving.
+        odaiko:   "X.......X......."
+        chudaiko: "XxxXxxXxXxxXxxXx"
+        shime:    "xxxxxxxxxxxxxxxx"
+
+      - name: matsuri
+        weight: 3
+        # The street-festival pattern, led by the kane: the bell states the
+        # phrase and the drums answer it. Sparser than the ensemble pieces and
+        # much older.
+        kane:     "X..x.X..X..x.X.."
+        chudaiko: "X...X.X.X...X.X."
+        odaiko:   "X.......X......."
+        shime:    "x.x.x.x.x.x.x.x."
+
+      - name: oroshi
+        weight: 1
+        # Oroshi — the accelerating roll that opens most pieces, written here as
+        # a density build across the bar: quarters, then 8ths, then 16ths.
+        odaiko:   "X..............."
+        chudaiko: "X...X..X.X.XxXxX"
+        shime:    "x.x.x.x.x.x.x.x."
+
+  fill:
+    bars: 1
+    variations:
+      - name: renda
+        # Renda — a straight 16th roll on the mid drum under a single odaiko
+        # stroke. The ensemble's exclamation mark.
+        odaiko:   "X..............."
+        chudaiko: "XxXxXxXxXxXxXxXx"
+
+      - name: uchikomi
+        # The odaiko takes the fill itself, ending in four full strokes that
+        # nobody in the room can talk over.
+        odaiko:   "X...X...X.X.XXXX"
+        shime:    "x.x.x.x.x.x.x.x."
+
+      - name: kakegoe
+        # The gap where the players shout: three drums together on beats 1 and 3
+        # and silence in between, which is the loudest thing in the piece.
+        odaiko:   "X.......X......."
+        chudaiko: "X.......X......."
+        kane:     "X.......X......."
+
+  break:
+    bars: 2
+    variations:
+      - name: jiuchi_only
+        # Everything drops but the shime's 8th-note jiuchi — the ensemble is
+        # still counting, the audience just cannot hear it any more.
+        shime: "x.x.x.x.x.x.x.x."
+
+  crash:
+    bars: 1
+    variations:
+      - name: standard
+        chappa:   "X..............."
+        odaiko:   "X...X...X...X..."
+        chudaiko: "X.xxX.xxX.xxX.xx"
+        shime:    "x.x.x.x.x.x.x.x."
+
+structure:
+  fill_every: 8
+  break_every: 0
+  break_length: 2
+  crash_after_fill: true
+  dynamic_build: true

@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Utiliser GrooveForge — rack, transport, projets et routage patch.">
+  <title>GrooveForge — Prise en main</title>
+  <link rel="icon" type="image/png" href="../../assets/icon.png">
+  <link rel="stylesheet" href="../../css/site.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Aller au contenu</a>
+  <header class="site-header">
+    <div class="header-inner">
+      <input type="checkbox" id="gf-nav-menu" class="nav-toggle-input">
+      <a class="brand" href="../">
+        <img src="../../assets/icon.png" width="40" height="40" alt="">
+        GrooveForge
+      </a>
+      <div class="header-triggers">
+        <span class="lang-switch" aria-label="Langue">
+          <a href="../../guide/" hreflang="en">EN</a>
+          <span class="lang-sep" aria-hidden="true">·</span>
+          <span class="lang-current" aria-current="true">FR</span>
+        </span>
+        <label for="gf-nav-menu" class="nav-toggle-label">Menu</label>
+      </div>
+      <nav class="site-nav" aria-label="Navigation principale">
+        <a href="../guide/">Guide</a>
+        <a href="../modules/">Modules</a>
+        <a href="../midi-fx/">MIDI FX</a>
+        <a href="../vst/">VST3</a>
+        <a href="../gfdrum/">Patterns (.gfdrum)</a>
+        <a href="../gfpd/">Descripteurs (.gfpd)</a>
+        <a href="../features/">Toutes les fonctionnalités</a>
+        <a href="../../demo/" class="nav-cta">Démo web</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="prose">
+    <div class="page-hero">
+      <h1>Prise en main</h1>
+      <p class="lead">Tour d’horizon pratique : rack, transport, vue patch et projets.</p>
+    </div>
+
+    <h2>Premier lancement</h2>
+    <p>
+      Le <strong>rack</strong> est une liste verticale de slots de plugins. Touchez <strong>+</strong> dans la barre d’application
+      pour ajouter des instruments, des effets, des processeurs MIDI ou (sur bureau) des plugins VST3. Chaque slot peut être
+      développé pour afficher son panneau ; la petite icône câble active la vue <strong>arrière du rack</strong> où les
+      jacks MIDI et audio sont reliés.
+    </p>
+
+    <figure class="figure-card figure-doc">
+      <img src="../../assets/screenshots/01_grooveforge_main.png" width="920" height="518" loading="lazy" alt="Rack principal avec slots de plugins et barre de transport">
+      <figcaption>Rack vertical et transport partagé — ajoutez des slots avec <strong>+</strong>, ouvrez une carte pour le panneau, icône câble pour la vue arrière.</figcaption>
+    </figure>
+
+    <h2>Transport</h2>
+    <p>
+      La barre de transport règle le <strong>BPM</strong>, la signature rythmique, lecture/arrêt, tempo au tap et le métronome.
+      Les patterns du générateur de batterie et les effets synchronisés au tempo suivent cette horloge. Ajustez le BPM avec
+      le champ, les boutons pas à pas ou la molette lorsque c’est pris en charge.
+    </p>
+
+    <h2>Câbles patch</h2>
+    <p>
+      Dans la vue patch, chaque slot expose des jacks colorés : MIDI in/out, audio in/out, envois, retours, et (pour Jam Mode)
+      sorties d’échelle ou d’accord. Appui long sur une sortie pour commencer un câble, relâchez sur une entrée compatible.
+      Touchez un câble existant pour le retirer. L’application valide les types de ports et empêche les routages invalides
+      (y compris les cycles audio).
+    </p>
+
+    <figure class="figure-card figure-doc">
+      <img src="../../assets/screenshots/04_grooveforge_back_wiring.png" width="920" height="518" loading="lazy" alt="Vue arrière du rack : jacks MIDI et audio colorés et câbles">
+      <figcaption>Vue patch : appui long sur une sortie pour tirer un câble vers une entrée compatible (MIDI, audio, gamme, etc.).</figcaption>
+    </figure>
+
+    <h2>Projets (.gf)</h2>
+    <p>
+      Utilisez le menu projet pour <strong>Ouvrir</strong>, <strong>Enregistrer</strong> ou <strong>Enregistrer sous</strong>.
+      Les projets sont des fichiers JSON qui stockent l’ordre du rack, le graphe de câbles, le transport, les SoundFonts,
+      les instantanés de paramètres VST3, les données du looper et les options par slot. Bureau et mobile enregistrent
+      automatiquement la dernière session ; le build web n’a pas de stockage persistant — utilisez Enregistrer sous pour
+      télécharger un <code>.gf</code>.
+    </p>
+
+    <h2>Préférences</h2>
+    <p>
+      Ouvrez les <strong>Préférences</strong> pour le comportement global du clavier (nombre de touches, gestes, CC d’aftertouch),
+      la liste des périphériques MIDI, la <strong>cartographie CC</strong> (associer le matériel au volume, au balayage de patch,
+      aux actions du looper, au cycle de gammes, etc.),       les périphériques audio et les options visuelles de Jam Mode.
+    </p>
+
+    <figure class="figure-card figure-doc">
+      <img src="../../assets/screenshots/02_grooveforge_prefs.png" width="920" height="518" loading="lazy" alt="Préférences : MIDI, cartographie CC, clavier et audio">
+      <figcaption>Préférences — comportement du clavier, MIDI, cartographie CC vers les actions (looper, balayage de patch, cycle de gammes), périphériques.</figcaption>
+    </figure>
+
+    <p><a href="../">← Accueil</a> · <a href="../modules/">Modules intégrés →</a></p>
+  </main>
+
+  <footer class="site-footer">
+    <p><a href="https://github.com/yakari/grooveforge">GitHub</a> · <a href="../privacy/">Confidentialité</a></p>
+  </footer>
+</body>
+</html>

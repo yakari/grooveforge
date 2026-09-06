@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="GrooveForge MIDI FX — harmoniseur, arpégiateur, câbles patch et plugins .gfpd.">
+  <title>GrooveForge — MIDI FX</title>
+  <link rel="icon" type="image/png" href="../../assets/icon.png">
+  <link rel="stylesheet" href="../../css/site.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Aller au contenu</a>
+  <header class="site-header">
+    <div class="header-inner">
+      <input type="checkbox" id="gf-nav-menu" class="nav-toggle-input">
+      <a class="brand" href="../">
+        <img src="../../assets/icon.png" width="40" height="40" alt="">
+        GrooveForge
+      </a>
+      <div class="header-triggers">
+        <span class="lang-switch" aria-label="Langue">
+          <a href="../../midi-fx/" hreflang="en">EN</a>
+          <span class="lang-sep" aria-hidden="true">·</span>
+          <span class="lang-current" aria-current="true">FR</span>
+        </span>
+        <label for="gf-nav-menu" class="nav-toggle-label">Menu</label>
+      </div>
+      <nav class="site-nav" aria-label="Navigation principale">
+        <a href="../guide/">Guide</a>
+        <a href="../modules/">Modules</a>
+        <a href="../midi-fx/">MIDI FX</a>
+        <a href="../vst/">VST3</a>
+        <a href="../gfdrum/">Patterns (.gfdrum)</a>
+        <a href="../gfpd/">Descripteurs (.gfpd)</a>
+        <a href="../features/">Toutes les fonctionnalités</a>
+        <a href="../../demo/" class="nav-cta">Démo web</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="prose">
+    <div class="page-hero">
+      <h1>MIDI FX</h1>
+      <p class="lead">Traitement MIDI 100 % Dart dans le rack : enchaînez des transformations entre votre contrôleur et vos instruments.</p>
+    </div>
+
+    <h2>Ce que sont les MIDI FX</h2>
+    <p>
+      Les slots MIDI FX exécutent un graphe de types de nœuds déclarés dans un fichier <code>.gfpd</code> avec <code>type: midi_fx</code>
+      (alias <code>midifx</code>). Ils ne produisent pas d’audio — ils modifient les flux de notes, CC et pitch bend.
+      Exemples : transposer toutes les notes, harmoniser à des tierces, transformer des notes isolées en accords, arpégier
+      les notes tenues, remapper les vélocités ou filtrer par seuil.
+    </p>
+
+    <h2>Câblage en vue patch</h2>
+    <p>
+      Ouvrez la vue <strong>arrière du rack</strong>. Connectez le <strong>MIDI OUT</strong> d’un instrument (ou le chemin piano
+      virtuel / matériel qui alimente la chaîne) au <strong>MIDI IN</strong> du MIDI FX, puis le <strong>MIDI OUT</strong> du FX
+      vers l’instrument suivant ou un autre MIDI FX. Chaînes multiples et branches parallèles : mêmes règles que pour l’audio,
+      ports compatibles uniquement.
+    </p>
+
+    <figure class="figure-card figure-doc">
+      <img src="../../assets/screenshots/04_grooveforge_back_wiring.png" width="920" height="518" loading="lazy" alt="Vue arrière du rack : jacks MIDI et câbles entre slots">
+      <figcaption>Vue patch : enchaînez MIDI FX entre le contrôleur et l’instrument — mêmes règles de compatibilité de ports que pour l’audio.</figcaption>
+    </figure>
+
+    <h2>Plugins MIDI FX fournis</h2>
+    <table class="download-table">
+      <thead>
+        <tr><th>Plugin</th><th>Rôle</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Transposeur</td><td>Décale toutes les hauteurs de notes en demi-tons ; le reste du MIDI traverse.</td></tr>
+        <tr><td>Harmoniseur</td><td>Ajoute des voix d’harmonie parallèles selon des intervalles.</td></tr>
+        <tr><td>Chord expand</td><td>Transforme des notes simples en formes d’accord (voicing réglable dans le panneau).</td></tr>
+        <tr><td>Arpégiateur</td><td>Défile les notes tenues avec vitesse et ordre configurables.</td></tr>
+        <tr><td>Courbe de vélocité</td><td>Remappe les vélocités des notes le long d’une courbe.</td></tr>
+        <tr><td>Gate</td><td>Supprime les notes sous un seuil de vélocité.</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Bypass et MIDI matériel</h2>
+    <p>
+      Chaque en-tête MIDI FX comporte un interrupteur <strong>marche / bypass</strong> et un apprentissage CC MIDI optionnel
+      pour le bypass. En bypass, aucun événement ne traverse le plugin (les arpégiateurs s’arrêtent comme prévu).
+    </p>
+
+    <h2>Créer les vôtres</h2>
+    <p>
+      Les graphes MIDI FX utilisent la section <code>midi_nodes:</code> dans <code>.gfpd</code> plutôt que <code>graph:</code>
+      audio. Voir <a href="../gfpd/">Descripteurs (.gfpd)</a> et le guide du dépôt
+      <a href="https://github.com/yakari/grooveforge/blob/main/assets/plugins/HOW_TO_CREATE_A_PLUGIN.md"><code>HOW_TO_CREATE_A_PLUGIN.md</code></a>
+      (en anglais).
+    </p>
+
+    <p><a href="../modules/">← Modules</a> · <a href="../vst/">VST3 →</a></p>
+  </main>
+
+  <footer class="site-footer">
+    <p><a href="https://github.com/yakari/grooveforge">GitHub</a> · <a href="../privacy/">Confidentialité</a></p>
+  </footer>
+</body>
+</html>
