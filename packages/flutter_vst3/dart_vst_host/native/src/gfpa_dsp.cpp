@@ -758,7 +758,6 @@ struct HarmonizerEffect {
     /// order upward from the note being sung. The host holds the last chord
     /// until a new one is played, so the harmony stays put when the keyboard
     /// is released.
-    std::atomic<int> chordMask{0};
 
     HarmonizerEffect(float sampleRate, int32_t block)
         : blockSize(block)
@@ -793,7 +792,6 @@ struct HarmonizerEffect {
         // of the saved project too, where a stale scale would be worse than
         // none.
         else if (strcmp(id, "scale_mask")       == 0) scaleMask.store((int)v);
-        else if (strcmp(id, "chord_mask")       == 0) chordMask.store((int)v);
     }
 
     void process(const float* inL, const float* inR,
@@ -808,11 +806,8 @@ struct HarmonizerEffect {
         // Scale Lock needs to know what note is coming in, so the tracker
         // sees the signal before the voices are configured. Only when the
         // lock is on: tracking pitch nobody asked about is work for nothing.
-        // Both Scale Lock and a patched chord need to know what note is
-        // coming in; nothing else does, so nothing else pays for it.
         const bool wantPitch =
-                scaleLock.load(std::memory_order_relaxed) >= 0.5f ||
-                chordMask.load(std::memory_order_relaxed) != 0;
+                scaleLock.load(std::memory_order_relaxed) >= 0.5f;
         if (pitch && wantPitch) gf_pitch_process(pitch, inL, n);
         pushVoiceParams();
 
@@ -869,30 +864,14 @@ private:
         return note;                                    // empty mask
     }
 
-    /// Number of pitch classes set in a 12-bit mask.
-    static int maskCount(int mask) {
-        int n = 0;
-        for (int pc = 0; pc < 12; ++pc) if (mask & (1 << pc)) ++n;
-        return n;
-    }
-
-    /// The [index]-th note above [base] whose pitch class is in [mask].
-    ///
-    /// Index 0 is the first chord tone strictly above the sung note, so a
-    /// singer on the root gets the third, the fifth and the seventh stacked
-    /// upward — the voicing a backing singer would actually take.
-    static int chordToneAbove(int base, int mask, int index) {
-        int found = -1;
-        for (int semis = 1; semis <= 24; ++semis) {
-            const int note = base + semis;
-            if ((mask & (1 << (((note % 12) + 12) % 12))) == 0) continue;
-            if (++found == index) return note;
-        }
-        return base;   // mask empty: leave the voice at unison
-    }
-
     /// Forwards the knob values to both engines, bending the intervals to the
-    /// active scale or replacing them outright with the patched chord.
+    /// active scale when Scale Lock is on.
+    ///
+    /// A chord played on a patched keyboard does not appear here: the host
+    /// writes it into the voice parameters as ordinary interval values, so by
+    /// the time the DSP sees it there is nothing to distinguish it from a
+    /// value someone dialled in. That is deliberate — it is what lets the
+    /// controls keep showing the chord and stay editable afterwards.
     void pushVoiceParams() {
         int active = (int)voiceCount.load(std::memory_order_relaxed);
         if (active < 1) active = 1;
@@ -906,19 +885,9 @@ private:
         const bool haveNote = inNote >= 0.0f;
         const int base = haveNote ? (int)lroundf(inNote) : 0;
 
-        const int chord = chordMask.load(std::memory_order_relaxed);
-        const bool chordDriven = haveNote && chord != 0;
         const bool scaleLocked =
-                haveNote && !chordDriven &&
-                scaleLock.load(std::memory_order_relaxed) >= 0.5f;
+                haveNote && scaleLock.load(std::memory_order_relaxed) >= 0.5f;
 
-        // A chord with three tones cannot voice four parts. The Voices
-        // setting becomes a ceiling rather than a count, so asking for four
-        // over a triad gives three rather than doubling one at random.
-        if (chordDriven) {
-            const int tones = maskCount(chord);
-            if (tones > 0 && tones < active) active = tones;
-        }
         gf_harmony_set_voice_count(harmonyL, active);
         gf_harmony_set_voice_count(harmonyR, active);
 
@@ -928,11 +897,7 @@ private:
             float semis = voiceSemitones[v].load(std::memory_order_relaxed);
             const float mix = voiceMix[v].load(std::memory_order_relaxed);
 
-            if (chordDriven) {
-                // The chord decides outright: voice 1 takes the first chord
-                // tone above the sung note, voice 2 the second, and so on.
-                semis = (float)(chordToneAbove(base, chord, v) - base);
-            } else if (scaleLocked) {
+            if (scaleLocked) {
                 // Snap the *destination* note, then shift by the difference.
                 // Shifting relatively rather than to an absolute pitch is
                 // what keeps the singer's own intonation and vibrato in the

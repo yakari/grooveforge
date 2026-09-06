@@ -220,6 +220,17 @@ class AudioEngine extends ChangeNotifier {
   final Map<String, Map<int, Map<int, String>>> sf2Presets = {};
   final List<ChannelState> channels = List.generate(16, (i) => ChannelState());
 
+  /// Bumped whenever any channel's held notes change.
+  ///
+  /// Listen to this rather than to `channels[i].activeNotes` when the listener
+  /// outlives a project load. Restoring a project *replaces* the ChannelState
+  /// objects (see the assignments in this file), so a listener attached to one
+  /// of their notifiers at startup is silently orphaned the moment a project
+  /// is opened: the engine goes on writing notes to the new objects and the
+  /// listener never hears another one. This notifier belongs to the engine and
+  /// is never replaced, so it cannot be orphaned that way.
+  final ValueNotifier<int> activeNotesRevision = ValueNotifier(0);
+
   bool _isVocoderActive = false;
   CcMappingService? ccMappingService;
 
@@ -1501,6 +1512,7 @@ class AudioEngine extends ChangeNotifier {
       final current = Set<int>.from(channels[channel].activeNotes.value);
       current.add(key);
       channels[channel].activeNotes.value = current;
+      activeNotesRevision.value++;
     });
   }
 
@@ -1509,6 +1521,7 @@ class AudioEngine extends ChangeNotifier {
       final current = Set<int>.from(channels[channel].activeNotes.value);
       current.remove(key);
       channels[channel].activeNotes.value = current;
+      activeNotesRevision.value++;
     });
   }
 
@@ -1721,6 +1734,7 @@ class AudioEngine extends ChangeNotifier {
       final updated = Set<int>.from(channels[channel].activeNotes.value);
       updated.add(key);
       channels[channel].activeNotes.value = updated;
+      activeNotesRevision.value++;
       // Chord detection is gated by mute (same semantics as before).
       if (!channels[channel].isMuted.value) {
         _updateChordState(channel, isNoteOn: true);
@@ -1785,6 +1799,7 @@ class AudioEngine extends ChangeNotifier {
       final updated = Set<int>.from(channels[channel].activeNotes.value);
       updated.remove(key);
       channels[channel].activeNotes.value = updated;
+      activeNotesRevision.value++;
       _updateChordState(channel, isNoteOn: false);
     });
   }

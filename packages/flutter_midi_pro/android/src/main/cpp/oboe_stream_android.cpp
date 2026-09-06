@@ -538,6 +538,24 @@ static constexpr long long kShortLivedMs = 2000;
 /// change and so undoes itself.
 static constexpr int kShortLivedStreamLimit = 1;
 
+/// Whether the low-latency path may be abandoned when it proves unstable.
+///
+/// A safety net, not an expected path. The audio-server crash this guards
+/// against turned out to be driven by media-button churn: a dongle was
+/// jamming key events at about twenty per second, each one churning audio
+/// state, and patch creation is precisely what trips the platform's sound-dose
+/// bug. With the media session held and those keys discarded, the fast path
+/// runs clean — measured at two and a half minutes of EXCLUSIVE MMAP on the
+/// same USB DAC with no abort, no disconnect and no reopen, where before it
+/// died every 600 ms.
+///
+/// So this should now never fire. It stays armed because the failure it
+/// catches is severe and not ours to fix: any other source of patch churn
+/// would silence every app on the phone, and degrading to 66.7 ms beats a
+/// permanent silence that only a reboot clears. If it ever does fire, the log
+/// line it prints is the thing to chase.
+static constexpr bool kAllowLowLatencyFallback = true;
+
 /// Milliseconds on a monotonic clock.
 static long long nowMs()
 {
@@ -560,7 +578,7 @@ static void errorCallback(AAudioStream* stream, void* /*userData*/,
     const long long openedAt = g_streamOpenedAtMs.load(std::memory_order_relaxed);
     const long long lifetime = openedAt > 0 ? nowMs() - openedAt : kShortLivedMs + 1;
 
-    if (lifetime < kShortLivedMs) {
+    if (lifetime < kShortLivedMs && kAllowLowLatencyFallback) {
         const int strikes = g_shortLivedStreams.fetch_add(1) + 1;
         LOGW("AAudio stream lasted only %lld ms (%d in a row)", lifetime, strikes);
 
@@ -976,7 +994,7 @@ extern "C" void oboe_stream_start(int sampleRate)
         // Waiting for the generic two-short-lived-streams rule to notice
         // costs three crashes and about ten seconds of the whole phone
         // having no audio, every cold start with a USB DAC attached.
-        if (result == AAUDIO_ERROR_NO_SERVICE &&
+        if (result == AAUDIO_ERROR_NO_SERVICE && kAllowLowLatencyFallback &&
             !g_lowLatencyDenied.exchange(true)) {
             LOGW("Audio server unreachable (NO_SERVICE) — it has restarted. "
                  "Abandoning the low-latency (MMAP) path for this session.");

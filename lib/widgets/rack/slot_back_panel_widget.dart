@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../models/harmonizer_voicing.dart';
 import 'package:grooveforge_plugin_api/grooveforge_plugin_api.dart'
     show GFEffectPlugin, GFPluginRegistry;
 import 'package:provider/provider.dart';
@@ -149,19 +150,29 @@ class SlotBackPanelWidget extends StatelessWidget {
         // applies.
         if (plugin.pluginId == 'com.grooveforge.audio_harmonizer') {
           ports.add(AudioPortId.scaleIn);
-          // A chord is a stronger statement than a scale: patched from a
-          // keyboard's CHORD OUT, it does not bend the dialled intervals but
-          // replaces them, voicing each part on a chord tone above the note
-          // being sung.
+        }
+        if (kChordFollowingHarmonizers.contains(plugin.pluginId)) {
           ports.add(AudioPortId.chordIn);
         }
         return ports;
       }
-      return [
+
+      // Everything else: MIDI FX and instruments.
+      final ports = [
         AudioPortId.midiIn,
         AudioPortId.audioOutL,
         AudioPortId.audioOutR,
       ];
+      // A harmonizer takes a chord however it is otherwise built. What it
+      // needs from a keyboard is neither MIDI nor audio — it is the notes
+      // being held, which give the voice count and the intervals — so the
+      // MIDI FX gets the same CHORD IN jack as the audio effect rather than
+      // being patched through MIDI IN, which would route the keyboard's notes
+      // into it and play them on the harmonizer's own channel.
+      if (kChordFollowingHarmonizers.contains(plugin.pluginId)) {
+        ports.add(AudioPortId.chordIn);
+      }
+      return ports;
     }
 
     if (plugin is Vst3PluginInstance) {

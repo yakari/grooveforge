@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart' show listEquals;
+import '../models/harmonizer_voicing.dart';
 import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
@@ -292,7 +293,7 @@ List<PatchDataCable> deriveDataCables(List<PluginInstance> plugins) {
   const routingModules = {
     'com.grooveforge.jammode',
     'com.grooveforge.xen',
-    'com.grooveforge.audio_harmonizer',
+    ...kChordFollowingHarmonizers,
   };
 
   final cables = <PatchDataCable>[];
