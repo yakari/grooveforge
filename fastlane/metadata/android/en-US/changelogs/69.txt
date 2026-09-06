@@ -1,0 +1,9 @@
+Added
+- Both harmonizers: four voices, and a CHORD IN jack — the chord you play sets the intervals.
+- Audio Harmonizer: Scale Lock bends each voice to the locked scale.
+- Vocoder: a new Harmony mode that sings the chord back in your own voice.
+- 12 drum styles: techno, electro, dub, R&B, Arabic, Turkish, Persian, Indian, taiko and luogu.
+
+Fixed
+- Audio Harmonizer: crackling, aliasing and uneven voice levels.
+- Android: silence and lag with USB-C DACs and headphones.

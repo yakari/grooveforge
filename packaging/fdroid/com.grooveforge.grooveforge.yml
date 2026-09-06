@@ -12,9 +12,9 @@ RepoType: git
 Repo: https://github.com/yakari/grooveforge.git
 
 Builds:
-  - versionName: 2.17.4
-    versionCode: 681
-    commit: 19a547edff1060f68711a777978a3b0618d98b90
+  - versionName: 2.18.0
+    versionCode: 691
+    commit: e9de7ab983439c1679237795f18726dd9b1c9e63
     submodules: true
     output: build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
     srclibs:
@@ -46,9 +46,9 @@ Builds:
       - $$flutter$$/bin/flutter build apk --release --split-per-abi --target-platform=android-arm
     ndk: r28c
 
-  - versionName: 2.17.4
-    versionCode: 682
-    commit: 19a547edff1060f68711a777978a3b0618d98b90
+  - versionName: 2.18.0
+    versionCode: 692
+    commit: e9de7ab983439c1679237795f18726dd9b1c9e63
     submodules: true
     output: build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
     srclibs:
@@ -80,9 +80,9 @@ Builds:
       - $$flutter$$/bin/flutter build apk --release --split-per-abi --target-platform=android-arm64
     ndk: r28c
 
-  - versionName: 2.17.4
-    versionCode: 683
-    commit: 19a547edff1060f68711a777978a3b0618d98b90
+  - versionName: 2.18.0
+    versionCode: 693
+    commit: e9de7ab983439c1679237795f18726dd9b1c9e63
     submodules: true
     output: build/app/outputs/flutter-apk/app-x86_64-release.apk
     srclibs:
@@ -121,5 +121,5 @@ VercodeOperation:
   - '%c * 10 + 2'
   - '%c * 10 + 3'
 UpdateCheckData: pubspec.yaml|version:\s.+\+(\d+)|.|version:\s(.+)\+
-CurrentVersion: 2.17.4
-CurrentVersionCode: 683
+CurrentVersion: 2.18.0
+CurrentVersionCode: 693

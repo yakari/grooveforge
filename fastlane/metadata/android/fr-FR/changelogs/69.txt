@@ -1,0 +1,9 @@
+Ajouté
+- Les deux harmonizers : quatre voix, et une prise CHORD IN — l'accord joué règle les intervalles.
+- Audio Harmonizer : Scale Lock plie chaque voix sur la gamme verrouillée.
+- Vocodeur : nouveau mode Harmonie, qui renvoie l'accord dans votre voix.
+- 12 styles de batterie : techno, electro, dub, R&B, arabe, turc, persan, indien et taiko.
+
+Corrigé
+- Audio Harmonizer : craquements, aliasing et niveaux inégaux.
+- Android : silences et latence avec les DAC USB-C et les écouteurs.
