@@ -482,6 +482,26 @@ static aaudio_data_callback_result_t audioCallback(
 /// storm into one clean reopen.
 static constexpr int kRecoverySettleMs = 400;
 
+/// Set once an exclusive (MMAP) stream has proved unusable, so later opens go
+/// straight to shared. Shared still gets PERFORMANCE_MODE_LOW_LATENCY, so the
+/// cost is a few milliseconds rather than the mixer path.
+///
+/// Asking for MMAP makes the platform re-query the output device's
+/// capabilities. On a USB audio dongle that query makes the device announce
+/// itself again — `Device 12 connected = 1` in the HAL log — and that
+/// announcement is a route change, which disconnects the stream we just
+/// opened. Reopening then asks for MMAP again, and the app chases its own
+/// tail: a stream up for a fraction of a second, a disconnect, a reopen,
+/// forever. Other apps are unaffected because an ordinary AudioTrack is
+/// re-routed by AudioFlinger instead of being disconnected.
+///
+/// Set from two places — an exclusive open that fails outright, and the error
+/// callback when a stream dies young — hence atomic.
+///
+/// Cleared when the output device changes, so plugging in hardware that can
+/// do MMAP gets the low-latency path back without restarting the app.
+static std::atomic<bool> g_exclusiveDenied{false};
+
 /// Whether the low-latency (MMAP) path has been given up on for this session.
 ///
 /// Some devices cannot survive an MMAP stream being routed to a USB audio
@@ -522,21 +542,30 @@ static std::atomic<int> g_shortLivedStreams{0};
 /// orders of magnitude longer; the observed crash loop kills it in ~600 ms.
 static constexpr long long kShortLivedMs = 2000;
 
-/// How many short-lived streams before the low-latency path is abandoned.
+/// Short-lived streams before MMAP is dropped, and before low latency is.
 ///
-/// One. Waiting for a second strike sounds prudent and is not: the error
-/// recovery and the watchdog each reopen on the low-latency path before a
-/// second strike can be counted, so every cold start with a USB DAC attached
-/// crashed the system audio server three times over ten seconds instead of
-/// once — and each of those crashes silences every app on the phone, not just
-/// this one.
+/// Two thresholds, because the two remedies do not cost the same. Dropping
+/// MMAP keeps PERFORMANCE_MODE_LOW_LATENCY and costs a few milliseconds;
+/// dropping low latency puts the stream on the legacy AudioTrack mixer and
+/// costs a hundred or more. A single early disconnect is not evidence for the
+/// expensive one.
 ///
-/// The cost of being wrong is small and self-correcting. A false trip means
-/// this output runs at mixer latency until the route changes, and a route
-/// change re-arms the fast path; the plausible false positive, plugging
-/// headphones in within two seconds of the stream opening, is itself a route
-/// change and so undoes itself.
-static constexpr int kShortLivedStreamLimit = 1;
+/// It is barely evidence at all: a USB-C hub or DAC that enumerates while the
+/// first stream is coming up disconnects it as a matter of course, and that is
+/// exactly the case where the app most needs to be playable. Escalating
+/// straight to the mixer path on that one strike made every session with a DAC
+/// attached run at mixer latency until the output device changed — the ~200 ms
+/// of keyboard lag this pair of constants replaces.
+///
+/// So the first strike drops MMAP, which is also the documented remedy for the
+/// dongle re-announcement loop (see g_exclusiveDenied) and removes the MMAP
+/// patch creation that trips the platform's sound-dose abort. Only if streams
+/// keep dying young *after* that does the mixer path get earned. The genuine
+/// audio-server crash still short-circuits both counters via NO_SERVICE in
+/// oboe_stream_start(), so the severe failure is caught on its own evidence
+/// rather than by a heuristic that ordinary hardware trips.
+static constexpr int kExclusiveStrikeLimit  = 1;
+static constexpr int kLowLatencyStrikeLimit = 3;
 
 /// Whether the low-latency path may be abandoned when it proves unstable.
 ///
@@ -572,9 +601,11 @@ static void errorCallback(AAudioStream* stream, void* /*userData*/,
     // Capture sample rate before the stream becomes invalid.
     const int sr = AAudioStream_getSampleRate(stream);
 
-    // Did this stream just die young? If it keeps happening we are almost
-    // certainly driving the platform's MMAP/sound-dose crash (see
-    // g_lowLatencyDenied) rather than losing a genuine route.
+    // Did this stream just die young? One such death is ordinary — a USB hub
+    // or DAC enumerating while the first stream comes up does it — and costs
+    // only the MMAP endpoint. A run of them means we are driving the
+    // platform's MMAP/sound-dose crash (see g_lowLatencyDenied) rather than
+    // losing a genuine route, and that is what earns the mixer path.
     const long long openedAt = g_streamOpenedAtMs.load(std::memory_order_relaxed);
     const long long lifetime = openedAt > 0 ? nowMs() - openedAt : kShortLivedMs + 1;
 
@@ -582,14 +613,22 @@ static void errorCallback(AAudioStream* stream, void* /*userData*/,
         const int strikes = g_shortLivedStreams.fetch_add(1) + 1;
         LOGW("AAudio stream lasted only %lld ms (%d in a row)", lifetime, strikes);
 
+        if (strikes >= kExclusiveStrikeLimit &&
+            !g_exclusiveDenied.exchange(true)) {
+            LOGW("Instant disconnect — dropping the exclusive (MMAP) endpoint "
+                 "for this session and reopening SHARED. Still low-latency; "
+                 "this alone ends the dongle re-announcement loop on most "
+                 "hardware.");
+        }
 
-        if (strikes >= kShortLivedStreamLimit &&
+        if (strikes >= kLowLatencyStrikeLimit &&
             !g_lowLatencyDenied.exchange(true)) {
-            LOGW("Repeated instant disconnects — abandoning the low-latency "
-                 "(MMAP) path for this session and reopening on the legacy "
-                 "AudioTrack path. Latency rises, but this device's audio "
-                 "server aborts when an MMAP stream is patched to this "
-                 "output, which silences every app until it restarts.");
+            LOGW("Streams still dying young without MMAP — abandoning the "
+                 "low-latency path for this session and reopening on the "
+                 "legacy AudioTrack path. Latency rises a lot, but this "
+                 "device's audio server aborts when a low-latency stream is "
+                 "patched to this output, which silences every app until it "
+                 "restarts.");
         }
     } else {
         g_shortLivedStreams.store(0, std::memory_order_relaxed);
@@ -887,22 +926,6 @@ static aaudio_result_t openAndStartStream(int sampleRate,
 /// worse than the race it closes.
 static std::mutex g_streamMtx;
 
-/// Set once the platform has refused an exclusive (MMAP) stream, so later
-/// opens go straight to shared.
-///
-/// Asking for MMAP makes the platform re-query the output device's
-/// capabilities. On a USB audio dongle that query makes the device announce
-/// itself again — `Device 12 connected = 1` in the HAL log — and that
-/// announcement is a route change, which disconnects the stream we just
-/// opened. Reopening then asks for MMAP again, and the app chases its own
-/// tail: a stream up for a fraction of a second, a disconnect, a reopen,
-/// forever. Other apps are unaffected because an ordinary AudioTrack is
-/// re-routed by AudioFlinger instead of being disconnected.
-///
-/// Cleared when the output device changes, so plugging in hardware that can
-/// do MMAP gets the low-latency path back without restarting the app.
-static bool g_exclusiveDenied = false;
-
 /// Whether the app wants audio at all, and at what rate. Set by the Dart-side
 /// start, cleared by the Dart-side stop; the watchdog below uses it to tell
 /// "the stream is down and should not be" from "the app asked for silence".
@@ -966,10 +989,11 @@ extern "C" void oboe_stream_start(int sampleRate)
     // device's exclusive MMAP endpoint is enough to trigger it.
     aaudio_result_t result = AAUDIO_ERROR_INVALID_STATE;
 
-    if (!g_exclusiveDenied && !g_lowLatencyDenied.load(std::memory_order_relaxed)) {
+    if (!g_exclusiveDenied.load(std::memory_order_relaxed) &&
+        !g_lowLatencyDenied.load(std::memory_order_relaxed)) {
         result = openAndStartStream(sampleRate, AAUDIO_SHARING_MODE_EXCLUSIVE);
         if (result != AAUDIO_OK) {
-            g_exclusiveDenied = true;
+            g_exclusiveDenied.store(true, std::memory_order_relaxed);
             LOGW("Exclusive (MMAP) stream unavailable (%s) — using SHARED for "
                  "the rest of this session. Higher latency, but asking again "
                  "on every reopen re-queries the output device, which is a "
@@ -1117,7 +1141,7 @@ extern "C" void oboe_stream_set_output_device(int deviceId)
 
     g_outputDeviceId = deviceId;
     // New hardware may well support MMAP even though the last one did not.
-    g_exclusiveDenied = false;
+    g_exclusiveDenied.store(false, std::memory_order_relaxed);
     g_lowLatencyDenied.store(false, std::memory_order_relaxed);
     g_shortLivedStreams.store(0, std::memory_order_relaxed);
     LOGI("Output device changed: %d -> %d", previous, deviceId);
