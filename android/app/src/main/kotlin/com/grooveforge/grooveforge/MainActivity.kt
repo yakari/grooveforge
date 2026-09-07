@@ -245,6 +245,15 @@ class MainActivity : FlutterActivity() {
             ThereminCameraPlugin.PREVIEW_CHANNEL
         ).setStreamHandler(thereminCameraPlugin.previewStreamHandler())
 
+        // ── Media decoding for formats the bundled decoders cannot read ──────
+        // AAC/M4A and the audio track of a video container, via the platform's
+        // own MediaExtractor and MediaCodec — system APIs, so nothing is
+        // bundled and F-Droid has nothing to object to.
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            MediaDecoderPlugin.METHOD_CHANNEL
+        ).setMethodCallHandler(MediaDecoderPlugin())
+
         channel.setMethodCallHandler { call, result ->
             val am = audioManager!!
             when (call.method) {

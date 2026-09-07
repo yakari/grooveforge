@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import '../models/rehearsal.dart';
 import '../services/file_picker_service.dart';
+import '../services/platform_media_decoder.dart';
 import '../services/rehearsal_engine.dart';
 import '../services/rehearsal_library.dart';
 import 'master_align_screen.dart';
@@ -63,13 +64,12 @@ class _RehearsalScreenState extends State<RehearsalScreen> {
     final rehearsal = _rehearsal;
     if (rehearsal == null) return;
 
-    // The extensions the bundled decoders handle. Anything else is refused by
-    // the importer with a message rather than half-decoded into noise; the
-    // formats that need the platform's own extractor (AAC, M4A, video
-    // containers) are not offered yet — see REHEARSALS.md §7.1.
+    // Everything this platform can decode: the three bundled formats
+    // everywhere, plus whatever the platform's own codecs add. The picker
+    // greys out the rest, so a file that cannot be imported cannot be chosen.
     final path = await FilePickerService.pickFile(
       context: context,
-      allowedExtensions: const ['mp3', 'wav', 'flac'],
+      allowedExtensions: PlatformMediaDecoder.pickableExtensions,
       dialogTitle: l10n.masterImport,
     );
     if (path == null || !mounted) return;

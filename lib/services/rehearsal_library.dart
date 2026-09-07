@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../models/rehearsal.dart';
 import 'audio_input_ffi.dart';
+import 'platform_media_decoder.dart';
 
 /// Owns the on-disk library of rehearsals.
 ///
@@ -92,16 +93,37 @@ class RehearsalLibrary extends ChangeNotifier {
     int sampleRate = 48000,
   }) async {
     final ffi = AudioInputFFI();
-    if (!ffi.mediaCanDecode(sourcePath)) {
-      debugPrint('RehearsalLibrary: cannot decode $sourcePath');
-      return null;
-    }
-
     final dir = await masterDir(rehearsal.id);
     const fileName = 'master.wav';
     final dst = '${dir.path}/$fileName';
 
-    final frames = ffi.mediaToMonoWav(sourcePath, dst, sampleRate: sampleRate);
+    // Two decoders, one path. The bundled one handles MP3, FLAC and WAV on
+    // every platform; anything else goes through the platform's own codecs
+    // first, which produce a WAV the bundled one can then fold to mono and
+    // resample. That intermediate file is the price of not having to write a
+    // resampler twice.
+    var decodable = ffi.mediaCanDecode(sourcePath);
+    String? intermediate;
+    if (!decodable) {
+      if (!PlatformMediaDecoder.isSupported) {
+        debugPrint('RehearsalLibrary: cannot decode $sourcePath');
+        return null;
+      }
+      intermediate = '${dir.path}/source-decoded.wav';
+      final res = await PlatformMediaDecoder.decodeToWav(sourcePath, intermediate);
+      if (res == null || res.frames <= 0) {
+        debugPrint('RehearsalLibrary: platform decode failed for $sourcePath');
+        await _deleteQuietly(intermediate);
+        return null;
+      }
+      decodable = true;
+    }
+
+    final frames = ffi.mediaToMonoWav(
+        intermediate ?? sourcePath, dst, sampleRate: sampleRate);
+    // The intermediate has served its purpose either way; leaving it behind
+    // would silently double what a rehearsal costs on disk.
+    if (intermediate != null) await _deleteQuietly(intermediate);
     if (frames <= 0) {
       debugPrint('RehearsalLibrary: import failed ($frames)');
       return null;
@@ -124,6 +146,16 @@ class RehearsalLibrary extends ChangeNotifier {
     await saveLocalState(rehearsal.id, local);
 
     return rehearsal.master;
+  }
+
+  /// Deletes a file, ignoring the case where it was never created.
+  Future<void> _deleteQuietly(String path) async {
+    try {
+      final f = File(path);
+      if (await f.exists()) await f.delete();
+    } catch (e) {
+      debugPrint('RehearsalLibrary: could not delete $path — $e');
+    }
   }
 
   /// Moves the grid's first downbeat to [offsetFrames] inside the recording.

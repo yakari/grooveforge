@@ -730,17 +730,34 @@ Two miniaudio globals are declared *outside* `MA_API` and so collide anyway:
 (compiled regardless of `MA_NO_DEVICE_IO`). Both are renamed in the importer's
 copy. Anything that ever adds a third miniaudio will hit the same two.
 
-### 12.3 Formats, and what is still missing
+### 12.3 Formats
 
-Working now, on all five platforms with no new dependency: **MP3, FLAC, WAV**.
+| | Everywhere | Android also |
+|---|---|---|
+| Decoder | bundled dr_libs, via miniaudio | `MediaExtractor` + `MediaCodec` |
+| Formats | MP3, FLAC, WAV | M4A, AAC, Ogg, Opus, and the audio track of MP4/MKV/WebM |
 
-Not yet: **AAC/M4A and video containers**. These need the platform's own
-extractor — `MediaExtractor` + `MediaCodec` on Android, `AVAssetReader` on
-Apple — which is a system API and bundles nothing, unlike `ffmpeg_kit_flutter`
-(archived in 2025, ships prebuilt binaries, unacceptable for F-Droid). The file
-picker currently offers only the three formats that work, so an M4A cannot be
-selected rather than being selected and then failing. M4A is common in phone
-music libraries, so this is the first thing to add.
+Two decoders, one path: the bundled one handles its three formats directly;
+anything else goes through the platform's codecs into an intermediate WAV that
+the bundled one then folds to mono and resamples. Writing a resampler in Kotlin
+to avoid that intermediate would have meant maintaining two, so the intermediate
+stays — and is deleted as soon as it has been consumed.
+
+`ffmpeg_kit_flutter` is deliberately not used: archived in 2025, ships prebuilt
+binaries, unacceptable for F-Droid. `MediaExtractor` and `MediaCodec` are system
+APIs and bundle nothing.
+
+The picker offers exactly what the running platform can decode, so a file that
+cannot be imported cannot be selected in the first place.
+
+**iOS is the gap.** `AVAssetReader` is the equivalent and would slot into the
+same `PlatformMediaDecoder` seam; until then iOS has the bundled three.
+
+Verified on device: an M4A decodes as `audio/mp4a-latm -> 882688 frames,
+44100 Hz, 2 ch` and lands as 960 749 frames at 48 kHz mono (20.016 s — AAC
+encoder padding, so slightly over the source's 20.000 s). An MP4 carrying both
+video and AAC audio yields the same, with `MediaExtractor` selecting the audio
+track rather than handing the decoder pictures.
 
 ### 12.4 Known gaps
 
@@ -750,7 +767,9 @@ music libraries, so this is the first thing to add.
   "intro bars" count.
 - **Import blocks the UI thread** behind a progress bar. A four-minute file is
   a second or two on a phone; long enough to want an isolate eventually.
-- **The on-device UI has not been exercised for P2** — the test phone dropped
-  off Wi-Fi before the import flow could be driven end to end. The native path
-  is verified on Linux against a real MP3, and the Linux and Android builds
-  both link.
+- **Video is imported for its audio only.** Playing the picture back in sync is
+  a separate, much larger feature; the import sheet should say so.
+
+On-device verification (Galaxy Z Fold): MP3, M4A and MP4-with-video all import,
+the waveform draws, and dragging plus thirteen 10 ms nudges placed the downbeat
+at 0:01.35 against a true 1.35 s, stored as `offset 64883` frames.
