@@ -1194,5 +1194,111 @@
   "latencyProbeFailed": "No usable measurement",
   "latencyProbeSilentInput": "The microphone heard nothing. Check the microphone permission, and play through the speaker rather than headphones.",
   "latencyProbeNeedsAudio": "Audio capture is not running. Open a live input or the vocoder first.",
-  "latencyProbeHint": "Keep the room quiet and hold the phone so the speaker faces the mic."
+  "latencyProbeHint": "Keep the room quiet and hold the phone so the speaker faces the mic.",
+  "rackTabLabel": "Rack",
+  "rehearsalsTabLabel": "Rehearse",
+  "rehearsalsTitle": "Rehearsals",
+  "rehearsalsEmpty": "No rehearsals yet",
+  "rehearsalsEmptyHint": "Start a tune, set the tempo, and record your part. The rest of the band can join later.",
+  "rehearsalsNew": "Start a tune",
+  "rehearsalCreateTitle": "New rehearsal",
+  "rehearsalFieldTitle": "Tune",
+  "rehearsalFieldTitleHint": "Autumn Leaves",
+  "rehearsalFieldYourName": "Your name",
+  "rehearsalFieldInstrument": "Your instrument",
+  "rehearsalFieldTempo": "Tempo",
+  "rehearsalFieldTimeSignature": "Time signature",
+  "rehearsalFieldCountIn": "Count-in",
+  "rehearsalCountInBars": "{bars} bars",
+  "@rehearsalCountInBars": {
+    "placeholders": {
+      "bars": {
+        "type": "int"
+      }
+    }
+  },
+  "rehearsalCountInNone": "None",
+  "rehearsalCreate": "Create",
+  "rehearsalCancel": "Cancel",
+  "rehearsalPartsProgress": "{done} of {total} parts recorded",
+  "@rehearsalPartsProgress": {
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "rehearsalBpmValue": "{bpm} BPM",
+  "@rehearsalBpmValue": {
+    "placeholders": {
+      "bpm": {
+        "type": "String"
+      }
+    }
+  },
+  "rehearsalMeter": "{num}/{den}",
+  "@rehearsalMeter": {
+    "placeholders": {
+      "num": {
+        "type": "int"
+      },
+      "den": {
+        "type": "int"
+      }
+    }
+  },
+  "rehearsalDelete": "Delete",
+  "rehearsalDeleteConfirm": "Delete \"{title}\" and every recording in it?",
+  "@rehearsalDeleteConfirm": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "rehearsalAddPart": "Add a part",
+  "rehearsalNotRecorded": "Not recorded yet",
+  "rehearsalTakeLength": "{seconds}s",
+  "@rehearsalTakeLength": {
+    "placeholders": {
+      "seconds": {
+        "type": "String"
+      }
+    }
+  },
+  "rehearsalMetronome": "Metronome",
+  "rehearsalPlay": "Play",
+  "rehearsalStop": "Stop",
+  "rehearsalRecord": "Record",
+  "rehearsalRerecord": "Record again",
+  "rehearsalCountingIn": "Counting in",
+  "rehearsalBarBeat": "Bar {bar}  ·  beat {beat}",
+  "@rehearsalBarBeat": {
+    "placeholders": {
+      "bar": {
+        "type": "int"
+      },
+      "beat": {
+        "type": "int"
+      }
+    }
+  },
+  "rehearsalMute": "Mute",
+  "rehearsalGridFrozen": "Tempo and time signature lock once a part is recorded, because every take is aligned to them.",
+  "rehearsalNoCompensation": "Latency has not been measured on this device, so a new take may sit behind the beat. Measure it in Settings.",
+  "instrumentVocals": "Vocals",
+  "instrumentGuitar": "Acoustic guitar",
+  "instrumentElectricGuitar": "Electric guitar",
+  "instrumentBassGuitar": "Bass",
+  "instrumentDrums": "Drums",
+  "instrumentKeyboard": "Keyboard",
+  "instrumentSynth": "Synth",
+  "instrumentViolin": "Violin",
+  "instrumentSaxophone": "Saxophone",
+  "instrumentTrumpet": "Trumpet",
+  "instrumentPercussion": "Percussion",
+  "instrumentOther": "Other"
 }

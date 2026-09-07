@@ -1508,4 +1508,123 @@ class AudioInputFFI {
   /// Loudest input sample seen during the run — zero means the mic heard
   /// nothing, which is the expected outcome on headphones.
   double get probeInputPeak => _gfProbeInputPeak();
+
+  // ── Rehearsal engine ──────────────────────────────────────────────────────
+  //
+  // Streams every take from disk, clicks a metronome on the bar grid, and
+  // captures one new take shifted earlier by the measured round trip so it
+  // lands on the beat. See native_audio/gf_rehearsal.h.
+
+  late final int Function() _rehActivate = _lib
+      .lookupFunction<Int32 Function(), int Function()>('gf_reh_ffi_activate');
+  late final void Function() _rehDeactivate = _lib
+      .lookupFunction<Void Function(), void Function()>('gf_reh_ffi_deactivate');
+  late final int Function() _rehBusRenderFnAddr = _lib
+      .lookupFunction<IntPtr Function(), int Function()>(
+          'gf_reh_bus_render_fn_addr');
+  late final void Function(double, int, int) _rehSetGrid = _lib
+      .lookupFunction<Void Function(Double, Int32, Int32),
+          void Function(double, int, int)>('gf_reh_set_grid');
+  late final int Function() _rehFramesPerBeat = _lib
+      .lookupFunction<Int32 Function(), int Function()>('gf_reh_frames_per_beat');
+  late final int Function() _rehFramesPerBar = _lib
+      .lookupFunction<Int32 Function(), int Function()>('gf_reh_frames_per_bar');
+  late final int Function(Pointer<Utf8>) _rehAddTrack = _lib
+      .lookupFunction<Int32 Function(Pointer<Utf8>), int Function(Pointer<Utf8>)>(
+          'gf_reh_add_track');
+  late final void Function(int) _rehRemoveTrack = _lib
+      .lookupFunction<Void Function(Int32), void Function(int)>(
+          'gf_reh_remove_track');
+  late final void Function() _rehClearTracks = _lib
+      .lookupFunction<Void Function(), void Function()>('gf_reh_clear_tracks');
+  late final void Function(int, double) _rehSetTrackGain = _lib
+      .lookupFunction<Void Function(Int32, Float), void Function(int, double)>(
+          'gf_reh_set_track_gain');
+  late final void Function(int, int) _rehSetTrackMute = _lib
+      .lookupFunction<Void Function(Int32, Int32), void Function(int, int)>(
+          'gf_reh_set_track_mute');
+  late final int Function(int) _rehTrackFrames = _lib
+      .lookupFunction<Int64 Function(Int32), int Function(int)>(
+          'gf_reh_track_frames');
+  late final double Function(int) _rehTrackPeak = _lib
+      .lookupFunction<Float Function(Int32), double Function(int)>(
+          'gf_reh_track_peak');
+  late final void Function(int, double) _rehSetMetronome = _lib
+      .lookupFunction<Void Function(Int32, Float), void Function(int, double)>(
+          'gf_reh_set_metronome');
+  late final int Function(int) _rehPlay = _lib
+      .lookupFunction<Int32 Function(Int64), int Function(int)>('gf_reh_play');
+  late final int Function(Pointer<Utf8>, int, int) _rehRecord = _lib
+      .lookupFunction<Int32 Function(Pointer<Utf8>, Int32, Int32),
+          int Function(Pointer<Utf8>, int, int)>('gf_reh_record');
+  late final void Function() _rehStop = _lib
+      .lookupFunction<Void Function(), void Function()>('gf_reh_stop');
+  late final int Function() _rehPosition = _lib
+      .lookupFunction<Int64 Function(), int Function()>('gf_reh_position');
+  late final int Function() _rehState = _lib
+      .lookupFunction<Int32 Function(), int Function()>('gf_reh_state');
+  late final double Function() _rehInputPeak = _lib
+      .lookupFunction<Float Function(), double Function()>('gf_reh_input_peak');
+  late final int Function() _rehRecordedFrames = _lib
+      .lookupFunction<Int64 Function(), int Function()>(
+          'gf_reh_recorded_frames');
+
+  /// Creates the engine if needed and routes audio through it.
+  int rehActivate() => _rehActivate();
+
+  /// Stops routing. Tracks are kept, so re-activating costs nothing.
+  void rehDeactivate() => _rehDeactivate();
+
+  /// Address of the engine's bus-source render, for Android's Oboe bus.
+  int rehBusRenderFnAddr() => _rehBusRenderFnAddr();
+
+  /// Sets the bar grid. Ignored by the engine while the transport is running.
+  void rehSetGrid(double bpm, int beatsPerBar, int beatUnit) =>
+      _rehSetGrid(bpm, beatsPerBar, beatUnit);
+
+  int get rehFramesPerBeat => _rehFramesPerBeat();
+  int get rehFramesPerBar => _rehFramesPerBar();
+
+  /// Loads a take. Returns its track index, or negative on failure.
+  int rehAddTrack(String wavPath) {
+    final p = wavPath.toNativeUtf8();
+    try {
+      return _rehAddTrack(p);
+    } finally {
+      calloc.free(p);
+    }
+  }
+
+  void rehRemoveTrack(int idx) => _rehRemoveTrack(idx);
+  void rehClearTracks() => _rehClearTracks();
+  void rehSetTrackGain(int idx, double gain) => _rehSetTrackGain(idx, gain);
+  void rehSetTrackMute(int idx, bool muted) =>
+      _rehSetTrackMute(idx, muted ? 1 : 0);
+  int rehTrackFrames(int idx) => _rehTrackFrames(idx);
+  double rehTrackPeak(int idx) => _rehTrackPeak(idx);
+  void rehSetMetronome({required bool enabled, required double gain}) =>
+      _rehSetMetronome(enabled ? 1 : 0, gain);
+
+  int rehPlay(int startFrame) => _rehPlay(startFrame);
+
+  /// Arms recording into [wavPath], shifting the take earlier by
+  /// [compensationFrames] and preceding it by [countInBars] bars of metronome.
+  int rehRecord(String wavPath, int compensationFrames, int countInBars) {
+    final p = wavPath.toNativeUtf8();
+    try {
+      return _rehRecord(p, compensationFrames, countInBars);
+    } finally {
+      calloc.free(p);
+    }
+  }
+
+  /// Stops and finalises any take in progress. Briefly blocking — it waits for
+  /// the last of the recording to reach disk.
+  void rehStop() => _rehStop();
+
+  /// Position in frames on the grid; negative during a count-in.
+  int get rehPosition => _rehPosition();
+  int get rehState => _rehState();
+  double get rehInputPeak => _rehInputPeak();
+  int get rehRecordedFrames => _rehRecordedFrames();
 }

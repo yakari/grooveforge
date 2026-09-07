@@ -304,4 +304,27 @@ class AudioInputFFI {
   double get probeDriftPpm => 0.0;
   double get probeSkewMs => 0.0;
   double get probeInputPeak => 0.0;
+
+  // Rehearsal engine — no native library on web.
+  int rehActivate() => -1;
+  void rehDeactivate() {}
+  int rehBusRenderFnAddr() => 0;
+  void rehSetGrid(double bpm, int beatsPerBar, int beatUnit) {}
+  int get rehFramesPerBeat => 0;
+  int get rehFramesPerBar => 0;
+  int rehAddTrack(String wavPath) => -1;
+  void rehRemoveTrack(int idx) {}
+  void rehClearTracks() {}
+  void rehSetTrackGain(int idx, double gain) {}
+  void rehSetTrackMute(int idx, bool muted) {}
+  int rehTrackFrames(int idx) => 0;
+  double rehTrackPeak(int idx) => 0.0;
+  void rehSetMetronome({required bool enabled, required double gain}) {}
+  int rehPlay(int startFrame) => -1;
+  int rehRecord(String wavPath, int compensationFrames, int countInBars) => -1;
+  void rehStop() {}
+  int get rehPosition => 0;
+  int get rehState => 0;
+  double get rehInputPeak => 0.0;
+  int get rehRecordedFrames => 0;
 }

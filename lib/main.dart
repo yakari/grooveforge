@@ -19,6 +19,8 @@ import 'services/patch_drag_controller.dart';
 import 'services/project_service.dart';
 import 'services/rack_state.dart';
 import 'services/transport_engine.dart';
+import 'services/rehearsal_engine.dart';
+import 'services/rehearsal_library.dart';
 import 'services/vst_host_service.dart';
 import 'screens/splash_screen.dart';
 import 'l10n/app_localizations.dart';
@@ -202,6 +204,16 @@ void main() async {
               previous ?? RackState(engine, transport, graph),
         ),
         ChangeNotifierProvider<ProjectService>(create: (_) => ProjectService()),
+        // The rehearsal library reads its own folder under the documents
+        // directory and never touches ProjectService or the .gf format.
+        ChangeNotifierProvider<RehearsalLibrary>(
+          create: (_) => RehearsalLibrary(),
+        ),
+        ChangeNotifierProxyProvider<RehearsalLibrary, RehearsalEngine>(
+          create: (ctx) => RehearsalEngine(ctx.read<RehearsalLibrary>()),
+          update: (ctx, library, previous) =>
+              previous ?? RehearsalEngine(library),
+        ),
         Provider<VstHostService>(
           create: (_) => VstHostService.instance,
           dispose: (_, svc) => svc.dispose(),

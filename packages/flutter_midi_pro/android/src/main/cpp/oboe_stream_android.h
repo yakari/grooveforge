@@ -55,6 +55,10 @@ extern "C" {
 /// Registered only while a measurement is running, then removed again.
 #define OBOE_BUS_SLOT_LATENCY_PROBE 104
 
+/// Rehearsal engine — streams the band's takes and clicks the metronome.
+/// Registered while the rehearsal screen is open.
+#define OBOE_BUS_SLOT_REHEARSAL 105
+
 // ── Generic audio source render callback ─────────────────────────────────────
 
 /// Render callback type for a generic audio source.

@@ -2179,4 +2179,165 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get latencyProbeHint =>
       'Gardez la pièce silencieuse et orientez le haut-parleur vers le micro.';
+
+  @override
+  String get rackTabLabel => 'Rack';
+
+  @override
+  String get rehearsalsTabLabel => 'Répéter';
+
+  @override
+  String get rehearsalsTitle => 'Répétitions';
+
+  @override
+  String get rehearsalsEmpty => 'Aucune répétition';
+
+  @override
+  String get rehearsalsEmptyHint =>
+      'Lancez un morceau, réglez le tempo et enregistrez votre partie. Le reste du groupe pourra rejoindre plus tard.';
+
+  @override
+  String get rehearsalsNew => 'Lancer un morceau';
+
+  @override
+  String get rehearsalCreateTitle => 'Nouvelle répétition';
+
+  @override
+  String get rehearsalFieldTitle => 'Morceau';
+
+  @override
+  String get rehearsalFieldTitleHint => 'Les Feuilles mortes';
+
+  @override
+  String get rehearsalFieldYourName => 'Votre nom';
+
+  @override
+  String get rehearsalFieldInstrument => 'Votre instrument';
+
+  @override
+  String get rehearsalFieldTempo => 'Tempo';
+
+  @override
+  String get rehearsalFieldTimeSignature => 'Métrique';
+
+  @override
+  String get rehearsalFieldCountIn => 'Décompte';
+
+  @override
+  String rehearsalCountInBars(int bars) {
+    return '$bars mesures';
+  }
+
+  @override
+  String get rehearsalCountInNone => 'Aucun';
+
+  @override
+  String get rehearsalCreate => 'Créer';
+
+  @override
+  String get rehearsalCancel => 'Annuler';
+
+  @override
+  String rehearsalPartsProgress(int done, int total) {
+    return '$done parties sur $total enregistrées';
+  }
+
+  @override
+  String rehearsalBpmValue(String bpm) {
+    return '$bpm BPM';
+  }
+
+  @override
+  String rehearsalMeter(int num, int den) {
+    return '$num/$den';
+  }
+
+  @override
+  String get rehearsalDelete => 'Supprimer';
+
+  @override
+  String rehearsalDeleteConfirm(String title) {
+    return 'Supprimer « $title » et tous ses enregistrements ?';
+  }
+
+  @override
+  String get rehearsalAddPart => 'Ajouter une partie';
+
+  @override
+  String get rehearsalNotRecorded => 'Pas encore enregistrée';
+
+  @override
+  String rehearsalTakeLength(String seconds) {
+    return '$seconds s';
+  }
+
+  @override
+  String get rehearsalMetronome => 'Métronome';
+
+  @override
+  String get rehearsalPlay => 'Lecture';
+
+  @override
+  String get rehearsalStop => 'Stop';
+
+  @override
+  String get rehearsalRecord => 'Enregistrer';
+
+  @override
+  String get rehearsalRerecord => 'Réenregistrer';
+
+  @override
+  String get rehearsalCountingIn => 'Décompte';
+
+  @override
+  String rehearsalBarBeat(int bar, int beat) {
+    return 'Mesure $bar  ·  temps $beat';
+  }
+
+  @override
+  String get rehearsalMute => 'Muet';
+
+  @override
+  String get rehearsalGridFrozen =>
+      'Le tempo et la métrique se verrouillent dès qu\'une partie est enregistrée : toutes les prises y sont calées.';
+
+  @override
+  String get rehearsalNoCompensation =>
+      'La latence n\'a pas été mesurée sur cet appareil : une nouvelle prise risque de traîner derrière le temps. Mesurez-la dans les réglages.';
+
+  @override
+  String get instrumentVocals => 'Chant';
+
+  @override
+  String get instrumentGuitar => 'Guitare acoustique';
+
+  @override
+  String get instrumentElectricGuitar => 'Guitare électrique';
+
+  @override
+  String get instrumentBassGuitar => 'Basse';
+
+  @override
+  String get instrumentDrums => 'Batterie';
+
+  @override
+  String get instrumentKeyboard => 'Clavier';
+
+  @override
+  String get instrumentSynth => 'Synthé';
+
+  @override
+  String get instrumentViolin => 'Violon';
+
+  @override
+  String get instrumentSaxophone => 'Saxophone';
+
+  @override
+  String get instrumentTrumpet => 'Trompette';
+
+  @override
+  String get instrumentPercussion => 'Percussions';
+
+  @override
+  String get instrumentOther => 'Autre';
 }

@@ -32,10 +32,12 @@
 
 #include "gf_harmony.h"
 #include "gf_latency.h"
+#include "gf_rehearsal.h"
 
 // Defined further down, next to the rest of the latency probe.
 static void gf_probe_playback_hook(float* pOut, int frames);
 static void gf_probe_capture_hook(const float* pIn, int frames);
+static void gf_reh_playback_hook(float* pOut, int frames);
 
 #define MAX_POLYPHONY 16
 #define SAMPLE_RATE 48000
@@ -297,6 +299,7 @@ void mic_capture_callback(ma_device* pDevice, void* pOutput, const void* pInput,
     if (!pIn || frameCount == 0) return;
 
     gf_probe_capture_hook(pIn, (int)frameCount);
+    gf_reh_feed_input(pIn, (int)frameCount);
 
     ma_uint32 writePos = g_micWriteCursor;  // snapshot
     float peak = 0.0f;
@@ -520,6 +523,7 @@ void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uin
     if (outPeak > g_outputPeak) g_outputPeak = outPeak;
 
     gf_probe_playback_hook(pOut, (int)frameCount);
+    gf_reh_playback_hook(pOut, (int)frameCount);
 }
 
 // ── HARMONY mode (waveform 3) ────────────────────────────────────────────────
@@ -1164,6 +1168,77 @@ EXPORT int   gf_probe_shots_found(void)     { return g_probeResult.shots_found; 
 EXPORT float gf_probe_drift_ppm(void)       { return g_probeResult.drift_ppm; }
 EXPORT float gf_probe_skew_ms(void)         { return g_probeSkewMs; }
 EXPORT float gf_probe_input_peak(void)      { return g_probeInPeak; }
+
+
+// ─── Rehearsal engine routing ────────────────────────────────────────────────
+//
+// The engine itself lives in gf_rehearsal.c; this is only the plumbing that
+// gets its mix to the speakers and the microphone into it. It mirrors the
+// latency probe: on desktop the miniaudio playback callback mixes it in, on
+// Android it registers as an Oboe bus source, because Android never opens the
+// miniaudio playback device at all.
+
+/// Set while the rehearsal screen wants audio. Keeps the render out of the
+/// callback entirely the rest of the time, so the rack pays nothing for a
+/// feature it is not using.
+static volatile int g_rehActive = 0;
+
+/// Scratch for the engine's mono mix. Static rather than stack-allocated
+/// because the audio callback must not grow its stack, and sized to the
+/// largest block either platform delivers.
+#define GF_REH_MAX_BLOCK 4096
+static float g_rehMixL[GF_REH_MAX_BLOCK];
+static float g_rehMixR[GF_REH_MAX_BLOCK];
+
+/// Starts the engine and routes audio to it. Idempotent.
+EXPORT int gf_reh_ffi_activate(void) {
+    const int rc = gf_reh_create(SAMPLE_RATE);
+    if (rc != 0) return rc;
+    g_rehActive = 1;
+    return 0;
+}
+
+/// Stops routing. The engine keeps its tracks, so re-activating is cheap.
+EXPORT void gf_reh_ffi_deactivate(void) {
+    g_rehActive = 0;
+}
+
+/// Mixes the rehearsal engine into a playback block. Called from
+/// data_callback on desktop and from the bus render on Android.
+static void gf_reh_playback_hook(float* pOut, int frames) {
+    if (!g_rehActive || !pOut || frames <= 0) return;
+    int done = 0;
+    while (done < frames) {
+        const int n = (frames - done) > GF_REH_MAX_BLOCK
+                    ? GF_REH_MAX_BLOCK : (frames - done);
+        gf_reh_render(g_rehMixL, g_rehMixR, n);
+        for (int i = 0; i < n; i++) pOut[done + i] += g_rehMixL[i];
+        done += n;
+    }
+}
+
+/// Bus-source render for the Android output path. The bus pre-zeroes both
+/// channels, so this writes rather than accumulates.
+EXPORT void gf_reh_bus_render(float* outL, float* outR, int frames,
+                              void* userdata) {
+    (void)userdata;
+    if (!outL || frames <= 0) return;
+    if (!g_rehActive) return;
+    int done = 0;
+    while (done < frames) {
+        const int n = (frames - done) > GF_REH_MAX_BLOCK
+                    ? GF_REH_MAX_BLOCK : (frames - done);
+        gf_reh_render(g_rehMixL, g_rehMixR, n);
+        memcpy(outL + done, g_rehMixL, sizeof(float) * (size_t)n);
+        if (outR) memcpy(outR + done, g_rehMixL, sizeof(float) * (size_t)n);
+        done += n;
+    }
+}
+
+/// Address of [gf_reh_bus_render], for oboe_stream_add_source().
+EXPORT intptr_t gf_reh_bus_render_fn_addr(void) {
+    return (intptr_t)&gf_reh_bus_render;
+}
 
 EXPORT void vocoder_set_capture_mode(int enabled) {
     g_vocoderCaptureMode = enabled ? 1 : 0;

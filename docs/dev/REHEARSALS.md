@@ -425,6 +425,12 @@ the alignment depends on are not yet regular. `gf_latency_probe` now performs
 a warm-up run and throws it away. **P1's calibration flow must do the same**;
 without it every calibration will look far noisier than the hardware is.
 
+**Verified surfaces.** Synthetic (`run_smoke_tests.sh latency`), the Linux CLI
+probe against real devices, the Linux app screen, and the Android app screen —
+all four green. P0 is answered: the alignment chain works, and the round trip
+is measurable to well inside the budget on both an Android phone and a Linux
+laptop.
+
 ### 6.4.1 What the hardware caught that the simulation could not
 
 Three real bugs, none of which the offline test could have found:
@@ -595,7 +601,7 @@ posture completely.
 | Phase | Content |
 |---|---|
 | **P0** | **Latency spike.** Record a take over a playing reference on one device, wired then Bluetooth, and measure alignment error. Target well under 10 ms. No UI, no networking, no library. If this does not come out right the rest of the plan is moot — which is why it goes first. |
-| **P1** | **Single-device rehearsal.** Library, create, grid, disk-streaming player, metronome, count-in, record and replace your own take, playback mix, mute and gain, persistence. Genuinely useful alone: one person layering a demo. |
+| **P1** | **Single-device rehearsal — done.** Library, create, grid, disk-streaming player, metronome, count-in, record and replace your own take, playback mix, mute and gain, persistence. See §11. |
 | **P2** | **Master track import.** Decoders, tap-tempo and offset alignment, master lane. Can precede P3 — it is what makes the feature usable for a school group even before anyone else joins. |
 | **P3** | **Shell and tab.** `MainShell`, responsive nav, l10n pass, `flutter analyze` clean. Small; can slot in earlier if you want the tab visible while P1 is still rough. |
 | **P4** | **Pairing and sync.** QR and short code, authenticated TCP handshake, manifest merge, take and master transfer, mDNS re-discovery, Nearby screen. The moment it becomes a band feature. |
@@ -643,3 +649,49 @@ The instrument list is confirmed as-is: the prototype's twelve-entry
 synth, violin, saxophone, trumpet, percussion — with `other` as the escape
 hatch, localized through `instrumentLabel()` so the enum stays
 presentation-free.
+
+---
+
+## 11. P1 as built
+
+Shipped and verified on a Galaxy Z Fold and on Linux.
+
+### 11.1 What exists
+
+| Piece | Where |
+|---|---|
+| Multitrack engine — grid, streaming playback, aligned recording, metronome | `native_audio/gf_rehearsal.{h,c}` |
+| Offline verification (7 checks, no audio device) | `gf_rehearsal_smoke_test.c`, `./scripts/run_smoke_tests.sh rehearsal` |
+| Audio routing — desktop playback callback, Android Oboe bus slot 105 | `native_audio/audio_input.c` |
+| Data model and on-disk format | `lib/models/rehearsal.dart` |
+| Library — create, load, commit takes, delete, local state | `lib/services/rehearsal_library.dart` (17 tests) |
+| Engine service — transport, mix, take commit | `lib/services/rehearsal_engine.dart` |
+| Shell with the second tab | `lib/screens/main_shell.dart` |
+| Library and rehearsal screens | `lib/screens/rehearsals_screen.dart`, `rehearsal_screen.dart` |
+
+The smoke test checks the things that would be invisible from Dart: two takes
+with transients at known grid frames land on exactly those frames, a count-in
+plays nothing until it crosses the downbeat, and a recording is written shifted
+earlier by exactly the latency compensation.
+
+### 11.2 The calibration loop is closed
+
+The latency probe stores its measurement under `gf.rehearsal.compensationFrames`,
+and a rehearsal with no calibration of its own adopts it on open. Measured
+28.62 ms on the test phone, matching P0's ~29 ms. Until a measurement exists the
+rehearsal screen says so, because recording without one produces a take that
+drags by the device's whole round trip.
+
+### 11.3 Known gaps, for P2 onwards
+
+- **Recording length is unbounded.** The transport runs until stopped; there is
+  no take-length cap by design (D8), but nothing warns about disk use yet.
+- **No warm-up on the in-app probe.** P0 found the first measurement after the
+  devices open is an outlier; the CLI probe discards one, the app screen does
+  not. Tap it twice, or fix it when the calibration flow gets its own screen.
+- **The input tap reads the transport position from the render thread**, so the
+  frame at which a recording begins can be up to one output block stale. It is
+  inside the block error the compensation already absorbs, but a future
+  calibration pass could remove it by relating the input and output frame
+  counters directly, the way `gf_latency_probe` does.
+- **No waveform display.** A lane shows a duration, not a shape.

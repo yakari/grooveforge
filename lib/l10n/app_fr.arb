@@ -954,5 +954,111 @@
   "latencyProbeFailed": "Aucune mesure exploitable",
   "latencyProbeSilentInput": "Le micro n'a rien entendu. Vérifiez l'autorisation du micro, et jouez sur le haut-parleur plutôt qu'au casque.",
   "latencyProbeNeedsAudio": "La capture audio n'est pas active. Ouvrez d'abord une entrée live ou le vocodeur.",
-  "latencyProbeHint": "Gardez la pièce silencieuse et orientez le haut-parleur vers le micro."
+  "latencyProbeHint": "Gardez la pièce silencieuse et orientez le haut-parleur vers le micro.",
+  "rackTabLabel": "Rack",
+  "rehearsalsTabLabel": "Répéter",
+  "rehearsalsTitle": "Répétitions",
+  "rehearsalsEmpty": "Aucune répétition",
+  "rehearsalsEmptyHint": "Lancez un morceau, réglez le tempo et enregistrez votre partie. Le reste du groupe pourra rejoindre plus tard.",
+  "rehearsalsNew": "Lancer un morceau",
+  "rehearsalCreateTitle": "Nouvelle répétition",
+  "rehearsalFieldTitle": "Morceau",
+  "rehearsalFieldTitleHint": "Les Feuilles mortes",
+  "rehearsalFieldYourName": "Votre nom",
+  "rehearsalFieldInstrument": "Votre instrument",
+  "rehearsalFieldTempo": "Tempo",
+  "rehearsalFieldTimeSignature": "Métrique",
+  "rehearsalFieldCountIn": "Décompte",
+  "rehearsalCountInBars": "{bars} mesures",
+  "@rehearsalCountInBars": {
+    "placeholders": {
+      "bars": {
+        "type": "int"
+      }
+    }
+  },
+  "rehearsalCountInNone": "Aucun",
+  "rehearsalCreate": "Créer",
+  "rehearsalCancel": "Annuler",
+  "rehearsalPartsProgress": "{done} parties sur {total} enregistrées",
+  "@rehearsalPartsProgress": {
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "rehearsalBpmValue": "{bpm} BPM",
+  "@rehearsalBpmValue": {
+    "placeholders": {
+      "bpm": {
+        "type": "String"
+      }
+    }
+  },
+  "rehearsalMeter": "{num}/{den}",
+  "@rehearsalMeter": {
+    "placeholders": {
+      "num": {
+        "type": "int"
+      },
+      "den": {
+        "type": "int"
+      }
+    }
+  },
+  "rehearsalDelete": "Supprimer",
+  "rehearsalDeleteConfirm": "Supprimer « {title} » et tous ses enregistrements ?",
+  "@rehearsalDeleteConfirm": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "rehearsalAddPart": "Ajouter une partie",
+  "rehearsalNotRecorded": "Pas encore enregistrée",
+  "rehearsalTakeLength": "{seconds} s",
+  "@rehearsalTakeLength": {
+    "placeholders": {
+      "seconds": {
+        "type": "String"
+      }
+    }
+  },
+  "rehearsalMetronome": "Métronome",
+  "rehearsalPlay": "Lecture",
+  "rehearsalStop": "Stop",
+  "rehearsalRecord": "Enregistrer",
+  "rehearsalRerecord": "Réenregistrer",
+  "rehearsalCountingIn": "Décompte",
+  "rehearsalBarBeat": "Mesure {bar}  ·  temps {beat}",
+  "@rehearsalBarBeat": {
+    "placeholders": {
+      "bar": {
+        "type": "int"
+      },
+      "beat": {
+        "type": "int"
+      }
+    }
+  },
+  "rehearsalMute": "Muet",
+  "rehearsalGridFrozen": "Le tempo et la métrique se verrouillent dès qu'une partie est enregistrée : toutes les prises y sont calées.",
+  "rehearsalNoCompensation": "La latence n'a pas été mesurée sur cet appareil : une nouvelle prise risque de traîner derrière le temps. Mesurez-la dans les réglages.",
+  "instrumentVocals": "Chant",
+  "instrumentGuitar": "Guitare acoustique",
+  "instrumentElectricGuitar": "Guitare électrique",
+  "instrumentBassGuitar": "Basse",
+  "instrumentDrums": "Batterie",
+  "instrumentKeyboard": "Clavier",
+  "instrumentSynth": "Synthé",
+  "instrumentViolin": "Violon",
+  "instrumentSaxophone": "Saxophone",
+  "instrumentTrumpet": "Trompette",
+  "instrumentPercussion": "Percussions",
+  "instrumentOther": "Autre"
 }

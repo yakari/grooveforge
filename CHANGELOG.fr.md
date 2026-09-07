@@ -7,6 +7,11 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 
 ## [X.x.x]
 
+### Ajouté
+- Un onglet Répéter : lancez un morceau, réglez le tempo et enregistrez votre partie sur un clic.
+- Les prises sont recalées selon la latence mesurée sur votre appareil, pour tomber sur le temps.
+- Chaque partie a sa piste avec muet et niveau ; votre mixage reste sur votre téléphone.
+
 ### Architecture
 - Préparation des répétitions : mesure du retard entre ce que l'app joue et ce que le micro entend, pour caler les overdubs.
 - La même mesure détecte les horloges d'enregistrement et de lecture qui dérivent.

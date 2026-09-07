@@ -4,9 +4,11 @@ import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../l10n/app_localizations.dart';
 import '../services/audio_input_ffi.dart';
+import '../services/rehearsal_engine.dart' show kLatencyCompensationKey;
 import '../services/gfpa_android_bindings.dart';
 
 /// Measures the overdub round trip on this device, through the app's own
@@ -186,6 +188,10 @@ class _LatencyProbeScreenState extends State<LatencyProbeScreen> {
     }
     _poller?.cancel();
     _poller = null;
+    // A good measurement is the whole point of the screen, so it is stored
+    // where the rehearsal engine will find it rather than left on screen for
+    // the user to copy down.
+    if (native == 2) _storeCompensation(AudioInputFFI().probeRoundTripFrames);
     if (!mounted) return;
     setState(() {
       _state = native == 2 ? _ProbeState.ready : _ProbeState.failed;
@@ -194,6 +200,13 @@ class _LatencyProbeScreenState extends State<LatencyProbeScreen> {
       // whose correlation failed, and the fix is different too.
       _silentInput = native != 2 && AudioInputFFI().probeInputPeak < 1e-4;
     });
+  }
+
+  /// Persists the measured round trip for the rehearsal engine to pick up.
+  Future<void> _storeCompensation(int frames) async {
+    if (frames <= 0) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(kLatencyCompensationKey, frames);
   }
 
   @override

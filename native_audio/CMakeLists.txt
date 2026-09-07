@@ -13,6 +13,7 @@ add_library(audio_input SHARED
     gf_harmony.c
     gf_pitch.c
     gf_latency.c
+    gf_rehearsal.c
 )
 
 find_package(Threads REQUIRED)
@@ -105,6 +106,17 @@ if (NOT ANDROID AND NOT IOS)
         gf_latency_smoke_test.c gf_latency.c)
     if (UNIX)
         target_link_libraries(gf_latency_smoke_test PRIVATE m)
+    endif()
+endif()
+
+# Multitrack rehearsal engine (P1). Streams takes from disk, so the test needs
+# a writable directory but no audio device.
+if (NOT ANDROID AND NOT IOS)
+    add_executable(gf_rehearsal_smoke_test EXCLUDE_FROM_ALL
+        gf_rehearsal_smoke_test.c gf_rehearsal.c)
+    target_link_libraries(gf_rehearsal_smoke_test PRIVATE Threads::Threads)
+    if (UNIX)
+        target_link_libraries(gf_rehearsal_smoke_test PRIVATE m)
     endif()
 endif()
 

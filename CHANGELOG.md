@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [X.x.x]
 
+### Added
+- A Rehearse tab: start a tune, set the tempo, and record your part over a click.
+- Takes are shifted by the latency measured on your device, so an overdub lands on the beat.
+- Each part gets its own lane with mute and level; your mix stays on your phone.
+
 ### Architecture
 - Rehearsal groundwork: measuring how late the mic hears what the app plays, so overdubs can land on the beat.
 - The same measurement catches recording and playback clocks drifting apart.

@@ -4009,6 +4009,294 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Keep the room quiet and hold the phone so the speaker faces the mic.'**
   String get latencyProbeHint;
+
+  /// No description provided for @rackTabLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Rack'**
+  String get rackTabLabel;
+
+  /// No description provided for @rehearsalsTabLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Rehearse'**
+  String get rehearsalsTabLabel;
+
+  /// No description provided for @rehearsalsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Rehearsals'**
+  String get rehearsalsTitle;
+
+  /// No description provided for @rehearsalsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No rehearsals yet'**
+  String get rehearsalsEmpty;
+
+  /// No description provided for @rehearsalsEmptyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Start a tune, set the tempo, and record your part. The rest of the band can join later.'**
+  String get rehearsalsEmptyHint;
+
+  /// No description provided for @rehearsalsNew.
+  ///
+  /// In en, this message translates to:
+  /// **'Start a tune'**
+  String get rehearsalsNew;
+
+  /// No description provided for @rehearsalCreateTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'New rehearsal'**
+  String get rehearsalCreateTitle;
+
+  /// No description provided for @rehearsalFieldTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Tune'**
+  String get rehearsalFieldTitle;
+
+  /// No description provided for @rehearsalFieldTitleHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Autumn Leaves'**
+  String get rehearsalFieldTitleHint;
+
+  /// No description provided for @rehearsalFieldYourName.
+  ///
+  /// In en, this message translates to:
+  /// **'Your name'**
+  String get rehearsalFieldYourName;
+
+  /// No description provided for @rehearsalFieldInstrument.
+  ///
+  /// In en, this message translates to:
+  /// **'Your instrument'**
+  String get rehearsalFieldInstrument;
+
+  /// No description provided for @rehearsalFieldTempo.
+  ///
+  /// In en, this message translates to:
+  /// **'Tempo'**
+  String get rehearsalFieldTempo;
+
+  /// No description provided for @rehearsalFieldTimeSignature.
+  ///
+  /// In en, this message translates to:
+  /// **'Time signature'**
+  String get rehearsalFieldTimeSignature;
+
+  /// No description provided for @rehearsalFieldCountIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Count-in'**
+  String get rehearsalFieldCountIn;
+
+  /// No description provided for @rehearsalCountInBars.
+  ///
+  /// In en, this message translates to:
+  /// **'{bars} bars'**
+  String rehearsalCountInBars(int bars);
+
+  /// No description provided for @rehearsalCountInNone.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get rehearsalCountInNone;
+
+  /// No description provided for @rehearsalCreate.
+  ///
+  /// In en, this message translates to:
+  /// **'Create'**
+  String get rehearsalCreate;
+
+  /// No description provided for @rehearsalCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get rehearsalCancel;
+
+  /// No description provided for @rehearsalPartsProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'{done} of {total} parts recorded'**
+  String rehearsalPartsProgress(int done, int total);
+
+  /// No description provided for @rehearsalBpmValue.
+  ///
+  /// In en, this message translates to:
+  /// **'{bpm} BPM'**
+  String rehearsalBpmValue(String bpm);
+
+  /// No description provided for @rehearsalMeter.
+  ///
+  /// In en, this message translates to:
+  /// **'{num}/{den}'**
+  String rehearsalMeter(int num, int den);
+
+  /// No description provided for @rehearsalDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get rehearsalDelete;
+
+  /// No description provided for @rehearsalDeleteConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete \"{title}\" and every recording in it?'**
+  String rehearsalDeleteConfirm(String title);
+
+  /// No description provided for @rehearsalAddPart.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a part'**
+  String get rehearsalAddPart;
+
+  /// No description provided for @rehearsalNotRecorded.
+  ///
+  /// In en, this message translates to:
+  /// **'Not recorded yet'**
+  String get rehearsalNotRecorded;
+
+  /// No description provided for @rehearsalTakeLength.
+  ///
+  /// In en, this message translates to:
+  /// **'{seconds}s'**
+  String rehearsalTakeLength(String seconds);
+
+  /// No description provided for @rehearsalMetronome.
+  ///
+  /// In en, this message translates to:
+  /// **'Metronome'**
+  String get rehearsalMetronome;
+
+  /// No description provided for @rehearsalPlay.
+  ///
+  /// In en, this message translates to:
+  /// **'Play'**
+  String get rehearsalPlay;
+
+  /// No description provided for @rehearsalStop.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop'**
+  String get rehearsalStop;
+
+  /// No description provided for @rehearsalRecord.
+  ///
+  /// In en, this message translates to:
+  /// **'Record'**
+  String get rehearsalRecord;
+
+  /// No description provided for @rehearsalRerecord.
+  ///
+  /// In en, this message translates to:
+  /// **'Record again'**
+  String get rehearsalRerecord;
+
+  /// No description provided for @rehearsalCountingIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Counting in'**
+  String get rehearsalCountingIn;
+
+  /// No description provided for @rehearsalBarBeat.
+  ///
+  /// In en, this message translates to:
+  /// **'Bar {bar}  ·  beat {beat}'**
+  String rehearsalBarBeat(int bar, int beat);
+
+  /// No description provided for @rehearsalMute.
+  ///
+  /// In en, this message translates to:
+  /// **'Mute'**
+  String get rehearsalMute;
+
+  /// No description provided for @rehearsalGridFrozen.
+  ///
+  /// In en, this message translates to:
+  /// **'Tempo and time signature lock once a part is recorded, because every take is aligned to them.'**
+  String get rehearsalGridFrozen;
+
+  /// No description provided for @rehearsalNoCompensation.
+  ///
+  /// In en, this message translates to:
+  /// **'Latency has not been measured on this device, so a new take may sit behind the beat. Measure it in Settings.'**
+  String get rehearsalNoCompensation;
+
+  /// No description provided for @instrumentVocals.
+  ///
+  /// In en, this message translates to:
+  /// **'Vocals'**
+  String get instrumentVocals;
+
+  /// No description provided for @instrumentGuitar.
+  ///
+  /// In en, this message translates to:
+  /// **'Acoustic guitar'**
+  String get instrumentGuitar;
+
+  /// No description provided for @instrumentElectricGuitar.
+  ///
+  /// In en, this message translates to:
+  /// **'Electric guitar'**
+  String get instrumentElectricGuitar;
+
+  /// No description provided for @instrumentBassGuitar.
+  ///
+  /// In en, this message translates to:
+  /// **'Bass'**
+  String get instrumentBassGuitar;
+
+  /// No description provided for @instrumentDrums.
+  ///
+  /// In en, this message translates to:
+  /// **'Drums'**
+  String get instrumentDrums;
+
+  /// No description provided for @instrumentKeyboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Keyboard'**
+  String get instrumentKeyboard;
+
+  /// No description provided for @instrumentSynth.
+  ///
+  /// In en, this message translates to:
+  /// **'Synth'**
+  String get instrumentSynth;
+
+  /// No description provided for @instrumentViolin.
+  ///
+  /// In en, this message translates to:
+  /// **'Violin'**
+  String get instrumentViolin;
+
+  /// No description provided for @instrumentSaxophone.
+  ///
+  /// In en, this message translates to:
+  /// **'Saxophone'**
+  String get instrumentSaxophone;
+
+  /// No description provided for @instrumentTrumpet.
+  ///
+  /// In en, this message translates to:
+  /// **'Trumpet'**
+  String get instrumentTrumpet;
+
+  /// No description provided for @instrumentPercussion.
+  ///
+  /// In en, this message translates to:
+  /// **'Percussion'**
+  String get instrumentPercussion;
+
+  /// No description provided for @instrumentOther.
+  ///
+  /// In en, this message translates to:
+  /// **'Other'**
+  String get instrumentOther;
 }
 
 class _AppLocalizationsDelegate
