@@ -14,6 +14,52 @@ library;
 
 import 'dart:math';
 
+/// A Lamport stamp on one field, for last-writer-wins merging.
+///
+/// A wall clock cannot be used: phones disagree about the time, and a device
+/// whose clock is a day slow would lose every edit it ever made. A Lamport
+/// counter only has to be monotonic per device and larger than anything it has
+/// seen, which is achievable offline.
+///
+/// [device] breaks ties. Two devices editing the same field while apart will
+/// arrive at the same counter, and without a tiebreak they would each keep
+/// their own value and never converge. Comparing device ids is arbitrary but
+/// *symmetric*, which is the property that matters.
+class FieldClock {
+  const FieldClock(this.counter, this.device);
+
+  final int counter;
+  final String device;
+
+  /// Whether this stamp wins against [other].
+  bool beats(FieldClock other) {
+    if (counter != other.counter) return counter > other.counter;
+    return device.compareTo(other.device) > 0;
+  }
+
+  Map<String, dynamic> toJson() => {'c': counter, 'd': device};
+
+  factory FieldClock.fromJson(Map<String, dynamic> json) => FieldClock(
+        json['c'] as int? ?? 0,
+        json['d'] as String? ?? '',
+      );
+
+  static const FieldClock zero = FieldClock(0, '');
+}
+
+/// Names of the mergeable metadata fields, so a typo cannot silently create a
+/// field nobody ever compares.
+class RehearsalField {
+  static const title = 'title';
+  static const bpm = 'bpm';
+  static const beatsPerBar = 'beatsPerBar';
+  static const beatUnit = 'beatUnit';
+  static const countInBars = 'countInBars';
+  static const master = 'master';
+
+  static const all = [title, bpm, beatsPerBar, beatUnit, countInBars, master];
+}
+
 /// A member of the group.
 class RehearsalMember {
   RehearsalMember({
@@ -210,7 +256,8 @@ class Rehearsal {
     required this.parts,
     this.master,
     this.lamport = 0,
-  });
+    Map<String, FieldClock>? clocks,
+  }) : clocks = clocks ?? {};
 
   final String id;
   String title;
@@ -232,10 +279,27 @@ class Rehearsal {
 
   bool get hasMaster => master != null;
 
-  /// Logical clock for last-writer-wins on the shared fields. Unused until
-  /// syncing lands, but carried from the start so early rehearsals do not need
-  /// a migration to gain it.
+  /// Highest counter this document has seen, from any device. A new edit
+  /// stamps `lamport + 1`, which is what keeps counters monotonic across
+  /// devices that have never been online at the same time.
   int lamport;
+
+  /// Per-field Lamport stamps, for merging. A field with no stamp is treated
+  /// as [FieldClock.zero], so a rehearsal created before syncing existed
+  /// merges without a migration — it simply loses to any device that has
+  /// touched the field since.
+  final Map<String, FieldClock> clocks;
+
+  FieldClock clockFor(String field) => clocks[field] ?? FieldClock.zero;
+
+  /// Stamps [field] as edited by [deviceId] and advances the document clock.
+  ///
+  /// Every local edit to a mergeable field must go through this, or the edit
+  /// is invisible to the merge and will be silently overwritten by a peer.
+  void touch(String field, String deviceId) {
+    lamport += 1;
+    clocks[field] = FieldClock(lamport, deviceId);
+  }
 
   /// The grid is frozen once any take exists: every recorded part is already
   /// aligned to it, and moving it would silently put them all in the wrong
@@ -262,6 +326,8 @@ class Rehearsal {
         'countInBars': countInBars,
         'createdAt': createdAt.toIso8601String(),
         'lamport': lamport,
+        if (clocks.isNotEmpty)
+          'clocks': clocks.map((k, v) => MapEntry(k, v.toJson())),
         'members': members.map((m) => m.toJson()).toList(),
         'parts': parts.map((p) => p.toJson()).toList(),
         if (master != null) 'master': master!.toJson(),
@@ -278,6 +344,9 @@ class Rehearsal {
             DateTime.tryParse(json['createdAt'] as String? ?? '') ??
                 DateTime.now(),
         lamport: json['lamport'] as int? ?? 0,
+        clocks: (json['clocks'] as Map<String, dynamic>? ?? {}).map(
+          (k, v) => MapEntry(k, FieldClock.fromJson(v as Map<String, dynamic>)),
+        ),
         members: (json['members'] as List<dynamic>? ?? [])
             .map((m) => RehearsalMember.fromJson(m as Map<String, dynamic>))
             .toList(),

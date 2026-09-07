@@ -3,10 +3,43 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/rehearsal.dart';
 import 'audio_input_ffi.dart';
 import 'platform_media_decoder.dart';
+
+/// Preference key for this device's stable identity.
+const String kRehearsalDeviceIdKey = 'gf.rehearsal.deviceId';
+
+String? _cachedDeviceId;
+
+/// This device's identity, stable across launches.
+///
+/// It breaks ties when two devices edit the same field while apart, so it has
+/// to survive a restart: a fresh id each launch would make the tiebreak
+/// non-deterministic and two devices could fail to converge.
+Future<String> rehearsalDeviceId() async {
+  if (_cachedDeviceId != null) return _cachedDeviceId!;
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    var id = prefs.getString(kRehearsalDeviceIdKey);
+    if (id == null || id.isEmpty) {
+      id = newRehearsalId();
+      await prefs.setString(kRehearsalDeviceIdKey, id);
+    }
+    _cachedDeviceId = id;
+    return id;
+  } catch (e) {
+    // Preferences being unavailable must not stop someone creating a
+    // rehearsal. The cost of this fallback is that the id lasts only as long
+    // as the process, so the merge's tiebreak stops being deterministic across
+    // restarts — a far smaller problem than refusing to work at all.
+    debugPrint('rehearsalDeviceId: falling back to a temporary id — $e');
+    _cachedDeviceId = newRehearsalId();
+    return _cachedDeviceId!;
+  }
+}
 
 /// Owns the on-disk library of rehearsals.
 ///
@@ -136,6 +169,7 @@ class RehearsalLibrary extends ChangeNotifier {
       sampleRate: sampleRate,
       importedAt: DateTime.now(),
     );
+    rehearsal.touch(RehearsalField.master, await rehearsalDeviceId());
     await save(rehearsal);
 
     // With a recording to play along to, the click is redundant and mostly in
@@ -163,6 +197,7 @@ class RehearsalLibrary extends ChangeNotifier {
     final master = rehearsal.master;
     if (master == null) return;
     master.offsetFrames = offsetFrames < 0 ? 0 : offsetFrames;
+    rehearsal.touch(RehearsalField.master, await rehearsalDeviceId());
     await save(rehearsal);
   }
 
@@ -177,6 +212,7 @@ class RehearsalLibrary extends ChangeNotifier {
       debugPrint('RehearsalLibrary: could not delete master — $e');
     }
     rehearsal.master = null;
+    rehearsal.touch(RehearsalField.master, await rehearsalDeviceId());
     await save(rehearsal);
   }
 
@@ -188,7 +224,11 @@ class RehearsalLibrary extends ChangeNotifier {
   /// to abort the whole load: one corrupt folder should cost the user that
   /// rehearsal, not their entire library.
   Future<void> load() async {
-    _rehearsals.clear();
+    // Built into a local list and swapped in at the end, rather than clearing
+    // the live one first. Two loads can overlap — a sync finishing while the
+    // UI reloads, say — and clear-then-append would have both of them append
+    // to an already-cleared list, leaving every rehearsal in it twice.
+    final loaded = <Rehearsal>[];
     final root = await _rootDir();
     final entries = await root.list().toList();
     for (final entry in entries) {
@@ -198,14 +238,46 @@ class RehearsalLibrary extends ChangeNotifier {
         final file = await _manifestFile(id);
         if (!await file.exists()) continue;
         final json = jsonDecode(await file.readAsString());
-        _rehearsals.add(Rehearsal.fromJson(json as Map<String, dynamic>));
+        loaded.add(Rehearsal.fromJson(json as Map<String, dynamic>));
       } catch (e) {
         debugPrint('RehearsalLibrary: skipping $id — $e');
       }
     }
-    _rehearsals.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    loaded.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    for (final r in loaded) {
+      await _stampIfUnstamped(r);
+    }
+
+    _rehearsals
+      ..clear()
+      ..addAll(loaded);
     _loaded = true;
     notifyListeners();
+  }
+
+  /// Gives a rehearsal written before field stamps existed a set of them.
+  ///
+  /// Without this, everything created earlier carries a zero clock on every
+  /// field, loses every comparison, and can never sync its tempo, metre,
+  /// count-in or master — the manifest transfers and the values quietly stay
+  /// as they were.
+  ///
+  /// Only rehearsals with actual content are stamped. A placeholder created by
+  /// joining has no members and no parts, and stamping *it* would let a
+  /// joiner's default tempo beat the real one it is about to receive.
+  Future<void> _stampIfUnstamped(Rehearsal r) async {
+    if (r.clocks.isNotEmpty) return;
+    final hasContent =
+        r.members.isNotEmpty || r.parts.isNotEmpty || r.master != null;
+    if (!hasContent) return;
+
+    final device = await rehearsalDeviceId();
+    for (final field in RehearsalField.all) {
+      if (field == RehearsalField.master && r.master == null) continue;
+      r.touch(field, device);
+    }
+    await save(r);
+    debugPrint('RehearsalLibrary: stamped "${r.title}" for syncing');
   }
 
   // ── Creating and saving ───────────────────────────────────────────────────
@@ -244,6 +316,17 @@ class RehearsalLibrary extends ChangeNotifier {
         ),
       ],
     );
+
+    // Every mergeable field is stamped here. Without it the creator's tempo,
+    // metre and count-in all carry a zero clock, and a joiner's placeholder —
+    // which also has zero clocks — would never be overwritten by them. The
+    // rehearsal would sync its parts and quietly keep the wrong tempo.
+    final device = await rehearsalDeviceId();
+    for (final field in RehearsalField.all) {
+      if (field == RehearsalField.master) continue; // there is no master yet
+      rehearsal.touch(field, device);
+    }
+
     await save(rehearsal);
     await saveLocalState(
         rehearsal.id, RehearsalLocalState(selfMemberId: memberId));
@@ -266,6 +349,21 @@ class RehearsalLibrary extends ChangeNotifier {
         const JsonEncoder.withIndent('  ').convert(rehearsal.toJson()));
     await tmp.rename(file.path);
     notifyListeners();
+  }
+
+  /// Changes a mergeable field and stamps it, so the edit can win a merge.
+  ///
+  /// Everything that edits [Rehearsal.title], the grid or the count-in must go
+  /// through here: an unstamped edit is invisible to the merge and will be
+  /// silently replaced by whatever a peer has.
+  Future<void> updateField(
+    Rehearsal rehearsal,
+    String field,
+    void Function() apply,
+  ) async {
+    apply();
+    rehearsal.touch(field, await rehearsalDeviceId());
+    await save(rehearsal);
   }
 
   /// Adds a part for [member], creating the member if this is their first.

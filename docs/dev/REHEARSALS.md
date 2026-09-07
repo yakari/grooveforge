@@ -603,8 +603,8 @@ posture completely.
 | **P0** | **Latency spike.** Record a take over a playing reference on one device, wired then Bluetooth, and measure alignment error. Target well under 10 ms. No UI, no networking, no library. If this does not come out right the rest of the plan is moot — which is why it goes first. |
 | **P1** | **Single-device rehearsal — done.** Library, create, grid, disk-streaming player, metronome, count-in, record and replace your own take, playback mix, mute and gain, persistence. See §11. |
 | **P2** | **Master track import — done.** Decoders, tap-tempo and offset alignment, master lane. See §12. |
-| **P3** | **Shell and tab.** `MainShell`, responsive nav, l10n pass, `flutter analyze` clean. Small; can slot in earlier if you want the tab visible while P1 is still rough. |
-| **P4** | **Pairing and sync.** QR and short code, authenticated TCP handshake, manifest merge, take and master transfer, mDNS re-discovery, Nearby screen. The moment it becomes a band feature. |
+| **P3** | **Shell and tab — done, during P1.** `MainShell`, responsive nav, l10n pass, `flutter analyze` clean. It had to come early: without the tab there was no way to reach anything P1 built. |
+| **P4** | **Pairing and sync — done except mDNS.** QR and short code, authenticated TCP handshake, manifest merge, take and master transfer, Nearby screen. See §13. |
 | **P5** | **Hostile networks.** Hotspot wizard, `.gfr` bundle export and import. |
 | **P6** | **Musical extras.** Tempo change through the phase vocoder, chord-grid editing, count-in refinements. |
 | **P7** | **Polish.** Onboarding, playful motion pass, store and F-Droid assets, changelogs in both languages. |
@@ -773,3 +773,122 @@ track rather than handing the decoder pictures.
 On-device verification (Galaxy Z Fold): MP3, M4A and MP4-with-video all import,
 the waveform draws, and dragging plus thirteen 10 ms nudges placed the downbeat
 at 0:01.35 against a true 1.35 s, stored as `offset 64883` frames.
+
+---
+
+## 13. P4 as built
+
+### 13.1 What exists
+
+| Piece | Where |
+|---|---|
+| Conflict-free merge, per-field Lamport clocks | `lib/services/rehearsal_merge.dart` (17 tests) |
+| Wire format, join ticket, handshake, AES-GCM channel | `lib/services/rehearsal_protocol.dart` |
+| The session both sides run | `lib/services/rehearsal_sync.dart` (18 tests, over real sockets) |
+| Hosting, joining, device identity, filesystem adapter | `lib/services/rehearsal_sync_service.dart` (6 tests, two real libraries) |
+| Nearby (QR + code + peers) and Join screens | `lib/screens/nearby_screen.dart` |
+
+Dependencies added, all pure Dart or MIT-licensed FFI, nothing F-Droid will
+object to: `crypto` and `cryptography` for the handshake and channel,
+`qr_flutter` for rendering the code, `flutter_zxing` for scanning it.
+
+### 13.2 Why there is no host
+
+Both devices run the *same* exchange and differ only in who speaks first. That
+falls out of the merge being symmetric: for each part keep the highest take
+revision, for each metadata field keep the later Lamport stamp with the device
+id breaking ties. Two devices merging from their own point of view reach the
+same document, which the tests assert directly.
+
+The consequence is the one that matters in a rehearsal room: **any two members
+who meet can sync**, whether or not the person who created the rehearsal is
+there. It also removes a whole class of "works when A hosts, fails when B does"
+bugs, because there is no difference between the two roles to get wrong.
+
+### 13.3 Verified cross-device
+
+Phone hosting, laptop joining, over real Wi-Fi:
+
+- the laptop pulled the phone's manifest — title, tempo, members, parts;
+- the laptop then created a bass part with a 64 000-byte take and synced again;
+- the phone received it: `c0iv3a62rfgws9nz-1.wav`, 64 000 bytes, and a matching
+  manifest entry at revision 1.
+
+The QR itself was decoded from a screenshot with `zbarimg` and came back as a
+well-formed ticket, so what is on screen is what the protocol expects.
+
+### 13.4 The metadata never synced at all
+
+The first build shipped `touch()` — the thing that stamps a field so the merge
+can compare it — and **never called it anywhere**. Every field on every
+rehearsal therefore carried a zero clock, `beats()` was always false, and no
+metadata moved between devices: not the master, not the tempo, not the metre,
+not the count-in.
+
+It looked like it worked, which is why it survived a live cross-device test.
+Parts and members are unioned without consulting clocks, so those transferred
+fine; and the title appeared correct only because a joiner copies it out of the
+ticket rather than from the merge. The reported symptom was the master, but the
+master was one instance of the whole class.
+
+Two fixes, both needed:
+
+- **Stamp on write.** `create` stamps every mergeable field — otherwise a
+  creator's 100 BPM and a joiner's default 120 both carry a zero clock and the
+  joiner keeps 120 forever. Importing, re-anchoring or removing a master stamps
+  `master`; changing the tempo goes through `updateField`, which stamps.
+- **Migrate on read.** Everything written before the stamps existed has no
+  clocks and would stay unsyncable for good, so `load` stamps such a rehearsal
+  once and writes it back. A joiner's empty placeholder is deliberately *not*
+  stamped: it has no members and no parts, and stamping it would let its
+  default tempo beat the real one it is about to be sent.
+
+A second, quieter half of the same report: even once the audio arrived, the
+rehearsal screen went on showing the old document. A sync reloads the library
+and builds fresh `Rehearsal` objects, so the screen's reference was stale. It
+now re-resolves by id after returning from Nearby.
+
+Verified on device afterwards: `master=true`, `tune_video.mp4` at 960 749
+frames with its 1 921 542-byte file on disk, and the tempo arriving as
+100.14 BPM rather than the placeholder's 120.
+
+### 13.5 Two bugs only real conditions found
+
+- **A VPN wins the address race.** `_localAddress` took the first private-range
+  IPv4 it found, and the test phone had a VPN up: the QR advertised
+  `10.5.0.2`, a tunnel endpoint nobody in the room can reach. Interfaces are
+  now *ranked* — Wi-Fi, then wired, then anything else, with tunnels and
+  cellular excluded outright — rather than filtered.
+- **`load()` was not reentrant.** It cleared the list then appended, so a sync
+  finishing while the UI reloaded left every rehearsal in the library twice. It
+  now builds a local list and swaps it in.
+
+### 13.6 What is left
+
+- **mDNS re-discovery is not built.** First contact does not need it — the QR
+  carries the endpoint — but a second meeting currently means showing the link
+  again rather than the app simply noticing the others are in the room.
+  `_gfrehearsal._tcp` with `bonsoir` or `nsd`, as the prototype had it.
+
+- **There is no short typed code, and there cannot be one yet.** The first
+  build displayed a six-character code and a field labelled "type the code",
+  and typing it did nothing — the code was a *hash* of the key, so it carried
+  neither the key nor the address and could not be turned back into either.
+  Anyone without a camera was stuck.
+
+  It now shows the whole link with a copy button, and Join accepts that. A
+  short code only becomes possible once discovery exists: the code identifies
+  which advertised host to connect to, and the key has to be derived from the
+  code itself rather than hashed into it — which also means deciding whether
+  30-odd bits of shared secret is enough for a rehearsal room. Until that is
+  settled, the link is what travels, and a field that is handed something
+  code-shaped says so specifically instead of "that did not work".
+- **No live scanner yet in the Join screen.** The ticket can be typed or pasted
+  and that path is fully wired; `flutter_zxing`'s `ReaderWidget` still has to be
+  dropped into the Android and iOS branch (D11 says desktop stays typed-only).
+- **One rehearsal is shared at a time**, and hosting stops when the Nearby
+  screen closes. Fine for a rehearsal room, wrong for a laptop left running as
+  an archive node.
+- **The security model is LAN-shaped**: the join key authenticates and encrypts,
+  there is no forward secrecy, and anyone with the code is in. Appropriate for
+  people in one room; not a substitute for TLS if this ever leaves the LAN.

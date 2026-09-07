@@ -2406,4 +2406,111 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get masterMetronomeOff =>
       'Le clic est coupé : c\'est l\'enregistrement qui donne le tempo.';
+
+  @override
+  String get nearbyTitle => 'À proximité';
+
+  @override
+  String get nearbyShare => 'Partager cette répétition';
+
+  @override
+  String get nearbyHint =>
+      'Faites scanner ce code aux autres, ou envoyez-leur le lien ci-dessous.';
+
+  @override
+  String get nearbyStop => 'Arrêter le partage';
+
+  @override
+  String get nearbyStart => 'Partager';
+
+  @override
+  String get nearbyNoNetwork =>
+      'Cet appareil n\'est sur aucun réseau. Rejoignez le même Wi-Fi que les autres, ou activez un partage de connexion.';
+
+  @override
+  String get nearbyWaiting => 'En attente de quelqu\'un…';
+
+  @override
+  String nearbyPeers(int count) {
+    return '$count connectés';
+  }
+
+  @override
+  String get nearbyJoin => 'Rejoindre une répétition';
+
+  @override
+  String get nearbyScan => 'Scanner le code';
+
+  @override
+  String get nearbyConnecting => 'Connexion…';
+
+  @override
+  String get nearbySyncing => 'Synchronisation…';
+
+  @override
+  String get nearbySynced => 'À jour';
+
+  @override
+  String nearbySyncedWith(int takes) {
+    return '$takes parties reçues';
+  }
+
+  @override
+  String nearbyFailed(String reason) {
+    return 'Synchronisation impossible : $reason';
+  }
+
+  @override
+  String get nearbyWrongCode => 'Ce code ne correspond pas à cette répétition.';
+
+  @override
+  String get nearbyScanUnsupported =>
+      'Cet appareil n\'a pas de scanner. Saisissez le code affiché sur l\'autre appareil.';
+
+  @override
+  String nearbyHostAddress(String host, int port) {
+    return '$host · port $port';
+  }
+
+  @override
+  String get syncStepHandshake => 'Prise de contact';
+
+  @override
+  String get syncStepManifest => 'Comparaison';
+
+  @override
+  String get syncStepSending => 'Envoi';
+
+  @override
+  String get syncStepReceiving => 'Réception';
+
+  @override
+  String get syncStepDone => 'Terminé';
+
+  @override
+  String get nearbyLink => 'Lien';
+
+  @override
+  String get nearbyCopyLink => 'Copier le lien';
+
+  @override
+  String get nearbyCopied => 'Copié';
+
+  @override
+  String get nearbyLinkHint =>
+      'Pas de caméra sur l\'autre appareil ? Copiez ce lien et envoyez-le-lui — il le colle dans Rejoindre.';
+
+  @override
+  String get nearbyPasteLink => 'Collez le lien de l\'autre appareil';
+
+  @override
+  String get nearbyPasteFromClipboard => 'Coller';
+
+  @override
+  String get nearbyLooksLikeCode =>
+      'C\'est le code court, qui ne suffit pas à lui seul. Copiez le lien complet depuis l\'autre appareil.';
+
+  @override
+  String get nearbyNotALink =>
+      'Ce n\'est pas un lien de répétition GrooveForge.';
 }

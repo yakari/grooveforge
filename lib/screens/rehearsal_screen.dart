@@ -8,6 +8,7 @@ import '../services/platform_media_decoder.dart';
 import '../services/rehearsal_engine.dart';
 import '../services/rehearsal_library.dart';
 import 'master_align_screen.dart';
+import 'nearby_screen.dart';
 import 'rehearsals_screen.dart' show instrumentIcon, instrumentLabel;
 
 /// One rehearsal: transport on top, a lane per part below.
@@ -126,6 +127,23 @@ class _RehearsalScreenState extends State<RehearsalScreen> {
     if (mounted) setState(() {});
   }
 
+  /// Re-reads this rehearsal from the library and reloads the engine.
+  ///
+  /// Anything that replaces the library's objects — a sync, most obviously —
+  /// leaves [_rehearsal] pointing at a document that no longer reflects disk.
+  Future<void> _refresh() async {
+    final library = context.read<RehearsalLibrary>();
+    final fresh =
+        library.rehearsals.where((r) => r.id == widget.rehearsalId).firstOrNull;
+    if (fresh == null || !mounted) return;
+    setState(() => _rehearsal = fresh);
+    final engine = context.read<RehearsalEngine>();
+    // The engine also holds the old object, so it is reopened rather than just
+    // asked to reload its tracks.
+    await engine.open(fresh);
+    if (mounted) setState(() {});
+  }
+
   Future<void> _addPart() async {
     final l10n = AppLocalizations.of(context)!;
     final rehearsal = _rehearsal;
@@ -166,7 +184,32 @@ class _RehearsalScreenState extends State<RehearsalScreen> {
     final rehearsal = _rehearsal;
 
     return Scaffold(
-      appBar: AppBar(title: Text(rehearsal?.title ?? l10n.rehearsalsTitle)),
+      appBar: AppBar(
+        title: Text(rehearsal?.title ?? l10n.rehearsalsTitle),
+        actions: [
+          if (rehearsal != null)
+            IconButton(
+              icon: const Icon(Icons.share_outlined),
+              tooltip: l10n.nearbyTitle,
+              onPressed: () async {
+                // Sharing opens a socket and the engine holds the audio
+                // devices; stopping the transport first keeps the two from
+                // competing for attention while a peer syncs.
+                await context.read<RehearsalEngine>().stop();
+                if (!context.mounted) return;
+                await Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => NearbyScreen(rehearsal: rehearsal),
+                ));
+                if (!context.mounted) return;
+                // A sync reloads the library, which builds *new* Rehearsal
+                // objects — the one this screen is holding is stale, and would
+                // keep showing the parts and master from before the sync. Look
+                // it up again by id before touching the engine.
+                await _refresh();
+              },
+            ),
+        ],
+      ),
       floatingActionButton: rehearsal == null
           ? null
           : FloatingActionButton.small(

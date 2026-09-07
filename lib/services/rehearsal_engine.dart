@@ -353,9 +353,12 @@ class RehearsalEngine extends ChangeNotifier {
   Future<void> setBpm(double bpm) async {
     final r = _rehearsal;
     if (r == null || r.isGridFrozen) return;
-    r.bpm = bpm;
-    AudioInputFFI().rehSetGrid(bpm, r.beatsPerBar, r.beatUnit);
-    await _library.save(r);
+    // Through updateField, so the edit is stamped: an unstamped tempo change
+    // is invisible to the merge and a peer would silently put it back.
+    await _library.updateField(r, RehearsalField.bpm, () {
+      r.bpm = bpm;
+      AudioInputFFI().rehSetGrid(bpm, r.beatsPerBar, r.beatUnit);
+    });
     notifyListeners();
   }
 

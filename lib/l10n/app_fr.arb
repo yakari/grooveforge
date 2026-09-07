@@ -1093,5 +1093,67 @@
   "masterCheck": "Écouter deux mesures",
   "masterDone": "Terminé",
   "masterVideoAudioOnly": "Les vidéos sont importées pour leur audio uniquement.",
-  "masterMetronomeOff": "Le clic est coupé : c'est l'enregistrement qui donne le tempo."
+  "masterMetronomeOff": "Le clic est coupé : c'est l'enregistrement qui donne le tempo.",
+  "nearbyTitle": "À proximité",
+  "nearbyShare": "Partager cette répétition",
+  "nearbyHint": "Faites scanner ce code aux autres, ou envoyez-leur le lien ci-dessous.",
+  "nearbyStop": "Arrêter le partage",
+  "nearbyStart": "Partager",
+  "nearbyNoNetwork": "Cet appareil n'est sur aucun réseau. Rejoignez le même Wi-Fi que les autres, ou activez un partage de connexion.",
+  "nearbyWaiting": "En attente de quelqu'un…",
+  "nearbyPeers": "{count} connectés",
+  "@nearbyPeers": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "nearbyJoin": "Rejoindre une répétition",
+  "nearbyScan": "Scanner le code",
+  "nearbyConnecting": "Connexion…",
+  "nearbySyncing": "Synchronisation…",
+  "nearbySynced": "À jour",
+  "nearbySyncedWith": "{takes} parties reçues",
+  "@nearbySyncedWith": {
+    "placeholders": {
+      "takes": {
+        "type": "int"
+      }
+    }
+  },
+  "nearbyFailed": "Synchronisation impossible : {reason}",
+  "@nearbyFailed": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "nearbyWrongCode": "Ce code ne correspond pas à cette répétition.",
+  "nearbyScanUnsupported": "Cet appareil n'a pas de scanner. Saisissez le code affiché sur l'autre appareil.",
+  "nearbyHostAddress": "{host} · port {port}",
+  "@nearbyHostAddress": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      },
+      "port": {
+        "type": "int"
+      }
+    }
+  },
+  "syncStepHandshake": "Prise de contact",
+  "syncStepManifest": "Comparaison",
+  "syncStepSending": "Envoi",
+  "syncStepReceiving": "Réception",
+  "syncStepDone": "Terminé",
+  "nearbyLink": "Lien",
+  "nearbyCopyLink": "Copier le lien",
+  "nearbyCopied": "Copié",
+  "nearbyLinkHint": "Pas de caméra sur l'autre appareil ? Copiez ce lien et envoyez-le-lui — il le colle dans Rejoindre.",
+  "nearbyPasteLink": "Collez le lien de l'autre appareil",
+  "nearbyPasteFromClipboard": "Coller",
+  "nearbyLooksLikeCode": "C'est le code court, qui ne suffit pas à lui seul. Copiez le lien complet depuis l'autre appareil.",
+  "nearbyNotALink": "Ce n'est pas un lien de répétition GrooveForge."
 }

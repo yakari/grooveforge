@@ -14,6 +14,8 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 - Importez un enregistrement : MP3, FLAC, WAV, et sur Android aussi M4A, AAC et l'audio d'une vidéo.
 - Tapez le tempo, puis faites glisser un repère sur le premier temps fort pour caler la grille sur l'enregistrement.
 - Le clic se coupe dès qu'un enregistrement est importé : c'est lui qui donne le tempo.
+- Partagez une répétition avec le groupe : affichez un QR code ou envoyez le lien, et les parties fusionnent.
+- Les parties se synchronisent dans les deux sens en Wi-Fi, chiffrées, sans serveur ni compte.
 
 ### Architecture
 - Préparation des répétitions : mesure du retard entre ce que l'app joue et ce que le micro entend, pour caler les overdubs.

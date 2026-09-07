@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:grooveforge/models/rehearsal.dart';
 import 'package:grooveforge/services/rehearsal_library.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Exercises the rehearsal library against a real temporary directory rather
 /// than a mock filesystem: the things most likely to break here — the atomic
@@ -15,6 +16,10 @@ void main() {
   late RehearsalLibrary library;
 
   setUp(() async {
+    // Creating a rehearsal stamps its fields with this device's id, which
+    // comes from preferences; without the binding that throws.
+    TestWidgetsFlutterBinding.ensureInitialized();
+    SharedPreferences.setMockInitialValues({});
     tmp = await Directory.systemTemp.createTemp('gf_reh_test');
     library = RehearsalLibrary(rootOverride: tmp);
   });
@@ -410,6 +415,84 @@ void main() {
     });
   });
 
+  group('rehearsals written before field stamps existed', () {
+    /// Writes a manifest by hand in the old shape: no `clocks`, lamport 0.
+    Future<String> writeLegacy({
+      required bool withContent,
+      double bpm = 100,
+    }) async {
+      final id = 'legacy${withContent ? 'A' : 'B'}';
+      final dir = Directory('${tmp.path}/rehearsals/$id');
+      await dir.create(recursive: true);
+      await File('${dir.path}/rehearsal.json').writeAsString(jsonEncode({
+        'formatVersion': 1,
+        'id': id,
+        'title': 'Old tune',
+        'bpm': bpm,
+        'beatsPerBar': 4,
+        'beatUnit': 4,
+        'countInBars': 2,
+        'createdAt': DateTime(2026, 1, 1).toIso8601String(),
+        'lamport': 0,
+        'members': withContent
+            ? [
+                {'id': 'm1', 'displayName': 'Yann', 'instrument': 'guitar'}
+              ]
+            : [],
+        'parts': withContent
+            ? [
+                {'id': 'p1', 'memberId': 'm1', 'instrument': 'guitar'}
+              ]
+            : [],
+      }));
+      return id;
+    }
+
+    test('one with content is stamped on load, so it can sync', () async {
+      final id = await writeLegacy(withContent: true);
+      final fresh = RehearsalLibrary(rootOverride: tmp);
+      await fresh.load();
+
+      final r = fresh.rehearsals.firstWhere((r) => r.id == id);
+      expect(r.clocks, isNotEmpty,
+          reason: 'without stamps it could never win a merge');
+      expect(r.clockFor(RehearsalField.bpm).counter, greaterThan(0));
+      expect(r.clockFor(RehearsalField.bpm).device, isNotEmpty);
+
+      // And it is written back, so the work happens once rather than on every
+      // load.
+      final onDisk = jsonDecode(
+              await File('${tmp.path}/rehearsals/$id/rehearsal.json')
+                  .readAsString())
+          as Map<String, dynamic>;
+      expect(onDisk['clocks'], isNotNull);
+    });
+
+    test('a placeholder from joining is left alone', () async {
+      // A joiner creates an empty shell before connecting. Stamping it would
+      // let its default tempo beat the real one it is about to be sent.
+      final id = await writeLegacy(withContent: false);
+      final fresh = RehearsalLibrary(rootOverride: tmp);
+      await fresh.load();
+
+      final r = fresh.rehearsals.firstWhere((r) => r.id == id);
+      expect(r.clocks, isEmpty);
+    });
+
+    test('an already-stamped rehearsal is not re-stamped', () async {
+      final r = await library.create(
+          title: 'A', memberName: 'Y', instrument: 'guitar');
+      final before = r.clockFor(RehearsalField.bpm).counter;
+
+      final fresh = RehearsalLibrary(rootOverride: tmp);
+      await fresh.load();
+      final again = fresh.rehearsals.firstWhere((x) => x.id == r.id);
+
+      expect(again.clockFor(RehearsalField.bpm).counter, before,
+          reason: 'a fresh stamp on every load would keep bumping the clock');
+    });
+  });
+
   group('manifest format', () {
     test('carries a version and a logical clock from the start', () async {
       final r = await library.create(
@@ -419,10 +502,20 @@ void main() {
                   .readAsString())
           as Map<String, dynamic>;
 
-      // Both exist before they are needed, so the first rehearsals recorded
-      // will not need a migration once syncing lands.
       expect(json['formatVersion'], 1);
-      expect(json['lamport'], 0);
+
+      // Creation stamps every mergeable field, so the clock has advanced. It
+      // has to: a rehearsal whose fields carry a zero stamp cannot beat a
+      // peer's placeholder, and the tempo would never reach anyone who joined.
+      expect(json['lamport'], greaterThan(0));
+      final clocks = json['clocks'] as Map<String, dynamic>;
+      for (final field in ['title', 'bpm', 'beatsPerBar', 'countInBars']) {
+        expect(clocks[field], isNotNull, reason: '$field was never stamped');
+        expect((clocks[field] as Map<String, dynamic>)['d'], isNotEmpty,
+            reason: '$field has no device to break a tie with');
+      }
+      // Except the master, which does not exist yet.
+      expect(clocks['master'], isNull);
     });
   });
 }

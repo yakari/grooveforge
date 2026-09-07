@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import '../models/rehearsal.dart';
 import '../services/rehearsal_library.dart';
+import 'nearby_screen.dart';
 import 'rehearsal_screen.dart';
 
 /// Localized label for an instrument id from [kInstruments].
@@ -111,7 +112,21 @@ class _RehearsalsScreenState extends State<RehearsalsScreen> {
     final library = context.watch<RehearsalLibrary>();
 
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.rehearsalsTitle)),
+      appBar: AppBar(
+        title: Text(l10n.rehearsalsTitle),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.qr_code_scanner),
+            tooltip: l10n.nearbyJoin,
+            onPressed: () async {
+              await Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => const JoinRehearsalScreen(),
+              ));
+              if (context.mounted) await context.read<RehearsalLibrary>().load();
+            },
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _create,
         icon: const Icon(Icons.add),

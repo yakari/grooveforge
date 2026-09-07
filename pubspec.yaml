@@ -54,6 +54,16 @@ dependencies:
     sdk: flutter
   intl: ^0.20.2
   permission_handler: ^12.0.1
+  # Sync between band members: HMAC for the handshake, AES-GCM for the channel.
+  # Both pure Dart, so nothing new is bundled and F-Droid has nothing to build.
+  crypto: ^3.0.6
+  cryptography: ^2.7.0
+  # QR for pairing. ZXing-C++ over FFI, MIT — no Google ML Kit, which is a
+  # proprietary blob F-Droid will not accept.
+  flutter_zxing: ^3.0.1
+  # QR *rendering* for the host side. Pure Dart, so it works on every platform
+  # including the desktop builds, where flutter_zxing's scanner does not.
+  qr_flutter: ^4.1.0
   audio_session: ^0.2.2
   ffi: ^2.2.0
 

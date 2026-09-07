@@ -4411,6 +4411,192 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The click is off: the recording is the timing reference now.'**
   String get masterMetronomeOff;
+
+  /// No description provided for @nearbyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Nearby'**
+  String get nearbyTitle;
+
+  /// No description provided for @nearbyShare.
+  ///
+  /// In en, this message translates to:
+  /// **'Share this rehearsal'**
+  String get nearbyShare;
+
+  /// No description provided for @nearbyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Have the others scan this, or send them the link below.'**
+  String get nearbyHint;
+
+  /// No description provided for @nearbyStop.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop sharing'**
+  String get nearbyStop;
+
+  /// No description provided for @nearbyStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Start sharing'**
+  String get nearbyStart;
+
+  /// No description provided for @nearbyNoNetwork.
+  ///
+  /// In en, this message translates to:
+  /// **'This device is not on a network. Join the same Wi-Fi as the others, or turn on a hotspot.'**
+  String get nearbyNoNetwork;
+
+  /// No description provided for @nearbyWaiting.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for someone to join…'**
+  String get nearbyWaiting;
+
+  /// No description provided for @nearbyPeers.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} connected'**
+  String nearbyPeers(int count);
+
+  /// No description provided for @nearbyJoin.
+  ///
+  /// In en, this message translates to:
+  /// **'Join a rehearsal'**
+  String get nearbyJoin;
+
+  /// No description provided for @nearbyScan.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan the code'**
+  String get nearbyScan;
+
+  /// No description provided for @nearbyConnecting.
+  ///
+  /// In en, this message translates to:
+  /// **'Connecting…'**
+  String get nearbyConnecting;
+
+  /// No description provided for @nearbySyncing.
+  ///
+  /// In en, this message translates to:
+  /// **'Syncing…'**
+  String get nearbySyncing;
+
+  /// No description provided for @nearbySynced.
+  ///
+  /// In en, this message translates to:
+  /// **'Up to date'**
+  String get nearbySynced;
+
+  /// No description provided for @nearbySyncedWith.
+  ///
+  /// In en, this message translates to:
+  /// **'Received {takes} parts'**
+  String nearbySyncedWith(int takes);
+
+  /// No description provided for @nearbyFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not sync: {reason}'**
+  String nearbyFailed(String reason);
+
+  /// No description provided for @nearbyWrongCode.
+  ///
+  /// In en, this message translates to:
+  /// **'That code does not match this rehearsal.'**
+  String get nearbyWrongCode;
+
+  /// No description provided for @nearbyScanUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'This device has no scanner. Type the code from the other device instead.'**
+  String get nearbyScanUnsupported;
+
+  /// No description provided for @nearbyHostAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'{host} · port {port}'**
+  String nearbyHostAddress(String host, int port);
+
+  /// No description provided for @syncStepHandshake.
+  ///
+  /// In en, this message translates to:
+  /// **'Saying hello'**
+  String get syncStepHandshake;
+
+  /// No description provided for @syncStepManifest.
+  ///
+  /// In en, this message translates to:
+  /// **'Comparing'**
+  String get syncStepManifest;
+
+  /// No description provided for @syncStepSending.
+  ///
+  /// In en, this message translates to:
+  /// **'Sending'**
+  String get syncStepSending;
+
+  /// No description provided for @syncStepReceiving.
+  ///
+  /// In en, this message translates to:
+  /// **'Receiving'**
+  String get syncStepReceiving;
+
+  /// No description provided for @syncStepDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get syncStepDone;
+
+  /// No description provided for @nearbyLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Link'**
+  String get nearbyLink;
+
+  /// No description provided for @nearbyCopyLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy the link'**
+  String get nearbyCopyLink;
+
+  /// No description provided for @nearbyCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied'**
+  String get nearbyCopied;
+
+  /// No description provided for @nearbyLinkHint.
+  ///
+  /// In en, this message translates to:
+  /// **'No camera on the other device? Copy this link and send it to them — they paste it into Join.'**
+  String get nearbyLinkHint;
+
+  /// No description provided for @nearbyPasteLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste the link from the other device'**
+  String get nearbyPasteLink;
+
+  /// No description provided for @nearbyPasteFromClipboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste'**
+  String get nearbyPasteFromClipboard;
+
+  /// No description provided for @nearbyLooksLikeCode.
+  ///
+  /// In en, this message translates to:
+  /// **'That is the short code, which is not enough on its own. Copy the whole link from the other device.'**
+  String get nearbyLooksLikeCode;
+
+  /// No description provided for @nearbyNotALink.
+  ///
+  /// In en, this message translates to:
+  /// **'That is not a GrooveForge rehearsal link.'**
+  String get nearbyNotALink;
 }
 
 class _AppLocalizationsDelegate

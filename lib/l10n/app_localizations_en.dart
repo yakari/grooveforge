@@ -2392,4 +2392,110 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get masterMetronomeOff =>
       'The click is off: the recording is the timing reference now.';
+
+  @override
+  String get nearbyTitle => 'Nearby';
+
+  @override
+  String get nearbyShare => 'Share this rehearsal';
+
+  @override
+  String get nearbyHint =>
+      'Have the others scan this, or send them the link below.';
+
+  @override
+  String get nearbyStop => 'Stop sharing';
+
+  @override
+  String get nearbyStart => 'Start sharing';
+
+  @override
+  String get nearbyNoNetwork =>
+      'This device is not on a network. Join the same Wi-Fi as the others, or turn on a hotspot.';
+
+  @override
+  String get nearbyWaiting => 'Waiting for someone to join…';
+
+  @override
+  String nearbyPeers(int count) {
+    return '$count connected';
+  }
+
+  @override
+  String get nearbyJoin => 'Join a rehearsal';
+
+  @override
+  String get nearbyScan => 'Scan the code';
+
+  @override
+  String get nearbyConnecting => 'Connecting…';
+
+  @override
+  String get nearbySyncing => 'Syncing…';
+
+  @override
+  String get nearbySynced => 'Up to date';
+
+  @override
+  String nearbySyncedWith(int takes) {
+    return 'Received $takes parts';
+  }
+
+  @override
+  String nearbyFailed(String reason) {
+    return 'Could not sync: $reason';
+  }
+
+  @override
+  String get nearbyWrongCode => 'That code does not match this rehearsal.';
+
+  @override
+  String get nearbyScanUnsupported =>
+      'This device has no scanner. Type the code from the other device instead.';
+
+  @override
+  String nearbyHostAddress(String host, int port) {
+    return '$host · port $port';
+  }
+
+  @override
+  String get syncStepHandshake => 'Saying hello';
+
+  @override
+  String get syncStepManifest => 'Comparing';
+
+  @override
+  String get syncStepSending => 'Sending';
+
+  @override
+  String get syncStepReceiving => 'Receiving';
+
+  @override
+  String get syncStepDone => 'Done';
+
+  @override
+  String get nearbyLink => 'Link';
+
+  @override
+  String get nearbyCopyLink => 'Copy the link';
+
+  @override
+  String get nearbyCopied => 'Copied';
+
+  @override
+  String get nearbyLinkHint =>
+      'No camera on the other device? Copy this link and send it to them — they paste it into Join.';
+
+  @override
+  String get nearbyPasteLink => 'Paste the link from the other device';
+
+  @override
+  String get nearbyPasteFromClipboard => 'Paste';
+
+  @override
+  String get nearbyLooksLikeCode =>
+      'That is the short code, which is not enough on its own. Copy the whole link from the other device.';
+
+  @override
+  String get nearbyNotALink => 'That is not a GrooveForge rehearsal link.';
 }
