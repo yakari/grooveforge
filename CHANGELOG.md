@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Import a recording to play along to: MP3, FLAC, WAV, and on Android also M4A, AAC and the audio of a video.
 - Tap the beat to set the tempo, then drag a marker to the first downbeat to line the grid up with the recording.
 - The click switches itself off once a recording is imported, since that is the tempo now.
-- Share a rehearsal with the band: show a QR code or send the link, and everyone's parts merge.
+- Share a rehearsal with the band: show a QR code for them to scan, or send the link, and everyone's parts merge.
 - Parts sync both ways over Wi-Fi, encrypted, with no server and no account.
 
 ### Architecture

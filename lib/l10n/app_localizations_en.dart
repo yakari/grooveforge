@@ -2498,4 +2498,21 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get nearbyNotALink => 'That is not a GrooveForge rehearsal link.';
+
+  @override
+  String get nearbyScanTitle => 'Point the camera at the code';
+
+  @override
+  String get nearbyScanHint =>
+      'Hold it steady over the code on the other device.';
+
+  @override
+  String get nearbyScanPermission =>
+      'GrooveForge needs the camera to read the code. You can type the link instead.';
+
+  @override
+  String get nearbyScanOr => 'or';
+
+  @override
+  String get nearbyScanOpen => 'Scan a code';
 }

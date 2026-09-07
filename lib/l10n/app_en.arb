@@ -1395,5 +1395,10 @@
   "nearbyPasteLink": "Paste the link from the other device",
   "nearbyPasteFromClipboard": "Paste",
   "nearbyLooksLikeCode": "That is the short code, which is not enough on its own. Copy the whole link from the other device.",
-  "nearbyNotALink": "That is not a GrooveForge rehearsal link."
+  "nearbyNotALink": "That is not a GrooveForge rehearsal link.",
+  "nearbyScanTitle": "Point the camera at the code",
+  "nearbyScanHint": "Hold it steady over the code on the other device.",
+  "nearbyScanPermission": "GrooveForge needs the camera to read the code. You can type the link instead.",
+  "nearbyScanOr": "or",
+  "nearbyScanOpen": "Scan a code"
 }

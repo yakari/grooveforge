@@ -2513,4 +2513,21 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get nearbyNotALink =>
       'Ce n\'est pas un lien de répétition GrooveForge.';
+
+  @override
+  String get nearbyScanTitle => 'Visez le code avec la caméra';
+
+  @override
+  String get nearbyScanHint =>
+      'Maintenez-la bien en face du code affiché sur l\'autre appareil.';
+
+  @override
+  String get nearbyScanPermission =>
+      'GrooveForge a besoin de la caméra pour lire le code. Vous pouvez aussi coller le lien.';
+
+  @override
+  String get nearbyScanOr => 'ou';
+
+  @override
+  String get nearbyScanOpen => 'Scanner un code';
 }

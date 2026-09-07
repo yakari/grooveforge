@@ -10,6 +10,7 @@ import '../l10n/app_localizations.dart';
 import '../models/rehearsal.dart';
 import '../services/rehearsal_protocol.dart';
 import '../services/rehearsal_sync_service.dart';
+import 'scan_ticket_screen.dart';
 
 /// Shares a rehearsal with the people in the room.
 ///
@@ -322,6 +323,15 @@ class _JoinRehearsalScreenState extends State<JoinRehearsalScreen> {
     super.dispose();
   }
 
+  /// Opens the camera and joins whatever it reads.
+  Future<void> _scan() async {
+    final ticket = await Navigator.of(context).push<JoinTicket>(
+      MaterialPageRoute(builder: (_) => const ScanTicketScreen()),
+    );
+    if (ticket == null || !mounted) return;
+    await _joinTicket(ticket);
+  }
+
   Future<void> _joinWith(String text) async {
     final l10n = AppLocalizations.of(context)!;
     final trimmed = text.trim();
@@ -337,6 +347,13 @@ class _JoinRehearsalScreenState extends State<JoinRehearsalScreen> {
       });
       return;
     }
+    await _joinTicket(ticket);
+  }
+
+  /// Connects and syncs. Shared by the scanned and the pasted paths, so the
+  /// two cannot drift apart in how they report success or failure.
+  Future<void> _joinTicket(JoinTicket ticket) async {
+    final l10n = AppLocalizations.of(context)!;
     setState(() {
       _busy = true;
       _error = null;
@@ -368,7 +385,30 @@ class _JoinRehearsalScreenState extends State<JoinRehearsalScreen> {
             child: ListView(
               padding: const EdgeInsets.all(20),
               children: [
-                if (!JoinRehearsalScreen.canScan)
+                if (JoinRehearsalScreen.canScan) ...[
+                  FilledButton.icon(
+                    onPressed: _busy ? null : _scan,
+                    icon: const Icon(Icons.qr_code_scanner),
+                    label: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      child: Text(l10n.nearbyScanOpen),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      const Expanded(child: Divider()),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: Text(l10n.nearbyScanOr,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant)),
+                      ),
+                      const Expanded(child: Divider()),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                ] else
                   Card(
                     color: theme.colorScheme.surfaceContainerHighest,
                     child: Padding(

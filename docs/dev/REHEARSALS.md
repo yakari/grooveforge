@@ -883,9 +883,18 @@ frames with its 1 921 542-byte file on disk, and the tempo arriving as
   30-odd bits of shared secret is enough for a rehearsal room. Until that is
   settled, the link is what travels, and a field that is handed something
   code-shaped says so specifically instead of "that did not work".
-- **No live scanner yet in the Join screen.** The ticket can be typed or pasted
-  and that path is fully wired; `flutter_zxing`'s `ReaderWidget` still has to be
-  dropped into the Android and iOS branch (D11 says desktop stays typed-only).
+- **The live scanner is built but has not been pointed at a code yet.** Join
+  offers *Scan a code* on Android and iOS, opening `flutter_zxing`'s reader
+  restricted to QR, with `tryHarder`, rotation and inversion on because a code
+  on a dim screen at an angle is the normal case. Codes that are not ours are
+  ignored rather than reported, so the scanner keeps looking instead of
+  complaining about whatever else is on the table. Desktop stays typed-only
+  (D11).
+
+  What is verified: it builds, `libflutter_zxing.so` ships for arm64, the parse
+  path the scanner feeds is unit-tested, and joining by ticket works live. What
+  is not: actually holding a camera over a code — the test phone locked itself
+  before that could be tried.
 - **One rehearsal is shared at a time**, and hosting stops when the Nearby
   screen closes. Fine for a rehearsal room, wrong for a laptop left running as
   an archive node.

@@ -4597,6 +4597,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'That is not a GrooveForge rehearsal link.'**
   String get nearbyNotALink;
+
+  /// No description provided for @nearbyScanTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Point the camera at the code'**
+  String get nearbyScanTitle;
+
+  /// No description provided for @nearbyScanHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Hold it steady over the code on the other device.'**
+  String get nearbyScanHint;
+
+  /// No description provided for @nearbyScanPermission.
+  ///
+  /// In en, this message translates to:
+  /// **'GrooveForge needs the camera to read the code. You can type the link instead.'**
+  String get nearbyScanPermission;
+
+  /// No description provided for @nearbyScanOr.
+  ///
+  /// In en, this message translates to:
+  /// **'or'**
+  String get nearbyScanOr;
+
+  /// No description provided for @nearbyScanOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan a code'**
+  String get nearbyScanOpen;
 }
 
 class _AppLocalizationsDelegate

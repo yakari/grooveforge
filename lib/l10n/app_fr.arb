@@ -1155,5 +1155,10 @@
   "nearbyPasteLink": "Collez le lien de l'autre appareil",
   "nearbyPasteFromClipboard": "Coller",
   "nearbyLooksLikeCode": "C'est le code court, qui ne suffit pas à lui seul. Copiez le lien complet depuis l'autre appareil.",
-  "nearbyNotALink": "Ce n'est pas un lien de répétition GrooveForge."
+  "nearbyNotALink": "Ce n'est pas un lien de répétition GrooveForge.",
+  "nearbyScanTitle": "Visez le code avec la caméra",
+  "nearbyScanHint": "Maintenez-la bien en face du code affiché sur l'autre appareil.",
+  "nearbyScanPermission": "GrooveForge a besoin de la caméra pour lire le code. Vous pouvez aussi coller le lien.",
+  "nearbyScanOr": "ou",
+  "nearbyScanOpen": "Scanner un code"
 }
