@@ -11,6 +11,9 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 - Un onglet Répéter : lancez un morceau, réglez le tempo et enregistrez votre partie sur un clic.
 - Les prises sont recalées selon la latence mesurée sur votre appareil, pour tomber sur le temps.
 - Chaque partie a sa piste avec muet et niveau ; votre mixage reste sur votre téléphone.
+- Importez un MP3, un FLAC ou un WAV : il devient une piste sur laquelle tout le groupe enregistre.
+- Tapez le tempo, puis faites glisser un repère sur le premier temps fort pour caler la grille sur l'enregistrement.
+- Le clic se coupe dès qu'un enregistrement est importé : c'est lui qui donne le tempo.
 
 ### Architecture
 - Préparation des répétitions : mesure du retard entre ce que l'app joue et ce que le micro entend, pour caler les overdubs.

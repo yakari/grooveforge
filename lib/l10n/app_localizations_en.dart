@@ -2326,4 +2326,70 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get instrumentOther => 'Other';
+
+  @override
+  String get masterImport => 'Play along to a recording';
+
+  @override
+  String get masterImportHint =>
+      'Import an MP3, FLAC or WAV. Its audio becomes a track everyone plays over.';
+
+  @override
+  String get masterImporting => 'Importing…';
+
+  @override
+  String get masterImportFailed =>
+      'That file could not be read. Try an MP3, FLAC or WAV.';
+
+  @override
+  String get masterTitle => 'Recording';
+
+  @override
+  String get masterRemove => 'Remove the recording';
+
+  @override
+  String masterRemoveConfirm(String name) {
+    return 'Remove \"$name\" from this rehearsal?';
+  }
+
+  @override
+  String get masterAlign => 'Set the first downbeat';
+
+  @override
+  String get masterAlignTitle => 'Align the grid';
+
+  @override
+  String get masterAlignHint =>
+      'Play the recording and tap along on the beat to set the tempo, then drag the marker to the first downbeat.';
+
+  @override
+  String get masterTapTempo => 'Tap the beat';
+
+  @override
+  String get masterTapMore => 'Keep tapping…';
+
+  @override
+  String masterDownbeatAt(String time) {
+    return 'First downbeat at $time';
+  }
+
+  @override
+  String get masterNudgeBack => '10 ms earlier';
+
+  @override
+  String get masterNudgeForward => '10 ms later';
+
+  @override
+  String get masterCheck => 'Check two bars';
+
+  @override
+  String get masterDone => 'Done';
+
+  @override
+  String get masterVideoAudioOnly =>
+      'Video files are imported for their audio only.';
+
+  @override
+  String get masterMetronomeOff =>
+      'The click is off: the recording is the timing reference now.';
 }

@@ -327,4 +327,10 @@ class AudioInputFFI {
   int get rehState => 0;
   double get rehInputPeak => 0.0;
   int get rehRecordedFrames => 0;
+
+  // Master track import — no native library on web.
+  void rehSetTrackOffset(int idx, int frames) {}
+  bool mediaCanDecode(String path) => false;
+  int mediaToMonoWav(String src, String dst, {int sampleRate = 48000}) => -1;
+  List<double> mediaWaveform(String wavPath, int bins) => const [];
 }

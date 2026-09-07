@@ -134,6 +134,68 @@ class RehearsalTake {
       );
 }
 
+/// An imported recording the whole group plays along to.
+///
+/// Not a part: it belongs to the rehearsal rather than to a member, nobody
+/// records over it, and it does not count towards "parts recorded". School
+/// groups take on famous tunes, so starting from the real recording is often
+/// how a rehearsal begins (REHEARSALS.md §7).
+class RehearsalMaster {
+  RehearsalMaster({
+    required this.fileName,
+    required this.sourceName,
+    required this.frames,
+    required this.sampleRate,
+    this.offsetFrames = 0,
+    this.importedAt,
+  });
+
+  /// Decoded mono 16-bit WAV inside the rehearsal's `master/` directory.
+  final String fileName;
+
+  /// Name of the file the user picked, shown so they can tell what this is.
+  final String sourceName;
+
+  final int frames;
+  final int sampleRate;
+
+  /// Which frame of the recording is grid frame 0 — the tune's first downbeat.
+  ///
+  /// Commercial recordings start with an intro, a count-in or simply a moment
+  /// of room tone, so the grid has to be anchored to the downbeat rather than
+  /// to the start of the file. Audio before this point is not played, because
+  /// there is no grid there to play it against.
+  int offsetFrames;
+
+  final DateTime? importedAt;
+
+  Duration get duration =>
+      Duration(milliseconds: sampleRate > 0 ? frames * 1000 ~/ sampleRate : 0);
+
+  /// Where the first downbeat sits, as a time into the recording.
+  Duration get offset => Duration(
+      milliseconds: sampleRate > 0 ? offsetFrames * 1000 ~/ sampleRate : 0);
+
+  Map<String, dynamic> toJson() => {
+        'fileName': fileName,
+        'sourceName': sourceName,
+        'frames': frames,
+        'sampleRate': sampleRate,
+        'offsetFrames': offsetFrames,
+        if (importedAt != null) 'importedAt': importedAt!.toIso8601String(),
+      };
+
+  factory RehearsalMaster.fromJson(Map<String, dynamic> json) =>
+      RehearsalMaster(
+        fileName: json['fileName'] as String,
+        sourceName: json['sourceName'] as String? ?? '',
+        frames: json['frames'] as int? ?? 0,
+        sampleRate: json['sampleRate'] as int? ?? 48000,
+        offsetFrames: json['offsetFrames'] as int? ?? 0,
+        importedAt: DateTime.tryParse(json['importedAt'] as String? ?? ''),
+      );
+}
+
 /// The whole rehearsal document.
 class Rehearsal {
   Rehearsal({
@@ -146,6 +208,7 @@ class Rehearsal {
     required this.createdAt,
     required this.members,
     required this.parts,
+    this.master,
     this.lamport = 0,
   });
 
@@ -164,6 +227,11 @@ class Rehearsal {
   final List<RehearsalMember> members;
   final List<RehearsalPart> parts;
 
+  /// The recording everyone plays along to, if one was imported.
+  RehearsalMaster? master;
+
+  bool get hasMaster => master != null;
+
   /// Logical clock for last-writer-wins on the shared fields. Unused until
   /// syncing lands, but carried from the start so early rehearsals do not need
   /// a migration to gain it.
@@ -172,6 +240,10 @@ class Rehearsal {
   /// The grid is frozen once any take exists: every recorded part is already
   /// aligned to it, and moving it would silently put them all in the wrong
   /// place with nothing in the audio to say which grid they were cut to.
+  ///
+  /// A master alone does not freeze it — its alignment is exactly what the
+  /// player is still adjusting, and re-anchoring it changes only where the
+  /// grid sits inside the recording.
   bool get isGridFrozen => parts.any((p) => p.isRecorded);
 
   int get recordedPartCount => parts.where((p) => p.isRecorded).length;
@@ -192,6 +264,7 @@ class Rehearsal {
         'lamport': lamport,
         'members': members.map((m) => m.toJson()).toList(),
         'parts': parts.map((p) => p.toJson()).toList(),
+        if (master != null) 'master': master!.toJson(),
       };
 
   factory Rehearsal.fromJson(Map<String, dynamic> json) => Rehearsal(
@@ -211,6 +284,9 @@ class Rehearsal {
         parts: (json['parts'] as List<dynamic>? ?? [])
             .map((p) => RehearsalPart.fromJson(p as Map<String, dynamic>))
             .toList(),
+        master: json['master'] == null
+            ? null
+            : RehearsalMaster.fromJson(json['master'] as Map<String, dynamic>),
       );
 }
 

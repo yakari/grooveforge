@@ -1060,5 +1060,38 @@
   "instrumentSaxophone": "Saxophone",
   "instrumentTrumpet": "Trompette",
   "instrumentPercussion": "Percussions",
-  "instrumentOther": "Autre"
+  "instrumentOther": "Autre",
+  "masterImport": "Jouer sur un enregistrement",
+  "masterImportHint": "Importez un MP3, un FLAC ou un WAV. Son audio devient une piste sur laquelle tout le monde joue.",
+  "masterImporting": "Importation…",
+  "masterImportFailed": "Ce fichier n'a pas pu être lu. Essayez un MP3, un FLAC ou un WAV.",
+  "masterTitle": "Enregistrement",
+  "masterRemove": "Retirer l'enregistrement",
+  "masterRemoveConfirm": "Retirer « {name} » de cette répétition ?",
+  "@masterRemoveConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "masterAlign": "Placer le premier temps fort",
+  "masterAlignTitle": "Caler la grille",
+  "masterAlignHint": "Lancez l'enregistrement et tapez en rythme pour régler le tempo, puis faites glisser le repère sur le premier temps fort.",
+  "masterTapTempo": "Tapez le tempo",
+  "masterTapMore": "Continuez à taper…",
+  "masterDownbeatAt": "Premier temps fort à {time}",
+  "@masterDownbeatAt": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "masterNudgeBack": "10 ms plus tôt",
+  "masterNudgeForward": "10 ms plus tard",
+  "masterCheck": "Écouter deux mesures",
+  "masterDone": "Terminé",
+  "masterVideoAudioOnly": "Les vidéos sont importées pour leur audio uniquement.",
+  "masterMetronomeOff": "Le clic est coupé : c'est l'enregistrement qui donne le tempo."
 }

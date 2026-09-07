@@ -4297,6 +4297,120 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Other'**
   String get instrumentOther;
+
+  /// No description provided for @masterImport.
+  ///
+  /// In en, this message translates to:
+  /// **'Play along to a recording'**
+  String get masterImport;
+
+  /// No description provided for @masterImportHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Import an MP3, FLAC or WAV. Its audio becomes a track everyone plays over.'**
+  String get masterImportHint;
+
+  /// No description provided for @masterImporting.
+  ///
+  /// In en, this message translates to:
+  /// **'Importing…'**
+  String get masterImporting;
+
+  /// No description provided for @masterImportFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'That file could not be read. Try an MP3, FLAC or WAV.'**
+  String get masterImportFailed;
+
+  /// No description provided for @masterTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Recording'**
+  String get masterTitle;
+
+  /// No description provided for @masterRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove the recording'**
+  String get masterRemove;
+
+  /// No description provided for @masterRemoveConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove \"{name}\" from this rehearsal?'**
+  String masterRemoveConfirm(String name);
+
+  /// No description provided for @masterAlign.
+  ///
+  /// In en, this message translates to:
+  /// **'Set the first downbeat'**
+  String get masterAlign;
+
+  /// No description provided for @masterAlignTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Align the grid'**
+  String get masterAlignTitle;
+
+  /// No description provided for @masterAlignHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Play the recording and tap along on the beat to set the tempo, then drag the marker to the first downbeat.'**
+  String get masterAlignHint;
+
+  /// No description provided for @masterTapTempo.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap the beat'**
+  String get masterTapTempo;
+
+  /// No description provided for @masterTapMore.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep tapping…'**
+  String get masterTapMore;
+
+  /// No description provided for @masterDownbeatAt.
+  ///
+  /// In en, this message translates to:
+  /// **'First downbeat at {time}'**
+  String masterDownbeatAt(String time);
+
+  /// No description provided for @masterNudgeBack.
+  ///
+  /// In en, this message translates to:
+  /// **'10 ms earlier'**
+  String get masterNudgeBack;
+
+  /// No description provided for @masterNudgeForward.
+  ///
+  /// In en, this message translates to:
+  /// **'10 ms later'**
+  String get masterNudgeForward;
+
+  /// No description provided for @masterCheck.
+  ///
+  /// In en, this message translates to:
+  /// **'Check two bars'**
+  String get masterCheck;
+
+  /// No description provided for @masterDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get masterDone;
+
+  /// No description provided for @masterVideoAudioOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Video files are imported for their audio only.'**
+  String get masterVideoAudioOnly;
+
+  /// No description provided for @masterMetronomeOff.
+  ///
+  /// In en, this message translates to:
+  /// **'The click is off: the recording is the timing reference now.'**
+  String get masterMetronomeOff;
 }
 
 class _AppLocalizationsDelegate

@@ -14,6 +14,7 @@ add_library(audio_input SHARED
     gf_pitch.c
     gf_latency.c
     gf_rehearsal.c
+    gf_media_import.c
 )
 
 find_package(Threads REQUIRED)
@@ -113,7 +114,7 @@ endif()
 # a writable directory but no audio device.
 if (NOT ANDROID AND NOT IOS)
     add_executable(gf_rehearsal_smoke_test EXCLUDE_FROM_ALL
-        gf_rehearsal_smoke_test.c gf_rehearsal.c)
+        gf_rehearsal_smoke_test.c gf_rehearsal.c gf_media_import.c)
     target_link_libraries(gf_rehearsal_smoke_test PRIVATE Threads::Threads)
     if (UNIX)
         target_link_libraries(gf_rehearsal_smoke_test PRIVATE m)

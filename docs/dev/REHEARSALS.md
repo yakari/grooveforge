@@ -602,7 +602,7 @@ posture completely.
 |---|---|
 | **P0** | **Latency spike.** Record a take over a playing reference on one device, wired then Bluetooth, and measure alignment error. Target well under 10 ms. No UI, no networking, no library. If this does not come out right the rest of the plan is moot — which is why it goes first. |
 | **P1** | **Single-device rehearsal — done.** Library, create, grid, disk-streaming player, metronome, count-in, record and replace your own take, playback mix, mute and gain, persistence. See §11. |
-| **P2** | **Master track import.** Decoders, tap-tempo and offset alignment, master lane. Can precede P3 — it is what makes the feature usable for a school group even before anyone else joins. |
+| **P2** | **Master track import — done.** Decoders, tap-tempo and offset alignment, master lane. See §12. |
 | **P3** | **Shell and tab.** `MainShell`, responsive nav, l10n pass, `flutter analyze` clean. Small; can slot in earlier if you want the tab visible while P1 is still rough. |
 | **P4** | **Pairing and sync.** QR and short code, authenticated TCP handshake, manifest merge, take and master transfer, mDNS re-discovery, Nearby screen. The moment it becomes a band feature. |
 | **P5** | **Hostile networks.** Hotspot wizard, `.gfr` bundle export and import. |
@@ -695,3 +695,62 @@ drags by the device's whole round trip.
   calibration pass could remove it by relating the input and output frame
   counters directly, the way `gf_latency_probe` does.
 - **No waveform display.** A lane shows a duration, not a shape.
+
+---
+
+## 12. P2 as built
+
+### 12.1 What exists
+
+| Piece | Where |
+|---|---|
+| Decode any bundled-codec file to mono 16-bit WAV, plus a peak envelope for the alignment screen | `native_audio/gf_media_import.{h,c}` |
+| Per-track grid offset — anchors bar 1 anywhere inside a recording | `gf_reh_set_track_offset` |
+| Master in the document, with its offset | `lib/models/rehearsal.dart` |
+| Import, re-anchor, remove | `lib/services/rehearsal_library.dart` |
+| Master lane, gain and mute | `lib/screens/rehearsal_screen.dart` |
+| Tap tempo, waveform, draggable downbeat, listen-back | `lib/screens/master_align_screen.dart` |
+
+Verified: a 44.1 kHz stereo WAV folds to exactly 96 000 frames at 48 kHz mono
+in the smoke test, and a real 20-second MP3 decodes to exactly 20.00 s with the
+waveform placing the first downbeat in the 1.30-1.40 s bin, against a true
+1.35 s. The engine plays a master offset by 72 000 frames with its downbeat on
+grid frame 0 and the next bar exactly one bar later.
+
+### 12.2 Two linker traps worth remembering
+
+`audio_input.c` compiles miniaudio with **`MA_API static`**, deliberately, so
+its symbols cannot clash with the second vendored copy inside `dart_vst_host`.
+That makes them private to that translation unit, so the importer cannot link
+against them and carries its own copy — with `MA_NO_DEVICE_IO`, since it only
+ever decodes files.
+
+Two miniaudio globals are declared *outside* `MA_API` and so collide anyway:
+`ma_atomic_global_lock` everywhere, and `ma_android_sdk_version` on Android
+(compiled regardless of `MA_NO_DEVICE_IO`). Both are renamed in the importer's
+copy. Anything that ever adds a third miniaudio will hit the same two.
+
+### 12.3 Formats, and what is still missing
+
+Working now, on all five platforms with no new dependency: **MP3, FLAC, WAV**.
+
+Not yet: **AAC/M4A and video containers**. These need the platform's own
+extractor — `MediaExtractor` + `MediaCodec` on Android, `AVAssetReader` on
+Apple — which is a system API and bundles nothing, unlike `ffmpeg_kit_flutter`
+(archived in 2025, ships prebuilt binaries, unacceptable for F-Droid). The file
+picker currently offers only the three formats that work, so an M4A cannot be
+selected rather than being selected and then failing. M4A is common in phone
+music libraries, so this is the first thing to add.
+
+### 12.4 Known gaps
+
+- **Audio before the downbeat is not played.** The grid starts at bar 1, so an
+  intro is skipped. Fine for playing along to a chorus; wrong for a tune whose
+  intro the band plays. Needs either a negative-bar region or an explicit
+  "intro bars" count.
+- **Import blocks the UI thread** behind a progress bar. A four-minute file is
+  a second or two on a phone; long enough to want an isolate eventually.
+- **The on-device UI has not been exercised for P2** — the test phone dropped
+  off Wi-Fi before the import flow could be driven end to end. The native path
+  is verified on Linux against a real MP3, and the Linux and Android builds
+  both link.

@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../models/rehearsal.dart';
+import 'audio_input_ffi.dart';
 
 /// Owns the on-disk library of rehearsals.
 ///
@@ -54,6 +55,12 @@ class RehearsalLibrary extends ChangeNotifier {
     return dir;
   }
 
+  Future<Directory> masterDir(String id) async {
+    final dir = Directory('${(await rehearsalDir(id)).path}/master');
+    if (!await dir.exists()) await dir.create(recursive: true);
+    return dir;
+  }
+
   Future<File> _manifestFile(String id) async =>
       File('${(await rehearsalDir(id)).path}/rehearsal.json');
 
@@ -63,6 +70,83 @@ class RehearsalLibrary extends ChangeNotifier {
   /// Absolute path of a take's audio file.
   Future<String> takePath(String rehearsalId, RehearsalTake take) async =>
       '${(await takesDir(rehearsalId)).path}/${take.fileName}';
+
+  /// Absolute path of the decoded master.
+  Future<String> masterPath(String rehearsalId, RehearsalMaster master) async =>
+      '${(await masterDir(rehearsalId)).path}/${master.fileName}';
+
+  // ── Master track ──────────────────────────────────────────────────────────
+
+  /// Imports [sourcePath] as the rehearsal's master track.
+  ///
+  /// Decodes to the one format the engine streams — mono 16-bit at 48 kHz —
+  /// rather than keeping the original and decoding on the fly: the conversion
+  /// happens once, here, and playback then costs no more than a recorded take.
+  ///
+  /// Returns the new master, or null if the file could not be decoded. The
+  /// decode is blocking and proportional to the file's length, so callers
+  /// should show progress.
+  Future<RehearsalMaster?> importMaster(
+    Rehearsal rehearsal,
+    String sourcePath, {
+    int sampleRate = 48000,
+  }) async {
+    final ffi = AudioInputFFI();
+    if (!ffi.mediaCanDecode(sourcePath)) {
+      debugPrint('RehearsalLibrary: cannot decode $sourcePath');
+      return null;
+    }
+
+    final dir = await masterDir(rehearsal.id);
+    const fileName = 'master.wav';
+    final dst = '${dir.path}/$fileName';
+
+    final frames = ffi.mediaToMonoWav(sourcePath, dst, sampleRate: sampleRate);
+    if (frames <= 0) {
+      debugPrint('RehearsalLibrary: import failed ($frames)');
+      return null;
+    }
+
+    rehearsal.master = RehearsalMaster(
+      fileName: fileName,
+      sourceName: sourcePath.split(Platform.pathSeparator).last,
+      frames: frames,
+      sampleRate: sampleRate,
+      importedAt: DateTime.now(),
+    );
+    await save(rehearsal);
+
+    // With a recording to play along to, the click is redundant and mostly in
+    // the way: the players hear the real thing and lock to it far better than
+    // to a metronome. They can turn it back on.
+    final local = await loadLocalState(rehearsal.id);
+    local.metronomeEnabled = false;
+    await saveLocalState(rehearsal.id, local);
+
+    return rehearsal.master;
+  }
+
+  /// Moves the grid's first downbeat to [offsetFrames] inside the recording.
+  Future<void> setMasterOffset(Rehearsal rehearsal, int offsetFrames) async {
+    final master = rehearsal.master;
+    if (master == null) return;
+    master.offsetFrames = offsetFrames < 0 ? 0 : offsetFrames;
+    await save(rehearsal);
+  }
+
+  /// Removes the master and its audio.
+  Future<void> removeMaster(Rehearsal rehearsal) async {
+    final master = rehearsal.master;
+    if (master == null) return;
+    try {
+      final f = File(await masterPath(rehearsal.id, master));
+      if (await f.exists()) await f.delete();
+    } catch (e) {
+      debugPrint('RehearsalLibrary: could not delete master — $e');
+    }
+    rehearsal.master = null;
+    await save(rehearsal);
+  }
 
   // ── Loading ───────────────────────────────────────────────────────────────
 

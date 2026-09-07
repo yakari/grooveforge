@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A Rehearse tab: start a tune, set the tempo, and record your part over a click.
 - Takes are shifted by the latency measured on your device, so an overdub lands on the beat.
 - Each part gets its own lane with mute and level; your mix stays on your phone.
+- Import an MP3, FLAC or WAV to play along to: it becomes a track the whole group records over.
+- Tap the beat to set the tempo, then drag a marker to the first downbeat to line the grid up with the recording.
+- The click switches itself off once a recording is imported, since that is the tempo now.
 
 ### Architecture
 - Rehearsal groundwork: measuring how late the mic hears what the app plays, so overdubs can land on the beat.

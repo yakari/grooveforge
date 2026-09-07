@@ -2340,4 +2340,70 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get instrumentOther => 'Autre';
+
+  @override
+  String get masterImport => 'Jouer sur un enregistrement';
+
+  @override
+  String get masterImportHint =>
+      'Importez un MP3, un FLAC ou un WAV. Son audio devient une piste sur laquelle tout le monde joue.';
+
+  @override
+  String get masterImporting => 'Importation…';
+
+  @override
+  String get masterImportFailed =>
+      'Ce fichier n\'a pas pu être lu. Essayez un MP3, un FLAC ou un WAV.';
+
+  @override
+  String get masterTitle => 'Enregistrement';
+
+  @override
+  String get masterRemove => 'Retirer l\'enregistrement';
+
+  @override
+  String masterRemoveConfirm(String name) {
+    return 'Retirer « $name » de cette répétition ?';
+  }
+
+  @override
+  String get masterAlign => 'Placer le premier temps fort';
+
+  @override
+  String get masterAlignTitle => 'Caler la grille';
+
+  @override
+  String get masterAlignHint =>
+      'Lancez l\'enregistrement et tapez en rythme pour régler le tempo, puis faites glisser le repère sur le premier temps fort.';
+
+  @override
+  String get masterTapTempo => 'Tapez le tempo';
+
+  @override
+  String get masterTapMore => 'Continuez à taper…';
+
+  @override
+  String masterDownbeatAt(String time) {
+    return 'Premier temps fort à $time';
+  }
+
+  @override
+  String get masterNudgeBack => '10 ms plus tôt';
+
+  @override
+  String get masterNudgeForward => '10 ms plus tard';
+
+  @override
+  String get masterCheck => 'Écouter deux mesures';
+
+  @override
+  String get masterDone => 'Terminé';
+
+  @override
+  String get masterVideoAudioOnly =>
+      'Les vidéos sont importées pour leur audio uniquement.';
+
+  @override
+  String get masterMetronomeOff =>
+      'Le clic est coupé : c\'est l\'enregistrement qui donne le tempo.';
 }

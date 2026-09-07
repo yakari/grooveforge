@@ -119,6 +119,18 @@ void gf_reh_set_track_gain(int idx, float gain);
 /// not have to wait for the ring to refill.
 void gf_reh_set_track_mute(int idx, int muted);
 
+/// Sets which file frame corresponds to grid frame 0.
+///
+/// Takes are aligned to the grid by construction and leave this at zero. An
+/// imported master is not: the recording has an intro, a count-in, or simply
+/// silence before the first downbeat, and the grid has to be anchored to that
+/// downbeat rather than to the start of the file. An offset of 57600 frames
+/// means the tune's first downbeat sits 1.2 s into the recording at 48 kHz.
+///
+/// Audio before the offset is not played, because there is no grid there to
+/// play it against.
+void gf_reh_set_track_offset(int idx, int64_t frames);
+
 /// Length of a track in frames, or 0 if the slot is empty.
 int64_t gf_reh_track_frames(int idx);
 

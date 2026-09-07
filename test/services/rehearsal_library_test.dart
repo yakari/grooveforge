@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:grooveforge/models/rehearsal.dart';
 import 'package:grooveforge/services/rehearsal_library.dart';
 
 /// Exercises the rehearsal library against a real temporary directory rather
@@ -298,6 +299,114 @@ void main() {
       await library.delete(r.id);
       expect(library.rehearsals, isEmpty);
       expect(await Directory('${tmp.path}/rehearsals/${r.id}').exists(), isFalse);
+    });
+  });
+
+  group('master track', () {
+    // importMaster decodes through the native library, which a unit test has
+    // no access to, so these cover the parts that are pure Dart: the shape of
+    // the document, and that a master is not mistaken for a part.
+    test('is absent by default and does not count as a part', () async {
+      final r = await library.create(
+          title: 'A', memberName: 'Y', instrument: 'guitar');
+      expect(r.hasMaster, isFalse);
+      expect(r.master, isNull);
+      expect(r.parts, hasLength(1));
+      expect(r.recordedPartCount, 0);
+    });
+
+    test('round-trips through JSON with its offset', () async {
+      final r = await library.create(
+          title: 'A', memberName: 'Y', instrument: 'guitar');
+      r.master = RehearsalMaster(
+        fileName: 'master.wav',
+        sourceName: 'Autumn Leaves.mp3',
+        frames: 48000 * 210,
+        sampleRate: 48000,
+        offsetFrames: 57600,
+        importedAt: DateTime.now(),
+      );
+      await library.save(r);
+
+      final fresh = RehearsalLibrary(rootOverride: tmp);
+      await fresh.load();
+      final m = fresh.rehearsals.single.master;
+      expect(m, isNotNull);
+      expect(m!.sourceName, 'Autumn Leaves.mp3');
+      expect(m.offsetFrames, 57600);
+      expect(m.offset, const Duration(milliseconds: 1200));
+      expect(m.duration, const Duration(seconds: 210));
+    });
+
+    test('re-anchoring the downbeat persists and never goes negative',
+        () async {
+      final r = await library.create(
+          title: 'A', memberName: 'Y', instrument: 'guitar');
+      r.master = RehearsalMaster(
+        fileName: 'master.wav',
+        sourceName: 'x.mp3',
+        frames: 480000,
+        sampleRate: 48000,
+      );
+      await library.save(r);
+
+      await library.setMasterOffset(r, 24000);
+      expect(r.master!.offsetFrames, 24000);
+
+      // A drag past the start of the recording is clamped rather than
+      // producing an offset the engine would read as reading before the file.
+      await library.setMasterOffset(r, -5000);
+      expect(r.master!.offsetFrames, 0);
+
+      final fresh = RehearsalLibrary(rootOverride: tmp);
+      await fresh.load();
+      expect(fresh.rehearsals.single.master!.offsetFrames, 0);
+    });
+
+    test('removing it clears the manifest and deletes the audio', () async {
+      final r = await library.create(
+          title: 'A', memberName: 'Y', instrument: 'guitar');
+      final dir = await library.masterDir(r.id);
+      final audio = File('${dir.path}/master.wav');
+      await audio.writeAsBytes(List.filled(2048, 0));
+      r.master = RehearsalMaster(
+        fileName: 'master.wav',
+        sourceName: 'x.mp3',
+        frames: 1024,
+        sampleRate: 48000,
+      );
+      await library.save(r);
+
+      await library.removeMaster(r);
+      expect(r.hasMaster, isFalse);
+      expect(await audio.exists(), isFalse);
+
+      final fresh = RehearsalLibrary(rootOverride: tmp);
+      await fresh.load();
+      expect(fresh.rehearsals.single.master, isNull);
+    });
+
+    test('a master alone does not freeze the grid', () async {
+      final r = await library.create(
+          title: 'A', memberName: 'Y', instrument: 'guitar');
+      r.master = RehearsalMaster(
+        fileName: 'master.wav',
+        sourceName: 'x.mp3',
+        frames: 1024,
+        sampleRate: 48000,
+      );
+      await library.save(r);
+
+      // The alignment is precisely what the player is still adjusting, so the
+      // tempo has to stay editable until a take is committed against it.
+      expect(r.isGridFrozen, isFalse);
+
+      await library.commitTake(r, r.parts.single,
+          fileName: 'x.wav',
+          frames: 100,
+          sampleRate: 48000,
+          compensationFrames: 0);
+      expect(r.isGridFrozen, isTrue);
     });
   });
 

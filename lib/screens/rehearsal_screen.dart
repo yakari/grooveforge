@@ -3,8 +3,10 @@ import 'package:provider/provider.dart';
 
 import '../l10n/app_localizations.dart';
 import '../models/rehearsal.dart';
+import '../services/file_picker_service.dart';
 import '../services/rehearsal_engine.dart';
 import '../services/rehearsal_library.dart';
+import 'master_align_screen.dart';
 import 'rehearsals_screen.dart' show instrumentIcon, instrumentLabel;
 
 /// One rehearsal: transport on top, a lane per part below.
@@ -25,6 +27,7 @@ class RehearsalScreen extends StatefulWidget {
 class _RehearsalScreenState extends State<RehearsalScreen> {
   RehearsalEngine? _engine;
   Rehearsal? _rehearsal;
+  bool _importing = false;
 
   @override
   void initState() {
@@ -52,6 +55,75 @@ class _RehearsalScreenState extends State<RehearsalScreen> {
     // element is unmounted, so context.read would throw.
     _engine?.close();
     super.dispose();
+  }
+
+  /// Picks a music file and imports it as the master track.
+  Future<void> _importMaster() async {
+    final l10n = AppLocalizations.of(context)!;
+    final rehearsal = _rehearsal;
+    if (rehearsal == null) return;
+
+    // The extensions the bundled decoders handle. Anything else is refused by
+    // the importer with a message rather than half-decoded into noise; the
+    // formats that need the platform's own extractor (AAC, M4A, video
+    // containers) are not offered yet — see REHEARSALS.md §7.1.
+    final path = await FilePickerService.pickFile(
+      context: context,
+      allowedExtensions: const ['mp3', 'wav', 'flac'],
+      dialogTitle: l10n.masterImport,
+    );
+    if (path == null || !mounted) return;
+
+    setState(() => _importing = true);
+    final library = context.read<RehearsalLibrary>();
+    final engine = context.read<RehearsalEngine>();
+    // Decoding is proportional to the file's length and blocks; the spinner is
+    // there because a four-minute master is not instant on a phone.
+    final master = await library.importMaster(rehearsal, path);
+    if (!mounted) return;
+    setState(() => _importing = false);
+
+    if (master == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.masterImportFailed)),
+      );
+      return;
+    }
+    await engine.reloadTracks();
+    if (!mounted) return;
+    // Straight into alignment: an unaligned master is not much use, and this
+    // is the one moment the player knows what they just imported.
+    await Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => MasterAlignScreen(engine: engine, rehearsal: rehearsal),
+    ));
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _removeMaster() async {
+    final l10n = AppLocalizations.of(context)!;
+    final rehearsal = _rehearsal;
+    final master = rehearsal?.master;
+    if (rehearsal == null || master == null) return;
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        content: Text(l10n.masterRemoveConfirm(master.sourceName)),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(l10n.rehearsalCancel)),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(l10n.rehearsalDelete)),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    await context.read<RehearsalLibrary>().removeMaster(rehearsal);
+    if (!mounted) return;
+    await context.read<RehearsalEngine>().reloadTracks();
+    if (mounted) setState(() {});
   }
 
   Future<void> _addPart() async {
@@ -113,6 +185,21 @@ class _RehearsalScreenState extends State<RehearsalScreen> {
                     const Divider(height: 1),
                     if (engine.localState.compensationFrames == 0)
                       _CompensationWarning(),
+                    if (_importing) const LinearProgressIndicator(),
+                    _MasterRow(
+                      engine: engine,
+                      rehearsal: rehearsal,
+                      importing: _importing,
+                      onImport: _importMaster,
+                      onRemove: _removeMaster,
+                      onAlign: () async {
+                        await Navigator.of(context).push(MaterialPageRoute(
+                          builder: (_) => MasterAlignScreen(
+                              engine: engine, rehearsal: rehearsal),
+                        ));
+                        if (mounted) setState(() {});
+                      },
+                    ),
                     Expanded(
                       child: ListView.builder(
                         padding: const EdgeInsets.fromLTRB(8, 8, 8, 88),
@@ -387,5 +474,122 @@ class _PartLane extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// The imported recording: import it, align it, mix it, or remove it.
+///
+/// Sits above the part lanes rather than among them because it is not a part —
+/// it belongs to the rehearsal, nobody records over it, and it does not count
+/// towards how much of the tune the band has laid down.
+class _MasterRow extends StatelessWidget {
+  const _MasterRow({
+    required this.engine,
+    required this.rehearsal,
+    required this.importing,
+    required this.onImport,
+    required this.onRemove,
+    required this.onAlign,
+  });
+
+  final RehearsalEngine engine;
+  final Rehearsal rehearsal;
+  final bool importing;
+  final VoidCallback onImport;
+  final VoidCallback onRemove;
+  final VoidCallback onAlign;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
+    final master = rehearsal.master;
+
+    if (master == null) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+        child: OutlinedButton.icon(
+          onPressed: importing ? null : onImport,
+          icon: const Icon(Icons.library_music_outlined, size: 18),
+          label: Text(importing ? l10n.masterImporting : l10n.masterImport),
+        ),
+      );
+    }
+
+    final muted = engine.isMasterMuted;
+    return Card(
+      margin: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+      color: theme.colorScheme.surfaceContainerHighest,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.album_outlined,
+                    size: 20, color: theme.colorScheme.tertiary),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(master.sourceName.isEmpty
+                          ? l10n.masterTitle
+                          : master.sourceName,
+                          style: theme.textTheme.titleSmall,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis),
+                      Text(
+                        l10n.masterDownbeatAt(_fmt(master.offset)),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => engine.setMasterMuted(!muted),
+                  tooltip: l10n.rehearsalMute,
+                  icon: Icon(muted ? Icons.volume_off : Icons.volume_up),
+                  color: muted ? theme.colorScheme.error : null,
+                ),
+                IconButton(
+                  onPressed: onAlign,
+                  tooltip: l10n.masterAlign,
+                  icon: const Icon(Icons.straighten),
+                ),
+                IconButton(
+                  onPressed: onRemove,
+                  tooltip: l10n.masterRemove,
+                  icon: const Icon(Icons.delete_outline),
+                ),
+              ],
+            ),
+            Row(
+              children: [
+                const SizedBox(width: 30),
+                Expanded(
+                  child: Slider(
+                    value: engine.masterGain.clamp(0.0, 2.0),
+                    max: 2.0,
+                    divisions: 40,
+                    onChanged: engine.setMasterGain,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// mm:ss.cc — the same shape the alignment screen uses.
+  static String _fmt(Duration d) {
+    final s = d.inSeconds;
+    final cs = (d.inMilliseconds % 1000) ~/ 10;
+    return '${s ~/ 60}:${(s % 60).toString().padLeft(2, '0')}'
+        '.${cs.toString().padLeft(2, '0')}';
   }
 }

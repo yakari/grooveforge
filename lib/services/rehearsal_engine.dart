@@ -19,6 +19,12 @@ import 'rehearsal_library.dart';
 /// one of them.
 const String kLatencyCompensationKey = 'gf.rehearsal.compensationFrames';
 
+/// Mix key for the imported master.
+///
+/// The master is not a part, so it has no part id to key its gain and mute on;
+/// this stands in for one inside [RehearsalLocalState].
+const String kMasterMixId = 'master';
+
 /// Transport states. Mirrors the C enum in `native_audio/gf_rehearsal.h`.
 enum RehearsalTransport { stopped, playing, countIn, recording }
 
@@ -41,6 +47,9 @@ class RehearsalEngine extends ChangeNotifier {
 
   /// Part id → native track index, for the parts that have a take loaded.
   final Map<String, int> _trackOf = {};
+
+  /// Native track index of the imported master, or null if there is none.
+  int? _masterTrack;
 
   /// The part currently being recorded into, if any.
   RehearsalPart? _recordingPart;
@@ -153,6 +162,24 @@ class RehearsalEngine extends ChangeNotifier {
     final ffi = AudioInputFFI();
     ffi.rehClearTracks();
     _trackOf.clear();
+    _masterTrack = null;
+
+    // The master goes in first so it holds the lowest slot and is easy to spot
+    // in a log; nothing depends on the order.
+    final master = r.master;
+    if (master != null) {
+      final path = await _library.masterPath(r.id, master);
+      final idx = ffi.rehAddTrack(path);
+      if (idx < 0) {
+        debugPrint('RehearsalEngine: could not load the master ($idx)');
+      } else {
+        _masterTrack = idx;
+        // This is what puts the tune's first downbeat on the grid's downbeat.
+        ffi.rehSetTrackOffset(idx, master.offsetFrames);
+        ffi.rehSetTrackGain(idx, _local.gainFor(kMasterMixId));
+        ffi.rehSetTrackMute(idx, _local.isMuted(kMasterMixId));
+      }
+    }
 
     for (final part in r.parts) {
       final take = part.take;
@@ -308,6 +335,77 @@ class RehearsalEngine extends ChangeNotifier {
     if (idx != null) AudioInputFFI().rehSetTrackMute(idx, muted);
     notifyListeners();
     await _saveLocal();
+  }
+
+  /// Moves the grid's first downbeat to [offsetFrames] inside the recording,
+  /// and applies it straight away so the change can be heard.
+  Future<void> setMasterOffset(int offsetFrames) async {
+    final r = _rehearsal;
+    if (r == null || r.master == null) return;
+    await _library.setMasterOffset(r, offsetFrames);
+    final idx = _masterTrack;
+    if (idx != null) AudioInputFFI().rehSetTrackOffset(idx, offsetFrames);
+    notifyListeners();
+  }
+
+  /// Sets the tempo. Refused once a take exists, because every recorded part
+  /// is aligned to the current grid.
+  Future<void> setBpm(double bpm) async {
+    final r = _rehearsal;
+    if (r == null || r.isGridFrozen) return;
+    r.bpm = bpm;
+    AudioInputFFI().rehSetGrid(bpm, r.beatsPerBar, r.beatUnit);
+    await _library.save(r);
+    notifyListeners();
+  }
+
+  /// Reloads after a master has been imported or removed.
+  Future<void> reloadTracks() async {
+    _local = await _library.loadLocalState(_rehearsal?.id ?? '');
+    AudioInputFFI()
+        .rehSetMetronome(enabled: _local.metronomeEnabled, gain: 0.6);
+    await _loadTracks();
+    notifyListeners();
+  }
+
+  /// Absolute path of the decoded master, or null if there is none.
+  Future<String?> masterFilePath() async {
+    final r = _rehearsal;
+    final m = r?.master;
+    if (r == null || m == null) return null;
+    return _library.masterPath(r.id, m);
+  }
+
+  double get masterGain => _local.gainFor(kMasterMixId);
+  bool get isMasterMuted => _local.isMuted(kMasterMixId);
+
+  Future<void> setMasterGain(double gain) async {
+    _local.gains[kMasterMixId] = gain;
+    final idx = _masterTrack;
+    if (idx != null) AudioInputFFI().rehSetTrackGain(idx, gain);
+    notifyListeners();
+    await _saveLocal();
+  }
+
+  Future<void> setMasterMuted(bool muted) async {
+    if (muted) {
+      _local.mutedPartIds.add(kMasterMixId);
+    } else {
+      _local.mutedPartIds.remove(kMasterMixId);
+    }
+    final idx = _masterTrack;
+    if (idx != null) AudioInputFFI().rehSetTrackMute(idx, muted);
+    notifyListeners();
+    await _saveLocal();
+  }
+
+  /// Plays a two-bar window from [fromFrame] so the alignment can be checked
+  /// by ear rather than only by eye.
+  void playFrom(int fromFrame) {
+    if (!_active) return;
+    AudioInputFFI().rehPlay(fromFrame);
+    _transport = RehearsalTransport.playing;
+    notifyListeners();
   }
 
   Future<void> setMetronome(bool enabled) async {

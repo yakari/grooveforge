@@ -1627,4 +1627,68 @@ class AudioInputFFI {
   int get rehState => _rehState();
   double get rehInputPeak => _rehInputPeak();
   int get rehRecordedFrames => _rehRecordedFrames();
+
+  // ── Master track import ───────────────────────────────────────────────────
+
+  late final void Function(int, int) _rehSetTrackOffset = _lib
+      .lookupFunction<Void Function(Int32, Int64), void Function(int, int)>(
+          'gf_reh_set_track_offset');
+  late final int Function(Pointer<Utf8>) _mediaCanDecode = _lib
+      .lookupFunction<Int32 Function(Pointer<Utf8>), int Function(Pointer<Utf8>)>(
+          'gf_media_can_decode');
+  late final int Function(Pointer<Utf8>, Pointer<Utf8>, int) _mediaToMonoWav =
+      _lib.lookupFunction<Int64 Function(Pointer<Utf8>, Pointer<Utf8>, Int32),
+          int Function(Pointer<Utf8>, Pointer<Utf8>, int)>(
+          'gf_media_to_mono_wav');
+  late final int Function(Pointer<Utf8>, Pointer<Float>, int) _mediaWaveform =
+      _lib.lookupFunction<Int32 Function(Pointer<Utf8>, Pointer<Float>, Int32),
+          int Function(Pointer<Utf8>, Pointer<Float>, int)>(
+          'gf_media_waveform');
+
+  /// Anchors grid frame 0 to a position inside a track's audio.
+  ///
+  /// Takes leave this at zero; an imported master uses it to put the tune's
+  /// first downbeat on the downbeat of the grid.
+  void rehSetTrackOffset(int idx, int frames) =>
+      _rehSetTrackOffset(idx, frames);
+
+  /// Whether the bundled decoders can read [path] without the OS extractor.
+  bool mediaCanDecode(String path) {
+    final p = path.toNativeUtf8();
+    try {
+      return _mediaCanDecode(p) != 0;
+    } finally {
+      calloc.free(p);
+    }
+  }
+
+  /// Decodes [src] to mono 16-bit WAV at [sampleRate]. Returns frames written,
+  /// or negative on failure.
+  ///
+  /// Blocking and proportional to the file's length, so call it off the UI
+  /// thread — a four-minute master takes a moment.
+  int mediaToMonoWav(String src, String dst, {int sampleRate = 48000}) {
+    final s = src.toNativeUtf8();
+    final d = dst.toNativeUtf8();
+    try {
+      return _mediaToMonoWav(s, d, sampleRate);
+    } finally {
+      calloc.free(s);
+      calloc.free(d);
+    }
+  }
+
+  /// Peak envelope of a mono 16-bit WAV, [bins] values covering the whole file.
+  List<double> mediaWaveform(String wavPath, int bins) {
+    if (bins <= 0) return const [];
+    final p = wavPath.toNativeUtf8();
+    final out = calloc<Float>(bins);
+    try {
+      if (_mediaWaveform(p, out, bins) == 0) return const [];
+      return List<double>.generate(bins, (i) => out[i]);
+    } finally {
+      calloc.free(p);
+      calloc.free(out);
+    }
+  }
 }

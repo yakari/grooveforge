@@ -166,13 +166,18 @@ static void wav_finish(FILE* f, int64_t frames) {
 
 /// One streamed take.
 ///
-/// Every take is aligned to grid frame 0 by construction, so a track's file
-/// frame index *is* the grid position — there is no per-track offset to carry.
+/// A recorded take is aligned to grid frame 0 by construction, so its file
+/// frame index *is* the grid position and [grid_offset] stays zero. An
+/// imported master is the exception: the tune's first downbeat sits somewhere
+/// inside the recording, and the offset is what anchors the grid to it.
 typedef struct {
     int    active;
     FILE*  file;
     long   data_offset;      ///< Byte offset of the first audio frame.
     int64_t frames;          ///< Length of the take.
+    /// File frame corresponding to grid frame 0. Zero for takes, non-zero for
+    /// a master whose first downbeat is not at the start of the recording.
+    volatile int64_t grid_offset;
 
     float  ring[GF_REH_RING_FRAMES];
     /// Grid frame the worker has filled up to (exclusive). Only the worker
@@ -279,11 +284,16 @@ static void fill_track_range(Track* t, int64_t from, int count) {
     if (count <= 0) return;
     static int16_t scratch[4096];
 
+    // The ring is indexed by grid position; the file is read at the
+    // corresponding file frame, which the offset shifts.
+    const int64_t offset = t->grid_offset;
+
     while (count > 0) {
         const int chunk = count > 4096 ? 4096 : count;
         int got = 0;
-        if (from < t->frames && t->file) {
-            if (fseek(t->file, t->data_offset + (long)(from * 2), SEEK_SET) == 0) {
+        const int64_t file_from = from + offset;
+        if (file_from >= 0 && file_from < t->frames && t->file) {
+            if (fseek(t->file, t->data_offset + (long)(file_from * 2), SEEK_SET) == 0) {
                 got = (int)fread(scratch, 2, (size_t)chunk, t->file);
             }
         }
@@ -480,6 +490,14 @@ void gf_reh_set_track_mute(int idx, int muted) {
     g_e.tracks[idx].muted = muted ? 1 : 0;
 }
 
+void gf_reh_set_track_offset(int idx, int64_t frames) {
+    if (idx < 0 || idx >= GF_REH_MAX_TRACKS) return;
+    g_e.tracks[idx].grid_offset = frames;
+    // The ring holds audio read at the previous offset, so it is stale the
+    // moment the offset moves; -1 makes the next service pass refill.
+    g_e.tracks[idx].fill_pos = -1;
+}
+
 int64_t gf_reh_track_frames(int idx) {
     if (idx < 0 || idx >= GF_REH_MAX_TRACKS || !g_e.tracks[idx].active) return 0;
     return g_e.tracks[idx].frames;
@@ -627,9 +645,13 @@ static void render_common(float* outL, float* outR, int frames, int offline) {
 
             const float g = t->gain;
             float peak = t->peak;
+            const int64_t offset = t->grid_offset;
             for (int i = 0; i < frames; i++) {
                 const int64_t p = pos + i;
-                if (p < 0 || p >= t->frames) continue;
+                // Bounds are checked in file coordinates: with an offset the
+                // grid can run past the end of the recording well before it
+                // runs past the take's nominal length.
+                if (p < 0 || p + offset < 0 || p + offset >= t->frames) continue;
                 // Nothing filled this far yet: an underrun. Silence for this
                 // frame, and the transport keeps its timing rather than
                 // stalling, which would desynchronise every other track.

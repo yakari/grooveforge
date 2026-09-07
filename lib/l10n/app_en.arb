@@ -1300,5 +1300,38 @@
   "instrumentSaxophone": "Saxophone",
   "instrumentTrumpet": "Trumpet",
   "instrumentPercussion": "Percussion",
-  "instrumentOther": "Other"
+  "instrumentOther": "Other",
+  "masterImport": "Play along to a recording",
+  "masterImportHint": "Import an MP3, FLAC or WAV. Its audio becomes a track everyone plays over.",
+  "masterImporting": "Importing…",
+  "masterImportFailed": "That file could not be read. Try an MP3, FLAC or WAV.",
+  "masterTitle": "Recording",
+  "masterRemove": "Remove the recording",
+  "masterRemoveConfirm": "Remove \"{name}\" from this rehearsal?",
+  "@masterRemoveConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "masterAlign": "Set the first downbeat",
+  "masterAlignTitle": "Align the grid",
+  "masterAlignHint": "Play the recording and tap along on the beat to set the tempo, then drag the marker to the first downbeat.",
+  "masterTapTempo": "Tap the beat",
+  "masterTapMore": "Keep tapping…",
+  "masterDownbeatAt": "First downbeat at {time}",
+  "@masterDownbeatAt": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "masterNudgeBack": "10 ms earlier",
+  "masterNudgeForward": "10 ms later",
+  "masterCheck": "Check two bars",
+  "masterDone": "Done",
+  "masterVideoAudioOnly": "Video files are imported for their audio only.",
+  "masterMetronomeOff": "The click is off: the recording is the timing reference now."
 }

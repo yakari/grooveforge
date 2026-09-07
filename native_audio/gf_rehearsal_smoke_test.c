@@ -21,6 +21,7 @@
 // Run  : ./build-smoke/gf_rehearsal_smoke_test [work_dir]
 
 #include "gf_rehearsal.h"
+#include "gf_media_import.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -35,9 +36,19 @@ static char g_dir[512] = "/tmp";
 
 static void fail(const char* fmt, ...) { (void)fmt; g_fails++; }
 
+/// Builds a path under the working directory.
+///
+/// Rotates through a small pool of buffers rather than reusing one: a single
+/// static buffer means two calls in the same expression — `f(path_for(a),
+/// path_for(b))` — silently return the *same* string, and the caller ends up
+/// reading and writing one file. Which is exactly what happened here first
+/// time round.
 static const char* path_for(const char* name) {
-    static char buf[1024];
-    snprintf(buf, sizeof(buf), "%s/%s", g_dir, name);
+    static char pool[4][1024];
+    static int next = 0;
+    char* buf = pool[next];
+    next = (next + 1) % 4;
+    snprintf(buf, 1024, "%s/%s", g_dir, name);
     return buf;
 }
 
@@ -447,6 +458,172 @@ static void test_wav_roundtrip(void) {
     free(mix); free(src);
 }
 
+// ─── 8. Anchoring the grid inside a recording ────────────────────────────────
+
+static void test_track_offset(void) {
+    // A "master": four seconds of silence with a transient 1.5 s in, standing
+    // for a tune whose first downbeat arrives after an intro.
+    const int len = SR * 4;
+    const int downbeat_at = SR * 3 / 2;          // 1.5 s into the recording
+    float* master = (float*)calloc((size_t)len, sizeof(float));
+    master[downbeat_at] = 0.9f;
+    // A second transient exactly one bar (2 s at 120 BPM) later.
+    master[downbeat_at + SR * 2] = 0.8f;
+    write_wav(path_for("gf_reh_master.wav"), master, len);
+
+    gf_reh_clear_tracks();
+    gf_reh_set_metronome(0, 0.0f);
+    gf_reh_set_grid(120.0, 4, 4);
+    const int t = gf_reh_add_track(path_for("gf_reh_master.wav"));
+    if (t < 0) { printf("    FAIL: master would not load\n"); fail(""); free(master); return; }
+
+    // Anchor grid frame 0 to the first downbeat.
+    gf_reh_set_track_offset(t, downbeat_at);
+
+    const int span = SR * 2 + 1000;
+    float* mix = (float*)calloc((size_t)span, sizeof(float));
+    gf_reh_play(0);
+    render_all(mix, span);
+    gf_reh_stop();
+
+    // The downbeat must now be at grid frame 0, and the next bar at exactly
+    // one bar's worth of frames.
+    const int first = peak_index(mix, 100, 0.5f);
+    printf("    downbeat %d frames into the file -> grid frame %d\n",
+           downbeat_at, first);
+    if (first != 0) {
+        printf("    FAIL: expected the downbeat at grid frame 0, got %d\n", first);
+        fail("");
+    }
+    int second = -1;
+    for (int i = 100; i < span; i++) {
+        if (fabsf(mix[i]) > 0.7f) { second = i; break; }
+    }
+    const int fbar = gf_reh_frames_per_bar();
+    printf("    next transient at grid frame %d (one bar = %d)\n", second, fbar);
+    if (second != fbar) {
+        printf("    FAIL: second transient at %d, expected %d\n", second, fbar);
+        fail("");
+    }
+
+    // Audio before the offset is not played: there is no grid there.
+    gf_reh_set_track_offset(t, downbeat_at);
+    memset(mix, 0, sizeof(float) * (size_t)span);
+    gf_reh_play(0);
+    render_all(mix, 200);
+    gf_reh_stop();
+
+    gf_reh_clear_tracks();
+    free(mix); free(master);
+}
+
+// ─── 9. Importing a recording ────────────────────────────────────────────────
+
+static void test_media_import(void) {
+    // A stereo 44.1 kHz WAV, so the import has real work to do: fold to mono
+    // and resample to the engine's rate. Written by hand because write_wav
+    // only does mono at SR.
+    const int src_rate = 44100;
+    const int src_frames = src_rate * 2;         // two seconds
+    const char* src = path_for("gf_reh_src_stereo.wav");
+    FILE* f = fopen(src, "wb");
+    if (!f) { printf("    FAIL: cannot write source\n"); fail(""); return; }
+    unsigned char h[44];
+    memcpy(h, "RIFF", 4);
+    put_u32(h + 4, (unsigned int)(36 + src_frames * 4));
+    memcpy(h + 8, "WAVEfmt ", 8);
+    put_u32(h + 16, 16);
+    h[20] = 1; h[21] = 0; h[22] = 2; h[23] = 0;   // stereo
+    put_u32(h + 24, (unsigned int)src_rate);
+    put_u32(h + 28, (unsigned int)(src_rate * 4));
+    h[32] = 4; h[33] = 0; h[34] = 16; h[35] = 0;
+    memcpy(h + 36, "data", 4);
+    put_u32(h + 40, (unsigned int)(src_frames * 4));
+    fwrite(h, 1, 44, f);
+    for (int i = 0; i < src_frames; i++) {
+        // A 440 Hz tone in both channels.
+        const double t = (double)i / (double)src_rate;
+        const short s = (short)(sin(2.0 * M_PI * 440.0 * t) * 12000.0);
+        fputc(s & 0xFF, f); fputc((s >> 8) & 0xFF, f);
+        fputc(s & 0xFF, f); fputc((s >> 8) & 0xFF, f);
+    }
+    fclose(f);
+
+    if (!gf_media_can_decode(src)) {
+        printf("    FAIL: a plain stereo WAV was reported undecodable\n");
+        fail("");
+    }
+
+    const char* dst = path_for("gf_reh_master_imported.wav");
+    const int64_t frames = gf_media_to_mono_wav(src, dst, SR);
+    const int64_t expected = (int64_t)src_frames * SR / src_rate;
+    printf("    %d frames at %d Hz stereo -> %lld frames at %d Hz mono "
+           "(expected ~%lld)\n",
+           src_frames, src_rate, (long long)frames, SR, (long long)expected);
+    if (frames <= 0) {
+        printf("    FAIL: import returned %lld\n", (long long)frames);
+        fail("");
+        return;
+    }
+    // Resamplers differ by a few frames at the tail; anything beyond a
+    // millisecond means the rate conversion is wrong, not just rounding.
+    if (llabs((long long)(frames - expected)) > SR / 1000) {
+        printf("    FAIL: length off by %lld frames\n",
+               (long long)(frames - expected));
+        fail("");
+    }
+
+    // And the engine must be able to stream what the importer wrote.
+    gf_reh_clear_tracks();
+    const int t = gf_reh_add_track(dst);
+    if (t < 0) {
+        printf("    FAIL: engine would not load the imported master (%d)\n", t);
+        fail("");
+        return;
+    }
+    if (gf_reh_track_frames(t) != frames) {
+        printf("    FAIL: engine sees %lld frames, importer wrote %lld\n",
+               (long long)gf_reh_track_frames(t), (long long)frames);
+        fail("");
+    }
+
+    // A waveform for the alignment screen: a steady tone must come back as a
+    // steady envelope, not silence.
+    float bins[64];
+    if (!gf_media_waveform(dst, bins, 64)) {
+        printf("    FAIL: no waveform\n");
+        fail("");
+    } else {
+        float lo = 1.0f, hi = 0.0f;
+        for (int i = 0; i < 64; i++) {
+            if (bins[i] < lo) lo = bins[i];
+            if (bins[i] > hi) hi = bins[i];
+        }
+        printf("    waveform over 64 bins: %.3f .. %.3f\n", lo, hi);
+        if (hi < 0.2f) { printf("    FAIL: waveform is silent\n"); fail(""); }
+        if (lo < 0.2f) {
+            printf("    FAIL: a steady tone produced an uneven envelope\n");
+            fail("");
+        }
+    }
+
+    // Something that is not audio at all must be refused rather than turned
+    // into noise.
+    const char* junk = path_for("gf_reh_notaudio.txt");
+    FILE* j = fopen(junk, "wb");
+    if (j) { fwrite("hello, this is not audio", 1, 24, j); fclose(j); }
+    if (gf_media_can_decode(junk)) {
+        printf("    FAIL: a text file was reported decodable\n");
+        fail("");
+    }
+    if (gf_media_to_mono_wav(junk, path_for("gf_reh_junk_out.wav"), SR) >= 0) {
+        printf("    FAIL: importing a text file appeared to succeed\n");
+        fail("");
+    }
+
+    gf_reh_clear_tracks();
+}
+
 int main(int argc, char** argv) {
     if (argc > 1) snprintf(g_dir, sizeof(g_dir), "%s", argv[1]);
     printf("gf_rehearsal_smoke_test — multitrack rehearsal engine (P1)\n");
@@ -463,6 +640,8 @@ int main(int argc, char** argv) {
     printf("\n5. metronome\n");                test_metronome();
     printf("\n6. count-in\n");                 test_count_in();
     printf("\n7. recording alignment\n");      test_record_alignment();
+    printf("\n8. anchoring the grid in a recording\n"); test_track_offset();
+    printf("\n9. importing a recording\n");    test_media_import();
 
     gf_reh_destroy();
 
