@@ -5,6 +5,13 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/lang/fr/).
 
+## [X.x.x]
+
+### Architecture
+- Préparation des répétitions : mesure du retard entre ce que l'app joue et ce que le micro entend, pour caler les overdubs.
+- La même mesure détecte les horloges d'enregistrement et de lecture qui dérivent.
+- Les réglages proposent une mesure de latence d'overdub sur votre propre appareil.
+
 ## [2.18.0] - 2026-09-04
 
 ### Ajouté

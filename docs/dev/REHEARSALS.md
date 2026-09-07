@@ -347,7 +347,130 @@ playback** through a small per-track ring buffer filled by a worker thread. This
 is the one genuinely new native component in the plan. It also removes any need
 for a take-length cap (D8).
 
-### 6.3 Gap — the clock
+### 6.3 P0 status — the alignment maths is proven, on synthetic audio
+
+`native_audio/gf_latency.{h,c}` implements the chain, and
+`gf_latency_smoke_test.c` verifies it offline
+(`./scripts/run_smoke_tests.sh latency`). It needs no audio device, so it runs
+in CI and on any machine.
+
+The measurement emits a train of six 40 ms linear chirps (300 Hz → 6 kHz) on
+the playback timeline at known frames, then finds each one in the capture by
+normalised cross-correlation. A chirp beats a click here: it spreads its energy
+over time yet still correlates to one sharp peak, which survives room
+reverberation and a phone speaker's ragged response where a click does not.
+Normalising by the capture window's energy is what stops the estimator locking
+onto whatever was loudest rather than onto the signal.
+
+Against a simulated channel that is band-limited (180 Hz – 7 kHz), carries a
+13 ms wall reflection at −7 dB, has a capture clock starting at an arbitrary
+different frame, and is buried in noise down to roughly 3 dB SNR:
+
+| Case | Result |
+|---|---|
+| Round trips 12 – 280 ms | recovered exactly |
+| Delays landing between frame boundaries | within 1 frame (0.02 ms) |
+| Rehearsal-room noise at 3 dB SNR | recovered exactly, confidence 7.1 |
+| Capture containing only noise | **rejected**, 0 of 6 shots usable |
+| End to end: note played in time with what was heard | lands 0.000 ms off the beat |
+
+That last row is the P0 question, and on synthetic audio the answer is yes. The
+rejection row matters just as much: the failure mode to fear is not "no
+answer", it is a confident wrong answer, which would shift every take in the
+session by a random amount. The correlator scores its peak against the best
+competing peak and refuses to answer below a ratio of 2.0.
+
+### 6.4 P0 on real hardware — measured, and it holds
+
+`gf_latency_probe` runs the same measurement against real devices from the
+command line, and the app carries it as a screen (Preferences → Overdub
+latency) that measures through GrooveForge's *own* devices — the only
+configuration whose answer is usable.
+
+**Galaxy Z Fold, speaker to built-in microphone, three consecutive runs:**
+
+| | Run 1 | Run 2 | Run 3 |
+|---|---|---|---|
+| Round trip | 27.27 ms | 28.98 ms | 28.96 ms |
+| Frames | 1309 | 1391 | 1390 |
+| Sweeps found | 6/6 | 6/6 | 6/6 |
+| Confidence | 5.7 | 5.3 | 4.9 |
+| Clock drift | — | — | 0.7 ppm |
+
+Runs 2 and 3 agree to within one frame. Run 1 sits 82 frames low, almost
+certainly the capture device still settling immediately after being opened —
+worth discarding the first run of a calibration, or warming up before measuring.
+
+**Two things this settles:**
+
+1. **Drift is a non-issue on this hardware.** 0.7 ppm is 0 ms over a
+   four-minute take. The resampling path floated in §6.5 below is therefore not
+   needed for P1 — the figure stays as a health check, and the case for acting
+   on it only arises if some device reports tens of ppm.
+2. **The measurement is reproducible to about 2 ms**, and to a single frame
+   between settled runs. That is comfortably inside the 10 ms budget, so the
+   remaining error is dominated by the device settling rather than by the
+   method.
+
+Desktop, through the PipeWire monitor loopback (no room, no speaker, no mic):
+26.67 ms, identical across runs, drift exactly 0.0 ppm — the expected result
+for a digital loopback that shares one clock domain, and a useful control.
+
+### 6.4.1 What the hardware caught that the simulation could not
+
+Three real bugs, none of which the offline test could have found:
+
+- **Android never opens the miniaudio playback device.** `start_audio_capture`
+  logs `PLAYBACK device: skipped (Android uses Oboe bus)` — output goes through
+  Oboe in `libnative-lib.so`. The probe had to register itself as an ordinary
+  bus source (`OBOE_BUS_SLOT_LATENCY_PROBE`) to emit anything at all.
+- **The bus source must stay registered between runs.** The playback frame
+  counter only advances while its render callback is being called, so removing
+  the source after a run froze that clock while the capture clock kept going;
+  the next run then scheduled its sweeps seconds into the future and timed out.
+- **The two frame counters have different origins.** Each counts frames since
+  *its own* device started, and on the phone the output bus had been running
+  4.4 seconds longer than the microphone. Subtracting them raw put the search
+  window past the end of the buffer, finding nothing. The fix is to project
+  both to one instant using a timestamp latched in each callback, and then to
+  pass **zero** as the analysis origin — the emitter counts from that instant
+  and the capture buffer is indexed from it, so the two axes already share an
+  origin.
+
+That last one also corrected the desktop reading, which had been low by exactly
+the counter difference (768 frames, 16 ms).
+
+### 6.5 Earlier finding — clock drift, and when a constant offset is not enough
+
+Building the harness surfaced something the original spec missed entirely.
+
+Compensation is a single constant, so it corrects the *start* of a take. But
+the playback and capture devices have independent crystals, and two nominally
+48 kHz clocks are never exactly equal. The take therefore slides against the
+grid as it plays:
+
+| Drift | A 4-minute take ends |
+|---|---|
+| 50 ppm | 12 ms late |
+| 200 ppm | 48 ms late |
+
+48 ms is not subtle — it is roughly a semiquaver at 120 BPM, and it lands at
+the end of the song where the band is least forgiving. No constant offset can
+fix it, because the error is not constant.
+
+`gf_lat_result` now reports `drift_ppm` from a least-squares fit across the six
+shots (the sub-frame refined peaks, since one run's drift is a fraction of a
+frame per shot). The test confirms ±50 and ±200 ppm are recovered with the
+correct sign — the sign being the one thing that must not be wrong, since
+resampling the wrong way would double the error instead of removing it.
+
+**Measured outcome (§6.4): 0.7 ppm on the test phone, 0 ms over a four-minute
+take.** So this does not need handling in P1. It stays measured and reported as
+a health signal, and the resampling path — the phase vocoder already does the
+resampling, so it is a routing question rather than new DSP — is only worth
+building if some device turns out to report tens of ppm.
+
+### 6.6 Gap — the clock
 
 `TransportEngine` ticks from a Dart `Timer.periodic(10ms)`. Fine for a
 metronome LED and a beat counter, but rehearsal alignment must be sample-counted

@@ -1427,4 +1427,85 @@ class AudioInputFFI {
   /// Direct FFI tuning reset for the Android FluidSynth hot path.
   void gfNativeClearTuning(int sfId, int channel) =>
       _gfNativeClearTuning(sfId, channel);
+
+  // ── Overdub latency probe ─────────────────────────────────────────────────
+  //
+  // Measures how long it takes for a sound the engine plays to come back in
+  // through the microphone, using the app's own playback and capture devices.
+  // A take recorded against a click has to be shifted earlier by this amount
+  // or every overdub sits behind the beat.
+
+  late final int Function() _gfProbeStart = _lib
+      .lookupFunction<Int32 Function(), int Function()>('gf_probe_start');
+  late final int Function() _gfProbePoll = _lib
+      .lookupFunction<Int32 Function(), int Function()>('gf_probe_poll');
+  late final void Function() _gfProbeCancel = _lib
+      .lookupFunction<Void Function(), void Function()>('gf_probe_cancel');
+  late final double Function() _gfProbeRoundTripMs = _lib
+      .lookupFunction<Float Function(), double Function()>('gf_probe_round_trip_ms');
+  late final int Function() _gfProbeRoundTripFrames = _lib
+      .lookupFunction<Int32 Function(), int Function()>('gf_probe_round_trip_frames');
+  late final double Function() _gfProbeJitterMs = _lib
+      .lookupFunction<Float Function(), double Function()>('gf_probe_jitter_ms');
+  late final double Function() _gfProbeConfidence = _lib
+      .lookupFunction<Float Function(), double Function()>('gf_probe_confidence');
+  late final int Function() _gfProbeShotsFound = _lib
+      .lookupFunction<Int32 Function(), int Function()>('gf_probe_shots_found');
+  late final double Function() _gfProbeDriftPpm = _lib
+      .lookupFunction<Float Function(), double Function()>('gf_probe_drift_ppm');
+  late final double Function() _gfProbeSkewMs = _lib
+      .lookupFunction<Float Function(), double Function()>('gf_probe_skew_ms');
+  late final double Function() _gfProbeInputPeak = _lib
+      .lookupFunction<Float Function(), double Function()>('gf_probe_input_peak');
+
+  late final int Function() _gfProbeBusRenderFnAddr = _lib
+      .lookupFunction<IntPtr Function(), int Function()>(
+          'gf_probe_bus_render_fn_addr');
+
+  /// Address of the probe's bus-source render function.
+  ///
+  /// Android renders through Oboe rather than the miniaudio playback device,
+  /// so on Android the sweep has to be emitted from a registered bus source.
+  /// Pass this to `oboeStreamAddSource` with [kBusSlotLatencyProbe].
+  int probeBusRenderFnAddr() => _gfProbeBusRenderFnAddr();
+
+  /// Starts a measurement. Returns 0 on success, negative on failure.
+  ///
+  /// Audio capture must already be running — the probe rides on the devices
+  /// the app has open rather than opening its own, because the number it
+  /// produces is only valid for the configuration it was measured in.
+  int probeStart() => _gfProbeStart();
+
+  /// Polls the run: 0 idle, 1 running, 2 result ready, 3 failed.
+  ///
+  /// The cross-correlation runs inside this call, so it takes a few hundred
+  /// milliseconds once the capture is complete. Call it off the UI frame path
+  /// (a timer is fine) rather than from a build method.
+  int probePoll() => _gfProbePoll();
+
+  void probeCancel() => _gfProbeCancel();
+
+  /// The measured round trip — the compensation a take needs.
+  double get probeRoundTripMs => _gfProbeRoundTripMs();
+  int get probeRoundTripFrames => _gfProbeRoundTripFrames();
+
+  /// Spread between the six individual measurements. Large spread means no
+  /// single compensation will hold on this device.
+  double get probeJitterMs => _gfProbeJitterMs();
+
+  /// Peak height over the best competing peak. Below 2.0 a shot is discarded.
+  double get probeConfidence => _gfProbeConfidence();
+  int get probeShotsFound => _gfProbeShotsFound();
+
+  /// Rate difference between the capture and playback clocks. Positive means
+  /// the take falls progressively further behind as it plays.
+  double get probeDriftPpm => _gfProbeDriftPpm();
+
+  /// Diagnostic: how far apart the two device frame counters were when the run
+  /// started. Already removed from the round trip.
+  double get probeSkewMs => _gfProbeSkewMs();
+
+  /// Loudest input sample seen during the run — zero means the mic heard
+  /// nothing, which is the expected outcome on headphones.
+  double get probeInputPeak => _gfProbeInputPeak();
 }

@@ -3889,6 +3889,126 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Harmony'**
   String get vocoderWaveHarmony;
+
+  /// No description provided for @latencyProbeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Overdub latency'**
+  String get latencyProbeTitle;
+
+  /// No description provided for @latencyProbeSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Measure how late the mic hears what the app plays'**
+  String get latencyProbeSubtitle;
+
+  /// No description provided for @latencyProbeExplain.
+  ///
+  /// In en, this message translates to:
+  /// **'Plays six short sweeps through the speaker and listens for them on the microphone. Use the speaker: a microphone cannot hear headphones, and the measurement will correctly report that it found nothing.'**
+  String get latencyProbeExplain;
+
+  /// No description provided for @latencyProbeStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Measure'**
+  String get latencyProbeStart;
+
+  /// No description provided for @latencyProbeMeasuring.
+  ///
+  /// In en, this message translates to:
+  /// **'Measuring…'**
+  String get latencyProbeMeasuring;
+
+  /// No description provided for @latencyProbeRoundTrip.
+  ///
+  /// In en, this message translates to:
+  /// **'Round trip'**
+  String get latencyProbeRoundTrip;
+
+  /// No description provided for @latencyProbeJitter.
+  ///
+  /// In en, this message translates to:
+  /// **'Jitter'**
+  String get latencyProbeJitter;
+
+  /// No description provided for @latencyProbeConfidence.
+  ///
+  /// In en, this message translates to:
+  /// **'Confidence'**
+  String get latencyProbeConfidence;
+
+  /// No description provided for @latencyProbeShots.
+  ///
+  /// In en, this message translates to:
+  /// **'Usable sweeps'**
+  String get latencyProbeShots;
+
+  /// No description provided for @latencyProbeDrift.
+  ///
+  /// In en, this message translates to:
+  /// **'Clock drift'**
+  String get latencyProbeDrift;
+
+  /// No description provided for @latencyProbeSkew.
+  ///
+  /// In en, this message translates to:
+  /// **'Counter skew'**
+  String get latencyProbeSkew;
+
+  /// No description provided for @latencyProbeDriftOverTake.
+  ///
+  /// In en, this message translates to:
+  /// **'A 4-minute take would slide {ms} ms'**
+  String latencyProbeDriftOverTake(String ms);
+
+  /// No description provided for @latencyProbeShotsValue.
+  ///
+  /// In en, this message translates to:
+  /// **'{found} of {total}'**
+  String latencyProbeShotsValue(int found, int total);
+
+  /// No description provided for @latencyProbeMs.
+  ///
+  /// In en, this message translates to:
+  /// **'{value} ms'**
+  String latencyProbeMs(String value);
+
+  /// No description provided for @latencyProbeFramesSuffix.
+  ///
+  /// In en, this message translates to:
+  /// **'{frames} frames'**
+  String latencyProbeFramesSuffix(int frames);
+
+  /// No description provided for @latencyProbePpm.
+  ///
+  /// In en, this message translates to:
+  /// **'{value} ppm'**
+  String latencyProbePpm(String value);
+
+  /// No description provided for @latencyProbeFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'No usable measurement'**
+  String get latencyProbeFailed;
+
+  /// No description provided for @latencyProbeSilentInput.
+  ///
+  /// In en, this message translates to:
+  /// **'The microphone heard nothing. Check the microphone permission, and play through the speaker rather than headphones.'**
+  String get latencyProbeSilentInput;
+
+  /// No description provided for @latencyProbeNeedsAudio.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio capture is not running. Open a live input or the vocoder first.'**
+  String get latencyProbeNeedsAudio;
+
+  /// No description provided for @latencyProbeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep the room quiet and hold the phone so the speaker faces the mic.'**
+  String get latencyProbeHint;
 }
 
 class _AppLocalizationsDelegate

@@ -14,6 +14,7 @@ import 'package:flutter/services.dart' show rootBundle;
 import '../l10n/app_localizations.dart';
 import '../services/locale_provider.dart';
 import '../services/audio_input_ffi.dart';
+import 'latency_probe_screen.dart';
 import 'usb_audio_debug_screen.dart';
 import '../services/vst_host_service.dart';
 import 'dart:async';
@@ -947,6 +948,24 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                         context,
                         MaterialPageRoute(
                           builder: (_) => const UsbAudioDebugScreen(),
+                        ),
+                      ),
+                    ),
+                  ],
+                  // Not Android-gated: the probe runs wherever the native
+                  // audio library does, and a desktop reading is a useful
+                  // baseline to compare a phone against.
+                  if (!kIsWeb) ...[
+                    const Divider(height: 1),
+                    ListTile(
+                      leading: const Icon(Icons.graphic_eq, color: Colors.grey),
+                      title: Text(loc.latencyProbeTitle),
+                      subtitle: Text(loc.latencyProbeSubtitle),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const LatencyProbeScreen(),
                         ),
                       ),
                     ),

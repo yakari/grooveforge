@@ -2090,4 +2090,79 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get vocoderWaveHarmony => 'Harmony';
+
+  @override
+  String get latencyProbeTitle => 'Overdub latency';
+
+  @override
+  String get latencyProbeSubtitle =>
+      'Measure how late the mic hears what the app plays';
+
+  @override
+  String get latencyProbeExplain =>
+      'Plays six short sweeps through the speaker and listens for them on the microphone. Use the speaker: a microphone cannot hear headphones, and the measurement will correctly report that it found nothing.';
+
+  @override
+  String get latencyProbeStart => 'Measure';
+
+  @override
+  String get latencyProbeMeasuring => 'Measuring…';
+
+  @override
+  String get latencyProbeRoundTrip => 'Round trip';
+
+  @override
+  String get latencyProbeJitter => 'Jitter';
+
+  @override
+  String get latencyProbeConfidence => 'Confidence';
+
+  @override
+  String get latencyProbeShots => 'Usable sweeps';
+
+  @override
+  String get latencyProbeDrift => 'Clock drift';
+
+  @override
+  String get latencyProbeSkew => 'Counter skew';
+
+  @override
+  String latencyProbeDriftOverTake(String ms) {
+    return 'A 4-minute take would slide $ms ms';
+  }
+
+  @override
+  String latencyProbeShotsValue(int found, int total) {
+    return '$found of $total';
+  }
+
+  @override
+  String latencyProbeMs(String value) {
+    return '$value ms';
+  }
+
+  @override
+  String latencyProbeFramesSuffix(int frames) {
+    return '$frames frames';
+  }
+
+  @override
+  String latencyProbePpm(String value) {
+    return '$value ppm';
+  }
+
+  @override
+  String get latencyProbeFailed => 'No usable measurement';
+
+  @override
+  String get latencyProbeSilentInput =>
+      'The microphone heard nothing. Check the microphone permission, and play through the speaker rather than headphones.';
+
+  @override
+  String get latencyProbeNeedsAudio =>
+      'Audio capture is not running. Open a live input or the vocoder first.';
+
+  @override
+  String get latencyProbeHint =>
+      'Keep the room quiet and hold the phone so the speaker faces the mic.';
 }

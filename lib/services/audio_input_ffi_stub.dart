@@ -290,4 +290,18 @@ class AudioInputFFI {
   void gfNativeNoteOff(int sfId, int channel, int key) {}
   void gfNativeCc(int sfId, int channel, int controller, int value) {}
   void gfNativePitchBend(int sfId, int channel, int value) {}
+
+  // Overdub latency probe — no native library on web, so nothing to measure.
+  int probeBusRenderFnAddr() => 0;
+  int probeStart() => -1;
+  int probePoll() => 0;
+  void probeCancel() {}
+  double get probeRoundTripMs => 0.0;
+  int get probeRoundTripFrames => 0;
+  double get probeJitterMs => 0.0;
+  double get probeConfidence => 0.0;
+  int get probeShotsFound => 0;
+  double get probeDriftPpm => 0.0;
+  double get probeSkewMs => 0.0;
+  double get probeInputPeak => 0.0;
 }

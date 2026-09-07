@@ -2104,4 +2104,79 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get vocoderWaveHarmony => 'Harmonie';
+
+  @override
+  String get latencyProbeTitle => 'Latence d\'overdub';
+
+  @override
+  String get latencyProbeSubtitle =>
+      'Mesure le retard entre ce que l\'app joue et ce que le micro entend';
+
+  @override
+  String get latencyProbeExplain =>
+      'Joue six brefs balayages dans le haut-parleur et les cherche sur le micro. Utilisez le haut-parleur : un micro n\'entend pas un casque, et la mesure signalera à juste titre n\'avoir rien trouvé.';
+
+  @override
+  String get latencyProbeStart => 'Mesurer';
+
+  @override
+  String get latencyProbeMeasuring => 'Mesure en cours…';
+
+  @override
+  String get latencyProbeRoundTrip => 'Aller-retour';
+
+  @override
+  String get latencyProbeJitter => 'Gigue';
+
+  @override
+  String get latencyProbeConfidence => 'Confiance';
+
+  @override
+  String get latencyProbeShots => 'Balayages exploitables';
+
+  @override
+  String get latencyProbeDrift => 'Dérive d\'horloge';
+
+  @override
+  String get latencyProbeSkew => 'Écart de compteurs';
+
+  @override
+  String latencyProbeDriftOverTake(String ms) {
+    return 'Une prise de 4 minutes dériverait de $ms ms';
+  }
+
+  @override
+  String latencyProbeShotsValue(int found, int total) {
+    return '$found sur $total';
+  }
+
+  @override
+  String latencyProbeMs(String value) {
+    return '$value ms';
+  }
+
+  @override
+  String latencyProbeFramesSuffix(int frames) {
+    return '$frames échantillons';
+  }
+
+  @override
+  String latencyProbePpm(String value) {
+    return '$value ppm';
+  }
+
+  @override
+  String get latencyProbeFailed => 'Aucune mesure exploitable';
+
+  @override
+  String get latencyProbeSilentInput =>
+      'Le micro n\'a rien entendu. Vérifiez l\'autorisation du micro, et jouez sur le haut-parleur plutôt qu\'au casque.';
+
+  @override
+  String get latencyProbeNeedsAudio =>
+      'La capture audio n\'est pas active. Ouvrez d\'abord une entrée live ou le vocodeur.';
+
+  @override
+  String get latencyProbeHint =>
+      'Gardez la pièce silencieuse et orientez le haut-parleur vers le micro.';
 }

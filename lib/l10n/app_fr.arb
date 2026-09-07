@@ -896,5 +896,63 @@
   "vocoderWaveSaw": "Dent de scie",
   "vocoderWaveSquare": "Carrée",
   "vocoderWaveChoral": "Choral",
-  "vocoderWaveHarmony": "Harmonie"
+  "vocoderWaveHarmony": "Harmonie",
+  "latencyProbeTitle": "Latence d'overdub",
+  "latencyProbeSubtitle": "Mesure le retard entre ce que l'app joue et ce que le micro entend",
+  "latencyProbeExplain": "Joue six brefs balayages dans le haut-parleur et les cherche sur le micro. Utilisez le haut-parleur : un micro n'entend pas un casque, et la mesure signalera à juste titre n'avoir rien trouvé.",
+  "latencyProbeStart": "Mesurer",
+  "latencyProbeMeasuring": "Mesure en cours…",
+  "latencyProbeRoundTrip": "Aller-retour",
+  "latencyProbeJitter": "Gigue",
+  "latencyProbeConfidence": "Confiance",
+  "latencyProbeShots": "Balayages exploitables",
+  "latencyProbeDrift": "Dérive d'horloge",
+  "latencyProbeSkew": "Écart de compteurs",
+  "latencyProbeDriftOverTake": "Une prise de 4 minutes dériverait de {ms} ms",
+  "@latencyProbeDriftOverTake": {
+    "placeholders": {
+      "ms": {
+        "type": "String"
+      }
+    }
+  },
+  "latencyProbeShotsValue": "{found} sur {total}",
+  "@latencyProbeShotsValue": {
+    "placeholders": {
+      "found": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "latencyProbeMs": "{value} ms",
+  "@latencyProbeMs": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "latencyProbeFramesSuffix": "{frames} échantillons",
+  "@latencyProbeFramesSuffix": {
+    "placeholders": {
+      "frames": {
+        "type": "int"
+      }
+    }
+  },
+  "latencyProbePpm": "{value} ppm",
+  "@latencyProbePpm": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "latencyProbeFailed": "Aucune mesure exploitable",
+  "latencyProbeSilentInput": "Le micro n'a rien entendu. Vérifiez l'autorisation du micro, et jouez sur le haut-parleur plutôt qu'au casque.",
+  "latencyProbeNeedsAudio": "La capture audio n'est pas active. Ouvrez d'abord une entrée live ou le vocodeur.",
+  "latencyProbeHint": "Gardez la pièce silencieuse et orientez le haut-parleur vers le micro."
 }

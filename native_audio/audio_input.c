@@ -17,6 +17,7 @@
 #include "miniaudio.h"
 #include <math.h>
 #include <stdio.h>
+#include <stdlib.h>   // calloc/free for the latency probe buffer
 #include <stdbool.h>
 #include <time.h>
 
@@ -30,6 +31,11 @@
 #endif
 
 #include "gf_harmony.h"
+#include "gf_latency.h"
+
+// Defined further down, next to the rest of the latency probe.
+static void gf_probe_playback_hook(float* pOut, int frames);
+static void gf_probe_capture_hook(const float* pIn, int frames);
 
 #define MAX_POLYPHONY 16
 #define SAMPLE_RATE 48000
@@ -290,6 +296,8 @@ void mic_capture_callback(ma_device* pDevice, void* pOutput, const void* pInput,
     const float* pIn = (const float*)pInput;
     if (!pIn || frameCount == 0) return;
 
+    gf_probe_capture_hook(pIn, (int)frameCount);
+
     ma_uint32 writePos = g_micWriteCursor;  // snapshot
     float peak = 0.0f;
     for (ma_uint32 i = 0; i < frameCount; i++) {
@@ -510,6 +518,8 @@ void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uin
     }
     if (inPeak > g_inputPeak) g_inputPeak = inPeak;
     if (outPeak > g_outputPeak) g_outputPeak = outPeak;
+
+    gf_probe_playback_hook(pOut, (int)frameCount);
 }
 
 // ── HARMONY mode (waveform 3) ────────────────────────────────────────────────
@@ -930,6 +940,231 @@ static void _vocoder_render_block_impl(float* outL, float* outR, int frames) {
 /// Enable or disable vocoder capture mode.
 /// When enabled, the miniaudio playback device outputs silence and
 /// vocoder_render_block() drives the DSP (called by the JACK thread).
+
+// ─── Overdub latency probe ───────────────────────────────────────────────────
+//
+// Measures the round trip through the app's *own* devices, which is the only
+// configuration whose answer is usable: the grid lives on the playback clock,
+// takes arrive on the capture clock, and the number that maps one to the other
+// depends on how those two devices were opened. Measuring in a separate tool
+// would answer a different question.
+//
+// Threading: the two hooks run on the audio threads and only append or mix —
+// no allocation, no locks, no analysis. The correlation is hundreds of
+// millions of operations and runs in gf_probe_poll() on the caller's thread.
+
+/// Free-running frame counters, advanced by every callback whether a probe is
+/// in flight or not. They have to run continuously, because the offset between
+/// them is sampled from a third thread at the moment a run starts.
+static volatile long long g_probePlayFrame = 0;
+static volatile long long g_probeCapFrame  = 0;
+
+/// Frame counter and monotonic timestamp latched at the top of each callback.
+///
+/// The counters alone are not comparable: each counts frames since *its own*
+/// device started, and the two devices start at different moments — the output
+/// bus may have been running for seconds before the microphone is opened.
+/// Subtracting them then gives a difference of seconds rather than the
+/// milliseconds of genuine skew, and the correlator searches in the wrong place
+/// and finds nothing.
+///
+/// Pairing each counter with a timestamp makes them comparable: both can be
+/// projected forward to a common instant, which is all the search window needs.
+static volatile long long g_probePlayFrameAtT = 0;
+static volatile long long g_probePlayT = 0;
+static volatile long long g_probeCapFrameAtT = 0;
+static volatile long long g_probeCapT = 0;
+
+/// 0 idle, 1 running, 2 result ready, 3 failed.
+static volatile int g_probeState = 0;
+/// Set by the audio thread when the run has played out; consumed by poll().
+static volatile int g_probeCaptureDone = 0;
+
+static float*  g_probeChirp = NULL;
+static float*  g_probeBuf = NULL;         // capture, from g_probeCapBase
+static int     g_probeBufCapacity = 0;
+static volatile int g_probeBufUsed = 0;
+static gf_lat_emitter g_probeEm;
+static long long g_probePlayBase = 0;
+static long long g_probeCapBase = 0;
+static gf_lat_result g_probeResult;
+static float g_probeSkewMs = 0.0f;
+static volatile float g_probeInPeak = 0.0f;
+
+/// Mixes the chirp train into the playback block. Called at the end of
+/// data_callback, after the rack has rendered, so the measurement sits on top
+/// of whatever else is playing exactly as it would in a real session.
+static void gf_probe_playback_hook(float* pOut, int frames) {
+    const long long at = g_probePlayFrame;
+    g_probePlayFrame = at + frames;
+    g_probePlayFrameAtT = at;
+    g_probePlayT = _get_monotonic_ns();
+    if (g_probeState != 1 || !pOut) return;
+
+    const int runFrames = gf_lat_run_frames(SAMPLE_RATE);
+    const int tail = gf_lat_ms_to_frames(GF_LAT_MAX_ROUND_TRIP_MS, SAMPLE_RATE)
+                   + SAMPLE_RATE / 5;
+    gf_lat_emitter_render(&g_probeEm, pOut, frames, at - g_probePlayBase);
+    if (at - g_probePlayBase > (long long)(runFrames + tail)) {
+        g_probeCaptureDone = 1;
+    }
+}
+
+/// Appends the capture block to the probe buffer. Called from the capture
+/// device's callback.
+static void gf_probe_capture_hook(const float* pIn, int frames) {
+    const long long at = g_probeCapFrame;
+    g_probeCapFrame = at + frames;
+    g_probeCapFrameAtT = at;
+    g_probeCapT = _get_monotonic_ns();
+    if (g_probeState != 1 || !pIn) return;
+
+    const long long idx = at - g_probeCapBase;
+    if (idx < 0 || idx + frames > (long long)g_probeBufCapacity) return;
+    float peak = g_probeInPeak;
+    for (int i = 0; i < frames; i++) {
+        const float v = pIn[i];
+        g_probeBuf[idx + i] = v;
+        const float a = v < 0.0f ? -v : v;
+        if (a > peak) peak = a;
+    }
+    g_probeInPeak = peak;
+    if (idx + frames > (long long)g_probeBufUsed) g_probeBufUsed = (int)(idx + frames);
+}
+
+/// Starts a measurement. Allocates on the calling thread — never on audio.
+/// Returns 0 on success, negative on failure.
+EXPORT int gf_probe_start(void) {
+    if (g_probeState == 1) return -1;          // already running
+
+    const int runFrames = gf_lat_run_frames(SAMPLE_RATE);
+    const int need = runFrames
+                   + gf_lat_ms_to_frames(GF_LAT_MAX_ROUND_TRIP_MS, SAMPLE_RATE)
+                   + SAMPLE_RATE;
+    if (!g_probeBuf || g_probeBufCapacity < need) {
+        free(g_probeBuf);
+        g_probeBuf = (float*)calloc((size_t)need, sizeof(float));
+        if (!g_probeBuf) { g_probeBufCapacity = 0; return -2; }
+        g_probeBufCapacity = need;
+    }
+    if (!g_probeChirp) {
+        g_probeChirp = (float*)calloc((size_t)gf_lat_chirp_frames(SAMPLE_RATE),
+                                      sizeof(float));
+        if (!g_probeChirp) return -3;
+        gf_lat_generate_chirp(g_probeChirp, SAMPLE_RATE);
+    }
+    gf_lat_emitter_init(&g_probeEm, g_probeChirp, SAMPLE_RATE);
+
+    // Project both counters to one instant, a tenth of a second from now, using
+    // the timestamp latched with each. Reading the raw counters instead would
+    // compare "frames since the output bus started" against "frames since the
+    // microphone opened" — two different origins, differing by however long the
+    // user had the app open before the mic was needed.
+    //
+    // Only the search window depends on this, and that window is half a second
+    // wide, so a few milliseconds of callback jitter here is harmless. The
+    // sample-accurate answer comes from the correlation.
+    // A device that has not delivered a callback yet has no timestamp to
+    // project from, and projecting against zero puts the base ~38000 seconds
+    // into the future — the capture never reaches it and the run reports
+    // silence. Refuse instead, so the caller can wait and retry.
+    if (g_probePlayT == 0 || g_probeCapT == 0) return -4;
+
+    const long long now = _get_monotonic_ns();
+    const double lead = (double)SAMPLE_RATE / 10.0;
+    const double playNow = (double)g_probePlayFrameAtT
+        + (double)(now - g_probePlayT) * 1e-9 * (double)SAMPLE_RATE;
+    const double capNow = (double)g_probeCapFrameAtT
+        + (double)(now - g_probeCapT) * 1e-9 * (double)SAMPLE_RATE;
+
+    g_probePlayBase = (long long)(playNow + lead);
+    g_probeCapBase = (long long)(capNow + lead);
+    if (g_probeCapBase < 0) g_probeCapBase = 0;
+    g_probeSkewMs = 1000.0f * (float)(g_probeCapBase - g_probePlayBase)
+                  / (float)SAMPLE_RATE;
+
+    g_probeBufUsed = 0;
+    g_probeInPeak = 0.0f;
+    g_probeCaptureDone = 0;
+    g_probeState = 1;
+    LOGI("[probe] start playNow=%.0f capNow=%.0f playBase=%lld capBase=%lld "
+         "skew=%.1fms playT_age=%.1fms capT_age=%.1fms",
+         playNow, capNow, (long long)g_probePlayBase, (long long)g_probeCapBase,
+         (double)g_probeSkewMs,
+         (double)(now - g_probePlayT) / 1e6, (double)(now - g_probeCapT) / 1e6);
+    return 0;
+}
+
+/// Polls the run. Returns the state; when it reaches 2 the getters below are
+/// valid. The correlation happens here, on the caller's thread.
+EXPORT int gf_probe_poll(void) {
+    if (g_probeState != 1 || !g_probeCaptureDone) return g_probeState;
+
+    g_probeState = 3;  // pessimistic until the analysis says otherwise
+    if (g_probeInPeak < 1e-4f) {
+        LOGI("[probe] poll silent: bufUsed=%d capFrame=%lld capBase=%lld",
+             g_probeBufUsed, (long long)g_probeCapFrame,
+             (long long)g_probeCapBase);
+        return g_probeState;
+    }
+
+    // Origin zero, not the skew. g_probePlayBase and g_probeCapBase name the
+    // same instant on their two clocks, the emitter counts from playBase and
+    // the capture buffer is indexed from capBase — so the two axes already
+    // share an origin. Passing the skew here would shift the search by the
+    // whole difference between the devices' start times (4.3 s on this phone),
+    // sending it past the end of the buffer to find nothing.
+    if (gf_lat_analyse_run(&g_probeEm, g_probeBuf, g_probeBufUsed,
+                           0,
+                           SAMPLE_RATE, &g_probeResult)) {
+        g_probeState = 2;
+    }
+    LOGI("[probe] poll state=%d bufUsed=%d peak=%.4f shots=%d median=%d "
+         "(%.2fms) conf=%.1f",
+         g_probeState, g_probeBufUsed, (double)g_probeInPeak,
+         g_probeResult.shots_found, g_probeResult.median_frames,
+         (double)g_probeResult.median_ms, (double)g_probeResult.min_confidence);
+    return g_probeState;
+}
+
+/// Bus-source render for the Android output path.
+///
+/// Android never opens the miniaudio playback device — `start_audio_capture`
+/// logs "PLAYBACK device: skipped (Android uses Oboe bus)" and output goes
+/// through Oboe in libnative-lib.so instead. So on Android the chirp has to be
+/// emitted from here, registered as an ordinary bus source, rather than from
+/// data_callback.
+///
+/// The bus pre-zeroes outL and outR, so this writes rather than accumulates.
+/// Matches the AudioSourceRenderFn signature expected by
+/// oboe_stream_add_source().
+EXPORT void gf_probe_bus_render(float* outL, float* outR, int frames,
+                                void* userdata) {
+    (void)userdata;
+    if (!outL || frames <= 0) return;
+    gf_probe_playback_hook(outL, frames);
+    // The measurement is mono; both ears get the same sweep so it reaches the
+    // microphone at full level whichever speaker the device routes to.
+    if (outR) {
+        for (int i = 0; i < frames; i++) outR[i] = outL[i];
+    }
+}
+
+/// Address of [gf_probe_bus_render], for oboe_stream_add_source().
+EXPORT intptr_t gf_probe_bus_render_fn_addr(void) {
+    return (intptr_t)&gf_probe_bus_render;
+}
+
+EXPORT void  gf_probe_cancel(void)          { g_probeState = 0; }
+EXPORT float gf_probe_round_trip_ms(void)   { return g_probeResult.median_ms; }
+EXPORT int   gf_probe_round_trip_frames(void){ return g_probeResult.median_frames; }
+EXPORT float gf_probe_jitter_ms(void)       { return g_probeResult.jitter_ms; }
+EXPORT float gf_probe_confidence(void)      { return g_probeResult.min_confidence; }
+EXPORT int   gf_probe_shots_found(void)     { return g_probeResult.shots_found; }
+EXPORT float gf_probe_drift_ppm(void)       { return g_probeResult.drift_ppm; }
+EXPORT float gf_probe_skew_ms(void)         { return g_probeSkewMs; }
+EXPORT float gf_probe_input_peak(void)      { return g_probeInPeak; }
+
 EXPORT void vocoder_set_capture_mode(int enabled) {
     g_vocoderCaptureMode = enabled ? 1 : 0;
     fprintf(stderr, "[vocoder] capture mode %s\n", enabled ? "ON" : "OFF");

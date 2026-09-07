@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [X.x.x]
+
+### Architecture
+- Rehearsal groundwork: measuring how late the mic hears what the app plays, so overdubs can land on the beat.
+- The same measurement catches recording and playback clocks drifting apart.
+- Settings gains an overdub latency check that measures the round trip on your own device.
+
 ## [2.18.0] - 2026-09-04
 
 ### Added

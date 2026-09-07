@@ -1136,5 +1136,63 @@
   "vocoderWaveHarmony": "Harmony",
   "@vocoderWaveHarmony": {
     "description": "Vocoder mode that pitch-shifts the live voice onto the held keys instead of using a synthetic carrier."
-  }
+  },
+  "latencyProbeTitle": "Overdub latency",
+  "latencyProbeSubtitle": "Measure how late the mic hears what the app plays",
+  "latencyProbeExplain": "Plays six short sweeps through the speaker and listens for them on the microphone. Use the speaker: a microphone cannot hear headphones, and the measurement will correctly report that it found nothing.",
+  "latencyProbeStart": "Measure",
+  "latencyProbeMeasuring": "Measuring…",
+  "latencyProbeRoundTrip": "Round trip",
+  "latencyProbeJitter": "Jitter",
+  "latencyProbeConfidence": "Confidence",
+  "latencyProbeShots": "Usable sweeps",
+  "latencyProbeDrift": "Clock drift",
+  "latencyProbeSkew": "Counter skew",
+  "latencyProbeDriftOverTake": "A 4-minute take would slide {ms} ms",
+  "@latencyProbeDriftOverTake": {
+    "placeholders": {
+      "ms": {
+        "type": "String"
+      }
+    }
+  },
+  "latencyProbeShotsValue": "{found} of {total}",
+  "@latencyProbeShotsValue": {
+    "placeholders": {
+      "found": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "latencyProbeMs": "{value} ms",
+  "@latencyProbeMs": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "latencyProbeFramesSuffix": "{frames} frames",
+  "@latencyProbeFramesSuffix": {
+    "placeholders": {
+      "frames": {
+        "type": "int"
+      }
+    }
+  },
+  "latencyProbePpm": "{value} ppm",
+  "@latencyProbePpm": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "latencyProbeFailed": "No usable measurement",
+  "latencyProbeSilentInput": "The microphone heard nothing. Check the microphone permission, and play through the speaker rather than headphones.",
+  "latencyProbeNeedsAudio": "Audio capture is not running. Open a live input or the vocoder first.",
+  "latencyProbeHint": "Keep the room quiet and hold the phone so the speaker faces the mic."
 }
