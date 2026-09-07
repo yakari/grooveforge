@@ -115,15 +115,23 @@ class _LatencyProbeScreenState extends State<LatencyProbeScreen> {
     // starting capture here is what makes the screen work on its own rather
     // than only after the user happens to have opened a live input.
     // startCapture is idempotent — it returns immediately if already running.
-    final mic = await Permission.microphone.request();
-    if (!mic.isGranted) {
-      if (!mounted) return;
-      setState(() {
-        _state = _ProbeState.failed;
-        _silentInput = true;
-        _timedOut = false;
-      });
-      return;
+    //
+    // permission_handler is only registered for Android and iOS in this
+    // project (see ThereminDistanceService, which works around the same gap on
+    // macOS). Calling it on a desktop build throws MissingPluginException, and
+    // there is nothing to ask for anyway: the desktop builds open the
+    // microphone directly, exactly as the Live Input module already does.
+    if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+      final mic = await Permission.microphone.request();
+      if (!mic.isGranted) {
+        if (!mounted) return;
+        setState(() {
+          _state = _ProbeState.failed;
+          _silentInput = true;
+          _timedOut = false;
+        });
+        return;
+      }
     }
     AudioInputFFI().startCapture();
     if (!mounted) return;

@@ -88,6 +88,19 @@ static int     g_cap_capacity = 0;
 static volatile long long g_t_play0 = 0;      // monotonic ns at first callback
 static volatile long long g_t_cap0  = 0;
 
+/// Frame counter and monotonic timestamp latched at the top of each callback.
+///
+/// Reading the bare counters from the main thread gives "frames delivered so
+/// far", which lags real time by up to one buffer on each device, and the two
+/// devices lag independently. That error lands 1:1 in the result: an early run
+/// measured a skew 768 frames off and returned a round trip wrong by exactly
+/// those 768 frames. Pairing each counter with a timestamp lets both be
+/// projected to one instant, which removes it.
+static volatile long long g_play_frame_at_t = 0;
+static volatile long long g_play_t = 0;
+static volatile long long g_cap_frame_at_t = 0;
+static volatile long long g_cap_t = 0;
+
 static volatile int g_emitting = 0;           // 1 while the chirp train runs
 static volatile long long g_play_base = 0;    // playback frame the run starts at
 static volatile float g_cap_peak = 0.0f;      // input level, for the "is the
@@ -114,6 +127,8 @@ static void playback_callback(ma_device* dev, void* out, const void* in,
     float* o = (float*)out;
 
     if (g_t_play0 == 0) g_t_play0 = monotonic_ns();
+    g_play_frame_at_t = g_play_frame;
+    g_play_t = monotonic_ns();
 
     // Silence first: the emitter mixes into the buffer rather than replacing
     // it, matching how it will sit under the metronome in the real app.
@@ -139,6 +154,8 @@ static void capture_callback(ma_device* dev, void* out, const void* in,
     const float* i = (const float*)in;
 
     if (g_t_cap0 == 0) g_t_cap0 = monotonic_ns();
+    g_cap_frame_at_t = g_cap_frame;
+    g_cap_t = monotonic_ns();
 
     const long long at = g_cap_frame;
     if (at >= 0 && at + (long long)frames <= (long long)g_cap_capacity) {
@@ -189,13 +206,20 @@ static int run_once(ma_device* play_dev, ma_device* cap_dev, gf_lat_result* res,
     // Both devices keep running between runs, so their frame counters are NOT
     // reset — that correspondence is the whole measurement. A run just marks
     // out a window on each timeline.
-    // Both counters are read back to back on this one thread and then advanced
-    // by the same lead, so the two bases name the same instant on their
-    // respective clocks. That shared instant is what puts the emitter and the
-    // capture buffer on a common axis.
-    const long long lead = SR / 10;
-    const long long cap_base = g_cap_frame + lead;
-    const long long play_base = g_play_frame + lead;
+    // Project both counters to one instant a tenth of a second out, using the
+    // timestamp latched with each. The bare counters cannot be compared: they
+    // report frames *delivered*, so each lags real time by up to a buffer, and
+    // they lag independently.
+    if (g_play_t == 0 || g_cap_t == 0) return 0;  // a device has not started
+    const long long now = monotonic_ns();
+    const double lead = (double)SR / 10.0;
+    const double play_now = (double)g_play_frame_at_t
+        + (double)(now - g_play_t) * 1e-9 * (double)SR;
+    const double cap_now = (double)g_cap_frame_at_t
+        + (double)(now - g_cap_t) * 1e-9 * (double)SR;
+    const long long play_base = (long long)(play_now + lead);
+    const long long cap_base = (long long)(cap_now + lead);
+    if (cap_base < 0) return 0;
 
     g_cap_peak = 0.0f;
     g_play_base = play_base;
@@ -335,7 +359,21 @@ int main(int argc, char** argv) {
 
     ma_device_start(&cap_dev);
     ma_device_start(&play_dev);
-    ma_sleep(300);  // let both settle before the first chirp
+    ma_sleep(1000);  // let both settle before the first chirp
+
+    // Discard one run. The first measurement after the devices open is
+    // consistently an outlier — on this laptop it came back 710 frames high,
+    // on an Android phone 82 frames low — because the graph is still settling
+    // and the frame/timestamp pairs the alignment relies on are not yet
+    // regular. Reporting it would make every calibration look noisier than the
+    // hardware actually is.
+    {
+        gf_lat_result warm;
+        float warm_skew = 0.0f;
+        printf("warm-up run (discarded) ...\n");
+        run_once(&play_dev, &cap_dev, &warm, &warm_skew);
+        printf("\n");
+    }
 
     int good = 0;
     for (int r = 0; r < runs; r++) {

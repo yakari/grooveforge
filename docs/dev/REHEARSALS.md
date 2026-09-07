@@ -412,9 +412,18 @@ worth discarding the first run of a calibration, or warming up before measuring.
    remaining error is dominated by the device settling rather than by the
    method.
 
-Desktop, through the PipeWire monitor loopback (no room, no speaker, no mic):
+**Linux laptop, speaker to built-in microphone, after a warm-up run:**
+35.52 / 35.06 / 35.54 ms — a spread of 0.5 ms — with drift at 0.1 ppm.
+Through the PipeWire monitor loopback instead (no room, no speaker, no mic):
 26.67 ms, identical across runs, drift exactly 0.0 ppm — the expected result
 for a digital loopback that shares one clock domain, and a useful control.
+
+**Discard the first run.** On both machines the first measurement after the
+devices open is an outlier — 710 frames high on the laptop, 82 frames low on
+the phone — because the graph is still settling and the frame/timestamp pairs
+the alignment depends on are not yet regular. `gf_latency_probe` now performs
+a warm-up run and throws it away. **P1's calibration flow must do the same**;
+without it every calibration will look far noisier than the hardware is.
 
 ### 6.4.1 What the hardware caught that the simulation could not
 
@@ -439,6 +448,18 @@ Three real bugs, none of which the offline test could have found:
 
 That last one also corrected the desktop reading, which had been low by exactly
 the counter difference (768 frames, 16 ms).
+
+A fourth surfaced once the laptop microphone was available: the standalone
+probe still read its counters bare while the in-app path had been fixed, and
+one run's skew came back 768 frames off with the round trip wrong by exactly
+those 768 frames — the error lands in the answer 1:1. Both now project from
+per-callback timestamps.
+
+A fifth, on Linux only: `permission_handler` has no implementation there, so
+requesting the microphone threw `MissingPluginException`. It is only registered
+for Android and iOS in this project — `ThereminDistanceService` works around
+the same gap on macOS — and the desktop builds open the microphone directly
+anyway, exactly as the Live Input module does.
 
 ### 6.5 Earlier finding — clock drift, and when a constant offset is not enough
 
