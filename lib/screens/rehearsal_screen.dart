@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -7,6 +10,8 @@ import '../services/file_picker_service.dart';
 import '../services/platform_media_decoder.dart';
 import '../services/rehearsal_engine.dart';
 import '../services/rehearsal_library.dart';
+import '../services/rehearsal_protocol.dart';
+import '../services/rehearsal_sync_service.dart';
 import 'master_align_screen.dart';
 import 'nearby_screen.dart';
 import 'rehearsals_screen.dart' show instrumentIcon, instrumentLabel;
@@ -28,6 +33,7 @@ class RehearsalScreen extends StatefulWidget {
 
 class _RehearsalScreenState extends State<RehearsalScreen> {
   RehearsalEngine? _engine;
+  RehearsalSyncService? _sync;
   Rehearsal? _rehearsal;
   bool _importing = false;
 
@@ -38,24 +44,76 @@ class _RehearsalScreenState extends State<RehearsalScreen> {
   }
 
   Future<void> _open() async {
+    // Everything is read from the context up front, before the first await:
+    // afterwards the element may be gone and reading it is a bug the analyzer
+    // rightly refuses.
     final library = context.read<RehearsalLibrary>();
     final engine = context.read<RehearsalEngine>();
+    final sync = context.read<RehearsalSyncService>();
+    _sync = sync;
+
     final rehearsal =
         library.rehearsals.where((r) => r.id == widget.rehearsalId).firstOrNull;
     if (rehearsal == null) return;
     await engine.open(rehearsal);
+
+    // A finished take goes out immediately rather than waiting for the next
+    // poll — the player has just stopped and is looking up at the room.
+    engine.onTakeCommitted = () {
+      sync.syncNow();
+      if (mounted) setState(() {});
+    };
+    // A part that arrives from someone else has to be opened by the engine, or
+    // it appears in the lane and plays nothing.
+    sync.onAudioReceived = () async {
+      await engine.reloadTracks();
+      if (mounted) setState(() {});
+    };
     if (!mounted) return;
     setState(() {
       _engine = engine;
       _rehearsal = rehearsal;
     });
+    await _resumeLiveSync(rehearsal);
+  }
+
+  /// Starts looking for the rest of the band.
+  ///
+  /// The rehearsal's own key is what every member holds, so any peer found on
+  /// the network can be talked to. The remembered ticket is only a fallback
+  /// for a network where discovery does not work — it goes stale as soon as
+  /// the host restarts sharing, since the port changes.
+  Future<void> _resumeLiveSync(Rehearsal rehearsal) async {
+    final library = context.read<RehearsalLibrary>();
+    final local = await library.loadLocalState(rehearsal.id);
+    final keyText = rehearsal.joinKey;
+    if (keyText == null || !mounted) return;
+
+    final sync = context.read<RehearsalSyncService>();
+    await sync.discovery.startBrowsing(await sync.deviceId());
+    if (!mounted) return;
+
+    sync.startLiveSync(
+      rehearsalId: rehearsal.id,
+      key: Uint8List.fromList(base64.decode(keyText)),
+      fallback: local.lastTicketUri == null
+          ? null
+          : JoinTicket.parse(local.lastTicketUri!),
+    );
   }
 
   @override
   void dispose() {
-    // Read from the field rather than the context: dispose runs after the
+    // Read from the fields rather than the context: dispose runs after the
     // element is unmounted, so context.read would throw.
+    _engine?.onTakeCommitted = null;
+    _sync?.onAudioReceived = null;
     _engine?.close();
+    // Leaving the rehearsal ends the session — both halves of it. Hosting
+    // outlives the Nearby screen precisely so it can end here instead.
+    _sync?.stopLiveSync();
+    _sync?.stopHosting();
+    _sync?.discovery.stopBrowsing();
     super.dispose();
   }
 
@@ -144,6 +202,67 @@ class _RehearsalScreenState extends State<RehearsalScreen> {
     if (mounted) setState(() {});
   }
 
+  /// Deletes this device's own take, after confirming.
+  Future<void> _deleteTake(RehearsalPart part) async {
+    final l10n = AppLocalizations.of(context)!;
+    final rehearsal = _rehearsal;
+    if (rehearsal == null || part.take == null) return;
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        content: Text(l10n.rehearsalDeleteTakeConfirm(
+            instrumentLabel(l10n, part.instrument))),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(l10n.rehearsalCancel)),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(l10n.rehearsalDelete)),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+
+    await context.read<RehearsalLibrary>().deleteTake(rehearsal, part);
+    if (!mounted) return;
+    await context.read<RehearsalEngine>().reloadTracks();
+    if (mounted) setState(() {});
+  }
+
+  /// Removes one of this device's own parts entirely.
+  Future<void> _removePart(RehearsalPart part) async {
+    final l10n = AppLocalizations.of(context)!;
+    final rehearsal = _rehearsal;
+    if (rehearsal == null) return;
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        content: Text(l10n.rehearsalRemovePartConfirm(
+            instrumentLabel(l10n, part.instrument))),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(l10n.rehearsalCancel)),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(l10n.rehearsalDelete)),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+
+    await context.read<RehearsalLibrary>().deletePart(rehearsal, part);
+    if (!mounted) return;
+    await context.read<RehearsalEngine>().reloadTracks();
+    // Push it, so the part disappears for the others rather than waiting to be
+    // re-added by the next sync with someone who still has it.
+    if (mounted) await context.read<RehearsalSyncService>().syncNow();
+    if (mounted) setState(() {});
+  }
+
   Future<void> _addPart() async {
     final l10n = AppLocalizations.of(context)!;
     final rehearsal = _rehearsal;
@@ -172,8 +291,11 @@ class _RehearsalScreenState extends State<RehearsalScreen> {
 
     final library = context.read<RehearsalLibrary>();
     final engine = context.read<RehearsalEngine>();
-    final selfId = engine.localState.selfMemberId ??
-        (rehearsal.members.isNotEmpty ? rehearsal.members.first.id : '');
+    final selfId = engine.localState.selfMemberId;
+    // No identity means this device joined before it was asked who it is.
+    // Falling back to the first member would attribute the part to whoever
+    // shared the tune, which is exactly the bug this replaced.
+    if (selfId == null) return;
     await library.addPart(rehearsal, memberId: selfId, instrument: instrument);
     if (mounted) setState(() {});
   }
@@ -221,10 +343,12 @@ class _RehearsalScreenState extends State<RehearsalScreen> {
           ? const Center(child: CircularProgressIndicator())
           : SafeArea(
               top: false,
-              child: Consumer<RehearsalEngine>(
-                builder: (context, engine, _) => Column(
+              child: Consumer2<RehearsalEngine, RehearsalSyncService>(
+                builder: (context, engine, sync, _) => Column(
                   children: [
                     _TransportBar(engine: engine, rehearsal: rehearsal),
+                    if (sync.isLive || sync.isHosting)
+                      _LiveBar(sync: sync, onRefresh: _refresh),
                     const Divider(height: 1),
                     if (engine.localState.compensationFrames == 0)
                       _CompensationWarning(),
@@ -252,6 +376,9 @@ class _RehearsalScreenState extends State<RehearsalScreen> {
                           rehearsal: rehearsal,
                           part: rehearsal.parts[i],
                           onChanged: () => setState(() {}),
+                          onDelete: () => _deleteTake(rehearsal.parts[i]),
+                          onRemovePart: () =>
+                              _removePart(rehearsal.parts[i]),
                         ),
                       ),
                     ),
@@ -407,12 +534,16 @@ class _PartLane extends StatelessWidget {
     required this.rehearsal,
     required this.part,
     required this.onChanged,
+    required this.onDelete,
+    required this.onRemovePart,
   });
 
   final RehearsalEngine engine;
   final Rehearsal rehearsal;
   final RehearsalPart part;
   final VoidCallback onChanged;
+  final VoidCallback onDelete;
+  final VoidCallback onRemovePart;
 
   @override
   Widget build(BuildContext context) {
@@ -424,6 +555,10 @@ class _PartLane extends StatelessWidget {
     final take = part.take;
     final isRecordingThis = engine.recordingPart?.id == part.id;
     final muted = engine.localState.isMuted(part.id);
+    // You record your own part and nobody else's. Someone else's take is
+    // theirs: overwriting it from here would destroy their work and, because
+    // the merge keeps the highest revision, would win on their device too.
+    final isMine = part.isOwnedBy(engine.localState.selfMemberId);
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
@@ -441,17 +576,47 @@ class _PartLane extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        member?.displayName.isNotEmpty == true
-                            ? member!.displayName
-                            : instrumentLabel(l10n, part.instrument),
-                        style: theme.textTheme.titleSmall,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              member?.displayName.isNotEmpty == true
+                                  ? member!.displayName
+                                  : instrumentLabel(l10n, part.instrument),
+                              style: theme.textTheme.titleSmall,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (isMine) ...[
+                            const SizedBox(width: 8),
+                            // A quiet badge, so "why can I not record that
+                            // one?" answers itself rather than looking like a
+                            // control that failed to appear.
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 1),
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.primaryContainer,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                l10n.rehearsalYourPart,
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                    color:
+                                        theme.colorScheme.onPrimaryContainer),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                       Text(
                         take == null
-                            ? l10n.rehearsalNotRecorded
+                            ? (isMine
+                                ? l10n.rehearsalNotRecorded
+                                : '${instrumentLabel(l10n, part.instrument)}'
+                                    '   ·   '
+                                    '${l10n.rehearsalNotRecorded}')
                             : '${instrumentLabel(l10n, part.instrument)}'
                                 '   ·   '
                                 '${l10n.rehearsalTakeLength((take.duration.inMilliseconds / 1000).toStringAsFixed(1))}',
@@ -471,23 +636,56 @@ class _PartLane extends StatelessWidget {
                   icon: Icon(muted ? Icons.volume_off : Icons.volume_up),
                   color: muted ? theme.colorScheme.error : null,
                 ),
-                IconButton.filledTonal(
-                  onPressed: () async {
-                    if (engine.isRunning) {
-                      await engine.stop();
-                    } else {
-                      await engine.record(part);
-                    }
-                    onChanged();
-                  },
-                  tooltip: take == null
-                      ? l10n.rehearsalRecord
-                      : l10n.rehearsalRerecord,
-                  icon: Icon(
-                    isRecordingThis ? Icons.stop : Icons.fiber_manual_record,
-                    color: isRecordingThis ? null : theme.colorScheme.error,
+                if (isMine)
+                  PopupMenuButton<String>(
+                    enabled: !engine.isRunning,
+                    tooltip: l10n.rehearsalPartActions,
+                    icon: const Icon(Icons.more_vert),
+                    onSelected: (value) =>
+                        value == 'take' ? onDelete() : onRemovePart(),
+                    itemBuilder: (_) => [
+                      // Two destructive actions that are easy to confuse, so
+                      // they are named rather than offered as two similar
+                      // icons: one keeps the lane, the other does not.
+                      if (take != null)
+                        PopupMenuItem(
+                          value: 'take',
+                          child: ListTile(
+                            leading: const Icon(Icons.backspace_outlined),
+                            title: Text(l10n.rehearsalDeleteTake),
+                            contentPadding: EdgeInsets.zero,
+                            dense: true,
+                          ),
+                        ),
+                      PopupMenuItem(
+                        value: 'part',
+                        child: ListTile(
+                          leading: const Icon(Icons.delete_outline),
+                          title: Text(l10n.rehearsalRemovePart),
+                          contentPadding: EdgeInsets.zero,
+                          dense: true,
+                        ),
+                      ),
+                    ],
                   ),
-                ),
+                if (isMine)
+                  IconButton.filledTonal(
+                    onPressed: () async {
+                      if (engine.isRunning) {
+                        await engine.stop();
+                      } else {
+                        await engine.record(part);
+                      }
+                      onChanged();
+                    },
+                    tooltip: take == null
+                        ? l10n.rehearsalRecord
+                        : l10n.rehearsalRerecord,
+                    icon: Icon(
+                      isRecordingThis ? Icons.stop : Icons.fiber_manual_record,
+                      color: isRecordingThis ? null : theme.colorScheme.error,
+                    ),
+                  ),
               ],
             ),
             if (take != null) ...[
@@ -634,5 +832,50 @@ class _MasterRow extends StatelessWidget {
     final cs = (d.inMilliseconds % 1000) ~/ 10;
     return '${s ~/ 60}:${(s % 60).toString().padLeft(2, '0')}'
         '.${cs.toString().padLeft(2, '0')}';
+  }
+}
+
+/// A quiet strip saying the room is connected, and how many are in it.
+///
+/// Deliberately small: it matters while a band is working together, and should
+/// disappear from attention the rest of the time.
+class _LiveBar extends StatelessWidget {
+  const _LiveBar({required this.sync, required this.onRefresh});
+
+  final RehearsalSyncService sync;
+  final VoidCallback onRefresh;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
+    return Container(
+      width: double.infinity,
+      color: theme.colorScheme.primaryContainer,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: Row(
+        children: [
+          Icon(sync.isBusy ? Icons.sync : Icons.wifi_tethering,
+              size: 16, color: theme.colorScheme.onPrimaryContainer),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              sync.peers.isEmpty
+                  ? l10n.liveConnected
+                  : l10n.nearbyPeers(sync.peers.length),
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: theme.colorScheme.onPrimaryContainer),
+            ),
+          ),
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            onPressed: onRefresh,
+            tooltip: l10n.liveRefresh,
+            icon: Icon(Icons.refresh,
+                size: 18, color: theme.colorScheme.onPrimaryContainer),
+          ),
+        ],
+      ),
+    );
   }
 }

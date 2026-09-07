@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
 import '../models/rehearsal.dart';
+import 'rehearsal_discovery.dart';
 import 'rehearsal_library.dart';
 import 'rehearsal_protocol.dart';
 import 'rehearsal_sync.dart';
@@ -87,9 +89,19 @@ class SyncPeer {
 /// connect with the ticket from the QR. Both then run the *same* exchange —
 /// there is no authority, because the merge is symmetric.
 class RehearsalSyncService extends ChangeNotifier {
-  RehearsalSyncService(this._library);
+  RehearsalSyncService(this._library, this.discovery);
 
   final RehearsalLibrary _library;
+
+  /// Finds peers that this device has already been introduced to.
+  final RehearsalDiscovery discovery;
+
+  /// Called after a sync that brought in audio.
+  ///
+  /// The manifest and the engine are separate things: merging a take makes it
+  /// appear in the list, but the engine only plays tracks it has been told to
+  /// open. Without this a part arrives, shows up in the lane, and is silent.
+  void Function()? onAudioReceived;
 
   ServerSocket? _server;
   StreamSubscription<Socket>? _connections;
@@ -99,9 +111,21 @@ class RehearsalSyncService extends ChangeNotifier {
   String? _lastError;
   bool _busy = false;
 
+  /// What a live session is following. The rehearsal and its key are fixed;
+  /// the address is resolved afresh each tick, with [_liveTicket] as the
+  /// fallback for a network where discovery does not work.
+  String? _liveRehearsalId;
+  Uint8List? _liveKey;
+  JoinTicket? _liveTicket;
+  Timer? _liveTimer;
+  int _liveFailures = 0;
+
   List<SyncPeer> get peers => List.unmodifiable(_peers);
   JoinTicket? get ticket => _ticket;
   bool get isHosting => _server != null;
+
+  /// True while this device is re-syncing on its own with a peer.
+  bool get isLive => _liveTimer != null;
   bool get isBusy => _busy;
   String? get lastError => _lastError;
 
@@ -125,11 +149,17 @@ class RehearsalSyncService extends ChangeNotifier {
         notifyListeners();
         return null;
       }
+      // The rehearsal's own key, not a fresh one: a peer that rediscovers this
+      // device tomorrow already holds it, and a per-session key would leave
+      // them unable to say anything.
+      final key = rehearsal.joinKey;
       final server = await ServerSocket.bind(InternetAddress.anyIPv4, 0);
       _server = server;
       _ticket = JoinTicket(
         rehearsalId: rehearsal.id,
-        key: JoinTicket.newKey(),
+        key: key != null
+            ? Uint8List.fromList(base64.decode(key))
+            : JoinTicket.newKey(),
         host: address,
         port: server.port,
         title: rehearsal.title,
@@ -138,6 +168,16 @@ class RehearsalSyncService extends ChangeNotifier {
         _onIncoming,
         onError: (Object e) => debugPrint('RehearsalSyncService: $e'),
       );
+
+      // Announce it, so anyone already invited finds this device again without
+      // a code. Failing is fine — a network without mDNS still has the QR.
+      await discovery.advertise(
+        rehearsalId: rehearsal.id,
+        port: server.port,
+        deviceId: await deviceId(),
+        title: rehearsal.title,
+      );
+
       _lastError = null;
       notifyListeners();
       return _ticket;
@@ -150,6 +190,7 @@ class RehearsalSyncService extends ChangeNotifier {
   }
 
   Future<void> stopHosting() async {
+    await discovery.stopAdvertising();
     await _connections?.cancel();
     _connections = null;
     await _server?.close();
@@ -189,8 +230,114 @@ class RehearsalSyncService extends ChangeNotifier {
     final report = await session.run();
     peer.status = report.ok ? 'done' : (report.error ?? 'failed');
     _busy = false;
-    if (report.changed || report.takesReceived > 0) await _library.load();
+    if (report.takesReceived > 0 || report.masterReceived) {
+      onAudioReceived?.call();
+    }
     notifyListeners();
+  }
+
+
+  // ── Staying in step ───────────────────────────────────────────────────────
+
+  /// How often a live session re-syncs.
+  ///
+  /// A sync where nothing has changed costs a TCP connect, a handshake and two
+  /// manifests — a few kilobytes — and the tests assert it moves no audio. Six
+  /// seconds is therefore cheap, and it is short enough that a part someone
+  /// has just finished recording turns up while they are still putting their
+  /// instrument down.
+  static const Duration _livePeriod = Duration(seconds: 6);
+
+  /// Give up after this many consecutive failures.
+  ///
+  /// Someone who has walked out of the room, or closed the app, would
+  /// otherwise have every device in the band retrying them forever.
+  static const int _maxLiveFailures = 5;
+
+  /// Keeps this device in step with anyone sharing [rehearsalId].
+  ///
+  /// [key] is the rehearsal's own key, which every member holds; the address
+  /// comes from discovery each time. That is what makes a second meeting work
+  /// without a second introduction — the host's port changes on every restart,
+  /// and only the key stays put.
+  void startLiveSync({
+    required String rehearsalId,
+    required Uint8List key,
+    JoinTicket? fallback,
+  }) {
+    stopLiveSync();
+    _liveRehearsalId = rehearsalId;
+    _liveKey = key;
+    _liveTicket = fallback;
+    _liveFailures = 0;
+    _liveTimer = Timer.periodic(_livePeriod, (_) => _tick());
+    notifyListeners();
+  }
+
+  void stopLiveSync() {
+    _liveTimer?.cancel();
+    _liveTimer = null;
+    _liveTicket = null;
+    _liveRehearsalId = null;
+    _liveKey = null;
+    notifyListeners();
+  }
+
+  /// Where to sync next: a discovered peer if there is one, otherwise the
+  /// address this device was last introduced at.
+  ///
+  /// Discovery is preferred because the remembered address goes stale the
+  /// moment the host restarts sharing, while a discovered one is current by
+  /// definition.
+  JoinTicket? _nextTarget() {
+    final id = _liveRehearsalId;
+    final key = _liveKey;
+    if (id == null || key == null) return _liveTicket;
+
+    final found = discovery.peersFor(id);
+    if (found.isNotEmpty) {
+      final peer = found.first;
+      return JoinTicket(
+        rehearsalId: id,
+        key: key,
+        host: peer.host,
+        port: peer.port,
+        title: '',
+      );
+    }
+    return _liveTicket;
+  }
+
+  Future<void> _tick() async {
+    if (_busy) return; // never stack syncs on each other
+    final target = _nextTarget();
+    if (target == null) return;
+
+    final report = await join(target, quiet: true);
+    if (report.ok) {
+      _liveFailures = 0;
+      return;
+    }
+    _liveFailures++;
+    // Only give up when there is nothing discoverable either. A peer that is
+    // still advertising is worth retrying: they may simply be busy syncing
+    // with someone else.
+    if (_liveFailures >= _maxLiveFailures &&
+        discovery.peersFor(_liveRehearsalId ?? '').isEmpty) {
+      debugPrint('RehearsalSyncService: nobody reachable, stopping live sync');
+      stopLiveSync();
+    }
+  }
+
+  /// Pushes straight away rather than waiting for the next tick.
+  ///
+  /// Called the moment a take is committed: the player has just stopped
+  /// recording and the others should hear it without a six-second pause.
+  Future<void> syncNow() async {
+    if (_busy) return;
+    final target = _nextTarget();
+    if (target == null) return;
+    await join(target, quiet: true);
   }
 
   // ── Joining ───────────────────────────────────────────────────────────────
@@ -200,10 +347,10 @@ class RehearsalSyncService extends ChangeNotifier {
   /// If this device does not know the rehearsal yet, an empty shell is created
   /// first so the merge has something to merge *into* — the peer's manifest
   /// then fills it in, and the audio follows.
-  Future<SyncReport> join(JoinTicket ticket) async {
+  Future<SyncReport> join(JoinTicket ticket, {bool quiet = false}) async {
     _busy = true;
-    _lastError = null;
-    notifyListeners();
+    if (!quiet) _lastError = null;
+    if (!quiet) notifyListeners();
     try {
       await _ensureRehearsalExists(ticket);
 
@@ -225,16 +372,23 @@ class RehearsalSyncService extends ChangeNotifier {
         },
       );
       final report = await session.run();
-      if (!report.ok) _lastError = report.error;
-      await _library.load();
+      if (!report.ok && !quiet) _lastError = report.error;
+
+      // Deliberately no reload here. The merge mutates the library's live
+      // document in place and the session saves it, so memory and disk are
+      // already correct — and reloading would swap in fresh objects underneath
+      // whatever screen is open, leaving it holding a stale one.
+      if (report.takesReceived > 0 || report.masterReceived) {
+        onAudioReceived?.call();
+      }
       return report;
     } catch (e) {
-      debugPrint('RehearsalSyncService: join failed — $e');
-      _lastError = '$e';
+      if (!quiet) debugPrint('RehearsalSyncService: join failed — $e');
+      if (!quiet) _lastError = '$e';
       return SyncReport(ok: false, error: '$e');
     } finally {
       _busy = false;
-      notifyListeners();
+      if (!quiet) notifyListeners();
     }
   }
 
@@ -333,6 +487,7 @@ class RehearsalSyncService extends ChangeNotifier {
 
   @override
   void dispose() {
+    stopLiveSync();
     stopHosting();
     super.dispose();
   }

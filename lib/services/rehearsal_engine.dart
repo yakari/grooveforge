@@ -302,6 +302,12 @@ class RehearsalEngine extends ChangeNotifier {
     _recordingPart = null;
     _recordingFileName = null;
 
+    // Anything that arrived while this was playing is picked up now.
+    if (_reloadPending) {
+      _reloadPending = false;
+      await _loadTracks();
+    }
+
     final r = _rehearsal;
     if (part != null && fileName != null && r != null && frames > 0) {
       await _library.commitTake(r, part,
@@ -311,6 +317,9 @@ class RehearsalEngine extends ChangeNotifier {
           compensationFrames: _local.compensationFrames);
       // Reload so the new take joins the mix and the old slot is released.
       await _loadTracks();
+      // And tell whoever is listening, rather than making them wait for the
+      // next tick: the player has just stopped and is looking up at the room.
+      onTakeCommitted?.call();
     }
     notifyListeners();
   }
@@ -362,8 +371,22 @@ class RehearsalEngine extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Reloads after a master has been imported or removed.
+  /// Set when audio arrived while the transport was running.
+  bool _reloadPending = false;
+
+  /// Reloads after a master has been imported or removed, or after a peer's
+  /// take has arrived.
+  ///
+  /// Reloading clears every native track and reopens them, which is a dropout
+  /// if it happens mid-playback. A take that arrives while the band is
+  /// listening therefore waits until the transport stops — a moment away, and
+  /// far better than a gap in the middle of the tune.
   Future<void> reloadTracks() async {
+    if (isRunning) {
+      _reloadPending = true;
+      return;
+    }
+    _reloadPending = false;
     _local = await _library.loadLocalState(_rehearsal?.id ?? '');
     AudioInputFFI()
         .rehSetMetronome(enabled: _local.metronomeEnabled, gain: 0.6);
@@ -430,6 +453,10 @@ class RehearsalEngine extends ChangeNotifier {
     if (r == null) return;
     await _library.saveLocalState(r.id, _local);
   }
+
+  /// Called once a take has been written and the manifest updated, so a live
+  /// session can push it without waiting for its next poll.
+  void Function()? onTakeCommitted;
 
   /// Peak level of a part since the last poll, for its meter.
   double peakFor(RehearsalPart part) {

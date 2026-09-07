@@ -21,6 +21,7 @@ import 'services/rack_state.dart';
 import 'services/transport_engine.dart';
 import 'services/rehearsal_engine.dart';
 import 'services/rehearsal_library.dart';
+import 'services/rehearsal_discovery.dart';
 import 'services/rehearsal_sync_service.dart';
 import 'services/vst_host_service.dart';
 import 'screens/splash_screen.dart';
@@ -215,10 +216,17 @@ void main() async {
           update: (ctx, library, previous) =>
               previous ?? RehearsalEngine(library),
         ),
-        ChangeNotifierProxyProvider<RehearsalLibrary, RehearsalSyncService>(
-          create: (ctx) => RehearsalSyncService(ctx.read<RehearsalLibrary>()),
-          update: (ctx, library, previous) =>
-              previous ?? RehearsalSyncService(library),
+        ChangeNotifierProvider<RehearsalDiscovery>(
+          create: (_) => RehearsalDiscovery(),
+        ),
+        ChangeNotifierProxyProvider2<RehearsalLibrary, RehearsalDiscovery,
+            RehearsalSyncService>(
+          create: (ctx) => RehearsalSyncService(
+            ctx.read<RehearsalLibrary>(),
+            ctx.read<RehearsalDiscovery>(),
+          ),
+          update: (ctx, library, discovery, previous) =>
+              previous ?? RehearsalSyncService(library, discovery),
         ),
         Provider<VstHostService>(
           create: (_) => VstHostService.instance,

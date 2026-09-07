@@ -64,6 +64,10 @@ dependencies:
   # QR *rendering* for the host side. Pure Dart, so it works on every platform
   # including the desktop builds, where flutter_zxing's scanner does not.
   qr_flutter: ^4.1.0
+  # mDNS/Bonjour, so a band that has met once can find each other again with
+  # no code to scan. MIT, and the only option covering Linux as well as the
+  # phones — `nsd` has no Linux implementation.
+  bonsoir: ^7.1.4
   audio_session: ^0.2.2
   ffi: ^2.2.0
 

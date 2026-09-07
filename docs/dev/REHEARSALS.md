@@ -604,7 +604,7 @@ posture completely.
 | **P1** | **Single-device rehearsal — done.** Library, create, grid, disk-streaming player, metronome, count-in, record and replace your own take, playback mix, mute and gain, persistence. See §11. |
 | **P2** | **Master track import — done.** Decoders, tap-tempo and offset alignment, master lane. See §12. |
 | **P3** | **Shell and tab — done, during P1.** `MainShell`, responsive nav, l10n pass, `flutter analyze` clean. It had to come early: without the tab there was no way to reach anything P1 built. |
-| **P4** | **Pairing and sync — done except mDNS.** QR and short code, authenticated TCP handshake, manifest merge, take and master transfer, Nearby screen. See §13. |
+| **P4** | **Pairing and sync — done.** QR, scanner, authenticated TCP handshake, manifest merge, take and master transfer, mDNS re-discovery, Nearby screen. See §13, §14 and §15. |
 | **P5** | **Hostile networks.** Hotspot wizard, `.gfr` bundle export and import. |
 | **P6** | **Musical extras.** Tempo change through the phase vocoder, chord-grid editing, count-in refinements. |
 | **P7** | **Polish.** Onboarding, playful motion pass, store and F-Droid assets, changelogs in both languages. |
@@ -901,3 +901,185 @@ frames with its 1 921 542-byte file on disk, and the tempo arriving as
 - **The security model is LAN-shaped**: the join key authenticates and encrypts,
   there is no forward secrecy, and anyone with the code is in. Appropriate for
   people in one room; not a substitute for TLS if this ever leaves the LAN.
+
+---
+
+## 14. Identity, ownership and staying in step
+
+Four things the first multi-user build got wrong or left out, all reported from
+real use.
+
+### 14.1 A joiner had no identity of its own
+
+Joining creates an empty placeholder and the merge fills it with the *host's*
+members and parts. None of those are the person holding the phone, and nothing
+ever created one — so `selfMemberId` stayed null, the rehearsal screen fell
+back to `members.first`, and every part a joiner added was attributed to
+whoever shared the tune. Every lane carried that person's name.
+
+Joining now asks for a name and instrument once per rehearsal, creates a member
+and a part for them, and pushes both straight back so the others see the new
+player without waiting for the next meeting.
+
+### 14.2 You record your part, nobody else's
+
+The record button only appears on parts you own, and a small badge marks them,
+so a missing button reads as ownership rather than a control that failed to
+appear.
+
+This is not only tidiness. Takes merge by keeping the highest revision, so
+recording over someone else's part would not merely overwrite it locally — it
+would win on *their* device too, and destroy work they had not finished
+listening to.
+
+### 14.3 Deleting a take
+
+A take can be deleted, which needs more care than it looks:
+
+- **The revision is not rolled back.** A peer that already holds revision 3
+  must never be sent a different revision 3 later, or two recordings share a
+  number and the merge keeps whichever it happened to see first. `nextRevision`
+  counts on from the higher of the current and the last deleted.
+- **A deletion is a fact, not an absence.** It travels as a high-water mark
+  (`deletedRevision`) and merges by taking the larger, and any take at or below
+  it is dropped. Without that, a peer still holding the recording hands it back
+  on the next sync and it can never be got rid of.
+
+### 14.4 Staying in step while everyone is together
+
+A sync where nothing changed costs a connect, a handshake and two manifests —
+a few kilobytes, and the tests assert it moves no audio. That makes polling
+cheap enough to be the whole mechanism, so there is no second protocol for live
+updates: a joined device re-syncs every six seconds, and pushes immediately the
+moment a take is committed rather than making the room wait.
+
+Three details that matter:
+
+- **Hosting outlives the Nearby screen.** The host closes it to watch the lanes
+  fill in, and stopping the socket there would end the session exactly when it
+  becomes useful. The rehearsal screen ends both halves on the way out.
+- **A background tick reloads the library only when something arrived.**
+  Reloading regardless would rebuild every `Rehearsal` object every six seconds
+  and invalidate the references the open screen holds.
+- **A live session gives up after five consecutive failures.** Someone who has
+  walked out of the room would otherwise have every device in the band retrying
+  them forever.
+
+The stored ticket goes stale as soon as the host restarts sharing — new port,
+new key — so resuming is best-effort. That is the gap discovery closes, and the
+reason mDNS is still the next thing rather than an optional extra.
+
+---
+
+## 15. Discovery
+
+The QR introduces two devices. Discovery is what lets them find each other
+*again*, which is the case the whole feature is built around: meet, sync, go
+home and record, meet again.
+
+### 15.1 The key had to move first
+
+Discovery on its own would not have helped. Hosting used to mint a fresh key
+every time it started, so a device that rediscovered a peer tomorrow still
+could not say anything to it — it held last week's secret.
+
+The key is now a property of the **rehearsal**, generated at creation, carried
+in the manifest and merged like any other field. That is not circular: everyone
+holding the document is already a member. The consequence worth stating is that
+anyone who ever joins keeps access, because there is no re-keying — a leaked
+link cannot be revoked, only the rehearsal abandoned.
+
+### 15.2 What is advertised, and what is not
+
+`_gfrehearsal._tcp`, with two TXT records: the rehearsal id and the advertising
+device's id. The port comes from the service record.
+
+**The key is never advertised.** Anyone on the network can see that a
+GrooveForge rehearsal is being shared and which id it has; nobody can join
+without having been introduced once. Discovery answers "where are they now",
+never "may I come in".
+
+### 15.3 Following a rehearsal, not an address
+
+A live session tracks a rehearsal id and a key. The address is resolved afresh
+on every tick, preferring a discovered peer and falling back to the remembered
+ticket — because a remembered address goes stale the moment the host restarts
+sharing, while a discovered one is current by definition.
+
+Two details from how mDNS behaves in practice:
+
+- **Peers are aged out after 45 seconds as well as removed on goodbye.** A
+  phone that goes into a pocket or leaves the room usually just stops
+  answering; waiting for a farewell that never comes would leave the band
+  syncing with a ghost.
+- **A live session only gives up when nothing is discoverable either.** A peer
+  that is still advertising but refusing connections is probably mid-sync with
+  someone else, and is worth retrying.
+
+Discovery failing is a normal condition, not an error: a locked-down guest
+network, or a desktop with no Avahi. It is caught and logged, and the QR still
+works — which is the whole reason it carries the endpoint rather than a name to
+look up.
+
+### 15.4 A permission that was missing all along
+
+The Android manifest never declared `INTERNET`. Syncing worked anyway because
+Flutter's *debug* manifest adds it for the tooling's own use — so a **release
+build would have had no network at all**, and the failure would have appeared
+only after shipping. It is now declared properly, along with
+`ACCESS_NETWORK_STATE` and `CHANGE_WIFI_MULTICAST_STATE` for mDNS.
+
+iOS gained `NSLocalNetworkUsageDescription` and `NSBonjourServices`. Both are
+mandatory from iOS 14: without the service list, the type is silently invisible
+rather than refused.
+
+### 15.5 Not yet verified on hardware
+
+The code builds for Linux and Android, the tests pass, and discovery failing is
+handled — but two devices have not yet been watched finding each other. The
+test phone locked itself before that could be tried.
+
+The check is: open a rehearsal on the phone, tap share, then on a Linux machine
+run `avahi-browse -rt _gfrehearsal._tcp`. The service should appear with the
+tune's name, and its TXT records should carry the rehearsal and device ids.
+
+---
+
+## 16. Two things a working sync still got wrong
+
+### 16.1 A part arrived and played silence
+
+Takes transferred, the manifest merged, the lane appeared — and nothing came
+out of the speaker. Merging a *document* and opening an *audio track* are
+separate things, and only the first was happening: the engine plays tracks it
+has been told to open, and after a background sync nobody told it.
+
+`RehearsalSyncService` now calls `onAudioReceived` when a sync actually brought
+audio in, and the rehearsal screen reloads the engine's tracks in response.
+Two details:
+
+- **Reloading waits if the transport is running.** Clearing and reopening every
+  native track mid-playback is a dropout; a take that arrives while the band is
+  listening is picked up when they stop, a moment later.
+- **Syncing no longer reloads the library afterwards.** The merge mutates the
+  library's live document in place and the session saves it, so memory and disk
+  are already correct — and reloading swapped in fresh objects underneath the
+  open screen, leaving it holding a stale one. There is a test asserting the
+  caller's reference still points at the merged document.
+
+### 16.2 A part could be emptied but never removed
+
+Deleting a take drops the recording and keeps the lane, which is right when
+someone wants another go. It is wrong for a part that should not exist at all —
+added by mistake, or for an instrument nobody ended up playing — and there was
+no way to get rid of one.
+
+Removing a part needs a tombstone, for the same reason deleting a take does:
+parts merge by union, so simply dropping one locally means the next sync with
+anyone who still has it puts it straight back. `deletedPartIds` is a grow-only
+set, merged by union and applied before the parts themselves so a removed part
+is never added and then removed again.
+
+The lane's two destructive actions are now a named menu rather than two similar
+icons — *Delete this recording* keeps the lane, *Remove this part* does not,
+and that difference is not something an icon conveys.

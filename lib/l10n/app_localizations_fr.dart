@@ -2530,4 +2530,47 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get nearbyScanOpen => 'Scanner un code';
+
+  @override
+  String get joinIdentityTitle => 'Qui êtes-vous ?';
+
+  @override
+  String get joinIdentityHint => 'Les autres verront ce nom sur votre partie.';
+
+  @override
+  String get joinIdentityConfirm => 'Rejoindre';
+
+  @override
+  String get rehearsalDeleteTake => 'Supprimer cet enregistrement';
+
+  @override
+  String rehearsalDeleteTakeConfirm(String instrument) {
+    return 'Supprimer votre enregistrement de $instrument ? Les autres le perdront aussi à la prochaine synchronisation.';
+  }
+
+  @override
+  String rehearsalOthersPart(String name) {
+    return 'Partie de $name';
+  }
+
+  @override
+  String get rehearsalYourPart => 'Votre partie';
+
+  @override
+  String get liveConnected =>
+      'Connecté — les parties arrivent au fur et à mesure';
+
+  @override
+  String get liveRefresh => 'Synchroniser maintenant';
+
+  @override
+  String get rehearsalRemovePart => 'Supprimer cette partie';
+
+  @override
+  String rehearsalRemovePartConfirm(String instrument) {
+    return 'Supprimer votre partie de $instrument ? Elle disparaît pour tout le monde, avec ce qui y a été enregistré.';
+  }
+
+  @override
+  String get rehearsalPartActions => 'Plus';
 }

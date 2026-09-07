@@ -16,6 +16,10 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 - Le clic se coupe dès qu'un enregistrement est importé : c'est lui qui donne le tempo.
 - Partagez une répétition avec le groupe : affichez un QR code à scanner ou envoyez le lien, et les parties fusionnent.
 - Les parties se synchronisent dans les deux sens en Wi-Fi, chiffrées, sans serveur ni compte.
+- Tant que le groupe est connecté, une partie apparaît sur tous les téléphones dès qu'elle est enregistrée.
+- Une fois la répétition partagée, l'app retrouve les autres sur le réseau toute seule — plus de code à scanner.
+- Vous enregistrez votre partie et personne d'autre, et pouvez supprimer une prise qui ne vous plaît pas.
+- Une partie ajoutée par erreur peut être supprimée complètement, et elle disparaît aussi chez les autres.
 
 ### Architecture
 - Préparation des répétitions : mesure du retard entre ce que l'app joue et ce que le micro entend, pour caler les overdubs.

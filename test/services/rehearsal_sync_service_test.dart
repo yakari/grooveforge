@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:grooveforge/models/rehearsal.dart';
+import 'package:grooveforge/services/rehearsal_discovery.dart';
 import 'package:grooveforge/services/rehearsal_library.dart';
 import 'package:grooveforge/services/rehearsal_protocol.dart';
 import 'package:grooveforge/services/rehearsal_sync_service.dart';
@@ -32,8 +33,10 @@ void main() {
     guestLibrary = RehearsalLibrary(rootOverride: guestDir);
     await hostLibrary.load();
     await guestLibrary.load();
-    hostSync = RehearsalSyncService(hostLibrary);
-    guestSync = RehearsalSyncService(guestLibrary);
+    // A real discovery object, but never started: these tests drive the
+    // sockets directly, and mDNS is not available in the test environment.
+    hostSync = RehearsalSyncService(hostLibrary, RehearsalDiscovery());
+    guestSync = RehearsalSyncService(guestLibrary, RehearsalDiscovery());
   });
 
   tearDown(() async {
@@ -279,9 +282,118 @@ void main() {
     expect(guestLibrary.rehearsals.single.master!.offsetFrames, 12345);
   });
 
+  test('a take recorded after joining reaches the other side', () async {
+    // The live-session case: everyone is connected, one person records, and
+    // the rest should get it without a fresh introduction.
+    final r = await hostLibrary.create(
+        title: 'Tune', memberName: 'Yann', instrument: 'guitar');
+    final ticket = await hostSync.startHosting(r);
+    await guestSync.join(ticket!);
+
+    // The guest registers itself and records, exactly as the UI does.
+    await guestLibrary.load();
+    final theirs = guestLibrary.rehearsals.single;
+    final mine =
+        await guestLibrary.joinAsMember(theirs, name: 'Léa', instrument: 'vocals');
+    await giveTake(guestLibrary, theirs, mine, bytes: 5000);
+
+    // syncNow() is what the engine calls the moment a take is committed.
+    guestSync.startLiveSync(
+      rehearsalId: theirs.id,
+      key: ticket.key,
+      fallback: ticket,
+    );
+    await guestSync.syncNow();
+    guestSync.stopLiveSync();
+
+    await hostLibrary.load();
+    final hostCopy = hostLibrary.rehearsals.single;
+    expect(hostCopy.members.map((m) => m.displayName), contains('Léa'));
+    final received = hostCopy.parts.firstWhere((p) => p.id == mine.id);
+    expect(received.take, isNotNull, reason: 'the take never arrived');
+    final file = File(await hostLibrary.takePath(hostCopy.id, received.take!));
+    expect(await file.length(), 5000);
+  });
+
+  test('a deleted take is removed from the other side too', () async {
+    final r = await hostLibrary.create(
+        title: 'Tune', memberName: 'Yann', instrument: 'guitar');
+    final part = r.parts.single;
+    await giveTake(hostLibrary, r, part, bytes: 4000);
+
+    final ticket = await hostSync.startHosting(r);
+    await guestSync.join(ticket!);
+    await guestLibrary.load();
+    expect(guestLibrary.rehearsals.single.parts.single.take, isNotNull);
+
+    // The host is not happy with it and deletes rather than re-records.
+    await hostLibrary.deleteTake(r, part);
+    await guestSync.join(ticket);
+
+    await guestLibrary.load();
+    final theirs = guestLibrary.rehearsals.single.parts.single;
+    expect(theirs.take, isNull, reason: 'the deletion did not travel');
+    expect(theirs.deletedRevision, 1);
+
+    // And it stays deleted: the guest must not hand it back next time.
+    await guestSync.join(ticket);
+    await hostLibrary.load();
+    expect(hostLibrary.rehearsals.single.parts.single.take, isNull);
+  });
+
+  test('receiving audio signals that the engine must reload', () async {
+    // The bug this covers: the take merged into the manifest and appeared in
+    // the lane, but nothing told the engine to open the file, so it played
+    // silence. Merging a document and opening an audio track are two separate
+    // things and the second has to be asked for.
+    final r = await hostLibrary.create(
+        title: 'Tune', memberName: 'Yann', instrument: 'guitar');
+    await giveTake(hostLibrary, r, r.parts.single, bytes: 6000);
+
+    var signalled = 0;
+    guestSync.onAudioReceived = () => signalled++;
+
+    final ticket = await hostSync.startHosting(r);
+    final first = await guestSync.join(ticket!);
+
+    expect(first.takesReceived, 1);
+    expect(signalled, 1, reason: 'the engine was never told to reload');
+
+    // And a sync that brings nothing must not churn the engine.
+    final second = await guestSync.join(ticket);
+    expect(second.takesReceived, 0);
+    expect(signalled, 1, reason: 'reloaded for a sync that moved no audio');
+  });
+
+  test('the merged document is the one the library is holding', () async {
+    // Syncing used to reload the library afterwards, which swapped in fresh
+    // objects and left any open screen holding a stale one. The merge mutates
+    // the live document instead, so a caller's reference stays correct.
+    final r = await hostLibrary.create(
+        title: 'Tune', memberName: 'Yann', instrument: 'guitar');
+    final ticket = await hostSync.startHosting(r);
+    await guestSync.join(ticket!);
+
+    await guestLibrary.load();
+    final held = guestLibrary.rehearsals.single;
+
+    // The guest records and pushes; the host's in-memory object must show it
+    // without anyone reloading.
+    final mine = await guestLibrary.joinAsMember(held,
+        name: 'Léa', instrument: 'vocals');
+    await giveTake(guestLibrary, held, mine, bytes: 2000);
+    await guestSync.join(ticket);
+
+    expect(identical(hostLibrary.rehearsals.single, r), isTrue,
+        reason: 'the library swapped the document out from under its holder');
+    expect(r.parts.any((p) => p.id == mine.id), isTrue,
+        reason: 'the object the caller holds did not see the merge');
+  });
+
   test('the device id survives a restart', () async {
     final first = await hostSync.deviceId();
-    final again = await RehearsalSyncService(hostLibrary).deviceId();
+    final again =
+        await RehearsalSyncService(hostLibrary, RehearsalDiscovery()).deviceId();
     // A fresh id each launch would make the merge's tiebreak non-deterministic
     // and two devices could fail to converge.
     expect(again, first);

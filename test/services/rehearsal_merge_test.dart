@@ -119,6 +119,134 @@ void main() {
     });
   });
 
+  group('deleting a take', () {
+    test('a deletion is not undone by a peer that still holds the take', () {
+      // Without a high-water mark the peer simply hands the recording back on
+      // the next sync, and it can never be got rid of.
+      final local = _rehearsal()..parts.add(_part('p1'));
+      local.parts.single.deletedRevision = 2;
+      final remote = _rehearsal()..parts.add(_part('p1', takeRevision: 2));
+
+      final out = mergeRehearsal(local, remote);
+
+      expect(local.parts.single.take, isNull);
+      expect(out.partsToFetch, isEmpty,
+          reason: 'no point fetching audio that is already deleted');
+    });
+
+    test('the deletion travels to a peer who still has the take', () {
+      final local = _rehearsal()..parts.add(_part('p1', takeRevision: 2));
+      final remote = _rehearsal()..parts.add(_part('p1'));
+      remote.parts.single.deletedRevision = 2;
+
+      final out = mergeRehearsal(local, remote);
+
+      expect(local.parts.single.take, isNull);
+      expect(local.parts.single.deletedRevision, 2);
+      expect(out.changed, isTrue);
+    });
+
+    test('a later re-recording beats the deletion', () {
+      final local = _rehearsal()..parts.add(_part('p1'));
+      local.parts.single.deletedRevision = 2;
+      final remote = _rehearsal()..parts.add(_part('p1', takeRevision: 3));
+
+      final out = mergeRehearsal(local, remote);
+
+      expect(local.parts.single.take, isNotNull);
+      expect(local.parts.single.take!.revision, 3);
+      expect(out.partsToFetch, ['p1']);
+    });
+
+    test('the next revision counts past whatever was deleted', () {
+      final part = _part('p1', takeRevision: 3);
+      expect(part.nextRevision, 4);
+      part.deletedRevision = 3;
+      part.take = null;
+      // Reusing 3 would give two different recordings the same revision, and
+      // the merge would keep whichever it happened to see first.
+      expect(part.nextRevision, 4);
+    });
+
+    test('both sides converge on the deletion', () {
+      Rehearsal deleted() {
+        final r = _rehearsal()..parts.add(_part('p1'));
+        r.parts.single.deletedRevision = 2;
+        return r;
+      }
+      Rehearsal holding() => _rehearsal()..parts.add(_part('p1', takeRevision: 2));
+
+      final a = deleted();
+      mergeRehearsal(a, holding());
+      final b = holding();
+      mergeRehearsal(b, deleted());
+
+      expect(a.parts.single.take, isNull);
+      expect(b.parts.single.take, isNull);
+      expect(a.parts.single.deletedRevision, b.parts.single.deletedRevision);
+    });
+  });
+
+  group('removing a part', () {
+    test('a removed part is not put back by a peer that still has it', () {
+      // Parts merge by union, so without a tombstone the next sync with anyone
+      // who still holds it would simply re-add it.
+      final local = _rehearsal()..deletedPartIds.add('p2');
+      local.parts.add(_part('p1'));
+      final remote = _rehearsal()
+        ..parts.addAll([_part('p1'), _part('p2', takeRevision: 1)]);
+
+      final out = mergeRehearsal(local, remote);
+
+      expect(local.parts.map((p) => p.id), ['p1']);
+      expect(out.partsToFetch, isEmpty,
+          reason: 'no point fetching audio for a part that is gone');
+    });
+
+    test('the removal travels to a peer who still has the part', () {
+      final local = _rehearsal()
+        ..parts.addAll([_part('p1'), _part('p2', takeRevision: 2)]);
+      final remote = _rehearsal()
+        ..parts.add(_part('p1'))
+        ..deletedPartIds.add('p2');
+
+      final out = mergeRehearsal(local, remote);
+
+      expect(local.parts.map((p) => p.id), ['p1']);
+      expect(local.deletedPartIds, contains('p2'));
+      expect(out.changed, isTrue);
+    });
+
+    test('both sides converge on the removal', () {
+      Rehearsal removed() => _rehearsal()
+        ..parts.add(_part('p1'))
+        ..deletedPartIds.add('p2');
+      Rehearsal holding() =>
+          _rehearsal()..parts.addAll([_part('p1'), _part('p2', takeRevision: 1)]);
+
+      final a = removed();
+      mergeRehearsal(a, holding());
+      final b = holding();
+      mergeRehearsal(b, removed());
+
+      expect(a.parts.map((p) => p.id).toSet(), b.parts.map((p) => p.id).toSet());
+      expect(a.parts.map((p) => p.id), ['p1']);
+      expect(a.deletedPartIds, b.deletedPartIds);
+    });
+
+    test('a removal survives repeated merges', () {
+      final local = _rehearsal()..deletedPartIds.add('p2');
+      final remote = _rehearsal()..parts.add(_part('p2', takeRevision: 1));
+
+      mergeRehearsal(local, _copy(remote));
+      final second = mergeRehearsal(local, _copy(remote));
+
+      expect(local.parts, isEmpty);
+      expect(second.changed, isFalse,
+          reason: 'a settled pair must stop exchanging the same removal');
+    });
+  });
+
   group('members', () {
     test('unknown members are added, known ones left alone', () {
       final local = _rehearsal()

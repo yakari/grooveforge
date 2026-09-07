@@ -75,6 +75,12 @@ MergeOutcome mergeRehearsal(Rehearsal local, Rehearsal remote) {
       case RehearsalField.countInBars:
         if (local.countInBars != remote.countInBars) changed = true;
         local.countInBars = remote.countInBars;
+      case RehearsalField.joinKey:
+        // Converging on one key is what lets a device rediscover any member of
+        // the band later and still be understood. The current session is
+        // unaffected: it is already running on the key the ticket carried.
+        if (local.joinKey != remote.joinKey) changed = true;
+        local.joinKey = remote.joinKey;
     }
     local.clocks[field] = theirs;
   }
@@ -120,29 +126,66 @@ MergeOutcome mergeRehearsal(Rehearsal local, Rehearsal remote) {
     changed = true;
   }
 
+  // ── Removed parts ────────────────────────────────────────────────────────
+  //
+  // Merged before the parts themselves, so a part the peer has deleted is not
+  // added back and then removed again.
+  for (final id in remote.deletedPartIds) {
+    if (local.deletedPartIds.add(id)) changed = true;
+  }
+  if (local.parts.any((p) => local.deletedPartIds.contains(p.id))) {
+    local.parts.removeWhere((p) => local.deletedPartIds.contains(p.id));
+    changed = true;
+  }
+
   // ── Parts: union by id, highest take revision wins ───────────────────────
   final partsToFetch = <String>[];
   final localByPartId = {for (final p in local.parts) p.id: p};
 
   for (final remotePart in remote.parts) {
+    // Deleted here, whether by this device or by a peer whose tombstone has
+    // already arrived. Adding it back is exactly what the tombstone prevents.
+    if (local.deletedPartIds.contains(remotePart.id)) continue;
+
     final localPart = localByPartId[remotePart.id];
 
     if (localPart == null) {
       local.parts.add(remotePart);
       changed = true;
-      if (remotePart.take != null) partsToFetch.add(remotePart.id);
+      final take = remotePart.take;
+      if (take != null && remotePart.deletedRevision < take.revision) {
+        partsToFetch.add(remotePart.id);
+      }
       continue;
     }
 
-    final theirTake = remotePart.take;
-    if (theirTake == null) continue;
+    // A deletion is a fact about a revision, not the absence of one, so it
+    // travels as a high-water mark and merges by taking the larger.
+    if (remotePart.deletedRevision > localPart.deletedRevision) {
+      localPart.deletedRevision = remotePart.deletedRevision;
+      changed = true;
+    }
 
+    final theirTake = remotePart.take;
     final ourTake = localPart.take;
-    // Strictly greater: an equal revision is the same take, and re-fetching
-    // it would move megabytes to arrive at what is already here.
-    if (ourTake == null || theirTake.revision > ourTake.revision) {
-      localPart.take = theirTake;
-      partsToFetch.add(remotePart.id);
+
+    if (theirTake != null) {
+      // Strictly greater: an equal revision is the same take, and re-fetching
+      // it would move megabytes to arrive at what is already here.
+      if (ourTake == null || theirTake.revision > ourTake.revision) {
+        localPart.take = theirTake;
+        partsToFetch.add(remotePart.id);
+        changed = true;
+      }
+    }
+
+    // Whatever take is now in place, a deletion at or above its revision wins.
+    // Without this a peer that still holds the deleted recording would simply
+    // hand it back on the next sync, and it could never be got rid of.
+    final chosen = localPart.take;
+    if (chosen != null && localPart.deletedRevision >= chosen.revision) {
+      localPart.take = null;
+      partsToFetch.remove(remotePart.id);
       changed = true;
     }
   }

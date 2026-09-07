@@ -1160,5 +1160,38 @@
   "nearbyScanHint": "Maintenez-la bien en face du code affiché sur l'autre appareil.",
   "nearbyScanPermission": "GrooveForge a besoin de la caméra pour lire le code. Vous pouvez aussi coller le lien.",
   "nearbyScanOr": "ou",
-  "nearbyScanOpen": "Scanner un code"
+  "nearbyScanOpen": "Scanner un code",
+  "joinIdentityTitle": "Qui êtes-vous ?",
+  "joinIdentityHint": "Les autres verront ce nom sur votre partie.",
+  "joinIdentityConfirm": "Rejoindre",
+  "rehearsalDeleteTake": "Supprimer cet enregistrement",
+  "rehearsalDeleteTakeConfirm": "Supprimer votre enregistrement de {instrument} ? Les autres le perdront aussi à la prochaine synchronisation.",
+  "@rehearsalDeleteTakeConfirm": {
+    "placeholders": {
+      "instrument": {
+        "type": "String"
+      }
+    }
+  },
+  "rehearsalOthersPart": "Partie de {name}",
+  "@rehearsalOthersPart": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "rehearsalYourPart": "Votre partie",
+  "liveConnected": "Connecté — les parties arrivent au fur et à mesure",
+  "liveRefresh": "Synchroniser maintenant",
+  "rehearsalRemovePart": "Supprimer cette partie",
+  "rehearsalRemovePartConfirm": "Supprimer votre partie de {instrument} ? Elle disparaît pour tout le monde, avec ce qui y a été enregistré.",
+  "@rehearsalRemovePartConfirm": {
+    "placeholders": {
+      "instrument": {
+        "type": "String"
+      }
+    }
+  },
+  "rehearsalPartActions": "Plus"
 }

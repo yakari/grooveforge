@@ -8,7 +8,9 @@ import 'package:qr_flutter/qr_flutter.dart';
 
 import '../l10n/app_localizations.dart';
 import '../models/rehearsal.dart';
+import 'rehearsals_screen.dart' show instrumentLabel;
 import '../services/rehearsal_protocol.dart';
+import '../services/rehearsal_library.dart';
 import '../services/rehearsal_sync_service.dart';
 import 'scan_ticket_screen.dart';
 
@@ -43,21 +45,15 @@ class _NearbyScreenState extends State<NearbyScreen> {
     });
   }
 
-  @override
-  void dispose() {
-    // Hosting keeps a socket open; leaving the screen should close it rather
-    // than leave the rehearsal quietly shared for the rest of the session.
-    _service?.stopHosting();
-    super.dispose();
-  }
-
-  RehearsalSyncService? _service;
+  // Hosting deliberately outlives this screen. The host closes it to watch the
+  // lanes fill in as the others record, and stopping the socket here would end
+  // the session exactly when it starts being useful. The rehearsal screen stops
+  // it on the way out instead.
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final service = context.watch<RehearsalSyncService>();
-    _service = service;
     final ticket = service.ticket;
 
     return Scaffold(
@@ -354,6 +350,7 @@ class _JoinRehearsalScreenState extends State<JoinRehearsalScreen> {
   /// two cannot drift apart in how they report success or failure.
   Future<void> _joinTicket(JoinTicket ticket) async {
     final l10n = AppLocalizations.of(context)!;
+    _lastTicket = ticket;
     setState(() {
       _busy = true;
       _error = null;
@@ -368,8 +365,61 @@ class _JoinRehearsalScreenState extends State<JoinRehearsalScreen> {
       setState(() => _error = l10n.nearbyFailed(report.error ?? ''));
       return;
     }
+
+    await _registerSelfIfNeeded(ticket.rehearsalId);
+    if (!mounted) return;
+
+    // Remembered so the rehearsal screen can keep the two devices in step
+    // without another introduction.
+    final library = context.read<RehearsalLibrary>();
+    final local = await library.loadLocalState(ticket.rehearsalId);
+    local.lastTicketUri = ticket.toUri();
+    await library.saveLocalState(ticket.rehearsalId, local);
+
+    if (!mounted) return;
     Navigator.of(context).pop(report);
   }
+
+  /// Gives this device a player of its own in the rehearsal it just joined.
+  ///
+  /// Joining creates an empty placeholder and the merge fills it with the
+  /// host's members and parts. None of those are *this* player, so without
+  /// this the device has no identity: anything it records is attributed to
+  /// whoever shared the tune, and every lane carries their name.
+  ///
+  /// Only asked once per rehearsal — re-syncing later already knows who you
+  /// are.
+  Future<void> _registerSelfIfNeeded(String rehearsalId) async {
+    final library = context.read<RehearsalLibrary>();
+    final rehearsal =
+        library.rehearsals.where((r) => r.id == rehearsalId).firstOrNull;
+    if (rehearsal == null) return;
+
+    final local = await library.loadLocalState(rehearsalId);
+    // Already known here, or this device created the rehearsal in the first
+    // place.
+    if (local.selfMemberId != null &&
+        rehearsal.members.any((m) => m.id == local.selfMemberId)) {
+      return;
+    }
+    if (!mounted) return;
+
+    final identity = await showDialog<_Identity>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const _IdentityDialog(),
+    );
+    if (identity == null || !mounted) return;
+
+    await library.joinAsMember(rehearsal,
+        name: identity.name, instrument: identity.instrument);
+    // Push it straight back, so the others see the new member and their empty
+    // part without waiting for another meeting.
+    if (!mounted) return;
+    await context.read<RehearsalSyncService>().join(_lastTicket!);
+  }
+
+  JoinTicket? _lastTicket;
 
   @override
   Widget build(BuildContext context) {
@@ -461,6 +511,82 @@ class _JoinRehearsalScreenState extends State<JoinRehearsalScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Name and instrument, collected once when joining someone else's rehearsal.
+class _Identity {
+  _Identity(this.name, this.instrument);
+
+  final String name;
+  final String instrument;
+}
+
+class _IdentityDialog extends StatefulWidget {
+  const _IdentityDialog();
+
+  @override
+  State<_IdentityDialog> createState() => _IdentityDialogState();
+}
+
+class _IdentityDialogState extends State<_IdentityDialog> {
+  final _name = TextEditingController();
+  String _instrument = 'guitar';
+
+  @override
+  void dispose() {
+    _name.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return AlertDialog(
+      title: Text(l10n.joinIdentityTitle),
+      content: SizedBox(
+        width: 400,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(l10n.joinIdentityHint,
+                style: Theme.of(context).textTheme.bodySmall),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _name,
+              autofocus: true,
+              decoration:
+                  InputDecoration(labelText: l10n.rehearsalFieldYourName),
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              initialValue: _instrument,
+              decoration:
+                  InputDecoration(labelText: l10n.rehearsalFieldInstrument),
+              items: [
+                for (final id in kInstruments)
+                  DropdownMenuItem(
+                      value: id, child: Text(instrumentLabel(l10n, id))),
+              ],
+              onChanged: (v) => setState(() => _instrument = v ?? 'other'),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        FilledButton(
+          onPressed: () => Navigator.pop(
+            context,
+            _Identity(
+              _name.text.trim().isEmpty ? '?' : _name.text.trim(),
+              _instrument,
+            ),
+          ),
+          child: Text(l10n.joinIdentityConfirm),
+        ),
+      ],
     );
   }
 }

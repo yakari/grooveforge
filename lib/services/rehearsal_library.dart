@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/rehearsal.dart';
 import 'audio_input_ffi.dart';
+import 'rehearsal_protocol.dart';
 import 'platform_media_decoder.dart';
 
 /// Preference key for this device's stable identity.
@@ -271,6 +272,10 @@ class RehearsalLibrary extends ChangeNotifier {
         r.members.isNotEmpty || r.parts.isNotEmpty || r.master != null;
     if (!hasContent) return;
 
+    // A rehearsal from before keys belonged to the document needs one, or it
+    // can never be rediscovered — only re-introduced by QR.
+    r.joinKey ??= base64.encode(JoinTicket.newKey());
+
     final device = await rehearsalDeviceId();
     for (final field in RehearsalField.all) {
       if (field == RehearsalField.master && r.master == null) continue;
@@ -300,6 +305,7 @@ class RehearsalLibrary extends ChangeNotifier {
       beatsPerBar: beatsPerBar,
       beatUnit: beatUnit,
       countInBars: countInBars,
+      joinKey: base64.encode(JoinTicket.newKey()),
       createdAt: DateTime.now(),
       members: [
         RehearsalMember(
@@ -366,6 +372,82 @@ class RehearsalLibrary extends ChangeNotifier {
     await save(rehearsal);
   }
 
+  /// Registers this device's player in a rehearsal it has just joined, and
+  /// gives them a part of their own.
+  ///
+  /// Joining creates an empty placeholder and the merge fills it with the
+  /// host's members and parts — none of which are *this* player. Without this
+  /// step the device has no identity in the rehearsal at all, so anything it
+  /// records is attributed to whoever shared the tune, and every lane carries
+  /// their name.
+  Future<RehearsalPart> joinAsMember(
+    Rehearsal rehearsal, {
+    required String name,
+    required String instrument,
+  }) async {
+    final member = RehearsalMember(
+      id: newRehearsalId(),
+      displayName: name,
+      instrument: instrument,
+    );
+    rehearsal.members.add(member);
+
+    final part = RehearsalPart(
+      id: newRehearsalId(),
+      memberId: member.id,
+      instrument: instrument,
+    );
+    rehearsal.parts.add(part);
+    await save(rehearsal);
+
+    final local = await loadLocalState(rehearsal.id);
+    local.selfMemberId = member.id;
+    await saveLocalState(rehearsal.id, local);
+    return part;
+  }
+
+  /// Removes a take and the audio it points at.
+  ///
+  /// The revision is *not* rolled back: the next recording carries on from
+  /// where this one left off. A peer that already has revision 3 must not be
+  /// sent a different revision 3 later — take numbers have to keep going up
+  /// for the merge to stay conflict-free.
+  Future<void> deleteTake(Rehearsal rehearsal, RehearsalPart part) async {
+    final take = part.take;
+    if (take == null) return;
+    try {
+      final file = File(await takePath(rehearsal.id, take));
+      if (await file.exists()) await file.delete();
+    } catch (e) {
+      debugPrint('RehearsalLibrary: could not delete take — $e');
+    }
+    part.deletedRevision = take.revision;
+    part.take = null;
+    await save(rehearsal);
+  }
+
+  /// Removes a part entirely, along with any recording it holds.
+  ///
+  /// Different from [deleteTake], which keeps the lane so it can be recorded
+  /// again. This is for a part that should not be there at all — added by
+  /// mistake, or for an instrument nobody ended up playing.
+  Future<void> deletePart(Rehearsal rehearsal, RehearsalPart part) async {
+    final take = part.take;
+    if (take != null) {
+      try {
+        final file = File(await takePath(rehearsal.id, take));
+        if (await file.exists()) await file.delete();
+      } catch (e) {
+        debugPrint('RehearsalLibrary: could not delete take — $e');
+      }
+    }
+    // The tombstone has to be recorded before the part is dropped, or a sync
+    // with anyone who still has it would put it straight back.
+    rehearsal.deletedPartIds.add(part.id);
+    rehearsal.parts.removeWhere((p) => p.id == part.id);
+    await save(rehearsal);
+  }
+
   /// Adds a part for [member], creating the member if this is their first.
   Future<RehearsalPart> addPart(
     Rehearsal rehearsal, {
@@ -418,8 +500,13 @@ class RehearsalLibrary extends ChangeNotifier {
   }
 
   /// File name for the next take of [part].
+  ///
+  /// Counts on from whichever is higher: the take that is there, or the last
+  /// one deleted. Reusing a number a peer already holds would make two
+  /// different recordings share a revision, and the merge would keep whichever
+  /// it saw first.
   String nextTakeFileName(RehearsalPart part) =>
-      '${part.id}-${(part.take?.revision ?? 0) + 1}.wav';
+      '${part.id}-${part.nextRevision}.wav';
 
   /// Deletes a rehearsal and every take it owns.
   Future<void> delete(String id) async {

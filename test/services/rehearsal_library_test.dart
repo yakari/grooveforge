@@ -227,6 +227,131 @@ void main() {
     });
   });
 
+  group('identity', () {
+    test('joining gives this device a member and a part of its own', () async {
+      // A joiner starts with a placeholder and the merge fills it with the
+      // *host's* members. Without joinAsMember the device has no identity, so
+      // everything it records is attributed to whoever shared the tune.
+      final joined = Rehearsal(
+        id: 'shared',
+        title: 'Their tune',
+        bpm: 120,
+        beatsPerBar: 4,
+        beatUnit: 4,
+        countInBars: 2,
+        createdAt: DateTime.now(),
+        members: [
+          RehearsalMember(
+              id: 'host-m', displayName: 'Yann', instrument: 'guitar')
+        ],
+        parts: [
+          RehearsalPart(
+              id: 'host-p', memberId: 'host-m', instrument: 'guitar')
+        ],
+      );
+      await library.save(joined);
+
+      final mine = await library.joinAsMember(joined,
+          name: 'Léa', instrument: 'vocals');
+
+      expect(joined.members, hasLength(2));
+      expect(mine.memberId, isNot('host-m'));
+      expect(joined.members.firstWhere((m) => m.id == mine.memberId).displayName,
+          'Léa');
+
+      final local = await library.loadLocalState(joined.id);
+      expect(local.selfMemberId, mine.memberId);
+
+      // And ownership now answers correctly for both sides.
+      expect(mine.isOwnedBy(local.selfMemberId), isTrue);
+      expect(joined.parts.firstWhere((p) => p.id == 'host-p')
+          .isOwnedBy(local.selfMemberId), isFalse);
+    });
+
+    test('the creator owns the part they were given', () async {
+      final r = await library.create(
+          title: 'A', memberName: 'Yann', instrument: 'guitar');
+      final local = await library.loadLocalState(r.id);
+      expect(r.parts.single.isOwnedBy(local.selfMemberId), isTrue);
+    });
+  });
+
+  group('deleting a take', () {
+    test('removes the audio and blocks the revision from being reused',
+        () async {
+      final r = await library.create(
+          title: 'A', memberName: 'Y', instrument: 'guitar');
+      final part = r.parts.single;
+
+      final takes = await library.takesDir(r.id);
+      final name = library.nextTakeFileName(part);
+      final file = File('${takes.path}/$name');
+      await file.writeAsBytes(List.filled(512, 1));
+      await library.commitTake(r, part,
+          fileName: name,
+          frames: 256,
+          sampleRate: 48000,
+          compensationFrames: 0);
+      expect(part.take!.revision, 1);
+
+      await library.deleteTake(r, part);
+
+      expect(part.take, isNull);
+      expect(await file.exists(), isFalse);
+      // Not rolled back: a peer that already holds revision 1 must never be
+      // sent a *different* revision 1 later.
+      expect(part.deletedRevision, 1);
+      expect(library.nextTakeFileName(part), '${part.id}-2.wav');
+    });
+
+    test('survives a reload, so the deletion is not forgotten', () async {
+      final r = await library.create(
+          title: 'A', memberName: 'Y', instrument: 'guitar');
+      final part = r.parts.single;
+      await library.commitTake(r, part,
+          fileName: 'x.wav',
+          frames: 10,
+          sampleRate: 48000,
+          compensationFrames: 0);
+      await library.deleteTake(r, part);
+
+      final fresh = RehearsalLibrary(rootOverride: tmp);
+      await fresh.load();
+      final reloaded = fresh.rehearsals.single.parts.single;
+      expect(reloaded.take, isNull);
+      expect(reloaded.deletedRevision, 1);
+    });
+  });
+
+  group('removing a part', () {
+    test('drops the lane, its audio, and leaves a tombstone', () async {
+      final r = await library.create(
+          title: 'A', memberName: 'Y', instrument: 'guitar');
+      final extra = await library.addPart(r,
+          memberId: r.members.single.id, instrument: 'synth');
+
+      final takes = await library.takesDir(r.id);
+      final name = library.nextTakeFileName(extra);
+      final file = File('${takes.path}/$name');
+      await file.writeAsBytes(List.filled(256, 2));
+      await library.commitTake(r, extra,
+          fileName: name, frames: 128, sampleRate: 48000, compensationFrames: 0);
+
+      await library.deletePart(r, extra);
+
+      expect(r.parts.map((p) => p.id), isNot(contains(extra.id)));
+      expect(await file.exists(), isFalse);
+      expect(r.deletedPartIds, contains(extra.id),
+          reason: 'without a tombstone a peer would re-add it');
+
+      final fresh = RehearsalLibrary(rootOverride: tmp);
+      await fresh.load();
+      final reloaded = fresh.rehearsals.single;
+      expect(reloaded.parts, hasLength(1));
+      expect(reloaded.deletedPartIds, contains(extra.id));
+    });
+  });
+
   group('parts', () {
     test('one member can own several', () async {
       final r = await library.create(

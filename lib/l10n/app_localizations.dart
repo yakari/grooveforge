@@ -4627,6 +4627,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Scan a code'**
   String get nearbyScanOpen;
+
+  /// No description provided for @joinIdentityTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Who are you?'**
+  String get joinIdentityTitle;
+
+  /// No description provided for @joinIdentityHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The others will see this name on your part.'**
+  String get joinIdentityHint;
+
+  /// No description provided for @joinIdentityConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Join'**
+  String get joinIdentityConfirm;
+
+  /// No description provided for @rehearsalDeleteTake.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this recording'**
+  String get rehearsalDeleteTake;
+
+  /// No description provided for @rehearsalDeleteTakeConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete your recording of {instrument}? The others will lose it too, next time you sync.'**
+  String rehearsalDeleteTakeConfirm(String instrument);
+
+  /// No description provided for @rehearsalOthersPart.
+  ///
+  /// In en, this message translates to:
+  /// **'{name}\'s part'**
+  String rehearsalOthersPart(String name);
+
+  /// No description provided for @rehearsalYourPart.
+  ///
+  /// In en, this message translates to:
+  /// **'Your part'**
+  String get rehearsalYourPart;
+
+  /// No description provided for @liveConnected.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected — parts appear as they are recorded'**
+  String get liveConnected;
+
+  /// No description provided for @liveRefresh.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync now'**
+  String get liveRefresh;
+
+  /// No description provided for @rehearsalRemovePart.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove this part'**
+  String get rehearsalRemovePart;
+
+  /// No description provided for @rehearsalRemovePartConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove your {instrument} part? It disappears for everyone, along with anything recorded on it.'**
+  String rehearsalRemovePartConfirm(String instrument);
+
+  /// No description provided for @rehearsalPartActions.
+  ///
+  /// In en, this message translates to:
+  /// **'More'**
+  String get rehearsalPartActions;
 }
 
 class _AppLocalizationsDelegate

@@ -56,8 +56,17 @@ class RehearsalField {
   static const beatUnit = 'beatUnit';
   static const countInBars = 'countInBars';
   static const master = 'master';
+  static const joinKey = 'joinKey';
 
-  static const all = [title, bpm, beatsPerBar, beatUnit, countInBars, master];
+  static const all = [
+    title,
+    bpm,
+    beatsPerBar,
+    beatUnit,
+    countInBars,
+    master,
+    joinKey,
+  ];
 }
 
 /// A member of the group.
@@ -108,12 +117,27 @@ class RehearsalPart {
   /// The current take, or null if this part has not been recorded yet.
   RehearsalTake? take;
 
+  /// Highest revision that has been deleted, so the next recording counts on
+  /// from it rather than reusing a number a peer may already hold.
+  int deletedRevision = 0;
+
   bool get isRecorded => take != null;
+
+  /// The revision the next recording of this part will carry.
+  int get nextRevision {
+    final current = take?.revision ?? 0;
+    return (current > deletedRevision ? current : deletedRevision) + 1;
+  }
+
+  /// Whether this part belongs to [memberId].
+  bool isOwnedBy(String? memberId) =>
+      memberId != null && memberId == this.memberId;
 
   Map<String, dynamic> toJson() => {
         'id': id,
         'memberId': memberId,
         'instrument': instrument,
+        if (deletedRevision > 0) 'deletedRevision': deletedRevision,
         if (take != null) 'take': take!.toJson(),
       };
 
@@ -124,7 +148,7 @@ class RehearsalPart {
         take: json['take'] == null
             ? null
             : RehearsalTake.fromJson(json['take'] as Map<String, dynamic>),
-      );
+      )..deletedRevision = json['deletedRevision'] as int? ?? 0;
 }
 
 /// The audio for one part, aligned to grid frame 0.
@@ -251,13 +275,16 @@ class Rehearsal {
     required this.beatsPerBar,
     required this.beatUnit,
     required this.countInBars,
+    this.joinKey,
     required this.createdAt,
     required this.members,
     required this.parts,
     this.master,
     this.lamport = 0,
     Map<String, FieldClock>? clocks,
-  }) : clocks = clocks ?? {};
+    Set<String>? deletedPartIds,
+  })  : clocks = clocks ?? {},
+        deletedPartIds = deletedPartIds ?? {};
 
   final String id;
   String title;
@@ -270,12 +297,33 @@ class Rehearsal {
   /// the whole band counts in the same way (decision D13).
   int countInBars;
 
+  /// The shared secret the band syncs with, base64.
+  ///
+  /// A property of the *rehearsal*, not of a hosting session. Generating a
+  /// fresh key each time someone starts sharing would mean a device that
+  /// rediscovers a peer tomorrow still could not talk to it — the whole point
+  /// of discovery is to reconnect without another introduction, and that needs
+  /// a secret that outlives the introduction.
+  ///
+  /// It travels inside the document, which is not circular: everyone who has
+  /// the document is already a member. The consequence worth knowing is that
+  /// anyone who ever joins keeps access, because there is no re-keying.
+  String? joinKey;
+
   final DateTime createdAt;
   final List<RehearsalMember> members;
   final List<RehearsalPart> parts;
 
   /// The recording everyone plays along to, if one was imported.
   RehearsalMaster? master;
+
+  /// Parts that have been removed, by id.
+  ///
+  /// A tombstone rather than simply dropping the part, because parts merge by
+  /// union: without a record that it was deleted, the next sync with anyone
+  /// who still has it would put it straight back. The set only ever grows,
+  /// which is what makes it converge with no coordination.
+  final Set<String> deletedPartIds;
 
   bool get hasMaster => master != null;
 
@@ -324,6 +372,7 @@ class Rehearsal {
         'beatsPerBar': beatsPerBar,
         'beatUnit': beatUnit,
         'countInBars': countInBars,
+        if (joinKey != null) 'joinKey': joinKey,
         'createdAt': createdAt.toIso8601String(),
         'lamport': lamport,
         if (clocks.isNotEmpty)
@@ -331,6 +380,8 @@ class Rehearsal {
         'members': members.map((m) => m.toJson()).toList(),
         'parts': parts.map((p) => p.toJson()).toList(),
         if (master != null) 'master': master!.toJson(),
+        if (deletedPartIds.isNotEmpty)
+          'deletedPartIds': deletedPartIds.toList(),
       };
 
   factory Rehearsal.fromJson(Map<String, dynamic> json) => Rehearsal(
@@ -340,6 +391,7 @@ class Rehearsal {
         beatsPerBar: json['beatsPerBar'] as int? ?? 4,
         beatUnit: json['beatUnit'] as int? ?? 4,
         countInBars: json['countInBars'] as int? ?? 2,
+        joinKey: json['joinKey'] as String?,
         createdAt:
             DateTime.tryParse(json['createdAt'] as String? ?? '') ??
                 DateTime.now(),
@@ -356,6 +408,9 @@ class Rehearsal {
         master: json['master'] == null
             ? null
             : RehearsalMaster.fromJson(json['master'] as Map<String, dynamic>),
+        deletedPartIds: (json['deletedPartIds'] as List<dynamic>? ?? [])
+            .map((e) => e as String)
+            .toSet(),
       );
 }
 
@@ -385,6 +440,15 @@ class RehearsalLocalState {
   /// Latency compensation measured on this device, in frames.
   int compensationFrames;
 
+  /// The last join ticket used for this rehearsal, so a live session can be
+  /// resumed without another introduction.
+  ///
+  /// Device-local by nature — it holds the shared key, and `self.json` never
+  /// leaves the phone. It goes stale when the host restarts sharing, because
+  /// the port and key are both new; that is what makes discovery the real
+  /// answer rather than this.
+  String? lastTicketUri;
+
   bool metronomeEnabled;
 
   double gainFor(String partId) => gains[partId] ?? 1.0;
@@ -396,6 +460,7 @@ class RehearsalLocalState {
         'mutedPartIds': mutedPartIds.toList(),
         'compensationFrames': compensationFrames,
         'metronomeEnabled': metronomeEnabled,
+        if (lastTicketUri != null) 'lastTicketUri': lastTicketUri,
       };
 
   factory RehearsalLocalState.fromJson(Map<String, dynamic> json) =>
@@ -408,7 +473,7 @@ class RehearsalLocalState {
             .toSet(),
         compensationFrames: json['compensationFrames'] as int? ?? 0,
         metronomeEnabled: json['metronomeEnabled'] as bool? ?? true,
-      );
+      )..lastTicketUri = json['lastTicketUri'] as String?;
 }
 
 /// The curated instrument list a part can be assigned.
