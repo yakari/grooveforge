@@ -645,6 +645,33 @@ void main() {
     });
   });
 
+  group('concurrent writes', () {
+    test('overlapping saves all land', () async {
+      // A device both hosts and polls, so two sync sessions can be saving the
+      // same manifest at once. Sharing one temporary file meant the first
+      // rename succeeded and the second failed with ENOENT, losing whatever it
+      // was writing.
+      final r = await library.create(
+          title: 'A', memberName: 'Y', instrument: 'guitar');
+
+      await Future.wait([
+        for (var i = 0; i < 12; i++)
+          library.updateField(r, RehearsalField.title, () => r.title = 'T$i'),
+      ]);
+
+      final fresh = RehearsalLibrary(rootOverride: tmp);
+      await fresh.load();
+      expect(fresh.rehearsals.single.title, r.title,
+          reason: 'the last save did not reach disk');
+      // And no temporary files left lying about.
+      final leftovers = await Directory('${tmp.path}/rehearsals/${r.id}')
+          .list()
+          .where((e) => e.path.endsWith('.tmp'))
+          .toList();
+      expect(leftovers, isEmpty);
+    });
+  });
+
   group('manifest format', () {
     test('carries a version and a logical clock from the start', () async {
       final r = await library.create(

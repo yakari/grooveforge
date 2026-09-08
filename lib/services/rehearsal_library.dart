@@ -346,14 +346,34 @@ class RehearsalLibrary extends ChangeNotifier {
   /// Written to a temporary file and renamed, so a crash mid-write leaves the
   /// previous manifest intact rather than a truncated one that would take the
   /// rehearsal's whole track list with it.
-  Future<void> save(Rehearsal rehearsal) async {
+  Future<void> save(Rehearsal rehearsal) {
+    // Saves are serialised. Two can now overlap easily — a device both hosts
+    // and polls, so an incoming sync and an outgoing one can be writing the
+    // same manifest at once — and interleaved writes to one temporary file end
+    // with the first rename succeeding and the second failing with ENOENT,
+    // silently losing whatever the second was saving.
+    _saveChain = _saveChain.then((_) => _save(rehearsal));
+    return _saveChain;
+  }
+
+  Future<void> _saveChain = Future<void>.value();
+
+  Future<void> _save(Rehearsal rehearsal) async {
     final dir = await rehearsalDir(rehearsal.id);
     if (!await dir.exists()) await dir.create(recursive: true);
     final file = await _manifestFile(rehearsal.id);
-    final tmp = File('${file.path}.tmp');
-    await tmp.writeAsString(
-        const JsonEncoder.withIndent('  ').convert(rehearsal.toJson()));
-    await tmp.rename(file.path);
+    // A unique temporary name as well as the queue, so nothing outside this
+    // instance — a second library object, a crash mid-write — can collide.
+    final tmp = File('${file.path}.${DateTime.now().microsecondsSinceEpoch}.tmp');
+    try {
+      await tmp.writeAsString(
+          const JsonEncoder.withIndent('  ').convert(rehearsal.toJson()));
+      await tmp.rename(file.path);
+    } catch (e) {
+      debugPrint('RehearsalLibrary: save failed — $e');
+      if (await tmp.exists()) await tmp.delete();
+      rethrow;
+    }
     notifyListeners();
   }
 

@@ -448,6 +448,43 @@ void main() {
     expect(hostLibrary.rehearsals.single.parts, hasLength(1));
   });
 
+  test('a re-record lands while both sides are hosting and polling', () async {
+    // The live topology, which the earlier tests never had: both devices are
+    // reachable *and* syncing, so an incoming session and an outgoing one
+    // overlap routinely. Two sessions saving the same manifest at once used to
+    // lose each other's writes, and a re-recorded take simply never appeared.
+    final r = await hostLibrary.create(
+        title: 'Tune', memberName: 'Yann', instrument: 'guitar');
+    final part = r.parts.single;
+    await giveTake(hostLibrary, r, part, bytes: 2000);
+
+    final hostTicket = await hostSync.startHosting(r);
+    await guestSync.join(hostTicket!);
+    await guestLibrary.load();
+    final theirs = guestLibrary.rehearsals.single;
+
+    // The guest becomes reachable too, exactly as opening a rehearsal now does.
+    final guestTicket = await guestSync.startHosting(theirs);
+    expect(guestTicket, isNotNull);
+
+    // Re-record on the host, then let both sides sync at once from both ends.
+    await giveTake(hostLibrary, r, part, bytes: 9000);
+    expect(part.take!.revision, 2);
+
+    await Future.wait([
+      guestSync.join(hostTicket, quiet: true),
+      hostSync.join(guestTicket!, quiet: true),
+    ]);
+
+    await guestLibrary.load();
+    final got = guestLibrary.rehearsals.single.parts.single;
+    expect(got.take, isNotNull);
+    expect(got.take!.revision, 2, reason: 'the re-record never arrived');
+    final file = File(await guestLibrary
+        .takePath(guestLibrary.rehearsals.single.id, got.take!));
+    expect(await file.length(), 9000);
+  });
+
   test('the device id survives a restart', () async {
     final first = await hostSync.deviceId();
     final again =

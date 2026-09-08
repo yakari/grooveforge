@@ -137,6 +137,29 @@ class RehearsalSyncService extends ChangeNotifier {
   /// True while this device is re-syncing on its own with a peer.
   bool get isLive => _liveTimer != null;
   bool get isBusy => _busy;
+
+  /// Outgoing sessions run one at a time.
+  ///
+  /// Incoming ones deliberately do **not** queue behind them. Both devices in
+  /// a room now host and poll, so both can start a sync in the same instant —
+  /// and if each made the other's connection wait for its own to finish,
+  /// neither could ever answer and both would sit there until the frame
+  /// timeout. That is a deadlock, and it is what serialising everything
+  /// caused.
+  ///
+  /// Concurrent sessions are safe because the two things they share are: the
+  /// document, which is merged synchronously and whose merge is idempotent and
+  /// order-independent; and the manifest file, whose writes are queued by
+  /// [RehearsalLibrary.save].
+  Future<void> _sessionChain = Future<void>.value();
+
+  Future<T> _oneAtATime<T>(Future<T> Function() body) {
+    final result = _sessionChain.then((_) => body());
+    // The chain must not break on a failed session, or every later sync would
+    // inherit the error and never run.
+    _sessionChain = result.then((_) {}, onError: (_) {});
+    return result;
+  }
   String? get lastError => _lastError;
 
   /// This device's identity, shared with the library so both stamp edits with
@@ -247,6 +270,8 @@ class RehearsalSyncService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Answers straight away: an incoming session must never wait on an outgoing
+  /// one (see [_sessionChain]).
   Future<void> _onIncoming(Socket socket) async {
     final ticket = _ticket;
     if (ticket == null) {
@@ -260,7 +285,6 @@ class RehearsalSyncService extends ChangeNotifier {
       status: 'connecting',
     );
     _peers[address] = peer;
-    _busy = true;
     notifyListeners();
 
     final session = SyncSession(
@@ -277,7 +301,6 @@ class RehearsalSyncService extends ChangeNotifier {
     );
     final report = await session.run();
     peer.status = report.ok ? 'done' : (report.error ?? 'failed');
-    _busy = false;
     if (report.takesReceived > 0 || report.masterReceived) {
       onAudioReceived?.call();
     }
@@ -382,7 +405,10 @@ class RehearsalSyncService extends ChangeNotifier {
   /// Called the moment a take is committed: the player has just stopped
   /// recording and the others should hear it without a six-second pause.
   Future<void> syncNow() async {
-    if (_busy) return;
+    // Deliberately not skipped when busy, unlike a periodic tick: this carries
+    // a take the player has just finished, and dropping it because a routine
+    // poll happened to be in flight would leave the room waiting for the next
+    // one — or, if the poll found nothing, waiting indefinitely. It queues.
     final target = _nextTarget();
     if (target == null) return;
     await join(target, quiet: true);
@@ -395,7 +421,10 @@ class RehearsalSyncService extends ChangeNotifier {
   /// If this device does not know the rehearsal yet, an empty shell is created
   /// first so the merge has something to merge *into* — the peer's manifest
   /// then fills it in, and the audio follows.
-  Future<SyncReport> join(JoinTicket ticket, {bool quiet = false}) async {
+  Future<SyncReport> join(JoinTicket ticket, {bool quiet = false}) =>
+      _oneAtATime(() => _join(ticket, quiet: quiet));
+
+  Future<SyncReport> _join(JoinTicket ticket, {bool quiet = false}) async {
     _busy = true;
     if (!quiet) _lastError = null;
     if (!quiet) notifyListeners();

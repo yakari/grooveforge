@@ -1128,3 +1128,49 @@ different number of connections.
 Peers are now keyed by address, and the count shown comes from **discovery**
 rather than from connection history — it answers "who is in the room", which is
 what a count of connected devices is asked to mean.
+
+---
+
+## 18. What making both sides reachable broke
+
+Once opening a rehearsal made a device *reachable* as well as watchful (§17.1),
+every pair in the room began hosting and polling each other. That changed which
+code paths overlap, and two things that had been theoretically racy became
+routine.
+
+### 18.1 Two saves, one temporary file
+
+`save` wrote through a fixed `rehearsal.json.tmp`. With an incoming sync and an
+outgoing one both merging the same document, two saves overlap: the first
+rename succeeds, the second fails with ENOENT, and whatever the second was
+writing is gone. `ProjectService` carries a comment about exactly this failure;
+this code repeated it.
+
+Saves are now queued per library, and each uses a unique temporary name so
+nothing outside the queue can collide either.
+
+### 18.2 Serialising sessions deadlocked the room
+
+The first attempt at fixing 18.1 was to run one session at a time. That is
+worse: both devices can start a sync in the same instant, and each then makes
+the other's incoming connection wait for its own outgoing one to finish.
+Neither can answer, both wait for the ten-second frame timeout, and nothing
+syncs.
+
+Only *outgoing* sessions queue now. Incoming ones answer immediately, which is
+safe because the two things sessions share are handled elsewhere: the document
+is merged synchronously and the merge is order-independent, and the manifest's
+writes are queued.
+
+The test that found this is worth keeping in mind when touching any of it — it
+builds the real topology, both sides hosting *and* syncing at once, which none
+of the earlier tests did. It failed at eleven seconds with the deadlock and
+passes in one without.
+
+### 18.3 An immediate push no longer skips itself
+
+`syncNow` returned early when a sync was already in flight. That is right for a
+periodic poll and wrong for this: it carries a take the player has just
+finished, and dropping it because a routine poll happened to be running left
+the room waiting for the next one — or indefinitely, if that poll found
+nothing. It queues instead.
