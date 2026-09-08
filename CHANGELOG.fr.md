@@ -8,6 +8,8 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 ## [X.x.x]
 
 ### Ajouté
+- Un musicien retiré peut revenir dans le morceau : il réapparaît comme un nouveau musicien et enregistre à nouveau.
+- Un musicien définitivement parti peut être retiré d'un morceau, emportant ses parties sur tous les appareils.
 - L'avertissement de latence propose désormais un bouton Calibrer qui explique la mesure et la lance, au lieu de vous renvoyer dans les paramètres.
 - Une vitesse de travail : ralentissez un morceau jusqu'à 50 % pour bosser un passage, sans que la hauteur baisse. Sur votre appareil seulement.
 - Le tempo du morceau peut désormais changer après l'enregistrement des parties — les enregistrements sont ajustés en conséquence, sur chaque appareil.

@@ -289,6 +289,114 @@ void main() {
       expect(local.members.single.deviceId, 'dev-yann');
     });
 
+    test('a removed member does not come back from a peer who still has them',
+        () {
+      // The whole point of the tombstone. Members merge by union, so without
+      // it the next sync with anyone who was offline would undo the removal.
+      final local = _rehearsal()..deletedMemberIds.add('m-stale');
+      final remote = _rehearsal()
+        ..members.add(RehearsalMember(
+            id: 'm-stale', displayName: 'Old tablet', instrument: 'guitar'));
+
+      mergeRehearsal(local, remote);
+
+      expect(local.members, isEmpty);
+    });
+
+    test('the removal travels to a peer who has not heard about it', () {
+      final local = _rehearsal()
+        ..members.add(RehearsalMember(
+            id: 'm-stale', displayName: 'Old tablet', instrument: 'guitar'))
+        ..parts.add(_part('p-stale', member: 'm-stale'));
+      final remote = _rehearsal()..deletedMemberIds.add('m-stale');
+
+      mergeRehearsal(local, remote);
+
+      expect(local.members, isEmpty);
+      expect(local.parts, isEmpty, reason: 'their parts go with them');
+      expect(local.deletedPartIds, contains('p-stale'),
+          reason: 'the parts need their own tombstones, or a third device '
+              'still holding them would hand them back');
+    });
+
+    test('a removed member takes their parts even when they arrive later', () {
+      // The tombstone can reach a device long before the parts do.
+      final local = _rehearsal()..deletedMemberIds.add('m-stale');
+      final remote = _rehearsal()
+        ..members.add(RehearsalMember(
+            id: 'm-stale', displayName: 'Old tablet', instrument: 'drums'))
+        ..parts.add(_part('p-late', takeRevision: 3, member: 'm-stale'));
+
+      mergeRehearsal(local, remote);
+
+      expect(local.parts, isEmpty);
+      expect(local.members, isEmpty);
+    });
+
+    test('removing one member leaves everybody else alone', () {
+      final local = _rehearsal()
+        ..members.addAll([
+          RehearsalMember(id: 'm1', displayName: 'Yann', instrument: 'guitar'),
+          RehearsalMember(id: 'm2', displayName: 'Léa', instrument: 'vocals'),
+        ])
+        ..parts.addAll(
+            [_part('p1', member: 'm1'), _part('p2', member: 'm2')]);
+
+      final remote = _rehearsal()..deletedMemberIds.add('m1');
+      mergeRehearsal(local, remote);
+
+      expect(local.members.single.id, 'm2');
+      expect(local.parts.single.id, 'p2');
+    });
+
+    test('both directions agree', () {
+      // Order-independence is what lets this work without anyone being
+      // present: whichever way round two devices meet, they end up the same.
+      Rehearsal withMember() => _rehearsal()
+        ..members.add(RehearsalMember(
+            id: 'm-stale', displayName: 'Old tablet', instrument: 'guitar'));
+      Rehearsal withTombstone() => _rehearsal()..deletedMemberIds.add('m-stale');
+
+      final a = withMember();
+      mergeRehearsal(a, withTombstone());
+      final b = withTombstone();
+      mergeRehearsal(b, withMember());
+
+      expect(a.members.map((m) => m.id), b.members.map((m) => m.id));
+      expect(a.deletedMemberIds, b.deletedMemberIds);
+    });
+
+    test('a removed player comes back as someone new, not as their old self',
+        () {
+      // Removal is not a ban. The device re-joins with a *fresh* member id, so
+      // nothing stops it rejoining — but the tombstone still holds, so the old
+      // identity and its recordings stay gone rather than reappearing.
+      final band = _rehearsal()
+        ..deletedMemberIds.add('m-old')
+        ..deletedPartIds.add('p-old');
+
+      final returning = _rehearsal()
+        ..members.addAll([
+          // What their device still remembers of the old identity...
+          RehearsalMember(id: 'm-old', displayName: 'Léa', instrument: 'drums'),
+          // ...and the one it just created by joining again.
+          RehearsalMember(id: 'm-new', displayName: 'Léa', instrument: 'drums'),
+        ])
+        ..parts.addAll([
+          _part('p-old', takeRevision: 4, member: 'm-old'),
+          _part('p-new', member: 'm-new'),
+        ]);
+
+      mergeRehearsal(band, returning);
+
+      expect(band.members.map((m) => m.id), ['m-new'],
+          reason: 'they are back, under a new identity');
+      expect(band.parts.map((p) => p.id), ['p-new'],
+          reason: 'the old part must not ride back in with them');
+      expect(band.parts.single.take, isNull,
+          reason: 'their previous recording is gone; it has to be re-recorded');
+    });
+
     test('unknown members are added, known ones left alone', () {
       final local = _rehearsal()
         ..members.add(RehearsalMember(

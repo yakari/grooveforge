@@ -1561,5 +1561,25 @@
   "rehearsalCalibrateStart": "Measure now",
   "@rehearsalCalibrateStart": {
     "description": "Rehearsal screen: latency calibration prompt and its explanation."
+  },
+  "rehearsalRemoveMember": "Remove this player",
+  "@rehearsalRemoveMember": {
+    "description": "Rehearsal lane: removing a stale player from the band."
+  },
+  "rehearsalRemoveMemberConfirm": "Remove {name} from this tune? Their {count} recording(s) go too, on every device.",
+  "@rehearsalRemoveMemberConfirm": {
+    "description": "Rehearsal lane: removing a stale player from the band.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "rehearsalRemoveMemberHere": "For a device that is gone for good. Their parts go too.",
+  "@rehearsalRemoveMemberHere": {
+    "description": "Rehearsal lane: removing a stale player from the band."
   }
 }

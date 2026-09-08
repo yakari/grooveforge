@@ -8,7 +8,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 
 import '../l10n/app_localizations.dart';
 import '../models/rehearsal.dart';
-import 'rehearsals_screen.dart' show instrumentLabel;
+import '../widgets/rehearsal_identity_dialog.dart';
 import '../services/rehearsal_protocol.dart';
 import '../services/rehearsal_library.dart';
 import '../services/rehearsal_sync_service.dart';
@@ -404,10 +404,10 @@ class _JoinRehearsalScreenState extends State<JoinRehearsalScreen> {
     }
     if (!mounted) return;
 
-    final identity = await showDialog<_Identity>(
+    final identity = await showDialog<RehearsalIdentity>(
       context: context,
       barrierDismissible: false,
-      builder: (_) => const _IdentityDialog(),
+      builder: (_) => const RehearsalIdentityDialog(),
     );
     if (identity == null || !mounted) return;
 
@@ -511,82 +511,6 @@ class _JoinRehearsalScreenState extends State<JoinRehearsalScreen> {
           ),
         ),
       ),
-    );
-  }
-}
-
-/// Name and instrument, collected once when joining someone else's rehearsal.
-class _Identity {
-  _Identity(this.name, this.instrument);
-
-  final String name;
-  final String instrument;
-}
-
-class _IdentityDialog extends StatefulWidget {
-  const _IdentityDialog();
-
-  @override
-  State<_IdentityDialog> createState() => _IdentityDialogState();
-}
-
-class _IdentityDialogState extends State<_IdentityDialog> {
-  final _name = TextEditingController();
-  String _instrument = 'guitar';
-
-  @override
-  void dispose() {
-    _name.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    return AlertDialog(
-      title: Text(l10n.joinIdentityTitle),
-      content: SizedBox(
-        width: 400,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(l10n.joinIdentityHint,
-                style: Theme.of(context).textTheme.bodySmall),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _name,
-              autofocus: true,
-              decoration:
-                  InputDecoration(labelText: l10n.rehearsalFieldYourName),
-            ),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              initialValue: _instrument,
-              decoration:
-                  InputDecoration(labelText: l10n.rehearsalFieldInstrument),
-              items: [
-                for (final id in kInstruments)
-                  DropdownMenuItem(
-                      value: id, child: Text(instrumentLabel(l10n, id))),
-              ],
-              onChanged: (v) => setState(() => _instrument = v ?? 'other'),
-            ),
-          ],
-        ),
-      ),
-      actions: [
-        FilledButton(
-          onPressed: () => Navigator.pop(
-            context,
-            _Identity(
-              _name.text.trim().isEmpty ? '?' : _name.text.trim(),
-              _instrument,
-            ),
-          ),
-          child: Text(l10n.joinIdentityConfirm),
-        ),
-      ],
     );
   }
 }

@@ -1497,3 +1497,97 @@ Two things this needed:
   preferences, which the rehearsal read once when it opened. Without
   `adoptMeasuredCompensation`, calibrating from inside a tune would appear to
   do nothing and the warning would still be sitting there.
+
+---
+
+## 27. Removing a stale player
+
+Reported after clearing app data on a tablet to test something: the device
+re-joined as a new member, and the old one stayed in the band with no way out.
+Members merge by union, so dropping one locally lasts exactly until the next
+sync with anyone who still has them.
+
+### Why not a vote
+
+The suggestion was to require everyone connected and put a ballot on each
+screen. It was rejected, for three reasons:
+
+1. It would be the **only synchronous, everybody-present operation** in a
+   design that is otherwise entirely asynchronous. It fails precisely in the
+   normal case — a band between rehearsals is almost never all online — and the
+   thing being removed is by definition a device that will never appear.
+2. **"All the other users" is not knowable.** A member who has never opened the
+   tune on a device we have met has no device id at all, so "absent" and "not a
+   device" are indistinguishable. The precondition could be permanently
+   unsatisfiable with nothing to show the user why.
+3. **The document already solves this.** Parts are removed with a tombstone —
+   a grow-only set, which is the conflict-free way to take something out of
+   another grow-only set. `deletedMemberIds` is the same mechanism, and it needs
+   no agreement: it wins on merge in either direction and in any order, so a
+   device that was offline reaches the same answer whenever it next syncs.
+   Tested from both directions.
+
+### What the vote was really protecting
+
+Not agreement — presence. The genuine risk is removing someone who is still
+around, and that is a local check costing nothing: the action is offered only
+for a member who is **not you** and **not currently visible**. Someone who is
+connected can remove themselves. The dialog says as much rather than simply
+greying the item out.
+
+### Consequences handled
+
+- **Their parts go with them**, each with its own tombstone. A part belongs to
+  exactly one member (D6), and leaving them would attribute recordings to
+  nobody. The merge applies this too, because the tombstone can arrive from a
+  peer long before — or long after — the parts do.
+- **Their audio is deleted** from disk, not just unlinked from the manifest.
+- **A device removed while it was away** clears its own `selfMemberId` on the
+  next open, so it becomes a fresh joiner rather than a ghost that owns
+  nothing, matches no lane and cannot record. Re-adding the old id would not
+  survive a sync anyway — that is what the tombstone means.
+- The confirmation names how many recordings are about to go.
+
+### What happens when the removed device comes back
+
+It syncs like any other peer, and the tombstone travels *to* it: its own member
+and parts are dropped from its copy, and `RehearsalEngine.open` notices that
+`selfMemberId` is tombstoned and clears it. Their old part is not merged back
+anywhere, in either direction — that is what the tombstone is for.
+
+They are **not banned**. The join key is unchanged, so the device still
+connects and syncs; tapping to add a part asks who is playing and creates a
+*new* member with a new id, which merges in normally because no tombstone names
+it. What does not come back is the old identity and its recordings: those have
+to be recorded again.
+
+Revoking access would mean rotating the join key, and that has the same defect
+as the vote — every device that was offline during the rotation would be locked
+out too, not just the one being removed. Removal tidies the roster; it is not
+access control.
+
+This is also why the identity dialog moved to `lib/widgets/`. It was reachable
+only from the join screen, so a removed device that already had the tune was
+never asked who it was again: it could sync forever while the add-part button
+silently did nothing. A removal that cannot be undone by rejoining is a ban by
+accident.
+
+One loose end: on the removed device the old take's WAV stays on disk,
+unreferenced by any manifest. It is never played and never sent — `readTake`
+resolves through the part, which is gone — but it is not cleaned up either.
+
+### The menu that was never shown
+
+First attempt put the action inside the lane's overflow menu, which is wrapped
+in `if (isMine)` — so a `!isMine` item inside it could never render. It compiled,
+analysed clean and was unreachable.
+
+The menu now renders when there is something to put in it, and the items are
+chosen per lane: your own gives *delete recording* and *remove part*; someone
+else's gives *remove player*, and only when they are not visible. A lane that
+offers nothing shows no button rather than an empty menu.
+
+Worth noting for tests: a member with no `deviceId` at all — one written before
+members carried one — counts as not present, so they are removable. That is the
+intended case, since a stale identity from before the field is exactly what
+this is for.

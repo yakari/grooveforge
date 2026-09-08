@@ -4879,6 +4879,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Measure now'**
   String get rehearsalCalibrateStart;
+
+  /// Rehearsal lane: removing a stale player from the band.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove this player'**
+  String get rehearsalRemoveMember;
+
+  /// Rehearsal lane: removing a stale player from the band.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove {name} from this tune? Their {count} recording(s) go too, on every device.'**
+  String rehearsalRemoveMemberConfirm(String name, int count);
+
+  /// Rehearsal lane: removing a stale player from the band.
+  ///
+  /// In en, this message translates to:
+  /// **'For a device that is gone for good. Their parts go too.'**
+  String get rehearsalRemoveMemberHere;
 }
 
 class _AppLocalizationsDelegate

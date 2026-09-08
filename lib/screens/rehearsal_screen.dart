@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -9,6 +10,7 @@ import '../services/rehearsal_engine.dart';
 import '../services/rehearsal_library.dart';
 import '../services/rehearsal_protocol.dart';
 import '../services/rehearsal_sync_service.dart';
+import '../widgets/rehearsal_identity_dialog.dart';
 import 'latency_probe_screen.dart';
 import 'master_align_screen.dart';
 import 'nearby_screen.dart';
@@ -303,12 +305,103 @@ class _RehearsalScreenState extends State<RehearsalScreen> {
 
     final library = context.read<RehearsalLibrary>();
     final engine = context.read<RehearsalEngine>();
-    final selfId = engine.localState.selfMemberId;
-    // No identity means this device joined before it was asked who it is.
-    // Falling back to the first member would attribute the part to whoever
-    // shared the tune, which is exactly the bug this replaced.
-    if (selfId == null) return;
+    // No identity: either this device joined before it was asked who it is, or
+    // it was removed from the band while away and cleared its own id. Falling
+    // back to the first member would attribute the part to whoever shared the
+    // tune, which is exactly the bug this replaced — so ask instead.
+    final selfId = engine.localState.selfMemberId ?? await _askWhoIsPlaying();
+    if (selfId == null || !mounted) return;
     await library.addPart(rehearsal, memberId: selfId, instrument: instrument);
+    if (mounted) setState(() {});
+  }
+
+  /// Gives this device a player of its own, and returns its member id.
+  ///
+  /// Reached when someone taps to add a part with no identity on file. That
+  /// happens after being removed from the band: the tombstone reaches the
+  /// removed device too and clears its id, which is right — but without this
+  /// the device could sync forever and never record a note, because there is
+  /// nobody for a part to belong to. Removal tidies the roster; it is not a
+  /// ban, and coming back is how it stays that way.
+  Future<String?> _askWhoIsPlaying() async {
+    final rehearsal = _rehearsal;
+    if (rehearsal == null) return null;
+
+    final identity = await showDialog<RehearsalIdentity>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const RehearsalIdentityDialog(),
+    );
+    if (identity == null || !mounted) return null;
+
+    final library = context.read<RehearsalLibrary>();
+    final engine = context.read<RehearsalEngine>();
+    // joinAsMember also writes the local state, which is what the engine is
+    // holding — so it has to be told, or it would still think it is nobody.
+    final part = await library.joinAsMember(rehearsal,
+        name: identity.name, instrument: identity.instrument);
+    await engine.reloadLocalState();
+    return part.memberId;
+  }
+
+  /// Removes a player who is not coming back, and everything they own.
+  ///
+  /// For a stale identity: a device that was wiped or reinstalled joins again
+  /// as a *new* member, and the old one stays in the band because members
+  /// merge by union.
+  ///
+  /// The check that matters is presence, not agreement. Someone whose device
+  /// is visible right now is here and can remove themselves; someone who is
+  /// not may simply be at home, and waiting for a quorum would mean the band
+  /// could only tidy up on the rare evening everybody happened to be online.
+  Future<void> _removeMember(RehearsalPart part) async {
+    final l10n = AppLocalizations.of(context)!;
+    final rehearsal = _rehearsal;
+    if (rehearsal == null) return;
+    final member =
+        rehearsal.members.where((m) => m.id == part.memberId).firstOrNull;
+    if (member == null) return;
+
+    final recordings = rehearsal.parts
+        .where((p) => p.memberId == member.id && p.take != null)
+        .length;
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        content: Text(
+          l10n.rehearsalRemoveMemberConfirm(
+            member.displayName.isEmpty
+                ? instrumentLabel(l10n, member.instrument)
+                : member.displayName,
+            recordings,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l10n.rehearsalCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(l10n.rehearsalDelete),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+
+    // Read before the gap: this context is not usable after an await, and the
+    // services outlive the screen anyway.
+    final library = context.read<RehearsalLibrary>();
+    final engine = context.read<RehearsalEngine>();
+    final sync = context.read<RehearsalSyncService>();
+
+    await library.removeMember(rehearsal, member.id);
+    await engine.reloadTracks();
+    // Straight out to the room, so the others stop showing them without
+    // waiting for the next poll.
+    unawaited(sync.syncNow());
     if (mounted) setState(() {});
   }
 
@@ -424,6 +517,9 @@ class _RehearsalScreenState extends State<RehearsalScreen> {
                                       () => _deleteTake(rehearsal.parts[i]),
                                   onRemovePart:
                                       () => _removePart(rehearsal.parts[i]),
+                                  onRemoveMember:
+                                      () =>
+                                          _removeMember(rehearsal.parts[i]),
                                 ),
                           ),
                         ),
@@ -872,6 +968,7 @@ class _PartLane extends StatelessWidget {
     required this.onChanged,
     required this.onDelete,
     required this.onRemovePart,
+    required this.onRemoveMember,
   });
 
   final RehearsalEngine engine;
@@ -890,6 +987,9 @@ class _PartLane extends StatelessWidget {
   final VoidCallback onChanged;
   final VoidCallback onDelete;
   final VoidCallback onRemovePart;
+
+  /// Removes the player who owns this lane, and everything they own.
+  final VoidCallback onRemoveMember;
 
   @override
   Widget build(BuildContext context) {
@@ -910,6 +1010,10 @@ class _PartLane extends StatelessWidget {
     final isHere =
         isMine ||
         (member?.deviceId != null && online.contains(member!.deviceId));
+    // A player who is connected can remove themselves, and your own lane is
+    // not a thing to be removed from. What is left is a device that has gone
+    // for good — the case nobody present can resolve by asking.
+    final canRemoveMember = !isMine && !isHere && member != null;
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
@@ -1038,20 +1142,27 @@ class _PartLane extends StatelessWidget {
                   icon: Icon(muted ? Icons.volume_off : Icons.volume_up),
                   color: muted ? theme.colorScheme.error : null,
                 ),
-                if (isMine)
+                // What a lane offers depends on whose it is. Your own
+                // recordings are yours to delete; the one thing you may do to
+                // somebody else's lane is remove a player who has gone for
+                // good. When neither applies there is no button at all, rather
+                // than one that opens an empty menu.
+                if (isMine || canRemoveMember)
                   PopupMenuButton<String>(
                     enabled: !engine.isRunning,
                     tooltip: l10n.rehearsalPartActions,
                     icon: const Icon(Icons.more_vert),
-                    onSelected:
-                        (value) =>
-                            value == 'take' ? onDelete() : onRemovePart(),
+                    onSelected: (value) => switch (value) {
+                      'take' => onDelete(),
+                      'member' => onRemoveMember(),
+                      _ => onRemovePart(),
+                    },
                     itemBuilder:
                         (_) => [
                           // Two destructive actions that are easy to confuse, so
                           // they are named rather than offered as two similar
                           // icons: one keeps the lane, the other does not.
-                          if (take != null)
+                          if (isMine && take != null)
                             PopupMenuItem(
                               value: 'take',
                               child: ListTile(
@@ -1061,15 +1172,37 @@ class _PartLane extends StatelessWidget {
                                 dense: true,
                               ),
                             ),
-                          PopupMenuItem(
-                            value: 'part',
-                            child: ListTile(
-                              leading: const Icon(Icons.delete_outline),
-                              title: Text(l10n.rehearsalRemovePart),
-                              contentPadding: EdgeInsets.zero,
-                              dense: true,
+                          if (isMine)
+                            PopupMenuItem(
+                              value: 'part',
+                              child: ListTile(
+                                leading: const Icon(Icons.delete_outline),
+                                title: Text(l10n.rehearsalRemovePart),
+                                contentPadding: EdgeInsets.zero,
+                                dense: true,
+                              ),
                             ),
-                          ),
+                          // Offered only for someone else who is not here.
+                          // Your own lane is not a thing to be removed from,
+                          // and a player who is connected can do it
+                          // themselves — this exists for a device that has
+                          // gone for good, which is the case no amount of
+                          // asking around can resolve.
+                          if (canRemoveMember)
+                            PopupMenuItem(
+                              value: 'member',
+                              child: ListTile(
+                                leading: const Icon(Icons.person_remove_outlined),
+                                title: Text(l10n.rehearsalRemoveMember),
+                                subtitle: Text(
+                                  l10n.rehearsalRemoveMemberHere,
+                                  style: theme.textTheme.labelSmall,
+                                ),
+                                isThreeLine: true,
+                                contentPadding: EdgeInsets.zero,
+                                dense: true,
+                              ),
+                            ),
                         ],
                   ),
                 if (isMine)

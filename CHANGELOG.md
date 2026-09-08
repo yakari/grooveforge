@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [X.x.x]
 
 ### Added
+- A removed player can rejoin the tune: they come back as a new player and record again.
+- A player who has gone for good can be removed from a tune, taking their parts with them on every device.
 - The latency warning now carries a Calibrate button that explains the measurement and runs it, instead of sending you to Settings.
 - A practice speed: slow a tune down to 50% to work a passage, without the pitch dropping. Only on your device.
 - The tune's tempo can now be changed after parts are recorded — the recordings are adjusted to match, on every device.

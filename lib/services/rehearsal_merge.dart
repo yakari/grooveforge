@@ -119,8 +119,21 @@ MergeOutcome mergeRehearsal(Rehearsal local, Rehearsal remote) {
   // A member already known keeps the local copy. Names and instruments are set
   // when someone joins and rarely change; giving them their own clocks would
   // cost more than it is worth.
+  // Tombstones first, so a member the peer has removed is not re-added and
+  // then removed again — and so their parts go with them below.
+  for (final id in remote.deletedMemberIds) {
+    if (local.deletedMemberIds.add(id)) changed = true;
+  }
+  if (local.members.any((m) => local.deletedMemberIds.contains(m.id))) {
+    local.members.removeWhere((m) => local.deletedMemberIds.contains(m.id));
+    changed = true;
+  }
+
   final knownMembers = {for (final m in local.members) m.id: m};
   for (final m in remote.members) {
+    // Removed here, whether by this device or by a peer whose tombstone has
+    // already arrived. Adding them back is exactly what the tombstone prevents.
+    if (local.deletedMemberIds.contains(m.id)) continue;
     final mine = knownMembers[m.id];
     if (mine != null) {
       // One exception to "the local copy wins": a device id only ever goes
@@ -150,10 +163,26 @@ MergeOutcome mergeRehearsal(Rehearsal local, Rehearsal remote) {
   final partsToFetch = <String>[];
   final localByPartId = {for (final p in local.parts) p.id: p};
 
+  // A part belongs to exactly one member (D6), so a member's removal takes
+  // their parts with it. Done here rather than only where the member is
+  // removed, because the tombstone can arrive from a peer long afterwards.
+  if (local.parts.any((p) => local.deletedMemberIds.contains(p.memberId))) {
+    for (final p in local.parts) {
+      if (local.deletedMemberIds.contains(p.memberId)) {
+        local.deletedPartIds.add(p.id);
+      }
+    }
+    local.parts.removeWhere((p) => local.deletedMemberIds.contains(p.memberId));
+    changed = true;
+  }
+
   for (final remotePart in remote.parts) {
     // Deleted here, whether by this device or by a peer whose tombstone has
     // already arrived. Adding it back is exactly what the tombstone prevents.
-    if (local.deletedPartIds.contains(remotePart.id)) continue;
+    if (local.deletedPartIds.contains(remotePart.id) ||
+        local.deletedMemberIds.contains(remotePart.memberId)) {
+      continue;
+    }
 
     final localPart = localByPartId[remotePart.id];
 

@@ -325,8 +325,10 @@ class Rehearsal {
     this.lamport = 0,
     Map<String, FieldClock>? clocks,
     Set<String>? deletedPartIds,
+    Set<String>? deletedMemberIds,
   })  : clocks = clocks ?? {},
-        deletedPartIds = deletedPartIds ?? {};
+        deletedPartIds = deletedPartIds ?? {},
+        deletedMemberIds = deletedMemberIds ?? {};
 
   final String id;
   String title;
@@ -366,6 +368,19 @@ class Rehearsal {
   /// who still has it would put it straight back. The set only ever grows,
   /// which is what makes it converge with no coordination.
   final Set<String> deletedPartIds;
+
+  /// Members that have been removed, by id.
+  ///
+  /// The same tombstone as [deletedPartIds] and for the same reason: members
+  /// merge by union, so dropping one locally would last until the next sync
+  /// with anyone who still had them.
+  ///
+  /// This is what makes removal work without everyone being present. The
+  /// tombstone wins on merge whenever two documents meet, in either direction
+  /// and in any order, so a device that was offline when someone was removed
+  /// arrives at the same answer whenever it next syncs — no agreement, no
+  /// quorum, and nothing that can fail because a bandmate went home.
+  final Set<String> deletedMemberIds;
 
   bool get hasMaster => master != null;
 
@@ -431,6 +446,8 @@ class Rehearsal {
         if (master != null) 'master': master!.toJson(),
         if (deletedPartIds.isNotEmpty)
           'deletedPartIds': deletedPartIds.toList(),
+        if (deletedMemberIds.isNotEmpty)
+          'deletedMemberIds': deletedMemberIds.toList(),
       };
 
   factory Rehearsal.fromJson(Map<String, dynamic> json) => Rehearsal(
@@ -457,6 +474,9 @@ class Rehearsal {
         master: json['master'] == null
             ? null
             : RehearsalMaster.fromJson(json['master'] as Map<String, dynamic>),
+        deletedMemberIds: (json['deletedMemberIds'] as List<dynamic>? ?? [])
+            .map((e) => e as String)
+            .toSet(),
         deletedPartIds: (json['deletedPartIds'] as List<dynamic>? ?? [])
             .map((e) => e as String)
             .toSet(),

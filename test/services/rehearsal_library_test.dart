@@ -13,6 +13,48 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// implementation.
 void main() {
 
+  test('removing a member takes their parts, their audio and their place',
+      () async {
+    final dir = await Directory.systemTemp.createTemp('gf_member_remove');
+    addTearDown(() => dir.delete(recursive: true));
+    final library =
+        RehearsalLibrary(rootOverride: dir, deviceIdOverride: 'dev');
+    await library.load();
+
+    final r = await library.create(
+        title: 'Tune', memberName: 'Yann', instrument: 'guitar');
+    // A second player, as a joiner would arrive.
+    final theirPart = await library.joinAsMember(r,
+        name: 'Old tablet', instrument: 'drums');
+    final name = library.nextTakeFileName(theirPart);
+    final takes = await library.takesDir(r.id);
+    await File('${takes.path}/$name').writeAsBytes(List.filled(2000, 1));
+    await library.commitTake(r, theirPart,
+        fileName: name,
+        frames: 1000,
+        sampleRate: 48000,
+        compensationFrames: 0,
+        recordedBpm: 120);
+
+    final stale = r.members.firstWhere((m) => m.displayName == 'Old tablet');
+    await library.removeMember(r, stale.id);
+
+    expect(r.members.map((m) => m.displayName), ['Yann']);
+    expect(r.parts.any((p) => p.memberId == stale.id), isFalse);
+    expect(r.deletedMemberIds, contains(stale.id));
+    expect(r.deletedPartIds, contains(theirPart.id),
+        reason: 'their parts need tombstones of their own, or a peer who '
+            'still has them would hand them back');
+    expect(await File('${takes.path}/$name').exists(), isFalse,
+        reason: 'the audio should not be left behind on disk');
+
+    // And it survives a reload, which is what a peer will sync against.
+    final again = RehearsalLibrary(rootOverride: dir, deviceIdOverride: 'dev');
+    await again.load();
+    expect(again.rehearsals.single.deletedMemberIds, contains(stale.id));
+    expect(again.rehearsals.single.members, hasLength(1));
+  });
+
   test('takes and masters written before tempo change get their tempo', () async {
     // Everything on disk from before the fields existed was necessarily
     // recorded at the tune's own tempo — nobody could have changed it.

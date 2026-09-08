@@ -1223,5 +1223,8 @@
   "rehearsalCalibrate": "Calibrer",
   "rehearsalCalibrateTitle": "Mesurer cet appareil",
   "rehearsalCalibrateBody": "Votre appareil met un instant à sortir le son, et un autre à le capter. Ce retard mettrait chaque prise derrière le temps : on le mesure une fois, puis on le retranche de ce que vous enregistrez.\n\nLa mesure joue quelques brefs balayages et les guette au retour dans le micro — encore faut-il qu'elle puisse les entendre :\n\n•  Utilisez le haut-parleur, pas un casque. Au casque, le micro n'entend rien et la mesure échoue.\n•  Montez le volume.\n•  Gardez le silence pendant les quelques secondes nécessaires.\n\nRefaites la mesure après être passé sur une enceinte ou un casque Bluetooth : le retard appartient au matériel, pas au morceau, et le Bluetooth en ajoute beaucoup.",
-  "rehearsalCalibrateStart": "Mesurer maintenant"
+  "rehearsalCalibrateStart": "Mesurer maintenant",
+  "rehearsalRemoveMember": "Retirer ce musicien",
+  "rehearsalRemoveMemberConfirm": "Retirer {name} de ce morceau ? Ses {count} enregistrement(s) partent aussi, sur tous les appareils.",
+  "rehearsalRemoveMemberHere": "Pour un appareil définitivement parti. Ses parties partent aussi."
 }

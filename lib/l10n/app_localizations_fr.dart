@@ -2676,4 +2676,16 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get rehearsalCalibrateStart => 'Mesurer maintenant';
+
+  @override
+  String get rehearsalRemoveMember => 'Retirer ce musicien';
+
+  @override
+  String rehearsalRemoveMemberConfirm(String name, int count) {
+    return 'Retirer $name de ce morceau ? Ses $count enregistrement(s) partent aussi, sur tous les appareils.';
+  }
+
+  @override
+  String get rehearsalRemoveMemberHere =>
+      'Pour un appareil définitivement parti. Ses parties partent aussi.';
 }

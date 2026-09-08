@@ -111,6 +111,17 @@ class RehearsalEngine extends ChangeNotifier {
     _rehearsal = rehearsal;
     _local = await _library.loadLocalState(rehearsal.id);
 
+    // If this device's own member was removed while it was away, it is not a
+    // member any more. Clearing the id makes it a fresh joiner rather than a
+    // ghost that owns nothing, cannot record, and matches no lane — and the
+    // tombstone means simply re-adding the old id would not survive a sync.
+    final selfId = _local.selfMemberId;
+    if (selfId != null && rehearsal.deletedMemberIds.contains(selfId)) {
+      debugPrint('RehearsalEngine: this device was removed from the band');
+      _local.selfMemberId = null;
+      await _library.saveLocalState(rehearsal.id, _local);
+    }
+
     // A rehearsal that has never been calibrated adopts whatever the latency
     // probe last measured on this device, so the player does not have to
     // re-measure for every tune they start.
@@ -597,6 +608,19 @@ class RehearsalEngine extends ChangeNotifier {
     AudioInputFFI().rehSetMetronome(enabled: enabled, gain: 0.6);
     notifyListeners();
     await _saveLocal();
+  }
+
+  /// Re-reads this device's local state from disk.
+  ///
+  /// Needed when something outside the engine writes it — joining as a member
+  /// is the case: the library records the new identity, and the engine is
+  /// holding the copy every lane is compared against. Without this the device
+  /// would go on thinking it is nobody until the tune was closed and reopened.
+  Future<void> reloadLocalState() async {
+    final r = _rehearsal;
+    if (r == null) return;
+    _local = await _library.loadLocalState(r.id);
+    notifyListeners();
   }
 
   /// Picks up whatever the probe last measured on this device.

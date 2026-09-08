@@ -2660,4 +2660,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get rehearsalCalibrateStart => 'Measure now';
+
+  @override
+  String get rehearsalRemoveMember => 'Remove this player';
+
+  @override
+  String rehearsalRemoveMemberConfirm(String name, int count) {
+    return 'Remove $name from this tune? Their $count recording(s) go too, on every device.';
+  }
+
+  @override
+  String get rehearsalRemoveMemberHere =>
+      'For a device that is gone for good. Their parts go too.';
 }

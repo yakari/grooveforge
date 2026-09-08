@@ -549,6 +549,44 @@ class RehearsalLibrary extends ChangeNotifier {
     await save(rehearsal);
   }
 
+  /// Removes a member and everything they own.
+  ///
+  /// Wanted for a stale identity: a device that was wiped, reinstalled or
+  /// handed on joins again as a *new* member, and the old one sits in the band
+  /// for good because members merge by union.
+  ///
+  /// Deliberately not a vote among the people present. Removal is a tombstone,
+  /// which is the conflict-free way to take something out of a grow-only set:
+  /// it wins on merge in either direction and in any order, so every device
+  /// reaches the same answer whenever it next syncs. A quorum would instead
+  /// make this the one operation in the whole feature that needs everybody
+  /// online at once — and a band between rehearsals is almost never that.
+  ///
+  /// Their parts go with them, because a part belongs to exactly one member
+  /// (D6) and leaving them behind would attribute recordings to nobody. The
+  /// caller is expected to say how many recordings that is before asking.
+  Future<void> removeMember(Rehearsal rehearsal, String memberId) async {
+    for (final part in rehearsal.parts.where((p) => p.memberId == memberId)) {
+      final take = part.take;
+      if (take == null) continue;
+      try {
+        final file = File(await takePath(rehearsal.id, take));
+        if (await file.exists()) await file.delete();
+      } catch (e) {
+        debugPrint('RehearsalLibrary: could not delete take — $e');
+      }
+    }
+    // Tombstones before the removal, or a sync with anyone who still has them
+    // would put both the member and their parts straight back.
+    rehearsal.deletedMemberIds.add(memberId);
+    for (final part in rehearsal.parts.where((p) => p.memberId == memberId)) {
+      rehearsal.deletedPartIds.add(part.id);
+    }
+    rehearsal.parts.removeWhere((p) => p.memberId == memberId);
+    rehearsal.members.removeWhere((m) => m.id == memberId);
+    await save(rehearsal);
+  }
+
   /// Adds a part for [member], creating the member if this is their first.
   Future<RehearsalPart> addPart(
     Rehearsal rehearsal, {
