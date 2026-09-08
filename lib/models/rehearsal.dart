@@ -664,9 +664,11 @@ class RehearsalLocalState {
     Map<String, double>? gains,
     Set<String>? mutedPartIds,
     this.compensationFrames = 0,
+    Map<String, int>? compensationByRoute,
     this.metronomeEnabled = true,
     this.practiceSpeed = 1.0,
   })  : gains = gains ?? {},
+        compensationByRoute = compensationByRoute ?? {},
         mutedPartIds = mutedPartIds ?? {};
 
   /// Which member this device is.
@@ -678,7 +680,34 @@ class RehearsalLocalState {
   final Set<String> mutedPartIds;
 
   /// Latency compensation measured on this device, in frames.
+  ///
+  /// The figure for whichever route was last measured, kept as the fallback
+  /// for a route that has never been measured and for platforms that cannot
+  /// say which route is in use.
   int compensationFrames;
+
+  /// Compensation per output route, keyed as [AudioRoute.key].
+  ///
+  /// One number cannot describe every way of listening: the phone's own
+  /// speaker is a few milliseconds away, a wired headset a few more, and a
+  /// Bluetooth headset can be two hundred. Measuring with headphones on used
+  /// to overwrite the speaker's figure and vice versa, so whichever you
+  /// measured last was the only one that was right.
+  final Map<String, int> compensationByRoute;
+
+  /// Compensation to use on [routeKey], falling back to the last measurement.
+  ///
+  /// The fallback is deliberate rather than zero: a wrong-but-close figure
+  /// from another route beats no compensation at all, which is a take a whole
+  /// round trip behind the beat.
+  int compensationFor(String? routeKey) {
+    if (routeKey == null) return compensationFrames;
+    return compensationByRoute[routeKey] ?? compensationFrames;
+  }
+
+  /// Whether [routeKey] has ever been measured.
+  bool hasCompensationFor(String? routeKey) =>
+      routeKey != null && compensationByRoute.containsKey(routeKey);
 
   /// The last join ticket used for this rehearsal, so a live session can be
   /// resumed without another introduction.
@@ -711,6 +740,8 @@ class RehearsalLocalState {
         'gains': gains,
         'mutedPartIds': mutedPartIds.toList(),
         'compensationFrames': compensationFrames,
+        if (compensationByRoute.isNotEmpty)
+          'compensationByRoute': compensationByRoute,
         'metronomeEnabled': metronomeEnabled,
         'practiceSpeed': practiceSpeed,
         if (lastTicketUri != null) 'lastTicketUri': lastTicketUri,
@@ -725,6 +756,9 @@ class RehearsalLocalState {
             .map((e) => e as String)
             .toSet(),
         compensationFrames: json['compensationFrames'] as int? ?? 0,
+        compensationByRoute:
+            (json['compensationByRoute'] as Map<String, dynamic>? ?? {})
+                .map((k, v) => MapEntry(k, (v as num).toInt())),
         metronomeEnabled: json['metronomeEnabled'] as bool? ?? true,
         practiceSpeed:
             (json['practiceSpeed'] as num?)?.toDouble().clamp(0.5, 1.0) ?? 1.0,

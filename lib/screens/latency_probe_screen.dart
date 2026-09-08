@@ -3,11 +3,13 @@ import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../l10n/app_localizations.dart';
 import '../services/audio_input_ffi.dart';
+import '../services/audio_route_service.dart';
 import '../services/rehearsal_engine.dart' show kLatencyCompensationKey;
 import '../services/gfpa_android_bindings.dart';
 
@@ -238,10 +240,20 @@ class _LatencyProbeScreenState extends State<LatencyProbeScreen> {
   List<Widget> _buildBody(BuildContext context, AppLocalizations l10n) {
     final theme = Theme.of(context);
     return [
-      Text(l10n.latencyProbeExplain, style: theme.textTheme.bodyMedium),
+      Text(
+        // Telling someone wearing Bluetooth headphones to "use the speaker"
+        // is not merely unhelpful: following it measures the speaker, files
+        // the answer against the headset, and leaves every take late.
+        context.watch<AudioRouteService>().route.isBluetooth
+            ? l10n.rehearsalRouteBluetoothHint
+            : l10n.latencyProbeExplain,
+        style: theme.textTheme.bodyMedium,
+      ),
       const SizedBox(height: 8),
       Text(
-        l10n.latencyProbeHint,
+        context.watch<AudioRouteService>().route.isBluetooth
+            ? ''
+            : l10n.latencyProbeHint,
         style: theme.textTheme.bodySmall
             ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
       ),

@@ -2775,4 +2775,13 @@ class AppLocalizationsFr extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String rehearsalRouteUncalibrated(String device) {
+    return '$device n\'a pas été mesuré. Une prise enregistrée dessus se retrouvera nettement derrière le temps.';
+  }
+
+  @override
+  String get rehearsalRouteBluetoothHint =>
+      'Le Bluetooth ajoute un retard important, qui varie d\'un casque à l\'autre.\n\nLe micro ne peut pas entendre votre casque à travers l\'air : pendant la mesure, plaquez un écouteur contre le micro du téléphone. Il entendra ainsi les balayages revenir par le casque et mesurera le vrai retard, Bluetooth compris.';
 }

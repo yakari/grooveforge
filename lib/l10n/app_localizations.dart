@@ -5035,6 +5035,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count, plural, =1{1 bar} other{{count} bars}}'**
   String rehearsalChordBarCount(int count);
+
+  /// Latency calibration, per output route.
+  ///
+  /// In en, this message translates to:
+  /// **'{device} has not been measured. A take recorded through it will sit well behind the beat.'**
+  String rehearsalRouteUncalibrated(String device);
+
+  /// Latency calibration, per output route.
+  ///
+  /// In en, this message translates to:
+  /// **'Bluetooth adds a long delay of its own, and it differs from one headset to the next.\n\nThe microphone cannot hear your headphones through the air, so hold one earcup against the phone\'s microphone while the measurement runs. That way it hears the sweeps coming back through the headset and measures the real delay, Bluetooth and all.'**
+  String get rehearsalRouteBluetoothHint;
 }
 
 class _AppLocalizationsDelegate

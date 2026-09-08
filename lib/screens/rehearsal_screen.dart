@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../l10n/app_localizations.dart';
 import '../models/rehearsal.dart';
+import '../services/audio_route_service.dart';
 import '../services/file_picker_service.dart';
 import '../services/platform_media_decoder.dart';
 import '../services/rehearsal_engine.dart';
@@ -420,6 +421,10 @@ class _RehearsalScreenState extends State<RehearsalScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final rehearsal = _rehearsal;
+    // The engine compensates for whatever the player is listening on, so it
+    // has to be told when they plug something in mid-rehearsal.
+    final route = context.watch<AudioRouteService>().route;
+    context.read<RehearsalEngine>().routeKey = route.key;
 
     return Scaffold(
       appBar: AppBar(
@@ -527,8 +532,15 @@ class _RehearsalScreenState extends State<RehearsalScreen> {
                           ),
                           onChanged: engine.setChords,
                         ),
-                        if (engine.localState.compensationFrames == 0)
-                          _CompensationWarning(),
+                        // Per route, not per device: a measurement taken on
+                        // the speaker says nothing useful about a Bluetooth
+                        // headset, which can be two hundred milliseconds away.
+                        if (!engine.isRouteCalibrated &&
+                            engine.compensationFrames == 0)
+                          _CompensationWarning(route: route)
+                        else if (!engine.isRouteCalibrated &&
+                            route.kind != 'speaker')
+                          _CompensationWarning(route: route),
                         if (_importing) const LinearProgressIndicator(),
                         _MasterRow(
                           engine: engine,
@@ -856,6 +868,11 @@ class _SyncChip extends StatelessWidget {
 /// say so before the player records than to leave them wondering why their
 /// part drags.
 class _CompensationWarning extends StatelessWidget {
+  const _CompensationWarning({required this.route});
+
+  /// What the player is listening on, so the warning can name it.
+  final AudioRoute route;
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -874,7 +891,12 @@ class _CompensationWarning extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              l10n.rehearsalNoCompensation,
+              // Naming the headset matters: "latency has not been measured"
+              // reads as a chore, while "these headphones have not been
+              // measured" reads as the reason a take will drag.
+              route.kind == 'speaker'
+                  ? l10n.rehearsalNoCompensation
+                  : l10n.rehearsalRouteUncalibrated(route.label),
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onTertiaryContainer,
               ),
@@ -911,7 +933,14 @@ class _CompensationWarning extends StatelessWidget {
       builder: (ctx) => AlertDialog(
         title: Text(l10n.rehearsalCalibrateTitle),
         content: SingleChildScrollView(
-          child: Text(l10n.rehearsalCalibrateBody),
+          child: Text(
+            // The microphone cannot hear a headset through the air, so the
+            // usual instructions are not merely unhelpful here — following
+            // them guarantees the measurement finds nothing.
+            route.isBluetooth
+                ? l10n.rehearsalRouteBluetoothHint
+                : l10n.rehearsalCalibrateBody,
+          ),
         ),
         actions: [
           TextButton(

@@ -20,6 +20,7 @@ import 'services/project_service.dart';
 import 'services/rack_state.dart';
 import 'services/transport_engine.dart';
 import 'services/rehearsal_engine.dart';
+import 'services/audio_route_service.dart';
 import 'services/rehearsal_library.dart';
 import 'services/rehearsal_discovery.dart';
 import 'services/rehearsal_sync_service.dart';
@@ -210,6 +211,14 @@ void main() async {
         // directory and never touches ProjectService or the .gf format.
         ChangeNotifierProvider<RehearsalLibrary>(
           create: (_) => RehearsalLibrary(),
+        ),
+        // Overdub compensation belongs to the route, not the device: the
+        // phone's speaker, a wired headset and a Bluetooth headset are three
+        // very different delays. Started eagerly so the answer is already
+        // there when a rehearsal opens.
+        ChangeNotifierProvider<AudioRouteService>(
+          create: (_) => AudioRouteService()..start(),
+          lazy: false,
         ),
         ChangeNotifierProxyProvider<RehearsalLibrary, RehearsalEngine>(
           create: (ctx) => RehearsalEngine(ctx.read<RehearsalLibrary>()),

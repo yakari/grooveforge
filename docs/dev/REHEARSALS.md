@@ -1768,3 +1768,67 @@ Five things, all found by using it rather than by reading it:
 - **A bar of four in the expanded chart could be wider than the row.** Bar
   width is clamped to the available width, so it takes a line to itself rather
   than overflowing.
+
+---
+
+## 31. Bluetooth latency
+
+Reported from a real session: plugging in Bluetooth headphones — the right
+instinct, to stop the microphone hearing the other tracks — puts every take
+roughly a fifth of a second behind the beat.
+
+### Why the video players' trick does not transfer
+
+Netflix, YouTube and VLC do A/V sync: they delay the *picture* to match the
+audio. They own both streams, only have to shift a visual, and there is no
+microphone anywhere in the loop. Their tolerance is also enormous — lip-sync
+passes at roughly 45 ms early to 125 ms late, against about 10 ms for an
+overdub. They are allowed ten times our error and only have to move the thing
+they draw.
+
+They are not really measuring it either. Android's NDK guide states plainly
+that *"there is currently no API to determine audio latency over any path on an
+Android device at runtime"*; the platform offers two feature flags describing
+the built-in path and nothing about a headset. `AAudioStream_getTimestamp`
+reports when a frame reached the audio device, but for A2DP the sink-side delay
+— codec, radio, the earbud's own buffer, which is most of the two hundred
+milliseconds — is generally not in that number.
+
+### What does work
+
+The acoustic probe already measures Bluetooth correctly if the player **holds
+an earcup against the phone's microphone** while it runs. The chirp goes out
+through the headset, the mic hears it through the cup, and the existing
+cross-correlation returns the true round trip including every part of the
+Bluetooth path. No new API, no vendor cooperation, no estimate — and once per
+headset. Only the instructions changed.
+
+Both places that explain the measurement now check the route first, because
+telling somebody wearing Bluetooth headphones to "use the speaker" is worse
+than unhelpful: following it measures the speaker, files the answer against the
+headset, and leaves every take late.
+
+### The gap that made all of this unusable
+
+`compensationFrames` was one number per device. Measuring with headphones on
+overwrote the speaker's figure and vice versa, so whichever route was measured
+last was the only one that was right. It is now a table keyed by route —
+`speaker`, `wired`, and each Bluetooth headset by name, since somebody may own
+several and each has its own delay.
+
+An unmeasured route falls back to the last figure rather than to zero: a
+wrong-but-close number beats no compensation, which is a whole round trip of
+error. Falling back is deliberately *not* the same as having been measured, and
+that difference is what the warning reads.
+
+`AudioRoutePlugin` reports identity, not latency — which device is connected is
+enough to look up a measurement already taken, and to notice when none exists.
+The active route is inferred by precedence (Bluetooth over wire, wire over
+speaker) because Android exposes which devices are available, not which one is
+in use.
+
+### Still open
+
+A manual trim on a finished take: nudge it against the others while it loops.
+Not a substitute for measuring, but Bluetooth latency drifts with codec
+negotiation and battery level, so a by-ear backstop is worth having.

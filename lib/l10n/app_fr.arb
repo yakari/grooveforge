@@ -1249,5 +1249,7 @@
   "rehearsalChordCollapse": "Réduire à une ligne",
   "rehearsalChordClear": "Effacer",
   "rehearsalChordSave": "Enregistrer",
-  "rehearsalChordBarCount": "{count, plural, =1{1 mesure} other{{count} mesures}}"
+  "rehearsalChordBarCount": "{count, plural, =1{1 mesure} other{{count} mesures}}",
+  "rehearsalRouteUncalibrated": "{device} n'a pas été mesuré. Une prise enregistrée dessus se retrouvera nettement derrière le temps.",
+  "rehearsalRouteBluetoothHint": "Le Bluetooth ajoute un retard important, qui varie d'un casque à l'autre.\n\nLe micro ne peut pas entendre votre casque à travers l'air : pendant la mesure, plaquez un écouteur contre le micro du téléphone. Il entendra ainsi les balayages revenir par le casque et mesurera le vrai retard, Bluetooth compris."
 }

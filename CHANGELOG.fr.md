@@ -8,6 +8,8 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 ## [X.x.x]
 
 ### Ajouté
+- La latence est mesurée et retenue par sortie : le haut-parleur, un casque filaire et chaque casque Bluetooth gardent leur propre valeur.
+- Un avertissement nomme le casque que vous portez quand il n'a jamais été mesuré, au lieu de laisser une prise traîner.
 - Les mesures à plusieurs accords sont assez larges pour être lues, avec les temps séparés.
 - Une grille d'accords : écrivez la forme du morceau mesure par mesure, de un à quatre accords par mesure, et la mesure en cours s'allume.
 - Les chiffrages d'accords sont vraiment analysés — Ab, C#m7, Gm7b5, C6/9, Am(M7)/B — pour vérifier la grille à mesure qu'on la saisit.

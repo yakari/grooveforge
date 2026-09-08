@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [X.x.x]
 
 ### Added
+- Latency is measured and remembered per output: your speaker, a wired headset and each Bluetooth headset each keep their own figure.
+- A warning names the headphones you are wearing when they have never been measured, instead of letting a take drag.
 - Bars with several chords are laid out wide enough to read, with the beats separated.
 - A chord grid: write the tune's form bar by bar, one to four chords a bar, and the bar being played lights up.
 - Chord symbols are read properly — Ab, C#m7, Gm7b5, C6/9, Am(M7)/B — so a chart can be checked as you type it.

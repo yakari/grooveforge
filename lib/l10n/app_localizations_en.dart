@@ -2759,4 +2759,13 @@ class AppLocalizationsEn extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String rehearsalRouteUncalibrated(String device) {
+    return '$device has not been measured. A take recorded through it will sit well behind the beat.';
+  }
+
+  @override
+  String get rehearsalRouteBluetoothHint =>
+      'Bluetooth adds a long delay of its own, and it differs from one headset to the next.\n\nThe microphone cannot hear your headphones through the air, so hold one earcup against the phone\'s microphone while the measurement runs. That way it hears the sweeps coming back through the headset and measures the real delay, Bluetooth and all.';
 }

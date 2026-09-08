@@ -430,7 +430,7 @@ class RehearsalEngine extends ChangeNotifier {
     final path = '${dir.path}/$fileName';
 
     final rc = AudioInputFFI()
-        .rehRecord(path, _local.compensationFrames, r.countInBars);
+        .rehRecord(path, compensationFrames, r.countInBars);
     if (rc != 0) {
       debugPrint('RehearsalEngine: record failed ($rc)');
       if (existing != null) {
@@ -473,7 +473,7 @@ class RehearsalEngine extends ChangeNotifier {
           fileName: fileName,
           frames: frames,
           sampleRate: 48000,
-          compensationFrames: _local.compensationFrames,
+          compensationFrames: compensationFrames,
           // The tempo it was played at, which is the practice speed if one is
           // set — not the tune's own. Storing the tune's would misfile a take
           // cut at half speed as if it had been played at full.
@@ -660,13 +660,44 @@ class RehearsalEngine extends ChangeNotifier {
   Future<void> adoptMeasuredCompensation() async {
     final prefs = await SharedPreferences.getInstance();
     final measured = prefs.getInt(kLatencyCompensationKey) ?? 0;
-    if (measured <= 0 || measured == _local.compensationFrames) return;
+    if (measured <= 0 || measured == compensationFrames) return;
     await setCompensationFrames(measured);
   }
 
+  /// Which output this device is playing through, as far as the engine knows.
+  ///
+  /// Set by whoever is watching the route. Null means nobody is, which is the
+  /// case on desktop — there the single stored figure is used, which is right,
+  /// because a laptop's output does not change under it.
+  String? _routeKey;
+
+  set routeKey(String? key) {
+    if (key == _routeKey) return;
+    _routeKey = key;
+    notifyListeners();
+  }
+
+  String? get routeKey => _routeKey;
+
+  /// The compensation that applies to what the player is listening on.
+  int get compensationFrames => _local.compensationFor(_routeKey);
+
+  /// Whether the current route has ever been measured.
+  ///
+  /// False is worth saying out loud: a Bluetooth headset that has not been
+  /// measured will put a take a fifth of a second behind the beat, and the
+  /// figure from the speaker is nowhere near close enough to cover it.
+  bool get isRouteCalibrated => _local.hasCompensationFor(_routeKey);
+
   /// Stores the latency compensation measured by the probe, in frames.
-  Future<void> setCompensationFrames(int frames) async {
+  ///
+  /// Filed against the route it was measured on as well as kept as the
+  /// fallback, so measuring with headphones on no longer overwrites the
+  /// speaker's figure.
+  Future<void> setCompensationFrames(int frames, {String? forRoute}) async {
     _local.compensationFrames = frames;
+    final key = forRoute ?? _routeKey;
+    if (key != null) _local.compensationByRoute[key] = frames;
     notifyListeners();
     await _saveLocal();
   }

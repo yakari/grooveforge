@@ -1698,5 +1698,18 @@
         "type": "int"
       }
     }
+  },
+  "rehearsalRouteUncalibrated": "{device} has not been measured. A take recorded through it will sit well behind the beat.",
+  "@rehearsalRouteUncalibrated": {
+    "description": "Latency calibration, per output route.",
+    "placeholders": {
+      "device": {
+        "type": "String"
+      }
+    }
+  },
+  "rehearsalRouteBluetoothHint": "Bluetooth adds a long delay of its own, and it differs from one headset to the next.\n\nThe microphone cannot hear your headphones through the air, so hold one earcup against the phone's microphone while the measurement runs. That way it hears the sweeps coming back through the headset and measures the real delay, Bluetooth and all.",
+  "@rehearsalRouteBluetoothHint": {
+    "description": "Latency calibration, per output route."
   }
 }
