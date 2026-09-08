@@ -119,9 +119,17 @@ MergeOutcome mergeRehearsal(Rehearsal local, Rehearsal remote) {
   // A member already known keeps the local copy. Names and instruments are set
   // when someone joins and rarely change; giving them their own clocks would
   // cost more than it is worth.
-  final knownMembers = {for (final m in local.members) m.id};
+  final knownMembers = {for (final m in local.members) m.id: m};
   for (final m in remote.members) {
-    if (knownMembers.contains(m.id)) continue;
+    final mine = knownMembers[m.id];
+    if (mine != null) {
+      // One exception to "the local copy wins": a device id only ever goes
+      // from unknown to known, and only that member's own device writes it.
+      // Without this a member who synced before device ids existed could never
+      // acquire one, and would show as away forever.
+      mine.deviceId ??= m.deviceId;
+      continue;
+    }
     local.members.add(m);
     changed = true;
   }

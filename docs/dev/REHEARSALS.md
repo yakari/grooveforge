@@ -1266,3 +1266,34 @@ a recording now sync with every discovered peer, sequentially: the sessions are
 cheap when there is nothing to exchange, the merge is order-independent, and
 three simultaneous sessions would only make one phone's radio and manifest
 contend with themselves.
+
+---
+
+## 22. Who is here
+
+Lanes are owned by members; discovery speaks in devices. Nothing joined the
+two, so the screen could count the devices in the room but could not say *which
+lane* belonged to any of them.
+
+`RehearsalMember.deviceId` is that link, written once by that member's own
+device. It is the single exception to the members merge rule ("a member already
+known keeps the local copy"): a device id may go from unknown to known, because
+otherwise a member who synced before the field existed could never acquire one
+and would read as away permanently. Never overwritten — a peer claiming a
+different id for someone is stale news, not an update. Rehearsals from before
+the field are handled on load, where each device stamps its own member and
+nobody else's.
+
+Two smaller things this needed:
+
+- The sync service now forwards discovery's notifications. The screens watch
+  the service, not discovery, so an arrival or departure repainted only when
+  something unrelated happened to notify. That was already true of the device
+  count in the live bar.
+- Your own lane is present by definition rather than by lookup — this device
+  does not discover itself.
+
+The badge is a dot, filled and green when present, hollow and outlined when
+not: the two states differ in shape as well as hue, so it still reads without
+colour vision, and the tooltip and semantics label carry the meaning for screen
+readers, to whom a coloured circle says nothing.

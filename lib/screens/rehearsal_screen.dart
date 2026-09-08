@@ -375,6 +375,7 @@ class _RehearsalScreenState extends State<RehearsalScreen> {
                           engine: engine,
                           rehearsal: rehearsal,
                           part: rehearsal.parts[i],
+                          online: sync.onlineDeviceIds(rehearsal.id),
                           onChanged: () => setState(() {}),
                           onDelete: () => _deleteTake(rehearsal.parts[i]),
                           onRemovePart: () =>
@@ -527,12 +528,60 @@ class _BeatLamp extends StatelessWidget {
   }
 }
 
+/// Says whether the player who owns a lane is reachable right now.
+///
+/// A dot rather than a word: it sits next to a name that is already competing
+/// for a narrow lane on a phone, and presence is the kind of thing that should
+/// be readable without being read. The tooltip and the semantics label carry
+/// the meaning for anyone who needs it spelled out, including screen readers,
+/// for whom a coloured circle says nothing at all.
+class _PresenceDot extends StatelessWidget {
+  const _PresenceDot({required this.isHere});
+
+  final bool isHere;
+
+  /// Green for present, which is the one convention worth borrowing here — a
+  /// theme accent would be read as decoration rather than as status. Muted
+  /// rather than vivid so a room full of people does not turn into a light
+  /// display.
+  static const Color _here = Color(0xFF4CAF7D);
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
+    final label = isHere ? l10n.rehearsalMemberHere : l10n.rehearsalMemberAway;
+
+    return Tooltip(
+      message: label,
+      child: Semantics(
+        label: label,
+        child: Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            // Filled when here, hollow when away: the two states differ in
+            // shape as well as in colour, so the badge still reads for someone
+            // who cannot tell the two hues apart.
+            color: isHere ? _here : Colors.transparent,
+            border: isHere
+                ? null
+                : Border.all(color: theme.colorScheme.outline, width: 1.5),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// One part: who plays it, its meter, mute, gain and record button.
 class _PartLane extends StatelessWidget {
   const _PartLane({
     required this.engine,
     required this.rehearsal,
     required this.part,
+    required this.online,
     required this.onChanged,
     required this.onDelete,
     required this.onRemovePart,
@@ -541,6 +590,10 @@ class _PartLane extends StatelessWidget {
   final RehearsalEngine engine;
   final Rehearsal rehearsal;
   final RehearsalPart part;
+
+  /// Device ids reachable right now, from discovery.
+  final Set<String> online;
+
   final VoidCallback onChanged;
   final VoidCallback onDelete;
   final VoidCallback onRemovePart;
@@ -559,6 +612,11 @@ class _PartLane extends StatelessWidget {
     // theirs: overwriting it from here would destroy their work and, because
     // the merge keeps the highest revision, would win on their device too.
     final isMine = part.isOwnedBy(engine.localState.selfMemberId);
+    // Your own lane is here by definition; everyone else has to be visible on
+    // the network. A member with no device id has never opened the tune on a
+    // device this one has met, which reads as away — accurately.
+    final isHere = isMine ||
+        (member?.deviceId != null && online.contains(member!.deviceId));
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
@@ -578,6 +636,8 @@ class _PartLane extends StatelessWidget {
                     children: [
                       Row(
                         children: [
+                          _PresenceDot(isHere: isHere),
+                          const SizedBox(width: 6),
                           Flexible(
                             child: Text(
                               member?.displayName.isNotEmpty == true

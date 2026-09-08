@@ -1433,5 +1433,13 @@
       }
     }
   },
-  "rehearsalPartActions": "More"
+  "rehearsalPartActions": "More",
+  "rehearsalMemberHere": "Here now",
+  "@rehearsalMemberHere": {
+    "description": "Tooltip on a part lane saying whether the player who owns it is reachable on the network right now."
+  },
+  "rehearsalMemberAway": "Not connected",
+  "@rehearsalMemberAway": {
+    "description": "Tooltip on a part lane saying whether the player who owns it is reachable on the network right now."
+  }
 }

@@ -552,6 +552,28 @@ void main() {
     await thirdDir.delete(recursive: true);
   });
 
+  test('a lane knows whether its player is in the room', () async {
+    final r = await hostLibrary.create(
+        title: 'Tune', memberName: 'Yann', instrument: 'guitar');
+    // The creator's own member carries the device it was created on, which is
+    // what lets a lane be matched against what discovery sees.
+    expect(r.members.single.deviceId, await hostSync.deviceId());
+
+    expect(hostSync.onlineDeviceIds(r.id), isEmpty);
+
+    hostSync.discovery.remember(BonsoirService(
+      name: 'Tune · lea',
+      type: RehearsalDiscovery.serviceType,
+      port: 4000,
+      hostAddresses: const ['192.168.1.51'],
+      attributes: {'d': 'dev-lea', 'r': r.id},
+    ));
+
+    expect(hostSync.onlineDeviceIds(r.id), {'dev-lea'});
+    // A different tune's peers are not in this room.
+    expect(hostSync.onlineDeviceIds('other'), isEmpty);
+  });
+
   test('the device id survives a restart', () async {
     final first = await hostSync.deviceId();
     final again =

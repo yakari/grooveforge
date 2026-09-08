@@ -248,6 +248,46 @@ void main() {
   });
 
   group('members', () {
+    test('a member from before device ids gains one from the peer', () {
+      // The one field on a member that is allowed to change: a rehearsal that
+      // synced before members carried a device id would otherwise show that
+      // member as away forever.
+      final local = _rehearsal()
+        ..members.add(RehearsalMember(
+            id: 'm1', displayName: 'Yann', instrument: 'guitar'));
+      final remote = _rehearsal()
+        ..members.add(RehearsalMember(
+            id: 'm1',
+            displayName: 'Yann',
+            instrument: 'guitar',
+            deviceId: 'dev-yann'));
+
+      mergeRehearsal(local, remote);
+
+      expect(local.members.single.deviceId, 'dev-yann');
+    });
+
+    test('a device id already known is not overwritten', () {
+      // Only a member's own device writes their id, so a peer claiming a
+      // different one is stale news, not an update.
+      final local = _rehearsal()
+        ..members.add(RehearsalMember(
+            id: 'm1',
+            displayName: 'Yann',
+            instrument: 'guitar',
+            deviceId: 'dev-yann'));
+      final remote = _rehearsal()
+        ..members.add(RehearsalMember(
+            id: 'm1',
+            displayName: 'Yann',
+            instrument: 'guitar',
+            deviceId: 'dev-somebody-else'));
+
+      mergeRehearsal(local, remote);
+
+      expect(local.members.single.deviceId, 'dev-yann');
+    });
+
     test('unknown members are added, known ones left alone', () {
       final local = _rehearsal()
         ..members.add(RehearsalMember(

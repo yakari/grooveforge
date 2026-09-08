@@ -247,6 +247,7 @@ class RehearsalLibrary extends ChangeNotifier {
     loaded.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     for (final r in loaded) {
       await _stampIfUnstamped(r);
+      await _claimOwnMember(r);
     }
 
     _rehearsals
@@ -285,6 +286,22 @@ class RehearsalLibrary extends ChangeNotifier {
     debugPrint('RehearsalLibrary: stamped "${r.title}" for syncing');
   }
 
+  /// Records which device the local member plays on, if it is not already
+  /// known.
+  ///
+  /// Rehearsals written before members carried a device id have none, so their
+  /// owner would show as away in their own room. Only this device's own member
+  /// is stamped: nobody else's device id is ours to write, and the others fill
+  /// theirs in on their own machines and sync it across.
+  Future<void> _claimOwnMember(Rehearsal r) async {
+    final selfId = (await loadLocalState(r.id)).selfMemberId;
+    if (selfId == null) return;
+    final me = r.members.where((m) => m.id == selfId).firstOrNull;
+    if (me == null || me.deviceId != null) return;
+    me.deviceId = await rehearsalDeviceId();
+    await save(r);
+  }
+
   // ── Creating and saving ───────────────────────────────────────────────────
 
   /// Creates a rehearsal with one member and one part for them, and writes it.
@@ -298,6 +315,7 @@ class RehearsalLibrary extends ChangeNotifier {
     int countInBars = 2,
   }) async {
     final memberId = newRehearsalId();
+    final device = await rehearsalDeviceId();
     final rehearsal = Rehearsal(
       id: newRehearsalId(),
       title: title,
@@ -312,6 +330,7 @@ class RehearsalLibrary extends ChangeNotifier {
           id: memberId,
           displayName: memberName,
           instrument: instrument,
+          deviceId: device,
         ),
       ],
       parts: [
@@ -327,7 +346,6 @@ class RehearsalLibrary extends ChangeNotifier {
     // metre and count-in all carry a zero clock, and a joiner's placeholder —
     // which also has zero clocks — would never be overwritten by them. The
     // rehearsal would sync its parts and quietly keep the wrong tempo.
-    final device = await rehearsalDeviceId();
     for (final field in RehearsalField.all) {
       if (field == RehearsalField.master) continue; // there is no master yet
       rehearsal.touch(field, device);
@@ -409,6 +427,7 @@ class RehearsalLibrary extends ChangeNotifier {
       id: newRehearsalId(),
       displayName: name,
       instrument: instrument,
+      deviceId: await rehearsalDeviceId(),
     );
     rehearsal.members.add(member);
 

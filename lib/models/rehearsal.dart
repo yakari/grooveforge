@@ -75,6 +75,7 @@ class RehearsalMember {
     required this.id,
     required this.displayName,
     required this.instrument,
+    this.deviceId,
   });
 
   final String id;
@@ -83,10 +84,23 @@ class RehearsalMember {
   /// Instrument identifier from the curated list (see [kInstruments]).
   final String instrument;
 
+  /// Which device this member plays on, so the room can tell who is present.
+  ///
+  /// Discovery works in device ids while the arrangement works in member ids;
+  /// this is the only thing joining the two, and it is what lets a lane say
+  /// whether the person who owns it is here right now.
+  ///
+  /// Nullable because rehearsals written before this existed have none, and
+  /// because a member is not required to have a device at all — someone may
+  /// have been added to the arrangement before they ever opened the tune.
+  /// Written once, by that member's own device.
+  String? deviceId;
+
   Map<String, dynamic> toJson() => {
         'id': id,
         'displayName': displayName,
         'instrument': instrument,
+        if (deviceId != null) 'deviceId': deviceId,
       };
 
   factory RehearsalMember.fromJson(Map<String, dynamic> json) =>
@@ -94,6 +108,7 @@ class RehearsalMember {
         id: json['id'] as String,
         displayName: json['displayName'] as String? ?? '',
         instrument: json['instrument'] as String? ?? 'other',
+        deviceId: json['deviceId'] as String?,
       );
 }
 

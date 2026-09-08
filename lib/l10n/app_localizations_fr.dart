@@ -2573,4 +2573,10 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get rehearsalPartActions => 'Plus';
+
+  @override
+  String get rehearsalMemberHere => 'Présent';
+
+  @override
+  String get rehearsalMemberAway => 'Non connecté';
 }

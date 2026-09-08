@@ -4699,6 +4699,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'More'**
   String get rehearsalPartActions;
+
+  /// Tooltip on a part lane saying whether the player who owns it is reachable on the network right now.
+  ///
+  /// In en, this message translates to:
+  /// **'Here now'**
+  String get rehearsalMemberHere;
+
+  /// Tooltip on a part lane saying whether the player who owns it is reachable on the network right now.
+  ///
+  /// In en, this message translates to:
+  /// **'Not connected'**
+  String get rehearsalMemberAway;
 }
 
 class _AppLocalizationsDelegate

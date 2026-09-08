@@ -1193,5 +1193,7 @@
       }
     }
   },
-  "rehearsalPartActions": "Plus"
+  "rehearsalPartActions": "Plus",
+  "rehearsalMemberHere": "Présent",
+  "rehearsalMemberAway": "Non connecté"
 }

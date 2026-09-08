@@ -2557,4 +2557,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get rehearsalPartActions => 'More';
+
+  @override
+  String get rehearsalMemberHere => 'Here now';
+
+  @override
+  String get rehearsalMemberAway => 'Not connected';
 }

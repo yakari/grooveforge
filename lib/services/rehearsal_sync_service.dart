@@ -93,6 +93,10 @@ class RehearsalSyncService extends ChangeNotifier {
     // Discovery knows when a goodbye arrives but not whether to believe it;
     // this service owns the sockets, so it is the one that can go and look.
     discovery.reachabilityProbe = _canReach;
+    // Who is in the room is discovery's to know, but the screens watch this
+    // service. Without forwarding, someone arriving or leaving would not
+    // repaint until something unrelated happened to notify.
+    discovery.addListener(notifyListeners);
   }
 
   /// Knocks on a peer's sync port to see whether anyone is still there.
@@ -151,6 +155,16 @@ class RehearsalSyncService extends ChangeNotifier {
   /// the room", which is what the count is asked to mean.
   int visibleDeviceCount(String rehearsalId) =>
       discovery.peersFor(rehearsalId).length;
+
+  /// The devices currently reachable for [rehearsalId].
+  ///
+  /// Lanes are owned by members and discovery speaks in devices, so this is
+  /// what a lane is matched against to say whether its player is here — see
+  /// [RehearsalMember.deviceId], which is the link between the two.
+  Set<String> onlineDeviceIds(String rehearsalId) => {
+        for (final peer in discovery.peersFor(rehearsalId))
+          if (peer.deviceId.isNotEmpty) peer.deviceId,
+      };
   JoinTicket? get ticket => _ticket;
   bool get isHosting => _server != null;
 
@@ -616,6 +630,7 @@ class RehearsalSyncService extends ChangeNotifier {
 
   @override
   void dispose() {
+    discovery.removeListener(notifyListeners);
     stopLiveSync();
     stopHosting();
     super.dispose();
