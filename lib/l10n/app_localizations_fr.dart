@@ -2579,4 +2579,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get rehearsalMemberAway => 'Non connecté';
+
+  @override
+  String get rehearsalsJoin => 'Rejoindre un morceau';
 }

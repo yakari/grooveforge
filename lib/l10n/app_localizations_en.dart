@@ -2563,4 +2563,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get rehearsalMemberAway => 'Not connected';
+
+  @override
+  String get rehearsalsJoin => 'Join a tune';
 }

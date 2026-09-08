@@ -4,7 +4,9 @@ import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import '../models/rehearsal.dart';
 import '../services/rehearsal_library.dart';
+import '../widgets/user_guide_modal.dart';
 import 'nearby_screen.dart';
+import 'preferences_screen.dart';
 import 'rehearsal_screen.dart';
 
 /// Localized label for an instrument id from [kInstruments].
@@ -84,6 +86,19 @@ class _RehearsalsScreenState extends State<RehearsalsScreen> {
     ));
   }
 
+  /// Opens the join screen and picks up whatever it brought back.
+  ///
+  /// The library is reloaded rather than trusted to notify: joining writes a
+  /// rehearsal from another isolate's worth of work — a socket, a merge and a
+  /// file — and the list has to be re-read from disk to show it.
+  Future<void> _join() async {
+    await Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => const JoinRehearsalScreen(),
+    ));
+    if (!mounted) return;
+    await context.read<RehearsalLibrary>().load();
+  }
+
   Future<void> _confirmDelete(Rehearsal rehearsal) async {
     final l10n = AppLocalizations.of(context)!;
     final ok = await showDialog<bool>(
@@ -109,30 +124,62 @@ class _RehearsalsScreenState extends State<RehearsalsScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
     final library = context.watch<RehearsalLibrary>();
 
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n.rehearsalsTitle),
+        // The same two the rack tab offers, so the bar means the same thing
+        // whichever tab you are on. Joining is not here: it is one of the two
+        // things you come to this screen to do, and a scanner glyph tucked in
+        // the corner both hid it and suggested a camera was the only way in.
         actions: [
           IconButton(
-            icon: const Icon(Icons.qr_code_scanner),
-            tooltip: l10n.nearbyJoin,
-            onPressed: () async {
-              await Navigator.of(context).push(MaterialPageRoute(
-                builder: (_) => const JoinRehearsalScreen(),
-              ));
-              if (context.mounted) await context.read<RehearsalLibrary>().load();
-            },
+            icon: const Icon(Icons.help_outline),
+            tooltip: l10n.synthTooltipUserGuide,
+            onPressed: () => showDialog(
+              context: context,
+              builder: (_) => const UserGuideModal(),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings),
+            tooltip: l10n.synthTooltipSettings,
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const PreferencesScreen()),
+            ),
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        // See the rack screen's button: both are alive at once in the shell.
-        heroTag: 'rehearsals-fab',
-        onPressed: _create,
-        icon: const Icon(Icons.add),
-        label: Text(l10n.rehearsalsNew),
+      // The two ways into a tune, stacked and both spelled out: you either
+      // start one or join one, and there is no third thing to do here.
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          FloatingActionButton.extended(
+            heroTag: 'rehearsals-join-fab',
+            // Tonal rather than primary: starting a tune is what most people
+            // are here for, and two buttons of equal weight would make the
+            // choice look harder than it is.
+            backgroundColor: theme.colorScheme.secondaryContainer,
+            foregroundColor: theme.colorScheme.onSecondaryContainer,
+            onPressed: _join,
+            icon: const Icon(Icons.group_add_outlined),
+            label: Text(l10n.rehearsalsJoin),
+          ),
+          const SizedBox(height: 12),
+          FloatingActionButton.extended(
+            // See the rack screen's button: both are alive at once in the
+            // shell, so neither can take the default hero tag.
+            heroTag: 'rehearsals-fab',
+            onPressed: _create,
+            icon: const Icon(Icons.add),
+            label: Text(l10n.rehearsalsNew),
+          ),
+        ],
       ),
       body: SafeArea(
         top: false,
@@ -148,7 +195,9 @@ class _RehearsalsScreenState extends State<RehearsalsScreen> {
                           ? 2
                           : 1;
                   return GridView.builder(
-                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 88),
+                    // Room for two stacked buttons, so the last card in the
+                    // list can still be scrolled clear of them.
+                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 152),
                     gridDelegate:
                         SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: columns,

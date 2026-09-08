@@ -1195,5 +1195,6 @@
   },
   "rehearsalPartActions": "Plus",
   "rehearsalMemberHere": "Présent",
-  "rehearsalMemberAway": "Non connecté"
+  "rehearsalMemberAway": "Non connecté",
+  "rehearsalsJoin": "Rejoindre un morceau"
 }

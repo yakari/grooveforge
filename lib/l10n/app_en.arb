@@ -1441,5 +1441,9 @@
   "rehearsalMemberAway": "Not connected",
   "@rehearsalMemberAway": {
     "description": "Tooltip on a part lane saying whether the player who owns it is reachable on the network right now."
+  },
+  "rehearsalsJoin": "Join a tune",
+  "@rehearsalsJoin": {
+    "description": "Button on the rehearsals tab that opens the join screen, paired with the button that starts a new tune."
   }
 }

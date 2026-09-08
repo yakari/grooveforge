@@ -4711,6 +4711,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Not connected'**
   String get rehearsalMemberAway;
+
+  /// Button on the rehearsals tab that opens the join screen, paired with the button that starts a new tune.
+  ///
+  /// In en, this message translates to:
+  /// **'Join a tune'**
+  String get rehearsalsJoin;
 }
 
 class _AppLocalizationsDelegate
