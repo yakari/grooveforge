@@ -2618,4 +2618,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get rehearsalSyncComplete => 'Everyone has the latest takes.';
+
+  @override
+  String get rehearsalTakeAwaitingAudio => 'Waiting for audio';
 }

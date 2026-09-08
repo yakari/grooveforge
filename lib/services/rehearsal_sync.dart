@@ -28,10 +28,19 @@ abstract class SyncStore {
   /// Stores audio received for a part.
   Future<void> writeTake(String rehearsalId, String partId, Uint8List bytes);
 
+  /// Whether a part's current take has its audio on this device.
+  ///
+  /// Separate from [readTake] because the answer is needed for every part on
+  /// every sync, and reading megabytes to find out would be absurd.
+  Future<bool> hasTake(String rehearsalId, String partId);
+
   /// Bytes of the master, or null.
   Future<Uint8List?> readMaster(String rehearsalId);
 
   Future<void> writeMaster(String rehearsalId, Uint8List bytes);
+
+  /// Whether the master's decoded audio is on this device.
+  Future<bool> hasMaster(String rehearsalId);
 }
 
 /// How a sync ended, for the UI to report.
@@ -266,11 +275,15 @@ class SyncSession {
     final outcome = mergeRehearsal(local, remote);
     if (outcome.changed) await store.save(local);
 
-    // Ask for what the merge says is missing, and hear what they want.
+    // Ask for what the merge says is missing, plus anything whose audio is not
+    // actually on disk, and hear what they want.
+    final wantParts = await _alsoMissingAudio(local, outcome.partsToFetch);
+    final wantMaster = outcome.masterToFetch ||
+        (local.master != null && !await store.hasMaster(rehearsalId));
     await _send({
       'type': Msg.want,
-      'parts': outcome.partsToFetch,
-      'master': outcome.masterToFetch,
+      'parts': wantParts,
+      'master': wantMaster,
     });
     final theirWant = await _nextMessage();
     if (theirWant['type'] != Msg.want) {
@@ -285,8 +298,7 @@ class SyncSession {
     // coming, and both sides doing the same thing in the same order keeps that
     // simple.
     final sent = await _sendWanted(wantedParts, wantsMaster);
-    final received = await _receiveWanted(
-        outcome.partsToFetch.length, outcome.masterToFetch);
+    final received = await _receiveWanted(wantParts.length, wantMaster);
 
     return SyncReport(
       ok: true,
@@ -297,6 +309,29 @@ class SyncSession {
       peerDeviceId: _peerDeviceId,
       peerHas: _whatTheyNowHold(local, wantedParts, sent),
     );
+  }
+
+  /// Adds every part whose take has no audio here to what the merge asked for.
+  ///
+  /// The merge decides purely on revision numbers, and the manifest is saved
+  /// as soon as it merges — before a single byte of audio moves. So a session
+  /// that dies mid-transfer, or a peer that hands over a manifest for a take
+  /// whose audio it does not have yet, leaves this device holding the *record*
+  /// of a take without the recording. On every later sync the revisions then
+  /// match, nothing is fetched, and the take is stranded for good: the right
+  /// duration on screen and the wrong audio underneath.
+  ///
+  /// Asking again costs a part id in a list. Not asking costs the take.
+  Future<List<String>> _alsoMissingAudio(
+    Rehearsal local,
+    List<String> fromMerge,
+  ) async {
+    final want = fromMerge.toSet();
+    for (final part in local.parts) {
+      if (part.take == null || want.contains(part.id)) continue;
+      if (!await store.hasTake(rehearsalId, part.id)) want.add(part.id);
+    }
+    return want.toList();
   }
 
   /// Works out which take revisions the peer holds now that this is over.

@@ -17,9 +17,32 @@ class _MemoryStore implements SyncStore {
   _MemoryStore(this.doc);
 
   Rehearsal? doc;
-  final Map<String, Uint8List> takes = {};
+
+  /// Audio keyed by *file name*, exactly as the real store keys it on disk.
+  ///
+  /// Not by part id: file names carry the revision, so keying by part would
+  /// make "holds the old take but not the new one" unrepresentable — which is
+  /// the whole state an interrupted transfer leaves behind.
+  final Map<String, Uint8List> files = {};
+
   Uint8List? master;
   int saves = 0;
+
+  /// Puts audio in place for a part's current take.
+  void give(String partId, Uint8List bytes) {
+    final name = _fileNameFor(partId);
+    if (name != null) files[name] = bytes;
+  }
+
+  /// What a part's current take is stored under, or null if it has no take.
+  String? _fileNameFor(String partId) =>
+      doc?.parts.where((p) => p.id == partId).firstOrNull?.take?.fileName;
+
+  /// Audio held for a part's current take, or null.
+  Uint8List? audioFor(String partId) {
+    final name = _fileNameFor(partId);
+    return name == null ? null : files[name];
+  }
 
   @override
   Future<Rehearsal?> load(String rehearsalId) async => doc;
@@ -32,16 +55,25 @@ class _MemoryStore implements SyncStore {
 
   @override
   Future<Uint8List?> readTake(String rehearsalId, String partId) async =>
-      takes[partId];
+      audioFor(partId);
 
   @override
   Future<void> writeTake(
       String rehearsalId, String partId, Uint8List bytes) async {
-    takes[partId] = bytes;
+    final name = _fileNameFor(partId);
+    if (name != null) files[name] = bytes;
   }
 
   @override
+  Future<bool> hasTake(String rehearsalId, String partId) async =>
+      audioFor(partId)?.isNotEmpty ?? false;
+
+  @override
   Future<Uint8List?> readMaster(String rehearsalId) async => master;
+
+  @override
+  Future<bool> hasMaster(String rehearsalId) async =>
+      master?.isNotEmpty ?? false;
 
   @override
   Future<void> writeMaster(String rehearsalId, Uint8List bytes) async {
@@ -117,7 +149,72 @@ Future<(SyncReport, SyncReport)> _sync(
   return (serverReport, clientReport);
 }
 
+/// The three-device relay: A records, B has the manifest but not yet the audio,
+/// C syncs with B.
+///
+/// This is the shape that stranded a take in real use. B hands C a manifest for
+/// a revision whose bytes B does not have, B skips the blob silently, and C
+/// writes down the revision. From then on their revisions match and nothing is
+/// ever fetched again.
+void _relayGroup() {
+  test('a manifest without its audio is asked for again next time', () async {
+    // B knows about take 2 but has no bytes for it — mid-relay.
+    final relayStore = _MemoryStore(_doc()..parts.add(_part('p1', revision: 2)));
+    final tabletStore = _MemoryStore(_doc()..parts.add(_part('p1', revision: 1)))
+      ..give('p1', Uint8List.fromList(List.filled(500, 7)));
+
+    await _sync(relayStore, tabletStore);
+
+    // The tablet took the manifest, as it should: the take really is newer.
+    expect(tabletStore.doc!.parts.single.take!.revision, 2);
+    // But the audio never came, because the relay had none to give. This is
+    // the reported symptom exactly: the lane shows the new take's duration
+    // while the only recording on disk belongs to the previous one.
+    expect(tabletStore.audioFor('p1'), isNull,
+        reason: 'the manifest moved to a take whose audio never arrived');
+    expect(tabletStore.files.keys, contains('p1-1.wav'));
+
+    // The relay catches up.
+    relayStore.give('p1', Uint8List.fromList(List.filled(9000, 3)));
+
+    // Revisions now match on both sides, so the merge alone would ask for
+    // nothing. The audio has to be what decides it.
+    final (_, second) = await _sync(relayStore, tabletStore);
+
+    expect(second.takesReceived, 1,
+        reason: 'a take whose audio is missing must be re-requested');
+    expect(tabletStore.audioFor('p1')!.length, 9000);
+  });
+
+  test('a take with no audio anywhere is not re-fetched forever', () async {
+    // Neither side has the bytes. Asking is harmless; the peer simply skips it.
+    final a = _MemoryStore(_doc()..parts.add(_part('p1', revision: 1)));
+    final b = _MemoryStore(_doc()..parts.add(_part('p1', revision: 1)));
+
+    final (server, client) = await _sync(a, b);
+
+    expect(server.ok, isTrue);
+    expect(client.ok, isTrue);
+    expect(client.takesReceived, 0);
+  });
+
+  test('an empty file counts as missing', () async {
+    // An interrupted write leaves a file that exists and plays nothing.
+    final full = _MemoryStore(_doc()..parts.add(_part('p1', revision: 1)))
+      ..give('p1', Uint8List.fromList(List.filled(4000, 5)));
+    final truncated = _MemoryStore(_doc()..parts.add(_part('p1', revision: 1)))
+      ..give('p1', Uint8List(0));
+
+    final (_, client) = await _sync(full, truncated);
+
+    expect(client.takesReceived, 1);
+    expect(truncated.audioFor('p1')!.length, 4000);
+  });
+}
+
 void main() {
+  group('incomplete transfers', _relayGroup);
+
   group('framing', () {
     test('reassembles a frame split across reads', () async {
       final reader = FrameReader();
@@ -213,7 +310,7 @@ void main() {
     test('moves a take the peer does not have', () async {
       final serverDoc = _doc()..parts.add(_part('p1', revision: 1));
       final serverStore = _MemoryStore(serverDoc)
-        ..takes['p1'] = Uint8List.fromList(List.generate(5000, (i) => i % 256));
+        ..give('p1', Uint8List.fromList(List.generate(5000, (i) => i % 256)));
 
       final clientStore = _MemoryStore(_doc());
 
@@ -223,21 +320,21 @@ void main() {
       expect(client.ok, isTrue, reason: client.error ?? '');
       expect(client.takesReceived, 1);
       expect(server.takesSent, 1);
-      expect(clientStore.takes['p1'], serverStore.takes['p1']);
+      expect(clientStore.audioFor('p1'), serverStore.audioFor('p1'));
       expect(clientStore.doc!.parts.single.take!.revision, 1);
     });
 
     test('moves takes in both directions at once', () async {
       final serverStore = _MemoryStore(_doc()..parts.add(_part('pS', revision: 1)))
-        ..takes['pS'] = Uint8List.fromList(List.filled(3000, 7));
+        ..give('pS', Uint8List.fromList(List.filled(3000, 7)));
       final clientStore = _MemoryStore(_doc()..parts.add(_part('pC', revision: 1)))
-        ..takes['pC'] = Uint8List.fromList(List.filled(2000, 9));
+        ..give('pC', Uint8List.fromList(List.filled(2000, 9)));
 
       final (server, client) = await _sync(serverStore, clientStore);
 
       expect(server.ok && client.ok, isTrue);
-      expect(clientStore.takes['pS'], hasLength(3000));
-      expect(serverStore.takes['pC'], hasLength(2000));
+      expect(clientStore.audioFor('pS'), hasLength(3000));
+      expect(serverStore.audioFor('pC'), hasLength(2000));
       expect(clientStore.doc!.parts.map((p) => p.id).toSet(), {'pC', 'pS'});
       expect(serverStore.doc!.parts.map((p) => p.id).toSet(), {'pC', 'pS'});
     });
@@ -248,13 +345,13 @@ void main() {
       final big = Uint8List.fromList(
           List.generate(kBlobChunkBytes * 3 + 1234, (i) => (i * 31) % 256));
       final serverStore = _MemoryStore(_doc()..parts.add(_part('p1', revision: 1)))
-        ..takes['p1'] = big;
+        ..give('p1', big);
       final clientStore = _MemoryStore(_doc());
 
       final (_, client) = await _sync(serverStore, clientStore);
 
       expect(client.ok, isTrue, reason: client.error ?? '');
-      expect(clientStore.takes['p1'], big);
+      expect(clientStore.audioFor('p1'), big);
     });
 
     test('the master travels too', () async {
@@ -281,9 +378,9 @@ void main() {
 
     test('nothing moves when both sides already agree', () async {
       final serverStore = _MemoryStore(_doc()..parts.add(_part('p1', revision: 2)))
-        ..takes['p1'] = Uint8List.fromList([1, 2, 3]);
+        ..give('p1', Uint8List.fromList([1, 2, 3]));
       final clientStore = _MemoryStore(_doc()..parts.add(_part('p1', revision: 2)))
-        ..takes['p1'] = Uint8List.fromList([1, 2, 3]);
+        ..give('p1', Uint8List.fromList([1, 2, 3]));
 
       final (server, client) = await _sync(serverStore, clientStore);
 
@@ -297,7 +394,7 @@ void main() {
   group('authentication', () {
     test('a different join code is refused by both sides', () async {
       final serverStore = _MemoryStore(_doc()..parts.add(_part('p1', revision: 1)))
-        ..takes['p1'] = Uint8List.fromList([1, 2, 3]);
+        ..give('p1', Uint8List.fromList([1, 2, 3]));
       final clientStore = _MemoryStore(_doc());
 
       final (server, client) = await _sync(
@@ -310,7 +407,7 @@ void main() {
       expect(client.ok, isFalse);
       expect(server.ok, isFalse);
       // And nothing leaked before the refusal.
-      expect(clientStore.takes, isEmpty);
+      expect(clientStore.files, isEmpty);
       expect(clientStore.doc!.parts, isEmpty);
     });
 

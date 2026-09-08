@@ -1505,5 +1505,9 @@
   "rehearsalSyncComplete": "Everyone has the latest takes.",
   "@rehearsalSyncComplete": {
     "description": "Rehearsal screen: warns that a recorded take has not reached every connected device yet."
+  },
+  "rehearsalTakeAwaitingAudio": "Waiting for audio",
+  "@rehearsalTakeAwaitingAudio": {
+    "description": "Rehearsal lane tag: the take is known but its recording has not arrived on this device yet."
   }
 }

@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [X.x.x]
 
 ### Added
+- A take whose recording has not arrived is re-requested on the next sync, instead of being stranded with the right duration and the wrong audio.
+- A lane says when it is still waiting for a recording to arrive.
 - A red tag marks a take that has not reached every connected device yet, so nobody leaves mid-transfer.
 - A Rehearsals page in the user guide, including how to get everyone on one network when the room has no Wi-Fi.
 - A Rehearse tab: start a tune, set the tempo, and record your part over a click.

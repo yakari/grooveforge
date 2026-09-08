@@ -196,6 +196,23 @@ class RehearsalEngine extends ChangeNotifier {
     }
   }
 
+  /// Parts whose take is in the manifest but whose audio is not playable here.
+  ///
+  /// Taken from what actually loaded rather than from a fresh look at the
+  /// filesystem: the engine has already tried to open every file, and a track
+  /// that is not in [_trackOf] is one that failed.
+  ///
+  /// This is a real state, not a defensive check. The manifest merges and
+  /// saves before a single byte of audio moves, so a session that dies
+  /// mid-transfer — or a peer that passes on a take whose audio it does not
+  /// have yet — leaves the record of a take without the recording. The next
+  /// sync fetches it; until then the lane should say so rather than showing a
+  /// duration over silence.
+  Set<String> get partsMissingAudio => {
+        for (final part in _rehearsal?.parts ?? const <RehearsalPart>[])
+          if (part.take != null && !_trackOf.containsKey(part.id)) part.id,
+      };
+
   /// Stops the transport, releases the tracks and stops routing audio.
   Future<void> close() async {
     if (!_active && _rehearsal == null) return;

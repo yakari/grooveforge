@@ -1211,5 +1211,6 @@
   "guideRehearsalHotspotNote": "Le partage des parties ne consomme aucune donnée mobile : il ne sort jamais de la salle. Certains téléphones exigent d'activer les données mobiles avant de partager un point d'accès, mais la répétition, elle, n'en dépense pas.",
   "rehearsalTakePending": "Pas encore transmise",
   "rehearsalSyncIncomplete": "Restez connectés : tout le monde n'a pas encore les dernières prises.",
-  "rehearsalSyncComplete": "Tout le monde a les dernières prises."
+  "rehearsalSyncComplete": "Tout le monde a les dernières prises.",
+  "rehearsalTakeAwaitingAudio": "En attente de l'audio"
 }

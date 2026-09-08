@@ -54,6 +54,28 @@ class LibrarySyncStore implements SyncStore {
   }
 
   @override
+  Future<bool> hasTake(String rehearsalId, String partId) async {
+    final rehearsal = await load(rehearsalId);
+    final part = rehearsal?.parts.where((p) => p.id == partId).firstOrNull;
+    final take = part?.take;
+    if (take == null) return false;
+    final file = File(await library.takePath(rehearsalId, take));
+    // Zero bytes counts as absent: an interrupted write leaves a file that
+    // exists and plays nothing, and "the file is there" would strand it just
+    // as surely as never having asked.
+    return await file.exists() && await file.length() > 0;
+  }
+
+  @override
+  Future<bool> hasMaster(String rehearsalId) async {
+    final rehearsal = await load(rehearsalId);
+    final master = rehearsal?.master;
+    if (master == null) return false;
+    final file = File(await library.masterPath(rehearsalId, master));
+    return await file.exists() && await file.length() > 0;
+  }
+
+  @override
   Future<Uint8List?> readMaster(String rehearsalId) async {
     final rehearsal = await load(rehearsalId);
     final master = rehearsal?.master;

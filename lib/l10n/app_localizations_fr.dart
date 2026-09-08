@@ -2634,4 +2634,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get rehearsalSyncComplete => 'Tout le monde a les dernières prises.';
+
+  @override
+  String get rehearsalTakeAwaitingAudio => 'En attente de l\'audio';
 }

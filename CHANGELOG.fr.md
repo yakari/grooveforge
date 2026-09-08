@@ -8,6 +8,8 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 ## [X.x.x]
 
 ### Ajouté
+- Une prise dont l'enregistrement n'est pas arrivé est redemandée à la synchro suivante, au lieu de rester bloquée avec la bonne durée et le mauvais audio.
+- Une piste indique quand elle attend encore un enregistrement.
 - Une pastille rouge signale une prise qui n'a pas encore atteint tous les appareils connectés, pour que personne ne parte en plein transfert.
 - Une page Répétitions dans le guide, avec la marche à suivre pour réunir tout le monde sur un même réseau quand la salle n'a pas de Wi-Fi.
 - Un onglet Répéter : lancez un morceau, réglez le tempo et enregistrez votre partie sur un clic.

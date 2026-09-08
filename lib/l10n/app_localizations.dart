@@ -4807,6 +4807,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Everyone has the latest takes.'**
   String get rehearsalSyncComplete;
+
+  /// Rehearsal lane tag: the take is known but its recording has not arrived on this device yet.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for audio'**
+  String get rehearsalTakeAwaitingAudio;
 }
 
 class _AppLocalizationsDelegate

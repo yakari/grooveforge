@@ -1347,3 +1347,47 @@ yourself, quietly turning every two-device test into a one-device one. Every
 stamp in the library now goes through `deviceId()`, and the sync service asks
 the library rather than the free function, so a device's member stamps, its
 field clocks and the id it announces on the network cannot disagree.
+
+---
+
+## 24. The stranded take
+
+Reported from a real session: a re-recorded trumpet part reached the phone but
+not the tablet. The tablet showed the *new* take's duration, showed no warning,
+and played the old audio.
+
+The manifest merges and saves before a single byte of audio moves, and
+`partsToFetch` was decided purely on revision numbers. So once a device wrote
+down revision 2, every later sync compared 2 against 2, asked for nothing, and
+the take was stranded permanently — right duration on screen, wrong recording
+underneath, and no way back.
+
+Two ways in, and the reported one is the second:
+
+1. A session dies between saving the manifest and receiving the blob.
+2. **Relay.** A hands B the manifest for a take whose audio B does not have
+   yet; B skips the blob silently (`_sendWanted` cannot send what it cannot
+   read); C, syncing with B, writes down the revision. Exactly the "the tune
+   was already open on the phone and the tablet joined after" shape.
+
+The fix is that presence of the audio, not the revision alone, decides a fetch.
+`SyncStore` gained `hasTake` / `hasMaster`, and the want list is the merge's
+answer plus every part whose take has no audio on disk. Zero bytes counts as
+absent — an interrupted write leaves a file that exists and plays nothing, and
+"the file is there" would strand it just as surely.
+
+Asking again costs a part id in a list. Not asking costs the take.
+
+The lane now also says **Waiting for audio** when this device holds the record
+of a take without the recording. It reads that state off what the engine
+actually loaded rather than re-checking the filesystem: a part with a take and
+no entry in `_trackOf` is one whose file would not open. That is the tag that
+would have made this visible immediately, instead of leaving it to be noticed
+by ear.
+
+### A test that could not see the bug
+
+`_MemoryStore` keyed audio by part id, so "holds the old take but not the new
+one" was unrepresentable — the exact state at the heart of this. It now keys by
+file name, as the real store does on disk, and both new tests fail without the
+fix.

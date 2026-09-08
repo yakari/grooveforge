@@ -365,6 +365,7 @@ class _RehearsalScreenState extends State<RehearsalScreen> {
                     // part against every visible peer, and the lane builder runs
                     // for each row.
                     final pending = sync.partsAwaitingDelivery(rehearsal);
+                  final missing = engine.partsMissingAudio;
                     return Column(
                       children: [
                         _TransportBar(engine: engine, rehearsal: rehearsal),
@@ -412,6 +413,9 @@ class _RehearsalScreenState extends State<RehearsalScreen> {
                                   part: rehearsal.parts[i],
                                   online: sync.onlineDeviceIds(rehearsal.id),
                                   awaitingDelivery: pending.contains(
+                                    rehearsal.parts[i].id,
+                                  ),
+                                  missingAudio: missing.contains(
                                     rehearsal.parts[i].id,
                                   ),
                                   onChanged: () => setState(() {}),
@@ -634,6 +638,7 @@ class _PartLane extends StatelessWidget {
     required this.part,
     required this.online,
     required this.awaitingDelivery,
+    required this.missingAudio,
     required this.onChanged,
     required this.onDelete,
     required this.onRemovePart,
@@ -648,6 +653,9 @@ class _PartLane extends StatelessWidget {
 
   /// True while some device in the room is not yet known to hold this take.
   final bool awaitingDelivery;
+
+  /// True when this device knows about the take but has no audio for it.
+  final bool missingAudio;
 
   final VoidCallback onChanged;
   final VoidCallback onDelete;
@@ -724,6 +732,28 @@ class _PartLane extends StatelessWidget {
                                 l10n.rehearsalYourPart,
                                 style: theme.textTheme.labelSmall?.copyWith(
                                   color: theme.colorScheme.onPrimaryContainer,
+                                ),
+                              ),
+                            ),
+                          ],
+                          if (missingAudio) ...[
+                            const SizedBox(width: 8),
+                            // A different complaint from the one below: that
+                            // one says the room has not got your recording,
+                            // this one says you have not got theirs.
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 1,
+                              ),
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.errorContainer,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                l10n.rehearsalTakeAwaitingAudio,
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: theme.colorScheme.onErrorContainer,
                                 ),
                               ),
                             ),
