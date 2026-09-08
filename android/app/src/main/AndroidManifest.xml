@@ -20,6 +20,22 @@
     <!-- Remove unwanted permissions injected by libraries -->
     <uses-permission android:name="com.android.vending.CHECK_LICENSE" tools:node="remove" />
 
+    <!--
+      open_filex declares the media permissions so it can open any file in
+      shared storage. GrooveForge only ever hands it a file from the app's own
+      rehearsal folder, through a FileProvider content URI — which needs no
+      permission at all. Reading somebody's photo and video library is not
+      something this app does, so the declaration is removed rather than
+      justified.
+
+      Evidence that nothing depends on them: importing an MP3, an M4A or a
+      video's soundtrack worked before open_filex was added, when these were
+      not in the manifest.
+    -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" tools:node="remove" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" tools:node="remove" />
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" tools:node="remove" />
+
     <uses-feature android:name="android.hardware.bluetooth_le" android:required="false" />
     <uses-feature android:name="android.software.midi" android:required="true" />
     

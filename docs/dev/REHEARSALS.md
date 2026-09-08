@@ -2091,3 +2091,23 @@ rehearsal engine existed.
 
 **Verify a change like this with `flutter build web --release --wasm`**, the
 same command CI runs. It is the only thing that compiles the web target.
+
+### Two permissions the score viewer brought with it
+
+Play flagged `READ_MEDIA_IMAGES` and `READ_MEDIA_VIDEO` and asked for a
+justification. Neither is declared by this app: `open_filex`, added for the
+shared score folder, declares all three media permissions plus
+`READ_EXTERNAL_STORAGE` so that it can open *any* file in shared storage.
+
+GrooveForge only ever hands it a file from the rehearsal's own `docs/` folder,
+through a FileProvider content URI — which needs no permission at all. So they
+are removed with `tools:node="remove"`, following the precedent already in the
+manifest for `CHECK_LICENSE`, rather than justified.
+
+That nothing depends on them is checkable rather than assumed: importing an
+MP3, an M4A or a video's soundtrack worked before `open_filex` existed, when
+these permissions were not in the manifest at all.
+
+Verified against the built APK with `aapt2 dump permissions`, not just the
+merged manifest — the two Play named, and `READ_MEDIA_AUDIO` with them, are
+gone.
