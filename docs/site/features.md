@@ -199,4 +199,32 @@ GrooveForge was mainly developed as a tool to **learn scales**. The **Xen** modu
 
 ---
 
-*Last updated: 2026-03-19*
+## Rehearsals
+
+*   **A band learning a tune, on the phones they already have**
+    A second main screen beside the rack. Everyone adds a lane for their instrument and records their own part over a shared click, on their own device. You record your own parts and nobody else's; yours can be re-recorded or deleted freely.
+
+*   **Overdubs that land on the beat**
+    Every device takes a moment to play sound and a moment to capture it, and that delay would put each take behind the beat. GrooveForge measures the round trip on the device itself — a chirp, cross-correlated against what comes back — and shifts each take by it. Measured and remembered per output: the speaker, a wired headset and each Bluetooth headset keep their own figure, because the delay belongs to the gear.
+
+*   **Play along to a recording**
+    Import a master track (MP3, FLAC and WAV everywhere; M4A, AAC and video soundtracks on Android), tap the tempo, and drag a marker to the first downbeat. Zoom into the waveform, scroll along it, and line the grid up against red beat lines. The click switches itself off once a recording is there, because that is the tempo now.
+
+*   **Practice speed**
+    Slow a tune to 50% to work a passage, without the pitch dropping — the recordings are time-stretched through the phase vocoder rather than played slower. Local to your device: one player working a hard bar at half speed does not drag the band down with them.
+
+*   **Chord grid**
+    Write the tune's form bar by bar, one to four chords a bar, with the bar being played lit up. Collapsed to one line it scrolls itself while you play. Chord symbols are read properly — `Ab`, `C#m7`, `Gm7b5`, `C6/9`, `Am(M7)/B` — into a root, a triad and a full set of intervals.
+
+*   **Shared score folder**
+    Add a PDF, a chart or a photo of a page to a tune, and everyone in the band gets a copy. Scans open full screen and zoomable; anything else opens in whatever the device already uses for it.
+
+*   **Sync with no server and no account**
+    Parts travel directly from device to device over the local network, encrypted. Show a QR code once, or send a link; from then on the devices find each other by themselves. The merge is symmetric and conflict-free, so there is no host: any two devices that meet converge on the same arrangement, in any order, and a device that was away catches up whenever it next appears. It works in a room with no internet at all.
+
+*   **Knowing where everyone is**
+    A dot on each lane says whether the player who owns it is connected. A take that has not reached every device in the room is flagged, so nobody packs up mid-transfer. A player who has gone for good can be removed, taking their parts with them everywhere.
+
+---
+
+*Last updated: 2026-09-08*

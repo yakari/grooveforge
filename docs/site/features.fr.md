@@ -199,4 +199,32 @@ GrooveForge a d’abord été conçu pour **apprendre les gammes**. Le module **
 
 ---
 
-*Dernière mise à jour : 2026-03-25*
+## Répétitions
+
+*   **Un groupe qui travaille un morceau, avec les téléphones qu'il a déjà**
+    Un second écran principal à côté du rack. Chacun ajoute une piste pour son instrument et enregistre sa propre partie sur un clic commun, depuis son appareil. Vous enregistrez vos parties et celles de personne d'autre ; les vôtres, vous pouvez les refaire ou les supprimer librement.
+
+*   **Des prises qui tombent sur le temps**
+    Chaque appareil met un instant à sortir le son et un instant à le capter, et ce retard placerait chaque prise derrière le temps. GrooveForge mesure l'aller-retour sur l'appareil lui-même — un balayage, corrélé avec ce qui revient — et recale chaque prise d'autant. Mesuré et retenu par sortie : le haut-parleur, un casque filaire et chaque casque Bluetooth gardent leur propre valeur, car le retard appartient au matériel.
+
+*   **Jouer sur un enregistrement**
+    Importez une piste maîtresse (MP3, FLAC et WAV partout ; M4A, AAC et le son d'une vidéo sur Android), tapez le tempo, puis amenez un repère sur le premier temps fort. Zoomez dans la forme d'onde, faites-la défiler, et calez la grille sur des traits de temps rouges. Le clic se coupe tout seul dès qu'un enregistrement est là : c'est lui qui donne le tempo, désormais.
+
+*   **Vitesse de travail**
+    Ralentissez un morceau à 50 % pour bosser un passage, sans que la hauteur baisse — les enregistrements sont étirés par le phase vocoder au lieu d'être joués plus lentement. Propre à votre appareil : celui qui travaille une mesure difficile à mi-vitesse n'entraîne pas le groupe avec lui.
+
+*   **Grille d'accords**
+    Écrivez la forme du morceau mesure par mesure, de un à quatre accords par mesure, la mesure en cours allumée. Réduite à une ligne, elle défile toute seule pendant que vous jouez. Les chiffrages sont réellement analysés — `Ab`, `C#m7`, `Gm7b5`, `C6/9`, `Am(M7)/B` — en une fondamentale, un accord de base et un jeu complet d'intervalles.
+
+*   **Classeur de partitions partagé**
+    Ajoutez un PDF, une grille ou la photo d'une page à un morceau, et tout le groupe en reçoit une copie. Les scans s'ouvrent en plein écran et se zooment ; le reste s'ouvre avec l'application que l'appareil utilise déjà pour ce type de fichier.
+
+*   **Synchronisation sans serveur ni compte**
+    Les parties passent directement d'un appareil à l'autre par le réseau local, chiffrées. Montrez un QR code une fois, ou envoyez un lien ; ensuite les appareils se retrouvent tout seuls. La fusion est symétrique et sans conflit, donc il n'y a pas d'hôte : deux appareils qui se rencontrent convergent vers le même arrangement, dans n'importe quel ordre, et celui qui était absent rattrape son retard dès qu'il réapparaît. Tout cela fonctionne dans une salle sans le moindre accès à internet.
+
+*   **Savoir où en est chacun**
+    Une pastille sur chaque piste indique si le musicien qui la possède est connecté. Une prise qui n'a pas atteint tous les appareils présents est signalée, pour que personne ne remballe en plein transfert. Un musicien définitivement parti peut être retiré, emportant ses parties partout.
+
+---
+
+*Dernière mise à jour : 2026-09-08*

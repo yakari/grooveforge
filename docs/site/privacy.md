@@ -9,18 +9,30 @@ This page is used to inform visitors regarding our policies with the collection,
 GrooveForge is designed to be a **private, local-first application**. 
 
 - **Personal Data**: We do **not** collect, store, or transmit any personal information, such as your name, email address, location, or contact details.
-- **Microphone**: The app may request microphone access **only** when you use the **Vocoder** module. Your voice is processed in real time to shape the synthesizer sound; it is **not** recorded, stored, or transmitted.
-- **Camera**: The app may request access to the **front camera** for a fun, motion-based interaction with the **Theremin** module. Camera frames are used locally in real time to control the instrument; no video or images are recorded, stored, or transmitted.
+- **Microphone**: The app requests microphone access for two features. In the **Vocoder**, your voice is processed in real time to shape the synthesizer sound and is **not** recorded, stored, or transmitted. In **Rehearsals**, your playing *is* recorded, as a sound file on your own device — that is the point of the feature — and is shared only as described below.
+- **Camera**: The app requests camera access for two features: a motion-based interaction with the **Theremin** module, and scanning the QR code that invites you into a **Rehearsal**. In both cases frames are processed locally in real time; no video or image is recorded, stored, or transmitted.
 - **Audio output**: The app uses the device’s audio system to generate sound. No audio is sent to our servers or third parties.
-- **Storage**: The app may request permission to access your device's storage solely for the purpose of loading SoundFont files (.sf2) or MIDI files provided by you. No other files are accessed, and no data is uploaded.
+- **Storage**: The app may request permission to access your device's storage to load SoundFont files (.sf2) or MIDI files you provide, and to import a recording or a document (a score, a PDF, a photo of a page) into a rehearsal. No other files are accessed, and no data is uploaded.
+
+## 1a. Rehearsals
+
+Rehearsals let a band record and share parts of a tune. Everything in this section stays between the devices in the room.
+
+- **There is no server and no account.** Nothing is uploaded to us or to anyone else. We operate no service that could receive it.
+- **Where your recordings live**: in the app's own folder on your device, alongside the tune they belong to. Deleting the tune deletes them.
+- **How they reach the others**: directly from your device to theirs, over your local network (Wi-Fi, or a phone's hotspot). The connection is encrypted, and the key exists only inside the rehearsal you were invited to — it is never sent over the network. A device that was never invited cannot read anything.
+- **What is shared**: the parts you record, a recording you import as a backing track, any documents you add, and the names and instruments the band typed in. Only with people you invited to that tune.
+- **Local network visibility**: while a rehearsal is open, your device announces that a GrooveForge rehearsal is available, so the others can find it again without scanning a code each time. That announcement carries an identifier for the tune and for your device. It does not carry your name, the audio, or the key.
+- **Internet is not required, and is not used.** The Rehearsals feature works with no internet connection at all.
 
 ## 2. Permissions
 
 The app may request the following permissions:
-- **Microphone**: Required for the Vocoder module (real-time voice processing; no recording or transmission).
-- **Camera**: Required for the Theremin module’s motion-based interaction (front camera; no recording or transmission).
+- **Microphone**: Required for the Vocoder (real-time processing, no recording) and for recording your part in Rehearsals (recorded to your device).
+- **Camera**: Required for the Theremin’s motion-based interaction and for scanning a rehearsal’s QR code (no recording or transmission).
+- **Local network**: Required for Rehearsals, to find the other devices in the room and exchange parts directly with them.
 - **MIDI**: To connect to external MIDI controllers and instruments.
-- **Storage/File Access**: To load user-provided SoundFont files.
+- **Storage/File Access**: To load user-provided SoundFont files, and recordings or documents you add to a rehearsal.
 
 ## 3. Third-Party Services
 
@@ -32,7 +44,7 @@ We do not collect any log data or usage statistics.
 
 ## 5. Security
 
-Since no personal information is collected or transmitted, there is no risk of your personal data being compromised via this app.
+No personal information is collected or transmitted, and there is no server that could be breached. What a rehearsal exchanges between devices is encrypted, and only devices invited to that rehearsal hold the key.
 
 ## 6. Children’s Privacy
 
@@ -47,4 +59,4 @@ We may update our Privacy Policy from time to time. Thus, you are advised to rev
 If you have any questions or suggestions about our Privacy Policy, do not hesitate to contact us via our GitHub repository: [https://github.com/yakari/grooveforge](https://github.com/yakari/grooveforge)
 
 ---
-*Last updated: 2026-03-19*
+*Last updated: 2026-09-08*

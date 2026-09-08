@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="GrooveForge — 92 microtonal scales with Xen, learn chords and scales with Jam Mode, practice with a real MIDI keyboard, drum grooves instead of a metronome, and a looper locked to the same transport.">
+  <meta name="description" content="GrooveForge — rehearse as a band with latency-compensated overdubs that sync device to device, 92 microtonal scales with Xen, Jam Mode, a real MIDI keyboard, drum grooves instead of a metronome, and a looper locked to the same transport.">
   <title>GrooveForge — Learn harmony, practice with rhythm</title>
   <link rel="icon" type="image/png" href="assets/icon.png">
   <link rel="stylesheet" href="css/site.css">
@@ -27,6 +27,7 @@
       </div>
       <nav class="site-nav" aria-label="Primary">
         <a href="guide/">Guide</a>
+        <a href="rehearsals/">Rehearsals</a>
         <a href="modules/">Modules</a>
         <a href="midi-fx/">MIDI FX</a>
         <a href="vst/">VST3</a>
@@ -55,6 +56,11 @@
           Layer phrases in the <strong>MIDI Looper</strong> while the drums run — both stay in sync because they share BPM,
           play/stop, and time signature.
         </p>
+        <p>
+          And when the band is in the room, <strong>Rehearsals</strong> turns the phones you already have into a
+          multitrack: everyone records their own part over a shared click, overdubs land on the beat, and the parts
+          sync straight from one device to another — <strong>no server, no account, no internet</strong>.
+        </p>
         <div class="hero-actions">
           <a class="btn btn-primary" href="demo/">Launch web demo</a>
           <a class="btn btn-secondary" href="https://github.com/yakari/grooveforge" rel="noopener noreferrer">GitHub repository</a>
@@ -69,6 +75,16 @@
     <section class="learn-strip" aria-labelledby="learn-heading">
       <h2 class="section-title" id="learn-heading">Built for learning and practice</h2>
       <div class="card-grid three">
+        <article class="card">
+          <h3><a href="rehearsals/">Rehearsals — a band, one tune, several phones</a></h3>
+          <p>
+            Everyone records their own part over a shared click. GrooveForge measures your device's round trip and
+            <strong>shifts each take onto the beat</strong>, separately for the speaker, a wired headset and every
+            Bluetooth one. Play along to an imported track, slow the whole tune to 50% <strong>without the pitch
+            dropping</strong>, write the chord grid, and share scores. Parts travel device to device, encrypted,
+            with no server behind them.
+          </p>
+        </article>
         <article class="card">
           <h3>Xen — 92 scales, and the tuning that goes with them</h3>
           <p>
@@ -109,11 +125,20 @@
       <figcaption>Main rack and transport — detailed screenshots for preferences, modules, patch cables, and Jam Mode are on the matching doc pages.</figcaption>
     </figure>
 
+    <figure class="figure-card figure-doc home-app-preview">
+      <img src="assets/screenshots/rehearsals_chord_grid.png" width="460" height="1129" loading="lazy" alt="A tune open in the Rehearse tab: chord grid, imported recording, and one lane per player">
+      <figcaption>Rehearsals — the chord grid, the imported recording, and a lane per player. Full walkthrough on the <a href="rehearsals/">Rehearsals page</a>.</figcaption>
+    </figure>
+
     <h2 class="section-title">Explore the docs</h2>
     <div class="card-grid three">
       <article class="card">
         <h3><a href="guide/">Getting started</a></h3>
         <p>Rack, transport, projects, patch cables, and where to tap first when you open the app.</p>
+      </article>
+      <article class="card">
+        <h3><a href="rehearsals/">Rehearsals</a></h3>
+        <p>Recording as a band, latency compensation, practice speed, the chord grid, and how parts sync with no server.</p>
       </article>
       <article class="card">
         <h3><a href="modules/">Built-in modules</a></h3>
