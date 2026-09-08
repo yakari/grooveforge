@@ -1637,3 +1637,23 @@ same shape as members, minus everything that made members interesting.
   The manifest merges before the bytes move, so that is a real state rather
   than an error.
 - **No extension filter on the picker.** A band shares whatever it has.
+
+---
+
+## 29. Reclaiming the tune screen
+
+Measured on a Z Fold cover screen, which is the narrowest thing this has to
+work on, and the tightest constraint before a chord grid can go above the lanes.
+
+**The connection strip was permanently on.** Being *in* a rehearsal makes you
+live (§?), so `isLive || isHosting` was always true and a full-width strip
+announced "connected" for the whole session — two wrapped lines saying nothing
+is wrong. It now appears only for the one message worth interrupting for: a
+take that has not reached everyone. The quiet states moved to a chip in the app
+bar, which is what the design called for in the first place, and which
+disappears entirely when nobody else is about.
+
+**The tempo could not be found.** It was plain grey text with a 14 px icon
+after it, which reads as a caption, not a control. It is now a bordered chip
+with a speed icon and a dropdown arrow. Nothing about the behaviour changed —
+only whether anyone could tell it was there.

@@ -41,6 +41,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The same measurement catches recording and playback clocks drifting apart.
 - Settings gains an overdub latency check that measures the round trip on your own device.
 
+### Changed
+- The tempo and practice speed are now a button on the transport instead of a line of text you had to guess was tappable.
+- The connection strip only appears when it has something to ask for; who is nearby moved to a small chip in the title bar.
+
 ## [2.18.0] - 2026-09-04
 
 ### Added

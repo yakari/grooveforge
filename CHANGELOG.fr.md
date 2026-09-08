@@ -41,6 +41,10 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 - La même mesure détecte les horloges d'enregistrement et de lecture qui dérivent.
 - Les réglages proposent une mesure de latence d'overdub sur votre propre appareil.
 
+### Modifié
+- Le tempo et la vitesse de travail sont désormais un bouton sur le transport, au lieu d'une ligne de texte dont rien n'indiquait qu'elle était cliquable.
+- Le bandeau de connexion n'apparaît que lorsqu'il a quelque chose à demander ; les appareils proches sont indiqués par une pastille dans la barre de titre.
+
 ## [2.18.0] - 2026-09-04
 
 ### Ajouté

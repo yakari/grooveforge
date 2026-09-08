@@ -416,6 +416,14 @@ class _RehearsalScreenState extends State<RehearsalScreen> {
         title: Text(rehearsal?.title ?? l10n.rehearsalsTitle),
         actions: [
           if (rehearsal != null)
+            _SyncChip(
+              rehearsalId: rehearsal.id,
+              onRefresh: () async {
+                await context.read<RehearsalSyncService>().syncNow();
+                await _refresh();
+              },
+            ),
+          if (rehearsal != null)
             IconButton(
               icon: const Icon(Icons.library_books_outlined),
               tooltip: l10n.rehearsalDocuments,
@@ -475,7 +483,14 @@ class _RehearsalScreenState extends State<RehearsalScreen> {
                     return Column(
                       children: [
                         _TransportBar(engine: engine, rehearsal: rehearsal),
-                        if (sync.isLive || sync.isHosting)
+                        // Only when it is asking for something. Being
+                        // connected is the normal state of a rehearsal, so a
+                        // full-width strip saying so was permanently on and
+                        // permanently ignored — two wrapped lines of a phone
+                        // screen spent on "nothing is wrong". The quiet states
+                        // moved to a chip in the app bar; what is left here is
+                        // the one message worth interrupting for.
+                        if (pending.isNotEmpty)
                           _LiveBar(
                             sync: sync,
                             rehearsalId: rehearsal.id,
@@ -589,59 +604,76 @@ class _TransportBar extends StatelessWidget {
                         engine.isCountingIn ? theme.colorScheme.tertiary : null,
                   ),
                 ),
-                // Tapping the tempo is how both speed controls are reached.
-                // It is the thing on screen they are about, and a rehearsal
-                // screen has no room for two more sliders.
+                // A chip, not a line of text with a small icon after it.
+                // Tapping the tempo is how both speed controls are reached,
+                // and nothing about plain grey text says so — it read as a
+                // caption, which is why it could not be found.
                 InkWell(
                   onTap: () => showModalBottomSheet<void>(
                     context: context,
                     isScrollControlled: true,
-                    builder: (_) => _TempoSheet(engine: engine,
-                        rehearsal: rehearsal),
+                    builder: (_) =>
+                        _TempoSheet(engine: engine, rehearsal: rehearsal),
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        '${l10n.rehearsalBpmValue(rehearsal.bpm.toStringAsFixed(0))}'
-                        '   ·   '
-                        '${l10n.rehearsalMeter(rehearsal.beatsPerBar, rehearsal.beatUnit)}',
-                        style: theme.textTheme.bodySmall?.copyWith(
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    padding: const EdgeInsets.fromLTRB(10, 3, 6, 3),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: theme.colorScheme.outlineVariant,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.speed,
+                          size: 15,
+                          color: theme.colorScheme.primary,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          '${l10n.rehearsalBpmValue(rehearsal.bpm.toStringAsFixed(0))}'
+                          '   ·   '
+                          '${l10n.rehearsalMeter(rehearsal.beatsPerBar, rehearsal.beatUnit)}',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurface,
+                            fontFeatures: const [FontFeature.tabularFigures()],
+                          ),
+                        ),
+                        if (engine.practiceSpeed < 0.999) ...[
+                          const SizedBox(width: 6),
+                          // Shown only when it is not 1.0, because a badge
+                          // that is always there stops being read — and
+                          // playing at anything other than the tune's own
+                          // tempo is exactly the state worth a reminder.
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 5,
+                              vertical: 1,
+                            ),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.tertiaryContainer,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              l10n.rehearsalPracticeSpeedValue(
+                                (engine.practiceSpeed * 100).round(),
+                              ),
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: theme.colorScheme.onTertiaryContainer,
+                              ),
+                            ),
+                          ),
+                        ],
+                        Icon(
+                          Icons.arrow_drop_down,
+                          size: 18,
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
-                      ),
-                      if (engine.practiceSpeed < 0.999) ...[
-                        const SizedBox(width: 6),
-                        // Shown only when it is not 1.0, because a badge that
-                        // is always there stops being read — and playing at
-                        // anything other than the tune's tempo is exactly the
-                        // state worth being reminded of.
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 5,
-                            vertical: 1,
-                          ),
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.tertiaryContainer,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            l10n.rehearsalPracticeSpeedValue(
-                              (engine.practiceSpeed * 100).round(),
-                            ),
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: theme.colorScheme.onTertiaryContainer,
-                            ),
-                          ),
-                        ),
                       ],
-                      const SizedBox(width: 4),
-                      Icon(
-                        Icons.speed,
-                        size: 14,
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ],
@@ -713,6 +745,71 @@ class _BeatLamp extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+/// Who is in the room, as a chip in the app bar.
+///
+/// The design always called for this (§?: "a quiet chip in the app bar") and
+/// the full-width strip was standing in for it. Being connected is the normal
+/// state of a rehearsal, so a strip announcing it was on the whole time and
+/// read none of the time, while costing two wrapped lines of a cover screen.
+///
+/// Tapping it syncs now, which is what the strip's refresh button did.
+class _SyncChip extends StatelessWidget {
+  const _SyncChip({required this.rehearsalId, required this.onRefresh});
+
+  final String rehearsalId;
+  final Future<void> Function() onRefresh;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
+    final sync = context.watch<RehearsalSyncService>();
+    final peers = sync.visibleDeviceCount(rehearsalId);
+
+    // Nothing to report and nobody about: no chip at all. A rehearsal on your
+    // own should not carry networking furniture.
+    if (peers == 0 && !sync.isBusy) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+      child: Tooltip(
+        message: peers == 0 ? l10n.liveConnected : l10n.nearbyPeers(peers),
+        child: InkWell(
+          onTap: () => onRefresh(),
+          borderRadius: BorderRadius.circular(20),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  sync.isBusy ? Icons.sync : Icons.wifi_tethering,
+                  size: 14,
+                  color: theme.colorScheme.primary,
+                ),
+                if (peers > 0) ...[
+                  const SizedBox(width: 5),
+                  Text(
+                    '$peers',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: theme.colorScheme.primary,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
