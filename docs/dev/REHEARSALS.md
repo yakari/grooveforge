@@ -1855,3 +1855,118 @@ any of this survives as the fallback.
 A manual trim on a finished take: nudge it against the others while it loops.
 Not a substitute for measuring, but Bluetooth latency drifts with codec
 negotiation and battery level, so a by-ear backstop is worth having.
+
+---
+
+## 32. Count-in, after the fact
+
+It could only be set when a tune was created, which is the one moment nobody
+knows what they want: two bars is only obviously too short or too long once you
+have tried recording against it. It now sits in the tempo sheet, beside the two
+speeds, because it is the same kind of decision.
+
+It is part of the tune rather than of a device, so it goes through
+`updateField` and syncs — a band that agrees on four bars in should not have to
+agree again on every phone.
+
+---
+
+## 33. Aligning a recording by eye
+
+Tapping the tempo and dragging a marker got the grid roughly right, and roughly
+was all it could be: at a phone's width a three-minute track puts a whole bar
+inside two pixels. Everything below exists to make the last tenth of a beat
+visible.
+
+**Beat lines.** Red verticals drawn from the downbeat at the current tempo, bar
+lines full height and beats short. This is what makes a tempo error legible: a
+tenth of a beat out is inaudible over two bars and unmistakable after thirty,
+because the lines walk off the sound. Suppressed below four pixels apart, where
+they would be a wash rather than a reading.
+
+**Zoom, up to ×400, about the marker** — not about the centre of the screen,
+which would walk the downbeat off the edge after two presses when it is the
+only reason anyone is zooming. Waveform resolution follows the zoom, capped at
+24 000 bins; magnifying a 600-bin drawing would enlarge the bins rather than
+the sound. Only the bins inside the window are drawn, so zooming costs no more
+than the whole file did.
+
+Tap and drag now map through the visible window. Without that, every tap while
+zoomed in would land near the start of the recording.
+
+**Fine tempo**, a tenth of a beat per press, with the value between its two
+buttons. The tap tempo lands within a beat or so; the last tenth decides
+whether the lines still sit on the sound thirty bars later, and it is not
+something anybody can tap.
+
+**Skip the silence.** Commercial tracks and screen recordings open with
+anything from digital black to two seconds of room tone, and the first thing
+anyone does is drag past it. `MasterSilence` reads only the first thirty
+seconds — the answer is always near the front — and requires about two
+milliseconds of sound above roughly -46 dBFS before it will call it an entry,
+so a decoder click cannot be mistaken for the music. It reports the start of
+the run rather than its end, because that is where the note began.
+
+Nothing is cut. The grid may legitimately start before the first note — an
+upbeat, or a count-in on the recording itself — and a trim would throw that
+away irreversibly, so the button offers the position and the file stays whole.
+It appears only once the scan has found something and the marker is not already
+there.
+
+---
+
+## 34. Measuring a recording without moving it
+
+Reported while using the new beat lines: nudging the tempo to line them up with
+the music made the music speed up or slow down, so the two could never meet.
+Chase the tempo and it runs away from you.
+
+The mistake was mine and it was conceptual. A recording is a fixed thing.
+Changing the tempo while calibrating means *"I now think it was played at
+142"*, not *"play it at 142"* — so `master.nativeBpm` has to move with the
+tune's tempo, which leaves the stretch ratio at exactly 1 and nothing is
+re-rendered. `setMasterTempo` does both together; the align screen uses it
+instead of `setBpm`.
+
+Slowing down for practice is the other case entirely, and there the recording
+*should* stretch — that is `setPracticeSpeed`, and it leaves the pair alone.
+
+Which makes the tune-tempo slider wrong to offer once a recording exists: its
+tempo is not ours to choose, it is whatever was played. The slider is disabled
+with a line saying where the tempo comes from and pointing at the practice
+speed for slowing down.
+
+## 35. Count-in on play, and the lead-in
+
+Two things, and the second is the interesting one.
+
+**Play now counts in**, like recording already did. You are rehearsing either
+way, and coming in cold on bar one is the harder of the two. Setting the
+count-in to none in the tempo panel restores the old behaviour exactly.
+
+**A recording that starts before the tune's first downbeat is now heard during
+the count-in.** This closes the "audio before the downbeat is not played" gap
+from §12.4, and the count-in turns out to be exactly the right place for it: an
+intro or a pick-up plays while the click counts, and the music's first downbeat
+lands on the grid's.
+
+The engine change was one guard — `p < 0` was suppressing every track before
+the downbeat, where checking `p + offset` alone is both sufficient and correct.
+A take has no offset, so it stays silent there, which is right: nobody played
+anything before bar one. But removing the guard exposed two latent bugs, both
+of which would have read out of bounds or gone silent:
+
+- **`p % GF_REH_RING_FRAMES` is negative for negative `p`.** C's `%` keeps the
+  sign of the dividend, so the ring was indexed backwards out of its buffer.
+  `ring_index` now normalises it, in both the fill and the read.
+- **`fill_pos = -1` meant "empty", and -1 is a real grid position.** It read as
+  "already filled up to just before the downbeat", so the count-in region was
+  never fetched and the lead-in stayed silent even after the guard was gone.
+  The sentinel is `INT64_MIN`.
+
+`service_all` also stopped clamping the playhead to zero, for the same reason:
+during a count-in the playhead is *before* the downbeat and there is audio
+there to fill.
+
+The smoke test covers all three cases — a lead-in heard, silence before the
+recording actually starts, and a take still silent before bar one.

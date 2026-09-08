@@ -28,6 +28,49 @@ void main() {
     });
   });
 
+  group('calibrating against a recording', () {
+    test('the recording does not move while its tempo is being measured', () {
+      // The bug this replaced: nudging the tempo to line the beats up with the
+      // music stretched the music, so the two could never meet — chase the
+      // tempo and it runs away from you.
+      final master = RehearsalMaster(
+        fileName: 'm.wav',
+        sourceName: 'song.mp3',
+        frames: 480000,
+        sampleRate: 48000,
+        nativeBpm: 140,
+      );
+      final local = RehearsalLocalState();
+
+      // Calibration moves both together, which is what "the recording is at
+      // 142, not 140" means.
+      master.nativeBpm = 142;
+      final tuneBpm = 142.0;
+
+      final ratio = master.nativeBpm / local.effectiveBpm(tuneBpm);
+      expect(ratio, 1.0,
+          reason: 'a recording being measured must not be stretched');
+      expect(RehearsalTempoCache.needsRender(ratio), isFalse,
+          reason: 'and so it must not be re-rendered either');
+    });
+
+    test('slowing down for practice does stretch it', () {
+      // The other case entirely, and here stretching is the whole point.
+      final master = RehearsalMaster(
+        fileName: 'm.wav',
+        sourceName: 'song.mp3',
+        frames: 480000,
+        sampleRate: 48000,
+        nativeBpm: 140,
+      );
+      final local = RehearsalLocalState()..practiceSpeed = 0.5;
+
+      final ratio = master.nativeBpm / local.effectiveBpm(140);
+      expect(ratio, 2.0, reason: 'half speed is twice as long');
+      expect(RehearsalTempoCache.needsRender(ratio), isTrue);
+    });
+  });
+
   group('the render cache', () {
     test('a tempo that has not moved renders nothing', () {
       // Passing audio through a vocoder is never quite lossless, so rendering

@@ -5047,6 +5047,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Bluetooth adds a long delay of its own, and it differs from one headset to the next.\n\nThe microphone cannot hear your headphones through the air, so hold one earcup against the phone\'s microphone while the measurement runs. That way it hears the sweeps coming back through the headset and measures the real delay, Bluetooth and all.'**
   String get rehearsalRouteBluetoothHint;
+
+  /// Master alignment screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Zoom in'**
+  String get masterZoomIn;
+
+  /// Master alignment screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Zoom out'**
+  String get masterZoomOut;
+
+  /// Master alignment screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Whole recording'**
+  String get masterZoomReset;
+
+  /// Master alignment screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip the silence'**
+  String get masterSkipSilence;
+
+  /// Master alignment screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Slower by 0.1'**
+  String get masterBpmFiner;
+
+  /// Master alignment screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Faster by 0.1'**
+  String get masterBpmFaster;
+
+  /// Master alignment screen.
+  ///
+  /// In en, this message translates to:
+  /// **'×{zoom}'**
+  String masterZoomLevel(int zoom);
+
+  /// Master alignment screen.
+  ///
+  /// In en, this message translates to:
+  /// **'The red lines are the beats. Zoom in and adjust the tempo until they land on the sound.'**
+  String get masterBeatLinesHint;
+
+  /// Tempo panel, when a recording sets the tempo.
+  ///
+  /// In en, this message translates to:
+  /// **'Set by the recording. Change it where you line the grid up with it — here it would only stretch the recording. Use the practice speed to slow everything down.'**
+  String get rehearsalTempoFromMaster;
 }
 
 class _AppLocalizationsDelegate

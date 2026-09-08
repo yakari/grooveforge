@@ -2768,4 +2768,35 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get rehearsalRouteBluetoothHint =>
       'Bluetooth adds a long delay of its own, and it differs from one headset to the next.\n\nThe microphone cannot hear your headphones through the air, so hold one earcup against the phone\'s microphone while the measurement runs. That way it hears the sweeps coming back through the headset and measures the real delay, Bluetooth and all.';
+
+  @override
+  String get masterZoomIn => 'Zoom in';
+
+  @override
+  String get masterZoomOut => 'Zoom out';
+
+  @override
+  String get masterZoomReset => 'Whole recording';
+
+  @override
+  String get masterSkipSilence => 'Skip the silence';
+
+  @override
+  String get masterBpmFiner => 'Slower by 0.1';
+
+  @override
+  String get masterBpmFaster => 'Faster by 0.1';
+
+  @override
+  String masterZoomLevel(int zoom) {
+    return '×$zoom';
+  }
+
+  @override
+  String get masterBeatLinesHint =>
+      'The red lines are the beats. Zoom in and adjust the tempo until they land on the sound.';
+
+  @override
+  String get rehearsalTempoFromMaster =>
+      'Set by the recording. Change it where you line the grid up with it — here it would only stretch the recording. Use the practice speed to slow everything down.';
 }

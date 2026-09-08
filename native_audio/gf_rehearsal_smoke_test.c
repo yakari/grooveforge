@@ -741,6 +741,71 @@ static void test_stops_at_end(void) {
     free(a);
 }
 
+// ─── 11. A lead-in is heard during the count-in ──────────────────────────────
+
+static void test_count_in_preroll(void) {
+    // A master anchored a quarter of a second in: everything before that is
+    // the recording's own lead-in, and the tune's first downbeat is at 0.
+    const int len = SR;
+    const int lead = SR / 4;
+    float* a = (float*)malloc(sizeof(float) * (size_t)len);
+    for (int i = 0; i < len; i++) a[i] = 0.5f;
+    write_wav(path_for("gf_reh_lead.wav"), a, len);
+
+    gf_reh_clear_tracks();
+    gf_reh_set_metronome(0, 0.0f);
+    gf_reh_set_grid(120.0, 4, 4);
+    const int t = gf_reh_add_track(path_for("gf_reh_lead.wav"));
+    if (t < 0) { fail("could not load the master"); free(a); return; }
+    gf_reh_set_track_offset(t, lead);
+
+    float out[BLOCK];
+
+    // Rendering from where the lead-in begins: the grid is still before its
+    // downbeat, but the recording has audio there and it must be heard.
+    gf_reh_play(-(int64_t)lead);
+    gf_reh_render_offline(out, NULL, BLOCK);
+    float peak = 0.0f;
+    for (int i = 0; i < BLOCK; i++) {
+        const float v = out[i] < 0 ? -out[i] : out[i];
+        if (v > peak) peak = v;
+    }
+    printf("    at the start of the lead-in: peak %.3f\n", (double)peak);
+    if (peak < 0.1f) {
+        fail("the recording's lead-in was silent during the count-in");
+    }
+
+    // Further back than the recording itself reaches: silence, because there
+    // is nothing there rather than because the count-in mutes it.
+    gf_reh_play(-(int64_t)lead * 3);
+    gf_reh_render_offline(out, NULL, BLOCK);
+    peak = 0.0f;
+    for (int i = 0; i < BLOCK; i++) {
+        const float v = out[i] < 0 ? -out[i] : out[i];
+        if (v > peak) peak = v;
+    }
+    printf("    before the recording begins: peak %.3f\n", (double)peak);
+    if (peak > 0.001f) fail("audio appeared before the recording starts");
+
+    // A take has no offset, so it must stay silent before the downbeat —
+    // nobody played anything there.
+    gf_reh_clear_tracks();
+    gf_reh_add_track(path_for("gf_reh_lead.wav"));
+    gf_reh_play(-(int64_t)lead);
+    gf_reh_render_offline(out, NULL, BLOCK);
+    peak = 0.0f;
+    for (int i = 0; i < BLOCK; i++) {
+        const float v = out[i] < 0 ? -out[i] : out[i];
+        if (v > peak) peak = v;
+    }
+    printf("    a take before the downbeat: peak %.3f\n", (double)peak);
+    if (peak > 0.001f) fail("a take sounded before the downbeat");
+
+    gf_reh_stop();
+    gf_reh_clear_tracks();
+    free(a);
+}
+
 int main(int argc, char** argv) {
     if (argc > 1) snprintf(g_dir, sizeof(g_dir), "%s", argv[1]);
     printf("gf_rehearsal_smoke_test — multitrack rehearsal engine (P1)\n");
@@ -760,6 +825,8 @@ int main(int argc, char** argv) {
     printf("\n8. anchoring the grid in a recording\n"); test_track_offset();
     printf("\n9. importing a recording\n");    test_media_import();
     printf("\n10. playback ends with the audio\n"); test_stops_at_end();
+    printf("\n11. a lead-in plays during the count-in\n");
+    test_count_in_preroll();
 
     gf_reh_destroy();
 

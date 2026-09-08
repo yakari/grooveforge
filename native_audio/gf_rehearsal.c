@@ -280,6 +280,23 @@ static void render_click(float* out, int frames, int sample_rate, float hz) {
 
 /// Reads [count] frames from [t] starting at file frame [from] into the ring.
 /// Converts 16-bit to float once, here, so the audio thread never has to.
+/// "Nothing in this ring yet."
+///
+/// Not -1: the playhead is legitimately negative during a count-in, and -1
+/// read as "already filled up to just before the downbeat", so the count-in
+/// region was never fetched and a recording's lead-in stayed silent.
+#define GF_REH_FILL_NONE INT64_MIN
+
+/// Ring slot for a grid position, which may be before the downbeat.
+///
+/// C's % keeps the sign of the dividend, so a negative grid position indexes
+/// backwards out of the buffer. Count-in positions are negative by design —
+/// see [gf_reh_play] — so this is the only safe way to index the ring.
+static inline int64_t ring_index(int64_t p) {
+    const int64_t m = p % GF_REH_RING_FRAMES;
+    return m < 0 ? m + GF_REH_RING_FRAMES : m;
+}
+
 static void fill_track_range(Track* t, int64_t from, int count) {
     if (count <= 0) return;
     static int16_t scratch[4096];
@@ -298,7 +315,7 @@ static void fill_track_range(Track* t, int64_t from, int count) {
             }
         }
         for (int i = 0; i < chunk; i++) {
-            const int64_t idx = (from + i) % GF_REH_RING_FRAMES;
+            const int64_t idx = ring_index(from + i);
             // Past the end of the take, or a short read: silence rather than
             // stale ring content, which would loop the last block forever.
             t->ring[idx] = (i < got) ? (float)scratch[i] / 32768.0f : 0.0f;
@@ -325,7 +342,9 @@ static void service_track(Track* t, int64_t pos) {
 
 /// Fills every track's ring and drains the record ring to disk.
 static void service_all(void) {
-    const int64_t pos = g_e.position > 0 ? g_e.position : 0;
+    // Not clamped to zero: during a count-in the playhead is *before* the
+    // downbeat, and a master with a lead-in has audio there to fill.
+    const int64_t pos = g_e.position;
 
     gf_mutex_lock(&g_e.lock);
     for (int i = 0; i < GF_REH_MAX_TRACKS; i++) service_track(&g_e.tracks[i], pos);
@@ -456,7 +475,7 @@ int gf_reh_add_track(const char* wav_path) {
     t->muted = 0;
     // Forces the first service pass to fill from the playhead rather than
     // trusting a fill_pos left behind by a previous occupant of the slot.
-    t->fill_pos = -1;
+    t->fill_pos = GF_REH_FILL_NONE;
     t->active = 1;
     gf_mutex_unlock(&g_e.lock);
     return slot;
@@ -495,7 +514,7 @@ void gf_reh_set_track_offset(int idx, int64_t frames) {
     g_e.tracks[idx].grid_offset = frames;
     // The ring holds audio read at the previous offset, so it is stale the
     // moment the offset moves; -1 makes the next service pass refill.
-    g_e.tracks[idx].fill_pos = -1;
+    g_e.tracks[idx].fill_pos = GF_REH_FILL_NONE;
 }
 
 int64_t gf_reh_track_frames(int idx) {
@@ -525,7 +544,8 @@ int gf_reh_play(int64_t start_frame) {
     g_e.position = start_frame;
     // Every ring is stale after a seek; -1 makes the next service pass refill
     // from the new playhead instead of trusting what is there.
-    for (int i = 0; i < GF_REH_MAX_TRACKS; i++) g_e.tracks[i].fill_pos = -1;
+    for (int i = 0; i < GF_REH_MAX_TRACKS; i++)
+        g_e.tracks[i].fill_pos = GF_REH_FILL_NONE;
     g_e.state = GF_REH_PLAYING;
     return 0;
 }
@@ -551,7 +571,8 @@ int gf_reh_record(const char* wav_path, int compensation_frames,
     // Start the transport that many bars *before* the downbeat, so a single
     // signed position covers "click for two bars, then play".
     g_e.position = -(int64_t)count_in_bars * gf_reh_frames_per_bar();
-    for (int i = 0; i < GF_REH_MAX_TRACKS; i++) g_e.tracks[i].fill_pos = -1;
+    for (int i = 0; i < GF_REH_MAX_TRACKS; i++)
+        g_e.tracks[i].fill_pos = GF_REH_FILL_NONE;
     g_e.rec_armed = 1;
     g_e.state = (g_e.position < 0) ? GF_REH_COUNT_IN : GF_REH_RECORDING;
     return 0;
@@ -663,7 +684,7 @@ static void render_common(float* outL, float* outR, int frames, int offline) {
 
             // Offline runs faster than real time, so the worker can never fill
             // ahead; the reads happen here instead.
-            if (offline) service_track(t, pos > 0 ? pos : 0);
+            if (offline) service_track(t, pos);
             if (t->muted) continue;
 
             const float g = t->gain;
@@ -671,15 +692,17 @@ static void render_common(float* outL, float* outR, int frames, int offline) {
             const int64_t offset = t->grid_offset;
             for (int i = 0; i < frames; i++) {
                 const int64_t p = pos + i;
-                // Bounds are checked in file coordinates: with an offset the
-                // grid can run past the end of the recording well before it
-                // runs past the take's nominal length.
-                if (p < 0 || p + offset < 0 || p + offset >= t->frames) continue;
+                // Bounds are checked in file coordinates only, so a recording
+                // that starts before the tune's first downbeat is heard during
+                // the count-in rather than thrown away. A take has no offset,
+                // so p + offset is p and it stays silent before zero, which is
+                // right: nobody played anything there.
+                if (p + offset < 0 || p + offset >= t->frames) continue;
                 // Nothing filled this far yet: an underrun. Silence for this
                 // frame, and the transport keeps its timing rather than
                 // stalling, which would desynchronise every other track.
                 if (p >= t->fill_pos) continue;
-                const float s = t->ring[p % GF_REH_RING_FRAMES] * g;
+                const float s = t->ring[ring_index(p)] * g;
                 outL[i] += s;
                 const float a = s < 0 ? -s : s;
                 if (a > peak) peak = a;

@@ -8,6 +8,11 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 ## [X.x.x]
 
 ### Ajouté
+- La lecture démarre désormais par le décompte, et un enregistrement qui commence avant le premier temps fort s'entend pendant celui-ci : le premier temps de la musique tombe ainsi sur celui de la grille.
+- Mesurer le tempo d'un enregistrement ne l'étire plus, ce qui permet enfin d'y caler les traits de temps.
+- Calage d'un enregistrement : zoomez dans la forme d'onde, faites-la défiler, et voyez des traits rouges sur chaque temps pour juger le tempo à l'œil.
+- Des boutons de réglage fin du tempo de part et d'autre de la valeur, et un bouton Passer le silence qui amène le premier temps là où l'enregistrement commence vraiment.
+- Le décompte se règle depuis le panneau de tempo, et plus seulement à la création du morceau.
 - Calibrer un casque une fois vaut pour tous les morceaux, au lieu de devoir recommencer dans chacun.
 - La latence est mesurée et retenue par sortie : le haut-parleur, un casque filaire et chaque casque Bluetooth gardent leur propre valeur.
 - Un avertissement nomme le casque que vous portez quand il n'a jamais été mesuré, au lieu de laisser une prise traîner.

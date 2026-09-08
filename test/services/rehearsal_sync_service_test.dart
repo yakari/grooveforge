@@ -659,6 +659,25 @@ void main() {
     expect(hostSync.partsAwaitingDelivery(r), isEmpty);
   });
 
+  test('a change of count-in reaches the rest of the band', () async {
+    // It is part of the tune, not of a phone: a band that agrees on two bars
+    // in should not have to agree again on every device.
+    final r = await hostLibrary.create(
+        title: 'Tune', memberName: 'Yann', instrument: 'guitar');
+    final hostTicket = await hostSync.startHosting(r);
+    await guestSync.join(hostTicket!);
+    await guestLibrary.load();
+    expect(guestLibrary.rehearsals.single.countInBars, 2);
+
+    await hostLibrary.updateField(r, RehearsalField.countInBars, () {
+      r.countInBars = 4;
+    });
+    await guestSync.join(hostTicket);
+    await guestLibrary.load();
+
+    expect(guestLibrary.rehearsals.single.countInBars, 4);
+  });
+
   test('the device id survives a restart', () async {
     final first = await hostSync.deviceId();
     final again =

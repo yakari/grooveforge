@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [X.x.x]
 
 ### Added
+- Play now runs the count-in first, and a recording that starts before the first downbeat is heard during it, so the music's first beat lands on the grid's.
+- Measuring a recording's tempo no longer stretches the recording, so the beat lines can actually be lined up with it.
+- Aligning a recording: zoom into the waveform, scroll along it, and see red lines on every beat so the tempo can be judged by eye.
+- Fine tempo buttons either side of the value, and a Skip the silence button that jumps the downbeat to where the recording actually starts.
+- The count-in can be changed from the tempo panel, not only when the tune is created.
 - Calibrating a headset once covers every tune, instead of having to repeat it in each.
 - Latency is measured and remembered per output: your speaker, a wired headset and each Bluetooth headset each keep their own figure.
 - A warning names the headphones you are wearing when they have never been measured, instead of letting a take drag.

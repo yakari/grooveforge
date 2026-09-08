@@ -2784,4 +2784,35 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get rehearsalRouteBluetoothHint =>
       'Le Bluetooth ajoute un retard important, qui varie d\'un casque à l\'autre.\n\nLe micro ne peut pas entendre votre casque à travers l\'air : pendant la mesure, plaquez un écouteur contre le micro du téléphone. Il entendra ainsi les balayages revenir par le casque et mesurera le vrai retard, Bluetooth compris.';
+
+  @override
+  String get masterZoomIn => 'Zoom avant';
+
+  @override
+  String get masterZoomOut => 'Zoom arrière';
+
+  @override
+  String get masterZoomReset => 'Tout l\'enregistrement';
+
+  @override
+  String get masterSkipSilence => 'Passer le silence';
+
+  @override
+  String get masterBpmFiner => 'Ralentir de 0,1';
+
+  @override
+  String get masterBpmFaster => 'Accélérer de 0,1';
+
+  @override
+  String masterZoomLevel(int zoom) {
+    return '×$zoom';
+  }
+
+  @override
+  String get masterBeatLinesHint =>
+      'Les traits rouges sont les temps. Zoomez et ajustez le tempo jusqu\'à ce qu\'ils tombent sur le son.';
+
+  @override
+  String get rehearsalTempoFromMaster =>
+      'Donné par l\'enregistrement. Il se règle là où l\'on cale la grille dessus — ici, cela ne ferait qu\'étirer l\'enregistrement. Utilisez la vitesse de travail pour tout ralentir.';
 }

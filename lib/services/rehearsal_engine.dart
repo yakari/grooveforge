@@ -408,11 +408,25 @@ class RehearsalEngine extends ChangeNotifier {
 
   // ── Transport ─────────────────────────────────────────────────────────────
 
-  /// Plays from the top.
+  /// Plays from the top, through the count-in.
+  ///
+  /// The click runs for the tune's count-in bars before the downbeat, the same
+  /// as it does before recording — you are rehearsing either way, and coming
+  /// in cold on bar one is the harder of the two. A recording with a lead-in
+  /// is heard during those bars, so its first downbeat lands on the grid's.
+  /// Set the count-in to none in the tempo panel and playback starts on the
+  /// downbeat as before.
   void play() {
     if (!_active) return;
-    AudioInputFFI().rehPlay(0);
-    _transport = RehearsalTransport.playing;
+    final r = _rehearsal;
+    final ffi = AudioInputFFI();
+    final countIn = (r?.countInBars ?? 0) * ffi.rehFramesPerBar;
+    ffi.rehPlay(-countIn);
+    // Counting in, not yet playing: the lamp and the bar counter both read
+    // this, and a count-in that looked like bar one would be worse than none.
+    _transport = countIn > 0
+        ? RehearsalTransport.countIn
+        : RehearsalTransport.playing;
     notifyListeners();
   }
 
@@ -538,6 +552,43 @@ class RehearsalEngine extends ChangeNotifier {
       r.bpm = bpm;
     });
     await _applyTempo(r);
+  }
+
+  /// Sets the tune's tempo *and* the master's, together.
+  ///
+  /// This is what calibration means: the recording is a fixed thing, and
+  /// changing the tempo here is saying "I now think it was played at 142", not
+  /// "play it at 142". Moving the tune's tempo alone would stretch the very
+  /// recording being measured, so the beat lines could never converge on it —
+  /// chase the tempo and the music runs away from you.
+  ///
+  /// Slowing down for practice is the other case entirely, and there the
+  /// recording *should* stretch. That is [setPracticeSpeed], which leaves this
+  /// pair alone.
+  Future<void> setMasterTempo(double bpm) async {
+    final r = _rehearsal;
+    final master = r?.master;
+    if (r == null || master == null) return;
+    await stop();
+    await _library.updateField(r, RehearsalField.bpm, () {
+      r.bpm = bpm;
+      master.nativeBpm = bpm;
+    });
+    await _applyTempo(r);
+  }
+
+  /// Sets how many bars of click run before recording starts.
+  ///
+  /// Part of the tune rather than of this device, so it syncs: a band that
+  /// agrees on two bars in should not have to agree again on every phone.
+  /// Zero means recording starts on the downbeat with no lead-in.
+  Future<void> setCountInBars(int bars) async {
+    final r = _rehearsal;
+    if (r == null || bars == r.countInBars) return;
+    await _library.updateField(r, RehearsalField.countInBars, () {
+      r.countInBars = bars;
+    });
+    notifyListeners();
   }
 
   /// Sets how fast the tune plays *here*, as a fraction of its own tempo.

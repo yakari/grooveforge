@@ -984,6 +984,7 @@ class _TempoSheet extends StatefulWidget {
 class _TempoSheetState extends State<_TempoSheet> {
   late double _bpm = widget.rehearsal.bpm;
   late double _speed = widget.engine.practiceSpeed;
+  late int _countIn = widget.rehearsal.countInBars;
 
   @override
   Widget build(BuildContext context) {
@@ -1012,13 +1013,26 @@ class _TempoSheetState extends State<_TempoSheet> {
               min: 40,
               max: 240,
               divisions: 200,
-              onChanged: (v) => setState(() => _bpm = v),
+              // With a recording in the tune its tempo is not ours to choose:
+              // it is whatever was played, and it is discovered on the align
+              // screen rather than set here. Dragging this would stretch the
+              // recording instead of describing it.
+              onChanged: widget.rehearsal.hasMaster
+                  ? null
+                  : (v) => setState(() => _bpm = v),
               // Committed on release, not while dragging: every change
               // re-renders every recording, and doing that per pixel would
               // render a hundred times to arrive at one answer.
-              onChangeEnd: (v) => widget.engine.setBpm(v),
+              onChangeEnd: widget.rehearsal.hasMaster
+                  ? null
+                  : (v) => widget.engine.setBpm(v),
             ),
-            _hint(theme, l10n.rehearsalTuneTempoHint),
+            _hint(
+              theme,
+              widget.rehearsal.hasMaster
+                  ? l10n.rehearsalTempoFromMaster
+                  : l10n.rehearsalTuneTempoHint,
+            ),
 
             const SizedBox(height: 24),
             _label(theme, l10n.rehearsalPracticeSpeed,
@@ -1034,6 +1048,32 @@ class _TempoSheetState extends State<_TempoSheet> {
               onChangeEnd: (v) => widget.engine.setPracticeSpeed(v),
             ),
             _hint(theme, l10n.rehearsalPracticeSpeedHint),
+
+            const SizedBox(height: 24),
+            // Count-in belongs here rather than only in the create dialog: it
+            // is a tempo decision, and it is the one people change once they
+            // have tried recording and found two bars too short or too long.
+            Text(
+              l10n.rehearsalFieldCountIn,
+              style: theme.textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 8),
+            SegmentedButton<int>(
+              segments: [
+                ButtonSegment(value: 0, label: Text(l10n.rehearsalCountInNone)),
+                for (final n in [1, 2, 4])
+                  ButtonSegment(
+                    value: n,
+                    label: Text(l10n.rehearsalCountInBars(n)),
+                  ),
+              ],
+              selected: {_countIn},
+              showSelectedIcon: false,
+              onSelectionChanged: (v) {
+                setState(() => _countIn = v.first);
+                widget.engine.setCountInBars(v.first);
+              },
+            ),
 
             if (widget.rehearsal.isGridFrozen) ...[
               const SizedBox(height: 16),
