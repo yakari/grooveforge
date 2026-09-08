@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:io' show Platform;
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -220,6 +220,10 @@ class RehearsalEngine extends ChangeNotifier {
         continue;
       }
       _trackOf[part.id] = idx;
+      // A take captured through a count-in starts before bar one, exactly as
+      // an imported recording with an intro does. Scaled with the audio, so
+      // the downbeat stays at the same musical place when the tempo moves.
+      ffi.rehSetTrackOffset(idx, (take.offsetFrames * ratio).round());
       ffi.rehSetTrackGain(idx, _local.gainFor(part.id));
       ffi.rehSetTrackMute(idx, _local.isMuted(part.id));
     }
@@ -267,22 +271,37 @@ class RehearsalEngine extends ChangeNotifier {
 
   Future<String> _pathForTake(
       Rehearsal r, RehearsalTake take, double ratio) async {
-    if (!RehearsalTempoCache.needsRender(ratio)) {
-      return _library.takePath(r.id, take);
-    }
-    final dir = await _library.tempoDir(r.id);
-    return '${dir.path}/'
-        '${RehearsalTempoCache.fileNameFor(take.fileName, ratio)}';
+    final original = await _library.takePath(r.id, take);
+    return _renderedOr(r, original, take.fileName, ratio);
   }
 
   Future<String> _pathForMaster(
       Rehearsal r, RehearsalMaster master, double ratio) async {
-    if (!RehearsalTempoCache.needsRender(ratio)) {
-      return _library.masterPath(r.id, master);
-    }
+    final original = await _library.masterPath(r.id, master);
+    return _renderedOr(r, original, master.fileName, ratio);
+  }
+
+  /// The rendered file if there is one, otherwise the original.
+  ///
+  /// The fallback matters: a render can fail — a full disk, a codec the
+  /// stretcher will not take, an isolate that could not load the library — and
+  /// pointing the engine at a file that is not there loads no track at all.
+  /// That reads as the recording having vanished. Playing it unstretched is
+  /// audibly at the wrong speed, which is wrong in a way anyone can see.
+  Future<String> _renderedOr(
+    Rehearsal r,
+    String original,
+    String fileName,
+    double ratio,
+  ) async {
+    if (!RehearsalTempoCache.needsRender(ratio)) return original;
     final dir = await _library.tempoDir(r.id);
-    return '${dir.path}/'
-        '${RehearsalTempoCache.fileNameFor(master.fileName, ratio)}';
+    final rendered =
+        '${dir.path}/${RehearsalTempoCache.fileNameFor(fileName, ratio)}';
+    final file = File(rendered);
+    if (await file.exists() && await file.length() > 0) return rendered;
+    debugPrint('RehearsalEngine: no render for $fileName, using the original');
+    return original;
   }
 
   /// True while recordings are being rendered to a new tempo.
@@ -471,6 +490,9 @@ class RehearsalEngine extends ChangeNotifier {
     // Read before stopping: the engine resets nothing, but the count is the
     // thing the manifest needs and reading it first keeps the order obvious.
     final frames = ffi.rehRecordedFrames;
+    // Where the downbeat sits inside what was just captured. Read here for
+    // the same reason: the engine keeps it, but the order should be obvious.
+    final takeOffset = ffi.rehTakeOffset;
 
     ffi.rehStop();
     _transport = RehearsalTransport.stopped;
@@ -493,7 +515,10 @@ class RehearsalEngine extends ChangeNotifier {
           // The tempo it was played at, which is the practice speed if one is
           // set — not the tune's own. Storing the tune's would misfile a take
           // cut at half speed as if it had been played at full.
-          recordedBpm: _local.effectiveBpm(r.bpm));
+          recordedBpm: _local.effectiveBpm(r.bpm),
+          // Capture began with the count-in, so the downbeat is this far into
+          // the file rather than at its start.
+          offsetFrames: takeOffset);
       // Reload so the new take joins the mix and the old slot is released.
       await _loadTracks();
       // And tell whoever is listening, rather than making them wait for the

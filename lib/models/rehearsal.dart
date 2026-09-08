@@ -191,6 +191,7 @@ class RehearsalTake {
     required this.compensationFrames,
     required this.recordedAt,
     required this.recordedBpm,
+    this.offsetFrames = 0,
   });
 
   /// File name within the rehearsal's `takes/` directory.
@@ -205,6 +206,18 @@ class RehearsalTake {
   final int compensationFrames;
 
   final DateTime recordedAt;
+
+  /// Frames from the start of this recording to the tune's downbeat.
+  ///
+  /// Non-zero when the take was captured through a count-in: a player
+  /// following a recording's intro comes in before bar one, so the file starts
+  /// before the grid does and this says by how much. Zero for a take that
+  /// began on the downbeat, which is every take made without a count-in — and
+  /// every take made before this existed.
+  ///
+  /// Same convention as the master's own offset: file position equals grid
+  /// position plus this.
+  final int offsetFrames;
 
   /// The tempo this take was actually played at.
   ///
@@ -226,6 +239,7 @@ class RehearsalTake {
         'compensationFrames': compensationFrames,
         'recordedAt': recordedAt.toIso8601String(),
         'recordedBpm': recordedBpm,
+        if (offsetFrames != 0) 'offsetFrames': offsetFrames,
       };
 
   factory RehearsalTake.fromJson(Map<String, dynamic> json) => RehearsalTake(
@@ -241,6 +255,7 @@ class RehearsalTake {
         // fills it in from the tune's own tempo on load, which is right,
         // because nobody could have changed it before the field existed.
         recordedBpm: (json['recordedBpm'] as num?)?.toDouble() ?? 0.0,
+        offsetFrames: json['offsetFrames'] as int? ?? 0,
       );
 }
 

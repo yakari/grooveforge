@@ -1970,3 +1970,74 @@ there to fill.
 
 The smoke test covers all three cases — a lead-in heard, silence before the
 recording actually starts, and a take still silent before bar one.
+
+---
+
+## 36. The master went silent at practice speed
+
+Two faults, one of mine and one that only the first made visible.
+
+**The render ran in an isolate that built the app's entire FFI surface.**
+`AudioInputFFI`'s constructor opens a *second* library — `libnative-lib.so` —
+and resolves scores of symbols belonging to the synth, the looper, the vocoder
+and the theremin. None of that has anything to do with stretching a file, and
+any one of them failing to resolve in a background isolate takes the render
+down with it. The isolate now binds `gf_ts_render` and nothing else.
+
+**A missing render meant silence rather than a wrong speed.** The path helper
+returned the cache location whether or not anything was there, so a failed
+render loaded no track at all — which reads as the recording having vanished.
+It now falls back to the original file: audibly at the wrong speed, which is
+wrong in a way anyone can see, rather than absent. Rendering failures are also
+caught rather than propagated, because one file that will not stretch should
+not take the whole rehearsal's audio with it.
+
+## 37. Recording through the count-in
+
+A player following a recording's intro comes in *before* bar one. Capture used
+to begin at the downbeat, so those bars were thrown away and the take started
+late against the very thing it was following.
+
+Capture now begins with the count-in, and the take carries its own
+`offsetFrames` — the same convention the master already used, where file
+position equals grid position plus the offset. So:
+
+- **With a count-in**, the take's file starts that many bars before the grid
+  does, and it plays during the count-in exactly as an imported intro does.
+- **Without one**, the offset is zero and the downbeat is the start of the
+  file, which is what every take did before this and what every existing take
+  still says.
+
+The offset scales with the tempo like the audio it belongs to, so the downbeat
+stays at the same musical place when the practice speed moves.
+
+Compensation needs no special handling: it still drops the first frames of the
+physical input, which shifts the whole capture earlier by the round trip and
+therefore lands the downbeat at exactly `offsetFrames` into the file.
+
+### The first beat is the anchor, for everything
+
+Everything on the grid — every take and the imported recording alike — is
+aligned on **its own first beat**, which is grid frame 0 and the first click of
+the metronome. A file may begin before that; the offset says by how much, and
+the engine reads `file position = grid position + offset`. Nothing else lines
+tracks up.
+
+The arithmetic for a take recorded through a count-in, since it is easy to get
+off by the compensation:
+
+- Capture starts at grid `-countIn`.
+- The first `compensation` frames of physical input are dropped, because what
+  was played at a given moment arrives that many frames later.
+- So file frame *j* is what was performed at grid `-countIn + j`, and grid 0 —
+  the first beat of the click — sits at file frame `countIn`.
+- Which is exactly what `gf_reh_take_offset` reports and what the take stores.
+
+**A slot kept the previous track's offset.** `gf_reh_add_track` sets seven
+fields of a slot and left `grid_offset` alone, and neither `remove_track` nor
+`clear_tracks` cleared it either. Nothing set it for takes, so a take dropped
+into the slot the imported recording had been using inherited that recording's
+offset — and played a second or two ahead of everything else *and* ended early,
+because `content_end` subtracts the offset. Both reported symptoms, one cause.
+It is now reset where `fill_pos` is, for the reason already written there: a
+slot must not trust what its last occupant left behind.

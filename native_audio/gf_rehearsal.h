@@ -165,6 +165,14 @@ int gf_reh_record(const char* wav_path, int compensation_frames,
 /// audio thread.
 void gf_reh_stop(void);
 
+/// Frames from the start of the take just recorded to the tune's downbeat.
+///
+/// Capture begins with the count-in, so a player following a recording's intro
+/// is recorded from where they actually came in rather than from bar one. This
+/// is what the take's own offset should be set to, and it is zero when the
+/// tune has no count-in.
+int64_t gf_reh_take_offset(void);
+
 /// Sets a floor for where the tune ends, in grid frames.
 ///
 /// The written form is a length even when nothing has been recorded against

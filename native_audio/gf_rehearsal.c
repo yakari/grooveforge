@@ -224,6 +224,10 @@ typedef struct {
     /// Input frames seen since the transport crossed grid 0, used to drop the
     /// first `compensation` of them.
     volatile int64_t rec_input_seen;
+
+    /// Frames from the start of the take being recorded to the tune's
+    /// downbeat: the count-in, captured rather than discarded.
+    volatile int64_t rec_offset;
     float rec_ring[GF_REH_REC_RING_FRAMES];
     volatile int64_t rec_write;      ///< Audio thread writes here.
     volatile int64_t rec_read;       ///< Worker drains from here.
@@ -476,6 +480,12 @@ int gf_reh_add_track(const char* wav_path) {
     // Forces the first service pass to fill from the playhead rather than
     // trusting a fill_pos left behind by a previous occupant of the slot.
     t->fill_pos = GF_REH_FILL_NONE;
+    // Reset for the same reason: a slot keeps whatever the last track left in
+    // it, and the offset is the one field that is *not* set on every load. A
+    // take dropped into the slot an imported recording had been using would
+    // inherit that recording's offset and play a second or two ahead of
+    // everything else — and end early, because the offset shortens the tune.
+    t->grid_offset = 0;
     t->active = 1;
     gf_mutex_unlock(&g_e.lock);
     return slot;
@@ -573,10 +583,15 @@ int gf_reh_record(const char* wav_path, int compensation_frames,
     g_e.position = -(int64_t)count_in_bars * gf_reh_frames_per_bar();
     for (int i = 0; i < GF_REH_MAX_TRACKS; i++)
         g_e.tracks[i].fill_pos = GF_REH_FILL_NONE;
+    // Capture starts here, at the count-in, so the tune's downbeat lands this
+    // far into the file rather than at its start.
+    g_e.rec_offset = -g_e.position;
     g_e.rec_armed = 1;
     g_e.state = (g_e.position < 0) ? GF_REH_COUNT_IN : GF_REH_RECORDING;
     return 0;
 }
+
+int64_t gf_reh_take_offset(void) { return g_e.rec_offset; }
 
 void gf_reh_stop(void) {
     if (!g_e.created) return;
@@ -751,7 +766,15 @@ void gf_reh_feed_input(const float* in, int frames) {
     }
     g_e.input_peak = peak;
 
-    if (g_e.state != GF_REH_RECORDING || !g_e.rec_armed) return;
+    // Captured during the count-in too, not only after the downbeat. A player
+    // singing along with a recording's intro starts before bar one, and
+    // throwing those bars away is what put their take out of step with the
+    // very thing they were following. Where the downbeat sits inside the file
+    // is recorded as the take's offset — see [gf_reh_take_offset].
+    if ((g_e.state != GF_REH_RECORDING && g_e.state != GF_REH_COUNT_IN) ||
+        !g_e.rec_armed) {
+        return;
+    }
 
     for (int i = 0; i < frames; i++) {
         const int64_t seen = g_e.rec_input_seen + i;

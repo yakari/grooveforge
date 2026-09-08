@@ -356,6 +356,7 @@ class RehearsalLibrary extends ChangeNotifier {
         compensationFrames: take.compensationFrames,
         recordedAt: take.recordedAt,
         recordedBpm: r.bpm,
+        offsetFrames: take.offsetFrames,
       );
       changed = true;
     }
@@ -686,6 +687,7 @@ class RehearsalLibrary extends ChangeNotifier {
     required int sampleRate,
     required int compensationFrames,
     required double recordedBpm,
+    int offsetFrames = 0,
   }) async {
     final previous = part.take;
     part.take = RehearsalTake(
@@ -694,6 +696,10 @@ class RehearsalLibrary extends ChangeNotifier {
       // learning a passage records at half speed, and this is what lets the
       // take be put back where it belongs when the band returns to tempo.
       recordedBpm: recordedBpm,
+      // Where the downbeat sits inside the file. Non-zero when the take was
+      // captured through a count-in, so it lines up with a recording whose
+      // intro the player was following.
+      offsetFrames: offsetFrames,
       // From nextRevision, not from the current take: after a deletion there
       // *is* no current take, and counting from zero would hand the new
       // recording the same number as the one just deleted. A peer holding that

@@ -1,9 +1,9 @@
+import 'dart:ffi';
 import 'dart:io';
 import 'dart:isolate';
 
+import 'package:ffi/ffi.dart';
 import 'package:flutter/foundation.dart';
-
-import 'audio_input_ffi.dart';
 
 /// One file to render, and what to render it into.
 ///
@@ -83,7 +83,15 @@ class RehearsalTempoCache {
       todo.add(job);
     }
     if (todo.isEmpty) return;
-    await Isolate.run(() => _renderAll(todo));
+    try {
+      await Isolate.run(() => _renderAll(todo));
+    } catch (e) {
+      // A render that fails must not take the whole load down with it. The
+      // caller falls back to the unstretched file, which plays at the wrong
+      // speed — audible and obviously wrong, which beats silence that looks
+      // like the recording has vanished.
+      debugPrint('RehearsalTempoCache: rendering failed — $e');
+    }
   }
 
   /// Removes everything in [dir] that is not named in [keep].
@@ -111,12 +119,44 @@ class RehearsalTempoCache {
 ///
 /// Top-level rather than a method because an isolate entry point cannot close
 /// over `this`.
-void _renderAll(List<StretchJob> jobs) {
-  final ffi = AudioInputFFI();
+///
+/// Binds the one function it needs rather than building the app's whole FFI
+/// surface. That surface opens a second library and resolves scores of symbols
+/// belonging to the synth, the looper and the vocoder — none of which has
+/// anything to do with stretching a file, and any one of which failing to
+/// resolve in a background isolate takes the render down with it.
+int _renderAll(List<StretchJob> jobs) {
+  late final DynamicLibrary lib;
+  try {
+    lib = Platform.isMacOS
+        ? DynamicLibrary.open('libaudio_input.dylib')
+        : Platform.isWindows
+            ? DynamicLibrary.open('audio_input.dll')
+            : DynamicLibrary.open('libaudio_input.so');
+  } catch (e) {
+    debugPrint('RehearsalTempoCache: no audio library in this isolate — $e');
+    return -1;
+  }
+
+  final render = lib.lookupFunction<
+      Int32 Function(Pointer<Utf8>, Pointer<Utf8>, Float),
+      int Function(Pointer<Utf8>, Pointer<Utf8>, double)>('gf_ts_render');
+
+  var failures = 0;
   for (final job in jobs) {
-    final rc = ffi.stretchFile(job.source, job.destination, job.ratio);
-    if (rc != 0) {
-      debugPrint('RehearsalTempoCache: render failed ($rc) for ${job.source}');
+    final from = job.source.toNativeUtf8();
+    final to = job.destination.toNativeUtf8();
+    try {
+      final rc = render(from, to, job.ratio);
+      if (rc != 0) {
+        failures++;
+        debugPrint(
+            'RehearsalTempoCache: render failed ($rc) for ${job.source}');
+      }
+    } finally {
+      calloc.free(from);
+      calloc.free(to);
     }
   }
+  return failures;
 }

@@ -1532,6 +1532,9 @@ class AudioInputFFI {
   late final int Function(Pointer<Utf8>) _rehAddTrack = _lib
       .lookupFunction<Int32 Function(Pointer<Utf8>), int Function(Pointer<Utf8>)>(
           'gf_reh_add_track');
+  late final int Function() _rehTakeOffset = _lib
+      .lookupFunction<Int64 Function(), int Function()>(
+          'gf_reh_get_take_offset');
   late final void Function(int) _rehSetFormEnd = _lib
       .lookupFunction<Void Function(Int64), void Function(int)>(
           'gf_reh_set_form_end');
@@ -1623,6 +1626,11 @@ class AudioInputFFI {
   /// The written chord form is a length even before anything is recorded
   /// against it. Zero removes the floor.
   void rehSetFormEnd(int frames) => _rehSetFormEnd(frames);
+
+  /// Frames from the start of the take just recorded to the tune's downbeat.
+  ///
+  /// Non-zero when it was captured through a count-in.
+  int get rehTakeOffset => _rehTakeOffset();
 
   void rehRemoveTrack(int idx) => _rehRemoveTrack(idx);
   void rehClearTracks() => _rehClearTracks();

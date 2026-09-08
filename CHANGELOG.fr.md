@@ -8,6 +8,9 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 ## [X.x.x]
 
 ### Ajouté
+- Une partie enregistrée se cale désormais sur le premier temps du clic, même si l'enregistrement a démarré pendant le décompte.
+- L'enregistrement capte désormais aussi le décompte : une partie chantée sur l'intro d'un enregistrement reste calée dessus.
+- Un enregistrement qui ne peut pas être adapté à la vitesse de travail est joué à sa vitesse d'origine au lieu de devenir muet.
 - La lecture démarre désormais par le décompte, et un enregistrement qui commence avant le premier temps fort s'entend pendant celui-ci : le premier temps de la musique tombe ainsi sur celui de la grille.
 - Mesurer le tempo d'un enregistrement ne l'étire plus, ce qui permet enfin d'y caler les traits de temps.
 - Calage d'un enregistrement : zoomez dans la forme d'onde, faites-la défiler, et voyez des traits rouges sur chaque temps pour juger le tempo à l'œil.

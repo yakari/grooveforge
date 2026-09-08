@@ -806,6 +806,77 @@ static void test_count_in_preroll(void) {
     free(a);
 }
 
+// ─── 12. A count-in is recorded, not thrown away ─────────────────────────────
+
+static void test_records_through_count_in(void) {
+    gf_reh_clear_tracks();
+    gf_reh_set_metronome(0, 0.0f);
+    // A brisk tempo on purpose: offline there is no worker draining the
+    // record ring, so the whole take has to fit inside it.
+    gf_reh_set_grid(240.0, 4, 4);
+
+    const int64_t bar = gf_reh_frames_per_bar();
+    if (gf_reh_record(path_for("gf_reh_countin.wav"), 0, 1) != 0) {
+        fail("could not start recording");
+        return;
+    }
+    if (gf_reh_take_offset() != bar) {
+        printf("    FAIL: offset is %lld, expected %lld\n",
+               (long long)gf_reh_take_offset(), (long long)bar);
+        fail("");
+    }
+
+    // Feed input from the very first block, as a player following a
+    // recording's intro would be singing from before bar one.
+    float out[BLOCK], in[BLOCK];
+    for (int i = 0; i < BLOCK; i++) in[i] = 0.4f;
+    const int blocks = (int)((bar + SR / 8) / BLOCK);
+    for (int i = 0; i < blocks; i++) {
+        gf_reh_render_offline(out, NULL, BLOCK);
+        gf_reh_feed_input(in, BLOCK);
+    }
+
+    const int64_t captured = gf_reh_recorded_frames();
+    printf("    captured %lld frames over a %lld-frame count-in\n",
+           (long long)captured, (long long)bar);
+    // Everything from the count-in onwards, not merely from the downbeat.
+    if (captured < bar) {
+        fail("the count-in was thrown away instead of recorded");
+    }
+    gf_reh_stop();
+
+    // A slot must not keep the previous track's offset. This is what put a
+    // take a second ahead of the recording it was played against: it landed in
+    // the slot the master had been using and inherited its offset.
+    gf_reh_clear_tracks();
+    const int reused = gf_reh_add_track(path_for("gf_reh_short.wav"));
+    gf_reh_set_track_offset(reused, SR / 2);
+    gf_reh_clear_tracks();
+    gf_reh_add_track(path_for("gf_reh_short.wav"));
+    if (gf_reh_content_end() != SR) {
+        printf("    FAIL: a reused slot kept an offset (end %lld, want %d)\n",
+               (long long)gf_reh_content_end(), SR);
+        fail("");
+    }
+    printf("    a reused slot starts with no offset\n");
+    gf_reh_clear_tracks();
+
+    // Without a count-in the downbeat is the start of the file, which is what
+    // every take before this did.
+    if (gf_reh_record(path_for("gf_reh_nocount.wav"), 0, 0) != 0) {
+        fail("could not start recording");
+        return;
+    }
+    if (gf_reh_take_offset() != 0) {
+        printf("    FAIL: no count-in should mean no offset, got %lld\n",
+               (long long)gf_reh_take_offset());
+        fail("");
+    }
+    printf("    with no count-in the offset is 0\n");
+    gf_reh_stop();
+    gf_reh_clear_tracks();
+}
+
 int main(int argc, char** argv) {
     if (argc > 1) snprintf(g_dir, sizeof(g_dir), "%s", argv[1]);
     printf("gf_rehearsal_smoke_test — multitrack rehearsal engine (P1)\n");
@@ -827,6 +898,8 @@ int main(int argc, char** argv) {
     printf("\n10. playback ends with the audio\n"); test_stops_at_end();
     printf("\n11. a lead-in plays during the count-in\n");
     test_count_in_preroll();
+    printf("\n12. the count-in is recorded\n");
+    test_records_through_count_in();
 
     gf_reh_destroy();
 

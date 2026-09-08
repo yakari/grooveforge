@@ -1044,6 +1044,10 @@ static void gf_probe_capture_hook(const float* pIn, int frames) {
 /// Exported separately from the engine because it is not an engine operation:
 /// it writes a file, takes as long as it takes, and must never be called from
 /// anywhere near the audio thread.
+EXPORT int64_t gf_reh_get_take_offset(void) {
+    return gf_reh_take_offset();
+}
+
 EXPORT void gf_reh_set_form_end(int64_t frames) {
     gf_reh_set_min_end(frames);
 }
