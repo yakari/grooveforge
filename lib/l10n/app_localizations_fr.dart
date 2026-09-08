@@ -2726,4 +2726,53 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get rehearsalDocumentNoViewer =>
       'Aucune application de cet appareil ne peut ouvrir ce fichier.';
+
+  @override
+  String get rehearsalChordGrid => 'Accords';
+
+  @override
+  String get rehearsalChordGridEmpty => 'Écrire les accords';
+
+  @override
+  String get rehearsalChordAddBar => 'Ajouter une mesure';
+
+  @override
+  String get rehearsalChordRemoveBar => 'Supprimer cette mesure';
+
+  @override
+  String rehearsalChordBar(int bar) {
+    return 'Mesure $bar';
+  }
+
+  @override
+  String get rehearsalChordSlots => 'Accords par mesure';
+
+  @override
+  String get rehearsalChordHint => 'Am7, C#m7, Gm7b5, C6/9, Am(M7)/B…';
+
+  @override
+  String get rehearsalChordInvalid => 'Accord illisible';
+
+  @override
+  String get rehearsalChordExpand => 'Afficher toute la grille';
+
+  @override
+  String get rehearsalChordCollapse => 'Réduire à une ligne';
+
+  @override
+  String get rehearsalChordClear => 'Effacer';
+
+  @override
+  String get rehearsalChordSave => 'Enregistrer';
+
+  @override
+  String rehearsalChordBarCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count mesures',
+      one: '1 mesure',
+    );
+    return '$_temp0';
+  }
 }

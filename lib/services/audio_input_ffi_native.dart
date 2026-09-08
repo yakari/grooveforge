@@ -1532,6 +1532,9 @@ class AudioInputFFI {
   late final int Function(Pointer<Utf8>) _rehAddTrack = _lib
       .lookupFunction<Int32 Function(Pointer<Utf8>), int Function(Pointer<Utf8>)>(
           'gf_reh_add_track');
+  late final void Function(int) _rehSetFormEnd = _lib
+      .lookupFunction<Void Function(Int64), void Function(int)>(
+          'gf_reh_set_form_end');
   late final int Function(Pointer<Utf8>, Pointer<Utf8>, double) _tsRender =
       _lib.lookupFunction<
           Int32 Function(Pointer<Utf8>, Pointer<Utf8>, Float),
@@ -1614,6 +1617,12 @@ class AudioInputFFI {
       calloc.free(b);
     }
   }
+
+  /// Sets a floor for where the tune ends, in grid frames.
+  ///
+  /// The written chord form is a length even before anything is recorded
+  /// against it. Zero removes the floor.
+  void rehSetFormEnd(int frames) => _rehSetFormEnd(frames);
 
   void rehRemoveTrack(int idx) => _rehRemoveTrack(idx);
   void rehClearTracks() => _rehClearTracks();

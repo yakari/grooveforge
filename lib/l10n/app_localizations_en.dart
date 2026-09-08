@@ -2710,4 +2710,53 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get rehearsalDocumentNoViewer =>
       'Nothing on this device can open that file.';
+
+  @override
+  String get rehearsalChordGrid => 'Chords';
+
+  @override
+  String get rehearsalChordGridEmpty => 'Write the chords';
+
+  @override
+  String get rehearsalChordAddBar => 'Add a bar';
+
+  @override
+  String get rehearsalChordRemoveBar => 'Remove this bar';
+
+  @override
+  String rehearsalChordBar(int bar) {
+    return 'Bar $bar';
+  }
+
+  @override
+  String get rehearsalChordSlots => 'Chords per bar';
+
+  @override
+  String get rehearsalChordHint => 'Am7, C#m7, Gm7b5, C6/9, Am(M7)/B…';
+
+  @override
+  String get rehearsalChordInvalid => 'Not a chord I can read';
+
+  @override
+  String get rehearsalChordExpand => 'Show the whole chart';
+
+  @override
+  String get rehearsalChordCollapse => 'Collapse to one line';
+
+  @override
+  String get rehearsalChordClear => 'Clear';
+
+  @override
+  String get rehearsalChordSave => 'Save';
+
+  @override
+  String rehearsalChordBarCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count bars',
+      one: '1 bar',
+    );
+    return '$_temp0';
+  }
 }

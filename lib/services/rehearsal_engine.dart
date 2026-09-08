@@ -180,6 +180,7 @@ class RehearsalEngine extends ChangeNotifier {
     final ffi = AudioInputFFI();
 
     await _renderForTempo(r);
+    _applyFormLength(r);
 
     ffi.rehClearTracks();
     _trackOf.clear();
@@ -220,6 +221,33 @@ class RehearsalEngine extends ChangeNotifier {
       ffi.rehSetTrackGain(idx, _local.gainFor(part.id));
       ffi.rehSetTrackMute(idx, _local.isMuted(part.id));
     }
+  }
+
+  /// Tells the engine how long the written form is.
+  ///
+  /// A band that types out a chart and presses play should hear the click run
+  /// through it, rather than have the transport stop at once because nothing
+  /// is recorded yet. Re-applied whenever the tracks reload, because the bar
+  /// length moves with the tempo.
+  void _applyFormLength(Rehearsal r) {
+    final ffi = AudioInputFFI();
+    final bars = r.formBars;
+    ffi.rehSetFormEnd(bars <= 0 ? 0 : bars * ffi.rehFramesPerBar);
+  }
+
+  /// Rewrites the tune's form and tells the engine its new length.
+  ///
+  /// Stamped through updateField so the edit is visible to the merge; the grid
+  /// travels as one value, because a chart is a shape rather than a stream of
+  /// independent edits.
+  Future<void> setChords(List<RehearsalBar> bars) async {
+    final r = _rehearsal;
+    if (r == null) return;
+    await _library.updateField(r, RehearsalField.chords, () {
+      r.chords = bars;
+    });
+    _applyFormLength(r);
+    notifyListeners();
   }
 
   /// How much a recording made at [nativeBpm] has to stretch to fit the tune

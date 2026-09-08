@@ -165,10 +165,20 @@ int gf_reh_record(const char* wav_path, int compensation_frames,
 /// audio thread.
 void gf_reh_stop(void);
 
-/// Grid frame at which the last track runs out, or 0 if nothing is loaded.
+/// Sets a floor for where the tune ends, in grid frames.
 ///
-/// Accounts for each track's offset, so a master anchored partway into a
-/// recording ends where its audio does rather than where the file does.
+/// The written form is a length even when nothing has been recorded against
+/// it: a band that types out thirty-two bars and presses play expects to hear
+/// the click run through them, not stop immediately because no track is
+/// loaded. Zero removes the floor.
+void gf_reh_set_min_end(int64_t frames);
+
+/// Grid frame at which the tune ends, or 0 if it has no length yet.
+///
+/// The later of where the last track runs out and the floor set by
+/// [gf_reh_set_min_end]. Accounts for each track's offset, so a master
+/// anchored partway into a recording ends where its audio does rather than
+/// where the file does.
 int64_t gf_reh_content_end(void);
 
 /// Current position in frames on the grid; negative during a count-in.

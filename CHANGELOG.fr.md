@@ -8,6 +8,10 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 ## [X.x.x]
 
 ### Ajouté
+- Les mesures à plusieurs accords sont assez larges pour être lues, avec les temps séparés.
+- Une grille d'accords : écrivez la forme du morceau mesure par mesure, de un à quatre accords par mesure, et la mesure en cours s'allume.
+- Les chiffrages d'accords sont vraiment analysés — Ab, C#m7, Gm7b5, C6/9, Am(M7)/B — pour vérifier la grille à mesure qu'on la saisit.
+- Lancer la lecture sur une grille écrite fait défiler le clic d'un bout à l'autre, avant même le moindre enregistrement.
 - Un classeur de partitions partagé par morceau : ajoutez un PDF, une grille ou la photo d'une page, et tout le groupe en reçoit une copie.
 - Un musicien retiré peut revenir dans le morceau : il réapparaît comme un nouveau musicien et enregistre à nouveau.
 - Un musicien définitivement parti peut être retiré d'un morceau, emportant ses parties sur tous les appareils.

@@ -4957,6 +4957,84 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Nothing on this device can open that file.'**
   String get rehearsalDocumentNoViewer;
+
+  /// Chord grid.
+  ///
+  /// In en, this message translates to:
+  /// **'Chords'**
+  String get rehearsalChordGrid;
+
+  /// Chord grid.
+  ///
+  /// In en, this message translates to:
+  /// **'Write the chords'**
+  String get rehearsalChordGridEmpty;
+
+  /// Chord grid.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a bar'**
+  String get rehearsalChordAddBar;
+
+  /// Chord grid.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove this bar'**
+  String get rehearsalChordRemoveBar;
+
+  /// Chord grid.
+  ///
+  /// In en, this message translates to:
+  /// **'Bar {bar}'**
+  String rehearsalChordBar(int bar);
+
+  /// Chord grid.
+  ///
+  /// In en, this message translates to:
+  /// **'Chords per bar'**
+  String get rehearsalChordSlots;
+
+  /// Chord grid.
+  ///
+  /// In en, this message translates to:
+  /// **'Am7, C#m7, Gm7b5, C6/9, Am(M7)/B…'**
+  String get rehearsalChordHint;
+
+  /// Chord grid.
+  ///
+  /// In en, this message translates to:
+  /// **'Not a chord I can read'**
+  String get rehearsalChordInvalid;
+
+  /// Chord grid.
+  ///
+  /// In en, this message translates to:
+  /// **'Show the whole chart'**
+  String get rehearsalChordExpand;
+
+  /// Chord grid.
+  ///
+  /// In en, this message translates to:
+  /// **'Collapse to one line'**
+  String get rehearsalChordCollapse;
+
+  /// Chord grid.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get rehearsalChordClear;
+
+  /// Chord grid.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get rehearsalChordSave;
+
+  /// Chord grid.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 bar} other{{count} bars}}'**
+  String rehearsalChordBarCount(int count);
 }
 
 class _AppLocalizationsDelegate

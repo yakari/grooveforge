@@ -1236,5 +1236,18 @@
   "rehearsalDocumentAddedBy": "Ajouté par {name}",
   "rehearsalDocumentSize": "{kb} ko",
   "rehearsalDocumentWaiting": "En attente du fichier",
-  "rehearsalDocumentNoViewer": "Aucune application de cet appareil ne peut ouvrir ce fichier."
+  "rehearsalDocumentNoViewer": "Aucune application de cet appareil ne peut ouvrir ce fichier.",
+  "rehearsalChordGrid": "Accords",
+  "rehearsalChordGridEmpty": "Écrire les accords",
+  "rehearsalChordAddBar": "Ajouter une mesure",
+  "rehearsalChordRemoveBar": "Supprimer cette mesure",
+  "rehearsalChordBar": "Mesure {bar}",
+  "rehearsalChordSlots": "Accords par mesure",
+  "rehearsalChordHint": "Am7, C#m7, Gm7b5, C6/9, Am(M7)/B…",
+  "rehearsalChordInvalid": "Accord illisible",
+  "rehearsalChordExpand": "Afficher toute la grille",
+  "rehearsalChordCollapse": "Réduire à une ligne",
+  "rehearsalChordClear": "Effacer",
+  "rehearsalChordSave": "Enregistrer",
+  "rehearsalChordBarCount": "{count, plural, =1{1 mesure} other{{count} mesures}}"
 }

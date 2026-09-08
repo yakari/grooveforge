@@ -582,6 +582,13 @@ void gf_reh_stop(void) {
     gf_mutex_unlock(&g_e.lock);
 }
 
+/// Floor under the tune's length, from the written form. See the header.
+static int64_t g_min_end = 0;
+
+void gf_reh_set_min_end(int64_t frames) {
+    g_min_end = frames > 0 ? frames : 0;
+}
+
 int64_t gf_reh_content_end(void) {
     int64_t end = 0;
     for (int i = 0; i < GF_REH_MAX_TRACKS; i++) {
@@ -593,6 +600,8 @@ int64_t gf_reh_content_end(void) {
         const int64_t track_end = t->frames - t->grid_offset;
         if (track_end > end) end = track_end;
     }
+    // A written form counts as length even with nothing recorded against it.
+    if (g_min_end > end) end = g_min_end;
     return end;
 }
 

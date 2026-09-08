@@ -10,6 +10,7 @@ import '../services/rehearsal_engine.dart';
 import '../services/rehearsal_library.dart';
 import '../services/rehearsal_protocol.dart';
 import '../services/rehearsal_sync_service.dart';
+import '../widgets/chord_grid.dart';
 import '../widgets/rehearsal_identity_dialog.dart';
 import 'latency_probe_screen.dart';
 import 'rehearsal_documents_screen.dart';
@@ -33,6 +34,9 @@ class RehearsalScreen extends StatefulWidget {
 }
 
 class _RehearsalScreenState extends State<RehearsalScreen> {
+  /// Whether the chart is showing every bar or just the line.
+  bool _chartExpanded = false;
+
   /// Lanes showing their level slider.
   ///
   /// Held here rather than in the lane so it survives the list rebuilding,
@@ -507,6 +511,22 @@ class _RehearsalScreenState extends State<RehearsalScreen> {
                             },
                           ),
                         const Divider(height: 1),
+                        // Above the recordings, because it is what a player
+                        // reads while playing; the lanes are what they touch
+                        // between takes.
+                        ChordGrid(
+                          rehearsal: rehearsal,
+                          currentBar:
+                              engine.isRunning && !engine.isCountingIn
+                                  ? engine.currentBar
+                                  : 0,
+                          isRunning: engine.isRunning,
+                          expanded: _chartExpanded,
+                          onToggleExpanded: () => setState(
+                            () => _chartExpanded = !_chartExpanded,
+                          ),
+                          onChanged: engine.setChords,
+                        ),
                         if (engine.localState.compensationFrames == 0)
                           _CompensationWarning(),
                         if (_importing) const LinearProgressIndicator(),

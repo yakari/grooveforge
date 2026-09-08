@@ -677,8 +677,39 @@ static void test_stops_at_end(void) {
     }
     gf_reh_set_track_offset(t, 0);
 
-    // With nothing loaded the transport is a metronome and has no end to
-    // reach, so it must keep running.
+    // A written form is a length even with nothing recorded against it: type
+    // out thirty-two bars, press play, and the click should run through them.
+    gf_reh_clear_tracks();
+    gf_reh_set_min_end(SR * 2);
+    if (gf_reh_content_end() != SR * 2) {
+        printf("    FAIL: a form with no tracks has no length\n");
+        fail("");
+    }
+    gf_reh_play(0);
+    blocks = 0;
+    while (gf_reh_state() != GF_REH_STOPPED && blocks < (SR * 6) / BLOCK) {
+        gf_reh_render_offline(out, NULL, BLOCK);
+        blocks++;
+    }
+    if (gf_reh_state() != GF_REH_STOPPED) {
+        printf("    FAIL: playback ran past the end of the form\n");
+        fail("");
+    }
+    printf("    a form of %d frames stopped at %lld\n",
+           SR * 2, (long long)gf_reh_position());
+
+    // A track longer than the form still decides the end.
+    gf_reh_add_track(path_for("gf_reh_short.wav"));
+    gf_reh_set_min_end(SR / 2);
+    if (gf_reh_content_end() != len) {
+        printf("    FAIL: a short form should not truncate a long take\n");
+        fail("");
+    }
+    gf_reh_set_min_end(0);
+    gf_reh_clear_tracks();
+
+    // With nothing loaded and no form the transport is a metronome and has no
+    // end to reach, so it must keep running.
     gf_reh_clear_tracks();
     gf_reh_set_metronome(1, 0.5f);
     gf_reh_play(0);

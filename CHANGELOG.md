@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [X.x.x]
 
 ### Added
+- Bars with several chords are laid out wide enough to read, with the beats separated.
+- A chord grid: write the tune's form bar by bar, one to four chords a bar, and the bar being played lights up.
+- Chord symbols are read properly — Ab, C#m7, Gm7b5, C6/9, Am(M7)/B — so a chart can be checked as you type it.
+- Pressing play on a written chart runs the click through it, even before anything has been recorded.
 - A shared score vault per tune: add a PDF, a chart or a photo of a page, and everyone in the band gets a copy.
 - A removed player can rejoin the tune: they come back as a new player and record again.
 - A player who has gone for good can be removed from a tune, taking their parts with them on every device.

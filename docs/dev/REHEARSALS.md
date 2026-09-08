@@ -606,7 +606,7 @@ posture completely.
 | **P3** | **Shell and tab — done, during P1.** `MainShell`, responsive nav, l10n pass, `flutter analyze` clean. It had to come early: without the tab there was no way to reach anything P1 built. |
 | **P4** | **Pairing and sync — done.** QR, scanner, authenticated TCP handshake, manifest merge, take and master transfer, mDNS re-discovery, Nearby screen. See §13, §14 and §15. |
 | **P5** | **Hostile networks — done, differently.** The hotspot wizard became a page in the user guide: Android gives a normal app no way to switch the real hotspot on or read its credentials, so the honest version is instructions. `.gfr` bundle export was **dropped** — it carries the join key, so it works as an introduction, but it cannot sync back, which makes it an archive rather than a way into a live group. Backup is the only case it would still serve. |
-| **P6** | **Musical extras — part done.** Tempo change through the phase vocoder is built (§25), for both the tune's tempo and a local practice speed. The shared score vault is built (§28). Chord-grid editing and count-in refinements are still open. |
+| **P6** | **Musical extras — part done.** Tempo change through the phase vocoder is built (§25), for both the tune's tempo and a local practice speed. The shared score vault is built (§28). The chord grid is built (§30). Count-in refinements are still open. |
 | **P7** | **Polish.** Onboarding, playful motion pass, store and F-Droid assets, changelogs in both languages. |
 
 ---
@@ -1673,3 +1673,98 @@ Denser lanes immediately overflowed: a lane that was both yours and awaiting
 delivery carried two badges beside the name and ran 84 px off the side. The
 status tags moved to the second line, where the instrument and duration
 ellipsize and the tag keeps its full width.
+
+---
+
+## 30. The chord grid
+
+### A real parser, not a validator
+
+`ChordSymbol` reads a symbol into a root pitch class, a triad, a seventh and a
+full interval set. Storing the text and merely checking its shape would have
+been a third of the work — and would have had to be thrown away the moment
+anything wanted to *draw* the chord on a keyboard or a fretboard. Building for
+that now was the deliberate choice.
+
+Four cases decided the design, each one where a plausible parser is quietly
+wrong:
+
+- **`CM` is C major, not CM7.** A major marker with no `7` after it must not
+  conjure a seventh. Same for `Cmaj`.
+- **`CmM7` needs both letters** to mean different things: minor triad, major
+  seventh. `Cm(M7)` and `Cminmaj7` are the same chord.
+- **`C6/9` is two added tones, not a slash bass.** A `/` starts a bass only
+  when what follows parses as a note *and* consumes the rest of the symbol —
+  which is also what keeps `Am(M7)/B` working.
+- **Accidentals are only accidentals in some places.** `Gm7b5` displays as
+  `Gm7♭5`, but `Csus4` must not become `su♭4`, so a `b` is only a flat where it
+  follows a note letter or sits against a degree.
+
+The root's *spelling* is kept rather than normalised: whether someone wrote
+`Ab` or `G#` says something about the key they are thinking in.
+
+A symbol may name its triad only once. `C+-` used to parse, with the second
+token quietly winning; it is now refused, because a typo becoming a plausible
+chord is worse than a rejection. The rule is one triad, not triad-first —
+`C7sus4` still works, because charts write it constantly.
+
+### Bars are slots, not positions
+
+A bar is a fixed-size list of nullable chords. Four slots with the second empty
+means the first chord holds through beat two — which is how a chart reads.
+Positions would let a chord land between beats, which nothing notates and
+nobody could play. Re-dividing keeps chords where they were *played*, not where
+they were indexed: going from four slots to two puts the chord from beat three
+in the second half.
+
+Divisions offered are the divisors of the beat count, so every slot lands on a
+beat.
+
+### The form merges as one value
+
+`RehearsalField.chords` is a last-writer-wins register like tempo and metre,
+not a per-bar CRDT. Editing a form is a deliberate act on the shape of a tune,
+and half of one chart merged with half of another is not a tune anybody wrote.
+The bars are copied on merge — the remote document is discarded afterwards, and
+sharing its objects would leave the local one holding bars a later edit could
+mutate underneath it.
+
+### A written form has length
+
+`gf_reh_set_min_end` puts a floor under `gf_reh_content_end`. Type out
+thirty-two bars, press play, and the click runs through them instead of the
+transport stopping at once because no track is loaded. A track longer than the
+form still decides the end.
+
+### Collapsed and expanded
+
+Collapsed is one line that scrolls itself, with two bars of lead-in rather than
+centring the current bar — a player reads ahead, and centring shows the past as
+prominently as the future. It stops following the moment the player scrolls by
+hand, and starts again when the transport does. Expanded wraps the whole chart
+at as many bars per row as the width allows, capped in height so a long form
+cannot push the lanes off the screen.
+
+### What the first version on a real phone got wrong
+
+Five things, all found by using it rather than by reading it:
+
+- **A bar of four was unreadable.** Every cell had the same width and each slot
+  scaled its own text to fit, so `Em7♯5 B69 GmM7 C6/9` came out at four
+  different sizes, none of them legible. Cell width now grows with the number
+  of chords, every chord in a bar is set at one size, and a hairline separates
+  the beats.
+- **The editor overflowed.** Four chord fields plus a software keyboard is
+  taller than a phone, and the dialog lost its own buttons behind the warning
+  stripes. Its content scrolls and is capped at a share of the screen height.
+- **There was no way to add a bar without unfolding the chart**, which is the
+  state it spends least of its life in. The collapsed strip ends with a `+`,
+  and the toolbar's `+` is no longer conditional.
+- **The keyboard forced upper case on every character**, which makes
+  `Abm7sus4` all but untypable. A chord is upper case exactly where it names a
+  note — the root, and the bass after a slash — so a formatter raises those two
+  positions and leaves everything else as typed. `C/G` needs no shift key
+  either.
+- **A bar of four in the expanded chart could be wider than the row.** Bar
+  width is clamped to the available width, so it takes a line to itself rather
+  than overflowing.

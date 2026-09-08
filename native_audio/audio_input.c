@@ -1044,6 +1044,10 @@ static void gf_probe_capture_hook(const float* pIn, int frames) {
 /// Exported separately from the engine because it is not an engine operation:
 /// it writes a file, takes as long as it takes, and must never be called from
 /// anywhere near the audio thread.
+EXPORT void gf_reh_set_form_end(int64_t frames) {
+    gf_reh_set_min_end(frames);
+}
+
 EXPORT int gf_ts_render(const char* in_path, const char* out_path, float ratio) {
     return gf_ts_render_file(in_path, out_path, ratio);
 }

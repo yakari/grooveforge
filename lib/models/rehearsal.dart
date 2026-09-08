@@ -58,6 +58,15 @@ class RehearsalField {
   static const master = 'master';
   static const joinKey = 'joinKey';
 
+  /// The chord grid, merged as one value rather than bar by bar.
+  ///
+  /// Editing a form is a deliberate act on the whole shape of a tune, not a
+  /// stream of independent edits, so last-writer-wins on the lot is both
+  /// simpler and closer to what people mean. Two players rewriting the same
+  /// chart at once is a conversation to have in the room, not a merge to
+  /// resolve in code.
+  static const chords = 'chords';
+
   static const all = [
     title,
     bpm,
@@ -66,6 +75,7 @@ class RehearsalField {
     countInBars,
     master,
     joinKey,
+    chords,
   ];
 }
 
@@ -380,6 +390,56 @@ class RehearsalDocument {
       );
 }
 
+/// One bar of the chord grid.
+///
+/// A fixed-size list of slots, each holding a chord or nothing. Fixed rather
+/// than a list of chords with positions, because that is how a chart is read:
+/// a bar of four with the second slot empty means the first chord holds
+/// through beat two. Positions would let a chord land between beats, which no
+/// chart notates and no player could read.
+class RehearsalBar {
+  RehearsalBar({List<String?>? slots}) : slots = slots ?? <String?>[null];
+
+  /// One entry per division of the bar. Length 1, 2 or the bar's beat count.
+  ///
+  /// Chord symbols as typed, not parsed — see [ChordSymbol], which turns them
+  /// into notes when something needs to draw them.
+  final List<String?> slots;
+
+  /// How many divisions this bar is written in.
+  int get division => slots.length;
+
+  /// Whether anything is written here at all.
+  bool get isEmpty => slots.every((c) => c == null || c.isEmpty);
+
+  /// Re-divides the bar, keeping what still fits.
+  ///
+  /// Chords keep their position in the bar rather than their index: going from
+  /// four slots to two should leave the chord on beat three in the second half,
+  /// which is where it was played.
+  RehearsalBar withDivision(int division) {
+    if (division == slots.length) return this;
+    final next = List<String?>.filled(division, null);
+    for (var i = 0; i < slots.length; i++) {
+      final chord = slots[i];
+      if (chord == null || chord.isEmpty) continue;
+      final at = (i * division) ~/ slots.length;
+      next[at] ??= chord;
+    }
+    return RehearsalBar(slots: next);
+  }
+
+  Map<String, dynamic> toJson() => {'slots': slots};
+
+  factory RehearsalBar.fromJson(Map<String, dynamic> json) => RehearsalBar(
+        slots: (json['slots'] as List<dynamic>? ?? [null])
+            .map((e) => e as String?)
+            .toList(),
+      );
+
+  RehearsalBar copy() => RehearsalBar(slots: List<String?>.from(slots));
+}
+
 /// The whole rehearsal document.
 class Rehearsal {
   Rehearsal({
@@ -400,11 +460,13 @@ class Rehearsal {
     Set<String>? deletedMemberIds,
     Set<String>? deletedDocumentIds,
     List<RehearsalDocument>? documents,
+    List<RehearsalBar>? chords,
   })  : clocks = clocks ?? {},
         deletedPartIds = deletedPartIds ?? {},
         deletedMemberIds = deletedMemberIds ?? {},
         deletedDocumentIds = deletedDocumentIds ?? {},
-        documents = documents ?? [];
+        documents = documents ?? [],
+        chords = chords ?? [];
 
   final String id;
   String title;
@@ -466,6 +528,12 @@ class Rehearsal {
 
   /// Documents that have been removed, by id. Same tombstone, same reason.
   final Set<String> deletedDocumentIds;
+
+  /// The tune's form, one entry per bar. Empty until somebody writes it.
+  List<RehearsalBar> chords;
+
+  /// How many bars the written form covers.
+  int get formBars => chords.length;
 
   bool get hasMaster => master != null;
 
@@ -535,6 +603,8 @@ class Rehearsal {
           'deletedMemberIds': deletedMemberIds.toList(),
         if (documents.isNotEmpty)
           'documents': [for (final d in documents) d.toJson()],
+        if (chords.isNotEmpty)
+          'chords': [for (final b in chords) b.toJson()],
         if (deletedDocumentIds.isNotEmpty)
           'deletedDocumentIds': deletedDocumentIds.toList(),
       };
@@ -566,6 +636,9 @@ class Rehearsal {
         deletedMemberIds: (json['deletedMemberIds'] as List<dynamic>? ?? [])
             .map((e) => e as String)
             .toSet(),
+        chords: (json['chords'] as List<dynamic>? ?? [])
+            .map((e) => RehearsalBar.fromJson(e as Map<String, dynamic>))
+            .toList(),
         documents: (json['documents'] as List<dynamic>? ?? [])
             .map((e) =>
                 RehearsalDocument.fromJson(e as Map<String, dynamic>))

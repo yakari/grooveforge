@@ -73,6 +73,12 @@ MergeOutcome mergeRehearsal(Rehearsal local, Rehearsal remote) {
       case RehearsalField.beatsPerBar:
         if (local.beatsPerBar != remote.beatsPerBar) changed = true;
         local.beatsPerBar = remote.beatsPerBar;
+      case RehearsalField.chords:
+        // Replaced wholesale, and copied: the remote document is thrown away
+        // after the merge, and sharing its bars would leave the local one
+        // holding objects that a later edit could mutate underneath it.
+        local.chords = [for (final b in remote.chords) b.copy()];
+        changed = true;
       case RehearsalField.beatUnit:
         if (local.beatUnit != remote.beatUnit) changed = true;
         local.beatUnit = remote.beatUnit;

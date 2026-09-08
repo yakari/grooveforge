@@ -315,6 +315,8 @@ class AudioInputFFI {
   int rehAddTrack(String wavPath) => -1;
 
   int stretchFile(String inPath, String outPath, double ratio) => -1;
+
+  void rehSetFormEnd(int frames) {}
   void rehRemoveTrack(int idx) {}
   void rehClearTracks() {}
   void rehSetTrackGain(int idx, double gain) {}
