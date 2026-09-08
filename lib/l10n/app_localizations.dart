@@ -4220,10 +4220,10 @@ abstract class AppLocalizations {
   /// **'Tempo and time signature lock once a part is recorded, because every take is aligned to them.'**
   String get rehearsalGridFrozen;
 
-  /// No description provided for @rehearsalNoCompensation.
+  /// Rehearsal screen: latency calibration prompt and its explanation.
   ///
   /// In en, this message translates to:
-  /// **'Latency has not been measured on this device, so a new take may sit behind the beat. Measure it in Settings.'**
+  /// **'Latency has not been measured on this device, so a new take may sit behind the beat.'**
   String get rehearsalNoCompensation;
 
   /// No description provided for @instrumentVocals.
@@ -4802,12 +4802,6 @@ abstract class AppLocalizations {
   /// **'Stay connected: not everyone has the latest takes yet.'**
   String get rehearsalSyncIncomplete;
 
-  /// Rehearsal screen: warns that a recorded take has not reached every connected device yet.
-  ///
-  /// In en, this message translates to:
-  /// **'Everyone has the latest takes.'**
-  String get rehearsalSyncComplete;
-
   /// Rehearsal lane tag: the take is known but its recording has not arrived on this device yet.
   ///
   /// In en, this message translates to:
@@ -4861,6 +4855,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The metre cannot change once a part is recorded.'**
   String get rehearsalMeterFrozen;
+
+  /// Rehearsal screen: latency calibration prompt and its explanation.
+  ///
+  /// In en, this message translates to:
+  /// **'Calibrate'**
+  String get rehearsalCalibrate;
+
+  /// Rehearsal screen: latency calibration prompt and its explanation.
+  ///
+  /// In en, this message translates to:
+  /// **'Measure this device'**
+  String get rehearsalCalibrateTitle;
+
+  /// Rehearsal screen: latency calibration prompt and its explanation.
+  ///
+  /// In en, this message translates to:
+  /// **'Your device takes a moment to play sound, and another to capture it. Together that delay would put every take behind the beat, so it is measured once and subtracted from what you record.\n\nThe measurement plays a few short sweeps and listens for them coming back through the microphone — so it has to be able to hear them:\n\n•  Use the speaker, not headphones. On headphones the microphone hears nothing and the measurement fails.\n•  Turn the volume up.\n•  Keep the room quiet for the few seconds it takes.\n\nMeasure again after switching to a Bluetooth speaker or headset: the delay belongs to the gear, not to the tune, and Bluetooth adds a great deal of it.'**
+  String get rehearsalCalibrateBody;
+
+  /// Rehearsal screen: latency calibration prompt and its explanation.
+  ///
+  /// In en, this message translates to:
+  /// **'Measure now'**
+  String get rehearsalCalibrateStart;
 }
 
 class _AppLocalizationsDelegate

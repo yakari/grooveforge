@@ -9,6 +9,7 @@ import '../services/rehearsal_engine.dart';
 import '../services/rehearsal_library.dart';
 import '../services/rehearsal_protocol.dart';
 import '../services/rehearsal_sync_service.dart';
+import 'latency_probe_screen.dart';
 import 'master_align_screen.dart';
 import 'nearby_screen.dart';
 import 'rehearsals_screen.dart' show instrumentIcon, instrumentLabel;
@@ -435,44 +436,10 @@ class _RehearsalScreenState extends State<RehearsalScreen> {
   }
 }
 
-/// Shown when no latency measurement exists on this device.
+/// The pinned transport: play/stop, where the tune is, and the click.
 ///
-/// Recording without one produces a take that sits behind the beat by the
-/// device's round trip — around 30 ms on a phone, which is audible. Better to
-/// say so before the player records than to leave them wondering why their
-/// part drags.
-class _CompensationWarning extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final theme = Theme.of(context);
-    return Container(
-      width: double.infinity,
-      color: theme.colorScheme.tertiaryContainer,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: Row(
-        children: [
-          Icon(
-            Icons.info_outline,
-            size: 18,
-            color: theme.colorScheme.onTertiaryContainer,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              l10n.rehearsalNoCompensation,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onTertiaryContainer,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Transport, bar counter and metronome toggle.
+/// Stays on screen while the lanes scroll (decision D14) — position and
+/// transport are read while playing, everything else is an occasional action.
 class _TransportBar extends StatelessWidget {
   const _TransportBar({required this.engine, required this.rehearsal});
 
@@ -485,19 +452,21 @@ class _TransportBar extends StatelessWidget {
     final theme = Theme.of(context);
     final running = engine.isRunning;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+    return Container(
+      color: theme.colorScheme.surfaceContainerHighest,
+      padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
       child: Row(
         children: [
           IconButton.filled(
             onPressed: running ? engine.stop : engine.play,
-            icon: Icon(running ? Icons.stop : Icons.play_arrow),
             tooltip: running ? l10n.rehearsalStop : l10n.rehearsalPlay,
+            icon: Icon(running ? Icons.stop : Icons.play_arrow),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   engine.isCountingIn
@@ -586,7 +555,7 @@ class _TransportBar extends StatelessWidget {
             color:
                 engine.localState.metronomeEnabled
                     ? theme.colorScheme.primary
-                    : null,
+                    : theme.colorScheme.onSurfaceVariant,
           ),
         ],
       ),
@@ -594,7 +563,12 @@ class _TransportBar extends StatelessWidget {
   }
 }
 
-/// A lamp that flashes on the beat, brighter on the downbeat.
+/// One dot per beat in the bar, with the current one lit.
+///
+/// A rehearsal is often played on headphones in a quiet room, where the click
+/// is the only thing keeping everyone together — and someone who has muted it
+/// still needs to see where the bar is. The downbeat is drawn larger so a
+/// glance says *which* beat, not merely that something is moving.
 class _BeatLamp extends StatelessWidget {
   const _BeatLamp({required this.engine, required this.rehearsal});
 
@@ -604,37 +578,130 @@ class _BeatLamp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final fpb = engine.framesPerBeat;
-    var lit = 0.0;
-    if (engine.isRunning && fpb > 0) {
-      var into = engine.positionFrames % fpb;
-      if (into < 0) into += fpb;
-      // Lit for the first eighth of the beat, then dark — long enough to read
-      // in peripheral vision, short enough to be unambiguous.
-      lit = into < fpb ~/ 8 ? 1.0 : 0.0;
-    }
-    final downbeat = engine.currentBeat == 1;
-    return Container(
-      width: 14,
-      height: 14,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: Color.lerp(
-          theme.colorScheme.surfaceContainerHighest,
-          downbeat ? theme.colorScheme.primary : theme.colorScheme.secondary,
-          lit,
-        ),
-      ),
+    final beats = rehearsal.beatsPerBar.clamp(1, 12);
+    // Only while the transport is moving: a lit dot on a stopped tune reads as
+    // "playing" out of the corner of an eye.
+    final current = engine.isRunning ? engine.currentBeat : 0;
+    // Counting in is a different thing from playing, and the whole point of
+    // the count-in is knowing it is about to end.
+    final colour =
+        engine.isCountingIn ? theme.colorScheme.tertiary : theme.colorScheme.primary;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (int beat = 1; beat <= beats; beat++)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 2),
+            child: Container(
+              width: beat == 1 ? 9 : 6,
+              height: beat == 1 ? 9 : 6,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: beat == current
+                    ? colour
+                    : theme.colorScheme.outlineVariant,
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
 
-/// The two speed controls: the tune's own tempo, and this device's.
+/// Shown when no latency measurement exists on this device.
 ///
-/// Together in one sheet because they are easy to confuse and the difference
-/// matters — one changes the arrangement for the whole band, the other changes
-/// nothing but what comes out of this phone. Saying so beside each is cheaper
-/// than explaining it afterwards.
+/// Recording without one produces a take that sits behind the beat by the
+/// device's round trip — around 30 ms on a phone, which is audible. Better to
+/// say so before the player records than to leave them wondering why their
+/// part drags.
+class _CompensationWarning extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
+    return Container(
+      width: double.infinity,
+      color: theme.colorScheme.tertiaryContainer,
+      padding: const EdgeInsets.fromLTRB(16, 6, 8, 6),
+      child: Row(
+        children: [
+          Icon(
+            Icons.info_outline,
+            size: 18,
+            color: theme.colorScheme.onTertiaryContainer,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              l10n.rehearsalNoCompensation,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onTertiaryContainer,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          // The fix, next to the complaint. Sending someone out of the tune,
+          // into settings and down a scrolling list to find it is most of the
+          // reason it stays unmeasured.
+          TextButton(
+            onPressed: () => _calibrate(context),
+            style: TextButton.styleFrom(
+              foregroundColor: theme.colorScheme.onTertiaryContainer,
+              visualDensity: VisualDensity.compact,
+            ),
+            child: Text(l10n.rehearsalCalibrate),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Explains the measurement, then runs it.
+  ///
+  /// The explanation is not padding: the probe listens for its own sweeps
+  /// through the microphone, so on headphones it hears nothing and fails. That
+  /// is a confusing way to meet a feature, and a sentence beforehand avoids it.
+  Future<void> _calibrate(BuildContext context) async {
+    final l10n = AppLocalizations.of(context)!;
+    final engine = context.read<RehearsalEngine>();
+
+    final go = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.rehearsalCalibrateTitle),
+        content: SingleChildScrollView(
+          child: Text(l10n.rehearsalCalibrateBody),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l10n.rehearsalCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(l10n.rehearsalCalibrateStart),
+          ),
+        ],
+      ),
+    );
+    if (go != true || !context.mounted) return;
+
+    // The probe listens for its own sweeps, so anything else coming out of the
+    // speakers is interference. It rides on a different bus slot from the
+    // rehearsal engine, so stopping the transport is enough — the engine does
+    // not have to be torn down.
+    await engine.stop();
+    if (!context.mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => const LatencyProbeScreen()),
+    );
+    // The probe writes to shared preferences; this rehearsal read them when it
+    // opened, so it has to be told to look again.
+    await engine.adoptMeasuredCompensation();
+  }
+}
+
 class _TempoSheet extends StatefulWidget {
   const _TempoSheet({required this.engine, required this.rehearsal});
 

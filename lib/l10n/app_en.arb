@@ -1288,7 +1288,7 @@
   },
   "rehearsalMute": "Mute",
   "rehearsalGridFrozen": "Tempo and time signature lock once a part is recorded, because every take is aligned to them.",
-  "rehearsalNoCompensation": "Latency has not been measured on this device, so a new take may sit behind the beat. Measure it in Settings.",
+  "rehearsalNoCompensation": "Latency has not been measured on this device, so a new take may sit behind the beat.",
   "instrumentVocals": "Vocals",
   "instrumentGuitar": "Acoustic guitar",
   "instrumentElectricGuitar": "Electric guitar",
@@ -1502,10 +1502,6 @@
   "@rehearsalSyncIncomplete": {
     "description": "Rehearsal screen: warns that a recorded take has not reached every connected device yet."
   },
-  "rehearsalSyncComplete": "Everyone has the latest takes.",
-  "@rehearsalSyncComplete": {
-    "description": "Rehearsal screen: warns that a recorded take has not reached every connected device yet."
-  },
   "rehearsalTakeAwaitingAudio": "Waiting for audio",
   "@rehearsalTakeAwaitingAudio": {
     "description": "Rehearsal lane tag: the take is known but its recording has not arrived on this device yet."
@@ -1546,5 +1542,24 @@
   "rehearsalMeterFrozen": "The metre cannot change once a part is recorded.",
   "@rehearsalMeterFrozen": {
     "description": "Rehearsal tempo controls."
+  },
+  "@rehearsalNoCompensation": {
+    "description": "Rehearsal screen: latency calibration prompt and its explanation."
+  },
+  "rehearsalCalibrate": "Calibrate",
+  "@rehearsalCalibrate": {
+    "description": "Rehearsal screen: latency calibration prompt and its explanation."
+  },
+  "rehearsalCalibrateTitle": "Measure this device",
+  "@rehearsalCalibrateTitle": {
+    "description": "Rehearsal screen: latency calibration prompt and its explanation."
+  },
+  "rehearsalCalibrateBody": "Your device takes a moment to play sound, and another to capture it. Together that delay would put every take behind the beat, so it is measured once and subtracted from what you record.\n\nThe measurement plays a few short sweeps and listens for them coming back through the microphone — so it has to be able to hear them:\n\n•  Use the speaker, not headphones. On headphones the microphone hears nothing and the measurement fails.\n•  Turn the volume up.\n•  Keep the room quiet for the few seconds it takes.\n\nMeasure again after switching to a Bluetooth speaker or headset: the delay belongs to the gear, not to the tune, and Bluetooth adds a great deal of it.",
+  "@rehearsalCalibrateBody": {
+    "description": "Rehearsal screen: latency calibration prompt and its explanation."
+  },
+  "rehearsalCalibrateStart": "Measure now",
+  "@rehearsalCalibrateStart": {
+    "description": "Rehearsal screen: latency calibration prompt and its explanation."
   }
 }

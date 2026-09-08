@@ -599,6 +599,19 @@ class RehearsalEngine extends ChangeNotifier {
     await _saveLocal();
   }
 
+  /// Picks up whatever the probe last measured on this device.
+  ///
+  /// The probe writes to shared preferences, which this rehearsal read once
+  /// when it opened. Without this, calibrating from inside a rehearsal would
+  /// appear to do nothing until the tune was closed and opened again — and the
+  /// warning that sent the player to the probe would still be sitting there.
+  Future<void> adoptMeasuredCompensation() async {
+    final prefs = await SharedPreferences.getInstance();
+    final measured = prefs.getInt(kLatencyCompensationKey) ?? 0;
+    if (measured <= 0 || measured == _local.compensationFrames) return;
+    await setCompensationFrames(measured);
+  }
+
   /// Stores the latency compensation measured by the probe, in frames.
   Future<void> setCompensationFrames(int frames) async {
     _local.compensationFrames = frames;

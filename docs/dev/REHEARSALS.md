@@ -1470,3 +1470,30 @@ mistaken for a current one — that failure would be a track playing at the wron
 length against a correct grid, which sounds like a broken app rather than a
 stale cache. Swept *after* a render, never before: the files being replaced may
 still be open in the engine.
+
+---
+
+## 26. Calibrating from where it matters
+
+The latency warning told the player to go to Settings and find the probe. That
+is most of the reason latency stays unmeasured: leaving the tune, opening
+preferences and scrolling to an item you have never seen is a lot to ask of
+someone who just wanted to record a part.
+
+The ribbon now carries the fix next to the complaint. The dialog in between is
+not padding: the probe listens for its own sweeps through the microphone, so on
+headphones it hears nothing and reports — correctly — that it found nothing.
+Meeting a feature that way is confusing, and one paragraph beforehand avoids
+it. The dialog says to use the speaker, turn it up, keep the room quiet, and
+re-measure after switching to Bluetooth.
+
+Two things this needed:
+
+- **The transport is stopped first.** The probe rides on a different bus slot
+  from the rehearsal engine, so the engine does not have to be torn down — but
+  anything else coming out of the speaker is interference for a measurement
+  that works by cross-correlation.
+- **The engine is told to look again.** The probe writes to shared
+  preferences, which the rehearsal read once when it opened. Without
+  `adoptMeasuredCompensation`, calibrating from inside a tune would appear to
+  do nothing and the warning would still be sitting there.

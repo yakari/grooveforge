@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [X.x.x]
 
 ### Added
+- The latency warning now carries a Calibrate button that explains the measurement and runs it, instead of sending you to Settings.
 - A practice speed: slow a tune down to 50% to work a passage, without the pitch dropping. Only on your device.
 - The tune's tempo can now be changed after parts are recorded — the recordings are adjusted to match, on every device.
 - A take whose recording has not arrived is re-requested on the next sync, instead of being stranded with the right duration and the wrong audio.

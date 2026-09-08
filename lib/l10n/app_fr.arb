@@ -1048,7 +1048,7 @@
   },
   "rehearsalMute": "Muet",
   "rehearsalGridFrozen": "Le tempo et la métrique se verrouillent dès qu'une partie est enregistrée : toutes les prises y sont calées.",
-  "rehearsalNoCompensation": "La latence n'a pas été mesurée sur cet appareil : une nouvelle prise risque de traîner derrière le temps. Mesurez-la dans les réglages.",
+  "rehearsalNoCompensation": "La latence n'a pas été mesurée sur cet appareil : une nouvelle prise risque de se retrouver derrière le temps.",
   "instrumentVocals": "Chant",
   "instrumentGuitar": "Guitare acoustique",
   "instrumentElectricGuitar": "Guitare électrique",
@@ -1211,7 +1211,6 @@
   "guideRehearsalHotspotNote": "Le partage des parties ne consomme aucune donnée mobile : il ne sort jamais de la salle. Certains téléphones exigent d'activer les données mobiles avant de partager un point d'accès, mais la répétition, elle, n'en dépense pas.",
   "rehearsalTakePending": "Pas encore transmise",
   "rehearsalSyncIncomplete": "Restez connectés : tout le monde n'a pas encore les dernières prises.",
-  "rehearsalSyncComplete": "Tout le monde a les dernières prises.",
   "rehearsalTakeAwaitingAudio": "En attente de l'audio",
   "rehearsalTempoTitle": "Tempo",
   "rehearsalTuneTempo": "Tempo du morceau",
@@ -1220,5 +1219,9 @@
   "rehearsalPracticeSpeedHint": "Sur cet appareil uniquement. Ralentissez un passage sans changer la hauteur.",
   "rehearsalPracticeSpeedValue": "{percent} %",
   "rehearsalRendering": "Ajustement des enregistrements…",
-  "rehearsalMeterFrozen": "La mesure ne peut plus changer une fois qu'une partie est enregistrée."
+  "rehearsalMeterFrozen": "La mesure ne peut plus changer une fois qu'une partie est enregistrée.",
+  "rehearsalCalibrate": "Calibrer",
+  "rehearsalCalibrateTitle": "Mesurer cet appareil",
+  "rehearsalCalibrateBody": "Votre appareil met un instant à sortir le son, et un autre à le capter. Ce retard mettrait chaque prise derrière le temps : on le mesure une fois, puis on le retranche de ce que vous enregistrez.\n\nLa mesure joue quelques brefs balayages et les guette au retour dans le micro — encore faut-il qu'elle puisse les entendre :\n\n•  Utilisez le haut-parleur, pas un casque. Au casque, le micro n'entend rien et la mesure échoue.\n•  Montez le volume.\n•  Gardez le silence pendant les quelques secondes nécessaires.\n\nRefaites la mesure après être passé sur une enceinte ou un casque Bluetooth : le retard appartient au matériel, pas au morceau, et le Bluetooth en ajoute beaucoup.",
+  "rehearsalCalibrateStart": "Mesurer maintenant"
 }

@@ -2289,7 +2289,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get rehearsalNoCompensation =>
-      'Latency has not been measured on this device, so a new take may sit behind the beat. Measure it in Settings.';
+      'Latency has not been measured on this device, so a new take may sit behind the beat.';
 
   @override
   String get instrumentVocals => 'Vocals';
@@ -2617,9 +2617,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Stay connected: not everyone has the latest takes yet.';
 
   @override
-  String get rehearsalSyncComplete => 'Everyone has the latest takes.';
-
-  @override
   String get rehearsalTakeAwaitingAudio => 'Waiting for audio';
 
   @override
@@ -2650,4 +2647,17 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get rehearsalMeterFrozen =>
       'The metre cannot change once a part is recorded.';
+
+  @override
+  String get rehearsalCalibrate => 'Calibrate';
+
+  @override
+  String get rehearsalCalibrateTitle => 'Measure this device';
+
+  @override
+  String get rehearsalCalibrateBody =>
+      'Your device takes a moment to play sound, and another to capture it. Together that delay would put every take behind the beat, so it is measured once and subtracted from what you record.\n\nThe measurement plays a few short sweeps and listens for them coming back through the microphone — so it has to be able to hear them:\n\n•  Use the speaker, not headphones. On headphones the microphone hears nothing and the measurement fails.\n•  Turn the volume up.\n•  Keep the room quiet for the few seconds it takes.\n\nMeasure again after switching to a Bluetooth speaker or headset: the delay belongs to the gear, not to the tune, and Bluetooth adds a great deal of it.';
+
+  @override
+  String get rehearsalCalibrateStart => 'Measure now';
 }

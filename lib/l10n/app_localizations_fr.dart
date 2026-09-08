@@ -2303,7 +2303,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get rehearsalNoCompensation =>
-      'La latence n\'a pas été mesurée sur cet appareil : une nouvelle prise risque de traîner derrière le temps. Mesurez-la dans les réglages.';
+      'La latence n\'a pas été mesurée sur cet appareil : une nouvelle prise risque de se retrouver derrière le temps.';
 
   @override
   String get instrumentVocals => 'Chant';
@@ -2633,9 +2633,6 @@ class AppLocalizationsFr extends AppLocalizations {
       'Restez connectés : tout le monde n\'a pas encore les dernières prises.';
 
   @override
-  String get rehearsalSyncComplete => 'Tout le monde a les dernières prises.';
-
-  @override
   String get rehearsalTakeAwaitingAudio => 'En attente de l\'audio';
 
   @override
@@ -2666,4 +2663,17 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get rehearsalMeterFrozen =>
       'La mesure ne peut plus changer une fois qu\'une partie est enregistrée.';
+
+  @override
+  String get rehearsalCalibrate => 'Calibrer';
+
+  @override
+  String get rehearsalCalibrateTitle => 'Mesurer cet appareil';
+
+  @override
+  String get rehearsalCalibrateBody =>
+      'Votre appareil met un instant à sortir le son, et un autre à le capter. Ce retard mettrait chaque prise derrière le temps : on le mesure une fois, puis on le retranche de ce que vous enregistrez.\n\nLa mesure joue quelques brefs balayages et les guette au retour dans le micro — encore faut-il qu\'elle puisse les entendre :\n\n•  Utilisez le haut-parleur, pas un casque. Au casque, le micro n\'entend rien et la mesure échoue.\n•  Montez le volume.\n•  Gardez le silence pendant les quelques secondes nécessaires.\n\nRefaites la mesure après être passé sur une enceinte ou un casque Bluetooth : le retard appartient au matériel, pas au morceau, et le Bluetooth en ajoute beaucoup.';
+
+  @override
+  String get rehearsalCalibrateStart => 'Mesurer maintenant';
 }
