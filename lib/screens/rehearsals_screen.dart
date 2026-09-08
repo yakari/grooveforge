@@ -15,32 +15,32 @@ import 'rehearsal_screen.dart';
 /// stays presentation-free — CLAUDE.md Rule 4 forbids calling `.toString()` on
 /// a domain object for display.
 String instrumentLabel(AppLocalizations l10n, String id) => switch (id) {
-      'vocals' => l10n.instrumentVocals,
-      'guitar' => l10n.instrumentGuitar,
-      'electricGuitar' => l10n.instrumentElectricGuitar,
-      'bassGuitar' => l10n.instrumentBassGuitar,
-      'drums' => l10n.instrumentDrums,
-      'keyboard' => l10n.instrumentKeyboard,
-      'synth' => l10n.instrumentSynth,
-      'violin' => l10n.instrumentViolin,
-      'saxophone' => l10n.instrumentSaxophone,
-      'trumpet' => l10n.instrumentTrumpet,
-      'percussion' => l10n.instrumentPercussion,
-      _ => l10n.instrumentOther,
-    };
+  'vocals' => l10n.instrumentVocals,
+  'guitar' => l10n.instrumentGuitar,
+  'electricGuitar' => l10n.instrumentElectricGuitar,
+  'bassGuitar' => l10n.instrumentBassGuitar,
+  'drums' => l10n.instrumentDrums,
+  'keyboard' => l10n.instrumentKeyboard,
+  'synth' => l10n.instrumentSynth,
+  'violin' => l10n.instrumentViolin,
+  'saxophone' => l10n.instrumentSaxophone,
+  'trumpet' => l10n.instrumentTrumpet,
+  'percussion' => l10n.instrumentPercussion,
+  _ => l10n.instrumentOther,
+};
 
 /// An icon standing in for an instrument, so a lane is recognisable at a
 /// glance rather than only by reading its label.
 IconData instrumentIcon(String id) => switch (id) {
-      'vocals' => Icons.mic_none,
-      'guitar' || 'electricGuitar' => Icons.music_note,
-      'bassGuitar' => Icons.graphic_eq,
-      'drums' || 'percussion' => Icons.album,
-      'keyboard' || 'synth' => Icons.piano,
-      'violin' => Icons.queue_music,
-      'saxophone' || 'trumpet' => Icons.audiotrack,
-      _ => Icons.library_music,
-    };
+  'vocals' => Icons.mic_none,
+  'guitar' || 'electricGuitar' => Icons.music_note,
+  'bassGuitar' => Icons.graphic_eq,
+  'drums' || 'percussion' => Icons.album,
+  'keyboard' || 'synth' => Icons.piano,
+  'violin' => Icons.queue_music,
+  'saxophone' || 'trumpet' => Icons.audiotrack,
+  _ => Icons.library_music,
+};
 
 /// The rehearsal library: every tune this device knows about.
 class RehearsalsScreen extends StatefulWidget {
@@ -73,7 +73,10 @@ class _RehearsalsScreenState extends State<RehearsalsScreen> {
 
     final library = context.read<RehearsalLibrary>();
     final rehearsal = await library.create(
-      title: result.title.trim().isEmpty ? l10n.rehearsalCreateTitle : result.title,
+      title:
+          result.title.trim().isEmpty
+              ? l10n.rehearsalCreateTitle
+              : result.title,
       memberName: result.memberName,
       instrument: result.instrument,
       bpm: result.bpm,
@@ -81,9 +84,11 @@ class _RehearsalsScreenState extends State<RehearsalsScreen> {
       countInBars: result.countInBars,
     );
     if (!mounted) return;
-    await Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => RehearsalScreen(rehearsalId: rehearsal.id),
-    ));
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => RehearsalScreen(rehearsalId: rehearsal.id),
+      ),
+    );
   }
 
   /// Opens the join screen and picks up whatever it brought back.
@@ -92,9 +97,9 @@ class _RehearsalsScreenState extends State<RehearsalsScreen> {
   /// rehearsal from another isolate's worth of work — a socket, a merge and a
   /// file — and the list has to be re-read from disk to show it.
   Future<void> _join() async {
-    await Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => const JoinRehearsalScreen(),
-    ));
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const JoinRehearsalScreen()));
     if (!mounted) return;
     await context.read<RehearsalLibrary>().load();
   }
@@ -103,19 +108,20 @@ class _RehearsalsScreenState extends State<RehearsalsScreen> {
     final l10n = AppLocalizations.of(context)!;
     final ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        content: Text(l10n.rehearsalDeleteConfirm(rehearsal.title)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(l10n.rehearsalCancel),
+      builder:
+          (ctx) => AlertDialog(
+            content: Text(l10n.rehearsalDeleteConfirm(rehearsal.title)),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: Text(l10n.rehearsalCancel),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: Text(l10n.rehearsalDelete),
+              ),
+            ],
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(l10n.rehearsalDelete),
-          ),
-        ],
-      ),
     );
     if (ok != true || !mounted) return;
     await context.read<RehearsalLibrary>().delete(rehearsal.id);
@@ -138,18 +144,20 @@ class _RehearsalsScreenState extends State<RehearsalsScreen> {
           IconButton(
             icon: const Icon(Icons.help_outline),
             tooltip: l10n.synthTooltipUserGuide,
-            onPressed: () => showDialog(
-              context: context,
-              builder: (_) => const UserGuideModal(),
-            ),
+            onPressed:
+                () => showDialog(
+                  context: context,
+                  builder: (_) => const UserGuideModal(),
+                ),
           ),
           IconButton(
             icon: const Icon(Icons.settings),
             tooltip: l10n.synthTooltipSettings,
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const PreferencesScreen()),
-            ),
+            onPressed:
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const PreferencesScreen()),
+                ),
           ),
         ],
       ),
@@ -183,44 +191,47 @@ class _RehearsalsScreenState extends State<RehearsalsScreen> {
       ),
       body: SafeArea(
         top: false,
-        child: library.rehearsals.isEmpty
-            ? _EmptyState(loaded: library.isLoaded)
-            : LayoutBuilder(
-                builder: (context, constraints) {
-                  // One column on a phone; a grid once there is room, so a
-                  // laptop does not show a single 1600 px-wide card.
-                  final columns = constraints.maxWidth >= 1280
-                      ? 3
-                      : constraints.maxWidth >= 800
-                          ? 2
-                          : 1;
-                  return GridView.builder(
-                    // Room for two stacked buttons, so the last card in the
-                    // list can still be scrolled clear of them.
-                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 152),
-                    gridDelegate:
-                        SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: columns,
-                      mainAxisExtent: 132,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                    ),
-                    itemCount: library.rehearsals.length,
-                    itemBuilder: (_, i) {
-                      final r = library.rehearsals[i];
-                      return _RehearsalCard(
-                        rehearsal: r,
-                        onOpen: () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => RehearsalScreen(rehearsalId: r.id),
-                          ),
-                        ),
-                        onDelete: () => _confirmDelete(r),
-                      );
-                    },
-                  );
-                },
-              ),
+        child:
+            library.rehearsals.isEmpty
+                ? _EmptyState(loaded: library.isLoaded)
+                : LayoutBuilder(
+                  builder: (context, constraints) {
+                    // One column on a phone; a grid once there is room, so a
+                    // laptop does not show a single 1600 px-wide card.
+                    final columns =
+                        constraints.maxWidth >= 1280
+                            ? 3
+                            : constraints.maxWidth >= 800
+                            ? 2
+                            : 1;
+                    return GridView.builder(
+                      // Room for two stacked buttons, so the last card in the
+                      // list can still be scrolled clear of them.
+                      padding: const EdgeInsets.fromLTRB(12, 12, 12, 152),
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: columns,
+                        mainAxisExtent: 132,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                      ),
+                      itemCount: library.rehearsals.length,
+                      itemBuilder: (_, i) {
+                        final r = library.rehearsals[i];
+                        return _RehearsalCard(
+                          rehearsal: r,
+                          onOpen:
+                              () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder:
+                                      (_) => RehearsalScreen(rehearsalId: r.id),
+                                ),
+                              ),
+                          onDelete: () => _confirmDelete(r),
+                        );
+                      },
+                    );
+                  },
+                ),
       ),
     );
   }
@@ -244,16 +255,20 @@ class _EmptyState extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.groups_outlined,
-                  size: 64, color: theme.colorScheme.primary.withValues(alpha: 0.5)),
+              Icon(
+                Icons.groups_outlined,
+                size: 64,
+                color: theme.colorScheme.primary.withValues(alpha: 0.5),
+              ),
               const SizedBox(height: 16),
               Text(l10n.rehearsalsEmpty, style: theme.textTheme.titleLarge),
               const SizedBox(height: 8),
               Text(
                 l10n.rehearsalsEmptyHint,
                 textAlign: TextAlign.center,
-                style: theme.textTheme.bodyMedium
-                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
             ],
           ),
@@ -282,7 +297,12 @@ class _RehearsalCard extends StatelessWidget {
     for (final c in rehearsal.id.codeUnits) {
       hash = (hash * 31 + c) & 0x7FFFFFFF;
     }
-    return HSLColor.fromAHSL(1.0, (hash % 360).toDouble(), 0.55, 0.55).toColor();
+    return HSLColor.fromAHSL(
+      1.0,
+      (hash % 360).toDouble(),
+      0.55,
+      0.55,
+    ).toColor();
   }
 
   @override
@@ -318,8 +338,9 @@ class _RehearsalCard extends StatelessWidget {
                       '${l10n.rehearsalBpmValue(rehearsal.bpm.toStringAsFixed(0))}'
                       '   ·   '
                       '${l10n.rehearsalMeter(rehearsal.beatsPerBar, rehearsal.beatUnit)}',
-                      style: theme.textTheme.bodySmall
-                          ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
                     ),
                     const SizedBox(height: 10),
                     Row(
@@ -364,8 +385,14 @@ class _RehearsalCard extends StatelessWidget {
 
 /// What the create dialog returns.
 class _CreateResult {
-  _CreateResult(this.title, this.memberName, this.instrument, this.bpm,
-      this.beatsPerBar, this.countInBars);
+  _CreateResult(
+    this.title,
+    this.memberName,
+    this.instrument,
+    this.bpm,
+    this.beatsPerBar,
+    this.countInBars,
+  );
 
   final String title;
   final String memberName;
@@ -402,91 +429,110 @@ class _CreateRehearsalDialogState extends State<_CreateRehearsalDialog> {
     final l10n = AppLocalizations.of(context)!;
     return AlertDialog(
       title: Text(l10n.rehearsalCreateTitle),
+      // The whole dialog scrolls, title and buttons included, rather than a
+      // scroll view inside a fixed frame. With a software keyboard up there is
+      // not room for the form, and the inner-scroll version left the metre row
+      // sliced through its own text against pinned buttons — correct
+      // behaviour that reads as a rendering fault. Scrolling the lot lets
+      // Flutter size the dialog to what is actually free, and puts the cut
+      // where the user has chosen to leave it.
+      scrollable: true,
       content: SizedBox(
         width: 420,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              TextField(
-                controller: _title,
-                autofocus: true,
-                decoration: InputDecoration(
-                  labelText: l10n.rehearsalFieldTitle,
-                  hintText: l10n.rehearsalFieldTitleHint,
-                ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextField(
+              controller: _title,
+              // Deliberately not autofocused. Raising the keyboard before
+              // the dialog has been seen leaves half of it above the fold —
+              // the metre and count-in row cut through its own text — and a
+              // form that opens looking truncated reads as broken, however
+              // correctly it scrolls. Tapping a field scrolls it into view,
+              // which is the moment scrolling is expected.
+              decoration: InputDecoration(
+                labelText: l10n.rehearsalFieldTitle,
+                hintText: l10n.rehearsalFieldTitleHint,
               ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _name,
-                decoration:
-                    InputDecoration(labelText: l10n.rehearsalFieldYourName),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _name,
+              decoration: InputDecoration(
+                labelText: l10n.rehearsalFieldYourName,
               ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue: _instrument,
-                decoration:
-                    InputDecoration(labelText: l10n.rehearsalFieldInstrument),
-                items: [
-                  for (final id in kInstruments)
-                    DropdownMenuItem(
-                      value: id,
-                      child: Text(instrumentLabel(l10n, id)),
-                    ),
-                ],
-                onChanged: (v) => setState(() => _instrument = v ?? 'other'),
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              initialValue: _instrument,
+              decoration: InputDecoration(
+                labelText: l10n.rehearsalFieldInstrument,
               ),
-              const SizedBox(height: 16),
-              Text('${l10n.rehearsalFieldTempo}: '
-                  '${l10n.rehearsalBpmValue(_bpm.toStringAsFixed(0))}'),
-              Slider(
-                value: _bpm,
-                min: 40,
-                max: 240,
-                divisions: 200,
-                onChanged: (v) => setState(() => _bpm = v),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: DropdownButtonFormField<int>(
-                      initialValue: _beatsPerBar,
-                      decoration: InputDecoration(
-                          labelText: l10n.rehearsalFieldTimeSignature),
-                      items: [
-                        for (final n in [2, 3, 4, 5, 6, 7])
-                          DropdownMenuItem(
-                            value: n,
-                            child: Text(l10n.rehearsalMeter(n, 4)),
-                          ),
-                      ],
-                      onChanged: (v) => setState(() => _beatsPerBar = v ?? 4),
-                    ),
+              items: [
+                for (final id in kInstruments)
+                  DropdownMenuItem(
+                    value: id,
+                    child: Text(instrumentLabel(l10n, id)),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: DropdownButtonFormField<int>(
-                      initialValue: _countInBars,
-                      decoration:
-                          InputDecoration(labelText: l10n.rehearsalFieldCountIn),
-                      items: [
+              ],
+              onChanged: (v) => setState(() => _instrument = v ?? 'other'),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              '${l10n.rehearsalFieldTempo}: '
+              '${l10n.rehearsalBpmValue(_bpm.toStringAsFixed(0))}',
+            ),
+            Slider(
+              value: _bpm,
+              min: 40,
+              max: 240,
+              divisions: 200,
+              onChanged: (v) => setState(() => _bpm = v),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: DropdownButtonFormField<int>(
+                    initialValue: _beatsPerBar,
+                    decoration: InputDecoration(
+                      labelText: l10n.rehearsalFieldTimeSignature,
+                    ),
+                    items: [
+                      for (final n in [2, 3, 4, 5, 6, 7])
                         DropdownMenuItem(
-                            value: 0, child: Text(l10n.rehearsalCountInNone)),
-                        for (final n in [1, 2, 4])
-                          DropdownMenuItem(
-                            value: n,
-                            child: Text(l10n.rehearsalCountInBars(n)),
-                          ),
-                      ],
-                      onChanged: (v) => setState(() => _countInBars = v ?? 2),
-                    ),
+                          value: n,
+                          child: Text(l10n.rehearsalMeter(n, 4)),
+                        ),
+                    ],
+                    onChanged: (v) => setState(() => _beatsPerBar = v ?? 4),
                   ),
-                ],
-              ),
-            ],
-          ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: DropdownButtonFormField<int>(
+                    initialValue: _countInBars,
+                    decoration: InputDecoration(
+                      labelText: l10n.rehearsalFieldCountIn,
+                    ),
+                    items: [
+                      DropdownMenuItem(
+                        value: 0,
+                        child: Text(l10n.rehearsalCountInNone),
+                      ),
+                      for (final n in [1, 2, 4])
+                        DropdownMenuItem(
+                          value: n,
+                          child: Text(l10n.rehearsalCountInBars(n)),
+                        ),
+                    ],
+                    onChanged: (v) => setState(() => _countInBars = v ?? 2),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
       actions: [
@@ -495,11 +541,18 @@ class _CreateRehearsalDialogState extends State<_CreateRehearsalDialog> {
           child: Text(l10n.rehearsalCancel),
         ),
         FilledButton(
-          onPressed: () => Navigator.pop(
-            context,
-            _CreateResult(_title.text, _name.text, _instrument, _bpm,
-                _beatsPerBar, _countInBars),
-          ),
+          onPressed:
+              () => Navigator.pop(
+                context,
+                _CreateResult(
+                  _title.text,
+                  _name.text,
+                  _instrument,
+                  _bpm,
+                  _beatsPerBar,
+                  _countInBars,
+                ),
+              ),
           child: Text(l10n.rehearsalCreate),
         ),
       ],
