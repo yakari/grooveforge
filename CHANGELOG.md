@@ -5,62 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [X.x.x]
+## [3.0.0] - 2026-09-08
 
 ### Added
-- A headset already connected when the app starts is recognised, instead of the app compensating as if you were on the speaker until you unplugged and reconnected it.
-- A recorded part now lines up on the first beat of the click, even when recording started during the count-in.
-- Recording now captures the count-in as well, so a part sung along with a recording's intro stays in step with it.
-- A recording that cannot be adjusted to the practice speed now plays at its own speed instead of falling silent.
-- Play now runs the count-in first, and a recording that starts before the first downbeat is heard during it, so the music's first beat lands on the grid's.
-- Measuring a recording's tempo no longer stretches the recording, so the beat lines can actually be lined up with it.
-- Aligning a recording: zoom into the waveform, scroll along it, and see red lines on every beat so the tempo can be judged by eye.
-- Fine tempo buttons either side of the value, and a Skip the silence button that jumps the downbeat to where the recording actually starts.
-- The count-in can be changed from the tempo panel, not only when the tune is created.
-- Calibrating a headset once covers every tune, instead of having to repeat it in each.
-- Latency is measured and remembered per output: your speaker, a wired headset and each Bluetooth headset each keep their own figure.
-- A warning names the headphones you are wearing when they have never been measured, instead of letting a take drag.
-- Bars with several chords are laid out wide enough to read, with the beats separated.
-- A chord grid: write the tune's form bar by bar, one to four chords a bar, and the bar being played lights up.
-- Chord symbols are read properly — Ab, C#m7, Gm7b5, C6/9, Am(M7)/B — so a chart can be checked as you type it.
-- Pressing play on a written chart runs the click through it, even before anything has been recorded.
-- A shared score vault per tune: add a PDF, a chart or a photo of a page, and everyone in the band gets a copy.
-- A removed player can rejoin the tune: they come back as a new player and record again.
-- A player who has gone for good can be removed from a tune, taking their parts with them on every device.
-- The latency warning now carries a Calibrate button that explains the measurement and runs it, instead of sending you to Settings.
-- A practice speed: slow a tune down to 50% to work a passage, without the pitch dropping. Only on your device.
-- The tune's tempo can now be changed after parts are recorded — the recordings are adjusted to match, on every device.
-- A take whose recording has not arrived is re-requested on the next sync, instead of being stranded with the right duration and the wrong audio.
-- A lane says when it is still waiting for a recording to arrive.
-- A red tag marks a take that has not reached every connected device yet, so nobody leaves mid-transfer.
-- A Rehearsals page in the user guide, including how to get everyone on one network when the room has no Wi-Fi.
-- A Rehearse tab: start a tune, set the tempo, and record your part over a click.
-- Takes are shifted by the latency measured on your device, so an overdub lands on the beat.
-- Each part gets its own lane with mute and level; your mix stays on your phone.
-- Import a recording to play along to: MP3, FLAC, WAV, and on Android also M4A, AAC and the audio of a video.
-- Tap the beat to set the tempo, then drag a marker to the first downbeat to line the grid up with the recording.
-- The click switches itself off once a recording is imported, since that is the tempo now.
-- Share a rehearsal with the band: show a QR code for them to scan, or send the link, and everyone's parts merge.
-- Parts sync both ways over Wi-Fi, encrypted, with no server and no account.
-- While the band is connected, a part appears on everyone's phone as soon as it is recorded.
-- Once you have shared a rehearsal, the app finds the others on the network by itself — no code to scan again.
-- You record your own part and nobody else's, and can delete a take you are not happy with.
-- A part you added by mistake can be removed altogether, and it disappears for the others too.
-- Playback stops on its own when the last part runs out, instead of running on into silence.
-- Devices in the same rehearsal keep seeing each other instead of losing contact after a minute or two.
-- Someone leaving a rehearsal disappears from the others within a second or two.
-- A part you finish recording is pushed to everyone in the room at once, not passed along one device at a time.
-- Each lane shows a dot for whether the player who owns it is connected right now.
-
-### Architecture
-- Rehearsal groundwork: measuring how late the mic hears what the app plays, so overdubs can land on the beat.
-- The same measurement catches recording and playback clocks drifting apart.
-- Settings gains an overdub latency check that measures the round trip on your own device.
-
-### Changed
-- Part lanes are half the height: tap one to set its level. Mute stays in the same place on every lane, so it can be found without looking.
-- The tempo and practice speed are now a button on the transport instead of a line of text you had to guess was tappable.
-- The connection strip only appears when it has something to ask for; who is nearby moved to a small chip in the title bar.
+- **Rehearsals**: a new tab where a band learns a tune together. Everyone records their own part over a shared click, on their own phone.
+- Overdubs land on the beat: the app measures your device's round trip and shifts each take back by it — separately for the speaker, a wired headset and every Bluetooth headset.
+- Play along to a recording: import MP3, FLAC or WAV (plus M4A, AAC and video sound on Android), tap the tempo, and line the grid up on the waveform with beat lines to guide you.
+- Practice speed: slow a tune to 50% to work a passage, without the pitch dropping.
+- A chord grid: write the form bar by bar, up to four chords a bar, and the bar being played lights up.
+- A shared score folder: add a PDF or a photo of a page, and everyone in the band gets a copy.
+- Parts sync device to device over Wi-Fi, encrypted, with no server and no account. Scan a code once; after that the app finds the others by itself.
+- You record your own parts and nobody else's, and can re-record or delete them as often as you like.
+- A count-in before recording and before playback, set per tune.
+- A dot shows who is connected, and a warning stops anyone leaving before their part has reached the others.
+- A Rehearsals page in the user guide, including how to get everyone onto one network when the room has no Wi-Fi.
 
 ## [2.18.0] - 2026-09-04
 

@@ -5,62 +5,20 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/lang/fr/).
 
-## [X.x.x]
+## [3.0.0] - 2026-09-08
 
 ### Ajouté
-- Un casque déjà connecté au démarrage de l'application est reconnu, au lieu d'être compensé comme le haut-parleur jusqu'à ce qu'on le déconnecte et le reconnecte.
-- Une partie enregistrée se cale désormais sur le premier temps du clic, même si l'enregistrement a démarré pendant le décompte.
-- L'enregistrement capte désormais aussi le décompte : une partie chantée sur l'intro d'un enregistrement reste calée dessus.
-- Un enregistrement qui ne peut pas être adapté à la vitesse de travail est joué à sa vitesse d'origine au lieu de devenir muet.
-- La lecture démarre désormais par le décompte, et un enregistrement qui commence avant le premier temps fort s'entend pendant celui-ci : le premier temps de la musique tombe ainsi sur celui de la grille.
-- Mesurer le tempo d'un enregistrement ne l'étire plus, ce qui permet enfin d'y caler les traits de temps.
-- Calage d'un enregistrement : zoomez dans la forme d'onde, faites-la défiler, et voyez des traits rouges sur chaque temps pour juger le tempo à l'œil.
-- Des boutons de réglage fin du tempo de part et d'autre de la valeur, et un bouton Passer le silence qui amène le premier temps là où l'enregistrement commence vraiment.
-- Le décompte se règle depuis le panneau de tempo, et plus seulement à la création du morceau.
-- Calibrer un casque une fois vaut pour tous les morceaux, au lieu de devoir recommencer dans chacun.
-- La latence est mesurée et retenue par sortie : le haut-parleur, un casque filaire et chaque casque Bluetooth gardent leur propre valeur.
-- Un avertissement nomme le casque que vous portez quand il n'a jamais été mesuré, au lieu de laisser une prise traîner.
-- Les mesures à plusieurs accords sont assez larges pour être lues, avec les temps séparés.
-- Une grille d'accords : écrivez la forme du morceau mesure par mesure, de un à quatre accords par mesure, et la mesure en cours s'allume.
-- Les chiffrages d'accords sont vraiment analysés — Ab, C#m7, Gm7b5, C6/9, Am(M7)/B — pour vérifier la grille à mesure qu'on la saisit.
-- Lancer la lecture sur une grille écrite fait défiler le clic d'un bout à l'autre, avant même le moindre enregistrement.
-- Un classeur de partitions partagé par morceau : ajoutez un PDF, une grille ou la photo d'une page, et tout le groupe en reçoit une copie.
-- Un musicien retiré peut revenir dans le morceau : il réapparaît comme un nouveau musicien et enregistre à nouveau.
-- Un musicien définitivement parti peut être retiré d'un morceau, emportant ses parties sur tous les appareils.
-- L'avertissement de latence propose désormais un bouton Calibrer qui explique la mesure et la lance, au lieu de vous renvoyer dans les paramètres.
-- Une vitesse de travail : ralentissez un morceau jusqu'à 50 % pour bosser un passage, sans que la hauteur baisse. Sur votre appareil seulement.
-- Le tempo du morceau peut désormais changer après l'enregistrement des parties — les enregistrements sont ajustés en conséquence, sur chaque appareil.
-- Une prise dont l'enregistrement n'est pas arrivé est redemandée à la synchro suivante, au lieu de rester bloquée avec la bonne durée et le mauvais audio.
-- Une piste indique quand elle attend encore un enregistrement.
-- Une pastille rouge signale une prise qui n'a pas encore atteint tous les appareils connectés, pour que personne ne parte en plein transfert.
+- **Répétitions** : un nouvel onglet où un groupe travaille un morceau ensemble. Chacun enregistre sa partie sur un clic commun, depuis son téléphone.
+- Les prises tombent sur le temps : l'application mesure l'aller-retour de votre appareil et recale chaque prise d'autant — séparément pour le haut-parleur, un casque filaire et chaque casque Bluetooth.
+- Jouez sur un enregistrement : importez un MP3, FLAC ou WAV (plus M4A, AAC et le son d'une vidéo sur Android), tapez le tempo, et calez la grille sur la forme d'onde guidée par les traits de temps.
+- Vitesse de travail : ralentissez un morceau jusqu'à 50 % pour bosser un passage, sans que la hauteur baisse.
+- Une grille d'accords : écrivez la forme mesure par mesure, jusqu'à quatre accords par mesure, et la mesure en cours s'allume.
+- Un classeur de partitions partagé : ajoutez un PDF ou la photo d'une page, et tout le groupe en reçoit une copie.
+- Les parties se synchronisent d'appareil à appareil en Wi-Fi, chiffrées, sans serveur ni compte. Scannez un code une fois ; ensuite l'application retrouve les autres toute seule.
+- Vous enregistrez vos parties et celles de personne d'autre, et vous pouvez les refaire ou les supprimer autant que vous voulez.
+- Un décompte avant l'enregistrement et avant la lecture, réglable par morceau.
+- Une pastille indique qui est connecté, et un avertissement empêche de partir avant que sa partie soit arrivée aux autres.
 - Une page Répétitions dans le guide, avec la marche à suivre pour réunir tout le monde sur un même réseau quand la salle n'a pas de Wi-Fi.
-- Un onglet Répéter : lancez un morceau, réglez le tempo et enregistrez votre partie sur un clic.
-- Les prises sont recalées selon la latence mesurée sur votre appareil, pour tomber sur le temps.
-- Chaque partie a sa piste avec muet et niveau ; votre mixage reste sur votre téléphone.
-- Importez un enregistrement : MP3, FLAC, WAV, et sur Android aussi M4A, AAC et l'audio d'une vidéo.
-- Tapez le tempo, puis faites glisser un repère sur le premier temps fort pour caler la grille sur l'enregistrement.
-- Le clic se coupe dès qu'un enregistrement est importé : c'est lui qui donne le tempo.
-- Partagez une répétition avec le groupe : affichez un QR code à scanner ou envoyez le lien, et les parties fusionnent.
-- Les parties se synchronisent dans les deux sens en Wi-Fi, chiffrées, sans serveur ni compte.
-- Tant que le groupe est connecté, une partie apparaît sur tous les téléphones dès qu'elle est enregistrée.
-- Une fois la répétition partagée, l'app retrouve les autres sur le réseau toute seule — plus de code à scanner.
-- Vous enregistrez votre partie et personne d'autre, et pouvez supprimer une prise qui ne vous plaît pas.
-- Une partie ajoutée par erreur peut être supprimée complètement, et elle disparaît aussi chez les autres.
-- La lecture s'arrête d'elle-même quand la dernière partie se termine, au lieu de continuer dans le silence.
-- Les appareils d'une même répétition continuent de se voir au lieu de perdre le contact au bout d'une minute ou deux.
-- Quand quelqu'un quitte une répétition, il disparaît chez les autres en une seconde ou deux.
-- Une partie que vous venez d'enregistrer est envoyée à tout le monde d'un coup, au lieu de circuler d'appareil en appareil.
-- Chaque piste affiche une pastille indiquant si le musicien qui la possède est connecté.
-
-### Architecture
-- Préparation des répétitions : mesure du retard entre ce que l'app joue et ce que le micro entend, pour caler les overdubs.
-- La même mesure détecte les horloges d'enregistrement et de lecture qui dérivent.
-- Les réglages proposent une mesure de latence d'overdub sur votre propre appareil.
-
-### Modifié
-- Les pistes sont deux fois moins hautes : touchez-en une pour régler son niveau. Le bouton muet reste au même endroit sur chaque piste, pour le trouver sans regarder.
-- Le tempo et la vitesse de travail sont désormais un bouton sur le transport, au lieu d'une ligne de texte dont rien n'indiquait qu'elle était cliquable.
-- Le bandeau de connexion n'apparaît que lorsqu'il a quelque chose à demander ; les appareils proches sont indiqués par une pastille dans la barre de titre.
 
 ## [2.18.0] - 2026-09-04
 

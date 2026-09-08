@@ -1,0 +1,7 @@
+Répétitions — un nouvel onglet où un groupe travaille un morceau ensemble.
+
+- Chacun enregistre sa partie sur un clic commun, depuis son téléphone.
+- Les prises tombent sur le temps : le retard de l'appareil est mesuré, par sortie.
+- Jouez sur un enregistrement importé, ou ralentissez à 50 % sans changer la hauteur.
+- Grille d'accords, partage de partitions et PDF, présence des musiciens.
+- Synchronisation d'appareil à appareil en Wi-Fi : chiffrée, sans serveur ni compte.
