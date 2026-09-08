@@ -107,7 +107,10 @@ class RehearsalSyncService extends ChangeNotifier {
   StreamSubscription<Socket>? _connections;
   JoinTicket? _ticket;
 
-  final List<SyncPeer> _peers = [];
+  /// Peers by remote address. A map, not a list: a live session reconnects
+  /// every few seconds, and appending would have shown one "connected device"
+  /// per connection — nine of them after a minute with one peer in the room.
+  final Map<String, SyncPeer> _peers = {};
   String? _lastError;
   bool _busy = false;
 
@@ -120,7 +123,14 @@ class RehearsalSyncService extends ChangeNotifier {
   Timer? _liveTimer;
   int _liveFailures = 0;
 
-  List<SyncPeer> get peers => List.unmodifiable(_peers);
+  List<SyncPeer> get peers => List.unmodifiable(_peers.values);
+
+  /// How many other devices are actually visible right now.
+  ///
+  /// From discovery rather than from connection history: it answers "who is in
+  /// the room", which is what the count is asked to mean.
+  int visibleDeviceCount(String rehearsalId) =>
+      discovery.peersFor(rehearsalId).length;
   JoinTicket? get ticket => _ticket;
   bool get isHosting => _server != null;
 
@@ -134,6 +144,43 @@ class RehearsalSyncService extends ChangeNotifier {
   Future<String> deviceId() => rehearsalDeviceId();
 
   // ── Hosting ───────────────────────────────────────────────────────────────
+
+  /// Makes this device reachable for [rehearsal] and starts looking for the
+  /// others.
+  ///
+  /// Both halves are needed and neither is enough alone: a device that only
+  /// browses can see nobody, because everyone else is only browsing too. Two
+  /// people opening the same tune would sit there indefinitely, each waiting
+  /// for the other to announce itself.
+  ///
+  /// So being *in* a rehearsal is what makes you reachable, rather than
+  /// tapping share — share only exists to introduce someone who has never had
+  /// the tune before.
+  Future<void> goLive(Rehearsal rehearsal) async {
+    final key = rehearsal.joinKey;
+    if (key == null) return;
+    await startHosting(rehearsal);
+    await discovery.startBrowsing(await deviceId());
+    startLiveSync(
+      rehearsalId: rehearsal.id,
+      key: Uint8List.fromList(base64.decode(key)),
+      fallback: _fallbackTicket,
+    );
+  }
+
+  /// Set by the caller when it has a remembered address to fall back on for a
+  /// network where discovery does not work.
+  JoinTicket? _fallbackTicket;
+  set fallbackTicket(JoinTicket? ticket) => _fallbackTicket = ticket;
+
+  /// Stops being reachable and stops looking.
+  Future<void> goOffline() async {
+    stopLiveSync();
+    await stopHosting();
+    await discovery.stopBrowsing();
+    _peers.clear();
+    notifyListeners();
+  }
 
   /// Opens [rehearsal] for sharing and returns the ticket to put in a QR code.
   ///
@@ -206,12 +253,13 @@ class RehearsalSyncService extends ChangeNotifier {
       socket.destroy();
       return;
     }
+    final address = socket.remoteAddress.address;
     final peer = SyncPeer(
       deviceId: '',
-      address: socket.remoteAddress.address,
+      address: address,
       status: 'connecting',
     );
-    _peers.add(peer);
+    _peers[address] = peer;
     _busy = true;
     notifyListeners();
 
@@ -364,11 +412,10 @@ class RehearsalSyncService extends ChangeNotifier {
         deviceId: await deviceId(),
         isClient: true,
         onProgress: (step) {
-          if (_peers.isEmpty) {
-            _peers.add(SyncPeer(deviceId: '', address: ticket.host));
-          }
-          _peers.first.status = step;
-          notifyListeners();
+          final peer = _peers.putIfAbsent(ticket.host,
+              () => SyncPeer(deviceId: '', address: ticket.host));
+          peer.status = step;
+          if (!quiet) notifyListeners();
         },
       );
       final report = await session.run();

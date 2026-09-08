@@ -1,6 +1,3 @@
-import 'dart:convert';
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -74,32 +71,27 @@ class _RehearsalScreenState extends State<RehearsalScreen> {
       _engine = engine;
       _rehearsal = rehearsal;
     });
-    await _resumeLiveSync(rehearsal);
+    await _goLive(rehearsal);
   }
 
-  /// Starts looking for the rest of the band.
+  /// Joins the room: makes this device reachable and starts looking for the
+  /// others.
   ///
-  /// The rehearsal's own key is what every member holds, so any peer found on
-  /// the network can be talked to. The remembered ticket is only a fallback
-  /// for a network where discovery does not work — it goes stale as soon as
-  /// the host restarts sharing, since the port changes.
-  Future<void> _resumeLiveSync(Rehearsal rehearsal) async {
+  /// Being in a rehearsal is what makes you reachable — not tapping share.
+  /// Two people opening the same tune should find each other, and they cannot
+  /// if both are only listening.
+  Future<void> _goLive(Rehearsal rehearsal) async {
     final library = context.read<RehearsalLibrary>();
     final local = await library.loadLocalState(rehearsal.id);
-    final keyText = rehearsal.joinKey;
-    if (keyText == null || !mounted) return;
-
-    final sync = context.read<RehearsalSyncService>();
-    await sync.discovery.startBrowsing(await sync.deviceId());
     if (!mounted) return;
 
-    sync.startLiveSync(
-      rehearsalId: rehearsal.id,
-      key: Uint8List.fromList(base64.decode(keyText)),
-      fallback: local.lastTicketUri == null
-          ? null
-          : JoinTicket.parse(local.lastTicketUri!),
-    );
+    final sync = context.read<RehearsalSyncService>();
+    // A remembered address, for a network where discovery does not work. It
+    // goes stale once the peer restarts sharing, so it is only ever a fallback.
+    sync.fallbackTicket = local.lastTicketUri == null
+        ? null
+        : JoinTicket.parse(local.lastTicketUri!);
+    await sync.goLive(rehearsal);
   }
 
   @override
@@ -111,9 +103,9 @@ class _RehearsalScreenState extends State<RehearsalScreen> {
     _engine?.close();
     // Leaving the rehearsal ends the session — both halves of it. Hosting
     // outlives the Nearby screen precisely so it can end here instead.
-    _sync?.stopLiveSync();
-    _sync?.stopHosting();
-    _sync?.discovery.stopBrowsing();
+    // Leaving the rehearsal leaves the room: no longer reachable, no longer
+    // looking.
+    _sync?.goOffline();
     super.dispose();
   }
 
@@ -348,7 +340,14 @@ class _RehearsalScreenState extends State<RehearsalScreen> {
                   children: [
                     _TransportBar(engine: engine, rehearsal: rehearsal),
                     if (sync.isLive || sync.isHosting)
-                      _LiveBar(sync: sync, onRefresh: _refresh),
+                      _LiveBar(
+                        sync: sync,
+                        rehearsalId: rehearsal.id,
+                        onRefresh: () async {
+                          await sync.syncNow();
+                          await _refresh();
+                        },
+                      ),
                     const Divider(height: 1),
                     if (engine.localState.compensationFrames == 0)
                       _CompensationWarning(),
@@ -840,9 +839,14 @@ class _MasterRow extends StatelessWidget {
 /// Deliberately small: it matters while a band is working together, and should
 /// disappear from attention the rest of the time.
 class _LiveBar extends StatelessWidget {
-  const _LiveBar({required this.sync, required this.onRefresh});
+  const _LiveBar({
+    required this.sync,
+    required this.rehearsalId,
+    required this.onRefresh,
+  });
 
   final RehearsalSyncService sync;
+  final String rehearsalId;
   final VoidCallback onRefresh;
 
   @override
@@ -860,9 +864,13 @@ class _LiveBar extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              sync.peers.isEmpty
-                  ? l10n.liveConnected
-                  : l10n.nearbyPeers(sync.peers.length),
+              // Devices visible on the network, not connections made. The
+              // latter counts one per sync and reads as a room filling up
+              // with people who are not there.
+              switch (sync.visibleDeviceCount(rehearsalId)) {
+                0 => l10n.liveConnected,
+                final n => l10n.nearbyPeers(n),
+              },
               style: theme.textTheme.bodySmall
                   ?.copyWith(color: theme.colorScheme.onPrimaryContainer),
             ),

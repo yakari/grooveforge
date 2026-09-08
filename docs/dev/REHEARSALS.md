@@ -1083,3 +1083,48 @@ is never added and then removed again.
 The lane's two destructive actions are now a named menu rather than two similar
 icons — *Delete this recording* keeps the lane, *Remove this part* does not,
 and that difference is not something an icon conveys.
+
+---
+
+## 17. Three bugs from the first real two-device session
+
+### 17.1 Everybody listening, nobody speaking
+
+Opening a rehearsal started *browsing* but never *advertising* — that only
+happened when someone tapped share. So two people opening the same tune both
+looked for each other and neither answered, and they sat there indefinitely.
+
+The model was wrong, not the code. **Being in a rehearsal is what makes you
+reachable**, so opening one now binds a socket, advertises, browses and starts
+the live session together (`goLive`). Share exists only to introduce someone
+who has never had the tune before; it is not what puts you in the room.
+
+### 17.2 A re-recording reused the deleted revision — and cost the peer its copy
+
+`commitTake` computed the new revision from the take that was there. After a
+deletion there *is* none, so the next recording came out as revision 1 again —
+the same number as the one just deleted.
+
+That is silent data loss, and worse than a missing update:
+
+1. The peer holds revision 1 and receives revision 1. Equal revisions mean "the
+   same take", so it declines to fetch the new audio.
+2. The deletion tombstone for revision 1 then arrives and clears the copy it
+   already had.
+
+The part ends up empty on the peer and the re-recording never lands — exactly
+the reported "never deleted, nor changed". `part.nextRevision` counts on from
+the higher of the current take and the last deleted one, and both the file name
+and the take itself now use it. It had been added for the file name and missed
+here, which is why the two disagreed.
+
+### 17.3 Nine connected devices in a room with two
+
+The peer list was a `List` appended to on every incoming connection, and a live
+session reconnects every six seconds. After a minute with one peer it read as
+nine, and each device showed a different number because each had made a
+different number of connections.
+
+Peers are now keyed by address, and the count shown comes from **discovery**
+rather than from connection history — it answers "who is in the room", which is
+what a count of connected devices is asked to mean.

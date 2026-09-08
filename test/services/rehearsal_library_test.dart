@@ -304,6 +304,33 @@ void main() {
       expect(library.nextTakeFileName(part), '${part.id}-2.wav');
     });
 
+    test('re-recording after a delete gets a fresh revision number', () async {
+      // Reusing the deleted number is silent data loss: a peer holding it sees
+      // "same revision, same take", declines to fetch the new audio, and then
+      // applies the deletion to the copy it already had.
+      final r = await library.create(
+          title: 'A', memberName: 'Y', instrument: 'guitar');
+      final part = r.parts.single;
+
+      await library.commitTake(r, part,
+          fileName: library.nextTakeFileName(part),
+          frames: 10,
+          sampleRate: 48000,
+          compensationFrames: 0);
+      expect(part.take!.revision, 1);
+
+      await library.deleteTake(r, part);
+      await library.commitTake(r, part,
+          fileName: library.nextTakeFileName(part),
+          frames: 20,
+          sampleRate: 48000,
+          compensationFrames: 0);
+
+      expect(part.take!.revision, 2,
+          reason: 'the re-recording reused the deleted revision');
+      expect(part.take!.fileName, '${part.id}-2.wav');
+    });
+
     test('survives a reload, so the deletion is not forgotten', () async {
       final r = await library.create(
           title: 'A', memberName: 'Y', instrument: 'guitar');

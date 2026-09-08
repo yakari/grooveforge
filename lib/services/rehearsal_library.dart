@@ -481,7 +481,13 @@ class RehearsalLibrary extends ChangeNotifier {
     final previous = part.take;
     part.take = RehearsalTake(
       fileName: fileName,
-      revision: (previous?.revision ?? 0) + 1,
+      // From nextRevision, not from the current take: after a deletion there
+      // *is* no current take, and counting from zero would hand the new
+      // recording the same number as the one just deleted. A peer holding that
+      // number would then see "same revision, same take", refuse to fetch the
+      // new audio, and apply the deletion tombstone to what it already had —
+      // losing the part entirely while the re-recording never arrived.
+      revision: part.nextRevision,
       frames: frames,
       sampleRate: sampleRate,
       compensationFrames: compensationFrames,

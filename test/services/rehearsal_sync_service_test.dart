@@ -390,6 +390,64 @@ void main() {
         reason: 'the object the caller holds did not see the merge');
   });
 
+  test('deleting then re-recording reaches the peer', () async {
+    // The reported failure: a track deleted and re-recorded on one device
+    // neither disappeared nor changed on the other. Reusing the deleted
+    // revision number made the peer see "same take" and decline the new audio,
+    // and then apply the deletion to the copy it already had.
+    final r = await hostLibrary.create(
+        title: 'Tune', memberName: 'Yann', instrument: 'guitar');
+    final part = r.parts.single;
+    await giveTake(hostLibrary, r, part, bytes: 3000);
+
+    final ticket = await hostSync.startHosting(r);
+    await guestSync.join(ticket!);
+    await guestLibrary.load();
+    expect(guestLibrary.rehearsals.single.parts.single.take!.revision, 1);
+
+    // Delete, then record something different.
+    await hostLibrary.deleteTake(r, part);
+    await giveTake(hostLibrary, r, part, bytes: 8000);
+    expect(part.take!.revision, 2, reason: 'the revision was reused');
+
+    final report = await guestSync.join(ticket);
+    expect(report.takesReceived, 1);
+
+    await guestLibrary.load();
+    final theirs = guestLibrary.rehearsals.single.parts.single;
+    expect(theirs.take, isNotNull, reason: 'the peer lost the part entirely');
+    expect(theirs.take!.revision, 2);
+    final file =
+        File(await guestLibrary.takePath(guestLibrary.rehearsals.single.id,
+            theirs.take!));
+    expect(await file.length(), 8000,
+        reason: 'the peer kept the old audio under a new revision');
+  });
+
+  test('a removed part disappears on the peer', () async {
+    final r = await hostLibrary.create(
+        title: 'Tune', memberName: 'Yann', instrument: 'guitar');
+    final extra = await hostLibrary.addPart(r,
+        memberId: r.members.single.id, instrument: 'synth');
+    await giveTake(hostLibrary, r, extra, bytes: 2000);
+
+    final ticket = await hostSync.startHosting(r);
+    await guestSync.join(ticket!);
+    await guestLibrary.load();
+    expect(guestLibrary.rehearsals.single.parts, hasLength(2));
+
+    await hostLibrary.deletePart(r, extra);
+    await guestSync.join(ticket);
+
+    await guestLibrary.load();
+    expect(guestLibrary.rehearsals.single.parts, hasLength(1));
+
+    // And the guest must not hand it back on the next sync.
+    await guestSync.join(ticket);
+    await hostLibrary.load();
+    expect(hostLibrary.rehearsals.single.parts, hasLength(1));
+  });
+
   test('the device id survives a restart', () async {
     final first = await hostSync.deviceId();
     final again =
