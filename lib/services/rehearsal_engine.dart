@@ -490,9 +490,22 @@ class RehearsalEngine extends ChangeNotifier {
       final changed = pos != _positionFrames ||
           next != _transport ||
           (peak - _inputPeak).abs() > 0.01;
+      final wasRunning = _transport != RehearsalTransport.stopped;
       _positionFrames = pos;
       _transport = next;
       _inputPeak = peak;
+
+      // The engine stops itself when the last track runs out, so a reload that
+      // was deferred during playback has to be picked up here as well as in
+      // stop() — otherwise a part that arrived mid-tune would stay silent
+      // until the transport was started and stopped by hand.
+      if (wasRunning &&
+          next == RehearsalTransport.stopped &&
+          _reloadPending) {
+        _reloadPending = false;
+        _loadTracks();
+      }
+
       if (changed) notifyListeners();
     });
   }

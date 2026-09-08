@@ -582,6 +582,20 @@ void gf_reh_stop(void) {
     gf_mutex_unlock(&g_e.lock);
 }
 
+int64_t gf_reh_content_end(void) {
+    int64_t end = 0;
+    for (int i = 0; i < GF_REH_MAX_TRACKS; i++) {
+        const Track* t = &g_e.tracks[i];
+        if (!t->active) continue;
+        // Where this track runs out *on the grid*: an offset master ends
+        // earlier than its file length suggests, because the grid started
+        // partway into the recording.
+        const int64_t track_end = t->frames - t->grid_offset;
+        if (track_end > end) end = track_end;
+    }
+    return end;
+}
+
 int64_t gf_reh_position(void)        { return g_e.position; }
 int     gf_reh_state(void)           { return g_e.state; }
 int64_t gf_reh_recorded_frames(void) { return g_e.rec_frames; }
@@ -670,6 +684,16 @@ static void render_common(float* outL, float* outR, int frames, int offline) {
         // Crossing zero ends the count-in and begins committing the take.
         if (g_e.state == GF_REH_COUNT_IN && g_e.position >= 0) {
             g_e.state = GF_REH_RECORDING;
+        }
+
+        // Playback ends when the last track does. Only playback: a player
+        // recording a part longer than anything already there is how a
+        // rehearsal grows, and cutting them off at the old end would be
+        // wrong. With nothing loaded the transport is a metronome, which has
+        // no end to reach.
+        if (g_e.state == GF_REH_PLAYING) {
+            const int64_t end = gf_reh_content_end();
+            if (end > 0 && g_e.position >= end) g_e.state = GF_REH_STOPPED;
         }
     }
 

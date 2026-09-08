@@ -1174,3 +1174,32 @@ periodic poll and wrong for this: it carries a take the player has just
 finished, and dropping it because a routine poll happened to be running left
 the room waiting for the next one — or indefinitely, if that poll found
 nothing. It queues instead.
+
+---
+
+## 19. Playback ends with the audio
+
+The transport ran on indefinitely after the last track finished. It now stops
+when the content does, decided in the engine rather than in Dart — the engine
+owns the transport, and a UI timer noticing a moment later would let it drift
+past the end audibly.
+
+Three cases the naive version would get wrong, all covered by the smoke test:
+
+- **Recording is exempt.** A player laying down a part longer than anything
+  already there is how a rehearsal grows past its first take; cutting them off
+  at the old end would be wrong.
+- **An offset master ends where its *audio* does**, not where its file does.
+  Anchoring the grid partway into a recording means the last bar arrives that
+  much earlier.
+- **With nothing loaded the transport is a metronome**, which has no end to
+  reach, so it keeps running.
+
+The stop lands within one block of the exact end rather than on the frame: the
+check runs once per callback, and stopping mid-buffer would tear it.
+
+One Dart-side consequence: a reload deferred because audio arrived mid-playback
+used to be applied in `stop()`. The engine can now stop without anyone calling
+that, so the poll applies it too — otherwise a part that arrived during a
+play-through would stay silent until the transport was started and stopped by
+hand.

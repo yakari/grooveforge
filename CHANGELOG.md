@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Once you have shared a rehearsal, the app finds the others on the network by itself — no code to scan again.
 - You record your own part and nobody else's, and can delete a take you are not happy with.
 - A part you added by mistake can be removed altogether, and it disappears for the others too.
+- Playback stops on its own when the last part runs out, instead of running on into silence.
 
 ### Architecture
 - Rehearsal groundwork: measuring how late the mic hears what the app plays, so overdubs can land on the beat.

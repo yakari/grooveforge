@@ -624,6 +624,92 @@ static void test_media_import(void) {
     gf_reh_clear_tracks();
 }
 
+// ─── 10. Playback ends when the audio does ───────────────────────────────────
+
+static void test_stops_at_end(void) {
+    const int len = SR;                       // one second
+    float* a = (float*)calloc((size_t)len, sizeof(float));
+    for (int i = 0; i < len; i++) a[i] = 0.2f;
+    write_wav(path_for("gf_reh_short.wav"), a, len);
+
+    gf_reh_clear_tracks();
+    gf_reh_set_metronome(0, 0.0f);
+    gf_reh_set_grid(120.0, 4, 4);
+    const int t = gf_reh_add_track(path_for("gf_reh_short.wav"));
+    if (t < 0) { printf("    FAIL: load failed\n"); fail(""); free(a); return; }
+
+    printf("    content ends at %lld frames (track is %d)\n",
+           (long long)gf_reh_content_end(), len);
+    if (gf_reh_content_end() != len) {
+        printf("    FAIL: content end is %lld, expected %d\n",
+               (long long)gf_reh_content_end(), len);
+        fail("");
+    }
+
+    float out[BLOCK];
+    gf_reh_play(0);
+    // Render well past the end; the transport should have stopped itself.
+    int blocks = 0;
+    while (gf_reh_state() != GF_REH_STOPPED && blocks < (len * 3) / BLOCK) {
+        gf_reh_render_offline(out, NULL, BLOCK);
+        blocks++;
+    }
+    const long long stopped_at = (long long)gf_reh_position();
+    printf("    stopped at %lld frames after %d blocks\n", stopped_at, blocks);
+    if (gf_reh_state() != GF_REH_STOPPED) {
+        printf("    FAIL: still running past the end of every track\n");
+        fail("");
+    }
+    // Within one block of the end: the check runs once per block, not per
+    // frame, and stopping mid-block would mean tearing the buffer.
+    if (stopped_at < len || stopped_at > len + BLOCK) {
+        printf("    FAIL: stopped at %lld, expected within a block of %d\n",
+               stopped_at, len);
+        fail("");
+    }
+
+    // An offset track ends where its *audio* does, not where its file does.
+    gf_reh_set_track_offset(t, SR / 2);
+    if (gf_reh_content_end() != len - SR / 2) {
+        printf("    FAIL: offset track end is %lld, expected %d\n",
+               (long long)gf_reh_content_end(), len - SR / 2);
+        fail("");
+    }
+    gf_reh_set_track_offset(t, 0);
+
+    // With nothing loaded the transport is a metronome and has no end to
+    // reach, so it must keep running.
+    gf_reh_clear_tracks();
+    gf_reh_set_metronome(1, 0.5f);
+    gf_reh_play(0);
+    for (int i = 0; i < 200; i++) gf_reh_render_offline(out, NULL, BLOCK);
+    if (gf_reh_state() != GF_REH_PLAYING) {
+        printf("    FAIL: metronome-only playback stopped itself\n");
+        fail("");
+    }
+    gf_reh_stop();
+
+    // Recording must not be cut off at the old end: that is how a rehearsal
+    // grows past its first take.
+    gf_reh_clear_tracks();
+    gf_reh_set_metronome(0, 0.0f);
+    gf_reh_add_track(path_for("gf_reh_short.wav"));
+    gf_reh_record(path_for("gf_reh_rec_long.wav"), 0, 0);
+    for (int i = 0; i < (len * 2) / BLOCK; i++) {
+        gf_reh_render_offline(out, NULL, BLOCK);
+        gf_reh_feed_input(out, BLOCK);
+    }
+    if (gf_reh_state() != GF_REH_RECORDING) {
+        printf("    FAIL: recording was cut off at the end of the other track\n");
+        fail("");
+    }
+    printf("    recording ran past it to %lld frames\n",
+           (long long)gf_reh_position());
+    gf_reh_stop();
+    gf_reh_clear_tracks();
+    free(a);
+}
+
 int main(int argc, char** argv) {
     if (argc > 1) snprintf(g_dir, sizeof(g_dir), "%s", argv[1]);
     printf("gf_rehearsal_smoke_test — multitrack rehearsal engine (P1)\n");
@@ -642,6 +728,7 @@ int main(int argc, char** argv) {
     printf("\n7. recording alignment\n");      test_record_alignment();
     printf("\n8. anchoring the grid in a recording\n"); test_track_offset();
     printf("\n9. importing a recording\n");    test_media_import();
+    printf("\n10. playback ends with the audio\n"); test_stops_at_end();
 
     gf_reh_destroy();
 

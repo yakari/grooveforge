@@ -146,6 +146,10 @@ void gf_reh_set_metronome(int enabled, float gain);
 
 /// Starts playback from [start_frame] on the grid (may be negative for a
 /// count-in). Returns 0 on success.
+///
+/// Playback stops on its own once every track has run out — see
+/// [gf_reh_content_end]. Recording does not: a player laying down a part
+/// longer than anything already there is the normal way a rehearsal grows.
 int gf_reh_play(int64_t start_frame);
 
 /// Arms recording into [wav_path], compensating by [compensation_frames]
@@ -160,6 +164,12 @@ int gf_reh_record(const char* wav_path, int compensation_frames,
 /// the worker flushes the last of the recording to disk — call it off the
 /// audio thread.
 void gf_reh_stop(void);
+
+/// Grid frame at which the last track runs out, or 0 if nothing is loaded.
+///
+/// Accounts for each track's offset, so a master anchored partway into a
+/// recording ends where its audio does rather than where the file does.
+int64_t gf_reh_content_end(void);
 
 /// Current position in frames on the grid; negative during a count-in.
 int64_t gf_reh_position(void);

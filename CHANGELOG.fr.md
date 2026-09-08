@@ -20,6 +20,7 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 - Une fois la répétition partagée, l'app retrouve les autres sur le réseau toute seule — plus de code à scanner.
 - Vous enregistrez votre partie et personne d'autre, et pouvez supprimer une prise qui ne vous plaît pas.
 - Une partie ajoutée par erreur peut être supprimée complètement, et elle disparaît aussi chez les autres.
+- La lecture s'arrête d'elle-même quand la dernière partie se termine, au lieu de continuer dans le silence.
 
 ### Architecture
 - Préparation des répétitions : mesure du retard entre ce que l'app joue et ce que le micro entend, pour caler les overdubs.
