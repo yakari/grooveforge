@@ -22,6 +22,15 @@ class DiscoveredPeer {
 
   final DateTime seenAt;
 
+  /// Same peer, sighted at a different moment.
+  DiscoveredPeer copyWith({DateTime? seenAt}) => DiscoveredPeer(
+        rehearsalId: rehearsalId,
+        host: host,
+        port: port,
+        deviceId: deviceId,
+        seenAt: seenAt ?? this.seenAt,
+      );
+
   @override
   String toString() => '$host:$port for $rehearsalId';
 }
@@ -45,11 +54,21 @@ class RehearsalDiscovery extends ChangeNotifier {
   static const String _txtRehearsal = 'r';
   static const String _txtDevice = 'd';
 
-  /// A peer not seen for this long is treated as gone.
+  /// A peer neither sighted nor talked to for this long is treated as gone.
   ///
-  /// mDNS goodbyes are unreliable — a phone that goes into a pocket or leaves
-  /// the room often just stops answering — so peers are also aged out.
-  static const Duration peerTimeout = Duration(seconds: 45);
+  /// Comfortably longer than mDNS's own refresh cycle. Browsers re-query at
+  /// around 80% of a two-minute record TTL, so an alive peer can easily go a
+  /// minute and a half without producing a single event. The previous 45
+  /// seconds was shorter than that, which meant every peer aged out while
+  /// still sitting there advertising — the room went quiet on a timer.
+  static const Duration peerTimeout = Duration(minutes: 3);
+
+  /// How long a peer survives a goodbye before the sweep takes it.
+  ///
+  /// Long enough for a sync tick or two to confirm the peer is still there,
+  /// short enough that someone who really left stops being a sync target
+  /// quickly. See [_onLost] for why a goodbye is not taken at face value.
+  static const Duration lostGrace = Duration(seconds: 20);
 
   BonsoirBroadcast? _broadcast;
   BonsoirDiscovery? _discovery;
@@ -84,9 +103,7 @@ class RehearsalDiscovery extends ChangeNotifier {
     _selfDeviceId = deviceId;
     try {
       final service = BonsoirService(
-        // The visible name is the tune, because on the rare occasion a user
-        // sees this list it should read as music rather than as networking.
-        name: title.isEmpty ? 'GrooveForge' : title,
+        name: instanceName(title, deviceId),
         type: serviceType,
         port: port,
         attributes: {
@@ -105,6 +122,27 @@ class RehearsalDiscovery extends ChangeNotifier {
       // QR still works, which is the whole reason it carries the endpoint.
       debugPrint('RehearsalDiscovery: cannot advertise — $e');
     }
+  }
+
+  /// The name this device advertises under.
+  ///
+  /// The tune, so that on the rare occasion a user sees this list it reads as
+  /// music rather than as networking — but with a slice of the device id
+  /// appended, because DNS-SD instance names have to be unique on the link and
+  /// everyone in a rehearsal is sharing the *same tune*. Without the suffix
+  /// every device after the first collided, and the daemon resolved it by
+  /// renaming them: "test2", "test2 (2)", "test2 (3)". Each rename withdrew a
+  /// name, and every withdrawal read as a peer leaving the room.
+  ///
+  /// The title is truncated because the whole name has to fit in a 63-byte
+  /// DNS label.
+  @visibleForTesting
+  static String instanceName(String title, String deviceId) {
+    final tune = title.isEmpty ? 'GrooveForge' : title;
+    final short = tune.length > 40 ? tune.substring(0, 40) : tune;
+    final suffix =
+        deviceId.length > 6 ? deviceId.substring(0, 6) : deviceId;
+    return '$short · $suffix';
   }
 
   Future<void> stopAdvertising() async {
@@ -131,7 +169,7 @@ class RehearsalDiscovery extends ChangeNotifier {
       _discovery = discovery;
       // Peers are aged out as well as removed on goodbye, because a phone that
       // goes into a pocket usually just stops answering.
-      _sweep = Timer.periodic(const Duration(seconds: 10), (_) => _sweepStale());
+      _sweep = Timer.periodic(const Duration(seconds: 10), (_) => sweepStale());
       notifyListeners();
     } catch (e) {
       debugPrint('RehearsalDiscovery: cannot browse — $e');
@@ -160,20 +198,69 @@ class RehearsalDiscovery extends ChangeNotifier {
       case BonsoirDiscoveryServiceFoundEvent():
         event.service.resolve(_discovery!.serviceResolver);
       case BonsoirDiscoveryServiceResolvedEvent():
-        _remember(event.service);
+        remember(event.service);
       case BonsoirDiscoveryServiceUpdatedEvent():
-        _remember(event.service);
+        remember(event.service);
       case BonsoirDiscoveryServiceLostEvent():
-        if (_peers.remove(_keyFor(event.service)) != null) notifyListeners();
+        onLost(event.service);
       default:
         break;
     }
   }
 
-  String _keyFor(BonsoirService service) =>
-      '${service.name}|${service.attributes[_txtDevice] ?? ''}';
+  /// Identifies a peer by *what it is*, not by what it is currently called.
+  ///
+  /// Deliberately not the service name: mDNS renames a service when its name
+  /// collides on the link, so the same device can appear as "test2", then
+  /// "test2 (2)", then "test2 (3)". Keying by name filed each rename as a new
+  /// peer and left the old ones behind.
+  String? _keyFor(BonsoirService service) {
+    final device = service.attributes[_txtDevice];
+    final rehearsal = service.attributes[_txtRehearsal];
+    if (device == null || rehearsal == null) return null;
+    return '$device|$rehearsal';
+  }
 
-  void _remember(BonsoirService service) {
+  /// Starts a peer's grace period rather than dropping it on the spot.
+  ///
+  /// A goodbye does not reliably mean the device left. Renaming a service on a
+  /// name collision withdraws the old name, and stacks emit a goodbye for it
+  /// while the device is still very much in the room. Removing on the spot
+  /// made that peer invisible for good, because mDNS has no reason to announce
+  /// a registration it already considers live — so the two devices simply
+  /// stopped seeing each other and never recovered.
+  ///
+  /// Instead the sighting is backdated so the sweep will take the peer shortly
+  /// unless something confirms it first. A device that really left fails to
+  /// answer and goes; one that was merely renamed gets confirmed by the next
+  /// sync tick and stays.
+  @visibleForTesting
+  void onLost(BonsoirService service) {
+    final key = _keyFor(service);
+    final peer = key == null ? null : _peers[key];
+    if (key == null || peer == null) return;
+    final expiry = DateTime.now().subtract(peerTimeout).add(lostGrace);
+    if (peer.seenAt.isBefore(expiry)) return; // already closer to expiry
+    _peers[key] = peer.copyWith(seenAt: expiry);
+  }
+
+  /// Records that this device actually exchanged data with [host].
+  ///
+  /// The authoritative liveness signal, and much better than the one mDNS
+  /// offers: a peer that just answered a sync is in the room by definition,
+  /// whatever the daemon last said about it.
+  void confirmReachable(String host) {
+    var touched = false;
+    for (final entry in _peers.entries.toList()) {
+      if (entry.value.host != host) continue;
+      _peers[entry.key] = entry.value.copyWith(seenAt: DateTime.now());
+      touched = true;
+    }
+    if (touched) notifyListeners();
+  }
+
+  @visibleForTesting
+  void remember(BonsoirService service) {
     final rehearsalId = service.attributes[_txtRehearsal];
     final deviceId = service.attributes[_txtDevice] ?? '';
     if (rehearsalId == null) return;
@@ -185,7 +272,10 @@ class RehearsalDiscovery extends ChangeNotifier {
         .firstOrNull;
     if (address == null) return;
 
-    _peers[_keyFor(service)] = DiscoveredPeer(
+    final key = _keyFor(service);
+    if (key == null) return;
+
+    _peers[key] = DiscoveredPeer(
       rehearsalId: rehearsalId,
       host: address,
       port: service.port,
@@ -195,7 +285,8 @@ class RehearsalDiscovery extends ChangeNotifier {
     notifyListeners();
   }
 
-  void _sweepStale() {
+  @visibleForTesting
+  void sweepStale() {
     final cutoff = DateTime.now().subtract(peerTimeout);
     final before = _peers.length;
     _peers.removeWhere((_, p) => p.seenAt.isBefore(cutoff));

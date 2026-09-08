@@ -279,6 +279,9 @@ class RehearsalSyncService extends ChangeNotifier {
       return;
     }
     final address = socket.remoteAddress.address;
+    // Someone dialling us is proof they are in the room, and proof we might
+    // not get any other way: this device may never be the one that initiates.
+    discovery.confirmReachable(address);
     final peer = SyncPeer(
       deviceId: '',
       address: address,
@@ -387,6 +390,10 @@ class RehearsalSyncService extends ChangeNotifier {
     final report = await join(target, quiet: true);
     if (report.ok) {
       _liveFailures = 0;
+      // A peer that just answered is in the room, whatever mDNS last said
+      // about it. This is what keeps a live peer from ageing out between the
+      // daemon's own refreshes, which are minutes apart.
+      discovery.confirmReachable(target.host);
       return;
     }
     _liveFailures++;

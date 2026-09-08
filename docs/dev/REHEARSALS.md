@@ -1203,3 +1203,35 @@ used to be applied in `stop()`. The engine can now stop without anyone calling
 that, so the poll applies it too — otherwise a part that arrived during a
 play-through would stay silent until the transport was started and stopped by
 hand.
+
+---
+
+## 20. Why the room went quiet
+
+Two devices stopped seeing each other within a minute or two. Three defects
+stacked, and each alone was enough:
+
+**The advertised name collided.** Everyone in a rehearsal advertised under the
+tune's title, but DNS-SD instance names have to be unique on the link. The
+daemon resolved the collision by renaming: `test2`, `test2 (2)`, `test2 (3)`.
+The name now carries a slice of the device id.
+
+**Each rename read as a departure.** A rename withdraws the old name, and the
+stack emits a goodbye for it while the device is still in the room. Peers were
+keyed by service name, so a rename also filed the same device twice. Peers are
+now keyed by device and rehearsal — what a peer *is*, not what it is currently
+called — and a goodbye starts a 20-second grace period instead of deleting on
+the spot. That matters because nothing would have re-added the peer: mDNS has
+no reason to re-announce a registration it still considers live.
+
+**Ageing killed live peers.** A sighting was only refreshed by an mDNS event,
+and browsers re-query at around 80% of a two-minute TTL — so a perfectly alive
+peer routinely went 90 seconds without producing one, against a 45-second
+timeout. The timeout is now three minutes, and the real liveness signal is that
+we actually exchanged data: a successful sync, or an incoming connection,
+refreshes the sighting. A peer that just answered is in the room by definition,
+whatever the daemon last said about it.
+
+Unrelated, found in the same log: the shell keeps the rack and rehearsals
+screens alive side by side, so their two floating action buttons shared the
+default hero tag and any route animation threw. Both now name their tag.

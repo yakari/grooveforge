@@ -47,6 +47,7 @@ class CcPreferencesScreen extends StatelessWidget {
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'cc-prefs-fab',
         onPressed: () => _showAddMappingDialog(context, ccService),
         icon: const Icon(Icons.add),
         label: Text(AppLocalizations.of(context)!.ccAddMapping),

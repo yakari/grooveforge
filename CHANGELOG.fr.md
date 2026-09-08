@@ -21,6 +21,7 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 - Vous enregistrez votre partie et personne d'autre, et pouvez supprimer une prise qui ne vous plaît pas.
 - Une partie ajoutée par erreur peut être supprimée complètement, et elle disparaît aussi chez les autres.
 - La lecture s'arrête d'elle-même quand la dernière partie se termine, au lieu de continuer dans le silence.
+- Les appareils d'une même répétition continuent de se voir au lieu de perdre le contact au bout d'une minute ou deux.
 
 ### Architecture
 - Préparation des répétitions : mesure du retard entre ce que l'app joue et ce que le micro entend, pour caler les overdubs.
@@ -44,6 +45,7 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 - Les deux harmonizers : les voix au-delà du réglage Voices sont grisées. Quatre contrôles de voix allumés pour deux voix réellement audibles, c'était le panneau qui se contredisait.
 
 ### Corrigé
+- L'écran rack pouvait déclencher une erreur de mise en page à l'ouverture d'un écran ayant son propre bouton d'action.
 - Android : l'application pouvait rester définitivement muette alors que toutes les autres applications du téléphone jouaient normalement — plus aucune sortie casque avant un redémarrage, ce qui n'est pas une solution en pleine session. Le descripteur du flux de sortie était manipulé depuis trois endroits sans aucune coordination : Dart, le fil de récupération d'erreur AAudio et le changement de périphérique de sortie. Deux d'entre eux pouvaient fermer le même descripteur, ou l'un fermer celui que l'autre venait de remplacer ; une double fermeture corrompt le client AAudio du processus et toute ouverture ultérieure renvoie NO_SERVICE. L'ouverture, la fermeture et le redémarrage du flux sont désormais sérialisés.
 - Android : l'interface se figeait plusieurs secondes au branchement ou débranchement du casque, ou lors d'un changement de volume. Tous passent par le changement de périphérique de sortie, qui redémarrait le flux audio **sur le fil appelant** — or l'ouverture d'un flux AAudio peut bloquer plusieurs secondes le temps que la plateforme reconstruise le routage. Le redémarrage s'effectue désormais hors du fil appelant.
 - Android : une boîte de dialogue « Terminer l'action avec… » pouvait s'ouvrir par-dessus l'application pendant le jeu, après quoi une autre application musicale se mettait à jouer par-dessus la performance. GrooveForge ne revendiquait pas les touches de transport : une touche média — un dongle USB-C envoie un appui sans jamais envoyer le relâchement, et Android la répète alors vingt fois par seconde — retombait sur le système, qui la propose à toutes les applications média installées. GrooveForge tient désormais la media session tant qu'il est à l'écran et jette ces touches.

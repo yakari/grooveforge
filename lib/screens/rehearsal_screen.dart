@@ -327,6 +327,7 @@ class _RehearsalScreenState extends State<RehearsalScreen> {
       floatingActionButton: rehearsal == null
           ? null
           : FloatingActionButton.small(
+              heroTag: 'rehearsal-fab',
               onPressed: _addPart,
               tooltip: l10n.rehearsalAddPart,
               child: const Icon(Icons.add),

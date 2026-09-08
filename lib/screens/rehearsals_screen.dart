@@ -128,6 +128,8 @@ class _RehearsalsScreenState extends State<RehearsalsScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
+        // See the rack screen's button: both are alive at once in the shell.
+        heroTag: 'rehearsals-fab',
         onPressed: _create,
         icon: const Icon(Icons.add),
         label: Text(l10n.rehearsalsNew),

@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - You record your own part and nobody else's, and can delete a take you are not happy with.
 - A part you added by mistake can be removed altogether, and it disappears for the others too.
 - Playback stops on its own when the last part runs out, instead of running on into silence.
+- Devices in the same rehearsal keep seeing each other instead of losing contact after a minute or two.
 
 ### Architecture
 - Rehearsal groundwork: measuring how late the mic hears what the app plays, so overdubs can land on the beat.
@@ -44,6 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Both harmonizers: voices past the Voices setting render dimmed. Four lit voice controls with only two of them sounding was the panel contradicting itself.
 
 ### Fixed
+- The rack screen could throw a layout error when opening a screen with its own action button.
 - Android: the app could end up permanently silent while every other app on the phone still played — no headphone output until a reboot, which is not a fix during a live session. The output stream handle was reached from three directions with nothing coordinating them: Dart, the AAudio error-recovery thread, and the output-device change. Two of them could close the same handle, or one could close a handle the other had just replaced, and a double close corrupts the process's AAudio client so every later open returns NO_SERVICE. Stream open, close and restart are now serialised.
 - Android: the UI froze for seconds when headphones were plugged in or unplugged, or when the volume changed. Those all reach the output-device change, which restarted the audio stream **on the calling thread** — and opening an AAudio stream can block for seconds while the platform rebuilds the route. The restart now runs off the caller's thread.
 - Android: a "Complete action using..." chooser could appear over the app while playing, after which another media app started playing over the performance. GrooveForge never claimed the transport keys, so a media button — one USB-C dongle sends a key-down and gets re-enumerated before the key-up, leaving Android auto-repeating it twenty times a second — fell through to the system, which offers it to every installed media app. GrooveForge now holds the media session while it is on screen and discards those keys.
