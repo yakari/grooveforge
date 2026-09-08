@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A part you added by mistake can be removed altogether, and it disappears for the others too.
 - Playback stops on its own when the last part runs out, instead of running on into silence.
 - Devices in the same rehearsal keep seeing each other instead of losing contact after a minute or two.
+- Someone leaving a rehearsal disappears from the others within a second or two.
+- A part you finish recording is pushed to everyone in the room at once, not passed along one device at a time.
 
 ### Architecture
 - Rehearsal groundwork: measuring how late the mic hears what the app plays, so overdubs can land on the beat.

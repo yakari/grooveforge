@@ -22,6 +22,8 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 - Une partie ajoutée par erreur peut être supprimée complètement, et elle disparaît aussi chez les autres.
 - La lecture s'arrête d'elle-même quand la dernière partie se termine, au lieu de continuer dans le silence.
 - Les appareils d'une même répétition continuent de se voir au lieu de perdre le contact au bout d'une minute ou deux.
+- Quand quelqu'un quitte une répétition, il disparaît chez les autres en une seconde ou deux.
+- Une partie que vous venez d'enregistrer est envoyée à tout le monde d'un coup, au lieu de circuler d'appareil en appareil.
 
 ### Architecture
 - Préparation des répétitions : mesure du retard entre ce que l'app joue et ce que le micro entend, pour caler les overdubs.

@@ -46,26 +46,66 @@ void main() {
   });
 
   group('goodbyes', () {
-    test('a goodbye does not remove the peer on the spot', () {
+    test('a peer that still answers survives a goodbye', () async {
+      final discovery = RehearsalDiscovery()
+        ..reachabilityProbe = (_) async => true;
+      final service =
+          _service(name: 'test2', device: 'dev-a', rehearsal: 'reh-1');
+      discovery.remember(service);
+      await discovery.onLost(service);
+
+      // A rename withdraws a name while the device stays put.
+      expect(discovery.peersFor('reh-1'), hasLength(1));
+    });
+
+    test('a peer that has stopped listening goes at once', () async {
+      final discovery = RehearsalDiscovery()
+        ..reachabilityProbe = (_) async => false;
+      final service =
+          _service(name: 'test2', device: 'dev-a', rehearsal: 'reh-1');
+      discovery.remember(service);
+      await discovery.onLost(service);
+
+      expect(discovery.peersFor('reh-1'), isEmpty,
+          reason: 'the room should not show a device that has left');
+    });
+
+    test('without a probe the peer waits out the grace period', () async {
       final discovery = RehearsalDiscovery();
       final service =
           _service(name: 'test2', device: 'dev-a', rehearsal: 'reh-1');
       discovery.remember(service);
-      discovery.onLost(service);
+      await discovery.onLost(service);
 
-      // Still there: a rename withdraws a name while the device stays put.
       expect(discovery.peersFor('reh-1'), hasLength(1));
       discovery.sweepStale();
       expect(discovery.peersFor('reh-1'), hasLength(1),
           reason: 'the grace period has not elapsed yet');
     });
 
-    test('talking to a peer clears a goodbye', () {
+    test('a sighting during the probe keeps the peer', () async {
+      late final RehearsalDiscovery discovery;
+      final service =
+          _service(name: 'test2', device: 'dev-a', rehearsal: 'reh-1');
+      discovery = RehearsalDiscovery()
+        ..reachabilityProbe = (_) async {
+          // The device re-announced while we were knocking on the door.
+          discovery.remember(service);
+          return false;
+        };
+      discovery.remember(service);
+      await discovery.onLost(service);
+
+      expect(discovery.peersFor('reh-1'), hasLength(1),
+          reason: 'a fresh sighting outranks a stale goodbye');
+    });
+
+    test('talking to a peer clears a goodbye', () async {
       final discovery = RehearsalDiscovery();
       final service =
           _service(name: 'test2', device: 'dev-a', rehearsal: 'reh-1');
       discovery.remember(service);
-      discovery.onLost(service);
+      await discovery.onLost(service);
       discovery.confirmReachable('192.168.1.50');
 
       final peer = discovery.peersFor('reh-1').single;

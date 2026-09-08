@@ -89,7 +89,27 @@ class SyncPeer {
 /// connect with the ticket from the QR. Both then run the *same* exchange —
 /// there is no authority, because the merge is symmetric.
 class RehearsalSyncService extends ChangeNotifier {
-  RehearsalSyncService(this._library, this.discovery);
+  RehearsalSyncService(this._library, this.discovery) {
+    // Discovery knows when a goodbye arrives but not whether to believe it;
+    // this service owns the sockets, so it is the one that can go and look.
+    discovery.reachabilityProbe = _canReach;
+  }
+
+  /// Knocks on a peer's sync port to see whether anyone is still there.
+  ///
+  /// A short timeout on purpose: this runs while the room is showing a device
+  /// that may have already left, and the answer is wanted now. On a local
+  /// network a peer that is up answers in milliseconds.
+  Future<bool> _canReach(DiscoveredPeer peer) async {
+    try {
+      final socket = await Socket.connect(peer.host, peer.port,
+          timeout: const Duration(seconds: 2));
+      socket.destroy();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
 
   final RehearsalLibrary _library;
 
@@ -357,43 +377,68 @@ class RehearsalSyncService extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Where to sync next: a discovered peer if there is one, otherwise the
-  /// address this device was last introduced at.
+  /// Everyone worth syncing with this tick: every discovered peer, or the
+  /// address this device was last introduced at if discovery found nobody.
   ///
-  /// Discovery is preferred because the remembered address goes stale the
-  /// moment the host restarts sharing, while a discovered one is current by
-  /// definition.
-  JoinTicket? _nextTarget() {
+  /// All of them, not just the first. With three or more devices, syncing with
+  /// one peer per tick meant a take reached the far end of the band only by
+  /// being relayed through whoever happened to be picked, several ticks later.
+  /// The sessions are cheap when there is nothing to exchange — a manifest
+  /// each way — and the merge is order-independent, so there is no reason to
+  /// ration them.
+  ///
+  /// Discovery is preferred over the remembered address because that one goes
+  /// stale the moment the host restarts sharing, while a discovered one is
+  /// current by definition.
+  List<JoinTicket> _targets() {
     final id = _liveRehearsalId;
     final key = _liveKey;
-    if (id == null || key == null) return _liveTicket;
+    final fallback = _liveTicket;
+    if (id == null || key == null) {
+      return [if (fallback != null) fallback];
+    }
 
     final found = discovery.peersFor(id);
-    if (found.isNotEmpty) {
-      final peer = found.first;
-      return JoinTicket(
-        rehearsalId: id,
-        key: key,
-        host: peer.host,
-        port: peer.port,
-        title: '',
-      );
-    }
-    return _liveTicket;
+    if (found.isEmpty) return [if (fallback != null) fallback];
+
+    return [
+      for (final peer in found)
+        JoinTicket(
+          rehearsalId: id,
+          key: key,
+          host: peer.host,
+          port: peer.port,
+          title: '',
+        ),
+    ];
   }
 
-  Future<void> _tick() async {
-    if (_busy) return; // never stack syncs on each other
-    final target = _nextTarget();
-    if (target == null) return;
-
-    final report = await join(target, quiet: true);
-    if (report.ok) {
-      _liveFailures = 0;
+  /// Syncs with each of [targets] in turn, and reports whether any answered.
+  ///
+  /// One at a time rather than all at once: a phone syncing with three peers
+  /// simultaneously is three sessions competing for the same manifest and the
+  /// same radio, for no gain — the tick has six seconds to work with.
+  Future<bool> _syncWith(List<JoinTicket> targets) async {
+    var any = false;
+    for (final target in targets) {
+      final report = await join(target, quiet: true);
+      if (!report.ok) continue;
+      any = true;
       // A peer that just answered is in the room, whatever mDNS last said
       // about it. This is what keeps a live peer from ageing out between the
       // daemon's own refreshes, which are minutes apart.
       discovery.confirmReachable(target.host);
+    }
+    return any;
+  }
+
+  Future<void> _tick() async {
+    if (_busy) return; // never stack syncs on each other
+    final targets = _targets();
+    if (targets.isEmpty) return;
+
+    if (await _syncWith(targets)) {
+      _liveFailures = 0;
       return;
     }
     _liveFailures++;
@@ -416,9 +461,10 @@ class RehearsalSyncService extends ChangeNotifier {
     // a take the player has just finished, and dropping it because a routine
     // poll happened to be in flight would leave the room waiting for the next
     // one — or, if the poll found nothing, waiting indefinitely. It queues.
-    final target = _nextTarget();
-    if (target == null) return;
-    await join(target, quiet: true);
+    //
+    // Pushed to the whole room rather than to one peer, so a take the band is
+    // waiting to hear reaches all of them at once instead of spreading.
+    await _syncWith(_targets());
   }
 
   // ── Joining ───────────────────────────────────────────────────────────────

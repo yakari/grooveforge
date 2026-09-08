@@ -1,4 +1,8 @@
+import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:bonsoir/bonsoir.dart';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:grooveforge/models/rehearsal.dart';
@@ -483,6 +487,69 @@ void main() {
     final file = File(await guestLibrary
         .takePath(guestLibrary.rehearsals.single.id, got.take!));
     expect(await file.length(), 9000);
+  });
+
+  test('one push reaches every peer in the room, not just the first', () async {
+    // Three devices, which is where syncing with a single peer per tick stops
+    // being good enough: a take used to reach the far end of the band only by
+    // being relayed through whoever discovery happened to list first.
+    final thirdDir = await Directory.systemTemp.createTemp('gf_sync_third');
+    final thirdLibrary = RehearsalLibrary(rootOverride: thirdDir);
+    await thirdLibrary.load();
+    final thirdDiscovery = RehearsalDiscovery();
+    final thirdSync = RehearsalSyncService(thirdLibrary, thirdDiscovery);
+
+    final r = await hostLibrary.create(
+        title: 'Tune', memberName: 'Yann', instrument: 'guitar');
+    final part = r.parts.single;
+    await giveTake(hostLibrary, r, part, bytes: 2000);
+
+    final hostTicket = await hostSync.startHosting(r);
+    // Both guests join and then become reachable themselves, as opening a
+    // rehearsal does.
+    await guestSync.join(hostTicket!);
+    await thirdSync.join(hostTicket);
+    await guestLibrary.load();
+    await thirdLibrary.load();
+    final guestTicket =
+        await guestSync.startHosting(guestLibrary.rehearsals.single);
+    final thirdTicket =
+        await thirdSync.startHosting(thirdLibrary.rehearsals.single);
+
+    // Teach the host's discovery about both of them, which is what mDNS does
+    // on a real network.
+    for (final (i, t) in [guestTicket!, thirdTicket!].indexed) {
+      hostSync.discovery.remember(BonsoirService(
+        name: 'Tune · peer$i',
+        type: RehearsalDiscovery.serviceType,
+        port: t.port,
+        hostAddresses: const ['127.0.0.1'],
+        attributes: {'d': 'peer$i', 'r': r.id},
+      ));
+    }
+    expect(hostSync.discovery.peersFor(r.id), hasLength(2));
+
+    // Record something new and push it once.
+    await giveTake(hostLibrary, r, part, bytes: 7000);
+    hostSync.startLiveSync(
+      rehearsalId: r.id,
+      key: Uint8List.fromList(base64.decode(r.joinKey!)),
+    );
+    await hostSync.syncNow();
+    hostSync.stopLiveSync();
+
+    for (final library in [guestLibrary, thirdLibrary]) {
+      await library.load();
+      final got = library.rehearsals.single.parts.single;
+      expect(got.take?.revision, 2,
+          reason: 'every peer should have the new take after one push');
+      final file = File(
+          await library.takePath(library.rehearsals.single.id, got.take!));
+      expect(await file.length(), 7000);
+    }
+
+    await thirdSync.stopHosting();
+    await thirdDir.delete(recursive: true);
   });
 
   test('the device id survives a restart', () async {

@@ -202,7 +202,7 @@ class RehearsalDiscovery extends ChangeNotifier {
       case BonsoirDiscoveryServiceUpdatedEvent():
         remember(event.service);
       case BonsoirDiscoveryServiceLostEvent():
-        onLost(event.service);
+        unawaited(onLost(event.service));
       default:
         break;
     }
@@ -221,28 +221,51 @@ class RehearsalDiscovery extends ChangeNotifier {
     return '$device|$rehearsal';
   }
 
-  /// Starts a peer's grace period rather than dropping it on the spot.
+  /// Checks a goodbye rather than believing it or ignoring it.
   ///
-  /// A goodbye does not reliably mean the device left. Renaming a service on a
+  /// A goodbye does not reliably mean the device left: renaming a service on a
   /// name collision withdraws the old name, and stacks emit a goodbye for it
   /// while the device is still very much in the room. Removing on the spot
   /// made that peer invisible for good, because mDNS has no reason to announce
-  /// a registration it already considers live — so the two devices simply
-  /// stopped seeing each other and never recovered.
+  /// a registration it already considers live.
   ///
-  /// Instead the sighting is backdated so the sweep will take the peer shortly
-  /// unless something confirms it first. A device that really left fails to
-  /// answer and goes; one that was merely renamed gets confirmed by the next
-  /// sync tick and stays.
+  /// So the peer is asked directly — [reachabilityProbe] knocks on the sync
+  /// port. Nobody listening means they really left, and they go immediately;
+  /// an answer means the goodbye was noise, and they stay. That is the whole
+  /// question settled in about a second, rather than waiting out a timeout
+  /// with the room showing a device that has already packed up.
+  ///
+  /// Without a probe the sighting is merely backdated, so the sweep takes the
+  /// peer after [lostGrace] unless something confirms them first.
   @visibleForTesting
-  void onLost(BonsoirService service) {
+  Future<void> onLost(BonsoirService service) async {
     final key = _keyFor(service);
     final peer = key == null ? null : _peers[key];
     if (key == null || peer == null) return;
+
     final expiry = DateTime.now().subtract(peerTimeout).add(lostGrace);
-    if (peer.seenAt.isBefore(expiry)) return; // already closer to expiry
-    _peers[key] = peer.copyWith(seenAt: expiry);
+    if (peer.seenAt.isAfter(expiry)) {
+      _peers[key] = peer.copyWith(seenAt: expiry);
+    }
+
+    final probe = reachabilityProbe;
+    if (probe == null) return;
+    if (await probe(peer)) return; // still listening — a rename, not an exit
+
+    // Re-read: the probe took a moment, and a sighting may have arrived in
+    // the meantime that supersedes what we are acting on.
+    if (_peers[key] != null && !_peers[key]!.seenAt.isAfter(expiry)) {
+      _peers.remove(key);
+      notifyListeners();
+    }
   }
+
+  /// Asks whether a peer is still answering on its sync port.
+  ///
+  /// Injected by the sync service, which owns the socket layer. Left null in
+  /// tests that only care about the peer table, and on any platform where
+  /// connecting is not the right question to ask.
+  Future<bool> Function(DiscoveredPeer peer)? reachabilityProbe;
 
   /// Records that this device actually exchanged data with [host].
   ///

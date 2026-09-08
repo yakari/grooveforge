@@ -1235,3 +1235,34 @@ whatever the daemon last said about it.
 Unrelated, found in the same log: the shell keeps the rack and rehearsals
 screens alive side by side, so their two floating action buttons shared the
 default hero tag and any route animation threw. Both now name their tag.
+
+---
+
+## 21. Goodbyes are checked, and pushes go to everyone
+
+**A departure took a minute to show.** The grace period from §20 protects
+against goodbyes that mean nothing, but it made real ones slow: the room went
+on showing a device that had already packed up. Rather than pick a timeout that
+is wrong in one direction or the other, the peer is now asked directly —
+discovery calls a probe that knocks on the sync port. Nobody listening means
+they left, and they go at once; an answer means the goodbye was noise, and they
+stay. The grace period remains as the fallback when no probe is set.
+
+The probe lives in the sync service, which owns the sockets, and is injected
+into discovery. It re-checks the peer table after the probe returns, because a
+sighting can arrive while the knock is in flight and a fresh sighting outranks
+a stale goodbye.
+
+Worth knowing when reading a log: the stack emits *two* goodbyes for one
+departure, and the first carries no TXT attributes at all (`{"lib":"bonsoir"}`),
+so it cannot be attributed to a device and is ignored. Only the resolved one
+does anything.
+
+**A tick synced with one peer.** With two devices that is the whole room. With
+three or more, a take reached the far end only by being relayed through
+whichever peer discovery happened to list first — several ticks later, and
+looking exactly like a bug. Both the periodic tick and the immediate push after
+a recording now sync with every discovered peer, sequentially: the sessions are
+cheap when there is nothing to exchange, the merge is order-independent, and
+three simultaneous sessions would only make one phone's radio and manifest
+contend with themselves.
