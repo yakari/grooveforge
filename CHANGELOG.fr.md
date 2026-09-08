@@ -42,6 +42,7 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 - Les réglages proposent une mesure de latence d'overdub sur votre propre appareil.
 
 ### Modifié
+- Les pistes sont deux fois moins hautes : touchez-en une pour régler son niveau. Le bouton muet reste au même endroit sur chaque piste, pour le trouver sans regarder.
 - Le tempo et la vitesse de travail sont désormais un bouton sur le transport, au lieu d'une ligne de texte dont rien n'indiquait qu'elle était cliquable.
 - Le bandeau de connexion n'apparaît que lorsqu'il a quelque chose à demander ; les appareils proches sont indiqués par une pastille dans la barre de titre.
 

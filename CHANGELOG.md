@@ -42,6 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Settings gains an overdub latency check that measures the round trip on your own device.
 
 ### Changed
+- Part lanes are half the height: tap one to set its level. Mute stays in the same place on every lane, so it can be found without looking.
 - The tempo and practice speed are now a button on the transport instead of a line of text you had to guess was tappable.
 - The connection strip only appears when it has something to ask for; who is nearby moved to a small chip in the title bar.
 

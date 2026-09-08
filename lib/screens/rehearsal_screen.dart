@@ -33,6 +33,12 @@ class RehearsalScreen extends StatefulWidget {
 }
 
 class _RehearsalScreenState extends State<RehearsalScreen> {
+  /// Lanes showing their level slider.
+  ///
+  /// Held here rather than in the lane so it survives the list rebuilding,
+  /// which it does on every transport tick.
+  final Set<String> _expanded = {};
+
   RehearsalEngine? _engine;
   RehearsalSyncService? _sync;
   Rehearsal? _rehearsal;
@@ -539,6 +545,15 @@ class _RehearsalScreenState extends State<RehearsalScreen> {
                                   missingAudio: missing.contains(
                                     rehearsal.parts[i].id,
                                   ),
+                                  expanded: _expanded.contains(
+                                    rehearsal.parts[i].id,
+                                  ),
+                                  onToggleExpanded: () => setState(() {
+                                    final id = rehearsal.parts[i].id;
+                                    if (!_expanded.remove(id)) {
+                                      _expanded.add(id);
+                                    }
+                                  }),
                                   onChanged: () => setState(() {}),
                                   onDelete:
                                       () => _deleteTake(rehearsal.parts[i]),
@@ -1017,6 +1032,30 @@ class _TempoSheetState extends State<_TempoSheet> {
       );
 }
 
+/// A small red flag on a lane: something is missing or has not gone out yet.
+class _LaneTag extends StatelessWidget {
+  const _LaneTag({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.errorContainer,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        text,
+        style: theme.textTheme.labelSmall
+            ?.copyWith(color: theme.colorScheme.onErrorContainer),
+      ),
+    );
+  }
+}
+
 /// Says whether the player who owns a lane is reachable right now.
 ///
 /// A dot rather than a word: it sits next to a name that is already competing
@@ -1074,6 +1113,8 @@ class _PartLane extends StatelessWidget {
     required this.online,
     required this.awaitingDelivery,
     required this.missingAudio,
+    required this.expanded,
+    required this.onToggleExpanded,
     required this.onChanged,
     required this.onDelete,
     required this.onRemovePart,
@@ -1092,6 +1133,11 @@ class _PartLane extends StatelessWidget {
 
   /// True when this device knows about the take but has no audio for it.
   final bool missingAudio;
+
+  /// Whether this lane is showing its level slider.
+  final bool expanded;
+
+  final VoidCallback onToggleExpanded;
 
   final VoidCallback onChanged;
   final VoidCallback onDelete;
@@ -1126,7 +1172,11 @@ class _PartLane extends StatelessWidget {
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-      child: Padding(
+      // The whole card opens and closes the level. The buttons on it absorb
+      // their own taps, so this only catches the parts that do nothing else.
+      child: InkWell(
+        onTap: take == null ? null : onToggleExpanded,
+        child: Padding(
         padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1179,77 +1229,52 @@ class _PartLane extends StatelessWidget {
                               ),
                             ),
                           ],
+                        ],
+                      ),
+                      // The status tags live on this line, not beside the
+                      // name. A lane that is both yours and waiting carried
+                      // two badges next to a name on one row, which ran off
+                      // the side of a cover screen. Down here the text
+                      // ellipsizes and the tag keeps its full width.
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              take == null
+                                  ? (isMine
+                                      ? l10n.rehearsalNotRecorded
+                                      : '${instrumentLabel(l10n, part.instrument)}'
+                                          '   ·   '
+                                          '${l10n.rehearsalNotRecorded}')
+                                  : '${instrumentLabel(l10n, part.instrument)}'
+                                      '   ·   '
+                                      '${l10n.rehearsalTakeLength((take.duration.inMilliseconds / 1000).toStringAsFixed(1))}',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
                           if (missingAudio) ...[
                             const SizedBox(width: 8),
-                            // A different complaint from the one below: that
-                            // one says the room has not got your recording,
-                            // this one says you have not got theirs.
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 1,
-                              ),
-                              decoration: BoxDecoration(
-                                color: theme.colorScheme.errorContainer,
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                l10n.rehearsalTakeAwaitingAudio,
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  color: theme.colorScheme.onErrorContainer,
-                                ),
-                              ),
-                            ),
+                            // A different complaint from the one after it:
+                            // that one says the room has not got your
+                            // recording, this one says you have not got
+                            // theirs.
+                            _LaneTag(text: l10n.rehearsalTakeAwaitingAudio),
                           ],
                           if (awaitingDelivery) ...[
                             const SizedBox(width: 8),
-                            // Red, because it is the one thing on this screen
-                            // that asks the player to do something — wait —
-                            // and it stops mattering the moment it goes.
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 1,
-                              ),
-                              decoration: BoxDecoration(
-                                color: theme.colorScheme.errorContainer,
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                l10n.rehearsalTakePending,
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  color: theme.colorScheme.onErrorContainer,
-                                ),
-                              ),
-                            ),
+                            // The one thing on this screen that asks the
+                            // player to do something — wait — and it stops
+                            // mattering the moment it goes.
+                            _LaneTag(text: l10n.rehearsalTakePending),
                           ],
                         ],
                       ),
-                      Text(
-                        take == null
-                            ? (isMine
-                                ? l10n.rehearsalNotRecorded
-                                : '${instrumentLabel(l10n, part.instrument)}'
-                                    '   ·   '
-                                    '${l10n.rehearsalNotRecorded}')
-                            : '${instrumentLabel(l10n, part.instrument)}'
-                                '   ·   '
-                                '${l10n.rehearsalTakeLength((take.duration.inMilliseconds / 1000).toStringAsFixed(1))}',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
                     ],
                   ),
-                ),
-                IconButton(
-                  onPressed:
-                      take == null ? null : () => engine.setMuted(part, !muted),
-                  tooltip: l10n.rehearsalMute,
-                  icon: Icon(muted ? Icons.volume_off : Icons.volume_up),
-                  color: muted ? theme.colorScheme.error : null,
                 ),
                 // What a lane offers depends on whose it is. Your own
                 // recordings are yours to delete; the one thing you may do to
@@ -1333,9 +1358,25 @@ class _PartLane extends StatelessWidget {
                       color: isRecordingThis ? null : theme.colorScheme.error,
                     ),
                   ),
+                // Always last, and always present even when there is nothing
+                // to mute yet. The other buttons on a lane come and go with
+                // whose it is and what is on it; if mute moved with them you
+                // would have to look for it every time, and muting is the one
+                // thing people do *while* the band is playing.
+                IconButton(
+                  onPressed:
+                      take == null ? null : () => engine.setMuted(part, !muted),
+                  tooltip: l10n.rehearsalMute,
+                  icon: Icon(muted ? Icons.volume_off : Icons.volume_up),
+                  color: muted ? theme.colorScheme.error : null,
+                ),
               ],
             ),
-            if (take != null) ...[
+            // Level is an occasional adjustment, not a performance control
+            // (D14), and a slider on every lane cost a full row each — five
+            // players filled a phone screen before the chord grid had
+            // anywhere to go. Tap a lane to set its level.
+            if (expanded && take != null) ...[
               const SizedBox(height: 4),
               Row(
                 children: [
@@ -1360,6 +1401,7 @@ class _PartLane extends StatelessWidget {
               ),
           ],
         ),
+      ),
       ),
     );
   }

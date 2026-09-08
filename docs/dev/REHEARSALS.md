@@ -1657,3 +1657,19 @@ disappears entirely when nobody else is about.
 after it, which reads as a caption, not a control. It is now a bordered chip
 with a speed icon and a dropdown arrow. Nothing about the behaviour changed —
 only whether anyone could tell it was there.
+
+**Lanes lost half their height.** The level slider had a row to itself on every
+lane, so five players filled a cover screen before the chord grid had anywhere
+to go. It now appears when a lane is tapped — level is an occasional
+adjustment, which is the same reasoning as D14.
+
+**Mute is pinned last.** The other buttons on a lane come and go with whose it
+is and what is on it, so mute used to sit at a different x-position on almost
+every row. It is the one control people reach for *while* the band is playing,
+so it is now always rightmost and always present, disabled rather than absent
+when there is nothing to mute.
+
+Denser lanes immediately overflowed: a lane that was both yours and awaiting
+delivery carried two badges beside the name and ran 84 px off the side. The
+status tags moved to the second line, where the instrument and duration
+ellipsize and the tag keeps its full width.
