@@ -2070,3 +2070,24 @@ the active route may genuinely buffer differently until it is reopened, which
 toggling the headset also forces. That would need the engine's audio restarted
 on a route change, which is a larger and more disruptive change than either of
 the above.
+
+### The web build, broken by the isolate fix
+
+Binding `gf_ts_render` directly in the isolate (§36) put `import 'dart:ffi'` in
+`rehearsal_tempo_cache.dart` — a library `main.dart` reaches through the
+rehearsal library. `dart:ffi` does not exist on web, so dart2js refused the
+whole compile. Nothing local caught it: `flutter analyze` and `flutter test`
+never compile for web.
+
+The renderer now sits behind a conditional export, the same shape
+`audio_input_ffi.dart` has used all along — `rehearsal_stretch_io.dart` for
+native targets, `rehearsal_stretch_stub.dart` for web. `StretchJob` lives in a
+file of its own so neither implementation has to import the other, and so
+nothing on the web side can reach a library that imports `dart:ffi`.
+
+Before this, everything reached the native library through `AudioInputFFI`,
+which already had that stub — which is why the web build had never noticed the
+rehearsal engine existed.
+
+**Verify a change like this with `flutter build web --release --wasm`**, the
+same command CI runs. It is the only thing that compiles the web target.

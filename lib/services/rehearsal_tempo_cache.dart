@@ -1,31 +1,12 @@
-import 'dart:ffi';
 import 'dart:io';
 import 'dart:isolate';
 
-import 'package:ffi/ffi.dart';
 import 'package:flutter/foundation.dart';
 
-/// One file to render, and what to render it into.
-///
-/// Passed to a background isolate, so it holds nothing but strings and
-/// numbers — a `Rehearsal` would not survive the crossing.
-class StretchJob {
-  const StretchJob({
-    required this.source,
-    required this.destination,
-    required this.ratio,
-  });
+import 'rehearsal_stretch.dart';
+import 'stretch_job.dart';
 
-  /// The original recording. Always the original: rendering from an earlier
-  /// render compounds the vocoder's artefacts with every tempo nudge, and a
-  /// few adjustments are enough to hear it.
-  final String source;
-
-  final String destination;
-
-  /// How much longer the result is. Above 1 is slower.
-  final double ratio;
-}
+export 'stretch_job.dart' show StretchJob;
 
 /// Renders takes at a practice tempo, and remembers what it rendered.
 ///
@@ -84,7 +65,7 @@ class RehearsalTempoCache {
     }
     if (todo.isEmpty) return;
     try {
-      await Isolate.run(() => _renderAll(todo));
+      await Isolate.run(() => renderStretchJobs(todo));
     } catch (e) {
       // A render that fails must not take the whole load down with it. The
       // caller falls back to the unstretched file, which plays at the wrong
@@ -113,50 +94,4 @@ class RehearsalTempoCache {
       }
     }
   }
-}
-
-/// Renders every job in turn. Runs in a background isolate.
-///
-/// Top-level rather than a method because an isolate entry point cannot close
-/// over `this`.
-///
-/// Binds the one function it needs rather than building the app's whole FFI
-/// surface. That surface opens a second library and resolves scores of symbols
-/// belonging to the synth, the looper and the vocoder — none of which has
-/// anything to do with stretching a file, and any one of which failing to
-/// resolve in a background isolate takes the render down with it.
-int _renderAll(List<StretchJob> jobs) {
-  late final DynamicLibrary lib;
-  try {
-    lib = Platform.isMacOS
-        ? DynamicLibrary.open('libaudio_input.dylib')
-        : Platform.isWindows
-            ? DynamicLibrary.open('audio_input.dll')
-            : DynamicLibrary.open('libaudio_input.so');
-  } catch (e) {
-    debugPrint('RehearsalTempoCache: no audio library in this isolate — $e');
-    return -1;
-  }
-
-  final render = lib.lookupFunction<
-      Int32 Function(Pointer<Utf8>, Pointer<Utf8>, Float),
-      int Function(Pointer<Utf8>, Pointer<Utf8>, double)>('gf_ts_render');
-
-  var failures = 0;
-  for (final job in jobs) {
-    final from = job.source.toNativeUtf8();
-    final to = job.destination.toNativeUtf8();
-    try {
-      final rc = render(from, to, job.ratio);
-      if (rc != 0) {
-        failures++;
-        debugPrint(
-            'RehearsalTempoCache: render failed ($rc) for ${job.source}');
-      }
-    } finally {
-      calloc.free(from);
-      calloc.free(to);
-    }
-  }
-  return failures;
 }
