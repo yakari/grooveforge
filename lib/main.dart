@@ -220,10 +220,14 @@ void main() async {
           create: (_) => AudioRouteService()..start(),
           lazy: false,
         ),
-        ChangeNotifierProxyProvider<RehearsalLibrary, RehearsalEngine>(
-          create: (ctx) => RehearsalEngine(ctx.read<RehearsalLibrary>()),
-          update: (ctx, library, previous) =>
-              previous ?? RehearsalEngine(library),
+        // The engine follows the output route itself, so compensation is
+        // right whatever is on screen when somebody presses record.
+        ChangeNotifierProxyProvider2<RehearsalLibrary, AudioRouteService,
+            RehearsalEngine>(
+          create: (ctx) => RehearsalEngine(ctx.read<RehearsalLibrary>())
+            ..followRoutes(ctx.read<AudioRouteService>()),
+          update: (ctx, library, routes, RehearsalEngine? previous) =>
+              (previous ?? RehearsalEngine(library))..followRoutes(routes),
         ),
         ChangeNotifierProvider<RehearsalDiscovery>(
           create: (_) => RehearsalDiscovery(),

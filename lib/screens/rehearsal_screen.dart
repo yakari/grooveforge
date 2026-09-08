@@ -421,10 +421,11 @@ class _RehearsalScreenState extends State<RehearsalScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final rehearsal = _rehearsal;
-    // The engine compensates for whatever the player is listening on, so it
-    // has to be told when they plug something in mid-rehearsal.
+    // Only read here, for the warning below. The engine follows the route on
+    // its own — writing to a notifier from inside another widget's build is
+    // not something to rely on, and the compensation has to be right when
+    // record is pressed regardless of what is on screen.
     final route = context.watch<AudioRouteService>().route;
-    context.read<RehearsalEngine>().routeKey = route.key;
 
     return Scaffold(
       appBar: AppBar(

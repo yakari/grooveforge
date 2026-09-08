@@ -2041,3 +2041,32 @@ offset — and played a second or two ahead of everything else *and* ended early
 because `content_end` subtracts the offset. Both reported symptoms, one cause.
 It is now reset where `fill_pos` is, for the reason already written there: a
 slot must not trust what its last occupant left behind.
+
+### A headset connected before the app was
+
+Reported after a redeploy: with the headset paired and on throughout the
+restart, latency was badly wrong until it was switched off and on again.
+
+`AudioDeviceCallback` fires on devices being *added or removed*. A headset that
+was already connected when the app started generates neither, so a route read
+taken before the audio system had listed it was never corrected — the tune then
+recorded against the speaker's compensation with a headset on, which is exactly
+the two hundred milliseconds this whole mechanism exists to remove. Toggling
+the headset produced a remove and an add, and everything snapped into place.
+
+Two changes:
+
+- **The engine follows the route itself**, through the provider, instead of
+  being handed it from `RehearsalScreen.build`. Writing to a notifier while
+  another widget is building is not something to rely on, and the compensation
+  has to be right when record is pressed whatever happens to be on screen.
+- **The route is re-read on opening a tune and again on arming a recording.**
+  One method-channel round trip against the act of starting a recording is
+  nothing, and it is the last moment the answer can still be made right.
+
+Worth noting for the next report: if this recurs, the remaining suspect is not
+bookkeeping but the output stream itself — a stream opened before A2DP became
+the active route may genuinely buffer differently until it is reopened, which
+toggling the headset also forces. That would need the engine's audio restarted
+on a route change, which is a larger and more disruptive change than either of
+the above.

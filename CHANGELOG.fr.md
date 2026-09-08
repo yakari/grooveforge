@@ -8,6 +8,7 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 ## [X.x.x]
 
 ### Ajouté
+- Un casque déjà connecté au démarrage de l'application est reconnu, au lieu d'être compensé comme le haut-parleur jusqu'à ce qu'on le déconnecte et le reconnecte.
 - Une partie enregistrée se cale désormais sur le premier temps du clic, même si l'enregistrement a démarré pendant le décompte.
 - L'enregistrement capte désormais aussi le décompte : une partie chantée sur l'intro d'un enregistrement reste calée dessus.
 - Un enregistrement qui ne peut pas être adapté à la vitesse de travail est joué à sa vitesse d'origine au lieu de devenir muet.

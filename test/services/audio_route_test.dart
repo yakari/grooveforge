@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:grooveforge/models/rehearsal.dart';
+import 'package:grooveforge/services/audio_route_service.dart';
 import 'package:grooveforge/services/latency_calibration.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -149,6 +150,36 @@ void main() {
       expect(engineSide.hasRoute('bt:New'), isFalse);
       await engineSide.reload();
       expect(engineSide.forRoute('bt:New'), 7777);
+    });
+  });
+
+  group('following the route', () {
+    test('a change reaches the engine without anything being on screen', () {
+      // It used to be pushed from a screen's build, which meant writing to a
+      // notifier while another widget was building — and left the compensation
+      // wrong whenever that screen had not rebuilt yet.
+      final routes = AudioRouteService();
+      var notified = 0;
+      routes.addListener(() => notified++);
+
+      routes.debugSetRoute(const AudioRoute(
+          key: 'bt:WH-1000XM4', label: 'WH-1000XM4', kind: 'bluetooth'));
+
+      expect(routes.route.key, 'bt:WH-1000XM4');
+      expect(routes.route.isBluetooth, isTrue);
+      expect(notified, 1);
+    });
+
+    test('setting the same route again says nothing', () {
+      final routes = AudioRouteService();
+      var notified = 0;
+      routes.addListener(() => notified++);
+      const same = AudioRoute(key: 'wired', label: 'Wired', kind: 'wired');
+
+      routes.debugSetRoute(same);
+      routes.debugSetRoute(same);
+
+      expect(notified, 1, reason: 'a rebuild per audio callback is noise');
     });
   });
 }

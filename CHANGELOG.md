@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [X.x.x]
 
 ### Added
+- A headset already connected when the app starts is recognised, instead of the app compensating as if you were on the speaker until you unplugged and reconnected it.
 - A recorded part now lines up on the first beat of the click, even when recording started during the count-in.
 - Recording now captures the count-in as well, so a part sung along with a recording's intro stays in step with it.
 - A recording that cannot be adjusted to the practice speed now plays at its own speed instead of falling silent.

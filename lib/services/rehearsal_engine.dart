@@ -6,6 +6,7 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../models/rehearsal.dart';
 import 'audio_input_ffi.dart';
+import 'audio_route_service.dart';
 import 'latency_calibration.dart';
 import 'rehearsal_tempo_cache.dart';
 import 'gfpa_android_bindings.dart';
@@ -128,6 +129,11 @@ class RehearsalEngine extends ChangeNotifier {
     }
 
     await calibration.load();
+    // Asked again on opening: a headset already connected when the app
+    // started generates no add-or-remove event, so a route read before the
+    // audio system had listed it would never be corrected — and the tune would
+    // record against the speaker's compensation with a headset on.
+    await _routes?.refresh();
     // Measurements taken while the table still lived inside a rehearsal are
     // brought up to the device, so calibrating in one tune is not lost when
     // the next one opens — which is the bug this replaced.
@@ -396,6 +402,7 @@ class RehearsalEngine extends ChangeNotifier {
 
   @override
   void dispose() {
+    _routes?.removeListener(_onRouteChanged);
     _poll?.cancel();
     AudioInputFFI().rehStop();
     AudioInputFFI().rehDeactivate();
@@ -452,6 +459,9 @@ class RehearsalEngine extends ChangeNotifier {
   /// Records [part], counting in and compensating by this device's measured
   /// round trip. Existing takes play underneath so the player hears the band.
   Future<void> record(RehearsalPart part) async {
+    // One method-channel round trip against the act of starting a recording:
+    // nothing, and it is the last moment the compensation can still be right.
+    await _routes?.refresh();
     final r = _rehearsal;
     if (r == null || !_active) return;
 
@@ -747,13 +757,29 @@ class RehearsalEngine extends ChangeNotifier {
   /// because a laptop's output does not change under it.
   String? _routeKey;
 
-  set routeKey(String? key) {
+  String? get routeKey => _routeKey;
+
+  /// Follows the output route for as long as this engine lives.
+  ///
+  /// Owned here rather than pushed from a screen's build: compensation has to
+  /// be right at the moment somebody presses record, whatever happens to be on
+  /// screen, and a notifier must not be written to while another widget is
+  /// building.
+  AudioRouteService? _routes;
+
+  void followRoutes(AudioRouteService routes) {
+    if (identical(routes, _routes)) return;
+    _routes?.removeListener(_onRouteChanged);
+    _routes = routes..addListener(_onRouteChanged);
+    _onRouteChanged();
+  }
+
+  void _onRouteChanged() {
+    final key = _routes?.route.key;
     if (key == _routeKey) return;
     _routeKey = key;
     notifyListeners();
   }
-
-  String? get routeKey => _routeKey;
 
   /// Where measurements live. Device-wide: the same headset has the same
   /// delay whichever tune is open.

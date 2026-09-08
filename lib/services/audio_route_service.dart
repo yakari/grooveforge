@@ -88,6 +88,14 @@ class AudioRouteService extends ChangeNotifier {
     }
   }
 
+  /// Sets the route directly, for tests. There is no platform here to ask.
+  @visibleForTesting
+  void debugSetRoute(AudioRoute route) {
+    if (route == _route && route.label == _route.label) return;
+    _route = route;
+    notifyListeners();
+  }
+
   void _apply(dynamic event) {
     if (event is! Map) return;
     final next = AudioRoute(
