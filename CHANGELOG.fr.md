@@ -8,6 +8,7 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 ## [X.x.x]
 
 ### Ajouté
+- Un classeur de partitions partagé par morceau : ajoutez un PDF, une grille ou la photo d'une page, et tout le groupe en reçoit une copie.
 - Un musicien retiré peut revenir dans le morceau : il réapparaît comme un nouveau musicien et enregistre à nouveau.
 - Un musicien définitivement parti peut être retiré d'un morceau, emportant ses parties sur tous les appareils.
 - L'avertissement de latence propose désormais un bouton Calibrer qui explique la mesure et la lance, au lieu de vous renvoyer dans les paramètres.

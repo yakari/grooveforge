@@ -605,8 +605,8 @@ posture completely.
 | **P2** | **Master track import — done.** Decoders, tap-tempo and offset alignment, master lane. See §12. |
 | **P3** | **Shell and tab — done, during P1.** `MainShell`, responsive nav, l10n pass, `flutter analyze` clean. It had to come early: without the tab there was no way to reach anything P1 built. |
 | **P4** | **Pairing and sync — done.** QR, scanner, authenticated TCP handshake, manifest merge, take and master transfer, mDNS re-discovery, Nearby screen. See §13, §14 and §15. |
-| **P5** | **Hostile networks.** Hotspot wizard, `.gfr` bundle export and import. |
-| **P6** | **Musical extras.** Tempo change through the phase vocoder, chord-grid editing, count-in refinements. |
+| **P5** | **Hostile networks — done, differently.** The hotspot wizard became a page in the user guide: Android gives a normal app no way to switch the real hotspot on or read its credentials, so the honest version is instructions. `.gfr` bundle export was **dropped** — it carries the join key, so it works as an introduction, but it cannot sync back, which makes it an archive rather than a way into a live group. Backup is the only case it would still serve. |
+| **P6** | **Musical extras — part done.** Tempo change through the phase vocoder is built (§25), for both the tune's tempo and a local practice speed. The shared score vault is built (§28). Chord-grid editing and count-in refinements are still open. |
 | **P7** | **Polish.** Onboarding, playful motion pass, store and F-Droid assets, changelogs in both languages. |
 
 ---
@@ -1591,3 +1591,49 @@ Worth noting for tests: a member with no `deviceId` at all — one written befor
 members carried one — counts as not present, so they are removable. That is the
 intended case, since a stale identity from before the field is exactly what
 this is for.
+
+---
+
+## 28. The shared score vault
+
+A band learning a tune needs the chart as much as the click. Documents —
+PDFs, scans, photos of a page, a chord sheet someone typed — are added on one
+device and reach the others the next time they meet.
+
+This is the simplest structure in the whole document, and deliberately so: a
+document **never changes**. There is no revision to compare, no conflict to
+resolve, no editing. Adding is a union by id, removing is a tombstone, and
+replacing a score means adding the new one and removing the old. That is the
+same shape as members, minus everything that made members interesting.
+
+### What it reuses
+
+- The blob path already chunks, seals and reassembles. Documents ride it with
+  `kind: 'doc'`, next to takes and the master.
+- The want list gained `docs`, and `_alsoMissingFiles` mirrors
+  `_alsoMissingAudio`: a document whose file never arrived is asked for again.
+  That guard matters *more* here than for takes — a take at least has a
+  revision that could eventually differ, whereas a document has nothing to
+  compare, so without it a listed-but-absent score would be stranded for good.
+- `_documentFile` resolves through the manifest rather than from the id alone,
+  so a peer cannot name a path this device never agreed to hold.
+
+### Choices worth recording
+
+- **The file is copied into the tune, not referenced.** The picked file may sit
+  in a cache the system clears, on a card that gets removed, or behind a
+  content URI that stops resolving the moment the picker closes. A score the
+  band relies on has to be the tune's own.
+- **The name on disk comes from the id.** Two people each adding `score.pdf`
+  must not land on top of each other; the original name is kept alongside,
+  because that is what people recognise it by.
+- **Images are drawn in the app**, zoomable — a photographed page is usually
+  taken at an angle and read at arm's length. Everything else goes to whatever
+  the device already uses for it (`open_filex`, MIT, plain platform channels,
+  no bundled blobs). A PDF viewer of our own would be worse than the one
+  already installed, and on Android the hand-off supplies a content URI, which
+  is the only kind another app may open.
+- **A listed document whose file has not arrived says so** and is not tappable.
+  The manifest merges before the bytes move, so that is a real state rather
+  than an error.
+- **No extension filter on the picker.** A band shares whatever it has.

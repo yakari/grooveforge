@@ -41,6 +41,16 @@ abstract class SyncStore {
 
   /// Whether the master's decoded audio is on this device.
   Future<bool> hasMaster(String rehearsalId);
+
+  /// Bytes of a shared document, or null if its file is not here.
+  Future<Uint8List?> readDocument(String rehearsalId, String documentId);
+
+  /// Stores a document received from a peer.
+  Future<void> writeDocument(
+      String rehearsalId, String documentId, Uint8List bytes);
+
+  /// Whether a document's file is on this device.
+  Future<bool> hasDocument(String rehearsalId, String documentId);
 }
 
 /// How a sync ended, for the UI to report.
@@ -280,10 +290,12 @@ class SyncSession {
     final wantParts = await _alsoMissingAudio(local, outcome.partsToFetch);
     final wantMaster = outcome.masterToFetch ||
         (local.master != null && !await store.hasMaster(rehearsalId));
+    final wantDocs = await _alsoMissingFiles(local, outcome.documentsToFetch);
     await _send({
       'type': Msg.want,
       'parts': wantParts,
       'master': wantMaster,
+      'docs': wantDocs,
     });
     final theirWant = await _nextMessage();
     if (theirWant['type'] != Msg.want) {
@@ -293,11 +305,14 @@ class SyncSession {
     final wantedParts =
         (theirWant['parts'] as List<dynamic>).map((e) => e as String).toList();
     final wantsMaster = theirWant['master'] as bool? ?? false;
+    final wantedDocs = (theirWant['docs'] as List<dynamic>? ?? [])
+        .map((e) => e as String)
+        .toList();
 
     // Send first: a peer that has nothing to send still has to drain what is
     // coming, and both sides doing the same thing in the same order keeps that
     // simple.
-    final sent = await _sendWanted(wantedParts, wantsMaster);
+    final sent = await _sendWanted(wantedParts, wantsMaster, wantedDocs);
     final received = await _receiveWanted(wantParts.length, wantMaster);
 
     return SyncReport(
@@ -334,6 +349,25 @@ class SyncSession {
     return want.toList();
   }
 
+  /// Adds every document whose file is missing here to what the merge asked
+  /// for.
+  ///
+  /// The same hazard as [_alsoMissingAudio], and for the same reason: the
+  /// manifest is saved as soon as it merges, so a session that dies before the
+  /// bytes arrive leaves a document listed but not present. Documents have no
+  /// revision to compare, so without this nothing would ever ask again.
+  Future<List<String>> _alsoMissingFiles(
+    Rehearsal local,
+    List<String> fromMerge,
+  ) async {
+    final want = fromMerge.toSet();
+    for (final doc in local.documents) {
+      if (want.contains(doc.id)) continue;
+      if (!await store.hasDocument(rehearsalId, doc.id)) want.add(doc.id);
+    }
+    return want.toList();
+  }
+
   /// Works out which take revisions the peer holds now that this is over.
   ///
   /// Both documents were merged from the same pair of manifests, so [local] is
@@ -358,7 +392,8 @@ class SyncSession {
   /// The distinction matters: a part we advertised but cannot read is skipped
   /// silently, and treating that as delivered would tell the room everyone is
   /// up to date when one device is missing a take.
-  Future<Set<String>> _sendWanted(List<String> parts, bool master) async {
+  Future<Set<String>> _sendWanted(
+      List<String> parts, bool master, List<String> docs) async {
     final sent = <String>{};
     for (final partId in parts) {
       final bytes = await store.readTake(rehearsalId, partId);
@@ -372,6 +407,18 @@ class SyncSession {
       });
       await _sendBlob(bytes);
       sent.add(partId);
+    }
+    for (final docId in docs) {
+      final bytes = await store.readDocument(rehearsalId, docId);
+      if (bytes == null) continue;
+      onProgress?.call('sending');
+      await _send({
+        'type': Msg.blob,
+        'kind': 'doc',
+        'docId': docId,
+        'length': bytes.length,
+      });
+      await _sendBlob(bytes);
     }
     if (master) {
       final bytes = await store.readMaster(rehearsalId);
@@ -420,6 +467,9 @@ class SyncSession {
       if (message['kind'] == 'master') {
         await store.writeMaster(rehearsalId, bytes);
         master = true;
+      } else if (message['kind'] == 'doc') {
+        await store.writeDocument(
+            rehearsalId, message['docId'] as String, bytes);
       } else {
         await store.writeTake(
             rehearsalId, message['partId'] as String, bytes);

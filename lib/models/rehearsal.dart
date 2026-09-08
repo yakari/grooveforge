@@ -308,6 +308,78 @@ class RehearsalMaster {
       );
 }
 
+/// A file the band has put in the tune's shared vault: a score, a chart, a
+/// scan, a lyric sheet.
+///
+/// Immutable once added. There is no revision and no editing, and replacing
+/// one means adding another and removing the old — which keeps the merge to a
+/// union plus tombstones, the same shape as parts and members, and means two
+/// devices can never disagree about what a document contains.
+class RehearsalDocument {
+  RehearsalDocument({
+    required this.id,
+    required this.fileName,
+    required this.sourceName,
+    required this.bytes,
+    required this.addedBy,
+    required this.addedAt,
+  });
+
+  final String id;
+
+  /// Name on disk inside the rehearsal's `docs/` directory.
+  ///
+  /// Derived from the id, not from what the user called it: two people can
+  /// each add "score.pdf", and one must not land on top of the other.
+  final String fileName;
+
+  /// What the file was called when it was picked, which is what people
+  /// recognise it by.
+  final String sourceName;
+
+  final int bytes;
+
+  /// Which member added it, so a lane full of scans can say who to ask.
+  final String addedBy;
+
+  final DateTime addedAt;
+
+  /// Lower-case extension, or empty. Decides what can open it.
+  String get extension {
+    final dot = sourceName.lastIndexOf('.');
+    if (dot < 0 || dot == sourceName.length - 1) return '';
+    return sourceName.substring(dot + 1).toLowerCase();
+  }
+
+  /// Whether this is something the app can draw itself.
+  ///
+  /// A scan usually is. Anything else is handed to whatever the device uses
+  /// for that kind of file, which is better than a viewer of our own that
+  /// would be worse than the one already installed.
+  bool get isImage =>
+      const {'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'}.contains(extension);
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'fileName': fileName,
+        'sourceName': sourceName,
+        'bytes': bytes,
+        'addedBy': addedBy,
+        'addedAt': addedAt.toIso8601String(),
+      };
+
+  factory RehearsalDocument.fromJson(Map<String, dynamic> json) =>
+      RehearsalDocument(
+        id: json['id'] as String,
+        fileName: json['fileName'] as String,
+        sourceName: json['sourceName'] as String? ?? '',
+        bytes: json['bytes'] as int? ?? 0,
+        addedBy: json['addedBy'] as String? ?? '',
+        addedAt:
+            DateTime.tryParse(json['addedAt'] as String? ?? '') ?? DateTime.now(),
+      );
+}
+
 /// The whole rehearsal document.
 class Rehearsal {
   Rehearsal({
@@ -326,9 +398,13 @@ class Rehearsal {
     Map<String, FieldClock>? clocks,
     Set<String>? deletedPartIds,
     Set<String>? deletedMemberIds,
+    Set<String>? deletedDocumentIds,
+    List<RehearsalDocument>? documents,
   })  : clocks = clocks ?? {},
         deletedPartIds = deletedPartIds ?? {},
-        deletedMemberIds = deletedMemberIds ?? {};
+        deletedMemberIds = deletedMemberIds ?? {},
+        deletedDocumentIds = deletedDocumentIds ?? {},
+        documents = documents ?? [];
 
   final String id;
   String title;
@@ -381,6 +457,15 @@ class Rehearsal {
   /// arrives at the same answer whenever it next syncs — no agreement, no
   /// quorum, and nothing that can fail because a bandmate went home.
   final Set<String> deletedMemberIds;
+
+  /// Scores, charts and scans the band has shared for this tune.
+  ///
+  /// A union like members and parts: anyone can add one, everyone ends up with
+  /// all of them, and nothing has to be agreed.
+  final List<RehearsalDocument> documents;
+
+  /// Documents that have been removed, by id. Same tombstone, same reason.
+  final Set<String> deletedDocumentIds;
 
   bool get hasMaster => master != null;
 
@@ -448,6 +533,10 @@ class Rehearsal {
           'deletedPartIds': deletedPartIds.toList(),
         if (deletedMemberIds.isNotEmpty)
           'deletedMemberIds': deletedMemberIds.toList(),
+        if (documents.isNotEmpty)
+          'documents': [for (final d in documents) d.toJson()],
+        if (deletedDocumentIds.isNotEmpty)
+          'deletedDocumentIds': deletedDocumentIds.toList(),
       };
 
   factory Rehearsal.fromJson(Map<String, dynamic> json) => Rehearsal(
@@ -477,6 +566,14 @@ class Rehearsal {
         deletedMemberIds: (json['deletedMemberIds'] as List<dynamic>? ?? [])
             .map((e) => e as String)
             .toSet(),
+        documents: (json['documents'] as List<dynamic>? ?? [])
+            .map((e) =>
+                RehearsalDocument.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        deletedDocumentIds:
+            (json['deletedDocumentIds'] as List<dynamic>? ?? [])
+                .map((e) => e as String)
+                .toSet(),
         deletedPartIds: (json['deletedPartIds'] as List<dynamic>? ?? [])
             .map((e) => e as String)
             .toSet(),

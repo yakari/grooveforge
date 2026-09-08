@@ -1226,5 +1226,15 @@
   "rehearsalCalibrateStart": "Mesurer maintenant",
   "rehearsalRemoveMember": "Retirer ce musicien",
   "rehearsalRemoveMemberConfirm": "Retirer {name} de ce morceau ? Ses {count} enregistrement(s) partent aussi, sur tous les appareils.",
-  "rehearsalRemoveMemberHere": "Pour un appareil définitivement parti. Ses parties partent aussi."
+  "rehearsalRemoveMemberHere": "Pour un appareil définitivement parti. Ses parties partent aussi.",
+  "rehearsalDocuments": "Partitions",
+  "rehearsalDocumentsEmpty": "Aucune partition",
+  "rehearsalDocumentsEmptyHint": "Ajoutez une partition, une grille ou une photo. Tout le monde en reçoit une copie.",
+  "rehearsalDocumentAdd": "Ajouter une partition",
+  "rehearsalDocumentRemove": "Retirer",
+  "rehearsalDocumentRemoveConfirm": "Retirer « {name} » de ce morceau ? Elle disparaît de tous les appareils.",
+  "rehearsalDocumentAddedBy": "Ajouté par {name}",
+  "rehearsalDocumentSize": "{kb} ko",
+  "rehearsalDocumentWaiting": "En attente du fichier",
+  "rehearsalDocumentNoViewer": "Aucune application de cet appareil ne peut ouvrir ce fichier."
 }

@@ -4897,6 +4897,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'For a device that is gone for good. Their parts go too.'**
   String get rehearsalRemoveMemberHere;
+
+  /// The tune's shared score vault.
+  ///
+  /// In en, this message translates to:
+  /// **'Scores'**
+  String get rehearsalDocuments;
+
+  /// The tune's shared score vault.
+  ///
+  /// In en, this message translates to:
+  /// **'No scores yet'**
+  String get rehearsalDocumentsEmpty;
+
+  /// The tune's shared score vault.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a score, a chart or a photo of one. Everyone in the tune gets a copy.'**
+  String get rehearsalDocumentsEmptyHint;
+
+  /// The tune's shared score vault.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a score'**
+  String get rehearsalDocumentAdd;
+
+  /// The tune's shared score vault.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get rehearsalDocumentRemove;
+
+  /// The tune's shared score vault.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove \"{name}\" from this tune? It goes from every device.'**
+  String rehearsalDocumentRemoveConfirm(String name);
+
+  /// The tune's shared score vault.
+  ///
+  /// In en, this message translates to:
+  /// **'Added by {name}'**
+  String rehearsalDocumentAddedBy(String name);
+
+  /// The tune's shared score vault.
+  ///
+  /// In en, this message translates to:
+  /// **'{kb} kB'**
+  String rehearsalDocumentSize(int kb);
+
+  /// The tune's shared score vault.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for the file'**
+  String get rehearsalDocumentWaiting;
+
+  /// The tune's shared score vault.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing on this device can open that file.'**
+  String get rehearsalDocumentNoViewer;
 }
 
 class _AppLocalizationsDelegate

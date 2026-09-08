@@ -2688,4 +2688,42 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get rehearsalRemoveMemberHere =>
       'Pour un appareil définitivement parti. Ses parties partent aussi.';
+
+  @override
+  String get rehearsalDocuments => 'Partitions';
+
+  @override
+  String get rehearsalDocumentsEmpty => 'Aucune partition';
+
+  @override
+  String get rehearsalDocumentsEmptyHint =>
+      'Ajoutez une partition, une grille ou une photo. Tout le monde en reçoit une copie.';
+
+  @override
+  String get rehearsalDocumentAdd => 'Ajouter une partition';
+
+  @override
+  String get rehearsalDocumentRemove => 'Retirer';
+
+  @override
+  String rehearsalDocumentRemoveConfirm(String name) {
+    return 'Retirer « $name » de ce morceau ? Elle disparaît de tous les appareils.';
+  }
+
+  @override
+  String rehearsalDocumentAddedBy(String name) {
+    return 'Ajouté par $name';
+  }
+
+  @override
+  String rehearsalDocumentSize(int kb) {
+    return '$kb ko';
+  }
+
+  @override
+  String get rehearsalDocumentWaiting => 'En attente du fichier';
+
+  @override
+  String get rehearsalDocumentNoViewer =>
+      'Aucune application de cet appareil ne peut ouvrir ce fichier.';
 }

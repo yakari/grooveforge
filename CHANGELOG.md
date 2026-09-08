@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [X.x.x]
 
 ### Added
+- A shared score vault per tune: add a PDF, a chart or a photo of a page, and everyone in the band gets a copy.
 - A removed player can rejoin the tune: they come back as a new player and record again.
 - A player who has gone for good can be removed from a tune, taking their parts with them on every device.
 - The latency warning now carries a Calibrate button that explains the measurement and runs it, instead of sending you to Settings.

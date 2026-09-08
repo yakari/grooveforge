@@ -248,6 +248,72 @@ void main() {
     });
   });
 
+  group('documents', () {
+    RehearsalDocument doc(String id, {String name = 'score.pdf'}) =>
+        RehearsalDocument(
+          id: id,
+          fileName: '$id.pdf',
+          sourceName: name,
+          bytes: 1000,
+          addedBy: 'm1',
+          addedAt: DateTime(2026, 1, 1),
+        );
+
+    test('a score added anywhere reaches everyone', () {
+      final local = _rehearsal()..documents.add(doc('d1'));
+      final remote = _rehearsal()..documents.add(doc('d2', name: 'chart.pdf'));
+
+      final outcome = mergeRehearsal(local, remote);
+
+      expect(local.documents.map((d) => d.id), ['d1', 'd2']);
+      expect(outcome.documentsToFetch, ['d2'],
+          reason: 'the manifest merged, so now the file has to follow');
+    });
+
+    test('a score already here is not fetched again', () {
+      final local = _rehearsal()..documents.add(doc('d1'));
+      final remote = _rehearsal()..documents.add(doc('d1'));
+
+      final outcome = mergeRehearsal(local, remote);
+
+      expect(local.documents, hasLength(1));
+      expect(outcome.documentsToFetch, isEmpty);
+    });
+
+    test('a removed score does not come back from a peer who still has it', () {
+      final local = _rehearsal()..deletedDocumentIds.add('d1');
+      final remote = _rehearsal()..documents.add(doc('d1'));
+
+      final outcome = mergeRehearsal(local, remote);
+
+      expect(local.documents, isEmpty);
+      expect(outcome.documentsToFetch, isEmpty,
+          reason: 'fetching a file we have just refused would be absurd');
+    });
+
+    test('the removal travels to a peer who still has it', () {
+      final local = _rehearsal()..documents.add(doc('d1'));
+      final remote = _rehearsal()..deletedDocumentIds.add('d1');
+
+      mergeRehearsal(local, remote);
+
+      expect(local.documents, isEmpty);
+    });
+
+    test('both directions agree', () {
+      Rehearsal withDoc() => _rehearsal()..documents.add(doc('d1'));
+      Rehearsal withTombstone() =>
+          _rehearsal()..deletedDocumentIds.add('d1');
+
+      final a = withDoc();
+      mergeRehearsal(a, withTombstone());
+      final b = withTombstone();
+      mergeRehearsal(b, withDoc());
+
+      expect(a.documents.map((d) => d.id), b.documents.map((d) => d.id));
+    });
+  });
+
   group('members', () {
     test('a member from before device ids gains one from the peer', () {
       // The one field on a member that is allowed to change: a rehearsal that

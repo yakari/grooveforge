@@ -2672,4 +2672,42 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get rehearsalRemoveMemberHere =>
       'For a device that is gone for good. Their parts go too.';
+
+  @override
+  String get rehearsalDocuments => 'Scores';
+
+  @override
+  String get rehearsalDocumentsEmpty => 'No scores yet';
+
+  @override
+  String get rehearsalDocumentsEmptyHint =>
+      'Add a score, a chart or a photo of one. Everyone in the tune gets a copy.';
+
+  @override
+  String get rehearsalDocumentAdd => 'Add a score';
+
+  @override
+  String get rehearsalDocumentRemove => 'Remove';
+
+  @override
+  String rehearsalDocumentRemoveConfirm(String name) {
+    return 'Remove \"$name\" from this tune? It goes from every device.';
+  }
+
+  @override
+  String rehearsalDocumentAddedBy(String name) {
+    return 'Added by $name';
+  }
+
+  @override
+  String rehearsalDocumentSize(int kb) {
+    return '$kb kB';
+  }
+
+  @override
+  String get rehearsalDocumentWaiting => 'Waiting for the file';
+
+  @override
+  String get rehearsalDocumentNoViewer =>
+      'Nothing on this device can open that file.';
 }

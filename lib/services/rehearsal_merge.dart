@@ -6,6 +6,7 @@ class MergeOutcome {
     required this.merged,
     required this.partsToFetch,
     required this.masterToFetch,
+    required this.documentsToFetch,
     required this.changed,
   });
 
@@ -19,6 +20,9 @@ class MergeOutcome {
 
   /// Whether the master's audio has to be fetched too.
   final bool masterToFetch;
+
+  /// Document ids whose file now comes from the peer.
+  final List<String> documentsToFetch;
 
   /// Whether anything at all changed. Nothing to save, and nothing to tell the
   /// user about, when false.
@@ -159,6 +163,29 @@ MergeOutcome mergeRehearsal(Rehearsal local, Rehearsal remote) {
     changed = true;
   }
 
+  // ── Documents: union by id, tombstones win ───────────────────────────────
+  //
+  // The simplest structure in the whole document, because a document never
+  // changes: there is no revision to compare and no conflict to resolve. Add
+  // what you have not got, drop what anyone has removed.
+  final documentsToFetch = <String>[];
+  for (final id in remote.deletedDocumentIds) {
+    if (local.deletedDocumentIds.add(id)) changed = true;
+  }
+  if (local.documents.any((d) => local.deletedDocumentIds.contains(d.id))) {
+    local.documents
+        .removeWhere((d) => local.deletedDocumentIds.contains(d.id));
+    changed = true;
+  }
+  final knownDocuments = {for (final d in local.documents) d.id};
+  for (final d in remote.documents) {
+    if (local.deletedDocumentIds.contains(d.id)) continue;
+    if (knownDocuments.contains(d.id)) continue;
+    local.documents.add(d);
+    documentsToFetch.add(d.id);
+    changed = true;
+  }
+
   // ── Parts: union by id, highest take revision wins ───────────────────────
   final partsToFetch = <String>[];
   final localByPartId = {for (final p in local.parts) p.id: p};
@@ -238,6 +265,7 @@ MergeOutcome mergeRehearsal(Rehearsal local, Rehearsal remote) {
   return MergeOutcome(
     merged: local,
     partsToFetch: partsToFetch,
+    documentsToFetch: documentsToFetch,
     masterToFetch: masterToFetch,
     changed: changed,
   );

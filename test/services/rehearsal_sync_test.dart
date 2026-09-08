@@ -75,6 +75,24 @@ class _MemoryStore implements SyncStore {
   Future<bool> hasMaster(String rehearsalId) async =>
       master?.isNotEmpty ?? false;
 
+  /// Documents, keyed by id. They never change, so unlike takes there is no
+  /// revision for the key to have to carry.
+  final Map<String, Uint8List> documents = {};
+
+  @override
+  Future<Uint8List?> readDocument(String rehearsalId, String documentId) async =>
+      documents[documentId];
+
+  @override
+  Future<void> writeDocument(
+      String rehearsalId, String documentId, Uint8List bytes) async {
+    documents[documentId] = bytes;
+  }
+
+  @override
+  Future<bool> hasDocument(String rehearsalId, String documentId) async =>
+      documents[documentId]?.isNotEmpty ?? false;
+
   @override
   Future<void> writeMaster(String rehearsalId, Uint8List bytes) async {
     master = bytes;
@@ -213,7 +231,62 @@ void _relayGroup() {
   });
 }
 
+/// Documents over the wire: added on one device, opened on another.
+void _documentGroup() {
+  RehearsalDocument score(String id) => RehearsalDocument(
+        id: id,
+        fileName: '$id.pdf',
+        sourceName: 'score.pdf',
+        bytes: 4000,
+        addedBy: 'm1',
+        addedAt: DateTime(2026, 1, 1),
+      );
+
+  test('a score and its file both reach the other side', () async {
+    final owner = _MemoryStore(_doc()..documents.add(score('d1')))
+      ..documents['d1'] = Uint8List.fromList(List.filled(4000, 9));
+    final other = _MemoryStore(_doc());
+
+    final (_, client) = await _sync(owner, other);
+
+    expect(client.ok, isTrue);
+    expect(other.doc!.documents.single.sourceName, 'score.pdf');
+    expect(other.documents['d1'], hasLength(4000),
+        reason: 'the manifest alone is a card that opens nothing');
+  });
+
+  test('a file that never arrived is asked for again next time', () async {
+    // The same hazard as takes: the manifest saves before the bytes move, and
+    // a document has no revision to compare, so nothing would ask twice.
+    final relay = _MemoryStore(_doc()..documents.add(score('d1')));
+    final other = _MemoryStore(_doc());
+
+    await _sync(relay, other);
+    expect(other.doc!.documents, hasLength(1));
+    expect(other.documents['d1'], isNull, reason: 'the relay had no bytes');
+
+    relay.documents['d1'] = Uint8List.fromList(List.filled(4000, 3));
+    await _sync(relay, other);
+
+    expect(other.documents['d1'], hasLength(4000));
+  });
+
+  test('a removed score is not handed back by a peer who kept it', () async {
+    final keeper = _MemoryStore(_doc()..documents.add(score('d1')))
+      ..documents['d1'] = Uint8List.fromList(List.filled(10, 1));
+    final remover = _MemoryStore(_doc()..deletedDocumentIds.add('d1'));
+
+    await _sync(keeper, remover);
+
+    expect(remover.doc!.documents, isEmpty);
+    expect(keeper.doc!.documents, isEmpty,
+        reason: 'the tombstone travels the other way too');
+  });
+}
+
 void main() {
+  group('shared documents', _documentGroup);
+
   group('incomplete transfers', _relayGroup);
 
   group('framing', () {

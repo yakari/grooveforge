@@ -67,6 +67,41 @@ class LibrarySyncStore implements SyncStore {
   }
 
   @override
+  Future<Uint8List?> readDocument(String rehearsalId, String documentId) async {
+    final file = await _documentFile(rehearsalId, documentId);
+    if (file == null || !await file.exists()) return null;
+    return file.readAsBytes();
+  }
+
+  @override
+  Future<void> writeDocument(
+      String rehearsalId, String documentId, Uint8List bytes) async {
+    final file = await _documentFile(rehearsalId, documentId);
+    if (file == null) return;
+    await file.parent.create(recursive: true);
+    await file.writeAsBytes(bytes);
+  }
+
+  @override
+  Future<bool> hasDocument(String rehearsalId, String documentId) async {
+    final file = await _documentFile(rehearsalId, documentId);
+    if (file == null) return false;
+    return await file.exists() && await file.length() > 0;
+  }
+
+  /// Where a document lives, or null if the manifest does not list it.
+  ///
+  /// Resolved through the manifest rather than from the id alone, so a peer
+  /// cannot name a path this device never agreed to hold.
+  Future<File?> _documentFile(String rehearsalId, String documentId) async {
+    final rehearsal = await load(rehearsalId);
+    final doc =
+        rehearsal?.documents.where((d) => d.id == documentId).firstOrNull;
+    if (doc == null) return null;
+    return File(await library.documentPath(rehearsalId, doc));
+  }
+
+  @override
   Future<bool> hasMaster(String rehearsalId) async {
     final rehearsal = await load(rehearsalId);
     final master = rehearsal?.master;

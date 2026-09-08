@@ -105,6 +105,18 @@ class RehearsalLibrary extends ChangeNotifier {
       File('${(await rehearsalDir(id)).path}/self.json');
 
   /// Absolute path of a take's audio file.
+  /// Where the tune's shared scores and scans live.
+  Future<Directory> documentsDir(String id) async {
+    final dir = Directory('${(await rehearsalDir(id)).path}/docs');
+    if (!await dir.exists()) await dir.create(recursive: true);
+    return dir;
+  }
+
+  /// Absolute path of a shared document.
+  Future<String> documentPath(
+          String rehearsalId, RehearsalDocument doc) async =>
+      '${(await documentsDir(rehearsalId)).path}/${doc.fileName}';
+
   /// Where recordings rendered to a practice tempo live.
   ///
   /// Inside the rehearsal so deleting the tune takes them with it, and separate
@@ -546,6 +558,63 @@ class RehearsalLibrary extends ChangeNotifier {
     // with anyone who still has it would put it straight back.
     rehearsal.deletedPartIds.add(part.id);
     rehearsal.parts.removeWhere((p) => p.id == part.id);
+    await save(rehearsal);
+  }
+
+  /// Copies [sourcePath] into the tune's vault and lists it in the manifest.
+  ///
+  /// Copied rather than referenced: the picked file may be in a cache the
+  /// system clears, on a removable card, or behind a content URI that stops
+  /// resolving the moment the picker closes. A score the band is relying on
+  /// has to be the tune's own.
+  ///
+  /// The name on disk comes from the id, not from what the file was called —
+  /// two people can each add "score.pdf" and neither may land on the other.
+  Future<RehearsalDocument?> addDocument(
+    Rehearsal rehearsal, {
+    required String sourcePath,
+    required String addedBy,
+  }) async {
+    try {
+      final source = File(sourcePath);
+      if (!await source.exists()) return null;
+
+      final original = sourcePath.split(Platform.pathSeparator).last;
+      final dot = original.lastIndexOf('.');
+      final extension = dot > 0 ? original.substring(dot) : '';
+      final id = newRehearsalId();
+
+      final doc = RehearsalDocument(
+        id: id,
+        fileName: '$id$extension',
+        sourceName: original,
+        bytes: await source.length(),
+        addedBy: addedBy,
+        addedAt: DateTime.now(),
+      );
+      await source.copy(await documentPath(rehearsal.id, doc));
+
+      rehearsal.documents.add(doc);
+      await save(rehearsal);
+      return doc;
+    } catch (e) {
+      debugPrint('RehearsalLibrary: could not add a document — $e');
+      return null;
+    }
+  }
+
+  /// Removes a document from the tune, for everyone.
+  Future<void> removeDocument(Rehearsal rehearsal, RehearsalDocument doc) async {
+    try {
+      final file = File(await documentPath(rehearsal.id, doc));
+      if (await file.exists()) await file.delete();
+    } catch (e) {
+      debugPrint('RehearsalLibrary: could not delete a document — $e');
+    }
+    // The tombstone before the removal, or the next sync with anyone who still
+    // has it would put it straight back.
+    rehearsal.deletedDocumentIds.add(doc.id);
+    rehearsal.documents.removeWhere((d) => d.id == doc.id);
     await save(rehearsal);
   }
 

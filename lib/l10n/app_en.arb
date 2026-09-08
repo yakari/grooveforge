@@ -1581,5 +1581,60 @@
   "rehearsalRemoveMemberHere": "For a device that is gone for good. Their parts go too.",
   "@rehearsalRemoveMemberHere": {
     "description": "Rehearsal lane: removing a stale player from the band."
+  },
+  "rehearsalDocuments": "Scores",
+  "@rehearsalDocuments": {
+    "description": "The tune's shared score vault."
+  },
+  "rehearsalDocumentsEmpty": "No scores yet",
+  "@rehearsalDocumentsEmpty": {
+    "description": "The tune's shared score vault."
+  },
+  "rehearsalDocumentsEmptyHint": "Add a score, a chart or a photo of one. Everyone in the tune gets a copy.",
+  "@rehearsalDocumentsEmptyHint": {
+    "description": "The tune's shared score vault."
+  },
+  "rehearsalDocumentAdd": "Add a score",
+  "@rehearsalDocumentAdd": {
+    "description": "The tune's shared score vault."
+  },
+  "rehearsalDocumentRemove": "Remove",
+  "@rehearsalDocumentRemove": {
+    "description": "The tune's shared score vault."
+  },
+  "rehearsalDocumentRemoveConfirm": "Remove \"{name}\" from this tune? It goes from every device.",
+  "@rehearsalDocumentRemoveConfirm": {
+    "description": "The tune's shared score vault.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "rehearsalDocumentAddedBy": "Added by {name}",
+  "@rehearsalDocumentAddedBy": {
+    "description": "The tune's shared score vault.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "rehearsalDocumentSize": "{kb} kB",
+  "@rehearsalDocumentSize": {
+    "description": "The tune's shared score vault.",
+    "placeholders": {
+      "kb": {
+        "type": "int"
+      }
+    }
+  },
+  "rehearsalDocumentWaiting": "Waiting for the file",
+  "@rehearsalDocumentWaiting": {
+    "description": "The tune's shared score vault."
+  },
+  "rehearsalDocumentNoViewer": "Nothing on this device can open that file.",
+  "@rehearsalDocumentNoViewer": {
+    "description": "The tune's shared score vault."
   }
 }

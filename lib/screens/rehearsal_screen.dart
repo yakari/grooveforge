@@ -12,6 +12,7 @@ import '../services/rehearsal_protocol.dart';
 import '../services/rehearsal_sync_service.dart';
 import '../widgets/rehearsal_identity_dialog.dart';
 import 'latency_probe_screen.dart';
+import 'rehearsal_documents_screen.dart';
 import 'master_align_screen.dart';
 import 'nearby_screen.dart';
 import 'rehearsals_screen.dart' show instrumentIcon, instrumentLabel;
@@ -414,6 +415,17 @@ class _RehearsalScreenState extends State<RehearsalScreen> {
       appBar: AppBar(
         title: Text(rehearsal?.title ?? l10n.rehearsalsTitle),
         actions: [
+          if (rehearsal != null)
+            IconButton(
+              icon: const Icon(Icons.library_books_outlined),
+              tooltip: l10n.rehearsalDocuments,
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) =>
+                      RehearsalDocumentsScreen(rehearsalId: rehearsal.id),
+                ),
+              ),
+            ),
           if (rehearsal != null)
             IconButton(
               icon: const Icon(Icons.share_outlined),

@@ -44,6 +44,9 @@ dependencies:
     path: packages/grooveforge_plugin_ui
   provider: ^6.1.5+1
   file_picker: ^10.3.10
+  # Hands a score to whatever the device already uses for that kind of file.
+  # MIT, plain platform channels, no bundled blobs.
+  open_filex: ^4.7.0
   path_provider: ^2.1.5
   shared_preferences: ^2.5.4
   path: ^1.9.1
