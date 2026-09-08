@@ -5,6 +5,21 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/lang/fr/).
 
+## [3.0.0] - 2026-09-08
+
+### Ajouté
+- **Répétitions** : un nouvel onglet où un groupe travaille un morceau ensemble. Chacun enregistre sa partie sur un clic commun, depuis son téléphone.
+- Les prises tombent sur le temps : l'application mesure l'aller-retour de votre appareil et recale chaque prise d'autant — séparément pour le haut-parleur, un casque filaire et chaque casque Bluetooth.
+- Jouez sur un enregistrement : importez un MP3, FLAC ou WAV (plus M4A, AAC et le son d'une vidéo sur Android), tapez le tempo, et calez la grille sur la forme d'onde guidée par les traits de temps.
+- Vitesse de travail : ralentissez un morceau jusqu'à 50 % pour bosser un passage, sans que la hauteur baisse.
+- Une grille d'accords : écrivez la forme mesure par mesure, jusqu'à quatre accords par mesure, et la mesure en cours s'allume.
+- Un classeur de partitions partagé : ajoutez un PDF ou la photo d'une page, et tout le groupe en reçoit une copie.
+- Les parties se synchronisent d'appareil à appareil en Wi-Fi, chiffrées, sans serveur ni compte. Scannez un code une fois ; ensuite l'application retrouve les autres toute seule.
+- Vous enregistrez vos parties et celles de personne d'autre, et vous pouvez les refaire ou les supprimer autant que vous voulez.
+- Un décompte avant l'enregistrement et avant la lecture, réglable par morceau.
+- Une pastille indique qui est connecté, et un avertissement empêche de partir avant que sa partie soit arrivée aux autres.
+- Une page Répétitions dans le guide, avec la marche à suivre pour réunir tout le monde sur un même réseau quand la salle n'a pas de Wi-Fi.
+
 ## [2.18.0] - 2026-09-04
 
 ### Ajouté
@@ -22,6 +37,7 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 - Les deux harmonizers : les voix au-delà du réglage Voices sont grisées. Quatre contrôles de voix allumés pour deux voix réellement audibles, c'était le panneau qui se contredisait.
 
 ### Corrigé
+- L'écran rack pouvait déclencher une erreur de mise en page à l'ouverture d'un écran ayant son propre bouton d'action.
 - Android : l'application pouvait rester définitivement muette alors que toutes les autres applications du téléphone jouaient normalement — plus aucune sortie casque avant un redémarrage, ce qui n'est pas une solution en pleine session. Le descripteur du flux de sortie était manipulé depuis trois endroits sans aucune coordination : Dart, le fil de récupération d'erreur AAudio et le changement de périphérique de sortie. Deux d'entre eux pouvaient fermer le même descripteur, ou l'un fermer celui que l'autre venait de remplacer ; une double fermeture corrompt le client AAudio du processus et toute ouverture ultérieure renvoie NO_SERVICE. L'ouverture, la fermeture et le redémarrage du flux sont désormais sérialisés.
 - Android : l'interface se figeait plusieurs secondes au branchement ou débranchement du casque, ou lors d'un changement de volume. Tous passent par le changement de périphérique de sortie, qui redémarrait le flux audio **sur le fil appelant** — or l'ouverture d'un flux AAudio peut bloquer plusieurs secondes le temps que la plateforme reconstruise le routage. Le redémarrage s'effectue désormais hors du fil appelant.
 - Android : une boîte de dialogue « Terminer l'action avec… » pouvait s'ouvrir par-dessus l'application pendant le jeu, après quoi une autre application musicale se mettait à jouer par-dessus la performance. GrooveForge ne revendiquait pas les touches de transport : une touche média — un dongle USB-C envoie un appui sans jamais envoyer le relâchement, et Android la répète alors vingt fois par seconde — retombait sur le système, qui la propose à toutes les applications média installées. GrooveForge tient désormais la media session tant qu'il est à l'écran et jette ces touches.

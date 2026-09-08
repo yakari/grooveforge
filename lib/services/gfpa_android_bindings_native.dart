@@ -22,6 +22,14 @@ const int kBusSlotVocoder = 102;
 /// other instrument slots so it never collides with a FluidSynth sfId.
 const int kBusSlotLiveInput = 103;
 
+/// AAudio bus slot ID for the overdub latency probe. Matches
+/// OBOE_BUS_SLOT_LATENCY_PROBE (104). Registered only while a measurement runs.
+const int kBusSlotLatencyProbe = 104;
+
+/// AAudio bus slot ID for the rehearsal engine. Matches
+/// OBOE_BUS_SLOT_REHEARSAL (105). Registered while the rehearsal screen is open.
+const int kBusSlotRehearsal = 105;
+
 // ── Native function type definitions ─────────────────────────────────────────
 
 /// Native signature for gfpa_dsp_create.

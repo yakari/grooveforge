@@ -57,7 +57,7 @@ static constexpr int kMaxFrames = 4096;
 /// (see OBOE_BUS_SLOT_* in oboe_stream_android.h).
 ///
 /// Array size: (kMaxBusSlot + 1) * sizeof(SfInsertChain) ≈ 104 * 140 bytes ≈ 15 KB.
-static constexpr int kMaxBusSlot = 103;
+static constexpr int kMaxBusSlot = 105;
 
 // ── Per-keyboard insert chain storage ─────────────────────────────────────────
 

@@ -2,6 +2,16 @@ GrooveForge is a portable MIDI keyboard studio for Android. Plug in a MIDI contr
 
 It began as a practice companion: something light enough to carry on a phone or tablet, used to rebuild scale knowledge and muscle memory at a keyboard. It grew well beyond that, but the focus remains — a tool for practising and playing, not a DAW.
 
+Rehearsals
+
+A band learning a tune together, without a studio. Everyone records their own part over a shared click, on their own phone, and the parts collect into one arrangement that every device holds a full copy of.
+
+Import a recording to play along to — MP3, FLAC and WAV everywhere, plus M4A, AAC and the sound of a video on Android. Tap the tempo, then drag a marker to the first downbeat so the grid lines up with the music.
+
+Every device takes a moment to play sound and a moment to capture it, and that delay would push each take late against everything already recorded. GrooveForge measures the delay on your own device and shifts your take back by it, so what you played on the beat lands on the beat.
+
+Nothing is uploaded anywhere and no account is needed. Devices sync straight to each other over the local network: scan a code once, and from then on opening the same tune is enough. A rehearsal works in a room with no internet at all — and where there is no Wi-Fi, one phone's hotspot is the whole network.
+
 Instruments
 
 GrooveForge Keyboard — soundfont synth (.sf2) with bank and patch selection and MIDI channel routing. Every slot is independent.

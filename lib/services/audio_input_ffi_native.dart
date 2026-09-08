@@ -1427,4 +1427,305 @@ class AudioInputFFI {
   /// Direct FFI tuning reset for the Android FluidSynth hot path.
   void gfNativeClearTuning(int sfId, int channel) =>
       _gfNativeClearTuning(sfId, channel);
+
+  // ── Overdub latency probe ─────────────────────────────────────────────────
+  //
+  // Measures how long it takes for a sound the engine plays to come back in
+  // through the microphone, using the app's own playback and capture devices.
+  // A take recorded against a click has to be shifted earlier by this amount
+  // or every overdub sits behind the beat.
+
+  late final int Function() _gfProbeStart = _lib
+      .lookupFunction<Int32 Function(), int Function()>('gf_probe_start');
+  late final int Function() _gfProbePoll = _lib
+      .lookupFunction<Int32 Function(), int Function()>('gf_probe_poll');
+  late final void Function() _gfProbeCancel = _lib
+      .lookupFunction<Void Function(), void Function()>('gf_probe_cancel');
+  late final double Function() _gfProbeRoundTripMs = _lib
+      .lookupFunction<Float Function(), double Function()>('gf_probe_round_trip_ms');
+  late final int Function() _gfProbeRoundTripFrames = _lib
+      .lookupFunction<Int32 Function(), int Function()>('gf_probe_round_trip_frames');
+  late final double Function() _gfProbeJitterMs = _lib
+      .lookupFunction<Float Function(), double Function()>('gf_probe_jitter_ms');
+  late final double Function() _gfProbeConfidence = _lib
+      .lookupFunction<Float Function(), double Function()>('gf_probe_confidence');
+  late final int Function() _gfProbeShotsFound = _lib
+      .lookupFunction<Int32 Function(), int Function()>('gf_probe_shots_found');
+  late final double Function() _gfProbeDriftPpm = _lib
+      .lookupFunction<Float Function(), double Function()>('gf_probe_drift_ppm');
+  late final double Function() _gfProbeSkewMs = _lib
+      .lookupFunction<Float Function(), double Function()>('gf_probe_skew_ms');
+  late final double Function() _gfProbeInputPeak = _lib
+      .lookupFunction<Float Function(), double Function()>('gf_probe_input_peak');
+
+  late final int Function() _gfProbeBusRenderFnAddr = _lib
+      .lookupFunction<IntPtr Function(), int Function()>(
+          'gf_probe_bus_render_fn_addr');
+
+  /// Address of the probe's bus-source render function.
+  ///
+  /// Android renders through Oboe rather than the miniaudio playback device,
+  /// so on Android the sweep has to be emitted from a registered bus source.
+  /// Pass this to `oboeStreamAddSource` with [kBusSlotLatencyProbe].
+  int probeBusRenderFnAddr() => _gfProbeBusRenderFnAddr();
+
+  /// Starts a measurement. Returns 0 on success, negative on failure.
+  ///
+  /// Audio capture must already be running — the probe rides on the devices
+  /// the app has open rather than opening its own, because the number it
+  /// produces is only valid for the configuration it was measured in.
+  int probeStart() => _gfProbeStart();
+
+  /// Polls the run: 0 idle, 1 running, 2 result ready, 3 failed.
+  ///
+  /// The cross-correlation runs inside this call, so it takes a few hundred
+  /// milliseconds once the capture is complete. Call it off the UI frame path
+  /// (a timer is fine) rather than from a build method.
+  int probePoll() => _gfProbePoll();
+
+  void probeCancel() => _gfProbeCancel();
+
+  /// The measured round trip — the compensation a take needs.
+  double get probeRoundTripMs => _gfProbeRoundTripMs();
+  int get probeRoundTripFrames => _gfProbeRoundTripFrames();
+
+  /// Spread between the six individual measurements. Large spread means no
+  /// single compensation will hold on this device.
+  double get probeJitterMs => _gfProbeJitterMs();
+
+  /// Peak height over the best competing peak. Below 2.0 a shot is discarded.
+  double get probeConfidence => _gfProbeConfidence();
+  int get probeShotsFound => _gfProbeShotsFound();
+
+  /// Rate difference between the capture and playback clocks. Positive means
+  /// the take falls progressively further behind as it plays.
+  double get probeDriftPpm => _gfProbeDriftPpm();
+
+  /// Diagnostic: how far apart the two device frame counters were when the run
+  /// started. Already removed from the round trip.
+  double get probeSkewMs => _gfProbeSkewMs();
+
+  /// Loudest input sample seen during the run — zero means the mic heard
+  /// nothing, which is the expected outcome on headphones.
+  double get probeInputPeak => _gfProbeInputPeak();
+
+  // ── Rehearsal engine ──────────────────────────────────────────────────────
+  //
+  // Streams every take from disk, clicks a metronome on the bar grid, and
+  // captures one new take shifted earlier by the measured round trip so it
+  // lands on the beat. See native_audio/gf_rehearsal.h.
+
+  late final int Function() _rehActivate = _lib
+      .lookupFunction<Int32 Function(), int Function()>('gf_reh_ffi_activate');
+  late final void Function() _rehDeactivate = _lib
+      .lookupFunction<Void Function(), void Function()>('gf_reh_ffi_deactivate');
+  late final int Function() _rehBusRenderFnAddr = _lib
+      .lookupFunction<IntPtr Function(), int Function()>(
+          'gf_reh_bus_render_fn_addr');
+  late final void Function(double, int, int) _rehSetGrid = _lib
+      .lookupFunction<Void Function(Double, Int32, Int32),
+          void Function(double, int, int)>('gf_reh_set_grid');
+  late final int Function() _rehFramesPerBeat = _lib
+      .lookupFunction<Int32 Function(), int Function()>('gf_reh_frames_per_beat');
+  late final int Function() _rehFramesPerBar = _lib
+      .lookupFunction<Int32 Function(), int Function()>('gf_reh_frames_per_bar');
+  late final int Function(Pointer<Utf8>) _rehAddTrack = _lib
+      .lookupFunction<Int32 Function(Pointer<Utf8>), int Function(Pointer<Utf8>)>(
+          'gf_reh_add_track');
+  late final int Function() _rehTakeOffset = _lib
+      .lookupFunction<Int64 Function(), int Function()>(
+          'gf_reh_get_take_offset');
+  late final void Function(int) _rehSetFormEnd = _lib
+      .lookupFunction<Void Function(Int64), void Function(int)>(
+          'gf_reh_set_form_end');
+  late final int Function(Pointer<Utf8>, Pointer<Utf8>, double) _tsRender =
+      _lib.lookupFunction<
+          Int32 Function(Pointer<Utf8>, Pointer<Utf8>, Float),
+          int Function(Pointer<Utf8>, Pointer<Utf8>, double)>('gf_ts_render');
+  late final void Function(int) _rehRemoveTrack = _lib
+      .lookupFunction<Void Function(Int32), void Function(int)>(
+          'gf_reh_remove_track');
+  late final void Function() _rehClearTracks = _lib
+      .lookupFunction<Void Function(), void Function()>('gf_reh_clear_tracks');
+  late final void Function(int, double) _rehSetTrackGain = _lib
+      .lookupFunction<Void Function(Int32, Float), void Function(int, double)>(
+          'gf_reh_set_track_gain');
+  late final void Function(int, int) _rehSetTrackMute = _lib
+      .lookupFunction<Void Function(Int32, Int32), void Function(int, int)>(
+          'gf_reh_set_track_mute');
+  late final int Function(int) _rehTrackFrames = _lib
+      .lookupFunction<Int64 Function(Int32), int Function(int)>(
+          'gf_reh_track_frames');
+  late final double Function(int) _rehTrackPeak = _lib
+      .lookupFunction<Float Function(Int32), double Function(int)>(
+          'gf_reh_track_peak');
+  late final void Function(int, double) _rehSetMetronome = _lib
+      .lookupFunction<Void Function(Int32, Float), void Function(int, double)>(
+          'gf_reh_set_metronome');
+  late final int Function(int) _rehPlay = _lib
+      .lookupFunction<Int32 Function(Int64), int Function(int)>('gf_reh_play');
+  late final int Function(Pointer<Utf8>, int, int) _rehRecord = _lib
+      .lookupFunction<Int32 Function(Pointer<Utf8>, Int32, Int32),
+          int Function(Pointer<Utf8>, int, int)>('gf_reh_record');
+  late final void Function() _rehStop = _lib
+      .lookupFunction<Void Function(), void Function()>('gf_reh_stop');
+  late final int Function() _rehPosition = _lib
+      .lookupFunction<Int64 Function(), int Function()>('gf_reh_position');
+  late final int Function() _rehState = _lib
+      .lookupFunction<Int32 Function(), int Function()>('gf_reh_state');
+  late final double Function() _rehInputPeak = _lib
+      .lookupFunction<Float Function(), double Function()>('gf_reh_input_peak');
+  late final int Function() _rehRecordedFrames = _lib
+      .lookupFunction<Int64 Function(), int Function()>(
+          'gf_reh_recorded_frames');
+
+  /// Creates the engine if needed and routes audio through it.
+  int rehActivate() => _rehActivate();
+
+  /// Stops routing. Tracks are kept, so re-activating costs nothing.
+  void rehDeactivate() => _rehDeactivate();
+
+  /// Address of the engine's bus-source render, for Android's Oboe bus.
+  int rehBusRenderFnAddr() => _rehBusRenderFnAddr();
+
+  /// Sets the bar grid. Ignored by the engine while the transport is running.
+  void rehSetGrid(double bpm, int beatsPerBar, int beatUnit) =>
+      _rehSetGrid(bpm, beatsPerBar, beatUnit);
+
+  int get rehFramesPerBeat => _rehFramesPerBeat();
+  int get rehFramesPerBar => _rehFramesPerBar();
+
+  /// Loads a take. Returns its track index, or negative on failure.
+  int rehAddTrack(String wavPath) {
+    final p = wavPath.toNativeUtf8();
+    try {
+      return _rehAddTrack(p);
+    } finally {
+      calloc.free(p);
+    }
+  }
+
+  /// Writes [inPath] to [outPath], [ratio] times as long, at the same pitch.
+  ///
+  /// Blocking and slow by design — a few seconds for a long take. Call it from
+  /// a background isolate, never from the UI thread and never from anywhere
+  /// the audio callback can reach. Returns 0 on success.
+  int stretchFile(String inPath, String outPath, double ratio) {
+    final a = inPath.toNativeUtf8();
+    final b = outPath.toNativeUtf8();
+    try {
+      return _tsRender(a, b, ratio);
+    } finally {
+      calloc.free(a);
+      calloc.free(b);
+    }
+  }
+
+  /// Sets a floor for where the tune ends, in grid frames.
+  ///
+  /// The written chord form is a length even before anything is recorded
+  /// against it. Zero removes the floor.
+  void rehSetFormEnd(int frames) => _rehSetFormEnd(frames);
+
+  /// Frames from the start of the take just recorded to the tune's downbeat.
+  ///
+  /// Non-zero when it was captured through a count-in.
+  int get rehTakeOffset => _rehTakeOffset();
+
+  void rehRemoveTrack(int idx) => _rehRemoveTrack(idx);
+  void rehClearTracks() => _rehClearTracks();
+  void rehSetTrackGain(int idx, double gain) => _rehSetTrackGain(idx, gain);
+  void rehSetTrackMute(int idx, bool muted) =>
+      _rehSetTrackMute(idx, muted ? 1 : 0);
+  int rehTrackFrames(int idx) => _rehTrackFrames(idx);
+  double rehTrackPeak(int idx) => _rehTrackPeak(idx);
+  void rehSetMetronome({required bool enabled, required double gain}) =>
+      _rehSetMetronome(enabled ? 1 : 0, gain);
+
+  int rehPlay(int startFrame) => _rehPlay(startFrame);
+
+  /// Arms recording into [wavPath], shifting the take earlier by
+  /// [compensationFrames] and preceding it by [countInBars] bars of metronome.
+  int rehRecord(String wavPath, int compensationFrames, int countInBars) {
+    final p = wavPath.toNativeUtf8();
+    try {
+      return _rehRecord(p, compensationFrames, countInBars);
+    } finally {
+      calloc.free(p);
+    }
+  }
+
+  /// Stops and finalises any take in progress. Briefly blocking — it waits for
+  /// the last of the recording to reach disk.
+  void rehStop() => _rehStop();
+
+  /// Position in frames on the grid; negative during a count-in.
+  int get rehPosition => _rehPosition();
+  int get rehState => _rehState();
+  double get rehInputPeak => _rehInputPeak();
+  int get rehRecordedFrames => _rehRecordedFrames();
+
+  // ── Master track import ───────────────────────────────────────────────────
+
+  late final void Function(int, int) _rehSetTrackOffset = _lib
+      .lookupFunction<Void Function(Int32, Int64), void Function(int, int)>(
+          'gf_reh_set_track_offset');
+  late final int Function(Pointer<Utf8>) _mediaCanDecode = _lib
+      .lookupFunction<Int32 Function(Pointer<Utf8>), int Function(Pointer<Utf8>)>(
+          'gf_media_can_decode');
+  late final int Function(Pointer<Utf8>, Pointer<Utf8>, int) _mediaToMonoWav =
+      _lib.lookupFunction<Int64 Function(Pointer<Utf8>, Pointer<Utf8>, Int32),
+          int Function(Pointer<Utf8>, Pointer<Utf8>, int)>(
+          'gf_media_to_mono_wav');
+  late final int Function(Pointer<Utf8>, Pointer<Float>, int) _mediaWaveform =
+      _lib.lookupFunction<Int32 Function(Pointer<Utf8>, Pointer<Float>, Int32),
+          int Function(Pointer<Utf8>, Pointer<Float>, int)>(
+          'gf_media_waveform');
+
+  /// Anchors grid frame 0 to a position inside a track's audio.
+  ///
+  /// Takes leave this at zero; an imported master uses it to put the tune's
+  /// first downbeat on the downbeat of the grid.
+  void rehSetTrackOffset(int idx, int frames) =>
+      _rehSetTrackOffset(idx, frames);
+
+  /// Whether the bundled decoders can read [path] without the OS extractor.
+  bool mediaCanDecode(String path) {
+    final p = path.toNativeUtf8();
+    try {
+      return _mediaCanDecode(p) != 0;
+    } finally {
+      calloc.free(p);
+    }
+  }
+
+  /// Decodes [src] to mono 16-bit WAV at [sampleRate]. Returns frames written,
+  /// or negative on failure.
+  ///
+  /// Blocking and proportional to the file's length, so call it off the UI
+  /// thread — a four-minute master takes a moment.
+  int mediaToMonoWav(String src, String dst, {int sampleRate = 48000}) {
+    final s = src.toNativeUtf8();
+    final d = dst.toNativeUtf8();
+    try {
+      return _mediaToMonoWav(s, d, sampleRate);
+    } finally {
+      calloc.free(s);
+      calloc.free(d);
+    }
+  }
+
+  /// Peak envelope of a mono 16-bit WAV, [bins] values covering the whole file.
+  List<double> mediaWaveform(String wavPath, int bins) {
+    if (bins <= 0) return const [];
+    final p = wavPath.toNativeUtf8();
+    final out = calloc<Float>(bins);
+    try {
+      if (_mediaWaveform(p, out, bins) == 0) return const [];
+      return List<double>.generate(bins, (i) => out[i]);
+    } finally {
+      calloc.free(p);
+      calloc.free(out);
+    }
+  }
 }

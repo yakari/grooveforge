@@ -12,6 +12,10 @@ add_library(audio_input SHARED
     gf_phase_vocoder.c
     gf_harmony.c
     gf_pitch.c
+    gf_latency.c
+    gf_rehearsal.c
+    gf_media_import.c
+    gf_timestretch.c
 )
 
 find_package(Threads REQUIRED)
@@ -93,6 +97,52 @@ if (NOT ANDROID AND NOT IOS)
         gf_pv_smoke_test.c gf_phase_vocoder.c)
     if (UNIX)
         target_link_libraries(gf_pv_smoke_test PRIVATE m ${CMAKE_DL_LIBS})
+    endif()
+endif()
+
+# Overdub latency alignment (P0 of the Rehearsals plan). Pure DSP, no audio
+# device and no external library — it proves the measure/compensate maths on
+# synthetic signals so a failure on real hardware can be blamed on the hardware.
+if (NOT ANDROID AND NOT IOS)
+    add_executable(gf_timestretch_smoke_test EXCLUDE_FROM_ALL
+        gf_timestretch_smoke_test.c gf_timestretch.c gf_phase_vocoder.c)
+    if(NOT WIN32)
+        target_link_libraries(gf_timestretch_smoke_test PRIVATE m ${CMAKE_DL_LIBS})
+    endif()
+
+    add_executable(gf_latency_smoke_test EXCLUDE_FROM_ALL
+        gf_latency_smoke_test.c gf_latency.c)
+    if (UNIX)
+        target_link_libraries(gf_latency_smoke_test PRIVATE m)
+    endif()
+endif()
+
+# Multitrack rehearsal engine (P1). Streams takes from disk, so the test needs
+# a writable directory but no audio device.
+if (NOT ANDROID AND NOT IOS)
+    add_executable(gf_rehearsal_smoke_test EXCLUDE_FROM_ALL
+        gf_rehearsal_smoke_test.c gf_rehearsal.c gf_media_import.c)
+    target_link_libraries(gf_rehearsal_smoke_test PRIVATE Threads::Threads)
+    if (UNIX)
+        target_link_libraries(gf_rehearsal_smoke_test PRIVATE m)
+    endif()
+endif()
+
+# The same measurement against real hardware. Needs an audio device, so it is a
+# hand-run tool rather than part of the smoke suite.
+if (NOT ANDROID AND NOT IOS)
+    add_executable(gf_latency_probe EXCLUDE_FROM_ALL
+        gf_latency_probe.c gf_latency.c)
+    if (UNIX AND NOT APPLE)
+        target_link_libraries(gf_latency_probe PRIVATE m ${CMAKE_DL_LIBS} pthread)
+    elseif (APPLE)
+        find_library(P_COREAUDIO CoreAudio)
+        find_library(P_COREFOUNDATION CoreFoundation)
+        find_library(P_AUDIOUNIT AudioUnit)
+        target_link_libraries(gf_latency_probe PRIVATE
+            ${P_COREAUDIO} ${P_COREFOUNDATION} ${P_AUDIOUNIT} m)
+    elseif (WIN32)
+        target_link_libraries(gf_latency_probe PRIVATE ole32 winmm ksuser avrt)
     endif()
 endif()
 

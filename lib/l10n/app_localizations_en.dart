@@ -2090,4 +2090,713 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get vocoderWaveHarmony => 'Harmony';
+
+  @override
+  String get latencyProbeTitle => 'Overdub latency';
+
+  @override
+  String get latencyProbeSubtitle =>
+      'Measure how late the mic hears what the app plays';
+
+  @override
+  String get latencyProbeExplain =>
+      'Plays six short sweeps through the speaker and listens for them on the microphone. Use the speaker: a microphone cannot hear headphones, and the measurement will correctly report that it found nothing.';
+
+  @override
+  String get latencyProbeStart => 'Measure';
+
+  @override
+  String get latencyProbeMeasuring => 'Measuring…';
+
+  @override
+  String get latencyProbeRoundTrip => 'Round trip';
+
+  @override
+  String get latencyProbeJitter => 'Jitter';
+
+  @override
+  String get latencyProbeConfidence => 'Confidence';
+
+  @override
+  String get latencyProbeShots => 'Usable sweeps';
+
+  @override
+  String get latencyProbeDrift => 'Clock drift';
+
+  @override
+  String get latencyProbeSkew => 'Counter skew';
+
+  @override
+  String latencyProbeDriftOverTake(String ms) {
+    return 'A 4-minute take would slide $ms ms';
+  }
+
+  @override
+  String latencyProbeShotsValue(int found, int total) {
+    return '$found of $total';
+  }
+
+  @override
+  String latencyProbeMs(String value) {
+    return '$value ms';
+  }
+
+  @override
+  String latencyProbeFramesSuffix(int frames) {
+    return '$frames frames';
+  }
+
+  @override
+  String latencyProbePpm(String value) {
+    return '$value ppm';
+  }
+
+  @override
+  String get latencyProbeFailed => 'No usable measurement';
+
+  @override
+  String get latencyProbeSilentInput =>
+      'The microphone heard nothing. Check the microphone permission, and play through the speaker rather than headphones.';
+
+  @override
+  String get latencyProbeNeedsAudio =>
+      'Audio capture is not running. Open a live input or the vocoder first.';
+
+  @override
+  String get latencyProbeHint =>
+      'Keep the room quiet and hold the phone so the speaker faces the mic.';
+
+  @override
+  String get rackTabLabel => 'Rack';
+
+  @override
+  String get rehearsalsTabLabel => 'Rehearse';
+
+  @override
+  String get rehearsalsTitle => 'Rehearsals';
+
+  @override
+  String get rehearsalsEmpty => 'No rehearsals yet';
+
+  @override
+  String get rehearsalsEmptyHint =>
+      'Start a tune, set the tempo, and record your part. The rest of the band can join later.';
+
+  @override
+  String get rehearsalsNew => 'Start a tune';
+
+  @override
+  String get rehearsalCreateTitle => 'New rehearsal';
+
+  @override
+  String get rehearsalFieldTitle => 'Tune';
+
+  @override
+  String get rehearsalFieldTitleHint => 'Autumn Leaves';
+
+  @override
+  String get rehearsalFieldYourName => 'Your name';
+
+  @override
+  String get rehearsalFieldInstrument => 'Your instrument';
+
+  @override
+  String get rehearsalFieldTempo => 'Tempo';
+
+  @override
+  String get rehearsalFieldTimeSignature => 'Time signature';
+
+  @override
+  String get rehearsalFieldCountIn => 'Count-in';
+
+  @override
+  String rehearsalCountInBars(int bars) {
+    return '$bars bars';
+  }
+
+  @override
+  String get rehearsalCountInNone => 'None';
+
+  @override
+  String get rehearsalCreate => 'Create';
+
+  @override
+  String get rehearsalCancel => 'Cancel';
+
+  @override
+  String rehearsalPartsProgress(int done, int total) {
+    return '$done of $total parts recorded';
+  }
+
+  @override
+  String rehearsalBpmValue(String bpm) {
+    return '$bpm BPM';
+  }
+
+  @override
+  String rehearsalMeter(int num, int den) {
+    return '$num/$den';
+  }
+
+  @override
+  String get rehearsalDelete => 'Delete';
+
+  @override
+  String rehearsalDeleteConfirm(String title) {
+    return 'Delete \"$title\" and every recording in it?';
+  }
+
+  @override
+  String get rehearsalAddPart => 'Add a part';
+
+  @override
+  String get rehearsalNotRecorded => 'Not recorded yet';
+
+  @override
+  String rehearsalTakeLength(String seconds) {
+    return '${seconds}s';
+  }
+
+  @override
+  String get rehearsalMetronome => 'Metronome';
+
+  @override
+  String get rehearsalPlay => 'Play';
+
+  @override
+  String get rehearsalStop => 'Stop';
+
+  @override
+  String get rehearsalRecord => 'Record';
+
+  @override
+  String get rehearsalRerecord => 'Record again';
+
+  @override
+  String get rehearsalCountingIn => 'Counting in';
+
+  @override
+  String rehearsalBarBeat(int bar, int beat) {
+    return 'Bar $bar  ·  beat $beat';
+  }
+
+  @override
+  String get rehearsalMute => 'Mute';
+
+  @override
+  String get rehearsalGridFrozen =>
+      'Tempo and time signature lock once a part is recorded, because every take is aligned to them.';
+
+  @override
+  String get rehearsalNoCompensation =>
+      'Latency has not been measured on this device, so a new take may sit behind the beat.';
+
+  @override
+  String get instrumentVocals => 'Vocals';
+
+  @override
+  String get instrumentGuitar => 'Acoustic guitar';
+
+  @override
+  String get instrumentElectricGuitar => 'Electric guitar';
+
+  @override
+  String get instrumentBassGuitar => 'Bass';
+
+  @override
+  String get instrumentDrums => 'Drums';
+
+  @override
+  String get instrumentKeyboard => 'Keyboard';
+
+  @override
+  String get instrumentSynth => 'Synth';
+
+  @override
+  String get instrumentViolin => 'Violin';
+
+  @override
+  String get instrumentSaxophone => 'Saxophone';
+
+  @override
+  String get instrumentTrumpet => 'Trumpet';
+
+  @override
+  String get instrumentPercussion => 'Percussion';
+
+  @override
+  String get instrumentOther => 'Other';
+
+  @override
+  String get masterImport => 'Play along to a recording';
+
+  @override
+  String get masterImportHint =>
+      'Import an MP3, FLAC or WAV. Its audio becomes a track everyone plays over.';
+
+  @override
+  String get masterImporting => 'Importing…';
+
+  @override
+  String get masterImportFailed =>
+      'That file could not be read. Try an MP3, FLAC or WAV.';
+
+  @override
+  String get masterTitle => 'Recording';
+
+  @override
+  String get masterRemove => 'Remove the recording';
+
+  @override
+  String masterRemoveConfirm(String name) {
+    return 'Remove \"$name\" from this rehearsal?';
+  }
+
+  @override
+  String get masterAlign => 'Set the first downbeat';
+
+  @override
+  String get masterAlignTitle => 'Align the grid';
+
+  @override
+  String get masterAlignHint =>
+      'Play the recording and tap along on the beat to set the tempo, then drag the marker to the first downbeat.';
+
+  @override
+  String get masterTapTempo => 'Tap the beat';
+
+  @override
+  String get masterTapMore => 'Keep tapping…';
+
+  @override
+  String masterDownbeatAt(String time) {
+    return 'First downbeat at $time';
+  }
+
+  @override
+  String get masterNudgeBack => '10 ms earlier';
+
+  @override
+  String get masterNudgeForward => '10 ms later';
+
+  @override
+  String get masterCheck => 'Check two bars';
+
+  @override
+  String get masterDone => 'Done';
+
+  @override
+  String get masterVideoAudioOnly =>
+      'Video files are imported for their audio only.';
+
+  @override
+  String get masterMetronomeOff =>
+      'The click is off: the recording is the timing reference now.';
+
+  @override
+  String get nearbyTitle => 'Nearby';
+
+  @override
+  String get nearbyShare => 'Share this rehearsal';
+
+  @override
+  String get nearbyHint =>
+      'Have the others scan this, or send them the link below.';
+
+  @override
+  String get nearbyStop => 'Stop sharing';
+
+  @override
+  String get nearbyStart => 'Start sharing';
+
+  @override
+  String get nearbyNoNetwork =>
+      'This device is not on a network. Join the same Wi-Fi as the others, or turn on a hotspot.';
+
+  @override
+  String get nearbyWaiting => 'Waiting for someone to join…';
+
+  @override
+  String nearbyPeers(int count) {
+    return '$count connected';
+  }
+
+  @override
+  String get nearbyJoin => 'Join a rehearsal';
+
+  @override
+  String get nearbyScan => 'Scan the code';
+
+  @override
+  String get nearbyConnecting => 'Connecting…';
+
+  @override
+  String get nearbySyncing => 'Syncing…';
+
+  @override
+  String get nearbySynced => 'Up to date';
+
+  @override
+  String nearbySyncedWith(int takes) {
+    return 'Received $takes parts';
+  }
+
+  @override
+  String nearbyFailed(String reason) {
+    return 'Could not sync: $reason';
+  }
+
+  @override
+  String get nearbyWrongCode => 'That code does not match this rehearsal.';
+
+  @override
+  String get nearbyScanUnsupported =>
+      'This device has no scanner. Type the code from the other device instead.';
+
+  @override
+  String nearbyHostAddress(String host, int port) {
+    return '$host · port $port';
+  }
+
+  @override
+  String get syncStepHandshake => 'Saying hello';
+
+  @override
+  String get syncStepManifest => 'Comparing';
+
+  @override
+  String get syncStepSending => 'Sending';
+
+  @override
+  String get syncStepReceiving => 'Receiving';
+
+  @override
+  String get syncStepDone => 'Done';
+
+  @override
+  String get nearbyLink => 'Link';
+
+  @override
+  String get nearbyCopyLink => 'Copy the link';
+
+  @override
+  String get nearbyCopied => 'Copied';
+
+  @override
+  String get nearbyLinkHint =>
+      'No camera on the other device? Copy this link and send it to them — they paste it into Join.';
+
+  @override
+  String get nearbyPasteLink => 'Paste the link from the other device';
+
+  @override
+  String get nearbyPasteFromClipboard => 'Paste';
+
+  @override
+  String get nearbyLooksLikeCode =>
+      'That is the short code, which is not enough on its own. Copy the whole link from the other device.';
+
+  @override
+  String get nearbyNotALink => 'That is not a GrooveForge rehearsal link.';
+
+  @override
+  String get nearbyScanTitle => 'Point the camera at the code';
+
+  @override
+  String get nearbyScanHint =>
+      'Hold it steady over the code on the other device.';
+
+  @override
+  String get nearbyScanPermission =>
+      'GrooveForge needs the camera to read the code. You can type the link instead.';
+
+  @override
+  String get nearbyScanOr => 'or';
+
+  @override
+  String get nearbyScanOpen => 'Scan a code';
+
+  @override
+  String get joinIdentityTitle => 'Who are you?';
+
+  @override
+  String get joinIdentityHint => 'The others will see this name on your part.';
+
+  @override
+  String get joinIdentityConfirm => 'Join';
+
+  @override
+  String get rehearsalDeleteTake => 'Delete this recording';
+
+  @override
+  String rehearsalDeleteTakeConfirm(String instrument) {
+    return 'Delete your recording of $instrument? The others will lose it too, next time you sync.';
+  }
+
+  @override
+  String rehearsalOthersPart(String name) {
+    return '$name\'s part';
+  }
+
+  @override
+  String get rehearsalYourPart => 'Your part';
+
+  @override
+  String get liveConnected => 'Connected — parts appear as they are recorded';
+
+  @override
+  String get liveRefresh => 'Sync now';
+
+  @override
+  String get rehearsalRemovePart => 'Remove this part';
+
+  @override
+  String rehearsalRemovePartConfirm(String instrument) {
+    return 'Remove your $instrument part? It disappears for everyone, along with anything recorded on it.';
+  }
+
+  @override
+  String get rehearsalPartActions => 'More';
+
+  @override
+  String get rehearsalMemberHere => 'Here now';
+
+  @override
+  String get rehearsalMemberAway => 'Not connected';
+
+  @override
+  String get rehearsalsJoin => 'Join a tune';
+
+  @override
+  String get guideTabRehearsals => 'Rehearsals';
+
+  @override
+  String get guideRehearsalIntroTitle => 'Rehearsing together';
+
+  @override
+  String get guideRehearsalIntroBody =>
+      'The Rehearse tab is for a band learning a tune. Everyone records their own part over a shared click, on their own phone, and the parts are collected into one arrangement that every device holds a full copy of.\n\nNothing is uploaded anywhere. The devices talk straight to each other, so a rehearsal works in a room with no internet at all.';
+
+  @override
+  String get guideRehearsalStartTitle => 'Starting a tune';
+
+  @override
+  String get guideRehearsalStartBody =>
+      'Start a tune, give it a name, and say what you play. Set the tempo and the time signature, or tap the beat if you would rather feel it than count it.\n\nTo play along to a recording, import it as the master track: MP3, FLAC and WAV everywhere, and on Android also M4A, AAC and the sound of a video. Then drag the marker to the first downbeat so the grid lines up with the music. The click switches itself off once a recording is there, because the recording is the tempo now.';
+
+  @override
+  String get guideRehearsalRecordTitle => 'Recording your part';
+
+  @override
+  String get guideRehearsalRecordBody =>
+      'Add a part for your instrument and press record. A count-in runs first, two bars by default, and recording starts on the downbeat.\n\nEvery device takes a moment to play sound and a moment to capture it, and that delay would push your take late against everything already recorded. The app measures the delay on your own device and shifts your take back by it, so what you played on the beat lands on the beat. Measure it once from Settings, and again if you change headphones or move to a Bluetooth speaker, since the delay belongs to the gear and not to the tune.\n\nYou record your own parts and nobody else\'s. Yours can be re-recorded or deleted as often as you like.';
+
+  @override
+  String get guideRehearsalShareTitle => 'Getting the band together';
+
+  @override
+  String get guideRehearsalShareBody =>
+      'The first time, one person shares the tune and the others take it: on a phone, scan the code; on a computer, paste the link. From then on the devices know each other, and simply opening the same tune is enough — they find each other again within a few seconds.\n\nA dot next to each part says whether the player who owns it is connected right now. Whatever you record reaches everyone in the room as soon as you stop, and anything you missed while you were away arrives the next time you are all in the same place.';
+
+  @override
+  String get guideRehearsalHotspotTitle => 'When there is no Wi-Fi';
+
+  @override
+  String get guideRehearsalHotspotBody =>
+      'Everyone has to be on the same network. Phones on mobile data cannot see each other, and rehearsal rooms rarely have usable Wi-Fi, so one person makes the network instead:\n\n1. One phone turns on its personal hotspot, in the phone\'s own settings. The exact place varies by make, but it is usually under Connections or Network.\n2. Everyone else joins that hotspot from their normal Wi-Fi settings, the same way they would join any network.\n3. Everyone opens the tune. The devices find each other within a few seconds.\n\nIt does not have to be the same person every time. If whoever usually hosts is not at this rehearsal, anybody else turns theirs on and the rest join that one.\n\nNext time, that person turns the hotspot back on, everyone reconnects, and there is nothing to scan again.';
+
+  @override
+  String get guideRehearsalHotspotNote =>
+      'Sharing parts uses no mobile data — it never leaves the room. Some phones insist on switching mobile data on before they will share a hotspot, but the rehearsal itself does not spend any.';
+
+  @override
+  String get rehearsalTakePending => 'Not sent yet';
+
+  @override
+  String get rehearsalSyncIncomplete =>
+      'Stay connected: not everyone has the latest takes yet.';
+
+  @override
+  String get rehearsalTakeAwaitingAudio => 'Waiting for audio';
+
+  @override
+  String get rehearsalTempoTitle => 'Tempo';
+
+  @override
+  String get rehearsalTuneTempo => 'Tune tempo';
+
+  @override
+  String get rehearsalTuneTempoHint =>
+      'Shared with the band. Recordings are re-rendered to match.';
+
+  @override
+  String get rehearsalPracticeSpeed => 'Practice speed';
+
+  @override
+  String get rehearsalPracticeSpeedHint =>
+      'Only on this device. Slow a passage down without changing pitch.';
+
+  @override
+  String rehearsalPracticeSpeedValue(int percent) {
+    return '$percent%';
+  }
+
+  @override
+  String get rehearsalRendering => 'Adjusting the recordings…';
+
+  @override
+  String get rehearsalMeterFrozen =>
+      'The metre cannot change once a part is recorded.';
+
+  @override
+  String get rehearsalCalibrate => 'Calibrate';
+
+  @override
+  String get rehearsalCalibrateTitle => 'Measure this device';
+
+  @override
+  String get rehearsalCalibrateBody =>
+      'Your device takes a moment to play sound, and another to capture it. Together that delay would put every take behind the beat, so it is measured once and subtracted from what you record.\n\nThe measurement plays a few short sweeps and listens for them coming back through the microphone — so it has to be able to hear them:\n\n•  Use the speaker, not headphones. On headphones the microphone hears nothing and the measurement fails.\n•  Turn the volume up.\n•  Keep the room quiet for the few seconds it takes.\n\nMeasure again after switching to a Bluetooth speaker or headset: the delay belongs to the gear, not to the tune, and Bluetooth adds a great deal of it.';
+
+  @override
+  String get rehearsalCalibrateStart => 'Measure now';
+
+  @override
+  String get rehearsalRemoveMember => 'Remove this player';
+
+  @override
+  String rehearsalRemoveMemberConfirm(String name, int count) {
+    return 'Remove $name from this tune? Their $count recording(s) go too, on every device.';
+  }
+
+  @override
+  String get rehearsalRemoveMemberHere =>
+      'For a device that is gone for good. Their parts go too.';
+
+  @override
+  String get rehearsalDocuments => 'Scores';
+
+  @override
+  String get rehearsalDocumentsEmpty => 'No scores yet';
+
+  @override
+  String get rehearsalDocumentsEmptyHint =>
+      'Add a score, a chart or a photo of one. Everyone in the tune gets a copy.';
+
+  @override
+  String get rehearsalDocumentAdd => 'Add a score';
+
+  @override
+  String get rehearsalDocumentRemove => 'Remove';
+
+  @override
+  String rehearsalDocumentRemoveConfirm(String name) {
+    return 'Remove \"$name\" from this tune? It goes from every device.';
+  }
+
+  @override
+  String rehearsalDocumentAddedBy(String name) {
+    return 'Added by $name';
+  }
+
+  @override
+  String rehearsalDocumentSize(int kb) {
+    return '$kb kB';
+  }
+
+  @override
+  String get rehearsalDocumentWaiting => 'Waiting for the file';
+
+  @override
+  String get rehearsalDocumentNoViewer =>
+      'Nothing on this device can open that file.';
+
+  @override
+  String get rehearsalChordGrid => 'Chords';
+
+  @override
+  String get rehearsalChordGridEmpty => 'Write the chords';
+
+  @override
+  String get rehearsalChordAddBar => 'Add a bar';
+
+  @override
+  String get rehearsalChordRemoveBar => 'Remove this bar';
+
+  @override
+  String rehearsalChordBar(int bar) {
+    return 'Bar $bar';
+  }
+
+  @override
+  String get rehearsalChordSlots => 'Chords per bar';
+
+  @override
+  String get rehearsalChordHint => 'Am7, C#m7, Gm7b5, C6/9, Am(M7)/B…';
+
+  @override
+  String get rehearsalChordInvalid => 'Not a chord I can read';
+
+  @override
+  String get rehearsalChordExpand => 'Show the whole chart';
+
+  @override
+  String get rehearsalChordCollapse => 'Collapse to one line';
+
+  @override
+  String get rehearsalChordClear => 'Clear';
+
+  @override
+  String get rehearsalChordSave => 'Save';
+
+  @override
+  String rehearsalChordBarCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count bars',
+      one: '1 bar',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String rehearsalRouteUncalibrated(String device) {
+    return '$device has not been measured. A take recorded through it will sit well behind the beat.';
+  }
+
+  @override
+  String get rehearsalRouteBluetoothHint =>
+      'Bluetooth adds a long delay of its own, and it differs from one headset to the next.\n\nThe microphone cannot hear your headphones through the air, so hold one earcup against the phone\'s microphone while the measurement runs. That way it hears the sweeps coming back through the headset and measures the real delay, Bluetooth and all.';
+
+  @override
+  String get masterZoomIn => 'Zoom in';
+
+  @override
+  String get masterZoomOut => 'Zoom out';
+
+  @override
+  String get masterZoomReset => 'Whole recording';
+
+  @override
+  String get masterSkipSilence => 'Skip the silence';
+
+  @override
+  String get masterBpmFiner => 'Slower by 0.1';
+
+  @override
+  String get masterBpmFaster => 'Faster by 0.1';
+
+  @override
+  String masterZoomLevel(int zoom) {
+    return '×$zoom';
+  }
+
+  @override
+  String get masterBeatLinesHint =>
+      'The red lines are the beats. Zoom in and adjust the tempo until they land on the sound.';
+
+  @override
+  String get rehearsalTempoFromMaster =>
+      'Set by the recording. Change it where you line the grid up with it — here it would only stretch the recording. Use the practice speed to slow everything down.';
 }

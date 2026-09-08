@@ -1136,5 +1136,621 @@
   "vocoderWaveHarmony": "Harmony",
   "@vocoderWaveHarmony": {
     "description": "Vocoder mode that pitch-shifts the live voice onto the held keys instead of using a synthetic carrier."
+  },
+  "latencyProbeTitle": "Overdub latency",
+  "latencyProbeSubtitle": "Measure how late the mic hears what the app plays",
+  "latencyProbeExplain": "Plays six short sweeps through the speaker and listens for them on the microphone. Use the speaker: a microphone cannot hear headphones, and the measurement will correctly report that it found nothing.",
+  "latencyProbeStart": "Measure",
+  "latencyProbeMeasuring": "Measuring…",
+  "latencyProbeRoundTrip": "Round trip",
+  "latencyProbeJitter": "Jitter",
+  "latencyProbeConfidence": "Confidence",
+  "latencyProbeShots": "Usable sweeps",
+  "latencyProbeDrift": "Clock drift",
+  "latencyProbeSkew": "Counter skew",
+  "latencyProbeDriftOverTake": "A 4-minute take would slide {ms} ms",
+  "@latencyProbeDriftOverTake": {
+    "placeholders": {
+      "ms": {
+        "type": "String"
+      }
+    }
+  },
+  "latencyProbeShotsValue": "{found} of {total}",
+  "@latencyProbeShotsValue": {
+    "placeholders": {
+      "found": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "latencyProbeMs": "{value} ms",
+  "@latencyProbeMs": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "latencyProbeFramesSuffix": "{frames} frames",
+  "@latencyProbeFramesSuffix": {
+    "placeholders": {
+      "frames": {
+        "type": "int"
+      }
+    }
+  },
+  "latencyProbePpm": "{value} ppm",
+  "@latencyProbePpm": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "latencyProbeFailed": "No usable measurement",
+  "latencyProbeSilentInput": "The microphone heard nothing. Check the microphone permission, and play through the speaker rather than headphones.",
+  "latencyProbeNeedsAudio": "Audio capture is not running. Open a live input or the vocoder first.",
+  "latencyProbeHint": "Keep the room quiet and hold the phone so the speaker faces the mic.",
+  "rackTabLabel": "Rack",
+  "rehearsalsTabLabel": "Rehearse",
+  "rehearsalsTitle": "Rehearsals",
+  "rehearsalsEmpty": "No rehearsals yet",
+  "rehearsalsEmptyHint": "Start a tune, set the tempo, and record your part. The rest of the band can join later.",
+  "rehearsalsNew": "Start a tune",
+  "rehearsalCreateTitle": "New rehearsal",
+  "rehearsalFieldTitle": "Tune",
+  "rehearsalFieldTitleHint": "Autumn Leaves",
+  "rehearsalFieldYourName": "Your name",
+  "rehearsalFieldInstrument": "Your instrument",
+  "rehearsalFieldTempo": "Tempo",
+  "rehearsalFieldTimeSignature": "Time signature",
+  "rehearsalFieldCountIn": "Count-in",
+  "rehearsalCountInBars": "{bars} bars",
+  "@rehearsalCountInBars": {
+    "placeholders": {
+      "bars": {
+        "type": "int"
+      }
+    }
+  },
+  "rehearsalCountInNone": "None",
+  "rehearsalCreate": "Create",
+  "rehearsalCancel": "Cancel",
+  "rehearsalPartsProgress": "{done} of {total} parts recorded",
+  "@rehearsalPartsProgress": {
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "rehearsalBpmValue": "{bpm} BPM",
+  "@rehearsalBpmValue": {
+    "placeholders": {
+      "bpm": {
+        "type": "String"
+      }
+    }
+  },
+  "rehearsalMeter": "{num}/{den}",
+  "@rehearsalMeter": {
+    "placeholders": {
+      "num": {
+        "type": "int"
+      },
+      "den": {
+        "type": "int"
+      }
+    }
+  },
+  "rehearsalDelete": "Delete",
+  "rehearsalDeleteConfirm": "Delete \"{title}\" and every recording in it?",
+  "@rehearsalDeleteConfirm": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "rehearsalAddPart": "Add a part",
+  "rehearsalNotRecorded": "Not recorded yet",
+  "rehearsalTakeLength": "{seconds}s",
+  "@rehearsalTakeLength": {
+    "placeholders": {
+      "seconds": {
+        "type": "String"
+      }
+    }
+  },
+  "rehearsalMetronome": "Metronome",
+  "rehearsalPlay": "Play",
+  "rehearsalStop": "Stop",
+  "rehearsalRecord": "Record",
+  "rehearsalRerecord": "Record again",
+  "rehearsalCountingIn": "Counting in",
+  "rehearsalBarBeat": "Bar {bar}  ·  beat {beat}",
+  "@rehearsalBarBeat": {
+    "placeholders": {
+      "bar": {
+        "type": "int"
+      },
+      "beat": {
+        "type": "int"
+      }
+    }
+  },
+  "rehearsalMute": "Mute",
+  "rehearsalGridFrozen": "Tempo and time signature lock once a part is recorded, because every take is aligned to them.",
+  "rehearsalNoCompensation": "Latency has not been measured on this device, so a new take may sit behind the beat.",
+  "instrumentVocals": "Vocals",
+  "instrumentGuitar": "Acoustic guitar",
+  "instrumentElectricGuitar": "Electric guitar",
+  "instrumentBassGuitar": "Bass",
+  "instrumentDrums": "Drums",
+  "instrumentKeyboard": "Keyboard",
+  "instrumentSynth": "Synth",
+  "instrumentViolin": "Violin",
+  "instrumentSaxophone": "Saxophone",
+  "instrumentTrumpet": "Trumpet",
+  "instrumentPercussion": "Percussion",
+  "instrumentOther": "Other",
+  "masterImport": "Play along to a recording",
+  "masterImportHint": "Import an MP3, FLAC or WAV. Its audio becomes a track everyone plays over.",
+  "masterImporting": "Importing…",
+  "masterImportFailed": "That file could not be read. Try an MP3, FLAC or WAV.",
+  "masterTitle": "Recording",
+  "masterRemove": "Remove the recording",
+  "masterRemoveConfirm": "Remove \"{name}\" from this rehearsal?",
+  "@masterRemoveConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "masterAlign": "Set the first downbeat",
+  "masterAlignTitle": "Align the grid",
+  "masterAlignHint": "Play the recording and tap along on the beat to set the tempo, then drag the marker to the first downbeat.",
+  "masterTapTempo": "Tap the beat",
+  "masterTapMore": "Keep tapping…",
+  "masterDownbeatAt": "First downbeat at {time}",
+  "@masterDownbeatAt": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "masterNudgeBack": "10 ms earlier",
+  "masterNudgeForward": "10 ms later",
+  "masterCheck": "Check two bars",
+  "masterDone": "Done",
+  "masterVideoAudioOnly": "Video files are imported for their audio only.",
+  "masterMetronomeOff": "The click is off: the recording is the timing reference now.",
+  "nearbyTitle": "Nearby",
+  "nearbyShare": "Share this rehearsal",
+  "nearbyHint": "Have the others scan this, or send them the link below.",
+  "nearbyStop": "Stop sharing",
+  "nearbyStart": "Start sharing",
+  "nearbyNoNetwork": "This device is not on a network. Join the same Wi-Fi as the others, or turn on a hotspot.",
+  "nearbyWaiting": "Waiting for someone to join…",
+  "nearbyPeers": "{count} connected",
+  "@nearbyPeers": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "nearbyJoin": "Join a rehearsal",
+  "nearbyScan": "Scan the code",
+  "nearbyConnecting": "Connecting…",
+  "nearbySyncing": "Syncing…",
+  "nearbySynced": "Up to date",
+  "nearbySyncedWith": "Received {takes} parts",
+  "@nearbySyncedWith": {
+    "placeholders": {
+      "takes": {
+        "type": "int"
+      }
+    }
+  },
+  "nearbyFailed": "Could not sync: {reason}",
+  "@nearbyFailed": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "nearbyWrongCode": "That code does not match this rehearsal.",
+  "nearbyScanUnsupported": "This device has no scanner. Type the code from the other device instead.",
+  "nearbyHostAddress": "{host} · port {port}",
+  "@nearbyHostAddress": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      },
+      "port": {
+        "type": "int"
+      }
+    }
+  },
+  "syncStepHandshake": "Saying hello",
+  "syncStepManifest": "Comparing",
+  "syncStepSending": "Sending",
+  "syncStepReceiving": "Receiving",
+  "syncStepDone": "Done",
+  "nearbyLink": "Link",
+  "nearbyCopyLink": "Copy the link",
+  "nearbyCopied": "Copied",
+  "nearbyLinkHint": "No camera on the other device? Copy this link and send it to them — they paste it into Join.",
+  "nearbyPasteLink": "Paste the link from the other device",
+  "nearbyPasteFromClipboard": "Paste",
+  "nearbyLooksLikeCode": "That is the short code, which is not enough on its own. Copy the whole link from the other device.",
+  "nearbyNotALink": "That is not a GrooveForge rehearsal link.",
+  "nearbyScanTitle": "Point the camera at the code",
+  "nearbyScanHint": "Hold it steady over the code on the other device.",
+  "nearbyScanPermission": "GrooveForge needs the camera to read the code. You can type the link instead.",
+  "nearbyScanOr": "or",
+  "nearbyScanOpen": "Scan a code",
+  "joinIdentityTitle": "Who are you?",
+  "joinIdentityHint": "The others will see this name on your part.",
+  "joinIdentityConfirm": "Join",
+  "rehearsalDeleteTake": "Delete this recording",
+  "rehearsalDeleteTakeConfirm": "Delete your recording of {instrument}? The others will lose it too, next time you sync.",
+  "@rehearsalDeleteTakeConfirm": {
+    "placeholders": {
+      "instrument": {
+        "type": "String"
+      }
+    }
+  },
+  "rehearsalOthersPart": "{name}'s part",
+  "@rehearsalOthersPart": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "rehearsalYourPart": "Your part",
+  "liveConnected": "Connected — parts appear as they are recorded",
+  "liveRefresh": "Sync now",
+  "rehearsalRemovePart": "Remove this part",
+  "rehearsalRemovePartConfirm": "Remove your {instrument} part? It disappears for everyone, along with anything recorded on it.",
+  "@rehearsalRemovePartConfirm": {
+    "placeholders": {
+      "instrument": {
+        "type": "String"
+      }
+    }
+  },
+  "rehearsalPartActions": "More",
+  "rehearsalMemberHere": "Here now",
+  "@rehearsalMemberHere": {
+    "description": "Tooltip on a part lane saying whether the player who owns it is reachable on the network right now."
+  },
+  "rehearsalMemberAway": "Not connected",
+  "@rehearsalMemberAway": {
+    "description": "Tooltip on a part lane saying whether the player who owns it is reachable on the network right now."
+  },
+  "rehearsalsJoin": "Join a tune",
+  "@rehearsalsJoin": {
+    "description": "Button on the rehearsals tab that opens the join screen, paired with the button that starts a new tune."
+  },
+  "guideTabRehearsals": "Rehearsals",
+  "@guideTabRehearsals": {
+    "description": "User guide, Rehearsals tab."
+  },
+  "guideRehearsalIntroTitle": "Rehearsing together",
+  "@guideRehearsalIntroTitle": {
+    "description": "User guide, Rehearsals tab."
+  },
+  "guideRehearsalIntroBody": "The Rehearse tab is for a band learning a tune. Everyone records their own part over a shared click, on their own phone, and the parts are collected into one arrangement that every device holds a full copy of.\n\nNothing is uploaded anywhere. The devices talk straight to each other, so a rehearsal works in a room with no internet at all.",
+  "@guideRehearsalIntroBody": {
+    "description": "User guide, Rehearsals tab."
+  },
+  "guideRehearsalStartTitle": "Starting a tune",
+  "@guideRehearsalStartTitle": {
+    "description": "User guide, Rehearsals tab."
+  },
+  "guideRehearsalStartBody": "Start a tune, give it a name, and say what you play. Set the tempo and the time signature, or tap the beat if you would rather feel it than count it.\n\nTo play along to a recording, import it as the master track: MP3, FLAC and WAV everywhere, and on Android also M4A, AAC and the sound of a video. Then drag the marker to the first downbeat so the grid lines up with the music. The click switches itself off once a recording is there, because the recording is the tempo now.",
+  "@guideRehearsalStartBody": {
+    "description": "User guide, Rehearsals tab."
+  },
+  "guideRehearsalRecordTitle": "Recording your part",
+  "@guideRehearsalRecordTitle": {
+    "description": "User guide, Rehearsals tab."
+  },
+  "guideRehearsalRecordBody": "Add a part for your instrument and press record. A count-in runs first, two bars by default, and recording starts on the downbeat.\n\nEvery device takes a moment to play sound and a moment to capture it, and that delay would push your take late against everything already recorded. The app measures the delay on your own device and shifts your take back by it, so what you played on the beat lands on the beat. Measure it once from Settings, and again if you change headphones or move to a Bluetooth speaker, since the delay belongs to the gear and not to the tune.\n\nYou record your own parts and nobody else's. Yours can be re-recorded or deleted as often as you like.",
+  "@guideRehearsalRecordBody": {
+    "description": "User guide, Rehearsals tab."
+  },
+  "guideRehearsalShareTitle": "Getting the band together",
+  "@guideRehearsalShareTitle": {
+    "description": "User guide, Rehearsals tab."
+  },
+  "guideRehearsalShareBody": "The first time, one person shares the tune and the others take it: on a phone, scan the code; on a computer, paste the link. From then on the devices know each other, and simply opening the same tune is enough — they find each other again within a few seconds.\n\nA dot next to each part says whether the player who owns it is connected right now. Whatever you record reaches everyone in the room as soon as you stop, and anything you missed while you were away arrives the next time you are all in the same place.",
+  "@guideRehearsalShareBody": {
+    "description": "User guide, Rehearsals tab."
+  },
+  "guideRehearsalHotspotTitle": "When there is no Wi-Fi",
+  "@guideRehearsalHotspotTitle": {
+    "description": "User guide, Rehearsals tab."
+  },
+  "guideRehearsalHotspotBody": "Everyone has to be on the same network. Phones on mobile data cannot see each other, and rehearsal rooms rarely have usable Wi-Fi, so one person makes the network instead:\n\n1. One phone turns on its personal hotspot, in the phone's own settings. The exact place varies by make, but it is usually under Connections or Network.\n2. Everyone else joins that hotspot from their normal Wi-Fi settings, the same way they would join any network.\n3. Everyone opens the tune. The devices find each other within a few seconds.\n\nIt does not have to be the same person every time. If whoever usually hosts is not at this rehearsal, anybody else turns theirs on and the rest join that one.\n\nNext time, that person turns the hotspot back on, everyone reconnects, and there is nothing to scan again.",
+  "@guideRehearsalHotspotBody": {
+    "description": "User guide, Rehearsals tab."
+  },
+  "guideRehearsalHotspotNote": "Sharing parts uses no mobile data — it never leaves the room. Some phones insist on switching mobile data on before they will share a hotspot, but the rehearsal itself does not spend any.",
+  "@guideRehearsalHotspotNote": {
+    "description": "User guide, Rehearsals tab."
+  },
+  "rehearsalTakePending": "Not sent yet",
+  "@rehearsalTakePending": {
+    "description": "Rehearsal screen: warns that a recorded take has not reached every connected device yet."
+  },
+  "rehearsalSyncIncomplete": "Stay connected: not everyone has the latest takes yet.",
+  "@rehearsalSyncIncomplete": {
+    "description": "Rehearsal screen: warns that a recorded take has not reached every connected device yet."
+  },
+  "rehearsalTakeAwaitingAudio": "Waiting for audio",
+  "@rehearsalTakeAwaitingAudio": {
+    "description": "Rehearsal lane tag: the take is known but its recording has not arrived on this device yet."
+  },
+  "rehearsalTempoTitle": "Tempo",
+  "@rehearsalTempoTitle": {
+    "description": "Rehearsal tempo controls."
+  },
+  "rehearsalTuneTempo": "Tune tempo",
+  "@rehearsalTuneTempo": {
+    "description": "Rehearsal tempo controls."
+  },
+  "rehearsalTuneTempoHint": "Shared with the band. Recordings are re-rendered to match.",
+  "@rehearsalTuneTempoHint": {
+    "description": "Rehearsal tempo controls."
+  },
+  "rehearsalPracticeSpeed": "Practice speed",
+  "@rehearsalPracticeSpeed": {
+    "description": "Rehearsal tempo controls."
+  },
+  "rehearsalPracticeSpeedHint": "Only on this device. Slow a passage down without changing pitch.",
+  "@rehearsalPracticeSpeedHint": {
+    "description": "Rehearsal tempo controls."
+  },
+  "rehearsalPracticeSpeedValue": "{percent}%",
+  "@rehearsalPracticeSpeedValue": {
+    "description": "Rehearsal tempo controls.",
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "rehearsalRendering": "Adjusting the recordings…",
+  "@rehearsalRendering": {
+    "description": "Rehearsal tempo controls."
+  },
+  "rehearsalMeterFrozen": "The metre cannot change once a part is recorded.",
+  "@rehearsalMeterFrozen": {
+    "description": "Rehearsal tempo controls."
+  },
+  "@rehearsalNoCompensation": {
+    "description": "Rehearsal screen: latency calibration prompt and its explanation."
+  },
+  "rehearsalCalibrate": "Calibrate",
+  "@rehearsalCalibrate": {
+    "description": "Rehearsal screen: latency calibration prompt and its explanation."
+  },
+  "rehearsalCalibrateTitle": "Measure this device",
+  "@rehearsalCalibrateTitle": {
+    "description": "Rehearsal screen: latency calibration prompt and its explanation."
+  },
+  "rehearsalCalibrateBody": "Your device takes a moment to play sound, and another to capture it. Together that delay would put every take behind the beat, so it is measured once and subtracted from what you record.\n\nThe measurement plays a few short sweeps and listens for them coming back through the microphone — so it has to be able to hear them:\n\n•  Use the speaker, not headphones. On headphones the microphone hears nothing and the measurement fails.\n•  Turn the volume up.\n•  Keep the room quiet for the few seconds it takes.\n\nMeasure again after switching to a Bluetooth speaker or headset: the delay belongs to the gear, not to the tune, and Bluetooth adds a great deal of it.",
+  "@rehearsalCalibrateBody": {
+    "description": "Rehearsal screen: latency calibration prompt and its explanation."
+  },
+  "rehearsalCalibrateStart": "Measure now",
+  "@rehearsalCalibrateStart": {
+    "description": "Rehearsal screen: latency calibration prompt and its explanation."
+  },
+  "rehearsalRemoveMember": "Remove this player",
+  "@rehearsalRemoveMember": {
+    "description": "Rehearsal lane: removing a stale player from the band."
+  },
+  "rehearsalRemoveMemberConfirm": "Remove {name} from this tune? Their {count} recording(s) go too, on every device.",
+  "@rehearsalRemoveMemberConfirm": {
+    "description": "Rehearsal lane: removing a stale player from the band.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "rehearsalRemoveMemberHere": "For a device that is gone for good. Their parts go too.",
+  "@rehearsalRemoveMemberHere": {
+    "description": "Rehearsal lane: removing a stale player from the band."
+  },
+  "rehearsalDocuments": "Scores",
+  "@rehearsalDocuments": {
+    "description": "The tune's shared score vault."
+  },
+  "rehearsalDocumentsEmpty": "No scores yet",
+  "@rehearsalDocumentsEmpty": {
+    "description": "The tune's shared score vault."
+  },
+  "rehearsalDocumentsEmptyHint": "Add a score, a chart or a photo of one. Everyone in the tune gets a copy.",
+  "@rehearsalDocumentsEmptyHint": {
+    "description": "The tune's shared score vault."
+  },
+  "rehearsalDocumentAdd": "Add a score",
+  "@rehearsalDocumentAdd": {
+    "description": "The tune's shared score vault."
+  },
+  "rehearsalDocumentRemove": "Remove",
+  "@rehearsalDocumentRemove": {
+    "description": "The tune's shared score vault."
+  },
+  "rehearsalDocumentRemoveConfirm": "Remove \"{name}\" from this tune? It goes from every device.",
+  "@rehearsalDocumentRemoveConfirm": {
+    "description": "The tune's shared score vault.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "rehearsalDocumentAddedBy": "Added by {name}",
+  "@rehearsalDocumentAddedBy": {
+    "description": "The tune's shared score vault.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "rehearsalDocumentSize": "{kb} kB",
+  "@rehearsalDocumentSize": {
+    "description": "The tune's shared score vault.",
+    "placeholders": {
+      "kb": {
+        "type": "int"
+      }
+    }
+  },
+  "rehearsalDocumentWaiting": "Waiting for the file",
+  "@rehearsalDocumentWaiting": {
+    "description": "The tune's shared score vault."
+  },
+  "rehearsalDocumentNoViewer": "Nothing on this device can open that file.",
+  "@rehearsalDocumentNoViewer": {
+    "description": "The tune's shared score vault."
+  },
+  "rehearsalChordGrid": "Chords",
+  "@rehearsalChordGrid": {
+    "description": "Chord grid."
+  },
+  "rehearsalChordGridEmpty": "Write the chords",
+  "@rehearsalChordGridEmpty": {
+    "description": "Chord grid."
+  },
+  "rehearsalChordAddBar": "Add a bar",
+  "@rehearsalChordAddBar": {
+    "description": "Chord grid."
+  },
+  "rehearsalChordRemoveBar": "Remove this bar",
+  "@rehearsalChordRemoveBar": {
+    "description": "Chord grid."
+  },
+  "rehearsalChordBar": "Bar {bar}",
+  "@rehearsalChordBar": {
+    "description": "Chord grid.",
+    "placeholders": {
+      "bar": {
+        "type": "int"
+      }
+    }
+  },
+  "rehearsalChordSlots": "Chords per bar",
+  "@rehearsalChordSlots": {
+    "description": "Chord grid."
+  },
+  "rehearsalChordHint": "Am7, C#m7, Gm7b5, C6/9, Am(M7)/B…",
+  "@rehearsalChordHint": {
+    "description": "Chord grid."
+  },
+  "rehearsalChordInvalid": "Not a chord I can read",
+  "@rehearsalChordInvalid": {
+    "description": "Chord grid."
+  },
+  "rehearsalChordExpand": "Show the whole chart",
+  "@rehearsalChordExpand": {
+    "description": "Chord grid."
+  },
+  "rehearsalChordCollapse": "Collapse to one line",
+  "@rehearsalChordCollapse": {
+    "description": "Chord grid."
+  },
+  "rehearsalChordClear": "Clear",
+  "@rehearsalChordClear": {
+    "description": "Chord grid."
+  },
+  "rehearsalChordSave": "Save",
+  "@rehearsalChordSave": {
+    "description": "Chord grid."
+  },
+  "rehearsalChordBarCount": "{count, plural, =1{1 bar} other{{count} bars}}",
+  "@rehearsalChordBarCount": {
+    "description": "Chord grid.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "rehearsalRouteUncalibrated": "{device} has not been measured. A take recorded through it will sit well behind the beat.",
+  "@rehearsalRouteUncalibrated": {
+    "description": "Latency calibration, per output route.",
+    "placeholders": {
+      "device": {
+        "type": "String"
+      }
+    }
+  },
+  "rehearsalRouteBluetoothHint": "Bluetooth adds a long delay of its own, and it differs from one headset to the next.\n\nThe microphone cannot hear your headphones through the air, so hold one earcup against the phone's microphone while the measurement runs. That way it hears the sweeps coming back through the headset and measures the real delay, Bluetooth and all.",
+  "@rehearsalRouteBluetoothHint": {
+    "description": "Latency calibration, per output route."
+  },
+  "masterZoomIn": "Zoom in",
+  "@masterZoomIn": {
+    "description": "Master alignment screen."
+  },
+  "masterZoomOut": "Zoom out",
+  "@masterZoomOut": {
+    "description": "Master alignment screen."
+  },
+  "masterZoomReset": "Whole recording",
+  "@masterZoomReset": {
+    "description": "Master alignment screen."
+  },
+  "masterSkipSilence": "Skip the silence",
+  "@masterSkipSilence": {
+    "description": "Master alignment screen."
+  },
+  "masterBpmFiner": "Slower by 0.1",
+  "@masterBpmFiner": {
+    "description": "Master alignment screen."
+  },
+  "masterBpmFaster": "Faster by 0.1",
+  "@masterBpmFaster": {
+    "description": "Master alignment screen."
+  },
+  "masterZoomLevel": "×{zoom}",
+  "@masterZoomLevel": {
+    "description": "Master alignment screen.",
+    "placeholders": {
+      "zoom": {
+        "type": "int"
+      }
+    }
+  },
+  "masterBeatLinesHint": "The red lines are the beats. Zoom in and adjust the tempo until they land on the sound.",
+  "@masterBeatLinesHint": {
+    "description": "Master alignment screen."
+  },
+  "rehearsalTempoFromMaster": "Set by the recording. Change it where you line the grid up with it — here it would only stretch the recording. Use the practice speed to slow everything down.",
+  "@rehearsalTempoFromMaster": {
+    "description": "Tempo panel, when a recording sets the tempo."
   }
 }

@@ -26,6 +26,20 @@
     <!-- Required for real-time audio input capture -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
+    <!-- Rehearsal sync between band members on the local network.
+
+         INTERNET is not optional here despite the name: it is what Android
+         requires for *any* socket, including one to a phone on the same Wi-Fi.
+         Debug builds get it from Flutter's own debug manifest, which is why
+         syncing appeared to work long before this line existed — a release
+         build would have had no network at all.
+
+         CHANGE_WIFI_MULTICAST_STATE lets mDNS see other devices' announcements
+         on the Wi-Fi networks that need the multicast lock held. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+
     <!-- Required for the Theremin camera-distance mode (front-facing AF camera). -->
     <!-- declared required=false so the app installs on devices without a front cam. -->
     <uses-permission android:name="android.permission.CAMERA" />

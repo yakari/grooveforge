@@ -3889,6 +3889,1218 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Harmony'**
   String get vocoderWaveHarmony;
+
+  /// No description provided for @latencyProbeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Overdub latency'**
+  String get latencyProbeTitle;
+
+  /// No description provided for @latencyProbeSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Measure how late the mic hears what the app plays'**
+  String get latencyProbeSubtitle;
+
+  /// No description provided for @latencyProbeExplain.
+  ///
+  /// In en, this message translates to:
+  /// **'Plays six short sweeps through the speaker and listens for them on the microphone. Use the speaker: a microphone cannot hear headphones, and the measurement will correctly report that it found nothing.'**
+  String get latencyProbeExplain;
+
+  /// No description provided for @latencyProbeStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Measure'**
+  String get latencyProbeStart;
+
+  /// No description provided for @latencyProbeMeasuring.
+  ///
+  /// In en, this message translates to:
+  /// **'Measuring…'**
+  String get latencyProbeMeasuring;
+
+  /// No description provided for @latencyProbeRoundTrip.
+  ///
+  /// In en, this message translates to:
+  /// **'Round trip'**
+  String get latencyProbeRoundTrip;
+
+  /// No description provided for @latencyProbeJitter.
+  ///
+  /// In en, this message translates to:
+  /// **'Jitter'**
+  String get latencyProbeJitter;
+
+  /// No description provided for @latencyProbeConfidence.
+  ///
+  /// In en, this message translates to:
+  /// **'Confidence'**
+  String get latencyProbeConfidence;
+
+  /// No description provided for @latencyProbeShots.
+  ///
+  /// In en, this message translates to:
+  /// **'Usable sweeps'**
+  String get latencyProbeShots;
+
+  /// No description provided for @latencyProbeDrift.
+  ///
+  /// In en, this message translates to:
+  /// **'Clock drift'**
+  String get latencyProbeDrift;
+
+  /// No description provided for @latencyProbeSkew.
+  ///
+  /// In en, this message translates to:
+  /// **'Counter skew'**
+  String get latencyProbeSkew;
+
+  /// No description provided for @latencyProbeDriftOverTake.
+  ///
+  /// In en, this message translates to:
+  /// **'A 4-minute take would slide {ms} ms'**
+  String latencyProbeDriftOverTake(String ms);
+
+  /// No description provided for @latencyProbeShotsValue.
+  ///
+  /// In en, this message translates to:
+  /// **'{found} of {total}'**
+  String latencyProbeShotsValue(int found, int total);
+
+  /// No description provided for @latencyProbeMs.
+  ///
+  /// In en, this message translates to:
+  /// **'{value} ms'**
+  String latencyProbeMs(String value);
+
+  /// No description provided for @latencyProbeFramesSuffix.
+  ///
+  /// In en, this message translates to:
+  /// **'{frames} frames'**
+  String latencyProbeFramesSuffix(int frames);
+
+  /// No description provided for @latencyProbePpm.
+  ///
+  /// In en, this message translates to:
+  /// **'{value} ppm'**
+  String latencyProbePpm(String value);
+
+  /// No description provided for @latencyProbeFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'No usable measurement'**
+  String get latencyProbeFailed;
+
+  /// No description provided for @latencyProbeSilentInput.
+  ///
+  /// In en, this message translates to:
+  /// **'The microphone heard nothing. Check the microphone permission, and play through the speaker rather than headphones.'**
+  String get latencyProbeSilentInput;
+
+  /// No description provided for @latencyProbeNeedsAudio.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio capture is not running. Open a live input or the vocoder first.'**
+  String get latencyProbeNeedsAudio;
+
+  /// No description provided for @latencyProbeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep the room quiet and hold the phone so the speaker faces the mic.'**
+  String get latencyProbeHint;
+
+  /// No description provided for @rackTabLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Rack'**
+  String get rackTabLabel;
+
+  /// No description provided for @rehearsalsTabLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Rehearse'**
+  String get rehearsalsTabLabel;
+
+  /// No description provided for @rehearsalsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Rehearsals'**
+  String get rehearsalsTitle;
+
+  /// No description provided for @rehearsalsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No rehearsals yet'**
+  String get rehearsalsEmpty;
+
+  /// No description provided for @rehearsalsEmptyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Start a tune, set the tempo, and record your part. The rest of the band can join later.'**
+  String get rehearsalsEmptyHint;
+
+  /// No description provided for @rehearsalsNew.
+  ///
+  /// In en, this message translates to:
+  /// **'Start a tune'**
+  String get rehearsalsNew;
+
+  /// No description provided for @rehearsalCreateTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'New rehearsal'**
+  String get rehearsalCreateTitle;
+
+  /// No description provided for @rehearsalFieldTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Tune'**
+  String get rehearsalFieldTitle;
+
+  /// No description provided for @rehearsalFieldTitleHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Autumn Leaves'**
+  String get rehearsalFieldTitleHint;
+
+  /// No description provided for @rehearsalFieldYourName.
+  ///
+  /// In en, this message translates to:
+  /// **'Your name'**
+  String get rehearsalFieldYourName;
+
+  /// No description provided for @rehearsalFieldInstrument.
+  ///
+  /// In en, this message translates to:
+  /// **'Your instrument'**
+  String get rehearsalFieldInstrument;
+
+  /// No description provided for @rehearsalFieldTempo.
+  ///
+  /// In en, this message translates to:
+  /// **'Tempo'**
+  String get rehearsalFieldTempo;
+
+  /// No description provided for @rehearsalFieldTimeSignature.
+  ///
+  /// In en, this message translates to:
+  /// **'Time signature'**
+  String get rehearsalFieldTimeSignature;
+
+  /// No description provided for @rehearsalFieldCountIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Count-in'**
+  String get rehearsalFieldCountIn;
+
+  /// No description provided for @rehearsalCountInBars.
+  ///
+  /// In en, this message translates to:
+  /// **'{bars} bars'**
+  String rehearsalCountInBars(int bars);
+
+  /// No description provided for @rehearsalCountInNone.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get rehearsalCountInNone;
+
+  /// No description provided for @rehearsalCreate.
+  ///
+  /// In en, this message translates to:
+  /// **'Create'**
+  String get rehearsalCreate;
+
+  /// No description provided for @rehearsalCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get rehearsalCancel;
+
+  /// No description provided for @rehearsalPartsProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'{done} of {total} parts recorded'**
+  String rehearsalPartsProgress(int done, int total);
+
+  /// No description provided for @rehearsalBpmValue.
+  ///
+  /// In en, this message translates to:
+  /// **'{bpm} BPM'**
+  String rehearsalBpmValue(String bpm);
+
+  /// No description provided for @rehearsalMeter.
+  ///
+  /// In en, this message translates to:
+  /// **'{num}/{den}'**
+  String rehearsalMeter(int num, int den);
+
+  /// No description provided for @rehearsalDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get rehearsalDelete;
+
+  /// No description provided for @rehearsalDeleteConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete \"{title}\" and every recording in it?'**
+  String rehearsalDeleteConfirm(String title);
+
+  /// No description provided for @rehearsalAddPart.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a part'**
+  String get rehearsalAddPart;
+
+  /// No description provided for @rehearsalNotRecorded.
+  ///
+  /// In en, this message translates to:
+  /// **'Not recorded yet'**
+  String get rehearsalNotRecorded;
+
+  /// No description provided for @rehearsalTakeLength.
+  ///
+  /// In en, this message translates to:
+  /// **'{seconds}s'**
+  String rehearsalTakeLength(String seconds);
+
+  /// No description provided for @rehearsalMetronome.
+  ///
+  /// In en, this message translates to:
+  /// **'Metronome'**
+  String get rehearsalMetronome;
+
+  /// No description provided for @rehearsalPlay.
+  ///
+  /// In en, this message translates to:
+  /// **'Play'**
+  String get rehearsalPlay;
+
+  /// No description provided for @rehearsalStop.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop'**
+  String get rehearsalStop;
+
+  /// No description provided for @rehearsalRecord.
+  ///
+  /// In en, this message translates to:
+  /// **'Record'**
+  String get rehearsalRecord;
+
+  /// No description provided for @rehearsalRerecord.
+  ///
+  /// In en, this message translates to:
+  /// **'Record again'**
+  String get rehearsalRerecord;
+
+  /// No description provided for @rehearsalCountingIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Counting in'**
+  String get rehearsalCountingIn;
+
+  /// No description provided for @rehearsalBarBeat.
+  ///
+  /// In en, this message translates to:
+  /// **'Bar {bar}  ·  beat {beat}'**
+  String rehearsalBarBeat(int bar, int beat);
+
+  /// No description provided for @rehearsalMute.
+  ///
+  /// In en, this message translates to:
+  /// **'Mute'**
+  String get rehearsalMute;
+
+  /// No description provided for @rehearsalGridFrozen.
+  ///
+  /// In en, this message translates to:
+  /// **'Tempo and time signature lock once a part is recorded, because every take is aligned to them.'**
+  String get rehearsalGridFrozen;
+
+  /// Rehearsal screen: latency calibration prompt and its explanation.
+  ///
+  /// In en, this message translates to:
+  /// **'Latency has not been measured on this device, so a new take may sit behind the beat.'**
+  String get rehearsalNoCompensation;
+
+  /// No description provided for @instrumentVocals.
+  ///
+  /// In en, this message translates to:
+  /// **'Vocals'**
+  String get instrumentVocals;
+
+  /// No description provided for @instrumentGuitar.
+  ///
+  /// In en, this message translates to:
+  /// **'Acoustic guitar'**
+  String get instrumentGuitar;
+
+  /// No description provided for @instrumentElectricGuitar.
+  ///
+  /// In en, this message translates to:
+  /// **'Electric guitar'**
+  String get instrumentElectricGuitar;
+
+  /// No description provided for @instrumentBassGuitar.
+  ///
+  /// In en, this message translates to:
+  /// **'Bass'**
+  String get instrumentBassGuitar;
+
+  /// No description provided for @instrumentDrums.
+  ///
+  /// In en, this message translates to:
+  /// **'Drums'**
+  String get instrumentDrums;
+
+  /// No description provided for @instrumentKeyboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Keyboard'**
+  String get instrumentKeyboard;
+
+  /// No description provided for @instrumentSynth.
+  ///
+  /// In en, this message translates to:
+  /// **'Synth'**
+  String get instrumentSynth;
+
+  /// No description provided for @instrumentViolin.
+  ///
+  /// In en, this message translates to:
+  /// **'Violin'**
+  String get instrumentViolin;
+
+  /// No description provided for @instrumentSaxophone.
+  ///
+  /// In en, this message translates to:
+  /// **'Saxophone'**
+  String get instrumentSaxophone;
+
+  /// No description provided for @instrumentTrumpet.
+  ///
+  /// In en, this message translates to:
+  /// **'Trumpet'**
+  String get instrumentTrumpet;
+
+  /// No description provided for @instrumentPercussion.
+  ///
+  /// In en, this message translates to:
+  /// **'Percussion'**
+  String get instrumentPercussion;
+
+  /// No description provided for @instrumentOther.
+  ///
+  /// In en, this message translates to:
+  /// **'Other'**
+  String get instrumentOther;
+
+  /// No description provided for @masterImport.
+  ///
+  /// In en, this message translates to:
+  /// **'Play along to a recording'**
+  String get masterImport;
+
+  /// No description provided for @masterImportHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Import an MP3, FLAC or WAV. Its audio becomes a track everyone plays over.'**
+  String get masterImportHint;
+
+  /// No description provided for @masterImporting.
+  ///
+  /// In en, this message translates to:
+  /// **'Importing…'**
+  String get masterImporting;
+
+  /// No description provided for @masterImportFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'That file could not be read. Try an MP3, FLAC or WAV.'**
+  String get masterImportFailed;
+
+  /// No description provided for @masterTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Recording'**
+  String get masterTitle;
+
+  /// No description provided for @masterRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove the recording'**
+  String get masterRemove;
+
+  /// No description provided for @masterRemoveConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove \"{name}\" from this rehearsal?'**
+  String masterRemoveConfirm(String name);
+
+  /// No description provided for @masterAlign.
+  ///
+  /// In en, this message translates to:
+  /// **'Set the first downbeat'**
+  String get masterAlign;
+
+  /// No description provided for @masterAlignTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Align the grid'**
+  String get masterAlignTitle;
+
+  /// No description provided for @masterAlignHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Play the recording and tap along on the beat to set the tempo, then drag the marker to the first downbeat.'**
+  String get masterAlignHint;
+
+  /// No description provided for @masterTapTempo.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap the beat'**
+  String get masterTapTempo;
+
+  /// No description provided for @masterTapMore.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep tapping…'**
+  String get masterTapMore;
+
+  /// No description provided for @masterDownbeatAt.
+  ///
+  /// In en, this message translates to:
+  /// **'First downbeat at {time}'**
+  String masterDownbeatAt(String time);
+
+  /// No description provided for @masterNudgeBack.
+  ///
+  /// In en, this message translates to:
+  /// **'10 ms earlier'**
+  String get masterNudgeBack;
+
+  /// No description provided for @masterNudgeForward.
+  ///
+  /// In en, this message translates to:
+  /// **'10 ms later'**
+  String get masterNudgeForward;
+
+  /// No description provided for @masterCheck.
+  ///
+  /// In en, this message translates to:
+  /// **'Check two bars'**
+  String get masterCheck;
+
+  /// No description provided for @masterDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get masterDone;
+
+  /// No description provided for @masterVideoAudioOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Video files are imported for their audio only.'**
+  String get masterVideoAudioOnly;
+
+  /// No description provided for @masterMetronomeOff.
+  ///
+  /// In en, this message translates to:
+  /// **'The click is off: the recording is the timing reference now.'**
+  String get masterMetronomeOff;
+
+  /// No description provided for @nearbyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Nearby'**
+  String get nearbyTitle;
+
+  /// No description provided for @nearbyShare.
+  ///
+  /// In en, this message translates to:
+  /// **'Share this rehearsal'**
+  String get nearbyShare;
+
+  /// No description provided for @nearbyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Have the others scan this, or send them the link below.'**
+  String get nearbyHint;
+
+  /// No description provided for @nearbyStop.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop sharing'**
+  String get nearbyStop;
+
+  /// No description provided for @nearbyStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Start sharing'**
+  String get nearbyStart;
+
+  /// No description provided for @nearbyNoNetwork.
+  ///
+  /// In en, this message translates to:
+  /// **'This device is not on a network. Join the same Wi-Fi as the others, or turn on a hotspot.'**
+  String get nearbyNoNetwork;
+
+  /// No description provided for @nearbyWaiting.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for someone to join…'**
+  String get nearbyWaiting;
+
+  /// No description provided for @nearbyPeers.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} connected'**
+  String nearbyPeers(int count);
+
+  /// No description provided for @nearbyJoin.
+  ///
+  /// In en, this message translates to:
+  /// **'Join a rehearsal'**
+  String get nearbyJoin;
+
+  /// No description provided for @nearbyScan.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan the code'**
+  String get nearbyScan;
+
+  /// No description provided for @nearbyConnecting.
+  ///
+  /// In en, this message translates to:
+  /// **'Connecting…'**
+  String get nearbyConnecting;
+
+  /// No description provided for @nearbySyncing.
+  ///
+  /// In en, this message translates to:
+  /// **'Syncing…'**
+  String get nearbySyncing;
+
+  /// No description provided for @nearbySynced.
+  ///
+  /// In en, this message translates to:
+  /// **'Up to date'**
+  String get nearbySynced;
+
+  /// No description provided for @nearbySyncedWith.
+  ///
+  /// In en, this message translates to:
+  /// **'Received {takes} parts'**
+  String nearbySyncedWith(int takes);
+
+  /// No description provided for @nearbyFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not sync: {reason}'**
+  String nearbyFailed(String reason);
+
+  /// No description provided for @nearbyWrongCode.
+  ///
+  /// In en, this message translates to:
+  /// **'That code does not match this rehearsal.'**
+  String get nearbyWrongCode;
+
+  /// No description provided for @nearbyScanUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'This device has no scanner. Type the code from the other device instead.'**
+  String get nearbyScanUnsupported;
+
+  /// No description provided for @nearbyHostAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'{host} · port {port}'**
+  String nearbyHostAddress(String host, int port);
+
+  /// No description provided for @syncStepHandshake.
+  ///
+  /// In en, this message translates to:
+  /// **'Saying hello'**
+  String get syncStepHandshake;
+
+  /// No description provided for @syncStepManifest.
+  ///
+  /// In en, this message translates to:
+  /// **'Comparing'**
+  String get syncStepManifest;
+
+  /// No description provided for @syncStepSending.
+  ///
+  /// In en, this message translates to:
+  /// **'Sending'**
+  String get syncStepSending;
+
+  /// No description provided for @syncStepReceiving.
+  ///
+  /// In en, this message translates to:
+  /// **'Receiving'**
+  String get syncStepReceiving;
+
+  /// No description provided for @syncStepDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get syncStepDone;
+
+  /// No description provided for @nearbyLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Link'**
+  String get nearbyLink;
+
+  /// No description provided for @nearbyCopyLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy the link'**
+  String get nearbyCopyLink;
+
+  /// No description provided for @nearbyCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied'**
+  String get nearbyCopied;
+
+  /// No description provided for @nearbyLinkHint.
+  ///
+  /// In en, this message translates to:
+  /// **'No camera on the other device? Copy this link and send it to them — they paste it into Join.'**
+  String get nearbyLinkHint;
+
+  /// No description provided for @nearbyPasteLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste the link from the other device'**
+  String get nearbyPasteLink;
+
+  /// No description provided for @nearbyPasteFromClipboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste'**
+  String get nearbyPasteFromClipboard;
+
+  /// No description provided for @nearbyLooksLikeCode.
+  ///
+  /// In en, this message translates to:
+  /// **'That is the short code, which is not enough on its own. Copy the whole link from the other device.'**
+  String get nearbyLooksLikeCode;
+
+  /// No description provided for @nearbyNotALink.
+  ///
+  /// In en, this message translates to:
+  /// **'That is not a GrooveForge rehearsal link.'**
+  String get nearbyNotALink;
+
+  /// No description provided for @nearbyScanTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Point the camera at the code'**
+  String get nearbyScanTitle;
+
+  /// No description provided for @nearbyScanHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Hold it steady over the code on the other device.'**
+  String get nearbyScanHint;
+
+  /// No description provided for @nearbyScanPermission.
+  ///
+  /// In en, this message translates to:
+  /// **'GrooveForge needs the camera to read the code. You can type the link instead.'**
+  String get nearbyScanPermission;
+
+  /// No description provided for @nearbyScanOr.
+  ///
+  /// In en, this message translates to:
+  /// **'or'**
+  String get nearbyScanOr;
+
+  /// No description provided for @nearbyScanOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan a code'**
+  String get nearbyScanOpen;
+
+  /// No description provided for @joinIdentityTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Who are you?'**
+  String get joinIdentityTitle;
+
+  /// No description provided for @joinIdentityHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The others will see this name on your part.'**
+  String get joinIdentityHint;
+
+  /// No description provided for @joinIdentityConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Join'**
+  String get joinIdentityConfirm;
+
+  /// No description provided for @rehearsalDeleteTake.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this recording'**
+  String get rehearsalDeleteTake;
+
+  /// No description provided for @rehearsalDeleteTakeConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete your recording of {instrument}? The others will lose it too, next time you sync.'**
+  String rehearsalDeleteTakeConfirm(String instrument);
+
+  /// No description provided for @rehearsalOthersPart.
+  ///
+  /// In en, this message translates to:
+  /// **'{name}\'s part'**
+  String rehearsalOthersPart(String name);
+
+  /// No description provided for @rehearsalYourPart.
+  ///
+  /// In en, this message translates to:
+  /// **'Your part'**
+  String get rehearsalYourPart;
+
+  /// No description provided for @liveConnected.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected — parts appear as they are recorded'**
+  String get liveConnected;
+
+  /// No description provided for @liveRefresh.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync now'**
+  String get liveRefresh;
+
+  /// No description provided for @rehearsalRemovePart.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove this part'**
+  String get rehearsalRemovePart;
+
+  /// No description provided for @rehearsalRemovePartConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove your {instrument} part? It disappears for everyone, along with anything recorded on it.'**
+  String rehearsalRemovePartConfirm(String instrument);
+
+  /// No description provided for @rehearsalPartActions.
+  ///
+  /// In en, this message translates to:
+  /// **'More'**
+  String get rehearsalPartActions;
+
+  /// Tooltip on a part lane saying whether the player who owns it is reachable on the network right now.
+  ///
+  /// In en, this message translates to:
+  /// **'Here now'**
+  String get rehearsalMemberHere;
+
+  /// Tooltip on a part lane saying whether the player who owns it is reachable on the network right now.
+  ///
+  /// In en, this message translates to:
+  /// **'Not connected'**
+  String get rehearsalMemberAway;
+
+  /// Button on the rehearsals tab that opens the join screen, paired with the button that starts a new tune.
+  ///
+  /// In en, this message translates to:
+  /// **'Join a tune'**
+  String get rehearsalsJoin;
+
+  /// User guide, Rehearsals tab.
+  ///
+  /// In en, this message translates to:
+  /// **'Rehearsals'**
+  String get guideTabRehearsals;
+
+  /// User guide, Rehearsals tab.
+  ///
+  /// In en, this message translates to:
+  /// **'Rehearsing together'**
+  String get guideRehearsalIntroTitle;
+
+  /// User guide, Rehearsals tab.
+  ///
+  /// In en, this message translates to:
+  /// **'The Rehearse tab is for a band learning a tune. Everyone records their own part over a shared click, on their own phone, and the parts are collected into one arrangement that every device holds a full copy of.\n\nNothing is uploaded anywhere. The devices talk straight to each other, so a rehearsal works in a room with no internet at all.'**
+  String get guideRehearsalIntroBody;
+
+  /// User guide, Rehearsals tab.
+  ///
+  /// In en, this message translates to:
+  /// **'Starting a tune'**
+  String get guideRehearsalStartTitle;
+
+  /// User guide, Rehearsals tab.
+  ///
+  /// In en, this message translates to:
+  /// **'Start a tune, give it a name, and say what you play. Set the tempo and the time signature, or tap the beat if you would rather feel it than count it.\n\nTo play along to a recording, import it as the master track: MP3, FLAC and WAV everywhere, and on Android also M4A, AAC and the sound of a video. Then drag the marker to the first downbeat so the grid lines up with the music. The click switches itself off once a recording is there, because the recording is the tempo now.'**
+  String get guideRehearsalStartBody;
+
+  /// User guide, Rehearsals tab.
+  ///
+  /// In en, this message translates to:
+  /// **'Recording your part'**
+  String get guideRehearsalRecordTitle;
+
+  /// User guide, Rehearsals tab.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a part for your instrument and press record. A count-in runs first, two bars by default, and recording starts on the downbeat.\n\nEvery device takes a moment to play sound and a moment to capture it, and that delay would push your take late against everything already recorded. The app measures the delay on your own device and shifts your take back by it, so what you played on the beat lands on the beat. Measure it once from Settings, and again if you change headphones or move to a Bluetooth speaker, since the delay belongs to the gear and not to the tune.\n\nYou record your own parts and nobody else\'s. Yours can be re-recorded or deleted as often as you like.'**
+  String get guideRehearsalRecordBody;
+
+  /// User guide, Rehearsals tab.
+  ///
+  /// In en, this message translates to:
+  /// **'Getting the band together'**
+  String get guideRehearsalShareTitle;
+
+  /// User guide, Rehearsals tab.
+  ///
+  /// In en, this message translates to:
+  /// **'The first time, one person shares the tune and the others take it: on a phone, scan the code; on a computer, paste the link. From then on the devices know each other, and simply opening the same tune is enough — they find each other again within a few seconds.\n\nA dot next to each part says whether the player who owns it is connected right now. Whatever you record reaches everyone in the room as soon as you stop, and anything you missed while you were away arrives the next time you are all in the same place.'**
+  String get guideRehearsalShareBody;
+
+  /// User guide, Rehearsals tab.
+  ///
+  /// In en, this message translates to:
+  /// **'When there is no Wi-Fi'**
+  String get guideRehearsalHotspotTitle;
+
+  /// User guide, Rehearsals tab.
+  ///
+  /// In en, this message translates to:
+  /// **'Everyone has to be on the same network. Phones on mobile data cannot see each other, and rehearsal rooms rarely have usable Wi-Fi, so one person makes the network instead:\n\n1. One phone turns on its personal hotspot, in the phone\'s own settings. The exact place varies by make, but it is usually under Connections or Network.\n2. Everyone else joins that hotspot from their normal Wi-Fi settings, the same way they would join any network.\n3. Everyone opens the tune. The devices find each other within a few seconds.\n\nIt does not have to be the same person every time. If whoever usually hosts is not at this rehearsal, anybody else turns theirs on and the rest join that one.\n\nNext time, that person turns the hotspot back on, everyone reconnects, and there is nothing to scan again.'**
+  String get guideRehearsalHotspotBody;
+
+  /// User guide, Rehearsals tab.
+  ///
+  /// In en, this message translates to:
+  /// **'Sharing parts uses no mobile data — it never leaves the room. Some phones insist on switching mobile data on before they will share a hotspot, but the rehearsal itself does not spend any.'**
+  String get guideRehearsalHotspotNote;
+
+  /// Rehearsal screen: warns that a recorded take has not reached every connected device yet.
+  ///
+  /// In en, this message translates to:
+  /// **'Not sent yet'**
+  String get rehearsalTakePending;
+
+  /// Rehearsal screen: warns that a recorded take has not reached every connected device yet.
+  ///
+  /// In en, this message translates to:
+  /// **'Stay connected: not everyone has the latest takes yet.'**
+  String get rehearsalSyncIncomplete;
+
+  /// Rehearsal lane tag: the take is known but its recording has not arrived on this device yet.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for audio'**
+  String get rehearsalTakeAwaitingAudio;
+
+  /// Rehearsal tempo controls.
+  ///
+  /// In en, this message translates to:
+  /// **'Tempo'**
+  String get rehearsalTempoTitle;
+
+  /// Rehearsal tempo controls.
+  ///
+  /// In en, this message translates to:
+  /// **'Tune tempo'**
+  String get rehearsalTuneTempo;
+
+  /// Rehearsal tempo controls.
+  ///
+  /// In en, this message translates to:
+  /// **'Shared with the band. Recordings are re-rendered to match.'**
+  String get rehearsalTuneTempoHint;
+
+  /// Rehearsal tempo controls.
+  ///
+  /// In en, this message translates to:
+  /// **'Practice speed'**
+  String get rehearsalPracticeSpeed;
+
+  /// Rehearsal tempo controls.
+  ///
+  /// In en, this message translates to:
+  /// **'Only on this device. Slow a passage down without changing pitch.'**
+  String get rehearsalPracticeSpeedHint;
+
+  /// Rehearsal tempo controls.
+  ///
+  /// In en, this message translates to:
+  /// **'{percent}%'**
+  String rehearsalPracticeSpeedValue(int percent);
+
+  /// Rehearsal tempo controls.
+  ///
+  /// In en, this message translates to:
+  /// **'Adjusting the recordings…'**
+  String get rehearsalRendering;
+
+  /// Rehearsal tempo controls.
+  ///
+  /// In en, this message translates to:
+  /// **'The metre cannot change once a part is recorded.'**
+  String get rehearsalMeterFrozen;
+
+  /// Rehearsal screen: latency calibration prompt and its explanation.
+  ///
+  /// In en, this message translates to:
+  /// **'Calibrate'**
+  String get rehearsalCalibrate;
+
+  /// Rehearsal screen: latency calibration prompt and its explanation.
+  ///
+  /// In en, this message translates to:
+  /// **'Measure this device'**
+  String get rehearsalCalibrateTitle;
+
+  /// Rehearsal screen: latency calibration prompt and its explanation.
+  ///
+  /// In en, this message translates to:
+  /// **'Your device takes a moment to play sound, and another to capture it. Together that delay would put every take behind the beat, so it is measured once and subtracted from what you record.\n\nThe measurement plays a few short sweeps and listens for them coming back through the microphone — so it has to be able to hear them:\n\n•  Use the speaker, not headphones. On headphones the microphone hears nothing and the measurement fails.\n•  Turn the volume up.\n•  Keep the room quiet for the few seconds it takes.\n\nMeasure again after switching to a Bluetooth speaker or headset: the delay belongs to the gear, not to the tune, and Bluetooth adds a great deal of it.'**
+  String get rehearsalCalibrateBody;
+
+  /// Rehearsal screen: latency calibration prompt and its explanation.
+  ///
+  /// In en, this message translates to:
+  /// **'Measure now'**
+  String get rehearsalCalibrateStart;
+
+  /// Rehearsal lane: removing a stale player from the band.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove this player'**
+  String get rehearsalRemoveMember;
+
+  /// Rehearsal lane: removing a stale player from the band.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove {name} from this tune? Their {count} recording(s) go too, on every device.'**
+  String rehearsalRemoveMemberConfirm(String name, int count);
+
+  /// Rehearsal lane: removing a stale player from the band.
+  ///
+  /// In en, this message translates to:
+  /// **'For a device that is gone for good. Their parts go too.'**
+  String get rehearsalRemoveMemberHere;
+
+  /// The tune's shared score vault.
+  ///
+  /// In en, this message translates to:
+  /// **'Scores'**
+  String get rehearsalDocuments;
+
+  /// The tune's shared score vault.
+  ///
+  /// In en, this message translates to:
+  /// **'No scores yet'**
+  String get rehearsalDocumentsEmpty;
+
+  /// The tune's shared score vault.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a score, a chart or a photo of one. Everyone in the tune gets a copy.'**
+  String get rehearsalDocumentsEmptyHint;
+
+  /// The tune's shared score vault.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a score'**
+  String get rehearsalDocumentAdd;
+
+  /// The tune's shared score vault.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get rehearsalDocumentRemove;
+
+  /// The tune's shared score vault.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove \"{name}\" from this tune? It goes from every device.'**
+  String rehearsalDocumentRemoveConfirm(String name);
+
+  /// The tune's shared score vault.
+  ///
+  /// In en, this message translates to:
+  /// **'Added by {name}'**
+  String rehearsalDocumentAddedBy(String name);
+
+  /// The tune's shared score vault.
+  ///
+  /// In en, this message translates to:
+  /// **'{kb} kB'**
+  String rehearsalDocumentSize(int kb);
+
+  /// The tune's shared score vault.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for the file'**
+  String get rehearsalDocumentWaiting;
+
+  /// The tune's shared score vault.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing on this device can open that file.'**
+  String get rehearsalDocumentNoViewer;
+
+  /// Chord grid.
+  ///
+  /// In en, this message translates to:
+  /// **'Chords'**
+  String get rehearsalChordGrid;
+
+  /// Chord grid.
+  ///
+  /// In en, this message translates to:
+  /// **'Write the chords'**
+  String get rehearsalChordGridEmpty;
+
+  /// Chord grid.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a bar'**
+  String get rehearsalChordAddBar;
+
+  /// Chord grid.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove this bar'**
+  String get rehearsalChordRemoveBar;
+
+  /// Chord grid.
+  ///
+  /// In en, this message translates to:
+  /// **'Bar {bar}'**
+  String rehearsalChordBar(int bar);
+
+  /// Chord grid.
+  ///
+  /// In en, this message translates to:
+  /// **'Chords per bar'**
+  String get rehearsalChordSlots;
+
+  /// Chord grid.
+  ///
+  /// In en, this message translates to:
+  /// **'Am7, C#m7, Gm7b5, C6/9, Am(M7)/B…'**
+  String get rehearsalChordHint;
+
+  /// Chord grid.
+  ///
+  /// In en, this message translates to:
+  /// **'Not a chord I can read'**
+  String get rehearsalChordInvalid;
+
+  /// Chord grid.
+  ///
+  /// In en, this message translates to:
+  /// **'Show the whole chart'**
+  String get rehearsalChordExpand;
+
+  /// Chord grid.
+  ///
+  /// In en, this message translates to:
+  /// **'Collapse to one line'**
+  String get rehearsalChordCollapse;
+
+  /// Chord grid.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get rehearsalChordClear;
+
+  /// Chord grid.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get rehearsalChordSave;
+
+  /// Chord grid.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 bar} other{{count} bars}}'**
+  String rehearsalChordBarCount(int count);
+
+  /// Latency calibration, per output route.
+  ///
+  /// In en, this message translates to:
+  /// **'{device} has not been measured. A take recorded through it will sit well behind the beat.'**
+  String rehearsalRouteUncalibrated(String device);
+
+  /// Latency calibration, per output route.
+  ///
+  /// In en, this message translates to:
+  /// **'Bluetooth adds a long delay of its own, and it differs from one headset to the next.\n\nThe microphone cannot hear your headphones through the air, so hold one earcup against the phone\'s microphone while the measurement runs. That way it hears the sweeps coming back through the headset and measures the real delay, Bluetooth and all.'**
+  String get rehearsalRouteBluetoothHint;
+
+  /// Master alignment screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Zoom in'**
+  String get masterZoomIn;
+
+  /// Master alignment screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Zoom out'**
+  String get masterZoomOut;
+
+  /// Master alignment screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Whole recording'**
+  String get masterZoomReset;
+
+  /// Master alignment screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip the silence'**
+  String get masterSkipSilence;
+
+  /// Master alignment screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Slower by 0.1'**
+  String get masterBpmFiner;
+
+  /// Master alignment screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Faster by 0.1'**
+  String get masterBpmFaster;
+
+  /// Master alignment screen.
+  ///
+  /// In en, this message translates to:
+  /// **'×{zoom}'**
+  String masterZoomLevel(int zoom);
+
+  /// Master alignment screen.
+  ///
+  /// In en, this message translates to:
+  /// **'The red lines are the beats. Zoom in and adjust the tempo until they land on the sound.'**
+  String get masterBeatLinesHint;
+
+  /// Tempo panel, when a recording sets the tempo.
+  ///
+  /// In en, this message translates to:
+  /// **'Set by the recording. Change it where you line the grid up with it — here it would only stretch the recording. Use the practice speed to slow everything down.'**
+  String get rehearsalTempoFromMaster;
 }
 
 class _AppLocalizationsDelegate

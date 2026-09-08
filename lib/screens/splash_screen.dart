@@ -24,7 +24,7 @@ import '../services/project_service.dart';
 import '../services/rack_state.dart';
 import '../services/vst_host_service.dart';
 import '../services/transport_engine.dart';
-import 'rack_screen.dart';
+import 'main_shell.dart';
 import '../l10n/app_localizations.dart';
 
 /// The initial launch screen of the application.
@@ -260,11 +260,11 @@ class _SplashScreenState extends State<SplashScreen> {
     }
 
     if (!mounted) return;
-    debugPrint('SplashScreen: pushing RackScreen');
+    debugPrint('SplashScreen: pushing MainShell');
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) =>
-            const RackScreen(),
+            const MainShell(),
         transitionsBuilder: (context, animation, secondaryAnimation, child) =>
             FadeTransition(opacity: animation, child: child),
         transitionDuration: const Duration(milliseconds: 500),

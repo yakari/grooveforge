@@ -6,7 +6,7 @@ import '../l10n/app_localizations.dart';
 /// A modal dialog containing the comprehensive user guide for GrooveForge.
 ///
 /// The guide is organized into distinct tabs: Features, MIDI Connectivity,
-/// Soundfonts, Musical Tips, and Rack & Cables.
+/// Soundfonts, Musical Tips, Rack & Cables, and Rehearsals.
 class UserGuideModal extends StatefulWidget {
   const UserGuideModal({super.key});
 
@@ -56,7 +56,7 @@ class _UserGuideModalState extends State<UserGuideModal> {
     final l10n = AppLocalizations.of(context)!;
 
     return DefaultTabController(
-      length: 5,
+      length: 6,
       child: Dialog(
         backgroundColor: const Color(0xFF1A1A24),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -137,6 +137,14 @@ class _UserGuideModalState extends State<UserGuideModal> {
                       child: const Icon(Icons.cable_outlined),
                     ),
                   ),
+                  Tab(
+                    icon: Tooltip(
+                      message: l10n.guideTabRehearsals,
+                      // The same icon the tab itself uses in the shell, so the
+                      // guide page and the thing it describes look alike.
+                      child: const Icon(Icons.groups_outlined),
+                    ),
+                  ),
                 ],
                 indicatorColor: Colors.blueAccent,
                 labelColor: Colors.blueAccent,
@@ -153,6 +161,7 @@ class _UserGuideModalState extends State<UserGuideModal> {
                     _SoundfontsTab(),
                     _MusicalTipsTab(),
                     _PatchViewTab(),
+                    _RehearsalsTab(),
                   ],
                 ),
               ),
@@ -207,6 +216,41 @@ class _FeaturesTab extends StatelessWidget {
         const SizedBox(height: 20),
         _buildSectionTitle(l10n.guideMidiFxTitle),
         _buildParagraph(l10n.guideMidiFxBody),
+      ],
+    );
+  }
+}
+
+/// Explains rehearsing as a band: recording a part, and getting the devices
+/// onto one network.
+///
+/// The network section is the reason this tab exists. Everything else in the
+/// feature is discoverable by poking at it, but "why can the others not see
+/// me" has an answer that lives outside the app entirely — somebody has to
+/// turn on a hotspot — and there is nowhere else to say so.
+class _RehearsalsTab extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return ListView(
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 10),
+      children: [
+        _buildSectionTitle(l10n.guideRehearsalIntroTitle),
+        _buildParagraph(l10n.guideRehearsalIntroBody),
+        const SizedBox(height: 20),
+        _buildSectionTitle(l10n.guideRehearsalStartTitle),
+        _buildParagraph(l10n.guideRehearsalStartBody),
+        const SizedBox(height: 20),
+        _buildSectionTitle(l10n.guideRehearsalRecordTitle),
+        _buildParagraph(l10n.guideRehearsalRecordBody),
+        const SizedBox(height: 20),
+        _buildSectionTitle(l10n.guideRehearsalShareTitle),
+        _buildParagraph(l10n.guideRehearsalShareBody),
+        const SizedBox(height: 20),
+        _buildSectionTitle(l10n.guideRehearsalHotspotTitle),
+        _buildParagraph(l10n.guideRehearsalHotspotBody),
+        const SizedBox(height: 10),
+        _buildInfoBox(l10n.guideRehearsalHotspotNote),
       ],
     );
   }

@@ -1,0 +1,539 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:flutter/foundation.dart';
+
+import '../models/rehearsal.dart';
+import 'rehearsal_merge.dart';
+import 'rehearsal_protocol.dart';
+
+/// Everything a sync session needs from the outside world.
+///
+/// An interface rather than a direct dependency on [RehearsalLibrary] so the
+/// session can be driven over a real socket in a test without a filesystem, a
+/// documents directory or a plugin behind it. The protocol is the part most
+/// likely to be subtly wrong, and it should be testable on its own.
+abstract class SyncStore {
+  /// The local document, or null if this device does not know the rehearsal.
+  Future<Rehearsal?> load(String rehearsalId);
+
+  /// Persists a merged document.
+  Future<void> save(Rehearsal rehearsal);
+
+  /// Bytes of a part's current take, or null if it is not here.
+  Future<Uint8List?> readTake(String rehearsalId, String partId);
+
+  /// Stores audio received for a part.
+  Future<void> writeTake(String rehearsalId, String partId, Uint8List bytes);
+
+  /// Whether a part's current take has its audio on this device.
+  ///
+  /// Separate from [readTake] because the answer is needed for every part on
+  /// every sync, and reading megabytes to find out would be absurd.
+  Future<bool> hasTake(String rehearsalId, String partId);
+
+  /// Bytes of the master, or null.
+  Future<Uint8List?> readMaster(String rehearsalId);
+
+  Future<void> writeMaster(String rehearsalId, Uint8List bytes);
+
+  /// Whether the master's decoded audio is on this device.
+  Future<bool> hasMaster(String rehearsalId);
+
+  /// Bytes of a shared document, or null if its file is not here.
+  Future<Uint8List?> readDocument(String rehearsalId, String documentId);
+
+  /// Stores a document received from a peer.
+  Future<void> writeDocument(
+      String rehearsalId, String documentId, Uint8List bytes);
+
+  /// Whether a document's file is on this device.
+  Future<bool> hasDocument(String rehearsalId, String documentId);
+}
+
+/// How a sync ended, for the UI to report.
+class SyncReport {
+  SyncReport({
+    required this.ok,
+    this.error,
+    this.takesReceived = 0,
+    this.takesSent = 0,
+    this.masterReceived = false,
+    this.changed = false,
+    this.peerDeviceId,
+    this.peerHas = const {},
+  });
+
+  final bool ok;
+  final String? error;
+  final int takesReceived;
+  final int takesSent;
+  final bool masterReceived;
+  final bool changed;
+
+  /// Which device answered, from the handshake.
+  final String? peerDeviceId;
+
+  /// Take revision the peer is known to hold, per part id, once this session
+  /// finished.
+  ///
+  /// Only what was actually established: a part the peer asked for and we
+  /// could not send is left out rather than assumed delivered, because that is
+  /// exactly the case the room needs to be warned about.
+  final Map<String, int> peerHas;
+}
+
+/// Runs one sync over an already-connected socket.
+///
+/// Both sides run the *same* exchange, differing only in who speaks first.
+/// That is deliberate: the merge is symmetric (see [mergeRehearsal]), so there
+/// is no reason for one device to be the authority, and making them the same
+/// removes a whole category of "works when A hosts, fails when B does" bugs.
+///
+/// The shape of a session:
+///
+/// 1. handshake — nonces both ways, an HMAC proof from each side
+/// 2. manifests — each sends its whole document, both merge
+/// 3. wants — each asks for the audio the merge told it is missing
+/// 4. blobs — each sends what the other asked for
+/// 5. done
+class SyncSession {
+  SyncSession({
+    required this.socket,
+    required this.store,
+    required this.key,
+    required this.rehearsalId,
+    required this.deviceId,
+    required this.isClient,
+    this.onProgress,
+  }) : _crypto = SyncCrypto(key);
+
+  final Socket socket;
+  final SyncStore store;
+  final Uint8List key;
+  final String rehearsalId;
+  final String deviceId;
+
+  /// The client speaks first. Nothing else differs.
+  final bool isClient;
+
+  /// Reports a human-readable step, for the Nearby screen.
+  final void Function(String step)? onProgress;
+
+  /// Filled in by the handshake: who is on the other end.
+  String? _peerDeviceId;
+
+  final SyncCrypto _crypto;
+  final FrameReader _reader = FrameReader();
+  late final StreamQueue<Frame> _incoming;
+
+  /// How long to wait for any single expected frame.
+  ///
+  /// A peer that stops responding mid-transfer must not leave the UI spinning
+  /// forever; ten seconds is far longer than a LAN needs and short enough that
+  /// a user notices something is wrong rather than waiting.
+  static const Duration _timeout = Duration(seconds: 10);
+
+  Future<SyncReport> run() async {
+    _incoming = StreamQueue<Frame>(_reader.frames);
+    final sub = socket.listen(
+      _reader.add,
+      onError: (Object e) => debugPrint('SyncSession: socket error $e'),
+      onDone: () => _reader.close(),
+    );
+
+    try {
+      await _handshake();
+      final report = await _exchange();
+      return report;
+    } on TimeoutException {
+      return SyncReport(ok: false, error: 'timeout');
+    } catch (e) {
+      debugPrint('SyncSession: $e');
+      return SyncReport(ok: false, error: '$e');
+    } finally {
+      await sub.cancel();
+      await _incoming.cancel(immediate: true);
+      socket.destroy();
+    }
+  }
+
+  // ── Framing helpers ───────────────────────────────────────────────────────
+
+  void _sendPlain(Map<String, dynamic> message) {
+    socket.add(encodeControl(message));
+  }
+
+  /// Sends a control message through the encrypted channel.
+  Future<void> _send(Map<String, dynamic> message) async {
+    final sealed = await _crypto.seal(utf8.encode(jsonEncode(message)));
+    socket.add(encodeFrame(FrameKind.control, sealed));
+  }
+
+  Future<void> _sendBlob(List<int> bytes) async {
+    // Chunked so a large take does not have to be sealed as one buffer, and so
+    // progress can move while it transfers.
+    for (var offset = 0; offset < bytes.length; offset += kBlobChunkBytes) {
+      final end = (offset + kBlobChunkBytes).clamp(0, bytes.length);
+      final sealed = await _crypto.seal(bytes.sublist(offset, end));
+      socket.add(encodeFrame(FrameKind.blob, sealed));
+    }
+  }
+
+  Future<Frame> _nextFrame() async {
+    if (!await _incoming.hasNext.timeout(_timeout)) {
+      throw StateError('peer closed the connection');
+    }
+    return _incoming.next().timeout(_timeout);
+  }
+
+  Future<Map<String, dynamic>> _nextPlain() async {
+    final frame = await _nextFrame();
+    return frame.json;
+  }
+
+  Future<Map<String, dynamic>> _nextMessage() async {
+    final frame = await _nextFrame();
+    final plain = await _crypto.open(frame.bytes);
+    return jsonDecode(utf8.decode(plain)) as Map<String, dynamic>;
+  }
+
+  // ── 1. Handshake ──────────────────────────────────────────────────────────
+
+  Future<void> _handshake() async {
+    onProgress?.call('handshake');
+    final myNonce = SyncCrypto.newNonce();
+
+    if (isClient) {
+      _sendPlain({
+        'type': Msg.hello,
+        'v': kProtocolVersion,
+        'id': rehearsalId,
+        'nonce': base64.encode(myNonce),
+        'device': deviceId,
+      });
+      final challenge = await _nextPlain();
+      if (challenge['type'] != Msg.challenge) {
+        throw StateError('expected a challenge, got ${challenge['type']}');
+      }
+      _peerDeviceId = challenge['device'] as String?;
+      final theirNonce = base64.decode(challenge['nonce'] as String);
+      final expected = _crypto.proof(myNonce, Uint8List.fromList(theirNonce));
+      if (!SyncCrypto.constantTimeEquals(
+          expected, base64.decode(challenge['proof'] as String))) {
+        // The other side does not hold the same key: a different rehearsal, a
+        // stale QR, or someone who should not be here.
+        throw StateError('the other device has a different join code');
+      }
+      _sendPlain({
+        'type': Msg.auth,
+        'proof': base64.encode(expected),
+        'device': deviceId,
+      });
+    } else {
+      final hello = await _nextPlain();
+      if (hello['type'] != Msg.hello) {
+        throw StateError('expected hello, got ${hello['type']}');
+      }
+      if (hello['v'] != kProtocolVersion) {
+        _sendPlain({'type': Msg.error, 'reason': 'version'});
+        throw StateError('protocol version ${hello['v']} is not supported');
+      }
+      if (hello['id'] != rehearsalId) {
+        _sendPlain({'type': Msg.error, 'reason': 'rehearsal'});
+        throw StateError('that device is syncing a different rehearsal');
+      }
+      _peerDeviceId = hello['device'] as String?;
+      final theirNonce =
+          Uint8List.fromList(base64.decode(hello['nonce'] as String));
+      final proof = _crypto.proof(theirNonce, myNonce);
+      _sendPlain({
+        'type': Msg.challenge,
+        'nonce': base64.encode(myNonce),
+        'proof': base64.encode(proof),
+        'device': deviceId,
+      });
+      final auth = await _nextPlain();
+      if (auth['type'] != Msg.auth ||
+          !SyncCrypto.constantTimeEquals(
+              proof, base64.decode(auth['proof'] as String))) {
+        throw StateError('the other device has a different join code');
+      }
+    }
+  }
+
+  // ── 2-5. Manifests, wants, blobs ──────────────────────────────────────────
+
+  Future<SyncReport> _exchange() async {
+    onProgress?.call('manifest');
+
+    final local = await store.load(rehearsalId);
+    if (local == null) throw StateError('rehearsal $rehearsalId is not here');
+
+    // Both sides send before either reads, so neither waits for the other to
+    // go first — the exchange is symmetric and cannot deadlock on politeness.
+    await _send({'type': Msg.manifest, 'doc': local.toJson()});
+    final theirManifest = await _nextMessage();
+    if (theirManifest['type'] != Msg.manifest) {
+      throw StateError('expected a manifest, got ${theirManifest['type']}');
+    }
+
+    final remote =
+        Rehearsal.fromJson(theirManifest['doc'] as Map<String, dynamic>);
+    final outcome = mergeRehearsal(local, remote);
+    if (outcome.changed) await store.save(local);
+
+    // Ask for what the merge says is missing, plus anything whose audio is not
+    // actually on disk, and hear what they want.
+    final wantParts = await _alsoMissingAudio(local, outcome.partsToFetch);
+    final wantMaster = outcome.masterToFetch ||
+        (local.master != null && !await store.hasMaster(rehearsalId));
+    final wantDocs = await _alsoMissingFiles(local, outcome.documentsToFetch);
+    await _send({
+      'type': Msg.want,
+      'parts': wantParts,
+      'master': wantMaster,
+      'docs': wantDocs,
+    });
+    final theirWant = await _nextMessage();
+    if (theirWant['type'] != Msg.want) {
+      throw StateError('expected a want list, got ${theirWant['type']}');
+    }
+
+    final wantedParts =
+        (theirWant['parts'] as List<dynamic>).map((e) => e as String).toList();
+    final wantsMaster = theirWant['master'] as bool? ?? false;
+    final wantedDocs = (theirWant['docs'] as List<dynamic>? ?? [])
+        .map((e) => e as String)
+        .toList();
+
+    // Send first: a peer that has nothing to send still has to drain what is
+    // coming, and both sides doing the same thing in the same order keeps that
+    // simple.
+    final sent = await _sendWanted(wantedParts, wantsMaster, wantedDocs);
+    final received = await _receiveWanted(wantParts.length, wantMaster);
+
+    return SyncReport(
+      ok: true,
+      takesSent: sent.length,
+      takesReceived: received.$1,
+      masterReceived: received.$2,
+      changed: outcome.changed,
+      peerDeviceId: _peerDeviceId,
+      peerHas: _whatTheyNowHold(local, wantedParts, sent),
+    );
+  }
+
+  /// Adds every part whose take has no audio here to what the merge asked for.
+  ///
+  /// The merge decides purely on revision numbers, and the manifest is saved
+  /// as soon as it merges — before a single byte of audio moves. So a session
+  /// that dies mid-transfer, or a peer that hands over a manifest for a take
+  /// whose audio it does not have yet, leaves this device holding the *record*
+  /// of a take without the recording. On every later sync the revisions then
+  /// match, nothing is fetched, and the take is stranded for good: the right
+  /// duration on screen and the wrong audio underneath.
+  ///
+  /// Asking again costs a part id in a list. Not asking costs the take.
+  Future<List<String>> _alsoMissingAudio(
+    Rehearsal local,
+    List<String> fromMerge,
+  ) async {
+    final want = fromMerge.toSet();
+    for (final part in local.parts) {
+      if (part.take == null || want.contains(part.id)) continue;
+      if (!await store.hasTake(rehearsalId, part.id)) want.add(part.id);
+    }
+    return want.toList();
+  }
+
+  /// Adds every document whose file is missing here to what the merge asked
+  /// for.
+  ///
+  /// The same hazard as [_alsoMissingAudio], and for the same reason: the
+  /// manifest is saved as soon as it merges, so a session that dies before the
+  /// bytes arrive leaves a document listed but not present. Documents have no
+  /// revision to compare, so without this nothing would ever ask again.
+  Future<List<String>> _alsoMissingFiles(
+    Rehearsal local,
+    List<String> fromMerge,
+  ) async {
+    final want = fromMerge.toSet();
+    for (final doc in local.documents) {
+      if (want.contains(doc.id)) continue;
+      if (!await store.hasDocument(rehearsalId, doc.id)) want.add(doc.id);
+    }
+    return want.toList();
+  }
+
+  /// Works out which take revisions the peer holds now that this is over.
+  ///
+  /// Both documents were merged from the same pair of manifests, so [local] is
+  /// what *both* sides converged on. A part the peer did not ask for is one
+  /// they already had at this revision or better — their own merge decided
+  /// that. A part they did ask for is theirs only if the audio actually went.
+  Map<String, int> _whatTheyNowHold(
+    Rehearsal local,
+    List<String> wanted,
+    Set<String> sent,
+  ) {
+    final missed = wanted.toSet()..removeAll(sent);
+    return {
+      for (final part in local.parts)
+        if (part.take != null && !missed.contains(part.id))
+          part.id: part.take!.revision,
+    };
+  }
+
+  /// Sends what the peer asked for, and reports which parts actually went.
+  ///
+  /// The distinction matters: a part we advertised but cannot read is skipped
+  /// silently, and treating that as delivered would tell the room everyone is
+  /// up to date when one device is missing a take.
+  Future<Set<String>> _sendWanted(
+      List<String> parts, bool master, List<String> docs) async {
+    final sent = <String>{};
+    for (final partId in parts) {
+      final bytes = await store.readTake(rehearsalId, partId);
+      if (bytes == null) continue;
+      onProgress?.call('sending');
+      await _send({
+        'type': Msg.blob,
+        'kind': 'take',
+        'partId': partId,
+        'length': bytes.length,
+      });
+      await _sendBlob(bytes);
+      sent.add(partId);
+    }
+    for (final docId in docs) {
+      final bytes = await store.readDocument(rehearsalId, docId);
+      if (bytes == null) continue;
+      onProgress?.call('sending');
+      await _send({
+        'type': Msg.blob,
+        'kind': 'doc',
+        'docId': docId,
+        'length': bytes.length,
+      });
+      await _sendBlob(bytes);
+    }
+    if (master) {
+      final bytes = await store.readMaster(rehearsalId);
+      if (bytes != null) {
+        onProgress?.call('sending');
+        await _send({
+          'type': Msg.blob,
+          'kind': 'master',
+          'length': bytes.length,
+        });
+        await _sendBlob(bytes);
+      }
+    }
+    await _send({'type': Msg.done});
+    return sent;
+  }
+
+  /// Reads blobs until the peer says it is done.
+  ///
+  /// The counts we asked for are not trusted as a stopping condition: a peer
+  /// may not have a take it advertised, and waiting for a file that will never
+  /// arrive would hang the session until the timeout.
+  Future<(int, bool)> _receiveWanted(int expectedParts, bool expectMaster) async {
+    var takes = 0;
+    var master = false;
+
+    while (true) {
+      final message = await _nextMessage();
+      if (message['type'] == Msg.done) break;
+      if (message['type'] != Msg.blob) {
+        throw StateError('expected a blob, got ${message['type']}');
+      }
+
+      final length = message['length'] as int;
+      onProgress?.call('receiving');
+      final builder = BytesBuilder(copy: false);
+      while (builder.length < length) {
+        final frame = await _nextFrame();
+        if (frame.kind != FrameKind.blob) {
+          throw StateError('expected blob bytes, got a control frame');
+        }
+        builder.add(await _crypto.open(frame.bytes));
+      }
+      final bytes = builder.takeBytes();
+
+      if (message['kind'] == 'master') {
+        await store.writeMaster(rehearsalId, bytes);
+        master = true;
+      } else if (message['kind'] == 'doc') {
+        await store.writeDocument(
+            rehearsalId, message['docId'] as String, bytes);
+      } else {
+        await store.writeTake(
+            rehearsalId, message['partId'] as String, bytes);
+        takes++;
+      }
+    }
+    return (takes, master);
+  }
+}
+
+/// A tiny pull-based queue over a stream.
+///
+/// `package:async` has `StreamQueue`, but pulling in a package for forty lines
+/// of queue in the one place the app needs it is not a good trade.
+class StreamQueue<T> {
+  StreamQueue(Stream<T> stream) {
+    _sub = stream.listen(
+      (event) {
+        if (_waiting.isNotEmpty) {
+          _waiting.removeAt(0).complete(event);
+        } else {
+          _buffered.add(event);
+        }
+      },
+      onError: (Object e) {
+        if (_waiting.isNotEmpty) _waiting.removeAt(0).completeError(e);
+      },
+      onDone: () {
+        _closed = true;
+        for (final c in _waiting) {
+          c.completeError(StateError('stream closed'));
+        }
+        _waiting.clear();
+      },
+    );
+  }
+
+  late final StreamSubscription<T> _sub;
+  final List<T> _buffered = [];
+  final List<Completer<T>> _waiting = [];
+  bool _closed = false;
+
+  Future<bool> get hasNext async {
+    if (_buffered.isNotEmpty) return true;
+    if (_closed) return false;
+    // Wait for either an event or the close, without consuming the event.
+    final completer = Completer<T>();
+    _waiting.add(completer);
+    try {
+      final event = await completer.future;
+      _buffered.insert(0, event);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<T> next() async {
+    if (_buffered.isNotEmpty) return _buffered.removeAt(0);
+    if (_closed) throw StateError('stream closed');
+    final completer = Completer<T>();
+    _waiting.add(completer);
+    return completer.future;
+  }
+
+  Future<void> cancel({bool immediate = false}) => _sub.cancel();
+}

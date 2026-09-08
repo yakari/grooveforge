@@ -896,5 +896,369 @@
   "vocoderWaveSaw": "Dent de scie",
   "vocoderWaveSquare": "Carrée",
   "vocoderWaveChoral": "Choral",
-  "vocoderWaveHarmony": "Harmonie"
+  "vocoderWaveHarmony": "Harmonie",
+  "latencyProbeTitle": "Latence d'overdub",
+  "latencyProbeSubtitle": "Mesure le retard entre ce que l'app joue et ce que le micro entend",
+  "latencyProbeExplain": "Joue six brefs balayages dans le haut-parleur et les cherche sur le micro. Utilisez le haut-parleur : un micro n'entend pas un casque, et la mesure signalera à juste titre n'avoir rien trouvé.",
+  "latencyProbeStart": "Mesurer",
+  "latencyProbeMeasuring": "Mesure en cours…",
+  "latencyProbeRoundTrip": "Aller-retour",
+  "latencyProbeJitter": "Gigue",
+  "latencyProbeConfidence": "Confiance",
+  "latencyProbeShots": "Balayages exploitables",
+  "latencyProbeDrift": "Dérive d'horloge",
+  "latencyProbeSkew": "Écart de compteurs",
+  "latencyProbeDriftOverTake": "Une prise de 4 minutes dériverait de {ms} ms",
+  "@latencyProbeDriftOverTake": {
+    "placeholders": {
+      "ms": {
+        "type": "String"
+      }
+    }
+  },
+  "latencyProbeShotsValue": "{found} sur {total}",
+  "@latencyProbeShotsValue": {
+    "placeholders": {
+      "found": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "latencyProbeMs": "{value} ms",
+  "@latencyProbeMs": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "latencyProbeFramesSuffix": "{frames} échantillons",
+  "@latencyProbeFramesSuffix": {
+    "placeholders": {
+      "frames": {
+        "type": "int"
+      }
+    }
+  },
+  "latencyProbePpm": "{value} ppm",
+  "@latencyProbePpm": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "latencyProbeFailed": "Aucune mesure exploitable",
+  "latencyProbeSilentInput": "Le micro n'a rien entendu. Vérifiez l'autorisation du micro, et jouez sur le haut-parleur plutôt qu'au casque.",
+  "latencyProbeNeedsAudio": "La capture audio n'est pas active. Ouvrez d'abord une entrée live ou le vocodeur.",
+  "latencyProbeHint": "Gardez la pièce silencieuse et orientez le haut-parleur vers le micro.",
+  "rackTabLabel": "Rack",
+  "rehearsalsTabLabel": "Répéter",
+  "rehearsalsTitle": "Répétitions",
+  "rehearsalsEmpty": "Aucune répétition",
+  "rehearsalsEmptyHint": "Lancez un morceau, réglez le tempo et enregistrez votre partie. Le reste du groupe pourra rejoindre plus tard.",
+  "rehearsalsNew": "Lancer un morceau",
+  "rehearsalCreateTitle": "Nouvelle répétition",
+  "rehearsalFieldTitle": "Morceau",
+  "rehearsalFieldTitleHint": "Les Feuilles mortes",
+  "rehearsalFieldYourName": "Votre nom",
+  "rehearsalFieldInstrument": "Votre instrument",
+  "rehearsalFieldTempo": "Tempo",
+  "rehearsalFieldTimeSignature": "Métrique",
+  "rehearsalFieldCountIn": "Décompte",
+  "rehearsalCountInBars": "{bars} mesures",
+  "@rehearsalCountInBars": {
+    "placeholders": {
+      "bars": {
+        "type": "int"
+      }
+    }
+  },
+  "rehearsalCountInNone": "Aucun",
+  "rehearsalCreate": "Créer",
+  "rehearsalCancel": "Annuler",
+  "rehearsalPartsProgress": "{done} parties sur {total} enregistrées",
+  "@rehearsalPartsProgress": {
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "rehearsalBpmValue": "{bpm} BPM",
+  "@rehearsalBpmValue": {
+    "placeholders": {
+      "bpm": {
+        "type": "String"
+      }
+    }
+  },
+  "rehearsalMeter": "{num}/{den}",
+  "@rehearsalMeter": {
+    "placeholders": {
+      "num": {
+        "type": "int"
+      },
+      "den": {
+        "type": "int"
+      }
+    }
+  },
+  "rehearsalDelete": "Supprimer",
+  "rehearsalDeleteConfirm": "Supprimer « {title} » et tous ses enregistrements ?",
+  "@rehearsalDeleteConfirm": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "rehearsalAddPart": "Ajouter une partie",
+  "rehearsalNotRecorded": "Pas encore enregistrée",
+  "rehearsalTakeLength": "{seconds} s",
+  "@rehearsalTakeLength": {
+    "placeholders": {
+      "seconds": {
+        "type": "String"
+      }
+    }
+  },
+  "rehearsalMetronome": "Métronome",
+  "rehearsalPlay": "Lecture",
+  "rehearsalStop": "Stop",
+  "rehearsalRecord": "Enregistrer",
+  "rehearsalRerecord": "Réenregistrer",
+  "rehearsalCountingIn": "Décompte",
+  "rehearsalBarBeat": "Mesure {bar}  ·  temps {beat}",
+  "@rehearsalBarBeat": {
+    "placeholders": {
+      "bar": {
+        "type": "int"
+      },
+      "beat": {
+        "type": "int"
+      }
+    }
+  },
+  "rehearsalMute": "Muet",
+  "rehearsalGridFrozen": "Le tempo et la métrique se verrouillent dès qu'une partie est enregistrée : toutes les prises y sont calées.",
+  "rehearsalNoCompensation": "La latence n'a pas été mesurée sur cet appareil : une nouvelle prise risque de se retrouver derrière le temps.",
+  "instrumentVocals": "Chant",
+  "instrumentGuitar": "Guitare acoustique",
+  "instrumentElectricGuitar": "Guitare électrique",
+  "instrumentBassGuitar": "Basse",
+  "instrumentDrums": "Batterie",
+  "instrumentKeyboard": "Clavier",
+  "instrumentSynth": "Synthé",
+  "instrumentViolin": "Violon",
+  "instrumentSaxophone": "Saxophone",
+  "instrumentTrumpet": "Trompette",
+  "instrumentPercussion": "Percussions",
+  "instrumentOther": "Autre",
+  "masterImport": "Jouer sur un enregistrement",
+  "masterImportHint": "Importez un MP3, un FLAC ou un WAV. Son audio devient une piste sur laquelle tout le monde joue.",
+  "masterImporting": "Importation…",
+  "masterImportFailed": "Ce fichier n'a pas pu être lu. Essayez un MP3, un FLAC ou un WAV.",
+  "masterTitle": "Enregistrement",
+  "masterRemove": "Retirer l'enregistrement",
+  "masterRemoveConfirm": "Retirer « {name} » de cette répétition ?",
+  "@masterRemoveConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "masterAlign": "Placer le premier temps fort",
+  "masterAlignTitle": "Caler la grille",
+  "masterAlignHint": "Lancez l'enregistrement et tapez en rythme pour régler le tempo, puis faites glisser le repère sur le premier temps fort.",
+  "masterTapTempo": "Tapez le tempo",
+  "masterTapMore": "Continuez à taper…",
+  "masterDownbeatAt": "Premier temps fort à {time}",
+  "@masterDownbeatAt": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "masterNudgeBack": "10 ms plus tôt",
+  "masterNudgeForward": "10 ms plus tard",
+  "masterCheck": "Écouter deux mesures",
+  "masterDone": "Terminé",
+  "masterVideoAudioOnly": "Les vidéos sont importées pour leur audio uniquement.",
+  "masterMetronomeOff": "Le clic est coupé : c'est l'enregistrement qui donne le tempo.",
+  "nearbyTitle": "À proximité",
+  "nearbyShare": "Partager cette répétition",
+  "nearbyHint": "Faites scanner ce code aux autres, ou envoyez-leur le lien ci-dessous.",
+  "nearbyStop": "Arrêter le partage",
+  "nearbyStart": "Partager",
+  "nearbyNoNetwork": "Cet appareil n'est sur aucun réseau. Rejoignez le même Wi-Fi que les autres, ou activez un partage de connexion.",
+  "nearbyWaiting": "En attente de quelqu'un…",
+  "nearbyPeers": "{count} connectés",
+  "@nearbyPeers": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "nearbyJoin": "Rejoindre une répétition",
+  "nearbyScan": "Scanner le code",
+  "nearbyConnecting": "Connexion…",
+  "nearbySyncing": "Synchronisation…",
+  "nearbySynced": "À jour",
+  "nearbySyncedWith": "{takes} parties reçues",
+  "@nearbySyncedWith": {
+    "placeholders": {
+      "takes": {
+        "type": "int"
+      }
+    }
+  },
+  "nearbyFailed": "Synchronisation impossible : {reason}",
+  "@nearbyFailed": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "nearbyWrongCode": "Ce code ne correspond pas à cette répétition.",
+  "nearbyScanUnsupported": "Cet appareil n'a pas de scanner. Saisissez le code affiché sur l'autre appareil.",
+  "nearbyHostAddress": "{host} · port {port}",
+  "@nearbyHostAddress": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      },
+      "port": {
+        "type": "int"
+      }
+    }
+  },
+  "syncStepHandshake": "Prise de contact",
+  "syncStepManifest": "Comparaison",
+  "syncStepSending": "Envoi",
+  "syncStepReceiving": "Réception",
+  "syncStepDone": "Terminé",
+  "nearbyLink": "Lien",
+  "nearbyCopyLink": "Copier le lien",
+  "nearbyCopied": "Copié",
+  "nearbyLinkHint": "Pas de caméra sur l'autre appareil ? Copiez ce lien et envoyez-le-lui — il le colle dans Rejoindre.",
+  "nearbyPasteLink": "Collez le lien de l'autre appareil",
+  "nearbyPasteFromClipboard": "Coller",
+  "nearbyLooksLikeCode": "C'est le code court, qui ne suffit pas à lui seul. Copiez le lien complet depuis l'autre appareil.",
+  "nearbyNotALink": "Ce n'est pas un lien de répétition GrooveForge.",
+  "nearbyScanTitle": "Visez le code avec la caméra",
+  "nearbyScanHint": "Maintenez-la bien en face du code affiché sur l'autre appareil.",
+  "nearbyScanPermission": "GrooveForge a besoin de la caméra pour lire le code. Vous pouvez aussi coller le lien.",
+  "nearbyScanOr": "ou",
+  "nearbyScanOpen": "Scanner un code",
+  "joinIdentityTitle": "Qui êtes-vous ?",
+  "joinIdentityHint": "Les autres verront ce nom sur votre partie.",
+  "joinIdentityConfirm": "Rejoindre",
+  "rehearsalDeleteTake": "Supprimer cet enregistrement",
+  "rehearsalDeleteTakeConfirm": "Supprimer votre enregistrement de {instrument} ? Les autres le perdront aussi à la prochaine synchronisation.",
+  "@rehearsalDeleteTakeConfirm": {
+    "placeholders": {
+      "instrument": {
+        "type": "String"
+      }
+    }
+  },
+  "rehearsalOthersPart": "Partie de {name}",
+  "@rehearsalOthersPart": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "rehearsalYourPart": "Votre partie",
+  "liveConnected": "Connecté — les parties arrivent au fur et à mesure",
+  "liveRefresh": "Synchroniser maintenant",
+  "rehearsalRemovePart": "Supprimer cette partie",
+  "rehearsalRemovePartConfirm": "Supprimer votre partie de {instrument} ? Elle disparaît pour tout le monde, avec ce qui y a été enregistré.",
+  "@rehearsalRemovePartConfirm": {
+    "placeholders": {
+      "instrument": {
+        "type": "String"
+      }
+    }
+  },
+  "rehearsalPartActions": "Plus",
+  "rehearsalMemberHere": "Présent",
+  "rehearsalMemberAway": "Non connecté",
+  "rehearsalsJoin": "Rejoindre un morceau",
+  "guideTabRehearsals": "Répétitions",
+  "guideRehearsalIntroTitle": "Répéter ensemble",
+  "guideRehearsalIntroBody": "L'onglet Répétitions sert à un groupe qui travaille un morceau. Chacun enregistre sa propre partie sur un clic commun, depuis son téléphone, et les parties se rassemblent en un seul arrangement dont chaque appareil garde une copie complète.\n\nRien n'est envoyé nulle part. Les appareils se parlent directement : une répétition fonctionne dans une salle sans le moindre accès à internet.",
+  "guideRehearsalStartTitle": "Lancer un morceau",
+  "guideRehearsalStartBody": "Lancez un morceau, donnez-lui un nom et indiquez ce que vous jouez. Réglez le tempo et la mesure, ou tapez la pulsation si vous préférez la sentir plutôt que la compter.\n\nPour jouer sur un enregistrement, importez-le comme piste maîtresse : MP3, FLAC et WAV partout, et sur Android aussi M4A, AAC et le son d'une vidéo. Faites ensuite glisser le repère sur le premier temps fort pour aligner la grille sur la musique. Le clic se coupe tout seul dès qu'un enregistrement est là : c'est lui qui donne le tempo, désormais.",
+  "guideRehearsalRecordTitle": "Enregistrer sa partie",
+  "guideRehearsalRecordBody": "Ajoutez une partie pour votre instrument et appuyez sur enregistrer. Un décompte passe d'abord, deux mesures par défaut, et l'enregistrement démarre sur le temps fort.\n\nChaque appareil met un instant à sortir le son et un instant à le capter, et ce retard décalerait votre prise derrière tout ce qui est déjà enregistré. L'application mesure ce retard sur votre propre appareil et recale votre prise d'autant : ce que vous avez joué sur le temps tombe sur le temps. Mesurez-le une fois depuis les Paramètres, puis à nouveau si vous changez de casque ou passez sur une enceinte Bluetooth — le retard appartient au matériel, pas au morceau.\n\nVous enregistrez vos parties et celles de personne d'autre. Les vôtres, vous pouvez les refaire ou les supprimer autant de fois que vous voulez.",
+  "guideRehearsalShareTitle": "Réunir le groupe",
+  "guideRehearsalShareBody": "La première fois, une personne partage le morceau et les autres le récupèrent : sur téléphone, scannez le code ; sur ordinateur, collez le lien. Ensuite les appareils se connaissent, et il suffit d'ouvrir le même morceau — ils se retrouvent en quelques secondes.\n\nUne pastille à côté de chaque partie indique si le musicien à qui elle appartient est connecté. Ce que vous enregistrez part vers tout le monde dès que vous arrêtez, et ce que vous avez manqué pendant votre absence arrive la prochaine fois que vous êtes tous au même endroit.",
+  "guideRehearsalHotspotTitle": "Quand il n'y a pas de Wi-Fi",
+  "guideRehearsalHotspotBody": "Tout le monde doit être sur le même réseau. Des téléphones en données mobiles ne peuvent pas se voir, et les salles de répétition ont rarement un Wi-Fi utilisable : c'est donc une personne qui fabrique le réseau.\n\n1. Un téléphone active son point d'accès mobile, dans ses propres réglages. L'endroit exact change selon la marque, mais c'est en général sous Connexions ou Réseau.\n2. Tous les autres rejoignent ce point d'accès depuis leurs réglages Wi-Fi habituels, comme n'importe quel réseau.\n3. Chacun ouvre le morceau. Les appareils se trouvent en quelques secondes.\n\nCe n'est pas forcément toujours la même personne. Si celle qui s'en charge d'habitude n'est pas là, n'importe qui d'autre active le sien et le reste du groupe s'y connecte.\n\nLa fois suivante, cette personne rallume son point d'accès, tout le monde se reconnecte, et il n'y a plus rien à scanner.",
+  "guideRehearsalHotspotNote": "Le partage des parties ne consomme aucune donnée mobile : il ne sort jamais de la salle. Certains téléphones exigent d'activer les données mobiles avant de partager un point d'accès, mais la répétition, elle, n'en dépense pas.",
+  "rehearsalTakePending": "Pas encore transmise",
+  "rehearsalSyncIncomplete": "Restez connectés : tout le monde n'a pas encore les dernières prises.",
+  "rehearsalTakeAwaitingAudio": "En attente de l'audio",
+  "rehearsalTempoTitle": "Tempo",
+  "rehearsalTuneTempo": "Tempo du morceau",
+  "rehearsalTuneTempoHint": "Partagé avec le groupe. Les enregistrements sont recalculés en conséquence.",
+  "rehearsalPracticeSpeed": "Vitesse de travail",
+  "rehearsalPracticeSpeedHint": "Sur cet appareil uniquement. Ralentissez un passage sans changer la hauteur.",
+  "rehearsalPracticeSpeedValue": "{percent} %",
+  "rehearsalRendering": "Ajustement des enregistrements…",
+  "rehearsalMeterFrozen": "La mesure ne peut plus changer une fois qu'une partie est enregistrée.",
+  "rehearsalCalibrate": "Calibrer",
+  "rehearsalCalibrateTitle": "Mesurer cet appareil",
+  "rehearsalCalibrateBody": "Votre appareil met un instant à sortir le son, et un autre à le capter. Ce retard mettrait chaque prise derrière le temps : on le mesure une fois, puis on le retranche de ce que vous enregistrez.\n\nLa mesure joue quelques brefs balayages et les guette au retour dans le micro — encore faut-il qu'elle puisse les entendre :\n\n•  Utilisez le haut-parleur, pas un casque. Au casque, le micro n'entend rien et la mesure échoue.\n•  Montez le volume.\n•  Gardez le silence pendant les quelques secondes nécessaires.\n\nRefaites la mesure après être passé sur une enceinte ou un casque Bluetooth : le retard appartient au matériel, pas au morceau, et le Bluetooth en ajoute beaucoup.",
+  "rehearsalCalibrateStart": "Mesurer maintenant",
+  "rehearsalRemoveMember": "Retirer ce musicien",
+  "rehearsalRemoveMemberConfirm": "Retirer {name} de ce morceau ? Ses {count} enregistrement(s) partent aussi, sur tous les appareils.",
+  "rehearsalRemoveMemberHere": "Pour un appareil définitivement parti. Ses parties partent aussi.",
+  "rehearsalDocuments": "Partitions",
+  "rehearsalDocumentsEmpty": "Aucune partition",
+  "rehearsalDocumentsEmptyHint": "Ajoutez une partition, une grille ou une photo. Tout le monde en reçoit une copie.",
+  "rehearsalDocumentAdd": "Ajouter une partition",
+  "rehearsalDocumentRemove": "Retirer",
+  "rehearsalDocumentRemoveConfirm": "Retirer « {name} » de ce morceau ? Elle disparaît de tous les appareils.",
+  "rehearsalDocumentAddedBy": "Ajouté par {name}",
+  "rehearsalDocumentSize": "{kb} ko",
+  "rehearsalDocumentWaiting": "En attente du fichier",
+  "rehearsalDocumentNoViewer": "Aucune application de cet appareil ne peut ouvrir ce fichier.",
+  "rehearsalChordGrid": "Accords",
+  "rehearsalChordGridEmpty": "Écrire les accords",
+  "rehearsalChordAddBar": "Ajouter une mesure",
+  "rehearsalChordRemoveBar": "Supprimer cette mesure",
+  "rehearsalChordBar": "Mesure {bar}",
+  "rehearsalChordSlots": "Accords par mesure",
+  "rehearsalChordHint": "Am7, C#m7, Gm7b5, C6/9, Am(M7)/B…",
+  "rehearsalChordInvalid": "Accord illisible",
+  "rehearsalChordExpand": "Afficher toute la grille",
+  "rehearsalChordCollapse": "Réduire à une ligne",
+  "rehearsalChordClear": "Effacer",
+  "rehearsalChordSave": "Enregistrer",
+  "rehearsalChordBarCount": "{count, plural, =1{1 mesure} other{{count} mesures}}",
+  "rehearsalRouteUncalibrated": "{device} n'a pas été mesuré. Une prise enregistrée dessus se retrouvera nettement derrière le temps.",
+  "rehearsalRouteBluetoothHint": "Le Bluetooth ajoute un retard important, qui varie d'un casque à l'autre.\n\nLe micro ne peut pas entendre votre casque à travers l'air : pendant la mesure, plaquez un écouteur contre le micro du téléphone. Il entendra ainsi les balayages revenir par le casque et mesurera le vrai retard, Bluetooth compris.",
+  "masterZoomIn": "Zoom avant",
+  "masterZoomOut": "Zoom arrière",
+  "masterZoomReset": "Tout l'enregistrement",
+  "masterSkipSilence": "Passer le silence",
+  "masterBpmFiner": "Ralentir de 0,1",
+  "masterBpmFaster": "Accélérer de 0,1",
+  "masterZoomLevel": "×{zoom}",
+  "masterBeatLinesHint": "Les traits rouges sont les temps. Zoomez et ajustez le tempo jusqu'à ce qu'ils tombent sur le son.",
+  "rehearsalTempoFromMaster": "Donné par l'enregistrement. Il se règle là où l'on cale la grille dessus — ici, cela ne ferait qu'étirer l'enregistrement. Utilisez la vitesse de travail pour tout ralentir."
 }

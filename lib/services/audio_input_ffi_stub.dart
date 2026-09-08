@@ -290,4 +290,53 @@ class AudioInputFFI {
   void gfNativeNoteOff(int sfId, int channel, int key) {}
   void gfNativeCc(int sfId, int channel, int controller, int value) {}
   void gfNativePitchBend(int sfId, int channel, int value) {}
+
+  // Overdub latency probe — no native library on web, so nothing to measure.
+  int probeBusRenderFnAddr() => 0;
+  int probeStart() => -1;
+  int probePoll() => 0;
+  void probeCancel() {}
+  double get probeRoundTripMs => 0.0;
+  int get probeRoundTripFrames => 0;
+  double get probeJitterMs => 0.0;
+  double get probeConfidence => 0.0;
+  int get probeShotsFound => 0;
+  double get probeDriftPpm => 0.0;
+  double get probeSkewMs => 0.0;
+  double get probeInputPeak => 0.0;
+
+  // Rehearsal engine — no native library on web.
+  int rehActivate() => -1;
+  void rehDeactivate() {}
+  int rehBusRenderFnAddr() => 0;
+  void rehSetGrid(double bpm, int beatsPerBar, int beatUnit) {}
+  int get rehFramesPerBeat => 0;
+  int get rehFramesPerBar => 0;
+  int rehAddTrack(String wavPath) => -1;
+
+  int stretchFile(String inPath, String outPath, double ratio) => -1;
+
+  void rehSetFormEnd(int frames) {}
+
+  int get rehTakeOffset => 0;
+  void rehRemoveTrack(int idx) {}
+  void rehClearTracks() {}
+  void rehSetTrackGain(int idx, double gain) {}
+  void rehSetTrackMute(int idx, bool muted) {}
+  int rehTrackFrames(int idx) => 0;
+  double rehTrackPeak(int idx) => 0.0;
+  void rehSetMetronome({required bool enabled, required double gain}) {}
+  int rehPlay(int startFrame) => -1;
+  int rehRecord(String wavPath, int compensationFrames, int countInBars) => -1;
+  void rehStop() {}
+  int get rehPosition => 0;
+  int get rehState => 0;
+  double get rehInputPeak => 0.0;
+  int get rehRecordedFrames => 0;
+
+  // Master track import — no native library on web.
+  void rehSetTrackOffset(int idx, int frames) {}
+  bool mediaCanDecode(String path) => false;
+  int mediaToMonoWav(String src, String dst, {int sampleRate = 48000}) => -1;
+  List<double> mediaWaveform(String wavPath, int bins) => const [];
 }

@@ -19,6 +19,11 @@ import 'services/patch_drag_controller.dart';
 import 'services/project_service.dart';
 import 'services/rack_state.dart';
 import 'services/transport_engine.dart';
+import 'services/rehearsal_engine.dart';
+import 'services/audio_route_service.dart';
+import 'services/rehearsal_library.dart';
+import 'services/rehearsal_discovery.dart';
+import 'services/rehearsal_sync_service.dart';
 import 'services/vst_host_service.dart';
 import 'screens/splash_screen.dart';
 import 'l10n/app_localizations.dart';
@@ -202,6 +207,40 @@ void main() async {
               previous ?? RackState(engine, transport, graph),
         ),
         ChangeNotifierProvider<ProjectService>(create: (_) => ProjectService()),
+        // The rehearsal library reads its own folder under the documents
+        // directory and never touches ProjectService or the .gf format.
+        ChangeNotifierProvider<RehearsalLibrary>(
+          create: (_) => RehearsalLibrary(),
+        ),
+        // Overdub compensation belongs to the route, not the device: the
+        // phone's speaker, a wired headset and a Bluetooth headset are three
+        // very different delays. Started eagerly so the answer is already
+        // there when a rehearsal opens.
+        ChangeNotifierProvider<AudioRouteService>(
+          create: (_) => AudioRouteService()..start(),
+          lazy: false,
+        ),
+        // The engine follows the output route itself, so compensation is
+        // right whatever is on screen when somebody presses record.
+        ChangeNotifierProxyProvider2<RehearsalLibrary, AudioRouteService,
+            RehearsalEngine>(
+          create: (ctx) => RehearsalEngine(ctx.read<RehearsalLibrary>())
+            ..followRoutes(ctx.read<AudioRouteService>()),
+          update: (ctx, library, routes, RehearsalEngine? previous) =>
+              (previous ?? RehearsalEngine(library))..followRoutes(routes),
+        ),
+        ChangeNotifierProvider<RehearsalDiscovery>(
+          create: (_) => RehearsalDiscovery(),
+        ),
+        ChangeNotifierProxyProvider2<RehearsalLibrary, RehearsalDiscovery,
+            RehearsalSyncService>(
+          create: (ctx) => RehearsalSyncService(
+            ctx.read<RehearsalLibrary>(),
+            ctx.read<RehearsalDiscovery>(),
+          ),
+          update: (ctx, library, discovery, previous) =>
+              previous ?? RehearsalSyncService(library, discovery),
+        ),
         Provider<VstHostService>(
           create: (_) => VstHostService.instance,
           dispose: (_, svc) => svc.dispose(),

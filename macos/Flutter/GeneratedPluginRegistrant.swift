@@ -6,7 +6,9 @@ import FlutterMacOS
 import Foundation
 
 import audio_session
+import bonsoir_darwin
 import file_picker
+import file_selector_macos
 import flutter_midi_command
 import flutter_midi_pro
 import package_info_plus
@@ -15,7 +17,9 @@ import universal_ble
 
 func RegisterGeneratedPlugins(registry: FlutterPluginRegistry) {
   AudioSessionPlugin.register(with: registry.registrar(forPlugin: "AudioSessionPlugin"))
+  SwiftBonsoirPlugin.register(with: registry.registrar(forPlugin: "SwiftBonsoirPlugin"))
   FilePickerPlugin.register(with: registry.registrar(forPlugin: "FilePickerPlugin"))
+  FileSelectorPlugin.register(with: registry.registrar(forPlugin: "FileSelectorPlugin"))
   SwiftFlutterMidiCommandPlugin.register(with: registry.registrar(forPlugin: "SwiftFlutterMidiCommandPlugin"))
   FlutterMidiProPlugin.register(with: registry.registrar(forPlugin: "FlutterMidiProPlugin"))
   FPPPackageInfoPlusPlugin.register(with: registry.registrar(forPlugin: "FPPPackageInfoPlusPlugin"))

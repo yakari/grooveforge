@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 2.18.0+69
+version: 3.0.0+70
 environment:
   sdk: ^3.7.0
 
@@ -44,6 +44,9 @@ dependencies:
     path: packages/grooveforge_plugin_ui
   provider: ^6.1.5+1
   file_picker: ^10.3.10
+  # Hands a score to whatever the device already uses for that kind of file.
+  # MIT, plain platform channels, no bundled blobs.
+  open_filex: ^4.7.0
   path_provider: ^2.1.5
   shared_preferences: ^2.5.4
   path: ^1.9.1
@@ -54,6 +57,20 @@ dependencies:
     sdk: flutter
   intl: ^0.20.2
   permission_handler: ^12.0.1
+  # Sync between band members: HMAC for the handshake, AES-GCM for the channel.
+  # Both pure Dart, so nothing new is bundled and F-Droid has nothing to build.
+  crypto: ^3.0.6
+  cryptography: ^2.7.0
+  # QR for pairing. ZXing-C++ over FFI, MIT — no Google ML Kit, which is a
+  # proprietary blob F-Droid will not accept.
+  flutter_zxing: ^3.0.1
+  # QR *rendering* for the host side. Pure Dart, so it works on every platform
+  # including the desktop builds, where flutter_zxing's scanner does not.
+  qr_flutter: ^4.1.0
+  # mDNS/Bonjour, so a band that has met once can find each other again with
+  # no code to scan. MIT, and the only option covering Linux as well as the
+  # phones — `nsd` has no Linux implementation.
+  bonsoir: ^7.1.4
   audio_session: ^0.2.2
   ffi: ^2.2.0
 

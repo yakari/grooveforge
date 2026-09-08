@@ -4,7 +4,17 @@
 	<dict>
 		<key>CADisableMinimumFrameDurationOnPhone</key>
 		<true/>
-		<key>CFBundleDevelopmentRegion</key>
+		<!-- Rehearsal sync. iOS 14+ refuses every local-network connection,
+	     including mDNS, unless both of these are declared: the usage string is
+	     shown in the permission prompt, and the service list is an allowlist —
+	     a type missing from it is silently invisible. -->
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>GrooveForge uses the local network to share rehearsals with the other musicians in the room. Nothing leaves your network.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_gfrehearsal._tcp</string>
+	</array>
+	<key>CFBundleDevelopmentRegion</key>
 		<string>$(DEVELOPMENT_LANGUAGE)</string>
 		<key>CFBundleDisplayName</key>
 		<string>GrooveForge</string>

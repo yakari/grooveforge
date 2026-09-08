@@ -1513,6 +1513,10 @@ class _RackScreenState extends State<RackScreen> {
         ),
       ),
       floatingActionButton: FloatingActionButton(
+        // Named, because the shell keeps this screen and the rehearsals
+        // one alive side by side: two buttons sharing the default hero tag
+        // in one subtree is an error the moment a route animates.
+        heroTag: 'rack-fab',
         onPressed: () => showAddPluginSheet(context),
         tooltip: AppLocalizations.of(context)!.rackAddPlugin,
         child: const Icon(Icons.add),

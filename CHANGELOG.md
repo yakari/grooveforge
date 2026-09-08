@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0] - 2026-09-08
+
+### Added
+- **Rehearsals**: a new tab where a band learns a tune together. Everyone records their own part over a shared click, on their own phone.
+- Overdubs land on the beat: the app measures your device's round trip and shifts each take back by it — separately for the speaker, a wired headset and every Bluetooth headset.
+- Play along to a recording: import MP3, FLAC or WAV (plus M4A, AAC and video sound on Android), tap the tempo, and line the grid up on the waveform with beat lines to guide you.
+- Practice speed: slow a tune to 50% to work a passage, without the pitch dropping.
+- A chord grid: write the form bar by bar, up to four chords a bar, and the bar being played lights up.
+- A shared score folder: add a PDF or a photo of a page, and everyone in the band gets a copy.
+- Parts sync device to device over Wi-Fi, encrypted, with no server and no account. Scan a code once; after that the app finds the others by itself.
+- You record your own parts and nobody else's, and can re-record or delete them as often as you like.
+- A count-in before recording and before playback, set per tune.
+- A dot shows who is connected, and a warning stops anyone leaving before their part has reached the others.
+- A Rehearsals page in the user guide, including how to get everyone onto one network when the room has no Wi-Fi.
+
 ## [2.18.0] - 2026-09-04
 
 ### Added
@@ -22,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Both harmonizers: voices past the Voices setting render dimmed. Four lit voice controls with only two of them sounding was the panel contradicting itself.
 
 ### Fixed
+- The rack screen could throw a layout error when opening a screen with its own action button.
 - Android: the app could end up permanently silent while every other app on the phone still played — no headphone output until a reboot, which is not a fix during a live session. The output stream handle was reached from three directions with nothing coordinating them: Dart, the AAudio error-recovery thread, and the output-device change. Two of them could close the same handle, or one could close a handle the other had just replaced, and a double close corrupts the process's AAudio client so every later open returns NO_SERVICE. Stream open, close and restart are now serialised.
 - Android: the UI froze for seconds when headphones were plugged in or unplugged, or when the volume changed. Those all reach the output-device change, which restarted the audio stream **on the calling thread** — and opening an AAudio stream can block for seconds while the platform rebuilds the route. The restart now runs off the caller's thread.
 - Android: a "Complete action using..." chooser could appear over the app while playing, after which another media app started playing over the performance. GrooveForge never claimed the transport keys, so a media button — one USB-C dongle sends a key-down and gets re-enumerated before the key-up, leaving Android auto-repeating it twenty times a second — fell through to the system, which offers it to every installed media app. GrooveForge now holds the media session while it is on screen and discards those keys.

@@ -231,6 +231,18 @@ class MainActivity : FlutterActivity() {
         // the camera-mode Theremin. MethodChannel handles start/stop; the main
         // EventChannel carries the per-frame distance stream; the preview
         // EventChannel carries 5 fps JPEG thumbnails for the pad background.
+        // Which output the sound is going to, so overdub compensation can be
+        // stored per route rather than as one number for every headset.
+        val audioRoutePlugin = AudioRoutePlugin(this)
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            AudioRoutePlugin.METHOD_CHANNEL
+        ).setMethodCallHandler(audioRoutePlugin)
+        EventChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            AudioRoutePlugin.EVENT_CHANNEL
+        ).setStreamHandler(audioRoutePlugin)
+
         val thereminCameraPlugin = ThereminCameraPlugin(this)
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
@@ -244,6 +256,15 @@ class MainActivity : FlutterActivity() {
             flutterEngine.dartExecutor.binaryMessenger,
             ThereminCameraPlugin.PREVIEW_CHANNEL
         ).setStreamHandler(thereminCameraPlugin.previewStreamHandler())
+
+        // ── Media decoding for formats the bundled decoders cannot read ──────
+        // AAC/M4A and the audio track of a video container, via the platform's
+        // own MediaExtractor and MediaCodec — system APIs, so nothing is
+        // bundled and F-Droid has nothing to object to.
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            MediaDecoderPlugin.METHOD_CHANNEL
+        ).setMethodCallHandler(MediaDecoderPlugin())
 
         channel.setMethodCallHandler { call, result ->
             val am = audioManager!!

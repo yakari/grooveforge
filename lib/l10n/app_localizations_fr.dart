@@ -2104,4 +2104,715 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get vocoderWaveHarmony => 'Harmonie';
+
+  @override
+  String get latencyProbeTitle => 'Latence d\'overdub';
+
+  @override
+  String get latencyProbeSubtitle =>
+      'Mesure le retard entre ce que l\'app joue et ce que le micro entend';
+
+  @override
+  String get latencyProbeExplain =>
+      'Joue six brefs balayages dans le haut-parleur et les cherche sur le micro. Utilisez le haut-parleur : un micro n\'entend pas un casque, et la mesure signalera à juste titre n\'avoir rien trouvé.';
+
+  @override
+  String get latencyProbeStart => 'Mesurer';
+
+  @override
+  String get latencyProbeMeasuring => 'Mesure en cours…';
+
+  @override
+  String get latencyProbeRoundTrip => 'Aller-retour';
+
+  @override
+  String get latencyProbeJitter => 'Gigue';
+
+  @override
+  String get latencyProbeConfidence => 'Confiance';
+
+  @override
+  String get latencyProbeShots => 'Balayages exploitables';
+
+  @override
+  String get latencyProbeDrift => 'Dérive d\'horloge';
+
+  @override
+  String get latencyProbeSkew => 'Écart de compteurs';
+
+  @override
+  String latencyProbeDriftOverTake(String ms) {
+    return 'Une prise de 4 minutes dériverait de $ms ms';
+  }
+
+  @override
+  String latencyProbeShotsValue(int found, int total) {
+    return '$found sur $total';
+  }
+
+  @override
+  String latencyProbeMs(String value) {
+    return '$value ms';
+  }
+
+  @override
+  String latencyProbeFramesSuffix(int frames) {
+    return '$frames échantillons';
+  }
+
+  @override
+  String latencyProbePpm(String value) {
+    return '$value ppm';
+  }
+
+  @override
+  String get latencyProbeFailed => 'Aucune mesure exploitable';
+
+  @override
+  String get latencyProbeSilentInput =>
+      'Le micro n\'a rien entendu. Vérifiez l\'autorisation du micro, et jouez sur le haut-parleur plutôt qu\'au casque.';
+
+  @override
+  String get latencyProbeNeedsAudio =>
+      'La capture audio n\'est pas active. Ouvrez d\'abord une entrée live ou le vocodeur.';
+
+  @override
+  String get latencyProbeHint =>
+      'Gardez la pièce silencieuse et orientez le haut-parleur vers le micro.';
+
+  @override
+  String get rackTabLabel => 'Rack';
+
+  @override
+  String get rehearsalsTabLabel => 'Répéter';
+
+  @override
+  String get rehearsalsTitle => 'Répétitions';
+
+  @override
+  String get rehearsalsEmpty => 'Aucune répétition';
+
+  @override
+  String get rehearsalsEmptyHint =>
+      'Lancez un morceau, réglez le tempo et enregistrez votre partie. Le reste du groupe pourra rejoindre plus tard.';
+
+  @override
+  String get rehearsalsNew => 'Lancer un morceau';
+
+  @override
+  String get rehearsalCreateTitle => 'Nouvelle répétition';
+
+  @override
+  String get rehearsalFieldTitle => 'Morceau';
+
+  @override
+  String get rehearsalFieldTitleHint => 'Les Feuilles mortes';
+
+  @override
+  String get rehearsalFieldYourName => 'Votre nom';
+
+  @override
+  String get rehearsalFieldInstrument => 'Votre instrument';
+
+  @override
+  String get rehearsalFieldTempo => 'Tempo';
+
+  @override
+  String get rehearsalFieldTimeSignature => 'Métrique';
+
+  @override
+  String get rehearsalFieldCountIn => 'Décompte';
+
+  @override
+  String rehearsalCountInBars(int bars) {
+    return '$bars mesures';
+  }
+
+  @override
+  String get rehearsalCountInNone => 'Aucun';
+
+  @override
+  String get rehearsalCreate => 'Créer';
+
+  @override
+  String get rehearsalCancel => 'Annuler';
+
+  @override
+  String rehearsalPartsProgress(int done, int total) {
+    return '$done parties sur $total enregistrées';
+  }
+
+  @override
+  String rehearsalBpmValue(String bpm) {
+    return '$bpm BPM';
+  }
+
+  @override
+  String rehearsalMeter(int num, int den) {
+    return '$num/$den';
+  }
+
+  @override
+  String get rehearsalDelete => 'Supprimer';
+
+  @override
+  String rehearsalDeleteConfirm(String title) {
+    return 'Supprimer « $title » et tous ses enregistrements ?';
+  }
+
+  @override
+  String get rehearsalAddPart => 'Ajouter une partie';
+
+  @override
+  String get rehearsalNotRecorded => 'Pas encore enregistrée';
+
+  @override
+  String rehearsalTakeLength(String seconds) {
+    return '$seconds s';
+  }
+
+  @override
+  String get rehearsalMetronome => 'Métronome';
+
+  @override
+  String get rehearsalPlay => 'Lecture';
+
+  @override
+  String get rehearsalStop => 'Stop';
+
+  @override
+  String get rehearsalRecord => 'Enregistrer';
+
+  @override
+  String get rehearsalRerecord => 'Réenregistrer';
+
+  @override
+  String get rehearsalCountingIn => 'Décompte';
+
+  @override
+  String rehearsalBarBeat(int bar, int beat) {
+    return 'Mesure $bar  ·  temps $beat';
+  }
+
+  @override
+  String get rehearsalMute => 'Muet';
+
+  @override
+  String get rehearsalGridFrozen =>
+      'Le tempo et la métrique se verrouillent dès qu\'une partie est enregistrée : toutes les prises y sont calées.';
+
+  @override
+  String get rehearsalNoCompensation =>
+      'La latence n\'a pas été mesurée sur cet appareil : une nouvelle prise risque de se retrouver derrière le temps.';
+
+  @override
+  String get instrumentVocals => 'Chant';
+
+  @override
+  String get instrumentGuitar => 'Guitare acoustique';
+
+  @override
+  String get instrumentElectricGuitar => 'Guitare électrique';
+
+  @override
+  String get instrumentBassGuitar => 'Basse';
+
+  @override
+  String get instrumentDrums => 'Batterie';
+
+  @override
+  String get instrumentKeyboard => 'Clavier';
+
+  @override
+  String get instrumentSynth => 'Synthé';
+
+  @override
+  String get instrumentViolin => 'Violon';
+
+  @override
+  String get instrumentSaxophone => 'Saxophone';
+
+  @override
+  String get instrumentTrumpet => 'Trompette';
+
+  @override
+  String get instrumentPercussion => 'Percussions';
+
+  @override
+  String get instrumentOther => 'Autre';
+
+  @override
+  String get masterImport => 'Jouer sur un enregistrement';
+
+  @override
+  String get masterImportHint =>
+      'Importez un MP3, un FLAC ou un WAV. Son audio devient une piste sur laquelle tout le monde joue.';
+
+  @override
+  String get masterImporting => 'Importation…';
+
+  @override
+  String get masterImportFailed =>
+      'Ce fichier n\'a pas pu être lu. Essayez un MP3, un FLAC ou un WAV.';
+
+  @override
+  String get masterTitle => 'Enregistrement';
+
+  @override
+  String get masterRemove => 'Retirer l\'enregistrement';
+
+  @override
+  String masterRemoveConfirm(String name) {
+    return 'Retirer « $name » de cette répétition ?';
+  }
+
+  @override
+  String get masterAlign => 'Placer le premier temps fort';
+
+  @override
+  String get masterAlignTitle => 'Caler la grille';
+
+  @override
+  String get masterAlignHint =>
+      'Lancez l\'enregistrement et tapez en rythme pour régler le tempo, puis faites glisser le repère sur le premier temps fort.';
+
+  @override
+  String get masterTapTempo => 'Tapez le tempo';
+
+  @override
+  String get masterTapMore => 'Continuez à taper…';
+
+  @override
+  String masterDownbeatAt(String time) {
+    return 'Premier temps fort à $time';
+  }
+
+  @override
+  String get masterNudgeBack => '10 ms plus tôt';
+
+  @override
+  String get masterNudgeForward => '10 ms plus tard';
+
+  @override
+  String get masterCheck => 'Écouter deux mesures';
+
+  @override
+  String get masterDone => 'Terminé';
+
+  @override
+  String get masterVideoAudioOnly =>
+      'Les vidéos sont importées pour leur audio uniquement.';
+
+  @override
+  String get masterMetronomeOff =>
+      'Le clic est coupé : c\'est l\'enregistrement qui donne le tempo.';
+
+  @override
+  String get nearbyTitle => 'À proximité';
+
+  @override
+  String get nearbyShare => 'Partager cette répétition';
+
+  @override
+  String get nearbyHint =>
+      'Faites scanner ce code aux autres, ou envoyez-leur le lien ci-dessous.';
+
+  @override
+  String get nearbyStop => 'Arrêter le partage';
+
+  @override
+  String get nearbyStart => 'Partager';
+
+  @override
+  String get nearbyNoNetwork =>
+      'Cet appareil n\'est sur aucun réseau. Rejoignez le même Wi-Fi que les autres, ou activez un partage de connexion.';
+
+  @override
+  String get nearbyWaiting => 'En attente de quelqu\'un…';
+
+  @override
+  String nearbyPeers(int count) {
+    return '$count connectés';
+  }
+
+  @override
+  String get nearbyJoin => 'Rejoindre une répétition';
+
+  @override
+  String get nearbyScan => 'Scanner le code';
+
+  @override
+  String get nearbyConnecting => 'Connexion…';
+
+  @override
+  String get nearbySyncing => 'Synchronisation…';
+
+  @override
+  String get nearbySynced => 'À jour';
+
+  @override
+  String nearbySyncedWith(int takes) {
+    return '$takes parties reçues';
+  }
+
+  @override
+  String nearbyFailed(String reason) {
+    return 'Synchronisation impossible : $reason';
+  }
+
+  @override
+  String get nearbyWrongCode => 'Ce code ne correspond pas à cette répétition.';
+
+  @override
+  String get nearbyScanUnsupported =>
+      'Cet appareil n\'a pas de scanner. Saisissez le code affiché sur l\'autre appareil.';
+
+  @override
+  String nearbyHostAddress(String host, int port) {
+    return '$host · port $port';
+  }
+
+  @override
+  String get syncStepHandshake => 'Prise de contact';
+
+  @override
+  String get syncStepManifest => 'Comparaison';
+
+  @override
+  String get syncStepSending => 'Envoi';
+
+  @override
+  String get syncStepReceiving => 'Réception';
+
+  @override
+  String get syncStepDone => 'Terminé';
+
+  @override
+  String get nearbyLink => 'Lien';
+
+  @override
+  String get nearbyCopyLink => 'Copier le lien';
+
+  @override
+  String get nearbyCopied => 'Copié';
+
+  @override
+  String get nearbyLinkHint =>
+      'Pas de caméra sur l\'autre appareil ? Copiez ce lien et envoyez-le-lui — il le colle dans Rejoindre.';
+
+  @override
+  String get nearbyPasteLink => 'Collez le lien de l\'autre appareil';
+
+  @override
+  String get nearbyPasteFromClipboard => 'Coller';
+
+  @override
+  String get nearbyLooksLikeCode =>
+      'C\'est le code court, qui ne suffit pas à lui seul. Copiez le lien complet depuis l\'autre appareil.';
+
+  @override
+  String get nearbyNotALink =>
+      'Ce n\'est pas un lien de répétition GrooveForge.';
+
+  @override
+  String get nearbyScanTitle => 'Visez le code avec la caméra';
+
+  @override
+  String get nearbyScanHint =>
+      'Maintenez-la bien en face du code affiché sur l\'autre appareil.';
+
+  @override
+  String get nearbyScanPermission =>
+      'GrooveForge a besoin de la caméra pour lire le code. Vous pouvez aussi coller le lien.';
+
+  @override
+  String get nearbyScanOr => 'ou';
+
+  @override
+  String get nearbyScanOpen => 'Scanner un code';
+
+  @override
+  String get joinIdentityTitle => 'Qui êtes-vous ?';
+
+  @override
+  String get joinIdentityHint => 'Les autres verront ce nom sur votre partie.';
+
+  @override
+  String get joinIdentityConfirm => 'Rejoindre';
+
+  @override
+  String get rehearsalDeleteTake => 'Supprimer cet enregistrement';
+
+  @override
+  String rehearsalDeleteTakeConfirm(String instrument) {
+    return 'Supprimer votre enregistrement de $instrument ? Les autres le perdront aussi à la prochaine synchronisation.';
+  }
+
+  @override
+  String rehearsalOthersPart(String name) {
+    return 'Partie de $name';
+  }
+
+  @override
+  String get rehearsalYourPart => 'Votre partie';
+
+  @override
+  String get liveConnected =>
+      'Connecté — les parties arrivent au fur et à mesure';
+
+  @override
+  String get liveRefresh => 'Synchroniser maintenant';
+
+  @override
+  String get rehearsalRemovePart => 'Supprimer cette partie';
+
+  @override
+  String rehearsalRemovePartConfirm(String instrument) {
+    return 'Supprimer votre partie de $instrument ? Elle disparaît pour tout le monde, avec ce qui y a été enregistré.';
+  }
+
+  @override
+  String get rehearsalPartActions => 'Plus';
+
+  @override
+  String get rehearsalMemberHere => 'Présent';
+
+  @override
+  String get rehearsalMemberAway => 'Non connecté';
+
+  @override
+  String get rehearsalsJoin => 'Rejoindre un morceau';
+
+  @override
+  String get guideTabRehearsals => 'Répétitions';
+
+  @override
+  String get guideRehearsalIntroTitle => 'Répéter ensemble';
+
+  @override
+  String get guideRehearsalIntroBody =>
+      'L\'onglet Répétitions sert à un groupe qui travaille un morceau. Chacun enregistre sa propre partie sur un clic commun, depuis son téléphone, et les parties se rassemblent en un seul arrangement dont chaque appareil garde une copie complète.\n\nRien n\'est envoyé nulle part. Les appareils se parlent directement : une répétition fonctionne dans une salle sans le moindre accès à internet.';
+
+  @override
+  String get guideRehearsalStartTitle => 'Lancer un morceau';
+
+  @override
+  String get guideRehearsalStartBody =>
+      'Lancez un morceau, donnez-lui un nom et indiquez ce que vous jouez. Réglez le tempo et la mesure, ou tapez la pulsation si vous préférez la sentir plutôt que la compter.\n\nPour jouer sur un enregistrement, importez-le comme piste maîtresse : MP3, FLAC et WAV partout, et sur Android aussi M4A, AAC et le son d\'une vidéo. Faites ensuite glisser le repère sur le premier temps fort pour aligner la grille sur la musique. Le clic se coupe tout seul dès qu\'un enregistrement est là : c\'est lui qui donne le tempo, désormais.';
+
+  @override
+  String get guideRehearsalRecordTitle => 'Enregistrer sa partie';
+
+  @override
+  String get guideRehearsalRecordBody =>
+      'Ajoutez une partie pour votre instrument et appuyez sur enregistrer. Un décompte passe d\'abord, deux mesures par défaut, et l\'enregistrement démarre sur le temps fort.\n\nChaque appareil met un instant à sortir le son et un instant à le capter, et ce retard décalerait votre prise derrière tout ce qui est déjà enregistré. L\'application mesure ce retard sur votre propre appareil et recale votre prise d\'autant : ce que vous avez joué sur le temps tombe sur le temps. Mesurez-le une fois depuis les Paramètres, puis à nouveau si vous changez de casque ou passez sur une enceinte Bluetooth — le retard appartient au matériel, pas au morceau.\n\nVous enregistrez vos parties et celles de personne d\'autre. Les vôtres, vous pouvez les refaire ou les supprimer autant de fois que vous voulez.';
+
+  @override
+  String get guideRehearsalShareTitle => 'Réunir le groupe';
+
+  @override
+  String get guideRehearsalShareBody =>
+      'La première fois, une personne partage le morceau et les autres le récupèrent : sur téléphone, scannez le code ; sur ordinateur, collez le lien. Ensuite les appareils se connaissent, et il suffit d\'ouvrir le même morceau — ils se retrouvent en quelques secondes.\n\nUne pastille à côté de chaque partie indique si le musicien à qui elle appartient est connecté. Ce que vous enregistrez part vers tout le monde dès que vous arrêtez, et ce que vous avez manqué pendant votre absence arrive la prochaine fois que vous êtes tous au même endroit.';
+
+  @override
+  String get guideRehearsalHotspotTitle => 'Quand il n\'y a pas de Wi-Fi';
+
+  @override
+  String get guideRehearsalHotspotBody =>
+      'Tout le monde doit être sur le même réseau. Des téléphones en données mobiles ne peuvent pas se voir, et les salles de répétition ont rarement un Wi-Fi utilisable : c\'est donc une personne qui fabrique le réseau.\n\n1. Un téléphone active son point d\'accès mobile, dans ses propres réglages. L\'endroit exact change selon la marque, mais c\'est en général sous Connexions ou Réseau.\n2. Tous les autres rejoignent ce point d\'accès depuis leurs réglages Wi-Fi habituels, comme n\'importe quel réseau.\n3. Chacun ouvre le morceau. Les appareils se trouvent en quelques secondes.\n\nCe n\'est pas forcément toujours la même personne. Si celle qui s\'en charge d\'habitude n\'est pas là, n\'importe qui d\'autre active le sien et le reste du groupe s\'y connecte.\n\nLa fois suivante, cette personne rallume son point d\'accès, tout le monde se reconnecte, et il n\'y a plus rien à scanner.';
+
+  @override
+  String get guideRehearsalHotspotNote =>
+      'Le partage des parties ne consomme aucune donnée mobile : il ne sort jamais de la salle. Certains téléphones exigent d\'activer les données mobiles avant de partager un point d\'accès, mais la répétition, elle, n\'en dépense pas.';
+
+  @override
+  String get rehearsalTakePending => 'Pas encore transmise';
+
+  @override
+  String get rehearsalSyncIncomplete =>
+      'Restez connectés : tout le monde n\'a pas encore les dernières prises.';
+
+  @override
+  String get rehearsalTakeAwaitingAudio => 'En attente de l\'audio';
+
+  @override
+  String get rehearsalTempoTitle => 'Tempo';
+
+  @override
+  String get rehearsalTuneTempo => 'Tempo du morceau';
+
+  @override
+  String get rehearsalTuneTempoHint =>
+      'Partagé avec le groupe. Les enregistrements sont recalculés en conséquence.';
+
+  @override
+  String get rehearsalPracticeSpeed => 'Vitesse de travail';
+
+  @override
+  String get rehearsalPracticeSpeedHint =>
+      'Sur cet appareil uniquement. Ralentissez un passage sans changer la hauteur.';
+
+  @override
+  String rehearsalPracticeSpeedValue(int percent) {
+    return '$percent %';
+  }
+
+  @override
+  String get rehearsalRendering => 'Ajustement des enregistrements…';
+
+  @override
+  String get rehearsalMeterFrozen =>
+      'La mesure ne peut plus changer une fois qu\'une partie est enregistrée.';
+
+  @override
+  String get rehearsalCalibrate => 'Calibrer';
+
+  @override
+  String get rehearsalCalibrateTitle => 'Mesurer cet appareil';
+
+  @override
+  String get rehearsalCalibrateBody =>
+      'Votre appareil met un instant à sortir le son, et un autre à le capter. Ce retard mettrait chaque prise derrière le temps : on le mesure une fois, puis on le retranche de ce que vous enregistrez.\n\nLa mesure joue quelques brefs balayages et les guette au retour dans le micro — encore faut-il qu\'elle puisse les entendre :\n\n•  Utilisez le haut-parleur, pas un casque. Au casque, le micro n\'entend rien et la mesure échoue.\n•  Montez le volume.\n•  Gardez le silence pendant les quelques secondes nécessaires.\n\nRefaites la mesure après être passé sur une enceinte ou un casque Bluetooth : le retard appartient au matériel, pas au morceau, et le Bluetooth en ajoute beaucoup.';
+
+  @override
+  String get rehearsalCalibrateStart => 'Mesurer maintenant';
+
+  @override
+  String get rehearsalRemoveMember => 'Retirer ce musicien';
+
+  @override
+  String rehearsalRemoveMemberConfirm(String name, int count) {
+    return 'Retirer $name de ce morceau ? Ses $count enregistrement(s) partent aussi, sur tous les appareils.';
+  }
+
+  @override
+  String get rehearsalRemoveMemberHere =>
+      'Pour un appareil définitivement parti. Ses parties partent aussi.';
+
+  @override
+  String get rehearsalDocuments => 'Partitions';
+
+  @override
+  String get rehearsalDocumentsEmpty => 'Aucune partition';
+
+  @override
+  String get rehearsalDocumentsEmptyHint =>
+      'Ajoutez une partition, une grille ou une photo. Tout le monde en reçoit une copie.';
+
+  @override
+  String get rehearsalDocumentAdd => 'Ajouter une partition';
+
+  @override
+  String get rehearsalDocumentRemove => 'Retirer';
+
+  @override
+  String rehearsalDocumentRemoveConfirm(String name) {
+    return 'Retirer « $name » de ce morceau ? Elle disparaît de tous les appareils.';
+  }
+
+  @override
+  String rehearsalDocumentAddedBy(String name) {
+    return 'Ajouté par $name';
+  }
+
+  @override
+  String rehearsalDocumentSize(int kb) {
+    return '$kb ko';
+  }
+
+  @override
+  String get rehearsalDocumentWaiting => 'En attente du fichier';
+
+  @override
+  String get rehearsalDocumentNoViewer =>
+      'Aucune application de cet appareil ne peut ouvrir ce fichier.';
+
+  @override
+  String get rehearsalChordGrid => 'Accords';
+
+  @override
+  String get rehearsalChordGridEmpty => 'Écrire les accords';
+
+  @override
+  String get rehearsalChordAddBar => 'Ajouter une mesure';
+
+  @override
+  String get rehearsalChordRemoveBar => 'Supprimer cette mesure';
+
+  @override
+  String rehearsalChordBar(int bar) {
+    return 'Mesure $bar';
+  }
+
+  @override
+  String get rehearsalChordSlots => 'Accords par mesure';
+
+  @override
+  String get rehearsalChordHint => 'Am7, C#m7, Gm7b5, C6/9, Am(M7)/B…';
+
+  @override
+  String get rehearsalChordInvalid => 'Accord illisible';
+
+  @override
+  String get rehearsalChordExpand => 'Afficher toute la grille';
+
+  @override
+  String get rehearsalChordCollapse => 'Réduire à une ligne';
+
+  @override
+  String get rehearsalChordClear => 'Effacer';
+
+  @override
+  String get rehearsalChordSave => 'Enregistrer';
+
+  @override
+  String rehearsalChordBarCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count mesures',
+      one: '1 mesure',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String rehearsalRouteUncalibrated(String device) {
+    return '$device n\'a pas été mesuré. Une prise enregistrée dessus se retrouvera nettement derrière le temps.';
+  }
+
+  @override
+  String get rehearsalRouteBluetoothHint =>
+      'Le Bluetooth ajoute un retard important, qui varie d\'un casque à l\'autre.\n\nLe micro ne peut pas entendre votre casque à travers l\'air : pendant la mesure, plaquez un écouteur contre le micro du téléphone. Il entendra ainsi les balayages revenir par le casque et mesurera le vrai retard, Bluetooth compris.';
+
+  @override
+  String get masterZoomIn => 'Zoom avant';
+
+  @override
+  String get masterZoomOut => 'Zoom arrière';
+
+  @override
+  String get masterZoomReset => 'Tout l\'enregistrement';
+
+  @override
+  String get masterSkipSilence => 'Passer le silence';
+
+  @override
+  String get masterBpmFiner => 'Ralentir de 0,1';
+
+  @override
+  String get masterBpmFaster => 'Accélérer de 0,1';
+
+  @override
+  String masterZoomLevel(int zoom) {
+    return '×$zoom';
+  }
+
+  @override
+  String get masterBeatLinesHint =>
+      'Les traits rouges sont les temps. Zoomez et ajustez le tempo jusqu\'à ce qu\'ils tombent sur le son.';
+
+  @override
+  String get rehearsalTempoFromMaster =>
+      'Donné par l\'enregistrement. Il se règle là où l\'on cale la grille dessus — ici, cela ne ferait qu\'étirer l\'enregistrement. Utilisez la vitesse de travail pour tout ralentir.';
 }

@@ -2,6 +2,16 @@ GrooveForge est un studio à clavier MIDI portable pour Android. Branchez un con
 
 À l'origine, c'était un compagnon de travail : quelque chose d'assez léger pour tenir dans un téléphone ou une tablette, pour retrouver ses gammes et sa mémoire des doigts au clavier. Le projet a beaucoup grandi depuis, mais l'objectif reste le même : un outil pour travailler et pour jouer, pas une station de travail audionumérique.
 
+Répétitions
+
+Un groupe qui travaille un morceau, sans studio. Chacun enregistre sa propre partie sur un clic commun, depuis son téléphone, et les parties se rassemblent en un seul arrangement dont chaque appareil garde une copie complète.
+
+Importez un enregistrement pour jouer dessus — MP3, FLAC et WAV partout, plus M4A, AAC et le son d'une vidéo sur Android. Tapez le tempo, puis faites glisser un repère sur le premier temps fort pour aligner la grille sur la musique.
+
+Chaque appareil met un instant à sortir le son et un instant à le capter, et ce retard décalerait chaque prise derrière tout ce qui est déjà enregistré. GrooveForge mesure ce retard sur votre propre appareil et recale votre prise d'autant : ce que vous avez joué sur le temps tombe sur le temps.
+
+Rien n'est envoyé nulle part, et aucun compte n'est nécessaire. Les appareils se synchronisent directement en réseau local : scannez un code une fois, ensuite il suffit d'ouvrir le même morceau. Une répétition fonctionne dans une salle sans le moindre accès à internet — et là où il n'y a pas de Wi-Fi, le point d'accès d'un téléphone fait tout le réseau.
+
 Instruments
 
 GrooveForge Keyboard — synthé soundfont (.sf2) avec choix de banque et de patch, et routage de canal MIDI. Chaque slot est indépendant.
