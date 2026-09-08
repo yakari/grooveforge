@@ -1,5 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:grooveforge/models/rehearsal.dart';
+import 'package:grooveforge/services/latency_calibration.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   group('compensation per route', () {
@@ -59,6 +61,94 @@ void main() {
 
       expect(old.compensationFor('bt:Anything'), 1390);
       expect(old.compensationByRoute, isEmpty);
+    });
+  });
+
+  group('calibration is device-wide', () {
+    setUp(() {
+      TestWidgetsFlutterBinding.ensureInitialized();
+      SharedPreferences.setMockInitialValues({});
+    });
+
+    test('measuring in one tune answers for the next', () async {
+      // The reported bug: calibrating a headset while one tune was open left
+      // the next tune reporting that same headset as unknown, because the
+      // table lived inside the rehearsal.
+      final first = LatencyCalibration();
+      await first.load();
+      await first.record('bt:WH-1000XM4', 9600);
+
+      final second = LatencyCalibration();
+      await second.load();
+
+      expect(second.hasRoute('bt:WH-1000XM4'), isTrue);
+      expect(second.forRoute('bt:WH-1000XM4'), 9600);
+    });
+
+    test('each route keeps its own figure', () async {
+      final c = LatencyCalibration();
+      await c.load();
+      await c.record('speaker', 1400);
+      await c.record('bt:Buds', 12000);
+
+      expect(c.forRoute('speaker'), 1400);
+      expect(c.forRoute('bt:Buds'), 12000);
+    });
+
+    test('an unmeasured route falls back but is not called measured', () async {
+      final c = LatencyCalibration();
+      await c.load();
+      await c.record('speaker', 1400);
+
+      expect(c.forRoute('bt:Unknown'), 1400,
+          reason: 'a close figure beats a whole round trip of error');
+      expect(c.hasRoute('bt:Unknown'), isFalse,
+          reason: 'which is what the warning on the tune screen reads');
+    });
+
+    test('a calibration from before routes existed is kept', () async {
+      SharedPreferences.setMockInitialValues(
+          {LatencyCalibration.legacyKey: 1390});
+      final c = LatencyCalibration();
+      await c.load();
+
+      expect(c.forRoute('speaker'), 1390);
+      expect(c.byRoute, isEmpty);
+    });
+
+    test('measurements stranded in a rehearsal are taken in', () async {
+      // Rescues anything filed per-tune by the version that had this wrong.
+      final c = LatencyCalibration();
+      await c.load();
+      await c.adoptFromRehearsal({'bt:Old': 8000}, 1400);
+
+      expect(c.forRoute('bt:Old'), 8000);
+
+      final reopened = LatencyCalibration();
+      await reopened.load();
+      expect(reopened.hasRoute('bt:Old'), isTrue, reason: 'and it persists');
+    });
+
+    test('a stale per-tune figure never overwrites the device table', () async {
+      final c = LatencyCalibration();
+      await c.load();
+      await c.record('bt:Old', 9600);
+      await c.adoptFromRehearsal({'bt:Old': 100}, 0);
+
+      expect(c.forRoute('bt:Old'), 9600);
+    });
+
+    test('reload picks up what the probe wrote on its own screen', () async {
+      final engineSide = LatencyCalibration();
+      await engineSide.load();
+
+      final probeSide = LatencyCalibration();
+      await probeSide.load();
+      await probeSide.record('bt:New', 7777);
+
+      expect(engineSide.hasRoute('bt:New'), isFalse);
+      await engineSide.reload();
+      expect(engineSide.forRoute('bt:New'), 7777);
     });
   });
 }

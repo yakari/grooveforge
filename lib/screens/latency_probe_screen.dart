@@ -5,12 +5,11 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../l10n/app_localizations.dart';
 import '../services/audio_input_ffi.dart';
 import '../services/audio_route_service.dart';
-import '../services/rehearsal_engine.dart' show kLatencyCompensationKey;
+import '../services/latency_calibration.dart';
 import '../services/gfpa_android_bindings.dart';
 
 /// Measures the overdub round trip on this device, through the app's own
@@ -204,11 +203,17 @@ class _LatencyProbeScreenState extends State<LatencyProbeScreen> {
     });
   }
 
-  /// Persists the measured round trip for the rehearsal engine to pick up.
+  /// Files the measured round trip against whatever it was measured through.
+  ///
+  /// Device-wide, not per rehearsal: the same headset has the same delay
+  /// whichever tune is open, and calibrating in one used to leave the next one
+  /// reporting the headset as unknown.
   Future<void> _storeCompensation(int frames) async {
-    if (frames <= 0) return;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(kLatencyCompensationKey, frames);
+    if (frames <= 0 || !mounted) return;
+    final route = context.read<AudioRouteService>().route;
+    final calibration = LatencyCalibration();
+    await calibration.load();
+    await calibration.record(route.key, frames);
   }
 
   @override

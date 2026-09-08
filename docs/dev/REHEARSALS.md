@@ -1827,6 +1827,29 @@ The active route is inferred by precedence (Bluetooth over wire, wire over
 speaker) because Android exposes which devices are available, not which one is
 in use.
 
+### It had to be device-wide
+
+First version put the table in `RehearsalLocalState`, which lives inside each
+rehearsal — so calibrating a headset in one tune left the next tune reporting
+that same headset as unknown. The document above says why that was wrong three
+times over: the delay belongs to the gear, not the tune, and the same headset
+has the same delay whichever chart is open.
+
+`LatencyCalibration` now owns the table in shared preferences, and is the only
+source of truth. Two details it needed:
+
+- **It reloads.** The probe runs on its own screen and saves there, so the
+  engine has to look again afterwards rather than trust what it read when the
+  tune opened — otherwise calibrating from inside a rehearsal appears to do
+  nothing until the tune is closed and reopened.
+- **It adopts what was stranded.** Anything filed per-tune by the earlier
+  version is taken up when that tune next opens, so a measurement already made
+  is not lost. The device table wins on conflict: it is the newer, better
+  source, and a stale per-tune figure must not overwrite it.
+
+The old single-figure preference keeps its name, so a calibration from before
+any of this survives as the fallback.
+
 ### Still open
 
 A manual trim on a finished take: nudge it against the others while it loops.

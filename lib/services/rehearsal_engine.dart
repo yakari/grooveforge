@@ -3,10 +3,10 @@ import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/rehearsal.dart';
 import 'audio_input_ffi.dart';
+import 'latency_calibration.dart';
 import 'rehearsal_tempo_cache.dart';
 import 'gfpa_android_bindings.dart';
 import 'rehearsal_library.dart';
@@ -18,7 +18,12 @@ import 'rehearsal_library.dart';
 /// phone's speaker, microphone and buffer sizes, so every rehearsal on the
 /// device starts from the same figure and only diverges if the player nudges
 /// one of them.
-const String kLatencyCompensationKey = 'gf.rehearsal.compensationFrames';
+/// Where the single, route-less measurement used to live.
+///
+/// Kept as the name of the preference so an existing calibration survives the
+/// move to a per-route table; [LatencyCalibration] reads and writes it as its
+/// fallback figure.
+const String kLatencyCompensationKey = LatencyCalibration.legacyKey;
 
 /// Mix key for the imported master.
 ///
@@ -122,17 +127,14 @@ class RehearsalEngine extends ChangeNotifier {
       await _library.saveLocalState(rehearsal.id, _local);
     }
 
-    // A rehearsal that has never been calibrated adopts whatever the latency
-    // probe last measured on this device, so the player does not have to
-    // re-measure for every tune they start.
-    if (_local.compensationFrames == 0) {
-      final prefs = await SharedPreferences.getInstance();
-      final measured = prefs.getInt(kLatencyCompensationKey) ?? 0;
-      if (measured > 0) {
-        _local.compensationFrames = measured;
-        await _library.saveLocalState(rehearsal.id, _local);
-      }
-    }
+    await calibration.load();
+    // Measurements taken while the table still lived inside a rehearsal are
+    // brought up to the device, so calibrating in one tune is not lost when
+    // the next one opens — which is the bug this replaced.
+    await calibration.adoptFromRehearsal(
+      _local.compensationByRoute,
+      _local.compensationFrames,
+    );
 
     final ffi = AudioInputFFI();
     if (ffi.rehActivate() != 0) {
@@ -651,17 +653,15 @@ class RehearsalEngine extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Picks up whatever the probe last measured on this device.
+  /// Picks up whatever the probe just measured.
   ///
-  /// The probe writes to shared preferences, which this rehearsal read once
-  /// when it opened. Without this, calibrating from inside a rehearsal would
-  /// appear to do nothing until the tune was closed and opened again — and the
+  /// The probe writes to the device-wide table, which this engine read when
+  /// the tune opened. Without re-reading, calibrating from inside a rehearsal
+  /// would appear to do nothing until it was closed and opened again — and the
   /// warning that sent the player to the probe would still be sitting there.
   Future<void> adoptMeasuredCompensation() async {
-    final prefs = await SharedPreferences.getInstance();
-    final measured = prefs.getInt(kLatencyCompensationKey) ?? 0;
-    if (measured <= 0 || measured == compensationFrames) return;
-    await setCompensationFrames(measured);
+    await calibration.reload();
+    notifyListeners();
   }
 
   /// Which output this device is playing through, as far as the engine knows.
@@ -679,15 +679,19 @@ class RehearsalEngine extends ChangeNotifier {
 
   String? get routeKey => _routeKey;
 
+  /// Where measurements live. Device-wide: the same headset has the same
+  /// delay whichever tune is open.
+  final LatencyCalibration calibration = LatencyCalibration();
+
   /// The compensation that applies to what the player is listening on.
-  int get compensationFrames => _local.compensationFor(_routeKey);
+  int get compensationFrames => calibration.forRoute(_routeKey);
 
   /// Whether the current route has ever been measured.
   ///
   /// False is worth saying out loud: a Bluetooth headset that has not been
   /// measured will put a take a fifth of a second behind the beat, and the
   /// figure from the speaker is nowhere near close enough to cover it.
-  bool get isRouteCalibrated => _local.hasCompensationFor(_routeKey);
+  bool get isRouteCalibrated => calibration.hasRoute(_routeKey);
 
   /// Stores the latency compensation measured by the probe, in frames.
   ///
@@ -695,11 +699,8 @@ class RehearsalEngine extends ChangeNotifier {
   /// fallback, so measuring with headphones on no longer overwrites the
   /// speaker's figure.
   Future<void> setCompensationFrames(int frames, {String? forRoute}) async {
-    _local.compensationFrames = frames;
-    final key = forRoute ?? _routeKey;
-    if (key != null) _local.compensationByRoute[key] = frames;
+    await calibration.record(forRoute ?? _routeKey, frames);
     notifyListeners();
-    await _saveLocal();
   }
 
   Future<void> _saveLocal() async {

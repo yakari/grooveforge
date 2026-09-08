@@ -8,6 +8,7 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 ## [X.x.x]
 
 ### Ajouté
+- Calibrer un casque une fois vaut pour tous les morceaux, au lieu de devoir recommencer dans chacun.
 - La latence est mesurée et retenue par sortie : le haut-parleur, un casque filaire et chaque casque Bluetooth gardent leur propre valeur.
 - Un avertissement nomme le casque que vous portez quand il n'a jamais été mesuré, au lieu de laisser une prise traîner.
 - Les mesures à plusieurs accords sont assez larges pour être lues, avec les temps séparés.
