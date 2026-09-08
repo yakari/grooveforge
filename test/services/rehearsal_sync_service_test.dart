@@ -33,12 +33,20 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     hostDir = await Directory.systemTemp.createTemp('gf_sync_host');
     guestDir = await Directory.systemTemp.createTemp('gf_sync_guest');
-    hostLibrary = RehearsalLibrary(rootOverride: hostDir);
-    guestLibrary = RehearsalLibrary(rootOverride: guestDir);
+    // Distinct identities: shared preferences are per process, so without
+    // this both libraries are the same device and each filters the other out
+    // of discovery as itself.
+    hostLibrary =
+        RehearsalLibrary(rootOverride: hostDir, deviceIdOverride: 'dev-host');
+    guestLibrary =
+        RehearsalLibrary(rootOverride: guestDir, deviceIdOverride: 'dev-guest');
     await hostLibrary.load();
     await guestLibrary.load();
     // A real discovery object, but never started: these tests drive the
     // sockets directly, and mDNS is not available in the test environment.
+    // Distinct identities: shared preferences are per process, so without
+    // this both services are the same device and each filters the other out
+    // of discovery as itself.
     hostSync = RehearsalSyncService(hostLibrary, RehearsalDiscovery());
     guestSync = RehearsalSyncService(guestLibrary, RehearsalDiscovery());
   });
@@ -494,7 +502,8 @@ void main() {
     // being good enough: a take used to reach the far end of the band only by
     // being relayed through whoever discovery happened to list first.
     final thirdDir = await Directory.systemTemp.createTemp('gf_sync_third');
-    final thirdLibrary = RehearsalLibrary(rootOverride: thirdDir);
+    final thirdLibrary =
+        RehearsalLibrary(rootOverride: thirdDir, deviceIdOverride: 'dev-third');
     await thirdLibrary.load();
     final thirdDiscovery = RehearsalDiscovery();
     final thirdSync = RehearsalSyncService(thirdLibrary, thirdDiscovery);
@@ -572,6 +581,81 @@ void main() {
     expect(hostSync.onlineDeviceIds(r.id), {'dev-lea'});
     // A different tune's peers are not in this room.
     expect(hostSync.onlineDeviceIds('other'), isEmpty);
+  });
+
+  test('a take not yet delivered is flagged, and clears once it lands',
+      () async {
+    final r = await hostLibrary.create(
+        title: 'Tune', memberName: 'Yann', instrument: 'guitar');
+    final part = r.parts.single;
+    await giveTake(hostLibrary, r, part, bytes: 2000);
+
+    final hostTicket = await hostSync.startHosting(r);
+    await guestSync.join(hostTicket!);
+    await guestLibrary.load();
+    final guestTicket =
+        await guestSync.startHosting(guestLibrary.rehearsals.single);
+
+    // The guest is in the room as far as the host's discovery is concerned.
+    final guestDevice = await guestSync.deviceId();
+    hostSync.discovery.remember(BonsoirService(
+      name: 'Tune · guest',
+      type: RehearsalDiscovery.serviceType,
+      port: guestTicket!.port,
+      hostAddresses: const ['127.0.0.1'],
+      attributes: {'d': guestDevice, 'r': r.id},
+    ));
+
+    // That first join already delivered revision 1, so nothing is pending.
+    expect(hostSync.partsAwaitingDelivery(r), isEmpty);
+
+    // Re-record. The guest has not been told, so the host must say so.
+    await giveTake(hostLibrary, r, part, bytes: 9000);
+    expect(part.take!.revision, 2);
+    expect(hostSync.partsAwaitingDelivery(r), {part.id},
+        reason: 'the room should be warned before anyone leaves');
+
+    // syncNow pushes to whoever a live session can see, so start one.
+    hostSync.startLiveSync(
+      rehearsalId: r.id,
+      key: Uint8List.fromList(base64.decode(r.joinKey!)),
+    );
+    await hostSync.syncNow();
+    hostSync.stopLiveSync();
+
+    expect(hostSync.partsAwaitingDelivery(r), isEmpty,
+        reason: 'the warning must clear once the take has landed');
+    await guestLibrary.load();
+    expect(guestLibrary.rehearsals.single.parts.single.take!.revision, 2);
+  });
+
+  test('a peer nobody has spoken to yet counts as not having it', () async {
+    final r = await hostLibrary.create(
+        title: 'Tune', memberName: 'Yann', instrument: 'guitar');
+    final part = r.parts.single;
+    await giveTake(hostLibrary, r, part, bytes: 2000);
+
+    // Visible, never synced with. Until the manifests have been exchanged we
+    // genuinely do not know what they hold, and saying "everyone is up to
+    // date" would be a guess.
+    hostSync.discovery.remember(BonsoirService(
+      name: 'Tune · stranger',
+      type: RehearsalDiscovery.serviceType,
+      port: 4000,
+      hostAddresses: const ['192.168.1.99'],
+      attributes: {'d': 'dev-stranger', 'r': r.id},
+    ));
+
+    expect(hostSync.partsAwaitingDelivery(r), {part.id});
+  });
+
+  test('an empty room is never waiting for anyone', () async {
+    final r = await hostLibrary.create(
+        title: 'Tune', memberName: 'Yann', instrument: 'guitar');
+    await giveTake(hostLibrary, r, r.parts.single, bytes: 2000);
+
+    // Nobody to wait for. A warning that can never clear would be ignored.
+    expect(hostSync.partsAwaitingDelivery(r), isEmpty);
   });
 
   test('the device id survives a restart', () async {

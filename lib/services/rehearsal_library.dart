@@ -58,7 +58,8 @@ Future<String> rehearsalDeviceId() async {
 /// Deliberately separate from [ProjectService] and the `.gf` format: different
 /// lifetime, different ownership, and orders of magnitude more bytes.
 class RehearsalLibrary extends ChangeNotifier {
-  RehearsalLibrary({Directory? rootOverride}) : _rootOverride = rootOverride;
+  RehearsalLibrary({Directory? rootOverride, this.deviceIdOverride})
+      : _rootOverride = rootOverride;
 
   /// Injected by tests so they can run against a temporary directory instead
   /// of the real documents directory.
@@ -170,7 +171,7 @@ class RehearsalLibrary extends ChangeNotifier {
       sampleRate: sampleRate,
       importedAt: DateTime.now(),
     );
-    rehearsal.touch(RehearsalField.master, await rehearsalDeviceId());
+    rehearsal.touch(RehearsalField.master, await deviceId());
     await save(rehearsal);
 
     // With a recording to play along to, the click is redundant and mostly in
@@ -198,7 +199,7 @@ class RehearsalLibrary extends ChangeNotifier {
     final master = rehearsal.master;
     if (master == null) return;
     master.offsetFrames = offsetFrames < 0 ? 0 : offsetFrames;
-    rehearsal.touch(RehearsalField.master, await rehearsalDeviceId());
+    rehearsal.touch(RehearsalField.master, await deviceId());
     await save(rehearsal);
   }
 
@@ -213,7 +214,7 @@ class RehearsalLibrary extends ChangeNotifier {
       debugPrint('RehearsalLibrary: could not delete master — $e');
     }
     rehearsal.master = null;
-    rehearsal.touch(RehearsalField.master, await rehearsalDeviceId());
+    rehearsal.touch(RehearsalField.master, await deviceId());
     await save(rehearsal);
   }
 
@@ -257,6 +258,21 @@ class RehearsalLibrary extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Stands in for the real device identity.
+  ///
+  /// The identity lives in shared preferences, which are per *process*, so two
+  /// libraries running in one test would otherwise be the same device. That
+  /// matters more than it sounds: a peer whose id matches your own is filtered
+  /// out of discovery as yourself, which quietly turns a two-device test into
+  /// a one-device one. Null everywhere outside tests.
+  final String? deviceIdOverride;
+
+  /// This device's identity, and the single place anything in the library asks
+  /// for it, so a rehearsal's member stamps and its field clocks can never
+  /// disagree about who wrote them.
+  Future<String> deviceId() async =>
+      deviceIdOverride ?? await rehearsalDeviceId();
+
   /// Gives a rehearsal written before field stamps existed a set of them.
   ///
   /// Without this, everything created earlier carries a zero clock on every
@@ -277,7 +293,7 @@ class RehearsalLibrary extends ChangeNotifier {
     // can never be rediscovered — only re-introduced by QR.
     r.joinKey ??= base64.encode(JoinTicket.newKey());
 
-    final device = await rehearsalDeviceId();
+    final device = await deviceId();
     for (final field in RehearsalField.all) {
       if (field == RehearsalField.master && r.master == null) continue;
       r.touch(field, device);
@@ -298,7 +314,7 @@ class RehearsalLibrary extends ChangeNotifier {
     if (selfId == null) return;
     final me = r.members.where((m) => m.id == selfId).firstOrNull;
     if (me == null || me.deviceId != null) return;
-    me.deviceId = await rehearsalDeviceId();
+    me.deviceId = await deviceId();
     await save(r);
   }
 
@@ -315,7 +331,7 @@ class RehearsalLibrary extends ChangeNotifier {
     int countInBars = 2,
   }) async {
     final memberId = newRehearsalId();
-    final device = await rehearsalDeviceId();
+    final device = await deviceId();
     final rehearsal = Rehearsal(
       id: newRehearsalId(),
       title: title,
@@ -406,7 +422,7 @@ class RehearsalLibrary extends ChangeNotifier {
     void Function() apply,
   ) async {
     apply();
-    rehearsal.touch(field, await rehearsalDeviceId());
+    rehearsal.touch(field, await deviceId());
     await save(rehearsal);
   }
 
@@ -427,7 +443,7 @@ class RehearsalLibrary extends ChangeNotifier {
       id: newRehearsalId(),
       displayName: name,
       instrument: instrument,
-      deviceId: await rehearsalDeviceId(),
+      deviceId: await deviceId(),
     );
     rehearsal.members.add(member);
 

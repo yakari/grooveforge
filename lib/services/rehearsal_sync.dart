@@ -43,6 +43,8 @@ class SyncReport {
     this.takesSent = 0,
     this.masterReceived = false,
     this.changed = false,
+    this.peerDeviceId,
+    this.peerHas = const {},
   });
 
   final bool ok;
@@ -51,6 +53,17 @@ class SyncReport {
   final int takesSent;
   final bool masterReceived;
   final bool changed;
+
+  /// Which device answered, from the handshake.
+  final String? peerDeviceId;
+
+  /// Take revision the peer is known to hold, per part id, once this session
+  /// finished.
+  ///
+  /// Only what was actually established: a part the peer asked for and we
+  /// could not send is left out rather than assumed delivered, because that is
+  /// exactly the case the room needs to be warned about.
+  final Map<String, int> peerHas;
 }
 
 /// Runs one sync over an already-connected socket.
@@ -89,6 +102,9 @@ class SyncSession {
 
   /// Reports a human-readable step, for the Nearby screen.
   final void Function(String step)? onProgress;
+
+  /// Filled in by the handshake: who is on the other end.
+  String? _peerDeviceId;
 
   final SyncCrypto _crypto;
   final FrameReader _reader = FrameReader();
@@ -183,6 +199,7 @@ class SyncSession {
       if (challenge['type'] != Msg.challenge) {
         throw StateError('expected a challenge, got ${challenge['type']}');
       }
+      _peerDeviceId = challenge['device'] as String?;
       final theirNonce = base64.decode(challenge['nonce'] as String);
       final expected = _crypto.proof(myNonce, Uint8List.fromList(theirNonce));
       if (!SyncCrypto.constantTimeEquals(
@@ -209,6 +226,7 @@ class SyncSession {
         _sendPlain({'type': Msg.error, 'reason': 'rehearsal'});
         throw StateError('that device is syncing a different rehearsal');
       }
+      _peerDeviceId = hello['device'] as String?;
       final theirNonce =
           Uint8List.fromList(base64.decode(hello['nonce'] as String));
       final proof = _crypto.proof(theirNonce, myNonce);
@@ -272,15 +290,41 @@ class SyncSession {
 
     return SyncReport(
       ok: true,
-      takesSent: sent,
+      takesSent: sent.length,
       takesReceived: received.$1,
       masterReceived: received.$2,
       changed: outcome.changed,
+      peerDeviceId: _peerDeviceId,
+      peerHas: _whatTheyNowHold(local, wantedParts, sent),
     );
   }
 
-  Future<int> _sendWanted(List<String> parts, bool master) async {
-    var sent = 0;
+  /// Works out which take revisions the peer holds now that this is over.
+  ///
+  /// Both documents were merged from the same pair of manifests, so [local] is
+  /// what *both* sides converged on. A part the peer did not ask for is one
+  /// they already had at this revision or better — their own merge decided
+  /// that. A part they did ask for is theirs only if the audio actually went.
+  Map<String, int> _whatTheyNowHold(
+    Rehearsal local,
+    List<String> wanted,
+    Set<String> sent,
+  ) {
+    final missed = wanted.toSet()..removeAll(sent);
+    return {
+      for (final part in local.parts)
+        if (part.take != null && !missed.contains(part.id))
+          part.id: part.take!.revision,
+    };
+  }
+
+  /// Sends what the peer asked for, and reports which parts actually went.
+  ///
+  /// The distinction matters: a part we advertised but cannot read is skipped
+  /// silently, and treating that as delivered would tell the room everyone is
+  /// up to date when one device is missing a take.
+  Future<Set<String>> _sendWanted(List<String> parts, bool master) async {
+    final sent = <String>{};
     for (final partId in parts) {
       final bytes = await store.readTake(rehearsalId, partId);
       if (bytes == null) continue;
@@ -292,7 +336,7 @@ class SyncSession {
         'length': bytes.length,
       });
       await _sendBlob(bytes);
-      sent++;
+      sent.add(partId);
     }
     if (master) {
       final bytes = await store.readMaster(rehearsalId);

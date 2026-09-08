@@ -2566,4 +2566,56 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get rehearsalsJoin => 'Join a tune';
+
+  @override
+  String get guideTabRehearsals => 'Rehearsals';
+
+  @override
+  String get guideRehearsalIntroTitle => 'Rehearsing together';
+
+  @override
+  String get guideRehearsalIntroBody =>
+      'The Rehearse tab is for a band learning a tune. Everyone records their own part over a shared click, on their own phone, and the parts are collected into one arrangement that every device holds a full copy of.\n\nNothing is uploaded anywhere. The devices talk straight to each other, so a rehearsal works in a room with no internet at all.';
+
+  @override
+  String get guideRehearsalStartTitle => 'Starting a tune';
+
+  @override
+  String get guideRehearsalStartBody =>
+      'Start a tune, give it a name, and say what you play. Set the tempo and the time signature, or tap the beat if you would rather feel it than count it.\n\nTo play along to a recording, import it as the master track: MP3, FLAC and WAV everywhere, and on Android also M4A, AAC and the sound of a video. Then drag the marker to the first downbeat so the grid lines up with the music. The click switches itself off once a recording is there, because the recording is the tempo now.';
+
+  @override
+  String get guideRehearsalRecordTitle => 'Recording your part';
+
+  @override
+  String get guideRehearsalRecordBody =>
+      'Add a part for your instrument and press record. A count-in runs first, two bars by default, and recording starts on the downbeat.\n\nEvery device takes a moment to play sound and a moment to capture it, and that delay would push your take late against everything already recorded. The app measures the delay on your own device and shifts your take back by it, so what you played on the beat lands on the beat. Measure it once from Settings, and again if you change headphones or move to a Bluetooth speaker, since the delay belongs to the gear and not to the tune.\n\nYou record your own parts and nobody else\'s. Yours can be re-recorded or deleted as often as you like.';
+
+  @override
+  String get guideRehearsalShareTitle => 'Getting the band together';
+
+  @override
+  String get guideRehearsalShareBody =>
+      'The first time, one person shares the tune and the others take it: on a phone, scan the code; on a computer, paste the link. From then on the devices know each other, and simply opening the same tune is enough — they find each other again within a few seconds.\n\nA dot next to each part says whether the player who owns it is connected right now. Whatever you record reaches everyone in the room as soon as you stop, and anything you missed while you were away arrives the next time you are all in the same place.';
+
+  @override
+  String get guideRehearsalHotspotTitle => 'When there is no Wi-Fi';
+
+  @override
+  String get guideRehearsalHotspotBody =>
+      'Everyone has to be on the same network. Phones on mobile data cannot see each other, and rehearsal rooms rarely have usable Wi-Fi, so one person makes the network instead:\n\n1. One phone turns on its personal hotspot, in the phone\'s own settings. The exact place varies by make, but it is usually under Connections or Network.\n2. Everyone else joins that hotspot from their normal Wi-Fi settings, the same way they would join any network.\n3. Everyone opens the tune. The devices find each other within a few seconds.\n\nIt does not have to be the same person every time. If whoever usually hosts is not at this rehearsal, anybody else turns theirs on and the rest join that one.\n\nNext time, that person turns the hotspot back on, everyone reconnects, and there is nothing to scan again.';
+
+  @override
+  String get guideRehearsalHotspotNote =>
+      'Sharing parts uses no mobile data — it never leaves the room. Some phones insist on switching mobile data on before they will share a hotspot, but the rehearsal itself does not spend any.';
+
+  @override
+  String get rehearsalTakePending => 'Not sent yet';
+
+  @override
+  String get rehearsalSyncIncomplete =>
+      'Stay connected: not everyone has the latest takes yet.';
+
+  @override
+  String get rehearsalSyncComplete => 'Everyone has the latest takes.';
 }

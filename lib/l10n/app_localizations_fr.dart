@@ -2582,4 +2582,56 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get rehearsalsJoin => 'Rejoindre un morceau';
+
+  @override
+  String get guideTabRehearsals => 'Répétitions';
+
+  @override
+  String get guideRehearsalIntroTitle => 'Répéter ensemble';
+
+  @override
+  String get guideRehearsalIntroBody =>
+      'L\'onglet Répétitions sert à un groupe qui travaille un morceau. Chacun enregistre sa propre partie sur un clic commun, depuis son téléphone, et les parties se rassemblent en un seul arrangement dont chaque appareil garde une copie complète.\n\nRien n\'est envoyé nulle part. Les appareils se parlent directement : une répétition fonctionne dans une salle sans le moindre accès à internet.';
+
+  @override
+  String get guideRehearsalStartTitle => 'Lancer un morceau';
+
+  @override
+  String get guideRehearsalStartBody =>
+      'Lancez un morceau, donnez-lui un nom et indiquez ce que vous jouez. Réglez le tempo et la mesure, ou tapez la pulsation si vous préférez la sentir plutôt que la compter.\n\nPour jouer sur un enregistrement, importez-le comme piste maîtresse : MP3, FLAC et WAV partout, et sur Android aussi M4A, AAC et le son d\'une vidéo. Faites ensuite glisser le repère sur le premier temps fort pour aligner la grille sur la musique. Le clic se coupe tout seul dès qu\'un enregistrement est là : c\'est lui qui donne le tempo, désormais.';
+
+  @override
+  String get guideRehearsalRecordTitle => 'Enregistrer sa partie';
+
+  @override
+  String get guideRehearsalRecordBody =>
+      'Ajoutez une partie pour votre instrument et appuyez sur enregistrer. Un décompte passe d\'abord, deux mesures par défaut, et l\'enregistrement démarre sur le temps fort.\n\nChaque appareil met un instant à sortir le son et un instant à le capter, et ce retard décalerait votre prise derrière tout ce qui est déjà enregistré. L\'application mesure ce retard sur votre propre appareil et recale votre prise d\'autant : ce que vous avez joué sur le temps tombe sur le temps. Mesurez-le une fois depuis les Paramètres, puis à nouveau si vous changez de casque ou passez sur une enceinte Bluetooth — le retard appartient au matériel, pas au morceau.\n\nVous enregistrez vos parties et celles de personne d\'autre. Les vôtres, vous pouvez les refaire ou les supprimer autant de fois que vous voulez.';
+
+  @override
+  String get guideRehearsalShareTitle => 'Réunir le groupe';
+
+  @override
+  String get guideRehearsalShareBody =>
+      'La première fois, une personne partage le morceau et les autres le récupèrent : sur téléphone, scannez le code ; sur ordinateur, collez le lien. Ensuite les appareils se connaissent, et il suffit d\'ouvrir le même morceau — ils se retrouvent en quelques secondes.\n\nUne pastille à côté de chaque partie indique si le musicien à qui elle appartient est connecté. Ce que vous enregistrez part vers tout le monde dès que vous arrêtez, et ce que vous avez manqué pendant votre absence arrive la prochaine fois que vous êtes tous au même endroit.';
+
+  @override
+  String get guideRehearsalHotspotTitle => 'Quand il n\'y a pas de Wi-Fi';
+
+  @override
+  String get guideRehearsalHotspotBody =>
+      'Tout le monde doit être sur le même réseau. Des téléphones en données mobiles ne peuvent pas se voir, et les salles de répétition ont rarement un Wi-Fi utilisable : c\'est donc une personne qui fabrique le réseau.\n\n1. Un téléphone active son point d\'accès mobile, dans ses propres réglages. L\'endroit exact change selon la marque, mais c\'est en général sous Connexions ou Réseau.\n2. Tous les autres rejoignent ce point d\'accès depuis leurs réglages Wi-Fi habituels, comme n\'importe quel réseau.\n3. Chacun ouvre le morceau. Les appareils se trouvent en quelques secondes.\n\nCe n\'est pas forcément toujours la même personne. Si celle qui s\'en charge d\'habitude n\'est pas là, n\'importe qui d\'autre active le sien et le reste du groupe s\'y connecte.\n\nLa fois suivante, cette personne rallume son point d\'accès, tout le monde se reconnecte, et il n\'y a plus rien à scanner.';
+
+  @override
+  String get guideRehearsalHotspotNote =>
+      'Le partage des parties ne consomme aucune donnée mobile : il ne sort jamais de la salle. Certains téléphones exigent d\'activer les données mobiles avant de partager un point d\'accès, mais la répétition, elle, n\'en dépense pas.';
+
+  @override
+  String get rehearsalTakePending => 'Pas encore transmise';
+
+  @override
+  String get rehearsalSyncIncomplete =>
+      'Restez connectés : tout le monde n\'a pas encore les dernières prises.';
+
+  @override
+  String get rehearsalSyncComplete => 'Tout le monde a les dernières prises.';
 }

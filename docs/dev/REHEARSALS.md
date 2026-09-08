@@ -1297,3 +1297,53 @@ The badge is a dot, filled and green when present, hollow and outlined when
 not: the two states differ in shape as well as hue, so it still reads without
 colour vision, and the tooltip and semantics label carry the meaning for screen
 readers, to whom a coloured circle says nothing.
+
+---
+
+## 23. Knowing the room has everything
+
+Someone re-records a part and walks out before it transfers, and the take exists
+on exactly one device. Nothing said so.
+
+The protocol already knew enough to say it. A session ends with both sides
+merged from the same pair of manifests, so the local document *is* what both
+converged on. A part the peer never asked for is one they already held at that
+revision or better — their own merge decided that. A part they did ask for is
+theirs only if the audio actually went, which is why `_sendWanted` now returns
+the set of parts it sent rather than a count: a part we advertised but could not
+read is skipped silently, and counting it as delivered would report the room
+complete while a take sat on one phone.
+
+`SyncReport` carries the peer's device id (already exchanged in the handshake,
+just never captured) and what they now hold. The service keeps that as a
+ledger — rehearsal, device, part, revision.
+
+**In memory, deliberately.** It is knowledge about right now: it only means
+anything while the peer is visible, and the warning it feeds asks people to stay
+connected a moment longer. A restart loses it and the next session rebuilds it
+in seconds.
+
+Three rules the UI depends on:
+
+- Only *visible* peers count. Someone who went home cannot be waited for, and
+  warning about them would make the indicator permanent and so ignored.
+- A peer we have not finished a session with counts as **not** having it. Until
+  manifests are exchanged we genuinely do not know, and a restart therefore
+  shows the warning for one tick — honest, and self-clearing.
+- The ledger entry is replaced, not merged. Someone who deletes and re-records
+  moves *backwards* in our view of them until the new take lands, and keeping
+  the old higher number would hide exactly the case this exists for.
+
+The live bar becomes the warning rather than growing a second one beside it —
+it is already the "who is here" strip, and "does everyone have everything" is
+the same question. Lanes carry a red tag individually.
+
+### A test seam this forced
+
+`RehearsalLibrary` gained `deviceIdOverride`. The identity lives in shared
+preferences, which are per *process*, so two libraries in one test were the same
+device — and a peer whose id matches your own is filtered out of discovery as
+yourself, quietly turning every two-device test into a one-device one. Every
+stamp in the library now goes through `deviceId()`, and the sync service asks
+the library rather than the free function, so a device's member stamps, its
+field clocks and the id it announces on the network cannot disagree.

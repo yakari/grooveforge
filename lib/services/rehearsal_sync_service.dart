@@ -156,6 +156,57 @@ class RehearsalSyncService extends ChangeNotifier {
   int visibleDeviceCount(String rehearsalId) =>
       discovery.peersFor(rehearsalId).length;
 
+  /// What each peer device is known to hold: rehearsal, then device, then
+  /// take revision per part.
+  ///
+  /// Deliberately in memory and not on disk. This is knowledge about *right
+  /// now* — it only has a meaning while the peer is visible, and the warning
+  /// it feeds asks people to stay connected a moment longer. Losing it on a
+  /// restart costs nothing: the first session re-establishes it in seconds.
+  final Map<String, Map<String, Map<String, int>>> _peerHas = {};
+
+  /// Records what a finished session established about its peer.
+  void _rememberPeerState(String rehearsalId, SyncReport report) {
+    final device = report.peerDeviceId;
+    if (!report.ok || device == null || device.isEmpty) return;
+    final forRehearsal = _peerHas.putIfAbsent(rehearsalId, () => {});
+    // Replaced, not merged: a peer that deleted and re-recorded moves a part
+    // backwards in our view of them until the new take is delivered, and
+    // keeping the old higher number would hide exactly that.
+    forRehearsal[device] = report.peerHas;
+    notifyListeners();
+  }
+
+  /// Parts whose current take is not yet known to be on every device in the
+  /// room.
+  ///
+  /// Only devices visible right now are counted. Someone who has gone home
+  /// cannot be waited for, and warning about them would make the indicator
+  /// permanent and therefore ignored.
+  ///
+  /// A peer we have not finished a session with yet counts as not having it,
+  /// which is honest rather than pessimistic: until the manifests have been
+  /// exchanged we genuinely do not know. It clears itself within a tick.
+  Set<String> partsAwaitingDelivery(Rehearsal rehearsal) {
+    final peers = discovery.peersFor(rehearsal.id);
+    if (peers.isEmpty) return const {};
+
+    final ledger = _peerHas[rehearsal.id] ?? const <String, Map<String, int>>{};
+    final pending = <String>{};
+    for (final part in rehearsal.parts) {
+      final take = part.take;
+      if (take == null) continue;
+      for (final peer in peers) {
+        final theirs = ledger[peer.deviceId]?[part.id];
+        if (theirs == null || theirs < take.revision) {
+          pending.add(part.id);
+          break;
+        }
+      }
+    }
+    return pending;
+  }
+
   /// The devices currently reachable for [rehearsalId].
   ///
   /// Lanes are owned by members and discovery speaks in devices, so this is
@@ -196,9 +247,12 @@ class RehearsalSyncService extends ChangeNotifier {
   }
   String? get lastError => _lastError;
 
-  /// This device's identity, shared with the library so both stamp edits with
-  /// the same id.
-  Future<String> deviceId() => rehearsalDeviceId();
+  /// This device's identity.
+  ///
+  /// Asked of the library rather than fetched directly, so a device's member
+  /// stamps, its field clocks and the id it announces on the network are all
+  /// the same string by construction.
+  Future<String> deviceId() => _library.deviceId();
 
   // ── Hosting ───────────────────────────────────────────────────────────────
 
@@ -337,6 +391,7 @@ class RehearsalSyncService extends ChangeNotifier {
       },
     );
     final report = await session.run();
+    _rememberPeerState(ticket.rehearsalId, report);
     peer.status = report.ok ? 'done' : (report.error ?? 'failed');
     if (report.takesReceived > 0 || report.masterReceived) {
       onAudioReceived?.call();
@@ -515,6 +570,7 @@ class RehearsalSyncService extends ChangeNotifier {
         },
       );
       final report = await session.run();
+      _rememberPeerState(ticket.rehearsalId, report);
       if (!report.ok && !quiet) _lastError = report.error;
 
       // Deliberately no reload here. The merge mutates the library's live

@@ -2,6 +2,8 @@
 
 GrooveForge is a small cross-platform Flutter app for playing with MIDI keyboards, soundfonts, and — on desktop — VST3 plugins. It runs a built-in multi-timbral synthesizer, a rack of instruments and effects, MIDI and audio loopers, and a microtonal scale engine that can retune the keyboard to maqamat, ragas, dastgāh, gamelan scales, Ethiopian qenet or historical temperaments.
 
+It also does **rehearsals**: a band learning a tune, each player recording their own part over a shared click on their own phone, with the parts syncing device to device over the local network and no server anywhere.
+
 It is **not** meant to compete with established DAWs (Ableton, Bitwig, Reaper, FL Studio, …) or with the excellent free and open-source tools out there (Ardour, LMMS, Zrythm, Qtractor, …). Those projects are far more capable and more thoroughly tested. GrooveForge is a focused personal tool that happens to be shared publicly in case it is useful to someone else.
 
 ## About this project
@@ -14,7 +16,7 @@ If it helps anyone else dust off an old piano habit, even better.
 
 ## Features
 
-Everything is built around the **plugin rack**: an ordered, drag-and-drop stack of module slots that can be added, removed and reordered at any time. Modules are wired to each other and to MIDI channels from the rack itself.
+Playing is built around the **plugin rack**: an ordered, drag-and-drop stack of module slots that can be added, removed and reordered at any time. Modules are wired to each other and to MIDI channels from the rack itself. **Rehearsals** are the other half, and live on their own screen rather than in the rack.
 
 ### Instruments
 
@@ -53,6 +55,18 @@ Retuning uses a full MIDI tuning table rather than pitch bend, so every note of 
 Not everything in the list is equally certain, and the app says so. A temperament or an equal division has exact values; a maqam is written in the 24-tone convention that notates the practice rather than measuring it; a gamelan, an Ethiopian qenet or a hardanger fiddle is tuned by ear and differs from one instrument to the next. Each scale's `provenance` line states which of those it is, because presenting an averaged tuning as a standard would be the wrong kind of precision.
 
 Build your own scales in the editor — any number of degrees, per-key offsets, and a mute that keeps a degree playable and retuned while the snap ignores it. Import and export Scala `.scl` files, or GrooveForge's own JSON for a faithful round trip.
+
+### Rehearsals
+
+A band learning a tune together, on the phones they already have.
+
+- **A part each** — everyone adds a lane for their instrument and records into it over a shared click, with a count-in. You record your own parts and nobody else's; yours can be re-recorded or deleted freely.
+- **Latency-compensated overdubs** — every device takes a moment to play sound and a moment to capture it, and that delay would push each take late against everything already recorded. The round trip is measured on the device itself (a chirp, cross-correlated against what comes back) and each take is shifted by it, so what was played on the beat lands on the beat. Re-measure after changing headphones or moving to a Bluetooth speaker; the delay belongs to the gear, not to the tune.
+- **Play along to a recording** — import a master track (MP3, FLAC and WAV everywhere; M4A, AAC and video soundtracks on Android), tap the tempo, and drag a marker to the first downbeat to line the grid up with the music.
+- **Serverless sync** — devices talk straight to each other over the local network, found by mDNS and introduced once by a QR code or a pasted link. The merge is symmetric and conflict-free, so there is no host and no authority: any two devices that meet converge on the same arrangement, in any order.
+- **Nothing leaves the room** — no account, no cloud, no internet required. Where there is no Wi-Fi, one phone's hotspot is the whole network.
+
+Design notes and protocol details: [`docs/dev/REHEARSALS.md`](docs/dev/REHEARSALS.md).
 
 ### Loopers
 

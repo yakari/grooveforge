@@ -8,6 +8,8 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 ## [X.x.x]
 
 ### Ajouté
+- Une pastille rouge signale une prise qui n'a pas encore atteint tous les appareils connectés, pour que personne ne parte en plein transfert.
+- Une page Répétitions dans le guide, avec la marche à suivre pour réunir tout le monde sur un même réseau quand la salle n'a pas de Wi-Fi.
 - Un onglet Répéter : lancez un morceau, réglez le tempo et enregistrez votre partie sur un clic.
 - Les prises sont recalées selon la latence mesurée sur votre appareil, pour tomber sur le temps.
 - Chaque partie a sa piste avec muet et niveau ; votre mixage reste sur votre téléphone.
@@ -40,7 +42,6 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 - Les patterns orientaux sont conçus pour aller avec les gammes du module Xen — maqsoum sur Rast, karşılama sur Hicaz, teental sur Yaman — et chaque fichier documente quel instrument General MIDI remplace le darbouka, le tabla, le dhol ou le taiko pour lequel il a été écrit.
 
 ### Modifié
-- Rejoindre un morceau est maintenant un bouton libellé à côté de Lancer un morceau, et la barre de l'onglet Répétitions propose le guide et les paramètres comme le rack.
 - Les deux harmoniseurs : une prise **CHORD IN**. Reliez le CHORD OUT d'un clavier et l'accord joué écrit les intervalles des voix — les notes au-dessus de la plus grave deviennent les voix, donc do-mi-sol règle deux voix à +4 et +7, et la forme sous la main est la forme de l'harmonie. Il règle les commandes au lieu de les confisquer : les rangées affichent ce que l'accord a demandé, restent modifiables, et gardent leurs valeurs quand on relâche les touches.
 - Audio Harmonizer : **Scale Lock**. Activé, l'intervalle de chaque voix se plie à la note la plus proche de la gamme verrouillée par le module Xen (ou par le mode Jam), au lieu de conserver un nombre de demi-tons fixe. Une tierce au-dessus vaut quatre demi-tons sur do majeur et trois sur ré mineur — sans cela l'harmonie est fausse dès que l'accord bouge. Désactivé par défaut : l'intervalle fixe est ce que le module faisait jusqu'ici.
 - Vocodeur : le quatrième mode devient **Harmonie** et fait tourner le moteur de l'Audio Harmonizer sur un flux micro continu et non filtré. Chantez, tenez un accord, et il revient dans votre propre voix — les touches tenues transposent le micro en direct, et le banc de filtres est court-circuité : une porteuse qui *est* déjà la voix n'a rien à y gagner. Il remplace le rééchantillonneur en boucle qui capturait un instant de la voix et le rejouait à la hauteur de chaque touche, ce qui tenait la note mais perdait chaque mot et chaque inflexion. L'indice de mode 3 est inchangé : les projets enregistrés basculent sur le nouvel algorithme.

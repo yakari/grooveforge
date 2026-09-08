@@ -88,9 +88,10 @@ class _RehearsalScreenState extends State<RehearsalScreen> {
     final sync = context.read<RehearsalSyncService>();
     // A remembered address, for a network where discovery does not work. It
     // goes stale once the peer restarts sharing, so it is only ever a fallback.
-    sync.fallbackTicket = local.lastTicketUri == null
-        ? null
-        : JoinTicket.parse(local.lastTicketUri!);
+    sync.fallbackTicket =
+        local.lastTicketUri == null
+            ? null
+            : JoinTicket.parse(local.lastTicketUri!);
     await sync.goLive(rehearsal);
   }
 
@@ -135,18 +136,20 @@ class _RehearsalScreenState extends State<RehearsalScreen> {
     setState(() => _importing = false);
 
     if (master == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.masterImportFailed)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.masterImportFailed)));
       return;
     }
     await engine.reloadTracks();
     if (!mounted) return;
     // Straight into alignment: an unaligned master is not much use, and this
     // is the one moment the player knows what they just imported.
-    await Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => MasterAlignScreen(engine: engine, rehearsal: rehearsal),
-    ));
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => MasterAlignScreen(engine: engine, rehearsal: rehearsal),
+      ),
+    );
     if (mounted) setState(() {});
   }
 
@@ -158,17 +161,20 @@ class _RehearsalScreenState extends State<RehearsalScreen> {
 
     final ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        content: Text(l10n.masterRemoveConfirm(master.sourceName)),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(l10n.rehearsalCancel)),
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(l10n.rehearsalDelete)),
-        ],
-      ),
+      builder:
+          (ctx) => AlertDialog(
+            content: Text(l10n.masterRemoveConfirm(master.sourceName)),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: Text(l10n.rehearsalCancel),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: Text(l10n.rehearsalDelete),
+              ),
+            ],
+          ),
     );
     if (ok != true || !mounted) return;
     await context.read<RehearsalLibrary>().removeMaster(rehearsal);
@@ -202,18 +208,24 @@ class _RehearsalScreenState extends State<RehearsalScreen> {
 
     final ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        content: Text(l10n.rehearsalDeleteTakeConfirm(
-            instrumentLabel(l10n, part.instrument))),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(l10n.rehearsalCancel)),
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(l10n.rehearsalDelete)),
-        ],
-      ),
+      builder:
+          (ctx) => AlertDialog(
+            content: Text(
+              l10n.rehearsalDeleteTakeConfirm(
+                instrumentLabel(l10n, part.instrument),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: Text(l10n.rehearsalCancel),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: Text(l10n.rehearsalDelete),
+              ),
+            ],
+          ),
     );
     if (ok != true || !mounted) return;
 
@@ -231,18 +243,24 @@ class _RehearsalScreenState extends State<RehearsalScreen> {
 
     final ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        content: Text(l10n.rehearsalRemovePartConfirm(
-            instrumentLabel(l10n, part.instrument))),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(l10n.rehearsalCancel)),
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(l10n.rehearsalDelete)),
-        ],
-      ),
+      builder:
+          (ctx) => AlertDialog(
+            content: Text(
+              l10n.rehearsalRemovePartConfirm(
+                instrumentLabel(l10n, part.instrument),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: Text(l10n.rehearsalCancel),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: Text(l10n.rehearsalDelete),
+              ),
+            ],
+          ),
     );
     if (ok != true || !mounted) return;
 
@@ -262,22 +280,23 @@ class _RehearsalScreenState extends State<RehearsalScreen> {
 
     final instrument = await showDialog<String>(
       context: context,
-      builder: (ctx) => SimpleDialog(
-        title: Text(l10n.rehearsalAddPart),
-        children: [
-          for (final id in kInstruments)
-            SimpleDialogOption(
-              onPressed: () => Navigator.pop(ctx, id),
-              child: Row(
-                children: [
-                  Icon(instrumentIcon(id), size: 20),
-                  const SizedBox(width: 12),
-                  Text(instrumentLabel(l10n, id)),
-                ],
-              ),
-            ),
-        ],
-      ),
+      builder:
+          (ctx) => SimpleDialog(
+            title: Text(l10n.rehearsalAddPart),
+            children: [
+              for (final id in kInstruments)
+                SimpleDialogOption(
+                  onPressed: () => Navigator.pop(ctx, id),
+                  child: Row(
+                    children: [
+                      Icon(instrumentIcon(id), size: 20),
+                      const SizedBox(width: 12),
+                      Text(instrumentLabel(l10n, id)),
+                    ],
+                  ),
+                ),
+            ],
+          ),
     );
     if (instrument == null || !mounted) return;
 
@@ -311,9 +330,11 @@ class _RehearsalScreenState extends State<RehearsalScreen> {
                 // competing for attention while a peer syncs.
                 await context.read<RehearsalEngine>().stop();
                 if (!context.mounted) return;
-                await Navigator.of(context).push(MaterialPageRoute(
-                  builder: (_) => NearbyScreen(rehearsal: rehearsal),
-                ));
+                await Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => NearbyScreen(rehearsal: rehearsal),
+                  ),
+                );
                 if (!context.mounted) return;
                 // A sync reloads the library, which builds *new* Rehearsal
                 // objects — the one this screen is holding is stale, and would
@@ -324,69 +345,88 @@ class _RehearsalScreenState extends State<RehearsalScreen> {
             ),
         ],
       ),
-      floatingActionButton: rehearsal == null
-          ? null
-          : FloatingActionButton.small(
-              heroTag: 'rehearsal-fab',
-              onPressed: _addPart,
-              tooltip: l10n.rehearsalAddPart,
-              child: const Icon(Icons.add),
-            ),
-      body: rehearsal == null
-          ? const Center(child: CircularProgressIndicator())
-          : SafeArea(
-              top: false,
-              child: Consumer2<RehearsalEngine, RehearsalSyncService>(
-                builder: (context, engine, sync, _) => Column(
-                  children: [
-                    _TransportBar(engine: engine, rehearsal: rehearsal),
-                    if (sync.isLive || sync.isHosting)
-                      _LiveBar(
-                        sync: sync,
-                        rehearsalId: rehearsal.id,
-                        onRefresh: () async {
-                          await sync.syncNow();
-                          await _refresh();
-                        },
-                      ),
-                    const Divider(height: 1),
-                    if (engine.localState.compensationFrames == 0)
-                      _CompensationWarning(),
-                    if (_importing) const LinearProgressIndicator(),
-                    _MasterRow(
-                      engine: engine,
-                      rehearsal: rehearsal,
-                      importing: _importing,
-                      onImport: _importMaster,
-                      onRemove: _removeMaster,
-                      onAlign: () async {
-                        await Navigator.of(context).push(MaterialPageRoute(
-                          builder: (_) => MasterAlignScreen(
-                              engine: engine, rehearsal: rehearsal),
-                        ));
-                        if (mounted) setState(() {});
-                      },
-                    ),
-                    Expanded(
-                      child: ListView.builder(
-                        padding: const EdgeInsets.fromLTRB(8, 8, 8, 88),
-                        itemCount: rehearsal.parts.length,
-                        itemBuilder: (_, i) => _PartLane(
+      floatingActionButton:
+          rehearsal == null
+              ? null
+              : FloatingActionButton.small(
+                heroTag: 'rehearsal-fab',
+                onPressed: _addPart,
+                tooltip: l10n.rehearsalAddPart,
+                child: const Icon(Icons.add),
+              ),
+      body:
+          rehearsal == null
+              ? const Center(child: CircularProgressIndicator())
+              : SafeArea(
+                top: false,
+                child: Consumer2<RehearsalEngine, RehearsalSyncService>(
+                  builder: (context, engine, sync, _) {
+                    // Computed once per build, not once per lane: it walks every
+                    // part against every visible peer, and the lane builder runs
+                    // for each row.
+                    final pending = sync.partsAwaitingDelivery(rehearsal);
+                    return Column(
+                      children: [
+                        _TransportBar(engine: engine, rehearsal: rehearsal),
+                        if (sync.isLive || sync.isHosting)
+                          _LiveBar(
+                            sync: sync,
+                            rehearsalId: rehearsal.id,
+                            pendingCount: pending.length,
+                            onRefresh: () async {
+                              await sync.syncNow();
+                              await _refresh();
+                            },
+                          ),
+                        const Divider(height: 1),
+                        if (engine.localState.compensationFrames == 0)
+                          _CompensationWarning(),
+                        if (_importing) const LinearProgressIndicator(),
+                        _MasterRow(
                           engine: engine,
                           rehearsal: rehearsal,
-                          part: rehearsal.parts[i],
-                          online: sync.onlineDeviceIds(rehearsal.id),
-                          onChanged: () => setState(() {}),
-                          onDelete: () => _deleteTake(rehearsal.parts[i]),
-                          onRemovePart: () =>
-                              _removePart(rehearsal.parts[i]),
+                          importing: _importing,
+                          onImport: _importMaster,
+                          onRemove: _removeMaster,
+                          onAlign: () async {
+                            await Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder:
+                                    (_) => MasterAlignScreen(
+                                      engine: engine,
+                                      rehearsal: rehearsal,
+                                    ),
+                              ),
+                            );
+                            if (mounted) setState(() {});
+                          },
                         ),
-                      ),
-                    ),
-                  ],
+                        Expanded(
+                          child: ListView.builder(
+                            padding: const EdgeInsets.fromLTRB(8, 8, 8, 88),
+                            itemCount: rehearsal.parts.length,
+                            itemBuilder:
+                                (_, i) => _PartLane(
+                                  engine: engine,
+                                  rehearsal: rehearsal,
+                                  part: rehearsal.parts[i],
+                                  online: sync.onlineDeviceIds(rehearsal.id),
+                                  awaitingDelivery: pending.contains(
+                                    rehearsal.parts[i].id,
+                                  ),
+                                  onChanged: () => setState(() {}),
+                                  onDelete:
+                                      () => _deleteTake(rehearsal.parts[i]),
+                                  onRemovePart:
+                                      () => _removePart(rehearsal.parts[i]),
+                                ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ),
-            ),
     );
   }
 }
@@ -408,14 +448,18 @@ class _CompensationWarning extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
         children: [
-          Icon(Icons.info_outline,
-              size: 18, color: theme.colorScheme.onTertiaryContainer),
+          Icon(
+            Icons.info_outline,
+            size: 18,
+            color: theme.colorScheme.onTertiaryContainer,
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               l10n.rehearsalNoCompensation,
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: theme.colorScheme.onTertiaryContainer),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onTertiaryContainer,
+              ),
             ),
           ),
         ],
@@ -454,20 +498,23 @@ class _TransportBar extends StatelessWidget {
                 Text(
                   engine.isCountingIn
                       ? l10n.rehearsalCountingIn
-                      : l10n.rehearsalBarBeat(engine.currentBar, engine.currentBeat),
+                      : l10n.rehearsalBarBeat(
+                        engine.currentBar,
+                        engine.currentBeat,
+                      ),
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontFeatures: const [FontFeature.tabularFigures()],
-                    color: engine.isCountingIn
-                        ? theme.colorScheme.tertiary
-                        : null,
+                    color:
+                        engine.isCountingIn ? theme.colorScheme.tertiary : null,
                   ),
                 ),
                 Text(
                   '${l10n.rehearsalBpmValue(rehearsal.bpm.toStringAsFixed(0))}'
                   '   ·   '
                   '${l10n.rehearsalMeter(rehearsal.beatsPerBar, rehearsal.beatUnit)}',
-                  style: theme.textTheme.bodySmall
-                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
@@ -477,15 +524,18 @@ class _TransportBar extends StatelessWidget {
           _BeatLamp(engine: engine, rehearsal: rehearsal),
           const SizedBox(width: 4),
           IconButton(
-            onPressed: () =>
-                engine.setMetronome(!engine.localState.metronomeEnabled),
+            onPressed:
+                () => engine.setMetronome(!engine.localState.metronomeEnabled),
             tooltip: l10n.rehearsalMetronome,
-            icon: Icon(engine.localState.metronomeEnabled
-                ? Icons.volume_up
-                : Icons.volume_off),
-            color: engine.localState.metronomeEnabled
-                ? theme.colorScheme.primary
-                : null,
+            icon: Icon(
+              engine.localState.metronomeEnabled
+                  ? Icons.volume_up
+                  : Icons.volume_off,
+            ),
+            color:
+                engine.localState.metronomeEnabled
+                    ? theme.colorScheme.primary
+                    : null,
           ),
         ],
       ),
@@ -565,9 +615,10 @@ class _PresenceDot extends StatelessWidget {
             // shape as well as in colour, so the badge still reads for someone
             // who cannot tell the two hues apart.
             color: isHere ? _here : Colors.transparent,
-            border: isHere
-                ? null
-                : Border.all(color: theme.colorScheme.outline, width: 1.5),
+            border:
+                isHere
+                    ? null
+                    : Border.all(color: theme.colorScheme.outline, width: 1.5),
           ),
         ),
       ),
@@ -582,6 +633,7 @@ class _PartLane extends StatelessWidget {
     required this.rehearsal,
     required this.part,
     required this.online,
+    required this.awaitingDelivery,
     required this.onChanged,
     required this.onDelete,
     required this.onRemovePart,
@@ -594,6 +646,9 @@ class _PartLane extends StatelessWidget {
   /// Device ids reachable right now, from discovery.
   final Set<String> online;
 
+  /// True while some device in the room is not yet known to hold this take.
+  final bool awaitingDelivery;
+
   final VoidCallback onChanged;
   final VoidCallback onDelete;
   final VoidCallback onRemovePart;
@@ -602,9 +657,8 @@ class _PartLane extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
-    final member = rehearsal.members
-        .where((m) => m.id == part.memberId)
-        .firstOrNull;
+    final member =
+        rehearsal.members.where((m) => m.id == part.memberId).firstOrNull;
     final take = part.take;
     final isRecordingThis = engine.recordingPart?.id == part.id;
     final muted = engine.localState.isMuted(part.id);
@@ -615,7 +669,8 @@ class _PartLane extends StatelessWidget {
     // Your own lane is here by definition; everyone else has to be visible on
     // the network. A member with no device id has never opened the tune on a
     // device this one has met, which reads as away — accurately.
-    final isHere = isMine ||
+    final isHere =
+        isMine ||
         (member?.deviceId != null && online.contains(member!.deviceId));
 
     return Card(
@@ -627,8 +682,11 @@ class _PartLane extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(instrumentIcon(part.instrument),
-                    size: 20, color: theme.colorScheme.primary),
+                Icon(
+                  instrumentIcon(part.instrument),
+                  size: 20,
+                  color: theme.colorScheme.primary,
+                ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Column(
@@ -655,7 +713,9 @@ class _PartLane extends StatelessWidget {
                             // control that failed to appear.
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 1),
+                                horizontal: 6,
+                                vertical: 1,
+                              ),
                               decoration: BoxDecoration(
                                 color: theme.colorScheme.primaryContainer,
                                 borderRadius: BorderRadius.circular(4),
@@ -663,8 +723,30 @@ class _PartLane extends StatelessWidget {
                               child: Text(
                                 l10n.rehearsalYourPart,
                                 style: theme.textTheme.labelSmall?.copyWith(
-                                    color:
-                                        theme.colorScheme.onPrimaryContainer),
+                                  color: theme.colorScheme.onPrimaryContainer,
+                                ),
+                              ),
+                            ),
+                          ],
+                          if (awaitingDelivery) ...[
+                            const SizedBox(width: 8),
+                            // Red, because it is the one thing on this screen
+                            // that asks the player to do something — wait —
+                            // and it stops mattering the moment it goes.
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 1,
+                              ),
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.errorContainer,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                l10n.rehearsalTakePending,
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: theme.colorScheme.onErrorContainer,
+                                ),
                               ),
                             ),
                           ],
@@ -681,7 +763,8 @@ class _PartLane extends StatelessWidget {
                                 '   ·   '
                                 '${l10n.rehearsalTakeLength((take.duration.inMilliseconds / 1000).toStringAsFixed(1))}',
                         style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant),
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -689,9 +772,8 @@ class _PartLane extends StatelessWidget {
                   ),
                 ),
                 IconButton(
-                  onPressed: take == null
-                      ? null
-                      : () => engine.setMuted(part, !muted),
+                  onPressed:
+                      take == null ? null : () => engine.setMuted(part, !muted),
                   tooltip: l10n.rehearsalMute,
                   icon: Icon(muted ? Icons.volume_off : Icons.volume_up),
                   color: muted ? theme.colorScheme.error : null,
@@ -701,32 +783,34 @@ class _PartLane extends StatelessWidget {
                     enabled: !engine.isRunning,
                     tooltip: l10n.rehearsalPartActions,
                     icon: const Icon(Icons.more_vert),
-                    onSelected: (value) =>
-                        value == 'take' ? onDelete() : onRemovePart(),
-                    itemBuilder: (_) => [
-                      // Two destructive actions that are easy to confuse, so
-                      // they are named rather than offered as two similar
-                      // icons: one keeps the lane, the other does not.
-                      if (take != null)
-                        PopupMenuItem(
-                          value: 'take',
-                          child: ListTile(
-                            leading: const Icon(Icons.backspace_outlined),
-                            title: Text(l10n.rehearsalDeleteTake),
-                            contentPadding: EdgeInsets.zero,
-                            dense: true,
+                    onSelected:
+                        (value) =>
+                            value == 'take' ? onDelete() : onRemovePart(),
+                    itemBuilder:
+                        (_) => [
+                          // Two destructive actions that are easy to confuse, so
+                          // they are named rather than offered as two similar
+                          // icons: one keeps the lane, the other does not.
+                          if (take != null)
+                            PopupMenuItem(
+                              value: 'take',
+                              child: ListTile(
+                                leading: const Icon(Icons.backspace_outlined),
+                                title: Text(l10n.rehearsalDeleteTake),
+                                contentPadding: EdgeInsets.zero,
+                                dense: true,
+                              ),
+                            ),
+                          PopupMenuItem(
+                            value: 'part',
+                            child: ListTile(
+                              leading: const Icon(Icons.delete_outline),
+                              title: Text(l10n.rehearsalRemovePart),
+                              contentPadding: EdgeInsets.zero,
+                              dense: true,
+                            ),
                           ),
-                        ),
-                      PopupMenuItem(
-                        value: 'part',
-                        child: ListTile(
-                          leading: const Icon(Icons.delete_outline),
-                          title: Text(l10n.rehearsalRemovePart),
-                          contentPadding: EdgeInsets.zero,
-                          dense: true,
-                        ),
-                      ),
-                    ],
+                        ],
                   ),
                 if (isMine)
                   IconButton.filledTonal(
@@ -738,9 +822,10 @@ class _PartLane extends StatelessWidget {
                       }
                       onChanged();
                     },
-                    tooltip: take == null
-                        ? l10n.rehearsalRecord
-                        : l10n.rehearsalRerecord,
+                    tooltip:
+                        take == null
+                            ? l10n.rehearsalRecord
+                            : l10n.rehearsalRerecord,
                     icon: Icon(
                       isRecordingThis ? Icons.stop : Icons.fiber_manual_record,
                       color: isRecordingThis ? null : theme.colorScheme.error,
@@ -828,23 +913,29 @@ class _MasterRow extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(Icons.album_outlined,
-                    size: 20, color: theme.colorScheme.tertiary),
+                Icon(
+                  Icons.album_outlined,
+                  size: 20,
+                  color: theme.colorScheme.tertiary,
+                ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(master.sourceName.isEmpty
-                          ? l10n.masterTitle
-                          : master.sourceName,
-                          style: theme.textTheme.titleSmall,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis),
+                      Text(
+                        master.sourceName.isEmpty
+                            ? l10n.masterTitle
+                            : master.sourceName,
+                        style: theme.textTheme.titleSmall,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                       Text(
                         l10n.masterDownbeatAt(_fmt(master.offset)),
                         style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant),
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
                       ),
                     ],
                   ),
@@ -903,45 +994,69 @@ class _LiveBar extends StatelessWidget {
   const _LiveBar({
     required this.sync,
     required this.rehearsalId,
+    required this.pendingCount,
     required this.onRefresh,
   });
 
   final RehearsalSyncService sync;
   final String rehearsalId;
+
+  /// How many takes are not yet known to be on every device in the room.
+  final int pendingCount;
+
   final VoidCallback onRefresh;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
+
+    // The bar turns into the warning rather than sitting next to one. It is
+    // already the "who is here" strip, and whether the room has everything is
+    // the same question — a second bar would compete with it.
+    final waiting = pendingCount > 0;
+    final background =
+        waiting
+            ? theme.colorScheme.errorContainer
+            : theme.colorScheme.primaryContainer;
+    final foreground =
+        waiting
+            ? theme.colorScheme.onErrorContainer
+            : theme.colorScheme.onPrimaryContainer;
+
     return Container(
       width: double.infinity,
-      color: theme.colorScheme.primaryContainer,
+      color: background,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: Row(
         children: [
-          Icon(sync.isBusy ? Icons.sync : Icons.wifi_tethering,
-              size: 16, color: theme.colorScheme.onPrimaryContainer),
+          Icon(
+            waiting
+                ? Icons.cloud_upload_outlined
+                : (sync.isBusy ? Icons.sync : Icons.wifi_tethering),
+            size: 16,
+            color: foreground,
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               // Devices visible on the network, not connections made. The
               // latter counts one per sync and reads as a room filling up
               // with people who are not there.
-              switch (sync.visibleDeviceCount(rehearsalId)) {
-                0 => l10n.liveConnected,
-                final n => l10n.nearbyPeers(n),
-              },
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: theme.colorScheme.onPrimaryContainer),
+              waiting
+                  ? l10n.rehearsalSyncIncomplete
+                  : switch (sync.visibleDeviceCount(rehearsalId)) {
+                    0 => l10n.liveConnected,
+                    final n => l10n.nearbyPeers(n),
+                  },
+              style: theme.textTheme.bodySmall?.copyWith(color: foreground),
             ),
           ),
           IconButton(
             visualDensity: VisualDensity.compact,
             onPressed: onRefresh,
             tooltip: l10n.liveRefresh,
-            icon: Icon(Icons.refresh,
-                size: 18, color: theme.colorScheme.onPrimaryContainer),
+            icon: Icon(Icons.refresh, size: 18, color: foreground),
           ),
         ],
       ),
