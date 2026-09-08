@@ -33,6 +33,7 @@
 #include "gf_harmony.h"
 #include "gf_latency.h"
 #include "gf_rehearsal.h"
+#include "gf_timestretch.h"
 
 // Defined further down, next to the rest of the latency probe.
 static void gf_probe_playback_hook(float* pOut, int frames);
@@ -1038,6 +1039,15 @@ static void gf_probe_capture_hook(const float* pIn, int frames) {
 
 /// Starts a measurement. Allocates on the calling thread — never on audio.
 /// Returns 0 on success, negative on failure.
+/// Renders a take at a different tempo. See gf_timestretch.h.
+///
+/// Exported separately from the engine because it is not an engine operation:
+/// it writes a file, takes as long as it takes, and must never be called from
+/// anywhere near the audio thread.
+EXPORT int gf_ts_render(const char* in_path, const char* out_path, float ratio) {
+    return gf_ts_render_file(in_path, out_path, ratio);
+}
+
 EXPORT int gf_probe_start(void) {
     if (g_probeState == 1) return -1;          // already running
 

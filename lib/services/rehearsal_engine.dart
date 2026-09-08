@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/rehearsal.dart';
 import 'audio_input_ffi.dart';
+import 'rehearsal_tempo_cache.dart';
 import 'gfpa_android_bindings.dart';
 import 'rehearsal_library.dart';
 
@@ -146,7 +147,8 @@ class RehearsalEngine extends ChangeNotifier {
     }
     ffi.startCapture();
 
-    ffi.rehSetGrid(rehearsal.bpm, rehearsal.beatsPerBar, rehearsal.beatUnit);
+    ffi.rehSetGrid(_local.effectiveBpm(rehearsal.bpm), rehearsal.beatsPerBar,
+        rehearsal.beatUnit);
     ffi.rehSetMetronome(
         enabled: _local.metronomeEnabled, gain: 0.6);
 
@@ -156,10 +158,18 @@ class RehearsalEngine extends ChangeNotifier {
   }
 
   /// Loads every recorded part as a native track and applies the local mix.
+  ///
+  /// When the tune is not playing at the tempo its recordings were made at,
+  /// each one is rendered to the new tempo first and the rendered file is what
+  /// gets loaded. The engine itself has no idea any of this happened: it opens
+  /// a mono WAV and streams it, exactly as before.
   Future<void> _loadTracks() async {
     final r = _rehearsal;
     if (r == null) return;
     final ffi = AudioInputFFI();
+
+    await _renderForTempo(r);
+
     ffi.rehClearTracks();
     _trackOf.clear();
     _masterTrack = null;
@@ -168,14 +178,18 @@ class RehearsalEngine extends ChangeNotifier {
     // in a log; nothing depends on the order.
     final master = r.master;
     if (master != null) {
-      final path = await _library.masterPath(r.id, master);
+      final ratio = _ratioFor(master.nativeBpm, r);
+      final path = await _pathForMaster(r, master, ratio);
       final idx = ffi.rehAddTrack(path);
       if (idx < 0) {
         debugPrint('RehearsalEngine: could not load the master ($idx)');
       } else {
         _masterTrack = idx;
         // This is what puts the tune's first downbeat on the grid's downbeat.
-        ffi.rehSetTrackOffset(idx, master.offsetFrames);
+        // Scaled by the same ratio the audio was: the downbeat sits at the
+        // same musical place, which is a different number of frames once the
+        // recording has been stretched.
+        ffi.rehSetTrackOffset(idx, (master.offsetFrames * ratio).round());
         ffi.rehSetTrackGain(idx, _local.gainFor(kMasterMixId));
         ffi.rehSetTrackMute(idx, _local.isMuted(kMasterMixId));
       }
@@ -184,7 +198,8 @@ class RehearsalEngine extends ChangeNotifier {
     for (final part in r.parts) {
       final take = part.take;
       if (take == null) continue;
-      final path = await _library.takePath(r.id, take);
+      final ratio = _ratioFor(take.recordedBpm, r);
+      final path = await _pathForTake(r, take, ratio);
       final idx = ffi.rehAddTrack(path);
       if (idx < 0) {
         debugPrint('RehearsalEngine: could not load ${take.fileName} ($idx)');
@@ -195,6 +210,94 @@ class RehearsalEngine extends ChangeNotifier {
       ffi.rehSetTrackMute(idx, _local.isMuted(part.id));
     }
   }
+
+  /// How much a recording made at [nativeBpm] has to stretch to fit the tune
+  /// as it is being played here.
+  ///
+  /// Above 1 means longer, which is what slowing down asks for. A recording
+  /// with no tempo recorded — nothing on disk should have one after the
+  /// library's migration — is left alone rather than guessed at.
+  double _ratioFor(double nativeBpm, Rehearsal r) {
+    if (nativeBpm <= 0) return 1.0;
+    final target = _local.effectiveBpm(r.bpm);
+    if (target <= 0) return 1.0;
+    return (nativeBpm / target).clamp(0.25, 4.0);
+  }
+
+  Future<String> _pathForTake(
+      Rehearsal r, RehearsalTake take, double ratio) async {
+    if (!RehearsalTempoCache.needsRender(ratio)) {
+      return _library.takePath(r.id, take);
+    }
+    final dir = await _library.tempoDir(r.id);
+    return '${dir.path}/'
+        '${RehearsalTempoCache.fileNameFor(take.fileName, ratio)}';
+  }
+
+  Future<String> _pathForMaster(
+      Rehearsal r, RehearsalMaster master, double ratio) async {
+    if (!RehearsalTempoCache.needsRender(ratio)) {
+      return _library.masterPath(r.id, master);
+    }
+    final dir = await _library.tempoDir(r.id);
+    return '${dir.path}/'
+        '${RehearsalTempoCache.fileNameFor(master.fileName, ratio)}';
+  }
+
+  /// True while recordings are being rendered to a new tempo.
+  ///
+  /// Surfaced so the screen can say what it is waiting for. A few seconds of
+  /// unexplained silence after moving a slider reads as a bug.
+  bool get isRendering => _rendering;
+  bool _rendering = false;
+
+  /// Renders whatever this tempo needs and clears out what it does not.
+  Future<void> _renderForTempo(Rehearsal r) async {
+    final jobs = <StretchJob>[];
+    final keep = <String>{};
+    final dir = await _library.tempoDir(r.id);
+
+    Future<void> plan(String sourcePath, String fileName, double bpm) async {
+      final ratio = _ratioFor(bpm, r);
+      if (!RehearsalTempoCache.needsRender(ratio)) return;
+      final name = RehearsalTempoCache.fileNameFor(fileName, ratio);
+      keep.add(name);
+      jobs.add(StretchJob(
+        source: sourcePath,
+        destination: '${dir.path}/$name',
+        ratio: ratio,
+      ));
+    }
+
+    final master = r.master;
+    if (master != null) {
+      await plan(await _library.masterPath(r.id, master), master.fileName,
+          master.nativeBpm);
+    }
+    for (final part in r.parts) {
+      final take = part.take;
+      if (take == null) continue;
+      await plan(
+          await _library.takePath(r.id, take), take.fileName, take.recordedBpm);
+    }
+
+    if (jobs.isNotEmpty) {
+      _rendering = true;
+      notifyListeners();
+      try {
+        await _tempoCache.render(jobs);
+      } finally {
+        _rendering = false;
+        notifyListeners();
+      }
+    }
+    // Swept afterwards, never before: the files being replaced may still be
+    // open in the engine, and a track whose file vanishes underneath it is a
+    // worse failure than a few seconds of extra disk use.
+    await _tempoCache.sweep(dir, keep);
+  }
+
+  final RehearsalTempoCache _tempoCache = RehearsalTempoCache();
 
   /// Parts whose take is in the manifest but whose audio is not playable here.
   ///
@@ -331,7 +434,11 @@ class RehearsalEngine extends ChangeNotifier {
           fileName: fileName,
           frames: frames,
           sampleRate: 48000,
-          compensationFrames: _local.compensationFrames);
+          compensationFrames: _local.compensationFrames,
+          // The tempo it was played at, which is the practice speed if one is
+          // set — not the tune's own. Storing the tune's would misfile a take
+          // cut at half speed as if it had been played at full.
+          recordedBpm: _local.effectiveBpm(r.bpm));
       // Reload so the new take joins the mix and the old slot is released.
       await _loadTracks();
       // And tell whoever is listening, rather than making them wait for the
@@ -374,17 +481,51 @@ class RehearsalEngine extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Sets the tempo. Refused once a take exists, because every recorded part
-  /// is aligned to the current grid.
+  /// Sets the tune's tempo, for everyone.
+  ///
+  /// No longer refused once a take exists: takes carry the tempo they were
+  /// played at, so this re-renders them to the new one rather than stranding
+  /// them. It syncs, so every device does the same thing on its own copy —
+  /// only the number travels, never the rendered audio.
   Future<void> setBpm(double bpm) async {
     final r = _rehearsal;
-    if (r == null || r.isGridFrozen) return;
+    if (r == null) return;
+    await stop();
     // Through updateField, so the edit is stamped: an unstamped tempo change
     // is invisible to the merge and a peer would silently put it back.
     await _library.updateField(r, RehearsalField.bpm, () {
       r.bpm = bpm;
-      AudioInputFFI().rehSetGrid(bpm, r.beatsPerBar, r.beatUnit);
     });
+    await _applyTempo(r);
+  }
+
+  /// Sets how fast the tune plays *here*, as a fraction of its own tempo.
+  ///
+  /// Local, like gain and mute: one person working a hard bar at half speed
+  /// should not drag the band down with them, and the tune's written tempo is
+  /// left alone.
+  Future<void> setPracticeSpeed(double speed) async {
+    final r = _rehearsal;
+    if (r == null) return;
+    final clamped = speed.clamp(0.5, 1.0);
+    if ((clamped - _local.practiceSpeed).abs() < 0.001) return;
+    await stop();
+    _local.practiceSpeed = clamped;
+    await _library.saveLocalState(r.id, _local);
+    await _applyTempo(r);
+  }
+
+  double get practiceSpeed => _local.practiceSpeed;
+
+  /// Moves the grid and the recordings to whatever tempo is now in force.
+  ///
+  /// Stopped first by the callers, because swapping every track's file out
+  /// from under a running transport is not something the engine is built to
+  /// survive.
+  Future<void> _applyTempo(Rehearsal r) async {
+    AudioInputFFI().rehSetGrid(
+        _local.effectiveBpm(r.bpm), r.beatsPerBar, r.beatUnit);
+    await _loadTracks();
     notifyListeners();
   }
 

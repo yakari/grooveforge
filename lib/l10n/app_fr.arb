@@ -1212,5 +1212,13 @@
   "rehearsalTakePending": "Pas encore transmise",
   "rehearsalSyncIncomplete": "Restez connectés : tout le monde n'a pas encore les dernières prises.",
   "rehearsalSyncComplete": "Tout le monde a les dernières prises.",
-  "rehearsalTakeAwaitingAudio": "En attente de l'audio"
+  "rehearsalTakeAwaitingAudio": "En attente de l'audio",
+  "rehearsalTempoTitle": "Tempo",
+  "rehearsalTuneTempo": "Tempo du morceau",
+  "rehearsalTuneTempoHint": "Partagé avec le groupe. Les enregistrements sont recalculés en conséquence.",
+  "rehearsalPracticeSpeed": "Vitesse de travail",
+  "rehearsalPracticeSpeedHint": "Sur cet appareil uniquement. Ralentissez un passage sans changer la hauteur.",
+  "rehearsalPracticeSpeedValue": "{percent} %",
+  "rehearsalRendering": "Ajustement des enregistrements…",
+  "rehearsalMeterFrozen": "La mesure ne peut plus changer une fois qu'une partie est enregistrée."
 }

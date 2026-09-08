@@ -2621,4 +2621,33 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get rehearsalTakeAwaitingAudio => 'Waiting for audio';
+
+  @override
+  String get rehearsalTempoTitle => 'Tempo';
+
+  @override
+  String get rehearsalTuneTempo => 'Tune tempo';
+
+  @override
+  String get rehearsalTuneTempoHint =>
+      'Shared with the band. Recordings are re-rendered to match.';
+
+  @override
+  String get rehearsalPracticeSpeed => 'Practice speed';
+
+  @override
+  String get rehearsalPracticeSpeedHint =>
+      'Only on this device. Slow a passage down without changing pitch.';
+
+  @override
+  String rehearsalPracticeSpeedValue(int percent) {
+    return '$percent%';
+  }
+
+  @override
+  String get rehearsalRendering => 'Adjusting the recordings…';
+
+  @override
+  String get rehearsalMeterFrozen =>
+      'The metre cannot change once a part is recorded.';
 }

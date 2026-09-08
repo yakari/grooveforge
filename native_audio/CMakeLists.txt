@@ -15,6 +15,7 @@ add_library(audio_input SHARED
     gf_latency.c
     gf_rehearsal.c
     gf_media_import.c
+    gf_timestretch.c
 )
 
 find_package(Threads REQUIRED)
@@ -103,6 +104,12 @@ endif()
 # device and no external library — it proves the measure/compensate maths on
 # synthetic signals so a failure on real hardware can be blamed on the hardware.
 if (NOT ANDROID AND NOT IOS)
+    add_executable(gf_timestretch_smoke_test EXCLUDE_FROM_ALL
+        gf_timestretch_smoke_test.c gf_timestretch.c gf_phase_vocoder.c)
+    if(NOT WIN32)
+        target_link_libraries(gf_timestretch_smoke_test PRIVATE m ${CMAKE_DL_LIBS})
+    endif()
+
     add_executable(gf_latency_smoke_test EXCLUDE_FROM_ALL
         gf_latency_smoke_test.c gf_latency.c)
     if (UNIX)

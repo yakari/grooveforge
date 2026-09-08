@@ -1532,6 +1532,10 @@ class AudioInputFFI {
   late final int Function(Pointer<Utf8>) _rehAddTrack = _lib
       .lookupFunction<Int32 Function(Pointer<Utf8>), int Function(Pointer<Utf8>)>(
           'gf_reh_add_track');
+  late final int Function(Pointer<Utf8>, Pointer<Utf8>, double) _tsRender =
+      _lib.lookupFunction<
+          Int32 Function(Pointer<Utf8>, Pointer<Utf8>, Float),
+          int Function(Pointer<Utf8>, Pointer<Utf8>, double)>('gf_ts_render');
   late final void Function(int) _rehRemoveTrack = _lib
       .lookupFunction<Void Function(Int32), void Function(int)>(
           'gf_reh_remove_track');
@@ -1592,6 +1596,22 @@ class AudioInputFFI {
       return _rehAddTrack(p);
     } finally {
       calloc.free(p);
+    }
+  }
+
+  /// Writes [inPath] to [outPath], [ratio] times as long, at the same pitch.
+  ///
+  /// Blocking and slow by design — a few seconds for a long take. Call it from
+  /// a background isolate, never from the UI thread and never from anywhere
+  /// the audio callback can reach. Returns 0 on success.
+  int stretchFile(String inPath, String outPath, double ratio) {
+    final a = inPath.toNativeUtf8();
+    final b = outPath.toNativeUtf8();
+    try {
+      return _tsRender(a, b, ratio);
+    } finally {
+      calloc.free(a);
+      calloc.free(b);
     }
   }
 

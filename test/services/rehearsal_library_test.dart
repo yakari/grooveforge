@@ -12,6 +12,40 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// all filesystem behaviour, and a mock would happily agree with a wrong
 /// implementation.
 void main() {
+
+  test('takes and masters written before tempo change get their tempo', () async {
+    // Everything on disk from before the fields existed was necessarily
+    // recorded at the tune's own tempo — nobody could have changed it.
+    final dir = await Directory.systemTemp.createTemp('gf_tempo_migrate');
+    addTearDown(() => dir.delete(recursive: true));
+
+    final first = RehearsalLibrary(rootOverride: dir, deviceIdOverride: 'dev');
+    await first.load();
+    final r = await first.create(
+        title: 'Tune', memberName: 'Yann', instrument: 'guitar', bpm: 96);
+    final part = r.parts.single;
+    await first.commitTake(r, part,
+        fileName: first.nextTakeFileName(part),
+        frames: 48000,
+        sampleRate: 48000,
+        compensationFrames: 0,
+        recordedBpm: 96);
+
+    // Strip the field back out, as an older document would have it.
+    final manifest = File('${(await first.rehearsalDir(r.id)).path}/rehearsal.json');
+    final json = jsonDecode(await manifest.readAsString()) as Map<String, dynamic>;
+    final parts = json['parts'] as List<dynamic>;
+    (parts.single as Map<String, dynamic>)['take']
+        .remove('recordedBpm');
+    await manifest.writeAsString(jsonEncode(json));
+
+    final second = RehearsalLibrary(rootOverride: dir, deviceIdOverride: 'dev');
+    await second.load();
+
+    expect(second.rehearsals.single.parts.single.take!.recordedBpm, 96,
+        reason: 'an unstamped take must not be left at zero, which would '
+            'leave it unstretchable forever');
+  });
   late Directory tmp;
   late RehearsalLibrary library;
 
@@ -131,7 +165,8 @@ void main() {
           fileName: library.nextTakeFileName(part),
           frames: 48000,
           sampleRate: 48000,
-          compensationFrames: 1440);
+          compensationFrames: 1440,
+          recordedBpm: 120);
 
       expect(part.isRecorded, isTrue);
       expect(part.take!.revision, 1);
@@ -155,7 +190,8 @@ void main() {
           fileName: '${part.id}-1.wav',
           frames: 1,
           sampleRate: 48000,
-          compensationFrames: 0);
+          compensationFrames: 0,
+          recordedBpm: 120);
 
       final second = File('${takes.path}/${part.id}-2.wav');
       await second.writeAsBytes(List.filled(128, 0));
@@ -163,7 +199,8 @@ void main() {
           fileName: '${part.id}-2.wav',
           frames: 2,
           sampleRate: 48000,
-          compensationFrames: 0);
+          compensationFrames: 0,
+          recordedBpm: 120);
 
       expect(part.take!.revision, 2);
       expect(await first.exists(), isFalse,
@@ -178,7 +215,8 @@ void main() {
           fileName: 'x.wav',
           frames: 96000,
           sampleRate: 48000,
-          compensationFrames: 900);
+          compensationFrames: 900,
+          recordedBpm: 120);
 
       final fresh = RehearsalLibrary(rootOverride: tmp);
       await fresh.load();
@@ -199,7 +237,8 @@ void main() {
           fileName: 'x.wav',
           frames: 100,
           sampleRate: 48000,
-          compensationFrames: 0);
+          compensationFrames: 0,
+          recordedBpm: 120);
 
       expect(r.isGridFrozen, isTrue,
           reason: 'every recorded take is aligned to the current grid');
@@ -215,12 +254,14 @@ void main() {
           fileName: 'a.wav',
           frames: 1000,
           sampleRate: 48000,
-          compensationFrames: 0);
+          compensationFrames: 0,
+          recordedBpm: 120);
       await library.commitTake(r, second,
           fileName: 'b.wav',
           frames: 7000,
           sampleRate: 48000,
-          compensationFrames: 0);
+          compensationFrames: 0,
+          recordedBpm: 120);
 
       expect(r.lengthFrames, 7000);
       expect(r.recordedPartCount, 2);
@@ -291,7 +332,8 @@ void main() {
           fileName: name,
           frames: 256,
           sampleRate: 48000,
-          compensationFrames: 0);
+          compensationFrames: 0,
+          recordedBpm: 120);
       expect(part.take!.revision, 1);
 
       await library.deleteTake(r, part);
@@ -316,7 +358,8 @@ void main() {
           fileName: library.nextTakeFileName(part),
           frames: 10,
           sampleRate: 48000,
-          compensationFrames: 0);
+          compensationFrames: 0,
+          recordedBpm: 120);
       expect(part.take!.revision, 1);
 
       await library.deleteTake(r, part);
@@ -324,7 +367,8 @@ void main() {
           fileName: library.nextTakeFileName(part),
           frames: 20,
           sampleRate: 48000,
-          compensationFrames: 0);
+          compensationFrames: 0,
+          recordedBpm: 120);
 
       expect(part.take!.revision, 2,
           reason: 'the re-recording reused the deleted revision');
@@ -339,7 +383,8 @@ void main() {
           fileName: 'x.wav',
           frames: 10,
           sampleRate: 48000,
-          compensationFrames: 0);
+          compensationFrames: 0,
+          recordedBpm: 120);
       await library.deleteTake(r, part);
 
       final fresh = RehearsalLibrary(rootOverride: tmp);
@@ -362,7 +407,8 @@ void main() {
       final file = File('${takes.path}/$name');
       await file.writeAsBytes(List.filled(256, 2));
       await library.commitTake(r, extra,
-          fileName: name, frames: 128, sampleRate: 48000, compensationFrames: 0);
+          fileName: name, frames: 128, sampleRate: 48000, compensationFrames: 0,
+          recordedBpm: 120);
 
       await library.deletePart(r, extra);
 
@@ -562,7 +608,8 @@ void main() {
           fileName: 'x.wav',
           frames: 100,
           sampleRate: 48000,
-          compensationFrames: 0);
+          compensationFrames: 0,
+          recordedBpm: 120);
       expect(r.isGridFrozen, isTrue);
     });
   });

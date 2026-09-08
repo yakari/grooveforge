@@ -1391,3 +1391,82 @@ by ear.
 one" was unrepresentable — the exact state at the heart of this. It now keys by
 file name, as the real store does on disk, and both new tests fail without the
 fix.
+
+---
+
+## 25. Practising slowly
+
+Two speeds, answering two different questions:
+
+- **The tune's tempo** is a property of the arrangement. It syncs, like metre
+  and count-in already did, and changing it changes the tune for the band.
+- **Practice speed** is local, sitting beside gain and mute because it is the
+  same kind of thing. One person working a hard bar at half speed should not
+  drag the others down with them, nor make every device re-render.
+
+The effective tempo is their product, and it is the only number the grid and
+the renderer ever see.
+
+### Stretching, not resampling
+
+Reading a recording at 70% of its rate drops it about six semitones, which
+makes it useless to play along to. The duration has to change while the pitch
+stays put. `gf_phase_vocoder` was already in the tree for the harmonizer and
+the vocoder's natural mode, and already exposed `gf_pv_set_stretch` — so this
+needed no new dependency, and dodged the licence problem the good third-party
+options would have brought (Rubber Band is GPL, SoundTouch LGPL, against an MIT
+app that has to pass F-Droid).
+
+### Rendered once, not in the callback
+
+`gf_timestretch` writes a whole file. Stretching live would mean an FFT per
+block per track on the audio thread, and the device most likely to be in a
+school rehearsal is the one least able to afford it — a dropout mid-take is a
+far worse outcome than waiting two seconds after moving a slider. Rendering
+offline also lifts the real-time constraint, so the analysis window is 4096
+rather than the harmonizer's live size, which holds sustained notes together
+much better.
+
+The engine then streams a rendered file through the ordinary disk path,
+knowing nothing about tempo at all.
+
+Three details that decide whether it stays in time:
+
+- **The output length is decided up front**, from the input length and the
+  ratio, not accepted from the vocoder. Its output arrives in whole synthesis
+  frames, so the last one overshoots — and a track one frame longer than the
+  grid expects drifts against every other track in the tune. Short renders are
+  padded with silence for the same reason.
+- **The master's downbeat offset scales by the same ratio** as its audio. The
+  downbeat is at the same musical place, which is a different frame number once
+  the recording has been stretched.
+- **Always render from the original.** Rendering from an earlier render
+  compounds the vocoder's artefacts, and a few tempo nudges are enough to hear
+  it.
+
+### Takes carry their own tempo
+
+`RehearsalTake.recordedBpm` and `RehearsalMaster.nativeBpm` say what a
+recording was played at, so the stretch ratio is `recordedBpm / effective`.
+This is what lets someone record a part *while slowed down* and have it land
+correctly when the band returns to tempo — the take is stored as played and
+stamped, never pre-stretched.
+
+Documents written before these fields carry zero, and the library fills them in
+from the tune's own tempo on load. That is exactly right: the fields did not
+exist, so nobody can have changed the tempo, so everything on disk was recorded
+at the one the tune still has.
+
+### What is no longer frozen
+
+`isGridFrozen` used to stop the tempo changing once anything was recorded.
+It now guards only the metre: 4/4 to 3/4 re-bars everything that was played,
+and there is no honest way to reinterpret a recording phrased in fours.
+
+### The cache
+
+`tempo/` inside the rehearsal, named by ratio so a stale render can never be
+mistaken for a current one — that failure would be a track playing at the wrong
+length against a correct grid, which sounds like a broken app rather than a
+stale cache. Swept *after* a render, never before: the files being replaced may
+still be open in the engine.

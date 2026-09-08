@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/rehearsal.dart';
 import 'audio_input_ffi.dart';
 import 'rehearsal_protocol.dart';
+import 'rehearsal_tempo_cache.dart';
 import 'platform_media_decoder.dart';
 
 /// Preference key for this device's stable identity.
@@ -104,6 +105,18 @@ class RehearsalLibrary extends ChangeNotifier {
       File('${(await rehearsalDir(id)).path}/self.json');
 
   /// Absolute path of a take's audio file.
+  /// Where recordings rendered to a practice tempo live.
+  ///
+  /// Inside the rehearsal so deleting the tune takes them with it, and separate
+  /// from `takes/` so the originals are never at risk from a cache sweep.
+  /// Everything in here is derived and disposable.
+  Future<Directory> tempoDir(String id) async {
+    final dir = Directory(
+        '${(await rehearsalDir(id)).path}/${RehearsalTempoCache.dirName}');
+    if (!await dir.exists()) await dir.create(recursive: true);
+    return dir;
+  }
+
   Future<String> takePath(String rehearsalId, RehearsalTake take) async =>
       '${(await takesDir(rehearsalId)).path}/${take.fileName}';
 
@@ -170,6 +183,9 @@ class RehearsalLibrary extends ChangeNotifier {
       frames: frames,
       sampleRate: sampleRate,
       importedAt: DateTime.now(),
+      // Whatever the tune is set to now is what this recording will be lined
+      // up against, so it is also what it would have to stretch away from.
+      nativeBpm: rehearsal.bpm,
     );
     rehearsal.touch(RehearsalField.master, await deviceId());
     await save(rehearsal);
@@ -249,6 +265,7 @@ class RehearsalLibrary extends ChangeNotifier {
     for (final r in loaded) {
       await _stampIfUnstamped(r);
       await _claimOwnMember(r);
+      await _stampTempos(r);
     }
 
     _rehearsals
@@ -309,6 +326,35 @@ class RehearsalLibrary extends ChangeNotifier {
   /// owner would show as away in their own room. Only this device's own member
   /// is stamped: nobody else's device id is ours to write, and the others fill
   /// theirs in on their own machines and sync it across.
+  /// Gives takes and masters written before tempo change existed their tempo.
+  ///
+  /// The tune's own tempo is the right answer for all of them: the fields did
+  /// not exist, so nobody can have changed the tempo, so everything on disk
+  /// was recorded and anchored at exactly this one.
+  Future<void> _stampTempos(Rehearsal r) async {
+    var changed = false;
+    for (final part in r.parts) {
+      final take = part.take;
+      if (take == null || take.recordedBpm > 0) continue;
+      part.take = RehearsalTake(
+        fileName: take.fileName,
+        revision: take.revision,
+        frames: take.frames,
+        sampleRate: take.sampleRate,
+        compensationFrames: take.compensationFrames,
+        recordedAt: take.recordedAt,
+        recordedBpm: r.bpm,
+      );
+      changed = true;
+    }
+    final master = r.master;
+    if (master != null && master.nativeBpm <= 0) {
+      master.nativeBpm = r.bpm;
+      changed = true;
+    }
+    if (changed) await save(r);
+  }
+
   Future<void> _claimOwnMember(Rehearsal r) async {
     final selfId = (await loadLocalState(r.id)).selfMemberId;
     if (selfId == null) return;
@@ -532,10 +578,15 @@ class RehearsalLibrary extends ChangeNotifier {
     required int frames,
     required int sampleRate,
     required int compensationFrames,
+    required double recordedBpm,
   }) async {
     final previous = part.take;
     part.take = RehearsalTake(
       fileName: fileName,
+      // The tempo it was *played* at, which is not always the tune's: someone
+      // learning a passage records at half speed, and this is what lets the
+      // take be put back where it belongs when the band returns to tempo.
+      recordedBpm: recordedBpm,
       // From nextRevision, not from the current take: after a deletion there
       // *is* no current take, and counting from zero would hand the new
       // recording the same number as the one just deleted. A peer holding that

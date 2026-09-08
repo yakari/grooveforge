@@ -180,6 +180,7 @@ class RehearsalTake {
     required this.sampleRate,
     required this.compensationFrames,
     required this.recordedAt,
+    required this.recordedBpm,
   });
 
   /// File name within the rehearsal's `takes/` directory.
@@ -195,6 +196,15 @@ class RehearsalTake {
 
   final DateTime recordedAt;
 
+  /// The tempo this take was actually played at.
+  ///
+  /// Playing the tune at any other tempo means stretching this audio by
+  /// `recordedBpm / newTempo`, so the number has to travel with the recording
+  /// rather than be assumed from the tune's current setting — which is exactly
+  /// the thing that changes. It also lets someone record a part while the tune
+  /// is slowed down for practice and have it line up at full speed.
+  final double recordedBpm;
+
   Duration get duration =>
       Duration(milliseconds: sampleRate > 0 ? frames * 1000 ~/ sampleRate : 0);
 
@@ -205,6 +215,7 @@ class RehearsalTake {
         'sampleRate': sampleRate,
         'compensationFrames': compensationFrames,
         'recordedAt': recordedAt.toIso8601String(),
+        'recordedBpm': recordedBpm,
       };
 
   factory RehearsalTake.fromJson(Map<String, dynamic> json) => RehearsalTake(
@@ -216,6 +227,10 @@ class RehearsalTake {
         recordedAt:
             DateTime.tryParse(json['recordedAt'] as String? ?? '') ??
                 DateTime.now(),
+        // Zero means "recorded before takes carried a tempo". The library
+        // fills it in from the tune's own tempo on load, which is right,
+        // because nobody could have changed it before the field existed.
+        recordedBpm: (json['recordedBpm'] as num?)?.toDouble() ?? 0.0,
       );
 }
 
@@ -233,6 +248,7 @@ class RehearsalMaster {
     required this.sampleRate,
     this.offsetFrames = 0,
     this.importedAt,
+    this.nativeBpm = 0.0,
   });
 
   /// Decoded mono 16-bit WAV inside the rehearsal's `master/` directory.
@@ -254,6 +270,15 @@ class RehearsalMaster {
 
   final DateTime? importedAt;
 
+  /// The tempo the grid was lined up to when this recording was anchored.
+  ///
+  /// A commercial recording has whatever tempo it has; tapping the beat and
+  /// dragging the downbeat marker is how the tune's grid was fitted to it. If
+  /// the tune's tempo later changes, this is what says how far the recording
+  /// has to stretch to still fit. Zero means it predates the field, and the
+  /// library fills it in from the tune's tempo on load.
+  double nativeBpm;
+
   Duration get duration =>
       Duration(milliseconds: sampleRate > 0 ? frames * 1000 ~/ sampleRate : 0);
 
@@ -266,6 +291,7 @@ class RehearsalMaster {
         'sourceName': sourceName,
         'frames': frames,
         'sampleRate': sampleRate,
+        'nativeBpm': nativeBpm,
         'offsetFrames': offsetFrames,
         if (importedAt != null) 'importedAt': importedAt!.toIso8601String(),
       };
@@ -278,6 +304,7 @@ class RehearsalMaster {
         sampleRate: json['sampleRate'] as int? ?? 48000,
         offsetFrames: json['offsetFrames'] as int? ?? 0,
         importedAt: DateTime.tryParse(json['importedAt'] as String? ?? ''),
+        nativeBpm: (json['nativeBpm'] as num?)?.toDouble() ?? 0.0,
       );
 }
 
@@ -371,6 +398,13 @@ class Rehearsal {
   /// A master alone does not freeze it — its alignment is exactly what the
   /// player is still adjusting, and re-anchoring it changes only where the
   /// grid sits inside the recording.
+  /// Whether changing the metre would strand the recordings.
+  ///
+  /// The tempo is deliberately *not* frozen: takes carry the tempo they were
+  /// played at, so a change is a matter of stretching them to the new one. The
+  /// metre is another matter — moving from 4/4 to 3/4 re-bars everything that
+  /// was played, and there is no honest way to reinterpret a recording that
+  /// was phrased in fours.
   bool get isGridFrozen => parts.any((p) => p.isRecorded);
 
   int get recordedPartCount => parts.where((p) => p.isRecorded).length;
@@ -441,6 +475,7 @@ class RehearsalLocalState {
     Set<String>? mutedPartIds,
     this.compensationFrames = 0,
     this.metronomeEnabled = true,
+    this.practiceSpeed = 1.0,
   })  : gains = gains ?? {},
         mutedPartIds = mutedPartIds ?? {};
 
@@ -466,6 +501,18 @@ class RehearsalLocalState {
 
   bool metronomeEnabled;
 
+  /// How fast to play the tune here, as a fraction of its own tempo.
+  ///
+  /// 1.0 is the tune as written; 0.7 is a good speed for learning a passage.
+  /// Deliberately *not* part of the shared document — it sits beside gain and
+  /// mute because it is the same kind of thing. One person working a hard bar
+  /// at half speed should not drag the rest of the band down with them, nor
+  /// make every other device re-render its tracks.
+  double practiceSpeed;
+
+  /// The speed a tune actually plays at here, given its own tempo.
+  double effectiveBpm(double tuneBpm) => tuneBpm * practiceSpeed;
+
   double gainFor(String partId) => gains[partId] ?? 1.0;
   bool isMuted(String partId) => mutedPartIds.contains(partId);
 
@@ -475,6 +522,7 @@ class RehearsalLocalState {
         'mutedPartIds': mutedPartIds.toList(),
         'compensationFrames': compensationFrames,
         'metronomeEnabled': metronomeEnabled,
+        'practiceSpeed': practiceSpeed,
         if (lastTicketUri != null) 'lastTicketUri': lastTicketUri,
       };
 
@@ -488,6 +536,8 @@ class RehearsalLocalState {
             .toSet(),
         compensationFrames: json['compensationFrames'] as int? ?? 0,
         metronomeEnabled: json['metronomeEnabled'] as bool? ?? true,
+        practiceSpeed:
+            (json['practiceSpeed'] as num?)?.toDouble().clamp(0.5, 1.0) ?? 1.0,
       )..lastTicketUri = json['lastTicketUri'] as String?;
 }
 

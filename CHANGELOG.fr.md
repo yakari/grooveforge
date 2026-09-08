@@ -8,6 +8,8 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 ## [X.x.x]
 
 ### Ajouté
+- Une vitesse de travail : ralentissez un morceau jusqu'à 50 % pour bosser un passage, sans que la hauteur baisse. Sur votre appareil seulement.
+- Le tempo du morceau peut désormais changer après l'enregistrement des parties — les enregistrements sont ajustés en conséquence, sur chaque appareil.
 - Une prise dont l'enregistrement n'est pas arrivé est redemandée à la synchro suivante, au lieu de rester bloquée avec la bonne durée et le mauvais audio.
 - Une piste indique quand elle attend encore un enregistrement.
 - Une pastille rouge signale une prise qui n'a pas encore atteint tous les appareils connectés, pour que personne ne parte en plein transfert.

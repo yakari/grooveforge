@@ -2637,4 +2637,33 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get rehearsalTakeAwaitingAudio => 'En attente de l\'audio';
+
+  @override
+  String get rehearsalTempoTitle => 'Tempo';
+
+  @override
+  String get rehearsalTuneTempo => 'Tempo du morceau';
+
+  @override
+  String get rehearsalTuneTempoHint =>
+      'Partagé avec le groupe. Les enregistrements sont recalculés en conséquence.';
+
+  @override
+  String get rehearsalPracticeSpeed => 'Vitesse de travail';
+
+  @override
+  String get rehearsalPracticeSpeedHint =>
+      'Sur cet appareil uniquement. Ralentissez un passage sans changer la hauteur.';
+
+  @override
+  String rehearsalPracticeSpeedValue(int percent) {
+    return '$percent %';
+  }
+
+  @override
+  String get rehearsalRendering => 'Ajustement des enregistrements…';
+
+  @override
+  String get rehearsalMeterFrozen =>
+      'La mesure ne peut plus changer une fois qu\'une partie est enregistrée.';
 }

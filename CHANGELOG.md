@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [X.x.x]
 
 ### Added
+- A practice speed: slow a tune down to 50% to work a passage, without the pitch dropping. Only on your device.
+- The tune's tempo can now be changed after parts are recorded — the recordings are adjusted to match, on every device.
 - A take whose recording has not arrived is re-requested on the next sync, instead of being stranded with the right duration and the wrong audio.
 - A lane says when it is still waiting for a recording to arrive.
 - A red tag marks a take that has not reached every connected device yet, so nobody leaves mid-transfer.

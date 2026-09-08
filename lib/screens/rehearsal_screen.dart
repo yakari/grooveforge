@@ -512,12 +512,59 @@ class _TransportBar extends StatelessWidget {
                         engine.isCountingIn ? theme.colorScheme.tertiary : null,
                   ),
                 ),
-                Text(
-                  '${l10n.rehearsalBpmValue(rehearsal.bpm.toStringAsFixed(0))}'
-                  '   ·   '
-                  '${l10n.rehearsalMeter(rehearsal.beatsPerBar, rehearsal.beatUnit)}',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
+                // Tapping the tempo is how both speed controls are reached.
+                // It is the thing on screen they are about, and a rehearsal
+                // screen has no room for two more sliders.
+                InkWell(
+                  onTap: () => showModalBottomSheet<void>(
+                    context: context,
+                    isScrollControlled: true,
+                    builder: (_) => _TempoSheet(engine: engine,
+                        rehearsal: rehearsal),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '${l10n.rehearsalBpmValue(rehearsal.bpm.toStringAsFixed(0))}'
+                        '   ·   '
+                        '${l10n.rehearsalMeter(rehearsal.beatsPerBar, rehearsal.beatUnit)}',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      if (engine.practiceSpeed < 0.999) ...[
+                        const SizedBox(width: 6),
+                        // Shown only when it is not 1.0, because a badge that
+                        // is always there stops being read — and playing at
+                        // anything other than the tune's tempo is exactly the
+                        // state worth being reminded of.
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 5,
+                            vertical: 1,
+                          ),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.tertiaryContainer,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            l10n.rehearsalPracticeSpeedValue(
+                              (engine.practiceSpeed * 100).round(),
+                            ),
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: theme.colorScheme.onTertiaryContainer,
+                            ),
+                          ),
+                        ),
+                      ],
+                      const SizedBox(width: 4),
+                      Icon(
+                        Icons.speed,
+                        size: 14,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -580,6 +627,122 @@ class _BeatLamp extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The two speed controls: the tune's own tempo, and this device's.
+///
+/// Together in one sheet because they are easy to confuse and the difference
+/// matters — one changes the arrangement for the whole band, the other changes
+/// nothing but what comes out of this phone. Saying so beside each is cheaper
+/// than explaining it afterwards.
+class _TempoSheet extends StatefulWidget {
+  const _TempoSheet({required this.engine, required this.rehearsal});
+
+  final RehearsalEngine engine;
+  final Rehearsal rehearsal;
+
+  @override
+  State<_TempoSheet> createState() => _TempoSheetState();
+}
+
+class _TempoSheetState extends State<_TempoSheet> {
+  late double _bpm = widget.rehearsal.bpm;
+  late double _speed = widget.engine.practiceSpeed;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
+
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+          20,
+          16,
+          20,
+          16 + MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(l10n.rehearsalTempoTitle, style: theme.textTheme.titleMedium),
+            const SizedBox(height: 20),
+
+            _label(theme, l10n.rehearsalTuneTempo,
+                l10n.rehearsalBpmValue(_bpm.toStringAsFixed(0))),
+            Slider(
+              value: _bpm.clamp(40, 240),
+              min: 40,
+              max: 240,
+              divisions: 200,
+              onChanged: (v) => setState(() => _bpm = v),
+              // Committed on release, not while dragging: every change
+              // re-renders every recording, and doing that per pixel would
+              // render a hundred times to arrive at one answer.
+              onChangeEnd: (v) => widget.engine.setBpm(v),
+            ),
+            _hint(theme, l10n.rehearsalTuneTempoHint),
+
+            const SizedBox(height: 24),
+            _label(theme, l10n.rehearsalPracticeSpeed,
+                l10n.rehearsalPracticeSpeedValue((_speed * 100).round())),
+            Slider(
+              value: _speed.clamp(0.5, 1.0),
+              min: 0.5,
+              max: 1.0,
+              // Steps of 5%: fine enough to find a workable speed, coarse
+              // enough that the slider lands on round numbers rather than 73%.
+              divisions: 10,
+              onChanged: (v) => setState(() => _speed = v),
+              onChangeEnd: (v) => widget.engine.setPracticeSpeed(v),
+            ),
+            _hint(theme, l10n.rehearsalPracticeSpeedHint),
+
+            if (widget.rehearsal.isGridFrozen) ...[
+              const SizedBox(height: 16),
+              _hint(theme, l10n.rehearsalMeterFrozen),
+            ],
+            if (widget.engine.isRendering) ...[
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(l10n.rehearsalRendering,
+                      style: theme.textTheme.bodySmall),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _label(ThemeData theme, String name, String value) => Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(name, style: theme.textTheme.bodyMedium),
+          Text(
+            value,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontFeatures: const [FontFeature.tabularFigures()],
+              color: theme.colorScheme.primary,
+            ),
+          ),
+        ],
+      );
+
+  Widget _hint(ThemeData theme, String text) => Text(
+        text,
+        style: theme.textTheme.bodySmall
+            ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+      );
 }
 
 /// Says whether the player who owns a lane is reachable right now.

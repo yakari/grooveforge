@@ -29,6 +29,10 @@
 #       and a note played in time with what the player heard lands on the beat
 #       afterwards. Needs no audio device, so it runs anywhere.
 #
+#   gf_timestretch_smoke_test — offline practice-tempo rendering. Checks that a
+#       rendered take is exactly the length the grid expects and that its pitch
+#       did not move, which is what separates stretching from resampling.
+#
 #   gf_rehearsal_smoke_test — multitrack rehearsal engine (P1). Writes takes to
 #       disk, streams them back, and checks that transients land on their exact
 #       grid frame, that a count-in plays nothing until it crosses the downbeat,
@@ -46,6 +50,7 @@
 #   ./scripts/run_smoke_tests.sh harmonizer # just the harmonizer test
 #   ./scripts/run_smoke_tests.sh latency    # just the overdub alignment test
 #   ./scripts/run_smoke_tests.sh rehearsal  # just the rehearsal engine test
+#   ./scripts/run_smoke_tests.sh stretch    # just the practice-tempo renderer
 #
 # Build artefacts go to native_audio/build-smoke/ so the normal build tree is
 # left untouched.
@@ -117,6 +122,14 @@ run_latency() {
 
 # ── Rehearsal engine ──────────────────────────────────────────────────────────
 
+run_timestretch() {
+    echo
+    echo "── Building gf_timestretch_smoke_test"
+    cmake --build "$BUILD_DIR" --target gf_timestretch_smoke_test -j"$(nproc 2>/dev/null || echo 4)" > /dev/null
+    echo "── Running gf_timestretch_smoke_test"
+    "$BUILD_DIR/gf_timestretch_smoke_test"
+}
+
 run_rehearsal() {
     echo
     echo "── Building gf_rehearsal_smoke_test"
@@ -134,15 +147,17 @@ case "$WHICH" in
     harmonizer) run_harmonizer || FAILED=1 ;;
     latency)    run_latency    || FAILED=1 ;;
     rehearsal)  run_rehearsal  || FAILED=1 ;;
+    stretch)    run_timestretch || FAILED=1 ;;
     all)
         run_tuning     || FAILED=1
         run_vocoder    || FAILED=1
         run_harmonizer || FAILED=1
         run_latency    || FAILED=1
         run_rehearsal  || FAILED=1
+        run_timestretch || FAILED=1
         ;;
     *)
-        echo "usage: $0 [all|tuning|vocoder|harmonizer|latency|rehearsal]" >&2
+        echo "usage: $0 [all|tuning|vocoder|harmonizer|latency|rehearsal|stretch]" >&2
         exit 2
         ;;
 esac

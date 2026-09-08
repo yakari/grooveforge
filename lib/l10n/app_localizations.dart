@@ -4813,6 +4813,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Waiting for audio'**
   String get rehearsalTakeAwaitingAudio;
+
+  /// Rehearsal tempo controls.
+  ///
+  /// In en, this message translates to:
+  /// **'Tempo'**
+  String get rehearsalTempoTitle;
+
+  /// Rehearsal tempo controls.
+  ///
+  /// In en, this message translates to:
+  /// **'Tune tempo'**
+  String get rehearsalTuneTempo;
+
+  /// Rehearsal tempo controls.
+  ///
+  /// In en, this message translates to:
+  /// **'Shared with the band. Recordings are re-rendered to match.'**
+  String get rehearsalTuneTempoHint;
+
+  /// Rehearsal tempo controls.
+  ///
+  /// In en, this message translates to:
+  /// **'Practice speed'**
+  String get rehearsalPracticeSpeed;
+
+  /// Rehearsal tempo controls.
+  ///
+  /// In en, this message translates to:
+  /// **'Only on this device. Slow a passage down without changing pitch.'**
+  String get rehearsalPracticeSpeedHint;
+
+  /// Rehearsal tempo controls.
+  ///
+  /// In en, this message translates to:
+  /// **'{percent}%'**
+  String rehearsalPracticeSpeedValue(int percent);
+
+  /// Rehearsal tempo controls.
+  ///
+  /// In en, this message translates to:
+  /// **'Adjusting the recordings…'**
+  String get rehearsalRendering;
+
+  /// Rehearsal tempo controls.
+  ///
+  /// In en, this message translates to:
+  /// **'The metre cannot change once a part is recorded.'**
+  String get rehearsalMeterFrozen;
 }
 
 class _AppLocalizationsDelegate

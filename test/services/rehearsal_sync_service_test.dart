@@ -69,7 +69,8 @@ void main() {
         fileName: name,
         frames: bytes ~/ 2,
         sampleRate: 48000,
-        compensationFrames: 1390);
+        compensationFrames: 1390,
+          recordedBpm: 120);
   }
 
   test('a guest who has never seen the rehearsal receives all of it', () async {

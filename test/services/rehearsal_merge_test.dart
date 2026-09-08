@@ -38,6 +38,7 @@ RehearsalPart _part(String id, {int? takeRevision, String member = 'm1'}) {
       sampleRate: 48000,
       compensationFrames: 0,
       recordedAt: DateTime(2026, 1, 1),
+      recordedBpm: 120,
     );
   }
   return p;
