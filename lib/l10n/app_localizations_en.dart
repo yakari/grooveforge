@@ -2604,6 +2604,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Add a part for your instrument and press record. A count-in runs first, two bars by default, and recording starts on the downbeat.\n\nEvery device takes a moment to play sound and a moment to capture it, and that delay would push your take late against everything already recorded. The app measures the delay on your own device and shifts your take back by it, so what you played on the beat lands on the beat. Measure it once from Settings, and again if you change headphones or move to a Bluetooth speaker, since the delay belongs to the gear and not to the tune.\n\nYou record your own parts and nobody else\'s. Yours can be re-recorded or deleted as often as you like.';
 
   @override
+  String get guideRehearsalMonitoringNote =>
+      'Record on headphones, or with an external microphone kept away from the speaker. Played through the built-in speaker, the microphone hears everything the app is playing — the click and the parts already recorded — and it all lands in your take.';
+
+  @override
   String get guideRehearsalShareTitle => 'Getting the band together';
 
   @override

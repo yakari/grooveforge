@@ -337,6 +337,9 @@ class AudioInputFFI {
   int get rehState => 0;
   double get rehInputPeak => 0.0;
   int get rehRecordedFrames => 0;
+  double get rehGridBpm => 0.0;
+  int get rehRecInputSeen => 0;
+  int get rehRecDropped => 0;
 
   // Master track import — no native library on web.
   void rehSetTrackOffset(int idx, int frames) {}

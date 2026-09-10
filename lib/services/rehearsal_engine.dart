@@ -46,7 +46,13 @@ enum RehearsalTransport { stopped, playing, countIn, recording }
 /// the engine, and this class only sends control messages and polls position
 /// for the playhead (CLAUDE.md Rule 2).
 class RehearsalEngine extends ChangeNotifier {
-  RehearsalEngine(this._library);
+  RehearsalEngine(this._library) {
+    // The table is shared with the probe, which files a measurement from its
+    // own screen. Repainting on that is what keeps the "not calibrated yet"
+    // warning and the figure beside it honest without the tune screen having
+    // to notice that somebody went to Settings and came back.
+    calibration.addListener(notifyListeners);
+  }
 
   /// The rack's audio host, when there is one.
   ///
@@ -417,6 +423,7 @@ class RehearsalEngine extends ChangeNotifier {
 
   @override
   void dispose() {
+    calibration.removeListener(notifyListeners);
     _routes?.removeListener(_onRouteChanged);
     _poll?.cancel();
     AudioInputFFI().rehStop();
@@ -592,6 +599,7 @@ class RehearsalEngine extends ChangeNotifier {
     // the same reason: the engine keeps it, but the order should be obvious.
     final takeOffset = ffi.rehTakeOffset;
 
+    _logTakeRate(ffi, takeOffset);
     ffi.rehStop();
     _closeRackInput();
     _transport = RehearsalTransport.stopped;
@@ -626,6 +634,41 @@ class RehearsalEngine extends ChangeNotifier {
       onTakeCommitted?.call();
     }
     notifyListeners();
+  }
+
+  /// Reports, for one finished take, the three ways it can come out at the
+  /// wrong speed.
+  ///
+  /// A take that plays back fast is short against the real time it was
+  /// recorded in, and there are only three ways that happens:
+  ///
+  /// - **the grid is not the tune's** — the native grid refuses to move while
+  ///   the transport is running and says so by doing nothing, so a tune opened
+  ///   without stopping the previous one clicks at the previous one's tempo;
+  /// - **frames were dropped** — the record ring filled because the worker
+  ///   could not drain it, and the take lost whatever did not fit;
+  /// - **the transport and the capture disagree** — the engine crossed a
+  ///   different number of frames than the microphone delivered, which means
+  ///   one of the two devices is not running at the rate it claims.
+  ///
+  /// [countInFrames] is how far before the downbeat the transport started,
+  /// which is also where the take's own audio begins.
+  void _logTakeRate(AudioInputFFI ffi, int countInFrames) {
+    final r = _rehearsal;
+    if (r == null) return;
+
+    // Every frame of grid the transport crossed while the microphone was being
+    // read: from -countIn up to wherever it stopped.
+    final crossed = ffi.rehPosition + countInFrames;
+    final captured = ffi.rehRecordedFrames;
+    final ratio = captured > 0 ? crossed / captured : 0.0;
+
+    debugPrint('RehearsalEngine take rate: '
+        'grid ${ffi.rehGridBpm.toStringAsFixed(2)} '
+        'vs asked ${_local.effectiveBpm(r.bpm).toStringAsFixed(2)}, '
+        'crossed $crossed, captured $captured, '
+        'seen ${ffi.rehRecInputSeen}, dropped ${ffi.rehRecDropped}, '
+        'ratio ${ratio.toStringAsFixed(4)}');
   }
 
   // ── Mix ───────────────────────────────────────────────────────────────────
@@ -829,12 +872,14 @@ class RehearsalEngine extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Picks up whatever the probe just measured.
+  /// Re-reads the device-wide table from disk.
   ///
-  /// The probe writes to the device-wide table, which this engine read when
-  /// the tune opened. Without re-reading, calibrating from inside a rehearsal
-  /// would appear to do nothing until it was closed and opened again — and the
-  /// warning that sent the player to the probe would still be sitting there.
+  /// A measurement taken while a tune is open needs none of this any more: the
+  /// table is one object shared with the probe, so filing a figure there *is*
+  /// filing it here. This stays for the case that object cannot cover — a
+  /// table changed underneath the process, by a restore or by another install
+  /// of the app — and because coming back from the probe is the one moment
+  /// where paying for a disk read costs nothing.
   Future<void> adoptMeasuredCompensation() async {
     await calibration.reload();
     notifyListeners();

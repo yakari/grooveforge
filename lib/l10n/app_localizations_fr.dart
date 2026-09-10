@@ -2620,6 +2620,10 @@ class AppLocalizationsFr extends AppLocalizations {
       'Ajoutez une partie pour votre instrument et appuyez sur enregistrer. Un décompte passe d\'abord, deux mesures par défaut, et l\'enregistrement démarre sur le temps fort.\n\nChaque appareil met un instant à sortir le son et un instant à le capter, et ce retard décalerait votre prise derrière tout ce qui est déjà enregistré. L\'application mesure ce retard sur votre propre appareil et recale votre prise d\'autant : ce que vous avez joué sur le temps tombe sur le temps. Mesurez-le une fois depuis les Paramètres, puis à nouveau si vous changez de casque ou passez sur une enceinte Bluetooth — le retard appartient au matériel, pas au morceau.\n\nVous enregistrez vos parties et celles de personne d\'autre. Les vôtres, vous pouvez les refaire ou les supprimer autant de fois que vous voulez.';
 
   @override
+  String get guideRehearsalMonitoringNote =>
+      'Enregistrez au casque, ou avec un micro externe éloigné du haut-parleur. Sur le haut-parleur intégré, le micro entend tout ce que l\'application joue — le clic et les parties déjà enregistrées — et tout cela se retrouve dans votre prise.';
+
+  @override
   String get guideRehearsalShareTitle => 'Réunir le groupe';
 
   @override

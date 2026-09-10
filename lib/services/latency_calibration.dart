@@ -13,6 +13,26 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Keyed as [AudioRoute.key] — `speaker`, `wired`, or a named Bluetooth
 /// headset, because somebody may own several and each is its own delay.
 class LatencyCalibration extends ChangeNotifier {
+  /// One table for the whole app.
+  ///
+  /// Device-wide is not only *where* the figures are kept, it is *how many
+  /// copies of them exist*. Two instances meant the probe could file a fresh
+  /// measurement on its own screen while an open rehearsal went on arming
+  /// takes with whatever it had read when the tune opened — the calibration
+  /// was right, the stored figure was right, and the take was still a quarter
+  /// of a second early, which is the one symptom nobody would think to blame
+  /// on a cache. Re-reading fixed it only where somebody had remembered to ask
+  /// for it, and the path the user guide recommends — Settings — was not one
+  /// of those places.
+  ///
+  /// A single instance removes the question. Anything the probe files is what
+  /// the next take is armed with, with nothing in between to remember.
+  factory LatencyCalibration() => _instance;
+
+  LatencyCalibration._();
+
+  static final LatencyCalibration _instance = LatencyCalibration._();
+
   /// The table, as JSON, in shared preferences.
   static const String tableKey = 'gf.rehearsal.compensationByRoute';
 
@@ -27,6 +47,17 @@ class LatencyCalibration extends ChangeNotifier {
 
   bool _loaded = false;
   bool get isLoaded => _loaded;
+
+  /// Empties the table and forgets that it was ever read.
+  ///
+  /// Only for tests: one instance for the whole app is right in an app and
+  /// wrong across a suite, where each case needs the table it set up itself.
+  @visibleForTesting
+  void resetForTests() {
+    _byRoute.clear();
+    _fallback = 0;
+    _loaded = false;
+  }
 
   /// Reads what has been measured so far. Safe to call more than once.
   Future<void> load() async {

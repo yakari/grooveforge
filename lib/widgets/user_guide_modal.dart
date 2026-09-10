@@ -243,6 +243,8 @@ class _RehearsalsTab extends StatelessWidget {
         const SizedBox(height: 20),
         _buildSectionTitle(l10n.guideRehearsalRecordTitle),
         _buildParagraph(l10n.guideRehearsalRecordBody),
+        const SizedBox(height: 10),
+        _buildInfoBox(l10n.guideRehearsalMonitoringNote),
         const SizedBox(height: 20),
         _buildSectionTitle(l10n.guideRehearsalShareTitle),
         _buildParagraph(l10n.guideRehearsalShareBody),

@@ -228,6 +228,8 @@ typedef struct {
     /// Frames from the start of the take being recorded to the tune's
     /// downbeat: the count-in, captured rather than discarded.
     volatile int64_t rec_offset;
+    /// Input frames lost to a full record ring. See [gf_reh_rec_dropped].
+    volatile int64_t rec_dropped;
     float rec_ring[GF_REH_REC_RING_FRAMES];
     volatile int64_t rec_write;      ///< Audio thread writes here.
     volatile int64_t rec_read;       ///< Worker drains from here.
@@ -572,6 +574,7 @@ int gf_reh_record(const char* wav_path, int compensation_frames,
     g_e.rec_file = f;
     g_e.rec_frames = 0;
     g_e.rec_input_seen = 0;
+    g_e.rec_dropped = 0;
     g_e.rec_read = 0;
     g_e.rec_write = 0;
     g_e.compensation = compensation_frames > 0 ? compensation_frames : 0;
@@ -644,6 +647,10 @@ int64_t gf_reh_content_end(void) {
 int64_t gf_reh_position(void)        { return g_e.position; }
 int     gf_reh_state(void)           { return g_e.state; }
 int64_t gf_reh_recorded_frames(void) { return g_e.rec_frames; }
+
+double  gf_reh_grid_bpm(void)        { return g_e.bpm; }
+int64_t gf_reh_rec_input_seen(void)  { return g_e.rec_input_seen; }
+int64_t gf_reh_rec_dropped(void)     { return g_e.rec_dropped; }
 
 float gf_reh_input_peak(void) {
     const float p = g_e.input_peak;
@@ -787,7 +794,10 @@ void gf_reh_feed_input(const float* in, int frames) {
         // A full ring means the worker has stalled. Dropping the newest frame
         // keeps what has already been written intact; overwriting would
         // corrupt audio that is on its way to disk.
-        if (at - g_e.rec_read >= GF_REH_REC_RING_FRAMES) break;
+        if (at - g_e.rec_read >= GF_REH_REC_RING_FRAMES) {
+            g_e.rec_dropped += frames - i;
+            break;
+        }
         g_e.rec_ring[at % GF_REH_REC_RING_FRAMES] = in[i];
         g_e.rec_write = at + 1;
         g_e.rec_frames++;

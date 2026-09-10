@@ -1590,6 +1590,13 @@ class AudioInputFFI {
   late final int Function() _rehRecordedFrames = _lib
       .lookupFunction<Int64 Function(), int Function()>(
           'gf_reh_recorded_frames');
+  late final double Function() _rehGridBpm = _lib
+      .lookupFunction<Double Function(), double Function()>('gf_reh_grid_bpm');
+  late final int Function() _rehRecInputSeen = _lib
+      .lookupFunction<Int64 Function(), int Function()>(
+          'gf_reh_rec_input_seen');
+  late final int Function() _rehRecDropped = _lib
+      .lookupFunction<Int64 Function(), int Function()>('gf_reh_rec_dropped');
 
   /// Creates the engine if needed and routes audio through it.
   int rehActivate() => _rehActivate();
@@ -1697,6 +1704,18 @@ class AudioInputFFI {
   int get rehState => _rehState();
   double get rehInputPeak => _rehInputPeak();
   int get rehRecordedFrames => _rehRecordedFrames();
+
+  /// The tempo the engine is really running. Not always the tune's: the native
+  /// grid refuses to move while the transport runs, and reports that by doing
+  /// nothing.
+  double get rehGridBpm => _rehGridBpm();
+
+  /// Input frames handed to the engine since the take was armed.
+  int get rehRecInputSeen => _rehRecInputSeen();
+
+  /// Input frames lost to a full record ring. Non-zero means the take is short
+  /// against real time, which plays back fast.
+  int get rehRecDropped => _rehRecDropped();
 
   // ── Master track import ───────────────────────────────────────────────────
 

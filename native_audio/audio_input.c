@@ -1734,8 +1734,14 @@ EXPORT int start_audio_capture() {
     ma_uint32 capFrames  = g_micDevice.capture.internalPeriodSizeInFrames;
     ma_uint32 capPeriods = g_micDevice.capture.internalPeriods;
     double capLatencyMs  = (double)(capFrames * capPeriods) / SAMPLE_RATE * 1000.0;
-    LOGI("[Latency] CAPTURE device: %u frames x %u periods = %.1fms (requested 256)",
-         capFrames, capPeriods, capLatencyMs);
+    // The negotiated rate, not the requested one. Everything downstream — the
+    // grid, the take's WAV header, the round trip — assumes SAMPLE_RATE, so a
+    // device that agreed to something else makes every take play back at the
+    // ratio between the two, and this line is the only place that shows it.
+    LOGI("[Latency] CAPTURE device: %u frames x %u periods = %.1fms "
+         "(requested 256), internal rate %u Hz (asked %d)",
+         capFrames, capPeriods, capLatencyMs,
+         g_micDevice.capture.internalSampleRate, SAMPLE_RATE);
 
 #ifdef __ANDROID__
     // On Android, all audio playback flows through the Oboe bus (keyboards,

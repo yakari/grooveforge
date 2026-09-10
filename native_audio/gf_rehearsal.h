@@ -202,6 +202,27 @@ float gf_reh_input_peak(void);
 /// the take's length while recording.
 int64_t gf_reh_recorded_frames(void);
 
+// ─── Diagnostics ─────────────────────────────────────────────────────────────
+//
+// Enough to tell apart the three ways a take can come out at the wrong speed,
+// from one recording: a grid that is not the one the tune asked for, a capture
+// that delivered fewer frames than real time, and a record ring that overflowed
+// and threw frames away. Each is cheap to read and none is on the audio path.
+
+/// The tempo the engine is actually running, which is not always the one the
+/// tune asked for: [gf_reh_set_grid] refuses to move the grid while the
+/// transport is running, and says so only by doing nothing.
+double gf_reh_grid_bpm(void);
+
+/// Input frames the engine has been handed since the take was armed, including
+/// the ones dropped as compensation and the ones lost to a full ring.
+int64_t gf_reh_rec_input_seen(void);
+
+/// Input frames thrown away because the record ring was full — the worker
+/// could not drain it fast enough. Any non-zero value shortens the take
+/// against real time, which plays back fast.
+int64_t gf_reh_rec_dropped(void);
+
 // ─── Audio-thread entry points ───────────────────────────────────────────────
 
 /// Mixes every unmuted track plus the metronome into [outL]/[outR] and

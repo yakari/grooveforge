@@ -14,10 +14,12 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 - Les répétitions choisissent leur micro et leur sortie, depuis la barre repliable du haut, sans toucher à ceux du rack.
 
 ### Corrigé
+- Un étalonnage lancé depuis les Paramètres atteint désormais un morceau déjà ouvert. Les prises enregistrées ensuite utilisaient la mesure lue à l'ouverture du morceau, et tombaient jusqu'à un quart de seconde à côté du temps alors que l'étalonnage, lui, était juste.
 - Réglage de tempo : les verrous s'affichent sous le tempo qu'ils concernent et non sous le décompte, qui reste modifiable ; un tempo donné par un enregistrement n'affiche plus de slider.
 - Le compteur de mesures ne passe plus sur deux lignes au-delà de la dixième, ce qui décalait tout le morceau vers le bas et déplaçait le bouton d'enregistrement sous un doigt déjà parti vers stop.
 
 ### Architecture
+- L'arrêt d'une prise rapporte ce contre quoi elle a été taillée — la grille réellement suivie par le moteur, les frames parcourues par le transport face à celles livrées par le micro, et celles perdues sur un tampon d'enregistrement plein — de sorte qu'une prise qui sort à la mauvaise vitesse dit laquelle des trois causes est en jeu. Le périphérique de capture journalise aussi la fréquence réellement négociée, et non celle demandée.
 - Le moteur de répétition et la sonde de latence sont rendus sur un bus monitor porté par le périphérique audio du rack, sur toutes les plateformes, au lieu d'un second périphérique à eux — une seule horloge, et une seule façon de faire partout.
 
 ## [3.0.0] - 2026-09-08

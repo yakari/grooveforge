@@ -1482,6 +1482,10 @@
   "@guideRehearsalRecordBody": {
     "description": "User guide, Rehearsals tab."
   },
+  "guideRehearsalMonitoringNote": "Record on headphones, or with an external microphone kept away from the speaker. Played through the built-in speaker, the microphone hears everything the app is playing — the click and the parts already recorded — and it all lands in your take.",
+  "@guideRehearsalMonitoringNote": {
+    "description": "User guide, Rehearsals tab: info box under Recording."
+  },
   "guideRehearsalShareTitle": "Getting the band together",
   "@guideRehearsalShareTitle": {
     "description": "User guide, Rehearsals tab."

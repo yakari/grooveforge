@@ -69,6 +69,10 @@ void main() {
     setUp(() {
       TestWidgetsFlutterBinding.ensureInitialized();
       SharedPreferences.setMockInitialValues({});
+      // One table for the whole app is right in an app and wrong across a
+      // suite: without this each case would start on the previous one's
+      // measurements.
+      LatencyCalibration().resetForTests();
     });
 
     test('measuring in one tune answers for the next', () async {
@@ -139,7 +143,13 @@ void main() {
       expect(c.forRoute('bt:Old'), 9600);
     });
 
-    test('reload picks up what the probe wrote on its own screen', () async {
+    test('what the probe files is what the next take is armed with', () async {
+      // The reported bug, and the reason there is one instance rather than
+      // two. The probe screen filed a fresh measurement, the open tune went on
+      // arming takes with what it had read when it opened, and the take came
+      // out a quarter of a second early against a calibration that was right.
+      // Re-reading fixed it only where somebody had remembered to ask, and the
+      // path the guide recommends — Settings — never did.
       final engineSide = LatencyCalibration();
       await engineSide.load();
 
@@ -147,9 +157,37 @@ void main() {
       await probeSide.load();
       await probeSide.record('bt:New', 7777);
 
-      expect(engineSide.hasRoute('bt:New'), isFalse);
-      await engineSide.reload();
-      expect(engineSide.forRoute('bt:New'), 7777);
+      expect(engineSide.forRoute('bt:New'), 7777,
+          reason: 'no reload, no waiting for anyone to remember one');
+      expect(engineSide.hasRoute('bt:New'), isTrue);
+    });
+
+    test('the table tells whoever is listening that it changed', () async {
+      // What repaints the "not calibrated yet" warning on a tune screen when
+      // the measurement was taken two screens away.
+      final c = LatencyCalibration();
+      await c.load();
+      var beeps = 0;
+      void listener() => beeps++;
+      c.addListener(listener);
+      addTearDown(() => c.removeListener(listener));
+
+      await c.record('speaker', 1400);
+
+      expect(beeps, greaterThan(0));
+    });
+
+    test('re-reading from disk still works, for a table changed underneath',
+        () async {
+      final c = LatencyCalibration();
+      await c.load();
+      await c.record('speaker', 1400);
+
+      SharedPreferences.setMockInitialValues(
+          {'flutter.${LatencyCalibration.tableKey}': '{"speaker":2500}'});
+      await c.reload();
+
+      expect(c.forRoute('speaker'), 2500);
     });
   });
 
