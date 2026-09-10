@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [X.x.x]
+
+### Added
+- Rehearsals and the rack now sit side by side in two tabs: leave a tune to reach for a sound and come back to it exactly as you left it, still playing.
+- The rack's back panel closes with a back arrow or a back gesture, instead of hunting for the small icon that opened it.
+- Rehearsals picks its own microphone and speaker, from the collapsible bar at the top, without changing what the rack uses.
+
 ## [3.0.0] - 2026-09-08
 
 ### Added

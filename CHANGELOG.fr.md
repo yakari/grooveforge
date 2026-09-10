@@ -5,6 +5,13 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/lang/fr/).
 
+## [X.x.x]
+
+### Ajouté
+- Les répétitions et le rack cohabitent désormais dans deux onglets : quittez un morceau pour retoucher un son et retrouvez-le tel quel, toujours en lecture.
+- La vue arrière du rack se referme d'une flèche ou d'un geste retour, au lieu de retrouver la petite icône qui l'a ouverte.
+- Les répétitions choisissent leur micro et leur sortie, depuis la barre repliable du haut, sans toucher à ceux du rack.
+
 ## [3.0.0] - 2026-09-08
 
 ### Ajouté

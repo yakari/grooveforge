@@ -64,10 +64,12 @@ class _MainShellState extends State<MainShell> {
   /// navigator that owns it, and this shell never hears about it. Answering
   /// "never pop me" instead made the shell take a hand in gestures that were
   /// none of its business.
-  bool get _canPop {
-    if (_index == 0) return !_rackPatchView.value;
-    return !(_rehearsalNav.currentState?.canPop() ?? false);
-  }
+  /// The rehearsal tab's open tune is handled by [NavigatorPopHandler], which
+  /// the framework provides for exactly this — a nested navigator that stays
+  /// in the tree while its tab is inactive. All this shell still owns is the
+  /// rack's back panel, which is a view rather than a route and so has nothing
+  /// else to pop it.
+  bool get _canPop => !(_index == 0 && _rackPatchView.value);
 
   /// Handles a system back gesture.
   ///
@@ -75,19 +77,16 @@ class _MainShellState extends State<MainShell> {
   /// to the background, which is what back does at the root of an Android app
   /// — and what `Navigator.pop` cannot do, since the shell *is* the root route
   /// and popping it does nothing at all.
-  /// Closes whatever the visible tab has open.
+  /// Leaves the rack's back panel.
   ///
-  /// Only ever reached when [_canPop] said there was something to close, so it
-  /// never has to decide whether to leave the app — the system does that when
-  /// [_canPop] is true.
+  /// Only ever reached when [_canPop] said it was open, so there is nothing
+  /// else to decide — the system handles every other case itself.
   void _handleBack() {
-    if (_index == 0) {
-      // The rack's back panel is a view, not a route, so nothing else would
-      // pop it.
-      if (_rackPatchView.value) _rackPatchView.value = false;
-      return;
-    }
-    _rehearsalNav.currentState?.maybePop();
+    // Every [PopScope] on this route is notified, including the one belonging
+    // to the other tab. Without this guard, leaving a tune would also fold the
+    // rack's back panel away behind it.
+    if (_index != 0) return;
+    _rackPatchView.value = false;
   }
 
   @override
@@ -122,6 +121,30 @@ class _MainShellState extends State<MainShell> {
     super.dispose();
   }
 
+  /// Strips Android's predictive-back page transition from a theme.
+  ///
+  /// That transition is what draws the peel-away preview while a back swipe is
+  /// in progress, and it does so by listening for the gesture itself — a route
+  /// claims the swipe whenever it is the top of *its own* navigator. A tab that
+  /// is off screen still has a top route, so an open tune would answer a swipe
+  /// made while the rack was showing, closing itself where nobody could see it.
+  ///
+  /// Without the transition the rehearsal tab makes no such claim, and the
+  /// gesture takes the ordinary route: the shell decides, and hands it to
+  /// whichever tab is actually visible. The cost is the drag-along preview on
+  /// this tab; the animation it falls back to is the one Android itself uses
+  /// for every non-gesture navigation.
+  ThemeData _withoutPredictiveBack(ThemeData base) {
+    final builders = Map<TargetPlatform, PageTransitionsBuilder>.from(
+      base.pageTransitionsTheme.builders,
+    );
+    builders[TargetPlatform.android] =
+        const FadeForwardsPageTransitionsBuilder();
+    return base.copyWith(
+      pageTransitionsTheme: PageTransitionsTheme(builders: builders),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -149,14 +172,27 @@ class _MainShellState extends State<MainShell> {
           index: _index,
           children: [
             RackScreen(patchViewVisible: _rackPatchView),
-            Navigator(
-              key: _rehearsalNav,
-              observers: [_rehearsalObserver],
-              onGenerateRoute:
-                  (settings) => MaterialPageRoute<void>(
-                    settings: settings,
-                    builder: (_) => const RehearsalsScreen(),
-                  ),
+            NavigatorPopHandler(
+              enabled: _index == 1,
+              onPopWithResult: (_) {
+                // `enabled: false` stops this handler answering for the pop,
+                // but the framework still calls the callback. Only the visible
+                // tab may act on it.
+                if (_index != 1) return;
+                _rehearsalNav.currentState?.pop();
+              },
+              child: Theme(
+                data: _withoutPredictiveBack(Theme.of(context)),
+                child: Navigator(
+                  key: _rehearsalNav,
+                  observers: [_rehearsalObserver],
+                  onGenerateRoute:
+                      (settings) => MaterialPageRoute<void>(
+                        settings: settings,
+                        builder: (_) => const RehearsalsScreen(),
+                      ),
+                ),
+              ),
             ),
           ],
         );
