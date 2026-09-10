@@ -1302,29 +1302,6 @@ static void gf_reh_playback_hook(float* pOut, int frames) {
     }
 }
 
-/// Bus-source render for the Android output path. The bus pre-zeroes both
-/// channels, so this writes rather than accumulates.
-EXPORT void gf_reh_bus_render(float* outL, float* outR, int frames,
-                              void* userdata) {
-    (void)userdata;
-    if (!outL || frames <= 0) return;
-    if (!g_rehActive) return;
-    int done = 0;
-    while (done < frames) {
-        const int n = (frames - done) > GF_REH_MAX_BLOCK
-                    ? GF_REH_MAX_BLOCK : (frames - done);
-        gf_reh_render(g_rehMixL, g_rehMixR, n);
-        memcpy(outL + done, g_rehMixL, sizeof(float) * (size_t)n);
-        if (outR) memcpy(outR + done, g_rehMixL, sizeof(float) * (size_t)n);
-        done += n;
-    }
-}
-
-/// Address of [gf_reh_bus_render], for oboe_stream_add_source().
-EXPORT intptr_t gf_reh_bus_render_fn_addr(void) {
-    return (intptr_t)&gf_reh_bus_render;
-}
-
 // ─── Desktop: rendering through the rack's audio device ─────────────────────
 //
 // The engine used to play through this library's own output device, which was
@@ -1342,26 +1319,48 @@ EXPORT intptr_t gf_reh_bus_render_fn_addr(void) {
 // starts — on Linux that means no JACK server, where the rack would not work
 // either, but a rehearsal still should.
 
-/// Renders the engine and the latency probe for the rack's audio device.
+/// Renders the engine and the latency probe into one mono block.
 ///
-/// Both live on the monitor bus rather than in the rack's mix: they are heard
-/// but never recorded, which is what stops a take swallowing the metronome,
-/// the imported recording and the rest of the band.
+/// Both live on the *monitor* bus rather than in the rack's mix: they are
+/// heard but never recorded, which is what stops a take swallowing the
+/// metronome, the imported recording and the rest of the band.
 ///
-/// Mono, like the engine itself, and written to both channels. The buffers are
-/// scratch the host hands over without clearing, so this writes rather than
-/// accumulates.
+/// Writes rather than accumulates — the buffer is scratch handed over without
+/// clearing.
+static void gf_reh_monitor_mono(float* out, int frames) {
+    memset(out, 0, sizeof(float) * (size_t)frames);
+    gf_probe_playback_hook(out, frames);
+    gf_reh_playback_hook(out, frames);
+}
+
+/// Monitor render for the desktop host. Mono, copied to both channels.
 EXPORT void gf_reh_host_render(float* outL, float* outR, int frames) {
     if (!outL || frames <= 0) return;
-    memset(outL, 0, sizeof(float) * (size_t)frames);
-    gf_probe_playback_hook(outL, frames);
-    gf_reh_playback_hook(outL, frames);
+    gf_reh_monitor_mono(outL, frames);
     if (outR) memcpy(outR, outL, sizeof(float) * (size_t)frames);
 }
 
 /// Address of [gf_reh_host_render], for dvh_set_monitor_render().
 EXPORT intptr_t gf_reh_host_render_fn_addr(void) {
     return (intptr_t)&gf_reh_host_render;
+}
+
+/// The same thing for Android's Oboe bus, which passes a userdata pointer.
+///
+/// Two entry points rather than one because the two hosts disagree by exactly
+/// one unused argument, and calling a function through the wrong signature is
+/// not something to be clever about on the audio thread.
+EXPORT void gf_reh_monitor_render(float* outL, float* outR, int frames,
+                                  void* userdata) {
+    (void)userdata;
+    if (!outL || frames <= 0) return;
+    gf_reh_monitor_mono(outL, frames);
+    if (outR) memcpy(outR, outL, sizeof(float) * (size_t)frames);
+}
+
+/// Address of [gf_reh_monitor_render], for oboe_stream_set_monitor_source().
+EXPORT intptr_t gf_reh_monitor_render_fn_addr(void) {
+    return (intptr_t)&gf_reh_monitor_render;
 }
 
 /// Tells the engine the rack's device is rendering it now.

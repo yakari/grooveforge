@@ -10,7 +10,6 @@ import '../l10n/app_localizations.dart';
 import '../services/audio_input_ffi.dart';
 import '../services/audio_route_service.dart';
 import '../services/latency_calibration.dart';
-import '../services/gfpa_android_bindings.dart';
 
 /// Measures the overdub round trip on this device, through the app's own
 /// audio devices.
@@ -65,50 +64,10 @@ class _LatencyProbeScreenState extends State<LatencyProbeScreen> {
   static const Duration _timeout = Duration(seconds: 12);
   DateTime? _startedAt;
 
-  /// True once the probe has been registered on the Android output bus, so it
-  /// is removed exactly once.
-  ///
-  /// Registered for the whole lifetime of the screen rather than per run. The
-  /// probe's playback frame counter only advances while its render callback is
-  /// being called, so removing the source between runs would freeze that clock
-  /// while the capture clock kept going — and the next run would then schedule
-  /// its sweeps at a playback frame many seconds in the future and time out.
-  /// The render is a no-op when no measurement is in flight.
-  bool _busSourceAdded = false;
-
-  /// Android renders through Oboe, not through the miniaudio playback device
-  /// (`start_audio_capture` logs "PLAYBACK device: skipped"), so on Android the
-  /// sweep has to come from a registered bus source. Everywhere else the
-  /// miniaudio playback callback emits it directly and there is nothing to
-  /// register.
-  bool get _needsBusSource => !kIsWeb && Platform.isAndroid;
-
-  void _addBusSource() {
-    if (!_needsBusSource || _busSourceAdded) return;
-    final addr = AudioInputFFI().probeBusRenderFnAddr();
-    if (addr == 0) return;
-    GfpaAndroidBindings.instance
-        .oboeStreamAddSource(addr, kBusSlotLatencyProbe);
-    _busSourceAdded = true;
-  }
-
-  void _removeBusSource() {
-    if (!_busSourceAdded) return;
-    GfpaAndroidBindings.instance.oboeStreamRemoveSource(kBusSlotLatencyProbe);
-    _busSourceAdded = false;
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _addBusSource();
-  }
-
   @override
   void dispose() {
     _poller?.cancel();
     AudioInputFFI().probeCancel();
-    _removeBusSource();
     super.dispose();
   }
 
@@ -138,9 +97,6 @@ class _LatencyProbeScreenState extends State<LatencyProbeScreen> {
     }
     AudioInputFFI().startCapture();
     if (!mounted) return;
-    // Normally added in initState; this covers the case where the bus was not
-    // yet available then (the Oboe stream starts with the first audio source).
-    _addBusSource();
 
     // The measurement needs both devices to have delivered at least one
     // callback, because it aligns their clocks from the timestamps taken

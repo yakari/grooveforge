@@ -22,13 +22,7 @@ const int kBusSlotVocoder = 102;
 /// other instrument slots so it never collides with a FluidSynth sfId.
 const int kBusSlotLiveInput = 103;
 
-/// AAudio bus slot ID for the overdub latency probe. Matches
-/// OBOE_BUS_SLOT_LATENCY_PROBE (104). Registered only while a measurement runs.
-const int kBusSlotLatencyProbe = 104;
 
-/// AAudio bus slot ID for the rehearsal engine. Matches
-/// OBOE_BUS_SLOT_REHEARSAL (105). Registered while the rehearsal screen is open.
-const int kBusSlotRehearsal = 105;
 
 // ── Native function type definitions ─────────────────────────────────────────
 
@@ -123,6 +117,14 @@ typedef _OboeStreamSetRackTapNative =
 /// Dart binding for oboe_stream_set_rack_tap.
 typedef _OboeStreamSetRackTap =
     void Function(Pointer<NativeFunction<_AudioTapFnNative>>);
+
+/// Native signature for oboe_stream_set_monitor_source.
+typedef _OboeStreamSetMonitorSourceNative = Void Function(
+    Pointer<NativeFunction<_AudioSourceRenderFnNative>>);
+
+/// Dart binding for oboe_stream_set_monitor_source.
+typedef _OboeStreamSetMonitorSource = void Function(
+    Pointer<NativeFunction<_AudioSourceRenderFnNative>>);
 
 /// Native signature for oboe_stream_remove_source.
 typedef _OboeStreamRemoveSourceNative = Void Function(Int32 busSlotId);
@@ -235,6 +237,12 @@ class GfpaAndroidBindings {
   late final _OboeStreamAddSource _oboeStreamAddSource =
       _lib.lookupFunction<_OboeStreamAddSourceNative, _OboeStreamAddSource>(
           'oboe_stream_add_source');
+
+  /// Render a C function on the monitor source, after the tap has read the
+  /// rack.
+  late final _OboeStreamSetMonitorSource _oboeStreamSetMonitorSource =
+      _lib.lookupFunction<_OboeStreamSetMonitorSourceNative,
+          _OboeStreamSetMonitorSource>('oboe_stream_set_monitor_source');
 
   /// Send the rack's mixed output to a C function every audio block.
   late final _OboeStreamSetRackTap _oboeStreamSetRackTap =
@@ -365,6 +373,23 @@ class GfpaAndroidBindings {
   /// caller may safely free any resources associated with this source.
   void oboeStreamRemoveSource(int busSlotId) =>
       _oboeStreamRemoveSource(busSlotId);
+
+  /// Renders the C function at [monitorFnAddr] on the monitor source, or
+  /// clears it when 0.
+  ///
+  /// Monitor audio is heard on the bus but is never part of what the rack tap
+  /// reports. Used for the rehearsal engine and the latency probe, which are
+  /// not rack sources: they are not cabled, not recorded, and must not land
+  /// inside a take.
+  void oboeStreamSetMonitorSource(int monitorFnAddr) {
+    if (monitorFnAddr == 0) {
+      _oboeStreamSetMonitorSource(nullptr);
+      return;
+    }
+    _oboeStreamSetMonitorSource(
+        Pointer<NativeFunction<_AudioSourceRenderFnNative>>.fromAddress(
+            monitorFnAddr));
+  }
 
   /// Sends the rack's output to the C function at [tapFnAddr] every block, or
   /// stops sending when [tapFnAddr] is 0.

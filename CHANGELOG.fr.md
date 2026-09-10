@@ -13,8 +13,11 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 - La vue arrière du rack se referme d'une flèche ou d'un geste retour, au lieu de retrouver la petite icône qui l'a ouverte.
 - Les répétitions choisissent leur micro et leur sortie, depuis la barre repliable du haut, sans toucher à ceux du rack.
 
+### Corrigé
+- Le compteur de mesures ne passe plus sur deux lignes au-delà de la dixième, ce qui décalait tout le morceau vers le bas et déplaçait le bouton d'enregistrement sous un doigt déjà parti vers stop.
+
 ### Architecture
-- Sur ordinateur, le moteur de répétition et la sonde de latence passent par le périphérique audio du rack au lieu d'en ouvrir un second, donc les deux partagent la même horloge.
+- Le moteur de répétition et la sonde de latence sont rendus sur un bus monitor porté par le périphérique audio du rack, sur toutes les plateformes, au lieu d'un second périphérique à eux — une seule horloge, et une seule façon de faire partout.
 
 ## [3.0.0] - 2026-09-08
 

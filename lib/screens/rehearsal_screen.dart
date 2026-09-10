@@ -674,17 +674,31 @@ class _TransportBar extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  engine.isCountingIn
-                      ? l10n.rehearsalCountingIn
-                      : l10n.rehearsalBarBeat(
-                        engine.currentBar,
-                        engine.currentBeat,
-                      ),
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontFeatures: const [FontFeature.tabularFigures()],
-                    color:
-                        engine.isCountingIn ? theme.colorScheme.tertiary : null,
+                // Never allowed to wrap, and shrunk rather than truncated
+                // when it will not fit. Past bar 10 the label grows a digit
+                // and used to take a second line, which pushed the whole tune
+                // down by the height of one — moving the record button out
+                // from under a finger already on its way to press stop.
+                // Losing "beat 3" off the end would be no better, so it
+                // scales instead.
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    engine.isCountingIn
+                        ? l10n.rehearsalCountingIn
+                        : l10n.rehearsalBarBeat(
+                          engine.currentBar,
+                          engine.currentBeat,
+                        ),
+                    maxLines: 1,
+                    softWrap: false,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                      color: engine.isCountingIn
+                          ? theme.colorScheme.tertiary
+                          : null,
+                    ),
                   ),
                 ),
                 // A chip, not a line of text with a small icon after it.

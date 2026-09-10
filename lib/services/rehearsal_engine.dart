@@ -81,7 +81,6 @@ class RehearsalEngine extends ChangeNotifier {
 
   Timer? _poll;
   bool _active = false;
-  bool _busSourceAdded = false;
 
   int _positionFrames = 0;
   RehearsalTransport _transport = RehearsalTransport.stopped;
@@ -165,7 +164,6 @@ class RehearsalEngine extends ChangeNotifier {
       return;
     }
     _active = true;
-    _addBusSource();
 
     // The engine is fed by the app's capture device, and nothing opens that
     // until something asks for the microphone. Without this a take records
@@ -409,7 +407,6 @@ class RehearsalEngine extends ChangeNotifier {
     _closeRackInput();
     ffi.rehClearTracks();
     ffi.rehDeactivate();
-    _removeBusSource();
     _active = false;
     _trackOf.clear();
     _recordingPart = null;
@@ -425,37 +422,15 @@ class RehearsalEngine extends ChangeNotifier {
     AudioInputFFI().rehStop();
     _closeRackInput();
     AudioInputFFI().rehDeactivate();
-    _removeBusSource();
     super.dispose();
   }
 
-  // ── Android output routing ────────────────────────────────────────────────
+  // ── Output routing ────────────────────────────────────────────────────────
   //
-  // Android never opens the miniaudio playback device — output goes through
-  // Oboe — so on Android the engine has to register as a bus source to be
-  // heard at all. Everywhere else the playback callback mixes it in directly.
-
-  bool get _needsBusSource => !kIsWeb && Platform.isAndroid;
-
-  void _addBusSource() {
-    if (!_needsBusSource || _busSourceAdded) return;
-    final addr = AudioInputFFI().rehBusRenderFnAddr();
-    if (addr == 0) return;
-    GfpaAndroidBindings.instance.oboeStreamAddSource(addr, kBusSlotRehearsal);
-    _busSourceAdded = true;
-  }
-
-  void _removeBusSource() {
-    if (!_busSourceAdded) return;
-    GfpaAndroidBindings.instance.oboeStreamRemoveSource(kBusSlotRehearsal);
-    _busSourceAdded = false;
-  }
-
-  // ── Desktop output routing ────────────────────────────────────────────────
-  //
-  // The engine plays through the rack's audio device rather than the one its
-  // own library opens. Two devices meant two clocks with no fixed offset
-  // between them, which is what used to make recording a take from the rack
+  // The engine is rendered by whatever audio device the rack uses — the Oboe
+  // bus on Android, JACK or CoreAudio or WASAPI elsewhere — rather than by
+  // one of its own. Two devices meant two clocks with no fixed offset between
+  // them, which is what used to make recording a take from the rack
   // impossible anywhere but Android.
   //
   // It goes on the *monitor* bus, not into the rack's mix: heard, but never
@@ -463,14 +438,17 @@ class RehearsalEngine extends ChangeNotifier {
   // metronome, the imported recording and the rest of the band along with the
   // part being played.
 
-  /// True when the rack's device is carrying the engine.
+  /// True when the engine is being rendered alongside the rack.
   ///
-  /// The move itself belongs to the host, which does it when its device comes
-  /// up — the latency probe has to travel with the engine, and it is
-  /// reachable from Preferences with no rehearsal open. Falls back silently
-  /// to this library's own playback device, the path every desktop build used
-  /// before; on Linux that is what keeps rehearsals working with no JACK
-  /// server, where the rack would not work either.
+  /// Getting it there belongs to the host, which does it when its audio device
+  /// comes up: the latency probe travels with the engine — a measurement taken
+  /// on one device says nothing about playback on another — and the probe is
+  /// reachable from Preferences with no rehearsal open.
+  ///
+  /// False on a desktop machine whose rack audio never started, where the
+  /// engine stays on the device its own library opens. On Linux that is what
+  /// keeps rehearsals working with no JACK server, where the rack would not
+  /// work either.
   bool get _hostRouted => _host?.isMonitorRouted ?? false;
 
   // ── Recording from the rack ───────────────────────────────────────────────
@@ -481,13 +459,11 @@ class RehearsalEngine extends ChangeNotifier {
   //
   // It works wherever the engine and the rack share one audio callback, so
   // that the block the rack produces and the block the engine records are the
-  // same instant: always on Android, and on desktop once the engine is on the
-  // rack's device. A desktop machine whose rack audio never started keeps the
-  // engine on its own device, two clocks apart, and cannot offer this.
+  // same instant. That is exactly what [_hostRouted] reports, on every
+  // platform.
 
   /// Whether this device can record a take from the rack at all.
-  bool get canRecordFromRack =>
-      !kIsWeb && (Platform.isAndroid || _hostRouted);
+  bool get canRecordFromRack => !kIsWeb && _hostRouted;
 
   /// Whether [part] records the rack's output instead of the microphone.
   bool recordsFromRack(RehearsalPart part) =>

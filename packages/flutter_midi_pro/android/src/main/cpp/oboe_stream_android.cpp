@@ -201,6 +201,14 @@ static std::atomic<AudioTapFn> g_rackTap{nullptr};
 /// reason as every other buffer here: the audio thread allocates nothing.
 static float g_rackTapMono[kMaxFrames];
 
+/// Monitor source: rendered after the tap has read the rack, so it is heard
+/// but never recorded. See oboe_stream_set_monitor_source.
+static std::atomic<AudioSourceRenderFn> g_monitorSource{nullptr};
+
+/// Scratch for the monitor source's own stereo output.
+static float g_monitorL[kMaxFrames];
+static float g_monitorR[kMaxFrames];
+
 // ── Audio looper pre-allocated buffers ───────────────────────────────────────
 
 /// Per-clip source buffers for the audio looper.
@@ -450,26 +458,27 @@ static aaudio_data_callback_result_t audioCallback(
     //
     // Taken here rather than beside the per-source loop so that the audio
     // looper's playback is included: what leaves the rack is the master mix.
-    // The rehearsal engine and the latency probe are then subtracted back out.
-    // Their post-chain buffers are exactly what was accumulated a moment ago,
-    // so this removes their contribution to the sample — a take recorded from
-    // the rack carries the part being played and nothing else.
+    // Nothing has to be subtracted back out — the monitor source below has
+    // not been added yet, so this is the rack and only the rack.
     if (AudioTapFn tap = g_rackTap.load(std::memory_order_relaxed)) {
         for (int i = 0; i < frames; ++i) {
             g_rackTapMono[i] = 0.5f * (g_mixL[i] + g_mixR[i]);
         }
-        for (int s = 0; s < sourceCount; ++s) {
-            const int slot = snapshot[s].busSlotId;
-            if (slot != OBOE_BUS_SLOT_REHEARSAL &&
-                slot != OBOE_BUS_SLOT_LATENCY_PROBE) {
-                continue;
-            }
-            for (int i = 0; i < frames; ++i) {
-                g_rackTapMono[i] -=
-                        0.5f * (g_srcCaptureL[s][i] + g_srcCaptureR[s][i]);
-            }
-        }
         tap(g_rackTapMono, frames);
+    }
+
+    // ── 3d. Monitor source ────────────────────────────────────────────────
+    //
+    // Heard along with everything else, but never part of what the tap just
+    // reported: the rehearsal engine's metronome and the band's other takes
+    // must not end up inside the take being recorded.
+    if (AudioSourceRenderFn mon =
+                g_monitorSource.load(std::memory_order_relaxed)) {
+        mon(g_monitorL, g_monitorR, frames, nullptr);
+        for (int i = 0; i < frames; ++i) {
+            g_mixL[i] += g_monitorL[i];
+            g_mixR[i] += g_monitorR[i];
+        }
     }
 
     // ── 4. Interleave non-interleaved L/R into AAudio's stereo buffer ─────
@@ -1098,6 +1107,14 @@ extern "C" void oboe_stream_set_rack_tap(AudioTapFn fn)
     // because a tap owns no buffers the caller is about to free.
     g_rackTap.store(fn, std::memory_order_relaxed);
     LOGI("oboe_stream_set_rack_tap: %s", fn ? "installed" : "cleared");
+}
+
+extern "C" void oboe_stream_set_monitor_source(AudioSourceRenderFn fn)
+{
+    // A plain store, like the tap: the audio thread sees the old pointer or
+    // the new one, and both are valid for the block it is in the middle of.
+    g_monitorSource.store(fn, std::memory_order_relaxed);
+    LOGI("oboe_stream_set_monitor_source: %s", fn ? "set" : "cleared");
 }
 
 extern "C" void oboe_stream_remove_source(int busSlotId)

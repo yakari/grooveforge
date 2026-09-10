@@ -13,8 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The rack's back panel closes with a back arrow or a back gesture, instead of hunting for the small icon that opened it.
 - Rehearsals picks its own microphone and speaker, from the collapsible bar at the top, without changing what the rack uses.
 
+### Fixed
+- The bar counter no longer takes a second line past bar ten, which used to push the whole tune down and move the record button out from under a finger already reaching for stop.
+
 ### Architecture
-- On desktop the rehearsal engine and the latency probe play through the rack's audio device instead of opening a second one, so both run on the same clock.
+- The rehearsal engine and the latency probe play on a monitor bus carried by the rack's audio device, on every platform, instead of a second device of their own — one clock, and one way of doing it everywhere.
 
 ## [3.0.0] - 2026-09-08
 

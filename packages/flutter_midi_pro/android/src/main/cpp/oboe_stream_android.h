@@ -51,13 +51,9 @@ extern "C" {
 /// rack can cable into any GFPA effect or the audio looper.
 #define OBOE_BUS_SLOT_LIVE_INPUT 103
 
-/// Overdub latency probe — emits the measurement sweep on the output bus.
-/// Registered only while a measurement is running, then removed again.
-#define OBOE_BUS_SLOT_LATENCY_PROBE 104
-
-/// Rehearsal engine — streams the band's takes and clicks the metronome.
-/// Registered while the rehearsal screen is open.
-#define OBOE_BUS_SLOT_REHEARSAL 105
+// Slots 104 and 105 once belonged to the latency probe and the rehearsal
+// engine. Neither is a rack source: they are heard, never cabled, and must
+// never be recorded. Both moved to the monitor source below.
 
 // ── Generic audio source render callback ─────────────────────────────────────
 
@@ -114,16 +110,24 @@ typedef void (*AudioTapFn)(const float* mono, int frames);
 
 /// Sends the rack's output to [fn] every block, or stops sending when NULL.
 ///
-/// "The rack's output" is the master mix less the rehearsal engine and the
-/// latency probe: a rehearsal take fed from here must not swallow the
+/// "The rack's output" is everything the rack itself produces — keyboards, the
+/// Theremin, live input, the audio looper — because that is what the player
+/// hears and what they mean by "the rack". It is read before the monitor
+/// source is added, so a rehearsal take fed from here cannot swallow the
 /// metronome, the imported recording and the rest of the band along with the
-/// part being played. Everything the rack itself produces is included —
-/// keyboards, the Theremin, live input and the audio looper — because that is
-/// what the player hears and what they mean by "the rack".
+/// part being played.
 ///
 /// The tap is what makes a rehearsal take recordable straight from the rack
 /// rather than through the room. It costs nothing while no tap is set.
 void oboe_stream_set_rack_tap(AudioTapFn fn);
+
+/// Render [fn] on the monitor source: heard on the bus, but never part of
+/// what the tap reports or the audio looper records. Pass NULL to clear.
+///
+/// One slot, not a list. The rehearsal engine and the latency probe are the
+/// only things that belong here and they share a single render, so a probe
+/// started from Preferences cannot switch the engine off on its way out.
+void oboe_stream_set_monitor_source(AudioSourceRenderFn fn);
 
 /// Unregister the source identified by [busSlotId] from the bus.
 ///

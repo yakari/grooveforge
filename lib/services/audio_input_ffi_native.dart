@@ -1519,12 +1519,12 @@ class AudioInputFFI {
       .lookupFunction<Int32 Function(), int Function()>('gf_reh_ffi_activate');
   late final void Function() _rehDeactivate = _lib
       .lookupFunction<Void Function(), void Function()>('gf_reh_ffi_deactivate');
-  late final int Function() _rehBusRenderFnAddr = _lib
-      .lookupFunction<IntPtr Function(), int Function()>(
-          'gf_reh_bus_render_fn_addr');
   late final int Function() _rehHostRenderFnAddr = _lib
       .lookupFunction<IntPtr Function(), int Function()>(
           'gf_reh_host_render_fn_addr');
+  late final int Function() _rehMonitorRenderFnAddr = _lib
+      .lookupFunction<IntPtr Function(), int Function()>(
+          'gf_reh_monitor_render_fn_addr');
   late final void Function(int) _rehSetHostRouted = _lib
       .lookupFunction<Void Function(Int32), void Function(int)>(
           'gf_reh_set_host_routed');
@@ -1597,12 +1597,13 @@ class AudioInputFFI {
   /// Stops routing. Tracks are kept, so re-activating costs nothing.
   void rehDeactivate() => _rehDeactivate();
 
-  /// Address of the engine's bus-source render, for Android's Oboe bus.
-  int rehBusRenderFnAddr() => _rehBusRenderFnAddr();
-
   /// Address of the engine's monitor render, for the desktop host's monitor
   /// bus. Carries the latency probe as well — they share a device.
   int rehHostRenderFnAddr() => _rehHostRenderFnAddr();
+
+  /// Address of the engine's monitor render for Android's Oboe bus, which
+  /// passes a userdata pointer the desktop hosts do not.
+  int rehMonitorRenderFnAddr() => _rehMonitorRenderFnAddr();
 
   /// Tells the engine the rack's audio device is rendering it now, so this
   /// library's own playback callback stops doing it as well.

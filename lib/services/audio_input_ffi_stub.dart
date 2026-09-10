@@ -308,9 +308,9 @@ class AudioInputFFI {
   // Rehearsal engine — no native library on web.
   int rehActivate() => -1;
   void rehDeactivate() {}
-  int rehBusRenderFnAddr() => 0;
   int rehRackTapFnAddr() => 0;
   int rehHostRenderFnAddr() => 0;
+  int rehMonitorRenderFnAddr() => 0;
   void rehSetHostRouted({required bool routed}) {}
   void rehSetInputSource({required bool fromRack}) {}
   void rehSetGrid(double bpm, int beatsPerBar, int beatUnit) {}

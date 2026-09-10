@@ -472,6 +472,7 @@ class VstHostService {
     // called on Android.  Mark as started so setTransport calls go through.
     if (Platform.isAndroid) {
       _audioRunning = true;
+      _attachMonitorRender();
       return;
     }
 
@@ -529,37 +530,57 @@ class VstHostService {
   // as the rack — otherwise the two run on separate clocks and a take
   // recorded from the rack cannot be lined up with anything.
 
-  /// Whether the rehearsal engine and the latency probe are being rendered by
-  /// the rack's audio device.
+  /// Whether the rehearsal engine and the latency probe are being rendered
+  /// alongside the rack.
   ///
   /// False on a machine whose rack audio never started — no JACK server, say,
   /// where the rack does not work either. They then stay on the device their
-  /// own library opens, which is where they always used to be.
+  /// own library opens, which is where they always used to be. Recording a
+  /// rehearsal take from the rack needs this to be true: it is what puts both
+  /// on one clock.
   bool get isMonitorRouted => _monitorRouted;
   bool _monitorRouted = false;
 
-  /// Puts the rehearsal engine and the latency probe on the rack's device.
+  /// Puts the rehearsal engine and the latency probe on the monitor bus.
   ///
-  /// Done here, with the device itself, rather than when a rehearsal opens:
-  /// the probe is reachable from Preferences with no rehearsal in sight, and
-  /// a measurement taken on one device says nothing about playback on
-  /// another. They move together or not at all.
+  /// Done here, with the audio device itself, rather than when a rehearsal
+  /// opens: the probe is reachable from Preferences with no rehearsal in
+  /// sight, and a measurement taken on one device says nothing about playback
+  /// on another. They move together or not at all — and because they share a
+  /// single render, a probe closing cannot switch the engine off with it.
   ///
-  /// Costs a cleared buffer per block while nothing is playing — both hooks
+  /// Costs a cleared buffer per block while nothing is playing; both hooks
   /// return immediately when idle.
   void _attachMonitorRender() {
-    if (Platform.isAndroid || _monitorRouted || _host == null) return;
+    if (_monitorRouted) return;
+    if (Platform.isAndroid) {
+      // No VstHost exists on Android — the Oboe bus in libnative-lib.so *is*
+      // the rack's audio device, and it takes the monitor source directly.
+      final addr = AudioInputFFI().rehMonitorRenderFnAddr();
+      if (addr == 0) return;
+      GfpaAndroidBindings.instance.oboeStreamSetMonitorSource(addr);
+      _monitorRouted = true;
+      return;
+    }
+    if (_host == null) return;
     final addr = AudioInputFFI().rehHostRenderFnAddr();
     if (addr == 0) return;
     _host!.setMonitorRender(
         Pointer<NativeFunction<_HostRenderNative>>.fromAddress(addr));
+    // Desktop only: it also has a playback device of its own, which must stop
+    // rendering the same audio a second time.
     AudioInputFFI().rehSetHostRouted(routed: true);
     _monitorRouted = true;
   }
 
-  /// Hands them back to their own library's playback device.
+  /// Hands them back to the device their own library opens.
   void _detachMonitorRender() {
     if (!_monitorRouted) return;
+    if (Platform.isAndroid) {
+      GfpaAndroidBindings.instance.oboeStreamSetMonitorSource(0);
+      _monitorRouted = false;
+      return;
+    }
     _host?.setMonitorRender(nullptr);
     AudioInputFFI().rehSetHostRouted(routed: false);
     _monitorRouted = false;

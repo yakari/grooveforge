@@ -17,13 +17,7 @@ const int kBusSlotTheremin = 100;
 /// AAudio bus slot ID for the Stylophone.  Matches OBOE_BUS_SLOT_STYLOPHONE (101).
 const int kBusSlotStylophone = 101;
 
-/// AAudio bus slot ID for the overdub latency probe. Matches
-/// OBOE_BUS_SLOT_LATENCY_PROBE (104).
-const int kBusSlotLatencyProbe = 104;
 
-/// AAudio bus slot ID for the rehearsal engine. Matches
-/// OBOE_BUS_SLOT_REHEARSAL (105). Registered while the rehearsal screen is open.
-const int kBusSlotRehearsal = 105;
 
 /// AAudio bus slot ID for the Vocoder.  Matches OBOE_BUS_SLOT_VOCODER (102).
 const int kBusSlotVocoder = 102;
@@ -74,4 +68,7 @@ class GfpaAndroidBindings {
 
   /// No-op on web: there is no AAudio bus and no rack output to tap.
   void oboeStreamSetRackTap(int tapFnAddr) {}
+
+  /// No-op on web: there is no AAudio bus to monitor on.
+  void oboeStreamSetMonitorSource(int monitorFnAddr) {}
 }
