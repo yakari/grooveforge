@@ -1433,6 +1433,14 @@
       }
     }
   },
+  "rehearsalRecordFromRack": "Record from the rack",
+  "@rehearsalRecordFromRack": {
+    "description": "Menu item on a part lane. Records the take from what the rack is playing instead of the microphone."
+  },
+  "rehearsalInputRack": "Rack",
+  "@rehearsalInputRack": {
+    "description": "Short tag on a part lane saying it records the rack's output rather than the microphone."
+  },
   "rehearsalPartActions": "More",
   "rehearsalMemberHere": "Here now",
   "@rehearsalMemberHere": {

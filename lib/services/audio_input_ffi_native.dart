@@ -1522,6 +1522,12 @@ class AudioInputFFI {
   late final int Function() _rehBusRenderFnAddr = _lib
       .lookupFunction<IntPtr Function(), int Function()>(
           'gf_reh_bus_render_fn_addr');
+  late final int Function() _rehRackTapFnAddr = _lib
+      .lookupFunction<IntPtr Function(), int Function()>(
+          'gf_reh_rack_tap_fn_addr');
+  late final void Function(int) _rehSetInputSource = _lib
+      .lookupFunction<Void Function(Int32), void Function(int)>(
+          'gf_reh_set_input_source');
   late final void Function(double, int, int) _rehSetGrid = _lib
       .lookupFunction<Void Function(Double, Int32, Int32),
           void Function(double, int, int)>('gf_reh_set_grid');
@@ -1587,6 +1593,17 @@ class AudioInputFFI {
 
   /// Address of the engine's bus-source render, for Android's Oboe bus.
   int rehBusRenderFnAddr() => _rehBusRenderFnAddr();
+
+  /// Address of the sink that feeds the rack's output into a take, for
+  /// Android's Oboe bus.
+  int rehRackTapFnAddr() => _rehRackTapFnAddr();
+
+  /// Records the next take from the rack's output instead of the microphone.
+  ///
+  /// Nothing is played into the room and picked up again, so a take recorded
+  /// this way needs no latency compensation at all.
+  void rehSetInputSource({required bool fromRack}) =>
+      _rehSetInputSource(fromRack ? 1 : 0);
 
   /// Sets the bar grid. Ignored by the engine while the transport is running.
   void rehSetGrid(double bpm, int beatsPerBar, int beatUnit) =>

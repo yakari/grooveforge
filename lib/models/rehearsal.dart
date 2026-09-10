@@ -682,8 +682,10 @@ class RehearsalLocalState {
     Map<String, int>? compensationByRoute,
     this.metronomeEnabled = true,
     this.practiceSpeed = 1.0,
+    Set<String>? rackInputPartIds,
   })  : gains = gains ?? {},
         compensationByRoute = compensationByRoute ?? {},
+        rackInputPartIds = rackInputPartIds ?? {},
         mutedPartIds = mutedPartIds ?? {};
 
   /// Which member this device is.
@@ -747,8 +749,21 @@ class RehearsalLocalState {
   /// The speed a tune actually plays at here, given its own tempo.
   double effectiveBpm(double tuneBpm) => tuneBpm * practiceSpeed;
 
+  /// Parts recorded from the rack's output rather than the microphone.
+  ///
+  /// Per part rather than per tune, because one player can hold several: a
+  /// guitar going through the rack's amp and a vocal into the microphone are
+  /// two lanes on the same phone, and they do not want the same input.
+  ///
+  /// Local by nature — it describes this device's own setup and means nothing
+  /// on anybody else's.
+  final Set<String> rackInputPartIds;
+
   double gainFor(String partId) => gains[partId] ?? 1.0;
   bool isMuted(String partId) => mutedPartIds.contains(partId);
+
+  /// Whether [partId] records what the rack is playing.
+  bool recordsFromRack(String partId) => rackInputPartIds.contains(partId);
 
   Map<String, dynamic> toJson() => {
         'selfMemberId': selfMemberId,
@@ -759,6 +774,8 @@ class RehearsalLocalState {
           'compensationByRoute': compensationByRoute,
         'metronomeEnabled': metronomeEnabled,
         'practiceSpeed': practiceSpeed,
+        if (rackInputPartIds.isNotEmpty)
+          'rackInputPartIds': rackInputPartIds.toList(),
         if (lastTicketUri != null) 'lastTicketUri': lastTicketUri,
       };
 
@@ -777,6 +794,10 @@ class RehearsalLocalState {
         metronomeEnabled: json['metronomeEnabled'] as bool? ?? true,
         practiceSpeed:
             (json['practiceSpeed'] as num?)?.toDouble().clamp(0.5, 1.0) ?? 1.0,
+        rackInputPartIds:
+            (json['rackInputPartIds'] as List<dynamic>? ?? [])
+                .map((e) => e as String)
+                .toSet(),
       )..lastTicketUri = json['lastTicketUri'] as String?;
 }
 

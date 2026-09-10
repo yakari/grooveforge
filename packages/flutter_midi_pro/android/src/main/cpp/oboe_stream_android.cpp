@@ -188,6 +188,19 @@ static float g_mixL[kMaxFrames];
 /// Final summed right-channel master mix.
 static float g_mixR[kMaxFrames];
 
+// ── Rack output tap ──────────────────────────────────────────────────────────
+
+/// Where the rack's output is sent each block, or null when nobody wants it.
+///
+/// Atomic because it is written from the Dart thread and read from the audio
+/// thread. Relaxed ordering is enough: the only thing being published is the
+/// pointer itself, and the function it points at owns whatever it touches.
+static std::atomic<AudioTapFn> g_rackTap{nullptr};
+
+/// Scratch for the mono sum handed to the tap. Pre-allocated for the same
+/// reason as every other buffer here: the audio thread allocates nothing.
+static float g_rackTapMono[kMaxFrames];
+
 // ── Audio looper pre-allocated buffers ───────────────────────────────────────
 
 /// Per-clip source buffers for the audio looper.
@@ -431,6 +444,32 @@ static aaudio_data_callback_result_t audioCallback(
             g_sampleRate,
             g_transportIsPlaying.load(std::memory_order_relaxed) != 0,
             g_transportPositionBeats.load(std::memory_order_relaxed));
+    }
+
+    // ── 3c. Rack output tap ───────────────────────────────────────────────
+    //
+    // Taken here rather than beside the per-source loop so that the audio
+    // looper's playback is included: what leaves the rack is the master mix.
+    // The rehearsal engine and the latency probe are then subtracted back out.
+    // Their post-chain buffers are exactly what was accumulated a moment ago,
+    // so this removes their contribution to the sample — a take recorded from
+    // the rack carries the part being played and nothing else.
+    if (AudioTapFn tap = g_rackTap.load(std::memory_order_relaxed)) {
+        for (int i = 0; i < frames; ++i) {
+            g_rackTapMono[i] = 0.5f * (g_mixL[i] + g_mixR[i]);
+        }
+        for (int s = 0; s < sourceCount; ++s) {
+            const int slot = snapshot[s].busSlotId;
+            if (slot != OBOE_BUS_SLOT_REHEARSAL &&
+                slot != OBOE_BUS_SLOT_LATENCY_PROBE) {
+                continue;
+            }
+            for (int i = 0; i < frames; ++i) {
+                g_rackTapMono[i] -=
+                        0.5f * (g_srcCaptureL[s][i] + g_srcCaptureR[s][i]);
+            }
+        }
+        tap(g_rackTapMono, frames);
     }
 
     // ── 4. Interleave non-interleaved L/R into AAudio's stereo buffer ─────
@@ -1049,6 +1088,16 @@ extern "C" void oboe_stream_add_source(AudioSourceRenderFn renderFn,
     g_sources[g_sourceCount++] = { renderFn, userdata, busSlotId };
     LOGI("oboe_stream_add_source: busSlotId=%d, %d source(s) active",
          busSlotId, g_sourceCount);
+}
+
+extern "C" void oboe_stream_set_rack_tap(AudioTapFn fn)
+{
+    // A plain store: the audio thread either sees the old pointer or the new
+    // one, and both are valid for the block it is in the middle of. Nothing
+    // here needs to wait for the callback to finish, unlike removing a source,
+    // because a tap owns no buffers the caller is about to free.
+    g_rackTap.store(fn, std::memory_order_relaxed);
+    LOGI("oboe_stream_set_rack_tap: %s", fn ? "installed" : "cleared");
 }
 
 extern "C" void oboe_stream_remove_source(int busSlotId)

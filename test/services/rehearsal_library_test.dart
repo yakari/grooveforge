@@ -510,6 +510,29 @@ void main() {
       expect(reloaded.compensationFrames, 1390);
     });
 
+    test('which lane records from the rack survives a reload', () async {
+      final r = await library.create(
+          title: 'A', memberName: 'Y', instrument: 'guitar');
+      final part = r.parts.single;
+
+      final state = await library.loadLocalState(r.id);
+      expect(state.recordsFromRack(part.id), isFalse,
+          reason: 'the microphone is the default everywhere');
+      state.rackInputPartIds.add(part.id);
+      await library.saveLocalState(r.id, state);
+
+      // It describes this device's own wiring — which soundfont is loaded,
+      // what is cabled to what — and means nothing on anybody else's phone.
+      final manifest =
+          await File('${tmp.path}/rehearsals/${r.id}/rehearsal.json')
+              .readAsString();
+      expect(manifest.contains('rackInputPartIds'), isFalse);
+
+      final reloaded = await library.loadLocalState(r.id);
+      expect(reloaded.recordsFromRack(part.id), isTrue);
+      expect(reloaded.recordsFromRack('another-part'), isFalse);
+    });
+
     test('missing local state falls back to sane defaults', () async {
       final r = await library.create(
           title: 'A', memberName: 'Y', instrument: 'guitar');

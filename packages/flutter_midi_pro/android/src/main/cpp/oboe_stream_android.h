@@ -101,6 +101,30 @@ void oboe_stream_add_source(AudioSourceRenderFn renderFn,
                              void* userdata,
                              int busSlotId);
 
+// ── Rack output tap ──────────────────────────────────────────────────────────
+
+/// Receives the rack's mixed output, one block at a time.
+///
+/// Called from the AAudio real-time thread. Must be allocation-free and
+/// non-blocking, exactly like a render callback.
+///
+/// [mono]   — the rack's output summed to mono, [frames] samples long.
+/// [frames] — number of sample frames in the block.
+typedef void (*AudioTapFn)(const float* mono, int frames);
+
+/// Sends the rack's output to [fn] every block, or stops sending when NULL.
+///
+/// "The rack's output" is the master mix less the rehearsal engine and the
+/// latency probe: a rehearsal take fed from here must not swallow the
+/// metronome, the imported recording and the rest of the band along with the
+/// part being played. Everything the rack itself produces is included —
+/// keyboards, the Theremin, live input and the audio looper — because that is
+/// what the player hears and what they mean by "the rack".
+///
+/// The tap is what makes a rehearsal take recordable straight from the rack
+/// rather than through the room. It costs nothing while no tap is set.
+void oboe_stream_set_rack_tap(AudioTapFn fn);
+
 /// Unregister the source identified by [busSlotId] from the bus.
 ///
 /// Blocks the calling thread until any in-progress callback that captured a

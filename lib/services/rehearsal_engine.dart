@@ -60,6 +60,13 @@ class RehearsalEngine extends ChangeNotifier {
 
   /// The part currently being recorded into, if any.
   RehearsalPart? _recordingPart;
+
+  /// The compensation the take in progress was armed with.
+  ///
+  /// Read back when the take is committed rather than measured again: a take
+  /// recorded from the rack was armed with none, and the route's figure would
+  /// misdescribe it.
+  int _recordingCompensation = 0;
   String? _recordingFileName;
 
   Timer? _poll;
@@ -389,6 +396,7 @@ class RehearsalEngine extends ChangeNotifier {
     _poll = null;
     final ffi = AudioInputFFI();
     ffi.rehStop();
+    _closeRackInput();
     ffi.rehClearTracks();
     ffi.rehDeactivate();
     _removeBusSource();
@@ -405,6 +413,7 @@ class RehearsalEngine extends ChangeNotifier {
     _routes?.removeListener(_onRouteChanged);
     _poll?.cancel();
     AudioInputFFI().rehStop();
+    _closeRackInput();
     AudioInputFFI().rehDeactivate();
     _removeBusSource();
     super.dispose();
@@ -430,6 +439,59 @@ class RehearsalEngine extends ChangeNotifier {
     if (!_busSourceAdded) return;
     GfpaAndroidBindings.instance.oboeStreamRemoveSource(kBusSlotRehearsal);
     _busSourceAdded = false;
+  }
+
+  // ── Recording from the rack ───────────────────────────────────────────────
+  //
+  // A part can be recorded from what the rack is playing rather than from the
+  // microphone: a soundfont, a VST, the drum generator, anything cabled up. It
+  // never leaves the device, so it arrives clean and exactly on the beat.
+  //
+  // Android only, and not for want of trying elsewhere: there the rack and the
+  // rehearsal engine share one audio callback, so the block the rack produces
+  // and the block the engine is recording are the same instant. On desktop the
+  // rack runs on its own audio server and the engine on another device
+  // entirely, and the offset between the two is neither fixed nor knowable.
+
+  /// Whether this device can record a take from the rack at all.
+  bool get canRecordFromRack => !kIsWeb && Platform.isAndroid;
+
+  /// Whether [part] records the rack's output instead of the microphone.
+  bool recordsFromRack(RehearsalPart part) =>
+      canRecordFromRack && _local.recordsFromRack(part.id);
+
+  /// Chooses where [part] records from, and remembers it for next time.
+  Future<void> setRecordsFromRack(RehearsalPart part, bool fromRack) async {
+    final r = _rehearsal;
+    if (r == null || !canRecordFromRack) return;
+    if (fromRack) {
+      _local.rackInputPartIds.add(part.id);
+    } else {
+      _local.rackInputPartIds.remove(part.id);
+    }
+    await _library.saveLocalState(r.id, _local);
+    notifyListeners();
+  }
+
+  /// Points the engine's input at the rack, and starts the bus sending it.
+  ///
+  /// The source is set first: the tap hands over whole blocks, and one that
+  /// arrived before the engine knew where it was from would be dropped rather
+  /// than misfiled.
+  void _openRackInput() {
+    final ffi = AudioInputFFI();
+    ffi.rehSetInputSource(fromRack: true);
+    GfpaAndroidBindings.instance.oboeStreamSetRackTap(ffi.rehRackTapFnAddr());
+  }
+
+  /// Puts the input back on the microphone and stops the bus sending.
+  ///
+  /// Called after every take, not only after one recorded from the rack, so
+  /// the bus is never left summing a mix nobody reads.
+  void _closeRackInput() {
+    if (!canRecordFromRack) return;
+    GfpaAndroidBindings.instance.oboeStreamSetRackTap(0);
+    AudioInputFFI().rehSetInputSource(fromRack: false);
   }
 
   // ── Transport ─────────────────────────────────────────────────────────────
@@ -474,15 +536,23 @@ class RehearsalEngine extends ChangeNotifier {
     final dir = await _library.takesDir(r.id);
     final path = '${dir.path}/$fileName';
 
-    final rc = AudioInputFFI()
-        .rehRecord(path, compensationFrames, r.countInBars);
+    // Nothing is played into the room and heard back, so there is no round
+    // trip and nothing to compensate for. Using the measured figure here
+    // would throw away the first 30 ms of a take that was never late.
+    final fromRack = recordsFromRack(part);
+    if (fromRack) _openRackInput();
+    final compensation = fromRack ? 0 : compensationFrames;
+
+    final rc = AudioInputFFI().rehRecord(path, compensation, r.countInBars);
     if (rc != 0) {
       debugPrint('RehearsalEngine: record failed ($rc)');
+      _closeRackInput();
       if (existing != null) {
         AudioInputFFI().rehSetTrackMute(existing, _local.isMuted(part.id));
       }
       return;
     }
+    _recordingCompensation = compensation;
     _recordingPart = part;
     _recordingFileName = fileName;
     _transport = r.countInBars > 0
@@ -505,7 +575,9 @@ class RehearsalEngine extends ChangeNotifier {
     final takeOffset = ffi.rehTakeOffset;
 
     ffi.rehStop();
+    _closeRackInput();
     _transport = RehearsalTransport.stopped;
+    final compensation = _recordingCompensation;
     _recordingPart = null;
     _recordingFileName = null;
 
@@ -521,7 +593,7 @@ class RehearsalEngine extends ChangeNotifier {
           fileName: fileName,
           frames: frames,
           sampleRate: 48000,
-          compensationFrames: compensationFrames,
+          compensationFrames: compensation,
           // The tempo it was played at, which is the practice speed if one is
           // set — not the tune's own. Storing the tune's would misfile a take
           // cut at half speed as if it had been played at full.

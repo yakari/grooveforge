@@ -4694,6 +4694,18 @@ abstract class AppLocalizations {
   /// **'Remove your {instrument} part? It disappears for everyone, along with anything recorded on it.'**
   String rehearsalRemovePartConfirm(String instrument);
 
+  /// Menu item on a part lane. Records the take from what the rack is playing instead of the microphone.
+  ///
+  /// In en, this message translates to:
+  /// **'Record from the rack'**
+  String get rehearsalRecordFromRack;
+
+  /// Short tag on a part lane saying it records the rack's output rather than the microphone.
+  ///
+  /// In en, this message translates to:
+  /// **'Rack'**
+  String get rehearsalInputRack;
+
   /// No description provided for @rehearsalPartActions.
   ///
   /// In en, this message translates to:

@@ -1193,6 +1193,8 @@
       }
     }
   },
+  "rehearsalRecordFromRack": "Enregistrer depuis le rack",
+  "rehearsalInputRack": "Rack",
   "rehearsalPartActions": "Plus",
   "rehearsalMemberHere": "Présent",
   "rehearsalMemberAway": "Non connecté",

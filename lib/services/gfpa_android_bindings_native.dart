@@ -110,6 +110,20 @@ typedef _OboeStreamAddSource = void Function(
     Pointer<Void>,
     int);
 
+/// AudioTapFn native type: void (*)(const float*, int32).
+///
+/// The rack's output is handed to a function of this shape every block. The
+/// pointer value comes from `gf_reh_rack_tap_fn_addr()` in libaudio_input.so.
+typedef _AudioTapFnNative = Void Function(Pointer<Float>, Int32);
+
+/// Native signature for oboe_stream_set_rack_tap.
+typedef _OboeStreamSetRackTapNative =
+    Void Function(Pointer<NativeFunction<_AudioTapFnNative>>);
+
+/// Dart binding for oboe_stream_set_rack_tap.
+typedef _OboeStreamSetRackTap =
+    void Function(Pointer<NativeFunction<_AudioTapFnNative>>);
+
 /// Native signature for oboe_stream_remove_source.
 typedef _OboeStreamRemoveSourceNative = Void Function(Int32 busSlotId);
 
@@ -221,6 +235,11 @@ class GfpaAndroidBindings {
   late final _OboeStreamAddSource _oboeStreamAddSource =
       _lib.lookupFunction<_OboeStreamAddSourceNative, _OboeStreamAddSource>(
           'oboe_stream_add_source');
+
+  /// Send the rack's mixed output to a C function every audio block.
+  late final _OboeStreamSetRackTap _oboeStreamSetRackTap =
+      _lib.lookupFunction<_OboeStreamSetRackTapNative, _OboeStreamSetRackTap>(
+          'oboe_stream_set_rack_tap');
 
   /// Unregister an audio source from the AAudio bus.
   ///
@@ -346,4 +365,19 @@ class GfpaAndroidBindings {
   /// caller may safely free any resources associated with this source.
   void oboeStreamRemoveSource(int busSlotId) =>
       _oboeStreamRemoveSource(busSlotId);
+
+  /// Sends the rack's output to the C function at [tapFnAddr] every block, or
+  /// stops sending when [tapFnAddr] is 0.
+  ///
+  /// What arrives is the master mix without the rehearsal engine or the
+  /// latency probe — the rack itself, and nothing that is only playing back.
+  /// Used to record a rehearsal take from the rack rather than the room.
+  void oboeStreamSetRackTap(int tapFnAddr) {
+    if (tapFnAddr == 0) {
+      _oboeStreamSetRackTap(nullptr);
+      return;
+    }
+    _oboeStreamSetRackTap(
+        Pointer<NativeFunction<_AudioTapFnNative>>.fromAddress(tapFnAddr));
+  }
 }

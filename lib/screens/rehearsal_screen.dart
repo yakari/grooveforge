@@ -1175,23 +1175,32 @@ class _TempoSheetState extends State<_TempoSheet> {
 
 /// A small red flag on a lane: something is missing or has not gone out yet.
 class _LaneTag extends StatelessWidget {
-  const _LaneTag({required this.text});
+  const _LaneTag({required this.text, this.neutral = false});
 
   final String text;
+
+  /// Whether this tag states a fact rather than raising a problem.
+  ///
+  /// The warning colour is what makes the other tags worth reading at a
+  /// glance; spending it on a lane that is simply set up a particular way
+  /// would teach players to ignore it.
+  final bool neutral;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
       decoration: BoxDecoration(
-        color: theme.colorScheme.errorContainer,
+        color: neutral ? scheme.secondaryContainer : scheme.errorContainer,
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
         text,
-        style: theme.textTheme.labelSmall
-            ?.copyWith(color: theme.colorScheme.onErrorContainer),
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: neutral ? scheme.onSecondaryContainer : scheme.onErrorContainer,
+        ),
       ),
     );
   }
@@ -1287,6 +1296,14 @@ class _PartLane extends StatelessWidget {
   /// Removes the player who owns this lane, and everything they own.
   final VoidCallback onRemoveMember;
 
+  /// Switches this lane between the microphone and the rack, and redraws.
+  ///
+  /// Kept off the transport's path deliberately: the menu is disabled while
+  /// the transport runs, so this never lands in the middle of a take.
+  void _setRackInput(bool fromRack) {
+    engine.setRecordsFromRack(part, fromRack).then((_) => onChanged());
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -1296,6 +1313,10 @@ class _PartLane extends StatelessWidget {
     final take = part.take;
     final isRecordingThis = engine.recordingPart?.id == part.id;
     final muted = engine.localState.isMuted(part.id);
+    // Where this lane records from. Worth saying on the row rather than only
+    // in the menu: pressing record on a lane wired to the rack while holding
+    // a guitar records silence, and the moment to notice is before the take.
+    final fromRack = engine.recordsFromRack(part);
     // You record your own part and nobody else's. Someone else's take is
     // theirs: overwriting it from here would destroy their work and, because
     // the merge keeps the highest revision, would win on their device too.
@@ -1397,6 +1418,11 @@ class _PartLane extends StatelessWidget {
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
+                          if (isMine && fromRack) ...[
+                            const SizedBox(width: 8),
+                            _LaneTag(text: l10n.rehearsalInputRack,
+                                neutral: true),
+                          ],
                           if (missingAudio) ...[
                             const SizedBox(width: 8),
                             // A different complaint from the one after it:
@@ -1430,10 +1456,20 @@ class _PartLane extends StatelessWidget {
                     onSelected: (value) => switch (value) {
                       'take' => onDelete(),
                       'member' => onRemoveMember(),
+                      'input' => _setRackInput(!fromRack),
                       _ => onRemovePart(),
                     },
                     itemBuilder:
                         (_) => [
+                          // Where the take comes from, above the two ways of
+                          // throwing one away: it is the only item here that
+                          // is a setting rather than a deletion.
+                          if (isMine && engine.canRecordFromRack)
+                            CheckedPopupMenuItem(
+                              value: 'input',
+                              checked: fromRack,
+                              child: Text(l10n.rehearsalRecordFromRack),
+                            ),
                           // Two destructive actions that are easy to confuse, so
                           // they are named rather than offered as two similar
                           // icons: one keeps the lane, the other does not.

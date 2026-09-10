@@ -293,6 +293,13 @@ static float renderOscillator(Oscillator* osc) {
 static volatile float g_liveInputGainLin;
 static volatile float g_liveInputPeak;
 
+/// Rehearsal take input source. Defined with the rehearsal routing section;
+/// the capture callback needs it here to know whether the microphone still
+/// feeds the take. See [gf_reh_set_input_source].
+#define GF_REH_INPUT_MIC  0
+#define GF_REH_INPUT_RACK 1
+static volatile int g_rehInputSource;
+
 void mic_capture_callback(ma_device* pDevice, void* pOutput, const void* pInput,
                           ma_uint32 frameCount)
 {
@@ -300,7 +307,12 @@ void mic_capture_callback(ma_device* pDevice, void* pOutput, const void* pInput,
     if (!pIn || frameCount == 0) return;
 
     gf_probe_capture_hook(pIn, (int)frameCount);
-    gf_reh_feed_input(pIn, (int)frameCount);
+    // Only when the take is being recorded from the microphone. Recording
+    // from the rack still leaves the mic open — the rack's own live input may
+    // be using it — but what it hears must not reach the take twice.
+    if (g_rehInputSource == GF_REH_INPUT_MIC) {
+        gf_reh_feed_input(pIn, (int)frameCount);
+    }
 
     ma_uint32 writePos = g_micWriteCursor;  // snapshot
     float peak = 0.0f;
@@ -1200,6 +1212,48 @@ EXPORT float gf_probe_input_peak(void)      { return g_probeInPeak; }
 /// callback entirely the rest of the time, so the rack pays nothing for a
 /// feature it is not using.
 static volatile int g_rehActive = 0;
+
+/// Where the take being recorded gets its audio from.
+///
+/// The microphone is the default and the only thing that works everywhere.
+/// The rack is the alternative on Android: a keyboard, a soundfont, a VST or
+/// anything else in the rack is recorded straight from the mix instead of
+/// being played into the room and picked up again. Nothing acoustic happens,
+/// so there is no round trip to compensate and nothing for the room to add.
+static volatile int g_rehInputSource = GF_REH_INPUT_MIC;
+
+/// Chooses between the microphone and the rack for the next take.
+///
+/// Takes effect on the next block; changing it mid-take would splice two
+/// different sources into one recording, which the UI does not allow.
+EXPORT void gf_reh_set_input_source(int source) {
+    g_rehInputSource = (source == GF_REH_INPUT_RACK) ? GF_REH_INPUT_RACK
+                                                     : GF_REH_INPUT_MIC;
+}
+
+/// Which source the next take will be recorded from.
+EXPORT int gf_reh_input_source(void) { return g_rehInputSource; }
+
+/// Receives the rack's output from the Oboe bus — see oboe_stream_set_rack_tap.
+///
+/// Audio-thread safe, and deliberately the same shape as the microphone path:
+/// both end in [gf_reh_feed_input], so a take does not know or care which one
+/// it came from. Guarded by the source flag rather than by installing and
+/// removing the tap alone, so a block already in flight when the player
+/// switches back to the microphone cannot land in the take.
+EXPORT void gf_reh_rack_tap(const float* mono, int frames) {
+    if (g_rehInputSource != GF_REH_INPUT_RACK) return;
+    gf_reh_feed_input(mono, frames);
+}
+
+/// Address of [gf_reh_rack_tap], for oboe_stream_set_rack_tap().
+///
+/// Handed across as a number for the same reason the render callbacks are:
+/// the bus lives in libnative-lib.so and the engine in libaudio_input.so, and
+/// neither links the other.
+EXPORT intptr_t gf_reh_rack_tap_fn_addr(void) {
+    return (intptr_t)&gf_reh_rack_tap;
+}
 
 /// Scratch for the engine's mono mix. Static rather than stack-allocated
 /// because the audio callback must not grow its stack, and sized to the

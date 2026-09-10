@@ -2556,6 +2556,12 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get rehearsalRecordFromRack => 'Record from the rack';
+
+  @override
+  String get rehearsalInputRack => 'Rack';
+
+  @override
   String get rehearsalPartActions => 'More';
 
   @override
