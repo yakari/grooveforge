@@ -8,10 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [X.x.x]
 
 ### Added
-- On Android, a lane can record straight from the rack instead of the microphone — a soundfont, a VST, the drum generator — with nothing going through the room and no latency to compensate.
+- A lane can record straight from the rack instead of the microphone — a soundfont, a VST3 plugin, the drum generator — with nothing going through the room and no latency to compensate.
 - Rehearsals and the rack now sit side by side in two tabs: leave a tune to reach for a sound and come back to it exactly as you left it, still playing.
 - The rack's back panel closes with a back arrow or a back gesture, instead of hunting for the small icon that opened it.
 - Rehearsals picks its own microphone and speaker, from the collapsible bar at the top, without changing what the rack uses.
+
+### Architecture
+- On desktop the rehearsal engine and the latency probe play through the rack's audio device instead of opening a second one, so both run on the same clock.
 
 ## [3.0.0] - 2026-09-08
 

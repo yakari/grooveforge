@@ -93,6 +93,16 @@ struct AudioState {
 
     // Output limiter state.
     float limiterGain = 1.0f;
+
+    /// Monitor bus: rendered after the rack's output has been tapped, so it
+    /// is heard but never recorded. See dvh_set_monitor_render.
+    std::atomic<DvhRenderFn> monitorRender{nullptr};
+
+    /// Where the rack's output goes each block, or null when nobody wants it.
+    std::atomic<DvhTapFn> rackTap{nullptr};
+
+    /// Scratch for the mono sum handed to the tap.
+    std::vector<float> tapMono;
 };
 
 static std::mutex           g_mapMtx;
@@ -370,6 +380,27 @@ static void dataCallback(ma_device* pDevice, void* pOutput, const void* /*pInput
         state->transportIsPlaying.load(std::memory_order_relaxed) != 0,
         state->transportPositionBeats.load(std::memory_order_relaxed));
 
+    // ── Rack output tap ─────────────────────────────────────────────────
+    // Read with the looper mixed in and before anything on the monitor bus
+    // is added: this is the rack, and only the rack.
+    if (DvhTapFn tap = state->rackTap.load(std::memory_order_relaxed)) {
+        for (int32_t i = 0; i < bs; ++i) {
+            state->tapMono[i] = 0.5f * (state->mixL[i] + state->mixR[i]);
+        }
+        tap(state->tapMono.data(), bs);
+    }
+
+    // ── Monitor bus ─────────────────────────────────────────────────────
+    // Heard, limited with everything else, never part of what the tap
+    // reported a moment ago.
+    if (DvhRenderFn mon = state->monitorRender.load(std::memory_order_relaxed)) {
+        mon(state->extBufL.data(), state->extBufR.data(), bs);
+        for (int32_t i = 0; i < bs; ++i) {
+            state->mixL[i] += state->extBufL[i];
+            state->mixR[i] += state->extBufR[i];
+        }
+    }
+
     // Signal block completion for drain synchronization.
     state->callbackSeq.fetch_add(1, std::memory_order_release);
 
@@ -475,6 +506,7 @@ DVH_API int32_t dvh_start_desktop_audio(DVH_Host host) {
     s->tmpBufR.assign(s->blockSize, 0.f);
     s->mixL.assign(s->blockSize, 0.f);
     s->mixR.assign(s->blockSize, 0.f);
+    s->tapMono.assign(s->blockSize, 0.f);
     s->zeroL.assign(s->blockSize, 0.f);
     s->zeroR.assign(s->blockSize, 0.f);
     for (int i = 0; i < kMaxMasterRenders; ++i) {
@@ -539,6 +571,18 @@ DVH_API void dvh_stop_desktop_audio(DVH_Host host) {
 // ─── External-render routing (Theremin/Stylophone → VST3 input) ─────────────
 // Not yet implemented for CoreAudio — macOS instruments output audio through
 // their own paths.  Stubs satisfy the FFI symbol lookup from syncAudioRouting.
+
+DVH_API void dvh_set_monitor_render(DVH_Host host, DvhRenderFn fn) {
+    if (!host) return;
+    auto* s = getOrCreate(host);
+    s->monitorRender.store(fn, std::memory_order_relaxed);
+}
+
+DVH_API void dvh_set_rack_tap(DVH_Host host, DvhTapFn tap) {
+    if (!host) return;
+    auto* s = getOrCreate(host);
+    s->rackTap.store(tap, std::memory_order_relaxed);
+}
 
 DVH_API void dvh_set_external_render(DVH_Host /*host*/, DVH_Plugin /*plugin*/, DvhRenderFn /*fn*/) {}
 DVH_API void dvh_clear_external_render(DVH_Host /*host*/, DVH_Plugin /*plugin*/) {}

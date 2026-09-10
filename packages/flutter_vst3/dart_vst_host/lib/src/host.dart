@@ -156,6 +156,24 @@ class VstHost {
     Pointer<NativeFunction<Void Function(Pointer<Float>, Pointer<Float>, Int32)>> renderFn,
   ) => _b.dvhAddMasterRender(handle, renderFn);
 
+  /// Render [renderFn] on the monitor bus.
+  ///
+  /// Monitor audio is heard on the rack's device but is never part of what
+  /// [setRackTap] reports or the audio looper records. Used for the rehearsal
+  /// engine — its metronome and the band's other takes must not end up inside
+  /// the take being recorded. Pass `nullptr` to clear.
+  void setMonitorRender(
+    Pointer<NativeFunction<Void Function(Pointer<Float>, Pointer<Float>, Int32)>> renderFn,
+  ) => _b.dvhSetMonitorRender(handle, renderFn);
+
+  /// Send the rack's output, summed to mono, to [tapFn] every audio block.
+  ///
+  /// What arrives is everything the rack plays — plugins, keyboards, the
+  /// audio looper — and nothing from the monitor bus. Pass `nullptr` to stop.
+  void setRackTap(
+    Pointer<NativeFunction<Void Function(Pointer<Float>, Int32)>> tapFn,
+  ) => _b.dvhSetRackTap(handle, tapFn);
+
   /// Remove a previously registered master-mix contributor.
   ///
   /// No-op if [renderFn] was not registered. Call before switching to an

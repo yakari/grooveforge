@@ -300,6 +300,10 @@ static volatile float g_liveInputPeak;
 #define GF_REH_INPUT_RACK 1
 static volatile int g_rehInputSource;
 
+/// Whether the rack's audio device renders the engine instead of this one.
+/// Defined with the rehearsal routing section; see [gf_reh_set_host_routed].
+static volatile int g_rehHostRouted;
+
 void mic_capture_callback(ma_device* pDevice, void* pOutput, const void* pInput,
                           ma_uint32 frameCount)
 {
@@ -535,8 +539,13 @@ void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uin
     if (inPeak > g_inputPeak) g_inputPeak = inPeak;
     if (outPeak > g_outputPeak) g_outputPeak = outPeak;
 
-    gf_probe_playback_hook(pOut, (int)frameCount);
-    gf_reh_playback_hook(pOut, (int)frameCount);
+    // Skipped once the rack's audio device has taken these over — see
+    // [gf_reh_set_host_routed]. Rendering them here as well would play
+    // everything twice, out of phase, on two different devices.
+    if (!g_rehHostRouted) {
+        gf_probe_playback_hook(pOut, (int)frameCount);
+        gf_reh_playback_hook(pOut, (int)frameCount);
+    }
 }
 
 // ── HARMONY mode (waveform 3) ────────────────────────────────────────────────
@@ -1213,6 +1222,10 @@ EXPORT float gf_probe_input_peak(void)      { return g_probeInPeak; }
 /// feature it is not using.
 static volatile int g_rehActive = 0;
 
+/// Whether the rack's audio device is rendering the engine instead of this
+/// library's own playback device. See [gf_reh_set_host_routed].
+static volatile int g_rehHostRouted = 0;
+
 /// Where the take being recorded gets its audio from.
 ///
 /// The microphone is the default and the only thing that works everywhere.
@@ -1310,6 +1323,52 @@ EXPORT void gf_reh_bus_render(float* outL, float* outR, int frames,
 /// Address of [gf_reh_bus_render], for oboe_stream_add_source().
 EXPORT intptr_t gf_reh_bus_render_fn_addr(void) {
     return (intptr_t)&gf_reh_bus_render;
+}
+
+// ─── Desktop: rendering through the rack's audio device ─────────────────────
+//
+// The engine used to play through this library's own output device, which was
+// simply the one already open for the keyboard synth and the vocoder. It cost
+// nothing to hook into and it worked — but it is a *second* device, with its
+// own clock and its own callback, running alongside the one the rack uses
+// (JACK on Linux, CoreAudio or WASAPI elsewhere). Two clocks with no fixed
+// offset between them is what made recording a take from the rack impossible
+// anywhere but Android, where both already shared one callback.
+//
+// Rendering the engine from the rack's device instead puts every platform in
+// Android's position: the block the rack produces and the block the engine
+// records are the same instant, so a take needs no compensation and no
+// guesswork. The old path stays as the fallback for a device that never
+// starts — on Linux that means no JACK server, where the rack would not work
+// either, but a rehearsal still should.
+
+/// Renders the engine and the latency probe for the rack's audio device.
+///
+/// Both live on the monitor bus rather than in the rack's mix: they are heard
+/// but never recorded, which is what stops a take swallowing the metronome,
+/// the imported recording and the rest of the band.
+///
+/// Mono, like the engine itself, and written to both channels. The buffers are
+/// scratch the host hands over without clearing, so this writes rather than
+/// accumulates.
+EXPORT void gf_reh_host_render(float* outL, float* outR, int frames) {
+    if (!outL || frames <= 0) return;
+    memset(outL, 0, sizeof(float) * (size_t)frames);
+    gf_probe_playback_hook(outL, frames);
+    gf_reh_playback_hook(outL, frames);
+    if (outR) memcpy(outR, outL, sizeof(float) * (size_t)frames);
+}
+
+/// Address of [gf_reh_host_render], for dvh_set_monitor_render().
+EXPORT intptr_t gf_reh_host_render_fn_addr(void) {
+    return (intptr_t)&gf_reh_host_render;
+}
+
+/// Tells the engine the rack's device is rendering it now.
+///
+/// Stops this library's own playback callback from rendering it as well.
+EXPORT void gf_reh_set_host_routed(int routed) {
+    g_rehHostRouted = routed ? 1 : 0;
 }
 
 EXPORT void vocoder_set_capture_mode(int enabled) {

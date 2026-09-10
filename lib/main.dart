@@ -220,14 +220,25 @@ void main() async {
           create: (_) => AudioRouteService()..start(),
           lazy: false,
         ),
+        // Declared before the rehearsal engine, which reads it.
+        Provider<VstHostService>(
+          create: (_) => VstHostService.instance,
+          dispose: (_, svc) => svc.dispose(),
+        ),
         // The engine follows the output route itself, so compensation is
-        // right whatever is on screen when somebody presses record.
-        ChangeNotifierProxyProvider2<RehearsalLibrary, AudioRouteService,
-            RehearsalEngine>(
+        // right whatever is on screen when somebody presses record — and the
+        // rack's audio host, because on desktop it plays through the rack's
+        // device so the two share a clock. That shared clock is what lets a
+        // take be recorded straight from the rack.
+        ChangeNotifierProxyProvider3<RehearsalLibrary, AudioRouteService,
+            VstHostService, RehearsalEngine>(
           create: (ctx) => RehearsalEngine(ctx.read<RehearsalLibrary>())
-            ..followRoutes(ctx.read<AudioRouteService>()),
-          update: (ctx, library, routes, RehearsalEngine? previous) =>
-              (previous ?? RehearsalEngine(library))..followRoutes(routes),
+            ..followRoutes(ctx.read<AudioRouteService>())
+            ..followHost(ctx.read<VstHostService>()),
+          update: (ctx, library, routes, host, RehearsalEngine? previous) =>
+              (previous ?? RehearsalEngine(library))
+                ..followRoutes(routes)
+                ..followHost(host),
         ),
         ChangeNotifierProvider<RehearsalDiscovery>(
           create: (_) => RehearsalDiscovery(),
@@ -240,10 +251,6 @@ void main() async {
           ),
           update: (ctx, library, discovery, previous) =>
               previous ?? RehearsalSyncService(library, discovery),
-        ),
-        Provider<VstHostService>(
-          create: (_) => VstHostService.instance,
-          dispose: (_, svc) => svc.dispose(),
         ),
       ],
       child: const GrooveForgeApp(),

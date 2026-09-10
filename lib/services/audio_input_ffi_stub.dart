@@ -310,6 +310,8 @@ class AudioInputFFI {
   void rehDeactivate() {}
   int rehBusRenderFnAddr() => 0;
   int rehRackTapFnAddr() => 0;
+  int rehHostRenderFnAddr() => 0;
+  void rehSetHostRouted({required bool routed}) {}
   void rehSetInputSource({required bool fromRack}) {}
   void rehSetGrid(double bpm, int beatsPerBar, int beatUnit) {}
   int get rehFramesPerBeat => 0;

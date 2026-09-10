@@ -11,6 +11,7 @@ import 'latency_calibration.dart';
 import 'rehearsal_tempo_cache.dart';
 import 'gfpa_android_bindings.dart';
 import 'rehearsal_library.dart';
+import 'vst_host_service.dart';
 
 /// Preference key holding the round trip most recently measured by the latency
 /// probe, in frames.
@@ -46,6 +47,15 @@ enum RehearsalTransport { stopped, playing, countIn, recording }
 /// for the playhead (CLAUDE.md Rule 2).
 class RehearsalEngine extends ChangeNotifier {
   RehearsalEngine(this._library);
+
+  /// The rack's audio host, when there is one.
+  ///
+  /// Desktop plays the engine through the rack's device rather than this
+  /// library's own, so the two share a clock — see [_attachOutput].
+  VstHostService? _host;
+
+  /// Points the engine at the rack's audio host. Safe to call repeatedly.
+  void followHost(VstHostService host) => _host = host;
 
   final RehearsalLibrary _library;
 
@@ -441,20 +451,43 @@ class RehearsalEngine extends ChangeNotifier {
     _busSourceAdded = false;
   }
 
+  // ── Desktop output routing ────────────────────────────────────────────────
+  //
+  // The engine plays through the rack's audio device rather than the one its
+  // own library opens. Two devices meant two clocks with no fixed offset
+  // between them, which is what used to make recording a take from the rack
+  // impossible anywhere but Android.
+  //
+  // It goes on the *monitor* bus, not into the rack's mix: heard, but never
+  // part of what the rack tap reports. Otherwise a take would record the
+  // metronome, the imported recording and the rest of the band along with the
+  // part being played.
+
+  /// True when the rack's device is carrying the engine.
+  ///
+  /// The move itself belongs to the host, which does it when its device comes
+  /// up — the latency probe has to travel with the engine, and it is
+  /// reachable from Preferences with no rehearsal open. Falls back silently
+  /// to this library's own playback device, the path every desktop build used
+  /// before; on Linux that is what keeps rehearsals working with no JACK
+  /// server, where the rack would not work either.
+  bool get _hostRouted => _host?.isMonitorRouted ?? false;
+
   // ── Recording from the rack ───────────────────────────────────────────────
   //
   // A part can be recorded from what the rack is playing rather than from the
   // microphone: a soundfont, a VST, the drum generator, anything cabled up. It
   // never leaves the device, so it arrives clean and exactly on the beat.
   //
-  // Android only, and not for want of trying elsewhere: there the rack and the
-  // rehearsal engine share one audio callback, so the block the rack produces
-  // and the block the engine is recording are the same instant. On desktop the
-  // rack runs on its own audio server and the engine on another device
-  // entirely, and the offset between the two is neither fixed nor knowable.
+  // It works wherever the engine and the rack share one audio callback, so
+  // that the block the rack produces and the block the engine records are the
+  // same instant: always on Android, and on desktop once the engine is on the
+  // rack's device. A desktop machine whose rack audio never started keeps the
+  // engine on its own device, two clocks apart, and cannot offer this.
 
   /// Whether this device can record a take from the rack at all.
-  bool get canRecordFromRack => !kIsWeb && Platform.isAndroid;
+  bool get canRecordFromRack =>
+      !kIsWeb && (Platform.isAndroid || _hostRouted);
 
   /// Whether [part] records the rack's output instead of the microphone.
   bool recordsFromRack(RehearsalPart part) =>
@@ -481,7 +514,12 @@ class RehearsalEngine extends ChangeNotifier {
   void _openRackInput() {
     final ffi = AudioInputFFI();
     ffi.rehSetInputSource(fromRack: true);
-    GfpaAndroidBindings.instance.oboeStreamSetRackTap(ffi.rehRackTapFnAddr());
+    final addr = ffi.rehRackTapFnAddr();
+    if (Platform.isAndroid) {
+      GfpaAndroidBindings.instance.oboeStreamSetRackTap(addr);
+    } else {
+      _host?.setRackTap(addr);
+    }
   }
 
   /// Puts the input back on the microphone and stops the bus sending.
@@ -489,8 +527,12 @@ class RehearsalEngine extends ChangeNotifier {
   /// Called after every take, not only after one recorded from the rack, so
   /// the bus is never left summing a mix nobody reads.
   void _closeRackInput() {
-    if (!canRecordFromRack) return;
-    GfpaAndroidBindings.instance.oboeStreamSetRackTap(0);
+    if (kIsWeb) return;
+    if (Platform.isAndroid) {
+      GfpaAndroidBindings.instance.oboeStreamSetRackTap(0);
+    } else {
+      _host?.setRackTap(0);
+    }
     AudioInputFFI().rehSetInputSource(fromRack: false);
   }
 

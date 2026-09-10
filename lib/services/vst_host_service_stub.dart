@@ -89,6 +89,12 @@ class VstHostService {
   /// Stub: no-op on web — audio looper WAV export not supported.
   Future<void> exportAudioLooperWavs(String gfPath, Map<String, dynamic> clips) async {}
 
+  /// Stub: no rack audio device on web, so nothing is routed through it.
+  bool get isMonitorRouted => false;
+
+  /// Stub: no rack output to tap.
+  void setRackTap(int tapFnAddr) {}
+
   void dispose() {}
 }
 

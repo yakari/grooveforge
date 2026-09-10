@@ -155,6 +155,19 @@ struct AudioState {
     // Attack: instant (brickwall). Release: ~50ms exponential decay.
     float limiterGain = 1.0f;
 
+    /// Monitor bus: rendered after the rack's output has been tapped, so it
+    /// is heard but never recorded. See dvh_set_monitor_render.
+    std::atomic<DvhRenderFn> monitorRender{nullptr};
+
+    /// Where the rack's output goes each block, or null when nobody wants it.
+    /// Atomics rather than the routing snapshot: both change once when the
+    /// rehearsal screen opens and once when it closes, and neither owns a
+    /// buffer the audio thread could be left holding.
+    std::atomic<DvhTapFn> rackTap{nullptr};
+
+    /// Scratch for the mono sum handed to the tap.
+    std::vector<float> tapMono;
+
     // ── Callback drain counter ─────────────────────────────────────────────
     std::atomic<uint64_t> callbackSeq{0};
 
@@ -308,6 +321,7 @@ static void _resizeBuffers(AudioState* s, int32_t newSize) {
     _growVector(s->mixR, target);
     _growVector(s->zeroL, target);
     _growVector(s->zeroR, target);
+    _growVector(s->tapMono, target);
     for (int i = 0; i < ALOOPER_MAX_CLIPS; ++i) {
         _growVector(s->alooperSrcL[i], target);
         _growVector(s->alooperSrcR[i], target);
@@ -579,6 +593,27 @@ static int _jackProcessCallback(jack_nframes_t nframes, void* arg) {
         state->transportIsPlaying.load(std::memory_order_relaxed) != 0,
         state->transportPositionBeats.load(std::memory_order_relaxed));
 
+    // ── Rack output tap ────────────────────────────────────────────────────
+    // Read here, with the looper mixed in and before anything on the monitor
+    // bus is added: this is the rack, and only the rack.
+    if (DvhTapFn tap = state->rackTap.load(std::memory_order_relaxed)) {
+        for (int i = 0; i < bs; ++i) {
+            state->tapMono[i] = 0.5f * (state->mixL[i] + state->mixR[i]);
+        }
+        tap(state->tapMono.data(), bs);
+    }
+
+    // ── Monitor bus ────────────────────────────────────────────────────────
+    // Heard, limited with everything else, but never part of what the tap
+    // reported a moment ago.
+    if (DvhRenderFn mon = state->monitorRender.load(std::memory_order_relaxed)) {
+        mon(state->extBufL.data(), state->extBufR.data(), bs);
+        for (int i = 0; i < bs; ++i) {
+            state->mixL[i] += state->extBufL[i];
+            state->mixR[i] += state->extBufR[i];
+        }
+    }
+
     // Signal block completion for drain synchronization.
     state->callbackSeq.fetch_add(1, std::memory_order_release);
 
@@ -774,6 +809,22 @@ DVH_API void dvh_add_master_render(DVH_Host host, DvhRenderFn fn) {
     _publishSnapshot(s);
     fprintf(stderr, "[dart_vst_host] Master render added (total=%zu)\n",
             s->masterRenders.size());
+}
+
+DVH_API void dvh_set_monitor_render(DVH_Host host, DvhRenderFn fn) {
+    if (!host) return;
+    auto* s = getOrCreate(host);
+    s->monitorRender.store(fn, std::memory_order_relaxed);
+    fprintf(stderr, "[dart_vst_host] Monitor render %s\n",
+            fn ? "set" : "cleared");
+}
+
+DVH_API void dvh_set_rack_tap(DVH_Host host, DvhTapFn tap) {
+    if (!host) return;
+    auto* s = getOrCreate(host);
+    s->rackTap.store(tap, std::memory_order_relaxed);
+    fprintf(stderr, "[dart_vst_host] Rack tap %s\n",
+            tap ? "installed" : "cleared");
 }
 
 DVH_API void dvh_remove_master_render(DVH_Host host, DvhRenderFn fn) {

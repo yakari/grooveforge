@@ -1522,6 +1522,12 @@ class AudioInputFFI {
   late final int Function() _rehBusRenderFnAddr = _lib
       .lookupFunction<IntPtr Function(), int Function()>(
           'gf_reh_bus_render_fn_addr');
+  late final int Function() _rehHostRenderFnAddr = _lib
+      .lookupFunction<IntPtr Function(), int Function()>(
+          'gf_reh_host_render_fn_addr');
+  late final void Function(int) _rehSetHostRouted = _lib
+      .lookupFunction<Void Function(Int32), void Function(int)>(
+          'gf_reh_set_host_routed');
   late final int Function() _rehRackTapFnAddr = _lib
       .lookupFunction<IntPtr Function(), int Function()>(
           'gf_reh_rack_tap_fn_addr');
@@ -1594,8 +1600,17 @@ class AudioInputFFI {
   /// Address of the engine's bus-source render, for Android's Oboe bus.
   int rehBusRenderFnAddr() => _rehBusRenderFnAddr();
 
+  /// Address of the engine's monitor render, for the desktop host's monitor
+  /// bus. Carries the latency probe as well — they share a device.
+  int rehHostRenderFnAddr() => _rehHostRenderFnAddr();
+
+  /// Tells the engine the rack's audio device is rendering it now, so this
+  /// library's own playback callback stops doing it as well.
+  void rehSetHostRouted({required bool routed}) =>
+      _rehSetHostRouted(routed ? 1 : 0);
+
   /// Address of the sink that feeds the rack's output into a take, for
-  /// Android's Oboe bus.
+  /// Android's Oboe bus and the desktop host's rack tap alike.
   int rehRackTapFnAddr() => _rehRackTapFnAddr();
 
   /// Records the next take from the rack's output instead of the microphone.

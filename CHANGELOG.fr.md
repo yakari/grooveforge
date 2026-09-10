@@ -8,10 +8,13 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 ## [X.x.x]
 
 ### Ajouté
-- Sur Android, une piste peut s'enregistrer directement depuis le rack plutôt qu'au micro — soundfont, VST, générateur de batterie — sans repasser par la pièce ni latence à compenser.
+- Une piste peut s'enregistrer directement depuis le rack plutôt qu'au micro — soundfont, plugin VST3, générateur de batterie — sans repasser par la pièce ni latence à compenser.
 - Les répétitions et le rack cohabitent désormais dans deux onglets : quittez un morceau pour retoucher un son et retrouvez-le tel quel, toujours en lecture.
 - La vue arrière du rack se referme d'une flèche ou d'un geste retour, au lieu de retrouver la petite icône qui l'a ouverte.
 - Les répétitions choisissent leur micro et leur sortie, depuis la barre repliable du haut, sans toucher à ceux du rack.
+
+### Architecture
+- Sur ordinateur, le moteur de répétition et la sonde de latence passent par le périphérique audio du rack au lieu d'en ouvrir un second, donc les deux partagent la même horloge.
 
 ## [3.0.0] - 2026-09-08
 

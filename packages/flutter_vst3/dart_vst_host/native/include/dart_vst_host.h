@@ -159,6 +159,33 @@ DVH_API void dvh_add_master_render(DVH_Host host, DvhRenderFn fn);
 // No-op if [fn] was not registered.
 DVH_API void dvh_remove_master_render(DVH_Host host, DvhRenderFn fn);
 
+// ── Monitor bus and rack tap ─────────────────────────────────────────────────
+//
+// Everything above contributes to the rack's output: it is heard, it can be
+// cabled, and the audio looper can record it. Some audio belongs on the same
+// device without belonging to the rack — the rehearsal engine's metronome,
+// the band's other takes, the latency probe's sweep. That audio is rendered
+// on the *monitor* bus, after the rack's output has been read.
+//
+// The pair exists so a rehearsal take can be recorded from the rack: the tap
+// receives what the rack is playing, and the monitor render is what the
+// player is listening to alongside it. Keeping them apart is what stops a
+// take swallowing the metronome and the rest of the band.
+
+/// Receives the rack's output, summed to mono, one block at a time.
+///
+/// Called from the audio thread. Must be allocation-free and non-blocking.
+typedef void (*DvhTapFn)(const float* mono, int32_t frames);
+
+// Render [fn] on the monitor bus: heard on the rack's device, but never part
+// of what the tap reports or the looper records. Pass NULL to clear.
+// Only one monitor render exists; setting a second replaces the first.
+DVH_API void dvh_set_monitor_render(DVH_Host host, DvhRenderFn fn);
+
+// Send the rack's output to [tap] every block. Pass NULL to stop.
+// Costs nothing while no tap is set.
+DVH_API void dvh_set_rack_tap(DVH_Host host, DvhTapFn tap);
+
 // Desktop audio device management via miniaudio (macOS CoreAudio,
 // Windows WASAPI). Linux uses dvh_start_jack_client instead — JACK
 // gives us lower latency and xrun reporting than miniaudio's ALSA

@@ -192,6 +192,39 @@ class NativeBindings {
       )
   >('dvh_add_master_render');
 
+  // dvh_set_monitor_render: render a fn on the monitor bus — heard on the
+  // rack's device, but never part of what the rack tap reports. Pass nullptr
+  // to clear.
+  late final void Function(
+    Pointer<Void>,
+    Pointer<NativeFunction<Void Function(Pointer<Float>, Pointer<Float>, Int32)>>,
+  ) dvhSetMonitorRender = lib.lookupFunction<
+      Void Function(
+        Pointer<Void>,
+        Pointer<NativeFunction<Void Function(Pointer<Float>, Pointer<Float>, Int32)>>,
+      ),
+      void Function(
+        Pointer<Void>,
+        Pointer<NativeFunction<Void Function(Pointer<Float>, Pointer<Float>, Int32)>>,
+      )
+  >('dvh_set_monitor_render');
+
+  // dvh_set_rack_tap: send the rack's mono output to a fn every block. Pass
+  // nullptr to stop.
+  late final void Function(
+    Pointer<Void>,
+    Pointer<NativeFunction<Void Function(Pointer<Float>, Int32)>>,
+  ) dvhSetRackTap = lib.lookupFunction<
+      Void Function(
+        Pointer<Void>,
+        Pointer<NativeFunction<Void Function(Pointer<Float>, Int32)>>,
+      ),
+      void Function(
+        Pointer<Void>,
+        Pointer<NativeFunction<Void Function(Pointer<Float>, Int32)>>,
+      )
+  >('dvh_set_rack_tap');
+
   // dvh_remove_master_render: remove a previously registered master-mix fn.
   late final void Function(
     Pointer<Void>,

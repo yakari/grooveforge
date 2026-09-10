@@ -21,6 +21,13 @@ import 'audio_input_ffi_native.dart';
 import 'gfpa_android_bindings_native.dart';
 import 'native_instrument_controller.dart';
 
+/// Native signature of a host render contributor: `void (float*, float*, int)`.
+typedef _HostRenderNative =
+    Void Function(Pointer<Float>, Pointer<Float>, Int32);
+
+/// Native signature of the rack tap: `void (const float*, int)`.
+typedef _HostTapNative = Void Function(Pointer<Float>, Int32);
+
 /// Desktop VST3 host service.
 ///
 /// Wraps [VstHost] from `dart_vst_host` to provide plugin loading, MIDI
@@ -509,14 +516,68 @@ class VstHostService {
     
     if (ok) {
       _audioRunning = true;
+      _attachMonitorRender();
       debugPrint('VstHostService: Audio thread started (Backend: ${Platform.operatingSystem})');
     } else {
       debugPrint('VstHostService: failed to start audio thread');
     }
   }
 
+  // ─── Monitor bus and rack tap ─────────────────────────────────────────────
+  //
+  // Used by the rehearsal engine, which needs to be heard on the same device
+  // as the rack — otherwise the two run on separate clocks and a take
+  // recorded from the rack cannot be lined up with anything.
+
+  /// Whether the rehearsal engine and the latency probe are being rendered by
+  /// the rack's audio device.
+  ///
+  /// False on a machine whose rack audio never started — no JACK server, say,
+  /// where the rack does not work either. They then stay on the device their
+  /// own library opens, which is where they always used to be.
+  bool get isMonitorRouted => _monitorRouted;
+  bool _monitorRouted = false;
+
+  /// Puts the rehearsal engine and the latency probe on the rack's device.
+  ///
+  /// Done here, with the device itself, rather than when a rehearsal opens:
+  /// the probe is reachable from Preferences with no rehearsal in sight, and
+  /// a measurement taken on one device says nothing about playback on
+  /// another. They move together or not at all.
+  ///
+  /// Costs a cleared buffer per block while nothing is playing — both hooks
+  /// return immediately when idle.
+  void _attachMonitorRender() {
+    if (Platform.isAndroid || _monitorRouted || _host == null) return;
+    final addr = AudioInputFFI().rehHostRenderFnAddr();
+    if (addr == 0) return;
+    _host!.setMonitorRender(
+        Pointer<NativeFunction<_HostRenderNative>>.fromAddress(addr));
+    AudioInputFFI().rehSetHostRouted(routed: true);
+    _monitorRouted = true;
+  }
+
+  /// Hands them back to their own library's playback device.
+  void _detachMonitorRender() {
+    if (!_monitorRouted) return;
+    _host?.setMonitorRender(nullptr);
+    AudioInputFFI().rehSetHostRouted(routed: false);
+    _monitorRouted = false;
+  }
+
+  /// Sends the rack's output to [tapFnAddr] every audio block.
+  ///
+  /// Pass 0 to stop. Costs nothing on the audio thread while no tap is set.
+  void setRackTap(int tapFnAddr) {
+    if (_host == null) return;
+    _host!.setRackTap(tapFnAddr == 0
+        ? nullptr
+        : Pointer<NativeFunction<_HostTapNative>>.fromAddress(tapFnAddr));
+  }
+
   void stopAudio() {
     if (!_audioRunning || _host == null) return;
+    _detachMonitorRender();
 
     if (Platform.isMacOS || Platform.isWindows) {
       _host!.stopDesktopAudio();
