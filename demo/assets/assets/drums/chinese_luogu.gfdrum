@@ -1,0 +1,146 @@
+# Chinese — Luogu (gong-and-drum, lion dance)
+# Reference: the luogu (鑼鼓, "gong and drum") percussion that accompanies
+#            southern lion dance and Chinese opera. The two cadences named
+#            below — three-star (三星鼓) and seven-star (七星鼓) — are the
+#            standard teaching patterns of the Cantonese lion-dance tradition.
+#
+# The ensemble is four players and no melody:
+#   GU       — the big barrel drum, which leads: the lion follows the drum
+#   DALUO    — the large gong, struck on the heavy accents
+#   XIAOLUO  — the small gong, answering off the beat
+#   BO       — the hand cymbals, doubling the gong
+#   BANGZI   — the wooden clapper, used in opera to keep time
+#
+# GM substitution: General MIDI has no Chinese gongs. The Chinese cymbal is the
+# only GM voice with the right splash-and-decay for the daluo; the mute triangle
+# stands in for the small gong's high ping, crash for the hand cymbals, low
+# floor tom for the drum with a hi-mid tom for its rim strokes, and hi wood
+# block for the clapper. This is an approximation of a timbre that GM simply
+# does not contain — the rhythm is right, the colour needs a real SoundFont.
+# GM notes: 41=low floor tom (gu), 48=hi-mid tom (gu rim), 52=Chinese cymbal
+#           (daluo), 80=mute triangle (xiaoluo), 49=crash (bo),
+#           76=hi wood block (bangzi)
+
+#
+# ── Step grid notation ────────────────────────────────────────────────────────
+# Each character in a step grid represents one subdivision of the bar.
+# Resolution controls how many steps per bar (16 = 16th notes in 4/4).
+#
+#   X   Strong accent  — velocity = base_velocity × 1.00  (full hit / downbeat)
+#   x   Medium accent  — velocity = base_velocity × 0.75  (firm stroke / upbeat)
+#   o   Soft hit       — velocity = base_velocity × 0.55  (brush / light touch)
+#   g   Ghost note     — velocity = base_velocity × 0.28  (barely audible, mostly felt)
+#   .   Rest           — no note fired at this step
+#
+# Beat positions — 4/4 at resolution 16 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
+#        1  e1 +1 a1  2  e2 +2 a2  3  e3 +3 a3  4  e4 +4 a4
+#
+# Swing / feel: straight.
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Luogu (Lion Dance)
+family: fareast
+bpm_range: [85, 150]
+time_signature: [4, 4]
+resolution: 16
+feel: straight
+
+instruments:
+  gu:      { note: 41, base_velocity: 114, velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.20 }
+  gu_rim:  { note: 48, base_velocity: 88,  velocity_range: 14, timing_jitter: 0.012, duration_beats: 0.10 }
+  daluo:   { note: 52, base_velocity: 108, velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.35 }
+  xiaoluo: { note: 80, base_velocity: 84,  velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.09 }
+  bo:      { note: 49, base_velocity: 100, velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.28 }
+  bangzi:  { note: 76, base_velocity: 82,  velocity_range: 12, timing_jitter: 0.010, duration_beats: 0.05 }
+
+humanization:
+  timing_jitter: 0.014
+  velocity_jitter: 14
+  velocity_drift: 0.06
+
+sections:
+  intro:
+    type: count_in
+    hits: 4
+    note: 76
+
+  groove:
+    bars: 1
+    variations:
+      - name: walking
+        weight: 4
+        # The lion walking: drum on every quarter, gong and cymbals together on
+        # beats 1 and 3, small gong answering on 2 and 4. The steadiest pattern
+        # in the repertoire and the one the lion travels on.
+        gu:      "X...X...X...X..."
+        daluo:   "X.......X......."
+        bo:      "X.......X......."
+        xiaoluo: "....x.......x..."
+
+      - name: three_star
+        weight: 3
+        # Three-star (三星鼓): three strokes with the whole ensemble landing
+        # together on beats 1, 2 and 3, then a full beat of silence. The pause is
+        # the pattern — it is the cue everyone in the troupe listens for.
+        gu:      "X...X...X......."
+        daluo:   "X...X...X......."
+        bo:      "X...X...X......."
+        gu_rim:  ".xx..xx..xx....."
+
+      - name: seven_star
+        weight: 2
+        # Seven-star (七星鼓): seven even strokes across the first three and a
+        # half beats, the gong marking only the first and fifth so the count
+        # stays audible through the run.
+        gu:      "X.X.X.X.X.X.X..."
+        bo:      "X.X.X.X.X.X.X..."
+        daluo:   "X.......X......."
+
+      - name: rousing
+        weight: 2
+        # The lion alert or startled: continuous 16ths on the drum with the
+        # clapper on 8ths, one gong stroke on the downbeat and the cymbals
+        # crashing in on beat 3.
+        gu:      "XxXxXxXxXxXxXxXx"
+        bangzi:  "x.x.x.x.x.x.x.x."
+        daluo:   "X..............."
+        bo:      "........X......."
+
+  fill:
+    bars: 1
+    variations:
+      - name: drum_roll
+        # The drum alone, accelerating — the lion is about to move.
+        gu:      "X...X...X.X.XXXX"
+        gu_rim:  "..x...x...x....."
+
+      - name: gong_cadence
+        # Gong and cymbals answering the drum on alternate beats, closing with
+        # both together on the last 8th.
+        gu:      "X.......X......."
+        daluo:   "....X.........X."
+        bo:      "....X.........X."
+        xiaoluo: "..x...x...x....."
+
+      - name: clapper_run
+        # Opera-style: the clapper takes the bar in 16ths under a held gong.
+        bangzi:  "XxXxXxXxXxXxXxXx"
+        daluo:   "X..............."
+        gu:      "X.......X......."
+
+  crash:
+    bars: 1
+    variations:
+      - name: standard
+        bo:      "X..............."
+        daluo:   "X..............."
+        gu:      "X...X...X...X..."
+        xiaoluo: "....x.......x..."
+
+structure:
+  fill_every: 8
+  break_every: 0
+  break_length: 1
+  crash_after_fill: true
+  dynamic_build: false

@@ -1,0 +1,63 @@
+spec: "1.0"
+id: "com.grooveforge.velocity_curve"
+name: "Velocity Curve"
+version: "1.0.0"
+type: midi_fx
+
+# Remaps incoming note-on velocities using a configurable curve function.
+# Note-off events and non-note events pass through unchanged.
+#
+# Power mode (default): v_out = (v_in / 127)^exponent × 127
+#   Amount = 0.0 → exponent 0.25 (soft response: light press → louder output)
+#   Amount = 0.5 → exponent 1.0  (linear: no change)
+#   Amount = 1.0 → exponent 4.0  (hard response: strong press needed for loud)
+#
+# Sigmoid mode: S-curve centred at velocity 64.
+#   Amount = 0.0 → gentle S (near-linear)
+#   Amount = 1.0 → steep S (high contrast between soft and loud)
+#
+# Fixed mode: replaces all note-on velocities with a constant value.
+#   Amount = 0.0 → velocity 1  (minimum audible)
+#   Amount = 1.0 → velocity 127 (maximum)
+
+parameters:
+  # Curve type — 3 options; normalised as index / 2.
+  - id: mode
+    paramId: 0
+    name: "Mode"
+    min: 0
+    max: 2
+    default: 0
+    type: selector
+    options: ["Power", "Sigmoid", "Fixed"]
+
+  # Curve intensity (or fixed output velocity in Fixed mode).
+  # 0.5 = linear in Power mode (no change), 1.0 = maximum effect.
+  - id: amount
+    paramId: 1
+    name: "Amount"
+    min: 0.0
+    max: 1.0
+    default: 0.5
+    type: float
+
+midi_nodes:
+  - id: vc
+    type: velocity_curve
+    params:
+      mode:   { param: mode }
+      amount: { param: amount }
+
+ui:
+  layout: grid
+  groups:
+    - label: "Curve Type"
+      controls:
+        - type: selector
+          param: mode
+          label: "Mode"
+    - label: "Intensity"
+      controls:
+        - type: knob
+          param: amount
+          label: "Amount"

@@ -1,0 +1,121 @@
+# Jazz Waltz — Smooth 3/4 triplet feel
+# A staple of jazz trio playing, utilizing the classic "ding-dah" ride cymbal pattern.
+#
+# We use a natural triplet resolution (9 steps per 3/4 bar = 3 steps per beat)
+# combined with a "straight" feel. This eliminates the need for mathematical swing 
+# algorithms and ensures a pure, smooth triplet feel.
+#
+# ── Step grid notation (Resolution 9 in 3/4 time) ────────────────────────────
+# Each character is a triplet 8th note.
+#
+#   X   Strong accent  — velocity = base_velocity × 1.00
+#   x   Medium accent  — velocity = base_velocity × 0.75
+#   o   Soft hit       — velocity = base_velocity × 0.55
+#   g   Ghost note     — velocity = base_velocity × 0.28
+#   .   Rest           — no note fired at this step
+#
+# Beat positions:
+#   pos  0 1 2 | 3 4 5 | 6 7 8
+#        1 . a   2 . a   3 . a
+#
+# Classic ride pattern: X . . X . x X . x
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Jazz Waltz
+family: jazz
+bpm_range: [100, 180]
+time_signature: [3, 4]
+resolution: 9
+feel: straight
+
+instruments:
+  kick:       { note: 36, base_velocity: 60,  velocity_range: 20, timing_jitter: 0.015, duration_beats: 0.15 }
+  snare:      { note: 38, base_velocity: 70,  velocity_range: 25, timing_jitter: 0.012, duration_beats: 0.10 }
+  snare_rim:  { note: 37, base_velocity: 65,  velocity_range: 15, timing_jitter: 0.012, duration_beats: 0.10 }
+  hihat_pedal: { note: 44, base_velocity: 75,  velocity_range: 15, timing_jitter: 0.010, duration_beats: 0.10 }
+  ride:       { note: 51, base_velocity: 80,  velocity_range: 18, timing_jitter: 0.015, duration_beats: 0.30 }
+  ride_bell:  { note: 53, base_velocity: 95,  velocity_range: 12, timing_jitter: 0.015, duration_beats: 0.30 }
+  crash:      { note: 49, base_velocity: 100, velocity_range: 15, timing_jitter: 0.010, duration_beats: 0.50 }
+
+humanization:
+  timing_jitter: 0.020
+  velocity_jitter: 25
+  velocity_drift: 0.10
+
+sections:
+  intro:
+    type: count_in
+    hits: 3
+    note: 44 # hi-hat pedal count-in
+
+  groove:
+    bars: 1
+    variations:
+      - name: standard_trio
+        weight: 4
+        # The classic jazz waltz feel.
+        # Ride maintains the ding-dah shape. Hi-hat chips on 2 and 3.
+        # Kick feathers on beat 1. Snare adds light comping.
+        ride:       "X..X.xX.x"
+        hihat_pedal: "...X..X.."
+        kick:       "o........"
+        snare:      "......g.."
+
+      - name: comping_syncopation
+        weight: 2
+        # Snare comps on the 'a' of 1 and directly on 3.
+        ride:       "X..X.xX.x"
+        hihat_pedal: "...X..X.."
+        kick:       "o........"
+        snare:      "..g...o.."
+
+      - name: bell_accent
+        weight: 1
+        # Ride bell accents beat 1 for dynamic push.
+        ride_bell:  "X........"
+        ride:       "...X.xX.x"
+        hihat_pedal: "...X..X.."
+        kick:       "x........"
+        snare:      "......o.."
+
+      - name: cross_stick
+        weight: 2
+        # Smoother groove using rim clicks instead of ghost snares.
+        ride:       "X..X.xX.x"
+        hihat_pedal: "...X....."
+        kick:       "o........"
+        snare_rim:  "......x.."
+
+  fill:
+    bars: 1
+    variations:
+      - name: triplet_roll
+        # A snare triplet roll across beat 3 leading into the next bar.
+        ride:       "X..X....."
+        hihat_pedal: "...X..X.."
+        kick:       "o........"
+        snare:      "....xXoXX"
+
+      - name: syncopated_kick
+        # Kick drops bombs on the upbeats.
+        ride:       "X..X.x.x."
+        hihat_pedal: "...X..X.."
+        kick:       "o...X...X"
+        snare:      "..x...o.."
+
+  crash:
+    bars: 1
+    variations:
+      - name: standard
+        crash:      "X........"
+        ride:       "...X.xX.x"
+        hihat_pedal: "...X..X.."
+        kick:       "X........"
+        snare:      "......o.."
+
+structure:
+  fill_every: 8
+  break_every: 0
+  break_length: 0
+  crash_after_fill: true
+  dynamic_build: true
