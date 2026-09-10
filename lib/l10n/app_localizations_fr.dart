@@ -2815,4 +2815,7 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get rehearsalTempoFromMaster =>
       'Donné par l\'enregistrement. Il se règle là où l\'on cale la grille dessus — ici, cela ne ferait qu\'étirer l\'enregistrement. Utilisez la vitesse de travail pour tout ralentir.';
+
+  @override
+  String get patchViewBackTooltip => 'Revenir aux faces avant';
 }

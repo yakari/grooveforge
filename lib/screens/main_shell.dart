@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../l10n/app_localizations.dart';
 import 'rack_screen.dart';
@@ -40,21 +39,87 @@ class _MainShellState extends State<MainShell> {
   /// shell — without this, back from an open tune would leave the app.
   final GlobalKey<NavigatorState> _rehearsalNav = GlobalKey<NavigatorState>();
 
+  /// Whether the rack is showing its back panel.
+  ///
+  /// Owned here rather than inside the rack so a system back gesture can close
+  /// the patch view. Leaving it took finding the same small icon again, which
+  /// is the one thing every other screen lets you do with a swipe.
+  final ValueNotifier<bool> _rackPatchView = ValueNotifier(false);
+
+  /// Rebuilds the shell when the rehearsal tab pushes or pops, so [_canPop]
+  /// is never stale.
+  late final _NestedStackObserver _rehearsalObserver =
+      _NestedStackObserver(onChanged: _refreshAfterFrame);
+
+  /// Whether the system may handle a back gesture itself.
+  ///
+  /// Only the *visible* tab is consulted. Everything in an [IndexedStack] stays
+  /// mounted whether or not it is on screen, so a rack in its back panel would
+  /// otherwise answer for a back gesture made in the rehearsal tab — closing
+  /// something the user cannot even see.
+  ///
+  /// True in the ordinary case, which matters more than it looks: the system
+  /// then pops whatever route is actually on top. A route pushed above the
+  /// shell — Preferences, the latency probe, a document — is popped by the
+  /// navigator that owns it, and this shell never hears about it. Answering
+  /// "never pop me" instead made the shell take a hand in gestures that were
+  /// none of its business.
+  bool get _canPop {
+    if (_index == 0) return !_rackPatchView.value;
+    return !(_rehearsalNav.currentState?.canPop() ?? false);
+  }
+
   /// Handles a system back gesture.
   ///
   /// A tune open in the rehearsal tab is popped first. Otherwise the app goes
   /// to the background, which is what back does at the root of an Android app
   /// — and what `Navigator.pop` cannot do, since the shell *is* the root route
   /// and popping it does nothing at all.
+  /// Closes whatever the visible tab has open.
+  ///
+  /// Only ever reached when [_canPop] said there was something to close, so it
+  /// never has to decide whether to leave the app — the system does that when
+  /// [_canPop] is true.
   void _handleBack() {
-    if (_index == 1) {
-      final nav = _rehearsalNav.currentState;
-      if (nav != null && nav.canPop()) {
-        nav.pop();
-        return;
-      }
+    if (_index == 0) {
+      // The rack's back panel is a view, not a route, so nothing else would
+      // pop it.
+      if (_rackPatchView.value) _rackPatchView.value = false;
+      return;
     }
-    SystemNavigator.pop();
+    _rehearsalNav.currentState?.maybePop();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // The patch view is a value, not a route, so nothing else would rebuild
+    // the shell when it changes — and [_canPop] would go stale.
+    _rackPatchView.addListener(_onPatchViewChanged);
+  }
+
+  void _onPatchViewChanged() => _refreshAfterFrame();
+
+  /// Rebuilds after the current frame rather than inside it.
+  ///
+  /// Both callers fire during a build: a navigator pushes its first route
+  /// while it is being built, and the rack flips the patch view from a
+  /// listener. Calling setState there marks an element that is not yet in the
+  /// tree, which trips `_elements.contains(element)` and paints the screen
+  /// red. One frame of staleness in [_canPop] costs nothing — no back gesture
+  /// arrives inside a single frame.
+  void _refreshAfterFrame() {
+    if (!mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _rackPatchView.removeListener(_onPatchViewChanged);
+    _rackPatchView.dispose();
+    super.dispose();
   }
 
   @override
@@ -83,9 +148,10 @@ class _MainShellState extends State<MainShell> {
         final body = IndexedStack(
           index: _index,
           children: [
-            const RackScreen(),
+            RackScreen(patchViewVisible: _rackPatchView),
             Navigator(
               key: _rehearsalNav,
+              observers: [_rehearsalObserver],
               onGenerateRoute:
                   (settings) => MaterialPageRoute<void>(
                     settings: settings,
@@ -97,7 +163,7 @@ class _MainShellState extends State<MainShell> {
 
         if (isPhonePortrait) {
           return PopScope(
-            canPop: false,
+            canPop: _canPop,
             onPopInvokedWithResult: (didPop, _) {
               if (!didPop) _handleBack();
             },
@@ -120,7 +186,7 @@ class _MainShellState extends State<MainShell> {
         }
 
         return PopScope(
-          canPop: false,
+          canPop: _canPop,
           onPopInvokedWithResult: (didPop, _) {
             if (!didPop) _handleBack();
           },
@@ -152,4 +218,27 @@ class _MainShellState extends State<MainShell> {
       },
     );
   }
+}
+
+/// Tells the shell when a nested navigator's stack changes.
+///
+/// The shell's [PopScope] has to know whether the rehearsal tab has a tune
+/// open, and a navigator gives no notification of its own.
+class _NestedStackObserver extends NavigatorObserver {
+  _NestedStackObserver({required this.onChanged});
+
+  final VoidCallback onChanged;
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previous) => onChanged();
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previous) => onChanged();
+
+  @override
+  void didRemove(Route<dynamic> route, Route<dynamic>? previous) => onChanged();
+
+  @override
+  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) =>
+      onChanged();
 }

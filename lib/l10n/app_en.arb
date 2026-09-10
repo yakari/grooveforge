@@ -1752,5 +1752,9 @@
   "rehearsalTempoFromMaster": "Set by the recording. Change it where you line the grid up with it — here it would only stretch the recording. Use the practice speed to slow everything down.",
   "@rehearsalTempoFromMaster": {
     "description": "Tempo panel, when a recording sets the tempo."
+  },
+  "patchViewBackTooltip": "Back to the front panels",
+  "@patchViewBackTooltip": {
+    "description": "Tooltip on the arrow that leaves the rack back panel."
   }
 }

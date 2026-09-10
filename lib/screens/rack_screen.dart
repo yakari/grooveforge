@@ -64,7 +64,16 @@ class _ChannelRouting {
 /// backed by a [PluginInstance]. The app bar provides project file I/O
 /// (open / save / new). A FAB adds new plugin slots.
 class RackScreen extends StatefulWidget {
-  const RackScreen({super.key});
+  const RackScreen({super.key, this.patchViewVisible});
+
+  /// Whether the back panel is showing, hoisted out of this screen.
+  ///
+  /// Passed in by the shell so a system back gesture can close the patch view
+  /// before it reaches the app — the shell has to know the rack is in it, and
+  /// the flag used to be private here. Null means nobody outside cares and the
+  /// screen owns the notifier itself, the same arrangement `TransportBar` uses
+  /// for its supplementary bars.
+  final ValueNotifier<bool>? patchViewVisible;
 
   @override
   State<RackScreen> createState() => _RackScreenState();
@@ -148,7 +157,8 @@ class _RackScreenState extends State<RackScreen> {
 
   /// Controls whether the rack shows front panels (default) or back panels
   /// (patch view) for cable routing.
-  final ValueNotifier<bool> _isPatchView = ValueNotifier(false);
+  late final ValueNotifier<bool> _isPatchView =
+      widget.patchViewVisible ?? ValueNotifier(false);
 
   /// Controls whether the supplementary bars (audio settings, etc.) are
   /// shown below the transport bar. Toggled via the chevron in [TransportBar].
@@ -414,7 +424,9 @@ class _RackScreenState extends State<RackScreen> {
     _autoScrollTimer?.cancel();
     _midiScrollDebounce?.cancel();
     _scrollController.dispose();
-    _isPatchView.dispose();
+    // Only if this screen made it: a notifier handed down by the shell
+    // outlives the screen.
+    if (widget.patchViewVisible == null) _isPatchView.dispose();
     super.dispose();
   }
 
@@ -1323,9 +1335,39 @@ class _RackScreenState extends State<RackScreen> {
     final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: Text(_currentProjectPath != null
-            ? _currentProjectPath!.split('/').last
-            : l10n.rackTitle),
+        // The arrow lives inside the title rather than in `leading`: an empty
+        // leading still reserves its width, which indented the title and cut
+        // it to "Ra…" in the front view. A shrunken SizedBox costs nothing.
+        titleSpacing: 0,
+        title: Row(
+          children: [
+            ValueListenableBuilder<bool>(
+              valueListenable: _isPatchView,
+              builder: (ctx, isPatch, _) => isPatch
+                  // Leaving the back panel required finding the same small
+                  // icon again, over on the right. This puts the way out
+                  // where every other screen keeps it.
+                  ? IconButton(
+                      icon: const Icon(Icons.arrow_back),
+                      tooltip: l10n.patchViewBackTooltip,
+                      onPressed: () {
+                        _logRackStateOnViewSwitch(toBackView: false);
+                        _isPatchView.value = false;
+                      },
+                    )
+                  : const SizedBox(width: 16),
+            ),
+            Expanded(
+              child: Text(
+                _currentProjectPath != null
+                    ? _currentProjectPath!.split('/').last
+                    : l10n.rackTitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
         elevation: 2,
         actions: [
           // Patch view toggle — shown always, activates back-panel cable UI.

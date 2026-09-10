@@ -2799,4 +2799,7 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get rehearsalTempoFromMaster =>
       'Set by the recording. Change it where you line the grid up with it — here it would only stretch the recording. Use the practice speed to slow everything down.';
+
+  @override
+  String get patchViewBackTooltip => 'Back to the front panels';
 }

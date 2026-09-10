@@ -5101,6 +5101,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Set by the recording. Change it where you line the grid up with it — here it would only stretch the recording. Use the practice speed to slow everything down.'**
   String get rehearsalTempoFromMaster;
+
+  /// Tooltip on the arrow that leaves the rack back panel.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to the front panels'**
+  String get patchViewBackTooltip;
 }
 
 class _AppLocalizationsDelegate
