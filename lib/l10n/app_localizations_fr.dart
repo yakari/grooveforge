@@ -2225,7 +2225,13 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String rehearsalCountInBars(int bars) {
-    return '$bars mesures';
+    String _temp0 = intl.Intl.pluralLogic(
+      bars,
+      locale: localeName,
+      other: '$bars mesures',
+      one: '$bars mesure',
+    );
+    return '$_temp0';
   }
 
   @override
@@ -2668,7 +2674,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get rehearsalMeterFrozen =>
-      'La mesure ne peut plus changer une fois qu\'une partie est enregistrée.';
+      'Mesure verrouillée : une partie est déjà enregistrée dessus.';
 
   @override
   String get rehearsalCalibrate => 'Calibrer';
@@ -2820,7 +2826,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get rehearsalTempoFromMaster =>
-      'Donné par l\'enregistrement. Il se règle là où l\'on cale la grille dessus — ici, cela ne ferait qu\'étirer l\'enregistrement. Utilisez la vitesse de travail pour tout ralentir.';
+      'Donné par l\'enregistrement — se règle sur l\'écran de calage de la grille.';
 
   @override
   String get patchViewBackTooltip => 'Revenir aux faces avant';

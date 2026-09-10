@@ -4097,7 +4097,7 @@ abstract class AppLocalizations {
   /// No description provided for @rehearsalCountInBars.
   ///
   /// In en, this message translates to:
-  /// **'{bars} bars'**
+  /// **'{bars, plural, =1{{bars} bar} other{{bars} bars}}'**
   String rehearsalCountInBars(int bars);
 
   /// No description provided for @rehearsalCountInNone.
@@ -4865,7 +4865,7 @@ abstract class AppLocalizations {
   /// Rehearsal tempo controls.
   ///
   /// In en, this message translates to:
-  /// **'The metre cannot change once a part is recorded.'**
+  /// **'Metre locked: a part is already recorded against it.'**
   String get rehearsalMeterFrozen;
 
   /// Rehearsal screen: latency calibration prompt and its explanation.
@@ -5111,7 +5111,7 @@ abstract class AppLocalizations {
   /// Tempo panel, when a recording sets the tempo.
   ///
   /// In en, this message translates to:
-  /// **'Set by the recording. Change it where you line the grid up with it — here it would only stretch the recording. Use the practice speed to slow everything down.'**
+  /// **'Set by the recording — change it on the grid alignment screen.'**
   String get rehearsalTempoFromMaster;
 
   /// Tooltip on the arrow that leaves the rack back panel.

@@ -969,7 +969,7 @@
   "rehearsalFieldTempo": "Tempo",
   "rehearsalFieldTimeSignature": "Métrique",
   "rehearsalFieldCountIn": "Décompte",
-  "rehearsalCountInBars": "{bars} mesures",
+  "rehearsalCountInBars": "{bars, plural, =1{{bars} mesure} other{{bars} mesures}}",
   "@rehearsalCountInBars": {
     "placeholders": {
       "bars": {
@@ -1221,7 +1221,7 @@
   "rehearsalPracticeSpeedHint": "Sur cet appareil uniquement. Ralentissez un passage sans changer la hauteur.",
   "rehearsalPracticeSpeedValue": "{percent} %",
   "rehearsalRendering": "Ajustement des enregistrements…",
-  "rehearsalMeterFrozen": "La mesure ne peut plus changer une fois qu'une partie est enregistrée.",
+  "rehearsalMeterFrozen": "Mesure verrouillée : une partie est déjà enregistrée dessus.",
   "rehearsalCalibrate": "Calibrer",
   "rehearsalCalibrateTitle": "Mesurer cet appareil",
   "rehearsalCalibrateBody": "Votre appareil met un instant à sortir le son, et un autre à le capter. Ce retard mettrait chaque prise derrière le temps : on le mesure une fois, puis on le retranche de ce que vous enregistrez.\n\nLa mesure joue quelques brefs balayages et les guette au retour dans le micro — encore faut-il qu'elle puisse les entendre :\n\n•  Utilisez le haut-parleur, pas un casque. Au casque, le micro n'entend rien et la mesure échoue.\n•  Montez le volume.\n•  Gardez le silence pendant les quelques secondes nécessaires.\n\nRefaites la mesure après être passé sur une enceinte ou un casque Bluetooth : le retard appartient au matériel, pas au morceau, et le Bluetooth en ajoute beaucoup.",
@@ -1262,6 +1262,6 @@
   "masterBpmFaster": "Accélérer de 0,1",
   "masterZoomLevel": "×{zoom}",
   "masterBeatLinesHint": "Les traits rouges sont les temps. Zoomez et ajustez le tempo jusqu'à ce qu'ils tombent sur le son.",
-  "rehearsalTempoFromMaster": "Donné par l'enregistrement. Il se règle là où l'on cale la grille dessus — ici, cela ne ferait qu'étirer l'enregistrement. Utilisez la vitesse de travail pour tout ralentir.",
+  "rehearsalTempoFromMaster": "Donné par l'enregistrement — se règle sur l'écran de calage de la grille.",
   "patchViewBackTooltip": "Revenir aux faces avant"
 }

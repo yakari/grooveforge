@@ -1209,7 +1209,7 @@
   "rehearsalFieldTempo": "Tempo",
   "rehearsalFieldTimeSignature": "Time signature",
   "rehearsalFieldCountIn": "Count-in",
-  "rehearsalCountInBars": "{bars} bars",
+  "rehearsalCountInBars": "{bars, plural, =1{{bars} bar} other{{bars} bars}}",
   "@rehearsalCountInBars": {
     "placeholders": {
       "bars": {
@@ -1547,7 +1547,7 @@
   "@rehearsalRendering": {
     "description": "Rehearsal tempo controls."
   },
-  "rehearsalMeterFrozen": "The metre cannot change once a part is recorded.",
+  "rehearsalMeterFrozen": "Metre locked: a part is already recorded against it.",
   "@rehearsalMeterFrozen": {
     "description": "Rehearsal tempo controls."
   },
@@ -1757,7 +1757,7 @@
   "@masterBeatLinesHint": {
     "description": "Master alignment screen."
   },
-  "rehearsalTempoFromMaster": "Set by the recording. Change it where you line the grid up with it — here it would only stretch the recording. Use the practice speed to slow everything down.",
+  "rehearsalTempoFromMaster": "Set by the recording — change it on the grid alignment screen.",
   "@rehearsalTempoFromMaster": {
     "description": "Tempo panel, when a recording sets the tempo."
   },

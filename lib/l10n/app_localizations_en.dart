@@ -2211,7 +2211,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String rehearsalCountInBars(int bars) {
-    return '$bars bars';
+    String _temp0 = intl.Intl.pluralLogic(
+      bars,
+      locale: localeName,
+      other: '$bars bars',
+      one: '$bars bar',
+    );
+    return '$_temp0';
   }
 
   @override
@@ -2652,7 +2658,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get rehearsalMeterFrozen =>
-      'The metre cannot change once a part is recorded.';
+      'Metre locked: a part is already recorded against it.';
 
   @override
   String get rehearsalCalibrate => 'Calibrate';
@@ -2804,7 +2810,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get rehearsalTempoFromMaster =>
-      'Set by the recording. Change it where you line the grid up with it — here it would only stretch the recording. Use the practice speed to slow everything down.';
+      'Set by the recording — change it on the grid alignment screen.';
 
   @override
   String get patchViewBackTooltip => 'Back to the front panels';

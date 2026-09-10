@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Rehearsals picks its own microphone and speaker, from the collapsible bar at the top, without changing what the rack uses.
 
 ### Fixed
+- Tempo panel: the lock notices now sit under the tempo they describe rather than under the still-editable count-in, and a tempo set by a recording shows no slider at all.
 - The bar counter no longer takes a second line past bar ten, which used to push the whole tune down and move the record button out from under a finger already reaching for stop.
 
 ### Architecture

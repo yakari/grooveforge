@@ -1057,6 +1057,13 @@ class _TempoSheetState extends State<_TempoSheet> {
     final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
 
+    // What this tune has settled and can no longer change. Both belong under
+    // the tempo: one *is* the tempo, and the other is the grid it sits on.
+    final locks = <String>[
+      if (widget.rehearsal.hasMaster) l10n.rehearsalTempoFromMaster,
+      if (widget.rehearsal.isGridFrozen) l10n.rehearsalMeterFrozen,
+    ];
+
     return SafeArea(
       child: Padding(
         padding: EdgeInsets.fromLTRB(
@@ -1074,31 +1081,29 @@ class _TempoSheetState extends State<_TempoSheet> {
 
             _label(theme, l10n.rehearsalTuneTempo,
                 l10n.rehearsalBpmValue(_bpm.toStringAsFixed(0))),
-            Slider(
-              value: _bpm.clamp(40, 240),
-              min: 40,
-              max: 240,
-              divisions: 200,
-              // With a recording in the tune its tempo is not ours to choose:
-              // it is whatever was played, and it is discovered on the align
-              // screen rather than set here. Dragging this would stretch the
-              // recording instead of describing it.
-              onChanged: widget.rehearsal.hasMaster
-                  ? null
-                  : (v) => setState(() => _bpm = v),
-              // Committed on release, not while dragging: every change
-              // re-renders every recording, and doing that per pixel would
-              // render a hundred times to arrive at one answer.
-              onChangeEnd: widget.rehearsal.hasMaster
-                  ? null
-                  : (v) => widget.engine.setBpm(v),
-            ),
-            _hint(
-              theme,
-              widget.rehearsal.hasMaster
-                  ? l10n.rehearsalTempoFromMaster
-                  : l10n.rehearsalTuneTempoHint,
-            ),
+            // With a recording in the tune its tempo is not ours to choose:
+            // it is whatever was played, and it is discovered on the align
+            // screen rather than set here. The slider is gone rather than
+            // greyed out — one that cannot move still invites the drag it
+            // will then refuse, and says nothing about where to go instead.
+            if (!widget.rehearsal.hasMaster) ...[
+              Slider(
+                value: _bpm.clamp(40, 240),
+                min: 40,
+                max: 240,
+                divisions: 200,
+                onChanged: (v) => setState(() => _bpm = v),
+                // Committed on release, not while dragging: every change
+                // re-renders every recording, and doing that per pixel would
+                // render a hundred times to arrive at one answer.
+                onChangeEnd: (v) => widget.engine.setBpm(v),
+              ),
+              _hint(theme, l10n.rehearsalTuneTempoHint),
+            ],
+            if (locks.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              _locks(theme, locks),
+            ],
 
             const SizedBox(height: 24),
             _label(theme, l10n.rehearsalPracticeSpeed,
@@ -1141,10 +1146,6 @@ class _TempoSheetState extends State<_TempoSheet> {
               },
             ),
 
-            if (widget.rehearsal.isGridFrozen) ...[
-              const SizedBox(height: 16),
-              _hint(theme, l10n.rehearsalMeterFrozen),
-            ],
             if (widget.engine.isRendering) ...[
               const SizedBox(height: 16),
               Row(
@@ -1179,6 +1180,44 @@ class _TempoSheetState extends State<_TempoSheet> {
           ),
         ],
       );
+
+  /// The tune's settled decisions, stated where the control for them was.
+  ///
+  /// Given the error colours on purpose. Everything else in this sheet moves
+  /// when you touch it; these two will not, and a grey caption under a
+  /// missing slider explained neither what was locked nor why.
+  Widget _locks(ThemeData theme, List<String> lines) {
+    final scheme = theme.colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: scheme.errorContainer,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.lock_outline, size: 18, color: scheme.onErrorContainer),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (final line in lines) ...[
+                  if (line != lines.first) const SizedBox(height: 6),
+                  Text(
+                    line,
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: scheme.onErrorContainer),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _hint(ThemeData theme, String text) => Text(
         text,

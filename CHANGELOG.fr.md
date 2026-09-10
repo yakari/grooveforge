@@ -14,6 +14,7 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 - Les répétitions choisissent leur micro et leur sortie, depuis la barre repliable du haut, sans toucher à ceux du rack.
 
 ### Corrigé
+- Réglage de tempo : les verrous s'affichent sous le tempo qu'ils concernent et non sous le décompte, qui reste modifiable ; un tempo donné par un enregistrement n'affiche plus de slider.
 - Le compteur de mesures ne passe plus sur deux lignes au-delà de la dixième, ce qui décalait tout le morceau vers le bas et déplaçait le bouton d'enregistrement sous un doigt déjà parti vers stop.
 
 ### Architecture
