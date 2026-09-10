@@ -11,6 +11,7 @@ import '../services/rehearsal_engine.dart';
 import '../services/rehearsal_library.dart';
 import '../services/rehearsal_protocol.dart';
 import '../services/rehearsal_sync_service.dart';
+import '../widgets/audio_settings_bar.dart';
 import '../widgets/chord_grid.dart';
 import '../widgets/rehearsal_identity_dialog.dart';
 import 'latency_probe_screen.dart';
@@ -37,6 +38,13 @@ class RehearsalScreen extends StatefulWidget {
 class _RehearsalScreenState extends State<RehearsalScreen> {
   /// Whether the chart is showing every bar or just the line.
   bool _chartExpanded = false;
+
+  /// Whether the audio settings strip is open, as on the rack.
+  ///
+  /// A notifier rather than plain state so the toggle in the transport can
+  /// drive the strip without rebuilding the lane list underneath it — the same
+  /// arrangement the rack uses.
+  final ValueNotifier<bool> _audioBarVisible = ValueNotifier(false);
 
   /// Lanes showing their level slider.
   ///
@@ -112,6 +120,7 @@ class _RehearsalScreenState extends State<RehearsalScreen> {
 
   @override
   void dispose() {
+    _audioBarVisible.dispose();
     // Read from the fields rather than the context: dispose runs after the
     // element is unmounted, so context.read would throw.
     _engine?.onTakeCommitted = null;
@@ -498,7 +507,26 @@ class _RehearsalScreenState extends State<RehearsalScreen> {
                   final missing = engine.partsMissingAudio;
                     return Column(
                       children: [
-                        _TransportBar(engine: engine, rehearsal: rehearsal),
+                        _TransportBar(
+                      engine: engine,
+                      rehearsal: rehearsal,
+                      audioBarVisible: _audioBarVisible,
+                    ),
+                    // The same strip the rack has: microphone sensitivity and
+                    // device, output device. A rehearsal needs those choices
+                    // more than the rack does — the input is what is being
+                    // recorded — and Preferences is a long way from the record
+                    // button.
+                    ValueListenableBuilder<bool>(
+                      valueListenable: _audioBarVisible,
+                      builder: (ctx, visible, _) => AnimatedSize(
+                        duration: const Duration(milliseconds: 200),
+                        curve: Curves.easeInOut,
+                        child: visible
+                            ? const AudioSettingsBar()
+                            : const SizedBox.shrink(),
+                      ),
+                    ),
                         // Only when it is asking for something. Being
                         // connected is the normal state of a rehearsal, so a
                         // full-width strip saying so was permanently on and
@@ -612,10 +640,17 @@ class _RehearsalScreenState extends State<RehearsalScreen> {
 /// Stays on screen while the lanes scroll (decision D14) — position and
 /// transport are read while playing, everything else is an occasional action.
 class _TransportBar extends StatelessWidget {
-  const _TransportBar({required this.engine, required this.rehearsal});
+  const _TransportBar({
+    required this.engine,
+    required this.rehearsal,
+    required this.audioBarVisible,
+  });
 
   final RehearsalEngine engine;
   final Rehearsal rehearsal;
+
+  /// Drives the audio settings strip below, as on the rack.
+  final ValueNotifier<bool> audioBarVisible;
 
   @override
   Widget build(BuildContext context) {
@@ -725,6 +760,22 @@ class _TransportBar extends StatelessWidget {
                   ),
                 ),
               ],
+            ),
+          ),
+          // Same chevron, same place, same meaning as on the rack.
+          ValueListenableBuilder<bool>(
+            valueListenable: audioBarVisible,
+            builder: (ctx, visible, _) => Tooltip(
+              message: l10n.audioSettingsBarToggleTooltip,
+              child: IconButton(
+                icon: Icon(
+                  visible ? Icons.expand_less : Icons.expand_more,
+                  size: 20,
+                ),
+                visualDensity: VisualDensity.compact,
+                color: theme.colorScheme.onSurfaceVariant,
+                onPressed: () => audioBarVisible.value = !visible,
+              ),
             ),
           ),
           // The visual metronome matters more than usual here: the audience is
