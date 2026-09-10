@@ -1,0 +1,8 @@
+Ajouté
+- Une piste peut s'enregistrer depuis le rack — soundfont, VST3, batterie — sans repasser par la pièce.
+- Répétitions et rack dans deux onglets : retouchez un son, retrouvez votre morceau toujours en lecture.
+- Les répétitions choisissent leur micro et leur sortie.
+
+Corrigé
+- Un étalonnage depuis les Paramètres atteint un morceau déjà ouvert ; les prises tombaient à côté du temps.
+- Le clic ne garde plus le tempo du morceau précédent, qui accélérait les prises.

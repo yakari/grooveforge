@@ -1,0 +1,7 @@
+Rehearsals — a new tab where a band learns a tune together.
+
+- Everyone records their own part over a shared click, on their own phone.
+- Overdubs land on the beat: the app measures your device's delay, per output.
+- Play along to an imported recording, or slow the tune to 50% without the pitch dropping.
+- Write the chord grid, share scores and PDFs, see who is connected.
+- Parts sync device to device over Wi-Fi: encrypted, no server, no account, no internet needed.

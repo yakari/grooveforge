@@ -187,7 +187,7 @@ class RehearsalEngine extends ChangeNotifier {
     }
     ffi.startCapture();
 
-    ffi.rehSetGrid(_local.effectiveBpm(rehearsal.bpm), rehearsal.beatsPerBar,
+    _applyGrid(ffi, _local.effectiveBpm(rehearsal.bpm), rehearsal.beatsPerBar,
         rehearsal.beatUnit);
     ffi.rehSetMetronome(
         enabled: _local.metronomeEnabled, gain: 0.6);
@@ -599,7 +599,7 @@ class RehearsalEngine extends ChangeNotifier {
     // the same reason: the engine keeps it, but the order should be obvious.
     final takeOffset = ffi.rehTakeOffset;
 
-    _logTakeRate(ffi, takeOffset);
+    if (part != null) _logTakeRate(ffi, takeOffset);
     ffi.rehStop();
     _closeRackInput();
     _transport = RehearsalTransport.stopped;
@@ -634,6 +634,36 @@ class RehearsalEngine extends ChangeNotifier {
       onTakeCommitted?.call();
     }
     notifyListeners();
+  }
+
+  /// Moves the grid, and makes sure it moved.
+  ///
+  /// The native grid refuses to move while the transport is running — every
+  /// take is aligned to the current grid, and shifting it underneath them
+  /// would misplace all of them — and it reports that refusal by doing
+  /// nothing. Silence is the wrong answer here: a refusal that nobody notices
+  /// leaves the engine clicking at the tempo of whatever was open before,
+  /// while every take it cuts is filed under the tempo the tune *says* it has.
+  /// The take then plays back at a tempo it was never recorded at, which is
+  /// the one symptom that looks like a stretching bug and is not one.
+  ///
+  /// So read the tempo back. If it did not take, the transport was running:
+  /// stop it and ask once more, and say so loudly if even that fails.
+  void _applyGrid(AudioInputFFI ffi, double bpm, int beatsPerBar, int beatUnit) {
+    ffi.rehSetGrid(bpm, beatsPerBar, beatUnit);
+    if ((ffi.rehGridBpm - bpm).abs() < 0.01) return;
+
+    debugPrint('RehearsalEngine: grid refused ${bpm.toStringAsFixed(2)} — '
+        'transport still running at ${ffi.rehGridBpm.toStringAsFixed(2)}; '
+        'stopping and retrying');
+    ffi.rehStop();
+    _transport = RehearsalTransport.stopped;
+    ffi.rehSetGrid(bpm, beatsPerBar, beatUnit);
+    if ((ffi.rehGridBpm - bpm).abs() < 0.01) return;
+
+    debugPrint('RehearsalEngine: grid STILL ${ffi.rehGridBpm.toStringAsFixed(2)} '
+        'after stopping, wanted ${bpm.toStringAsFixed(2)} — takes cut now will '
+        'be filed under a tempo they were not played at');
   }
 
   /// Reports, for one finished take, the three ways it can come out at the
@@ -783,8 +813,8 @@ class RehearsalEngine extends ChangeNotifier {
   /// from under a running transport is not something the engine is built to
   /// survive.
   Future<void> _applyTempo(Rehearsal r) async {
-    AudioInputFFI().rehSetGrid(
-        _local.effectiveBpm(r.bpm), r.beatsPerBar, r.beatUnit);
+    _applyGrid(AudioInputFFI(), _local.effectiveBpm(r.bpm), r.beatsPerBar,
+        r.beatUnit);
     await _loadTracks();
     notifyListeners();
   }

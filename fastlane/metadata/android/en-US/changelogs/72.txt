@@ -1,0 +1,8 @@
+Added
+- A part can record straight from the rack — soundfont, VST3, drums — nothing goes through the room.
+- Rehearsals and the rack sit in two tabs: reach for a sound, come back to your tune still playing.
+- Rehearsals picks its own microphone and speaker.
+
+Fixed
+- Calibrating from Settings now reaches a tune already open; takes were landing a quarter second off the beat.
+- The click no longer keeps a previous tune's tempo, which recorded takes that played back too fast.

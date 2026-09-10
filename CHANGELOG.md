@@ -5,22 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [X.x.x]
+## [3.0.1] - 2026-09-10
 
 ### Added
-- A lane can record straight from the rack instead of the microphone — a soundfont, a VST3 plugin, the drum generator — with nothing going through the room and no latency to compensate.
-- Rehearsals and the rack now sit side by side in two tabs: leave a tune to reach for a sound and come back to it exactly as you left it, still playing.
-- The rack's back panel closes with a back arrow or a back gesture, instead of hunting for the small icon that opened it.
-- Rehearsals picks its own microphone and speaker, from the collapsible bar at the top, without changing what the rack uses.
+- A part can record straight from the rack — soundfont, VST3 plugin, drum generator — with nothing going through the room and no latency to compensate.
+- Rehearsals and the rack now sit in two tabs: leave a tune to reach for a sound and come back to it still playing.
+- The rack's back panel closes with a back arrow or a back gesture.
+- Rehearsals picks its own microphone and speaker, without changing what the rack uses.
 
 ### Fixed
-- Calibrating from Settings now reaches a tune that is already open. Takes recorded afterwards used the measurement from when the tune was opened, and landed as much as a quarter of a second off the beat against a calibration that was right.
-- Tempo panel: the lock notices now sit under the tempo they describe rather than under the still-editable count-in, and a tempo set by a recording shows no slider at all.
-- The bar counter no longer takes a second line past bar ten, which used to push the whole tune down and move the record button out from under a finger already reaching for stop.
+- Calibrating from Settings now reaches a tune that is already open. Takes recorded afterwards were up to a quarter of a second off the beat against a calibration that was right.
+- The click no longer stays at the previous tune's tempo, which cut takes at a tempo that was not the tune's and left them playing back too fast.
+- Tempo panel: the lock notices sit under the tempo they describe rather than under the still-editable count-in, and a tempo set by a recording shows no slider.
+- The bar counter no longer wraps to a second line past bar ten, which pushed the record button out from under a finger already reaching for stop.
 
 ### Architecture
-- Stopping a take reports what it was cut against — the grid the engine really ran, the frames the transport crossed against the frames the microphone delivered, and any lost to a full record ring — so a take that comes out at the wrong speed says which of the three it was. The capture device also logs the rate it actually negotiated rather than the one it was asked for.
-- The rehearsal engine and the latency probe play on a monitor bus carried by the rack's audio device, on every platform, instead of a second device of their own — one clock, and one way of doing it everywhere.
+- The rehearsal engine and the latency probe play on the rack's audio device, on every platform, instead of a second device of their own — one clock everywhere.
 
 ## [3.0.0] - 2026-09-08
 
