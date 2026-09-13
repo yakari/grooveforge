@@ -5,6 +5,11 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/lang/fr/).
 
+## [X.x.x]
+
+### Ajouté
+- Un mappage CC peut maintenant viser le pitch bend — un ruban ou un potentiomètre fait varier la hauteur au lieu de n'envoyer qu'un contrôleur.
+
 ## [3.0.1] - 2026-09-10
 
 ### Ajouté

@@ -372,6 +372,13 @@ class CcMappingService {
 
   // ── Standard GM CCs (used by the CC preferences dropdown) ────────────
 
+  /// Pseudo-CC selecting pitch bend as the mapping target.
+  ///
+  /// Sits at 128 — one past the last real CC — so every other picker, which
+  /// either sweeps 0..127 or filters `key <= 127`, keeps ignoring it. Only the
+  /// CC preferences target dropdown offers it, explicitly.
+  static const int pitchBendTarget = 128;
+
   static const Map<int, String> standardGmCcs = {
     0: 'Bank Select (MSB)',
     1: 'Modulation Wheel (Vibrato)',
@@ -387,6 +394,9 @@ class CcMappingService {
     74: 'Frequency Cutoff (Filter)',
     91: 'Reverb Send Level',
     93: 'Chorus Send Level',
+
+    // --- Non-CC MIDI messages ---
+    pitchBendTarget: 'Pitch Bend',
 
     // --- Legacy GrooveForge System Actions ---
     1001: '[System] Next Soundfont',
@@ -420,6 +430,21 @@ class CcMappingService {
 
   /// Returns true if [targetCc] is the mute/unmute action (1014).
   static bool isMuteAction(int targetCc) => targetCc == 1014;
+
+  /// Returns true if [targetCc] selects pitch bend rather than a real CC.
+  static bool isPitchBendTarget(int targetCc) => targetCc == pitchBendTarget;
+
+  /// Converts a 7-bit CC value to the 14-bit pitch-bend range.
+  ///
+  /// Piecewise so the detents land exactly: 0 → 0 (full bend down),
+  /// 64 → 8192 (centre, no bend), 127 → 16383 (full bend up). A flat
+  /// `value * 16383 ~/ 127` would put 64 at 8255 — a fraction of a semitone
+  /// sharp at rest, which is audible on a held note.
+  static int ccToPitchBend(int ccValue) {
+    final v = ccValue.clamp(0, 127);
+    if (v <= 64) return v * 128;
+    return 8192 + ((v - 64) * 8191 / 63).round();
+  }
 
   // ── Lifecycle ─────────────────────────────────────────────────────────
 

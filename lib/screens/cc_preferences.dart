@@ -472,6 +472,12 @@ class _AddMappingDialogState extends State<_AddMappingDialog> {
                 CcMappingService.standardGmCcs[i]!, i))));
       }
     }
+    // Pitch bend is not a CC, so the sweep above cannot reach it — add it
+    // explicitly, and without the "(CC n)" suffix that would be a lie.
+    ccItems.add(DropdownMenuItem(
+      value: CcMappingService.pitchBendTarget,
+      child: Text(l10n.actionPitchBend),
+    ));
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [

@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [X.x.x]
+
+### Added
+- A CC mapping can now target pitch bend — a ribbon or knob bends the note instead of only sending a controller.
+
 ## [3.0.1] - 2026-09-10
 
 ### Added

@@ -108,7 +108,21 @@ Present the result like this, and nothing else:
 
 Print both blocks **inside a fenced code block**. Their line breaks are the format: rendered as ordinary markdown, a terminal or chat client collapses single newlines and runs every bullet into one paragraph, which makes the result impossible to check against the 500-character budget or to paste.
 
-If the user supplied a template (for instance `<en-US>` / `<fr-FR>` tags), use theirs instead of the headings above — still inside a code block.
+**Yann's Play Console paste format is the tagged one** — use it by default, without being
+asked:
+
+```
+<en-US>
+…
+</en-US>
+<fr-FR>
+…
+</fr-FR>
+```
+
+It matches the multi-language box in the Play Console, which takes both languages in one
+paste. Print the character counts after the block, not inside it — they are not part of what
+gets pasted. Any other template the user supplies wins over this one.
 
 No preamble, no trailing commentary, no "let me know if you want changes" — the user will ask if they want a revision.
 

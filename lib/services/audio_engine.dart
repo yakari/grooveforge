@@ -2401,14 +2401,25 @@ class AudioEngine extends ChangeNotifier {
       int value) {
     if (targetChannel == -1) {
       for (int i = 0; i < 16; i++) {
-        setControlChange(channel: i, controller: targetCc, value: value);
+        _applyRemappedCc(targetCc, i, value);
       }
     } else if (targetChannel == -2) {
-      setControlChange(
-          channel: incomingChannel, controller: targetCc, value: value);
+      _applyRemappedCc(targetCc, incomingChannel, value);
     } else {
-      setControlChange(
-          channel: targetChannel, controller: targetCc, value: value);
+      _applyRemappedCc(targetCc, targetChannel, value);
+    }
+  }
+
+  /// Applies one resolved [targetCc] to a single [channel].
+  ///
+  /// Pitch bend is not a CC, so it takes the [setPitchBend] path with the
+  /// 7-bit value widened to 14 bits; everything else is a plain CC send.
+  void _applyRemappedCc(int targetCc, int channel, int value) {
+    if (CcMappingService.isPitchBendTarget(targetCc)) {
+      setPitchBend(
+          channel: channel, value: CcMappingService.ccToPitchBend(value));
+    } else {
+      setControlChange(channel: channel, controller: targetCc, value: value);
     }
   }
 
