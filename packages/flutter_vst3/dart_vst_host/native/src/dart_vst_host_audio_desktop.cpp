@@ -542,6 +542,10 @@ DVH_API int32_t dvh_start_desktop_audio(DVH_Host host) {
         return 0;
     }
 
+    // miniaudio converts to the device's native rate itself, so the callback
+    // runs at the rate we asked for; publish that for the GFPA effects.
+    gfpa_set_sample_rate(static_cast<double>(s->device.sampleRate));
+
     res = ma_device_start(&s->device);
     if (res != MA_SUCCESS) {
         fprintf(stderr, "[dart_vst_host] ma_device_start failed with error %d\n", (int)res);

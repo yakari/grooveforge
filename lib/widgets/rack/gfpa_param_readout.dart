@@ -22,6 +22,10 @@ GFParamReadout? gfpaParamReadout(
   return switch (param.display) {
     GFParamDisplay.integer => GFParamReadout(value: raw.round().toString()),
     GFParamDisplay.interval => _intervalReadout(l10n, param, raw),
+    // A number and a unit symbol read the same in every supported language.
+    GFParamDisplay.value => GFParamReadout(
+        value: GFDescriptorPluginUI.valueWithUnit(raw, param.unit),
+      ),
     GFParamDisplay.none => null,
   };
 }

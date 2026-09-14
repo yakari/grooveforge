@@ -44,6 +44,9 @@ class GfpaAndroidBindings {
   /// Not supported on web — no-op.
   void gfpaDspSetBypass(int handle, bool bypassed) {}
 
+  /// Not supported on web — nothing is ever published.
+  double gfpaDspGetReadout(int handle, String readoutId) => double.nan;
+
   /// Not supported on web — no-op.
   void gfpaDspDestroy(int handle) {}
 

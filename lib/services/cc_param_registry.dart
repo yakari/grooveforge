@@ -146,6 +146,30 @@ class CcParamRegistry {
     ),
   ];
 
+  /// Autotune (`com.grooveforge.autotune`). Strength and Retune are the two
+  /// worth riding live: a pedal from natural to robot is the classic move.
+  static const List<CcParamEntry> autotune = [
+    ..._commonEffectParams,
+    CcParamEntry(
+      paramKey: 'strength',
+      displayName: 'Strength',
+      gfpaParamId: 2,
+      defaultMode: CcParamMode.absolute,
+    ),
+    CcParamEntry(
+      paramKey: 'retune',
+      displayName: 'Retune',
+      gfpaParamId: 3,
+      defaultMode: CcParamMode.absolute,
+    ),
+    CcParamEntry(
+      paramKey: 'mix',
+      displayName: 'Mix',
+      gfpaParamId: 7,
+      defaultMode: CcParamMode.absolute,
+    ),
+  ];
+
   /// Auto-Wah (`com.grooveforge.wah`).
   static const List<CcParamEntry> wah = [
     ..._commonEffectParams,
@@ -556,6 +580,7 @@ class CcParamRegistry {
     'com.grooveforge.compressor': compressor,
     'com.grooveforge.chorus': chorus,
     'com.grooveforge.wah': wah,
+    'com.grooveforge.autotune': autotune,
     // MIDI FX
     'com.grooveforge.arpeggiator': arpeggiator,
     'com.grooveforge.chord': chordExpand,

@@ -1356,6 +1356,28 @@ class AppLocalizationsEn extends AppLocalizations {
       'Up to 4 pitch-shifted harmony voices from any audio input';
 
   @override
+  String get rackAddAutotune => 'Autotune';
+
+  @override
+  String get rackAddAutotuneSubtitle =>
+      'Snaps your voice onto the notes of a scale, from subtle to robot';
+
+  @override
+  String get autotuneListening => 'Sing something…';
+
+  @override
+  String autotuneCents(String cents) {
+    return '$cents ¢';
+  }
+
+  @override
+  String get autotuneDisplayTooltip =>
+      'Left: the note you are singing and how far off it is. Right: the note it is being tuned to.';
+
+  @override
+  String get autotuneScalePatched => 'Following the patched scale';
+
+  @override
   String get rackAddLoadGfpd => 'Load .gfpd from file…';
 
   @override

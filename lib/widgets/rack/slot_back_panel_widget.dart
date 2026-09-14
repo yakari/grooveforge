@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../models/autotune_pitch.dart';
 import '../../models/harmonizer_voicing.dart';
 import 'package:grooveforge_plugin_api/grooveforge_plugin_api.dart'
     show GFEffectPlugin, GFPluginRegistry;
@@ -142,13 +143,13 @@ class SlotBackPanelWidget extends StatelessWidget {
           AudioPortId.audioOutL,
           AudioPortId.audioOutR,
         ];
-        // The Audio Harmonizer's Scale Lock needs to be told which scale to
-        // follow, and an audio effect has no MIDI channel to infer one from.
-        // Giving it the same SCALE IN jack the keyboard and vocoder have
-        // makes the answer a cable: patch the Xen module you mean, and with
-        // several of them in the rack there is no ambiguity about which one
-        // applies.
-        if (plugin.pluginId == 'com.grooveforge.audio_harmonizer') {
+        // The Audio Harmonizer's Scale Lock and the Autotune need to be told
+        // which scale to follow, and an audio effect has no MIDI channel to
+        // infer one from. Giving them the same SCALE IN jack the keyboard
+        // and vocoder have makes the answer a cable: patch the Xen module
+        // you mean, and with several of them in the rack there is no
+        // ambiguity about which one applies.
+        if (kScaleFollowingAudioEffects.contains(plugin.pluginId)) {
           ports.add(AudioPortId.scaleIn);
         }
         if (kChordFollowingHarmonizers.contains(plugin.pluginId)) {

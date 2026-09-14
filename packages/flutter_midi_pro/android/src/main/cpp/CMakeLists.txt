@@ -79,6 +79,7 @@ add_library(native-lib SHARED
         ../../../../../../native_audio/gf_phase_vocoder.c
         ../../../../../../native_audio/gf_harmony.c
         ../../../../../../native_audio/gf_pitch.c
+        ../../../../../../native_audio/gf_autotune.c
 )
 
 # ── Optimisation floor for the DSP ────────────────────────────────────────

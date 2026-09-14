@@ -661,6 +661,14 @@ static int _jackProcessCallback(jack_nframes_t nframes, void* arg) {
 
 // ── JACK non-RT callbacks ──────────────────────────────────────────────────
 
+/// JACK changed the server's sample rate (PipeWire can, when a device with a
+/// different native rate takes over the graph). Effects follow it before
+/// their next block; see gfpa_set_sample_rate.
+static int _jackSampleRateCallback(jack_nframes_t nframes, void* /*arg*/) {
+    gfpa_set_sample_rate(static_cast<double>(nframes));
+    return 0;
+}
+
 static int _jackBufferSizeCallback(jack_nframes_t nframes, void* arg) {
     auto* state = static_cast<AudioState*>(arg);
     fprintf(stderr, "[dart_vst_host] JACK buffer size changed to %u\n",
@@ -1016,6 +1024,9 @@ DVH_API int32_t dvh_start_jack_client(DVH_Host host, const char* client_name) {
     s->blockSize  = static_cast<int32_t>(jack_get_buffer_size(s->jackClient));
     fprintf(stderr, "[dart_vst_host] JACK server: sr=%d bs=%d\n",
             s->sampleRate, s->blockSize);
+    // The server's rate, not the 48 kHz the Dart side assumes: PipeWire runs
+    // at 44.1 kHz on plenty of setups, and GFPA effects must know.
+    gfpa_set_sample_rate(static_cast<double>(s->sampleRate));
 
     _resizeBuffers(s, s->blockSize);
 
@@ -1027,6 +1038,7 @@ DVH_API int32_t dvh_start_jack_client(DVH_Host host, const char* client_name) {
 
     jack_set_process_callback(s->jackClient, _jackProcessCallback, s);
     jack_set_buffer_size_callback(s->jackClient, _jackBufferSizeCallback, s);
+    jack_set_sample_rate_callback(s->jackClient, _jackSampleRateCallback, s);
     jack_set_xrun_callback(s->jackClient, _jackXrunCallback, s);
     jack_on_shutdown(s->jackClient, _jackShutdownCallback, s);
 

@@ -59,6 +59,21 @@ void main() {
     expect(gfpaParamReadout(en, plain, 0.5), isNull);
   });
 
+  test('a value prints rounded, with its unit', () {
+    const retune = GFDescriptorParameter(
+      id: 'retune',
+      paramId: 3,
+      name: 'Retune',
+      min: 0,
+      max: 400,
+      defaultValue: 0,
+      unit: 'ms',
+      display: GFParamDisplay.value,
+    );
+    expect(gfpaParamReadout(en, retune, 120.4)!.value, '120 ms');
+    expect(gfpaParamReadout(fr, retune, 0)!.value, '0 ms');
+  });
+
   test('a count prints as a whole number', () {
     expect(gfpaParamReadout(en, count, 3.0)!.value, '3');
     // Knobs and sliders are continuous, so a raw value between two counts

@@ -98,6 +98,7 @@ void main() {
       'com.grooveforge.compressor',
       'com.grooveforge.chorus',
       'com.grooveforge.audio_harmonizer',
+      'com.grooveforge.autotune',
       'com.grooveforge.jammode',
       'com.grooveforge.unknown_plugin',
     ];

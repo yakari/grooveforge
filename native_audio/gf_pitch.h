@@ -37,6 +37,15 @@ typedef struct gf_pitch gf_pitch;
 /// or out-of-memory.
 gf_pitch* gf_pitch_create(float sample_rate);
 
+/// Re-targets the tracker at a new [sample_rate] after the audio device
+/// changed rate, and forgets what it had heard. Allocation-free; safe from the
+/// audio thread. Out-of-range rates are ignored.
+///
+/// Every pitch it reports is a count of samples per period turned into Hz, so
+/// a tracker left at 48 kHz on a 44.1 kHz stream names every note about a
+/// semitone and a half too high.
+void gf_pitch_set_sample_rate(gf_pitch* p, float sample_rate);
+
 /// Destroys a tracker. Safe to pass NULL.
 void gf_pitch_destroy(gf_pitch* p);
 

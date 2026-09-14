@@ -168,6 +168,7 @@ class GFDescriptorLoader {
       final display = switch (_str(m, 'display', fallback: '')) {
         'integer' => GFParamDisplay.integer,
         'interval' => GFParamDisplay.interval,
+        'value' => GFParamDisplay.value,
         _ => GFParamDisplay.none,
       };
       return GFDescriptorParameter(

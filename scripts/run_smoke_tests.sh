@@ -43,11 +43,16 @@
 #       at least once, and none of them is visible from the Dart suite: they
 #       only exist once real audio has been rendered. Needs no soundfont.
 #
+#   gf_autotune_smoke_test — Autotune: a sharp note comes out on pitch, key and
+#       scale pick the right note, retune speed and transpose do what they say,
+#       and a hard retune across an octave never puts a click in the waveform.
+#
 # Usage:
 #   ./scripts/run_smoke_tests.sh            # run everything
 #   ./scripts/run_smoke_tests.sh tuning     # just the tuning test
 #   ./scripts/run_smoke_tests.sh vocoder    # just the phase vocoder test
 #   ./scripts/run_smoke_tests.sh harmonizer # just the harmonizer test
+#   ./scripts/run_smoke_tests.sh autotune   # just the autotune test
 #   ./scripts/run_smoke_tests.sh latency    # just the overdub alignment test
 #   ./scripts/run_smoke_tests.sh rehearsal  # just the rehearsal engine test
 #   ./scripts/run_smoke_tests.sh stretch    # just the practice-tempo renderer
@@ -110,6 +115,16 @@ run_harmonizer() {
     "$BUILD_DIR/gf_harmonizer_smoke_test"
 }
 
+# ── Autotune ──────────────────────────────────────────────────────────────────
+
+run_autotune() {
+    echo
+    echo "── Building gf_autotune_smoke_test"
+    cmake --build "$BUILD_DIR" --target gf_autotune_smoke_test -j"$(nproc 2>/dev/null || echo 4)" > /dev/null
+    echo "── Running gf_autotune_smoke_test"
+    "$BUILD_DIR/gf_autotune_smoke_test"
+}
+
 # ── Overdub latency alignment ─────────────────────────────────────────────────
 
 run_latency() {
@@ -145,6 +160,7 @@ case "$WHICH" in
     tuning)     run_tuning     || FAILED=1 ;;
     vocoder)    run_vocoder    || FAILED=1 ;;
     harmonizer) run_harmonizer || FAILED=1 ;;
+    autotune)   run_autotune   || FAILED=1 ;;
     latency)    run_latency    || FAILED=1 ;;
     rehearsal)  run_rehearsal  || FAILED=1 ;;
     stretch)    run_timestretch || FAILED=1 ;;
@@ -152,12 +168,13 @@ case "$WHICH" in
         run_tuning     || FAILED=1
         run_vocoder    || FAILED=1
         run_harmonizer || FAILED=1
+        run_autotune   || FAILED=1
         run_latency    || FAILED=1
         run_rehearsal  || FAILED=1
         run_timestretch || FAILED=1
         ;;
     *)
-        echo "usage: $0 [all|tuning|vocoder|harmonizer|latency|rehearsal|stretch]" >&2
+        echo "usage: $0 [all|tuning|vocoder|harmonizer|autotune|latency|rehearsal|stretch]" >&2
         exit 2
         ;;
 esac

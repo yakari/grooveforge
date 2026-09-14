@@ -162,13 +162,31 @@ if (NOT ANDROID AND NOT IOS)
             ${GF_GFPA_DIR}/src/gfpa_dsp.cpp
             gf_phase_vocoder.c
             gf_harmony.c
-            gf_pitch.c)
+            gf_pitch.c
+            gf_autotune.c)
         set_target_properties(gf_harmonizer_smoke_test PROPERTIES LINKER_LANGUAGE CXX)
         target_include_directories(gf_harmonizer_smoke_test PRIVATE
             ${GF_GFPA_DIR}/include
             ${CMAKE_CURRENT_SOURCE_DIR})
         if (UNIX)
             target_link_libraries(gf_harmonizer_smoke_test PRIVATE m)
+        endif()
+
+        # Autotune. Same DSP library, measured with an estimator that shares
+        # no code with the effect's own pitch tracker.
+        add_executable(gf_autotune_smoke_test EXCLUDE_FROM_ALL
+            gf_autotune_smoke_test.c
+            ${GF_GFPA_DIR}/src/gfpa_dsp.cpp
+            gf_phase_vocoder.c
+            gf_harmony.c
+            gf_pitch.c
+            gf_autotune.c)
+        set_target_properties(gf_autotune_smoke_test PROPERTIES LINKER_LANGUAGE CXX)
+        target_include_directories(gf_autotune_smoke_test PRIVATE
+            ${GF_GFPA_DIR}/include
+            ${CMAKE_CURRENT_SOURCE_DIR})
+        if (UNIX)
+            target_link_libraries(gf_autotune_smoke_test PRIVATE m)
         endif()
     endif()
 endif()

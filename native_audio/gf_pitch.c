@@ -65,12 +65,9 @@ struct gf_pitch {
     float confidence;
 };
 
-gf_pitch* gf_pitch_create(float sample_rate) {
-    if (sample_rate < 8000.0f || sample_rate > 192000.0f) return NULL;
-
-    gf_pitch* p = (gf_pitch*)calloc(1, sizeof(gf_pitch));
-    if (!p) return NULL;
-
+/// Derives every rate-dependent constant from [sample_rate]. Allocation-free,
+/// so it serves both creation and a rate change on the audio thread.
+static void gf_pitch_configure(gf_pitch* p, float sample_rate) {
     p->sample_rate = sample_rate;
     const float decimated = sample_rate / (float)GF_PITCH_DECIM;
 
@@ -84,9 +81,26 @@ gf_pitch* gf_pitch_create(float sample_rate) {
     p->max_lag = (int)(decimated / GF_PITCH_MIN_HZ) + 1;
     if (p->min_lag < 2) p->min_lag = 2;
     if (p->max_lag > GF_PITCH_WINDOW / 2) p->max_lag = GF_PITCH_WINDOW / 2;
+}
 
+gf_pitch* gf_pitch_create(float sample_rate) {
+    if (sample_rate < 8000.0f || sample_rate > 192000.0f) return NULL;
+
+    gf_pitch* p = (gf_pitch*)calloc(1, sizeof(gf_pitch));
+    if (!p) return NULL;
+
+    gf_pitch_configure(p, sample_rate);
     p->midi_note = -1.0f;
     return p;
+}
+
+void gf_pitch_set_sample_rate(gf_pitch* p, float sample_rate) {
+    if (!p || sample_rate < 8000.0f || sample_rate > 192000.0f) return;
+    if (sample_rate == p->sample_rate) return;
+    gf_pitch_configure(p, sample_rate);
+    // The window holds audio at the old rate; analysing it at the new one
+    // would report a confident, wrong note.
+    gf_pitch_reset(p);
 }
 
 void gf_pitch_destroy(gf_pitch* p) { free(p); }

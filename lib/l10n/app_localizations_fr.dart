@@ -1368,6 +1368,28 @@ class AppLocalizationsFr extends AppLocalizations {
       'Jusqu\'à 4 voix d\'harmonie transposées à partir d\'une entrée audio';
 
   @override
+  String get rackAddAutotune => 'Autotune';
+
+  @override
+  String get rackAddAutotuneSubtitle =>
+      'Colle votre voix sur les notes d\'une gamme, de discret à robot';
+
+  @override
+  String get autotuneListening => 'Chantez quelque chose…';
+
+  @override
+  String autotuneCents(String cents) {
+    return '$cents ¢';
+  }
+
+  @override
+  String get autotuneDisplayTooltip =>
+      'À gauche : la note que vous chantez et son écart. À droite : la note vers laquelle elle est corrigée.';
+
+  @override
+  String get autotuneScalePatched => 'Suit la gamme branchée';
+
+  @override
   String get rackAddLoadGfpd => 'Charger un fichier .gfpd…';
 
   @override

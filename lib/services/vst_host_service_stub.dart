@@ -83,6 +83,9 @@ class VstHostService {
   /// Stub: no-op.
   void setGfpaDspBypass(String slotId, bool bypassed) {}
 
+  /// Stub: native DSP publishes nothing on this platform.
+  double? getGfpaDspReadout(String slotId, String readoutId) => null;
+
   /// Stub: no-op on web — audio looper WAV import not supported.
   Future<void> importAudioLooperWavs(String gfPath, Map<String, dynamic> clips) async {}
 

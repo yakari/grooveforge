@@ -90,6 +90,10 @@ enum GFParamDisplay {
   /// name, e.g. `+7 st · P5`. The name itself is supplied by the host so
   /// it can be localised; see `GFDescriptorPluginUI.valueFormatter`.
   interval,
+
+  /// The raw value with its unit, e.g. `120 ms` or `80 %` — for knobs whose
+  /// setting only means something as a number, like a retune time.
+  value,
 }
 
 /// A single automatable parameter declared in a `.gfpd` file.
@@ -128,7 +132,8 @@ class GFDescriptorParameter {
 
   /// Whether the generated UI prints the current value under the control,
   /// and in what form. Declared in the `.gfpd` as `display: integer` or
-  /// `display: interval`; absent means [GFParamDisplay.none].
+  /// `display: interval` or `display: value`; absent means
+  /// [GFParamDisplay.none].
   final GFParamDisplay display;
 
   const GFDescriptorParameter({

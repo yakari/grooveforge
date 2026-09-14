@@ -130,6 +130,7 @@ add_library(${PROJECT_NAME} SHARED
   ${GF_NATIVE_AUDIO_DIR}/gf_phase_vocoder.c
   ${GF_NATIVE_AUDIO_DIR}/gf_harmony.c
   ${GF_NATIVE_AUDIO_DIR}/gf_pitch.c
+  ${GF_NATIVE_AUDIO_DIR}/gf_autotune.c
   # miniaudio-based audio backend (WASAPI on Windows, CoreAudio on macOS)
   ${NATIVE_DIR}/src/dart_vst_host_audio_desktop.cpp
   # Platform stubs (JACK + Linux editor → no-ops on Windows)

@@ -99,6 +99,7 @@ add_library(${PROJECT_NAME} SHARED
   ${GF_NATIVE_AUDIO_DIR}/gf_phase_vocoder.c
   ${GF_NATIVE_AUDIO_DIR}/gf_harmony.c
   ${GF_NATIVE_AUDIO_DIR}/gf_pitch.c
+  ${GF_NATIVE_AUDIO_DIR}/gf_autotune.c
   ${VST3_BASE_SOURCES}
   ${VST3_SDK_SOURCES}
 )

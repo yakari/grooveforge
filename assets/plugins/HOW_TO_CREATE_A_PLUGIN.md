@@ -81,6 +81,14 @@ parameters:
 | `toggle`  | LED button | `0.0` = off, `1.0` = on                    |
 | `selector`| Segmented  | Integer index 0…N-1 into `options` list    |
 
+**Readouts (`display:`)** — a knob shows a position, not a number. Add `display:` to a parameter to print its value under the control:
+
+| Value      | Shows                                  | Example        |
+|-----------|----------------------------------------|----------------|
+| `integer` | The value rounded to a whole number    | `3`            |
+| `value`   | The rounded value and its `unit`       | `120 ms`       |
+| `interval`| Signed semitones and the interval name | `+7 st` / `Perfect 5th` |
+
 **Important:** `paramId` integers are stored in `.gf` project files. Never reorder or reuse them across versions — doing so would corrupt saved projects. Always add new parameters with new `paramId` values at the end.
 
 ---

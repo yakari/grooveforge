@@ -37,7 +37,8 @@ typedef void (*GfpaInsertFn)(const float* inL, const float* inR,
 ///
 /// [pluginId] must be one of:
 ///   "com.grooveforge.reverb", "com.grooveforge.delay", "com.grooveforge.wah",
-///   "com.grooveforge.eq", "com.grooveforge.compressor", "com.grooveforge.chorus"
+///   "com.grooveforge.eq", "com.grooveforge.compressor", "com.grooveforge.chorus",
+///   "com.grooveforge.audio_harmonizer", "com.grooveforge.autotune"
 ///
 /// Returns NULL for unrecognised IDs.
 /// [sampleRate] and [blockSize] are used to pre-size internal delay buffers.
@@ -54,6 +55,15 @@ DVH_API GfpaDspHandle gfpa_dsp_create(const char* pluginId,
 DVH_API void gfpa_dsp_set_param(GfpaDspHandle handle,
                                  const char* paramId,
                                  double physicalValue);
+
+/// Read a value the effect publishes for its panel.
+///
+/// Currently only the Autotune publishes anything: `input_note` (the pitch
+/// heard, fractional MIDI, negative when unpitched), `target_note` (the note
+/// it corrects towards, -1 for none) and `correction` (semitones). Returns NaN
+/// for any other effect or id. Lock-free; safe from the Dart isolate.
+DVH_API double gfpa_dsp_get_readout(GfpaDspHandle handle,
+                                     const char* readoutId);
 
 /// Set the bypass state of a DSP instance.
 ///
@@ -86,6 +96,15 @@ DVH_API void gfpa_dsp_destroy(GfpaDspHandle handle);
 /// Called from Dart whenever the transport tempo changes.  The value is stored
 /// in a global atomic float shared across all instances.
 DVH_API void gfpa_set_bpm(double bpm);
+
+/// Publish the rate the audio stream is actually running at.
+///
+/// Called by each audio backend when its stream opens (JACK, miniaudio,
+/// AAudio). New effects are built at this rate whatever their creator asked
+/// for, and existing ones re-derive their rate-dependent maths before their
+/// next block — allocation-free, on the audio thread. 0 or never called means
+/// effects keep the rate they were created with.
+DVH_API void gfpa_set_sample_rate(double sampleRate);
 
 // ── Insert chain API ─────────────────────────────────────────────────────────
 

@@ -9,6 +9,17 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 
 ### Ajouté
 - Un mappage CC peut maintenant viser le pitch bend — un ruban ou un potentiomètre fait varier la hauteur au lieu de n'envoyer qu'un contrôleur.
+- **Autotune** : un effet audio qui colle la voix sur les notes d'une tonalité et d'une gamme, de la retouche discrète au robot. Branchez-y Live Input et chantez.
+- Réglages de l'Autotune : Strength, vitesse de Retune, Humanize, Flex-Tune, Transpose et Mix ; un câble de gamme venant de Xen ou de Jam Mode remplace sa propre tonalité et sa gamme.
+- L'Autotune affiche la note chantée, son écart en cents et la note vers laquelle il la tire.
+
+### Corrigé
+- Les effets audio supposaient 48 kHz quelle que soit la fréquence du périphérique. Sur un flux à 44,1 kHz (JACK/PipeWire, ou Android après un changement de sortie), le Scale Lock de l'Audio Harmonizer choisissait de mauvaises notes, et les temps et fréquences du delay, wah, chorus, compresseur et EQ étaient faux de 9 %.
+
+### Architecture
+- Les backends audio publient la fréquence réelle de leur flux (`gfpa_set_sample_rate`) ; les effets GFPA sont construits à cette fréquence et recalculent leurs paramètres sur le thread audio quand elle change, sans allocation.
+- `gf_autotune` : correction de hauteur sur une ligne à retard à deux têtes, synchronisée sur la période — quelques millisecondes de latence, sans trou quand la note saute. Smoke test hors ligne : `scripts/run_smoke_tests.sh autotune`.
+- Les effets GFPA peuvent publier des valeurs pour leur panneau (`gfpa_dsp_get_readout`), et les paramètres `.gfpd` gagnent `display: value` pour afficher un nombre et son unité sous un potentiomètre.
 
 ## [3.0.1] - 2026-09-10
 

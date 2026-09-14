@@ -4,8 +4,12 @@ import 'package:grooveforge_plugin_ui/grooveforge_plugin_ui.dart';
 import 'package:provider/provider.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../../models/autotune_pitch.dart';
 import '../../models/gfpa_plugin_instance.dart';
+import '../../services/audio_engine.dart';
 import '../../services/rack_state.dart';
+import '../../services/vst_host_service.dart';
+import 'autotune_pitch_display.dart';
 import 'gfpa_param_readout.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -82,6 +86,8 @@ class _GFpaDescriptorSlotUIState extends State<GFpaDescriptorSlotUI> {
 
     final bypassed = widget.instance.state['__bypass'] == true;
     final l10n = AppLocalizations.of(context)!;
+    final isAutotune = widget.instance.pluginId == kAutotunePluginId;
+    final scalePatched = isAutotune && rack.hasPatchedScale(widget.instance.id);
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -92,6 +98,7 @@ class _GFpaDescriptorSlotUIState extends State<GFpaDescriptorSlotUI> {
           l10n: l10n,
           onToggleBypass: () => rack.toggleEffectBypass(widget.instance.id),
         ),
+        if (isAutotune) _buildAutotuneDisplay(context, scalePatched),
         // ── Parameter controls ────────────────────────────────────────────
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
@@ -101,11 +108,39 @@ class _GFpaDescriptorSlotUIState extends State<GFpaDescriptorSlotUI> {
             vuController: _vuController,
             valueFormatter: (param, raw) =>
                 gfpaParamReadout(l10n, param, raw),
+            laneEnabled: scalePatched ? _isNotScaleLane : null,
           ),
         ),
       ],
     );
   }
+
+  /// The Autotune's live note readout, polling the slot's native DSP.
+  Widget _buildAutotuneDisplay(BuildContext context, bool scalePatched) {
+    final engine = context.read<AudioEngine>();
+    final slotId = widget.instance.id;
+    final vst = VstHostService.instance;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
+      child: ValueListenableBuilder<String>(
+        valueListenable: engine.notationFormat,
+        builder: (_, format, _) => AutotunePitchDisplay(
+          solfege: format.toLowerCase() == 'solfege',
+          scalePatched: scalePatched,
+          read: () => AutotunePitch.fromReadouts(
+            inputNote: vst.getGfpaDspReadout(slotId, 'input_note'),
+            targetNote: vst.getGfpaDspReadout(slotId, 'target_note'),
+            correction: vst.getGfpaDspReadout(slotId, 'correction'),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Lane veto while a scale cable is patched: the Autotune's Key and Scale
+  /// selectors are overridden by the cable, so their lane greys out.
+  static bool _isNotScaleLane(GFDescriptorControlGroup group) =>
+      !group.controls.any((c) => c.paramId == 'key' || c.paramId == 'scale');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

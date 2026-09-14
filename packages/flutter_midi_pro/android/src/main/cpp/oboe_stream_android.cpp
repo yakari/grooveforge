@@ -38,6 +38,7 @@
 
 #include "oboe_stream_android.h"
 #include "gfpa_audio_android.h"
+#include "gfpa_dsp.h"
 #include "audio_looper.h"
 
 #include <aaudio/AAudio.h>
@@ -904,6 +905,9 @@ static aaudio_result_t openAndStartStream(int sampleRate,
     // 44.1 kHz device detunes every voice and drifts every loop.
     const int32_t grantedRate = AAudioStream_getSampleRate(g_stream);
     if (grantedRate > 0) g_sampleRate = grantedRate;
+    // GFPA effects too: they are created before the stream exists, and a
+    // reopen after a route change can come back at a different rate.
+    gfpa_set_sample_rate(static_cast<double>(g_sampleRate));
 
     result = AAudioStream_requestStart(g_stream);
     if (result != AAUDIO_OK) {

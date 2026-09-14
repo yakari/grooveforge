@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - A CC mapping can now target pitch bend — a ribbon or knob bends the note instead of only sending a controller.
+- **Autotune**: an audio effect that snaps a voice onto the notes of a key and scale, from a gentle nudge to full robot. Patch Live Input into it and sing.
+- Autotune controls: Strength, Retune speed, Humanize, Flex-Tune, Transpose and Mix; a scale cable from Xen or Jam Mode overrides its own key and scale.
+- Autotune shows the note you are singing, how many cents off it is, and the note it is pulling you to.
+
+### Fixed
+- Audio effects assumed 48 kHz whatever the device ran at. On a 44.1 kHz stream (JACK/PipeWire, or Android after a route change) the Audio Harmonizer's Scale Lock picked wrong notes and delay, wah, chorus, compressor and EQ times and frequencies were off by 9 %.
+
+### Architecture
+- Audio backends publish their stream's real rate (`gfpa_set_sample_rate`); GFPA effects are built at it and re-derive their maths on the audio thread when it changes, without allocating.
+- `gf_autotune`: pitch correction on a two-head, pitch-synchronous delay line — a few milliseconds of latency, no gap when the note jumps. Offline smoke test: `scripts/run_smoke_tests.sh autotune`.
+- GFPA effects can publish values for their panel (`gfpa_dsp_get_readout`), and `.gfpd` parameters gain `display: value` to print a number and unit under a knob.
 
 ## [3.0.1] - 2026-09-10
 

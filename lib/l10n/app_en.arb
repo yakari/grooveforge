@@ -709,6 +709,20 @@
   "rackAddChorusSubtitle": "Stereo chorus with BPM sync",
   "rackAddAudioHarmonizer": "Audio Harmonizer",
   "rackAddAudioHarmonizerSubtitle": "Up to 4 pitch-shifted harmony voices from any audio input",
+  "rackAddAutotune": "Autotune",
+  "rackAddAutotuneSubtitle": "Snaps your voice onto the notes of a scale, from subtle to robot",
+  "autotuneListening": "Sing something…",
+  "autotuneCents": "{cents} ¢",
+  "@autotuneCents": {
+    "description": "How far the sung pitch is from its target note, in cents. cents already carries its sign.",
+    "placeholders": {
+      "cents": {
+        "type": "String"
+      }
+    }
+  },
+  "autotuneDisplayTooltip": "Left: the note you are singing and how far off it is. Right: the note it is being tuned to.",
+  "autotuneScalePatched": "Following the patched scale",
   "rackAddLoadGfpd": "Load .gfpd from file…",
   "rackAddLoadGfpdSubtitle": "Import a custom GrooveForge plugin descriptor",
   "rackAddMidiFxSectionLabel": "Built-in MIDI FX",

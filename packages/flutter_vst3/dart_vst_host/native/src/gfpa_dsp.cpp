@@ -8,6 +8,7 @@
 //   Compressor — Feed-forward RMS compressor with attack/release
 //   Chorus     — Stereo chorus/flanger with LFO and cross-feedback
 //   Harmonizer — Up to 4 phase-vocoder-pitched harmony voices + dry mix
+//   Autotune   — Pitch correction to a key and scale (delay-line shifter)
 //
 // Audio-thread guarantees:
 //   - All buffers are pre-allocated in each effect's constructor.
@@ -16,6 +17,7 @@
 //   - No heap allocation, no logging, no locks inside any process() method.
 
 #include "../include/gfpa_dsp.h"
+#include "gf_autotune.h"
 #include "gf_harmony.h"
 #include "gf_pitch.h"
 #include "gf_phase_vocoder.h"
@@ -35,6 +37,25 @@ static std::atomic<float> g_gfpa_bpm{120.0f};
 
 extern "C" void gfpa_set_bpm(double bpm) {
     g_gfpa_bpm.store(static_cast<float>(bpm));
+}
+
+// ── Stream sample rate ───────────────────────────────────────────────────────
+
+/// The rate the audio stream actually runs at, published by whichever backend
+/// opened it (JACK, miniaudio, AAudio). 0 until a stream has opened.
+///
+/// Effects cannot take the rate from their creator: the Dart side creates
+/// them before it knows the rate, and on Android the stream can reopen at a
+/// different one when the output device changes. An effect working at the
+/// wrong rate is not subtly off — every time in ms and every frequency in Hz
+/// is scaled by the ratio, and the pitch trackers name notes a semitone and a
+/// half too high on a 44.1 kHz device. So each instance compares its rate
+/// with this one before every block and follows it.
+static std::atomic<float> g_gfpa_sample_rate{0.0f};
+
+extern "C" void gfpa_set_sample_rate(double sampleRate) {
+    g_gfpa_sample_rate.store(static_cast<float>(sampleRate),
+                             std::memory_order_relaxed);
 }
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -308,9 +329,18 @@ struct EqEffect {
     std::atomic<float> hmidFreq{2500.f}, hmidQ{1.0f},   hmidGain{0.0f};
     std::atomic<float> highFreq{8000.f}, highGain{0.0f};
 
-    float sampleRate; ///< Stored for coefficient re-computation.
+    /// Stored for coefficient re-computation. Atomic because the Dart
+    /// thread rebuilds bands from setParam while the audio thread may be
+    /// following a rate change.
+    std::atomic<float> sampleRate;
 
     explicit EqEffect(float sr) : sampleRate(sr) {
+        _rebuildEq1(); _rebuildEq2(); _rebuildEq3(); _rebuildEq4();
+    }
+
+    /// Follows a stream rate change: every band's coefficients depend on it.
+    void setSampleRate(float sr) {
+        sampleRate.store(sr);
         _rebuildEq1(); _rebuildEq2(); _rebuildEq3(); _rebuildEq4();
     }
 
@@ -339,10 +369,10 @@ struct EqEffect {
     }
 
 private:
-    void _rebuildEq1() { eq1.computeLowShelf (lowFreq.load(),  lowGain.load(),  sampleRate); }
-    void _rebuildEq2() { eq2.computePeaking  (lmidFreq.load(), lmidQ.load(),   lmidGain.load(), sampleRate); }
-    void _rebuildEq3() { eq3.computePeaking  (hmidFreq.load(), hmidQ.load(),   hmidGain.load(), sampleRate); }
-    void _rebuildEq4() { eq4.computeHighShelf(highFreq.load(), highGain.load(), sampleRate); }
+    void _rebuildEq1() { eq1.computeLowShelf (lowFreq.load(),  lowGain.load(),  sampleRate.load()); }
+    void _rebuildEq2() { eq2.computePeaking  (lmidFreq.load(), lmidQ.load(),   lmidGain.load(), sampleRate.load()); }
+    void _rebuildEq3() { eq3.computePeaking  (hmidFreq.load(), hmidQ.load(),   hmidGain.load(), sampleRate.load()); }
+    void _rebuildEq4() { eq4.computeHighShelf(highFreq.load(), highGain.load(), sampleRate.load()); }
 };
 
 // ── Ping-Pong Delay ──────────────────────────────────────────────────────────
@@ -376,6 +406,10 @@ struct DelayEffect {
         , bufR(maxDelaySamples, 0.0f)
         , tmpL(block, 0.0f), tmpR(block, 0.0f)
     {}
+
+    /// Follows a stream rate change. The line keeps the length it was built
+    /// with; `process` already clamps a delay that no longer fits.
+    void setSampleRate(float sr) { sampleRate = sr; }
 
     /// Compute delay in samples, accounting for BPM-sync mode.
     int32_t _delaySamples() const {
@@ -454,6 +488,9 @@ struct WahEffect {
     WahEffect(float sr, int32_t block)
         : sampleRate(sr), tmpL(block, 0.0f), tmpR(block, 0.0f)
     {}
+
+    /// Follows a stream rate change; the LFO and filter read it every sample.
+    void setSampleRate(float sr) { sampleRate = sr; }
 
     void setParam(const char* id, float v) {
         if      (strcmp(id,"center")    ==0) center.store(v);
@@ -545,6 +582,9 @@ struct CompressorEffect {
 
     explicit CompressorEffect(float sr) : sampleRate(sr) {}
 
+    /// Follows a stream rate change; attack and release are derived per block.
+    void setSampleRate(float sr) { sampleRate = sr; }
+
     void setParam(const char* id, float v) {
         if      (strcmp(id,"threshold") ==0) threshold.store(v);
         else if (strcmp(id,"ratio")     ==0) ratio.store(v);
@@ -621,6 +661,10 @@ struct ChorusEffect {
         , tmpL(block, 0.0f), tmpR(block, 0.0f)
     {}
 
+    /// Follows a stream rate change. The line keeps the length it was built
+    /// with; `process` keeps the modulated delay inside it.
+    void setSampleRate(float sr) { sampleRate = sr; }
+
     void setParam(const char* id, float v) {
         if      (strcmp(id,"rate")     ==0) rate.store(v);
         else if (strcmp(id,"depth")    ==0) depth.store(v);
@@ -653,8 +697,16 @@ struct ChorusEffect {
     {
         const float rHz      = _rateHz();
         const float phaseInc = rHz / sampleRate;
-        const float baseDelay = delayMs.load() * sampleRate / 1000.0f;
-        const float modDepth  = depth.load() * baseDelay * 0.5f;
+        float baseDelay = delayMs.load() * sampleRate / 1000.0f;
+        float modDepth  = depth.load() * baseDelay * 0.5f;
+        // After a switch to a higher rate than the line was sized for, the
+        // swing could reach past its end; scale it back to fit.
+        const float reach = static_cast<float>(maxDelaySamples - 2);
+        if (baseDelay + modDepth > reach) {
+            const float fit = reach / (baseDelay + modDepth);
+            baseDelay *= fit;
+            modDepth  *= fit;
+        }
         const float fb        = feedback.load();
 
         for (int32_t i = 0; i < n; ++i) {
@@ -768,6 +820,10 @@ struct HarmonizerEffect {
         harmonyR = gf_harmony_create(block);
         pitch    = gf_pitch_create(sampleRate);
     }
+
+    /// Follows a stream rate change. Only the pitch tracker cares: the phase
+    /// vocoders shift by ratios, which mean the same thing at any rate.
+    void setSampleRate(float sr) { gf_pitch_set_sample_rate(pitch, sr); }
 
     ~HarmonizerEffect() {
         gf_harmony_destroy(harmonyL);
@@ -912,11 +968,157 @@ private:
     }
 };
 
+// ── Autotune ──────────────────────────────────────────────────────────────────
+//
+// Pitch correction for a sung line. The signal engine — tracker, target
+// choice, retune smoothing, the delay-line shifter — lives in `gf_autotune`.
+// What stays here is the insert-effect side: the parameter surface, choosing
+// between the panel's own key/scale and a patched one, the dry/wet mix, and
+// publishing what the corrector hears for the panel's note display.
+struct AutotuneEffect {
+    int32_t blockSize;
+    gf_autotune* tuner = nullptr;
+
+    /// Corrected signal for this block, before the dry/wet mix.
+    std::vector<float> wetL;
+    std::vector<float> wetR;
+
+    // Atomic parameters, in the descriptor's physical units. Written by Dart,
+    // read once per block on the audio thread.
+    std::atomic<float> key{0.0f};          // 0 = C .. 11 = B
+    std::atomic<float> scale{0.0f};        // gf_autotune_scale index
+    std::atomic<float> strength{100.0f};   // %
+    std::atomic<float> retuneMs{0.0f};     // ms
+    std::atomic<float> humanize{0.0f};     // %
+    std::atomic<float> flexTune{0.0f};     // %
+    std::atomic<float> transpose{0.0f};    // semitones
+    std::atomic<float> mix{100.0f};        // %
+
+    /// The scale patched into SCALE IN, as a 12-bit pitch-class mask. Pushed
+    /// by the host, never saved. 0xFFF means nothing is patched, in which
+    /// case the panel's own Key and Scale apply.
+    std::atomic<int> scaleMask{0xFFF};
+
+    // What the corrector heard during the last block, for the panel.
+    std::atomic<float> inputNote{-1.0f};
+    std::atomic<float> targetNote{-1.0f};
+    std::atomic<float> correction{0.0f};
+
+    AutotuneEffect(float sampleRate, int32_t block)
+        : blockSize(block)
+        , wetL(block, 0.0f)
+        , wetR(block, 0.0f)
+    {
+        tuner = gf_autotune_create(sampleRate);
+    }
+
+    ~AutotuneEffect() { gf_autotune_destroy(tuner); }
+
+    /// Follows a stream rate change.
+    void setSampleRate(float sr) { gf_autotune_set_sample_rate(tuner, sr); }
+
+    void setParam(const char* id, float v) {
+        if      (strcmp(id, "key")        == 0) key.store(v);
+        else if (strcmp(id, "scale")      == 0) scale.store(v);
+        else if (strcmp(id, "strength")   == 0) strength.store(v);
+        else if (strcmp(id, "retune")     == 0) retuneMs.store(v);
+        else if (strcmp(id, "humanize")   == 0) humanize.store(v);
+        else if (strcmp(id, "flex_tune")  == 0) flexTune.store(v);
+        else if (strcmp(id, "transpose")  == 0) transpose.store(v);
+        else if (strcmp(id, "mix")        == 0) mix.store(v);
+        // Host state, not a descriptor parameter — see HarmonizerEffect.
+        else if (strcmp(id, "scale_mask") == 0) scaleMask.store((int)v);
+    }
+
+    /// Returns a value published for the panel, or NaN for an unknown [id].
+    double readout(const char* id) const {
+        if (strcmp(id, "input_note")  == 0) return inputNote.load();
+        if (strcmp(id, "target_note") == 0) return targetNote.load();
+        if (strcmp(id, "correction")  == 0) return correction.load();
+        return std::nan("");
+    }
+
+    void process(const float* inL, const float* inR,
+                 float* outL, float* outR, int32_t n)
+    {
+        if (!tuner) {
+            std::memcpy(outL, inL, sizeof(float) * static_cast<size_t>(n));
+            std::memcpy(outR, inR, sizeof(float) * static_cast<size_t>(n));
+            return;
+        }
+        pushParams();
+
+        // Mono sources (a microphone through Live Input, most instruments)
+        // arrive as two identical channels; correcting one and copying it
+        // halves the interpolation work.
+        const bool mono =
+            (inL == inR) ||
+            (std::memcmp(inL, inR, static_cast<size_t>(n) * sizeof(float)) == 0);
+
+        const float wet = mix.load(std::memory_order_relaxed) / 100.0f;
+        int32_t done = 0;
+        while (done < n) {
+            // The wet buffers were sized for blockSize; a larger block is
+            // corrected in pieces rather than overrunning them.
+            const int32_t len = (n - done < blockSize) ? (n - done) : blockSize;
+            processPiece(inL + done, inR + done, outL + done, outR + done,
+                         len, mono, wet);
+            done += len;
+        }
+        publishReadouts();
+    }
+
+private:
+    /// Corrects and mixes one piece no longer than [blockSize].
+    void processPiece(const float* inL, const float* inR,
+                      float* outL, float* outR,
+                      int32_t n, bool mono, float wet)
+    {
+        const float dry = 1.0f - wet;
+        gf_autotune_process(tuner, inL, mono ? nullptr : inR,
+                            wetL.data(), mono ? nullptr : wetR.data(), n);
+
+        for (int32_t i = 0; i < n; ++i) outL[i] = inL[i] * dry + wetL[i] * wet;
+        if (mono) {
+            std::memcpy(outR, outL, static_cast<size_t>(n) * sizeof(float));
+            return;
+        }
+        for (int32_t i = 0; i < n; ++i) outR[i] = inR[i] * dry + wetR[i] * wet;
+    }
+
+    /// The scale to correct towards: a patched one wins over the panel's.
+    int effectiveMask() const {
+        const int patched = scaleMask.load(std::memory_order_relaxed) & 0xFFF;
+        if (patched != 0 && patched != 0xFFF) return patched;
+        return gf_autotune_scale_mask(
+                (int)lroundf(scale.load(std::memory_order_relaxed)),
+                (int)lroundf(key.load(std::memory_order_relaxed)));
+    }
+
+    /// Converts the panel's units (percentages, ms) to the engine's.
+    void pushParams() {
+        gf_autotune_params p;
+        p.scale_mask = effectiveMask();
+        p.strength   = strength.load(std::memory_order_relaxed) / 100.0f;
+        p.retune_ms  = retuneMs.load(std::memory_order_relaxed);
+        p.humanize   = humanize.load(std::memory_order_relaxed) / 100.0f;
+        p.flex       = flexTune.load(std::memory_order_relaxed) / 100.0f;
+        p.transpose  = transpose.load(std::memory_order_relaxed);
+        gf_autotune_set_params(tuner, &p);
+    }
+
+    void publishReadouts() {
+        inputNote.store(gf_autotune_input_note(tuner), std::memory_order_relaxed);
+        targetNote.store((float)gf_autotune_target_note(tuner), std::memory_order_relaxed);
+        correction.store(gf_autotune_correction(tuner), std::memory_order_relaxed);
+    }
+};
+
 // ── Plugin instance wrapper ───────────────────────────────────────────────────
 
 /// Discriminator for the union inside GfpaDspInstance.
 enum class GfpaEffectType {
-    Reverb, Delay, Wah, Eq, Compressor, Chorus, Harmonizer
+    Reverb, Delay, Wah, Eq, Compressor, Chorus, Harmonizer, Autotune
 };
 
 /// Opaque wrapper that holds one GFPA effect instance and its type tag.
@@ -931,6 +1133,28 @@ struct GfpaDspInstance {
     /// gfpa_dsp_set_bypass(); read on the audio thread in insertCb().
     std::atomic<bool> bypassed{false};
 
+    /// The rate the effect is currently configured for. Only the audio
+    /// thread changes it, via followStreamRate().
+    float sampleRate = 48000.0f;
+
+    /// Re-targets the effect when the stream's rate differs from its own.
+    /// One float compare per block when nothing changed.
+    void followStreamRate() {
+        const float live = g_gfpa_sample_rate.load(std::memory_order_relaxed);
+        if (live <= 0.0f || live == sampleRate) return;
+        sampleRate = live;
+        switch (type) {
+            case GfpaEffectType::Reverb:     break;   // tuned in samples; no rate
+            case GfpaEffectType::Delay:      delay->setSampleRate(live);      break;
+            case GfpaEffectType::Wah:        wah->setSampleRate(live);        break;
+            case GfpaEffectType::Eq:         eq->setSampleRate(live);         break;
+            case GfpaEffectType::Compressor: compressor->setSampleRate(live); break;
+            case GfpaEffectType::Chorus:     chorus->setSampleRate(live);     break;
+            case GfpaEffectType::Harmonizer: harmonizer->setSampleRate(live); break;
+            case GfpaEffectType::Autotune:   autotune->setSampleRate(live);   break;
+        }
+    }
+
     /// Untagged union — only the field matching [type] is valid.
     union {
         FreeverbEffect*   reverb;
@@ -940,6 +1164,7 @@ struct GfpaDspInstance {
         CompressorEffect* compressor;
         ChorusEffect*     chorus;
         HarmonizerEffect* harmonizer;
+        AutotuneEffect*   autotune;
     };
 
     /// Static C-callable insert callback dispatched to the correct effect.
@@ -959,6 +1184,8 @@ struct GfpaDspInstance {
             return;
         }
 
+        inst->followStreamRate();
+
         switch (inst->type) {
             case GfpaEffectType::Reverb:
                 inst->reverb->process(inL, inR, outL, outR, frames); break;
@@ -974,6 +1201,8 @@ struct GfpaDspInstance {
                 inst->chorus->process(inL, inR, outL, outR, frames); break;
             case GfpaEffectType::Harmonizer:
                 inst->harmonizer->process(inL, inR, outL, outR, frames); break;
+            case GfpaEffectType::Autotune:
+                inst->autotune->process(inL, inR, outL, outR, frames); break;
         }
     }
 };
@@ -987,6 +1216,12 @@ extern "C" {
 GfpaDspHandle gfpa_dsp_create(const char* pluginId, int32_t sr, int32_t block) {
     auto* inst = new GfpaDspInstance();
     std::string id(pluginId);
+
+    // Build at the stream's real rate when one is open; [sr] is only the
+    // caller's guess for an effect created before any stream exists.
+    const float live = g_gfpa_sample_rate.load(std::memory_order_relaxed);
+    if (live > 0.0f) sr = static_cast<int32_t>(live);
+    inst->sampleRate = static_cast<float>(sr);
 
     if (id == "com.grooveforge.reverb") {
         inst->type   = GfpaEffectType::Reverb;
@@ -1009,6 +1244,9 @@ GfpaDspHandle gfpa_dsp_create(const char* pluginId, int32_t sr, int32_t block) {
     } else if (id == "com.grooveforge.audio_harmonizer") {
         inst->type       = GfpaEffectType::Harmonizer;
         inst->harmonizer = new HarmonizerEffect((float)sr, block);
+    } else if (id == "com.grooveforge.autotune") {
+        inst->type     = GfpaEffectType::Autotune;
+        inst->autotune = new AutotuneEffect((float)sr, block);
     } else {
         delete inst;
         return nullptr;
@@ -1028,7 +1266,18 @@ void gfpa_dsp_set_param(GfpaDspHandle handle, const char* paramId, double v) {
         case GfpaEffectType::Compressor: inst->compressor->setParam(paramId, fv); break;
         case GfpaEffectType::Chorus:     inst->chorus->setParam(paramId, fv);     break;
         case GfpaEffectType::Harmonizer: inst->harmonizer->setParam(paramId, fv); break;
+        case GfpaEffectType::Autotune:   inst->autotune->setParam(paramId, fv);   break;
     }
+}
+
+/// Read a value an effect publishes for its panel, e.g. the note the
+/// Autotune hears. NaN when the effect publishes nothing under [readoutId].
+double gfpa_dsp_get_readout(GfpaDspHandle handle, const char* readoutId) {
+    auto* inst = static_cast<GfpaDspInstance*>(handle);
+    if (inst->type == GfpaEffectType::Autotune) {
+        return inst->autotune->readout(readoutId);
+    }
+    return std::nan("");
 }
 
 /// Set the bypass state of a DSP instance.
@@ -1062,6 +1311,7 @@ void gfpa_dsp_destroy(GfpaDspHandle handle) {
         case GfpaEffectType::Compressor: delete inst->compressor; break;
         case GfpaEffectType::Chorus:     delete inst->chorus;     break;
         case GfpaEffectType::Harmonizer: delete inst->harmonizer; break;
+        case GfpaEffectType::Autotune:   delete inst->autotune;   break;
     }
     delete inst;
 }

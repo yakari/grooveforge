@@ -261,6 +261,13 @@ class NativeBindings {
           void Function(Pointer<Void>, Pointer<Utf8>, double)
       >('gfpa_dsp_set_param');
 
+  /// Read a value a DSP instance publishes for its panel; NaN when unknown.
+  late final double Function(Pointer<Void>, Pointer<Utf8>) gfpaDspGetReadout =
+      lib.lookupFunction<
+          Double Function(Pointer<Void>, Pointer<Utf8>),
+          double Function(Pointer<Void>, Pointer<Utf8>)
+      >('gfpa_dsp_get_readout');
+
   /// Set the bypass state of a DSP instance.
   ///
   /// When bypassed (true), the insert callback copies input to output unchanged.

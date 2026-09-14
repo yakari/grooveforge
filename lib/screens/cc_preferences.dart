@@ -811,6 +811,7 @@ class _AddMappingDialogState extends State<_AddMappingDialog> {
     'com.grooveforge.compressor',
     'com.grooveforge.chorus',
     'com.grooveforge.wah',
+    'com.grooveforge.autotune',
   };
 
   static const _midiFxPluginIds = {

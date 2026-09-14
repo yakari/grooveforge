@@ -581,8 +581,18 @@ class GFDescriptorPluginUI extends StatelessWidget {
       // use than a bare knob angle.
       GFParamDisplay.interval =>
         GFParamReadout(value: _signedSemitones(raw, param.unit)),
+      GFParamDisplay.value =>
+        GFParamReadout(value: valueWithUnit(raw, param.unit)),
       GFParamDisplay.none => null,
     };
+  }
+
+  /// `120 ms` / `80 %` — the value rounded to a whole number, since these
+  /// knobs are read at a glance and a decimal would only jitter while
+  /// dragging.
+  static String valueWithUnit(double raw, String unit) {
+    final rounded = raw.round();
+    return unit.isEmpty ? '$rounded' : '$rounded $unit';
   }
 
   /// `+7 st` / `-5 st` — the sign is always explicit so a downward voice

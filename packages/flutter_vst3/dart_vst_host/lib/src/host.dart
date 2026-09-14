@@ -217,6 +217,18 @@ class VstHost {
     malloc.free(id);
   }
 
+  /// Read a value a GFPA DSP instance publishes for its panel — e.g. the
+  /// note the Autotune hears. NaN when the effect publishes nothing under
+  /// [readoutId].
+  double getGfpaDspReadout(Pointer<Void> dspHandle, String readoutId) {
+    final id = readoutId.toNativeUtf8();
+    try {
+      return _b.gfpaDspGetReadout(dspHandle, id);
+    } finally {
+      malloc.free(id);
+    }
+  }
+
   /// Set the bypass state of a GFPA DSP instance.
   ///
   /// When [bypassed] is true, the effect's insert callback copies input to

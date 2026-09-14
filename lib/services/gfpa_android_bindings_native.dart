@@ -50,6 +50,14 @@ typedef _GfpaDspSetBypassNative = Void Function(
 typedef _GfpaDspSetBypass = void Function(
     Pointer<Void> handle, bool bypassed);
 
+/// Native signature for gfpa_dsp_get_readout.
+typedef _GfpaDspGetReadoutNative = Double Function(
+    Pointer<Void> handle, Pointer<Utf8> readoutId);
+
+/// Dart binding for gfpa_dsp_get_readout.
+typedef _GfpaDspGetReadout = double Function(
+    Pointer<Void> handle, Pointer<Utf8> readoutId);
+
 /// Native signature for gfpa_dsp_destroy.
 typedef _GfpaDspDestroyNative = Void Function(Pointer<Void> handle);
 
@@ -189,6 +197,11 @@ class GfpaAndroidBindings {
       _lib.lookupFunction<_GfpaDspSetBypassNative, _GfpaDspSetBypass>(
           'gfpa_dsp_set_bypass');
 
+  /// Read a value an effect publishes for its panel (the Autotune's note).
+  late final _GfpaDspGetReadout _gfpaDspGetReadout =
+      _lib.lookupFunction<_GfpaDspGetReadoutNative, _GfpaDspGetReadout>(
+          'gfpa_dsp_get_readout');
+
   /// Destroy a native GFPA DSP instance and free its resources.
   ///
   /// The caller must call [gfpaAndroidRemoveInsert] before destroying the
@@ -306,6 +319,17 @@ class GfpaAndroidBindings {
   /// atomic bool load, then memcpy of input to output.
   void gfpaDspSetBypass(Pointer<Void> handle, bool bypassed) =>
       _gfpaDspSetBypass(handle, bypassed);
+
+  /// Read the value [readoutId] published by a native DSP instance, or NaN
+  /// when the effect publishes nothing under that name.
+  double gfpaDspGetReadout(Pointer<Void> handle, String readoutId) {
+    final nativeId = readoutId.toNativeUtf8();
+    try {
+      return _gfpaDspGetReadout(handle, nativeId);
+    } finally {
+      malloc.free(nativeId);
+    }
+  }
 
   /// Destroy a native DSP instance.
   ///

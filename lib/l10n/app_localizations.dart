@@ -2540,6 +2540,42 @@ abstract class AppLocalizations {
   /// **'Up to 4 pitch-shifted harmony voices from any audio input'**
   String get rackAddAudioHarmonizerSubtitle;
 
+  /// No description provided for @rackAddAutotune.
+  ///
+  /// In en, this message translates to:
+  /// **'Autotune'**
+  String get rackAddAutotune;
+
+  /// No description provided for @rackAddAutotuneSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Snaps your voice onto the notes of a scale, from subtle to robot'**
+  String get rackAddAutotuneSubtitle;
+
+  /// No description provided for @autotuneListening.
+  ///
+  /// In en, this message translates to:
+  /// **'Sing something…'**
+  String get autotuneListening;
+
+  /// How far the sung pitch is from its target note, in cents. cents already carries its sign.
+  ///
+  /// In en, this message translates to:
+  /// **'{cents} ¢'**
+  String autotuneCents(String cents);
+
+  /// No description provided for @autotuneDisplayTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Left: the note you are singing and how far off it is. Right: the note it is being tuned to.'**
+  String get autotuneDisplayTooltip;
+
+  /// No description provided for @autotuneScalePatched.
+  ///
+  /// In en, this message translates to:
+  /// **'Following the patched scale'**
+  String get autotuneScalePatched;
+
   /// No description provided for @rackAddLoadGfpd.
   ///
   /// In en, this message translates to:

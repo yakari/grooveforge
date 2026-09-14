@@ -2337,6 +2337,14 @@ class RackState extends ChangeNotifier {
     return 0xFFF;   // nothing patched: chromatic, so Scale Lock is a no-op
   }
 
+  /// Whether a Xen or Jam Mode module is patched into [slotId]'s SCALE IN
+  /// jack and currently giving it a scale.
+  ///
+  /// The Autotune's panel asks this to grey out its own Key and Scale
+  /// selectors: a patched scale overrides them in the DSP, and controls that
+  /// look live while something else decides the result read as broken.
+  bool hasPatchedScale(String slotId) => _scaleMaskForSlot(slotId) != 0xFFF;
+
   /// Packs a pitch-class set into a 12-bit mask, or null when there is no
   /// usable scale.
   int? _maskFor(Set<int>? pitchClasses) {

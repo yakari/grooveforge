@@ -1077,6 +1077,26 @@ class VstHostService {
     _host?.setGfpaDspParam(handle, paramId, physicalValue);
   }
 
+  /// Reads a value the native DSP for [slotId] publishes for its panel, such
+  /// as the note the Autotune hears.
+  ///
+  /// Returns null when the slot has no DSP, the effect publishes nothing
+  /// under [readoutId], or the native library predates the readout symbol —
+  /// a panel polling this must degrade to showing nothing, not throw on
+  /// every frame.
+  double? getGfpaDspReadout(String slotId, String readoutId) {
+    final handle = _gfpaHandles[slotId];
+    if (handle == null || handle == nullptr) return null;
+    try {
+      final value = Platform.isAndroid
+          ? GfpaAndroidBindings.instance.gfpaDspGetReadout(handle, readoutId)
+          : _host?.getGfpaDspReadout(handle, readoutId);
+      return (value == null || value.isNaN) ? null : value;
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Sets the bypass state of a GFPA DSP effect identified by [slotId].
   ///
   /// When [bypassed] is true, the native insert callback copies input to output

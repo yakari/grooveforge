@@ -630,6 +630,15 @@ class _AddPluginSheetContentState extends State<_AddPluginSheetContent> {
                 context, rack, 'com.grooveforge.audio_harmonizer',
               ),
             ),
+            _PluginTile(
+              icon: Icons.record_voice_over,
+              iconColor: Colors.limeAccent,
+              title: l10n.rackAddAutotune,
+              subtitle: l10n.rackAddAutotuneSubtitle,
+              onTap: () => _addDescriptorPlugin(
+                context, rack, 'com.grooveforge.autotune',
+              ),
+            ),
 
             // ═══════════════════════════════════════════════════════════════
             // Built-in MIDI FX (.gfpd descriptor plugins — all platforms)

@@ -499,6 +499,7 @@ class _SlotHeader extends StatelessWidget {
         case 'com.grooveforge.eq': return Icons.equalizer;
         case 'com.grooveforge.compressor': return Icons.compress;
         case 'com.grooveforge.chorus': return Icons.waves;
+        case 'com.grooveforge.autotune': return Icons.record_voice_over;
       }
       // Generic icon for any other descriptor-backed plugin.
       if (GFPluginRegistry.instance.findById(p.pluginId) is GFDescriptorPlugin) {
