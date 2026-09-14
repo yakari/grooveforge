@@ -1,0 +1,138 @@
+# Persian — Shesh-o-hasht (6/8)
+# Reference: the 6/8 dance rhythm of Iran, Afghanistan and the Kurdish regions
+#            — "shesh-o-hasht" is literally "six-eight". Heard under bandari and
+#            reng dance pieces and in most Persian pop.
+# Pairs with the dastgah scales in the Xen module: Shur, Segah, Chahargah and
+# Homayun are all commonly set to this metre.
+#
+# The tombak (zarb) vocabulary used here:
+#   TOM    — open bass stroke in the centre of the head, low and round
+#   BAK    — bright stroke on the rim with the fingertips
+#   RIZ    — the fingertip roll that fills between strokes
+# The rhythm's identity is TOM on the first 8th of each compound beat and BAK
+# on the third — a long-short lilt rather than an even 1-2-3.
+#
+# GM substitution: General MIDI has no tombak, so low conga stands in for the
+# tom, high bongo for the bak and muted high conga for the riz fills.
+# Tambourine covers the daf (large frame drum).
+# GM notes: 64=low conga (tom), 60=hi bongo (bak), 62=mute hi conga (riz),
+#           54=tambourine (daf), 36=kick, 49=crash
+
+#
+# ── Step grid notation ────────────────────────────────────────────────────────
+# Each character in a step grid represents one subdivision of the bar.
+# Resolution 12 = twelve 16th notes = six 8th notes in 6/8.
+#
+#   X   Strong accent  — velocity = base_velocity × 1.00  (full hit / downbeat)
+#   x   Medium accent  — velocity = base_velocity × 0.75  (firm stroke / upbeat)
+#   o   Soft hit       — velocity = base_velocity × 0.55  (brush / light touch)
+#   g   Ghost note     — velocity = base_velocity × 0.28  (barely audible, mostly felt)
+#   .   Rest           — no note fired at this step
+#
+# Beat positions — 6/8 at resolution 12 (one char per 16th note):
+#   pos  0  1  2  3  4  5 | 6  7  8  9 10 11
+#   8th  1     2     3    | 4     5     6
+#        └── compound 1 ──┘└── compound 2 ──┘
+#
+# Swing / feel: straight — the lilt is written into the stroke placement.
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Shesh-o-hasht (6/8)
+family: persian
+bpm_range: [100, 165]
+time_signature: [6, 8]
+resolution: 12
+feel: straight
+
+instruments:
+  tom:   { note: 64, base_velocity: 108, velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.14 }
+  bak:   { note: 60, base_velocity: 88,  velocity_range: 12, timing_jitter: 0.010, duration_beats: 0.06 }
+  riz:   { note: 62, base_velocity: 70,  velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.05 }
+  daf:   { note: 54, base_velocity: 78,  velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.08 }
+  kick:  { note: 36, base_velocity: 100, velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.14 }
+  crash: { note: 49, base_velocity: 94,  velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.24 }
+
+humanization:
+  timing_jitter: 0.012
+  velocity_jitter: 12
+  velocity_drift: 0.05
+
+sections:
+  intro:
+    type: count_in
+    hits: 6
+    note: 60
+
+  groove:
+    bars: 1
+    variations:
+      - name: shesh_o_hasht
+        weight: 4
+        # The basic form: tom on each compound downbeat (pos 0, 6), bak on the
+        # third 8th of each (pos 4, 10). Riz fills the odd 16ths; daf keeps the
+        # six 8ths audible so nobody loses the compound feel.
+        tom: "X.....X....."
+        bak: "....x.....x."
+        riz: ".g.g.g.g.g.g"
+        daf: "x.x.x.x.x.x."
+
+      - name: bandari
+        weight: 3
+        # Bandari — the Persian Gulf dance style: busier, with bak strokes on
+        # both the second and third 8th of each compound beat and the kick
+        # doubling the tom so it carries on a stage.
+        tom:  "X.....X....."
+        bak:  "..x.x...x.x."
+        daf:  "x.x.x.x.x.x."
+        kick: "X.....X....."
+
+      - name: sparse_zarb
+        weight: 2
+        # Solo-tombak reading: only the two toms and one bak, everything else
+        # left open. Under a slow Shur improvisation this is all the metre needs.
+        tom: "X.....X....."
+        bak: "..........x."
+        riz: "....g.....g."
+
+      - name: daf_drive
+        weight: 2
+        # The daf leads at 16th density — the ensemble texture of a Kurdish or
+        # Sufi group, where the frame drum is the loudest thing on stage.
+        daf: "xgxgxgxgxgxg"
+        tom: "X.....X....."
+        bak: "....x.....x."
+
+  fill:
+    bars: 1
+    variations:
+      - name: riz_roll
+        # Full 16th fingertip roll — the tombak's way of ending a phrase.
+        tom: "X..........."
+        riz: "XxXxXxXxXxXx"
+
+      - name: tom_bak_run
+        # Tom and bak alternating on every 8th: a hemiola that reads as 3+3+3+3
+        # against the 6/8 and resolves on the next downbeat.
+        tom: "X..X..X..X.."
+        bak: "..x..x..x..x"
+
+      - name: daf_accent
+        # Daf accents on the four dotted-quarter subdivisions, tom answering.
+        daf: "X..x..X..x.."
+        tom: "X.....X...X."
+
+  crash:
+    bars: 1
+    variations:
+      - name: standard
+        crash: "X..........."
+        tom:   "X.....X....."
+        bak:   "....x.....x."
+        daf:   "x.x.x.x.x.x."
+
+structure:
+  fill_every: 8
+  break_every: 0
+  break_length: 1
+  crash_after_fill: true
+  dynamic_build: false
