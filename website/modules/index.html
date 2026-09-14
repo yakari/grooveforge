@@ -99,9 +99,19 @@
       humanisation, swing, fills, and optional count-in. Uses General MIDI drum notes on the configured SoundFont.
     </p>
 
+    <h2 id="autotune">Autotune</h2>
+    <p>
+      Pitch correction for a voice or any single-note line. Patch <strong>Live Input</strong> into it: it hears the note
+      you sing and pulls it onto the nearest note of the chosen key and scale — or of a scale patched in from Xen or Jam Mode.
+      <strong>Retune</strong> sets how fast: 0&nbsp;ms is the stepped robot sound, 50&nbsp;ms and up just sounds in tune.
+      <strong>Strength</strong> sets how far, <strong>Humanize</strong> lets held notes keep their vibrato,
+      <strong>Flex-Tune</strong> leaves slides and blue notes alone, and <strong>Transpose</strong> goes from monster to
+      chipmunk. A live readout shows the note you sing, how many cents off it is, and where it is being pulled.
+    </p>
+
     <h2>Descriptor effects &amp; MIDI FX</h2>
     <p>
-      Bundled <a href="../gfpd/"><code>.gfpd</code></a> plugins provide reverb, delay, wah, EQ, compressor, chorus (audio)
+      Bundled <a href="../gfpd/"><code>.gfpd</code></a> plugins provide reverb, delay, wah, EQ, compressor, chorus, audio harmonizer, autotune (audio)
       and harmonizer, arpeggiator, transposer, chord expand, velocity curve, gate (MIDI). Custom descriptors can be
       loaded from disk.
     </p>

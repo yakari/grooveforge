@@ -5,7 +5,7 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/lang/fr/).
 
-## [X.x.x]
+## [3.1.0] - 2026-09-14
 
 ### Ajouté
 - Un mappage CC peut maintenant viser le pitch bend — un ruban ou un potentiomètre fait varier la hauteur au lieu de n'envoyer qu'un contrôleur.
@@ -14,12 +14,12 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 - L'Autotune affiche la note chantée, son écart en cents et la note vers laquelle il la tire.
 
 ### Corrigé
-- Les effets audio supposaient 48 kHz quelle que soit la fréquence du périphérique. Sur un flux à 44,1 kHz (JACK/PipeWire, ou Android après un changement de sortie), le Scale Lock de l'Audio Harmonizer choisissait de mauvaises notes, et les temps et fréquences du delay, wah, chorus, compresseur et EQ étaient faux de 9 %.
+- Sur un appareil à 44,1 kHz, le Scale Lock de l'Audio Harmonizer choisissait de mauvaises notes, et delay, wah, chorus, compresseur et EQ étaient faux de 9 %.
 
 ### Architecture
-- Les backends audio publient la fréquence réelle de leur flux (`gfpa_set_sample_rate`) ; les effets GFPA sont construits à cette fréquence et recalculent leurs paramètres sur le thread audio quand elle change, sans allocation.
-- `gf_autotune` : correction de hauteur sur une ligne à retard à deux têtes, synchronisée sur la période — quelques millisecondes de latence, sans trou quand la note saute. Smoke test hors ligne : `scripts/run_smoke_tests.sh autotune`.
-- Les effets GFPA peuvent publier des valeurs pour leur panneau (`gfpa_dsp_get_readout`), et les paramètres `.gfpd` gagnent `display: value` pour afficher un nombre et son unité sous un potentiomètre.
+- Les backends audio publient leur fréquence d'échantillonnage réelle (`gfpa_set_sample_rate`) ; les effets GFPA la suivent, sans allocation.
+- `gf_autotune` : correction de hauteur sur une ligne à retard synchronisée sur la période, quelques ms de latence. Smoke test : `scripts/run_smoke_tests.sh autotune`.
+- Les effets GFPA peuvent publier des valeurs pour leur panneau (`gfpa_dsp_get_readout`) ; les paramètres `.gfpd` gagnent `display: value`.
 
 ## [3.0.1] - 2026-09-10
 

@@ -1,0 +1,7 @@
+Added
+- Autotune: snaps your voice onto a key and scale, from a gentle nudge to full robot. Patch Live Input into it and sing.
+- Strength, Retune, Humanize, Flex-Tune, Transpose and Mix, plus a live readout of the note you sing.
+- A CC mapping can now target pitch bend.
+
+Fixed
+- On a 44.1 kHz device, the Audio Harmonizer's Scale Lock picked wrong notes and delay, wah, chorus, compressor and EQ were off.

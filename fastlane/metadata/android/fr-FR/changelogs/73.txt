@@ -1,0 +1,7 @@
+Ajouté
+- Autotune : colle votre voix sur une tonalité et une gamme, de la retouche discrète au robot. Branchez-y Live Input et chantez.
+- Strength, Retune, Humanize, Flex-Tune, Transpose et Mix, et l'affichage en direct de la note chantée.
+- Un mappage CC peut viser le pitch bend.
+
+Corrigé
+- Sur un appareil à 44,1 kHz, le Scale Lock de l'Audio Harmonizer se trompait de note et delay, wah, chorus, compresseur et EQ étaient faux.
