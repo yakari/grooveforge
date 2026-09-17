@@ -92,6 +92,10 @@ typedef _GfpaAndroidSetBpm = void Function(double bpm);
 
 // ── oboe_stream_android bindings ──────────────────────────────────────────────
 
+/// Routed-device id reported while the direct USB output is the clock
+/// (OBOE_ROUTED_DEVICE_USB_DIRECT in oboe_stream_android.h).
+const int kRoutedDeviceUsbDirect = -2;
+
 /// AudioSourceRenderFn native type: void (*)(float*, float*, int32, void*).
 ///
 /// This is the render callback signature for all bus sources (keyboards,
@@ -251,6 +255,12 @@ class GfpaAndroidBindings {
       _lib.lookupFunction<_OboeStreamAddSourceNative, _OboeStreamAddSource>(
           'oboe_stream_add_source');
 
+  /// Which Android device the output stream is routed to.
+  late final int Function() _oboeStreamGetRoutedDeviceId = _lib
+      .lookup<NativeFunction<Int32 Function()>>(
+          'oboe_stream_get_routed_device_id')
+      .asFunction();
+
   /// Render a C function on the monitor source, after the tap has read the
   /// rack.
   late final _OboeStreamSetMonitorSource _oboeStreamSetMonitorSource =
@@ -397,6 +407,10 @@ class GfpaAndroidBindings {
   /// caller may safely free any resources associated with this source.
   void oboeStreamRemoveSource(int busSlotId) =>
       _oboeStreamRemoveSource(busSlotId);
+
+  /// The Android device id the output really plays to, 0 when no stream is
+  /// open, or [kRoutedDeviceUsbDirect] while the direct USB output is active.
+  int oboeStreamGetRoutedDeviceId() => _oboeStreamGetRoutedDeviceId();
 
   /// Renders the C function at [monitorFnAddr] on the monitor source, or
   /// clears it when 0.

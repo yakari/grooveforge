@@ -178,11 +178,9 @@ int oboe_stream_get_output_device(void);
 
 /// Makes an external clock the bus's renderer.
 ///
-/// The AAudio stream keeps running but plays silence until
-/// oboe_stream_end_external_clock() — closing it would make Android treat the
-/// app as no longer playing, which degrades the USB microphone's capture on
-/// some devices. Returns once no AAudio callback can still be rendering the
-/// bus. Call before the external thread renders its first block.
+/// Closes the AAudio stream (waiting for its callback to finish) and keeps it
+/// closed until oboe_stream_end_external_clock(), while remembering whether the
+/// app wants audio. Call before the external thread renders its first block.
 ///
 /// [sampleRate] — the rate the external device plays at; must equal
 ///                oboe_stream_get_sample_rate(), which the sources were built at.
@@ -191,8 +189,7 @@ void oboe_stream_begin_external_clock(int32_t sampleRate);
 /// Hands the bus back to AAudio. Idempotent.
 ///
 /// Call only once the external thread has rendered its last block. The AAudio
-/// stream resumes rendering, or is reopened on a detached thread if it went
-/// down meanwhile and the app still wants audio.
+/// stream is reopened on a detached thread if the app still wants audio.
 void oboe_stream_end_external_clock(void);
 
 /// Renders one bus block for the external clock, interleaved stereo float32.
@@ -203,6 +200,17 @@ void oboe_stream_end_external_clock(void);
 /// [interleaved] — frames * 2 samples.
 /// [frames]      — at most 4096.
 void oboe_stream_render_external(float* interleaved, int32_t frames);
+
+/// Returned by oboe_stream_get_routed_device_id() while the direct USB output
+/// is the clock: the audio goes to a USB DAC, not to any Android device.
+#define OBOE_ROUTED_DEVICE_USB_DIRECT (-2)
+
+/// The Android device the output really plays to, as an AudioDeviceInfo id.
+///
+/// 0 when no stream is open, OBOE_ROUTED_DEVICE_USB_DIRECT while the direct
+/// USB output is active. Not real-time safe (takes the stream mutex); meant for
+/// the Dart feedback guard's periodic check.
+int32_t oboe_stream_get_routed_device_id(void);
 
 // ── Stream diagnostics ───────────────────────────────────────────────────────
 

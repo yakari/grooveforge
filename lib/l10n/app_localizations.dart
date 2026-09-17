@@ -1778,11 +1778,41 @@ abstract class AppLocalizations {
   /// **'No input device detected'**
   String get liveInputNoDevice;
 
-  /// Tooltip on the refresh button in the Live Input slot device picker.
+  /// Under the input device name in the Live Input slot: the device is chosen in Preferences, not in the slot.
   ///
   /// In en, this message translates to:
-  /// **'Refresh device list'**
-  String get liveInputRefreshDevices;
+  /// **'Change the input in Preferences › Audio Input'**
+  String get liveInputDeviceHint;
+
+  /// Live Input slot notice when the input chosen in Preferences is unplugged; capture stops instead of switching to the phone's microphone.
+  ///
+  /// In en, this message translates to:
+  /// **'Microphone unplugged: input stopped. Plug it back in or choose another input in Preferences.'**
+  String get liveInputDisconnected;
+
+  /// Live Input slot notice when the input fell back to the phone microphone while the output is the phone speaker.
+  ///
+  /// In en, this message translates to:
+  /// **'Muted: the phone\'s mic would feed back through its speaker.'**
+  String get liveInputFeedbackMuted;
+
+  /// Button that lets Live Input play despite the feedback risk.
+  ///
+  /// In en, this message translates to:
+  /// **'Unmute anyway'**
+  String get liveInputFeedbackUnmute;
+
+  /// Preferences: the chosen audio device is not plugged in.
+  ///
+  /// In en, this message translates to:
+  /// **'Disconnected'**
+  String get audioDeviceDisconnected;
+
+  /// Snackbar when the chosen input device disappears.
+  ///
+  /// In en, this message translates to:
+  /// **'Microphone unplugged: input stopped instead of switching to the phone mic'**
+  String get micDisconnectedToast;
 
   /// Label for the input gain slider in the Live Input slot.
   ///

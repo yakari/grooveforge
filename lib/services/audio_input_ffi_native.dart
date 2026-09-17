@@ -352,6 +352,15 @@ class AudioInputFFI {
   /// Dart-callable bound to `get_live_input_peak`.
   late final double Function() _getLiveInputPeak;
 
+  /// Dart-callable bound to `live_input_set_feedback_mute`.
+  late final void Function(int) _liveInputSetFeedbackMute;
+
+  /// Dart-callable bound to `audio_input_set_capture_blocked`.
+  late final void Function(int) _setCaptureBlocked;
+
+  /// Dart-callable bound to `audio_input_get_capture_device_id`.
+  late final int Function() _getCaptureDeviceId;
+
   /// Bound to `live_input_bus_render_fn_addr` — same pattern as the
   /// theremin/vocoder bus addr getters. On Android the returned integer
   /// is handed to [GfpaAndroidBindings.oboeStreamAddSource] with
@@ -568,6 +577,18 @@ class AudioInputFFI {
         .asFunction();
     _getLiveInputPeak = _lib
         .lookup<NativeFunction<NativeFloatFunctionC>>('get_live_input_peak')
+        .asFunction();
+    _liveInputSetFeedbackMute = _lib
+        .lookup<NativeFunction<Void Function(Int32)>>(
+            'live_input_set_feedback_mute')
+        .asFunction();
+    _setCaptureBlocked = _lib
+        .lookup<NativeFunction<Void Function(Int32)>>(
+            'audio_input_set_capture_blocked')
+        .asFunction();
+    _getCaptureDeviceId = _lib
+        .lookup<NativeFunction<Int32 Function()>>(
+            'audio_input_get_capture_device_id')
         .asFunction();
     _liveInputBusRenderFnAddr = _lib
         .lookup<NativeFunction<IntPtr Function()>>(
@@ -842,6 +863,21 @@ class AudioInputFFI {
   /// live input render block. Decays on each call so it can drive a
   /// smooth meter without a separate envelope follower.
   double getLiveInputPeak() => _getLiveInputPeak();
+
+  /// Silences what Live Input feeds the rack while [muted], without touching
+  /// its level meter. Driven by the feedback guard.
+  void liveInputSetFeedbackMute({required bool muted}) =>
+      _liveInputSetFeedbackMute(muted ? 1 : 0);
+
+  /// Refuses to open the capture device while [blocked] — used when the
+  /// selected microphone is unplugged, so capture cannot silently land on the
+  /// phone's own mic. Does not stop a running capture.
+  void setCaptureBlocked({required bool blocked}) =>
+      _setCaptureBlocked(blocked ? 1 : 0);
+
+  /// The Android device id the running capture stream is really routed to,
+  /// or -1 when capture is not running or not on AAudio.
+  int getCaptureDeviceId() => _getCaptureDeviceId();
 
   /// Returns the address of the `live_input_bus_render` trampoline.
   /// Pass to [GfpaAndroidBindings.oboeStreamAddSource] with

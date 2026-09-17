@@ -22,6 +22,7 @@
 #include <time.h>
 
 #ifdef __ANDROID__
+#include <aaudio/AAudio.h>
 #include <android/log.h>
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, "GrooveForgeAudio", __VA_ARGS__)
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, "GrooveForgeAudio", __VA_ARGS__)
@@ -105,6 +106,17 @@ static float g_inputGain = 1.0f;
 static volatile int g_vocoderCaptureMode = 0;
 static int g_selectedCaptureDeviceIndex = -1; // -1 means default
 static int g_androidDeviceId = -1; // Specific Android Device ID for AAudio
+
+/// Refuses to open the capture device while set (Android).
+///
+/// Set by Dart when the microphone the user explicitly chose has been
+/// unplugged. Opening a capture stream on a device id that no longer exists
+/// does not fail on Android: AAudio quietly opens the default input instead,
+/// which after unplugging a USB mic is the phone's own microphone. Several
+/// independent places start capture (Live Input, the vocoder, rehearsals, the
+/// latency probe), so the refusal lives here where they all meet rather than
+/// in each of them.
+static volatile int g_captureBlocked = 0;
 static int g_androidOutputDeviceId = -1; // Specific Android Output Device ID for AAudio
 
 // --- Latency Debug State ---
@@ -304,38 +316,6 @@ static volatile int g_rehInputSource;
 /// Defined with the rehearsal routing section; see [gf_reh_set_host_routed].
 static volatile int g_rehHostRouted;
 
-// TEMPORARY DIAGNOSTIC (direct USB output investigation) — remove once the
-// Live Input silence under the USB clock is understood. Counters written by the
-// render thread, logged once a second by a helper thread; benign races only.
-#ifdef __ANDROID__
-#include <pthread.h>
-#include <unistd.h>
-static volatile uint32_t g_liDbgPulls, g_liDbgFrames, g_liDbgUnderruns, g_liDbgReprimes;
-static volatile uint32_t g_liDbgAvail, g_liDbgWritePos, g_liDbgFramesArg;
-static volatile float    g_liDbgOutPeak, g_liDbgGain;
-static volatile double   g_liDbgRawSumSq; static volatile uint32_t g_liDbgRawCount;
-static volatile int      g_liDbgStarted;
-static void* li_dbg_logger(void* arg) {
-    (void)arg;
-    uint32_t lastPulls = 0, lastFrames = 0, lastWrite = 0;
-    for (;;) {
-        sleep(1);
-        uint32_t w = g_liDbgWritePos;
-        const double rawRms = g_liDbgRawCount > 0 ? sqrt(g_liDbgRawSumSq / g_liDbgRawCount) : 0.0;
-        const double rawDb = rawRms > 1e-9 ? 20.0 * log10(rawRms) : -180.0;
-        g_liDbgRawSumSq = 0.0; g_liDbgRawCount = 0;
-        LOGI("[LiveInDbg] rawRmsDb=%.1f pulls/s=%u frames/s=%u lastFrames=%u underruns=%u reprimes=%u "
-             "avail=%u writeDelta=%u outPeak=%.4f gain=%.3f",
-             rawDb, g_liDbgPulls - lastPulls, g_liDbgFrames - lastFrames, g_liDbgFramesArg,
-             g_liDbgUnderruns, g_liDbgReprimes, g_liDbgAvail,
-             (w - lastWrite) & MIC_RING_MASK, g_liDbgOutPeak, g_liDbgGain);
-        lastPulls = g_liDbgPulls; lastFrames = g_liDbgFrames; lastWrite = w;
-        g_liDbgOutPeak = 0.0f;
-    }
-    return NULL;
-}
-#endif
-
 void mic_capture_callback(ma_device* pDevice, void* pOutput, const void* pInput,
                           ma_uint32 frameCount)
 {
@@ -352,20 +332,6 @@ void mic_capture_callback(ma_device* pDevice, void* pOutput, const void* pInput,
 
     ma_uint32 writePos = g_micWriteCursor;  // snapshot
     float peak = 0.0f;
-#ifdef __ANDROID__
-    {   // TEMPORARY DIAGNOSTIC: raw capture energy, before any gain.
-        double acc = 0.0;
-        for (ma_uint32 i = 0; i < frameCount; i++) acc += (double)pIn[i] * pIn[i];
-        g_liDbgRawSumSq += acc;
-        g_liDbgRawCount += frameCount;
-        if (!g_liDbgStarted) {
-            g_liDbgStarted = 1;
-            pthread_t t;
-            pthread_create(&t, NULL, li_dbg_logger, NULL);
-            pthread_detach(t);
-        }
-    }
-#endif
     for (ma_uint32 i = 0; i < frameCount; i++) {
         const float s = pIn[i];
         g_micRing[(writePos + i) & MIC_RING_MASK] = s;
@@ -1465,6 +1431,15 @@ static volatile float    g_liveInputGainLin    = 1.0f;  // linear, 0.0 = mute
 static volatile int      g_liveInputMonitorMute = 1;    // 1 = local monitor muted
 static volatile float    g_liveInputPeak       = 0.0f;  // for UI meter (decays)
 
+/// Silences what Live Input feeds the rack, without touching the meter.
+///
+/// Set by Dart's feedback guard when the capture path is the phone's own
+/// microphone and the output is the phone's own speaker: at any useful gain
+/// the two a few centimetres apart howl within a second. The mic keeps being
+/// read, so the meter still shows the input and nothing has to re-prime when
+/// the guard lifts.
+static volatile int      g_liveInputFeedbackMute = 0;
+
 // Independent read cursor into g_micRing maintained by the live-input
 // reader. Critical on Android, where mic_capture_callback delivers samples
 // in 1536-frame bursts every 32 ms while the Oboe output callback pulls
@@ -1515,23 +1490,10 @@ EXPORT float get_live_input_peak() {
 /// exactly once even when the producer delivers samples in large bursts
 /// (Android: 1536 frames every 32 ms). Falls back to silence on underrun
 /// and re-primes the cursor on massive lag (e.g. capture restarted).
-
 EXPORT void live_input_render_block(float* outL, float* outR, int frames) {
     const float gain = g_liveInputGainLin;
 
     ma_uint32 writePos = __atomic_load_n(&g_micWriteCursor, __ATOMIC_ACQUIRE);
-#ifdef __ANDROID__
-    if (!g_liDbgStarted) {
-        g_liDbgStarted = 1;
-        pthread_t t;
-        pthread_create(&t, NULL, li_dbg_logger, NULL);
-        pthread_detach(t);
-    }
-    g_liDbgPulls++;
-    g_liDbgFramesArg = (uint32_t)frames;
-    g_liDbgWritePos = writePos;
-    g_liDbgGain = gain;
-#endif
 
     // First call after startup (or after a prime-reset below): place the
     // read cursor LIVE_INPUT_PREBUFFER samples behind the writer so there
@@ -1556,20 +1518,11 @@ EXPORT void live_input_render_block(float* outL, float* outR, int frames) {
         g_liveInputReadCursor =
             (writePos - LIVE_INPUT_PREBUFFER) & MIC_RING_MASK;
         available = LIVE_INPUT_PREBUFFER;
-#ifdef __ANDROID__
-        g_liDbgReprimes++;
-#endif
     }
-#ifdef __ANDROID__
-    g_liDbgAvail = available;
-#endif
 
     // Underrun: not enough produced samples for this pull. Emit silence
     // and leave the cursor where it is — the next pull will try again.
     if (available < (ma_uint32)frames) {
-#ifdef __ANDROID__
-        g_liDbgUnderruns++;
-#endif
         for (int i = 0; i < frames; i++) {
             outL[i] = 0.0f;
             outR[i] = 0.0f;
@@ -1588,9 +1541,49 @@ EXPORT void live_input_render_block(float* outL, float* outR, int frames) {
     }
     g_liveInputReadCursor = (readStart + (ma_uint32)frames) & MIC_RING_MASK;
     if (peak > g_liveInputPeak) g_liveInputPeak = peak;
+
+    // Feedback guard: the samples were consumed (so the cursor stays in step
+    // with the writer) but nothing reaches the rack.
+    if (g_liveInputFeedbackMute) {
+        for (int i = 0; i < frames; i++) {
+            outL[i] = 0.0f;
+            outR[i] = 0.0f;
+        }
+    }
+}
+
+/// Mutes (1) or unmutes (0) Live Input's contribution to the rack, see
+/// [g_liveInputFeedbackMute]. The level meter is unaffected.
+EXPORT void live_input_set_feedback_mute(int muted) {
+    g_liveInputFeedbackMute = muted ? 1 : 0;
+}
+
+/// Blocks (1) or allows (0) opening the capture device, see [g_captureBlocked].
+/// Blocking does not stop a running capture; Dart stops it separately.
+EXPORT void audio_input_set_capture_blocked(int blocked) {
+    g_captureBlocked = blocked ? 1 : 0;
+}
+
+/// The Android audio device the running capture stream is actually routed
+/// to, as an AudioDeviceInfo id, or -1 when capture is not running or the
+/// backend is not AAudio.
+///
+/// This is the real route, not the requested one: with "default" selected it
+/// changes when a USB mic is unplugged, which is exactly what the feedback
+/// guard has to notice.
+EXPORT int audio_input_get_capture_device_id(void) {
 #ifdef __ANDROID__
-    g_liDbgFrames += (uint32_t)frames;
-    if (peak > g_liDbgOutPeak) g_liDbgOutPeak = peak;
+    if (!g_micDeviceRunning) return -1;
+    if (ma_device_get_state(&g_micDevice) != ma_device_state_started) return -1;
+    if (g_micDevice.pContext == NULL ||
+        g_micDevice.pContext->backend != ma_backend_aaudio) {
+        return -1;
+    }
+    AAudioStream* stream = (AAudioStream*)g_micDevice.aaudio.pStreamCapture;
+    if (stream == NULL) return -1;
+    return AAudioStream_getDeviceId(stream);
+#else
+    return -1;
 #endif
 }
 
@@ -1710,6 +1703,14 @@ EXPORT int start_audio_capture() {
     g_vocHarmonyReadPrimed = 0;
     if (isInitialized) return 0;
 
+    // The chosen microphone is unplugged: opening now would land on the
+    // phone's own mic (see g_captureBlocked). Nothing is initialised, so a
+    // later start after the block lifts opens normally.
+    if (g_captureBlocked) {
+        LOGI("GrooveForge: capture not started — the selected input is disconnected");
+        return -6;
+    }
+
     // Initialize Vocoder DSP
     envRelease = expf(-1.0f / (SAMPLE_RATE * 0.02f));
     init_vocoder_bands(8.0f);
@@ -1746,6 +1747,13 @@ EXPORT int start_audio_capture() {
     capConfig.periods            = 2;
 
 #ifdef __ANDROID__
+    // With a specific microphone selected, a disconnect must stop capture
+    // rather than reopen it: miniaudio reopens with the same device id, and
+    // AAudio answers a vanished id with the default input — the phone's own
+    // mic. With "default" selected, following the route is the point, and the
+    // Dart feedback guard covers the phone mic + speaker case.
+    capConfig.aaudio.noAutoStartAfterReroute =
+        (g_androidDeviceId >= 0) ? MA_TRUE : MA_FALSE;
     capConfig.aaudio.inputPreset    = ma_aaudio_input_preset_voice_performance;
     capConfig.opensl.recordingPreset = ma_opensl_recording_preset_voice_unprocessed;
 #endif

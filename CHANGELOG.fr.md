@@ -9,6 +9,11 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 
 ### Ajouté
 - Android : **Sortie USB directe** optionnelle (Préférences › Sortie audio) pour jouer via un DAC USB qu'Android abandonne quand un micro USB est aussi branché. Désactivée par défaut.
+- Android : Live Input se coupe quand le micro du téléphone ferait un larsen dans son haut-parleur, avec un bouton « Réactiver quand même ».
+- Android : débrancher le micro choisi arrête l'entrée au lieu de basculer sur le micro du téléphone ; le rebrancher le resélectionne.
+
+### Corrigé
+- Le choix de périphérique de Live Input n'avait aucun effet ; le module affiche l'entrée choisie dans les Préférences et suit les branchements.
 
 ### Architecture
 - Android : le bus de sortie peut être cadencé par un streamer USB natif (`usb_direct_output_android.cpp`) au lieu d'AAudio ; lecture des descripteurs UAC1 et empaquetage PCM dans `native_audio/gf_uac.c`, couverts par `gf_uac_smoke_test`.

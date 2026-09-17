@@ -25,6 +25,9 @@ const int kBusSlotVocoder = 102;
 /// AAudio bus slot ID for the Live Input source. Web stub — unused at runtime.
 const int kBusSlotLiveInput = 103;
 
+/// Mirrors the native constant; never returned on web.
+const int kRoutedDeviceUsbDirect = -2;
+
 /// Web stub that mirrors the [GfpaAndroidBindings] public API.
 ///
 /// All methods are no-ops — the Android AAudio bus and GFPA DSP chain are not
@@ -74,4 +77,7 @@ class GfpaAndroidBindings {
 
   /// No-op on web: there is no AAudio bus to monitor on.
   void oboeStreamSetMonitorSource(int monitorFnAddr) {}
+
+  /// No output routing on web — always 0 (no stream).
+  int oboeStreamGetRoutedDeviceId() => 0;
 }

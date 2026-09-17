@@ -47,8 +47,6 @@
 #include <fluidsynth.h>
 
 #include <atomic>
-#include <cmath>
-#include <cstdio>
 #include <cstring>
 #include <mutex>
 #include <thread>
@@ -233,21 +231,11 @@ static AAudioStream* g_stream = nullptr;
 /// Whether another clock — the direct USB output — is driving the bus
 /// instead of AAudio.
 ///
-/// While set, the AAudio stream keeps running but its callback writes silence
-/// and never touches the bus, so the bus is only ever rendered from one thread.
-///
-/// Why keep a silent stream instead of closing it: closing it makes the app
-/// look like it stopped playing. On a Galaxy Z Fold 6 the audio HAL is then
-/// told `l_stream_music_active=false`, and about 25 seconds later the level
-/// of the USB microphone the app is still recording from drops by 30–40 dB —
-/// measured twice, and restored within seconds of the stream running again.
-/// A playing app keeps the capture path the user tuned their gain on.
+/// While set, the AAudio stream is kept closed: oboe_stream_start() and the
+/// watchdog leave it alone, so the bus is only ever rendered from one thread.
+/// g_streamWanted keeps tracking what the app asked for, so that when the
+/// external clock goes away AAudio comes back exactly as it would have been.
 static std::atomic<bool> g_externalClock{false};
-
-/// Incremented at the end of every AAudio callback, silent or not. Lets
-/// oboe_stream_begin_external_clock() wait until no callback can still be
-/// rendering the bus.
-static std::atomic<uint64_t> g_aaudioCallbackSeq{0};
 
 // ── Output device routing ────────────────────────────────────────────────────
 //
@@ -369,36 +357,8 @@ static void tuneBufferSize()
 ///
 /// [output]    — interleaved stereo float32, numFrames * 2 samples.
 /// [numFrames] — frames to fill; anything past kMaxFrames is silenced.
-// TEMPORARY DIAGNOSTIC (direct USB output investigation): per-source post-chain
-// peak and final mix peak, logged once a second by a helper thread.
-static volatile float g_dbgSrcPeak[kMaxSources];
-static volatile int   g_dbgSrcSlot[kMaxSources];
-static volatile int   g_dbgSrcCount;
-static volatile float g_dbgMixPeak;
-static std::atomic<bool> g_dbgLoggerStarted{false};
-static void dbgStartLogger()
-{
-    if (g_dbgLoggerStarted.exchange(true)) return;
-    std::thread([]() {
-        for (;;) {
-            std::this_thread::sleep_for(std::chrono::seconds(1));
-            char line[512];
-            int n = snprintf(line, sizeof(line), "[BusDbg] ext=%d mixPeak=%.4f",
-                             g_externalClock.load() ? 1 : 0, g_dbgMixPeak);
-            for (int i = 0; i < g_dbgSrcCount && n < (int)sizeof(line) - 32; ++i) {
-                n += snprintf(line + n, sizeof(line) - n, " slot%d=%.4f",
-                              g_dbgSrcSlot[i], g_dbgSrcPeak[i]);
-                g_dbgSrcPeak[i] = 0.0f;
-            }
-            g_dbgMixPeak = 0.0f;
-            LOGI("%s", line);
-        }
-    }).detach();
-}
-
 static void renderMixInterleaved(float* output, int32_t numFrames)
 {
-    dbgStartLogger();
     // Guard against unexpectedly large blocks — process up to kMaxFrames and
     // silence the remainder.  In practice Oboe bursts are well below 4096.
     const int frames = (numFrames <= kMaxFrames) ? numFrames : kMaxFrames;
@@ -454,17 +414,7 @@ static void renderMixInterleaved(float* output, int32_t numFrames)
             g_mixL[i] += g_srcL[s][i];
             g_mixR[i] += g_srcR[s][i];
         }
-        {   // TEMPORARY DIAGNOSTIC
-            float pk = g_dbgSrcPeak[s];
-            for (int i = 0; i < frames; ++i) {
-                const float a = std::fabs(g_srcL[s][i]);
-                if (a > pk) pk = a;
-            }
-            g_dbgSrcPeak[s] = pk;
-            g_dbgSrcSlot[s] = snapshot[s].busSlotId;
-        }
     }
-    g_dbgSrcCount = sourceCount;
 
     // ── 3b. Audio Looper — cabled-input routing ──────────────────────────
     //
@@ -556,14 +506,6 @@ static void renderMixInterleaved(float* output, int32_t numFrames)
     //
     // The keep-alive offset is added here, on the way out, so that the stream
     // is never digitally silent -- see kKeepAliveAmplitude for why.
-    {   // TEMPORARY DIAGNOSTIC
-        float pk = g_dbgMixPeak;
-        for (int i = 0; i < frames; ++i) {
-            const float a = std::fabs(g_mixL[i]);
-            if (a > pk) pk = a;
-        }
-        g_dbgMixPeak = pk;
-    }
     for (int i = 0; i < frames; ++i) {
         g_keepAliveSign = -g_keepAliveSign;
         const float keepAlive =
@@ -592,18 +534,7 @@ static aaudio_data_callback_result_t audioCallback(
     AAudioStream* /*stream*/, void* /*userData*/,
     void* audioData, int32_t numFrames)
 {
-    // While the direct USB output is the clock, this stream only plays
-    // silence: the bus belongs to the USB thread. See g_externalClock for why
-    // the stream is kept running at all.
-    if (g_externalClock.load(std::memory_order_relaxed)) {
-        std::memset(audioData, 0,
-                    sizeof(float) * static_cast<size_t>(numFrames) * 2);
-        g_aaudioCallbackSeq.fetch_add(1, std::memory_order_release);
-        return AAUDIO_CALLBACK_RESULT_CONTINUE;
-    }
-
     renderMixInterleaved(static_cast<float*>(audioData), numFrames);
-    g_aaudioCallbackSeq.fetch_add(1, std::memory_order_release);
 
     // Adapt the buffer size to what this device can actually keep up with.
     // Throttled internally; see tuneBufferSize.
@@ -1087,6 +1018,8 @@ static void startStreamWatchdog()
                     std::chrono::milliseconds(kWatchdogIntervalMs));
             if (!g_streamWanted.load(std::memory_order_relaxed)) break;
             if (g_stream != nullptr) continue;      // healthy, nothing to do
+            // Down on purpose: the direct USB output is the clock right now.
+            if (g_externalClock.load(std::memory_order_relaxed)) continue;
 
             LOGW("Stream watchdog: output is down — trying to reopen");
             oboe_stream_start(g_wantedSampleRate.load(std::memory_order_relaxed));
@@ -1103,6 +1036,11 @@ extern "C" void oboe_stream_start(int sampleRate)
 
     std::lock_guard<std::mutex> lock(g_streamMtx);
     if (g_stream != nullptr) return; // Stream already running.
+
+    // The direct USB output is rendering the bus. Opening AAudio now would put
+    // a second thread on the same single-threaded buffers; the stream comes
+    // back through oboe_stream_end_external_clock() instead.
+    if (g_externalClock.load(std::memory_order_relaxed)) return;
 
     // Try the MMAP fast path, then fall back to a shared stream.
     //
@@ -1356,21 +1294,16 @@ extern "C" void oboe_stream_begin_external_clock(int32_t sampleRate)
     std::lock_guard<std::mutex> lock(g_streamMtx);
     g_externalClock.store(true, std::memory_order_relaxed);
 
-    // The AAudio stream stays open (see g_externalClock) and switches to
-    // silence on its next callback. A callback that read the flag just before
-    // it was set may still be rendering the bus, so wait for two callbacks to
-    // complete: the second one necessarily started after the flag was set.
-    // Bounded, because a stream that is stopped or stalled never completes a
-    // callback — and then cannot be rendering either.
+    // Close rather than stop: oboe_stream_stop() would also record that the
+    // app no longer wants audio, and the watchdog would then never bring
+    // AAudio back after the USB output ends. AAudioStream_close() returns only
+    // once the callback thread has finished, so the USB thread that starts
+    // after this call is the bus's only renderer.
     if (g_stream != nullptr) {
-        const uint64_t start = g_aaudioCallbackSeq.load(std::memory_order_acquire);
-        const auto deadline =
-                std::chrono::steady_clock::now() + std::chrono::milliseconds(300);
-        while (g_aaudioCallbackSeq.load(std::memory_order_acquire) < start + 2 &&
-               std::chrono::steady_clock::now() < deadline) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
-        }
-        LOGI("AAudio stream now plays silence — the direct USB output is the clock");
+        AAudioStream_requestStop(g_stream);
+        AAudioStream_close(g_stream);
+        g_stream = nullptr;
+        LOGI("AAudio stream closed — the direct USB output is the clock now");
     }
 
     // The sources were built at the AAudio rate and the USB output is only
@@ -1385,15 +1318,24 @@ extern "C" void oboe_stream_end_external_clock(void)
     if (!g_externalClock.exchange(false, std::memory_order_relaxed)) return;
     LOGI("Direct USB output ended — handing the bus back to AAudio");
 
-    // Normally the silent stream simply resumes rendering on its next
-    // callback. If it went down meanwhile (a route change), the watchdog would
-    // bring it back within seconds; starting it here does it at once. On a
-    // detached thread: opening AAudio can block while the platform settles a
-    // route, and the caller is the USB thread or the Dart-facing stop.
+    // Reopen on a detached thread: opening AAudio can block for seconds while
+    // the platform settles a route, and the caller is either the USB thread on
+    // its way out or the Dart-facing stop, neither of which should wait.
     if (!g_streamWanted.load(std::memory_order_relaxed)) return;
-    if (g_stream != nullptr) return;
     const int rate = g_wantedSampleRate.load(std::memory_order_relaxed);
     std::thread([rate]() { oboe_stream_start(rate); }).detach();
+}
+
+extern "C" int32_t oboe_stream_get_routed_device_id(void)
+{
+    if (g_externalClock.load(std::memory_order_relaxed)) {
+        return OBOE_ROUTED_DEVICE_USB_DIRECT;
+    }
+    // Under the stream mutex: the stream may be closed and reopened by a
+    // route change on another thread while this is being read.
+    std::lock_guard<std::mutex> lock(g_streamMtx);
+    if (g_stream == nullptr) return 0;
+    return AAudioStream_getDeviceId(g_stream);
 }
 
 extern "C" void oboe_stream_render_external(float* interleaved, int32_t frames)

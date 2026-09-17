@@ -6,6 +6,7 @@ import '../models/gfpa_plugin_instance.dart';
 import '../plugins/gf_stylophone_plugin.dart';
 import 'audio_input_ffi.dart';
 import 'gfpa_android_bindings.dart';
+import 'live_input_feedback_guard.dart';
 
 /// Wraps the rack-lifetime (as opposed to widget-lifetime) native-synth
 /// management for monophonic, global-state instruments (stylophone and
@@ -292,5 +293,8 @@ class NativeInstrumentController {
           .oboeStreamRemoveSource(kBusSlotLiveInput);
     }
     _liveInputBusActive = shouldBeActive;
+    // Live Input only reaches a speaker while it is on the bus, so that is
+    // exactly when the phone-mic-into-phone-speaker check has to run.
+    LiveInputFeedbackGuard.instance.setActive(shouldBeActive);
   }
 }

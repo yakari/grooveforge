@@ -32,9 +32,9 @@ class LiveInputSourcePluginInstance extends PluginInstance
   @override
   int midiChannel = 0;
 
-  /// Miniaudio / Oboe capture device identifier, as returned by
-  /// [AudioInputFFI.getCaptureDeviceName]. Empty string means
-  /// "system default" — the engine picks whichever device is current.
+  /// Capture device once picked per slot. No longer used: the input device is
+  /// the one chosen in Preferences, shared by every capture consumer. Kept so
+  /// projects saved with it load and save unchanged.
   String deviceId;
 
   /// Which channel pair (or mono channel) of the device to tap.

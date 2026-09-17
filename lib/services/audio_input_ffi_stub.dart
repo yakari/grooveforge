@@ -110,6 +110,15 @@ class AudioInputFFI {
   /// Not supported on web — returns 0.0.
   double getLiveInputPeak() => 0.0;
 
+  /// Not supported on web — no-op.
+  void liveInputSetFeedbackMute({required bool muted}) {}
+
+  /// Not supported on web — no-op.
+  void setCaptureBlocked({required bool blocked}) {}
+
+  /// Not supported on web — returns -1 (no capture route).
+  int getCaptureDeviceId() => -1;
+
   /// Not supported on web — returns 0.
   int liveInputBusRenderFnAddr() => 0;
 

@@ -29,9 +29,9 @@
 // Threading
 // ─────────
 // One thread renders, submits and reaps. It is the only renderer of the bus
-// while it runs: oboe_stream_begin_external_clock() switches the AAudio stream
-// to silence (and waits until it no longer renders) before the first block,
-// and oboe_stream_end_external_clock() is called only after the last one.
+// while it runs: oboe_stream_begin_external_clock() closes AAudio before the
+// first block is rendered, and oboe_stream_end_external_clock() is called only
+// after the last one.
 // Control calls (start/stop from JNI) are serialised by g_controlMtx.
 
 #include "usb_direct_output_android.h"
@@ -362,7 +362,7 @@ extern "C" int usb_direct_output_start(int fd, const uint8_t* raw, int rawLen,
         return USB_DIRECT_ALLOC_FAILED;
     }
 
-    // From here the bus is ours: AAudio plays silence before the first render.
+    // From here the bus is ours: AAudio is closed before the first render.
     oboe_stream_begin_external_clock(sampleRate);
 
     const int err = primeTransfers(s);

@@ -950,7 +950,26 @@ class AppLocalizationsEn extends AppLocalizations {
   String get liveInputNoDevice => 'No input device detected';
 
   @override
-  String get liveInputRefreshDevices => 'Refresh device list';
+  String get liveInputDeviceHint =>
+      'Change the input in Preferences › Audio Input';
+
+  @override
+  String get liveInputDisconnected =>
+      'Microphone unplugged: input stopped. Plug it back in or choose another input in Preferences.';
+
+  @override
+  String get liveInputFeedbackMuted =>
+      'Muted: the phone\'s mic would feed back through its speaker.';
+
+  @override
+  String get liveInputFeedbackUnmute => 'Unmute anyway';
+
+  @override
+  String get audioDeviceDisconnected => 'Disconnected';
+
+  @override
+  String get micDisconnectedToast =>
+      'Microphone unplugged: input stopped instead of switching to the phone mic';
 
   @override
   String get liveInputGainLabel => 'Gain';

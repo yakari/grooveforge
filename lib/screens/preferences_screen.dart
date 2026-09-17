@@ -412,7 +412,7 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                                     title: loc.micSelectionDevice,
                                     subtitle:
                                         valueMissing
-                                            ? "Disconnected (ID: ${(!kIsWeb && Platform.isAndroid) ? androidId : deviceIndex})"
+                                            ? loc.audioDeviceDisconnected
                                             : currentName,
                                     trailing: DropdownButton<int>(
                                       value:
@@ -431,7 +431,7 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                                                     ? androidId
                                                     : deviceIndex,
                                             child: Text(
-                                              "Disconnected (ID: ${(!kIsWeb && Platform.isAndroid) ? androidId : deviceIndex})",
+                                              loc.audioDeviceDisconnected,
                                             ),
                                           ),
                                         ...List.generate(devices.length, (i) {
@@ -581,7 +581,7 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                                 title: loc.audioOutputDevice,
                                 subtitle:
                                     valueMissing
-                                        ? "Disconnected (ID: $androidId)"
+                                        ? loc.audioDeviceDisconnected
                                         : currentName,
                                 trailing: DropdownButton<int>(
                                   value: androidId,
@@ -593,7 +593,7 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                                     if (valueMissing)
                                       DropdownMenuItem(
                                         value: androidId,
-                                        child: Text("Disconnected (ID: $androidId)"),
+                                        child: Text(loc.audioDeviceDisconnected),
                                       ),
                                     ...devices.map((device) {
                                       return DropdownMenuItem(

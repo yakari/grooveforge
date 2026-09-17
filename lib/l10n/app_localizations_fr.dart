@@ -956,7 +956,25 @@ class AppLocalizationsFr extends AppLocalizations {
   String get liveInputNoDevice => 'Aucun périphérique d\'entrée détecté';
 
   @override
-  String get liveInputRefreshDevices => 'Rafraîchir la liste des périphériques';
+  String get liveInputDeviceHint => 'Se change dans Préférences › Entrée Audio';
+
+  @override
+  String get liveInputDisconnected =>
+      'Micro débranché : entrée arrêtée. Rebranchez-le ou choisissez une autre entrée dans les Préférences.';
+
+  @override
+  String get liveInputFeedbackMuted =>
+      'Coupé : le micro du téléphone ferait un larsen dans son haut-parleur.';
+
+  @override
+  String get liveInputFeedbackUnmute => 'Réactiver quand même';
+
+  @override
+  String get audioDeviceDisconnected => 'Déconnecté';
+
+  @override
+  String get micDisconnectedToast =>
+      'Micro débranché : entrée arrêtée au lieu de basculer sur le micro du téléphone';
 
   @override
   String get liveInputGainLabel => 'Gain';

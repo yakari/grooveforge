@@ -16,6 +16,7 @@ import 'package:grooveforge/constants/soundfont_sentinels.dart';
 import 'package:grooveforge/models/chord_detector.dart';
 import 'package:grooveforge/models/usb_direct_output_status.dart';
 import 'package:grooveforge/services/audio_input_ffi.dart';
+import 'package:grooveforge/services/live_input_feedback_guard.dart';
 import 'package:grooveforge/plugins/gf_stylophone_plugin.dart';
 import 'package:grooveforge_plugin_api/grooveforge_plugin_api.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -242,6 +243,22 @@ class AudioEngine extends ChangeNotifier {
   int androidSdkVersion = 0;
 
   final ValueNotifier<String?> toastNotifier = ValueNotifier(null);
+
+  /// Incremented every time Android reports audio devices plugged or
+  /// unplugged. Anything showing a device list listens to it to refresh.
+  final ValueNotifier<int> audioDevicesRevision = ValueNotifier<int>(0);
+
+  /// True while the microphone chosen in Preferences is unplugged (Android).
+  ///
+  /// Capture is then stopped and blocked instead of falling back to the phone's
+  /// own mic, which would put a live mic next to the phone speaker. The choice
+  /// is kept: when the same device comes back it is reselected automatically.
+  final ValueNotifier<bool> inputDeviceDisconnected = ValueNotifier<bool>(false);
+
+  /// Identity of the chosen input that survives reconnection: Android gives a
+  /// replugged device a new id, but its type and product name stay the same.
+  /// Persisted, so the choice also survives a restart. Null for "default".
+  String? _inputDeviceKey;
   final ValueNotifier<int> stateNotifier = ValueNotifier(0);
 
   final ValueNotifier<bool> dragToPlay = ValueNotifier<bool>(true);
@@ -492,26 +509,25 @@ class AudioEngine extends ChangeNotifier {
         debugPrint(
           'GrooveForge: Audio devices changed — checking for stale selections.',
         );
+        // Android may hand a replugged device a new id: stale types would
+        // make the feedback guard misjudge the route.
+        LiveInputFeedbackGuard.instance.invalidateDeviceTypes();
         await _resetDisconnectedDevices();
+        audioDevicesRevision.value++;
         notifyListeners();
       }
     });
   }
 
-  /// If the currently selected input or output device ID is no longer in the
-  /// enumerated device list, reset it to -1 (system default).
+  /// Reconciles the saved input and output choices with the devices present.
+  ///
+  /// Input: a chosen mic that disappeared stops and blocks capture (see
+  /// [inputDeviceDisconnected]) rather than falling back to the default, and
+  /// is reselected when a device with the same identity reappears.
+  /// Output: a vanished device is reset to the system default, as before.
   Future<void> _resetDisconnectedDevices() async {
     try {
-      final inputs = await getAndroidInputDevices();
-      final inputIds = inputs.map((d) => d['id'] as int).toSet();
-      final currentIn = vocoderInputAndroidDeviceId.value;
-      if (currentIn != -1 && !inputIds.contains(currentIn)) {
-        debugPrint(
-          'GrooveForge: Input device $currentIn gone — resetting to default.',
-        );
-        vocoderInputAndroidDeviceId.value = -1;
-        toastNotifier.value = 'Audio input device disconnected — using default';
-      }
+      await _reconcileInputDevice(await getAndroidInputDevices());
 
       final outputs = await getAndroidOutputDevices();
       final outputIds = outputs.map((d) => d['id'] as int).toSet();
@@ -528,6 +544,75 @@ class AudioEngine extends ChangeNotifier {
       debugPrint('GrooveForge: _resetDisconnectedDevices error: $e');
     }
   }
+
+  /// Handles the chosen input appearing or disappearing, see
+  /// [_resetDisconnectedDevices].
+  Future<void> _reconcileInputDevice(List<Map<String, dynamic>> inputs) async {
+    final currentIn = vocoderInputAndroidDeviceId.value;
+    if (currentIn == -1) return; // "default" follows Android; nothing to keep
+
+    if (inputs.any((d) => d['id'] == currentIn)) {
+      // Still there (or back under the same id). Choices saved before the
+      // identity existed get one now, so they survive their first replug.
+      if (_inputDeviceKey == null) _rememberInputDeviceKey();
+      if (inputDeviceDisconnected.value) {
+        _clearInputDisconnected();
+        restartCapture();
+      }
+      return;
+    }
+
+    // Gone under this id. The same mic plugged back in comes with a new id:
+    // find it by identity and switch to it, which restarts capture.
+    final key = _inputDeviceKey;
+    final match = key == null
+        ? null
+        : inputs.cast<Map<String, dynamic>?>().firstWhere(
+            (d) => _deviceKeyOf(d!) == key,
+            orElse: () => null,
+          );
+    if (match != null) {
+      debugPrint('GrooveForge: Input "$key" is back — reselecting it.');
+      vocoderInputAndroidDeviceId.value = match['id'] as int;
+      return;
+    }
+
+    if (inputDeviceDisconnected.value) return;
+    debugPrint(
+      'GrooveForge: Input device $currentIn gone — stopping capture instead '
+      'of falling back to the phone microphone.',
+    );
+    inputDeviceDisconnected.value = true;
+    AudioInputFFI().setCaptureBlocked(blocked: true);
+    AudioInputFFI().stopCapture();
+  }
+
+  /// Lifts the disconnected state and the native capture block.
+  void _clearInputDisconnected() {
+    AudioInputFFI().setCaptureBlocked(blocked: false);
+    inputDeviceDisconnected.value = false;
+  }
+
+  /// Records the identity of the newly chosen input for reconnection.
+  Future<void> _rememberInputDeviceKey() async {
+    final id = vocoderInputAndroidDeviceId.value;
+    if (id == -1) {
+      _inputDeviceKey = null;
+      _saveState();
+      return;
+    }
+    final inputs = await getAndroidInputDevices();
+    for (final device in inputs) {
+      if (device['id'] != id) continue;
+      _inputDeviceKey = _deviceKeyOf(device);
+      _saveState();
+      return;
+    }
+  }
+
+  /// A device identity stable across replugs: its type and display name.
+  static String _deviceKeyOf(Map<String, dynamic> device) =>
+      '${device['type']}|${device['name']}';
 
   Future<List<String>> getAvailableMicrophones() async {
     if (!kIsWeb && Platform.isAndroid) {
@@ -743,12 +828,6 @@ class AudioEngine extends ChangeNotifier {
     _isInitialized = true;
     initStatus.value = 'Ready';
 
-    if (!kIsWeb && Platform.isAndroid) {
-      _setupAudioDeviceChangeListener();
-      // Check right now if any saved device is already stale
-      _resetDisconnectedDevices();
-    }
-
     pianoKeysToShow.addListener(_saveState);
     gfpaJamEntries.addListener(_propagateJamScaleUpdate);
     xenScaleLocks.addListener(_propagateXenScaleUpdate);
@@ -782,11 +861,15 @@ class AudioEngine extends ChangeNotifier {
     vocoderInputDeviceIndex.addListener(updateVocoderParameters);
     vocoderInputDeviceIndex.addListener(restartCapture);
 
-    vocoderInputAndroidDeviceId.addListener(_saveState);
     vocoderInputAndroidDeviceId.addListener(() {
+      // Unblock before restarting: a new choice, or the same mic plugged back
+      // in, must be allowed to open.
+      _clearInputDisconnected();
       updateVocoderParameters();
       restartCapture();
+      _rememberInputDeviceKey();
     });
+    vocoderInputAndroidDeviceId.addListener(_saveState);
     vocoderOutputAndroidDeviceId.addListener(_saveState);
     vocoderOutputAndroidDeviceId.addListener(() {
       updateVocoderParameters();
@@ -798,6 +881,13 @@ class AudioEngine extends ChangeNotifier {
     });
     usbDirectOutputEnabled.addListener(_saveState);
     usbDirectOutputEnabled.addListener(_applyUsbDirectOutput);
+
+    // After the listeners above, so a stale saved device that is reselected
+    // by name at startup goes through the same path as a user choice.
+    if (!kIsWeb && Platform.isAndroid) {
+      _setupAudioDeviceChangeListener();
+      await _resetDisconnectedDevices();
+    }
   }
 
   Future<void> _ensureDefaultSoundfont() async {
@@ -958,6 +1048,12 @@ class AudioEngine extends ChangeNotifier {
       'vocoder_input_android_device_id',
       vocoderInputAndroidDeviceId.value,
     );
+    final inputKey = _inputDeviceKey;
+    if (inputKey == null) {
+      await _prefs!.remove('vocoder_input_android_device_key');
+    } else {
+      await _prefs!.setString('vocoder_input_android_device_key', inputKey);
+    }
     await _prefs!.setInt(
       'vocoder_output_android_device_id',
       vocoderOutputAndroidDeviceId.value,
@@ -993,6 +1089,7 @@ class AudioEngine extends ChangeNotifier {
         _prefs!.getInt('vocoder_input_device_index') ?? -1;
     vocoderInputAndroidDeviceId.value =
         _prefs!.getInt('vocoder_input_android_device_id') ?? -1;
+    _inputDeviceKey = _prefs!.getString('vocoder_input_android_device_key');
     vocoderOutputAndroidDeviceId.value =
         _prefs!.getInt('vocoder_output_android_device_id') ?? -1;
     // Apply logic to C engine immediately.

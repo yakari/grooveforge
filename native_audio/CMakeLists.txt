@@ -36,7 +36,9 @@ endif()
 
 if (ANDROID)
     find_library(log-lib log)
-    target_link_libraries(audio_input PRIVATE m ${log-lib})
+    # aaudio: the feedback guard asks the capture stream which device it is
+    # really routed to (AAudioStream_getDeviceId, API 26 = minSdk).
+    target_link_libraries(audio_input PRIVATE m ${log-lib} aaudio)
 elseif (APPLE)
     find_library(COREAUDIO_LIB CoreAudio)
     find_library(COREFOUNDATION_LIB CoreFoundation)

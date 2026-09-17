@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Android: optional **Direct USB output** (Preferences › Audio output) plays through a USB DAC that Android drops when a USB microphone is plugged in too. Off by default.
+- Android: Live Input mutes itself when the phone's own mic would feed back through the phone speaker, with an "Unmute anyway" button.
+- Android: unplugging the chosen mic stops the input instead of switching to the phone mic; plugging it back reselects it.
+
+### Fixed
+- Live Input's device picker did nothing; the slot now shows the input chosen in Preferences and follows plugged devices.
 
 ### Architecture
 - Android: the output bus can be clocked by a native USB streamer (`usb_direct_output_android.cpp`) instead of AAudio; UAC1 descriptor parsing and PCM packing in `native_audio/gf_uac.c`, covered by `gf_uac_smoke_test`.

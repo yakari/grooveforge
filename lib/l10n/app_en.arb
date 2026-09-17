@@ -480,9 +480,29 @@
   "@liveInputNoDevice": {
     "description": "Shown in the Live Input slot when no capture device is available."
   },
-  "liveInputRefreshDevices": "Refresh device list",
-  "@liveInputRefreshDevices": {
-    "description": "Tooltip on the refresh button in the Live Input slot device picker."
+  "liveInputDeviceHint": "Change the input in Preferences › Audio Input",
+  "@liveInputDeviceHint": {
+    "description": "Under the input device name in the Live Input slot: the device is chosen in Preferences, not in the slot."
+  },
+  "liveInputDisconnected": "Microphone unplugged: input stopped. Plug it back in or choose another input in Preferences.",
+  "@liveInputDisconnected": {
+    "description": "Live Input slot notice when the input chosen in Preferences is unplugged; capture stops instead of switching to the phone's microphone."
+  },
+  "liveInputFeedbackMuted": "Muted: the phone's mic would feed back through its speaker.",
+  "@liveInputFeedbackMuted": {
+    "description": "Live Input slot notice when the input fell back to the phone microphone while the output is the phone speaker."
+  },
+  "liveInputFeedbackUnmute": "Unmute anyway",
+  "@liveInputFeedbackUnmute": {
+    "description": "Button that lets Live Input play despite the feedback risk."
+  },
+  "audioDeviceDisconnected": "Disconnected",
+  "@audioDeviceDisconnected": {
+    "description": "Preferences: the chosen audio device is not plugged in."
+  },
+  "micDisconnectedToast": "Microphone unplugged: input stopped instead of switching to the phone mic",
+  "@micDisconnectedToast": {
+    "description": "Snackbar when the chosen input device disappears."
   },
   "liveInputGainLabel": "Gain",
   "@liveInputGainLabel": {

@@ -380,6 +380,7 @@ class _RackScreenState extends State<RackScreen> {
       }
     };
         _engine.toastNotifier.addListener(_toastListener!);
+    _engine.inputDeviceDisconnected.addListener(_onInputDeviceDisconnected);
 
     _newDeviceSubscription = midiService.onNewDeviceDetected.listen((device) {
       if (mounted) _showNewDeviceModal(device);
@@ -400,6 +401,15 @@ class _RackScreenState extends State<RackScreen> {
     debugPrint('RackScreen: initState END');
   }
 
+  /// Tells the player their microphone went away, in their language. The
+  /// engine has no localisation context, so the message is built here.
+  void _onInputDeviceDisconnected() {
+    if (!_engine.inputDeviceDisconnected.value || !mounted) return;
+    final l10n = AppLocalizations.of(context);
+    if (l10n == null) return;
+    _engine.toastNotifier.value = l10n.micDisconnectedToast;
+  }
+
   @override
   void dispose() {
     _rackState.removeListener(_rebuildRoutingCache);
@@ -408,6 +418,7 @@ class _RackScreenState extends State<RackScreen> {
     if (_toastListener != null) {
       _engine.toastNotifier.removeListener(_toastListener!);
     }
+    _engine.inputDeviceDisconnected.removeListener(_onInputDeviceDisconnected);
     _transportEngine.removeListener(_onTransportChanged);
     _looperEngine.onMidiPlayback = null;
     _engine.onLooperSystemAction = null;

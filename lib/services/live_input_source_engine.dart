@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import '../models/live_input_source_plugin_instance.dart';
 import 'audio_engine.dart';
 import 'audio_input_ffi.dart';
+import 'live_input_feedback_guard.dart';
 
 /// Lightweight description of a hardware audio input device as reported
 /// by the native layer (miniaudio on desktop, Oboe/AAudio on Android).
@@ -49,7 +50,15 @@ class LiveInputDevice {
 /// this into a per-slot gain once the native side grows a per-source
 /// render block.
 class LiveInputSourceEngine extends ChangeNotifier {
-  LiveInputSourceEngine(this._audioEngine);
+  LiveInputSourceEngine(this._audioEngine) {
+    // The device shown in the slot is the one chosen in Preferences, so the
+    // slot follows every change to that choice and to the device list.
+    _audioEngine.audioDevicesRevision.addListener(refreshDevices);
+    _audioEngine.vocoderInputAndroidDeviceId.addListener(notifyListeners);
+    _audioEngine.vocoderInputDeviceIndex.addListener(notifyListeners);
+    _audioEngine.inputDeviceDisconnected.addListener(notifyListeners);
+    LiveInputFeedbackGuard.instance.addListener(notifyListeners);
+  }
 
   /// Used to query the Android-side `AudioManager` for input devices
   /// (the miniaudio path on Android only reports the default device).
@@ -111,6 +120,39 @@ class LiveInputSourceEngine extends ChangeNotifier {
     }
   }
 
+  // ── Current input (read-only) ──────────────────────────────────────────
+
+  /// The capture device chosen in Preferences, as an index into [devices]
+  /// (an Android device id, or a desktop device index); -1 for the default.
+  ///
+  /// Live Input has no device picker of its own: every capture consumer
+  /// shares one capture stream, so a per-slot choice could never be honoured.
+  int get selectedInputId => (!kIsWeb && Platform.isAndroid)
+      ? _audioEngine.vocoderInputAndroidDeviceId.value
+      : _audioEngine.vocoderInputDeviceIndex.value;
+
+  /// Display name of [selectedInputId], or null for the system default or a
+  /// device that is not in the current list.
+  String? get selectedInputName {
+    final id = selectedInputId;
+    if (id < 0) return null;
+    for (final device in _devices) {
+      if (device.index == id) return device.name;
+    }
+    return null;
+  }
+
+  /// Whether the chosen microphone is unplugged and capture is stopped.
+  bool get inputDisconnected => _audioEngine.inputDeviceDisconnected.value;
+
+  /// What the feedback guard is doing to Live Input (Android).
+  FeedbackGuardState get feedbackGuardState =>
+      LiveInputFeedbackGuard.instance.state;
+
+  /// Lets Live Input through despite the phone mic + phone speaker risk.
+  void unmuteDespiteFeedbackRisk() =>
+      LiveInputFeedbackGuard.instance.unmuteAnyway();
+
   // ── Slot lifecycle ─────────────────────────────────────────────────────
 
   /// Called by the slot UI when it mounts. Pushes the current gain and
@@ -147,12 +189,6 @@ class LiveInputSourceEngine extends ChangeNotifier {
   }
 
   // ── Setters (write-through to native) ──────────────────────────────────
-
-  void selectDevice(LiveInputSourcePluginInstance plugin, String deviceId) {
-    if (plugin.deviceId == deviceId) return;
-    plugin.deviceId = deviceId;
-    notifyListeners();
-  }
 
   void setChannelPair(LiveInputSourcePluginInstance plugin, String pair) {
     if (plugin.channelPair == pair) return;
@@ -204,6 +240,11 @@ class LiveInputSourceEngine extends ChangeNotifier {
   @override
   void dispose() {
     _stopMeterTimer();
+    _audioEngine.audioDevicesRevision.removeListener(refreshDevices);
+    _audioEngine.vocoderInputAndroidDeviceId.removeListener(notifyListeners);
+    _audioEngine.vocoderInputDeviceIndex.removeListener(notifyListeners);
+    _audioEngine.inputDeviceDisconnected.removeListener(notifyListeners);
+    LiveInputFeedbackGuard.instance.removeListener(notifyListeners);
     super.dispose();
   }
 }
