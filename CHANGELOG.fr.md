@@ -8,7 +8,7 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 ## [X.x.x]
 
 ### Ajouté
-- Android : **Sortie USB directe** optionnelle (Préférences › Sortie audio) pour jouer via un DAC USB qu'Android abandonne quand un micro USB est aussi branché. Désactivée par défaut.
+- Android : **Sortie USB directe** optionnelle (Préférences › Sortie audio) pour jouer via un DAC USB qu'Android abandonne quand un micro USB est aussi branché. Désactivée par défaut, avec une explication intégrée.
 - Android : Live Input se coupe quand le micro du téléphone ferait un larsen dans son haut-parleur, avec un bouton « Réactiver quand même ».
 - Android : débrancher le micro choisi arrête l'entrée au lieu de basculer sur le micro du téléphone ; le rebrancher le resélectionne.
 

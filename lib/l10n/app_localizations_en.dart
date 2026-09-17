@@ -636,42 +636,111 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get usbDirectOutputSubtitle =>
-      'Plays through a USB DAC that Android drops when a USB microphone is plugged in too. Leave off otherwise.';
+      'For a USB mic and a USB sound card (DAC) used together: Android only keeps one of them. Tap ? to learn more.';
 
   @override
   String get usbDirectOutputUnknownDevice => 'USB DAC';
 
   @override
-  String get usbDirectOutputStatusNoDevice => 'Waiting: no USB DAC found';
+  String get usbDirectOutputStatusNoDevice =>
+      'Waiting: no compatible USB DAC is plugged in.';
 
   @override
   String get usbDirectOutputStatusAndroidRoutes =>
-      'Not needed: Android already plays through USB';
+      'Not needed right now: Android already plays through your USB device.';
 
   @override
   String usbDirectOutputStatusPermission(String device) {
-    return 'Allow USB access for $device';
+    return 'Android is asking for access to $device: tap Allow.';
   }
 
   @override
   String usbDirectOutputStatusDenied(String device) {
-    return 'USB access declined for $device. Replug it to ask again.';
+    return 'USB access to $device was declined. Replug it, or turn this off and on, to be asked again.';
   }
 
   @override
   String usbDirectOutputStatusActive(String device, int rate, int bits) {
-    return 'Playing through $device ($rate Hz, $bits-bit). The phone\'s volume keys don\'t reach this output.';
+    return 'Playing through $device ($rate Hz, $bits-bit). Set the volume in GrooveForge or on your speaker: the phone\'s volume keys don\'t reach this output.';
   }
 
   @override
   String usbDirectOutputStatusUnsupported(String device) {
-    return '$device is not supported';
+    return '$device can\'t be used: only simple USB DACs (USB Audio Class 1) are supported.';
   }
 
   @override
   String usbDirectOutputStatusError(String device) {
-    return '$device stopped. Replug it to retry.';
+    return '$device stopped. Unplug and replug it to try again.';
   }
+
+  @override
+  String get usbDirectOutputHelpTooltip => 'How does it work?';
+
+  @override
+  String get usbDirectOutputHelpProblemTitle => 'The problem';
+
+  @override
+  String get usbDirectOutputHelpProblemBody =>
+      'Android can only use one USB audio device at a time. Plug in a USB microphone (a wireless mic receiver, for example) and a USB sound card (such as the headphone jack of a USB-C hub), and Android keeps the one it detected last and quietly ignores the other. Your music then comes out of the phone\'s speaker instead of your headphones or speakers.';
+
+  @override
+  String get usbDirectOutputHelpSolutionTitle => 'What this option does';
+
+  @override
+  String get usbDirectOutputHelpSolutionBody =>
+      'GrooveForge sends its sound straight to the sound card Android ignored, over USB, without going through Android\'s audio system. Your microphone keeps working normally.';
+
+  @override
+  String get usbDirectOutputHelpWhenTitle => 'When it kicks in';
+
+  @override
+  String get usbDirectOutputHelpWhenBody =>
+      'Only when it is needed: a compatible USB sound card is plugged in and Android is not already playing through a USB device. The rest of the time nothing changes, so you can leave it on.';
+
+  @override
+  String get usbDirectOutputHelpStepsTitle => 'How to use it';
+
+  @override
+  String get usbDirectOutputHelpStep1 => 'Turn the option on.';
+
+  @override
+  String get usbDirectOutputHelpStep2 =>
+      'Plug in your sound card and your USB microphone.';
+
+  @override
+  String get usbDirectOutputHelpStep3 =>
+      'When Android asks for access to the sound card, tap Allow.';
+
+  @override
+  String get usbDirectOutputHelpStep4 =>
+      'The line under the switch shows \"Playing through…\": you\'re set.';
+
+  @override
+  String get usbDirectOutputHelpTipsTitle => 'Good to know';
+
+  @override
+  String get usbDirectOutputHelpTipVolume =>
+      'The phone\'s volume keys don\'t change this output. Use GrooveForge\'s gain and your speaker\'s volume.';
+
+  @override
+  String get usbDirectOutputHelpTipCompat =>
+      'Works with simple USB sound cards (USB Audio Class 1), which covers most USB-C hubs and jack adapters. High-end USB interfaces are shown as not supported.';
+
+  @override
+  String get usbDirectOutputHelpTipOtherApps =>
+      'Only GrooveForge plays through the sound card this way. Notifications and other apps still use the phone.';
+
+  @override
+  String get usbDirectOutputHelpTipGiveBack =>
+      'After turning the option off, unplug and replug the sound card so Android can use it again.';
+
+  @override
+  String get usbDirectOutputHelpTipCharger =>
+      'Plug the charger into the hub before connecting the hub to the phone. Adding power while playing makes the phone reconnect every USB device, which cuts the sound and can even restart some phones.';
+
+  @override
+  String get usbDirectOutputHelpClose => 'Got it';
 
   @override
   String get audioSettingsBarGain => 'Gain';

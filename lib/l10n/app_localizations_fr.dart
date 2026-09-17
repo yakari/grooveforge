@@ -638,43 +638,111 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get usbDirectOutputSubtitle =>
-      'Joue via un DAC USB qu\'Android abandonne quand un micro USB est aussi branché. Sinon, laissez désactivé.';
+      'Pour un micro USB et une carte son USB (DAC) utilisés ensemble : Android n\'en garde qu\'un. Touchez ? pour en savoir plus.';
 
   @override
   String get usbDirectOutputUnknownDevice => 'DAC USB';
 
   @override
   String get usbDirectOutputStatusNoDevice =>
-      'En attente : aucun DAC USB détecté';
+      'En attente : aucun DAC USB compatible n\'est branché.';
 
   @override
   String get usbDirectOutputStatusAndroidRoutes =>
-      'Inutile : Android joue déjà via l\'USB';
+      'Pas nécessaire pour l\'instant : Android joue déjà via votre périphérique USB.';
 
   @override
   String usbDirectOutputStatusPermission(String device) {
-    return 'Autorisez l\'accès USB pour $device';
+    return 'Android demande l\'accès à $device : touchez Autoriser.';
   }
 
   @override
   String usbDirectOutputStatusDenied(String device) {
-    return 'Accès USB refusé pour $device. Rebranchez-le pour redemander.';
+    return 'Accès USB à $device refusé. Rebranchez-le, ou désactivez puis réactivez cette option, pour qu\'on vous le redemande.';
   }
 
   @override
   String usbDirectOutputStatusActive(String device, int rate, int bits) {
-    return 'Lecture via $device ($rate Hz, $bits bits). Les touches de volume du téléphone n\'agissent pas sur cette sortie.';
+    return 'Lecture via $device ($rate Hz, $bits bits). Réglez le volume dans GrooveForge ou sur votre enceinte : les touches de volume du téléphone n\'agissent pas sur cette sortie.';
   }
 
   @override
   String usbDirectOutputStatusUnsupported(String device) {
-    return '$device n\'est pas pris en charge';
+    return '$device ne peut pas être utilisé : seuls les DAC USB simples (USB Audio Class 1) sont pris en charge.';
   }
 
   @override
   String usbDirectOutputStatusError(String device) {
-    return '$device s\'est arrêté. Rebranchez-le pour réessayer.';
+    return '$device s\'est arrêté. Débranchez-le puis rebranchez-le pour réessayer.';
   }
+
+  @override
+  String get usbDirectOutputHelpTooltip => 'Comment ça marche ?';
+
+  @override
+  String get usbDirectOutputHelpProblemTitle => 'Le problème';
+
+  @override
+  String get usbDirectOutputHelpProblemBody =>
+      'Android ne sait utiliser qu\'un seul périphérique audio USB à la fois. Branchez un micro USB (un récepteur de micro sans fil, par exemple) et une carte son USB (comme la prise casque d\'un hub USB-C) : Android garde celui qu\'il a détecté en dernier et ignore l\'autre sans prévenir. Le son sort alors du haut-parleur du téléphone au lieu de votre casque ou de vos enceintes.';
+
+  @override
+  String get usbDirectOutputHelpSolutionTitle => 'Ce que fait cette option';
+
+  @override
+  String get usbDirectOutputHelpSolutionBody =>
+      'GrooveForge envoie son son directement à la carte son qu\'Android ignore, par l\'USB, sans passer par le système audio d\'Android. Votre micro continue de fonctionner normalement.';
+
+  @override
+  String get usbDirectOutputHelpWhenTitle => 'Quand elle s\'active';
+
+  @override
+  String get usbDirectOutputHelpWhenBody =>
+      'Seulement quand c\'est utile : une carte son USB compatible est branchée et Android ne joue pas déjà via un périphérique USB. Le reste du temps, rien ne change : vous pouvez la laisser activée.';
+
+  @override
+  String get usbDirectOutputHelpStepsTitle => 'Mode d\'emploi';
+
+  @override
+  String get usbDirectOutputHelpStep1 => 'Activez l\'option.';
+
+  @override
+  String get usbDirectOutputHelpStep2 =>
+      'Branchez votre carte son et votre micro USB.';
+
+  @override
+  String get usbDirectOutputHelpStep3 =>
+      'Quand Android demande l\'accès à la carte son, touchez Autoriser.';
+
+  @override
+  String get usbDirectOutputHelpStep4 =>
+      'La ligne sous l\'interrupteur indique « Lecture via… » : c\'est prêt.';
+
+  @override
+  String get usbDirectOutputHelpTipsTitle => 'Bon à savoir';
+
+  @override
+  String get usbDirectOutputHelpTipVolume =>
+      'Les touches de volume du téléphone ne changent pas cette sortie. Utilisez le gain de GrooveForge et le volume de votre enceinte.';
+
+  @override
+  String get usbDirectOutputHelpTipCompat =>
+      'Fonctionne avec les cartes son USB simples (USB Audio Class 1), ce qui couvre la plupart des hubs USB-C et adaptateurs jack. Les interfaces USB haut de gamme sont indiquées comme non prises en charge.';
+
+  @override
+  String get usbDirectOutputHelpTipOtherApps =>
+      'Seul GrooveForge passe par la carte son de cette façon. Les notifications et les autres applis utilisent toujours le téléphone.';
+
+  @override
+  String get usbDirectOutputHelpTipGiveBack =>
+      'Après avoir désactivé l\'option, débranchez puis rebranchez la carte son pour qu\'Android puisse la réutiliser.';
+
+  @override
+  String get usbDirectOutputHelpTipCharger =>
+      'Branchez le chargeur sur le hub avant de brancher le hub au téléphone. Ajouter l\'alimentation en cours de jeu fait reconnecter tous les périphériques USB : le son se coupe, et certains téléphones peuvent même redémarrer.';
+
+  @override
+  String get usbDirectOutputHelpClose => 'Compris';
 
   @override
   String get audioSettingsBarGain => 'Volume';

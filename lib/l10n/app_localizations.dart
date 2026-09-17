@@ -1217,7 +1217,7 @@ abstract class AppLocalizations {
   /// No description provided for @usbDirectOutputSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Plays through a USB DAC that Android drops when a USB microphone is plugged in too. Leave off otherwise.'**
+  /// **'For a USB mic and a USB sound card (DAC) used together: Android only keeps one of them. Tap ? to learn more.'**
   String get usbDirectOutputSubtitle;
 
   /// No description provided for @usbDirectOutputUnknownDevice.
@@ -1229,44 +1229,158 @@ abstract class AppLocalizations {
   /// No description provided for @usbDirectOutputStatusNoDevice.
   ///
   /// In en, this message translates to:
-  /// **'Waiting: no USB DAC found'**
+  /// **'Waiting: no compatible USB DAC is plugged in.'**
   String get usbDirectOutputStatusNoDevice;
 
   /// No description provided for @usbDirectOutputStatusAndroidRoutes.
   ///
   /// In en, this message translates to:
-  /// **'Not needed: Android already plays through USB'**
+  /// **'Not needed right now: Android already plays through your USB device.'**
   String get usbDirectOutputStatusAndroidRoutes;
 
   /// No description provided for @usbDirectOutputStatusPermission.
   ///
   /// In en, this message translates to:
-  /// **'Allow USB access for {device}'**
+  /// **'Android is asking for access to {device}: tap Allow.'**
   String usbDirectOutputStatusPermission(String device);
 
   /// No description provided for @usbDirectOutputStatusDenied.
   ///
   /// In en, this message translates to:
-  /// **'USB access declined for {device}. Replug it to ask again.'**
+  /// **'USB access to {device} was declined. Replug it, or turn this off and on, to be asked again.'**
   String usbDirectOutputStatusDenied(String device);
 
   /// No description provided for @usbDirectOutputStatusActive.
   ///
   /// In en, this message translates to:
-  /// **'Playing through {device} ({rate} Hz, {bits}-bit). The phone\'s volume keys don\'t reach this output.'**
+  /// **'Playing through {device} ({rate} Hz, {bits}-bit). Set the volume in GrooveForge or on your speaker: the phone\'s volume keys don\'t reach this output.'**
   String usbDirectOutputStatusActive(String device, int rate, int bits);
 
   /// No description provided for @usbDirectOutputStatusUnsupported.
   ///
   /// In en, this message translates to:
-  /// **'{device} is not supported'**
+  /// **'{device} can\'t be used: only simple USB DACs (USB Audio Class 1) are supported.'**
   String usbDirectOutputStatusUnsupported(String device);
 
   /// No description provided for @usbDirectOutputStatusError.
   ///
   /// In en, this message translates to:
-  /// **'{device} stopped. Replug it to retry.'**
+  /// **'{device} stopped. Unplug and replug it to try again.'**
   String usbDirectOutputStatusError(String device);
+
+  /// Tooltip of the help button next to the Direct USB output switch.
+  ///
+  /// In en, this message translates to:
+  /// **'How does it work?'**
+  String get usbDirectOutputHelpTooltip;
+
+  /// Help sheet section title.
+  ///
+  /// In en, this message translates to:
+  /// **'The problem'**
+  String get usbDirectOutputHelpProblemTitle;
+
+  /// No description provided for @usbDirectOutputHelpProblemBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Android can only use one USB audio device at a time. Plug in a USB microphone (a wireless mic receiver, for example) and a USB sound card (such as the headphone jack of a USB-C hub), and Android keeps the one it detected last and quietly ignores the other. Your music then comes out of the phone\'s speaker instead of your headphones or speakers.'**
+  String get usbDirectOutputHelpProblemBody;
+
+  /// Help sheet section title.
+  ///
+  /// In en, this message translates to:
+  /// **'What this option does'**
+  String get usbDirectOutputHelpSolutionTitle;
+
+  /// No description provided for @usbDirectOutputHelpSolutionBody.
+  ///
+  /// In en, this message translates to:
+  /// **'GrooveForge sends its sound straight to the sound card Android ignored, over USB, without going through Android\'s audio system. Your microphone keeps working normally.'**
+  String get usbDirectOutputHelpSolutionBody;
+
+  /// Help sheet section title.
+  ///
+  /// In en, this message translates to:
+  /// **'When it kicks in'**
+  String get usbDirectOutputHelpWhenTitle;
+
+  /// No description provided for @usbDirectOutputHelpWhenBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Only when it is needed: a compatible USB sound card is plugged in and Android is not already playing through a USB device. The rest of the time nothing changes, so you can leave it on.'**
+  String get usbDirectOutputHelpWhenBody;
+
+  /// Help sheet section title.
+  ///
+  /// In en, this message translates to:
+  /// **'How to use it'**
+  String get usbDirectOutputHelpStepsTitle;
+
+  /// No description provided for @usbDirectOutputHelpStep1.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn the option on.'**
+  String get usbDirectOutputHelpStep1;
+
+  /// No description provided for @usbDirectOutputHelpStep2.
+  ///
+  /// In en, this message translates to:
+  /// **'Plug in your sound card and your USB microphone.'**
+  String get usbDirectOutputHelpStep2;
+
+  /// No description provided for @usbDirectOutputHelpStep3.
+  ///
+  /// In en, this message translates to:
+  /// **'When Android asks for access to the sound card, tap Allow.'**
+  String get usbDirectOutputHelpStep3;
+
+  /// No description provided for @usbDirectOutputHelpStep4.
+  ///
+  /// In en, this message translates to:
+  /// **'The line under the switch shows \"Playing through…\": you\'re set.'**
+  String get usbDirectOutputHelpStep4;
+
+  /// Help sheet section title.
+  ///
+  /// In en, this message translates to:
+  /// **'Good to know'**
+  String get usbDirectOutputHelpTipsTitle;
+
+  /// No description provided for @usbDirectOutputHelpTipVolume.
+  ///
+  /// In en, this message translates to:
+  /// **'The phone\'s volume keys don\'t change this output. Use GrooveForge\'s gain and your speaker\'s volume.'**
+  String get usbDirectOutputHelpTipVolume;
+
+  /// No description provided for @usbDirectOutputHelpTipCompat.
+  ///
+  /// In en, this message translates to:
+  /// **'Works with simple USB sound cards (USB Audio Class 1), which covers most USB-C hubs and jack adapters. High-end USB interfaces are shown as not supported.'**
+  String get usbDirectOutputHelpTipCompat;
+
+  /// No description provided for @usbDirectOutputHelpTipOtherApps.
+  ///
+  /// In en, this message translates to:
+  /// **'Only GrooveForge plays through the sound card this way. Notifications and other apps still use the phone.'**
+  String get usbDirectOutputHelpTipOtherApps;
+
+  /// No description provided for @usbDirectOutputHelpTipGiveBack.
+  ///
+  /// In en, this message translates to:
+  /// **'After turning the option off, unplug and replug the sound card so Android can use it again.'**
+  String get usbDirectOutputHelpTipGiveBack;
+
+  /// No description provided for @usbDirectOutputHelpTipCharger.
+  ///
+  /// In en, this message translates to:
+  /// **'Plug the charger into the hub before connecting the hub to the phone. Adding power while playing makes the phone reconnect every USB device, which cuts the sound and can even restart some phones.'**
+  String get usbDirectOutputHelpTipCharger;
+
+  /// Button closing the help sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Got it'**
+  String get usbDirectOutputHelpClose;
 
   /// No description provided for @audioSettingsBarGain.
   ///

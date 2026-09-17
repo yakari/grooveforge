@@ -311,11 +311,11 @@
   "audioOutputDevice": "Output Device",
   "audioOutputDefault": "System Default",
   "usbDirectOutputTitle": "Direct USB output",
-  "usbDirectOutputSubtitle": "Plays through a USB DAC that Android drops when a USB microphone is plugged in too. Leave off otherwise.",
+  "usbDirectOutputSubtitle": "For a USB mic and a USB sound card (DAC) used together: Android only keeps one of them. Tap ? to learn more.",
   "usbDirectOutputUnknownDevice": "USB DAC",
-  "usbDirectOutputStatusNoDevice": "Waiting: no USB DAC found",
-  "usbDirectOutputStatusAndroidRoutes": "Not needed: Android already plays through USB",
-  "usbDirectOutputStatusPermission": "Allow USB access for {device}",
+  "usbDirectOutputStatusNoDevice": "Waiting: no compatible USB DAC is plugged in.",
+  "usbDirectOutputStatusAndroidRoutes": "Not needed right now: Android already plays through your USB device.",
+  "usbDirectOutputStatusPermission": "Android is asking for access to {device}: tap Allow.",
   "@usbDirectOutputStatusPermission": {
     "placeholders": {
       "device": {
@@ -323,7 +323,7 @@
       }
     }
   },
-  "usbDirectOutputStatusDenied": "USB access declined for {device}. Replug it to ask again.",
+  "usbDirectOutputStatusDenied": "USB access to {device} was declined. Replug it, or turn this off and on, to be asked again.",
   "@usbDirectOutputStatusDenied": {
     "placeholders": {
       "device": {
@@ -331,7 +331,7 @@
       }
     }
   },
-  "usbDirectOutputStatusActive": "Playing through {device} ({rate} Hz, {bits}-bit). The phone's volume keys don't reach this output.",
+  "usbDirectOutputStatusActive": "Playing through {device} ({rate} Hz, {bits}-bit). Set the volume in GrooveForge or on your speaker: the phone's volume keys don't reach this output.",
   "@usbDirectOutputStatusActive": {
     "placeholders": {
       "device": {
@@ -345,7 +345,7 @@
       }
     }
   },
-  "usbDirectOutputStatusUnsupported": "{device} is not supported",
+  "usbDirectOutputStatusUnsupported": "{device} can't be used: only simple USB DACs (USB Audio Class 1) are supported.",
   "@usbDirectOutputStatusUnsupported": {
     "placeholders": {
       "device": {
@@ -353,13 +353,53 @@
       }
     }
   },
-  "usbDirectOutputStatusError": "{device} stopped. Replug it to retry.",
+  "usbDirectOutputStatusError": "{device} stopped. Unplug and replug it to try again.",
   "@usbDirectOutputStatusError": {
     "placeholders": {
       "device": {
         "type": "String"
       }
     }
+  },
+  "usbDirectOutputHelpTooltip": "How does it work?",
+  "@usbDirectOutputHelpTooltip": {
+    "description": "Tooltip of the help button next to the Direct USB output switch."
+  },
+  "usbDirectOutputHelpProblemTitle": "The problem",
+  "@usbDirectOutputHelpProblemTitle": {
+    "description": "Help sheet section title."
+  },
+  "usbDirectOutputHelpProblemBody": "Android can only use one USB audio device at a time. Plug in a USB microphone (a wireless mic receiver, for example) and a USB sound card (such as the headphone jack of a USB-C hub), and Android keeps the one it detected last and quietly ignores the other. Your music then comes out of the phone's speaker instead of your headphones or speakers.",
+  "usbDirectOutputHelpSolutionTitle": "What this option does",
+  "@usbDirectOutputHelpSolutionTitle": {
+    "description": "Help sheet section title."
+  },
+  "usbDirectOutputHelpSolutionBody": "GrooveForge sends its sound straight to the sound card Android ignored, over USB, without going through Android's audio system. Your microphone keeps working normally.",
+  "usbDirectOutputHelpWhenTitle": "When it kicks in",
+  "@usbDirectOutputHelpWhenTitle": {
+    "description": "Help sheet section title."
+  },
+  "usbDirectOutputHelpWhenBody": "Only when it is needed: a compatible USB sound card is plugged in and Android is not already playing through a USB device. The rest of the time nothing changes, so you can leave it on.",
+  "usbDirectOutputHelpStepsTitle": "How to use it",
+  "@usbDirectOutputHelpStepsTitle": {
+    "description": "Help sheet section title."
+  },
+  "usbDirectOutputHelpStep1": "Turn the option on.",
+  "usbDirectOutputHelpStep2": "Plug in your sound card and your USB microphone.",
+  "usbDirectOutputHelpStep3": "When Android asks for access to the sound card, tap Allow.",
+  "usbDirectOutputHelpStep4": "The line under the switch shows \"Playing through…\": you're set.",
+  "usbDirectOutputHelpTipsTitle": "Good to know",
+  "@usbDirectOutputHelpTipsTitle": {
+    "description": "Help sheet section title."
+  },
+  "usbDirectOutputHelpTipVolume": "The phone's volume keys don't change this output. Use GrooveForge's gain and your speaker's volume.",
+  "usbDirectOutputHelpTipCompat": "Works with simple USB sound cards (USB Audio Class 1), which covers most USB-C hubs and jack adapters. High-end USB interfaces are shown as not supported.",
+  "usbDirectOutputHelpTipOtherApps": "Only GrooveForge plays through the sound card this way. Notifications and other apps still use the phone.",
+  "usbDirectOutputHelpTipGiveBack": "After turning the option off, unplug and replug the sound card so Android can use it again.",
+  "usbDirectOutputHelpTipCharger": "Plug the charger into the hub before connecting the hub to the phone. Adding power while playing makes the phone reconnect every USB device, which cuts the sound and can even restart some phones.",
+  "usbDirectOutputHelpClose": "Got it",
+  "@usbDirectOutputHelpClose": {
+    "description": "Button closing the help sheet."
   },
   "audioSettingsBarGain": "Gain",
   "audioSettingsBarMicSensitivity": "Mic",

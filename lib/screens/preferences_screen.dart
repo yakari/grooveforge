@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/file_picker_service.dart';
 import 'package:flutter_midi_command/flutter_midi_command.dart';
 import 'package:grooveforge/services/midi_service.dart';
@@ -17,6 +18,7 @@ import '../services/locale_provider.dart';
 import '../services/audio_input_ffi.dart';
 import 'latency_probe_screen.dart';
 import 'usb_audio_debug_screen.dart';
+import '../widgets/usb_direct_output_help.dart';
 import '../services/vst_host_service.dart';
 import 'dart:async';
 
@@ -1216,13 +1218,35 @@ class _UsbDirectOutputTileState extends State<_UsbDirectOutputTile> {
           subtitle: statusText == null
               ? loc.usbDirectOutputSubtitle
               : '${loc.usbDirectOutputSubtitle}\n$statusText',
-          trailing: Switch(
-            value: enabled,
-            onChanged: (value) => _engine.usbDirectOutputEnabled.value = value,
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.help_outline),
+                tooltip: loc.usbDirectOutputHelpTooltip,
+                onPressed: () => showUsbDirectOutputHelp(context),
+              ),
+              Switch(value: enabled, onChanged: _onSwitchChanged),
+            ],
           ),
         );
       },
     );
+  }
+
+  /// Preference key remembering that the explanation was shown once.
+  static const _helpSeenKey = 'usb_direct_output_help_seen';
+
+  /// Applies the switch, and explains the feature the first time it is
+  /// turned on: its effect depends on hardware and a USB permission dialog,
+  /// so switching it on without knowing what to expect is confusing.
+  Future<void> _onSwitchChanged(bool value) async {
+    _engine.usbDirectOutputEnabled.value = value;
+    if (!value) return;
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(_helpSeenKey) ?? false) return;
+    await prefs.setBool(_helpSeenKey, true);
+    if (mounted) showUsbDirectOutputHelp(context);
   }
 
   /// One localized line describing [_status], or null when there is nothing
