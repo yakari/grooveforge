@@ -1,0 +1,154 @@
+# Techno — Detroit / Berlin four-on-the-floor
+# Reference: Jeff Mills, Robert Hood, Underground Resistance (Detroit),
+#            Basic Channel / Chain Reaction (Berlin dub techno),
+#            the Roland TR-909 voice set every one of them programmed on.
+# GM notes: 36=kick, 39=hand clap, 40=electric snare, 37=side stick,
+#           42=closed HH, 46=open HH, 51=ride, 45=low tom, 49=crash
+
+#
+# ── Step grid notation ────────────────────────────────────────────────────────
+# Each character in a step grid represents one subdivision of the bar.
+# Resolution controls how many steps per bar (16 = 16th notes in 4/4).
+#
+#   X   Strong accent  — velocity = base_velocity × 1.00  (full hit / downbeat)
+#   x   Medium accent  — velocity = base_velocity × 0.75  (firm stroke / upbeat)
+#   o   Soft hit       — velocity = base_velocity × 0.55  (brush / light touch)
+#   g   Ghost note     — velocity = base_velocity × 0.28  (barely audible, mostly felt)
+#   .   Rest           — no note fired at this step
+#
+# Beat positions — 4/4 at resolution 16 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
+#        1  e1 +1 a1  2  e2 +2 a2  3  e3 +3 a3  4  e4 +4 a4
+#   (1/+/2/+/3/+/4/+ = quarter beats; e = "e of"; a = "and-a of")
+#
+# Swing / feel: the 'feel' field shifts odd-indexed steps (1,3,5,7…) forward in time.
+#   straight     — no shift (all steps exactly on the grid)
+#   swing_light  — odd steps delayed ~16 % of a step (light swing)
+#   swing_hard   — odd steps delayed ~34 % of a step (jazz/shuffle triplet feel)
+#   laid_back    — same as straight with slower humanisation envelope
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Techno
+family: electronic
+bpm_range: [120, 150]
+time_signature: [4, 4]
+resolution: 16
+feel: straight
+
+# Machine music: humanisation is deliberately near zero. Techno's power comes
+# from the grid being exact — a drifting kick reads as a mistake, not as feel.
+instruments:
+  kick:       { note: 36, base_velocity: 118, velocity_range: 4,  timing_jitter: 0.002, duration_beats: 0.14 }
+  clap:       { note: 39, base_velocity: 102, velocity_range: 6,  timing_jitter: 0.004, duration_beats: 0.10 }
+  snare:      { note: 40, base_velocity: 92,  velocity_range: 8,  timing_jitter: 0.004, duration_beats: 0.08 }
+  rim:        { note: 37, base_velocity: 74,  velocity_range: 8,  timing_jitter: 0.004, duration_beats: 0.05 }
+  hihat:      { note: 42, base_velocity: 78,  velocity_range: 8,  timing_jitter: 0.003, duration_beats: 0.05 }
+  hihat_open: { note: 46, base_velocity: 84,  velocity_range: 6,  timing_jitter: 0.003, duration_beats: 0.14 }
+  ride:       { note: 51, base_velocity: 70,  velocity_range: 8,  timing_jitter: 0.004, duration_beats: 0.10 }
+  tom_lo:     { note: 45, base_velocity: 92,  velocity_range: 10, timing_jitter: 0.006, duration_beats: 0.12 }
+  crash:      { note: 49, base_velocity: 100, velocity_range: 6,  timing_jitter: 0.004, duration_beats: 0.25 }
+
+humanization:
+  timing_jitter: 0.003
+  velocity_jitter: 5
+  velocity_drift: 0.03
+
+sections:
+  intro:
+    type: count_in
+    hits: 4
+    note: 42
+
+  groove:
+    bars: 1
+    variations:
+      - name: four_on_the_floor
+        weight: 4
+        # The foundation: kick on all four quarters (pos 0, 4, 8, 12), clap on
+        # 2 and 4, and the open hi-hat on every offbeat 8th (pos 2, 6, 10, 14).
+        # That offbeat open hat against the on-beat kick is the whole genre in
+        # two lines — it is what makes a techno track feel like it is pulling
+        # forward even though nothing is syncopated.
+        kick:       "X...X...X...X..."
+        clap:       "....X.......X..."
+        hihat:      "x.g.x.g.x.g.x.g."
+        hihat_open: "..x...x...x...x."
+
+      - name: detroit
+        weight: 3
+        # Detroit (Mills / Hood): the kick adds a 16th pickup on the last step
+        # (pos 15) that lands just before the next bar's downbeat, and the side
+        # stick takes the offbeats so the open hat can be saved for beats 2 and 4.
+        kick:       "X...X...X...X..X"
+        clap:       "....X.......X..."
+        rim:        "..x...x...x...x."
+        hihat:      "x.x.x.x.x.x.x.x."
+        hihat_open: "......x.......x."
+
+      - name: peak_time
+        weight: 2
+        # Maximum density for the loud part of the set: 16th hi-hats, a ghost
+        # snare on every offbeat 8th, and the ride doubling the kick to add
+        # a metallic edge that cuts through a big system.
+        kick:       "X...X...X...X..."
+        clap:       "....X.......X..."
+        snare:      "..g...g...g...g."
+        hihat:      "xgxgxgxgxgxgxgxg"
+        hihat_open: "..x...x...x...x."
+        ride:       "X...X...X...X..."
+
+      - name: dub_techno
+        weight: 2
+        # Basic Channel / Chain Reaction restraint: kick, one offbeat hat, and a
+        # side stick where the clap would be. Everything that is not played is
+        # room for the delay and reverb the style is actually built from.
+        kick:       "X...X...X...X..."
+        rim:        "....x.......x..."
+        hihat_open: "..x...x...x...x."
+
+  fill:
+    bars: 1
+    variations:
+      - name: kick_roll
+        # The kick itself becomes the fill — 16th notes over the last beat.
+        # No cymbals: techno fills are subtractive and rhythmic, not decorative.
+        kick:       "X...X...X.X.XXXX"
+        clap:       "....X..........."
+        hihat_open: "..x...x........."
+
+      - name: clap_build
+        # Clap stutter into the downbeat, a stock 909 pattern-write trick.
+        kick:       "X...X...X......."
+        clap:       "........X.X.XxXX"
+        hihat:      "x.x.x.x.x.x.x.x."
+
+      - name: snare_rush
+        # Electric snare accelerating from 8ths to 16ths across the bar.
+        kick:       "X...X..........."
+        snare:      "........x.x.XXXX"
+        hihat_open: "..x...x........."
+
+  break:
+    bars: 2
+    variations:
+      - name: kick_drop
+        # The breakdown: the kick leaves and only the offbeat hat holds the
+        # pulse, so the room hears where the beat was rather than where it is.
+        hihat_open: "..x...x...x...x."
+        rim:        "....x.......x..."
+
+  crash:
+    bars: 1
+    variations:
+      - name: standard
+        crash:      "X..............."
+        kick:       "X...X...X...X..."
+        hihat:      "x.g.x.g.x.g.x.g."
+        hihat_open: "..x...x...x...x."
+
+structure:
+  fill_every: 8
+  break_every: 0
+  break_length: 2
+  crash_after_fill: true
+  dynamic_build: true

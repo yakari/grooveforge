@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="GrooveForge Rehearsals — a band learns a tune together: each player records their own part over a shared click, with latency-compensated overdubs and parts syncing device to device with no server.">
+  <title>GrooveForge — Rehearsals</title>
+  <link rel="icon" type="image/png" href="../assets/icon.png">
+  <link rel="stylesheet" href="../css/site.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="header-inner">
+      <input type="checkbox" id="gf-nav-menu" class="nav-toggle-input">
+      <a class="brand" href="../">
+        <img src="../assets/icon.png" width="40" height="40" alt="">
+        GrooveForge
+      </a>
+      <div class="header-triggers">
+        <span class="lang-switch" aria-label="Language">
+          <span class="lang-current" aria-current="true">EN</span>
+          <span class="lang-sep" aria-hidden="true">·</span>
+          <a href="../fr/rehearsals/" hreflang="fr">FR</a>
+        </span>
+        <label for="gf-nav-menu" class="nav-toggle-label">Menu</label>
+      </div>
+      <nav class="site-nav" aria-label="Primary">
+        <a href="../guide/">Guide</a>
+        <a href="../rehearsals/">Rehearsals</a>
+        <a href="../modules/">Modules</a>
+        <a href="../midi-fx/">MIDI FX</a>
+        <a href="../vst/">VST3</a>
+        <a href="../gfdrum/">Rhythmic patterns</a>
+        <a href="../gfpd/">Plugin descriptors</a>
+        <a href="../features/">All features</a>
+        <a href="../demo/" class="nav-cta">Try web demo</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="prose">
+    <div class="page-hero">
+      <h1>Rehearsals</h1>
+      <p class="lead">
+        A band learns a tune together, on the phones it already has. Everyone records their own part over a
+        shared click, and the parts collect into one arrangement that every device holds a full copy of.
+      </p>
+    </div>
+
+    <figure class="figure-card figure-doc">
+      <img src="../assets/screenshots/rehearsals_list.png" width="484" height="1188" loading="lazy" alt="The Rehearsals tab: three tunes, each showing its tempo, time signature and how many parts are recorded, with Join a tune and Start a tune buttons">
+      <figcaption>Every tune the band is working on, and how far each one has got.</figcaption>
+    </figure>
+
+    <h2>How a rehearsal works</h2>
+    <p>
+      Start a tune, give it a tempo and a time signature, and add a lane for your instrument. Press record: a
+      count-in runs first, then you play along to whatever is already there. Your part joins the mix, and the
+      next person records theirs against it.
+    </p>
+    <p>
+      You record your own parts and nobody else's. Yours can be re-recorded or deleted as often as you like — a
+      take is yours until you are happy with it.
+    </p>
+
+    <figure class="figure-card figure-doc">
+      <img src="../assets/screenshots/rehearsals_new_tune.png" width="484" height="1188" loading="lazy" alt="New rehearsal dialog: tune name, your name, your instrument, tempo slider, time signature and count-in">
+      <figcaption>Starting a tune: name it, say what you play, and set the tempo and count-in.</figcaption>
+    </figure>
+
+    <h2>Overdubs that land on the beat</h2>
+    <p>
+      Every device takes a moment to play sound and another to capture it. Together that delay would put every
+      take behind the beat by roughly thirty milliseconds on a phone, and far more over Bluetooth — enough to
+      hear, and enough to ruin a stack of parts.
+    </p>
+    <p>
+      GrooveForge measures the round trip on the device itself: it plays a short frequency sweep and finds it
+      again in the microphone signal by cross-correlation. Each take is then shifted back by exactly that much,
+      so what you played on the beat lands on the beat.
+    </p>
+    <p>
+      The measurement is <strong>kept per output</strong>, because the delay belongs to the gear rather than to
+      the tune: the phone's own speaker, a wired headset and every Bluetooth headset each keep their own figure,
+      and the app says so when you are wearing something it has never measured.
+    </p>
+
+    <h2>Play along to a recording</h2>
+    <p>
+      Import a track to learn — MP3, FLAC and WAV everywhere, plus M4A, AAC and the soundtrack of a video on
+      Android. Tap the beat to set the tempo, then drag a marker onto the first downbeat so the bar grid lines up
+      with the music. Zoom into the waveform, scroll along it, and check the tempo against red lines drawn on
+      every beat: a tempo a tenth out is inaudible over two bars and obvious after thirty.
+    </p>
+    <p>
+      The click switches itself off once a recording is there, because that is the tempo now.
+    </p>
+
+    <figure class="figure-card figure-doc">
+      <img src="../assets/screenshots/rehearsals_align_grid.png" width="484" height="1188" loading="lazy" alt="Align the grid: a waveform zoomed to 32 times with red lines on every beat, zoom and scroll controls, a Skip the silence button, and the tempo with fine plus and minus buttons">
+      <figcaption>Lining the grid up with a recording. The red lines are the beats — zoom in and nudge the tempo until they sit on the sound.</figcaption>
+    </figure>
+
+    <h2>Practice speed</h2>
+    <p>
+      Slow the whole tune to 50% to work a passage. The recordings are <strong>time-stretched</strong> rather
+      than played slower, so nothing drops in pitch — a guitar part at 70% would otherwise land three semitones
+      flat and be useless to play against.
+    </p>
+    <p>
+      Practice speed is local to your device. One player working a hard bar at half speed does not drag the rest
+      of the band down with them.
+    </p>
+
+    <h2>Chords and scores</h2>
+    <p>
+      Write the tune's form on a <strong>chord grid</strong>, bar by bar, one to four chords a bar, with the bar
+      being played lit up. Collapsed to a single line it scrolls itself while you play. Chord symbols are read
+      properly rather than stored as text — <code>Ab</code>, <code>C#m7</code>, <code>Gm7b5</code>,
+      <code>C6/9</code>, <code>Am(M7)/B</code> all resolve to a root, a triad and a full set of intervals.
+    </p>
+    <p>
+      Each tune also carries a <strong>shared score folder</strong>: add a PDF, a chart or a photo of a page, and
+      everyone in the band gets a copy. Scans open full screen and zoomable.
+    </p>
+
+    <figure class="figure-card figure-doc">
+      <img src="../assets/screenshots/rehearsals_chord_grid.png" width="484" height="1188" loading="lazy" alt="A tune open: transport with bar and beat, a chord grid reading G A C G over four bars, the imported recording, and a lane each for Kurt on electric guitar and Phil on drums">
+      <figcaption>A tune in progress: the chord grid above, the imported recording, and one lane per player.</figcaption>
+    </figure>
+
+    <h2>Sharing, with no server and no account</h2>
+    <p>
+      Parts travel <strong>directly from one device to another</strong> over the local network, encrypted. Show a
+      QR code once, or send a link; from then on the devices find each other by themselves and simply opening the
+      same tune is enough.
+    </p>
+    <p>
+      There is no host and no authority. The merge is symmetric and conflict-free, so any two devices that meet
+      converge on the same arrangement in any order, and a device that was away catches up whenever it next
+      appears. Nothing is uploaded anywhere — there is no service that could receive it, and none is needed.
+    </p>
+    <p>
+      A dot on each lane says whether the player who owns it is connected, and a take that has not yet reached
+      every device in the room is flagged, so nobody packs up mid-transfer.
+    </p>
+
+    <figure class="figure-card figure-doc">
+      <img src="../assets/screenshots/rehearsals_share.png" width="484" height="1188" loading="lazy" alt="Share this rehearsal: a QR code for the others to scan, the same invitation as a copyable link, the host's address and port, and a spinner waiting for someone to join">
+      <figcaption>Inviting the band. Scan the code, or paste the link on a device with no camera — after that the app finds the others by itself.</figcaption>
+    </figure>
+
+    <h2>When the room has no Wi-Fi</h2>
+    <p>
+      Everyone has to be on the same network, and phones on mobile data cannot see each other. Rehearsal rooms
+      rarely have usable Wi-Fi, so one person turns on their phone's personal hotspot and the others join it — the
+      rehearsal itself uses no mobile data, because nothing leaves the room. It does not have to be the same
+      person every time.
+    </p>
+
+    <p><a href="../guide/">← Getting started</a> · <a href="../modules/">Built-in modules →</a></p>
+  </main>
+
+  <footer class="site-footer">
+    <p><a href="https://github.com/yakari/grooveforge">GitHub</a> · <a href="../privacy/">Privacy</a></p>
+  </footer>
+</body>
+</html>

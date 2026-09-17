@@ -1,0 +1,167 @@
+# Arabic — maqsum, baladi, saidi, ayyub and malfuf
+# Reference: the standard Egyptian/Levantine rhythm (iqa') repertoire as taught
+#            for darbuka (tabla) — Hossam Ramzy's "Rhythms of the Nile",
+#            Mahmoud Reda ensemble recordings, Cairo baladi orchestras.
+# Pairs with the maqam scales in the Xen module: maqsum under Rast or Ajam,
+# saidi under Hijaz, ayyub under Bayati.
+#
+# The vocabulary is two strokes, not many:
+#   DOUM  — open bass stroke in the centre of the head, the low "boom"
+#   TEK   — sharp slap on the rim, the high "tak"
+#   KA    — the weak-hand tek, half the volume, fills the gaps
+# Every rhythm below is a specific arrangement of doum and tek over eight 8th
+# notes. Learn the doum placement and the rest follows.
+#
+# GM substitution: General MIDI has no darbuka, so the closest-sounding kit
+# pieces stand in — low conga for the doum, muted high conga for the tek, high
+# bongo for the ka. Tambourine covers the riq and the mute triangle the sagat
+# (finger cymbals). With a Middle-Eastern SoundFont loaded these land on the
+# real instruments; on the default GM set they still read as the right rhythm.
+# GM notes: 64=low conga (doum), 62=mute hi conga (tek), 60=hi bongo (ka),
+#           54=tambourine (riq), 80=mute triangle (sagat), 39=hand clap,
+#           36=kick, 49=crash
+
+#
+# ── Step grid notation ────────────────────────────────────────────────────────
+# Each character in a step grid represents one subdivision of the bar.
+# Resolution controls how many steps per bar (16 = 16th notes in 4/4).
+#
+#   X   Strong accent  — velocity = base_velocity × 1.00  (full hit / downbeat)
+#   x   Medium accent  — velocity = base_velocity × 0.75  (firm stroke / upbeat)
+#   o   Soft hit       — velocity = base_velocity × 0.55  (brush / light touch)
+#   g   Ghost note     — velocity = base_velocity × 0.28  (barely audible, mostly felt)
+#   .   Rest           — no note fired at this step
+#
+# Beat positions — 4/4 at resolution 16 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
+#        1  e1 +1 a1  2  e2 +2 a2  3  e3 +3 a3  4  e4 +4 a4
+#   The eight 8th notes of the iqa' fall on the even positions 0, 2, 4, 6,
+#   8, 10, 12, 14 — the odd positions carry only ka fills.
+#
+# Swing / feel: straight — Arabic iqa'at are played on the grid; the expressive
+#   variation comes from stroke choice and ornament density, not from swing.
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Maqsum & Baladi
+family: arabic
+bpm_range: [80, 140]
+time_signature: [4, 4]
+resolution: 16
+feel: straight
+
+instruments:
+  doum:   { note: 64, base_velocity: 108, velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.14 }
+  tek:    { note: 62, base_velocity: 92,  velocity_range: 12, timing_jitter: 0.010, duration_beats: 0.07 }
+  ka:     { note: 60, base_velocity: 72,  velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.05 }
+  riq:    { note: 54, base_velocity: 74,  velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.07 }
+  sagat:  { note: 80, base_velocity: 68,  velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.06 }
+  clap:   { note: 39, base_velocity: 86,  velocity_range: 12, timing_jitter: 0.014, duration_beats: 0.09 }
+  kick:   { note: 36, base_velocity: 96,  velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.14 }
+  crash:  { note: 49, base_velocity: 94,  velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.24 }
+
+humanization:
+  timing_jitter: 0.012
+  velocity_jitter: 12
+  velocity_drift: 0.05
+
+sections:
+  intro:
+    type: count_in
+    hits: 4
+    note: 62
+
+  groove:
+    bars: 1
+    variations:
+      - name: maqsum
+        weight: 4
+        # Maqsum — the most common rhythm in Arabic music, the one under most
+        # of the Umm Kulthum and Abdel Halim repertoire.
+        #   D  T  .  T  |  D  .  T  .
+        # Doum on the 1st and 5th 8ths (pos 0, 8), tek on the 3rd, 4th and 7th
+        # (pos 4, 6, 12). The ka fills the odd 16ths so the pulse never stops.
+        doum:  "X.......X......."
+        tek:   "....X.X.....X..."
+        ka:    "..g.g.g.g.g.g.g."
+        riq:   "x.x.x.x.x.x.x.x."
+
+      - name: baladi
+        weight: 3
+        # Baladi ("of the country") — maqsum with the second doum pulled forward
+        # onto the 2nd 8th, giving the heavy double-doum opening that names the
+        # style.  D  D  .  T  |  D  .  T  .
+        doum:  "X.X.....X......."
+        tek:   "......X.....X..."
+        ka:    ".g.g.g.g.g.g.g.g"
+        riq:   "x.x.x.x.x.x.x.x."
+
+      - name: saidi
+        weight: 3
+        # Saidi — Upper Egypt, the tahtib stick-dance rhythm. Two doums in the
+        # middle of the bar rather than at its edges, which is what makes it
+        # feel like it is leaning backwards.
+        #   D  .  T  .  |  D  D  .  T
+        doum:  "X.......X.X....."
+        tek:   "....X.........X."
+        ka:    "..g.g.g.g.g.g.g."
+        riq:   "x.x.x.x.x.x.x.x."
+        sagat: "x...x...x...x..."
+
+      - name: ayyub
+        weight: 2
+        # Ayyub — a fast 2/4 zar and Nubian rhythm, written here as two cycles
+        # per bar. Doum on the beat and on the "a" after it, tek on the backbeat.
+        # Under a Hijaz or Bayati melody this is the trance end of the repertoire.
+        doum:  "X..X....X..X...."
+        tek:   "....X.......X..."
+        ka:    "..g.g.g.g.g.g.g."
+        riq:   "x.x.x.x.x.x.x.x."
+
+      - name: malfuf
+        weight: 2
+        # Malfuf — the 3+3+2 processional rhythm (zaffa, wedding entrances),
+        # also two cycles per bar: doum, then tek at the "a" of the beat and on
+        # the following offbeat.
+        doum:  "X.......X......."
+        tek:   "...X..X....X..X."
+        ka:    ".g.g.g.g.g.g.g.g"
+        riq:   "x.x.x.x.x.x.x.x."
+
+  fill:
+    bars: 1
+    variations:
+      - name: darbuka_roll
+        # Continuous 16th tek roll (roulement) — the darbuka player's way of
+        # announcing that the singer is about to come back in.
+        doum:  "X..............."
+        tek:   "XxXxXxXxXxXxXxXx"
+
+      - name: doum_cadence
+        # Doum accents accelerating from quarters to 8ths, everyone landing
+        # together on the next downbeat.
+        doum:  "X...X...X.X.X.X."
+        tek:   "..x...x........."
+        riq:   "x.x.x.x.x.x.x.x."
+
+      - name: riq_flourish
+        # The riq takes the fill: tambourine 16ths under a held doum, the way a
+        # takht ensemble hands the break to the frame drum.
+        doum:  "X.......X......."
+        riq:   "x.x.x.xXx.x.XXXX"
+        clap:  "............X.X."
+
+  crash:
+    bars: 1
+    variations:
+      - name: standard
+        crash: "X..............."
+        doum:  "X.......X......."
+        tek:   "....X.X.....X..."
+        riq:   "x.x.x.x.x.x.x.x."
+
+structure:
+  fill_every: 8
+  break_every: 0
+  break_length: 1
+  crash_after_fill: true
+  dynamic_build: false
