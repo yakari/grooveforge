@@ -1,52 +1,52 @@
-GrooveForge est un studio à clavier MIDI portable pour Android. Branchez un contrôleur MIDI, choisissez une soundfont, et jouez.
+GrooveForge est un studio clavier MIDI portable pour Android. Branchez un contrôleur MIDI, choisissez une soundfont, jouez.
 
-À l'origine, c'était un compagnon de travail : quelque chose d'assez léger pour tenir dans un téléphone ou une tablette, pour retrouver ses gammes et sa mémoire des doigts au clavier. Le projet a beaucoup grandi depuis, mais l'objectif reste le même : un outil pour travailler et pour jouer, pas une station de travail audionumérique.
+Au départ, un compagnon de travail léger, sur téléphone ou tablette, pour retrouver ses gammes et ses automatismes au clavier. Le projet a beaucoup grandi, mais reste un outil pour travailler et jouer, pas un DAW.
 
 Répétitions
 
-Un groupe qui travaille un morceau, sans studio. Chacun enregistre sa propre partie sur un clic commun, depuis son téléphone, et les parties se rassemblent en un seul arrangement dont chaque appareil garde une copie complète.
+Un groupe qui travaille un morceau, sans studio. Chacun enregistre sa partie sur un clic commun, depuis son téléphone, et les parties forment un seul arrangement dont chaque appareil garde une copie complète.
 
-Importez un enregistrement pour jouer dessus — MP3, FLAC et WAV partout, plus M4A, AAC et le son d'une vidéo sur Android. Tapez le tempo, puis faites glisser un repère sur le premier temps fort pour aligner la grille sur la musique.
+Importez un enregistrement pour jouer dessus : MP3, FLAC et WAV partout, plus M4A, AAC et le son d'une vidéo sur Android. Tapez le tempo, puis placez un repère sur le premier temps fort pour caler la grille.
 
-Chaque appareil met un instant à sortir le son et un instant à le capter, et ce retard décalerait chaque prise derrière tout ce qui est déjà enregistré. GrooveForge mesure ce retard sur votre propre appareil et recale votre prise d'autant : ce que vous avez joué sur le temps tombe sur le temps.
+Chaque appareil retarde le son en sortie comme en entrée, ce qui décalerait chaque prise. GrooveForge mesure ce retard sur votre appareil et recale votre prise : ce que vous jouez sur le temps tombe sur le temps.
 
-Rien n'est envoyé nulle part, et aucun compte n'est nécessaire. Les appareils se synchronisent directement en réseau local : scannez un code une fois, ensuite il suffit d'ouvrir le même morceau. Une répétition fonctionne dans une salle sans le moindre accès à internet — et là où il n'y a pas de Wi-Fi, le point d'accès d'un téléphone fait tout le réseau.
+Rien n'est envoyé en ligne, aucun compte requis. Les appareils se synchronisent en réseau local : scannez un code une fois, puis ouvrez simplement le même morceau. Sans internet ni Wi-Fi, le partage de connexion d'un téléphone suffit.
 
 Instruments
 
-GrooveForge Keyboard — synthé soundfont (.sf2) avec choix de banque et de patch, et routage de canal MIDI. Chaque slot est indépendant.
+GrooveForge Keyboard — synthé soundfont (.sf2), choix de banque et de patch, routage de canal MIDI. Chaque slot est indépendant.
 Vocodeur — synthèse vocale au micro.
 Stylophone — instrument monophonique à lamelles métalliques.
 Thérémine — pad tactile, hauteur en vertical et volume en horizontal.
-Générateur de batterie — grooves de la bossa nova au métal, avec du feeling humain.
+Générateur de batterie — de la bossa nova au métal, avec un jeu humain.
 
 Xen : gammes microtonales
 
-Tenez une note, appuyez sur une gamme. La note tenue devient la tonique, le clavier se verrouille sur la gamme construite dessus, et — pour les gammes qui ne sont pas tempérées — les touches qu'elle utilise sont réaccordées pour sonner comme la tradition l'entend. Un clavier, un geste.
+Tenez une note, appuyez sur une gamme. La note tenue devient la tonique, le clavier se verrouille sur la gamme, et si elle n'est pas tempérée, ses touches sont réaccordées comme le veut la tradition. Un clavier, un geste.
 
-92 gammes réparties en onze familles : modes occidentaux ; maqamat arabes et turcs ; dastgah persans ; ragas indiens en intonation juste ; modes chinois, japonais et coréens ; heptatonique égal thaï ; gamelans javanais et balinais ; qenet éthiopiens et amadinda ougandais ; cornemuse écossaise, hardingfele et chant byzantin ; tempéraments historiques ; et divisions égales de 13 à 31 tons, Bohlen-Pierce, et les alpha, beta et gamma non octaviantes de Wendy Carlos.
+92 gammes en onze familles : modes occidentaux ; maqamat arabes et turcs ; dastgah persans ; ragas indiens en intonation juste ; modes chinois, japonais et coréens ; heptatonique égal thaï ; gamelans javanais et balinais ; qenet éthiopiens et amadinda ougandais ; cornemuse écossaise, hardingfele et chant byzantin ; tempéraments historiques ; et divisions égales de 13 à 31 tons, Bohlen-Pierce, et les alpha, beta et gamma non octaviantes de Wendy Carlos.
 
-L'accordage passe par une table de tuning MIDI complète plutôt que par le pitch bend : chaque note d'un accord sonne donc à sa hauteur exacte, là où le pitch bend, qui agit par canal, ne peut déplacer qu'une note à la fois. Sur le clavier, les touches hors gamme sont grisées et les touches réaccordées portent leur écart en cents.
+L'accordage utilise une table de tuning MIDI complète, pas le pitch bend : chaque note d'un accord sonne à sa hauteur exacte. Les touches hors gamme sont grisées et les touches réaccordées affichent leur écart en cents.
 
-Chaque gamme indique d'où viennent ses valeurs : un tempérament ou une division égale est exact, un maqam est écrit dans la convention qui note la pratique, un gamelan ou un qenet éthiopien est accordé à l'oreille et diffère d'un instrument à l'autre.
+Chaque gamme indique d'où viennent ses valeurs : un tempérament est exact, un maqam suit la convention qui le note, un gamelan est accordé à l'oreille et varie d'un instrument à l'autre.
 
-Créez aussi les vôtres — autant de degrés que vous voulez, un écart par touche, et un mute qui garde un degré jouable pendant que le verrouillage l'ignore. Import et export de fichiers Scala (.scl).
+Créez aussi les vôtres : autant de degrés que voulu, un écart par touche, et un mute qui garde un degré jouable mais ignoré par le verrouillage. Import et export Scala (.scl).
 
 Loopers
 
-Looper MIDI — enregistrez et bouclez des séquences MIDI avec synchro de mesure.
-Looper Audio — enregistrez et bouclez de l'audio en temps réel, avec synchro, overdub et reverse.
+Looper MIDI — enregistrez et bouclez des séquences MIDI, calées sur la mesure.
+Looper Audio — bouclez de l'audio en direct, calé sur la mesure, avec overdub et reverse.
 
 Effets
 
-Réverb à plaque, delay ping-pong, auto-wah, EQ 4 bandes, compresseur et chorus/flanger, synchronisables sur le BPM là où c'est pertinent. Le Live Input envoie un micro ou une entrée ligne dans n'importe lequel d'entre eux.
+Réverb à plaque, delay ping-pong, auto-wah, EQ 4 bandes, compresseur et chorus/flanger, synchronisables sur le BPM si pertinent. Le Live Input y fait passer un micro ou une entrée ligne.
 
 Et le reste
 
-Rack de modules — un rack ordonné, réorganisable par glisser-déposer à tout moment.
-Verrouillage de gamme et surbrillance — tonique, notes de la gamme et notes hors gamme colorées sur le clavier à l'écran.
-Jam Mode — un slot mène la danse, les slots suivants se calent sur son harmonie.
-Assignation de CC — associez potentiomètres, faders et pads de votre matériel à des effets MIDI ou à des actions de l'application.
-Projets — enregistrez et rechargez une configuration de rack complète dans un fichier .gf. La dernière session est sauvegardée automatiquement à chaque modification.
+Rack de modules — des slots ordonnés, réorganisables par glisser-déposer.
+Verrouillage de gamme — tonique, notes de la gamme et hors gamme colorées sur le clavier à l'écran.
+Jam Mode — un slot mène, les suivants se calent sur son harmonie.
+Assignation de CC — associez potentiomètres, faders et pads à des effets MIDI ou à des actions.
+Projets — enregistrez et rechargez un rack complet dans un fichier .gf. La dernière session est sauvegardée à chaque modification.
 
 GrooveForge est un logiciel libre, développé par une seule personne sur son temps libre. Les aspérités font partie du voyage, et les versions sortent quand le temps le permet.

@@ -6,6 +6,7 @@ import '../services/file_picker_service.dart';
 import 'package:flutter_midi_command/flutter_midi_command.dart';
 import 'package:grooveforge/services/midi_service.dart';
 import 'package:grooveforge/services/audio_engine.dart';
+import 'package:grooveforge/models/usb_direct_output_status.dart';
 import '../screens/cc_preferences.dart';
 import 'package:grooveforge/services/cc_mapping_service.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -548,70 +549,80 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
             ),
             const SizedBox(height: 8),
             Card(
-              child: Consumer<AudioEngine>(
-                builder: (context, engine, _) {
-                  return FutureBuilder<List<Map<String, dynamic>>>(
-                    future: engine.getAndroidOutputDevices(),
-                    builder: (context, snapshot) {
-                      final devices = snapshot.data ?? [];
-                      return ValueListenableBuilder<int>(
-                        valueListenable: engine.vocoderOutputAndroidDeviceId,
-                        builder: (context, androidId, _) {
-                          String currentName = loc.audioOutputDefault;
-                          final dev = devices.firstWhere(
-                            (d) => d['id'] == androidId,
-                            orElse: () => <String, dynamic>{},
-                          );
-                          if (dev.isNotEmpty) {
-                            currentName = dev['name'] as String;
-                          }
+              child: Column(
+                children: [
+                  Consumer<AudioEngine>(
+                    builder: (context, engine, _) {
+                      return FutureBuilder<List<Map<String, dynamic>>>(
+                        future: engine.getAndroidOutputDevices(),
+                        builder: (context, snapshot) {
+                          final devices = snapshot.data ?? [];
+                          return ValueListenableBuilder<int>(
+                            valueListenable: engine.vocoderOutputAndroidDeviceId,
+                            builder: (context, androidId, _) {
+                              String currentName = loc.audioOutputDefault;
+                              final dev = devices.firstWhere(
+                                (d) => d['id'] == androidId,
+                                orElse: () => <String, dynamic>{},
+                              );
+                              if (dev.isNotEmpty) {
+                                currentName = dev['name'] as String;
+                              }
 
-                          final bool valueMissing =
-                              androidId != -1 &&
-                              !devices.any((d) => d['id'] == androidId);
+                              final bool valueMissing =
+                                  androidId != -1 &&
+                                  !devices.any((d) => d['id'] == androidId);
 
-                          return _ResponsivePreferenceRow(
-                            icon: const Icon(
-                              Icons.headset,
-                              color: Colors.pinkAccent,
-                            ),
-                            title: loc.audioOutputDevice,
-                            subtitle:
-                                valueMissing
-                                    ? "Disconnected (ID: $androidId)"
-                                    : currentName,
-                            trailing: DropdownButton<int>(
-                              value: androidId,
-                              items: [
-                                DropdownMenuItem(
-                                  value: -1,
-                                  child: Text(loc.audioOutputDefault),
+                              return _ResponsivePreferenceRow(
+                                icon: const Icon(
+                                  Icons.headset,
+                                  color: Colors.pinkAccent,
                                 ),
-                                if (valueMissing)
-                                  DropdownMenuItem(
-                                    value: androidId,
-                                    child: Text("Disconnected (ID: $androidId)"),
-                                  ),
-                                ...devices.map((device) {
-                                  return DropdownMenuItem(
-                                    value: device['id'] as int,
-                                    child: Text(device['name'] as String),
-                                  );
-                                }),
-                              ],
-                              onChanged: (val) {
-                                if (val != null) {
-                                  engine.vocoderOutputAndroidDeviceId.value = val;
-                                  engine.stateNotifier.value++;
-                                }
-                              },
-                            ),
+                                title: loc.audioOutputDevice,
+                                subtitle:
+                                    valueMissing
+                                        ? "Disconnected (ID: $androidId)"
+                                        : currentName,
+                                trailing: DropdownButton<int>(
+                                  value: androidId,
+                                  items: [
+                                    DropdownMenuItem(
+                                      value: -1,
+                                      child: Text(loc.audioOutputDefault),
+                                    ),
+                                    if (valueMissing)
+                                      DropdownMenuItem(
+                                        value: androidId,
+                                        child: Text("Disconnected (ID: $androidId)"),
+                                      ),
+                                    ...devices.map((device) {
+                                      return DropdownMenuItem(
+                                        value: device['id'] as int,
+                                        child: Text(device['name'] as String),
+                                      );
+                                    }),
+                                  ],
+                                  onChanged: (val) {
+                                    if (val != null) {
+                                      engine.vocoderOutputAndroidDeviceId.value = val;
+                                      engine.stateNotifier.value++;
+                                    }
+                                  },
+                                ),
+                              );
+                            },
                           );
                         },
                       );
                     },
-                  );
-                },
+                  ),
+                  // Android only: the fallback exists because Android plays
+                  // to one USB audio device at a time.
+                  if (!kIsWeb && Platform.isAndroid) ...[
+                    const Divider(height: 1),
+                    const _UsbDirectOutputTile(),
+                  ],
+                ],
               ),
             ),
             const SizedBox(height: 32),
@@ -1133,6 +1144,113 @@ class _ResponsivePreferenceRow extends StatelessWidget {
         }
       },
     );
+  }
+}
+
+/// Preference row for the optional direct USB output (Android only).
+///
+/// A switch, a one-line explanation of when it is useful, and — while the
+/// switch is on — a live status line. The status matters more than usual here:
+/// the feature depends on hardware and on a USB permission dialog, and without
+/// it "on but silent" could mean a declined permission, an unsupported DAC, or
+/// simply that Android already plays through USB and nothing is needed.
+class _UsbDirectOutputTile extends StatefulWidget {
+  const _UsbDirectOutputTile();
+
+  @override
+  State<_UsbDirectOutputTile> createState() => _UsbDirectOutputTileState();
+}
+
+class _UsbDirectOutputTileState extends State<_UsbDirectOutputTile> {
+  /// How often the status is re-read while the switch is on. USB events settle
+  /// over about a second, so a faster refresh would show nothing new.
+  static const _pollInterval = Duration(seconds: 1);
+
+  Timer? _pollTimer;
+  UsbDirectOutputStatus _status = UsbDirectOutputStatus.unavailable;
+
+  late final AudioEngine _engine;
+
+  @override
+  void initState() {
+    super.initState();
+    _engine = context.read<AudioEngine>();
+    _engine.usbDirectOutputEnabled.addListener(_onEnabledChanged);
+    _onEnabledChanged();
+  }
+
+  @override
+  void dispose() {
+    _engine.usbDirectOutputEnabled.removeListener(_onEnabledChanged);
+    _pollTimer?.cancel();
+    super.dispose();
+  }
+
+  /// Polls only while enabled; the status of a switched-off feature is "off".
+  void _onEnabledChanged() {
+    _pollTimer?.cancel();
+    _pollTimer = null;
+    if (!_engine.usbDirectOutputEnabled.value) {
+      if (mounted) setState(() => _status = UsbDirectOutputStatus.unavailable);
+      return;
+    }
+    _refresh();
+    _pollTimer = Timer.periodic(_pollInterval, (_) => _refresh());
+  }
+
+  Future<void> _refresh() async {
+    final status = await _engine.getUsbDirectOutputStatus();
+    if (mounted) setState(() => _status = status);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
+    return ValueListenableBuilder<bool>(
+      valueListenable: _engine.usbDirectOutputEnabled,
+      builder: (context, enabled, _) {
+        final statusText = enabled ? _statusText(loc) : null;
+        return _ResponsivePreferenceRow(
+          icon: const Icon(Icons.usb, color: Colors.pinkAccent),
+          title: loc.usbDirectOutputTitle,
+          subtitle: statusText == null
+              ? loc.usbDirectOutputSubtitle
+              : '${loc.usbDirectOutputSubtitle}\n$statusText',
+          trailing: Switch(
+            value: enabled,
+            onChanged: (value) => _engine.usbDirectOutputEnabled.value = value,
+          ),
+        );
+      },
+    );
+  }
+
+  /// One localized line describing [_status], or null when there is nothing
+  /// to add to the subtitle (the plugin has not reported yet).
+  String? _statusText(AppLocalizations loc) {
+    final device = _status.deviceLabel ?? loc.usbDirectOutputUnknownDevice;
+    switch (_status.state) {
+      case UsbDirectOutputState.off:
+        return null;
+      case UsbDirectOutputState.noDevice:
+        return loc.usbDirectOutputStatusNoDevice;
+      case UsbDirectOutputState.androidRoutes:
+        return loc.usbDirectOutputStatusAndroidRoutes;
+      case UsbDirectOutputState.permission:
+        return loc.usbDirectOutputStatusPermission(device);
+      case UsbDirectOutputState.denied:
+        return loc.usbDirectOutputStatusDenied(device);
+      case UsbDirectOutputState.active:
+        return loc.usbDirectOutputStatusActive(
+          device,
+          _status.sampleRate,
+          _status.bits,
+        );
+      case UsbDirectOutputState.unsupported:
+        return loc.usbDirectOutputStatusUnsupported(device);
+      case UsbDirectOutputState.error:
+        return loc.usbDirectOutputStatusError(device);
+    }
   }
 }
 

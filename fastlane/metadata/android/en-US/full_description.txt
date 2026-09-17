@@ -1,6 +1,6 @@
 GrooveForge is a portable MIDI keyboard studio for Android. Plug in a MIDI controller, pick a soundfont, and play.
 
-It began as a practice companion: something light enough to carry on a phone or tablet, used to rebuild scale knowledge and muscle memory at a keyboard. It grew well beyond that, but the focus remains — a tool for practising and playing, not a DAW.
+It began as a practice companion, light enough to carry on a phone or tablet, for rebuilding scales and muscle memory at a keyboard. It grew well beyond that, but it remains a tool for practising and playing, not a DAW.
 
 Rehearsals
 
@@ -8,9 +8,9 @@ A band learning a tune together, without a studio. Everyone records their own pa
 
 Import a recording to play along to — MP3, FLAC and WAV everywhere, plus M4A, AAC and the sound of a video on Android. Tap the tempo, then drag a marker to the first downbeat so the grid lines up with the music.
 
-Every device takes a moment to play sound and a moment to capture it, and that delay would push each take late against everything already recorded. GrooveForge measures the delay on your own device and shifts your take back by it, so what you played on the beat lands on the beat.
+Every device delays sound on the way out and on the way in, which would push each take late. GrooveForge measures that delay on your device and shifts your take back by it, so what you played on the beat lands on the beat.
 
-Nothing is uploaded anywhere and no account is needed. Devices sync straight to each other over the local network: scan a code once, and from then on opening the same tune is enough. A rehearsal works in a room with no internet at all — and where there is no Wi-Fi, one phone's hotspot is the whole network.
+Nothing is uploaded anywhere and no account is needed. Devices sync directly over the local network: scan a code once, then opening the same tune is enough. No internet needed, and without Wi-Fi one phone's hotspot is the whole network.
 
 Instruments
 
@@ -26,9 +26,9 @@ Hold a note, tap a scale. The note you are holding becomes the tonic, the keyboa
 
 92 scales across eleven families: Western modes; Arabic and Turkish maqamat; Persian dastgah; Indian ragas in just intonation; Chinese, Japanese and Korean modes; Thai seven-equal; Javanese and Balinese gamelan; Ethiopian qenet and Ugandan amadinda; Highland pipe, hardanger fiddle and Byzantine chant; historical temperaments; and equal divisions from 13 to 31 tones, Bohlen-Pierce, and Wendy Carlos's non-octave alpha, beta and gamma.
 
-Retuning uses a full MIDI tuning table rather than pitch bend, so every note of a chord sounds at its own correct pitch — pitch bend is per channel and can only move one note at a time. On the keyboard, out-of-scale keys grey out and retuned ones carry their offset in cents.
+Retuning uses a full MIDI tuning table rather than pitch bend, so every note of a chord sounds at its own correct pitch. Out-of-scale keys grey out and retuned ones show their offset in cents.
 
-Each scale says where its numbers come from: a temperament or an equal division is exact, a maqam is written in the convention that notates the practice, a gamelan or an Ethiopian qenet is tuned by ear and differs from one instrument to the next.
+Each scale says where its numbers come from: a temperament is exact, a maqam follows the convention that notates it, a gamelan is tuned by ear and varies between instruments.
 
 Build your own scales too — any number of degrees, an offset per key, and a mute that keeps a degree playable while the scale lock ignores it. Import and export Scala (.scl) files.
 

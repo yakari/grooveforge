@@ -197,6 +197,26 @@ class MidiPro {
     return FlutterMidiProPlatform.instance.setOutputDevice(deviceId);
   }
 
+  /// Turns the optional direct USB output on or off.
+  ///
+  /// For a USB DAC that Android has dropped — Android plays to one USB audio
+  /// device at a time, so a USB microphone on the same hub displaces the DAC.
+  /// When enabled, and only while Android is not already routing to a USB
+  /// output, GrooveForge streams straight to such a DAC over USB.
+  /// No-op on non-Android platforms.
+  Future<void> setUsbDirectOutputEnabled(bool enabled) async {
+    return FlutterMidiProPlatform.instance.setUsbDirectOutputEnabled(enabled);
+  }
+
+  /// Returns the direct USB output's status, or null where it does not exist.
+  ///
+  /// Keys: `state` (`off`, `noDevice`, `androidRoutes`, `permission`,
+  /// `denied`, `active`, `unsupported`, `error`), `device` (label or null),
+  /// `sampleRate`, `channels`, `bits`.
+  Future<Map<String, dynamic>?> getUsbDirectOutputStatus() async {
+    return FlutterMidiProPlatform.instance.getUsbDirectOutputStatus();
+  }
+
   /// Unloads a soundfont from memory.
   /// The soundfont ID is the ID returned by the [loadSoundfont] method.
   /// If resetPresets is true, the presets will be reset to the default values.

@@ -117,6 +117,14 @@ if (NOT ANDROID AND NOT IOS)
     endif()
 endif()
 
+# Direct USB output, device side: descriptor parsing, packet sizing and PCM
+# packing for the Android USB DAC streamer. Pure C, no device needed — it runs
+# against descriptors captured from real hardware.
+if (NOT ANDROID AND NOT IOS)
+    add_executable(gf_uac_smoke_test EXCLUDE_FROM_ALL
+        gf_uac_smoke_test.c gf_uac.c)
+endif()
+
 # Multitrack rehearsal engine (P1). Streams takes from disk, so the test needs
 # a writable directory but no audio device.
 if (NOT ANDROID AND NOT IOS)

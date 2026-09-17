@@ -72,6 +72,11 @@ add_library(native-lib SHARED
         native-lib.cpp
         gfpa_audio_android.cpp
         oboe_stream_android.cpp
+        # Optional direct USB output: streams the bus to a USB DAC that
+        # Android dropped (off unless the user enables it). The device-free
+        # half lives in native_audio/gf_uac.c, tested by gf_uac_smoke_test.
+        usb_direct_output_android.cpp
+        ../../../../../../native_audio/gf_uac.c
         ../../../../../flutter_vst3/dart_vst_host/native/src/gfpa_dsp.cpp
         ../../../../../flutter_vst3/dart_vst_host/native/src/audio_looper.cpp
         # Phase vocoder — tempo-sync stretching for the audio looper.

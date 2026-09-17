@@ -169,6 +169,41 @@ void oboe_stream_set_output_device(int deviceId);
 /// Returns the currently configured output device ID (0 = system default).
 int oboe_stream_get_output_device(void);
 
+// ── External clock (direct USB output) ───────────────────────────────────────
+//
+// Normally the AAudio stream's callback is what renders the bus. The optional
+// direct USB output replaces it with its own thread, timed by the USB DAC, for
+// a DAC that Android has dropped (see usb_direct_output_android.h). These three
+// functions are the whole handoff; the bus itself does not change.
+
+/// Makes an external clock the bus's renderer.
+///
+/// The AAudio stream keeps running but plays silence until
+/// oboe_stream_end_external_clock() — closing it would make Android treat the
+/// app as no longer playing, which degrades the USB microphone's capture on
+/// some devices. Returns once no AAudio callback can still be rendering the
+/// bus. Call before the external thread renders its first block.
+///
+/// [sampleRate] — the rate the external device plays at; must equal
+///                oboe_stream_get_sample_rate(), which the sources were built at.
+void oboe_stream_begin_external_clock(int32_t sampleRate);
+
+/// Hands the bus back to AAudio. Idempotent.
+///
+/// Call only once the external thread has rendered its last block. The AAudio
+/// stream resumes rendering, or is reopened on a detached thread if it went
+/// down meanwhile and the app still wants audio.
+void oboe_stream_end_external_clock(void);
+
+/// Renders one bus block for the external clock, interleaved stereo float32.
+///
+/// Real-time safe, same rules as the AAudio callback. Writes silence if the
+/// external clock is not (or no longer) active.
+///
+/// [interleaved] — frames * 2 samples.
+/// [frames]      — at most 4096.
+void oboe_stream_render_external(float* interleaved, int32_t frames);
+
 // ── Stream diagnostics ───────────────────────────────────────────────────────
 
 /// Returns the sample rate the AAudio stream is actually running at.

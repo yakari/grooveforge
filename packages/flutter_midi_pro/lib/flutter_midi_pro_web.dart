@@ -122,6 +122,14 @@ class FlutterMidiProWeb extends FlutterMidiProPlatform {
   }
 
   @override
+  Future<void> setUsbDirectOutputEnabled(bool enabled) async {
+    // No-op on web — there is no USB audio device access in the browser.
+  }
+
+  @override
+  Future<Map<String, dynamic>?> getUsbDirectOutputStatus() async => null;
+
+  @override
   Future<void> unloadSoundfont(int sfId) async {
     _gfAudio?.unloadSoundfont(sfId.toJS);
   }

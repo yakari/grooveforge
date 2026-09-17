@@ -43,6 +43,11 @@
 #       at least once, and none of them is visible from the Dart suite: they
 #       only exist once real audio has been rendered. Needs no soundfont.
 #
+#   gf_uac_smoke_test — direct USB output, device side. Parses descriptors
+#       captured from a real USB-C hub DAC, refuses formats the streamer cannot
+#       drive (UAC2, asynchronous endpoints), spreads 44.1 kHz over 1 ms packets
+#       and checks the PCM bytes. Needs no device.
+#
 #   gf_autotune_smoke_test — Autotune: a sharp note comes out on pitch, key and
 #       scale pick the right note, retune speed and transpose do what they say,
 #       and a hard retune across an octave never puts a click in the waveform.
@@ -56,6 +61,7 @@
 #   ./scripts/run_smoke_tests.sh latency    # just the overdub alignment test
 #   ./scripts/run_smoke_tests.sh rehearsal  # just the rehearsal engine test
 #   ./scripts/run_smoke_tests.sh stretch    # just the practice-tempo renderer
+#   ./scripts/run_smoke_tests.sh uac        # just the direct USB output checks
 #
 # Build artefacts go to native_audio/build-smoke/ so the normal build tree is
 # left untouched.
@@ -153,6 +159,16 @@ run_rehearsal() {
     "$BUILD_DIR/gf_rehearsal_smoke_test" "$(mktemp -d)"
 }
 
+# ── Direct USB output (device side) ───────────────────────────────────────────
+
+run_uac() {
+    echo
+    echo "── Building gf_uac_smoke_test"
+    cmake --build "$BUILD_DIR" --target gf_uac_smoke_test -j"$(nproc 2>/dev/null || echo 4)" > /dev/null
+    echo "── Running gf_uac_smoke_test"
+    "$BUILD_DIR/gf_uac_smoke_test"
+}
+
 # ── Dispatch ──────────────────────────────────────────────────────────────────
 
 FAILED=0
@@ -164,6 +180,7 @@ case "$WHICH" in
     latency)    run_latency    || FAILED=1 ;;
     rehearsal)  run_rehearsal  || FAILED=1 ;;
     stretch)    run_timestretch || FAILED=1 ;;
+    uac)        run_uac        || FAILED=1 ;;
     all)
         run_tuning     || FAILED=1
         run_vocoder    || FAILED=1
@@ -172,9 +189,10 @@ case "$WHICH" in
         run_latency    || FAILED=1
         run_rehearsal  || FAILED=1
         run_timestretch || FAILED=1
+        run_uac        || FAILED=1
         ;;
     *)
-        echo "usage: $0 [all|tuning|vocoder|harmonizer|autotune|latency|rehearsal|stretch]" >&2
+        echo "usage: $0 [all|tuning|vocoder|harmonizer|autotune|latency|rehearsal|stretch|uac]" >&2
         exit 2
         ;;
 esac

@@ -14,6 +14,7 @@ import '../services/sf2_parser.dart';
 import 'package:audio_session/audio_session.dart';
 import 'package:grooveforge/constants/soundfont_sentinels.dart';
 import 'package:grooveforge/models/chord_detector.dart';
+import 'package:grooveforge/models/usb_direct_output_status.dart';
 import 'package:grooveforge/services/audio_input_ffi.dart';
 import 'package:grooveforge/plugins/gf_stylophone_plugin.dart';
 import 'package:grooveforge_plugin_api/grooveforge_plugin_api.dart';
@@ -340,6 +341,17 @@ class AudioEngine extends ChangeNotifier {
   );
   final ValueNotifier<double> vocoderInputGain = ValueNotifier<double>(1.0);
 
+  /// Whether the optional direct USB output is enabled (Android only).
+  ///
+  /// Android plays to one USB audio device at a time, so a USB microphone
+  /// plugged next to a USB DAC makes Android drop the DAC. When this is on and
+  /// Android is not routing to any USB output, GrooveForge streams straight to
+  /// such a DAC over USB instead of falling back to the speaker.
+  ///
+  /// Off by default: for everyone without that setup the normal AAudio path
+  /// stays exactly as it is.
+  final ValueNotifier<bool> usbDirectOutputEnabled = ValueNotifier<bool>(false);
+
   /// Master output gain sent to the FluidSynth process (`gain` command).
   ///
   /// Linux default is 3.0 — the previous 5.0 was too loud relative to VST
@@ -424,6 +436,28 @@ class AudioEngine extends ChangeNotifier {
     final id = vocoderOutputAndroidDeviceId.value;
     // Dart uses -1 for "default"; AAudio uses 0 (AAUDIO_UNSPECIFIED).
     _midiPro.setOutputDevice(id < 0 ? 0 : id);
+  }
+
+  /// Forwards [usbDirectOutputEnabled] to the Android plugin. No-op elsewhere.
+  void _applyUsbDirectOutput() {
+    if (kIsWeb || !Platform.isAndroid) return;
+    _midiPro.setUsbDirectOutputEnabled(usbDirectOutputEnabled.value);
+  }
+
+  /// Reads what the direct USB output is doing, for the preferences screen.
+  ///
+  /// Returns [UsbDirectOutputStatus.unavailable] off Android or when the
+  /// plugin cannot be reached.
+  Future<UsbDirectOutputStatus> getUsbDirectOutputStatus() async {
+    if (kIsWeb || !Platform.isAndroid) return UsbDirectOutputStatus.unavailable;
+    try {
+      return UsbDirectOutputStatus.fromMap(
+        await _midiPro.getUsbDirectOutputStatus(),
+      );
+    } catch (e) {
+      debugPrint('GrooveForge: getUsbDirectOutputStatus failed: $e');
+      return UsbDirectOutputStatus.unavailable;
+    }
   }
 
   bool _isRestartingCapture = false;
@@ -762,6 +796,8 @@ class AudioEngine extends ChangeNotifier {
       // above; this covers the FluidSynth/instrument bus.
       _applySynthOutputDevice();
     });
+    usbDirectOutputEnabled.addListener(_saveState);
+    usbDirectOutputEnabled.addListener(_applyUsbDirectOutput);
   }
 
   Future<void> _ensureDefaultSoundfont() async {
@@ -926,6 +962,10 @@ class AudioEngine extends ChangeNotifier {
       'vocoder_output_android_device_id',
       vocoderOutputAndroidDeviceId.value,
     );
+    await _prefs!.setBool(
+      'usb_direct_output_enabled',
+      usbDirectOutputEnabled.value,
+    );
   }
 
   Future<void> _restoreState() async {
@@ -961,6 +1001,11 @@ class AudioEngine extends ChangeNotifier {
     // when the first soundfont is loaded (stream not running yet — the value is
     // stored and used by oboe_stream_start).
     _applySynthOutputDevice();
+    // Listeners are attached after this method, so the restored value is
+    // pushed to the plugin explicitly.
+    usbDirectOutputEnabled.value =
+        _prefs!.getBool('usb_direct_output_enabled') ?? false;
+    _applyUsbDirectOutput();
 
     if (!kIsWeb) {
       // Native: reload soundfonts from their saved file paths and apply them.

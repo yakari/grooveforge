@@ -1208,6 +1208,66 @@ abstract class AppLocalizations {
   /// **'System Default'**
   String get audioOutputDefault;
 
+  /// No description provided for @usbDirectOutputTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Direct USB output'**
+  String get usbDirectOutputTitle;
+
+  /// No description provided for @usbDirectOutputSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Plays through a USB DAC that Android drops when a USB microphone is plugged in too. Leave off otherwise.'**
+  String get usbDirectOutputSubtitle;
+
+  /// No description provided for @usbDirectOutputUnknownDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'USB DAC'**
+  String get usbDirectOutputUnknownDevice;
+
+  /// No description provided for @usbDirectOutputStatusNoDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting: no USB DAC found'**
+  String get usbDirectOutputStatusNoDevice;
+
+  /// No description provided for @usbDirectOutputStatusAndroidRoutes.
+  ///
+  /// In en, this message translates to:
+  /// **'Not needed: Android already plays through USB'**
+  String get usbDirectOutputStatusAndroidRoutes;
+
+  /// No description provided for @usbDirectOutputStatusPermission.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow USB access for {device}'**
+  String usbDirectOutputStatusPermission(String device);
+
+  /// No description provided for @usbDirectOutputStatusDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'USB access declined for {device}. Replug it to ask again.'**
+  String usbDirectOutputStatusDenied(String device);
+
+  /// No description provided for @usbDirectOutputStatusActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Playing through {device} ({rate} Hz, {bits}-bit). The phone\'s volume keys don\'t reach this output.'**
+  String usbDirectOutputStatusActive(String device, int rate, int bits);
+
+  /// No description provided for @usbDirectOutputStatusUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'{device} is not supported'**
+  String usbDirectOutputStatusUnsupported(String device);
+
+  /// No description provided for @usbDirectOutputStatusError.
+  ///
+  /// In en, this message translates to:
+  /// **'{device} stopped. Replug it to retry.'**
+  String usbDirectOutputStatusError(String device);
+
   /// No description provided for @audioSettingsBarGain.
   ///
   /// In en, this message translates to:

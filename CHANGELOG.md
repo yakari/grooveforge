@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [X.x.x]
+
+### Added
+- Android: optional **Direct USB output** (Preferences › Audio output) plays through a USB DAC that Android drops when a USB microphone is plugged in too. Off by default.
+
+### Architecture
+- Android: the output bus can be clocked by a native USB streamer (`usb_direct_output_android.cpp`) instead of AAudio; UAC1 descriptor parsing and PCM packing in `native_audio/gf_uac.c`, covered by `gf_uac_smoke_test`.
+
 ## [3.1.0] - 2026-09-14
 
 ### Added

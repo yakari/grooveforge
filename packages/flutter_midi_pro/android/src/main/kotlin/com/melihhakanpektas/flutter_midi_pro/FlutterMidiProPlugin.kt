@@ -60,6 +60,9 @@ class FlutterMidiProPlugin: FlutterPlugin, MethodCallHandler {
   private lateinit var channel : MethodChannel
   private lateinit var flutterPluginBinding: FlutterPlugin.FlutterPluginBinding
 
+  // Optional direct USB output (off until Dart enables it). See UsbDirectOutput.
+  private var usbDirectOutput: UsbDirectOutput? = null
+
   // Dedicated single-threaded executor for real-time audio JNI calls.
   //
   // Every hot-path operation (playNote, stopNote, controlChange, pitchBend)
@@ -90,6 +93,7 @@ class FlutterMidiProPlugin: FlutterPlugin, MethodCallHandler {
     this.flutterPluginBinding = flutterPluginBinding
     channel = MethodChannel(flutterPluginBinding.binaryMessenger, "flutter_midi_pro")
     channel.setMethodCallHandler(this)
+    usbDirectOutput = UsbDirectOutput(flutterPluginBinding.applicationContext)
   }
 
   override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
@@ -204,6 +208,20 @@ class FlutterMidiProPlugin: FlutterPlugin, MethodCallHandler {
         audioExecutor.execute { setOutputDevice(deviceId) }
       }
 
+      // ── Direct USB output ────────────────────────────────────────────────
+      // Main thread on purpose: UsbDirectOutput does all its work there, and
+      // starting or stopping the stream takes a few milliseconds at most.
+
+      "setUsbDirectOutputEnabled" -> {
+        val enabled = call.argument<Boolean>("enabled") ?: false
+        usbDirectOutput?.setEnabled(enabled)
+        result.success(null)
+      }
+
+      "getUsbDirectOutputStatus" -> {
+        result.success(usbDirectOutput?.status())
+      }
+
       "dispose" -> {
         result.success(null)
         audioExecutor.execute { dispose() }
@@ -215,6 +233,11 @@ class FlutterMidiProPlugin: FlutterPlugin, MethodCallHandler {
 
   override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
     channel.setMethodCallHandler(null)
+
+    // Give the USB DAC back before the output stream goes: stopping the direct
+    // output hands the bus to AAudio, which stopOutputStream then closes.
+    usbDirectOutput?.dispose()
+    usbDirectOutput = null
 
     // Close the AAudio output stream before this process goes away.
     //

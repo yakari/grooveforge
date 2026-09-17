@@ -61,6 +61,18 @@ abstract class FlutterMidiProPlatform extends PlatformInterface {
     throw UnimplementedError('setOutputDevice() has not been implemented.');
   }
 
+  /// Turns the optional direct USB output on or off (Android only).
+  Future<void> setUsbDirectOutputEnabled(bool enabled) {
+    throw UnimplementedError(
+        'setUsbDirectOutputEnabled() has not been implemented.');
+  }
+
+  /// Reads the direct USB output's status (Android only), or null.
+  Future<Map<String, dynamic>?> getUsbDirectOutputStatus() {
+    throw UnimplementedError(
+        'getUsbDirectOutputStatus() has not been implemented.');
+  }
+
   Future<void> unloadSoundfont(int sfId) {
     throw UnimplementedError('unloadSoundfont() has not been implemented.');
   }

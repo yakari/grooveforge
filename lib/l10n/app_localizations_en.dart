@@ -632,6 +632,48 @@ class AppLocalizationsEn extends AppLocalizations {
   String get audioOutputDefault => 'System Default';
 
   @override
+  String get usbDirectOutputTitle => 'Direct USB output';
+
+  @override
+  String get usbDirectOutputSubtitle =>
+      'Plays through a USB DAC that Android drops when a USB microphone is plugged in too. Leave off otherwise.';
+
+  @override
+  String get usbDirectOutputUnknownDevice => 'USB DAC';
+
+  @override
+  String get usbDirectOutputStatusNoDevice => 'Waiting: no USB DAC found';
+
+  @override
+  String get usbDirectOutputStatusAndroidRoutes =>
+      'Not needed: Android already plays through USB';
+
+  @override
+  String usbDirectOutputStatusPermission(String device) {
+    return 'Allow USB access for $device';
+  }
+
+  @override
+  String usbDirectOutputStatusDenied(String device) {
+    return 'USB access declined for $device. Replug it to ask again.';
+  }
+
+  @override
+  String usbDirectOutputStatusActive(String device, int rate, int bits) {
+    return 'Playing through $device ($rate Hz, $bits-bit). The phone\'s volume keys don\'t reach this output.';
+  }
+
+  @override
+  String usbDirectOutputStatusUnsupported(String device) {
+    return '$device is not supported';
+  }
+
+  @override
+  String usbDirectOutputStatusError(String device) {
+    return '$device stopped. Replug it to retry.';
+  }
+
+  @override
   String get audioSettingsBarGain => 'Gain';
 
   @override

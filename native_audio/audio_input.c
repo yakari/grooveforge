@@ -304,6 +304,38 @@ static volatile int g_rehInputSource;
 /// Defined with the rehearsal routing section; see [gf_reh_set_host_routed].
 static volatile int g_rehHostRouted;
 
+// TEMPORARY DIAGNOSTIC (direct USB output investigation) — remove once the
+// Live Input silence under the USB clock is understood. Counters written by the
+// render thread, logged once a second by a helper thread; benign races only.
+#ifdef __ANDROID__
+#include <pthread.h>
+#include <unistd.h>
+static volatile uint32_t g_liDbgPulls, g_liDbgFrames, g_liDbgUnderruns, g_liDbgReprimes;
+static volatile uint32_t g_liDbgAvail, g_liDbgWritePos, g_liDbgFramesArg;
+static volatile float    g_liDbgOutPeak, g_liDbgGain;
+static volatile double   g_liDbgRawSumSq; static volatile uint32_t g_liDbgRawCount;
+static volatile int      g_liDbgStarted;
+static void* li_dbg_logger(void* arg) {
+    (void)arg;
+    uint32_t lastPulls = 0, lastFrames = 0, lastWrite = 0;
+    for (;;) {
+        sleep(1);
+        uint32_t w = g_liDbgWritePos;
+        const double rawRms = g_liDbgRawCount > 0 ? sqrt(g_liDbgRawSumSq / g_liDbgRawCount) : 0.0;
+        const double rawDb = rawRms > 1e-9 ? 20.0 * log10(rawRms) : -180.0;
+        g_liDbgRawSumSq = 0.0; g_liDbgRawCount = 0;
+        LOGI("[LiveInDbg] rawRmsDb=%.1f pulls/s=%u frames/s=%u lastFrames=%u underruns=%u reprimes=%u "
+             "avail=%u writeDelta=%u outPeak=%.4f gain=%.3f",
+             rawDb, g_liDbgPulls - lastPulls, g_liDbgFrames - lastFrames, g_liDbgFramesArg,
+             g_liDbgUnderruns, g_liDbgReprimes, g_liDbgAvail,
+             (w - lastWrite) & MIC_RING_MASK, g_liDbgOutPeak, g_liDbgGain);
+        lastPulls = g_liDbgPulls; lastFrames = g_liDbgFrames; lastWrite = w;
+        g_liDbgOutPeak = 0.0f;
+    }
+    return NULL;
+}
+#endif
+
 void mic_capture_callback(ma_device* pDevice, void* pOutput, const void* pInput,
                           ma_uint32 frameCount)
 {
@@ -320,6 +352,20 @@ void mic_capture_callback(ma_device* pDevice, void* pOutput, const void* pInput,
 
     ma_uint32 writePos = g_micWriteCursor;  // snapshot
     float peak = 0.0f;
+#ifdef __ANDROID__
+    {   // TEMPORARY DIAGNOSTIC: raw capture energy, before any gain.
+        double acc = 0.0;
+        for (ma_uint32 i = 0; i < frameCount; i++) acc += (double)pIn[i] * pIn[i];
+        g_liDbgRawSumSq += acc;
+        g_liDbgRawCount += frameCount;
+        if (!g_liDbgStarted) {
+            g_liDbgStarted = 1;
+            pthread_t t;
+            pthread_create(&t, NULL, li_dbg_logger, NULL);
+            pthread_detach(t);
+        }
+    }
+#endif
     for (ma_uint32 i = 0; i < frameCount; i++) {
         const float s = pIn[i];
         g_micRing[(writePos + i) & MIC_RING_MASK] = s;
@@ -1469,10 +1515,23 @@ EXPORT float get_live_input_peak() {
 /// exactly once even when the producer delivers samples in large bursts
 /// (Android: 1536 frames every 32 ms). Falls back to silence on underrun
 /// and re-primes the cursor on massive lag (e.g. capture restarted).
+
 EXPORT void live_input_render_block(float* outL, float* outR, int frames) {
     const float gain = g_liveInputGainLin;
 
     ma_uint32 writePos = __atomic_load_n(&g_micWriteCursor, __ATOMIC_ACQUIRE);
+#ifdef __ANDROID__
+    if (!g_liDbgStarted) {
+        g_liDbgStarted = 1;
+        pthread_t t;
+        pthread_create(&t, NULL, li_dbg_logger, NULL);
+        pthread_detach(t);
+    }
+    g_liDbgPulls++;
+    g_liDbgFramesArg = (uint32_t)frames;
+    g_liDbgWritePos = writePos;
+    g_liDbgGain = gain;
+#endif
 
     // First call after startup (or after a prime-reset below): place the
     // read cursor LIVE_INPUT_PREBUFFER samples behind the writer so there
@@ -1497,11 +1556,20 @@ EXPORT void live_input_render_block(float* outL, float* outR, int frames) {
         g_liveInputReadCursor =
             (writePos - LIVE_INPUT_PREBUFFER) & MIC_RING_MASK;
         available = LIVE_INPUT_PREBUFFER;
+#ifdef __ANDROID__
+        g_liDbgReprimes++;
+#endif
     }
+#ifdef __ANDROID__
+    g_liDbgAvail = available;
+#endif
 
     // Underrun: not enough produced samples for this pull. Emit silence
     // and leave the cursor where it is — the next pull will try again.
     if (available < (ma_uint32)frames) {
+#ifdef __ANDROID__
+        g_liDbgUnderruns++;
+#endif
         for (int i = 0; i < frames; i++) {
             outL[i] = 0.0f;
             outR[i] = 0.0f;
@@ -1520,6 +1588,10 @@ EXPORT void live_input_render_block(float* outL, float* outR, int frames) {
     }
     g_liveInputReadCursor = (readStart + (ma_uint32)frames) & MIC_RING_MASK;
     if (peak > g_liveInputPeak) g_liveInputPeak = peak;
+#ifdef __ANDROID__
+    g_liDbgFrames += (uint32_t)frames;
+    if (peak > g_liDbgOutPeak) g_liDbgOutPeak = peak;
+#endif
 }
 
 /// AAudio-bus render wrapper for the Live Input Source.

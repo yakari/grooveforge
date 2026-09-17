@@ -5,6 +5,14 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/lang/fr/).
 
+## [X.x.x]
+
+### Ajouté
+- Android : **Sortie USB directe** optionnelle (Préférences › Sortie audio) pour jouer via un DAC USB qu'Android abandonne quand un micro USB est aussi branché. Désactivée par défaut.
+
+### Architecture
+- Android : le bus de sortie peut être cadencé par un streamer USB natif (`usb_direct_output_android.cpp`) au lieu d'AAudio ; lecture des descripteurs UAC1 et empaquetage PCM dans `native_audio/gf_uac.c`, couverts par `gf_uac_smoke_test`.
+
 ## [3.1.0] - 2026-09-14
 
 ### Ajouté

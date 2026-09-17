@@ -38,6 +38,11 @@
 
     <uses-feature android:name="android.hardware.bluetooth_le" android:required="false" />
     <uses-feature android:name="android.software.midi" android:required="true" />
+
+    <!-- USB host is used by the optional direct USB output, which plays to a
+         USB DAC that Android dropped because a USB microphone is attached too.
+         Not required: without USB host the preference simply finds no device. -->
+    <uses-feature android:name="android.hardware.usb.host" android:required="false" />
     
     <!-- Required for real-time audio input capture -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />

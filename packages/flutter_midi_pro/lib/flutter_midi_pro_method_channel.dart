@@ -69,6 +69,21 @@ class MethodChannelFlutterMidiPro extends FlutterMidiProPlatform {
   }
 
   @override
+  Future<void> setUsbDirectOutputEnabled(bool enabled) async {
+    await _channel.invokeMethod('setUsbDirectOutputEnabled', {
+      'enabled': enabled,
+    });
+  }
+
+  @override
+  Future<Map<String, dynamic>?> getUsbDirectOutputStatus() async {
+    final status = await _channel.invokeMethod<Map<Object?, Object?>>(
+      'getUsbDirectOutputStatus',
+    );
+    return status?.map((key, value) => MapEntry(key.toString(), value));
+  }
+
+  @override
   Future<void> unloadSoundfont(int sfId) async {
     await _channel.invokeMethod('unloadSoundfont', {'sfId': sfId});
   }
