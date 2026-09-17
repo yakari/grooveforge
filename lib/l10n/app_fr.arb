@@ -591,6 +591,8 @@
   "vst3FxAddEffect": "Ajouter un effet",
   "vst3FxNoEffects": "Aucun effet — connecter via la vue patch",
   "rackAddEffectsSectionLabel": "Effets intégrés",
+  "rackAddNativeOnlyBadge": "Applis uniquement",
+  "rackAddNativeOnlyTooltip": "Disponible dans les applis GrooveForge pour Android, Linux, macOS et Windows, pas dans cette démo web.",
   "rackAddVstSectionLabel": "Plugins VST3",
   "rackAddReverb": "Réverb à plaque",
   "rackAddReverbSubtitle": "Réverbération stéréo riche",

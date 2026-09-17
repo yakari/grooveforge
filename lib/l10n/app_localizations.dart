@@ -2654,6 +2654,18 @@ abstract class AppLocalizations {
   /// **'Built-in Effects'**
   String get rackAddEffectsSectionLabel;
 
+  /// Badge on add-module entries that don't work in the web demo.
+  ///
+  /// In en, this message translates to:
+  /// **'Apps only'**
+  String get rackAddNativeOnlyBadge;
+
+  /// Tooltip explaining why a module is greyed out on the web.
+  ///
+  /// In en, this message translates to:
+  /// **'Available in the GrooveForge apps for Android, Linux, macOS and Windows, not in this web demo.'**
+  String get rackAddNativeOnlyTooltip;
+
   /// No description provided for @rackAddVstSectionLabel.
   ///
   /// In en, this message translates to:

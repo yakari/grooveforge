@@ -14,6 +14,10 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 
 ### Corrigé
 - Le choix de périphérique de Live Input n'avait aucun effet ; le module affiche l'entrée choisie dans les Préférences et suit les branchements.
+- Démo web : le clavier, les rythmes de batterie et le métronome étaient muets ; ils rejouent.
+
+### Modifié
+- Démo web : les modules qui nécessitent les applis (effets audio, vocodeur, looper audio, Live Input) sont affichés grisés avec un badge « Applis uniquement ».
 
 ### Architecture
 - Android : le bus de sortie peut être cadencé par un streamer USB natif (`usb_direct_output_android.cpp`) au lieu d'AAudio ; lecture des descripteurs UAC1 et empaquetage PCM dans `native_audio/gf_uac.c`, couverts par `gf_uac_smoke_test`.

@@ -805,6 +805,14 @@
   "vst3FxAddEffect": "Add effect",
   "vst3FxNoEffects": "No effects — connect via patch view",
   "rackAddEffectsSectionLabel": "Built-in Effects",
+  "rackAddNativeOnlyBadge": "Apps only",
+  "@rackAddNativeOnlyBadge": {
+    "description": "Badge on add-module entries that don't work in the web demo."
+  },
+  "rackAddNativeOnlyTooltip": "Available in the GrooveForge apps for Android, Linux, macOS and Windows, not in this web demo.",
+  "@rackAddNativeOnlyTooltip": {
+    "description": "Tooltip explaining why a module is greyed out on the web."
+  },
   "rackAddVstSectionLabel": "VST3 Plugins",
   "rackAddReverb": "Plate Reverb",
   "rackAddReverbSubtitle": "Lush stereo room reverb",

@@ -1450,6 +1450,13 @@ class AppLocalizationsFr extends AppLocalizations {
   String get rackAddEffectsSectionLabel => 'Effets intégrés';
 
   @override
+  String get rackAddNativeOnlyBadge => 'Applis uniquement';
+
+  @override
+  String get rackAddNativeOnlyTooltip =>
+      'Disponible dans les applis GrooveForge pour Android, Linux, macOS et Windows, pas dans cette démo web.';
+
+  @override
   String get rackAddVstSectionLabel => 'Plugins VST3';
 
   @override

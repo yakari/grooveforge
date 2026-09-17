@@ -1424,6 +1424,66 @@ class AudioEngine extends ChangeNotifier {
     }
   }
 
+  // ─── Synth dispatch (Android, iOS, web) ────────────────────────────────────
+  //
+  // Desktop drives its in-process FluidSynth through `AudioInputFFI().keyboard*`.
+  // Everywhere else a soundfont id addresses the synth, and the transport
+  // differs: Android calls libnative-lib.so directly over FFI (a method-channel
+  // round-trip per note was the main latency cost there), while the web has no
+  // native library and must go through flutter_midi_pro, whose web
+  // implementation forwards to the JavaScript audio bridge.
+  //
+  // Keeping that choice in these four helpers matters: when the Android fast
+  // path was added, it replaced the plugin call at each call site, and the
+  // web build — which had been sharing that code path — silently lost all
+  // keyboard sound, since the FFI stubs are no-ops in the browser.
+
+  /// Note-on for the synth behind [sfId].
+  void _synthNoteOn(int sfId, int channel, int key, int velocity) {
+    if (kIsWeb) {
+      _midiPro.playNote(
+        channel: channel,
+        key: key,
+        velocity: velocity,
+        sfId: sfId,
+      );
+      return;
+    }
+    AudioInputFFI().gfNativeNoteOn(sfId, channel, key, velocity);
+  }
+
+  /// Note-off for the synth behind [sfId].
+  void _synthNoteOff(int sfId, int channel, int key) {
+    if (kIsWeb) {
+      _midiPro.stopNote(channel: channel, key: key, sfId: sfId);
+      return;
+    }
+    AudioInputFFI().gfNativeNoteOff(sfId, channel, key);
+  }
+
+  /// MIDI control change for the synth behind [sfId].
+  void _synthControlChange(int sfId, int channel, int controller, int value) {
+    if (kIsWeb) {
+      _midiPro.controlChange(
+        controller: controller,
+        value: value,
+        channel: channel,
+        sfId: sfId,
+      );
+      return;
+    }
+    AudioInputFFI().gfNativeCc(sfId, channel, controller, value);
+  }
+
+  /// Pitch bend (0–16383, centre 8192) for the synth behind [sfId].
+  void _synthPitchBend(int sfId, int channel, int value) {
+    if (kIsWeb) {
+      _midiPro.pitchBend(value: value, channel: channel, sfId: sfId);
+      return;
+    }
+    AudioInputFFI().gfNativePitchBend(sfId, channel, value);
+  }
+
   int _getSfIdForChannel(int channel) {
     String? path = channels[channel].soundfontPath;
     if (path == null || path == kMidiControllerOnlySoundfont) {
@@ -1550,9 +1610,9 @@ class AudioEngine extends ChangeNotifier {
         // Android hot path: direct FFI into libnative-lib.so to bypass the
         // method-channel round-trips. See the `gfNativeNoteOn` doc comment
         // in audio_input_ffi_native.dart for the latency rationale.
-        AudioInputFFI().gfNativeNoteOn(sfId, percChannel, note, velocity);
+        _synthNoteOn(sfId, percChannel, note, velocity);
         Future.delayed(const Duration(milliseconds: 40), () {
-          AudioInputFFI().gfNativeNoteOff(sfId, percChannel, note);
+          _synthNoteOff(sfId, percChannel, note);
         });
       }
     }
@@ -1819,7 +1879,7 @@ class AudioEngine extends ChangeNotifier {
         // the latency rationale).
         final sfId = _getSfIdForChannel(channel);
         if (sfId != -1) {
-          AudioInputFFI().gfNativeNoteOff(sfId, channel, keyToPlay);
+          _synthNoteOff(sfId, channel, keyToPlay);
         }
       }
     }
@@ -1862,7 +1922,7 @@ class AudioEngine extends ChangeNotifier {
         // synchronously inside the same Dart microtask.
         final sfId = _getSfIdForChannel(channel);
         if (sfId != -1) {
-          AudioInputFFI().gfNativeNoteOn(sfId, channel, keyToPlay, velocity);
+          _synthNoteOn(sfId, channel, keyToPlay, velocity);
         }
       }
     }
@@ -1929,7 +1989,7 @@ class AudioEngine extends ChangeNotifier {
             // Android hot path — see `playNote` for the latency rationale.
             final sfId = _getSfIdForChannel(channel);
             if (sfId != -1) {
-              AudioInputFFI().gfNativeNoteOff(sfId, channel, keyToStop);
+              _synthNoteOff(sfId, channel, keyToStop);
             }
           }
         }
@@ -2720,7 +2780,7 @@ class AudioEngine extends ChangeNotifier {
       // Android hot path — direct FFI, same latency rationale as playNote.
       int sfId = _getSfIdForChannel(channel);
       if (sfId == -1) sfId = 1;
-      AudioInputFFI().gfNativeCc(sfId, channel, controller, value);
+      _synthControlChange(sfId, channel, controller, value);
     }
   }
 
@@ -2809,7 +2869,7 @@ class AudioEngine extends ChangeNotifier {
       // Android hot path — direct FFI, same latency rationale as playNote.
       int sfId = _getSfIdForChannel(channel);
       if (sfId == -1) sfId = 1;
-      AudioInputFFI().gfNativePitchBend(sfId, channel, value);
+      _synthPitchBend(sfId, channel, value);
     }
   }
 

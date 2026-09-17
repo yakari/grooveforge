@@ -324,8 +324,10 @@ class _AddPluginSheetContentState extends State<_AddPluginSheetContent> {
               },
             ),
 
-            // ── Vocoder (GFPA instrument)
+            // ── Vocoder (GFPA instrument) — native DSP only: the web audio
+            // bridge has no vocoder, so it is shown greyed out there.
             _PluginTile(
+              nativeOnly: true,
               icon: Icons.mic,
               iconColor: Colors.cyanAccent,
               title: l10n.rackAddVocoder,
@@ -503,8 +505,9 @@ class _AddPluginSheetContentState extends State<_AddPluginSheetContent> {
               },
             ),
 
-            // ── Audio Looper (PCM) — desktop only (requires JACK + native FFI).
-            if (!kIsWeb) _PluginTile(
+            // ── Audio Looper (PCM) — native apps only (native recording engine).
+            _PluginTile(
+              nativeOnly: true,
               icon: Icons.radio_button_checked,
               iconColor: Colors.redAccent,
               title: l10n.rackAddAudioLooper,
@@ -521,8 +524,7 @@ class _AddPluginSheetContentState extends State<_AddPluginSheetContent> {
             // ═══════════════════════════════════════════════════════════════
             // Audio Sources — hardware inputs exposed as source slots
             // ═══════════════════════════════════════════════════════════════
-            if (!kIsWeb)
-              Padding(
+            Padding(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
                 child: Text(
                   l10n.rackAddSourcesSectionLabel,
@@ -535,8 +537,9 @@ class _AddPluginSheetContentState extends State<_AddPluginSheetContent> {
                 ),
               ),
 
-            // ── Live Input Source (mic / line-in → any effect)
-            if (!kIsWeb) _PluginTile(
+            // ── Live Input Source (mic / line-in → any effect) — native apps only.
+            _PluginTile(
+              nativeOnly: true,
               icon: Icons.mic,
               iconColor: Colors.lightBlueAccent,
               title: l10n.rackAddLiveInputSource,
@@ -549,7 +552,9 @@ class _AddPluginSheetContentState extends State<_AddPluginSheetContent> {
             ),
 
             // ═══════════════════════════════════════════════════════════════
-            // Built-in GFPA Effects (.gfpd descriptor plugins — all platforms)
+            // Built-in GFPA audio effects — native apps only. Their DSP is C++
+            // and web routing is a stub, so on the web they are shown greyed
+            // out rather than added as silent modules. MIDI FX work everywhere.
             // ═══════════════════════════════════════════════════════════════
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
@@ -565,6 +570,7 @@ class _AddPluginSheetContentState extends State<_AddPluginSheetContent> {
             ),
 
             _PluginTile(
+              nativeOnly: true,
               icon: Icons.blur_on,
               iconColor: Colors.lightBlueAccent,
               title: l10n.rackAddReverb,
@@ -574,6 +580,7 @@ class _AddPluginSheetContentState extends State<_AddPluginSheetContent> {
               ),
             ),
             _PluginTile(
+              nativeOnly: true,
               icon: Icons.repeat,
               iconColor: Colors.tealAccent,
               title: l10n.rackAddDelay,
@@ -583,6 +590,7 @@ class _AddPluginSheetContentState extends State<_AddPluginSheetContent> {
               ),
             ),
             _PluginTile(
+              nativeOnly: true,
               icon: Icons.graphic_eq,
               iconColor: Colors.orangeAccent,
               title: l10n.rackAddWah,
@@ -592,6 +600,7 @@ class _AddPluginSheetContentState extends State<_AddPluginSheetContent> {
               ),
             ),
             _PluginTile(
+              nativeOnly: true,
               icon: Icons.equalizer,
               iconColor: Colors.greenAccent,
               title: l10n.rackAddEq,
@@ -601,6 +610,7 @@ class _AddPluginSheetContentState extends State<_AddPluginSheetContent> {
               ),
             ),
             _PluginTile(
+              nativeOnly: true,
               icon: Icons.compress,
               iconColor: Colors.purpleAccent,
               title: l10n.rackAddCompressor,
@@ -610,6 +620,7 @@ class _AddPluginSheetContentState extends State<_AddPluginSheetContent> {
               ),
             ),
             _PluginTile(
+              nativeOnly: true,
               icon: Icons.waves,
               iconColor: Colors.cyanAccent,
               title: l10n.rackAddChorus,
@@ -619,6 +630,7 @@ class _AddPluginSheetContentState extends State<_AddPluginSheetContent> {
               ),
             ),
             _PluginTile(
+              nativeOnly: true,
               icon: Icons.queue_music,
               iconColor: Colors.pinkAccent,
               title: l10n.rackAddAudioHarmonizer,
@@ -631,6 +643,7 @@ class _AddPluginSheetContentState extends State<_AddPluginSheetContent> {
               ),
             ),
             _PluginTile(
+              nativeOnly: true,
               icon: Icons.record_voice_over,
               iconColor: Colors.limeAccent,
               title: l10n.rackAddAutotune,
@@ -877,12 +890,19 @@ class _InstalledPluginsDialog extends StatelessWidget {
 
 // ─── Shared tile widget ───────────────────────────────────────────────────────
 
+/// One entry of the add-module sheet.
+///
+/// [nativeOnly] marks modules whose audio runs on native code the web build
+/// does not have (effects, vocoder, audio looper, live input). On the web they
+/// stay visible — so the demo shows what the apps can do — but are greyed out
+/// with an "Apps only" badge and cannot be added; see [_UnavailablePluginTile].
 class _PluginTile extends StatelessWidget {
   final IconData icon;
   final Color iconColor;
   final String title;
   final String subtitle;
   final VoidCallback onTap;
+  final bool nativeOnly;
 
   const _PluginTile({
     required this.icon,
@@ -890,10 +910,19 @@ class _PluginTile extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.onTap,
+    this.nativeOnly = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    if (nativeOnly && kIsWeb) {
+      return _UnavailablePluginTile(
+        icon: icon,
+        iconColor: iconColor,
+        title: title,
+        subtitle: subtitle,
+      );
+    }
     return ListTile(
       leading: CircleAvatar(
         backgroundColor: iconColor.withValues(alpha: 0.15),
@@ -905,6 +934,100 @@ class _PluginTile extends StatelessWidget {
         style: const TextStyle(color: Colors.white54, fontSize: 12),
       ),
       onTap: onTap,
+    );
+  }
+}
+
+/// A module the web demo cannot run, shown greyed out instead of hidden.
+///
+/// Tapping it does not add anything; it reveals, under the description, why
+/// the module is unavailable and where it is. The explanation is inline rather
+/// than a tooltip alone because tooltips need a hover or a long press, which a
+/// visitor tapping a greyed entry on a phone would never discover. Mouse users
+/// also get it as a hover tooltip.
+class _UnavailablePluginTile extends StatefulWidget {
+  final IconData icon;
+  final Color iconColor;
+  final String title;
+  final String subtitle;
+
+  const _UnavailablePluginTile({
+    required this.icon,
+    required this.iconColor,
+    required this.title,
+    required this.subtitle,
+  });
+
+  @override
+  State<_UnavailablePluginTile> createState() => _UnavailablePluginTileState();
+}
+
+class _UnavailablePluginTileState extends State<_UnavailablePluginTile> {
+  bool _explained = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return Tooltip(
+      message: l10n.rackAddNativeOnlyTooltip,
+      child: ListTile(
+        // Opacity on the icon and texts rather than a disabled ListTile: a
+        // disabled tile ignores taps, and the tap is what explains the badge.
+        leading: Opacity(
+          opacity: 0.45,
+          child: CircleAvatar(
+            backgroundColor: widget.iconColor.withValues(alpha: 0.15),
+            child: Icon(widget.icon, color: widget.iconColor, size: 20),
+          ),
+        ),
+        title: Text(
+          widget.title,
+          style: const TextStyle(
+            fontWeight: FontWeight.w600,
+            color: Colors.white38,
+          ),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              widget.subtitle,
+              style: const TextStyle(color: Colors.white30, fontSize: 12),
+            ),
+            if (_explained)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  l10n.rackAddNativeOnlyTooltip,
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+                ),
+              ),
+          ],
+        ),
+        trailing: const _AppsOnlyBadge(),
+        onTap: () => setState(() => _explained = !_explained),
+      ),
+    );
+  }
+}
+
+/// Small pill telling web visitors a module needs the native apps.
+class _AppsOnlyBadge extends StatelessWidget {
+  const _AppsOnlyBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.white38),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        l10n.rackAddNativeOnlyBadge,
+        style: const TextStyle(color: Colors.white70, fontSize: 11),
+      ),
     );
   }
 }

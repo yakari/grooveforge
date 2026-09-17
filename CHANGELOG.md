@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Live Input's device picker did nothing; the slot now shows the input chosen in Preferences and follows plugged devices.
+- Web demo: the keyboard, drum patterns and metronome were silent; they play again.
+
+### Changed
+- Web demo: modules that need the apps (audio effects, vocoder, audio looper, Live Input) are shown greyed out with an "Apps only" badge.
 
 ### Architecture
 - Android: the output bus can be clocked by a native USB streamer (`usb_direct_output_android.cpp`) instead of AAudio; UAC1 descriptor parsing and PCM packing in `native_audio/gf_uac.c`, covered by `gf_uac_smoke_test`.
