@@ -1,0 +1,7 @@
+Added
+- Direct USB output (off by default): play through a USB DAC that Android drops when a USB mic is plugged in too. Explained in Preferences.
+- Live Input mutes itself when the phone's mic would feed back through its speaker.
+- Unplugging the chosen mic stops the input instead of switching to the phone mic; plugging it back reselects it.
+
+Fixed
+- Live Input's device picker did nothing; it now shows the input chosen in Preferences.

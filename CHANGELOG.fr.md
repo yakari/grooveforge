@@ -5,7 +5,7 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/lang/fr/).
 
-## [X.x.x]
+## [3.2.0] - 2026-09-17
 
 ### Ajouté
 - Android : **Sortie USB directe** optionnelle (Préférences › Sortie audio) pour jouer via un DAC USB qu'Android abandonne quand un micro USB est aussi branché. Désactivée par défaut, avec une explication intégrée.

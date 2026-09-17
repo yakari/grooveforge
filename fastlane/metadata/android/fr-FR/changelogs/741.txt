@@ -1,0 +1,7 @@
+Ajouté
+- Sortie USB directe (désactivée par défaut) : jouez via un DAC USB qu'Android abandonne quand un micro USB est aussi branché. Expliquée dans les Préférences.
+- Live Input se coupe quand le micro du téléphone ferait un larsen dans son haut-parleur.
+- Débrancher le micro choisi arrête l'entrée au lieu de basculer sur le micro du téléphone ; le rebrancher le resélectionne.
+
+Corrigé
+- Le choix de périphérique de Live Input était sans effet ; il affiche désormais l'entrée des Préférences.
