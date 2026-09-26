@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [X.x.x]
+
+### Added
+- Android: a warning appears in the Rack and Rehearsals toolbars when the audio output has dropped to a slow path, with a "Restore low latency" button that recovers it without restarting the app.
+
+### Architecture
+- The AAudio path and its sticky degradation latches are readable from Dart (`oboe_stream_get_latency_status`) and clearable on request (`oboe_stream_clear_latency_latches`); `g_exclusiveDenied` is now atomic.
+
 ## [3.2.0] - 2026-09-17
 
 ### Added

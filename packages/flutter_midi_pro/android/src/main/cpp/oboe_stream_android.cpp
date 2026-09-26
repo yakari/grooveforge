@@ -980,7 +980,7 @@ static std::mutex g_streamMtx;
 ///
 /// Cleared when the output device changes, so plugging in hardware that can
 /// do MMAP gets the low-latency path back without restarting the app.
-static bool g_exclusiveDenied = false;
+static std::atomic<bool> g_exclusiveDenied{false};
 
 /// Whether the app wants audio at all, and at what rate. Set by the Dart-side
 /// start, cleared by the Dart-side stop; the watchdog below uses it to tell
@@ -1053,10 +1053,11 @@ extern "C" void oboe_stream_start(int sampleRate)
     // device's exclusive MMAP endpoint is enough to trigger it.
     aaudio_result_t result = AAUDIO_ERROR_INVALID_STATE;
 
-    if (!g_exclusiveDenied && !g_lowLatencyDenied.load(std::memory_order_relaxed)) {
+    if (!g_exclusiveDenied.load(std::memory_order_relaxed) &&
+        !g_lowLatencyDenied.load(std::memory_order_relaxed)) {
         result = openAndStartStream(sampleRate, AAUDIO_SHARING_MODE_EXCLUSIVE);
         if (result != AAUDIO_OK) {
-            g_exclusiveDenied = true;
+            g_exclusiveDenied.store(true, std::memory_order_relaxed);
             LOGW("Exclusive (MMAP) stream unavailable (%s) — using SHARED for "
                  "the rest of this session. Higher latency, but asking again "
                  "on every reopen re-queries the output device, which is a "
@@ -1226,7 +1227,7 @@ extern "C" void oboe_stream_set_output_device(int deviceId)
     // New hardware may well support an exclusive endpoint even though the last
     // one did not, and asking again is cheap: a refused EXCLUSIVE open costs
     // one failed open, not an outage.
-    g_exclusiveDenied = false;
+    g_exclusiveDenied.store(false, std::memory_order_relaxed);
     g_shortLivedStreams.store(0, std::memory_order_relaxed);
 
     // g_lowLatencyDenied is deliberately NOT cleared here.
@@ -1415,6 +1416,91 @@ extern "C" int32_t oboe_stream_get_xrun_count(void)
 {
     if (g_stream == nullptr) return -1;
     return AAudioStream_getXRunCount(g_stream);
+}
+
+/// Reports which output path is in use and whether a latch is holding it there.
+///
+/// Distinguishing the two matters to the caller: a refusal at open time may
+/// well go away by itself on the next route change, whereas a latch stands for
+/// the session and needs oboe_stream_clear_latency_latches() or a restart.
+extern "C" int32_t oboe_stream_get_latency_status(void)
+{
+    int32_t status = 0;
+
+    if (g_lowLatencyDenied.load(std::memory_order_relaxed)) {
+        status |= OBOE_LATENCY_LOW_LATENCY_LATCHED;
+    }
+    if (g_exclusiveDenied.load(std::memory_order_relaxed)) {
+        status |= OBOE_LATENCY_EXCLUSIVE_LATCHED;
+    }
+
+    if (g_externalClock.load(std::memory_order_relaxed)) {
+        // The USB streamer is the clock and there is no AAudio stream to
+        // question. The latch bits above still matter: they decide what
+        // happens when USB hands the clock back.
+        return status | OBOE_LATENCY_EXTERNAL_CLOCK;
+    }
+
+    // Under the stream mutex: a route change on another thread may be closing
+    // and reopening the stream while this is being read.
+    std::lock_guard<std::mutex> lock(g_streamMtx);
+    if (g_stream == nullptr) return status;
+
+    status |= OBOE_LATENCY_STREAM_OPEN;
+    if (AAudioStream_getPerformanceMode(g_stream) == AAUDIO_PERFORMANCE_MODE_LOW_LATENCY) {
+        status |= OBOE_LATENCY_LOW_LATENCY_GRANTED;
+    }
+    if (AAudioStream_getSharingMode(g_stream) == AAUDIO_SHARING_MODE_EXCLUSIVE) {
+        status |= OBOE_LATENCY_EXCLUSIVE_GRANTED;
+    }
+    return status;
+}
+
+/// Buffer latency in microseconds, or -1 when no stream is open.
+extern "C" int32_t oboe_stream_get_buffer_latency_us(void)
+{
+    std::lock_guard<std::mutex> lock(g_streamMtx);
+    if (g_stream == nullptr) return -1;
+
+    const int32_t rate    = AAudioStream_getSampleRate(g_stream);
+    const int32_t bufSize = AAudioStream_getBufferSizeInFrames(g_stream);
+    if (rate <= 0 || bufSize <= 0) return -1;
+
+    return static_cast<int32_t>(1000000LL * bufSize / rate);
+}
+
+extern "C" void oboe_stream_clear_latency_latches(void)
+{
+    const bool hadLowLatency = g_lowLatencyDenied.exchange(false);
+    const bool hadExclusive  = g_exclusiveDenied.exchange(false);
+
+    // The strike counter too, or one stale strike from before the reset would
+    // re-latch on the first error after it.
+    g_shortLivedStreams.store(0, std::memory_order_relaxed);
+
+    LOGI("Latency latches cleared by request (low-latency was %s, exclusive "
+         "was %s) — retrying the fast path",
+         hadLowLatency ? "denied" : "armed",
+         hadExclusive ? "denied" : "armed");
+
+    // Nothing to reopen while the USB output is the clock; the cleared latches
+    // apply when oboe_stream_end_external_clock() brings AAudio back.
+    if (g_externalClock.load(std::memory_order_relaxed)) return;
+
+    int sr = 0;
+    {
+        std::lock_guard<std::mutex> lock(g_streamMtx);
+        if (g_stream == nullptr) return;
+        sr = AAudioStream_getSampleRate(g_stream);
+    }
+
+    // On a detached thread for the same reason the device change is: opening a
+    // stream can block for seconds while the platform rebuilds the route, and
+    // this is called from the UI.
+    std::thread([sr]() {
+        oboe_stream_stop();
+        oboe_stream_start(sr);
+    }).detach();
 }
 
 extern "C" void alooper_android_set_transport(

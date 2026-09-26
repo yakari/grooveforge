@@ -5377,6 +5377,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Back to the front panels'**
   String get patchViewBackTooltip;
+
+  /// No description provided for @audioOutputPathTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio output path'**
+  String get audioOutputPathTitle;
+
+  /// No description provided for @audioOutputPathFast.
+  ///
+  /// In en, this message translates to:
+  /// **'Low latency ({ms} ms buffer).'**
+  String audioOutputPathFast(String ms);
+
+  /// No description provided for @audioOutputPathFastShared.
+  ///
+  /// In en, this message translates to:
+  /// **'Low latency, shared endpoint ({ms} ms buffer). A few milliseconds dearer than exclusive; nothing to do.'**
+  String audioOutputPathFastShared(String ms);
+
+  /// No description provided for @audioOutputPathSlow.
+  ///
+  /// In en, this message translates to:
+  /// **'Slow path: Android refused low latency for this stream. Changing output device may get it back.'**
+  String get audioOutputPathSlow;
+
+  /// No description provided for @audioOutputPathLatched.
+  ///
+  /// In en, this message translates to:
+  /// **'Slow path, locked for this session: GrooveForge gave up low latency after the phone\'s audio service failed on it. Playing will feel delayed — around a quarter of a second — until you restore it below.'**
+  String get audioOutputPathLatched;
+
+  /// No description provided for @audioOutputPathUsbDirect.
+  ///
+  /// In en, this message translates to:
+  /// **'Direct USB output is driving the sound, so Android\'s latency does not apply.'**
+  String get audioOutputPathUsbDirect;
+
+  /// No description provided for @audioOutputPathNoStream.
+  ///
+  /// In en, this message translates to:
+  /// **'No audio stream open yet.'**
+  String get audioOutputPathNoStream;
+
+  /// No description provided for @audioOutputPathRestore.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore low latency'**
+  String get audioOutputPathRestore;
+
+  /// No description provided for @audioOutputPathRestoring.
+  ///
+  /// In en, this message translates to:
+  /// **'Reopening the audio stream…'**
+  String get audioOutputPathRestoring;
+
+  /// No description provided for @audioOutputPathRestoreFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Low latency is still refused. Restarting GrooveForge clears it; if it comes back at once, this phone\'s audio service is failing on the fast path.'**
+  String get audioOutputPathRestoreFailed;
+
+  /// No description provided for @audioOutputPathIndicatorTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio is delayed — tap for details'**
+  String get audioOutputPathIndicatorTooltip;
+
+  /// No description provided for @audioOutputPathRestartHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Force-quitting GrooveForge also clears this, and is the fastest fix if you are on stage.'**
+  String get audioOutputPathRestartHint;
 }
 
 class _AppLocalizationsDelegate

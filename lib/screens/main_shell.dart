@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
+import '../services/audio_latency_monitor.dart';
 import 'rack_screen.dart';
 import 'rehearsals_screen.dart';
 
@@ -95,6 +96,11 @@ class _MainShellState extends State<MainShell> {
     // The patch view is a value, not a route, so nothing else would rebuild
     // the shell when it changes — and [_canPop] would go stale.
     _rackPatchView.addListener(_onPatchViewChanged);
+
+    // Watch the output path for as long as the app is up. Started here rather
+    // than from a screen because the indicator lives in more than one, and a
+    // latch taken while the rack was on screen still matters in Rehearsals.
+    AudioLatencyMonitor.instance.start();
   }
 
   void _onPatchViewChanged() => _refreshAfterFrame();

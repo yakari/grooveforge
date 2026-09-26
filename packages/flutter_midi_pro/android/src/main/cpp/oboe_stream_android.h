@@ -228,6 +228,58 @@ int32_t oboe_stream_get_sample_rate(void);
 /// buffer size).  Flat but laggy = the buffer is simply too large.
 int32_t oboe_stream_get_xrun_count(void);
 
+// ── Latency status and manual recovery ───────────────────────────────────────
+//
+// The stream can end up on a slow path two ways, and neither is visible from
+// outside this file: AAudio may simply refuse the fast path at open time, and
+// the session may have latched a degradation after an earlier failure (see
+// g_lowLatencyDenied in the .cpp). A latched session stays slow until the
+// process dies, which from the stage is indistinguishable from the app being
+// broken. These two calls let Dart show which of the two it is and offer a way
+// out that does not involve restarting the app.
+
+/// A stream is currently open.
+#define OBOE_LATENCY_STREAM_OPEN          (1 << 0)
+/// AAudio granted AAUDIO_PERFORMANCE_MODE_LOW_LATENCY on the open stream.
+#define OBOE_LATENCY_LOW_LATENCY_GRANTED  (1 << 1)
+/// AAudio granted AAUDIO_SHARING_MODE_EXCLUSIVE (MMAP) on the open stream.
+#define OBOE_LATENCY_EXCLUSIVE_GRANTED    (1 << 2)
+/// This session has given up on the low-latency path (the expensive latch:
+/// every open since uses PERFORMANCE_MODE_NONE, the legacy AudioTrack path).
+#define OBOE_LATENCY_LOW_LATENCY_LATCHED  (1 << 3)
+/// This session has given up on an exclusive (MMAP) endpoint.
+#define OBOE_LATENCY_EXCLUSIVE_LATCHED    (1 << 4)
+/// The direct USB output is the clock, so AAudio's modes say nothing.
+#define OBOE_LATENCY_EXTERNAL_CLOCK       (1 << 5)
+
+/// Returns the OBOE_LATENCY_* bits describing the output path right now.
+///
+/// Not real-time safe (takes the stream mutex); meant for a periodic poll from
+/// Dart, like oboe_stream_get_routed_device_id().
+int32_t oboe_stream_get_latency_status(void);
+
+/// Buffer latency in microseconds, or -1 when no stream is open.
+///
+/// How much audio sits queued ahead of the device at steady state. Only the
+/// part this file controls — the HAL adds its own on top, and on the legacy
+/// path so does the AudioFlinger mixer.
+int32_t oboe_stream_get_buffer_latency_us(void);
+
+/// Clears the sticky degradation latches and reopens the stream.
+///
+/// The escape hatch for a session that latched a degradation it did not
+/// deserve. Deliberately manual: nothing in this file calls it, because the
+/// automatic re-arm it replaces used to hand the fast path straight back to a
+/// platform that had just proved it aborts on it (see the comment at
+/// oboe_stream_set_output_device). A person asking for it once is not a loop.
+///
+/// Reopens on a detached thread — opening a stream can block for seconds — so
+/// the new status is not readable until a later
+/// oboe_stream_get_latency_status() poll. Safe to call with no stream open and
+/// while the direct USB output holds the clock; in the latter case the latches
+/// are cleared and AAudio picks them up when USB hands the clock back.
+void oboe_stream_clear_latency_latches(void);
+
 // ── Drain synchronisation (shared with other translation units) ──────────────
 
 /// Returns the current value of the per-callback sequence counter.

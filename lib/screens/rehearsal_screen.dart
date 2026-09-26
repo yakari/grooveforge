@@ -11,6 +11,7 @@ import '../services/rehearsal_engine.dart';
 import '../services/rehearsal_library.dart';
 import '../services/rehearsal_protocol.dart';
 import '../services/rehearsal_sync_service.dart';
+import '../widgets/audio_latency_indicator.dart';
 import '../widgets/audio_settings_bar.dart';
 import '../widgets/chord_grid.dart';
 import '../widgets/rehearsal_identity_dialog.dart';
@@ -440,6 +441,9 @@ class _RehearsalScreenState extends State<RehearsalScreen> {
       appBar: AppBar(
         title: Text(rehearsal?.title ?? l10n.rehearsalsTitle),
         actions: [
+          // Same slow-output warning as the rack: a take recorded through a
+          // degraded path is late by the same quarter of a second.
+          const AudioLatencyIndicator(),
           if (rehearsal != null)
             _SyncChip(
               rehearsalId: rehearsal.id,

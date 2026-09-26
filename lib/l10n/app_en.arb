@@ -1901,5 +1901,31 @@
   "patchViewBackTooltip": "Back to the front panels",
   "@patchViewBackTooltip": {
     "description": "Tooltip on the arrow that leaves the rack back panel."
-  }
+  },
+  "audioOutputPathTitle": "Audio output path",
+  "audioOutputPathFast": "Low latency ({ms} ms buffer).",
+  "@audioOutputPathFast": {
+    "placeholders": {
+      "ms": {
+        "type": "String"
+      }
+    }
+  },
+  "audioOutputPathFastShared": "Low latency, shared endpoint ({ms} ms buffer). A few milliseconds dearer than exclusive; nothing to do.",
+  "@audioOutputPathFastShared": {
+    "placeholders": {
+      "ms": {
+        "type": "String"
+      }
+    }
+  },
+  "audioOutputPathSlow": "Slow path: Android refused low latency for this stream. Changing output device may get it back.",
+  "audioOutputPathLatched": "Slow path, locked for this session: GrooveForge gave up low latency after the phone's audio service failed on it. Playing will feel delayed — around a quarter of a second — until you restore it below.",
+  "audioOutputPathUsbDirect": "Direct USB output is driving the sound, so Android's latency does not apply.",
+  "audioOutputPathNoStream": "No audio stream open yet.",
+  "audioOutputPathRestore": "Restore low latency",
+  "audioOutputPathRestoring": "Reopening the audio stream…",
+  "audioOutputPathRestoreFailed": "Low latency is still refused. Restarting GrooveForge clears it; if it comes back at once, this phone's audio service is failing on the fast path.",
+  "audioOutputPathIndicatorTooltip": "Audio is delayed — tap for details",
+  "audioOutputPathRestartHint": "Force-quitting GrooveForge also clears this, and is the fastest fix if you are on stage."
 }

@@ -2977,4 +2977,50 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get patchViewBackTooltip => 'Back to the front panels';
+
+  @override
+  String get audioOutputPathTitle => 'Audio output path';
+
+  @override
+  String audioOutputPathFast(String ms) {
+    return 'Low latency ($ms ms buffer).';
+  }
+
+  @override
+  String audioOutputPathFastShared(String ms) {
+    return 'Low latency, shared endpoint ($ms ms buffer). A few milliseconds dearer than exclusive; nothing to do.';
+  }
+
+  @override
+  String get audioOutputPathSlow =>
+      'Slow path: Android refused low latency for this stream. Changing output device may get it back.';
+
+  @override
+  String get audioOutputPathLatched =>
+      'Slow path, locked for this session: GrooveForge gave up low latency after the phone\'s audio service failed on it. Playing will feel delayed — around a quarter of a second — until you restore it below.';
+
+  @override
+  String get audioOutputPathUsbDirect =>
+      'Direct USB output is driving the sound, so Android\'s latency does not apply.';
+
+  @override
+  String get audioOutputPathNoStream => 'No audio stream open yet.';
+
+  @override
+  String get audioOutputPathRestore => 'Restore low latency';
+
+  @override
+  String get audioOutputPathRestoring => 'Reopening the audio stream…';
+
+  @override
+  String get audioOutputPathRestoreFailed =>
+      'Low latency is still refused. Restarting GrooveForge clears it; if it comes back at once, this phone\'s audio service is failing on the fast path.';
+
+  @override
+  String get audioOutputPathIndicatorTooltip =>
+      'Audio is delayed — tap for details';
+
+  @override
+  String get audioOutputPathRestartHint =>
+      'Force-quitting GrooveForge also clears this, and is the fastest fix if you are on stage.';
 }

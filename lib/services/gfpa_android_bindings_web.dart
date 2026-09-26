@@ -6,6 +6,8 @@
 // (memory addresses) instead of dart:ffi Pointer<Void>, since dart:ffi is not
 // available on web.
 
+import '../models/audio_latency_status.dart';
+
 // ── AAudio bus slot ID constants ──────────────────────────────────────────────
 //
 // Mirrored here so code that imports this stub (e.g. gfpa_theremin_slot_ui)
@@ -80,4 +82,11 @@ class GfpaAndroidBindings {
 
   /// No output routing on web — always 0 (no stream).
   int oboeStreamGetRoutedDeviceId() => 0;
+
+  /// No AAudio bus on web, so nothing can be degraded or latched.
+  AudioLatencyStatus oboeStreamGetLatencyStatus() =>
+      AudioLatencyStatus.unavailable;
+
+  /// No-op on web: there are no latches to clear.
+  void oboeStreamClearLatencyLatches() {}
 }

@@ -5,6 +5,14 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/lang/fr/).
 
+## [X.x.x]
+
+### Ajouté
+- Android : un avertissement apparaît dans les barres du Rack et des Répètes quand la sortie audio est passée sur un chemin lent, avec un bouton « Rétablir la faible latence » qui la récupère sans redémarrer l'app.
+
+### Architecture
+- Le chemin AAudio et ses verrous de dégradation sont lisibles depuis Dart (`oboe_stream_get_latency_status`) et réarmables à la demande (`oboe_stream_clear_latency_latches`) ; `g_exclusiveDenied` devient atomique.
+
 ## [3.2.0] - 2026-09-17
 
 ### Ajouté

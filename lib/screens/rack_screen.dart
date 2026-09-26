@@ -30,6 +30,7 @@ import '../services/project_service.dart';
 import '../services/rack_state.dart';
 import '../services/vst_host_service.dart';
 import '../services/transport_engine.dart';
+import '../widgets/audio_latency_indicator.dart';
 import '../widgets/add_plugin_sheet.dart';
 import '../widgets/patch_cable_overlay.dart';
 import '../widgets/rack/gfpa_jam_mode_slot_ui.dart';
@@ -1381,6 +1382,9 @@ class _RackScreenState extends State<RackScreen> {
         ),
         elevation: 2,
         actions: [
+          // Only visible when the output has gone slow, which is where this
+          // failure is actually met: playing, not in a settings page.
+          const AudioLatencyIndicator(),
           // Patch view toggle — shown always, activates back-panel cable UI.
           ValueListenableBuilder<bool>(
             valueListenable: _isPatchView,

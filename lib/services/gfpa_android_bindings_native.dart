@@ -2,6 +2,8 @@ import 'dart:ffi';
 
 import 'package:ffi/ffi.dart';
 
+import '../models/audio_latency_status.dart';
+
 // ── AAudio bus slot ID constants ──────────────────────────────────────────────
 //
 // These mirror the OBOE_BUS_SLOT_* #defines in oboe_stream_android.h.
@@ -261,6 +263,24 @@ class GfpaAndroidBindings {
           'oboe_stream_get_routed_device_id')
       .asFunction();
 
+  /// OBOE_LATENCY_* bits describing the output path right now.
+  late final int Function() _oboeStreamGetLatencyStatus = _lib
+      .lookup<NativeFunction<Int32 Function()>>(
+          'oboe_stream_get_latency_status')
+      .asFunction();
+
+  /// Buffer latency in microseconds, negative when no stream is open.
+  late final int Function() _oboeStreamGetBufferLatencyUs = _lib
+      .lookup<NativeFunction<Int32 Function()>>(
+          'oboe_stream_get_buffer_latency_us')
+      .asFunction();
+
+  /// Clears the sticky degradation latches and reopens the stream.
+  late final void Function() _oboeStreamClearLatencyLatches = _lib
+      .lookup<NativeFunction<Void Function()>>(
+          'oboe_stream_clear_latency_latches')
+      .asFunction();
+
   /// Render a C function on the monitor source, after the tap has read the
   /// rack.
   late final _OboeStreamSetMonitorSource _oboeStreamSetMonitorSource =
@@ -411,6 +431,21 @@ class GfpaAndroidBindings {
   /// The Android device id the output really plays to, 0 when no stream is
   /// open, or [kRoutedDeviceUsbDirect] while the direct USB output is active.
   int oboeStreamGetRoutedDeviceId() => _oboeStreamGetRoutedDeviceId();
+
+  /// Which output path the bus is on, and whether a latch is holding it there.
+  AudioLatencyStatus oboeStreamGetLatencyStatus() =>
+      AudioLatencyStatus.fromNative(
+        _oboeStreamGetLatencyStatus(),
+        _oboeStreamGetBufferLatencyUs(),
+      );
+
+  /// Clears the sticky low-latency and exclusive-mode latches, then reopens
+  /// the stream so the fast path is tried again.
+  ///
+  /// Returns immediately: the reopen runs on a native thread because opening
+  /// an AAudio stream can block for seconds. Poll
+  /// [oboeStreamGetLatencyStatus] afterwards to see the result.
+  void oboeStreamClearLatencyLatches() => _oboeStreamClearLatencyLatches();
 
   /// Renders the C function at [monitorFnAddr] on the monitor source, or
   /// clears it when 0.

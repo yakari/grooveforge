@@ -2992,4 +2992,51 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get patchViewBackTooltip => 'Revenir aux faces avant';
+
+  @override
+  String get audioOutputPathTitle => 'Chemin de sortie audio';
+
+  @override
+  String audioOutputPathFast(String ms) {
+    return 'Faible latence (buffer de $ms ms).';
+  }
+
+  @override
+  String audioOutputPathFastShared(String ms) {
+    return 'Faible latence, endpoint partagé (buffer de $ms ms). Quelques millisecondes de plus qu\'en exclusif ; rien à faire.';
+  }
+
+  @override
+  String get audioOutputPathSlow =>
+      'Chemin lent : Android a refusé la faible latence pour ce flux. Changer de périphérique de sortie peut la rétablir.';
+
+  @override
+  String get audioOutputPathLatched =>
+      'Chemin lent, verrouillé pour cette session : GrooveForge a abandonné la faible latence après une défaillance du service audio du téléphone. Le jeu accusera un retard — de l\'ordre d\'un quart de seconde — tant que vous ne l\'aurez pas rétablie ci-dessous.';
+
+  @override
+  String get audioOutputPathUsbDirect =>
+      'La sortie USB directe pilote le son, la latence d\'Android ne s\'applique donc pas.';
+
+  @override
+  String get audioOutputPathNoStream =>
+      'Aucun flux audio ouvert pour l\'instant.';
+
+  @override
+  String get audioOutputPathRestore => 'Rétablir la faible latence';
+
+  @override
+  String get audioOutputPathRestoring => 'Réouverture du flux audio…';
+
+  @override
+  String get audioOutputPathRestoreFailed =>
+      'La faible latence est toujours refusée. Redémarrer GrooveForge la réinitialise ; si elle retombe aussitôt, c\'est le service audio de ce téléphone qui échoue sur le chemin rapide.';
+
+  @override
+  String get audioOutputPathIndicatorTooltip =>
+      'Le son est en retard — touchez pour en savoir plus';
+
+  @override
+  String get audioOutputPathRestartHint =>
+      'Fermer complètement GrooveForge réinitialise aussi ce verrou, et c\'est le geste le plus rapide si vous êtes sur scène.';
 }
