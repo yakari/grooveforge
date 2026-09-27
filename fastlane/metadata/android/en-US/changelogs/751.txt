@@ -1,0 +1,2 @@
+Added
+- A warning appears in the Rack and Rehearsals toolbars when the audio output has dropped to a slow path, with a "Restore low latency" button that recovers it without restarting the app.

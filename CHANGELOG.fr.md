@@ -5,7 +5,7 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/lang/fr/).
 
-## [X.x.x]
+## [3.2.1] - 2026-09-27
 
 ### Ajouté
 - Android : un avertissement apparaît dans les barres du Rack et des Répètes quand la sortie audio est passée sur un chemin lent, avec un bouton « Rétablir la faible latence » qui la récupère sans redémarrer l'app.

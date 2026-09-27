@@ -1,0 +1,2 @@
+Ajouté
+- Un avertissement apparaît dans les barres du Rack et des Répètes quand la sortie audio est passée sur un chemin lent, avec un bouton « Rétablir la faible latence » qui la récupère sans redémarrer l'app.
