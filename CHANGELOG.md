@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Android: a warning appears in the Rack and Rehearsals toolbars when the audio output has dropped to a slow path, with a "Restore low latency" button that recovers it without restarting the app.
 
+### Fixed
+- macOS: compilation of `libdart_vst_host.dylib` failed during build due to missing Autotune, Pitch tracker, and Harmonizer source files in the native CMake build configuration.
+
 ### Architecture
 - The AAudio path and its sticky degradation latches are readable from Dart (`oboe_stream_get_latency_status`) and clearable on request (`oboe_stream_clear_latency_latches`); `g_exclusiveDenied` is now atomic.
 

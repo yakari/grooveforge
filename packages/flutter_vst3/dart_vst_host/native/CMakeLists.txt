@@ -80,6 +80,9 @@ set(VstSources
   src/gfpa_dsp.cpp
   src/audio_looper.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../../../../native_audio/gf_phase_vocoder.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../../../native_audio/gf_harmony.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../../../native_audio/gf_pitch.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../../../native_audio/gf_autotune.c
 )
 
 # Platform stubs: provide no-op fallbacks for symbols that are absent

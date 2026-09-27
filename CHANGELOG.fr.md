@@ -10,6 +10,9 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 ### Ajouté
 - Android : un avertissement apparaît dans les barres du Rack et des Répètes quand la sortie audio est passée sur un chemin lent, avec un bouton « Rétablir la faible latence » qui la récupère sans redémarrer l'app.
 
+### Corrigé
+- macOS : la compilation de `libdart_vst_host.dylib` échouait à la construction en raison de fichiers sources manquants (Autotune, tracker de pitch et harmoniseur) dans la configuration CMake native.
+
 ### Architecture
 - Le chemin AAudio et ses verrous de dégradation sont lisibles depuis Dart (`oboe_stream_get_latency_status`) et réarmables à la demande (`oboe_stream_clear_latency_latches`) ; `g_exclusiveDenied` devient atomique.
 

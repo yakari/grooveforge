@@ -1669,6 +1669,7 @@ class _RackList extends StatelessWidget {
                   : const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.only(bottom: 88),
               itemCount: rack.plugins.length,
+              // ignore: deprecated_member_use
               onReorder: rack.reorderPlugins,
               proxyDecorator: (child, index, animation) => Material(
                 elevation: 8,

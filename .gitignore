@@ -30,7 +30,7 @@ migrate_working_dir/
 .flutter-plugins-dependencies
 .pub-cache/
 .pub/
-/build/
+build/
 /coverage/
 
 # Symbolication related
@@ -44,7 +44,8 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-# Native Android C++ build artifacts
+# Gradle and native Android build artifacts
+**/.gradle/
 **/.cxx/
 
 # CMake build directories — contain absolute paths baked into CMakeCache.txt
