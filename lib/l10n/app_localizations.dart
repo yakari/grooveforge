@@ -3926,6 +3926,12 @@ abstract class AppLocalizations {
   /// **'Nothing assigned yet'**
   String get ccAssignNoValues;
 
+  /// Instruction shown in CC assign dialog when listening for incoming MIDI CC input.
+  ///
+  /// In en, this message translates to:
+  /// **'Move a CC knob or press button…'**
+  String get ccAssignMoveKnobOrButton;
+
   /// No description provided for @ccActionPickerLabel.
   ///
   /// In en, this message translates to:

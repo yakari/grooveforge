@@ -14,6 +14,7 @@ import '../services/sf2_parser.dart';
 import 'package:audio_session/audio_session.dart';
 import 'package:grooveforge/constants/soundfont_sentinels.dart';
 import 'package:grooveforge/models/chord_detector.dart';
+import 'package:grooveforge/models/gm_instruments.dart';
 import 'package:grooveforge/models/usb_direct_output_status.dart';
 import 'package:grooveforge/services/audio_input_ffi.dart';
 import 'package:grooveforge/services/live_input_feedback_guard.dart';
@@ -1635,6 +1636,29 @@ class AudioEngine extends ChangeNotifier {
       return null;
     }
     return bankPresets[state.program];
+  }
+
+  /// Program number → patch name for everything playable on [channelIndex]
+  /// in its current bank.
+  ///
+  /// Mirrors what the slot's own patch dropdown shows: a custom .sf2 lists its
+  /// own presets (falling back to its first bank when the current bank is
+  /// empty), anything else lists the General MIDI instruments.
+  Map<int, String> programNamesForChannel(int channelIndex) {
+    if (channelIndex < 0 || channelIndex >= 16) return GmInstruments.list;
+    final state = channels[channelIndex];
+    final sfPresets = sf2Presets[state.soundfontPath];
+    if (sfPresets == null || sfPresets.isEmpty) return GmInstruments.list;
+
+    final bankPresets = sfPresets[state.bank] ?? _firstBank(sfPresets);
+    if (bankPresets == null || bankPresets.isEmpty) return GmInstruments.list;
+    return bankPresets;
+  }
+
+  /// The presets of the lowest-numbered bank in [sfPresets].
+  Map<int, String>? _firstBank(Map<int, Map<int, String>> sfPresets) {
+    final banks = sfPresets.keys.toList()..sort();
+    return sfPresets[banks.first];
   }
 
   /// Interprets raw MIDI packets sent from external controllers or internal virtual keyboards.

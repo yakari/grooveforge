@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.2] - 2026-09-29
+
+### Added
+- GF Keyboard CC assign: a new **Select Patch** entry binds a pad or button to one exact patch. Pick it by name from a dropdown — the list follows the slot's loaded soundfont (or General MIDI) — then press the pad to learn it. Each pad can hold a different patch, and an assigned pad can be switched to another patch from its dropdown without re-learning.
+- The CC assign dialog's scale pads (Xen) gain the same dropdown to change the recalled scale in place.
+
 ## [3.2.1] - 2026-09-27
 
 ### Added

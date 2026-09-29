@@ -1,0 +1,3 @@
+Added
+- GF Keyboard CC assign: a new "Select Patch" entry binds a pad or button to one exact patch, picked by name from a dropdown that follows the slot's soundfont. Each pad can hold a different patch, and an assigned pad can switch patch without re-learning.
+- Xen scale pads in the CC assign dialog gain the same dropdown to change the recalled scale in place.

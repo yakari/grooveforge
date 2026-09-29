@@ -1597,7 +1597,7 @@ class RackState extends ChangeNotifier {
     // ── GF Keyboard special params ─────────────────────────────────────
     final plugin = _findById(slotId);
     if (plugin is GrooveForgeKeyboardPlugin) {
-      _handleKeyboardParamCc(plugin, paramKey, mode, ccValue);
+      _handleKeyboardParamCc(plugin, paramKey, mode, ccValue, directValue);
       return;
     }
 
@@ -1784,11 +1784,14 @@ class RackState extends ChangeNotifier {
     GrooveForgeKeyboardPlugin plugin,
     String paramKey,
     CcParamMode mode,
-    int ccValue,
-  ) {
+    int ccValue, [
+    String? directValue,
+  ]) {
     final ch = plugin.midiChannel - 1;
     if (ch < 0 || ch > 15) return;
     switch (paramKey) {
+      case 'select_patch':
+        _selectKeyboardPatch(plugin, directValue);
       case 'absolute_patch':
         // CC 0-127 maps directly to patch 0-127.
         _engine.assignPatchToChannel(ch, ccValue.clamp(0, 127));
@@ -1804,6 +1807,36 @@ class RackState extends ChangeNotifier {
         // CC 0-127 → gain 0.0–10.0 (FluidSynth range).
         _engine.fluidSynthGain.value = ccValue / 127.0 * 10.0;
     }
+  }
+
+  /// Jumps a keyboard slot straight to the patch a pad was bound to.
+  ///
+  /// [directValue] is the program number stored on the mapping. The slot's
+  /// current bank is kept, so the patch is the one listed in the CC assign
+  /// dialog. Goes through [setPluginPatch] so the slot UI and the saved
+  /// project follow, just as when the patch is picked by hand.
+  void _selectKeyboardPatch(
+    GrooveForgeKeyboardPlugin plugin,
+    String? directValue,
+  ) {
+    final program = int.tryParse(directValue ?? '');
+    if (program == null || program < 0 || program > 127) return;
+    setPluginPatch(plugin.id, program);
+  }
+
+  /// Recall choices for a direct-mode CC parameter on slot [slotId].
+  ///
+  /// Most parameters take their choices straight from the registry. A GF
+  /// Keyboard's patch list is the exception: it depends on the soundfont
+  /// loaded in that particular slot, which the static registry cannot know.
+  List<CcDirectChoice> ccDirectChoicesFor(String slotId, CcParamEntry entry) {
+    final plugin = _findById(slotId);
+    if (plugin is GrooveForgeKeyboardPlugin &&
+        entry.paramKey == 'select_patch') {
+      final names = _engine.programNamesForChannel(plugin.midiChannel - 1);
+      return CcParamRegistry.patchChoicesFrom(names);
+    }
+    return entry.directChoices?.call() ?? const [];
   }
 
   /// Handles CC for Vocoder params — all knobs are CC-assignable.

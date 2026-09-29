@@ -209,12 +209,13 @@ class CcPreferencesScreen extends StatelessWidget {
     final rack = context.read<RackState>();
     final plugin =
         rack.plugins.where((p) => p.id == target.slotId).firstOrNull;
-    final pluginId = plugin is GFpaPluginInstance ? plugin.pluginId : null;
+    final pluginId = plugin is GFpaPluginInstance
+        ? plugin.pluginId
+        : (plugin is GrooveForgeKeyboardPlugin ? '_gf_keyboard' : null);
     if (pluginId == null) return value;
     final entry = CcParamRegistry.findParam(pluginId, target.paramKey);
-    final choices = entry?.directChoices?.call();
-    if (choices == null) return value;
-    for (final c in choices) {
+    if (entry == null) return value;
+    for (final c in rack.ccDirectChoicesFor(target.slotId, entry)) {
       if (c.value == value) return c.label;
     }
     return value;

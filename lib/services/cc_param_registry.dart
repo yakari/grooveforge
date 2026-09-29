@@ -1,5 +1,6 @@
 import 'package:grooveforge_plugin_api/grooveforge_plugin_api.dart';
 
+import '../models/gm_instruments.dart';
 import 'cc_mapping_service.dart';
 
 /// One selectable value for a [CcParamMode.direct] mapping.
@@ -356,8 +357,34 @@ class CcParamRegistry {
 
   // ── Instruments ────────────────────────────────────────────────────────
 
+  /// Every General MIDI instrument, as recall choices for CC direct mapping.
+  ///
+  /// Only the fallback: a keyboard slot running a custom .sf2 has its own
+  /// preset list, which [RackState.ccDirectChoicesFor] substitutes.
+  static List<CcDirectChoice> gfKeyboardPatchChoices() =>
+      patchChoicesFrom(GmInstruments.list);
+
+  /// Turns a program → name table into recall choices labelled "005 - Name",
+  /// sorted by program number. The stored value is the bare program number.
+  static List<CcDirectChoice> patchChoicesFrom(Map<int, String> programNames) {
+    final programs = programNames.keys.toList()..sort();
+    return [
+      for (final p in programs)
+        CcDirectChoice(
+          value: p.toString(),
+          label: '${p.toString().padLeft(3, '0')} - ${programNames[p]}',
+        ),
+    ];
+  }
+
   /// GF Keyboard — slot-addressed so the user can control a specific keyboard.
   static const List<CcParamEntry> gfKeyboard = [
+    CcParamEntry(
+      paramKey: 'select_patch',
+      displayName: 'Select Patch',
+      defaultMode: CcParamMode.direct,
+      directChoices: gfKeyboardPatchChoices,
+    ),
     CcParamEntry(
       paramKey: 'absolute_patch',
       displayName: 'Patch (knob)',

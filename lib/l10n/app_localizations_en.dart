@@ -2121,6 +2121,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get ccAssignNoValues => 'Nothing assigned yet';
 
   @override
+  String get ccAssignMoveKnobOrButton => 'Move a CC knob or press button…';
+
+  @override
   String get ccActionPickerLabel => 'Action';
 
   @override

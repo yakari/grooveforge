@@ -131,7 +131,7 @@ class _SlotCcAssignDialogState extends State<SlotCcAssignDialog> {
     List<CcMapping> allMappings,
     AppLocalizations l10n,
   ) {
-    final choices = param.directChoices?.call() ?? const <CcDirectChoice>[];
+    final choices = _resolveDirectChoices(param);
     final assigned = _findDirectMappings(allMappings, param.paramKey);
     final theme = Theme.of(context);
 
@@ -139,7 +139,8 @@ class _SlotCcAssignDialogState extends State<SlotCcAssignDialog> {
       for (final c in choices) {
         if (c.value == value) return c.label;
       }
-      // The choice is gone — a deleted custom scale. Showing the raw id tells
+      // The choice is gone — a deleted custom scale, or a patch missing from
+      // the slot's new soundfont. Showing the raw id tells
       // the player which mapping to repair; showing nothing would not.
       return value;
     }
@@ -168,6 +169,7 @@ class _SlotCcAssignDialogState extends State<SlotCcAssignDialog> {
             param,
             mapping,
             labelFor((mapping.target as SlotParamTarget).directValue ?? ''),
+            choices,
             l10n,
           ),
         // Learning a value that has no mapping yet.
@@ -181,7 +183,7 @@ class _SlotCcAssignDialogState extends State<SlotCcAssignDialog> {
             contentPadding: const EdgeInsets.symmetric(horizontal: 4),
             title: Text(labelFor(_learningDirectValue!),
                 style: const TextStyle(fontSize: 12)),
-            trailing: _learnIndicator(theme),
+            trailing: _learnIndicator(theme, l10n),
             onTap: _stopLearn,
           ),
         Align(
@@ -200,23 +202,66 @@ class _SlotCcAssignDialogState extends State<SlotCcAssignDialog> {
     );
   }
 
-  /// One assigned value: its label, its CC chip, and a re-learn button.
+  /// One assigned value: a dropdown to change what it recalls (e.g. pick an
+  /// exact patch by name), its CC chip, and a re-learn button.
+  ///
+  /// Falls back to a plain label when [choices] is empty.
   Widget _directValueRow(
     CcParamEntry param,
     CcMapping mapping,
     String label,
+    List<CcDirectChoice> choices,
     AppLocalizations l10n,
   ) {
     final value = (mapping.target as SlotParamTarget).directValue;
     final learning = _isLearning(param.paramKey, value);
     final theme = Theme.of(context);
 
+    final Widget titleWidget;
+    if (choices.isNotEmpty) {
+      titleWidget = DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: choices.any((c) => c.value == value) ? value : null,
+          hint: Text(
+            label,
+            style: const TextStyle(fontSize: 12),
+            overflow: TextOverflow.ellipsis,
+          ),
+          isDense: true,
+          isExpanded: true,
+          icon: const Icon(Icons.arrow_drop_down, size: 18),
+          dropdownColor: Colors.grey[900],
+          items: [
+            for (final c in choices)
+              DropdownMenuItem(
+                value: c.value,
+                child: Text(
+                  c.label,
+                  style: const TextStyle(fontSize: 12),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+          ],
+          onChanged: (newVal) {
+            if (newVal != null && newVal != value) {
+              _updateDirectValue(mapping, newVal);
+            }
+          },
+        ),
+      );
+    } else {
+      titleWidget = Text(label, style: const TextStyle(fontSize: 12));
+    }
+
     return ListTile(
       dense: true,
       contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-      title: Text(label, style: const TextStyle(fontSize: 12)),
+      title: titleWidget,
+      // The title is a dropdown, so only a learning row reacts to a tap —
+      // tapping it cancels the learn.
+      onTap: learning ? _stopLearn : null,
       trailing: learning
-          ? _learnIndicator(theme)
+          ? _learnIndicator(theme, l10n)
           : Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -242,11 +287,10 @@ class _SlotCcAssignDialogState extends State<SlotCcAssignDialog> {
                 ),
               ],
             ),
-      onTap: learning ? _stopLearn : () => _startLearn(param.paramKey, value),
     );
   }
 
-  Widget _learnIndicator(ThemeData theme) => Row(
+  Widget _learnIndicator(ThemeData theme, AppLocalizations l10n) => Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           const SizedBox(
@@ -255,7 +299,7 @@ class _SlotCcAssignDialogState extends State<SlotCcAssignDialog> {
             child: CircularProgressIndicator(strokeWidth: 2),
           ),
           const SizedBox(width: 8),
-          Text('Move a CC knob\u2026',
+          Text(l10n.ccAssignMoveKnobOrButton,
               style:
                   TextStyle(fontSize: 11, color: theme.colorScheme.primary)),
         ],
@@ -345,6 +389,10 @@ class _SlotCcAssignDialogState extends State<SlotCcAssignDialog> {
     );
   }
 
+  /// The values a direct-mode [param] can recall on this slot.
+  List<CcDirectChoice> _resolveDirectChoices(CcParamEntry param) =>
+      context.read<RackState>().ccDirectChoicesFor(widget.slotId, param);
+
   // ── CC learn mode ──────────────────────────────────────────────────────
 
   void _startLearn(String paramKey, [String? directValue]) {
@@ -400,6 +448,23 @@ class _SlotCcAssignDialogState extends State<SlotCcAssignDialog> {
         paramKey: paramKey,
         mode: mode,
         directValue: directValue,
+      ),
+    ));
+    context.read<RackState>().markDirty();
+  }
+
+  /// Rebinds an existing pad to [newValue] without re-learning its CC:
+  /// the pad keeps its hardware CC, only the value it recalls changes.
+  void _updateDirectValue(CcMapping mapping, String newValue) {
+    final target = mapping.target as SlotParamTarget;
+    _ccService.removeMapping(mapping);
+    _ccService.addMapping(CcMapping(
+      incomingCc: mapping.incomingCc,
+      target: SlotParamTarget(
+        slotId: target.slotId,
+        paramKey: target.paramKey,
+        mode: target.mode,
+        directValue: newValue,
       ),
     ));
     context.read<RackState>().markDirty();

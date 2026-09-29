@@ -810,6 +810,7 @@
   "ccDirectValueLabel": "Valeur à rappeler",
   "ccAssignAddValue": "Assigner une valeur…",
   "ccAssignNoValues": "Rien d'assigné",
+  "ccAssignMoveKnobOrButton": "Bougez un bouton CC ou appuyez…",
   "ccActionPickerLabel": "Action",
   "ccNoSlotsOfType": "Aucun slot de ce type dans le rack.",
   "ccSwapInstrumentA": "Instrument A",

@@ -1,0 +1,3 @@
+Ajouté
+- Assignation CC du GF Keyboard : une nouvelle entrée « Select Patch » lie un pad ou un bouton à un patch précis, choisi par son nom dans une liste qui suit la soundfont du slot. Chaque pad peut porter un patch différent, et un pad assigné peut changer de patch sans réapprentissage.
+- Les pads de gamme Xen de la fenêtre d'assignation CC gagnent la même liste pour changer la gamme rappelée sur place.

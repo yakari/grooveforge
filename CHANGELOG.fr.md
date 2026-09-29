@@ -5,6 +5,12 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/lang/fr/).
 
+## [3.2.2] - 2026-09-29
+
+### Ajouté
+- Assignation CC du GF Keyboard : une nouvelle entrée **Select Patch** lie un pad ou un bouton à un patch précis. Choisissez-le par son nom dans une liste déroulante — qui suit la soundfont chargée dans le slot (ou le General MIDI) — puis appuyez sur le pad pour l'apprendre. Chaque pad peut porter un patch différent, et un pad déjà assigné peut changer de patch depuis sa liste sans réapprentissage.
+- Les pads de gamme (Xen) de la fenêtre d'assignation CC gagnent la même liste déroulante pour changer la gamme rappelée sur place.
+
 ## [3.2.1] - 2026-09-27
 
 ### Ajouté

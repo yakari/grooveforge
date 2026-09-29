@@ -1090,6 +1090,10 @@
   "ccDirectValueLabel": "Value to recall",
   "ccAssignAddValue": "Assign a value…",
   "ccAssignNoValues": "Nothing assigned yet",
+  "ccAssignMoveKnobOrButton": "Move a CC knob or press button…",
+  "@ccAssignMoveKnobOrButton": {
+    "description": "Instruction shown in CC assign dialog when listening for incoming MIDI CC input."
+  },
   "ccActionPickerLabel": "Action",
   "ccNoSlotsOfType": "No slots of this type in the rack.",
   "ccSwapInstrumentA": "Instrument A",
