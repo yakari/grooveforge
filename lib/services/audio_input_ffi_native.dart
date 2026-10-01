@@ -1567,6 +1567,25 @@ class AudioInputFFI {
   late final int Function() _rehRackTapFnAddr = _lib
       .lookupFunction<IntPtr Function(), int Function()>(
           'gf_reh_rack_tap_fn_addr');
+  late final int Function(Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>, int,
+          Pointer<Float>) _aecRender =
+      _lib.lookupFunction<
+          Int32 Function(Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>, Int32,
+              Pointer<Float>),
+          int Function(Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>, int,
+              Pointer<Float>)>('gf_aec_render');
+  late final int Function() _rehReferenceTapFnAddr = _lib
+      .lookupFunction<IntPtr Function(), int Function()>(
+          'gf_reh_reference_tap_fn_addr');
+  late final void Function(Pointer<Utf8>) _rehSetReference = _lib
+      .lookupFunction<Void Function(Pointer<Utf8>),
+          void Function(Pointer<Utf8>)>('gf_reh_set_reference');
+  late final int Function() _rehReferenceWritten = _lib
+      .lookupFunction<Int64 Function(), int Function()>(
+          'gf_reh_reference_written');
+  late final int Function() _rehReferenceLost = _lib
+      .lookupFunction<Int64 Function(), int Function()>(
+          'gf_reh_reference_lost');
   late final void Function(int) _rehSetInputSource = _lib
       .lookupFunction<Void Function(Int32), void Function(int)>(
           'gf_reh_set_input_source');
@@ -1656,6 +1675,60 @@ class AudioInputFFI {
   /// Address of the sink that feeds the rack's output into a take, for
   /// Android's Oboe bus and the desktop host's rack tap alike.
   int rehRackTapFnAddr() => _rehRackTapFnAddr();
+
+  int rehReferenceTapFnAddr() => _rehReferenceTapFnAddr();
+
+  /// Removes the phone's own speaker out of [micPath], using [refPath].
+  ///
+  /// [expectedDelay] is this route's measured round trip in frames — the same
+  /// figure the take was compensated by. Pass it: without it the canceller has
+  /// to find the delay in the audio, and a player a few dB above the bleed is
+  /// enough to hide it.
+  ///
+  /// Writes a file and takes as long as it takes, so call it from a background
+  /// isolate. Returns 0 on success, or a negative gf_aec_result.
+  int aecRender(String micPath, String refPath, String outPath,
+      int expectedDelay, List<double> reductionOut) {
+    final m = micPath.toNativeUtf8();
+    final r = refPath.toNativeUtf8();
+    final o = outPath.toNativeUtf8();
+    final red = malloc<Float>();
+    try {
+      red.value = 0;
+      final rc = _aecRender(m, r, o, expectedDelay, red);
+      reductionOut
+        ..clear()
+        ..add(red.value);
+      return rc;
+    } finally {
+      malloc.free(m);
+      malloc.free(r);
+      malloc.free(o);
+      malloc.free(red);
+    }
+  }
+
+  /// Asks the next take to save a copy of what the speaker played, to [path].
+  ///
+  /// Pass null for no reference, which is what a take monitored on headphones
+  /// wants: there is no bleed to subtract and the file would cost disk for
+  /// nothing. The request applies to one take and is forgotten afterwards.
+  void rehSetReference(String? path) {
+    if (path == null || path.isEmpty) {
+      _rehSetReference(nullptr);
+      return;
+    }
+    final p = path.toNativeUtf8();
+    try {
+      _rehSetReference(p);
+    } finally {
+      malloc.free(p);
+    }
+  }
+
+  int get rehReferenceWritten => _rehReferenceWritten();
+
+  int get rehReferenceLost => _rehReferenceLost();
 
   /// Records the next take from the rack's output instead of the microphone.
   ///

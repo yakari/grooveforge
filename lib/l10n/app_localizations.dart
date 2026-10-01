@@ -4910,6 +4910,36 @@ abstract class AppLocalizations {
   /// **'Delete this recording'**
   String get rehearsalDeleteTake;
 
+  /// No description provided for @rehearsalTakeDropped.
+  ///
+  /// In en, this message translates to:
+  /// **'This take lost {ms} ms of audio and will not line up with the click. Record it again.'**
+  String rehearsalTakeDropped(int ms);
+
+  /// No description provided for @rehearsalCleanTake.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove the speaker bleed'**
+  String get rehearsalCleanTake;
+
+  /// No description provided for @rehearsalCleaning.
+  ///
+  /// In en, this message translates to:
+  /// **'Removing the speaker…'**
+  String get rehearsalCleaning;
+
+  /// No description provided for @rehearsalCleanDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Speaker bleed removed. The original is kept beside it.'**
+  String get rehearsalCleanDone;
+
+  /// No description provided for @rehearsalCleanFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not remove the speaker from this take.'**
+  String get rehearsalCleanFailed;
+
   /// No description provided for @rehearsalDeleteTakeConfirm.
   ///
   /// In en, this message translates to:

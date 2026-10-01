@@ -17,6 +17,8 @@ add_library(audio_input SHARED
     gf_rehearsal.c
     gf_media_import.c
     gf_timestretch.c
+    gf_wav.c
+    gf_aec.c
 )
 
 find_package(Threads REQUIRED)
@@ -104,6 +106,17 @@ if (NOT ANDROID AND NOT IOS)
     endif()
 endif()
 
+# Echo cancellation, measured against a synthetic room whose echo is known
+# exactly. No audio device and no microphone, so it runs anywhere and its
+# numbers mean the same thing on every machine.
+if (NOT ANDROID AND NOT IOS)
+    add_executable(gf_aec_smoke_test EXCLUDE_FROM_ALL
+        gf_aec_smoke_test.c gf_aec.c gf_fft.c gf_wav.c)
+    if (UNIX)
+        target_link_libraries(gf_aec_smoke_test PRIVATE m)
+    endif()
+endif()
+
 # Phase vocoder time-stretching. Uses miniaudio's built-in WAV encoder.
 if (NOT ANDROID AND NOT IOS)
     add_executable(gf_pv_smoke_test EXCLUDE_FROM_ALL
@@ -118,7 +131,8 @@ endif()
 # synthetic signals so a failure on real hardware can be blamed on the hardware.
 if (NOT ANDROID AND NOT IOS)
     add_executable(gf_timestretch_smoke_test EXCLUDE_FROM_ALL
-        gf_timestretch_smoke_test.c gf_timestretch.c gf_phase_vocoder.c gf_fft.c)
+        gf_timestretch_smoke_test.c gf_timestretch.c gf_phase_vocoder.c gf_fft.c
+        gf_wav.c)
     if(NOT WIN32)
         target_link_libraries(gf_timestretch_smoke_test PRIVATE m ${CMAKE_DL_LIBS})
     endif()
@@ -142,7 +156,8 @@ endif()
 # a writable directory but no audio device.
 if (NOT ANDROID AND NOT IOS)
     add_executable(gf_rehearsal_smoke_test EXCLUDE_FROM_ALL
-        gf_rehearsal_smoke_test.c gf_rehearsal.c gf_media_import.c)
+        gf_rehearsal_smoke_test.c gf_rehearsal.c gf_media_import.c
+        gf_aec.c gf_fft.c gf_wav.c)
     target_link_libraries(gf_rehearsal_smoke_test PRIVATE Threads::Threads)
     if (UNIX)
         target_link_libraries(gf_rehearsal_smoke_test PRIVATE m)

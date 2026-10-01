@@ -2711,6 +2711,25 @@ class AppLocalizationsFr extends AppLocalizations {
   String get rehearsalDeleteTake => 'Supprimer cet enregistrement';
 
   @override
+  String rehearsalTakeDropped(int ms) {
+    return 'Cette prise a perdu $ms ms d\'audio et ne sera pas calée sur le clic. Réenregistrez-la.';
+  }
+
+  @override
+  String get rehearsalCleanTake => 'Enlever la fuite du haut-parleur';
+
+  @override
+  String get rehearsalCleaning => 'Suppression du haut-parleur…';
+
+  @override
+  String get rehearsalCleanDone =>
+      'Fuite du haut-parleur enlevée. L\'original est conservé à côté.';
+
+  @override
+  String get rehearsalCleanFailed =>
+      'Impossible d\'enlever le haut-parleur de cette prise.';
+
+  @override
   String rehearsalDeleteTakeConfirm(String instrument) {
     return 'Supprimer votre enregistrement de $instrument ? Les autres le perdront aussi à la prochaine synchronisation.';
   }

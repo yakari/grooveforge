@@ -58,6 +58,13 @@ class _RehearsalScreenState extends State<RehearsalScreen> {
   Rehearsal? _rehearsal;
   bool _importing = false;
 
+  /// Parts whose take has a speaker reference saved beside it.
+  ///
+  /// Checked once when the tune opens and again after anything that could
+  /// change it, rather than per build: it is a file-exists call per lane and
+  /// the lane list rebuilds on every transport tick.
+  final Set<String> _cleanable = {};
+
   @override
   void initState() {
     super.initState();
@@ -83,6 +90,11 @@ class _RehearsalScreenState extends State<RehearsalScreen> {
     engine.onTakeCommitted = () {
       sync.syncNow();
       if (mounted) setState(() {});
+      // A take just recorded through the speaker has a reference beside it, so
+      // the lane can offer to remove the bleed straight away rather than only
+      // after the tune is reopened.
+      _refreshCleanable();
+      _warnIfTakeDropped(engine);
     };
     // A part that arrives from someone else has to be opened by the engine, or
     // it appears in the lane and plays nothing.
@@ -95,6 +107,7 @@ class _RehearsalScreenState extends State<RehearsalScreen> {
       _engine = engine;
       _rehearsal = rehearsal;
     });
+    await _refreshCleanable();
     await _goLive(rehearsal);
   }
 
@@ -226,6 +239,72 @@ class _RehearsalScreenState extends State<RehearsalScreen> {
   }
 
   /// Deletes this device's own take, after confirming.
+  /// Says so when a take lost audio on its way to disk.
+  ///
+  /// Silence here would be worse than useless: a take that dropped frames is
+  /// shorter than the time it was recorded over, so everything after the loss
+  /// plays early against the click. It sounds like the player drifting, and
+  /// the one thing they cannot do is guess that it was not them.
+  void _warnIfTakeDropped(RehearsalEngine engine) {
+    final dropped = engine.lastTakeDroppedFrames;
+    if (dropped <= 0 || !mounted) return;
+    final l10n = AppLocalizations.of(context)!;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(l10n.rehearsalTakeDropped((dropped * 1000) ~/ 48000)),
+        duration: const Duration(seconds: 8),
+      ),
+    );
+  }
+
+  /// Re-reads which lanes have a reference to clean against.
+  Future<void> _refreshCleanable() async {
+    final engine = _engine;
+    final rehearsal = _rehearsal;
+    if (engine == null || rehearsal == null) return;
+    final found = <String>{};
+    for (final part in rehearsal.parts) {
+      if (await engine.canCleanTake(part)) found.add(part.id);
+    }
+    if (!mounted) return;
+    setState(() {
+      _cleanable
+        ..clear()
+        ..addAll(found);
+    });
+  }
+
+  /// Subtracts the phone's own speaker out of a take.
+  ///
+  /// Offered only where a reference was saved beside the recording, which is
+  /// only when the take was monitored through the phone's loudspeaker.
+  Future<void> _cleanTake(RehearsalPart part) async {
+    final l10n = AppLocalizations.of(context)!;
+    final messenger = ScaffoldMessenger.of(context);
+    final engine = _engine;
+    if (engine == null || part.take == null) return;
+
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(l10n.rehearsalCleaning),
+        duration: const Duration(minutes: 5),
+      ),
+    );
+    final reduction = await engine.cleanTake(part);
+    messenger.hideCurrentSnackBar();
+    if (!mounted) return;
+
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          reduction == null ? l10n.rehearsalCleanFailed : l10n.rehearsalCleanDone,
+        ),
+      ),
+    );
+    await _refreshCleanable();
+    if (mounted) setState(() {});
+  }
+
   Future<void> _deleteTake(RehearsalPart part) async {
     final l10n = AppLocalizations.of(context)!;
     final rehearsal = _rehearsal;
@@ -622,6 +701,11 @@ class _RehearsalScreenState extends State<RehearsalScreen> {
                                   onChanged: () => setState(() {}),
                                   onDelete:
                                       () => _deleteTake(rehearsal.parts[i]),
+                                  onClean:
+                                      () => _cleanTake(rehearsal.parts[i]),
+                                  canClean: _cleanable.contains(
+                                    rehearsal.parts[i].id,
+                                  ),
                                   onRemovePart:
                                       () => _removePart(rehearsal.parts[i]),
                                   onRemoveMember:
@@ -1324,6 +1408,8 @@ class _PartLane extends StatelessWidget {
     required this.onToggleExpanded,
     required this.onChanged,
     required this.onDelete,
+    required this.onClean,
+    required this.canClean,
     required this.onRemovePart,
     required this.onRemoveMember,
   });
@@ -1348,6 +1434,14 @@ class _PartLane extends StatelessWidget {
 
   final VoidCallback onChanged;
   final VoidCallback onDelete;
+
+  /// Subtract the phone's own speaker out of this take.
+  final VoidCallback onClean;
+
+  /// Whether there is a reference saved beside the take to subtract with.
+  /// False for anything recorded on headphones or the USB output, where
+  /// nothing leaked into the microphone in the first place.
+  final bool canClean;
   final VoidCallback onRemovePart;
 
   /// Removes the player who owns this lane, and everything they own.
@@ -1512,6 +1606,7 @@ class _PartLane extends StatelessWidget {
                     icon: const Icon(Icons.more_vert),
                     onSelected: (value) => switch (value) {
                       'take' => onDelete(),
+                      'clean' => onClean(),
                       'member' => onRemoveMember(),
                       'input' => _setRackInput(!fromRack),
                       _ => onRemovePart(),
@@ -1530,6 +1625,19 @@ class _PartLane extends StatelessWidget {
                           // Two destructive actions that are easy to confuse, so
                           // they are named rather than offered as two similar
                           // icons: one keeps the lane, the other does not.
+                          // Above the destructive pair, and separated from
+                          // them: this one changes the recording rather than
+                          // removing it, and the original is kept either way.
+                          if (isMine && take != null && canClean)
+                            PopupMenuItem(
+                              value: 'clean',
+                              child: ListTile(
+                                leading: const Icon(Icons.cleaning_services_outlined),
+                                title: Text(l10n.rehearsalCleanTake),
+                                contentPadding: EdgeInsets.zero,
+                                dense: true,
+                              ),
+                            ),
                           if (isMine && take != null)
                             PopupMenuItem(
                               value: 'take',

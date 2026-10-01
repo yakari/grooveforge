@@ -20,6 +20,7 @@
 // Build: see CMakeLists.txt — target "gf_rehearsal_smoke_test".
 // Run  : ./build-smoke/gf_rehearsal_smoke_test [work_dir]
 
+#include "gf_aec.h"
 #include "gf_rehearsal.h"
 #include "gf_media_import.h"
 
@@ -877,6 +878,186 @@ static void test_records_through_count_in(void) {
     gf_reh_clear_tracks();
 }
 
+/// The reference capture that gf_aec consumes.
+///
+/// Checks the three claims the echo canceller rests on: a reference is only
+/// written when one is asked for, it drops the same compensation off its front
+/// as the take does, and asking is a one-shot that does not leak into the next
+/// take.
+static void test_reference_capture(void) {
+    gf_reh_clear_tracks();
+    gf_reh_set_metronome(0, 0.0f);
+    gf_reh_set_grid(240.0, 4, 4);
+
+    float out[BLOCK], in[BLOCK], ref[BLOCK];
+    for (int i = 0; i < BLOCK; i++) { in[i] = 0.4f; ref[i] = -0.25f; }
+    const int blocks = 32;
+
+    // ── Nothing asked, nothing written ──────────────────────────────────────
+    if (gf_reh_record(path_for("gf_reh_ref_off.wav"), 0, 0) != 0) {
+        fail("could not start recording");
+        return;
+    }
+    for (int i = 0; i < blocks; i++) {
+        gf_reh_render_offline(out, NULL, BLOCK);
+        gf_reh_feed_input(in, BLOCK);
+        gf_reh_feed_reference(ref, BLOCK);
+    }
+    gf_reh_stop();
+    if (gf_reh_reference_frames() != 0) {
+        printf("    FAIL: wrote %lld reference frames without being asked\n",
+               (long long)gf_reh_reference_frames());
+        fail("");
+    } else {
+        printf("    no reference is written unless one is asked for\n");
+    }
+
+    // ── Asked for, and compensated like the take ────────────────────────────
+    const int comp = BLOCK * 3;
+    gf_reh_set_reference_path(path_for("gf_reh_ref_on.wav"));
+    if (gf_reh_record(path_for("gf_reh_ref_take.wav"), comp, 0) != 0) {
+        fail("could not start recording");
+        return;
+    }
+    for (int i = 0; i < blocks; i++) {
+        gf_reh_render_offline(out, NULL, BLOCK);
+        gf_reh_feed_input(in, BLOCK);
+        gf_reh_feed_reference(ref, BLOCK);
+    }
+    gf_reh_stop();
+
+    const int64_t want = (int64_t)blocks * BLOCK - comp;
+    const int64_t got_take = gf_reh_recorded_frames();
+    const int64_t got_ref = gf_reh_reference_frames();
+    printf("    fed %d frames with %d of compensation -> take %lld, reference %lld\n",
+           blocks * BLOCK, comp, (long long)got_take, (long long)got_ref);
+    if (got_ref != want) {
+        printf("    FAIL: reference should be %lld frames\n", (long long)want);
+        fail("");
+    }
+    // The whole design rests on this: both sides losing the same front is what
+    // leaves the lag between them equal to the bare acoustic round trip.
+    if (got_ref != got_take) {
+        printf("    FAIL: take and reference differ by %lld frames\n",
+               (long long)(got_take - got_ref));
+        fail("");
+    } else {
+        printf("    take and reference drop the same compensation\n");
+    }
+    if (gf_reh_reference_dropped() != 0) {
+        printf("    FAIL: dropped %lld reference frames\n",
+               (long long)gf_reh_reference_dropped());
+        fail("");
+    }
+
+    // The file on disk must hold what was fed, not silence.
+    float* back = (float*)malloc(sizeof(float) * (size_t)want);
+    if (back) {
+        const int n = read_wav(path_for("gf_reh_ref_on.wav"), back, (int)want);
+        int sane = (n == (int)want);
+        for (int i = 0; i < n && sane; i++) {
+            if (back[i] > -0.2f || back[i] < -0.3f) sane = 0;
+        }
+        if (!sane) {
+            printf("    FAIL: the reference file does not hold what was fed\n");
+            fail("");
+        } else {
+            printf("    the reference file holds the signal that was fed\n");
+        }
+        free(back);
+    }
+
+    // ── One take, one request ───────────────────────────────────────────────
+    if (gf_reh_record(path_for("gf_reh_ref_next.wav"), 0, 0) != 0) {
+        fail("could not start recording");
+        return;
+    }
+    for (int i = 0; i < blocks; i++) {
+        gf_reh_render_offline(out, NULL, BLOCK);
+        gf_reh_feed_input(in, BLOCK);
+        gf_reh_feed_reference(ref, BLOCK);
+    }
+    gf_reh_stop();
+    if (gf_reh_reference_frames() != 0) {
+        printf("    FAIL: the request leaked into the next take\n");
+        fail("");
+    } else {
+        printf("    the request applies to one take only\n");
+    }
+    gf_reh_clear_tracks();
+}
+
+/// End to end: a take and its reference, handed to the echo canceller.
+///
+/// Test 13 proves the two files lose the same number of frames off the front.
+/// This proves what that was *for* — that the lag left between them is the
+/// plain acoustic round trip, and so points forwards. Had the compensation
+/// come off only one side, the lag would be the round trip minus the
+/// compensation, which goes negative and which gf_aec reports as "these two
+/// are unrelated" rather than as a delay it can work with.
+static void test_reference_alignment(void) {
+    enum { N = 60000, ECHO_DELAY = 1200, COMP = 768 };
+
+    gf_reh_clear_tracks();
+    gf_reh_set_metronome(0, 0.0f);
+    gf_reh_set_grid(240.0, 4, 4);
+
+    float* refsig = (float*)malloc(sizeof(float) * N);
+    float* micsig = (float*)malloc(sizeof(float) * N);
+    if (!refsig || !micsig) { free(refsig); free(micsig); return; }
+
+    // Broadband, so the correlation peak is unambiguous: this is a test of
+    // alignment, not of how the canceller copes with real music.
+    unsigned seed = 987654321u;
+    for (int i = 0; i < N; i++) {
+        seed = seed * 1664525u + 1013904223u;
+        refsig[i] = (float)((int)(seed >> 16) % 2000 - 1000) / 2000.0f;
+    }
+    // What the microphone hears: the speaker, late and quieter, plus a hum
+    // standing in for the player.
+    for (int i = 0; i < N; i++) {
+        const float echo = (i >= ECHO_DELAY) ? 0.6f * refsig[i - ECHO_DELAY] : 0.0f;
+        micsig[i] = echo + 0.05f * sinf(2.0f * 3.14159265f * 110.0f * (float)i / SR);
+    }
+
+    gf_reh_set_reference_path(path_for("gf_reh_align_ref.wav"));
+    if (gf_reh_record(path_for("gf_reh_align_take.wav"), COMP, 0) != 0) {
+        fail("could not start recording");
+        free(refsig); free(micsig);
+        return;
+    }
+    float out[BLOCK];
+    for (int off = 0; off + BLOCK <= N; off += BLOCK) {
+        gf_reh_render_offline(out, NULL, BLOCK);
+        gf_reh_feed_input(micsig + off, BLOCK);
+        gf_reh_feed_reference(refsig + off, BLOCK);
+    }
+    gf_reh_stop();
+
+    const int64_t frames = gf_reh_recorded_frames();
+    float* take = (float*)malloc(sizeof(float) * (size_t)frames);
+    float* ref = (float*)malloc(sizeof(float) * (size_t)frames);
+    if (take && ref) {
+        const int nt = read_wav(path_for("gf_reh_align_take.wav"), take, (int)frames);
+        const int nr = read_wav(path_for("gf_reh_align_ref.wav"), ref, (int)frames);
+        const int n = (nt < nr) ? nt : nr;
+        const int found = gf_aec_estimate_delay(take, ref, n, SR);
+        printf("    echo delayed by %d frames -> gf_aec found %d\n",
+               ECHO_DELAY, found);
+        if (found < 0) {
+            printf("    FAIL: reported no relation between take and reference\n");
+            fail("");
+        } else if (abs(found - ECHO_DELAY) > GF_AEC_BLOCK) {
+            printf("    FAIL: off by %d frames\n", abs(found - ECHO_DELAY));
+            fail("");
+        } else {
+            printf("    the lag is the acoustic round trip, and points forwards\n");
+        }
+    }
+    free(take); free(ref); free(refsig); free(micsig);
+    gf_reh_clear_tracks();
+}
+
 int main(int argc, char** argv) {
     if (argc > 1) snprintf(g_dir, sizeof(g_dir), "%s", argv[1]);
     printf("gf_rehearsal_smoke_test — multitrack rehearsal engine (P1)\n");
@@ -900,6 +1081,12 @@ int main(int argc, char** argv) {
     test_count_in_preroll();
     printf("\n12. the count-in is recorded\n");
     test_records_through_count_in();
+
+    printf("\n13. reference capture for echo cancellation\n");
+    test_reference_capture();
+
+    printf("\n14. take and reference line up for the canceller\n");
+    test_reference_alignment();
 
     gf_reh_destroy();
 

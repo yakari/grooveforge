@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:flutter/foundation.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -7,9 +8,11 @@ import 'package:permission_handler/permission_handler.dart';
 import '../models/rehearsal.dart';
 import 'audio_input_ffi.dart';
 import 'audio_route_service.dart';
+import 'clean_job.dart';
 import 'latency_calibration.dart';
 import 'rehearsal_tempo_cache.dart';
 import 'gfpa_android_bindings.dart';
+import 'rehearsal_clean.dart';
 import 'rehearsal_library.dart';
 import 'vst_host_service.dart';
 
@@ -84,6 +87,10 @@ class RehearsalEngine extends ChangeNotifier {
   /// misdescribe it.
   int _recordingCompensation = 0;
   String? _recordingFileName;
+
+  /// Where the take in progress is also saving what the speaker played, or
+  /// null when no reference is being captured.
+  String? _referencePath;
 
   Timer? _poll;
   bool _active = false;
@@ -505,6 +512,152 @@ class RehearsalEngine extends ChangeNotifier {
     }
   }
 
+  /// Microphone frames the last take lost because the worker could not write
+  /// them to disk fast enough, or 0.
+  ///
+  /// Not a cosmetic figure. A dropped frame does not just lose that audio — it
+  /// shortens the take, so everything recorded after it sits that much early
+  /// against the grid. Any non-zero value here means the take will not line up
+  /// with the click, and the player needs to know rather than discover it on
+  /// playback.
+  int get lastTakeDroppedFrames => _lastTakeDropped;
+  int _lastTakeDropped = 0;
+
+  /// Whether [cleanTake] has anything to work with for [part].
+  ///
+  /// Only takes recorded through the phone's own speaker have a reference
+  /// saved beside them, so this is false for everything recorded on
+  /// headphones, through the USB output, or before the feature existed.
+  Future<bool> canCleanTake(RehearsalPart part) async {
+    if (kIsWeb) return false;
+    final path = await _referencePathFor(part);
+    if (path == null) return false;
+    return File(path).exists();
+  }
+
+  /// True while a take is being cleaned. One at a time.
+  bool get isCleaning => _cleaning;
+  bool _cleaning = false;
+
+  /// Where the reference for [part]'s take lives, or null if there is no take.
+  Future<String?> _referencePathFor(RehearsalPart part) async {
+    final r = _rehearsal;
+    final take = part.take;
+    if (r == null || take == null) return null;
+    final path = await _library.takePath(r.id, take);
+    final base = path.endsWith('.wav')
+        ? path.substring(0, path.length - 4)
+        : path;
+    return '$base.ref.wav';
+  }
+
+  /// Subtracts the phone's own speaker out of [part]'s take.
+  ///
+  /// The original is kept beside the result as `.raw.wav` rather than thrown
+  /// away: this removes most of the bleed, not all of it, and whether what is
+  /// left is an improvement is a judgement only the player can make.
+  ///
+  /// Returns how much energy came off the blocks that carried bleed, or null
+  /// if nothing was done. That figure reads low on a take with someone playing
+  /// on it even when it worked — it tells "it ran" from "it found nothing",
+  /// and is not worth showing as a score.
+  Future<double?> cleanTake(RehearsalPart part) async {
+    if (kIsWeb || _cleaning) return null;
+    final r = _rehearsal;
+    final take = part.take;
+    if (r == null || take == null) return null;
+
+    final takePath = await _library.takePath(r.id, take);
+    final refPath = await _referencePathFor(part);
+    if (refPath == null || !await File(refPath).exists()) return null;
+
+    _cleaning = true;
+    notifyListeners();
+    try {
+      final base = takePath.endsWith('.wav')
+          ? takePath.substring(0, takePath.length - 4)
+          : takePath;
+      final job = CleanJob(
+        takePath: takePath,
+        referencePath: refPath,
+        outputPath: '$base.clean.wav',
+        // The take was compensated by this; the reference lost the same
+        // amount off its front, so what is left between them is the plain
+        // acoustic round trip — which is exactly what the canceller needs.
+        expectedDelayFrames: compensationFrames,
+      );
+
+      final result = await Isolate.run(() => runCleanJob(job));
+      if (!result.ok) {
+        debugPrint('RehearsalEngine: cleaning ${take.fileName} failed');
+        return null;
+      }
+
+      // Swap, keeping the original. Done after the canceller has succeeded so
+      // a failure leaves the take exactly where it was.
+      final raw = File('$base.raw.wav');
+      if (!await raw.exists()) await File(takePath).copy(raw.path);
+      await File(job.outputPath).rename(takePath);
+
+      // The engine streams takes from disk, so what is loaded is still the
+      // old audio until the tracks are rebuilt.
+      await _loadTracks();
+      debugPrint('RehearsalEngine: cleaned ${take.fileName}, '
+          '${result.reductionDb.toStringAsFixed(1)} dB off the bleed');
+      return result.reductionDb;
+    } catch (e) {
+      debugPrint('RehearsalEngine: cleaning failed — $e');
+      return null;
+    } finally {
+      _cleaning = false;
+      notifyListeners();
+    }
+  }
+
+  /// Saves what the speaker plays alongside the take, when that is worth doing.
+  ///
+  /// Only on Android, only from the microphone, and only when the sound is
+  /// actually coming out of the phone's own speaker. On headphones or a USB
+  /// output nothing leaks into the microphone, so there would be no bleed to
+  /// subtract and the file would cost tens of megabytes for nothing.
+  ///
+  /// The reference lands beside the take as `<take>.ref.wav`. Takes are
+  /// tracked by the manifest rather than by what is in the directory, so an
+  /// extra file there is inert.
+  void _openReferenceCapture({required bool fromRack, required String takePath}) {
+    _referencePath = null;
+    if (kIsWeb || !Platform.isAndroid || fromRack) return;
+    // Refreshed moments ago by record(), so this is the live route.
+    if ((_routes?.route.kind ?? 'speaker') != 'speaker') return;
+
+    final base = takePath.endsWith('.wav')
+        ? takePath.substring(0, takePath.length - 4)
+        : takePath;
+    final path = '$base.ref.wav';
+    final ffi = AudioInputFFI();
+    ffi.rehSetReference(path);
+    GfpaAndroidBindings.instance
+        .oboeStreamSetOutputTap(ffi.rehReferenceTapFnAddr());
+    _referencePath = path;
+  }
+
+  /// Stops the bus sending the mix, and reports what was captured.
+  ///
+  /// Always called, even when no reference was requested, for the same reason
+  /// as [_closeRackInput]: the bus must never be left summing a mix nobody
+  /// reads.
+  void _closeReferenceCapture() {
+    if (kIsWeb || !Platform.isAndroid) return;
+    GfpaAndroidBindings.instance.oboeStreamSetOutputTap(0);
+    if (_referencePath == null) return;
+    final ffi = AudioInputFFI();
+    final written = ffi.rehReferenceWritten;
+    final lost = ffi.rehReferenceLost;
+    debugPrint('RehearsalEngine: reference $written frames'
+        '${lost > 0 ? ', $lost lost' : ''} -> $_referencePath');
+    _referencePath = null;
+  }
+
   /// Puts the input back on the microphone and stops the bus sending.
   ///
   /// Called after every take, not only after one recorded from the rack, so
@@ -568,9 +721,12 @@ class RehearsalEngine extends ChangeNotifier {
     if (fromRack) _openRackInput();
     final compensation = fromRack ? 0 : compensationFrames;
 
+    _openReferenceCapture(fromRack: fromRack, takePath: path);
+
     final rc = AudioInputFFI().rehRecord(path, compensation, r.countInBars);
     if (rc != 0) {
       debugPrint('RehearsalEngine: record failed ($rc)');
+      _closeReferenceCapture();
       _closeRackInput();
       if (existing != null) {
         AudioInputFFI().rehSetTrackMute(existing, _local.isMuted(part.id));
@@ -600,7 +756,9 @@ class RehearsalEngine extends ChangeNotifier {
     final takeOffset = ffi.rehTakeOffset;
 
     if (part != null) _logTakeRate(ffi, takeOffset);
+    _lastTakeDropped = part != null ? ffi.rehRecDropped : 0;
     ffi.rehStop();
+    _closeReferenceCapture();
     _closeRackInput();
     _transport = RehearsalTransport.stopped;
     final compensation = _recordingCompensation;

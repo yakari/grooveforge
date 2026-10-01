@@ -38,9 +38,11 @@
 //
 // Threading
 // --------
-// - `gf_reh_render` and `gf_reh_feed_input` run on the audio threads. They
-//   only read and write pre-allocated ring buffers: no allocation, no locks,
-//   no file I/O.
+// - `gf_reh_render`, `gf_reh_feed_input` and `gf_reh_feed_reference` run on
+//   the audio threads. They only read and write pre-allocated ring buffers: no
+//   allocation, no locks, no file I/O. The first two are on the capture side,
+//   the third on the output side, which on Android is a different thread
+//   running off a different clock.
 // - A worker thread does every read and write to disk, filling playback rings
 //   ahead of the playhead and draining the record ring to file.
 // - Everything else is called from the UI thread.
@@ -160,6 +162,38 @@ int gf_reh_play(int64_t start_frame);
 int gf_reh_record(const char* wav_path, int compensation_frames,
                   int count_in_bars);
 
+/// Asks the next take to also save a copy of what the speaker played.
+///
+/// Call before [gf_reh_record]; the path applies to that one take and is
+/// forgotten afterwards. Pass NULL to not capture a reference, which is the
+/// default and what a take monitored on headphones wants — there is no bleed
+/// to remove and the file would be written for nothing.
+///
+/// The reference is the second input gf_aec needs: a bit-exact copy of what
+/// was coming out of the loudspeaker while the microphone was recording, so
+/// the bleed can be subtracted afterwards. Nothing writes it unless something
+/// is also feeding [gf_reh_feed_reference] — on Android that is the output
+/// bus tap.
+///
+/// Both files drop the same [compensation_frames] from their front, which is
+/// what leaves the lag between them equal to the plain acoustic round trip
+/// rather than to the round trip minus the compensation. The latter can be
+/// negative, and an echo canceller cannot model an echo that arrives before
+/// the sound causing it.
+void gf_reh_set_reference_path(const char* wav_path);
+
+/// Frames written to the reference file of the take in progress, or the last
+/// one. Zero when no reference was requested or nothing ever fed it.
+int64_t gf_reh_reference_frames(void);
+
+/// Reference frames lost to a full ring, i.e. to the worker falling behind.
+///
+/// Worth more attention than the take's equivalent: a hole in the reference
+/// shifts everything after it against the take it is supposed to line up
+/// with, so a non-zero count here means the cleaned result will be worse
+/// after that point than before it.
+int64_t gf_reh_reference_dropped(void);
+
 /// Stops the transport and finalises a take in progress. Blocks briefly while
 /// the worker flushes the last of the recording to disk — call it off the
 /// audio thread.
@@ -232,6 +266,19 @@ void gf_reh_render(float* outL, float* outR, int frames);
 /// Hands the engine a block of microphone input. Audio-thread safe: the frames
 /// are copied into a ring and written to disk by the worker.
 void gf_reh_feed_input(const float* in, int frames);
+
+/// Hands the engine a block of what is going to the loudspeaker.
+///
+/// Audio-thread safe in the same way as [gf_reh_feed_input], and ignored
+/// unless [gf_reh_set_reference_path] asked for a reference. Must be the
+/// final mix including the metronome and the other players' takes — the whole
+/// point is that it is everything the microphone will hear coming back.
+///
+/// Called from the *output* callback, which is a different thread on a
+/// different clock from the one feeding the microphone. That is expected: the
+/// two files drift apart slowly over a long take, and gf_aec measures the lag
+/// rather than assuming it.
+void gf_reh_feed_reference(const float* mono, int frames);
 
 // ─── Offline rendering ───────────────────────────────────────────────────────
 

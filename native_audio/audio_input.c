@@ -31,6 +31,7 @@
 #define LOGI(...) printf(__VA_ARGS__)
 #endif
 
+#include "gf_aec.h"
 #include "gf_harmony.h"
 #include "gf_latency.h"
 #include "gf_rehearsal.h"
@@ -1089,6 +1090,31 @@ EXPORT int gf_ts_render(const char* in_path, const char* out_path, float ratio) 
     return gf_ts_render_file(in_path, out_path, ratio);
 }
 
+/// Removes the phone's own speaker out of a recorded take.
+///
+/// [mic_path] is the take, [ref_path] the copy of what the speaker was playing
+/// while it was recorded, and [out_path] receives the cleaned version. The
+/// take is left untouched, so the result can be compared against it and
+/// thrown away.
+///
+/// [expected_delay] is this route's measured round trip in frames, the same
+/// figure the take was compensated by — pass it whenever it is known, or -1.
+/// Without it the canceller has to find the delay in the audio, which a
+/// player only a few dB above the bleed is enough to prevent.
+///
+/// Like gf_ts_render it writes a file and takes as long as it takes: call it
+/// from a background isolate, never from anywhere near the audio thread.
+///
+/// Returns 0 on success or a negative gf_aec_result. The amount of energy
+/// removed, in dB, is written to [reduction_db] when that is non-NULL — zero
+/// means the take had no speaker bleed in it and was copied through unchanged.
+EXPORT int gf_aec_render(const char* mic_path, const char* ref_path,
+                         const char* out_path, int expected_delay,
+                         float* reduction_db) {
+    return gf_aec_render_file(mic_path, ref_path, out_path, expected_delay,
+                              reduction_db);
+}
+
 EXPORT int gf_probe_start(void) {
     if (g_probeState == 1) return -1;          // already running
 
@@ -1278,6 +1304,43 @@ EXPORT void gf_reh_rack_tap(const float* mono, int frames) {
 /// neither links the other.
 EXPORT intptr_t gf_reh_rack_tap_fn_addr(void) {
     return (intptr_t)&gf_reh_rack_tap;
+}
+
+/// Receives the finished output mix from the Oboe bus — see
+/// oboe_stream_set_output_tap.
+///
+/// Audio-thread safe. Unguarded, unlike the rack tap: the engine itself
+/// decides whether a reference is being written, and a block arriving when
+/// none is costs one branch in [gf_reh_feed_reference].
+EXPORT void gf_reh_reference_tap(const float* mono, int frames) {
+    gf_reh_feed_reference(mono, frames);
+}
+
+/// Address of [gf_reh_reference_tap], for oboe_stream_set_output_tap().
+///
+/// Handed across as a number for the same reason as the rack tap's.
+EXPORT intptr_t gf_reh_reference_tap_fn_addr(void) {
+    return (intptr_t)&gf_reh_reference_tap;
+}
+
+/// Asks the next take to save a copy of what the speaker played, to [path].
+///
+/// Pass NULL or an empty string for no reference, which is the default. See
+/// gf_reh_set_reference_path for what the file is and why both it and the
+/// take drop the same compensation from their front.
+EXPORT void gf_reh_set_reference(const char* path) {
+    gf_reh_set_reference_path(path);
+}
+
+/// Frames written to the last take's reference, and how many were lost to the
+/// worker falling behind. A non-zero drop count means the reference no longer
+/// lines up with the take after that point.
+EXPORT int64_t gf_reh_reference_written(void) {
+    return gf_reh_reference_frames();
+}
+
+EXPORT int64_t gf_reh_reference_lost(void) {
+    return gf_reh_reference_dropped();
 }
 
 /// Scratch for the engine's mono mix. Static rather than stack-allocated

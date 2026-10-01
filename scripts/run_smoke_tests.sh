@@ -43,6 +43,15 @@
 #       at least once, and none of them is visible from the Dart suite: they
 #       only exist once real audio has been rendered. Needs no soundfont.
 #
+#   gf_fft_smoke_test — the shared radix-2 FFT on its own: round trip, known
+#     spectra, sign convention, linearity and the convolution theorem. Pure
+#     arithmetic, so a failure here points at the transform and nothing else.
+#
+#   gf_aec_smoke_test — offline echo cancellation. Builds a take out of a
+#     synthetic room, a reference and a "musician" whose truth is known, then
+#     measures how much speaker bleed came out and how much of the performance
+#     survived. No audio device and no microphone.
+#
 #   gf_uac_smoke_test — direct USB output, device side. Parses descriptors
 #       captured from a real USB-C hub DAC, refuses formats the streamer cannot
 #       drive (UAC2, asynchronous endpoints), spreads 44.1 kHz over 1 ms packets
@@ -62,6 +71,8 @@
 #   ./scripts/run_smoke_tests.sh rehearsal  # just the rehearsal engine test
 #   ./scripts/run_smoke_tests.sh stretch    # just the practice-tempo renderer
 #   ./scripts/run_smoke_tests.sh uac        # just the direct USB output checks
+#   ./scripts/run_smoke_tests.sh fft        # just the shared FFT
+#   ./scripts/run_smoke_tests.sh aec        # just the echo canceller
 #
 # Build artefacts go to native_audio/build-smoke/ so the normal build tree is
 # left untouched.
@@ -99,6 +110,26 @@ run_tuning() {
     # FluidSynth writes ALSA probing noise to stderr on headless machines;
     # it is unrelated to the test, which renders offline.
     "$BUILD_DIR/gf_tuning_smoke_test" "$SOUNDFONT" 2>/dev/null
+}
+
+# ── Shared FFT ────────────────────────────────────────────────────────────────
+
+run_fft() {
+    echo
+    echo "── Building gf_fft_smoke_test"
+    cmake --build "$BUILD_DIR" --target gf_fft_smoke_test -j"$(nproc 2>/dev/null || echo 4)" > /dev/null
+    echo "── Running gf_fft_smoke_test"
+    "$BUILD_DIR/gf_fft_smoke_test"
+}
+
+# ── Echo cancellation ─────────────────────────────────────────────────────────
+
+run_aec() {
+    echo
+    echo "── Building gf_aec_smoke_test"
+    cmake --build "$BUILD_DIR" --target gf_aec_smoke_test -j"$(nproc 2>/dev/null || echo 4)" > /dev/null
+    echo "── Running gf_aec_smoke_test"
+    "$BUILD_DIR/gf_aec_smoke_test"
 }
 
 # ── Phase vocoder ─────────────────────────────────────────────────────────────
@@ -174,6 +205,8 @@ run_uac() {
 FAILED=0
 case "$WHICH" in
     tuning)     run_tuning     || FAILED=1 ;;
+    fft)        run_fft        || FAILED=1 ;;
+    aec)        run_aec        || FAILED=1 ;;
     vocoder)    run_vocoder    || FAILED=1 ;;
     harmonizer) run_harmonizer || FAILED=1 ;;
     autotune)   run_autotune   || FAILED=1 ;;
@@ -183,6 +216,8 @@ case "$WHICH" in
     uac)        run_uac        || FAILED=1 ;;
     all)
         run_tuning     || FAILED=1
+        run_fft        || FAILED=1
+        run_aec        || FAILED=1
         run_vocoder    || FAILED=1
         run_harmonizer || FAILED=1
         run_autotune   || FAILED=1

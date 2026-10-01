@@ -121,6 +121,21 @@ typedef void (*AudioTapFn)(const float* mono, int frames);
 /// rather than through the room. It costs nothing while no tap is set.
 void oboe_stream_set_rack_tap(AudioTapFn fn);
 
+/// Send the whole mix to [fn] each block, monitor source included. Pass NULL
+/// to clear.
+///
+/// The counterpart to the rack tap, and deliberately read at the opposite
+/// point: after the monitor source rather than before it. What it reports is
+/// therefore what the loudspeaker is about to emit, metronome and other
+/// players' takes and all.
+///
+/// That is what an echo canceller needs. The microphone recording a take in a
+/// room hears the whole mix coming back out of the speaker, so the only
+/// reference that can be subtracted from it is the whole mix — the rack tap
+/// would leave the metronome uncancelled, which is the loudest thing in the
+/// bleed. Costs nothing while no tap is set.
+void oboe_stream_set_output_tap(AudioTapFn fn);
+
 /// Render [fn] on the monitor source: heard on the bus, but never part of
 /// what the tap reports or the audio looper records. Pass NULL to clear.
 ///

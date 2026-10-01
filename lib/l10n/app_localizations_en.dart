@@ -2697,6 +2697,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String get rehearsalDeleteTake => 'Delete this recording';
 
   @override
+  String rehearsalTakeDropped(int ms) {
+    return 'This take lost $ms ms of audio and will not line up with the click. Record it again.';
+  }
+
+  @override
+  String get rehearsalCleanTake => 'Remove the speaker bleed';
+
+  @override
+  String get rehearsalCleaning => 'Removing the speaker…';
+
+  @override
+  String get rehearsalCleanDone =>
+      'Speaker bleed removed. The original is kept beside it.';
+
+  @override
+  String get rehearsalCleanFailed =>
+      'Could not remove the speaker from this take.';
+
+  @override
   String rehearsalDeleteTakeConfirm(String instrument) {
     return 'Delete your recording of $instrument? The others will lose it too, next time you sync.';
   }

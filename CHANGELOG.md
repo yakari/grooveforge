@@ -7,9 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [X.x.x]
 
+### Fixed
+- Rehearsals: a track could briefly fall silent when playback started or the playhead moved. The worker thread read the playhead before waiting for the lock that guards the track buffers, so by the time it got in it could be filling for a position the transport had already left — which it mistook for a seek and answered by discarding buffered audio that was ready to play. Present since the rehearsal engine shipped in 3.0.0.
+
+### Added
+- Rehearsals: a take recorded with the click coming out of the phone's own speaker can have that bleed subtracted afterwards — **Remove the speaker bleed**, in the lane's menu. Offered only where a take has a reference saved beside it, which is only when it was monitored through the loudspeaker. The original is kept alongside the result as `.raw.wav`, because this removes most of the bleed rather than all of it and whether that is an improvement is the player's call.
+
 ### Architecture
 - The radix-2 FFT moved out of `gf_phase_vocoder.c` into `gf_fft.c`/`.h`, so an effect that needs a spectrum but not a phase vocoder can share it. A pure move: the vocoder's smoke-test output is byte-identical.
 - `gf_fft_smoke_test` covers the transform on its own — round trip, known spectra, sign convention, linearity and the convolution theorem.
+- `gf_aec.c`/`.h`: offline removal of the phone's own speaker from a rehearsal take, against the bit-exact copy of what was played. Measures the delay by GCC-PHAT, then runs the take twice — once to learn the room, once to apply what it learned from the first sample. Linear subtraction only, with no residual suppressor, gate or gain control to pump the performance. Exported to Dart as `gf_aec_render`; not yet wired to a preference.
+- `gf_aec_smoke_test` measures it against a synthetic room: 33 dB of bleed removed, bleed down to 13 dB below the performance still cancelled, and takes with no bleed passed through untouched. On a real take off a Fold 6 it takes 13.7 dB off the click bleed.
+- The delay is measured by voting across six windows spread over the whole take rather than from one window at the start. A phone's speaker couples into its own microphone electrically as well as through the air, and that path arrives instantly — loud enough during a count-in to outvote the real acoustic delay and send the canceller looking in the wrong place.
+- The adaptive step is normalised by the reference energy actually inside the filter's reach, not by a smoothed average of the current block. A metronome is bursts separated by digital silence: by the time a click has worked its way through the filter the average has decayed to nothing, the step divides by nothing, and the filter diverges. This is what made the first real take come back as NaN where continuous synthetic noise had been fine.
+- The filter refuses to learn from blocks where the microphone is far louder than what the speaker was playing. Those are the blocks where someone is performing, and adapting through them is an adaptive filter trying to explain a guitar with a metronome. Measured on a real take with a player 3 dB over the bleed: 0 dB removed before, 9.8 dB after.
+- `gf_aec_render` takes the round trip the device has already measured for this output route, and uses correlation only to confirm it. Finding the delay in the audio alone needs the bleed to stand clear of everything else, and a player just 3 dB above it is enough to hide it — so every take anyone actually played on was being refused.
+- The rehearsal engine can save a copy of what the speaker played alongside a take (`gf_reh_set_reference_path`), written by the worker thread from a ring the output callback fills. Both files drop the same latency compensation off the front, which is what leaves the lag between them equal to the plain acoustic round trip instead of a negative number no echo canceller can model.
+- Android: a second output-bus tap (`oboe_stream_set_output_tap`) reports the finished mix *after* the monitor source, so the reference contains the metronome and the other players' takes — the loudest parts of what the microphone hears back. The existing rack tap still reports the mix before them, and is unchanged.
+- The mono 16-bit WAV reader and writer moved out of `gf_timestretch.c` into `gf_wav.c`/`.h` rather than being duplicated. Another pure move, byte-identical output.
 
 ## [3.2.2] - 2026-09-29
 

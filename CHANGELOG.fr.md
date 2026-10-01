@@ -7,9 +7,24 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 
 ## [X.x.x]
 
+### Corrigé
+- Répètes : une piste pouvait se taire brièvement au démarrage de la lecture ou lors d'un déplacement du curseur. Le thread worker lisait la position avant d'attendre le verrou qui protège les tampons de pistes ; en entrant, il pouvait donc remplir pour une position que le transport avait déjà dépassée — ce qu'il prenait pour un saut et à quoi il répondait en jetant de l'audio déjà prêt à jouer. Présent depuis l'arrivée du moteur de répétition en 3.0.0.
+
+### Ajouté
+- Répètes : une prise enregistrée avec le clic sortant du haut-parleur du téléphone peut en être débarrassée après coup — **Enlever la fuite du haut-parleur**, dans le menu de la piste. Proposé uniquement quand une référence a été enregistrée à côté de la prise, c'est-à-dire quand l'écoute se faisait sur le haut-parleur. L'original est conservé à côté du résultat en `.raw.wav`, car l'opération retire l'essentiel de la fuite et non la totalité, et c'est au musicien de juger si c'est mieux.
+
 ### Architecture
 - La FFT radix-2 sort de `gf_phase_vocoder.c` vers `gf_fft.c`/`.h`, pour qu'un effet qui a besoin d'un spectre sans vocodeur de phase puisse la partager. Déplacement pur : la sortie du smoke test du vocodeur est identique au bit près.
 - `gf_fft_smoke_test` couvre la transformée seule — aller-retour, spectres connus, convention de signe, linéarité et théorème de convolution.
+- `gf_aec.c`/`.h` : suppression hors ligne du haut-parleur du téléphone dans une prise de répétition, à partir de la copie exacte de ce qui a été joué. Mesure le retard par GCC-PHAT, puis parcourt la prise deux fois — une pour apprendre la pièce, une pour appliquer ce qu'elle a appris dès le premier échantillon. Soustraction linéaire seule, sans suppresseur résiduel, ni gate, ni contrôle de gain qui feraient pomper la performance. Exposé à Dart via `gf_aec_render` ; pas encore relié à une préférence.
+- `gf_aec_smoke_test` le mesure contre une pièce synthétique : 33 dB de fuite supprimés, une fuite jusqu'à 13 dB sous la performance encore traitée, et les prises sans fuite laissées intactes. Sur une vraie prise de Fold 6, il retire 13,7 dB de fuite du clic.
+- Le retard est mesuré par un vote sur six fenêtres réparties sur toute la prise plutôt que sur une seule au début. Le haut-parleur d'un téléphone se couple à son propre micro électriquement autant que par l'air, et ce chemin arrive instantanément — assez fort pendant un décompte pour l'emporter sur le vrai retard acoustique et envoyer l'annuleur chercher au mauvais endroit.
+- Le pas d'adaptation est normalisé par l'énergie de référence réellement présente dans la portée du filtre, et non par une moyenne lissée du bloc courant. Un métronome, ce sont des impulsions séparées de silence numérique : quand un clic a traversé le filtre, la moyenne est retombée à zéro, le pas divise par rien, et le filtre diverge. C'est ce qui faisait revenir la première vraie prise en NaN là où un bruit synthétique continu passait.
+- Le filtre refuse d'apprendre sur les blocs où le micro est bien plus fort que ce que jouait le haut-parleur. Ce sont les blocs où quelqu'un joue, et s'y adapter revient à expliquer une guitare avec un métronome. Mesuré sur une vraie prise avec un musicien 3 dB au-dessus de la fuite : 0 dB retiré avant, 9,8 dB après.
+- `gf_aec_render` prend l'aller-retour que l'appareil a déjà mesuré pour cette sortie et n'utilise la corrélation que pour le confirmer. Trouver le retard dans l'audio seul exige que la fuite se détache de tout le reste, et un musicien à seulement 3 dB au-dessus suffit à la masquer — toute prise réellement jouée était donc refusée.
+- Le moteur de répétition peut enregistrer une copie de ce qu'a joué le haut-parleur à côté d'une prise (`gf_reh_set_reference_path`), écrite par le thread worker depuis un ring rempli par le callback de sortie. Les deux fichiers perdent la même compensation de latence en tête, ce qui laisse entre eux un décalage égal au simple aller-retour acoustique plutôt qu'à une valeur négative qu'aucun annuleur d'écho ne peut modéliser.
+- Android : un second tap du bus de sortie (`oboe_stream_set_output_tap`) rapporte le mix final *après* la source de monitoring, pour que la référence contienne le métronome et les prises des autres — le plus fort de ce que le micro réentend. Le tap du rack existant rapporte toujours le mix avant eux, inchangé.
+- Le lecteur et l'écrivain WAV mono 16 bits sortent de `gf_timestretch.c` vers `gf_wav.c`/`.h` plutôt que d'être dupliqués. Déplacement pur lui aussi, sortie identique au bit près.
 
 ## [3.2.2] - 2026-09-29
 

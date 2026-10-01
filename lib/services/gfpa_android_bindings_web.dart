@@ -76,6 +76,7 @@ class GfpaAndroidBindings {
 
   /// No-op on web: there is no AAudio bus and no rack output to tap.
   void oboeStreamSetRackTap(int tapFnAddr) {}
+  void oboeStreamSetOutputTap(int tapFnAddr) {}
 
   /// No-op on web: there is no AAudio bus to monitor on.
   void oboeStreamSetMonitorSource(int monitorFnAddr) {}

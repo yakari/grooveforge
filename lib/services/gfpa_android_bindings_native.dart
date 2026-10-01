@@ -132,6 +132,14 @@ typedef _OboeStreamSetRackTapNative =
 typedef _OboeStreamSetRackTap =
     void Function(Pointer<NativeFunction<_AudioTapFnNative>>);
 
+/// Native signature for oboe_stream_set_output_tap.
+typedef _OboeStreamSetOutputTapNative =
+    Void Function(Pointer<NativeFunction<_AudioTapFnNative>>);
+
+/// Dart binding for oboe_stream_set_output_tap.
+typedef _OboeStreamSetOutputTap =
+    void Function(Pointer<NativeFunction<_AudioTapFnNative>>);
+
 /// Native signature for oboe_stream_set_monitor_source.
 typedef _OboeStreamSetMonitorSourceNative = Void Function(
     Pointer<NativeFunction<_AudioSourceRenderFnNative>>);
@@ -291,6 +299,10 @@ class GfpaAndroidBindings {
   late final _OboeStreamSetRackTap _oboeStreamSetRackTap =
       _lib.lookupFunction<_OboeStreamSetRackTapNative, _OboeStreamSetRackTap>(
           'oboe_stream_set_rack_tap');
+
+  late final _OboeStreamSetOutputTap _oboeStreamSetOutputTap =
+      _lib.lookupFunction<_OboeStreamSetOutputTapNative,
+          _OboeStreamSetOutputTap>('oboe_stream_set_output_tap');
 
   /// Unregister an audio source from the AAudio bus.
   ///
@@ -476,6 +488,21 @@ class GfpaAndroidBindings {
       return;
     }
     _oboeStreamSetRackTap(
+        Pointer<NativeFunction<_AudioTapFnNative>>.fromAddress(tapFnAddr));
+  }
+
+  /// Send the finished output mix to [tapFnAddr] each block, or 0 to stop.
+  ///
+  /// The counterpart to [oboeStreamSetRackTap], read after the monitor source
+  /// rather than before it, so what it reports is what the loudspeaker is
+  /// about to emit — metronome and other players included. That is what the
+  /// echo canceller has to subtract from a take recorded in the same room.
+  void oboeStreamSetOutputTap(int tapFnAddr) {
+    if (tapFnAddr == 0) {
+      _oboeStreamSetOutputTap(nullptr);
+      return;
+    }
+    _oboeStreamSetOutputTap(
         Pointer<NativeFunction<_AudioTapFnNative>>.fromAddress(tapFnAddr));
   }
 }

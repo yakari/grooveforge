@@ -202,6 +202,19 @@ static std::atomic<AudioTapFn> g_rackTap{nullptr};
 /// reason as every other buffer here: the audio thread allocates nothing.
 static float g_rackTapMono[kMaxFrames];
 
+/// Where the *whole* mix is sent each block, monitor source included.
+///
+/// Distinct from g_rackTap on purpose. That one is read before the monitor is
+/// added, because a take recorded from the rack must not contain the
+/// metronome or the other players. This one is read after, because it exists
+/// to describe what the loudspeaker actually emits — which is precisely what
+/// the microphone will hear coming back, and what an echo canceller has to be
+/// given to subtract it.
+static std::atomic<AudioTapFn> g_outputTap{nullptr};
+
+/// Scratch for that mono sum. Pre-allocated, like everything else here.
+static float g_outputTapMono[kMaxFrames];
+
 /// Monitor source: rendered after the tap has read the rack, so it is heard
 /// but never recorded. See oboe_stream_set_monitor_source.
 static std::atomic<AudioSourceRenderFn> g_monitorSource{nullptr};
@@ -498,6 +511,21 @@ static void renderMixInterleaved(float* output, int32_t numFrames)
             g_mixL[i] += g_monitorL[i];
             g_mixR[i] += g_monitorR[i];
         }
+    }
+
+    // ── 3e. Output tap ────────────────────────────────────────────────────
+    //
+    // Taken here, after the monitor source, so that what it reports is the
+    // finished mix on its way to the speaker — metronome, other takes and all.
+    // The keep-alive offset added during interleaving below is deliberately
+    // not included: it is an inaudible dither that exists to stop the stream
+    // going digitally silent, and feeding it to an echo canceller would only
+    // ask the filter to model a signal nothing can hear.
+    if (AudioTapFn tap = g_outputTap.load(std::memory_order_relaxed)) {
+        for (int i = 0; i < frames; ++i) {
+            g_outputTapMono[i] = 0.5f * (g_mixL[i] + g_mixR[i]);
+        }
+        tap(g_outputTapMono, frames);
     }
 
     // ── 4. Interleave non-interleaved L/R into AAudio's stereo buffer ─────
@@ -1147,6 +1175,12 @@ extern "C" void oboe_stream_set_rack_tap(AudioTapFn fn)
     // because a tap owns no buffers the caller is about to free.
     g_rackTap.store(fn, std::memory_order_relaxed);
     LOGI("oboe_stream_set_rack_tap: %s", fn ? "installed" : "cleared");
+}
+
+extern "C" void oboe_stream_set_output_tap(AudioTapFn fn)
+{
+    g_outputTap.store(fn, std::memory_order_relaxed);
+    LOGI("oboe_stream_set_output_tap: %s", fn ? "installed" : "cleared");
 }
 
 extern "C" void oboe_stream_set_monitor_source(AudioSourceRenderFn fn)

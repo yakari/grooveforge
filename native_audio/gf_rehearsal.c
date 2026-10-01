@@ -194,6 +194,12 @@ typedef struct {
 /// one buffer rather than one per track.
 #define GF_REH_REC_RING_FRAMES 65536
 
+/// Frames of loudspeaker reference held between the output callback and the
+/// worker. Smaller than the microphone's ring: it only has to cover a late
+/// worker wake, not a stalled capture device, and the memory is paid whether
+/// or not a reference is ever requested. About 680 ms at 48 kHz.
+#define GF_REH_REF_RING_FRAMES 32768
+
 typedef struct {
     int sample_rate;
     int created;
@@ -234,6 +240,20 @@ typedef struct {
     volatile int64_t rec_write;      ///< Audio thread writes here.
     volatile int64_t rec_read;       ///< Worker drains from here.
     volatile float input_peak;
+
+    // Reference capture: a copy of what the speaker played, for gf_aec.
+    // Deliberately a second set of everything rather than a stereo recorder —
+    // the two are filled by different threads on different clocks, so they
+    // cannot share a write cursor.
+    FILE* ref_file;
+    char  ref_path[1024];            ///< Requested for the next take, then cleared.
+    volatile int ref_wanted;
+    float ref_ring[GF_REH_REF_RING_FRAMES];
+    volatile int64_t ref_write;
+    volatile int64_t ref_read;
+    volatile int64_t ref_frames;     ///< Frames committed to the reference.
+    volatile int64_t ref_seen;       ///< Output frames seen since the take armed.
+    volatile int64_t ref_dropped;
 
     // Worker.
     gf_thread worker;
@@ -348,11 +368,23 @@ static void service_track(Track* t, int64_t pos) {
 
 /// Fills every track's ring and drains the record ring to disk.
 static void service_all(void) {
+    gf_mutex_lock(&g_e.lock);
+
+    // Read under the lock, not before taking it. Waiting for the lock can take
+    // arbitrarily long, and whoever holds it is advancing the playhead; acting
+    // on a position captured beforehand means servicing a window the transport
+    // has already left behind. service_track treats a fill_pos ahead of its
+    // window as a seek and pulls fill_pos *backwards* to match, so a stale
+    // position does not merely waste a read — it un-fills frames that were
+    // ready, and the next block renders them as silence.
+    //
+    // Barely observable in real time, where the playhead moves a block every
+    // few milliseconds. Obvious offline, where it moves as fast as the CPU can
+    // render.
+    //
     // Not clamped to zero: during a count-in the playhead is *before* the
     // downbeat, and a master with a lead-in has audio there to fill.
     const int64_t pos = g_e.position;
-
-    gf_mutex_lock(&g_e.lock);
     for (int i = 0; i < GF_REH_MAX_TRACKS; i++) service_track(&g_e.tracks[i], pos);
 
     // Drain captured audio. Converting to 16-bit here keeps the audio thread
@@ -371,6 +403,38 @@ static void service_all(void) {
             }
             fwrite(out, 2, (size_t)avail, g_e.rec_file);
             g_e.rec_read += avail;
+        }
+    }
+
+    // The same drain for the loudspeaker reference — but never at the take's
+    // expense.
+    //
+    // Both writes happen on this thread, inside this lock, so a slow one
+    // lengthens the pass for everything. The microphone cannot wait: its ring
+    // is filled by a capture callback that drops frames when it is full, and
+    // dropped frames do not merely lose audio, they shorten the take and pull
+    // everything after them out of step with the grid. The reference has no
+    // such deadline — it is a convenience for cleaning the take afterwards, and
+    // losing some of it costs nothing the take depends on.
+    //
+    // So when the microphone is more than a quarter of a ring behind, the
+    // reference waits. If that means it never catches up, the reference ends
+    // up short and the cleaning is skipped; the recording is still right.
+    const int64_t mic_backlog = g_e.rec_write - g_e.rec_read;
+    const int mic_is_behind = mic_backlog > (GF_REH_REC_RING_FRAMES / 4);
+    if (g_e.ref_file && !mic_is_behind) {
+        static int16_t refout[4096];
+        while (g_e.ref_read < g_e.ref_write) {
+            int64_t avail = g_e.ref_write - g_e.ref_read;
+            if (avail > 4096) avail = 4096;
+            for (int64_t i = 0; i < avail; i++) {
+                float v = g_e.ref_ring[(g_e.ref_read + i) % GF_REH_REF_RING_FRAMES];
+                if (v > 1.0f) v = 1.0f;
+                if (v < -1.0f) v = -1.0f;
+                refout[i] = (int16_t)(v * 32767.0f);
+            }
+            fwrite(refout, 2, (size_t)avail, g_e.ref_file);
+            g_e.ref_read += avail;
         }
     }
     gf_mutex_unlock(&g_e.lock);
@@ -570,6 +634,14 @@ int gf_reh_record(const char* wav_path, int compensation_frames,
     FILE* f = wav_open_write(wav_path, g_e.sample_rate);
     if (!f) return -2;
 
+    // Opened before the lock is taken so a reference that cannot be written
+    // costs the take nothing: the take is the recording that matters, and a
+    // missing reference only means it cannot be cleaned afterwards.
+    FILE* rf = NULL;
+    if (g_e.ref_wanted && g_e.ref_path[0]) {
+        rf = wav_open_write(g_e.ref_path, g_e.sample_rate);
+    }
+
     gf_mutex_lock(&g_e.lock);
     g_e.rec_file = f;
     g_e.rec_frames = 0;
@@ -578,7 +650,18 @@ int gf_reh_record(const char* wav_path, int compensation_frames,
     g_e.rec_read = 0;
     g_e.rec_write = 0;
     g_e.compensation = compensation_frames > 0 ? compensation_frames : 0;
+    g_e.ref_file = rf;
+    g_e.ref_frames = 0;
+    g_e.ref_seen = 0;
+    g_e.ref_dropped = 0;
+    g_e.ref_read = 0;
+    g_e.ref_write = 0;
     gf_mutex_unlock(&g_e.lock);
+
+    // One take, one request. Leaving it set would silently attach a reference
+    // to the next take as well, and overwrite the first one's file.
+    g_e.ref_wanted = 0;
+    g_e.ref_path[0] = '\0';
 
     if (count_in_bars < 0) count_in_bars = 0;
     // Start the transport that many bars *before* the downbeat, so a single
@@ -601,13 +684,14 @@ void gf_reh_stop(void) {
     const int was = g_e.state;
     g_e.state = GF_REH_STOPPED;
     g_e.rec_armed = 0;
-    if (was == GF_REH_STOPPED && !g_e.rec_file) return;
+    if (was == GF_REH_STOPPED && !g_e.rec_file && !g_e.ref_file) return;
 
     // Let the worker flush whatever the audio thread left in the record ring
     // before the header is patched, or the take loses its tail.
     for (int spins = 0; spins < 200; spins++) {
         gf_mutex_lock(&g_e.lock);
-        const int drained = (g_e.rec_read >= g_e.rec_write);
+        const int drained = (g_e.rec_read >= g_e.rec_write) &&
+                            (g_e.ref_read >= g_e.ref_write);
         gf_mutex_unlock(&g_e.lock);
         if (drained) break;
         gf_sleep_ms(5);
@@ -617,6 +701,10 @@ void gf_reh_stop(void) {
     if (g_e.rec_file) {
         wav_finish(g_e.rec_file, g_e.rec_frames);
         g_e.rec_file = NULL;
+    }
+    if (g_e.ref_file) {
+        wav_finish(g_e.ref_file, g_e.ref_frames);
+        g_e.ref_file = NULL;
     }
     gf_mutex_unlock(&g_e.lock);
 }
@@ -651,6 +739,21 @@ int64_t gf_reh_recorded_frames(void) { return g_e.rec_frames; }
 double  gf_reh_grid_bpm(void)        { return g_e.bpm; }
 int64_t gf_reh_rec_input_seen(void)  { return g_e.rec_input_seen; }
 int64_t gf_reh_rec_dropped(void)     { return g_e.rec_dropped; }
+int64_t gf_reh_reference_frames(void) { return g_e.ref_frames; }
+int64_t gf_reh_reference_dropped(void) { return g_e.ref_dropped; }
+
+void gf_reh_set_reference_path(const char* wav_path) {
+    if (!wav_path || !wav_path[0]) {
+        g_e.ref_wanted = 0;
+        g_e.ref_path[0] = '\0';
+        return;
+    }
+    size_t n = strlen(wav_path);
+    if (n >= sizeof(g_e.ref_path)) n = sizeof(g_e.ref_path) - 1;
+    memcpy(g_e.ref_path, wav_path, n);
+    g_e.ref_path[n] = '\0';
+    g_e.ref_wanted = 1;
+}
 
 float gf_reh_input_peak(void) {
     const float p = g_e.input_peak;
@@ -698,6 +801,18 @@ static void render_common(float* outL, float* outR, int frames, int offline) {
 
     const int64_t pos = g_e.position;
     const int running = (g_e.state != GF_REH_STOPPED);
+
+    // Offline fills the rings from this thread, and the worker is still
+    // running and filling the very same ones. Two threads seeking and reading
+    // one file handle, and both publishing fill_pos, produces short reads and
+    // holes that show up as a track briefly going silent. The lock is taken
+    // for the whole pass rather than per track, because the worker services
+    // every track under one acquisition too.
+    //
+    // Only offline. The real-time path never calls service_track — the worker
+    // alone fills, this only reads — and taking a lock on the audio thread is
+    // exactly what must never happen.
+    if (running && offline) gf_mutex_lock(&g_e.lock);
 
     if (running) {
         for (int ti = 0; ti < GF_REH_MAX_TRACKS; ti++) {
@@ -751,6 +866,8 @@ static void render_common(float* outL, float* outR, int frames, int offline) {
         }
     }
 
+    if (running && offline) gf_mutex_unlock(&g_e.lock);
+
     // Mono engine, stereo bus: the same signal to both ears.
     if (outR) memcpy(outR, outL, sizeof(float) * (size_t)frames);
 }
@@ -803,4 +920,40 @@ void gf_reh_feed_input(const float* in, int frames) {
         g_e.rec_frames++;
     }
     g_e.rec_input_seen += frames;
+}
+
+void gf_reh_feed_reference(const float* mono, int frames) {
+    if (!mono || frames <= 0 || !g_e.created) return;
+    // Nothing asked for a reference, so the output bus can keep handing blocks
+    // over for free. Checked before anything else because this runs on every
+    // output callback whether or not a take is being recorded.
+    if (!g_e.ref_file) return;
+
+    if ((g_e.state != GF_REH_RECORDING && g_e.state != GF_REH_COUNT_IN) ||
+        !g_e.rec_armed) {
+        return;
+    }
+
+    for (int i = 0; i < frames; i++) {
+        const int64_t seen = g_e.ref_seen + i;
+        // The same drop the take makes on its own front. Taking it off both
+        // sides is what leaves the lag between the two files equal to the bare
+        // acoustic round trip — see [gf_reh_set_reference_path].
+        if (seen < g_e.compensation) continue;
+
+        const int64_t at = g_e.ref_write;
+        if (at - g_e.ref_read >= GF_REH_REF_RING_FRAMES) {
+            // The worker has stalled. Dropping the newest frames keeps what is
+            // already on its way to disk intact, exactly as the take does —
+            // but a hole here is worse than a hole in the take, because it
+            // shifts everything after it against the recording it is meant to
+            // line up with. gf_reh_reference_dropped is how a caller finds out.
+            g_e.ref_dropped += frames - i;
+            break;
+        }
+        g_e.ref_ring[at % GF_REH_REF_RING_FRAMES] = mono[i];
+        g_e.ref_write = at + 1;
+        g_e.ref_frames++;
+    }
+    g_e.ref_seen += frames;
 }

@@ -1208,6 +1208,11 @@
   "joinIdentityHint": "Les autres verront ce nom sur votre partie.",
   "joinIdentityConfirm": "Rejoindre",
   "rehearsalDeleteTake": "Supprimer cet enregistrement",
+  "rehearsalTakeDropped": "Cette prise a perdu {ms} ms d'audio et ne sera pas calée sur le clic. Réenregistrez-la.",
+  "rehearsalCleanTake": "Enlever la fuite du haut-parleur",
+  "rehearsalCleaning": "Suppression du haut-parleur…",
+  "rehearsalCleanDone": "Fuite du haut-parleur enlevée. L'original est conservé à côté.",
+  "rehearsalCleanFailed": "Impossible d'enlever le haut-parleur de cette prise.",
   "rehearsalDeleteTakeConfirm": "Supprimer votre enregistrement de {instrument} ? Les autres le perdront aussi à la prochaine synchronisation.",
   "@rehearsalDeleteTakeConfirm": {
     "placeholders": {

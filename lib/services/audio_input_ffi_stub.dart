@@ -318,6 +318,13 @@ class AudioInputFFI {
   int rehActivate() => -1;
   void rehDeactivate() {}
   int rehRackTapFnAddr() => 0;
+  int rehReferenceTapFnAddr() => 0;
+  int aecRender(String micPath, String refPath, String outPath,
+          int expectedDelay, List<double> reductionOut) =>
+      -1;
+  void rehSetReference(String? path) {}
+  int get rehReferenceWritten => 0;
+  int get rehReferenceLost => 0;
   int rehHostRenderFnAddr() => 0;
   int rehMonitorRenderFnAddr() => 0;
   void rehSetHostRouted({required bool routed}) {}

@@ -1542,6 +1542,18 @@
   "joinIdentityHint": "The others will see this name on your part.",
   "joinIdentityConfirm": "Join",
   "rehearsalDeleteTake": "Delete this recording",
+  "rehearsalTakeDropped": "This take lost {ms} ms of audio and will not line up with the click. Record it again.",
+  "@rehearsalTakeDropped": {
+    "placeholders": {
+      "ms": {
+        "type": "int"
+      }
+    }
+  },
+  "rehearsalCleanTake": "Remove the speaker bleed",
+  "rehearsalCleaning": "Removing the speaker…",
+  "rehearsalCleanDone": "Speaker bleed removed. The original is kept beside it.",
+  "rehearsalCleanFailed": "Could not remove the speaker from this take.",
   "rehearsalDeleteTakeConfirm": "Delete your recording of {instrument}? The others will lose it too, next time you sync.",
   "@rehearsalDeleteTakeConfirm": {
     "placeholders": {
