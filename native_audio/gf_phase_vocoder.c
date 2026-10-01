@@ -2,18 +2,23 @@
 // library. See gf_phase_vocoder.h for the public API and algorithm rationale.
 //
 // Layout of this file:
-//   1. Minimal iterative radix-2 complex FFT (Cooley-Tukey).
-//   2. Per-channel analysis/synthesis state.
-//   3. gf_pv_context and its allocator/destructor.
-//   4. STFT analysis -> phase-locking -> STFT synthesis.
-//   5. Streaming front-end (gf_pv_process_block) with input/output ring buffers.
-//   6. Offline convenience helper.
+//   1. Per-channel analysis/synthesis state.
+//   2. gf_pv_context and its allocator/destructor.
+//   3. STFT analysis -> phase-locking -> STFT synthesis.
+//   4. Streaming front-end (gf_pv_process_block) with input/output ring buffers.
+//   5. Offline convenience helper.
+//
+// The radix-2 complex FFT this builds on used to live here. It is now in
+// gf_fft.c, so effects that need a spectrum without needing a phase vocoder
+// can share it.
 //
 // Real-time safety: after gf_pv_create, nothing on the hot path calls malloc
 // or any blocking operation. All buffers are sized once from the configured
 // fft_size/hop_size/channels and never grow.
 
 #include "gf_phase_vocoder.h"
+
+#include "gf_fft.h"
 
 #include <math.h>
 #include <stdlib.h>
@@ -36,113 +41,7 @@
 #define GF_PV_IN_RING_CAP  (GF_PV_MAX_FFT * 4)
 
 // -------------------------------------------------------------------------
-// 1. Iterative radix-2 complex FFT
-// -------------------------------------------------------------------------
-//
-// Operates in place on a tightly-packed complex array: re[0], im[0],
-// re[1], im[1], ... Twiddles are precomputed once per context.
-//
-// Bit-reversal permutation + butterfly layers is the textbook Cooley-Tukey
-// formulation. Chosen over recursion for cache locality and zero stack
-// growth on the audio thread.
-
-typedef struct {
-    int   n;             // FFT size, power of two
-    int   log2n;         // log2(n)
-    float* twiddle_cos;  // length n/2
-    float* twiddle_sin;  // length n/2
-    int*   bitrev;       // length n, precomputed bit-reversal indices
-} gf_fft;
-
-static int gf_fft_init(gf_fft* f, int n) {
-    f->n = n;
-    f->log2n = 0;
-    while ((1 << f->log2n) < n) f->log2n++;
-    f->twiddle_cos = (float*)calloc((size_t)(n / 2), sizeof(float));
-    f->twiddle_sin = (float*)calloc((size_t)(n / 2), sizeof(float));
-    f->bitrev      = (int*)  calloc((size_t)n, sizeof(int));
-    if (!f->twiddle_cos || !f->twiddle_sin || !f->bitrev) return 0;
-
-    // Twiddle factors for forward FFT: W_n^k = exp(-j * 2*pi*k/n).
-    // Inverse is obtained by negating the sign of the sine.
-    for (int k = 0; k < n / 2; k++) {
-        double a = -2.0 * M_PI * (double)k / (double)n;
-        f->twiddle_cos[k] = (float)cos(a);
-        f->twiddle_sin[k] = (float)sin(a);
-    }
-    // Precompute bit-reversal permutation indices.
-    for (int i = 0; i < n; i++) {
-        int j = 0;
-        int x = i;
-        for (int b = 0; b < f->log2n; b++) { j = (j << 1) | (x & 1); x >>= 1; }
-        f->bitrev[i] = j;
-    }
-    return 1;
-}
-
-static void gf_fft_free(gf_fft* f) {
-    free(f->twiddle_cos);
-    free(f->twiddle_sin);
-    free(f->bitrev);
-    f->twiddle_cos = NULL;
-    f->twiddle_sin = NULL;
-    f->bitrev      = NULL;
-}
-
-// In-place complex FFT (or IFFT if [inverse] is nonzero).
-// [data] is interleaved real/imag, length 2*n floats.
-static void gf_fft_execute(const gf_fft* f, float* data, int inverse) {
-    const int n = f->n;
-
-    // Step 1: bit-reversal reorder. Swap data[i] with data[bitrev[i]] once.
-    for (int i = 0; i < n; i++) {
-        int j = f->bitrev[i];
-        if (j > i) {
-            float tr = data[2*i];     float ti = data[2*i + 1];
-            data[2*i]     = data[2*j];
-            data[2*i + 1] = data[2*j + 1];
-            data[2*j]     = tr;
-            data[2*j + 1] = ti;
-        }
-    }
-
-    // Step 2: butterfly layers, size 2, 4, 8, ..., n.
-    for (int size = 2; size <= n; size <<= 1) {
-        int half = size >> 1;
-        int step = n / size; // stride into the twiddle tables
-        for (int i = 0; i < n; i += size) {
-            for (int k = 0; k < half; k++) {
-                int tw = k * step;
-                float wr = f->twiddle_cos[tw];
-                float wi = f->twiddle_sin[tw];
-                if (inverse) wi = -wi;
-
-                int i0 = 2 * (i + k);
-                int i1 = 2 * (i + k + half);
-
-                float xr = data[i1];
-                float xi = data[i1 + 1];
-                // t = W * x[i1]
-                float tr = wr * xr - wi * xi;
-                float ti = wr * xi + wi * xr;
-                // x[i1] = x[i0] - t ;  x[i0] = x[i0] + t
-                data[i1]     = data[i0]     - tr;
-                data[i1 + 1] = data[i0 + 1] - ti;
-                data[i0]     = data[i0]     + tr;
-                data[i0 + 1] = data[i0 + 1] + ti;
-            }
-        }
-    }
-
-    // Step 3: on inverse, divide by n to normalise.
-    if (inverse) {
-        float inv = 1.0f / (float)n;
-        for (int i = 0; i < 2 * n; i++) data[i] *= inv;
-    }
-}
-
-// -------------------------------------------------------------------------
-// 2. Per-channel state
+// 1. Per-channel state
 // -------------------------------------------------------------------------
 //
 // Each channel keeps its own:
@@ -221,7 +120,7 @@ typedef struct {
 } gf_pv_channel;
 
 // -------------------------------------------------------------------------
-// 3. Context
+// 2. Context
 // -------------------------------------------------------------------------
 
 struct gf_pv_context {
@@ -462,7 +361,7 @@ void gf_pv_set_pitch_semitones(gf_pv_context* ctx, float semitones) {
 }
 
 // -------------------------------------------------------------------------
-// 4. Frame processing: analysis, phase-locking, synthesis
+// 3. Frame processing: analysis, phase-locking, synthesis
 // -------------------------------------------------------------------------
 
 // Wraps a phase value into [-pi, pi]. Called per-peak per-frame so we keep
@@ -651,7 +550,7 @@ static void gf_pv_process_frame(gf_pv_context* ctx, int c,
 }
 
 // -------------------------------------------------------------------------
-// 5. Streaming front-end
+// 4. Streaming front-end
 // -------------------------------------------------------------------------
 
 /// Number of output frames the vocoder could hand over right now.
@@ -899,7 +798,7 @@ int gf_pv_process_block(gf_pv_context* ctx,
 }
 
 // -------------------------------------------------------------------------
-// 6. Offline helper
+// 5. Offline helper
 // -------------------------------------------------------------------------
 
 int gf_pv_time_stretch_offline(const float* input,

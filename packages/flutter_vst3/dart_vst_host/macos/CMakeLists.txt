@@ -90,6 +90,7 @@ add_library(${PROJECT_NAME} SHARED
   ${NATIVE_DIR}/src/audio_looper.cpp
   # Phase vocoder (tempo-sync stretching for the looper)
   ${GF_NATIVE_AUDIO_DIR}/gf_phase_vocoder.c
+  ${GF_NATIVE_AUDIO_DIR}/gf_fft.c
   ${GF_NATIVE_AUDIO_DIR}/gf_harmony.c
   ${GF_NATIVE_AUDIO_DIR}/gf_pitch.c
   ${GF_NATIVE_AUDIO_DIR}/gf_autotune.c

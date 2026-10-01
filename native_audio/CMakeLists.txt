@@ -10,6 +10,7 @@ add_library(audio_input SHARED
     audio_input.c
     keyboard_synth.c
     gf_phase_vocoder.c
+    gf_fft.c
     gf_harmony.c
     gf_pitch.c
     gf_latency.c
@@ -93,10 +94,20 @@ endif()
 # cost CI time and meant a mistake in a test-only target could break a
 # platform build.
 
+# The shared FFT on its own. Pure arithmetic — no audio device, no files — so
+# a failure here points at the transform and nothing else.
+if (NOT ANDROID AND NOT IOS)
+    add_executable(gf_fft_smoke_test EXCLUDE_FROM_ALL
+        gf_fft_smoke_test.c gf_fft.c)
+    if (UNIX)
+        target_link_libraries(gf_fft_smoke_test PRIVATE m)
+    endif()
+endif()
+
 # Phase vocoder time-stretching. Uses miniaudio's built-in WAV encoder.
 if (NOT ANDROID AND NOT IOS)
     add_executable(gf_pv_smoke_test EXCLUDE_FROM_ALL
-        gf_pv_smoke_test.c gf_phase_vocoder.c)
+        gf_pv_smoke_test.c gf_phase_vocoder.c gf_fft.c)
     if (UNIX)
         target_link_libraries(gf_pv_smoke_test PRIVATE m ${CMAKE_DL_LIBS})
     endif()
@@ -107,7 +118,7 @@ endif()
 # synthetic signals so a failure on real hardware can be blamed on the hardware.
 if (NOT ANDROID AND NOT IOS)
     add_executable(gf_timestretch_smoke_test EXCLUDE_FROM_ALL
-        gf_timestretch_smoke_test.c gf_timestretch.c gf_phase_vocoder.c)
+        gf_timestretch_smoke_test.c gf_timestretch.c gf_phase_vocoder.c gf_fft.c)
     if(NOT WIN32)
         target_link_libraries(gf_timestretch_smoke_test PRIVATE m ${CMAKE_DL_LIBS})
     endif()
@@ -171,6 +182,7 @@ if (NOT ANDROID AND NOT IOS)
             gf_harmonizer_smoke_test.c
             ${GF_GFPA_DIR}/src/gfpa_dsp.cpp
             gf_phase_vocoder.c
+            gf_fft.c
             gf_harmony.c
             gf_pitch.c
             gf_autotune.c)
@@ -188,6 +200,7 @@ if (NOT ANDROID AND NOT IOS)
             gf_autotune_smoke_test.c
             ${GF_GFPA_DIR}/src/gfpa_dsp.cpp
             gf_phase_vocoder.c
+            gf_fft.c
             gf_harmony.c
             gf_pitch.c
             gf_autotune.c)

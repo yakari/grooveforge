@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [X.x.x]
+
+### Architecture
+- The radix-2 FFT moved out of `gf_phase_vocoder.c` into `gf_fft.c`/`.h`, so an effect that needs a spectrum but not a phase vocoder can share it. A pure move: the vocoder's smoke-test output is byte-identical.
+- `gf_fft_smoke_test` covers the transform on its own — round trip, known spectra, sign convention, linearity and the convolution theorem.
+
 ## [3.2.2] - 2026-09-29
 
 ### Added

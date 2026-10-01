@@ -82,6 +82,7 @@ add_library(native-lib SHARED
         # Phase vocoder — tempo-sync stretching for the audio looper.
         # Source of truth at repo-root native_audio/.
         ../../../../../../native_audio/gf_phase_vocoder.c
+        ../../../../../../native_audio/gf_fft.c
         ../../../../../../native_audio/gf_harmony.c
         ../../../../../../native_audio/gf_pitch.c
         ../../../../../../native_audio/gf_autotune.c
