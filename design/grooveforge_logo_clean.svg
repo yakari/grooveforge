@@ -1,0 +1,1306 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="1024"
+   height="1024"
+   viewBox="0 0 1024 1024"
+   version="1.1"
+   id="grooveforge-logo"
+   sodipodi:docname="grooveforge_logo_clean.svg"
+   inkscape:version="1.4.4 (dcaf3e7d9e, 2026-05-05)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <title
+     id="title1">GrooveForge — logo (reconstruction vectorielle propre)</title>
+  <!--
+  ===========================================================================
+  Reconstruction propre du logo d'origine.
+
+  GEOMETRIE   relevee sur app_icon_1024.png (silhouette de l'enclume validee
+              par superposition, onde validee par coupes horizontales a
+              quelques pixels pres), puis reduite a ~20 noeuds par tracé.
+  COULEURS    echantillonnees sur le PNG d'origine et recoupees avec la
+              palette 38 teintes de la vectorisation Inkscape « color ».
+  TROIS       #edge-outer  bord du clavier ET arete haute de l'onde : un seul
+  TRACES      chemin, c'est ce qui les soude.
+              #edge-inner  arete basse du ruban.
+              #ribbon      la matiere en fusion entre les deux.
+              Tout le reste n'est que des <use> de ces trois chemins.
+  CSS         classes seulement. Ni rsvg ni Inkscape ne savent resoudre
+              les variables CSS (les deux rendent du noir). Teste.
+  FILTRES     halo par feGaussianBlur + feMerge ; ombres portees par
+              feOffset/feFlood/feComposite — feDropShadow n'est pas rendu
+              par Inkscape. Teste aussi.
+  ===========================================================================
+-->
+  <sodipodi:namedview
+     inkscape:document-units="px"
+     pagecolor="#0a0f18"
+     bordercolor="#333333"
+     borderopacity="1"
+     inkscape:pagecheckerboard="true"
+     id="namedview1"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:deskcolor="#d1d1d1"
+     showgrid="false"
+     inkscape:zoom="3.0273438"
+     inkscape:cx="397.70838"
+     inkscape:cy="378.71483"
+     inkscape:window-width="2515"
+     inkscape:window-height="1403"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="L4" />
+  <style
+     type="text/css"
+     id="style1"><![CDATA[
+  /* ----- systeme de graisses : cinq valeurs, pas une de plus ----- */
+  .s-hair  { stroke-width: 3; }
+  .s-thin  { stroke-width: 6; }
+  .s-rim   { stroke-width: 9; }
+  .s-core  { stroke-width: 9; }
+  .s-band  { stroke-width: 20; }
+
+  .stroked { fill: none; stroke-linejoin: round; }
+  .mitred  { stroke-linejoin: miter; stroke-miterlimit: 6; }
+  .capped  { stroke-linecap: round; }
+
+  /* ----- roles ----- */
+  .neon      { stroke: url(#gNeon); }
+  .neon-soft { stroke: url(#gNeonSoft); }
+  .ink       { stroke: #05101d; opacity: .5; }
+  .steel     { stroke: url(#gAnvilRim); }
+
+  .key-white { fill: url(#gKeyWhite); }
+  .key-gloss { fill: url(#gKeyGloss); }
+  .key-black { fill: url(#gKeyBlack); }
+  .led       { fill: url(#gLed); }
+  .bezel     { fill: #0a1422; }
+]]></style>
+  <defs
+     id="defs80">
+    <!-- Reflet chaud sur l'arete d'une roue : vif en haut, eteint en bas. -->
+    <linearGradient id="gRimWarm" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0"    stop-color="#ffc072" stop-opacity="0.2"/>
+      <stop offset="0.18" stop-color="#ffa64e" stop-opacity="0.95"/>
+      <stop offset="0.55" stop-color="#e2802f" stop-opacity="0.85"/>
+      <stop offset="1"    stop-color="#8a3f14" stop-opacity="0.25"/>
+    </linearGradient>
+
+    <!-- Fut de la roue vu de face : l'arete superieure fuit (sombre), le plus
+         clair est juste en dessous, puis chute vers l'ombre basse. -->
+    <linearGradient id="gWheelCyl" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0"    stop-color="#2d5c6e"/>
+      <stop offset="0.10" stop-color="#9fe3ef"/>
+      <stop offset="0.30" stop-color="#5a98a8"/>
+      <stop offset="0.62" stop-color="#27546b"/>
+      <stop offset="1"    stop-color="#0a1b2d"/>
+    </linearGradient>
+    <!-- Fond de la fente : sombre en haut (la roue l'ombre), un rebond en bas. -->
+    <linearGradient id="gSlot" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0"   stop-color="#05101c"/>
+      <stop offset="0.6" stop-color="#0b1b2a"/>
+      <stop offset="1"   stop-color="#1d3952"/>
+    </linearGradient>
+
+    <!-- =============== les trois traces maitres =============== -->
+    <rect
+       id="chassis-body"
+       x="203"
+       y="513"
+       width="618"
+       height="280"
+       rx="46"
+       ry="46" />
+    <path
+       id="chassis-border"
+       d="M 300,513 L 249,513 Q 203,513 203,559 L 203,747 Q 203,793 249,793 L 775,793 Q 821,793 821,747 L 821,559 Q 821,513 775,513 L 700,513" />
+    <path
+       id="wave-body"
+       d="M 300.00,513.00 C 304.70,511.70 329.97,504.77 336.10,500.70 C 342.75,496.27 347.76,493.29 355.04,487.44 C 364.37,479.94 373.66,464.43 383.82,457.33 C 394.48,449.88 401.24,450.40 410.30,460.40 C 417.50,468.35 419.81,472.77 425.71,485.87 C 429.81,495.01 431.56,499.56 439.77,500.56 C 455.15,502.42 456.10,465.99 458.58,447.98 C 473.48,339.69 507.96,208.76 507.96,208.76 L 574.00,565.80 L 679.09,412.22 C 679.09,412.22 666.52,460.28 668.77,480.38 C 669.19,484.21 669.36,493.15 672.40,496.90 C 675.00,500.10 678.12,502.57 682.71,505.30 C 687.31,508.03 692.94,510.71 700.00,513.00 Z" />
+    <path
+       id="wave-outer"
+       d="M 300,513 C 304.7,511.7 323.1,510.4 328.4,505.3 C 333.7,500.2 328.8,492.1 332,482.7 C 335.2,473.3 338.2,457.1 347.5,448.9 C 356.8,440.7 374.5,433.4 388,433.4 C 401.5,433.4 418.1,441.4 428.5,448.9 C 438.9,456.4 444.6,469.7 450.4,478.6 C 456.2,487.5 459.6,495.2 463.4,502.3 C 467.1,509.4 475.3,527.4 472.9,521.3 C 470.5,515.2 442.7,531.7 449,465.5 L 510.6,124.2 L 574,565.8 L 629.8,380.4 L 668.6,486 L 672.4,496.9 C 675.0,500.1 679.6,502.6 684.2,505.3 C 688.8,508.0 697.4,511.7 700,513" />
+    <path
+       id="wave-inner"
+       d="M 300,513 C 306.3,514.3 327.9,523.0 337.6,520.7 C 347.3,518.4 351.5,504.9 358,499.3 C 364.5,493.7 371.5,489.9 376.5,487.1 C 381.5,484.3 384.2,482.6 388,482.6 C 391.8,482.6 395.6,483.6 399.5,487.1 C 403.4,490.6 407.8,497.3 411.6,503.4 C 415.5,509.5 419.4,517.5 422.6,523.7 C 425.9,529.9 423.7,523.9 431.1,540.7 C 438.5,557.5 454.6,646.0 467,624.5 L 505.4,411.8 L 558,778.2 L 634.2,525.6 L 631.4,518 L 663.6,527.1 C 672.3,527.6 677.7,523.1 683.8,520.7 C 689.9,518.4 697.3,514.3 700,513" />
+    <path
+       id="ribbon"
+       d="M 300.00,513.00 C 304.70,511.70 329.97,504.77 336.10,500.70 C 342.75,496.27 347.76,493.29 355.04,487.44 C 364.37,479.94 373.66,464.43 383.82,457.33 C 394.48,449.88 401.24,450.40 410.30,460.40 C 417.50,468.35 419.81,472.77 425.71,485.87 C 429.81,495.01 431.56,499.56 439.77,500.56 C 455.15,502.42 456.10,465.99 458.58,447.98 C 473.48,339.69 507.96,208.76 507.96,208.76 L 574.00,565.80 L 679.09,412.22 C 679.09,412.22 666.52,460.28 668.77,480.38 C 669.19,484.21 669.36,493.15 672.40,496.90 C 675.00,500.10 678.12,502.57 682.71,505.30 C 687.31,508.03 692.94,510.71 700.00,513.00 C 697.30,514.30 686.60,516.09 678.68,517.23 C 666.88,520.91 660.77,524.46 648.20,532.36 C 642.16,536.16 636.58,540.94 632.22,546.58 C 602.36,585.13 553.80,710.00 553.80,710.00 L 505.17,377.23 C 505.17,377.23 494.10,544.75 458.52,553.36 C 439.41,557.98 430.24,550.49 423.36,542.71 C 420.16,536.51 419.21,535.46 415.07,528.72 C 411.09,522.26 409.90,521.66 405.92,518.26 C 401.39,514.38 390.60,509.50 383.18,509.82 C 366.93,510.51 355.26,513.89 336.47,517.96 C 325.36,520.37 308.64,514.53 302.34,513.23 Z" />
+    <path
+       id="anvil"
+       d="M 221,267 C 227.8,266.8 247.2,266.3 262,266 C 276.8,265.7 294,265.3 310,265 C 326,264.7 352,264.2 380,264 L 380,250 C 420,249.6 445,249.3 470,249 C 495,246.8 528.3,246 560,246 C 591.7,246 628.7,246.5 660,247 C 691.3,247.5 729.7,248.2 748,249 C 766.3,249.8 765,250.2 770,252 C 772.7,254.7 775.3,257.3 778,260 C 776.7,263.3 775.3,266.7 774,270 C 770.7,273.8 764.3,278.8 758,283 C 751.7,287.2 744,291.3 736,295 C 728,298.7 719.3,301.2 710,305 C 700.7,308.8 689.7,312.2 680,318 C 670.3,323.8 660.7,332.7 652,340 C 643.3,347.3 635,355.3 628,362 C 621,368.7 615.2,374.3 610,380 C 605.7,385.3 601.3,390.7 597,396 C 598.7,402.7 600.3,409.3 602,416 C 604,422.7 606.2,428.3 609,436 C 611.8,443.7 615.3,452.7 619,462 C 622.7,471.3 626.7,478.7 631,492 C 635.7,508.7 640.3,525.3 645,542 C 559.3,542 473.7,542 388,542 C 390.7,530.7 393.3,519.3 396,508 C 399,497.7 402.7,488.7 406,480 C 409.3,471.3 412.7,464.3 416,456 C 419.3,447.7 423.3,437 426,430 C 428.7,423 430.3,419.7 432,414 C 433.7,408.3 436.3,401.5 436,396 C 435.7,390.5 432.7,385.3 430,381 C 427.3,376.7 423.7,372.3 420,370 C 416.3,367.7 412.7,368 408,367 C 403.3,366 398,364.8 392,364 C 386,363.2 378.7,362.7 372,362 C 365.3,361.3 358.7,361.3 352,360 C 345.3,358.7 338.7,356.2 332,354 C 325.3,351.8 318.7,349.5 312,347 C 305.3,344.5 298.7,342.5 292,339 C 285.3,335.5 278.7,330.7 272,326 C 265.3,321.3 258,316.8 252,311 C 246,305.2 238.7,294.3 236,291 Z" />
+    <path
+       id="anvil-top"
+       d="M 221,267 L 380,264 L 380,250 L 748,249 C 770,250 777,255 778,262" />
+    <!-- =============== couleurs relevees =============== -->
+    <radialGradient
+       id="gGround"
+       cx="0.5"
+       cy="0.30"
+       r="0.80">
+      <stop
+         offset="0"
+         stop-color="#26323e"
+         id="stop1" />
+      <stop
+         offset="0.34"
+         stop-color="#172836"
+         id="stop2" />
+      <stop
+         offset="0.66"
+         stop-color="#0a1828"
+         id="stop3" />
+      <stop
+         offset="1"
+         stop-color="#040c1a"
+         id="stop4" />
+    </radialGradient>
+    <radialGradient
+       id="gForge"
+       cx="0.46"
+       cy="0.56"
+       r="0.46">
+      <stop
+         offset="0"
+         stop-color="#c2581f"
+         stop-opacity="0.42"
+         id="stop5" />
+      <stop
+         offset="0.5"
+         stop-color="#8e3b16"
+         stop-opacity="0.2"
+         id="stop6" />
+      <stop
+         offset="1"
+         stop-color="#8e3b16"
+         stop-opacity="0"
+         id="stop7" />
+    </radialGradient>
+    <linearGradient
+       id="gFrame"
+       x1="0.12"
+       y1="0"
+       x2="0.88"
+       y2="1">
+      <stop
+         offset="0"
+         stop-color="#7cc6dc"
+         id="stop8" />
+      <stop
+         offset="0.18"
+         stop-color="#2a4d60"
+         id="stop9" />
+      <stop
+         offset="0.44"
+         stop-color="#39383f"
+         id="stop10" />
+      <stop
+         offset="0.66"
+         stop-color="#6b4336"
+         id="stop11" />
+      <stop
+         offset="0.84"
+         stop-color="#8e3d28"
+         id="stop12" />
+      <stop
+         offset="1"
+         stop-color="#c08457"
+         id="stop13" />
+    </linearGradient>
+    <linearGradient
+       id="gAnvil"
+       gradientUnits="userSpaceOnUse"
+       x1="221"
+       y1="250"
+       x2="760"
+       y2="500">
+      <stop
+         offset="0"
+         stop-color="#1a3c54"
+         id="stop14" />
+      <stop
+         offset="0.24"
+         stop-color="#0e1e33"
+         id="stop15" />
+      <stop
+         offset="0.52"
+         stop-color="#22202a"
+         id="stop16" />
+      <stop
+         offset="0.78"
+         stop-color="#4a2a24"
+         id="stop17" />
+      <stop
+         offset="1"
+         stop-color="#633a2a"
+         id="stop18" />
+    </linearGradient>
+    <linearGradient
+       id="gAnvilLight"
+       gradientUnits="userSpaceOnUse"
+       x1="0"
+       y1="246"
+       x2="0"
+       y2="542">
+      <stop
+         offset="0"
+         stop-color="#ffffff"
+         stop-opacity="0.06"
+         id="stop19" />
+      <stop
+         offset="0.12"
+         stop-color="#ffffff"
+         stop-opacity="0.02"
+         id="stop20" />
+      <stop
+         offset="0.62"
+         stop-color="#01070f"
+         stop-opacity="0.26"
+         id="stop21" />
+      <stop
+         offset="1"
+         stop-color="#e2701c"
+         stop-opacity="0.22"
+         id="stop22" />
+    </linearGradient>
+    <linearGradient
+       id="gAnvilRim"
+       gradientUnits="userSpaceOnUse"
+       x1="221"
+       y1="255"
+       x2="780"
+       y2="430">
+      <stop
+         offset="0"
+         stop-color="#86ecf1"
+         id="stop23" />
+      <stop
+         offset="0.26"
+         stop-color="#b6e2e6"
+         id="stop24" />
+      <stop
+         offset="0.54"
+         stop-color="#d4b492"
+         id="stop25" />
+      <stop
+         offset="0.78"
+         stop-color="#c8824a"
+         id="stop26" />
+      <stop
+         offset="1"
+         stop-color="#b86433"
+         id="stop27" />
+    </linearGradient>
+    <linearGradient
+       id="gChassis"
+       gradientUnits="userSpaceOnUse"
+       x1="203"
+       y1="0"
+       x2="821"
+       y2="0">
+      <stop
+         offset="0"
+         stop-color="#1d3c51"
+         id="stop28" />
+      <stop
+         offset="0.32"
+         stop-color="#20384c"
+         id="stop29" />
+      <stop
+         offset="0.58"
+         stop-color="#43303a"
+         id="stop30" />
+      <stop
+         offset="0.84"
+         stop-color="#6c332a"
+         id="stop31" />
+      <stop
+         offset="1"
+         stop-color="#8a3f2b"
+         id="stop32" />
+    </linearGradient>
+    <linearGradient
+       id="gChassisShade"
+       x1="0"
+       y1="0"
+       x2="0"
+       y2="1">
+      <stop
+         offset="0"
+         stop-color="#ffffff"
+         stop-opacity="0.07"
+         id="stop33" />
+      <stop
+         offset="0.42"
+         stop-color="#000000"
+         stop-opacity="0"
+         id="stop34" />
+      <stop
+         offset="1"
+         stop-color="#02070f"
+         stop-opacity="0.45"
+         id="stop35" />
+    </linearGradient>
+    <!-- la chaleur qui rougit le creux des dents, eteinte avant le corps -->
+    <linearGradient
+       id="gHeat"
+       gradientUnits="userSpaceOnUse"
+       x1="0"
+       y1="250"
+       x2="0"
+       y2="520">
+      <stop
+         offset="0"
+         stop-color="#ffbe62"
+         stop-opacity="0.88"
+         id="stop36" />
+      <stop
+         offset="0.28"
+         stop-color="#f07a22"
+         stop-opacity="0.78"
+         id="stop37" />
+      <stop
+         offset="0.62"
+         stop-color="#c2481a"
+         stop-opacity="0.5"
+         id="stop38" />
+      <stop
+         offset="1"
+         stop-color="#8a2f12"
+         stop-opacity="0"
+         id="stop39" />
+    </linearGradient>
+    <linearGradient
+       id="gNeon"
+       gradientUnits="userSpaceOnUse"
+       x1="300"
+       y1="0"
+       x2="700"
+       y2="0">
+      <stop
+         offset="0"
+         stop-color="#a7fdfc"
+         id="stop40" />
+      <stop
+         offset="0.3"
+         stop-color="#d8f6e8"
+         id="stop41" />
+      <stop
+         offset="0.5"
+         stop-color="#fcebb7"
+         id="stop42" />
+      <stop
+         offset="0.76"
+         stop-color="#ffe99d"
+         id="stop43" />
+      <stop
+         offset="1"
+         stop-color="#fff2ac"
+         id="stop44" />
+    </linearGradient>
+    <linearGradient
+       id="gNeonSoft"
+       gradientUnits="userSpaceOnUse"
+       x1="203"
+       y1="0"
+       x2="821"
+       y2="0">
+      <stop
+         offset="0"
+         stop-color="#45c8e8"
+         id="stop45" />
+      <stop
+         offset="0.36"
+         stop-color="#9fd9df"
+         id="stop46" />
+      <stop
+         offset="0.62"
+         stop-color="#f0b25a"
+         id="stop47" />
+      <stop
+         offset="1"
+         stop-color="#e2701c"
+         id="stop48" />
+    </linearGradient>
+    <linearGradient
+       id="gRibbon"
+       gradientUnits="userSpaceOnUse"
+       x1="330"
+       y1="430"
+       x2="614.39423"
+       y2="559.18365">
+      <stop
+         offset="0"
+         stop-color="#5a4a48"
+         id="stop49" />
+      <stop
+         offset="0.26"
+         stop-color="#6b4238"
+         id="stop50" />
+      <stop
+         offset="0.52"
+         stop-color="#8a4229"
+         id="stop51" />
+      <stop
+         offset="0.78"
+         stop-color="#c05f22"
+         id="stop52" />
+      <stop
+         offset="1"
+         stop-color="#e78230"
+         id="stop53" />
+    </linearGradient>
+    <linearGradient
+       id="gKeyWhite"
+       gradientUnits="userSpaceOnUse"
+       x1="332"
+       y1="0"
+       x2="788"
+       y2="0">
+      <stop
+         offset="0"
+         stop-color="#74aba8"
+         id="stop54" />
+      <stop
+         offset="0.34"
+         stop-color="#9fb6ab"
+         id="stop55" />
+      <stop
+         offset="0.62"
+         stop-color="#bda382"
+         id="stop56" />
+      <stop
+         offset="1"
+         stop-color="#cc864a"
+         id="stop57" />
+    </linearGradient>
+    <linearGradient
+       id="gKeyGloss"
+       x1="0"
+       y1="0"
+       x2="0"
+       y2="1">
+      <stop
+         offset="0"
+         stop-color="#000000"
+         stop-opacity="0.34"
+         id="stop58" />
+      <stop
+         offset="0.07"
+         stop-color="#ffffff"
+         stop-opacity="0.34"
+         id="stop59" />
+      <stop
+         offset="0.2"
+         stop-color="#ffffff"
+         stop-opacity="0.04"
+         id="stop60" />
+      <stop
+         offset="0.82"
+         stop-color="#000000"
+         stop-opacity="0.1"
+         id="stop61" />
+      <stop
+         offset="0.94"
+         stop-color="#ffffff"
+         stop-opacity="0.4"
+         id="stop62" />
+      <stop
+         offset="1"
+         stop-color="#ffffff"
+         stop-opacity="0.08"
+         id="stop63" />
+    </linearGradient>
+    <linearGradient
+       id="gKeyBlack"
+       x1="0"
+       y1="0"
+       x2="0"
+       y2="1">
+      <stop
+         offset="0"
+         stop-color="#13243c"
+         id="stop64" />
+      <stop
+         offset="0.8"
+         stop-color="#08142a"
+         id="stop65" />
+      <stop
+         offset="1"
+         stop-color="#14263c"
+         id="stop66" />
+    </linearGradient>
+    <linearGradient
+       id="gKnob"
+       gradientUnits="userSpaceOnUse"
+       x1="220"
+       y1="0"
+       x2="790"
+       y2="0">
+      <stop
+         offset="0"
+         stop-color="#21445a"
+         id="stop67" />
+      <stop
+         offset="0.34"
+         stop-color="#1d3a50"
+         id="stop68" />
+      <stop
+         offset="0.74"
+         stop-color="#8a452f"
+         id="stop69" />
+      <stop
+         offset="1"
+         stop-color="#ae502c"
+         id="stop70" />
+    </linearGradient>
+    <linearGradient
+       id="gWheel"
+       x1="0"
+       y1="0"
+       x2="0"
+       y2="1">
+      <stop
+         offset="0"
+         stop-color="#8fdcea"
+         id="stop71" />
+      <stop
+         offset="0.17"
+         stop-color="#428693"
+         id="stop72" />
+      <stop
+         offset="0.52"
+         stop-color="#1b4257"
+         id="stop73" />
+      <stop
+         offset="1"
+         stop-color="#091a2e"
+         id="stop74" />
+    </linearGradient>
+    <linearGradient
+       id="gLed"
+       x1="0"
+       y1="0"
+       x2="0"
+       y2="1">
+      <stop
+         offset="0"
+         stop-color="#ffb268"
+         id="stop75" />
+      <stop
+         offset="0.5"
+         stop-color="#e2772c"
+         id="stop76" />
+      <stop
+         offset="1"
+         stop-color="#a8481a"
+         id="stop77" />
+    </linearGradient>
+    <!-- =============== filtres =============== -->
+    <!-- Halo neon : deux flous empiles sous la source. Un seul filtre remplace
+       les quatre traits superposes qu'il fallait sinon. -->
+    <filter
+       id="fHalo"
+       x="-45%"
+       y="-45%"
+       width="190%"
+       height="190%"
+       color-interpolation-filters="sRGB">
+      <feGaussianBlur
+         stdDeviation="2.5"
+         result="b"
+         id="feGaussianBlur77" />
+      <feMerge
+         id="feMerge78">
+        <feMergeNode
+           in="b"
+           id="feMergeNode77" />
+        <feMergeNode
+           in="SourceGraphic"
+           id="feMergeNode78" />
+      </feMerge>
+    </filter>
+    <filter
+       id="fHaloWide"
+       x="-0.073300971"
+       y="-0.077534221"
+       width="1.1466019"
+       height="1.1550712"
+       color-interpolation-filters="sRGB">
+      <feGaussianBlur
+         stdDeviation="17"
+         id="feGaussianBlur78" />
+    </filter>
+    <!-- Ombre portee reconstruite en primitives : feDropShadow n'est pas rendu
+       par Inkscape. -->
+    <filter
+       id="fDrop"
+       x="-0.038779174"
+       y="-0.072972973"
+       width="1.081149"
+       height="1.1932432"
+       color-interpolation-filters="sRGB">
+      <feGaussianBlur
+         in="SourceAlpha"
+         stdDeviation="9"
+         result="b"
+         id="feGaussianBlur79" />
+      <feOffset
+         in="b"
+         dx="2"
+         dy="14"
+         result="o"
+         id="feOffset79" />
+      <feFlood
+         flood-color="#01060c"
+         flood-opacity="0.72"
+         result="c"
+         id="feFlood79" />
+      <feComposite
+         in="c"
+         in2="o"
+         operator="in"
+         result="sh"
+         id="feComposite79" />
+      <feMerge
+         id="feMerge80">
+        <feMergeNode
+           in="sh"
+           id="feMergeNode79" />
+        <feMergeNode
+           in="SourceGraphic"
+           id="feMergeNode80" />
+      </feMerge>
+    </filter>
+    <clipPath
+       id="clipAnvil">
+      <use
+         xlink:href="#anvil"
+         href="#anvil"
+         id="use80" />
+    </clipPath>
+    <clipPath
+       id="clipFrame">
+      <rect
+         x="104"
+         y="104"
+         width="816"
+         height="826"
+         rx="186"
+         id="rect80" />
+    </clipPath>
+    <linearGradient
+       inkscape:collect="always"
+       xlink:href="#gNeon"
+       id="linearGradient146"
+       gradientUnits="userSpaceOnUse"
+       x1="300"
+       y1="0"
+       x2="700"
+       y2="0" />
+    <linearGradient
+       inkscape:collect="always"
+       xlink:href="#gNeonSoft"
+       id="linearGradient147"
+       gradientUnits="userSpaceOnUse"
+       x1="203"
+       y1="0"
+       x2="821"
+       y2="0" />
+    <linearGradient
+       inkscape:collect="always"
+       xlink:href="#gNeon"
+       id="linearGradient148"
+       gradientUnits="userSpaceOnUse"
+       x1="300"
+       y1="0"
+       x2="700"
+       y2="0" />
+    <linearGradient
+       inkscape:collect="always"
+       xlink:href="#gNeonSoft"
+       id="linearGradient149"
+       gradientUnits="userSpaceOnUse"
+       x1="203"
+       y1="0"
+       x2="821"
+       y2="0" />
+  </defs>
+  <!-- ======================================================== 01 fond -->
+  <g
+     inkscape:groupmode="layer"
+     inkscape:label="01 fond"
+     id="L1"
+     style="display:inline">
+    <rect
+       x="104"
+       y="104"
+       width="816"
+       height="826"
+       rx="186"
+       fill="url(#gGround)"
+       id="rect81" />
+    <rect
+       x="104"
+       y="104"
+       width="816"
+       height="826"
+       rx="186"
+       fill="url(#gForge)"
+       id="rect82" />
+  </g>
+  <!-- ===================================================== 02 enclume -->
+  <!-- Trois clones du meme contour : matiere, modele, liseret. -->
+  <g
+     inkscape:groupmode="layer"
+     inkscape:label="02 enclume"
+     id="L2"
+     clip-path="url(#clipFrame)"
+     style="display:inline">
+    <use
+       xlink:href="#anvil"
+       href="#anvil"
+       fill="url(#gAnvil)"
+       filter="url(#fDrop)"
+       id="use82" />
+    <use
+       xlink:href="#anvil"
+       href="#anvil"
+       fill="url(#gAnvilLight)"
+       id="use83" />
+    <g
+       clip-path="url(#clipAnvil)"
+       id="g84">
+      <rect
+         x="200"
+         y="266"
+         width="600"
+         height="26"
+         fill="#04101c"
+         opacity="0.4"
+         id="rect83" />
+      <rect
+         x="200"
+         y="286"
+         width="600"
+         height="14"
+         fill="#01070f"
+         opacity="0.3"
+         id="rect84" />
+    </g>
+    <use
+       xlink:href="#anvil"
+       href="#anvil"
+       class="stroked steel s-thin"
+       opacity="0.75"
+       id="use84" />
+    <g
+       clip-path="url(#clipAnvil)"
+       id="g85">
+      <use
+         xlink:href="#anvil-top"
+         href="#anvil-top"
+         class="stroked steel s-band capped"
+         id="use85" />
+    </g>
+    <use
+       xlink:href="#anvil-top"
+       href="#anvil-top"
+       class="stroked steel s-hair capped"
+       opacity="0.9"
+       id="use86" />
+  </g>
+  <!-- ====================================================== 03 clavier -->
+  <g
+     inkscape:groupmode="layer"
+     inkscape:label="03 clavier"
+     id="L3"
+     style="display:inline">
+    <use
+       xlink:href="#chassis-body"
+       href="#chassis-body"
+       fill="url(#gChassis)"
+       id="use87"
+       style="display:inline" />
+    <use
+       xlink:href="#chassis-body"
+       href="#chassis-body"
+       fill="url(#gChassisShade)"
+       id="use90"
+       style="display:inline" />
+    <rect
+       x="326"
+       y="604"
+       width="468"
+       height="176"
+       rx="10"
+       fill="#07101c"
+       id="rect90"
+       style="display:inline" />
+    <g
+       class="key-white"
+       id="g100"
+       style="display:inline">
+      <rect
+         x="332"
+         y="610"
+         width="38"
+         height="162"
+         rx="4"
+         id="rect91" />
+      <rect
+         x="377.60001"
+         y="610"
+         width="38"
+         height="162"
+         rx="4"
+         id="rect92" />
+      <rect
+         x="423.20001"
+         y="610"
+         width="38"
+         height="162"
+         rx="4"
+         id="rect93" />
+      <rect
+         x="468.79999"
+         y="610"
+         width="38"
+         height="162"
+         rx="4"
+         id="rect94" />
+      <rect
+         x="514.40002"
+         y="610"
+         width="38"
+         height="162"
+         rx="4"
+         id="rect95" />
+      <rect
+         x="560"
+         y="610"
+         width="38"
+         height="162"
+         rx="4"
+         id="rect96" />
+      <rect
+         x="605.59998"
+         y="610"
+         width="38"
+         height="162"
+         rx="4"
+         id="rect97" />
+      <rect
+         x="651.20001"
+         y="610"
+         width="38"
+         height="162"
+         rx="4"
+         id="rect98" />
+      <rect
+         x="696.79999"
+         y="610"
+         width="38"
+         height="162"
+         rx="4"
+         id="rect99" />
+      <rect
+         x="742.40002"
+         y="610"
+         width="38"
+         height="162"
+         rx="4"
+         id="rect100" />
+    </g>
+    <g
+       class="key-gloss"
+       id="g110"
+       style="display:inline">
+      <rect
+         x="332"
+         y="610"
+         width="38"
+         height="162"
+         rx="4"
+         id="rect101" />
+      <rect
+         x="377.60001"
+         y="610"
+         width="38"
+         height="162"
+         rx="4"
+         id="rect102" />
+      <rect
+         x="423.20001"
+         y="610"
+         width="38"
+         height="162"
+         rx="4"
+         id="rect103" />
+      <rect
+         x="468.79999"
+         y="610"
+         width="38"
+         height="162"
+         rx="4"
+         id="rect104" />
+      <rect
+         x="514.40002"
+         y="610"
+         width="38"
+         height="162"
+         rx="4"
+         id="rect105" />
+      <rect
+         x="560"
+         y="610"
+         width="38"
+         height="162"
+         rx="4"
+         id="rect106" />
+      <rect
+         x="605.59998"
+         y="610"
+         width="38"
+         height="162"
+         rx="4"
+         id="rect107" />
+      <rect
+         x="651.20001"
+         y="610"
+         width="38"
+         height="162"
+         rx="4"
+         id="rect108" />
+      <rect
+         x="696.79999"
+         y="610"
+         width="38"
+         height="162"
+         rx="4"
+         id="rect109" />
+      <rect
+         x="742.40002"
+         y="610"
+         width="38"
+         height="162"
+         rx="4"
+         id="rect110" />
+    </g>
+    <g
+       class="key-black"
+       id="g119"
+       style="display:inline">
+      <rect
+         x="364.60001"
+         y="610"
+         width="26"
+         height="104"
+         rx="3"
+         id="rect111" />
+      <rect
+         x="410.20001"
+         y="610"
+         width="26"
+         height="104"
+         rx="3"
+         id="rect112" />
+      <rect
+         x="455.79999"
+         y="610"
+         width="26"
+         height="104"
+         rx="3"
+         id="rect113" />
+      <rect
+         x="501.39999"
+         y="610"
+         width="26"
+         height="104"
+         rx="3"
+         id="rect114" />
+      <rect
+         x="547"
+         y="610"
+         width="26"
+         height="104"
+         rx="3"
+         id="rect115" />
+      <rect
+         x="592.59998"
+         y="610"
+         width="26"
+         height="104"
+         rx="3"
+         id="rect116" />
+      <rect
+         x="638.20001"
+         y="610"
+         width="26"
+         height="104"
+         rx="3"
+         id="rect117" />
+      <rect
+         x="683.79999"
+         y="610"
+         width="26"
+         height="104"
+         rx="3"
+         id="rect118" />
+      <rect
+         x="729.40002"
+         y="610"
+         width="26"
+         height="104"
+         rx="3"
+         id="rect119" />
+    </g>
+    <g
+       id="boutons">
+      <circle
+         cx="239"
+         cy="560"
+         r="19"
+         class="bezel"
+         id="circle119" />
+      <circle
+         cx="239"
+         cy="560"
+         r="14"
+         fill="url(#gKnob)"
+         id="circle120" />
+      <path
+         d="m 228,555 a 12,12 0 0 1 22,0"
+         class="stroked capped s-hair"
+         stroke="#d8eef5"
+         opacity="0.7"
+         id="path120" />
+      <circle
+         cx="291"
+         cy="560"
+         r="19"
+         class="bezel"
+         id="circle121" />
+      <circle
+         cx="291"
+         cy="560"
+         r="14"
+         fill="url(#gKnob)"
+         id="circle122" />
+      <path
+         d="m 280,555 a 12,12 0 0 1 22,0"
+         class="stroked capped s-hair"
+         stroke="#d8eef5"
+         opacity="0.5"
+         id="path122" />
+      <circle
+         cx="727"
+         cy="561"
+         r="19"
+         class="bezel"
+         id="circle123" />
+      <circle
+         cx="727"
+         cy="561"
+         r="14"
+         fill="url(#gKnob)"
+         id="circle124" />
+      <path
+         d="m 716,556 a 12,12 0 0 1 22,0"
+         class="stroked capped s-hair"
+         stroke="#ffd9a8"
+         opacity="0.75"
+         id="path124" />
+      <circle
+         cx="775"
+         cy="561"
+         r="19"
+         class="bezel"
+         id="circle125" />
+      <circle
+         cx="775"
+         cy="561"
+         r="14"
+         fill="url(#gKnob)"
+         id="circle126" />
+      <path
+         d="m 764,556 a 12,12 0 0 1 22,0"
+         class="stroked capped s-hair"
+         stroke="#ffd9a8"
+         opacity="0.55"
+         id="path126" />
+    </g>
+    <g
+       id="molettes">
+      <rect x="227" y="646" width="28" height="88" rx="14" fill="url(#gSlot)"/>
+      <rect x="231" y="650" width="20" height="80" rx="10" fill="url(#gWheelCyl)"/>
+      <rect x="232" y="654.0" width="18" height="1.8" rx="0.9" fill="#04121f" opacity="0.5"/>
+      <rect x="232" y="655.8" width="18" height="1" rx="0.5" fill="#bfe8f2" opacity="0.22"/>
+      <rect x="232" y="665.1" width="18" height="1.8" rx="0.9" fill="#04121f" opacity="0.5"/>
+      <rect x="232" y="666.9" width="18" height="1" rx="0.5" fill="#bfe8f2" opacity="0.22"/>
+      <rect x="232" y="681.1" width="18" height="1.8" rx="0.9" fill="#04121f" opacity="0.5"/>
+      <rect x="232" y="682.9" width="18" height="1" rx="0.5" fill="#bfe8f2" opacity="0.22"/>
+      <rect x="232" y="698.9" width="18" height="1.8" rx="0.9" fill="#04121f" opacity="0.5"/>
+      <rect x="232" y="700.7" width="18" height="1" rx="0.5" fill="#bfe8f2" opacity="0.22"/>
+      <rect x="232" y="714.9" width="18" height="1.8" rx="0.9" fill="#04121f" opacity="0.5"/>
+      <rect x="232" y="716.7" width="18" height="1" rx="0.5" fill="#bfe8f2" opacity="0.22"/>
+      <rect x="232" y="726.0" width="18" height="1.8" rx="0.9" fill="#04121f" opacity="0.5"/>
+      <rect x="232" y="727.8" width="18" height="1" rx="0.5" fill="#bfe8f2" opacity="0.22"/>
+      <rect x="232.5" y="658" width="2" height="62" rx="1" fill="url(#gRimWarm)" opacity="0.75"/>
+      <rect x="247.5" y="656" width="2.4" height="66" rx="1.2" fill="url(#gRimWarm)"/>
+      <rect x="233" y="688" width="16" height="2" rx="1" fill="#f0903c" opacity="0.8"/>
+      <rect x="234" y="727" width="14" height="1.6" rx="0.8" fill="#9fd8e6" opacity="0.3"/>
+      <rect x="276" y="646" width="28" height="88" rx="14" fill="url(#gSlot)"/>
+      <rect x="280" y="650" width="20" height="80" rx="10" fill="url(#gWheelCyl)"/>
+      <rect x="281" y="654.0" width="18" height="1.8" rx="0.9" fill="#04121f" opacity="0.5"/>
+      <rect x="281" y="655.8" width="18" height="1" rx="0.5" fill="#bfe8f2" opacity="0.22"/>
+      <rect x="281" y="665.1" width="18" height="1.8" rx="0.9" fill="#04121f" opacity="0.5"/>
+      <rect x="281" y="666.9" width="18" height="1" rx="0.5" fill="#bfe8f2" opacity="0.22"/>
+      <rect x="281" y="681.1" width="18" height="1.8" rx="0.9" fill="#04121f" opacity="0.5"/>
+      <rect x="281" y="682.9" width="18" height="1" rx="0.5" fill="#bfe8f2" opacity="0.22"/>
+      <rect x="281" y="698.9" width="18" height="1.8" rx="0.9" fill="#04121f" opacity="0.5"/>
+      <rect x="281" y="700.7" width="18" height="1" rx="0.5" fill="#bfe8f2" opacity="0.22"/>
+      <rect x="281" y="714.9" width="18" height="1.8" rx="0.9" fill="#04121f" opacity="0.5"/>
+      <rect x="281" y="716.7" width="18" height="1" rx="0.5" fill="#bfe8f2" opacity="0.22"/>
+      <rect x="281" y="726.0" width="18" height="1.8" rx="0.9" fill="#04121f" opacity="0.5"/>
+      <rect x="281" y="727.8" width="18" height="1" rx="0.5" fill="#bfe8f2" opacity="0.22"/>
+      <rect x="281.5" y="658" width="2" height="62" rx="1" fill="url(#gRimWarm)" opacity="0.75"/>
+      <rect x="296.5" y="656" width="2.4" height="66" rx="1.2" fill="url(#gRimWarm)"/>
+      <rect x="283" y="727" width="14" height="1.6" rx="0.8" fill="#9fd8e6" opacity="0.3"/>
+    </g>
+    <g
+       id="diodes"
+       class="led">
+      <rect
+         x="228"
+         y="604"
+         width="26"
+         height="11"
+         rx="5"
+         id="rect134" />
+      <rect
+         x="277"
+         y="604"
+         width="26"
+         height="11"
+         rx="5"
+         id="rect135" />
+      <rect
+         x="231"
+         y="748"
+         width="18"
+         height="9"
+         rx="4"
+         id="rect136" />
+      <rect
+         x="280"
+         y="748"
+         width="18"
+         height="9"
+         rx="4"
+         id="rect137" />
+    </g>
+  </g>
+  <!-- ======================================== 04 ruban et trait neon -->
+  <!-- Le ruban d'abord (il recouvre les touches la ou l'onde plonge),
+     puis le halo, puis les deux aretes. -->
+  <g
+     inkscape:groupmode="layer"
+     inkscape:label="04 onde"
+     id="L4"
+     style="display:inline">
+    <!-- Corps du clavier et onde sont desormais SEPARES : #chassis-body est un
+       rectangle arrondi editable, #wave-outer / #wave-inner sont deux chemins
+       ouverts qui vivent leur vie. Ils se soudent visuellement parce que leurs
+       extremites se posent sur la ligne de repos y=513. -->
+    <use
+       xlink:href="#ribbon"
+       href="#ribbon"
+       fill="url(#gRibbon)"
+       id="use137"
+       style="display:inline;fill:url(#gRibbon)" />
+    <g
+       filter="url(#fHaloWide)"
+       opacity="0.45"
+       id="g140"
+       style="display:inline">
+      <use
+         xlink:href="#chassis-border"
+         href="#chassis-border"
+         class="stroked neon-soft s-core"
+         id="use138"
+         style="display:inline" />
+      <path
+         id="use139"
+         d="m 300,513 c 4.7,-1.3 29.97214,-8.22924 36.09619,-12.30306 6.65112,-4.42444 11.66684,-7.40481 18.94054,-13.2522 9.3325,-7.50247 18.62093,-23.01918 28.78535,-30.1195 10.66137,-7.44746 17.41904,-6.92668 26.48216,3.07881 7.19352,7.94149 9.5069,12.3679 15.40118,25.47038 4.10943,9.13491 5.85946,13.68698 14.067,14.68148 15.38245,1.86387 16.3261,-34.56371 18.80409,-52.57391 14.8996,-108.2914 49.38091,-239.21942 49.38091,-239.21942 L 574,565.8 679.09369,412.21661 c 0,0 -12.5714,48.06745 -10.32853,68.16791 0.4267,3.82406 0.59024,12.76828 3.63484,16.51548 2.6,3.2 5.7196,5.67082 10.31355,8.4 4.59394,2.72918 10.2271,5.40903 17.28645,7.7"
+         style="fill:none;stroke:url(#linearGradient149);stroke-width:9;stroke-linecap:round;stroke-linejoin:round"
+         sodipodi:nodetypes="cssssssscccsszc" />
+      <path
+         id="use140"
+         d="m 302.33573,513.23357 c 6.3,1.3 23.02645,7.13383 34.13161,4.7271 18.79133,-4.07249 30.46421,-7.44813 46.70954,-8.14168 7.42063,-0.31681 18.21054,4.55871 22.74437,8.43839 3.98148,3.40703 5.17374,3.99945 9.152,10.46755 4.14016,6.73132 5.08901,7.78723 8.28901,13.98723 6.87886,7.77595 16.0514,15.27124 35.16069,10.64817 35.57228,-8.60593 46.64348,-176.12918 46.64348,-176.12918 l 48.62925,332.76544 c 0,0 48.56341,-124.87115 78.42238,-163.42111 4.36515,-5.6357 9.94445,-10.41914 15.9806,-14.21131 C 660.77307,524.46439 666.87742,520.908 678.68,517.23161 686.59677,516.08774 697.3,514.3 700,513"
+         style="display:inline;fill:none;stroke:url(#linearGradient147);stroke-width:9;stroke-linecap:round;stroke-linejoin:round"
+         sodipodi:nodetypes="csssscsccsscc" />
+    </g>
+    <g
+       class="stroked mitred ink s-band"
+       id="g143"
+       style="display:inline">
+      <use
+         xlink:href="#chassis-border"
+         href="#chassis-border"
+         id="use141"
+         style="display:inline" />
+      <path
+         id="use142"
+         d="m 300,513 c 4.7,-1.3 29.97214,-8.22924 36.09619,-12.30306 6.65112,-4.42444 11.66684,-7.40481 18.94054,-13.2522 9.3325,-7.50247 18.62093,-23.01918 28.78535,-30.1195 10.66137,-7.44746 17.41904,-6.92668 26.48216,3.07881 7.19352,7.94149 9.5069,12.3679 15.40118,25.47038 4.10943,9.13491 5.85946,13.68698 14.067,14.68148 15.38245,1.86387 16.3261,-34.56371 18.80409,-52.57391 14.8996,-108.2914 49.38091,-239.21942 49.38091,-239.21942 L 574,565.8 679.09369,412.21661 c 0,0 -12.5714,48.06745 -10.32853,68.16791 0.4267,3.82406 0.59024,12.76828 3.63484,16.51548 2.6,3.2 5.7196,5.67082 10.31355,8.4 4.59394,2.72918 10.2271,5.40903 17.28645,7.7"
+         style="stroke-linecap:round"
+         sodipodi:nodetypes="cssssssscccsszc" />
+      <path
+         id="use143"
+         d="m 302.33573,513.23357 c 6.3,1.3 23.02645,7.13383 34.13161,4.7271 18.79133,-4.07249 30.46421,-7.44813 46.70954,-8.14168 7.42063,-0.31681 18.21054,4.55871 22.74437,8.43839 3.98148,3.40703 5.17374,3.99945 9.152,10.46755 4.14016,6.73132 5.08901,7.78723 8.28901,13.98723 6.87886,7.77595 16.0514,15.27124 35.16069,10.64817 35.57228,-8.60593 46.64348,-176.12918 46.64348,-176.12918 l 48.62925,332.76544 c 0,0 48.56341,-124.87115 78.42238,-163.42111 4.36515,-5.6357 9.94445,-10.41914 15.9806,-14.21131 C 660.77307,524.46439 666.87742,520.908 678.68,517.23161 686.59677,516.08774 697.3,514.3 700,513"
+         style="display:inline;stroke-linecap:round"
+         sodipodi:nodetypes="csssscsccsscc" />
+    </g>
+    <g
+       class="stroked mitred neon s-core"
+       id="g146"
+       style="display:inline">
+      <use
+         xlink:href="#chassis-border"
+         href="#chassis-border"
+         id="use144"
+         style="display:inline" />
+      <path
+         id="use145"
+         d="m 300,513 c 4.7,-1.3 29.97214,-8.22924 36.09619,-12.30306 6.65112,-4.42444 11.66684,-7.40481 18.94054,-13.2522 9.3325,-7.50247 18.62093,-23.01918 28.78535,-30.1195 10.66137,-7.44746 17.41904,-6.92668 26.48216,3.07881 7.19352,7.94149 9.5069,12.3679 15.40118,25.47038 4.10943,9.13491 5.85946,13.68698 14.067,14.68148 15.38245,1.86387 16.3261,-34.56371 18.80409,-52.57391 14.8996,-108.2914 49.38091,-239.21942 49.38091,-239.21942 L 574,565.8 679.09369,412.21661 c 0,0 -12.5714,48.06745 -10.32853,68.16791 0.4267,3.82406 0.59024,12.76828 3.63484,16.51548 2.6,3.2 5.7196,5.67082 10.31355,8.4 4.59394,2.72918 10.2271,5.40903 17.28645,7.7"
+         style="stroke:url(#linearGradient148);stroke-linecap:round"
+         sodipodi:nodetypes="cssssssscccsszc" />
+      <path
+         id="use146"
+         d="m 302.33573,513.23357 c 6.3,1.3 23.02645,7.13383 34.13161,4.7271 18.79133,-4.07249 30.46421,-7.44813 46.70954,-8.14168 7.42063,-0.31681 18.21054,4.55871 22.74437,8.43839 3.98148,3.40703 5.17374,3.99945 9.152,10.46755 4.14016,6.73132 5.08901,7.78723 8.28901,13.98723 6.87886,7.77595 16.0514,15.27124 35.16069,10.64817 35.57228,-8.60593 46.64348,-176.12918 46.64348,-176.12918 l 48.62925,332.76544 c 0,0 48.56341,-124.87115 78.42238,-163.42111 4.36515,-5.6357 9.94445,-10.41914 15.9806,-14.21131 C 660.77307,524.46439 666.87742,520.908 678.68,517.23161 686.59677,516.08774 697.3,514.3 700,513"
+         style="display:inline;stroke:url(#linearGradient146);stroke-linecap:round"
+         sodipodi:nodetypes="csssscsccsscc" />
+    </g>
+  </g>
+  <!-- ====================================================== 05 cadre -->
+  <g
+     inkscape:groupmode="layer"
+     inkscape:label="05 cadre"
+     id="L5"
+     style="display:inline">
+    <rect
+       x="107.5"
+       y="107.5"
+       width="809"
+       height="819"
+       rx="182.5"
+       class="stroked s-rim"
+       stroke="url(#gFrame)"
+       id="rect146" />
+  </g>
+</svg>
