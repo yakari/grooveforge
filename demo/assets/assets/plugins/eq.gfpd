@@ -1,0 +1,175 @@
+spec: "1.0"
+id: "com.grooveforge.eq"
+name: "4-Band EQ"
+version: "1.0.0"
+type: effect
+
+# Four-band parametric equaliser using biquad IIR filters.
+# Bands: low-shelf, two peaking mid bands, high-shelf.
+# Gain range +-12 dB per band. Cut or boost to shape the timbre of any signal.
+
+parameters:
+  # Low shelf — boosts/cuts bass below the corner frequency.
+  - id: low_freq
+    paramId: 0
+    name: "Low Hz"
+    min: 40.0
+    max: 400.0
+    default: 100.0
+    unit: "Hz"
+  - id: low_gain
+    paramId: 1
+    name: "Low"
+    min: -12.0
+    max: 12.0
+    default: 0.0
+    unit: "dB"
+
+  # Low-mid peaking band.
+  - id: lmid_freq
+    paramId: 2
+    name: "LM Hz"
+    min: 200.0
+    max: 2000.0
+    default: 500.0
+    unit: "Hz"
+  - id: lmid_q
+    paramId: 3
+    name: "LM Q"
+    min: 0.3
+    max: 8.0
+    default: 1.0
+  - id: lmid_gain
+    paramId: 4
+    name: "LM"
+    min: -12.0
+    max: 12.0
+    default: 0.0
+    unit: "dB"
+
+  # High-mid peaking band.
+  - id: hmid_freq
+    paramId: 5
+    name: "HM Hz"
+    min: 800.0
+    max: 8000.0
+    default: 2500.0
+    unit: "Hz"
+  - id: hmid_q
+    paramId: 6
+    name: "HM Q"
+    min: 0.3
+    max: 8.0
+    default: 1.0
+  - id: hmid_gain
+    paramId: 7
+    name: "HM"
+    min: -12.0
+    max: 12.0
+    default: 0.0
+    unit: "dB"
+
+  # High shelf — boosts/cuts treble above the corner frequency.
+  - id: high_freq
+    paramId: 8
+    name: "Hi Hz"
+    min: 2000.0
+    max: 16000.0
+    default: 8000.0
+    unit: "Hz"
+  - id: high_gain
+    paramId: 9
+    name: "High"
+    min: -12.0
+    max: 12.0
+    default: 0.0
+    unit: "dB"
+
+graph:
+  nodes:
+    - id: in
+      type: audio_in
+    - id: eq1
+      type: biquad_filter
+      params:
+        freq: { param: low_freq }
+        gain: { param: low_gain }
+        mode: { value: 0.833 }   # lowShelf (mode index 5 out of 6)
+    - id: eq2
+      type: biquad_filter
+      params:
+        freq: { param: lmid_freq }
+        q:    { param: lmid_q }
+        gain: { param: lmid_gain }
+        mode: { value: 0.667 }   # peaking (mode index 4 out of 6)
+    - id: eq3
+      type: biquad_filter
+      params:
+        freq: { param: hmid_freq }
+        q:    { param: hmid_q }
+        gain: { param: hmid_gain }
+        mode: { value: 0.667 }   # peaking
+    - id: eq4
+      type: biquad_filter
+      params:
+        freq: { param: high_freq }
+        gain: { param: high_gain }
+        mode: { value: 1.0 }     # highShelf (mode index 6 out of 6)
+    - id: out
+      type: audio_out
+
+  connections:
+    - from: in.out
+      to: eq1.in
+    - from: eq1.out
+      to: eq2.in
+    - from: eq2.out
+      to: eq3.in
+    - from: eq3.out
+      to: eq4.in
+    - from: eq4.out
+      to: out.in
+
+ui:
+  groups:
+    - label: "Low"
+      controls:
+        - type: knob
+          param: low_freq
+          size: small
+        - type: slider
+          param: low_gain
+    - label: "Low Mid"
+      controls:
+        - type: knob
+          param: lmid_freq
+          size: small
+        - type: knob
+          param: lmid_q
+          size: small
+        - type: slider
+          param: lmid_gain
+    - label: "High Mid"
+      controls:
+        - type: knob
+          param: hmid_freq
+          size: small
+        - type: knob
+          param: hmid_q
+          size: small
+        - type: slider
+          param: hmid_gain
+    - label: "High"
+      controls:
+        - type: knob
+          param: high_freq
+          size: small
+        - type: slider
+          param: high_gain
+    - label: "Output"
+      controls:
+        - type: vumeter
+          source: out
+        - type: button
+          action: reset
+          label: "Flat"

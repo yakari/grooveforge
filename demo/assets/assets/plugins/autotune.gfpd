@@ -1,0 +1,155 @@
+spec: "1.0"
+id: "com.grooveforge.autotune"
+name: "Autotune"
+version: "0.1.0"
+type: effect
+
+# ─── Parameters ────────────────────────────────────────────────────────────
+# Physical units throughout; the host converts from the normalised knob
+# position before sending them to the native DSP (gfpa_dsp.cpp,
+# AutotuneEffect).
+#
+# Defaults are the full-on robot: every note, instantly, all the way. That is
+# the sound people put an autotune on for; the knobs are there to back it off.
+parameters:
+  # The key and scale notes are pulled towards. A scale patched into the
+  # SCALE IN jack (Xen, Jam Mode) overrides both. The scale itself arrives
+  # from the host as `scale_mask`, which is deliberately not a parameter: it
+  # is not the user's setting and must not be saved with the project.
+  - id: key
+    paramId: 0
+    name: "Key"
+    min: 0
+    max: 11
+    default: 0
+    type: selector
+    options: ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+
+  # Order matches gf_autotune_scale in native_audio/gf_autotune.h.
+  - id: scale
+    paramId: 1
+    name: "Scale"
+    min: 0
+    max: 6
+    default: 0
+    type: selector
+    options: ["Chromatic", "Major", "Minor", "Harmonic Minor", "Major Penta", "Minor Penta", "Blues"]
+
+  # How much of the distance to the target note is corrected.
+  - id: strength
+    paramId: 2
+    name: "Strength"
+    min: 0
+    max: 100
+    default: 100
+    unit: "%"
+    display: value
+
+  # How fast the correction reaches the note. 0 ms is the hard, stepped,
+  # robotic sound; 50 ms and up starts to sound like a singer who is simply
+  # in tune.
+  - id: retune
+    paramId: 3
+    name: "Retune"
+    min: 0
+    max: 400
+    default: 0
+    unit: "ms"
+    display: value
+
+  # Slows the correction on held notes only, so their vibrato survives while
+  # short notes still snap.
+  - id: humanize
+    paramId: 4
+    name: "Humanize"
+    min: 0
+    max: 100
+    default: 0
+    unit: "%"
+    display: value
+
+  # Only corrects notes that are already near a scale note. Slides, scoops
+  # and deliberate blue notes further away pass through untouched.
+  - id: flex_tune
+    paramId: 5
+    name: "Flex-Tune"
+    min: 0
+    max: 100
+    default: 0
+    unit: "%"
+    display: value
+
+  # Fixed shift after correction. An octave down is the monster, an octave up
+  # the chipmunk.
+  - id: transpose
+    paramId: 6
+    name: "Transpose"
+    min: -12
+    max: 12
+    default: 0
+    unit: "st"
+    display: interval
+
+  - id: mix
+    paramId: 7
+    name: "Mix"
+    min: 0
+    max: 100
+    default: 100
+    unit: "%"
+    display: value
+
+# ─── Signal graph ──────────────────────────────────────────────────────────
+# Pass-through. The correction runs natively (AutotuneEffect in gfpa_dsp.cpp)
+# on every platform that has a native audio engine; this graph only exists so
+# the descriptor validates and a host without one leaves the signal untouched.
+graph:
+  nodes:
+    - id: in
+      type: audio_in
+    - id: out
+      type: audio_out
+  connections:
+    - from: in.out
+      to: out.in
+
+# ─── UI ────────────────────────────────────────────────────────────────────
+ui:
+  layout: lanes
+  groups:
+    - label: "Notes"
+      controls:
+        - type: selector
+          param: key
+          label: "Key"
+        - type: selector
+          param: scale
+          label: "Scale"
+
+    - label: "Tune"
+      controls:
+        - type: knob
+          param: strength
+          label: "Strength"
+          size: small
+        - type: knob
+          param: retune
+          label: "Retune"
+          size: small
+        - type: knob
+          param: humanize
+          label: "Humanize"
+          size: small
+        - type: knob
+          param: flex_tune
+          label: "Flex"
+          size: small
+
+    - label: "Voice"
+      controls:
+        - type: interval
+          param: transpose
+        - type: knob
+          param: mix
+          label: "Mix"
+          size: small

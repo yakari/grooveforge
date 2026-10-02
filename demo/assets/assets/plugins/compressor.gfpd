@@ -1,0 +1,88 @@
+spec: "1.0"
+id: "com.grooveforge.compressor"
+name: "Compressor"
+version: "1.0.0"
+type: effect
+
+# RMS dynamics compressor. Reduces the dynamic range of a signal:
+# loud peaks are brought down, then makeup gain restores overall volume.
+# Use on instruments to tighten their dynamics or on the master bus for glue.
+
+parameters:
+  - id: threshold
+    paramId: 0
+    name: "Thresh"
+    min: -60.0
+    max: 0.0
+    default: -18.0
+    unit: "dB"
+  - id: ratio
+    paramId: 1
+    name: "Ratio"
+    min: 1.0
+    max: 20.0
+    default: 4.0
+    unit: ":1"
+  - id: attack
+    paramId: 2
+    name: "Attack"
+    min: 0.1
+    max: 200.0
+    default: 10.0
+    unit: "ms"
+  - id: release
+    paramId: 3
+    name: "Release"
+    min: 10.0
+    max: 2000.0
+    default: 100.0
+    unit: "ms"
+  - id: makeup
+    paramId: 4
+    name: "Makeup"
+    min: 0.0
+    max: 24.0
+    default: 0.0
+    unit: "dB"
+
+graph:
+  nodes:
+    - id: in
+      type: audio_in
+    - id: comp
+      type: compressor
+      params:
+        threshold: { param: threshold }
+        ratio:     { param: ratio }
+        attack:    { param: attack }
+        release:   { param: release }
+        makeup:    { param: makeup }
+    - id: out
+      type: audio_out
+
+  connections:
+    - from: in.out
+      to: comp.in
+    - from: comp.out
+      to: out.in
+
+ui:
+  groups:
+    - label: "Gate"
+      controls:
+        - type: knob
+          param: threshold
+        - type: knob
+          param: ratio
+    - label: "Envelope"
+      controls:
+        - type: knob
+          param: attack
+        - type: knob
+          param: release
+    - label: "Output"
+      controls:
+        - type: knob
+          param: makeup
+        - type: vumeter
+          source: out

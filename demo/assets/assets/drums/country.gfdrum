@@ -1,0 +1,163 @@
+# Country — Nashville Ballad, Train Beat & Honky-Tonk Rock
+# Reference: Buddy Harman (Elvis Presley, Patsy Cline, Johnny Cash — Nashville A-Team),
+#            Jerry Allison (Buddy Holly), Larrie Londin (Kenny Rogers, Dolly Parton),
+#            Chad Cromwell (Neil Young, Mark Knopfler), Eddie Bayers (Alan Jackson),
+#            "The Nashville Sound" sessions (1957–1970), "Countrypolitan" era
+# Country drumming is built on clarity, restraint, and service to the song.
+# Its defining characteristics:
+#   - The "train beat" (shuffle/straight 8ths): hi-hat locked to the kick, driving
+#     forward motion — inspired by the train rhythms that shaped Appalachian music.
+#   - The Nashville ballad: brush-like ghost notes on snare, feathered kick, wide open
+#     spaces that let the pedal steel and piano breathe.
+#   - The country "two-step": a driving pattern derived from the cowboy two-step dance,
+#     with the kick on 1 and 3 and the snare snapping on 2 and 4.
+#   - Shuffle feel (swing_soft): the 16th-note shuffle is central to honky-tonk rock
+#     and the Bakersfield Sound (Merle Haggard, Buck Owens). Not heavy swing — just
+#     a slight organic lean that separates country shuffle from straight rock.
+#
+# Three variations cover the classic country styles:
+#   country_ballad   — slow Nashville ballad: whisper-light, pedal steel texture implied
+#   train_beat       — the iconic driving straight-8th pattern (Cash / Haggard style)
+#   honky_tonk_rock  — uptempo Bakersfield shuffle: harder, more rock-influenced
+#
+# GM notes: 36=kick, 38=snare, 42=closed HH, 46=open HH, 37=cross-stick (Nashville rim),
+#           49=crash, 51=ride
+
+#
+# ── Step grid notation ────────────────────────────────────────────────────────
+# Each character in a step grid represents one subdivision of the bar.
+# Resolution controls how many steps per bar (16 = 16th notes in 4/4).
+#
+#   X   Strong accent  — velocity = base_velocity × 1.00  (full hit / downbeat)
+#   x   Medium accent  — velocity = base_velocity × 0.75  (firm stroke / upbeat)
+#   o   Soft hit       — velocity = base_velocity × 0.55  (brush / light touch)
+#   g   Ghost note     — velocity = base_velocity × 0.28  (barely audible, mostly felt)
+#   .   Rest           — no note fired at this step
+#
+# Beat positions — 4/4 at resolution 16 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
+#        1  e1 +1 a1  2  e2 +2 a2  3  e3 +3 a3  4  e4 +4 a4
+#
+# Swing / feel: the 'feel' field shifts odd-indexed steps (1,3,5,7…) forward in time.
+#   swing_soft — odd steps delayed ~16 % (the country shuffle lean, not a jazz swing)
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Country
+family: country
+bpm_range: [58, 170]
+time_signature: [4, 4]
+resolution: 16
+feel: swing_soft
+
+instruments:
+  kick:       { note: 36, base_velocity: 100, velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.12 }
+  snare:      { note: 38, base_velocity: 88,  velocity_range: 18, timing_jitter: 0.014, duration_beats: 0.09 }
+  snare_rim:  { note: 37, base_velocity: 72,  velocity_range: 14, timing_jitter: 0.016, duration_beats: 0.07 }
+  hihat:      { note: 42, base_velocity: 72,  velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.07 }
+  hihat_open: { note: 46, base_velocity: 82,  velocity_range: 10, timing_jitter: 0.014, duration_beats: 0.16 }
+  ride:       { note: 51, base_velocity: 78,  velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.09 }
+  crash:      { note: 49, base_velocity: 100, velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.22 }
+
+humanization:
+  timing_jitter: 0.016
+  velocity_jitter: 18
+  velocity_drift: 0.08
+
+sections:
+  intro:
+    type: count_in
+    hits: 4
+    note: 42
+
+  groove:
+    bars: 1
+    variations:
+      - name: country_ballad
+        weight: 2
+        # Slow Nashville ballad (Patsy Cline / Tammy Wynette style, 58–85 BPM).
+        # KICK: beats 1 and 3, very soft — "feathered" as Nashville studio veterans
+        #   called it, felt more than heard. The pedal steel and piano occupy this range.
+        # SNARE (cross-stick): beats 2 and 4, always cross-stick in Nashville ballads —
+        #   the cross-stick's dry "clock" sound leaves maximum space for the melody.
+        # GHOST NOTES: light ghosts before each backbeat (pos 3, 11) simulate the
+        #   brush technique of session drummers like Buddy Harman who used a brush
+        #   in the left hand for the lightest possible snare texture.
+        # HI-HAT: 8th notes, soft, with an open splash on the 8th upbeats —
+        #   the gentle shimmer of a ballad groove that never crowds the vocal.
+        kick:       "X.......X......."
+        snare_rim:  "...gX......gX..."
+        hihat:      "x.x.x.x.x.x.x.x."
+        hihat_open: "..x...x...x...x."
+
+      - name: train_beat
+        weight: 3
+        # The iconic country "train beat" (Johnny Cash's "Folsom Prison Blues",
+        # Merle Haggard's "Mama Tried"). The locked kick-and-hi-hat 8th-note pulse
+        # is said to mimic the sound and feel of a moving train — steady, relentless,
+        # going somewhere. KICK hits on beats 1 AND 2 AND 3 AND 4 (every quarter note)
+        # while the hi-hat drives 8ths — together they create the "chug-chug" texture.
+        # The snare backbeat on 2 and 4 is the engineer's whistle cutting through.
+        # Ghost notes on 16ths before the backbeat add the subtle shuffle breath.
+        kick:      "X...X...X...X..."
+        snare:     "...gX......gX..."
+        hihat:     "x.x.x.x.x.x.x.x."
+
+      - name: honky_tonk_rock
+        weight: 2
+        # Bakersfield Sound / honky-tonk rock (Buck Owens, Dwight Yoakam, early Eagles).
+        # The Bakersfield Sound was country's answer to rock and roll — harder, more
+        # electric, with a Fender Telecaster bite. The drum groove is more aggressive:
+        # kick anticipates beat 3 with an and-of-2 hit (pos 6), snare hits hard on
+        # 2 and 4, and the open hi-hat on the 8th upbeats creates a driving sizzle.
+        # This is the groove that Nashville called "too rock" — and that's the point.
+        kick:       "X...X.X.X...X..."
+        snare:      "....X.......X..."
+        hihat:      "x.x.x.x.x.x.x.x."
+        hihat_open: "..x...x...x...x."
+
+      - name: speedy_wagon
+        weight: 1
+        # Fast, aggressive bluegrass/country rock (e.g., Dixie Chicks "Sin Wagon").
+        # Kick drives a steady 4-on-the-floor while snare hits hard on 2 and 4.
+        # Ride cymbals play driving 8th notes to keep the frantic pace.
+        kick:       "X...X...X...X..."
+        snare:      "....X.......X..."
+        ride:       "x.x.x.x.x.x.x.x."
+
+  fill:
+    bars: 1
+    variations:
+      - name: country_fill
+        # Simple Nashville fill: snare run into a tom hit then crash.
+        # Country fills are always in service of the song — never flashy.
+        snare: "....X.......XxXx"
+        kick:  "X...X...X...X..."
+
+      - name: train_build
+        # Train build: the kick doubles up in the second half, simulating a train
+        # accelerating. Common in live country sets to signal an outro or a gear shift.
+        kick:  "X...X...X.X.X.X."
+        snare: "....X.......X..."
+        hihat: "x.x.x.x.x.x.x.x."
+
+      - name: shuffle_break
+        # Country shuffle break: snare fills all 16ths in a push-pull shuffle texture.
+        # The swing_soft feel on odd steps creates the authentic shuffle "lilt."
+        snare: "gXgXgXgXgXgXgXgX"
+        kick:  "X...X...X...X..."
+
+  crash:
+    bars: 1
+    variations:
+      - name: standard
+        crash: "X..............."
+        kick:  "X...X...X...X..."
+        snare: "....X.......X..."
+        hihat: "x.x.x.x.x.x.x.x."
+
+structure:
+  fill_every: 4
+  break_every: 0
+  break_length: 1
+  crash_after_fill: true
+  dynamic_build: false
