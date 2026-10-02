@@ -315,23 +315,38 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF1A1A24),
+      backgroundColor: const Color(0xFF0A1828),
       body: Stack(
         children: [
-          // Background Image (Fullscreen)
+          // Background: a bare gradient, covering the whole window whatever
+          // its aspect ratio. BoxFit.cover crops it; BoxFit.contain would
+          // letterbox it, which is where the old black bands came from.
           Positioned.fill(
             child: Image.asset(
-              'splashscreen.png',
-              fit: BoxFit.contain,
+              'assets/branding/splash_bg_portrait.png',
+              fit: BoxFit.cover,
               errorBuilder: (context, error, stackTrace) {
                 // Fallback in case the asset isn't bundled or registered correctly yet
                 return Container(
-                  color: const Color(0xFF1A1A24),
+                  color: const Color(0xFF0A1828),
                   child: const Center(
                     child: Icon(Icons.piano, size: 150, color: Colors.white),
                   ),
                 );
               },
+            ),
+          ),
+          // Logo, wordmark and slogan, kept in their own layer so they are
+          // never stretched. Bounding both width and height keeps the block
+          // sensible in portrait and in landscape alike.
+          Center(
+            child: FractionallySizedBox(
+              widthFactor: 0.68,
+              heightFactor: 0.54,
+              child: Image.asset(
+                'assets/branding/splash_center.png',
+                fit: BoxFit.contain,
+              ),
             ),
           ),
           // Semi-transparent overlay at the bottom for readability

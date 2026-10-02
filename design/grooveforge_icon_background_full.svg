@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024"
+     viewBox="0 0 1024 1024" version="1.1" id="grooveforge-icon-background-full">
+  <title>GrooveForge - full-bleed icon background (iOS, Android adaptive)</title>
+  <defs>
+    <radialGradient id="gGround" cx="0.5" cy="0.34" r="0.86">
+      <stop offset="0" stop-color="#26323e" />
+      <stop offset="0.34" stop-color="#172836" />
+      <stop offset="0.66" stop-color="#0a1828" />
+      <stop offset="1" stop-color="#040c1a" />
+    </radialGradient>
+    <radialGradient id="gForge" cx="0.46" cy="0.58" r="0.52">
+      <stop offset="0" stop-color="#c2581f" stop-opacity="0.42" />
+      <stop offset="0.5" stop-color="#8e3b16" stop-opacity="0.2" />
+      <stop offset="1" stop-color="#8e3b16" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#gGround)" />
+  <rect width="1024" height="1024" fill="url(#gForge)" />
+</svg>

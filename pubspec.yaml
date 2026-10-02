@@ -92,26 +92,68 @@ dev_dependencies:
   flutter_native_splash: ^2.4.7
 
 flutter_launcher_icons:
+  image_path: "assets/branding/icon_master.png"
+  min_sdk_android: 26
+
+  # Android. Adaptive icons are required from API 26 onwards, which is exactly
+  # our minSdk: without them, launchers frame the icon inside a white badge.
+  # The inset defaults to 16%, but gen_assets.py already fits the foreground
+  # inside the safe zone, hence 0.
   android: "launcher_icon"
+  image_path_android: "assets/branding/icon_master.png"
+  adaptive_icon_background: "assets/branding/icon_adaptive_back.png"
+  adaptive_icon_foreground: "assets/branding/icon_adaptive_fore.png"
+  adaptive_icon_foreground_inset: 0
+  adaptive_icon_monochrome: "assets/branding/icon_monochrome.png"
+
+  # iOS applies its own mask to a full square — hence the full-bleed variant —
+  # and it refuses transparency.
   ios: true
-  image_path: "icon.png"
-  min_sdk_android: 21
-  linux:
-    generate: true
-    image_path: "icon.png"
+  image_path_ios: "assets/branding/icon_full_bleed.png"
+  remove_alpha_ios: true
+  background_color_ios: "#0a1828"
+
   macos:
     generate: true
-    image_path: "icon.png"
+    image_path: "assets/branding/icon_macos.png"
+
   windows:
     generate: true
-    image_path: "icon.png"
+    image_path: "assets/branding/icon_master.png"
+    icon_size: 256
+
+  web:
+    generate: true
+    image_path: "assets/branding/icon_master.png"
+    background_color: "#0a1828"
+    theme_color: "#e2701c"
+
+  # No linux section: flutter_launcher_icons 0.14 does not support one, and
+  # silently ignored it. Linux icons are produced by design/gen_assets.py into
+  # design/assets/linux/hicolor/, for the packaging to pick up (.desktop,
+  # Flatpak, AppImage).
 
 flutter_native_splash:
-  color: "#1a1a24"
-  image: "splashscreen.png"
+  color: "#0a1828"
+  # The background is a bare gradient, with no lettering: Android stretches it
+  # with gravity="fill" to cover the screen, which a gradient takes and text
+  # would not. The wordmark and slogan live in the centred layer, which the
+  # system never distorts.
+  background_image: "assets/branding/splash_bg_portrait.png"
+  image: "assets/branding/splash_center.png"
+  fullscreen: true
+
   android: true
   ios: true
   web: false
+
+  # From Android 12 on, the system draws the launch screen itself: an icon
+  # centred on a flat colour, with no full-bleed image possible. The icon is
+  # 1152 px, of which only the central 768 survive the mask.
+  android_12:
+    image: "assets/branding/splash_android12.png"
+    color: "#0a1828"
+
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -130,7 +172,8 @@ flutter:
     - assets/soundfonts/
     - assets/plugins/
     - assets/drums/
-    - splashscreen.png
+    - assets/branding/splash_bg_portrait.png
+    - assets/branding/splash_center.png
     - CHANGELOG.md
     - CHANGELOG.fr.md
   #   - images/a_dot_ham.jpeg

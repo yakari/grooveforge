@@ -70,3 +70,11 @@ native_audio/fluidsynth_win64/
 **/*.jks
 **/*.keystore
 **/key.properties
+
+# Logo working material: Inkscape vectorisations, helper scripts, renders and
+# backups — regenerable, kept out of the repository
+/design/travail/
+/design/archives/
+
+# Generated branding assets: rebuilt by design/gen_assets.py
+/design/assets/
