@@ -7,10 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [X.x.x]
 
+### Changed
+- **Auto-Wah** is now **Wah**. Existing projects load unchanged and stay in Auto mode.
+
 ### Fixed
 - Rehearsals: a track could briefly fall silent when playback started or the playhead moved. The worker thread read the playhead before waiting for the lock that guards the track buffers, so by the time it got in it could be filling for a position the transport had already left — which it mistook for a seek and answered by discarding buffered audio that was ready to play. Present since the rehearsal engine shipped in 3.0.0.
 
 ### Added
+- Wah: a **Manual** mode, where a new **Pedal** control sweeps the filter instead of the LFO. Assign it to an expression pedal or a CC knob in the CC preferences; **Mode** can be assigned to a button too.
 - Rehearsals: a take recorded with the click coming out of the phone's own speaker can have that bleed subtracted afterwards — **Remove the speaker bleed**, in the lane's menu. Offered only where a take has a reference saved beside it, which is only when it was monitored through the loudspeaker. The original is kept alongside the result as `.raw.wav`, because this removes most of the bleed rather than all of it and whether that is an improvement is the player's call.
 
 ### Architecture

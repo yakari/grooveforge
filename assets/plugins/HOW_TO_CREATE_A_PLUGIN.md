@@ -220,17 +220,21 @@ Stereo ping-pong delay with optional BPM sync.
 ---
 
 #### `wah_filter`
-Chamberlin SVF bandpass filter with internal BPM-syncable LFO.
+Chamberlin SVF bandpass filter swept by an internal BPM-syncable LFO, or by
+hand through `pedal` when `mode` is manual. Both cover `depth` × 2 octaves
+either side of `center`.
 
 | Node param   | Raw range    | Description                            |
 |-------------|-------------|----------------------------------------|
 | `center`    | 200–4000 Hz  | Sweep centre frequency                 |
 | `resonance` | 0.5–20.0     | Q / resonance (higher = sharper)       |
 | `rate`      | 0.1–10.0 Hz  | LFO rate (BPM sync off)                |
-| `depth`     | 0.0–1.0      | LFO depth (sweep range)                |
+| `depth`     | 0.0–1.0      | Sweep range (LFO and pedal alike)      |
 | `waveform`  | 0–2          | 0=sine, 1=triangle, 2=sawtooth         |
 | `bpmSync`   | 0/1          | Enable BPM sync (1=on)                 |
 | `beatDiv`   | 0–5 index    | Beat division (same as delay)          |
+| `mode`      | 0/1          | Sweep source: 0=auto (LFO), 1=manual   |
+| `pedal`     | 0.0–1.0      | Pedal position (manual): 0=heel, 1=toe |
 
 ---
 

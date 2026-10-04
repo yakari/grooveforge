@@ -85,7 +85,7 @@ Harmonizer, Chord Expand, Arpeggiator, Transposer, Velocity Curve, Gate, Microto
 
 ### Audio effects
 
-Plate reverb, ping-pong delay, auto-wah, 4-band EQ, compressor and chorus/flanger, with BPM sync where it applies. **Live Input** routes a microphone or line-in through any of them.
+Plate reverb, ping-pong delay, wah (auto or pedal-controlled), 4-band EQ, compressor and chorus/flanger, with BPM sync where it applies. **Live Input** routes a microphone or line-in through any of them.
 
 - **Audio Harmonizer** — up to four pitch-shifted harmony voices, optionally locked to a Xen or Jam Mode scale, or voiced from a chord played on a keyboard.
 - **Autotune** — snaps a voice onto the notes of a key and scale, from a gentle nudge to the stepped robot sound. Retune speed, Humanize, Flex-Tune, Transpose, and a live readout of the note being sung.

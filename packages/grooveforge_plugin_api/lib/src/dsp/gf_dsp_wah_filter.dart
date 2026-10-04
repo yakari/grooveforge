@@ -4,10 +4,10 @@ import '../gf_transport_context.dart';
 import 'gf_dsp_node.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  `wah_filter` node — resonant bandpass filter with BPM-syncable LFO
+//  `wah_filter` node — resonant bandpass filter swept by an LFO or a pedal
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// `wah_filter` node — auto-wah effect driven by an internal LFO.
+/// `wah_filter` node — wah effect driven by an internal LFO or by hand.
 ///
 /// A wah pedal is historically a bandpass (or resonant peak) filter whose
 /// centre frequency sweeps up and down, mimicking a human vowel sound.
@@ -15,9 +15,11 @@ import 'gf_dsp_node.dart';
 /// (SVF), which is numerically stable across the wide frequency excursions
 /// needed for a convincing wah sound.
 ///
-/// The centre frequency sweeps between [centerHz] ± [depthHz] according to
-/// a low-frequency oscillator. The LFO rate can be free-running (in Hz) or
-/// locked to the host BPM via a selectable beat division.
+/// In auto mode the centre frequency sweeps around `center` according to a
+/// low-frequency oscillator, whose rate can be free-running (in Hz) or locked
+/// to the host BPM via a selectable beat division. In manual mode the LFO is
+/// replaced by `pedal`, so an expression pedal or a CC knob plays the sweep.
+/// Both travel the same range: `depth` × 2 octaves either side of `center`.
 ///
 /// **Chamberlin SVF topology** (Hal Chamberlin, "Musical Applications of
 /// Microprocessors", 1985):
@@ -38,9 +40,18 @@ import 'gf_dsp_node.dart';
 /// | `waveform`  | 0–2 index    | 0       | LFO shape: 0=sine, 1=triangle, 2=saw|
 /// | `bpmSync`   | 0/1 toggle   | 0       | BPM sync on/off                      |
 /// | `beatDiv`   | 0–5 index    | 2       | Beat division for BPM sync           |
+/// | `mode`      | 0/1 index    | 0       | Sweep source: 0=auto (LFO), 1=manual |
+/// | `pedal`     | 0.0–1.0      | 0.5     | Pedal position: 0=heel, 1=toe        |
 class GFDspWahFilterNode extends GFDspNode {
   // Beat divisions (beats per LFO cycle, in quarter-note beats).
   static const _kBeatDivs = [8.0, 4.0, 2.0, 1.0, 0.5, 0.25];
+
+  /// How long the filter takes to catch up with a pedal move, in seconds.
+  ///
+  /// A MIDI CC only has 128 positions, so an unsmoothed pedal makes the
+  /// filter jump in audible steps ("zipper noise"). 15 ms glides across
+  /// those steps while staying under what a foot or a hand feels as lag.
+  static const _kPedalSmoothingSec = 0.015;
 
   int _sampleRate = 44100;
 
@@ -53,6 +64,14 @@ class GFDspWahFilterNode extends GFDspNode {
   int _waveform = 0;       // 0=sine, 1=triangle, 2=sawtooth
   bool _bpmSync = false;
   int _beatDivIndex = 2;
+  bool _manual = false;    // false=auto (LFO), true=manual (pedal)
+  double _pedal = 0.5;     // pedal position in [0, 1]; 0=heel, 1=toe
+
+  // ── Pedal state ───────────────────────────────────────────────────────────
+
+  // Pedal position the filter is actually at, in [-1, 1]. Chases [_pedal] so
+  // a stepped controller still produces a continuous sweep.
+  double _pedalSmoothed = 0.0;
 
   // ── LFO state ─────────────────────────────────────────────────────────────
 
@@ -107,6 +126,10 @@ class GFDspWahFilterNode extends GFDspNode {
         _beatDivIndex = (normalizedValue * (_kBeatDivs.length - 1))
             .round()
             .clamp(0, _kBeatDivs.length - 1);
+      case 'mode':
+        _manual = normalizedValue >= 0.5;
+      case 'pedal':
+        _pedal = normalizedValue.clamp(0.0, 1.0);
     }
   }
 
@@ -144,11 +167,18 @@ class GFDspWahFilterNode extends GFDspNode {
     final q = _resonance;
     final wave = _waveform;
     final fs = _sampleRate.toDouble();
+    final manual = _manual;
+    // Pedal travel [0, 1] recentred on [-1, 1], the range the LFO covers:
+    // heel down = bottom of the sweep, toe down = top, halfway = centre.
+    final pedalTarget = _pedal * 2.0 - 1.0;
+    // One-pole smoothing coefficient for the pedal (see the constant).
+    final pedalCoef = 1.0 - math.exp(-1.0 / (_kPedalSmoothingSec * fs));
 
     // Restore filter state.
     var lowL = _svfLowL, bandL = _svfBandL;
     var lowR = _svfLowR, bandR = _svfBandR;
     var phase = _lfoPhase;
+    var pedal = _pedalSmoothed;
 
     for (var i = 0; i < frameCount; i++) {
       // ── LFO output in [-1, 1] ─────────────────────────────────────────────
@@ -163,11 +193,17 @@ class GFDspWahFilterNode extends GFDspNode {
           lfoOut = math.sin(phase);
       }
 
+      // ── Sweep source: pedal in manual mode, LFO otherwise ─────────────────
+      // The pedal keeps tracking in auto mode too, so switching to manual
+      // starts from where the pedal is, not from a stale spot.
+      pedal += (pedalTarget - pedal) * pedalCoef;
+      final sweep = manual ? pedal : lfoOut;
+
       // ── Modulated centre frequency ─────────────────────────────────────────
-      // Sweep: fc = center * 2^(lfoOut * depth * 2)
+      // Sweep: fc = center * 2^(sweep * depth * 2)
       // Using exponential sweep gives a more musical, ear-pleasing feel
       // (equal pitch intervals rather than equal Hz intervals).
-      final fc = center * math.pow(2.0, lfoOut * depth * 2.0);
+      final fc = center * math.pow(2.0, sweep * depth * 2.0);
       final fcClamped = fc.clamp(20.0, fs * 0.45);
 
       // ── Chamberlin SVF driving coefficient ────────────────────────────────
@@ -200,5 +236,6 @@ class GFDspWahFilterNode extends GFDspNode {
     _svfLowR = lowR;
     _svfBandR = bandR;
     _lfoPhase = phase;
+    _pedalSmoothed = pedal;
   }
 }

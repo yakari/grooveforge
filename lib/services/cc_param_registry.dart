@@ -171,9 +171,23 @@ class CcParamRegistry {
     ),
   ];
 
-  /// Auto-Wah (`com.grooveforge.wah`).
+  /// Wah (`com.grooveforge.wah`). Pedal is the one to put under a foot: in
+  /// manual mode it is the wah itself. Mode flips between that and the LFO.
   static const List<CcParamEntry> wah = [
     ..._commonEffectParams,
+    CcParamEntry(
+      paramKey: 'pedal',
+      displayName: 'Pedal',
+      gfpaParamId: 9,
+      defaultMode: CcParamMode.absolute,
+    ),
+    CcParamEntry(
+      paramKey: 'mode',
+      displayName: 'Mode',
+      gfpaParamId: 8,
+      defaultMode: CcParamMode.cycle,
+      cycleCount: 2,
+    ),
     CcParamEntry(
       paramKey: 'center',
       displayName: 'Center',

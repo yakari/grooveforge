@@ -39,7 +39,7 @@ Looper Audio — bouclez de l'audio en direct, calé sur la mesure, avec overdub
 
 Effets
 
-Réverb à plaque, delay ping-pong, auto-wah, EQ 4 bandes, compresseur et chorus/flanger, synchronisables sur le BPM si pertinent. Le Live Input y fait passer un micro ou une entrée ligne.
+Réverb à plaque, delay ping-pong, wah (auto ou à la pédale), EQ 4 bandes, compresseur et chorus/flanger, synchronisables sur le BPM si pertinent. Le Live Input y fait passer un micro ou une entrée ligne.
 
 Et le reste
 

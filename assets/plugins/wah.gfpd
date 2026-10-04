@@ -1,12 +1,15 @@
 spec: "1.0"
 id: "com.grooveforge.wah"
-name: "Auto-Wah"
-version: "1.0.0"
+name: "Wah"
+version: "1.1.0"
 type: effect
 
-# The wah effect sweeps a resonant bandpass filter up and down using an LFO,
-# recreating the characteristic "wah-wah" vowel sound of a guitar wah pedal.
-# The LFO can run freely or lock its rate to the host BPM.
+# The wah effect sweeps a resonant bandpass filter up and down, recreating the
+# characteristic "wah-wah" vowel sound of a guitar wah pedal.
+# In Auto mode an LFO does the sweeping; it can run freely or lock its rate to
+# the host BPM. In Manual mode the Pedal parameter does it instead — assign it
+# to an expression pedal or a CC knob to play the wah by hand.
+# Either way the sweep covers Depth × 2 octaves either side of Center.
 
 parameters:
   - id: center
@@ -65,6 +68,21 @@ parameters:
     max: 100.0
     default: 100.0
     unit: "%"
+  - id: mode
+    paramId: 8
+    name: "Mode"
+    min: 0.0
+    max: 1.0
+    default: 0.0
+    type: selector
+    options: ["Auto", "Manual"]
+  - id: pedal
+    paramId: 9
+    name: "Pedal"
+    min: 0.0
+    max: 100.0
+    default: 50.0
+    unit: "%"
 
 graph:
   nodes:
@@ -80,6 +98,8 @@ graph:
         waveform:  { param: waveform }
         bpmSync:   { param: bpm_sync }
         beatDiv:   { param: beat_div }
+        mode:      { param: mode }
+        pedal:     { param: pedal }
     - id: mix_nd
       type: wet_dry
       params:
@@ -103,12 +123,19 @@ ui:
           param: center
         - type: knob
           param: resonance
+        - type: knob
+          param: depth
+    - label: "Sweep"
+      controls:
+        - type: selector
+          param: mode
+          label: "Mode"
+        - type: knob
+          param: pedal
     - label: "LFO"
       controls:
         - type: knob
           param: rate
-        - type: knob
-          param: depth
         - type: selector
           param: waveform
           label: "Wave"

@@ -456,20 +456,32 @@ struct DelayEffect {
     }
 };
 
-// ── Wah filter (Chamberlin SVF bandpass + LFO) ───────────────────────────────
+// ── Wah filter (Chamberlin SVF bandpass + LFO or pedal) ──────────────────────
 //
 // The Chamberlin State Variable Filter (SVF) exposes three simultaneous
 // outputs (low, band, high pass) per call. We use the bandpass output, which
 // creates the characteristic "wah" tone sweep.
-// The LFO modulates the filter's cutoff frequency exponentially so the sweep
-// sounds perceptually uniform across the audible range.
+// The sweep source modulates the filter's cutoff frequency exponentially so
+// the sweep sounds perceptually uniform across the audible range. That source
+// is either the internal LFO (auto mode) or the pedal position (manual mode),
+// and both travel the same range: [depth] × 2 octaves either side of [center].
 
-/// Wah auto-filter: LFO-swept SVF bandpass with optional BPM sync.
+/// How long the filter takes to catch up with a pedal move, in seconds.
+///
+/// A MIDI CC only has 128 positions, so an unsmoothed pedal makes the filter
+/// jump in audible steps ("zipper noise"). 15 ms glides across those steps
+/// while staying well under what a foot or a hand can feel as lag.
+static constexpr float kWahPedalSmoothingSec = 0.015f;
+
+/// Wah filter: SVF bandpass swept by an LFO (optionally BPM-synced) or by hand.
 struct WahEffect {
     // SVF state variables (per channel).
     float lowL{0}, bandL{0};
     float lowR{0}, bandR{0};
     float lfoPhase{0.0f}; ///< LFO phase in [0,1).
+    /// Pedal position the filter is actually at, in [-1, 1]. Chases [pedal]
+    /// so a stepped controller still produces a continuous sweep.
+    float pedalSmoothed{0.0f};
 
     float sampleRate;
 
@@ -482,6 +494,8 @@ struct WahEffect {
     std::atomic<float> bpmSync{0.0f};
     std::atomic<float> beatDiv{2.0f};
     std::atomic<float> mix{1.0f};         ///< Wet ratio [0, 1].
+    std::atomic<float> mode{0.0f};        ///< 0=auto (LFO), 1=manual (pedal).
+    std::atomic<float> pedal{0.5f};       ///< Pedal position [0, 1]; 0=heel, 1=toe.
 
     std::vector<float> tmpL, tmpR;
 
@@ -501,6 +515,8 @@ struct WahEffect {
         else if (strcmp(id,"bpm_sync")  ==0) bpmSync.store(v);
         else if (strcmp(id,"beat_div")  ==0) beatDiv.store(v);
         else if (strcmp(id,"mix")       ==0) mix.store(v / 100.0f);
+        else if (strcmp(id,"mode")      ==0) mode.store(v);
+        else if (strcmp(id,"pedal")     ==0) pedal.store(v / 100.0f);
     }
 
     /// Evaluate the LFO for the current phase.
@@ -531,13 +547,23 @@ struct WahEffect {
         const int   wf       = static_cast<int>(waveform.load() + 0.5f);
         const float phaseInc = rHz / sampleRate;
         const float qInv     = 1.0f / q;
+        const bool  manual   = mode.load() > 0.5f;
+        // Pedal travel [0, 1] recentred on [-1, 1], the range the LFO covers:
+        // heel down = bottom of the sweep, toe down = top, halfway = center.
+        const float pedalTarget = pedal.load() * 2.0f - 1.0f;
+        // One-pole smoothing coefficient for the pedal (see the constant).
+        const float pedalCoef =
+            1.0f - expf(-1.0f / (kWahPedalSmoothingSec * sampleRate));
 
         for (int32_t i = 0; i < n; ++i) {
-            // LFO modulates center frequency exponentially:
-            //   fc = center * 2^(lfo * depth * 2)
-            // This maps the LFO linearly to musical pitch intervals (octaves).
-            float lfoVal = _lfo(lfoPhase, wf);
-            float fc = c * powf(2.0f, lfoVal * d * 2.0f);
+            // The pedal keeps tracking in auto mode too, so switching to
+            // manual starts from where the pedal is, not from a stale spot.
+            pedalSmoothed += (pedalTarget - pedalSmoothed) * pedalCoef;
+            // The sweep source modulates center frequency exponentially:
+            //   fc = center * 2^(sweep * depth * 2)
+            // This maps it linearly to musical pitch intervals (octaves).
+            float sweep = manual ? pedalSmoothed : _lfo(lfoPhase, wf);
+            float fc = c * powf(2.0f, sweep * d * 2.0f);
             if (fc < 20.0f)    fc = 20.0f;
             if (fc > 20000.0f) fc = 20000.0f;
             // Chamberlin SVF frequency coefficient.

@@ -2699,13 +2699,13 @@ abstract class AppLocalizations {
   /// No description provided for @rackAddWah.
   ///
   /// In en, this message translates to:
-  /// **'Auto-Wah'**
+  /// **'Wah'**
   String get rackAddWah;
 
   /// No description provided for @rackAddWahSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Envelope / LFO wah filter with BPM sync'**
+  /// **'Wah filter: LFO sweep with BPM sync, or played from a pedal / CC knob'**
   String get rackAddWahSubtitle;
 
   /// No description provided for @rackAddEq.

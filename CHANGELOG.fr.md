@@ -7,10 +7,14 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 
 ## [X.x.x]
 
+### Modifié
+- **Auto-Wah** devient **Wah**. Les projets existants se chargent tels quels et restent en mode Auto.
+
 ### Corrigé
 - Répètes : une piste pouvait se taire brièvement au démarrage de la lecture ou lors d'un déplacement du curseur. Le thread worker lisait la position avant d'attendre le verrou qui protège les tampons de pistes ; en entrant, il pouvait donc remplir pour une position que le transport avait déjà dépassée — ce qu'il prenait pour un saut et à quoi il répondait en jetant de l'audio déjà prêt à jouer. Présent depuis l'arrivée du moteur de répétition en 3.0.0.
 
 ### Ajouté
+- Wah : un mode **Manual**, où un nouveau contrôle **Pedal** balaie le filtre à la place du LFO. À assigner à une pédale d'expression ou à un potard CC dans les préférences CC ; **Mode** peut aussi être assigné à un bouton.
 - Répètes : une prise enregistrée avec le clic sortant du haut-parleur du téléphone peut en être débarrassée après coup — **Enlever la fuite du haut-parleur**, dans le menu de la piste. Proposé uniquement quand une référence a été enregistrée à côté de la prise, c'est-à-dire quand l'écoute se faisait sur le haut-parleur. L'original est conservé à côté du résultat en `.raw.wav`, car l'opération retire l'essentiel de la fuite et non la totalité, et c'est au musicien de juger si c'est mieux.
 
 ### Architecture

@@ -1472,10 +1472,11 @@ class AppLocalizationsFr extends AppLocalizations {
   String get rackAddDelaySubtitle => 'Delay stéréo synchronisable sur le BPM';
 
   @override
-  String get rackAddWah => 'Auto-Wah';
+  String get rackAddWah => 'Wah';
 
   @override
-  String get rackAddWahSubtitle => 'Filtre wah enveloppe / LFO avec sync BPM';
+  String get rackAddWahSubtitle =>
+      'Filtre wah : balayage LFO avec sync BPM, ou joué à la pédale / au potard CC';
 
   @override
   String get rackAddEq => 'EQ 4 bandes';

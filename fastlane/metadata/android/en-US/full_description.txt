@@ -39,7 +39,7 @@ Audio Looper — record and loop live audio with bar sync, overdub and reverse.
 
 Effects
 
-Plate reverb, ping-pong delay, auto-wah, 4-band EQ, compressor and chorus/flanger, with BPM sync where it makes sense. Live Input routes a microphone or line-in through any of them.
+Plate reverb, ping-pong delay, wah (auto or pedal-controlled), 4-band EQ, compressor and chorus/flanger, with BPM sync where it makes sense. Live Input routes a microphone or line-in through any of them.
 
 And the rest
 
