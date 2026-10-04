@@ -1,0 +1,9 @@
+Added
+- Wah: a Manual mode, where a new Pedal control sweeps the filter instead of the LFO. Assign it to an expression pedal or a CC knob.
+- Rehearsals: remove the phone speaker's bleed from a take recorded with the click on the loudspeaker, from the lane's menu. The original is kept.
+
+Changed
+- Auto-Wah is now Wah. Existing projects load unchanged.
+
+Fixed
+- Rehearsals: a track could briefly fall silent when playback started or the playhead moved.

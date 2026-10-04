@@ -5,13 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [X.x.x]
+## [3.3.0] - 2026-10-04
 
 ### Changed
 - **Auto-Wah** is now **Wah**. Existing projects load unchanged and stay in Auto mode.
 
 ### Fixed
 - Rehearsals: a track could briefly fall silent when playback started or the playhead moved. The worker thread read the playhead before waiting for the lock that guards the track buffers, so by the time it got in it could be filling for a position the transport had already left — which it mistook for a seek and answered by discarding buffered audio that was ready to play. Present since the rehearsal engine shipped in 3.0.0.
+- Android: the app no longer shows as incompatible on devices without Bluetooth LE or a camera. Both are optional.
 
 ### Added
 - Wah: a **Manual** mode, where a new **Pedal** control sweeps the filter instead of the LFO. Assign it to an expression pedal or a CC knob in the CC preferences; **Mode** can be assigned to a button too.

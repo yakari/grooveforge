@@ -5,13 +5,14 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/lang/fr/).
 
-## [X.x.x]
+## [3.3.0] - 2026-10-04
 
 ### Modifié
 - **Auto-Wah** devient **Wah**. Les projets existants se chargent tels quels et restent en mode Auto.
 
 ### Corrigé
 - Répètes : une piste pouvait se taire brièvement au démarrage de la lecture ou lors d'un déplacement du curseur. Le thread worker lisait la position avant d'attendre le verrou qui protège les tampons de pistes ; en entrant, il pouvait donc remplir pour une position que le transport avait déjà dépassée — ce qu'il prenait pour un saut et à quoi il répondait en jetant de l'audio déjà prêt à jouer. Présent depuis l'arrivée du moteur de répétition en 3.0.0.
+- Android : l'application n'apparaît plus comme incompatible sur les appareils sans Bluetooth LE ou sans caméra. Les deux sont optionnels.
 
 ### Ajouté
 - Wah : un mode **Manual**, où un nouveau contrôle **Pedal** balaie le filtre à la place du LFO. À assigner à une pédale d'expression ou à un potard CC dans les préférences CC ; **Mode** peut aussi être assigné à un bouton.

@@ -1,0 +1,9 @@
+Ajouté
+- Wah : un mode Manual, où un nouveau contrôle Pedal balaie le filtre à la place du LFO. À assigner à une pédale d'expression ou à un potard CC.
+- Répètes : enlevez la fuite du haut-parleur du téléphone d'une prise enregistrée avec le clic sur le haut-parleur, depuis le menu de la piste. L'original est conservé.
+
+Modifié
+- Auto-Wah devient Wah. Les projets existants se chargent tels quels.
+
+Corrigé
+- Répètes : une piste pouvait se taire brièvement au démarrage de la lecture.
