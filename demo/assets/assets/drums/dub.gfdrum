@@ -1,0 +1,156 @@
+# Dub — Jamaican one drop, rockers and steppers
+# Reference: Sly Dunbar (Sly & Robbie), Carlton Barrett (The Wailers),
+#            Style Scott (Roots Radics), Horsemouth Wallace,
+#            King Tubby and Lee "Scratch" Perry mixes.
+# The one drop is the defining move: beat 1 is deliberately empty. Kick and
+# snare land together on beat 3, and the hole where the downbeat should be is
+# what the bass fills. Play it late — the whole style sits behind the click.
+# GM notes: 36=kick, 38=snare, 37=side stick (cross-stick), 42=closed HH,
+#           46=open HH, 51=ride, 48=hi tom, 41=floor tom, 49=crash
+
+#
+# ── Step grid notation ────────────────────────────────────────────────────────
+# Each character in a step grid represents one subdivision of the bar.
+# Resolution controls how many steps per bar (16 = 16th notes in 4/4).
+#
+#   X   Strong accent  — velocity = base_velocity × 1.00  (full hit / downbeat)
+#   x   Medium accent  — velocity = base_velocity × 0.75  (firm stroke / upbeat)
+#   o   Soft hit       — velocity = base_velocity × 0.55  (brush / light touch)
+#   g   Ghost note     — velocity = base_velocity × 0.28  (barely audible, mostly felt)
+#   .   Rest           — no note fired at this step
+#
+# Beat positions — 4/4 at resolution 16 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
+#        1  e1 +1 a1  2  e2 +2 a2  3  e3 +3 a3  4  e4 +4 a4
+#   (1/+/2/+/3/+/4/+ = quarter beats; e = "e of"; a = "and-a of")
+#
+# Swing / feel: the 'feel' field shifts odd-indexed steps (1,3,5,7…) forward in time.
+#   straight     — no shift (all steps exactly on the grid)
+#   laid_back    — same grid, slower humanisation envelope: the reggae pocket
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Dub
+family: reggae
+bpm_range: [60, 95]
+time_signature: [4, 4]
+resolution: 16
+feel: laid_back
+
+instruments:
+  kick:       { note: 36, base_velocity: 108, velocity_range: 8,  timing_jitter: 0.016, duration_beats: 0.20 }
+  snare:      { note: 38, base_velocity: 104, velocity_range: 12, timing_jitter: 0.020, duration_beats: 0.14 }
+  rim:        { note: 37, base_velocity: 84,  velocity_range: 10, timing_jitter: 0.018, duration_beats: 0.06 }
+  hihat:      { note: 42, base_velocity: 68,  velocity_range: 12, timing_jitter: 0.016, duration_beats: 0.06 }
+  hihat_open: { note: 46, base_velocity: 78,  velocity_range: 10, timing_jitter: 0.016, duration_beats: 0.16 }
+  ride:       { note: 51, base_velocity: 70,  velocity_range: 10, timing_jitter: 0.016, duration_beats: 0.12 }
+  tom_hi:     { note: 48, base_velocity: 92,  velocity_range: 12, timing_jitter: 0.018, duration_beats: 0.14 }
+  tom_lo:     { note: 41, base_velocity: 94,  velocity_range: 12, timing_jitter: 0.018, duration_beats: 0.18 }
+  crash:      { note: 49, base_velocity: 96,  velocity_range: 8,  timing_jitter: 0.014, duration_beats: 0.28 }
+
+# Reggae breathes more than most grid music: the jitter here is deliberately
+# on the high side so the pocket drags rather than clicks.
+humanization:
+  timing_jitter: 0.020
+  velocity_jitter: 14
+  velocity_drift: 0.06
+
+sections:
+  intro:
+    type: count_in
+    hits: 4
+    note: 37
+
+  groove:
+    bars: 1
+    variations:
+      - name: one_drop
+        weight: 4
+        # Carlton Barrett's one drop. Beat 1 (pos 0) is silent on both kick and
+        # snare — the "drop". Everything lands together on beat 3 (pos 8).
+        # The hi-hat plays straight 8ths so the listener still knows where 1 is.
+        kick:       "........X......."
+        snare:      "........X......."
+        hihat:      "x.x.x.x.x.x.x.x."
+
+      - name: rockers
+        weight: 3
+        # Sly Dunbar's rockers: the kick returns to all four quarters and pushes
+        # the tune forward, but the snare stays on 3 alone so it is still reggae
+        # and not rock. The open hat on the last offbeat pulls into the next bar.
+        kick:       "X...X...X...X..."
+        snare:      "........X......."
+        hihat:      "x.x.x.x.x.x.x.x."
+        hihat_open: "..............x."
+
+      - name: steppers
+        weight: 2
+        # Steppers: four-on-the-floor kick, ghosted 16th hats, ride doubling the
+        # quarters. The militant end of roots — Burning Spear, Black Uhuru.
+        kick:       "X...X...X...X..."
+        snare:      "........X......."
+        hihat:      "xgxgxgxgxgxgxgxg"
+        ride:       "X...X...X...X..."
+
+      - name: crosstick
+        weight: 3
+        # The dub texture proper: cross-stick instead of a full snare and a hat
+        # only on the offbeats. Sparse on purpose — in a dub mix the space is
+        # where the delay throws and spring reverb live.
+        kick:       "........X......."
+        rim:        "........X......."
+        hihat:      "..x...x...x...x."
+        hihat_open: "......x........."
+
+      - name: flying_cymbal
+        weight: 1
+        # Bunny Lee's "flyers" sound: open hi-hat on every offbeat 8th, washing
+        # over the whole bar. Rockers underneath so the wash has a floor.
+        kick:       "X...X...X...X..."
+        snare:      "........X......."
+        hihat_open: "..x...x...x...x."
+
+  fill:
+    bars: 1
+    variations:
+      - name: tom_drop
+        # Two toms falling into the next one drop. Short, never busy.
+        kick:       "........X......."
+        tom_hi:     "........X.X....."
+        tom_lo:     "............X.X."
+
+      - name: snare_echo
+        # Snare triplet-ish cluster on beat 4 — the hit a dub engineer catches
+        # in the tape delay and lets repeat over the next bar.
+        kick:       "........X......."
+        snare:      "........X...X.X."
+        hihat:      "x.x.x.x.x.x.x.x."
+
+      - name: rimshot_space
+        # The restrained fill: one cross-stick, one kick, and silence.
+        kick:       "X.......X......."
+        rim:        "........X......."
+        hihat:      "..x...x...x...x."
+
+  break:
+    bars: 2
+    variations:
+      - name: dub_drop
+        # Everything out except the one drop itself — the moment the mix falls
+        # away to bass and echo before the band comes back in.
+        kick:       "........X......."
+
+  crash:
+    bars: 1
+    variations:
+      - name: standard
+        crash:      "X..............."
+        kick:       "X...X...X...X..."
+        snare:      "........X......."
+        hihat:      "x.x.x.x.x.x.x.x."
+
+structure:
+  fill_every: 8
+  break_every: 0
+  break_length: 2
+  crash_after_fill: true
+  dynamic_build: false

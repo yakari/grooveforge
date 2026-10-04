@@ -1,0 +1,157 @@
+# Afrobeat — Tony Allen / Fela Kuti groove
+# Reference: Tony Allen "Psycho on Da Bus" (2010), Fela Kuti "Zombie" (1977),
+#            "Lady" (1972), "Water No Get Enemy" (1975), "Expensive Shit" (1975),
+#            "Tony Allen: The Afrobeat Drummer" transcriptions (Florent Barbier)
+# Tony Allen (1940–2020) invented Afrobeat drumming. His style is a unique synthesis:
+#   - West African highlife polyrhythms (especially Yoruba rhythmic concepts)
+#   - American funk and jazz (James Brown, Miles Davis influence)
+#   - Heavy ghost-note snare technique (borrowed from New Orleans)
+#   - A subtle forward push on odd 16ths (captured by the swing_soft feel setting)
+#     that creates the Afrobeat "levitation" effect — the groove that floats.
+#
+# Three variations model Fela-era Afrobeat styles:
+#   tony_allen     — the signature groove: displaced kick, ghost army, 8th hi-hat
+#   fela_hardcore  — denser, more political urgency (Zombie / Expensive Shit era)
+#   highlife_lite  — West African highlife influence: lighter, more melodic, congas lead
+#
+# GM notes: 36=kick, 38=snare, 42=closed HH, 46=open HH, 70=shaker (maracas),
+#           63=conga (open hi), 49=crash
+
+#
+# ── Step grid notation ────────────────────────────────────────────────────────
+# Each character in a step grid represents one subdivision of the bar.
+# Resolution controls how many steps per bar (16 = 16th notes in 4/4; 12 = 16th notes in 6/8).
+#
+#   X   Strong accent  — velocity = base_velocity × 1.00  (full hit / downbeat)
+#   x   Medium accent  — velocity = base_velocity × 0.75  (firm stroke / upbeat)
+#   o   Soft hit       — velocity = base_velocity × 0.55  (brush / light touch)
+#   g   Ghost note     — velocity = base_velocity × 0.28  (barely audible, mostly felt)
+#   .   Rest           — no note fired at this step
+#
+# Beat positions — 4/4 at resolution 16 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
+#        1  e1 +1 a1  2  e2 +2 a2  3  e3 +3 a3  4  e4 +4 a4
+#   (1/+/2/+/3/+/4/+ = quarter beats; e = "e of"; a = "and-a of")
+#
+# Swing / feel: the 'feel' field shifts odd-indexed steps (1,3,5,7…) forward in time.
+#   swing_soft — odd steps delayed ~16 % of a step (light swing) — the Afrobeat float
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Afrobeat
+family: world
+bpm_range: [90, 130]
+time_signature: [4, 4]
+resolution: 16
+feel: swing_soft
+
+instruments:
+  kick:       { note: 36, base_velocity: 100, velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.12 }
+  snare:      { note: 38, base_velocity: 80,  velocity_range: 18, timing_jitter: 0.014, duration_beats: 0.09 }
+  hihat:      { note: 42, base_velocity: 72,  velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.07 }
+  hihat_open: { note: 46, base_velocity: 82,  velocity_range: 10, timing_jitter: 0.014, duration_beats: 0.16 }
+  shaker:     { note: 70, base_velocity: 58,  velocity_range: 12, timing_jitter: 0.020, duration_beats: 0.06 }
+  conga:      { note: 63, base_velocity: 80,  velocity_range: 14, timing_jitter: 0.016, duration_beats: 0.08 }
+  crash:      { note: 49, base_velocity: 95,  velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.22 }
+
+humanization:
+  timing_jitter: 0.016
+  velocity_jitter: 18
+  velocity_drift: 0.08
+
+sections:
+  intro:
+    type: count_in
+    hits: 4
+    note: 42
+
+  groove:
+    bars: 1
+    variations:
+      - name: tony_allen
+        weight: 3
+        # Tony Allen's signature groove as heard on Fela's 1970s recordings.
+        # KICK: beat 1 (pos 0), and-of-3 (pos 10), beat 4 (pos 12) — the kick
+        #   avoids the downbeat of beat 3, creating a floating "push" quality.
+        #   Allen described this as "putting the kick where people don't expect it."
+        # SNARE: heavy ghost note army throughout; backbeat accent falls on beat 2
+        #   (pos 4) and beat 4 (pos 12) — the ghost notes between accents are as
+        #   important as the accents themselves. The swing_soft feel stretches odd
+        #   steps slightly, producing the Afrobeat "micro-triplet" texture.
+        # HI-HAT: steady 8th notes — the metronomic anchor that holds everything
+        #   together while the kick and snare float around it.
+        # SHAKER: continuous 8th note pulse — the "agogô" substitute.
+        kick:   "X.........X.X..."
+        snare:  "g.g.X.g.g.g.X.g."
+        hihat:  "x.x.x.x.x.x.x.x."
+        shaker: "x.x.x.x.x.x.x.x."
+
+      - name: fela_hardcore
+        weight: 2
+        # High-intensity Fela groove (Zombie era, 1977). The kick is more forward,
+        # landing on beat 1 AND the "and-of-2" (pos 6) — a funk hemiola that drives
+        # the horn section forward. The snare's displaced backbeat (on and-of-2 (6)
+        # and and-of-4 (14)) creates maximum rhythmic tension. The open hi-hat on
+        # the 8th upbeats (pos 2, 6, 10, 14) adds an aggressive sizzle.
+        # Congas add a second rhythmic layer — Fela always had at least one percussionist.
+        kick:       "X.....X.X......."
+        snare:      "g.g.g.X.g.g.g.X."
+        hihat:      "x.x.x.x.x.x.x.x."
+        hihat_open: "..x...x...x...x."
+        conga:      "X.......X......."
+        shaker:     "x.x.x.x.x.x.x.x."
+
+      - name: highlife_lite
+        weight: 2
+        # West African highlife influence (King Sunny Adé / Femi Kuti style).
+        # Lighter than pure Afrobeat — the kick stays on beats 1 and 3, the snare
+        # is more restrained, and the conga carries the main rhythmic conversation.
+        # The open hi-hat decorates every 8th upbeat — a characteristic highlife
+        # guitar/drum texture. More dance-hall, less political urgency.
+        kick:       "X.......X......."
+        snare:      "....x.......x..."
+        hihat:      "x.x.x.x.x.x.x.x."
+        hihat_open: "..X...X...X...X."
+        conga:      "X...X...X...X..."
+        shaker:     "x.x.x.x.x.x.x.x."
+
+  fill:
+    bars: 1
+    variations:
+      - name: snare_ghost_burst
+        # Snare ghost notes escalate to full accents — the Afrobeat fill that
+        # Tony Allen uses to build tension before a horn stab.
+        snare: "gXgXgXgXgXgXgXgX"
+        kick:  "X..............."
+
+      - name: polyrhythm_break
+        # 3-against-4 polyrhythm fill: kick on the 3-note grouping positions
+        # (pos 0, 5, 10 = groups of 5 16ths... wait, let me use 3-note groups:
+        # pos 0, 4, 8, 12 plus conga at 0, 3, 6, 9, 12 = 5+4+3+2+1 grouping:
+        # actually conga at pos 0,3,6,9,12 = every 3 steps = 5 hits = polyrhythm.
+        # This is the Afrobeat "three against four" that Tony Allen loved.
+        kick:  "X..X..X..X..X..."
+        snare: "....X.......X..."
+        conga: "X..X..X..X..X..."
+
+      - name: conga_fill
+        # Conga solo break: congas take the fill alone while kick marks the bar.
+        # Simulates the "solo" calls that Fela's percussionists would make.
+        conga: "X.X.X.X.X.X.X.X."
+        kick:  "X..............."
+        shaker: "x.x.x.x.x.x.x.x."
+
+  crash:
+    bars: 1
+    variations:
+      - name: standard
+        crash:  "X..............."
+        kick:   "X.......X......."
+        hihat:  "x.x.x.x.x.x.x.x."
+        shaker: "x.x.x.x.x.x.x.x."
+
+structure:
+  fill_every: 8
+  break_every: 0
+  break_length: 1
+  crash_after_fill: false
+  dynamic_build: false

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Répétitions GrooveForge — un groupe travaille un morceau ensemble : chacun enregistre sa partie sur un clic commun, avec compensation de latence et synchronisation d'appareil à appareil, sans serveur.">
+  <title>GrooveForge — Répétitions</title>
+  <link rel="icon" type="image/png" href="../../assets/icon.png">
+  <link rel="stylesheet" href="../../css/site.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Aller au contenu</a>
+  <header class="site-header">
+    <div class="header-inner">
+      <input type="checkbox" id="gf-nav-menu" class="nav-toggle-input">
+      <a class="brand" href="../">
+        <img src="../../assets/icon.png" width="40" height="40" alt="">
+        GrooveForge
+      </a>
+      <div class="header-triggers">
+        <span class="lang-switch" aria-label="Langue">
+          <a href="../../rehearsals/" hreflang="en">EN</a>
+          <span class="lang-sep" aria-hidden="true">·</span>
+          <span class="lang-current" aria-current="true">FR</span>
+        </span>
+        <label for="gf-nav-menu" class="nav-toggle-label">Menu</label>
+      </div>
+      <nav class="site-nav" aria-label="Navigation principale">
+        <a href="../guide/">Guide</a>
+        <a href="../rehearsals/">Répétitions</a>
+        <a href="../modules/">Modules</a>
+        <a href="../midi-fx/">MIDI FX</a>
+        <a href="../vst/">VST3</a>
+        <a href="../gfdrum/">Patterns (.gfdrum)</a>
+        <a href="../gfpd/">Descripteurs (.gfpd)</a>
+        <a href="../features/">Toutes les fonctionnalités</a>
+        <a href="../../demo/" class="nav-cta">Démo web</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="prose">
+    <div class="page-hero">
+      <h1>Répétitions</h1>
+      <p class="lead">
+        Un groupe travaille un morceau ensemble, avec les téléphones qu'il a déjà. Chacun enregistre sa propre
+        partie sur un clic commun, et les parties se rassemblent en un arrangement dont chaque appareil garde une
+        copie complète.
+      </p>
+    </div>
+
+    <figure class="figure-card figure-doc">
+      <img src="../../assets/screenshots/rehearsals_list_fr.png" width="484" height="1188" loading="lazy" alt="L'onglet Répétitions : trois morceaux, chacun avec son tempo, sa mesure et le nombre de parties enregistrées, et les boutons Rejoindre un morceau et Lancer un morceau">
+      <figcaption>Tous les morceaux que le groupe travaille, et où en est chacun.</figcaption>
+    </figure>
+
+    <h2>Comment se déroule une répétition</h2>
+    <p>
+      Lancez un morceau, donnez-lui un tempo et une mesure, puis ajoutez une piste pour votre instrument. Appuyez
+      sur enregistrer : un décompte passe d'abord, puis vous jouez sur ce qui est déjà là. Votre partie rejoint le
+      mixage, et le suivant enregistre la sienne par-dessus.
+    </p>
+    <p>
+      Vous enregistrez vos parties et celles de personne d'autre. Les vôtres, vous pouvez les refaire ou les
+      supprimer autant que vous voulez — une prise vous appartient tant qu'elle ne vous convient pas.
+    </p>
+
+    <figure class="figure-card figure-doc">
+      <img src="../../assets/screenshots/rehearsals_new_tune_fr.png" width="484" height="1188" loading="lazy" alt="Dialogue Nouvelle répétition : nom du morceau, votre nom, votre instrument, curseur de tempo, mesure et décompte">
+      <figcaption>Lancer un morceau : le nommer, dire ce que l'on joue, régler le tempo et le décompte.</figcaption>
+    </figure>
+
+    <h2>Des prises qui tombent sur le temps</h2>
+    <p>
+      Chaque appareil met un instant à sortir le son et un autre à le capter. Ensemble, ce retard placerait chaque
+      prise derrière le temps d'environ trente millisecondes sur un téléphone, et bien davantage en Bluetooth —
+      assez pour s'entendre, et assez pour gâcher un empilement de parties.
+    </p>
+    <p>
+      GrooveForge mesure cet aller-retour sur l'appareil lui-même : il joue un bref balayage de fréquences et le
+      retrouve dans le signal du micro par corrélation. Chaque prise est ensuite recalée d'exactement cette
+      durée : ce que vous avez joué sur le temps tombe sur le temps.
+    </p>
+    <p>
+      La mesure est <strong>retenue par sortie</strong>, car le retard appartient au matériel et non au morceau :
+      le haut-parleur du téléphone, un casque filaire et chaque casque Bluetooth gardent leur propre valeur, et
+      l'application le signale quand vous portez un casque qu'elle n'a jamais mesuré.
+    </p>
+
+    <h2>Jouer sur un enregistrement</h2>
+    <p>
+      Importez le morceau à travailler — MP3, FLAC et WAV partout, plus M4A, AAC et la bande-son d'une vidéo sur
+      Android. Tapez la pulsation pour donner le tempo, puis amenez un repère sur le premier temps fort afin
+      d'aligner la grille sur la musique. Zoomez dans la forme d'onde, faites-la défiler, et vérifiez le tempo
+      contre des traits rouges tracés sur chaque temps : un tempo faux d'un dixième est inaudible sur deux mesures
+      et flagrant au bout de trente.
+    </p>
+    <p>
+      Le clic se coupe tout seul dès qu'un enregistrement est là : c'est lui qui donne le tempo, désormais.
+    </p>
+
+    <figure class="figure-card figure-doc">
+      <img src="../../assets/screenshots/rehearsals_align_grid_fr.png" width="484" height="1188" loading="lazy" alt="Caler la grille : forme d'onde zoomée 32 fois avec des traits rouges sur chaque temps, commandes de zoom et de défilement, bouton Passer le silence, et le tempo avec ses boutons plus et moins">
+      <figcaption>Caler la grille sur un enregistrement. Les traits rouges sont les temps : zoomez et ajustez le tempo jusqu'à ce qu'ils tombent sur le son.</figcaption>
+    </figure>
+
+    <h2>Vitesse de travail</h2>
+    <p>
+      Ralentissez tout le morceau à 50 % pour bosser un passage. Les enregistrements sont <strong>étirés dans le
+      temps</strong> plutôt que joués plus lentement : rien ne descend en hauteur — une partie de guitare à 70 %
+      se retrouverait sinon trois demi-tons plus bas, et deviendrait injouable.
+    </p>
+    <p>
+      La vitesse de travail est propre à votre appareil. Celui qui travaille une mesure difficile à mi-vitesse
+      n'entraîne pas le reste du groupe avec lui.
+    </p>
+
+    <h2>Accords et partitions</h2>
+    <p>
+      Écrivez la forme du morceau sur une <strong>grille d'accords</strong>, mesure par mesure, de un à quatre
+      accords par mesure, la mesure en cours allumée. Réduite à une seule ligne, elle défile toute seule pendant
+      que vous jouez. Les chiffrages sont réellement analysés et non simplement stockés comme du texte :
+      <code>Ab</code>, <code>C#m7</code>, <code>Gm7b5</code>, <code>C6/9</code>, <code>Am(M7)/B</code> se résolvent
+      tous en une fondamentale, un accord de base et un jeu complet d'intervalles.
+    </p>
+    <p>
+      Chaque morceau porte aussi un <strong>classeur de partitions partagé</strong> : ajoutez un PDF, une grille ou
+      la photo d'une page, et tout le groupe en reçoit une copie. Les scans s'ouvrent en plein écran et se zooment.
+    </p>
+
+    <figure class="figure-card figure-doc">
+      <img src="../../assets/screenshots/rehearsals_chord_grid_fr.png" width="484" height="1188" loading="lazy" alt="Un morceau ouvert : transport avec mesure et temps, grille d'accords G A C G sur quatre mesures, l'enregistrement importé, et une piste pour Kurt à la guitare électrique et une pour Phil à la batterie">
+      <figcaption>Un morceau en cours : la grille d'accords en haut, l'enregistrement importé, et une piste par musicien.</figcaption>
+    </figure>
+
+    <h2>Partager, sans serveur ni compte</h2>
+    <p>
+      Les parties passent <strong>directement d'un appareil à l'autre</strong> par le réseau local, chiffrées.
+      Montrez un QR code une fois, ou envoyez un lien ; ensuite les appareils se retrouvent tout seuls et il suffit
+      d'ouvrir le même morceau.
+    </p>
+    <p>
+      Il n'y a ni hôte ni autorité. La fusion est symétrique et sans conflit : deux appareils qui se rencontrent
+      convergent vers le même arrangement, dans n'importe quel ordre, et celui qui était absent rattrape son retard
+      dès qu'il réapparaît. Rien n'est envoyé nulle part — aucun service ne pourrait le recevoir, et aucun n'est
+      nécessaire.
+    </p>
+    <p>
+      Une pastille sur chaque piste indique si le musicien qui la possède est connecté, et une prise qui n'a pas
+      encore atteint tous les appareils présents est signalée, pour que personne ne remballe en plein transfert.
+    </p>
+
+    <figure class="figure-card figure-doc">
+      <img src="../../assets/screenshots/rehearsals_share_fr.png" width="484" height="1188" loading="lazy" alt="Partager cette répétition : un QR code à scanner par les autres, la même invitation sous forme de lien copiable, l'adresse et le port de l'hôte, et une attente de connexion">
+      <figcaption>Inviter le groupe. Scannez le code, ou collez le lien sur un appareil sans caméra — ensuite l'application retrouve les autres toute seule.</figcaption>
+    </figure>
+
+    <h2>Quand la salle n'a pas de Wi-Fi</h2>
+    <p>
+      Tout le monde doit être sur le même réseau, et des téléphones en données mobiles ne peuvent pas se voir. Les
+      salles de répétition ont rarement un Wi-Fi utilisable : une personne active alors le point d'accès de son
+      téléphone et les autres s'y connectent — la répétition elle-même ne consomme aucune donnée mobile, puisque
+      rien ne sort de la salle. Ce n'est pas forcément toujours la même personne.
+    </p>
+
+    <p><a href="../guide/">← Prise en main</a> · <a href="../modules/">Modules intégrés →</a></p>
+  </main>
+
+  <footer class="site-footer">
+    <p><a href="https://github.com/yakari/grooveforge">GitHub</a> · <a href="../privacy/">Confidentialité</a></p>
+  </footer>
+</body>
+</html>

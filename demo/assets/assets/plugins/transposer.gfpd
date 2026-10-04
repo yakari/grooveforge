@@ -1,0 +1,37 @@
+spec: "1.0"
+id: "com.grooveforge.transposer"
+name: "Transposer"
+version: "1.0.0"
+type: midi_fx
+
+# Shifts all incoming MIDI note pitches by a fixed number of semitones.
+# Non-note events (CC, pitch-bend, aftertouch) pass through unchanged.
+# The virtual piano viewport does NOT scroll when transposed notes sound —
+# the on-screen scroll logic only follows the keys the user physically presses,
+# not the transposed output pitch.
+
+parameters:
+  # Semitone shift: −24 (two octaves down) to +24 (two octaves up).
+  # Normalised as (value + 24) / 48 so 0.5 = no shift.
+  - id: semitones
+    paramId: 0
+    name: "Semitones"
+    min: -24
+    max: 24
+    default: 0
+    unit: "st"
+
+midi_nodes:
+  - id: tr
+    type: transpose
+    params:
+      semitones: { param: semitones }
+
+ui:
+  layout: grid
+  groups:
+    - label: "Pitch Shift"
+      controls:
+        - type: knob
+          param: semitones
+          label: "Semitones"

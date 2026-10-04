@@ -1,0 +1,146 @@
+# Festive Fanfare — Drum Corps / Carnival Brass Band
+# Reference: DCI (Drum Corps International) battery percussion, Swiss brass band tradition,
+#            Carnaval de Nice / Belgian carnival, New Orleans Social Aid & Pleasure Clubs,
+#            "The Art of Drumming" (DCI educational materials, 2015)
+# A celebratory, high-energy drum percussion style for parades, festivals, and sporting events.
+# This is NOT military — it is festive, syncopated, and full of colour. Key characteristics:
+#   - Rudimental snare technique: ghost notes, flams, and rolls build into strong accents.
+#   - Bass drum punctuation on syncopated positions — NOT the steady march 1-and-2 pattern.
+#   - Crash cymbals as dramatic exclamation marks, usually on downbeats or phrase endings.
+#   - The "fanfare vamp" variation uses all instruments together for maximum impact.
+#   - Swing_soft feel adds a slight forward lean that distinguishes festive from military march.
+#
+# Three variations capture different fanfare contexts:
+#   fanfare_vamp    — the main festive groove: strong snare + syncopated kick + crash opening
+#   rudimental_build — escalating rudimental density; used to build energy in a parade or show
+#   tutti_drive      — all instruments driving 8th notes; max energy, used for key moments
+#
+# GM notes: 36=kick, 38=snare, 42=closed HH, 46=open HH, 49=crash, 50=hi tom, 41=lo floor tom
+
+#
+# ── Step grid notation ────────────────────────────────────────────────────────
+# Each character in a step grid represents one subdivision of the bar.
+# Resolution controls how many steps per bar (16 = 16th notes in 4/4; 12 = 16th notes in 6/8).
+#
+#   X   Strong accent  — velocity = base_velocity × 1.00  (full hit / downbeat)
+#   x   Medium accent  — velocity = base_velocity × 0.75  (firm stroke / upbeat)
+#   o   Soft hit       — velocity = base_velocity × 0.55  (brush / light touch)
+#   g   Ghost note     — velocity = base_velocity × 0.28  (barely audible, mostly felt)
+#   .   Rest           — no note fired at this step
+#
+# Beat positions — 4/4 at resolution 16 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
+#        1  e1 +1 a1  2  e2 +2 a2  3  e3 +3 a3  4  e4 +4 a4
+#   (1/+/2/+/3/+/4/+ = quarter beats; e = "e of"; a = "and-a of")
+#
+# Swing / feel: the 'feel' field shifts odd-indexed steps (1,3,5,7…) forward in time.
+#   swing_soft — odd steps delayed ~16 % of a step — adds festive life without sounding lazy
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Festive Fanfare
+family: world
+bpm_range: [110, 155]
+time_signature: [4, 4]
+resolution: 16
+feel: swing_soft
+
+instruments:
+  kick:    { note: 36, base_velocity: 110, velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.14 }
+  snare:   { note: 38, base_velocity: 95,  velocity_range: 15, timing_jitter: 0.012, duration_beats: 0.09 }
+  hihat:   { note: 42, base_velocity: 72,  velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.07 }
+  crash:   { note: 49, base_velocity: 110, velocity_range: 6,  timing_jitter: 0.008, duration_beats: 0.24 }
+  tom_hi:  { note: 50, base_velocity: 90,  velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.10 }
+  tom_lo:  { note: 41, base_velocity: 95,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.12 }
+
+humanization:
+  timing_jitter: 0.012
+  velocity_jitter: 14
+  velocity_drift: 0.06
+
+sections:
+  intro:
+    type: count_in
+    hits: 4
+    note: 38
+
+  groove:
+    bars: 1
+    variations:
+      - name: fanfare_vamp
+        weight: 3
+        # The main festive fanfare groove. Crash marks the top of each bar — the
+        # unmistakable signal to the crowd that something is happening. Snare plays a
+        # rudimental pattern: ghost notes between the accented backbeats (pos 4, 12)
+        # create the "rolling" texture of DCI-style battery percussion. The kick is
+        # syncopated, hitting beat 1 plus the and-of-2 (pos 6) and and-of-4 (pos 14)
+        # — positions that interlock with the brass melody hits in a real fanfare.
+        kick:  "X.....X.X.....X."
+        snare: "g.g.X.g.g.g.X.g."
+        hihat: "x.x.x.x.x.x.x.x."
+        crash: "X..............."
+
+      - name: rudimental_build
+        weight: 2
+        # Escalating rudimental density — a DCI-style build. The first half of the
+        # bar plays lightly (ghost notes + soft hits), the second half escalates to
+        # full accents. The kick anchors beats 1 and 3. Tom fills appear on beats 3
+        # and 4 to signal the escalation. This variation creates the sense of growing
+        # excitement before a musical climax.
+        kick:   "X.......X......."
+        snare:  "g.o.g.o.X.x.X.x."
+        tom_hi: "........X.x....."
+        tom_lo: "............X.x."
+        hihat:  "x.x.x.x.x.x.x.x."
+
+      - name: tutti_drive
+        weight: 2
+        # Maximum energy fanfare drive: all instruments at full 8th-note density.
+        # This is the "wall of sound" moment in a live fanfare show — used at the
+        # climax of a parade or at the end of a musical phrase where everyone hits
+        # together. The crash on every beat reinforces the "hit" quality.
+        # Rare in context (low weight), but devastating when it appears.
+        kick:  "X...X...X...X..."
+        snare: "X.x.X.x.X.x.X.x."
+        crash: "X...X...X...X..."
+        hihat: "x.x.x.x.x.x.x.x."
+
+  fill:
+    bars: 1
+    variations:
+      - name: snare_roll_build
+        # Rudimental snare roll that escalates from ghost to full accent — the classic
+        # battery "rush" that signals a section change in marching percussion.
+        snare: "gXgXgXgXgXgXgXgX"
+        kick:  "X..............."
+        crash: "X..............."
+
+      - name: tom_cascade
+        # Toms descend from hi to lo as the bar progresses — the "waterfall" fill
+        # common in concert band and drum corps battery percussion.
+        tom_hi: "X.X.X.X........."
+        tom_lo: "........X.X.X.X."
+        kick:   "X..............."
+        snare:  "....X.......X..."
+
+      - name: tutti_crash_build
+        # 16th-note snare run into a unison crash — maximum drama for section endings.
+        # The crash lands on the downbeat with kick and snare simultaneously.
+        snare: "x.x.x.X.x.x.X.X."
+        kick:  "X.......X...X..."
+        crash: "X..............."
+
+  crash:
+    bars: 1
+    variations:
+      - name: standard
+        crash: "X..............."
+        kick:  "X...X...X...X..."
+        snare: "g.g.X.g.g.g.X.g."
+        hihat: "x.x.x.x.x.x.x.x."
+
+structure:
+  fill_every: 4
+  break_every: 0
+  break_length: 1
+  crash_after_fill: true
+  dynamic_build: true
