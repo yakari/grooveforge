@@ -83,6 +83,9 @@ void main() {
         8: 'level',
         9: 'legato',
         10: 'legato_overlap',
+        11: 'pedal_sustain',
+        12: 'feedback',
+        13: 'fb_harmonic',
       });
     });
 
@@ -108,6 +111,14 @@ void main() {
             r'[^\n]*\n\s*GF_RIFF_PICKUP_BRIDGE,[^\n]*\n\s*GF_RIFF_PICKUP_NECK_BRIDGE,')),
       );
       expect(options('pickup_type'), ['Single coil', 'Humbucker']);
+    });
+
+    test('feedback harmonic options follow the native table', () {
+      final engine = File('native_audio/gf_riff.c').readAsStringSync();
+      final options =
+          descriptor.parameters.firstWhere((p) => p.id == 'fb_harmonic').options;
+      expect(options, ['Root', 'Octave', 'Oct+5th', '2 Oct']);
+      expect(engine, contains('k_fb_harm[4] = {1, 2, 3, 4}'));
     });
 
     test('the native entry points the bindings look up exist', () {

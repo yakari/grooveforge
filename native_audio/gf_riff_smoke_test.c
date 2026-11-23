@@ -701,6 +701,109 @@ static void test_legato(void) {
     }
 }
 
+// ── 4c. Pedal sustain and feedback ──────────────────────────────────────────
+
+/// Level of [hz] in [x] (n samples), dB, searched ±1% so a string that
+/// settles a few cents sharp is still found.
+static double peak_near_db(const float* x, int n, double hz) {
+    double* win = malloc(sizeof(double) * (size_t)n);
+    for (int i = 0; i < n; ++i) win[i] = 0.5 - 0.5 * cos(2 * M_PI * i / n);
+    double best = 0.0;
+    for (double f = hz * 0.99; f <= hz * 1.01; f += hz * 0.0005) {
+        best = fmax(best, dft_power(x, win, n, f, SR));
+    }
+    free(win);
+    return 10.0 * log10(best / ((double)n * n) + 1e-30);
+}
+
+/// Holds [note] with [feedback] on harmonic selection [harm] (and the
+/// pedal down when [pedal]) for [secs] seconds and returns the level, dB,
+/// of frequency [hz] in the last quarter second; the output's peak goes in
+/// [peak].
+static double hold_level(int note, float feedback, int harm, int pedal, double secs,
+                         double hz, float* peak) {
+    gf_riff* r = gf_riff_create(SR);
+    gf_riff_debug_set_humanize(r, 0);
+    gf_riff_params p;
+    gf_riff_default_params(&p);
+    p.feedback = feedback;
+    p.fb_harmonic = harm;
+    gf_riff_set_params(r, &p);
+    if (pedal) gf_riff_sustain_pedal(r, 1);
+    gf_riff_note_on(r, note, 100);
+    const int n = (int)(secs * SR);
+    float* out = render(r, n);
+    *peak = 0.0f;
+    for (int i = 0; i < n; ++i) *peak = fmaxf(*peak, fabsf(out[i]));
+    const double lvl = peak_near_db(out + n - SR / 4, SR / 4, hz);
+    free(out);
+    gf_riff_destroy(r);
+    return lvl;
+}
+
+static void test_feedback(void) {
+    printf("\n4c. Pedal sustain and feedback\n");
+    char d[128];
+    float peak;
+    // The pedal makes a held note ring longer than holding it alone.
+    const double held = hold_level(52, 0.0f, 1, 0, 3.0, note_hz(52), &peak);
+    const double pedalled = hold_level(52, 0.0f, 1, 1, 3.0, note_hz(52), &peak);
+    snprintf(d, sizeof d, "after 3 s: %.1f dB with the pedal, %.1f dB held alone",
+             pedalled, held);
+    report("the pedal makes a note ring longer than holding it", pedalled - held > 15.0, d);
+
+    // Feedback: the octave of a held E3 blooms and holds, while the same
+    // note without feedback has died away; the output stays bounded.
+    const double fb_on = hold_level(52, 1.0f, 1, 0, 8.0, 2 * note_hz(52), &peak);
+    const float fb_peak = peak;
+    const double fb_off = hold_level(52, 0.0f, 1, 0, 8.0, 2 * note_hz(52), &peak);
+    snprintf(d, sizeof d, "octave after 8 s: %.1f dB with feedback, %.1f dB without; peak %.2f",
+             fb_on, fb_off, fb_peak);
+    report("feedback: a held note's octave blooms and holds",
+           fb_on - fb_off > 60.0 && fb_peak < 0.5f, d);
+
+    // Every harmonic choice holds, from the low E to the top of the neck.
+    static const int notes[] = {40, 52, 64, 76, 88};
+    double worst = 1e9;
+    int worst_note = 0, worst_harm = 0;
+    for (int k = 0; k < 5; ++k) {
+        for (int harm = 0; harm < 4; ++harm) {
+            int n = harm + 1;
+            while (n > 1 && n * note_hz(notes[k]) > 3000.0) n--;
+            const double lvl = hold_level(notes[k], 1.0f, harm, 0, 6.0, n * note_hz(notes[k]), &peak);
+            if (lvl < worst) { worst = lvl; worst_note = notes[k]; worst_harm = harm; }
+        }
+    }
+    snprintf(d, sizeof d, "weakest after 6 s: %.1f dB (note %d, harmonic choice %d)",
+             worst, worst_note, worst_harm);
+    report("feedback holds on every string and harmonic choice", worst > -45.0, d);
+
+    // Letting go, or the palm, stops the feedback: the string dies as usual.
+    {
+        gf_riff* r = gf_riff_create(SR);
+        gf_riff_params p;
+        gf_riff_default_params(&p);
+        p.feedback = 1.0f;
+        gf_riff_set_params(r, &p);
+        gf_riff_note_on(r, 52, 100);
+        free(render(r, 2 * SR));
+        gf_riff_note_off(r, 52);
+        float* out = render(r, SR);
+        const double tail = rms(out + SR / 2, SR / 2);
+        free(out);
+        p.palm_mute = 1.0f;
+        gf_riff_set_params(r, &p);
+        gf_riff_note_on(r, 52, 100);
+        out = render(r, 2 * SR);
+        const double muted = rms(out + SR, SR);
+        free(out);
+        gf_riff_destroy(r);
+        snprintf(d, sizeof d, "%.1f dB after letting go, %.1f dB palm-muted", db(tail), db(muted));
+        report("letting go or the palm mute stops the feedback",
+               db(tail) < -70.0 && db(muted) < -70.0, d);
+    }
+}
+
 // ── 5. Release and sustain pedal ────────────────────────────────────────────
 
 /// Level 0.3 s after letting go of the key, in dB relative to the same note
@@ -775,15 +878,17 @@ static void test_pickups(void) {
 
 // ── 7. Robustness and cost ──────────────────────────────────────────────────
 
-static void test_robustness(void) {
-    printf("\n7. Robustness and cost\n");
-    srand(7);
-    gf_riff* r = gf_riff_create(SR);
+/// Peak of [secs] seconds of random playing at [rate] from [seed]: random
+/// notes, releases, bends of up to an octave, vibrato, the pedal, and every
+/// switch flipped at random, Feedback full when [feedback]. 1e30 when a
+/// sample is not finite.
+static double random_play_peak(double rate, unsigned seed, int secs, int feedback) {
+    srand(seed);
+    gf_riff* r = gf_riff_create((float)rate);
     gf_riff_params p;
     float buf[256];
     double peak = 0;
-    int finite = 1;
-    for (int b = 0; b < 20 * SR / 256; ++b) {
+    for (int b = 0; b < (int)(secs * rate / 256); ++b) {
         if (b % 8 == 0) {
             gf_riff_default_params(&p);
             p.palm_mute = (float)(rand() % 2);
@@ -794,6 +899,11 @@ static void test_robustness(void) {
             p.sustain = (float)(rand() % 2);
             p.attack = (float)(rand() % 2);
             p.bend_range = 12.0f;
+            p.legato = rand() % 2;
+            p.legato_overlap = rand() % 2;
+            p.pedal_sustain = (float)(rand() % 2);
+            p.feedback = feedback ? 1.0f : (float)(rand() % 2);
+            p.fb_harmonic = rand() % 4;
             gf_riff_set_params(r, &p);
             gf_riff_pitch_bend(r, (float)(rand() % 3) - 1.0f);
             gf_riff_vibrato(r, (float)(rand() % 2));
@@ -805,18 +915,41 @@ static void test_robustness(void) {
         if (rand() % 200 == 0) gf_riff_all_notes_off(r);
         gf_riff_process(r, buf, 256);
         for (int i = 0; i < 256; ++i) {
-            if (!isfinite(buf[i])) finite = 0;
+            if (!isfinite(buf[i])) { gf_riff_destroy(r); return 1e30; }
             peak = fmax(peak, fabs(buf[i]));
         }
     }
+    gf_riff_destroy(r);
+    return peak;
+}
+
+static void test_robustness(void) {
+    printf("\n7. Robustness and cost\n");
+    const double peak = random_play_peak(SR, 7, 20, 0);
+    const int finite = peak < 1e29;
+    // The same at high rates, where a re-pick's damping and a short loop
+    // last more samples: quick re-picks dropping in pitch once blew up there.
+    double high = 0;
+    static const double rates[] = {96000, 192000};
+    for (int k = 0; k < 2; ++k) {
+        for (unsigned seed = 1; seed <= 4; ++seed) {
+            high = fmax(high, random_play_peak(rates[k], seed, 10, 1));
+        }
+    }
+    char dh[96];
+    snprintf(dh, sizeof dh, "worst peak %.2f over 8 runs at 96 and 192 kHz, feedback full", high);
+    // Normal playing peaks under 0.9 here (a full chord at velocity 127
+    // reaches about 0.9); the old fold reached 2 to 35.
+    report("random playing at high sample rates stays bounded", high < 1.5, dh);
     char d[96];
     snprintf(d, sizeof d, "peak %.2f over 20 s of random playing", peak);
     report("random playing at extreme settings stays finite and bounded",
            finite && peak < 4.0, d);
-    gf_riff_destroy(r);
 
     // Headroom: six strings struck as hard as MIDI allows.
-    r = gf_riff_create(SR);
+    gf_riff* r = gf_riff_create(SR);
+    gf_riff_params p;
+    float buf[256];
     static const int e_chord[] = {40, 47, 52, 56, 59, 64};
     for (int i = 0; i < 6; ++i) gf_riff_note_on(r, e_chord[i], 127);
     float* strum = render(r, SR);
@@ -855,6 +988,7 @@ int main(void) {
     test_bends();
     test_strings();
     test_legato();
+    test_feedback();
     test_release();
     test_pickups();
     test_robustness();

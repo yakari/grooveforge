@@ -121,6 +121,40 @@ parameters:
     default: 0.0
     type: toggle
 
+  # How much longer the strings ring while the sustain pedal is down than
+  # when the keys are only held: x1 at 0 (the pedal just holds released
+  # strings), about x6 at 50, x40 at 100 (endless, a sustainer).
+  - id: pedal_sustain
+    paramId: 11
+    name: "Pedal sustain"
+    min: 0.0
+    max: 100.0
+    default: 50.0
+    unit: "%"
+
+  # ── Feedback ──
+  # The amp's sound driving the strings back (larsen): a held string's
+  # harmonic blooms in about a second and holds while the note is held or
+  # pedalled. Damped by the palm mute and by letting go. Meant for a CC
+  # slider or an expression pedal.
+  - id: feedback
+    paramId: 12
+    name: "Feedback"
+    min: 0.0
+    max: 100.0
+    default: 0.0
+    unit: "%"
+
+  # Which harmonic blooms. Order matches k_fb_harm in native_audio/gf_riff.c.
+  - id: fb_harmonic
+    paramId: 13
+    name: "Feedback harmonic"
+    min: 0.0
+    max: 3.0
+    default: 1.0
+    type: selector
+    options: ["Root", "Octave", "Oct+5th", "2 Oct"]
+
   # ── Output ──
   - id: level
     paramId: 8
@@ -176,11 +210,25 @@ ui:
           label: "Tone"
           size: small
 
+    - label: "Feedback"
+      controls:
+        - type: knob
+          param: feedback
+          label: "Feedback"
+          size: small
+        - type: selector
+          param: fb_harmonic
+          label: "Harmonic"
+
     - label: "Strings"
       controls:
         - type: knob
           param: sustain
           label: "Sustain"
+          size: small
+        - type: knob
+          param: pedal_sustain
+          label: "Pedal sus."
           size: small
         - type: knob
           param: level

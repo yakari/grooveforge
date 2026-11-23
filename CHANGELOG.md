@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **Amp**: a guitar amp module with a drive pedal (overdrive or distortion), three amp tone stacks and three speaker cabinets. Each section switches on and off from the panel or a CC footswitch.
 - Amp: load a cabinet **impulse response** (IR) from a `.wav` file, or remove it. It is saved in the project. The help screen lists where to find free ones.
-- **Riff**: an electric guitar modelled string by string. Palm mute, pick position, pickups, tone and sustain act on ringing strings and can all be mapped to CC; a Legato switch (on a pad, or CC 68 held) or Overlap legato (keys played overlapping) plays hammer-ons and pull-offs, and palm mute has an on/off pad mapping too.
+- **Riff**: an electric guitar modelled string by string. Palm mute, pick position, pickups, tone and sustain act on ringing strings and can all be mapped to CC; a Legato switch (on a pad, or CC 68 held) or Overlap legato (keys played overlapping) plays hammer-ons and pull-offs, and palm mute has an on/off pad mapping too. The sustain pedal makes strings ring longer than held notes, and Feedback (larsen) makes held strings bloom into a chosen harmonic.
 - CC mappings: **Neutral value on release**, for ribbons and touch strips that drop to 0 when you lift your finger (e.g. 64 to bring pitch bend back to centre). Tap a mapping in the CC preferences to set it.
 - Help, Rack & Cables tab: the slot types list now covers every module, grouped as in the Add Plugin sheet.
 

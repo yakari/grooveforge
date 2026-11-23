@@ -119,6 +119,27 @@ class CcParamRegistry {
       gfpaParamId: 9,
       defaultMode: CcParamMode.toggle,
     ),
+    // The larsen on a slider or an expression pedal: the player rides it,
+    // as a guitarist turns towards the amp and away.
+    CcParamEntry(
+      paramKey: 'feedback',
+      displayName: 'Feedback (larsen)',
+      gfpaParamId: 12,
+      defaultMode: CcParamMode.absolute,
+    ),
+    CcParamEntry(
+      paramKey: 'fb_harmonic',
+      displayName: 'Feedback harmonic',
+      gfpaParamId: 13,
+      defaultMode: CcParamMode.cycle,
+      cycleCount: 4,
+    ),
+    CcParamEntry(
+      paramKey: 'pedal_sustain',
+      displayName: 'Pedal sustain',
+      gfpaParamId: 11,
+      defaultMode: CcParamMode.absolute,
+    ),
     CcParamEntry(
       paramKey: 'legato_overlap',
       displayName: 'Overlap legato on/off',

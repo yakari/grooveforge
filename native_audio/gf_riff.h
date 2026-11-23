@@ -103,6 +103,12 @@ typedef struct {
     float level_db;    ///< Output level, dB.
     int   legato;      ///< 1 = hammer-ons and pull-offs (see gf_riff_note_on).
     int   legato_overlap; ///< 1 = slur only notes played overlapping, one at a time.
+    float pedal_sustain; ///< 0 = the pedal only holds released strings, 1 = with the
+                         ///< pedal down they ring about forever (×40).
+    float feedback;    ///< 0-1: the amp driving the strings back (larsen). A held
+                       ///< string's harmonic blooms to this level and holds.
+    int   fb_harmonic; ///< Which harmonic feeds back: 0 fundamental, 1 octave,
+                       ///< 2 octave and fifth, 3 two octaves.
 } gf_riff_params;
 
 typedef struct gf_riff gf_riff;
@@ -154,7 +160,8 @@ void gf_riff_all_notes_off(gf_riff* r);
 /// Pitch bend in [-1, 1], scaled by the bend range. Bends every string.
 void gf_riff_pitch_bend(gf_riff* r, float bend);
 
-/// Sustain pedal: while down, released strings keep ringing.
+/// Sustain pedal: while down, released strings keep ringing, and every string
+/// not being damped rings longer than held alone, by Pedal sustain.
 void gf_riff_sustain_pedal(gf_riff* r, int down);
 
 /// Legato pedal (MIDI CC 68): while down, legato is on whatever the panel's

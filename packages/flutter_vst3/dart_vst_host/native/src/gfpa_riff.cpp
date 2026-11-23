@@ -48,6 +48,8 @@ struct RiffSlot {
     // Knobs, in the units gf_riff_params takes.
     std::atomic<float> palmMute{0.0f}, pickPos{0.35f}, tone{0.7f};
     std::atomic<float> sustain{0.7f}, attack{0.7f}, bendRange{2.0f}, levelDb{0.0f};
+    std::atomic<float> pedalSustain{0.5f}, feedback{0.0f};
+    std::atomic<int>   fbHarmonic{1};
     std::atomic<int>   pickup{GF_RIFF_PICKUP_BRIDGE}, humbucker{1}, legato{0}, legatoOverlap{0};
     std::atomic<bool>  muted{false};
 };
@@ -110,6 +112,9 @@ void pushParams(RiffSlot& s) {
     p.level_db = s.levelDb.load(std::memory_order_relaxed);
     p.legato = s.legato.load(std::memory_order_relaxed);
     p.legato_overlap = s.legatoOverlap.load(std::memory_order_relaxed);
+    p.pedal_sustain = s.pedalSustain.load(std::memory_order_relaxed);
+    p.feedback = s.feedback.load(std::memory_order_relaxed);
+    p.fb_harmonic = s.fbHarmonic.load(std::memory_order_relaxed);
     gf_riff_set_params(s.riff, &p);
 }
 
@@ -186,6 +191,9 @@ void resetKnobs(RiffSlot& s) {
     s.levelDb.store(p.level_db);
     s.legato.store(p.legato);
     s.legatoOverlap.store(p.legato_overlap);
+    s.pedalSustain.store(p.pedal_sustain);
+    s.feedback.store(p.feedback);
+    s.fbHarmonic.store(p.fb_harmonic);
     s.muted.store(false);
 }
 
@@ -236,6 +244,9 @@ void gfpa_riff_slot_set_param(int slot, const char* id, float v) {
     else if (std::strcmp(id, "level") == 0)     s.levelDb.store(v);
     else if (std::strcmp(id, "legato") == 0)    s.legato.store(v >= 0.5f ? 1 : 0);
     else if (std::strcmp(id, "legato_overlap") == 0) s.legatoOverlap.store(v >= 0.5f ? 1 : 0);
+    else if (std::strcmp(id, "pedal_sustain") == 0) s.pedalSustain.store(v / 100.0f);
+    else if (std::strcmp(id, "feedback") == 0)  s.feedback.store(v / 100.0f);
+    else if (std::strcmp(id, "fb_harmonic") == 0) s.fbHarmonic.store((int)(v + 0.5f));
 }
 
 void gfpa_riff_slot_set_muted(int slot, bool muted) {

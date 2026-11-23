@@ -104,6 +104,40 @@ static const double k_inharm[GF_RIFF_STRINGS] = {1.1e-4, 6.5e-5, 4.5e-5, 3.0e-5,
 /// pick), over BOOST_SEC so the rise has no click, and by at most
 /// BOOST_MAX in amplitude so a string that has all but died stays quiet.
 #define SLUR_SUSTAIN 0.7f
+
+/// Sustain pedal: at full Pedal sustain, strings ring this many times longer
+/// than when their keys are only held (about 10 minutes for the low E: as
+/// good as endless). The highs gain the square root of it, so a long ring
+/// still mellows as a string's does.
+#define PEDAL_STRETCH 40.0
+#define MAX_T60 600.0
+
+/// Feedback (the amp's sound driving the strings back): the amplitude a
+/// string's chosen harmonic settles at with Feedback at full, about a hard
+/// pick's, and how fast it can grow there, in nepers a second (5: from a
+/// whisper to full in about a second, the bloom of a guitar facing its amp).
+#define FB_LEVEL 0.30f
+#define FB_GROWTH 5.0f
+/// Width of the filter that picks the harmonic out of the string.
+#define FB_Q 6.0
+/// Highest harmonic frequency that feeds back: past it the chosen harmonic
+/// steps down. A guitar's feedback lives well below this; up there a short
+/// string loses more per trip than any amp gives back.
+#define FB_MAX_HZ 3000.0
+/// Integral gain of the feedback's level control, nepers a second per
+/// second of error, and its bounds: it makes up the losses the makeup term
+/// does not model (the interpolation's own high-frequency loss on a short
+/// loop), so even the top of the neck holds its harmonic.
+#define FB_KI 10.0f
+#define FB_INT_MIN -10.0f
+#define FB_INT_MAX 60.0f
+/// Safety rails. The level control only sees the string through its
+/// band-pass; bent far off the harmonic it was tuned for, energy can build
+/// where the band-pass hardly looks. So the drive is capped per trip round
+/// the loop, and stops outright while the string's whole power is above
+/// what a hard pick reaches (about 0.14, see FB_LEVEL).
+#define FB_DRIVE_MAX 0.08
+#define FB_ENV_MAX 0.2f
 #define BOOST_SEC 0.003
 #define BOOST_MAX 4.0f
 
@@ -122,7 +156,13 @@ typedef struct {
     int   w;               ///< Write index, shared by every ring.
     int   exc_len, exc_pos;
 
-    int   note;            ///< Sounding MIDI note, -1 when free.
+    int   note;            ///< MIDI note whose key owns the string, -1 when free.
+    /// Note the loop is tuned to. Differs from [note] only while a re-pick
+    /// damps the string: the loop keeps the old note's length, stiffness
+    /// and losses until the new pick starts. Retuning the loop for the new
+    /// note with the old note's stiffness left a few-sample loop with
+    /// all-passes designed for a long one, which can run away.
+    int   tuned;
     int   fret;
     int   held;            ///< The key is down.
     int   sustained;       ///< Released while the sustain pedal was down.
@@ -136,6 +176,16 @@ typedef struct {
     int   n_fingers;
     float peak_env;        ///< Highest [env] since the last pick.
     int   boost_left;      ///< Samples of a slur's energy boost still to go.
+    float loss_stretch;    ///< Pedal stretch the loss filters were solved for.
+    // Feedback: a band-pass on the string's own motion, centred on the
+    // harmonic that blooms, and the power found there.
+    float fb_b0, fb_a1, fb_a2;
+    float fb_x1, fb_x2, fb_y1, fb_y2;
+    float fb_pow;
+    float fb_prev;         ///< The string's last output sample.
+    int   fb_note, fb_harm; ///< What the band-pass is tuned for.
+    float fb_w;            ///< Its centre, radians per sample.
+    float fb_int;          ///< Integral of the level error, nepers a second.
     float boost_mul;       ///< Per-sample step of [gain] during it.
     float vel;             ///< Velocity of the last pick, 0-1.
 
@@ -192,6 +242,7 @@ struct gf_riff {
     float hb;              ///< Humbucker blend.
     float tone;
     float level;
+    float fb;              ///< Feedback amount, 0-1.
 
     // Pickup resonance: RBJ low-pass, coefficients for [res_tone, res_hb].
     float res_b0, res_b1, res_b2, res_a1, res_a2;
@@ -465,7 +516,13 @@ static void design_dispersion(const gf_riff* r, rstring* s, int string, int note
     // stiffness stays where a real fretboard ends rather than growing
     // without bound as the string shortens.
     const int f = fret > GF_RIFF_FRETS ? GF_RIFF_FRETS : fret;
-    const double b = k_inharm[string] * pow(2.0, 2.0 * f / 12.0);
+    // Never stiffer than the high E at its 24th fret, the stiffest a real
+    // fretboard gets: a string playing out of its range (see string_cost),
+    // such as the wound low E retuned for a note five octaves up, would
+    // otherwise get all-passes so strong that a bend pumps energy into the
+    // loop.
+    const double b = fmin(k_inharm[string] * pow(2.0, 2.0 * f / 12.0),
+                          k_inharm[GF_RIFF_STRINGS - 1] * pow(2.0, 2.0 * GF_RIFF_FRETS / 12.0));
     const double want = 1200.0 * log2(sqrt(1.0 + b * n * n));
     double lo = -0.95, hi = 0.0;   // more negative = more stretch
     for (int i = 0; i < 24; ++i) {
@@ -481,6 +538,7 @@ static void start_note(gf_riff* r, rstring* s, int note, int fret, int velocity)
     s->n_fingers = 0;      // a pick starts afresh: no finger to pull off to
     s->peak_env = 0.0f;
     s->note = note;
+    s->tuned = note;
     s->fret = fret;
     s->vel = clampf((float)velocity / 127.0f, 0.0f, 1.0f);
     s->released = 0;
@@ -504,10 +562,15 @@ static void start_note(gf_riff* r, rstring* s, int note, int fret, int velocity)
 
 /// Ends a damping: folds the loop gain back into the rings, so the string
 /// carries on from where the damping left it with the gain back at 1.
+///
+/// The whole ring is folded, not just the current loop: samples written
+/// while the gain was low are stored large, and a new note lower than the
+/// old one reads further back than the old loop reached. Leaving those
+/// unfolded made a quick run of re-picks dropping in pitch explode. Two
+/// rings of BUF samples, once per pick: a few microseconds.
 static void end_damping(rstring* s) {
-    const int span = (int)s->d[0] + 8 > (int)s->d[1] + 8 ? (int)s->d[0] + 8 : (int)s->d[1] + 8;
     for (int p = 0; p < POLS; ++p) {
-        for (int k = 1; k <= span && k < BUF; ++k) s->buf[p][(s->w - k) & MASK] *= s->gain;
+        for (int k = 0; k < BUF; ++k) s->buf[p][k] *= s->gain;
     }
     s->gain = 1.0f;
     s->repick_left = 0;
@@ -581,6 +644,7 @@ static void slur(gf_riff* r, rstring* s, int note, float vel) {
     top_up(r, s, vel);
     const int up = note > s->note;
     s->note = note;
+    s->tuned = note;
     s->fret = note - k_open[s - r->s];
     s->loss_note = -1;     // solve the loss filters for the new length
     design_dispersion(r, s, (int)(s - r->s), note, s->fret);
@@ -637,8 +701,13 @@ void gf_riff_note_on(gf_riff* r, int note, int velocity) {
         // pile-up of energy from repeated picks. A slur's boost still rising
         // is folded in first: both ride the same loop gain.
         if (s->boost_left > 0) { end_damping(s); s->boost_left = 0; }
+        // Down to REPICK_FLOOR of full level, from wherever the gain is: a
+        // pick landing on a damping still under way carries on to the same
+        // floor instead of sinking it again.
         s->repick_left = (int)(REPICK_SEC * r->rate);
-        s->repick_mul = powf(REPICK_FLOOR, 1.0f / (float)s->repick_left);
+        if (s->repick_left < 1) s->repick_left = 1;
+        s->repick_mul = s->gain > REPICK_FLOOR
+                      ? powf(REPICK_FLOOR / s->gain, 1.0f / (float)s->repick_left) : 1.0f;
         s->pending_note = note;
         s->pending_fret = fret;
         s->pending_vel = velocity;
@@ -710,12 +779,24 @@ void gf_riff_vibrato(gf_riff* r, float depth) {
 
 /// Solves the loss filters again when what they depend on moved: the note,
 /// palm mute, sustain, or the finger lifting.
+/// How much longer string [s] rings because of the sustain pedal: 1 unless
+/// the pedal is down and the string is not being damped by a lifted finger.
+static float pedal_stretch(const gf_riff* r, const rstring* s) {
+    if (!r->pedal || s->released) return 1.0f;
+    const double x = clampf(r->p.pedal_sustain, 0.0f, 1.0f);
+    return (float)pow(PEDAL_STRETCH, x);
+}
+
 static void update_loss(gf_riff* r, rstring* s) {
     const float sus = r->p.sustain;
-    if (s->loss_note == s->note && fabsf(s->loss_pm - r->pm) < 1e-3f
-        && s->loss_sus == sus && s->loss_rel == s->released) return;
-    const double f0 = note_hz(s->note);
-    double t0 = t60_fundamental(sus, f0);
+    const float stretch = pedal_stretch(r, s);
+    if (s->loss_note == s->tuned && fabsf(s->loss_pm - r->pm) < 1e-3f
+        && s->loss_sus == sus && s->loss_rel == s->released
+        && s->loss_stretch == stretch) return;
+    const double f0 = note_hz(s->tuned);
+    // With the pedal down the string rings longer than held (see
+    // PEDAL_STRETCH): the pedal is the player's sustainer.
+    double t0 = fmin(t60_fundamental(sus, f0) * stretch, MAX_T60);
     // Palm mute: the hand on the strings cuts the ring to a fixed, short
     // time whatever the sustain, moving there on a log scale as the palm
     // presses harder. Shortening by a ratio was not enough: a heavy
@@ -726,7 +807,7 @@ static void update_loss(gf_riff* r, rstring* s) {
     // Muted, the highs still die faster than the fundamental, but not so
     // fast that only a sine is left: a near-sine into a distortion pedal
     // comes out as a square wave, the sound of a 16-bit console.
-    double th = t0 * (0.12 + 0.33 * r->pm);
+    double th = t0 / sqrt(stretch) * (0.12 + 0.33 * r->pm);
     if (s->released) {
         t0 = fmin(t0, RELEASE_T60);
         th = fmin(th, RELEASE_T60_HIGH);
@@ -735,10 +816,11 @@ static void update_loss(gf_riff* r, rstring* s) {
     for (int p = 0; p < POLS; ++p) {
         solve_loss(r, s, p, f0, t0 * k_plane_t60[p], th * k_plane_t60[p]);
     }
-    s->loss_note = s->note;
+    s->loss_note = s->tuned;
     s->loss_pm = r->pm;
     s->loss_sus = sus;
     s->loss_rel = s->released;
+    s->loss_stretch = stretch;
 }
 
 /// Pitch ratio from the string's energy: a hard pick stretches the string
@@ -750,7 +832,7 @@ static double tension_ratio(const rstring* s) {
 /// Target delay of plane [pol] for the current pitch, bend and vibrato.
 static float target_delay(const gf_riff* r, rstring* s, int pol, double semis) {
     const double cents = r->humanize ? s->intonation + s->drift : 0.0;
-    const double f0 = note_hz(s->note + semis + cents / 100.0) * tension_ratio(s);
+    const double f0 = note_hz(s->tuned + semis + cents / 100.0) * tension_ratio(s);
     const double hz = plane_hz(r, pol, f0);
     double d = r->rate / hz - filter_delay(r, s, pol, hz);
     if (pol == 0) s->period_eff = r->rate / hz;
@@ -798,6 +880,7 @@ static void chase_controls(gf_riff* r) {
     r->tone += (clampf(r->p.tone, 0.0f, 1.0f) - r->tone) * k;
     const float lv = powf(10.0f, clampf(r->p.level_db, -60.0f, 12.0f) / 20.0f);
     r->level += (lv - r->level) * k;
+    r->fb += (clampf(r->p.feedback, 0.0f, 1.0f) - r->fb) * k;
 }
 
 // ── Per-sample processing ───────────────────────────────────────────────────
@@ -870,6 +953,62 @@ static float scrape_tick(gf_riff* r, rstring* s) {
     return v;
 }
 
+// ── Feedback ────────────────────────────────────────────────────────────────
+
+/// Harmonic numbers the Harmonic selector offers, in its order: the
+/// fundamental, the octave, the octave and a fifth, two octaves.
+static const int k_fb_harm[4] = {1, 2, 3, 4};
+
+/// Tunes string [s]'s feedback band-pass on the chosen harmonic of its note,
+/// or the highest one below FB_MAX_HZ (the fundamental at worst).
+static void tune_feedback(gf_riff* r, rstring* s) {
+    const int sel = r->p.fb_harmonic < 0 ? 0 : (r->p.fb_harmonic > 3 ? 3 : r->p.fb_harmonic);
+    if (s->fb_note == s->tuned && s->fb_harm == sel) return;
+    s->fb_int = 0.0f;   // a new note or harmonic starts its control afresh
+    s->fb_note = s->tuned;
+    s->fb_harm = sel;
+    const double f0 = note_hz(s->tuned);
+    int n = k_fb_harm[sel];
+    while (n > 1 && n * f0 > fmin(FB_MAX_HZ, 0.4 * r->rate)) n--;
+    const double fc = fmin(n * f0, 0.45 * r->rate);
+    // RBJ band-pass, 0 dB at the centre.
+    const double w = 2.0 * M_PI * fc / r->rate, al = sin(w) / (2.0 * FB_Q);
+    s->fb_w = (float)w;
+    const double a0 = 1.0 + al;
+    s->fb_b0 = (float)(al / a0);
+    s->fb_a1 = (float)(-2.0 * cos(w) / a0);
+    s->fb_a2 = (float)((1.0 - al) / a0);
+}
+
+/// How much of string [s]'s band-passed motion goes back into it on every
+/// sample during this chunk: the amp driving the string. Only a string free
+/// to ring feeds back (held, or kept by the pedal; not one being damped, and
+/// less and less under the palm), and only up to a level set by Feedback,
+/// so the harmonic blooms, then holds instead of running away.
+static float feedback_drive(gf_riff* r, rstring* s, int n) {
+    const float target = FB_LEVEL * r->fb * (1.0f - r->pm);
+    if (s->released || !(s->held || s->sustained) || target <= 1e-6f) {
+        s->fb_int = 0.0f;
+        return 0.0f;
+    }
+    if (s->env > FB_ENV_MAX) {
+        s->fb_int = fminf(s->fb_int, 0.0f);
+        return 0.0f;
+    }
+    const float amp = sqrtf(2.0f * s->fb_pow);   // RMS to peak, for a sine
+    // Each trip round the loop scales the harmonic by (1 + drive). First
+    // make up what the loop loses there on a trip (the loss filter's gain
+    // at the harmonic; upper harmonics die fast, so this is most of it on a
+    // high note), then grow or shrink by up to FB_GROWTH nepers a second
+    // towards the target, spread over the trips the loop makes.
+    const double loss = (double)s->lb[0] / den_mag(s->la[0], s->fb_w);
+    const double makeup = loss > 1e-3 ? 1.0 / loss - 1.0 : 0.0;
+    const float err = clampf((target - amp) / target, -1.0f, 1.0f);
+    s->fb_int = clampf(s->fb_int + FB_KI * err * (float)n / r->rate, FB_INT_MIN, FB_INT_MAX);
+    const double drive = makeup + (FB_GROWTH * err + s->fb_int) / note_hz(s->tuned);
+    return (float)fmax(0.0, fmin(drive, FB_DRIVE_MAX));
+}
+
 static void string_chunk(gf_riff* r, rstring* s, float* out, int n, double semis) {
     update_loss(r, s);
     chase_drift(r, s, n);
@@ -879,6 +1018,12 @@ static void string_chunk(gf_riff* r, rstring* s, float* out, int n, double semis
         step[p] = (target_delay(r, s, p, semis) - d0[p]) / (float)n;
     }
     const float k_env = 1.0f - expf(-1.0f / (0.02f * r->rate));
+    const int fb_on = r->fb > 1e-4f && s->tuned >= 0;
+    float drive = 0.0f;
+    if (fb_on) {
+        tune_feedback(r, s);
+        drive = feedback_drive(r, s, n);
+    }
     for (int i = 0; i < n; ++i) {
         if (s->boost_left > 0) {
             s->gain *= s->boost_mul;
@@ -890,11 +1035,21 @@ static void string_chunk(gf_riff* r, rstring* s, float* out, int n, double semis
         }
         float exc = 0.0f;
         if (s->exc_pos < s->exc_len) exc = s->exc[s->exc_pos++];
+        if (fb_on) {
+            // The harmonic, picked out of the string's last sample, fed back.
+            const float x = s->fb_prev;
+            const float y = s->fb_b0 * (x - s->fb_x2) - s->fb_a1 * s->fb_y1 - s->fb_a2 * s->fb_y2;
+            s->fb_x2 = s->fb_x1; s->fb_x1 = x;
+            s->fb_y2 = s->fb_y1; s->fb_y1 = y;
+            s->fb_pow += (y * y - s->fb_pow) * k_env;
+            exc += drive * y;
+        }
         float h = 0.0f;
         for (int p = 0; p < POLS; ++p) {
             s->d[p] = d0[p] + step[p] * (float)(i + 1);
             h += plane_tick(s, p, s->d[p], exc);
         }
+        s->fb_prev = h;
         s->hist[s->w] = h + scrape_tick(r, s);
         s->w = (s->w + 1) & MASK;
         s->env += (h * h - s->env) * k_env;
@@ -973,6 +1128,9 @@ void gf_riff_default_params(gf_riff_params* out) {
     out->level_db = 0.0f;
     out->legato = 0;
     out->legato_overlap = 0;
+    out->pedal_sustain = 0.5f;
+    out->feedback = 0.0f;
+    out->fb_harmonic = 1;
 }
 
 void gf_riff_set_params(gf_riff* r, const gf_riff_params* p) {
@@ -1004,6 +1162,7 @@ void gf_riff_reset(gf_riff* r) {
         memset(s->ap_y, 0, sizeof(s->ap_y));
         s->exc_len = s->exc_pos = 0;
         s->note = -1;
+        s->tuned = -1;
         s->held = s->sustained = s->released = s->active = 0;
         s->repick_left = 0;
         s->scrape_left = 0;
@@ -1016,6 +1175,11 @@ void gf_riff_reset(gf_riff* r) {
         s->n_fingers = 0;
         s->peak_env = 0.0f;
         s->boost_left = 0;
+        s->loss_stretch = 1.0f;
+        s->fb_x1 = s->fb_x2 = s->fb_y1 = s->fb_y2 = 0.0f;
+        s->fb_pow = s->fb_prev = 0.0f;
+        s->fb_note = -1;
+        s->fb_int = 0.0f;
         for (int p = 0; p < POLS; ++p) s->d[p] = 100.0f;
     }
     r->legato_pedal = 0;
@@ -1030,6 +1194,7 @@ static void snap_controls(gf_riff* r) {
     r->hb = r->p.humbucker ? 1.0f : 0.0f;
     r->tone = r->p.tone;
     r->level = powf(10.0f, clampf(r->p.level_db, -60.0f, 12.0f) / 20.0f);
+    r->fb = clampf(r->p.feedback, 0.0f, 1.0f);
     const gf_riff_pickup pk = (gf_riff_pickup)r->p.pickup;
     for (int i = 0; i < 3; ++i) r->pick_w[i] = 0.0f;
     if (pk == GF_RIFF_PICKUP_NECK) r->pick_w[0] = 1.0f;
