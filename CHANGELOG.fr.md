@@ -5,7 +5,7 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/lang/fr/).
 
-## [X.x.x]
+## [3.5.0] - 2026-11-23
 
 ### Ajouté
 - **Ampli** : un module d'ampli guitare avec pédale de saturation (overdrive ou distortion), trois réglages d'ampli et trois baffles. Chaque section s'active et se coupe depuis le panneau ou un footswitch CC.

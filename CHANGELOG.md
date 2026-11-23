@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [X.x.x]
+## [3.5.0] - 2026-11-23
 
 ### Added
 - **Amp**: a guitar amp module with a drive pedal (overdrive or distortion), three amp tone stacks and three speaker cabinets. Each section switches on and off from the panel or a CC footswitch.

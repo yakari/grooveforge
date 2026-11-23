@@ -1,0 +1,8 @@
+Added
+- Riff: an electric guitar modelled string by string, with palm mute, hammer-ons and pull-offs, longer ring on the sustain pedal and feedback.
+- Amp: a guitar amp with drive pedal, three amps and three cabinets, or load your own cabinet IR.
+- CC mappings: a neutral value on release for ribbons and touch strips.
+
+Fixed
+- A bypassed effect played again after restarting the app.
+- A parameter moved by CC now moves its knob on the panel.
