@@ -34,6 +34,33 @@ const String stylophoneMode = 'stylophoneMode';
 /// portamento and vibrato) instead of a FluidSynth soundfont.
 const String thereminMode = 'thereminMode';
 
+/// Sentinel value for [ChannelState.soundfontPath] indicating that this MIDI
+/// channel plays a Riff guitar (`com.grooveforge.riff`), a modelled electric
+/// guitar with its own native engine, instead of a FluidSynth soundfont.
+///
+/// Riff is per rack slot rather than a global singleton, so the engine does
+/// not call it directly: it hands the events to [AudioEngine.riffSink],
+/// which finds the guitar playing on the channel.
+const String riffMode = 'riffMode';
+
+/// Receives the MIDI the engine routes to channels in [riffMode].
+///
+/// Implemented by the rack, which knows which Riff slot sits on which
+/// channel. Called on the hot path: implementations must not block.
+abstract class RiffMidiSink {
+  /// A note picked on 0-based [channel].
+  void riffNoteOn(int channel, int note, int velocity);
+
+  /// A note released on [channel].
+  void riffNoteOff(int channel, int note);
+
+  /// Pitch bend in [-1, 1] on [channel].
+  void riffPitchBend(int channel, double bend);
+
+  /// A MIDI controller on [channel].
+  void riffControlChange(int channel, int controller, int value);
+}
+
 /// A single GFPA-managed jam connection.
 ///
 /// Multiple entries with different
@@ -192,6 +219,10 @@ class ChannelState {
 /// processing incoming MIDI events, and handling advanced features like Smart Jam Mode
 /// and scale synchronization across multiple channels.
 class AudioEngine extends ChangeNotifier {
+  /// Where MIDI for [riffMode] channels goes; set by the rack. Null until a
+  /// rack exists (tests, early startup), when Riff channels stay silent.
+  RiffMidiSink? riffSink;
+
   /// The synthesizer library used for rendering audio on Mobile/macOS.
   final MidiPro _midiPro = MidiPro();
   bool _isInitialized = false;
@@ -745,6 +776,14 @@ class AudioEngine extends ChangeNotifier {
   final Map<int, DateTime> _lastScaleLockTime = {};
 
   SharedPreferences? _prefs;
+
+  /// Lets a test feed [processMidiPacket] without running [init], which needs
+  /// permissions, an audio session and FluidSynth.
+  ///
+  /// Only paths that stay in Dart (CC mappings routed to slot parameters, for
+  /// instance) are safe to drive this way.
+  @visibleForTesting
+  void markInitializedForTest() => _isInitialized = true;
 
   Future<void> init() async {
     if (_isInitialized) {
@@ -1318,6 +1357,7 @@ class AudioEngine extends ChangeNotifier {
     if (path != vocoderMode &&
         path != stylophoneMode &&
         path != thereminMode &&
+        path != riffMode &&
         path != kMidiControllerOnlySoundfont &&
         !loadedSoundfonts.contains(path)) {
       return;
@@ -1397,6 +1437,7 @@ class AudioEngine extends ChangeNotifier {
         state.soundfontPath == vocoderMode ||
         state.soundfontPath == stylophoneMode ||
         state.soundfontPath == thereminMode ||
+        state.soundfontPath == riffMode ||
         state.soundfontPath == kMidiControllerOnlySoundfont) {
       return;
     }
@@ -1694,10 +1735,16 @@ class AudioEngine extends ChangeNotifier {
         case 0xB0:
           if (ccMappingService != null) {
             ccMappingService!.updateLastEvent('CC', channel, data1, data2);
+            // Fed for every CC, mapped or not, so the detector already knows
+            // where a ribbon was when a mapping gets its release value.
+            final isRelease = ccMappingService!.releaseDetector
+                .observe(channel, data1, data2);
             final mappings = ccMappingService!.getMappings(data1);
             if (mappings.isNotEmpty) {
               for (final mapping in mappings) {
-                _dispatchCcMapping(mapping.target, channel, data2);
+                final value =
+                    mapping.effectiveValue(data2, isRelease: isRelease);
+                _dispatchCcMapping(mapping.target, channel, value);
               }
               return;
             }
@@ -1896,7 +1943,9 @@ class AudioEngine extends ChangeNotifier {
     // FluidSynth voices to release.
     final currentOwner = channels[channel].snappedKeyOwners[keyToPlay];
     if (currentOwner != null && currentOwner != key && !midiControllerOnly && !isNativeOsc) {
-      if (!kIsWeb && (Platform.isLinux || Platform.isMacOS || Platform.isWindows)) {
+      if (sfPath == riffMode) {
+        riffSink?.riffNoteOff(channel, keyToPlay);
+      } else if (!kIsWeb && (Platform.isLinux || Platform.isMacOS || Platform.isWindows)) {
         AudioInputFFI().keyboardNoteOff(channel, keyToPlay);
       } else {
         // Android hot path: direct FFI (see `playNote` branch below for
@@ -1928,6 +1977,10 @@ class AudioEngine extends ChangeNotifier {
         final styloPlugin = GFPluginRegistry.instance
             .findById('com.grooveforge.stylophone') as GFStyloPhonePlugin?;
         styloPlugin?.trackNoteOn(keyToPlay);
+      } else if (sfPath == riffMode) {
+        // Polyphonic and snapped like a keyboard; the guitar itself decides
+        // which string plays the note.
+        riffSink?.riffNoteOn(channel, keyToPlay, velocity);
       } else if (sfPath == thereminMode) {
         // Convert MIDI note → Hz and velocity → volume [0, 1].
         final hz = 440.0 * pow(2.0, (keyToPlay - 69.0) / 12.0);
@@ -2007,6 +2060,8 @@ class AudioEngine extends ChangeNotifier {
         if (!midiOnly) {
           if (sfPath == vocoderMode) {
             AudioInputFFI().stopNote(key: keyToStop);
+          } else if (sfPath == riffMode) {
+            riffSink?.riffNoteOff(channel, keyToStop);
           } else if (!kIsWeb && (Platform.isLinux || Platform.isMacOS || Platform.isWindows)) {
             AudioInputFFI().keyboardNoteOff(channel, keyToStop);
           } else {
@@ -2764,6 +2819,9 @@ class AudioEngine extends ChangeNotifier {
     final ccPath = channels[channel].soundfontPath;
     if (ccPath == vocoderMode) {
       AudioInputFFI().controlChange(controller, value);
+    } else if (ccPath == riffMode) {
+      // The guitar takes the mod wheel as vibrato and the sustain pedal.
+      riffSink?.riffControlChange(channel, controller, value);
     } else if (ccPath == kMidiControllerOnlySoundfont ||
         ccPath == stylophoneMode ||
         ccPath == thereminMode) {
@@ -2781,6 +2839,9 @@ class AudioEngine extends ChangeNotifier {
     final pbPath = channels[channel].soundfontPath;
     if (pbPath == vocoderMode) {
       AudioInputFFI().pitchBend(value);
+    } else if (pbPath == riffMode) {
+      // 14-bit bend, centre 8192, to [-1, 1].
+      riffSink?.riffPitchBend(channel, ((value - 8192) / 8192).clamp(-1.0, 1.0));
     } else if (pbPath == kMidiControllerOnlySoundfont ||
         pbPath == stylophoneMode ||
         pbPath == thereminMode) {
@@ -2837,6 +2898,7 @@ class AudioEngine extends ChangeNotifier {
     if (path == kMidiControllerOnlySoundfont ||
         path == stylophoneMode ||
         path == thereminMode ||
+        path == riffMode ||
         path == vocoderMode) {
       return;
     }

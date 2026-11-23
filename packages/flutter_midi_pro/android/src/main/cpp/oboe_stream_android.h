@@ -55,6 +55,11 @@ extern "C" {
 // engine. Neither is a rack source: they are heard, never cabled, and must
 // never be recorded. Both moved to the monitor source below.
 
+/// First of the four bus slots for Riff guitars (104-107), one per guitar in
+/// the native pool (gfpa_riff_pool.h, kRiffSlots). The Dart side assigns
+/// them by the guitar's pool position.
+#define OBOE_BUS_SLOT_RIFF_FIRST 104
+
 // ── Generic audio source render callback ─────────────────────────────────────
 
 /// Render callback type for a generic audio source.

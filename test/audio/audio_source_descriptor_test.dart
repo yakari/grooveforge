@@ -85,6 +85,15 @@ void main() {
       expect(p.describeAudioSource()?.kind, AudioSourceKind.vocoder);
     });
 
+    test('Riff → riff source', () {
+      final p = GFpaPluginInstance(
+        id: 'gfpa-riff',
+        pluginId: 'com.grooveforge.riff',
+        midiChannel: 1,
+      );
+      expect(p.describeAudioSource()?.kind, AudioSourceKind.riff);
+    });
+
     // Every other GFPA plugin is a pure effect or MIDI FX and must
     // return null so the plan builder does not mistake it for a
     // source. These are the cases that regressed in v2.13.0 when a
@@ -99,6 +108,7 @@ void main() {
       'com.grooveforge.chorus',
       'com.grooveforge.audio_harmonizer',
       'com.grooveforge.autotune',
+      'com.grooveforge.amp',
       'com.grooveforge.jammode',
       'com.grooveforge.unknown_plugin',
     ];

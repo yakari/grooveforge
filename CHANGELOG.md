@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [X.x.x]
+
+### Added
+- **Amp**: a guitar amp module with a drive pedal (overdrive or distortion), three amp tone stacks and three speaker cabinets. Each section switches on and off from the panel or a CC footswitch.
+- Amp: load a cabinet **impulse response** (IR) from a `.wav` file, or remove it. It is saved in the project. The help screen lists where to find free ones.
+- **Riff**: an electric guitar modelled string by string. Palm mute, pick position, pickups, tone and sustain act on ringing strings and can all be mapped to CC.
+- CC mappings: **Neutral value on release**, for ribbons and touch strips that drop to 0 when you lift your finger (e.g. 64 to bring pitch bend back to centre). Tap a mapping in the CC preferences to set it.
+
+### Architecture
+- `gf_amp.c`/`.h`: the Amp's DSP. Drive and preamp clippers run at 2x through a polyphase half-band IIR resampler, with first-order antiderivative antialiasing; the tone stack is the Yeh & Smith closed form of the circuit, discretised by the bilinear transform. `gf_amp_smoke_test` checks the tone stack formula against a nodal solve of the circuit, image rejection (over 130 dB), folded energy under full distortion (26 dB less than without antialiasing), click-free switching and cost.
+- `gf_convolver.c`/`.h`: zero-latency convolution for cabinet IRs (direct sum for the first 128 taps, uniformly partitioned FFT for the rest, on the shared `gf_fft`). The Amp prepares each IR off the audio thread for 44.1/48/88.2/96 kHz, trimmed to 100 ms and levelled to the built-in 2x12, and swaps it in with a crossfade. New C entry points `gfpa_dsp_load_ir` and `gfpa_dsp_clear_ir` (the IR fades out before it is dropped). Checked by `gf_convolver_smoke_test`.
+- `gf_riff.c`/`.h`: Riff's DSP, an extended Karplus-Strong / digital waveguide string per string (Lagrange-interpolated delay, per-note loss filter, stiffness all-passes, two planes of vibration, tension glide, pickup combs and coil resonance). `gf_riff_smoke_test` measures tuning from the audio at three rates, decay times, inharmonicity, click-free bends and damping, string assignment and cost.
+- `gfpa_riff.cpp`: Riff sits behind a GFPA DSP handle for its knobs, in a fixed pool of four guitars that is never freed, so a render racing a slot's removal plays silence. MIDI reaches it through a lock-free queue; new C entry points `gfpa_riff_*`. Android gets bus slots 104-107 and 12 bus sources. Checked by `gf_riff_pool_smoke_test`.
+- New dependency `url_launcher`, to open links from the help screen.
+
 ## [3.3.0] - 2026-10-04
 
 ### Changed

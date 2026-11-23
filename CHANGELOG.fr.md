@@ -5,6 +5,21 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/lang/fr/).
 
+## [X.x.x]
+
+### Ajouté
+- **Ampli** : un module d'ampli guitare avec pédale de saturation (overdrive ou distortion), trois réglages d'ampli et trois baffles. Chaque section s'active et se coupe depuis le panneau ou un footswitch CC.
+- **Riff** : une guitare électrique modélisée corde par corde. Palm mute, position du médiator, micros, tonalité et sustain agissent sur les cordes qui sonnent et peuvent tous être associés à des CC.
+- Ampli : chargement d'une **réponse impulsionnelle** (IR) de baffle depuis un fichier `.wav`, ou son retrait. Elle est enregistrée dans le projet. L'écran d'aide indique où en trouver de gratuites.
+- Mappings CC : **Valeur neutre au relâchement**, pour les ribbons et touch strips qui retombent à 0 quand on lève le doigt (par exemple 64 pour ramener le pitch bend au centre). Touchez un mapping dans les préférences CC pour la régler.
+
+### Architecture
+- `gf_amp.c`/`.h` : le DSP de l'Ampli. Les saturations de la pédale et du préampli tournent à 2x via un rééchantillonneur IIR demi-bande polyphase, avec un antialiasing par antidérivée du premier ordre ; les réglages de tonalité sont la forme exacte du circuit selon Yeh et Smith, discrétisée par la transformée bilinéaire. `gf_amp_smoke_test` compare la formule à une résolution nodale du circuit et mesure la réjection des images (plus de 130 dB), le repliement en distorsion maximale (26 dB de moins que sans antialiasing), l'absence de clic aux bascules et le coût.
+- `gf_convolver.c`/`.h` : convolution sans latence pour les IR de baffle (somme directe sur les 128 premiers échantillons, FFT partitionnée uniforme pour la suite, sur le `gf_fft` commun). L'Ampli prépare chaque IR hors du thread audio pour 44,1/48/88,2/96 kHz, la coupe à 100 ms, l'aligne sur le niveau du 2x12 intégré et la remplace avec un fondu. Nouveaux points d'entrée C `gfpa_dsp_load_ir` et `gfpa_dsp_clear_ir` (l'IR s'estompe avant d'être retirée). Vérifié par `gf_convolver_smoke_test`.
+- `gf_riff.c`/`.h` : le DSP de Riff, une corde Karplus-Strong étendue / guide d'onde numérique par corde (retard interpolé de Lagrange, filtre de pertes calculé par note, passe-tout de raideur, deux plans de vibration, glissement de tension, peignes des micros et résonance de la bobine). `gf_riff_smoke_test` mesure la justesse dans le son à trois fréquences d'échantillonnage, les durées de résonance, l'inharmonicité, l'absence de clic aux bends et aux étouffements, l'attribution des cordes et le coût.
+- `gfpa_riff.cpp` : Riff passe par un handle DSP GFPA pour ses réglages, dans un pool fixe de quatre guitares jamais libéré, si bien qu'un rendu concurrent de la suppression d'un slot joue du silence. Le MIDI lui parvient par une file sans verrou ; nouveaux points d'entrée C `gfpa_riff_*`. Android passe aux emplacements de bus 104-107 et à 12 sources. Vérifié par `gf_riff_pool_smoke_test`.
+- Nouvelle dépendance `url_launcher`, pour ouvrir les liens de l'écran d'aide.
+
 ## [3.3.0] - 2026-10-04
 
 ### Modifié

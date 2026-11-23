@@ -654,6 +654,7 @@ class _SourceSelector extends StatelessWidget {
         'com.grooveforge.vocoder',
         'com.grooveforge.theremin',
         'com.grooveforge.stylophone',
+        kRiffPluginId,
       };
       if (audioPluginIds.contains(plugin.pluginId)) return true;
       // Any GFPA audio-effect descriptor (reverb, delay, EQ, …) also has

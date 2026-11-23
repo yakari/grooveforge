@@ -131,7 +131,11 @@ class CcPreferencesScreen extends StatelessWidget {
                 leading: Icon(_iconForTarget(mapping.target),
                     color: Colors.blueAccent),
                 title: Text(_mappingTitle(context, mapping)),
-                subtitle: Text(_mappingSubtitle(context, mapping)),
+                subtitle: Text(_subtitleWithRelease(context, mapping)),
+                // Only continuous targets have a release behaviour to edit.
+                onTap: CcMapping.supportsReleaseValue(mapping.target)
+                    ? () => _showReleaseValueDialog(context, ccService, mapping)
+                    : null,
                 trailing: IconButton(
                   icon: const Icon(Icons.delete, color: Colors.redAccent),
                   onPressed: () {
@@ -175,6 +179,15 @@ class CcPreferencesScreen extends StatelessWidget {
       GlobalTarget(:final action) => _globalLabel(action, l10n),
     };
     return l10n.ccMappingHardwareToTarget(mapping.incomingCc, targetName);
+  }
+
+  /// [_mappingSubtitle] plus the release value, when one is set.
+  String _subtitleWithRelease(BuildContext context, CcMapping mapping) {
+    final base = _mappingSubtitle(context, mapping);
+    final release = mapping.releaseValue;
+    if (release == null) return base;
+    final summary = AppLocalizations.of(context)!.ccReleaseValueSummary(release);
+    return base.isEmpty ? summary : '$base · $summary';
   }
 
   String _mappingSubtitle(BuildContext context, CcMapping mapping) {
@@ -273,6 +286,21 @@ class CcPreferencesScreen extends StatelessWidget {
     context.read<RackState>().markDirty();
   }
 
+  // ── Release value dialog ───────────────────────────────────────────────
+
+  /// Edits the release value of an existing [mapping] in place.
+  void _showReleaseValueDialog(
+    BuildContext context,
+    CcMappingService ccService,
+    CcMapping mapping,
+  ) {
+    showDialog(
+      context: context,
+      builder: (_) =>
+          _ReleaseValueDialog(ccService: ccService, mapping: mapping),
+    );
+  }
+
   // ── Add mapping dialog ─────────────────────────────────────────────────
 
   void _showAddMappingDialog(BuildContext context, CcMappingService ccService) {
@@ -341,6 +369,9 @@ class _AddMappingDialogState extends State<_AddMappingDialog> {
 
   // Transport
   TransportAction _transportAction = TransportAction.playStop;
+
+  /// Value sent on ribbon release, or null when the option is off.
+  int? _releaseValue;
 
   @override
   void initState() {
@@ -426,6 +457,15 @@ class _AddMappingDialogState extends State<_AddMappingDialog> {
 
               // ── Category-specific sub-picker ─────────────────────────
               if (_category != null) _buildSubPicker(context),
+
+              // ── Release value (continuous targets only) ──────────────
+              if (_targetSupportsRelease) ...[
+                const SizedBox(height: 16),
+                _ReleaseValueEditor(
+                  value: _releaseValue,
+                  onChanged: (v) => setState(() => _releaseValue = v),
+                ),
+              ],
             ],
           ),
         ),
@@ -441,6 +481,12 @@ class _AddMappingDialogState extends State<_AddMappingDialog> {
         ),
       ],
     );
+  }
+
+  /// Whether the target being built is one a release value applies to.
+  bool get _targetSupportsRelease {
+    final target = _buildTarget();
+    return target != null && CcMapping.supportsReleaseValue(target);
   }
 
   bool get _canSave =>
@@ -813,6 +859,7 @@ class _AddMappingDialogState extends State<_AddMappingDialog> {
     'com.grooveforge.chorus',
     'com.grooveforge.wah',
     'com.grooveforge.autotune',
+    'com.grooveforge.amp',
   };
 
   static const _midiFxPluginIds = {
@@ -898,7 +945,14 @@ class _AddMappingDialogState extends State<_AddMappingDialog> {
     final incoming = int.tryParse(_incomingController.text);
     final target = _buildTarget();
     if (incoming == null || target == null) return;
-    widget.ccService.addMapping(CcMapping(incomingCc: incoming, target: target));
+    widget.ccService.addMapping(CcMapping(
+      incomingCc: incoming,
+      target: target,
+      // The editor is hidden for non-continuous targets, but its state
+      // survives a category change — do not save a value nobody can see.
+      releaseValue:
+          CcMapping.supportsReleaseValue(target) ? _releaseValue : null,
+    ));
     // Mark project dirty so autosave captures the change.
     context.read<RackState>().markDirty();
     Navigator.pop(context);
@@ -963,5 +1017,115 @@ class _MuteChannelSelector extends StatelessWidget {
         ),
       ],
     );
+  }
+}
+
+// ── Release value editor ─────────────────────────────────────────────────────
+
+/// Neutral value sent to the target when a ribbon or touch strip is let go.
+///
+/// A switch turns the option on (defaulting to 64, the centre of the range
+/// and of pitch bend), and a slider picks the value. The help text names the
+/// controls it is for, since it would misfire on a knob turned fast to 0.
+class _ReleaseValueEditor extends StatelessWidget {
+  /// Current release value, or null when the option is off.
+  final int? value;
+
+  /// Called with the new value, or null when the option is switched off.
+  final ValueChanged<int?> onChanged;
+
+  /// Value proposed when the option is switched on.
+  static const int _defaultValue = 64;
+
+  const _ReleaseValueEditor({required this.value, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final current = value;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: Text(l10n.ccReleaseValueTitle),
+          subtitle: Text(
+            l10n.ccReleaseValueHelp,
+            style: const TextStyle(fontSize: 12, color: Colors.grey),
+          ),
+          value: current != null,
+          onChanged: (on) => onChanged(on ? _defaultValue : null),
+        ),
+        if (current != null) _buildSlider(l10n, current),
+      ],
+    );
+  }
+
+  Widget _buildSlider(AppLocalizations l10n, int current) {
+    return Row(
+      children: [
+        Text(l10n.ccReleaseValueLabel(current)),
+        Expanded(
+          child: Slider(
+            value: current.toDouble(),
+            min: 0,
+            max: 127,
+            divisions: 127,
+            label: '$current',
+            onChanged: (v) => onChanged(v.round()),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Dialog editing the release value of an existing mapping.
+class _ReleaseValueDialog extends StatefulWidget {
+  final CcMappingService ccService;
+  final CcMapping mapping;
+
+  const _ReleaseValueDialog({required this.ccService, required this.mapping});
+
+  @override
+  State<_ReleaseValueDialog> createState() => _ReleaseValueDialogState();
+}
+
+class _ReleaseValueDialogState extends State<_ReleaseValueDialog> {
+  late int? _releaseValue = widget.mapping.releaseValue;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return AlertDialog(
+      title: Text(l10n.ccReleaseValueDialogTitle(widget.mapping.incomingCc)),
+      content: SizedBox(
+        width: 400,
+        child: _ReleaseValueEditor(
+          value: _releaseValue,
+          onChanged: (v) => setState(() => _releaseValue = v),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(l10n.actionCancel),
+        ),
+        ElevatedButton(
+          onPressed: _save,
+          child: Text(l10n.actionDone),
+        ),
+      ],
+    );
+  }
+
+  void _save() {
+    widget.ccService.replaceMapping(
+      widget.mapping,
+      widget.mapping.withReleaseValue(_releaseValue),
+    );
+    context.read<RackState>().markDirty();
+    Navigator.pop(context);
   }
 }

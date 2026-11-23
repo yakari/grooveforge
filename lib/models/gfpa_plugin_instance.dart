@@ -4,6 +4,9 @@ import '../audio/audio_source_descriptor.dart';
 import 'keyboard_display_config.dart';
 import 'plugin_instance.dart';
 
+/// Plugin id of Riff, the modelled electric guitar.
+const String kRiffPluginId = 'com.grooveforge.riff';
+
 /// A rack slot backed by a GFPA (GrooveForge Plugin API) plugin.
 ///
 /// The plugin is identified by [pluginId] and resolved at runtime from
@@ -13,8 +16,8 @@ import 'plugin_instance.dart';
 ///
 /// Serialised as `"type": "gfpa"` in `.gf` project files.
 class GFpaPluginInstance with AudioSourcePlugin implements PluginInstance {
-  /// Returns a descriptor for the three GFPA instruments that produce
-  /// audio (theremin, stylophone, vocoder), or `null` for any other
+  /// Returns a descriptor for the GFPA instruments that produce audio
+  /// (theremin, stylophone, vocoder, Riff), or `null` for any other
   /// `pluginId` (effects, MIDI FX, and unrecognised slots). The plan
   /// builder uses `null` as the "skip — this is not a source" signal.
   @override
@@ -25,6 +28,8 @@ class GFpaPluginInstance with AudioSourcePlugin implements PluginInstance {
           const AudioSourceDescriptor(kind: AudioSourceKind.stylophone),
         'com.grooveforge.vocoder' =>
           const AudioSourceDescriptor(kind: AudioSourceKind.vocoder),
+        kRiffPluginId =>
+          const AudioSourceDescriptor(kind: AudioSourceKind.riff),
         _ => null,
       };
 

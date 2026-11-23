@@ -268,6 +268,59 @@ class NativeBindings {
           double Function(Pointer<Void>, Pointer<Utf8>)
       >('gfpa_dsp_get_readout');
 
+  /// Load a cabinet impulse response into an Amp instance (gfpa_dsp_load_ir).
+  /// Returns 0 on success, -1 when the handle is not an Amp or the IR is
+  /// unusable.
+  late final int Function(Pointer<Void>, Pointer<Float>, int, double)
+      gfpaDspLoadIr = lib.lookupFunction<
+          Int32 Function(Pointer<Void>, Pointer<Float>, Int32, Double),
+          int Function(Pointer<Void>, Pointer<Float>, int, double)
+      >('gfpa_dsp_load_ir');
+
+  /// Remove an Amp instance's cabinet impulse response (gfpa_dsp_clear_ir).
+  /// Returns 0 on success, -1 when the handle is not an Amp.
+  late final int Function(Pointer<Void>) gfpaDspClearIr = lib.lookupFunction<
+      Int32 Function(Pointer<Void>),
+      int Function(Pointer<Void>)
+  >('gfpa_dsp_clear_ir');
+
+  /// Riff guitar: pick a note (gfpa_riff_note_on). Queued for the audio
+  /// thread; a no-op on a handle that is not a Riff.
+  late final void Function(Pointer<Void>, int, int) gfpaRiffNoteOn =
+      lib.lookupFunction<
+          Void Function(Pointer<Void>, Int32, Int32),
+          void Function(Pointer<Void>, int, int)
+      >('gfpa_riff_note_on');
+
+  /// Riff guitar: let go of a note (gfpa_riff_note_off).
+  late final void Function(Pointer<Void>, int) gfpaRiffNoteOff =
+      lib.lookupFunction<
+          Void Function(Pointer<Void>, Int32),
+          void Function(Pointer<Void>, int)
+      >('gfpa_riff_note_off');
+
+  /// Riff guitar: pitch bend in [-1, 1] (gfpa_riff_pitch_bend).
+  late final void Function(Pointer<Void>, double) gfpaRiffPitchBend =
+      lib.lookupFunction<
+          Void Function(Pointer<Void>, Double),
+          void Function(Pointer<Void>, double)
+      >('gfpa_riff_pitch_bend');
+
+  /// Riff guitar: a MIDI controller (gfpa_riff_control_change).
+  late final void Function(Pointer<Void>, int, int) gfpaRiffControlChange =
+      lib.lookupFunction<
+          Void Function(Pointer<Void>, Int32, Int32),
+          void Function(Pointer<Void>, int, int)
+      >('gfpa_riff_control_change');
+
+  /// Riff guitar: the address of its desktop render function
+  /// (gfpa_riff_render_fn), 0 when the handle is not a Riff.
+  late final int Function(Pointer<Void>) gfpaRiffRenderFn =
+      lib.lookupFunction<
+          IntPtr Function(Pointer<Void>),
+          int Function(Pointer<Void>)
+      >('gfpa_riff_render_fn');
+
   /// Set the bypass state of a DSP instance.
   ///
   /// When bypassed (true), the insert callback copies input to output unchanged.

@@ -829,6 +829,30 @@
   "rackAddAudioHarmonizer": "Audio Harmonizer",
   "rackAddAudioHarmonizerSubtitle": "Up to 4 pitch-shifted harmony voices from any audio input",
   "rackAddAutotune": "Autotune",
+  "rackAddRiff": "Riff",
+  "rackAddRiffSubtitle": "Modelled electric guitar, string by string; cable it into the Amp",
+  "rackAddAmp": "Amp",
+  "rackAddAmpSubtitle": "Guitar amp: drive pedal, amp tone stack and speaker cabinet",
+  "ampIrNone": "Cabinet IR: none loaded",
+  "ampIrLoaded": "Cabinet IR: {name}",
+  "@ampIrLoaded": {"placeholders": {"name": {"type": "String"}}},
+  "ampIrLoad": "Load IR",
+  "ampIrRemove": "Remove the IR",
+  "ampIrPickTitle": "Choose a cabinet impulse response (.wav)",
+  "ampIrNotWav": "This file is not a WAV file.",
+  "ampIrUnsupported": "This WAV uses a compressed format. Export it as a PCM or float WAV.",
+  "ampIrEmpty": "This file contains no sound.",
+  "ampIrUnreadable": "Could not read this file.",
+  "ampIrRejected": "The amp could not use this IR.",
+  "guideRiffTitle": "Riff, the modelled guitar",
+  "guideRiffBody": "Riff is an electric guitar simulated string by string. Play it from any keyboard or MIDI source: each note goes to a string a guitarist would use, so two notes on the same string cut each other off as on a real guitar. The pitch wheel bends (a whole tone by default, see Bend), the mod wheel adds vibrato and the sustain pedal lets released strings ring.\nPalm mute, Pick position, Attack, the pickup selector, Tone and Sustain all act on strings that are already ringing: map them to a pedal, a knob or a ribbon in the CC settings and play them like a guitarist's hands. Cable Riff into the Amp for crunch and distortion; the Overdrive pedal gives the most natural result.",
+  "guideAmpTitle": "Amp and cabinet IRs",
+  "guideAmpBody": "The Amp turns a clean guitar into an amplified one, in three sections you can switch on and off, by hand or with a footswitch mapped in the CC settings: a Drive pedal (Overdrive or Distortion), the Amp itself (gain and its Bass / Middle / Treble), and the speaker Cab.\nMost of a guitar sound comes from the cabinet. Besides the three built-in cabinets, the Amp can play an impulse response (IR): a recording of a real cabinet and its microphone. Tap Load IR under the Amp, pick a .wav file, and the Cabinet selector switches to IR. The file is saved inside your project; the cross next to its name removes it.",
+  "guideAmpIrSourcesTitle": "Where to find free cabinet IRs",
+  "guideAmpIrSourcesNote": "Each pack comes with its own licence: free to play through, but usually not to share. Download them yourself from these sites.",
+  "guideIrSourceTone3000": "TONE3000: a community library with thousands of free IRs",
+  "guideIrSourceKalthallen": "Kalthallen Cabs: free and paid packs of classic cabinets",
+  "guideIrSourceCelestion": "Celestion: a free IR from the speaker maker",
   "rackAddAutotuneSubtitle": "Snaps your voice onto the notes of a scale, from subtle to robot",
   "autotuneListening": "Sing something…",
   "autotuneCents": "{cents} ¢",
@@ -1943,5 +1967,31 @@
   "audioOutputPathRestoring": "Reopening the audio stream…",
   "audioOutputPathRestoreFailed": "Low latency is still refused. Restarting GrooveForge clears it; if it comes back at once, this phone's audio service is failing on the fast path.",
   "audioOutputPathIndicatorTooltip": "Audio is delayed — tap for details",
-  "audioOutputPathRestartHint": "Force-quitting GrooveForge also clears this, and is the fastest fix if you are on stage."
+  "audioOutputPathRestartHint": "Force-quitting GrooveForge also clears this, and is the fastest fix if you are on stage.",
+  "ccReleaseValueTitle": "Neutral value on release",
+  "ccReleaseValueHelp": "For ribbons and touch strips that jump back to 0 when you lift your finger. Leave off for knobs, faders, wheels, pedals and pads. If your controller has a hold or latch mode, use it to keep the last value.",
+  "ccReleaseValueLabel": "Value: {value}",
+  "@ccReleaseValueLabel": {
+    "placeholders": {
+      "value": {
+        "type": "int"
+      }
+    }
+  },
+  "ccReleaseValueSummary": "returns to {value} on release",
+  "@ccReleaseValueSummary": {
+    "placeholders": {
+      "value": {
+        "type": "int"
+      }
+    }
+  },
+  "ccReleaseValueDialogTitle": "CC {cc}: release",
+  "@ccReleaseValueDialogTitle": {
+    "placeholders": {
+      "cc": {
+        "type": "int"
+      }
+    }
+  }
 }

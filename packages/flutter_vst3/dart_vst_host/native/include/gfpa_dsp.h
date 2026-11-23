@@ -38,7 +38,8 @@ typedef void (*GfpaInsertFn)(const float* inL, const float* inR,
 /// [pluginId] must be one of:
 ///   "com.grooveforge.reverb", "com.grooveforge.delay", "com.grooveforge.wah",
 ///   "com.grooveforge.eq", "com.grooveforge.compressor", "com.grooveforge.chorus",
-///   "com.grooveforge.audio_harmonizer", "com.grooveforge.autotune"
+///   "com.grooveforge.audio_harmonizer", "com.grooveforge.autotune",
+///   "com.grooveforge.amp"
 ///
 /// Returns NULL for unrecognised IDs.
 /// [sampleRate] and [blockSize] are used to pre-size internal delay buffers.
@@ -64,6 +65,61 @@ DVH_API void gfpa_dsp_set_param(GfpaDspHandle handle,
 /// for any other effect or id. Lock-free; safe from the Dart isolate.
 DVH_API double gfpa_dsp_get_readout(GfpaDspHandle handle,
                                      const char* readoutId);
+
+/// Load a speaker-cabinet impulse response into an Amp instance.
+///
+/// [samples] holds [n] mono samples recorded at [sampleRate] Hz; they are
+/// copied, so the caller may free them as soon as this returns. The IR is
+/// trimmed, resampled and levelled on the calling thread (a few tens of ms
+/// for a long file), then picked up by the audio thread at its next block
+/// and crossfaded in. It is heard when the Amp's cabinet selector is on
+/// "IR". Must not be called from the audio thread.
+///
+/// Returns 0 on success, -1 when [handle] is not an Amp or the IR is unusable
+/// (empty, silent, unsupported rate) or memory ran out.
+DVH_API int32_t gfpa_dsp_load_ir(GfpaDspHandle handle, const float* samples,
+                                  int32_t n, double sampleRate);
+
+/// Remove the cabinet impulse response loaded into an Amp DSP instance.
+///
+/// The audio thread fades the IR out over ~10 ms at its next block, then the
+/// cabinet selector's "IR" option falls back to the built-in 2x12. Must not
+/// be called from the audio thread.
+///
+/// Returns 0 on success, -1 when [handle] is not an Amp.
+DVH_API int32_t gfpa_dsp_clear_ir(GfpaDspHandle handle);
+
+// ── Riff guitar ──────────────────────────────────────────────────────────────
+//
+// gfpa_dsp_create("com.grooveforge.riff") returns a handle to a Riff guitar
+// (native_audio/gf_riff.h) — an instrument, not an effect. Its knobs go
+// through gfpa_dsp_set_param like any effect's, and gfpa_dsp_set_bypass
+// mutes it; its sound comes from the render functions below, which the host
+// registers as a source. At most four guitars exist at once: a fifth create
+// returns NULL. The MIDI calls queue the event for the audio thread's next
+// block and return at once; call them from the Dart isolate, never the
+// audio thread. All are no-ops on a handle that is not a Riff.
+
+/// Pick [note] (MIDI 0-127) at [velocity] (1-127; 0 is a note-off).
+DVH_API void gfpa_riff_note_on(GfpaDspHandle handle, int32_t note, int32_t velocity);
+
+/// Let go of [note].
+DVH_API void gfpa_riff_note_off(GfpaDspHandle handle, int32_t note);
+
+/// Pitch bend in [-1, 1], scaled by the guitar's bend range.
+DVH_API void gfpa_riff_pitch_bend(GfpaDspHandle handle, double bend);
+
+/// Controller: 1 = vibrato depth, 64 = sustain pedal, 120/123 = all notes off.
+DVH_API void gfpa_riff_control_change(GfpaDspHandle handle, int32_t cc, int32_t value);
+
+/// The guitar's render function for the desktop hosts, as a DvhRenderFn
+/// address (dvh_add_master_render / dvh_set_master_insert_chain); 0 when
+/// [handle] is not a Riff. Stays valid for the life of the process.
+DVH_API intptr_t gfpa_riff_render_fn(GfpaDspHandle handle);
+
+/// The same for the Android AAudio bus, as an AudioSourceRenderFn address
+/// (oboe_stream_add_source); 0 when [handle] is not a Riff.
+DVH_API intptr_t gfpa_riff_bus_render_fn(GfpaDspHandle handle);
 
 /// Set the bypass state of a DSP instance.
 ///

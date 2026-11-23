@@ -73,6 +73,7 @@ dependencies:
   bonsoir: ^7.1.4
   audio_session: ^0.2.2
   ffi: ^2.2.0
+  url_launcher: ^6.3.3
 
 dependency_overrides:
   flutter_midi_command_linux:

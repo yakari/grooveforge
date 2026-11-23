@@ -131,6 +131,15 @@ class SlotBackPanelWidget extends StatelessWidget {
           AudioPortId.audioOutR,
         ];
       }
+      // Riff is a descriptor-backed instrument: it plays MIDI into audio,
+      // so it gets an instrument's jacks despite its effect-style descriptor.
+      if (plugin.pluginId == kRiffPluginId) {
+        return [
+          AudioPortId.midiIn,
+          AudioPortId.audioOutL,
+          AudioPortId.audioOutR,
+        ];
+      }
       // Look up the plugin type from the registry. Descriptor-based effect
       // plugins (GFEffectPlugin) process audio: they need stereo IN + OUT and
       // no MIDI jack. Unknown or unregistered plugins fall back to instrument

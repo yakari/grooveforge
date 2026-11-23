@@ -353,6 +353,34 @@ class _AddPluginSheetContentState extends State<_AddPluginSheetContent> {
               },
             ),
 
+            // ── Riff (modelled electric guitar) — native engine only.
+            _PluginTile(
+              nativeOnly: true,
+              icon: Icons.electric_bolt,
+              iconColor: Colors.amberAccent,
+              title: l10n.rackAddRiff,
+              subtitle: l10n.rackAddRiffSubtitle,
+              onTap: () {
+                Navigator.pop(context);
+                final ch = rack.nextAvailableMidiChannel();
+                if (ch == -1) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('All 16 MIDI channels are already in use.'),
+                    ),
+                  );
+                  return;
+                }
+                rack.addPlugin(
+                  GFpaPluginInstance(
+                    id: rack.generateSlotId(),
+                    pluginId: kRiffPluginId,
+                    midiChannel: ch,
+                  ),
+                );
+              },
+            ),
+
             // ── Jam Mode (GFPA MIDI FX)
             _PluginTile(
               icon: Icons.link,
@@ -650,6 +678,16 @@ class _AddPluginSheetContentState extends State<_AddPluginSheetContent> {
               subtitle: l10n.rackAddAutotuneSubtitle,
               onTap: () => _addDescriptorPlugin(
                 context, rack, 'com.grooveforge.autotune',
+              ),
+            ),
+            _PluginTile(
+              nativeOnly: true,
+              icon: Icons.speaker,
+              iconColor: Colors.deepOrangeAccent,
+              title: l10n.rackAddAmp,
+              subtitle: l10n.rackAddAmpSubtitle,
+              onTap: () => _addDescriptorPlugin(
+                context, rack, 'com.grooveforge.amp',
               ),
             ),
 

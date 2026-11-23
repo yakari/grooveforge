@@ -229,6 +229,50 @@ class VstHost {
     }
   }
 
+  /// Load a speaker-cabinet impulse response into an Amp DSP instance.
+  ///
+  /// [samples] are mono, recorded at [sampleRate] Hz. They are copied into
+  /// native memory for the call and freed afterwards: the native side keeps
+  /// its own prepared copy. Returns true on success.
+  bool loadGfpaIr(Pointer<Void> dspHandle, Float32List samples, double sampleRate) {
+    final buf = malloc<Float>(samples.length);
+    try {
+      buf.asTypedList(samples.length).setAll(0, samples);
+      return _b.gfpaDspLoadIr(dspHandle, buf, samples.length, sampleRate) == 0;
+    } finally {
+      malloc.free(buf);
+    }
+  }
+
+  /// Remove the cabinet impulse response from an Amp DSP instance; the IR
+  /// fades out and "IR" falls back to the built-in 2x12. Returns true on
+  /// success.
+  bool clearGfpaIr(Pointer<Void> dspHandle) =>
+      _b.gfpaDspClearIr(dspHandle) == 0;
+
+  /// Picks [note] at [velocity] on a Riff guitar DSP instance. The event is
+  /// queued for the audio thread's next block; the call returns at once.
+  void riffNoteOn(Pointer<Void> dspHandle, int note, int velocity) =>
+      _b.gfpaRiffNoteOn(dspHandle, note, velocity);
+
+  /// Lets go of [note] on a Riff guitar.
+  void riffNoteOff(Pointer<Void> dspHandle, int note) =>
+      _b.gfpaRiffNoteOff(dspHandle, note);
+
+  /// Pitch bend in [-1, 1] on a Riff guitar, scaled by its bend range.
+  void riffPitchBend(Pointer<Void> dspHandle, double bend) =>
+      _b.gfpaRiffPitchBend(dspHandle, bend);
+
+  /// A MIDI controller on a Riff guitar: 1 = vibrato, 64 = sustain pedal,
+  /// 120/123 = all notes off. Others are ignored.
+  void riffControlChange(Pointer<Void> dspHandle, int cc, int value) =>
+      _b.gfpaRiffControlChange(dspHandle, cc, value);
+
+  /// Address of a Riff guitar's render function, to register as a master
+  /// render source (a DvhRenderFn); 0 when [dspHandle] is not a Riff.
+  int riffRenderFnAddress(Pointer<Void> dspHandle) =>
+      _b.gfpaRiffRenderFn(dspHandle);
+
   /// Set the bypass state of a GFPA DSP instance.
   ///
   /// When [bypassed] is true, the effect's insert callback copies input to

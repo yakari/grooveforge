@@ -117,6 +117,37 @@ if (NOT ANDROID AND NOT IOS)
     endif()
 endif()
 
+# Cabinet impulse responses: the convolver against a direct sum, and the
+# amp's IR cabinet (preparation, level matching, swaps, rate changes).
+if (NOT ANDROID AND NOT IOS)
+    add_executable(gf_convolver_smoke_test EXCLUDE_FROM_ALL
+        gf_convolver_smoke_test.c gf_convolver.c gf_amp.c gf_fft.c)
+    if (UNIX)
+        target_link_libraries(gf_convolver_smoke_test PRIVATE m)
+    endif()
+endif()
+
+# Riff, the modelled guitar: tuning measured from the audio, decay times,
+# clean bends and damping, string assignment, pickups, cost.
+if (NOT ANDROID AND NOT IOS)
+    add_executable(gf_riff_smoke_test EXCLUDE_FROM_ALL
+        gf_riff_smoke_test.c gf_riff.c)
+    if (UNIX)
+        target_link_libraries(gf_riff_smoke_test PRIVATE m)
+    endif()
+endif()
+
+# Guitar amp simulator. Pure arithmetic like the FFT test: the tone stack is
+# checked against an independent solve of its circuit, and aliasing is
+# measured on exact spectral bins.
+if (NOT ANDROID AND NOT IOS)
+    add_executable(gf_amp_smoke_test EXCLUDE_FROM_ALL
+        gf_amp_smoke_test.c gf_amp.c gf_convolver.c gf_fft.c)
+    if (UNIX)
+        target_link_libraries(gf_amp_smoke_test PRIVATE m)
+    endif()
+endif()
+
 # Phase vocoder time-stretching. Uses miniaudio's built-in WAV encoder.
 if (NOT ANDROID AND NOT IOS)
     add_executable(gf_pv_smoke_test EXCLUDE_FROM_ALL
@@ -196,11 +227,15 @@ if (NOT ANDROID AND NOT IOS)
         add_executable(gf_harmonizer_smoke_test EXCLUDE_FROM_ALL
             gf_harmonizer_smoke_test.c
             ${GF_GFPA_DIR}/src/gfpa_dsp.cpp
+            ${GF_GFPA_DIR}/src/gfpa_riff.cpp
+            gf_riff.c
             gf_phase_vocoder.c
             gf_fft.c
             gf_harmony.c
             gf_pitch.c
-            gf_autotune.c)
+            gf_autotune.c
+            gf_amp.c
+            gf_convolver.c)
         set_target_properties(gf_harmonizer_smoke_test PROPERTIES LINKER_LANGUAGE CXX)
         target_include_directories(gf_harmonizer_smoke_test PRIVATE
             ${GF_GFPA_DIR}/include
@@ -214,17 +249,43 @@ if (NOT ANDROID AND NOT IOS)
         add_executable(gf_autotune_smoke_test EXCLUDE_FROM_ALL
             gf_autotune_smoke_test.c
             ${GF_GFPA_DIR}/src/gfpa_dsp.cpp
+            ${GF_GFPA_DIR}/src/gfpa_riff.cpp
+            gf_riff.c
             gf_phase_vocoder.c
             gf_fft.c
             gf_harmony.c
             gf_pitch.c
-            gf_autotune.c)
+            gf_autotune.c
+            gf_amp.c
+            gf_convolver.c)
         set_target_properties(gf_autotune_smoke_test PROPERTIES LINKER_LANGUAGE CXX)
         target_include_directories(gf_autotune_smoke_test PRIVATE
             ${GF_GFPA_DIR}/include
             ${CMAKE_CURRENT_SOURCE_DIR})
         if (UNIX)
             target_link_libraries(gf_autotune_smoke_test PRIVATE m)
+        endif()
+
+        # Riff through the GFPA C API: the guitar pool, its render
+        # trampolines, slot reuse and rate following.
+        add_executable(gf_riff_pool_smoke_test EXCLUDE_FROM_ALL
+            gf_riff_pool_smoke_test.c
+            ${GF_GFPA_DIR}/src/gfpa_dsp.cpp
+            ${GF_GFPA_DIR}/src/gfpa_riff.cpp
+            gf_riff.c
+            gf_phase_vocoder.c
+            gf_fft.c
+            gf_harmony.c
+            gf_pitch.c
+            gf_autotune.c
+            gf_amp.c
+            gf_convolver.c)
+        set_target_properties(gf_riff_pool_smoke_test PROPERTIES LINKER_LANGUAGE CXX)
+        target_include_directories(gf_riff_pool_smoke_test PRIVATE
+            ${GF_GFPA_DIR}/include
+            ${CMAKE_CURRENT_SOURCE_DIR})
+        if (UNIX)
+            target_link_libraries(gf_riff_pool_smoke_test PRIVATE m)
         endif()
     endif()
 endif()

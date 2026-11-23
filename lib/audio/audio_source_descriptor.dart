@@ -76,6 +76,11 @@ enum AudioSourceKind {
   /// passthrough).
   liveInput,
 
+  /// The Riff modelled guitar (`com.grooveforge.riff`). Unlike the three
+  /// mono instruments it is per slot: each slot owns its own native guitar,
+  /// resolved through the slot's GFPA DSP handle.
+  riff,
+
   /// A VST3 plugin instrument. Desktop only — Android resolvers
   /// return `null` for this kind, and the plan builder silently
   /// drops VST3 sources when running under the Oboe capability profile.

@@ -75,6 +75,18 @@
       <strong>CAM mode</strong> on some platforms (motion via front camera — see <a href="../privacy/">privacy policy</a>).
     </p>
 
+    <h2 id="riff">Riff</h2>
+    <p>
+      An electric guitar simulated string by string instead of played from recordings, so it bends, mutes and rings like
+      one. Play it from any keyboard or MIDI source: each note goes to a string a guitarist would use, and two notes on the
+      same string cut each other off, as on a real guitar. The pitch wheel bends (a whole tone by default), the mod wheel
+      adds vibrato and the sustain pedal lets released strings ring. <strong>Palm mute</strong>, <strong>Pick
+      position</strong>, <strong>Attack</strong>, the <strong>Pickup</strong> selector (neck, middle, bridge, single coil or
+      humbucker), <strong>Tone</strong> and <strong>Sustain</strong> all act on strings that are already ringing, so a CC
+      mapping can put them on a pedal, a knob or a ribbon and play them like a guitarist's hands. Cable it into the
+      <strong>Amp</strong> for crunch and distortion. Native apps only.
+    </p>
+
     <h2>Jam Mode</h2>
     <p>
       Single-instance processor: choose a <strong>master</strong> channel; when the master plays chords or bass (configurable),
@@ -109,9 +121,40 @@
       chipmunk. A live readout shows the note you sing, how many cents off it is, and where it is being pulled.
     </p>
 
+    <h2 id="amp">Amp</h2>
+    <p>
+      A guitar amp in one slot, in the order a guitarist plugs things in. The <strong>Drive</strong> pedal is either an
+      <strong>Overdrive</strong> that pushes the mids and keeps the low end tight, or a rougher <strong>Distortion</strong>,
+      with its own Tone knob. The <strong>Amp</strong> section is the preamp's <strong>Gain</strong>, from clean to crunch,
+      and a Bass / Middle / Treble tone stack modelled on the real circuit of three classic amps (<strong>US</strong>,
+      <strong>Brit</strong>, <strong>AC</strong>), so the knobs interact the way they do on the real thing. The
+      <strong>Cab</strong> section shapes the sound like a 1x12, 2x12 or 4x12 speaker cabinet. Each of the three sections
+      has its own switch, which a CC mapping can put on a footswitch or a pad. Play it from a keyboard's guitar sound, or
+      patch a real guitar in through <strong>Live Input</strong>.
+    </p>
+
+    <h3 id="amp-ir">Cabinet impulse responses</h3>
+    <p>
+      Most of a guitar sound comes from the cabinet. Besides the three built-in cabinets, the Amp can play an
+      <strong>impulse response</strong> (IR): a recording of a real cabinet and its microphone, as a small
+      <code>.wav</code> file. Tap <strong>Load IR</strong> under the Amp and pick a file; the Cabinet selector switches to
+      <strong>IR</strong>, and the IR is saved inside your project, so it travels with it. Any WAV works (16, 24 or 32-bit,
+      mono or stereo, any sample rate); only the first 100 ms are used, which is where a cabinet's sound lives.
+    </p>
+    <p>Free cabinet IRs to start with:</p>
+    <ul>
+      <li><a href="https://www.tone3000.com/search?format=ir">TONE3000</a>: a community library with thousands of free IRs</li>
+      <li><a href="https://cabs.kalthallen.de/">Kalthallen Cabs</a>: free and paid packs of classic cabinets</li>
+      <li><a href="https://www.celestionplus.com/free-download/">Celestion</a>: a free IR from the speaker maker</li>
+    </ul>
+    <p>
+      Each pack has its own licence: free to play through, but usually not to share, which is why GrooveForge cannot ship
+      them. Download them yourself from these sites.
+    </p>
+
     <h2>Descriptor effects &amp; MIDI FX</h2>
     <p>
-      Bundled <a href="../gfpd/"><code>.gfpd</code></a> plugins provide reverb, delay, wah, EQ, compressor, chorus, audio harmonizer, autotune (audio)
+      Bundled <a href="../gfpd/"><code>.gfpd</code></a> plugins provide reverb, delay, wah, EQ, compressor, chorus, audio harmonizer, autotune, guitar amp (audio)
       and harmonizer, arpeggiator, transposer, chord expand, velocity curve, gate (MIDI). Custom descriptors can be
       loaded from disk.
     </p>

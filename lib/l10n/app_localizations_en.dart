@@ -1497,6 +1497,86 @@ class AppLocalizationsEn extends AppLocalizations {
   String get rackAddAutotune => 'Autotune';
 
   @override
+  String get rackAddRiff => 'Riff';
+
+  @override
+  String get rackAddRiffSubtitle =>
+      'Modelled electric guitar, string by string; cable it into the Amp';
+
+  @override
+  String get rackAddAmp => 'Amp';
+
+  @override
+  String get rackAddAmpSubtitle =>
+      'Guitar amp: drive pedal, amp tone stack and speaker cabinet';
+
+  @override
+  String get ampIrNone => 'Cabinet IR: none loaded';
+
+  @override
+  String ampIrLoaded(String name) {
+    return 'Cabinet IR: $name';
+  }
+
+  @override
+  String get ampIrLoad => 'Load IR';
+
+  @override
+  String get ampIrRemove => 'Remove the IR';
+
+  @override
+  String get ampIrPickTitle => 'Choose a cabinet impulse response (.wav)';
+
+  @override
+  String get ampIrNotWav => 'This file is not a WAV file.';
+
+  @override
+  String get ampIrUnsupported =>
+      'This WAV uses a compressed format. Export it as a PCM or float WAV.';
+
+  @override
+  String get ampIrEmpty => 'This file contains no sound.';
+
+  @override
+  String get ampIrUnreadable => 'Could not read this file.';
+
+  @override
+  String get ampIrRejected => 'The amp could not use this IR.';
+
+  @override
+  String get guideRiffTitle => 'Riff, the modelled guitar';
+
+  @override
+  String get guideRiffBody =>
+      'Riff is an electric guitar simulated string by string. Play it from any keyboard or MIDI source: each note goes to a string a guitarist would use, so two notes on the same string cut each other off as on a real guitar. The pitch wheel bends (a whole tone by default, see Bend), the mod wheel adds vibrato and the sustain pedal lets released strings ring.\nPalm mute, Pick position, Attack, the pickup selector, Tone and Sustain all act on strings that are already ringing: map them to a pedal, a knob or a ribbon in the CC settings and play them like a guitarist\'s hands. Cable Riff into the Amp for crunch and distortion; the Overdrive pedal gives the most natural result.';
+
+  @override
+  String get guideAmpTitle => 'Amp and cabinet IRs';
+
+  @override
+  String get guideAmpBody =>
+      'The Amp turns a clean guitar into an amplified one, in three sections you can switch on and off, by hand or with a footswitch mapped in the CC settings: a Drive pedal (Overdrive or Distortion), the Amp itself (gain and its Bass / Middle / Treble), and the speaker Cab.\nMost of a guitar sound comes from the cabinet. Besides the three built-in cabinets, the Amp can play an impulse response (IR): a recording of a real cabinet and its microphone. Tap Load IR under the Amp, pick a .wav file, and the Cabinet selector switches to IR. The file is saved inside your project; the cross next to its name removes it.';
+
+  @override
+  String get guideAmpIrSourcesTitle => 'Where to find free cabinet IRs';
+
+  @override
+  String get guideAmpIrSourcesNote =>
+      'Each pack comes with its own licence: free to play through, but usually not to share. Download them yourself from these sites.';
+
+  @override
+  String get guideIrSourceTone3000 =>
+      'TONE3000: a community library with thousands of free IRs';
+
+  @override
+  String get guideIrSourceKalthallen =>
+      'Kalthallen Cabs: free and paid packs of classic cabinets';
+
+  @override
+  String get guideIrSourceCelestion =>
+      'Celestion: a free IR from the speaker maker';
+
+  @override
   String get rackAddAutotuneSubtitle =>
       'Snaps your voice onto the notes of a scale, from subtle to robot';
 
@@ -3046,4 +3126,26 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get audioOutputPathRestartHint =>
       'Force-quitting GrooveForge also clears this, and is the fastest fix if you are on stage.';
+
+  @override
+  String get ccReleaseValueTitle => 'Neutral value on release';
+
+  @override
+  String get ccReleaseValueHelp =>
+      'For ribbons and touch strips that jump back to 0 when you lift your finger. Leave off for knobs, faders, wheels, pedals and pads. If your controller has a hold or latch mode, use it to keep the last value.';
+
+  @override
+  String ccReleaseValueLabel(int value) {
+    return 'Value: $value';
+  }
+
+  @override
+  String ccReleaseValueSummary(int value) {
+    return 'returns to $value on release';
+  }
+
+  @override
+  String ccReleaseValueDialogTitle(int cc) {
+    return 'CC $cc: release';
+  }
 }

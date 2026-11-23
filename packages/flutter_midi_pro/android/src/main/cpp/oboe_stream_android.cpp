@@ -61,9 +61,10 @@
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-/// Maximum number of simultaneously active audio sources (keyboards + instruments).
-/// 4 keyboard slots + Theremin + Stylophone + Vocoder = 7; 8 leaves headroom.
-static constexpr int kMaxSources = 8;
+/// Maximum number of simultaneously active audio sources: 4 keyboard slots,
+/// Theremin, Stylophone, Vocoder, the live input and up to four Riff guitars
+/// make 12. Each source costs 64 KB of preallocated scratch.
+static constexpr int kMaxSources = 12;
 
 /// Maximum block size (frames) that AAudio will deliver per callback.
 /// Pre-allocated render and mix buffers are sized to this ceiling so the

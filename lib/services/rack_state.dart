@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
+import '../models/cabinet_ir.dart';
 import '../models/drum_generator_plugin_instance.dart';
 import '../models/gfpa_plugin_instance.dart';
 import '../models/harmonizer_voicing.dart';
@@ -107,6 +108,7 @@ class RackState extends ChangeNotifier {
   Timer? _midiFxTicker;
 
   RackState(this._engine, this._transport, this._audioGraph) {
+    _engine.riffSink = _RiffRouter(this);
     _engine.bpmProvider = () => _transport.bpm;
     _engine.isPlayingProvider = () => _transport.isPlaying;
     _transport.onBeat = (bool isDownbeat) {
@@ -377,9 +379,10 @@ class RackState extends ChangeNotifier {
     }
     // Fix keyboards with null soundfontPath — assign the default soundfont
     // so they aren't silent.  This handles corrupt/old .gf files.
-    final defaultSf = _engine.loadedSoundfonts.isNotEmpty
-        ? _engine.loadedSoundfonts.first
-        : null;
+    final defaultSf =
+        _engine.loadedSoundfonts.isNotEmpty
+            ? _engine.loadedSoundfonts.first
+            : null;
     if (defaultSf != null) {
       for (final p in _plugins) {
         if (p is GrooveForgeKeyboardPlugin && p.soundfontPath == null) {
@@ -435,9 +438,10 @@ class RackState extends ChangeNotifier {
     // Reading from _engine.channels[] is unreliable — the channel state may
     // be null if _restoreState hasn't populated it yet or if SharedPreferences
     // are missing.
-    final defaultSf = _engine.loadedSoundfonts.isNotEmpty
-        ? _engine.loadedSoundfonts.first
-        : null;
+    final defaultSf =
+        _engine.loadedSoundfonts.isNotEmpty
+            ? _engine.loadedSoundfonts.first
+            : null;
 
     _plugins.add(
       GrooveForgeKeyboardPlugin(
@@ -482,7 +486,8 @@ class RackState extends ChangeNotifier {
       // Ensure this slot has its own dedicated FluidSynth instance on Android.
       // Fire-and-forget: the synth is available before the user can connect a
       // GFPA cable (requires a separate user action), so the async delay is fine.
-      if (!kIsWeb && Platform.isAndroid &&
+      if (!kIsWeb &&
+          Platform.isAndroid &&
           plugin.soundfontPath != null &&
           plugin.soundfontPath != kMidiControllerOnlySoundfont) {
         _engine
@@ -490,11 +495,13 @@ class RackState extends ChangeNotifier {
               plugin.midiChannel - 1,
               plugin.soundfontPath!,
             )
-            .then((_) => VstHostService.instance.syncAudioRouting(
-                  _audioGraph,
-                  _plugins,
-                  keyboardSfIds: _buildKeyboardSfIds(),
-                ));
+            .then(
+              (_) => VstHostService.instance.syncAudioRouting(
+                _audioGraph,
+                _plugins,
+                keyboardSfIds: _buildKeyboardSfIds(),
+              ),
+            );
       }
     } else if (plugin is GFpaPluginInstance) {
       _applyGfpaPluginToEngine(plugin);
@@ -637,7 +644,8 @@ class RackState extends ChangeNotifier {
             (plugin.pluginId == 'com.grooveforge.stylophone' &&
                 oldPath == stylophoneMode) ||
             (plugin.pluginId == 'com.grooveforge.theremin' &&
-                oldPath == thereminMode);
+                oldPath == thereminMode) ||
+            (plugin.pluginId == kRiffPluginId && oldPath == riffMode);
         if (shouldClear) {
           _engine.channels[oldIdx].soundfontPath = null;
         }
@@ -664,11 +672,7 @@ class RackState extends ChangeNotifier {
   ///   6. Rewrites AudioGraph connections referencing either slot.
   ///   7. Swaps Jam Mode slot references (masterSlotId, targetSlotIds).
   ///   8. Rewrites CC mappings targeting either slot.
-  void swapSlots(
-    String slotIdA,
-    String slotIdB, {
-    bool swapCables = true,
-  }) {
+  void swapSlots(String slotIdA, String slotIdB, {bool swapCables = true}) {
     final pluginA = _findById(slotIdA);
     final pluginB = _findById(slotIdB);
     if (pluginA == null || pluginB == null) return;
@@ -771,15 +775,10 @@ class RackState extends ChangeNotifier {
     if (plugin == null) return;
     plugin.program = program;
     if (bank != null) plugin.bank = bank;
-    _engine.assignPatchToChannel(
-      plugin.midiChannel - 1,
-      program,
-      bank: bank,
-    );
+    _engine.assignPatchToChannel(plugin.midiChannel - 1, program, bank: bank);
     notifyListeners();
     _notifyChanged();
   }
-
 
   /// Update the per-slot keyboard display and expression config.
   ///
@@ -888,11 +887,12 @@ class RackState extends ChangeNotifier {
   /// Idempotent — safe to call after any mutation that could add or remove a
   /// slot, and cheap when nothing changed.
   void _syncXenInstances() {
-    final xenSlotIds = _plugins
-        .whereType<GFpaPluginInstance>()
-        .where((p) => p.pluginId == 'com.grooveforge.xen')
-        .map((p) => p.id)
-        .toSet();
+    final xenSlotIds =
+        _plugins
+            .whereType<GFpaPluginInstance>()
+            .where((p) => p.pluginId == 'com.grooveforge.xen')
+            .map((p) => p.id)
+            .toSet();
 
     // Slots that are gone: clear their tuning before dropping the plugin, or
     // the target channel would keep a tuning nothing owns any more.
@@ -1022,12 +1022,14 @@ class RackState extends ChangeNotifier {
             // Only a scale cable greys and snaps keys; only a tuning cable
             // marks their detuning. A channel patched to one jack must not
             // show the other's effect.
-            allowedPitchClasses: lockedChannels.contains(ch)
-                ? (plugin.validPitchClasses ?? const {})
-                : const {},
-            centsByPitchClass: tunedChannels.contains(ch)
-                ? plugin.centsByPitchClass
-                : const {},
+            allowedPitchClasses:
+                lockedChannels.contains(ch)
+                    ? (plugin.validPitchClasses ?? const {})
+                    : const {},
+            centsByPitchClass:
+                tunedChannels.contains(ch)
+                    ? plugin.centsByPitchClass
+                    : const {},
             rootPitchClass: plugin.rootPc,
           ),
         );
@@ -1064,7 +1066,8 @@ class RackState extends ChangeNotifier {
 
   /// The Xen locks currently published to the engine. Test-only accessor.
   @visibleForTesting
-  Map<int, XenChannelLock> get xenScaleLocksForTest => _engine.xenScaleLocks.value;
+  Map<int, XenChannelLock> get xenScaleLocksForTest =>
+      _engine.xenScaleLocks.value;
 
   /// Whether the Xen slot [id] is currently doing anything.
   ///
@@ -1228,7 +1231,11 @@ class RackState extends ChangeNotifier {
 
   /// Toggles whether a [LooperPluginInstance] is pinned below the transport bar.
   void toggleLooperPinned(String id) {
-    final plugin = plugins.whereType<LooperPluginInstance>().where((p) => p.id == id).firstOrNull;
+    final plugin =
+        plugins
+            .whereType<LooperPluginInstance>()
+            .where((p) => p.id == id)
+            .firstOrNull;
     if (plugin == null) return;
     plugin.pinned = !plugin.pinned;
     notifyListeners();
@@ -1244,7 +1251,6 @@ class RackState extends ChangeNotifier {
     notifyListeners();
     _notifyChanged();
   }
-
 
   /// Update the full state map of a GFPA plugin slot (triggers autosave).
   void setGfpaPluginState(String id, Map<String, dynamic> state) {
@@ -1294,6 +1300,10 @@ class RackState extends ChangeNotifier {
 
   void _applyGfpaPluginToEngine(GFpaPluginInstance plugin) {
     switch (plugin.pluginId) {
+      case kRiffPluginId:
+        if (plugin.midiChannel > 0) {
+          _engine.assignSoundfontToChannel(plugin.midiChannel - 1, riffMode);
+        }
       case 'com.grooveforge.stylophone':
         if (plugin.midiChannel > 0) {
           _engine.assignSoundfontToChannel(
@@ -1310,14 +1320,10 @@ class RackState extends ChangeNotifier {
         }
       case 'com.grooveforge.vocoder':
         if (plugin.midiChannel > 0) {
-          _engine.assignSoundfontToChannel(
-            plugin.midiChannel - 1,
-            vocoderMode,
-          );
+          _engine.assignSoundfontToChannel(plugin.midiChannel - 1, vocoderMode);
           // Restore saved params into the engine.
           final s = plugin.state;
-          _engine.vocoderWaveform.value =
-              (s['waveform'] as num?)?.toInt() ?? 0;
+          _engine.vocoderWaveform.value = (s['waveform'] as num?)?.toInt() ?? 0;
           _engine.vocoderNoiseMix.value =
               (s['noiseMix'] as num?)?.toDouble() ?? 0.05;
           _engine.vocoderEnvRelease.value =
@@ -1359,9 +1365,7 @@ class RackState extends ChangeNotifier {
       // the new file.  createKeyboardSlotSynth is a no-op if the path hasn't
       // changed, so this is safe to call unconditionally.
       if (!skipAndroidSlotCreation && !kIsWeb && Platform.isAndroid) {
-        _engine
-            .createKeyboardSlotSynth(idx, plugin.soundfontPath!)
-            .then((_) {
+        _engine.createKeyboardSlotSynth(idx, plugin.soundfontPath!).then((_) {
           // Re-apply instrument selection on the fresh synth so the correct
           // bank/program is active immediately.
           _engine.assignPatchToChannel(idx, plugin.program, bank: plugin.bank);
@@ -1388,8 +1392,7 @@ class RackState extends ChangeNotifier {
     final gfpaEntries = <GFpaJamEntry>[];
 
     for (final p in _plugins) {
-      if (p is GFpaPluginInstance &&
-          p.pluginId == 'com.grooveforge.jammode') {
+      if (p is GFpaPluginInstance && p.pluginId == 'com.grooveforge.jammode') {
         // Slot-level enabled flag (defaults to true when absent).
         if (p.state['enabled'] == false) continue;
         if (p.targetSlotIds.isEmpty || p.masterSlotId == null) continue;
@@ -1579,9 +1582,10 @@ class RackState extends ChangeNotifier {
     if (mode == CcParamMode.toggle ||
         mode == CcParamMode.cycle ||
         mode == CcParamMode.direct) {
-      final key = mode == CcParamMode.direct
-          ? '$slotId:$paramKey:$directValue'
-          : '$slotId:$paramKey';
+      final key =
+          mode == CcParamMode.direct
+              ? '$slotId:$paramKey:$directValue'
+              : '$slotId:$paramKey';
       final now = DateTime.now().millisecondsSinceEpoch;
       final last = _ccDebounce[key] ?? 0;
       if (now - last < 250) return; // 250ms debounce.
@@ -1732,9 +1736,8 @@ class RackState extends ChangeNotifier {
     final all = DrumPatternRegistry.instance.all;
     if (all.isEmpty) return;
     final currentId = plugin.builtinPatternId;
-    final currentIndex = currentId != null
-        ? all.indexWhere((p) => p.id == currentId)
-        : -1;
+    final currentIndex =
+        currentId != null ? all.indexWhere((p) => p.id == currentId) : -1;
     var nextIndex = (currentIndex + delta) % all.length;
     if (nextIndex < 0) nextIndex = all.length - 1;
     // Fire through the engine callback so the transport time signature
@@ -1842,10 +1845,7 @@ class RackState extends ChangeNotifier {
   /// Handles CC for Vocoder params — all knobs are CC-assignable.
   /// Handles CC for Stylophone chiptune arp params (toggle, chord cycling,
   /// rate, waveform, vibrato).
-  void _handleStylophoneParamCc(
-    GFpaPluginInstance plugin,
-    String paramKey,
-  ) {
+  void _handleStylophoneParamCc(GFpaPluginInstance plugin, String paramKey) {
     switch (paramKey) {
       case 'chipArpEnabled':
         final cur = (plugin.state['chipArpEnabled'] as bool?) ?? false;
@@ -1861,9 +1861,11 @@ class RackState extends ChangeNotifier {
               AudioInputFFI().styloSetChipArpPattern(pattern);
             }
           }
-          final rate = (plugin.state['chipArpRate'] as num?)
-                  ?.toDouble()
-                  .clamp(20.0, 120.0) ??
+          final rate =
+              (plugin.state['chipArpRate'] as num?)?.toDouble().clamp(
+                20.0,
+                120.0,
+              ) ??
               60.0;
           AudioInputFFI().styloSetChipArpRate(rate);
         }
@@ -1883,9 +1885,11 @@ class RackState extends ChangeNotifier {
         notifyListeners();
         markDirty();
       case 'chipArpRate':
-        final cur = (plugin.state['chipArpRate'] as num?)
-                ?.toDouble()
-                .clamp(20.0, 120.0) ??
+        final cur =
+            (plugin.state['chipArpRate'] as num?)?.toDouble().clamp(
+              20.0,
+              120.0,
+            ) ??
             60.0;
         final next = cur >= 55.0 ? 50.0 : 60.0;
         plugin.state['chipArpRate'] = next;
@@ -1901,9 +1905,8 @@ class RackState extends ChangeNotifier {
         notifyListeners();
         markDirty();
       case 'vibrato':
-        final cur = (plugin.state['vibrato'] as num?)
-                ?.toDouble()
-                .clamp(0.0, 1.0) ??
+        final cur =
+            (plugin.state['vibrato'] as num?)?.toDouble().clamp(0.0, 1.0) ??
             0.0;
         final next = cur > 0.0 ? 0.0 : 0.7;
         plugin.state['vibrato'] = next;
@@ -1913,8 +1916,9 @@ class RackState extends ChangeNotifier {
     }
     // Mirror state into the registry plugin so trackNoteOn/trackNoteOff
     // can read the current chip-arp mode.
-    final reg = GFPluginRegistry.instance
-        .findById('com.grooveforge.stylophone') as GFStyloPhonePlugin?;
+    final reg =
+        GFPluginRegistry.instance.findById('com.grooveforge.stylophone')
+            as GFStyloPhonePlugin?;
     reg?.loadState(plugin.state);
   }
 
@@ -1958,12 +1962,14 @@ class RackState extends ChangeNotifier {
     // Find the descriptor parameter for denormalization.
     final regPlugin = GFPluginRegistry.instance.findById(plugin.pluginId);
     if (regPlugin is! GFDescriptorPlugin) return;
-    final descParam = regPlugin.descriptor.parameters
-        .where((p) => p.paramId == entry.gfpaParamId)
-        .firstOrNull;
+    final descParam =
+        regPlugin.descriptor.parameters
+            .where((p) => p.paramId == entry.gfpaParamId)
+            .firstOrNull;
     if (descParam == null) return;
 
-    final physical = descParam.min + normalized * (descParam.max - descParam.min);
+    final physical =
+        descParam.min + normalized * (descParam.max - descParam.min);
     VstHostService.instance.setGfpaDspParam(slotId, descParam.id, physical);
     // Also update the state map so the UI reflects the change.
     plugin.state[descParam.id] = normalized;
@@ -1979,14 +1985,18 @@ class RackState extends ChangeNotifier {
     final count = entry.cycleCount!;
     final regPlugin = GFPluginRegistry.instance.findById(plugin.pluginId);
     if (regPlugin is! GFDescriptorPlugin) return;
-    final descParam = regPlugin.descriptor.parameters
-        .where((p) => p.paramId == entry.gfpaParamId)
-        .firstOrNull;
+    final descParam =
+        regPlugin.descriptor.parameters
+            .where((p) => p.paramId == entry.gfpaParamId)
+            .firstOrNull;
     if (descParam == null) return;
 
     // Read current normalized value, compute current index, advance.
     final currentNorm = (plugin.state[descParam.id] as num?)?.toDouble() ?? 0.0;
-    final currentIndex = (currentNorm * (count - 1)).round().clamp(0, count - 1);
+    final currentIndex = (currentNorm * (count - 1)).round().clamp(
+      0,
+      count - 1,
+    );
     final nextIndex = (currentIndex + 1) % count;
     final maxIdx = (count - 1).clamp(1, count);
     final nextNorm = nextIndex / maxIdx;
@@ -2015,26 +2025,29 @@ class RackState extends ChangeNotifier {
     // Resolve the scale-provider channel from the master slot (for Jam Mode
     // scale snapping). Falls back to channel 0 when no master is configured.
     final masterSlotId = instance.masterSlotId;
-    final masterSlot = masterSlotId != null
-        ? _plugins
-            .whereType<GFpaPluginInstance>()
-            .where((p) => p.id == masterSlotId)
-            .firstOrNull
-        : null;
+    final masterSlot =
+        masterSlotId != null
+            ? _plugins
+                .whereType<GFpaPluginInstance>()
+                .where((p) => p.id == masterSlotId)
+                .firstOrNull
+            : null;
     final masterChannel = ((masterSlot?.midiChannel ?? 1) - 1).clamp(0, 15);
 
     final nodeContext = GFMidiNodeContext(
       sourceChannelIndex: _resolveSourceChannelForMidiFx(instance),
-      scaleProvider: () =>
-          _engine.channels[masterChannel].validPitchClasses.value,
+      scaleProvider:
+          () => _engine.channels[masterChannel].validPitchClasses.value,
     );
 
     try {
-      await plugin.initialize(GFMidiPluginContext(
-        sampleRate: 44100,
-        maxFramesPerBlock: 512,
-        midiNodeContext: nodeContext,
-      ));
+      await plugin.initialize(
+        GFMidiPluginContext(
+          sampleRate: 44100,
+          maxFramesPerBlock: 512,
+          midiNodeContext: nodeContext,
+        ),
+      );
       // Restore previously saved parameter state (normalized 0–1 values).
       plugin.loadState(Map<String, dynamic>.from(instance.state));
       _midiFxInstances[instance.id] = plugin;
@@ -2098,8 +2111,21 @@ class RackState extends ChangeNotifier {
     try {
       VstHostService.instance.registerGfpaDsp(instance.id, instance.pluginId);
       _syncAudioEffectParamsToNative(instance.id);
+      _pushCabinetIrToNative(instance);
+      // A Riff guitar is a source, and its render function only exists from
+      // now on: the routing sync that ran when the slot was added could not
+      // resolve it, so this one puts it in the mix.
+      if (instance.pluginId == kRiffPluginId) {
+        VstHostService.instance.syncAudioRouting(
+          _audioGraph,
+          _plugins,
+          keyboardSfIds: _buildKeyboardSfIds(),
+        );
+      }
     } catch (e) {
-      debugPrint('[RackState] registerGfpaDsp unavailable for ${instance.id} — $e');
+      debugPrint(
+        '[RackState] registerGfpaDsp unavailable for ${instance.id} — $e',
+      );
     }
 
     // One param notifier per slot — the UI widget bumps this on every knob
@@ -2122,15 +2148,122 @@ class RackState extends ChangeNotifier {
     final instance = _findById(slotId);
     if (instance is! GFpaPluginInstance) return;
 
-    // Snapshot meta-keys that live outside the declared parameter space.
-    final bypass = instance.state['__bypass'];
+    // Snapshot meta-keys that live outside the declared parameter space
+    // (`__bypass`, the Amp's `__cabIr`…): the double underscore marks slot
+    // data the plugin's getState() knows nothing about.
+    final meta = {
+      for (final e in instance.state.entries)
+        if (e.key.startsWith('__')) e.key: e.value,
+    };
     instance.state
       ..clear()
-      ..addAll(plugin.getState());
-    if (bypass != null) instance.state['__bypass'] = bypass;
+      ..addAll(plugin.getState())
+      ..addAll(meta);
 
     _syncAudioEffectParamsToNative(slotId);
     markDirty();
+  }
+
+  // ─── Amp cabinet impulse response ───────────────────────────────────────
+
+  /// Name of the cabinet impulse response loaded into the Amp in [slotId],
+  /// or null when there is none.
+  String? cabinetIrName(String slotId) {
+    final instance = _findById(slotId);
+    if (instance is! GFpaPluginInstance) return null;
+    final json = instance.state[CabinetIr.stateKey];
+    return json is Map ? json['name'] as String? : null;
+  }
+
+  /// Loads [ir] into the Amp in [slotId], keeps it in the project, and
+  /// switches the cabinet selector to "IR" so the player hears it at once.
+  ///
+  /// Returns false when the native Amp rejected the IR or is not running
+  /// (web, or a native library without the symbol); nothing changes then.
+  bool loadCabinetIr(String slotId, CabinetIr ir) {
+    final instance = _findById(slotId);
+    if (instance is! GFpaPluginInstance) return false;
+    final bool loaded;
+    try {
+      loaded = VstHostService.instance.loadGfpaDspIr(
+        slotId,
+        ir.samples,
+        ir.sampleRate,
+      );
+    } catch (e) {
+      debugPrint('[RackState] loadGfpaDspIr unavailable for $slotId — $e');
+      return false;
+    }
+    if (!loaded) return false;
+    instance.state[CabinetIr.stateKey] = ir.toJson();
+    _selectCabinet(slotId, 'IR');
+    markDirty();
+    notifyListeners();
+    return true;
+  }
+
+  /// Removes the cabinet impulse response from the Amp in [slotId] and from
+  /// the project. A cabinet selector left on "IR" goes back to the 2x12, so
+  /// the panel shows what is heard.
+  void removeCabinetIr(String slotId) {
+    final instance = _findById(slotId);
+    if (instance is! GFpaPluginInstance) return;
+    if (instance.state.remove(CabinetIr.stateKey) == null) return;
+    try {
+      VstHostService.instance.clearGfpaDspIr(slotId);
+    } catch (e) {
+      // An older native library without the symbol: the IR stays in the DSP
+      // until the slot is rebuilt, but "IR" is no longer selected below.
+      debugPrint('[RackState] clearGfpaDspIr unavailable for $slotId — $e');
+    }
+    if (_selectedCabinet(slotId) == 'IR') _selectCabinet(slotId, '2x12');
+    markDirty();
+    notifyListeners();
+  }
+
+  /// The Amp's `cab_type` parameter in [slotId], or null when the slot has
+  /// no live plugin.
+  GFDescriptorParameter? _cabinetParam(String slotId) =>
+      _audioEffectInstances[slotId]?.descriptor.parameters
+          .where((p) => p.id == 'cab_type')
+          .firstOrNull;
+
+  /// The option the Amp's cabinet selector in [slotId] is on, e.g. "2x12".
+  String? _selectedCabinet(String slotId) {
+    final plugin = _audioEffectInstances[slotId];
+    final param = _cabinetParam(slotId);
+    final options = param?.options;
+    if (plugin == null || param == null || options == null) return null;
+    final norm = plugin.getParameter(param.paramId);
+    final index = (norm * (options.length - 1)).round();
+    return options[index.clamp(0, options.length - 1)];
+  }
+
+  /// Sets the Amp's cabinet selector to [option] through the live plugin, so
+  /// the panel, the saved state and the native DSP all follow.
+  void _selectCabinet(String slotId, String option) {
+    final plugin = _audioEffectInstances[slotId];
+    final notifier = _audioEffectParamNotifiers[slotId];
+    final param = _cabinetParam(slotId);
+    final options = param?.options;
+    if (plugin == null || notifier == null) return;
+    if (param == null || options == null) return;
+    final index = options.indexOf(option);
+    if (index < 0) return;
+    plugin.setParameter(param.paramId, index / (options.length - 1));
+    notifier.value++; // → _onAudioEffectParamChanged: state + native push
+  }
+
+  /// Sends the IR saved in [instance]'s state to its native Amp, after a
+  /// project load or when the slot's DSP is created.
+  void _pushCabinetIrToNative(GFpaPluginInstance instance) {
+    final ir = CabinetIr.fromJson(instance.state[CabinetIr.stateKey]);
+    if (ir == null) return;
+    VstHostService.instance.loadGfpaDspIr(
+      instance.id,
+      ir.samples,
+      ir.sampleRate,
+    );
   }
 
   /// Push every parameter on the audio-effect plugin for [slotId] to its
@@ -2218,9 +2351,10 @@ class RackState extends ChangeNotifier {
 
     // The voice ceiling comes from the descriptor rather than a constant
     // here, so adding a fifth voice to the module needs no change in the host.
-    final voiceParam = plugin.descriptor.parameters
-        .where((p) => p.id == 'voice_count')
-        .firstOrNull;
+    final voiceParam =
+        plugin.descriptor.parameters
+            .where((p) => p.id == 'voice_count')
+            .firstOrNull;
     if (voiceParam == null) return;
     final maxVoices = voiceParam.max.round();
 
@@ -2234,7 +2368,10 @@ class RackState extends ChangeNotifier {
       // does not declare is simply not found and skipped. The MIDI one only
       // shifts upward, which its own 0..24 range already enforces.
       _setGfpaParamById(
-          plugin, 'voice${i + 1}_semitones', intervals[i].toDouble());
+        plugin,
+        'voice${i + 1}_semitones',
+        intervals[i].toDouble(),
+      );
       _setGfpaParamById(plugin, 'interval${i + 1}', intervals[i].toDouble());
     }
 
@@ -2331,9 +2468,15 @@ class RackState extends ChangeNotifier {
     // Scale Lock that does nothing looks identical whether the cable is not
     // registering, the source module has no scale to give, or the pitch
     // tracker is not hearing a note. 0xFFF means "nothing patched".
-    debugPrint('[RackState] scale mask for $slotId: '
-        '0x${mask.toRadixString(16).toUpperCase()}');
-    VstHostService.instance.setGfpaDspParam(slotId, 'scale_mask', mask.toDouble());
+    debugPrint(
+      '[RackState] scale mask for $slotId: '
+      '0x${mask.toRadixString(16).toUpperCase()}',
+    );
+    VstHostService.instance.setGfpaDspParam(
+      slotId,
+      'scale_mask',
+      mask.toDouble(),
+    );
   }
 
   /// The scale patched into [slotId]'s SCALE IN jack, as a 12-bit pitch-class
@@ -2367,7 +2510,7 @@ class RackState extends ChangeNotifier {
       if (mask != null) return mask;
     }
 
-    return 0xFFF;   // nothing patched: chromatic, so Scale Lock is a no-op
+    return 0xFFF; // nothing patched: chromatic, so Scale Lock is a no-op
   }
 
   /// Whether a Xen or Jam Mode module is patched into [slotId]'s SCALE IN
@@ -2482,10 +2625,11 @@ class RackState extends ChangeNotifier {
     if (_midiFxInstances.isEmpty) return events;
 
     // Collect slot IDs on this MIDI channel.
-    final targetedSlotIds = _plugins
-        .where((p) => p.midiChannel == midiChannel)
-        .map((p) => p.id)
-        .toSet();
+    final targetedSlotIds =
+        _plugins
+            .where((p) => p.midiChannel == midiChannel)
+            .map((p) => p.id)
+            .toSet();
 
     // Collect MIDI FX slot IDs applicable to this channel via two routing
     // styles so that both the explicit-config and visual-patch-cable workflows
@@ -2510,8 +2654,9 @@ class RackState extends ChangeNotifier {
       }
       // Style 2: the FX is reachable from an instrument slot via a MIDI cable.
       // Use hasMidiOutTo to avoid allocating an intermediate List per slot.
-      final reachableViaCable =
-          targetedSlotIds.any((slotId) => _audioGraph.hasMidiOutTo(slotId, p.id));
+      final reachableViaCable = targetedSlotIds.any(
+        (slotId) => _audioGraph.hasMidiOutTo(slotId, p.id),
+      );
       if (reachableViaCable) fxSlotIds.add(p.id);
     }
 
@@ -2575,10 +2720,11 @@ class RackState extends ChangeNotifier {
   /// Returns the next unused MIDI channel (1–16), or -1 if all are taken.
   /// Slots with [midiChannel] == 0 (MIDI FX / pure effect) are not counted.
   int nextAvailableMidiChannel() {
-    final used = _plugins
-        .where((p) => p.midiChannel > 0)
-        .map((p) => p.midiChannel)
-        .toSet();
+    final used =
+        _plugins
+            .where((p) => p.midiChannel > 0)
+            .map((p) => p.midiChannel)
+            .toSet();
     for (int ch = 1; ch <= 16; ch++) {
       if (!used.contains(ch)) return ch;
     }
@@ -2593,4 +2739,44 @@ class RackState extends ChangeNotifier {
     }
     return 'slot-$n';
   }
+}
+
+/// Delivers the MIDI the engine routes to [riffMode] channels to the Riff
+/// guitar(s) on that channel.
+///
+/// Riff is per slot — two guitars on two channels are two native engines —
+/// so each event is matched to its slot by MIDI channel. The rack holds a
+/// handful of slots, so a scan per event costs nothing next to the FFI call.
+class _RiffRouter implements RiffMidiSink {
+  _RiffRouter(this._rack);
+
+  final RackState _rack;
+
+  /// Calls [send] with the slot id of every Riff on 0-based [channel].
+  void _forEachOn(int channel, void Function(String slotId) send) {
+    for (final p in _rack._plugins) {
+      if (p is GFpaPluginInstance &&
+          p.pluginId == kRiffPluginId &&
+          p.midiChannel == channel + 1) {
+        send(p.id);
+      }
+    }
+  }
+
+  @override
+  void riffNoteOn(int channel, int note, int velocity) => _forEachOn(
+      channel, (id) => VstHostService.instance.riffNoteOn(id, note, velocity));
+
+  @override
+  void riffNoteOff(int channel, int note) => _forEachOn(
+      channel, (id) => VstHostService.instance.riffNoteOff(id, note));
+
+  @override
+  void riffPitchBend(int channel, double bend) => _forEachOn(
+      channel, (id) => VstHostService.instance.riffPitchBend(id, bend));
+
+  @override
+  void riffControlChange(int channel, int controller, int value) => _forEachOn(
+      channel,
+      (id) => VstHostService.instance.riffControlChange(id, controller, value));
 }

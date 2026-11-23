@@ -24,6 +24,7 @@ Playing is built around the **plugin rack**: an ordered, drag-and-drop stack of 
 - **Vocoder** — mic-driven voice synthesis.
 - **Stylophone** — monophonic metal-strip instrument.
 - **Theremin** — touch pad with vertical pitch and horizontal volume, plus base note, range, vibrato and pad-height controls.
+- **Riff** — an electric guitar simulated string by string rather than played from samples. Each note lands on a string a guitarist would use, bends and vibrato come from the pitch and mod wheels, and palm mute, pick position, pickup (neck, middle, bridge, single coil or humbucker), tone and sustain all act on ringing strings, so each can go on a pedal or a ribbon through CC mapping. Sounds best cabled into the Amp. Native builds only.
 - **Drum Generator** — beat patterns from bossa nova to metal, with a swing control, a "human feel" slider between robotic and live drummer, count-ins and automatic fills. Patterns load from `.gfdrum` files.
 
 <img src="assets/screenshots/android_theremin.png" width="460" alt="Theremin module">
@@ -89,6 +90,7 @@ Plate reverb, ping-pong delay, wah (auto or pedal-controlled), 4-band EQ, compre
 
 - **Audio Harmonizer** — up to four pitch-shifted harmony voices, optionally locked to a Xen or Jam Mode scale, or voiced from a chord played on a keyboard.
 - **Autotune** — snaps a voice onto the notes of a key and scale, from a gentle nudge to the stepped robot sound. Retune speed, Humanize, Flex-Tune, Transpose, and a live readout of the note being sung.
+- **Amp** — a guitar amp in one slot: an overdrive or distortion pedal, the amp's Bass / Middle / Treble tone stack (three classic circuits), and a 1x12, 2x12 or 4x12 cabinet — or a cabinet impulse response (IR) loaded from a `.wav` and saved in the project. Each section switches on and off, from the panel or a CC footswitch. Free cabinet IRs: [TONE3000](https://www.tone3000.com/search?format=ir) (community library), [Kalthallen Cabs](https://cabs.kalthallen.de/) (free and paid packs), [Celestion](https://www.celestionplus.com/free-download/) (one free IR). Their licences forbid redistribution, so download them from the source.
 
 ### And the rest
 

@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import '../models/plugin_instance.dart';
 import '../models/vst3_plugin_instance.dart';
 import 'audio_graph.dart';
@@ -85,6 +87,25 @@ class VstHostService {
 
   /// Stub: native DSP publishes nothing on this platform.
   double? getGfpaDspReadout(String slotId, String readoutId) => null;
+
+  /// Not supported on web — the Amp's DSP is native only.
+  bool loadGfpaDspIr(String slotId, Float32List samples, double sampleRate) =>
+      false;
+
+  /// Not supported on web — nothing is ever loaded.
+  bool clearGfpaDspIr(String slotId) => false;
+
+  /// Not supported on web — Riff is native only.
+  void riffNoteOn(String slotId, int note, int velocity) {}
+
+  /// Not supported on web — Riff is native only.
+  void riffNoteOff(String slotId, int note) {}
+
+  /// Not supported on web — Riff is native only.
+  void riffPitchBend(String slotId, double bend) {}
+
+  /// Not supported on web — Riff is native only.
+  void riffControlChange(String slotId, int cc, int value) {}
 
   /// Stub: no-op on web — audio looper WAV import not supported.
   Future<void> importAudioLooperWavs(String gfPath, Map<String, dynamic> clips) async {}

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../l10n/app_localizations.dart';
 
 /// A modal dialog containing the comprehensive user guide for GrooveForge.
@@ -208,6 +209,9 @@ class _FeaturesTab extends StatelessWidget {
         _buildSectionTitle(l10n.guideThereminTitle),
         _buildParagraph(l10n.guideThereminBody),
         const SizedBox(height: 20),
+        _buildSectionTitle(l10n.guideRiffTitle),
+        _buildParagraph(l10n.guideRiffBody),
+        const SizedBox(height: 20),
         _buildSectionTitle(l10n.guideDrumGeneratorTitle),
         _buildParagraph(l10n.guideDrumGeneratorBody),
         const SizedBox(height: 20),
@@ -216,6 +220,15 @@ class _FeaturesTab extends StatelessWidget {
         const SizedBox(height: 20),
         _buildSectionTitle(l10n.guideMidiFxTitle),
         _buildParagraph(l10n.guideMidiFxBody),
+        const SizedBox(height: 20),
+        _buildSectionTitle(l10n.guideAmpTitle),
+        _buildParagraph(l10n.guideAmpBody),
+        _buildSubTitle(l10n.guideAmpIrSourcesTitle),
+        _buildLink(l10n.guideIrSourceTone3000, _kIrSourceTone3000),
+        _buildLink(l10n.guideIrSourceKalthallen, _kIrSourceKalthallen),
+        _buildLink(l10n.guideIrSourceCelestion, _kIrSourceCelestion),
+        const SizedBox(height: 10),
+        _buildInfoBox(l10n.guideAmpIrSourcesNote),
       ],
     );
   }
@@ -766,6 +779,41 @@ Widget _buildFeatureItem(IconData icon, String title, String description) {
       ),
       contentPadding: EdgeInsets.zero,
       dense: true,
+    ),
+  );
+}
+
+// Where to find speaker-cabinet impulse responses for the Amp. Kept in step
+// with the README and the website's Modules page. None of these files may be
+// shipped with GrooveForge (their licences forbid redistribution), so the
+// player downloads them from the source.
+const _kIrSourceTone3000 = 'https://www.tone3000.com/search?format=ir';
+const _kIrSourceKalthallen = 'https://cabs.kalthallen.de/';
+const _kIrSourceCelestion = 'https://www.celestionplus.com/free-download/';
+
+/// A tappable web link, opened in the system browser.
+Widget _buildLink(String label, String url) {
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 6, left: 8),
+    child: InkWell(
+      onTap: () => launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
+      child: Row(
+        children: [
+          const Icon(Icons.open_in_new, color: Colors.blueAccent, size: 16),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: Colors.blueAccent,
+                fontSize: 14,
+                decoration: TextDecoration.underline,
+                decorationColor: Colors.blueAccent,
+              ),
+            ),
+          ),
+        ],
+      ),
     ),
   );
 }

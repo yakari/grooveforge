@@ -9,6 +9,7 @@
 //   Chorus     — Stereo chorus/flanger with LFO and cross-feedback
 //   Harmonizer — Up to 4 phase-vocoder-pitched harmony voices + dry mix
 //   Autotune   — Pitch correction to a key and scale (delay-line shifter)
+//   Amp        — Guitar amp: drive pedal, preamp, tone stack, cabinet (gf_amp)
 //
 // Audio-thread guarantees:
 //   - All buffers are pre-allocated in each effect's constructor.
@@ -17,10 +18,12 @@
 //   - No heap allocation, no logging, no locks inside any process() method.
 
 #include "../include/gfpa_dsp.h"
+#include "gf_amp.h"
 #include "gf_autotune.h"
 #include "gf_harmony.h"
 #include "gf_pitch.h"
 #include "gf_phase_vocoder.h"
+#include "gfpa_riff_pool.h"
 
 #include <atomic>
 #include <cmath>
@@ -56,6 +59,11 @@ static std::atomic<float> g_gfpa_sample_rate{0.0f};
 extern "C" void gfpa_set_sample_rate(double sampleRate) {
     g_gfpa_sample_rate.store(static_cast<float>(sampleRate),
                              std::memory_order_relaxed);
+}
+
+/// The live stream rate for gfpa_riff.cpp, which follows it the same way.
+float gfpa_stream_sample_rate() {
+    return g_gfpa_sample_rate.load(std::memory_order_relaxed);
 }
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -1140,11 +1148,202 @@ private:
     }
 };
 
+// ── Guitar amp ────────────────────────────────────────────────────────────────
+
+/// Guitar amp simulator. The DSP lives in gf_amp.c; this adapter holds the
+/// panel's parameters as atomics, converts them to the engine's units once
+/// per block, and runs the amp in mono.
+struct AmpEffect {
+    int32_t blockSize;
+    gf_amp* amp = nullptr;
+
+    /// Mono input and output for one piece of a block.
+    std::vector<float> mono;
+
+    /// IR hand-over between the Dart isolate and the audio thread. The Dart
+    /// side builds an IR and parks it in [pendingIr]; the audio thread takes
+    /// it when the amp is free to start a crossfade. The IR it replaces comes
+    /// back through [retiredIr] for the Dart side to free, since freeing
+    /// memory on the audio thread is not allowed. Whoever exchange()s a
+    /// pointer out owns it, so neither side ever frees what the other uses.
+    std::atomic<gf_amp_ir*> pendingIr{nullptr};
+    std::atomic<gf_amp_ir*> retiredIr{nullptr};
+    /// Set by [clearIr] on the Dart side; the audio thread then removes the IR.
+    std::atomic<bool> clearRequested{false};
+
+    // Atomic parameters, in the descriptor's physical units.
+    std::atomic<float> driveOn{0.0f};
+    std::atomic<float> driveMode{0.0f};   // gf_amp_drive_mode
+    std::atomic<float> drive{50.0f};      // %
+    std::atomic<float> driveTone{50.0f};  // %
+    std::atomic<float> ampOn{1.0f};
+    std::atomic<float> ampModel{0.0f};    // gf_amp_model
+    std::atomic<float> gain{40.0f};       // %
+    std::atomic<float> bass{5.0f};        // 0..10
+    std::atomic<float> middle{5.0f};      // 0..10
+    std::atomic<float> treble{5.0f};      // 0..10
+    std::atomic<float> cabOn{1.0f};
+    std::atomic<float> cabType{1.0f};     // gf_amp_cab
+    std::atomic<float> levelDb{0.0f};     // dB
+
+    AmpEffect(float sampleRate, int32_t block)
+        : blockSize(block > 0 ? block : 256)
+        , mono(static_cast<size_t>(block > 0 ? block : 256), 0.0f)
+    {
+        amp = gf_amp_create(sampleRate);
+    }
+
+    /// Destroyed off the audio thread, after the insert was removed. The amp
+    /// frees the IRs it holds; the two hand-over slots are freed here.
+    ~AmpEffect() {
+        gf_amp_ir_destroy(pendingIr.exchange(nullptr));
+        gf_amp_ir_destroy(retiredIr.exchange(nullptr));
+        gf_amp_destroy(amp);
+    }
+
+    /// Prepares a cabinet impulse response and queues it for the audio
+    /// thread. Called from the Dart isolate: all the heavy work (trimming,
+    /// resampling, FFTs) happens here, and the audio thread only swaps a
+    /// pointer at the start of its next block.
+    ///
+    /// Returns 0 on success, -1 if the IR is unusable (empty, silent, odd
+    /// rate) or memory ran out.
+    int loadIr(const float* samples, int32_t n, double rate) {
+        const double live = g_gfpa_sample_rate.load(std::memory_order_relaxed);
+        gf_amp_ir* ir = gf_amp_ir_create(samples, n, rate, live);
+        if (!ir) return -1;
+        // An IR queued earlier that the audio thread never picked up (two
+        // loads within one block) is replaced. exchange() makes this thread
+        // its sole owner, so freeing it here is safe.
+        gf_amp_ir_destroy(pendingIr.exchange(ir));
+        // The IR the previous load replaced, if the audio thread has handed
+        // it back by now.
+        gf_amp_ir_destroy(retiredIr.exchange(nullptr));
+        return 0;
+    }
+
+    /// Removes the cabinet impulse response. Called from the Dart isolate: an
+    /// IR queued but not yet picked up is dropped here, and the audio thread
+    /// fades out the one playing before handing it back through [retiredIr].
+    void clearIr() {
+        gf_amp_ir_destroy(pendingIr.exchange(nullptr));
+        gf_amp_ir_destroy(retiredIr.exchange(nullptr));
+        clearRequested.store(true, std::memory_order_release);
+    }
+
+    /// Follows a stream rate change.
+    void setSampleRate(float sr) { gf_amp_set_sample_rate(amp, sr); }
+
+    void setParam(const char* id, float v) {
+        if      (strcmp(id, "drive_on")   == 0) driveOn.store(v);
+        else if (strcmp(id, "drive_mode") == 0) driveMode.store(v);
+        else if (strcmp(id, "drive")      == 0) drive.store(v);
+        else if (strcmp(id, "drive_tone") == 0) driveTone.store(v);
+        else if (strcmp(id, "amp_on")     == 0) ampOn.store(v);
+        else if (strcmp(id, "amp_model")  == 0) ampModel.store(v);
+        else if (strcmp(id, "gain")       == 0) gain.store(v);
+        else if (strcmp(id, "bass")       == 0) bass.store(v);
+        else if (strcmp(id, "middle")     == 0) middle.store(v);
+        else if (strcmp(id, "treble")     == 0) treble.store(v);
+        else if (strcmp(id, "cab_on")     == 0) cabOn.store(v);
+        else if (strcmp(id, "cab_type")   == 0) cabType.store(v);
+        else if (strcmp(id, "level")      == 0) levelDb.store(v);
+    }
+
+    void process(const float* inL, const float* inR,
+                 float* outL, float* outR, int32_t n)
+    {
+        if (!amp) {
+            std::memcpy(outL, inL, sizeof(float) * static_cast<size_t>(n));
+            std::memcpy(outR, inR, sizeof(float) * static_cast<size_t>(n));
+            return;
+        }
+        takePendingIr();
+        pushParams();
+        int32_t done = 0;
+        while (done < n) {
+            // The mono buffer was sized for blockSize; a larger block is
+            // processed in pieces rather than overrunning it.
+            const int32_t len = (n - done < blockSize) ? (n - done) : blockSize;
+            processPiece(inL + done, inR + done, outL + done, outR + done, len);
+            done += len;
+        }
+        handBackRetiredIr();
+    }
+
+private:
+    /// Audio thread: starts using a queued IR, unless the amp is still busy
+    /// with the previous swap — the IR then waits for a later block.
+    void takePendingIr() {
+        // A removal first, so a load queued after it wins.
+        if (clearRequested.exchange(false, std::memory_order_acquire)) {
+            gf_amp_clear_ir(amp);
+        }
+        if (gf_amp_ir_busy(amp)) return;
+        if (pendingIr.load(std::memory_order_relaxed) == nullptr) return;
+        // Always accepted: the amp was just found not busy, and only this
+        // thread makes it busy.
+        gf_amp_set_ir(amp, pendingIr.exchange(nullptr));
+    }
+
+    /// Audio thread: passes an IR the amp is done with to the Dart side.
+    /// Only the audio thread stores into [retiredIr], and only when it is
+    /// empty, so nothing is overwritten.
+    void handBackRetiredIr() {
+        if (retiredIr.load(std::memory_order_acquire) != nullptr) return;
+        gf_amp_ir* r = gf_amp_take_retired_ir(amp);
+        if (r) retiredIr.store(r, std::memory_order_release);
+    }
+
+    /// A guitar is mono: the two channels are averaged (a mono source sent as
+    /// two identical channels comes through unchanged), amped once, and the
+    /// result sent to both sides.
+    void processPiece(const float* inL, const float* inR,
+                      float* outL, float* outR, int32_t n)
+    {
+        float* m = mono.data();
+        for (int32_t i = 0; i < n; ++i) m[i] = 0.5f * (inL[i] + inR[i]);
+        gf_amp_process(amp, m, m, n);
+        std::memcpy(outL, m, static_cast<size_t>(n) * sizeof(float));
+        std::memcpy(outR, m, static_cast<size_t>(n) * sizeof(float));
+    }
+
+    static int toggle(const std::atomic<float>& v) {
+        return v.load(std::memory_order_relaxed) > 0.5f ? 1 : 0;
+    }
+
+    static int index(const std::atomic<float>& v) {
+        return static_cast<int>(lroundf(v.load(std::memory_order_relaxed)));
+    }
+
+    /// Converts the panel's units (percent, 0-10 knobs) to the engine's 0..1.
+    void pushParams() {
+        gf_amp_params p;
+        p.drive_on   = toggle(driveOn);
+        p.drive_mode = index(driveMode);
+        p.drive      = drive.load(std::memory_order_relaxed) / 100.0f;
+        p.drive_tone = driveTone.load(std::memory_order_relaxed) / 100.0f;
+        p.amp_on     = toggle(ampOn);
+        p.amp_model  = index(ampModel);
+        p.gain       = gain.load(std::memory_order_relaxed) / 100.0f;
+        p.bass       = bass.load(std::memory_order_relaxed) / 10.0f;
+        p.middle     = middle.load(std::memory_order_relaxed) / 10.0f;
+        p.treble     = treble.load(std::memory_order_relaxed) / 10.0f;
+        p.cab_on     = toggle(cabOn);
+        p.cab_type   = index(cabType);
+        p.level_db   = levelDb.load(std::memory_order_relaxed);
+        gf_amp_set_params(amp, &p);
+    }
+};
+
 // ── Plugin instance wrapper ───────────────────────────────────────────────────
 
 /// Discriminator for the union inside GfpaDspInstance.
 enum class GfpaEffectType {
-    Reverb, Delay, Wah, Eq, Compressor, Chorus, Harmonizer, Autotune
+    Reverb, Delay, Wah, Eq, Compressor, Chorus, Harmonizer, Autotune, Amp,
+    /// Not an effect: the Riff guitar, an instrument that only borrows the
+    /// handle for its knobs. Its sound comes from gfpa_riff_render_fn.
+    Riff
 };
 
 /// Opaque wrapper that holds one GFPA effect instance and its type tag.
@@ -1178,6 +1377,8 @@ struct GfpaDspInstance {
             case GfpaEffectType::Chorus:     chorus->setSampleRate(live);     break;
             case GfpaEffectType::Harmonizer: harmonizer->setSampleRate(live); break;
             case GfpaEffectType::Autotune:   autotune->setSampleRate(live);   break;
+            case GfpaEffectType::Amp:        amp->setSampleRate(live);        break;
+            case GfpaEffectType::Riff:       break;   // the pool follows it
         }
     }
 
@@ -1191,6 +1392,8 @@ struct GfpaDspInstance {
         ChorusEffect*     chorus;
         HarmonizerEffect* harmonizer;
         AutotuneEffect*   autotune;
+        AmpEffect*        amp;
+        int               riffSlot;   ///< Index in the Riff pool.
     };
 
     /// Static C-callable insert callback dispatched to the correct effect.
@@ -1229,6 +1432,14 @@ struct GfpaDspInstance {
                 inst->harmonizer->process(inL, inR, outL, outR, frames); break;
             case GfpaEffectType::Autotune:
                 inst->autotune->process(inL, inR, outL, outR, frames); break;
+            case GfpaEffectType::Amp:
+                inst->amp->process(inL, inR, outL, outR, frames); break;
+            case GfpaEffectType::Riff:
+                // An instrument is never inserted on another source's path;
+                // pass through rather than silence it if one ever is.
+                std::memcpy(outL, inL, sizeof(float) * static_cast<size_t>(frames));
+                std::memcpy(outR, inR, sizeof(float) * static_cast<size_t>(frames));
+                break;
         }
     }
 };
@@ -1273,6 +1484,16 @@ GfpaDspHandle gfpa_dsp_create(const char* pluginId, int32_t sr, int32_t block) {
     } else if (id == "com.grooveforge.autotune") {
         inst->type     = GfpaEffectType::Autotune;
         inst->autotune = new AutotuneEffect((float)sr, block);
+    } else if (id == "com.grooveforge.amp") {
+        inst->type = GfpaEffectType::Amp;
+        inst->amp  = new AmpEffect((float)sr, block);
+    } else if (id == "com.grooveforge.riff") {
+        inst->type = GfpaEffectType::Riff;
+        inst->riffSlot = gfpa_riff_acquire((float)sr);
+        if (inst->riffSlot < 0) {   // every guitar in the pool is taken
+            delete inst;
+            return nullptr;
+        }
     } else {
         delete inst;
         return nullptr;
@@ -1293,6 +1514,8 @@ void gfpa_dsp_set_param(GfpaDspHandle handle, const char* paramId, double v) {
         case GfpaEffectType::Chorus:     inst->chorus->setParam(paramId, fv);     break;
         case GfpaEffectType::Harmonizer: inst->harmonizer->setParam(paramId, fv); break;
         case GfpaEffectType::Autotune:   inst->autotune->setParam(paramId, fv);   break;
+        case GfpaEffectType::Amp:        inst->amp->setParam(paramId, fv);        break;
+        case GfpaEffectType::Riff:       gfpa_riff_slot_set_param(inst->riffSlot, paramId, fv); break;
     }
 }
 
@@ -1306,6 +1529,23 @@ double gfpa_dsp_get_readout(GfpaDspHandle handle, const char* readoutId) {
     return std::nan("");
 }
 
+/// Load a cabinet impulse response into the Amp. See gfpa_dsp.h.
+int32_t gfpa_dsp_load_ir(GfpaDspHandle handle, const float* samples,
+                         int32_t n, double sampleRate) {
+    auto* inst = static_cast<GfpaDspInstance*>(handle);
+    if (!inst || !samples || n <= 0) return -1;
+    if (inst->type != GfpaEffectType::Amp) return -1;
+    return inst->amp->loadIr(samples, n, sampleRate);
+}
+
+/// Remove the Amp's cabinet impulse response. See gfpa_dsp.h.
+int32_t gfpa_dsp_clear_ir(GfpaDspHandle handle) {
+    auto* inst = static_cast<GfpaDspInstance*>(handle);
+    if (!inst || inst->type != GfpaEffectType::Amp) return -1;
+    inst->amp->clearIr();
+    return 0;
+}
+
 /// Set the bypass state of a DSP instance.
 ///
 /// When [bypassed] is true, the insert callback copies input to output
@@ -1314,6 +1554,8 @@ double gfpa_dsp_get_readout(GfpaDspHandle handle, const char* readoutId) {
 void gfpa_dsp_set_bypass(GfpaDspHandle handle, bool bypassed) {
     auto* inst = static_cast<GfpaDspInstance*>(handle);
     inst->bypassed.store(bypassed, std::memory_order_relaxed);
+    // An instrument has no input to pass through: bypassed, it goes quiet.
+    if (inst->type == GfpaEffectType::Riff) gfpa_riff_slot_set_muted(inst->riffSlot, bypassed);
 }
 
 /// Return the static insert callback (shared by all instances — dispatch via userdata).
@@ -1338,8 +1580,42 @@ void gfpa_dsp_destroy(GfpaDspHandle handle) {
         case GfpaEffectType::Chorus:     delete inst->chorus;     break;
         case GfpaEffectType::Harmonizer: delete inst->harmonizer; break;
         case GfpaEffectType::Autotune:   delete inst->autotune;   break;
+        case GfpaEffectType::Amp:        delete inst->amp;        break;
+        case GfpaEffectType::Riff:       gfpa_riff_release(inst->riffSlot); break;
     }
     delete inst;
+}
+
+// ── Riff guitar ──────────────────────────────────────────────────────────────
+
+/// The pool slot behind [handle], or -1 when it is not a Riff.
+static int riffSlotOf(GfpaDspHandle handle) {
+    auto* inst = static_cast<GfpaDspInstance*>(handle);
+    return (inst && inst->type == GfpaEffectType::Riff) ? inst->riffSlot : -1;
+}
+
+void gfpa_riff_note_on(GfpaDspHandle handle, int32_t note, int32_t velocity) {
+    gfpa_riff_slot_note_on(riffSlotOf(handle), note, velocity);
+}
+
+void gfpa_riff_note_off(GfpaDspHandle handle, int32_t note) {
+    gfpa_riff_slot_note_off(riffSlotOf(handle), note);
+}
+
+void gfpa_riff_pitch_bend(GfpaDspHandle handle, double bend) {
+    gfpa_riff_slot_pitch_bend(riffSlotOf(handle), static_cast<float>(bend));
+}
+
+void gfpa_riff_control_change(GfpaDspHandle handle, int32_t cc, int32_t value) {
+    gfpa_riff_slot_control_change(riffSlotOf(handle), cc, value);
+}
+
+intptr_t gfpa_riff_render_fn(GfpaDspHandle handle) {
+    return reinterpret_cast<intptr_t>(gfpa_riff_slot_render_fn(riffSlotOf(handle)));
+}
+
+intptr_t gfpa_riff_bus_render_fn(GfpaDspHandle handle) {
+    return reinterpret_cast<intptr_t>(gfpa_riff_slot_bus_render_fn(riffSlotOf(handle)));
 }
 
 } // extern "C"

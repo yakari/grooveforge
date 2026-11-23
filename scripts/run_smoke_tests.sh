@@ -57,6 +57,19 @@
 #       drive (UAC2, asynchronous endpoints), spreads 44.1 kHz over 1 ms packets
 #       and checks the PCM bytes. Needs no device.
 #
+#   gf_amp_smoke_test — guitar amp: the tone stack formula matches a solve of
+#       its circuit, the knobs move the right frequencies, the 2x resampler is
+#       flat, antialiasing removes folded energy, and sections switch cleanly.
+#
+#   gf_convolver_smoke_test — cabinet impulse responses: the convolver equals a
+#       direct sum with no latency, IRs are trimmed, capped and level-matched to
+#       the built-in 2x12, and swapping IRs or cabinets never clicks.
+#
+#   gf_riff_smoke_test — Riff, the modelled guitar: every note in tune at
+#       three rates, strings ring for the set time, bends reach their range,
+#       bending, muting and re-picking never click, notes land on the strings
+#       a guitarist would use, and six ringing strings are cheap.
+#
 #   gf_autotune_smoke_test — Autotune: a sharp note comes out on pitch, key and
 #       scale pick the right note, retune speed and transpose do what they say,
 #       and a hard retune across an octave never puts a click in the waveform.
@@ -67,6 +80,9 @@
 #   ./scripts/run_smoke_tests.sh vocoder    # just the phase vocoder test
 #   ./scripts/run_smoke_tests.sh harmonizer # just the harmonizer test
 #   ./scripts/run_smoke_tests.sh autotune   # just the autotune test
+#   ./scripts/run_smoke_tests.sh amp        # just the guitar amp test
+#   ./scripts/run_smoke_tests.sh convolver  # just the cabinet IR test
+#   ./scripts/run_smoke_tests.sh riff       # just the modelled guitar test
 #   ./scripts/run_smoke_tests.sh latency    # just the overdub alignment test
 #   ./scripts/run_smoke_tests.sh rehearsal  # just the rehearsal engine test
 #   ./scripts/run_smoke_tests.sh stretch    # just the practice-tempo renderer
@@ -162,6 +178,41 @@ run_autotune() {
     "$BUILD_DIR/gf_autotune_smoke_test"
 }
 
+# ── Guitar amp ────────────────────────────────────────────────────────────────
+
+run_amp() {
+    echo
+    echo "── Building gf_amp_smoke_test"
+    cmake --build "$BUILD_DIR" --target gf_amp_smoke_test -j"$(nproc 2>/dev/null || echo 4)" > /dev/null
+    echo "── Running gf_amp_smoke_test"
+    "$BUILD_DIR/gf_amp_smoke_test"
+}
+
+# ── Riff, the modelled guitar ─────────────────────────────────────────────────
+
+run_riff() {
+    echo
+    echo "── Building gf_riff_smoke_test"
+    cmake --build "$BUILD_DIR" --target gf_riff_smoke_test -j"$(nproc 2>/dev/null || echo 4)" > /dev/null
+    echo "── Running gf_riff_smoke_test"
+    "$BUILD_DIR/gf_riff_smoke_test" || return 1
+    echo
+    echo "── Building gf_riff_pool_smoke_test"
+    cmake --build "$BUILD_DIR" --target gf_riff_pool_smoke_test -j"$(nproc 2>/dev/null || echo 4)" > /dev/null
+    echo "── Running gf_riff_pool_smoke_test"
+    "$BUILD_DIR/gf_riff_pool_smoke_test"
+}
+
+# ── Cabinet impulse responses ─────────────────────────────────────────────────
+
+run_convolver() {
+    echo
+    echo "── Building gf_convolver_smoke_test"
+    cmake --build "$BUILD_DIR" --target gf_convolver_smoke_test -j"$(nproc 2>/dev/null || echo 4)" > /dev/null
+    echo "── Running gf_convolver_smoke_test"
+    "$BUILD_DIR/gf_convolver_smoke_test"
+}
+
 # ── Overdub latency alignment ─────────────────────────────────────────────────
 
 run_latency() {
@@ -210,6 +261,9 @@ case "$WHICH" in
     vocoder)    run_vocoder    || FAILED=1 ;;
     harmonizer) run_harmonizer || FAILED=1 ;;
     autotune)   run_autotune   || FAILED=1 ;;
+    amp)        run_amp        || FAILED=1 ;;
+    convolver)  run_convolver  || FAILED=1 ;;
+    riff)       run_riff       || FAILED=1 ;;
     latency)    run_latency    || FAILED=1 ;;
     rehearsal)  run_rehearsal  || FAILED=1 ;;
     stretch)    run_timestretch || FAILED=1 ;;
@@ -221,13 +275,16 @@ case "$WHICH" in
         run_vocoder    || FAILED=1
         run_harmonizer || FAILED=1
         run_autotune   || FAILED=1
+        run_amp        || FAILED=1
+        run_convolver  || FAILED=1
+        run_riff       || FAILED=1
         run_latency    || FAILED=1
         run_rehearsal  || FAILED=1
         run_timestretch || FAILED=1
         run_uac        || FAILED=1
         ;;
     *)
-        echo "usage: $0 [all|tuning|vocoder|harmonizer|autotune|latency|rehearsal|stretch|uac]" >&2
+        echo "usage: $0 [all|tuning|vocoder|harmonizer|autotune|amp|convolver|riff|latency|rehearsal|stretch|uac]" >&2
         exit 2
         ;;
 esac

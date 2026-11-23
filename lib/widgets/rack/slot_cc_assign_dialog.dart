@@ -449,6 +449,8 @@ class _SlotCcAssignDialogState extends State<SlotCcAssignDialog> {
         mode: mode,
         directValue: directValue,
       ),
+      // No release value carried over from a re-learned mapping: the new
+      // control may be a knob, where a fast turn to 0 would read as a release.
     ));
     context.read<RackState>().markDirty();
   }

@@ -69,6 +69,71 @@ class CcParamEntry {
 class CcParamRegistry {
   CcParamRegistry._();
 
+  // ── Riff guitar ────────────────────────────────────────────────────────
+
+  /// Riff (`com.grooveforge.riff`). Everything a guitarist's hands do while
+  /// playing, so a pedal, a ribbon or a pad can do it: the palm mute and
+  /// the pick position are the expressive ones, worth a continuous control;
+  /// the pickup selector steps on each press, as a guitar's switch does.
+  /// "Mute" is the slot's bypass, which silences an instrument.
+  static const List<CcParamEntry> riff = [
+    CcParamEntry(
+      paramKey: 'bypass',
+      displayName: 'Mute',
+      defaultMode: CcParamMode.toggle,
+    ),
+    CcParamEntry(
+      paramKey: 'palm_mute',
+      displayName: 'Palm mute',
+      gfpaParamId: 0,
+      defaultMode: CcParamMode.absolute,
+    ),
+    CcParamEntry(
+      paramKey: 'pick_pos',
+      displayName: 'Pick position',
+      gfpaParamId: 1,
+      defaultMode: CcParamMode.absolute,
+    ),
+    CcParamEntry(
+      paramKey: 'attack',
+      displayName: 'Attack',
+      gfpaParamId: 2,
+      defaultMode: CcParamMode.absolute,
+    ),
+    CcParamEntry(
+      paramKey: 'pickup',
+      displayName: 'Pickup',
+      gfpaParamId: 3,
+      defaultMode: CcParamMode.cycle,
+      cycleCount: 4,
+    ),
+    CcParamEntry(
+      paramKey: 'pickup_type',
+      displayName: 'Pickup type',
+      gfpaParamId: 4,
+      defaultMode: CcParamMode.cycle,
+      cycleCount: 2,
+    ),
+    CcParamEntry(
+      paramKey: 'tone',
+      displayName: 'Tone',
+      gfpaParamId: 5,
+      defaultMode: CcParamMode.absolute,
+    ),
+    CcParamEntry(
+      paramKey: 'sustain',
+      displayName: 'Sustain',
+      gfpaParamId: 6,
+      defaultMode: CcParamMode.absolute,
+    ),
+    CcParamEntry(
+      paramKey: 'level',
+      displayName: 'Level',
+      gfpaParamId: 8,
+      defaultMode: CcParamMode.absolute,
+    ),
+  ];
+
   // ── Audio effects ──────────────────────────────────────────────────────
 
   /// Parameters shared by all audio effect plugins.
@@ -167,6 +232,61 @@ class CcParamRegistry {
       paramKey: 'mix',
       displayName: 'Mix',
       gfpaParamId: 7,
+      defaultMode: CcParamMode.absolute,
+    ),
+  ];
+
+  /// Amp (`com.grooveforge.amp`). The three section switches are what a
+  /// guitarist puts under their feet: kick the drive in for a solo, drop the
+  /// cab when running into a real speaker. They are two-state selectors, so
+  /// [CcParamMode.cycle] with two steps flips them on each press, whatever
+  /// value the button sends. Drive, Gain and Level are the knobs worth riding.
+  static const List<CcParamEntry> amp = [
+    ..._commonEffectParams,
+    CcParamEntry(
+      paramKey: 'drive_on',
+      displayName: 'Drive on/off',
+      gfpaParamId: 0,
+      defaultMode: CcParamMode.cycle,
+      cycleCount: 2,
+    ),
+    CcParamEntry(
+      paramKey: 'amp_on',
+      displayName: 'Amp on/off',
+      gfpaParamId: 4,
+      defaultMode: CcParamMode.cycle,
+      cycleCount: 2,
+    ),
+    CcParamEntry(
+      paramKey: 'cab_on',
+      displayName: 'Cab on/off',
+      gfpaParamId: 10,
+      defaultMode: CcParamMode.cycle,
+      cycleCount: 2,
+    ),
+    CcParamEntry(
+      paramKey: 'drive_mode',
+      displayName: 'Drive type',
+      gfpaParamId: 1,
+      defaultMode: CcParamMode.cycle,
+      cycleCount: 2,
+    ),
+    CcParamEntry(
+      paramKey: 'drive',
+      displayName: 'Drive',
+      gfpaParamId: 2,
+      defaultMode: CcParamMode.absolute,
+    ),
+    CcParamEntry(
+      paramKey: 'gain',
+      displayName: 'Gain',
+      gfpaParamId: 6,
+      defaultMode: CcParamMode.absolute,
+    ),
+    CcParamEntry(
+      paramKey: 'level',
+      displayName: 'Level',
+      gfpaParamId: 12,
       defaultMode: CcParamMode.absolute,
     ),
   ];
@@ -622,6 +742,7 @@ class CcParamRegistry {
     'com.grooveforge.chorus': chorus,
     'com.grooveforge.wah': wah,
     'com.grooveforge.autotune': autotune,
+    'com.grooveforge.amp': amp,
     // MIDI FX
     'com.grooveforge.arpeggiator': arpeggiator,
     'com.grooveforge.chord': chordExpand,
@@ -635,6 +756,7 @@ class CcParamRegistry {
     'com.grooveforge.vocoder': vocoder,
     'com.grooveforge.theremin': theremin,
     'com.grooveforge.stylophone': stylophone,
+    'com.grooveforge.riff': riff,
     // GF Keyboard, Drum Generator, Looper use special keys (not pluginIds)
     '_gf_keyboard': gfKeyboard,
     '_drum_generator': drumGenerator,

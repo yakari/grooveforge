@@ -78,6 +78,7 @@ add_library(native-lib SHARED
         usb_direct_output_android.cpp
         ../../../../../../native_audio/gf_uac.c
         ../../../../../flutter_vst3/dart_vst_host/native/src/gfpa_dsp.cpp
+        ../../../../../flutter_vst3/dart_vst_host/native/src/gfpa_riff.cpp
         ../../../../../flutter_vst3/dart_vst_host/native/src/audio_looper.cpp
         # Phase vocoder — tempo-sync stretching for the audio looper.
         # Source of truth at repo-root native_audio/.
@@ -86,6 +87,9 @@ add_library(native-lib SHARED
         ../../../../../../native_audio/gf_harmony.c
         ../../../../../../native_audio/gf_pitch.c
         ../../../../../../native_audio/gf_autotune.c
+        ../../../../../../native_audio/gf_amp.c
+        ../../../../../../native_audio/gf_convolver.c
+        ../../../../../../native_audio/gf_riff.c
 )
 
 # ── Optimisation floor for the DSP ────────────────────────────────────────

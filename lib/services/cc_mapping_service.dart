@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -302,17 +304,73 @@ class CcMapping {
   /// What this CC controls — one of the six target types.
   final CcMappingTarget target;
 
-  const CcMapping({required this.incomingCc, required this.target});
+  /// Value sent to [target] instead of 0 when the hardware control is let go,
+  /// or null to pass every value through unchanged.
+  ///
+  /// For ribbons and touch strips, which snap back to 0 the moment the finger
+  /// lifts: with 64 here, a ribbon driving pitch bend springs back to centre
+  /// rather than to a full bend down. How a release is told apart from a slide
+  /// down to 0 is [CcReleaseDetector]'s business.
+  ///
+  /// Only meaningful for continuous targets — see [supportsReleaseValue].
+  final int? releaseValue;
+
+  const CcMapping({
+    required this.incomingCc,
+    required this.target,
+    this.releaseValue,
+  });
 
   factory CcMapping.fromJson(Map<String, dynamic> json) => CcMapping(
         incomingCc: json['cc'] as int,
         target: CcMappingTarget.fromJson(json['target'] as Map<String, dynamic>),
+        releaseValue: json['releaseValue'] as int?,
       );
 
   Map<String, dynamic> toJson() => {
         'cc': incomingCc,
         'target': target.toJson(),
+        if (releaseValue != null) 'releaseValue': releaseValue,
       };
+
+  /// Returns a copy with [target] replaced and [releaseValue] kept — so code
+  /// that rewrites targets (slot swaps, re-binding a pad) cannot silently
+  /// drop the release setting.
+  CcMapping withTarget(CcMappingTarget newTarget) => CcMapping(
+        incomingCc: incomingCc,
+        target: newTarget,
+        releaseValue: releaseValue,
+      );
+
+  /// Returns a copy with [releaseValue] set to [value] (null turns it off).
+  CcMapping withReleaseValue(int? value) => CcMapping(
+        incomingCc: incomingCc,
+        target: target,
+        releaseValue: value,
+      );
+
+  /// Whether a release value makes sense for [target].
+  ///
+  /// Only targets that follow the control's position continuously qualify: a
+  /// remapped CC (pitch bend included), a slot parameter in absolute mode, and
+  /// the system volume. Buttons, toggles, cycles and one-shot actions react to
+  /// the press itself, so substituting the value on release would mean nothing.
+  static bool supportsReleaseValue(CcMappingTarget target) => switch (target) {
+        GmCcTarget() => true,
+        SlotParamTarget(:final mode) => mode == CcParamMode.absolute,
+        GlobalTarget() => true,
+        SystemTarget() || SwapTarget() || TransportTarget() => false,
+      };
+
+  /// The value to hand to [target] for an incoming [ccValue].
+  ///
+  /// [isRelease] comes from [CcReleaseDetector.observe] for this event.
+  int effectiveValue(int ccValue, {required bool isRelease}) {
+    final neutral = releaseValue;
+    if (!isRelease || neutral == null) return ccValue;
+    if (!supportsReleaseValue(target)) return ccValue;
+    return neutral;
+  }
 
   // ── Migration from legacy format ──────────────────────────────────────
 
@@ -349,6 +407,66 @@ class CcMapping {
   }
 }
 
+// ── Release detection ────────────────────────────────────────────────────────
+
+/// Recognises the moment a finger lifts off a ribbon or touch strip.
+///
+/// Such controls send no "released" message: they just send 0, exactly as they
+/// do when the finger slides all the way to the low end. What differs is how
+/// they get there. A slide passes through the values in between (…, 5, 3, 1,
+/// 0); a release jumps straight to 0 from wherever the finger was. So a 0 that
+/// arrives from more than [jumpThreshold] away counts as a release.
+///
+/// Two cases stay ambiguous, and nothing in the MIDI stream can settle them:
+/// - a very fast slide down to the end can be taken for a release;
+/// - lifting the finger within [jumpThreshold] of the low end is not seen as
+///   one, so the value stays near 0.
+///
+/// State is kept per (channel, CC) source, in flat pre-allocated arrays: this
+/// runs for every CC event, and a ribbon sends a lot of them.
+class CcReleaseDetector {
+  /// Largest step towards 0 still treated as part of a slide.
+  ///
+  /// 3 is the value that proved itself on an Alesis Vortex Wireless 2 ribbon
+  /// in the MyVortex MIDI bridge.
+  static const int jumpThreshold = 3;
+
+  /// 16 MIDI channels × 128 controllers.
+  static const int _sourceCount = 16 * 128;
+
+  /// Last raw value seen per source, -1 before the first one.
+  final Int16List _lastValue = Int16List(_sourceCount)..fillRange(0, _sourceCount, -1);
+
+  /// Whether the source's last 0 was a release. Keeps a repeated 0 after a
+  /// release from being read as a slide that had come to rest.
+  final Uint8List _released = Uint8List(_sourceCount);
+
+  /// Records [value] for controller [cc] on [channel] and returns whether
+  /// this event is a release.
+  bool observe(int channel, int cc, int value) {
+    final source = (channel & 0x0F) * 128 + (cc & 0x7F);
+    final previous = _lastValue[source];
+    _lastValue[source] = value;
+
+    // Any non-zero value means the finger is on the control.
+    if (value != 0) {
+      _released[source] = 0;
+      return false;
+    }
+
+    // A 0 is a release when it repeats one, or when it jumped from far away.
+    final isRelease = _released[source] == 1 || previous > jumpThreshold;
+    _released[source] = isRelease ? 1 : 0;
+    return isRelease;
+  }
+
+  /// Forgets every source's history.
+  void reset() {
+    _lastValue.fillRange(0, _sourceCount, -1);
+    _released.fillRange(0, _sourceCount, 0);
+  }
+}
+
 // ── CC mapping service ───────────────────────────────────────────────────────
 
 /// Manages user-defined MIDI Control Change (CC) routing rules.
@@ -369,6 +487,10 @@ class CcMappingService {
   /// Pre-built index: incoming CC → list of mappings with that CC.
   /// Rebuilt whenever [mappingsNotifier] changes.
   Map<int, List<CcMapping>> _index = {};
+
+  /// Tells ribbon releases from slides for mappings with a
+  /// [CcMapping.releaseValue]. Fed every incoming CC by the audio engine.
+  final CcReleaseDetector releaseDetector = CcReleaseDetector();
 
   // ── Standard GM CCs (used by the CC preferences dropdown) ────────────
 
@@ -480,6 +602,21 @@ class CcMappingService {
     _setMappings(newList);
   }
 
+  /// Replaces [oldMapping] with [newMapping] in place, keeping list order so
+  /// the mapping does not jump to the bottom of the preferences list.
+  ///
+  /// Matches the same way [removeMapping] does (incoming CC + target). Does
+  /// nothing when [oldMapping] is not found.
+  void replaceMapping(CcMapping oldMapping, CcMapping newMapping) {
+    final list = List<CcMapping>.from(mappingsNotifier.value);
+    final index = list.indexWhere((m) =>
+        m.incomingCc == oldMapping.incomingCc &&
+        _targetsEqual(m.target, oldMapping.target));
+    if (index < 0) return;
+    list[index] = newMapping;
+    _setMappings(list);
+  }
+
   /// Removes all mappings that match [incomingCc] and have an identical target.
   void removeMapping(CcMapping mapping) {
     final newList = mappingsNotifier.value
@@ -549,7 +686,7 @@ class CcMappingService {
       }
       if (swapped != null) {
         changed = true;
-        return CcMapping(incomingCc: m.incomingCc, target: swapped);
+        return m.withTarget(swapped);
       }
       return m;
     }).toList();

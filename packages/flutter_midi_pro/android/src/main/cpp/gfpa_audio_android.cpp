@@ -53,11 +53,11 @@ static constexpr int kMaxFrames = 4096;
 /// Maximum bus slot ID supported.
 /// g_sfChains is indexed 0..kMaxBusSlot; index 0 is unused (slot IDs start at 1).
 /// Slots 1–N: GF Keyboard (FluidSynth sfId, dynamically assigned).
-/// Slots 100–103: Theremin, Stylophone, Vocoder, Live Input
-/// (see OBOE_BUS_SLOT_* in oboe_stream_android.h).
+/// Slots 100–103: Theremin, Stylophone, Vocoder, Live Input; 104–107: the
+/// four Riff guitars (see OBOE_BUS_SLOT_* in oboe_stream_android.h).
 ///
-/// Array size: (kMaxBusSlot + 1) * sizeof(SfInsertChain) ≈ 104 * 140 bytes ≈ 15 KB.
-static constexpr int kMaxBusSlot = 105;
+/// Array size: (kMaxBusSlot + 1) * sizeof(SfInsertChain) ≈ 108 * 140 bytes ≈ 15 KB.
+static constexpr int kMaxBusSlot = 107;
 
 // ── Per-keyboard insert chain storage ─────────────────────────────────────────
 

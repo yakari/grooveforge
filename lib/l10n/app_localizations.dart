@@ -2762,6 +2762,144 @@ abstract class AppLocalizations {
   /// **'Autotune'**
   String get rackAddAutotune;
 
+  /// No description provided for @rackAddRiff.
+  ///
+  /// In en, this message translates to:
+  /// **'Riff'**
+  String get rackAddRiff;
+
+  /// No description provided for @rackAddRiffSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Modelled electric guitar, string by string; cable it into the Amp'**
+  String get rackAddRiffSubtitle;
+
+  /// No description provided for @rackAddAmp.
+  ///
+  /// In en, this message translates to:
+  /// **'Amp'**
+  String get rackAddAmp;
+
+  /// No description provided for @rackAddAmpSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Guitar amp: drive pedal, amp tone stack and speaker cabinet'**
+  String get rackAddAmpSubtitle;
+
+  /// No description provided for @ampIrNone.
+  ///
+  /// In en, this message translates to:
+  /// **'Cabinet IR: none loaded'**
+  String get ampIrNone;
+
+  /// No description provided for @ampIrLoaded.
+  ///
+  /// In en, this message translates to:
+  /// **'Cabinet IR: {name}'**
+  String ampIrLoaded(String name);
+
+  /// No description provided for @ampIrLoad.
+  ///
+  /// In en, this message translates to:
+  /// **'Load IR'**
+  String get ampIrLoad;
+
+  /// No description provided for @ampIrRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove the IR'**
+  String get ampIrRemove;
+
+  /// No description provided for @ampIrPickTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a cabinet impulse response (.wav)'**
+  String get ampIrPickTitle;
+
+  /// No description provided for @ampIrNotWav.
+  ///
+  /// In en, this message translates to:
+  /// **'This file is not a WAV file.'**
+  String get ampIrNotWav;
+
+  /// No description provided for @ampIrUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'This WAV uses a compressed format. Export it as a PCM or float WAV.'**
+  String get ampIrUnsupported;
+
+  /// No description provided for @ampIrEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'This file contains no sound.'**
+  String get ampIrEmpty;
+
+  /// No description provided for @ampIrUnreadable.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not read this file.'**
+  String get ampIrUnreadable;
+
+  /// No description provided for @ampIrRejected.
+  ///
+  /// In en, this message translates to:
+  /// **'The amp could not use this IR.'**
+  String get ampIrRejected;
+
+  /// No description provided for @guideRiffTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Riff, the modelled guitar'**
+  String get guideRiffTitle;
+
+  /// No description provided for @guideRiffBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Riff is an electric guitar simulated string by string. Play it from any keyboard or MIDI source: each note goes to a string a guitarist would use, so two notes on the same string cut each other off as on a real guitar. The pitch wheel bends (a whole tone by default, see Bend), the mod wheel adds vibrato and the sustain pedal lets released strings ring.\nPalm mute, Pick position, Attack, the pickup selector, Tone and Sustain all act on strings that are already ringing: map them to a pedal, a knob or a ribbon in the CC settings and play them like a guitarist\'s hands. Cable Riff into the Amp for crunch and distortion; the Overdrive pedal gives the most natural result.'**
+  String get guideRiffBody;
+
+  /// No description provided for @guideAmpTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Amp and cabinet IRs'**
+  String get guideAmpTitle;
+
+  /// No description provided for @guideAmpBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The Amp turns a clean guitar into an amplified one, in three sections you can switch on and off, by hand or with a footswitch mapped in the CC settings: a Drive pedal (Overdrive or Distortion), the Amp itself (gain and its Bass / Middle / Treble), and the speaker Cab.\nMost of a guitar sound comes from the cabinet. Besides the three built-in cabinets, the Amp can play an impulse response (IR): a recording of a real cabinet and its microphone. Tap Load IR under the Amp, pick a .wav file, and the Cabinet selector switches to IR. The file is saved inside your project; the cross next to its name removes it.'**
+  String get guideAmpBody;
+
+  /// No description provided for @guideAmpIrSourcesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Where to find free cabinet IRs'**
+  String get guideAmpIrSourcesTitle;
+
+  /// No description provided for @guideAmpIrSourcesNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Each pack comes with its own licence: free to play through, but usually not to share. Download them yourself from these sites.'**
+  String get guideAmpIrSourcesNote;
+
+  /// No description provided for @guideIrSourceTone3000.
+  ///
+  /// In en, this message translates to:
+  /// **'TONE3000: a community library with thousands of free IRs'**
+  String get guideIrSourceTone3000;
+
+  /// No description provided for @guideIrSourceKalthallen.
+  ///
+  /// In en, this message translates to:
+  /// **'Kalthallen Cabs: free and paid packs of classic cabinets'**
+  String get guideIrSourceKalthallen;
+
+  /// No description provided for @guideIrSourceCelestion.
+  ///
+  /// In en, this message translates to:
+  /// **'Celestion: a free IR from the speaker maker'**
+  String get guideIrSourceCelestion;
+
   /// No description provided for @rackAddAutotuneSubtitle.
   ///
   /// In en, this message translates to:
@@ -5485,6 +5623,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Force-quitting GrooveForge also clears this, and is the fastest fix if you are on stage.'**
   String get audioOutputPathRestartHint;
+
+  /// No description provided for @ccReleaseValueTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Neutral value on release'**
+  String get ccReleaseValueTitle;
+
+  /// No description provided for @ccReleaseValueHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'For ribbons and touch strips that jump back to 0 when you lift your finger. Leave off for knobs, faders, wheels, pedals and pads. If your controller has a hold or latch mode, use it to keep the last value.'**
+  String get ccReleaseValueHelp;
+
+  /// No description provided for @ccReleaseValueLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Value: {value}'**
+  String ccReleaseValueLabel(int value);
+
+  /// No description provided for @ccReleaseValueSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'returns to {value} on release'**
+  String ccReleaseValueSummary(int value);
+
+  /// No description provided for @ccReleaseValueDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'CC {cc}: release'**
+  String ccReleaseValueDialogTitle(int cc);
 }
 
 class _AppLocalizationsDelegate

@@ -1508,6 +1508,87 @@ class AppLocalizationsFr extends AppLocalizations {
   String get rackAddAutotune => 'Autotune';
 
   @override
+  String get rackAddRiff => 'Riff';
+
+  @override
+  String get rackAddRiffSubtitle =>
+      'Guitare électrique modélisée corde par corde ; à câbler dans l\'Ampli';
+
+  @override
+  String get rackAddAmp => 'Ampli';
+
+  @override
+  String get rackAddAmpSubtitle =>
+      'Ampli guitare : pédale de saturation, réglages de l\'ampli et baffle';
+
+  @override
+  String get ampIrNone => 'IR de baffle : aucune';
+
+  @override
+  String ampIrLoaded(String name) {
+    return 'IR de baffle : $name';
+  }
+
+  @override
+  String get ampIrLoad => 'Charger une IR';
+
+  @override
+  String get ampIrRemove => 'Retirer l\'IR';
+
+  @override
+  String get ampIrPickTitle =>
+      'Choisir une réponse impulsionnelle de baffle (.wav)';
+
+  @override
+  String get ampIrNotWav => 'Ce fichier n\'est pas un WAV.';
+
+  @override
+  String get ampIrUnsupported =>
+      'Ce WAV est dans un format compressé. Exportez-le en WAV PCM ou flottant.';
+
+  @override
+  String get ampIrEmpty => 'Ce fichier ne contient aucun son.';
+
+  @override
+  String get ampIrUnreadable => 'Impossible de lire ce fichier.';
+
+  @override
+  String get ampIrRejected => 'L\'ampli n\'a pas pu utiliser cette IR.';
+
+  @override
+  String get guideRiffTitle => 'Riff, la guitare modélisée';
+
+  @override
+  String get guideRiffBody =>
+      'Riff est une guitare électrique simulée corde par corde. Jouez-la depuis n\'importe quel clavier ou source MIDI : chaque note va sur une corde qu\'un guitariste utiliserait, donc deux notes sur la même corde se coupent, comme sur une vraie guitare. La molette de pitch fait les bends (un ton par défaut, voir Bend), la molette de modulation ajoute du vibrato et la pédale de sustain laisse sonner les cordes relâchées.\nPalm mute, Pick position, Attack, le sélecteur de micro, Tone et Sustain agissent sur les cordes qui sonnent déjà : associez-les à une pédale, un potard ou un ruban dans les réglages CC pour les jouer comme les mains d\'un guitariste. Câblez Riff dans l\'Ampli pour du crunch ou de la saturation ; la pédale Overdrive donne le rendu le plus naturel.';
+
+  @override
+  String get guideAmpTitle => 'Ampli et IR de baffle';
+
+  @override
+  String get guideAmpBody =>
+      'L\'Amp transforme une guitare clean en guitare amplifiée, en trois sections que l\'on active à la main ou avec un footswitch mappé dans les réglages CC : une pédale Drive (Overdrive ou Distortion), l\'ampli lui-même (le gain et ses Bass / Middle / Treble) et le baffle (Cab).\nL\'essentiel du son d\'une guitare vient du baffle. En plus des trois baffles intégrés, l\'Amp peut jouer une réponse impulsionnelle (IR) : l\'enregistrement d\'un vrai baffle et de son micro. Touchez Charger une IR sous l\'Amp, choisissez un fichier .wav, et le sélecteur Cabinet passe sur IR. Le fichier est enregistré dans votre projet ; la croix à côté de son nom le retire.';
+
+  @override
+  String get guideAmpIrSourcesTitle => 'Où trouver des IR de baffle gratuites';
+
+  @override
+  String get guideAmpIrSourcesNote =>
+      'Chaque pack a sa propre licence : libre pour jouer, mais en général pas pour le partager. Téléchargez-les vous-même sur ces sites.';
+
+  @override
+  String get guideIrSourceTone3000 =>
+      'TONE3000 : une bibliothèque communautaire avec des milliers d\'IR gratuites';
+
+  @override
+  String get guideIrSourceKalthallen =>
+      'Kalthallen Cabs : des packs gratuits et payants de baffles classiques';
+
+  @override
+  String get guideIrSourceCelestion =>
+      'Celestion : une IR gratuite du fabricant de haut-parleurs';
+
+  @override
   String get rackAddAutotuneSubtitle =>
       'Colle votre voix sur les notes d\'une gamme, de discret à robot';
 
@@ -3062,4 +3143,26 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get audioOutputPathRestartHint =>
       'Fermer complètement GrooveForge réinitialise aussi ce verrou, et c\'est le geste le plus rapide si vous êtes sur scène.';
+
+  @override
+  String get ccReleaseValueTitle => 'Valeur neutre au relâchement';
+
+  @override
+  String get ccReleaseValueHelp =>
+      'Pour les ribbons et touch strips qui retombent à 0 quand on lève le doigt. À laisser désactivé pour les potentiomètres, faders, molettes, pédales et pads. Si votre contrôleur a un mode hold ou latch, utilisez-le pour garder la dernière valeur.';
+
+  @override
+  String ccReleaseValueLabel(int value) {
+    return 'Valeur : $value';
+  }
+
+  @override
+  String ccReleaseValueSummary(int value) {
+    return 'revient à $value au relâchement';
+  }
+
+  @override
+  String ccReleaseValueDialogTitle(int cc) {
+    return 'CC $cc : relâchement';
+  }
 }

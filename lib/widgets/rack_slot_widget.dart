@@ -230,6 +230,7 @@ class RackSlotWidget extends StatelessWidget {
         case 'com.grooveforge.vocoder':
         case 'com.grooveforge.stylophone':
         case 'com.grooveforge.theremin':
+        case kRiffPluginId:
           return true;
         default:
           return false;
@@ -500,6 +501,8 @@ class _SlotHeader extends StatelessWidget {
         case 'com.grooveforge.compressor': return Icons.compress;
         case 'com.grooveforge.chorus': return Icons.waves;
         case 'com.grooveforge.autotune': return Icons.record_voice_over;
+        case 'com.grooveforge.amp': return Icons.speaker;
+        case kRiffPluginId: return Icons.electric_bolt;
       }
       // Generic icon for any other descriptor-backed plugin.
       if (GFPluginRegistry.instance.findById(p.pluginId) is GFDescriptorPlugin) {

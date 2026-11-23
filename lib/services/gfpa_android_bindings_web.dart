@@ -6,6 +6,8 @@
 // (memory addresses) instead of dart:ffi Pointer<Void>, since dart:ffi is not
 // available on web.
 
+import 'dart:typed_data';
+
 import '../models/audio_latency_status.dart';
 
 // ── AAudio bus slot ID constants ──────────────────────────────────────────────
@@ -26,6 +28,12 @@ const int kBusSlotVocoder = 102;
 
 /// AAudio bus slot ID for the Live Input source. Web stub — unused at runtime.
 const int kBusSlotLiveInput = 103;
+
+/// First of the four AAudio bus slots for Riff guitars (mirrors native).
+const int kBusSlotRiffFirst = 104;
+
+/// How many Riff guitars can play at once (mirrors native).
+const int kMaxRiffGuitars = 4;
 
 /// Mirrors the native constant; never returned on web.
 const int kRoutedDeviceUsbDirect = -2;
@@ -51,6 +59,28 @@ class GfpaAndroidBindings {
 
   /// Not supported on web — nothing is ever published.
   double gfpaDspGetReadout(int handle, String readoutId) => double.nan;
+
+  /// Not supported on web — nothing is loaded.
+  bool gfpaDspLoadIr(int handle, Float32List samples, double sampleRate) =>
+      false;
+
+  /// Not supported on web — nothing is loaded.
+  bool gfpaDspClearIr(int handle) => false;
+
+  /// Not supported on web — Riff is native only.
+  void gfpaRiffNoteOn(int handle, int note, int velocity) {}
+
+  /// Not supported on web — Riff is native only.
+  void gfpaRiffNoteOff(int handle, int note) {}
+
+  /// Not supported on web — Riff is native only.
+  void gfpaRiffPitchBend(int handle, double bend) {}
+
+  /// Not supported on web — Riff is native only.
+  void gfpaRiffControlChange(int handle, int cc, int value) {}
+
+  /// Not supported on web — Riff is native only.
+  int gfpaRiffBusRenderFn(int handle) => 0;
 
   /// Not supported on web — no-op.
   void gfpaDspDestroy(int handle) {}

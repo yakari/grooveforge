@@ -6,6 +6,7 @@ import 'package:ffi/ffi.dart';
 import 'package:dart_vst_host/dart_vst_host.dart';
 import 'package:flutter/foundation.dart';
 
+import '../models/gfpa_plugin_instance.dart' show kRiffPluginId;
 import '../models/grooveforge_keyboard_plugin.dart';
 import '../models/plugin_instance.dart';
 import 'audio_looper_engine.dart';
@@ -64,6 +65,9 @@ class VstHostService {
   // Map from rack slot ID → native GFPA DSP handle (Pointer<Void>).
   // Populated by registerGfpaDsp() when a descriptor effect slot becomes active.
   final Map<String, Pointer<Void>> _gfpaHandles = {};
+
+  /// Android: the AAudio bus slot each Riff guitar's slot plays through.
+  final Map<String, int> _riffBusSlots = {};
 
   // ─── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -749,6 +753,17 @@ class VstHostService {
           kind: SourceKind.renderFunction,
           handle: ffi.liveInputRenderBlockPtr.address,
         );
+      case AudioSourceKind.riff:
+        // Heard even when not cabled, like a keyboard: the guitar has no
+        // playback device of its own. Not resolvable until its DSP exists;
+        // the sync that follows registration picks it up.
+        final fn = riffRenderFnAddress(plugin.id);
+        if (fn == null) return null;
+        return ResolvedSource(
+          kind: SourceKind.renderFunction,
+          handle: fn,
+          masterMixStrategy: MasterMixStrategy.alwaysRender,
+        );
       case AudioSourceKind.vst3Instrument:
         // VST3 instruments are addressed by ordinal, not function
         // pointer. The ordinal is not stable across calls, so we
@@ -1023,6 +1038,7 @@ class VstHostService {
       final handle = GfpaAndroidBindings.instance.createDsp(pluginId);
       if (handle != nullptr) {
         _gfpaHandles[slotId] = handle;
+        if (pluginId == kRiffPluginId) _addRiffToBus(slotId, handle);
         debugPrint('VstHostService: GFPA DSP created (Android) for $slotId ($pluginId)');
       }
       return;
@@ -1075,6 +1091,108 @@ class VstHostService {
     }
 
     _host?.setGfpaDspParam(handle, paramId, physicalValue);
+  }
+
+  /// Loads a speaker-cabinet impulse response into the Amp DSP for [slotId].
+  ///
+  /// [samples] are mono at [sampleRate] Hz. Returns false when the slot has
+  /// no DSP, is not an Amp, or the native side rejected the IR (silent,
+  /// unsupported rate).
+  bool loadGfpaDspIr(String slotId, Float32List samples, double sampleRate) {
+    final handle = _gfpaHandles[slotId];
+    if (handle == null || handle == nullptr || samples.isEmpty) return false;
+    if (Platform.isAndroid) {
+      return GfpaAndroidBindings.instance
+          .gfpaDspLoadIr(handle, samples, sampleRate);
+    }
+    return _host?.loadGfpaIr(handle, samples, sampleRate) ?? false;
+  }
+
+  /// Removes the Amp DSP's cabinet impulse response for [slotId]: it fades
+  /// out and the "IR" cabinet falls back to the 2x12. Returns false when the
+  /// slot has no DSP or is not an Amp.
+  bool clearGfpaDspIr(String slotId) {
+    final handle = _gfpaHandles[slotId];
+    if (handle == null || handle == nullptr) return false;
+    if (Platform.isAndroid) {
+      return GfpaAndroidBindings.instance.gfpaDspClearIr(handle);
+    }
+    return _host?.clearGfpaIr(handle) ?? false;
+  }
+
+  // ─── Riff guitar ──────────────────────────────────────────────────────────
+
+  /// Android: puts the Riff guitar of [slotId] on the AAudio bus, on the
+  /// first free Riff bus slot, so it is heard and GFPA effects can be cabled
+  /// after it. The native pool holds at most [kMaxRiffGuitars], so a free
+  /// bus slot always exists for a guitar that was created.
+  void _addRiffToBus(String slotId, Pointer<Void> handle) {
+    final used = _riffBusSlots.values.toSet();
+    for (var i = 0; i < kMaxRiffGuitars; i++) {
+      final bus = kBusSlotRiffFirst + i;
+      if (used.contains(bus)) continue;
+      final fn = GfpaAndroidBindings.instance.gfpaRiffBusRenderFn(handle);
+      if (fn == 0) return;
+      GfpaAndroidBindings.instance.oboeStreamAddSource(fn, bus);
+      _riffBusSlots[slotId] = bus;
+      return;
+    }
+  }
+
+  /// The AAudio bus slot of the Riff guitar in [slotId], or null.
+  int? riffBusSlot(String slotId) => _riffBusSlots[slotId];
+
+  /// Desktop: address of the Riff guitar's render function for [slotId], or
+  /// null when its DSP does not exist (yet).
+  int? riffRenderFnAddress(String slotId) {
+    final handle = _gfpaHandles[slotId];
+    if (handle == null || handle == nullptr || _host == null) return null;
+    final fn = _host!.riffRenderFnAddress(handle);
+    return fn == 0 ? null : fn;
+  }
+
+  /// Picks [note] at [velocity] on the Riff guitar in [slotId].
+  void riffNoteOn(String slotId, int note, int velocity) {
+    final handle = _gfpaHandles[slotId];
+    if (handle == null || handle == nullptr) return;
+    if (Platform.isAndroid) {
+      GfpaAndroidBindings.instance.gfpaRiffNoteOn(handle, note, velocity);
+    } else {
+      _host?.riffNoteOn(handle, note, velocity);
+    }
+  }
+
+  /// Lets go of [note] on the Riff guitar in [slotId].
+  void riffNoteOff(String slotId, int note) {
+    final handle = _gfpaHandles[slotId];
+    if (handle == null || handle == nullptr) return;
+    if (Platform.isAndroid) {
+      GfpaAndroidBindings.instance.gfpaRiffNoteOff(handle, note);
+    } else {
+      _host?.riffNoteOff(handle, note);
+    }
+  }
+
+  /// Pitch bend in [-1, 1] on the Riff guitar in [slotId].
+  void riffPitchBend(String slotId, double bend) {
+    final handle = _gfpaHandles[slotId];
+    if (handle == null || handle == nullptr) return;
+    if (Platform.isAndroid) {
+      GfpaAndroidBindings.instance.gfpaRiffPitchBend(handle, bend);
+    } else {
+      _host?.riffPitchBend(handle, bend);
+    }
+  }
+
+  /// A MIDI controller on the Riff guitar in [slotId].
+  void riffControlChange(String slotId, int cc, int value) {
+    final handle = _gfpaHandles[slotId];
+    if (handle == null || handle == nullptr) return;
+    if (Platform.isAndroid) {
+      GfpaAndroidBindings.instance.gfpaRiffControlChange(handle, cc, value);
+    } else {
+      _host?.riffControlChange(handle, cc, value);
+    }
   }
 
   /// Reads a value the native DSP for [slotId] publishes for its panel, such
@@ -1225,6 +1343,14 @@ class VstHostService {
           kind: SourceKind.oboeBusSlot,
           handle: 0,
           busSlotId: kBusSlotLiveInput,
+        );
+      case AudioSourceKind.riff:
+        final bus = _riffBusSlots[plugin.id];
+        if (bus == null) return null;
+        return ResolvedSource(
+          kind: SourceKind.oboeBusSlot,
+          handle: 0,
+          busSlotId: bus,
         );
       case AudioSourceKind.vst3Instrument:
         // VST3 is not hosted on Android — silently drop so downstream
@@ -1404,6 +1530,9 @@ class VstHostService {
     final old = _gfpaHandles.remove(slotId);
     if (old == null || old == nullptr) return;
     if (Platform.isAndroid) {
+      // A Riff guitar leaves the bus first; the call waits for the callback.
+      final bus = _riffBusSlots.remove(slotId);
+      if (bus != null) GfpaAndroidBindings.instance.oboeStreamRemoveSource(bus);
       // Remove from the insert chain and wait for the audio thread to drain
       // any in-flight callback that still references this handle.
       GfpaAndroidBindings.instance.gfpaAndroidRemoveInsert(old);

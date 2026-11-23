@@ -1,4 +1,5 @@
 import 'dart:ffi';
+import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
 
@@ -23,6 +24,13 @@ const int kBusSlotVocoder = 102;
 /// AAudio bus slot ID for the Live Input source.  Unique integer above the
 /// other instrument slots so it never collides with a FluidSynth sfId.
 const int kBusSlotLiveInput = 103;
+
+/// First of the four AAudio bus slots for Riff guitars (104–107).  Matches
+/// OBOE_BUS_SLOT_RIFF_FIRST; one per guitar in the native pool.
+const int kBusSlotRiffFirst = 104;
+
+/// How many Riff guitars can play at once (kRiffSlots in gfpa_riff_pool.h).
+const int kMaxRiffGuitars = 4;
 
 
 
@@ -59,6 +67,44 @@ typedef _GfpaDspGetReadoutNative = Double Function(
 /// Dart binding for gfpa_dsp_get_readout.
 typedef _GfpaDspGetReadout = double Function(
     Pointer<Void> handle, Pointer<Utf8> readoutId);
+
+/// Native signature for gfpa_dsp_load_ir.
+typedef _GfpaDspLoadIrNative = Int32 Function(
+    Pointer<Void> handle, Pointer<Float> samples, Int32 n, Double sampleRate);
+
+/// Dart binding for gfpa_dsp_load_ir.
+typedef _GfpaDspLoadIr = int Function(
+    Pointer<Void> handle, Pointer<Float> samples, int n, double sampleRate);
+
+/// Native signature for gfpa_riff_note_on / gfpa_riff_control_change.
+typedef _GfpaRiffTwoIntNative = Void Function(Pointer<Void>, Int32, Int32);
+
+/// Dart binding for gfpa_riff_note_on / gfpa_riff_control_change.
+typedef _GfpaRiffTwoInt = void Function(Pointer<Void>, int, int);
+
+/// Native signature for gfpa_riff_note_off.
+typedef _GfpaRiffOneIntNative = Void Function(Pointer<Void>, Int32);
+
+/// Dart binding for gfpa_riff_note_off.
+typedef _GfpaRiffOneInt = void Function(Pointer<Void>, int);
+
+/// Native signature for gfpa_riff_pitch_bend.
+typedef _GfpaRiffBendNative = Void Function(Pointer<Void>, Double);
+
+/// Dart binding for gfpa_riff_pitch_bend.
+typedef _GfpaRiffBend = void Function(Pointer<Void>, double);
+
+/// Native signature for gfpa_riff_bus_render_fn.
+typedef _GfpaRiffFnNative = IntPtr Function(Pointer<Void>);
+
+/// Dart binding for gfpa_riff_bus_render_fn.
+typedef _GfpaRiffFn = int Function(Pointer<Void>);
+
+/// Native signature for gfpa_dsp_clear_ir.
+typedef _GfpaDspClearIrNative = Int32 Function(Pointer<Void> handle);
+
+/// Dart binding for gfpa_dsp_clear_ir.
+typedef _GfpaDspClearIr = int Function(Pointer<Void> handle);
 
 /// Native signature for gfpa_dsp_destroy.
 typedef _GfpaDspDestroyNative = Void Function(Pointer<Void> handle);
@@ -216,6 +262,33 @@ class GfpaAndroidBindings {
       _lib.lookupFunction<_GfpaDspGetReadoutNative, _GfpaDspGetReadout>(
           'gfpa_dsp_get_readout');
 
+  /// Load a cabinet impulse response into an Amp instance.
+  late final _GfpaDspLoadIr _gfpaDspLoadIr =
+      _lib.lookupFunction<_GfpaDspLoadIrNative, _GfpaDspLoadIr>(
+          'gfpa_dsp_load_ir');
+
+  /// Riff guitar MIDI entry points and its AAudio-bus render function.
+  late final _GfpaRiffTwoInt _gfpaRiffNoteOn =
+      _lib.lookupFunction<_GfpaRiffTwoIntNative, _GfpaRiffTwoInt>(
+          'gfpa_riff_note_on');
+  late final _GfpaRiffOneInt _gfpaRiffNoteOff =
+      _lib.lookupFunction<_GfpaRiffOneIntNative, _GfpaRiffOneInt>(
+          'gfpa_riff_note_off');
+  late final _GfpaRiffBend _gfpaRiffPitchBend =
+      _lib.lookupFunction<_GfpaRiffBendNative, _GfpaRiffBend>(
+          'gfpa_riff_pitch_bend');
+  late final _GfpaRiffTwoInt _gfpaRiffControlChange =
+      _lib.lookupFunction<_GfpaRiffTwoIntNative, _GfpaRiffTwoInt>(
+          'gfpa_riff_control_change');
+  late final _GfpaRiffFn _gfpaRiffBusRenderFn =
+      _lib.lookupFunction<_GfpaRiffFnNative, _GfpaRiffFn>(
+          'gfpa_riff_bus_render_fn');
+
+  /// Remove an Amp instance's cabinet impulse response.
+  late final _GfpaDspClearIr _gfpaDspClearIr =
+      _lib.lookupFunction<_GfpaDspClearIrNative, _GfpaDspClearIr>(
+          'gfpa_dsp_clear_ir');
+
   /// Destroy a native GFPA DSP instance and free its resources.
   ///
   /// The caller must call [gfpaAndroidRemoveInsert] before destroying the
@@ -372,6 +445,46 @@ class GfpaAndroidBindings {
       malloc.free(nativeId);
     }
   }
+
+  /// Load a speaker-cabinet impulse response into an Amp DSP instance.
+  ///
+  /// [samples] are mono at [sampleRate] Hz, copied to native memory for the
+  /// call. The native side prepares the IR on this thread (tens of ms for a
+  /// long file) and hands it to the audio thread. Returns true on success.
+  bool gfpaDspLoadIr(Pointer<Void> handle, Float32List samples,
+      double sampleRate) {
+    final buf = malloc<Float>(samples.length);
+    try {
+      buf.asTypedList(samples.length).setAll(0, samples);
+      return _gfpaDspLoadIr(handle, buf, samples.length, sampleRate) == 0;
+    } finally {
+      malloc.free(buf);
+    }
+  }
+
+  /// Remove the cabinet impulse response from an Amp DSP instance; the audio
+  /// thread fades it out. Returns true on success.
+  bool gfpaDspClearIr(Pointer<Void> handle) => _gfpaDspClearIr(handle) == 0;
+
+  /// Picks [note] at [velocity] on a Riff guitar; queued for the audio thread.
+  void gfpaRiffNoteOn(Pointer<Void> handle, int note, int velocity) =>
+      _gfpaRiffNoteOn(handle, note, velocity);
+
+  /// Lets go of [note] on a Riff guitar.
+  void gfpaRiffNoteOff(Pointer<Void> handle, int note) =>
+      _gfpaRiffNoteOff(handle, note);
+
+  /// Pitch bend in [-1, 1] on a Riff guitar.
+  void gfpaRiffPitchBend(Pointer<Void> handle, double bend) =>
+      _gfpaRiffPitchBend(handle, bend);
+
+  /// A MIDI controller on a Riff guitar (vibrato, sustain, all notes off).
+  void gfpaRiffControlChange(Pointer<Void> handle, int cc, int value) =>
+      _gfpaRiffControlChange(handle, cc, value);
+
+  /// Address of a Riff guitar's AAudio-bus render function, for
+  /// [oboeStreamAddSource]; 0 when [handle] is not a Riff.
+  int gfpaRiffBusRenderFn(Pointer<Void> handle) => _gfpaRiffBusRenderFn(handle);
 
   /// Destroy a native DSP instance.
   ///

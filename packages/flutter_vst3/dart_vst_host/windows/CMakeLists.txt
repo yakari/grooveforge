@@ -124,6 +124,7 @@ add_library(${PROJECT_NAME} SHARED
   ${NATIVE_DIR}/src/dart_vst_host.cpp
   # Native DSP implementations for GFPA descriptor effects
   ${NATIVE_DIR}/src/gfpa_dsp.cpp
+  ${NATIVE_DIR}/src/gfpa_riff.cpp
   # Audio looper (record / overdub / playback with phase vocoder)
   ${NATIVE_DIR}/src/audio_looper.cpp
   # Phase vocoder from repo-root native_audio/ (shared DSP module)
@@ -132,6 +133,9 @@ add_library(${PROJECT_NAME} SHARED
   ${GF_NATIVE_AUDIO_DIR}/gf_harmony.c
   ${GF_NATIVE_AUDIO_DIR}/gf_pitch.c
   ${GF_NATIVE_AUDIO_DIR}/gf_autotune.c
+  ${GF_NATIVE_AUDIO_DIR}/gf_amp.c
+  ${GF_NATIVE_AUDIO_DIR}/gf_convolver.c
+  ${GF_NATIVE_AUDIO_DIR}/gf_riff.c
   # miniaudio-based audio backend (WASAPI on Windows, CoreAudio on macOS)
   ${NATIVE_DIR}/src/dart_vst_host_audio_desktop.cpp
   # Platform stubs (JACK + Linux editor → no-ops on Windows)

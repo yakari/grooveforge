@@ -16,6 +16,13 @@ analyzer:
     - packages/flutter_vst3/**
     - packages/flutter_midi_pro/**
     - packages/flutter_midi_command_linux/**
+    - build/**
+    - android/**
+    - ios/**
+    - web/**
+    - windows/**
+    - macos/**
+    - linux/**
 
 linter:
   # The lint rules applied to this project can be customized in the

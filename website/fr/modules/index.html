@@ -76,6 +76,19 @@
       sur certaines plateformes (mouvement via caméra avant — voir la <a href="../privacy/">politique de confidentialité</a>).
     </p>
 
+    <h2 id="riff">Riff</h2>
+    <p>
+      Une guitare électrique simulée corde par corde au lieu d’être jouée à partir d’enregistrements : elle bende, s’étouffe
+      et résonne comme une vraie. Jouez-la depuis n’importe quel clavier ou source MIDI : chaque note va sur une corde
+      qu’un guitariste utiliserait, et deux notes sur la même corde se coupent, comme sur une vraie guitare. La molette de
+      pitch fait les bends (un ton par défaut), la molette de modulation ajoute du vibrato et la pédale de sustain laisse
+      sonner les cordes relâchées. <strong>Palm mute</strong>, <strong>Pick position</strong>, <strong>Attack</strong>, le
+      sélecteur de <strong>micro</strong> (manche, milieu, chevalet, simple bobinage ou humbucker), <strong>Tone</strong> et
+      <strong>Sustain</strong> agissent sur les cordes qui sonnent déjà : un mapping CC peut les mettre sur une pédale, un
+      potard ou un ruban pour les jouer comme les mains d’un guitariste. Câblez-la dans l’<strong>Ampli</strong> pour du
+      crunch ou de la saturation. Applications natives uniquement.
+    </p>
+
     <h2>Jam Mode</h2>
     <p>
       Processeur en instance unique : choisissez un canal <strong>maître</strong> ; lorsque le maître joue des accords ou une basse
@@ -113,9 +126,41 @@
       cents et la note visée.
     </p>
 
+    <h2 id="amp">Ampli</h2>
+    <p>
+      Un ampli guitare dans un seul slot, dans l’ordre où un guitariste branche son matériel. La pédale
+      <strong>Drive</strong> est soit un <strong>Overdrive</strong> qui pousse les médiums et garde des basses serrées, soit
+      une <strong>Distortion</strong> plus rugueuse, avec son propre bouton Tone. La section <strong>Amp</strong>, c’est le
+      <strong>Gain</strong> du préampli, du clair au crunch, et des réglages Bass / Middle / Treble modélisés sur le vrai
+      circuit de trois amplis classiques (<strong>US</strong>, <strong>Brit</strong>, <strong>AC</strong>) : les boutons
+      interagissent comme sur un vrai ampli. La section <strong>Cab</strong> donne au son la couleur d’un baffle 1x12, 2x12
+      ou 4x12. Chacune des trois sections a son interrupteur, qu’un mapping CC peut mettre sur un footswitch ou un pad.
+      Jouez-le depuis un son de guitare au clavier, ou branchez une vraie guitare via <strong>Live Input</strong>.
+    </p>
+
+    <h3 id="amp-ir">Réponses impulsionnelles de baffle</h3>
+    <p>
+      L’essentiel du son d’une guitare vient du baffle. En plus des trois baffles intégrés, l’Amp peut jouer une
+      <strong>réponse impulsionnelle</strong> (IR) : l’enregistrement d’un vrai baffle et de son micro, sous forme d’un
+      petit fichier <code>.wav</code>. Touchez <strong>Charger une IR</strong> sous l’Amp et choisissez un fichier : le
+      sélecteur Cabinet passe sur <strong>IR</strong>, et l’IR est enregistrée dans votre projet, qui l’emporte avec lui.
+      Tout WAV convient (16, 24 ou 32 bits, mono ou stéréo, toute fréquence d’échantillonnage) ; seules les 100 premières
+      millisecondes servent, c’est là que se trouve le son d’un baffle.
+    </p>
+    <p>Des IR de baffle gratuites pour commencer :</p>
+    <ul>
+      <li><a href="https://www.tone3000.com/search?format=ir">TONE3000</a> : une bibliothèque communautaire avec des milliers d’IR gratuites</li>
+      <li><a href="https://cabs.kalthallen.de/">Kalthallen Cabs</a> : des packs gratuits et payants de baffles classiques</li>
+      <li><a href="https://www.celestionplus.com/free-download/">Celestion</a> : une IR gratuite du fabricant de haut-parleurs</li>
+    </ul>
+    <p>
+      Chaque pack a sa propre licence : libre pour jouer, mais en général pas pour le partager, c’est pourquoi GrooveForge
+      ne peut pas les fournir. Téléchargez-les vous-même sur ces sites.
+    </p>
+
     <h2>Effets descripteurs et MIDI FX</h2>
     <p>
-      Les plugins <a href="../gfpd/"><code>.gfpd</code></a> fournis incluent réverb, delay, wah, EQ, compresseur, chorus, harmoniseur audio, autotune (audio)
+      Les plugins <a href="../gfpd/"><code>.gfpd</code></a> fournis incluent réverb, delay, wah, EQ, compresseur, chorus, harmoniseur audio, autotune, ampli guitare (audio)
       et harmoniseur, arpégiateur, transposeur, expansion d’accords, courbe de vélocité, gate (MIDI). Vous pouvez charger
       des descripteurs personnalisés depuis le disque.
     </p>
