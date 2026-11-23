@@ -17,7 +17,7 @@ class GFOptionSelector extends StatelessWidget {
     required this.selectedIndex,
     required this.onChanged,
     required this.label,
-    this.maxWidth = 120.0,
+    this.maxWidth = 280.0,
     this.segmentHeight = 22.0,
   });
 
@@ -33,7 +33,9 @@ class GFOptionSelector extends StatelessWidget {
   /// Label shown below the selector.
   final String label;
 
-  /// Maximum total width of the selector. Segments are divided equally.
+  /// Maximum total width of the selector. Below it, each segment takes the
+  /// width its label needs, so the cap only bites on unusually long option
+  /// lists; at 120 px it truncated ordinary labels such as "Humbucker".
   final double maxWidth;
 
   /// Height of each segment button.

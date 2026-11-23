@@ -10,8 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **Amp**: a guitar amp module with a drive pedal (overdrive or distortion), three amp tone stacks and three speaker cabinets. Each section switches on and off from the panel or a CC footswitch.
 - Amp: load a cabinet **impulse response** (IR) from a `.wav` file, or remove it. It is saved in the project. The help screen lists where to find free ones.
-- **Riff**: an electric guitar modelled string by string. Palm mute, pick position, pickups, tone and sustain act on ringing strings and can all be mapped to CC.
+- **Riff**: an electric guitar modelled string by string. Palm mute, pick position, pickups, tone and sustain act on ringing strings and can all be mapped to CC; a Legato switch (on a pad, or CC 68 held) or Overlap legato (keys played overlapping) plays hammer-ons and pull-offs, and palm mute has an on/off pad mapping too.
 - CC mappings: **Neutral value on release**, for ribbons and touch strips that drop to 0 when you lift your finger (e.g. 64 to bring pitch bend back to centre). Tap a mapping in the CC preferences to set it.
+- Help, Rack & Cables tab: the slot types list now covers every module, grouped as in the Add Plugin sheet.
+
+### Fixed
+- A bypassed effect (Wah, Reverb, Amp...) played again after restarting the app, while its slot still showed it bypassed.
+- A module parameter moved by a CC mapping now moves its knob on the panel too; turning another knob afterwards no longer reverts it.
 
 ### Architecture
 - `gf_amp.c`/`.h`: the Amp's DSP. Drive and preamp clippers run at 2x through a polyphase half-band IIR resampler, with first-order antiderivative antialiasing; the tone stack is the Yeh & Smith closed form of the circuit, discretised by the bilinear transform. `gf_amp_smoke_test` checks the tone stack formula against a nodal solve of the circuit, image rejection (over 130 dB), folded energy under full distortion (26 dB less than without antialiasing), click-free switching and cost.

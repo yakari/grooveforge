@@ -81,6 +81,8 @@ void main() {
         6: 'sustain',
         7: 'bend_range',
         8: 'level',
+        9: 'legato',
+        10: 'legato_overlap',
       });
     });
 
@@ -141,7 +143,8 @@ void main() {
         if (entry.paramKey == 'bypass') continue;
         final param = byId[entry.gfpaParamId];
         expect(param, isNotNull, reason: entry.paramKey);
-        expect(param!.id, entry.paramKey);
+        // A "_switch" entry is the same parameter on a button.
+        expect(entry.paramKey.replaceAll('_switch', ''), param!.id);
       }
     });
 
@@ -167,6 +170,82 @@ void main() {
       rack.handleSlotParamCc('riff-cc', 'palm_mute', CcParamMode.absolute, 0);
       expect(slot.state['palm_mute'], 0.0);
       rack.dispose();
+    });
+
+    /// A rack with one Riff slot, its live plugin ready.
+    Future<(RackState, GFpaPluginInstance)> riffRack(String id) async {
+      final rack = RackState(AudioEngine(), TransportEngine(), AudioGraph());
+      final slot = GFpaPluginInstance(
+        id: id,
+        pluginId: kRiffPluginId,
+        midiChannel: 4,
+      );
+      rack.addPlugin(slot);
+      await Future<void>.delayed(Duration.zero);
+      return (rack, slot);
+    }
+
+    /// One pad press, as the Alesis Vortex sends it: value 0, every time.
+    /// Spaced past the 250 ms debounce of switch mappings.
+    Future<void> press(RackState rack, String slot, String key) async {
+      final entry = CcParamRegistry.findParam(kRiffPluginId, key)!;
+      rack.handleSlotParamCc(slot, key, entry.defaultMode, 0);
+      await Future<void>.delayed(const Duration(milliseconds: 260));
+    }
+
+    test('a pad switches legato on and off, whatever value it sends',
+        () async {
+      final (rack, slot) = await riffRack('riff-legato');
+      await press(rack, 'riff-legato', 'legato');
+      expect(slot.state['legato'], 1.0);
+      await press(rack, 'riff-legato', 'legato');
+      expect(slot.state['legato'], 0.0);
+      rack.dispose();
+    });
+
+    test('a mapping saved when Legato was absolute now works as a switch',
+        () async {
+      final (rack, slot) = await riffRack('riff-old-map');
+      // The mode an older version saved in the mapping; the pad sends 0.
+      for (final expected in [1.0, 0.0, 1.0]) {
+        rack.handleSlotParamCc('riff-old-map', 'legato', CcParamMode.absolute, 0);
+        expect(slot.state['legato'], expected);
+        await Future<void>.delayed(const Duration(milliseconds: 260));
+      }
+      rack.dispose();
+    });
+
+    test('a pad switches palm mute off and back to the knob\'s amount',
+        () async {
+      final (rack, slot) = await riffRack('riff-palm');
+      // Never set: a press brings the full mute.
+      await press(rack, 'riff-palm', 'palm_mute_switch');
+      expect(slot.state['palm_mute'], 1.0);
+      // The knob (here a pedal) sets an amount; the pad toggles around it.
+      rack.handleSlotParamCc('riff-palm', 'palm_mute', CcParamMode.absolute, 64);
+      final amount = slot.state['palm_mute'] as double;
+      await press(rack, 'riff-palm', 'palm_mute_switch');
+      expect(slot.state['palm_mute'], 0.0);
+      await press(rack, 'riff-palm', 'palm_mute_switch');
+      expect(slot.state['palm_mute'], amount);
+      rack.dispose();
+    });
+
+    test('a CC moves the panel too, and a knob turned after keeps it',
+        () async {
+      final (rack, slot) = await riffRack('riff-panel');
+      rack.handleSlotParamCc('riff-panel', 'palm_mute', CcParamMode.absolute, 127);
+      final live = rack.audioEffectInstanceForSlot('riff-panel')!;
+      expect(live.getParameter(0), 1.0, reason: 'the panel knob follows');
+      // Turning another knob on the panel must not put the old palm mute back.
+      live.setParameter(5, 0.2); // tone
+      rack.audioEffectParamNotifierForSlot('riff-panel')!.value++;
+      expect(slot.state['palm_mute'], 1.0);
+      rack.dispose();
+    });
+
+    test('the guitar takes CC 68 as the legato pedal', () {
+      expect(pool, contains('case 68:  gf_riff_legato_pedal'));
     });
   });
 

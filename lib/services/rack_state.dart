@@ -1574,6 +1574,8 @@ class RackState extends ChangeNotifier {
     int ccValue, [
     String? directValue,
   ]) {
+    mode = _currentCcMode(slotId, paramKey, mode);
+
     // ── Debounce for toggle, cycle and direct modes ────────────────────
     // Direct is debounced on (slot, param, value) rather than (slot, param):
     // two pads bound to different scales are two different intentions, and a
@@ -1653,8 +1655,32 @@ class RackState extends ChangeNotifier {
         _setGfpaParamFromCc(slotId, plugin, entry, ccValue);
       } else if (mode == CcParamMode.cycle && entry.cycleCount != null) {
         _cycleGfpaParam(slotId, plugin, entry);
+      } else if (mode == CcParamMode.toggle) {
+        _toggleGfpaParam(slotId, plugin, entry);
       }
     }
+  }
+
+  /// The mode a CC mapping to [paramKey] of [slotId] works in now.
+  ///
+  /// A mapping saves the mode its parameter had when it was made, but the
+  /// player never picks it: the CC settings always take the registry's.
+  /// When a parameter's mode changes in a new version (Riff's Legato went
+  /// from absolute to a switch, because pads like the Alesis Vortex's send 0
+  /// on every press), the saved one would keep the old behaviour forever, so
+  /// the registry's mode wins. A direct mapping keeps its own: it carries the
+  /// value the pad recalls.
+  CcParamMode _currentCcMode(
+    String slotId,
+    String paramKey,
+    CcParamMode saved,
+  ) {
+    if (saved == CcParamMode.direct) return saved;
+    final plugin = _findById(slotId);
+    if (plugin is! GFpaPluginInstance) return saved;
+    final entry = CcParamRegistry.findParam(plugin.pluginId, paramKey);
+    if (entry == null || entry.defaultMode == CcParamMode.direct) return saved;
+    return entry.defaultMode;
   }
 
   /// Handles CC for Xen params — the pad bank that drives the module live.
@@ -1958,22 +1984,84 @@ class RackState extends ChangeNotifier {
     CcParamEntry entry,
     int ccValue,
   ) {
-    final normalized = ccValue / 127.0;
-    // Find the descriptor parameter for denormalization.
-    final regPlugin = GFPluginRegistry.instance.findById(plugin.pluginId);
-    if (regPlugin is! GFDescriptorPlugin) return;
-    final descParam =
-        regPlugin.descriptor.parameters
-            .where((p) => p.paramId == entry.gfpaParamId)
-            .firstOrNull;
+    final descParam = _ccDescriptorParam(plugin, entry);
     if (descParam == null) return;
+    _applyGfpaParamFromCc(slotId, plugin, descParam, ccValue / 127.0);
+  }
 
-    final physical =
-        descParam.min + normalized * (descParam.max - descParam.min);
-    VstHostService.instance.setGfpaDspParam(slotId, descParam.id, physical);
-    // Also update the state map so the UI reflects the change.
-    plugin.state[descParam.id] = normalized;
+  /// The descriptor parameter a CC [entry] drives on [plugin], or null when
+  /// the plugin has no descriptor or no such parameter.
+  GFDescriptorParameter? _ccDescriptorParam(
+    GFpaPluginInstance plugin,
+    CcParamEntry entry,
+  ) {
+    final regPlugin = GFPluginRegistry.instance.findById(plugin.pluginId);
+    if (regPlugin is! GFDescriptorPlugin) return null;
+    return regPlugin.descriptor.parameters
+        .where((p) => p.paramId == entry.gfpaParamId)
+        .firstOrNull;
+  }
+
+  /// Sets [param] of slot [slotId] to the normalised value [norm] on behalf
+  /// of a CC.
+  ///
+  /// For an audio effect or instrument the value goes through the slot's
+  /// live plugin and its param notifier, exactly as a knob turn does: the
+  /// panel redraws, the rack model and the native DSP follow, and the project
+  /// is saved. Writing only the rack model and the DSP left the panel's own
+  /// copy behind, so the knob did not move and the next knob turned on the
+  /// panel pushed the stale value back, undoing the CC.
+  void _applyGfpaParamFromCc(
+    String slotId,
+    GFpaPluginInstance plugin,
+    GFDescriptorParameter param,
+    double norm,
+  ) {
+    final live = _audioEffectInstances[slotId];
+    final notifier = _audioEffectParamNotifiers[slotId];
+    if (live != null && notifier != null) {
+      live.setParameter(param.paramId, norm);
+      notifier.value++; // → _onAudioEffectParamChanged
+      return;
+    }
+    // No live plugin (a MIDI FX descriptor, or a slot still initialising):
+    // write the model and the DSP directly.
+    final physical = param.min + norm * (param.max - param.min);
+    VstHostService.instance.setGfpaDspParam(slotId, param.id, physical);
+    plugin.state[param.id] = norm;
     notifyListeners();
+  }
+
+  /// Flips a GFPA parameter between off and on from a button.
+  ///
+  /// An on/off parameter (a switch, or a two-option selector) simply flips.
+  /// A continuous one (a knob, e.g. Riff's palm mute) goes to zero, and back
+  /// to where the knob was before: the player sets how much with the knob
+  /// and switches it in and out with a pad. The level to come back to is
+  /// kept in the slot's state, so it survives a restart; never set, it is the
+  /// knob's maximum.
+  void _toggleGfpaParam(
+    String slotId,
+    GFpaPluginInstance plugin,
+    CcParamEntry entry,
+  ) {
+    final param = _ccDescriptorParam(plugin, entry);
+    if (param == null) return;
+    final current = (plugin.state[param.id] as num?)?.toDouble() ?? 0.0;
+    final isSwitch =
+        param.type == GFDescriptorParamType.toggle || param.options.length == 2;
+    if (isSwitch) {
+      _applyGfpaParamFromCc(slotId, plugin, param, current >= 0.5 ? 0.0 : 1.0);
+      return;
+    }
+    final memoKey = '__onLevel_${param.id}';
+    if (current > 0.0) {
+      plugin.state[memoKey] = current;
+      _applyGfpaParamFromCc(slotId, plugin, param, 0.0);
+    } else {
+      final back = (plugin.state[memoKey] as num?)?.toDouble() ?? 1.0;
+      _applyGfpaParamFromCc(slotId, plugin, param, back);
+    }
   }
 
   /// Advances a discrete GFPA parameter to the next option.
@@ -2000,10 +2088,7 @@ class RackState extends ChangeNotifier {
     final nextIndex = (currentIndex + 1) % count;
     final maxIdx = (count - 1).clamp(1, count);
     final nextNorm = nextIndex / maxIdx;
-    final physical = descParam.min + nextNorm * (descParam.max - descParam.min);
-    VstHostService.instance.setGfpaDspParam(slotId, descParam.id, physical);
-    plugin.state[descParam.id] = nextNorm;
-    notifyListeners();
+    _applyGfpaParamFromCc(slotId, plugin, descParam, nextNorm);
   }
 
   // ─── MIDI FX instance registry ──────────────────────────────────────────
@@ -2111,6 +2196,13 @@ class RackState extends ChangeNotifier {
     try {
       VstHostService.instance.registerGfpaDsp(instance.id, instance.pluginId);
       _syncAudioEffectParamsToNative(instance.id);
+      // A fresh native handle starts active. At startup the routing syncs
+      // that re-apply bypass ([_syncBypassStatesToNative]) run before this
+      // handle exists and skip it, so a slot saved as bypassed would play
+      // its effect while its header still shows it bypassed.
+      if (instance.state['__bypass'] == true) {
+        VstHostService.instance.setGfpaDspBypass(instance.id, true);
+      }
       _pushCabinetIrToNative(instance);
       // A Riff guitar is a source, and its render function only exists from
       // now on: the routing sync that ran when the slot was added could not

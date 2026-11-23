@@ -74,6 +74,13 @@ extern "C" {
 #define GF_RIFF_NOTE_MIN 21
 #define GF_RIFF_NOTE_MAX 108
 
+/// Widest slur, in semitones, that legato plays on one string: an octave. A
+/// hand spans fewer frets, but a keyboard player moving a riff off its open
+/// string (Thunderstruck from C4: a pedal on the 1st fret under notes up to
+/// the 13th) still expects one string. A wider jump is picked on the string
+/// that reaches it.
+#define GF_RIFF_LEGATO_REACH 12
+
 /// Which pickup the guitar listens through, in the order the panel lists them.
 typedef enum {
     GF_RIFF_PICKUP_NECK = 0,     ///< Round, warm: the "blues" pickup.
@@ -94,6 +101,8 @@ typedef struct {
     float attack;      ///< 0 = soft finger, 1 = hard pick.
     float bend_range;  ///< Semitones a full pitch-bend reaches (1-12).
     float level_db;    ///< Output level, dB.
+    int   legato;      ///< 1 = hammer-ons and pull-offs (see gf_riff_note_on).
+    int   legato_overlap; ///< 1 = slur only notes played overlapping, one at a time.
 } gf_riff_params;
 
 typedef struct gf_riff gf_riff;
@@ -119,10 +128,24 @@ void gf_riff_reset(gf_riff* r);
 /// Plays MIDI [note] at [velocity] (1-127; 0 is a note-off). Every note of a
 /// piano's range plays at its pitch (see GF_RIFF_NOTE_MIN); only notes past
 /// it move by octaves into it.
+///
+/// Each note takes a string of its own, the one a guitarist would reach for.
+/// When every string that can normally reach the note is busy, a free string
+/// plays it out of its range rather than cutting a held note short.
+///
+/// With legato on (the panel switch, or the legato pedal), a note played on
+/// its own within GF_RIFF_LEGATO_REACH semitones of the last string played is
+/// slurred on that string instead of picked: a hammer-on going up, a pull-off
+/// going down. Pulling off to an open string, or hammering from one, has no
+/// reach limit. Notes struck together still form a chord. With
+/// legato_overlap, the same happens only to a note whose key goes down while
+/// the previous one, alone, is still held: keyboard legato playing. A slur
+/// puts energy back into the string, so a long run keeps its level.
 void gf_riff_note_on(gf_riff* r, int note, int velocity);
 
 /// Releases MIDI [note]: its string is damped, or keeps ringing while the
-/// sustain pedal is down.
+/// sustain pedal is down. Releasing the top note of a hammer-on while the
+/// lower key is still down pulls off to the lower note.
 void gf_riff_note_off(gf_riff* r, int note);
 
 /// Damps every string, as a hand laid across them.
@@ -133,6 +156,10 @@ void gf_riff_pitch_bend(gf_riff* r, float bend);
 
 /// Sustain pedal: while down, released strings keep ringing.
 void gf_riff_sustain_pedal(gf_riff* r, int down);
+
+/// Legato pedal (MIDI CC 68): while down, legato is on whatever the panel's
+/// switch says.
+void gf_riff_legato_pedal(gf_riff* r, int down);
 
 /// Vibrato depth in [0, 1] (mod wheel or aftertouch): up to ±0.4 semitone.
 void gf_riff_vibrato(gf_riff* r, float depth);

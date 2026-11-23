@@ -88,6 +88,15 @@ class CcParamRegistry {
       gfpaParamId: 0,
       defaultMode: CcParamMode.absolute,
     ),
+    // The same palm mute on a button: each press switches it off, or back to
+    // the amount the knob was at (full when never set). The entry above stays
+    // for a pedal that rocks the palm on and off the strings.
+    CcParamEntry(
+      paramKey: 'palm_mute_switch',
+      displayName: 'Palm mute on/off',
+      gfpaParamId: 0,
+      defaultMode: CcParamMode.toggle,
+    ),
     CcParamEntry(
       paramKey: 'pick_pos',
       displayName: 'Pick position',
@@ -99,6 +108,22 @@ class CcParamRegistry {
       displayName: 'Attack',
       gfpaParamId: 2,
       defaultMode: CcParamMode.absolute,
+    ),
+    // A switch: each press flips it, whatever value the pad sends. Holding a
+    // pad was not an option: some controllers (the Alesis Vortex) send the
+    // same value, 0, on press and on release. A pad that does send 127 while
+    // held can use MIDI CC 68, the standard legato pedal, with no mapping.
+    CcParamEntry(
+      paramKey: 'legato',
+      displayName: 'Legato on/off (hammer-on / pull-off)',
+      gfpaParamId: 9,
+      defaultMode: CcParamMode.toggle,
+    ),
+    CcParamEntry(
+      paramKey: 'legato_overlap',
+      displayName: 'Overlap legato on/off',
+      gfpaParamId: 10,
+      defaultMode: CcParamMode.toggle,
     ),
     CcParamEntry(
       paramKey: 'pickup',

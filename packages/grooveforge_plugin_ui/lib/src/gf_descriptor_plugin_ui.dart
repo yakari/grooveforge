@@ -269,11 +269,18 @@ class GFDescriptorPluginUI extends StatelessWidget {
         // Under about a phone's width the fixed columns either side of the
         // track have to give way, or the ruler shrinks to a stub.
         final compact = constraints.maxWidth < 520;
+        final labelWidth = _laneLabelWidth(descriptor, compact);
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
           children: descriptor.groups
-              .map((group) => _buildLane(context, group, descriptor, compact))
+              .map((group) => _buildLane(
+                    context,
+                    group,
+                    descriptor,
+                    compact,
+                    labelWidth,
+                  ))
               .toList(growable: false),
         );
       },
@@ -285,12 +292,15 @@ class GFDescriptorPluginUI extends StatelessWidget {
     GFDescriptorControlGroup group,
     GFPluginDescriptor descriptor,
     bool compact,
+    double labelWidth,
   ) {
     final active = group.isActive((id) => _rawValueOf(id, descriptor)) &&
         (laneEnabled?.call(group) ?? true);
 
     // Only a control that fills the lane earns the leftover width; the rest
     // keep their natural size so knobs stay round and selectors stay tight.
+    final stretches =
+        group.controls.any((c) => c.type == GFControlType.interval);
     final children = <Widget>[];
     for (final ctrl in group.controls) {
       final widget = _buildControl(
@@ -316,25 +326,68 @@ class GFDescriptorPluginUI extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           SizedBox(
-            width: compact ? 30 : 46,
+            width: labelWidth,
             child: Opacity(
               opacity: active ? 1.0 : 0.35,
               child: Text(
                 group.label,
-                maxLines: 1,
+                maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Colors.white54,
-                  fontSize: 9,
-                  letterSpacing: 0.8,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: _laneLabelStyle,
               ),
             ),
           ),
-          ...children,
+          const SizedBox(width: 6),
+          // A lane with a ruler keeps one row so the ruler takes the slack.
+          // Any other lane wraps its controls onto a second line when the
+          // panel is too narrow, instead of squeezing their labels.
+          if (stretches)
+            ...children
+          else
+            Expanded(child: _wrapLaneControls(children)),
         ],
       ),
+    );
+  }
+
+  /// Style of the group label at the head of each lane.
+  static const _laneLabelStyle = TextStyle(
+    color: Colors.white54,
+    fontSize: 9,
+    letterSpacing: 0.8,
+    fontWeight: FontWeight.bold,
+  );
+
+  /// Width of the label column shared by every lane, so the lanes' controls
+  /// line up: the longest group label measured on one line, capped so a long
+  /// label wraps onto a second line rather than eating the panel. On a phone
+  /// the cap is tighter, since every pixel there goes to the controls.
+  double _laneLabelWidth(GFPluginDescriptor descriptor, bool compact) {
+    var widest = 0.0;
+    for (final group in descriptor.groups) {
+      final painter = TextPainter(
+        text: TextSpan(text: group.label, style: _laneLabelStyle),
+        textDirection: TextDirection.ltr,
+        maxLines: 1,
+      )..layout();
+      if (painter.width > widest) widest = painter.width;
+      painter.dispose();
+    }
+    return widest.ceilToDouble().clamp(24.0, compact ? 56.0 : 110.0);
+  }
+
+  /// Lays a lane's controls out left to right, flowing onto further lines
+  /// when they do not fit. [spaced] holds the controls with the 8 px gaps
+  /// [_buildLane] put between them; the [Wrap] provides its own spacing.
+  Widget _wrapLaneControls(List<Widget> spaced) {
+    final controls = <Widget>[
+      for (var i = 0; i < spaced.length; i += 2) spaced[i],
+    ];
+    return Wrap(
+      spacing: 8,
+      runSpacing: 6,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: controls,
     );
   }
 

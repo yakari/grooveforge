@@ -97,6 +97,30 @@ parameters:
     unit: "st"
     display: value
 
+  # ── Fretting hand ──
+  # Hammer-ons and pull-offs: while on, a note played on its own close to the
+  # last one slurs on the same string instead of being picked again. Meant to
+  # be held on a pad (CC, absolute mode: pressed = on); a pad sending MIDI
+  # CC 68, the standard legato pedal, works without any mapping.
+  - id: legato
+    paramId: 9
+    name: "Legato"
+    min: 0.0
+    max: 1.0
+    default: 0.0
+    type: toggle
+
+  # Keyboard legato: a note whose key goes down while the previous one, alone,
+  # is still held slurs on its string; a note played detached is picked. Needs
+  # no pad, as on most guitar instruments (Shreddage, Ample, Strum).
+  - id: legato_overlap
+    paramId: 10
+    name: "Overlap legato"
+    min: 0.0
+    max: 1.0
+    default: 0.0
+    type: toggle
+
   # ── Output ──
   - id: level
     paramId: 8
@@ -126,6 +150,19 @@ ui:
           label: "Attack"
           size: small
 
+    - label: "Fretting hand"
+      controls:
+        - type: toggle
+          param: legato
+          label: "Legato"
+        - type: toggle
+          param: legato_overlap
+          label: "Overlap"
+        - type: knob
+          param: bend_range
+          label: "Bend"
+          size: small
+
     - label: "Pickups"
       controls:
         - type: selector
@@ -144,10 +181,6 @@ ui:
         - type: knob
           param: sustain
           label: "Sustain"
-          size: small
-        - type: knob
-          param: bend_range
-          label: "Bend"
           size: small
         - type: knob
           param: level

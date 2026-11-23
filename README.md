@@ -24,7 +24,7 @@ Playing is built around the **plugin rack**: an ordered, drag-and-drop stack of 
 - **Vocoder** — mic-driven voice synthesis.
 - **Stylophone** — monophonic metal-strip instrument.
 - **Theremin** — touch pad with vertical pitch and horizontal volume, plus base note, range, vibrato and pad-height controls.
-- **Riff** — an electric guitar simulated string by string rather than played from samples. Each note lands on a string a guitarist would use, bends and vibrato come from the pitch and mod wheels, and palm mute, pick position, pickup (neck, middle, bridge, single coil or humbucker), tone and sustain all act on ringing strings, so each can go on a pedal or a ribbon through CC mapping. Sounds best cabled into the Amp. Native builds only.
+- **Riff** — an electric guitar simulated string by string rather than played from samples. Each note lands on a string a guitarist would use, bends and vibrato come from the pitch and mod wheels, and palm mute, pick position, pickup (neck, middle, bridge, single coil or humbucker), tone and sustain all act on ringing strings, so each can go on a pedal or a ribbon through CC mapping. A Legato switch (on a pad, or CC 68 held), or Overlap legato for keys played overlapping, turns close notes into hammer-ons and pull-offs. Sounds best cabled into the Amp. Native builds only.
 - **Drum Generator** — beat patterns from bossa nova to metal, with a swing control, a "human feel" slider between robotic and live drummer, count-ins and automatic fills. Patterns load from `.gfdrum` files.
 
 <img src="assets/screenshots/android_theremin.png" width="460" alt="Theremin module">

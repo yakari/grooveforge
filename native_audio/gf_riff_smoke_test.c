@@ -452,6 +452,255 @@ static void test_strings(void) {
     gf_riff_destroy(r);
 }
 
+// ── 4b. Close notes and legato ──────────────────────────────────────────────
+
+/// Number of strings sounding, and whether one of them plays [note].
+static int strings_playing(const gf_riff* r, int note, int* has) {
+    int n = 0;
+    *has = 0;
+    for (int s = 0; s < GF_RIFF_STRINGS; ++s) {
+        const int v = gf_riff_string_note(r, s);
+        n += v >= 0;
+        *has |= v == note;
+    }
+    return n;
+}
+
+/// Level of [note]'s fundamental in [x], dB (arbitrary reference).
+static double note_db(const float* x, int n, int note) {
+    double* win = malloc(sizeof(double) * (size_t)n);
+    for (int i = 0; i < n; ++i) win[i] = 0.5 - 0.5 * cos(2 * M_PI * i / n);
+    const double pw = dft_power(x, win, n, note_hz(note), SR);
+    free(win);
+    return 10.0 * log10(pw + 1e-30);
+}
+
+/// Strikes [a] and [b] together and returns how far apart, in dB, their
+/// fundamentals sound half a second later; 99 when they share a string.
+static double pair_gap(int a, int b) {
+    gf_riff* r = gf_riff_create(SR);
+    gf_riff_debug_set_humanize(r, 0);
+    gf_riff_note_on(r, a, 100);
+    gf_riff_note_on(r, b, 100);
+    float* out = render(r, SR);
+    int has;
+    const int used = strings_playing(r, a, &has);
+    const double gap = fabs(note_db(out + SR / 2, SR / 2, a) - note_db(out + SR / 2, SR / 2, b));
+    free(out);
+    gf_riff_destroy(r);
+    return used == 2 ? gap : 99.0;
+}
+
+/// A guitar with legato on, [first] held and ringing for a fifth of a second.
+static gf_riff* legato_guitar(int first, int by_pedal) {
+    gf_riff* r = gf_riff_create(SR);
+    gf_riff_debug_set_humanize(r, 0);
+    gf_riff_params p;
+    gf_riff_default_params(&p);
+    p.legato = by_pedal ? 0 : 1;
+    gf_riff_set_params(r, &p);
+    if (by_pedal) gf_riff_legato_pedal(r, 1);
+    gf_riff_note_on(r, first, 100);
+    free(render(r, SR / 5));
+    return r;
+}
+
+static void test_legato(void) {
+    printf("\n4b. Close notes and legato\n");
+    char d[128];
+    // Notes only one string reaches on a real guitar: a free string plays
+    // the second one out of its range instead of cutting the first off.
+    static const int pairs[][2] = {{40, 41}, {33, 35}, {86, 88}, {59, 60}};
+    double worst = 0;
+    for (int k = 0; k < 4; ++k) worst = fmax(worst, pair_gap(pairs[k][0], pairs[k][1]));
+    snprintf(d, sizeof d, "fundamentals at most %.1f dB apart (E2+F2, A1+B1, D6+E6, B3+C4)", worst);
+    report("two close notes both sound, even where one string reaches both", worst < 10.0, d);
+
+    // Hammer-on: the string moves to the new note without a second string.
+    for (int by_pedal = 0; by_pedal <= 1; ++by_pedal) {
+        gf_riff* r = legato_guitar(60, by_pedal);
+        gf_riff_note_on(r, 62, 100);
+        float* out = render(r, SR / 2);
+        int has62;
+        const int used = strings_playing(r, 62, &has62);
+        const double cents = fundamental_cents(out + SR / 10, SR / 2 - SR / 10, note_hz(62), SR);
+        snprintf(d, sizeof d, "%d string(s), the hammered note %.1f cents off", used, cents);
+        report(by_pedal ? "the legato pedal (CC 68) hammers on as well"
+                        : "legato: a close note hammers on, on the same string",
+               used == 1 && has62 && fabs(cents) < 3.0, d);
+        free(out);
+
+        if (by_pedal) { gf_riff_destroy(r); break; }
+        // Pull-off: letting go of the top key falls back to the held one.
+        gf_riff_note_off(r, 62);
+        out = render(r, SR / 2);
+        int has60;
+        const int used2 = strings_playing(r, 60, &has60);
+        const double c2 = fundamental_cents(out + SR / 10, SR / 2 - SR / 10, note_hz(60), SR);
+        const double ring = rms(out + SR / 4, SR / 4);
+        snprintf(d, sizeof d, "%d string(s), %.1f cents off, still ringing at %.1f dB",
+                 used2, c2, db(ring));
+        report("releasing the hammered key pulls off to the one held",
+               used2 == 1 && has60 && fabs(c2) < 3.0 && db(ring) > -60.0, d);
+        free(out);
+        gf_riff_destroy(r);
+    }
+
+    // The hammer does not click: its first 5 ms take no larger steps than
+    // the hammered note once it has settled. The tap and the energy put back
+    // into the string (see SLUR_SUSTAIN) are part of the note, not a spike.
+    {
+        // Two seconds in, so the string has decayed and the slur has a
+        // good deal of energy to put back.
+        gf_riff* r = legato_guitar(57, 0);
+        free(render(r, 2 * SR));
+        gf_riff_note_on(r, 59, 100);
+        float* after = render(r, SR / 10);
+        const int onset = SR / 200, settled = SR / 50;
+        const double c = worst_step(after, onset) / worst_step(after + settled, SR / 10 - settled);
+        snprintf(d, sizeof d, "largest step in the first 5 ms %.2fx the settled note's", c);
+        report("a hammer-on does not click", c < 1.0, d);
+        free(after);
+        gf_riff_destroy(r);
+    }
+
+    // Lifting the lower finger under a hammered note changes nothing heard,
+    // and the top key's release then damps the string: nothing to pull to.
+    {
+        gf_riff* r = legato_guitar(60, 0);
+        gf_riff_note_on(r, 62, 100);
+        free(render(r, SR / 10));
+        gf_riff_note_off(r, 60);
+        free(render(r, SR / 10));
+        int has62;
+        const int still = strings_playing(r, 62, &has62) == 1 && has62;
+        gf_riff_note_off(r, 62);
+        float* out = render(r, SR / 2);
+        const double tail = rms(out + SR / 4, SR / 4);
+        report("lifting the lower finger first leaves the hammered note",
+               still && db(tail) < -60.0, "");
+        free(out);
+        gf_riff_destroy(r);
+    }
+
+    // A long legato run keeps its level: the open B string pedalled under
+    // hammer-ons and pull-offs from the 12th, 10th and 9th frets, four notes
+    // a second, each key let go as the next goes down, for six seconds. The
+    // open B at the end must sound about as loud as just after the pick;
+    // without the slurs' energy it ended 9 dB down.
+    {
+        gf_riff* r = legato_guitar(59, 0);
+        static const int run[] = {71, 59, 69, 59, 68, 59, 69, 59};
+        const int step = SR / 4, steps = 24;
+        float* out = malloc(sizeof(float) * (size_t)step);
+        double last_b = 0.0;
+        int prev = 59;
+        for (int k = 0; k < steps; ++k) {
+            const int next = run[k % 8];
+            gf_riff_note_off(r, prev);
+            gf_riff_note_on(r, next, 100);
+            prev = next;
+            for (int done = 0; done < step; done += 256) {
+                const int len = step - done < 256 ? step - done : 256;
+                gf_riff_process(r, out + done, len);
+            }
+            if (next == 59) last_b = rms(out, step);
+        }
+        free(out);
+        gf_riff_destroy(r);
+        // The same open B just after its pick, for reference.
+        r = gf_riff_create(SR);
+        gf_riff_debug_set_humanize(r, 0);
+        gf_riff_note_on(r, 59, 100);
+        float* pick = render(r, step);
+        const double first_b = rms(pick, step);
+        free(pick);
+        gf_riff_destroy(r);
+        snprintf(d, sizeof d, "open B after six seconds of slurs %.1f dB from its pick",
+                 db(last_b) - db(first_b));
+        report("a long hammer-on / pull-off run keeps its level",
+               db(last_b) - db(first_b) > -5.0, d);
+    }
+
+    // The same riff moved to C4, as a keyboard player plays it: the pedal is
+    // now fretted (1st fret of the B string), not open, and the run climbs
+    // to its 13th fret. Every note stays on the pedal's string.
+    {
+        gf_riff* r = legato_guitar(60, 0);
+        static const int run[] = {64, 60, 67, 60, 68, 60, 72, 60, 70, 60, 69, 60};
+        int prev = 60, worst = 1;
+        for (int k = 0; k < 12; ++k) {
+            gf_riff_note_off(r, prev);
+            gf_riff_note_on(r, run[k], 100);
+            prev = run[k];
+            free(render(r, SR / 10));
+            int has;
+            const int used = strings_playing(r, run[k], &has);
+            if (!has || used > worst) worst = has ? used : 99;
+        }
+        snprintf(d, sizeof d, "at most %d string(s) sounding during the run", worst);
+        report("legato: Thunderstruck from C4 stays on one string", worst == 1, d);
+        gf_riff_destroy(r);
+    }
+
+    // Overlap legato: slurs only a key pressed while the previous one, alone,
+    // is still down.
+    {
+        static const char* names[] = {
+            "overlap: a note pressed over the held one hammers on",
+            "overlap: a detached note is picked on its own string",
+            "overlap: a melody over a held chord keeps every chord note",
+        };
+        for (int k = 0; k < 3; ++k) {
+            gf_riff* r = gf_riff_create(SR);
+            gf_riff_params p;
+            gf_riff_default_params(&p);
+            p.legato_overlap = 1;
+            gf_riff_set_params(r, &p);
+            if (k == 2) {
+                gf_riff_note_on(r, 48, 100);
+                gf_riff_note_on(r, 52, 100);
+                gf_riff_note_on(r, 55, 100);
+            } else {
+                gf_riff_note_on(r, 60, 100);
+            }
+            free(render(r, SR / 5));
+            if (k == 1) gf_riff_note_off(r, 60);
+            gf_riff_note_on(r, k == 2 ? 57 : 65, 100);
+            free(render(r, SR / 50));
+            int has;
+            const int used = strings_playing(r, k == 2 ? 57 : 65, &has);
+            const int want = k == 0 ? 1 : (k == 1 ? 2 : 4);
+            snprintf(d, sizeof d, "%d string(s) sounding, %d expected", used, want);
+            report(names[k], used == want && has, d);
+            gf_riff_destroy(r);
+        }
+    }
+
+    // What legato leaves alone: a chord, a wide jump, and legato off.
+    static const char* names[] = {
+        "legato: notes struck together still form a chord",
+        "legato: a jump past an octave is picked on another string",
+        "without legato a close note is picked on its own string",
+    };
+    for (int k = 0; k < 3; ++k) {
+        gf_riff* r = gf_riff_create(SR);
+        gf_riff_params p;
+        gf_riff_default_params(&p);
+        p.legato = k < 2;
+        gf_riff_set_params(r, &p);
+        gf_riff_note_on(r, 60, 100);
+        if (k != 0) free(render(r, SR / 5));
+        float buf[128];
+        gf_riff_process(r, buf, 128);   // under 3 ms: a hand's chord
+        gf_riff_note_on(r, k == 1 ? 74 : 62, 100);
+        gf_riff_process(r, buf, 128);
+        int has;
+        report(names[k], strings_playing(r, 60, &has) == 2 && has, "");
+        gf_riff_destroy(r);
+    }
+}
+
 // ── 5. Release and sustain pedal ────────────────────────────────────────────
 
 /// Level 0.3 s after letting go of the key, in dB relative to the same note
@@ -605,6 +854,7 @@ int main(void) {
     test_decay();
     test_bends();
     test_strings();
+    test_legato();
     test_release();
     test_pickups();
     test_robustness();

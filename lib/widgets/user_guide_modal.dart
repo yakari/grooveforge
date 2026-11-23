@@ -392,10 +392,7 @@ class _PatchViewTab extends StatelessWidget {
         _buildParagraph(l10n.guidePatchRackBody),
         const SizedBox(height: 8),
         _buildSubTitle(l10n.guidePatchSlotTypesTitle),
-        _buildFeatureItem(Icons.piano, l10n.guidePatchSlotKeyboard, l10n.guidePatchSlotKeyboardDesc),
-        _buildFeatureItem(Icons.mic, l10n.guidePatchSlotVocoder, l10n.guidePatchSlotVocoderDesc),
-        _buildFeatureItem(Icons.auto_awesome, l10n.guidePatchSlotJam, l10n.guidePatchSlotJamDesc),
-        _buildFeatureItem(Icons.extension, l10n.guidePatchSlotVst3, l10n.guidePatchSlotVst3Desc),
+        ..._slotTypeList(l10n),
         const SizedBox(height: 4),
         _buildDesktopOnlyBox(l10n.guidePatchSlotVst3DesktopOnly),
         const Divider(color: Colors.white12, height: 40),
@@ -426,6 +423,81 @@ class _PatchViewTab extends StatelessWidget {
         const SizedBox(height: 12),
         _buildInfoBox(l10n.guidePatchTip),
       ],
+    );
+  }
+
+  /// Every module the "Add Plugin" sheet offers, in the same families and
+  /// order, so the help keeps listing what the rack can actually hold. The
+  /// entries reuse the sheet's own titles and subtitles, so renaming a module
+  /// there renames it here too.
+  List<Widget> _slotTypeList(AppLocalizations l10n) {
+    return [
+      _buildGroupLabel(l10n.guidePatchGroupInstruments),
+      _buildFeatureItem(Icons.piano, l10n.guidePatchSlotKeyboard, l10n.guidePatchSlotKeyboardDesc),
+      _buildFeatureItem(Icons.mic, l10n.guidePatchSlotVocoder, l10n.guidePatchSlotVocoderDesc),
+      _buildFeatureItem(Icons.electric_bolt, l10n.rackAddRiff, l10n.rackAddRiffSubtitle),
+      _buildFeatureItem(Icons.auto_awesome, l10n.guidePatchSlotJam, l10n.guidePatchSlotJamDesc),
+      _buildFeatureItem(Icons.linear_scale, l10n.rackAddStylophone, l10n.rackAddStyloPhoneSubtitle),
+      _buildFeatureItem(Icons.sensors, l10n.rackAddTheremin, l10n.rackAddThereminSubtitle),
+      _buildGroupLabel(l10n.guidePatchGroupRhythm),
+      _buildFeatureItem(Icons.album, l10n.drumGeneratorAddTitle, l10n.drumGeneratorAddSubtitle),
+      _buildFeatureItem(Icons.loop, l10n.addLooper, l10n.addLooperSubtitle),
+      _buildFeatureItem(Icons.radio_button_checked, l10n.rackAddAudioLooper, l10n.rackAddAudioLooperSubtitle),
+      _buildGroupLabel(l10n.rackAddSourcesSectionLabel),
+      _buildFeatureItem(Icons.mic, l10n.rackAddLiveInputSource, l10n.rackAddLiveInputSourceSubtitle),
+      ..._audioEffectList(l10n),
+      ..._midiFxList(l10n),
+      _buildGroupLabel(l10n.guidePatchGroupCustom),
+      _buildFeatureItem(Icons.file_open, l10n.rackAddLoadGfpd, l10n.rackAddLoadGfpdSubtitle),
+      _buildFeatureItem(Icons.extension, l10n.guidePatchSlotVst3, l10n.guidePatchSlotVst3Desc),
+    ];
+  }
+
+  /// The built-in audio effects, as listed in the "Add Plugin" sheet.
+  List<Widget> _audioEffectList(AppLocalizations l10n) {
+    return [
+      _buildGroupLabel(l10n.rackAddEffectsSectionLabel),
+      _buildFeatureItem(Icons.blur_on, l10n.rackAddReverb, l10n.rackAddReverbSubtitle),
+      _buildFeatureItem(Icons.repeat, l10n.rackAddDelay, l10n.rackAddDelaySubtitle),
+      _buildFeatureItem(Icons.graphic_eq, l10n.rackAddWah, l10n.rackAddWahSubtitle),
+      _buildFeatureItem(Icons.equalizer, l10n.rackAddEq, l10n.rackAddEqSubtitle),
+      _buildFeatureItem(Icons.compress, l10n.rackAddCompressor, l10n.rackAddCompressorSubtitle),
+      _buildFeatureItem(Icons.waves, l10n.rackAddChorus, l10n.rackAddChorusSubtitle),
+      _buildFeatureItem(Icons.queue_music, l10n.rackAddAudioHarmonizer, l10n.rackAddAudioHarmonizerSubtitle),
+      _buildFeatureItem(Icons.record_voice_over, l10n.rackAddAutotune, l10n.rackAddAutotuneSubtitle),
+      _buildFeatureItem(Icons.speaker, l10n.rackAddAmp, l10n.rackAddAmpSubtitle),
+    ];
+  }
+
+  /// The built-in MIDI FX, as listed in the "Add Plugin" sheet.
+  List<Widget> _midiFxList(AppLocalizations l10n) {
+    return [
+      _buildGroupLabel(l10n.rackAddMidiFxSectionLabel),
+      _buildFeatureItem(Icons.music_note, l10n.rackAddHarmonizer, l10n.rackAddHarmonizerSubtitle),
+      _buildFeatureItem(Icons.piano, l10n.rackAddChordExpand, l10n.rackAddChordExpandSubtitle),
+      _buildFeatureItem(Icons.auto_awesome, l10n.rackAddArpeggiator, l10n.rackAddArpeggiatorSubtitle),
+      _buildFeatureItem(Icons.swap_vert, l10n.rackAddTransposer, l10n.rackAddTransposerSubtitle),
+      _buildFeatureItem(Icons.tune, l10n.rackAddVelocityCurve, l10n.rackAddVelocityCurveSubtitle),
+      _buildFeatureItem(Icons.filter_alt, l10n.rackAddGate, l10n.rackAddGateSubtitle),
+      _buildFeatureItem(Icons.graphic_eq, l10n.rackAddMicrotone, l10n.rackAddMicrotoneSubtitle),
+      _buildFeatureItem(Icons.travel_explore, l10n.rackAddXen, l10n.rackAddXenSubtitle),
+    ];
+  }
+
+  /// A small upper-case family label above a group of slot types, styled
+  /// like the section labels of the "Add Plugin" sheet.
+  Widget _buildGroupLabel(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 12, bottom: 2),
+      child: Text(
+        text.toUpperCase(),
+        style: const TextStyle(
+          color: Colors.white54,
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 1.0,
+        ),
+      ),
     );
   }
 

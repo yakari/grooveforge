@@ -9,9 +9,14 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 
 ### Ajouté
 - **Ampli** : un module d'ampli guitare avec pédale de saturation (overdrive ou distortion), trois réglages d'ampli et trois baffles. Chaque section s'active et se coupe depuis le panneau ou un footswitch CC.
-- **Riff** : une guitare électrique modélisée corde par corde. Palm mute, position du médiator, micros, tonalité et sustain agissent sur les cordes qui sonnent et peuvent tous être associés à des CC.
+- **Riff** : une guitare électrique modélisée corde par corde. Palm mute, position du médiator, micros, tonalité et sustain agissent sur les cordes qui sonnent et peuvent tous être associés à des CC ; un interrupteur Legato (sur un pad, ou le CC 68 maintenu) ou le legato Overlap (touches jouées en chevauchement) joue hammer-ons et pull-offs, et le palm mute a aussi un mapping on/off pour pad.
 - Ampli : chargement d'une **réponse impulsionnelle** (IR) de baffle depuis un fichier `.wav`, ou son retrait. Elle est enregistrée dans le projet. L'écran d'aide indique où en trouver de gratuites.
 - Mappings CC : **Valeur neutre au relâchement**, pour les ribbons et touch strips qui retombent à 0 quand on lève le doigt (par exemple 64 pour ramener le pitch bend au centre). Touchez un mapping dans les préférences CC pour la régler.
+- Aide, onglet Rack & Câbles : la liste des types de slots couvre désormais tous les modules, groupés comme dans la feuille d'ajout.
+
+### Corrigé
+- Un effet en bypass (Wah, Reverb, Ampli...) se remettait à jouer après un redémarrage de l'appli, alors que son slot l'affichait toujours en bypass.
+- Un paramètre de module piloté par un mapping CC fait maintenant bouger son potard sur le panneau ; tourner un autre potard ensuite ne l'annule plus.
 
 ### Architecture
 - `gf_amp.c`/`.h` : le DSP de l'Ampli. Les saturations de la pédale et du préampli tournent à 2x via un rééchantillonneur IIR demi-bande polyphase, avec un antialiasing par antidérivée du premier ordre ; les réglages de tonalité sont la forme exacte du circuit selon Yeh et Smith, discrétisée par la transformée bilinéaire. `gf_amp_smoke_test` compare la formule à une résolution nodale du circuit et mesure la réjection des images (plus de 130 dB), le repliement en distorsion maximale (26 dB de moins que sans antialiasing), l'absence de clic aux bascules et le coût.

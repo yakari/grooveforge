@@ -387,6 +387,15 @@ class AppLocalizationsFr extends AppLocalizations {
   String get guidePatchSlotTypesTitle => 'Types de slots';
 
   @override
+  String get guidePatchGroupInstruments => 'Instruments';
+
+  @override
+  String get guidePatchGroupRhythm => 'Batterie & loopers';
+
+  @override
+  String get guidePatchGroupCustom => 'Plugins personnalisés';
+
+  @override
   String get guidePatchSlotKeyboard => 'Clavier';
 
   @override
@@ -1560,7 +1569,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get guideRiffBody =>
-      'Riff est une guitare électrique simulée corde par corde. Jouez-la depuis n\'importe quel clavier ou source MIDI : chaque note va sur une corde qu\'un guitariste utiliserait, donc deux notes sur la même corde se coupent, comme sur une vraie guitare. La molette de pitch fait les bends (un ton par défaut, voir Bend), la molette de modulation ajoute du vibrato et la pédale de sustain laisse sonner les cordes relâchées.\nPalm mute, Pick position, Attack, le sélecteur de micro, Tone et Sustain agissent sur les cordes qui sonnent déjà : associez-les à une pédale, un potard ou un ruban dans les réglages CC pour les jouer comme les mains d\'un guitariste. Câblez Riff dans l\'Ampli pour du crunch ou de la saturation ; la pédale Overdrive donne le rendu le plus naturel.';
+      'Riff est une guitare électrique simulée corde par corde. Jouez-la depuis n\'importe quel clavier ou source MIDI : chaque note va sur une corde qu\'un guitariste utiliserait, et des notes proches prennent des cordes différentes pour sonner ensemble. Activez Legato (un pad peut le basculer depuis les réglages CC, ou maintenez un pad qui envoie le CC 68) pour lier les notes : une note proche de la précédente fait un hammer-on en montant et un pull-off en descendant, sur la même corde, et un long passage garde son volume. Overlap fait de même seulement pour une touche enfoncée avant d\'avoir lâché la précédente : jeu lié et détaché se mélangent sans pad. La molette de pitch fait les bends (un ton par défaut, voir Bend), la molette de modulation ajoute du vibrato et la pédale de sustain laisse sonner les cordes relâchées.\nPalm mute, Pick position, Attack, le sélecteur de micro, Tone et Sustain agissent sur les cordes qui sonnent déjà : associez-les à une pédale, un potard ou un ruban dans les réglages CC pour les jouer comme les mains d\'un guitariste. Câblez Riff dans l\'Ampli pour du crunch ou de la saturation ; la pédale Overdrive donne le rendu le plus naturel.';
 
   @override
   String get guideAmpTitle => 'Ampli et IR de baffle';

@@ -48,7 +48,7 @@ struct RiffSlot {
     // Knobs, in the units gf_riff_params takes.
     std::atomic<float> palmMute{0.0f}, pickPos{0.35f}, tone{0.7f};
     std::atomic<float> sustain{0.7f}, attack{0.7f}, bendRange{2.0f}, levelDb{0.0f};
-    std::atomic<int>   pickup{GF_RIFF_PICKUP_BRIDGE}, humbucker{1};
+    std::atomic<int>   pickup{GF_RIFF_PICKUP_BRIDGE}, humbucker{1}, legato{0}, legatoOverlap{0};
     std::atomic<bool>  muted{false};
 };
 
@@ -66,12 +66,14 @@ void push(RiffSlot& s, const RiffEvent& ev) {
     s.head.store(h + 1, std::memory_order_release);
 }
 
-/// Applies one controller: the sustain pedal, the mod wheel as vibrato, and
-/// the two "all notes off" messages.
+/// Applies one controller: the sustain pedal, the mod wheel as vibrato, the
+/// legato pedal (CC 68, so a pad sending it needs no mapping), and the two
+/// "all notes off" messages.
 void applyCc(gf_riff* r, int cc, int value) {
     switch (cc) {
         case 1:   gf_riff_vibrato(r, (float)value / 127.0f); break;
         case 64:  gf_riff_sustain_pedal(r, value >= 64); break;
+        case 68:  gf_riff_legato_pedal(r, value >= 64); break;
         case 120:
         case 123: gf_riff_all_notes_off(r); break;
         default: break;
@@ -106,6 +108,8 @@ void pushParams(RiffSlot& s) {
     p.attack = s.attack.load(std::memory_order_relaxed);
     p.bend_range = s.bendRange.load(std::memory_order_relaxed);
     p.level_db = s.levelDb.load(std::memory_order_relaxed);
+    p.legato = s.legato.load(std::memory_order_relaxed);
+    p.legato_overlap = s.legatoOverlap.load(std::memory_order_relaxed);
     gf_riff_set_params(s.riff, &p);
 }
 
@@ -180,6 +184,8 @@ void resetKnobs(RiffSlot& s) {
     s.attack.store(p.attack);
     s.bendRange.store(p.bend_range);
     s.levelDb.store(p.level_db);
+    s.legato.store(p.legato);
+    s.legatoOverlap.store(p.legato_overlap);
     s.muted.store(false);
 }
 
@@ -228,6 +234,8 @@ void gfpa_riff_slot_set_param(int slot, const char* id, float v) {
     else if (std::strcmp(id, "pickup_type") == 0) s.humbucker.store(v >= 0.5f ? 1 : 0);
     else if (std::strcmp(id, "bend_range") == 0) s.bendRange.store(v);
     else if (std::strcmp(id, "level") == 0)     s.levelDb.store(v);
+    else if (std::strcmp(id, "legato") == 0)    s.legato.store(v >= 0.5f ? 1 : 0);
+    else if (std::strcmp(id, "legato_overlap") == 0) s.legatoOverlap.store(v >= 0.5f ? 1 : 0);
 }
 
 void gfpa_riff_slot_set_muted(int slot, bool muted) {

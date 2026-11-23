@@ -782,6 +782,24 @@ abstract class AppLocalizations {
   /// **'Slot Types'**
   String get guidePatchSlotTypesTitle;
 
+  /// No description provided for @guidePatchGroupInstruments.
+  ///
+  /// In en, this message translates to:
+  /// **'Instruments'**
+  String get guidePatchGroupInstruments;
+
+  /// No description provided for @guidePatchGroupRhythm.
+  ///
+  /// In en, this message translates to:
+  /// **'Drums & loopers'**
+  String get guidePatchGroupRhythm;
+
+  /// No description provided for @guidePatchGroupCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom plugins'**
+  String get guidePatchGroupCustom;
+
   /// No description provided for @guidePatchSlotKeyboard.
   ///
   /// In en, this message translates to:
@@ -2855,7 +2873,7 @@ abstract class AppLocalizations {
   /// No description provided for @guideRiffBody.
   ///
   /// In en, this message translates to:
-  /// **'Riff is an electric guitar simulated string by string. Play it from any keyboard or MIDI source: each note goes to a string a guitarist would use, so two notes on the same string cut each other off as on a real guitar. The pitch wheel bends (a whole tone by default, see Bend), the mod wheel adds vibrato and the sustain pedal lets released strings ring.\nPalm mute, Pick position, Attack, the pickup selector, Tone and Sustain all act on strings that are already ringing: map them to a pedal, a knob or a ribbon in the CC settings and play them like a guitarist\'s hands. Cable Riff into the Amp for crunch and distortion; the Overdrive pedal gives the most natural result.'**
+  /// **'Riff is an electric guitar simulated string by string. Play it from any keyboard or MIDI source: each note goes to a string a guitarist would use, and close notes take separate strings so they all ring. Switch Legato on (a pad can switch it from the CC settings, or hold a pad sending CC 68) to slur instead: a note played close to the last one hammers on going up and pulls off going down, on the same string, and a long run keeps its level. Overlap does the same only for a key pressed before the previous one is let go, so legato and detached playing mix without a pad. The pitch wheel bends (a whole tone by default, see Bend), the mod wheel adds vibrato and the sustain pedal lets released strings ring.\nPalm mute, Pick position, Attack, the pickup selector, Tone and Sustain all act on strings that are already ringing: map them to a pedal, a knob or a ribbon in the CC settings and play them like a guitarist\'s hands. Cable Riff into the Amp for crunch and distortion; the Overdrive pedal gives the most natural result.'**
   String get guideRiffBody;
 
   /// No description provided for @guideAmpTitle.

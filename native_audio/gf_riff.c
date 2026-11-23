@@ -76,6 +76,37 @@ static const double k_inharm[GF_RIFF_STRINGS] = {1.1e-4, 6.5e-5, 4.5e-5, 3.0e-5,
 #define REPICK_SEC 0.003
 #define REPICK_FLOOR 0.03f
 
+/// Cost of playing a note out of a string's range (see string_cost): above
+/// any fret, so a string in range always wins, but below a ringing string, so
+/// a free string retuned for the note beats cutting a sustained one short.
+#define OUT_OF_RANGE_COST 50.0
+
+/// Fingers a string can hold down under its sounding note: the notes a
+/// pull-off can fall back to.
+#define MAX_FINGERS 4
+
+/// Notes struck closer together than this are a chord, never a slur: a hand
+/// on a keyboard spreads a chord over a few milliseconds.
+#define LEGATO_CHORD_SEC 0.03
+
+/// Hammer-on and pull-off: the level of the finger's tap or pluck, as a
+/// share of a pick at the same velocity, and how bright it is. A hammer is a
+/// soft thud; a pull-off plucks the string with the fingertip.
+#define HAMMER_LEVEL 0.30f
+#define HAMMER_BRIGHT 0.30f
+#define PULL_LEVEL 0.45f
+#define PULL_BRIGHT 0.55f
+
+/// A hammer-on or pull-off puts energy back into the string: a guitarist's
+/// fretting hand keeps a run like Thunderstruck at an even level for as long
+/// as it goes on. A slur brings the string back up to this share of the
+/// power its pick reached (scaled by how hard the slur is played against the
+/// pick), over BOOST_SEC so the rise has no click, and by at most
+/// BOOST_MAX in amplitude so a string that has all but died stays quiet.
+#define SLUR_SUSTAIN 0.7f
+#define BOOST_SEC 0.003
+#define BOOST_MAX 4.0f
+
 /// Output scale: six strings struck at once at full velocity, the loudest
 /// thing a player can do, stay just below full scale; a single note picked
 /// hard peaks around -17 dBFS, about where a guitar's DI signal sits.
@@ -98,6 +129,14 @@ typedef struct {
     int   released;        ///< Finger lifted: the string is being damped.
     int   active;          ///< Worth computing.
     unsigned age;          ///< Order of the last pick, for stealing.
+    double started;        ///< When the last note started, in samples.
+    /// Keys still down under the sounding note (legato), oldest first: a
+    /// pull-off falls back to the last of them.
+    int   fingers[MAX_FINGERS];
+    int   n_fingers;
+    float peak_env;        ///< Highest [env] since the last pick.
+    int   boost_left;      ///< Samples of a slur's energy boost still to go.
+    float boost_mul;       ///< Per-sample step of [gain] during it.
     float vel;             ///< Velocity of the last pick, 0-1.
 
     // A pick waiting for the string to be damped first.
@@ -143,6 +182,8 @@ struct gf_riff {
     float vib_depth;       ///< 0..1.
     double vib_phase;
     int   pedal;
+    int   legato_pedal;    ///< MIDI CC 68 down.
+    double time;           ///< Samples rendered so far.
     int   humanize;        ///< Intonation spread and drift on (test switch).
 
     // Smoothed controls.
@@ -285,19 +326,31 @@ static int fold_note(int note) {
     return note;
 }
 
+/// How many semitones [note] lies outside string [i]'s range, 0 inside it.
+/// Below the low E, the low string plays the note as if tuned down (a
+/// baritone guitar); past the 24th fret, the high string keeps climbing.
+/// Every other string's range is its open note to its 24th fret.
+static int out_of_range(int i, int note) {
+    const int fret = note - k_open[i];
+    const int lowest = i == 0 ? GF_RIFF_NOTE_MIN - k_open[0] : 0;
+    const int highest = i == GF_RIFF_STRINGS - 1 ? GF_RIFF_NOTE_MAX - k_open[i] : GF_RIFF_FRETS;
+    if (fret < lowest) return lowest - fret;
+    if (fret > highest) return fret - highest;
+    return 0;
+}
+
 /// How unwelcome string [i] is for [note]: low frets first (open-position
 /// voicings, as a guitarist reaches for), strings still held or ringing
-/// last. Returns a negative value when the string cannot play the note.
+/// last; a string out of its range only when the ones in range are busy.
 static double string_cost(const gf_riff* r, int i, int note) {
     const rstring* s = &r->s[i];
     const int fret = note - k_open[i];
-    // Below the low E, the low string plays the note as if tuned down (a
-    // baritone guitar); past the 24th fret, the high string keeps climbing.
-    // Every other string stays within its real range.
-    const int lowest = i == 0 ? GF_RIFF_NOTE_MIN - k_open[0] : 0;
-    const int highest = i == GF_RIFF_STRINGS - 1 ? GF_RIFF_NOTE_MAX - k_open[i] : GF_RIFF_FRETS;
-    if (fret < lowest || fret > highest) return -1.0;
     double cost = fret < 0 ? -fret : fret;
+    // Out of its range, a string still plays the note, retuned: a keyboard
+    // player's E2 and F2 together, which only the low E string reaches on a
+    // real guitar, then both sound instead of one cutting the other off.
+    const int out = out_of_range(i, note);
+    if (out > 0) cost += OUT_OF_RANGE_COST + out;
     if (s->held) cost += 1000.0 + (double)(r->clock - s->age) * -0.001;
     else if (s->active && !s->released) cost += 100.0;
     else if (s->active) cost += 10.0;
@@ -328,7 +381,10 @@ static int choose_string(const gf_riff* r, int note) {
 /// pick and so no two picks are identical; low-passed by how
 /// soft the attack and the note are, then combed by the pick position.
 /// Scaled so the string starts at a level set by the velocity.
-static void build_burst(gf_riff* r, rstring* s, double period, float vel) {
+///
+/// [bright] scales the cutoff: 1 for a pick, lower for a finger tapping or
+/// plucking the string in a hammer-on or a pull-off.
+static void build_burst(gf_riff* r, rstring* s, double period, float vel, float bright) {
     // A burst of at most 4 ms, and never longer than one trip round the loop.
     int len = (int)fmin(period, 0.004 * r->rate);
     if (len < 8) len = 8;
@@ -336,6 +392,7 @@ static void build_burst(gf_riff* r, rstring* s, double period, float vel) {
     const double atk = r->p.attack;
     double fc = 900.0 + 7000.0 * pow(atk, 1.5) * (0.35 + 0.65 * vel);
     fc *= 1.0 - 0.35 * r->pm;   // the palm also dulls the attack
+    fc *= bright;
     const float k = (float)(1.0 - exp(-2.0 * M_PI * fc / r->rate));
     float l1 = 0.0f, l2 = 0.0f;
     // Pick position: from near the bridge (thin) to over the neck (round),
@@ -421,6 +478,8 @@ static void design_dispersion(const gf_riff* r, rstring* s, int string, int note
 /// Starts [note] on string [s] now: the loop takes the new length and the
 /// pick burst starts.
 static void start_note(gf_riff* r, rstring* s, int note, int fret, int velocity) {
+    s->n_fingers = 0;      // a pick starts afresh: no finger to pull off to
+    s->peak_env = 0.0f;
     s->note = note;
     s->fret = fret;
     s->vel = clampf((float)velocity / 127.0f, 0.0f, 1.0f);
@@ -440,7 +499,7 @@ static void start_note(gf_riff* r, rstring* s, int note, int fret, int velocity)
         // A silent string starts at the right length rather than gliding.
         for (int p = 0; p < POLS; ++p) s->d[p] = (float)(r->rate / plane_hz(r, p, note_hz(note)));
     }
-    build_burst(r, s, period, s->vel);
+    build_burst(r, s, period, s->vel, 1.0f);
 }
 
 /// Ends a damping: folds the loop gain back into the rings, so the string
@@ -456,25 +515,135 @@ static void end_damping(rstring* s) {
 
 // ── Public API: events ──────────────────────────────────────────────────────
 
+// ── Legato: hammer-ons and pull-offs ──────────────────────────────────────────
+
+/// Whether a new note slurs on string [last], the last one played: always
+/// with the Legato switch or pedal; with Overlap, only when the new key went
+/// down while [last]'s key was still held and no other key is, as a legato
+/// line on a keyboard is played. A melody over a held chord is picked, so it
+/// does not swallow a chord note.
+static int legato_wanted(const gf_riff* r, int last) {
+    if (r->p.legato || r->legato_pedal) return 1;
+    if (!r->p.legato_overlap) return 0;
+    const rstring* s = &r->s[last];
+    if (!s->held) return 0;
+    for (int i = 0; i < GF_RIFF_STRINGS; ++i) {
+        if (i != last && r->s[i].held) return 0;
+    }
+    return 1;
+}
+
+/// The string a legato [note] slurs on, or -1 to pick it instead: the last
+/// string played, if legato applies to it (legato_wanted), it still rings,
+/// was not struck as part of a chord just now, and reaches [note] within a
+/// hand's span (or [note] or its own note is the open string) and its range.
+static int legato_string(const gf_riff* r, int note) {
+    int last = -1;
+    for (int i = 0; i < GF_RIFF_STRINGS; ++i) {
+        const rstring* s = &r->s[i];
+        if (!s->active || s->note < 0) continue;
+        if (last < 0 || s->age > r->s[last].age) last = i;
+    }
+    if (last < 0 || !legato_wanted(r, last)) return -1;
+    const rstring* s = &r->s[last];
+    const int jump = note > s->note ? note - s->note : s->note - note;
+    // An octave at most (GF_RIFF_LEGATO_REACH), but an open string needs no
+    // finger: pulling off to it, or hammering from it, works from anywhere
+    // on the neck.
+    const int open = note == k_open[last] || s->fret == 0;
+    if (jump == 0 || (jump > GF_RIFF_LEGATO_REACH && !open)) return -1;
+    if (s->repick_left > 0 || s->env < 1e-7f) return -1;
+    if (r->time - s->started < LEGATO_CHORD_SEC * r->rate) return -1;
+    if (out_of_range(last, note) > 0) return -1;
+    return last;
+}
+
+/// Moves string [s] to [note] without picking it: the fretting hand alone.
+/// The loop takes the new length within a chunk and is topped back up
+/// towards its pick's level (top_up); the finger adds a soft tap (hammer-on,
+/// going up) or a small pluck (pull-off, going down).
+/// Brings string [s] back up towards the power its pick reached, for a slur
+/// played at velocity [vel] (0-1): see SLUR_SUSTAIN. Rides the loop gain, as
+/// the re-pick damping does, so the whole string rises at once.
+static void top_up(gf_riff* r, rstring* s, float vel) {
+    if (s->repick_left > 0 || s->vel <= 0.0f || s->env < 1e-12f) return;
+    const float rel = fminf(vel / s->vel, 1.0f);
+    const float floor_env = s->peak_env * SLUR_SUSTAIN * powf(rel, 2.8f);
+    if (s->env >= floor_env) return;
+    const float k = fminf(sqrtf(floor_env / s->env), BOOST_MAX);
+    if (s->boost_left > 0) end_damping(s);   // fold an unfinished boost in
+    s->boost_left = (int)(BOOST_SEC * r->rate);
+    if (s->boost_left < 1) s->boost_left = 1;
+    s->boost_mul = powf(k, 1.0f / (float)s->boost_left);
+}
+
+static void slur(gf_riff* r, rstring* s, int note, float vel) {
+    top_up(r, s, vel);
+    const int up = note > s->note;
+    s->note = note;
+    s->fret = note - k_open[s - r->s];
+    s->loss_note = -1;     // solve the loss filters for the new length
+    design_dispersion(r, s, (int)(s - r->s), note, s->fret);
+    const double period = r->rate / note_hz(note);
+    if (up) build_burst(r, s, period, vel * HAMMER_LEVEL, HAMMER_BRIGHT);
+    else build_burst(r, s, period, vel * PULL_LEVEL, PULL_BRIGHT);
+}
+
+/// Hammers [note] onto string [i]. The key that was sounding stays under
+/// the finger if it is still down, so letting go of [note] pulls off to it.
+static void hammer(gf_riff* r, int i, int note, int velocity) {
+    rstring* s = &r->s[i];
+    if (s->held && note > s->note && s->n_fingers < MAX_FINGERS) {
+        s->fingers[s->n_fingers++] = s->note;
+    }
+    s->held = 1;
+    s->released = 0;
+    s->sustained = 0;
+    s->age = ++r->clock;
+    s->started = r->time;
+    slur(r, s, note, clampf((float)velocity / 127.0f, 0.0f, 1.0f));
+}
+
+/// Forgets [note] as a finger held under some string's sounding note.
+/// Returns 1 when it was one.
+static int lift_finger(gf_riff* r, int note) {
+    for (int i = 0; i < GF_RIFF_STRINGS; ++i) {
+        rstring* s = &r->s[i];
+        for (int k = 0; k < s->n_fingers; ++k) {
+            if (s->fingers[k] != note) continue;
+            for (int j = k + 1; j < s->n_fingers; ++j) s->fingers[j - 1] = s->fingers[j];
+            s->n_fingers--;
+            return 1;
+        }
+    }
+    return 0;
+}
+
 void gf_riff_note_on(gf_riff* r, int note, int velocity) {
     if (!r) return;
     if (velocity <= 0) { gf_riff_note_off(r, note); return; }
     note = fold_note(note);
+    const int li = legato_string(r, note);
+    if (li >= 0) { hammer(r, li, note, velocity); return; }
     const int i = choose_string(r, note);
     if (i < 0) return;
     rstring* s = &r->s[i];
     s->held = 1;
     s->age = ++r->clock;
+    s->started = r->time;
     const int fret = note - k_open[i];
     if (s->active && s->env > 1e-8f) {
         // Damp the ringing string for a few ms, then pick: no click, and no
-        // pile-up of energy from repeated picks.
+        // pile-up of energy from repeated picks. A slur's boost still rising
+        // is folded in first: both ride the same loop gain.
+        if (s->boost_left > 0) { end_damping(s); s->boost_left = 0; }
         s->repick_left = (int)(REPICK_SEC * r->rate);
         s->repick_mul = powf(REPICK_FLOOR, 1.0f / (float)s->repick_left);
         s->pending_note = note;
         s->pending_fret = fret;
         s->pending_vel = velocity;
         s->note = note;   // the key now belongs to this string
+        s->n_fingers = 0;
         s->released = 0;
         return;
     }
@@ -491,9 +660,16 @@ static void release_string(rstring* s) {
 void gf_riff_note_off(gf_riff* r, int note) {
     if (!r) return;
     note = fold_note(note);
+    // A finger under a hammered note: lifting it changes nothing heard.
+    if (lift_finger(r, note)) return;
     for (int i = 0; i < GF_RIFF_STRINGS; ++i) {
         rstring* s = &r->s[i];
         if (!s->held || s->note != note) continue;
+        if (s->n_fingers > 0) {
+            // Pull-off: the string falls back to the finger still down.
+            slur(r, s, s->fingers[--s->n_fingers], s->vel);
+            continue;
+        }
         if (r->pedal) { s->held = 0; s->sustained = 1; }
         else release_string(s);
     }
@@ -502,6 +678,8 @@ void gf_riff_note_off(gf_riff* r, int note) {
 void gf_riff_all_notes_off(gf_riff* r) {
     if (!r) return;
     for (int i = 0; i < GF_RIFF_STRINGS; ++i) {
+        r->s[i].n_fingers = 0;
+        if (r->s[i].boost_left > 0) { end_damping(&r->s[i]); r->s[i].boost_left = 0; }
         if (r->s[i].active) release_string(&r->s[i]);
         if (r->s[i].repick_left > 0) end_damping(&r->s[i]);
     }
@@ -518,6 +696,10 @@ void gf_riff_sustain_pedal(gf_riff* r, int down) {
     for (int i = 0; i < GF_RIFF_STRINGS; ++i) {
         if (r->s[i].sustained) release_string(&r->s[i]);
     }
+}
+
+void gf_riff_legato_pedal(gf_riff* r, int down) {
+    if (r) r->legato_pedal = down ? 1 : 0;
 }
 
 void gf_riff_vibrato(gf_riff* r, float depth) {
@@ -698,6 +880,10 @@ static void string_chunk(gf_riff* r, rstring* s, float* out, int n, double semis
     }
     const float k_env = 1.0f - expf(-1.0f / (0.02f * r->rate));
     for (int i = 0; i < n; ++i) {
+        if (s->boost_left > 0) {
+            s->gain *= s->boost_mul;
+            if (--s->boost_left == 0) end_damping(s);
+        }
         if (s->repick_left > 0) {
             s->gain *= s->repick_mul;
             if (--s->repick_left == 0) finish_repick(r, s);
@@ -714,6 +900,7 @@ static void string_chunk(gf_riff* r, rstring* s, float* out, int n, double semis
         s->env += (h * h - s->env) * k_env;
         out[i] += pickup_tick(r, s);
     }
+    if (s->env > s->peak_env) s->peak_env = s->env;
     // A string that has died away, with no pick pending, stops computing.
     if (s->env < 1e-10f && s->exc_pos >= s->exc_len && s->repick_left == 0) {
         s->active = 0;
@@ -765,6 +952,7 @@ void gf_riff_process(gf_riff* r, float* out, int n) {
     for (int done = 0; done < n; done += CHUNK) {
         const int len = (n - done < CHUNK) ? (n - done) : CHUNK;
         process_chunk(r, out + done, len);
+        r->time += len;
     }
 #ifdef GF_RIFF_HAS_SSE
     _mm_setcsr(csr);
@@ -783,6 +971,8 @@ void gf_riff_default_params(gf_riff_params* out) {
     out->attack = 0.7f;
     out->bend_range = 2.0f;
     out->level_db = 0.0f;
+    out->legato = 0;
+    out->legato_overlap = 0;
 }
 
 void gf_riff_set_params(gf_riff* r, const gf_riff_params* p) {
@@ -823,8 +1013,12 @@ void gf_riff_reset(gf_riff* r) {
         s->gain = 1.0f;
         s->env = 0.0f;
         s->loss_note = -1;
+        s->n_fingers = 0;
+        s->peak_env = 0.0f;
+        s->boost_left = 0;
         for (int p = 0; p < POLS; ++p) s->d[p] = 100.0f;
     }
+    r->legato_pedal = 0;
     r->res_x1 = r->res_x2 = r->res_y1 = r->res_y2 = 0.0f;
     r->dc_x1 = r->dc_y1 = 0.0f;
 }
