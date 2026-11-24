@@ -98,6 +98,7 @@ add_library(${PROJECT_NAME} SHARED
   ${GF_NATIVE_AUDIO_DIR}/gf_amp.c
   ${GF_NATIVE_AUDIO_DIR}/gf_convolver.c
   ${GF_NATIVE_AUDIO_DIR}/gf_riff.c
+  ${GF_NATIVE_AUDIO_DIR}/gf_limiter.c
   # macOS specific implementation
   ${NATIVE_DIR}/src/dart_vst_host_audio_mac.cpp
   ${NATIVE_DIR}/src/dart_vst_host_editor_mac.mm

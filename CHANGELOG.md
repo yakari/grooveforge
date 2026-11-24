@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Help, Rack & Cables tab: the slot types list now covers every module, grouped as in the Add Plugin sheet.
 
 ### Fixed
+- Loud playing no longer saturates. Soundfonts are recalibrated to sit level with the other instruments (the **Gain** knob now runs 0 to 2, default 1; your setting is converted), and every platform gets a clean output limiter: Android had none, and the Linux and macOS one distorted low notes.
 - A bypassed effect (Wah, Reverb, Amp...) played again after restarting the app, while its slot still showed it bypassed.
 - A module parameter moved by a CC mapping now moves its knob on the panel too; turning another knob afterwards no longer reverts it.
 
@@ -23,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `gf_convolver.c`/`.h`: zero-latency convolution for cabinet IRs (direct sum for the first 128 taps, uniformly partitioned FFT for the rest, on the shared `gf_fft`). The Amp prepares each IR off the audio thread for 44.1/48/88.2/96 kHz, trimmed to 100 ms and levelled to the built-in 2x12, and swaps it in with a crossfade. New C entry points `gfpa_dsp_load_ir` and `gfpa_dsp_clear_ir` (the IR fades out before it is dropped). Checked by `gf_convolver_smoke_test`.
 - `gf_riff.c`/`.h`: Riff's DSP, an extended Karplus-Strong / digital waveguide string per string (Lagrange-interpolated delay, per-note loss filter, stiffness all-passes, two planes of vibration, tension glide, pickup combs and coil resonance). `gf_riff_smoke_test` measures tuning from the audio at three rates, decay times, inharmonicity, click-free bends and damping, string assignment and cost.
 - `gfpa_riff.cpp`: Riff sits behind a GFPA DSP handle for its knobs, in a fixed pool of four guitars that is never freed, so a render racing a slot's removal plays silence. MIDI reaches it through a lock-free queue; new C entry points `gfpa_riff_*`. Android gets bus slots 104-107 and 12 bus sources. Checked by `gf_riff_pool_smoke_test`.
+- `gf_limiter.c`/`.h`: zero-latency master limiter at -1 dBFS (instant attack, 40 ms hold, 200 ms release), shared by the JACK, miniaudio and AAudio outputs. The hold stops the gain moving between crests of a low note: on a sustained 41 Hz overload, distortion drops from -19 dB with the old limiter to below -60 dB. Checked by `gf_limiter_smoke_test`.
 - New dependency `url_launcher`, to open links from the help screen.
 
 ## [3.3.0] - 2026-10-04

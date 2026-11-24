@@ -1833,8 +1833,9 @@ class RackState extends ChangeNotifier {
       case 'prev_soundfont':
         _engine.cycleChannelSoundfont(ch, -1);
       case 'volume':
-        // CC 0-127 → gain 0.0–10.0 (FluidSynth range).
-        _engine.fluidSynthGain.value = ccValue / 127.0 * 10.0;
+        // CC 0-127 → FluidSynth level 0 to +6 dB over the reference.
+        _engine.fluidSynthGain.value =
+            ccValue / 127.0 * AudioEngine.kFluidSynthGainMax;
     }
   }
 
@@ -1970,8 +1971,8 @@ class RackState extends ChangeNotifier {
         // Range 0.0–20.0.
         _engine.vocoderInputGain.value = norm * 20.0;
       case 'volume':
-        // CC 0-127 → gain 0.0–10.0 (FluidSynth range).
-        _engine.fluidSynthGain.value = norm * 10.0;
+        // CC 0-127 → FluidSynth level 0 to +6 dB over the reference.
+        _engine.fluidSynthGain.value = norm * AudioEngine.kFluidSynthGainMax;
     }
   }
 

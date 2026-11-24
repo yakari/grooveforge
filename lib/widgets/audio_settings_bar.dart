@@ -70,9 +70,10 @@ class AudioSettingsBar extends StatelessWidget {
 
 // ─── FluidSynth gain knob ────────────────────────────────────────────────────
 
-/// Rotary knob that controls the FluidSynth master output gain (all platforms).
+/// Rotary knob that controls the FluidSynth output level (all platforms).
 ///
-/// Range 0.0–10.0 matching FluidSynth's own gain limits.
+/// Range 0 to [AudioEngine.kFluidSynthGainMax] (+6 dB over the calibrated
+/// reference of 1.0); the master limiter catches peaks above that.
 class _GainKnob extends StatelessWidget {
   const _GainKnob({required this.engine, required this.l10n});
 
@@ -86,7 +87,7 @@ class _GainKnob extends StatelessWidget {
       builder: (context, gain, _) => RotaryKnob(
         value: gain,
         min: 0.0,
-        max: 10.0,
+        max: AudioEngine.kFluidSynthGainMax,
         label: l10n.audioSettingsBarGain,
         icon: Icons.volume_up,
         size: 40,

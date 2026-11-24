@@ -401,19 +401,29 @@ class AudioEngine extends ChangeNotifier {
   /// stays exactly as it is.
   final ValueNotifier<bool> usbDirectOutputEnabled = ValueNotifier<bool>(false);
 
-  /// Master output gain sent to the FluidSynth process (`gain` command).
+  /// Output level of the built-in FluidSynth engine (all platforms), as
+  /// FluidSynth's own `synth.gain`.
   ///
-  /// Linux default is 3.0 — the previous 5.0 was too loud relative to VST
-  /// output. Initialized before FluidSynth starts so the `-g` flag already
-  /// uses the persisted value.
-  /// Master output gain for the built-in FluidSynth engine (all platforms).
+  /// 1.0 is the calibrated reference: a General MIDI piano played hard peaks
+  /// around -6 dBFS and a hard power chord on Riff around -6 dBFS too, so the
+  /// soundfonts sit level with GrooveForge's own instruments. FluidSynth's
+  /// factory 0.2 is 14 dB quieter, which is why sound was so weak at first;
+  /// the old default of 3.0 was 9.5 dB louder, enough to clip a loud chord.
   ///
-  /// Default is 3.0 — lower than the old hardcoded 5.0 which was too loud on
-  /// Linux. The value is persisted and applied live without a soundfont reload.
-  /// Restored from SharedPreferences on init; if no saved value exists the
-  /// default is 3.0 on Linux and 5.0 on Android/other (matching prior
-  /// behaviour for existing installs).
-  final ValueNotifier<double> fluidSynthGain = ValueNotifier<double>(3.0);
+  /// The range stops at [kFluidSynthGainMax] (+6 dB): enough to bring up a
+  /// quiet soundfont, while the master limiter catches whatever peaks remain.
+  final ValueNotifier<double> fluidSynthGain =
+      ValueNotifier<double>(kFluidSynthGainDefault);
+
+  /// Calibrated reference level for [fluidSynthGain].
+  static const double kFluidSynthGainDefault = 1.0;
+
+  /// Highest [fluidSynthGain] the knob and CC mappings can reach (+6 dB).
+  static const double kFluidSynthGainMax = 2.0;
+
+  /// Scale of the pre-3.5 `fluidsynth_gain` preference (0-10, default 3.0)
+  /// relative to the current one: the old default maps onto the new one.
+  static const double _legacyGainDefault = 3.0;
 
   static const audioConfigChannel = MethodChannel(
     'com.grooveforge.grooveforge/audio_config',
@@ -1067,8 +1077,9 @@ class AudioEngine extends ChangeNotifier {
     await _prefs!.setBool('auto_scroll_enabled', autoScrollEnabled.value);
     await _prefs!.setString('last_seen_version', lastSeenVersion.value ?? "");
 
-    // FluidSynth master output gain (all platforms).
-    await _prefs!.setDouble('fluidsynth_gain', fluidSynthGain.value);
+    // FluidSynth output level (all platforms). Saved under a new key: the
+    // old 'fluidsynth_gain' used a scale where the default was 3.0.
+    await _prefs!.setDouble('fluidsynth_level', fluidSynthGain.value);
 
     // Vocoder Parameters
     await _prefs!.setInt('vocoder_waveform', vocoderWaveform.value);
@@ -1104,18 +1115,32 @@ class AudioEngine extends ChangeNotifier {
     );
   }
 
+  /// Reads the saved FluidSynth level, converting a pre-3.5 setting.
+  ///
+  /// Before 3.5 the knob ran 0-10 with 3.0 as default, and that default
+  /// clipped loud chords. An old value is scaled so its position relative to
+  /// the default is kept (3.0 becomes 1.0, 1.5 becomes 0.5), then capped at
+  /// [kFluidSynthGainMax].
+  @visibleForTesting
+  static double fluidSynthGainFromPrefs(SharedPreferences prefs) {
+    final level = prefs.getDouble('fluidsynth_level');
+    if (level != null) return level.clamp(0.0, kFluidSynthGainMax);
+    final legacy = prefs.getDouble('fluidsynth_gain');
+    if (legacy == null) return kFluidSynthGainDefault;
+    final scaled = legacy / _legacyGainDefault * kFluidSynthGainDefault;
+    return scaled.clamp(0.0, kFluidSynthGainMax);
+  }
+
   Future<void> _restoreState() async {
     if (_prefs == null) {
       return;
     }
 
-    // Restore FluidSynth master output gain.
-    // Default is 3.0 on all platforms — 5.0 was too loud and caused
-    // saturation on Android speakers.  The saved value is applied by the
-    // fluidSynthGain listener (applyFluidSynthGain); it will also be
-    // re-applied after each new FluidSynth instance is created so that
-    // per-slot synths on Android inherit the correct level.
-    fluidSynthGain.value = _prefs!.getDouble('fluidsynth_gain') ?? 3.0;
+    // Restore the FluidSynth output level. The saved value is applied by
+    // the fluidSynthGain listener (applyFluidSynthGain); it is re-applied
+    // after each new FluidSynth instance so per-slot synths on Android
+    // inherit it.
+    fluidSynthGain.value = fluidSynthGainFromPrefs(_prefs!);
 
     // Restore Vocoder Parameters FIRST so capture starts with correct device
     vocoderWaveform.value = _prefs!.getInt('vocoder_waveform') ?? 0;

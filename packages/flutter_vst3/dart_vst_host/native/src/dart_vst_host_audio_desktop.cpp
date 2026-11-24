@@ -25,6 +25,7 @@
 #include "../include/gfpa_dsp.h"
 #include "../include/gf_insert_chain.h"
 #include "../include/audio_looper.h"
+#include "gf_limiter.h"
 #include "miniaudio.h"
 
 #include <algorithm>
@@ -91,8 +92,10 @@ struct AudioState {
     std::atomic<int32_t> transportIsPlaying{0};
     std::atomic<double> transportPositionBeats{0.0};
 
-    // Output limiter state.
-    float limiterGain = 1.0f;
+    // Output limiter: the last stage before the device, keeping the mix
+    // under -1 dBFS. Valid 48 kHz defaults until gf_limiter_init runs.
+    // See native_audio/gf_limiter.h.
+    gf_limiter limiter{1.0f, 0, 1920, 0.99989584f};
 
     /// Monitor bus: rendered after the rack's output has been tapped, so it
     /// is heard but never recorded. See dvh_set_monitor_render.
@@ -405,28 +408,10 @@ static void dataCallback(ma_device* pDevice, void* pOutput, const void* /*pInput
     state->callbackSeq.fetch_add(1, std::memory_order_release);
 
     // ── Output limiter — speaker protection ─────────────────────────────
-    {
-        constexpr float threshold = 0.95f;
-        const float releaseCoeff = 1.0f - (1.0f / (0.050f * state->sampleRate));
-        float g = state->limiterGain;
-
-        for (int32_t i = 0; i < bs; ++i) {
-            const float l = state->mixL[i];
-            const float r = state->mixR[i];
-            const float peak = std::max(std::abs(l), std::abs(r));
-
-            if (peak * g > threshold) {
-                g = threshold / peak;
-            } else {
-                g = g * releaseCoeff + (1.0f - releaseCoeff);
-                if (g > 1.0f) g = 1.0f;
-            }
-
-            out[i * 2 + 0] = l * g;
-            out[i * 2 + 1] = r * g;
-        }
-        state->limiterGain = g;
-    }
+    // Limits the planar mix and interleaves it into the device buffer in one
+    // pass. Hold-based, zero latency; see native_audio/gf_limiter.h.
+    gf_limiter_process_interleave(&state->limiter, state->mixL.data(),
+                                  state->mixR.data(), out, bs);
 }
 
 extern "C" {
@@ -545,6 +530,7 @@ DVH_API int32_t dvh_start_desktop_audio(DVH_Host host) {
     // miniaudio converts to the device's native rate itself, so the callback
     // runs at the rate we asked for; publish that for the GFPA effects.
     gfpa_set_sample_rate(static_cast<double>(s->device.sampleRate));
+    gf_limiter_init(&s->limiter, static_cast<float>(s->device.sampleRate));
 
     res = ma_device_start(&s->device);
     if (res != MA_SUCCESS) {

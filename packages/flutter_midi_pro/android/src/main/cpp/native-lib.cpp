@@ -29,8 +29,9 @@ static std::map<int, int> soundfonts;
 static int nextSfId = 1;
 
 /// Current output gain applied to all synths.  Persisted so that synths loaded
-/// after a setGain() call start at the correct level.
-static float g_gain = 5.0f;
+/// after a setGain() call start at the correct level. Defaults to
+/// GrooveForge's calibrated reference (fluidSynthGain in audio_engine.dart).
+static float g_gain = 1.0f;
 
 // ── JNI entry points ──────────────────────────────────────────────────────────
 
@@ -175,7 +176,7 @@ Java_com_melihhakanpektas_flutter_1midi_1pro_FlutterMidiProPlugin_setGain(
 
     // Apply gain to every currently-loaded synth instance.
     // fluid_synth_set_gain() updates the live output level without requiring
-    // a restart; range is 0.0–10.0 (FluidSynth internal limit).
+    // a restart. The app sends 0.0-2.0; 1.0 is the calibrated reference.
     for (auto const& entry : synths) {
         fluid_synth_set_gain(entry.second, g_gain);
     }

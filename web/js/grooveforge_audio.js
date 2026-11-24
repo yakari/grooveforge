@@ -397,10 +397,11 @@ window.grooveForgeAudio = {
   /**
    * Sets master volume by adjusting the _masterGain node.
    *
-   * @param {number} gain - Dart-side gain in [0, 10]; mapped to [0, 1].
+   * @param {number} gain - Dart-side level in [0, 2], 1.0 being the
+   *   reference; the reference maps to this node's initial 0.7.
    */
   setGain: (gain) => {
-    const vol = Math.min(1.0, gain / 10.0);
+    const vol = Math.min(1.0, gain * 0.7);
     _masterGain.gain.setTargetAtTime(vol, _ctx.currentTime, 0.05);
   },
 

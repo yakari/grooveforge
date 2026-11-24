@@ -90,6 +90,8 @@ add_library(native-lib SHARED
         ../../../../../../native_audio/gf_amp.c
         ../../../../../../native_audio/gf_convolver.c
         ../../../../../../native_audio/gf_riff.c
+        # Master-bus limiter, the last stage before AAudio / USB direct.
+        ../../../../../../native_audio/gf_limiter.c
 )
 
 # ── Optimisation floor for the DSP ────────────────────────────────────────

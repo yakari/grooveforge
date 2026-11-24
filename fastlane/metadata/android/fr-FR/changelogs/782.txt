@@ -1,8 +1,9 @@
 Ajouté
 - Riff : une guitare électrique modélisée corde par corde, avec palm mute, hammer-ons et pull-offs, sustain prolongé à la pédale et larsen.
-- Ampli : un ampli guitare avec pédale de saturation, trois amplis et trois baffles, ou votre propre IR de baffle.
-- Mappings CC : une valeur neutre au relâchement pour les ribbons et touch strips.
+- Ampli : pédale de saturation, trois amplis, trois baffles, ou votre propre IR de baffle.
+- Mappings CC : une valeur neutre au relâchement pour ribbons et touch strips.
 
 Corrigé
+- Jouer fort ne sature plus.
 - Un effet en bypass se remettait à jouer après un redémarrage.
-- Un paramètre piloté par CC fait bouger son potard sur le panneau.
+- Un paramètre piloté par CC fait bouger son potard.

@@ -136,6 +136,7 @@ add_library(${PROJECT_NAME} SHARED
   ${GF_NATIVE_AUDIO_DIR}/gf_amp.c
   ${GF_NATIVE_AUDIO_DIR}/gf_convolver.c
   ${GF_NATIVE_AUDIO_DIR}/gf_riff.c
+  ${GF_NATIVE_AUDIO_DIR}/gf_limiter.c
   # miniaudio-based audio backend (WASAPI on Windows, CoreAudio on macOS)
   ${NATIVE_DIR}/src/dart_vst_host_audio_desktop.cpp
   # Platform stubs (JACK + Linux editor → no-ops on Windows)

@@ -105,6 +105,7 @@ add_library(${PROJECT_NAME} SHARED
   ${GF_NATIVE_AUDIO_DIR}/gf_amp.c
   ${GF_NATIVE_AUDIO_DIR}/gf_convolver.c
   ${GF_NATIVE_AUDIO_DIR}/gf_riff.c
+  ${GF_NATIVE_AUDIO_DIR}/gf_limiter.c
   ${VST3_BASE_SOURCES}
   ${VST3_SDK_SOURCES}
 )

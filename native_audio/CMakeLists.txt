@@ -106,6 +106,16 @@ if (NOT ANDROID AND NOT IOS)
     endif()
 endif()
 
+# The master-bus output limiter: ceiling, transparency, distortion on a
+# sustained overload, recovery and NaN handling. Pure arithmetic.
+if (NOT ANDROID AND NOT IOS)
+    add_executable(gf_limiter_smoke_test EXCLUDE_FROM_ALL
+        gf_limiter_smoke_test.c gf_limiter.c)
+    if (UNIX)
+        target_link_libraries(gf_limiter_smoke_test PRIVATE m)
+    endif()
+endif()
+
 # Echo cancellation, measured against a synthetic room whose echo is known
 # exactly. No audio device and no microphone, so it runs anywhere and its
 # numbers mean the same thing on every machine.

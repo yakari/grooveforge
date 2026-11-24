@@ -19,6 +19,7 @@
 #include "../include/gfpa_dsp.h"
 #include "../include/gf_insert_chain.h"
 #include "../include/audio_looper.h"
+#include "gf_limiter.h"
 
 #include <jack/jack.h>
 #include <algorithm>
@@ -150,10 +151,10 @@ struct AudioState {
     std::atomic<double> transportPositionBeats{0.0};
 
     // ── Output limiter state ───────────────────────────────────────────────
-    // Brickwall limiter with smooth gain reduction to prevent speaker damage.
-    // Threshold: 0.95 (leaves headroom for DAC reconstruction).
-    // Attack: instant (brickwall). Release: ~50ms exponential decay.
-    float limiterGain = 1.0f;
+    // Last stage before JACK: keeps the mix under -1 dBFS so the driver
+    // never hard-clips it. See native_audio/gf_limiter.h.
+    // Valid 48 kHz defaults until gf_limiter_init sees the server rate.
+    gf_limiter limiter{1.0f, 0, 1920, 0.99989584f};
 
     /// Monitor bus: rendered after the rack's output has been tapped, so it
     /// is heard but never recorded. See dvh_set_monitor_render.
@@ -618,43 +619,11 @@ static int _jackProcessCallback(jack_nframes_t nframes, void* arg) {
     state->callbackSeq.fetch_add(1, std::memory_order_release);
 
     // ── Output limiter — speaker protection ────────────────────────────────
-    // Brickwall limiter that smoothly reduces gain when peaks exceed the
-    // threshold.  Prevents the hard-clipped square waves that destroy
-    // laptop speakers.
-    //
-    // - Threshold: 0.95 (leaves headroom for DAC inter-sample peaks).
-    // - Attack: instant — gain is reduced within the same sample.
-    // - Release: ~50ms exponential decay back to unity (1.0).
-    //
-    // This runs per-sample after all mixing is complete, just before the
-    // JACK output.  The limiter gain state persists across blocks.
-    {
-        constexpr float threshold = 0.95f;
-        // Release coefficient: at 48kHz, 0.9999 ≈ 50ms to recover from
-        // -6dB reduction.  Slower release = smoother but more audible pumping.
-        const float releaseCoeff = 1.0f - (1.0f / (0.050f * state->sampleRate));
-        float g = state->limiterGain;
-
-        for (int i = 0; i < bs; ++i) {
-            const float l = state->mixL[i];
-            const float r = state->mixR[i];
-            // Find the peak of this sample (stereo).
-            const float peak = std::max(std::abs(l), std::abs(r));
-
-            if (peak * g > threshold) {
-                // Instant attack: set gain so peak * g == threshold.
-                g = threshold / peak;
-            } else {
-                // Exponential release back towards 1.0.
-                g = g * releaseCoeff + (1.0f - releaseCoeff);
-                if (g > 1.0f) g = 1.0f;
-            }
-
-            outL[i] = l * g;
-            outR[i] = r * g;
-        }
-        state->limiterGain = g;
-    }
+    // Writes the limited mix straight into JACK's output ports. Hold-based,
+    // zero latency; see native_audio/gf_limiter.h.
+    std::memcpy(outL, state->mixL.data(), sizeof(float) * static_cast<size_t>(bs));
+    std::memcpy(outR, state->mixR.data(), sizeof(float) * static_cast<size_t>(bs));
+    gf_limiter_process(&state->limiter, outL, outR, bs);
 
     return 0;
 }
@@ -1022,6 +991,7 @@ DVH_API int32_t dvh_start_jack_client(DVH_Host host, const char* client_name) {
 
     s->sampleRate = static_cast<int32_t>(jack_get_sample_rate(s->jackClient));
     s->blockSize  = static_cast<int32_t>(jack_get_buffer_size(s->jackClient));
+    gf_limiter_init(&s->limiter, static_cast<float>(s->sampleRate));
     fprintf(stderr, "[dart_vst_host] JACK server: sr=%d bs=%d\n",
             s->sampleRate, s->blockSize);
     // The server's rate, not the 48 kHz the Dart side assumes: PipeWire runs

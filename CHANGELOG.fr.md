@@ -15,6 +15,7 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 - Aide, onglet Rack & Câbles : la liste des types de slots couvre désormais tous les modules, groupés comme dans la feuille d'ajout.
 
 ### Corrigé
+- Jouer fort ne sature plus. Les soundfonts sont recalibrées au niveau des autres instruments (le bouton **Volume** va maintenant de 0 à 2, 1 par défaut ; votre réglage est converti), et toutes les plateformes ont un limiteur de sortie propre : Android n'en avait pas, et celui de Linux et macOS distordait les notes graves.
 - Un effet en bypass (Wah, Reverb, Ampli...) se remettait à jouer après un redémarrage de l'appli, alors que son slot l'affichait toujours en bypass.
 - Un paramètre de module piloté par un mapping CC fait maintenant bouger son potard sur le panneau ; tourner un autre potard ensuite ne l'annule plus.
 
@@ -23,6 +24,7 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 - `gf_convolver.c`/`.h` : convolution sans latence pour les IR de baffle (somme directe sur les 128 premiers échantillons, FFT partitionnée uniforme pour la suite, sur le `gf_fft` commun). L'Ampli prépare chaque IR hors du thread audio pour 44,1/48/88,2/96 kHz, la coupe à 100 ms, l'aligne sur le niveau du 2x12 intégré et la remplace avec un fondu. Nouveaux points d'entrée C `gfpa_dsp_load_ir` et `gfpa_dsp_clear_ir` (l'IR s'estompe avant d'être retirée). Vérifié par `gf_convolver_smoke_test`.
 - `gf_riff.c`/`.h` : le DSP de Riff, une corde Karplus-Strong étendue / guide d'onde numérique par corde (retard interpolé de Lagrange, filtre de pertes calculé par note, passe-tout de raideur, deux plans de vibration, glissement de tension, peignes des micros et résonance de la bobine). `gf_riff_smoke_test` mesure la justesse dans le son à trois fréquences d'échantillonnage, les durées de résonance, l'inharmonicité, l'absence de clic aux bends et aux étouffements, l'attribution des cordes et le coût.
 - `gfpa_riff.cpp` : Riff passe par un handle DSP GFPA pour ses réglages, dans un pool fixe de quatre guitares jamais libéré, si bien qu'un rendu concurrent de la suppression d'un slot joue du silence. Le MIDI lui parvient par une file sans verrou ; nouveaux points d'entrée C `gfpa_riff_*`. Android passe aux emplacements de bus 104-107 et à 12 sources. Vérifié par `gf_riff_pool_smoke_test`.
+- `gf_limiter.c`/`.h` : limiteur maître sans latence à -1 dBFS (attaque instantanée, maintien de 40 ms, relâchement de 200 ms), commun aux sorties JACK, miniaudio et AAudio. Le maintien empêche le gain de bouger entre deux crêtes d'une note grave : sur une surcharge tenue à 41 Hz, la distorsion passe de -19 dB avec l'ancien limiteur à moins de -60 dB. Vérifié par `gf_limiter_smoke_test`.
 - Nouvelle dépendance `url_launcher`, pour ouvrir les liens de l'écran d'aide.
 
 ## [3.3.0] - 2026-10-04

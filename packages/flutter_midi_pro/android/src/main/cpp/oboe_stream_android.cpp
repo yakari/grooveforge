@@ -40,6 +40,7 @@
 #include "gfpa_audio_android.h"
 #include "gfpa_dsp.h"
 #include "audio_looper.h"
+#include "gf_limiter.h"
 
 #include <aaudio/AAudio.h>
 #include <android/log.h>
@@ -237,6 +238,17 @@ static std::atomic<int32_t> g_transportTimeSigNum{4};
 static std::atomic<int32_t> g_transportIsPlaying{0};
 static std::atomic<double>  g_transportPositionBeats{0.0};
 static int32_t g_sampleRate = 48000;
+
+/// Master-bus limiter: the last stage before AAudio (or the USB direct
+/// output), keeping the mix under -1 dBFS so the HAL never hard-clips it.
+/// Before it existed nothing on Android stopped a loud mix from clipping.
+/// Owned by the render thread; see native_audio/gf_limiter.h.
+static gf_limiter g_limiter;
+
+/// Rate g_limiter was last initialised for; 0 until the first render.
+/// Compared against g_sampleRate on the render thread, so a stream reopened
+/// at another rate re-times the limiter without another thread touching it.
+static int32_t g_limiterRate = 0;
 
 // ── AAudio stream handle ──────────────────────────────────────────────────────
 
@@ -513,6 +525,17 @@ static void renderMixInterleaved(float* output, int32_t numFrames)
             g_mixR[i] += g_monitorR[i];
         }
     }
+
+    // ── 3d'. Output limiter ───────────────────────────────────────────────
+    //
+    // After everything audible has been summed, so nothing can push the
+    // output past the ceiling afterwards; before the output tap, so the echo
+    // canceller's reference is exactly what the speaker plays.
+    if (g_limiterRate != g_sampleRate) {
+        gf_limiter_init(&g_limiter, static_cast<float>(g_sampleRate));
+        g_limiterRate = g_sampleRate;
+    }
+    gf_limiter_process(&g_limiter, g_mixL, g_mixR, frames);
 
     // ── 3e. Output tap ────────────────────────────────────────────────────
     //

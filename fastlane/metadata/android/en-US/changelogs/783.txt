@@ -4,5 +4,6 @@ Added
 - CC mappings: a neutral value on release for ribbons and touch strips.
 
 Fixed
+- Loud playing no longer saturates.
 - A bypassed effect played again after restarting the app.
 - A parameter moved by CC now moves its knob on the panel.

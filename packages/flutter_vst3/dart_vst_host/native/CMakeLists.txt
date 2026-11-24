@@ -88,6 +88,7 @@ set(VstSources
   ${CMAKE_CURRENT_SOURCE_DIR}/../../../../native_audio/gf_amp.c
   ${CMAKE_CURRENT_SOURCE_DIR}/../../../../native_audio/gf_convolver.c
   ${CMAKE_CURRENT_SOURCE_DIR}/../../../../native_audio/gf_riff.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../../../native_audio/gf_limiter.c
 )
 
 # Platform stubs: provide no-op fallbacks for symbols that are absent

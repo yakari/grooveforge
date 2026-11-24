@@ -64,9 +64,10 @@ static KbSlot g_kb_slots[MAX_KB_SLOTS];
  * Stored so that newly created slots (slot 1 is initialised lazily when the
  * second keyboard plugin first appears in syncAudioRouting) receive the same
  * gain as slot 0, which is set up earlier during audio engine initialisation.
- * Default matches FluidSynth's factory default.
+ * Default is GrooveForge's calibrated reference (see fluidSynthGain in
+ * audio_engine.dart), not FluidSynth's factory 0.2, which is 14 dB quieter.
  */
-static float g_current_gain = 0.2f;
+static float g_current_gain = 1.0f;
 
 /**
  * Ordered list of soundfont paths loaded so far.
