@@ -51,12 +51,12 @@
       <li>Partez du pattern fourni le plus proche de votre style (<a href="#telechargements">téléchargements plus bas</a>) et modifiez-le dans un éditeur de texte.</li>
       <li>Dans le module Générateur de batterie, touchez <span class="ui">Charger un .gfdrum…</span> et choisissez votre fichier.</li>
     </ol>
-    <p class="recipe-result">Le menu <span class="ui">Style</span> affiche <span class="ui">Pattern personnalisé</span> et le pattern se joue.</p>
+    <p class="recipe-result">Le menu <span class="ui">Style</span> affiche le <code>name</code> du pattern, et le pattern se joue.</p>
     <ul>
       <li>Pas dans la démo web.</li>
-      <li>L'application ne garde pas le fichier d'un lancement à l'autre. Après un redémarrage, rechargez-le.</li>
-      <li>Si le fichier contient une erreur, rien ne se passe et le pattern précédent continue.</li>
-      <li>Donnez à votre fichier un nom à lui. Un fichier nommé <code>rock_basic.gfdrum</code> remplace le Classic Rock fourni jusqu'au redémarrage de l'application.</li>
+      <li>Le pattern est enregistré dans le projet : il rejoue quand vous rouvrez le projet, même si le fichier a été déplacé.</li>
+      <li>Si le fichier contient une erreur, un message le signale et le pattern précédent continue.</li>
+      <li>Votre pattern ne joue que dans le module où vous l'avez chargé. Il ne remplace jamais un pattern fourni, quel que soit le nom du fichier.</li>
     </ul>
 
     <h2 id="exemple">Un exemple court</h2>
@@ -124,8 +124,8 @@ temps     1 e + a 2 e + a 3 e + a  4  e  +  a</code></pre>
         <tr><td><code>sections</code></td><td>Silence</td><td>Quoi jouer et quand. Voir <a href="#sections">Sections</a>.</td></tr>
       </tbody>
     </table>
-    <p class="recipe-note">Les fichiers fournis contiennent aussi <code>bpm_range</code>, <code>humanization</code> et <code>structure</code>, ainsi que
-      <code>bars</code> dans les sections. L'application ne les lit pas : les modifier ne change rien.</p>
+    <p class="recipe-note">Les fichiers fournis contiennent aussi <code>bpm_range</code>, <code>humanization</code> et <code>structure</code>.
+      L'application ne les lit pas : les modifier ne change rien. Ce sont les réglages du module qui décident de la structure.</p>
 
     <h3 id="feel">Feel</h3>
     <table>
@@ -170,17 +170,23 @@ temps     1 e + a 2 e + a 3 e + a  4  e  +  a</code></pre>
     </table>
 
     <h2 id="sections">Sections</h2>
+    <p>Le générateur joue par phrases, comme un batteur. Une phrase dure ce que dit <span class="ui">Fill tous les</span>
+      (8 mesures quand les fills sont désactivés). Le groove garde la même variation pendant toute la phrase, un fill la termine,
+      et la phrase suivante commence par un crash, ou parfois par un break.</p>
     <p>Le générateur joue les sections qui portent ces cinq noms. Une section avec un autre nom n'est jamais jouée.</p>
     <table>
       <thead><tr><th>Section</th><th>Quand elle joue</th></tr></thead>
       <tbody>
         <tr><td><code>groove</code></td><td>Toutes les mesures qu'aucune autre section ne prend. Sans elle, le pattern est muet.</td></tr>
         <tr><td><code>intro</code></td><td>Avant le groove, quand le <span class="ui">Décompte</span> du module est réglé :
-          une mesure pour <span class="ui">1 mesure</span> et <span class="ui">Baguettes (4 coups)</span>, deux pour <span class="ui">2 mesures</span>.
+          une mesure pour <span class="ui">1 mesure</span> et <span class="ui">Baguettes</span>, deux pour <span class="ui">2 mesures</span>.
+          Le menu indique combien de coups joue l'<code>intro</code> du pattern.
           Sans <code>intro</code>, le groove joue pendant ces mesures.</td></tr>
-        <tr><td><code>fill</code></td><td>La dernière mesure de chaque groupe de 4, 8 ou 16 mesures, ou au hasard toutes les 8 à 24 mesures, selon <span class="ui">Fill tous les</span>.</td></tr>
-        <tr><td><code>crash</code></td><td>Par-dessus la mesure qui suit un fill.</td></tr>
-        <tr><td><code>break</code></td><td>Jamais, dans cette version : le module n'a aucun réglage pour activer les breaks.</td></tr>
+        <tr><td><code>fill</code></td><td>La dernière mesure de chaque phrase : toutes les 4, 8 ou 16 mesures, ou au hasard toutes les 8, 12 ou 16 mesures, selon <span class="ui">Fill tous les</span>.
+          Avec <code>bars: 2</code>, le fill prend les deux dernières mesures.</td></tr>
+        <tr><td><code>crash</code></td><td>Par-dessus la première mesure après le décompte, un fill ou un break, quand <span class="ui">Crash après le fill</span> est activé.</td></tr>
+        <tr><td><code>break</code></td><td>Les premières mesures d'une phrase, jamais la première phrase, aussi souvent que le dit <span class="ui">Breaks</span>.
+          Son <code>bars</code> fixe sa durée en mesures (une par défaut).</td></tr>
       </tbody>
     </table>
 
@@ -188,11 +194,11 @@ temps     1 e + a 2 e + a 3 e + a  4  e  +  a</code></pre>
     <table>
       <thead><tr><th><code>type</code></th><th>Fonctionnement</th></tr></thead>
       <tbody>
-        <tr><td><code>loop</code> (par défaut)</td><td>Une liste sous <code>variations:</code>. Chaque mesure en tire une au hasard ; une variation avec <code>weight: 3</code> sort trois fois
+        <tr><td><code>loop</code> (par défaut)</td><td>Une liste sous <code>variations:</code>. Chaque phrase en tire une au hasard et la garde jusqu'au bout ; une variation avec <code>weight: 3</code> sort trois fois
           plus souvent qu'une avec <code>weight: 1</code> (la valeur par défaut). Dans une variation, <code>name</code> est facultatif et chaque autre clé est une piste
           avec sa grille. Pour une seule variation, sautez la liste et mettez les grilles directement sous la section.</td></tr>
         <tr><td><code>sequence</code></td><td>Une liste sous <code>bar_grids:</code>, une entrée par mesure, jouées dans l'ordre puis en boucle. Pour les phrases de plus d'une mesure,
-          comme une clave sur deux mesures. La position se compte depuis l'appui sur lecture, mesures de décompte comprises.</td></tr>
+          comme une clave sur deux mesures. La séquence repart de sa première mesure au début de chaque phrase, et après un break.</td></tr>
         <tr><td><code>count_in</code></td><td>Pas de grille : <code>hits</code> coups (4 par défaut) répartis sur la mesure, sur la note <code>note</code> (37 par défaut, side stick).</td></tr>
       </tbody>
     </table>

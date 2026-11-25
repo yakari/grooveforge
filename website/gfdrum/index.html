@@ -51,12 +51,12 @@
       <li>Start from the bundled pattern closest to your style (<a href="#downloads">downloads below</a>) and edit it in a text editor.</li>
       <li>In the Drum Generator module, tap <span class="ui">Load .gfdrum…</span> and pick your file.</li>
     </ol>
-    <p class="recipe-result">The <span class="ui">Style</span> menu shows <span class="ui">Custom pattern</span> and the pattern plays.</p>
+    <p class="recipe-result">The <span class="ui">Style</span> menu shows the pattern's <code>name</code> and the pattern plays.</p>
     <ul>
       <li>Not in the web demo.</li>
-      <li>The app does not keep the file between launches. After a restart, load it again.</li>
-      <li>If the file has errors, nothing happens and the previous pattern keeps playing.</li>
-      <li>Give your file its own name. A file called <code>rock_basic.gfdrum</code> replaces the bundled Classic Rock until the app restarts.</li>
+      <li>The pattern is saved inside the project, so it plays again when you reopen the project, even if the file has moved.</li>
+      <li>If the file has errors, a message says so and the previous pattern keeps playing.</li>
+      <li>Your pattern only plays in the module you loaded it into. It never replaces a bundled pattern, whatever the file is called.</li>
     </ul>
 
     <h2 id="example">A short example</h2>
@@ -124,8 +124,8 @@ count     1 e + a 2 e + a 3 e + a  4  e  +  a</code></pre>
         <tr><td><code>sections</code></td><td>Silence</td><td>What to play and when. See <a href="#sections">Sections</a>.</td></tr>
       </tbody>
     </table>
-    <p class="recipe-note">The bundled files also contain <code>bpm_range</code>, <code>humanization</code> and <code>structure</code>, and
-      <code>bars</code> inside sections. The app does not read them: changing them has no effect.</p>
+    <p class="recipe-note">The bundled files also contain <code>bpm_range</code>, <code>humanization</code> and <code>structure</code>.
+      The app does not read them: changing them has no effect. The module's own settings decide the structure.</p>
 
     <h3 id="feel">Feel</h3>
     <table>
@@ -170,17 +170,23 @@ count     1 e + a 2 e + a 3 e + a  4  e  +  a</code></pre>
     </table>
 
     <h2 id="sections">Sections</h2>
+    <p>The generator plays in phrases, as a drummer does. A phrase lasts as long as <span class="ui">Fill every</span> says
+      (8 bars when fills are off). The groove keeps the same variation for the whole phrase, a fill ends it, and the next phrase
+      starts with a crash, or sometimes with a break.</p>
     <p>The generator plays sections with these five names. A section with any other name is never played.</p>
     <table>
       <thead><tr><th>Section</th><th>When it plays</th></tr></thead>
       <tbody>
         <tr><td><code>groove</code></td><td>Every bar that no other section takes. Without it, the pattern is silent.</td></tr>
         <tr><td><code>intro</code></td><td>Before the groove, when the module's <span class="ui">Count-in</span> is set:
-          one bar for <span class="ui">1 bar</span> and <span class="ui">Chopsticks (4 hits)</span>, two bars for <span class="ui">2 bars</span>.
+          one bar for <span class="ui">1 bar</span> and <span class="ui">Chopsticks</span>, two bars for <span class="ui">2 bars</span>.
+          The menu shows how many clicks the pattern's <code>intro</code> plays.
           Without an <code>intro</code>, the groove plays during those bars.</td></tr>
-        <tr><td><code>fill</code></td><td>The last bar of every 4, 8 or 16 bars, or at random every 8 to 24 bars, set by <span class="ui">Fill every</span>.</td></tr>
-        <tr><td><code>crash</code></td><td>On top of the bar that follows a fill.</td></tr>
-        <tr><td><code>break</code></td><td>Never, in this version: the module has no setting that turns breaks on.</td></tr>
+        <tr><td><code>fill</code></td><td>The last bar of each phrase: every 4, 8 or 16 bars, or every 8, 12 or 16 bars at random, set by <span class="ui">Fill every</span>.
+          With <code>bars: 2</code>, the fill takes the last two bars.</td></tr>
+        <tr><td><code>crash</code></td><td>On top of the first bar after the count-in, a fill or a break, when <span class="ui">Crash after fill</span> is on.</td></tr>
+        <tr><td><code>break</code></td><td>The first bars of a phrase, never the first phrase, as often as <span class="ui">Breaks</span> says.
+          Its <code>bars</code> sets how many bars it lasts (one by default).</td></tr>
       </tbody>
     </table>
 
@@ -188,11 +194,11 @@ count     1 e + a 2 e + a 3 e + a  4  e  +  a</code></pre>
         <table>
       <thead><tr><th><code>type</code></th><th>How it works</th></tr></thead>
       <tbody>
-        <tr><td><code>loop</code> (default)</td><td>A list under <code>variations:</code>. Each bar picks one at random; a variation with <code>weight: 3</code> comes up three times
+        <tr><td><code>loop</code> (default)</td><td>A list under <code>variations:</code>. Each phrase picks one at random and keeps it to the end; a variation with <code>weight: 3</code> comes up three times
           as often as one with <code>weight: 1</code> (the default). Inside a variation, <code>name</code> is optional and every other key is a lane
           with its grid. For a single variation, skip the list and put the grids straight under the section.</td></tr>
         <tr><td><code>sequence</code></td><td>A list under <code>bar_grids:</code>, one entry per bar, played in order and repeated. Use it for phrases longer than a bar,
-          like a two-bar clave. The position counts from the moment you press play, count-in bars included.</td></tr>
+          like a two-bar clave. The sequence starts again on its first bar at the start of each phrase, and after a break.</td></tr>
         <tr><td><code>count_in</code></td><td>No grid: <code>hits</code> (default 4) clicks spread evenly over the bar, on drum note <code>note</code> (default 37, side stick).</td></tr>
       </tbody>
     </table>

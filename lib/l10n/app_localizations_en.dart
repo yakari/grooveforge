@@ -1946,6 +1946,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get drumGeneratorLoadPattern => 'Load .gfdrum…';
 
   @override
+  String get drumGeneratorLoadFailed =>
+      'That file is not a valid .gfdrum pattern.';
+
+  @override
   String get drumGeneratorFormatGuide => 'Format guide';
 
   @override
@@ -1958,7 +1962,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get drumGeneratorIntroCountIn2 => '2 bars';
 
   @override
-  String get drumGeneratorIntroChopsticks => 'Chopsticks (4 hits)';
+  String drumGeneratorIntroChopsticks(int hits) {
+    return 'Chopsticks ($hits hits)';
+  }
 
   @override
   String get drumGeneratorFillOff => 'Off';
@@ -1976,6 +1982,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get drumGeneratorFillRandom => 'Random';
 
   @override
+  String get drumGeneratorBreakLabel => 'Breaks';
+
+  @override
+  String get drumGeneratorBreakNone => 'None';
+
+  @override
+  String get drumGeneratorBreakRare => 'Rare';
+
+  @override
+  String get drumGeneratorBreakOccasional => 'Now and then';
+
+  @override
+  String get drumGeneratorBreakFrequent => 'Often';
+
+  @override
   String get drumGeneratorCrashAfterFill => 'Crash after fill';
 
   @override
@@ -1989,7 +2010,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get drumGeneratorFormatGuideContent =>
-      'A .gfdrum file is a YAML text file describing a drum pattern.\n\nStep grid notation:\nX = strong hit (~100)\nx = medium hit (~75)\no = soft hit (~55)\ng = ghost note (~28)\n. = rest\n\nVelocity fields: base_velocity, velocity_range\nTiming fields: timing_jitter, rush\nSections: groove, fill, break, crash, intro\nSection types: loop (random), sequence (ordered bars)\n\nSee bundled patterns in assets/drums/ for examples.';
+      'A .gfdrum file is a YAML text file describing a drum pattern.\n\nStep grid notation:\nX = strong hit (~100)\nx = medium hit (~75)\no = soft hit (~55)\ng = ghost note (~28)\n. = rest\n\nVelocity fields: base_velocity, velocity_range\nTiming fields: timing_jitter, rush (in beats; negative plays ahead of the beat)\nSections: groove, fill, break, crash, intro\nSection types: loop (one variation per phrase), sequence (bars in order)\n\nThe full format is described on the website, under .gfdrum.';
 
   @override
   String get drumGeneratorNoPatternsFound => 'No patterns loaded';

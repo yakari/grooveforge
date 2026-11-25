@@ -8,6 +8,7 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 ## [X.x.x]
 
 ### Ajouté
+- Générateur de batterie : un réglage Breaks, et des interrupteurs pour le crash après le fill et la montée dynamique (qui fait enfin quelque chose).
 - Les touches à l'écran jouent plus fort près de leur bord avant. Préférences > Vélocité des touches permet de fixer une seule force.
 
 ### Modifié
@@ -16,6 +17,11 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 - La latence d'overdub passe de « À propos » à la rubrique Sortie Audio des Préférences.
 
 ### Corrigé
+- Le générateur de batterie semblait changer d'avis à chaque mesure : il garde maintenant un groove par phrase, la termine par un fill et lance la suivante sur un crash.
+- Générateur de batterie : les patterns sur deux mesures (bossa nova, an dro) démarraient sur leur deuxième mesure après un décompte.
+- Générateur de batterie : un .gfdrum chargé disparaissait au redémarrage, et un fichier portant le nom d'un pattern fourni le remplaçait partout.
+- Générateur de batterie : tourner un bouton pendant la lecture déclenchait une rafale de coups.
+- Générateur de batterie : le décompte Baguettes annonçait toujours 4 coups, quel que soit le pattern.
 - Les effets MIDI s'appliquaient dans un ordre différent à l'écran et sur un contrôleur ; les deux suivent maintenant le rack, de haut en bas.
 - Un clavier réglé sur Aucune (MIDI seulement) ignorait les effets MIDI sur ses touches à l'écran.
 - Les notes envoyées à un effet MIDI sonnaient une seconde fois sur le canal MIDI 1.

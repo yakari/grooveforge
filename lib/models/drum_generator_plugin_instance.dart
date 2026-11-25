@@ -14,8 +14,9 @@ enum DrumIntroType {
   /// A two-bar metronome count-in.
   countIn2,
 
-  /// Four rimshots on beats 1–4 (the traditional "chopsticks" count-in).
-  /// Plays on the virtual bar −1 before bar 0.
+  /// One bar of sticks clicked together, before the groove. The number of
+  /// clicks is the pattern's own (the `hits` of its `intro` section), so a
+  /// waltz counts three.
   chopsticks,
 }
 
@@ -35,14 +36,14 @@ enum DrumFillFrequency {
   /// Insert a fill every 16 bars.
   every16,
 
-  /// Random placement: the engine picks a fill interval between 8 and 24 bars.
+  /// Phrases of 8, 12 or 16 bars, drawn at random, each ending in a fill.
   random,
 }
 
 /// Extension on [DrumFillFrequency] to convert the enum into a bar interval.
 extension DrumFillFrequencyBars on DrumFillFrequency {
   /// Returns the fill period in bars, or -1 for [DrumFillFrequency.off],
-  /// or 0 for [DrumFillFrequency.random] (caller handles random selection).
+  /// or 0 for [DrumFillFrequency.random] (see [DrumArranger.phraseLength]).
   int get bars {
     switch (this) {
       case DrumFillFrequency.off:
@@ -54,32 +55,35 @@ extension DrumFillFrequencyBars on DrumFillFrequency {
       case DrumFillFrequency.every16:
         return 16;
       case DrumFillFrequency.random:
-        return 0; // caller seeded random picks a value between 8 and 24
+        return 0; // the arranger draws 8, 12 or 16 per phrase
     }
   }
 }
 
-/// How often the engine inserts sparse or silent break bars.
+/// How often a phrase opens with the pattern's `break` section (the band
+/// drops out, or the drums thin down) instead of the groove.
 ///
-/// Breaks provide dramatic tension before fills and reintroductions.
+/// Breaks land only at the start of a phrase, right after a fill, never in
+/// the middle of one. See [DrumArranger.breakChance] for the odds.
 enum DrumBreakFrequency {
   /// No breaks — the groove plays continuously.
   none,
 
-  /// Breaks occur infrequently (roughly every 32–48 bars, random).
+  /// About one phrase in five.
   rare,
 
-  /// Breaks occur regularly (roughly every 16–24 bars, random).
+  /// About two phrases in five.
   occasional,
 
-  /// Breaks occur often (roughly every 8–12 bars, random).
+  /// Most phrases.
   frequent,
 }
 
 /// Per-slot structure configuration for [DrumGeneratorPluginInstance].
 ///
 /// Controls the macro-level arrangement: count-ins, fills, breaks, and
-/// whether a crash cymbal lands after each fill resolution.
+/// whether a crash cymbal lands after each fill resolution. The arranger
+/// ([DrumArranger]) turns it into a plan for each bar.
 class DrumStructureConfig {
   /// Which count-in style to play before bar 0.
   final DrumIntroType introType;
@@ -90,14 +94,12 @@ class DrumStructureConfig {
   /// How frequently break bars are inserted.
   final DrumBreakFrequency breakFrequency;
 
-  /// Length of a break in bars (1 or 2).
-  final int breakLengthBars;
-
-  /// When true, a crash cymbal accent lands on beat 1 after every fill bar.
+  /// When true, a crash cymbal lands on the first beat after a count-in, a
+  /// fill or a break.
   final bool crashAfterFill;
 
-  /// When true, the engine gradually increases velocity/density over 8 bars,
-  /// simulating a live drummer building intensity.
+  /// When true, each phrase starts a little softer and rises to full
+  /// velocity before its fill, as a drummer builds towards the next section.
   final bool dynamicBuild;
 
   /// Constructs a [DrumStructureConfig] with sensible defaults.
@@ -105,17 +107,32 @@ class DrumStructureConfig {
     this.introType = DrumIntroType.chopsticks,
     this.fillFrequency = DrumFillFrequency.every8,
     this.breakFrequency = DrumBreakFrequency.none,
-    this.breakLengthBars = 1,
     this.crashAfterFill = true,
     this.dynamicBuild = true,
   });
+
+  /// A copy with the given fields replaced.
+  DrumStructureConfig copyWith({
+    DrumIntroType? introType,
+    DrumFillFrequency? fillFrequency,
+    DrumBreakFrequency? breakFrequency,
+    bool? crashAfterFill,
+    bool? dynamicBuild,
+  }) {
+    return DrumStructureConfig(
+      introType: introType ?? this.introType,
+      fillFrequency: fillFrequency ?? this.fillFrequency,
+      breakFrequency: breakFrequency ?? this.breakFrequency,
+      crashAfterFill: crashAfterFill ?? this.crashAfterFill,
+      dynamicBuild: dynamicBuild ?? this.dynamicBuild,
+    );
+  }
 
   /// Serialises this config to a JSON-compatible map.
   Map<String, dynamic> toJson() => {
         'introType': introType.name,
         'fillFrequency': fillFrequency.name,
         'breakFrequency': breakFrequency.name,
-        'breakLengthBars': breakLengthBars,
         'crashAfterFill': crashAfterFill,
         'dynamicBuild': dynamicBuild,
       };
@@ -138,7 +155,6 @@ class DrumStructureConfig {
         json['breakFrequency'] as String?,
         DrumBreakFrequency.none,
       ),
-      breakLengthBars: (json['breakLengthBars'] as num?)?.toInt() ?? 1,
       crashAfterFill: (json['crashAfterFill'] as bool?) ?? true,
       dynamicBuild: (json['dynamicBuild'] as bool?) ?? true,
     );
@@ -190,6 +206,14 @@ class DrumGeneratorPluginInstance
   /// Null when a bundled pattern is active.
   String? customPatternPath;
 
+  /// Text of the user-loaded `.gfdrum` file, saved in the project.
+  ///
+  /// The path alone is not enough: the file may have moved, and on Android
+  /// the picker often hands back a temporary copy that is gone by the next
+  /// launch. Keeping the text makes the project play the same pattern
+  /// wherever it is opened.
+  String? customPatternYaml;
+
   /// Per-slot swing ratio override.
   ///
   /// `null` = use the pattern's built-in feel default.
@@ -217,6 +241,7 @@ class DrumGeneratorPluginInstance
     this.soundfontPath,
     this.builtinPatternId,
     this.customPatternPath,
+    this.customPatternYaml,
     this.swingOverride,
     this.humanizationAmount = 0.7,
     this.isActive = false,
@@ -236,6 +261,7 @@ class DrumGeneratorPluginInstance
         if (soundfontPath != null) 'soundfontPath': soundfontPath,
         if (builtinPatternId != null) 'builtinPatternId': builtinPatternId,
         if (customPatternPath != null) 'customPatternPath': customPatternPath,
+        if (customPatternYaml != null) 'customPatternYaml': customPatternYaml,
         if (swingOverride != null) 'swingOverride': swingOverride,
         'humanizationAmount': humanizationAmount,
         'isActive': isActive,
@@ -251,6 +277,7 @@ class DrumGeneratorPluginInstance
       soundfontPath: json['soundfontPath'] as String?,
       builtinPatternId: json['builtinPatternId'] as String?,
       customPatternPath: json['customPatternPath'] as String?,
+      customPatternYaml: json['customPatternYaml'] as String?,
       swingOverride: (json['swingOverride'] as num?)?.toDouble(),
       humanizationAmount:
           (json['humanizationAmount'] as num?)?.toDouble() ?? 0.7,

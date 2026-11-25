@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import '../models/drum_generator_plugin_instance.dart';
 import '../models/drum_pattern_data.dart';
 import 'audio_engine.dart';
+import 'drum_arranger.dart';
 import 'drum_pattern_parser.dart';
 import 'drum_pattern_registry.dart';
 import 'transport_engine.dart';
@@ -43,12 +44,19 @@ class ScheduledHit {
   /// Humanised MIDI velocity (0–127), already clamped.
   final int velocity;
 
+  /// The bar this hit was scheduled for. A hit can sit slightly before its
+  /// bar's first beat (a pushed kick, timing jitter), so the bar cannot be
+  /// told from the timestamp; [DrumGeneratorSession.refreshSchedule] needs
+  /// it to drop exactly the bars it reschedules.
+  final int bar;
+
   /// Constructs a [ScheduledHit].
   const ScheduledHit({
     required this.beatTimestamp,
     required this.noteOffBeat,
     required this.note,
     required this.velocity,
+    required this.bar,
   });
 }
 
@@ -75,13 +83,10 @@ class DrumGeneratorSession {
   /// Pending note-off events, kept sorted by [ScheduledHit.noteOffBeat].
   final List<ScheduledHit> _noteOffs = [];
 
-  /// Whether the last section played was a fill or break — used to trigger
-  /// a crash on the following bar.
-  bool _lastSectionWasFillOrBreak = false;
-
-  /// Seeded random generator for the random fill-interval feature.
-  /// Re-seeded at session reset so patterns feel different each play.
-  late Random _randomFillInterval;
+  /// Seed for the arrangement of this play: which groove variation each
+  /// phrase uses, where breaks fall, how long random phrases are. Drawn
+  /// again at every [reset], so two takes do not sound identical.
+  int seed = Random().nextInt(0x7fffffff);
 
   /// The transport beat position at the moment this session's playback started.
   ///
@@ -93,33 +98,37 @@ class DrumGeneratorSession {
   double grooveEpoch = 0.0;
 
   /// Constructs a [DrumGeneratorSession] for [instance].
-  DrumGeneratorSession(this.instance) {
-    _randomFillInterval = Random();
-  }
+  DrumGeneratorSession(this.instance);
 
   /// Resets all scheduling state so the session starts fresh from bar 0.
   void reset() {
     _scheduledBars.clear();
     _noteOns.clear();
     _noteOffs.clear();
-    _lastSectionWasFillOrBreak = false;
     grooveEpoch = 0.0;
-    // Re-seed so a new play gives fresh variation selection.
-    _randomFillInterval = Random();
+    // A new arrangement for a new play.
+    seed = Random().nextInt(0x7fffffff);
   }
 
-  /// Clears the scheduled-bars cache and pending hit queues so the next
-  /// lookahead tick re-schedules upcoming bars with current parameters.
+  /// Forgets bars [fromBar] and later, so the next lookahead tick schedules
+  /// them again with the current settings.
   ///
   /// Unlike [reset], this preserves [grooveEpoch] so the bar clock stays in
-  /// sync with the transport.  Called by [DrumGeneratorEngine.markDirty] so
-  /// that parameter changes (swing override, humanisation amount) take effect
-  /// within the next 10 ms tick instead of waiting for the current lookahead
-  /// window to expire (~2 bars).
-  void refreshSchedule() {
-    _scheduledBars.clear();
-    _noteOns.clear();
-    _noteOffs.clear();
+  /// sync with the transport. Called by [DrumGeneratorEngine.markDirty] so
+  /// that a change (swing, humanisation, structure) is heard from the next
+  /// bar instead of after the whole lookahead window.
+  ///
+  /// The bar being played is left alone. Scheduling it again would fire at
+  /// once every hit whose time has already passed: a burst of drums each
+  /// time a knob moves. Its note-offs stay too, so no note is left hanging.
+  void refreshSchedule(int fromBar) {
+    _scheduledBars.removeWhere((b) => b >= fromBar);
+    // Only hits that have not sounded yet are dropped, with their note-offs.
+    // A hit that already fired (a kick pushed ahead of the next bar) keeps
+    // its note-off, so its note still ends.
+    final dropped = _noteOns.where((h) => h.bar >= fromBar).toSet();
+    _noteOns.removeWhere(dropped.contains);
+    _noteOffs.removeWhere(dropped.contains);
   }
 }
 
@@ -217,6 +226,9 @@ class DrumGeneratorEngine extends ChangeNotifier {
     _notifyChanged();
   }
 
+  /// The pattern the slot [slotId] is playing, or null before one loads.
+  DrumPatternData? patternFor(String slotId) => _sessions[slotId]?.patternData;
+
   /// Removes the session for [slotId].
   ///
   /// Called when the slot is deleted from the rack.  Sends all-notes-off
@@ -243,7 +255,7 @@ class DrumGeneratorEngine extends ChangeNotifier {
     // tick (≤ 10 ms away) re-schedules upcoming bars with the new parameters.
     if (_wasPlaying) {
       for (final session in _sessions.values) {
-        session.refreshSchedule();
+        session.refreshSchedule(_currentBar(session) + 1);
       }
     }
     notifyListeners();
@@ -280,23 +292,28 @@ class DrumGeneratorEngine extends ChangeNotifier {
     _notifyChanged();
   }
 
-  /// Loads a parsed custom pattern for the session at [slotId].
+  /// Loads a user `.gfdrum` file for the session at [slotId].
   ///
-  /// [patternData] must already be parsed by [DrumPatternParser].
-  /// [filePath] is stored on the instance for project-file persistence.
-  void loadCustomPattern(
-    String slotId,
-    DrumPatternData patternData,
-    String filePath,
-  ) {
+  /// [yaml] is the file's text and [filePath] where it came from. Both are
+  /// stored on the instance: the text so the project plays the pattern
+  /// wherever it is opened, the path to show where it came from.
+  ///
+  /// The pattern stays with this slot. It is not added to the shared
+  /// registry, where a file named like a bundled pattern (`rock_basic.gfdrum`)
+  /// would replace that pattern for every slot.
+  ///
+  /// Returns false, changing nothing, when [yaml] is not a valid pattern.
+  bool loadCustomPattern(String slotId, String yaml, String filePath) {
     final session = _sessions[slotId];
-    if (session == null) return;
+    if (session == null) return false;
+    final patternData = parseCustomPattern(yaml, filePath);
+    if (patternData == null) return false;
+
     session.instance.customPatternPath = filePath;
+    session.instance.customPatternYaml = yaml;
     session.instance.builtinPatternId = null;
-    // Register the custom pattern so it survives session resets.
-    DrumPatternRegistry.instance.register(patternData);
     session.patternData = patternData;
-    
+
     // Automatically sync the transport to the new pattern's time signature.
     _transport.timeSigNumerator = patternData.timeSigNumerator;
     _transport.timeSigDenominator = patternData.timeSigDenominator;
@@ -304,6 +321,14 @@ class DrumGeneratorEngine extends ChangeNotifier {
     session.reset();
     notifyListeners();
     _notifyChanged();
+    return true;
+  }
+
+  /// Parses a user pattern, giving it an id that cannot collide with a
+  /// bundled one (`custom:` followed by the file name without extension).
+  static DrumPatternData? parseCustomPattern(String yaml, String filePath) {
+    final stem = filePath.split(RegExp(r'[/\\]')).last.replaceAll('.gfdrum', '');
+    return DrumPatternParser.parse(yaml, id: 'custom:$stem');
   }
 
   // ── Transport listener ────────────────────────────────────────────────────
@@ -398,17 +423,30 @@ class DrumGeneratorEngine extends ChangeNotifier {
     final barDuration =
         pattern.timeSigNumerator * 4.0 / pattern.timeSigDenominator;
 
-    // Convert absolute beat to epoch-relative beat, then find current bar.
-    final relativeBeat = currentBeat - session.grooveEpoch;
-    // Clamp to 0: floating-point rounding can give tiny negative values on
-    // the very first tick, which would schedule bar -1 unexpectedly.
-    final currentBar =
-        (relativeBeat / barDuration).floor().clamp(0, 0x7fffffff);
+    final currentBar = _barAt(session, currentBeat, barDuration);
 
     for (var bar = currentBar; bar <= currentBar + _kLookaheadBars; bar++) {
       if (session._scheduledBars.contains(bar)) continue;
       _scheduleBar(session, bar);
     }
+  }
+
+  /// The bar (from 0, count-in included) that [session] is playing now.
+  int _currentBar(DrumGeneratorSession session) {
+    final pattern = session.patternData;
+    if (pattern == null) return 0;
+    final barDuration =
+        pattern.timeSigNumerator * 4.0 / pattern.timeSigDenominator;
+    return _barAt(session, _transport.positionInBeats, barDuration);
+  }
+
+  /// The bar of [session] that contains transport beat [beat].
+  int _barAt(DrumGeneratorSession session, double beat, double barDuration) {
+    // Convert absolute beat to epoch-relative beat, then find the bar.
+    final relativeBeat = beat - session.grooveEpoch;
+    // Clamp to 0: floating-point rounding can give tiny negative values on
+    // the very first tick, which would schedule bar -1 unexpectedly.
+    return (relativeBeat / barDuration).floor().clamp(0, 0x7fffffff);
   }
 
   // ── Bar scheduling ────────────────────────────────────────────────────────
@@ -433,30 +471,26 @@ class DrumGeneratorEngine extends ChangeNotifier {
     // pressed); subsequent bars step forward by barDuration each.
     final barStartBeat = session.grooveEpoch + absoluteBar * barDuration;
 
-    // Determine the section and variation for this bar.
-    final sectionResult = _selectSection(session, absoluteBar);
-    final sectionName = sectionResult.sectionName;
-    final isFillOrBreak =
-        sectionName == 'fill' || sectionName == 'break';
-    final section = pattern.sections[sectionName];
-
+    // The arranger decides what this bar is: groove, fill, break or
+    // count-in, which bar of it, and whether a crash lands on it.
+    final plan = DrumArranger.planBar(
+      bar: absoluteBar,
+      config: session.instance.structureConfig,
+      pattern: pattern,
+      seed: session.seed,
+    );
+    final section = pattern.sections[plan.section] ??
+        pattern.sections['groove'];
     if (section == null) return;
 
-    // Track fill/break for crash injection next bar.
-    final wasLastFillOrBreak = session._lastSectionWasFillOrBreak;
-    session._lastSectionWasFillOrBreak = isFillOrBreak;
-
-    // If the previous bar was a fill/break and crash_after_fill is enabled,
-    // overlay the crash section on this bar.
-    if (wasLastFillOrBreak &&
-        session.instance.structureConfig.crashAfterFill &&
-        pattern.sections.containsKey('crash')) {
+    if (plan.crash) {
       _scheduleSectionBar(
         session,
         pattern,
         pattern.sections['crash']!,
         absoluteBar,
         barStartBeat,
+        plan: plan,
         isCrashOverlay: true,
       );
     }
@@ -467,6 +501,7 @@ class DrumGeneratorEngine extends ChangeNotifier {
       section,
       absoluteBar,
       barStartBeat,
+      plan: plan,
       isCrashOverlay: false,
     );
   }
@@ -478,16 +513,22 @@ class DrumGeneratorEngine extends ChangeNotifier {
     DrumSection section,
     int absoluteBar,
     double barStartBeat, {
+    required DrumBarPlan plan,
     required bool isCrashOverlay,
   }) {
     // Count-in sections use hit-based generation, not step grids.
     if (section.kind == DrumSectionKind.countIn) {
-      _scheduleCountIn(session, pattern, section, barStartBeat);
+      _scheduleCountIn(session, pattern, section, barStartBeat, absoluteBar);
       return;
     }
 
-    // Resolve the step grid map for this bar.
-    final gridMap = _resolveStepGrid(section, absoluteBar);
+    // Resolve the step grid map for this bar. The crash overlay is a single
+    // bar of its own, so it always starts at its first bar.
+    final gridMap = resolveStepGrid(
+      section,
+      barInSection: isCrashOverlay ? 0 : plan.barInSection,
+      variationSeed: plan.variationSeed,
+    );
     if (gridMap == null) return;
 
     // Determine effective swing ratio.
@@ -516,6 +557,8 @@ class DrumGeneratorEngine extends ChangeNotifier {
 
       _scheduleInstrumentGrid(
         session: session,
+        bar: absoluteBar,
+        velocityScale: isCrashOverlay ? 1.0 : plan.velocityScale,
         instrDef: instrDef,
         grid: grid,
         barStartBeat: barStartBeat,
@@ -528,28 +571,34 @@ class DrumGeneratorEngine extends ChangeNotifier {
     }
   }
 
-  /// Resolves the step grid map for [section] at [absoluteBar].
+  /// Resolves the step grid map to play for one bar of [section].
   ///
-  /// For `sequence` sections: picks the bar grid by index mod sequence length.
-  /// For `loop` sections: picks a weighted random variation (seeded by bar).
-  Map<String, String>? _resolveStepGrid(DrumSection section, int absoluteBar) {
+  /// For `sequence` sections: the bar at [barInSection], so a two-bar
+  /// pattern starts on its first bar whatever came before (a count-in, a
+  /// break).
+  /// For `loop` sections: a weighted random variation drawn with
+  /// [variationSeed]. The arranger keeps the seed for a whole phrase, so the
+  /// same variation plays until the next fill.
+  @visibleForTesting
+  static Map<String, String>? resolveStepGrid(
+    DrumSection section, {
+    required int barInSection,
+    required int variationSeed,
+  }) {
     if (section.variations.isEmpty) return null;
 
     if (section.kind == DrumSectionKind.sequence) {
       final variation = section.variations.first;
       final barSeq = variation.barSequence;
       if (barSeq == null || barSeq.isEmpty) return null;
-      final idx = absoluteBar.abs() % barSeq.length;
-      return barSeq[idx];
+      return barSeq[barInSection.abs() % barSeq.length];
     }
 
-    // Weighted random selection, seeded by bar index for determinism.
     final totalWeight =
         section.variations.fold(0, (sum, v) => sum + v.weight);
     if (totalWeight == 0) return section.variations.first.stepGrids;
 
-    final rng = Random(absoluteBar * 31 + 137);
-    var roll = rng.nextInt(totalWeight);
+    var roll = Random(variationSeed).nextInt(totalWeight);
     for (final variation in section.variations) {
       roll -= variation.weight;
       if (roll < 0) return variation.stepGrids;
@@ -565,6 +614,7 @@ class DrumGeneratorEngine extends ChangeNotifier {
     DrumPatternData pattern,
     DrumSection section,
     double barStartBeat,
+    int bar,
   ) {
     final hits = section.countInHits ?? 4;
     final note = section.countInNote ?? 37;
@@ -588,6 +638,7 @@ class DrumGeneratorEngine extends ChangeNotifier {
         noteOffBeat: noteOff,
         note: note,
         velocity: instrDef.baseVelocity,
+        bar: bar,
       );
       _insertSortedNoteOn(session, hit);
       _insertSortedNoteOff(session, hit);
@@ -602,6 +653,8 @@ class DrumGeneratorEngine extends ChangeNotifier {
   /// - Timing jitter and velocity randomisation are applied from [rng].
   void _scheduleInstrumentGrid({
     required DrumGeneratorSession session,
+    required int bar,
+    required double velocityScale,
     required DrumInstrumentDef instrDef,
     required String grid,
     required double barStartBeat,
@@ -628,7 +681,8 @@ class DrumGeneratorEngine extends ChangeNotifier {
         beat += (swingRatio - 0.5) * 2.0 * stepDuration;
       }
 
-      // Apply systematic instrument rush (positive = early, negative = late).
+      // Apply the instrument's systematic offset, in beats: negative plays
+      // ahead of the beat (a pushed kick), positive behind it (a lazy snare).
       beat += instrDef.rush;
 
       // Apply random timing jitter scaled by humanisation amount.
@@ -638,8 +692,10 @@ class DrumGeneratorEngine extends ChangeNotifier {
         beat += jitter;
       }
 
-      // Compute humanised velocity.
-      final baseVel = (instrDef.baseVelocity * velScale).round();
+      // Compute humanised velocity. [velocityScale] is the phrase's dynamic
+      // build: a little softer at its start, full at its end.
+      final baseVel =
+          (instrDef.baseVelocity * velScale * velocityScale).round();
       final maxVelJitter =
           (instrDef.velocityRange * humanFactor).round();
       final velJitter = maxVelJitter > 0
@@ -654,109 +710,11 @@ class DrumGeneratorEngine extends ChangeNotifier {
         noteOffBeat: noteOff,
         note: instrDef.note,
         velocity: velocity,
+        bar: bar,
       );
       _insertSortedNoteOn(session, hit);
       _insertSortedNoteOff(session, hit);
     }
-  }
-
-  // ── Section selection ─────────────────────────────────────────────────────
-
-  /// Determines which section name to play for [absoluteBar].
-  ///
-  /// Bar indices start at 0 and are epoch-relative (0 = first bar after play
-  /// was pressed, which may be a count-in bar if intro is enabled).
-  ///
-  /// Logic (in priority order):
-  /// 1. Intro / count-in phase bars (0 … introBars-1) → `'intro'` section.
-  /// 2. Fill bar → `'fill'` section.
-  /// 3. Break bar (random seeded) → `'break'` section.
-  /// 4. Default → `'groove'` section.
-  _SectionSelection _selectSection(
-    DrumGeneratorSession session,
-    int absoluteBar,
-  ) {
-    final config = session.instance.structureConfig;
-    final pattern = session.patternData!;
-    final introBars = _introBarCount(config, pattern);
-
-    // Intro / count-in phase: first introBars bars play the 'intro' section
-    // (which may be a countIn kind, generating evenly-spaced rimshot clicks).
-    if (absoluteBar < introBars) {
-      if (pattern.sections.containsKey('intro')) {
-        return const _SectionSelection('intro');
-      }
-      // Pattern has no 'intro' section — fall through to groove.
-    }
-
-    final relativeBar = absoluteBar - introBars;
-    final fillEvery = _fillInterval(session);
-
-    // Fill: last bar of each fill-interval cycle.
-    if (fillEvery > 0 &&
-        (relativeBar + 1) % fillEvery == 0 &&
-        pattern.sections.containsKey('fill')) {
-      return const _SectionSelection('fill');
-    }
-
-    // Break: random seeded per-bar check.
-    if (config.breakFrequency != DrumBreakFrequency.none &&
-        pattern.sections.containsKey('break') &&
-        _isBreakBar(absoluteBar, config.breakFrequency)) {
-      return const _SectionSelection('break');
-    }
-
-    return const _SectionSelection('groove');
-  }
-
-  /// Returns the number of intro bars for [config] given [pattern].
-  ///
-  /// The returned value is the number of bars (starting at bar 0) that use
-  /// the `'intro'` section before the groove begins.
-  int _introBarCount(DrumStructureConfig config, DrumPatternData pattern) {
-    switch (config.introType) {
-      case DrumIntroType.none:
-        return 0;
-      case DrumIntroType.countIn1:
-        // One bar of evenly-spaced click/rimshot before groove.
-        return 1;
-      case DrumIntroType.countIn2:
-        // Two bars: beat 1–4, beat 5–8 (quarter-note clicks), then groove.
-        return 2;
-      case DrumIntroType.chopsticks:
-        // Chopsticks = one bar of rimshot clicks, same as countIn1.
-        // Sound difference (note, velocity) is defined in the .gfdrum intro
-        // section; the bar count is identical.
-        return 1;
-    }
-  }
-
-  /// Returns the fill interval in bars (distance between fills).
-  int _fillInterval(DrumGeneratorSession session) {
-    final freq = session.instance.structureConfig.fillFrequency;
-    if (freq == DrumFillFrequency.off) return -1;
-    if (freq == DrumFillFrequency.random) {
-      // Derive a deterministic interval from the session's seeded random.
-      // Range 8–24 bars, changes every play session.
-      return 8 + session._randomFillInterval.nextInt(17);
-    }
-    return freq.bars;
-  }
-
-  /// Returns true if [absoluteBar] qualifies as a break bar.
-  ///
-  /// Uses a seeded deterministic check so the same transport position always
-  /// produces the same result (prevents re-scheduling discrepancies).
-  bool _isBreakBar(int absoluteBar, DrumBreakFrequency freq) {
-    // Use a deterministic threshold based on frequency.
-    const thresholds = {
-      DrumBreakFrequency.rare: 0.04,
-      DrumBreakFrequency.occasional: 0.08,
-      DrumBreakFrequency.frequent: 0.15,
-    };
-    final threshold = thresholds[freq] ?? 0.0;
-    final r = Random(absoluteBar * 7919).nextDouble();
-    return r < threshold;
   }
 
   // ── Queue drain ───────────────────────────────────────────────────────────
@@ -847,9 +805,12 @@ class DrumGeneratorEngine extends ChangeNotifier {
     if (builtinId != null) {
       session.patternData = DrumPatternRegistry.instance.find(builtinId);
     } else if (customPath != null) {
-      // Custom patterns are registered under their file path stem.
-      final stem = customPath.split('/').last.replaceAll('.gfdrum', '');
-      session.patternData = DrumPatternRegistry.instance.find(stem);
+      // A user pattern is read back from the text saved with the project.
+      // Projects saved before that only have the path, which cannot be read
+      // here; such a slot stays silent until the file is loaded again.
+      final yaml = session.instance.customPatternYaml;
+      session.patternData =
+          yaml == null ? null : parseCustomPattern(yaml, customPath);
     } else {
       // Fall back to the first available pattern.
       final all = DrumPatternRegistry.instance.all;
@@ -898,14 +859,4 @@ class DrumGeneratorEngine extends ChangeNotifier {
     _stopTicker();
     super.dispose();
   }
-}
-
-// ── Private helper type ───────────────────────────────────────────────────────
-
-/// Simple value type returned by [DrumGeneratorEngine._selectSection].
-class _SectionSelection {
-  /// The name of the section to play (e.g. `'groove'`, `'fill'`).
-  final String sectionName;
-
-  const _SectionSelection(this.sectionName);
 }

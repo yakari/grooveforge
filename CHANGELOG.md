@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [X.x.x]
 
 ### Added
+- Drum Generator: a Breaks setting, and switches for the crash after a fill and the dynamic build (which now does something).
 - On-screen keys now play louder near the front edge of the key. Preferences > Key velocity can fix one strength instead.
 
 ### Changed
@@ -16,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Overdub latency moved from About to the Audio Output section of Preferences.
 
 ### Fixed
+- Drum Generator played like it changed its mind every bar: it now keeps one groove per phrase, ends it with a fill and lands the next with a crash.
+- Drum Generator: two-bar patterns (bossa nova, an dro) started on their second bar after a count-in.
+- Drum Generator: a loaded .gfdrum was lost on restart, and one named like a bundled pattern replaced it everywhere.
+- Drum Generator: moving a knob during playback fired a burst of hits.
+- Drum Generator: the Chopsticks count-in always said 4 hits, whatever the pattern plays.
 - MIDI FX applied in a different order on the screen and on a controller; both now follow the rack, top to bottom.
 - A keyboard set to None (MIDI only) skipped MIDI FX on its on-screen keys.
 - Notes sent to a MIDI FX also played a second time on MIDI channel 1.

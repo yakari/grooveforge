@@ -3572,6 +3572,12 @@ abstract class AppLocalizations {
   /// **'Load .gfdrum…'**
   String get drumGeneratorLoadPattern;
 
+  /// No description provided for @drumGeneratorLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'That file is not a valid .gfdrum pattern.'**
+  String get drumGeneratorLoadFailed;
+
   /// No description provided for @drumGeneratorFormatGuide.
   ///
   /// In en, this message translates to:
@@ -3599,8 +3605,8 @@ abstract class AppLocalizations {
   /// No description provided for @drumGeneratorIntroChopsticks.
   ///
   /// In en, this message translates to:
-  /// **'Chopsticks (4 hits)'**
-  String get drumGeneratorIntroChopsticks;
+  /// **'Chopsticks ({hits} hits)'**
+  String drumGeneratorIntroChopsticks(int hits);
 
   /// No description provided for @drumGeneratorFillOff.
   ///
@@ -3632,6 +3638,36 @@ abstract class AppLocalizations {
   /// **'Random'**
   String get drumGeneratorFillRandom;
 
+  /// No description provided for @drumGeneratorBreakLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Breaks'**
+  String get drumGeneratorBreakLabel;
+
+  /// No description provided for @drumGeneratorBreakNone.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get drumGeneratorBreakNone;
+
+  /// No description provided for @drumGeneratorBreakRare.
+  ///
+  /// In en, this message translates to:
+  /// **'Rare'**
+  String get drumGeneratorBreakRare;
+
+  /// No description provided for @drumGeneratorBreakOccasional.
+  ///
+  /// In en, this message translates to:
+  /// **'Now and then'**
+  String get drumGeneratorBreakOccasional;
+
+  /// No description provided for @drumGeneratorBreakFrequent.
+  ///
+  /// In en, this message translates to:
+  /// **'Often'**
+  String get drumGeneratorBreakFrequent;
+
   /// No description provided for @drumGeneratorCrashAfterFill.
   ///
   /// In en, this message translates to:
@@ -3659,7 +3695,7 @@ abstract class AppLocalizations {
   /// No description provided for @drumGeneratorFormatGuideContent.
   ///
   /// In en, this message translates to:
-  /// **'A .gfdrum file is a YAML text file describing a drum pattern.\n\nStep grid notation:\nX = strong hit (~100)\nx = medium hit (~75)\no = soft hit (~55)\ng = ghost note (~28)\n. = rest\n\nVelocity fields: base_velocity, velocity_range\nTiming fields: timing_jitter, rush\nSections: groove, fill, break, crash, intro\nSection types: loop (random), sequence (ordered bars)\n\nSee bundled patterns in assets/drums/ for examples.'**
+  /// **'A .gfdrum file is a YAML text file describing a drum pattern.\n\nStep grid notation:\nX = strong hit (~100)\nx = medium hit (~75)\no = soft hit (~55)\ng = ghost note (~28)\n. = rest\n\nVelocity fields: base_velocity, velocity_range\nTiming fields: timing_jitter, rush (in beats; negative plays ahead of the beat)\nSections: groove, fill, break, crash, intro\nSection types: loop (one variation per phrase), sequence (bars in order)\n\nThe full format is described on the website, under .gfdrum.'**
   String get drumGeneratorFormatGuideContent;
 
   /// No description provided for @drumGeneratorNoPatternsFound.

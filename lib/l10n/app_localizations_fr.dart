@@ -1957,6 +1957,10 @@ class AppLocalizationsFr extends AppLocalizations {
   String get drumGeneratorLoadPattern => 'Charger un .gfdrum…';
 
   @override
+  String get drumGeneratorLoadFailed =>
+      'Ce fichier n\'est pas un motif .gfdrum valide.';
+
+  @override
   String get drumGeneratorFormatGuide => 'Guide du format';
 
   @override
@@ -1969,7 +1973,9 @@ class AppLocalizationsFr extends AppLocalizations {
   String get drumGeneratorIntroCountIn2 => '2 mesures';
 
   @override
-  String get drumGeneratorIntroChopsticks => 'Baguettes (4 coups)';
+  String drumGeneratorIntroChopsticks(int hits) {
+    return 'Baguettes ($hits coups)';
+  }
 
   @override
   String get drumGeneratorFillOff => 'Non';
@@ -1987,6 +1993,21 @@ class AppLocalizationsFr extends AppLocalizations {
   String get drumGeneratorFillRandom => 'Aléatoire';
 
   @override
+  String get drumGeneratorBreakLabel => 'Breaks';
+
+  @override
+  String get drumGeneratorBreakNone => 'Aucun';
+
+  @override
+  String get drumGeneratorBreakRare => 'Rares';
+
+  @override
+  String get drumGeneratorBreakOccasional => 'De temps en temps';
+
+  @override
+  String get drumGeneratorBreakFrequent => 'Souvent';
+
+  @override
   String get drumGeneratorCrashAfterFill => 'Crash après le fill';
 
   @override
@@ -2000,7 +2021,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get drumGeneratorFormatGuideContent =>
-      'Un fichier .gfdrum est un fichier texte YAML décrivant un pattern de batterie.\n\nNotation de grille:\nX = coup fort (~100)\nx = coup moyen (~75)\no = coup doux (~55)\ng = note fantôme (~28)\n. = silence\n\nChamps de vélocité: base_velocity, velocity_range\nChamps de timing: timing_jitter, rush\nSections: groove, fill, break, crash, intro\nTypes de section: loop (aléatoire), sequence (mesures ordonnées)';
+      'Un fichier .gfdrum est un fichier texte YAML qui décrit un motif de batterie.\n\nNotation de la grille :\nX = coup fort (~100)\nx = coup moyen (~75)\no = coup doux (~55)\ng = note fantôme (~28)\n. = silence\n\nChamps de vélocité : base_velocity, velocity_range\nChamps de timing : timing_jitter, rush (en temps ; négatif = en avance sur le temps)\nSections : groove, fill, break, crash, intro\nTypes de section : loop (une variation par phrase), sequence (mesures dans l\'ordre)\n\nLe format complet est décrit sur le site, rubrique .gfdrum.';
 
   @override
   String get drumGeneratorNoPatternsFound => 'Aucun pattern chargé';

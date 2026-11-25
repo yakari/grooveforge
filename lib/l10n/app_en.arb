@@ -1038,21 +1038,35 @@
   "drumGeneratorFillLabel": "Fill every",
   "drumGeneratorSoundfontLabel": "Soundfont",
   "drumGeneratorLoadPattern": "Load .gfdrum…",
+  "drumGeneratorLoadFailed": "That file is not a valid .gfdrum pattern.",
   "drumGeneratorFormatGuide": "Format guide",
   "drumGeneratorIntroNone": "None",
   "drumGeneratorIntroCountIn1": "1 bar",
   "drumGeneratorIntroCountIn2": "2 bars",
-  "drumGeneratorIntroChopsticks": "Chopsticks (4 hits)",
+  "drumGeneratorIntroChopsticks": "Chopsticks ({hits} hits)",
+  "@drumGeneratorIntroChopsticks": {
+    "placeholders": {
+      "hits": {
+        "type": "int",
+        "example": "4"
+      }
+    }
+  },
   "drumGeneratorFillOff": "Off",
   "drumGeneratorFillEvery4": "Every 4 bars",
   "drumGeneratorFillEvery8": "Every 8 bars",
   "drumGeneratorFillEvery16": "Every 16 bars",
   "drumGeneratorFillRandom": "Random",
+  "drumGeneratorBreakLabel": "Breaks",
+  "drumGeneratorBreakNone": "None",
+  "drumGeneratorBreakRare": "Rare",
+  "drumGeneratorBreakOccasional": "Now and then",
+  "drumGeneratorBreakFrequent": "Often",
   "drumGeneratorCrashAfterFill": "Crash after fill",
   "drumGeneratorDynamicBuild": "Dynamic build",
   "drumGeneratorDefaultSoundfont": "Default soundfont",
   "drumGeneratorFormatGuideTitle": "Drum Pattern Format (.gfdrum)",
-  "drumGeneratorFormatGuideContent": "A .gfdrum file is a YAML text file describing a drum pattern.\n\nStep grid notation:\nX = strong hit (~100)\nx = medium hit (~75)\no = soft hit (~55)\ng = ghost note (~28)\n. = rest\n\nVelocity fields: base_velocity, velocity_range\nTiming fields: timing_jitter, rush\nSections: groove, fill, break, crash, intro\nSection types: loop (random), sequence (ordered bars)\n\nSee bundled patterns in assets/drums/ for examples.",
+  "drumGeneratorFormatGuideContent": "A .gfdrum file is a YAML text file describing a drum pattern.\n\nStep grid notation:\nX = strong hit (~100)\nx = medium hit (~75)\no = soft hit (~55)\ng = ghost note (~28)\n. = rest\n\nVelocity fields: base_velocity, velocity_range\nTiming fields: timing_jitter, rush (in beats; negative plays ahead of the beat)\nSections: groove, fill, break, crash, intro\nSection types: loop (one variation per phrase), sequence (bars in order)\n\nThe full format is described on the website, under .gfdrum.",
   "drumGeneratorNoPatternsFound": "No patterns loaded",
   "drumGeneratorFamilyRock": "Rock",
   "drumGeneratorFamilyJazz": "Jazz",

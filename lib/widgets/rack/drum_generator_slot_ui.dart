@@ -10,7 +10,6 @@ import '../../models/drum_generator_plugin_instance.dart';
 import '../../models/drum_pattern_data.dart';
 import '../../services/audio_engine.dart';
 import '../../services/drum_generator_engine.dart';
-import '../../services/drum_pattern_parser.dart';
 import '../../services/drum_pattern_registry.dart';
 import '../../services/transport_engine.dart';
 
@@ -127,14 +126,17 @@ class _WideLayout extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 8),
-        // Row 4: count-in + fill dropdowns
+        // Row 4: count-in, fill and break dropdowns
         Row(
           children: [
             Expanded(child: _CountInDropdown(plugin: plugin)),
             const SizedBox(width: 8),
             Expanded(child: _FillDropdown(plugin: plugin)),
+            const SizedBox(width: 8),
+            Expanded(child: _BreakDropdown(plugin: plugin)),
           ],
         ),
+        _StructureSwitches(plugin: plugin),
         const SizedBox(height: 8),
         // Row 5: load + format guide
         Row(
@@ -180,6 +182,9 @@ class _NarrowLayout extends StatelessWidget {
         _CountInDropdown(plugin: plugin),
         const SizedBox(height: 4),
         _FillDropdown(plugin: plugin),
+        const SizedBox(height: 4),
+        _BreakDropdown(plugin: plugin),
+        _StructureSwitches(plugin: plugin),
         const SizedBox(height: 8),
         Row(
           children: [
@@ -286,9 +291,15 @@ class _StyleDropdown extends StatelessWidget {
 
     // Add custom-pattern item if one is loaded.
     if (isCustom) {
+      // The loaded file's own name, as the bundled patterns show theirs.
+      final custom =
+          context.read<DrumGeneratorEngine>().patternFor(plugin.id);
       items.add(DropdownMenuItem(
         value: '__custom__',
-        child: Text(l10n.drumGeneratorCustomPattern),
+        child: Text(
+          custom?.name ?? l10n.drumGeneratorCustomPattern,
+          overflow: TextOverflow.ellipsis,
+        ),
       ));
     }
 
@@ -647,7 +658,7 @@ class _CountInDropdown extends StatelessWidget {
             ),
             DropdownMenuItem(
               value: DrumIntroType.chopsticks,
-              child: Text(l10n.drumGeneratorIntroChopsticks),
+              child: Text(l10n.drumGeneratorIntroChopsticks(_chopstickHits(context))),
             ),
           ],
           onChanged: (val) => _onChanged(context, val),
@@ -656,16 +667,16 @@ class _CountInDropdown extends StatelessWidget {
     );
   }
 
+  /// How many clicks the count-in plays: the pattern's own count (a waltz
+  /// counts three), or four before a pattern has loaded.
+  int _chopstickHits(BuildContext context) {
+    final pattern = context.read<DrumGeneratorEngine>().patternFor(plugin.id);
+    return pattern?.sections['intro']?.countInHits ?? 4;
+  }
+
   void _onChanged(BuildContext context, DrumIntroType? val) {
     if (val == null) return;
-    plugin.structureConfig = DrumStructureConfig(
-      introType: val,
-      fillFrequency: plugin.structureConfig.fillFrequency,
-      breakFrequency: plugin.structureConfig.breakFrequency,
-      breakLengthBars: plugin.structureConfig.breakLengthBars,
-      crashAfterFill: plugin.structureConfig.crashAfterFill,
-      dynamicBuild: plugin.structureConfig.dynamicBuild,
-    );
+    plugin.structureConfig = plugin.structureConfig.copyWith(introType: val);
     context.read<DrumGeneratorEngine>().markDirty();
   }
 }
@@ -725,15 +736,115 @@ class _FillDropdown extends StatelessWidget {
 
   void _onChanged(BuildContext context, DrumFillFrequency? val) {
     if (val == null) return;
-    plugin.structureConfig = DrumStructureConfig(
-      introType: plugin.structureConfig.introType,
-      fillFrequency: val,
-      breakFrequency: plugin.structureConfig.breakFrequency,
-      breakLengthBars: plugin.structureConfig.breakLengthBars,
-      crashAfterFill: plugin.structureConfig.crashAfterFill,
-      dynamicBuild: plugin.structureConfig.dynamicBuild,
-    );
+    plugin.structureConfig = plugin.structureConfig.copyWith(fillFrequency: val);
     context.read<DrumGeneratorEngine>().markDirty();
+  }
+}
+
+// ── Break dropdown ────────────────────────────────────────────────────────────
+
+/// Dropdown that selects how often a phrase opens with the pattern's break.
+class _BreakDropdown extends StatelessWidget {
+  final DrumGeneratorPluginInstance plugin;
+
+  const _BreakDropdown({required this.plugin});
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final labels = {
+      DrumBreakFrequency.none: l10n.drumGeneratorBreakNone,
+      DrumBreakFrequency.rare: l10n.drumGeneratorBreakRare,
+      DrumBreakFrequency.occasional: l10n.drumGeneratorBreakOccasional,
+      DrumBreakFrequency.frequent: l10n.drumGeneratorBreakFrequent,
+    };
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          l10n.drumGeneratorBreakLabel,
+          style: const TextStyle(fontSize: 11, color: Colors.white54),
+        ),
+        DropdownButton<DrumBreakFrequency>(
+          isExpanded: true,
+          value: plugin.structureConfig.breakFrequency,
+          dropdownColor: _kPanel,
+          style: const TextStyle(color: Colors.white, fontSize: 13),
+          underline: Container(height: 1, color: _kBorder),
+          items: [
+            for (final entry in labels.entries)
+              DropdownMenuItem(value: entry.key, child: Text(entry.value)),
+          ],
+          onChanged: (val) => _onChanged(context, val),
+        ),
+      ],
+    );
+  }
+
+  void _onChanged(BuildContext context, DrumBreakFrequency? val) {
+    if (val == null) return;
+    plugin.structureConfig =
+        plugin.structureConfig.copyWith(breakFrequency: val);
+    context.read<DrumGeneratorEngine>().markDirty();
+  }
+}
+
+// ── Crash and build switches ──────────────────────────────────────────────────
+
+/// Two switches: a crash cymbal after each fill, and phrases that build up.
+///
+/// A [Wrap] rather than a [Row], so the two fit side by side on a tablet and
+/// stack on a narrow phone without overflowing.
+class _StructureSwitches extends StatelessWidget {
+  final DrumGeneratorPluginInstance plugin;
+
+  const _StructureSwitches({required this.plugin});
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final config = plugin.structureConfig;
+    return Wrap(
+      spacing: 16,
+      children: [
+        _switch(
+          context,
+          label: l10n.drumGeneratorCrashAfterFill,
+          value: config.crashAfterFill,
+          onChanged: (v) => config.copyWith(crashAfterFill: v),
+        ),
+        _switch(
+          context,
+          label: l10n.drumGeneratorDynamicBuild,
+          value: config.dynamicBuild,
+          onChanged: (v) => config.copyWith(dynamicBuild: v),
+        ),
+      ],
+    );
+  }
+
+  /// One labelled switch. [onChanged] returns the new config to store.
+  Widget _switch(
+    BuildContext context, {
+    required String label,
+    required bool value,
+    required DrumStructureConfig Function(bool) onChanged,
+  }) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Switch(
+          value: value,
+          activeThumbColor: _kAccent,
+          onChanged: (v) {
+            plugin.structureConfig = onChanged(v);
+            context.read<DrumGeneratorEngine>().markDirty();
+          },
+        ),
+        Text(label, style: const TextStyle(fontSize: 12, color: Colors.white70)),
+      ],
+    );
   }
 }
 
@@ -769,24 +880,25 @@ class _LoadPatternButton extends StatelessWidget {
     );
     if (path == null) return;
 
+    String? content;
     try {
-      final content = await File(path).readAsString();
-      final stem = path.split('/').last.replaceAll('.gfdrum', '');
-      final parsed = DrumPatternParser.parse(content, id: stem);
-      if (parsed == null) return;
-      if (context.mounted) {
-        context.read<DrumGeneratorEngine>().loadCustomPattern(
-              plugin.id,
-              parsed,
-              path,
-            );
-      }
+      content = await File(path).readAsString();
     } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load .gfdrum: $e')),
-        );
-      }
+      debugPrint('drum generator: cannot read $path: $e');
+    }
+    if (!context.mounted) return;
+    final loaded = content != null &&
+        context
+            .read<DrumGeneratorEngine>()
+            .loadCustomPattern(plugin.id, content, path);
+    if (!loaded) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context)!.drumGeneratorLoadFailed,
+          ),
+        ),
+      );
     }
   }
 }
