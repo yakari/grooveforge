@@ -19,7 +19,7 @@
   </description>
   <icon type="stock">com.grooveforge.grooveforge</icon>
   <launchable type="desktop-id">com.grooveforge.grooveforge.desktop</launchable>
-  <url type="homepage">https://grooveforge.music</url>
+  <url type="homepage">https://yakari.github.io/grooveforge/</url>
   <categories>
     <category>Audio</category>
     <category>Music</category>

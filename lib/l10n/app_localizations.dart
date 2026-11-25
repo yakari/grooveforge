@@ -3074,12 +3074,6 @@ abstract class AppLocalizations {
   /// **'Far East'**
   String get xenFamilyFarEast;
 
-  /// No description provided for @xenFamilyCeltic.
-  ///
-  /// In en, this message translates to:
-  /// **'Celtic'**
-  String get xenFamilyCeltic;
-
   /// No description provided for @xenFamilyPersian.
   ///
   /// In en, this message translates to:
@@ -4529,7 +4523,7 @@ abstract class AppLocalizations {
   /// No description provided for @rehearsalGridFrozen.
   ///
   /// In en, this message translates to:
-  /// **'Tempo and time signature lock once a part is recorded, because every take is aligned to them.'**
+  /// **'Once a part is recorded, the tempo can no longer be set here: every take is aligned to it. You can still move the first beat.'**
   String get rehearsalGridFrozen;
 
   /// Rehearsal screen: latency calibration prompt and its explanation.
@@ -4616,12 +4610,6 @@ abstract class AppLocalizations {
   /// **'Play along to a recording'**
   String get masterImport;
 
-  /// No description provided for @masterImportHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Import an MP3, FLAC or WAV. Its audio becomes a track everyone plays over.'**
-  String get masterImportHint;
-
   /// No description provided for @masterImporting.
   ///
   /// In en, this message translates to:
@@ -4631,8 +4619,8 @@ abstract class AppLocalizations {
   /// No description provided for @masterImportFailed.
   ///
   /// In en, this message translates to:
-  /// **'That file could not be read. Try an MP3, FLAC or WAV.'**
-  String get masterImportFailed;
+  /// **'That file could not be read. These formats work: {formats}.'**
+  String masterImportFailed(String formats);
 
   /// No description provided for @masterTitle.
   ///
@@ -5407,6 +5395,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Bluetooth adds a long delay of its own, and it differs from one headset to the next.\n\nThe microphone cannot hear your headphones through the air, so hold one earcup against the phone\'s microphone while the measurement runs. That way it hears the sweeps coming back through the headset and measures the real delay, Bluetooth and all.'**
   String get rehearsalRouteBluetoothHint;
+
+  /// No description provided for @rehearsalRouteWiredHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Wired headphones are plugged in, so the sweeps play in the headphones, not through the speaker.\n\nHold one earcup against the phone\'s microphone while the measurement runs, and keep the room quiet. If your headphones have their own microphone, hold the earcup against that one instead.'**
+  String get rehearsalRouteWiredHint;
+
+  /// No description provided for @audioRouteWired.
+  ///
+  /// In en, this message translates to:
+  /// **'Your wired headset'**
+  String get audioRouteWired;
 
   /// Master alignment screen.
   ///

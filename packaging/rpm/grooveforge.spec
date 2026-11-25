@@ -16,7 +16,7 @@ Release:        1%{?dist}
 Summary:        Cross-platform MIDI synthesizer and VST3 host
 
 License:        MIT
-URL:            https://grooveforge.music
+URL:            https://yakari.github.io/grooveforge/
 
 # Disable debug-info generation — the Flutter bundle has no debuginfo.
 %global debug_package %{nil}
@@ -28,7 +28,6 @@ Requires:       pipewire-jack-audio-connection-kit-libs
 Requires:       libX11
 Requires:       fluidsynth-libs
 Requires:       pulseaudio-libs
-Requires:       mpv-libs
 Recommends:     pipewire
 Recommends:     pipewire-alsa
 Recommends:     pipewire-pulseaudio

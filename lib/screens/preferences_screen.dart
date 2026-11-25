@@ -624,6 +624,28 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                     const Divider(height: 1),
                     const _UsbDirectOutputTile(),
                   ],
+                  // The output's delay is measured here, next to the output
+                  // it belongs to. Not Android-gated: the probe runs wherever
+                  // the native audio library does, and a desktop reading is a
+                  // useful baseline to compare a phone against.
+                  if (!kIsWeb) ...[
+                    const Divider(height: 1),
+                    ListTile(
+                      leading: const Icon(
+                        Icons.graphic_eq,
+                        color: Colors.pinkAccent,
+                      ),
+                      title: Text(loc.latencyProbeTitle),
+                      subtitle: Text(loc.latencyProbeSubtitle),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const LatencyProbeScreen(),
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -961,24 +983,6 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                         context,
                         MaterialPageRoute(
                           builder: (_) => const UsbAudioDebugScreen(),
-                        ),
-                      ),
-                    ),
-                  ],
-                  // Not Android-gated: the probe runs wherever the native
-                  // audio library does, and a desktop reading is a useful
-                  // baseline to compare a phone against.
-                  if (!kIsWeb) ...[
-                    const Divider(height: 1),
-                    ListTile(
-                      leading: const Icon(Icons.graphic_eq, color: Colors.grey),
-                      title: Text(loc.latencyProbeTitle),
-                      subtitle: Text(loc.latencyProbeSubtitle),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const LatencyProbeScreen(),
                         ),
                       ),
                     ),

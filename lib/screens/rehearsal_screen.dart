@@ -12,6 +12,7 @@ import '../services/rehearsal_library.dart';
 import '../services/rehearsal_protocol.dart';
 import '../services/rehearsal_sync_service.dart';
 import '../widgets/audio_latency_indicator.dart';
+import '../widgets/audio_route_text.dart';
 import '../widgets/audio_settings_bar.dart';
 import '../widgets/chord_grid.dart';
 import '../widgets/rehearsal_identity_dialog.dart';
@@ -176,7 +177,17 @@ class _RehearsalScreenState extends State<RehearsalScreen> {
     if (master == null) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text(l10n.masterImportFailed)));
+      ).showSnackBar(
+        SnackBar(
+          content: Text(
+            l10n.masterImportFailed(
+              PlatformMediaDecoder.pickableExtensions
+                  .map((e) => e.toUpperCase())
+                  .join(', '),
+            ),
+          ),
+        ),
+      );
       return;
     }
     await engine.reloadTracks();
@@ -1050,7 +1061,7 @@ class _CompensationWarning extends StatelessWidget {
               // measured" reads as the reason a take will drag.
               route.kind == 'speaker'
                   ? l10n.rehearsalNoCompensation
-                  : l10n.rehearsalRouteUncalibrated(route.label),
+                  : l10n.rehearsalRouteUncalibrated(audioRouteName(l10n, route)),
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onTertiaryContainer,
               ),
@@ -1091,9 +1102,11 @@ class _CompensationWarning extends StatelessWidget {
             // The microphone cannot hear a headset through the air, so the
             // usual instructions are not merely unhelpful here — following
             // them guarantees the measurement finds nothing.
-            route.isBluetooth
-                ? l10n.rehearsalRouteBluetoothHint
-                : l10n.rehearsalCalibrateBody,
+            calibrationHint(
+              l10n,
+              route,
+              speakerText: l10n.rehearsalCalibrateBody,
+            ),
           ),
         ),
         actions: [

@@ -1676,9 +1676,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get xenFamilyFarEast => 'Far East';
 
   @override
-  String get xenFamilyCeltic => 'Celtic';
-
-  @override
   String get xenFamilyPersian => 'Persian';
 
   @override
@@ -2488,7 +2485,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get rehearsalGridFrozen =>
-      'Tempo and time signature lock once a part is recorded, because every take is aligned to them.';
+      'Once a part is recorded, the tempo can no longer be set here: every take is aligned to it. You can still move the first beat.';
 
   @override
   String get rehearsalNoCompensation =>
@@ -2534,15 +2531,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get masterImport => 'Play along to a recording';
 
   @override
-  String get masterImportHint =>
-      'Import an MP3, FLAC or WAV. Its audio becomes a track everyone plays over.';
-
-  @override
   String get masterImporting => 'Importing…';
 
   @override
-  String get masterImportFailed =>
-      'That file could not be read. Try an MP3, FLAC or WAV.';
+  String masterImportFailed(String formats) {
+    return 'That file could not be read. These formats work: $formats.';
+  }
 
   @override
   String get masterTitle => 'Recording';
@@ -3000,6 +2994,13 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get rehearsalRouteBluetoothHint =>
       'Bluetooth adds a long delay of its own, and it differs from one headset to the next.\n\nThe microphone cannot hear your headphones through the air, so hold one earcup against the phone\'s microphone while the measurement runs. That way it hears the sweeps coming back through the headset and measures the real delay, Bluetooth and all.';
+
+  @override
+  String get rehearsalRouteWiredHint =>
+      'Wired headphones are plugged in, so the sweeps play in the headphones, not through the speaker.\n\nHold one earcup against the phone\'s microphone while the measurement runs, and keep the room quiet. If your headphones have their own microphone, hold the earcup against that one instead.';
+
+  @override
+  String get audioRouteWired => 'Your wired headset';
 
   @override
   String get masterZoomIn => 'Zoom in';

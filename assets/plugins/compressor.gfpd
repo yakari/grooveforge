@@ -68,7 +68,7 @@ graph:
 
 ui:
   groups:
-    - label: "Gate"
+    - label: "Compression"
       controls:
         - type: knob
           param: threshold

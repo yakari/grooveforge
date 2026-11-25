@@ -10,6 +10,7 @@ import '../l10n/app_localizations.dart';
 import '../services/audio_input_ffi.dart';
 import '../services/audio_route_service.dart';
 import '../services/latency_calibration.dart';
+import '../widgets/audio_route_text.dart';
 
 /// Measures the overdub round trip on this device, through the app's own
 /// audio devices.
@@ -205,16 +206,19 @@ class _LatencyProbeScreenState extends State<LatencyProbeScreen> {
         // Telling someone wearing Bluetooth headphones to "use the speaker"
         // is not merely unhelpful: following it measures the speaker, files
         // the answer against the headset, and leaves every take late.
-        context.watch<AudioRouteService>().route.isBluetooth
-            ? l10n.rehearsalRouteBluetoothHint
-            : l10n.latencyProbeExplain,
+        calibrationHint(
+          l10n,
+          context.watch<AudioRouteService>().route,
+          speakerText: l10n.latencyProbeExplain,
+        ),
         style: theme.textTheme.bodyMedium,
       ),
       const SizedBox(height: 8),
       Text(
-        context.watch<AudioRouteService>().route.isBluetooth
-            ? ''
-            : l10n.latencyProbeHint,
+        // The speaker tip ("face the mic") is wrong for any headphones.
+        context.watch<AudioRouteService>().route.kind == 'speaker'
+            ? l10n.latencyProbeHint
+            : '',
         style: theme.textTheme.bodySmall
             ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
       ),

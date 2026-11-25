@@ -10,8 +10,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - New projects start with the Xen module switched off, so the keyboard plays every note until you pick a scale, which switches it on. Projects you saved keep Xen exactly as they were.
 - Help rewritten: it now starts with how to connect modules and short recipes, each linking to a video of the gesture on the website.
+- Overdub latency moved from About to the Audio Output section of Preferences.
 
 ### Fixed
+- Compressor: the Threshold and Ratio knobs sat under a group named "Gate"; it is now "Compression".
+- Latency measurement with wired headphones told you to use the speaker; it now explains how to measure the headphones.
+- A wired headset showed as "Wired" in English in the rehearsal banner.
+- Importing an unreadable file now lists the formats your device accepts.
+- The rehearsal alignment screen said the tempo locks once a part is recorded; it now says what is actually locked.
+- Linux packages: homepage pointed to a dead address, and mpv was listed as a dependency without being used.
 - Opening a project from the menu left Riff, Amp and every other audio module stuck loading and silent. They now load as they do at startup.
 
 ## [3.5.0] - 2026-11-23

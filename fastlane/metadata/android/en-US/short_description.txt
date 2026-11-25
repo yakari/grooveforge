@@ -1,1 +1,1 @@
-MIDI synth with soundfonts, 92 microtonal scales, and offline band rehearsals
+MIDI synth with soundfonts, 92 scales (61 microtonal), offline band rehearsals

@@ -1687,9 +1687,6 @@ class AppLocalizationsFr extends AppLocalizations {
   String get xenFamilyFarEast => 'Extrême-Orient';
 
   @override
-  String get xenFamilyCeltic => 'Celtique';
-
-  @override
   String get xenFamilyPersian => 'Persan';
 
   @override
@@ -2500,7 +2497,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get rehearsalGridFrozen =>
-      'Le tempo et la métrique se verrouillent dès qu\'une partie est enregistrée : toutes les prises y sont calées.';
+      'Une fois une partie enregistrée, le tempo ne se règle plus ici : chaque prise est calée dessus. Vous pouvez encore déplacer le premier temps.';
 
   @override
   String get rehearsalNoCompensation =>
@@ -2546,15 +2543,12 @@ class AppLocalizationsFr extends AppLocalizations {
   String get masterImport => 'Jouer sur un enregistrement';
 
   @override
-  String get masterImportHint =>
-      'Importez un MP3, un FLAC ou un WAV. Son audio devient une piste sur laquelle tout le monde joue.';
-
-  @override
   String get masterImporting => 'Importation…';
 
   @override
-  String get masterImportFailed =>
-      'Ce fichier n\'a pas pu être lu. Essayez un MP3, un FLAC ou un WAV.';
+  String masterImportFailed(String formats) {
+    return 'Ce fichier n\'a pas pu être lu. Formats acceptés : $formats.';
+  }
 
   @override
   String get masterTitle => 'Enregistrement';
@@ -3014,6 +3008,13 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get rehearsalRouteBluetoothHint =>
       'Le Bluetooth ajoute un retard important, qui varie d\'un casque à l\'autre.\n\nLe micro ne peut pas entendre votre casque à travers l\'air : pendant la mesure, plaquez un écouteur contre le micro du téléphone. Il entendra ainsi les balayages revenir par le casque et mesurera le vrai retard, Bluetooth compris.';
+
+  @override
+  String get rehearsalRouteWiredHint =>
+      'Un casque filaire est branché : les balayages sortent dans le casque, pas dans le haut-parleur.\n\nPendant la mesure, plaquez un écouteur contre le micro du téléphone et gardez le silence. Si votre casque a son propre micro, plaquez l\'écouteur contre celui-ci.';
+
+  @override
+  String get audioRouteWired => 'Votre casque filaire';
 
   @override
   String get masterZoomIn => 'Zoom avant';

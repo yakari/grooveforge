@@ -10,8 +10,15 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 ### Modifié
 - Les nouveaux projets démarrent avec le module Xen éteint : le clavier joue toutes les notes jusqu'à ce que vous choisissiez une gamme, ce qui l'allume. Les projets sauvegardés gardent Xen tel quel.
 - Aide réécrite : elle commence par la façon de brancher les modules et des recettes courtes, chacune avec une vidéo du geste sur le site.
+- La latence d'overdub passe de « À propos » à la rubrique Sortie Audio des Préférences.
 
 ### Corrigé
+- Compresseur : les boutons Threshold et Ratio étaient rangés sous « Gate » ; le groupe s'appelle désormais « Compression ».
+- La mesure de latence au casque filaire demandait d'utiliser le haut-parleur ; elle explique maintenant comment mesurer le casque.
+- Un casque filaire apparaissait comme « Wired », en anglais, dans le bandeau des répétitions.
+- L'import d'un fichier illisible indique maintenant les formats acceptés par l'appareil.
+- L'écran d'alignement disait que le tempo se verrouille après une prise ; il dit maintenant ce qui est vraiment bloqué.
+- Paquets Linux : la page d'accueil pointait vers une adresse morte, et mpv figurait dans les dépendances sans servir.
 - Ouvrir un projet depuis le menu laissait Riff, l'Ampli et tous les autres modules audio bloqués en chargement et muets. Ils se chargent maintenant comme au démarrage.
 
 ## [3.5.0] - 2026-11-23
