@@ -390,53 +390,23 @@ class _GFpaStyloPhoneSlotUIState extends State<GFpaStyloPhoneSlotUI> {
 
   // ─── MIDI FX chain ────────────────────────────────────────────────────────
 
-  /// Routes a note event through any MIDI FX slots connected to this slot's
-  /// MIDI OUT jack (arpeggiator, harmonizer, transposer, etc.).
+  /// Runs a note through the MIDI FX this slot feeds, in the same order as
+  /// every other source (see [RackState.applyMidiFxToNote]).
   ///
-  /// When [velocity] > 0 the event is a note-on (0x9n); when 0 it is a
-  /// note-off (0x8n).  Returns the (possibly expanded) event list — the caller
-  /// iterates it to play/stop notes on the native oscillator.
-  ///
-  /// When no MIDI FX are connected the list contains the single original event
-  /// unchanged, so callers never need a special-case check.
+  /// A [velocity] of 0 is a note-off. With no MIDI FX the list holds the
+  /// original event, so callers never need a special case.
   List<TimestampedMidiEvent> _applyMidiChain(
     BuildContext context,
     int note,
     int velocity,
   ) {
-    final ch = (widget.plugin.midiChannel - 1).clamp(0, 15);
-    final status = velocity > 0
-        ? (0x90 | (ch & 0x0F))
-        : (0x80 | (ch & 0x0F));
-
-    final event = TimestampedMidiEvent(
-      ppqPosition: 0.0,
-      status: status,
-      data1: note,
-      data2: velocity,
+    return context.read<RackState>().applyMidiFxToNote(
+      sourceSlotId: widget.plugin.id,
+      channel: (widget.plugin.midiChannel - 1).clamp(0, 15),
+      note: note,
+      velocity: velocity,
+      transport: context.read<TransportEngine>().toGFTransportContext(),
     );
-
-    // Find non-bypassed MIDI FX plugins wired to this slot's MIDI OUT jack.
-    final rack = context.read<RackState>();
-    final cables = context
-        .read<AudioGraph>()
-        .connectionsFrom(widget.plugin.id)
-        .where((c) => c.fromPort == AudioPortId.midiOut);
-    final chain = cables
-        .where((cable) => !rack.isMidiFxBypassed(cable.toSlotId))
-        .map((cable) => rack.midiFxInstanceForSlot(cable.toSlotId))
-        .whereType<GFMidiDescriptorPlugin>()
-        .toList(growable: false);
-
-    if (chain.isEmpty) return [event];
-
-    // Run events through each MIDI FX in cable order.
-    final transport = context.read<TransportEngine>().toGFTransportContext();
-    var events = <TimestampedMidiEvent>[event];
-    for (final fx in chain) {
-      events = fx.processMidi(events, transport);
-    }
-    return events;
   }
 
   // ─── Note events ──────────────────────────────────────────────────────────

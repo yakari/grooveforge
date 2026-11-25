@@ -76,8 +76,9 @@
     <p class="recipe-result">Chaque touche joue maintenant trois notes. Rien à câbler en sortie de l'Harmoniseur : c'est le clavier qui joue ce qu'il lui renvoie.</p>
     <ul>
       <li>Ça marche avec les instruments qui ont leur propre son : le clavier avec une soundfont, le Vocodeur, le Stylophone et la Thérémine.
-        Un clavier réglé sur <span class="ui">Aucune (MIDI seulement)</span> ignore les effets MIDI quand vous jouez sur ses touches à l'écran.</li>
-      <li>Pour mettre deux effets MIDI sur un même clavier, reliez le <code>MIDI OUT</code> du clavier à chacun d'eux.</li>
+        Un clavier réglé sur <span class="ui">Aucune (MIDI seulement)</span> transmet le résultat aux instruments reliés à son <code>MIDI OUT</code>.</li>
+      <li>Pour mettre deux effets MIDI sur un même clavier, reliez le <code>MIDI OUT</code> du clavier à chacun d'eux.
+        Ils s'appliquent de haut en bas, dans l'ordre du rack, que vous jouiez à l'écran ou sur un contrôleur.</li>
       <li>Le bouton marche/arrêt en haut d'un effet MIDI le contourne (<span class="ui">Bypass</span>). Pour l'actionner depuis un pad de votre contrôleur,
         voir <a href="../guide/#learn">Associer un bouton</a>.</li>
     </ul>

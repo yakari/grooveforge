@@ -24,7 +24,13 @@ String _noteName(int note) {
 /// - Auto-scrolls to ensure externally played notes remain visible.
 class VirtualPiano extends StatefulWidget {
   final Set<int> activeNotes;
-  final void Function(int note)? onNotePressed;
+
+  /// Called when a key goes down, with the MIDI note and a velocity (1-127)
+  /// read from where the finger landed: near the front edge of the key is
+  /// loud, near the back is soft, as on a real key that is struck harder the
+  /// further down the finger travels. The caller decides whether to use it
+  /// (see [AudioEngine.pianoVelocity]).
+  final void Function(int note, int velocity)? onNotePressed;
   final void Function(int note)? onNoteReleased;
   final GestureAction verticalAction;
   final GestureAction horizontalAction;
@@ -45,6 +51,10 @@ class VirtualPiano extends StatefulWidget {
   /// keys from — the quarter-tones are audible but invisible, which is the
   /// hardest kind of state to reason about while playing.
   final Map<int, double> centsOffsets;
+
+  /// Softest velocity a touch can produce, at the back edge of a key. Not 1:
+  /// a note that quiet is inaudible on most soundfonts and reads as a bug.
+  static const int minTouchVelocity = 40;
 
   const VirtualPiano({
     super.key,
@@ -163,6 +173,19 @@ class _VirtualPianoState extends State<VirtualPiano> {
           ? (wk.indexOf(note - 1) * wkw) + (wkw - bkw / 2)
           : wk.indexOf(note) * wkw;
 
+  /// Velocity for a touch at [pos] on [note], from [minTouchVelocity] at the
+  /// back of the key to 127 at its front edge.
+  ///
+  /// A black key is shorter than a white one (65% of [h]), so its own length
+  /// is the scale: the front edge of a black key is as loud as the front
+  /// edge of a white key.
+  int _velocityAt(Offset pos, int note, double h) {
+    final keyLength = _isBlack(note) ? h * 0.65 : h;
+    final depth = (pos.dy / keyLength).clamp(0.0, 1.0);
+    return (VirtualPiano.minTouchVelocity +
+            depth * (127 - VirtualPiano.minTouchVelocity)).round();
+  }
+
   /// Accurate hit-test: black keys are checked first (they sit on top visually)
   /// in the upper 65% of key height; below that only white keys are hit.
   int? _hitTest(Offset pos, double h, double wkw, double bkw, List<int> wk, List<int> bk) {
@@ -206,7 +229,7 @@ class _VirtualPianoState extends State<VirtualPiano> {
     _pointerNote[e.pointer] = snapped;  // logical note used for release
     _pointerVisual[e.pointer] = note;   // visual highlight stays on pressed key
     _pointerAnchor[e.pointer] = e.localPosition;
-    widget.onNotePressed?.call(snapped);
+    widget.onNotePressed?.call(snapped, _velocityAt(e.localPosition, note, h));
     if (wasEmpty) widget.onInteractingChanged?.call(true);
     setState(() {});
   }
@@ -232,7 +255,8 @@ class _VirtualPianoState extends State<VirtualPiano> {
           final snapped = _validTarget(note);
           _pointerNote[e.pointer] = snapped;
           _pointerAnchor[e.pointer] = e.localPosition;
-          widget.onNotePressed?.call(snapped);
+          widget.onNotePressed
+              ?.call(snapped, _velocityAt(e.localPosition, note, h));
         } else {
           _pointerNote.remove(e.pointer);
           _pointerAnchor.remove(e.pointer);

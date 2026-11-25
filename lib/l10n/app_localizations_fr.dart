@@ -230,6 +230,25 @@ class AppLocalizationsFr extends AppLocalizations {
       'Touches blanches affichées sans override par slot';
 
   @override
+  String get pianoVelocityTitle => 'Vélocité des touches';
+
+  @override
+  String get pianoVelocitySubtitle =>
+      'La force des notes jouées sur le clavier à l\'écran. Au toucher : plus on appuie près du bord avant de la touche, plus c\'est fort.';
+
+  @override
+  String get pianoVelocityTouch => 'Au toucher';
+
+  @override
+  String get pianoVelocitySoft => 'Doux';
+
+  @override
+  String get pianoVelocityMedium => 'Moyen';
+
+  @override
+  String get pianoVelocityLoud => 'Fort';
+
+  @override
   String get keys25 => '25 touches (15 blanches)';
 
   @override
@@ -384,7 +403,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get guidePatchSlotKeyboardDesc =>
-      'Joue un piano ou n\'importe quel son d\'une soundfont (.sf2). Réglez-le sur Aucune (MIDI seulement) pour qu\'il ne serve qu\'à envoyer des notes à d\'autres modules.';
+      'Joue un piano ou n\'importe quel son d\'une soundfont (.sf2). Réglez-le sur Aucune (MIDI seulement) pour qu\'il serve seulement à envoyer des notes aux autres modules. Une touche jouée près de son bord avant sonne plus fort que près du fond ; Préférences > Vélocité des touches permet de fixer une seule force.';
 
   @override
   String get guidePatchSlotVocoder => 'Vocodeur';

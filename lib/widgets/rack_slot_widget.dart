@@ -842,7 +842,8 @@ class _PianoBody extends StatelessWidget {
       centsOffsets: xenLock?.centsByPitchClass ?? const {},
       showJamModeBorders: engine.showJamModeBorders.value,
       highlightWrongNotes: engine.highlightWrongNotes.value,
-      onNotePressed: (note) => _onNotePressed(context, note),
+      onNotePressed: (note, touchVelocity) =>
+          _onNotePressed(context, note, _velocity(touchVelocity)),
       onNoteReleased: (note) => _onNoteReleased(context, note),
       onPitchBend: (val) => _onPitchBend(context, val),
       onControlChange: (cc, val) => _onControlChange(context, cc, val),
@@ -861,14 +862,27 @@ class _PianoBody extends StatelessWidget {
   ///   and marks the key as active on the engine for UI highlighting.
   /// - **Other slots**: MIDI FX chain (if any) then [AudioEngine.playNote] plus
   ///   looper feed on MIDI OUT.
-  void _onNotePressed(BuildContext context, int note) {
+  /// The velocity to play a key with: the one read from the touch, unless
+  /// the preferences fix one ([AudioEngine.pianoVelocity]).
+  int _velocity(int touchVelocity) {
+    final fixed = engine.pianoVelocity.value;
+    return fixed > 0 ? fixed : touchVelocity;
+  }
+
+  void _onNotePressed(BuildContext context, int note, int velocity) {
     final midiOnly = _routesMidiThroughCablesOnly(plugin);
     if (midiOnly) {
       engine.noteOnUiOnly(channel: channelIndex, key: note);
-      _dispatchMidiNoteOn(context, note);
+      // Through the MIDI FX first, as notes from a hardware controller are,
+      // then down the cables to whatever this keyboard plays.
+      for (final e in _applyMidiChain(context, note, velocity)) {
+        _dispatchMidiEvent(context, e);
+      }
     } else if (plugin is Vst3PluginInstance) {
       // VST3 audio goes to VstHostService; engine only tracks UI state.
-      context.read<VstHostService>().noteOn(plugin.id, 0, note, 1.0);
+      context
+          .read<VstHostService>()
+          .noteOn(plugin.id, 0, note, velocity / 127.0);
       engine.noteOnUiOnly(channel: channelIndex, key: note);
     } else {
       // Route through any MIDI FX connected via patch cable (e.g. harmonizer)
@@ -876,7 +890,7 @@ class _PianoBody extends StatelessWidget {
       // Only note-on events trigger playNote — autonomous tick() calls inside
       // _applyMidiChain can inject gate note-offs into the same output batch,
       // and passing those to playNote would add stale pitches to activeNotes.
-      final midiEvents = _applyMidiChain(context, note, 100);
+      final midiEvents = _applyMidiChain(context, note, velocity);
       for (final e in midiEvents) {
         if (e.isNoteOn) {
           engine.playNote(channel: channelIndex, key: e.data1, velocity: e.data2);
@@ -894,7 +908,7 @@ class _PianoBody extends StatelessWidget {
       }
       // Also feed any loopers connected to this slot's MIDI OUT so
       // on-screen keys are captured by the looper (e.g. GFK → Looper cable).
-      _feedConnectedLoopers(context, note, 100, isNoteOn: true);
+      _feedConnectedLoopers(context, note, velocity, isNoteOn: true);
     }
   }
 
@@ -902,7 +916,9 @@ class _PianoBody extends StatelessWidget {
   void _onNoteReleased(BuildContext context, int note) {
     if (_routesMidiThroughCablesOnly(plugin)) {
       engine.noteOffUiOnly(channel: channelIndex, key: note);
-      _dispatchMidiNoteOff(context, note);
+      for (final e in _applyMidiChain(context, note, 0)) {
+        _dispatchMidiEvent(context, e);
+      }
     } else if (plugin is Vst3PluginInstance) {
       context.read<VstHostService>().noteOff(plugin.id, 0, note);
       engine.noteOffUiOnly(channel: channelIndex, key: note);
@@ -933,99 +949,97 @@ class _PianoBody extends StatelessWidget {
     }
   }
 
-  /// Routes [note] through any MIDI FX slots wired to this slot's MIDI OUT jack.
+  /// Runs [note] through the MIDI FX this slot feeds (see
+  /// [RackState.applyMidiFxToNote]) and returns the resulting events.
   ///
-  /// Returns the processed event list. When [velocity] > 0 the event is a
-  /// note-on (status 0x9n); when [velocity] == 0 it is a note-off (status
-  /// 0x8n) so harmonizers emit the correct symmetric note-off for each voice
-  /// they added during the corresponding note-on.
-  ///
-  /// When no MIDI FX are connected the list contains the single original event
-  /// unchanged, so the caller can always iterate without a special-case check.
+  /// A [velocity] of 0 is a note-off, so a harmonizer releases every voice it
+  /// added at note-on. With no MIDI FX the list holds the original event.
   List<TimestampedMidiEvent> _applyMidiChain(
     BuildContext context,
     int note,
     int velocity,
   ) {
-    // Use note-off status (0x80) for velocity=0, note-on (0x90) otherwise.
-    final status = velocity > 0
-        ? (0x90 | (channelIndex & 0x0F))
-        : (0x80 | (channelIndex & 0x0F));
-
-    final event = TimestampedMidiEvent(
-      ppqPosition: 0.0,
-      status: status,
-      data1: note,
-      data2: velocity,
+    return context.read<RackState>().applyMidiFxToNote(
+      sourceSlotId: plugin.id,
+      channel: channelIndex,
+      note: note,
+      velocity: velocity,
+      transport: context.read<TransportEngine>().toGFTransportContext(),
     );
-
-    // Find non-bypassed MIDI FX plugins wired to this slot's MIDI OUT jack.
-    // Bypassed slots are skipped to match [RackState.applyMidiFxForChannel],
-    // which applies the same check for hardware MIDI controller input.
-    final rack = context.read<RackState>();
-    final cables = _midiOutCables(context);
-    final chain = cables
-        .where((cable) => !rack.isMidiFxBypassed(cable.toSlotId))
-        .map((cable) => rack.midiFxInstanceForSlot(cable.toSlotId))
-        .whereType<GFMidiDescriptorPlugin>()
-        .toList(growable: false);
-
-    if (chain.isEmpty) return [event];
-
-    // Run events through each MIDI FX in cable order.
-    final transport = context.read<TransportEngine>().toGFTransportContext();
-    var events = <TimestampedMidiEvent>[event];
-    for (final fx in chain) {
-      events = fx.processMidi(events, transport);
-    }
-    return events;
   }
 
-  /// Forwards a MIDI note-on event to all slots wired to this slot's MIDI OUT
-  /// jack. Used for MIDI-only GFK slots.
+  /// Sends one event from a MIDI-only keyboard down its MIDI OUT cables.
   ///
-  /// Each connected target is routed according to its type:
-  /// - [LooperPluginInstance] → [LooperEngine.feedMidiEvent] (records the note)
-  /// - VST3 → [VstHostService.noteOn] + [AudioEngine.noteOnUiOnly]
-  /// - FluidSynth (GFK, Vocoder, generic GFPA) → [AudioEngine.playNote]
-  void _dispatchMidiNoteOn(BuildContext context, int note) {
-    final status = 0x90 | (channelIndex & 0x0F); // note-on on this channel
+  /// Each connected target is handled according to its type:
+  /// - [LooperPluginInstance] → [LooperEngine.feedMidiEvent] (records it);
+  /// - VST3 → [VstHostService], plus [AudioEngine.noteOnUiOnly] for the keys;
+  /// - other instruments (GFK, Vocoder, …) → [AudioEngine] on their channel.
+  ///
+  /// MIDI FX and audio effects are skipped: they already took the note, and
+  /// have no channel to play it on ([RackState.playsMidiNotes]).
+  void _dispatchMidiEvent(BuildContext context, TimestampedMidiEvent e) {
+    final rack = context.read<RackState>();
+    // Keep the type nibble from the FX, but stamp this keyboard's channel.
+    final status = (e.status & 0xF0) | (channelIndex & 0x0F);
     for (final cable in _midiOutCables(context)) {
       final target = _findPlugin(context, cable.toSlotId);
       if (target == null) continue;
       if (target is LooperPluginInstance) {
-        context.read<LooperEngine>().feedMidiEvent(target.id, status, note, 100);
+        if (e.isNoteOn || e.isNoteOff) {
+          context
+              .read<LooperEngine>()
+              .feedMidiEvent(target.id, status, e.data1, e.data2);
+        }
         continue;
       }
-      final targetCh = (target.midiChannel - 1).clamp(0, 15);
-      if (target is Vst3PluginInstance) {
-        context.read<VstHostService>().noteOn(target.id, 0, note, 1.0);
-        engine.noteOnUiOnly(channel: targetCh, key: note);
-      } else {
-        engine.playNote(channel: targetCh, key: note, velocity: 100);
-      }
+      if (!rack.playsMidiNotes(target)) continue;
+      _sendEventToTarget(context, target, e);
     }
   }
 
-  /// Forwards a MIDI note-off event to all slots wired to this slot's MIDI OUT
-  /// jack. Mirrors the logic of [_dispatchMidiNoteOn].
-  void _dispatchMidiNoteOff(BuildContext context, int note) {
-    final status = 0x80 | (channelIndex & 0x0F); // note-off on this channel
-    for (final cable in _midiOutCables(context)) {
-      final target = _findPlugin(context, cable.toSlotId);
-      if (target == null) continue;
-      if (target is LooperPluginInstance) {
-        context.read<LooperEngine>().feedMidiEvent(target.id, status, note, 0);
-        continue;
-      }
-      final targetCh = (target.midiChannel - 1).clamp(0, 15);
-      if (target is Vst3PluginInstance) {
-        context.read<VstHostService>().noteOff(target.id, 0, note);
-        engine.noteOffUiOnly(channel: targetCh, key: note);
-      } else {
-        engine.stopNote(channel: targetCh, key: note);
-      }
+  /// Plays [e] on one instrument [target] reached by a MIDI cable.
+  void _sendEventToTarget(
+    BuildContext context,
+    PluginInstance target,
+    TimestampedMidiEvent e,
+  ) {
+    final targetCh = (target.midiChannel - 1).clamp(0, 15);
+    if (e.isPitchBend) {
+      _sendPitchBendToTarget(context, target, e.pitchBendValue);
+      return;
     }
+    if (target is Vst3PluginInstance) {
+      final vst = context.read<VstHostService>();
+      if (e.isNoteOn) {
+        vst.noteOn(target.id, 0, e.data1, e.data2 / 127.0);
+        engine.noteOnUiOnly(channel: targetCh, key: e.data1);
+      } else if (e.isNoteOff) {
+        vst.noteOff(target.id, 0, e.data1);
+        engine.noteOffUiOnly(channel: targetCh, key: e.data1);
+      }
+      return;
+    }
+    if (e.isNoteOn) {
+      engine.playNote(channel: targetCh, key: e.data1, velocity: e.data2);
+    } else if (e.isNoteOff) {
+      engine.stopNote(channel: targetCh, key: e.data1);
+    }
+  }
+
+  /// Bends the pitch of one instrument [target] reached by a MIDI cable.
+  /// [rawValue] is the 14-bit MIDI value, 8192 being the centre.
+  void _sendPitchBendToTarget(
+    BuildContext context,
+    PluginInstance target,
+    int rawValue,
+  ) {
+    if (target is Vst3PluginInstance) {
+      final semitones = (rawValue - 8192) / 8192.0 * 2.0;
+      context.read<VstHostService>().pitchBend(target.id, 0, semitones);
+      return;
+    }
+    final targetCh = (target.midiChannel - 1).clamp(0, 15);
+    engine.setPitchBend(channel: targetCh, value: rawValue);
   }
 
   /// Feeds a note event only to [LooperPluginInstance] targets connected to
@@ -1115,31 +1129,24 @@ class _PianoBody extends StatelessWidget {
     }
   }
 
-  /// Forwards a pitch-bend value through every slot wired to this MIDI source's OUT.
-  ///
-  /// Converts the raw 14-bit value to semitones when the target is VST3,
-  /// and reconstructs the correct 14-bit word for FluidSynth channels.
+  /// Forwards a pitch-bend value through every instrument wired to this MIDI
+  /// source's MIDI OUT.
   void _dispatchMidiPitchBend(BuildContext context, int rawValue) {
-    final vstSvc = context.read<VstHostService>();
+    final rack = context.read<RackState>();
     for (final cable in _midiOutCables(context)) {
       final target = _findPlugin(context, cable.toSlotId);
-      if (target == null) continue;
-      if (target is Vst3PluginInstance) {
-        final semitones = (rawValue - 8192) / 8192.0 * 2.0;
-        vstSvc.pitchBend(target.id, 0, semitones);
-      } else {
-        final targetCh = (target.midiChannel - 1).clamp(0, 15);
-        engine.setPitchBend(channel: targetCh, value: rawValue);
-      }
+      if (target == null || !rack.playsMidiNotes(target)) continue;
+      _sendPitchBendToTarget(context, target, rawValue);
     }
   }
 
   /// Forwards CC through every slot wired to this MIDI source's MIDI OUT.
   void _dispatchMidiCC(BuildContext context, int cc, int value) {
     final vstSvc = context.read<VstHostService>();
+    final rack = context.read<RackState>();
     for (final cable in _midiOutCables(context)) {
       final target = _findPlugin(context, cable.toSlotId);
-      if (target == null) continue;
+      if (target == null || !rack.playsMidiNotes(target)) continue;
       if (target is Vst3PluginInstance) {
         vstSvc.controlChange(target.id, 0, cc, value);
       } else {

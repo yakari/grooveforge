@@ -7,12 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [X.x.x]
 
+### Added
+- On-screen keys now play louder near the front edge of the key. Preferences > Key velocity can fix one strength instead.
+
 ### Changed
 - New projects start with the Xen module switched off, so the keyboard plays every note until you pick a scale, which switches it on. Projects you saved keep Xen exactly as they were.
 - Help rewritten: it now starts with how to connect modules and short recipes, each linking to a video of the gesture on the website.
 - Overdub latency moved from About to the Audio Output section of Preferences.
 
 ### Fixed
+- MIDI FX applied in a different order on the screen and on a controller; both now follow the rack, top to bottom.
+- A keyboard set to None (MIDI only) skipped MIDI FX on its on-screen keys.
+- Notes sent to a MIDI FX also played a second time on MIDI channel 1.
+- The harmonizer's Scale Lock ignored a CHORD IN cable, and read channel 1 whatever keyboard was patched in.
 - Compressor: the Threshold and Ratio knobs sat under a group named "Gate"; it is now "Compression".
 - Latency measurement with wired headphones told you to use the speaker; it now explains how to measure the headphones.
 - A wired headset showed as "Wired" in English in the rehearsal banner.

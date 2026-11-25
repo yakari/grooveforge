@@ -2126,22 +2126,12 @@ class RackState extends ChangeNotifier {
     // Create a fresh per-slot instance so two harmonizer slots don't share state.
     final plugin = GFMidiDescriptorPlugin(registered.descriptor);
 
-    // Resolve the scale-provider channel from the master slot (for Jam Mode
-    // scale snapping). Falls back to channel 0 when no master is configured.
-    final masterSlotId = instance.masterSlotId;
-    final masterSlot =
-        masterSlotId != null
-            ? _plugins
-                .whereType<GFpaPluginInstance>()
-                .where((p) => p.id == masterSlotId)
-                .firstOrNull
-            : null;
-    final masterChannel = ((masterSlot?.midiChannel ?? 1) - 1).clamp(0, 15);
-
+    // The scale is looked up on every call rather than captured here: the
+    // CHORD IN cable can be patched after this runs, the source keyboard can
+    // change channel, and a project load replaces the channel objects.
     final nodeContext = GFMidiNodeContext(
       sourceChannelIndex: _resolveSourceChannelForMidiFx(instance),
-      scaleProvider:
-          () => _engine.channels[masterChannel].validPitchClasses.value,
+      scaleProvider: () => _scaleForMidiFx(instance.id),
     );
 
     try {
@@ -2696,6 +2686,21 @@ class RackState extends ChangeNotifier {
   ValueNotifier<int>? audioEffectParamNotifierForSlot(String slotId) =>
       _audioEffectParamNotifiers[slotId];
 
+  /// The pitch classes allowed on the keyboard patched into the CHORD IN of
+  /// the MIDI FX at [fxSlotId], or null when every note is allowed.
+  ///
+  /// Called by the MIDI FX on every block, so the answer follows the patch as
+  /// it is now: a cable drawn after the FX was created, or a keyboard moved
+  /// to another channel. The source can be any module with a channel (a
+  /// GrooveForge Keyboard is the usual one), and with no source the FX reads
+  /// channel 1, as it always has.
+  Set<int>? _scaleForMidiFx(String fxSlotId) {
+    final sourceId = _findGfpaById(fxSlotId)?.masterSlotId;
+    final source = sourceId == null ? null : _findById(sourceId);
+    final channel = ((source?.midiChannel ?? 1) - 1).clamp(0, 15);
+    return _engine.channels[channel].validPitchClasses.value;
+  }
+
   /// Returns the MIDI channel index (0-based) of the first configured target
   /// slot for [instance], or 0 if no target is set.
   ///
@@ -2737,15 +2742,11 @@ class RackState extends ChangeNotifier {
     }
   }
 
-  /// Transform [events] through all active MIDI FX chains that target [midiChannel].
+  /// Transforms [events] arriving from hardware on [midiChannel] (1-16)
+  /// through the MIDI FX fed by the slots on that channel.
   ///
-  /// Searches all [GFpaPluginInstance] MIDI FX slots. For each whose
-  /// [GFpaPluginInstance.targetSlotIds] contains any slot with
-  /// [PluginInstance.midiChannel] == [midiChannel], the events are piped
-  /// through the registered [GFMidiDescriptorPlugin].
-  ///
-  /// If no MIDI FX slot targets [midiChannel] the original [events] list is
-  /// returned unchanged.
+  /// See [_applyMidiFxFromSlots] for which FX apply and in what order. If no
+  /// MIDI FX applies, the original [events] list is returned unchanged.
   List<TimestampedMidiEvent> applyMidiFxForChannel(
     int midiChannel,
     List<TimestampedMidiEvent> events,
@@ -2753,52 +2754,62 @@ class RackState extends ChangeNotifier {
   ) {
     // Fast exit: no MIDI FX registered at all → nothing to process.
     if (_midiFxInstances.isEmpty) return events;
-
-    // Collect slot IDs on this MIDI channel.
-    final targetedSlotIds =
+    final sourceSlotIds =
         _plugins
             .where((p) => p.midiChannel == midiChannel)
             .map((p) => p.id)
             .toSet();
+    return _applyMidiFxFromSlots(sourceSlotIds, events, transport);
+  }
 
-    // Collect MIDI FX slot IDs applicable to this channel via two routing
-    // styles so that both the explicit-config and visual-patch-cable workflows
-    // work identically for hardware MIDI controller input.
-    //
-    // Style 1 — targetSlotIds: the MIDI FX instance explicitly names which
-    //   keyboard/synth slot IDs it should process. Used when no patch cable is
-    //   drawn and the user configured the target slot in the GFPA FX editor.
-    //
-    // Style 2 — MIDI cable: a patch cable runs from a keyboard slot's MIDI OUT
-    //   jack to the MIDI FX slot's MIDI IN jack in the audio graph. This is the
-    //   standard visual setup that also drives the on-screen keyboard path.
-    //   Without this check, hardware MIDI controller input was silently bypassing
-    //   cable-connected FX (harmonizer, transposer, …).
-    final fxSlotIds = <String>{};
+  /// Runs one note played on the screen of [sourceSlotId] through the MIDI
+  /// FX that slot feeds, and returns what comes out.
+  ///
+  /// [channel] is the 0-based channel stamped on the event. A [velocity] of
+  /// 0 builds a note-off, so a harmonizer releases every voice it added.
+  /// Uses the same FX, in the same order, as notes from a hardware
+  /// controller ([applyMidiFxForChannel]): both paths share
+  /// [_applyMidiFxFromSlots]. With no MIDI FX, the list holds the single
+  /// original event, so callers never need a special case.
+  List<TimestampedMidiEvent> applyMidiFxToNote({
+    required String sourceSlotId,
+    required int channel,
+    required int note,
+    required int velocity,
+    required GFTransportContext transport,
+  }) {
+    final status = (velocity > 0 ? 0x90 : 0x80) | (channel & 0x0F);
+    final events = [
+      TimestampedMidiEvent(
+        ppqPosition: 0.0,
+        status: status,
+        data1: note,
+        data2: velocity,
+      ),
+    ];
+    if (_midiFxInstances.isEmpty) return events;
+    return _applyMidiFxFromSlots({sourceSlotId}, events, transport);
+  }
 
-    for (final p in _plugins.whereType<GFpaPluginInstance>()) {
-      // Style 1: the FX explicitly targets one of the active instrument slots.
-      if (p.targetSlotIds.any(targetedSlotIds.contains)) {
-        fxSlotIds.add(p.id);
-        continue;
-      }
-      // Style 2: the FX is reachable from an instrument slot via a MIDI cable.
-      // Use hasMidiOutTo to avoid allocating an intermediate List per slot.
-      final reachableViaCable = targetedSlotIds.any(
-        (slotId) => _audioGraph.hasMidiOutTo(slotId, p.id),
-      );
-      if (reachableViaCable) fxSlotIds.add(p.id);
-    }
-
-    if (fxSlotIds.isEmpty) return events;
-
-    // Chain events through each applicable MIDI FX plugin in rack (display)
-    // order so the processing sequence is deterministic and matches the visual
-    // rack layout.
+  /// Pipes [events] through every MIDI FX fed by one of [sourceSlotIds].
+  ///
+  /// An FX is fed by a slot in either of two ways:
+  /// - a MIDI cable from the slot's MIDI OUT to the FX's MIDI IN (the usual,
+  ///   visual setup);
+  /// - the FX names the slot in [GFpaPluginInstance.targetSlotIds] (the
+  ///   older setup, from before cables).
+  ///
+  /// The FX run in rack order, top to bottom, which is what the user sees.
+  /// FX switched off with their power button are skipped.
+  List<TimestampedMidiEvent> _applyMidiFxFromSlots(
+    Set<String> sourceSlotIds,
+    List<TimestampedMidiEvent> events,
+    GFTransportContext transport,
+  ) {
+    if (sourceSlotIds.isEmpty) return events;
     var current = events;
     for (final p in _plugins.whereType<GFpaPluginInstance>()) {
-      if (!fxSlotIds.contains(p.id)) continue;
-      // Skip slots that the user has bypassed via the on/off toggle.
+      if (!_isFedBy(p, sourceSlotIds)) continue;
       if (p.state['__bypass'] == true) continue;
       final plugin = _midiFxInstances[p.id];
       if (plugin == null) continue;
@@ -2806,6 +2817,24 @@ class RackState extends ChangeNotifier {
     }
     return current;
   }
+
+  /// Whether the slot [fx] takes MIDI from one of [sourceSlotIds], by
+  /// cable or by [GFpaPluginInstance.targetSlotIds].
+  bool _isFedBy(GFpaPluginInstance fx, Set<String> sourceSlotIds) {
+    if (fx.targetSlotIds.any(sourceSlotIds.contains)) return true;
+    // hasMidiOutTo avoids allocating a list of cables per slot.
+    return sourceSlotIds.any((id) => _audioGraph.hasMidiOutTo(id, fx.id));
+  }
+
+  /// Whether a note sent down a MIDI cable to [target] should be played on
+  /// [target]'s channel.
+  ///
+  /// Only modules with a MIDI channel play notes. MIDI FX and audio effects
+  /// have channel 0: they take MIDI to transform or follow it, and playing
+  /// the note "on their channel" sounded it a second time on channel 1.
+  /// Loopers record MIDI rather than play it, and are fed separately.
+  bool playsMidiNotes(PluginInstance target) =>
+      target.midiChannel > 0 && target is! LooperPluginInstance;
 
   /// `true` when at least one MIDI FX plugin is currently registered.
   ///

@@ -7,12 +7,19 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 
 ## [X.x.x]
 
+### Ajouté
+- Les touches à l'écran jouent plus fort près de leur bord avant. Préférences > Vélocité des touches permet de fixer une seule force.
+
 ### Modifié
 - Les nouveaux projets démarrent avec le module Xen éteint : le clavier joue toutes les notes jusqu'à ce que vous choisissiez une gamme, ce qui l'allume. Les projets sauvegardés gardent Xen tel quel.
 - Aide réécrite : elle commence par la façon de brancher les modules et des recettes courtes, chacune avec une vidéo du geste sur le site.
 - La latence d'overdub passe de « À propos » à la rubrique Sortie Audio des Préférences.
 
 ### Corrigé
+- Les effets MIDI s'appliquaient dans un ordre différent à l'écran et sur un contrôleur ; les deux suivent maintenant le rack, de haut en bas.
+- Un clavier réglé sur Aucune (MIDI seulement) ignorait les effets MIDI sur ses touches à l'écran.
+- Les notes envoyées à un effet MIDI sonnaient une seconde fois sur le canal MIDI 1.
+- Le Scale Lock de l'harmoniseur ignorait le câble CHORD IN et lisait le canal 1, quel que soit le clavier branché.
 - Compresseur : les boutons Threshold et Ratio étaient rangés sous « Gate » ; le groupe s'appelle désormais « Compression ».
 - La mesure de latence au casque filaire demandait d'utiliser le haut-parleur ; elle explique maintenant comment mesurer le casque.
 - Un casque filaire apparaissait comme « Wired », en anglais, dans le bandeau des répétitions.

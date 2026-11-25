@@ -318,6 +318,13 @@ class AudioEngine extends ChangeNotifier {
   final ValueNotifier<bool> autoScrollEnabled = ValueNotifier<bool>(false);
 
   final ValueNotifier<int> pianoKeysToShow = ValueNotifier<int>(22); // 22 white keys = 37 total keys (3 octaves)
+
+  /// Velocity of the notes played on the on-screen keys, or 0 to read it
+  /// from where the finger lands on the key (see [VirtualPiano]).
+  ///
+  /// A fixed value suits a phone held in the hand, where the touch position
+  /// is not a deliberate gesture; position suits a tablet on a stand.
+  final ValueNotifier<int> pianoVelocity = ValueNotifier<int>(0);
   final ValueNotifier<String> notationFormat = ValueNotifier<String>('Standard');
   final ValueNotifier<String?> lastSeenVersion = ValueNotifier(null);
 
@@ -879,6 +886,7 @@ class AudioEngine extends ChangeNotifier {
     initStatus.value = 'Ready';
 
     pianoKeysToShow.addListener(_saveState);
+    pianoVelocity.addListener(_saveState);
     gfpaJamEntries.addListener(_propagateJamScaleUpdate);
     xenScaleLocks.addListener(_propagateXenScaleUpdate);
     showJamModeBorders.addListener(_saveState);
@@ -1070,6 +1078,7 @@ class AudioEngine extends ChangeNotifier {
     await _prefs!.setInt('aftertouch_dest_cc', aftertouchDestCc.value);
     await _prefs!.setString('notation_format', notationFormat.value);
     await _prefs!.setInt('piano_keys_to_show', pianoKeysToShow.value);
+    await _prefs!.setInt('piano_velocity', pianoVelocity.value);
 
     // Save Jam State
     await _prefs!.setBool('jam_show_borders', showJamModeBorders.value);
@@ -1242,6 +1251,8 @@ class AudioEngine extends ChangeNotifier {
     if (savedNotationFormat != null) {
       notationFormat.value = savedNotationFormat;
     }
+
+    pianoVelocity.value = _prefs!.getInt('piano_velocity') ?? 0;
 
     int? savedPianoKeysToShow = _prefs!.getInt('piano_keys_to_show');
     if (savedPianoKeysToShow != null) {
@@ -3004,6 +3015,7 @@ class AudioEngine extends ChangeNotifier {
     aftertouchDestCc.value = 1;
     notationFormat.value = 'Standard';
     pianoKeysToShow.value = 22;
+    pianoVelocity.value = 0;
     vocoderInputDeviceIndex.value = -1;
     vocoderInputAndroidDeviceId.value = -1;
     vocoderInputGain.value = 1.0;

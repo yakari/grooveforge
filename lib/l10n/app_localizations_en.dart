@@ -230,6 +230,25 @@ class AppLocalizationsEn extends AppLocalizations {
       'Number of white keys shown when no per-slot override is set';
 
   @override
+  String get pianoVelocityTitle => 'Key velocity';
+
+  @override
+  String get pianoVelocitySubtitle =>
+      'How hard the on-screen keys play. By touch: the closer to the front edge of the key, the louder.';
+
+  @override
+  String get pianoVelocityTouch => 'By touch';
+
+  @override
+  String get pianoVelocitySoft => 'Soft';
+
+  @override
+  String get pianoVelocityMedium => 'Medium';
+
+  @override
+  String get pianoVelocityLoud => 'Loud';
+
+  @override
   String get keys25 => '25 keys (15 white)';
 
   @override
@@ -383,7 +402,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get guidePatchSlotKeyboardDesc =>
-      'Plays a piano or any sound from a soundfont (.sf2). Set it to None (MIDI only) to use it only to send notes to other modules.';
+      'Plays a piano or any sound from a soundfont (.sf2). Set it to None (MIDI only) to use it only to send notes to other modules. A key touched near its front edge plays louder than near the back; Preferences > Key velocity can fix one strength instead.';
 
   @override
   String get guidePatchSlotVocoder => 'Vocoder';

@@ -73,8 +73,9 @@
     <p class="recipe-result">Each key now plays three notes. You do not cable anything out of the Harmonizer: the keyboard plays what it sends back.</p>
     <ul>
       <li>It works on instruments that make their own sound: the keyboard with a soundfont, the Vocoder, the Stylophone and the Theremin.
-        A keyboard set to <span class="ui">None (MIDI only)</span> skips MIDI FX when you play its on-screen keys.</li>
-      <li>To use two MIDI FX on one keyboard, cable the keyboard's <code>MIDI OUT</code> to each of them.</li>
+        A keyboard set to <span class="ui">None (MIDI only)</span> passes the result on to the instruments its <code>MIDI OUT</code> is cabled to.</li>
+      <li>To use two MIDI FX on one keyboard, cable the keyboard's <code>MIDI OUT</code> to each of them.
+        They apply from top to bottom, in the order they sit in the rack, whether you play on the screen or on a controller.</li>
       <li>The power button at the top of a MIDI FX switches it off (<span class="ui">Bypass</span>). To flip it from a pad on your controller,
         see <a href="../guide/#learn">Map a knob</a>.</li>
       <li>The labels on these panels appear in English in every language.</li>

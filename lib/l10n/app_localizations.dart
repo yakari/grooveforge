@@ -476,6 +476,42 @@ abstract class AppLocalizations {
   /// **'Number of white keys shown when no per-slot override is set'**
   String get visibleKeysSubtitle;
 
+  /// No description provided for @pianoVelocityTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Key velocity'**
+  String get pianoVelocityTitle;
+
+  /// No description provided for @pianoVelocitySubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'How hard the on-screen keys play. By touch: the closer to the front edge of the key, the louder.'**
+  String get pianoVelocitySubtitle;
+
+  /// No description provided for @pianoVelocityTouch.
+  ///
+  /// In en, this message translates to:
+  /// **'By touch'**
+  String get pianoVelocityTouch;
+
+  /// No description provided for @pianoVelocitySoft.
+  ///
+  /// In en, this message translates to:
+  /// **'Soft'**
+  String get pianoVelocitySoft;
+
+  /// No description provided for @pianoVelocityMedium.
+  ///
+  /// In en, this message translates to:
+  /// **'Medium'**
+  String get pianoVelocityMedium;
+
+  /// No description provided for @pianoVelocityLoud.
+  ///
+  /// In en, this message translates to:
+  /// **'Loud'**
+  String get pianoVelocityLoud;
+
   /// No description provided for @keys25.
   ///
   /// In en, this message translates to:
@@ -779,7 +815,7 @@ abstract class AppLocalizations {
   /// No description provided for @guidePatchSlotKeyboardDesc.
   ///
   /// In en, this message translates to:
-  /// **'Plays a piano or any sound from a soundfont (.sf2). Set it to None (MIDI only) to use it only to send notes to other modules.'**
+  /// **'Plays a piano or any sound from a soundfont (.sf2). Set it to None (MIDI only) to use it only to send notes to other modules. A key touched near its front edge plays louder than near the back; Preferences > Key velocity can fix one strength instead.'**
   String get guidePatchSlotKeyboardDesc;
 
   /// No description provided for @guidePatchSlotVocoder.

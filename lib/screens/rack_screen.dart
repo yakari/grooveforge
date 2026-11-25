@@ -774,7 +774,9 @@ class _RackScreenState extends State<RackScreen> {
     for (final cable in cables) {
       final target =
           rack.plugins.where((p) => p.id == cable.toSlotId).firstOrNull;
-      if (target == null) continue;
+      // MIDI FX, effects and loopers take the event in their own way; only
+      // instruments play it on their channel.
+      if (target == null || !rack.playsMidiNotes(target)) continue;
       if (target is Vst3PluginInstance) {
         _routeExpressionToVst3Slots(
           command: command,
@@ -830,7 +832,9 @@ class _RackScreenState extends State<RackScreen> {
     for (final cable in cables) {
       final target =
           rack.plugins.where((p) => p.id == cable.toSlotId).firstOrNull;
-      if (target == null) continue;
+      // MIDI FX, effects and loopers take the event in their own way; only
+      // instruments play it on their channel.
+      if (target == null || !rack.playsMidiNotes(target)) continue;
       final targetCh = (target.midiChannel - 1).clamp(0, 15);
       if (isNoteOn) {
         if (target is Vst3PluginInstance) {

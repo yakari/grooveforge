@@ -814,6 +814,44 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
               ),
             ),
             const SizedBox(height: 8),
+            // How hard the on-screen keys play: from the touch position, or
+            // one fixed strength (0 means "from the touch").
+            Card(
+              child: Consumer<AudioEngine>(
+                builder: (context, engine, _) {
+                  return ValueListenableBuilder<int>(
+                    valueListenable: engine.pianoVelocity,
+                    builder: (context, velocity, _) {
+                      return _ResponsivePreferenceRow(
+                        icon: const Icon(Icons.touch_app, color: Colors.orange),
+                        title: loc.pianoVelocityTitle,
+                        subtitle: loc.pianoVelocitySubtitle,
+                        trailing: DropdownButton<int>(
+                          value: [0, 64, 100, 127].contains(velocity)
+                              ? velocity
+                              : 0,
+                          items: [
+                            DropdownMenuItem(
+                                value: 0, child: Text(loc.pianoVelocityTouch)),
+                            DropdownMenuItem(
+                                value: 64, child: Text(loc.pianoVelocitySoft)),
+                            DropdownMenuItem(
+                                value: 100,
+                                child: Text(loc.pianoVelocityMedium)),
+                            DropdownMenuItem(
+                                value: 127, child: Text(loc.pianoVelocityLoud)),
+                          ],
+                          onChanged: (val) {
+                            if (val != null) engine.pianoVelocity.value = val;
+                          },
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 8),
             Card(
               child: Consumer<AudioEngine>(
                 builder: (context, engine, _) {
