@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Hébergement VST3 GrooveForge sous Linux et macOS — plugins, routage audio, fenêtres d’édition.">
-  <title>GrooveForge — Hébergement VST3</title>
+  <meta name="description" content="Charger des instruments et effets VST3 dans le rack GrooveForge sous Linux, macOS et Windows : ce qui marche, comment charger et câbler un plugin, et les limites actuelles.">
+  <title>GrooveForge — Plugins VST3</title>
   <link rel="icon" type="image/png" href="../../assets/icon.png">
   <link rel="stylesheet" href="../../css/site.css">
 </head>
@@ -41,52 +41,91 @@
 
   <main id="main" class="prose">
     <div class="page-hero">
-      <h1>Hébergement VST3</h1>
-      <p class="lead">Utilisez des instruments et effets tiers dans le rack GrooveForge sur ordinateur.</p>
+      <h1>Plugins VST3</h1>
+      <p class="lead">Utilisez les instruments et effets VST3 installés sur votre ordinateur comme modules du rack.
+        Sur ordinateur uniquement : Linux, macOS et Windows.</p>
     </div>
 
-    <h2>Plateformes prises en charge (aujourd’hui)</h2>
-    <p>
-      <span class="badge badge-linux">Linux</span>
-      <span class="badge badge-macos">macOS</span>
-      — Hébergement VST3 complet : chargez des bundles <code>.vst3</code>, traitez l’audio dans le même graphe patch que les
-      modules intégrés, ouvrez l’<strong>éditeur natif</strong> de chaque plugin dans une fenêtre séparée (X11 sous Linux ;
-      toolkit natif sous macOS). BPM et transport sont transmis pour garder les effets synchronisés au tempo alignés sur GrooveForge.
-    </p>
-    <p>
-      <strong>Windows :</strong> la plomberie existe dans le code mais l’intégration audio WASAPI est encore en cours — considérez
-      le VST3 Windows comme <em>prévu</em> jusqu’à une annonce dans le journal des modifications.
-    </p>
-    <p>
-      <span class="badge badge-web">Web / Android</span>
-      — le VST3 n’est <strong>pas</strong> disponible ; utilisez le clavier GrooveForge, les effets <code>.gfpd</code> fournis
-      et les MIDI FX.
-    </p>
+    <h2>Où ça marche</h2>
+    <table>
+      <thead>
+        <tr><th>Plateforme</th><th>Charger des plugins</th><th>Fenêtre du plugin</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Linux</td><td>Oui</td><td>Oui</td></tr>
+        <tr><td>macOS</td><td>Oui</td><td>Oui</td></tr>
+        <tr><td>Windows</td><td>Oui</td><td>Pas encore : utilisez les réglages du rack</td></tr>
+        <tr><td>Android, iOS, démo web</td><td>Non</td><td>Non</td></tr>
+      </tbody>
+    </table>
+    <p>Un projet qui contient un plugin VST3 s'ouvre quand même sur un téléphone. Le module du plugin affiche
+      <span class="ui">Ce plugin VST3 n'est pas disponible sur mobile.</span> et reste muet.</p>
 
-    <h2>Charger un plugin</h2>
+    <h2 id="charger">Charger un plugin</h2>
+    <p class="recipe-goal">Ajoutez au rack un instrument ou un effet installé.</p>
     <ol>
-      <li>Touchez <strong>+</strong> dans le rack → <strong>Parcourir les VST3</strong> (bureau uniquement).</li>
-      <li>Sélectionnez le dossier ou fichier du bundle <code>.vst3</code> (sélecteur dépendant de l’OS).</li>
-      <li>Les paramètres apparaissent en potentiomètres rotatifs groupés dans la carte du slot ; <strong>Afficher l’interface du plugin</strong> ouvre la fenêtre de l’éditeur.</li>
+      <li>Touchez <span class="ui">+</span> et descendez jusqu'à <span class="ui">Plugins VST3</span>.</li>
+      <li>Touchez <span class="ui">Choisir un instrument installé</span> ou <span class="ui">Choisir un effet installé</span>,
+        puis choisissez un plugin dans la liste.</li>
+      <li>Il n'y est pas ? Touchez <span class="ui">Parcourir un instrument VST3…</span> ou <span class="ui">Parcourir un effet VST3…</span>
+        et sélectionnez le dossier <code>.vst3</code> du plugin.</li>
     </ol>
+    <p class="recipe-result">Le plugin apparaît dans le rack sous forme de module. Un instrument a un badge <span class="ui">MIDI CH</span> ;
+      un effet n'en a pas.</p>
+    <p class="recipe-note">La liste ne montre que les plugins placés directement dans ces dossiers. Pour un plugin rangé dans un sous-dossier, passez par Parcourir.</p>
+    <table>
+      <thead><tr><th>Système</th><th>Dossiers parcourus</th></tr></thead>
+      <tbody>
+        <tr><td>Linux</td><td><code>~/.vst3</code>, <code>/usr/lib/vst3</code>, <code>/usr/local/lib/vst3</code></td></tr>
+        <tr><td>macOS</td><td><code>~/Library/Audio/Plug-Ins/VST3</code>, <code>/Library/Audio/Plug-Ins/VST3</code></td></tr>
+        <tr><td>Windows</td><td><code>C:\Program Files\Common Files\VST3</code></td></tr>
+      </tbody>
+    </table>
 
-    <h2>Routage audio</h2>
+    <h2 id="jouer">Jouer d'un instrument VST3</h2>
+    <p class="recipe-goal">Envoyez-lui des notes, comme à n'importe quel instrument.</p>
+    <ul>
+      <li>Depuis un contrôleur MIDI : réglez le badge <span class="ui">MIDI CH</span> du module sur le canal de votre contrôleur.</li>
+      <li>Depuis le clavier à l'écran : dans la <span class="ui">Vue de câblage</span>, reliez le <code>MIDI OUT</code> du clavier au
+        <code>MIDI IN</code> du plugin. Le guide montre la même chose avec Riff : <a href="../guide/#guitare">Jouer de la guitare au clavier</a>.</li>
+    </ul>
+    <p class="recipe-note">Les plugins suivent le tempo et la lecture de la barre de transport : les delays et arpégiateurs calés sur le tempo restent en place.</p>
+
+    <h2 id="effet">Mettre un effet après un instrument</h2>
+    <p class="recipe-goal">Faites passer n'importe quel instrument, intégré ou VST3, dans un effet VST3.</p>
+    <ol>
+      <li>Chargez l'effet (voir plus haut).</li>
+      <li>Dans la <span class="ui">Vue de câblage</span>, reliez les <code>AUDIO OUT L</code> et <code>R</code> de l'instrument
+        aux <code>AUDIO IN L</code> et <code>R</code> de l'effet.</li>
+    </ol>
+    <p class="recipe-result">Vous entendez l'instrument à travers l'effet.</p>
+    <p class="recipe-note">Sur un instrument VST3, il y a un raccourci : touchez <span class="ui">FX</span> en bas de son module,
+      puis <span class="ui">Ajouter un effet</span>. Vous choisissez le dossier <code>.vst3</code> de l'effet et les câbles sont tirés pour vous.</p>
+
+    <h2 id="reglages">Régler le plugin</h2>
+    <ul>
+      <li>Dans le module, touchez <span class="ui">PARAMETERS</span> pour le déplier, puis un groupe pour ouvrir ses boutons.
+        Un champ de recherche aide pour les plugins qui ont des centaines de réglages.</li>
+      <li>Sous Linux et macOS, touchez <span class="ui">Show Plugin UI</span> pour ouvrir la fenêtre du plugin.</li>
+    </ul>
     <p>
-      Dans la vue patch, reliez la sortie audio d’un clavier ou d’un autre plugin à l’entrée audio d’un VST, puis vers le bus
-      principal ou d’autres effets. L’ordre suit le graphe de câbles (traitement topologique). Enregistrez le projet pour
-      capturer à la fois le rack et les instantanés de paramètres VST dans le <code>.gf</code>.
+      Sous Linux, certains plugins dessinent leur fenêtre en OpenGL et ne s'ouvrent pas sous Wayland. L'application
+      vous le signale. Lancez GrooveForge avec <code>LIBGL_ALWAYS_SOFTWARE=1</code>, ou dans une session X11, et réessayez.
     </p>
+    <p>Enregistrer le projet garde chaque plugin et les valeurs de ses paramètres.</p>
 
-    <figure class="figure-card figure-doc">
-      <img src="../../assets/screenshots/04_grooveforge_back_wiring.png" width="920" height="518" loading="lazy" alt="Graphe patch : jacks audio entre slots du rack">
-      <figcaption>Les VST3 sont des slots comme les autres dans le graphe audio — reliez sorties et entrées dans la vue arrière.</figcaption>
-    </figure>
+    <h2 id="limites">Ce qui ne marche pas encore</h2>
+    <ul>
+      <li>Seules les notes arrivent à un instrument VST3. Le pitch bend, la molette de modulation et les autres messages de contrôle (CC) ne passent pas.</li>
+      <li>L'accordage microtonal de Xen ne s'applique pas aux instruments VST3 : ils jouent avec l'accordage habituel.</li>
+      <li>Sous Windows, la fenêtre du plugin ne s'ouvre pas.</li>
+    </ul>
 
-    <h2>Prérequis de compilation</h2>
+    <h2 id="compiler">Compiler GrooveForge vous-même</h2>
     <p>
-      Le SDK VST3 de Steinberg n’est pas inclus dans le dépôt. Clonez-le dans
-      <code>packages/flutter_vst3/vst3sdk</code> (avec sous-modules) avant de compiler les cibles bureau — voir le
-      <a href="https://github.com/yakari/grooveforge#readme">README</a> sur GitHub pour la commande exacte.
+      Le SDK VST3 de Steinberg n'est pas dans le dépôt. Avant de compiler pour Linux, macOS ou Windows, clonez-le
+      dans <code>packages/flutter_vst3/vst3sdk</code> avec ses sous-modules. La commande est dans le
+      <a href="https://github.com/yakari/grooveforge#readme">README</a>.
     </p>
 
     <p><a href="../midi-fx/">← MIDI FX</a> · <a href="../gfdrum/">Patterns .gfdrum →</a></p>

@@ -1,230 +1,194 @@
-# GrooveForge Features
+# All features
 
-GrooveForge was mainly developed as a tool to **learn scales**. The **Xen** module locks a keyboard to any of 92 scales — hold a note, tap a scale — and retunes it when the scale is not equal-tempered; the **Jam Mode** plugin does the same from a master instrument, following a chord or bass note played on another channel. Wrong notes snap to the nearest degree, with key highlighting as visual feedback. From that core, it grew into a full cross-platform music workstation: a plugin rack with multi-timbral synthesis, **VST3 hosting** (desktop), a **MIDI looper**, and built-in instruments such as the vocoder, Stylophone, and Theremin. It runs on Linux, macOS, Windows, Android, and as a web app (WASM).
+Everything GrooveForge does, one line each. For step-by-step help, see the [Getting started guide](../guide/).
 
----
-
-## Platform & Deployment
-
-*   **Desktop (Linux, macOS, Windows)**  
-    Full support: FluidSynth synthesis, Vocoder (native C/FFI), VST3 plugin hosting, ALSA (Linux) / CoreAudio (macOS) / WASAPI (Windows) audio. Linux uses a background FluidSynth CLI process for low latency; macOS and Windows use in-process engines.
-
-*   **Android**  
-    GrooveForge Keyboard with SoundFont and Vocoder, Stylophone, Theremin (including CAM mode), Jam Mode, MIDI Looper, and external MIDI. VST3 hosting is desktop-only. Uses Oboe for low-latency audio.
-
-*   **iOS**  
-    Unsupported for now: the iOS build has never been tested.
-
-*   **Web (WASM)**  
-    Flutter web build deployable to GitHub Pages: the marketing and documentation site is served at the repository path root, and the interactive WASM app at `/demo/` (e.g. `https://<user>.github.io/<repo>/demo/`). A French mirror of the handbook lives under `/fr/`; long-form lists use `docs/features.fr.md` and `docs/privacy.fr.md` at `/fr/features/` and `/fr/privacy/`. SF2 playback uses a SpessaSynth JavaScript bridge; Stylophone and Theremin use the Web Audio API. Project “Save As…” triggers a browser download of a `.gf` file. No persistent project storage; each session starts from defaults.
+Limits are marked in the line they apply to: *Desktop only*, *Android only*, *Not in the web demo*.
 
 ---
 
-## Plugin Rack & Patch View
+## Play
 
-*   **Dynamic Rack**  
-    An ordered, drag-and-drop list of plugin slots. Add, remove, and reorder slots at any time. Each slot has its own MIDI channel (or shared channel 0 for MIDI FX like Jam Mode and Looper).
+### Keyboards and scales
 
-*   **Add Plugin Sheet**  
-    Choose from: GrooveForge Keyboard, Virtual Piano, Vocoder, Stylophone, Theremin, Jam Mode (single instance), MIDI Looper (single instance), or Browse VST3 (desktop only).
+- **GrooveForge Keyboard** plays a soundfont (.sf2) on its own MIDI channel. Each keyboard picks its own soundfont, bank and patch.
+- Set its soundfont to **None (MIDI only)** and the keyboard makes no sound: it only sends notes to other modules. [How](../guide/#guitar)
+- The tune icon next to the MIDI CH badge sets, for one keyboard: how many keys show, key height (Small to Extra Large), what a vertical or horizontal swipe does (pitch bend, vibrato, glissando) and which CC aftertouch sends.
+- The keyboard names the chord you hold (Cmaj7, F#m11). Tap that name to lock the keyboard to the chord's scale.
+- Load your own soundfonts in Preferences, with **Load Soundfont (.sf2)**.
 
-*   **Back-of-Rack Patch View**  
-    Toggle via the cable icon in the app bar. Each slot shows a rear panel with coloured jacks: MIDI IN / MIDI OUT, Audio IN L/R, Audio OUT L/R, Send/Return, and Data (chord/scale for Jam Mode). Cables are drawn as bezier curves; long-press an output to start a cable, drop on a compatible input to connect. Tap a cable to disconnect.
+### Xen: play in a scale
 
-*   **Audio Graph**  
-    A directed graph validates port compatibility, prevents duplicate edges, and detects cycles. MIDI and audio routing are persisted in `.gf` project files and restored on load.
+- Hold a key and tap a scale: the key becomes the root and every note you play lands in that scale. [How](../guide/#scale)
+- 92 scales in 11 families: Western, Maqam, Persian, Raga, Far East, SE Asia, Gamelan, Africa, Europe, Temperaments and Experimental (equal divisions from 13 to 31 notes, Bohlen-Pierce, Wendy Carlos's alpha, beta and gamma).
+- Scales with notes between the piano keys retune the keys they use. Every note of a chord keeps its own tuning.
+- Grey keys are outside the scale; retuned keys get a teal band and their offset in cents.
+- **SNAP** (move wrong notes into the scale) and **TUNE** (apply the scale's tuning) switch on and off separately, and each has its own socket.
+- The **Scale editor** builds your own scales, saved under **My Scales**. It imports and exports Scala (.scl) files and GrooveForge .json files.
+- A project keeps a copy of the custom scales it uses, so it plays correctly on another device.
+- New projects start with a keyboard and a Xen module, switched off until you pick a scale.
 
----
+### Jam Mode: follow another player
 
-## Built-in Instruments & Plugins
+- One keyboard (the leader) plays chords or a bass line; the keyboards you add as targets stay in the scale that fits. One Jam Mode per project.
+- **DETECT** chooses what sets the scale: the chord the leader holds, or its lowest note.
+- 14 scale types, from Standard, Blues and Pentatonic to Dorian, Harmonic Minor and Whole Tone.
+- **SYNC** makes the scale change only on the beat, on half a bar or on the bar.
+- Optional key borders and wrong-note highlights show what fits.
+- **Pin below transport** keeps a one-line Jam Mode strip under the transport bar.
 
-### GrooveForge Keyboard
+### Instruments
 
-*   **Multi-timbral engine**  
-    Up to 16 independent MIDI channels, each with its own SoundFont (`.sf2`), bank, and program patch. Load multiple soundfonts and assign different instruments per channel.
-
-*   **Per-slot Vocoder**  
-    Optional vocoder on each keyboard slot: mic input shapes a carrier (Saw, Square, Choral, or Natural/PSOLA “autotune” mode). Pitch bend and vibrato (CC#1) supported. Mic gain and device are configurable in the audio settings bar or Preferences.
-
-*   **Per-slot keyboard config**  
-    Tap the tune icon (⊞) next to the MIDI channel badge to set visible key count, key height (Compact / Normal / Large / Extra Large), vertical/horizontal gesture actions (pitch bend, vibrato, glissando), and aftertouch destination CC. Stored in the project file.
-
-### Vocoder (GFPA)
-
-*   **Dedicated slot**  
-    Own MIDI channel, on-screen piano, and rear-panel jacks. Multiple vocoder slots can coexist.
-
-*   **Waveforms**  
-    Saw, Square, Choral, and Natural. Natural mode uses a PSOLA pitch shifter (autotune-style) that preserves voice timbre instead of the filterbank.
-
-*   **Pitch bend & vibrato**  
-    MIDI pitch bend (±2 semitones) and CC#1 (mod wheel) for vibrato depth. Same per-slot keyboard config as GF Keyboard and Virtual Piano.
-
-### Stylophone (GFPA)
-
-*   **Monophonic 25-key chromatic strip**  
-    Four waveforms (SQR, SAW, SIN, TRI), click-free legato, octave shift ±2. VIB button toggles a 5.5 Hz ±0.5-semitone LFO (tape wobble). MUTE silences the built-in synth while MIDI OUT keeps sending note data.
-
-*   **MIDI OUT**  
-    Connect to a GF Keyboard, VST3, or Looper in the patch view.
-
-### Theremin (GFPA)
-
-*   **Touch pad**  
-    Vertical position = pitch, horizontal = volume. Native C sine oscillator with portamento (~42 ms), 6.5 Hz vibrato LFO (0–100 %), configurable base note and range. Pad height (S/M/L/XL) and MIDI OUT / MUTE behave like the Stylophone.
-
-*   **CAM mode (Android, iOS, macOS)**  
-    Hand proximity via front camera (autofocus or brightness/contrast fallback) controls pitch. Live semi-transparent preview behind the orb; selfie-mirrored on mobile. Permission described in the privacy policy.
-
-### Jam Mode (GFPA, single instance)
-
-*   **Master → targets**  
-    One Jam Mode slot selects a master channel (e.g. a keyboard or Virtual Piano). When the master plays, all target slots (keyboards, vocoders) lock to the same scale. Multiple targets per Jam slot.
-
-*   **Detection**  
-    Chord mode: real-time chord detection drives the scale root. Bass note mode: lowest held note on the master sets the root (e.g. walking bass).
-
-*   **Scale types**  
-    Standard, Jazz, Blues, Rock, Pentatonic, Dorian, Mixolydian, Harmonic Minor, Melodic Minor, Whole Tone, Diminished, Asiatic, Oriental, Classical. Scale name and type are shown on a live LCD; scale type is selectable in the slot.
-
-*   **BPM lock**  
-    Optional sync (Off / 1 beat / ½ bar / 1 bar) so scale root updates only on beat boundaries. Uses the global transport BPM.
-
-*   **Pin below transport**  
-    Compact one-line strip (slot name, ON/OFF LED, scale LCD) under the transport bar for quick access without scrolling.
-
-### Xen (GFPA, scales and microtuning)
-
-*   **Hold a note, tap a scale**  
-    The note being held becomes the tonic and the keyboard locks to the scale built on it. Unlike Jam Mode it needs no master channel: one keyboard, one gesture. The tonic stays put until the gesture is repeated, so the module accompanies your own harmony rather than following someone else's.
-
-*   **92 scales across eleven families**  
-    Western modes; Arabic and Turkish maqamat; Persian dastgah; Indian ragas in just intonation; Chinese, Japanese and Korean modes; Thai seven-equal; Javanese and Balinese gamelan; Ethiopian qenet and Ugandan amadinda; Highland pipe, hardanger fiddle and Byzantine chant; historical temperaments; and equal divisions from 13 to 31 tones, Bohlen-Pierce, Blackwood's decatonic and Wendy Carlos's non-octave alpha, beta and gamma.
-
-*   **Two stages, patched separately**  
-    SNAP quantises out-of-scale notes; TUNE applies the scale's own intonation. Each has its own back-panel jack, so a keyboard can be locked without being retuned, or retuned without being locked.
-
-*   **Polyphonic retuning**  
-    Uses a full MIDI tuning table rather than pitch bend, so every note of a chord sounds at its own pitch. Pitch bend is per channel and can only move one note at a time — which is what limits the older Microtone plugin to a single microtonal voice.
-
-*   **Visual feedback**  
-    Out-of-scale keys grey out on the on-screen keyboard; retuned keys carry a teal band and their offset in cents. Each scale states where its numbers come from — exact for a temperament or an equal division, conventional for a maqam, averaged for a gamelan or an Ethiopian qenet, which are tuned by ear and differ between instruments.
-
-*   **Scale editor, import and export**  
-    Build your own: any number of degrees, an offset per key, and a mute that keeps a degree playable and retuned while the snap ignores it. Import and export Scala (.scl) files, or GrooveForge JSON for a faithful round trip. Custom scales are stored both in the app library and inside the project file, so a .gf plays correctly on a machine that has never seen that scale.
-
-*   **Pad bank**  
-    Bind one scale per hardware CC, several at once, each jumping straight to its own. SNAP and TUNE are separately mappable.
-
-### MIDI Looper (single instance)
-
-*   **Multi-track MIDI looper**  
-    MIDI IN / MIDI OUT jacks; record from any connected source (GF Keyboard, Virtual Piano, Stylophone, Theremin, external MIDI), loop back to instruments, overdub additional layers.
-
-*   **Transport**  
-    REC, PLAY, OVERDUB (layers icon), STOP, CLEAR. State LCD; per-track chord grid (scrollable bar cells). Mute, reverse (R), and speed (½× / 1× / 2×) per track. Record-stop quantization (off / 1/4 / 1/8 / 1/16 / 1/32) per track; Q chip in the transport strip.
-
-*   **Persistence**  
-    Tracks and chord grids saved in `.gf` under `looperSessions`. Global CC mapping for Looper actions (record, play, overdub, stop, clear) and “pin below transport” strip.
-
-### VST3 Hosting (desktop)
-
-*   **Load any .vst3**  
-    “Browse VST3” in the Add Plugin sheet. Parameters shown as rotary knobs by category; native plugin editor opens in a separate window (e.g. X11 on Linux).
-
-*   **Audio routing**  
-    Draw audio cables in the patch view; source plugin output can feed another plugin’s input instead of the master bus. Topological processing order.
-
-*   **Transport**  
-    BPM, play/stop, and beat position are sent to VST3 so tempo-synced effects stay in time.
+- **Riff** is an electric guitar modelled string by string. It has no keys: a keyboard or a controller sends it notes. [How](../guide/#guitar)
+- Riff's palm mute, pick position, pickups, tone and sustain change strings that are already ringing. Legato plays hammer-ons and pull-offs; Feedback makes held notes bloom into a harmonic. *Not in the web demo.*
+- **Vocoder**: sing into the mic and play keys; your voice takes the pitch of the notes. Four modes: Saw, Square, Choral and Harmony (your own voice, pitch-shifted to each key). *Not in the web demo.*
+- **Stylophone**: a 25-key strip played with one finger, one note at a time. Four waveforms, octave shift, vibrato (VIB), and chiptune controls (pulse width, noise, bit crusher, sub-octave, a fast chord arpeggio).
+- **Theremin**: a touch pad, up and down for pitch, left and right for volume. Base note, range, vibrato and pad height are adjustable.
+- Theremin **CAM** mode plays pitch from how close your hand is to the camera. *Android and macOS.*
+- Stylophone and Theremin have a MIDI OUT socket, and a MUTE button that silences their own sound so they can play another instrument.
+- **Live Input** brings a microphone or line input into the rack, so you can send it through effects or into a looper. *Not in the web demo.*
+- On a phone, Live Input mutes itself when the phone's speaker would feed back into its mic. **Unmute anyway** overrides it. *Android only.*
+- **VST3 instruments**: load any installed VST3 instrument, or browse to a .vst3 file. Its settings show as knobs. *Desktop only.*
+- The plugin's own window opens from its slot. *Linux and macOS; on Windows, use the knobs.*
 
 ---
 
-## Transport & Global Controls
+## Shape the sound
 
-*   **Transport bar**  
-    BPM (editable, ± nudge, scroll-wheel), Tap Tempo, ▶ Play / ■ Stop, time signature, beat-pulse LED, audible metronome toggle. State saved in the project.
+To put an effect after an instrument, cable them in Patch view: [Add an effect](../guide/#effect). One effect module processes one instrument; add a second module for a second instrument.
 
-*   **Audio settings bar (collapsible)**  
-    Below the transport: FluidSynth gain (Linux), mic sensitivity, mic device, output device (Android). Chevron toggles visibility.
+### Audio effects
 
----
+*Not in the web demo.*
 
-## Music Theory & Scale Locking
+- **Amp**: a drive pedal (Overdrive or Distortion), three amp models (US, Brit, AC) and three speaker cabinets. Each section switches on and off. [How](../guide/#amp)
+- Amp can load a cabinet impulse response (IR) from a .wav file instead of its own cabinets. The IR is saved with the project.
+- **Plate Reverb**: stereo reverb.
+- **Ping-Pong Delay**: stereo echo that can follow the tempo.
+- **Wah**: Auto mode sweeps by itself, in time with the tempo; Manual mode follows a pedal or a knob on your controller.
+- **4-Band EQ**: bass, two middle bands and treble.
+- **Compressor**: evens out loud and quiet playing.
+- **Chorus / Flanger**: stereo chorus that can follow the tempo.
+- **Audio Harmonizer**: adds up to 4 harmony voices to any sound. With **Scale Lock** on, the voices follow the scale from Xen or Jam Mode.
+- **Autotune**: pulls a voice onto the notes of a key and scale, from a light touch to a robot voice. It shows the note you sing and how many cents off it is.
+- **VST3 effects** go after any instrument or effect. *Desktop only.*
 
-*   **Real-time chord detection**  
-    Per-channel analysis of held notes; UI shows the current chord (e.g. Cmaj7, F#m11). “Sustain memory”: last chord stays visible (dimmed) after release.
+### MIDI FX: change the notes
 
-*   **Scale lock (classic)**  
-    On a keyboard or Virtual Piano slot, tap the chord display (or use a mapped CC) to lock to the last detected chord. New notes outside the scale are snapped to the nearest scale degree. Scale type (Standard, Blues, Pentatonic, etc.) is selectable per channel. Overlapping polyphony is tracked so glissandos articulate cleanly.
+MIDI FX change the notes before an instrument plays them. More on the [MIDI FX page](../midi-fx/).
 
-*   **Jam Mode scale lock**  
-    Same snapping and scale types, but driven by the Jam Mode master (chord or bass note). Piano key highlighting (root, in-scale, wrong notes) and optional borders/dimming are configurable in the Jam Mode slot or Preferences.
+- **Harmonizer**: adds up to 4 notes above each note you play. Plug a keyboard's CHORD OUT into it and the chord you hold sets the intervals.
+- **Chord Expand**: turns each note into a full chord (11 chord types, close, open or wide).
+- **Arpeggiator**: plays held notes one after another, in 6 patterns and 12 speeds, over 1 to 3 octaves.
+- **Transposer**: moves every note up or down, up to 24 semitones.
+- **Velocity Curve**: changes how hard or soft your playing sounds.
+- **Gate**: lets through only the notes inside a velocity or pitch range.
+- **Microtone**: plays the notes you hold together as one note between them, using pitch bend.
+- Every MIDI FX has an on/off button that can be mapped to a controller.
+- **Load .gfpd from file…** adds a module written as a plugin descriptor. See [Plugin descriptors](../gfpd/).
 
----
+### Patch view
 
-## CC Mapping & Hardware
-
-*   **Map hardware to MIDI or actions**  
-    In Preferences, assign physical CCs to General MIDI effects (volume, expression, reverb, pan, etc.) or to GrooveForge actions: Next/Prev Soundfont, Next/Prev Program, Absolute Patch Sweep, Next/Prev Bank, Global Scale Cycle, Looper Record/Play/Overdub/Stop/Clear, Mute/Unmute Channels (with channel checklist). Same channel, omni, or fixed target channel.
-
-*   **External MIDI**  
-    Connect controllers; notes and expression (pitch bend, CC, channel pressure) flow through the rack and cables. Virtual Piano and other slots can relay MIDI to VST3, Looper, or instruments.
-
----
-
-## Projects & Persistence
-
-*   **.gf project files**  
-    JSON format: rack plugins, audio graph, transport (BPM, time sig, metronome), looper sessions, VST3 parameter snapshots, per-slot keyboard and Jam/Looper config. Open/Save/Save As in the project menu.
-
-*   **Autosave**  
-    Last session is autosaved on change (desktop and mobile); reloaded on next launch. Web has no persistent storage; use “Save As…” to download a `.gf` file.
-
-*   **Save As on all platforms**  
-    Android and web use the file picker with project bytes: on web a download is triggered; on Android the file is written to the chosen location. Linux/macOS/Windows use the native save dialog and path.
+- The cable icon at the top shows the back of every module. Long-press a socket and drag to another to connect them. [How sound moves](../guide/)
+- Socket colours: yellow for notes (MIDI), red and white for sound, orange for effect loops, purple for chord and scale, teal for tuning. [Socket colours](../guide/#sockets)
+- Tap the ✕ on a cable to remove it. [How](../guide/#remove)
 
 ---
 
-## UI & Preferences
+## Rhythm and loops
 
-*   **Rack dashboard**  
-    Slots show active state (e.g. blue glow when notes are playing or Looper is playing back). Tap a slot to open its panel or patch assignment.
+- The transport bar sets the tempo (20 to 300 BPM, typed, nudged with − and +, or tapped with **Tap**), the time signature, play and stop, and the metronome.
+- Drums, loopers, tempo-synced effects and VST3 plugins all follow that one tempo.
 
-*   **Preferences**  
-    Global defaults for key count, key height, gesture actions, aftertouch CC; MIDI device list and CC mapping; FluidSynth gain (Linux); mic and output devices; Jam Mode borders and wrong-note highlighting. Labels indicate when a setting is overridable per slot.
+### Drum Generator
 
-*   **Localisation**  
-    English and French via Flutter `AppLocalizations`; all user-visible strings are localised.
+- Plays a drum pattern in time with the transport. [How](../guide/#drums)
+- 35 bundled patterns: rock, funk, disco, jazz, Latin, Brazilian, Celtic, marches, techno, dub, R&B, metal, and Arabic, Turkish, Persian, Indian, Japanese and Chinese rhythms.
+- **Swing** and **Human feel** change the groove, from a strict grid to a live drummer.
+- **Count-in**, **Fill every** (a fill every few bars), crash after a fill, and a dynamic build.
+- **Load .gfdrum…** plays your own patterns. See [Rhythmic patterns](../gfdrum/).
 
----
+### MIDI Looper
 
-## Rehearsals
+- Records the notes you play, loops them back to an instrument, and records new layers on top. One per project.
+- Each track has mute, reverse, half or double speed, volume and its own quantize setting (off to 1/32).
+- Shows the chord of each bar.
+- **Pin below transport** keeps its controls under the transport bar.
 
-*   **A band learning a tune, on the phones they already have**
-    A second main screen beside the rack. Everyone adds a lane for their instrument and records their own part over a shared click, on their own device. You record your own parts and nobody else's; yours can be re-recorded or deleted freely.
+### Audio Looper
 
-*   **Overdubs that land on the beat**
-    Every device takes a moment to play sound and a moment to capture it, and that delay would put each take behind the beat. GrooveForge measures the round trip on the device itself — a chirp, cross-correlated against what comes back — and shifts each take by it. Measured and remembered per output: the speaker, a wired headset and each Bluetooth headset keep their own figure, because the delay belongs to the gear.
+*Not in the web demo.*
 
-*   **Play along to a recording**
-    Import a master track (MP3, FLAC and WAV everywhere; M4A, AAC and video soundtracks on Android), tap the tempo, and drag a marker to the first downbeat. Zoom into the waveform, scroll along it, and line the grid up against red beat lines. The click switches itself off once a recording is there, because that is the tempo now.
-
-*   **Practice speed**
-    Slow a tune to 50% to work a passage, without the pitch dropping — the recordings are time-stretched through the phase vocoder rather than played slower. Local to your device: one player working a hard bar at half speed does not drag the band down with them.
-
-*   **Chord grid**
-    Write the tune's form bar by bar, one to four chords a bar, with the bar being played lit up. Collapsed to one line it scrolls itself while you play. Chord symbols are read properly — `Ab`, `C#m7`, `Gm7b5`, `C6/9`, `Am(M7)/B` — into a root, a triad and a full set of intervals.
-
-*   **Shared score folder**
-    Add a PDF, a chart or a photo of a page to a tune, and everyone in the band gets a copy. Scans open full screen and zoomable; anything else opens in whatever the device already uses for it.
-
-*   **Sync with no server and no account**
-    Parts travel directly from device to device over the local network, encrypted. Show a QR code once, or send a link; from then on the devices find each other by themselves. The merge is symmetric and conflict-free, so there is no host: any two devices that meet converge on the same arrangement, in any order, and a device that was away catches up whenever it next appears. It works in a room with no internet at all.
-
-*   **Knowing where everyone is**
-    A dot on each lane says whether the player who owns it is connected. A take that has not reached every device in the room is flagged, so nobody packs up mid-transfer. A player who has gone for good can be removed, taking their parts with them everywhere.
+- Records the sound of any module cabled into it, effects included, and loops it. [How](../guide/#loop)
+- With bar sync on, recording starts on the next bar and the loop is rounded to whole bars.
+- Overdub, reverse, and a **Source** menu to pick what it records without opening Patch view.
+- Change the tempo and loops follow it without changing pitch.
+- Loops are saved as WAV files next to the project. The slot warns you when loops use more than 256 MB of memory.
 
 ---
 
-*Last updated: 2026-09-08*
+## Play together: Rehearsals
+
+The **Rehearse** tab. Each player records their own part of a tune on their own device. Full walkthrough on the [Rehearsals page](../rehearsals/).
+
+- **Start a tune** with a tempo, time signature and count-in, or **Join a tune** from another device. [How](../guide/#rehearsal)
+- Each player adds a part for their instrument and records it over a shared click. You can record again or delete your own parts, never someone else's.
+- Takes land on the beat: **Calibrate** measures how late your device plays and records, and each take is shifted back by that delay. The speaker, a wired headset and each Bluetooth headset are measured separately.
+- **Record from the rack**: a part can record a rack instrument directly instead of the microphone.
+- Import a recording to play along to (MP3, FLAC, WAV; on Android also M4A, AAC and the sound of a video). Tap the tempo and drag a marker onto the first downbeat to line up the grid.
+- **Practice speed** slows the tune down to 50% without lowering the pitch. It changes only your device.
+- **Chords**: write the chord grid bar by bar, up to four chords a bar. The bar being played lights up.
+- **Scores**: add a PDF, a chart or a photo of a page, and every player gets a copy.
+- Parts travel between devices over the local Wi-Fi, encrypted, with no server, no account and no internet. Join once with a QR code or a link; after that the devices find each other.
+- A dot on each part shows whether its player is connected. A warning tells you when a take has not reached everyone yet.
+- **Remove the speaker bleed** takes the click out of a take recorded with the phone's speaker on. The original is kept. *Android only.*
+- Scanning a QR code needs a phone camera. On a computer, paste the link instead.
+
+---
+
+## Controllers
+
+- Connect a USB MIDI keyboard or pad controller (an OTG adapter on a phone), or a Bluetooth one on Android, from **Preferences** > **Connect MIDI Device**. [How](../guide/#controller)
+- Your controller plays the module whose MIDI CH badge matches its channel (1 to 16).
+- Pitch bend, mod wheel, CCs and aftertouch reach the instruments, through cables and MIDI FX.
+- Map a knob, fader or pad to any control of a module: the sliders icon on the module, then **Learn**. [How](../guide/#learn)
+- **CC Mapping Preferences** maps a CC to: standard MIDI controls (volume, pan, expression, sustain, reverb send...), pitch bend, any module control, the loopers, play/stop, tap tempo, the metronome, or the system volume.
+- One knob can drive several targets at once.
+- System actions: next or previous soundfont and patch, a patch sweep, start or stop Jam Mode, cycle the scale type, and mute or unmute a set of channels with one button.
+- A pad can call up one exact soundfont patch (**Select Patch**) or one Xen scale. Several pads, several patches or scales.
+- **Channel Swap**: one button swaps two instruments' MIDI channels, with their cables and effects if you want.
+- **Neutral value on release**, for ribbons and touch strips that drop to 0 when you lift your finger.
+- System volume control works on Android, Linux and macOS.
+- Mappings are saved in the project.
+
+---
+
+## Projects and settings
+
+- A project (.gf file) keeps your modules, cables, settings, tempo, mappings, MIDI loops and custom scales. [How](../guide/#projects)
+- The folder icon has **New Project**, **Open Project** and **Save As…**.
+- The app keeps your current session between launches. *Not in the web demo: use* **Save As…** *to download a .gf file.*
+- Audio loops are saved as WAV files beside the project; the Amp's IR is saved inside it.
+- **Preferences**: default keyboard settings, soundfonts, MIDI devices, mic and output choice, language (English or French).
+- The audio bar under the transport sets keyboard gain, mic sensitivity and mic. On Android it also picks the output device.
+- The question-mark icon opens the in-app guide, including what changed in the latest version.
+
+---
+
+## Platforms
+
+- **Android**: everything except VST3. On [Google Play](https://play.google.com/store/apps/details?id=com.grooveforge.grooveforge), [F-Droid](https://f-droid.org/packages/com.grooveforge.grooveforge/) and the GitHub releases page.
+- **Linux**: everything, including VST3. Packages: .deb, .rpm, Arch, Flatpak and .zip. Audio goes through PipeWire or JACK, so you can route it to and from other audio apps.
+- **macOS**: everything, including VST3 and their own windows.
+- **Windows**: everything, including VST3, but VST3 plugin windows do not open yet: use GrooveForge's knobs.
+- **Web demo**: try it in a browser, no install. Vocoder, Riff, Audio Looper, Live Input and the audio effects are greyed out with an **Apps only** badge, and VST3 is not offered. Your session is not kept.
+- **iOS**: not supported. The build has never been tested.
+
+### Android only
+
+- **Direct USB output** (Preferences > Audio Output) plays through a USB audio interface that Android would drop when a USB microphone is plugged in too.
+- When the output falls back to a slow path, a warning shows with a **Restore low latency** button.
+- Sound can go to a chosen USB audio device; if it is unplugged, sound returns to the default output.
+
+---
+
+*Last updated: 2026-11-25*

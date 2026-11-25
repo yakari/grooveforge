@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="GrooveForge .gfdrum drum pattern format — YAML step grids, bundled patterns, download from main.">
+  <meta name="description" content="Reference for the .gfdrum drum pattern format: every field the Drum Generator reads, step grids, sections, and the bundled patterns to download.">
   <title>GrooveForge — .gfdrum drum patterns</title>
   <link rel="icon" type="image/png" href="../assets/icon.png">
   <link rel="stylesheet" href="../css/site.css">
@@ -42,73 +42,170 @@
   <main id="main" class="prose">
     <div class="page-hero">
       <h1><code>.gfdrum</code> patterns</h1>
-      <p class="lead">Declarative YAML drum patterns for the Drum Generator: step grids, humanisation, and song structure.</p>
+      <p class="lead">A <code>.gfdrum</code> file is a YAML text file that describes one drum style for the Drum Generator.
+        This page lists every field the app reads.</p>
     </div>
 
-    <figure class="figure-card figure-doc">
-      <img src="../assets/screenshots/01_grooveforge_main.png" width="920" height="518" loading="lazy" alt="Rack with Drum Generator slot and transport bar showing BPM and playback">
-      <figcaption>The Drum Generator is a rack slot like any other: patterns follow the <strong>transport</strong> (BPM, play/stop, time signature) together with the looper and metronome.</figcaption>
-    </figure>
-
-    <h2>What a pattern file contains</h2>
-    <p>
-      Each <code>.gfdrum</code> file is human-readable YAML (comments encouraged). Top-level fields describe the groove
-      musically and drive the scheduler:
-    </p>
+    <h2 id="load">Load your own pattern</h2>
+    <ol>
+      <li>Start from the bundled pattern closest to your style (<a href="#downloads">downloads below</a>) and edit it in a text editor.</li>
+      <li>In the Drum Generator module, tap <span class="ui">Load .gfdrum…</span> and pick your file.</li>
+    </ol>
+    <p class="recipe-result">The <span class="ui">Style</span> menu shows <span class="ui">Custom pattern</span> and the pattern plays.</p>
     <ul>
-      <li><code>name</code>, <code>family</code> — display and grouping.</li>
-      <li><code>bpm_range</code> — suggested tempo window <code>[min, max]</code>.</li>
-      <li><code>time_signature</code> — e.g. <code>[4, 4]</code> or <code>[3, 4]</code>; loading a pattern can align the transport.</li>
-      <li><code>resolution</code> — steps per bar (e.g. 16 for sixteenth notes in 4/4; 9 for triplet grids in 3/4).</li>
-      <li><code>feel</code> — <code>straight</code>, <code>swing_soft</code>, <code>swing_hard</code>, or <code>laid_back</code> (micro-timing of odd steps).</li>
+      <li>Not in the web demo.</li>
+      <li>The app does not keep the file between launches. After a restart, load it again.</li>
+      <li>If the file has errors, nothing happens and the previous pattern keeps playing.</li>
+      <li>Give your file its own name. A file called <code>rock_basic.gfdrum</code> replaces the bundled Classic Rock until the app restarts.</li>
     </ul>
 
-    <h2>Step grid notation</h2>
-    <p>Each character is one step for that instrument’s lane:</p>
-    <table class="download-table">
-      <thead><tr><th>Char</th><th>Meaning</th></tr></thead>
+    <h2 id="example">A short example</h2>
+    <pre><code>name: My Rock
+family: rock
+time_signature: [4, 4]
+resolution: 16
+feel: straight
+
+instruments:
+  kick:  { note: 36, base_velocity: 110, velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.15 }
+  snare: { note: 38, base_velocity: 105 }
+  hihat: { note: 42, base_velocity: 82 }
+  crash: { note: 49, base_velocity: 100, duration_beats: 0.25 }
+
+sections:
+  intro:
+    type: count_in
+    hits: 4
+    note: 37
+
+  groove:
+    variations:
+      - name: main
+        weight: 3
+        kick:  "X.......X......."
+        snare: "....X.......X..."
+        hihat: "X.x.X.x.X.x.X.x."
+      - name: push
+        weight: 1
+        kick:  "X.......X......X"
+        snare: "....X.......X..."
+        hihat: "X.x.X.x.X.x.X.x."
+
+  fill:
+    variations:
+      - name: snare_run
+        kick:  "X..............."
+        snare: "....X...X.X.X.X."
+
+  crash:
+    variations:
+      - name: standard
+        crash: "X..............."
+        kick:  "X..............."</code></pre>
+    <p>Each grid is one bar. With <code>resolution: 16</code> in 4/4, one character is a sixteenth note:</p>
+    <pre><code>position  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15
+count     1 e + a 2 e + a 3 e + a  4  e  +  a</code></pre>
+
+    <h2 id="top-level">Top-level fields</h2>
+    <table>
+      <thead><tr><th>Field</th><th>If missing</th><th>What it does</th></tr></thead>
       <tbody>
-        <tr><td><code>X</code></td><td>Strong accent (full velocity multiplier)</td></tr>
-        <tr><td><code>x</code></td><td>Medium accent</td></tr>
-        <tr><td><code>o</code></td><td>Soft hit</td></tr>
-        <tr><td><code>g</code></td><td>Ghost note (very low velocity)</td></tr>
-        <tr><td><code>.</code></td><td>Rest</td></tr>
+        <tr><td><code>name</code></td><td>The file name</td><td>Name in the <span class="ui">Style</span> menu.</td></tr>
+        <tr><td><code>family</code></td><td><code>other</code></td><td>Group in the <span class="ui">Style</span> menu. These values are translated in the app:
+          <code>rock</code>, <code>jazz</code>, <code>funk</code>, <code>latin</code>, <code>celtic</code>, <code>pop</code>, <code>electronic</code>,
+          <code>world</code>, <code>metal</code>, <code>country</code>, <code>folk</code>, <code>march</code>, <code>reggae</code>, <code>rnb</code>,
+          <code>arabic</code>, <code>turkish</code>, <code>persian</code>, <code>indian</code>, <code>fareast</code>. Any other value is shown as written.</td></tr>
+        <tr><td><code>time_signature</code></td><td><code>[4, 4]</code></td><td><code>[beats, note value]</code>, for example <code>[6, 8]</code> or <code>[9, 8]</code>.
+          Picking the pattern while the transport is stopped switches the transport to this time signature.</td></tr>
+        <tr><td><code>resolution</code></td><td><code>16</code></td><td>Steps per bar. Write every grid with exactly this many characters.
+          A shorter grid leaves the end of the bar empty; a longer one spills into the next bar.</td></tr>
+        <tr><td><code>feel</code></td><td><code>straight</code></td><td>Timing of the odd steps (1, 3, 5…). See <a href="#feel">Feel</a>.</td></tr>
+        <tr><td><code>instruments</code></td><td>Silence</td><td>The drum sounds, one lane each. See <a href="#instruments">Instruments</a>.</td></tr>
+        <tr><td><code>sections</code></td><td>Silence</td><td>What to play and when. See <a href="#sections">Sections</a>.</td></tr>
+      </tbody>
+    </table>
+    <p class="recipe-note">The bundled files also contain <code>bpm_range</code>, <code>humanization</code> and <code>structure</code>, and
+      <code>bars</code> inside sections. The app does not read them: changing them has no effect.</p>
+
+    <h3 id="feel">Feel</h3>
+    <table>
+      <thead><tr><th>Value</th><th>Effect</th></tr></thead>
+      <tbody>
+        <tr><td><code>straight</code></td><td>Every step on the grid.</td></tr>
+        <tr><td><code>swing_light</code> (or <code>swing_soft</code>)</td><td>Odd steps 16% of a step late.</td></tr>
+        <tr><td><code>swing_hard</code></td><td>Odd steps 34% of a step late, close to a triplet shuffle.</td></tr>
+        <tr><td><code>laid_back</code>, <code>pushed</code></td><td>Same as <code>straight</code> today. To drag or push a drum, use its <code>rush</code>.</td></tr>
+      </tbody>
+    </table>
+    <p>An unknown value plays as <code>straight</code>. Moving the module's <span class="ui">Swing</span> slider overrides the feel.
+      Slide it all the way left, where it reads <span class="ui">Pattern</span>, to use the file's.</p>
+
+    <h2 id="instruments">Instruments</h2>
+    <p>Under <code>instruments:</code>, each key is a lane name of your choice (<code>kick</code>, <code>surdo_open</code>…).
+      Grids that use a lane name not listed here are ignored.</p>
+    <table>
+      <thead><tr><th>Field</th><th>If missing</th><th>What it does</th></tr></thead>
+      <tbody>
+        <tr><td><code>note</code></td><td>Lane dropped</td><td>Required. General MIDI drum note: 36 kick, 37 side stick, 38 snare, 42 closed hi-hat, 46 open hi-hat, 49 crash, 51 ride.</td></tr>
+        <tr><td><code>base_velocity</code></td><td><code>100</code></td><td>Velocity (1 to 127) of an <code>X</code> hit. The other characters are fractions of it.</td></tr>
+        <tr><td><code>velocity_range</code></td><td><code>15</code></td><td>Random variation, plus or minus, added to each hit's velocity.</td></tr>
+        <tr><td><code>timing_jitter</code></td><td><code>0.02</code></td><td>Random variation of each hit's timing, plus or minus, in beats.</td></tr>
+        <tr><td><code>rush</code></td><td><code>0</code></td><td>Fixed shift in beats for every hit of this lane. Negative plays early, positive plays late.</td></tr>
+        <tr><td><code>duration_beats</code></td><td><code>0.1</code></td><td>Length of each note, in beats.</td></tr>
+      </tbody>
+    </table>
+    <p>The module's <span class="ui">Human feel</span> control scales <code>velocity_range</code> and <code>timing_jitter</code>.
+      At its lowest, every hit is exact.</p>
+
+    <h3 id="grid">Step grid characters</h3>
+    <table>
+      <thead><tr><th>Character</th><th>Hit</th><th>Velocity</th></tr></thead>
+      <tbody>
+        <tr><td><code>X</code></td><td>Accent</td><td><code>base_velocity</code></td></tr>
+        <tr><td><code>x</code></td><td>Medium</td><td>75%</td></tr>
+        <tr><td><code>o</code></td><td>Soft</td><td>55%</td></tr>
+        <tr><td><code>g</code></td><td>Ghost note</td><td>28%</td></tr>
+        <tr><td><code>.</code></td><td>Rest</td><td>None. Any other character is also a rest.</td></tr>
       </tbody>
     </table>
 
-    <h2>Instruments block</h2>
-    <p>
-      Under <code>instruments:</code>, each lane maps to a GM drum <code>note</code> number plus <code>base_velocity</code>,
-      <code>velocity_range</code>, <code>timing_jitter</code>, and <code>duration_beats</code>. Lane names are yours
-      (kick, snare, hihat, surdo_open, …) as long as each used lane is defined.
-    </p>
+    <h2 id="sections">Sections</h2>
+    <p>The generator plays sections with these five names. A section with any other name is never played.</p>
+    <table>
+      <thead><tr><th>Section</th><th>When it plays</th></tr></thead>
+      <tbody>
+        <tr><td><code>groove</code></td><td>Every bar that no other section takes. Without it, the pattern is silent.</td></tr>
+        <tr><td><code>intro</code></td><td>Before the groove, when the module's <span class="ui">Count-in</span> is set:
+          one bar for <span class="ui">1 bar</span> and <span class="ui">Chopsticks (4 hits)</span>, two bars for <span class="ui">2 bars</span>.
+          Without an <code>intro</code>, the groove plays during those bars.</td></tr>
+        <tr><td><code>fill</code></td><td>The last bar of every 4, 8 or 16 bars, or at random every 8 to 24 bars, set by <span class="ui">Fill every</span>.</td></tr>
+        <tr><td><code>crash</code></td><td>On top of the bar that follows a fill.</td></tr>
+        <tr><td><code>break</code></td><td>Never, in this version: the module has no setting that turns breaks on.</td></tr>
+      </tbody>
+    </table>
 
-    <h2>Sections</h2>
-    <p>Typical keys under <code>sections:</code>:</p>
-    <ul>
-      <li><code>intro</code> with <code>type: count_in</code>, <code>hits</code>, and <code>note</code> for stick clicks or hats.</li>
-      <li><code>groove</code> — either a single-bar loop with <code>bars: 1</code> and <code>variations:</code> (weighted random), or
-        <code>type: sequence</code> with <code>bars: N</code> and <code>bar_grids:</code> for multi-bar phrases that repeat.</li>
-      <li><code>fill</code>, <code>break</code>, <code>crash</code> — one-shot sections with their own variations.</li>
-    </ul>
+    <h3>Three kinds of section</h3>
+        <table>
+      <thead><tr><th><code>type</code></th><th>How it works</th></tr></thead>
+      <tbody>
+        <tr><td><code>loop</code> (default)</td><td>A list under <code>variations:</code>. Each bar picks one at random; a variation with <code>weight: 3</code> comes up three times
+          as often as one with <code>weight: 1</code> (the default). Inside a variation, <code>name</code> is optional and every other key is a lane
+          with its grid. For a single variation, skip the list and put the grids straight under the section.</td></tr>
+        <tr><td><code>sequence</code></td><td>A list under <code>bar_grids:</code>, one entry per bar, played in order and repeated. Use it for phrases longer than a bar,
+          like a two-bar clave. The position counts from the moment you press play, count-in bars included.</td></tr>
+        <tr><td><code>count_in</code></td><td>No grid: <code>hits</code> (default 4) clicks spread evenly over the bar, on drum note <code>note</code> (default 37, side stick).</td></tr>
+      </tbody>
+    </table>
+    <pre><code>  groove:
+    type: sequence
+    bar_grids:
+      - rimshot: "X..X..X........."
+        kick:    "X......X...X...."
+      - rimshot: "...X.....X......"
+        kick:    "X......X........"</code></pre>
 
-    <h2>Structure block</h2>
-    <p>
-      <code>structure:</code> configures arrangement logic, for example <code>fill_every</code>, <code>break_every</code>,
-      <code>break_length</code>, <code>crash_after_fill</code>, and <code>dynamic_build</code> for progressive arrangement.
-    </p>
-
-    <h2>Humanisation</h2>
-    <p>
-      <code>humanization:</code> applies global timing and velocity variance (<code>timing_jitter</code>, <code>velocity_jitter</code>,
-      <code>velocity_drift</code>) so repeats are not machine-perfect.
-    </p>
-
-    <h2>Download bundled patterns (from <code>main</code>)</h2>
-    <p>
-      These links point at <code>raw.githubusercontent.com</code> so you always get the latest committed file from the
-      default branch — ideal as references when authoring your own patterns.
-    </p>
+    <h2 id="downloads">Bundled patterns</h2>
+    <p>These links download the current files from the <code>main</code> branch on GitHub. The comments inside explain each groove.</p>
     <table class="download-table">
       <thead>
         <tr><th>Pattern</th><th>Download</th></tr>
@@ -151,12 +248,6 @@
         <tr><td>Teental (16 matras)</td><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/drums/indian_teental.gfdrum" download>indian_teental.gfdrum</a></td></tr>
       </tbody>
     </table>
-
-    <p>
-      After downloading, open the Drum Generator in GrooveForge and load the file from storage (same workflow as SoundFonts).
-      Start from a file whose style is closest to yours — the comments inside each pattern explain bar maps and musical intent.
-    </p>
-
     <p><a href="../vst/">← VST3</a> · <a href="../gfpd/">.gfpd plugins →</a></p>
   </main>
 

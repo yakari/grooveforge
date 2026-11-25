@@ -147,7 +147,7 @@ class _RehearsalsScreenState extends State<RehearsalsScreen> {
             onPressed:
                 () => showDialog(
                   context: context,
-                  builder: (_) => const UserGuideModal(),
+                  builder: (_) => const UserGuideModal(initialTab: UserGuideTab.rehearsals),
                 ),
           ),
           IconButton(

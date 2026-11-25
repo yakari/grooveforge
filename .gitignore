@@ -78,3 +78,5 @@ native_audio/fluidsynth_win64/
 
 # Generated branding assets: rebuilt by design/gen_assets.py
 /design/assets/
+
+/docs/writing-help.md

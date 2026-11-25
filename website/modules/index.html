@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="GrooveForge built-in modules — keyboard, vocoder, Jam Mode, looper, drum generator.">
+  <meta name="description" content="Every module in the GrooveForge rack: what it does, which sockets to cable, and its main controls.">
   <title>GrooveForge — Built-in modules</title>
   <link rel="icon" type="image/png" href="../assets/icon.png">
   <link rel="stylesheet" href="../css/site.css">
@@ -42,129 +42,415 @@
   <main id="main" class="prose">
     <div class="page-hero">
       <h1>Built-in modules</h1>
-      <p class="lead">What each rack slot type does and how it connects to the rest of the patch.</p>
+      <p class="lead">Every module you can add with the <span class="ui">+</span> button: what it does, where its cables go, and its main controls.</p>
     </div>
 
-    <figure class="figure-card figure-doc">
-      <img src="../assets/screenshots/03_grooveforge_modules.png" width="920" height="518" loading="lazy" alt="Expanded module panels: keyboard, controls, and slot headers in the rack">
-      <figcaption>Typical slot panels — SoundFont keyboard, knobs, channel badges, and per-slot actions vary by module type.</figcaption>
-    </figure>
-
-    <h2>GrooveForge Keyboard</h2>
     <p>
-      Multi-timbral SoundFont (<code>.sf2</code>) engine with up to 16 MIDI channels per slot, per-channel bank/program,
-      optional per-slot <strong>vocoder</strong>, and gesture actions on the on-screen keys. Wire MIDI IN from hardware
-      or from Virtual Piano / Looper; audio OUT goes to the master bus or other effects via patch cables.
+      New to cables? Read <a href="../guide/#how-sound-moves">How sound moves between modules</a> first.
+      In short: an instrument plays through the speakers on its own, yellow cables carry notes, and red and white
+      cables carry sound into an effect.
+    </p>
+    <p class="recipe-note">
+      Modules marked <strong>Apps only</strong> work in the Android, Linux, macOS and Windows apps. In the
+      <a href="../demo/">web demo</a> they are greyed out.
     </p>
 
-    <h2>Virtual Piano</h2>
+    <p><strong>Instruments</strong></p>
+    <ul class="recipe-index" aria-label="Instruments">
+      <li><a href="#keyboard">GrooveForge Keyboard</a></li>
+      <li><a href="#vocoder">Vocoder</a></li>
+      <li><a href="#riff">Riff</a></li>
+      <li><a href="#stylophone">Stylophone</a></li>
+      <li><a href="#theremin">Theremin</a></li>
+    </ul>
+    <p><strong>Scales, drums and loops</strong></p>
+    <ul class="recipe-index" aria-label="Scales, drums and loops">
+      <li><a href="#jam-mode">Jam Mode</a></li>
+      <li><a href="../midi-fx/#xen">Xen</a></li>
+      <li><a href="#drum-generator">Drum Generator</a></li>
+      <li><a href="#midi-looper">MIDI Looper</a></li>
+      <li><a href="#audio-looper">Audio Looper</a></li>
+      <li><a href="#live-input">Live Input</a></li>
+    </ul>
+    <p><strong>Effects</strong></p>
+    <ul class="recipe-index" aria-label="Effects">
+      <li><a href="#reverb">Plate Reverb</a></li>
+      <li><a href="#delay">Ping-Pong Delay</a></li>
+      <li><a href="#wah">Wah</a></li>
+      <li><a href="#eq">4-Band EQ</a></li>
+      <li><a href="#compressor">Compressor</a></li>
+      <li><a href="#chorus">Chorus / Flanger</a></li>
+      <li><a href="#audio-harmonizer">Audio Harmonizer</a></li>
+      <li><a href="#autotune">Autotune</a></li>
+      <li><a href="#amp">Amp</a></li>
+    </ul>
+    <p><strong>More</strong></p>
+    <ul class="recipe-index" aria-label="More">
+      <li><a href="../midi-fx/">MIDI FX</a></li>
+      <li><a href="#vst3">VST3 plugins</a></li>
+      <li><a href="#gfpd">Your own plugins</a></li>
+    </ul>
+
+    <h2 id="keyboard">GrooveForge Keyboard</h2>
     <p>
-      Touch keyboard with <strong>no internal sound</strong> — it only forwards MIDI through its jacks. Ideal ahead of
-      a SoundFont or VST instrument. Connect <strong>Scale IN</strong> from Jam Mode for highlighted scale degrees and snapping.
+      A keyboard that plays a soundfont (an <code>.sf2</code> file of instrument sounds). A new project starts with one.
+      Pick its sound from the soundfont and patch menus on the module; add more soundfonts in <span class="ui">Preferences</span>.
+      It plays the notes of its MIDI channel, shown on the <span class="ui">MIDI CH</span> badge, so a controller on that channel plays it too.
+    </p>
+    <p>
+      You hear it without any cable. Its <code>MIDI OUT</code> sends what you play to another instrument
+      (<a href="../guide/#guitar">Play the guitar from the keyboard</a>), and its <code>AUDIO OUT L/R</code> go to an effect or a looper.
+      Choose <span class="ui">None (MIDI only)</span> in the soundfont menu and the keyboard goes silent: it only sends notes.
+      <code>SCALE IN</code> and <code>TUNE IN</code> are where <a href="../midi-fx/#xen">Xen</a> or Jam Mode plug in to lock it to a scale.
+      <code>CHORD OUT</code> tells Jam Mode, Xen or a harmonizer which chord you are holding.
     </p>
 
-    <h2>Vocoder (GFPA)</h2>
+    <h2 id="vocoder">Vocoder</h2>
     <p>
-      Dedicated slot with carrier waveforms (saw, square, choral, natural/PSOLA), MIDI pitch bend and vibrato (CC1),
-      and microphone modulation. Multiple vocoder slots can coexist.
+      Makes a synth talk. Hold notes on its keyboard and speak or sing into the microphone: the synth takes the shape of your voice.
+      It listens to the input chosen in <span class="ui">Preferences</span>. Wear headphones, or the microphone hears the speaker.
+      Apps only.
+    </p>
+    <p>
+      Pick the synth sound with <span class="ui">Saw</span>, <span class="ui">Square</span> or <span class="ui">Choral</span>.
+      <span class="ui">Harmony</span> drops the synth and moves your own voice to the notes you hold.
+      Like the keyboard, it has <code>MIDI IN</code>, <code>MIDI OUT</code>, <code>SCALE IN</code> and <code>TUNE IN</code>, and plays through the speakers without a cable.
     </p>
 
-    <h2>Stylophone &amp; Theremin</h2>
+    <section class="recipe" id="riff">
+      <div class="recipe-clips">
+        <figure class="clip">
+          <video src="../clips/cable-midi.mp4" poster="../clips/cable-midi.jpg" width="540" height="1236" muted loop playsinline controls preload="none" aria-label="Adding Riff and drawing a MIDI cable from the keyboard to it"></video>
+          <figcaption>Cable a keyboard into Riff</figcaption>
+        </figure>
+        <figure class="clip">
+          <video src="../clips/cc-learn.mp4" poster="../clips/cc-learn.jpg" width="540" height="1236" muted loop playsinline controls preload="none" aria-label="Assigning a hardware control to Riff's palm mute"></video>
+          <figcaption>Put Palm mute on a controller</figcaption>
+        </figure>
+      </div>
+      <div>
+        <h2>Riff</h2>
+        <p class="recipe-goal">An electric guitar, modelled string by string, so it bends, mutes and rings like one. Apps only.</p>
+        <p>
+          Riff has no keys. Cable a keyboard's <code>MIDI OUT</code> into Riff's <code>MIDI IN</code>
+          (<a href="../guide/#guitar">step by step</a>), then Riff's <code>AUDIO OUT L/R</code> into the Amp for crunch
+          (<a href="../guide/#amp">step by step</a>). Each note goes to a string a guitarist would use, and close notes take separate strings so they ring together.
+        </p>
+        <ul>
+          <li><span class="ui">Palm mute</span>, <span class="ui">Pick pos.</span> and <span class="ui">Attack</span> are the picking hand.
+            They change strings that are already ringing, so map them to a pedal or a knob (<a href="../guide/#learn">Map a knob</a>).</li>
+          <li><span class="ui">Legato</span> slurs notes played close together: hammer-ons going up, pull-offs going down, on one string.
+            A pad sending CC 68 does the same while you hold it. <span class="ui">Overlap</span> slurs only keys you press before releasing the last one.</li>
+          <li>The pitch wheel bends by the <span class="ui">Bend</span> range (2 semitones by default, up to 12). The mod wheel adds vibrato.</li>
+          <li><span class="ui">Pickup</span> (Neck, Middle, Bridge, Neck+Bridge), <span class="ui">Type</span> (Single coil, Humbucker) and <span class="ui">Tone</span> shape the sound.</li>
+          <li>The sustain pedal lets released strings ring; <span class="ui">Pedal sus.</span> sets for how long.
+            <span class="ui">Feedback</span> makes held strings swell into the <span class="ui">Harmonic</span> you pick, like a guitar in front of a loud amp.</li>
+        </ul>
+      </div>
+    </section>
+
+    <h2 id="stylophone">Stylophone</h2>
     <p>
-      Monophonic Stylophone strip and Theremin pad with MIDI OUT to the rest of the rack. Theremin supports
-      <strong>CAM mode</strong> on some platforms (motion via front camera — see <a href="../privacy/">privacy policy</a>).
+      A 25-key metal strip: touch or slide along it to play, one note at a time. Sliding from key to key glides without a click.
+      <span class="ui">SQR</span>, <span class="ui">SAW</span>, <span class="ui">SIN</span> and <span class="ui">TRI</span> pick the waveform,
+      <span class="ui">VIB</span> adds vibrato, and the octave buttons move the strip up or down. <span class="ui">ARP</span>,
+      <span class="ui">DUTY</span>, <span class="ui">NOISE</span>, <span class="ui">CRUSH</span> and <span class="ui">SUB</span> give it an
+      8-bit game sound.
+    </p>
+    <p>
+      Its <code>MIDI OUT</code> can play another instrument. Press <span class="ui">MUTE</span> to silence the Stylophone itself while it keeps sending notes.
     </p>
 
-    <h2 id="riff">Riff</h2>
+    <h2 id="theremin">Theremin</h2>
     <p>
-      An electric guitar simulated string by string instead of played from recordings, so it bends, mutes and rings like
-      one. Play it from any keyboard or MIDI source: each note goes to a string a guitarist would use, and close notes take
-      separate strings so they all ring. Switch <strong>Legato</strong> on (from a pad, or hold one sending CC 68) for hammer-ons and
-      pull-offs on one string, or <strong>Overlap</strong> to slur only keys played overlapping. The sustain pedal rings longer than held notes (<strong>Pedal sustain</strong>), and <strong>Feedback</strong>, on a CC slider, makes held strings bloom into a harmonic as in front of an amp. The pitch wheel bends (a whole tone by default), the mod wheel
-      adds vibrato and the sustain pedal lets released strings ring. <strong>Palm mute</strong>, <strong>Pick
-      position</strong>, <strong>Attack</strong>, the <strong>Pickup</strong> selector (neck, middle, bridge, single coil or
-      humbucker), <strong>Tone</strong> and <strong>Sustain</strong> all act on strings that are already ringing, so a CC
-      mapping can put them on a pedal, a knob or a ribbon and play them like a guitarist's hands. Cable it into the
-      <strong>Amp</strong> for crunch and distortion. Native apps only.
+      Play without keys. In <span class="ui">PAD</span> mode, slide up and down for pitch and left and right for volume.
+      In <span class="ui">CAM</span> mode (Android, iOS and macOS), the front camera measures how far your hand is: closer plays higher.
+      The camera image is not saved or sent anywhere; see the <a href="../privacy/">privacy policy</a>.
+    </p>
+    <p>
+      <span class="ui">BASE</span> sets the lowest note, <span class="ui">RANGE</span> the span in octaves, <span class="ui">VIB</span> the vibrato
+      and <span class="ui">HEIGHT</span> the size of the pad. Like the Stylophone, it has a <code>MIDI OUT</code> and a <span class="ui">MUTE</span> button.
     </p>
 
-    <h2>Jam Mode</h2>
+    <h2 id="jam-mode">Jam Mode</h2>
     <p>
-      Single-instance processor: choose a <strong>master</strong> channel; when the master plays chords or bass (configurable),
-      <strong>target</strong> keyboards and vocoders lock to the derived scale. Includes scale type, BPM-aligned root updates,
-      and optional pin strip under the transport. Pairs with Virtual Piano Scale IN or internal scale lock on keyboards.
+      Listens to the chords you play on one keyboard and keeps other keyboards in the matching scale, so a second player
+      cannot hit a wrong note. One per project. To choose the scale yourself instead, use <a href="../midi-fx/#xen">Xen</a>.
+    </p>
+    <ol>
+      <li>Under <span class="ui">MASTER</span>, pick the keyboard you play chords on.</li>
+      <li>Under <span class="ui">TARGETS</span>, tap <span class="ui">Add</span> and pick the keyboards (or vocoders) to lock.</li>
+      <li>Switch the module on with its round <span class="ui">ON</span> button and pick a <span class="ui">SCALE TYPE</span>, such as Blues or Dorian.</li>
+    </ol>
+    <p>
+      The same links show in <span class="ui">Patch view</span> as purple cables: the master's <code>CHORD OUT</code> into
+      Jam Mode's <code>CHORD IN</code>, and Jam Mode's <code>SCALE OUT</code> into each target's <code>SCALE IN</code>.
+      Drawing a cable or picking in the menu does the same thing.
+      <span class="ui">DETECT</span> reads the whole <span class="ui">Chord</span> or only the lowest note (<span class="ui">Bass</span>).
+      <span class="ui">SYNC</span> waits for the next beat, half bar or bar before changing scale.
     </p>
 
-    <figure class="figure-card figure-doc">
-      <img src="../assets/screenshots/05_grooveforge_jam_mode.png" width="920" height="518" loading="lazy" alt="Jam Mode slot showing scale name, type selector, and target routing">
-      <figcaption>Jam Mode — live scale readout, scale family, master/target configuration, and optional compact strip under the transport.</figcaption>
-    </figure>
+    <section class="recipe" id="drum-generator">
+      <div class="recipe-clips">
+        <figure class="clip">
+          <video src="../clips/drum-generator.mp4" poster="../clips/drum-generator.jpg" width="540" height="1236" muted loop playsinline controls preload="none" aria-label="Adding the Drum Generator, picking a pattern and starting it"></video>
+        </figure>
+      </div>
+      <div>
+        <h2>Drum Generator</h2>
+        <p class="recipe-goal">A drummer that follows the tempo at the top of the screen.</p>
+        <p>
+          Pick a <span class="ui">Style</span>, from bossa nova to metal, and switch <span class="ui">Active</span> on.
+          If the tempo was stopped, it starts. <span class="ui">Swing</span> pushes the off-beats late, and
+          <span class="ui">Human feel</span> goes from <span class="ui">Robotic</span> to <span class="ui">Live drummer</span>.
+          <span class="ui">Count-in</span> gives you one or two bars, or four stick hits, before the beat starts, and <span class="ui">Fill every</span> adds a fill every 4, 8 or 16 bars.
+        </p>
+        <p>
+          It plays through the speakers on its own. To record it in the Audio Looper or add an effect, cable its <code>AUDIO OUT L/R</code>.
+          <span class="ui">Load .gfdrum…</span> opens your own patterns: see <a href="../gfdrum/">Rhythmic patterns</a>.
+        </p>
+      </div>
+    </section>
 
-    <h2>MIDI Looper</h2>
+    <h2 id="midi-looper">MIDI Looper</h2>
     <p>
-      Multi-track MIDI recorder/looper with overdub, per-track mute, reverse, speed, and quantisation. MIDI IN can be
-      any upstream source; MIDI OUT feeds instruments. State is stored inside <code>.gf</code> projects.
+      Records the notes you play, not the sound, and plays them back in a loop. One per project.
+    </p>
+    <ol>
+      <li>In <span class="ui">Patch view</span>, cable the keyboard's <code>MIDI OUT</code> into the looper's <code>MIDI IN</code>: that is what it records.</li>
+      <li>Cable the looper's <code>MIDI OUT</code> into the instrument that should play the loop, often the same keyboard's <code>MIDI IN</code>.</li>
+      <li>Press <span class="ui">Record</span>. Recording waits for the next bar, and the loop length is rounded to whole bars.</li>
+    </ol>
+    <p>
+      Each layer you add with <span class="ui">Overdub</span> is a track with its own <span class="ui">Mute</span>,
+      <span class="ui">Reverse</span> and speed buttons (<span class="ui">½×</span>, <span class="ui">1×</span>, <span class="ui">2×</span>).
+      <span class="ui">Quantize</span> snaps the recorded notes to the beat. Because the looper stores notes, you can change the sound after recording.
     </p>
 
-    <h2>Drum Generator</h2>
+    <section class="recipe" id="audio-looper">
+      <div class="recipe-clips">
+        <figure class="clip">
+          <video src="../clips/looper-setup.mp4" poster="../clips/looper-setup.jpg" width="540" height="1236" muted loop playsinline controls preload="none" aria-label="Adding the Audio Looper and cabling the keyboard into it"></video>
+          <figcaption>1. Cable the looper</figcaption>
+        </figure>
+        <figure class="clip">
+          <video src="../clips/looper-record.mp4" poster="../clips/looper-record.jpg" width="540" height="1236" muted loop playsinline controls preload="none" aria-label="Recording a loop and playing over it"></video>
+          <figcaption>2. Record and play over it</figcaption>
+        </figure>
+      </div>
+      <div>
+        <h2>Audio Looper</h2>
+        <p class="recipe-goal">Records the sound of an instrument, a voice or a whole effects chain, and loops it. Apps only.</p>
+        <p>
+          It records only what reaches its <code>AUDIO IN L/R</code>. Cable an instrument into it, or pick one in its
+          <span class="ui">Source</span> menu, which draws the cables for you. The steps are in <a href="../guide/#loop">Record a loop</a>.
+        </p>
+        <p>
+          With <span class="ui">Bar sync</span> on, recording starts on the next downbeat and stops at the end of a bar, so loops stay in time.
+          <span class="ui">Overdub</span> records a new layer on top, <span class="ui">Reverse</span> plays it backwards and
+          <span class="ui">Clear</span> empties it. The loop plays straight to the speakers: the looper has no audio output to cable.
+        </p>
+      </div>
+    </section>
+
+    <h2 id="live-input">Live Input</h2>
     <p>
-      Transport-synced drum machine driven by <a href="../gfdrum/"><code>.gfdrum</code></a> pattern files: step grids,
-      humanisation, swing, fills, and optional count-in. Uses General MIDI drum notes on the configured SoundFont.
+      Brings a microphone, a guitar or any line input into the rack. Cable its <code>AUDIO OUT L/R</code> into an effect,
+      such as the Autotune, the Amp or the Audio Harmonizer, or into the Audio Looper. Apps only.
+    </p>
+    <p>
+      The input itself is chosen in <span class="ui">Preferences › Audio Input</span>. On the module, <span class="ui">Gain</span>
+      sets the level, and <span class="ui">1+2</span>, <span class="ui">L</span> or <span class="ui">R</span> picks which channel of
+      the input you use. <span class="ui">Mute local monitor (still feeds effects)</span> stops you hearing the dry signal.
+      On Android, Live Input mutes itself when the phone's own microphone would feed back through the phone's speaker.
+      Tap <span class="ui">Unmute anyway</span> to override.
     </p>
 
-    <h2 id="autotune">Autotune</h2>
+    <h2 id="effects">Effects</h2>
     <p>
-      Pitch correction for a voice or any single-note line. Patch <strong>Live Input</strong> into it: it hears the note
-      you sing and pulls it onto the nearest note of the chosen key and scale — or of a scale patched in from Xen or Jam Mode.
-      <strong>Retune</strong> sets how fast: 0&nbsp;ms is the stepped robot sound, 50&nbsp;ms and up just sounds in tune.
-      <strong>Strength</strong> sets how far, <strong>Humanize</strong> lets held notes keep their vibrato,
-      <strong>Flex-Tune</strong> leaves slides and blue notes alone, and <strong>Transpose</strong> goes from monster to
-      chipmunk. A live readout shows the note you sing, how many cents off it is, and where it is being pulled.
+      Every effect has <code>AUDIO IN L/R</code> and <code>AUDIO OUT L/R</code>: cable an instrument's outputs into its inputs,
+      as in <a href="../guide/#effect">Add an effect</a>. What comes out of the effect goes to the speakers.
+      The power button at the top of an effect switches it off (<span class="ui">Bypass</span>) so you can compare.
+      All built-in effects are Apps only. Knob names appear in English in every language.
     </p>
 
-    <h2 id="amp">Amp</h2>
+    <h3 id="reverb">Plate Reverb</h3>
     <p>
-      A guitar amp in one slot, in the order a guitarist plugs things in. The <strong>Drive</strong> pedal is either an
-      <strong>Overdrive</strong> that pushes the mids and keeps the low end tight, or a rougher <strong>Distortion</strong>,
-      with its own Tone knob. The <strong>Amp</strong> section is the preamp's <strong>Gain</strong>, from clean to crunch,
-      and a Bass / Middle / Treble tone stack modelled on the real circuit of three classic amps (<strong>US</strong>,
-      <strong>Brit</strong>, <strong>AC</strong>), so the knobs interact the way they do on the real thing. The
-      <strong>Cab</strong> section shapes the sound like a 1x12, 2x12 or 4x12 speaker cabinet. Each of the three sections
-      has its own switch, which a CC mapping can put on a footswitch or a pad. Play it from a keyboard's guitar sound, or
-      patch a real guitar in through <strong>Live Input</strong>.
+      Puts the sound in a room. <span class="ui">Room</span> sets its size, <span class="ui">Damp</span> darkens the tail,
+      <span class="ui">Width</span> spreads it left and right, and <span class="ui">Mix</span> sets how much reverb you hear.
     </p>
+
+    <h3 id="delay">Ping-Pong Delay</h3>
+    <p>
+      Repeats what you play, with echoes bouncing between left and right. <span class="ui">Time</span> sets the gap
+      (1 to 2000 ms). Switch <span class="ui">BPM</span> on and pick a <span class="ui">Div</span>, from 2 bars to 1/16,
+      to lock the echoes to the tempo. <span class="ui">Feedback</span> sets how many repeats, <span class="ui">Mix</span> how loud they are.
+    </p>
+
+    <h3 id="wah">Wah</h3>
+    <p>
+      The "wah-wah" guitar sound. In <span class="ui">Auto</span> mode it sweeps by itself: <span class="ui">Rate</span> and
+      <span class="ui">Wave</span> set the speed and shape, or <span class="ui">BPM</span> and <span class="ui">Div</span> lock it to the tempo.
+      In <span class="ui">Manual</span> mode, <span class="ui">Pedal</span> moves it: map Pedal to an expression pedal
+      (<a href="../guide/#learn">Map a knob</a>) and you have a wah pedal. <span class="ui">Center</span>,
+      <span class="ui">Reso</span> and <span class="ui">Depth</span> set where it sweeps and how sharp it sounds.
+    </p>
+
+    <h3 id="eq">4-Band EQ</h3>
+    <p>
+      Turns bass, mids and treble up or down, by up to 12 dB per band. <span class="ui">Low</span> and <span class="ui">High</span>
+      act on everything below or above their frequency; the two middle bands (<span class="ui">LM</span>, <span class="ui">HM</span>)
+      act around theirs, and their <span class="ui">Q</span> knob sets how narrow. <span class="ui">Flat</span> resets every band.
+    </p>
+
+    <h3 id="compressor">Compressor</h3>
+    <p>
+      Evens out loud and quiet notes. Sound above <span class="ui">Thresh</span> is turned down by the <span class="ui">Ratio</span>
+      (4:1 by default). <span class="ui">Attack</span> and <span class="ui">Release</span> set how fast it reacts,
+      and <span class="ui">Makeup</span> brings the level back up afterwards.
+    </p>
+
+    <h3 id="chorus">Chorus / Flanger</h3>
+    <p>
+      Thickens the sound by mixing in a slightly delayed copy that wobbles. <span class="ui">Rate</span> and <span class="ui">Depth</span>
+      set the wobble (or <span class="ui">BPM</span> and <span class="ui">Div</span> lock it to the tempo). For a flanger's jet sound,
+      lower <span class="ui">Delay</span> and raise <span class="ui">FB</span>.
+    </p>
+
+    <section class="recipe" id="audio-harmonizer">
+      <div class="recipe-clips">
+        <figure class="clip">
+          <video src="../clips/add-effect.mp4" poster="../clips/add-effect.jpg" width="540" height="1236" muted loop playsinline controls preload="none" aria-label="Adding an Audio Harmonizer and cabling the keyboard into it"></video>
+        </figure>
+      </div>
+      <div>
+        <h3>Audio Harmonizer</h3>
+        <p class="recipe-goal">Adds up to four pitch-shifted copies of any sound: sing one note, hear a chord.</p>
+        <p>
+          Cable an instrument or a Live Input into it. <span class="ui">Voices</span> sets how many copies play.
+          Each voice (<span class="ui">V1</span> to <span class="ui">V4</span>) has an interval, up to two octaves up or down,
+          and a <span class="ui">Level</span>. <span class="ui">Dry/Wet</span> balances your own sound against the harmony.
+        </p>
+        <p>
+          <span class="ui">Scale Lock</span> keeps the harmony inside a scale. It needs to know which one: cable the
+          <code>SCALE OUT</code> of Xen or Jam Mode into the harmonizer's <code>SCALE IN</code>.
+          To set the intervals by playing, cable a keyboard's <code>CHORD OUT</code> into its <code>CHORD IN</code> and hold a chord:
+          the lowest note stands for your voice, and the notes above it become the voices.
+        </p>
+      </div>
+    </section>
+
+    <h3 id="autotune">Autotune</h3>
+    <p>
+      Pulls your voice onto the notes of a scale, from a light touch to the robot effect. Cable a <a href="#live-input">Live Input</a>
+      into it and sing. The display shows the note you sing, how many cents off it is, and the note it is pulled to.
+    </p>
+    <p>
+      Set the <span class="ui">Key</span> and <span class="ui">Scale</span>, or cable Xen's or Jam Mode's <code>SCALE OUT</code> into its
+      <code>SCALE IN</code> to follow that scale instead. <span class="ui">Retune</span> sets how fast the note is corrected:
+      0 ms jumps straight to it, which is the robot sound; slower settings sound natural. <span class="ui">Strength</span> sets how far
+      it pulls, <span class="ui">Humanize</span> lets long notes keep their vibrato, <span class="ui">Flex</span> leaves notes far from the
+      scale (slides, blue notes) alone, and the transpose bar shifts your voice up to an octave up or down. <span class="ui">Mix</span>
+      blends in your untouched voice.
+    </p>
+
+    <section class="recipe" id="amp">
+      <div class="recipe-clips">
+        <figure class="clip">
+          <video src="../clips/cable-riff-to-amp.mp4" poster="../clips/cable-riff-to-amp.jpg" width="540" height="1236" muted loop playsinline controls preload="none" aria-label="Cabling Riff's audio outputs into the Amp"></video>
+        </figure>
+      </div>
+      <div>
+        <h3>Amp</h3>
+        <p class="recipe-goal">A drive pedal, a guitar amp and a speaker cabinet, in the order a guitarist plugs them in.</p>
+        <p>
+          Cable Riff into it (<a href="../guide/#amp">step by step</a>), or a real guitar through <a href="#live-input">Live Input</a>.
+          Each section has its own <span class="ui">On</span> switch, which you can map to a footswitch.
+        </p>
+        <ul>
+          <li><span class="ui">Drive</span>: a pedal, off by default. <span class="ui">Type</span> is Overdrive (pushes the mids, keeps the bass tight) or Distortion (rougher), with its own Drive and Tone knobs.</li>
+          <li><span class="ui">Amp</span>: <span class="ui">Model</span> (US, Brit or AC), <span class="ui">Gain</span> from clean to crunch, then
+            <span class="ui">Bass</span>, <span class="ui">Middle</span> and <span class="ui">Treble</span>, which affect each other as on the real amps.</li>
+          <li><span class="ui">Cab</span>: the <span class="ui">Cabinet</span>, 1x12, 2x12 or 4x12, or an IR file (below).</li>
+          <li><span class="ui">Level</span> sets the output volume.</li>
+        </ul>
+      </div>
+    </section>
 
     <h3 id="amp-ir">Cabinet impulse responses</h3>
     <p>
-      Most of a guitar sound comes from the cabinet. Besides the three built-in cabinets, the Amp can play an
-      <strong>impulse response</strong> (IR): a recording of a real cabinet and its microphone, as a small
-      <code>.wav</code> file. Tap <strong>Load IR</strong> under the Amp and pick a file; the Cabinet selector switches to
-      <strong>IR</strong>, and the IR is saved inside your project, so it travels with it. Any WAV works (16, 24 or 32-bit,
-      mono or stereo, any sample rate); only the first 100 ms are used, which is where a cabinet's sound lives.
+      Much of a guitar sound comes from the speaker cabinet. An impulse response (IR) is a small <code>.wav</code> recording of a real
+      cabinet and its microphone. Tap <span class="ui">Load IR</span> under the Amp and pick a file: the <span class="ui">Cabinet</span>
+      selector switches to IR. The IR is saved inside your project, so it travels with it.
     </p>
-    <p>Free cabinet IRs to start with:</p>
+    <p>
+      Most uncompressed WAV files work, at any sample rate. For a stereo file, only the first channel is used, and only the first
+      100 ms, which is where a cabinet's sound lives. Free IRs to start with:
+    </p>
     <ul>
       <li><a href="https://www.tone3000.com/search?format=ir">TONE3000</a>: a community library with thousands of free IRs</li>
       <li><a href="https://cabs.kalthallen.de/">Kalthallen Cabs</a>: free and paid packs of classic cabinets</li>
       <li><a href="https://www.celestionplus.com/free-download/">Celestion</a>: a free IR from the speaker maker</li>
     </ul>
     <p>
-      Each pack has its own licence: free to play through, but usually not to share, which is why GrooveForge cannot ship
-      them. Download them yourself from these sites.
+      Each pack has its own licence: free to play through, but usually not to share, which is why GrooveForge cannot ship them.
+      Download them yourself from these sites.
     </p>
 
-    <h2>Descriptor effects &amp; MIDI FX</h2>
+    <h2 id="vst3">VST3 plugins</h2>
     <p>
-      Bundled <a href="../gfpd/"><code>.gfpd</code></a> plugins provide reverb, delay, wah, EQ, compressor, chorus, audio harmonizer, autotune, guitar amp (audio)
-      and harmonizer, arpeggiator, transposer, chord expand, velocity curve, gate (MIDI). Custom descriptors can be
-      loaded from disk.
+      Desktop only (Linux, macOS and Windows). Load a synth or an effect made by someone else.
+      In the <span class="ui">+</span> sheet, <span class="ui">Pick Installed Instrument</span> and <span class="ui">Pick Installed Effect</span>
+      list the plugins found on your computer; <span class="ui">Browse VST3 Instrument…</span> and <span class="ui">Browse VST3 Effect…</span>
+      open a <code>.vst3</code> folder anywhere else. A VST3 instrument is cabled like the keyboard, a VST3 effect like a built-in effect.
+      More on the <a href="../vst/">VST3 page</a>.
     </p>
 
-    <p><a href="../guide/">← Getting started</a> · <a href="../midi-fx/">MIDI FX routing →</a></p>
+    <h2 id="gfpd">Your own plugins</h2>
+    <p>
+      <span class="ui">Load .gfpd from file…</span>, at the bottom of the <span class="ui">+</span> sheet, adds an effect or a MIDI FX described
+      in a <code>.gfpd</code> text file. See <a href="../gfpd/">Plugin descriptors</a>.
+    </p>
+
+    <p><a href="../guide/">← Getting started</a> · <a href="../midi-fx/">MIDI FX →</a></p>
   </main>
 
   <footer class="site-footer">
     <p><a href="https://github.com/yakari/grooveforge">GitHub</a> · <a href="../privacy/">Privacy</a></p>
   </footer>
+
+  <script>
+    /*
+     * Clips play while they are on screen and pause when they leave it, so a
+     * long page does not decode a dozen videos at once. Without JavaScript, or
+     * when the reader prefers reduced motion, the native controls stay and
+     * nothing starts by itself.
+     */
+    (function () {
+      var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (reduced || !('IntersectionObserver' in window)) return;
+      var clips = document.querySelectorAll('.clip video');
+      var observer = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+          var video = entry.target;
+          if (entry.isIntersecting) {
+            var playing = video.play();
+            if (playing && playing.catch) playing.catch(function () {});
+          } else {
+            video.pause();
+          }
+        });
+      }, { threshold: 0.5 });
+      clips.forEach(function (video) {
+        video.removeAttribute('controls');
+        video.preload = 'metadata';
+        // Tap to pause or resume.
+        video.addEventListener('click', function () {
+          if (video.paused) { video.play(); } else { video.pause(); }
+        });
+        observer.observe(video);
+      });
+    })();
+  </script>
 </body>
 </html>

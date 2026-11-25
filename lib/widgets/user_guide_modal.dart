@@ -4,12 +4,23 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../l10n/app_localizations.dart';
 
-/// A modal dialog containing the comprehensive user guide for GrooveForge.
+/// The tabs of the user guide, in display order.
 ///
-/// The guide is organized into distinct tabs: Features, MIDI Connectivity,
-/// Soundfonts, Musical Tips, Rack & Cables, and Rehearsals.
+/// Exposed so a screen can open the guide on the page that concerns it: the
+/// Rehearse tab opens it on [rehearsals], the rack on [start].
+enum UserGuideTab { start, modules, cables, midi, rehearsals, tips }
+
+/// A modal dialog holding the user guide.
+///
+/// The guide is organised by what the player wants to do, not by feature:
+/// the first tab explains how sound moves between modules and lists short
+/// recipes, each linking to a clip of the gesture on the website. The other
+/// tabs are references for when a recipe is not enough.
 class UserGuideModal extends StatefulWidget {
-  const UserGuideModal({super.key});
+  const UserGuideModal({super.key, this.initialTab = UserGuideTab.start});
+
+  /// The tab shown when the guide opens.
+  final UserGuideTab initialTab;
 
   @override
   State<UserGuideModal> createState() => _UserGuideModalState();
@@ -51,13 +62,13 @@ class _UserGuideModalState extends State<UserGuideModal> {
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
 
     return DefaultTabController(
-      length: 6,
+      length: UserGuideTab.values.length,
+      initialIndex: widget.initialTab.index,
       child: Dialog(
         backgroundColor: const Color(0xFF1A1A24),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -67,102 +78,17 @@ class _UserGuideModalState extends State<UserGuideModal> {
           padding: const EdgeInsets.all(16),
           child: Column(
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // Expanded + FittedBox: the title is a translated string, so
-                  // its width is not knowable here. "GUIDE DE L'UTILISATEUR"
-                  // overflows the dialog by ~50 px at this size, and a longer
-                  // translation would overflow further. Scaling down only when
-                  // it does not fit keeps every language on one line without
-                  // shrinking the languages that already fit.
-                  Expanded(
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        l10n.guideTitle.toUpperCase(),
-                        maxLines: 1,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1.5,
-                        ),
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close, color: Colors.white54),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
-              ),
-              // Icon-only tabs.
-              //
-              // Five labels do not fit the dialog width: they were clipped to
-              // "FEA", "MID", "SOU", ... which identifies nothing, and longer
-              // translations clipped harder (the French set read "FON", "CON",
-              // "SOU", "CON", "RAC" — two of them identical). Each icon keeps
-              // its translated label as a tooltip, so the wording is still
-              // reachable on long-press and still announced to screen readers.
-              TabBar(
-                tabs: [
-                  Tab(
-                    icon: Tooltip(
-                      message: l10n.guideTabFeatures,
-                      child: const Icon(Icons.auto_awesome),
-                    ),
-                  ),
-                  Tab(
-                    icon: Tooltip(
-                      message: l10n.guideTabMidi,
-                      child: const Icon(Icons.usb),
-                    ),
-                  ),
-                  Tab(
-                    icon: Tooltip(
-                      message: l10n.guideTabSoundfonts,
-                      child: const Icon(Icons.library_music),
-                    ),
-                  ),
-                  Tab(
-                    icon: Tooltip(
-                      message: l10n.guideTabTips,
-                      child: const Icon(Icons.music_note),
-                    ),
-                  ),
-                  Tab(
-                    icon: Tooltip(
-                      message: l10n.guideTabPatch,
-                      child: const Icon(Icons.cable_outlined),
-                    ),
-                  ),
-                  Tab(
-                    icon: Tooltip(
-                      message: l10n.guideTabRehearsals,
-                      // The same icon the tab itself uses in the shell, so the
-                      // guide page and the thing it describes look alike.
-                      child: const Icon(Icons.groups_outlined),
-                    ),
-                  ),
-                ],
-                indicatorColor: Colors.blueAccent,
-                labelColor: Colors.blueAccent,
-                unselectedLabelColor: Colors.white54,
-              ),
+              _buildTitleBar(context, l10n),
+              _buildTabBar(l10n),
               Expanded(
                 child: TabBarView(
                   children: [
-                    _FeaturesTab(
-                      version: _version,
-                      latestChanges: _latestChanges,
-                    ),
-                    _MidiConnectivityTab(),
-                    _SoundfontsTab(),
-                    _MusicalTipsTab(),
-                    _PatchViewTab(),
-                    _RehearsalsTab(),
+                    _StartTab(version: _version, latestChanges: _latestChanges),
+                    const _ModulesTab(),
+                    const _CablesTab(),
+                    const _MidiTab(),
+                    const _RehearsalsTab(),
+                    const _TipsTab(),
                   ],
                 ),
               ),
@@ -172,13 +98,157 @@ class _UserGuideModalState extends State<UserGuideModal> {
       ),
     );
   }
+
+  /// The guide title and the close button.
+  Widget _buildTitleBar(BuildContext context, AppLocalizations l10n) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        // Expanded + FittedBox: the title is a translated string, so its
+        // width is not knowable here. Scaling down only when it does not fit
+        // keeps every language on one line without shrinking the ones that
+        // already fit.
+        Expanded(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              l10n.guideTitle.toUpperCase(),
+              maxLines: 1,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.5,
+              ),
+            ),
+          ),
+        ),
+        IconButton(
+          icon: const Icon(Icons.close, color: Colors.white54),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ],
+    );
+  }
+
+  /// Icon-only tabs.
+  ///
+  /// Six labels do not fit the dialog width: they were clipped to "FEA",
+  /// "MID", "SOU", which identifies nothing. Each icon keeps its translated
+  /// label as a tooltip, so the wording is still reachable on long-press and
+  /// still announced to screen readers.
+  Widget _buildTabBar(AppLocalizations l10n) {
+    Tab tab(String label, IconData icon) =>
+        Tab(icon: Tooltip(message: label, child: Icon(icon)));
+
+    return TabBar(
+      tabs: [
+        tab(l10n.guideTabStart, Icons.play_circle_outline),
+        tab(l10n.guideTabModules, Icons.view_agenda_outlined),
+        tab(l10n.guideTabPatch, Icons.cable_outlined),
+        tab(l10n.guideTabMidi, Icons.usb),
+        // The same icon the Rehearse tab itself uses in the shell, so the
+        // guide page and the thing it describes look alike.
+        tab(l10n.guideTabRehearsals, Icons.groups_outlined),
+        tab(l10n.guideTabTips, Icons.music_note),
+      ],
+      indicatorColor: Colors.blueAccent,
+      labelColor: Colors.blueAccent,
+      unselectedLabelColor: Colors.white54,
+    );
+  }
 }
 
-/// Displays information about Jam Mode and the new Vocoder feature.
-class _FeaturesTab extends StatelessWidget {
+// ─── Website clips ──────────────────────────────────────────────────────────
+
+/// The published website. Every recipe below has a section on its guide page
+/// with a screen recording of the gesture, which the help cannot embed
+/// without growing the app by several megabytes and adding a video player
+/// that does not run on Linux or Windows.
+const _kSiteBase = 'https://yakari.github.io/grooveforge/';
+
+/// The guide page section for [anchor], in the reader's language when the
+/// site has it (English and French).
+String _guideUrl(BuildContext context, String anchor) {
+  final french = Localizations.localeOf(context).languageCode == 'fr';
+  return '$_kSiteBase${french ? 'fr/' : ''}guide/#$anchor';
+}
+
+/// One short how-to: a title, steps separated by newlines, an optional line
+/// saying what the player should hear, and the anchor of its clip on the
+/// website guide.
+class _Recipe {
+  const _Recipe(this.title, this.steps, this.result, this.anchor);
+
+  final String title;
+  final String steps;
+  final String result;
+
+  /// Section id on the website guide, e.g. `effect` for `guide/#effect`.
+  /// The English and French pages use different ids, see [guideClipAnchors].
+  final String anchor;
+}
+
+/// Section ids of the website guide that the help links to, English id to
+/// French id: the French page translated its ids.
+///
+/// Public for the test that checks every one of them exists on both pages,
+/// since renaming a section on the site would otherwise break these links
+/// silently.
+@visibleForTesting
+const guideClipAnchors = {
+  'scale': 'gamme',
+  'effect': 'effet',
+  'remove': 'retirer',
+  'guitar': 'guitare',
+  'amp': 'ampli',
+  'controller': 'controleur',
+  'learn': 'learn',
+  'drums': 'batterie',
+  'loop': 'boucle',
+  'projects': 'projets',
+  'rehearsal': 'repetition',
+};
+
+/// The recipes of the Start tab, in the order a new player needs them.
+List<_Recipe> _recipes(AppLocalizations l10n) => [
+      _Recipe(l10n.guideRecipeScaleTitle, l10n.guideRecipeScaleSteps,
+          l10n.guideRecipeScaleResult, 'scale'),
+      _Recipe(l10n.guideRecipeEffectTitle, l10n.guideRecipeEffectSteps,
+          l10n.guideRecipeEffectResult, 'effect'),
+      _Recipe(l10n.guideRecipeRemoveTitle, l10n.guideRecipeRemoveSteps,
+          l10n.guideRecipeRemoveResult, 'remove'),
+      _Recipe(l10n.guideRecipeGuitarTitle, l10n.guideRecipeGuitarSteps,
+          l10n.guideRecipeGuitarResult, 'guitar'),
+      _Recipe(l10n.guideRecipeAmpTitle, l10n.guideRecipeAmpSteps,
+          l10n.guideRecipeAmpResult, 'amp'),
+      _Recipe(l10n.guideRecipeControllerTitle, l10n.guideRecipeControllerSteps,
+          l10n.guideRecipeControllerResult, 'controller'),
+      _Recipe(l10n.guideRecipeLearnTitle, l10n.guideRecipeLearnSteps,
+          l10n.guideRecipeLearnResult, 'learn'),
+      _Recipe(l10n.guideRecipeDrumsTitle, l10n.guideRecipeDrumsSteps,
+          l10n.guideRecipeDrumsResult, 'drums'),
+      _Recipe(l10n.guideRecipeLoopTitle, l10n.guideRecipeLoopSteps,
+          l10n.guideRecipeLoopResult, 'loop'),
+      _Recipe(l10n.guideRecipeProjectsTitle, l10n.guideRecipeProjectsSteps,
+          l10n.guideRecipeProjectsResult, 'projects'),
+    ];
+
+// ─── Tabs ───────────────────────────────────────────────────────────────────
+
+/// The first page: what is new, how sound moves between modules, and the
+/// recipes.
+///
+/// The three cabling rules come before anything else because they are what
+/// readers were missing: a player who knew every module still did not know
+/// that an instrument needs no cable to be heard, or which way an effect is
+/// cabled.
+class _StartTab extends StatelessWidget {
+  const _StartTab({required this.version, required this.latestChanges});
+
   final String version;
   final List<ChangelogEntry> latestChanges;
-  const _FeaturesTab({required this.version, required this.latestChanges});
 
   @override
   Widget build(BuildContext context) {
@@ -188,243 +258,132 @@ class _FeaturesTab extends StatelessWidget {
       children: [
         _buildWelcomeHeader(context, l10n, version, latestChanges),
         const SizedBox(height: 24),
-        // Xen comes first: it is what the default rack ships with, and the
-        // one a new reader will have on screen while reading this.
-        _buildSectionTitle(l10n.guideXenTitle),
-        _buildParagraph(l10n.guideXenBody),
-        _buildSectionTitle(l10n.guideJamModeTitle),
-        _buildParagraph(l10n.guideJamModeBody),
-        const SizedBox(height: 20),
-        _buildSectionTitle(l10n.guideVocoderTitle),
-        _buildParagraph(l10n.guideVocoderBody),
-        const SizedBox(height: 10),
-        _buildInfoBox(
-          l10n.guideVocoderBody.split('\n').last,
-        ), // The latency warning
-        // The remaining rack modules, in the order a player is most likely to
-        // reach for them: instruments first, then the rhythm section, then the
-        // loopers that layer on top, and finally the MIDI FX that reshape what
-        // any of them receive.
-        const SizedBox(height: 20),
-        _buildSectionTitle(l10n.guideThereminTitle),
-        _buildParagraph(l10n.guideThereminBody),
-        const SizedBox(height: 20),
-        _buildSectionTitle(l10n.guideRiffTitle),
-        _buildParagraph(l10n.guideRiffBody),
-        const SizedBox(height: 20),
-        _buildSectionTitle(l10n.guideDrumGeneratorTitle),
-        _buildParagraph(l10n.guideDrumGeneratorBody),
-        const SizedBox(height: 20),
-        _buildSectionTitle(l10n.guideLoopersTitle),
-        _buildParagraph(l10n.guideLoopersBody),
-        const SizedBox(height: 20),
-        _buildSectionTitle(l10n.guideMidiFxTitle),
-        _buildParagraph(l10n.guideMidiFxBody),
-        const SizedBox(height: 20),
-        _buildSectionTitle(l10n.guideAmpTitle),
-        _buildParagraph(l10n.guideAmpBody),
+        _buildSectionTitle(l10n.guideRulesTitle),
+        _buildParagraph(l10n.guideRulesIntro),
+        _buildRule(_kJackMidi, l10n.guideRuleInstrument, outline: true),
+        _buildRule(_kJackMidi, l10n.guideRuleColours),
+        _buildRule(_kJackAudioL, l10n.guideRuleEffect),
+        const SizedBox(height: 4),
+        _buildParagraph(l10n.guideRuleDraw),
+        const Divider(color: Colors.white12, height: 32),
+        for (final recipe in _recipes(l10n)) ..._buildRecipe(context, l10n, recipe),
+      ],
+    );
+  }
+
+  /// One cabling rule, marked with the colour of the cable it is about.
+  ///
+  /// [outline] draws a hollow dot for the rule that needs no cable at all.
+  Widget _buildRule(Color color, String text, {bool outline = false}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10, left: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 12,
+            height: 12,
+            margin: const EdgeInsets.only(top: 5, right: 10),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: outline ? Colors.transparent : color,
+              border: Border.all(color: outline ? Colors.white54 : color, width: 2),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(color: Colors.white, fontSize: 14, height: 1.45),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// A recipe: its title, numbered steps, the result, and the clip link.
+  List<Widget> _buildRecipe(
+    BuildContext context,
+    AppLocalizations l10n,
+    _Recipe recipe,
+  ) {
+    final steps = recipe.steps.split('\n').where((s) => s.trim().isNotEmpty);
+    final french = Localizations.localeOf(context).languageCode == 'fr';
+    final anchor = french ? (guideClipAnchors[recipe.anchor] ?? recipe.anchor) : recipe.anchor;
+    return [
+      _buildSubTitle(recipe.title),
+      for (final (i, step) in steps.indexed) _buildStep(i + 1, step),
+      if (recipe.result.isNotEmpty) _buildResult(recipe.result),
+      _buildLink(l10n.guideWatchClip, _guideUrl(context, anchor)),
+      const SizedBox(height: 20),
+    ];
+  }
+
+  /// What the player should hear or see once the steps are done.
+  Widget _buildResult(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 8, bottom: 8),
+      child: Text(
+        text,
+        style: const TextStyle(
+          color: Colors.white54,
+          fontSize: 13,
+          fontStyle: FontStyle.italic,
+          height: 1.4,
+        ),
+      ),
+    );
+  }
+}
+
+/// Every module the "+" button offers, then a closer look at the ones that
+/// need more than a line.
+class _ModulesTab extends StatelessWidget {
+  const _ModulesTab();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return ListView(
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 10),
+      children: [
+        _buildSectionTitle(l10n.guideTabModules),
+        _buildParagraph(l10n.guideModulesIntro),
+        ..._slotTypeList(l10n),
+        const SizedBox(height: 4),
+        _buildDesktopOnlyBox(l10n.guidePatchSlotVst3DesktopOnly),
+        const Divider(color: Colors.white12, height: 40),
+        // Xen first: it is in every new rack, so it is the one a reader has
+        // on screen while reading this.
+        ..._detail(l10n.guideXenTitle, l10n.guideXenBody),
+        ..._detail(l10n.guideRiffTitle, l10n.guideRiffBody),
+        ..._detail(l10n.guideAmpTitle, l10n.guideAmpBody),
         _buildSubTitle(l10n.guideAmpIrSourcesTitle),
         _buildLink(l10n.guideIrSourceTone3000, _kIrSourceTone3000),
         _buildLink(l10n.guideIrSourceKalthallen, _kIrSourceKalthallen),
         _buildLink(l10n.guideIrSourceCelestion, _kIrSourceCelestion),
         const SizedBox(height: 10),
         _buildInfoBox(l10n.guideAmpIrSourcesNote),
-      ],
-    );
-  }
-}
-
-/// Explains rehearsing as a band: recording a part, and getting the devices
-/// onto one network.
-///
-/// The network section is the reason this tab exists. Everything else in the
-/// feature is discoverable by poking at it, but "why can the others not see
-/// me" has an answer that lives outside the app entirely — somebody has to
-/// turn on a hotspot — and there is nowhere else to say so.
-class _RehearsalsTab extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    return ListView(
-      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 10),
-      children: [
-        _buildSectionTitle(l10n.guideRehearsalIntroTitle),
-        _buildParagraph(l10n.guideRehearsalIntroBody),
-        const SizedBox(height: 20),
-        _buildSectionTitle(l10n.guideRehearsalStartTitle),
-        _buildParagraph(l10n.guideRehearsalStartBody),
-        const SizedBox(height: 20),
-        _buildSectionTitle(l10n.guideRehearsalRecordTitle),
-        _buildParagraph(l10n.guideRehearsalRecordBody),
-        const SizedBox(height: 10),
-        _buildInfoBox(l10n.guideRehearsalMonitoringNote),
-        const SizedBox(height: 20),
-        _buildSectionTitle(l10n.guideRehearsalShareTitle),
-        _buildParagraph(l10n.guideRehearsalShareBody),
-        const SizedBox(height: 20),
-        _buildSectionTitle(l10n.guideRehearsalHotspotTitle),
-        _buildParagraph(l10n.guideRehearsalHotspotBody),
-        const SizedBox(height: 10),
-        _buildInfoBox(l10n.guideRehearsalHotspotNote),
-      ],
-    );
-  }
-}
-
-/// Explains MIDI connection (USB/BLE) and CC/System action mapping.
-class _MidiConnectivityTab extends StatelessWidget {
-  const _MidiConnectivityTab();
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    return ListView(
-      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 10),
-      children: [
-        _buildSectionTitle(l10n.guideMidiTitle),
-        _buildParagraph(l10n.guideMidiBody),
-        const SizedBox(height: 10),
-        _buildSubTitle(l10n.guideMidiHardware),
-        _buildStep(1, l10n.guideMidiHardwareStep1),
-        _buildStep(2, l10n.guideMidiHardwareStep2),
-        const SizedBox(height: 10),
-        _buildSubTitle(l10n.guideMidiCcMappings),
-        _buildParagraph(l10n.guideMidiCcMappingsBody),
-        _buildFeatureItem(
-          Icons.skip_next,
-          l10n.guideMidiFeaturePatch,
-          l10n.guideMidiFeaturePatchDesc,
-        ),
-        _buildFeatureItem(
-          Icons.loop,
-          l10n.guideMidiFeatureScales,
-          l10n.guideMidiFeatureScalesDesc,
-        ),
-        _buildFeatureItem(
-          Icons.lock,
-          l10n.guideMidiFeatureJam,
-          l10n.guideMidiFeatureJamDesc,
-        ),
         const SizedBox(height: 24),
-        _buildSectionTitle(l10n.guideMidiBestPracticeTitle),
-        _buildParagraph(l10n.guideMidiBestPracticeBody),
+        ..._detail(l10n.guideSoundfontsTitle, l10n.guideSoundfontsBody),
+        ..._detail(l10n.guideDrumGeneratorTitle, l10n.guideDrumGeneratorBody),
+        ..._detail(l10n.guideLoopersTitle, l10n.guideLoopersBody),
+        ..._detail(l10n.guideMidiFxTitle, l10n.guideMidiFxBody),
+        ..._detail(l10n.guideVocoderTitle, l10n.guideVocoderBody),
+        _buildInfoBox(l10n.guideVocoderNote),
+        const SizedBox(height: 24),
+        ..._detail(l10n.guideThereminTitle, l10n.guideThereminBody),
+        ..._detail(l10n.guideJamModeTitle, l10n.guideJamModeBody),
+      ],
+    );
+  }
+
+  /// A titled block of text about one module.
+  List<Widget> _detail(String title, String body) => [
+        _buildSectionTitle(title),
+        _buildParagraph(body),
         const SizedBox(height: 12),
-        _buildInfoBox(l10n.guideMidiTipSplit),
-        const SizedBox(height: 12),
-        _buildInfoBox(l10n.guideAndroidUsbLimitation),
-      ],
-    );
-  }
-}
-
-/// Explains Soundfont loading and management.
-class _SoundfontsTab extends StatelessWidget {
-  const _SoundfontsTab();
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    return ListView(
-      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 10),
-      children: [
-        _buildSectionTitle(l10n.guideSoundfontsTitle),
-        _buildParagraph(l10n.guideSoundfontsBody),
-        _buildFeatureItem(
-          Icons.folder_open,
-          'Import SF2',
-          'Add files from your local storage.',
-        ),
-        _buildFeatureItem(
-          Icons.storage,
-          'Permanent Cache',
-          'Files are moved to app internal storage for stability.',
-        ),
-        const SizedBox(height: 20),
-        _buildInfoBox(
-          'Tip: High-quality soundfonts can be several hundred MBs. Ensure you have enough storage.',
-        ),
-      ],
-    );
-  }
-}
-
-/// Provides scale references and improvisation tips.
-class _MusicalTipsTab extends StatelessWidget {
-  const _MusicalTipsTab();
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    return ListView(
-      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 10),
-      children: [
-        _buildSectionTitle(l10n.guideTipsTitle),
-        _buildParagraph(l10n.guideTipsBody),
-        const Divider(color: Colors.white24, height: 32),
-        _buildSectionTitle(l10n.guideScalesTitle),
-        _buildParagraph('Visual reference for common scales (Key of C):'),
-        _buildScaleMemoItem('MAJOR / IONIAN', [0, 2, 4, 5, 7, 9, 11]),
-        _buildScaleMemoItem('DORIAN', [0, 2, 3, 5, 7, 9, 10]),
-        _buildScaleMemoItem('LYDIAN', [0, 2, 4, 6, 7, 9, 11]),
-        _buildScaleMemoItem('MIXOLYDIAN', [0, 2, 4, 5, 7, 9, 10]),
-        _buildScaleMemoItem('AEOLIAN (MINOR)', [0, 2, 3, 5, 7, 8, 10]),
-        _buildScaleMemoItem('MAJOR PENTATONIC', [0, 2, 4, 7, 9]),
-        _buildScaleMemoItem('MINOR PENTATONIC', [0, 3, 5, 7, 10]),
-        _buildScaleMemoItem('MINOR BLUES', [0, 3, 5, 6, 7, 10]),
-      ],
-    );
-  }
-}
-
-/// Explains the rack system, back-panel patch view, jack types, and cable
-/// drawing/disconnecting workflow introduced in Phase 5.
-class _PatchViewTab extends StatelessWidget {
-  const _PatchViewTab();
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    return ListView(
-      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 10),
-      children: [
-        // ── Rack intro ──────────────────────────────────────────────────────
-        _buildSectionTitle(l10n.guidePatchRackTitle),
-        _buildParagraph(l10n.guidePatchRackBody),
-        const SizedBox(height: 8),
-        _buildSubTitle(l10n.guidePatchSlotTypesTitle),
-        ..._slotTypeList(l10n),
-        const SizedBox(height: 4),
-        _buildDesktopOnlyBox(l10n.guidePatchSlotVst3DesktopOnly),
-        const Divider(color: Colors.white12, height: 40),
-        // ── Patch view ──────────────────────────────────────────────────────
-        _buildSectionTitle(l10n.guidePatchTitle),
-        _buildParagraph(l10n.guidePatchIntro),
-        const SizedBox(height: 20),
-        _buildSubTitle(l10n.guidePatchToggleTitle),
-        _buildParagraph(l10n.guidePatchToggleBody),
-        const SizedBox(height: 20),
-        _buildSubTitle(l10n.guidePatchJacksTitle),
-        _buildParagraph(l10n.guidePatchJacksBody),
-        _buildJackLegend(),
-        const SizedBox(height: 20),
-        _buildSubTitle(l10n.guidePatchDrawTitle),
-        _buildParagraph(l10n.guidePatchDrawBody),
-        const SizedBox(height: 20),
-        _buildSubTitle(l10n.guidePatchDisconnectTitle),
-        _buildParagraph(l10n.guidePatchDisconnectBody),
-        const SizedBox(height: 20),
-        _buildSubTitle(l10n.guidePatchDataTitle),
-        _buildParagraph(l10n.guidePatchDataBody),
-        const SizedBox(height: 20),
-        _buildSubTitle(l10n.guidePatchSharedEffectTitle),
-        _buildParagraph(l10n.guidePatchSharedEffectBody),
-        const SizedBox(height: 8),
-        _buildWarningBox(l10n.guidePatchSharedEffectWorkaround),
-        const SizedBox(height: 12),
-        _buildInfoBox(l10n.guidePatchTip),
-      ],
-    );
-  }
+      ];
 
   /// Every module the "Add Plugin" sheet offers, in the same families and
   /// order, so the help keeps listing what the rack can actually hold. The
@@ -484,54 +443,8 @@ class _PatchViewTab extends StatelessWidget {
     ];
   }
 
-  /// A small upper-case family label above a group of slot types, styled
-  /// like the section labels of the "Add Plugin" sheet.
-  Widget _buildGroupLabel(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 12, bottom: 2),
-      child: Text(
-        text.toUpperCase(),
-        style: const TextStyle(
-          color: Colors.white54,
-          fontSize: 11,
-          fontWeight: FontWeight.bold,
-          letterSpacing: 1.0,
-        ),
-      ),
-    );
-  }
-
-  /// A warning-styled box used to flag routing constraints that will
-  /// block a drag-drop attempt. Visually distinct from
-  /// [_buildDesktopOnlyBox] (amber / desktop) and [_buildInfoBox]
-  /// (neutral / info) so users recognise it as "this will produce a
-  /// rejection toast if you try it".
-  Widget _buildWarningBox(String text) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.redAccent.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.redAccent.withValues(alpha: 0.35)),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.warning_amber_outlined,
-              color: Colors.redAccent, size: 20),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              text,
-              style: const TextStyle(color: Colors.redAccent, fontSize: 13),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// An amber-tinted info box used to flag platform-specific limitations,
-  /// such as VST3 support being desktop-only.
+  /// An amber-tinted box flagging a platform limit, such as VST3 being
+  /// desktop-only.
   Widget _buildDesktopOnlyBox(String text) {
     return Container(
       padding: const EdgeInsets.all(12),
@@ -545,42 +458,80 @@ class _PatchViewTab extends StatelessWidget {
           const Icon(Icons.desktop_windows_outlined, color: Colors.amber, size: 20),
           const SizedBox(width: 12),
           Expanded(
-            child: Text(
-              text,
-              style: const TextStyle(color: Colors.amber, fontSize: 13),
-            ),
+            child: Text(text, style: const TextStyle(color: Colors.amber, fontSize: 13)),
           ),
         ],
       ),
     );
   }
+}
 
-  /// Visual legend showing each cable colour and the signal family it represents.
-  Widget _buildJackLegend() {
+/// The back of the rack: socket colours, drawing and removing cables, and
+/// the one rule that makes GrooveForge refuse a cable.
+class _CablesTab extends StatelessWidget {
+  const _CablesTab();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return ListView(
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 10),
+      children: [
+        _buildSectionTitle(l10n.guidePatchTitle),
+        _buildParagraph(l10n.guidePatchIntro),
+        const SizedBox(height: 12),
+        _buildSubTitle(l10n.guideJackLegendTitle),
+        _buildJackLegend(l10n),
+        const SizedBox(height: 20),
+        _buildSubTitle(l10n.guidePatchDrawTitle),
+        _buildParagraph(l10n.guidePatchDrawBody),
+        const SizedBox(height: 12),
+        _buildSubTitle(l10n.guidePatchDisconnectTitle),
+        _buildParagraph(l10n.guidePatchDisconnectBody),
+        const SizedBox(height: 12),
+        _buildSubTitle(l10n.guidePatchDataTitle),
+        _buildParagraph(l10n.guidePatchDataBody),
+        const SizedBox(height: 12),
+        _buildSubTitle(l10n.guidePatchSharedEffectTitle),
+        _buildParagraph(l10n.guidePatchSharedEffectBody),
+        const SizedBox(height: 8),
+        _buildWarningBox(l10n.guidePatchSharedEffectWorkaround),
+        const SizedBox(height: 12),
+        _buildInfoBox(l10n.guidePatchTip),
+      ],
+    );
+  }
+
+  /// Socket colours: one row per family, with the socket names as printed on
+  /// the back panels (left untranslated, like the panels) and what they carry.
+  Widget _buildJackLegend(AppLocalizations l10n) {
     return Padding(
       padding: const EdgeInsets.only(top: 4, bottom: 8, left: 8),
       child: Column(
         children: [
-          _buildLegendRow(const Color(0xFFFFD700), 'MIDI', 'MIDI IN / OUT'),
-          _buildLegendRow(const Color(0xFFFF4444), 'Audio L', 'AUDIO OUT L / AUDIO IN L'),
-          _buildLegendRow(Colors.white70, 'Audio R', 'AUDIO OUT R / AUDIO IN R'),
-          _buildLegendRow(const Color(0xFFFF8C00), 'Send/Return', 'SEND OUT / RETURN IN'),
-          _buildLegendRow(const Color(0xFFAB47BC), 'Data', 'CHORD & SCALE (Jam Mode)'),
+          _buildLegendRow(_kJackMidi, 'MIDI IN / OUT', l10n.guideJackMidi),
+          _buildLegendRow(_kJackAudioL, 'AUDIO IN / OUT L', l10n.guideJackAudioL),
+          _buildLegendRow(_kJackAudioR, 'AUDIO IN / OUT R', l10n.guideJackAudioR),
+          _buildLegendRow(_kJackSend, 'SEND / RETURN', l10n.guideJackSend),
+          _buildLegendRow(_kJackData, 'CHORD / SCALE', l10n.guideJackData),
+          _buildLegendRow(_kJackTune, 'TUNE IN / OUT', l10n.guideJackTune),
         ],
       ),
     );
   }
 
-  /// A single row in the cable colour legend: a coloured swatch, a short
-  /// family label, and a description of the ports it covers.
-  Widget _buildLegendRow(Color color, String family, String ports) {
+  /// A single legend row: a coloured dot, the socket names, and what they
+  /// carry.
+  Widget _buildLegendRow(Color color, String ports, String meaning) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
+      padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 16,
-            height: 16,
+            width: 14,
+            height: 14,
+            margin: const EdgeInsets.only(top: 2),
             decoration: BoxDecoration(
               color: color,
               shape: BoxShape.circle,
@@ -588,27 +539,174 @@ class _PatchViewTab extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 10),
-          SizedBox(
-            width: 80,
-            child: Text(
-              family,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
           Expanded(
-            child: Text(
-              ports,
-              style: const TextStyle(color: Colors.white54, fontSize: 12),
+            child: Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: '$ports  ',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  TextSpan(
+                    text: meaning,
+                    style: const TextStyle(color: Colors.white54, fontSize: 12),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
       ),
     );
   }
+
+  /// A red box for a rule that makes GrooveForge refuse a cable, so readers
+  /// recognise it when the refusal message appears.
+  Widget _buildWarningBox(String text) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.redAccent.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.redAccent.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.warning_amber_outlined, color: Colors.redAccent, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(text, style: const TextStyle(color: Colors.redAccent, fontSize: 13)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Hardware controllers: connecting one, which module it plays, and mapping
+/// its knobs and pads.
+class _MidiTab extends StatelessWidget {
+  const _MidiTab();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return ListView(
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 10),
+      children: [
+        _buildSectionTitle(l10n.guideMidiTitle),
+        _buildParagraph(l10n.guideMidiBody),
+        _buildStep(1, l10n.guideMidiHardwareStep1),
+        _buildStep(2, l10n.guideMidiHardwareStep2),
+        _buildStep(3, l10n.guideMidiHardwareStep3),
+        const SizedBox(height: 20),
+        _buildSubTitle(l10n.guideMidiCcMappings),
+        _buildParagraph(l10n.guideMidiCcMappingsBody),
+        const SizedBox(height: 20),
+        _buildSubTitle(l10n.guideMidiBestPracticeTitle),
+        _buildParagraph(l10n.guideMidiBestPracticeBody),
+        _buildInfoBox(l10n.guideMidiTipSplit),
+        const SizedBox(height: 12),
+        _buildInfoBox(l10n.guideAndroidUsbLimitation),
+      ],
+    );
+  }
+}
+
+/// Rehearsing as a band: recording a part, and getting the devices onto one
+/// network.
+///
+/// The network section is the reason this tab exists. Everything else in the
+/// feature is discoverable by poking at it, but "why can the others not see
+/// me" has an answer that lives outside the app entirely (somebody has to
+/// turn on a hotspot) and there is nowhere else to say so.
+class _RehearsalsTab extends StatelessWidget {
+  const _RehearsalsTab();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return ListView(
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 10),
+      children: [
+        _buildSectionTitle(l10n.guideRehearsalIntroTitle),
+        _buildParagraph(l10n.guideRehearsalIntroBody),
+        _buildLink(
+          l10n.guideWatchClip,
+          _guideUrl(
+            context,
+            Localizations.localeOf(context).languageCode == 'fr'
+                ? guideClipAnchors['rehearsal']!
+                : 'rehearsal',
+          ),
+        ),
+        const SizedBox(height: 20),
+        _buildSectionTitle(l10n.guideRehearsalStartTitle),
+        _buildParagraph(l10n.guideRehearsalStartBody),
+        const SizedBox(height: 20),
+        _buildSectionTitle(l10n.guideRehearsalRecordTitle),
+        _buildParagraph(l10n.guideRehearsalRecordBody),
+        const SizedBox(height: 10),
+        _buildInfoBox(l10n.guideRehearsalMonitoringNote),
+        const SizedBox(height: 20),
+        _buildSectionTitle(l10n.guideRehearsalShareTitle),
+        _buildParagraph(l10n.guideRehearsalShareBody),
+        const SizedBox(height: 20),
+        _buildSectionTitle(l10n.guideRehearsalHotspotTitle),
+        _buildParagraph(l10n.guideRehearsalHotspotBody),
+        const SizedBox(height: 10),
+        _buildInfoBox(l10n.guideRehearsalHotspotNote),
+      ],
+    );
+  }
+}
+
+/// A few ideas for players who have never improvised.
+class _TipsTab extends StatelessWidget {
+  const _TipsTab();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return ListView(
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 10),
+      children: [
+        _buildSectionTitle(l10n.guideTipsTitle),
+        _buildParagraph(l10n.guideTipsBody),
+      ],
+    );
+  }
+}
+
+// ─── Shared helpers ─────────────────────────────────────────────────────────
+
+// Socket colours, matching the back panels of the rack.
+const _kJackMidi = Color(0xFFFFD700);
+const _kJackAudioL = Color(0xFFFF4444);
+const _kJackAudioR = Colors.white70;
+const _kJackSend = Color(0xFFFF8C00);
+const _kJackData = Color(0xFFAB47BC);
+const _kJackTune = Color(0xFF26A69A);
+
+/// A small upper-case family label above a group of modules, styled like the
+/// section labels of the "Add Plugin" sheet.
+Widget _buildGroupLabel(String text) {
+  return Padding(
+    padding: const EdgeInsets.only(top: 12, bottom: 2),
+    child: Text(
+      text.toUpperCase(),
+      style: const TextStyle(
+        color: Colors.white54,
+        fontSize: 11,
+        fontWeight: FontWeight.bold,
+        letterSpacing: 1.0,
+      ),
+    ),
+  );
 }
 
 // Helper Widgets
@@ -911,137 +1009,4 @@ Widget _buildInfoBox(String text) {
       ],
     ),
   );
-}
-
-Widget _buildScaleMemoItem(String name, List<int> intervals) {
-  return Padding(
-    padding: const EdgeInsets.symmetric(vertical: 8),
-    child: Row(
-      children: [
-        SizedBox(
-          width: 140,
-          child: Text(
-            name,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Container(
-            height: 50,
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.05),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: CustomPaint(painter: _StaffPainter(intervals)),
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
-class _StaffPainter extends CustomPainter {
-  final List<int> intervals;
-  _StaffPainter(this.intervals);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final linePaint =
-        Paint()
-          ..color = Colors.white24
-          ..strokeWidth = 1;
-    final notePaint =
-        Paint()
-          ..color = Colors.blueAccent
-          ..style = PaintingStyle.fill;
-    const double staffHeight = 30.0;
-    final double startY = (size.height - staffHeight) / 2;
-    final double lineSpacing = staffHeight / 4;
-
-    final double gLineY = startY + 3 * lineSpacing;
-    final TextPainter clefPainter = TextPainter(
-      text: const TextSpan(
-        text: '\uD834\uDD1E',
-        style: TextStyle(color: Colors.white54, fontSize: 32, height: 1.0),
-      ),
-      textDirection: TextDirection.ltr,
-    );
-    clefPainter.layout();
-    clefPainter.paint(canvas, Offset(8, gLineY - 20));
-
-    for (int i = 0; i < 5; i++) {
-      final y = startY + i * lineSpacing;
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), linePaint);
-    }
-
-    final Map<int, _ScaleNote> noteMap = {
-      0: _ScaleNote(0, null),
-      1: _ScaleNote(1, '\u266D'),
-      2: _ScaleNote(1, null),
-      3: _ScaleNote(2, '\u266D'),
-      4: _ScaleNote(2, null),
-      5: _ScaleNote(3, null),
-      6: _ScaleNote(3, '\u266F'),
-      7: _ScaleNote(4, null),
-      8: _ScaleNote(5, '\u266D'),
-      9: _ScaleNote(5, null),
-      10: _ScaleNote(6, '\u266D'),
-      11: _ScaleNote(6, null),
-    };
-
-    final double startX = 40;
-    final double availableWidth = size.width - startX - 10;
-    final double noteSpacing =
-        availableWidth / (intervals.length == 1 ? 1 : intervals.length - 1 + 1);
-
-    for (int i = 0; i < intervals.length; i++) {
-      final interval = intervals[i] % 12;
-      final x = startX + i * noteSpacing;
-      final info = noteMap[interval]!;
-
-      final line1Y = startY + 4 * lineSpacing;
-      final y = line1Y - (info.step - 2) * (lineSpacing / 2);
-
-      if (info.step == 0) {
-        canvas.drawLine(Offset(x - 8, y), Offset(x + 8, y), linePaint);
-      }
-
-      if (info.accidental != null) {
-        final TextPainter tp = TextPainter(
-          text: TextSpan(
-            text: info.accidental,
-            style: const TextStyle(
-              color: Colors.blueAccent,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          textDirection: TextDirection.ltr,
-        );
-        tp.layout();
-        final double yOffset = info.accidental == '\u266D' ? -14 : -11;
-        tp.paint(canvas, Offset(x - 16, y + yOffset));
-      }
-
-      canvas.drawOval(
-        Rect.fromCenter(center: Offset(x, y), width: 9, height: 7),
-        notePaint,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class _ScaleNote {
-  final int step;
-  final String? accidental;
-  _ScaleNote(this.step, this.accidental);
 }

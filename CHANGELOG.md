@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - New projects start with the Xen module switched off, so the keyboard plays every note until you pick a scale, which switches it on. Projects you saved keep Xen exactly as they were.
+- Help rewritten: it now starts with how to connect modules and short recipes, each linking to a video of the gesture on the website.
 
 ### Fixed
 - Opening a project from the menu left Riff, Amp and every other audio module stuck loading and silent. They now load as they do at startup.

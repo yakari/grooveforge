@@ -9,6 +9,7 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 
 ### Modifié
 - Les nouveaux projets démarrent avec le module Xen éteint : le clavier joue toutes les notes jusqu'à ce que vous choisissiez une gamme, ce qui l'allume. Les projets sauvegardés gardent Xen tel quel.
+- Aide réécrite : elle commence par la façon de brancher les modules et des recettes courtes, chacune avec une vidéo du geste sur le site.
 
 ### Corrigé
 - Ouvrir un projet depuis le menu laissait Riff, l'Ampli et tous les autres modules audio bloqués en chargement et muets. Ils se chargent maintenant comme au démarrage.

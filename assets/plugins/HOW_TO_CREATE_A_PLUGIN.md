@@ -1,6 +1,6 @@
 # How to Create a GrooveForge Plugin
 
-GrooveForge plugins use the `.gfpd` (**GrooveForge Plugin Descriptor**) format — a human-readable YAML file that fully describes a plugin: its identity, its DSP signal graph, its parameters, and how its UI panel should look. No Dart or Flutter code is required for standard effects and instruments.
+GrooveForge plugins use the `.gfpd` (**GrooveForge Plugin Descriptor**) format — a human-readable YAML file that fully describes a plugin: its identity, its DSP signal graph, its parameters, and how its UI panel should look. A MIDI FX described this way works with no Dart or Flutter code. A custom audio effect or instrument shows its panel and saves its settings, but does not process sound yet: the sound of the built-in effects comes from native code chosen by plugin id.
 
 ---
 

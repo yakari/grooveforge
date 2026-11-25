@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Format de patterns .gfdrum GrooveForge — grilles YAML, patterns fournis, téléchargement depuis main.">
+  <meta name="description" content="Référence du format de pattern de batterie .gfdrum : tous les champs lus par le générateur de batterie, les grilles, les sections et les patterns fournis à télécharger.">
   <title>GrooveForge — Patterns .gfdrum</title>
   <link rel="icon" type="image/png" href="../../assets/icon.png">
   <link rel="stylesheet" href="../../css/site.css">
@@ -42,73 +42,170 @@
   <main id="main" class="prose">
     <div class="page-hero">
       <h1>Patterns <code>.gfdrum</code></h1>
-      <p class="lead">Fichiers YAML déclaratifs pour le générateur de batterie : grilles de pas, humanisation et structure musicale.</p>
+      <p class="lead">Un fichier <code>.gfdrum</code> est un fichier texte YAML qui décrit un style de batterie pour le générateur de batterie.
+        Cette page liste tous les champs que l'application lit.</p>
     </div>
 
-    <figure class="figure-card figure-doc">
-      <img src="../../assets/screenshots/01_grooveforge_main.png" width="920" height="518" loading="lazy" alt="Rack avec slot générateur de batterie et barre de transport (BPM, lecture)">
-      <figcaption>Le générateur de batterie est un slot comme les autres : les patterns suivent le <strong>transport</strong> (BPM, lecture/arrêt, signature) avec le looper et le métronome.</figcaption>
-    </figure>
-
-    <h2>Contenu d’un fichier pattern</h2>
-    <p>
-      Chaque fichier <code>.gfdrum</code> est du YAML lisible (commentaires bienvenus). Les champs de premier niveau décrivent
-      le groove et pilotent l’ordonnanceur :
-    </p>
+    <h2 id="charger">Charger votre propre pattern</h2>
+    <ol>
+      <li>Partez du pattern fourni le plus proche de votre style (<a href="#telechargements">téléchargements plus bas</a>) et modifiez-le dans un éditeur de texte.</li>
+      <li>Dans le module Générateur de batterie, touchez <span class="ui">Charger un .gfdrum…</span> et choisissez votre fichier.</li>
+    </ol>
+    <p class="recipe-result">Le menu <span class="ui">Style</span> affiche <span class="ui">Pattern personnalisé</span> et le pattern se joue.</p>
     <ul>
-      <li><code>name</code>, <code>family</code> — affichage et regroupement.</li>
-      <li><code>bpm_range</code> — plage de tempo suggérée <code>[min, max]</code>.</li>
-      <li><code>time_signature</code> — par ex. <code>[4, 4]</code> ou <code>[3, 4]</code> ; le chargement peut aligner le transport.</li>
-      <li><code>resolution</code> — pas par mesure (ex. 16 pour les doubles-croches en 4/4 ; 9 pour grilles triolets en 3/4).</li>
-      <li><code>feel</code> — <code>straight</code>, <code>swing_soft</code>, <code>swing_hard</code> ou <code>laid_back</code> (micro-timing des pas impairs).</li>
+      <li>Pas dans la démo web.</li>
+      <li>L'application ne garde pas le fichier d'un lancement à l'autre. Après un redémarrage, rechargez-le.</li>
+      <li>Si le fichier contient une erreur, rien ne se passe et le pattern précédent continue.</li>
+      <li>Donnez à votre fichier un nom à lui. Un fichier nommé <code>rock_basic.gfdrum</code> remplace le Classic Rock fourni jusqu'au redémarrage de l'application.</li>
     </ul>
 
-    <h2>Notation des grilles de pas</h2>
-    <p>Chaque caractère est un pas pour la piste de l’instrument :</p>
-    <table class="download-table">
-      <thead><tr><th>Car.</th><th>Signification</th></tr></thead>
+    <h2 id="exemple">Un exemple court</h2>
+    <pre><code>name: My Rock
+family: rock
+time_signature: [4, 4]
+resolution: 16
+feel: straight
+
+instruments:
+  kick:  { note: 36, base_velocity: 110, velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.15 }
+  snare: { note: 38, base_velocity: 105 }
+  hihat: { note: 42, base_velocity: 82 }
+  crash: { note: 49, base_velocity: 100, duration_beats: 0.25 }
+
+sections:
+  intro:
+    type: count_in
+    hits: 4
+    note: 37
+
+  groove:
+    variations:
+      - name: main
+        weight: 3
+        kick:  "X.......X......."
+        snare: "....X.......X..."
+        hihat: "X.x.X.x.X.x.X.x."
+      - name: push
+        weight: 1
+        kick:  "X.......X......X"
+        snare: "....X.......X..."
+        hihat: "X.x.X.x.X.x.X.x."
+
+  fill:
+    variations:
+      - name: snare_run
+        kick:  "X..............."
+        snare: "....X...X.X.X.X."
+
+  crash:
+    variations:
+      - name: standard
+        crash: "X..............."
+        kick:  "X..............."</code></pre>
+    <p>Chaque grille fait une mesure. Avec <code>resolution: 16</code> en 4/4, un caractère vaut une double croche :</p>
+    <pre><code>position  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15
+temps     1 e + a 2 e + a 3 e + a  4  e  +  a</code></pre>
+
+    <h2 id="racine">Champs de premier niveau</h2>
+    <table>
+      <thead><tr><th>Champ</th><th>S'il manque</th><th>Rôle</th></tr></thead>
       <tbody>
-        <tr><td><code>X</code></td><td>Accent fort (multiplicateur de vélocité plein)</td></tr>
-        <tr><td><code>x</code></td><td>Accent moyen</td></tr>
-        <tr><td><code>o</code></td><td>Coups doux</td></tr>
-        <tr><td><code>g</code></td><td>Note fantôme (vélocité très basse)</td></tr>
-        <tr><td><code>.</code></td><td>Silence</td></tr>
+        <tr><td><code>name</code></td><td>Le nom du fichier</td><td>Nom dans le menu <span class="ui">Style</span>.</td></tr>
+        <tr><td><code>family</code></td><td><code>other</code></td><td>Groupe dans le menu <span class="ui">Style</span>. Ces valeurs sont traduites dans l'application :
+          <code>rock</code>, <code>jazz</code>, <code>funk</code>, <code>latin</code>, <code>celtic</code>, <code>pop</code>, <code>electronic</code>,
+          <code>world</code>, <code>metal</code>, <code>country</code>, <code>folk</code>, <code>march</code>, <code>reggae</code>, <code>rnb</code>,
+          <code>arabic</code>, <code>turkish</code>, <code>persian</code>, <code>indian</code>, <code>fareast</code>. Toute autre valeur s'affiche telle quelle.</td></tr>
+        <tr><td><code>time_signature</code></td><td><code>[4, 4]</code></td><td><code>[temps, unité]</code>, par exemple <code>[6, 8]</code> ou <code>[9, 8]</code>.
+          Choisir le pattern quand le transport est arrêté règle le transport sur cette métrique.</td></tr>
+        <tr><td><code>resolution</code></td><td><code>16</code></td><td>Pas par mesure. Écrivez chaque grille avec exactement ce nombre de caractères.
+          Une grille plus courte laisse la fin de la mesure vide ; une plus longue déborde sur la mesure suivante.</td></tr>
+        <tr><td><code>feel</code></td><td><code>straight</code></td><td>Placement des pas impairs (1, 3, 5…). Voir <a href="#feel">Feel</a>.</td></tr>
+        <tr><td><code>instruments</code></td><td>Silence</td><td>Les sons de batterie, une piste chacun. Voir <a href="#instruments">Instruments</a>.</td></tr>
+        <tr><td><code>sections</code></td><td>Silence</td><td>Quoi jouer et quand. Voir <a href="#sections">Sections</a>.</td></tr>
+      </tbody>
+    </table>
+    <p class="recipe-note">Les fichiers fournis contiennent aussi <code>bpm_range</code>, <code>humanization</code> et <code>structure</code>, ainsi que
+      <code>bars</code> dans les sections. L'application ne les lit pas : les modifier ne change rien.</p>
+
+    <h3 id="feel">Feel</h3>
+    <table>
+      <thead><tr><th>Valeur</th><th>Effet</th></tr></thead>
+      <tbody>
+        <tr><td><code>straight</code></td><td>Chaque pas tombe sur la grille.</td></tr>
+        <tr><td><code>swing_light</code> (ou <code>swing_soft</code>)</td><td>Pas impairs retardés de 16 % d'un pas.</td></tr>
+        <tr><td><code>swing_hard</code></td><td>Pas impairs retardés de 34 % d'un pas, proche d'un shuffle en triolets.</td></tr>
+        <tr><td><code>laid_back</code>, <code>pushed</code></td><td>Identiques à <code>straight</code> pour l'instant. Pour retenir ou pousser un fût, utilisez son <code>rush</code>.</td></tr>
+      </tbody>
+    </table>
+    <p>Une valeur inconnue se joue comme <code>straight</code>. Toucher au curseur <span class="ui">Swing</span> du module remplace le feel du fichier.
+      Ramenez-le tout à gauche, là où il affiche <span class="ui">Pattern</span>, pour revenir à celui du fichier.</p>
+
+    <h2 id="instruments">Instruments</h2>
+    <p>Sous <code>instruments:</code>, chaque clé est un nom de piste de votre choix (<code>kick</code>, <code>surdo_open</code>…).
+      Les grilles qui utilisent un nom absent de cette liste sont ignorées.</p>
+    <table>
+      <thead><tr><th>Champ</th><th>S'il manque</th><th>Rôle</th></tr></thead>
+      <tbody>
+        <tr><td><code>note</code></td><td>Piste ignorée</td><td>Obligatoire. Note de batterie General MIDI : 36 grosse caisse, 37 side stick, 38 caisse claire, 42 charleston fermé, 46 charleston ouvert, 49 crash, 51 ride.</td></tr>
+        <tr><td><code>base_velocity</code></td><td><code>100</code></td><td>Vélocité (1 à 127) d'un coup <code>X</code>. Les autres caractères en sont des fractions.</td></tr>
+        <tr><td><code>velocity_range</code></td><td><code>15</code></td><td>Variation aléatoire, en plus ou en moins, de la vélocité de chaque coup.</td></tr>
+        <tr><td><code>timing_jitter</code></td><td><code>0.02</code></td><td>Variation aléatoire du placement de chaque coup, en plus ou en moins, en temps.</td></tr>
+        <tr><td><code>rush</code></td><td><code>0</code></td><td>Décalage fixe, en temps, de tous les coups de la piste. Négatif : en avance ; positif : en retard.</td></tr>
+        <tr><td><code>duration_beats</code></td><td><code>0.1</code></td><td>Durée de chaque note, en temps.</td></tr>
+      </tbody>
+    </table>
+    <p>Le réglage <span class="ui">Feeling humain</span> du module dose <code>velocity_range</code> et <code>timing_jitter</code>.
+      Au minimum, chaque coup tombe pile.</p>
+
+    <h3 id="grille">Caractères des grilles</h3>
+    <table>
+      <thead><tr><th>Caractère</th><th>Coup</th><th>Vélocité</th></tr></thead>
+      <tbody>
+        <tr><td><code>X</code></td><td>Accent</td><td><code>base_velocity</code></td></tr>
+        <tr><td><code>x</code></td><td>Moyen</td><td>75 %</td></tr>
+        <tr><td><code>o</code></td><td>Doux</td><td>55 %</td></tr>
+        <tr><td><code>g</code></td><td>Ghost note</td><td>28 %</td></tr>
+        <tr><td><code>.</code></td><td>Silence</td><td>Aucune. Tout autre caractère est aussi un silence.</td></tr>
       </tbody>
     </table>
 
-    <h2>Bloc <code>instruments</code></h2>
-    <p>
-      Sous <code>instruments:</code>, chaque piste correspond à une <code>note</code> GM de batterie ainsi qu’à
-      <code>base_velocity</code>, <code>velocity_range</code>, <code>timing_jitter</code> et <code>duration_beats</code>.
-      Les noms de pistes sont libres (kick, snare, hihat, surdo_open, …) tant que chaque piste utilisée est définie.
-    </p>
+    <h2 id="sections">Sections</h2>
+    <p>Le générateur joue les sections qui portent ces cinq noms. Une section avec un autre nom n'est jamais jouée.</p>
+    <table>
+      <thead><tr><th>Section</th><th>Quand elle joue</th></tr></thead>
+      <tbody>
+        <tr><td><code>groove</code></td><td>Toutes les mesures qu'aucune autre section ne prend. Sans elle, le pattern est muet.</td></tr>
+        <tr><td><code>intro</code></td><td>Avant le groove, quand le <span class="ui">Décompte</span> du module est réglé :
+          une mesure pour <span class="ui">1 mesure</span> et <span class="ui">Baguettes (4 coups)</span>, deux pour <span class="ui">2 mesures</span>.
+          Sans <code>intro</code>, le groove joue pendant ces mesures.</td></tr>
+        <tr><td><code>fill</code></td><td>La dernière mesure de chaque groupe de 4, 8 ou 16 mesures, ou au hasard toutes les 8 à 24 mesures, selon <span class="ui">Fill tous les</span>.</td></tr>
+        <tr><td><code>crash</code></td><td>Par-dessus la mesure qui suit un fill.</td></tr>
+        <tr><td><code>break</code></td><td>Jamais, dans cette version : le module n'a aucun réglage pour activer les breaks.</td></tr>
+      </tbody>
+    </table>
 
-    <h2>Sections</h2>
-    <p>Clés typiques sous <code>sections:</code> :</p>
-    <ul>
-      <li><code>intro</code> avec <code>type: count_in</code>, <code>hits</code> et <code>note</code> pour baguettes ou charleston.</li>
-      <li><code>groove</code> — soit une boucle d’une mesure avec <code>bars: 1</code> et <code>variations:</code> (tirage pondéré), soit
-        <code>type: sequence</code> avec <code>bars: N</code> et <code>bar_grids:</code> pour des phrases sur plusieurs mesures.</li>
-      <li><code>fill</code>, <code>break</code>, <code>crash</code> — sections ponctuelles avec leurs propres variations.</li>
-    </ul>
+    <h3>Trois sortes de section</h3>
+    <table>
+      <thead><tr><th><code>type</code></th><th>Fonctionnement</th></tr></thead>
+      <tbody>
+        <tr><td><code>loop</code> (par défaut)</td><td>Une liste sous <code>variations:</code>. Chaque mesure en tire une au hasard ; une variation avec <code>weight: 3</code> sort trois fois
+          plus souvent qu'une avec <code>weight: 1</code> (la valeur par défaut). Dans une variation, <code>name</code> est facultatif et chaque autre clé est une piste
+          avec sa grille. Pour une seule variation, sautez la liste et mettez les grilles directement sous la section.</td></tr>
+        <tr><td><code>sequence</code></td><td>Une liste sous <code>bar_grids:</code>, une entrée par mesure, jouées dans l'ordre puis en boucle. Pour les phrases de plus d'une mesure,
+          comme une clave sur deux mesures. La position se compte depuis l'appui sur lecture, mesures de décompte comprises.</td></tr>
+        <tr><td><code>count_in</code></td><td>Pas de grille : <code>hits</code> coups (4 par défaut) répartis sur la mesure, sur la note <code>note</code> (37 par défaut, side stick).</td></tr>
+      </tbody>
+    </table>
+    <pre><code>  groove:
+    type: sequence
+    bar_grids:
+      - rimshot: "X..X..X........."
+        kick:    "X......X...X...."
+      - rimshot: "...X.....X......"
+        kick:    "X......X........"</code></pre>
 
-    <h2>Bloc <code>structure</code></h2>
-    <p>
-      <code>structure:</code> configure l’arrangement : par ex. <code>fill_every</code>, <code>break_every</code>,
-      <code>break_length</code>, <code>crash_after_fill</code> et <code>dynamic_build</code>.
-    </p>
-
-    <h2>Humanisation</h2>
-    <p>
-      <code>humanization:</code> applique une variance globale de timing et de vélocité (<code>timing_jitter</code>,
-      <code>velocity_jitter</code>, <code>velocity_drift</code>) pour éviter la rigidité machine.
-    </p>
-
-    <h2>Télécharger les patterns fournis (branche <code>main</code>)</h2>
-    <p>
-      Ces liens pointent vers <code>raw.githubusercontent.com</code> : vous obtenez toujours le dernier fichier commité sur
-      la branche par défaut — idéal comme référence pour écrire vos propres patterns.
-    </p>
+    <h2 id="telechargements">Patterns fournis</h2>
+    <p>Ces liens téléchargent les fichiers actuels de la branche <code>main</code> sur GitHub. Les commentaires à l'intérieur expliquent chaque groove.</p>
     <table class="download-table">
       <thead>
         <tr><th>Pattern</th><th>Téléchargement</th></tr>
@@ -151,13 +248,6 @@
         <tr><td>Teental (16 matras)</td><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/drums/indian_teental.gfdrum" download>indian_teental.gfdrum</a></td></tr>
       </tbody>
     </table>
-
-    <p>
-      Après téléchargement, ouvrez le générateur de batterie dans GrooveForge et chargez le fichier depuis le stockage
-      (même flux que pour les SoundFonts). Partez d’un fichier proche de votre style — les commentaires dans chaque pattern
-      détaillent les mesures et l’intention musicale.
-    </p>
-
     <p><a href="../vst/">← VST3</a> · <a href="../gfpd/">Descripteurs .gfpd →</a></p>
   </main>
 

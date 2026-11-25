@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Descripteurs .gfpd GrooveForge — plugins audio et MIDI FX en YAML.">
+  <meta name="description" content="Référence du format de descripteur de plugin .gfpd : ce qu'un fichier personnalisé peut faire aujourd'hui, paramètres, nœuds MIDI, commandes du panneau et fichiers fournis à télécharger.">
   <title>GrooveForge — Descripteurs .gfpd</title>
   <link rel="icon" type="image/png" href="../../assets/icon.png">
   <link rel="stylesheet" href="../../css/site.css">
@@ -41,70 +41,218 @@
 
   <main id="main" class="prose">
     <div class="page-hero">
-      <h1>Plugins <code>.gfpd</code></h1>
-      <p class="lead">GrooveForge Plugin Descriptor — un fichier YAML pour les métadonnées, le graphe de signal, les paramètres et l’interface.</p>
+      <h1>Descripteurs de plugin <code>.gfpd</code></h1>
+      <p class="lead">Un fichier <code>.gfpd</code> est un fichier texte YAML qui décrit un plugin GrooveForge : ses paramètres, ce qu'il fait,
+        et les commandes de son panneau. Chaque effet et chaque MIDI FX fourni en a un.</p>
     </div>
 
-    <h2>Pourquoi ce format</h2>
-    <p>
-      La plupart des effets audio intégrés et tous les MIDI FX fournis sont décrits de façon déclarative. Vous pouvez livrer
-      de nouveaux plugins en écrivant du YAML : pas de code d’interface Flutter ni recompilation pour expérimenter (vous pouvez
-      aussi charger un fichier depuis le disque via <strong>Charger un fichier .gfpd…</strong> dans la feuille d’ajout de plugin).
-    </p>
-
-    <figure class="figure-card figure-doc">
-      <img src="../../assets/screenshots/03_grooveforge_modules.png" width="920" height="518" loading="lazy" alt="Slots du rack : panneaux d’effets générés depuis des descripteurs avec potentiomètres">
-      <figcaption>Les plugins descripteurs apparaissent comme des cartes rack normales — potentiomètres et faders générés depuis le bloc <code>ui:</code> de chaque fichier <code>.gfpd</code>.</figcaption>
-    </figure>
-
-    <h2>Types de plugins</h2>
-    <table class="download-table">
-      <thead><tr><th><code>type:</code></th><th>Usage</th></tr></thead>
+    <h2 id="ce-qui-marche">Ce qu'un fichier à vous peut faire aujourd'hui</h2>
+    <table>
+      <thead><tr><th><code>type</code></th><th>État</th></tr></thead>
       <tbody>
-        <tr><td><code>effect</code></td><td>Effet insert / envoi stéréo ; <code>graph:</code> avec <code>audio_in</code> / <code>audio_out</code> et nœuds DSP.</td></tr>
-        <tr><td><code>midi_fx</code> (ou <code>midifx</code>)</td><td>Processeur MIDI ; chaîne <code>midi_nodes:</code> (transpose, harmonize, arpeggiate, …).</td></tr>
-        <tr><td><code>instrument</code> / <code>analyzer</code></td><td>Réservé aux cas avancés GFPA — voir la doc API dans le dépôt.</td></tr>
+        <tr><td><code>midi_fx</code></td><td>Fonctionne. L'application fait passer les notes qui arrivent au module dans votre chaîne de nœuds MIDI.</td></tr>
+        <tr><td><code>effect</code></td><td>Panneau seulement. Le son des effets fournis est traité par du code intégré, choisi d'après l'<code>id</code> du plugin.
+          Un fichier avec un nouvel <code>id</code> se charge et affiche son panneau, mais son <code>graph</code> n'est pas exécuté : il ne traite pas le son.</td></tr>
+        <tr><td><code>instrument</code>, <code>analyzer</code></td><td>Comme <code>effect</code>. Le seul instrument fourni, Riff, est du code intégré.</td></tr>
       </tbody>
     </table>
 
-    <h2>Contenu du fichier</h2>
+    <h2 id="charger">Charger un fichier</h2>
+    <ol>
+      <li>Touchez <span class="ui">+</span>, puis <span class="ui">Charger un fichier .gfpd…</span>.</li>
+      <li>Choisissez votre fichier.</li>
+    </ol>
+    <p class="recipe-result">Le plugin est ajouté au rack comme nouveau module.</p>
     <ul>
-      <li><code>spec: "1.0"</code>, <code>id</code> unique (DNS inversé), <code>name</code>, <code>version</code>, <code>type</code>.</li>
-      <li><code>parameters:</code> — contrôles automatisables avec des entiers <code>paramId</code> stables (ne jamais réutiliser des ID une fois publié).</li>
-      <li>Audio : <code>graph:</code> avec <code>nodes</code> et <code>connections</code> (Freeverb, delay, EQ, compresseur, chorus, wah, …).</li>
-      <li>MIDI : <code>midi_nodes:</code> avec <code>type</code> de nœud et <code>params</code> liés à <code>{ param: id }</code> ou des constantes.</li>
-      <li><code>ui:</code> — potentiomètres, faders, bascules, sélecteurs, vu-mètres ; <code>groups:</code> optionnel pour le responsive.</li>
+      <li>Si le YAML est illisible, l'application affiche <code>Failed to parse .gfpd file.</code> et n'ajoute rien.</li>
+      <li>L'application garde un seul plugin par <code>id</code> jusqu'à son redémarrage. Charger un fichier dont l'<code>id</code> est déjà connu
+        (un plugin fourni, ou votre fichier chargé plus tôt) ajoute la version déjà en mémoire, pas votre fichier.
+        Pour tester une modification, changez l'<code>id</code> ou redémarrez l'application.</li>
+      <li>L'application ne garde pas le fichier d'un lancement à l'autre. Après un redémarrage, rechargez-le.</li>
     </ul>
 
-    <h2>Guide d’auteur (dépôt)</h2>
+    <h2 id="exemple">Exemple : un transpositeur MIDI</h2>
+    <p>Voici le <code>transposer.gfpd</code> fourni, sans ses commentaires.</p>
+    <pre><code>spec: "1.0"
+id: "com.grooveforge.transposer"
+name: "Transposer"
+version: "1.0.0"
+type: midi_fx
+
+parameters:
+  - id: semitones
+    paramId: 0
+    name: "Semitones"
+    min: -24
+    max: 24
+    default: 0
+    unit: "st"
+
+midi_nodes:
+  - id: tr
+    type: transpose
+    params:
+      semitones: { param: semitones }
+
+ui:
+  layout: grid
+  groups:
+    - label: "Pitch Shift"
+      controls:
+        - type: knob
+          param: semitones
+          label: "Semitones"</code></pre>
+    <p>Pour votre propre plugin, changez d'abord l'<code>id</code> (voir <a href="#charger">Charger un fichier</a>).</p>
+
+    <h2 id="racine">Champs de premier niveau</h2>
+    <table>
+      <thead><tr><th>Champ</th><th>Rôle</th></tr></thead>
+      <tbody>
+        <tr><td><code>id</code></td><td>Nom unique en forme de domaine inversé, comme <code>com.votrenom.monfx</code>. Les projets désignent le plugin par lui : ne le changez plus une fois votre fichier utilisé.</td></tr>
+        <tr><td><code>name</code></td><td>Nom affiché dans le rack.</td></tr>
+        <tr><td><code>version</code></td><td>Votre numéro de version, en texte.</td></tr>
+        <tr><td><code>type</code></td><td><code>midi_fx</code> (ou <code>midifx</code>), <code>effect</code>, <code>instrument</code> ou <code>analyzer</code>. Absent ou inconnu : <code>effect</code>.</td></tr>
+        <tr><td><code>parameters</code></td><td>Les réglages modifiables. Voir <a href="#parametres">Paramètres</a>.</td></tr>
+        <tr><td><code>midi_nodes</code></td><td>Pour <code>midi_fx</code> : la chaîne de traitement. Voir <a href="#noeuds-midi">Nœuds MIDI</a>.</td></tr>
+        <tr><td><code>graph</code></td><td>Pour <code>effect</code> : le graphe audio. Voir <a href="#graphe">Graphe audio</a>.</td></tr>
+        <tr><td><code>ui</code></td><td>Le panneau. Voir <a href="#panneau">Panneau</a>.</td></tr>
+      </tbody>
+    </table>
+    <p class="recipe-note">Les fichiers fournis commencent par <code>spec: "1.0"</code>. L'application le lit mais ne le vérifie pas.</p>
+
+    <h2 id="parametres">Paramètres</h2>
+    <p>Une liste sous <code>parameters:</code>, une entrée par réglage.</p>
+    <table>
+      <thead><tr><th>Champ</th><th>S'il manque</th><th>Rôle</th></tr></thead>
+      <tbody>
+        <tr><td><code>id</code></td><td>(obligatoire)</td><td>Clé texte. Les nœuds et les commandes s'y réfèrent, et les projets enregistrent la valeur sous cette clé.</td></tr>
+        <tr><td><code>paramId</code></td><td><code>0</code></td><td>Nombre, unique dans le fichier. Ne le réutilisez ni ne le renumérotez une fois le fichier en service.</td></tr>
+        <tr><td><code>name</code></td><td>Vide</td><td>Libellé sous la commande.</td></tr>
+        <tr><td><code>min</code>, <code>max</code></td><td><code>0</code></td><td>Plage affichée sur le panneau.</td></tr>
+        <tr><td><code>default</code></td><td><code>0</code></td><td>Valeur de départ, entre <code>min</code> et <code>max</code>.</td></tr>
+        <tr><td><code>unit</code></td><td>Vide</td><td>Texte après la valeur, comme <code>ms</code> ou <code>%</code>.</td></tr>
+        <tr><td><code>type</code></td><td><code>float</code></td><td><code>float</code> (continu), <code>toggle</code> (marche/arrêt) ou <code>selector</code> (un choix parmi <code>options</code>).</td></tr>
+        <tr><td><code>options</code></td><td>Aucune</td><td>Pour un <code>selector</code> : les libellés, dans l'ordre. Mettez <code>min: 0</code> et <code>max</code> au nombre d'options moins un.</td></tr>
+        <tr><td><code>display</code></td><td>Pas d'affichage</td><td>Affiche la valeur sous la commande : <code>integer</code> (arrondie), <code>value</code> (arrondie, avec l'unité)
+          ou <code>interval</code> (demi-tons et nom de l'intervalle).</td></tr>
+      </tbody>
+    </table>
     <p>
-      La référence canonique est
-      <a href="https://github.com/yakari/grooveforge/blob/main/assets/plugins/HOW_TO_CREATE_A_PLUGIN.md"><code>assets/plugins/HOW_TO_CREATE_A_PLUGIN.md</code></a>
-      (en anglais) — catalogue des nœuds, types de contrôles d’interface, recettes (wet/dry, wah synchro BPM) et checklist avant publication.
+      Les nœuds ne voient pas <code>min</code> et <code>max</code>. Ils reçoivent la position de la commande, de 0 à 1, et appliquent leur
+      propre plage : <code>transpose</code> fait toujours correspondre 0 à 1 à −24 à +24 demi-tons. Quand vous réutilisez un nœud, reprenez la
+      plage du fichier fourni qui l'utilise, sinon le panneau affichera une valeur et le nœud en jouera une autre.
     </p>
 
-    <h2>Télécharger les fichiers <code>.gfpd</code> fournis (branche <code>main</code>)</h2>
+    <h2 id="noeuds-midi">Nœuds MIDI</h2>
+    <p>
+      Une liste sous <code>midi_nodes:</code>. Les notes traversent les nœuds dans l'ordre de la liste. Chaque nœud a un <code>id</code>, un
+      <code>type</code> et des <code>params</code>. Un paramètre de nœud est soit relié à un paramètre du plugin, <code>{ param: semitones }</code>,
+      soit fixe, <code>{ value: 0.5 }</code>. Une valeur fixe s'exprime sur la même échelle de 0 à 1.
+    </p>
+    <table>
+      <thead><tr><th><code>type</code> de nœud</th><th>Paramètres du nœud</th><th>Exemple fourni</th></tr></thead>
+      <tbody>
+        <tr><td><code>transpose</code></td><td><code>semitones</code></td><td><code>transposer.gfpd</code></td></tr>
+        <tr><td><code>gate</code></td><td><code>minVelocity</code>, <code>maxVelocity</code>, <code>minPitch</code>, <code>maxPitch</code></td><td><code>gate.gfpd</code></td></tr>
+        <tr><td><code>harmonize</code></td><td><code>voiceCount</code>, <code>interval1</code> à <code>interval4</code>, <code>snapToScale</code></td><td><code>harmonizer.gfpd</code></td></tr>
+        <tr><td><code>chord_expand</code></td><td><code>chordType</code>, <code>spread</code>, <code>snapToScale</code></td><td><code>chord_expand.gfpd</code></td></tr>
+        <tr><td><code>arpeggiate</code></td><td><code>pattern</code>, <code>division</code>, <code>gate</code>, <code>octaves</code></td><td><code>arpeggiator.gfpd</code></td></tr>
+        <tr><td><code>velocity_curve</code></td><td><code>mode</code>, <code>amount</code></td><td><code>velocity_curve.gfpd</code></td></tr>
+        <tr><td><code>microtone</code></td><td><code>chordWindow</code>, <code>clusterMode</code>, <code>bendRange</code>, <code>velocityMode</code></td><td><code>microtone.gfpd</code></td></tr>
+      </tbody>
+    </table>
+    <p>Un seul type de nœud inconnu désactive toute la chaîne.</p>
+
+    <h2 id="graphe">Graphe audio</h2>
+    <p>
+      Les effets fournis décrivent leur traitement sous <code>graph:</code>, avec <code>nodes</code> et <code>connections</code>. Comme dit
+      <a href="#ce-qui-marche">plus haut</a>, l'application n'exécute pas ce graphe aujourd'hui. Pour référence, la syntaxe :
+    </p>
+    <pre><code>graph:
+  nodes:
+    - id: in
+      type: audio_in
+    - id: rev
+      type: freeverb
+      params:
+        roomSize: { param: room_size }
+    - id: mix_nd
+      type: wet_dry
+      params:
+        mix: { param: mix }
+    - id: out
+      type: audio_out
+  connections:
+    - from: in.out
+      to: [rev.in, mix_nd.dry]
+    - from: rev.out
+      to: mix_nd.wet
+    - from: mix_nd.out
+      to: out.in</code></pre>
+    <p>
+      <code>audio_in</code> et <code>audio_out</code> sont l'entrée et la sortie du plugin. Les autres types de nœud sont <code>gain</code>,
+      <code>wet_dry</code>, <code>freeverb</code>, <code>biquad_filter</code>, <code>delay</code>, <code>wah_filter</code>,
+      <code>compressor</code> et <code>chorus</code>. Une connexion part de <code>nœud.port</code> vers une cible ou une liste de cibles.
+      Sans port, <code>from</code> vaut <code>out</code> et <code>to</code> vaut <code>in</code>.
+    </p>
+
+    <h2 id="panneau">Panneau</h2>
+    <p>Sous <code>ui:</code>, soit une liste plate <code>controls:</code>, soit une liste de <code>groups:</code>. Si les deux sont là, les groupes l'emportent.</p>
+    <table>
+      <thead><tr><th>Champ</th><th>Rôle</th></tr></thead>
+      <tbody>
+        <tr><td><code>layout</code></td><td>Sans groupes : <code>row</code> (par défaut, une ligne qui défile) ou <code>grid</code> (passe à la ligne).
+          Avec groupes : <code>lanes</code> empile chaque groupe sur sa propre ligne ; toute autre valeur place les groupes selon la taille de l'écran.</td></tr>
+        <tr><td><code>groups</code></td><td>Chaque groupe a un <code>label</code> et sa propre liste <code>controls</code>.</td></tr>
+        <tr><td><code>activeWhen</code></td><td>Sur un groupe, avec <code>layout: lanes</code> uniquement : <code>{ param: voice_count, atLeast: 2 }</code> grise le groupe
+          tant que ce paramètre est en dessous de 2. La comparaison se fait dans les unités du paramètre.</td></tr>
+      </tbody>
+    </table>
+    <p>Chaque commande a un <code>type</code>, et la plupart un <code>param</code> (l'<code>id</code> d'un paramètre). <code>label</code> remplace le nom
+      du paramètre, et <code>size</code> vaut <code>small</code>, <code>medium</code> (par défaut) ou <code>large</code>.</p>
+    <table>
+      <thead><tr><th><code>type</code> de commande</th><th>Affiche</th></tr></thead>
+      <tbody>
+        <tr><td><code>knob</code></td><td>Un bouton rotatif. Utilisé aussi pour un type absent ou inconnu.</td></tr>
+        <tr><td><code>slider</code></td><td>Un curseur.</td></tr>
+        <tr><td><code>toggle</code></td><td>Un bouton marche/arrêt.</td></tr>
+        <tr><td><code>selector</code></td><td>Un choix parmi les <code>options</code> du paramètre.</td></tr>
+        <tr><td><code>interval</code></td><td>Une barre pour choisir un intervalle en demi-tons.</td></tr>
+        <tr><td><code>vumeter</code></td><td>Un vumètre. Sans <code>param</code>.</td></tr>
+        <tr><td><code>button</code></td><td>Avec <code>action: reset</code>, remet tous les paramètres à leur valeur par défaut. Sans <code>param</code>.</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Pour aller plus loin</h2>
+    <p>
+      Le fichier <a href="https://github.com/yakari/grooveforge/blob/main/assets/plugins/HOW_TO_CREATE_A_PLUGIN.md"><code>HOW_TO_CREATE_A_PLUGIN.md</code></a>
+      du dépôt (en anglais) s'adresse à ceux qui compilent l'application et ajoutent des fichiers <code>.gfpd</code> à ses ressources.
+    </p>
+
+    <h2 id="telechargements">Fichiers fournis</h2>
+    <p>Ces liens téléchargent les fichiers actuels de la branche <code>main</code> sur GitHub.</p>
     <table class="download-table">
       <thead><tr><th>Fichier</th><th>Type</th></tr></thead>
       <tbody>
-        <tr><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/plugins/reverb.gfpd" download>reverb.gfpd</a></td><td>Audio — réverb à plaque</td></tr>
-        <tr><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/plugins/delay.gfpd" download>delay.gfpd</a></td><td>Audio — delay ping-pong</td></tr>
-        <tr><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/plugins/wah.gfpd" download>wah.gfpd</a></td><td>Audio — wah (auto ou pédale)</td></tr>
-        <tr><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/plugins/eq.gfpd" download>eq.gfpd</a></td><td>Audio — EQ 4 bandes</td></tr>
-        <tr><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/plugins/compressor.gfpd" download>compressor.gfpd</a></td><td>Audio — dynamique</td></tr>
-        <tr><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/plugins/chorus.gfpd" download>chorus.gfpd</a></td><td>Audio — chorus / flanger</td></tr>
-        <tr><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/plugins/audio_harmonizer.gfpd" download>audio_harmonizer.gfpd</a></td><td>Audio — harmoniseur (DSP natif)</td></tr>
-        <tr><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/plugins/autotune.gfpd" download>autotune.gfpd</a></td><td>Audio — autotune (DSP natif)</td></tr>
-        <tr><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/plugins/amp.gfpd" download>amp.gfpd</a></td><td>Audio — ampli guitare (DSP natif)</td></tr>
-        <tr><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/plugins/harmonizer.gfpd" download>harmonizer.gfpd</a></td><td>MIDI FX</td></tr>
-        <tr><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/plugins/chord_expand.gfpd" download>chord_expand.gfpd</a></td><td>MIDI FX</td></tr>
-        <tr><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/plugins/arpeggiator.gfpd" download>arpeggiator.gfpd</a></td><td>MIDI FX</td></tr>
-        <tr><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/plugins/transposer.gfpd" download>transposer.gfpd</a></td><td>MIDI FX</td></tr>
-        <tr><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/plugins/velocity_curve.gfpd" download>velocity_curve.gfpd</a></td><td>MIDI FX</td></tr>
-        <tr><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/plugins/gate.gfpd" download>gate.gfpd</a></td><td>MIDI FX</td></tr>
+        <tr><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/plugins/reverb.gfpd" download>reverb.gfpd</a></td><td>Effet audio : réverb à plaque</td></tr>
+        <tr><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/plugins/delay.gfpd" download>delay.gfpd</a></td><td>Effet audio : delay ping-pong</td></tr>
+        <tr><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/plugins/wah.gfpd" download>wah.gfpd</a></td><td>Effet audio : wah (auto ou pédale)</td></tr>
+        <tr><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/plugins/eq.gfpd" download>eq.gfpd</a></td><td>Effet audio : égaliseur 4 bandes</td></tr>
+        <tr><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/plugins/compressor.gfpd" download>compressor.gfpd</a></td><td>Effet audio : compresseur</td></tr>
+        <tr><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/plugins/chorus.gfpd" download>chorus.gfpd</a></td><td>Effet audio : chorus / flanger</td></tr>
+        <tr><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/plugins/audio_harmonizer.gfpd" download>audio_harmonizer.gfpd</a></td><td>Effet audio : harmoniseur</td></tr>
+        <tr><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/plugins/autotune.gfpd" download>autotune.gfpd</a></td><td>Effet audio : autotune</td></tr>
+        <tr><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/plugins/amp.gfpd" download>amp.gfpd</a></td><td>Effet audio : ampli guitare</td></tr>
+        <tr><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/plugins/riff.gfpd" download>riff.gfpd</a></td><td>Instrument : guitare Riff</td></tr>
+        <tr><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/plugins/harmonizer.gfpd" download>harmonizer.gfpd</a></td><td>MIDI FX : harmoniseur</td></tr>
+        <tr><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/plugins/chord_expand.gfpd" download>chord_expand.gfpd</a></td><td>MIDI FX : extension d'accords</td></tr>
+        <tr><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/plugins/arpeggiator.gfpd" download>arpeggiator.gfpd</a></td><td>MIDI FX : arpégiateur</td></tr>
+        <tr><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/plugins/transposer.gfpd" download>transposer.gfpd</a></td><td>MIDI FX : transpositeur</td></tr>
+        <tr><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/plugins/velocity_curve.gfpd" download>velocity_curve.gfpd</a></td><td>MIDI FX : courbe de vélocité</td></tr>
+        <tr><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/plugins/gate.gfpd" download>gate.gfpd</a></td><td>MIDI FX : gate</td></tr>
+        <tr><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/plugins/microtone.gfpd" download>microtone.gfpd</a></td><td>MIDI FX : microtone</td></tr>
       </tbody>
     </table>
-
     <p><a href="../gfdrum/">← .gfdrum</a> · <a href="../features/">Liste des fonctionnalités →</a></p>
   </main>
 

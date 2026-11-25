@@ -1,362 +1,256 @@
 # GrooveForge
 
-GrooveForge is a small cross-platform Flutter app for playing with MIDI keyboards, soundfonts, and — on desktop — VST3 plugins. It runs a built-in multi-timbral synthesizer, a rack of instruments and effects, MIDI and audio loopers, and a microtonal scale engine that can retune the keyboard to maqamat, ragas, dastgāh, gamelan scales, Ethiopian qenet or historical temperaments.
+GrooveForge is a free music app for playing, practising and rehearsing. Plug in
+a MIDI keyboard (or use the one on screen), build a rack of instruments and
+effects, lock the keys to a scale, record loops, and rehearse a tune with your
+band, each player on their own phone.
 
-It also does **rehearsals**: a band learning a tune, each player recording their own part over a shared click on their own phone, with the parts syncing device to device over the local network and no server anywhere.
+It runs on Android, Linux, macOS and Windows, and as a demo in the browser.
 
-It is **not** meant to compete with established DAWs (Ableton, Bitwig, Reaper, FL Studio, …) or with the excellent free and open-source tools out there (Ardour, LMMS, Zrythm, Qtractor, …). Those projects are far more capable and more thoroughly tested. GrooveForge is a focused personal tool that happens to be shared publicly in case it is useful to someone else.
+## Get it
 
-## About this project
+- **Android**: [Google Play](https://play.google.com/store/apps/details?id=com.grooveforge.grooveforge)
+  or [F-Droid](https://f-droid.org/packages/com.grooveforge.grooveforge/).
+  F-Droid builds the app itself, so a new version can reach it later than
+  Google Play. The two are signed differently: to switch from one to the
+  other, uninstall first.
+- **Linux, macOS, Windows**: download from the
+  [latest release](https://github.com/yakari/grooveforge/releases/latest).
+  Linux has a `.deb`, an `.rpm`, an Arch package (`.pkg.tar.zst`), a
+  `.flatpak` and a plain `.zip`. macOS is a `.zip` built for Apple Silicon.
+  Windows is a `.zip`.
+- **Browser**: the [web demo](https://yakari.github.io/grooveforge/demo/) has
+  fewer modules than the app (no reverb or delay, for example). It does not
+  keep your session: use **Save As…** to download your project.
 
-GrooveForge started as a very specific itch. I wanted something easy to carry around — a lightweight Android app I could open on a tablet or phone, plug a small MIDI keyboard into, and use to help me **regain my knowledge of scales and rebuild some muscle memory** after close to 30 years away from a piano. The Jam Mode, scale lock, and keyboard highlighting all exist for that reason.
+On Linux, GrooveForge plays sound through JACK. On most current distributions
+this is PipeWire with its JACK layer (`pipewire-jack`). The release
+packages ask for it.
 
-What was meant to be a modest practice companion grew quite a bit — thanks in large part to **Vibe Coding** with AI assistants (mainly [Anthropic's Claude Code](https://claude.com/claude-code)). Features like VST3 hosting, the plugin rack, the vocoder, and the cross-platform build were all iterated on collaboratively with an LLM in the loop. I am a single developer working on this in my spare time; please treat it accordingly — rough edges are expected, and releases happen when I have time.
+iOS is not supported. The release page has an unsigned iOS build that has
+never been tested.
 
-If it helps anyone else dust off an old piano habit, even better.
+## How it works in one minute
 
-## Features
+Your rack is a stack of modules: instruments, effects, loopers, a drum
+machine. Tap the cable icon at the top of the screen to see the back of each
+module, with sockets you connect with cables, like on real gear.
 
-Playing is built around the **plugin rack**: an ordered, drag-and-drop stack of module slots that can be added, removed and reordered at any time. Modules are wired to each other and to MIDI channels from the rack itself. **Rehearsals** are the other half, and live on their own screen rather than in the rack.
+1. An instrument plays through the speakers on its own. You do not need a
+   cable to hear it.
+2. Yellow cables carry notes (MIDI), from a keyboard to an instrument. Red and
+   white cables carry sound, left and right.
+3. To put an effect after an instrument, cable the instrument's **AUDIO OUT L**
+   and **AUDIO OUT R** into the effect's **AUDIO IN L** and **AUDIO IN R**.
+   What comes out of the effect goes to the speakers.
 
-### Instruments
+To draw a cable, long-press a socket and drag it to another one.
 
-- **GrooveForge Keyboard** — the built-in instrument. Each slot has its own soundfont (`.sf2`), bank/patch assignment, MIDI channel routing and a real-time vocoder.
-- **Vocoder** — mic-driven voice synthesis.
-- **Stylophone** — monophonic metal-strip instrument.
-- **Theremin** — touch pad with vertical pitch and horizontal volume, plus base note, range, vibrato and pad-height controls.
-- **Riff** — an electric guitar simulated string by string rather than played from samples. Each note lands on a string a guitarist would use, bends and vibrato come from the pitch and mod wheels, and palm mute, pick position, pickup (neck, middle, bridge, single coil or humbucker), tone and sustain all act on ringing strings, so each can go on a pedal or a ribbon through CC mapping. A Legato switch (on a pad, or CC 68 held), or Overlap legato for keys played overlapping, turns close notes into hammer-ons and pull-offs; the sustain pedal rings longer than held notes, and Feedback makes held strings bloom into a harmonic, amp-style. Sounds best cabled into the Amp. Native builds only.
-- **Drum Generator** — beat patterns from bossa nova to metal, with a swing control, a "human feel" slider between robotic and live drummer, count-ins and automatic fills. Patterns load from `.gfdrum` files.
+The [user guide](https://yakari.github.io/grooveforge/guide/) shows each step
+with a short video: [how sound moves](https://yakari.github.io/grooveforge/guide/#how-sound-moves),
+[add an effect](https://yakari.github.io/grooveforge/guide/#effect),
+[connect a MIDI controller](https://yakari.github.io/grooveforge/guide/#controller),
+[record a loop](https://yakari.github.io/grooveforge/guide/#loop) and more.
 
-<img src="assets/screenshots/android_theremin.png" width="460" alt="Theremin module">
+## What is in it
 
-<img src="assets/screenshots/android_drum_generator.png" width="460" alt="Drum Generator module">
+- [Modules](https://yakari.github.io/grooveforge/modules/): the SoundFont
+  keyboard, a modelled electric guitar (Riff), a guitar amp, a vocoder,
+  Stylophone, Theremin, a drum generator, audio and MIDI loopers, and audio
+  effects.
+- [MIDI FX](https://yakari.github.io/grooveforge/midi-fx/): modules that change
+  the notes on their way to an instrument, such as the arpeggiator, the
+  harmonizer and Xen, which locks the keyboard to one of 92 scales and retunes
+  it.
+- [Rehearsals](https://yakari.github.io/grooveforge/rehearsals/): each band
+  member records their own part over a shared click. Devices sync over the
+  local network, with no account and no server.
+- [VST3 plugins](https://yakari.github.io/grooveforge/vst/): load your own
+  plugins. Desktop only.
+- [All features](https://yakari.github.io/grooveforge/features/), in detail.
 
-### Xen — microtonal scales
+The site is also [in French](https://yakari.github.io/grooveforge/fr/).
 
-Locks the keyboard to a scale and retunes it to match. Hold a note, tap a scale: the note you are holding becomes the tonic and stays there until you repeat the gesture — no second keyboard needed.
+## Build from source
 
-**92 scales across eleven families**, each carrying a note on where its tuning numbers come from:
+You need [Flutter](https://docs.flutter.dev/get-started/install) 3.41 or later
+(the release builds use 3.41.6) and Git.
 
-| Family | Scales |
-|---|---|
-| Western | modes, pentatonics, blues, whole tone, diminished |
-| Maqam | Arabic Rast, Bayati, Hijaz, Saba, Sikah, Huzam, Hijazkar…; Turkish Rast, Uşşak, Hüseyni in the 53-comma system |
-| Persian | the dastgāh — Šur, Čahārgāh, Segāh, Homāyun |
-| Raga | Bhairav, Yaman, Malkauns, Darbari, Todi… in just intonation; Carnatic Mayamalavagowla |
-| Far East | the five Chinese modes tuned by the cycle of fifths; Japanese hirajoshi, in sen, yo, ryo, ritsu; Korean pyeongjo, gyemyeonjo |
-| SE Asia | Thai seven-equal — its degrees land on the white keys |
-| Gamelan | Javanese slendro and pelog, Balinese selisir |
-| Africa | Ethiopian tizita, bati, ambassel, anchihoye; Ugandan amadinda |
-| Europe | Highland pipe, hardanger fiddle, Byzantine soft and hard chromatic |
-| Temperaments | just, Pythagorean, quarter-comma meantone, Werckmeister III |
-| Experimental | 13, 15, 16, 17, 19, 22, 24, 31-EDO; Bohlen-Pierce and its Lambda mode; Carlos alpha, beta, gamma; harmonic and subharmonic series |
-
-Retuning uses a full MIDI tuning table rather than pitch bend, so every note of a chord sounds at its own correct pitch — pitch bend is per-channel and can only bend one note at a time. Scale-lock and retune targets are patched independently, so one module can snap one keyboard while retuning another.
-
-Not everything in the list is equally certain, and the app says so. A temperament or an equal division has exact values; a maqam is written in the 24-tone convention that notates the practice rather than measuring it; a gamelan, an Ethiopian qenet or a hardanger fiddle is tuned by ear and differs from one instrument to the next. Each scale's `provenance` line states which of those it is, because presenting an averaged tuning as a standard would be the wrong kind of precision.
-
-Build your own scales in the editor — any number of degrees, per-key offsets, and a mute that keeps a degree playable and retuned while the snap ignores it. Import and export Scala `.scl` files, or GrooveForge's own JSON for a faithful round trip.
-
-### Rehearsals
-
-A band learning a tune together, on the phones they already have.
-
-- **A part each** — everyone adds a lane for their instrument and records into it over a shared click, with a count-in. You record your own parts and nobody else's; yours can be re-recorded or deleted freely.
-- **Latency-compensated overdubs** — every device takes a moment to play sound and a moment to capture it, and that delay would push each take late against everything already recorded. The round trip is measured on the device itself (a chirp, cross-correlated against what comes back) and each take is shifted by it, so what was played on the beat lands on the beat. Re-measure after changing headphones or moving to a Bluetooth speaker; the delay belongs to the gear, not to the tune.
-- **Play along to a recording** — import a master track (MP3, FLAC and WAV everywhere; M4A, AAC and video soundtracks on Android), tap the tempo, and drag a marker to the first downbeat to line the grid up with the music.
-- **Serverless sync** — devices talk straight to each other over the local network, found by mDNS and introduced once by a QR code or a pasted link. The merge is symmetric and conflict-free, so there is no host and no authority: any two devices that meet converge on the same arrangement, in any order.
-- **Nothing leaves the room** — no account, no cloud, no internet required. Where there is no Wi-Fi, one phone's hotspot is the whole network.
-
-Design notes and protocol details: [`docs/dev/REHEARSALS.md`](docs/dev/REHEARSALS.md).
-
-### Loopers
-
-- **MIDI Looper** — record and loop MIDI patterns with bar sync.
-- **Audio Looper** — record and loop live audio (PCM) with bar sync, overdub and reverse.
-
-<img src="assets/screenshots/android_audio_looper.png" width="460" alt="Audio Looper module">
-
-### MIDI FX
-
-Harmonizer, Chord Expand, Arpeggiator, Transposer, Velocity Curve, Gate, Microtone and Xen. Each is a rack module that processes MIDI on its way to an instrument.
-
-<img src="assets/screenshots/android_harmonizer.png" width="460" alt="Harmonizer module">
-
-<img src="assets/screenshots/android_midi_fx.png" width="460" alt="Built-in MIDI FX list">
-
-### Audio effects
-
-Plate reverb, ping-pong delay, wah (auto or pedal-controlled), 4-band EQ, compressor and chorus/flanger, with BPM sync where it applies. **Live Input** routes a microphone or line-in through any of them.
-
-- **Audio Harmonizer** — up to four pitch-shifted harmony voices, optionally locked to a Xen or Jam Mode scale, or voiced from a chord played on a keyboard.
-- **Autotune** — snaps a voice onto the notes of a key and scale, from a gentle nudge to the stepped robot sound. Retune speed, Humanize, Flex-Tune, Transpose, and a live readout of the note being sung.
-- **Amp** — a guitar amp in one slot: an overdrive or distortion pedal, the amp's Bass / Middle / Treble tone stack (three classic circuits), and a 1x12, 2x12 or 4x12 cabinet — or a cabinet impulse response (IR) loaded from a `.wav` and saved in the project. Each section switches on and off, from the panel or a CC footswitch. Free cabinet IRs: [TONE3000](https://www.tone3000.com/search?format=ir) (community library), [Kalthallen Cabs](https://cabs.kalthallen.de/) (free and paid packs), [Celestion](https://www.celestionplus.com/free-download/) (one free IR). Their licences forbid redistribution, so download them from the source.
-
-### And the rest
-
-- **VST3 Hosting (Linux, planned on Windows)** — load any installed VST3 instrument or effect. Parameters are displayed as rotary knobs grouped by category. The plugin's native GUI opens in a separate floating window.
-- **Jam Mode** — per-slot scale locking. Each slot picks a master slot; when the master plays a chord, all following slots lock to that scale. A global override pauses all following without losing individual settings.
-- **Scale Lock & Highlighting** — binds notes to the selected scale with visual feedback (root / correct / wrong note colouring) on the on-screen keyboard.
-- **Advanced CC Mapping** — map hardware knobs, sliders, and pads to MIDI effects or application actions (Patch Sweep, Global Scale Cycle, etc.).
-- **Project Files** — save and restore complete rack configurations, including VST3 parameter snapshots, to a `.gf` JSON file. The last session is autosaved on every change.
-
-## Platform Support
-
-| Platform | Status | Notes |
-|---|---|---|
-| **Linux** | ✅ Primary target | Full Vocoder & VST3 hosting (ALSA audio, X11 editor windows), FluidSynth synthesis |
-| **Android** | ✅ Supported | GrooveForge Keyboard only, with Vocoder; VST3 hosting is desktop-exclusive |
-| **Windows** | 🔜 Planned | VST3 hosting plumbing in place; WASAPI audio not yet wired |
-| **macOS** | ✅ Supported | Full Vocoder & VST3 hosting; App Sandbox must be disabled for 3rd-party VSTs |
-| **iOS** | 🧪 Experimental | Basic build only; untested |
-
-## Prerequisites
-
-### All platforms
-
-- [Flutter SDK](https://flutter.dev/docs/get-started/install) (≥ 3.10)
-- [Dart SDK](https://dart.dev/get-dart) (≥ 3.7) — bundled with Flutter
-- Git
-
-### Quick start with DevContainer
-
-The repository includes a [DevContainer](.devcontainer/devcontainer.json) configuration that sets up the full Flutter development environment automatically — all Linux dependencies, VST3 test plugins (Surge XT, Aeolus), PulseAudio passthrough, and display forwarding. This is the fastest way to get a working build environment.
-
-**Requirements:** Docker (or Podman), and VS Code with the Dev Containers extension _or_ any IDE with DevContainer support.
+### 1. Get the code
 
 ```bash
-# Open in VS Code — the IDE will prompt to reopen in the container
-code .
-
-# Or build manually with the CLI
-devcontainer up --workspace-folder .
-```
-
-> **Note:** The DevContainer routes audio to the host via PulseAudio socket and forwards
-> the display (Wayland/X11) for GTK dialogs and VST3 editor windows. USB devices
-> (`/dev/bus/usb`, `/dev/snd`) are passed through for MIDI hardware and ALSA.
-> If you encounter issues with display forwarding, audio passthrough, or USB access
-> (e.g. ADB for Android deployment), consider developing directly on the host instead.
-
----
-
-### Linux
-
-GrooveForge requires a C/C++ toolchain, Flutter's GTK dependencies, audio/synthesis libraries, and a **JACK-compatible audio server** (PipeWire with `pipewire-jack` is recommended on modern distros).
-
-#### Debian / Ubuntu (apt)
-
-```bash
-# Build toolchain
-sudo apt install clang lld cmake ninja-build pkg-config
-
-# Flutter Linux desktop dependencies
-sudo apt install libgtk-3-dev libblkid-dev liblzma-dev libgcrypt20-dev libstdc++-12-dev
-
-# Audio and MIDI
-sudo apt install libasound2-dev libpulse-dev
-
-# Audio server runtime — GrooveForge opens a JACK client for audio output;
-# PipeWire with its JACK compatibility layer is the recommended setup.
-sudo apt install pipewire pipewire-jack pipewire-alsa pipewire-pulse wireplumber
-
-# VST3 editor windows
-sudo apt install libx11-dev
-
-# Synthesizer engine
-sudo apt install libfluidsynth-dev
-
-# Media (optional, for media playback features)
-sudo apt install libmpv-dev
-```
-
-One-liner:
-
-```bash
-sudo apt install clang lld cmake ninja-build pkg-config \
-  libgtk-3-dev libblkid-dev liblzma-dev libgcrypt20-dev libstdc++-12-dev \
-  libasound2-dev libpulse-dev libx11-dev libfluidsynth-dev libmpv-dev \
-  pipewire pipewire-jack pipewire-alsa pipewire-pulse wireplumber
-```
-
-#### Fedora (dnf)
-
-```bash
-sudo dnf install clang lld cmake ninja-build pkg-config \
-  gtk3-devel libblkid-devel xz-devel libgcrypt-devel libstdc++-devel \
-  alsa-lib-devel pulseaudio-libs-devel libX11-devel fluidsynth-devel mpv-libs-devel \
-  pipewire pipewire-jack-audio-connection-kit pipewire-alsa pipewire-pulseaudio wireplumber
-```
-
-#### Arch / Manjaro (pacman)
-
-```bash
-sudo pacman -S clang lld cmake ninja pkg-config \
-  gtk3 util-linux-libs xz libgcrypt \
-  alsa-lib libpulse libx11 fluidsynth mpv \
-  pipewire pipewire-jack pipewire-alsa pipewire-pulse wireplumber
-```
-
-> On Arch, development headers are included in the main packages — no separate `-dev`/`-devel` packages needed.
->
-> **Audio server:** GrooveForge uses JACK for audio output. The `pipewire-jack` package provides JACK compatibility through PipeWire (the default audio server on modern Arch and Manjaro). If you have `jack2` installed and get "jack server is not running" errors, replace it with `pipewire-jack`. After installing, ensure the PipeWire services are running:
->
-> ```bash
-> systemctl --user enable --now pipewire pipewire-pulse wireplumber
-> ```
-
----
-
-### Android
-
-- [Android SDK](https://developer.android.com/studio) with platform tools (for `adb`)
-- Android NDK — installed automatically by Flutter on first build
-- Java Development Kit 17+ (e.g. [Eclipse Temurin](https://adoptium.net/) via [SDKMAN](https://sdkman.io/))
-- Min SDK: **26** (required for AAudio low-latency audio)
-
-Set up the environment:
-
-```bash
-export ANDROID_HOME="$HOME/Android/Sdk"
-export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH"
-```
-
-FluidSynth is built from source for Android as part of the Gradle/CMake build, from the `packages/flutter_midi_pro/android/src/main/cpp/fluidsynth-src` git submodule (pinned to an upstream release tag). Initialise submodules before the first build — see step 1 below.
-
-It is configured with `osal=cpp11`, which drops the GLib dependency entirely (FluidSynth 2.5.0+), along with `enable-libinstpatch=0` and `enable-libsndfile=0` since DLS/GIG and SF3 are not used. The result is a single `libfluidsynth.so` per ABI whose only dependencies are NDK libraries, so no extra system packages are required.
-
----
-
-### macOS
-
-```bash
-# CMake — required to build native audio and VST3 host
-brew install cmake
-
-# FluidSynth — synthesizer engine
-brew install fluidsynth
-```
-
-Xcode Command Line Tools must be installed (`xcode-select --install`). macOS system frameworks (CoreAudio, AudioToolbox, Cocoa, Carbon) are provided by the OS.
-
-> **App Sandbox:** To load third-party VST3 plugins, the App Sandbox entitlement must be
-> disabled in `macos/Runner/Release.entitlements` and `DebugProfile.entitlements`.
-
----
-
-### Windows (planned)
-
-- Visual Studio 2019+ (or Build Tools) with the C++ desktop workload
-- CMake ≥ 3.14
-- VST3 hosting plumbing is in place; WASAPI audio backend is not yet wired
-
-### VST3 SDK (required to build on Linux or Windows)
-
-The VST3 SDK is too large to commit to the repository. Clone it once into the expected location before running a build:
-
-```bash
-git clone --depth=1 --recurse-submodules --shallow-submodules \
-  https://github.com/steinbergmedia/vst3sdk.git \
-  packages/flutter_vst3/vst3sdk
-```
-
-The `--recurse-submodules` flag is required because `public.sdk` is a git submodule inside the Steinberg repository — a plain `--depth=1` clone leaves that directory empty and the build fails. The SDK must live at `packages/flutter_vst3/vst3sdk/`. Flutter's build system picks it up automatically via the `dart_vst_host` FFI plugin — no manual CMake step is needed.
-
-You can also override the path with the `VST3_SDK_DIR` environment variable if you already have the SDK installed elsewhere:
-
-```bash
-export VST3_SDK_DIR=/opt/vst3sdk
-flutter build linux --release
-```
-
-> The VST3 SDK v3.8+ is MIT-licensed and fully compatible with GrooveForge's MIT license.
-
-## How to Build
-
-### 1 — Clone and fetch Dart dependencies
-
-```bash
-git clone --recurse-submodules https://github.com/yakari/grooveforge.git
+git clone https://github.com/yakari/grooveforge.git
 cd grooveforge
 flutter pub get
 ```
 
-Already cloned without `--recurse-submodules`? The Android build needs the FluidSynth source:
+### 2. Android
+
+The Android build compiles FluidSynth (the sound engine) from a Git submodule.
+Fetch it once. Do not add `--recursive`: FluidSynth's own submodules are large
+and the build does not need them.
 
 ```bash
 git submodule update --init
 ```
 
-The submodule is **only** required for Android, which compiles FluidSynth as part of its NDK build. Linux, macOS and Windows link the FluidSynth installed by the platform prerequisites above (`libfluidsynth-dev`, `brew install fluidsynth`, or the prebuilt Windows SDK fetched by CI), so a desktop-only checkout can skip it.
-
-### 2 — Fetch the VST3 SDK (Desktop only)
+You also need the Android SDK and Java 17. Flutter installs the NDK on the
+first build. The app needs Android 8.0 (API 26) or later.
 
 ```bash
-# Linux / Windows / macOS
+flutter run -d <device>         # debug build on a connected phone
+flutter build apk --release
+```
+
+Without `android/app/release-keystore.jks`, a release build is signed with the
+debug key.
+
+### 3. Desktop: the VST3 SDK
+
+Linux, macOS and Windows need the Steinberg VST3 SDK. It is not in the
+repository. Clone it once, with its submodules:
+
+```bash
 git clone --depth=1 --recurse-submodules --shallow-submodules \
   https://github.com/steinbergmedia/vst3sdk.git \
   packages/flutter_vst3/vst3sdk
 ```
 
-### 3 — Run or build
+If you keep the SDK somewhere else, set `VST3_SDK_DIR` to its path before
+building.
+
+### 4. Linux
+
+Debian or Ubuntu:
 
 ```bash
-# Development
-flutter run -d linux
-flutter run -d macos
+sudo apt install clang cmake ninja-build pkg-config libstdc++-12-dev \
+  libgtk-3-dev libblkid-dev liblzma-dev libgcrypt20-dev \
+  libasound2-dev libjack-jackd2-dev libx11-dev libfluidsynth-dev \
+  pipewire pipewire-jack pipewire-alsa pipewire-pulse wireplumber
+```
 
-# Release builds
-flutter build linux --release
+Fedora:
+
+```bash
+sudo dnf install clang cmake ninja-build pkg-config \
+  gtk3-devel libblkid-devel xz-devel libgcrypt-devel \
+  alsa-lib-devel pipewire-jack-audio-connection-kit-devel libX11-devel fluidsynth-devel \
+  pipewire pipewire-alsa pipewire-pulseaudio wireplumber
+```
+
+Arch or Manjaro (headers come with the main packages):
+
+```bash
+sudo pacman -S clang cmake ninja pkg-config \
+  gtk3 util-linux-libs xz libgcrypt \
+  alsa-lib libx11 fluidsynth \
+  pipewire pipewire-jack pipewire-alsa pipewire-pulse wireplumber
+```
+
+Then:
+
+```bash
+flutter run -d linux
+flutter build linux --release   # output in build/linux/x64/release/bundle/
+```
+
+If the app says the JACK server is not running, check that PipeWire is
+running (`systemctl --user enable --now pipewire pipewire-pulse wireplumber`)
+and that `pipewire-jack` is installed rather than `jack2`.
+
+The repository also has a [Dev Container](.devcontainer/devcontainer.json)
+with the Linux dependencies installed.
+
+### 5. macOS
+
+You need Xcode, CocoaPods and [Homebrew](https://brew.sh/).
+
+```bash
+brew install cmake fluid-synth
+cd macos && pod install && cd ..
+flutter run -d macos
 flutter build macos --release
-flutter build apk --release
+```
+
+An Xcode build step (`scripts/build_native_macos.sh`) compiles the native
+audio libraries on each build. A local build links the Homebrew FluidSynth,
+so it only runs on a Mac that has it installed. The release workflow bundles
+FluidSynth into the app with `dylibbundler`.
+
+### 6. Windows
+
+You need Visual Studio with the "Desktop development with C++" workload.
+
+Download the FluidSynth build for Windows into `native_audio/fluidsynth_win64`
+(PowerShell, from the repository folder):
+
+```powershell
+Invoke-WebRequest -Uri "https://github.com/FluidSynth/fluidsynth/releases/download/v2.5.2/fluidsynth-v2.5.2-win10-x64-cpp11.zip" -OutFile fluidsynth-win64.zip
+Expand-Archive fluidsynth-win64.zip -DestinationPath native_audio/fluidsynth_tmp
+Move-Item native_audio/fluidsynth_tmp/fluidsynth-v2.5.2-win10-x64-cpp11 native_audio/fluidsynth_win64
+Remove-Item -Recurse native_audio/fluidsynth_tmp; Remove-Item fluidsynth-win64.zip
+```
+
+Then:
+
+```powershell
+flutter run -d windows
 flutter build windows --release
 ```
 
-The native `libdart_vst_host` and `libaudio_input` libraries are compiled and bundled automatically by Flutter's FFI plugin system (on macOS, ensure `cmake` is installed).
+On Windows, VST3 plugins load and play, but their own editor windows do not
+open yet: use the knobs GrooveForge shows instead.
 
-## Using VST3 Plugins (Linux)
+### Checks
 
-1. Open the app and tap **+** in the rack to add a plugin slot.
-2. Choose **VST3 Plugin** and select the plugin's `.vst3` bundle directory (e.g. `/usr/lib/vst3/Surge XT.vst3`).
-3. The plugin loads, starts producing audio via ALSA, and its parameters appear as grouped rotary knobs in the rack card.
-4. Tap **Show plugin UI** in the card to open the plugin's native editor window.
-5. Use **Save Project** (top bar) to write a `.gf` file that snapshots all parameter values for later recall.
-
-Common installed locations on Linux:
-
-```
-/usr/lib/vst3/
-~/.vst3/
-/usr/local/lib/vst3/
+```bash
+flutter analyze   # must report no issues
+flutter test
 ```
 
-## Project File Format (`.gf`)
+`scripts/run_smoke_tests.sh` builds and runs the native audio tests. Read the
+comment at the top of the script first.
 
-GrooveForge saves projects as plain JSON with a `.gf` extension. The file stores the full rack order, all GrooveForge Keyboard settings (soundfont, bank, patch, MIDI channel, Jam configuration), and a snapshot of every VST3 parameter value. Open a project with **Open Project** in the top bar.
+## For developers
 
-## Open Source Credits
+- [Plugin descriptors (.gfpd)](https://yakari.github.io/grooveforge/gfpd/):
+  write audio effects and MIDI FX for GrooveForge without Dart.
+- [Drum patterns (.gfdrum)](https://yakari.github.io/grooveforge/gfdrum/):
+  the pattern file format.
+- [`docs/dev/REHEARSALS.md`](docs/dev/REHEARSALS.md): how rehearsal sync works.
+- [`docs/writing-help.md`](docs/writing-help.md): rules for any text a user
+  reads, including this file.
+- [`CHANGELOG.md`](CHANGELOG.md): what changed in each version.
 
-- **[Flutter](https://flutter.dev/)** — framework and SDK.
-- **[FluidSynth](https://www.fluidsynth.org/)** — soundfont synthesis engine, built from source on every platform (LGPL-2.1+).
-- **TimGM6mb** by Tim Brechbill — the bundled default soundfont (`assets/soundfonts/default.sf2`), long shipped with older versions of MuseScore (GPL-2.0).
-- **[VST3 SDK](https://github.com/steinbergmedia/vst3sdk)** — Steinberg VST3 interfaces (MIT license, v3.8+).
-- **[flutter_midi_command](https://pub.dev/packages/flutter_midi_command)** — hardware MIDI routing.
-- **[provider](https://pub.dev/packages/provider)** — reactive state management.
-- **[file_picker](https://pub.dev/packages/file_picker)** & **[path_provider](https://pub.dev/packages/path_provider)** — file system access.
-- **[shared_preferences](https://pub.dev/packages/shared_preferences)** — lightweight preference persistence.
+## Contributing
 
-> **A note on licensing.** GrooveForge's own source is MIT, but the bundled soundfont is
-> GPL-2.0. It is sample data read at runtime rather than linked code, so this is ordinary
-> aggregation — the source stays MIT. It does mean a *built APK* cannot be redistributed
-> as MIT-only, since it contains GPL-2.0 material. The soundfont's licence travels with it
-> in `assets/soundfonts/LICENSE.txt`, which is packaged inside the APK.
+Report bugs and ideas in [GitHub issues](https://github.com/yakari/grooveforge/issues).
+GrooveForge is made by one person in their spare time, so answers can take a
+while. Before a pull request, run `flutter analyze` and `flutter test`, and
+add a line to both `CHANGELOG.md` and `CHANGELOG.fr.md`.
 
-### Embedded packages (modified)
+## License
 
-Both packages below are vendored inside `packages/` and carry their own licenses. Our modifications are described for transparency.
+GrooveForge's source code is under the [MIT License](LICENSE).
 
-**[flutter_midi_pro](https://pub.dev/packages/flutter_midi_pro)** by [Melih Hakan Pektas](https://github.com/melihhakanpektas) — MIT License.
-The embedded version adds multi-timbral support (16 independent channels) and a Linux FluidSynth native backend that was absent from the upstream package.
+The default sound bank, TimGM6mb by Tim Brechbill
+(`assets/soundfonts/default.sf2`), is under the GPL-2.0
+([`assets/soundfonts/LICENSE.txt`](assets/soundfonts/LICENSE.txt)). The app
+reads it as data, so the source stays MIT, but a built app that contains it
+cannot be redistributed as MIT-only.
 
-**[flutter_vst3](https://github.com/MelbourneDeveloper/flutter_vst3)** by Melbourne Developer — BSD-3-Clause License.
-The embedded `dart_vst_host` sub-package has been extended with: a Linux ALSA audio thread, an X11 floating editor window with full `IRunLoop` / `IPlugFrame` support, parameter unit/group APIs (`dvh_param_unit_id`, `dvh_unit_count`, `dvh_unit_name`), multi-output-bus resume logic, single-component VST3 fallback, and platform stub files for Windows and macOS compilation.
+Other parts and their licenses:
+
+- [FluidSynth](https://www.fluidsynth.org/), the SoundFont engine: LGPL-2.1 or
+  later.
+- [VST3 SDK](https://github.com/steinbergmedia/vst3sdk) by Steinberg: MIT
+  (version 3.8 and later).
+- `packages/flutter_midi_pro`, a modified copy of
+  [flutter_midi_pro](https://pub.dev/packages/flutter_midi_pro) by Melih Hakan
+  Pektas: MIT. It adds 16-channel playback and native backends.
+- `packages/flutter_vst3`, a modified copy of
+  [flutter_vst3](https://github.com/MelbourneDeveloper/flutter_vst3) by
+  Melbourne Developer: BSD-3-Clause. Its `dart_vst_host` package was extended
+  with the audio backends, editor windows and parameter groups GrooveForge
+  uses.

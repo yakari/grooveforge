@@ -254,7 +254,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get notationSolfege => 'Solfège (Do, Ré, Mi)';
 
   @override
-  String get prefAboutMadeWith => 'Made with Flutter in Paris 🇫🇷';
+  String get prefAboutMadeWith => 'Made with Flutter in Paris';
 
   @override
   String get splashStartingEngine => 'Starting audio engine...';
@@ -361,29 +361,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get guideTitle => 'User Guide';
 
   @override
-  String get guideTabFeatures => 'Features';
+  String get guideTabMidi => 'MIDI controllers';
 
   @override
-  String get guideTabMidi => 'MIDI Connectivity';
+  String get guideTabTips => 'Playing tips';
 
   @override
-  String get guideTabSoundfonts => 'Soundfonts';
-
-  @override
-  String get guideTabTips => 'Musical Tips';
-
-  @override
-  String get guideTabPatch => 'Rack & Cables';
-
-  @override
-  String get guidePatchRackTitle => 'The Rack';
-
-  @override
-  String get guidePatchRackBody =>
-      'The rack is the heart of GrooveForge. Each row is a slot — an independent instrument or effect processor. Add slots with the + button, remove them with the trash icon, and reorder them by dragging the handle on the left side of each slot.';
-
-  @override
-  String get guidePatchSlotTypesTitle => 'Slot Types';
+  String get guideTabPatch => 'Cables';
 
   @override
   String get guidePatchGroupInstruments => 'Instruments';
@@ -392,176 +376,158 @@ class AppLocalizationsEn extends AppLocalizations {
   String get guidePatchGroupRhythm => 'Drums & loopers';
 
   @override
-  String get guidePatchGroupCustom => 'Custom plugins';
+  String get guidePatchGroupCustom => 'Your own plugins';
 
   @override
   String get guidePatchSlotKeyboard => 'Keyboard';
 
   @override
   String get guidePatchSlotKeyboardDesc =>
-      'Built-in FluidSynth driven by a soundfont (.sf2). Play from the on-screen keyboard or external MIDI. Choose None as the soundfont to use the keyboard as a MIDI-only controller (MIDI OUT cables in patch view, no built-in synth).';
+      'Plays a piano or any sound from a soundfont (.sf2). Set it to None (MIDI only) to use it only to send notes to other modules.';
 
   @override
   String get guidePatchSlotVocoder => 'Vocoder';
 
   @override
   String get guidePatchSlotVocoderDesc =>
-      'Processes microphone audio through a carrier wave for voice-synth effects.';
+      'Your voice through the microphone becomes a synth that plays the notes you hold.';
 
   @override
   String get guidePatchSlotJam => 'Jam Mode';
 
   @override
   String get guidePatchSlotJamDesc =>
-      'Harmony engine that snaps incoming MIDI notes to a scale in real time. Receives chord information from a master keyboard slot.';
+      'Keeps one keyboard in the scale of the chords another keyboard plays.';
 
   @override
   String get guidePatchSlotVst3 => 'VST3 Plugin';
 
   @override
   String get guidePatchSlotVst3Desc =>
-      'Load any third-party VST3 instrument or effect. Requires a compatible .vst3 bundle installed on your system.';
+      'Loads a VST3 instrument or effect installed on your computer.';
 
   @override
   String get guidePatchSlotVst3DesktopOnly =>
-      'VST3 plugin slots are available on desktop platforms only (Linux, macOS, Windows). They are not available on Android or iOS.';
+      'VST3 plugins work on Linux, macOS and Windows only, not on Android or in the web demo.';
 
   @override
-  String get guidePatchTitle => 'Cable Patching';
+  String get guidePatchTitle => 'The cable view';
 
   @override
   String get guidePatchIntro =>
-      'The patch view lets you see the back panel of every slot in your rack and draw virtual cables between jacks, just like on a real hardware rack. Tap the cable icon in the top app bar to toggle between the front view (playing) and the back view (patching).';
+      'Tap the cable icon at the top of the rack to see the back of every module. Tap the back arrow to return. Modules cannot be moved in this view.';
 
   @override
-  String get guidePatchToggleTitle => 'Toggling Patch View';
-
-  @override
-  String get guidePatchToggleBody =>
-      'Tap the cable icon (⊡) in the top-right of the rack screen to switch to the back panel view. Tap it again (or the agenda icon) to return to the front view. Slot reordering is disabled while in patch view.';
-
-  @override
-  String get guidePatchJacksTitle => 'Jack Types';
-
-  @override
-  String get guidePatchJacksBody =>
-      'Each slot exposes a set of jacks grouped by signal family:\n• MIDI (yellow) — MIDI IN / MIDI OUT for note and CC messages.\n• Audio (red / white / orange) — AUDIO IN L, AUDIO IN R, AUDIO OUT L, AUDIO OUT R for stereo audio; SEND / RETURN for effects loops.\n• Data (purple) — CHORD OUT/IN and SCALE OUT/IN, the harmony routing used by Jam Mode and Xen.\n• Tuning (teal) — TUNE OUT/IN, carrying a Xen module\'s microtonal tuning to an instrument.';
-
-  @override
-  String get guidePatchDrawTitle => 'Drawing a Cable';
+  String get guidePatchDrawTitle => 'Drawing a cable';
 
   @override
   String get guidePatchDrawBody =>
-      'Long-press an output jack (●) to start dragging a cable. Compatible input jacks will pulse to show valid targets. Drag to a compatible input jack and release to connect. Dropping in empty space cancels the drag.\n\nCompatible pairs: MIDI OUT → MIDI IN, AUDIO OUT L → AUDIO IN L, AUDIO OUT R → AUDIO IN R, SEND → RETURN, CHORD OUT → CHORD IN, SCALE OUT → SCALE IN.';
+      'Long-press an output socket and drag. Sockets that accept the cable light up. Release on one to connect, anywhere else to cancel. An output only connects to an input of the same colour.';
 
   @override
-  String get guidePatchDisconnectTitle => 'Disconnecting a Cable';
+  String get guidePatchDisconnectTitle => 'Removing a cable';
 
   @override
   String get guidePatchDisconnectBody =>
-      'Each cable has a small ✕ badge at its midpoint. Tap the badge to bring up the Disconnect menu. The badge is also the cable\'s hit zone, so aim for the circle with the coloured ring.';
+      'Tap the small ✕ in the middle of a cable, then Disconnect. Removing a module removes its cables too.';
 
   @override
-  String get guidePatchDataTitle => 'Data and Tuning Cables';
+  String get guidePatchDataTitle => 'Scale and tuning cables';
 
   @override
   String get guidePatchDataBody =>
-      'Purple data cables carry harmony between slots. Drawing a CHORD OUT → CHORD IN cable is the same as picking a master in the module\'s dropdown, and a SCALE OUT → SCALE IN cable is the same as adding a target — the patch view and the dropdowns always agree.\nTeal TUNE OUT → TUNE IN cables carry a Xen scale\'s own tuning to an instrument. They are separate from the scale cable on purpose: you can lock a keyboard to a scale without retuning it, or retune it without locking it.';
+      'Purple cables carry harmony. CHORD OUT into CHORD IN tells Jam Mode or Xen which keyboard\'s chords to follow. SCALE OUT into SCALE IN adds a keyboard that follows the scale. The cables and the menus in the panels always agree.\nTeal TUNE OUT into TUNE IN carries a Xen scale\'s tuning to an instrument. It is separate from the scale cable, so you can keep a keyboard in a scale without retuning it, or the other way round.';
 
   @override
-  String get guidePatchSharedEffectTitle => 'One signal path per effect slot';
+  String get guidePatchSharedEffectTitle => 'One effect, one signal';
 
   @override
   String get guidePatchSharedEffectBody =>
-      'Audio effects (reverb, delay, chorus, harmonizer, wah, EQ, compressor, …) hold internal filter state that is updated every audio block. An effect slot can therefore only be fed by one distinct signal path. Simple fan-in works: two keyboards cabled directly into the same reverb are mixed and processed together. Divergent paths do not: cabling kb1 → reverb AND kb2 → harmonizer → reverb asks the reverb to process two different signals in the same block, which would corrupt its filter state.';
+      'An effect remembers the sound passing through it (a reverb tail, a delay line), so it can only process one signal. Two keyboards cabled straight into the same reverb is fine: they are mixed first. One keyboard straight into a reverb and another through a harmonizer into the same reverb is two different signals, and GrooveForge refuses the cable.';
 
   @override
   String get guidePatchSharedEffectWorkaround =>
-      'When GrooveForge blocks a cable with this rule, duplicate the effect slot so each signal path has its own instance. Add a second reverb from the plugin list and cable it into the second path.';
+      'If a cable is refused for this reason, add a second copy of the effect and cable the other signal into it.';
 
   @override
-  String get guidePatchTip =>
-      'Tip: Cables are saved as part of your project (.gf file). Open a saved project to restore all connections exactly as you left them.';
+  String get guidePatchTip => 'Cables are saved with the project.';
 
   @override
-  String get guideXenTitle => 'Xen (Scales and Microtuning)';
+  String get guideXenTitle => 'Xen: scales and tunings';
 
   @override
   String get guideXenBody =>
-      'Xen locks the keyboard to a scale and, for scales that are not equal-tempered, retunes the keys that scale uses. Hold a note and tap a scale: the note you are holding becomes the tonic and stays there until you repeat the gesture.\nIts two stages switch independently. SNAP corrects out-of-scale notes — greyed keys on the piano show which. TUNE applies the scale\'s own intonation — retuned keys get a teal band and their offset in cents.\nBeside the Western modes you will find Arabic and Turkish maqamat, Indian ragas, Chinese, Japanese and Korean scales, the Highland pipe scale, gamelan tunings, historical temperaments, and equal divisions such as 24-EDO. \"My Scales\" holds the ones you build or import; Scala (.scl) files can be imported and exported.';
+      'Xen keeps every note you play inside a scale. Hold a key and tap a scale: the key you hold becomes the root note, until you do it again. Picking a scale also switches Xen on.\nSNAP moves notes that are outside the scale to the nearest one that fits; the piano greys them out. TUNE plays the scale\'s own tuning, for scales whose notes fall between the piano keys: those keys get a teal band and their offset in cents. SNAP and TUNE switch on and off separately.\nThe Family menu has Western modes, Arabic and Turkish maqamat, Indian ragas, Chinese, Japanese and Korean scales, gamelan tunings, historical temperaments and more. My Scales holds the scales you build or import from Scala (.scl) files.';
 
   @override
-  String get guideJamModeTitle => 'Jam Mode (Auto-Harmony)';
+  String get guideJamModeTitle => 'Jam Mode';
 
   @override
   String get guideJamModeBody =>
-      'Jam Mode allows you to play flawlessly by locking all keys to a specific scale. In Jam Mode, one channel acts as the \'Master\' (transmitting its scale/harmony) while other channels act as \'Slaves\'. Use the top controls to define the root note and scale type.';
+      'Jam Mode is for two keyboards: one plays chords, the other improvises. In its panel, MASTER is the keyboard whose chords set the scale, and TARGETS are the keyboards that follow. Every note a target plays moves into that scale. You can also draw the link in the cable view: CHORD OUT into CHORD IN, SCALE OUT into SCALE IN.';
 
   @override
-  String get guideVocoderTitle => 'Vocoder (Voice Synth)';
+  String get guideVocoderTitle => 'Vocoder';
 
   @override
   String get guideVocoderBody =>
-      'The Vocoder uses your device microphone to modulate the synth sound. Access it by selecting the \'VOCODER\' preset in the soundfont dropdown. For best results:\n• Use wired headphones or speakers (latency over Bluetooth is too high).\n• Setup mic levels with the gain knobs.\n• Android Limitation: You cannot use separate USB devices for input and output. Use a single USB hub/interface that handles both, or the internal mic.\n• Experiment with the carrier waves (Saw, Square, Choral), or switch to Harmony, which drops the carrier entirely and pitch-shifts your own voice onto the keys you hold.';
+      'Tap + and pick Vocoder. Sing or talk into the microphone while you hold notes: your voice shapes a synth that plays them. Set the microphone level with the gain knobs. Try the carrier waves (Saw, Square, Choral), or Harmony, which drops the synth and moves your own voice onto the keys you hold.';
 
   @override
   String get guideThereminTitle => 'Theremin and Stylophone';
 
   @override
   String get guideThereminBody =>
-      'The Theremin has two input modes. PAD is a touch pad: slide up and down for pitch, left and right for volume. CAM (Android, iOS and macOS) uses the front camera\'s autofocus to sense how far away your hand is — closer plays higher, and moving far enough away silences the note; volume stays full in this mode. BASE sets the lowest note, RANGE the span in octaves, VIB the vibrato depth, and HEIGHT the size of the pad.\nThe Stylophone is a 25-key chromatic strip played by touching or sliding along it. It is monophonic like the original, and sliding from one key to the next glides without a click. SQR, SAW, SIN and TRI pick the waveform.';
+      'The Theremin has two modes. PAD is a touch pad: slide up and down for pitch, left and right for volume. CAM (Android, iOS and macOS) uses the front camera to sense how far your hand is: closer plays higher, far enough away is silent, and volume stays full. BASE sets the lowest note, RANGE the span in octaves, VIB the vibrato and HEIGHT the size of the pad.\nThe Stylophone is a 25-key strip you play by touching or sliding along it. It plays one note at a time, like the original, and glides between keys without a click. SQR, SAW, SIN and TRI pick the waveform.';
 
   @override
   String get guideDrumGeneratorTitle => 'Drum Generator';
 
   @override
   String get guideDrumGeneratorBody =>
-      'Plays a drum pattern on MIDI channel 10, from bossa nova to metal. Pick a pattern, then shape how it is played: Swing pushes the off-beats late, and Human feel moves the whole kit between a robotic grid and a drummer who breathes. Count-in plays a few hits before the pattern starts, and Fill every drops a fill at a chosen number of bars.\nPatterns are plain .gfdrum files, so the bundled ones can be replaced or extended with your own.';
+      'Plays a drum pattern at the transport tempo, from bossa nova to metal. Swing pushes the off-beats late. Human feel goes from a strict grid to a drummer who breathes. Count-in plays a few hits before the pattern starts, and Fill every adds a fill every few bars.\nPatterns are .gfdrum files, so you can add your own.';
 
   @override
   String get guideLoopersTitle => 'Loopers';
 
   @override
   String get guideLoopersBody =>
-      'The MIDI Looper records what you play and loops it. The Audio Looper does the same with live audio, and adds overdub and reverse.\nBoth are bar-synced: recording does not start the instant you tap record, it waits for the next downbeat, and the loop length is rounded to whole bars. That is what keeps a stack of loops lining up instead of drifting apart.\nThe Audio Looper records whatever is cabled into its Audio IN, so patch an instrument or a Live Input into it first.';
+      'The MIDI Looper records the notes you play and loops them. The Audio Looper records sound, and can also overdub and reverse.\nBoth wait for the next bar to start recording and round the loop to whole bars, so loops stay in time with each other.\nThe Audio Looper records what is cabled into its AUDIO IN: cable an instrument or a Live Input into it first.';
 
   @override
-  String get guideMidiFxTitle => 'Harmonizer and the other MIDI FX';
+  String get guideMidiFxTitle => 'MIDI FX';
 
   @override
   String get guideMidiFxBody =>
-      'The Harmonizer adds up to four harmony voices to anything you play. Count sets how many voices play, and Voice 1 to Voice 4 set each interval in semitones — the readout under each knob names the interval, so +7 st reads as a perfect fifth. Two voices at a major third and a perfect fifth are the default. With Scale Lock on, those intervals bend to stay inside the current scale, so the harmony follows the key instead of wandering outside it.\nThe other MIDI FX modules sit in the same place, between a keyboard and its sound: Chord Expand turns single notes into full chords, Arpeggiator spreads held notes into a rhythm, Transposer shifts everything by up to two octaves, Velocity Curve remaps how hard you play, Gate filters notes by velocity or pitch range, and Microtone folds held notes into a single microtonal pitch.';
+      'MIDI FX change the notes on their way from a keyboard to its sound. Harmonizer adds up to four voices to what you play; with Scale Lock on, they stay in the current scale. Chord Expand turns one note into a chord. Arpeggiator plays held notes one after another, in time. Transposer shifts everything by up to two octaves. Velocity Curve changes how loud soft and hard notes come out. Gate lets through only notes within a velocity or pitch range. Microtone merges held notes into one microtonal pitch.';
 
   @override
-  String get guideMidiTitle => 'MIDI Connectivity';
+  String get guideMidiTitle => 'Connect a controller';
 
   @override
   String get guideMidiBody =>
-      'Connect hardware controllers via USB (OTG adapter) or BLE MIDI. Enable CC Mapping in preferences to bind physical knobs to internal effects or system actions like \'Next Patch\'.';
+      'GrooveForge works with USB MIDI keyboards and pads (through an OTG adapter on a phone) and with Bluetooth MIDI devices.';
 
   @override
-  String get guideMidiBestPracticeTitle => 'Hardware Recommendations';
+  String get guideMidiBestPracticeTitle => 'One keyboard or two?';
 
   @override
   String get guideMidiBestPracticeBody =>
-      'One keyboard is enough: the default rack pairs a single GrooveForge Keyboard with a Xen module. Xen starts off and switches on when you pick a scale: hold a note and tap a scale button.\nA split or dual-keyboard setup is still worth having if you prefer Jam Mode, where one channel plays the chords that set the scale and another improvises over them.';
+      'One keyboard is enough: a new project pairs a GrooveForge Keyboard with a Xen module. Xen starts off and switches on when you pick a scale: hold a note and tap a scale button.\nA second keyboard, or a controller split in two, is useful for Jam Mode: one hand plays the chords that set the scale, the other improvises over them.';
 
   @override
-  String get guideSoundfontsTitle => 'Soundfonts (SF2)';
+  String get guideSoundfontsTitle => 'Sounds (soundfonts)';
 
   @override
   String get guideSoundfontsBody =>
-      'Import high-quality instrument sounds (.sf2) in the Soundfont preferences. Once loaded, you can assign them to any MIDI channel via the patch selector.';
+      'The keyboard plays its sounds from soundfont files (.sf2). To add one, open Preferences, then under Soundfonts tap Load Soundfont (.sf2). It then appears in the sound menu of every keyboard. A good soundfont can take several hundred MB.';
 
   @override
-  String get guideTipsTitle => 'Musical Tips & Improvisation';
+  String get guideTipsTitle => 'Improvising';
 
   @override
   String get guideTipsBody =>
-      'New to improvisation? Try these tips:\n• Scale as Safe Zone: Every key in the selected scale will sound \'correct\' with the music.\n• The Root Note: Start or end your phrases on the root note (highlighted) to create a sense of resolution.\n• Rhythm first: Focus on simple rhythmic patterns rather than complex melodies.';
-
-  @override
-  String get guideScalesTitle => 'Available Scales';
+      'New to improvising? A few ideas:\n• In a scale, every key fits the music. There are no wrong notes, only surprising ones.\n• Start or end your phrases on the root note: it sounds like coming home.\n• Rhythm first. A simple idea played in time beats a fast run.\n• Leave space. Short phrases with rests between them sound more musical than a stream of notes.';
 
   @override
   String guideWelcomeHeader(String version) {
@@ -570,54 +536,33 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get guideWelcomeIntro =>
-      'This update brings significant improvements to your workflow and creative tools:';
+      'Short recipes to get going. Each one links to a clip of the gesture on the website.';
 
   @override
-  String get guideChangelogExpand => 'See what\'s new in this version';
-
-  @override
-  String get guideMidiHardware => '1. Hardware Connection';
+  String get guideChangelogExpand => 'What\'s new in this version';
 
   @override
   String get guideMidiHardwareStep1 =>
-      'Connect controller via USB (OTG) or power on BLE device.';
+      'Plug the controller in, or switch on the Bluetooth one.';
 
   @override
   String get guideMidiHardwareStep2 =>
-      'Go to Settings > MIDI Input and select your device.';
+      'Open Preferences with the gear icon. Under MIDI Connection, tap Connect MIDI Device and pick it.';
 
   @override
-  String get guideMidiCcMappings => '2. CC & System Mappings';
+  String get guideMidiCcMappings => 'Map knobs and pads';
 
   @override
   String get guideMidiCcMappingsBody =>
-      'Bind knobs to effects like Volume or System Actions:';
-
-  @override
-  String get guideMidiFeaturePatch => 'Patch Up/Down';
-
-  @override
-  String get guideMidiFeaturePatchDesc => 'Quickly switch instruments.';
-
-  @override
-  String get guideMidiFeatureScales => 'Cycle Scales';
-
-  @override
-  String get guideMidiFeatureScalesDesc => 'Change harmony on the fly.';
-
-  @override
-  String get guideMidiFeatureJam => 'Toggle Jam';
-
-  @override
-  String get guideMidiFeatureJamDesc => 'Force slaves to follow your lead.';
+      'For a module\'s controls: tap the sliders icon at the top of the module, tap Learn next to a control, then move a knob or press a pad.\nFor actions that concern the whole app (looper, transport, channel swap and more): open Preferences, then CC Mapping Preferences, then Add Mapping.';
 
   @override
   String get guideMidiTipSplit =>
-      'Tip: Most modern MIDI controllers allow splitting the keys into distinct zones/channels.';
+      'Many controllers can split their keys into two zones on different MIDI channels, for example bass in the left hand and melody in the right.';
 
   @override
   String get guideAndroidUsbLimitation =>
-      'Important: On Android, using a USB hub with separate input and output devices can be unstable. Use an integrated USB Audio Interface for best results.';
+      'Android keeps only one USB audio device at a time. If plugging in a USB microphone silences your USB headphones or sound card, turn on Direct USB output in Preferences, under Audio Output.';
 
   @override
   String get micSelectionTitle => 'Audio Input';
@@ -1557,14 +1502,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get guideRiffBody =>
-      'Riff is an electric guitar simulated string by string. Play it from any keyboard or MIDI source: each note goes to a string a guitarist would use, and close notes take separate strings so they all ring. Switch Legato on (a pad can switch it from the CC settings, or hold a pad sending CC 68) to slur instead: a note played close to the last one hammers on going up and pulls off going down, on the same string, and a long run keeps its level. Overlap does the same only for a key pressed before the previous one is let go, so legato and detached playing mix without a pad. The pitch wheel bends (a whole tone by default, see Bend), the mod wheel adds vibrato and the sustain pedal lets released strings ring, longer than held notes (see Pedal sustain). Feedback, best on a CC slider, makes held strings bloom into a harmonic and hold, as in front of an amp.\nPalm mute, Pick position, Attack, the pickup selector, Tone and Sustain all act on strings that are already ringing: map them to a pedal, a knob or a ribbon in the CC settings and play them like a guitarist\'s hands. Cable Riff into the Amp for crunch and distortion; the Overdrive pedal gives the most natural result.';
+      'Riff is an electric guitar modelled string by string. It has no keys: cable a keyboard\'s MIDI OUT into its MIDI IN, or play it from a controller on its MIDI channel.\nClose notes go to separate strings, so they ring together. With Legato on, a note close to the previous one hammers on or pulls off on the same string. Overlap does the same only when you press a key before letting go of the last one.\nThe pitch wheel bends, the mod wheel adds vibrato, the sustain pedal lets strings ring. Feedback makes held strings bloom into a harmonic, like in front of an amp.\nPalm mute, Pick position, Tone and the pickup selector change strings that are already ringing: map them to a pedal or a knob with Learn and play them like a guitarist\'s hands. For crunch and distortion, cable Riff into the Amp.';
 
   @override
   String get guideAmpTitle => 'Amp and cabinet IRs';
 
   @override
   String get guideAmpBody =>
-      'The Amp turns a clean guitar into an amplified one, in three sections you can switch on and off, by hand or with a footswitch mapped in the CC settings: a Drive pedal (Overdrive or Distortion), the Amp itself (gain and its Bass / Middle / Treble), and the speaker Cab.\nMost of a guitar sound comes from the cabinet. Besides the three built-in cabinets, the Amp can play an impulse response (IR): a recording of a real cabinet and its microphone. Tap Load IR under the Amp, pick a .wav file, and the Cabinet selector switches to IR. The file is saved inside your project; the cross next to its name removes it.';
+      'The Amp has three sections you can switch on and off, by hand or with a footswitch: a Drive pedal (Overdrive or Distortion), the amp itself (Gain, Bass, Middle, Treble) and the speaker cabinet.\nThe cabinet shapes most of a guitar sound. Besides the three built-in ones, the Amp can play an impulse response (IR), a recording of a real cabinet: tap Load IR under the Amp and pick a .wav file. It is saved in your project; the cross next to its name removes it.';
 
   @override
   String get guideAmpIrSourcesTitle => 'Where to find free cabinet IRs';
@@ -2858,43 +2803,43 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get guideRehearsalIntroBody =>
-      'The Rehearse tab is for a band learning a tune. Everyone records their own part over a shared click, on their own phone, and the parts are collected into one arrangement that every device holds a full copy of.\n\nNothing is uploaded anywhere. The devices talk straight to each other, so a rehearsal works in a room with no internet at all.';
+      'The Rehearse tab is for a band learning a tune. Everyone records their own part over a shared click, on their own device, and every device ends up with all the parts.\n\nNothing is uploaded anywhere. The devices talk straight to each other, so a rehearsal works in a room with no internet at all.';
 
   @override
   String get guideRehearsalStartTitle => 'Starting a tune';
 
   @override
   String get guideRehearsalStartBody =>
-      'Start a tune, give it a name, and say what you play. Set the tempo and the time signature, or tap the beat if you would rather feel it than count it.\n\nTo play along to a recording, import it as the master track: MP3, FLAC and WAV everywhere, and on Android also M4A, AAC and the sound of a video. Then drag the marker to the first downbeat so the grid lines up with the music. The click switches itself off once a recording is there, because the recording is the tempo now.';
+      'Start a tune, give it a name, and say what you play. Set the tempo and the time signature, or tap the beat if you would rather feel it than count it.\n\nTo play along to a recording, import it as the master track: MP3, FLAC and WAV everywhere, and on Android also M4A, AAC and the sound of a video. Then tap along to the beat and drag the marker onto the first downbeat, so the bars line up with the music. The click then switches off: the recording sets the tempo.';
 
   @override
   String get guideRehearsalRecordTitle => 'Recording your part';
 
   @override
   String get guideRehearsalRecordBody =>
-      'Add a part for your instrument and press record. A count-in runs first, two bars by default, and recording starts on the downbeat.\n\nEvery device takes a moment to play sound and a moment to capture it, and that delay would push your take late against everything already recorded. The app measures the delay on your own device and shifts your take back by it, so what you played on the beat lands on the beat. Measure it once from Settings, and again if you change headphones or move to a Bluetooth speaker, since the delay belongs to the gear and not to the tune.\n\nYou record your own parts and nobody else\'s. Yours can be re-recorded or deleted as often as you like.';
+      'Add a part for your instrument and press record. A count-in plays first, two bars by default, and recording starts on the downbeat.\n\nEvery device takes a moment to play sound and another to record it, which would put your take late against the others. The app measures that delay on your device and moves your take back by it, so what you played on the beat lands on the beat. Measure it once with Calibrate in the tune, or from Preferences, and again when you change headphones or switch to a Bluetooth speaker: the delay belongs to the gear, not to the tune.\n\nYou record your own parts and nobody else\'s. Yours can be re-recorded or deleted as often as you like.';
 
   @override
   String get guideRehearsalMonitoringNote =>
-      'Record on headphones, or with an external microphone kept away from the speaker. Played through the built-in speaker, the microphone hears everything the app is playing — the click and the parts already recorded — and it all lands in your take.';
+      'Record with headphones, or with an external microphone kept away from the speaker. Through the built-in speaker, the microphone hears the click and the parts already recorded, and they all end up in your take.';
 
   @override
   String get guideRehearsalShareTitle => 'Getting the band together';
 
   @override
   String get guideRehearsalShareBody =>
-      'The first time, one person shares the tune and the others take it: on a phone, scan the code; on a computer, paste the link. From then on the devices know each other, and simply opening the same tune is enough — they find each other again within a few seconds.\n\nA dot next to each part says whether the player who owns it is connected right now. Whatever you record reaches everyone in the room as soon as you stop, and anything you missed while you were away arrives the next time you are all in the same place.';
+      'The first time, one person opens the tune and taps the share icon; the others join from the Rehearse tab, with Join a tune: on a phone they scan the code, on a computer they paste the link. After that, the devices know each other: opening the same tune is enough, and they find each other within a few seconds.\n\nA dot next to each part shows whether its player is connected. What you record reaches everyone in the room as soon as you stop, and what you missed while away arrives the next time you are all together.';
 
   @override
   String get guideRehearsalHotspotTitle => 'When there is no Wi-Fi';
 
   @override
   String get guideRehearsalHotspotBody =>
-      'Everyone has to be on the same network. Phones on mobile data cannot see each other, and rehearsal rooms rarely have usable Wi-Fi, so one person makes the network instead:\n\n1. One phone turns on its personal hotspot, in the phone\'s own settings. The exact place varies by make, but it is usually under Connections or Network.\n2. Everyone else joins that hotspot from their normal Wi-Fi settings, the same way they would join any network.\n3. Everyone opens the tune. The devices find each other within a few seconds.\n\nIt does not have to be the same person every time. If whoever usually hosts is not at this rehearsal, anybody else turns theirs on and the rest join that one.\n\nNext time, that person turns the hotspot back on, everyone reconnects, and there is nothing to scan again.';
+      'Everyone has to be on the same network. Phones on mobile data cannot see each other, and rehearsal rooms rarely have usable Wi-Fi, so one person makes the network:\n\n1. One phone turns on its personal hotspot, in the phone\'s own settings (usually under Connections or Network).\n2. Everyone else joins that hotspot from their Wi-Fi settings, like any network.\n3. Everyone opens the tune. The devices find each other within a few seconds.\n\nIt does not have to be the same person every time: if the usual host is away, anybody else turns theirs on and the rest join it. There is nothing to scan again.';
 
   @override
   String get guideRehearsalHotspotNote =>
-      'Sharing parts uses no mobile data — it never leaves the room. Some phones insist on switching mobile data on before they will share a hotspot, but the rehearsal itself does not spend any.';
+      'Sharing parts uses no mobile data: it never leaves the room. Some phones ask to turn mobile data on before sharing a hotspot, but the rehearsal itself does not use any.';
 
   @override
   String get rehearsalTakePending => 'Not sent yet';
@@ -3157,4 +3102,178 @@ class AppLocalizationsEn extends AppLocalizations {
   String ccReleaseValueDialogTitle(int cc) {
     return 'CC $cc: release';
   }
+
+  @override
+  String get guideTabStart => 'Start here';
+
+  @override
+  String get guideTabModules => 'Modules';
+
+  @override
+  String get guideRulesTitle => 'How sound moves between modules';
+
+  @override
+  String get guideRulesIntro =>
+      'Tap the cable icon at the top of the rack to see the back of your modules. That is where you connect them with cables.';
+
+  @override
+  String get guideRuleInstrument =>
+      'An instrument plays through the speakers on its own. You do not need a cable to hear it.';
+
+  @override
+  String get guideRuleColours =>
+      'Yellow cables carry notes (MIDI), from a keyboard to an instrument. Red and white cables carry sound, left and right.';
+
+  @override
+  String get guideRuleEffect =>
+      'To put an effect after an instrument, cable the instrument\'s AUDIO OUT L and R into the effect\'s AUDIO IN L and R. What comes out of the effect goes to the speakers.';
+
+  @override
+  String get guideRuleDraw =>
+      'To draw a cable, long-press a socket and drag it to another one. Sockets that accept it light up while you drag.';
+
+  @override
+  String get guideWatchClip => 'Watch the clip';
+
+  @override
+  String get guideRecipeScaleTitle => 'Play in a scale';
+
+  @override
+  String get guideRecipeScaleSteps =>
+      'Every new project has a keyboard and a Xen module.\nHold a key and tap a scale, for example Blues. Xen switches on, and the key you hold becomes the root note.\nOpen Family for other traditions: maqamat, ragas, Japanese scales and more.';
+
+  @override
+  String get guideRecipeScaleResult =>
+      'Grey keys are outside the scale: press one and you hear the nearest note that fits.';
+
+  @override
+  String get guideRecipeEffectTitle => 'Add an effect to your keyboard';
+
+  @override
+  String get guideRecipeEffectSteps =>
+      'Tap + and pick an effect, for example Reverb.\nTap the cable icon at the top.\nLong-press the keyboard\'s red AUDIO OUT L and drag it to the effect\'s AUDIO IN L. Then the white R to R.\nTap the back arrow and play.';
+
+  @override
+  String get guideRecipeEffectResult =>
+      'You hear the keyboard through the effect. Turn its knobs to change the sound.';
+
+  @override
+  String get guideRecipeRemoveTitle => 'Remove a cable or a module';
+
+  @override
+  String get guideRecipeRemoveSteps =>
+      'A cable: in the cable view, tap the small ✕ in the middle of the cable, then Disconnect.\nA module: tap the bin icon at the top of the module, then Remove. Its cables go with it.';
+
+  @override
+  String get guideRecipeRemoveResult => '';
+
+  @override
+  String get guideRecipeGuitarTitle => 'Play the guitar from the keyboard';
+
+  @override
+  String get guideRecipeGuitarSteps =>
+      'Tap + and pick Riff.\nIn the cable view, drag the keyboard\'s yellow MIDI OUT to Riff\'s MIDI IN.\nPlay: you hear the piano and the guitar together.\nTo hear only the guitar, set the keyboard\'s sound menu to None (MIDI only).';
+
+  @override
+  String get guideRecipeGuitarResult =>
+      'Riff has no keys of its own: the keyboard sends it the notes.';
+
+  @override
+  String get guideRecipeAmpTitle => 'Put the guitar through the amp';
+
+  @override
+  String get guideRecipeAmpSteps =>
+      'Tap + and pick Amp.\nIn the cable view, drag Riff\'s AUDIO OUT L to the Amp\'s AUDIO IN L, then R to R.\nPlay, and turn Drive on the Amp.';
+
+  @override
+  String get guideRecipeAmpResult =>
+      'The clean guitar gets crunchy or distorted.';
+
+  @override
+  String get guideRecipeControllerTitle => 'Connect a MIDI controller';
+
+  @override
+  String get guideRecipeControllerSteps =>
+      'Plug it in over USB (with an OTG adapter on a phone), or switch on a Bluetooth MIDI controller.\nOpen Preferences with the gear icon.\nUnder MIDI Connection, tap Connect MIDI Device and pick it.';
+
+  @override
+  String get guideRecipeControllerResult =>
+      'It plays the module whose MIDI CH badge matches the channel it sends on, usually 1.';
+
+  @override
+  String get guideRecipeLearnTitle => 'Map a knob';
+
+  @override
+  String get guideRecipeLearnSteps =>
+      'Tap the sliders icon at the top of a module.\nTap Learn next to a control, for example Palm mute.\nMove a knob or press a pad on your controller.';
+
+  @override
+  String get guideRecipeLearnResult =>
+      'The control now follows your hardware. The mapping is saved with the project.';
+
+  @override
+  String get guideRecipeDrumsTitle => 'Start a drum beat';
+
+  @override
+  String get guideRecipeDrumsSteps =>
+      'Tap + and pick Drum Generator.\nPick a pattern from the menu.\nSwitch Active on and press play at the top.';
+
+  @override
+  String get guideRecipeDrumsResult =>
+      'The beat follows the tempo in the transport bar.';
+
+  @override
+  String get guideRecipeLoopTitle => 'Record a loop';
+
+  @override
+  String get guideRecipeLoopSteps =>
+      'Tap + and pick Audio Looper.\nIn the cable view, cable the keyboard\'s AUDIO OUT L and R into the looper\'s AUDIO IN L and R.\nPress the looper\'s record button. Recording starts on the first beat of the next bar.\nPlay, then press it again: recording stops at the end of the bar and the loop plays. Press it once more to add a layer.';
+
+  @override
+  String get guideRecipeLoopResult =>
+      'If the tempo was stopped, it starts and gives you one bar to get ready.';
+
+  @override
+  String get guideRecipeProjectsTitle => 'Save and open projects';
+
+  @override
+  String get guideRecipeProjectsSteps =>
+      'Tap the folder icon at the top.\nSave As… writes your modules, cables and settings to a .gf file.\nNew Project starts over with a keyboard and Xen. Anything not saved is lost.\nOpen Project loads a saved file.';
+
+  @override
+  String get guideRecipeProjectsResult =>
+      'The app also keeps your current session between launches, except in the web demo.';
+
+  @override
+  String get guideModulesIntro =>
+      'Everything the + button at the bottom of the rack can add. Drag the handle on the left of a module to move it.';
+
+  @override
+  String get guideVocoderNote =>
+      'Use wired headphones or speakers: Bluetooth adds too much delay to sing live.';
+
+  @override
+  String get guideJackLegendTitle => 'Socket colours';
+
+  @override
+  String get guideJackMidi => 'notes and controls (MIDI)';
+
+  @override
+  String get guideJackAudioL => 'sound, left';
+
+  @override
+  String get guideJackAudioR => 'sound, right';
+
+  @override
+  String get guideJackSend => 'effects loop';
+
+  @override
+  String get guideJackData => 'the scale and the current chord';
+
+  @override
+  String get guideJackTune => 'tuning for scales between the piano keys';
+
+  @override
+  String get guideMidiHardwareStep3 =>
+      'It plays the module whose MIDI CH badge matches the channel it sends on, usually 1. Tap the badge on a module to change its channel.';
 }

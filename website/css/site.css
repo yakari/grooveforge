@@ -1006,6 +1006,7 @@ main {
 
 .recipe-clips {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.75rem;
   justify-content: center;
 }
@@ -1067,4 +1068,17 @@ main {
   font-weight: 600;
   color: var(--text);
   white-space: nowrap;
+}
+
+/* Phones: wide tables scroll inside their own box instead of widening the
+   page, and on-screen labels may wrap. */
+@media (max-width: 600px) {
+  .prose table {
+    display: block;
+    overflow-x: auto;
+  }
+
+  .ui {
+    white-space: normal;
+  }
 }

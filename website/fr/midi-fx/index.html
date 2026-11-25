@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="GrooveForge MIDI FX — harmoniseur, arpégiateur, câbles patch et plugins .gfpd.">
+  <meta name="description" content="Effets MIDI GrooveForge : ajouter une harmonie, des accords ou un arpège à ce que vous jouez, caler le clavier sur une gamme avec Xen, et comment les câbler.">
   <title>GrooveForge — MIDI FX</title>
   <link rel="icon" type="image/png" href="../../assets/icon.png">
   <link rel="stylesheet" href="../../css/site.css">
@@ -41,58 +41,142 @@
 
   <main id="main" class="prose">
     <div class="page-hero">
-      <h1>MIDI FX</h1>
-      <p class="lead">Traitement MIDI 100 % Dart dans le rack : enchaînez des transformations entre votre contrôleur et vos instruments.</p>
+      <h1>Effets MIDI</h1>
+      <p class="lead">Des modules qui transforment les notes que vous jouez avant qu'un instrument les entende : ajouter une harmonie, faire d'une touche un accord, jouer un arpège.</p>
     </div>
 
-    <h2>Ce que sont les MIDI FX</h2>
     <p>
-      Les slots MIDI FX exécutent un graphe de types de nœuds déclarés dans un fichier <code>.gfpd</code> avec <code>type: midi_fx</code>
-      (alias <code>midifx</code>). Ils ne produisent pas d’audio — ils modifient les flux de notes, CC et pitch bend.
-      Exemples : transposer toutes les notes, harmoniser à des tierces, transformer des notes isolées en accords, arpégier
-      les notes tenues, remapper les vélocités ou filtrer par seuil.
+      Un effet MIDI ne produit aucun son. Il agit sur les notes (MIDI) de l'instrument qui lui est relié, et c'est cet instrument qui joue le résultat.
+      Ils fonctionnent tous aussi dans la <a href="../../demo/">démo web</a>. Vous les trouverez sous <span class="ui">Effets MIDI intégrés</span> dans le menu <span class="ui">+</span>.
+    </p>
+    <p class="recipe-note">
+      Les panneaux de ces effets restent en anglais dans l'app, sauf celui de Xen. Les libellés cités ici sont ceux que vous verrez à l'écran.
     </p>
 
-    <h2>Câblage en vue patch</h2>
+    <ul class="recipe-index" aria-label="Effets MIDI">
+      <li><a href="#connect">Brancher un effet MIDI</a></li>
+      <li><a href="#harmonizer">Harmoniseur</a></li>
+      <li><a href="#chord-expand">Chord Expand</a></li>
+      <li><a href="#arpeggiator">Arpégiateur</a></li>
+      <li><a href="#transposer">Transposeur</a></li>
+      <li><a href="#velocity-curve">Courbe de vélocité</a></li>
+      <li><a href="#gate">Gate</a></li>
+      <li><a href="#microtone">Microtone</a></li>
+      <li><a href="#xen">Xen</a></li>
+    </ul>
+
+    <h2 id="connect">Brancher un effet MIDI</h2>
+    <p class="recipe-goal">Ici, un Harmoniseur ajoute deux notes au-dessus de chaque touche jouée sur le clavier.</p>
+    <ol>
+      <li>Touchez <span class="ui">+</span> et choisissez <span class="ui">Harmoniseur</span>.</li>
+      <li>Touchez l'icône de câble en haut pour ouvrir la <span class="ui">Vue de câblage</span>.</li>
+      <li>Appuyez longuement sur la prise jaune <code>MIDI OUT</code> du clavier et glissez jusqu'au <code>MIDI IN</code> de l'Harmoniseur.</li>
+      <li>Touchez la flèche retour et jouez.</li>
+    </ol>
+    <p class="recipe-result">Chaque touche joue maintenant trois notes. Rien à câbler en sortie de l'Harmoniseur : c'est le clavier qui joue ce qu'il lui renvoie.</p>
+    <ul>
+      <li>Ça marche avec les instruments qui ont leur propre son : le clavier avec une soundfont, le Vocodeur, le Stylophone et la Thérémine.
+        Un clavier réglé sur <span class="ui">Aucune (MIDI seulement)</span> ignore les effets MIDI quand vous jouez sur ses touches à l'écran.</li>
+      <li>Pour mettre deux effets MIDI sur un même clavier, reliez le <code>MIDI OUT</code> du clavier à chacun d'eux.</li>
+      <li>Le bouton marche/arrêt en haut d'un effet MIDI le contourne (<span class="ui">Bypass</span>). Pour l'actionner depuis un pad de votre contrôleur,
+        voir <a href="../guide/#learn">Associer un bouton</a>.</li>
+    </ul>
+
+    <h2 id="harmonizer">Harmoniseur</h2>
     <p>
-      Ouvrez la vue <strong>arrière du rack</strong>. Connectez le <strong>MIDI OUT</strong> d’un instrument (ou le chemin piano
-      virtuel / matériel qui alimente la chaîne) au <strong>MIDI IN</strong> du MIDI FX, puis le <strong>MIDI OUT</strong> du FX
-      vers l’instrument suivant ou un autre MIDI FX. Chaînes multiples et branches parallèles : mêmes règles que pour l’audio,
-      ports compatibles uniquement.
+      Ajoute jusqu'à quatre notes au-dessus de chaque note jouée. <span class="ui">Voices</span> règle leur nombre, et chaque voix
+      (<span class="ui">V1</span> à <span class="ui">V4</span>) son écart en demi-tons, jusqu'à deux octaves. L'affichage nomme l'intervalle :
+      +4 est une tierce majeure, +7 une quinte juste, le duo réglé par défaut.
+    </p>
+    <p>
+      Avec <span class="ui">Scale Lock</span>, les notes d'harmonie glissent vers la note la plus proche de la gamme sur laquelle Xen ou le Mode Jam
+      a calé votre clavier : l'harmonie reste dans la tonalité. Pour régler les intervalles en jouant, reliez le <code>CHORD OUT</code> d'un clavier
+      au <code>CHORD IN</code> de l'Harmoniseur et tenez un accord : les notes au-dessus de la plus grave deviennent les voix.
+      Pour harmoniser une voix ou une guitare plutôt que des notes, prenez l'<a href="../modules/#audio-harmonizer">Harmoniseur Audio</a>.
     </p>
 
-    <figure class="figure-card figure-doc">
-      <img src="../../assets/screenshots/04_grooveforge_back_wiring.png" width="920" height="518" loading="lazy" alt="Vue arrière du rack : jacks MIDI et câbles entre slots">
-      <figcaption>Vue patch : enchaînez MIDI FX entre le contrôleur et l’instrument — mêmes règles de compatibilité de ports que pour l’audio.</figcaption>
-    </figure>
-
-    <h2>Plugins MIDI FX fournis</h2>
-    <table class="download-table">
-      <thead>
-        <tr><th>Plugin</th><th>Rôle</th></tr>
-      </thead>
-      <tbody>
-        <tr><td>Transposeur</td><td>Décale toutes les hauteurs de notes en demi-tons ; le reste du MIDI traverse.</td></tr>
-        <tr><td>Harmoniseur</td><td>Ajoute des voix d’harmonie parallèles selon des intervalles.</td></tr>
-        <tr><td>Chord expand</td><td>Transforme des notes simples en formes d’accord (voicing réglable dans le panneau).</td></tr>
-        <tr><td>Arpégiateur</td><td>Défile les notes tenues avec vitesse et ordre configurables.</td></tr>
-        <tr><td>Courbe de vélocité</td><td>Remappe les vélocités des notes le long d’une courbe.</td></tr>
-        <tr><td>Gate</td><td>Supprime les notes sous un seuil de vélocité.</td></tr>
-      </tbody>
-    </table>
-
-    <h2>Bypass et MIDI matériel</h2>
+    <h2 id="chord-expand">Chord Expand</h2>
     <p>
-      Chaque en-tête MIDI FX comporte un interrupteur <strong>marche / bypass</strong> et un apprentissage CC MIDI optionnel
-      pour le bypass. En bypass, aucun événement ne traverse le plugin (les arpégiateurs s’arrêtent comme prévu).
+      Fait de chaque touche un accord complet, dont la touche jouée est la fondamentale. Choisissez le <span class="ui">Chord Type</span>
+      (Maj, Min, Dim, Aug, Sus2, Sus4, Dom7, Maj7, Min7, m7b5, Dim7). <span class="ui">Spread</span> serre les notes
+      (<span class="ui">Close</span>) ou en monte certaines d'une octave (<span class="ui">Open</span>, <span class="ui">Wide</span>).
+      <span class="ui">Scale Lock</span>, activé par défaut, ramène les notes de l'accord dans la gamme verrouillée.
     </p>
 
-    <h2>Créer les vôtres</h2>
+    <h2 id="arpeggiator">Arpégiateur</h2>
     <p>
-      Les graphes MIDI FX utilisent la section <code>midi_nodes:</code> dans <code>.gfpd</code> plutôt que <code>graph:</code>
-      audio. Voir <a href="../gfpd/">Descripteurs (.gfpd)</a> et le guide du dépôt
-      <a href="https://github.com/yakari/grooveforge/blob/main/assets/plugins/HOW_TO_CREATE_A_PLUGIN.md"><code>HOW_TO_CREATE_A_PLUGIN.md</code></a>
-      (en anglais).
+      Tenez un accord : il en joue les notes l'une après l'autre, au tempo affiché en haut de l'écran, même transport arrêté.
+      <span class="ui">Pattern</span> règle l'ordre (Up, Down, UpDown, DnUp, Played, Random), <span class="ui">Division</span> la durée des pas
+      (de la noire, 1/4, à 1/128, plus les triolets), <span class="ui">Gate</span> la longueur de chaque note, et <span class="ui">Octaves</span>
+      s'il monte sur 1, 2 ou 3 octaves.
+    </p>
+
+    <h2 id="transposer">Transposeur</h2>
+    <p>
+      Décale toutes les notes vers le haut ou le bas. <span class="ui">Semitones</span> va de -24 à +24 : +12 fait une octave.
+      Pratique pour jouer un morceau dans une autre tonalité avec le doigté que vous connaissez.
+    </p>
+
+    <h2 id="velocity-curve">Courbe de vélocité</h2>
+    <p>
+      Change la façon dont la force de votre jeu se traduit en volume. <span class="ui">Mode</span> vaut <span class="ui">Power</span> ou
+      <span class="ui">Sigmoid</span> (deux formes de courbe, dont <span class="ui">Amount</span> règle l'intensité) ou <span class="ui">Fixed</span> :
+      toutes les notes jouent alors à la force réglée par <span class="ui">Amount</span>. Utile avec un contrôleur MIDI à touches dynamiques :
+      les touches à l'écran jouent toujours à la même force.
+    </p>
+
+    <h2 id="gate">Gate</h2>
+    <p>
+      Ne laisse passer que les notes d'une certaine plage. <span class="ui">Min Vel</span> et <span class="ui">Max Vel</span> fixent la force minimale et maximale ;
+      <span class="ui">Min Note</span> et <span class="ui">Max Note</span> la touche la plus grave et la plus aiguë, numérotées de 0 à 127 (le do central vaut 60).
+      Par exemple, mettez Min Note à 60 et l'instrument ne répond plus qu'à partir du do central.
+    </p>
+
+    <h2 id="microtone">Microtone</h2>
+    <p>
+      Joue les notes entre les touches du piano. Tenez deux touches voisines et vous entendez une seule note à mi-chemin, obtenue par pitch bend.
+      Il joue une note à la fois. <span class="ui">Delay</span> est le temps qu'il laisse à vos autres doigts avant de jouer (0 joue tout de suite).
+      <span class="ui">Mode</span> choisit comment les touches tenues sont moyennées, et <span class="ui">Velocity</span> prend la force moyenne ou celle de la dernière note.
+      Laissez <span class="ui">Bend Range</span> sur ±2 st, sauf si l'instrument qu'il fait jouer utilise une plage de pitch bend plus large.
+      Pour jouer toute une gamme juste, accords compris, prenez plutôt Xen.
+    </p>
+
+    <section class="recipe" id="xen">
+      <div class="recipe-clips">
+        <figure class="clip">
+          <video src="../../clips/xen-pick-scale.mp4" poster="../../clips/xen-pick-scale.jpg" width="540" height="1236" muted loop playsinline controls preload="none" aria-label="Allumer Xen et choisir une gamme"></video>
+        </figure>
+      </div>
+      <div>
+        <h2>Xen</h2>
+        <p class="recipe-goal">Cale le clavier sur la gamme de votre choix, et le réaccorde pour les gammes qui utilisent des notes entre les touches du piano.</p>
+        <p>
+          Un nouveau projet contient déjà un module Xen câblé au clavier. Allumez-le avec <span class="ui">ON</span>, puis tenez une touche
+          et touchez une gamme : la touche tenue devient la tonique. Le pas à pas est dans <a href="../guide/#gamme">Jouer dans une gamme</a>.
+        </p>
+        <ul>
+          <li><span class="ui">SNAP</span> ramène les touches hors gamme sur la note la plus proche qui va bien. Ces touches deviennent grises.</li>
+          <li><span class="ui">TUNE</span> réaccorde les touches pour les gammes qui ne se jouent pas sur un piano, comme un maqam ou un raga.
+            Les touches réaccordées portent une bande turquoise et affichent leur écart en cents.</li>
+          <li><span class="ui">FAMILLE</span> choisit la tradition : Occidental, Maqam, Raga, Gamelan, Tempéraments et d'autres.
+            <span class="ui">Mes gammes</span> contient celles que vous créez ou importez (les fichiers Scala <code>.scl</code> sont acceptés).</li>
+          <li>La rangée <span class="ui">TONIQUE</span> règle la tonique sans la jouer.</li>
+        </ul>
+        <p>
+          Xen atteint un instrument par deux câbles, un violet et un turquoise, aussi listés sur son panneau sous
+          <span class="ui">VERROU GAMME</span> et <span class="ui">ACCORDAGE</span> : <code>SCALE OUT</code> vers le <code>SCALE IN</code> du clavier
+          le cale sur la gamme, et <code>TUNE OUT</code> vers <code>TUNE IN</code> le réaccorde. Branchez l'un sans l'autre pour caler sans
+          réaccorder, ou l'inverse. Le Vocodeur accepte aussi les deux câbles.
+        </p>
+      </div>
+    </section>
+
+    <h2 id="author">Créer le vôtre</h2>
+    <p>
+      Un effet MIDI est un fichier texte <code>.gfpd</code> avec <code>type: midi_fx</code> et une section <code>midi_nodes:</code>.
+      Ajoutez le vôtre avec <span class="ui">Charger un fichier .gfpd…</span>, en bas du menu <span class="ui">+</span>.
+      Voir <a href="../gfpd/">Descripteurs (.gfpd)</a> et
+      <a href="https://github.com/yakari/grooveforge/blob/main/assets/plugins/HOW_TO_CREATE_A_PLUGIN.md"><code>HOW_TO_CREATE_A_PLUGIN.md</code></a> (en anglais).
     </p>
 
     <p><a href="../modules/">← Modules</a> · <a href="../vst/">VST3 →</a></p>
@@ -101,5 +185,39 @@
   <footer class="site-footer">
     <p><a href="https://github.com/yakari/grooveforge">GitHub</a> · <a href="../privacy/">Confidentialité</a></p>
   </footer>
+
+  <script>
+    /*
+     * Clips play while they are on screen and pause when they leave it, so a
+     * long page does not decode a dozen videos at once. Without JavaScript, or
+     * when the reader prefers reduced motion, the native controls stay and
+     * nothing starts by itself.
+     */
+    (function () {
+      var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (reduced || !('IntersectionObserver' in window)) return;
+      var clips = document.querySelectorAll('.clip video');
+      var observer = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+          var video = entry.target;
+          if (entry.isIntersecting) {
+            var playing = video.play();
+            if (playing && playing.catch) playing.catch(function () {});
+          } else {
+            video.pause();
+          }
+        });
+      }, { threshold: 0.5 });
+      clips.forEach(function (video) {
+        video.removeAttribute('controls');
+        video.preload = 'metadata';
+        // Tap to pause or resume.
+        video.addEventListener('click', function () {
+          if (video.paused) { video.play(); } else { video.pause(); }
+        });
+        observer.observe(video);
+      });
+    })();
+  </script>
 </body>
 </html>
