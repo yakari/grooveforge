@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/loop_track.dart';
 import '../../models/looper_plugin_instance.dart';
+import '../../services/cc_labels.dart';
+import '../cc_target_labels.dart';
 import '../../services/cc_mapping_service.dart';
 import '../../services/looper_engine.dart';
 import '../../services/rack_state.dart';
@@ -364,7 +366,7 @@ class _StateLcd extends StatelessWidget {
   /// Maps [LooperState] to a display label and accent colour.
   (String, Color) _labelAndColor(LooperState state, AppLocalizations l10n) =>
       switch (state) {
-        LooperState.idle => ('IDLE', Colors.white54),
+        LooperState.idle => (l10n.looperStatusIdle, Colors.white54),
         LooperState.armed => (l10n.looperArmed.toUpperCase(), _kArmedColor),
         LooperState.waitingToRecord =>
           (l10n.looperWaitingForBar.toUpperCase(), _kArmedColor),
@@ -864,13 +866,18 @@ class _QuantizeChip extends StatelessWidget {
     required this.l10n,
   });
 
+  /// The quantize setting as shown on the chip: the grid ("1/8"), or the
+  /// translated word for off.
+  String _quantizeLabel() =>
+      quantize == LoopQuantize.off ? l10n.looperQuantizeOff : quantize.label;
+
   @override
   Widget build(BuildContext context) {
     final active = quantize != LoopQuantize.off;
     const activeColor = _kOdColor;
 
     return Tooltip(
-      message: '${l10n.looperQuantize}: ${quantize.label}',
+      message: '${l10n.looperQuantize}: ${_quantizeLabel()}',
       child: GestureDetector(
         onTap: () => engine.setQuantize(slotId, quantize.next),
         child: Container(
@@ -883,7 +890,7 @@ class _QuantizeChip extends StatelessWidget {
             ),
           ),
           child: Text(
-            'Q:${quantize.label}',
+            'Q:${_quantizeLabel()}',
             style: TextStyle(
               color: active ? activeColor : Colors.white60,
               fontSize: 10,
@@ -1177,18 +1184,48 @@ class _CcAssignDialogState extends State<_CcAssignDialog> {
     if (mounted) Navigator.of(context).pop();
   }
 
+  /// Localized description of what [target] currently drives, quoted in the
+  /// conflict warning so the user knows which mapping they would overwrite.
+  String _conflictTargetName(CcMappingTarget target) {
+    final l10n = widget.l10n;
+    final plugins = context.read<RackState>().plugins;
+    return switch (target) {
+      GmCcTarget(:final targetCc) =>
+        gmCcLabel(l10n, targetCc) ?? l10n.ccUnknownSequence(targetCc),
+      SystemTarget(:final actionCode) =>
+        gmCcLabel(l10n, actionCode) ?? l10n.looperCcTargetAction(actionCode),
+      SlotParamTarget(:final paramKey, :final slotId) =>
+        l10n.looperCcTargetSlotParam(
+          ccSlotParamName(l10n, plugins, slotId, paramKey),
+          ccSlotName(l10n, plugins, slotId),
+        ),
+      SwapTarget(:final slotIdA, :final slotIdB) => l10n.ccSwapDisplayLabel(
+          ccSlotName(l10n, plugins, slotIdA),
+          ccSlotName(l10n, plugins, slotIdB),
+        ),
+      TransportTarget(:final action) => l10n.looperCcTargetCategory(
+          l10n.ccCategoryTransport, _transportActionLabel(action)),
+      GlobalTarget(:final action) => l10n.looperCcTargetCategory(
+          l10n.ccCategoryGlobal, _globalActionLabel(action)),
+    };
+  }
+
+  /// Localized name of a transport [action] (play/stop, tap tempo, click).
+  String _transportActionLabel(TransportAction action) => switch (action) {
+        TransportAction.playStop => widget.l10n.ccTransportPlayStop,
+        TransportAction.tapTempo => widget.l10n.ccTransportTapTempo,
+        TransportAction.metronomeToggle =>
+          widget.l10n.ccTransportMetronomeToggle,
+      };
+
+  /// Localized name of an app-wide [action] (system volume).
+  String _globalActionLabel(GlobalAction action) => switch (action) {
+        GlobalAction.systemVolume => widget.l10n.ccGlobalSystemVolume,
+      };
+
   /// Shows a conflict warning and offers to overwrite.
   void _showConflictDialog(int cc, CcMapping existing, int actionCode) {
-    final targetName = switch (existing.target) {
-      GmCcTarget(:final targetCc) =>
-        CcMappingService.standardGmCcs[targetCc] ?? 'CC $targetCc',
-      SystemTarget(:final actionCode) =>
-        CcMappingService.standardGmCcs[actionCode] ?? 'Action $actionCode',
-      SlotParamTarget(:final paramKey, :final slotId) => '$paramKey on $slotId',
-      SwapTarget(:final slotIdA, :final slotIdB) => 'Swap $slotIdA \u2194 $slotIdB',
-      TransportTarget(:final action) => 'Transport: ${action.name}',
-      GlobalTarget(:final action) => 'Global: ${action.name}',
-    };
+    final targetName = _conflictTargetName(existing.target);
 
     showDialog<bool>(
       context: context,

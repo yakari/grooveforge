@@ -999,7 +999,7 @@ class _CamStatusOverlay extends StatelessWidget {
                 ),
                 const SizedBox(width: 3),
                 Text(
-                  'CAM',
+                  l10n.thereminModeCam,
                   style: TextStyle(
                     fontSize: 8,
                     letterSpacing: 1,
@@ -1068,6 +1068,7 @@ class _ThereminPad extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return ClipRRect(
       borderRadius: BorderRadius.circular(8),
       child: Stack(
@@ -1095,28 +1096,28 @@ class _ThereminPad extends StatelessWidget {
           ),
 
           // ── Hint overlays (PAD mode axis labels) ─────────────────────────
-          const Positioned(
+          Positioned(
             left: 8,
             top: 6,
             child: Text(
-              '▲ High',
-              style: TextStyle(color: Color(0x44FFFFFF), fontSize: 9),
+              l10n.thereminPadHigh,
+              style: const TextStyle(color: Color(0x44FFFFFF), fontSize: 9),
             ),
           ),
-          const Positioned(
+          Positioned(
             left: 8,
             bottom: 6,
             child: Text(
-              '▼ Low',
-              style: TextStyle(color: Color(0x44FFFFFF), fontSize: 9),
+              l10n.thereminPadLow,
+              style: const TextStyle(color: Color(0x44FFFFFF), fontSize: 9),
             ),
           ),
-          const Positioned(
+          Positioned(
             right: 8,
             bottom: 6,
             child: Text(
-              'Vol ▶',
-              style: TextStyle(color: Color(0x44FFFFFF), fontSize: 9),
+              l10n.thereminPadVolume,
+              style: const TextStyle(color: Color(0x44FFFFFF), fontSize: 9),
             ),
           ),
 
@@ -1228,7 +1229,7 @@ class _ControlSidebar extends StatelessWidget {
         children: [
           // Base note control.
           _SideControl(
-            label: 'BASE',
+            label: l10n.thereminBaseNote,
             value: noteName,
             canDecrement: baseNote > 36,
             canIncrement: baseNote < 72,
@@ -1240,8 +1241,8 @@ class _ControlSidebar extends StatelessWidget {
 
           // Range control.
           _SideControl(
-            label: 'RANGE',
-            value: '${rangeOctaves}oct',
+            label: l10n.thereminRange,
+            value: l10n.octaveCountShort(rangeOctaves),
             canDecrement: rangeOctaves > 1,
             canIncrement: rangeOctaves < 4,
             onDecrement: onRangeDecrement,

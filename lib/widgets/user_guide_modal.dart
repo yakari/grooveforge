@@ -503,7 +503,9 @@ class _CablesTab extends StatelessWidget {
   }
 
   /// Socket colours: one row per family, with the socket names as printed on
-  /// the back panels (left untranslated, like the panels) and what they carry.
+  /// the back panels and what they carry. Most names stay in English on the
+  /// panels in every language; CHORD and SCALE are translated there, so their
+  /// row goes through l10n to keep matching the panel.
   Widget _buildJackLegend(AppLocalizations l10n) {
     return Padding(
       padding: const EdgeInsets.only(top: 4, bottom: 8, left: 8),
@@ -513,7 +515,7 @@ class _CablesTab extends StatelessWidget {
           _buildLegendRow(_kJackAudioL, 'AUDIO IN / OUT L', l10n.guideJackAudioL),
           _buildLegendRow(_kJackAudioR, 'AUDIO IN / OUT R', l10n.guideJackAudioR),
           _buildLegendRow(_kJackSend, 'SEND / RETURN', l10n.guideJackSend),
-          _buildLegendRow(_kJackData, 'CHORD / SCALE', l10n.guideJackData),
+          _buildLegendRow(_kJackData, l10n.guideJackLegendData, l10n.guideJackData),
           _buildLegendRow(_kJackTune, 'TUNE IN / OUT', l10n.guideJackTune),
         ],
       ),

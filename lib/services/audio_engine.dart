@@ -14,6 +14,7 @@ import '../services/sf2_parser.dart';
 import 'package:audio_session/audio_session.dart';
 import 'package:grooveforge/constants/soundfont_sentinels.dart';
 import 'package:grooveforge/models/chord_detector.dart';
+import 'package:grooveforge/models/engine_toast.dart';
 import 'package:grooveforge/models/gm_instruments.dart';
 import 'package:grooveforge/models/usb_direct_output_status.dart';
 import 'package:grooveforge/services/audio_input_ffi.dart';
@@ -59,6 +60,56 @@ abstract class RiffMidiSink {
 
   /// A MIDI controller on [channel].
   void riffControlChange(int channel, int controller, int value);
+}
+
+/// A step of the startup sequence shown on the splash screen.
+///
+/// The engine has no [BuildContext], so it reports *which* step it is on and
+/// the splash screen turns that into localized text.
+enum EngineInitStep {
+  /// Audio engine construction, before anything is loaded.
+  startingEngine,
+
+  /// Reading saved preferences from disk.
+  loadingPreferences,
+
+  /// Asking the OS for the permissions the app needs (Android).
+  checkingPermissions,
+
+  /// Launching the FluidSynth synthesizer backend (Linux).
+  startingFluidSynth,
+
+  /// Reapplying the saved channel state (soundfonts, patches).
+  restoringState,
+
+  /// Making sure the soundfonts bundled with the app are available.
+  checkingSoundfonts,
+
+  /// Copying the bundled default soundfont out of the app assets.
+  extractingSoundfont,
+
+  /// Rebuilding the rack from the saved project.
+  restoringRack,
+
+  /// Loading one VST3 plugin; its name is in [EngineInitStatus.detail].
+  loadingPlugin,
+
+  /// Startup finished.
+  ready,
+}
+
+/// Snapshot of the startup progress published through
+/// [AudioEngine.initStatus]: the current [step] plus an optional untranslated
+/// [detail] (a plugin name) that the localized message embeds.
+class EngineInitStatus {
+  /// Which startup step is running.
+  final EngineInitStep step;
+
+  /// Extra data for the message, such as the plugin being loaded.
+  final String? detail;
+
+  /// Creates a status for [step], with an optional [detail].
+  const EngineInitStatus(this.step, [this.detail]);
 }
 
 /// A single GFPA-managed jam connection.
@@ -227,9 +278,9 @@ class AudioEngine extends ChangeNotifier {
   final MidiPro _midiPro = MidiPro();
   bool _isInitialized = false;
 
-  /// Human-readable status string used during the app splash screen startup sequence.
-  final ValueNotifier<String> initStatus = ValueNotifier(
-    'Starting audio engine...',
+  /// Current startup step, shown (localized) by the splash screen.
+  final ValueNotifier<EngineInitStatus> initStatus = ValueNotifier(
+    const EngineInitStatus(EngineInitStep.startingEngine),
   );
 
   final List<String> loadedSoundfonts = [];
@@ -274,7 +325,12 @@ class AudioEngine extends ChangeNotifier {
   /// `setDeviceId()` needs API 28+).
   int androidSdkVersion = 0;
 
-  final ValueNotifier<String?> toastNotifier = ValueNotifier(null);
+  /// Toast messages for the rack screen to show as snackbars.
+  ///
+  /// Typed rather than plain text because the engine has no `BuildContext`
+  /// to pick the player's language: the rack screen localizes each message
+  /// with [EngineToast.localize] when it displays it.
+  final ValueNotifier<EngineToast?> toastNotifier = ValueNotifier(null);
 
   /// Incremented every time Android reports audio devices plugged or
   /// unplugged. Anything showing a device list listens to it to refresh.
@@ -586,8 +642,7 @@ class AudioEngine extends ChangeNotifier {
           'GrooveForge: Output device $currentOut gone — resetting to default.',
         );
         vocoderOutputAndroidDeviceId.value = -1;
-        toastNotifier.value =
-            'Audio output device disconnected — using default';
+        toastNotifier.value = OutputDeviceDisconnectedToast();
       }
     } catch (e) {
       debugPrint('GrooveForge: _resetDisconnectedDevices error: $e');
@@ -806,11 +861,12 @@ class AudioEngine extends ChangeNotifier {
     if (_isInitialized) {
       return;
     }
-    initStatus.value = 'Loading preferences...';
+    initStatus.value = const EngineInitStatus(EngineInitStep.loadingPreferences);
     _prefs = await SharedPreferences.getInstance();
     
     if (!kIsWeb && Platform.isAndroid) {
-      initStatus.value = 'Checking permissions...';
+      initStatus.value =
+          const EngineInitStatus(EngineInitStep.checkingPermissions);
       try {
         final status = await Permission.microphone.request();
         if (status != PermissionStatus.granted) {
@@ -832,7 +888,8 @@ class AudioEngine extends ChangeNotifier {
 
     if (!kIsWeb) {
       if (Platform.isLinux || Platform.isMacOS || Platform.isWindows) {
-        initStatus.value = 'Starting FluidSynth backend...';
+        initStatus.value =
+            const EngineInitStatus(EngineInitStep.startingFluidSynth);
         // Use libfluidsynth directly (in-process, no audio driver) so that
         // the dart_vst_host audio thread can drive rendering via
         // keyboard_render_block() — same mechanism as Theremin/Stylophone.
@@ -876,14 +933,15 @@ class AudioEngine extends ChangeNotifier {
       }
     }
 
-    initStatus.value = 'Restoring saved state...';
+    initStatus.value = const EngineInitStatus(EngineInitStep.restoringState);
     await _restoreState();
 
-    initStatus.value = 'Checking bundled soundfonts...';
+    initStatus.value =
+        const EngineInitStatus(EngineInitStep.checkingSoundfonts);
     await _ensureDefaultSoundfont();
 
     _isInitialized = true;
-    initStatus.value = 'Ready';
+    initStatus.value = const EngineInitStatus(EngineInitStep.ready);
 
     pianoKeysToShow.addListener(_saveState);
     pianoVelocity.addListener(_saveState);
@@ -988,7 +1046,8 @@ class AudioEngine extends ChangeNotifier {
       final defaultSfFile = File(defaultSfPath);
 
       if (!defaultSfFile.existsSync()) {
-        initStatus.value = 'Extracting default soundfont...';
+        initStatus.value =
+            const EngineInitStatus(EngineInitStep.extractingSoundfont);
         final ByteData data = await rootBundle.load(
           'assets/soundfonts/default.sf2',
         );
@@ -1352,12 +1411,12 @@ class AudioEngine extends ChangeNotifier {
       if (save) {
         await _saveState();
       }
-      toastNotifier.value = 'Loaded: $filename';
+      toastNotifier.value = SoundfontLoadedToast(filename);
       stateNotifier.value++;
       return targetPath;
     } catch (e) {
       debugPrint('Error loading soundfont: $e');
-      toastNotifier.value = 'Error loading soundfont: $e';
+      toastNotifier.value = SoundfontLoadErrorToast('$e');
       return soundfont.path;
     }
   }
@@ -1384,7 +1443,7 @@ class AudioEngine extends ChangeNotifier {
     }
     _updateVocoderCaptureState();
     await _saveState();
-    toastNotifier.value = 'Unloaded Soundfont';
+    toastNotifier.value = SoundfontUnloadedToast();
     stateNotifier.value++;
   }
 
@@ -2785,8 +2844,11 @@ class AudioEngine extends ChangeNotifier {
       if (targetAction == 1007) {
         channels[incomingChannel].isScaleLocked.value =
             !channels[incomingChannel].isScaleLocked.value;
-        toastNotifier.value =
-            'Scale Lock [Ch $incomingChannel]: ${channels[incomingChannel].isScaleLocked.value ? "ON" : "OFF"}';
+        // Toasts count channels 1-16 like the player does; the index is 0-15.
+        toastNotifier.value = ScaleLockToggledToast(
+          channel: incomingChannel + 1,
+          locked: channels[incomingChannel].isScaleLocked.value,
+        );
         _saveState();
       } else if (targetAction == 1001) {
         cycleChannelSoundfont(incomingChannel, 1);
@@ -2803,20 +2865,24 @@ class AudioEngine extends ChangeNotifier {
             currentTypes.length;
         channels[incomingChannel].currentScaleType.value =
             currentTypes[nextIndex];
-        toastNotifier.value =
-            'Scale Type [Ch $incomingChannel]: ${currentTypes[nextIndex].name}';
+        toastNotifier.value = ScaleTypeChangedToast(
+          channel: incomingChannel + 1,
+          scaleType: currentTypes[nextIndex],
+        );
         _saveState();
       }
     } else if (targetAction == 1005) {
       assignPatchToChannel(incomingChannel, value);
-      toastNotifier.value = 'Patch Sweep [Ch $incomingChannel]: Program $value';
+      toastNotifier.value =
+          PatchSweepToast(channel: incomingChannel + 1, program: value);
     } else if (targetAction == 1006) {
       assignPatchToChannel(
         incomingChannel,
         channels[incomingChannel].program,
         bank: value,
       );
-      toastNotifier.value = 'Bank Sweep [Ch $incomingChannel]: Bank $value';
+      toastNotifier.value =
+          BankSweepToast(channel: incomingChannel + 1, bank: value);
     }
   }
 
@@ -3022,7 +3088,7 @@ class AudioEngine extends ChangeNotifier {
     _isInitialized = false;
     await init();
     stateNotifier.value++;
-    toastNotifier.value = 'All preferences reset';
+    toastNotifier.value = PreferencesResetToast();
   }
 }
 

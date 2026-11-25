@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../../services/cc_labels.dart';
 import '../../services/cc_mapping_service.dart';
 import '../../services/cc_param_registry.dart';
 import '../../services/rack_state.dart';
@@ -75,7 +76,7 @@ class _SlotCcAssignDialogState extends State<SlotCcAssignDialog> {
     final l10n = AppLocalizations.of(context)!;
 
     return AlertDialog(
-      title: Text('CC Assign \u2014 ${widget.slotDisplayName}'),
+      title: Text(l10n.ccAssignTitle(widget.slotDisplayName)),
       content: SizedBox(
         // Clamped rather than fixed: the list grows with every scale bound to
         // a pad, and 360 dp is wider than a phone dialog can afford.
@@ -84,8 +85,8 @@ class _SlotCcAssignDialogState extends State<SlotCcAssignDialog> {
           valueListenable: _ccService.mappingsNotifier,
           builder: (context, mappings, _) {
             if (_params.isEmpty) {
-              return const Text('No CC-controllable parameters for this slot.',
-                  style: TextStyle(color: Colors.grey));
+              return Text(l10n.ccAssignNoParams,
+                  style: const TextStyle(color: Colors.grey));
             }
             // Height-capped and scrollable for the same reason.
             return ConstrainedBox(
@@ -152,7 +153,7 @@ class _SlotCcAssignDialogState extends State<SlotCcAssignDialog> {
         Padding(
           padding: const EdgeInsets.fromLTRB(4, 10, 4, 2),
           child: Text(
-            param.displayName,
+            ccParamLabel(AppLocalizations.of(context)!, param),
             style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
           ),
         ),
@@ -278,7 +279,7 @@ class _SlotCcAssignDialogState extends State<SlotCcAssignDialog> {
                 TextButton.icon(
                   onPressed: () => _startLearn(param.paramKey, value),
                   icon: const Icon(Icons.sensors, size: 16),
-                  label: const Text('Learn', style: TextStyle(fontSize: 11)),
+                  label: Text(l10n.ccAssignLearn, style: const TextStyle(fontSize: 11)),
                   style: TextButton.styleFrom(
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                     minimumSize: Size.zero,
@@ -335,9 +336,9 @@ class _SlotCcAssignDialogState extends State<SlotCcAssignDialog> {
     return ListTile(
       dense: true,
       contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-      title: Text(param.displayName,
+      title: Text(ccParamLabel(AppLocalizations.of(context)!, param),
           style: const TextStyle(fontSize: 13)),
-      subtitle: Text(param.defaultMode.name,
+      subtitle: Text(ccParamModeLabel(l10n, param.defaultMode),
           style: TextStyle(fontSize: 11, color: Colors.grey[600])),
       trailing: isLearning
           ? Row(
@@ -349,7 +350,7 @@ class _SlotCcAssignDialogState extends State<SlotCcAssignDialog> {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 ),
                 const SizedBox(width: 8),
-                Text('Move a CC knob\u2026',
+                Text(l10n.ccAssignMoveKnob,
                     style: TextStyle(
                         fontSize: 11, color: theme.colorScheme.primary)),
               ],
@@ -380,7 +381,7 @@ class _SlotCcAssignDialogState extends State<SlotCcAssignDialog> {
     return TextButton.icon(
       onPressed: () => _startLearn(param.paramKey),
       icon: const Icon(Icons.sensors, size: 16),
-      label: const Text('Learn', style: TextStyle(fontSize: 11)),
+      label: Text(l10n.ccAssignLearn, style: const TextStyle(fontSize: 11)),
       style: TextButton.styleFrom(
         padding: const EdgeInsets.symmetric(horizontal: 8),
         minimumSize: Size.zero,
@@ -545,3 +546,16 @@ class _AddValueButton extends StatelessWidget {
     );
   }
 }
+
+/// Localized name of a CC mapping mode, shown under a parameter in the CC
+/// assign dialog and in the CC mapping list of the preferences.
+///
+/// Absolute follows the knob position, toggle flips on/off, cycle steps to
+/// the next option, direct recalls one fixed value.
+String ccParamModeLabel(AppLocalizations l10n, CcParamMode mode) =>
+    switch (mode) {
+      CcParamMode.absolute => l10n.ccParamModeAbsolute,
+      CcParamMode.toggle => l10n.ccParamModeToggle,
+      CcParamMode.cycle => l10n.ccParamModeCycle,
+      CcParamMode.direct => l10n.ccParamModeDirect,
+    };

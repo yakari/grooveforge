@@ -41,6 +41,56 @@ typedef GFParamValueFormatter = GFParamReadout? Function(
   double rawValue,
 );
 
+/// Which kind of text a [GFLabelResolver] is asked for.
+///
+/// Together with the key passed alongside it, the kind names one piece of
+/// text in a descriptor without depending on its wording, so a host can map
+/// it to a translation that survives an English label being reworded.
+enum GFLabelKind {
+  /// The plugin's own name. Key: empty string. Not drawn by
+  /// [GFDescriptorPluginUI] itself; hosts use it for slot headers and menus.
+  pluginName,
+
+  /// A group heading. Key: [gfLabelSlug] of the group's default label, e.g.
+  /// `"low_mid"` for "Low Mid".
+  group,
+
+  /// A control's own `label:`. Key: the control's parameter id, or its
+  /// `action` for a button.
+  control,
+
+  /// A parameter name, shown when the control has no `label:` of its own.
+  /// Key: the parameter id.
+  parameter,
+
+  /// One entry of a selector's `options:` list. Key: `<parameter id>.<index>`,
+  /// e.g. `"pattern.2"`.
+  option,
+}
+
+/// Lets a host translate the text a descriptor panel draws.
+///
+/// [kind] and [key] identify the text (see [GFLabelKind]); [fallback] is the
+/// text the panel would show on its own — the descriptor's text in the
+/// panel's language when the `.gfpd` provides it, else its default text. The
+/// resolver returns [fallback] for anything it has no translation for.
+///
+/// This package holds no translations: the host owns them, just as it owns
+/// the interval names behind [GFParamValueFormatter].
+typedef GFLabelResolver = String Function(
+  GFLabelKind kind,
+  String key,
+  String fallback,
+);
+
+/// A stable, wording-independent key for a group heading: [text] lowercased,
+/// with every run of characters other than letters and digits turned into a
+/// single underscore. "Low Mid" → `low_mid`, "Picking hand" → `picking_hand`.
+String gfLabelSlug(String text) => text
+    .toLowerCase()
+    .replaceAll(RegExp('[^a-z0-9]+'), '_')
+    .replaceAll(RegExp(r'^_+|_+$'), '');
+
 /// Auto-generates a plugin UI panel from a [GFPluginDescriptor].
 ///
 /// Instead of building bespoke Flutter widgets for every GFPA plugin,
@@ -71,6 +121,8 @@ class GFDescriptorPluginUI extends StatelessWidget {
     this.vuController,
     this.valueFormatter,
     this.laneEnabled,
+    this.labelResolver,
+    this.languageCode,
   });
 
   /// The plugin whose parameters are controlled by this UI.
@@ -99,6 +151,15 @@ class GFDescriptorPluginUI extends StatelessWidget {
   /// voice-count dimming fixed — controls that look live while something
   /// else decides their value.
   final bool Function(GFDescriptorControlGroup group)? laneEnabled;
+
+  /// Optional host hook that translates every text the panel draws: group
+  /// headings, control labels, parameter names and selector options. See
+  /// [GFLabelResolver].
+  final GFLabelResolver? labelResolver;
+
+  /// Language code (`en`, `fr`…) used to pick the text of `.gfpd` names and
+  /// labels written as language maps. Null shows their default text.
+  final String? languageCode;
 
   @override
   Widget build(BuildContext context) {
@@ -179,7 +240,7 @@ class GFDescriptorPluginUI extends StatelessWidget {
           children: [
             // Group label heading.
             Text(
-              group.label,
+              _groupLabel(group),
               style: const TextStyle(
                 color: Colors.white54,
                 fontSize: 9,
@@ -228,7 +289,7 @@ class GFDescriptorPluginUI extends StatelessWidget {
         tilePadding: const EdgeInsets.symmetric(horizontal: 8),
         childrenPadding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
         title: Text(
-          group.label,
+          _groupLabel(group),
           style: const TextStyle(
             color: Colors.white70,
             fontSize: 12,
@@ -330,7 +391,7 @@ class GFDescriptorPluginUI extends StatelessWidget {
             child: Opacity(
               opacity: active ? 1.0 : 0.35,
               child: Text(
-                group.label,
+                _groupLabel(group),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: _laneLabelStyle,
@@ -366,7 +427,7 @@ class GFDescriptorPluginUI extends StatelessWidget {
     var widest = 0.0;
     for (final group in descriptor.groups) {
       final painter = TextPainter(
-        text: TextSpan(text: group.label, style: _laneLabelStyle),
+        text: TextSpan(text: _groupLabel(group), style: _laneLabelStyle),
         textDirection: TextDirection.ltr,
         maxLines: 1,
       )..layout();
@@ -448,7 +509,7 @@ class GFDescriptorPluginUI extends StatelessWidget {
       value: raw,
       min: param.min,
       max: param.max,
-      label: ctrl.label,
+      label: _ownLabel(ctrl),
       valueLabel: readout?.value,
       detailLabel: readout?.detail,
       tooltip: readout?.tooltip,
@@ -476,7 +537,7 @@ class GFDescriptorPluginUI extends StatelessWidget {
 
     final normValue = plugin.getParameter(param.paramId);
     final raw = normValue * (param.max - param.min) + param.min;
-    final label = ctrl.label ?? param.name;
+    final label = _controlLabel(ctrl, param);
     final size = _sizeFor(ctrl.size, small: 36, medium: 50, large: 64);
 
     return RotaryKnob(
@@ -503,7 +564,7 @@ class GFDescriptorPluginUI extends StatelessWidget {
     if (param == null) return const SizedBox.shrink();
 
     final normValue = plugin.getParameter(param.paramId);
-    final label = ctrl.label ?? param.name;
+    final label = _controlLabel(ctrl, param);
     final height = _sizeFor(ctrl.size, small: 60, medium: 90, large: 120);
 
     return GFSlider(
@@ -526,7 +587,7 @@ class GFDescriptorPluginUI extends StatelessWidget {
 
     final normValue = plugin.getParameter(param.paramId);
     final isOn = normValue >= 0.5;
-    final label = ctrl.label ?? param.name;
+    final label = _controlLabel(ctrl, param);
     final size = _sizeFor(ctrl.size, small: 28, medium: 36, large: 44);
 
     return GFToggleButton(
@@ -551,14 +612,14 @@ class GFDescriptorPluginUI extends StatelessWidget {
 
     final normValue = plugin.getParameter(param.paramId);
     final options = param.options.isNotEmpty
-        ? param.options
+        ? _optionLabels(param)
         : List.generate(
             (param.max - param.min + 1).round(),
             (i) => '${(param.min + i).toInt()}',
           );
     final count = options.length;
     final selectedIndex = (normValue * (count - 1)).round().clamp(0, count - 1);
-    final label = ctrl.label ?? param.name;
+    final label = _controlLabel(ctrl, param);
     void onChanged(int i) {
       final norm = count <= 1 ? 0.0 : i / (count - 1).toDouble();
       plugin.setParameter(param.paramId, norm);
@@ -599,7 +660,7 @@ class GFDescriptorPluginUI extends StatelessWidget {
 
   Widget _buildButton(GFDescriptorControl ctrl) {
     return _ActionButton(
-      label: ctrl.label ?? ctrl.action ?? '?',
+      label: _ownLabel(ctrl) ?? ctrl.action ?? '?',
       onTap: () {
         // Action handling is extensible: the host can listen to a
         // notifier/stream; for now "reset" restores all defaults.
@@ -617,6 +678,57 @@ class GFDescriptorPluginUI extends StatelessWidget {
       plugin.setParameter(p.paramId, norm);
     }
     paramNotifier.value++;
+  }
+
+  // ── Text ──────────────────────────────────────────────────────────────────
+
+  /// Passes [fallback] through the host's [labelResolver], if any.
+  String _resolve(GFLabelKind kind, String key, String fallback) =>
+      labelResolver?.call(kind, key, fallback) ?? fallback;
+
+  /// The descriptor's own text for [languageCode], or [plain] when no
+  /// language was given.
+  String _inLanguage(String plain, String Function(String code) localized) {
+    final code = languageCode;
+    return code == null ? plain : localized(code);
+  }
+
+  /// The heading of [group], in the panel's language.
+  String _groupLabel(GFDescriptorControlGroup group) => _resolve(
+        GFLabelKind.group,
+        gfLabelSlug(group.label),
+        _inLanguage(group.label, group.labelIn),
+      );
+
+  /// The control's own `label:`, translated, or null when it has none.
+  String? _ownLabel(GFDescriptorControl ctrl) {
+    final label = ctrl.label;
+    if (label == null) return null;
+    return _resolve(
+      GFLabelKind.control,
+      ctrl.paramId ?? ctrl.action ?? '',
+      _inLanguage(label, (code) => ctrl.labelIn(code) ?? label),
+    );
+  }
+
+  /// The text under a control: its own label when it has one, else the name
+  /// of the parameter it drives.
+  String _controlLabel(GFDescriptorControl ctrl, GFDescriptorParameter param) =>
+      _ownLabel(ctrl) ??
+      _resolve(
+        GFLabelKind.parameter,
+        param.id,
+        _inLanguage(param.name, param.nameIn),
+      );
+
+  /// The selector entries of [param], each translated.
+  List<String> _optionLabels(GFDescriptorParameter param) {
+    final code = languageCode;
+    final texts = code == null ? param.options : param.optionsIn(code);
+    return [
+      for (var i = 0; i < texts.length; i++)
+        _resolve(GFLabelKind.option, '${param.id}.$i', texts[i]),
+    ];
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────

@@ -7,6 +7,7 @@ import '../models/grooveforge_keyboard_plugin.dart';
 import '../models/keyboard_display_config.dart';
 import '../models/plugin_instance.dart';
 import '../services/audio_engine.dart';
+import '../services/cc_labels.dart';
 import '../services/cc_mapping_service.dart';
 import '../services/rack_state.dart';
 
@@ -248,7 +249,7 @@ class _KeyboardConfigDialogState extends State<_KeyboardConfigDialog> {
         for (final entry in keyOptions.entries)
           DropdownMenuItem<int?>(
             value: entry.key,
-            child: Text('${entry.value} keys'),
+            child: Text(l10n.kbConfigKeysCount(entry.value)),
           ),
       ],
       onChanged: (val) {
@@ -393,15 +394,16 @@ class _KeyboardConfigDialogState extends State<_KeyboardConfigDialog> {
         if (entry.key <= 127)
           DropdownMenuItem<int?>(
             value: entry.key,
-            child: Text('${entry.value} (CC ${entry.key})'),
+            child: Text(l10n.ccTargetEffectFormat(
+                gmCcLabel(l10n, entry.key)!, entry.key)),
           ),
     ];
 
     // Fallback: if the stored globalCc is not in the list, add it.
     final known = CcMappingService.standardGmCcs.keys.where((k) => k <= 127);
     final globalCcName = known.contains(globalCc)
-        ? CcMappingService.standardGmCcs[globalCc]!
-        : 'CC $globalCc';
+        ? gmCcLabel(l10n, globalCc)!
+        : l10n.ccUnknownSequence(globalCc);
 
     return DropdownButton<int?>(
       value: _aftertouchDestCc,
@@ -414,7 +416,7 @@ class _KeyboardConfigDialogState extends State<_KeyboardConfigDialog> {
         DropdownMenuItem<int?>(
           value: null,
           child: Text(
-            'Default ($globalCcName)',
+            l10n.kbConfigDefault(globalCcName),
             style: const TextStyle(color: Colors.white70, fontSize: 12),
           ),
         ),

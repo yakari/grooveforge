@@ -308,6 +308,39 @@ ui:
 |--------|--------------------------------------------------|
 | `reset` | Restores all parameters to their default values |
 
+#### Labels in several languages
+
+Any text the user reads (the plugin `name`, a parameter `name`, a group or
+control `label`, each entry of `options`) can be a plain string or a map from
+language code to text:
+
+```yaml
+name: {en: "Noise Gate", fr: "Porte de bruit"}
+parameters:
+  - id: mode
+    name: {en: "Mode", fr: "Mode"}
+    type: selector
+    options: [{en: "Soft", fr: "Doux"}, "Hard"]   # forms can be mixed
+ui:
+  groups:
+    - label: {en: "Gate", fr: "Porte"}
+```
+
+The panel and the rack slot header show the entry for the app's language,
+else `en`, else the first entry. The loader keeps the default text in the
+usual `String` fields (`name`, `label`, `options`) and the full map in
+`localizedName` / `localizedLabel` / `localizedOptions`; `nameIn(code)`,
+`labelIn(code)` and `optionsIn(code)` resolve them.
+
+Bundled plugins (`com.grooveforge.*`) use plain English strings instead and
+are translated through the app's ARB files: `GFDescriptorPluginUI` asks the
+host for every text through `labelResolver`, and
+`lib/widgets/rack/gfpa_label.dart` maps each one (plugin, `GFLabelKind`,
+key) to an ARB getter. When you add or rename a label in a bundled file, add
+the ARB key and its line in that table; `test/widgets/gfpd_panel_labels_test.dart`
+fails on any label left without a translation. Symbols that read the same in
+every language (`BPM`, `LFO`, `1/8T`, note names) are left out on purpose.
+
 ---
 
 ## Loading a Plugin at Runtime

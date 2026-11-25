@@ -224,6 +224,30 @@ ui:
       </tbody>
     </table>
 
+    <h2 id="languages">Labels in several languages</h2>
+    <p>
+      Wherever a file takes a text that the user reads (the plugin <code>name</code>, a parameter <code>name</code>, a group or control
+      <code>label</code>, each entry of <code>options</code>), you can write it once per language instead of as a single string:
+    </p>
+    <pre><code>name: {en: "Noise Gate", fr: "Porte de bruit"}
+
+parameters:
+  - id: mode
+    name: {en: "Mode", fr: "Mode"}
+    type: selector
+    options: [{en: "Soft", fr: "Doux"}, {en: "Hard", fr: "Dur"}]
+
+ui:
+  groups:
+    - label: {en: "Gate", fr: "Porte"}</code></pre>
+    <ul>
+      <li>The panel and the module's name in the rack use the entry for the app's language. If there is none, they use
+        <code>en</code>, then the first entry.</li>
+      <li>A plain string still works and reads the same in every language. You can mix both forms in one file, even in one
+        <code>options</code> list.</li>
+      <li>The <span class="ui">+</span> menu shows the <code>en</code> text.</li>
+    </ul>
+
     <h2>Going further</h2>
     <p>
       The repository's

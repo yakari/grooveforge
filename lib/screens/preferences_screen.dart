@@ -9,6 +9,7 @@ import 'package:grooveforge/services/midi_service.dart';
 import 'package:grooveforge/services/audio_engine.dart';
 import 'package:grooveforge/models/usb_direct_output_status.dart';
 import '../screens/cc_preferences.dart';
+import 'package:grooveforge/services/cc_labels.dart';
 import 'package:grooveforge/services/cc_mapping_service.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
@@ -40,7 +41,9 @@ class PreferencesScreen extends StatefulWidget {
 
 class _PreferencesScreenState extends State<PreferencesScreen> {
   MidiDevice? _connectedDevice;
-  String _appVersion = 'Loading...';
+  /// App version and build number, or null until package info has loaded
+  /// (a localized "Loading..." placeholder is shown meanwhile).
+  String? _appVersion;
 
   @override
   void initState() {
@@ -928,11 +931,11 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                       final List<DropdownMenuItem<int>> ccItems = [];
                       for (int i = 0; i <= 127; i++) {
                         if (CcMappingService.standardGmCcs.containsKey(i)) {
-                          String name = CcMappingService.standardGmCcs[i]!;
+                          final name = gmCcLabel(loc, i)!;
                           ccItems.add(
                             DropdownMenuItem(
                               value: i,
-                              child: Text('$name (CC $i)'),
+                              child: Text(loc.ccTargetEffectFormat(name, i)),
                             ),
                           );
                         }
@@ -965,7 +968,7 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
             // ======== VST3 SECTION (desktop only) ========
             if (!kIsWeb && !Platform.isAndroid && !Platform.isIOS) ...[
               Text(
-                'VST3 Plugins',
+                loc.rackAddVstSectionLabel,
                 style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -995,7 +998,7 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                     leading: const Icon(Icons.info_outline, color: Colors.grey),
                     title: Text(loc.versionTitle),
                     trailing: Text(
-                      _appVersion,
+                      _appVersion ?? loc.prefsVersionLoading,
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         color: Colors.blueAccent,

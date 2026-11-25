@@ -1466,6 +1466,30 @@ abstract class AppLocalizations {
   /// **'MIDI CH'**
   String get rackMidiChannel;
 
+  /// No description provided for @rackChannelShort.
+  ///
+  /// In en, this message translates to:
+  /// **'CH {channel}'**
+  String rackChannelShort(int channel);
+
+  /// No description provided for @rackChannelInUse.
+  ///
+  /// In en, this message translates to:
+  /// **'CH {channel} (in use)'**
+  String rackChannelInUse(int channel);
+
+  /// No description provided for @rackPluginNotInstalled.
+  ///
+  /// In en, this message translates to:
+  /// **'Plugin not installed: {pluginId}'**
+  String rackPluginNotInstalled(String pluginId);
+
+  /// Shown in a keyboard slot whose stored MIDI channel is outside 1-16.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid MIDI channel'**
+  String get rackInvalidMidiChannel;
+
   /// No description provided for @rackMenuProject.
   ///
   /// In en, this message translates to:
@@ -1531,6 +1555,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Restoring rack state...'**
   String get splashRestoringRack;
+
+  /// No description provided for @splashCheckingPermissions.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking permissions...'**
+  String get splashCheckingPermissions;
+
+  /// No description provided for @splashLoadingPlugin.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading {name}…'**
+  String splashLoadingPlugin(String name);
+
+  /// No description provided for @prefsVersionLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading...'**
+  String get prefsVersionLoading;
 
   /// No description provided for @vst3LoadFailed.
   ///
@@ -2132,6 +2174,222 @@ abstract class AppLocalizations {
   /// **'Pin below transport'**
   String get jamModePinBelow;
 
+  /// No description provided for @jamModeOn.
+  ///
+  /// In en, this message translates to:
+  /// **'ON'**
+  String get jamModeOn;
+
+  /// No description provided for @jamModeOff.
+  ///
+  /// In en, this message translates to:
+  /// **'OFF'**
+  String get jamModeOff;
+
+  /// No description provided for @jamModeScaleTypeStandard.
+  ///
+  /// In en, this message translates to:
+  /// **'Standard'**
+  String get jamModeScaleTypeStandard;
+
+  /// No description provided for @jamModeScaleTypePentatonic.
+  ///
+  /// In en, this message translates to:
+  /// **'Pentatonic'**
+  String get jamModeScaleTypePentatonic;
+
+  /// No description provided for @jamModeScaleTypeBlues.
+  ///
+  /// In en, this message translates to:
+  /// **'Blues'**
+  String get jamModeScaleTypeBlues;
+
+  /// No description provided for @jamModeScaleTypeRock.
+  ///
+  /// In en, this message translates to:
+  /// **'Rock'**
+  String get jamModeScaleTypeRock;
+
+  /// No description provided for @jamModeScaleTypeJazz.
+  ///
+  /// In en, this message translates to:
+  /// **'Jazz'**
+  String get jamModeScaleTypeJazz;
+
+  /// No description provided for @jamModeScaleTypeDorian.
+  ///
+  /// In en, this message translates to:
+  /// **'Dorian'**
+  String get jamModeScaleTypeDorian;
+
+  /// No description provided for @jamModeScaleTypeMixolydian.
+  ///
+  /// In en, this message translates to:
+  /// **'Mixolydian'**
+  String get jamModeScaleTypeMixolydian;
+
+  /// No description provided for @jamModeScaleTypeHarmonicMinor.
+  ///
+  /// In en, this message translates to:
+  /// **'Harm. Minor'**
+  String get jamModeScaleTypeHarmonicMinor;
+
+  /// No description provided for @jamModeScaleTypeMelodicMinor.
+  ///
+  /// In en, this message translates to:
+  /// **'Mel. Minor'**
+  String get jamModeScaleTypeMelodicMinor;
+
+  /// No description provided for @jamModeScaleTypeClassical.
+  ///
+  /// In en, this message translates to:
+  /// **'Classical'**
+  String get jamModeScaleTypeClassical;
+
+  /// No description provided for @jamModeScaleTypeAsiatic.
+  ///
+  /// In en, this message translates to:
+  /// **'Asiatic'**
+  String get jamModeScaleTypeAsiatic;
+
+  /// No description provided for @jamModeScaleTypeOriental.
+  ///
+  /// In en, this message translates to:
+  /// **'Oriental'**
+  String get jamModeScaleTypeOriental;
+
+  /// No description provided for @jamModeScaleTypeWholeTone.
+  ///
+  /// In en, this message translates to:
+  /// **'Whole Tone'**
+  String get jamModeScaleTypeWholeTone;
+
+  /// No description provided for @jamModeScaleTypeDiminished.
+  ///
+  /// In en, this message translates to:
+  /// **'Diminished'**
+  String get jamModeScaleTypeDiminished;
+
+  /// No description provided for @jamModeNoMaster.
+  ///
+  /// In en, this message translates to:
+  /// **'— NO MASTER —'**
+  String get jamModeNoMaster;
+
+  /// No description provided for @jamModeScaleTypeTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to change the scale type\nCurrent: {scale}'**
+  String jamModeScaleTypeTooltip(String scale);
+
+  /// No description provided for @jamModeScaleTypeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'SCALE TYPE'**
+  String get jamModeScaleTypeLabel;
+
+  /// Jam Mode panel label for the keyboard whose chords set the scale.
+  ///
+  /// In en, this message translates to:
+  /// **'MASTER'**
+  String get jamModeMasterLabel;
+
+  /// No description provided for @jamModePickHint.
+  ///
+  /// In en, this message translates to:
+  /// **'— pick —'**
+  String get jamModePickHint;
+
+  /// No description provided for @jamModeNone.
+  ///
+  /// In en, this message translates to:
+  /// **'— none —'**
+  String get jamModeNone;
+
+  /// Jam Mode panel label for the keyboards that follow the scale.
+  ///
+  /// In en, this message translates to:
+  /// **'TARGETS'**
+  String get jamModeTargetsLabel;
+
+  /// No description provided for @jamModeAddTarget.
+  ///
+  /// In en, this message translates to:
+  /// **'Add'**
+  String get jamModeAddTarget;
+
+  /// No description provided for @jamModeDetectLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'DETECT'**
+  String get jamModeDetectLabel;
+
+  /// No description provided for @jamModeDetectTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'♪ Chord — detect the scale from all notes pressed simultaneously on the master channel.\n♩ Bass note — use only the lowest note (ideal for walking bass lines).'**
+  String get jamModeDetectTooltip;
+
+  /// No description provided for @jamModeSyncLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'SYNC'**
+  String get jamModeSyncLabel;
+
+  /// No description provided for @jamModeSyncTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'When to apply scale changes detected from the master channel.\n\nOff — apply immediately on each new note/chord\n1 beat — wait for the next beat\n½ bar — change every 2 beats\n1 bar — change every 4 beats'**
+  String get jamModeSyncTooltip;
+
+  /// No description provided for @jamModeDetectChord.
+  ///
+  /// In en, this message translates to:
+  /// **'Chord'**
+  String get jamModeDetectChord;
+
+  /// No description provided for @jamModeDetectBass.
+  ///
+  /// In en, this message translates to:
+  /// **'Bass'**
+  String get jamModeDetectBass;
+
+  /// No description provided for @jamModeSyncOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get jamModeSyncOff;
+
+  /// No description provided for @jamModeSyncBeat.
+  ///
+  /// In en, this message translates to:
+  /// **'1 beat'**
+  String get jamModeSyncBeat;
+
+  /// No description provided for @jamModeSyncHalfBar.
+  ///
+  /// In en, this message translates to:
+  /// **'½ bar'**
+  String get jamModeSyncHalfBar;
+
+  /// No description provided for @jamModeSyncBar.
+  ///
+  /// In en, this message translates to:
+  /// **'1 bar'**
+  String get jamModeSyncBar;
+
+  /// No description provided for @jamModeShowBordersTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Show scale borders on keys'**
+  String get jamModeShowBordersTooltip;
+
+  /// No description provided for @jamModeDimWrongNotesTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Dim out-of-scale notes'**
+  String get jamModeDimWrongNotesTooltip;
+
   /// No description provided for @looperHalfSpeed.
   ///
   /// In en, this message translates to:
@@ -2222,6 +2480,30 @@ abstract class AppLocalizations {
   /// **'Overwrite'**
   String get looperCcConflictOverwrite;
 
+  /// No description provided for @looperStatusIdle.
+  ///
+  /// In en, this message translates to:
+  /// **'IDLE'**
+  String get looperStatusIdle;
+
+  /// No description provided for @looperCcTargetAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Action {code}'**
+  String looperCcTargetAction(int code);
+
+  /// No description provided for @looperCcTargetSlotParam.
+  ///
+  /// In en, this message translates to:
+  /// **'{param} on {slot}'**
+  String looperCcTargetSlotParam(String param, String slot);
+
+  /// No description provided for @looperCcTargetCategory.
+  ///
+  /// In en, this message translates to:
+  /// **'{category}: {action}'**
+  String looperCcTargetCategory(String category, String action);
+
   /// No description provided for @looperVolume.
   ///
   /// In en, this message translates to:
@@ -2263,6 +2545,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Default ({count} keys)'**
   String kbConfigKeysDefault(int count);
+
+  /// No description provided for @kbConfigKeysCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} keys'**
+  String kbConfigKeysCount(int count);
 
   /// No description provided for @kbConfigKeyHeight.
   ///
@@ -2492,6 +2780,78 @@ abstract class AppLocalizations {
   /// **'HEIGHT'**
   String get thereminPadHeight;
 
+  /// Faint hint at the top of the theremin pad: higher pitch is up.
+  ///
+  /// In en, this message translates to:
+  /// **'▲ High'**
+  String get thereminPadHigh;
+
+  /// Faint hint at the bottom of the theremin pad: lower pitch is down.
+  ///
+  /// In en, this message translates to:
+  /// **'▼ Low'**
+  String get thereminPadLow;
+
+  /// Faint hint at the right of the theremin pad: volume grows to the right.
+  ///
+  /// In en, this message translates to:
+  /// **'Vol ▶'**
+  String get thereminPadVolume;
+
+  /// Theremin side control: lowest note of the pad. Keep it short.
+  ///
+  /// In en, this message translates to:
+  /// **'BASE'**
+  String get thereminBaseNote;
+
+  /// Theremin side control: pitch span of the pad, in octaves. Keep it short.
+  ///
+  /// In en, this message translates to:
+  /// **'RANGE'**
+  String get thereminRange;
+
+  /// Compact octave count shown in small controls, e.g. 2oct.
+  ///
+  /// In en, this message translates to:
+  /// **'{count}oct'**
+  String octaveCountShort(int count);
+
+  /// Stylophone arpeggio chord type: the note and its octave.
+  ///
+  /// In en, this message translates to:
+  /// **'OCT'**
+  String get stylophoneArpOctave;
+
+  /// Stylophone arpeggio chord type: the note and its fifth.
+  ///
+  /// In en, this message translates to:
+  /// **'5TH'**
+  String get stylophoneArpFifth;
+
+  /// Stylophone arpeggio chord type: arpeggiates the notes currently held.
+  ///
+  /// In en, this message translates to:
+  /// **'LIVE'**
+  String get stylophoneArpLive;
+
+  /// Bit crusher depth in the stylophone chiptune row, e.g. 8bit.
+  ///
+  /// In en, this message translates to:
+  /// **'{bits}bit'**
+  String stylophoneBitDepth(int bits);
+
+  /// Stylophone octave shift; shift is already signed, e.g. +1 or -2.
+  ///
+  /// In en, this message translates to:
+  /// **'OCT {shift}'**
+  String stylophoneOctaveShift(String shift);
+
+  /// Stylophone vibrato on/off button. Keep it short.
+  ///
+  /// In en, this message translates to:
+  /// **'VIB'**
+  String get stylophoneVibrato;
+
   /// No description provided for @midiMuteOwnSound.
   ///
   /// In en, this message translates to:
@@ -2599,6 +2959,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No effects — connect via patch view'**
   String get vst3FxNoEffects;
+
+  /// Name of the parameter group a VST3 plugin leaves unnamed.
+  ///
+  /// In en, this message translates to:
+  /// **'Parameters'**
+  String get vst3ParamsDefaultGroup;
+
+  /// Fallback name of a VST3 parameter group the plugin did not name.
+  ///
+  /// In en, this message translates to:
+  /// **'Group {id}'**
+  String vst3ParamsGroupNumber(int id);
+
+  /// No description provided for @vst3ParamsHeader.
+  ///
+  /// In en, this message translates to:
+  /// **'PARAMETERS'**
+  String get vst3ParamsHeader;
+
+  /// No description provided for @vst3ParamsAllGroups.
+  ///
+  /// In en, this message translates to:
+  /// **'All groups ({count})'**
+  String vst3ParamsAllGroups(int count);
+
+  /// No description provided for @vst3ParamsSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search parameters…'**
+  String get vst3ParamsSearchHint;
+
+  /// No description provided for @vst3ParamsNoMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'No parameters match.'**
+  String get vst3ParamsNoMatch;
+
+  /// No description provided for @vst3NoParamsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No automatable parameters found.'**
+  String get vst3NoParamsTitle;
+
+  /// No description provided for @vst3NoParamsBody.
+  ///
+  /// In en, this message translates to:
+  /// **'{pluginName} doesn\'t share its settings with GrooveForge. Open its own window to tweak it.'**
+  String vst3NoParamsBody(String pluginName);
+
+  /// No description provided for @vst3ShowPluginUi.
+  ///
+  /// In en, this message translates to:
+  /// **'Show Plugin UI'**
+  String get vst3ShowPluginUi;
+
+  /// No description provided for @vst3ClosePluginUi.
+  ///
+  /// In en, this message translates to:
+  /// **'Close Plugin UI'**
+  String get vst3ClosePluginUi;
 
   /// No description provided for @rackAddEffectsSectionLabel.
   ///
@@ -2929,6 +3349,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Remove from this menu'**
   String get rackAddCustomPluginRemove;
+
+  /// No description provided for @rackAddPluginNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Plugin not found: {pluginId}'**
+  String rackAddPluginNotFound(String pluginId);
+
+  /// No description provided for @rackAddNoFreeMidiChannel.
+  ///
+  /// In en, this message translates to:
+  /// **'All 16 MIDI channels are already in use.'**
+  String get rackAddNoFreeMidiChannel;
+
+  /// No description provided for @rackAddVst3Loading.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading VST3 plugin…'**
+  String get rackAddVst3Loading;
 
   /// No description provided for @rackAddMidiFxSectionLabel.
   ///
@@ -3350,6 +3788,48 @@ abstract class AppLocalizations {
   /// **'Could not read that file: {reason}'**
   String xenEditorImportFailed(String reason);
 
+  /// No description provided for @scalaErrorNotScalaFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Not a Scala file: expected a description line and a note count.'**
+  String get scalaErrorNotScalaFile;
+
+  /// No description provided for @scalaErrorBadNoteCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Expected a note count on line 2, found \"{found}\".'**
+  String scalaErrorBadNoteCount(String found);
+
+  /// No description provided for @scalaErrorMissingNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'File declares {declared} notes but contains {actual}.'**
+  String scalaErrorMissingNotes(int declared, int actual);
+
+  /// No description provided for @scalaErrorBadPitch.
+  ///
+  /// In en, this message translates to:
+  /// **'Line {line} is not a pitch: \"{found}\".'**
+  String scalaErrorBadPitch(int line, String found);
+
+  /// No description provided for @scalaErrorNonPositivePeriod.
+  ///
+  /// In en, this message translates to:
+  /// **'The repeat interval must be greater than zero.'**
+  String get scalaErrorNonPositivePeriod;
+
+  /// No description provided for @scalaErrorDegreeBelowTonic.
+  ///
+  /// In en, this message translates to:
+  /// **'Degrees below the tonic are not supported.'**
+  String get scalaErrorDegreeBelowTonic;
+
+  /// No description provided for @xenEditorNotGrooveForgeScale.
+  ///
+  /// In en, this message translates to:
+  /// **'not a GrooveForge scale'**
+  String get xenEditorNotGrooveForgeScale;
+
   /// No description provided for @xenEditorImported.
   ///
   /// In en, this message translates to:
@@ -3493,6 +3973,312 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Werckmeister III'**
   String get xenScaleWerckmeisterIII;
+
+  /// No description provided for @xenProvenance12Tet.
+  ///
+  /// In en, this message translates to:
+  /// **'12-TET'**
+  String get xenProvenance12Tet;
+
+  /// No description provided for @xenProvenanceArabicQuarterTones.
+  ///
+  /// In en, this message translates to:
+  /// **'24-tone Arabic convention (half-flats at −50 cents)'**
+  String get xenProvenanceArabicQuarterTones;
+
+  /// No description provided for @xenProvenanceEqualTemperedMaqam.
+  ///
+  /// In en, this message translates to:
+  /// **'Equal-tempered maqam — no quarter-tones'**
+  String get xenProvenanceEqualTemperedMaqam;
+
+  /// No description provided for @xenProvenanceTurkishRast.
+  ///
+  /// In en, this message translates to:
+  /// **'Arel-Ezgi-Uzdilek, 53 Holdrian commas of 22.641 cents'**
+  String get xenProvenanceTurkishRast;
+
+  /// No description provided for @xenProvenanceTurkishUssak.
+  ///
+  /// In en, this message translates to:
+  /// **'Arel-Ezgi-Uzdilek: 8, 5, 9, 9, 4, 9, 9 Holdrian commas'**
+  String get xenProvenanceTurkishUssak;
+
+  /// No description provided for @xenProvenanceTurkishHuseyni.
+  ///
+  /// In en, this message translates to:
+  /// **'Arel-Ezgi-Uzdilek: 8, 5, 9, 9, 8, 5, 9 Holdrian commas'**
+  String get xenProvenanceTurkishHuseyni;
+
+  /// No description provided for @xenProvenancePersian.
+  ///
+  /// In en, this message translates to:
+  /// **'24-tone notation convention; performed koron size varies'**
+  String get xenProvenancePersian;
+
+  /// No description provided for @xenProvenanceShruti.
+  ///
+  /// In en, this message translates to:
+  /// **'Just intonation from the shruti ratios (ascending form)'**
+  String get xenProvenanceShruti;
+
+  /// No description provided for @xenProvenanceDarbari.
+  ///
+  /// In en, this message translates to:
+  /// **'Shruti ratios; komal ga is oscillated in performance'**
+  String get xenProvenanceDarbari;
+
+  /// No description provided for @xenProvenanceMelakarta15.
+  ///
+  /// In en, this message translates to:
+  /// **'Carnatic melakarta 15, just intonation'**
+  String get xenProvenanceMelakarta15;
+
+  /// No description provided for @xenProvenanceSanfen.
+  ///
+  /// In en, this message translates to:
+  /// **'Sanfen sunyi cycle of fifths (Pythagorean)'**
+  String get xenProvenanceSanfen;
+
+  /// No description provided for @xenProvenanceKoto.
+  ///
+  /// In en, this message translates to:
+  /// **'Koto tuning, equal-tempered notation'**
+  String get xenProvenanceKoto;
+
+  /// No description provided for @xenProvenanceInSen.
+  ///
+  /// In en, this message translates to:
+  /// **'Japanese in scale, equal-tempered notation'**
+  String get xenProvenanceInSen;
+
+  /// No description provided for @xenProvenanceYo.
+  ///
+  /// In en, this message translates to:
+  /// **'Japanese yo scale, equal-tempered notation'**
+  String get xenProvenanceYo;
+
+  /// No description provided for @xenProvenanceJeongak.
+  ///
+  /// In en, this message translates to:
+  /// **'Korean jeongak, Pythagorean cycle of fifths'**
+  String get xenProvenanceJeongak;
+
+  /// No description provided for @xenProvenanceGagaku.
+  ///
+  /// In en, this message translates to:
+  /// **'Gagaku mode, equal-tempered notation'**
+  String get xenProvenanceGagaku;
+
+  /// No description provided for @xenProvenanceThai.
+  ///
+  /// In en, this message translates to:
+  /// **'Idealised 7-fold equal division, 171.4 cents per step'**
+  String get xenProvenanceThai;
+
+  /// No description provided for @xenProvenanceQenet.
+  ///
+  /// In en, this message translates to:
+  /// **'Ethiopian qenet; untempered in performance'**
+  String get xenProvenanceQenet;
+
+  /// No description provided for @xenProvenanceQenetNeutral.
+  ///
+  /// In en, this message translates to:
+  /// **'Ethiopian qenet; neutral degrees at 24-tone positions'**
+  String get xenProvenanceQenetNeutral;
+
+  /// No description provided for @xenProvenanceAmadinda.
+  ///
+  /// In en, this message translates to:
+  /// **'Ganda xylophone tuning, idealised 5-fold equal division'**
+  String get xenProvenanceAmadinda;
+
+  /// No description provided for @xenProvenanceHighlandPipe.
+  ///
+  /// In en, this message translates to:
+  /// **'Near-just chanter scale (9/8, 5/4, 4/3, 3/2, 27/16, 16/9)'**
+  String get xenProvenanceHighlandPipe;
+
+  /// No description provided for @xenProvenanceHardingfele.
+  ///
+  /// In en, this message translates to:
+  /// **'Averaged Norwegian fiddle intonation; varies by district'**
+  String get xenProvenanceHardingfele;
+
+  /// No description provided for @xenProvenanceByzantineSoft.
+  ///
+  /// In en, this message translates to:
+  /// **'72-division Byzantine theory, soft chromatic genus'**
+  String get xenProvenanceByzantineSoft;
+
+  /// No description provided for @xenProvenanceByzantineHard.
+  ///
+  /// In en, this message translates to:
+  /// **'72-division Byzantine theory, hard chromatic genus'**
+  String get xenProvenanceByzantineHard;
+
+  /// No description provided for @xenProvenanceSlendro.
+  ///
+  /// In en, this message translates to:
+  /// **'Idealised 5-fold equal division; real gamelans vary widely'**
+  String get xenProvenanceSlendro;
+
+  /// No description provided for @xenProvenancePelog.
+  ///
+  /// In en, this message translates to:
+  /// **'Averaged Javanese pelog; every gamelan differs'**
+  String get xenProvenancePelog;
+
+  /// No description provided for @xenProvenancePelogBarang.
+  ///
+  /// In en, this message translates to:
+  /// **'Averaged Javanese pelog barang; every gamelan differs'**
+  String get xenProvenancePelogBarang;
+
+  /// No description provided for @xenProvenanceSelisir.
+  ///
+  /// In en, this message translates to:
+  /// **'Averaged Balinese selisir; every gamelan differs'**
+  String get xenProvenanceSelisir;
+
+  /// No description provided for @xenProvenanceJustIntonation.
+  ///
+  /// In en, this message translates to:
+  /// **'Five-limit ratios: 16/15, 9/8, 6/5, 5/4, 4/3, 45/32, 3/2, 8/5, 5/3, 9/5, 15/8'**
+  String get xenProvenanceJustIntonation;
+
+  /// No description provided for @xenProvenancePythagorean.
+  ///
+  /// In en, this message translates to:
+  /// **'Chain of pure 3/2 fifths, E♭–G♯; wolf between G♯ and E♭'**
+  String get xenProvenancePythagorean;
+
+  /// No description provided for @xenProvenanceMeantone.
+  ///
+  /// In en, this message translates to:
+  /// **'Fifths narrowed by 1/4 syntonic comma (696.578 cents)'**
+  String get xenProvenanceMeantone;
+
+  /// No description provided for @xenProvenanceWerckmeister.
+  ///
+  /// In en, this message translates to:
+  /// **'Werckmeister 1691, four fifths narrowed by 1/4 Pythagorean comma'**
+  String get xenProvenanceWerckmeister;
+
+  /// No description provided for @xenProvenanceEdo24.
+  ///
+  /// In en, this message translates to:
+  /// **'24 equal divisions of the octave, 50 cents apart'**
+  String get xenProvenanceEdo24;
+
+  /// No description provided for @xenProvenanceEdo19.
+  ///
+  /// In en, this message translates to:
+  /// **'19 equal divisions of the octave, 63.16 cents apart'**
+  String get xenProvenanceEdo19;
+
+  /// No description provided for @xenProvenanceEdo31.
+  ///
+  /// In en, this message translates to:
+  /// **'31 equal divisions of the octave, 38.71 cents apart'**
+  String get xenProvenanceEdo31;
+
+  /// No description provided for @xenProvenanceBohlenPierce.
+  ///
+  /// In en, this message translates to:
+  /// **'13 equal divisions of the 3:1 tritave — no octave'**
+  String get xenProvenanceBohlenPierce;
+
+  /// No description provided for @xenProvenanceHarmonicSeries.
+  ///
+  /// In en, this message translates to:
+  /// **'Harmonics 8-16: 9/8, 5/4, 11/8, 3/2, 13/8, 7/4, 15/8'**
+  String get xenProvenanceHarmonicSeries;
+
+  /// No description provided for @xenProvenanceQuarterToneCluster.
+  ///
+  /// In en, this message translates to:
+  /// **'Four keys at 0, 50, 100 and 150 cents, then the octave resumes'**
+  String get xenProvenanceQuarterToneCluster;
+
+  /// No description provided for @xenProvenanceEdo17.
+  ///
+  /// In en, this message translates to:
+  /// **'17 equal divisions of the octave, 70.59 cents apart'**
+  String get xenProvenanceEdo17;
+
+  /// No description provided for @xenProvenanceEdo22.
+  ///
+  /// In en, this message translates to:
+  /// **'22 equal divisions of the octave, 54.55 cents apart'**
+  String get xenProvenanceEdo22;
+
+  /// No description provided for @xenProvenanceEdo15.
+  ///
+  /// In en, this message translates to:
+  /// **'15 equal divisions of the octave, 80 cents apart'**
+  String get xenProvenanceEdo15;
+
+  /// No description provided for @xenProvenanceEdo13.
+  ///
+  /// In en, this message translates to:
+  /// **'13 equal divisions of the octave, 92.31 cents apart'**
+  String get xenProvenanceEdo13;
+
+  /// No description provided for @xenProvenanceEdo16.
+  ///
+  /// In en, this message translates to:
+  /// **'16 equal divisions of the octave, 75 cents apart'**
+  String get xenProvenanceEdo16;
+
+  /// No description provided for @xenProvenanceBlackwood.
+  ///
+  /// In en, this message translates to:
+  /// **'Ten notes of 15-EDO, alternating 80 and 160 cent steps'**
+  String get xenProvenanceBlackwood;
+
+  /// No description provided for @xenProvenanceCarlosAlpha.
+  ///
+  /// In en, this message translates to:
+  /// **'Wendy Carlos: steps of 78.0 cents, no octave'**
+  String get xenProvenanceCarlosAlpha;
+
+  /// No description provided for @xenProvenanceCarlosBeta.
+  ///
+  /// In en, this message translates to:
+  /// **'Wendy Carlos: steps of 63.8 cents, no octave'**
+  String get xenProvenanceCarlosBeta;
+
+  /// No description provided for @xenProvenanceCarlosGamma.
+  ///
+  /// In en, this message translates to:
+  /// **'Wendy Carlos: steps of 35.1 cents, no octave'**
+  String get xenProvenanceCarlosGamma;
+
+  /// No description provided for @xenProvenanceBohlenPierceLambda.
+  ///
+  /// In en, this message translates to:
+  /// **'Steps 0, 1, 3, 4, 6, 7, 9, 10, 12 of 13-tone Bohlen-Pierce'**
+  String get xenProvenanceBohlenPierceLambda;
+
+  /// No description provided for @xenProvenanceSubharmonicSeries.
+  ///
+  /// In en, this message translates to:
+  /// **'Undertones 16-8: 16/15, 8/7, 16/13, 4/3, 16/11, 8/5, 16/9'**
+  String get xenProvenanceSubharmonicSeries;
+
+  /// No description provided for @xenProvenanceImportedScala.
+  ///
+  /// In en, this message translates to:
+  /// **'Imported from Scala (.scl)'**
+  String get xenProvenanceImportedScala;
+
+  /// No description provided for @xenProvenanceMadeInGrooveForge.
+  ///
+  /// In en, this message translates to:
+  /// **'Made in GrooveForge'**
+  String get xenProvenanceMadeInGrooveForge;
 
   /// No description provided for @midiFxBypass.
   ///
@@ -4088,6 +4874,60 @@ abstract class AppLocalizations {
   /// **'Move a CC knob or press button…'**
   String get ccAssignMoveKnobOrButton;
 
+  /// No description provided for @ccAssignTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'CC Assign — {slot}'**
+  String ccAssignTitle(String slot);
+
+  /// No description provided for @ccAssignNoParams.
+  ///
+  /// In en, this message translates to:
+  /// **'No CC-controllable parameters for this slot.'**
+  String get ccAssignNoParams;
+
+  /// No description provided for @ccAssignLearn.
+  ///
+  /// In en, this message translates to:
+  /// **'Learn'**
+  String get ccAssignLearn;
+
+  /// No description provided for @ccAssignMoveKnob.
+  ///
+  /// In en, this message translates to:
+  /// **'Move a CC knob…'**
+  String get ccAssignMoveKnob;
+
+  /// No description provided for @ccParamModeAbsolute.
+  ///
+  /// In en, this message translates to:
+  /// **'absolute'**
+  String get ccParamModeAbsolute;
+
+  /// No description provided for @ccParamModeToggle.
+  ///
+  /// In en, this message translates to:
+  /// **'toggle'**
+  String get ccParamModeToggle;
+
+  /// No description provided for @ccParamModeCycle.
+  ///
+  /// In en, this message translates to:
+  /// **'cycle'**
+  String get ccParamModeCycle;
+
+  /// No description provided for @ccParamModeDirect.
+  ///
+  /// In en, this message translates to:
+  /// **'direct'**
+  String get ccParamModeDirect;
+
+  /// No description provided for @ccSlotChannelShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Ch {channel}'**
+  String ccSlotChannelShort(int channel);
+
   /// No description provided for @ccActionPickerLabel.
   ///
   /// In en, this message translates to:
@@ -4165,6 +5005,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'System volume: {percent}%'**
   String toastSystemVolume(int percent);
+
+  /// No description provided for @toastOutputDeviceDisconnected.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio output disconnected — back to the default output'**
+  String get toastOutputDeviceDisconnected;
+
+  /// A soundfont file finished loading.
+  ///
+  /// In en, this message translates to:
+  /// **'Loaded: {fileName}'**
+  String toastSoundfontLoaded(String fileName);
+
+  /// No description provided for @toastSoundfontLoadError.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t load the soundfont: {error}'**
+  String toastSoundfontLoadError(String error);
+
+  /// No description provided for @toastSoundfontUnloaded.
+  ///
+  /// In en, this message translates to:
+  /// **'Soundfont unloaded'**
+  String get toastSoundfontUnloaded;
+
+  /// A MIDI controller button turned scale lock on for a channel (1-16).
+  ///
+  /// In en, this message translates to:
+  /// **'Scale lock on — channel {channel}'**
+  String toastScaleLockOn(int channel);
+
+  /// No description provided for @toastScaleLockOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Scale lock off — channel {channel}'**
+  String toastScaleLockOff(int channel);
+
+  /// No description provided for @toastScaleTypeChanged.
+  ///
+  /// In en, this message translates to:
+  /// **'Scale: {scaleName} — channel {channel}'**
+  String toastScaleTypeChanged(String scaleName, int channel);
+
+  /// A MIDI controller knob swept the sound (program) of a channel.
+  ///
+  /// In en, this message translates to:
+  /// **'Program {program} — channel {channel}'**
+  String toastPatchSweep(int program, int channel);
+
+  /// No description provided for @toastBankSweep.
+  ///
+  /// In en, this message translates to:
+  /// **'Bank {bank} — channel {channel}'**
+  String toastBankSweep(int bank, int channel);
+
+  /// No description provided for @toastPreferencesReset.
+  ///
+  /// In en, this message translates to:
+  /// **'All preferences reset'**
+  String get toastPreferencesReset;
 
   /// Musical interval name shown under a harmonizer voice control.
   ///
@@ -4303,6 +5203,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Harmony'**
   String get vocoderWaveHarmony;
+
+  /// Vocoder knob label: amount of noise mixed into the carrier. Drawn under a small knob, keep it short.
+  ///
+  /// In en, this message translates to:
+  /// **'NOISE'**
+  String get vocoderKnobNoise;
+
+  /// Vocoder knob label: how fast the band envelopes follow the voice. Keep it short.
+  ///
+  /// In en, this message translates to:
+  /// **'SPEED'**
+  String get vocoderKnobSpeed;
+
+  /// Vocoder knob label: width of each filter band. Keep it short.
+  ///
+  /// In en, this message translates to:
+  /// **'BW'**
+  String get vocoderKnobBandwidth;
+
+  /// Vocoder knob label: noise gate threshold. Keep it short.
+  ///
+  /// In en, this message translates to:
+  /// **'GATE'**
+  String get vocoderKnobGate;
+
+  /// Vocoder level meter label for the microphone input. At most 4 characters.
+  ///
+  /// In en, this message translates to:
+  /// **'MIC'**
+  String get vocoderMeterMic;
+
+  /// Vocoder level meter label for the vocoder output. At most 4 characters.
+  ///
+  /// In en, this message translates to:
+  /// **'OUT'**
+  String get vocoderMeterOut;
 
   /// No description provided for @latencyProbeTitle.
   ///
@@ -5678,6 +6614,618 @@ abstract class AppLocalizations {
   /// **'CC {cc}: release'**
   String ccReleaseValueDialogTitle(int cc);
 
+  /// No description provided for @ccGmBankSelect.
+  ///
+  /// In en, this message translates to:
+  /// **'Bank Select (MSB)'**
+  String get ccGmBankSelect;
+
+  /// No description provided for @ccGmModWheel.
+  ///
+  /// In en, this message translates to:
+  /// **'Modulation Wheel (Vibrato)'**
+  String get ccGmModWheel;
+
+  /// No description provided for @ccGmBreath.
+  ///
+  /// In en, this message translates to:
+  /// **'Breath Control'**
+  String get ccGmBreath;
+
+  /// No description provided for @ccGmFootPedal.
+  ///
+  /// In en, this message translates to:
+  /// **'Foot Pedal'**
+  String get ccGmFootPedal;
+
+  /// No description provided for @ccGmPortamentoTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Portamento Time'**
+  String get ccGmPortamentoTime;
+
+  /// No description provided for @ccGmMainVolume.
+  ///
+  /// In en, this message translates to:
+  /// **'Main Volume'**
+  String get ccGmMainVolume;
+
+  /// No description provided for @ccGmPan.
+  ///
+  /// In en, this message translates to:
+  /// **'Pan (Stereo)'**
+  String get ccGmPan;
+
+  /// No description provided for @ccGmExpression.
+  ///
+  /// In en, this message translates to:
+  /// **'Expression'**
+  String get ccGmExpression;
+
+  /// No description provided for @ccGmSustainPedal.
+  ///
+  /// In en, this message translates to:
+  /// **'Sustain Pedal'**
+  String get ccGmSustainPedal;
+
+  /// No description provided for @ccGmPortamento.
+  ///
+  /// In en, this message translates to:
+  /// **'Portamento'**
+  String get ccGmPortamento;
+
+  /// No description provided for @ccGmResonance.
+  ///
+  /// In en, this message translates to:
+  /// **'Resonance (Filter)'**
+  String get ccGmResonance;
+
+  /// No description provided for @ccGmCutoff.
+  ///
+  /// In en, this message translates to:
+  /// **'Frequency Cutoff (Filter)'**
+  String get ccGmCutoff;
+
+  /// No description provided for @ccGmReverbSend.
+  ///
+  /// In en, this message translates to:
+  /// **'Reverb Send Level'**
+  String get ccGmReverbSend;
+
+  /// No description provided for @ccGmChorusSend.
+  ///
+  /// In en, this message translates to:
+  /// **'Chorus Send Level'**
+  String get ccGmChorusSend;
+
+  /// No description provided for @ccSysNextSoundfont.
+  ///
+  /// In en, this message translates to:
+  /// **'[System] Next Soundfont'**
+  String get ccSysNextSoundfont;
+
+  /// No description provided for @ccSysPrevSoundfont.
+  ///
+  /// In en, this message translates to:
+  /// **'[System] Prev Soundfont'**
+  String get ccSysPrevSoundfont;
+
+  /// No description provided for @ccSysNextPatch.
+  ///
+  /// In en, this message translates to:
+  /// **'[System] Next Program/Patch'**
+  String get ccSysNextPatch;
+
+  /// No description provided for @ccSysPrevPatch.
+  ///
+  /// In en, this message translates to:
+  /// **'[System] Prev Program/Patch'**
+  String get ccSysPrevPatch;
+
+  /// No description provided for @ccSysPatchSweep.
+  ///
+  /// In en, this message translates to:
+  /// **'[System] Absolute Patch Sweep'**
+  String get ccSysPatchSweep;
+
+  /// No description provided for @ccSysBankSweep.
+  ///
+  /// In en, this message translates to:
+  /// **'[System] Absolute Bank/Tone Sweep'**
+  String get ccSysBankSweep;
+
+  /// No description provided for @ccSysJamMode.
+  ///
+  /// In en, this message translates to:
+  /// **'[System] Start/Stop Jam Mode'**
+  String get ccSysJamMode;
+
+  /// No description provided for @ccSysCycleScale.
+  ///
+  /// In en, this message translates to:
+  /// **'[System] Cycle Scale Type'**
+  String get ccSysCycleScale;
+
+  /// No description provided for @ccSysMidiLooperLoop.
+  ///
+  /// In en, this message translates to:
+  /// **'[MIDI Looper] Loop Button'**
+  String get ccSysMidiLooperLoop;
+
+  /// No description provided for @ccSysMidiLooperStop.
+  ///
+  /// In en, this message translates to:
+  /// **'[MIDI Looper] Stop'**
+  String get ccSysMidiLooperStop;
+
+  /// No description provided for @ccSysAudioLooperLoop.
+  ///
+  /// In en, this message translates to:
+  /// **'[Audio Looper] Loop Button'**
+  String get ccSysAudioLooperLoop;
+
+  /// No description provided for @ccSysAudioLooperStop.
+  ///
+  /// In en, this message translates to:
+  /// **'[Audio Looper] Stop'**
+  String get ccSysAudioLooperStop;
+
+  /// No description provided for @ccSysMuteChannels.
+  ///
+  /// In en, this message translates to:
+  /// **'[System] Mute / Unmute Channels'**
+  String get ccSysMuteChannels;
+
+  /// No description provided for @ccParamMix.
+  ///
+  /// In en, this message translates to:
+  /// **'Mix'**
+  String get ccParamMix;
+
+  /// No description provided for @ccParamWaveform.
+  ///
+  /// In en, this message translates to:
+  /// **'Waveform'**
+  String get ccParamWaveform;
+
+  /// No description provided for @ccParamVolume.
+  ///
+  /// In en, this message translates to:
+  /// **'Volume'**
+  String get ccParamVolume;
+
+  /// No description provided for @ccParamToggleOnOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Toggle On/Off'**
+  String get ccParamToggleOnOff;
+
+  /// No description provided for @ccParamStop.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop'**
+  String get ccParamStop;
+
+  /// No description provided for @ccParamLevel.
+  ///
+  /// In en, this message translates to:
+  /// **'Level'**
+  String get ccParamLevel;
+
+  /// No description provided for @ccParamBypass.
+  ///
+  /// In en, this message translates to:
+  /// **'Bypass'**
+  String get ccParamBypass;
+
+  /// No description provided for @ccParamVibratoDepth.
+  ///
+  /// In en, this message translates to:
+  /// **'Vibrato Depth'**
+  String get ccParamVibratoDepth;
+
+  /// No description provided for @ccParamVibrato.
+  ///
+  /// In en, this message translates to:
+  /// **'Vibrato'**
+  String get ccParamVibrato;
+
+  /// No description provided for @ccParamTuneOnOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Tune On/Off'**
+  String get ccParamTuneOnOff;
+
+  /// No description provided for @ccParamTone.
+  ///
+  /// In en, this message translates to:
+  /// **'Tone'**
+  String get ccParamTone;
+
+  /// No description provided for @ccParamTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Time'**
+  String get ccParamTime;
+
+  /// No description provided for @ccParamThreshold.
+  ///
+  /// In en, this message translates to:
+  /// **'Threshold'**
+  String get ccParamThreshold;
+
+  /// No description provided for @ccParamSwing.
+  ///
+  /// In en, this message translates to:
+  /// **'Swing'**
+  String get ccParamSwing;
+
+  /// No description provided for @ccParamSustain.
+  ///
+  /// In en, this message translates to:
+  /// **'Sustain'**
+  String get ccParamSustain;
+
+  /// No description provided for @ccParamStrength.
+  ///
+  /// In en, this message translates to:
+  /// **'Strength'**
+  String get ccParamStrength;
+
+  /// No description provided for @ccParamStartStop.
+  ///
+  /// In en, this message translates to:
+  /// **'Start / Stop'**
+  String get ccParamStartStop;
+
+  /// No description provided for @ccParamSnapOnOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Snap On/Off'**
+  String get ccParamSnapOnOff;
+
+  /// No description provided for @ccParamSemitones.
+  ///
+  /// In en, this message translates to:
+  /// **'Semitones'**
+  String get ccParamSemitones;
+
+  /// No description provided for @ccParamSelectPatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Patch'**
+  String get ccParamSelectPatch;
+
+  /// No description provided for @ccParamScaleType.
+  ///
+  /// In en, this message translates to:
+  /// **'Scale Type'**
+  String get ccParamScaleType;
+
+  /// No description provided for @ccParamRetune.
+  ///
+  /// In en, this message translates to:
+  /// **'Retune'**
+  String get ccParamRetune;
+
+  /// No description provided for @ccParamRecallScale.
+  ///
+  /// In en, this message translates to:
+  /// **'Recall Scale'**
+  String get ccParamRecallScale;
+
+  /// No description provided for @ccParamRecallRoot.
+  ///
+  /// In en, this message translates to:
+  /// **'Recall Root'**
+  String get ccParamRecallRoot;
+
+  /// No description provided for @ccParamRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Rate'**
+  String get ccParamRate;
+
+  /// No description provided for @ccParamRangeOctaves.
+  ///
+  /// In en, this message translates to:
+  /// **'Range (octaves)'**
+  String get ccParamRangeOctaves;
+
+  /// No description provided for @ccParamPrevSoundfont.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous Soundfont'**
+  String get ccParamPrevSoundfont;
+
+  /// No description provided for @ccParamPrevPattern.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous Pattern'**
+  String get ccParamPrevPattern;
+
+  /// No description provided for @ccParamPrevPatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous Patch'**
+  String get ccParamPrevPatch;
+
+  /// No description provided for @ccParamPickupType.
+  ///
+  /// In en, this message translates to:
+  /// **'Pickup type'**
+  String get ccParamPickupType;
+
+  /// No description provided for @ccParamPickup.
+  ///
+  /// In en, this message translates to:
+  /// **'Pickup'**
+  String get ccParamPickup;
+
+  /// No description provided for @ccParamPickPosition.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick position'**
+  String get ccParamPickPosition;
+
+  /// No description provided for @ccParamPedalSustain.
+  ///
+  /// In en, this message translates to:
+  /// **'Pedal sustain'**
+  String get ccParamPedalSustain;
+
+  /// No description provided for @ccParamPedal.
+  ///
+  /// In en, this message translates to:
+  /// **'Pedal'**
+  String get ccParamPedal;
+
+  /// No description provided for @ccParamPattern.
+  ///
+  /// In en, this message translates to:
+  /// **'Pattern'**
+  String get ccParamPattern;
+
+  /// No description provided for @ccParamPatchKnob.
+  ///
+  /// In en, this message translates to:
+  /// **'Patch (knob)'**
+  String get ccParamPatchKnob;
+
+  /// No description provided for @ccParamPalmMuteOnOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Palm mute on/off'**
+  String get ccParamPalmMuteOnOff;
+
+  /// No description provided for @ccParamPalmMute.
+  ///
+  /// In en, this message translates to:
+  /// **'Palm mute'**
+  String get ccParamPalmMute;
+
+  /// No description provided for @ccParamOverlapLegato.
+  ///
+  /// In en, this message translates to:
+  /// **'Overlap legato on/off'**
+  String get ccParamOverlapLegato;
+
+  /// No description provided for @ccParamNoiseMix.
+  ///
+  /// In en, this message translates to:
+  /// **'Noise Mix'**
+  String get ccParamNoiseMix;
+
+  /// No description provided for @ccParamNextSoundfont.
+  ///
+  /// In en, this message translates to:
+  /// **'Next Soundfont'**
+  String get ccParamNextSoundfont;
+
+  /// No description provided for @ccParamNextScaleInFamily.
+  ///
+  /// In en, this message translates to:
+  /// **'Next Scale (in family)'**
+  String get ccParamNextScaleInFamily;
+
+  /// No description provided for @ccParamNextPattern.
+  ///
+  /// In en, this message translates to:
+  /// **'Next Pattern'**
+  String get ccParamNextPattern;
+
+  /// No description provided for @ccParamNextPatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Next Patch'**
+  String get ccParamNextPatch;
+
+  /// No description provided for @ccParamMute.
+  ///
+  /// In en, this message translates to:
+  /// **'Mute'**
+  String get ccParamMute;
+
+  /// No description provided for @ccParamMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Mode'**
+  String get ccParamMode;
+
+  /// No description provided for @ccParamMidiLoopButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Loop Button (Record/Play/Overdub)'**
+  String get ccParamMidiLoopButton;
+
+  /// No description provided for @ccParamAudioLoopButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Loop Button (Arm/Record/Play/Overdub)'**
+  String get ccParamAudioLoopButton;
+
+  /// No description provided for @ccParamLegatoOnOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Legato on/off (hammer-on / pull-off)'**
+  String get ccParamLegatoOnOff;
+
+  /// No description provided for @ccParamLatchRoot.
+  ///
+  /// In en, this message translates to:
+  /// **'Latch Root from Held Notes'**
+  String get ccParamLatchRoot;
+
+  /// No description provided for @ccParamInputGain.
+  ///
+  /// In en, this message translates to:
+  /// **'Input Gain'**
+  String get ccParamInputGain;
+
+  /// No description provided for @ccParamHumanFeel.
+  ///
+  /// In en, this message translates to:
+  /// **'Human Feel'**
+  String get ccParamHumanFeel;
+
+  /// No description provided for @ccParamGateThreshold.
+  ///
+  /// In en, this message translates to:
+  /// **'Gate Threshold'**
+  String get ccParamGateThreshold;
+
+  /// No description provided for @ccParamGain.
+  ///
+  /// In en, this message translates to:
+  /// **'Gain'**
+  String get ccParamGain;
+
+  /// No description provided for @ccParamFeedback.
+  ///
+  /// In en, this message translates to:
+  /// **'Feedback (larsen)'**
+  String get ccParamFeedback;
+
+  /// No description provided for @ccParamFeedbackHarmonic.
+  ///
+  /// In en, this message translates to:
+  /// **'Feedback harmonic'**
+  String get ccParamFeedbackHarmonic;
+
+  /// No description provided for @ccParamEnvRelease.
+  ///
+  /// In en, this message translates to:
+  /// **'Envelope Release'**
+  String get ccParamEnvRelease;
+
+  /// No description provided for @ccParamDriveType.
+  ///
+  /// In en, this message translates to:
+  /// **'Drive type'**
+  String get ccParamDriveType;
+
+  /// No description provided for @ccParamDriveOnOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Drive on/off'**
+  String get ccParamDriveOnOff;
+
+  /// No description provided for @ccParamDrive.
+  ///
+  /// In en, this message translates to:
+  /// **'Drive'**
+  String get ccParamDrive;
+
+  /// No description provided for @ccParamDivision.
+  ///
+  /// In en, this message translates to:
+  /// **'Division'**
+  String get ccParamDivision;
+
+  /// No description provided for @ccParamDetectionMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Detection Mode'**
+  String get ccParamDetectionMode;
+
+  /// No description provided for @ccParamDepth.
+  ///
+  /// In en, this message translates to:
+  /// **'Depth'**
+  String get ccParamDepth;
+
+  /// No description provided for @ccParamChordType.
+  ///
+  /// In en, this message translates to:
+  /// **'Chord Type'**
+  String get ccParamChordType;
+
+  /// No description provided for @ccParamChipArpOnOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Chiptune Arp On/Off'**
+  String get ccParamChipArpOnOff;
+
+  /// No description provided for @ccParamChipArpChord.
+  ///
+  /// In en, this message translates to:
+  /// **'Chiptune Arp Chord'**
+  String get ccParamChipArpChord;
+
+  /// No description provided for @ccParamCenter.
+  ///
+  /// In en, this message translates to:
+  /// **'Center'**
+  String get ccParamCenter;
+
+  /// No description provided for @ccParamCabOnOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Cab on/off'**
+  String get ccParamCabOnOff;
+
+  /// No description provided for @ccParamBpmSync.
+  ///
+  /// In en, this message translates to:
+  /// **'BPM Sync'**
+  String get ccParamBpmSync;
+
+  /// No description provided for @ccParamBaseNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Base Note'**
+  String get ccParamBaseNote;
+
+  /// No description provided for @ccParamBandwidth.
+  ///
+  /// In en, this message translates to:
+  /// **'Bandwidth'**
+  String get ccParamBandwidth;
+
+  /// No description provided for @ccParamAttack.
+  ///
+  /// In en, this message translates to:
+  /// **'Attack'**
+  String get ccParamAttack;
+
+  /// No description provided for @ccParamArpRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Arp Rate (PAL/NTSC)'**
+  String get ccParamArpRate;
+
+  /// No description provided for @ccParamAmpOnOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Amp on/off'**
+  String get ccParamAmpOnOff;
+
+  /// No description provided for @ccParamAmount.
+  ///
+  /// In en, this message translates to:
+  /// **'Amount'**
+  String get ccParamAmount;
+
   /// No description provided for @guideTabStart.
   ///
   /// In en, this message translates to:
@@ -5966,11 +7514,995 @@ abstract class AppLocalizations {
   /// **'tuning for scales between the piano keys'**
   String get guideJackTune;
 
+  /// Socket names as printed on the back panels (CHORD and SCALE jacks); must match portChordOut/portScaleOut.
+  ///
+  /// In en, this message translates to:
+  /// **'CHORD / SCALE'**
+  String get guideJackLegendData;
+
   /// No description provided for @guideMidiHardwareStep3.
   ///
   /// In en, this message translates to:
   /// **'It plays the module whose MIDI CH badge matches the channel it sends on, usually 1. Tap the badge on a module to change its channel.'**
   String get guideMidiHardwareStep3;
+
+  /// No description provided for @gfpaAmpAmp.
+  ///
+  /// In en, this message translates to:
+  /// **'Amp'**
+  String get gfpaAmpAmp;
+
+  /// No description provided for @gfpaAmpBass.
+  ///
+  /// In en, this message translates to:
+  /// **'Bass'**
+  String get gfpaAmpBass;
+
+  /// No description provided for @gfpaAmpCab.
+  ///
+  /// In en, this message translates to:
+  /// **'Cab'**
+  String get gfpaAmpCab;
+
+  /// No description provided for @gfpaAmpCabinet.
+  ///
+  /// In en, this message translates to:
+  /// **'Cabinet'**
+  String get gfpaAmpCabinet;
+
+  /// No description provided for @gfpaAmpDrive.
+  ///
+  /// In en, this message translates to:
+  /// **'Drive'**
+  String get gfpaAmpDrive;
+
+  /// No description provided for @gfpaAmpGain.
+  ///
+  /// In en, this message translates to:
+  /// **'Gain'**
+  String get gfpaAmpGain;
+
+  /// No description provided for @gfpaAmpMiddle.
+  ///
+  /// In en, this message translates to:
+  /// **'Middle'**
+  String get gfpaAmpMiddle;
+
+  /// No description provided for @gfpaAmpModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Model'**
+  String get gfpaAmpModel;
+
+  /// No description provided for @gfpaAmpOn.
+  ///
+  /// In en, this message translates to:
+  /// **'On'**
+  String get gfpaAmpOn;
+
+  /// No description provided for @gfpaAmpOverdrive.
+  ///
+  /// In en, this message translates to:
+  /// **'Overdrive'**
+  String get gfpaAmpOverdrive;
+
+  /// No description provided for @gfpaAmpTreble.
+  ///
+  /// In en, this message translates to:
+  /// **'Treble'**
+  String get gfpaAmpTreble;
+
+  /// No description provided for @gfpaArpeggiatorDivision.
+  ///
+  /// In en, this message translates to:
+  /// **'Division'**
+  String get gfpaArpeggiatorDivision;
+
+  /// No description provided for @gfpaArpeggiatorDnUp.
+  ///
+  /// In en, this message translates to:
+  /// **'DnUp'**
+  String get gfpaArpeggiatorDnUp;
+
+  /// No description provided for @gfpaArpeggiatorDown.
+  ///
+  /// In en, this message translates to:
+  /// **'Down'**
+  String get gfpaArpeggiatorDown;
+
+  /// No description provided for @gfpaArpeggiatorGate.
+  ///
+  /// In en, this message translates to:
+  /// **'Gate'**
+  String get gfpaArpeggiatorGate;
+
+  /// No description provided for @gfpaArpeggiatorOctaves.
+  ///
+  /// In en, this message translates to:
+  /// **'Octaves'**
+  String get gfpaArpeggiatorOctaves;
+
+  /// No description provided for @gfpaArpeggiatorPattern.
+  ///
+  /// In en, this message translates to:
+  /// **'Pattern'**
+  String get gfpaArpeggiatorPattern;
+
+  /// No description provided for @gfpaArpeggiatorPlayed.
+  ///
+  /// In en, this message translates to:
+  /// **'Played'**
+  String get gfpaArpeggiatorPlayed;
+
+  /// No description provided for @gfpaArpeggiatorRange.
+  ///
+  /// In en, this message translates to:
+  /// **'Range'**
+  String get gfpaArpeggiatorRange;
+
+  /// No description provided for @gfpaArpeggiatorRhythm.
+  ///
+  /// In en, this message translates to:
+  /// **'Rhythm'**
+  String get gfpaArpeggiatorRhythm;
+
+  /// No description provided for @gfpaArpeggiatorUp.
+  ///
+  /// In en, this message translates to:
+  /// **'Up'**
+  String get gfpaArpeggiatorUp;
+
+  /// No description provided for @gfpaArpeggiatorUpDown.
+  ///
+  /// In en, this message translates to:
+  /// **'UpDown'**
+  String get gfpaArpeggiatorUpDown;
+
+  /// No description provided for @gfpaAudioHarmonizerDryWet.
+  ///
+  /// In en, this message translates to:
+  /// **'Dry/Wet'**
+  String get gfpaAudioHarmonizerDryWet;
+
+  /// No description provided for @gfpaAutotuneBlues.
+  ///
+  /// In en, this message translates to:
+  /// **'Blues'**
+  String get gfpaAutotuneBlues;
+
+  /// No description provided for @gfpaAutotuneChromatic.
+  ///
+  /// In en, this message translates to:
+  /// **'Chromatic'**
+  String get gfpaAutotuneChromatic;
+
+  /// No description provided for @gfpaAutotuneHarmonicMinor.
+  ///
+  /// In en, this message translates to:
+  /// **'Harmonic Minor'**
+  String get gfpaAutotuneHarmonicMinor;
+
+  /// No description provided for @gfpaAutotuneHumanize.
+  ///
+  /// In en, this message translates to:
+  /// **'Humanize'**
+  String get gfpaAutotuneHumanize;
+
+  /// No description provided for @gfpaAutotuneKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Key'**
+  String get gfpaAutotuneKey;
+
+  /// No description provided for @gfpaAutotuneMajor.
+  ///
+  /// In en, this message translates to:
+  /// **'Major'**
+  String get gfpaAutotuneMajor;
+
+  /// No description provided for @gfpaAutotuneMajorPenta.
+  ///
+  /// In en, this message translates to:
+  /// **'Major Penta'**
+  String get gfpaAutotuneMajorPenta;
+
+  /// No description provided for @gfpaAutotuneMinor.
+  ///
+  /// In en, this message translates to:
+  /// **'Minor'**
+  String get gfpaAutotuneMinor;
+
+  /// No description provided for @gfpaAutotuneMinorPenta.
+  ///
+  /// In en, this message translates to:
+  /// **'Minor Penta'**
+  String get gfpaAutotuneMinorPenta;
+
+  /// No description provided for @gfpaAutotuneNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'Notes'**
+  String get gfpaAutotuneNotes;
+
+  /// No description provided for @gfpaAutotuneRetune.
+  ///
+  /// In en, this message translates to:
+  /// **'Retune'**
+  String get gfpaAutotuneRetune;
+
+  /// No description provided for @gfpaAutotuneStrength.
+  ///
+  /// In en, this message translates to:
+  /// **'Strength'**
+  String get gfpaAutotuneStrength;
+
+  /// No description provided for @gfpaAutotuneTune.
+  ///
+  /// In en, this message translates to:
+  /// **'Tune'**
+  String get gfpaAutotuneTune;
+
+  /// No description provided for @gfpaAutotuneVoice.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice'**
+  String get gfpaAutotuneVoice;
+
+  /// No description provided for @gfpaChordChord.
+  ///
+  /// In en, this message translates to:
+  /// **'Chord'**
+  String get gfpaChordChord;
+
+  /// No description provided for @gfpaChordChordType.
+  ///
+  /// In en, this message translates to:
+  /// **'Chord Type'**
+  String get gfpaChordChordType;
+
+  /// No description provided for @gfpaChordClose.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get gfpaChordClose;
+
+  /// No description provided for @gfpaChordOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Open'**
+  String get gfpaChordOpen;
+
+  /// No description provided for @gfpaChordSpread.
+  ///
+  /// In en, this message translates to:
+  /// **'Spread'**
+  String get gfpaChordSpread;
+
+  /// No description provided for @gfpaChordVoicing.
+  ///
+  /// In en, this message translates to:
+  /// **'Voicing'**
+  String get gfpaChordVoicing;
+
+  /// No description provided for @gfpaChordWide.
+  ///
+  /// In en, this message translates to:
+  /// **'Wide'**
+  String get gfpaChordWide;
+
+  /// No description provided for @gfpaCompressorCompression.
+  ///
+  /// In en, this message translates to:
+  /// **'Compression'**
+  String get gfpaCompressorCompression;
+
+  /// No description provided for @gfpaCompressorEnvelope.
+  ///
+  /// In en, this message translates to:
+  /// **'Envelope'**
+  String get gfpaCompressorEnvelope;
+
+  /// No description provided for @gfpaCompressorMakeup.
+  ///
+  /// In en, this message translates to:
+  /// **'Makeup'**
+  String get gfpaCompressorMakeup;
+
+  /// No description provided for @gfpaCompressorRatio.
+  ///
+  /// In en, this message translates to:
+  /// **'Ratio'**
+  String get gfpaCompressorRatio;
+
+  /// No description provided for @gfpaCompressorRelease.
+  ///
+  /// In en, this message translates to:
+  /// **'Release'**
+  String get gfpaCompressorRelease;
+
+  /// No description provided for @gfpaCompressorThresh.
+  ///
+  /// In en, this message translates to:
+  /// **'Thresh'**
+  String get gfpaCompressorThresh;
+
+  /// No description provided for @gfpaDelayCharacter.
+  ///
+  /// In en, this message translates to:
+  /// **'Character'**
+  String get gfpaDelayCharacter;
+
+  /// No description provided for @gfpaDelayTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Time'**
+  String get gfpaDelayTime;
+
+  /// No description provided for @gfpaDelayTiming.
+  ///
+  /// In en, this message translates to:
+  /// **'Timing'**
+  String get gfpaDelayTiming;
+
+  /// No description provided for @gfpaEqFlat.
+  ///
+  /// In en, this message translates to:
+  /// **'Flat'**
+  String get gfpaEqFlat;
+
+  /// No description provided for @gfpaEqHM.
+  ///
+  /// In en, this message translates to:
+  /// **'HM'**
+  String get gfpaEqHM;
+
+  /// No description provided for @gfpaEqHMHz.
+  ///
+  /// In en, this message translates to:
+  /// **'HM Hz'**
+  String get gfpaEqHMHz;
+
+  /// No description provided for @gfpaEqHMQ.
+  ///
+  /// In en, this message translates to:
+  /// **'HM Q'**
+  String get gfpaEqHMQ;
+
+  /// No description provided for @gfpaEqHiHz.
+  ///
+  /// In en, this message translates to:
+  /// **'Hi Hz'**
+  String get gfpaEqHiHz;
+
+  /// No description provided for @gfpaEqHigh.
+  ///
+  /// In en, this message translates to:
+  /// **'High'**
+  String get gfpaEqHigh;
+
+  /// No description provided for @gfpaEqHighGain.
+  ///
+  /// In en, this message translates to:
+  /// **'High'**
+  String get gfpaEqHighGain;
+
+  /// No description provided for @gfpaEqHighMid.
+  ///
+  /// In en, this message translates to:
+  /// **'High Mid'**
+  String get gfpaEqHighMid;
+
+  /// No description provided for @gfpaEqLM.
+  ///
+  /// In en, this message translates to:
+  /// **'LM'**
+  String get gfpaEqLM;
+
+  /// No description provided for @gfpaEqLMHz.
+  ///
+  /// In en, this message translates to:
+  /// **'LM Hz'**
+  String get gfpaEqLMHz;
+
+  /// No description provided for @gfpaEqLMQ.
+  ///
+  /// In en, this message translates to:
+  /// **'LM Q'**
+  String get gfpaEqLMQ;
+
+  /// No description provided for @gfpaEqLow.
+  ///
+  /// In en, this message translates to:
+  /// **'Low'**
+  String get gfpaEqLow;
+
+  /// No description provided for @gfpaEqLowGain.
+  ///
+  /// In en, this message translates to:
+  /// **'Low'**
+  String get gfpaEqLowGain;
+
+  /// No description provided for @gfpaEqLowHz.
+  ///
+  /// In en, this message translates to:
+  /// **'Low Hz'**
+  String get gfpaEqLowHz;
+
+  /// No description provided for @gfpaEqLowMid.
+  ///
+  /// In en, this message translates to:
+  /// **'Low Mid'**
+  String get gfpaEqLowMid;
+
+  /// No description provided for @gfpaGateMaxNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Max Note'**
+  String get gfpaGateMaxNote;
+
+  /// No description provided for @gfpaGateMaxVel.
+  ///
+  /// In en, this message translates to:
+  /// **'Max Vel'**
+  String get gfpaGateMaxVel;
+
+  /// No description provided for @gfpaGateMinNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Min Note'**
+  String get gfpaGateMinNote;
+
+  /// No description provided for @gfpaGateMinVel.
+  ///
+  /// In en, this message translates to:
+  /// **'Min Vel'**
+  String get gfpaGateMinVel;
+
+  /// No description provided for @gfpaGatePitch.
+  ///
+  /// In en, this message translates to:
+  /// **'Pitch'**
+  String get gfpaGatePitch;
+
+  /// No description provided for @gfpaLabelAttack.
+  ///
+  /// In en, this message translates to:
+  /// **'Attack'**
+  String get gfpaLabelAttack;
+
+  /// No description provided for @gfpaLabelDelay.
+  ///
+  /// In en, this message translates to:
+  /// **'Delay'**
+  String get gfpaLabelDelay;
+
+  /// No description provided for @gfpaLabelDepth.
+  ///
+  /// In en, this message translates to:
+  /// **'Depth'**
+  String get gfpaLabelDepth;
+
+  /// No description provided for @gfpaLabelFeedback.
+  ///
+  /// In en, this message translates to:
+  /// **'Feedback'**
+  String get gfpaLabelFeedback;
+
+  /// No description provided for @gfpaLabelLevel.
+  ///
+  /// In en, this message translates to:
+  /// **'Level'**
+  String get gfpaLabelLevel;
+
+  /// No description provided for @gfpaLabelMix.
+  ///
+  /// In en, this message translates to:
+  /// **'Mix'**
+  String get gfpaLabelMix;
+
+  /// No description provided for @gfpaLabelMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Mode'**
+  String get gfpaLabelMode;
+
+  /// No description provided for @gfpaLabelOutput.
+  ///
+  /// In en, this message translates to:
+  /// **'Output'**
+  String get gfpaLabelOutput;
+
+  /// No description provided for @gfpaLabelRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Rate'**
+  String get gfpaLabelRate;
+
+  /// No description provided for @gfpaLabelScale.
+  ///
+  /// In en, this message translates to:
+  /// **'Scale'**
+  String get gfpaLabelScale;
+
+  /// No description provided for @gfpaLabelScaleLock.
+  ///
+  /// In en, this message translates to:
+  /// **'Scale Lock'**
+  String get gfpaLabelScaleLock;
+
+  /// No description provided for @gfpaLabelSetup.
+  ///
+  /// In en, this message translates to:
+  /// **'Setup'**
+  String get gfpaLabelSetup;
+
+  /// No description provided for @gfpaLabelTone.
+  ///
+  /// In en, this message translates to:
+  /// **'Tone'**
+  String get gfpaLabelTone;
+
+  /// No description provided for @gfpaLabelType.
+  ///
+  /// In en, this message translates to:
+  /// **'Type'**
+  String get gfpaLabelType;
+
+  /// No description provided for @gfpaLabelVelocity.
+  ///
+  /// In en, this message translates to:
+  /// **'Velocity'**
+  String get gfpaLabelVelocity;
+
+  /// No description provided for @gfpaLabelVoices.
+  ///
+  /// In en, this message translates to:
+  /// **'Voices'**
+  String get gfpaLabelVoices;
+
+  /// No description provided for @gfpaMicrotoneAverage.
+  ///
+  /// In en, this message translates to:
+  /// **'Average'**
+  String get gfpaMicrotoneAverage;
+
+  /// No description provided for @gfpaMicrotoneBendRange.
+  ///
+  /// In en, this message translates to:
+  /// **'Bend Range'**
+  String get gfpaMicrotoneBendRange;
+
+  /// No description provided for @gfpaMicrotoneCluster.
+  ///
+  /// In en, this message translates to:
+  /// **'Cluster'**
+  String get gfpaMicrotoneCluster;
+
+  /// No description provided for @gfpaMicrotoneLastNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Last Note'**
+  String get gfpaMicrotoneLastNote;
+
+  /// No description provided for @gfpaMicrotoneMean.
+  ///
+  /// In en, this message translates to:
+  /// **'Mean'**
+  String get gfpaMicrotoneMean;
+
+  /// No description provided for @gfpaMicrotoneOuterAvg.
+  ///
+  /// In en, this message translates to:
+  /// **'Outer Avg'**
+  String get gfpaMicrotoneOuterAvg;
+
+  /// No description provided for @gfpaReverbDamp.
+  ///
+  /// In en, this message translates to:
+  /// **'Damp'**
+  String get gfpaReverbDamp;
+
+  /// No description provided for @gfpaReverbRoom.
+  ///
+  /// In en, this message translates to:
+  /// **'Room'**
+  String get gfpaReverbRoom;
+
+  /// No description provided for @gfpaReverbRoomSize.
+  ///
+  /// In en, this message translates to:
+  /// **'Room'**
+  String get gfpaReverbRoomSize;
+
+  /// No description provided for @gfpaReverbWidth.
+  ///
+  /// In en, this message translates to:
+  /// **'Width'**
+  String get gfpaReverbWidth;
+
+  /// No description provided for @gfpaRiff2Oct.
+  ///
+  /// In en, this message translates to:
+  /// **'2 Oct'**
+  String get gfpaRiff2Oct;
+
+  /// No description provided for @gfpaRiffBend.
+  ///
+  /// In en, this message translates to:
+  /// **'Bend'**
+  String get gfpaRiffBend;
+
+  /// No description provided for @gfpaRiffBridge.
+  ///
+  /// In en, this message translates to:
+  /// **'Bridge'**
+  String get gfpaRiffBridge;
+
+  /// No description provided for @gfpaRiffFrettingHand.
+  ///
+  /// In en, this message translates to:
+  /// **'Fretting hand'**
+  String get gfpaRiffFrettingHand;
+
+  /// No description provided for @gfpaRiffHarmonic.
+  ///
+  /// In en, this message translates to:
+  /// **'Harmonic'**
+  String get gfpaRiffHarmonic;
+
+  /// No description provided for @gfpaRiffHumbucker.
+  ///
+  /// In en, this message translates to:
+  /// **'Humbucker'**
+  String get gfpaRiffHumbucker;
+
+  /// No description provided for @gfpaRiffLegato.
+  ///
+  /// In en, this message translates to:
+  /// **'Legato'**
+  String get gfpaRiffLegato;
+
+  /// No description provided for @gfpaRiffMiddle.
+  ///
+  /// In en, this message translates to:
+  /// **'Middle'**
+  String get gfpaRiffMiddle;
+
+  /// No description provided for @gfpaRiffNeck.
+  ///
+  /// In en, this message translates to:
+  /// **'Neck'**
+  String get gfpaRiffNeck;
+
+  /// No description provided for @gfpaRiffNeckPlusBridge.
+  ///
+  /// In en, this message translates to:
+  /// **'Neck+Bridge'**
+  String get gfpaRiffNeckPlusBridge;
+
+  /// No description provided for @gfpaRiffOctPlus5th.
+  ///
+  /// In en, this message translates to:
+  /// **'Oct+5th'**
+  String get gfpaRiffOctPlus5th;
+
+  /// No description provided for @gfpaRiffOverlap.
+  ///
+  /// In en, this message translates to:
+  /// **'Overlap'**
+  String get gfpaRiffOverlap;
+
+  /// No description provided for @gfpaRiffPalmMute.
+  ///
+  /// In en, this message translates to:
+  /// **'Palm mute'**
+  String get gfpaRiffPalmMute;
+
+  /// No description provided for @gfpaRiffPedalSus.
+  ///
+  /// In en, this message translates to:
+  /// **'Pedal sus.'**
+  String get gfpaRiffPedalSus;
+
+  /// No description provided for @gfpaRiffPickPos.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick pos.'**
+  String get gfpaRiffPickPos;
+
+  /// No description provided for @gfpaRiffPickingHand.
+  ///
+  /// In en, this message translates to:
+  /// **'Picking hand'**
+  String get gfpaRiffPickingHand;
+
+  /// No description provided for @gfpaRiffPickup.
+  ///
+  /// In en, this message translates to:
+  /// **'Pickup'**
+  String get gfpaRiffPickup;
+
+  /// No description provided for @gfpaRiffPickups.
+  ///
+  /// In en, this message translates to:
+  /// **'Pickups'**
+  String get gfpaRiffPickups;
+
+  /// No description provided for @gfpaRiffRoot.
+  ///
+  /// In en, this message translates to:
+  /// **'Root'**
+  String get gfpaRiffRoot;
+
+  /// No description provided for @gfpaRiffSingleCoil.
+  ///
+  /// In en, this message translates to:
+  /// **'Single coil'**
+  String get gfpaRiffSingleCoil;
+
+  /// No description provided for @gfpaRiffStrings.
+  ///
+  /// In en, this message translates to:
+  /// **'Strings'**
+  String get gfpaRiffStrings;
+
+  /// No description provided for @gfpaRiffSustain.
+  ///
+  /// In en, this message translates to:
+  /// **'Sustain'**
+  String get gfpaRiffSustain;
+
+  /// No description provided for @gfpaTransposerPitchShift.
+  ///
+  /// In en, this message translates to:
+  /// **'Pitch Shift'**
+  String get gfpaTransposerPitchShift;
+
+  /// No description provided for @gfpaTransposerSemitones.
+  ///
+  /// In en, this message translates to:
+  /// **'Semitones'**
+  String get gfpaTransposerSemitones;
+
+  /// No description provided for @gfpaVelocityCurveAmount.
+  ///
+  /// In en, this message translates to:
+  /// **'Amount'**
+  String get gfpaVelocityCurveAmount;
+
+  /// No description provided for @gfpaVelocityCurveCurveType.
+  ///
+  /// In en, this message translates to:
+  /// **'Curve Type'**
+  String get gfpaVelocityCurveCurveType;
+
+  /// No description provided for @gfpaVelocityCurveFixed.
+  ///
+  /// In en, this message translates to:
+  /// **'Fixed'**
+  String get gfpaVelocityCurveFixed;
+
+  /// No description provided for @gfpaVelocityCurveIntensity.
+  ///
+  /// In en, this message translates to:
+  /// **'Intensity'**
+  String get gfpaVelocityCurveIntensity;
+
+  /// No description provided for @gfpaVelocityCurvePower.
+  ///
+  /// In en, this message translates to:
+  /// **'Power'**
+  String get gfpaVelocityCurvePower;
+
+  /// No description provided for @gfpaVelocityCurveSigmoid.
+  ///
+  /// In en, this message translates to:
+  /// **'Sigmoid'**
+  String get gfpaVelocityCurveSigmoid;
+
+  /// No description provided for @gfpaWahAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto'**
+  String get gfpaWahAuto;
+
+  /// No description provided for @gfpaWahCenter.
+  ///
+  /// In en, this message translates to:
+  /// **'Center'**
+  String get gfpaWahCenter;
+
+  /// No description provided for @gfpaWahFilter.
+  ///
+  /// In en, this message translates to:
+  /// **'Filter'**
+  String get gfpaWahFilter;
+
+  /// No description provided for @gfpaWahManual.
+  ///
+  /// In en, this message translates to:
+  /// **'Manual'**
+  String get gfpaWahManual;
+
+  /// No description provided for @gfpaWahPedal.
+  ///
+  /// In en, this message translates to:
+  /// **'Pedal'**
+  String get gfpaWahPedal;
+
+  /// No description provided for @gfpaWahReso.
+  ///
+  /// In en, this message translates to:
+  /// **'Reso'**
+  String get gfpaWahReso;
+
+  /// No description provided for @gfpaWahSaw.
+  ///
+  /// In en, this message translates to:
+  /// **'Saw'**
+  String get gfpaWahSaw;
+
+  /// No description provided for @gfpaWahSine.
+  ///
+  /// In en, this message translates to:
+  /// **'Sine'**
+  String get gfpaWahSine;
+
+  /// No description provided for @gfpaWahSweep.
+  ///
+  /// In en, this message translates to:
+  /// **'Sweep'**
+  String get gfpaWahSweep;
+
+  /// No description provided for @gfpaWahWave.
+  ///
+  /// In en, this message translates to:
+  /// **'Wave'**
+  String get gfpaWahWave;
+
+  /// No description provided for @scaleNameIonian.
+  ///
+  /// In en, this message translates to:
+  /// **'Ionian'**
+  String get scaleNameIonian;
+
+  /// No description provided for @scaleNameDorian.
+  ///
+  /// In en, this message translates to:
+  /// **'Dorian'**
+  String get scaleNameDorian;
+
+  /// No description provided for @scaleNamePhrygian.
+  ///
+  /// In en, this message translates to:
+  /// **'Phrygian'**
+  String get scaleNamePhrygian;
+
+  /// No description provided for @scaleNameLydian.
+  ///
+  /// In en, this message translates to:
+  /// **'Lydian'**
+  String get scaleNameLydian;
+
+  /// No description provided for @scaleNameMixolydian.
+  ///
+  /// In en, this message translates to:
+  /// **'Mixolydian'**
+  String get scaleNameMixolydian;
+
+  /// No description provided for @scaleNameAeolian.
+  ///
+  /// In en, this message translates to:
+  /// **'Aeolian'**
+  String get scaleNameAeolian;
+
+  /// No description provided for @scaleNameLocrian.
+  ///
+  /// In en, this message translates to:
+  /// **'Locrian'**
+  String get scaleNameLocrian;
+
+  /// No description provided for @scaleNameLocrianSharp2.
+  ///
+  /// In en, this message translates to:
+  /// **'Locrian #2'**
+  String get scaleNameLocrianSharp2;
+
+  /// No description provided for @scaleNameLydianDominant.
+  ///
+  /// In en, this message translates to:
+  /// **'Lydian Dominant'**
+  String get scaleNameLydianDominant;
+
+  /// No description provided for @scaleNamePhrygianDominant.
+  ///
+  /// In en, this message translates to:
+  /// **'Phrygian Dominant'**
+  String get scaleNamePhrygianDominant;
+
+  /// No description provided for @scaleNameAltered.
+  ///
+  /// In en, this message translates to:
+  /// **'Altered Scale'**
+  String get scaleNameAltered;
+
+  /// No description provided for @scaleNameMajor.
+  ///
+  /// In en, this message translates to:
+  /// **'Major'**
+  String get scaleNameMajor;
+
+  /// No description provided for @scaleNameNaturalMajor.
+  ///
+  /// In en, this message translates to:
+  /// **'Natural Major'**
+  String get scaleNameNaturalMajor;
+
+  /// No description provided for @scaleNameHarmonicMinor.
+  ///
+  /// In en, this message translates to:
+  /// **'Harmonic Minor'**
+  String get scaleNameHarmonicMinor;
+
+  /// No description provided for @scaleNameMelodicMinor.
+  ///
+  /// In en, this message translates to:
+  /// **'Melodic Minor'**
+  String get scaleNameMelodicMinor;
+
+  /// No description provided for @scaleNameMajorPentatonic.
+  ///
+  /// In en, this message translates to:
+  /// **'Major Pentatonic'**
+  String get scaleNameMajorPentatonic;
+
+  /// No description provided for @scaleNameMinorPentatonic.
+  ///
+  /// In en, this message translates to:
+  /// **'Minor Pentatonic'**
+  String get scaleNameMinorPentatonic;
+
+  /// No description provided for @scaleNameMajorBlues.
+  ///
+  /// In en, this message translates to:
+  /// **'Major Blues'**
+  String get scaleNameMajorBlues;
+
+  /// No description provided for @scaleNameMinorBlues.
+  ///
+  /// In en, this message translates to:
+  /// **'Minor Blues'**
+  String get scaleNameMinorBlues;
+
+  /// No description provided for @scaleNameRockHexatonic.
+  ///
+  /// In en, this message translates to:
+  /// **'Rock Hexatonic'**
+  String get scaleNameRockHexatonic;
+
+  /// No description provided for @scaleNameWholeTone.
+  ///
+  /// In en, this message translates to:
+  /// **'Whole Tone'**
+  String get scaleNameWholeTone;
+
+  /// No description provided for @scaleNameDiminished.
+  ///
+  /// In en, this message translates to:
+  /// **'Diminished'**
+  String get scaleNameDiminished;
+
+  /// No description provided for @scaleNameStandard.
+  ///
+  /// In en, this message translates to:
+  /// **'Standard'**
+  String get scaleNameStandard;
+
+  /// No description provided for @looperQuantizeOff.
+  ///
+  /// In en, this message translates to:
+  /// **'off'**
+  String get looperQuantizeOff;
 }
 
 class _AppLocalizationsDelegate

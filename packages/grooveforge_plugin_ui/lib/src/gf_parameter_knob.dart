@@ -17,6 +17,7 @@ class GFParameterKnob extends StatelessWidget {
     this.size = 50.0,
     this.isCompact = false,
     this.icon,
+    this.label,
   });
 
   final GFPluginParameter parameter;
@@ -33,6 +34,10 @@ class GFParameterKnob extends StatelessWidget {
   /// Optional icon shown below the knob (passes through to [RotaryKnob]).
   final IconData? icon;
 
+  /// Optional text shown in place of [GFPluginParameter.name], for a host
+  /// that translates parameter names. The unit is still appended.
+  final String? label;
+
   @override
   Widget build(BuildContext context) {
     final range = parameter.max - parameter.min;
@@ -45,9 +50,7 @@ class GFParameterKnob extends StatelessWidget {
       value: rawValue,
       min: parameter.min,
       max: parameter.max,
-      label: parameter.unitLabel.isNotEmpty
-          ? '${parameter.name} (${parameter.unitLabel})'
-          : parameter.name,
+      label: _labelText,
       icon: icon,
       size: size,
       isCompact: isCompact,
@@ -57,5 +60,14 @@ class GFParameterKnob extends StatelessWidget {
         onChanged(normalized);
       },
     );
+  }
+
+  /// The knob caption: the (possibly translated) name, plus the unit in
+  /// parentheses when the parameter has one.
+  String get _labelText {
+    final name = label ?? parameter.name;
+    return parameter.unitLabel.isNotEmpty
+        ? '$name (${parameter.unitLabel})'
+        : name;
   }
 }

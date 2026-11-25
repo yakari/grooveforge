@@ -67,7 +67,8 @@ class _SplashScreenState extends State<SplashScreen> {
     _registerBuiltinGfpaPlugins(engine);
 
     if (!mounted) return;
-    engine.initStatus.value = 'Restoring rack state...';
+    engine.initStatus.value =
+        const EngineInitStatus(EngineInitStep.restoringRack);
     // Use the shared ProjectService instance from the Provider so that
     // rack_screen.dart reads the same currentProjectPath.
     final projectService = context.read<ProjectService>();
@@ -189,7 +190,8 @@ class _SplashScreenState extends State<SplashScreen> {
       await vstSvc.initialize();
       for (final plugin in rack.plugins) {
         if (plugin is! Vst3PluginInstance || plugin.path.isEmpty) continue;
-        engine.initStatus.value = 'Loading ${plugin.pluginName}…';
+        engine.initStatus.value =
+            EngineInitStatus(EngineInitStep.loadingPlugin, plugin.pluginName);
         debugPrint('SplashScreen: Loading VST3 ${plugin.pluginName}');
         await vstSvc.loadPlugin(plugin.path, plugin.id);
       }
@@ -287,29 +289,23 @@ class _SplashScreenState extends State<SplashScreen> {
     registry.register(GFThereminPlugin());
   }
 
-  String _getLocalizedStatus(BuildContext context, String status) {
-    final l10n = AppLocalizations.of(context);
-    if (l10n == null) return status;
-    switch (status) {
-      case 'Starting audio engine...':
-        return l10n.splashStartingEngine;
-      case 'Loading preferences...':
-        return l10n.splashLoadingPreferences;
-      case 'Starting FluidSynth backend...':
-        return l10n.splashStartingFluidSynth;
-      case 'Restoring saved state...':
-        return l10n.splashRestoringState;
-      case 'Restoring rack state...':
-        return l10n.splashRestoringRack;
-      case 'Checking bundled soundfonts...':
-        return l10n.splashCheckingSoundfonts;
-      case 'Extracting default soundfont...':
-        return l10n.splashExtractingSoundfont;
-      case 'Ready':
-        return l10n.splashReady;
-      default:
-        return status;
-    }
+  /// Turns the engine's startup [status] into the localized line shown
+  /// under the progress spinner.
+  String _getLocalizedStatus(BuildContext context, EngineInitStatus status) {
+    final l10n = AppLocalizations.of(context)!;
+    return switch (status.step) {
+      EngineInitStep.startingEngine => l10n.splashStartingEngine,
+      EngineInitStep.loadingPreferences => l10n.splashLoadingPreferences,
+      EngineInitStep.checkingPermissions => l10n.splashCheckingPermissions,
+      EngineInitStep.startingFluidSynth => l10n.splashStartingFluidSynth,
+      EngineInitStep.restoringState => l10n.splashRestoringState,
+      EngineInitStep.checkingSoundfonts => l10n.splashCheckingSoundfonts,
+      EngineInitStep.extractingSoundfont => l10n.splashExtractingSoundfont,
+      EngineInitStep.restoringRack => l10n.splashRestoringRack,
+      EngineInitStep.loadingPlugin =>
+        l10n.splashLoadingPlugin(status.detail ?? ''),
+      EngineInitStep.ready => l10n.splashReady,
+    };
   }
 
   @override
@@ -385,7 +381,7 @@ class _SplashScreenState extends State<SplashScreen> {
                   const SizedBox(height: 24),
                   Consumer<AudioEngine>(
                     builder: (context, engine, child) {
-                      return ValueListenableBuilder<String>(
+                      return ValueListenableBuilder<EngineInitStatus>(
                         valueListenable: engine.initStatus,
                         builder: (context, status, child) {
                           return Text(

@@ -28,6 +28,7 @@ export 'src/gf_midi_fx_plugin.dart';
 export 'src/gf_plugin_registry.dart';
 
 // ── Plugin descriptor system (.gfpd) ─────────────────────────────────────────
+export 'src/gf_localized_text.dart';
 export 'src/gf_plugin_descriptor.dart';
 export 'src/gf_abstract_descriptor_plugin.dart';
 export 'src/gf_descriptor_plugin.dart';

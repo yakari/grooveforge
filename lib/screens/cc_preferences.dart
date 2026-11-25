@@ -4,9 +4,13 @@ import 'package:grooveforge/l10n/app_localizations.dart';
 import 'package:grooveforge/models/gfpa_plugin_instance.dart';
 import 'package:grooveforge/models/grooveforge_keyboard_plugin.dart';
 import 'package:grooveforge/models/plugin_instance.dart';
+import 'package:grooveforge/services/cc_labels.dart';
 import 'package:grooveforge/services/cc_mapping_service.dart';
 import 'package:grooveforge/services/cc_param_registry.dart';
 import 'package:grooveforge/services/rack_state.dart';
+import 'package:grooveforge/widgets/cc_target_labels.dart';
+import 'package:grooveforge/widgets/rack/slot_cc_assign_dialog.dart'
+    show ccParamModeLabel;
 
 /// Screen for configuring MIDI Control Change (CC) mappings.
 ///
@@ -166,15 +170,15 @@ class CcPreferencesScreen extends StatelessWidget {
     final rack = context.read<RackState>();
     final targetName = switch (mapping.target) {
       GmCcTarget(:final targetCc) =>
-        CcMappingService.standardGmCcs[targetCc] ??
-            l10n.ccUnknownSequence(targetCc),
+        gmCcLabel(l10n, targetCc) ?? l10n.ccUnknownSequence(targetCc),
       SystemTarget(:final actionCode) =>
-        CcMappingService.standardGmCcs[actionCode] ??
-            l10n.ccUnknownSequence(actionCode),
+        gmCcLabel(l10n, actionCode) ?? l10n.ccUnknownSequence(actionCode),
       SlotParamTarget(:final slotId, :final paramKey) =>
-        '${_slotDisplayName(rack, slotId)} \u2192 $paramKey',
-      SwapTarget(:final slotIdA, :final slotIdB) =>
-        l10n.ccSwapDisplayLabel(_slotDisplayName(rack, slotIdA), _slotDisplayName(rack, slotIdB)),
+        '${ccSlotName(l10n, rack.plugins, slotId)} \u2192 '
+            '${ccSlotParamName(l10n, rack.plugins, slotId, paramKey)}',
+      SwapTarget(:final slotIdA, :final slotIdB) => l10n.ccSwapDisplayLabel(
+          ccSlotName(l10n, rack.plugins, slotIdA),
+          ccSlotName(l10n, rack.plugins, slotIdB)),
       TransportTarget(:final action) => _transportLabel(action, l10n),
       GlobalTarget(:final action) => _globalLabel(action, l10n),
     };
@@ -202,8 +206,8 @@ class CcPreferencesScreen extends StatelessWidget {
       // value each one recalls instead.
       SlotParamTarget(:final mode, :final directValue) =>
         mode == CcParamMode.direct && directValue != null
-            ? '${mode.name} → ${_directValueLabel(context, mapping.target, directValue)}'
-            : mode.name,
+            ? '${ccParamModeLabel(l10n, mode)} → ${_directValueLabel(context, mapping.target, directValue)}'
+            : ccParamModeLabel(l10n, mode),
       SwapTarget(:final swapCables) =>
         swapCables ? l10n.ccSwapCablesYes : l10n.ccSwapCablesNo,
       TransportTarget() => '',
@@ -220,13 +224,8 @@ class CcPreferencesScreen extends StatelessWidget {
       BuildContext context, CcMappingTarget target, String value) {
     if (target is! SlotParamTarget) return value;
     final rack = context.read<RackState>();
-    final plugin =
-        rack.plugins.where((p) => p.id == target.slotId).firstOrNull;
-    final pluginId = plugin is GFpaPluginInstance
-        ? plugin.pluginId
-        : (plugin is GrooveForgeKeyboardPlugin ? '_gf_keyboard' : null);
-    if (pluginId == null) return value;
-    final entry = CcParamRegistry.findParam(pluginId, target.paramKey);
+    final entry =
+        ccSlotParamEntry(rack.plugins, target.slotId, target.paramKey);
     if (entry == null) return value;
     for (final c in rack.ccDirectChoicesFor(target.slotId, entry)) {
       if (c.value == value) return c.label;
@@ -254,32 +253,16 @@ class CcPreferencesScreen extends StatelessWidget {
     return l10n.ccRoutingChannel(targetChannel + 1);
   }
 
-  /// Human-readable display name for a rack slot, disambiguated with MIDI
-  /// channel and rack position so identical plugin names are distinguishable.
-  String _slotDisplayName(RackState rack, String slotId) {
-    final plugins = rack.plugins;
-    for (int i = 0; i < plugins.length; i++) {
-      if (plugins[i].id != slotId) continue;
-      final p = plugins[i];
-      final ch = p.midiChannel > 0 ? 'Ch ${p.midiChannel}' : null;
-      final suffix = ch != null ? ' ($ch, #${i + 1})' : ' (#${i + 1})';
-      return '${p.displayName}$suffix';
-    }
-    return slotId;
-  }
-
-  String _transportLabel(TransportAction action, [AppLocalizations? l10n]) =>
+  String _transportLabel(TransportAction action, AppLocalizations l10n) =>
       switch (action) {
-        TransportAction.playStop => l10n?.ccTransportPlayStop ?? 'Play / Stop',
-        TransportAction.tapTempo => l10n?.ccTransportTapTempo ?? 'Tap Tempo',
-        TransportAction.metronomeToggle =>
-          l10n?.ccTransportMetronomeToggle ?? 'Metronome Toggle',
+        TransportAction.playStop => l10n.ccTransportPlayStop,
+        TransportAction.tapTempo => l10n.ccTransportTapTempo,
+        TransportAction.metronomeToggle => l10n.ccTransportMetronomeToggle,
       };
 
-  String _globalLabel(GlobalAction action, [AppLocalizations? l10n]) =>
+  String _globalLabel(GlobalAction action, AppLocalizations l10n) =>
       switch (action) {
-        GlobalAction.systemVolume =>
-          l10n?.ccGlobalSystemVolume ?? 'System Volume',
+        GlobalAction.systemVolume => l10n.ccGlobalSystemVolume,
       };
 
   void _markDirty(BuildContext context) {
@@ -449,7 +432,7 @@ class _AddMappingDialogState extends State<_AddMappingDialog> {
                   // selected category so the dropdown never receives an
                   // initialValue that doesn't match any item.
                   if (val == _TargetCategory.looper) {
-                    _systemAction = _looperActions.keys.first;
+                    _systemAction = _looperActionCodes.first;
                   }
                 }),
               ),
@@ -500,7 +483,10 @@ class _AddMappingDialogState extends State<_AddMappingDialog> {
       _TargetCategory.instruments => _buildSlotParamPicker(context, _instrumentSlots),
       _TargetCategory.audioEffects => _buildSlotParamPicker(context, _audioEffectSlots),
       _TargetCategory.midiFx => _buildSlotParamPicker(context, _midiFxSlots),
-      _TargetCategory.looper => _buildSystemPicker(context, _looperActions),
+      _TargetCategory.looper => _buildSystemPicker(context, {
+          for (final code in _looperActionCodes)
+            code: gmCcLabel(AppLocalizations.of(context)!, code)!,
+        }),
       _TargetCategory.transport => _buildTransportPicker(),
       _TargetCategory.global => _buildGlobalPicker(),
       _TargetCategory.macros => _buildSwapPicker(context),
@@ -515,8 +501,7 @@ class _AddMappingDialogState extends State<_AddMappingDialog> {
       if (CcMappingService.standardGmCcs.containsKey(i)) {
         ccItems.add(DropdownMenuItem(
             value: i,
-            child: Text(l10n.ccTargetEffectFormat(
-                CcMappingService.standardGmCcs[i]!, i))));
+            child: Text(l10n.ccTargetEffectFormat(gmCcLabel(l10n, i)!, i))));
       }
     }
     // Pitch bend is not a CC, so the sweep above cannot reach it — add it
@@ -596,7 +581,8 @@ class _AddMappingDialogState extends State<_AddMappingDialog> {
       isExpanded: true,
       items: slot.params
           .map((p) => DropdownMenuItem(
-              value: p.paramKey, child: Text(p.displayName)))
+              value: p.paramKey,
+              child: Text(ccParamLabel(AppLocalizations.of(context)!, p))))
           .toList(),
       onChanged: (val) => setState(() {
         _selectedParamKey = val;
@@ -795,7 +781,9 @@ class _AddMappingDialogState extends State<_AddMappingDialog> {
   /// appending the MIDI channel and rack position (1-based).
   /// Example: "GF Keyboard (Ch 1, #1)" vs "GF Keyboard (Ch 2, #3)".
   String _disambiguatedName(PluginInstance p, int position) {
-    final ch = p.midiChannel > 0 ? 'Ch ${p.midiChannel}' : null;
+    final l10n = AppLocalizations.of(context)!;
+    final ch =
+        p.midiChannel > 0 ? l10n.ccSlotChannelShort(p.midiChannel) : null;
     final suffix = ch != null ? ' ($ch, #$position)' : ' (#$position)';
     return '${p.displayName}$suffix';
   }
@@ -872,12 +860,10 @@ class _AddMappingDialogState extends State<_AddMappingDialog> {
     'com.grooveforge.jammode',
   };
 
-  static const Map<int, String> _looperActions = {
-    1009: '[MIDI Looper] Loop Button',
-    1012: '[MIDI Looper] Stop',
-    1015: '[Audio Looper] Loop Button',
-    1016: '[Audio Looper] Stop',
-  };
+  /// Looper system action codes offered in the Looper category, in menu
+  /// order: MIDI looper loop/stop, then audio looper loop/stop. Their names
+  /// come from [gmCcLabel].
+  static const List<int> _looperActionCodes = [1009, 1012, 1015, 1016];
 
   // ── Build & save target ────────────────────────────────────────────────
 
@@ -1003,8 +989,9 @@ class _MuteChannelSelector extends StatelessWidget {
               child: CheckboxListTile(
                 contentPadding: EdgeInsets.zero,
                 dense: true,
-                title:
-                    Text('Ch ${i + 1}', style: const TextStyle(fontSize: 12)),
+                title: Text(
+                    AppLocalizations.of(context)!.ccSlotChannelShort(i + 1),
+                    style: const TextStyle(fontSize: 12)),
                 value: isChecked,
                 onChanged: (_) {
                   final updated = Set<int>.from(selected);

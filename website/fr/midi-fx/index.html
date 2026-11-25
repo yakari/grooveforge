@@ -50,7 +50,7 @@
       Ils fonctionnent tous aussi dans la <a href="../../demo/">démo web</a>. Vous les trouverez sous <span class="ui">Effets MIDI intégrés</span> dans le menu <span class="ui">+</span>.
     </p>
     <p class="recipe-note">
-      Les panneaux de ces effets restent en anglais dans l'app, sauf celui de Xen. Les libellés cités ici sont ceux que vous verrez à l'écran.
+      Les libellés cités ici sont ceux que vous verrez à l'écran.
     </p>
 
     <ul class="recipe-index" aria-label="Effets MIDI">
@@ -85,60 +85,60 @@
 
     <h2 id="harmonizer">Harmoniseur</h2>
     <p>
-      Ajoute jusqu'à quatre notes au-dessus de chaque note jouée. <span class="ui">Voices</span> règle leur nombre, et chaque voix
+      Ajoute jusqu'à quatre notes au-dessus de chaque note jouée. <span class="ui">Voix</span> règle leur nombre, et chaque voix
       (<span class="ui">V1</span> à <span class="ui">V4</span>) son écart en demi-tons, jusqu'à deux octaves. L'affichage nomme l'intervalle :
       +4 est une tierce majeure, +7 une quinte juste, le duo réglé par défaut.
     </p>
     <p>
-      Avec <span class="ui">Scale Lock</span>, les notes d'harmonie glissent vers la note la plus proche de la gamme sur laquelle Xen ou le Mode Jam
-      a calé votre clavier : l'harmonie reste dans la tonalité. Pour régler les intervalles en jouant, reliez le <code>CHORD OUT</code> d'un clavier
-      au <code>CHORD IN</code> de l'Harmoniseur et tenez un accord : les notes au-dessus de la plus grave deviennent les voix.
+      Avec <span class="ui">Verrou gamme</span>, les notes d'harmonie glissent vers la note la plus proche de la gamme sur laquelle Xen ou le Mode Jam
+      a calé votre clavier : l'harmonie reste dans la tonalité. Pour régler les intervalles en jouant, reliez le <code>ACCORD OUT</code> d'un clavier
+      au <code>ACCORD IN</code> de l'Harmoniseur et tenez un accord : les notes au-dessus de la plus grave deviennent les voix.
       Pour harmoniser une voix ou une guitare plutôt que des notes, prenez l'<a href="../modules/#audio-harmonizer">Harmoniseur Audio</a>.
     </p>
 
     <h2 id="chord-expand">Chord Expand</h2>
     <p>
-      Fait de chaque touche un accord complet, dont la touche jouée est la fondamentale. Choisissez le <span class="ui">Chord Type</span>
-      (Maj, Min, Dim, Aug, Sus2, Sus4, Dom7, Maj7, Min7, m7b5, Dim7). <span class="ui">Spread</span> serre les notes
-      (<span class="ui">Close</span>) ou en monte certaines d'une octave (<span class="ui">Open</span>, <span class="ui">Wide</span>).
-      <span class="ui">Scale Lock</span>, activé par défaut, ramène les notes de l'accord dans la gamme verrouillée.
+      Fait de chaque touche un accord complet, dont la touche jouée est la fondamentale. Choisissez le <span class="ui">Type d'accord</span>
+      (Maj, Min, Dim, Aug, Sus2, Sus4, Dom7, Maj7, Min7, m7b5, Dim7). <span class="ui">Écart</span> serre les notes
+      (<span class="ui">Serré</span>) ou en monte certaines d'une octave (<span class="ui">Ouvert</span>, <span class="ui">Large</span>).
+      <span class="ui">Verrou gamme</span>, activé par défaut, ramène les notes de l'accord dans la gamme verrouillée.
     </p>
 
     <h2 id="arpeggiator">Arpégiateur</h2>
     <p>
       Tenez un accord : il en joue les notes l'une après l'autre, au tempo affiché en haut de l'écran, même transport arrêté.
-      <span class="ui">Pattern</span> règle l'ordre (Up, Down, UpDown, DnUp, Played, Random), <span class="ui">Division</span> la durée des pas
-      (de la noire, 1/4, à 1/128, plus les triolets), <span class="ui">Gate</span> la longueur de chaque note, et <span class="ui">Octaves</span>
+      <span class="ui">Motif</span> règle l'ordre (Haut, Bas, Haut-bas, Bas-haut, Ordre joué, Aléatoire), <span class="ui">Division</span> la durée des pas
+      (de la noire, 1/4, à 1/128, plus les triolets), <span class="ui">Durée</span> la longueur de chaque note, et <span class="ui">Octaves</span>
       s'il monte sur 1, 2 ou 3 octaves.
     </p>
 
     <h2 id="transposer">Transposeur</h2>
     <p>
-      Décale toutes les notes vers le haut ou le bas. <span class="ui">Semitones</span> va de -24 à +24 : +12 fait une octave.
+      Décale toutes les notes vers le haut ou le bas. <span class="ui">Demi-tons</span> va de -24 à +24 : +12 fait une octave.
       Pratique pour jouer un morceau dans une autre tonalité avec le doigté que vous connaissez.
     </p>
 
     <h2 id="velocity-curve">Courbe de vélocité</h2>
     <p>
-      Change la façon dont la force de votre jeu se traduit en volume. <span class="ui">Mode</span> vaut <span class="ui">Power</span> ou
-      <span class="ui">Sigmoid</span> (deux formes de courbe, dont <span class="ui">Amount</span> règle l'intensité) ou <span class="ui">Fixed</span> :
-      toutes les notes jouent alors à la force réglée par <span class="ui">Amount</span>. Utile avec un contrôleur MIDI à touches dynamiques :
+      Change la façon dont la force de votre jeu se traduit en volume. <span class="ui">Mode</span> vaut <span class="ui">Puissance</span> ou
+      <span class="ui">Sigmoïde</span> (deux formes de courbe, dont <span class="ui">Dosage</span> règle l'intensité) ou <span class="ui">Fixe</span> :
+      toutes les notes jouent alors à la force réglée par <span class="ui">Dosage</span>. Utile avec un contrôleur MIDI à touches dynamiques :
       les touches à l'écran jouent toujours à la même force.
     </p>
 
     <h2 id="gate">Gate</h2>
     <p>
-      Ne laisse passer que les notes d'une certaine plage. <span class="ui">Min Vel</span> et <span class="ui">Max Vel</span> fixent la force minimale et maximale ;
-      <span class="ui">Min Note</span> et <span class="ui">Max Note</span> la touche la plus grave et la plus aiguë, numérotées de 0 à 127 (le do central vaut 60).
-      Par exemple, mettez Min Note à 60 et l'instrument ne répond plus qu'à partir du do central.
+      Ne laisse passer que les notes d'une certaine plage. <span class="ui">Vél. min</span> et <span class="ui">Vél. max</span> fixent la force minimale et maximale ;
+      <span class="ui">Note min</span> et <span class="ui">Note max</span> la touche la plus grave et la plus aiguë, numérotées de 0 à 127 (le do central vaut 60).
+      Par exemple, mettez Note min à 60 et l'instrument ne répond plus qu'à partir du do central.
     </p>
 
     <h2 id="microtone">Microtone</h2>
     <p>
       Joue les notes entre les touches du piano. Tenez deux touches voisines et vous entendez une seule note à mi-chemin, obtenue par pitch bend.
-      Il joue une note à la fois. <span class="ui">Delay</span> est le temps qu'il laisse à vos autres doigts avant de jouer (0 joue tout de suite).
-      <span class="ui">Mode</span> choisit comment les touches tenues sont moyennées, et <span class="ui">Velocity</span> prend la force moyenne ou celle de la dernière note.
-      Laissez <span class="ui">Bend Range</span> sur ±2 st, sauf si l'instrument qu'il fait jouer utilise une plage de pitch bend plus large.
+      Il joue une note à la fois. <span class="ui">Délai</span> est le temps qu'il laisse à vos autres doigts avant de jouer (0 joue tout de suite).
+      <span class="ui">Mode</span> choisit comment les touches tenues sont moyennées, et <span class="ui">Vélocité</span> prend la force moyenne ou celle de la dernière note.
+      Laissez <span class="ui">Plage de bend</span> sur ±2 st, sauf si l'instrument qu'il fait jouer utilise une plage de pitch bend plus large.
       Pour jouer toute une gamme juste, accords compris, prenez plutôt Xen.
     </p>
 
@@ -165,7 +165,7 @@
         </ul>
         <p>
           Xen atteint un instrument par deux câbles, un violet et un turquoise, aussi listés sur son panneau sous
-          <span class="ui">VERROU GAMME</span> et <span class="ui">ACCORDAGE</span> : <code>SCALE OUT</code> vers le <code>SCALE IN</code> du clavier
+          <span class="ui">VERROU GAMME</span> et <span class="ui">ACCORDAGE</span> : <code>GAMME OUT</code> vers le <code>GAMME IN</code> du clavier
           le cale sur la gamme, et <code>TUNE OUT</code> vers <code>TUNE IN</code> le réaccorde. Branchez l'un sans l'autre pour caler sans
           réaccorder, ou l'inverse. Le Vocodeur accepte aussi les deux câbles.
         </p>

@@ -224,6 +224,31 @@ ui:
       </tbody>
     </table>
 
+    <h2 id="langues">Textes en plusieurs langues</h2>
+    <p>
+      Partout où le fichier prend un texte que l'utilisateur lit (le <code>name</code> du plugin, le <code>name</code> d'un paramètre,
+      le <code>label</code> d'un groupe ou d'une commande, chaque entrée d'<code>options</code>), vous pouvez l'écrire une fois par langue
+      au lieu d'une seule chaîne :
+    </p>
+    <pre><code>name: {en: "Noise Gate", fr: "Porte de bruit"}
+
+parameters:
+  - id: mode
+    name: {en: "Mode", fr: "Mode"}
+    type: selector
+    options: [{en: "Soft", fr: "Doux"}, {en: "Hard", fr: "Dur"}]
+
+ui:
+  groups:
+    - label: {en: "Gate", fr: "Porte"}</code></pre>
+    <ul>
+      <li>Le panneau et le nom du module dans le rack prennent l'entrée de la langue de l'app. S'il n'y en a pas, ils prennent
+        <code>en</code>, puis la première entrée.</li>
+      <li>Une chaîne simple marche toujours et s'affiche pareil dans toutes les langues. Les deux formes peuvent se mélanger dans un
+        fichier, et même dans une liste <code>options</code>.</li>
+      <li>Le menu <span class="ui">+</span> affiche le texte <code>en</code>.</li>
+    </ul>
+
     <h2>Pour aller plus loin</h2>
     <p>
       Le fichier <a href="https://github.com/yakari/grooveforge/blob/main/assets/plugins/HOW_TO_CREATE_A_PLUGIN.md"><code>HOW_TO_CREATE_A_PLUGIN.md</code></a>

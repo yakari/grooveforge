@@ -9,6 +9,7 @@
 
 #include "dart_vst_host.h"
 
+#include <algorithm>
 #include <array>
 #include <cstdio>
 #include <memory>
@@ -264,26 +265,27 @@ int32_t dvh_suspend(DVH_Plugin p) {
   return 1;
 }
 
-// Process a block of stereo audio. Copies input buffers into the
-// plug‑in’s buffers, calls process(), then copies the output back
-// out. Parameter changes and MIDI events are consumed each block.
-int32_t dvh_process_stereo_f32(DVH_Plugin p,
-                               const float* inL, const float* inR,
-                               float* outL, float* outR,
-                               int32_t num_frames) {
-  if (!p || !inL || !inR || !outL || !outR || num_frames <= 0) return 0;
-  auto* ps = (DVH_PluginState*)p;
-  std::lock_guard<std::mutex> g(ps->mtx);
-
+// Runs the plug-in's process() on one chunk of at most
+// setup.maxSamplesPerBlock frames. The caller holds ps->mtx.
+//
+// [inL]/[inR]/[outL]/[outR] already point at the chunk's first frame.
+// [firstChunk] is true for the first chunk of a host block: MIDI events and
+// parameter changes are queued with sample offsets relative to the start of
+// the host block, so they are delivered with the first chunk and cleared
+// afterwards.
+static tresult _processChunk(DVH_PluginState* ps,
+                             const float* inL, const float* inR,
+                             float* outL, float* outR,
+                             int32_t num_frames, bool firstChunk) {
   // ── Output buses (pre-allocated in dvh_resume — zero allocation) ────────
-  // Bus 0 = caller's outL/outR; secondary buses → procScratch.
+  // Bus 0 = caller's outL/outR; secondary buses (e.g. Surge XT's scene
+  // outputs) → procScratch, which holds maxSamplesPerBlock frames per channel.
   const int32 numOut = ps->numAudioOutputBuses;
+  const int32 stride = ps->setup.maxSamplesPerBlock;
   ps->procOutPtrs[0] = { outL, outR };
   for (int32 i = 1; i < numOut; ++i) {
-    ps->procOutPtrs[i] = {
-      ps->procScratch.data() + (i - 1) * 2 * num_frames,
-      ps->procScratch.data() + (i - 1) * 2 * num_frames + num_frames
-    };
+    float* base = ps->procScratch.data() + (i - 1) * 2 * stride;
+    ps->procOutPtrs[i] = { base, base + stride };
   }
   for (int32 i = 0; i < numOut; ++i) {
     ps->procOutBufs[i] = {};
@@ -323,17 +325,55 @@ int32_t dvh_process_stereo_f32(DVH_Plugin p,
   data.inputs             = numIn  > 0 ? ps->procInBufs.data()  : nullptr;
   data.numOutputs         = numOut;
   data.outputs            = numOut > 0 ? ps->procOutBufs.data() : nullptr;
-  data.inputParameterChanges  = &ps->inputParamChanges;
+  data.inputParameterChanges  = firstChunk ? &ps->inputParamChanges : nullptr;
   data.outputParameterChanges = &ps->outputParamChanges;
-  data.inputEvents            = &ps->inputEvents;
+  data.inputEvents            = firstChunk ? &ps->inputEvents : nullptr;
   data.processContext         = &ctxCopy;
 
   auto r = ps->processor->process(data);
 
-  ps->inputParamChanges.clearQueue();
+  if (firstChunk) {
+    ps->inputParamChanges.clearQueue();
+    ps->inputEvents.clear();
+  }
   ps->outputParamChanges.clearQueue();
-  ps->inputEvents.clear();
+  return r;
+}
 
+// Process a block of stereo audio. Copies input buffers into the
+// plug‑in’s buffers, calls process(), then copies the output back
+// out. Parameter changes and MIDI events are consumed each block.
+//
+// The audio backend chooses the block size (JACK and PipeWire often use 1024
+// frames or more), while the plug‑in was promised at most
+// setup.maxSamplesPerBlock frames in dvh_resume(). A longer block is cut into
+// chunks of that size: handing the plug‑in more frames than promised lets it
+// write past its own buffers and past procScratch, which corrupts the heap
+// (seen as "malloc(): invalid size" with Surge XT, which has three output
+// buses).
+int32_t dvh_process_stereo_f32(DVH_Plugin p,
+                               const float* inL, const float* inR,
+                               float* outL, float* outR,
+                               int32_t num_frames) {
+  if (!p || !inL || !inR || !outL || !outR || num_frames <= 0) return 0;
+  auto* ps = (DVH_PluginState*)p;
+  std::lock_guard<std::mutex> g(ps->mtx);
+  if (!ps->active || ps->setup.maxSamplesPerBlock <= 0) {
+    // Callers mix whatever is in the output buffers; a suspended plug-in
+    // must leave silence there, not the previous block.
+    std::fill(outL, outL + num_frames, 0.f);
+    std::fill(outR, outR + num_frames, 0.f);
+    return 0;
+  }
+
+  const int32_t chunk = ps->setup.maxSamplesPerBlock;
+  tresult r = kResultOk;
+  for (int32_t done = 0; done < num_frames; done += chunk) {
+    const int32_t n = std::min(chunk, num_frames - done);
+    r = _processChunk(ps, inL + done, inR + done, outL + done, outR + done,
+                      n, done == 0);
+    if (r != kResultOk) break;
+  }
   return toOK(r);
 }
 

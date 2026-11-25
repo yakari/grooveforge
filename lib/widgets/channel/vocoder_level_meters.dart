@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:grooveforge/l10n/app_localizations.dart';
 import 'package:grooveforge/services/audio_input_ffi.dart';
 
 class VocoderLevelMeters extends StatefulWidget {
@@ -89,13 +90,14 @@ class _VocoderLevelMetersState extends State<VocoderLevelMeters> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Column(
       mainAxisSize: MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildMeter('MIC', _inputLevel * 4.0, Colors.blue[400]!),
-        _buildMeter('OUT', _outputLevel, Colors.green[400]!),
+        _buildMeter(l10n.vocoderMeterMic, _inputLevel * 4.0, Colors.blue[400]!),
+        _buildMeter(l10n.vocoderMeterOut, _outputLevel, Colors.green[400]!),
       ],
     );
   }

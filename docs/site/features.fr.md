@@ -12,7 +12,7 @@ Les limites sont indiquées sur la ligne concernée : *ordinateur uniquement*, *
 
 - **GrooveForge Keyboard** joue une soundfont (.sf2) sur son propre canal MIDI. Chaque clavier choisit sa soundfont, sa banque et son son.
 - Réglez sa soundfont sur **Aucune (MIDI seulement)** : le clavier ne sonne plus et envoie seulement ses notes aux autres modules. [Comment](../guide/#guitare)
-- L'icône de réglage à côté du badge MIDI CH règle, pour un seul clavier : le nombre de touches affichées, leur hauteur (de Petit à Très grand), l'effet d'un glissé vertical ou horizontal (pitch bend, vibrato, glissando) et le CC envoyé par l'aftertouch.
+- L'icône de réglage à côté du badge CANAL MIDI règle, pour un seul clavier : le nombre de touches affichées, leur hauteur (de Petit à Très grand), l'effet d'un glissé vertical ou horizontal (pitch bend, vibrato, glissando) et le CC envoyé par l'aftertouch.
 - Le clavier affiche le nom de l'accord tenu (Cmaj7, F#m11). Touchez ce nom pour verrouiller le clavier sur la gamme de cet accord.
 - Ajoutez vos soundfonts dans les Préférences, avec **Charger une Soundfont (.sf2)**.
 
@@ -30,8 +30,8 @@ Les limites sont indiquées sur la ligne concernée : *ordinateur uniquement*, *
 ### Mode Jam : suivre un autre musicien
 
 - Un clavier (le guide) joue des accords ou une ligne de basse ; les claviers ajoutés comme cibles restent dans la gamme qui va avec. Un seul Mode Jam par projet.
-- **DETECT** choisit ce qui fixe la gamme : l'accord tenu par le guide, ou sa note la plus grave.
-- 14 types de gamme, de Standard, Blues et Pentatonic à Dorian, Harmonic Minor et Whole Tone.
+- **DÉTECTION** choisit ce qui fixe la gamme : l'accord tenu par le guide, ou sa note la plus grave.
+- 14 types de gamme, de Standard, Blues et Pentatonique à Dorien, Mineure harm. et Par tons.
 - **SYNC** ne change la gamme que sur le temps, la demi-mesure ou la mesure.
 - Des bordures de touches et un surlignage des fausses notes, en option, montrent ce qui va.
 - **Épingler sous le transport** affiche une ligne Mode Jam sous la barre de transport.
@@ -60,15 +60,15 @@ Pour placer un effet après un instrument, câblez-les dans la vue de câblage :
 
 *Pas dans la démo web.*
 
-- **Ampli** : une pédale de saturation (Overdrive ou Distortion), trois modèles d'ampli (US, Brit, AC) et trois baffles. Chaque section s'allume et s'éteint. [Comment](../guide/#ampli)
+- **Ampli** : une pédale de saturation (Overdrive ou Distorsion), trois modèles d'ampli (US, Brit, AC) et trois baffles. Chaque section s'allume et s'éteint. [Comment](../guide/#ampli)
 - L'Ampli peut charger une réponse impulsionnelle de baffle (IR) depuis un fichier .wav, à la place de ses baffles. L'IR est enregistrée avec le projet.
 - **Réverb à plaque** : réverbération stéréo.
 - **Delay Ping-Pong** : écho stéréo qui peut suivre le tempo.
-- **Wah** : en mode Auto, le filtre balaie tout seul, en rythme ; en mode Manual, il suit une pédale ou un potard de votre contrôleur.
+- **Wah** : en mode Auto, le filtre balaie tout seul, en rythme ; en mode Manuel, il suit une pédale ou un potard de votre contrôleur.
 - **EQ 4 bandes** : graves, deux bandes de médiums et aigus.
 - **Compresseur** : égalise les passages forts et doux.
 - **Chorus / Flanger** : chorus stéréo qui peut suivre le tempo.
-- **Harmoniseur Audio** : ajoute jusqu'à 4 voix d'harmonie à n'importe quel son. Avec **Scale Lock**, les voix suivent la gamme de Xen ou du Mode Jam.
+- **Harmoniseur Audio** : ajoute jusqu'à 4 voix d'harmonie à n'importe quel son. Avec **Verrou gamme**, les voix suivent la gamme de Xen ou du Mode Jam.
 - **Autotune** : ramène une voix sur les notes d'une tonalité et d'une gamme, de la correction discrète à la voix de robot. Il affiche la note chantée et son écart en cents.
 - Les **effets VST3** se placent après n'importe quel instrument ou effet. *Ordinateur uniquement.*
 
@@ -76,7 +76,7 @@ Pour placer un effet après un instrument, câblez-les dans la vue de câblage :
 
 Les effets MIDI modifient les notes avant qu'un instrument les joue. Plus de détails sur la [page MIDI FX](../midi-fx/).
 
-- **Harmoniseur** : ajoute jusqu'à 4 notes au-dessus de chaque note jouée. Branchez-y le CHORD OUT d'un clavier : l'accord tenu fixe les intervalles.
+- **Harmoniseur** : ajoute jusqu'à 4 notes au-dessus de chaque note jouée. Branchez-y l'ACCORD OUT d'un clavier : l'accord tenu fixe les intervalles.
 - **Chord Expand** : transforme chaque note en accord complet (11 types d'accords, serré, ouvert ou large).
 - **Arpégiateur** : joue les notes tenues l'une après l'autre, avec 6 motifs et 12 vitesses, sur 1 à 3 octaves.
 - **Transposeur** : décale toutes les notes, jusqu'à 24 demi-tons vers le haut ou le bas.
@@ -148,7 +148,7 @@ L'onglet **Répéter**. Chaque musicien enregistre sa partie d'un morceau sur so
 ## Contrôleurs
 
 - Branchez un clavier ou un contrôleur à pads MIDI en USB (avec un adaptateur OTG sur téléphone), ou en Bluetooth sur Android, via **Préférences** > **Connecter un appareil MIDI**. [Comment](../guide/#controleur)
-- Votre contrôleur joue le module dont le badge MIDI CH correspond à son canal (1 à 16).
+- Votre contrôleur joue le module dont le badge CANAL MIDI correspond à son canal (1 à 16).
 - Pitch bend, molette de modulation, CC et aftertouch arrivent aux instruments, à travers câbles et effets MIDI.
 - Associez un potard, un fader ou un pad à n'importe quel réglage d'un module : l'icône de curseurs sur le module, puis **Learn**. [Comment](../guide/#learn)
 - **Préférences de mapping CC** associe un CC à : les contrôles MIDI standard (volume, panoramique, expression, sustain, envoi de réverb...), le pitch bend, n'importe quel réglage de module, les loopers, lecture/arrêt, Tap, le métronome ou le volume système.

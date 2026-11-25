@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:grooveforge_plugin_api/grooveforge_plugin_api.dart';
 
 import '../../l10n/app_localizations.dart';
+import 'gfpa_label.dart';
 import '../../models/gfpa_plugin_instance.dart';
 import '../../models/plugin_instance.dart';
 import '../../plugins/gf_xen_plugin.dart';
@@ -436,7 +437,7 @@ class _ScaleLcd extends StatelessWidget {
             // The provenance line is the module's teaching surface: it says
             // where these numbers come from, and admits when a tradition has
             // no single authoritative tuning.
-            scale.provenance,
+            xenProvenanceLabel(l10n, scale),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
@@ -1419,7 +1420,8 @@ class _AddTargetButton extends StatelessWidget {
                 value: slot.id,
                 height: 34,
                 child: Text(
-                  'CH ${slot.midiChannel} · ${slot.displayName}',
+                  '${AppLocalizations.of(context)!.rackChannelShort(slot.midiChannel)}'
+                  ' · ${gfpaSlotHeaderName(AppLocalizations.of(context)!, slot)}',
                   style: const TextStyle(fontSize: 11, color: Colors.white70),
                 ),
               ),
@@ -1490,6 +1492,174 @@ String xenScaleLabel(AppLocalizations l10n, GFScale scale) {
     default:
       return scale.name;
   }
+}
+
+/// Provenance written into custom scales made in the scale editor.
+///
+/// Stored in English, like [GFScalaFile.importedProvenance], so saved and
+/// exported scales stay language-neutral; [xenProvenanceLabel] translates it.
+const String xenEditorProvenance = 'Made in GrooveForge';
+
+/// Localised provenance line for [scale]: where its numbers come from.
+///
+/// Built-in scales are matched on their stable id. A custom scale keeps the
+/// text the player gave it, except for the two provenances the app writes
+/// itself (scale editor, Scala import), which are recognised and translated.
+String xenProvenanceLabel(AppLocalizations l10n, GFScale scale) {
+  return switch (scale.id) {
+    'major' ||
+    'naturalMinor' ||
+    'harmonicMinor' ||
+    'melodicMinor' ||
+    'majorPentatonic' ||
+    'minorPentatonic' ||
+    'blues' ||
+    'rock' ||
+    'dorian' ||
+    'phrygian' ||
+    'lydian' ||
+    'mixolydian' ||
+    'locrian' ||
+    'phrygianDominant' ||
+    'wholeTone' ||
+    'diminished' =>
+      l10n.xenProvenance12Tet,
+    'maqamRast' ||
+    'maqamBayati' ||
+    'maqamSaba' ||
+    'maqamSikah' ||
+    'maqamHuzam' ||
+    'maqamSuznak' =>
+      l10n.xenProvenanceArabicQuarterTones,
+    'maqamHijaz' ||
+    'maqamNahawand' ||
+    'maqamKurd' ||
+    'maqamAjam' ||
+    'maqamHijazkar' ||
+    'maqamNikriz' =>
+      l10n.xenProvenanceEqualTemperedMaqam,
+    'makamRastTurkish' =>
+      l10n.xenProvenanceTurkishRast,
+    'makamUssak' =>
+      l10n.xenProvenanceTurkishUssak,
+    'makamHuseyni' =>
+      l10n.xenProvenanceTurkishHuseyni,
+    'dastgahShur' ||
+    'dastgahChahargah' ||
+    'dastgahSegah' ||
+    'dastgahHomayun' =>
+      l10n.xenProvenancePersian,
+    'ragaBhairav' ||
+    'ragaYaman' ||
+    'ragaBhairavi' ||
+    'ragaTodi' ||
+    'ragaMarwa' ||
+    'ragaKafi' ||
+    'ragaMalkauns' ||
+    'ragaBhimpalasi' =>
+      l10n.xenProvenanceShruti,
+    'ragaDarbari' =>
+      l10n.xenProvenanceDarbari,
+    'ragaMayamalavagowla' =>
+      l10n.xenProvenanceMelakarta15,
+    'gongPentatonic' ||
+    'shangPentatonic' ||
+    'juePentatonic' ||
+    'zhiPentatonic' ||
+    'yuPentatonic' =>
+      l10n.xenProvenanceSanfen,
+    'hirajoshi' =>
+      l10n.xenProvenanceKoto,
+    'inSen' =>
+      l10n.xenProvenanceInSen,
+    'yo' =>
+      l10n.xenProvenanceYo,
+    'pyeongjo' ||
+    'gyemyeonjo' =>
+      l10n.xenProvenanceJeongak,
+    'ryo' ||
+    'ritsu' =>
+      l10n.xenProvenanceGagaku,
+    'thai7Equal' =>
+      l10n.xenProvenanceThai,
+    'tizita' ||
+    'bati' ||
+    'ambassel' =>
+      l10n.xenProvenanceQenet,
+    'anchihoye' =>
+      l10n.xenProvenanceQenetNeutral,
+    'amadinda' =>
+      l10n.xenProvenanceAmadinda,
+    'highlandPipe' =>
+      l10n.xenProvenanceHighlandPipe,
+    'hardingfele' =>
+      l10n.xenProvenanceHardingfele,
+    'byzantineSoftChromatic' =>
+      l10n.xenProvenanceByzantineSoft,
+    'byzantineHardChromatic' =>
+      l10n.xenProvenanceByzantineHard,
+    'slendro' =>
+      l10n.xenProvenanceSlendro,
+    'pelog' =>
+      l10n.xenProvenancePelog,
+    'pelogBarang' =>
+      l10n.xenProvenancePelogBarang,
+    'pelogSelisir' =>
+      l10n.xenProvenanceSelisir,
+    'justIntonation' =>
+      l10n.xenProvenanceJustIntonation,
+    'pythagorean' =>
+      l10n.xenProvenancePythagorean,
+    'meantone' =>
+      l10n.xenProvenanceMeantone,
+    'werckmeisterIII' =>
+      l10n.xenProvenanceWerckmeister,
+    'edo24' =>
+      l10n.xenProvenanceEdo24,
+    'edo19' =>
+      l10n.xenProvenanceEdo19,
+    'edo31' =>
+      l10n.xenProvenanceEdo31,
+    'bohlenPierce' =>
+      l10n.xenProvenanceBohlenPierce,
+    'harmonicSeries' =>
+      l10n.xenProvenanceHarmonicSeries,
+    'quarterToneCluster' =>
+      l10n.xenProvenanceQuarterToneCluster,
+    'edo17' =>
+      l10n.xenProvenanceEdo17,
+    'edo22' =>
+      l10n.xenProvenanceEdo22,
+    'edo15' =>
+      l10n.xenProvenanceEdo15,
+    'edo13' =>
+      l10n.xenProvenanceEdo13,
+    'edo16' =>
+      l10n.xenProvenanceEdo16,
+    'blackwoodDecatonic' =>
+      l10n.xenProvenanceBlackwood,
+    'carlosAlpha' =>
+      l10n.xenProvenanceCarlosAlpha,
+    'carlosBeta' =>
+      l10n.xenProvenanceCarlosBeta,
+    'carlosGamma' =>
+      l10n.xenProvenanceCarlosGamma,
+    'bohlenPierceLambda' =>
+      l10n.xenProvenanceBohlenPierceLambda,
+    'subharmonicSeries' =>
+      l10n.xenProvenanceSubharmonicSeries,
+    _ => _customProvenanceLabel(l10n, scale.provenance),
+  };
+}
+
+/// Translates the provenances the app stamps on custom scales; any other text
+/// was written by a person and is shown as is.
+String _customProvenanceLabel(AppLocalizations l10n, String provenance) {
+  return switch (provenance) {
+    GFScalaFile.importedProvenance => l10n.xenProvenanceImportedScala,
+    xenEditorProvenance => l10n.xenProvenanceMadeInGrooveForge,
+    _ => provenance,
+  };
 }
 
 /// Localised tab label for a scale family.

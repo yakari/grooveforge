@@ -30,6 +30,7 @@ import 'package:grooveforge_plugin_api/grooveforge_plugin_api.dart';
 import 'rack/drum_generator_slot_ui.dart';
 import 'rack/gfpa_descriptor_slot_ui.dart';
 import 'rack/gfpa_jam_mode_slot_ui.dart';
+import 'rack/gfpa_label.dart';
 import 'rack/gfpa_xen_slot_ui.dart';
 import 'rack/gfpa_stylophone_slot_ui.dart';
 import 'rack/gfpa_theremin_slot_ui.dart';
@@ -309,7 +310,7 @@ class RackSlotWidget extends StatelessWidget {
           return Padding(
             padding: const EdgeInsets.all(12),
             child: Text(
-              'Plugin not installed: ${gfpa.pluginId}',
+              AppLocalizations.of(context)!.rackPluginNotInstalled(gfpa.pluginId),
               style: const TextStyle(color: Colors.orange, fontSize: 12),
             ),
           );
@@ -361,7 +362,7 @@ class _SlotHeader extends StatelessWidget {
                 const SizedBox(width: 6),
                 Flexible(
                   child: Text(
-                    plugin.displayName,
+                    gfpaSlotHeaderName(l10n, plugin),
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 13,
@@ -381,7 +382,7 @@ class _SlotHeader extends StatelessWidget {
                       'com.grooveforge.vocoder')) ...[
             IconButton(
               icon: const Icon(Icons.tune, size: 16, color: Colors.white38),
-              tooltip: 'Keyboard config',
+              tooltip: l10n.kbConfigTitle,
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(),
               onPressed: () => showKeyboardConfigDialog(context, plugin),
@@ -405,7 +406,7 @@ class _SlotHeader extends StatelessWidget {
                     ? Colors.blueAccent
                     : Colors.white38,
               ),
-              tooltip: 'CC Assign',
+              tooltip: l10n.looperCcAssign,
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(),
               onPressed: () => _showSlotCcAssign(context, plugin),
@@ -610,7 +611,9 @@ class _MidiChannelBadge extends StatelessWidget {
                 enabled: !isUsed || isCurrent,
                 selected: isCurrent,
                 selectedColor: Colors.blueAccent,
-                title: Text('CH $ch${isUsed && !isCurrent ? ' (in use)' : ''}'),
+                title: Text(isUsed && !isCurrent
+                    ? l10n.rackChannelInUse(ch)
+                    : l10n.rackChannelShort(ch)),
                 onTap: isCurrent || isUsed
                     ? null
                     : () {

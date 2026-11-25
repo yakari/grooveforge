@@ -413,7 +413,7 @@ class AppLocalizationsFr extends AppLocalizations {
       'Votre voix au micro devient un synthé qui joue les notes tenues.';
 
   @override
-  String get guidePatchSlotJam => 'Jam Mode';
+  String get guidePatchSlotJam => 'Mode Jam';
 
   @override
   String get guidePatchSlotJamDesc =>
@@ -456,7 +456,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get guidePatchDataBody =>
-      'Les câbles violets transportent l\'harmonie. CHORD OUT vers CHORD IN indique à Jam Mode ou Xen quel clavier donne les accords. SCALE OUT vers SCALE IN ajoute un clavier qui suit la gamme. Les câbles et les menus des panneaux sont toujours d\'accord.\nLe câble turquoise TUNE OUT vers TUNE IN porte l\'accordage d\'une gamme Xen jusqu\'à un instrument. Il est séparé du câble de gamme : on peut garder un clavier dans une gamme sans le réaccorder, ou l\'inverse.';
+      'Les câbles violets transportent l\'harmonie. ACCORD OUT vers ACCORD IN indique au Mode Jam ou Xen quel clavier donne les accords. GAMME OUT vers GAMME IN ajoute un clavier qui suit la gamme. Les câbles et les menus des panneaux sont toujours d\'accord.\nLe câble turquoise TUNE OUT vers TUNE IN porte l\'accordage d\'une gamme Xen jusqu\'à un instrument. Il est séparé du câble de gamme : on peut garder un clavier dans une gamme sans le réaccorder, ou l\'inverse.';
 
   @override
   String get guidePatchSharedEffectTitle => 'Un effet, un signal';
@@ -480,11 +480,11 @@ class AppLocalizationsFr extends AppLocalizations {
       'Xen garde chaque note jouée dans une gamme. Tenez une touche et touchez une gamme : la touche tenue devient la tonique, jusqu\'à ce que vous recommenciez. Choisir une gamme allume aussi Xen.\nSNAP déplace les notes hors de la gamme vers la plus proche qui va bien ; le piano les grise. TUNE joue l\'accordage propre de la gamme, pour celles dont les notes tombent entre les touches du piano : ces touches portent une bande turquoise et leur écart en cents. SNAP et TUNE s\'activent séparément.\nLe menu Famille propose les modes occidentaux, les maqamat arabes et turcs, les ragas indiens, des gammes chinoises, japonaises et coréennes, des accordages de gamelan, les tempéraments historiques et bien d\'autres. Mes gammes contient celles que vous créez ou importez depuis des fichiers Scala (.scl).';
 
   @override
-  String get guideJamModeTitle => 'Jam Mode';
+  String get guideJamModeTitle => 'Mode Jam';
 
   @override
   String get guideJamModeBody =>
-      'Jam Mode sert à deux claviers : l\'un joue les accords, l\'autre improvise. Dans son panneau, MASTER est le clavier dont les accords fixent la gamme, et TARGETS les claviers qui suivent. Chaque note jouée sur un clavier cible est ramenée dans cette gamme. Vous pouvez aussi tirer le lien dans la vue de câblage : CHORD OUT vers CHORD IN, SCALE OUT vers SCALE IN.';
+      'Le Mode Jam sert à deux claviers : l\'un joue les accords, l\'autre improvise. Dans son panneau, MASTER est le clavier dont les accords fixent la gamme, et CIBLES les claviers qui suivent. Chaque note jouée sur un clavier cible est ramenée dans cette gamme. Vous pouvez aussi tirer le lien dans la vue de câblage : ACCORD OUT vers ACCORD IN, GAMME OUT vers GAMME IN.';
 
   @override
   String get guideVocoderTitle => 'Vocodeur';
@@ -498,7 +498,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get guideThereminBody =>
-      'Le Thérémine a deux modes. PAD est un pavé tactile : glissez de haut en bas pour la hauteur, de gauche à droite pour le volume. CAM (Android, iOS et macOS) utilise la caméra frontale pour mesurer la distance de votre main : plus près, plus aigu ; assez loin, silence ; le volume reste au maximum. BASE règle la note la plus grave, RANGE l\'étendue en octaves, VIB le vibrato et HEIGHT la taille du pavé.\nLe Stylophone est une bande de 25 touches qu\'on joue en touchant ou en glissant. Il joue une note à la fois, comme l\'original, et glisse d\'une touche à l\'autre sans clic. SQR, SAW, SIN et TRI choisissent la forme d\'onde.';
+      'Le Thérémine a deux modes. PAD est un pavé tactile : glissez de haut en bas pour la hauteur, de gauche à droite pour le volume. CAM (Android, iOS et macOS) utilise la caméra frontale pour mesurer la distance de votre main : plus près, plus aigu ; assez loin, silence ; le volume reste au maximum. BASE règle la note la plus grave, ÉTENDUE le nombre d\'octaves couvertes, VIB le vibrato et HAUTEUR la taille du pavé.\nLe Stylophone est une bande de 25 touches qu\'on joue en touchant ou en glissant. Il joue une note à la fois, comme l\'original, et glisse d\'une touche à l\'autre sans clic. SQR, SAW, SIN et TRI choisissent la forme d\'onde.';
 
   @override
   String get guideDrumGeneratorTitle => 'Générateur de batterie';
@@ -519,7 +519,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get guideMidiFxBody =>
-      'Les MIDI FX modifient les notes entre le clavier et son son. Harmonizer ajoute jusqu\'à quatre voix à ce que vous jouez ; avec Scale Lock, elles restent dans la gamme en cours. Chord Expand transforme une note en accord. Arpeggiator joue les notes tenues l\'une après l\'autre, en rythme. Transposer décale tout, jusqu\'à deux octaves. Velocity Curve change le volume des notes douces et fortes. Gate ne laisse passer que les notes dans une plage de vélocité ou de hauteur. Microtone fond les notes tenues en une seule hauteur microtonale.';
+      'Les MIDI FX modifient les notes entre le clavier et son son. Harmoniseur ajoute jusqu\'à quatre voix à ce que vous jouez ; avec Verrou gamme, elles restent dans la gamme en cours. Chord Expand transforme une note en accord. Arpégiateur joue les notes tenues l\'une après l\'autre, en rythme. Transposeur décale tout, jusqu\'à deux octaves. Courbe de vélocité change le volume des notes douces et fortes. Gate ne laisse passer que les notes dans une plage de vélocité ou de hauteur. Microtone fond les notes tenues en une seule hauteur microtonale.';
 
   @override
   String get guideMidiTitle => 'Brancher un contrôleur';
@@ -533,7 +533,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get guideMidiBestPracticeBody =>
-      'Un seul clavier suffit : un nouveau projet associe un GrooveForge Keyboard à un module Xen. Xen démarre éteint et s\'allume dès que vous choisissez une gamme : tenez une note et appuyez sur un bouton de gamme.\nUn deuxième clavier, ou un contrôleur coupé en deux, sert au Jam Mode : une main joue les accords qui fixent la gamme, l\'autre improvise dessus.';
+      'Un seul clavier suffit : un nouveau projet associe un GrooveForge Keyboard à un module Xen. Xen démarre éteint et s\'allume dès que vous choisissez une gamme : tenez une note et appuyez sur un bouton de gamme.\nUn deuxième clavier, ou un contrôleur coupé en deux, sert au Mode Jam : une main joue les accords qui fixent la gamme, l\'autre improvise dessus.';
 
   @override
   String get guideSoundfontsTitle => 'Sons (soundfonts)';
@@ -789,6 +789,24 @@ class AppLocalizationsFr extends AppLocalizations {
   String get rackMidiChannel => 'CANAL MIDI';
 
   @override
+  String rackChannelShort(int channel) {
+    return 'CH $channel';
+  }
+
+  @override
+  String rackChannelInUse(int channel) {
+    return 'CH $channel (utilisé)';
+  }
+
+  @override
+  String rackPluginNotInstalled(String pluginId) {
+    return 'Plugin non installé : $pluginId';
+  }
+
+  @override
+  String get rackInvalidMidiChannel => 'Canal MIDI invalide';
+
+  @override
   String get rackMenuProject => 'Projets';
 
   @override
@@ -821,6 +839,17 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get splashRestoringRack => 'Restauration du rack...';
+
+  @override
+  String get splashCheckingPermissions => 'Vérification des autorisations...';
+
+  @override
+  String splashLoadingPlugin(String name) {
+    return 'Chargement de $name…';
+  }
+
+  @override
+  String get prefsVersionLoading => 'Chargement...';
 
   @override
   String get vst3LoadFailed =>
@@ -1161,6 +1190,118 @@ class AppLocalizationsFr extends AppLocalizations {
   String get jamModePinBelow => 'Épingler sous le transport';
 
   @override
+  String get jamModeOn => 'ON';
+
+  @override
+  String get jamModeOff => 'OFF';
+
+  @override
+  String get jamModeScaleTypeStandard => 'Standard';
+
+  @override
+  String get jamModeScaleTypePentatonic => 'Pentatonique';
+
+  @override
+  String get jamModeScaleTypeBlues => 'Blues';
+
+  @override
+  String get jamModeScaleTypeRock => 'Rock';
+
+  @override
+  String get jamModeScaleTypeJazz => 'Jazz';
+
+  @override
+  String get jamModeScaleTypeDorian => 'Dorien';
+
+  @override
+  String get jamModeScaleTypeMixolydian => 'Mixolydien';
+
+  @override
+  String get jamModeScaleTypeHarmonicMinor => 'Mineure harm.';
+
+  @override
+  String get jamModeScaleTypeMelodicMinor => 'Mineure mél.';
+
+  @override
+  String get jamModeScaleTypeClassical => 'Classique';
+
+  @override
+  String get jamModeScaleTypeAsiatic => 'Asiatique';
+
+  @override
+  String get jamModeScaleTypeOriental => 'Orientale';
+
+  @override
+  String get jamModeScaleTypeWholeTone => 'Par tons';
+
+  @override
+  String get jamModeScaleTypeDiminished => 'Diminuée';
+
+  @override
+  String get jamModeNoMaster => '— PAS DE MASTER —';
+
+  @override
+  String jamModeScaleTypeTooltip(String scale) {
+    return 'Touchez pour changer le type de gamme\nActuel : $scale';
+  }
+
+  @override
+  String get jamModeScaleTypeLabel => 'TYPE DE GAMME';
+
+  @override
+  String get jamModeMasterLabel => 'MASTER';
+
+  @override
+  String get jamModePickHint => '— choisir —';
+
+  @override
+  String get jamModeNone => '— aucun —';
+
+  @override
+  String get jamModeTargetsLabel => 'CIBLES';
+
+  @override
+  String get jamModeAddTarget => 'Ajouter';
+
+  @override
+  String get jamModeDetectLabel => 'DÉTECTION';
+
+  @override
+  String get jamModeDetectTooltip =>
+      '♪ Accord — déduit la gamme de toutes les notes jouées ensemble sur le canal MASTER.\n♩ Basse — n\'utilise que la note la plus grave (idéal pour une walking bass).';
+
+  @override
+  String get jamModeSyncLabel => 'SYNC';
+
+  @override
+  String get jamModeSyncTooltip =>
+      'Quand appliquer les changements de gamme détectés sur le canal MASTER.\n\nOff — tout de suite, à chaque nouvelle note ou accord\n1 temps — au temps suivant\n½ mesure — tous les 2 temps\n1 mesure — tous les 4 temps';
+
+  @override
+  String get jamModeDetectChord => 'Accord';
+
+  @override
+  String get jamModeDetectBass => 'Basse';
+
+  @override
+  String get jamModeSyncOff => 'Off';
+
+  @override
+  String get jamModeSyncBeat => '1 temps';
+
+  @override
+  String get jamModeSyncHalfBar => '½ mesure';
+
+  @override
+  String get jamModeSyncBar => '1 mesure';
+
+  @override
+  String get jamModeShowBordersTooltip => 'Encadrer les touches de la gamme';
+
+  @override
+  String get jamModeDimWrongNotesTooltip => 'Griser les notes hors gamme';
+
+  @override
   String get looperHalfSpeed => '½×';
 
   @override
@@ -1210,6 +1351,24 @@ class AppLocalizationsFr extends AppLocalizations {
   String get looperCcConflictOverwrite => 'Écraser';
 
   @override
+  String get looperStatusIdle => 'ARRÊT';
+
+  @override
+  String looperCcTargetAction(int code) {
+    return 'Action $code';
+  }
+
+  @override
+  String looperCcTargetSlotParam(String param, String slot) {
+    return '$param sur $slot';
+  }
+
+  @override
+  String looperCcTargetCategory(String category, String action) {
+    return '$category : $action';
+  }
+
+  @override
   String get looperVolume => 'Volume';
 
   @override
@@ -1233,6 +1392,11 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String kbConfigKeysDefault(int count) {
     return 'Défaut ($count touches)';
+  }
+
+  @override
+  String kbConfigKeysCount(int count) {
+    return '$count touches';
   }
 
   @override
@@ -1362,6 +1526,48 @@ class AppLocalizationsFr extends AppLocalizations {
   String get thereminPadHeight => 'HAUTEUR';
 
   @override
+  String get thereminPadHigh => '▲ Aigu';
+
+  @override
+  String get thereminPadLow => '▼ Grave';
+
+  @override
+  String get thereminPadVolume => 'Vol ▶';
+
+  @override
+  String get thereminBaseNote => 'BASE';
+
+  @override
+  String get thereminRange => 'ÉTENDUE';
+
+  @override
+  String octaveCountShort(int count) {
+    return '${count}oct';
+  }
+
+  @override
+  String get stylophoneArpOctave => 'OCT';
+
+  @override
+  String get stylophoneArpFifth => 'QUINTE';
+
+  @override
+  String get stylophoneArpLive => 'LIVE';
+
+  @override
+  String stylophoneBitDepth(int bits) {
+    return '${bits}bit';
+  }
+
+  @override
+  String stylophoneOctaveShift(String shift) {
+    return 'OCT $shift';
+  }
+
+  @override
+  String get stylophoneVibrato => 'VIB';
+
+  @override
   String get midiMuteOwnSound => 'MUTE';
 
   @override
@@ -1417,6 +1623,42 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get vst3FxNoEffects => 'Aucun effet — connecter via la vue patch';
+
+  @override
+  String get vst3ParamsDefaultGroup => 'Paramètres';
+
+  @override
+  String vst3ParamsGroupNumber(int id) {
+    return 'Groupe $id';
+  }
+
+  @override
+  String get vst3ParamsHeader => 'PARAMÈTRES';
+
+  @override
+  String vst3ParamsAllGroups(int count) {
+    return 'Tous les groupes ($count)';
+  }
+
+  @override
+  String get vst3ParamsSearchHint => 'Rechercher un paramètre…';
+
+  @override
+  String get vst3ParamsNoMatch => 'Aucun paramètre ne correspond.';
+
+  @override
+  String get vst3NoParamsTitle => 'Aucun paramètre automatisable.';
+
+  @override
+  String vst3NoParamsBody(String pluginName) {
+    return '$pluginName ne partage pas ses réglages avec GrooveForge. Ouvrez sa propre fenêtre pour le régler.';
+  }
+
+  @override
+  String get vst3ShowPluginUi => 'Ouvrir la fenêtre du plugin';
+
+  @override
+  String get vst3ClosePluginUi => 'Fermer la fenêtre du plugin';
 
   @override
   String get rackAddEffectsSectionLabel => 'Effets intégrés';
@@ -1531,14 +1773,14 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get guideRiffBody =>
-      'Riff est une guitare électrique modélisée corde par corde. Elle n\'a pas de touches : reliez le MIDI OUT d\'un clavier à son MIDI IN, ou jouez-la depuis un contrôleur sur son canal MIDI.\nLes notes proches vont sur des cordes différentes et sonnent ensemble. Avec Legato, une note proche de la précédente se joue en hammer-on ou en pull-off sur la même corde. Overlap fait de même, mais seulement quand vous enfoncez une touche avant de lâcher la précédente.\nLa molette de pitch fait des bends, la molette de modulation du vibrato, la pédale de sustain laisse sonner les cordes. Feedback fait monter les cordes tenues vers une harmonique, comme devant un ampli.\nPalm mute, Pick position, Tone et le sélecteur de micros agissent sur les cordes qui sonnent déjà : associez-les à une pédale ou un bouton avec Learn et jouez-en comme les mains d\'un guitariste. Pour du crunch ou de la saturation, branchez Riff dans l\'Ampli.';
+      'Riff est une guitare électrique modélisée corde par corde. Elle n\'a pas de touches : reliez le MIDI OUT d\'un clavier à son MIDI IN, ou jouez-la depuis un contrôleur sur son canal MIDI.\nLes notes proches vont sur des cordes différentes et sonnent ensemble. Avec Legato, une note proche de la précédente se joue en hammer-on ou en pull-off sur la même corde. Overlap fait de même, mais seulement quand vous enfoncez une touche avant de lâcher la précédente.\nLa molette de pitch fait des bends, la molette de modulation du vibrato, la pédale de sustain laisse sonner les cordes. Feedback fait monter les cordes tenues vers une harmonique, comme devant un ampli.\nPalm mute, Pos. médiator, Timbre et le sélecteur de micros agissent sur les cordes qui sonnent déjà : associez-les à une pédale ou un bouton avec Learn et jouez-en comme les mains d\'un guitariste. Pour du crunch ou de la saturation, branchez Riff dans l\'Ampli.';
 
   @override
   String get guideAmpTitle => 'Ampli et IR de baffle';
 
   @override
   String get guideAmpBody =>
-      'L\'Ampli a trois sections à activer ou couper, à la main ou au footswitch : une pédale Drive (Overdrive ou Distortion), l\'ampli lui-même (Gain, Bass, Middle, Treble) et le baffle.\nC\'est le baffle qui fait l\'essentiel du son d\'une guitare. En plus des trois baffles intégrés, l\'Ampli peut jouer une réponse impulsionnelle (IR), l\'enregistrement d\'un vrai baffle : touchez Charger une IR sous l\'Ampli et choisissez un fichier .wav. Il est enregistré dans votre projet ; la croix à côté de son nom le retire.';
+      'L\'Ampli a trois sections à activer ou couper, à la main ou au footswitch : une pédale Drive (Overdrive ou Distorsion), l\'ampli lui-même (Gain, Graves, Médiums, Aigus) et le baffle.\nC\'est le baffle qui fait l\'essentiel du son d\'une guitare. En plus des trois baffles intégrés, l\'Ampli peut jouer une réponse impulsionnelle (IR), l\'enregistrement d\'un vrai baffle : touchez Charger une IR sous l\'Ampli et choisissez un fichier .wav. Il est enregistré dans votre projet ; la croix à côté de son nom le retire.';
 
   @override
   String get guideAmpIrSourcesTitle => 'Où trouver des IR de baffle gratuites';
@@ -1607,6 +1849,18 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get rackAddCustomPluginRemove => 'Retirer de ce menu';
+
+  @override
+  String rackAddPluginNotFound(String pluginId) {
+    return 'Plugin introuvable : $pluginId';
+  }
+
+  @override
+  String get rackAddNoFreeMidiChannel =>
+      'Les 16 canaux MIDI sont déjà tous utilisés.';
+
+  @override
+  String get rackAddVst3Loading => 'Chargement du plugin VST3…';
 
   @override
   String get rackAddMidiFxSectionLabel => 'Effets MIDI intégrés';
@@ -1843,6 +2097,37 @@ class AppLocalizationsFr extends AppLocalizations {
   }
 
   @override
+  String get scalaErrorNotScalaFile =>
+      'Ce n\'est pas un fichier Scala : une ligne de description et un nombre de notes sont attendus.';
+
+  @override
+  String scalaErrorBadNoteCount(String found) {
+    return 'Nombre de notes attendu à la ligne 2, trouvé « $found ».';
+  }
+
+  @override
+  String scalaErrorMissingNotes(int declared, int actual) {
+    return 'Le fichier annonce $declared notes mais en contient $actual.';
+  }
+
+  @override
+  String scalaErrorBadPitch(int line, String found) {
+    return 'La ligne $line n\'est pas une hauteur : « $found ».';
+  }
+
+  @override
+  String get scalaErrorNonPositivePeriod =>
+      'L\'intervalle de répétition doit être supérieur à zéro.';
+
+  @override
+  String get scalaErrorDegreeBelowTonic =>
+      'Les degrés sous la tonique ne sont pas pris en charge.';
+
+  @override
+  String get xenEditorNotGrooveForgeScale =>
+      'ce n\'est pas une gamme GrooveForge';
+
+  @override
   String xenEditorImported(String name) {
     return '« $name » importée';
   }
@@ -1917,6 +2202,203 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get xenScaleWerckmeisterIII => 'Werckmeister III';
+
+  @override
+  String get xenProvenance12Tet => '12-TET';
+
+  @override
+  String get xenProvenanceArabicQuarterTones =>
+      'Convention arabe en quarts de ton (demi-bémols à −50 cents)';
+
+  @override
+  String get xenProvenanceEqualTemperedMaqam =>
+      'Maqam au tempérament égal — sans quarts de ton';
+
+  @override
+  String get xenProvenanceTurkishRast =>
+      'Arel-Ezgi-Uzdilek, 53 commas de Holder de 22,641 cents';
+
+  @override
+  String get xenProvenanceTurkishUssak =>
+      'Arel-Ezgi-Uzdilek : 8, 5, 9, 9, 4, 9, 9 commas de Holder';
+
+  @override
+  String get xenProvenanceTurkishHuseyni =>
+      'Arel-Ezgi-Uzdilek : 8, 5, 9, 9, 8, 5, 9 commas de Holder';
+
+  @override
+  String get xenProvenancePersian =>
+      'Notation en quarts de ton ; la taille du koron varie selon l\'interprète';
+
+  @override
+  String get xenProvenanceShruti =>
+      'Intonation juste d\'après les rapports des shrutis (forme ascendante)';
+
+  @override
+  String get xenProvenanceDarbari =>
+      'Rapports des shrutis ; le komal ga oscille en jeu';
+
+  @override
+  String get xenProvenanceMelakarta15 =>
+      'Melakarta carnatique n° 15, intonation juste';
+
+  @override
+  String get xenProvenanceSanfen =>
+      'Cycle de quintes sanfen sunyi (pythagoricien)';
+
+  @override
+  String get xenProvenanceKoto => 'Accord du koto, noté au tempérament égal';
+
+  @override
+  String get xenProvenanceInSen =>
+      'Gamme japonaise in, notée au tempérament égal';
+
+  @override
+  String get xenProvenanceYo => 'Gamme japonaise yo, notée au tempérament égal';
+
+  @override
+  String get xenProvenanceJeongak =>
+      'Jeongak coréen, cycle de quintes pythagoricien';
+
+  @override
+  String get xenProvenanceGagaku => 'Mode du gagaku, noté au tempérament égal';
+
+  @override
+  String get xenProvenanceThai =>
+      'Division idéalisée en 7 parts égales, 171,4 cents par pas';
+
+  @override
+  String get xenProvenanceQenet => 'Qenet éthiopien ; non tempéré en jeu';
+
+  @override
+  String get xenProvenanceQenetNeutral =>
+      'Qenet éthiopien ; degrés neutres placés en quarts de ton';
+
+  @override
+  String get xenProvenanceAmadinda =>
+      'Accord du xylophone ganda, division idéalisée en 5 parts égales';
+
+  @override
+  String get xenProvenanceHighlandPipe =>
+      'Chalumeau à la gamme presque juste (9/8, 5/4, 4/3, 3/2, 27/16, 16/9)';
+
+  @override
+  String get xenProvenanceHardingfele =>
+      'Intonation moyenne du violon norvégien ; varie selon les régions';
+
+  @override
+  String get xenProvenanceByzantineSoft =>
+      'Théorie byzantine en 72 divisions, genre chromatique doux';
+
+  @override
+  String get xenProvenanceByzantineHard =>
+      'Théorie byzantine en 72 divisions, genre chromatique dur';
+
+  @override
+  String get xenProvenanceSlendro =>
+      'Division idéalisée en 5 parts égales ; les vrais gamelans varient beaucoup';
+
+  @override
+  String get xenProvenancePelog =>
+      'Pelog javanais moyen ; chaque gamelan est différent';
+
+  @override
+  String get xenProvenancePelogBarang =>
+      'Pelog barang javanais moyen ; chaque gamelan est différent';
+
+  @override
+  String get xenProvenanceSelisir =>
+      'Selisir balinais moyen ; chaque gamelan est différent';
+
+  @override
+  String get xenProvenanceJustIntonation =>
+      'Rapports en limite 5 : 16/15, 9/8, 6/5, 5/4, 4/3, 45/32, 3/2, 8/5, 5/3, 9/5, 15/8';
+
+  @override
+  String get xenProvenancePythagorean =>
+      'Chaîne de quintes pures 3/2, de mi♭ à sol♯ ; quinte du loup entre sol♯ et mi♭';
+
+  @override
+  String get xenProvenanceMeantone =>
+      'Quintes réduites d\'un quart de comma syntonique (696,578 cents)';
+
+  @override
+  String get xenProvenanceWerckmeister =>
+      'Werckmeister 1691, quatre quintes réduites d\'un quart de comma pythagoricien';
+
+  @override
+  String get xenProvenanceEdo24 =>
+      '24 divisions égales de l\'octave, espacées de 50 cents';
+
+  @override
+  String get xenProvenanceEdo19 =>
+      '19 divisions égales de l\'octave, espacées de 63,16 cents';
+
+  @override
+  String get xenProvenanceEdo31 =>
+      '31 divisions égales de l\'octave, espacées de 38,71 cents';
+
+  @override
+  String get xenProvenanceBohlenPierce =>
+      '13 divisions égales de la tritave 3:1 — pas d\'octave';
+
+  @override
+  String get xenProvenanceHarmonicSeries =>
+      'Harmoniques 8 à 16 : 9/8, 5/4, 11/8, 3/2, 13/8, 7/4, 15/8';
+
+  @override
+  String get xenProvenanceQuarterToneCluster =>
+      'Quatre touches à 0, 50, 100 et 150 cents, puis l\'octave reprend';
+
+  @override
+  String get xenProvenanceEdo17 =>
+      '17 divisions égales de l\'octave, espacées de 70,59 cents';
+
+  @override
+  String get xenProvenanceEdo22 =>
+      '22 divisions égales de l\'octave, espacées de 54,55 cents';
+
+  @override
+  String get xenProvenanceEdo15 =>
+      '15 divisions égales de l\'octave, espacées de 80 cents';
+
+  @override
+  String get xenProvenanceEdo13 =>
+      '13 divisions égales de l\'octave, espacées de 92,31 cents';
+
+  @override
+  String get xenProvenanceEdo16 =>
+      '16 divisions égales de l\'octave, espacées de 75 cents';
+
+  @override
+  String get xenProvenanceBlackwood =>
+      'Dix notes du 15-EDO, en pas alternés de 80 et 160 cents';
+
+  @override
+  String get xenProvenanceCarlosAlpha =>
+      'Wendy Carlos : pas de 78,0 cents, sans octave';
+
+  @override
+  String get xenProvenanceCarlosBeta =>
+      'Wendy Carlos : pas de 63,8 cents, sans octave';
+
+  @override
+  String get xenProvenanceCarlosGamma =>
+      'Wendy Carlos : pas de 35,1 cents, sans octave';
+
+  @override
+  String get xenProvenanceBohlenPierceLambda =>
+      'Degrés 0, 1, 3, 4, 6, 7, 9, 10, 12 du Bohlen-Pierce à 13 notes';
+
+  @override
+  String get xenProvenanceSubharmonicSeries =>
+      'Sous-harmoniques 16 à 8 : 16/15, 8/7, 16/13, 4/3, 16/11, 8/5, 16/9';
+
+  @override
+  String get xenProvenanceImportedScala => 'Importée depuis Scala (.scl)';
+
+  @override
+  String get xenProvenanceMadeInGrooveForge => 'Créée dans GrooveForge';
 
   @override
   String get midiFxBypass => 'Bypass';
@@ -2230,6 +2712,38 @@ class AppLocalizationsFr extends AppLocalizations {
   String get ccAssignMoveKnobOrButton => 'Bougez un bouton CC ou appuyez…';
 
   @override
+  String ccAssignTitle(String slot) {
+    return 'Assignation CC — $slot';
+  }
+
+  @override
+  String get ccAssignNoParams =>
+      'Aucun réglage de ce module ne se pilote par CC.';
+
+  @override
+  String get ccAssignLearn => 'Learn';
+
+  @override
+  String get ccAssignMoveKnob => 'Tournez un bouton CC…';
+
+  @override
+  String get ccParamModeAbsolute => 'absolu';
+
+  @override
+  String get ccParamModeToggle => 'bascule';
+
+  @override
+  String get ccParamModeCycle => 'cycle';
+
+  @override
+  String get ccParamModeDirect => 'direct';
+
+  @override
+  String ccSlotChannelShort(int channel) {
+    return 'Ch $channel';
+  }
+
+  @override
   String get ccActionPickerLabel => 'Action';
 
   @override
@@ -2279,6 +2793,52 @@ class AppLocalizationsFr extends AppLocalizations {
   String toastSystemVolume(int percent) {
     return 'Volume système : $percent%';
   }
+
+  @override
+  String get toastOutputDeviceDisconnected =>
+      'Sortie audio déconnectée — retour à la sortie par défaut';
+
+  @override
+  String toastSoundfontLoaded(String fileName) {
+    return 'Chargée : $fileName';
+  }
+
+  @override
+  String toastSoundfontLoadError(String error) {
+    return 'Impossible de charger la soundfont : $error';
+  }
+
+  @override
+  String get toastSoundfontUnloaded => 'Soundfont retirée';
+
+  @override
+  String toastScaleLockOn(int channel) {
+    return 'Verrouillage de gamme activé — canal $channel';
+  }
+
+  @override
+  String toastScaleLockOff(int channel) {
+    return 'Verrouillage de gamme désactivé — canal $channel';
+  }
+
+  @override
+  String toastScaleTypeChanged(String scaleName, int channel) {
+    return 'Gamme : $scaleName — canal $channel';
+  }
+
+  @override
+  String toastPatchSweep(int program, int channel) {
+    return 'Programme $program — canal $channel';
+  }
+
+  @override
+  String toastBankSweep(int bank, int channel) {
+    return 'Banque $bank — canal $channel';
+  }
+
+  @override
+  String get toastPreferencesReset =>
+      'Toutes les préférences ont été réinitialisées';
 
   @override
   String get intervalNameUnison => 'Unisson';
@@ -2359,6 +2919,24 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get vocoderWaveHarmony => 'Harmonie';
+
+  @override
+  String get vocoderKnobNoise => 'BRUIT';
+
+  @override
+  String get vocoderKnobSpeed => 'VITESSE';
+
+  @override
+  String get vocoderKnobBandwidth => 'BANDE';
+
+  @override
+  String get vocoderKnobGate => 'GATE';
+
+  @override
+  String get vocoderMeterMic => 'MIC';
+
+  @override
+  String get vocoderMeterOut => 'OUT';
 
   @override
   String get latencyProbeTitle => 'Latence d\'overdub';
@@ -3183,6 +3761,314 @@ class AppLocalizationsFr extends AppLocalizations {
   }
 
   @override
+  String get ccGmBankSelect => 'Sélection de banque (MSB)';
+
+  @override
+  String get ccGmModWheel => 'Molette de modulation (vibrato)';
+
+  @override
+  String get ccGmBreath => 'Contrôleur de souffle';
+
+  @override
+  String get ccGmFootPedal => 'Pédale';
+
+  @override
+  String get ccGmPortamentoTime => 'Temps de portamento';
+
+  @override
+  String get ccGmMainVolume => 'Volume principal';
+
+  @override
+  String get ccGmPan => 'Panoramique (stéréo)';
+
+  @override
+  String get ccGmExpression => 'Expression';
+
+  @override
+  String get ccGmSustainPedal => 'Pédale de sustain';
+
+  @override
+  String get ccGmPortamento => 'Portamento';
+
+  @override
+  String get ccGmResonance => 'Résonance (filtre)';
+
+  @override
+  String get ccGmCutoff => 'Fréquence de coupure (filtre)';
+
+  @override
+  String get ccGmReverbSend => 'Envoi réverb';
+
+  @override
+  String get ccGmChorusSend => 'Envoi chorus';
+
+  @override
+  String get ccSysNextSoundfont => '[Système] Soundfont suivante';
+
+  @override
+  String get ccSysPrevSoundfont => '[Système] Soundfont précédente';
+
+  @override
+  String get ccSysNextPatch => '[Système] Programme/patch suivant';
+
+  @override
+  String get ccSysPrevPatch => '[Système] Programme/patch précédent';
+
+  @override
+  String get ccSysPatchSweep => '[Système] Balayage absolu des patchs';
+
+  @override
+  String get ccSysBankSweep => '[Système] Balayage absolu banque/son';
+
+  @override
+  String get ccSysJamMode => '[Système] Lancer/arrêter le Jam Mode';
+
+  @override
+  String get ccSysCycleScale => '[Système] Type de gamme suivant';
+
+  @override
+  String get ccSysMidiLooperLoop => '[Looper MIDI] Bouton loop';
+
+  @override
+  String get ccSysMidiLooperStop => '[Looper MIDI] Stop';
+
+  @override
+  String get ccSysAudioLooperLoop => '[Looper Audio] Bouton loop';
+
+  @override
+  String get ccSysAudioLooperStop => '[Looper Audio] Stop';
+
+  @override
+  String get ccSysMuteChannels => '[Système] Couper / rétablir les canaux';
+
+  @override
+  String get ccParamMix => 'Mix';
+
+  @override
+  String get ccParamWaveform => 'Forme d\'onde';
+
+  @override
+  String get ccParamVolume => 'Volume';
+
+  @override
+  String get ccParamToggleOnOff => 'Activer/désactiver';
+
+  @override
+  String get ccParamStop => 'Stop';
+
+  @override
+  String get ccParamLevel => 'Niveau';
+
+  @override
+  String get ccParamBypass => 'Bypass';
+
+  @override
+  String get ccParamVibratoDepth => 'Profondeur du vibrato';
+
+  @override
+  String get ccParamVibrato => 'Vibrato';
+
+  @override
+  String get ccParamTuneOnOff => 'Accordage on/off';
+
+  @override
+  String get ccParamTone => 'Tone';
+
+  @override
+  String get ccParamTime => 'Temps';
+
+  @override
+  String get ccParamThreshold => 'Seuil';
+
+  @override
+  String get ccParamSwing => 'Swing';
+
+  @override
+  String get ccParamSustain => 'Sustain';
+
+  @override
+  String get ccParamStrength => 'Force';
+
+  @override
+  String get ccParamStartStop => 'Lecture / arrêt';
+
+  @override
+  String get ccParamSnapOnOff => 'Snap on/off';
+
+  @override
+  String get ccParamSemitones => 'Demi-tons';
+
+  @override
+  String get ccParamSelectPatch => 'Choisir le patch';
+
+  @override
+  String get ccParamScaleType => 'Type de gamme';
+
+  @override
+  String get ccParamRetune => 'Retune';
+
+  @override
+  String get ccParamRecallScale => 'Rappeler une gamme';
+
+  @override
+  String get ccParamRecallRoot => 'Rappeler la tonique';
+
+  @override
+  String get ccParamRate => 'Vitesse';
+
+  @override
+  String get ccParamRangeOctaves => 'Étendue (octaves)';
+
+  @override
+  String get ccParamPrevSoundfont => 'Soundfont précédente';
+
+  @override
+  String get ccParamPrevPattern => 'Pattern précédent';
+
+  @override
+  String get ccParamPrevPatch => 'Patch précédent';
+
+  @override
+  String get ccParamPickupType => 'Type de micro';
+
+  @override
+  String get ccParamPickup => 'Micro';
+
+  @override
+  String get ccParamPickPosition => 'Position du médiator';
+
+  @override
+  String get ccParamPedalSustain => 'Sustain à la pédale';
+
+  @override
+  String get ccParamPedal => 'Pédale';
+
+  @override
+  String get ccParamPattern => 'Pattern';
+
+  @override
+  String get ccParamPatchKnob => 'Patch (potard)';
+
+  @override
+  String get ccParamPalmMuteOnOff => 'Palm mute on/off';
+
+  @override
+  String get ccParamPalmMute => 'Palm mute';
+
+  @override
+  String get ccParamOverlapLegato => 'Legato par chevauchement on/off';
+
+  @override
+  String get ccParamNoiseMix => 'Dose de bruit';
+
+  @override
+  String get ccParamNextSoundfont => 'Soundfont suivante';
+
+  @override
+  String get ccParamNextScaleInFamily => 'Gamme suivante (même famille)';
+
+  @override
+  String get ccParamNextPattern => 'Pattern suivant';
+
+  @override
+  String get ccParamNextPatch => 'Patch suivant';
+
+  @override
+  String get ccParamMute => 'Muet';
+
+  @override
+  String get ccParamMode => 'Mode';
+
+  @override
+  String get ccParamMidiLoopButton =>
+      'Bouton loop (enregistrement/lecture/overdub)';
+
+  @override
+  String get ccParamAudioLoopButton =>
+      'Bouton loop (armement/enregistrement/lecture/overdub)';
+
+  @override
+  String get ccParamLegatoOnOff => 'Legato on/off (hammer-on / pull-off)';
+
+  @override
+  String get ccParamLatchRoot => 'Tonique prise des notes tenues';
+
+  @override
+  String get ccParamInputGain => 'Gain d\'entrée';
+
+  @override
+  String get ccParamHumanFeel => 'Feeling humain';
+
+  @override
+  String get ccParamGateThreshold => 'Seuil du gate';
+
+  @override
+  String get ccParamGain => 'Gain';
+
+  @override
+  String get ccParamFeedback => 'Larsen';
+
+  @override
+  String get ccParamFeedbackHarmonic => 'Harmonique du larsen';
+
+  @override
+  String get ccParamEnvRelease => 'Release de l\'enveloppe';
+
+  @override
+  String get ccParamDriveType => 'Type de drive';
+
+  @override
+  String get ccParamDriveOnOff => 'Drive on/off';
+
+  @override
+  String get ccParamDrive => 'Drive';
+
+  @override
+  String get ccParamDivision => 'Division';
+
+  @override
+  String get ccParamDetectionMode => 'Mode de détection';
+
+  @override
+  String get ccParamDepth => 'Profondeur';
+
+  @override
+  String get ccParamChordType => 'Type d\'accord';
+
+  @override
+  String get ccParamChipArpOnOff => 'Arpège chiptune on/off';
+
+  @override
+  String get ccParamChipArpChord => 'Accord de l\'arpège chiptune';
+
+  @override
+  String get ccParamCenter => 'Centre';
+
+  @override
+  String get ccParamCabOnOff => 'Baffle on/off';
+
+  @override
+  String get ccParamBpmSync => 'Synchro BPM';
+
+  @override
+  String get ccParamBaseNote => 'Note de base';
+
+  @override
+  String get ccParamBandwidth => 'Largeur de bande';
+
+  @override
+  String get ccParamAttack => 'Attaque';
+
+  @override
+  String get ccParamArpRate => 'Vitesse d\'arpège (PAL/NTSC)';
+
+  @override
+  String get ccParamAmpOnOff => 'Ampli on/off';
+
+  @override
+  String get ccParamAmount => 'Intensité';
+
+  @override
   String get guideTabStart => 'Pour commencer';
 
   @override
@@ -3354,6 +4240,498 @@ class AppLocalizationsFr extends AppLocalizations {
       'l\'accordage des gammes entre les touches du piano';
 
   @override
+  String get guideJackLegendData => 'ACCORD / GAMME';
+
+  @override
   String get guideMidiHardwareStep3 =>
       'Il joue le module dont le badge CANAL MIDI correspond au canal qu\'il envoie, en général le 1. Touchez le badge d\'un module pour changer son canal.';
+
+  @override
+  String get gfpaAmpAmp => 'Ampli';
+
+  @override
+  String get gfpaAmpBass => 'Graves';
+
+  @override
+  String get gfpaAmpCab => 'Baffle';
+
+  @override
+  String get gfpaAmpCabinet => 'Baffle';
+
+  @override
+  String get gfpaAmpDrive => 'Drive';
+
+  @override
+  String get gfpaAmpGain => 'Gain';
+
+  @override
+  String get gfpaAmpMiddle => 'Médiums';
+
+  @override
+  String get gfpaAmpModel => 'Modèle';
+
+  @override
+  String get gfpaAmpOn => 'On';
+
+  @override
+  String get gfpaAmpOverdrive => 'Overdrive';
+
+  @override
+  String get gfpaAmpTreble => 'Aigus';
+
+  @override
+  String get gfpaArpeggiatorDivision => 'Division';
+
+  @override
+  String get gfpaArpeggiatorDnUp => 'Bas-haut';
+
+  @override
+  String get gfpaArpeggiatorDown => 'Bas';
+
+  @override
+  String get gfpaArpeggiatorGate => 'Durée';
+
+  @override
+  String get gfpaArpeggiatorOctaves => 'Octaves';
+
+  @override
+  String get gfpaArpeggiatorPattern => 'Motif';
+
+  @override
+  String get gfpaArpeggiatorPlayed => 'Ordre joué';
+
+  @override
+  String get gfpaArpeggiatorRange => 'Étendue';
+
+  @override
+  String get gfpaArpeggiatorRhythm => 'Rythme';
+
+  @override
+  String get gfpaArpeggiatorUp => 'Haut';
+
+  @override
+  String get gfpaArpeggiatorUpDown => 'Haut-bas';
+
+  @override
+  String get gfpaAudioHarmonizerDryWet => 'Dry/Wet';
+
+  @override
+  String get gfpaAutotuneBlues => 'Blues';
+
+  @override
+  String get gfpaAutotuneChromatic => 'Chromatique';
+
+  @override
+  String get gfpaAutotuneHarmonicMinor => 'Mineure harmonique';
+
+  @override
+  String get gfpaAutotuneHumanize => 'Humaniser';
+
+  @override
+  String get gfpaAutotuneKey => 'Tonalité';
+
+  @override
+  String get gfpaAutotuneMajor => 'Majeure';
+
+  @override
+  String get gfpaAutotuneMajorPenta => 'Penta majeure';
+
+  @override
+  String get gfpaAutotuneMinor => 'Mineure';
+
+  @override
+  String get gfpaAutotuneMinorPenta => 'Penta mineure';
+
+  @override
+  String get gfpaAutotuneNotes => 'Notes';
+
+  @override
+  String get gfpaAutotuneRetune => 'Retune';
+
+  @override
+  String get gfpaAutotuneStrength => 'Force';
+
+  @override
+  String get gfpaAutotuneTune => 'Correction';
+
+  @override
+  String get gfpaAutotuneVoice => 'Voix';
+
+  @override
+  String get gfpaChordChord => 'Accord';
+
+  @override
+  String get gfpaChordChordType => 'Type d\'accord';
+
+  @override
+  String get gfpaChordClose => 'Serré';
+
+  @override
+  String get gfpaChordOpen => 'Ouvert';
+
+  @override
+  String get gfpaChordSpread => 'Écart';
+
+  @override
+  String get gfpaChordVoicing => 'Voicing';
+
+  @override
+  String get gfpaChordWide => 'Large';
+
+  @override
+  String get gfpaCompressorCompression => 'Compression';
+
+  @override
+  String get gfpaCompressorEnvelope => 'Enveloppe';
+
+  @override
+  String get gfpaCompressorMakeup => 'Gain';
+
+  @override
+  String get gfpaCompressorRatio => 'Ratio';
+
+  @override
+  String get gfpaCompressorRelease => 'Relâchement';
+
+  @override
+  String get gfpaCompressorThresh => 'Seuil';
+
+  @override
+  String get gfpaDelayCharacter => 'Caractère';
+
+  @override
+  String get gfpaDelayTime => 'Temps';
+
+  @override
+  String get gfpaDelayTiming => 'Synchro';
+
+  @override
+  String get gfpaEqFlat => 'À plat';
+
+  @override
+  String get gfpaEqHM => 'HM';
+
+  @override
+  String get gfpaEqHMHz => 'HM Hz';
+
+  @override
+  String get gfpaEqHMQ => 'HM Q';
+
+  @override
+  String get gfpaEqHiHz => 'Aigu Hz';
+
+  @override
+  String get gfpaEqHigh => 'Aigus';
+
+  @override
+  String get gfpaEqHighGain => 'Aigu';
+
+  @override
+  String get gfpaEqHighMid => 'Haut-médiums';
+
+  @override
+  String get gfpaEqLM => 'BM';
+
+  @override
+  String get gfpaEqLMHz => 'BM Hz';
+
+  @override
+  String get gfpaEqLMQ => 'BM Q';
+
+  @override
+  String get gfpaEqLow => 'Graves';
+
+  @override
+  String get gfpaEqLowGain => 'Grave';
+
+  @override
+  String get gfpaEqLowHz => 'Grave Hz';
+
+  @override
+  String get gfpaEqLowMid => 'Bas-médiums';
+
+  @override
+  String get gfpaGateMaxNote => 'Note max';
+
+  @override
+  String get gfpaGateMaxVel => 'Vél. max';
+
+  @override
+  String get gfpaGateMinNote => 'Note min';
+
+  @override
+  String get gfpaGateMinVel => 'Vél. min';
+
+  @override
+  String get gfpaGatePitch => 'Hauteur';
+
+  @override
+  String get gfpaLabelAttack => 'Attaque';
+
+  @override
+  String get gfpaLabelDelay => 'Délai';
+
+  @override
+  String get gfpaLabelDepth => 'Profondeur';
+
+  @override
+  String get gfpaLabelFeedback => 'Feedback';
+
+  @override
+  String get gfpaLabelLevel => 'Niveau';
+
+  @override
+  String get gfpaLabelMix => 'Mix';
+
+  @override
+  String get gfpaLabelMode => 'Mode';
+
+  @override
+  String get gfpaLabelOutput => 'Sortie';
+
+  @override
+  String get gfpaLabelRate => 'Vitesse';
+
+  @override
+  String get gfpaLabelScale => 'Gamme';
+
+  @override
+  String get gfpaLabelScaleLock => 'Verrou gamme';
+
+  @override
+  String get gfpaLabelSetup => 'Réglages';
+
+  @override
+  String get gfpaLabelTone => 'Timbre';
+
+  @override
+  String get gfpaLabelType => 'Type';
+
+  @override
+  String get gfpaLabelVelocity => 'Vélocité';
+
+  @override
+  String get gfpaLabelVoices => 'Voix';
+
+  @override
+  String get gfpaMicrotoneAverage => 'Moyenne';
+
+  @override
+  String get gfpaMicrotoneBendRange => 'Plage de bend';
+
+  @override
+  String get gfpaMicrotoneCluster => 'Cluster';
+
+  @override
+  String get gfpaMicrotoneLastNote => 'Dernière note';
+
+  @override
+  String get gfpaMicrotoneMean => 'Moyenne';
+
+  @override
+  String get gfpaMicrotoneOuterAvg => 'Moy. extrêmes';
+
+  @override
+  String get gfpaReverbDamp => 'Amorti';
+
+  @override
+  String get gfpaReverbRoom => 'Pièce';
+
+  @override
+  String get gfpaReverbRoomSize => 'Taille';
+
+  @override
+  String get gfpaReverbWidth => 'Largeur';
+
+  @override
+  String get gfpaRiff2Oct => '2 oct';
+
+  @override
+  String get gfpaRiffBend => 'Bend';
+
+  @override
+  String get gfpaRiffBridge => 'Chevalet';
+
+  @override
+  String get gfpaRiffFrettingHand => 'Main gauche';
+
+  @override
+  String get gfpaRiffHarmonic => 'Harmonique';
+
+  @override
+  String get gfpaRiffHumbucker => 'Humbucker';
+
+  @override
+  String get gfpaRiffLegato => 'Legato';
+
+  @override
+  String get gfpaRiffMiddle => 'Milieu';
+
+  @override
+  String get gfpaRiffNeck => 'Manche';
+
+  @override
+  String get gfpaRiffNeckPlusBridge => 'Man.+Chev.';
+
+  @override
+  String get gfpaRiffOctPlus5th => 'Oct+5te';
+
+  @override
+  String get gfpaRiffOverlap => 'Overlap';
+
+  @override
+  String get gfpaRiffPalmMute => 'Palm mute';
+
+  @override
+  String get gfpaRiffPedalSus => 'Pédale sus.';
+
+  @override
+  String get gfpaRiffPickPos => 'Pos. médiator';
+
+  @override
+  String get gfpaRiffPickingHand => 'Main droite';
+
+  @override
+  String get gfpaRiffPickup => 'Micro';
+
+  @override
+  String get gfpaRiffPickups => 'Micros';
+
+  @override
+  String get gfpaRiffRoot => 'Fondam.';
+
+  @override
+  String get gfpaRiffSingleCoil => 'Simple';
+
+  @override
+  String get gfpaRiffStrings => 'Cordes';
+
+  @override
+  String get gfpaRiffSustain => 'Sustain';
+
+  @override
+  String get gfpaTransposerPitchShift => 'Transposition';
+
+  @override
+  String get gfpaTransposerSemitones => 'Demi-tons';
+
+  @override
+  String get gfpaVelocityCurveAmount => 'Dosage';
+
+  @override
+  String get gfpaVelocityCurveCurveType => 'Type de courbe';
+
+  @override
+  String get gfpaVelocityCurveFixed => 'Fixe';
+
+  @override
+  String get gfpaVelocityCurveIntensity => 'Intensité';
+
+  @override
+  String get gfpaVelocityCurvePower => 'Puissance';
+
+  @override
+  String get gfpaVelocityCurveSigmoid => 'Sigmoïde';
+
+  @override
+  String get gfpaWahAuto => 'Auto';
+
+  @override
+  String get gfpaWahCenter => 'Centre';
+
+  @override
+  String get gfpaWahFilter => 'Filtre';
+
+  @override
+  String get gfpaWahManual => 'Manuel';
+
+  @override
+  String get gfpaWahPedal => 'Pédale';
+
+  @override
+  String get gfpaWahReso => 'Réso';
+
+  @override
+  String get gfpaWahSaw => 'Scie';
+
+  @override
+  String get gfpaWahSine => 'Sinus';
+
+  @override
+  String get gfpaWahSweep => 'Balayage';
+
+  @override
+  String get gfpaWahWave => 'Onde';
+
+  @override
+  String get scaleNameIonian => 'Ionien';
+
+  @override
+  String get scaleNameDorian => 'Dorien';
+
+  @override
+  String get scaleNamePhrygian => 'Phrygien';
+
+  @override
+  String get scaleNameLydian => 'Lydien';
+
+  @override
+  String get scaleNameMixolydian => 'Mixolydien';
+
+  @override
+  String get scaleNameAeolian => 'Éolien';
+
+  @override
+  String get scaleNameLocrian => 'Locrien';
+
+  @override
+  String get scaleNameLocrianSharp2 => 'Locrien #2';
+
+  @override
+  String get scaleNameLydianDominant => 'Lydien dominant';
+
+  @override
+  String get scaleNamePhrygianDominant => 'Phrygien dominant';
+
+  @override
+  String get scaleNameAltered => 'Gamme altérée';
+
+  @override
+  String get scaleNameMajor => 'Majeure';
+
+  @override
+  String get scaleNameNaturalMajor => 'Majeure naturelle';
+
+  @override
+  String get scaleNameHarmonicMinor => 'Mineure harmonique';
+
+  @override
+  String get scaleNameMelodicMinor => 'Mineure mélodique';
+
+  @override
+  String get scaleNameMajorPentatonic => 'Pentatonique majeure';
+
+  @override
+  String get scaleNameMinorPentatonic => 'Pentatonique mineure';
+
+  @override
+  String get scaleNameMajorBlues => 'Blues majeur';
+
+  @override
+  String get scaleNameMinorBlues => 'Blues mineur';
+
+  @override
+  String get scaleNameRockHexatonic => 'Hexatonique rock';
+
+  @override
+  String get scaleNameWholeTone => 'Par tons';
+
+  @override
+  String get scaleNameDiminished => 'Diminuée';
+
+  @override
+  String get scaleNameStandard => 'Standard';
+
+  @override
+  String get looperQuantizeOff => 'non';
 }

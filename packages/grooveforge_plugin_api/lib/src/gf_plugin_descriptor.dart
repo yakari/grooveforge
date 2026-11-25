@@ -1,3 +1,4 @@
+import 'gf_localized_text.dart';
 import 'gf_plugin_type.dart';
 
 // ─────────────────────────────────────────────────────────────
@@ -109,7 +110,15 @@ class GFDescriptorParameter {
   final int paramId;
 
   /// Human-readable name shown in the generated UI.
+  ///
+  /// When the `.gfpd` gives the name in several languages this holds the
+  /// default one (see [GFLocalizedText.defaultText]); use [nameIn] to show it
+  /// in the player's language.
   final String name;
+
+  /// The name in every language the `.gfpd` provides, or null when it was
+  /// written as a plain string.
+  final GFLocalizedText? localizedName;
 
   /// Minimum raw (un-normalised) value. Used for UI range display.
   final double min;
@@ -130,6 +139,12 @@ class GFDescriptorParameter {
   /// Each string is a display label for one discrete value.
   final List<String> options;
 
+  /// The [options] in every language the `.gfpd` provides, one entry per
+  /// option, or null when every option was written as a plain string. An
+  /// option written as a plain string inside a mixed list appears here with
+  /// its text under `en`.
+  final List<GFLocalizedText>? localizedOptions;
+
   /// Whether the generated UI prints the current value under the control,
   /// and in what form. Declared in the `.gfpd` as `display: integer` or
   /// `display: interval` or `display: value`; absent means
@@ -147,7 +162,22 @@ class GFDescriptorParameter {
     this.type = GFDescriptorParamType.float,
     this.options = const [],
     this.display = GFParamDisplay.none,
+    this.localizedName,
+    this.localizedOptions,
   });
+
+  /// [name] in [languageCode], falling back to the default text.
+  String nameIn(String languageCode) =>
+      localizedName?.resolve(languageCode) ?? name;
+
+  /// [options] in [languageCode], falling back to the default text.
+  List<String> optionsIn(String languageCode) {
+    final localized = localizedOptions;
+    if (localized == null || localized.length != options.length) {
+      return options;
+    }
+    return [for (final o in localized) o.resolve(languageCode)];
+  }
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -273,7 +303,14 @@ class GFDescriptorControl {
   final String? sourceNodeId;
 
   /// Optional label override. If null, the parameter name is used.
+  ///
+  /// Holds the default text when the `.gfpd` gives the label in several
+  /// languages; use [labelIn] for the player's language.
   final String? label;
+
+  /// The label in every language the `.gfpd` provides, or null when it was
+  /// written as a plain string or left out.
+  final GFLocalizedText? localizedLabel;
 
   /// Size hint for the rendered widget.
   final GFControlSize size;
@@ -288,7 +325,13 @@ class GFDescriptorControl {
     this.label,
     this.size = GFControlSize.medium,
     this.action,
+    this.localizedLabel,
   });
+
+  /// [label] in [languageCode], falling back to the default text. Null when
+  /// the control has no label of its own.
+  String? labelIn(String languageCode) =>
+      localizedLabel?.resolve(languageCode) ?? label;
 }
 
 /// A named group of controls for the responsive plugin UI (Phase 10).
@@ -303,7 +346,14 @@ class GFDescriptorControl {
 /// previous flat behaviour.
 class GFDescriptorControlGroup {
   /// Display label shown as the group heading (e.g. `"Reverb"`, `"Gate"`).
+  ///
+  /// Holds the default text when the `.gfpd` gives the label in several
+  /// languages; use [labelIn] for the player's language.
   final String label;
+
+  /// The label in every language the `.gfpd` provides, or null when it was
+  /// written as a plain string.
+  final GFLocalizedText? localizedLabel;
 
   /// Controls that belong to this group, in display order.
   final List<GFDescriptorControl> controls;
@@ -320,7 +370,12 @@ class GFDescriptorControlGroup {
     required this.label,
     required this.controls,
     this.activeWhen,
+    this.localizedLabel,
   });
+
+  /// [label] in [languageCode], falling back to the default text.
+  String labelIn(String languageCode) =>
+      localizedLabel?.resolve(languageCode) ?? label;
 
   /// Whether this group is active given the plugin's current parameter
   /// values. [rawValueOf] returns a parameter's raw (un-normalised) value by
@@ -400,7 +455,14 @@ class GFPluginDescriptor {
   final String id;
 
   /// Human-readable plugin name.
+  ///
+  /// Holds the default text when the `.gfpd` gives the name in several
+  /// languages; use [nameIn] for the player's language.
   final String name;
+
+  /// The name in every language the `.gfpd` provides, or null when it was
+  /// written as a plain string.
+  final GFLocalizedText? localizedName;
 
   /// Semantic version string.
   final String version;
@@ -461,7 +523,12 @@ class GFPluginDescriptor {
     required this.controls,
     this.groups = const [],
     this.source,
+    this.localizedName,
   });
+
+  /// [name] in [languageCode], falling back to the default text.
+  String nameIn(String languageCode) =>
+      localizedName?.resolve(languageCode) ?? name;
 
   /// Look up a parameter descriptor by its string [id].
   GFDescriptorParameter? paramById(String id) {

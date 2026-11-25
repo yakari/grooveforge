@@ -9,6 +9,7 @@ import 'package:grooveforge_plugin_api/grooveforge_plugin_api.dart'
 
 import '../audio/routing_plan_builder.dart' show wouldCauseSharedStatefulEffect;
 import '../l10n/app_localizations.dart';
+import '../models/engine_toast.dart';
 import '../models/audio_port_id.dart';
 import '../models/gfpa_plugin_instance.dart';
 import '../constants/soundfont_sentinels.dart';
@@ -235,9 +236,9 @@ class _RackScreenState extends State<RackScreen> {
       final l10n = AppLocalizations.of(context);
       final usedMb = (usedBytes / (1024 * 1024)).toStringAsFixed(1);
       final capMb = (capBytes / (1024 * 1024)).round();
-      _engine.toastNotifier.value = l10n != null
+      _engine.toastNotifier.value = LocalizedTextToast(l10n != null
           ? l10n.audioLooperMemoryCapWarning(usedMb, capMb)
-          : 'Audio looper memory: $usedMb MB / $capMb MB cap';
+          : 'Audio looper memory: $usedMb MB / $capMb MB cap');
     };
 
     // Slot-addressed CC parameter control — routes to RackState.
@@ -284,9 +285,9 @@ class _RackScreenState extends State<RackScreen> {
           _engine.setSystemVolume(ccValue / 127.0);
           final pct = (ccValue / 127.0 * 100).round();
           final l10n = AppLocalizations.of(context);
-          _engine.toastNotifier.value = l10n != null
+          _engine.toastNotifier.value = LocalizedTextToast(l10n != null
               ? l10n.toastSystemVolume(pct)
-              : 'System volume: $pct%';
+              : 'System volume: $pct%');
       }
     };
 
@@ -313,9 +314,9 @@ class _RackScreenState extends State<RackScreen> {
               ?.displayName ??
           slotIdB;
       final l10n = AppLocalizations.of(context);
-      _engine.toastNotifier.value = l10n != null
+      _engine.toastNotifier.value = LocalizedTextToast(l10n != null
           ? l10n.toastSwapped(nameA, nameB)
-          : 'Swapped: $nameA ↔ $nameB';
+          : 'Swapped: $nameA ↔ $nameB');
     };
 
     // When the transport starts playing, arm any waiting looper sessions.
@@ -372,8 +373,13 @@ class _RackScreenState extends State<RackScreen> {
     });
 
     _toastListener = () {
-      final msg = _engine.toastNotifier.value;
-      if (msg != null && mounted) {
+      // The engine publishes typed toasts; localize here, where the
+      // player's language is known.
+      final toast = _engine.toastNotifier.value;
+      if (toast == null || !mounted) return;
+      final l10n = AppLocalizations.of(context);
+      if (l10n != null) {
+        final msg = toast.localize(l10n);
         ScaffoldMessenger.of(context).clearSnackBars();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(msg), duration: const Duration(seconds: 2)),
@@ -408,7 +414,7 @@ class _RackScreenState extends State<RackScreen> {
     if (!_engine.inputDeviceDisconnected.value || !mounted) return;
     final l10n = AppLocalizations.of(context);
     if (l10n == null) return;
-    _engine.toastNotifier.value = l10n.micDisconnectedToast;
+    _engine.toastNotifier.value = LocalizedTextToast(l10n.micDisconnectedToast);
   }
 
   @override
@@ -1448,7 +1454,7 @@ class _RackScreenState extends State<RackScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.settings_remote),
-            tooltip: 'CC Mappings',
+            tooltip: l10n.ccMappingPreferences,
             onPressed: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const CcPreferencesScreen()),

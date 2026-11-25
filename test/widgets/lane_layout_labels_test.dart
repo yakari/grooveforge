@@ -17,6 +17,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:grooveforge_plugin_api/grooveforge_plugin_api.dart';
 import 'package:grooveforge_plugin_ui/grooveforge_plugin_ui.dart';
 
+import 'package:grooveforge/l10n/app_localizations.dart';
+import 'package:grooveforge/widgets/rack/gfpa_label.dart';
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -31,18 +34,33 @@ void main() {
     }
   });
 
-  /// Renders the panel of [name] in a window [width] px wide.
-  Future<void> pumpPanel(WidgetTester tester, String name, double width) async {
+  /// Renders the panel of [name] in a window [width] px wide, with the
+  /// labels the app shows in [locale].
+  Future<void> pumpPanel(
+    WidgetTester tester,
+    String name,
+    double width, {
+    Locale locale = const Locale('en'),
+  }) async {
     tester.view.physicalSize = Size(width, 1400);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
+    final descriptor = descriptors[name]!;
     await tester.pumpWidget(MaterialApp(
+      locale: locale,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       home: Scaffold(
         body: SingleChildScrollView(
-          child: GFDescriptorPluginUI(
-            plugin: GFDescriptorPlugin(descriptors[name]!),
-            paramNotifier: ValueNotifier<int>(0),
-          ),
+          child: Builder(builder: (ctx) {
+            final l10n = AppLocalizations.of(ctx)!;
+            return GFDescriptorPluginUI(
+              plugin: GFDescriptorPlugin(descriptor),
+              paramNotifier: ValueNotifier<int>(0),
+              labelResolver: gfpaLabelResolver(l10n, descriptor.id),
+              languageCode: gfpaLanguageCode(l10n),
+            );
+          }),
         ),
       ),
     ));
@@ -60,6 +78,13 @@ void main() {
     for (final width in [360.0, 768.0, 1280.0]) {
       testWidgets('$name: no label is cut at $width px', (tester) async {
         await pumpPanel(tester, name, width);
+        expect(tester.takeException(), isNull);
+        expect(truncatedTexts(tester), isEmpty);
+      });
+      // French labels run longer ("Pos. médiator", "Manche+Chev.").
+      testWidgets('$name: no French label is cut at $width px',
+          (tester) async {
+        await pumpPanel(tester, name, width, locale: const Locale('fr'));
         expect(tester.takeException(), isNull);
         expect(truncatedTexts(tester), isEmpty);
       });

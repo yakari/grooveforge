@@ -2,22 +2,101 @@ import 'dart:math' as math;
 
 import 'gf_scale.dart';
 
+/// Why a Scala `.scl` file could not be imported.
+///
+/// A code rather than a sentence because this package has no localisation:
+/// the app maps each code, with the arguments on [GFScalaImportError], to a
+/// string in the player's language.
+enum GFScalaErrorCode {
+  /// Fewer than two significant lines: no description and note count.
+  notScalaFile,
+
+  /// Line 2 is not a positive integer. [GFScalaImportError.found] holds it.
+  badNoteCount,
+
+  /// Fewer pitch lines than the count announces.
+  /// [GFScalaImportError.declared] and [GFScalaImportError.actual] hold both.
+  missingNotes,
+
+  /// A pitch line is neither cents nor a ratio.
+  /// [GFScalaImportError.line] is its 1-based line number among significant
+  /// lines, [GFScalaImportError.found] its text.
+  badPitch,
+
+  /// The last pitch, the repeat interval, is zero or negative.
+  nonPositivePeriod,
+
+  /// A degree sits below the tonic, which no keyboard layout can place.
+  degreeBelowTonic,
+}
+
+/// A typed import failure: a [code] plus whatever the message needs.
+class GFScalaImportError {
+  /// What went wrong.
+  final GFScalaErrorCode code;
+
+  /// Line number of the offending pitch, for [GFScalaErrorCode.badPitch].
+  final int? line;
+
+  /// Offending text, for [GFScalaErrorCode.badNoteCount] and
+  /// [GFScalaErrorCode.badPitch].
+  final String? found;
+
+  /// Note count the file announces, for [GFScalaErrorCode.missingNotes].
+  final int? declared;
+
+  /// Pitch lines actually present, for [GFScalaErrorCode.missingNotes].
+  final int? actual;
+
+  const GFScalaImportError(
+    this.code, {
+    this.line,
+    this.found,
+    this.declared,
+    this.actual,
+  });
+
+  /// English description, for logs and tests. The UI localises [code]
+  /// instead.
+  String get message => switch (code) {
+        GFScalaErrorCode.notScalaFile =>
+          'Not a Scala file: expected a description line and a note count.',
+        GFScalaErrorCode.badNoteCount =>
+          'Expected a note count on line 2, found "$found".',
+        GFScalaErrorCode.missingNotes =>
+          'File declares $declared notes but contains $actual.',
+        GFScalaErrorCode.badPitch => 'Line $line is not a pitch: "$found".',
+        GFScalaErrorCode.nonPositivePeriod =>
+          'The repeat interval must be greater than zero.',
+        GFScalaErrorCode.degreeBelowTonic =>
+          'Degrees below the tonic are not supported.',
+      };
+
+  @override
+  String toString() => message;
+}
+
 /// Outcome of reading a Scala `.scl` file.
 ///
 /// A result object rather than an exception because import is a user action on
 /// a file the app did not write: "line 7 is not a pitch" is something to show
 /// the player, not something to crash on.
 class GFScalaImportResult {
-  /// The imported scale, or null when [error] explains why there is none.
+  /// The imported scale, or null when [failure] explains why there is none.
   final GFScale? scale;
 
-  /// Why the import failed, in plain English. Null on success.
-  final String? error;
+  /// Why the import failed, as a typed code. Null on success.
+  final GFScalaImportError? failure;
 
-  const GFScalaImportResult.success(GFScale this.scale) : error = null;
-  const GFScalaImportResult.failure(String this.error) : scale = null;
+  const GFScalaImportResult.success(GFScale this.scale) : failure = null;
+  const GFScalaImportResult.failure(GFScalaImportError this.failure)
+      : scale = null;
 
+  /// Whether a scale was produced.
   bool get isSuccess => scale != null;
+
+  /// Why the import failed, in plain English. Null on success.
+  String? get error => failure?.message;
 }
 
 /// Reads the Scala `.scl` tuning format.
@@ -64,6 +143,13 @@ class GFScalaImportResult {
 class GFScalaFile {
   GFScalaFile._();
 
+  /// Provenance stamped on every imported scale.
+  ///
+  /// Stored in English so saved scales and exported files stay
+  /// language-neutral; the app recognises this exact text and shows it
+  /// localised.
+  static const String importedProvenance = 'Imported from Scala (.scl)';
+
   /// Parses [contents] into a scale identified by [id].
   ///
   /// [fallbackName] is used when the file's description line is blank, which
@@ -76,7 +162,7 @@ class GFScalaFile {
     final lines = _significantLines(contents);
     if (lines.length < 2) {
       return const GFScalaImportResult.failure(
-        'Not a Scala file: expected a description line and a note count.',
+        GFScalaImportError(GFScalaErrorCode.notScalaFile),
       );
     }
 
@@ -84,15 +170,21 @@ class GFScalaFile {
     final declaredCount = int.tryParse(lines[1].trim());
     if (declaredCount == null || declaredCount < 1) {
       return GFScalaImportResult.failure(
-        'Expected a note count on line 2, found "${lines[1].trim()}".',
+        GFScalaImportError(
+          GFScalaErrorCode.badNoteCount,
+          found: lines[1].trim(),
+        ),
       );
     }
 
     final pitchLines = lines.skip(2).toList();
     if (pitchLines.length < declaredCount) {
       return GFScalaImportResult.failure(
-        'File declares $declaredCount notes but contains '
-        '${pitchLines.length}.',
+        GFScalaImportError(
+          GFScalaErrorCode.missingNotes,
+          declared: declaredCount,
+          actual: pitchLines.length,
+        ),
       );
     }
 
@@ -102,7 +194,11 @@ class GFScalaFile {
       final cents = _parsePitch(pitchLines[i]);
       if (cents == null) {
         return GFScalaImportResult.failure(
-          'Line ${i + 3} is not a pitch: "${pitchLines[i].trim()}".',
+          GFScalaImportError(
+            GFScalaErrorCode.badPitch,
+            line: i + 3,
+            found: pitchLines[i].trim(),
+          ),
         );
       }
       pitches.add(cents);
@@ -112,7 +208,7 @@ class GFScalaFile {
     final periodCents = pitches.removeLast();
     if (periodCents <= 0) {
       return const GFScalaImportResult.failure(
-        'The repeat interval must be greater than zero.',
+        GFScalaImportError(GFScalaErrorCode.nonPositivePeriod),
       );
     }
 
@@ -120,7 +216,7 @@ class GFScalaFile {
     final degreeCents = <double>[0.0, ...pitches];
     if (degreeCents.any((c) => c < 0)) {
       return const GFScalaImportResult.failure(
-        'Degrees below the tonic are not supported.',
+        GFScalaImportError(GFScalaErrorCode.degreeBelowTonic),
       );
     }
 
@@ -132,7 +228,7 @@ class GFScalaFile {
         id: id,
         name: name,
         family: GFScaleFamily.custom,
-        provenance: 'Imported from Scala (.scl)',
+        provenance: importedProvenance,
         mapping: degrees.mapping,
         periodCents: periodCents,
         degrees: degrees.degrees,

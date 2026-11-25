@@ -11,6 +11,7 @@ import '../../services/rack_state.dart';
 import '../../services/vst_host_service.dart';
 import 'amp_cabinet_ir_row.dart';
 import 'autotune_pitch_display.dart';
+import 'gfpa_label.dart';
 import 'gfpa_param_readout.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -109,6 +110,8 @@ class _GFpaDescriptorSlotUIState extends State<GFpaDescriptorSlotUI> {
             vuController: _vuController,
             valueFormatter: (param, raw) =>
                 gfpaParamReadout(l10n, param, raw),
+            labelResolver: gfpaLabelResolver(l10n, widget.instance.pluginId),
+            languageCode: gfpaLanguageCode(l10n),
             laneEnabled: scalePatched ? _isNotScaleLane : null,
           ),
         ),
@@ -266,6 +269,8 @@ class _GFpaMidiFxDescriptorSlotUIState
             paramNotifier: _paramNotifier,
             valueFormatter: (param, raw) =>
                 gfpaParamReadout(l10n, param, raw),
+            labelResolver: gfpaLabelResolver(l10n, widget.instance.pluginId),
+            languageCode: gfpaLanguageCode(l10n),
           ),
         ),
       ],

@@ -501,6 +501,10 @@ class CcMappingService {
   /// CC preferences target dropdown offers it, explicitly.
   static const int pitchBendTarget = 128;
 
+  /// English names of the GM CCs and system actions offered as targets.
+  ///
+  /// Display them through `gmCcLabel` (lib/services/cc_labels.dart), which
+  /// translates them and falls back to this text.
   static const Map<int, String> standardGmCcs = {
     0: 'Bank Select (MSB)',
     1: 'Modulation Wheel (Vibrato)',

@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [X.x.x]
 
 ### Added
+- A .gfpd file can give its labels in several languages (label: {en: …, fr: …}).
 - Your own .gfpd plugins stay in the + menu after a restart, and a project saves a copy of the ones it uses.
 - Drum Generator: a Breaks setting, and switches for the crash after a fill and the dynamic build (which now does something).
 - On-screen keys now play louder near the front edge of the key. Preferences > Key velocity can fix one strength instead.
@@ -18,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Overdub latency moved from About to the Audio Output section of Preferences.
 
 ### Fixed
+- Linux: loading a VST3 plugin with several outputs, such as Surge XT, crashed the app as soon as audio started.
+- Many panels, menus and messages showed English text in French: Jam Mode, the module panels, Vocoder, Theremin, Stylophone, VST3, CC mappings, scale names and sources, and the app's notifications.
+- CC mapping lists showed internal ids (palm_mute, slot-3) instead of the module and parameter names.
 - Loading an edited .gfpd file kept the old version until restart; the modules in the rack now switch to the new one.
 - A project using your own .gfpd plugin opened with "Plugin not installed" after a restart.
 - Drum Generator played like it changed its mind every bar: it now keeps one groove per phrase, ends it with a fill and lands the next with a crash.

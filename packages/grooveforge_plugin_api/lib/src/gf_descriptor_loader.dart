@@ -1,4 +1,5 @@
 import 'package:yaml/yaml.dart';
+import 'gf_localized_text.dart';
 import 'gf_plugin.dart';
 import 'gf_plugin_descriptor.dart';
 import 'gf_plugin_type.dart';
@@ -121,7 +122,7 @@ class GFDescriptorLoader {
 
   static GFPluginDescriptor _parseDescriptor(YamlMap doc, String source) {
     final id = _str(doc, 'id');
-    final name = _str(doc, 'name');
+    final (name, localizedName) = _text(doc, 'name');
     final version = _str(doc, 'version');
     final typeStr = _str(doc, 'type');
     final specVersion = _str(doc, 'spec', fallback: '1.0');
@@ -146,6 +147,7 @@ class GFDescriptorLoader {
       controls: controls,
       groups: groups,
       source: source,
+      localizedName: localizedName,
     );
   }
 
@@ -161,10 +163,8 @@ class GFDescriptorLoader {
         'selector' => GFDescriptorParamType.selector,
         _ => GFDescriptorParamType.float,
       };
-      final opts = (m['options'] as YamlList?)
-              ?.map((e) => e.toString())
-              .toList(growable: false) ??
-          const <String>[];
+      final (opts, localizedOpts) = _parseOptions(m['options']);
+      final (name, localizedName) = _text(m, 'name');
       // `display:` opts the parameter into a numeric readout under its
       // control. Unknown values fall back to no readout rather than
       // failing the load, so a descriptor written against a newer spec
@@ -178,13 +178,15 @@ class GFDescriptorLoader {
       return GFDescriptorParameter(
         id: _str(m, 'id'),
         paramId: _int(m, 'paramId'),
-        name: _str(m, 'name'),
+        name: name,
+        localizedName: localizedName,
         min: _double(m, 'min'),
         max: _double(m, 'max'),
         defaultValue: _double(m, 'default'),
         unit: _str(m, 'unit', fallback: ''),
         type: type,
         options: opts,
+        localizedOptions: localizedOpts,
         display: display,
       );
     }).toList(growable: false);
@@ -313,8 +315,10 @@ class GFDescriptorLoader {
     if (raw is! YamlList) return const [];
     return raw.map<GFDescriptorControlGroup>((item) {
       final m = item as YamlMap;
+      final (label, localizedLabel) = _text(m, 'label');
       return GFDescriptorControlGroup(
-        label: _str(m, 'label'),
+        label: label,
+        localizedLabel: localizedLabel,
         controls: _parseControls(m['controls']),
         activeWhen: _parseActiveWhen(m['activeWhen']),
       );
@@ -356,11 +360,16 @@ class GFDescriptorLoader {
         'large' => GFControlSize.large,
         _ => GFControlSize.medium,
       };
+      // A missing label stays null so the control falls back to its
+      // parameter's name; an empty `(String, null)` would hide that name.
+      final hasLabel = m['label'] != null;
+      final (label, localizedLabel) = _text(m, 'label');
       return GFDescriptorControl(
         type: controlType,
         paramId: m['param']?.toString(),
         sourceNodeId: m['source']?.toString(),
-        label: m['label']?.toString(),
+        label: hasLabel ? label : null,
+        localizedLabel: localizedLabel,
         size: size,
         action: m['action']?.toString(),
       );
@@ -376,6 +385,48 @@ class GFDescriptorLoader {
         'analyzer' => GFPluginType.analyzer,
         _ => GFPluginType.effect,
       };
+
+  /// Reads a user-visible text field that may be written either as a plain
+  /// string or as a language map (`{en: "Gate", fr: "Porte"}`).
+  ///
+  /// Returns the default text (English, else the first language given) for
+  /// the descriptor's plain `String` field, plus the full map when one was
+  /// written. A plain string returns a null map, so descriptors that never
+  /// use the map form are built exactly as before.
+  static (String, GFLocalizedText?) _text(YamlMap m, String key) =>
+      _textOf(m[key]);
+
+  /// [_text] for a bare YAML value rather than a map entry.
+  static (String, GFLocalizedText?) _textOf(dynamic raw) {
+    if (raw is! YamlMap) return (raw?.toString() ?? '', null);
+    final localized = GFLocalizedText({
+      for (final entry in raw.entries)
+        entry.key.toString(): entry.value?.toString() ?? '',
+    });
+    return (localized.defaultText, localized);
+  }
+
+  /// Parses a selector's `options:` list, where each entry may be a plain
+  /// string or a language map.
+  ///
+  /// The localized list is null unless at least one entry is a map; a plain
+  /// entry in a mixed list is kept under `en` so every option has a slot.
+  static (List<String>, List<GFLocalizedText>?) _parseOptions(dynamic raw) {
+    if (raw is! YamlList) return (const <String>[], null);
+    final plain = <String>[];
+    final localized = <GFLocalizedText>[];
+    var anyLocalized = false;
+    for (final item in raw) {
+      final (text, map) = _textOf(item);
+      plain.add(text);
+      localized.add(map ?? GFLocalizedText({'en': text}));
+      if (map != null) anyLocalized = true;
+    }
+    return (
+      List.unmodifiable(plain),
+      anyLocalized ? List.unmodifiable(localized) : null,
+    );
+  }
 
   static String _str(YamlMap m, String key, {String fallback = ''}) =>
       m[key]?.toString() ?? fallback;

@@ -76,6 +76,7 @@ class _Vst3PluginPanelState extends State<_Vst3PluginPanel> {
   static const int _kSplitThreshold = 48;
 
   void _loadParams() {
+    final l10n = AppLocalizations.of(context)!;
     if (!mounted) return;
     final vstSvc = context.read<VstHostService>();
     final params = vstSvc.getParameters(widget.plugin.id);
@@ -98,7 +99,7 @@ class _Vst3PluginPanelState extends State<_Vst3PluginPanel> {
       final uid = entry.key;
       final list = entry.value;
       final unitName = unitNames[uid] ??
-          (uid <= 0 ? 'Parameters' : 'Group $uid');
+          (uid <= 0 ? l10n.vst3ParamsDefaultGroup : l10n.vst3ParamsGroupNumber(uid));
 
       if (list.length > _kSplitThreshold) {
         final sub = _SubGroupDetector.detect(list);
@@ -526,7 +527,7 @@ class _CollapsibleParamsHeader extends StatelessWidget {
             ),
             const SizedBox(width: 4),
             Text(
-              'PARAMETERS',
+              AppLocalizations.of(context)!.vst3ParamsHeader,
               style: TextStyle(
                 color: Colors.white.withValues(alpha: 0.4),
                 fontSize: 10,
@@ -804,7 +805,7 @@ class _ParamCategoryModalState extends State<_ParamCategoryModal> {
                         DropdownMenuItem(
                           value: null,
                           child: Text(
-                            'All groups (${widget.params.length})',
+                            AppLocalizations.of(context)!.vst3ParamsAllGroups(widget.params.length),
                             style: const TextStyle(color: Colors.white54),
                           ),
                         ),
@@ -835,7 +836,7 @@ class _ParamCategoryModalState extends State<_ParamCategoryModal> {
               controller: _searchCtrl,
               style: const TextStyle(color: Colors.white, fontSize: 13),
               decoration: InputDecoration(
-                hintText: 'Search parameters…',
+                hintText: AppLocalizations.of(context)!.vst3ParamsSearchHint,
                 hintStyle: const TextStyle(color: Colors.white38, fontSize: 13),
                 prefixIcon:
                     const Icon(Icons.search, color: Colors.white38, size: 18),
@@ -862,12 +863,12 @@ class _ParamCategoryModalState extends State<_ParamCategoryModal> {
           // ── Knob grid ────────────────────────────────────────────────────
           Flexible(
             child: pageItems.isEmpty
-                ? const Center(
+                ? Center(
                     child: Padding(
-                      padding: EdgeInsets.all(32),
+                      padding: const EdgeInsets.all(32),
                       child: Text(
-                        'No parameters match.',
-                        style: TextStyle(color: Colors.white38),
+                        AppLocalizations.of(context)!.vst3ParamsNoMatch,
+                        style: const TextStyle(color: Colors.white38),
                       ),
                     ),
                   )
@@ -993,14 +994,14 @@ class _StatusRow extends StatelessWidget {
             borderRadius: BorderRadius.circular(4),
             border: Border.all(color: Colors.tealAccent.withValues(alpha: 0.4)),
           ),
-          child: const Row(
+          child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.piano, size: 11, color: Colors.tealAccent),
-              SizedBox(width: 4),
+              const Icon(Icons.piano, size: 11, color: Colors.tealAccent),
+              const SizedBox(width: 4),
               Text(
-                'MIDI IN',
-                style: TextStyle(
+                AppLocalizations.of(context)!.portMidiIn,
+                style: const TextStyle(
                   color: Colors.tealAccent,
                   fontSize: 10,
                   fontWeight: FontWeight.bold,
@@ -1038,13 +1039,13 @@ class _NoParamsHint extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'No automatable parameters found.',
-                  style: TextStyle(color: Colors.white54, fontSize: 12),
+                Text(
+                  AppLocalizations.of(context)!.vst3NoParamsTitle,
+                  style: const TextStyle(color: Colors.white54, fontSize: 12),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '$pluginName does not expose parameters via IEditController.',
+                  AppLocalizations.of(context)!.vst3NoParamsBody(pluginName),
                   style: const TextStyle(color: Colors.white38, fontSize: 11),
                 ),
               ],
@@ -1129,7 +1130,11 @@ class _EditorButtonState extends State<_EditorButton> {
           textStyle: const TextStyle(fontSize: 11),
         ),
         icon: Icon(_open ? Icons.close : Icons.open_in_new, size: 14),
-        label: Text(_open ? 'Close Plugin UI' : 'Show Plugin UI'),
+        label: Text(
+          _open
+              ? AppLocalizations.of(context)!.vst3ClosePluginUi
+              : AppLocalizations.of(context)!.vst3ShowPluginUi,
+        ),
       ),
     );
   }

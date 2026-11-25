@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../../constants/soundfont_sentinels.dart';
 import '../../l10n/app_localizations.dart';
+import '../../l10n/scale_names.dart';
 import '../../models/chord_detector.dart';
 import '../../models/gfpa_plugin_instance.dart';
 import '../../models/grooveforge_keyboard_plugin.dart';
@@ -343,7 +344,9 @@ class _LedButton extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              enabled ? 'ON' : 'OFF',
+              enabled
+                  ? AppLocalizations.of(context)!.jamModeOn
+                  : AppLocalizations.of(context)!.jamModeOff,
               style: TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.w900,
@@ -385,25 +388,9 @@ class _ScaleLcdSelector extends StatelessWidget {
   final void Function(RackState, Map<String, dynamic>) onUpdate;
   final bool showLabel;
 
-  static const _scaleLabels = {
-    ScaleType.standard: 'Standard',
-    ScaleType.pentatonic: 'Pentatonic',
-    ScaleType.blues: 'Blues',
-    ScaleType.rock: 'Rock',
-    ScaleType.jazz: 'Jazz',
-    ScaleType.dorian: 'Dorian',
-    ScaleType.mixolydian: 'Mixolydian',
-    ScaleType.harmonicMinor: 'Harm. Minor',
-    ScaleType.melodicMinor: 'Mel. Minor',
-    ScaleType.classical: 'Classical',
-    ScaleType.asiatic: 'Asiatic',
-    ScaleType.oriental: 'Oriental',
-    ScaleType.wholeTone: 'Whole Tone',
-    ScaleType.diminished: 'Diminished',
-  };
-
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final masterSlot = allSlots.cast<PluginInstance?>().firstWhere(
           (s) => s?.id == plugin.masterSlotId,
           orElse: () => null,
@@ -412,7 +399,7 @@ class _ScaleLcdSelector extends StatelessWidget {
     // Build the live scale-name content for the LCD
     Widget lcdContent;
     if (masterSlot == null) {
-      lcdContent = _buildLcd(context, '— NO MASTER —', showChevron: true);
+      lcdContent = _buildLcd(context, l10n.jamModeNoMaster, showChevron: true);
     } else {
       final masterCh = masterSlot.midiChannel - 1;
       lcdContent = ListenableBuilder(
@@ -440,7 +427,7 @@ class _ScaleLcdSelector extends StatelessWidget {
               ScaleType.asiatic,
               ScaleType.oriental,
             };
-            final rawTag = _scaleLabels[entry.scaleType] ?? entry.scaleType.name;
+            final rawTag = scaleTypeLabel(l10n, entry.scaleType);
             final typeTag = taggedTypes.contains(entry.scaleType)
                 ? ' [$rawTag]'
                 : '';
@@ -454,16 +441,16 @@ class _ScaleLcdSelector extends StatelessWidget {
                 final synth =
                     ChordMatch(_noteNameFromPc(rootPc), const {}, rootPc, false);
                 final name =
-                    engine.getDescriptiveScaleName(synth, entry.scaleType);
+                    descriptiveScaleName(l10n, engine, synth, entry.scaleType);
                 label = '${_noteNameFromPc(rootPc)} $name$typeTag';
               } else {
                 label =
-                    '${engine.getDescriptiveScaleName(null, entry.scaleType)}$typeTag';
+                    '${descriptiveScaleName(l10n, engine, null, entry.scaleType)}$typeTag';
               }
             } else {
               final chord = engine.channels[masterCh].lastChord.value;
               final name =
-                  engine.getDescriptiveScaleName(chord, entry.scaleType);
+                  descriptiveScaleName(l10n, engine, chord, entry.scaleType);
               final scalePart = chord != null
                   ? '${_noteNameFromPc(chord.rootPc)} $name'
                   : name;
@@ -476,7 +463,7 @@ class _ScaleLcdSelector extends StatelessWidget {
     }
 
     return Tooltip(
-      message: 'Tap to change the scale type\nCurrent: ${_scaleLabels[scaleType] ?? scaleType.name}',
+      message: l10n.jamModeScaleTypeTooltip(scaleTypeLabel(l10n, scaleType)),
       child: PopupMenuButton<ScaleType>(
         color: const Color(0xFF1C1C1C),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
@@ -494,7 +481,7 @@ class _ScaleLcdSelector extends StatelessWidget {
                     const SizedBox(width: 11),
                   const SizedBox(width: 6),
                   Text(
-                    _scaleLabels[s] ?? s.name,
+                    scaleTypeLabel(l10n, s),
                     style: TextStyle(
                       fontSize: 12,
                       color: s == scaleType ? _kLcdAmber : Colors.white70,
@@ -519,7 +506,7 @@ class _ScaleLcdSelector extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    'SCALE TYPE',
+                    l10n.jamModeScaleTypeLabel,
                     style: TextStyle(
                       fontSize: 9,
                       fontWeight: FontWeight.w800,
@@ -674,7 +661,7 @@ class _MasterSection extends StatelessWidget {
             ),
             const SizedBox(width: 4),
             Text(
-              'MASTER',
+              AppLocalizations.of(context)!.jamModeMasterLabel,
               style: TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.w800,
@@ -690,8 +677,8 @@ class _MasterSection extends StatelessWidget {
           width: 130,
           child: DropdownButton<String>(
             value: current?.id,
-            hint: const Text(
-              '— pick —',
+            hint: Text(
+              AppLocalizations.of(context)!.jamModePickHint,
               style: TextStyle(fontSize: 11, color: Colors.white54),
             ),
             isExpanded: true,
@@ -705,16 +692,16 @@ class _MasterSection extends StatelessWidget {
             icon: Icon(Icons.arrow_drop_down,
                 color: _kMasterColor.withValues(alpha: 0.7)),
             items: [
-              const DropdownMenuItem(
+              DropdownMenuItem(
                 value: null,
-                child: Text('— none —',
-                    style: TextStyle(fontSize: 11, color: Colors.white54)),
+                child: Text(AppLocalizations.of(context)!.jamModeNone,
+                    style: const TextStyle(fontSize: 11, color: Colors.white54)),
               ),
               for (final s in allSlots)
                 DropdownMenuItem(
                   value: s.id,
                   child: Text(
-                    'CH ${s.midiChannel} — ${_shortName(context, s)}',
+                    _slotLabel(context, s, separator: ' — '),
                     style: const TextStyle(fontSize: 11),
                   ),
                 ),
@@ -766,7 +753,7 @@ class _TargetsSection extends StatelessWidget {
             ),
             const SizedBox(width: 4),
             Text(
-              'TARGETS',
+              AppLocalizations.of(context)!.jamModeTargetsLabel,
               style: TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.w800,
@@ -791,7 +778,7 @@ class _TargetsSection extends StatelessWidget {
               ),
             if (targetIds.isEmpty && available.isEmpty)
               Text(
-                'no slots',
+                AppLocalizations.of(context)!.xenNoSlots,
                 style: TextStyle(fontSize: 10, color: Colors.white54),
               ),
           ],
@@ -806,7 +793,7 @@ class _TargetsSection extends StatelessWidget {
           orElse: () => null,
         );
     final label =
-        slot != null ? 'CH ${slot.midiChannel} ${_shortName(context, slot)}' : '?';
+        slot != null ? _slotLabel(context, slot, separator: ' ') : '?';
 
     return Container(
       padding: const EdgeInsets.fromLTRB(7, 3, 5, 3),
@@ -856,7 +843,7 @@ class _AddTargetButton extends StatelessWidget {
             value: s.id,
             height: 34,
             child: Text(
-              'CH ${s.midiChannel} — ${_shortName(menuCtx, s)}',
+              _slotLabel(menuCtx, s, separator: ' — '),
               style: const TextStyle(fontSize: 12, color: Colors.white70),
             ),
           ),
@@ -874,7 +861,7 @@ class _AddTargetButton extends StatelessWidget {
             Icon(Icons.add, size: 10, color: _kTargetColor),
             const SizedBox(width: 3),
             Text(
-              'Add',
+              AppLocalizations.of(context)!.jamModeAddTarget,
               style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.w700,
@@ -912,6 +899,7 @@ class _ControlsStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     // Wrap lets DETECT / SYNC / visual toggles reflow to a second line on
     // narrow screens instead of causing horizontal overflow.
     return Wrap(
@@ -921,23 +909,16 @@ class _ControlsStrip extends StatelessWidget {
       children: [
         // ── Detection mode ─────────────────────────────────────────────────
         _LabeledControl(
-          label: 'DETECT',
-          tooltip:
-              '♪ Chord — detect the scale from all notes pressed simultaneously on the master channel.\n'
-              '♩ Bass note — use only the lowest note (ideal for walking bass lines).',
+          label: l10n.jamModeDetectLabel,
+          tooltip: l10n.jamModeDetectTooltip,
           child: _ModeToggle(
               detectionMode: detectionMode, onUpdate: onUpdate, rack: rack),
         ),
 
         // ── BPM sync ───────────────────────────────────────────────────────
         _LabeledControl(
-          label: 'SYNC',
-          tooltip:
-              'When to apply scale changes detected from the master channel.\n\n'
-              'Off — apply immediately on each new note/chord\n'
-              '1 beat — wait for the next beat\n'
-              '½ bar — change every 2 beats\n'
-              '1 bar — change every 4 beats',
+          label: l10n.jamModeSyncLabel,
+          tooltip: l10n.jamModeSyncTooltip,
           child: _BpmStrip(
               bpmLockBeats: bpmLockBeats, onUpdate: onUpdate, rack: rack),
         ),
@@ -1023,7 +1004,7 @@ class _ModeToggle extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           _ModeTab(
-            label: 'Chord',
+            label: AppLocalizations.of(context)!.jamModeDetectChord,
             icon: Icons.music_note,
             selected: detectionMode == JamDetectionMode.chord,
             color: _kModeChord,
@@ -1032,7 +1013,7 @@ class _ModeToggle extends StatelessWidget {
           ),
           Container(width: 1, height: 20, color: Colors.white10),
           _ModeTab(
-            label: 'Bass',
+            label: AppLocalizations.of(context)!.jamModeDetectBass,
             icon: Icons.piano,
             selected: detectionMode == JamDetectionMode.bassNote,
             color: _kModeBass,
@@ -1107,19 +1088,22 @@ class _BpmStrip extends StatelessWidget {
   final void Function(RackState, Map<String, dynamic>) onUpdate;
   final RackState rack;
 
-  static const _options = [
-    (val: 0, label: 'Off'),
-    (val: 1, label: '1 beat'),
-    (val: 2, label: '½ bar'),
-    (val: 4, label: '1 bar'),
-  ];
+  /// The sync choices, as beats to wait before applying a new scale (0 means
+  /// apply at once) paired with their localized button label.
+  static List<({int val, String label})> _options(AppLocalizations l10n) => [
+        (val: 0, label: l10n.jamModeSyncOff),
+        (val: 1, label: l10n.jamModeSyncBeat),
+        (val: 2, label: l10n.jamModeSyncHalfBar),
+        (val: 4, label: l10n.jamModeSyncBar),
+      ];
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Wrap(
       spacing: 3,
       runSpacing: 3,
-      children: _options.map((opt) {
+      children: _options(l10n).map((opt) {
         final sel = bpmLockBeats == opt.val;
         return GestureDetector(
           onTap: () => onUpdate(rack, {'bpmLockBeats': opt.val}),
@@ -1167,7 +1151,7 @@ class _VisualToggles extends StatelessWidget {
         children: [
           _VisualToggle(
             icon: Icons.border_outer,
-            tooltip: 'Show scale borders on keys',
+            tooltip: AppLocalizations.of(context)!.jamModeShowBordersTooltip,
             active: engine.showJamModeBorders.value,
             color: _kVisualColor,
             onToggle: () {
@@ -1179,7 +1163,7 @@ class _VisualToggles extends StatelessWidget {
           const SizedBox(width: 4),
           _VisualToggle(
             icon: Icons.highlight_off,
-            tooltip: 'Dim out-of-scale notes',
+            tooltip: AppLocalizations.of(context)!.jamModeDimWrongNotesTooltip,
             active: engine.highlightWrongNotes.value,
             color: Colors.redAccent,
             onToggle: () {
@@ -1379,7 +1363,9 @@ class _PinnedJamModeRow extends StatelessWidget {
                     : [],
               ),
               child: Text(
-                enabled ? 'ON' : 'OFF',
+                enabled
+                    ? AppLocalizations.of(context)!.jamModeOn
+                    : AppLocalizations.of(context)!.jamModeOff,
                 style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.w900,
@@ -1433,31 +1419,14 @@ class _PinnedScaleLcd extends StatelessWidget {
     );
   }
 
-  // Mirrors the label map from _ScaleLcdSelector.
-  static const _scaleLabels = {
-    ScaleType.standard: 'Standard',
-    ScaleType.pentatonic: 'Pentatonic',
-    ScaleType.blues: 'Blues',
-    ScaleType.rock: 'Rock',
-    ScaleType.jazz: 'Jazz',
-    ScaleType.dorian: 'Dorian',
-    ScaleType.mixolydian: 'Mixolydian',
-    ScaleType.harmonicMinor: 'Harm. Minor',
-    ScaleType.melodicMinor: 'Mel. Minor',
-    ScaleType.classical: 'Classical',
-    ScaleType.asiatic: 'Asiatic',
-    ScaleType.oriental: 'Oriental',
-    ScaleType.wholeTone: 'Whole Tone',
-    ScaleType.diminished: 'Diminished',
-  };
-
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final rack = context.read<RackState>();
 
     // No master slot — show a non-interactive placeholder.
     if (plugin.masterSlotId == null) {
-      return _popupWrapper(context, rack, _lcdBox('— NO MASTER —'));
+      return _popupWrapper(context, rack, _lcdBox(l10n.jamModeNoMaster));
     }
 
     // Resolve master slot → 0-based channel index used by the engine.
@@ -1491,7 +1460,7 @@ class _PinnedScaleLcd extends StatelessWidget {
           ScaleType.asiatic,
           ScaleType.oriental,
         };
-        final rawTag = _scaleLabels[entry.scaleType] ?? entry.scaleType.name;
+        final rawTag = scaleTypeLabel(l10n, entry.scaleType);
         final typeTag =
             taggedTypes.contains(entry.scaleType) ? ' [$rawTag]' : '';
 
@@ -1503,16 +1472,16 @@ class _PinnedScaleLcd extends StatelessWidget {
             final synth =
                 ChordMatch(_noteNameFromPc(rootPc), const {}, rootPc, false);
             label =
-                '${_noteNameFromPc(rootPc)} ${engine.getDescriptiveScaleName(synth, entry.scaleType)}$typeTag';
+                '${_noteNameFromPc(rootPc)} ${descriptiveScaleName(l10n, engine, synth, entry.scaleType)}$typeTag';
           } else {
             label =
-                '${engine.getDescriptiveScaleName(null, entry.scaleType)}$typeTag';
+                '${descriptiveScaleName(l10n, engine, null, entry.scaleType)}$typeTag';
           }
         } else {
           final chord = engine.channels[masterCh].lastChord.value;
           final scalePart = chord != null
-              ? '${_noteNameFromPc(chord.rootPc)} ${engine.getDescriptiveScaleName(chord, entry.scaleType)}'
-              : engine.getDescriptiveScaleName(null, entry.scaleType);
+              ? '${_noteNameFromPc(chord.rootPc)} ${descriptiveScaleName(l10n, engine, chord, entry.scaleType)}'
+              : descriptiveScaleName(l10n, engine, null, entry.scaleType);
           label = '$scalePart$typeTag';
         }
 
@@ -1524,9 +1493,9 @@ class _PinnedScaleLcd extends StatelessWidget {
   /// Wraps [child] in a [PopupMenuButton] that lets the user pick a new scale
   /// type — identical behaviour to the full-rack [_ScaleLcdSelector].
   Widget _popupWrapper(BuildContext context, RackState rack, Widget child) {
+    final l10n = AppLocalizations.of(context)!;
     return Tooltip(
-      message:
-          'Tap to change scale type\nCurrent: ${_scaleLabels[_scaleType] ?? _scaleType.name}',
+      message: l10n.jamModeScaleTypeTooltip(scaleTypeLabel(l10n, _scaleType)),
       child: PopupMenuButton<ScaleType>(
         color: const Color(0xFF1C1C1C),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
@@ -1547,7 +1516,7 @@ class _PinnedScaleLcd extends StatelessWidget {
                     const SizedBox(width: 11),
                   const SizedBox(width: 6),
                   Text(
-                    _scaleLabels[s] ?? s.name,
+                    scaleTypeLabel(l10n, s),
                     style: TextStyle(
                       fontSize: 12,
                       color: s == _scaleType ? _kLcdAmber : Colors.white70,
@@ -1600,6 +1569,16 @@ String _noteNameFromPc(int pc) {
   return names[pc % 12];
 }
 
+/// Label of a rack slot in the MASTER / TARGETS pickers: its MIDI channel
+/// ("CH 2") followed by [separator] and its short name.
+String _slotLabel(BuildContext context, PluginInstance s,
+    {required String separator}) {
+  final channel = AppLocalizations.of(context)!.rackChannelShort(s.midiChannel);
+  return '$channel$separator${_shortName(context, s)}';
+}
+
+/// Short display name of a rack slot: the soundfont file name for a
+/// keyboard (truncated to 12 characters), otherwise the plugin's own name.
 String _shortName(BuildContext context, PluginInstance s) {
   final l10n = AppLocalizations.of(context)!;
   if (s is GrooveForgeKeyboardPlugin) {

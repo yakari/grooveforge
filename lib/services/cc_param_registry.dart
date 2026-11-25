@@ -25,7 +25,9 @@ class CcParamEntry {
   /// Unique key used in [SlotParamTarget.paramKey] (e.g. "bypass", "mix").
   final String paramKey;
 
-  /// Human-readable label (used in UI; not an l10n key for now).
+  /// English label. Also the lookup key for its translation: show it through
+  /// `ccParamLabel` (lib/services/cc_labels.dart), and add an ARB key there
+  /// when adding a new label.
   final String displayName;
 
   /// GFPA parameter ID for [GFPlugin.setParameter] / [GFPlugin.getParameter].

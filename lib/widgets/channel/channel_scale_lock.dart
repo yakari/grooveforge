@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:grooveforge/l10n/app_localizations.dart';
+import 'package:grooveforge/l10n/scale_names.dart' as scale_names;
 import 'package:grooveforge/models/chord_detector.dart';
 import 'package:grooveforge/services/audio_engine.dart';
 
@@ -115,7 +117,12 @@ class ChannelScaleLock extends StatelessWidget {
                     return DropdownMenuItem<ScaleType>(
                       value: value,
                       child: Text(
-                        engine.getDescriptiveScaleName(referenceChord, value),
+                        scale_names.descriptiveScaleName(
+                          AppLocalizations.of(context)!,
+                          engine,
+                          referenceChord,
+                          value,
+                        ),
                         style: TextStyle(
                           color: isJamSlave ? Colors.white54 : Colors.white,
                         ),

@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
+import '../models/engine_toast.dart';
 import '../models/cabinet_ir.dart';
 import '../models/drum_generator_plugin_instance.dart';
 import '../models/gfpa_plugin_instance.dart';
@@ -1560,7 +1561,7 @@ class RackState extends ChangeNotifier {
     slot.state['__bypass'] = bypassed;
     VstHostService.instance.setGfpaDspBypass(slotId, bypassed);
     _engine.toastNotifier.value =
-        '${slot.displayName} — ${bypassed ? 'bypassed' : 'active'}';
+        SlotBypassToast(slotName: slot.displayName, bypassed: bypassed);
     notifyListeners();
     markDirty();
   }
@@ -1591,7 +1592,7 @@ class RackState extends ChangeNotifier {
       _syncXenLocksToEngine();
     }
     _engine.toastNotifier.value =
-        '${slot.displayName} — ${bypassed ? 'bypassed' : 'active'}';
+        SlotBypassToast(slotName: slot.displayName, bypassed: bypassed);
     markDirty();
   }
 

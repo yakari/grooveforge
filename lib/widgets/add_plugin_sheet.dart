@@ -88,7 +88,11 @@ class _AddPluginSheetContentState extends State<_AddPluginSheetContent> {
     final registered = GFPluginRegistry.instance.findById(pluginId);
     if (registered == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Plugin not found: $pluginId')),
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context)!.rackAddPluginNotFound(pluginId),
+          ),
+        ),
       );
       return;
     }
@@ -189,8 +193,7 @@ class _AddPluginSheetContentState extends State<_AddPluginSheetContent> {
       if (ch == -1) {
         if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('All 16 MIDI channels are already in use.')),
+          SnackBar(content: Text(l10n.rackAddNoFreeMidiChannel)),
         );
         return;
       }
@@ -338,9 +341,7 @@ class _AddPluginSheetContentState extends State<_AddPluginSheetContent> {
                 final ch = rack.nextAvailableMidiChannel();
                 if (ch == -1) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('All 16 MIDI channels are already in use.'),
-                    ),
+                    SnackBar(content: Text(l10n.rackAddNoFreeMidiChannel)),
                   );
                   return;
                 }
@@ -366,9 +367,7 @@ class _AddPluginSheetContentState extends State<_AddPluginSheetContent> {
                 final ch = rack.nextAvailableMidiChannel();
                 if (ch == -1) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('All 16 MIDI channels are already in use.'),
-                    ),
+                    SnackBar(content: Text(l10n.rackAddNoFreeMidiChannel)),
                   );
                   return;
                 }
@@ -394,9 +393,7 @@ class _AddPluginSheetContentState extends State<_AddPluginSheetContent> {
                 final ch = rack.nextAvailableMidiChannel();
                 if (ch == -1) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('All 16 MIDI channels are already in use.'),
-                    ),
+                    SnackBar(content: Text(l10n.rackAddNoFreeMidiChannel)),
                   );
                   return;
                 }
@@ -450,9 +447,7 @@ class _AddPluginSheetContentState extends State<_AddPluginSheetContent> {
                 final ch = rack.nextAvailableMidiChannel();
                 if (ch == -1) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('All 16 MIDI channels are already in use.'),
-                    ),
+                    SnackBar(content: Text(l10n.rackAddNoFreeMidiChannel)),
                   );
                   return;
                 }
@@ -477,9 +472,7 @@ class _AddPluginSheetContentState extends State<_AddPluginSheetContent> {
                 final ch = rack.nextAvailableMidiChannel();
                 if (ch == -1) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('All 16 MIDI channels are already in use.'),
-                    ),
+                    SnackBar(content: Text(l10n.rackAddNoFreeMidiChannel)),
                   );
                   return;
                 }
@@ -863,18 +856,18 @@ class _AddPluginSheetContentState extends State<_AddPluginSheetContent> {
                 ),
               ),
               if (_loading)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 16),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      SizedBox(
+                      const SizedBox(
                         width: 20,
                         height: 20,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       ),
-                      SizedBox(width: 12),
-                      Text('Loading VST3 plugin…'),
+                      const SizedBox(width: 12),
+                      Text(l10n.rackAddVst3Loading),
                     ],
                   ),
                 )

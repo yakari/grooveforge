@@ -415,6 +415,34 @@
   "rackRemove": "Remove",
   "rackPluginUnavailableOnMobile": "This VST3 plugin is not available on mobile.",
   "rackMidiChannel": "MIDI CH",
+  "rackChannelShort": "CH {channel}",
+  "@rackChannelShort": {
+    "placeholders": {
+      "channel": {
+        "type": "int"
+      }
+    }
+  },
+  "rackChannelInUse": "CH {channel} (in use)",
+  "@rackChannelInUse": {
+    "placeholders": {
+      "channel": {
+        "type": "int"
+      }
+    }
+  },
+  "rackPluginNotInstalled": "Plugin not installed: {pluginId}",
+  "@rackPluginNotInstalled": {
+    "placeholders": {
+      "pluginId": {
+        "type": "String"
+      }
+    }
+  },
+  "rackInvalidMidiChannel": "Invalid MIDI channel",
+  "@rackInvalidMidiChannel": {
+    "description": "Shown in a keyboard slot whose stored MIDI channel is outside 1-16."
+  },
   "rackMenuProject": "Projects",
   "rackOpenProject": "Open Project",
   "rackSaveProject": "Save Project",
@@ -426,6 +454,16 @@
   "rackProjectOpened": "Project opened.",
   "rackAutosaveRestored": "Session restored.",
   "splashRestoringRack": "Restoring rack state...",
+  "splashCheckingPermissions": "Checking permissions...",
+  "splashLoadingPlugin": "Loading {name}…",
+  "@splashLoadingPlugin": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "prefsVersionLoading": "Loading...",
   "vst3LoadFailed": "Failed to load VST3 plugin. Make sure you selected the .vst3 bundle folder.",
   "vst3EditorOpenFailed": "Could not open plugin editor. If the plugin uses OpenGL, try launching GrooveForge with LIBGL_ALWAYS_SOFTWARE=1 or in a pure X11 session (unset WAYLAND_DISPLAY).",
   "vst3NotLoaded": "Plugin not yet loaded.",
@@ -687,6 +725,55 @@
   },
   "looperPinBelow": "Pin below transport",
   "jamModePinBelow": "Pin below transport",
+  "jamModeOn": "ON",
+  "jamModeOff": "OFF",
+  "jamModeScaleTypeStandard": "Standard",
+  "jamModeScaleTypePentatonic": "Pentatonic",
+  "jamModeScaleTypeBlues": "Blues",
+  "jamModeScaleTypeRock": "Rock",
+  "jamModeScaleTypeJazz": "Jazz",
+  "jamModeScaleTypeDorian": "Dorian",
+  "jamModeScaleTypeMixolydian": "Mixolydian",
+  "jamModeScaleTypeHarmonicMinor": "Harm. Minor",
+  "jamModeScaleTypeMelodicMinor": "Mel. Minor",
+  "jamModeScaleTypeClassical": "Classical",
+  "jamModeScaleTypeAsiatic": "Asiatic",
+  "jamModeScaleTypeOriental": "Oriental",
+  "jamModeScaleTypeWholeTone": "Whole Tone",
+  "jamModeScaleTypeDiminished": "Diminished",
+  "jamModeNoMaster": "— NO MASTER —",
+  "jamModeScaleTypeTooltip": "Tap to change the scale type\nCurrent: {scale}",
+  "@jamModeScaleTypeTooltip": {
+    "placeholders": {
+      "scale": {
+        "type": "String"
+      }
+    }
+  },
+  "jamModeScaleTypeLabel": "SCALE TYPE",
+  "jamModeMasterLabel": "MASTER",
+  "@jamModeMasterLabel": {
+    "description": "Jam Mode panel label for the keyboard whose chords set the scale."
+  },
+  "jamModePickHint": "— pick —",
+  "jamModeNone": "— none —",
+  "jamModeTargetsLabel": "TARGETS",
+  "@jamModeTargetsLabel": {
+    "description": "Jam Mode panel label for the keyboards that follow the scale."
+  },
+  "jamModeAddTarget": "Add",
+  "jamModeDetectLabel": "DETECT",
+  "jamModeDetectTooltip": "♪ Chord — detect the scale from all notes pressed simultaneously on the master channel.\n♩ Bass note — use only the lowest note (ideal for walking bass lines).",
+  "jamModeSyncLabel": "SYNC",
+  "jamModeSyncTooltip": "When to apply scale changes detected from the master channel.\n\nOff — apply immediately on each new note/chord\n1 beat — wait for the next beat\n½ bar — change every 2 beats\n1 bar — change every 4 beats",
+  "jamModeDetectChord": "Chord",
+  "jamModeDetectBass": "Bass",
+  "jamModeSyncOff": "Off",
+  "jamModeSyncBeat": "1 beat",
+  "jamModeSyncHalfBar": "½ bar",
+  "jamModeSyncBar": "1 bar",
+  "jamModeShowBordersTooltip": "Show scale borders on keys",
+  "jamModeDimWrongNotesTooltip": "Dim out-of-scale notes",
   "looperHalfSpeed": "½×",
   "looperNormalSpeed": "1×",
   "looperDoubleSpeed": "2×",
@@ -719,6 +806,37 @@
     }
   },
   "looperCcConflictOverwrite": "Overwrite",
+  "looperStatusIdle": "IDLE",
+  "looperCcTargetAction": "Action {code}",
+  "@looperCcTargetAction": {
+    "placeholders": {
+      "code": {
+        "type": "int"
+      }
+    }
+  },
+  "looperCcTargetSlotParam": "{param} on {slot}",
+  "@looperCcTargetSlotParam": {
+    "placeholders": {
+      "param": {
+        "type": "String"
+      },
+      "slot": {
+        "type": "String"
+      }
+    }
+  },
+  "looperCcTargetCategory": "{category}: {action}",
+  "@looperCcTargetCategory": {
+    "placeholders": {
+      "category": {
+        "type": "String"
+      },
+      "action": {
+        "type": "String"
+      }
+    }
+  },
   "looperVolume": "Volume",
   "looperQuantize": "Quantize",
   "kbConfigTitle": "Keyboard Config",
@@ -734,6 +852,14 @@
   "kbConfigKeysToShowSubtitle": "Number of visible keys (overrides default)",
   "kbConfigKeysDefault": "Default ({count} keys)",
   "@kbConfigKeysDefault": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "kbConfigKeysCount": "{count} keys",
+  "@kbConfigKeysCount": {
     "placeholders": {
       "count": {
         "type": "int"
@@ -778,6 +904,69 @@
   "chiptuneChord": "CHORD",
   "thereminVibrato": "VIB",
   "thereminPadHeight": "HEIGHT",
+  "thereminPadHigh": "▲ High",
+  "@thereminPadHigh": {
+    "description": "Faint hint at the top of the theremin pad: higher pitch is up."
+  },
+  "thereminPadLow": "▼ Low",
+  "@thereminPadLow": {
+    "description": "Faint hint at the bottom of the theremin pad: lower pitch is down."
+  },
+  "thereminPadVolume": "Vol ▶",
+  "@thereminPadVolume": {
+    "description": "Faint hint at the right of the theremin pad: volume grows to the right."
+  },
+  "thereminBaseNote": "BASE",
+  "@thereminBaseNote": {
+    "description": "Theremin side control: lowest note of the pad. Keep it short."
+  },
+  "thereminRange": "RANGE",
+  "@thereminRange": {
+    "description": "Theremin side control: pitch span of the pad, in octaves. Keep it short."
+  },
+  "octaveCountShort": "{count}oct",
+  "@octaveCountShort": {
+    "description": "Compact octave count shown in small controls, e.g. 2oct.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "stylophoneArpOctave": "OCT",
+  "@stylophoneArpOctave": {
+    "description": "Stylophone arpeggio chord type: the note and its octave."
+  },
+  "stylophoneArpFifth": "5TH",
+  "@stylophoneArpFifth": {
+    "description": "Stylophone arpeggio chord type: the note and its fifth."
+  },
+  "stylophoneArpLive": "LIVE",
+  "@stylophoneArpLive": {
+    "description": "Stylophone arpeggio chord type: arpeggiates the notes currently held."
+  },
+  "stylophoneBitDepth": "{bits}bit",
+  "@stylophoneBitDepth": {
+    "description": "Bit crusher depth in the stylophone chiptune row, e.g. 8bit.",
+    "placeholders": {
+      "bits": {
+        "type": "int"
+      }
+    }
+  },
+  "stylophoneOctaveShift": "OCT {shift}",
+  "@stylophoneOctaveShift": {
+    "description": "Stylophone octave shift; shift is already signed, e.g. +1 or -2.",
+    "placeholders": {
+      "shift": {
+        "type": "String"
+      }
+    }
+  },
+  "stylophoneVibrato": "VIB",
+  "@stylophoneVibrato": {
+    "description": "Stylophone vibrato on/off button. Keep it short."
+  },
   "midiMuteOwnSound": "MUTE",
   "vst3BrowseInstrumentTitle": "Browse VST3 Instrument…",
   "vst3BrowseInstrumentSubtitle": "Load a synthesizer or sampler plugin (.vst3)",
@@ -796,6 +985,41 @@
   "vst3FxInserts": "FX",
   "vst3FxAddEffect": "Add effect",
   "vst3FxNoEffects": "No effects — connect via patch view",
+  "vst3ParamsDefaultGroup": "Parameters",
+  "@vst3ParamsDefaultGroup": {
+    "description": "Name of the parameter group a VST3 plugin leaves unnamed."
+  },
+  "vst3ParamsGroupNumber": "Group {id}",
+  "@vst3ParamsGroupNumber": {
+    "description": "Fallback name of a VST3 parameter group the plugin did not name.",
+    "placeholders": {
+      "id": {
+        "type": "int"
+      }
+    }
+  },
+  "vst3ParamsHeader": "PARAMETERS",
+  "vst3ParamsAllGroups": "All groups ({count})",
+  "@vst3ParamsAllGroups": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "vst3ParamsSearchHint": "Search parameters…",
+  "vst3ParamsNoMatch": "No parameters match.",
+  "vst3NoParamsTitle": "No automatable parameters found.",
+  "vst3NoParamsBody": "{pluginName} doesn't share its settings with GrooveForge. Open its own window to tweak it.",
+  "@vst3NoParamsBody": {
+    "placeholders": {
+      "pluginName": {
+        "type": "String"
+      }
+    }
+  },
+  "vst3ShowPluginUi": "Show Plugin UI",
+  "vst3ClosePluginUi": "Close Plugin UI",
   "rackAddEffectsSectionLabel": "Built-in Effects",
   "rackAddNativeOnlyBadge": "Apps only",
   "@rackAddNativeOnlyBadge": {
@@ -880,6 +1104,16 @@
   },
   "rackAddCustomPluginSubtitle": "Your plugin, from a .gfpd file",
   "rackAddCustomPluginRemove": "Remove from this menu",
+  "rackAddPluginNotFound": "Plugin not found: {pluginId}",
+  "@rackAddPluginNotFound": {
+    "placeholders": {
+      "pluginId": {
+        "type": "String"
+      }
+    }
+  },
+  "rackAddNoFreeMidiChannel": "All 16 MIDI channels are already in use.",
+  "rackAddVst3Loading": "Loading VST3 plugin…",
   "rackAddMidiFxSectionLabel": "Built-in MIDI FX",
   "rackAddHarmonizer": "Harmonizer",
   "rackAddHarmonizerSubtitle": "Add harmony voices to any MIDI input (MIDI FX)",
@@ -988,6 +1222,40 @@
       }
     }
   },
+  "scalaErrorNotScalaFile": "Not a Scala file: expected a description line and a note count.",
+  "scalaErrorBadNoteCount": "Expected a note count on line 2, found \"{found}\".",
+  "@scalaErrorBadNoteCount": {
+    "placeholders": {
+      "found": {
+        "type": "String"
+      }
+    }
+  },
+  "scalaErrorMissingNotes": "File declares {declared} notes but contains {actual}.",
+  "@scalaErrorMissingNotes": {
+    "placeholders": {
+      "declared": {
+        "type": "int"
+      },
+      "actual": {
+        "type": "int"
+      }
+    }
+  },
+  "scalaErrorBadPitch": "Line {line} is not a pitch: \"{found}\".",
+  "@scalaErrorBadPitch": {
+    "placeholders": {
+      "line": {
+        "type": "int"
+      },
+      "found": {
+        "type": "String"
+      }
+    }
+  },
+  "scalaErrorNonPositivePeriod": "The repeat interval must be greater than zero.",
+  "scalaErrorDegreeBelowTonic": "Degrees below the tonic are not supported.",
+  "xenEditorNotGrooveForgeScale": "not a GrooveForge scale",
   "xenEditorImported": "Imported “{name}”",
   "@xenEditorImported": {
     "placeholders": {
@@ -1026,6 +1294,57 @@
   "xenScalePythagorean": "Pythagorean",
   "xenScaleMeantone": "Quarter-comma Meantone",
   "xenScaleWerckmeisterIII": "Werckmeister III",
+  "xenProvenance12Tet": "12-TET",
+  "xenProvenanceArabicQuarterTones": "24-tone Arabic convention (half-flats at −50 cents)",
+  "xenProvenanceEqualTemperedMaqam": "Equal-tempered maqam — no quarter-tones",
+  "xenProvenanceTurkishRast": "Arel-Ezgi-Uzdilek, 53 Holdrian commas of 22.641 cents",
+  "xenProvenanceTurkishUssak": "Arel-Ezgi-Uzdilek: 8, 5, 9, 9, 4, 9, 9 Holdrian commas",
+  "xenProvenanceTurkishHuseyni": "Arel-Ezgi-Uzdilek: 8, 5, 9, 9, 8, 5, 9 Holdrian commas",
+  "xenProvenancePersian": "24-tone notation convention; performed koron size varies",
+  "xenProvenanceShruti": "Just intonation from the shruti ratios (ascending form)",
+  "xenProvenanceDarbari": "Shruti ratios; komal ga is oscillated in performance",
+  "xenProvenanceMelakarta15": "Carnatic melakarta 15, just intonation",
+  "xenProvenanceSanfen": "Sanfen sunyi cycle of fifths (Pythagorean)",
+  "xenProvenanceKoto": "Koto tuning, equal-tempered notation",
+  "xenProvenanceInSen": "Japanese in scale, equal-tempered notation",
+  "xenProvenanceYo": "Japanese yo scale, equal-tempered notation",
+  "xenProvenanceJeongak": "Korean jeongak, Pythagorean cycle of fifths",
+  "xenProvenanceGagaku": "Gagaku mode, equal-tempered notation",
+  "xenProvenanceThai": "Idealised 7-fold equal division, 171.4 cents per step",
+  "xenProvenanceQenet": "Ethiopian qenet; untempered in performance",
+  "xenProvenanceQenetNeutral": "Ethiopian qenet; neutral degrees at 24-tone positions",
+  "xenProvenanceAmadinda": "Ganda xylophone tuning, idealised 5-fold equal division",
+  "xenProvenanceHighlandPipe": "Near-just chanter scale (9/8, 5/4, 4/3, 3/2, 27/16, 16/9)",
+  "xenProvenanceHardingfele": "Averaged Norwegian fiddle intonation; varies by district",
+  "xenProvenanceByzantineSoft": "72-division Byzantine theory, soft chromatic genus",
+  "xenProvenanceByzantineHard": "72-division Byzantine theory, hard chromatic genus",
+  "xenProvenanceSlendro": "Idealised 5-fold equal division; real gamelans vary widely",
+  "xenProvenancePelog": "Averaged Javanese pelog; every gamelan differs",
+  "xenProvenancePelogBarang": "Averaged Javanese pelog barang; every gamelan differs",
+  "xenProvenanceSelisir": "Averaged Balinese selisir; every gamelan differs",
+  "xenProvenanceJustIntonation": "Five-limit ratios: 16/15, 9/8, 6/5, 5/4, 4/3, 45/32, 3/2, 8/5, 5/3, 9/5, 15/8",
+  "xenProvenancePythagorean": "Chain of pure 3/2 fifths, E♭–G♯; wolf between G♯ and E♭",
+  "xenProvenanceMeantone": "Fifths narrowed by 1/4 syntonic comma (696.578 cents)",
+  "xenProvenanceWerckmeister": "Werckmeister 1691, four fifths narrowed by 1/4 Pythagorean comma",
+  "xenProvenanceEdo24": "24 equal divisions of the octave, 50 cents apart",
+  "xenProvenanceEdo19": "19 equal divisions of the octave, 63.16 cents apart",
+  "xenProvenanceEdo31": "31 equal divisions of the octave, 38.71 cents apart",
+  "xenProvenanceBohlenPierce": "13 equal divisions of the 3:1 tritave — no octave",
+  "xenProvenanceHarmonicSeries": "Harmonics 8-16: 9/8, 5/4, 11/8, 3/2, 13/8, 7/4, 15/8",
+  "xenProvenanceQuarterToneCluster": "Four keys at 0, 50, 100 and 150 cents, then the octave resumes",
+  "xenProvenanceEdo17": "17 equal divisions of the octave, 70.59 cents apart",
+  "xenProvenanceEdo22": "22 equal divisions of the octave, 54.55 cents apart",
+  "xenProvenanceEdo15": "15 equal divisions of the octave, 80 cents apart",
+  "xenProvenanceEdo13": "13 equal divisions of the octave, 92.31 cents apart",
+  "xenProvenanceEdo16": "16 equal divisions of the octave, 75 cents apart",
+  "xenProvenanceBlackwood": "Ten notes of 15-EDO, alternating 80 and 160 cent steps",
+  "xenProvenanceCarlosAlpha": "Wendy Carlos: steps of 78.0 cents, no octave",
+  "xenProvenanceCarlosBeta": "Wendy Carlos: steps of 63.8 cents, no octave",
+  "xenProvenanceCarlosGamma": "Wendy Carlos: steps of 35.1 cents, no octave",
+  "xenProvenanceBohlenPierceLambda": "Steps 0, 1, 3, 4, 6, 7, 9, 10, 12 of 13-tone Bohlen-Pierce",
+  "xenProvenanceSubharmonicSeries": "Undertones 16-8: 16/15, 8/7, 16/13, 4/3, 16/11, 8/5, 16/9",
+  "xenProvenanceImportedScala": "Imported from Scala (.scl)",
+  "xenProvenanceMadeInGrooveForge": "Made in GrooveForge",
   "midiFxBypass": "Bypass",
   "midiFxCcAssign": "Assign CC to bypass",
   "midiFxCcAssignTitle": "Assign hardware CC to bypass",
@@ -1143,6 +1462,29 @@
   "@ccAssignMoveKnobOrButton": {
     "description": "Instruction shown in CC assign dialog when listening for incoming MIDI CC input."
   },
+  "ccAssignTitle": "CC Assign — {slot}",
+  "@ccAssignTitle": {
+    "placeholders": {
+      "slot": {
+        "type": "String"
+      }
+    }
+  },
+  "ccAssignNoParams": "No CC-controllable parameters for this slot.",
+  "ccAssignLearn": "Learn",
+  "ccAssignMoveKnob": "Move a CC knob…",
+  "ccParamModeAbsolute": "absolute",
+  "ccParamModeToggle": "toggle",
+  "ccParamModeCycle": "cycle",
+  "ccParamModeDirect": "direct",
+  "ccSlotChannelShort": "Ch {channel}",
+  "@ccSlotChannelShort": {
+    "placeholders": {
+      "channel": {
+        "type": "int"
+      }
+    }
+  },
   "ccActionPickerLabel": "Action",
   "ccNoSlotsOfType": "No slots of this type in the rack.",
   "ccSwapInstrumentA": "Instrument A",
@@ -1197,6 +1539,77 @@
       }
     }
   },
+  "toastOutputDeviceDisconnected": "Audio output disconnected — back to the default output",
+  "toastSoundfontLoaded": "Loaded: {fileName}",
+  "@toastSoundfontLoaded": {
+    "description": "A soundfont file finished loading.",
+    "placeholders": {
+      "fileName": {
+        "type": "String"
+      }
+    }
+  },
+  "toastSoundfontLoadError": "Couldn't load the soundfont: {error}",
+  "@toastSoundfontLoadError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "toastSoundfontUnloaded": "Soundfont unloaded",
+  "toastScaleLockOn": "Scale lock on — channel {channel}",
+  "@toastScaleLockOn": {
+    "description": "A MIDI controller button turned scale lock on for a channel (1-16).",
+    "placeholders": {
+      "channel": {
+        "type": "int"
+      }
+    }
+  },
+  "toastScaleLockOff": "Scale lock off — channel {channel}",
+  "@toastScaleLockOff": {
+    "placeholders": {
+      "channel": {
+        "type": "int"
+      }
+    }
+  },
+  "toastScaleTypeChanged": "Scale: {scaleName} — channel {channel}",
+  "@toastScaleTypeChanged": {
+    "placeholders": {
+      "scaleName": {
+        "type": "String"
+      },
+      "channel": {
+        "type": "int"
+      }
+    }
+  },
+  "toastPatchSweep": "Program {program} — channel {channel}",
+  "@toastPatchSweep": {
+    "description": "A MIDI controller knob swept the sound (program) of a channel.",
+    "placeholders": {
+      "program": {
+        "type": "int"
+      },
+      "channel": {
+        "type": "int"
+      }
+    }
+  },
+  "toastBankSweep": "Bank {bank} — channel {channel}",
+  "@toastBankSweep": {
+    "placeholders": {
+      "bank": {
+        "type": "int"
+      },
+      "channel": {
+        "type": "int"
+      }
+    }
+  },
+  "toastPreferencesReset": "All preferences reset",
   "intervalNameUnison": "Unison",
   "@intervalNameUnison": {
     "description": "Musical interval name shown under a harmonizer voice control."
@@ -1322,6 +1735,30 @@
   "vocoderWaveHarmony": "Harmony",
   "@vocoderWaveHarmony": {
     "description": "Vocoder mode that pitch-shifts the live voice onto the held keys instead of using a synthetic carrier."
+  },
+  "vocoderKnobNoise": "NOISE",
+  "@vocoderKnobNoise": {
+    "description": "Vocoder knob label: amount of noise mixed into the carrier. Drawn under a small knob, keep it short."
+  },
+  "vocoderKnobSpeed": "SPEED",
+  "@vocoderKnobSpeed": {
+    "description": "Vocoder knob label: how fast the band envelopes follow the voice. Keep it short."
+  },
+  "vocoderKnobBandwidth": "BW",
+  "@vocoderKnobBandwidth": {
+    "description": "Vocoder knob label: width of each filter band. Keep it short."
+  },
+  "vocoderKnobGate": "GATE",
+  "@vocoderKnobGate": {
+    "description": "Vocoder knob label: noise gate threshold. Keep it short."
+  },
+  "vocoderMeterMic": "MIC",
+  "@vocoderMeterMic": {
+    "description": "Vocoder level meter label for the microphone input. At most 4 characters."
+  },
+  "vocoderMeterOut": "OUT",
+  "@vocoderMeterOut": {
+    "description": "Vocoder level meter label for the vocoder output. At most 4 characters."
   },
   "latencyProbeTitle": "Overdub latency",
   "latencyProbeSubtitle": "Measure how late the mic hears what the app plays",
@@ -2028,6 +2465,108 @@
       }
     }
   },
+  "ccGmBankSelect": "Bank Select (MSB)",
+  "ccGmModWheel": "Modulation Wheel (Vibrato)",
+  "ccGmBreath": "Breath Control",
+  "ccGmFootPedal": "Foot Pedal",
+  "ccGmPortamentoTime": "Portamento Time",
+  "ccGmMainVolume": "Main Volume",
+  "ccGmPan": "Pan (Stereo)",
+  "ccGmExpression": "Expression",
+  "ccGmSustainPedal": "Sustain Pedal",
+  "ccGmPortamento": "Portamento",
+  "ccGmResonance": "Resonance (Filter)",
+  "ccGmCutoff": "Frequency Cutoff (Filter)",
+  "ccGmReverbSend": "Reverb Send Level",
+  "ccGmChorusSend": "Chorus Send Level",
+  "ccSysNextSoundfont": "[System] Next Soundfont",
+  "ccSysPrevSoundfont": "[System] Prev Soundfont",
+  "ccSysNextPatch": "[System] Next Program/Patch",
+  "ccSysPrevPatch": "[System] Prev Program/Patch",
+  "ccSysPatchSweep": "[System] Absolute Patch Sweep",
+  "ccSysBankSweep": "[System] Absolute Bank/Tone Sweep",
+  "ccSysJamMode": "[System] Start/Stop Jam Mode",
+  "ccSysCycleScale": "[System] Cycle Scale Type",
+  "ccSysMidiLooperLoop": "[MIDI Looper] Loop Button",
+  "ccSysMidiLooperStop": "[MIDI Looper] Stop",
+  "ccSysAudioLooperLoop": "[Audio Looper] Loop Button",
+  "ccSysAudioLooperStop": "[Audio Looper] Stop",
+  "ccSysMuteChannels": "[System] Mute / Unmute Channels",
+  "ccParamMix": "Mix",
+  "ccParamWaveform": "Waveform",
+  "ccParamVolume": "Volume",
+  "ccParamToggleOnOff": "Toggle On/Off",
+  "ccParamStop": "Stop",
+  "ccParamLevel": "Level",
+  "ccParamBypass": "Bypass",
+  "ccParamVibratoDepth": "Vibrato Depth",
+  "ccParamVibrato": "Vibrato",
+  "ccParamTuneOnOff": "Tune On/Off",
+  "ccParamTone": "Tone",
+  "ccParamTime": "Time",
+  "ccParamThreshold": "Threshold",
+  "ccParamSwing": "Swing",
+  "ccParamSustain": "Sustain",
+  "ccParamStrength": "Strength",
+  "ccParamStartStop": "Start / Stop",
+  "ccParamSnapOnOff": "Snap On/Off",
+  "ccParamSemitones": "Semitones",
+  "ccParamSelectPatch": "Select Patch",
+  "ccParamScaleType": "Scale Type",
+  "ccParamRetune": "Retune",
+  "ccParamRecallScale": "Recall Scale",
+  "ccParamRecallRoot": "Recall Root",
+  "ccParamRate": "Rate",
+  "ccParamRangeOctaves": "Range (octaves)",
+  "ccParamPrevSoundfont": "Previous Soundfont",
+  "ccParamPrevPattern": "Previous Pattern",
+  "ccParamPrevPatch": "Previous Patch",
+  "ccParamPickupType": "Pickup type",
+  "ccParamPickup": "Pickup",
+  "ccParamPickPosition": "Pick position",
+  "ccParamPedalSustain": "Pedal sustain",
+  "ccParamPedal": "Pedal",
+  "ccParamPattern": "Pattern",
+  "ccParamPatchKnob": "Patch (knob)",
+  "ccParamPalmMuteOnOff": "Palm mute on/off",
+  "ccParamPalmMute": "Palm mute",
+  "ccParamOverlapLegato": "Overlap legato on/off",
+  "ccParamNoiseMix": "Noise Mix",
+  "ccParamNextSoundfont": "Next Soundfont",
+  "ccParamNextScaleInFamily": "Next Scale (in family)",
+  "ccParamNextPattern": "Next Pattern",
+  "ccParamNextPatch": "Next Patch",
+  "ccParamMute": "Mute",
+  "ccParamMode": "Mode",
+  "ccParamMidiLoopButton": "Loop Button (Record/Play/Overdub)",
+  "ccParamAudioLoopButton": "Loop Button (Arm/Record/Play/Overdub)",
+  "ccParamLegatoOnOff": "Legato on/off (hammer-on / pull-off)",
+  "ccParamLatchRoot": "Latch Root from Held Notes",
+  "ccParamInputGain": "Input Gain",
+  "ccParamHumanFeel": "Human Feel",
+  "ccParamGateThreshold": "Gate Threshold",
+  "ccParamGain": "Gain",
+  "ccParamFeedback": "Feedback (larsen)",
+  "ccParamFeedbackHarmonic": "Feedback harmonic",
+  "ccParamEnvRelease": "Envelope Release",
+  "ccParamDriveType": "Drive type",
+  "ccParamDriveOnOff": "Drive on/off",
+  "ccParamDrive": "Drive",
+  "ccParamDivision": "Division",
+  "ccParamDetectionMode": "Detection Mode",
+  "ccParamDepth": "Depth",
+  "ccParamChordType": "Chord Type",
+  "ccParamChipArpOnOff": "Chiptune Arp On/Off",
+  "ccParamChipArpChord": "Chiptune Arp Chord",
+  "ccParamCenter": "Center",
+  "ccParamCabOnOff": "Cab on/off",
+  "ccParamBpmSync": "BPM Sync",
+  "ccParamBaseNote": "Base Note",
+  "ccParamBandwidth": "Bandwidth",
+  "ccParamAttack": "Attack",
+  "ccParamArpRate": "Arp Rate (PAL/NTSC)",
+  "ccParamAmpOnOff": "Amp on/off",
+  "ccParamAmount": "Amount",
   "guideTabStart": "Start here",
   "guideTabModules": "Modules",
   "guideRulesTitle": "How sound moves between modules",
@@ -2076,5 +2615,172 @@
   "guideJackSend": "effects loop",
   "guideJackData": "the scale and the current chord",
   "guideJackTune": "tuning for scales between the piano keys",
-  "guideMidiHardwareStep3": "It plays the module whose MIDI CH badge matches the channel it sends on, usually 1. Tap the badge on a module to change its channel."
+  "guideJackLegendData": "CHORD / SCALE",
+  "@guideJackLegendData": {
+    "description": "Socket names as printed on the back panels (CHORD and SCALE jacks); must match portChordOut/portScaleOut."
+  },
+  "guideMidiHardwareStep3": "It plays the module whose MIDI CH badge matches the channel it sends on, usually 1. Tap the badge on a module to change its channel.",
+  "gfpaAmpAmp": "Amp",
+  "gfpaAmpBass": "Bass",
+  "gfpaAmpCab": "Cab",
+  "gfpaAmpCabinet": "Cabinet",
+  "gfpaAmpDrive": "Drive",
+  "gfpaAmpGain": "Gain",
+  "gfpaAmpMiddle": "Middle",
+  "gfpaAmpModel": "Model",
+  "gfpaAmpOn": "On",
+  "gfpaAmpOverdrive": "Overdrive",
+  "gfpaAmpTreble": "Treble",
+  "gfpaArpeggiatorDivision": "Division",
+  "gfpaArpeggiatorDnUp": "DnUp",
+  "gfpaArpeggiatorDown": "Down",
+  "gfpaArpeggiatorGate": "Gate",
+  "gfpaArpeggiatorOctaves": "Octaves",
+  "gfpaArpeggiatorPattern": "Pattern",
+  "gfpaArpeggiatorPlayed": "Played",
+  "gfpaArpeggiatorRange": "Range",
+  "gfpaArpeggiatorRhythm": "Rhythm",
+  "gfpaArpeggiatorUp": "Up",
+  "gfpaArpeggiatorUpDown": "UpDown",
+  "gfpaAudioHarmonizerDryWet": "Dry/Wet",
+  "gfpaAutotuneBlues": "Blues",
+  "gfpaAutotuneChromatic": "Chromatic",
+  "gfpaAutotuneHarmonicMinor": "Harmonic Minor",
+  "gfpaAutotuneHumanize": "Humanize",
+  "gfpaAutotuneKey": "Key",
+  "gfpaAutotuneMajor": "Major",
+  "gfpaAutotuneMajorPenta": "Major Penta",
+  "gfpaAutotuneMinor": "Minor",
+  "gfpaAutotuneMinorPenta": "Minor Penta",
+  "gfpaAutotuneNotes": "Notes",
+  "gfpaAutotuneRetune": "Retune",
+  "gfpaAutotuneStrength": "Strength",
+  "gfpaAutotuneTune": "Tune",
+  "gfpaAutotuneVoice": "Voice",
+  "gfpaChordChord": "Chord",
+  "gfpaChordChordType": "Chord Type",
+  "gfpaChordClose": "Close",
+  "gfpaChordOpen": "Open",
+  "gfpaChordSpread": "Spread",
+  "gfpaChordVoicing": "Voicing",
+  "gfpaChordWide": "Wide",
+  "gfpaCompressorCompression": "Compression",
+  "gfpaCompressorEnvelope": "Envelope",
+  "gfpaCompressorMakeup": "Makeup",
+  "gfpaCompressorRatio": "Ratio",
+  "gfpaCompressorRelease": "Release",
+  "gfpaCompressorThresh": "Thresh",
+  "gfpaDelayCharacter": "Character",
+  "gfpaDelayTime": "Time",
+  "gfpaDelayTiming": "Timing",
+  "gfpaEqFlat": "Flat",
+  "gfpaEqHM": "HM",
+  "gfpaEqHMHz": "HM Hz",
+  "gfpaEqHMQ": "HM Q",
+  "gfpaEqHiHz": "Hi Hz",
+  "gfpaEqHigh": "High",
+  "gfpaEqHighGain": "High",
+  "gfpaEqHighMid": "High Mid",
+  "gfpaEqLM": "LM",
+  "gfpaEqLMHz": "LM Hz",
+  "gfpaEqLMQ": "LM Q",
+  "gfpaEqLow": "Low",
+  "gfpaEqLowGain": "Low",
+  "gfpaEqLowHz": "Low Hz",
+  "gfpaEqLowMid": "Low Mid",
+  "gfpaGateMaxNote": "Max Note",
+  "gfpaGateMaxVel": "Max Vel",
+  "gfpaGateMinNote": "Min Note",
+  "gfpaGateMinVel": "Min Vel",
+  "gfpaGatePitch": "Pitch",
+  "gfpaLabelAttack": "Attack",
+  "gfpaLabelDelay": "Delay",
+  "gfpaLabelDepth": "Depth",
+  "gfpaLabelFeedback": "Feedback",
+  "gfpaLabelLevel": "Level",
+  "gfpaLabelMix": "Mix",
+  "gfpaLabelMode": "Mode",
+  "gfpaLabelOutput": "Output",
+  "gfpaLabelRate": "Rate",
+  "gfpaLabelScale": "Scale",
+  "gfpaLabelScaleLock": "Scale Lock",
+  "gfpaLabelSetup": "Setup",
+  "gfpaLabelTone": "Tone",
+  "gfpaLabelType": "Type",
+  "gfpaLabelVelocity": "Velocity",
+  "gfpaLabelVoices": "Voices",
+  "gfpaMicrotoneAverage": "Average",
+  "gfpaMicrotoneBendRange": "Bend Range",
+  "gfpaMicrotoneCluster": "Cluster",
+  "gfpaMicrotoneLastNote": "Last Note",
+  "gfpaMicrotoneMean": "Mean",
+  "gfpaMicrotoneOuterAvg": "Outer Avg",
+  "gfpaReverbDamp": "Damp",
+  "gfpaReverbRoom": "Room",
+  "gfpaReverbRoomSize": "Room",
+  "gfpaReverbWidth": "Width",
+  "gfpaRiff2Oct": "2 Oct",
+  "gfpaRiffBend": "Bend",
+  "gfpaRiffBridge": "Bridge",
+  "gfpaRiffFrettingHand": "Fretting hand",
+  "gfpaRiffHarmonic": "Harmonic",
+  "gfpaRiffHumbucker": "Humbucker",
+  "gfpaRiffLegato": "Legato",
+  "gfpaRiffMiddle": "Middle",
+  "gfpaRiffNeck": "Neck",
+  "gfpaRiffNeckPlusBridge": "Neck+Bridge",
+  "gfpaRiffOctPlus5th": "Oct+5th",
+  "gfpaRiffOverlap": "Overlap",
+  "gfpaRiffPalmMute": "Palm mute",
+  "gfpaRiffPedalSus": "Pedal sus.",
+  "gfpaRiffPickPos": "Pick pos.",
+  "gfpaRiffPickingHand": "Picking hand",
+  "gfpaRiffPickup": "Pickup",
+  "gfpaRiffPickups": "Pickups",
+  "gfpaRiffRoot": "Root",
+  "gfpaRiffSingleCoil": "Single coil",
+  "gfpaRiffStrings": "Strings",
+  "gfpaRiffSustain": "Sustain",
+  "gfpaTransposerPitchShift": "Pitch Shift",
+  "gfpaTransposerSemitones": "Semitones",
+  "gfpaVelocityCurveAmount": "Amount",
+  "gfpaVelocityCurveCurveType": "Curve Type",
+  "gfpaVelocityCurveFixed": "Fixed",
+  "gfpaVelocityCurveIntensity": "Intensity",
+  "gfpaVelocityCurvePower": "Power",
+  "gfpaVelocityCurveSigmoid": "Sigmoid",
+  "gfpaWahAuto": "Auto",
+  "gfpaWahCenter": "Center",
+  "gfpaWahFilter": "Filter",
+  "gfpaWahManual": "Manual",
+  "gfpaWahPedal": "Pedal",
+  "gfpaWahReso": "Reso",
+  "gfpaWahSaw": "Saw",
+  "gfpaWahSine": "Sine",
+  "gfpaWahSweep": "Sweep",
+  "gfpaWahWave": "Wave",
+  "scaleNameIonian": "Ionian",
+  "scaleNameDorian": "Dorian",
+  "scaleNamePhrygian": "Phrygian",
+  "scaleNameLydian": "Lydian",
+  "scaleNameMixolydian": "Mixolydian",
+  "scaleNameAeolian": "Aeolian",
+  "scaleNameLocrian": "Locrian",
+  "scaleNameLocrianSharp2": "Locrian #2",
+  "scaleNameLydianDominant": "Lydian Dominant",
+  "scaleNamePhrygianDominant": "Phrygian Dominant",
+  "scaleNameAltered": "Altered Scale",
+  "scaleNameMajor": "Major",
+  "scaleNameNaturalMajor": "Natural Major",
+  "scaleNameHarmonicMinor": "Harmonic Minor",
+  "scaleNameMelodicMinor": "Melodic Minor",
+  "scaleNameMajorPentatonic": "Major Pentatonic",
+  "scaleNameMinorPentatonic": "Minor Pentatonic",
+  "scaleNameMajorBlues": "Major Blues",
+  "scaleNameMinorBlues": "Minor Blues",
+  "scaleNameRockHexatonic": "Rock Hexatonic",
+  "scaleNameWholeTone": "Whole Tone",
+  "scaleNameDiminished": "Diminished",
+  "scaleNameStandard": "Standard",
+  "looperQuantizeOff": "off"
 }

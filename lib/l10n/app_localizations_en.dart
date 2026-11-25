@@ -787,6 +787,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get rackMidiChannel => 'MIDI CH';
 
   @override
+  String rackChannelShort(int channel) {
+    return 'CH $channel';
+  }
+
+  @override
+  String rackChannelInUse(int channel) {
+    return 'CH $channel (in use)';
+  }
+
+  @override
+  String rackPluginNotInstalled(String pluginId) {
+    return 'Plugin not installed: $pluginId';
+  }
+
+  @override
+  String get rackInvalidMidiChannel => 'Invalid MIDI channel';
+
+  @override
   String get rackMenuProject => 'Projects';
 
   @override
@@ -819,6 +837,17 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get splashRestoringRack => 'Restoring rack state...';
+
+  @override
+  String get splashCheckingPermissions => 'Checking permissions...';
+
+  @override
+  String splashLoadingPlugin(String name) {
+    return 'Loading $name…';
+  }
+
+  @override
+  String get prefsVersionLoading => 'Loading...';
 
   @override
   String get vst3LoadFailed =>
@@ -1156,6 +1185,118 @@ class AppLocalizationsEn extends AppLocalizations {
   String get jamModePinBelow => 'Pin below transport';
 
   @override
+  String get jamModeOn => 'ON';
+
+  @override
+  String get jamModeOff => 'OFF';
+
+  @override
+  String get jamModeScaleTypeStandard => 'Standard';
+
+  @override
+  String get jamModeScaleTypePentatonic => 'Pentatonic';
+
+  @override
+  String get jamModeScaleTypeBlues => 'Blues';
+
+  @override
+  String get jamModeScaleTypeRock => 'Rock';
+
+  @override
+  String get jamModeScaleTypeJazz => 'Jazz';
+
+  @override
+  String get jamModeScaleTypeDorian => 'Dorian';
+
+  @override
+  String get jamModeScaleTypeMixolydian => 'Mixolydian';
+
+  @override
+  String get jamModeScaleTypeHarmonicMinor => 'Harm. Minor';
+
+  @override
+  String get jamModeScaleTypeMelodicMinor => 'Mel. Minor';
+
+  @override
+  String get jamModeScaleTypeClassical => 'Classical';
+
+  @override
+  String get jamModeScaleTypeAsiatic => 'Asiatic';
+
+  @override
+  String get jamModeScaleTypeOriental => 'Oriental';
+
+  @override
+  String get jamModeScaleTypeWholeTone => 'Whole Tone';
+
+  @override
+  String get jamModeScaleTypeDiminished => 'Diminished';
+
+  @override
+  String get jamModeNoMaster => '— NO MASTER —';
+
+  @override
+  String jamModeScaleTypeTooltip(String scale) {
+    return 'Tap to change the scale type\nCurrent: $scale';
+  }
+
+  @override
+  String get jamModeScaleTypeLabel => 'SCALE TYPE';
+
+  @override
+  String get jamModeMasterLabel => 'MASTER';
+
+  @override
+  String get jamModePickHint => '— pick —';
+
+  @override
+  String get jamModeNone => '— none —';
+
+  @override
+  String get jamModeTargetsLabel => 'TARGETS';
+
+  @override
+  String get jamModeAddTarget => 'Add';
+
+  @override
+  String get jamModeDetectLabel => 'DETECT';
+
+  @override
+  String get jamModeDetectTooltip =>
+      '♪ Chord — detect the scale from all notes pressed simultaneously on the master channel.\n♩ Bass note — use only the lowest note (ideal for walking bass lines).';
+
+  @override
+  String get jamModeSyncLabel => 'SYNC';
+
+  @override
+  String get jamModeSyncTooltip =>
+      'When to apply scale changes detected from the master channel.\n\nOff — apply immediately on each new note/chord\n1 beat — wait for the next beat\n½ bar — change every 2 beats\n1 bar — change every 4 beats';
+
+  @override
+  String get jamModeDetectChord => 'Chord';
+
+  @override
+  String get jamModeDetectBass => 'Bass';
+
+  @override
+  String get jamModeSyncOff => 'Off';
+
+  @override
+  String get jamModeSyncBeat => '1 beat';
+
+  @override
+  String get jamModeSyncHalfBar => '½ bar';
+
+  @override
+  String get jamModeSyncBar => '1 bar';
+
+  @override
+  String get jamModeShowBordersTooltip => 'Show scale borders on keys';
+
+  @override
+  String get jamModeDimWrongNotesTooltip => 'Dim out-of-scale notes';
+
+  @override
   String get looperHalfSpeed => '½×';
 
   @override
@@ -1205,6 +1346,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get looperCcConflictOverwrite => 'Overwrite';
 
   @override
+  String get looperStatusIdle => 'IDLE';
+
+  @override
+  String looperCcTargetAction(int code) {
+    return 'Action $code';
+  }
+
+  @override
+  String looperCcTargetSlotParam(String param, String slot) {
+    return '$param on $slot';
+  }
+
+  @override
+  String looperCcTargetCategory(String category, String action) {
+    return '$category: $action';
+  }
+
+  @override
   String get looperVolume => 'Volume';
 
   @override
@@ -1228,6 +1387,11 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String kbConfigKeysDefault(int count) {
     return 'Default ($count keys)';
+  }
+
+  @override
+  String kbConfigKeysCount(int count) {
+    return '$count keys';
   }
 
   @override
@@ -1355,6 +1519,48 @@ class AppLocalizationsEn extends AppLocalizations {
   String get thereminPadHeight => 'HEIGHT';
 
   @override
+  String get thereminPadHigh => '▲ High';
+
+  @override
+  String get thereminPadLow => '▼ Low';
+
+  @override
+  String get thereminPadVolume => 'Vol ▶';
+
+  @override
+  String get thereminBaseNote => 'BASE';
+
+  @override
+  String get thereminRange => 'RANGE';
+
+  @override
+  String octaveCountShort(int count) {
+    return '${count}oct';
+  }
+
+  @override
+  String get stylophoneArpOctave => 'OCT';
+
+  @override
+  String get stylophoneArpFifth => '5TH';
+
+  @override
+  String get stylophoneArpLive => 'LIVE';
+
+  @override
+  String stylophoneBitDepth(int bits) {
+    return '${bits}bit';
+  }
+
+  @override
+  String stylophoneOctaveShift(String shift) {
+    return 'OCT $shift';
+  }
+
+  @override
+  String get stylophoneVibrato => 'VIB';
+
+  @override
   String get midiMuteOwnSound => 'MUTE';
 
   @override
@@ -1408,6 +1614,42 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get vst3FxNoEffects => 'No effects — connect via patch view';
+
+  @override
+  String get vst3ParamsDefaultGroup => 'Parameters';
+
+  @override
+  String vst3ParamsGroupNumber(int id) {
+    return 'Group $id';
+  }
+
+  @override
+  String get vst3ParamsHeader => 'PARAMETERS';
+
+  @override
+  String vst3ParamsAllGroups(int count) {
+    return 'All groups ($count)';
+  }
+
+  @override
+  String get vst3ParamsSearchHint => 'Search parameters…';
+
+  @override
+  String get vst3ParamsNoMatch => 'No parameters match.';
+
+  @override
+  String get vst3NoParamsTitle => 'No automatable parameters found.';
+
+  @override
+  String vst3NoParamsBody(String pluginName) {
+    return '$pluginName doesn\'t share its settings with GrooveForge. Open its own window to tweak it.';
+  }
+
+  @override
+  String get vst3ShowPluginUi => 'Show Plugin UI';
+
+  @override
+  String get vst3ClosePluginUi => 'Close Plugin UI';
 
   @override
   String get rackAddEffectsSectionLabel => 'Built-in Effects';
@@ -1595,6 +1837,18 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get rackAddCustomPluginRemove => 'Remove from this menu';
+
+  @override
+  String rackAddPluginNotFound(String pluginId) {
+    return 'Plugin not found: $pluginId';
+  }
+
+  @override
+  String get rackAddNoFreeMidiChannel =>
+      'All 16 MIDI channels are already in use.';
+
+  @override
+  String get rackAddVst3Loading => 'Loading VST3 plugin…';
 
   @override
   String get rackAddMidiFxSectionLabel => 'Built-in MIDI FX';
@@ -1830,6 +2084,36 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get scalaErrorNotScalaFile =>
+      'Not a Scala file: expected a description line and a note count.';
+
+  @override
+  String scalaErrorBadNoteCount(String found) {
+    return 'Expected a note count on line 2, found \"$found\".';
+  }
+
+  @override
+  String scalaErrorMissingNotes(int declared, int actual) {
+    return 'File declares $declared notes but contains $actual.';
+  }
+
+  @override
+  String scalaErrorBadPitch(int line, String found) {
+    return 'Line $line is not a pitch: \"$found\".';
+  }
+
+  @override
+  String get scalaErrorNonPositivePeriod =>
+      'The repeat interval must be greater than zero.';
+
+  @override
+  String get scalaErrorDegreeBelowTonic =>
+      'Degrees below the tonic are not supported.';
+
+  @override
+  String get xenEditorNotGrooveForgeScale => 'not a GrooveForge scale';
+
+  @override
   String xenEditorImported(String name) {
     return 'Imported “$name”';
   }
@@ -1904,6 +2188,202 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get xenScaleWerckmeisterIII => 'Werckmeister III';
+
+  @override
+  String get xenProvenance12Tet => '12-TET';
+
+  @override
+  String get xenProvenanceArabicQuarterTones =>
+      '24-tone Arabic convention (half-flats at −50 cents)';
+
+  @override
+  String get xenProvenanceEqualTemperedMaqam =>
+      'Equal-tempered maqam — no quarter-tones';
+
+  @override
+  String get xenProvenanceTurkishRast =>
+      'Arel-Ezgi-Uzdilek, 53 Holdrian commas of 22.641 cents';
+
+  @override
+  String get xenProvenanceTurkishUssak =>
+      'Arel-Ezgi-Uzdilek: 8, 5, 9, 9, 4, 9, 9 Holdrian commas';
+
+  @override
+  String get xenProvenanceTurkishHuseyni =>
+      'Arel-Ezgi-Uzdilek: 8, 5, 9, 9, 8, 5, 9 Holdrian commas';
+
+  @override
+  String get xenProvenancePersian =>
+      '24-tone notation convention; performed koron size varies';
+
+  @override
+  String get xenProvenanceShruti =>
+      'Just intonation from the shruti ratios (ascending form)';
+
+  @override
+  String get xenProvenanceDarbari =>
+      'Shruti ratios; komal ga is oscillated in performance';
+
+  @override
+  String get xenProvenanceMelakarta15 =>
+      'Carnatic melakarta 15, just intonation';
+
+  @override
+  String get xenProvenanceSanfen =>
+      'Sanfen sunyi cycle of fifths (Pythagorean)';
+
+  @override
+  String get xenProvenanceKoto => 'Koto tuning, equal-tempered notation';
+
+  @override
+  String get xenProvenanceInSen => 'Japanese in scale, equal-tempered notation';
+
+  @override
+  String get xenProvenanceYo => 'Japanese yo scale, equal-tempered notation';
+
+  @override
+  String get xenProvenanceJeongak =>
+      'Korean jeongak, Pythagorean cycle of fifths';
+
+  @override
+  String get xenProvenanceGagaku => 'Gagaku mode, equal-tempered notation';
+
+  @override
+  String get xenProvenanceThai =>
+      'Idealised 7-fold equal division, 171.4 cents per step';
+
+  @override
+  String get xenProvenanceQenet => 'Ethiopian qenet; untempered in performance';
+
+  @override
+  String get xenProvenanceQenetNeutral =>
+      'Ethiopian qenet; neutral degrees at 24-tone positions';
+
+  @override
+  String get xenProvenanceAmadinda =>
+      'Ganda xylophone tuning, idealised 5-fold equal division';
+
+  @override
+  String get xenProvenanceHighlandPipe =>
+      'Near-just chanter scale (9/8, 5/4, 4/3, 3/2, 27/16, 16/9)';
+
+  @override
+  String get xenProvenanceHardingfele =>
+      'Averaged Norwegian fiddle intonation; varies by district';
+
+  @override
+  String get xenProvenanceByzantineSoft =>
+      '72-division Byzantine theory, soft chromatic genus';
+
+  @override
+  String get xenProvenanceByzantineHard =>
+      '72-division Byzantine theory, hard chromatic genus';
+
+  @override
+  String get xenProvenanceSlendro =>
+      'Idealised 5-fold equal division; real gamelans vary widely';
+
+  @override
+  String get xenProvenancePelog =>
+      'Averaged Javanese pelog; every gamelan differs';
+
+  @override
+  String get xenProvenancePelogBarang =>
+      'Averaged Javanese pelog barang; every gamelan differs';
+
+  @override
+  String get xenProvenanceSelisir =>
+      'Averaged Balinese selisir; every gamelan differs';
+
+  @override
+  String get xenProvenanceJustIntonation =>
+      'Five-limit ratios: 16/15, 9/8, 6/5, 5/4, 4/3, 45/32, 3/2, 8/5, 5/3, 9/5, 15/8';
+
+  @override
+  String get xenProvenancePythagorean =>
+      'Chain of pure 3/2 fifths, E♭–G♯; wolf between G♯ and E♭';
+
+  @override
+  String get xenProvenanceMeantone =>
+      'Fifths narrowed by 1/4 syntonic comma (696.578 cents)';
+
+  @override
+  String get xenProvenanceWerckmeister =>
+      'Werckmeister 1691, four fifths narrowed by 1/4 Pythagorean comma';
+
+  @override
+  String get xenProvenanceEdo24 =>
+      '24 equal divisions of the octave, 50 cents apart';
+
+  @override
+  String get xenProvenanceEdo19 =>
+      '19 equal divisions of the octave, 63.16 cents apart';
+
+  @override
+  String get xenProvenanceEdo31 =>
+      '31 equal divisions of the octave, 38.71 cents apart';
+
+  @override
+  String get xenProvenanceBohlenPierce =>
+      '13 equal divisions of the 3:1 tritave — no octave';
+
+  @override
+  String get xenProvenanceHarmonicSeries =>
+      'Harmonics 8-16: 9/8, 5/4, 11/8, 3/2, 13/8, 7/4, 15/8';
+
+  @override
+  String get xenProvenanceQuarterToneCluster =>
+      'Four keys at 0, 50, 100 and 150 cents, then the octave resumes';
+
+  @override
+  String get xenProvenanceEdo17 =>
+      '17 equal divisions of the octave, 70.59 cents apart';
+
+  @override
+  String get xenProvenanceEdo22 =>
+      '22 equal divisions of the octave, 54.55 cents apart';
+
+  @override
+  String get xenProvenanceEdo15 =>
+      '15 equal divisions of the octave, 80 cents apart';
+
+  @override
+  String get xenProvenanceEdo13 =>
+      '13 equal divisions of the octave, 92.31 cents apart';
+
+  @override
+  String get xenProvenanceEdo16 =>
+      '16 equal divisions of the octave, 75 cents apart';
+
+  @override
+  String get xenProvenanceBlackwood =>
+      'Ten notes of 15-EDO, alternating 80 and 160 cent steps';
+
+  @override
+  String get xenProvenanceCarlosAlpha =>
+      'Wendy Carlos: steps of 78.0 cents, no octave';
+
+  @override
+  String get xenProvenanceCarlosBeta =>
+      'Wendy Carlos: steps of 63.8 cents, no octave';
+
+  @override
+  String get xenProvenanceCarlosGamma =>
+      'Wendy Carlos: steps of 35.1 cents, no octave';
+
+  @override
+  String get xenProvenanceBohlenPierceLambda =>
+      'Steps 0, 1, 3, 4, 6, 7, 9, 10, 12 of 13-tone Bohlen-Pierce';
+
+  @override
+  String get xenProvenanceSubharmonicSeries =>
+      'Undertones 16-8: 16/15, 8/7, 16/13, 4/3, 16/11, 8/5, 16/9';
+
+  @override
+  String get xenProvenanceImportedScala => 'Imported from Scala (.scl)';
+
+  @override
+  String get xenProvenanceMadeInGrooveForge => 'Made in GrooveForge';
 
   @override
   String get midiFxBypass => 'Bypass';
@@ -2217,6 +2697,37 @@ class AppLocalizationsEn extends AppLocalizations {
   String get ccAssignMoveKnobOrButton => 'Move a CC knob or press button…';
 
   @override
+  String ccAssignTitle(String slot) {
+    return 'CC Assign — $slot';
+  }
+
+  @override
+  String get ccAssignNoParams => 'No CC-controllable parameters for this slot.';
+
+  @override
+  String get ccAssignLearn => 'Learn';
+
+  @override
+  String get ccAssignMoveKnob => 'Move a CC knob…';
+
+  @override
+  String get ccParamModeAbsolute => 'absolute';
+
+  @override
+  String get ccParamModeToggle => 'toggle';
+
+  @override
+  String get ccParamModeCycle => 'cycle';
+
+  @override
+  String get ccParamModeDirect => 'direct';
+
+  @override
+  String ccSlotChannelShort(int channel) {
+    return 'Ch $channel';
+  }
+
+  @override
   String get ccActionPickerLabel => 'Action';
 
   @override
@@ -2265,6 +2776,51 @@ class AppLocalizationsEn extends AppLocalizations {
   String toastSystemVolume(int percent) {
     return 'System volume: $percent%';
   }
+
+  @override
+  String get toastOutputDeviceDisconnected =>
+      'Audio output disconnected — back to the default output';
+
+  @override
+  String toastSoundfontLoaded(String fileName) {
+    return 'Loaded: $fileName';
+  }
+
+  @override
+  String toastSoundfontLoadError(String error) {
+    return 'Couldn\'t load the soundfont: $error';
+  }
+
+  @override
+  String get toastSoundfontUnloaded => 'Soundfont unloaded';
+
+  @override
+  String toastScaleLockOn(int channel) {
+    return 'Scale lock on — channel $channel';
+  }
+
+  @override
+  String toastScaleLockOff(int channel) {
+    return 'Scale lock off — channel $channel';
+  }
+
+  @override
+  String toastScaleTypeChanged(String scaleName, int channel) {
+    return 'Scale: $scaleName — channel $channel';
+  }
+
+  @override
+  String toastPatchSweep(int program, int channel) {
+    return 'Program $program — channel $channel';
+  }
+
+  @override
+  String toastBankSweep(int bank, int channel) {
+    return 'Bank $bank — channel $channel';
+  }
+
+  @override
+  String get toastPreferencesReset => 'All preferences reset';
 
   @override
   String get intervalNameUnison => 'Unison';
@@ -2345,6 +2901,24 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get vocoderWaveHarmony => 'Harmony';
+
+  @override
+  String get vocoderKnobNoise => 'NOISE';
+
+  @override
+  String get vocoderKnobSpeed => 'SPEED';
+
+  @override
+  String get vocoderKnobBandwidth => 'BW';
+
+  @override
+  String get vocoderKnobGate => 'GATE';
+
+  @override
+  String get vocoderMeterMic => 'MIC';
+
+  @override
+  String get vocoderMeterOut => 'OUT';
 
   @override
   String get latencyProbeTitle => 'Overdub latency';
@@ -3166,6 +3740,312 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get ccGmBankSelect => 'Bank Select (MSB)';
+
+  @override
+  String get ccGmModWheel => 'Modulation Wheel (Vibrato)';
+
+  @override
+  String get ccGmBreath => 'Breath Control';
+
+  @override
+  String get ccGmFootPedal => 'Foot Pedal';
+
+  @override
+  String get ccGmPortamentoTime => 'Portamento Time';
+
+  @override
+  String get ccGmMainVolume => 'Main Volume';
+
+  @override
+  String get ccGmPan => 'Pan (Stereo)';
+
+  @override
+  String get ccGmExpression => 'Expression';
+
+  @override
+  String get ccGmSustainPedal => 'Sustain Pedal';
+
+  @override
+  String get ccGmPortamento => 'Portamento';
+
+  @override
+  String get ccGmResonance => 'Resonance (Filter)';
+
+  @override
+  String get ccGmCutoff => 'Frequency Cutoff (Filter)';
+
+  @override
+  String get ccGmReverbSend => 'Reverb Send Level';
+
+  @override
+  String get ccGmChorusSend => 'Chorus Send Level';
+
+  @override
+  String get ccSysNextSoundfont => '[System] Next Soundfont';
+
+  @override
+  String get ccSysPrevSoundfont => '[System] Prev Soundfont';
+
+  @override
+  String get ccSysNextPatch => '[System] Next Program/Patch';
+
+  @override
+  String get ccSysPrevPatch => '[System] Prev Program/Patch';
+
+  @override
+  String get ccSysPatchSweep => '[System] Absolute Patch Sweep';
+
+  @override
+  String get ccSysBankSweep => '[System] Absolute Bank/Tone Sweep';
+
+  @override
+  String get ccSysJamMode => '[System] Start/Stop Jam Mode';
+
+  @override
+  String get ccSysCycleScale => '[System] Cycle Scale Type';
+
+  @override
+  String get ccSysMidiLooperLoop => '[MIDI Looper] Loop Button';
+
+  @override
+  String get ccSysMidiLooperStop => '[MIDI Looper] Stop';
+
+  @override
+  String get ccSysAudioLooperLoop => '[Audio Looper] Loop Button';
+
+  @override
+  String get ccSysAudioLooperStop => '[Audio Looper] Stop';
+
+  @override
+  String get ccSysMuteChannels => '[System] Mute / Unmute Channels';
+
+  @override
+  String get ccParamMix => 'Mix';
+
+  @override
+  String get ccParamWaveform => 'Waveform';
+
+  @override
+  String get ccParamVolume => 'Volume';
+
+  @override
+  String get ccParamToggleOnOff => 'Toggle On/Off';
+
+  @override
+  String get ccParamStop => 'Stop';
+
+  @override
+  String get ccParamLevel => 'Level';
+
+  @override
+  String get ccParamBypass => 'Bypass';
+
+  @override
+  String get ccParamVibratoDepth => 'Vibrato Depth';
+
+  @override
+  String get ccParamVibrato => 'Vibrato';
+
+  @override
+  String get ccParamTuneOnOff => 'Tune On/Off';
+
+  @override
+  String get ccParamTone => 'Tone';
+
+  @override
+  String get ccParamTime => 'Time';
+
+  @override
+  String get ccParamThreshold => 'Threshold';
+
+  @override
+  String get ccParamSwing => 'Swing';
+
+  @override
+  String get ccParamSustain => 'Sustain';
+
+  @override
+  String get ccParamStrength => 'Strength';
+
+  @override
+  String get ccParamStartStop => 'Start / Stop';
+
+  @override
+  String get ccParamSnapOnOff => 'Snap On/Off';
+
+  @override
+  String get ccParamSemitones => 'Semitones';
+
+  @override
+  String get ccParamSelectPatch => 'Select Patch';
+
+  @override
+  String get ccParamScaleType => 'Scale Type';
+
+  @override
+  String get ccParamRetune => 'Retune';
+
+  @override
+  String get ccParamRecallScale => 'Recall Scale';
+
+  @override
+  String get ccParamRecallRoot => 'Recall Root';
+
+  @override
+  String get ccParamRate => 'Rate';
+
+  @override
+  String get ccParamRangeOctaves => 'Range (octaves)';
+
+  @override
+  String get ccParamPrevSoundfont => 'Previous Soundfont';
+
+  @override
+  String get ccParamPrevPattern => 'Previous Pattern';
+
+  @override
+  String get ccParamPrevPatch => 'Previous Patch';
+
+  @override
+  String get ccParamPickupType => 'Pickup type';
+
+  @override
+  String get ccParamPickup => 'Pickup';
+
+  @override
+  String get ccParamPickPosition => 'Pick position';
+
+  @override
+  String get ccParamPedalSustain => 'Pedal sustain';
+
+  @override
+  String get ccParamPedal => 'Pedal';
+
+  @override
+  String get ccParamPattern => 'Pattern';
+
+  @override
+  String get ccParamPatchKnob => 'Patch (knob)';
+
+  @override
+  String get ccParamPalmMuteOnOff => 'Palm mute on/off';
+
+  @override
+  String get ccParamPalmMute => 'Palm mute';
+
+  @override
+  String get ccParamOverlapLegato => 'Overlap legato on/off';
+
+  @override
+  String get ccParamNoiseMix => 'Noise Mix';
+
+  @override
+  String get ccParamNextSoundfont => 'Next Soundfont';
+
+  @override
+  String get ccParamNextScaleInFamily => 'Next Scale (in family)';
+
+  @override
+  String get ccParamNextPattern => 'Next Pattern';
+
+  @override
+  String get ccParamNextPatch => 'Next Patch';
+
+  @override
+  String get ccParamMute => 'Mute';
+
+  @override
+  String get ccParamMode => 'Mode';
+
+  @override
+  String get ccParamMidiLoopButton => 'Loop Button (Record/Play/Overdub)';
+
+  @override
+  String get ccParamAudioLoopButton => 'Loop Button (Arm/Record/Play/Overdub)';
+
+  @override
+  String get ccParamLegatoOnOff => 'Legato on/off (hammer-on / pull-off)';
+
+  @override
+  String get ccParamLatchRoot => 'Latch Root from Held Notes';
+
+  @override
+  String get ccParamInputGain => 'Input Gain';
+
+  @override
+  String get ccParamHumanFeel => 'Human Feel';
+
+  @override
+  String get ccParamGateThreshold => 'Gate Threshold';
+
+  @override
+  String get ccParamGain => 'Gain';
+
+  @override
+  String get ccParamFeedback => 'Feedback (larsen)';
+
+  @override
+  String get ccParamFeedbackHarmonic => 'Feedback harmonic';
+
+  @override
+  String get ccParamEnvRelease => 'Envelope Release';
+
+  @override
+  String get ccParamDriveType => 'Drive type';
+
+  @override
+  String get ccParamDriveOnOff => 'Drive on/off';
+
+  @override
+  String get ccParamDrive => 'Drive';
+
+  @override
+  String get ccParamDivision => 'Division';
+
+  @override
+  String get ccParamDetectionMode => 'Detection Mode';
+
+  @override
+  String get ccParamDepth => 'Depth';
+
+  @override
+  String get ccParamChordType => 'Chord Type';
+
+  @override
+  String get ccParamChipArpOnOff => 'Chiptune Arp On/Off';
+
+  @override
+  String get ccParamChipArpChord => 'Chiptune Arp Chord';
+
+  @override
+  String get ccParamCenter => 'Center';
+
+  @override
+  String get ccParamCabOnOff => 'Cab on/off';
+
+  @override
+  String get ccParamBpmSync => 'BPM Sync';
+
+  @override
+  String get ccParamBaseNote => 'Base Note';
+
+  @override
+  String get ccParamBandwidth => 'Bandwidth';
+
+  @override
+  String get ccParamAttack => 'Attack';
+
+  @override
+  String get ccParamArpRate => 'Arp Rate (PAL/NTSC)';
+
+  @override
+  String get ccParamAmpOnOff => 'Amp on/off';
+
+  @override
+  String get ccParamAmount => 'Amount';
+
+  @override
   String get guideTabStart => 'Start here';
 
   @override
@@ -3336,6 +4216,498 @@ class AppLocalizationsEn extends AppLocalizations {
   String get guideJackTune => 'tuning for scales between the piano keys';
 
   @override
+  String get guideJackLegendData => 'CHORD / SCALE';
+
+  @override
   String get guideMidiHardwareStep3 =>
       'It plays the module whose MIDI CH badge matches the channel it sends on, usually 1. Tap the badge on a module to change its channel.';
+
+  @override
+  String get gfpaAmpAmp => 'Amp';
+
+  @override
+  String get gfpaAmpBass => 'Bass';
+
+  @override
+  String get gfpaAmpCab => 'Cab';
+
+  @override
+  String get gfpaAmpCabinet => 'Cabinet';
+
+  @override
+  String get gfpaAmpDrive => 'Drive';
+
+  @override
+  String get gfpaAmpGain => 'Gain';
+
+  @override
+  String get gfpaAmpMiddle => 'Middle';
+
+  @override
+  String get gfpaAmpModel => 'Model';
+
+  @override
+  String get gfpaAmpOn => 'On';
+
+  @override
+  String get gfpaAmpOverdrive => 'Overdrive';
+
+  @override
+  String get gfpaAmpTreble => 'Treble';
+
+  @override
+  String get gfpaArpeggiatorDivision => 'Division';
+
+  @override
+  String get gfpaArpeggiatorDnUp => 'DnUp';
+
+  @override
+  String get gfpaArpeggiatorDown => 'Down';
+
+  @override
+  String get gfpaArpeggiatorGate => 'Gate';
+
+  @override
+  String get gfpaArpeggiatorOctaves => 'Octaves';
+
+  @override
+  String get gfpaArpeggiatorPattern => 'Pattern';
+
+  @override
+  String get gfpaArpeggiatorPlayed => 'Played';
+
+  @override
+  String get gfpaArpeggiatorRange => 'Range';
+
+  @override
+  String get gfpaArpeggiatorRhythm => 'Rhythm';
+
+  @override
+  String get gfpaArpeggiatorUp => 'Up';
+
+  @override
+  String get gfpaArpeggiatorUpDown => 'UpDown';
+
+  @override
+  String get gfpaAudioHarmonizerDryWet => 'Dry/Wet';
+
+  @override
+  String get gfpaAutotuneBlues => 'Blues';
+
+  @override
+  String get gfpaAutotuneChromatic => 'Chromatic';
+
+  @override
+  String get gfpaAutotuneHarmonicMinor => 'Harmonic Minor';
+
+  @override
+  String get gfpaAutotuneHumanize => 'Humanize';
+
+  @override
+  String get gfpaAutotuneKey => 'Key';
+
+  @override
+  String get gfpaAutotuneMajor => 'Major';
+
+  @override
+  String get gfpaAutotuneMajorPenta => 'Major Penta';
+
+  @override
+  String get gfpaAutotuneMinor => 'Minor';
+
+  @override
+  String get gfpaAutotuneMinorPenta => 'Minor Penta';
+
+  @override
+  String get gfpaAutotuneNotes => 'Notes';
+
+  @override
+  String get gfpaAutotuneRetune => 'Retune';
+
+  @override
+  String get gfpaAutotuneStrength => 'Strength';
+
+  @override
+  String get gfpaAutotuneTune => 'Tune';
+
+  @override
+  String get gfpaAutotuneVoice => 'Voice';
+
+  @override
+  String get gfpaChordChord => 'Chord';
+
+  @override
+  String get gfpaChordChordType => 'Chord Type';
+
+  @override
+  String get gfpaChordClose => 'Close';
+
+  @override
+  String get gfpaChordOpen => 'Open';
+
+  @override
+  String get gfpaChordSpread => 'Spread';
+
+  @override
+  String get gfpaChordVoicing => 'Voicing';
+
+  @override
+  String get gfpaChordWide => 'Wide';
+
+  @override
+  String get gfpaCompressorCompression => 'Compression';
+
+  @override
+  String get gfpaCompressorEnvelope => 'Envelope';
+
+  @override
+  String get gfpaCompressorMakeup => 'Makeup';
+
+  @override
+  String get gfpaCompressorRatio => 'Ratio';
+
+  @override
+  String get gfpaCompressorRelease => 'Release';
+
+  @override
+  String get gfpaCompressorThresh => 'Thresh';
+
+  @override
+  String get gfpaDelayCharacter => 'Character';
+
+  @override
+  String get gfpaDelayTime => 'Time';
+
+  @override
+  String get gfpaDelayTiming => 'Timing';
+
+  @override
+  String get gfpaEqFlat => 'Flat';
+
+  @override
+  String get gfpaEqHM => 'HM';
+
+  @override
+  String get gfpaEqHMHz => 'HM Hz';
+
+  @override
+  String get gfpaEqHMQ => 'HM Q';
+
+  @override
+  String get gfpaEqHiHz => 'Hi Hz';
+
+  @override
+  String get gfpaEqHigh => 'High';
+
+  @override
+  String get gfpaEqHighGain => 'High';
+
+  @override
+  String get gfpaEqHighMid => 'High Mid';
+
+  @override
+  String get gfpaEqLM => 'LM';
+
+  @override
+  String get gfpaEqLMHz => 'LM Hz';
+
+  @override
+  String get gfpaEqLMQ => 'LM Q';
+
+  @override
+  String get gfpaEqLow => 'Low';
+
+  @override
+  String get gfpaEqLowGain => 'Low';
+
+  @override
+  String get gfpaEqLowHz => 'Low Hz';
+
+  @override
+  String get gfpaEqLowMid => 'Low Mid';
+
+  @override
+  String get gfpaGateMaxNote => 'Max Note';
+
+  @override
+  String get gfpaGateMaxVel => 'Max Vel';
+
+  @override
+  String get gfpaGateMinNote => 'Min Note';
+
+  @override
+  String get gfpaGateMinVel => 'Min Vel';
+
+  @override
+  String get gfpaGatePitch => 'Pitch';
+
+  @override
+  String get gfpaLabelAttack => 'Attack';
+
+  @override
+  String get gfpaLabelDelay => 'Delay';
+
+  @override
+  String get gfpaLabelDepth => 'Depth';
+
+  @override
+  String get gfpaLabelFeedback => 'Feedback';
+
+  @override
+  String get gfpaLabelLevel => 'Level';
+
+  @override
+  String get gfpaLabelMix => 'Mix';
+
+  @override
+  String get gfpaLabelMode => 'Mode';
+
+  @override
+  String get gfpaLabelOutput => 'Output';
+
+  @override
+  String get gfpaLabelRate => 'Rate';
+
+  @override
+  String get gfpaLabelScale => 'Scale';
+
+  @override
+  String get gfpaLabelScaleLock => 'Scale Lock';
+
+  @override
+  String get gfpaLabelSetup => 'Setup';
+
+  @override
+  String get gfpaLabelTone => 'Tone';
+
+  @override
+  String get gfpaLabelType => 'Type';
+
+  @override
+  String get gfpaLabelVelocity => 'Velocity';
+
+  @override
+  String get gfpaLabelVoices => 'Voices';
+
+  @override
+  String get gfpaMicrotoneAverage => 'Average';
+
+  @override
+  String get gfpaMicrotoneBendRange => 'Bend Range';
+
+  @override
+  String get gfpaMicrotoneCluster => 'Cluster';
+
+  @override
+  String get gfpaMicrotoneLastNote => 'Last Note';
+
+  @override
+  String get gfpaMicrotoneMean => 'Mean';
+
+  @override
+  String get gfpaMicrotoneOuterAvg => 'Outer Avg';
+
+  @override
+  String get gfpaReverbDamp => 'Damp';
+
+  @override
+  String get gfpaReverbRoom => 'Room';
+
+  @override
+  String get gfpaReverbRoomSize => 'Room';
+
+  @override
+  String get gfpaReverbWidth => 'Width';
+
+  @override
+  String get gfpaRiff2Oct => '2 Oct';
+
+  @override
+  String get gfpaRiffBend => 'Bend';
+
+  @override
+  String get gfpaRiffBridge => 'Bridge';
+
+  @override
+  String get gfpaRiffFrettingHand => 'Fretting hand';
+
+  @override
+  String get gfpaRiffHarmonic => 'Harmonic';
+
+  @override
+  String get gfpaRiffHumbucker => 'Humbucker';
+
+  @override
+  String get gfpaRiffLegato => 'Legato';
+
+  @override
+  String get gfpaRiffMiddle => 'Middle';
+
+  @override
+  String get gfpaRiffNeck => 'Neck';
+
+  @override
+  String get gfpaRiffNeckPlusBridge => 'Neck+Bridge';
+
+  @override
+  String get gfpaRiffOctPlus5th => 'Oct+5th';
+
+  @override
+  String get gfpaRiffOverlap => 'Overlap';
+
+  @override
+  String get gfpaRiffPalmMute => 'Palm mute';
+
+  @override
+  String get gfpaRiffPedalSus => 'Pedal sus.';
+
+  @override
+  String get gfpaRiffPickPos => 'Pick pos.';
+
+  @override
+  String get gfpaRiffPickingHand => 'Picking hand';
+
+  @override
+  String get gfpaRiffPickup => 'Pickup';
+
+  @override
+  String get gfpaRiffPickups => 'Pickups';
+
+  @override
+  String get gfpaRiffRoot => 'Root';
+
+  @override
+  String get gfpaRiffSingleCoil => 'Single coil';
+
+  @override
+  String get gfpaRiffStrings => 'Strings';
+
+  @override
+  String get gfpaRiffSustain => 'Sustain';
+
+  @override
+  String get gfpaTransposerPitchShift => 'Pitch Shift';
+
+  @override
+  String get gfpaTransposerSemitones => 'Semitones';
+
+  @override
+  String get gfpaVelocityCurveAmount => 'Amount';
+
+  @override
+  String get gfpaVelocityCurveCurveType => 'Curve Type';
+
+  @override
+  String get gfpaVelocityCurveFixed => 'Fixed';
+
+  @override
+  String get gfpaVelocityCurveIntensity => 'Intensity';
+
+  @override
+  String get gfpaVelocityCurvePower => 'Power';
+
+  @override
+  String get gfpaVelocityCurveSigmoid => 'Sigmoid';
+
+  @override
+  String get gfpaWahAuto => 'Auto';
+
+  @override
+  String get gfpaWahCenter => 'Center';
+
+  @override
+  String get gfpaWahFilter => 'Filter';
+
+  @override
+  String get gfpaWahManual => 'Manual';
+
+  @override
+  String get gfpaWahPedal => 'Pedal';
+
+  @override
+  String get gfpaWahReso => 'Reso';
+
+  @override
+  String get gfpaWahSaw => 'Saw';
+
+  @override
+  String get gfpaWahSine => 'Sine';
+
+  @override
+  String get gfpaWahSweep => 'Sweep';
+
+  @override
+  String get gfpaWahWave => 'Wave';
+
+  @override
+  String get scaleNameIonian => 'Ionian';
+
+  @override
+  String get scaleNameDorian => 'Dorian';
+
+  @override
+  String get scaleNamePhrygian => 'Phrygian';
+
+  @override
+  String get scaleNameLydian => 'Lydian';
+
+  @override
+  String get scaleNameMixolydian => 'Mixolydian';
+
+  @override
+  String get scaleNameAeolian => 'Aeolian';
+
+  @override
+  String get scaleNameLocrian => 'Locrian';
+
+  @override
+  String get scaleNameLocrianSharp2 => 'Locrian #2';
+
+  @override
+  String get scaleNameLydianDominant => 'Lydian Dominant';
+
+  @override
+  String get scaleNamePhrygianDominant => 'Phrygian Dominant';
+
+  @override
+  String get scaleNameAltered => 'Altered Scale';
+
+  @override
+  String get scaleNameMajor => 'Major';
+
+  @override
+  String get scaleNameNaturalMajor => 'Natural Major';
+
+  @override
+  String get scaleNameHarmonicMinor => 'Harmonic Minor';
+
+  @override
+  String get scaleNameMelodicMinor => 'Melodic Minor';
+
+  @override
+  String get scaleNameMajorPentatonic => 'Major Pentatonic';
+
+  @override
+  String get scaleNameMinorPentatonic => 'Minor Pentatonic';
+
+  @override
+  String get scaleNameMajorBlues => 'Major Blues';
+
+  @override
+  String get scaleNameMinorBlues => 'Minor Blues';
+
+  @override
+  String get scaleNameRockHexatonic => 'Rock Hexatonic';
+
+  @override
+  String get scaleNameWholeTone => 'Whole Tone';
+
+  @override
+  String get scaleNameDiminished => 'Diminished';
+
+  @override
+  String get scaleNameStandard => 'Standard';
+
+  @override
+  String get looperQuantizeOff => 'off';
 }

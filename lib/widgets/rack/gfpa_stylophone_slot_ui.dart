@@ -644,10 +644,31 @@ class _ChipArpRow extends StatelessWidget {
     required this.l10n,
   });
 
-  /// Short labels for chord types matching [GFStyloPhonePlugin.chipArpPatterns].
-  static const _chordLabels = [
-    'OFF', 'MAJ', 'MIN', 'DIM', 'MAJ7', 'MIN7', 'DOM7', 'OCT', '5TH', 'LIVE',
+  /// Chord-quality symbols indexed like [GFStyloPhonePlugin.chipArpPatterns].
+  ///
+  /// MAJ / MIN / DIM / MAJ7 / MIN7 / DOM7 are international chord notation
+  /// and read the same in every language, so they stay as literals. Empty
+  /// entries are the words (off, octave, fifth, live) resolved through
+  /// [AppLocalizations] by [_chordLabel].
+  static const _chordSymbols = [
+    '', 'MAJ', 'MIN', 'DIM', 'MAJ7', 'MIN7', 'DOM7', '', '', '',
   ];
+
+  /// Returns the short label for chord type [index] in the player's language.
+  String _chordLabel(int index) {
+    switch (index) {
+      case 0:
+        return l10n.chiptuneOff;
+      case 7:
+        return l10n.stylophoneArpOctave;
+      case 8:
+        return l10n.stylophoneArpFifth;
+      case GFStyloPhonePlugin.chipArpCustomIndex:
+        return l10n.stylophoneArpLive;
+      default:
+        return _chordSymbols[index];
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -667,7 +688,7 @@ class _ChipArpRow extends StatelessWidget {
           // ── Chord type ──────────────────────────────────────────────
           _ChipControl(
             label: l10n.chiptuneChord,
-            value: _chordLabels[chordIndex],
+            value: _chordLabel(chordIndex),
             canDecrement: chordIndex > 1,
             canIncrement: chordIndex < GFStyloPhonePlugin.chipArpCustomIndex,
             onDecrement: onChordDecrement,
@@ -737,13 +758,14 @@ class _ChiptuneRow extends StatelessWidget {
     // Noise mix as percentage string.
     final noiseLabel = '${(noiseMix * 100).round()}%';
     // Bit depth display: "OFF" for 16, otherwise the bit count.
-    final crushLabel = bitDepth >= 16 ? l10n.chiptuneOff : '${bitDepth}bit';
+    final crushLabel =
+        bitDepth >= 16 ? l10n.chiptuneOff : l10n.stylophoneBitDepth(bitDepth);
     // Sub mix as percentage string.
     final subLabel = subMix <= 0.0
         ? l10n.chiptuneOff
         : '${(subMix * 100).round()}%';
     // Sub octave label.
-    final subOctLabel = '-${subOctave}oct';
+    final subOctLabel = '-${l10n.octaveCountShort(subOctave)}';
 
     return Row(
       children: [
@@ -973,7 +995,9 @@ class _OctaveRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Format the octave shift with a leading + sign for positive values.
-    final label = 'OCT ${octaveShift >= 0 ? '+' : ''}$octaveShift';
+    final sign = octaveShift >= 0 ? '+' : '';
+    final label =
+        AppLocalizations.of(context)!.stylophoneOctaveShift('$sign$octaveShift');
 
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -1071,7 +1095,7 @@ class _VibratoRow extends StatelessWidget {
               ),
             ),
             child: Text(
-              'VIB',
+              AppLocalizations.of(context)!.stylophoneVibrato,
               style: TextStyle(
                 fontSize: 9,
                 fontWeight: FontWeight.bold,

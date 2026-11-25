@@ -53,7 +53,7 @@
     <p class="recipe-note">
       Les modules marqués <strong>Applis uniquement</strong> fonctionnent dans les applis Android, Linux, macOS et Windows.
       Dans la <a href="../../demo/">démo web</a>, ils sont grisés. Les vidéos montrent l'app en anglais ; les libellés cités ici sont
-      ceux de l'app en français, sauf quand l'app les affiche en anglais.
+      ceux de l'app en français.
     </p>
 
     <p><strong>Instruments</strong></p>
@@ -104,8 +104,8 @@
       Choisissez <span class="ui">Aucune (MIDI seulement)</span> dans le menu des soundfonts : le clavier se tait et n'envoie plus que des notes.
       Sur le clavier à l'écran, une touche jouée près de son bord avant sonne plus fort que près du fond.
       Pour jouer toutes les touches avec la même force, changez <span class="ui">Vélocité des touches</span> dans les Préférences.
-      C'est dans <code>SCALE IN</code> et <code>TUNE IN</code> que <a href="../midi-fx/#xen">Xen</a> ou le Mode Jam se branchent pour le caler sur une gamme.
-      <code>CHORD OUT</code> indique au Mode Jam, à Xen ou à un harmoniseur l'accord que vous tenez.
+      C'est dans <code>GAMME IN</code> et <code>TUNE IN</code> que <a href="../midi-fx/#xen">Xen</a> ou le Mode Jam se branchent pour le caler sur une gamme.
+      <code>ACCORD OUT</code> indique au Mode Jam, à Xen ou à un harmoniseur l'accord que vous tenez.
     </p>
 
     <h2 id="vocoder">Vocodeur</h2>
@@ -117,7 +117,7 @@
     <p>
       Choisissez le son du synthé avec <span class="ui">Dent de scie</span>, <span class="ui">Carrée</span> ou <span class="ui">Choral</span>.
       <span class="ui">Harmonie</span> retire le synthé et déplace votre propre voix sur les notes tenues.
-      Comme le clavier, il a <code>MIDI IN</code>, <code>MIDI OUT</code>, <code>SCALE IN</code> et <code>TUNE IN</code>, et joue dans les haut-parleurs sans câble.
+      Comme le clavier, il a <code>MIDI IN</code>, <code>MIDI OUT</code>, <code>GAMME IN</code> et <code>TUNE IN</code>, et joue dans les haut-parleurs sans câble.
     </p>
 
     <section class="recipe" id="riff">
@@ -140,16 +140,15 @@
           (<a href="../guide/#ampli">pas à pas</a>). Chaque note va sur la corde qu'un guitariste choisirait, et des notes proches prennent
           des cordes différentes pour sonner ensemble.
         </p>
-        <p class="recipe-note">Les libellés du panneau de Riff restent en anglais dans l'app.</p>
         <ul>
-          <li><span class="ui">Palm mute</span>, <span class="ui">Pick pos.</span> et <span class="ui">Attack</span>, c'est la main droite.
+          <li><span class="ui">Palm mute</span>, <span class="ui">Pos. médiator</span> et <span class="ui">Attaque</span>, c'est la main droite.
             Ils agissent sur les cordes qui sonnent déjà : associez-les à une pédale ou un potard (<a href="../guide/#learn">Associer un bouton</a>).</li>
           <li><span class="ui">Legato</span> lie les notes jouées proches : hammer-on en montant, pull-off en descendant, sur une seule corde.
             Un pad qui envoie le CC 68 fait pareil tant que vous le tenez. <span class="ui">Overlap</span> ne lie que les touches enfoncées avant d'avoir lâché la précédente.</li>
           <li>La molette de pitch fait des bends de l'amplitude <span class="ui">Bend</span> (2 demi-tons par défaut, jusqu'à 12). La molette de modulation ajoute du vibrato.</li>
-          <li><span class="ui">Pickup</span> (Neck, Middle, Bridge, Neck+Bridge), <span class="ui">Type</span> (Single coil, Humbucker) et <span class="ui">Tone</span> façonnent le son.</li>
-          <li>La pédale de sustain laisse sonner les cordes relâchées ; <span class="ui">Pedal sus.</span> règle combien de temps.
-            <span class="ui">Feedback</span> fait monter les cordes tenues vers l'<span class="ui">Harmonic</span> choisie, comme une guitare devant un ampli à fond.</li>
+          <li><span class="ui">Micro</span> (Manche, Milieu, Chevalet, Man.+Chev.), <span class="ui">Type</span> (Simple, Humbucker) et <span class="ui">Timbre</span> façonnent le son.</li>
+          <li>La pédale de sustain laisse sonner les cordes relâchées ; <span class="ui">Pédale sus.</span> règle combien de temps.
+            <span class="ui">Feedback</span> fait monter les cordes tenues vers l'<span class="ui">Harmonique</span> choisie, comme une guitare devant un ampli à fond.</li>
         </ul>
       </div>
     </section>
@@ -173,7 +172,7 @@
       plus c'est aigu. L'image n'est ni enregistrée ni envoyée ; voir la <a href="../privacy/">politique de confidentialité</a>.
     </p>
     <p>
-      <span class="ui">BASE</span> règle la note la plus grave, <span class="ui">RANGE</span> l'étendue en octaves, <span class="ui">VIB</span> le vibrato
+      <span class="ui">BASE</span> règle la note la plus grave, <span class="ui">ÉTENDUE</span> l'étendue en octaves, <span class="ui">VIB</span> le vibrato
       et <span class="ui">HAUTEUR</span> la taille du pad. Comme le Stylophone, elle a un <code>MIDI OUT</code> et un bouton <span class="ui">MUTE</span>.
     </p>
 
@@ -181,18 +180,17 @@
     <p>
       Écoute les accords que vous jouez sur un clavier et cale d'autres claviers sur la gamme qui va avec : un deuxième musicien
       ne peut plus faire de fausse note. Un seul par projet. Pour choisir la gamme vous-même, prenez plutôt <a href="../midi-fx/#xen">Xen</a>.
-      Son panneau est en anglais dans l'app.
     </p>
     <ol>
       <li>Sous <span class="ui">MASTER</span>, choisissez le clavier sur lequel vous jouez les accords.</li>
-      <li>Sous <span class="ui">TARGETS</span>, touchez <span class="ui">Add</span> et choisissez les claviers (ou vocodeurs) à caler.</li>
-      <li>Allumez le module avec son bouton rond <span class="ui">ON</span> et choisissez un <span class="ui">SCALE TYPE</span>, par exemple Blues ou Dorian.</li>
+      <li>Sous <span class="ui">CIBLES</span>, touchez <span class="ui">Ajouter</span> et choisissez les claviers (ou vocodeurs) à caler.</li>
+      <li>Allumez le module avec son bouton rond <span class="ui">ON</span> et choisissez un <span class="ui">TYPE DE GAMME</span>, par exemple Blues ou Dorien.</li>
     </ol>
     <p>
-      Ces liens apparaissent aussi dans la <span class="ui">Vue de câblage</span> sous forme de câbles violets : le <code>CHORD OUT</code> du clavier
-      maître vers le <code>CHORD IN</code> du Mode Jam, et le <code>SCALE OUT</code> du Mode Jam vers le <code>SCALE IN</code> de chaque cible.
+      Ces liens apparaissent aussi dans la <span class="ui">Vue de câblage</span> sous forme de câbles violets : le <code>ACCORD OUT</code> du clavier
+      maître vers le <code>ACCORD IN</code> du Mode Jam, et le <code>GAMME OUT</code> du Mode Jam vers le <code>GAMME IN</code> de chaque cible.
       Tirer un câble ou choisir dans le menu revient au même.
-      <span class="ui">DETECT</span> lit l'accord entier (<span class="ui">Chord</span>) ou seulement la note la plus grave (<span class="ui">Bass</span>).
+      <span class="ui">DÉTECTION</span> lit l'accord entier (<span class="ui">Accord</span>) ou seulement la note la plus grave (<span class="ui">Basse</span>).
       <span class="ui">SYNC</span> attend le temps, la demi-mesure ou la mesure suivante avant de changer de gamme.
     </p>
 
@@ -281,50 +279,50 @@
       Chaque effet a des <code>AUDIO IN L/R</code> et des <code>AUDIO OUT L/R</code> : reliez les sorties d'un instrument à ses entrées,
       comme dans <a href="../guide/#effet">Ajouter un effet</a>. Ce qui sort de l'effet part dans les haut-parleurs.
       Le bouton marche/arrêt en haut d'un effet le contourne (<span class="ui">Bypass</span>), pour comparer avec et sans.
-      Tous les effets intégrés sont réservés aux applis. Les noms des potards restent en anglais dans l'app.
+      Tous les effets intégrés sont réservés aux applis.
     </p>
 
     <h3 id="reverb">Réverb à plaque</h3>
     <p>
-      Place le son dans une pièce. <span class="ui">Room</span> règle sa taille, <span class="ui">Damp</span> assombrit la queue de réverb,
-      <span class="ui">Width</span> l'étale entre gauche et droite, et <span class="ui">Mix</span> dose la quantité de réverb.
+      Place le son dans une pièce. <span class="ui">Taille</span> règle sa taille, <span class="ui">Amorti</span> assombrit la queue de réverb,
+      <span class="ui">Largeur</span> l'étale entre gauche et droite, et <span class="ui">Mix</span> dose la quantité de réverb.
     </p>
 
     <h3 id="delay">Delay Ping-Pong</h3>
     <p>
-      Répète ce que vous jouez, avec des échos qui rebondissent entre gauche et droite. <span class="ui">Time</span> règle l'écart
+      Répète ce que vous jouez, avec des échos qui rebondissent entre gauche et droite. <span class="ui">Temps</span> règle l'écart
       (1 à 2000 ms). Activez <span class="ui">BPM</span> et choisissez une <span class="ui">Div</span>, de 2 mesures à la double croche (1/16),
       pour caler les échos sur le tempo. <span class="ui">Feedback</span> règle le nombre de répétitions, <span class="ui">Mix</span> leur volume.
     </p>
 
     <h3 id="wah">Wah</h3>
     <p>
-      Le son « wah-wah » de la guitare. En mode <span class="ui">Auto</span>, il balaie tout seul : <span class="ui">Rate</span> et
-      <span class="ui">Wave</span> règlent la vitesse et la forme, ou <span class="ui">BPM</span> et <span class="ui">Div</span> le calent sur le tempo.
-      En mode <span class="ui">Manual</span>, c'est <span class="ui">Pedal</span> qui le déplace : associez Pedal à une pédale d'expression
-      (<a href="../guide/#learn">Associer un bouton</a>) et vous avez une pédale wah. <span class="ui">Center</span>,
-      <span class="ui">Reso</span> et <span class="ui">Depth</span> règlent la zone balayée et le mordant.
+      Le son « wah-wah » de la guitare. En mode <span class="ui">Auto</span>, il balaie tout seul : <span class="ui">Vitesse</span> et
+      <span class="ui">Onde</span> règlent la vitesse et la forme, ou <span class="ui">BPM</span> et <span class="ui">Div</span> le calent sur le tempo.
+      En mode <span class="ui">Manuel</span>, c'est <span class="ui">Pédale</span> qui le déplace : associez Pédale à une pédale d'expression
+      (<a href="../guide/#learn">Associer un bouton</a>) et vous avez une pédale wah. <span class="ui">Centre</span>,
+      <span class="ui">Réso</span> et <span class="ui">Profondeur</span> règlent la zone balayée et le mordant.
     </p>
 
     <h3 id="eq">EQ 4 bandes</h3>
     <p>
-      Monte ou baisse les graves, les médiums et les aigus, jusqu'à 12 dB par bande. <span class="ui">Low</span> et <span class="ui">High</span>
-      agissent sur tout ce qui est en dessous ou au-dessus de leur fréquence ; les deux bandes du milieu (<span class="ui">LM</span>, <span class="ui">HM</span>)
-      agissent autour de la leur, et leur potard <span class="ui">Q</span> règle leur largeur. <span class="ui">Flat</span> remet tout à zéro.
+      Monte ou baisse les graves, les médiums et les aigus, jusqu'à 12 dB par bande. <span class="ui">Graves</span> et <span class="ui">Aigus</span>
+      agissent sur tout ce qui est en dessous ou au-dessus de leur fréquence ; les deux bandes du milieu (<span class="ui">BM</span>, <span class="ui">HM</span>)
+      agissent autour de la leur, et leur potard <span class="ui">Q</span> règle leur largeur. <span class="ui">À plat</span> remet tout à zéro.
     </p>
 
     <h3 id="compressor">Compresseur</h3>
     <p>
-      Égalise les notes fortes et douces. Ce qui dépasse <span class="ui">Thresh</span> est baissé selon le <span class="ui">Ratio</span>
-      (4:1 par défaut). <span class="ui">Attack</span> et <span class="ui">Release</span> règlent la vitesse de réaction,
-      et <span class="ui">Makeup</span> remonte le niveau ensuite.
+      Égalise les notes fortes et douces. Ce qui dépasse <span class="ui">Seuil</span> est baissé selon le <span class="ui">Ratio</span>
+      (4:1 par défaut). <span class="ui">Attaque</span> et <span class="ui">Relâchement</span> règlent la vitesse de réaction,
+      et <span class="ui">Gain</span> remonte le niveau ensuite.
     </p>
 
     <h3 id="chorus">Chorus / Flanger</h3>
     <p>
-      Épaissit le son en y mêlant une copie légèrement retardée qui ondule. <span class="ui">Rate</span> et <span class="ui">Depth</span>
+      Épaissit le son en y mêlant une copie légèrement retardée qui ondule. <span class="ui">Vitesse</span> et <span class="ui">Profondeur</span>
       règlent l'ondulation (ou <span class="ui">BPM</span> et <span class="ui">Div</span> la calent sur le tempo). Pour le son « avion » d'un flanger,
-      baissez <span class="ui">Delay</span> et montez <span class="ui">FB</span>.
+      baissez <span class="ui">Délai</span> et montez <span class="ui">FB</span>.
     </p>
 
     <section class="recipe" id="audio-harmonizer">
@@ -337,14 +335,14 @@
         <h3>Harmoniseur Audio</h3>
         <p class="recipe-goal">Ajoute jusqu'à quatre copies transposées de n'importe quel son : chantez une note, entendez un accord.</p>
         <p>
-          Câblez-y un instrument ou un Live Input. <span class="ui">Voices</span> règle le nombre de copies.
+          Câblez-y un instrument ou un Live Input. <span class="ui">Voix</span> règle le nombre de copies.
           Chaque voix (<span class="ui">V1</span> à <span class="ui">V4</span>) a son intervalle, jusqu'à deux octaves vers le haut ou le bas,
-          et son <span class="ui">Level</span>. <span class="ui">Dry/Wet</span> dose votre son d'origine face à l'harmonie.
+          et son <span class="ui">Niveau</span>. <span class="ui">Dry/Wet</span> dose votre son d'origine face à l'harmonie.
         </p>
         <p>
-          <span class="ui">Scale Lock</span> garde l'harmonie dans une gamme. Encore faut-il lui dire laquelle : reliez le
-          <code>SCALE OUT</code> de Xen ou du Mode Jam au <code>SCALE IN</code> de l'harmoniseur.
-          Pour régler les intervalles en jouant, reliez le <code>CHORD OUT</code> d'un clavier à son <code>CHORD IN</code> et tenez un accord :
+          <span class="ui">Verrou gamme</span> garde l'harmonie dans une gamme. Encore faut-il lui dire laquelle : reliez le
+          <code>GAMME OUT</code> de Xen ou du Mode Jam au <code>GAMME IN</code> de l'harmoniseur.
+          Pour régler les intervalles en jouant, reliez le <code>ACCORD OUT</code> d'un clavier à son <code>ACCORD IN</code> et tenez un accord :
           la note la plus grave représente votre voix, et les notes au-dessus deviennent les voix.
         </p>
       </div>
@@ -356,10 +354,10 @@
       et chantez. L'affichage montre la note chantée, son écart en cents, et la note vers laquelle elle est corrigée.
     </p>
     <p>
-      Réglez <span class="ui">Key</span> et <span class="ui">Scale</span>, ou reliez le <code>SCALE OUT</code> de Xen ou du Mode Jam à son
-      <code>SCALE IN</code> pour suivre leur gamme. <span class="ui">Retune</span> règle la vitesse de correction :
-      à 0 ms, la note saute d'un coup, c'est le son robot ; plus lent, ça sonne naturel. <span class="ui">Strength</span> règle la force de la correction,
-      <span class="ui">Humanize</span> laisse leur vibrato aux notes longues, <span class="ui">Flex</span> épargne les notes loin de la gamme
+      Réglez <span class="ui">Tonalité</span> et <span class="ui">Gamme</span>, ou reliez le <code>GAMME OUT</code> de Xen ou du Mode Jam à son
+      <code>GAMME IN</code> pour suivre leur gamme. <span class="ui">Retune</span> règle la vitesse de correction :
+      à 0 ms, la note saute d'un coup, c'est le son robot ; plus lent, ça sonne naturel. <span class="ui">Force</span> règle la force de la correction,
+      <span class="ui">Humaniser</span> laisse leur vibrato aux notes longues, <span class="ui">Flex</span> épargne les notes loin de la gamme
       (glissés, blue notes), et la barre de transposition décale votre voix jusqu'à une octave. <span class="ui">Mix</span>
       mêle votre voix non corrigée.
     </p>
@@ -378,11 +376,11 @@
           Chaque section a son interrupteur <span class="ui">On</span>, que vous pouvez associer à un footswitch.
         </p>
         <ul>
-          <li><span class="ui">Drive</span> : une pédale, éteinte par défaut. <span class="ui">Type</span> vaut Overdrive (pousse les médiums, garde les graves serrés) ou Distortion (plus rugueuse), avec ses propres potards Drive et Tone.</li>
-          <li><span class="ui">Amp</span> : <span class="ui">Model</span> (US, Brit ou AC), <span class="ui">Gain</span> du son clair au crunch, puis
-            <span class="ui">Bass</span>, <span class="ui">Middle</span> et <span class="ui">Treble</span>, qui s'influencent comme sur les vrais amplis.</li>
-          <li><span class="ui">Cab</span> : le <span class="ui">Cabinet</span>, 1x12, 2x12 ou 4x12, ou un fichier IR (voir plus bas).</li>
-          <li><span class="ui">Level</span> règle le volume de sortie.</li>
+          <li><span class="ui">Drive</span> : une pédale, éteinte par défaut. <span class="ui">Type</span> vaut Overdrive (pousse les médiums, garde les graves serrés) ou Distorsion (plus rugueuse), avec ses propres potards Drive et Timbre.</li>
+          <li><span class="ui">Ampli</span> : <span class="ui">Modèle</span> (US, Brit ou AC), <span class="ui">Gain</span> du son clair au crunch, puis
+            <span class="ui">Graves</span>, <span class="ui">Médiums</span> et <span class="ui">Aigus</span>, qui s'influencent comme sur les vrais amplis.</li>
+          <li><span class="ui">Baffle</span> : le sélecteur <span class="ui">Baffle</span>, 1x12, 2x12 ou 4x12, ou un fichier IR (voir plus bas).</li>
+          <li><span class="ui">Niveau</span> règle le volume de sortie.</li>
         </ul>
       </div>
     </section>
@@ -391,7 +389,7 @@
     <p>
       Une bonne part du son d'une guitare vient du baffle. Une réponse impulsionnelle (IR) est un petit enregistrement <code>.wav</code> d'un vrai
       baffle et de son micro. Touchez <span class="ui">Charger une IR</span> sous l'Ampli et choisissez un fichier : le sélecteur
-      <span class="ui">Cabinet</span> passe sur IR. L'IR est enregistrée dans votre projet et voyage avec lui.
+      <span class="ui">Baffle</span> passe sur IR. L'IR est enregistrée dans votre projet et voyage avec lui.
     </p>
     <p>
       La plupart des WAV non compressés conviennent, quelle que soit leur fréquence d'échantillonnage. D'un fichier stéréo, seul le premier canal

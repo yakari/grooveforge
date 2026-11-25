@@ -99,6 +99,22 @@ class Vst3PluginInstance with AudioSourcePlugin implements PluginInstance {
     pluginType: pluginType ?? this.pluginType,
   );
 
+  /// Names a plugin saved without a `name` field after its bundle file
+  /// (`/usr/lib/vst3/Surge XT.vst3` gives `Surge XT`).
+  ///
+  /// The name is persisted and shown as-is, so the fallback must not be an
+  /// English phrase frozen into the project: the bundle name reads the same
+  /// in every language. Returns `VST3` (a format name) when the path is empty.
+  static String _fallbackNameFromPath(String path) {
+    final segments = path.split(RegExp(r'[/\\]'))
+      ..removeWhere((segment) => segment.isEmpty);
+    if (segments.isEmpty) return 'VST3';
+    final bundle = segments.last;
+    return bundle.endsWith('.vst3')
+        ? bundle.substring(0, bundle.length - '.vst3'.length)
+        : bundle;
+  }
+
   factory Vst3PluginInstance.fromJson(Map<String, dynamic> json) {
     final state = (json['state'] as Map<String, dynamic>?) ?? {};
     final rawParams = (state['parameters'] as Map<String, dynamic>?) ?? {};
@@ -117,7 +133,8 @@ class Vst3PluginInstance with AudioSourcePlugin implements PluginInstance {
       id: json['id'] as String,
       midiChannel: (json['midiChannel'] as num?)?.toInt() ?? 1,
       path: json['path'] as String? ?? '',
-      pluginName: json['name'] as String? ?? 'Unknown VST3',
+      pluginName: json['name'] as String? ??
+          _fallbackNameFromPath(json['path'] as String? ?? ''),
       parameters: params,
       pluginType: pluginType,
     );

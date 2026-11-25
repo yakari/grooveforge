@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../constants/soundfont_sentinels.dart';
+import '../../l10n/app_localizations.dart';
+import '../../l10n/scale_names.dart';
 import '../../models/chord_detector.dart';
 import '../../models/grooveforge_keyboard_plugin.dart';
 import '../../services/audio_engine.dart';
@@ -37,11 +39,11 @@ class GrooveForgeKeyboardSlotUI extends StatelessWidget {
     final channelIndex = plugin.midiChannel - 1;
 
     if (channelIndex < 0 || channelIndex > 15) {
-      return const Padding(
-        padding: EdgeInsets.all(8),
+      return Padding(
+        padding: const EdgeInsets.all(8),
         child: Text(
-          'Invalid MIDI channel',
-          style: TextStyle(color: Colors.orange),
+          AppLocalizations.of(context)!.rackInvalidMidiChannel,
+          style: const TextStyle(color: Colors.orange),
         ),
       );
     }
@@ -73,7 +75,8 @@ class GrooveForgeKeyboardSlotUI extends StatelessWidget {
           // Non-follower: all display data comes from this channel alone.
           final lastChord = state.lastChord.value;
           final descriptiveName =
-              engine.getDescriptiveScaleName(lastChord, currentScale);
+              descriptiveScaleName(
+                AppLocalizations.of(context)!, engine, lastChord, currentScale);
 
           return Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -165,7 +168,8 @@ class _GfkFollowerBody extends StatelessWidget {
       builder: (ctx, _) {
         final refChord = _computeRefChord(masterState);
         final descriptiveName =
-            engine.getDescriptiveScaleName(refChord, gfpaEntry.scaleType);
+            descriptiveScaleName(
+            AppLocalizations.of(ctx)!, engine, refChord, gfpaEntry.scaleType);
 
         // Build the display chord: root note + scale name in the chord header.
         final chordToDisplay = refChord != null

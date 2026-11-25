@@ -425,6 +425,8 @@ class ChannelPatchInfo extends StatelessWidget {
   }
 }
 
+/// Row of four vocoder knobs (noise mix, envelope speed, band width, gate)
+/// shown in a channel card, with labels in the player's language.
 class VocoderSliders extends StatelessWidget {
   final AudioEngine engine;
   final int channelIndex;
@@ -439,6 +441,7 @@ class VocoderSliders extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Padding(
       padding: EdgeInsets.symmetric(
         vertical: isNarrow ? 2.0 : 8.0,
@@ -460,7 +463,7 @@ class VocoderSliders extends StatelessWidget {
                   value: val,
                   min: 0.0,
                   max: 1.0,
-                  label: 'NOISE',
+                  label: l10n.vocoderKnobNoise,
                   icon: Icons.grain,
                   size: isNarrow ? 28 : 40,
                   isCompact: isNarrow,
@@ -483,7 +486,7 @@ class VocoderSliders extends StatelessWidget {
                   value: val,
                   min: 0.0,
                   max: 1.0,
-                  label: 'SPEED',
+                  label: l10n.vocoderKnobSpeed,
                   icon: Icons.bolt,
                   size: isNarrow ? 28 : 40,
                   isCompact: isNarrow,
@@ -506,7 +509,7 @@ class VocoderSliders extends StatelessWidget {
                   value: val,
                   min: 0.0,
                   max: 1.0,
-                  label: 'BW',
+                  label: l10n.vocoderKnobBandwidth,
                   icon: Icons.width_full,
                   size: isNarrow ? 28 : 40,
                   isCompact: isNarrow,
@@ -529,7 +532,7 @@ class VocoderSliders extends StatelessWidget {
                   value: val,
                   min: 0.0,
                   max: 0.1,
-                  label: 'GATE',
+                  label: l10n.vocoderKnobGate,
                   icon: Icons.noise_control_off,
                   size: isNarrow ? 28 : 40,
                   isCompact: isNarrow,

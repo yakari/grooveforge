@@ -8,6 +8,7 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 ## [X.x.x]
 
 ### Ajouté
+- Un fichier .gfpd peut donner ses libellés en plusieurs langues (label: {en: …, fr: …}).
 - Vos propres plugins .gfpd restent dans le menu + après un redémarrage, et un projet enregistre une copie de ceux qu'il utilise.
 - Générateur de batterie : un réglage Breaks, et des interrupteurs pour le crash après le fill et la montée dynamique (qui fait enfin quelque chose).
 - Les touches à l'écran jouent plus fort près de leur bord avant. Préférences > Vélocité des touches permet de fixer une seule force.
@@ -18,6 +19,9 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 - La latence d'overdub passe de « À propos » à la rubrique Sortie Audio des Préférences.
 
 ### Corrigé
+- Linux : charger un plugin VST3 à plusieurs sorties, comme Surge XT, faisait planter l'app dès que le son démarrait.
+- De nombreux panneaux, menus et messages restaient en anglais en français : Mode Jam, panneaux des modules, Vocodeur, Thérémine, Stylophone, VST3, assignations CC, noms et origines des gammes, notifications de l'app.
+- Les listes d'assignations CC affichaient des identifiants internes (palm_mute, slot-3) au lieu des noms du module et du paramètre.
 - Recharger un fichier .gfpd modifié gardait l'ancienne version jusqu'au redémarrage ; les modules du rack passent maintenant à la nouvelle.
 - Un projet utilisant votre propre plugin .gfpd s'ouvrait avec « Plugin not installed » après un redémarrage.
 - Le générateur de batterie semblait changer d'avis à chaque mesure : il garde maintenant un groove par phrase, la termine par un fill et lance la suivante sur un crash.

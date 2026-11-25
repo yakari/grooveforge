@@ -7,7 +7,8 @@ import 'package:grooveforge_plugin_api/grooveforge_plugin_api.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/custom_scale_library.dart';
 import '../../services/file_picker_service.dart';
-import 'gfpa_xen_slot_ui.dart' show xenRootName, xenScaleLabel;
+import 'gfpa_xen_slot_ui.dart'
+    show xenEditorProvenance, xenRootName, xenScaleLabel;
 
 // ─── Design tokens ───────────────────────────────────────────────────────────
 
@@ -554,7 +555,7 @@ class _XenScaleEditorDialogState extends State<XenScaleEditorDialog> {
       id: _id,
       name: resolvedName,
       family: GFScaleFamily.custom,
-      provenance: 'Made in GrooveForge',
+      provenance: xenEditorProvenance,
       mapping: mapping,
       periodCents: _periodCents <= 0 ? 1200.0 : _periodCents,
       degrees: [
@@ -606,10 +607,11 @@ class _XenScaleEditorDialogState extends State<XenScaleEditorDialog> {
         fallbackName: fileName,
       );
       imported = result.scale;
-      failure = result.error;
+      final error = result.failure;
+      failure = error == null ? null : scalaErrorMessage(l10n, error);
     } else {
       imported = CustomScaleLibrary.decodeExported(contents);
-      failure = imported == null ? 'not a GrooveForge scale' : null;
+      failure = imported == null ? l10n.xenEditorNotGrooveForgeScale : null;
     }
 
     if (imported == null) {
@@ -879,4 +881,22 @@ class _ExportButton extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Localised explanation of a failed Scala import, for the import toast.
+///
+/// The parser lives in a package without localisation and reports a typed
+/// [GFScalaImportError]; this turns it into the player's language.
+String scalaErrorMessage(AppLocalizations l10n, GFScalaImportError error) {
+  return switch (error.code) {
+    GFScalaErrorCode.notScalaFile => l10n.scalaErrorNotScalaFile,
+    GFScalaErrorCode.badNoteCount =>
+      l10n.scalaErrorBadNoteCount(error.found ?? ''),
+    GFScalaErrorCode.missingNotes =>
+      l10n.scalaErrorMissingNotes(error.declared ?? 0, error.actual ?? 0),
+    GFScalaErrorCode.badPitch =>
+      l10n.scalaErrorBadPitch(error.line ?? 0, error.found ?? ''),
+    GFScalaErrorCode.nonPositivePeriod => l10n.scalaErrorNonPositivePeriod,
+    GFScalaErrorCode.degreeBelowTonic => l10n.scalaErrorDegreeBelowTonic,
+  };
 }
