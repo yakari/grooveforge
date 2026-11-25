@@ -8,6 +8,7 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 ## [X.x.x]
 
 ### Ajouté
+- Vos propres plugins .gfpd restent dans le menu + après un redémarrage, et un projet enregistre une copie de ceux qu'il utilise.
 - Générateur de batterie : un réglage Breaks, et des interrupteurs pour le crash après le fill et la montée dynamique (qui fait enfin quelque chose).
 - Les touches à l'écran jouent plus fort près de leur bord avant. Préférences > Vélocité des touches permet de fixer une seule force.
 
@@ -17,6 +18,8 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 - La latence d'overdub passe de « À propos » à la rubrique Sortie Audio des Préférences.
 
 ### Corrigé
+- Recharger un fichier .gfpd modifié gardait l'ancienne version jusqu'au redémarrage ; les modules du rack passent maintenant à la nouvelle.
+- Un projet utilisant votre propre plugin .gfpd s'ouvrait avec « Plugin not installed » après un redémarrage.
 - Le générateur de batterie semblait changer d'avis à chaque mesure : il garde maintenant un groove par phrase, la termine par un fill et lance la suivante sur un crash.
 - Générateur de batterie : les patterns sur deux mesures (bossa nova, an dro) démarraient sur leur deuxième mesure après un décompte.
 - Générateur de batterie : un .gfdrum chargé disparaissait au redémarrage, et un fichier portant le nom d'un pattern fourni le remplaçait partout.

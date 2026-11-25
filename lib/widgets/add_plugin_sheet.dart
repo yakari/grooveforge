@@ -13,6 +13,7 @@ import '../models/audio_looper_plugin_instance.dart';
 import '../models/live_input_source_plugin_instance.dart';
 import '../models/looper_plugin_instance.dart';
 import '../services/audio_looper_engine.dart';
+import '../services/custom_plugin_library.dart';
 import '../services/drum_generator_engine.dart';
 import '../services/looper_engine.dart';
 import '../services/rack_state.dart';
@@ -101,44 +102,72 @@ class _AddPluginSheetContentState extends State<_AddPluginSheetContent> {
     );
   }
 
-  /// Let the user pick a `.gfpd` file from device storage and add it to the
-  /// rack. The file is parsed by [GFDescriptorLoader.loadAndRegister], which
-  /// also adds it to [GFPluginRegistry] for future use in this session.
+  /// Lets the user pick a `.gfpd` file and adds the plugin to the rack.
+  ///
+  /// The plugin is installed in [CustomPluginLibrary], so it stays in this
+  /// menu after a restart. Picking a new version of a plugin already
+  /// installed replaces it, and the slots already in the rack switch to the
+  /// new version instead of a second slot being added.
   Future<void> _loadGfpdFromFile(BuildContext context, RackState rack) async {
+    final l10n = AppLocalizations.of(context)!;
     final path = await FilePickerService.pickFile(
       context: context,
       allowedExtensions: ['gfpd'],
     );
     if (path == null) return;
 
+    String source;
     try {
-      final content = await File(path).readAsString();
-      final plugin = GFDescriptorLoader.loadAndRegister(content);
-      if (plugin == null) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Failed to parse .gfpd file.')),
-          );
-        }
-        return;
-      }
-      if (context.mounted) {
-        Navigator.pop(context);
-        rack.addPlugin(
-          GFpaPluginInstance(
-            id: rack.generateSlotId(),
-            pluginId: plugin.pluginId,
-            midiChannel: 0,
-          ),
-        );
-      }
+      source = await File(path).readAsString();
     } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error reading file: $e')),
-        );
-      }
+      debugPrint('AddPluginSheet: cannot read $path: $e');
+      if (context.mounted) _showMessage(context, l10n.rackAddGfpdReadError);
+      return;
     }
+
+    final result = await CustomPluginLibrary.instance.install(source);
+    if (!context.mounted) return;
+    final plugin = result.plugin;
+    switch (result.status) {
+      case GfpdInstallStatus.invalid:
+        _showMessage(context, l10n.rackAddGfpdInvalid);
+        return;
+      case GfpdInstallStatus.reservedId:
+        _showMessage(context, l10n.rackAddGfpdReserved);
+        return;
+      case GfpdInstallStatus.installed:
+        break;
+    }
+    if (plugin == null) return;
+
+    final inRack = rack.plugins
+        .whereType<GFpaPluginInstance>()
+        .any((p) => p.pluginId == plugin.pluginId);
+    Navigator.pop(context);
+    if (inRack) {
+      // A new version of a plugin already in use: update those slots.
+      rack.reloadDescriptorSlots(plugin.pluginId);
+      _showMessage(context, l10n.rackAddGfpdUpdated(plugin.name));
+      return;
+    }
+    rack.addPlugin(
+      GFpaPluginInstance(
+        id: rack.generateSlotId(),
+        pluginId: plugin.pluginId,
+        midiChannel: 0,
+      ),
+    );
+  }
+
+  /// Removes a user plugin from this menu. Slots already in the rack keep it.
+  Future<void> _removeCustomPlugin(String pluginId) async {
+    await CustomPluginLibrary.instance.remove(pluginId);
+    if (mounted) setState(() {});
+  }
+
+  void _showMessage(BuildContext context, String message) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   ///
@@ -792,6 +821,21 @@ class _AddPluginSheetContentState extends State<_AddPluginSheetContent> {
               },
             ),
 
+            // ── The user's own .gfpd plugins, kept between launches
+            for (final custom in CustomPluginLibrary.instance.plugins)
+              _PluginTile(
+                icon: Icons.extension,
+                iconColor: Colors.white70,
+                title: custom.name,
+                subtitle: l10n.rackAddCustomPluginSubtitle,
+                onTap: () => _addDescriptorPlugin(context, rack, custom.pluginId),
+                trailing: IconButton(
+                  icon: const Icon(Icons.close, size: 18),
+                  tooltip: l10n.rackAddCustomPluginRemove,
+                  onPressed: () => _removeCustomPlugin(custom.pluginId),
+                ),
+              ),
+
             // ── Load a custom .gfpd plugin from storage
             _PluginTile(
               icon: Icons.file_open,
@@ -942,6 +986,9 @@ class _PluginTile extends StatelessWidget {
   final VoidCallback onTap;
   final bool nativeOnly;
 
+  /// Shown at the end of the tile, e.g. a button to remove a user plugin.
+  final Widget? trailing;
+
   const _PluginTile({
     required this.icon,
     required this.iconColor,
@@ -949,6 +996,7 @@ class _PluginTile extends StatelessWidget {
     required this.subtitle,
     required this.onTap,
     this.nativeOnly = false,
+    this.trailing,
   });
 
   @override
@@ -971,6 +1019,7 @@ class _PluginTile extends StatelessWidget {
         subtitle,
         style: const TextStyle(color: Colors.white54, fontSize: 12),
       ),
+      trailing: trailing,
       onTap: onTap,
     );
   }

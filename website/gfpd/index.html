@@ -62,13 +62,13 @@
       <li>Tap <span class="ui">+</span>, then <span class="ui">Load .gfpd from file…</span>.</li>
       <li>Pick your file.</li>
     </ol>
-    <p class="recipe-result">The plugin is added to the rack as a new module.</p>
+    <p class="recipe-result">The plugin is added to the rack as a new module, and to the <span class="ui">+</span> menu.</p>
     <ul>
-      <li>If the YAML cannot be read, the app says <code>Failed to parse .gfpd file.</code> and adds nothing.</li>
-      <li>The app keeps one plugin per <code>id</code> until it restarts. Loading a file whose <code>id</code> is already known
-        (a bundled one, or your own file loaded earlier) adds the version already in memory, not your file.
-        To try an edit, change the <code>id</code> or restart the app.</li>
-      <li>The app does not keep the file between launches. After a restart, load it again.</li>
+      <li>The plugin stays in the <span class="ui">+</span> menu after a restart. The cross next to it removes it from the menu.</li>
+      <li>To try an edit, load the file again. The modules already in the rack switch to the new version and keep their knob positions.</li>
+      <li>A project saves a copy of the plugins it uses, so it plays on a device that never had the file.</li>
+      <li>Your <code>id</code> must not start with <code>com.grooveforge.</code>: those ids belong to the modules that come with the app, and the app refuses the file.</li>
+      <li>If the file is not a valid plugin, the app says so and adds nothing.</li>
     </ul>
 
     <h2 id="example">Example: a MIDI transposer</h2>
@@ -102,7 +102,8 @@ ui:
         - type: knob
           param: semitones
           label: "Semitones"</code></pre>
-    <p>For your own plugin, change <code>id</code> first (see <a href="#load">Load a file</a>).</p>
+    <p>For your own plugin, change <code>id</code> first, to something like <code>com.yourname.transposer</code>:
+      the app refuses ids that start with <code>com.grooveforge.</code> (see <a href="#load">Load a file</a>).</p>
 
     <h2 id="top-level">Top-level fields</h2>
     <table>

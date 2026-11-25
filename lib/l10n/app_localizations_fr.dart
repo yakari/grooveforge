@@ -1586,6 +1586,29 @@ class AppLocalizationsFr extends AppLocalizations {
       'Importer un descripteur de plugin GrooveForge personnalisé';
 
   @override
+  String get rackAddGfpdInvalid =>
+      'Ce fichier n\'est pas un module .gfpd valide.';
+
+  @override
+  String get rackAddGfpdReadError => 'Ce fichier n\'a pas pu être lu.';
+
+  @override
+  String get rackAddGfpdReserved =>
+      'L\'id de ce module commence par com.grooveforge., réservé aux modules fournis avec l\'application. Donnez-lui un id à vous.';
+
+  @override
+  String rackAddGfpdUpdated(String name) {
+    return '$name mis à jour. Ses emplacements dans le rack utilisent maintenant la nouvelle version.';
+  }
+
+  @override
+  String get rackAddCustomPluginSubtitle =>
+      'Votre module, depuis un fichier .gfpd';
+
+  @override
+  String get rackAddCustomPluginRemove => 'Retirer de ce menu';
+
+  @override
   String get rackAddMidiFxSectionLabel => 'Effets MIDI intégrés';
 
   @override

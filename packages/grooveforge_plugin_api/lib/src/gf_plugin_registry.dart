@@ -15,11 +15,18 @@ class GFPluginRegistry {
 
   final List<GFPlugin> _plugins = [];
 
-  /// Register [plugin]. No-op if a plugin with the same [GFPlugin.pluginId]
-  /// is already registered.
-  void register(GFPlugin plugin) {
-    if (!_plugins.any((p) => p.pluginId == plugin.pluginId)) {
+  /// Register [plugin].
+  ///
+  /// When a plugin with the same [GFPlugin.pluginId] is already registered,
+  /// it is kept and [plugin] is ignored, unless [replace] is true: then
+  /// [plugin] takes its place. Replacing is how an edited `.gfpd` file is
+  /// loaded again without restarting the app.
+  void register(GFPlugin plugin, {bool replace = false}) {
+    final index = _plugins.indexWhere((p) => p.pluginId == plugin.pluginId);
+    if (index < 0) {
       _plugins.add(plugin);
+    } else if (replace) {
+      _plugins[index] = plugin;
     }
   }
 

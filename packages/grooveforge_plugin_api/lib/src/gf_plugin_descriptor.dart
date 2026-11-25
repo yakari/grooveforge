@@ -439,6 +439,14 @@ class GFPluginDescriptor {
   /// as a labelled section (tab on wide screens, collapsible on narrow screens).
   final List<GFDescriptorControlGroup> groups;
 
+  /// The `.gfpd` text this descriptor was parsed from, or null when it was
+  /// built in code.
+  ///
+  /// A host keeps it so a project can carry the plugins it uses: a user's
+  /// own `.gfpd` is saved inside the project, and the project still plays on
+  /// a machine that never had the file.
+  final String? source;
+
   const GFPluginDescriptor({
     required this.specVersion,
     required this.id,
@@ -452,6 +460,7 @@ class GFPluginDescriptor {
     required this.uiLayout,
     required this.controls,
     this.groups = const [],
+    this.source,
   });
 
   /// Look up a parameter descriptor by its string [id].

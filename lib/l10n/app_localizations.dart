@@ -2894,6 +2894,42 @@ abstract class AppLocalizations {
   /// **'Import a custom GrooveForge plugin descriptor'**
   String get rackAddLoadGfpdSubtitle;
 
+  /// No description provided for @rackAddGfpdInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'That file is not a valid .gfpd plugin.'**
+  String get rackAddGfpdInvalid;
+
+  /// No description provided for @rackAddGfpdReadError.
+  ///
+  /// In en, this message translates to:
+  /// **'That file could not be read.'**
+  String get rackAddGfpdReadError;
+
+  /// No description provided for @rackAddGfpdReserved.
+  ///
+  /// In en, this message translates to:
+  /// **'This plugin\'s id starts with com.grooveforge., which is kept for the modules that come with the app. Give it an id of your own.'**
+  String get rackAddGfpdReserved;
+
+  /// No description provided for @rackAddGfpdUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} updated. Its slots in the rack now use the new version.'**
+  String rackAddGfpdUpdated(String name);
+
+  /// No description provided for @rackAddCustomPluginSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your plugin, from a .gfpd file'**
+  String get rackAddCustomPluginSubtitle;
+
+  /// No description provided for @rackAddCustomPluginRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from this menu'**
+  String get rackAddCustomPluginRemove;
+
   /// No description provided for @rackAddMidiFxSectionLabel.
   ///
   /// In en, this message translates to:

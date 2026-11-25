@@ -23,6 +23,7 @@ import 'audio_input_ffi.dart';
 import 'audio_graph.dart';
 import 'cc_mapping_service.dart';
 import 'cc_param_registry.dart';
+import 'custom_plugin_library.dart';
 import 'drum_pattern_registry.dart';
 import 'native_instrument_controller.dart';
 import 'transport_engine.dart';
@@ -391,6 +392,7 @@ class RackState extends ChangeNotifier {
       }
     }
 
+    _registerEmbeddedDescriptors();
     _applyAllPluginsToEngine();
     _syncJamFollowerMapToEngine();
     _syncXenInstances();
@@ -403,6 +405,64 @@ class RackState extends ChangeNotifier {
       }
     }
 
+    notifyListeners();
+    _notifyChanged();
+  }
+
+  /// Registers the user plugins that the loaded project carries.
+  ///
+  /// A slot built from a user's `.gfpd` file saves the file's text
+  /// ([GFpaPluginInstance.descriptorSource]). When that plugin is not
+  /// installed here (another machine, or removed from the menu), the text is
+  /// enough to bring it back, so the project plays as it was saved. An
+  /// installed version is left in place. Ids reserved for the bundled
+  /// plugins are never taken from a project.
+  void _registerEmbeddedDescriptors() {
+    final registry = GFPluginRegistry.instance;
+    for (final slot in _plugins.whereType<GFpaPluginInstance>()) {
+      final source = slot.descriptorSource;
+      if (source == null || registry.findById(slot.pluginId) != null) continue;
+      if (CustomPluginLibrary.isReserved(slot.pluginId)) continue;
+      GFDescriptorLoader.loadAndRegister(source);
+    }
+  }
+
+  /// Copies the `.gfpd` text of a user plugin into [slot], so a project that
+  /// uses it carries it (see [_registerEmbeddedDescriptors]). Bundled
+  /// plugins ship with the app and are left out.
+  void _embedDescriptorSource(GFpaPluginInstance slot) {
+    if (CustomPluginLibrary.isReserved(slot.pluginId)) return;
+    final source = _descriptorOf(slot.pluginId)?.source;
+    if (source != null) slot.descriptorSource = source;
+  }
+
+  /// The descriptor of the registered plugin [pluginId], if it has one.
+  GFPluginDescriptor? _descriptorOf(String pluginId) {
+    final plugin = GFPluginRegistry.instance.findById(pluginId);
+    if (plugin is GFDescriptorPlugin) return plugin.descriptor;
+    if (plugin is GFMidiDescriptorPlugin) return plugin.descriptor;
+    return null;
+  }
+
+  /// Rebuilds every slot that uses [pluginId], after a new version of the
+  /// plugin was installed.
+  ///
+  /// Each slot holds its own instance of the plugin, built from the version
+  /// registered when the slot was created; without this, the rack would keep
+  /// playing and showing the old version until the next restart. Knob
+  /// positions are kept for the parameters that still exist.
+  void reloadDescriptorSlots(String pluginId) {
+    for (final slot in _plugins.whereType<GFpaPluginInstance>()) {
+      if (slot.pluginId != pluginId) continue;
+      slot.descriptorSource = null;
+      _embedDescriptorSource(slot);
+      _midiFxInstances.remove(slot.id)?.dispose();
+      _initMidiFxPlugin(slot); // fire-and-forget
+      if (_audioEffectInstances.containsKey(slot.id)) {
+        _disposeAudioEffectPlugin(slot.id);
+      }
+      _initAudioEffectPlugin(slot); // fire-and-forget
+    }
     notifyListeners();
     _notifyChanged();
   }
@@ -507,6 +567,7 @@ class RackState extends ChangeNotifier {
             );
       }
     } else if (plugin is GFpaPluginInstance) {
+      _embedDescriptorSource(plugin);
       _applyGfpaPluginToEngine(plugin);
       // Eagerly init so the MIDI FX is available immediately, even before the
       // slot widget scrolls into view.

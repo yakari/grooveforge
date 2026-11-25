@@ -312,15 +312,22 @@ ui:
 
 ## Loading a Plugin at Runtime
 
-Users can load `.gfpd` files from their device storage without rebuilding the app:
+Users can load `.gfpd` files from their device storage without rebuilding the app
+(`+` > `Load .gfpd from file…`). In the app this goes through `CustomPluginLibrary.install`:
+
+- the plugin is saved in SharedPreferences and stays in the `+` menu after a restart;
+- loading a file whose `id` is already installed replaces it, and
+  `RackState.reloadDescriptorSlots` rebuilds the slots that use it;
+- ids starting with `com.grooveforge.` are refused;
+- each slot saves the file's text in the project (`descriptor` key), so the project
+  plays on a machine that never had the file.
+
+Outside the app, the low-level call is:
 
 ```dart
-// Pick a .gfpd file using file_picker, then:
 final content = await File(pickedPath).readAsString();
-final plugin = GFDescriptorLoader.loadAndRegister(content);
-if (plugin != null) {
-  // Plugin is now available in AddPluginSheet.
-}
+// replace: true swaps out a plugin already registered under the same id.
+final plugin = GFDescriptorLoader.loadAndRegister(content, replace: true);
 ```
 
 ---

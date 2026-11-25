@@ -81,7 +81,10 @@ class GFDescriptorLoader {
   ///
   /// The plugin is automatically added to [GFPluginRegistry] so it appears in
   /// [AddPluginSheet] and can be loaded from a `.gf` project file.
-  static GFPlugin? loadAndRegister(String yamlContent) {
+  ///
+  /// With [replace], a plugin already registered under the same id is
+  /// replaced (see [GFPluginRegistry.register]).
+  static GFPlugin? loadAndRegister(String yamlContent, {bool replace = false}) {
     final descriptor = parse(yamlContent);
     if (descriptor == null) return null;
 
@@ -91,7 +94,7 @@ class GFDescriptorLoader {
     } else {
       plugin = GFDescriptorPlugin(descriptor);
     }
-    GFPluginRegistry.instance.register(plugin);
+    GFPluginRegistry.instance.register(plugin, replace: replace);
     return plugin;
   }
 
@@ -104,7 +107,7 @@ class GFDescriptorLoader {
     try {
       final doc = loadYaml(yamlContent);
       if (doc is! YamlMap) return null;
-      return _parseDescriptor(doc);
+      return _parseDescriptor(doc, yamlContent);
     } catch (e) {
       // Using print here is intentional: this is a developer-facing diagnostic
       // that runs at startup outside the audio thread.
@@ -116,7 +119,7 @@ class GFDescriptorLoader {
 
   // ── Internal parsing helpers ───────────────────────────────────────────────
 
-  static GFPluginDescriptor _parseDescriptor(YamlMap doc) {
+  static GFPluginDescriptor _parseDescriptor(YamlMap doc, String source) {
     final id = _str(doc, 'id');
     final name = _str(doc, 'name');
     final version = _str(doc, 'version');
@@ -142,6 +145,7 @@ class GFDescriptorLoader {
       uiLayout: uiLayout,
       controls: controls,
       groups: groups,
+      source: source,
     );
   }
 

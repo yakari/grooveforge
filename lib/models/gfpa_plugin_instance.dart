@@ -74,6 +74,13 @@ class GFpaPluginInstance with AudioSourcePlugin implements PluginInstance {
   /// bar for quick access without scrolling to its rack slot.
   bool pinned;
 
+  /// Text of the `.gfpd` file behind this slot, when it is a user plugin.
+  ///
+  /// Null for the plugins that ship with the app. Saved with the project so
+  /// that the project plays on a machine that never had the file: opening it
+  /// registers the plugin from this text (see `RackState.loadFromJson`).
+  String? descriptorSource;
+
   /// Per-slot keyboard display config (key count, height, gestures).
   ///
   /// Only meaningful for GFPA instrument slots that also show a virtual piano
@@ -91,6 +98,7 @@ class GFpaPluginInstance with AudioSourcePlugin implements PluginInstance {
     this.masterSlotId,
     this.pinned = false,
     this.keyboardConfig,
+    this.descriptorSource,
   })  : state = state ?? {},
         targetSlotIds = targetSlotIds ?? [],
         tuningTargetSlotIds = tuningTargetSlotIds ?? [];
@@ -137,6 +145,7 @@ class GFpaPluginInstance with AudioSourcePlugin implements PluginInstance {
           'tuningTargetSlotIds': tuningTargetSlotIds,
         if (masterSlotId != null) 'masterSlotId': masterSlotId,
         if (pinned) 'pinned': true,
+        if (descriptorSource != null) 'descriptor': descriptorSource,
         'state': {
           ...state,
           // Persist keyboard config inside the state map so it round-trips
@@ -182,6 +191,7 @@ class GFpaPluginInstance with AudioSourcePlugin implements PluginInstance {
       pinned: (json['pinned'] as bool?) ?? false,
       keyboardConfig:
           kbJson != null ? KeyboardDisplayConfig.fromJson(kbJson) : null,
+      descriptorSource: json['descriptor'] as String?,
     );
   }
 

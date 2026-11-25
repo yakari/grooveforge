@@ -62,13 +62,13 @@
       <li>Touchez <span class="ui">+</span>, puis <span class="ui">Charger un fichier .gfpd…</span>.</li>
       <li>Choisissez votre fichier.</li>
     </ol>
-    <p class="recipe-result">Le plugin est ajouté au rack comme nouveau module.</p>
+    <p class="recipe-result">Le plugin est ajouté au rack comme nouveau module, et au menu <span class="ui">+</span>.</p>
     <ul>
-      <li>Si le YAML est illisible, l'application affiche <code>Failed to parse .gfpd file.</code> et n'ajoute rien.</li>
-      <li>L'application garde un seul plugin par <code>id</code> jusqu'à son redémarrage. Charger un fichier dont l'<code>id</code> est déjà connu
-        (un plugin fourni, ou votre fichier chargé plus tôt) ajoute la version déjà en mémoire, pas votre fichier.
-        Pour tester une modification, changez l'<code>id</code> ou redémarrez l'application.</li>
-      <li>L'application ne garde pas le fichier d'un lancement à l'autre. Après un redémarrage, rechargez-le.</li>
+      <li>Le plugin reste dans le menu <span class="ui">+</span> après un redémarrage. La croix à côté de lui le retire du menu.</li>
+      <li>Pour tester une modification, rechargez le fichier. Les modules déjà dans le rack passent à la nouvelle version et gardent la position de leurs boutons.</li>
+      <li>Un projet enregistre une copie des plugins qu'il utilise : il joue aussi sur un appareil qui n'a jamais eu le fichier.</li>
+      <li>Votre <code>id</code> ne doit pas commencer par <code>com.grooveforge.</code> : ces id appartiennent aux modules fournis avec l'application, qui refuse le fichier.</li>
+      <li>Si le fichier n'est pas un plugin valide, l'application le signale et n'ajoute rien.</li>
     </ul>
 
     <h2 id="exemple">Exemple : un transpositeur MIDI</h2>
@@ -102,7 +102,8 @@ ui:
         - type: knob
           param: semitones
           label: "Semitones"</code></pre>
-    <p>Pour votre propre plugin, changez d'abord l'<code>id</code> (voir <a href="#charger">Charger un fichier</a>).</p>
+    <p>Pour votre propre plugin, changez d'abord l'<code>id</code>, par exemple en <code>com.votrenom.transposer</code> :
+      l'application refuse les id qui commencent par <code>com.grooveforge.</code> (voir <a href="#charger">Charger un fichier</a>).</p>
 
     <h2 id="racine">Champs de premier niveau</h2>
     <table>

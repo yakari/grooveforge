@@ -866,6 +866,20 @@
   "autotuneScalePatched": "Following the patched scale",
   "rackAddLoadGfpd": "Load .gfpd from file…",
   "rackAddLoadGfpdSubtitle": "Import a custom GrooveForge plugin descriptor",
+  "rackAddGfpdInvalid": "That file is not a valid .gfpd plugin.",
+  "rackAddGfpdReadError": "That file could not be read.",
+  "rackAddGfpdReserved": "This plugin's id starts with com.grooveforge., which is kept for the modules that come with the app. Give it an id of your own.",
+  "rackAddGfpdUpdated": "{name} updated. Its slots in the rack now use the new version.",
+  "@rackAddGfpdUpdated": {
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "Plate Reverb"
+      }
+    }
+  },
+  "rackAddCustomPluginSubtitle": "Your plugin, from a .gfpd file",
+  "rackAddCustomPluginRemove": "Remove from this menu",
   "rackAddMidiFxSectionLabel": "Built-in MIDI FX",
   "rackAddHarmonizer": "Harmonizer",
   "rackAddHarmonizerSubtitle": "Add harmony voices to any MIDI input (MIDI FX)",

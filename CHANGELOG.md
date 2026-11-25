@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [X.x.x]
 
 ### Added
+- Your own .gfpd plugins stay in the + menu after a restart, and a project saves a copy of the ones it uses.
 - Drum Generator: a Breaks setting, and switches for the crash after a fill and the dynamic build (which now does something).
 - On-screen keys now play louder near the front edge of the key. Preferences > Key velocity can fix one strength instead.
 
@@ -17,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Overdub latency moved from About to the Audio Output section of Preferences.
 
 ### Fixed
+- Loading an edited .gfpd file kept the old version until restart; the modules in the rack now switch to the new one.
+- A project using your own .gfpd plugin opened with "Plugin not installed" after a restart.
 - Drum Generator played like it changed its mind every bar: it now keeps one groove per phrase, ends it with a fill and lands the next with a crash.
 - Drum Generator: two-bar patterns (bossa nova, an dro) started on their second bar after a count-in.
 - Drum Generator: a loaded .gfdrum was lost on restart, and one named like a bundled pattern replaced it everywhere.

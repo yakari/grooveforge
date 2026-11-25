@@ -4,6 +4,7 @@ import 'package:grooveforge_plugin_api/grooveforge_plugin_api.dart';
 import 'package:provider/provider.dart';
 
 import 'services/audio_engine.dart';
+import 'package:grooveforge/services/custom_plugin_library.dart';
 import 'package:grooveforge/services/custom_scale_library.dart';
 import 'services/audio_graph.dart';
 import 'services/cc_mapping_service.dart';
@@ -152,6 +153,10 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await _loadBundledGfdrumPatterns();
   await _loadBundledGfpdPlugins();
+  // The user's own .gfpd plugins, after the bundled ones (their ids cannot
+  // overlap) and before the first frame, so a project that uses one opens
+  // with it already registered.
+  await CustomPluginLibrary.instance.load();
   // The player's own scales, loaded before the first frame so a project that
   // opens straight into a Xen slot finds its custom scale already registered.
   final customScales = CustomScaleLibrary();
