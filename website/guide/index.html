@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="How to use GrooveForge — rack, transport, projects, and patch routing.">
+  <meta name="description" content="Short recipes with video clips: wire modules together, add effects, play the guitar from a keyboard, record loops, save projects and join a rehearsal.">
   <title>GrooveForge — Getting started</title>
   <link rel="icon" type="image/png" href="../assets/icon.png">
   <link rel="stylesheet" href="../css/site.css">
@@ -42,60 +42,334 @@
   <main id="main" class="prose">
     <div class="page-hero">
       <h1>Getting started</h1>
-      <p class="lead">A practical tour of the main surfaces: rack, transport, patch view, and projects.</p>
+      <p class="lead">Short recipes, each with a clip of the real app. Watch it once, then do the same on your device.</p>
     </div>
 
-    <h2>First launch</h2>
+    <h2 id="how-sound-moves">How sound moves between modules</h2>
     <p>
-      The <strong>rack</strong> is a vertical list of plugin slots. Tap <strong>+</strong> in the app bar to add instruments,
-      effects, MIDI processors, or (on desktop) VST3 plugins. Each slot can be expanded to show its panel; the small
-      cable icon toggles the <strong>back-of-rack</strong> view where MIDI and audio jacks are wired together.
+      Your rack is a stack of modules: instruments, effects, loopers, a drum machine. Tap the
+      cable icon at the top of the screen (<span class="ui">Patch view</span>) and you see the back of
+      each module, with sockets you connect with cables, like on real gear.
     </p>
 
-    <figure class="figure-card figure-doc">
-      <img src="../assets/screenshots/01_grooveforge_main.png" width="920" height="518" loading="lazy" alt="Main rack with plugin slots and the transport bar (BPM, play, time signature)">
-      <figcaption>The vertical rack and shared transport — add slots with <strong>+</strong>, expand a card for its panel, use the cable icon for patch view.</figcaption>
+    <figure class="signal-flow">
+      <svg class="flow-v" viewBox="0 0 300 420" role="img" aria-labelledby="flow-title-v">
+        <title id="flow-title-v">A keyboard sends notes over a yellow MIDI cable to the Riff guitar. Riff sends sound over a red and a white audio cable to the Amp. The Amp plays through the speakers without a cable.</title>
+        <g class="node"><rect x="40" y="2" width="160" height="60" rx="10"/><text x="120" y="28">Keyboard</text><text class="sub" x="120" y="47">or your controller</text></g>
+        <g class="node"><rect x="40" y="122" width="160" height="60" rx="10"/><text x="120" y="148">Riff</text><text class="sub" x="120" y="167">instrument</text></g>
+        <g class="node"><rect x="40" y="242" width="160" height="60" rx="10"/><text x="120" y="268">Amp</text><text class="sub" x="120" y="287">effect</text></g>
+        <g class="node"><rect x="40" y="362" width="160" height="56" rx="10"/><text x="120" y="395">Speakers</text></g>
+        <path class="wire-midi" d="M120 62 V122"/>
+        <text class="wire-label" x="215" y="97" style="text-anchor:start">notes</text>
+        <path class="wire-l" d="M112 182 V242"/>
+        <path class="wire-r" d="M128 182 V242"/>
+        <text class="wire-label" x="215" y="217" style="text-anchor:start">sound</text>
+        <path class="wire-out" d="M120 302 V362"/>
+        <text class="wire-label" x="215" y="337" style="text-anchor:start">no cable</text>
+      </svg>
+      <svg class="flow-h" viewBox="0 0 760 150" role="img" aria-labelledby="flow-title">
+        <title id="flow-title">A keyboard sends notes over a yellow MIDI cable to the Riff guitar. Riff sends sound over a red and a white audio cable to the Amp. The Amp plays through the speakers without a cable.</title>
+        <g class="node"><rect x="2" y="44" width="150" height="64" rx="10"/><text x="77" y="72">Keyboard</text><text class="sub" x="77" y="92">or your controller</text></g>
+        <g class="node"><rect x="206" y="44" width="150" height="64" rx="10"/><text x="281" y="72">Riff</text><text class="sub" x="281" y="92">instrument</text></g>
+        <g class="node"><rect x="410" y="44" width="150" height="64" rx="10"/><text x="485" y="72">Amp</text><text class="sub" x="485" y="92">effect</text></g>
+        <g class="node"><rect x="614" y="44" width="144" height="64" rx="10"/><text x="686" y="82">Speakers</text></g>
+        <path class="wire-midi" d="M152 76 H206"/>
+        <text class="wire-label" x="179" y="34">notes</text>
+        <path class="wire-l" d="M356 68 H410"/>
+        <path class="wire-r" d="M356 84 H410"/>
+        <text class="wire-label" x="383" y="34">sound</text>
+        <path class="wire-out" d="M560 76 H614"/>
+        <text class="wire-label" x="587" y="34">no cable</text>
+      </svg>
     </figure>
 
-    <h2>Transport</h2>
-    <p>
-      The transport bar sets <strong>BPM</strong>, time signature, play/stop, tap tempo, and metronome.
-      Drum Generator patterns and tempo-synced effects follow this clock. Adjust BPM with the field, nudge buttons,
-      or a scroll wheel where supported.
-    </p>
+    <p>Three rules cover almost everything:</p>
+    <ol>
+      <li><strong>An instrument plays through the speakers on its own.</strong> You do not need a cable to hear it.</li>
+      <li><strong><span class="jack jack-midi" aria-hidden="true"></span>Yellow cables carry notes</strong> (MIDI) from a keyboard to an instrument.
+        <strong><span class="jack jack-audio-l" aria-hidden="true"></span>Red and <span class="jack jack-audio-r" aria-hidden="true"></span>white cables carry sound</strong>, left and right.</li>
+      <li><strong>To put an effect after an instrument</strong>, cable the instrument's <code>AUDIO OUT L</code> and <code>R</code>
+        into the effect's <code>AUDIO IN L</code> and <code>R</code>. What comes out of the effect goes to the speakers.</li>
+    </ol>
+    <p>To draw a cable, long-press a socket and drag to another one. Sockets that would accept it light up while you drag.</p>
 
-    <h2>Patch cables</h2>
-    <p>
-      In the patch view, each slot exposes coloured jacks: MIDI in/out, audio in/out, sends, returns, and (for Jam Mode)
-      scale/chord outputs. Long-press an <strong>output</strong> jack to start a cable, then release on a compatible
-      <strong>input</strong>. Tap an existing cable to remove it. The app validates port types and prevents invalid
-      routing (including audio cycles).
-    </p>
+    <ul class="recipe-index" aria-label="Recipes">
+      <li><a href="#scale">Play in a scale</a></li>
+      <li><a href="#effect">Add an effect</a></li>
+      <li><a href="#remove">Remove a cable or a module</a></li>
+      <li><a href="#guitar">Play the guitar from the keyboard</a></li>
+      <li><a href="#amp">Put the guitar through the amp</a></li>
+      <li><a href="#controller">Connect a MIDI controller</a></li>
+      <li><a href="#learn">Map a knob</a></li>
+      <li><a href="#drums">Start a drum beat</a></li>
+      <li><a href="#loop">Record a loop</a></li>
+      <li><a href="#projects">Save and open projects</a></li>
+      <li><a href="#rehearsal">Join a rehearsal</a></li>
+      <li><a href="#sockets">Socket colours</a></li>
+    </ul>
 
-    <figure class="figure-card figure-doc">
-      <img src="../assets/screenshots/04_grooveforge_back_wiring.png" width="920" height="518" loading="lazy" alt="Back-of-rack view with coloured MIDI and audio jacks and curved cables">
-      <figcaption>Patch view: long-press an output jack to drag a cable to a compatible input (MIDI, audio, scale, etc.).</figcaption>
-    </figure>
+    <section class="recipe" id="scale">
+      <div class="recipe-clips">
+        <figure class="clip">
+          <video src="../clips/xen-pick-scale.mp4" poster="../clips/xen-pick-scale.jpg" width="540" height="1236" muted loop playsinline controls preload="none" aria-label="Switching Xen on and picking a scale"></video>
+        </figure>
+      </div>
+      <div>
+        <h2>Play in a scale</h2>
+        <p class="recipe-goal">Every key you press lands in the scale you chose, so nothing sounds wrong.</p>
+        <ol>
+          <li>A new project has a keyboard and a <strong>Xen</strong> module. Xen starts switched off.</li>
+          <li>Tap <span class="ui">ON</span> in the Xen panel.</li>
+          <li>Hold a key on the keyboard and tap a scale, for example <span class="ui">Blues</span>. The key you hold becomes the root note.</li>
+          <li>To try other traditions, open the <span class="ui">Family</span> menu: Maqam, Raga, Japanese scales and more.</li>
+        </ol>
+        <p class="recipe-result">Grey keys are outside the scale. Press one and you hear the nearest note that fits. Some scales
+          use notes between the piano keys: those keys get a teal band.</p>
+      </div>
+    </section>
 
-    <h2>Projects (.gf)</h2>
-    <p>
-      Use the project menu to <strong>Open</strong>, <strong>Save</strong>, or <strong>Save As</strong>.
-      Projects are JSON files that store the rack order, cable graph, transport state, SoundFont assignments,
-      VST3 parameter snapshots, looper data, and per-slot options. Desktop and mobile autosave the last session;
-      the web build has no persistent storage — use Save As to download a <code>.gf</code> file.
-    </p>
+    <section class="recipe" id="effect">
+      <div class="recipe-clips">
+        <figure class="clip">
+          <video src="../clips/add-effect.mp4" poster="../clips/add-effect.jpg" width="540" height="1236" muted loop playsinline controls preload="none" aria-label="Adding an Audio Harmonizer and cabling the keyboard into it"></video>
+        </figure>
+      </div>
+      <div>
+        <h2>Add an effect to your keyboard</h2>
+        <p class="recipe-goal">Here the keyboard goes through an Audio Harmonizer. Reverb, Delay, Wah or EQ work the same way.</p>
+        <ol>
+          <li>Tap <span class="ui">+</span> and pick the effect.</li>
+          <li>Tap the cable icon at the top to open <span class="ui">Patch view</span>.</li>
+          <li>Long-press the keyboard's red <code>AUDIO OUT L</code> and drag it to the effect's <code>AUDIO IN L</code>.</li>
+          <li>Do the same with the white <code>AUDIO OUT R</code> and <code>AUDIO IN R</code>.</li>
+          <li>Tap the back arrow and play.</li>
+        </ol>
+        <p class="recipe-result">You hear the keyboard through the effect. Turn the effect's knobs to change the sound.</p>
+        <p class="recipe-note">One effect module can only process one instrument. To add reverb to two instruments, add two Reverb modules.</p>
+      </div>
+    </section>
 
-    <h2>Preferences</h2>
-    <p>
-      Open <strong>Preferences</strong> for global keyboard behaviour (key count, gesture actions, aftertouch CC),
-      MIDI device listing, <strong>CC mapping</strong> (map hardware controls to volume, patch sweep, looper actions,
-      scale cycle, and more), audio devices, and Jam Mode visual options.
-    </p>
+    <section class="recipe" id="remove">
+      <div class="recipe-clips">
+        <figure class="clip">
+          <video src="../clips/remove-cable.mp4" poster="../clips/remove-cable.jpg" width="540" height="1236" muted loop playsinline controls preload="none" aria-label="Disconnecting two cables"></video>
+          <figcaption>Remove a cable</figcaption>
+        </figure>
+        <figure class="clip">
+          <video src="../clips/remove-module.mp4" poster="../clips/remove-module.jpg" width="540" height="1236" muted loop playsinline controls preload="none" aria-label="Removing a module from the rack"></video>
+          <figcaption>Remove a module</figcaption>
+        </figure>
+      </div>
+      <div>
+        <h2>Remove a cable or a module</h2>
+        <p class="recipe-goal">Undo a connection, or take a module out of the rack.</p>
+        <h3>A cable</h3>
+        <ol>
+          <li>In <span class="ui">Patch view</span>, tap the small <span class="ui">✕</span> in the middle of the cable.</li>
+          <li>Tap <span class="ui">Disconnect</span>.</li>
+        </ol>
+        <h3>A module</h3>
+        <ol>
+          <li>Tap the bin icon at the top of the module.</li>
+          <li>Tap <span class="ui">Remove</span>. Its cables go with it.</li>
+        </ol>
+      </div>
+    </section>
 
-    <figure class="figure-card figure-doc">
-      <img src="../assets/screenshots/02_grooveforge_prefs.png" width="920" height="518" loading="lazy" alt="Preferences: MIDI devices, CC mapping, keyboard defaults, and audio options">
-      <figcaption>Preferences — global keyboard behaviour, MIDI routing, CC mapping to actions (looper, patch sweep, scale cycle), and devices.</figcaption>
-    </figure>
+    <section class="recipe" id="guitar">
+      <div class="recipe-clips">
+        <figure class="clip">
+          <video src="../clips/cable-midi.mp4" poster="../clips/cable-midi.jpg" width="540" height="1236" muted loop playsinline controls preload="none" aria-label="Adding Riff and drawing a MIDI cable from the keyboard to it"></video>
+          <figcaption>1. The MIDI cable</figcaption>
+        </figure>
+        <figure class="clip">
+          <video src="../clips/keyboard-midi-only.mp4" poster="../clips/keyboard-midi-only.jpg" width="540" height="1236" muted loop playsinline controls preload="none" aria-label="Setting the keyboard to None (MIDI only)"></video>
+          <figcaption>2. Keyboard set to MIDI only</figcaption>
+        </figure>
+      </div>
+      <div>
+        <h2>Play the guitar from the keyboard</h2>
+        <p class="recipe-goal">Riff is a modelled electric guitar. It has no keys of its own: a keyboard sends it the notes.</p>
+        <ol>
+          <li>Tap <span class="ui">+</span> and pick <span class="ui">Riff</span>.</li>
+          <li>Open <span class="ui">Patch view</span>. Long-press the keyboard's yellow <code>MIDI OUT</code> and drag it to Riff's <code>MIDI IN</code>.</li>
+          <li>Go back and play: you hear the piano and the guitar together.</li>
+          <li>To hear only the guitar, open the keyboard's sound menu and choose <span class="ui">None (MIDI only)</span>.
+            The keyboard goes silent and only sends notes.</li>
+        </ol>
+        <p class="recipe-result">The on-screen keyboard plays Riff. The same works for any instrument with a <code>MIDI IN</code>.</p>
+      </div>
+    </section>
+
+    <section class="recipe" id="amp">
+      <div class="recipe-clips">
+        <figure class="clip">
+          <video src="../clips/cable-riff-to-amp.mp4" poster="../clips/cable-riff-to-amp.jpg" width="540" height="1236" muted loop playsinline controls preload="none" aria-label="Cabling Riff's audio outputs into the Amp"></video>
+        </figure>
+      </div>
+      <div>
+        <h2>Put the guitar through the amp</h2>
+        <p class="recipe-goal">The Amp module adds a drive pedal, an amp and a speaker cabinet.</p>
+        <ol>
+          <li>Tap <span class="ui">+</span> and pick <span class="ui">Amp</span>.</li>
+          <li>In <span class="ui">Patch view</span>, drag Riff's <code>AUDIO OUT L</code> to the Amp's <code>AUDIO IN L</code>, then <code>R</code> to <code>R</code>.</li>
+          <li>Go back, play, and turn <span class="ui">Drive</span> on the Amp.</li>
+        </ol>
+        <p class="recipe-result">The clean guitar becomes a crunchy or distorted one, depending on the Drive and the amp you pick.</p>
+      </div>
+    </section>
+
+    <section class="recipe" id="controller">
+      <div class="recipe-clips">
+        <figure class="clip">
+          <video src="../clips/connect-midi-controller.mp4" poster="../clips/connect-midi-controller.jpg" width="540" height="1236" muted loop playsinline controls preload="none" aria-label="Selecting a MIDI controller in Preferences"></video>
+        </figure>
+      </div>
+      <div>
+        <h2>Connect a MIDI controller</h2>
+        <p class="recipe-goal">Play with a real keyboard or keytar instead of the screen.</p>
+        <ol>
+          <li>Plug the controller in with USB (an OTG adapter on a phone), or switch on a Bluetooth MIDI controller.</li>
+          <li>Tap the gear icon to open <span class="ui">Preferences</span>.</li>
+          <li>Under <span class="ui">MIDI Connection</span>, tap <span class="ui">Connect MIDI Device</span> and pick your controller.</li>
+        </ol>
+        <p class="recipe-result">Your controller plays the module whose <span class="ui">MIDI CH</span> badge matches the channel it sends on, usually channel 1.
+          Tap the badge on a module to change its channel.</p>
+      </div>
+    </section>
+
+    <section class="recipe" id="learn">
+      <div class="recipe-clips">
+        <figure class="clip">
+          <video src="../clips/cc-learn.mp4" poster="../clips/cc-learn.jpg" width="540" height="1236" muted loop playsinline controls preload="none" aria-label="Assigning a hardware control to Riff's palm mute"></video>
+        </figure>
+      </div>
+      <div>
+        <h2>Map a knob to a control</h2>
+        <p class="recipe-goal">Turn a knob or press a pad on your controller to move a control in the app.</p>
+        <ol>
+          <li>Tap the sliders icon at the top of the module.</li>
+          <li>In the list, tap <span class="ui">Learn</span> next to the control you want, for example <span class="ui">Palm mute</span>.</li>
+          <li>Move a knob or press a button on your controller.</li>
+        </ol>
+        <p class="recipe-result">The control now follows your hardware. The mapping is saved with the project.</p>
+      </div>
+    </section>
+
+    <section class="recipe" id="drums">
+      <div class="recipe-clips">
+        <figure class="clip">
+          <video src="../clips/drum-generator.mp4" poster="../clips/drum-generator.jpg" width="540" height="1236" muted loop playsinline controls preload="none" aria-label="Adding the Drum Generator, picking a pattern and starting it"></video>
+        </figure>
+      </div>
+      <div>
+        <h2>Start a drum beat</h2>
+        <p class="recipe-goal">A drummer that follows the tempo at the top of the screen.</p>
+        <ol>
+          <li>Tap <span class="ui">+</span> and pick <span class="ui">Drum Generator</span>.</li>
+          <li>Pick a pattern from the menu, from bossa nova to metal.</li>
+          <li>Switch <span class="ui">Active</span> on and press play at the top of the screen.</li>
+        </ol>
+        <p class="recipe-result">The beat plays at the tempo shown in the transport bar. <span class="ui">Swing</span> and <span class="ui">Human feel</span> change how it grooves.</p>
+      </div>
+    </section>
+
+    <section class="recipe" id="loop">
+      <div class="recipe-clips">
+        <figure class="clip">
+          <video src="../clips/looper-setup.mp4" poster="../clips/looper-setup.jpg" width="540" height="1236" muted loop playsinline controls preload="none" aria-label="Adding the Audio Looper and cabling the keyboard into it"></video>
+          <figcaption>1. Cable the looper</figcaption>
+        </figure>
+        <figure class="clip">
+          <video src="../clips/looper-record.mp4" poster="../clips/looper-record.jpg" width="540" height="1236" muted loop playsinline controls preload="none" aria-label="Recording a loop and playing over it"></video>
+          <figcaption>2. Record and play over it</figcaption>
+        </figure>
+      </div>
+      <div>
+        <h2>Record a loop</h2>
+        <p class="recipe-goal">Record a few bars, let them repeat, and play something new on top.</p>
+        <ol>
+          <li>Tap <span class="ui">+</span> and pick <span class="ui">Audio Looper</span>.</li>
+          <li>In <span class="ui">Patch view</span>, cable the keyboard's <code>AUDIO OUT L</code> and <code>R</code> into the looper's <code>AUDIO IN L</code> and <code>R</code>.</li>
+          <li>Go back and press the looper's record button. Recording begins on the first beat of the next bar.
+            If the tempo was stopped, it starts and gives you one bar to get ready.</li>
+          <li>Play. Press the button again: recording finishes at the end of the bar and the loop starts playing.</li>
+          <li>Press it once more to record a second layer on top.</li>
+        </ol>
+        <p class="recipe-result">Your loop repeats in time, and you can play over it.</p>
+      </div>
+    </section>
+
+    <section class="recipe" id="projects">
+      <div class="recipe-clips">
+        <figure class="clip">
+          <video src="../clips/project-save.mp4" poster="../clips/project-save.jpg" width="540" height="1236" muted loop playsinline controls preload="none" aria-label="Saving the project as a file"></video>
+          <figcaption>Save As…</figcaption>
+        </figure>
+        <figure class="clip">
+          <video src="../clips/project-new.mp4" poster="../clips/project-new.jpg" width="540" height="1236" muted loop playsinline controls preload="none" aria-label="Starting a new project"></video>
+          <figcaption>New Project</figcaption>
+        </figure>
+        <figure class="clip">
+          <video src="../clips/project-open.mp4" poster="../clips/project-open.jpg" width="540" height="1236" muted loop playsinline controls preload="none" aria-label="Opening the saved project"></video>
+          <figcaption>Open Project</figcaption>
+        </figure>
+      </div>
+      <div>
+        <h2>Save and open projects</h2>
+        <p class="recipe-goal">A project keeps your modules, cables, settings, mappings and loops in one <code>.gf</code> file.</p>
+        <ol>
+          <li>Tap the folder icon at the top.</li>
+          <li><span class="ui">Save As…</span> writes the project to a file you name.</li>
+          <li><span class="ui">New Project</span> starts again from a keyboard and Xen. Anything you have not saved is lost.</li>
+          <li><span class="ui">Open Project</span> loads a <code>.gf</code> file, with every module and cable as you left them.</li>
+        </ol>
+        <p class="recipe-note">On a phone or a computer, the app also keeps your current session between launches.
+          The <a href="../demo/">web demo</a> does not: use <span class="ui">Save As…</span> to download your project.</p>
+      </div>
+    </section>
+
+    <section class="recipe" id="rehearsal">
+      <div class="recipe-clips">
+        <figure class="clip">
+          <video src="../clips/rehearsal-join.mp4" poster="../clips/rehearsal-join.jpg" width="540" height="1236" muted loop playsinline controls preload="none" aria-label="Joining a rehearsal by scanning a code"></video>
+          <figcaption>Join with a code</figcaption>
+        </figure>
+        <figure class="clip">
+          <video src="../clips/rehearsal-align-grid.mp4" poster="../clips/rehearsal-align-grid.jpg" width="540" height="1236" muted loop playsinline controls preload="none" aria-label="Aligning the bar grid on an imported track"></video>
+          <figcaption>Align the grid</figcaption>
+        </figure>
+      </div>
+      <div>
+        <h2>Join a rehearsal</h2>
+        <p class="recipe-goal">Several people record their own part of the same tune, each on their own device.</p>
+        <ol>
+          <li>Put every device on the same Wi-Fi, or on one phone's hotspot.</li>
+          <li>On the device that has the tune, open it and tap the share icon. It shows a code.</li>
+          <li>On yours, open the <span class="ui">Rehearse</span> tab, tap <span class="ui">Join a tune</span>, then <span class="ui">Scan a code</span>.
+            No camera? Paste the link the other device gives you.</li>
+          <li>Enter your name and your instrument, then tap <span class="ui">Join</span>.</li>
+        </ol>
+        <p class="recipe-result">The tune and its parts appear on your device. You record your own part and nobody else's.</p>
+        <p class="recipe-note">Playing along to an imported track? <span class="ui">Align the grid</span> lines the bars up with it: tap along to the beat,
+          then drag the marker onto the first downbeat. More on the <a href="../rehearsals/">Rehearsals page</a>.</p>
+      </div>
+    </section>
+
+    <h2 id="sockets">Socket colours</h2>
+    <table>
+      <thead>
+        <tr><th>Colour</th><th>Carries</th><th>Sockets</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><span class="jack jack-midi" aria-hidden="true"></span>Yellow</td><td>Notes and controls (MIDI)</td><td><code>MIDI IN</code>, <code>MIDI OUT</code></td></tr>
+        <tr><td><span class="jack jack-audio-l" aria-hidden="true"></span>Red / <span class="jack jack-audio-r" aria-hidden="true"></span>white</td><td>Sound, left and right</td><td><code>AUDIO IN L/R</code>, <code>AUDIO OUT L/R</code></td></tr>
+        <tr><td>Orange</td><td>Effects loop</td><td><code>SEND</code>, <code>RETURN</code></td></tr>
+        <tr><td>Purple</td><td>The scale and the current chord</td><td><code>CHORD OUT/IN</code>, <code>SCALE OUT/IN</code></td></tr>
+        <tr><td>Teal</td><td>Tuning for scales between the piano keys</td><td><code>TUNE OUT</code>, <code>TUNE IN</code></td></tr>
+      </tbody>
+    </table>
+    <p>An output only connects to an input of the same colour. Cables are saved with the project.</p>
 
     <p><a href="../">← Home</a> · <a href="../modules/">Built-in modules →</a></p>
   </main>
@@ -103,5 +377,39 @@
   <footer class="site-footer">
     <p><a href="https://github.com/yakari/grooveforge">GitHub</a> · <a href="../privacy/">Privacy</a></p>
   </footer>
+
+  <script>
+    /*
+     * Clips play while they are on screen and pause when they leave it, so a
+     * long page does not decode a dozen videos at once. Without JavaScript, or
+     * when the reader prefers reduced motion, the native controls stay and
+     * nothing starts by itself.
+     */
+    (function () {
+      var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (reduced || !('IntersectionObserver' in window)) return;
+      var clips = document.querySelectorAll('.clip video');
+      var observer = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+          var video = entry.target;
+          if (entry.isIntersecting) {
+            var playing = video.play();
+            if (playing && playing.catch) playing.catch(function () {});
+          } else {
+            video.pause();
+          }
+        });
+      }, { threshold: 0.5 });
+      clips.forEach(function (video) {
+        video.removeAttribute('controls');
+        video.preload = 'metadata';
+        // Tap to pause or resume.
+        video.addEventListener('click', function () {
+          if (video.paused) { video.play(); } else { video.pause(); }
+        });
+        observer.observe(video);
+      });
+    })();
+  </script>
 </body>
 </html>

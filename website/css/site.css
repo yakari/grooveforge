@@ -841,3 +841,230 @@ main {
   background: rgba(160, 160, 255, 0.12);
   color: #c4c4ff;
 }
+
+/* ── Guide recipes ──────────────────────────────────────────── */
+/**
+ * The guide is a list of short recipes: one goal, a looping screen
+ * recording of the gesture, the steps, and what you should hear.
+ * Clips are portrait phone recordings (540 × 1236).
+ */
+:root {
+  --jack-midi: #f2c94c;
+  --jack-audio-l: #ff4d5e;
+  --jack-audio-r: #e8eaef;
+  --clip-w: 220px;
+}
+
+/* Signal flow diagram at the top of the guide. */
+.signal-flow {
+  margin: 1.5rem 0 1rem;
+  padding: 1.25rem;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.signal-flow svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+/* The flow runs left to right on wide screens, top to bottom on phones,
+   so the labels stay readable. */
+.signal-flow .flow-v {
+  display: none;
+  max-width: 300px;
+}
+
+@media (max-width: 600px) {
+  .signal-flow .flow-h { display: none; }
+  .signal-flow .flow-v { display: block; }
+}
+
+.signal-flow .node rect {
+  fill: var(--bg-elevated);
+  stroke: rgba(0, 229, 255, 0.35);
+  stroke-width: 1.5;
+}
+
+.signal-flow .node text {
+  fill: var(--text);
+  font-family: var(--font-body);
+  font-size: 15px;
+  text-anchor: middle;
+}
+
+.signal-flow .node .sub {
+  fill: var(--text-muted);
+  font-size: 12px;
+}
+
+.signal-flow .wire-label {
+  fill: var(--text-muted);
+  font-family: var(--font-body);
+  font-size: 12px;
+  text-anchor: middle;
+}
+
+.signal-flow .wire-midi {
+  stroke: var(--jack-midi);
+  stroke-width: 3;
+  fill: none;
+}
+
+.signal-flow .wire-l {
+  stroke: var(--jack-audio-l);
+  stroke-width: 3;
+  fill: none;
+}
+
+.signal-flow .wire-r {
+  stroke: var(--jack-audio-r);
+  stroke-width: 3;
+  fill: none;
+}
+
+.signal-flow .wire-out {
+  stroke: var(--text-muted);
+  stroke-width: 2;
+  stroke-dasharray: 5 5;
+  fill: none;
+}
+
+/* Colour swatch in running text: "the yellow MIDI jacks". */
+.jack {
+  display: inline-block;
+  width: 0.75em;
+  height: 0.75em;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  vertical-align: -0.05em;
+  margin-right: 0.2em;
+}
+
+.jack-midi { color: var(--jack-midi); }
+.jack-audio-l { color: var(--jack-audio-l); }
+.jack-audio-r { color: var(--jack-audio-r); }
+
+/* Table of contents: one chip per recipe. */
+.recipe-index {
+  list-style: none;
+  padding: 0 !important;
+  margin: 1rem 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.recipe-index a {
+  display: inline-block;
+  padding: 0.35rem 0.8rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg-panel);
+  font-size: 0.9rem;
+}
+
+.recipe-index a:hover {
+  border-color: var(--cyan-dim);
+  text-decoration: none;
+}
+
+/* One recipe: clips on the left, steps on the right; stacked on phones. */
+.recipe {
+  display: grid;
+  gap: 1.25rem 2rem;
+  grid-template-columns: 1fr;
+  align-items: start;
+  padding: 1.5rem 0 0.5rem;
+}
+
+.recipe + .recipe,
+.recipe + h2 {
+  border-top: 1px solid var(--border);
+}
+
+@media (min-width: 760px) {
+  .recipe {
+    grid-template-columns: auto 1fr;
+  }
+}
+
+.recipe h2 {
+  margin-top: 0;
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.recipe-goal {
+  margin-top: 0;
+  color: var(--text) !important;
+}
+
+.recipe-clips {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+}
+
+.clip {
+  margin: 0;
+  width: min(var(--clip-w), 44vw);
+  flex: 0 0 auto;
+}
+
+/* A lone clip on a phone can be a little larger. */
+.recipe-clips > .clip:only-child {
+  width: min(var(--clip-w), 62vw);
+}
+
+.clip video {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 540 / 1236;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  cursor: pointer;
+}
+
+.clip figcaption {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-align: center;
+  margin-top: 0.4rem;
+  line-height: 1.35;
+}
+
+.recipe ol {
+  padding-left: 1.4rem;
+  margin: 0.75rem 0;
+}
+
+.recipe ol li {
+  margin-bottom: 0.45rem;
+}
+
+.recipe-result {
+  margin: 0.75rem 0 0;
+  padding: 0.6rem 0.9rem;
+  border-left: 3px solid var(--orange);
+  background: rgba(255, 140, 0, 0.06);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  font-size: 0.95rem;
+}
+
+.recipe-note {
+  font-size: 0.92rem;
+}
+
+/* Labels the reader will see on screen. */
+.ui {
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+}
