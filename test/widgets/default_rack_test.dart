@@ -52,15 +52,29 @@ void main() {
     });
   });
 
-  test('the module starts enabled and constrains the keyboard', () async {
+  test('the module starts off and leaves the keyboard alone', () async {
+    // A new user's first notes must not be corrected by a module they never
+    // switched on.
     await withDefaultRack((rack) async {
       final xen = rack.plugins.whereType<GFpaPluginInstance>().single;
-      expect(xen.state['enabled'], isTrue);
+      expect(xen.state['enabled'], isFalse);
+      expect(rack.isXenActive(xen.id), isFalse);
+      expect(rack.xenScaleLocksForTest, isEmpty);
+    });
+  });
 
+  test('one tap on ON is enough to make it work', () async {
+    // Snap and tune are ready, so switching the module on needs nothing else.
+    await withDefaultRack((rack) async {
+      final xen = rack.plugins.whereType<GFpaPluginInstance>().single;
       final plugin = rack.xenPluginFor(xen.id)!;
       expect(plugin.snapEnabled, isTrue);
       expect(plugin.tuneEnabled, isTrue);
-      // The greyed keys are what explain the module on the first note.
+
+      rack.setXenEnabled(xen.id, enabled: true);
+
+      expect(rack.isXenActive(xen.id), isTrue);
+      expect(rack.xenScaleLocksForTest, isNotEmpty);
       expect(plugin.validPitchClasses, {0, 2, 4, 5, 7, 9, 11});
     });
   });
@@ -96,8 +110,49 @@ void main() {
       expect(restored, hasLength(1));
       expect(restored.single.targetSlotIds, ['slot-0']);
       expect(restored.single.tuningTargetSlotIds, ['slot-0']);
-      expect(restored.single.state['enabled'], isTrue);
+      expect(restored.single.state['enabled'], isFalse);
     });
+  });
+
+  test('a saved project brings back the Xen settings, not the defaults',
+      () async {
+    // The default is only for a new project. Whatever the player set — on,
+    // scale (and with it the family the panel opens on), root, snap, tune —
+    // must come back exactly when the project is opened.
+    // A scale outside the Western family, so the family is checked too. It
+    // must be equal-tempered: a microtonal one would push a tuning table into
+    // libaudio_input, which `flutter test` does not load.
+    final scale = GFScaleFamily.values
+        .where((f) => f != GFScaleFamily.western)
+        .expand(GFScaleLibrary.byFamily)
+        .firstWhere((s) => !s.isMicrotonal);
+
+    late List<Map<String, dynamic>> saved;
+    await withDefaultRack((rack) async {
+      final xen = rack.plugins.whereType<GFpaPluginInstance>().single;
+      rack.setXenEnabled(xen.id, enabled: true);
+      rack.selectXenScale(xen.id, scale.id);
+      rack.setXenRoot(xen.id, 7);
+      rack.setXenSnapEnabled(xen.id, enabled: false);
+      rack.setXenTuneEnabled(xen.id, enabled: false);
+      saved = rack.toJson();
+    });
+
+    final reopened = RackState(AudioEngine(), TransportEngine(), AudioGraph());
+    try {
+      reopened.loadFromJson(saved);
+      final xen = reopened.plugins.whereType<GFpaPluginInstance>().single;
+      final plugin = reopened.xenPluginFor(xen.id)!;
+
+      expect(reopened.isXenActive(xen.id), isTrue);
+      expect(plugin.scale.id, scale.id);
+      expect(plugin.scale.family, scale.family);
+      expect(plugin.rootPc, 7);
+      expect(plugin.snapEnabled, isFalse);
+      expect(plugin.tuneEnabled, isFalse);
+    } finally {
+      reopened.dispose();
+    }
   });
 
   test('Jam Mode is no longer in the default rack', () async {
@@ -110,6 +165,32 @@ void main() {
             .where((p) => p.pluginId == 'com.grooveforge.jammode'),
         isEmpty,
       );
+    });
+  });
+
+  test('tapping a scale switches the module on', () async {
+    // With Xen off by default, a scale tap that changed nothing audible
+    // would look like a dead button.
+    await withDefaultRack((rack) async {
+      final xen = rack.plugins.whereType<GFpaPluginInstance>().single;
+      rack.selectXenScale(xen.id, GFScaleLibrary.fallback.id);
+
+      expect(rack.isXenActive(xen.id), isTrue);
+      expect(rack.xenScaleLocksForTest, isNotEmpty);
+    });
+  });
+
+  test('tapping a scale also lifts a CC bypass', () async {
+    // Same meaning as the panel's ON button: choosing a scale means "work".
+    await withDefaultRack((rack) async {
+      final xen = rack.plugins.whereType<GFpaPluginInstance>().single;
+      rack.setXenEnabled(xen.id, enabled: true);
+      rack.toggleMidiFxBypass(xen.id);
+      expect(rack.isXenActive(xen.id), isFalse);
+
+      rack.selectXenScale(xen.id, GFScaleLibrary.fallback.id);
+
+      expect(rack.isXenActive(xen.id), isTrue);
     });
   });
 }

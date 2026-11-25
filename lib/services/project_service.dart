@@ -254,6 +254,10 @@ class ProjectService extends ChangeNotifier {
   ) async {
     await _readGfFile(
         path, rackState, engine, transport, audioGraph, looperEngine);
+    // Opened from inside the app, the audio host is already live: the audio
+    // effects that the splash screen would initialise at startup must be
+    // brought up here, or their slots never leave the loading state.
+    await rackState.finishProjectOpen();
     _currentProjectPath = path;
     notifyListeners();
   }

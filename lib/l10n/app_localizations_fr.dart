@@ -546,7 +546,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get guideMidiBestPracticeBody =>
-      'Un seul clavier suffit : le rack par défaut associe un GrooveForge Keyboard à un module Xen, et l\'on choisit la gamme en tenant une note puis en appuyant sur un bouton de gamme.\nUn clavier split ou un montage à deux claviers reste utile si vous préférez le Jam Mode, où un canal joue les accords qui définissent la gamme pendant qu\'un autre improvise dessus.';
+      'Un seul clavier suffit : le rack par défaut associe un GrooveForge Keyboard à un module Xen. Xen démarre éteint et s\'allume dès que vous choisissez une gamme : tenez une note et appuyez sur un bouton de gamme.\nUn clavier split ou un montage à deux claviers reste utile si vous préférez le Jam Mode, où un canal joue les accords qui définissent la gamme pendant qu\'un autre improvise dessus.';
 
   @override
   String get guideSoundfontsTitle => 'Soundfonts (SF2)';

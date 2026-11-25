@@ -544,7 +544,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get guideMidiBestPracticeBody =>
-      'One keyboard is enough: the default rack pairs a single GrooveForge Keyboard with a Xen module, and you choose the scale by holding a note and tapping a scale button.\nA split or dual-keyboard setup is still worth having if you prefer Jam Mode, where one channel plays the chords that set the scale and another improvises over them.';
+      'One keyboard is enough: the default rack pairs a single GrooveForge Keyboard with a Xen module. Xen starts off and switches on when you pick a scale: hold a note and tap a scale button.\nA split or dual-keyboard setup is still worth having if you prefer Jam Mode, where one channel plays the chords that set the scale and another improvises over them.';
 
   @override
   String get guideSoundfontsTitle => 'Soundfonts (SF2)';

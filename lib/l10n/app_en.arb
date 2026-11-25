@@ -277,7 +277,7 @@
   "guideMidiTitle": "MIDI Connectivity",
   "guideMidiBody": "Connect hardware controllers via USB (OTG adapter) or BLE MIDI. Enable CC Mapping in preferences to bind physical knobs to internal effects or system actions like 'Next Patch'.",
   "guideMidiBestPracticeTitle": "Hardware Recommendations",
-  "guideMidiBestPracticeBody": "One keyboard is enough: the default rack pairs a single GrooveForge Keyboard with a Xen module, and you choose the scale by holding a note and tapping a scale button.\nA split or dual-keyboard setup is still worth having if you prefer Jam Mode, where one channel plays the chords that set the scale and another improvises over them.",
+  "guideMidiBestPracticeBody": "One keyboard is enough: the default rack pairs a single GrooveForge Keyboard with a Xen module. Xen starts off and switches on when you pick a scale: hold a note and tap a scale button.\nA split or dual-keyboard setup is still worth having if you prefer Jam Mode, where one channel plays the chords that set the scale and another improvises over them.",
   "guideSoundfontsTitle": "Soundfonts (SF2)",
   "guideSoundfontsBody": "Import high-quality instrument sounds (.sf2) in the Soundfont preferences. Once loaded, you can assign them to any MIDI channel via the patch selector.",
   "guideTipsTitle": "Musical Tips & Improvisation",

@@ -408,7 +408,7 @@ class RackState extends ChangeNotifier {
   }
 
   /// Creates the factory defaults: one GrooveForge Keyboard and one Xen module
-  /// driving it, both cables patched and the module already on.
+  /// driving it, both cables patched and the module switched off.
   ///
   /// This replaced a two-keyboard Jam Mode rack. That layout asked a new user
   /// to grasp a master/follower relationship, enable a module that started
@@ -422,10 +422,12 @@ class RackState extends ChangeNotifier {
   ///   `scaleOut` connected, the first tap on a maqam would play back in equal
   ///   temperament and the module would look broken. On the default C major
   ///   scale the tuning cable does nothing audible — it is simply ready.
-  /// - **The module starts enabled.** Jam Mode started inactive so the user
-  ///   would opt in, which meant the default rack demonstrated nothing. Here
-  ///   the greyed-out keys explain the module on the first note, and no note
-  ///   is lost — out-of-scale keys are corrected, not silenced.
+  /// - **The module starts off.** It used to start on, and a new user's first
+  ///   notes were silently corrected to C major by a module they had not
+  ///   chosen — the keyboard looked broken rather than explained. The slot is
+  ///   in the rack and patched, so one tap on its ON button is all it takes.
+  ///   This is only the factory default: a project saves the on/off state
+  ///   along with the scale, root, snap and tune, and restores all of them.
   /// - **C major, root C**, so the keyboard behaves ordinarily until the
   ///   player chooses otherwise.
   ///
@@ -462,7 +464,8 @@ class RackState extends ChangeNotifier {
         targetSlotIds: ['slot-0'],
         tuningTargetSlotIds: ['slot-0'],
         state: {
-          'enabled': true,
+          // Off until the player asks for it — see the doc comment above.
+          'enabled': false,
           'scaleId': GFScaleLibrary.fallback.id,
           'rootPc': 0,
           'snapEnabled': true,
@@ -1151,11 +1154,26 @@ class RackState extends ChangeNotifier {
   ///
   /// This is the module's signature gesture, reached from the slot UI's scale
   /// grid and from a mapped hardware pad.
+  ///
+  /// Picking a scale also switches the module on. New projects ship with Xen
+  /// off, and a scale tap that changed nothing audible would read as a broken
+  /// button; choosing a scale can only mean "use this one".
   void selectXenScale(String id, String scaleId) {
     final plugin = _xenPlugins[id];
     if (plugin == null) return;
     plugin.selectScale(scaleId);
+    _switchXenOn(id);
     _persistXenState(id, plugin);
+  }
+
+  /// Mark a Xen slot as on, clearing any CC bypass, without notifying.
+  ///
+  /// Same meaning as the panel's ON button ([setXenEnabled]); the caller is
+  /// expected to persist and notify, so a scale tap stays a single update.
+  void _switchXenOn(String id) {
+    final instance = _findGfpaById(id);
+    if (instance == null || _isXenActive(instance)) return;
+    instance.state = {...instance.state, 'enabled': true, '__bypass': false};
   }
 
   /// Set a Xen slot's tonic by hand, from its chromatic strip.
@@ -2161,6 +2179,25 @@ class RackState extends ChangeNotifier {
         await _initAudioEffectPlugin(plugin);
       }
     }
+  }
+
+  /// Finish loading a project the player opened from inside the app.
+  ///
+  /// [loadFromJson] disposes every audio-effect instance and only recreates
+  /// the MIDI FX: the audio effects need a live native host, which it cannot
+  /// assume because it also runs at startup, before the host exists. At
+  /// startup the splash screen fills the gap once the host is up; a project
+  /// opened later had nothing to do it, so every descriptor slot (Riff, Amp,
+  /// Reverb, Wah…) stayed on its loading spinner and made no sound.
+  ///
+  /// The host is already running here, so this does what the splash screen
+  /// does: create each slot's plugin and native DSP, then rebuild the routing
+  /// once so the new DSP handles are wired in, then re-apply bypass, which a
+  /// routing rebuild resets.
+  Future<void> finishProjectOpen() async {
+    await initializeAudioEffects();
+    syncAudioRoutingIfNeeded();
+    _syncBypassStatesToNative();
   }
 
   /// Eagerly initialise a [GFDescriptorPlugin] for [instance], register its

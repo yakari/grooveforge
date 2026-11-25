@@ -25,6 +25,9 @@ Future<void> withDefaultRack(
   final rack = RackState(AudioEngine(), TransportEngine(), AudioGraph());
   rack.initDefaults();
   final xen = rack.plugins.whereType<GFpaPluginInstance>().single;
+  // The factory rack ships Xen switched off; these tests are about turning
+  // it off, so start from a module that is on.
+  rack.setXenEnabled(xen.id, enabled: true);
   try {
     await body(rack, xen);
   } finally {

@@ -5,6 +5,14 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/lang/fr/).
 
+## [X.x.x]
+
+### Modifié
+- Les nouveaux projets démarrent avec le module Xen éteint : le clavier joue toutes les notes jusqu'à ce que vous choisissiez une gamme, ce qui l'allume. Les projets sauvegardés gardent Xen tel quel.
+
+### Corrigé
+- Ouvrir un projet depuis le menu laissait Riff, l'Ampli et tous les autres modules audio bloqués en chargement et muets. Ils se chargent maintenant comme au démarrage.
+
 ## [3.5.0] - 2026-11-23
 
 ### Ajouté
