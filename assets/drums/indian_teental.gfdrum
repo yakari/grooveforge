@@ -66,6 +66,7 @@ bpm_range: [60, 130]
 time_signature: [4, 4]
 resolution: 16
 feel: straight
+swing_unit: 16
 
 instruments:
   na:  { note: 60, base_velocity: 92,  velocity_range: 12, timing_jitter: 0.010, duration_beats: 0.06 }

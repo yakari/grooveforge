@@ -42,6 +42,7 @@ bpm_range: [60, 95]
 time_signature: [4, 4]
 resolution: 16
 feel: laid_back
+swing_unit: 8
 
 instruments:
   kick:       { note: 36, base_velocity: 108, velocity_range: 8,  timing_jitter: 0.016, duration_beats: 0.20 }

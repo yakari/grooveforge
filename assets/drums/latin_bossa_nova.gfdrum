@@ -46,6 +46,7 @@ bpm_range: [80, 140]
 time_signature: [4, 4]
 resolution: 16
 feel: laid_back
+swing_unit: 16
 kit: brush
 
 instruments:

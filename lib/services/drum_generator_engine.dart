@@ -93,8 +93,9 @@ class DrumFormPosition {
 /// session.  The session maintains the pre-computed hit queues and tracks
 /// which bars have already been scheduled to avoid double-scheduling.
 class DrumGeneratorSession {
-  /// The plugin instance this session belongs to.
-  final DrumGeneratorPluginInstance instance;
+  /// The plugin instance this session belongs to. Replaced when a project
+  /// is opened: the rack then holds new instances with the same slot ids.
+  DrumGeneratorPluginInstance instance;
 
   /// Resolved pattern data for the current pattern, or null if not yet loaded.
   DrumPatternData? patternData;
@@ -228,13 +229,14 @@ class DrumGeneratorEngine extends ChangeNotifier {
       // the newly resolved pattern name and controls.
       notifyListeners();
     } else {
-      // Update the pattern if the instance changed.
       final existing = _sessions[slotId]!;
-      final patternChanged =
-          existing.instance.builtinPatternId != instance.builtinPatternId ||
-          existing.instance.customPatternPath != instance.customPatternPath;
-      if (patternChanged) {
+      if (!identical(existing.instance, instance)) {
+        // A project was opened: the rack holds a new instance under the same
+        // slot id. The session must read that one, or the slot's controls
+        // would change an object nothing plays any more.
+        existing.instance = instance;
         _resolvePattern(existing);
+        existing.reset();
         notifyListeners();
       }
       // Re-apply bank 128 in case the channel was reset by another slot.
@@ -640,8 +642,18 @@ class DrumGeneratorEngine extends ChangeNotifier {
         ? session.instance.swingOverride ?? pattern.feel.defaultSwingRatio
         : 0.5;
 
-    // Humanisation amounts, scaled by the slot's humanization knob.
-    final humanFactor = session.instance.humanizationAmount;
+    // Humanisation, from the slot's Human feel knob: 0 plays every hit
+    // exactly, 50 % plays the file's own timing and velocity spread, 100 %
+    // doubles it.
+    final humanFactor = humanFactorOf(session.instance.humanizationAmount);
+
+    // The drummer's energy rises and falls slowly over the bars, by the
+    // file's velocity_drift, scaled by the same knob.
+    final drift = driftScale(
+      bar: absoluteBar,
+      drift: pattern.humanization.velocityDrift * humanFactor,
+      seed: session.seed,
+    );
 
     // Per-bar seeded random ensures same bar always produces same humanisation,
     // preventing flicker when the lookahead re-schedules the same bar.
@@ -654,7 +666,7 @@ class DrumGeneratorEngine extends ChangeNotifier {
       _scheduleInstrumentGrid(
         session: session,
         bar: absoluteBar,
-        velocityScale: velocityScale,
+        velocityScale: velocityScale * drift,
         instrDef: instrDef,
         grid: entry.value,
         barStartBeat: barStartBeat,
@@ -666,6 +678,33 @@ class DrumGeneratorEngine extends ChangeNotifier {
       );
     }
   }
+
+  /// Multiplier on the file's timing and velocity spread for a Human feel
+  /// knob at [amount] (0 to 1): 0 at the left, 1 (the file as written) in
+  /// the middle, 2 at the right.
+  static double humanFactorOf(double amount) => amount.clamp(0.0, 1.0) * 2.0;
+
+  /// Bars in one rise and fall of the drummer's energy.
+  static const int driftPeriodBars = 8;
+
+  /// Velocity multiplier of bar [bar] for an energy drift of [drift] (0.05
+  /// = up to 5 % softer or louder). A slow wave over [driftPeriodBars]
+  /// bars, starting at a point that [seed] picks, so two plays differ.
+  static double driftScale({
+    required int bar,
+    required double drift,
+    required int seed,
+  }) {
+    if (drift <= 0) return 1.0;
+    final phase = (seed % 1000) / 1000 * 2 * pi;
+    return 1.0 + drift * sin(2 * pi * bar / driftPeriodBars + phase);
+  }
+
+  /// Chance that a ghost note is left out at a [humanFactor] above 1: none
+  /// up to the file's own feel, one in four at the knob's far right. A
+  /// drummer never plays every ghost note the same way twice.
+  static double ghostSkipChance(double humanFactor) =>
+      humanFactor <= 1.0 ? 0.0 : 0.25 * (humanFactor - 1.0);
 
   /// Whether steps of [stepDuration] beats split the beat in two, four or
   /// eight: the grids a swing can bend.
@@ -899,6 +938,12 @@ class DrumGeneratorEngine extends ChangeNotifier {
       final char = grid[step];
       final velScale = DrumPatternParser.velocityScale(char);
       if (velScale == 0.0) continue; // rest — skip
+
+      // A loose drummer leaves some ghost notes out.
+      final skipChance = ghostSkipChance(humanFactor);
+      if (char == 'g' && skipChance > 0 && rng.nextDouble() < skipChance) {
+        continue;
+      }
 
       // Position on the step grid, bent by the swing. Bars start on a
       // beat, so the swing pairs are counted from the start of the bar.

@@ -37,6 +37,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Drum Generator: moving a knob during playback fired a burst of hits.
 - Drum Generator: the Chopsticks count-in always said 4 hits, whatever the pattern plays.
 - Drum Generator: the bar after a fill played the groove twice over, doubling its kick and hi-hat.
+- Drum Generator: the Swing slider did nothing on most styles, and Human feel was too subtle to hear (it now doubles the spread at the right and lets the energy drift).
+- Drum Generator: after opening a project, its controls changed nothing until the slot was re-added.
 - MIDI FX applied in a different order on the screen and on a controller; both now follow the rack, top to bottom.
 - A keyboard set to None (MIDI only) skipped MIDI FX on its on-screen keys.
 - Notes sent to a MIDI FX also played a second time on MIDI channel 1.

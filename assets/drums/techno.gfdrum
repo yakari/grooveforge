@@ -39,6 +39,7 @@ bpm_range: [120, 150]
 time_signature: [4, 4]
 resolution: 16
 feel: straight
+swing_unit: 16
 kit: electronic
 
 # Machine music: humanisation is deliberately near zero. Techno's power comes

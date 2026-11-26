@@ -55,6 +55,7 @@ bpm_range: [160, 220]
 time_signature: [4, 4]
 resolution: 16
 feel: straight
+swing_unit: 16
 
 instruments:
   clave:       { note: 75, base_velocity: 95,  velocity_range: 8,  timing_jitter: 0.008, duration_beats: 0.06 }

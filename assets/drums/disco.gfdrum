@@ -53,6 +53,7 @@ bpm_range: [108, 135]
 time_signature: [4, 4]
 resolution: 16
 feel: straight
+swing_unit: 8
 
 instruments:
   kick:       { note: 36, base_velocity: 110, velocity_range: 8,  timing_jitter: 0.008, duration_beats: 0.14 }

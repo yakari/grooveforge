@@ -37,6 +37,8 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 - Générateur de batterie : tourner un bouton pendant la lecture déclenchait une rafale de coups.
 - Générateur de batterie : le décompte Baguettes annonçait toujours 4 coups, quel que soit le pattern.
 - Générateur de batterie : la mesure après un fill rejouait le groove par-dessus lui-même, doublant grosse caisse et charleston.
+- Générateur de batterie : le curseur Swing ne faisait rien sur la plupart des styles, et Feeling humain était trop discret pour s'entendre (il double maintenant les écarts à droite et fait varier l'énergie).
+- Générateur de batterie : après l'ouverture d'un projet, ses réglages ne changeaient plus rien tant que le slot n'était pas recréé.
 - Les effets MIDI s'appliquaient dans un ordre différent à l'écran et sur un contrôleur ; les deux suivent maintenant le rack, de haut en bas.
 - Un clavier réglé sur Aucune (MIDI seulement) ignorait les effets MIDI sur ses touches à l'écran.
 - Les notes envoyées à un effet MIDI sonnaient une seconde fois sur le canal MIDI 1.

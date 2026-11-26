@@ -18,7 +18,7 @@ import 'package:grooveforge/services/transport_engine.dart';
 /// Records every note the drum generator plays, with the transport position
 /// at that moment. Never reaches the real synth.
 class _RecordingEngine extends AudioEngine {
-  final List<({int key, double beat})> notes = [];
+  final List<({int key, double beat, int velocity})> notes = [];
   TransportEngine? transport;
 
   @override
@@ -27,7 +27,11 @@ class _RecordingEngine extends AudioEngine {
     required int key,
     required int velocity,
   }) =>
-      notes.add((key: key, beat: transport?.positionInBeats ?? 0));
+      notes.add((
+        key: key,
+        beat: transport?.positionInBeats ?? 0,
+        velocity: velocity,
+      ));
 
   @override
   void stopNote({required int channel, required int key}) {}
@@ -105,6 +109,33 @@ void main() {
                   groove: '        kick: "X..............."'))
               .swingUnit,
           DrumSwingUnit.eighth);
+    });
+  });
+
+  group('human feel', () {
+    test('the middle of the knob plays the file as written', () {
+      expect(DrumGeneratorEngine.humanFactorOf(0), 0);
+      expect(DrumGeneratorEngine.humanFactorOf(0.5), 1);
+      expect(DrumGeneratorEngine.humanFactorOf(1), 2);
+    });
+
+    test('ghost notes start dropping out past the middle', () {
+      expect(DrumGeneratorEngine.ghostSkipChance(1), 0);
+      expect(DrumGeneratorEngine.ghostSkipChance(2), 0.25);
+    });
+
+    test('the energy drifts slowly, within the file\'s velocity_drift', () {
+      final wave = [
+        for (var bar = 0; bar < 16; bar++)
+          DrumGeneratorEngine.driftScale(bar: bar, drift: 0.1, seed: 123),
+      ];
+      for (final v in wave) {
+        expect(v, inInclusiveRange(0.9, 1.1));
+      }
+      // One full rise and fall every 8 bars.
+      expect(wave[8], closeTo(wave[0], 1e-9));
+      expect(wave.toSet().length, greaterThan(4));
+      expect(DrumGeneratorEngine.driftScale(bar: 3, drift: 0, seed: 1), 1.0);
     });
   });
 
@@ -207,7 +238,12 @@ void main() {
     late DrumGeneratorEngine engine;
     late _RecordingEngine audio;
 
-    DrumGeneratorPluginInstance start(String yaml, DrumIntroType intro) {
+    DrumGeneratorPluginInstance start(
+      String yaml,
+      DrumIntroType intro, {
+      double human = 0.5,
+      double? swing,
+    }) {
       DrumPatternRegistry.instance
           .register(DrumPatternParser.parse(yaml, id: 'grid_test')!);
       transport = TransportEngine()..bpm = 300;
@@ -217,9 +253,13 @@ void main() {
         id: 'drums',
         builtinPatternId: 'grid_test',
         isActive: true,
+        humanizationAmount: human,
+        swingOverride: swing,
         structureConfig: DrumStructureConfig(
           introType: intro,
           fillFrequency: DrumFillFrequency.off,
+          // The phrase's rising velocity would blur the velocity checks.
+          dynamicBuild: false,
         ),
       );
       engine.ensureSession('drums', instance);
@@ -267,6 +307,75 @@ void main() {
           if (n.key == 36 || n.key == 38) n.key,
       ];
       expect(order.take(4), [36, 38, 36, 38]);
+    });
+
+    /// Gaps in beats between the hi-hat notes heard so far.
+    List<double> hihatGaps() {
+      final beats = [for (final n in audio.notes) if (n.key == 42) n.beat];
+      return [for (var i = 1; i < beats.length; i++) beats[i] - beats[i - 1]];
+    }
+
+    const eighths = '''
+        hihat: "x.x.x.x.x.x.x.x."''';
+
+    test('the Swing knob swings a straight style', () async {
+      // Robotic human feel, so only the swing moves the notes. At 300 BPM a
+      // tick of the clock is a twentieth of a beat; a triplet swing makes
+      // the gaps 0.67 and 0.33 beat long, far apart from that.
+      start(patternYaml(header: 'swing_unit: 8', groove: eighths),
+          DrumIntroType.none, human: 0, swing: 2 / 3);
+      await playUntil(42, 9);
+      final gaps = hihatGaps();
+      final longs = [for (var i = 0; i < gaps.length; i += 2) gaps[i]];
+      final shorts = [for (var i = 1; i < gaps.length; i += 2) gaps[i]];
+      double mean(List<double> l) => l.reduce((a, b) => a + b) / l.length;
+      expect(mean(longs) - mean(shorts), greaterThan(0.2));
+    });
+
+    test('without swing the hi-hat eighths stay even', () async {
+      start(patternYaml(header: 'swing_unit: 8', groove: eighths),
+          DrumIntroType.none, human: 0);
+      await playUntil(42, 9);
+      for (final gap in hihatGaps()) {
+        expect(gap, closeTo(0.5, 0.12));
+      }
+    });
+
+    test('Human feel at 0 plays every hit alike, at 100 % it spreads', () async {
+      final yaml = patternYaml(groove: '''
+        hihat: "X.X.X.X.X.X.X.X."''');
+      Future<Set<int>> velocities(double human) async {
+        start(yaml, DrumIntroType.none, human: human);
+        await playUntil(42, 16);
+        return {for (final n in audio.notes) if (n.key == 42) n.velocity};
+      }
+
+      final robotic = await velocities(0);
+      engine.dispose(); // the second engine is disposed by tearDown
+      final live = await velocities(1);
+      expect(robotic, hasLength(1));
+      expect(live.length, greaterThan(3));
+    });
+
+    test('a project opened over the slot replaces the instance it plays', () {
+      DrumPatternRegistry.instance.register(DrumPatternParser.parse(
+          patternYaml(groove: eighths), id: 'grid_test')!);
+      DrumPatternRegistry.instance.register(DrumPatternParser.parse(
+          patternYaml(groove: eighths).replaceFirst('Grid test', 'Other'),
+          id: 'grid_other')!);
+      transport = TransportEngine();
+      audio = _RecordingEngine();
+      engine = DrumGeneratorEngine(transport, audio);
+      engine.ensureSession('drums',
+          DrumGeneratorPluginInstance(id: 'drums', builtinPatternId: 'grid_test'));
+      // The opened project has its own instance for the same slot id.
+      final opened =
+          DrumGeneratorPluginInstance(id: 'drums', builtinPatternId: 'grid_other');
+      engine.ensureSession('drums', opened);
+      expect(engine.patternFor('drums')!.name, 'Other');
+      // Its settings are the ones the engine now reads.
+      engine.loadBuiltinPattern('drums', 'grid_test');
+      expect(opened.builtinPatternId, 'grid_test');
     });
 
     test('the style\'s kit is selected when the soundfont has it', () {

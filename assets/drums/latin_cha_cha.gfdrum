@@ -53,6 +53,7 @@ bpm_range: [100, 135]
 time_signature: [4, 4]
 resolution: 16
 feel: straight
+swing_unit: 16
 
 instruments:
   timbale_hi: { note: 65, base_velocity: 80,  velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.07 }

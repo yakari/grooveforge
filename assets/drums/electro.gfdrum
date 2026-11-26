@@ -42,6 +42,7 @@ bpm_range: [100, 135]
 time_signature: [4, 4]
 resolution: 16
 feel: straight
+swing_unit: 16
 kit: tr808
 
 instruments:

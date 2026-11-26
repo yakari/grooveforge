@@ -56,6 +56,7 @@ bpm_range: [80, 140]
 time_signature: [4, 4]
 resolution: 16
 feel: straight
+swing_unit: 16
 
 instruments:
   doum:   { note: 64, base_velocity: 108, velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.14 }

@@ -48,6 +48,7 @@ bpm_range: [90, 150]
 time_signature: [4, 4]
 resolution: 16
 feel: straight
+swing_unit: 8
 
 instruments:
   dagga:   { note: 41, base_velocity: 112, velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.18 }

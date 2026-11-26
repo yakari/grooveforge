@@ -127,8 +127,9 @@ count     1 e + a 2 e + a 3 e + a  4  e  +  a</code></pre>
         <tr><td><code>sections</code></td><td>Silence</td><td>What to play and when. See <a href="#sections">Sections</a>.</td></tr>
       </tbody>
     </table>
-    <p class="recipe-note">The bundled files also contain <code>bpm_range</code>, <code>humanization</code> and <code>structure</code>.
-      The app does not read them: changing them has no effect. The module's own settings decide the structure.</p>
+    <p class="recipe-note">The bundled files also contain <code>bpm_range</code> and <code>structure</code>.
+      The app does not read them: changing them has no effect. The module's own settings decide the structure.
+      Of the <code>humanization</code> block, only <code>velocity_drift</code> is read (see <a href="#instruments">Instruments</a>).</p>
 
     <h3 id="feel">Feel</h3>
     <table>
@@ -144,8 +145,8 @@ count     1 e + a 2 e + a 3 e + a  4  e  +  a</code></pre>
       With <code>swing_unit: 8</code>, each beat is a pair of eighths and its "and" is delayed: a jazz ride is written <code>X...X.X.X...X.X.</code>.
       Sixteenths inside the beat move with it, in proportion. With <code>swing_unit: 16</code> (the default), each eighth is a pair of sixteenths
       and only the second sixteenth moves, as in funk.</p>
-    <p>An unknown value plays as <code>straight</code>. Moving the module's <span class="ui">Swing</span> slider overrides the feel, so any straight pattern
-      can be played swung. Slide it all the way left, where it reads <span class="ui">Pattern</span>, to use the file's. Triplet grids never swing.</p>
+    <p>An unknown value plays as <code>straight</code>. Moving the module's <span class="ui">Swing</span> slider overrides the feel, on the notes
+      <code>swing_unit</code> names, so any straight pattern can be played swung. Slide it all the way left, where it reads <span class="ui">Pattern</span>, to use the file's. Triplet grids never swing.</p>
 
     <h2 id="instruments">Instruments</h2>
     <p>Under <code>instruments:</code>, each key is a lane name of your choice (<code>kick</code>, <code>surdo_open</code>…).
@@ -162,7 +163,9 @@ count     1 e + a 2 e + a 3 e + a  4  e  +  a</code></pre>
       </tbody>
     </table>
     <p>The module's <span class="ui">Human feel</span> control scales <code>velocity_range</code> and <code>timing_jitter</code>.
-      At its lowest, every hit is exact.</p>
+      At its lowest, every hit is exact; in the middle, the file plays as written; at its highest, the spread doubles and some ghost notes are left out.
+      The <code>velocity_drift</code> of the <code>humanization</code> block (for example <code>0.06</code>, up to 6% softer or louder) makes the drummer's
+      energy rise and fall slowly, over eight bars, by the same amount.</p>
 
     <h3 id="grid">Step grid characters</h3>
     <table>

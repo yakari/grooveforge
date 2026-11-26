@@ -54,6 +54,7 @@ bpm_range: [90, 165]
 time_signature: [4, 4]
 resolution: 16
 feel: straight
+swing_unit: 8
 
 # Everything is loud by design; the contrast in this music is between a full
 # stroke and a genuinely quiet one, so the velocity ranges are wide.

@@ -45,6 +45,7 @@ bpm_range: [120, 220]
 time_signature: [4, 4]
 resolution: 16
 feel: straight
+swing_unit: 8
 kit: power
 
 instruments:

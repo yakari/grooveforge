@@ -226,7 +226,9 @@ class DrumGeneratorPluginInstance
   /// Amount of human-feel randomisation applied to timing and velocity.
   ///
   /// `0.0` = robotic/quantised — hits land exactly on the grid.
-  /// `1.0` = full humanisation — timing jitter and velocity drift at maximum.
+  /// `0.5` = the pattern's own timing and velocity spread, as written.
+  /// `1.0` = twice that spread, and some ghost notes left out: a loose,
+  /// live drummer.
   double humanizationAmount;
 
   /// When true this slot is actively generating and scheduling MIDI hits.
@@ -248,7 +250,7 @@ class DrumGeneratorPluginInstance
     this.customPatternPath,
     this.customPatternYaml,
     this.swingOverride,
-    this.humanizationAmount = 0.7,
+    this.humanizationAmount = 0.5,
     this.isActive = false,
     DrumStructureConfig? structureConfig,
     this.songForm = const DrumSongForm(),
@@ -289,7 +291,7 @@ class DrumGeneratorPluginInstance
       customPatternYaml: json['customPatternYaml'] as String?,
       swingOverride: (json['swingOverride'] as num?)?.toDouble(),
       humanizationAmount:
-          (json['humanizationAmount'] as num?)?.toDouble() ?? 0.7,
+          (json['humanizationAmount'] as num?)?.toDouble() ?? 0.5,
       isActive: (json['isActive'] as bool?) ?? false,
       structureConfig:
           cfgJson != null ? DrumStructureConfig.fromJson(cfgJson) : null,

@@ -127,8 +127,9 @@ temps     1 e + a 2 e + a 3 e + a  4  e  +  a</code></pre>
         <tr><td><code>sections</code></td><td>Silence</td><td>Quoi jouer et quand. Voir <a href="#sections">Sections</a>.</td></tr>
       </tbody>
     </table>
-    <p class="recipe-note">Les fichiers fournis contiennent aussi <code>bpm_range</code>, <code>humanization</code> et <code>structure</code>.
-      L'application ne les lit pas : les modifier ne change rien. Ce sont les réglages du module qui décident de la structure.</p>
+    <p class="recipe-note">Les fichiers fournis contiennent aussi <code>bpm_range</code> et <code>structure</code>.
+      L'application ne les lit pas : les modifier ne change rien. Ce sont les réglages du module qui décident de la structure.
+      Du bloc <code>humanization</code>, seul <code>velocity_drift</code> est lu (voir <a href="#instruments">Instruments</a>).</p>
 
     <h3 id="feel">Feel</h3>
     <table>
@@ -144,8 +145,8 @@ temps     1 e + a 2 e + a 3 e + a  4  e  +  a</code></pre>
       Avec <code>swing_unit: 8</code>, chaque temps est une paire de croches dont le « et » est retardé : un chabada s'écrit <code>X...X.X.X...X.X.</code>.
       Les doubles croches du temps suivent, en proportion. Avec <code>swing_unit: 16</code> (par défaut), chaque croche est une paire de doubles croches
       et seule la deuxième bouge, comme en funk.</p>
-    <p>Une valeur inconnue se joue comme <code>straight</code>. Toucher au curseur <span class="ui">Swing</span> du module remplace le feel du fichier :
-      n'importe quel pattern binaire peut ainsi se jouer swingué. Ramenez-le tout à gauche, là où il affiche <span class="ui">Pattern</span>, pour revenir à celui du fichier.
+    <p>Une valeur inconnue se joue comme <code>straight</code>. Toucher au curseur <span class="ui">Swing</span> du module remplace le feel du fichier,
+      sur les notes que désigne <code>swing_unit</code> : n'importe quel pattern binaire peut ainsi se jouer swingué. Ramenez-le tout à gauche, là où il affiche <span class="ui">Pattern</span>, pour revenir à celui du fichier.
       Les grilles en triolets ne swinguent jamais.</p>
 
     <h2 id="instruments">Instruments</h2>
@@ -163,7 +164,9 @@ temps     1 e + a 2 e + a 3 e + a  4  e  +  a</code></pre>
       </tbody>
     </table>
     <p>Le réglage <span class="ui">Feeling humain</span> du module dose <code>velocity_range</code> et <code>timing_jitter</code>.
-      Au minimum, chaque coup tombe pile.</p>
+      Au minimum, chaque coup tombe pile ; au milieu, le fichier joue tel qu'il est écrit ; au maximum, les écarts doublent et quelques ghost notes sautent.
+      Le <code>velocity_drift</code> du bloc <code>humanization</code> (par exemple <code>0.06</code>, jusqu'à 6 % plus doux ou plus fort) fait monter et
+      redescendre lentement l'énergie du batteur, sur huit mesures, dosé de la même façon.</p>
 
     <h3 id="grille">Caractères des grilles</h3>
     <table>
