@@ -5,36 +5,43 @@
 # Pairs with the raga scales in the Xen module: Yaman, Bhairav, Kafi and
 # Bhimpalasi are all commonly set in teental.
 #
-# ONE BAR = ONE AVARTAN (one full 16-matra cycle), so the transport's bar
-# counter counts cycles, not 4/4 measures. Each matra is one step of the grid.
-# At 90 BPM a matra lands every ~170 ms — madhya laya, the medium tempo.
+# ONE MATRA = ONE EIGHTH NOTE: the 16-matra cycle (avartan) spans two bars
+# of 4/4, written as two-bar grids ("bar 1 | bar 2"). Each beat of the
+# transport is two matras. At 80 BPM that is 160 matras a minute, madhya
+# laya, the medium tempo; the sixteenths between the matras carry the
+# ornaments of the filled theka.
 #
 # The theka (the tala's spoken skeleton), with its four vibhags of four matras:
 #   Dha Dhin Dhin Dha | Dha Dhin Dhin Dha | Dha Tin Tin Ta | Ta Dhin Dhin Dha
-#   ^sam                ^                   ^khali           ^
+#   ^sam (bar 1)        ^tali               ^khali (bar 2)   ^tali
 # The bols are combinations of two hands:
 #   Dha  = na (right/dayan, treble) + ge (left/bayan, bass)
 #   Dhin = tin (dayan, on the sur) + ge
 #   Tin  = tin alone      Ta / Na = na alone
 # Matras 10-13 are the khali ("empty") section: the bayan lifts off entirely.
-# That silence in the bass is how a listener knows where they are in the cycle,
-# and it is why the bayan grid below has a four-step hole in it.
+# That silence in the bass is how a listener knows where they are in the
+# cycle.
+#
+# The fill is a tihai: a phrase played three times, its last stroke landing
+# on the next sam. It takes the second bar of the cycle, so the phrase ends
+# where the cycle begins again.
 #
 # GM substitution: General MIDI has no tabla. High bongo stands in for the
-# dayan's na/ta strokes, muted high conga for its tin, low conga for the bayan's
-# ge, and mute cuica for the bayan's pitch-bent ghe — the cuica is the only GM
-# voice that slides the way a bayan does under the heel of the hand.
+# dayan's na/ta strokes, muted high conga for its tin, low conga for the
+# bayan's ge, and mute cuica for the bayan's pitch-bent ghe — the cuica is
+# the only GM voice that slides the way a bayan does under the heel of the
+# hand.
 # GM notes: 60=hi bongo (na/ta), 62=mute hi conga (tin), 64=low conga (ge),
 #           78=mute cuica (ghe)
 #
-# There is no cymbal anywhere in this pattern. The `crash` section — which the
-# generator fires after a fill — restates the sam on the tabla instead, because
-# a crash cymbal landing on sam would be wrong in this music.
+# There is no cymbal anywhere in this pattern. The `crash` section — which
+# the generator fires after a fill — restates the sam on the tabla instead,
+# because a crash cymbal landing on sam would be wrong in this music.
 
 #
 # ── Step grid notation ────────────────────────────────────────────────────────
 # Each character in a step grid represents one subdivision of the bar.
-# Resolution 16 = sixteen matras = one full teental avartan.
+# Resolution controls how many steps per bar (16 = 16th notes in 4/4; 12 = 16th notes in 6/8).
 #
 #   X   Strong accent  — velocity = base_velocity × 1.00  (full hit / downbeat)
 #   x   Medium accent  — velocity = base_velocity × 0.75  (firm stroke / upbeat)
@@ -42,11 +49,15 @@
 #   g   Ghost note     — velocity = base_velocity × 0.28  (barely audible, mostly felt)
 #   .   Rest           — no note fired at this step
 #
-# Matra positions — one char per matra:
-#   pos    0   1   2   3 |  4   5   6   7 |  8   9  10  11 | 12  13  14  15
-#   matra  1   2   3   4 |  5   6   7   8 |  9  10  11  12 | 13  14  15  16
-#   bol   Dha Dhin Dhin Dha Dha Dhin Dhin Dha Dha Tin Tin Ta Ta Dhin Dhin Dha
-#         ^sam                              ^                ^khali starts
+# Beat positions — 4/4 at resolution 16 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
+#        1  e1 +1 a1  2  e2 +2 a2  3  e3 +3 a3  4  e4 +4 a4
+#   (1/+/2/+/3/+/4/+ = quarter beats; e = "e of"; a = "and-a of")
+#
+# Beat positions — 6/8 at resolution 12 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11
+#        C1 .  e1 .  a1 .  C2 .  e2 .  a2 .
+#   (C1/C2 = compound beat downbeats; each compound beat = 3 eighth notes = 6 steps)
 #
 # Swing / feel: 'feel' delays the second note of each swung pair, and
 # 'swing_unit' says which notes pair up: 16 = sixteenths (the default),
@@ -62,7 +73,7 @@
 
 name: Teental (16 matras)
 family: indian
-bpm_range: [60, 130]
+bpm_range: [55, 110]
 time_signature: [4, 4]
 resolution: 16
 feel: straight
@@ -82,7 +93,6 @@ humanization:
   velocity_drift: 0.04
 
 sections:
-  # Four clicks on the dayan mark the four vibhags before the cycle starts.
   intro:
     type: count_in
     hits: 4
@@ -91,69 +101,64 @@ sections:
   groove:
     bars: 1
     variations:
+      - name: theka_dayan
+        role: intro
+        weight: 1
+        # The theka on the dayan alone, the bayan only on sam: the tabla
+        # player finds the tempo before the full theka.
+        na:  "X.....x.X.....x. | o.....x.X.....x."
+        tin: "..x.x.....x.x... | ..x.x.....x.x..."
+        ge:  "X............... | ................"
+
       - name: theka
         role: verse
         weight: 4
-        # The theka exactly as spoken. Read the three grids together and every
-        # matra spells its bol: na+ge = Dha, tin+ge = Dhin, tin alone = Tin,
-        # na alone = Ta. The bayan (ge) drops out across matras 10-13
-        # (pos 9-12) — the khali.
-        na:  "X..xX..xX..xx..x"
-        tin: ".xx..xx..xx..xx."
-        ge:  "XxxxXxxxX....xxx"
+        # The theka, one bol per matra (eighth note): Dha Dhin Dhin Dha,
+        # Dha Dhin Dhin Dha, Dha Tin Tin Ta, Ta Dhin Dhin Dha. Sam and the
+        # two talis accented, the bayan silent through the khali.
+        na:  "X.....x.X.....x. | o.....x.X.....x."
+        tin: "..x.x.....x.x... | ..x.x.....x.x..."
+        ge:  "X.x.x.x.X.x.x.x. | o.........x.x.x."
 
-      - name: theka_bayan_slide
-        role: bridge
-        weight: 3
-        # Same theka, but the bayan's Dha strokes on sam and matra 9 are played
-        # as ghe — the modulated stroke where the heel of the hand slides on the
-        # head after the strike. It is what makes a tabla sound alive rather than
-        # sampled.
-        na:  "X..xX..xX..xx..x"
-        tin: ".xx..xx..xx..xx."
-        ge:  ".xxx.xxx.....xxx"
-        ghe: "X.......X......."
-
-      - name: theka_open
-        role: intro
-        weight: 2
-        # A lighter reading for accompanying a slow alap: the bayan plays only
-        # the vibhag heads, and the dayan's ghost strokes carry the pulse.
-        na:  "X..gX..gX..gg..g"
-        tin: ".gg..gg..gg..gg."
-        ge:  "X...X...X......."
-
-      - name: tirakita
+      - name: theka_filled
         role: chorus
+        weight: 3
+        # The filled theka: the same bols, with "tirakita" ornaments on the
+        # dayan in the sixteenths before each vibhag head.
+        na:  "X.....xgX.....xg | o.....xgX.....xg"
+        tin: "..x.x..g..x.x..g | ..x.x..g..x.x..g"
+        ge:  "X.x.x.x.X.x.x.x. | o.........x.x.x."
+
+      - name: theka_ghe
+        role: bridge
         weight: 2
-        # Double-density filler on the dayan (the "tirakita" figure) over the
-        # unchanged bayan skeleton — how a tabla player fills a repeated cycle
-        # without leaving the theka.
-        na:  "XgxgXgxgXgxgXgxg"
-        tin: ".x.x.x.x.x.x.x.x"
-        ge:  "X...X...X....x.x"
+        # The bayan modulates: sliding ghe strokes on sam and on the talis,
+        # the plain ge on the other Dhas and Dhins.
+        na:  "X.....x.X.....x. | o.....x.X.....x."
+        tin: "..x.x.....x.x... | ..x.x.....x.x..."
+        ge:  "..x.x.x...x.x.x. | o.........x.x.x."
+        ghe: "X.......X....... | ........X......."
 
   fill:
     bars: 1
     variations:
       - name: tihai
-        # A tihai: one five-matra phrase played three times (matras 1-15) so its
-        # final stroke lands on the next sam. This is the standard way an Indian
-        # musician signals the end of a section, and the reason the last matra
-        # here is empty — the resolution belongs to the next cycle.
-        na: "XxxxxXxxxxXxxxx."
-        ge: "X....X....X....."
+        # A tihai over the last eight matras: Dha-Ti-Dha three times, a
+        # sixteenth apart, its last Dha falling on the next sam.
+        na:  "X...X.X...X.X..."
+        tin: "..x.....x.....x."
+        ge:  "X...X.X...X.X..."
 
-      - name: kaida_expansion
-        # Kaida-style: the theka doubled into 16th-feel strokes on the dayan
-        # while the bayan marks only sam and the ninth matra.
-        na:  "XxxxXxxxXxxxXxxx"
-        tin: ".x.x.x.x.x.x.x.x"
-        ge:  "X.......X......."
+      - name: kaida
+        # A kaida phrase in sixteenths, dayan strokes alternating, the
+        # bayan on each matra of the vibhag heads.
+        na:  "XgxgXgxg XgxgXgxX"
+        tin: ".g.g.g.g .g.g.g.."
+        ge:  "X...X... X...X.X."
 
       - name: bayan_sweep
-        # The bayan takes the fill with sliding ghe strokes on every vibhag head
-        # and a doubled pair into the return.
+        # The bayan takes the bar with sliding ghe strokes on every vibhag
+        # head, the dayan answering in between.
         ghe: "X...X...X...X.X."
         na:  "..x...x...x....."
 
@@ -161,28 +166,26 @@ sections:
     bars: 1
     variations:
       - name: sam_accent
-        # Laid over the groove on the bar after a fill, a break or the
-        # count-in: the cymbal and the low drum on beat 1. The groove
-        # plays everything else.
-        na:  "X..............."
-        ghe: "X..............."
+        # Laid over the groove on the bar after a fill or the count-in: no
+        # cymbal, the sam restated as a strong Dha.
+        na: "X..............."
+        ge: "X..............."
 
   ending:
-    # Played once at the end of the song; the drums stop after bar 2.
+    # Played once at the end of the piece; the tabla stops after bar 2.
     type: sequence
     bars: 2
     bar_grids:
-      - # Bar 1: Theka opening, then dha-ti-dha tihai resolving on sam
-        na:  "X..xXxX..XxX..Xx"
-        tin: ".xx............."
-        ge:  "X..............."
-        ghe: "....X....X....X."
-      - # Bar 2: final hit on beat 1, then silence
-        na:  "X..............."
-        ghe: "X..............."
+      - # Bar 1: the closing tihai, landing on the last sam
+        na:  "X...X.X...X.X..."
+        tin: "..x.....x.....x."
+        ge:  "X...X.X...X.X..."
+      - # Bar 2: the sam, then silence
+        na: "X..............."
+        ge: "X..............."
 
 structure:
-  fill_every: 4
+  fill_every: 8
   break_every: 0
   break_length: 1
   crash_after_fill: true

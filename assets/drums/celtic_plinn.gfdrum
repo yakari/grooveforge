@@ -1,38 +1,24 @@
-# Celtic Plinn — Breton 7/8 Circle Dance
-# Reference: Bagad Kemper, sonneurs (binioù + bombarde pairs), Alan Stivell recordings,
-#            "Kan ha diskan" (call-and-response Breton singing tradition),
-#            Gilles Servat, Dan Ar Braz, traditional Breton festoù-noz (night feast)
-# The Plinn (also Plin) is a Breton couple dance from Poher (central Brittany).
-# It is danced in a chain or circle at festoù-noz — community dances that have been
-# UNESCO-protected since 2012. Its defining characteristics:
-#   - 7/8 time felt as 2+2+3: two quick beats then one long beat.
-#     In 14-step notation: 4+4+6 sixteenth-note groupings.
-#   - The "long" beat (pos 8–13) is where the feet do the characteristic gliding step.
-#   - Snare and bass drum drive the dance together; no sustained melody instruments in
-#     the percussion arrangement.
-#   - The bagad (Breton pipe band) style uses multiple snares in unison with a
-#     grosse caisse — captured here as a single snare + kick.
-#   - Sticks-on-rim accents (cross-stick) simulate the "baguette" technique of
-#     traditional Breton drummers.
-#   - The feel is "straight" — Breton music does not swing; it marches with purpose.
-#
-# Three variations capture the main plinn performance contexts:
-#   traditional_plinn — the standard bagad-style plinn for open-air dancing
-#   festnoz_groove    — more intimate version with cross-stick colour for indoor fests
-#   biniou_drive      — high-energy version that mimics the biniou's drone + ornaments
-#
-# RESOLUTION NOTE: resolution 14 = 14 × 16th-note steps per 7/8 bar.
-#   Grouping: [0–3]=beat1 (quarter), [4–7]=beat2 (quarter), [8–13]=beat3 (dotted quarter).
-#   pos  0  1  2  3  4  5  6  7  8  9 10 11 12 13
-#        (── beat 1 ──)(── beat 2 ──)(──── beat 3 ────)
-#
-# GM notes: 36=kick (grosse caisse), 38=snare (caisse claire), 37=cross-stick (baguette rim),
-#           42=closed HH (cymbal), 49=crash
+# Celtic Plinn — the dañs plinn of central Brittany, on a drum kit
+# Reference: the plinn suite of the Poher and Fañch countries (dañs plinn,
+#            tamm kreiz, dañs plinn); fest-noz bands with a drummer
+#            (Startijenn, Plantec, Ndiaz); Breton tune books list plinn
+#            tunes in 4/4
+# The plinn is danced in a chain, its step counted in four: jump, jump,
+# right-left-right, on 1, 2, then 3, the "and" of 3, 4. The tune is fast and
+# binary, and a fest-noz drummer underlines that step:
+# - the bass drum plays the step's figure (1, 2, 3, "and" of 3, 4);
+# - the snare answers on the off-beats, pushing the dancers on;
+# - the toms take the figure in the fills.
+# The suite's middle part, the "tamm kreiz", is calmer: the bridge variation
+# plays it in half time.
+# The feel is straight: Breton dance music does not swing.
+# GM notes: 36=kick, 38=snare, 37=side stick, 42=closed HH, 46=open HH,
+#           48=hi tom, 45=mid tom, 41=floor tom, 49=crash
 
 #
 # ── Step grid notation ────────────────────────────────────────────────────────
 # Each character in a step grid represents one subdivision of the bar.
-# Resolution controls how many steps per bar (16 = 16th notes in 4/4; 14 = 16th notes in 7/8).
+# Resolution controls how many steps per bar (16 = 16th notes in 4/4; 12 = 16th notes in 6/8).
 #
 #   X   Strong accent  — velocity = base_velocity × 1.00  (full hit / downbeat)
 #   x   Medium accent  — velocity = base_velocity × 0.75  (firm stroke / upbeat)
@@ -40,97 +26,123 @@
 #   g   Ghost note     — velocity = base_velocity × 0.28  (barely audible, mostly felt)
 #   .   Rest           — no note fired at this step
 #
-# Beat positions — 7/8 at resolution 14 (one char per 16th-note equivalent):
-#   pos  0  1  2  3  4  5  6  7  8  9 10 11 12 13
-#        beat1 ──── beat2 ──── beat3 ──────────────
-#   Grouping (2+2+3): [0-3] | [4-7] | [8-13]
+# Beat positions — 4/4 at resolution 16 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
+#        1  e1 +1 a1  2  e2 +2 a2  3  e3 +3 a3  4  e4 +4 a4
+#   (1/+/2/+/3/+/4/+ = quarter beats; e = "e of"; a = "and-a of")
+#
+# Beat positions — 6/8 at resolution 12 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11
+#        C1 .  e1 .  a1 .  C2 .  e2 .  a2 .
+#   (C1/C2 = compound beat downbeats; each compound beat = 3 eighth notes = 6 steps)
+#
+# Swing / feel: 'feel' delays the second note of each swung pair, and
+# 'swing_unit' says which notes pair up: 16 = sixteenths (the default),
+# 8 = eighths (jazz, shuffle). Write the grids straight, as a score does.
+#   straight    — every step exactly on the grid
+#   swing_light — light swing, second note at 58 % of the pair (or swing_soft)
+#   swing_hard  — triplet swing, second note at 67 % of the pair
+#   laid_back   — same as straight; drag one instrument with its 'rush'
+#
+# Spaces and '|' inside a grid are ignored. A grid may span two bars, and
+# 'grid: triplet' on a variation splits each beat in three (12 steps in 4/4).
 # ─────────────────────────────────────────────────────────────────────────────
 
 name: Celtic Plinn
 family: folk
-bpm_range: [92, 140]
-time_signature: [7, 8]
-resolution: 14
+bpm_range: [130, 175]
+time_signature: [4, 4]
+resolution: 16
 feel: straight
+swing_unit: 8
 
 instruments:
-  kick:        { note: 36, base_velocity: 105, velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.12 }
-  snare:       { note: 38, base_velocity: 90,  velocity_range: 15, timing_jitter: 0.012, duration_beats: 0.09 }
-  snare_rim:   { note: 37, base_velocity: 75,  velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.07 }
-  hihat:       { note: 42, base_velocity: 68,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.07 }
-  crash:       { note: 49, base_velocity: 100, velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.22 }
+  kick:       { note: 36, base_velocity: 108, velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.14 }
+  snare:      { note: 38, base_velocity: 100, velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.09 }
+  rim:        { note: 37, base_velocity: 92,  velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.07 }
+  hihat:      { note: 42, base_velocity: 80,  velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.06 }
+  hihat_open: { note: 46, base_velocity: 84,  velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.16 }
+  tom_hi:     { note: 48, base_velocity: 96,  velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.12 }
+  tom_mid:    { note: 45, base_velocity: 96,  velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.12 }
+  tom_lo:     { note: 41, base_velocity: 98,  velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.15 }
+  crash:      { note: 49, base_velocity: 98,  velocity_range: 8,  timing_jitter: 0.008, duration_beats: 0.25 }
 
 humanization:
-  timing_jitter: 0.012
-  velocity_jitter: 14
+  timing_jitter: 0.010
+  velocity_jitter: 10
   velocity_drift: 0.05
 
 sections:
   intro:
     type: count_in
-    hits: 7
-    note: 38
+    hits: 4
+    note: 37
 
   groove:
     bars: 1
     variations:
-      - name: traditional_plinn
-        role: verse
-        weight: 3
-        # Standard bagad-style plinn for open-air dancing.
-        # KICK: downbeat of each of the three beats (pos 0, 4, 8) — the grosse caisse
-        #   marks the pulse. The long beat (pos 8–13) gets a kick on its first 16th,
-        #   reinforcing where the dancer's gliding foot lands.
-        # SNARE: hits on each beat start (pos 0, 4, 8) plus a ghost and a 16th-note
-        #   pickup before beat 3 (pos 6, 7) — this "rushing" pickup is the characteristic
-        #   Breton push into the long beat that makes the Plinn dance irresistible.
-        # HI-HAT: every 8th note (every 2 steps) = 7 hits across 14 positions,
-        #   providing the constant pulse dancers use to stay together.
-        kick:  "X...X...X....."
-        snare: "X...X..gX....."
-        hihat: "x.x.x.x.x.x.x."
+      - name: dancers_step
+        role: intro
+        weight: 1
+        # The step alone: the bass drum on the dancers' feet (jump, jump,
+        # right-left-right), the side stick on the off-beats.
+        kick: "X... X... X.X. X..."
+        rim:  "..x. ..x. .... ..x."
 
-      - name: festnoz_groove
+      - name: dans_plinn
+        role: verse
+        weight: 4
+        # The dañs plinn: the bass drum on the step, the snare pushing on the
+        # off-beats, the hi-hat in eighths.
+        kick:  "X... X... X.X. X..."
+        snare: "..x. ..X. .... ..X."
+        hihat: "x.x. x.x. x.x. x.x."
+
+      - name: fest_noz_drive
+        role: chorus
+        weight: 3
+        # The fest-noz at its height: the bass drum on every beat plus the
+        # step's "and" of 3, the snare on every off-beat, the hi-hat opening
+        # on the last one into the next jump.
+        kick:       "X... X... X.X. X..."
+        snare:      "..X. ..X. ..X. ..X."
+        hihat:      "x.x. x.x. x.x. x..."
+        hihat_open: ".... .... .... ..x."
+        tom_lo:     "X... .... X... ...."
+
+      - name: tamm_kreiz
         role: bridge
         weight: 2
-        # Indoor fest-noz (night feast) variation: more intimate, with the snare rim
-        # (cross-stick / baguette technique) providing a woody, resonant timekeeping
-        # sound. The kick is softer, letting the cross-stick carry the groove.
-        # Ghost notes fill the 16th-note gaps within each beat group, adding texture
-        # typical of Breton drummers who trained in both classical and traditional styles.
-        kick:      "X...X...X....."
-        snare:     "o...o...o....."
-        snare_rim: "x.g.x.g.x.g.x."
-        hihat:     "x.x.x.x.x.x.x."
-
-      - name: biniou_drive
-        role: chorus
-        weight: 2
-        # High-energy biniou-style drive — the biniou kozh (Breton bagpipe) plays in
-        # a very high register and pushes the tempo forward. This variation simulates
-        # the urgency a bagad drummer feels when the pipes start climbing.
-        # Snare rolls (ghost-accent pairs) on the first and second beats create
-        # rudimental density. The three-beat grouping is now felt as a fast, continuous
-        # drive rather than a dance-step indicator.
-        kick:  "X.x.X.x.X.x.x."
-        snare: "Xg.xXg.xXg.x.."
-        hihat: "x.x.x.x.x.x.x."
+        # The tamm kreiz, the calmer middle of the suite: half time, the
+        # bass drum on 1 and the step's "and" of 3, the snare on 3.
+        kick:  "X... .... ..X. ...."
+        snare: ".... .... X... ...."
+        hihat: "x.x. x.x. x.x. x.x."
+        rim:   ".... X... .... X..."
 
   fill:
     bars: 1
     variations:
-      - name: snare_rush
-        # Snare-rush fill: ghost notes accelerate into full accents, simulating the
-        # rudimental "rush to the beat" that Breton drummers use to signal a new section.
-        snare: "XgXgXgXgXgXgXg"
-        kick:  "X............."
+      - name: step_on_toms
+        # The step's figure moved to the toms, high to low, the snare
+        # rolling into the next jump.
+        tom_hi:  "X... X... .... ...."
+        tom_mid: ".... .... X.X. ...."
+        tom_lo:  ".... .... .... X..."
+        kick:    "X... X... X.X. X..."
+        snare:   ".... .... .... .xXX"
 
-      - name: bass_tom_roll
-        # Bass-and-snare interlock: kick and snare alternate on every 8th note,
-        # creating the "call and response" texture of kan ha diskan vocal tradition
-        # translated to percussion.
-        kick:  "X.X.X.X.X.X.X."
-        snare: ".X.X.X.X.X.X.X"
+      - name: snare_roll
+        # Two beats of groove, then a snare roll over the step.
+        kick:  "X... X... X.X. X..."
+        snare: "..x. ..X. xxxx xxXX"
+
+      - name: unison_jumps
+        # The whole kit on the two jumps, then the snare alone on the
+        # right-left-right.
+        kick:  "X... X... .... ...."
+        snare: "X... X... X.X. X.X."
+        crash: "X... X... .... ...."
 
   crash:
     bars: 1
@@ -139,24 +151,24 @@ sections:
         # Laid over the groove on the bar after a fill, a break or the
         # count-in: the cymbal and the low drum on beat 1. The groove
         # plays everything else.
-        crash: "X............."
-        kick:  "X............."
+        crash: "X..............."
+        kick:  "X..............."
 
   ending:
     # Played once at the end of the song; the drums stop after bar 2.
     type: sequence
     bars: 2
     bar_grids:
-      - # Bar 1: Plinn accents, snare roll swelling through the last group
-        kick:  "X...X...X...X."
-        snare: "X..gX..gXgXgXX"
-        hihat: "x.x.x.x......."
+      - # Bar 1: the last step hit by the whole kit, a roll on beat 4
+        kick:   "X...X...X.X....."
+        snare:  "X...X...X.X.xxXX"
+        tom_lo: "X...X...X.X....."
       - # Bar 2: final hit on beat 1, then silence
-        crash: "X............."
-        kick:  "X............."
+        crash:  "X..............."
+        kick:   "X..............."
 
 structure:
-  fill_every: 4
+  fill_every: 8
   break_every: 0
   break_length: 1
   crash_after_fill: true

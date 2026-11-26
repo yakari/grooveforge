@@ -21,7 +21,7 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 - Les nouveaux projets démarrent avec le module Xen éteint : le clavier joue toutes les notes jusqu'à ce que vous choisissiez une gamme, ce qui l'allume. Les projets sauvegardés gardent Xen tel quel.
 - Aide réécrite : elle commence par la façon de brancher les modules et des recettes courtes, chacune avec une vidéo du geste sur le site.
 - La latence d'overdub passe de « À propos » à la rubrique Sortie Audio des Préférences.
-- Générateur de batterie : Jazz Swing, Half-Time Shuffle, Country, Second Line, Salsa, Cha-Cha, Bossa Nova, Samba Groove, les deux Batucadas, Military March, Festive Fanfare et Scottish Reel réécrits d'après des transcriptions des vrais grooves.
+- Générateur de batterie : 18 styles fournis réécrits d'après de vraies transcriptions (jazz, shuffle, latino, brésilien, marches, funk, arabe, turc, tabla) ; Celtic Plinn passe en 4/4.
 
 ### Corrigé
 - Linux : les plugins VST3 jouaient faux quand JACK ou PipeWire tournait à 44,1 kHz ; ils suivent maintenant la fréquence du serveur.
