@@ -1,0 +1,9 @@
+Added
+- Drum Generator: a song form with intro, verses, choruses, breaks and an ending; the 35 styles reworked from real transcriptions.
+- Your own .gfpd effects now process the sound.
+- On-screen keys play louder near the front edge.
+
+Fixed
+- Drum Generator keeps one groove per phrase, with fills and crashes in the right place.
+- MIDI FX follow the rack order and no longer double notes on channel 1.
+- Many screens showed English text in French.

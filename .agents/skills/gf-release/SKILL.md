@@ -22,6 +22,14 @@ Verify each item before making any changes:
 | Version in pubspec | Read `pubspec.yaml` | Shows the previous version (not the new one yet) |
 | Placeholder not already dated | Grep for `[X.x.x]` | Match found (i.e. it is still a placeholder, not yet a date) |
 | Working tree clean | `git status --short` | Nothing uncommitted that belongs in the release |
+| CI Flutter matches the lockfile | Compare `flutter --version`, the `flutter-version:` in `.github/workflows/release.yml`, and `sdks: flutter:` at the bottom of `pubspec.lock` | `release.yml` is the version that resolved the lock, and satisfies its `sdks:` floor |
+| Lockfile builds as F-Droid builds it | In a clean worktree of HEAD with that Flutter: `rm -rf ios linux macos web windows && flutter pub get --enforce-lockfile` | `Got dependencies!` |
+
+F-Droid's recipe reads its Flutter version from the first `flutter-version:` in `release.yml`
+and runs `pub get --enforce-lockfile`. A lock resolved with a newer local Flutter raises the
+`sdks: flutter:` floor above it, and the F-Droid build fails before compiling anything. That is
+what sank 3.5.0 (lock needed >=3.44.0, CI pinned 3.41.6). Bump `release.yml` to the local
+Flutter rather than downgrading the lock.
 
 If no `## [X.x.x]` placeholder exists in either changelog, stop and ask the user what entries to include before proceeding.
 
@@ -98,21 +106,23 @@ plus the current-version footer. Update all of them:
 |---|---|
 | `versionName` (×3) | `<version>` |
 | `versionCode` | `<B>1`, `<B>2`, `<B>3` — in the armeabi-v7a, arm64-v8a, x86_64 blocks respectively (match the `output:` APK name, not the block order) |
-| `commit` (×3) | `v<version>` — the tag this release will carry |
+| `commit` (×3) | the full 40-character hash of the release commit (`git rev-parse v<version>^{commit}`) |
 | `CurrentVersion` | `<version>` |
 | `CurrentVersionCode` | `<B>3` (the highest ABI code) |
 
-The `commit:` field must point at the tree the release is actually built from. Using a tag name
-rather than a hash is deliberate: the tag does not exist yet when the release commit is written,
-and F-Droid resolves it at build time. A stale hash left over from an older release makes F-Droid
-build the wrong source for the claimed `versionName`.
+The `commit:` field must point at the tree the release is actually built from, as a full
+commit hash: F-Droid's reviewers require hashes, because a tag can be moved and a hash cannot.
+The release commit cannot contain its own hash, so this step runs after the release commit is
+tagged and lands in the next commit. This file is only a reference copy: the live recipe is in
+fdroiddata, where checkupdates adds the new build by itself when it sees the tag. A stale hash
+left over from an older release makes the copy lie about which source the version was built from.
 
 ### 6. Verify
 
 - Both changelogs have a dated header for the new version, and no `[X.x.x]` placeholder remains.
 - `pubspec.yaml` `version:` reflects the new semver and incremented build number.
 - Eight new Fastlane files exist (4 English + 4 French) and each is ≤ 500 characters.
-- The F-Droid YAML shows the new version name in all three build blocks, three distinct version codes, and a `commit:` matching the tag about to be created.
+- The F-Droid YAML shows the new version name in all three build blocks, three distinct version codes, and a `commit:` equal to the tagged release commit's hash.
 
 ### 7. Suggest next steps (do not execute without confirmation)
 
@@ -125,7 +135,7 @@ git tag v<version>
 # Push when ready: git push && git push --tags
 ```
 
-The tag name must match the `commit:` field written into the F-Droid metadata.
+After tagging, write `git rev-parse v<version>^{commit}` into the three `commit:` fields of the F-Droid copy and commit it.
 
 ---
 

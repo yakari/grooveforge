@@ -5,6 +5,11 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/lang/fr/).
 
+## [3.6.1] - 2026-11-26
+
+### Corrigé
+- F-Droid : la compilation échouait depuis la 3.5.0, l'app y restait en 3.3.0.
+
 ## [3.6.0] - 2026-11-26
 
 ### Ajouté

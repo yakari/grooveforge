@@ -24,7 +24,7 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           # shared_preferences >=2.5.4 requires Dart ^3.9.0 (Flutter 3.41+).
-          flutter-version: '3.41.x'
+          flutter-version: '3.47.x'
           channel: 'stable'
           cache: true
 
