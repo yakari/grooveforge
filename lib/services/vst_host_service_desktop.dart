@@ -5,6 +5,7 @@ import 'package:ffi/ffi.dart';
 
 import 'package:dart_vst_host/dart_vst_host.dart';
 import 'package:flutter/foundation.dart';
+import 'package:grooveforge_plugin_api/grooveforge_plugin_api.dart';
 
 import '../models/gfpa_plugin_instance.dart' show kRiffPluginId;
 import '../models/grooveforge_keyboard_plugin.dart';
@@ -20,6 +21,7 @@ import '../audio/routing_plan_builder.dart';
 import 'audio_graph.dart';
 import 'audio_input_ffi_native.dart';
 import 'gfpa_android_bindings_native.dart';
+import 'gfpa_graph_builder.dart';
 import 'native_instrument_controller.dart';
 
 /// Native signature of a host render contributor: `void (float*, float*, int)`.
@@ -366,22 +368,28 @@ class VstHostService {
     _plugins[slotId]?.noteOff(channel, note, 0.0);
   }
 
-  /// Forwards a pitch-bend message to a VST3 plugin.
-  ///
-  /// The dart_vst_host native library currently only exposes note on/off via
-  /// dvh_note_on / dvh_note_off. Pitch bend for VST3 requires a dvh_pitch_bend
-  /// native function — tracked as a future enhancement. No-op until then.
-  void pitchBend(String slotId, int channel, double semitones) {
-    // TODO(midi-expression): call dvh_pitch_bend once the native binding exists.
+  /// Forwards a pitch bend to a VST3 plugin, as the raw 14-bit MIDI value
+  /// (0-16383, 8192 = centre). The plugin applies its own bend range, as it
+  /// would for a hardware controller.
+  void pitchBend(String slotId, int channel, int value14) {
+    _plugins[slotId]?.pitchBend(channel, value14);
   }
 
-  /// Forwards a control-change message to a VST3 plugin.
-  ///
-  /// Same limitation as [pitchBend] — native CC dispatch is not yet in
-  /// dart_vst_host. No-op until the native binding is added.
+  /// Forwards a MIDI control change to a VST3 plugin.
   void controlChange(String slotId, int channel, int cc, int value) {
-    // TODO(midi-expression): call dvh_control_change once the native binding exists.
+    _plugins[slotId]?.controlChange(channel, cc, value);
   }
+
+  /// Forwards channel pressure (aftertouch, 0-127) to a VST3 plugin.
+  void channelPressure(String slotId, int channel, int value) {
+    _plugins[slotId]?.channelPressure(channel, value);
+  }
+
+  /// Whether a plugin's own editor window can be opened on this platform.
+  ///
+  /// Linux (X11) and macOS have an editor host. Windows does not yet: there
+  /// the button is hidden rather than offered and always failing.
+  bool get supportsPluginEditor => Platform.isLinux || Platform.isMacOS;
 
   // ─── Plugin editor GUI ─────────────────────────────────────────────────────
 
@@ -1027,41 +1035,64 @@ class VstHostService {
   /// [slotId].  The DSP runs on the JACK audio thread once wired via
   /// [syncAudioRouting].
   ///
-  /// Calling again for the same [slotId] first destroys the old instance
-  /// (safe because syncAudioRouting clears inserts before re-registering).
-  void registerGfpaDsp(String slotId, String pluginId) {
-    if (!isSupported) return;
-
-    // On Android, create the DSP via the FFI binding to libnative-lib.so.
-    if (Platform.isAndroid) {
-      _destroyGfpaDspForSlot(slotId);
-      final handle = GfpaAndroidBindings.instance.createDsp(pluginId);
-      if (handle != nullptr) {
-        _gfpaHandles[slotId] = handle;
-        if (pluginId == kRiffPluginId) _addRiffToBus(slotId, handle);
-        debugPrint('VstHostService: GFPA DSP created (Android) for $slotId ($pluginId)');
-      }
-      return;
-    }
-
-    if (_host == null) return;
+  /// A bundled plugin is found by id. Any other effect — a user `.gfpd` —
+  /// is built from the `graph:` section of [descriptor] by the native graph
+  /// interpreter (gfpa_graph.cpp) and then handled exactly the same way.
+  ///
+  /// Returns whether the slot now has a native DSP, i.e. whether it changes
+  /// the sound. Calling again for the same [slotId] first destroys the old
+  /// instance (safe because syncAudioRouting clears inserts before
+  /// re-registering).
+  bool registerGfpaDsp(
+    String slotId,
+    String pluginId, {
+    GFPluginDescriptor? descriptor,
+  }) {
+    if (!isSupported) return false;
+    if (!Platform.isAndroid && _host == null) return false;
     _destroyGfpaDspForSlot(slotId);
-    // Size the DSP's internal scratch buffers for the largest block
-    // JACK will ever deliver. PipeWire commonly uses 1024 or 2048 and
-    // can bump up to 4096 on some systems; 8192 matches the native
-    // host's `kStartupBuffer` floor for state vectors so every effect
-    // can process a full JACK block without re-allocating. The old
-    // hardcoded `256` was left over from a miniaudio-era assumption
-    // and triggered a libstdc++ `operator[]` bounds assertion at
-    // startup when JACK delivered 2048-frame blocks.
-    final handle = _host!.createGfpaDsp(pluginId, 48000, 8192);
+
+    final handle = _createGfpaDsp(pluginId, descriptor);
     if (handle == nullptr) {
-      debugPrint('VstHostService: gfpa_dsp_create returned null for $pluginId');
-      return;
+      debugPrint('VstHostService: no native DSP for $pluginId');
+      return false;
     }
     _gfpaHandles[slotId] = handle;
+    if (Platform.isAndroid && pluginId == kRiffPluginId) {
+      _addRiffToBus(slotId, handle);
+    }
     debugPrint('VstHostService: GFPA DSP created for $slotId ($pluginId)');
+    return true;
   }
+
+  /// The bundled DSP for [pluginId], or else the graph of [descriptor], or
+  /// [nullptr].
+  ///
+  /// Scratch buffers are sized for the largest block the backend can
+  /// deliver. Desktop: PipeWire commonly uses 1024 or 2048 and can bump up
+  /// to 4096; 8192 matches the native host's `kStartupBuffer` floor (the old
+  /// hardcoded 256 overran on 2048-frame JACK blocks). Android: the AAudio
+  /// callback clamps every burst to 4096.
+  Pointer<Void> _createGfpaDsp(String pluginId, GFPluginDescriptor? descriptor) {
+    final android = Platform.isAndroid;
+    final blockSize = android ? 4096 : 8192;
+    final bundled = android
+        ? GfpaAndroidBindings.instance.createDsp(pluginId)
+        : _host!.createGfpaDsp(pluginId, 48000, blockSize);
+    if (bundled != nullptr || descriptor == null) return bundled;
+    final library = android
+        ? GfpaAndroidBindings.instance.library
+        : _host!.library;
+    return buildGfpaGraph(
+      _graphApi ??= GfpaGraphApi(library),
+      descriptor,
+      sampleRate: 48000,
+      blockSize: blockSize,
+    );
+  }
+
+  /// The graph builder's native calls, bound on first use.
+  GfpaGraphApi? _graphApi;
 
   /// Destroy the native DSP instance for [slotId] and remove it from the map.
   ///

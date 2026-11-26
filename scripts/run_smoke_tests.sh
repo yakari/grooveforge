@@ -70,6 +70,10 @@
 #       bending, muting and re-picking never click, notes land on the strings
 #       a guitarist would use, and six ringing strings are cheap.
 #
+#   gf_graph_smoke_test — user .gfpd effects: the native graph interpreter
+#       follows its parameters, sums wires, filters, runs a built-in delay as a
+#       node, splits large blocks and refuses broken graphs.
+#
 #   gf_autotune_smoke_test — Autotune: a sharp note comes out on pitch, key and
 #       scale pick the right note, retune speed and transpose do what they say,
 #       and a hard retune across an octave never puts a click in the waveform.
@@ -83,6 +87,7 @@
 #   ./scripts/run_smoke_tests.sh amp        # just the guitar amp test
 #   ./scripts/run_smoke_tests.sh convolver  # just the cabinet IR test
 #   ./scripts/run_smoke_tests.sh riff       # just the modelled guitar test
+#   ./scripts/run_smoke_tests.sh graph      # just the user .gfpd graph test
 #   ./scripts/run_smoke_tests.sh latency    # just the overdub alignment test
 #   ./scripts/run_smoke_tests.sh rehearsal  # just the rehearsal engine test
 #   ./scripts/run_smoke_tests.sh stretch    # just the practice-tempo renderer
@@ -203,6 +208,16 @@ run_riff() {
     "$BUILD_DIR/gf_riff_pool_smoke_test"
 }
 
+# ── User .gfpd graphs ─────────────────────────────────────────────────────────
+
+run_graph() {
+    echo
+    echo "── Building gf_graph_smoke_test"
+    cmake --build "$BUILD_DIR" --target gf_graph_smoke_test -j"$(nproc 2>/dev/null || echo 4)" > /dev/null
+    echo "── Running gf_graph_smoke_test"
+    "$BUILD_DIR/gf_graph_smoke_test"
+}
+
 # ── Cabinet impulse responses ─────────────────────────────────────────────────
 
 run_convolver() {
@@ -264,6 +279,7 @@ case "$WHICH" in
     amp)        run_amp        || FAILED=1 ;;
     convolver)  run_convolver  || FAILED=1 ;;
     riff)       run_riff       || FAILED=1 ;;
+    graph)      run_graph      || FAILED=1 ;;
     latency)    run_latency    || FAILED=1 ;;
     rehearsal)  run_rehearsal  || FAILED=1 ;;
     stretch)    run_timestretch || FAILED=1 ;;
@@ -278,13 +294,14 @@ case "$WHICH" in
         run_amp        || FAILED=1
         run_convolver  || FAILED=1
         run_riff       || FAILED=1
+        run_graph      || FAILED=1
         run_latency    || FAILED=1
         run_rehearsal  || FAILED=1
         run_timestretch || FAILED=1
         run_uac        || FAILED=1
         ;;
     *)
-        echo "usage: $0 [all|tuning|vocoder|harmonizer|autotune|amp|convolver|riff|latency|rehearsal|stretch|uac]" >&2
+        echo "usage: $0 [all|tuning|vocoder|harmonizer|autotune|amp|convolver|riff|graph|latency|rehearsal|stretch|uac]" >&2
         exit 2
         ;;
 esac

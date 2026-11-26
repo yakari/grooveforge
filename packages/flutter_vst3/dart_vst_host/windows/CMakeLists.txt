@@ -125,6 +125,7 @@ add_library(${PROJECT_NAME} SHARED
   # Native DSP implementations for GFPA descriptor effects
   ${NATIVE_DIR}/src/gfpa_dsp.cpp
   ${NATIVE_DIR}/src/gfpa_riff.cpp
+  ${NATIVE_DIR}/src/gfpa_graph.cpp
   # Audio looper (record / overdub / playback with phase vocoder)
   ${NATIVE_DIR}/src/audio_looper.cpp
   # Phase vocoder from repo-root native_audio/ (shared DSP module)

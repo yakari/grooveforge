@@ -1,6 +1,6 @@
 # How to Create a GrooveForge Plugin
 
-GrooveForge plugins use the `.gfpd` (**GrooveForge Plugin Descriptor**) format — a human-readable YAML file that fully describes a plugin: its identity, its DSP signal graph, its parameters, and how its UI panel should look. A MIDI FX described this way works with no Dart or Flutter code. A custom audio effect or instrument shows its panel and saves its settings, but does not process sound yet: the sound of the built-in effects comes from native code chosen by plugin id.
+GrooveForge plugins use the `.gfpd` (**GrooveForge Plugin Descriptor**) format — a human-readable YAML file that fully describes a plugin: its identity, its DSP signal graph, its parameters, and how its UI panel should look. A MIDI FX described this way works with no Dart or Flutter code. An audio effect works the same way: the app builds its DSP graph natively and runs it on the sound. If the graph cannot be built (an unknown node type or port, a loop, no `audio_out`), the panel says the plugin has no sound. A custom instrument shows its panel and saves its settings, but makes no sound yet.
 
 ---
 
@@ -124,6 +124,10 @@ Each node has internal parameters (specific to its algorithm). Bind them to your
 - `{ param: room_size }` — follows the plugin parameter named `room_size`.
 - `{ value: 0.5 }` — baked-in constant, set once at load time, never updated by the UI.
 
+Both are normalised: a bound node parameter receives the plugin parameter's position in its range (0 at `min`, 1 at `max`), and a constant is a number from 0 to 1. The "Raw range" columns below show what 0 and 1 map to.
+
+The effect nodes `freeverb`, `delay`, `wah_filter` and `compressor` output the effect alone; blend it with the dry signal through a `wet_dry` node. `chorus` has its own `mix`. Several connections into the same input are added together.
+
 #### Connection syntax
 
 ```yaml
@@ -173,7 +177,7 @@ Blends two signals. Essential for insert-effect mixing.
 ---
 
 #### `freeverb`
-Schroeder/Freeverb stereo plate reverb. Pure Dart, works on all platforms.
+Schroeder/Freeverb stereo plate reverb.
 
 | Node param  | Raw range | Description                     |
 |------------|----------|---------------------------------|

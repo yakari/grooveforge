@@ -72,6 +72,10 @@ class RackState extends ChangeNotifier {
   /// eagerly at project-load and add-plugin time.
   final Map<String, GFDescriptorPlugin> _audioEffectInstances = {};
 
+  /// User `.gfpd` effect slots whose graph could not be built natively, so
+  /// they show a panel but leave the sound unchanged. Their panel says so.
+  final Set<String> _silentEffectSlots = {};
+
   /// Param-change notifier per audio-effect slot.
   ///
   /// Shared ownership: [RackState] creates the notifier alongside the plugin
@@ -2284,7 +2288,12 @@ class RackState extends ChangeNotifier {
     // call into it. Guarded: if the symbol is missing (e.g. outdated .so) we
     // fall back to UI-only mode so the rest of the rack keeps producing sound.
     try {
-      VstHostService.instance.registerGfpaDsp(instance.id, instance.pluginId);
+      final hasSound = VstHostService.instance.registerGfpaDsp(
+        instance.id,
+        instance.pluginId,
+        descriptor: registered.descriptor,
+      );
+      _markSilentEffect(instance, silent: !hasSound);
       _syncAudioEffectParamsToNative(instance.id);
       // A fresh native handle starts active. At startup the routing syncs
       // that re-apply bypass ([_syncBypassStatesToNative]) run before this
@@ -2305,6 +2314,7 @@ class RackState extends ChangeNotifier {
         );
       }
     } catch (e) {
+      _markSilentEffect(instance, silent: true);
       debugPrint(
         '[RackState] registerGfpaDsp unavailable for ${instance.id} — $e',
       );
@@ -2726,6 +2736,7 @@ class RackState extends ChangeNotifier {
   /// the Dart plugin, unregisters the native DSP, and disposes the shared
   /// param notifier.
   void _disposeAudioEffectPlugin(String slotId) {
+    _silentEffectSlots.remove(slotId);
     _audioEffectParamNotifiers.remove(slotId)?.dispose();
     final plugin = _audioEffectInstances.remove(slotId);
     if (plugin != null) {
@@ -2735,6 +2746,23 @@ class RackState extends ChangeNotifier {
       VstHostService.instance.unregisterGfpaDsp(slotId);
     }
   }
+
+  /// Records whether [instance] is a user effect that makes no sound.
+  ///
+  /// Only user plugins are flagged: a bundled plugin without a native DSP
+  /// (an outdated library, the fifth Riff guitar) has other causes, and the
+  /// panel's message — "check the graph in your file" — would not apply.
+  void _markSilentEffect(GFpaPluginInstance instance, {required bool silent}) {
+    if (silent && !CustomPluginLibrary.isReserved(instance.pluginId)) {
+      _silentEffectSlots.add(instance.id);
+    } else {
+      _silentEffectSlots.remove(instance.id);
+    }
+  }
+
+  /// Whether the user effect in [slotId] shows its panel without changing
+  /// the sound, because its `.gfpd` graph could not be built natively.
+  bool isSilentEffect(String slotId) => _silentEffectSlots.contains(slotId);
 
   /// Returns the eagerly-initialised audio-effect plugin for [slotId], or
   /// null if this slot is not an audio effect or has not finished

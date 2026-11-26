@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [X.x.x]
 
 ### Added
+- Your own .gfpd audio effects now process the sound: their graph runs natively, and the panel says when it cannot be built.
+- VST3 instruments now receive pitch bend, the mod wheel, aftertouch and other CCs, from a controller or the on-screen keys.
 - A .gfpd file can give its labels in several languages (label: {en: …, fr: …}).
 - Your own .gfpd plugins stay in the + menu after a restart, and a project saves a copy of the ones it uses.
 - Drum Generator: a Breaks setting, and switches for the crash after a fill and the dynamic build (which now does something).
@@ -19,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Overdub latency moved from About to the Audio Output section of Preferences.
 
 ### Fixed
+- Linux: VST3 plugins played out of tune when JACK or PipeWire ran at 44.1 kHz; they now follow the server's sample rate.
+- Windows: the VST3 "Show Plugin UI" button always failed with a Linux-only message; it is hidden until the window is supported.
 - Linux: loading a VST3 plugin with several outputs, such as Surge XT, crashed the app as soon as audio started.
 - Many panels, menus and messages showed English text in French: Jam Mode, the module panels, Vocoder, Theremin, Stylophone, VST3, CC mappings, scale names and sources, and the app's notifications.
 - CC mapping lists showed internal ids (palm_mute, slot-3) instead of the module and parameter names.

@@ -633,8 +633,15 @@ static int _jackProcessCallback(jack_nframes_t nframes, void* arg) {
 /// JACK changed the server's sample rate (PipeWire can, when a device with a
 /// different native rate takes over the graph). Effects follow it before
 /// their next block; see gfpa_set_sample_rate.
-static int _jackSampleRateCallback(jack_nframes_t nframes, void* /*arg*/) {
+static int _jackSampleRateCallback(jack_nframes_t nframes, void* arg) {
     gfpa_set_sample_rate(static_cast<double>(nframes));
+    // VST3 plug-ins too: each is set up again at the new rate.
+    auto* state = static_cast<AudioState*>(arg);
+    std::lock_guard<std::mutex> lk(state->pluginsMtx);
+    state->sampleRate = static_cast<int32_t>(nframes);
+    for (auto* p : state->plugins) {
+        dvh_match_sample_rate(p, static_cast<double>(nframes));
+    }
     return 0;
 }
 
@@ -683,6 +690,12 @@ extern "C" {
 DVH_API void dvh_audio_add_plugin(DVH_Host host, DVH_Plugin plugin) {
     if (!host || !plugin) return;
     auto* s = getOrCreate(host);
+    // The plug-in was resumed at the rate the Dart side assumed; once JACK
+    // runs, its real rate is known. Done before the plug-in joins the loop,
+    // so the audio thread never sees it half set up.
+    if (s->running.load()) {
+        dvh_match_sample_rate(plugin, static_cast<double>(s->sampleRate));
+    }
     std::lock_guard<std::mutex> lk(s->pluginsMtx);
     s->plugins.push_back(plugin);
     _publishSnapshot(s);
@@ -1001,8 +1014,13 @@ DVH_API int32_t dvh_start_jack_client(DVH_Host host, const char* client_name) {
     _resizeBuffers(s, s->blockSize);
 
     // Publish an initial snapshot so the callback has valid data immediately.
+    // Plug-ins loaded before JACK started were resumed at an assumed rate:
+    // set them up at the server's real one before any audio runs.
     {
         std::lock_guard<std::mutex> lk(s->pluginsMtx);
+        for (auto* p : s->plugins) {
+            dvh_match_sample_rate(p, static_cast<double>(s->sampleRate));
+        }
         _publishSnapshot(s);
     }
 

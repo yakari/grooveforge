@@ -466,6 +466,7 @@
   "prefsVersionLoading": "Loading...",
   "vst3LoadFailed": "Failed to load VST3 plugin. Make sure you selected the .vst3 bundle folder.",
   "vst3EditorOpenFailed": "Could not open plugin editor. If the plugin uses OpenGL, try launching GrooveForge with LIBGL_ALWAYS_SOFTWARE=1 or in a pure X11 session (unset WAYLAND_DISPLAY).",
+  "vst3EditorOpenFailedGeneric": "Could not open the plugin's window.",
   "vst3NotLoaded": "Plugin not yet loaded.",
   "vst3NotABundle": "Selected folder is not a .vst3 bundle. Please select a folder that ends in .vst3.",
   "vst3BrowseTitle": "Browse for .vst3 folder…",
@@ -2782,5 +2783,6 @@
   "scaleNameWholeTone": "Whole Tone",
   "scaleNameDiminished": "Diminished",
   "scaleNameStandard": "Standard",
-  "looperQuantizeOff": "off"
+  "looperQuantizeOff": "off",
+  "gfpdSilentEffect": "No sound: this plugin's graph could not be built, so it leaves the audio unchanged. Check its node types and connections against the plugin guide."
 }

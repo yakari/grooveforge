@@ -3,6 +3,8 @@
 #pragma once
 
 #include <array>
+#include <atomic>
+#include <cstdint>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -20,10 +22,19 @@ void dvh_jack_update_transport(double bpm, int32_t timeSigNum,
 void dvh_desktop_update_transport(double bpm, int32_t timeSigNum,
                                    int32_t isPlaying, double positionInBeats);
 
+/// Re-prepares an active plug-in for [sample_rate] when it was resumed at
+/// another rate. The Dart side resumes plug-ins at 48 kHz before the audio
+/// backend has said what it runs at; JACK on PipeWire often runs at 44.1 kHz,
+/// and a plug-in set up for the wrong rate plays out of tune. Called by the
+/// JACK backend when it starts, when a plug-in joins the audio loop, and when
+/// the server's rate changes. Not for the audio thread.
+extern "C" void dvh_match_sample_rate(void* plugin, double sample_rate);
+
 #include "pluginterfaces/base/funknown.h"
 #include "pluginterfaces/base/ipluginbase.h"
 #include "pluginterfaces/vst/ivstaudioprocessor.h"
 #include "pluginterfaces/vst/ivsteditcontroller.h"
+#include "pluginterfaces/vst/ivstmidicontrollers.h"
 #include "pluginterfaces/vst/ivstcomponent.h"
 #include "pluginterfaces/vst/ivstmessage.h"
 #include "public.sdk/source/vst/hosting/module.h"
@@ -49,6 +60,32 @@ struct DVH_HostState {
     Vst::PluginContextFactory::instance().setPluginContext(&hostApp);
   }
 };
+
+/// One MIDI or parameter message waiting to reach a plug-in's process().
+///
+/// Written by the UI thread (Dart, through FFI), read by the audio thread.
+/// The VST3 EventList and ParameterChanges containers are not thread-safe,
+/// so the UI thread never touches them: it posts messages here, and the
+/// audio thread moves them into those containers at the start of a block.
+struct DVH_PendingMsg {
+  enum Kind : uint8_t { kNoteOn, kNoteOff, kParam };
+  Kind    kind{kNoteOn};
+  int16_t channel{0};
+  /// Note number for notes, parameter id for parameter changes.
+  int32_t id{0};
+  /// Velocity (0-1) for notes, normalized value (0-1) for parameters.
+  float   value{0.f};
+};
+
+/// Number of messages a plug-in can have waiting between two audio blocks.
+/// A block is a few milliseconds; 512 covers a full chord with every key's
+/// expression many times over. When full, new messages are dropped rather
+/// than blocking the UI or the audio thread.
+constexpr uint32_t kDvhPendingCapacity = 512;
+
+/// MIDI controller numbers a plug-in can map to parameters: the 128 CCs plus
+/// the VST3 pseudo-controllers kAfterTouch (128) and kPitchBend (129).
+constexpr int32_t kDvhMidiControllers = 130;
 
 struct DVH_PluginState {
   std::shared_ptr<VST3::Hosting::Module> module;
@@ -88,6 +125,20 @@ struct DVH_PluginState {
   std::vector<AudioBusBuffers> procInBufs;
 
   std::mutex mtx;
+
+  // ── Messages from the UI thread (single producer, single consumer) ──────
+  // Ring buffer: the UI thread writes at pendingHead, the audio thread reads
+  // at pendingTail. Indices only grow; a slot is index % capacity.
+  std::array<DVH_PendingMsg, kDvhPendingCapacity> pending{};
+  std::atomic<uint32_t> pendingHead{0};
+  std::atomic<uint32_t> pendingTail{0};
+
+  // ── MIDI controller → parameter table (IMidiMapping) ────────────────────
+  // VST3 has no event for CC or pitch bend: a plug-in that responds to them
+  // maps each controller to one of its parameters. The table is read once at
+  // load (getMidiControllerAssignment may only be called off the audio
+  // thread). -1 means the plug-in ignores that controller on that channel.
+  std::array<std::array<int32_t, kDvhMidiControllers>, 16> midiMap{};
 
   DVH_PluginState()
   : inputParamChanges(64),

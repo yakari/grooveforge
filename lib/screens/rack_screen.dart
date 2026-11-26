@@ -750,14 +750,14 @@ class _RackScreenState extends State<RackScreen> {
     for (final plugin in vst3Slots) {
       switch (command) {
         case 0xE0:
-          // Convert 14-bit raw to semitones (-2..+2) for the GFPA pitchBend API.
-          final semitones = ((data2 << 7 | data1) - 8192) / 8192.0 * 2.0;
-          vstSvc.pitchBend(plugin.id, 0, semitones);
+          // The raw 14-bit bend: the plugin applies its own bend range.
+          vstSvc.pitchBend(plugin.id, 0, data2 << 7 | data1);
         case 0xB0:
           vstSvc.controlChange(plugin.id, 0, data1, data2);
         case 0xD0:
-          // Channel pressure → CC#1 (modulation wheel) for VST3 plugins.
-          vstSvc.controlChange(plugin.id, 0, 1, data1);
+          // Sent as channel pressure, as the controller played it: the
+          // plugin decides what aftertouch does (vibrato, filter, …).
+          vstSvc.channelPressure(plugin.id, 0, data1);
       }
     }
   }

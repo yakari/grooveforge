@@ -1,5 +1,7 @@
 import 'dart:typed_data';
 
+import 'package:grooveforge_plugin_api/grooveforge_plugin_api.dart';
+
 import '../models/plugin_instance.dart';
 import '../models/vst3_plugin_instance.dart';
 import 'audio_graph.dart';
@@ -35,9 +37,14 @@ class VstHostService {
 
   void noteOff(String slotId, int channel, int note) {}
 
-  void pitchBend(String slotId, int channel, double semitones) {}
+  void pitchBend(String slotId, int channel, int value14) {}
 
   void controlChange(String slotId, int channel, int cc, int value) {}
+
+  void channelPressure(String slotId, int channel, int value) {}
+
+  /// No plugin editor without the native host.
+  bool get supportsPluginEditor => false;
 
   void setTransport({
     required double bpm,
@@ -73,8 +80,14 @@ class VstHostService {
     Map<String, int> keyboardSfIds = const {},
   }) {}
 
-  /// Stub: no-op — native GFPA DSP is not supported on this platform.
-  void registerGfpaDsp(String slotId, String pluginId) {}
+  /// Stub: native GFPA DSP is not supported on this platform. Returns true
+  /// so a user `.gfpd` is not singled out as silent where every effect is.
+  bool registerGfpaDsp(
+    String slotId,
+    String pluginId, {
+    GFPluginDescriptor? descriptor,
+  }) =>
+      true;
 
   /// Stub: no-op.
   void unregisterGfpaDsp(String slotId) {}

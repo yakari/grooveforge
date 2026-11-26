@@ -1586,6 +1586,12 @@ abstract class AppLocalizations {
   /// **'Could not open plugin editor. If the plugin uses OpenGL, try launching GrooveForge with LIBGL_ALWAYS_SOFTWARE=1 or in a pure X11 session (unset WAYLAND_DISPLAY).'**
   String get vst3EditorOpenFailed;
 
+  /// No description provided for @vst3EditorOpenFailedGeneric.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open the plugin\'s window.'**
+  String get vst3EditorOpenFailedGeneric;
+
   /// No description provided for @vst3NotLoaded.
   ///
   /// In en, this message translates to:
@@ -8503,6 +8509,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'off'**
   String get looperQuantizeOff;
+
+  /// No description provided for @gfpdSilentEffect.
+  ///
+  /// In en, this message translates to:
+  /// **'No sound: this plugin\'s graph could not be built, so it leaves the audio unchanged. Check its node types and connections against the plugin guide.'**
+  String get gfpdSilentEffect;
 }
 
 class _AppLocalizationsDelegate

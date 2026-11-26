@@ -192,6 +192,10 @@ class VstHost {
   ///
   /// [sampleRate] and [blockSize] must match the values used to start the
   /// JACK client so that delay-line buffers are sized correctly.
+  /// The native library behind this host, for callers that bind extra
+  /// symbols of their own (the `.gfpd` graph builder).
+  DynamicLibrary get library => _b.lib;
+
   Pointer<Void> createGfpaDsp(String pluginId, int sampleRate, int blockSize) {
     final id = pluginId.toNativeUtf8();
     final result = _b.gfpaDspCreate(id, sampleRate, blockSize);
@@ -656,6 +660,22 @@ class VstPlugin {
   /// Send a MIDI note off event.
   bool noteOff(int channel, int note, double velocity) =>
       _b.dvhNoteOff(handle, channel, note, velocity) == 1;
+
+  /// Send MIDI control change [cc] (0-127) with [value] (0-127). VST3 turns
+  /// it into a change of the parameter the plugin maps that controller to;
+  /// returns false when the plugin maps none.
+  bool controlChange(int channel, int cc, int value) =>
+      _b.dvhMidiCc(handle, channel, cc, value) == 1;
+
+  /// Send a pitch bend as the raw 14-bit MIDI value (0-16383, 8192 = no
+  /// bend). The bend range is set in the plugin. Returns false when the
+  /// plugin does not respond to pitch bend.
+  bool pitchBend(int channel, int value14) =>
+      _b.dvhPitchBend(handle, channel, value14) == 1;
+
+  /// Send channel pressure (aftertouch), [value] 0-127.
+  bool channelPressure(int channel, int value) =>
+      _b.dvhChannelPressure(handle, channel, value) == 1;
 
   // ─── Plugin editor GUI ────────────────────────────────────────────────────
 

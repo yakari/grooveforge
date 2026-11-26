@@ -238,6 +238,7 @@ if (NOT ANDROID AND NOT IOS)
             gf_harmonizer_smoke_test.c
             ${GF_GFPA_DIR}/src/gfpa_dsp.cpp
             ${GF_GFPA_DIR}/src/gfpa_riff.cpp
+            ${GF_GFPA_DIR}/src/gfpa_graph.cpp
             gf_riff.c
             gf_phase_vocoder.c
             gf_fft.c
@@ -260,6 +261,7 @@ if (NOT ANDROID AND NOT IOS)
             gf_autotune_smoke_test.c
             ${GF_GFPA_DIR}/src/gfpa_dsp.cpp
             ${GF_GFPA_DIR}/src/gfpa_riff.cpp
+            ${GF_GFPA_DIR}/src/gfpa_graph.cpp
             gf_riff.c
             gf_phase_vocoder.c
             gf_fft.c
@@ -282,6 +284,7 @@ if (NOT ANDROID AND NOT IOS)
             gf_riff_pool_smoke_test.c
             ${GF_GFPA_DIR}/src/gfpa_dsp.cpp
             ${GF_GFPA_DIR}/src/gfpa_riff.cpp
+            ${GF_GFPA_DIR}/src/gfpa_graph.cpp
             gf_riff.c
             gf_phase_vocoder.c
             gf_fft.c
@@ -296,6 +299,30 @@ if (NOT ANDROID AND NOT IOS)
             ${CMAKE_CURRENT_SOURCE_DIR})
         if (UNIX)
             target_link_libraries(gf_riff_pool_smoke_test PRIVATE m)
+        endif()
+
+        # User `.gfpd` graphs: the native interpreter builds them node by
+        # node, sums wires, filters, runs built-in effects as nodes, and
+        # refuses broken graphs.
+        add_executable(gf_graph_smoke_test EXCLUDE_FROM_ALL
+            gf_graph_smoke_test.c
+            ${GF_GFPA_DIR}/src/gfpa_dsp.cpp
+            ${GF_GFPA_DIR}/src/gfpa_riff.cpp
+            ${GF_GFPA_DIR}/src/gfpa_graph.cpp
+            gf_riff.c
+            gf_phase_vocoder.c
+            gf_fft.c
+            gf_harmony.c
+            gf_pitch.c
+            gf_autotune.c
+            gf_amp.c
+            gf_convolver.c)
+        set_target_properties(gf_graph_smoke_test PROPERTIES LINKER_LANGUAGE CXX)
+        target_include_directories(gf_graph_smoke_test PRIVATE
+            ${GF_GFPA_DIR}/include
+            ${CMAKE_CURRENT_SOURCE_DIR})
+        if (UNIX)
+            target_link_libraries(gf_graph_smoke_test PRIVATE m)
         endif()
     endif()
 endif()

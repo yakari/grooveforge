@@ -48,4 +48,55 @@ void main() {
       skip: available
           ? false
           : 'needs build/linux release bundle and Surge XT in /usr/lib/vst3');
+
+  test('pitch bend and CC reach the plugin', () {
+    final host =
+        VstHost.create(sampleRate: 48000, maxBlock: 256, dylibPath: _lib);
+    final plugin = host.load(_surge);
+    expect(plugin.resume(sampleRate: 48000, maxBlock: 256), isTrue);
+
+    expect(plugin.pitchBend(0, 8192), isTrue,
+        reason: 'Surge maps pitch bend to a parameter (IMidiMapping)');
+    expect(plugin.controlChange(0, 1, 64), isTrue,
+        reason: 'Surge maps the mod wheel');
+
+    // The pitch of a held note, measured by counting zero crossings, must
+    // rise when the bend goes up: proof the bend reaches the sound.
+    final centre = _crossings(plugin, bend: 8192);
+    final up = _crossings(plugin, bend: 16383);
+    expect(centre, greaterThan(100), reason: 'the note must sound');
+    expect(up, greaterThan(centre * 1.05),
+        reason: 'centre $centre crossings, bent up $up');
+
+    plugin.suspend();
+    plugin.unload();
+  },
+      skip: available
+          ? false
+          : 'needs build/linux release bundle and Surge XT in /usr/lib/vst3');
+}
+
+/// Zero crossings of the left output while middle C is held with the given
+/// [bend], after letting the attack settle.
+int _crossings(VstPlugin plugin, {required int bend}) {
+  const frames = 256;
+  final inL = Float32List(frames), inR = Float32List(frames);
+  final outL = Float32List(frames), outR = Float32List(frames);
+  plugin.pitchBend(0, bend);
+  plugin.noteOn(0, 60, 0.9);
+  var count = 0;
+  var previous = 0.0;
+  for (var block = 0; block < 200; block++) {
+    plugin.processStereoF32(inL, inR, outL, outR);
+    if (block < 40) continue; // attack and bend glide
+    for (final v in outL) {
+      if ((previous < 0) != (v < 0)) count++;
+      previous = v;
+    }
+  }
+  plugin.noteOff(0, 60, 0);
+  for (var block = 0; block < 100; block++) {
+    plugin.processStereoF32(inL, inR, outL, outR); // let the note die out
+  }
+  return count;
 }

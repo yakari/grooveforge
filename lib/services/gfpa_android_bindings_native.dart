@@ -231,6 +231,9 @@ class GfpaAndroidBindings {
 
   late final DynamicLibrary _lib;
 
+  /// The library holding the GFPA symbols, for the `.gfpd` graph builder.
+  DynamicLibrary get library => _lib;
+
   // ── Lazy FFI bindings ────────────────────────────────────────────────────
 
   /// Create a native GFPA DSP instance for [pluginId].

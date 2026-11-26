@@ -858,6 +858,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Could not open plugin editor. If the plugin uses OpenGL, try launching GrooveForge with LIBGL_ALWAYS_SOFTWARE=1 or in a pure X11 session (unset WAYLAND_DISPLAY).';
 
   @override
+  String get vst3EditorOpenFailedGeneric =>
+      'Could not open the plugin\'s window.';
+
+  @override
   String get vst3NotLoaded => 'Plugin not yet loaded.';
 
   @override
@@ -4710,4 +4714,8 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get looperQuantizeOff => 'off';
+
+  @override
+  String get gfpdSilentEffect =>
+      'No sound: this plugin\'s graph could not be built, so it leaves the audio unchanged. Check its node types and connections against the plugin guide.';
 }

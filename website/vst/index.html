@@ -116,9 +116,10 @@
 
     <h2 id="limits">What does not work yet</h2>
     <ul>
-      <li>Only notes reach a VST3 instrument. Pitch bend, the mod wheel and other controller messages (CC) are not passed on.</li>
+      <li>Pitch bend, the mod wheel, aftertouch and other controller messages (CC) reach a VST3 instrument when the plugin assigns them
+        to one of its parameters, as most synths do. The bend range is the plugin's own setting.</li>
       <li>Xen's microtonal tuning does not apply to VST3 instruments. They play in normal tuning.</li>
-      <li>On Windows, the plugin's own window does not open.</li>
+      <li>On Windows, the plugin's own window does not open yet, so the button is not shown. Use the knobs in the rack.</li>
     </ul>
 
     <h2 id="build">Building GrooveForge yourself</h2>

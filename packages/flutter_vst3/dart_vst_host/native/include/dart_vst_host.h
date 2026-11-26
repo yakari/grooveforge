@@ -52,6 +52,13 @@ DVH_API int32_t dvh_process_stereo_f32(DVH_Plugin p,
 DVH_API int32_t dvh_note_on(DVH_Plugin p, int32_t channel, int32_t note, float velocity);
 // Send a NoteOff to the plugin.
 DVH_API int32_t dvh_note_off(DVH_Plugin p, int32_t channel, int32_t note, float velocity);
+// MIDI expression. VST3 delivers these as parameter changes: each call goes
+// to the parameter the plug-in maps that controller to (IMidiMapping), and
+// returns 0 when it maps none. Channels are 0-15.
+DVH_API int32_t dvh_midi_cc(DVH_Plugin p, int32_t channel, int32_t cc, int32_t value);
+// [value14] is the raw 14-bit bend, 0-16383 with 8192 at the centre.
+DVH_API int32_t dvh_pitch_bend(DVH_Plugin p, int32_t channel, int32_t value14);
+DVH_API int32_t dvh_channel_pressure(DVH_Plugin p, int32_t channel, int32_t value);
 
 // Query number of parameters for a plugin. Returns 0 if no controller present.
 DVH_API int32_t dvh_param_count(DVH_Plugin p);

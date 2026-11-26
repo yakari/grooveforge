@@ -1037,8 +1037,7 @@ class _PianoBody extends StatelessWidget {
     int rawValue,
   ) {
     if (target is Vst3PluginInstance) {
-      final semitones = (rawValue - 8192) / 8192.0 * 2.0;
-      context.read<VstHostService>().pitchBend(target.id, 0, semitones);
+      context.read<VstHostService>().pitchBend(target.id, 0, rawValue);
       return;
     }
     final targetCh = (target.midiChannel - 1).clamp(0, 15);
@@ -1095,15 +1094,14 @@ class _PianoBody extends StatelessWidget {
   /// Handles a pitch-bend gesture from the on-screen piano.
   ///
   /// - **MIDI-only GFK**: bend is forwarded through MIDI OUT cables.
-  /// - **[Vst3PluginInstance]**: dispatched to [VstHostService] (no-op until
-  ///   the native binding is added; avoids incorrect FluidSynth bend).
+  /// - **[Vst3PluginInstance]**: dispatched to [VstHostService], which hands
+  ///   the plugin the raw 14-bit value.
   /// - **All others** (GFK with synth, vocoder, GFPA): sent directly to [AudioEngine].
   void _onPitchBend(BuildContext context, int rawValue) {
     if (_routesMidiThroughCablesOnly(plugin)) {
       _dispatchMidiPitchBend(context, rawValue);
     } else if (plugin is Vst3PluginInstance) {
-      final semitones = (rawValue - 8192) / 8192.0 * 2.0;
-      context.read<VstHostService>().pitchBend(plugin.id, 0, semitones);
+      context.read<VstHostService>().pitchBend(plugin.id, 0, rawValue);
     } else {
       engine.setPitchBend(channel: channelIndex, value: rawValue);
     }

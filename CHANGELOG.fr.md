@@ -8,6 +8,8 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 ## [X.x.x]
 
 ### Ajouté
+- Vos propres effets audio .gfpd traitent maintenant le son : leur graphe tourne en natif, et le panneau prévient s'il ne peut pas être construit.
+- Les instruments VST3 reçoivent maintenant le pitch bend, la molette de modulation, l'aftertouch et les autres CC, depuis un contrôleur ou le clavier à l'écran.
 - Un fichier .gfpd peut donner ses libellés en plusieurs langues (label: {en: …, fr: …}).
 - Vos propres plugins .gfpd restent dans le menu + après un redémarrage, et un projet enregistre une copie de ceux qu'il utilise.
 - Générateur de batterie : un réglage Breaks, et des interrupteurs pour le crash après le fill et la montée dynamique (qui fait enfin quelque chose).
@@ -19,6 +21,8 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 - La latence d'overdub passe de « À propos » à la rubrique Sortie Audio des Préférences.
 
 ### Corrigé
+- Linux : les plugins VST3 jouaient faux quand JACK ou PipeWire tournait à 44,1 kHz ; ils suivent maintenant la fréquence du serveur.
+- Windows : le bouton VST3 d'ouverture de la fenêtre du plugin échouait toujours avec un message propre à Linux ; il est masqué en attendant que la fenêtre soit prise en charge.
 - Linux : charger un plugin VST3 à plusieurs sorties, comme Surge XT, faisait planter l'app dès que le son démarrait.
 - De nombreux panneaux, menus et messages restaient en anglais en français : Mode Jam, panneaux des modules, Vocodeur, Thérémine, Stylophone, VST3, assignations CC, noms et origines des gammes, notifications de l'app.
 - Les listes d'assignations CC affichaient des identifiants internes (palm_mute, slot-3) au lieu des noms du module et du paramètre.

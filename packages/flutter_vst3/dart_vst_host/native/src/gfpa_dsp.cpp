@@ -24,6 +24,7 @@
 #include "gf_pitch.h"
 #include "gf_phase_vocoder.h"
 #include "gfpa_riff_pool.h"
+#include "../include/gfpa_graph.h"
 
 #include <atomic>
 #include <cmath>
@@ -1343,7 +1344,9 @@ enum class GfpaEffectType {
     Reverb, Delay, Wah, Eq, Compressor, Chorus, Harmonizer, Autotune, Amp,
     /// Not an effect: the Riff guitar, an instrument that only borrows the
     /// handle for its knobs. Its sound comes from gfpa_riff_render_fn.
-    Riff
+    Riff,
+    /// The graph of a user `.gfpd`, built by gfpa_graph.cpp.
+    Graph
 };
 
 /// Opaque wrapper that holds one GFPA effect instance and its type tag.
@@ -1379,6 +1382,7 @@ struct GfpaDspInstance {
             case GfpaEffectType::Autotune:   autotune->setSampleRate(live);   break;
             case GfpaEffectType::Amp:        amp->setSampleRate(live);        break;
             case GfpaEffectType::Riff:       break;   // the pool follows it
+            case GfpaEffectType::Graph:      break;   // its nodes follow it
         }
     }
 
@@ -1394,6 +1398,7 @@ struct GfpaDspInstance {
         AutotuneEffect*   autotune;
         AmpEffect*        amp;
         int               riffSlot;   ///< Index in the Riff pool.
+        GfpaGraph*        graph;      ///< A user `.gfpd` graph.
     };
 
     /// Static C-callable insert callback dispatched to the correct effect.
@@ -1440,11 +1445,23 @@ struct GfpaDspInstance {
                 std::memcpy(outL, inL, sizeof(float) * static_cast<size_t>(frames));
                 std::memcpy(outR, inR, sizeof(float) * static_cast<size_t>(frames));
                 break;
+            case GfpaEffectType::Graph:
+                gfpa_graph_run(inst->graph, inL, inR, outL, outR, frames); break;
         }
     }
 };
 
 // ── C API implementation ──────────────────────────────────────────────────────
+
+/// Wraps a user `.gfpd` graph so the host handles it like a built-in effect.
+/// See gfpa_graph.h.
+GfpaDspHandle gfpa_dsp_wrap_graph(GfpaGraph* graph, float sampleRate) {
+    auto* inst = new GfpaDspInstance();
+    inst->type = GfpaEffectType::Graph;
+    inst->graph = graph;
+    inst->sampleRate = sampleRate;
+    return static_cast<GfpaDspHandle>(inst);
+}
 
 extern "C" {
 
@@ -1516,6 +1533,7 @@ void gfpa_dsp_set_param(GfpaDspHandle handle, const char* paramId, double v) {
         case GfpaEffectType::Autotune:   inst->autotune->setParam(paramId, fv);   break;
         case GfpaEffectType::Amp:        inst->amp->setParam(paramId, fv);        break;
         case GfpaEffectType::Riff:       gfpa_riff_slot_set_param(inst->riffSlot, paramId, fv); break;
+        case GfpaEffectType::Graph:      gfpa_graph_param(inst->graph, paramId, fv); break;
     }
 }
 
@@ -1582,6 +1600,7 @@ void gfpa_dsp_destroy(GfpaDspHandle handle) {
         case GfpaEffectType::Autotune:   delete inst->autotune;   break;
         case GfpaEffectType::Amp:        delete inst->amp;        break;
         case GfpaEffectType::Riff:       gfpa_riff_release(inst->riffSlot); break;
+        case GfpaEffectType::Graph:      gfpa_graph_free(inst->graph); break;
     }
     delete inst;
 }

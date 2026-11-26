@@ -78,6 +78,18 @@ class NativeBindings {
   late final int Function(Pointer<Void>, int, int, double) dvhNoteOff =
       lib.lookupFunction<_NoteC, int Function(Pointer<Void>, int, int, double)>('dvh_note_off');
 
+  /// MIDI expression: `(plugin, channel 0-15, a, b)`. See `dvh_midi_cc`,
+  /// `dvh_pitch_bend` and `dvh_channel_pressure` in dart_vst_host.h.
+  late final int Function(Pointer<Void>, int, int, int) dvhMidiCc =
+      lib.lookupFunction<Int32 Function(Pointer<Void>, Int32, Int32, Int32),
+          int Function(Pointer<Void>, int, int, int)>('dvh_midi_cc');
+  late final int Function(Pointer<Void>, int, int) dvhPitchBend =
+      lib.lookupFunction<Int32 Function(Pointer<Void>, Int32, Int32),
+          int Function(Pointer<Void>, int, int)>('dvh_pitch_bend');
+  late final int Function(Pointer<Void>, int, int) dvhChannelPressure =
+      lib.lookupFunction<Int32 Function(Pointer<Void>, Int32, Int32),
+          int Function(Pointer<Void>, int, int)>('dvh_channel_pressure');
+
   late final int Function(Pointer<Void>) dvhParamCount =
       lib.lookupFunction<_ParamCountC, int Function(Pointer<Void>)>('dvh_param_count');
 

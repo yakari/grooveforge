@@ -51,9 +51,9 @@
       <thead><tr><th><code>type</code></th><th>État</th></tr></thead>
       <tbody>
         <tr><td><code>midi_fx</code></td><td>Fonctionne. L'application fait passer les notes qui arrivent au module dans votre chaîne de nœuds MIDI.</td></tr>
-        <tr><td><code>effect</code></td><td>Panneau seulement. Le son des effets fournis est traité par du code intégré, choisi d'après l'<code>id</code> du plugin.
-          Un fichier avec un nouvel <code>id</code> se charge et affiche son panneau, mais son <code>graph</code> n'est pas exécuté : il ne traite pas le son.</td></tr>
-        <tr><td><code>instrument</code>, <code>analyzer</code></td><td>Comme <code>effect</code>. Le seul instrument fourni, Riff, est du code intégré.</td></tr>
+        <tr><td><code>effect</code></td><td>Fonctionne. L'application construit votre <a href="#graphe">graphe audio</a> et l'applique au son, partout où les effets fournis jouent.
+          Si le graphe ne peut pas être construit (type de nœud ou port inconnu, boucle, pas d'<code>audio_out</code>), le panneau indique que le plugin ne produit pas de son.</td></tr>
+        <tr><td><code>instrument</code>, <code>analyzer</code></td><td>Panneau seulement : le fichier se charge et affiche son panneau, sans produire de son. Le seul instrument fourni, Riff, est du code intégré.</td></tr>
       </tbody>
     </table>
 
@@ -166,8 +166,8 @@ ui:
 
     <h2 id="graphe">Graphe audio</h2>
     <p>
-      Les effets fournis décrivent leur traitement sous <code>graph:</code>, avec <code>nodes</code> et <code>connections</code>. Comme dit
-      <a href="#ce-qui-marche">plus haut</a>, l'application n'exécute pas ce graphe aujourd'hui. Pour référence, la syntaxe :
+      Un effet décrit son traitement sous <code>graph:</code>, avec <code>nodes</code> et <code>connections</code>. Les effets fournis
+      sont de bons exemples à copier :
     </p>
     <pre><code>graph:
   nodes:
@@ -194,8 +194,29 @@ ui:
       <code>audio_in</code> et <code>audio_out</code> sont l'entrée et la sortie du plugin. Les autres types de nœud sont <code>gain</code>,
       <code>wet_dry</code>, <code>freeverb</code>, <code>biquad_filter</code>, <code>delay</code>, <code>wah_filter</code>,
       <code>compressor</code> et <code>chorus</code>. Une connexion part de <code>nœud.port</code> vers une cible ou une liste de cibles.
-      Sans port, <code>from</code> vaut <code>out</code> et <code>to</code> vaut <code>in</code>.
+      Sans port, <code>from</code> vaut <code>out</code> et <code>to</code> vaut <code>in</code>. Plusieurs connexions vers une même entrée s'additionnent.
     </p>
+    <p>
+      Sous <code>params</code>, <code>{ param: id }</code> fait suivre à un réglage du nœud l'un de vos paramètres : le nœud reçoit la position du bouton,
+      de 0 à son <code>min</code> à 1 à son <code>max</code>. <code>{ value: n }</code> le fixe une fois pour toutes, avec <code>n</code> entre 0 et 1 aussi.
+      Chaque nœud sort sur <code>out</code>. Les nœuds d'effet <code>freeverb</code>, <code>delay</code>, <code>wah_filter</code> et <code>compressor</code> ne sortent que l'effet :
+      mélangez-le au signal sec avec <code>wet_dry</code>. <code>chorus</code> a son propre <code>mix</code>.
+    </p>
+    <table>
+      <thead><tr><th><code>type</code> de nœud</th><th>Entrées</th><th>Paramètres (0 à 1 donne)</th></tr></thead>
+      <tbody>
+        <tr><td><code>gain</code></td><td><code>in</code></td><td><code>gain</code> (x0 à x2, 0,5 = inchangé)</td></tr>
+        <tr><td><code>wet_dry</code></td><td><code>wet</code>, <code>dry</code></td><td><code>mix</code> (tout sec à tout effet)</td></tr>
+        <tr><td><code>biquad_filter</code></td><td><code>in</code></td><td><code>freq</code> (20 Hz à 20 kHz), <code>q</code> (0,1 à 20), <code>gain</code> (-24 à +24 dB),
+          <code>mode</code> (0 passe-bas, 0,167 passe-haut, 0,333 passe-bande, 0,5 coupe-bande, 0,667 en cloche, 0,833 plateau grave, 1 plateau aigu)</td></tr>
+        <tr><td><code>freeverb</code></td><td><code>in</code></td><td><code>roomSize</code>, <code>damping</code>, <code>width</code></td></tr>
+        <tr><td><code>delay</code></td><td><code>in</code></td><td><code>timeMs</code> (1 à 2000 ms), <code>feedback</code>, <code>bpmSync</code>, <code>beatDiv</code></td></tr>
+        <tr><td><code>wah_filter</code></td><td><code>in</code></td><td><code>center</code>, <code>resonance</code>, <code>rate</code>, <code>depth</code>, <code>waveform</code>,
+          <code>bpmSync</code>, <code>beatDiv</code>, <code>mode</code>, <code>pedal</code></td></tr>
+        <tr><td><code>compressor</code></td><td><code>in</code></td><td><code>threshold</code> (-60 à 0 dB), <code>ratio</code> (1 à 20), <code>attack</code>, <code>release</code>, <code>makeup</code> (0 à 24 dB)</td></tr>
+        <tr><td><code>chorus</code></td><td><code>in</code></td><td><code>rate</code>, <code>depth</code>, <code>delay</code>, <code>mix</code>, <code>feedback</code>, <code>bpmSync</code>, <code>beatDiv</code></td></tr>
+      </tbody>
+    </table>
 
     <h2 id="panneau">Panneau</h2>
     <p>Sous <code>ui:</code>, soit une liste plate <code>controls:</code>, soit une liste de <code>groups:</code>. Si les deux sont là, les groupes l'emportent.</p>

@@ -51,9 +51,9 @@
       <thead><tr><th><code>type</code></th><th>Status</th></tr></thead>
       <tbody>
         <tr><td><code>midi_fx</code></td><td>Works. The app runs your chain of MIDI nodes on the notes that reach the module.</td></tr>
-        <tr><td><code>effect</code></td><td>Panel only. The sound of the bundled effects is processed by built-in code chosen by the plugin's <code>id</code>.
-          A file with a new <code>id</code> loads and shows its panel, but its <code>graph</code> is not run, so it does not process the sound.</td></tr>
-        <tr><td><code>instrument</code>, <code>analyzer</code></td><td>Same as <code>effect</code>. The only bundled instrument, Riff, is built-in code.</td></tr>
+        <tr><td><code>effect</code></td><td>Works. The app builds your <a href="#graph">audio graph</a> and runs it on the sound, wherever the bundled effects play.
+          If the graph cannot be built (an unknown node type or port, a loop, no <code>audio_out</code>), the panel says the plugin has no sound.</td></tr>
+        <tr><td><code>instrument</code>, <code>analyzer</code></td><td>Panel only: the file loads and shows its panel, but makes no sound. The only bundled instrument, Riff, is built-in code.</td></tr>
       </tbody>
     </table>
 
@@ -166,8 +166,8 @@ ui:
 
     <h2 id="graph">Audio graph</h2>
     <p>
-      Bundled effects describe their processing under <code>graph:</code>, with <code>nodes</code> and <code>connections</code>. As said
-      <a href="#what-works">above</a>, the app does not run this graph today. For reference, the syntax is:
+      An effect describes its processing under <code>graph:</code>, with <code>nodes</code> and <code>connections</code>. The bundled effects
+      are good examples to copy:
     </p>
     <pre><code>graph:
   nodes:
@@ -194,8 +194,29 @@ ui:
       <code>audio_in</code> and <code>audio_out</code> are the plugin's input and output. The other node types are <code>gain</code>,
       <code>wet_dry</code>, <code>freeverb</code>, <code>biquad_filter</code>, <code>delay</code>, <code>wah_filter</code>,
       <code>compressor</code> and <code>chorus</code>. A connection goes from <code>node.port</code> to one target or a list.
-      Without a port, <code>from</code> means <code>out</code> and <code>to</code> means <code>in</code>.
+      Without a port, <code>from</code> means <code>out</code> and <code>to</code> means <code>in</code>. Several connections into one input are added together.
     </p>
+    <p>
+      Under <code>params</code>, <code>{ param: id }</code> makes a node setting follow one of your parameters: the knob's position, from 0 at its
+      <code>min</code> to 1 at its <code>max</code>, is what the node receives. <code>{ value: n }</code> sets it once, with <code>n</code> between 0 and 1 too.
+      Every node outputs on <code>out</code>. The effect nodes <code>freeverb</code>, <code>delay</code>, <code>wah_filter</code> and <code>compressor</code> output the effect alone:
+      blend it with the dry signal through <code>wet_dry</code>. <code>chorus</code> has its own <code>mix</code>.
+    </p>
+    <table>
+      <thead><tr><th>Node <code>type</code></th><th>Inputs</th><th>Parameters (0 to 1 maps to)</th></tr></thead>
+      <tbody>
+        <tr><td><code>gain</code></td><td><code>in</code></td><td><code>gain</code> (x0 to x2, 0.5 = unchanged)</td></tr>
+        <tr><td><code>wet_dry</code></td><td><code>wet</code>, <code>dry</code></td><td><code>mix</code> (all dry to all wet)</td></tr>
+        <tr><td><code>biquad_filter</code></td><td><code>in</code></td><td><code>freq</code> (20 Hz to 20 kHz), <code>q</code> (0.1 to 20), <code>gain</code> (-24 to +24 dB),
+          <code>mode</code> (0 low pass, 0.167 high pass, 0.333 band pass, 0.5 notch, 0.667 peaking, 0.833 low shelf, 1 high shelf)</td></tr>
+        <tr><td><code>freeverb</code></td><td><code>in</code></td><td><code>roomSize</code>, <code>damping</code>, <code>width</code></td></tr>
+        <tr><td><code>delay</code></td><td><code>in</code></td><td><code>timeMs</code> (1 to 2000 ms), <code>feedback</code>, <code>bpmSync</code>, <code>beatDiv</code></td></tr>
+        <tr><td><code>wah_filter</code></td><td><code>in</code></td><td><code>center</code>, <code>resonance</code>, <code>rate</code>, <code>depth</code>, <code>waveform</code>,
+          <code>bpmSync</code>, <code>beatDiv</code>, <code>mode</code>, <code>pedal</code></td></tr>
+        <tr><td><code>compressor</code></td><td><code>in</code></td><td><code>threshold</code> (-60 to 0 dB), <code>ratio</code> (1 to 20), <code>attack</code>, <code>release</code>, <code>makeup</code> (0 to 24 dB)</td></tr>
+        <tr><td><code>chorus</code></td><td><code>in</code></td><td><code>rate</code>, <code>depth</code>, <code>delay</code>, <code>mix</code>, <code>feedback</code>, <code>bpmSync</code>, <code>beatDiv</code></td></tr>
+      </tbody>
+    </table>
 
     <h2 id="ui">Panel</h2>
     <p>Under <code>ui:</code>, either a flat <code>controls:</code> list or a list of <code>groups:</code>. When both are there, the groups win.</p>

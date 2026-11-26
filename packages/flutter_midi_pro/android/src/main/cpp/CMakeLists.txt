@@ -79,6 +79,7 @@ add_library(native-lib SHARED
         ../../../../../../native_audio/gf_uac.c
         ../../../../../flutter_vst3/dart_vst_host/native/src/gfpa_dsp.cpp
         ../../../../../flutter_vst3/dart_vst_host/native/src/gfpa_riff.cpp
+        ../../../../../flutter_vst3/dart_vst_host/native/src/gfpa_graph.cpp
         ../../../../../flutter_vst3/dart_vst_host/native/src/audio_looper.cpp
         # Phase vocoder — tempo-sync stretching for the audio looper.
         # Source of truth at repo-root native_audio/.

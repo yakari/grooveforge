@@ -361,6 +361,7 @@
   "prefsVersionLoading": "Chargement...",
   "vst3LoadFailed": "Échec du chargement du plugin VST3. Assurez-vous d'avoir sélectionné le dossier .vst3.",
   "vst3EditorOpenFailed": "Impossible d'ouvrir l'éditeur du plugin. Si le plugin utilise OpenGL, lancez GrooveForge avec LIBGL_ALWAYS_SOFTWARE=1 ou en session X11 pure (désactivez WAYLAND_DISPLAY).",
+  "vst3EditorOpenFailedGeneric": "Impossible d'ouvrir la fenêtre du plugin.",
   "vst3NotLoaded": "Plugin pas encore chargé.",
   "vst3NotABundle": "Le dossier sélectionné n'est pas un bundle .vst3. Sélectionnez un dossier se terminant par .vst3.",
   "vst3BrowseTitle": "Parcourir un dossier .vst3…",
@@ -1827,5 +1828,6 @@
   "scaleNameWholeTone": "Par tons",
   "scaleNameDiminished": "Diminuée",
   "scaleNameStandard": "Standard",
-  "looperQuantizeOff": "non"
+  "looperQuantizeOff": "non",
+  "gfpdSilentEffect": "Pas de son : le graphe de ce module n'a pas pu être construit, il laisse donc l'audio inchangé. Vérifiez ses types de nœuds et ses connexions dans le guide des modules."
 }

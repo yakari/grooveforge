@@ -26,6 +26,7 @@
 #include "pluginterfaces/vst/ivsthostapplication.h"
 #include "pluginterfaces/vst/ivstparameterchanges.h"
 #include "pluginterfaces/vst/ivstevents.h"
+#include "pluginterfaces/vst/ivstmidicontrollers.h"
 #include "pluginterfaces/vst/vsttypes.h"
 #include "pluginterfaces/vst/vstspeaker.h"
 #include "pluginterfaces/vst/ivstmessage.h"
@@ -42,6 +43,94 @@ using namespace Steinberg::Vst;
 // DVH_HostState is defined in dart_vst_host_internal.h (shared with
 // dart_vst_host_jack.cpp so the JACK callback can read sr and maxBlock).
 #include "dart_vst_host_internal.h"
+
+// ── Messages from the UI thread ─────────────────────────────────────────────
+
+/// Posts [msg] for the audio thread. Returns false when the queue is full
+/// (the message is dropped: blocking here would stall the UI, and an old
+/// knob position is worth less than a responsive screen).
+static bool _postMessage(DVH_PluginState* ps, const DVH_PendingMsg& msg) {
+  const uint32_t head = ps->pendingHead.load(std::memory_order_relaxed);
+  const uint32_t tail = ps->pendingTail.load(std::memory_order_acquire);
+  if (head - tail >= kDvhPendingCapacity) return false;
+  ps->pending[head % kDvhPendingCapacity] = msg;
+  ps->pendingHead.store(head + 1, std::memory_order_release);
+  return true;
+}
+
+/// Moves every posted message into the plug-in's event and parameter lists,
+/// at sample offset 0 of the block about to be processed. Audio thread only.
+static void _drainMessages(DVH_PluginState* ps) {
+  uint32_t tail = ps->pendingTail.load(std::memory_order_relaxed);
+  const uint32_t head = ps->pendingHead.load(std::memory_order_acquire);
+  for (; tail != head; ++tail) {
+    const DVH_PendingMsg& m = ps->pending[tail % kDvhPendingCapacity];
+    if (m.kind == DVH_PendingMsg::kParam) {
+      int32 index = 0;
+      IParamValueQueue* q =
+          ps->inputParamChanges.addParameterData((ParamID)m.id, index);
+      if (q) q->addPoint(0, m.value, index);
+      continue;
+    }
+    Vst::Event e{};
+    e.sampleOffset = 0;
+    if (m.kind == DVH_PendingMsg::kNoteOn) {
+      e.type = Vst::Event::kNoteOnEvent;
+      e.noteOn.channel = m.channel;
+      e.noteOn.pitch = (int16)m.id;
+      e.noteOn.velocity = m.value;
+    } else {
+      e.type = Vst::Event::kNoteOffEvent;
+      e.noteOff.channel = m.channel;
+      e.noteOff.pitch = (int16)m.id;
+      e.noteOff.velocity = m.value;
+    }
+    ps->inputEvents.addEvent(e);
+  }
+  ps->pendingTail.store(tail, std::memory_order_release);
+}
+
+/// Fills [ps]->midiMap from the plug-in's IMidiMapping, if it has one.
+/// Called once at load, on the UI thread.
+static void _readMidiMapping(DVH_PluginState* ps) {
+  for (auto& channel : ps->midiMap) channel.fill(-1);
+  if (!ps->controller) return;
+  FUnknownPtr<IMidiMapping> mapping(ps->controller);
+  if (!mapping) return;
+  int mapped = 0;
+  for (int16 ch = 0; ch < 16; ++ch) {
+    for (int32 ctrl = 0; ctrl < kDvhMidiControllers; ++ctrl) {
+      ParamID id = 0;
+      if (mapping->getMidiControllerAssignment(0, ch, (CtrlNumber)ctrl, id) ==
+          kResultTrue) {
+        ps->midiMap[ch][ctrl] = (int32_t)id;
+        ++mapped;
+      }
+    }
+  }
+  fprintf(stderr, "[dart_vst_host] MIDI mapping: %d controller assignments\n",
+          mapped);
+}
+
+/// Sends MIDI controller [ctrl] of [channel] to the parameter the plug-in
+/// mapped it to, as [normalized] (0-1). Returns 0 when the plug-in does not
+/// respond to that controller.
+static int32_t _sendController(DVH_Plugin p, int32_t channel, int32_t ctrl,
+                               float normalized) {
+  if (!p || channel < 0 || channel > 15) return 0;
+  if (ctrl < 0 || ctrl >= kDvhMidiControllers) return 0;
+  auto* ps = (DVH_PluginState*)p;
+  const int32_t id = ps->midiMap[channel][ctrl];
+  if (id < 0) return 0;
+  // The controller side (knob position in the plug-in's own window) follows
+  // too, as it would for a hardware knob.
+  if (ps->controller) ps->controller->setParamNormalized((ParamID)id, normalized);
+  DVH_PendingMsg m;
+  m.kind = DVH_PendingMsg::kParam;
+  m.id = id;
+  m.value = normalized;
+  return _postMessage(ps, m) ? 1 : 0;
+}
 
 static Steinberg::Vst::ProcessContext g_transportContext{};
 static std::mutex g_transportMtx;
@@ -160,6 +249,8 @@ DVH_Plugin dvh_load_plugin(DVH_Host host, const char* module_path_utf8, const ch
     }
   }
 
+  _readMidiMapping(ps);
+
   fprintf(stderr, "[dart_vst_host] loaded: component=%p controller=%p singleComponent=%d paramCount=%d\n",
           (void*)ps->component.get(), (void*)ps->controller.get(),
           (int)ps->singleComponent,
@@ -222,6 +313,10 @@ int32_t dvh_resume(DVH_Plugin p, double sample_rate, int32_t max_block) {
   // Activate all buses so the plugin can route audio through them.
   for (int32 i = 0; i < numAudioIn;  ++i) ps->component->activateBus(kAudio, kInput,  i, true);
   for (int32 i = 0; i < numAudioOut; ++i) ps->component->activateBus(kAudio, kOutput, i, true);
+  // The event (MIDI) input bus must be active too: the VST3 spec lets a
+  // plug-in ignore events on an inactive bus, and some do.
+  const int32 numEventIn = ps->component->getBusCount(kEvent, kInput);
+  for (int32 i = 0; i < numEventIn; ++i) ps->component->activateBus(kEvent, kInput, i, true);
 
   // Record for use in dvh_process_stereo_f32.
   ps->numAudioInputBuses  = numAudioIn;
@@ -316,6 +411,9 @@ static tresult _processChunk(DVH_PluginState* ps,
   }
   ctxCopy.sampleRate = ps->setup.sampleRate;
 
+  // Notes and parameter changes posted by the UI since the last block.
+  if (firstChunk) _drainMessages(ps);
+
   // ── ProcessData ───────────────────────────────────────────────────────────
   ProcessData data{};
   data.processMode        = ps->setup.processMode;
@@ -382,29 +480,63 @@ int32_t dvh_process_stereo_f32(DVH_Plugin p,
 // 1 on success.
 int32_t dvh_note_on(DVH_Plugin p, int32_t channel, int32_t note, float velocity) {
   if (!p) return 0;
-  auto* ps = (DVH_PluginState*)p;
-  fprintf(stderr, "[dart_vst_host] note_on ch=%d note=%d vel=%.2f active=%d\n",
-          channel, note, velocity, (int)ps->active);
-  Vst::Event e{};
-  e.type = Vst::Event::kNoteOnEvent;
-  e.sampleOffset = 0;
-  e.noteOn.channel = (int16)channel;
-  e.noteOn.pitch = (int16)note;
-  e.noteOn.velocity = velocity;
-  return toOK(ps->inputEvents.addEvent(e));
+  DVH_PendingMsg m;
+  m.kind = DVH_PendingMsg::kNoteOn;
+  m.channel = (int16_t)channel;
+  m.id = note;
+  m.value = velocity;
+  return _postMessage((DVH_PluginState*)p, m) ? 1 : 0;
 }
 
 // Queue a note off event for the plug‑in. Returns 1 on success.
 int32_t dvh_note_off(DVH_Plugin p, int32_t channel, int32_t note, float velocity) {
   if (!p) return 0;
-  auto* ps = (DVH_PluginState*)p;
-  Vst::Event e{};
-  e.type = Vst::Event::kNoteOffEvent;
-  e.sampleOffset = 0;
-  e.noteOff.channel = (int16)channel;
-  e.noteOff.pitch = (int16)note;
-  e.noteOff.velocity = velocity;
-  return toOK(ps->inputEvents.addEvent(e));
+  DVH_PendingMsg m;
+  m.kind = DVH_PendingMsg::kNoteOff;
+  m.channel = (int16_t)channel;
+  m.id = note;
+  m.value = velocity;
+  return _postMessage((DVH_PluginState*)p, m) ? 1 : 0;
+}
+
+// MIDI control change [cc] (0-127) with [value] (0-127) on [channel] (0-15),
+// sent to the parameter the plug-in maps that controller to. Returns 0 when
+// the plug-in ignores that controller.
+int32_t dvh_midi_cc(DVH_Plugin p, int32_t channel, int32_t cc, int32_t value) {
+  if (cc < 0 || cc > 127) return 0;
+  return _sendController(p, channel, cc, value / 127.0f);
+}
+
+// Pitch bend on [channel] (0-15), as the raw 14-bit MIDI value (0-16383,
+// 8192 = centre). The bend range is the plug-in's own setting.
+int32_t dvh_pitch_bend(DVH_Plugin p, int32_t channel, int32_t value14) {
+  if (value14 < 0) value14 = 0;
+  if (value14 > 16383) value14 = 16383;
+  return _sendController(p, channel, kPitchBend, value14 / 16383.0f);
+}
+
+// Channel pressure (aftertouch) on [channel] (0-15), [value] 0-127.
+int32_t dvh_channel_pressure(DVH_Plugin p, int32_t channel, int32_t value) {
+  if (value < 0 || value > 127) return 0;
+  return _sendController(p, channel, kAfterTouch, value / 127.0f);
+}
+
+void dvh_match_sample_rate(void* plugin, double sample_rate) {
+  if (!plugin || sample_rate <= 0) return;
+  auto* ps = (DVH_PluginState*)plugin;
+  std::lock_guard<std::mutex> g(ps->mtx);
+  if (!ps->active || ps->setup.sampleRate == sample_rate) return;
+  // A plug-in only reads the sample rate in setupProcessing(), which the
+  // spec allows only while it is inactive.
+  ps->processor->setProcessing(false);
+  ps->component->setActive(false);
+  ps->setup.sampleRate = sample_rate;
+  const bool ok = ps->processor->setupProcessing(ps->setup) == kResultTrue &&
+                  ps->component->setActive(true) == kResultTrue;
+  if (ok) ps->processor->setProcessing(true);
+  ps->active = ok;
+  fprintf(stderr, "[dart_vst_host] plug-in %p now at %.0f Hz%s\n", plugin,
+          sample_rate, ok ? "" : " (setup failed, plug-in stopped)");
 }
 
 // Retrieve the number of parameters defined by the plug‑in’s
@@ -469,11 +601,12 @@ int32_t dvh_set_param_normalized(DVH_Plugin p, int32_t param_id, float normalize
 
   ps->controller->setParamNormalized((ParamID)param_id, normalized);
 
-  int32 idx = 0;
-  IParamValueQueue* q = ps->inputParamChanges.addParameterData((ParamID)param_id, idx);
-  if (!q) return 0;
-  q->addPoint(0, normalized, idx);
-  return 1;
+  // The processor side gets it through the queue the audio thread drains.
+  DVH_PendingMsg m;
+  m.kind = DVH_PendingMsg::kParam;
+  m.id = param_id;
+  m.value = normalized;
+  return _postMessage(ps, m) ? 1 : 0;
 }
 
 // Returns the unitId for the parameter at [index], or -1 on failure.

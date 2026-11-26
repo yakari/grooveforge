@@ -100,6 +100,8 @@ class _GFpaDescriptorSlotUIState extends State<GFpaDescriptorSlotUI> {
           l10n: l10n,
           onToggleBypass: () => rack.toggleEffectBypass(widget.instance.id),
         ),
+        if (rack.isSilentEffect(widget.instance.id))
+          _SilentEffectNotice(message: l10n.gfpdSilentEffect),
         if (isAutotune) _buildAutotuneDisplay(context, scalePatched),
         // ── Parameter controls ────────────────────────────────────────────
         Padding(
@@ -337,3 +339,34 @@ class _BypassHeader extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Modal dialog that listens for incoming MIDI CC events and returns the first
+
+/// Warns that a user `.gfpd` effect leaves the sound unchanged, because the
+/// native side could not build its graph (an unknown node type, a wrong
+/// port, a loop). Without it the panel looks like a working effect.
+class _SilentEffectNotice extends StatelessWidget {
+  const _SilentEffectNotice({required this.message});
+
+  /// The localized explanation.
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.volume_off, size: 16, color: scheme.error),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(fontSize: 11, color: scheme.error),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

@@ -87,6 +87,7 @@ add_library(${PROJECT_NAME} SHARED
   # GFPA built-in DSP effects (reverb, delay, wah, EQ, compressor, chorus)
   ${NATIVE_DIR}/src/gfpa_dsp.cpp
   ${NATIVE_DIR}/src/gfpa_riff.cpp
+  ${NATIVE_DIR}/src/gfpa_graph.cpp
   # Audio looper (PCM recording/playback — shared across all platforms)
   ${NATIVE_DIR}/src/audio_looper.cpp
   # Phase vocoder (tempo-sync stretching for the looper)

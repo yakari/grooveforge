@@ -823,7 +823,7 @@ class _EffectEditorButtonState extends State<_EffectEditorButton> {
       // Editor failed to open — likely a GLX/XWayland conflict on Linux.
       // The native layer has already logged details; surface the hint to the user.
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(AppLocalizations.of(context)!.vst3EditorOpenFailed),
+        content: Text(_editorFailedMessage(AppLocalizations.of(context)!)),
         duration: const Duration(seconds: 8),
       ));
     }
@@ -831,7 +831,12 @@ class _EffectEditorButtonState extends State<_EffectEditorButton> {
 
   @override
   Widget build(BuildContext context) {
-    if (!Vst3EffectSlotUI._isDesktop) return const SizedBox.shrink();
+    // Hidden where the host has no editor window (Windows today), rather
+    // than offered and always failing.
+    if (!Vst3EffectSlotUI._isDesktop ||
+        !context.read<VstHostService>().supportsPluginEditor) {
+      return const SizedBox.shrink();
+    }
 
     final activeColor = _open ? Colors.orangeAccent : _kEffectAccent;
 
@@ -903,3 +908,10 @@ class _UnavailableEffectPlaceholder extends StatelessWidget {
     );
   }
 }
+
+/// Message shown when a plugin's window fails to open. The usual cause on
+/// Linux is an OpenGL plugin under Wayland, and the X11 workaround is worth
+/// giving there; elsewhere it would only confuse.
+String _editorFailedMessage(AppLocalizations l10n) => Platform.isLinux
+    ? l10n.vst3EditorOpenFailed
+    : l10n.vst3EditorOpenFailedGeneric;

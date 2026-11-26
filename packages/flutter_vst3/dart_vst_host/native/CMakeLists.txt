@@ -79,6 +79,7 @@ set(VstSources
   src/dart_vst_host.cpp
   src/gfpa_dsp.cpp
   src/gfpa_riff.cpp
+  src/gfpa_graph.cpp
   src/audio_looper.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../../../../native_audio/gf_phase_vocoder.c
   ${CMAKE_CURRENT_SOURCE_DIR}/../../../../native_audio/gf_fft.c
