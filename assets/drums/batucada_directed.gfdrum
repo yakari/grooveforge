@@ -1,50 +1,49 @@
-# Batucada Directed — Brazilian Samba Escola with Director's Whistle
-# Reference: Escola de Samba tradition (Rio de Janeiro Carnaval), Mangueira, Portela,
-#            "The Brazilian Sound" (Chris McGowan / Ricardo Pessanha),
-#            Escola Portela mestre Manoel Dionísio, observations of rehearsal recordings
-# A variant of the standard Batucada groove that adds the mestre (director) whistle
-# patterns that guide an amateur escola de samba through the performance.
-# In a real escola de samba, the mestre de bateria stands in front of the bateria
-# (percussion ensemble) and signals changes with a metal whistle (apito):
-#
-#   Signal conventions used in this file:
-#     "ATTENTION" — two short whistles: the bateria should listen for the next signal
-#     "BREAK"     — one long whistle: stop the current pattern, play the break
-#     "CHANGE"    — three shorts: transition to the next pattern variation
-#     "GROOVE"    — short-short-long: return to the main groove after a break
-#     "FREE"      — rapid shorts: everyone improvises / plays at maximum energy
-#
-# The whistle signals appear in the GROOVE variations below. Each variation represents
-# a different moment in the escola rehearsal or parade:
-#   main_groove       — normal samba batucada, no signal (the reference groove)
-#   attention_signal  — mestre calls "attention": two short whistles mid-bar
-#   change_signal     — mestre signals "change pattern": three short whistles
-#   groove_return     — after a break: "short-short-long" return signal
-#   free_energy       — mestre triggers chaos: rapid short whistles + max groove
-#
-# The FILL variations show the whistle during breaks and transitions:
-#   break_whistle     — the long whistle that triggers the bateria break
-#   reentrada         — re-entry after the break, with confirming long whistle
-#
-# GM notes: 71=Short Whistle, 72=Long Whistle,
-#           35=surdo open (beat 1), 36=surdo mute (beat 3), 38=caixa (snare), 
-#           37=tamborim/caixeta, 70=chocalho (shaker), 47=repique (open hi conga), 
-#           56=agogô (cowbell), 42=chimbal (hihat), 49=crash
+# Batucada Directed — a street bateria led by its mestre's whistle
+# Reference: the "mestre de bateria" of Rio samba schools and of street
+#            batucada groups; the "bossa", the arranged break the mestre
+#            calls with the apito (whistle)
+# The same instruments as the Batucada, at a parade tempo, with what the
+# mestre adds: whistle calls before every fill and break, and "bossas",
+# breaks where the whole bateria plays an arranged figure together. The
+# whistle never sounds inside the groove: it is the conductor's cue, so it
+# only comes with a fill, a break or the ending.
+# One bar here holds two samba bars (beats 1-2 and 3-4).
+# GM notes: 87=open surdo (primeira), 86=mute surdo (segunda), 45=low tom
+#           (terceira), 38=snare (caixa), 50=high tom (repinique),
+#           37=side stick (tamborim), 67=high agogô, 68=low agogô,
+#           70=maracas (chocalho), 71=short whistle, 72=long whistle
 
 #
 # ── Step grid notation ────────────────────────────────────────────────────────
 # Each character in a step grid represents one subdivision of the bar.
-# Resolution controls how many steps per bar (16 = 16th notes in 4/4).
+# Resolution controls how many steps per bar (16 = 16th notes in 4/4; 12 = 16th notes in 6/8).
 #
-#   X   Strong accent  — velocity = base_velocity × 1.00
-#   x   Medium accent  — velocity = base_velocity × 0.75
-#   o   Soft hit       — velocity = base_velocity × 0.55
-#   g   Ghost note     — velocity = base_velocity × 0.28
+#   X   Strong accent  — velocity = base_velocity × 1.00  (full hit / downbeat)
+#   x   Medium accent  — velocity = base_velocity × 0.75  (firm stroke / upbeat)
+#   o   Soft hit       — velocity = base_velocity × 0.55  (brush / light touch)
+#   g   Ghost note     — velocity = base_velocity × 0.28  (barely audible, mostly felt)
 #   .   Rest           — no note fired at this step
 #
 # Beat positions — 4/4 at resolution 16 (one char per 16th note):
 #   pos  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
 #        1  e1 +1 a1  2  e2 +2 a2  3  e3 +3 a3  4  e4 +4 a4
+#   (1/+/2/+/3/+/4/+ = quarter beats; e = "e of"; a = "and-a of")
+#
+# Beat positions — 6/8 at resolution 12 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11
+#        C1 .  e1 .  a1 .  C2 .  e2 .  a2 .
+#   (C1/C2 = compound beat downbeats; each compound beat = 3 eighth notes = 6 steps)
+#
+# Swing / feel: 'feel' delays the second note of each swung pair, and
+# 'swing_unit' says which notes pair up: 16 = sixteenths (the default),
+# 8 = eighths (jazz, shuffle). Write the grids straight, as a score does.
+#   straight    — every step exactly on the grid
+#   swing_light — light swing, second note at 58 % of the pair (or swing_soft)
+#   swing_hard  — triplet swing, second note at 67 % of the pair
+#   laid_back   — same as straight; drag one instrument with its 'rush'
+#
+# Spaces and '|' inside a grid are ignored. A grid may span two bars, and
+# 'grid: triplet' on a variation splits each beat in three (12 steps in 4/4).
 # ─────────────────────────────────────────────────────────────────────────────
 
 name: Batucada Directed
@@ -56,21 +55,21 @@ feel: straight
 swing_unit: 16
 
 instruments:
-  surdo_open:    { note: 35, base_velocity: 110, velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.20 }
-  surdo_mute:    { note: 36, base_velocity: 95,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.12 }
-  caixa:         { note: 38, base_velocity: 85,  velocity_range: 18, timing_jitter: 0.012, duration_beats: 0.08 }
-  tamborim:      { note: 37, base_velocity: 95,  velocity_range: 14, timing_jitter: 0.014, duration_beats: 0.07 }
-  repique:       { note: 47, base_velocity: 90,  velocity_range: 12, timing_jitter: 0.014, duration_beats: 0.08 }
-  agogo:         { note: 56, base_velocity: 85,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.07 }
-  chocalho:      { note: 70, base_velocity: 65,  velocity_range: 12, timing_jitter: 0.020, duration_beats: 0.06 }
-  chimbal:       { note: 42, base_velocity: 70,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.07 }
-  whistle_short: { note: 71, base_velocity: 115, velocity_range: 4,  timing_jitter: 0.006, duration_beats: 0.08 }
-  whistle_long:  { note: 72, base_velocity: 120, velocity_range: 4,  timing_jitter: 0.006, duration_beats: 0.45 }
-  crash:         { note: 49, base_velocity: 100, velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.22 }
+  surdo_1:       { note: 87, base_velocity: 110, velocity_range: 8,  timing_jitter: 0.012, duration_beats: 0.30 }
+  surdo_2:       { note: 86, base_velocity: 100, velocity_range: 8,  timing_jitter: 0.012, duration_beats: 0.25 }
+  surdo_3:       { note: 45, base_velocity: 96,  velocity_range: 10, timing_jitter: 0.014, duration_beats: 0.18 }
+  caixa:         { note: 38, base_velocity: 92,  velocity_range: 14, timing_jitter: 0.014, duration_beats: 0.08 }
+  repique:       { note: 50, base_velocity: 100, velocity_range: 12, timing_jitter: 0.014, duration_beats: 0.10 }
+  tamborim:      { note: 37, base_velocity: 100, velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.06 }
+  agogo_hi:      { note: 67, base_velocity: 88,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.10 }
+  agogo_lo:      { note: 68, base_velocity: 90,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.10 }
+  chocalho:      { note: 70, base_velocity: 80,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.05 }
+  whistle_short: { note: 71, base_velocity: 100, velocity_range: 6,  timing_jitter: 0.010, duration_beats: 0.12 }
+  whistle_long:  { note: 72, base_velocity: 100, velocity_range: 6,  timing_jitter: 0.010, duration_beats: 0.60 }
 
 humanization:
   timing_jitter: 0.016
-  velocity_jitter: 18
+  velocity_jitter: 14
   velocity_drift: 0.07
 
 sections:
@@ -82,128 +81,131 @@ sections:
   groove:
     bars: 1
     variations:
-      - name: main_groove
-        role: verse
-        weight: 3
-        # The standard batucada groove — no whistle, just the band playing.
-        surdo_open: "X..............."
-        surdo_mute: "........X......."
-        caixa:      "gxgxgxgXgxgxgxgX"
-        repique:    "X.x...X...x.X.x."
-        tamborim:   "X..X.X..X..X.X.."
-        agogo:      "..X...X...X...X."
-        chocalho:   "x.x.x.x.x.x.x.x."
-        chimbal:    "x.x.x.x.x.x.x.x."
-
-      - name: attention_signal
+      - name: surdos_call
         role: intro
-        weight: 2
-        # The mestre blows two SHORT whistles at position 0 and 2 — "attention!"
-        surdo_open:    "X..............."
-        surdo_mute:    "........X......."
-        caixa:         "gxgxgxgXg.g.g.g."
-        repique:       "X...X...X...X..."
-        tamborim:      "X..X.X..X..X.X.."
-        agogo:         "..X...X...X...X."
-        chocalho:      "x.x.x.x.x.x.x.x."
-        whistle_short: "X.X............."
+        weight: 1
+        # The surdos start the parade, the chocalho over them.
+        surdo_1:  "g...X...g...X..."
+        surdo_2:  "X...g...X...g..."
+        surdo_3:  "..x.X..x..x.X..x"
+        chocalho: "gggX gggX gggX gggX"
 
-      - name: change_signal
+      - name: street_groove
+        role: verse
+        weight: 4
+        # The street groove: surdos, caixa on its 3+3+2 accents, the
+        # tamborins' teleco-teco and the agogô.
+        surdo_1:  "g...X...g...X..."
+        surdo_2:  "X...g...X...g..."
+        surdo_3:  "..x.X..x..x.X..x"
+        caixa:    "XggXggXg XggXggXg"
+        tamborim: "X.x..x.x .x..x.x."
+        agogo_hi: "X...X.X. ........"
+        agogo_lo: "........ X.X...X."
+        chocalho: "gggX gggX gggX gggX"
+
+      - name: full_power
+        role: chorus
+        weight: 3
+        # The chorus: the caixa plays every sixteenth hard, the repinique
+        # doubles the primeira, the tamborins play carreteiro.
+        surdo_1:  "g...X...g...X..."
+        surdo_2:  "X...g...X...g..."
+        surdo_3:  "..x.X..x..x.X..x"
+        caixa:    "XxxXxxXx XxxXxxXx"
+        repique:  "..x.X... ..x.X..."
+        tamborim: "XxxX xxXx XxxX xxXx"
+        agogo_hi: "X...X.X. ........"
+        agogo_lo: "........ X.X...X."
+        chocalho: "gggX gggX gggX gggX"
+
+      - name: half_bateria
         role: bridge
         weight: 2
-        # Three short whistles: "change pattern!" at positions 0, 2, 4.
-        surdo_open:    "X..............."
-        surdo_mute:    "........X......."
-        caixa:         "gxgxgxgXgxgxgxgX"
-        repique:       "gXgXgXgXgXgXgXgX"
-        tamborim:      "XX.X.X..XX.X.X.."
-        agogo:         "..X...X...X...X."
-        whistle_short: "X.X.X..........."
-
-      - name: groove_return
-        weight: 1
-        # Short-short-long whistle pattern: "return to the groove!"
-        surdo_open:    "X..............."
-        surdo_mute:    "........X......."
-        caixa:         "gxgxgxgXgxgxgxgX"
-        repique:       "X.x...X...x.X.x."
-        tamborim:      "X..X.X..X..X.X.."
-        agogo:         "..X...X...X...X."
-        chocalho:      "x.x.x.x.x.x.x.x."
-        chimbal:       "x.x.x.x.x.x.x.x."
-        whistle_short: "x.x............."
-        whistle_long:  "....X..........."
-
-      - name: free_energy
-        role: chorus
-        weight: 1
-        # Rapid short whistles: "maximum energy!" — chaotic climax
-        surdo_open:    "X.......X......."
-        surdo_mute:    "....X.......X..."
-        caixa:         "XxXxXxXxXxXxXxXx"
-        repique:       "X.x.X.x.X.x.X.x."
-        tamborim:      "X.XX.XX.X.XX.XX."
-        agogo:         "X.X.X.X.X.X.X.X."
-        chocalho:      "x.x.x.x.x.x.x.x."
-        chimbal:       "x.x.x.x.x.x.x.x."
-        whistle_short: "X...X...X...X..."
+        # Half the bateria rests: the surdos, the agogô and the repinique's
+        # partido alto keep the parade walking.
+        surdo_1:  "g...X...g...X..."
+        surdo_2:  "X...g...X...g..."
+        repique:  ".x..x.x. x..x..x."
+        agogo_hi: "X...X.X. ........"
+        agogo_lo: "........ X.X...X."
 
   fill:
     bars: 1
     variations:
-      - name: break_whistle
-        # The long whistle triggers the bateria break (pausa).
-        surdo_open:   "X..............."
-        whistle_long: "X..............."
-        caixa:        "X..............."
+      - name: apito_virada
+        # The mestre whistles twice on beat 1, then the caixa rolls into the
+        # next phrase.
+        whistle_short: "X.X. .... .... ...."
+        surdo_1:       "g...X... .... ...."
+        surdo_2:       "X...g... .... ...."
+        caixa:         "XggX ggXg ooxx xXXX"
 
-      - name: reentrada
-        # Re-entry after the break: confirming long whistle, repique signals back in.
-        surdo_open:   "X..............."
-        surdo_mute:   "........X......."
-        caixa:        "g.............XX"
-        repique:      "X.x...X.x.X.x..."
-        chocalho:     "................"
-        whistle_long: "X..............."
+      - name: apito_chamada
+        # A long whistle, then the repinique's call and the bateria
+        # answering together.
+        whistle_long: "X... .... .... ...."
+        repique:      "..X. X.X. X..X ..X."
+        surdo_1:      ".... .... X..X ..X."
+        surdo_2:      ".... .... X..X ..X."
+        caixa:        ".... .... X..X ..X."
+        tamborim:     ".... .... X..X ..X."
 
-      - name: accelerando_repique
-        # Repique solo build while the mestre blows attention signals.
-        repique:       "gXgXgXgXgXgXgXgX"
-        surdo_open:    "X..............."
-        surdo_mute:    "........X......."
-        caixa:         "g.g.g.g.g.g.g.g."
-        whistle_short: "X...X.......X..."
+      - name: apito_stop
+        # Short whistles count the band out, everybody stops on beat 3 and
+        # waits, the surdos coming back on the last sixteenth.
+        whistle_short: "X.X. X... .... ...."
+        surdo_1:       "X... .... X... ...X"
+        surdo_2:       "X... .... X... ...X"
+        caixa:         "XggX ggXg X... ...."
+        tamborim:      "X.x. .x.x X... ...."
+
+  break:
+    # A "bossa", the arranged break: the mestre's whistle, then two bars of
+    # a figure the whole bateria plays together.
+    type: sequence
+    bars: 2
+    bar_grids:
+      - # Bar 1: the whistle on beat 1, all together on the 3+3+2 figure
+        whistle_long: "X..............."
+        surdo_1:      "X..X..X.....X..."
+        surdo_2:      "X..X..X.....X..."
+        caixa:        "X..X..X.....X..."
+        tamborim:     "X..X..X.....X..."
+        agogo_lo:     "X..X..X.....X..."
+      - # Bar 2: the answer, then the caixa rolls back into the groove
+        surdo_1:      "....X...X.X....."
+        surdo_2:      "....X...X.X....."
+        tamborim:     "....X...X.X....."
+        caixa:        "....X...X.X.xxXX"
 
   crash:
     bars: 1
     variations:
       - name: standard
         # Laid over the groove on the bar after a fill, a break or the
-        # count-in: the cymbal and the low drum on beat 1. The groove
-        # plays everything else.
-        crash:      "X..............."
-        surdo_open: "X..............."
+        # count-in: no cymbal in a bateria, the surdos land together on 1.
+        surdo_1: "X..............."
+        surdo_2: "X..............."
 
   ending:
     # Played once at the end of the song; the drums stop after bar 2.
     type: sequence
     bars: 2
     bar_grids:
-      - # Bar 1: Mestre long whistle, then unison bateria hits and caixa roll
+      - # Bar 1: the mestre's long whistle, the closing figure, a caixa roll
         whistle_long: "X..............."
-        surdo_open:   "X.......X.....X."
-        surdo_mute:   "....X.......X..."
-        caixa:        "gxgxX..X..X.XXXX"
-        repique:      "....X..X..X.X.X."
-        tamborim:     "....X..X..X.X.X."
-        chocalho:     "x.x.x.x.x.x.x.x."
+        surdo_1:      "X..X..X.X..X...."
+        surdo_2:      "X..X..X.X..X...."
+        caixa:        "X..X..X.X..X.xXX"
+        tamborim:     "X..X..X.X..X...."
       - # Bar 2: final hit on beat 1, then silence
-        crash:      "X..............."
-        surdo_open: "X..............."
+        surdo_1:      "X..............."
+        surdo_2:      "X..............."
 
 structure:
   fill_every: 8
-  break_every: 0
-  break_length: 1
+  break_every: 4
+  break_length: 2
   crash_after_fill: true
   dynamic_build: true

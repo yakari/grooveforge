@@ -1,23 +1,22 @@
-# Samba Groove — Intimate Brazilian Samba (pagode, partido alto, samba-rock)
-# Reference: "Aos Amigos e aos Inimigos" (Zeca Pagodinho), "Camarão" (Martinho da Vila),
-#            "Chega de Saudade" (João Gilberto), Ricardo Silveira samba-rock recordings,
-#            "The Pandeiro Book" (Alan Dworsky / Betsy Topp)
-# More intimate than Batucada — models a small pagode group or samba-rock band rather
-# than a full escola de samba bateria. The pandeiro and tamborim lead over a light surdo.
-#
-# Three groove variations capture the stylistic spectrum of Rio de Janeiro samba:
-#   pagode        — intimate club pagode: pandeiro prominent, soft surdo, teleco-teco tamborim
-#   partido_alto  — the "partido" cross-rhythm: displaced backbeat, sparse surdo, 3+3+2 cell
-#   samba_rock    — 1970s Rio samba-rock: drum-kit groove with partido alto tamborim
-#
-# Teleco-teco (pagode tamborim): 8th-note pulse grouped 3+3+2, with strong-medium-medium
-# accent profile: hits at every 8th note (pos 0,2,4,6,8,10,12,14), accented at group starts.
-# Partido alto displaced backbeat: snare/caixa accent falls on "and-of-2" (pos 6) and
-# "and-of-4" (pos 14) instead of beats 2 and 4, creating the characteristic party-samba lilt.
-#
-# GM notes: 35=surdo open (acoustic bass drum), 36=surdo mute (bass drum 1),
-#           38=caixa (snare), 37=tamborim (cross-stick), 54=pandeiro (tambourine),
-#           70=ganzá (maracas), 56=agogô (cowbell), 49=crash
+# Samba Groove — the small samba of a "roda de samba" and of pagode
+# Reference: Fundo de Quintal, Zeca Pagodinho, Beth Carvalho; the "partido
+#            alto" figure
+# Not the carnival bateria: a few players around a table, each with one
+# instrument:
+# - surdo: the deep beat on 2 (and 4), muted on 1 (and 3);
+# - pandeiro: the frame drum with jingles, a bass tone on the beat and
+#   jingles on every sixteenth;
+# - tamborim: the "teleco-teco";
+# - ganzá: the shaker, sixteenths with the last of each beat accented;
+# - repique de mão: a hand drum that fills and calls;
+# - agogô and cuíca for colour.
+# The chorus plays the partido alto, the figure that gives the style its
+# name: sixteenths 1, 4, 6 then 8, 11, 14 of the bar.
+# One bar here holds two samba bars (beats 1-2 and 3-4).
+# GM notes: 87=open surdo, 86=mute surdo, 54=tambourine (pandeiro jingles),
+#           64=low conga (pandeiro bass tone), 37=side stick (tamborim),
+#           70=maracas (ganzá), 61=low bongo (repique de mão), 67=high
+#           agogô, 68=low agogô, 78=mute cuíca, 79=open cuíca
 
 #
 # ── Step grid notation ────────────────────────────────────────────────────────
@@ -35,6 +34,11 @@
 #        1  e1 +1 a1  2  e2 +2 a2  3  e3 +3 a3  4  e4 +4 a4
 #   (1/+/2/+/3/+/4/+ = quarter beats; e = "e of"; a = "and-a of")
 #
+# Beat positions — 6/8 at resolution 12 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11
+#        C1 .  e1 .  a1 .  C2 .  e2 .  a2 .
+#   (C1/C2 = compound beat downbeats; each compound beat = 3 eighth notes = 6 steps)
+#
 # Swing / feel: 'feel' delays the second note of each swung pair, and
 # 'swing_unit' says which notes pair up: 16 = sixteenths (the default),
 # 8 = eighths (jazz, shuffle). Write the grids straight, as a score does.
@@ -49,25 +53,28 @@
 
 name: Samba Groove
 family: latin
-bpm_range: [90, 135]
+bpm_range: [80, 125]
 time_signature: [4, 4]
 resolution: 16
 feel: straight
 swing_unit: 16
 
 instruments:
-  surdo_open: { note: 35, base_velocity: 100, velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.20 }
-  surdo_mute: { note: 36, base_velocity: 82,  velocity_range: 12, timing_jitter: 0.014, duration_beats: 0.10 }
-  caixa:      { note: 38, base_velocity: 68,  velocity_range: 20, timing_jitter: 0.010, duration_beats: 0.08 }
-  tamborim:   { note: 37, base_velocity: 88,  velocity_range: 12, timing_jitter: 0.014, duration_beats: 0.07 }
-  pandeiro:   { note: 54, base_velocity: 80,  velocity_range: 14, timing_jitter: 0.016, duration_beats: 0.07 }
-  agogo:      { note: 56, base_velocity: 82,  velocity_range: 10, timing_jitter: 0.014, duration_beats: 0.07 }
-  ganza:      { note: 70, base_velocity: 60,  velocity_range: 10, timing_jitter: 0.020, duration_beats: 0.06 }
-  crash:      { note: 49, base_velocity: 95,  velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.22 }
+  surdo:         { note: 87, base_velocity: 104, velocity_range: 8,  timing_jitter: 0.012, duration_beats: 0.30 }
+  surdo_mute:    { note: 86, base_velocity: 80,  velocity_range: 8,  timing_jitter: 0.012, duration_beats: 0.15 }
+  pandeiro:      { note: 54, base_velocity: 82,  velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.06 }
+  pandeiro_bass: { note: 64, base_velocity: 90,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.12 }
+  tamborim:      { note: 37, base_velocity: 96,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.06 }
+  ganza:         { note: 70, base_velocity: 78,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.05 }
+  repique_mao:   { note: 61, base_velocity: 92,  velocity_range: 12, timing_jitter: 0.014, duration_beats: 0.08 }
+  agogo_hi:      { note: 67, base_velocity: 86,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.10 }
+  agogo_lo:      { note: 68, base_velocity: 88,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.10 }
+  cuica_hi:      { note: 78, base_velocity: 84,  velocity_range: 12, timing_jitter: 0.016, duration_beats: 0.12 }
+  cuica_lo:      { note: 79, base_velocity: 84,  velocity_range: 12, timing_jitter: 0.016, duration_beats: 0.14 }
 
 humanization:
-  timing_jitter: 0.018
-  velocity_jitter: 16
+  timing_jitter: 0.016
+  velocity_jitter: 12
   velocity_drift: 0.07
 
 sections:
@@ -79,112 +86,101 @@ sections:
   groove:
     bars: 1
     variations:
+      - name: pandeiro_alone
+        role: intro
+        weight: 1
+        # The pandeiro and the ganzá open the roda: bass tone on each beat,
+        # jingles on every sixteenth, the last of each beat a little louder.
+        pandeiro_bass: "X... X... X... X..."
+        pandeiro:      "ggxg ggxg ggxg ggxg"
+        ganza:         "gggX gggX gggX gggX"
+
       - name: pagode
         role: verse
-        weight: 3
-        # Intimate Rio pagode (Zeca Pagodinho / Beth Carvalho style).
-        # Pandeiro plays the "teleco-teco" — 8th notes accented at group starts of
-        # the 3+3+2 partido alto cell: X at 0 (group 1), X at 4 (group 2 — wait,
-        # the teleco-teco here is the simplified 8th-note reading). Tamborim plays
-        # the "teleco-teco" cross-rhythm: strong on beats 1,2,3,4; medium on upbeats.
-        # Caixa ghost roll throughout, backbeat on 2 (pos 4) and 4 (pos 12).
-        # Surdo: open on beat 1 (call), muted on beat 3 (response) — very sparse,
-        # allowing the pandeiro's acoustic resonance to dominate the bass register.
-        surdo_open: "X..............."
-        surdo_mute: "........X......."
-        caixa:      "g.g.X.g.g.g.X.g."
-        tamborim:   "X.x.X.x.X.x.X.x."
-        pandeiro:   "X.x.X.x.X.x.X.x."
-        ganza:      "x.x.x.x.x.x.x.x."
+        weight: 4
+        # The everyday pagode groove: surdo on 2 and 4, pandeiro, the
+        # tamborim's teleco-teco, the ganzá.
+        surdo:         ".... X... .... X..."
+        surdo_mute:    "x... .... x... ...."
+        pandeiro_bass: "X... X... X... X..."
+        pandeiro:      "ggxg ggxg ggxg ggxg"
+        tamborim:      "X.x..x.x .x..x.x."
+        ganza:         "gggX gggX gggX gggX"
 
       - name: partido_alto
         role: chorus
         weight: 3
-        # Traditional partido alto rhythm (Martinho da Vila, Alcione style).
-        # The defining feature is the DISPLACED BACKBEAT: caixa accent falls
-        # on "and-of-2" (pos 6) and "and-of-4" (pos 14) instead of the normal
-        # beats 2 and 4. This gives partido alto its characteristic forward-leaning
-        # "partido" (party) energy that distinguishes it from straight pagode.
-        # Tamborim plays the 3+3+2 partido cross-rhythm: strong at group starts
-        # (pos 0=group1, pos 6=group2, pos 12=group3) with medium strokes inside groups.
-        # Agogô marks quarter notes for a steady melodic pulse.
-        surdo_open: "X..............."
-        surdo_mute: "........X......."
-        caixa:      "g.g.g.X.g.g.g.X."
-        tamborim:   "X.x.x.X.x.x.X.x."
-        pandeiro:   "x.x.x.x.x.x.x.x."
-        agogo:      "X...X...X...X..."
-        ganza:      "x.x.x.x.x.x.x.x."
+        # The partido alto: tamborim and agogô play the figure, the
+        # repique de mão answers it, the surdo pushes the "a" of 4.
+        surdo:         ".... X... .... X..x"
+        surdo_mute:    "x... .... x... ...."
+        pandeiro_bass: "X... X... X... X..."
+        pandeiro:      "ggxg ggxg ggxg ggxg"
+        tamborim:      ".X.. X.X. X..X ..X."
+        agogo_hi:      ".X.. X.X. .... ...."
+        agogo_lo:      ".... .... X..X ..X."
+        repique_mao:   "..x. ...x ..x. ...x"
+        ganza:         "gggX gggX gggX gggX"
 
-      - name: samba_rock
+      - name: cuica_roda
         role: bridge
         weight: 2
-        # 1970s Rio de Janeiro samba-rock (Hyldon, Tim Maia, Jorge Ben Jor style).
-        # A drum-kit reinterpretation of samba that fuses the partido alto tamborim
-        # pattern with a funk-influenced kick-snare skeleton. The kick emphasises
-        # beat 1, the "and of 2" (pos 6), and beat 3 — similar to a funk hemiola —
-        # while the caixa keeps the standard 2-and-4 backbeat with ghost notes.
-        surdo_open: "X..............."
-        surdo_mute: "........X......."
-        caixa:      "g.g.X.g.g.g.X.g."
-        tamborim:   "X.x.x.X.x.x.X.x."
-        agogo:      "..X...X...X...X."
-        ganza:      "x.x.x.x.x.x.x.x."
+        # The roda quietens: the cuíca sings over the surdo and the ganzá.
+        surdo:      ".... X... .... X..."
+        surdo_mute: "x... .... x... ...."
+        cuica_hi:   "..x. x... ..x. x.x."
+        cuica_lo:   "x... ..x. x... ...."
+        ganza:      "gggX gggX gggX gggX"
 
   fill:
     bars: 1
     variations:
-      - name: tamborim_run
-        # Accelerating tamborim 16th run — common in live pagode rodas to signal
-        # a return to the verse. The run builds intensity over the bar, then
-        # the crash marks the top of the next section.
-        tamborim: "XxXxXxXxXxXxXxXx"
-        surdo_open: "X..............."
-        caixa:    "X..............."
+      - name: tamborim_virada
+        # The tamborim turns its figure into a run of sixteenths, the
+        # surdo marking 2 and 4.
+        surdo:    ".... X... .... X..."
+        tamborim: "X.x..x.x XxxX xXXX"
+        ganza:    "gggX gggX .... ...."
 
-      - name: surdo_interlock
-        # Surdos in syncopated interlock — simulates the moment when a samba
-        # escola section switches patterns, with both surdos driving together.
-        surdo_open: "X...X...X...X..."
-        surdo_mute: "..X...X...X...X."
-        caixa:      "....X.......X..."
+      - name: repique_call
+        # The repique de mão calls, the pandeiro answering on its bass tone.
+        repique_mao:   "X.xx .xX. X.xx X.XX"
+        pandeiro_bass: "X... .... X... ...."
+        surdo:         ".... X... .... X..."
 
-      - name: ganza_sweep
-        # Ganzá crescendo into crash — the shaker builds density as the bar
-        # progresses (8th → 16th density increase suggested by the velocity drift).
-        ganza:      "XxXxXxXxXxXxXxXx"
-        surdo_open: "X..............."
-        tamborim:   "X...X...X...X..."
+      - name: partido_stop
+        # Everybody plays the partido alto once, together, then stops for
+        # the downbeat.
+        tamborim:      ".X.. X.X. X..X ..X."
+        surdo:         ".X.. X.X. X..X ..X."
+        pandeiro_bass: ".X.. X.X. X..X ..X."
+        agogo_lo:      ".X.. X.X. X..X ..X."
 
   crash:
     bars: 1
     variations:
       - name: standard
         # Laid over the groove on the bar after a fill, a break or the
-        # count-in: the cymbal and the low drum on beat 1. The groove
-        # plays everything else.
-        crash:      "X..............."
-        surdo_open: "X..............."
+        # count-in: no cymbal here, the surdo and the tamborim land on 1.
+        surdo:    "X..............."
+        tamborim: "X..............."
 
   ending:
     # Played once at the end of the song; the drums stop after bar 2.
     type: sequence
     bars: 2
     bar_grids:
-      - # Bar 1: Pagode half bar, unison bateria hits on 3+, 4, 4+
-        surdo_open: "X.........X.X.X."
-        surdo_mute: "....X..........."
-        caixa:      "g.g.X.g.g.X.X.X."
-        tamborim:   "X.x.X.x...X.X.X."
-        pandeiro:   "x.x.x.x.x.x.x.x."
-        ganza:      "x.x.x.x.xxxxxxxx"
-        agogo:      "X...X..........."
+      - # Bar 1: the partido alto by everybody, a pandeiro shake to finish
+        tamborim:      ".X..X.X.X..X..X."
+        surdo:         ".X..X.X.X..X..X."
+        pandeiro_bass: ".X..X.X.X..X..X."
+        pandeiro:      "............xxxx"
       - # Bar 2: final hit on beat 1, then silence
-        crash:      "X..............."
-        surdo_open: "X..............."
+        surdo:    "X..............."
+        tamborim: "X..............."
 
 structure:
-  fill_every: 4
+  fill_every: 8
   break_every: 0
   break_length: 1
   crash_after_fill: true

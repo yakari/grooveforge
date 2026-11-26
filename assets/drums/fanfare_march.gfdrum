@@ -1,9 +1,13 @@
-# Military Fanfare / March
-# Reference: Drum cadence (Wikipedia), Scottish pipe band rudiments, historic drumming
-# Defines the classic military march feel: bass drum on beats 1 & 3, snare backbeat
-# with a grace-note "flam" just before beats 2 and 4, hi-hat on the 8th-note upbeats.
-# A "press roll" variation adds soft 16th-note texture between the main strokes.
-# GM notes: 36=kick (bass drum), 38=snare (flam grace + accent), 42=HH (upbeats), 49=crash
+# Military March — a marching band's bass drum, clash cymbals and snare
+# Reference: Sousa marches ("The Stars and Stripes Forever"), the French
+#            "pas redoublé" of a batterie-fanfare; rudimental snare cadences
+# A march is felt in two: one bar here holds two bars of 2/4. Nobody marches
+# with a hi-hat or toms, so the band is three players:
+# - the bass drum on every beat, the strong beats (1 and 3) louder;
+# - the clash cymbals on the off-beats, the "oom-pah" of the band;
+# - the snare playing a rudimental cadence (double strokes, accents, rolls
+#   written as runs of sixteenths).
+# GM notes: 36=bass drum, 38=snare, 57=clash cymbals, 49=crash
 
 #
 # ── Step grid notation ────────────────────────────────────────────────────────
@@ -40,21 +44,21 @@
 
 name: Military March
 family: march
-bpm_range: [80, 140]
+bpm_range: [96, 132]
 time_signature: [4, 4]
 resolution: 16
 feel: straight
 swing_unit: 8
 
 instruments:
-  kick:  { note: 36, base_velocity: 108, velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.15 }
-  snare: { note: 38, base_velocity: 105, velocity_range: 12, timing_jitter: 0.014, duration_beats: 0.10 }
-  hihat: { note: 42, base_velocity: 72,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.07 }
-  crash: { note: 49, base_velocity: 100, velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.25 }
+  kick:   { note: 36, base_velocity: 108, velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.20 }
+  snare:  { note: 38, base_velocity: 100, velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.08 }
+  cymbal: { note: 57, base_velocity: 84,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.20 }
+  crash:  { note: 49, base_velocity: 100, velocity_range: 6,  timing_jitter: 0.008, duration_beats: 0.30 }
 
 humanization:
-  timing_jitter: 0.014
-  velocity_jitter: 12
+  timing_jitter: 0.010
+  velocity_jitter: 10
   velocity_drift: 0.05
 
 sections:
@@ -66,41 +70,61 @@ sections:
   groove:
     bars: 1
     variations:
-      - name: flam
+      - name: drum_cadence
+        role: intro
+        weight: 1
+        # The snare's street cadence alone over the bass drum on the strong
+        # beats: the drums lead the band off before the music starts.
+        snare: "X.xx X.x. X.xx X.x."
+        kick:  "X... .... X... ...."
+
+      - name: street_march
         role: verse
         weight: 4
-        # Flam rudiment: grace (g) at pos 3 before beat 2 (pos 4),
-        # and grace at pos 11 before beat 4 (pos 12).
-        # HH: 8th-note upbeats at pos 2, 6, 10, 14 ("and" of each beat)
-        kick:  "X.......X......."
-        snare: "...gX......gX..."
-        hihat: "..x...x...x...x."
-      - name: roll
+        # The march: bass drum on every beat, the cymbals answering on 2
+        # and 4, the snare on its cadence of double strokes and accents.
+        kick:   "X... x... X... x..."
+        cymbal: ".... X... .... X..."
+        snare:  "X.xx X.x. X.xx X.x."
+
+      - name: oom_pah
         role: chorus
-        weight: 2
-        # Press roll texture: soft hits fill the 16ths, giving a continuous swell.
-        # Grace notes before beats 2 and 4 still define the backbeat accent.
-        kick:  "X.......X......."
-        snare: "..ox.gX.o.ox.gX."
-        hihat: "..x...x...x...x."
-      - name: strong
+        weight: 3
+        # The full band: the cymbals on every off-beat ("oom-pah"), the
+        # snare with a roll leading into each strong beat.
+        kick:   "X... x... X... x..."
+        cymbal: "..x. ..x. ..x. ..x."
+        snare:  "X.x. X.xx X.x. Xxxx"
+
+      - name: trio_rolls
         role: bridge
-        weight: 1
-        # Full-force bars: no hi-hat, every beat accented — peak energy passages
-        kick:  "X.......X......."
-        snare: "...gX...X...gX.."
+        weight: 2
+        # The trio, the quiet strain of a march: soft snare rolls, the bass
+        # drum on the strong beats only, the cymbals resting.
+        kick:  "X... .... X... ...."
+        snare: "oooo X... oooo X..."
 
   fill:
     bars: 1
     variations:
-      - name: paradiddle
-        # Paradiddle fill — standard military snare rudiment
-        kick:  "X..............."
-        snare: "XxxxXxxxXxxxXxX."
-      - name: roll_out
-        # Crescendo roll landing on crash downbeat of next bar
-        kick:  "X..............."
-        snare: "oxoxoxoxXXXXXXXX"
+      - name: roll_off
+        # The "roll-off" that starts a strain: three strong hits, then a
+        # roll swelling into the next downbeat.
+        kick:  "X... .... .... ...."
+        snare: "X..X ..X. oooo xxXX"
+
+      - name: accent_run
+        # Accents moving across the beat, every three sixteenths, the bass
+        # drum and cymbals marking the last one.
+        kick:   "X... .... .... ..X."
+        cymbal: ".... .... .... ..X."
+        snare:  "XxxX xxXx xXxx XxX."
+
+      - name: tap_down
+        # Single strokes getting louder, then a double stroke on the last
+        # beat.
+        kick:  "X... .... X... ...."
+        snare: "o.o. x.x. X.X. XXXX"
 
   crash:
     bars: 1
@@ -117,13 +141,14 @@ sections:
     type: sequence
     bars: 2
     bar_grids:
-      - # Bar 1: Snare roll crescendo, then band unison hits 3, 3+, 4
-        kick:  "X.......X.X.X..."
-        snare: "oxoxXxXxX.X.X..."
-        hihat: "........X.X.X..."
+      - # Bar 1: the closing roll, the bass drum on the strong beats, and the
+        # "stinger" on the last beat
+        kick:   "X.......X...X..."
+        snare:  "oooooooo xxxxX..."
+        cymbal: "............X..."
       - # Bar 2: final hit on beat 1, then silence
-        crash: "X..............."
-        kick:  "X..............."
+        crash:  "X..............."
+        kick:   "X..............."
 
 structure:
   fill_every: 8

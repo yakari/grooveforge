@@ -1,12 +1,17 @@
-# Scottish Reel — drum kit adaptation of pipe-band reel drumming
-# Reference: Celtic Rhythms for Drum Kit (csmaccath.com), traditional pipe-band tradition
-# Very fast 4/4 (150–220 BPM). KEY INSIGHT: on a real drum kit a Scottish reel does NOT
-# use continuous 16th-note snare — at 180 BPM that is 48 hits/sec and sounds like a machine
-# gun with MIDI sounds. Instead: crisp 8th-note hi-hat, backbeat on beats 2 & 4, kick
-# supporting the dance metre. The characteristic "snap" comes from the cross-stick rimshot
-# on 8th-note upbeats and a well-placed kick that pushes the dancer forward.
-# Fills: short snare bursts suggest pipe-band paradiddle/ruff rudiments.
-# GM notes: 36=kick, 38=snare, 37=cross-stick rimshot, 42=HH, 49=crash
+# Scottish Reel — the drum corps of a Scottish pipe band
+# Reference: pipe band drumming in competition reels (Field Marshal Montgomery,
+#            Simon Fraser University); the drum corps behind the bagpipes
+# A reel is in cut time, felt in two: one bar here is one bar of 2/2, the
+# bass drum on its two beats (1 and 3). The corps has three parts:
+# - the side drums (snares): a dense rudimental score of sixteenths, rolls
+#   (written as runs of soft strokes) and accents, played in unison;
+# - the tenor drums: a few strokes on the beats, the "flourish" players
+#   swinging their sticks;
+# - the bass drum: the pulse, nothing more.
+# No cymbals in a pipe band: the bar after a fill lands on the bass drum and
+# a side-drum accent.
+# GM notes: 35=bass drum, 38=side drum, 37=rim shot, 47=tenor drum,
+#           43=low tenor drum
 
 #
 # ── Step grid notation ────────────────────────────────────────────────────────
@@ -43,23 +48,23 @@
 
 name: Scottish Reel
 family: celtic
-bpm_range: [150, 220]
+bpm_range: [150, 200]
 time_signature: [4, 4]
 resolution: 16
 feel: straight
 swing_unit: 8
 
 instruments:
-  kick:  { note: 36, base_velocity: 108, velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.10 }
-  snare: { note: 38, base_velocity: 100, velocity_range: 14, timing_jitter: 0.014, duration_beats: 0.08 }
-  cross: { note: 37, base_velocity: 82,  velocity_range: 14, timing_jitter: 0.014, duration_beats: 0.06 }
-  hihat: { note: 42, base_velocity: 88,  velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.07 }
-  crash: { note: 49, base_velocity: 100, velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.22 }
+  bass:     { note: 35, base_velocity: 110, velocity_range: 6,  timing_jitter: 0.008, duration_beats: 0.25 }
+  snare:    { note: 38, base_velocity: 100, velocity_range: 10, timing_jitter: 0.008, duration_beats: 0.06 }
+  rim:      { note: 37, base_velocity: 100, velocity_range: 8,  timing_jitter: 0.008, duration_beats: 0.06 }
+  tenor:    { note: 47, base_velocity: 92,  velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.14 }
+  tenor_lo: { note: 43, base_velocity: 94,  velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.16 }
 
 humanization:
-  timing_jitter: 0.012
-  velocity_jitter: 12
-  velocity_drift: 0.05
+  timing_jitter: 0.008
+  velocity_jitter: 8
+  velocity_drift: 0.04
 
 sections:
   intro:
@@ -70,68 +75,88 @@ sections:
   groove:
     bars: 1
     variations:
-      - name: basic_drive
+      - name: bass_and_tenors
+        role: intro
+        weight: 1
+        # The bass drum and the tenors alone while the pipes play the tune
+        # through once.
+        bass:     "X... .... X... ...."
+        tenor:    "X... x... X... x..."
+        tenor_lo: "X... .... X... ...."
+
+      - name: side_drum_score
         role: verse
         weight: 4
-        # Clean driving reel: 8th-note hi-hat (accented on beats vs upbeats),
-        # snare backbeat on 2 & 4, kick on 1 & 3.
-        kick:  "X.......X......."
-        snare: "....X.......X..."
-        hihat: "X.x.X.x.X.x.X.x."
-      - name: cut_feel
+        # The side drums' reel score: accents on each beat, double strokes
+        # and a short roll leading into beat 3, the bass drum on 1 and 3.
+        bass:  "X... .... X... ...."
+        snare: "X.xx X.x. ooox X.xx"
+        tenor: "X... .... X... ...."
+
+      - name: full_corps
         role: chorus
         weight: 3
-        # "Cut" time snap: cross-stick rimshot on 8th upbeats (positions 2,6,10,14)
-        # adds crack without the weight of a full open snare. Kick pushes the
-        # "and of 2" (pos 6) to drive forward into beat 3.
-        kick:  "X.....X.X......."
-        snare: "....X.......X..."
-        cross: "..x...x...x...x."
-        hihat: "X.x.X.x.X.x.X.x."
-      - name: strong_beat
+        # The whole corps driving: a denser score, a rim shot on the last
+        # beat, the tenors on every beat.
+        bass:     "X... x... X... x..."
+        snare:    "X.xx Xxx. X.xx oooo"
+        rim:      ".... .... .... ..X."
+        tenor:    "X... X... X... X..."
+        tenor_lo: "X... .... X... ...."
+
+      - name: roll_passage
         role: bridge
         weight: 2
-        # Stomping: kick on every quarter note — simulates the relentless
-        # march quality of a pipe band in full stride.
-        kick:  "X...X...X...X..."
-        snare: "....X.......X..."
-        hihat: "X...X...X...X..."
+        # The quieter second part of the tune: long rolls on the side drums,
+        # each ending on an accent, the bass drum on beat 1 only.
+        bass:  "X... .... .... ...."
+        snare: "oooo oooX oooo oooX"
+        tenor: "X... .... X... ...."
 
   fill:
     bars: 1
     variations:
-      - name: snare_burst
-        # 4-stroke crescendo burst at the end — suggests pipe-band ruff/paradiddle.
-        # Ghost notes build into four full-force accents landing the phrase.
-        kick:  "X..............."
-        snare: "X...X...XxXxXXXX"
-      - name: roll_landing
-        # Ghost-note swell leading to a two-stroke landing: quiet then sudden impact.
-        kick:  "X.......X......."
-        snare: "....g.g.XxXxXXXX"
+      - name: roll_into
+        # A roll from soft to loud over the whole bar, into the next part.
+        bass:  "X... .... X... ...."
+        snare: "oooo oooo xxxx xXXX"
+
+      - name: tenor_flourish
+        # The tenors take the bar, alternating high and low, the side drums
+        # answering on the last beat.
+        bass:     "X... .... X... ...."
+        tenor:    "X.X. X.X. X... ...."
+        tenor_lo: ".X.X .X.X .X.. ...."
+        snare:    ".... .... ..xx X.X."
+
+      - name: triplet_accents
+        # Side-drum triplets on beats 3 and 4, accented on each beat.
+        grid: triplet
+        bass:  "X.. ... X.. ..."
+        snare: "X.x X.x Xxx Xxx"
 
   crash:
     bars: 1
     variations:
       - name: standard
         # Laid over the groove on the bar after a fill, a break or the
-        # count-in: the cymbal and the low drum on beat 1. The groove
-        # plays everything else.
-        crash: "X..............."
-        kick:  "X..............."
+        # count-in: no cymbal in a pipe band, the bass drum and a side-drum
+        # accent land on 1.
+        bass:  "X..............."
+        snare: "X..............."
 
   ending:
     # Played once at the end of the song; the drums stop after bar 2.
     type: sequence
     bars: 2
     bar_grids:
-      - # Bar 1: Pipe-band drags on each beat into a closing ruff
-        kick:  "X.......X......."
-        snare: "X..gX..gX.xxXxxX"
-        hihat: "X...X..........."
-      - # Bar 2: final hit on beat 1, then silence
-        crash: "X..............."
-        kick:  "X..............."
+      - # Bar 1: the closing roll, the bass drum and the tenors on the beats
+        bass:  "X.......X......."
+        snare: "oooooooo xxxxXXXX"
+        tenor: "X.......X......."
+      - # Bar 2: the final beat
+        bass:  "X..............."
+        snare: "X..............."
 
 structure:
   fill_every: 8

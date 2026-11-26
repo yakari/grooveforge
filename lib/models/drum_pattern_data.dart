@@ -177,7 +177,8 @@ class DrumInstrumentDef {
   /// Typical value: 0.01–0.03.
   final double timingJitter;
 
-  /// Systematic timing offset in beats (positive = early/rush, negative = drag).
+  /// Systematic timing offset in beats: negative plays early (a rushing
+  /// snare), positive plays late (a dragging bass drum).
   /// Used to give specific instruments a characteristic feel (e.g. rim shot
   /// slightly ahead of snare).
   final double rush;
