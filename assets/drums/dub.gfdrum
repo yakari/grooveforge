@@ -1,17 +1,25 @@
 # Dub — Jamaican one drop, rockers and steppers
-# Reference: Sly Dunbar (Sly & Robbie), Carlton Barrett (The Wailers),
-#            Style Scott (Roots Radics), Horsemouth Wallace,
-#            King Tubby and Lee "Scratch" Perry mixes.
-# The one drop is the defining move: beat 1 is deliberately empty. Kick and
-# snare land together on beat 3, and the hole where the downbeat should be is
-# what the bass fills. Play it late — the whole style sits behind the click.
+# Reference: Carlton Barrett (The Wailers), Sly Dunbar (Sly & Robbie),
+#            Santa Davis (Bunny Lee's "flying cymbal"), Style Scott (Roots
+#            Radics); King Tubby and Lee "Scratch" Perry mixes; Soundbrenner,
+#            "Rockers rhythm" and "Steppers rhythm"; Bonedo, "Reggae am
+#            Schlagzeug"
+# The three reggae drum feels differ by the bass drum:
+# - one drop: beat 1 is left empty; the bass drum and the cross-stick land
+#   together on beat 3. The hole on the downbeat is what the bass fills.
+# - rockers (Sly Dunbar, from 1976): the bass drum comes back on 1 and 3,
+#   the snare or cross-stick still on 3.
+# - steppers: the bass drum on all four beats, the snare on 3 alone, so it
+#   stays reggae and not disco.
+# The eighths swing lightly (swing_unit 8), and the whole style sits behind
+# the beat: drag it further with the swing knob and the Human feel.
 # GM notes: 36=kick, 38=snare, 37=side stick (cross-stick), 42=closed HH,
 #           46=open HH, 51=ride, 48=hi tom, 41=floor tom, 49=crash
 
 #
 # ── Step grid notation ────────────────────────────────────────────────────────
 # Each character in a step grid represents one subdivision of the bar.
-# Resolution controls how many steps per bar (16 = 16th notes in 4/4).
+# Resolution controls how many steps per bar (16 = 16th notes in 4/4; 12 = 16th notes in 6/8).
 #
 #   X   Strong accent  — velocity = base_velocity × 1.00  (full hit / downbeat)
 #   x   Medium accent  — velocity = base_velocity × 0.75  (firm stroke / upbeat)
@@ -23,6 +31,11 @@
 #   pos  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
 #        1  e1 +1 a1  2  e2 +2 a2  3  e3 +3 a3  4  e4 +4 a4
 #   (1/+/2/+/3/+/4/+ = quarter beats; e = "e of"; a = "and-a of")
+#
+# Beat positions — 6/8 at resolution 12 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11
+#        C1 .  e1 .  a1 .  C2 .  e2 .  a2 .
+#   (C1/C2 = compound beat downbeats; each compound beat = 3 eighth notes = 6 steps)
 #
 # Swing / feel: 'feel' delays the second note of each swung pair, and
 # 'swing_unit' says which notes pair up: 16 = sixteenths (the default),
@@ -41,7 +54,7 @@ family: reggae
 bpm_range: [60, 95]
 time_signature: [4, 4]
 resolution: 16
-feel: laid_back
+feel: swing_light
 swing_unit: 8
 
 instruments:
@@ -71,55 +84,64 @@ sections:
   groove:
     bars: 1
     variations:
+      - name: crosstick
+        role: intro
+        weight: 2
+        # The dub texture proper: one drop on the cross-stick, a hi-hat
+        # only on the offbeats. Sparse on purpose: in a dub mix the space is
+        # where the delay throws and the spring reverb live.
+        kick:       ".... .... X... ...."
+        rim:        ".... .... X... ...."
+        hihat:      "..x. ..x. ..x. ..x."
+
       - name: one_drop
         role: verse
         weight: 4
-        # Carlton Barrett's one drop. Beat 1 (pos 0) is silent on both kick and
-        # snare — the "drop". Everything lands together on beat 3 (pos 8).
-        # The hi-hat plays straight 8ths so the listener still knows where 1 is.
-        kick:       "........X......."
-        snare:      "........X......."
-        hihat:      "x.x.x.x.x.x.x.x."
+        # In the manner of Carlton Barrett: beat 1 empty, the bass drum and
+        # the cross-stick together on 3, the hi-hat in eighths accented on
+        # 2 and 4, a sixteenth pickup into beat 3.
+        kick:       ".... .... X... ...."
+        rim:        ".... .... X... ...."
+        hihat:      "x.x. X.x. x.xx X.x."
 
       - name: rockers
+        role: chorus
         weight: 3
-        # Sly Dunbar's rockers: the kick returns to all four quarters and pushes
-        # the tune forward, but the snare stays on 3 alone so it is still reggae
-        # and not rock. The open hat on the last offbeat pulls into the next bar.
-        kick:       "X...X...X...X..."
-        snare:      "........X......."
-        hihat:      "x.x.x.x.x.x.x.x."
-        hihat_open: "..............x."
+        # In the manner of Sly Dunbar: the bass drum back on 1 and 3, the
+        # snare on 3, the hi-hat opening on the "and" of 4 to pull into the
+        # next bar.
+        kick:       "X... .... X... ...."
+        snare:      ".... .... X... ...."
+        hihat:      "x.x. X.x. x.x. X..."
+        hihat_open: ".... .... .... ..x."
 
       - name: steppers
-        role: chorus
+        role: bridge
         weight: 2
-        # Steppers: four-on-the-floor kick, ghosted 16th hats, ride doubling the
-        # quarters. The militant end of roots — Burning Spear, Black Uhuru.
-        kick:       "X...X...X...X..."
-        snare:      "........X......."
-        hihat:      "xgxgxgxgxgxgxgxg"
-        ride:       "X...X...X...X..."
-
-      - name: crosstick
-        role: intro
-        weight: 3
-        # The dub texture proper: cross-stick instead of a full snare and a hat
-        # only on the offbeats. Sparse on purpose — in a dub mix the space is
-        # where the delay throws and spring reverb live.
-        kick:       "........X......."
-        rim:        "........X......."
-        hihat:      "..x...x...x...x."
-        hihat_open: "......x........."
+        # Steppers: the bass drum on every beat, the snare on 3 alone, the
+        # hi-hat in sixteenths with ghost strokes. The militant end of
+        # roots: Burning Spear, Black Uhuru.
+        kick:       "X... X... X... X..."
+        snare:      ".... .... X... ...."
+        hihat:      "xgxg Xgxg xgxg Xgxg"
 
       - name: flying_cymbal
-        role: bridge
         weight: 1
-        # Bunny Lee's "flyers" sound: open hi-hat on every offbeat 8th, washing
-        # over the whole bar. Rockers underneath so the wash has a floor.
-        kick:       "X...X...X...X..."
-        snare:      "........X......."
-        hihat_open: "..x...x...x...x."
+        # The "flying cymbal" of Bunny Lee's productions (Santa Davis): the
+        # hi-hat opening on every offbeat over a one drop, a wash that
+        # rides over the whole bar.
+        kick:       ".... .... X... ...."
+        rim:        ".... .... X... ...."
+        hihat:      "x... x... x... x..."
+        hihat_open: "..x. ..x. ..x. ..x."
+
+      - name: rockers_ride
+        weight: 1
+        # Rockers on the ride, as in the Roots Radics' sparser mixes: the
+        # bass drum on 1 and 3, the cross-stick on 3.
+        kick:       "X... .... X... ...."
+        rim:        ".... .... X... ...."
+        ride:       "x.x. x.x. x.x. x.x."
 
   fill:
     bars: 1
@@ -130,12 +152,16 @@ sections:
         tom_hi:     "........X.X....."
         tom_lo:     "............X.X."
 
-      - name: snare_echo
-        # Snare triplet-ish cluster on beat 4 — the hit a dub engineer catches
-        # in the tape delay and lets repeat over the next bar.
-        kick:       "........X......."
-        snare:      "........X...X.X."
-        hihat:      "x.x.x.x.x.x.x.x."
+      - name: triplet_drop
+        # The reggae fill: snare and toms in triplets on beat 4, after the
+        # one drop on 3. A dub engineer catches it in the tape delay and
+        # lets it repeat over the next bar.
+        grid: triplet
+        hihat:  "x.x X.x x.x ..."
+        kick:   "... ... X.. ..."
+        rim:    "... ... X.. ..."
+        snare:  "... ... ... XX."
+        tom_lo: "... ... ... ..X"
 
       - name: rimshot_space
         # The restrained fill: one cross-stick, one kick, and silence.

@@ -1,21 +1,24 @@
-# Afrobeat — Tony Allen / Fela Kuti groove
-# Reference: Tony Allen "Psycho on Da Bus" (2010), Fela Kuti "Zombie" (1977),
-#            "Lady" (1972), "Water No Get Enemy" (1975), "Expensive Shit" (1975),
-#            "Tony Allen: The Afrobeat Drummer" transcriptions (Florent Barbier)
-# Tony Allen (1940–2020) invented Afrobeat drumming. His style is a unique synthesis:
-#   - West African highlife polyrhythms (especially Yoruba rhythmic concepts)
-#   - American funk and jazz (James Brown, Miles Davis influence)
-#   - Heavy ghost-note snare technique (borrowed from New Orleans)
-#   - A subtle forward push on odd 16ths (captured by the swing_soft feel setting)
-#     that creates the Afrobeat "levitation" effect — the groove that floats.
-#
-# Three variations model Fela-era Afrobeat styles:
-#   tony_allen     — the signature groove: displaced kick, ghost army, 8th hi-hat
-#   fela_hardcore  — denser, more political urgency (Zombie / Expensive Shit era)
-#   highlife_lite  — West African highlife influence: lighter, more melodic, congas lead
-#
-# GM notes: 36=kick, 38=snare, 42=closed HH, 46=open HH, 70=shaker (maracas),
-#           63=conga (open hi), 49=crash
+# Afrobeat — Tony Allen and the Africa 70 rhythm section
+# Reference: Tony Allen with Fela Kuti and Africa 70 ("Zombie", "Ikoyi
+#            Blindness", "No Agreement", "African Message"); Miles Francis,
+#            "What I Learned From Tony Allen" (Talkhouse)
+# Afrobeat is a band rhythm, not a drum beat. The kit floats over a fixed
+# grid laid down by the percussion: the sticks (claves) on a two-bar
+# timeline, the shekere in sixteenths, the congas talking in between.
+# Tony Allen's kit, written in his manner rather than copied:
+# - the bass drum accents 1 and 3 and adds a softer stroke on the "and"
+#   of 2 and of 4, which pulls the groove down towards 3 and 1 and gives
+#   it its half-time lilt (after Miles Francis's analysis of "Ikoyi
+#   Blindness");
+# - the hi-hat is the lead voice: sixteenths with accents and short
+#   openings, never the disco "open on every offbeat";
+# - the snare is mostly ghost notes, with a few dry accents that avoid the
+#   rock backbeat.
+# The grooves span two bars ("bar 1 | bar 2") so the sticks' timeline can
+# run 3-2 under the kit.
+# GM notes: 36=kick, 38=snare, 37=side stick, 42=closed HH, 46=open HH,
+#           75=claves (sticks), 82=shaker (shekere), 63=open high conga,
+#           62=mute high conga, 64=low conga, 49=crash
 
 #
 # ── Step grid notation ────────────────────────────────────────────────────────
@@ -33,6 +36,11 @@
 #        1  e1 +1 a1  2  e2 +2 a2  3  e3 +3 a3  4  e4 +4 a4
 #   (1/+/2/+/3/+/4/+ = quarter beats; e = "e of"; a = "and-a of")
 #
+# Beat positions — 6/8 at resolution 12 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11
+#        C1 .  e1 .  a1 .  C2 .  e2 .  a2 .
+#   (C1/C2 = compound beat downbeats; each compound beat = 3 eighth notes = 6 steps)
+#
 # Swing / feel: 'feel' delays the second note of each swung pair, and
 # 'swing_unit' says which notes pair up: 16 = sixteenths (the default),
 # 8 = eighths (jazz, shuffle). Write the grids straight, as a score does.
@@ -47,118 +55,129 @@
 
 name: Afrobeat
 family: world
-bpm_range: [90, 130]
+bpm_range: [96, 128]
 time_signature: [4, 4]
 resolution: 16
 feel: swing_soft
 swing_unit: 16
 
 instruments:
-  kick:       { note: 36, base_velocity: 100, velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.12 }
-  snare:      { note: 38, base_velocity: 80,  velocity_range: 18, timing_jitter: 0.014, duration_beats: 0.09 }
-  hihat:      { note: 42, base_velocity: 72,  velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.07 }
-  hihat_open: { note: 46, base_velocity: 82,  velocity_range: 10, timing_jitter: 0.014, duration_beats: 0.16 }
-  shaker:     { note: 70, base_velocity: 58,  velocity_range: 12, timing_jitter: 0.020, duration_beats: 0.06 }
-  conga:      { note: 63, base_velocity: 80,  velocity_range: 14, timing_jitter: 0.016, duration_beats: 0.08 }
-  crash:      { note: 49, base_velocity: 95,  velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.22 }
+  kick:       { note: 36, base_velocity: 102, velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.12 }
+  snare:      { note: 38, base_velocity: 92,  velocity_range: 14, timing_jitter: 0.012, duration_beats: 0.09 }
+  rim:        { note: 37, base_velocity: 84,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.06 }
+  hihat:      { note: 42, base_velocity: 80,  velocity_range: 12, timing_jitter: 0.010, duration_beats: 0.06 }
+  hihat_open: { note: 46, base_velocity: 82,  velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.10 }
+  sticks:     { note: 75, base_velocity: 84,  velocity_range: 8,  timing_jitter: 0.008, duration_beats: 0.06 }
+  shekere:    { note: 82, base_velocity: 66,  velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.05 }
+  conga_open: { note: 63, base_velocity: 86,  velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.10 }
+  conga_mute: { note: 62, base_velocity: 78,  velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.06 }
+  conga_low:  { note: 64, base_velocity: 88,  velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.12 }
+  crash:      { note: 49, base_velocity: 92,  velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.22 }
 
 humanization:
-  timing_jitter: 0.016
-  velocity_jitter: 18
-  velocity_drift: 0.08
+  timing_jitter: 0.012
+  velocity_jitter: 12
+  velocity_drift: 0.06
 
 sections:
   intro:
     type: count_in
     hits: 4
-    note: 42
+    note: 75
 
   groove:
     bars: 1
     variations:
+      - name: percussion_bed
+        role: intro
+        weight: 1
+        # The percussion alone with the bass drum: the sticks on the 3-2
+        # timeline, the shekere in sixteenths, the congas. The band comes
+        # in over this.
+        sticks:     "X... ..X. .... X... | .... X... X... ...."
+        shekere:    "Xxxx Xxxx Xxxx Xxxx | Xxxx Xxxx Xxxx Xxxx"
+        conga_mute: "..x. ..x. ..x. ..x. | ..x. ..x. ..x. ..x."
+        conga_open: ".... ...X .... ...X | .... ...X .... ..XX"
+        kick:       "X... .... X... .... | X... .... X... ...."
+
       - name: tony_allen
         role: verse
-        weight: 3
-        # Tony Allen's signature groove as heard on Fela's 1970s recordings.
-        # KICK: beat 1 (pos 0), and-of-3 (pos 10), beat 4 (pos 12) — the kick
-        #   avoids the downbeat of beat 3, creating a floating "push" quality.
-        #   Allen described this as "putting the kick where people don't expect it."
-        # SNARE: heavy ghost note army throughout; backbeat accent falls on beat 2
-        #   (pos 4) and beat 4 (pos 12) — the ghost notes between accents are as
-        #   important as the accents themselves. The swing_soft feel stretches odd
-        #   steps slightly, producing the Afrobeat "micro-triplet" texture.
-        # HI-HAT: steady 8th notes — the metronomic anchor that holds everything
-        #   together while the kick and snare float around it.
-        # SHAKER: continuous 8th note pulse — the "agogô" substitute.
-        kick:   "X.........X.X..."
-        snare:  "g.g.X.g.g.g.X.g."
-        hihat:  "x.x.x.x.x.x.x.x."
-        shaker: "x.x.x.x.x.x.x.x."
+        weight: 4
+        # In the manner of Tony Allen: the bass drum accents 1 and 3, softer
+        # on the "and" of 2 and 4; the hi-hat in sixteenths, opening on the
+        # "a" of 2 and the "and" of 4; ghost notes on the snare, dry accents
+        # on the "e" of 2 and on 4.
+        hihat:      "Xxxx xxx. Xxxx xx.x | Xxxx xxx. Xxxx xx.x"
+        hihat_open: ".... ...x .... ..x. | .... ...x .... ..x."
+        snare:      "..g. .X.g .g.. X..g | ..g. .X.g .g.g X.g."
+        kick:       "X... ..x. X... ..x. | X... ..x. X... ..x."
+        sticks:     "X... ..X. .... X... | .... X... X... ...."
+        shekere:    "xgxg xgxg xgxg xgxg | xgxg xgxg xgxg xgxg"
+        conga_mute: "..x. ..x. ..x. ..x. | ..x. ..x. ..x. ..x."
+        conga_open: ".... ...X .... ...X | .... ...X .... ..XX"
 
-      - name: fela_hardcore
+      - name: fela_drive
         role: chorus
-        weight: 2
-        # High-intensity Fela groove (Zombie era, 1977). The kick is more forward,
-        # landing on beat 1 AND the "and-of-2" (pos 6) — a funk hemiola that drives
-        # the horn section forward. The snare's displaced backbeat (on and-of-2 (6)
-        # and and-of-4 (14)) creates maximum rhythmic tension. The open hi-hat on
-        # the 8th upbeats (pos 2, 6, 10, 14) adds an aggressive sizzle.
-        # Congas add a second rhythmic layer — Fela always had at least one percussionist.
-        kick:       "X.....X.X......."
-        snare:      "g.g.g.X.g.g.g.X."
-        hihat:      "x.x.x.x.x.x.x.x."
-        hihat_open: "..x...x...x...x."
-        conga:      "X.......X......."
-        shaker:     "x.x.x.x.x.x.x.x."
+        weight: 3
+        # The band at full tilt (the "Zombie" end): the bass drum doubled
+        # on the "and" of 2, the snare accents moving to the "a" of 1 and
+        # the "and" of 3, the low conga answering.
+        hihat:      "Xxxx xxx. Xxxx xx.x | Xxxx xxx. Xxxx xx.x"
+        hihat_open: ".... ...x .... ..x. | .... ...x .... ..x."
+        snare:      "...X .g.g .gX. g..g | ...X .g.g .gX. g.gX"
+        kick:       "X... .xx. X... ..x. | X... .xx. X... ..x."
+        sticks:     "X... ..X. .... X... | .... X... X... ...."
+        shekere:    "Xxxx Xxxx Xxxx Xxxx | Xxxx Xxxx Xxxx Xxxx"
+        conga_mute: "..x. ..x. ..x. ..x. | ..x. ..x. ..x. ..x."
+        conga_open: ".... ...X .... ...X | .... ...X .... ..XX"
+        conga_low:  "X... .... ..X. .... | X... .... ..X. ...."
 
-      - name: highlife_lite
+      - name: half_time_float
         role: bridge
         weight: 2
-        # West African highlife influence (King Sunny Adé / Femi Kuti style).
-        # Lighter than pure Afrobeat — the kick stays on beats 1 and 3, the snare
-        # is more restrained, and the conga carries the main rhythmic conversation.
-        # The open hi-hat decorates every 8th upbeat — a characteristic highlife
-        # guitar/drum texture. More dance-hall, less political urgency.
-        kick:       "X.......X......."
-        snare:      "....x.......x..."
-        hihat:      "x.x.x.x.x.x.x.x."
-        hihat_open: "..X...X...X...X."
-        conga:      "X...X...X...X..."
-        shaker:     "x.x.x.x.x.x.x.x."
+        # The groove thinned out to its half-time skeleton: side stick on
+        # beat 3, the hi-hat in eighths with one opening, the bass drum
+        # alone on 1 and the "and" of 4.
+        hihat:      "X.x. x.x. X.x. x..."
+        hihat_open: ".... .... .... ..x."
+        rim:        ".... .... X... ...."
+        kick:       "X... .... .... ..x."
+        sticks:     "X... ..X. .... X... | .... X... X... ...."
+        shekere:    "xgxg xgxg xgxg xgxg"
+        conga_mute: "..x. ..x. ..x. ..x."
 
   fill:
     bars: 1
     variations:
-      - name: snare_ghost_burst
-        # Snare ghost notes escalate to full accents — the Afrobeat fill that
-        # Tony Allen uses to build tension before a horn stab.
-        snare: "gXgXgXgXgXgXgXgX"
-        kick:  "X..............."
+      - name: snare_stutter
+        # The groove on the first half, then a stuttering snare phrase
+        # with the bass drum doubled, landing on the next 1.
+        hihat: "Xxxx xxx. .... ...."
+        kick:  "X... ..x. ..XX ...X"
+        snare: "..g. .X.g X..X X.XX"
 
-      - name: polyrhythm_break
-        # 3-against-4 polyrhythm fill: kick on the 3-note grouping positions
-        # (pos 0, 5, 10 = groups of 5 16ths... wait, let me use 3-note groups:
-        # pos 0, 4, 8, 12 plus conga at 0, 3, 6, 9, 12 = 5+4+3+2+1 grouping:
-        # actually conga at pos 0,3,6,9,12 = every 3 steps = 5 hits = polyrhythm.
-        # This is the Afrobeat "three against four" that Tony Allen loved.
-        kick:  "X..X..X..X..X..."
-        snare: "....X.......X..."
-        conga: "X..X..X..X..X..."
+      - name: hihat_call
+        # The hi-hat takes the bar: accents and openings answered by the
+        # snare, the way Allen calls the horns in.
+        hihat:      "X.xx X.xx ..x. ...."
+        hihat_open: ".... .... X... X..."
+        snare:      ".... .... ...X ..XX"
+        kick:       "X... .... X... X..."
 
-      - name: conga_fill
-        # Conga solo break: congas take the fill alone while kick marks the bar.
-        # Simulates the "solo" calls that Fela's percussionists would make.
-        conga: "X.X.X.X.X.X.X.X."
-        kick:  "X..............."
-        shaker: "x.x.x.x.x.x.x.x."
+      - name: conga_break
+        # The kit drops out; the congas and the sticks carry the bar.
+        conga_open: "X..X ..X. X..X .XX."
+        conga_low:  ".... X... .... X..."
+        conga_mute: ".X.. .X.. .X.. ...."
+        sticks:     "X... ..X. .... X..."
+        kick:       "X... .... .... ...."
 
   crash:
     bars: 1
     variations:
       - name: standard
-        # Laid over the groove on the bar after a fill, a break or the
-        # count-in: the cymbal and the low drum on beat 1. The groove
-        # plays everything else.
+        # Laid over the groove on the bar after a fill or the count-in:
+        # the cymbal and the bass drum on beat 1.
         crash: "X..............."
         kick:  "X..............."
 
@@ -167,12 +186,13 @@ sections:
     type: sequence
     bars: 2
     bar_grids:
-      - # Bar 1: Groove on 1-2, then band unison accents on 3+, 4 and 4+
-        kick:   "X.....X...X.X.X."
-        snare:  "g.g.X.g...X.X.X."
-        conga:  "X.......X.X.X.X."
-        hihat:  "x.x.x.x.x......."
-        shaker: "x.x.x.x.x.x.x.x."
+      - # Bar 1: the groove on beats 1-2, then the band's unison stabs on
+        # the "and" of 3, 4 and the "and" of 4
+        kick:    "X.....x...X.X.X."
+        snare:   "..g..X.g..X.X.X."
+        hihat:   "Xxxxxxx........."
+        conga_open: "..........X.X.X."
+        shekere: "xgxgxgxgxgxgxgxg"
       - # Bar 2: final hit on beat 1, then silence
         crash:  "X..............."
         kick:   "X..............."

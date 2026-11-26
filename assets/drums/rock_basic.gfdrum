@@ -1,6 +1,23 @@
-# Classic Rock — John Bonham / AC/DC style
-# Reference: "When the Levee Breaks" (Bonham), "Back in Black" (Phil Rudd)
-# GM notes: 36=kick, 38=snare, 42=closed HH, 49=crash, 48=hi tom, 45=mid tom, 41=floor tom
+# Classic Rock — the backbeat of the great 1970s hard-rock drummers
+# Reference: Phil Rudd (AC/DC, "Back in Black"), John Bonham (Led Zeppelin,
+#            "When the Levee Breaks", "Rock and Roll"), Charlie Watts
+#            (The Rolling Stones)
+# Rock drumming is the backbeat: the snare on 2 and 4, the bass drum on 1
+# and 3, eighths on the hi-hat. What separates the styles is where the bass
+# drum pushes and what the right hand rides on. The variations are written
+# in the manner of each drummer, not as copies of their records:
+# - Rudd: the plainest backbeat there is, locked to the beat, the hi-hat
+#   accented on the beats;
+# - the chorus lifts: the hi-hat half open and washy, the bass drum adding
+#   the "and" of 2;
+# - the bridge moves the right hand to the ride;
+# - Bonham: a heavy, slow groove, the bass drum leading into beat 3 by a
+#   sixteenth, the hi-hat barking open on the "and" of 1;
+# - the floor tom groove: eighths on the floor tom instead of the hi-hat,
+#   for intros and tribal sections.
+# The swing knob shuffles the eighths (swing_unit 8), for boogie rock.
+# GM notes: 36=kick, 38=snare, 42=closed HH, 46=open HH, 51=ride, 53=ride
+#           bell, 49=crash, 48=hi tom, 45=mid tom, 41=floor tom
 
 #
 # ── Step grid notation ────────────────────────────────────────────────────────
@@ -37,73 +54,130 @@
 
 name: Classic Rock
 family: rock
-bpm_range: [80, 160]
+bpm_range: [70, 160]
 time_signature: [4, 4]
 resolution: 16
 feel: straight
 swing_unit: 8
 
 instruments:
-  kick:    { note: 36, base_velocity: 110, velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.15 }
-  snare:   { note: 38, base_velocity: 105, velocity_range: 15, timing_jitter: 0.018, duration_beats: 0.12 }
-  hihat:   { note: 42, base_velocity: 82,  velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.07 }
-  crash:   { note: 49, base_velocity: 100, velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.25 }
-  tom_hi:  { note: 48, base_velocity: 95,  velocity_range: 15, timing_jitter: 0.018, duration_beats: 0.12 }
-  tom_mid: { note: 45, base_velocity: 90,  velocity_range: 15, timing_jitter: 0.018, duration_beats: 0.12 }
-  tom_lo:  { note: 41, base_velocity: 90,  velocity_range: 15, timing_jitter: 0.018, duration_beats: 0.15 }
+  kick:       { note: 36, base_velocity: 110, velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.15 }
+  snare:      { note: 38, base_velocity: 108, velocity_range: 12, timing_jitter: 0.014, duration_beats: 0.12 }
+  hihat:      { note: 42, base_velocity: 84,  velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.07 }
+  hihat_open: { note: 46, base_velocity: 86,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.16 }
+  ride:       { note: 51, base_velocity: 84,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.12 }
+  ride_bell:  { note: 53, base_velocity: 88,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.12 }
+  crash:      { note: 49, base_velocity: 100, velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.25 }
+  tom_hi:     { note: 48, base_velocity: 96,  velocity_range: 12, timing_jitter: 0.014, duration_beats: 0.12 }
+  tom_mid:    { note: 45, base_velocity: 96,  velocity_range: 12, timing_jitter: 0.014, duration_beats: 0.12 }
+  tom_lo:     { note: 41, base_velocity: 98,  velocity_range: 12, timing_jitter: 0.014, duration_beats: 0.15 }
 
 humanization:
-  timing_jitter: 0.015
-  velocity_jitter: 12
+  timing_jitter: 0.012
+  velocity_jitter: 10
   velocity_drift: 0.05
 
 sections:
   intro:
     type: count_in
     hits: 4
-    note: 37
+    note: 42
 
   groove:
     bars: 1
     variations:
-      - name: bonham
+      - name: floor_tom
+        role: intro
+        weight: 1
+        # Eighths on the floor tom instead of the hi-hat, the backbeat on
+        # the snare: the band builds over a rumbling pulse.
+        tom_lo: "X.x. X.x. X.x. X.x."
+        snare:  ".... X... .... X..."
+        kick:   "X... .... X... ...."
+
+      - name: rudd
         role: verse
         weight: 4
-        # Kick on beat 1 (pos 0), "and of 2" (pos 6), beat 3 (pos 8), "and of 4" (pos 14)
-        # The signature Bonham driving groove from "When the Levee Breaks"
-        kick:  "X.....X.X.....X."
-        snare: "....X.......X..."
-        hihat: "X.x.X.x.X.x.X.x."
-      - name: acdcdc
+        # In the manner of Phil Rudd: the bass drum on 1 and 3, the snare
+        # on 2 and 4, eighths on the hi-hat accented on the beats. Nothing
+        # more: the power is in the placement.
+        hihat: "X.x. X.x. X.x. X.x."
+        snare: ".... X... .... X..."
+        kick:  "X... .... X... ...."
+
+      - name: open_wash
+        role: chorus
+        weight: 3
+        # The chorus lifts: the hi-hat half open and washy on every eighth,
+        # the bass drum adding the "and" of 2 to push into beat 3.
+        hihat_open: "X.x. X.x. X.x. X.x."
+        snare:      ".... X... .... X..."
+        kick:       "X... ..X. X... ...."
+
+      - name: ride_bridge
         role: bridge
         weight: 2
-        # Phil Rudd / AC/DC: kick on beats 1 and 3 only — locked-in and relentless
-        kick:  "X.......X......."
-        snare: "....X.......X..."
-        hihat: "X.x.X.x.X.x.X.x."
-      - name: bonham_push
-        role: chorus
+        # The right hand moves to the ride, the bell on the beats; the bass
+        # drum adds the "and" of 3.
+        ride:      "..x. ..x. ..x. ..x."
+        ride_bell: "X... X... X... X..."
+        snare:     ".... X... .... X..."
+        kick:      "X... .... X.X. ...."
+
+      - name: bonham
+        weight: 2
+        # In the manner of John Bonham's heavy grooves: the bass drum on 1,
+        # then leading into beat 3 by a sixteenth, the hi-hat barking open
+        # on the "and" of 1. Best below 90 BPM.
+        hihat:      "X... X.x. X.x. X.x."
+        hihat_open: "..x. .... .... ...."
+        snare:      ".... X... .... X..."
+        kick:       "X... ...X X.X. ...."
+
+      - name: rudd_push
         weight: 1
-        # Bonham variation: extra kick "a of 4" (pos 15) pushing hard into the next bar
-        kick:  "X.....X.X......X"
-        snare: "....X.......X..."
-        hihat: "X.x.X.x.X.x.X.x."
+        # The verse with an anticipation: the bass drum on the "and" of 4
+        # pushes into the next bar.
+        hihat: "X.x. X.x. X.x. X.x."
+        snare: ".... X... .... X..."
+        kick:  "X... .... X... ..X."
 
   fill:
     bars: 1
     variations:
       - name: tom_descend
-        # Classic rock fill: kick on beat 1, crash/snare accent then descending toms
-        kick:    "X..............."
-        snare:   "....X..........."
-        tom_hi:  "......X.X......."
-        tom_mid: "..........X.X..."
-        tom_lo:  "..............XX"
+        # Groove on the first half, then eighths down the toms.
+        hihat:   "X.x. X.x. .... ...."
+        kick:    "X... .... .... ...."
+        snare:   ".... X... .... ...."
+        tom_hi:  ".... .... X.X. ...."
+        tom_mid: ".... .... .... X..."
+        tom_lo:  ".... .... .... ..X."
+
       - name: snare_run
-        # Snare-heavy fill: accent on beat 2 then fast snare/tom run to the end
-        snare:   "....X...X.X.X.X."
-        tom_lo:  "..............X."
-        kick:    "X..............."
+        # Groove on the first half, then sixteenths on the snare, growing
+        # into the next downbeat.
+        hihat: "X.x. X.x. .... ...."
+        kick:  "X... .... .... ...."
+        snare: ".... X... xxxx XXXX"
+
+      - name: bonham_triplets
+        # In the manner of Bonham: triplets on beats 3 and 4, hand, hand,
+        # foot, rolling down the toms.
+        grid: triplet
+        hihat:  "X.. X.. ... ..."
+        snare:  "... X.. X.. ..."
+        tom_hi: "... ... .X. ..."
+        tom_lo: "... ... ... XX."
+        kick:   "X.. ... ..X ..X"
+
+      - name: two_beat_fill
+        # Only the last two beats: snare, high tom, floor tom.
+        hihat:  "X.x. X.x. .... ...."
+        kick:   "X... .... X... ...."
+        snare:  ".... X... ..xx ...."
+        tom_hi: ".... .... .... XX.."
+        tom_lo: ".... .... .... ..XX"
 
   break:
     # Stop-time break: hit on 1, silence, then a pickup into the next section.
