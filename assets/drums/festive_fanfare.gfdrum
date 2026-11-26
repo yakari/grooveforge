@@ -67,6 +67,7 @@ sections:
     bars: 1
     variations:
       - name: fanfare_vamp
+        role: verse
         weight: 3
         # The main festive fanfare groove. Crash marks the top of each bar — the
         # unmistakable signal to the crowd that something is happening. Snare plays a
@@ -80,6 +81,7 @@ sections:
         crash: "X..............."
 
       - name: rudimental_build
+        role: bridge
         weight: 2
         # Escalating rudimental density — a DCI-style build. The first half of the
         # bar plays lightly (ghost notes + soft hits), the second half escalates to
@@ -93,6 +95,7 @@ sections:
         hihat:  "x.x.x.x.x.x.x.x."
 
       - name: tutti_drive
+        role: chorus
         weight: 2
         # Maximum energy fanfare drive: all instruments at full 8th-note density.
         # This is the "wall of sound" moment in a live fanfare show — used at the
@@ -137,6 +140,24 @@ sections:
         kick:  "X...X...X...X..."
         snare: "g.g.X.g.g.g.X.g."
         hihat: "x.x.x.x.x.x.x.x."
+
+  ending:
+    # Played once at the end of the song; the drums stop after bar 2.
+    type: sequence
+    bars: 2
+    bar_grids:
+      - # Bar 1: Snare/tom bounce, then tutti 3-3-2 stabs with crash
+        kick:   "X.......X..X..X."
+        snare:  "X...X...X..X..X."
+        tom_hi: "..x...x........."
+        tom_lo: "...x...x........"
+        hihat:  "x.x.x.x........."
+        crash:  "........X......."
+      - # Bar 2: final hit on beat 1, then silence
+        crash: "X..............."
+        kick:  "X..............."
+        snare: "X..............."
+        hihat: "X..............."
 
 structure:
   fill_every: 4

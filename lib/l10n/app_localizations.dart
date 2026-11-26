@@ -989,7 +989,7 @@ abstract class AppLocalizations {
   /// No description provided for @guideDrumGeneratorBody.
   ///
   /// In en, this message translates to:
-  /// **'Plays a drum pattern at the transport tempo, from bossa nova to metal. Swing pushes the off-beats late. Human feel goes from a strict grid to a drummer who breathes. Count-in plays a few hits before the pattern starts, and Fill every adds a fill every few bars.\nPatterns are .gfdrum files, so you can add your own.'**
+  /// **'Plays a drum pattern at the transport tempo, from bossa nova to metal. Swing pushes the off-beats late. Human feel goes from a strict grid to a drummer who breathes. Count-in plays a few hits before the pattern starts, and Fill every adds a fill every few bars.\nSong form lays out a whole song as blocks (intro, verse, chorus, bridge, break, ending). Tap + to add one, tap a block to edit it, long-press to move it. Without an ending block the form loops; with one, the drums end the song and stop the transport.\nPatterns are .gfdrum files, so you can add your own.'**
   String get guideDrumGeneratorBody;
 
   /// No description provided for @guideLoopersTitle.
@@ -4508,6 +4508,270 @@ abstract class AppLocalizations {
   /// **'Dynamic build'**
   String get drumGeneratorDynamicBuild;
 
+  /// No description provided for @drumFormTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Song form'**
+  String get drumFormTitle;
+
+  /// No description provided for @drumFormOffHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Without a song form, the drummer plays in phrases and ends each one with a fill.'**
+  String get drumFormOffHint;
+
+  /// No description provided for @drumFormTemplates.
+  ///
+  /// In en, this message translates to:
+  /// **'Templates'**
+  String get drumFormTemplates;
+
+  /// No description provided for @drumFormTemplatesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Replaces the current form'**
+  String get drumFormTemplatesHint;
+
+  /// No description provided for @drumFormTemplatePop.
+  ///
+  /// In en, this message translates to:
+  /// **'Pop: verse, chorus, bridge, ending'**
+  String get drumFormTemplatePop;
+
+  /// No description provided for @drumFormTemplateRock.
+  ///
+  /// In en, this message translates to:
+  /// **'Rock: intro, verse, chorus, ending'**
+  String get drumFormTemplateRock;
+
+  /// No description provided for @drumFormTemplateBlues.
+  ///
+  /// In en, this message translates to:
+  /// **'Blues: three 12-bar choruses, ending'**
+  String get drumFormTemplateBlues;
+
+  /// No description provided for @drumFormTemplateJam.
+  ///
+  /// In en, this message translates to:
+  /// **'Jam: one verse that loops'**
+  String get drumFormTemplateJam;
+
+  /// No description provided for @drumFormKindIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Intro'**
+  String get drumFormKindIntro;
+
+  /// No description provided for @drumFormKindVerse.
+  ///
+  /// In en, this message translates to:
+  /// **'Verse'**
+  String get drumFormKindVerse;
+
+  /// No description provided for @drumFormKindChorus.
+  ///
+  /// In en, this message translates to:
+  /// **'Chorus'**
+  String get drumFormKindChorus;
+
+  /// No description provided for @drumFormKindBridge.
+  ///
+  /// In en, this message translates to:
+  /// **'Bridge'**
+  String get drumFormKindBridge;
+
+  /// No description provided for @drumFormKindBreak.
+  ///
+  /// In en, this message translates to:
+  /// **'Break'**
+  String get drumFormKindBreak;
+
+  /// No description provided for @drumFormKindEnding.
+  ///
+  /// In en, this message translates to:
+  /// **'Ending'**
+  String get drumFormKindEnding;
+
+  /// No description provided for @drumFormAddBlock.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a block'**
+  String get drumFormAddBlock;
+
+  /// No description provided for @drumFormTagFill.
+  ///
+  /// In en, this message translates to:
+  /// **'FILL'**
+  String get drumFormTagFill;
+
+  /// No description provided for @drumFormTagStop.
+  ///
+  /// In en, this message translates to:
+  /// **'STOP'**
+  String get drumFormTagStop;
+
+  /// No description provided for @drumFormEventFill.
+  ///
+  /// In en, this message translates to:
+  /// **'FILL'**
+  String get drumFormEventFill;
+
+  /// No description provided for @drumFormEventCrash.
+  ///
+  /// In en, this message translates to:
+  /// **'CRASH'**
+  String get drumFormEventCrash;
+
+  /// No description provided for @drumFormEventBreak.
+  ///
+  /// In en, this message translates to:
+  /// **'BREAK'**
+  String get drumFormEventBreak;
+
+  /// No description provided for @drumFormEventEnd.
+  ///
+  /// In en, this message translates to:
+  /// **'END'**
+  String get drumFormEventEnd;
+
+  /// No description provided for @drumFormBlockTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Block {index}: {kind}'**
+  String drumFormBlockTitle(int index, String kind);
+
+  /// No description provided for @drumFormType.
+  ///
+  /// In en, this message translates to:
+  /// **'Type'**
+  String get drumFormType;
+
+  /// No description provided for @drumFormBars.
+  ///
+  /// In en, this message translates to:
+  /// **'Bars'**
+  String get drumFormBars;
+
+  /// No description provided for @drumFormFillAtEnd.
+  ///
+  /// In en, this message translates to:
+  /// **'Fill at the end'**
+  String get drumFormFillAtEnd;
+
+  /// No description provided for @drumFormVariation.
+  ///
+  /// In en, this message translates to:
+  /// **'Groove'**
+  String get drumFormVariation;
+
+  /// No description provided for @drumFormVariationAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto ({name})'**
+  String drumFormVariationAuto(String name);
+
+  /// No description provided for @drumFormStopTransport.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop the transport'**
+  String get drumFormStopTransport;
+
+  /// No description provided for @drumFormStopTransportHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Also stops the looper and the other modules.'**
+  String get drumFormStopTransportHint;
+
+  /// No description provided for @drumFormHintIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Plays the lightest groove of the style, with no crash at its start. The count-in, if any, comes before it.'**
+  String get drumFormHintIntro;
+
+  /// No description provided for @drumFormHintBreak.
+  ///
+  /// In en, this message translates to:
+  /// **'The band drops out: the style\'s break, or one hit on beat 1 then silence. With a fill at the end, its last bar is the drummer\'s pickup.'**
+  String get drumFormHintBreak;
+
+  /// No description provided for @drumFormHintEnding.
+  ///
+  /// In en, this message translates to:
+  /// **'Plays the style\'s ending, then the drums stop. Always the last block.'**
+  String get drumFormHintEnding;
+
+  /// No description provided for @drumFormMoveEarlier.
+  ///
+  /// In en, this message translates to:
+  /// **'Earlier'**
+  String get drumFormMoveEarlier;
+
+  /// No description provided for @drumFormMoveLater.
+  ///
+  /// In en, this message translates to:
+  /// **'Later'**
+  String get drumFormMoveLater;
+
+  /// No description provided for @drumFormDuplicate.
+  ///
+  /// In en, this message translates to:
+  /// **'Duplicate'**
+  String get drumFormDuplicate;
+
+  /// No description provided for @drumFormDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get drumFormDelete;
+
+  /// No description provided for @drumFormClose.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get drumFormClose;
+
+  /// No description provided for @drumFormDragHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Long-press a block to drag it.'**
+  String get drumFormDragHint;
+
+  /// No description provided for @drumFormLoops.
+  ///
+  /// In en, this message translates to:
+  /// **'No ending block: the form loops.'**
+  String get drumFormLoops;
+
+  /// No description provided for @drumFormStops.
+  ///
+  /// In en, this message translates to:
+  /// **'The form stops after its ending.'**
+  String get drumFormStops;
+
+  /// No description provided for @drumFormEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a first block with +.'**
+  String get drumFormEmpty;
+
+  /// No description provided for @drumFormBarCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 bar} other{{count} bars}}'**
+  String drumFormBarCount(int count);
+
+  /// No description provided for @drumFormSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'{blocks, plural, =1{1 block} other{{blocks} blocks}} · {bars, plural, =1{1 bar} other{{bars} bars}} · {duration} at {bpm} BPM'**
+  String drumFormSummary(int blocks, int bars, String duration, int bpm);
+
+  /// No description provided for @drumFormPlaying.
+  ///
+  /// In en, this message translates to:
+  /// **'Block {index}/{count} · {kind} · bar {bar}/{bars}'**
+  String drumFormPlaying(int index, int count, String kind, int bar, int bars);
+
   /// No description provided for @drumGeneratorDefaultSoundfont.
   ///
   /// In en, this message translates to:
@@ -4523,7 +4787,7 @@ abstract class AppLocalizations {
   /// No description provided for @drumGeneratorFormatGuideContent.
   ///
   /// In en, this message translates to:
-  /// **'A .gfdrum file is a YAML text file describing a drum pattern.\n\nStep grid notation:\nX = strong hit (~100)\nx = medium hit (~75)\no = soft hit (~55)\ng = ghost note (~28)\n. = rest\n\nVelocity fields: base_velocity, velocity_range\nTiming fields: timing_jitter, rush (in beats; negative plays ahead of the beat)\nSections: groove, fill, break, crash, intro\nSection types: loop (one variation per phrase), sequence (bars in order)\n\nThe full format is described on the website, under .gfdrum.'**
+  /// **'A .gfdrum file is a YAML text file describing a drum pattern.\n\nStep grid notation:\nX = strong hit (~100)\nx = medium hit (~75)\no = soft hit (~55)\ng = ghost note (~28)\n. = rest\n\nVelocity fields: base_velocity, velocity_range\nTiming fields: timing_jitter, rush (in beats; negative plays ahead of the beat)\nSections: groove, fill, break, crash, intro, ending\nSection types: loop (one variation per phrase), sequence (bars in order)\nGroove variations can have a role (intro, verse, chorus, bridge) for the song form.\n\nThe full format is described on the website, under .gfdrum.'**
   String get drumGeneratorFormatGuideContent;
 
   /// No description provided for @drumGeneratorNoPatternsFound.

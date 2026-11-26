@@ -75,6 +75,7 @@ sections:
     bars: 1
     variations:
       - name: traditional_plinn
+        role: verse
         weight: 3
         # Standard bagad-style plinn for open-air dancing.
         # KICK: downbeat of each of the three beats (pos 0, 4, 8) — the grosse caisse
@@ -90,6 +91,7 @@ sections:
         hihat: "x.x.x.x.x.x.x."
 
       - name: festnoz_groove
+        role: bridge
         weight: 2
         # Indoor fest-noz (night feast) variation: more intimate, with the snare rim
         # (cross-stick / baguette technique) providing a woody, resonant timekeeping
@@ -102,6 +104,7 @@ sections:
         hihat:     "x.x.x.x.x.x.x."
 
       - name: biniou_drive
+        role: chorus
         weight: 2
         # High-energy biniou-style drive — the biniou kozh (Breton bagpipe) plays in
         # a very high register and pushes the tempo forward. This variation simulates
@@ -136,6 +139,19 @@ sections:
         crash: "X............."
         kick:  "X...X...X....."
         snare: "....X...X....."
+
+  ending:
+    # Played once at the end of the song; the drums stop after bar 2.
+    type: sequence
+    bars: 2
+    bar_grids:
+      - # Bar 1: Plinn accents, snare roll swelling through the last group
+        kick:  "X...X...X...X."
+        snare: "X..gX..gXgXgXX"
+        hihat: "x.x.x.x......."
+      - # Bar 2: final hit on beat 1, then silence
+        crash: "X............."
+        kick:  "X............."
 
 structure:
   fill_every: 4

@@ -52,6 +52,7 @@ sections:
     bars: 1
     variations:
       - name: standard_trio
+        role: verse
         weight: 4
         # The classic jazz waltz feel.
         # Ride maintains the ding-dah shape. Hi-hat chips on 2 and 3.
@@ -62,6 +63,7 @@ sections:
         snare:      "......g.."
 
       - name: comping_syncopation
+        role: chorus
         weight: 2
         # Snare comps on the 'a' of 1 and directly on 3.
         ride:       "X..X.xX.x"
@@ -70,6 +72,7 @@ sections:
         snare:      "..g...o.."
 
       - name: bell_accent
+        role: bridge
         weight: 1
         # Ride bell accents beat 1 for dynamic push.
         ride_bell:  "X........"
@@ -79,6 +82,7 @@ sections:
         snare:      "......o.."
 
       - name: cross_stick
+        role: intro
         weight: 2
         # Smoother groove using rim clicks instead of ghost snares.
         ride:       "X..X.xX.x"
@@ -112,6 +116,20 @@ sections:
         hihat_pedal: "...X..X.."
         kick:       "X........"
         snare:      "......o.."
+
+  ending:
+    # Played once at the end of the song; the drums stop after bar 2.
+    type: sequence
+    bars: 2
+    bar_grids:
+      - # Bar 1: Ride waltz, kick/snare hit on 3 with triplet pickup
+        ride:        "X..X..X.."
+        hihat_pedal: "...X....."
+        kick:        "o.....X.."
+        snare:       "...g..X.X"
+      - # Bar 2: final hit on beat 1, then silence
+        crash: "X........"
+        kick:  "X........"
 
 structure:
   fill_every: 8

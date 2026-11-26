@@ -301,12 +301,19 @@ class DrumPatternParser {
     required Map<String, DrumInstrumentDef> instruments,
   }) {
     final weight = _int(raw, 'weight') ?? 1;
+    // An unknown role is ignored rather than rejected: the groove still
+    // plays, only without a song-form part attached to it.
+    final role = _str(raw, 'role');
     final grids = <String, String>{};
 
     for (final kv in raw.entries) {
       final key = kv.key as String;
       // Skip meta keys; only record instrument grid strings.
-      if (key == 'name' || key == 'weight' || key == 'type' || key == 'bars') {
+      if (key == 'name' ||
+          key == 'weight' ||
+          key == 'role' ||
+          key == 'type' ||
+          key == 'bars') {
         continue;
       }
       if (!instruments.containsKey(key)) continue;
@@ -315,7 +322,12 @@ class DrumPatternParser {
     }
 
     if (grids.isEmpty) return null;
-    return DrumVariation(name: name, weight: weight, stepGrids: grids);
+    return DrumVariation(
+      name: name,
+      weight: weight,
+      stepGrids: grids,
+      role: DrumVariation.roles.contains(role) ? role : null,
+    );
   }
 
   // ── YAML helpers ──────────────────────────────────────────────────────────

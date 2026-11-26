@@ -63,6 +63,7 @@ sections:
     bars: 1
     variations:
       - name: four_on_the_floor
+        role: verse
         weight: 4
         # The foundation: kick on all four quarters (pos 0, 4, 8, 12), clap on
         # 2 and 4, and the open hi-hat on every offbeat 8th (pos 2, 6, 10, 14).
@@ -75,6 +76,7 @@ sections:
         hihat_open: "..x...x...x...x."
 
       - name: detroit
+        role: bridge
         weight: 3
         # Detroit (Mills / Hood): the kick adds a 16th pickup on the last step
         # (pos 15) that lands just before the next bar's downbeat, and the side
@@ -86,6 +88,7 @@ sections:
         hihat_open: "......x.......x."
 
       - name: peak_time
+        role: chorus
         weight: 2
         # Maximum density for the loud part of the set: 16th hi-hats, a ghost
         # snare on every offbeat 8th, and the ride doubling the kick to add
@@ -98,6 +101,7 @@ sections:
         ride:       "X...X...X...X..."
 
       - name: dub_techno
+        role: intro
         weight: 2
         # Basic Channel / Chain Reaction restraint: kick, one offbeat hat, and a
         # side stick where the clap would be. Everything that is not played is
@@ -145,6 +149,20 @@ sections:
         kick:       "X...X...X...X..."
         hihat:      "x.g.x.g.x.g.x.g."
         hihat_open: "..x...x...x...x."
+
+  ending:
+    # Played once at the end of the song; the drums stop after bar 2.
+    type: sequence
+    bars: 2
+    bar_grids:
+      - # Bar 1: Four-on-the-floor under a 16th snare riser crescendo
+        kick:  "X...X...X...X..."
+        clap:  "....X.......X..."
+        snare: "ggggoooxxxxxXXXX"
+      - # Bar 2: final hit on beat 1, then silence
+        crash: "X..............."
+        kick:  "X..............."
+        hihat: "X..............."
 
 structure:
   fill_every: 8

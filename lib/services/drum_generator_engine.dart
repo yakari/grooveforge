@@ -5,8 +5,10 @@ import 'package:flutter/foundation.dart';
 
 import '../models/drum_generator_plugin_instance.dart';
 import '../models/drum_pattern_data.dart';
+import '../models/drum_song_form.dart';
 import 'audio_engine.dart';
 import 'drum_arranger.dart';
+import 'drum_form_arranger.dart';
 import 'drum_pattern_parser.dart';
 import 'drum_pattern_registry.dart';
 import 'transport_engine.dart';
@@ -60,6 +62,29 @@ class ScheduledHit {
   });
 }
 
+// ── DrumFormPosition ──────────────────────────────────────────────────────────
+
+/// Where playback is in a song form: block [block], bar [bar] of it (both
+/// from 0).
+@immutable
+class DrumFormPosition {
+  /// Index of the block being played.
+  final int block;
+
+  /// Bar within [block], from 0.
+  final int bar;
+
+  /// Constructs a [DrumFormPosition].
+  const DrumFormPosition(this.block, this.bar);
+
+  @override
+  bool operator ==(Object other) =>
+      other is DrumFormPosition && other.block == block && other.bar == bar;
+
+  @override
+  int get hashCode => Object.hash(block, bar);
+}
+
 // ── DrumGeneratorSession ──────────────────────────────────────────────────────
 
 /// Runtime scheduling state for one drum generator slot.
@@ -97,6 +122,16 @@ class DrumGeneratorSession {
   /// simultaneously on the very first scheduler tick.
   double grooveEpoch = 0.0;
 
+  /// Where playback is in the song form: the block and the bar within it,
+  /// or null when stopped, counting in, past the ending, or without a form.
+  /// Changes once per bar at most, so the form editor can light the block
+  /// being played without rebuilding anything else.
+  final ValueNotifier<DrumFormPosition?> formPosition = ValueNotifier(null);
+
+  /// The bar [formPosition] was last computed for, so it is worked out once
+  /// per bar rather than on every 10 ms tick.
+  int _positionBar = -1;
+
   /// Constructs a [DrumGeneratorSession] for [instance].
   DrumGeneratorSession(this.instance);
 
@@ -106,6 +141,8 @@ class DrumGeneratorSession {
     _noteOns.clear();
     _noteOffs.clear();
     grooveEpoch = 0.0;
+    _positionBar = -1;
+    formPosition.value = null;
     // A new arrangement for a new play.
     seed = Random().nextInt(0x7fffffff);
   }
@@ -229,6 +266,21 @@ class DrumGeneratorEngine extends ChangeNotifier {
   /// The pattern the slot [slotId] is playing, or null before one loads.
   DrumPatternData? patternFor(String slotId) => _sessions[slotId]?.patternData;
 
+  /// Where slot [slotId] is in its song form while playing (see
+  /// [DrumGeneratorSession.formPosition]), or null for an unknown slot.
+  ValueListenable<DrumFormPosition?>? formPositionFor(String slotId) =>
+      _sessions[slotId]?.formPosition;
+
+  /// Replaces the song form of slot [slotId]. Heard from the next bar when
+  /// playing, like any other setting.
+  void setSongForm(String slotId, DrumSongForm form) {
+    final session = _sessions[slotId];
+    if (session == null) return;
+    session.instance.songForm = form;
+    session._positionBar = -1; // the same bar may now be another block
+    markDirty();
+  }
+
   /// Removes the session for [slotId].
   ///
   /// Called when the slot is deleted from the rack.  Sends all-notes-off
@@ -237,6 +289,7 @@ class DrumGeneratorEngine extends ChangeNotifier {
     final session = _sessions.remove(slotId);
     if (session != null) {
       _sendAllNotesOff(session);
+      session.formPosition.dispose();
     }
     notifyListeners();
   }
@@ -405,7 +458,39 @@ class DrumGeneratorEngine extends ChangeNotifier {
       _scheduleLookahead(session, currentBeat);
       _drainNoteOffs(session, currentBeat);
       _drainNoteOns(session, currentBeat);
+      if (_followForm(session, currentBeat)) {
+        // The song is over and its ending stops the transport. Stopping
+        // notifies [_onTransportChanged], which silences every slot.
+        _transport.stop();
+        return;
+      }
     }
+  }
+
+  /// Updates [DrumGeneratorSession.formPosition] when a new bar starts, and
+  /// returns true once the song form's ending is over and asks for the
+  /// transport to stop.
+  bool _followForm(DrumGeneratorSession session, double currentBeat) {
+    final pattern = session.patternData!;
+    final barDuration =
+        pattern.timeSigNumerator * 4.0 / pattern.timeSigDenominator;
+    final bar = _barAt(session, currentBeat, barDuration);
+    if (bar == session._positionBar) return false;
+    session._positionBar = bar;
+
+    final form = session.instance.songForm;
+    if (!form.isActive) {
+      session.formPosition.value = null;
+      return false;
+    }
+    final rel = bar - DrumArranger.introBarCount(
+        session.instance.structureConfig, pattern);
+    final spot = DrumFormArranger.locate(rel, form, pattern);
+    session.formPosition.value =
+        spot == null ? null : DrumFormPosition(spot.block, spot.bar);
+    return form.hasEnding &&
+        form.blocks.last.stopTransport &&
+        rel >= DrumFormArranger.formBars(form, pattern);
   }
 
   // ── Lookahead scheduling ──────────────────────────────────────────────────
@@ -478,9 +563,15 @@ class DrumGeneratorEngine extends ChangeNotifier {
       config: session.instance.structureConfig,
       pattern: pattern,
       seed: session.seed,
+      form: session.instance.songForm,
     );
-    final section = pattern.sections[plan.section] ??
-        pattern.sections['groove'];
+    if (plan.section == DrumBarPlan.silence) return;
+    // A "drop" bar plays the first step of the crash section: the single
+    // hit on beat 1 that starts a break or ends a song.
+    final isDrop = plan.section == DrumBarPlan.drop;
+    final section = isDrop
+        ? pattern.sections['crash']
+        : pattern.sections[plan.section] ?? pattern.sections['groove'];
     if (section == null) return;
 
     if (plan.crash) {
@@ -503,6 +594,7 @@ class DrumGeneratorEngine extends ChangeNotifier {
       barStartBeat,
       plan: plan,
       isCrashOverlay: false,
+      firstStepOnly: isDrop,
     );
   }
 
@@ -515,6 +607,7 @@ class DrumGeneratorEngine extends ChangeNotifier {
     double barStartBeat, {
     required DrumBarPlan plan,
     required bool isCrashOverlay,
+    bool firstStepOnly = false,
   }) {
     // Count-in sections use hit-based generation, not step grids.
     if (section.kind == DrumSectionKind.countIn) {
@@ -524,12 +617,14 @@ class DrumGeneratorEngine extends ChangeNotifier {
 
     // Resolve the step grid map for this bar. The crash overlay is a single
     // bar of its own, so it always starts at its first bar.
-    final gridMap = resolveStepGrid(
+    final resolved = resolveStepGrid(
       section,
       barInSection: isCrashOverlay ? 0 : plan.barInSection,
       variationSeed: plan.variationSeed,
+      variation: isCrashOverlay ? null : plan.variation,
     );
-    if (gridMap == null) return;
+    if (resolved == null) return;
+    final gridMap = firstStepOnly ? firstStepOf(resolved) : resolved;
 
     // Determine effective swing ratio.
     final swingRatio = session.instance.swingOverride ??
@@ -578,12 +673,14 @@ class DrumGeneratorEngine extends ChangeNotifier {
   /// break).
   /// For `loop` sections: a weighted random variation drawn with
   /// [variationSeed]. The arranger keeps the seed for a whole phrase, so the
-  /// same variation plays until the next fill.
+  /// same variation plays until the next fill. A [variation] name, chosen by
+  /// a song-form block, wins over the draw when the section has it.
   @visibleForTesting
   static Map<String, String>? resolveStepGrid(
     DrumSection section, {
     required int barInSection,
     required int variationSeed,
+    String? variation,
   }) {
     if (section.variations.isEmpty) return null;
 
@@ -592,6 +689,10 @@ class DrumGeneratorEngine extends ChangeNotifier {
       final barSeq = variation.barSequence;
       if (barSeq == null || barSeq.isEmpty) return null;
       return barSeq[barInSection.abs() % barSeq.length];
+    }
+
+    for (final v in section.variations) {
+      if (v.name == variation) return v.stepGrids;
     }
 
     final totalWeight =
@@ -605,6 +706,16 @@ class DrumGeneratorEngine extends ChangeNotifier {
     }
     return section.variations.last.stepGrids;
   }
+
+  /// Keeps only the first step of every grid in [grids]: what a drummer
+  /// plays on beat 1 of the crash bar (the cymbal and the bass drum, or the
+  /// style's own low drum and gong), and nothing after it.
+  @visibleForTesting
+  static Map<String, String> firstStepOf(Map<String, String> grids) => {
+        for (final e in grids.entries)
+          if (e.value.isNotEmpty && e.value[0] != '.')
+            e.key: e.value[0] + '.' * (e.value.length - 1),
+      };
 
   /// Schedules evenly-spaced hits for a count-in section.
   ///

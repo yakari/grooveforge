@@ -75,6 +75,7 @@ sections:
     bars: 1
     variations:
       - name: full_bateria
+        role: verse
         weight: 3
         # The full ensemble in motion: all layers present.
         # Surdo interlock: open on beat 1, muted on beat 3 (pos 8).
@@ -96,6 +97,7 @@ sections:
         tamborim:   "XX.X.X..XX.X.X.."
         agogo:      "..X...X...X...X."
       - name: repique_call
+        role: chorus
         weight: 2
         # Repique breaks free: it plays an "answer" phrase (syncopated fills)
         # while the surdo and caixa hold the foundation steady.
@@ -105,6 +107,7 @@ sections:
         repique:    "X.X.....X.X..X.X"
         agogo:      "..X...X...X...X."
       - name: agogo_drive
+        role: bridge
         weight: 1
         # Agogô drives the foreground: strong on beat 1 and beat 3 (pos 0,8),
         # medium on upbeats — simulates a larger cowbell ensemble.
@@ -115,6 +118,7 @@ sections:
         tamborim:   "X..X.X..X..X.X.."
         agogo:      "X.X.X.X.X.X.X.X."
       - name: sparse_base
+        role: intro
         weight: 1
         # "Entrada" (entry): surdo and caixa alone — other instruments haven't
         # entered yet. Represents the moment the bateria first starts playing.
@@ -155,6 +159,22 @@ sections:
         surdo_mute: "........X......."
         caixa:      "gxgxgxgXgxgxgxgX"
         agogo:      "..X...X...X...X."
+
+  ending:
+    # Played once at the end of the song; the drums stop after bar 2.
+    type: sequence
+    bars: 2
+    bar_grids:
+      - # Bar 1: Bateria unison convention: 3-3-4-2-2 hits, surdos answering
+        surdo_open: "X.....X.....X..."
+        surdo_mute: "...X......X...X."
+        caixa:      "X..X..X...X.X.X."
+        tamborim:   "X..X..X...X.X.X."
+        repique:    "X..X..X...X.X.X."
+      - # Bar 2: final hit on beat 1, then silence
+        crash:      "X..............."
+        surdo_open: "X..............."
+        caixa:      "X..............."
 
 structure:
   fill_every: 4

@@ -64,6 +64,7 @@ sections:
     bars: 1
     variations:
       - name: rosanna
+        role: verse
         weight: 4
         # Jeff Porcaro's Rosanna groove (transcribed):
         # HH: quarter beats (0,4,8,12, X) + swing "trip" at odd steps (3,7,11,15, x)
@@ -75,12 +76,14 @@ sections:
         snare: "...g.g..X..g.g.g"
         kick:  "X...x.X.....x.X."
       - name: purdie
+        role: bridge
         weight: 2
         # Bernard Purdie's slightly simpler shuffle — fewer ghost notes
         hihat: "X..xX..xX..xX..x"
         snare: "......g.X....g.g"
         kick:  "X.......X......x"
       - name: open_hat
+        role: chorus
         weight: 1
         # Open hi-hat on the "trip" of beat 3 for a looser, more open sound
         hihat: "X..xX..xX..xX..x"
@@ -107,6 +110,21 @@ sections:
         crash: "X..............."
         kick:  "X..............."
         hihat: "X..xX..xX..xX..x"
+
+  ending:
+    # Played once at the end of the song; the drums stop after bar 2.
+    type: sequence
+    bars: 2
+    bar_grids:
+      - # Bar 1: Half bar of shuffle, then unison band hits and drag
+        hihat: "X..xX..x........"
+        snare: "...g.g..X..X.ggX"
+        kick:  "X.....X.X..X...."
+        crash: "........X......."
+      - # Bar 2: final hit on beat 1, then silence
+        crash: "X..............."
+        kick:  "X..............."
+        hihat: "X..............."
 
 structure:
   fill_every: 16

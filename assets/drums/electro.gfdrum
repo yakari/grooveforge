@@ -63,6 +63,7 @@ sections:
     bars: 1
     variations:
       - name: planet_rock
+        role: verse
         weight: 3
         # The Planet Rock kick: pos 0 (beat 1), pos 3 ("a" of 1), pos 6
         # ("and" of 2) and pos 10 ("and" of 3). Three of those four land off
@@ -75,6 +76,7 @@ sections:
         cowbell:    "..x.......x....."
 
       - name: miami_bass
+        role: chorus
         weight: 2
         # Miami bass (2 Live Crew, Dynamix II): the kick gets busier and hits
         # both sides of the backbeat, clap layered over the snare for width,
@@ -86,6 +88,7 @@ sections:
         hihat_open: "......x.......x."
 
       - name: freestyle
+        role: bridge
         weight: 2
         # Freestyle (Shannon, Debbie Deb): the kick spreads wider across the bar
         # and the side stick plus cabasa take the offbeats, leaving the middle
@@ -145,6 +148,21 @@ sections:
         kick:       "X..X..X...X....."
         snare:      "....X.......X..."
         hihat:      "x.x.x.x.x.x.x.x."
+
+  ending:
+    # Played once at the end of the song; the drums stop after bar 2.
+    type: sequence
+    bars: 2
+    bar_grids:
+      - # Bar 1: 808 kick stutter with a clap roll on beat 4
+        kick:    "X..X..X.X.X.X.X."
+        clap:    "....X.......XXXX"
+        hihat:   "x.x.x.x.x.x....."
+        cowbell: "..x.......x....."
+      - # Bar 2: final hit on beat 1, then silence
+        crash: "X..............."
+        kick:  "X..............."
+        hihat: "X..............."
 
 structure:
   fill_every: 8

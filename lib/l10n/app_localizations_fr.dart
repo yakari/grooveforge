@@ -505,7 +505,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get guideDrumGeneratorBody =>
-      'Joue un pattern de batterie au tempo du transport, de la bossa nova au metal. Swing retarde les contretemps. Feeling humain va d\'une grille stricte à un batteur qui respire. Le décompte joue quelques coups avant le pattern, et Fill toutes les ajoute un break toutes les quelques mesures.\nLes patterns sont des fichiers .gfdrum : vous pouvez ajouter les vôtres.';
+      'Joue un pattern de batterie au tempo du transport, de la bossa nova au metal. Swing retarde les contretemps. Feeling humain va d\'une grille stricte à un batteur qui respire. Le décompte joue quelques coups avant le pattern, et Fill tous les ajoute un fill toutes les quelques mesures.\nGrille du morceau découpe un morceau entier en blocs (intro, couplet, refrain, pont, break, fin). Touchez + pour en ajouter un, touchez un bloc pour le modifier, gardez le doigt appuyé pour le déplacer. Sans bloc Fin, la grille tourne en boucle ; avec, la batterie termine le morceau et arrête le transport.\nLes patterns sont des fichiers .gfdrum : vous pouvez ajouter les vôtres.';
 
   @override
   String get guideLoopersTitle => 'Loopers';
@@ -2523,6 +2523,172 @@ class AppLocalizationsFr extends AppLocalizations {
   String get drumGeneratorDynamicBuild => 'Montée dynamique';
 
   @override
+  String get drumFormTitle => 'Grille du morceau';
+
+  @override
+  String get drumFormOffHint =>
+      'Sans grille, le batteur joue en phrases et termine chacune par un fill.';
+
+  @override
+  String get drumFormTemplates => 'Modèles';
+
+  @override
+  String get drumFormTemplatesHint => 'Remplace la grille actuelle';
+
+  @override
+  String get drumFormTemplatePop => 'Pop : couplet, refrain, pont, fin';
+
+  @override
+  String get drumFormTemplateRock => 'Rock : intro, couplet, refrain, fin';
+
+  @override
+  String get drumFormTemplateBlues => 'Blues : trois grilles de 12, fin';
+
+  @override
+  String get drumFormTemplateJam => 'Jam : un couplet qui tourne en boucle';
+
+  @override
+  String get drumFormKindIntro => 'Intro';
+
+  @override
+  String get drumFormKindVerse => 'Couplet';
+
+  @override
+  String get drumFormKindChorus => 'Refrain';
+
+  @override
+  String get drumFormKindBridge => 'Pont';
+
+  @override
+  String get drumFormKindBreak => 'Break';
+
+  @override
+  String get drumFormKindEnding => 'Fin';
+
+  @override
+  String get drumFormAddBlock => 'Ajouter un bloc';
+
+  @override
+  String get drumFormTagFill => 'FILL';
+
+  @override
+  String get drumFormTagStop => 'STOP';
+
+  @override
+  String get drumFormEventFill => 'FILL';
+
+  @override
+  String get drumFormEventCrash => 'CRASH';
+
+  @override
+  String get drumFormEventBreak => 'BREAK';
+
+  @override
+  String get drumFormEventEnd => 'FIN';
+
+  @override
+  String drumFormBlockTitle(int index, String kind) {
+    return 'Bloc $index : $kind';
+  }
+
+  @override
+  String get drumFormType => 'Type';
+
+  @override
+  String get drumFormBars => 'Mesures';
+
+  @override
+  String get drumFormFillAtEnd => 'Fill à la fin';
+
+  @override
+  String get drumFormVariation => 'Groove';
+
+  @override
+  String drumFormVariationAuto(String name) {
+    return 'Auto ($name)';
+  }
+
+  @override
+  String get drumFormStopTransport => 'Arrêter le transport';
+
+  @override
+  String get drumFormStopTransportHint =>
+      'Arrête aussi le looper et les autres modules.';
+
+  @override
+  String get drumFormHintIntro =>
+      'Joue le groove le plus léger du style, sans crash au départ. Le décompte, s\'il y en a un, passe avant.';
+
+  @override
+  String get drumFormHintBreak =>
+      'Le groupe s\'arrête : le break du style, ou un coup sur le 1 puis le silence. Avec un fill à la fin, la dernière mesure sert de levée.';
+
+  @override
+  String get drumFormHintEnding =>
+      'Joue la fin du style, puis la batterie s\'arrête. Toujours le dernier bloc.';
+
+  @override
+  String get drumFormMoveEarlier => 'Avant';
+
+  @override
+  String get drumFormMoveLater => 'Après';
+
+  @override
+  String get drumFormDuplicate => 'Dupliquer';
+
+  @override
+  String get drumFormDelete => 'Supprimer';
+
+  @override
+  String get drumFormClose => 'Fermer';
+
+  @override
+  String get drumFormDragHint =>
+      'Un appui long sur un bloc permet de le déplacer.';
+
+  @override
+  String get drumFormLoops => 'Sans bloc Fin, la grille tourne en boucle.';
+
+  @override
+  String get drumFormStops => 'La grille s\'arrête après le bloc Fin.';
+
+  @override
+  String get drumFormEmpty => 'Ajoutez un premier bloc avec +.';
+
+  @override
+  String drumFormBarCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count mes.',
+      one: '1 mes.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String drumFormSummary(int blocks, int bars, String duration, int bpm) {
+    String _temp0 = intl.Intl.pluralLogic(
+      blocks,
+      locale: localeName,
+      other: '$blocks blocs',
+      one: '1 bloc',
+    );
+    String _temp1 = intl.Intl.pluralLogic(
+      bars,
+      locale: localeName,
+      other: '$bars mesures',
+      one: '1 mesure',
+    );
+    return '$_temp0 · $_temp1 · $duration à $bpm BPM';
+  }
+
+  @override
+  String drumFormPlaying(int index, int count, String kind, int bar, int bars) {
+    return 'Bloc $index/$count · $kind · mesure $bar/$bars';
+  }
+
+  @override
   String get drumGeneratorDefaultSoundfont => 'Police de son par défaut';
 
   @override
@@ -2530,7 +2696,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get drumGeneratorFormatGuideContent =>
-      'Un fichier .gfdrum est un fichier texte YAML qui décrit un motif de batterie.\n\nNotation de la grille :\nX = coup fort (~100)\nx = coup moyen (~75)\no = coup doux (~55)\ng = note fantôme (~28)\n. = silence\n\nChamps de vélocité : base_velocity, velocity_range\nChamps de timing : timing_jitter, rush (en temps ; négatif = en avance sur le temps)\nSections : groove, fill, break, crash, intro\nTypes de section : loop (une variation par phrase), sequence (mesures dans l\'ordre)\n\nLe format complet est décrit sur le site, rubrique .gfdrum.';
+      'Un fichier .gfdrum est un fichier texte YAML qui décrit un motif de batterie.\n\nNotation de la grille :\nX = coup fort (~100)\nx = coup moyen (~75)\no = coup doux (~55)\ng = note fantôme (~28)\n. = silence\n\nChamps de vélocité : base_velocity, velocity_range\nChamps de timing : timing_jitter, rush (en temps ; négatif = en avance sur le temps)\nSections : groove, fill, break, crash, intro, ending\nTypes de section : loop (une variation par phrase), sequence (mesures dans l\'ordre)\nLes variations du groove peuvent avoir un role (intro, verse, chorus, bridge) pour la grille du morceau.\n\nLe format complet est décrit sur le site, rubrique .gfdrum.';
 
   @override
   String get drumGeneratorNoPatternsFound => 'Aucun pattern chargé';

@@ -61,6 +61,7 @@ sections:
     bars: 1
     variations:
       - name: bonham
+        role: verse
         weight: 4
         # Kick on beat 1 (pos 0), "and of 2" (pos 6), beat 3 (pos 8), "and of 4" (pos 14)
         # The signature Bonham driving groove from "When the Levee Breaks"
@@ -68,12 +69,14 @@ sections:
         snare: "....X.......X..."
         hihat: "X.x.X.x.X.x.X.x."
       - name: acdcdc
+        role: bridge
         weight: 2
         # Phil Rudd / AC/DC: kick on beats 1 and 3 only — locked-in and relentless
         kick:  "X.......X......."
         snare: "....X.......X..."
         hihat: "X.x.X.x.X.x.X.x."
       - name: bonham_push
+        role: chorus
         weight: 1
         # Bonham variation: extra kick "a of 4" (pos 15) pushing hard into the next bar
         kick:  "X.....X.X......X"
@@ -97,10 +100,15 @@ sections:
         kick:    "X..............."
 
   break:
+    # Stop-time break: hit on 1, silence, then a pickup into the next section.
+    type: sequence
     bars: 2
-    variations:
-      - name: drop
-        kick: "X..............."
+    bar_grids:
+      - # Bar 1: hit on beat 1 only, the band drops out
+        crash: "X..............."
+        kick:  "X..............."
+      - # Bar 2: Snare 8ths on 3, 16ths crescendo on 4 into the next downbeat
+        snare: "........o.o.xxXX"
 
   crash:
     bars: 1
@@ -109,6 +117,23 @@ sections:
         crash: "X..............."
         kick:  "X..............."
         hihat: "X.x.X.x.X.x.X.x."
+
+  ending:
+    # Played once at the end of the song; the drums stop after bar 2.
+    type: sequence
+    bars: 2
+    bar_grids:
+      - # Bar 1: Unison crash stabs on 1, 1a, 2+, then descending tom run
+        kick:    "X..X..X........."
+        snare:   "X..X..X........."
+        crash:   "X..X..X........."
+        tom_hi:  "........XX......"
+        tom_mid: "..........XX...."
+        tom_lo:  "............XXXX"
+      - # Bar 2: final hit on beat 1, then silence
+        crash: "X..............."
+        kick:  "X..............."
+        hihat: "X..............."
 
 structure:
   fill_every: 8

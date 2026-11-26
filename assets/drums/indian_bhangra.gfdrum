@@ -65,6 +65,7 @@ sections:
     bars: 1
     variations:
       - name: chaal
+        role: verse
         weight: 4
         # The chaal. Dagga on beat 1, the "and of 2" (pos 6), beat 3 (pos 8) and
         # the "and of 4" (pos 14) — a 3+3+2 bass shape stated twice per bar.
@@ -75,6 +76,7 @@ sections:
         chimta: "x.x.x.x.x.x.x.x."
 
       - name: dhamaal
+        role: chorus
         weight: 2
         # Dhamaal — the heavier, slower processional feel. Bass on a straight
         # 3+3+3+3+4 spread and the treble at full 16ths underneath, with the
@@ -84,6 +86,7 @@ sections:
         clap:   "....X.......X..."
 
       - name: giddha
+        role: intro
         weight: 2
         # Giddha — the women's dance of the same tradition: clap-led, the dhol
         # reduced to bass on 1 and 3 while the treble marks only the offbeats.
@@ -93,6 +96,7 @@ sections:
         chimta: "x.x.x.x.x.x.x.x."
 
       - name: kit_bhangra
+        role: bridge
         weight: 2
         # The British bhangra arrangement: a kit playing the dagga's 3+3+2 on the
         # kick with a backbeat snare, and the dhol's treble stick kept on top.
@@ -130,6 +134,21 @@ sections:
         dagga:  "X.....X.X.....X."
         thilli: "X.xxX.xxX.xxX.xx"
         chimta: "x.x.x.x.x.x.x.x."
+
+  ending:
+    # Played once at the end of the song; the drums stop after bar 2.
+    type: sequence
+    bars: 2
+    bar_grids:
+      - # Bar 1: Dhol tihai: three dha-dha-dha phrases landing on sam
+        dagga:  "X...XxX.XxX.XxX."
+        thilli: "x.x.x.x.x.x.x.x."
+        chimta: "x.x.x.x.x.x.x.x."
+      - # Bar 2: final hit on beat 1, then silence
+        crash:  "X..............."
+        dagga:  "X..............."
+        thilli: "X..............."
+        chimta: "X..............."
 
 structure:
   fill_every: 8

@@ -73,6 +73,7 @@ sections:
     bars: 1
     variations:
       - name: classic_cha_cha
+        role: verse
         weight: 3
         # Pure Havana cha-cha-chá (Orquesta Aragón / Enrique Jorrín style).
         # Cowbell marks every quarter note — the anchor that dancers use to find
@@ -92,6 +93,7 @@ sections:
         kick:       "X.......X......."
 
       - name: modern_cha_cha
+        role: bridge
         weight: 2
         # Drum-kit adaptation of cha-cha (Latin jazz club / hotel ballroom style).
         # When a standard drum kit replaces the full Latin percussion section, the
@@ -106,6 +108,7 @@ sections:
         snare:      "....X.......X..."
 
       - name: mambo_cha
+        role: chorus
         weight: 2
         # High-energy cha-cha approaching mambo territory — faster, more driving.
         # The timbale plays a denser cascara, the cowbell doubles on strategic
@@ -150,6 +153,24 @@ sections:
         crash:      "X..............."
         cowbell:    "X...X...X...X..."
         timbale_hi: "x.X.x.X.x.X.x.X."
+
+  ending:
+    # Played once at the end of the song; the drums stop after bar 2.
+    type: sequence
+    bars: 2
+    bar_grids:
+      - # Bar 1: Groove into the cha-cha-cha cierre on 4, 4+, 1
+        cowbell:    "X...X...X...X.X."
+        timbale_hi: "x.X.x.X.x...X.X."
+        timbale_lo: "............X.X."
+        conga_lo:   "X.......X......."
+        conga_open: "......X.....X.X."
+        clave:      "X.....X...X....."
+        kick:       "X.......X...X.X."
+      - # Bar 2: final hit on beat 1, then silence
+        crash:      "X..............."
+        cowbell:    "X..............."
+        timbale_hi: "X..............."
 
 structure:
   fill_every: 4

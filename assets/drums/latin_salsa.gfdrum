@@ -74,6 +74,7 @@ sections:
     bars: 1
     variations:
       - name: son_montuno
+        role: verse
         weight: 3
         # Classic son-montuno salsa groove (Tito Puente / Willie Colón style).
         # Clave: 3-side approximation — hits at pos 0 (beat 1), pos 6 (and-of-2),
@@ -94,6 +95,7 @@ sections:
         kick:       "X.......X......."
 
       - name: guaguanco
+        role: bridge
         weight: 2
         # Afro-Cuban guaguancó (Celia Cruz, Los Papines style): slower, more African,
         # less timbale, more conga improvisation. The clave is the same but the
@@ -109,6 +111,7 @@ sections:
         kick:       "X..............."
 
       - name: mambo
+        role: chorus
         weight: 2
         # Driving salsa dura / mambo (Machito, Mario Bauzá, Tito Puente style):
         # all instruments at full force. Timbale plays the full cascara rim pattern
@@ -160,6 +163,25 @@ sections:
         timbale_hi: "x.X.x.x.X.x.x.X."
         cowbell:    "X...X.X.X...X.X."
         conga_lo:   "X.......X......."
+
+  ending:
+    # Played once at the end of the song; the drums stop after bar 2.
+    type: sequence
+    bars: 2
+    bar_grids:
+      - # Bar 1: Unison 3-side clave stabs, timbale roll into the cierre
+        clave:      "X..X..X........."
+        cowbell:    "X..X..X........."
+        timbale_hi: "X..X..X...xxXxX."
+        timbale_lo: "X..X..X.....X.X."
+        conga_open: "X..X..X........."
+        conga_lo:   "..............X."
+        kick:       "X..X..X.......X."
+      - # Bar 2: final hit on beat 1, then silence
+        crash:      "X..............."
+        timbale_hi: "X..............."
+        cowbell:    "X..............."
+        conga_lo:   "X..............."
 
 structure:
   fill_every: 4

@@ -74,6 +74,7 @@ sections:
     bars: 1
     variations:
       - name: maqsum
+        role: verse
         weight: 4
         # Maqsum — the most common rhythm in Arabic music, the one under most
         # of the Umm Kulthum and Abdel Halim repertoire.
@@ -96,6 +97,7 @@ sections:
         riq:   "x.x.x.x.x.x.x.x."
 
       - name: saidi
+        role: chorus
         weight: 3
         # Saidi — Upper Egypt, the tahtib stick-dance rhythm. Two doums in the
         # middle of the bar rather than at its edges, which is what makes it
@@ -108,6 +110,7 @@ sections:
         sagat: "x...x...x...x..."
 
       - name: ayyub
+        role: intro
         weight: 2
         # Ayyub — a fast 2/4 zar and Nubian rhythm, written here as two cycles
         # per bar. Doum on the beat and on the "a" after it, tek on the backbeat.
@@ -118,6 +121,7 @@ sections:
         riq:   "x.x.x.x.x.x.x.x."
 
       - name: malfuf
+        role: bridge
         weight: 2
         # Malfuf — the 3+3+2 processional rhythm (zaffa, wedding entrances),
         # also two cycles per bar: doum, then tek at the "a" of the beat and on
@@ -158,6 +162,21 @@ sections:
         doum:  "X.......X......."
         tek:   "....X.X.....X..."
         riq:   "x.x.x.x.x.x.x.x."
+
+  ending:
+    # Played once at the end of the song; the drums stop after bar 2.
+    type: sequence
+    bars: 2
+    bar_grids:
+      - # Bar 1: Maqsum half bar, then tek and riq roll crescendo into the last doum
+        doum:  "X.......X......."
+        tek:   "....X.X.oxoxxXxX"
+        riq:   "x.x.x.x.xxxxxxxx"
+        sagat: "............X.X."
+      - # Bar 2: final hit on beat 1, then silence
+        crash: "X..............."
+        doum:  "X..............."
+        riq:   "X..............."
 
 structure:
   fill_every: 8

@@ -504,7 +504,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get guideDrumGeneratorBody =>
-      'Plays a drum pattern at the transport tempo, from bossa nova to metal. Swing pushes the off-beats late. Human feel goes from a strict grid to a drummer who breathes. Count-in plays a few hits before the pattern starts, and Fill every adds a fill every few bars.\nPatterns are .gfdrum files, so you can add your own.';
+      'Plays a drum pattern at the transport tempo, from bossa nova to metal. Swing pushes the off-beats late. Human feel goes from a strict grid to a drummer who breathes. Count-in plays a few hits before the pattern starts, and Fill every adds a fill every few bars.\nSong form lays out a whole song as blocks (intro, verse, chorus, bridge, break, ending). Tap + to add one, tap a block to edit it, long-press to move it. Without an ending block the form loops; with one, the drums end the song and stop the transport.\nPatterns are .gfdrum files, so you can add your own.';
 
   @override
   String get guideLoopersTitle => 'Loopers';
@@ -2508,6 +2508,171 @@ class AppLocalizationsEn extends AppLocalizations {
   String get drumGeneratorDynamicBuild => 'Dynamic build';
 
   @override
+  String get drumFormTitle => 'Song form';
+
+  @override
+  String get drumFormOffHint =>
+      'Without a song form, the drummer plays in phrases and ends each one with a fill.';
+
+  @override
+  String get drumFormTemplates => 'Templates';
+
+  @override
+  String get drumFormTemplatesHint => 'Replaces the current form';
+
+  @override
+  String get drumFormTemplatePop => 'Pop: verse, chorus, bridge, ending';
+
+  @override
+  String get drumFormTemplateRock => 'Rock: intro, verse, chorus, ending';
+
+  @override
+  String get drumFormTemplateBlues => 'Blues: three 12-bar choruses, ending';
+
+  @override
+  String get drumFormTemplateJam => 'Jam: one verse that loops';
+
+  @override
+  String get drumFormKindIntro => 'Intro';
+
+  @override
+  String get drumFormKindVerse => 'Verse';
+
+  @override
+  String get drumFormKindChorus => 'Chorus';
+
+  @override
+  String get drumFormKindBridge => 'Bridge';
+
+  @override
+  String get drumFormKindBreak => 'Break';
+
+  @override
+  String get drumFormKindEnding => 'Ending';
+
+  @override
+  String get drumFormAddBlock => 'Add a block';
+
+  @override
+  String get drumFormTagFill => 'FILL';
+
+  @override
+  String get drumFormTagStop => 'STOP';
+
+  @override
+  String get drumFormEventFill => 'FILL';
+
+  @override
+  String get drumFormEventCrash => 'CRASH';
+
+  @override
+  String get drumFormEventBreak => 'BREAK';
+
+  @override
+  String get drumFormEventEnd => 'END';
+
+  @override
+  String drumFormBlockTitle(int index, String kind) {
+    return 'Block $index: $kind';
+  }
+
+  @override
+  String get drumFormType => 'Type';
+
+  @override
+  String get drumFormBars => 'Bars';
+
+  @override
+  String get drumFormFillAtEnd => 'Fill at the end';
+
+  @override
+  String get drumFormVariation => 'Groove';
+
+  @override
+  String drumFormVariationAuto(String name) {
+    return 'Auto ($name)';
+  }
+
+  @override
+  String get drumFormStopTransport => 'Stop the transport';
+
+  @override
+  String get drumFormStopTransportHint =>
+      'Also stops the looper and the other modules.';
+
+  @override
+  String get drumFormHintIntro =>
+      'Plays the lightest groove of the style, with no crash at its start. The count-in, if any, comes before it.';
+
+  @override
+  String get drumFormHintBreak =>
+      'The band drops out: the style\'s break, or one hit on beat 1 then silence. With a fill at the end, its last bar is the drummer\'s pickup.';
+
+  @override
+  String get drumFormHintEnding =>
+      'Plays the style\'s ending, then the drums stop. Always the last block.';
+
+  @override
+  String get drumFormMoveEarlier => 'Earlier';
+
+  @override
+  String get drumFormMoveLater => 'Later';
+
+  @override
+  String get drumFormDuplicate => 'Duplicate';
+
+  @override
+  String get drumFormDelete => 'Delete';
+
+  @override
+  String get drumFormClose => 'Close';
+
+  @override
+  String get drumFormDragHint => 'Long-press a block to drag it.';
+
+  @override
+  String get drumFormLoops => 'No ending block: the form loops.';
+
+  @override
+  String get drumFormStops => 'The form stops after its ending.';
+
+  @override
+  String get drumFormEmpty => 'Add a first block with +.';
+
+  @override
+  String drumFormBarCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count bars',
+      one: '1 bar',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String drumFormSummary(int blocks, int bars, String duration, int bpm) {
+    String _temp0 = intl.Intl.pluralLogic(
+      blocks,
+      locale: localeName,
+      other: '$blocks blocks',
+      one: '1 block',
+    );
+    String _temp1 = intl.Intl.pluralLogic(
+      bars,
+      locale: localeName,
+      other: '$bars bars',
+      one: '1 bar',
+    );
+    return '$_temp0 · $_temp1 · $duration at $bpm BPM';
+  }
+
+  @override
+  String drumFormPlaying(int index, int count, String kind, int bar, int bars) {
+    return 'Block $index/$count · $kind · bar $bar/$bars';
+  }
+
+  @override
   String get drumGeneratorDefaultSoundfont => 'Default soundfont';
 
   @override
@@ -2515,7 +2680,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get drumGeneratorFormatGuideContent =>
-      'A .gfdrum file is a YAML text file describing a drum pattern.\n\nStep grid notation:\nX = strong hit (~100)\nx = medium hit (~75)\no = soft hit (~55)\ng = ghost note (~28)\n. = rest\n\nVelocity fields: base_velocity, velocity_range\nTiming fields: timing_jitter, rush (in beats; negative plays ahead of the beat)\nSections: groove, fill, break, crash, intro\nSection types: loop (one variation per phrase), sequence (bars in order)\n\nThe full format is described on the website, under .gfdrum.';
+      'A .gfdrum file is a YAML text file describing a drum pattern.\n\nStep grid notation:\nX = strong hit (~100)\nx = medium hit (~75)\no = soft hit (~55)\ng = ghost note (~28)\n. = rest\n\nVelocity fields: base_velocity, velocity_range\nTiming fields: timing_jitter, rush (in beats; negative plays ahead of the beat)\nSections: groove, fill, break, crash, intro, ending\nSection types: loop (one variation per phrase), sequence (bars in order)\nGroove variations can have a role (intro, verse, chorus, bridge) for the song form.\n\nThe full format is described on the website, under .gfdrum.';
 
   @override
   String get drumGeneratorNoPatternsFound => 'No patterns loaded';

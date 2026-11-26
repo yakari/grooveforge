@@ -73,6 +73,7 @@ sections:
     bars: 1
     variations:
       - name: country_ballad
+        role: intro
         weight: 2
         # Slow Nashville ballad (Patsy Cline / Tammy Wynette style, 58–85 BPM).
         # KICK: beats 1 and 3, very soft — "feathered" as Nashville studio veterans
@@ -90,6 +91,7 @@ sections:
         hihat_open: "..x...x...x...x."
 
       - name: train_beat
+        role: verse
         weight: 3
         # The iconic country "train beat" (Johnny Cash's "Folsom Prison Blues",
         # Merle Haggard's "Mama Tried"). The locked kick-and-hi-hat 8th-note pulse
@@ -103,6 +105,7 @@ sections:
         hihat:     "x.x.x.x.x.x.x.x."
 
       - name: honky_tonk_rock
+        role: chorus
         weight: 2
         # Bakersfield Sound / honky-tonk rock (Buck Owens, Dwight Yoakam, early Eagles).
         # The Bakersfield Sound was country's answer to rock and roll — harder, more
@@ -116,6 +119,7 @@ sections:
         hihat_open: "..x...x...x...x."
 
       - name: speedy_wagon
+        role: bridge
         weight: 1
         # Fast, aggressive bluegrass/country rock (e.g., Dixie Chicks "Sin Wagon").
         # Kick drives a steady 4-on-the-floor while snare hits hard on 2 and 4.
@@ -154,6 +158,20 @@ sections:
         kick:  "X...X...X...X..."
         snare: "....X.......X..."
         hihat: "x.x.x.x.x.x.x.x."
+
+  ending:
+    # Played once at the end of the song; the drums stop after bar 2.
+    type: sequence
+    bars: 2
+    bar_grids:
+      - # Bar 1: "Shave and a haircut" tag in kick/snare unison
+        kick:  "X...X.X.X...X..."
+        snare: "X...X.X.X...X..."
+        hihat: "x.x.x.x.x.x.x.x."
+      - # Bar 2: final hit on beat 1, then silence
+        crash: "X..............."
+        kick:  "X..............."
+        hihat: "X..............."
 
 structure:
   fill_every: 4

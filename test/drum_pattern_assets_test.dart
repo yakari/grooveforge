@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:grooveforge/models/drum_pattern_data.dart';
 import 'package:grooveforge/services/drum_pattern_parser.dart';
 
 /// Guards the bundled `.gfdrum` library against the two mistakes the parser
@@ -68,6 +69,42 @@ void main() {
           reason: '${pattern.id}: grid "$key" has no instruments: entry, so '
               'the parser silently discards it',
         );
+      }
+    }
+  });
+
+  test('every style has an ending and tags its verse and chorus grooves', () {
+    // A song form plays the `ending` block from this section, and picks each
+    // block's groove from these tags. A missing ending falls back to a plain
+    // fill and hit, so it would not fail at runtime: only this test sees it.
+    for (final file in files) {
+      final pattern =
+          DrumPatternParser.parse(file.readAsStringSync(), id: _stemOf(file))!;
+      expect(pattern.sections.containsKey('ending'), isTrue,
+          reason: '${pattern.id} has no ending section');
+      final groove = pattern.sections['groove']!;
+      if (groove.kind != DrumSectionKind.loop) continue;
+      final roles = [
+        for (final v in groove.variations)
+          if (v.role != null) v.role!,
+      ];
+      expect(roles, containsAll(['verse', 'chorus']), reason: pattern.id);
+      expect(roles.toSet().length, roles.length,
+          reason: '${pattern.id} gives the same role to two grooves');
+    }
+  });
+
+  test('the rock and funk breaks drop out, then pick up', () {
+    for (final id in ['rock_basic', 'funk_tight']) {
+      final pattern = DrumPatternParser.parse(
+          File('assets/drums/$id.gfdrum').readAsStringSync(), id: id)!;
+      final brk = pattern.sections['break']!;
+      expect(brk.kind, DrumSectionKind.sequence, reason: id);
+      final bars = brk.variations.single.barSequence!;
+      expect(bars, hasLength(2), reason: id);
+      // Bar 1: only beat 1 sounds.
+      for (final grid in bars.first.values) {
+        expect(grid.substring(1).replaceAll('.', ''), isEmpty, reason: id);
       }
     }
   });

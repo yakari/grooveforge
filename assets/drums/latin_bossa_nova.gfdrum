@@ -119,6 +119,21 @@ sections:
         kick:    "X..............."
         hihat:   "x.x.x.x.x.x.x.x."
 
+  ending:
+    # Played once at the end of the song; the drums stop after bar 2.
+    type: sequence
+    bars: 2
+    bar_grids:
+      - # Bar 1: Clave phrase with soft kick/rimshot anticipation of 4
+        rimshot:    "X..X..X...X..X.."
+        kick:       "X......X.....X.."
+        hihat:      "x.x.x.x.x.x.x..."
+        hihat_foot: "....x.......x..."
+      - # Bar 2: final hit on beat 1, then silence
+        crash: "X..............."
+        kick:  "X..............."
+        hihat: "X..............."
+
 structure:
   fill_every: 4
   break_every: 0

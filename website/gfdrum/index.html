@@ -172,8 +172,9 @@ count     1 e + a 2 e + a 3 e + a  4  e  +  a</code></pre>
     <h2 id="sections">Sections</h2>
     <p>The generator plays in phrases, as a drummer does. A phrase lasts as long as <span class="ui">Fill every</span> says
       (8 bars when fills are off). The groove keeps the same variation for the whole phrase, a fill ends it, and the next phrase
-      starts with a crash, or sometimes with a break.</p>
-    <p>The generator plays sections with these five names. A section with any other name is never played.</p>
+      starts with a crash, or sometimes with a break. With a song form switched on in the module, it follows the form's blocks
+      instead: see <a href="#song-form">Song forms</a>.</p>
+    <p>The generator plays sections with these six names. A section with any other name is never played.</p>
     <table>
       <thead><tr><th>Section</th><th>When it plays</th></tr></thead>
       <tbody>
@@ -186,7 +187,9 @@ count     1 e + a 2 e + a 3 e + a  4  e  +  a</code></pre>
           With <code>bars: 2</code>, the fill takes the last two bars.</td></tr>
         <tr><td><code>crash</code></td><td>On top of the first bar after the count-in, a fill or a break, when <span class="ui">Crash after fill</span> is on.</td></tr>
         <tr><td><code>break</code></td><td>The first bars of a phrase, never the first phrase, as often as <span class="ui">Breaks</span> says.
-          Its <code>bars</code> sets how many bars it lasts (one by default).</td></tr>
+          Its <code>bars</code> sets how many bars it lasts (one by default). In a song form, it plays in the <span class="ui">Break</span> blocks instead.</td></tr>
+        <tr><td><code>ending</code></td><td>Once, in the <span class="ui">Ending</span> block of a song form. The drums stop after it.
+          Write it as a <code>sequence</code>: a last bar typical of the style, then a bar with only the final hit on beat 1.</td></tr>
       </tbody>
     </table>
 
@@ -196,7 +199,7 @@ count     1 e + a 2 e + a 3 e + a  4  e  +  a</code></pre>
       <tbody>
         <tr><td><code>loop</code> (default)</td><td>A list under <code>variations:</code>. Each phrase picks one at random and keeps it to the end; a variation with <code>weight: 3</code> comes up three times
           as often as one with <code>weight: 1</code> (the default). Inside a variation, <code>name</code> is optional and every other key is a lane
-          with its grid. For a single variation, skip the list and put the grids straight under the section.</td></tr>
+          with its grid, except <code>role</code> (see <a href="#song-form">Song forms</a>). For a single variation, skip the list and put the grids straight under the section.</td></tr>
         <tr><td><code>sequence</code></td><td>A list under <code>bar_grids:</code>, one entry per bar, played in order and repeated. Use it for phrases longer than a bar,
           like a two-bar clave. The sequence starts again on its first bar at the start of each phrase, and after a break.</td></tr>
         <tr><td><code>count_in</code></td><td>No grid: <code>hits</code> (default 4) clicks spread evenly over the bar, on drum note <code>note</code> (default 37, side stick).</td></tr>
@@ -209,6 +212,31 @@ count     1 e + a 2 e + a 3 e + a  4  e  +  a</code></pre>
         kick:    "X......X...X...."
       - rimshot: "...X.....X......"
         kick:    "X......X........"</code></pre>
+
+    <h3 id="song-form">Song forms</h3>
+    <p>In the module, <span class="ui">Song form</span> lays out a song as blocks: intro, verse, chorus, bridge, break and ending.
+      Each block holds one groove variation from start to end. To choose which one, give the groove's variations a <code>role</code>:
+      <code>intro</code>, <code>verse</code>, <code>chorus</code> or <code>bridge</code>. Each role goes to one variation at most.</p>
+    <pre><code>  groove:
+    variations:
+      - name: main
+        role: verse
+        kick:  "X.......X......."
+      - name: driving
+        role: chorus
+        kick:  "X.X.....X.X....."</code></pre>
+    <p>Without roles, the verse plays the variation with the highest <code>weight</code>, the chorus the one with the most hits,
+      the intro the one with the fewest, and the bridge another one. A <code>sequence</code> groove plays its bars in order in every block.</p>
+    <p>A <span class="ui">Break</span> block plays the <code>break</code> section. Without one, it plays beat 1 of the <code>crash</code> section
+      and then stays silent. A two-bar <code>sequence</code> break can drop out on its first bar and play a pickup on the second:</p>
+    <pre><code>  break:
+    type: sequence
+    bars: 2
+    bar_grids:
+      - crash: "X..............."
+        kick:  "X..............."
+      - snare: "........o.o.xxXX"</code></pre>
+    <p>An <span class="ui">Ending</span> block plays the <code>ending</code> section. Without one, it plays a fill and then the hit on beat 1.</p>
 
     <h2 id="downloads">Bundled patterns</h2>
     <p>These links download the current files from the <code>main</code> branch on GitHub. The comments inside explain each groove.</p>

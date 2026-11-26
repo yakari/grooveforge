@@ -1,4 +1,5 @@
 import '../audio/audio_source_descriptor.dart';
+import 'drum_song_form.dart';
 import 'plugin_instance.dart';
 
 /// How the drum generator introduces itself before the first bar.
@@ -234,6 +235,10 @@ class DrumGeneratorPluginInstance
   /// Arrangement structure config: count-ins, fills, breaks.
   DrumStructureConfig structureConfig;
 
+  /// The song form the generator follows when it is turned on: intro,
+  /// verses, choruses, breaks and ending, block after block.
+  DrumSongForm songForm;
+
   /// Constructs a [DrumGeneratorPluginInstance] with sane defaults.
   DrumGeneratorPluginInstance({
     required this.id,
@@ -246,6 +251,7 @@ class DrumGeneratorPluginInstance
     this.humanizationAmount = 0.7,
     this.isActive = false,
     DrumStructureConfig? structureConfig,
+    this.songForm = const DrumSongForm(),
   }) : structureConfig = structureConfig ?? const DrumStructureConfig();
 
   @override
@@ -266,11 +272,14 @@ class DrumGeneratorPluginInstance
         'humanizationAmount': humanizationAmount,
         'isActive': isActive,
         'structureConfig': structureConfig.toJson(),
+        if (songForm.blocks.isNotEmpty || songForm.enabled)
+          'songForm': songForm.toJson(),
       };
 
   /// Deserialises a [DrumGeneratorPluginInstance] from its JSON map.
   factory DrumGeneratorPluginInstance.fromJson(Map<String, dynamic> json) {
     final cfgJson = json['structureConfig'] as Map<String, dynamic>?;
+    final formJson = json['songForm'] as Map<String, dynamic>?;
     return DrumGeneratorPluginInstance(
       id: json['id'] as String,
       midiChannel: (json['midiChannel'] as num?)?.toInt() ?? 10,
@@ -284,6 +293,9 @@ class DrumGeneratorPluginInstance
       isActive: (json['isActive'] as bool?) ?? false,
       structureConfig:
           cfgJson != null ? DrumStructureConfig.fromJson(cfgJson) : null,
+      songForm: formJson != null
+          ? DrumSongForm.fromJson(formJson)
+          : const DrumSongForm(),
     );
   }
 }

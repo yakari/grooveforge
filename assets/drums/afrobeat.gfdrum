@@ -68,6 +68,7 @@ sections:
     bars: 1
     variations:
       - name: tony_allen
+        role: verse
         weight: 3
         # Tony Allen's signature groove as heard on Fela's 1970s recordings.
         # KICK: beat 1 (pos 0), and-of-3 (pos 10), beat 4 (pos 12) — the kick
@@ -86,6 +87,7 @@ sections:
         shaker: "x.x.x.x.x.x.x.x."
 
       - name: fela_hardcore
+        role: chorus
         weight: 2
         # High-intensity Fela groove (Zombie era, 1977). The kick is more forward,
         # landing on beat 1 AND the "and-of-2" (pos 6) — a funk hemiola that drives
@@ -101,6 +103,7 @@ sections:
         shaker:     "x.x.x.x.x.x.x.x."
 
       - name: highlife_lite
+        role: bridge
         weight: 2
         # West African highlife influence (King Sunny Adé / Femi Kuti style).
         # Lighter than pure Afrobeat — the kick stays on beats 1 and 3, the snare
@@ -148,6 +151,23 @@ sections:
         kick:   "X.......X......."
         hihat:  "x.x.x.x.x.x.x.x."
         shaker: "x.x.x.x.x.x.x.x."
+
+  ending:
+    # Played once at the end of the song; the drums stop after bar 2.
+    type: sequence
+    bars: 2
+    bar_grids:
+      - # Bar 1: Groove on 1-2, then band unison accents on 3+, 4 and 4+
+        kick:   "X.....X...X.X.X."
+        snare:  "g.g.X.g...X.X.X."
+        conga:  "X.......X.X.X.X."
+        hihat:  "x.x.x.x.x......."
+        shaker: "x.x.x.x.x.x.x.x."
+      - # Bar 2: final hit on beat 1, then silence
+        crash:  "X..............."
+        kick:   "X..............."
+        hihat:  "X..............."
+        shaker: "X..............."
 
 structure:
   fill_every: 8

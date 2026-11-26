@@ -12,6 +12,7 @@ import '../../services/audio_engine.dart';
 import '../../services/drum_generator_engine.dart';
 import '../../services/drum_pattern_registry.dart';
 import '../../services/transport_engine.dart';
+import 'drum_song_form_editor.dart';
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 
@@ -138,6 +139,8 @@ class _WideLayout extends StatelessWidget {
         ),
         _StructureSwitches(plugin: plugin),
         const SizedBox(height: 8),
+        DrumSongFormEditor(plugin: plugin),
+        const SizedBox(height: 8),
         // Row 5: load + format guide
         Row(
           children: [
@@ -185,6 +188,8 @@ class _NarrowLayout extends StatelessWidget {
         const SizedBox(height: 4),
         _BreakDropdown(plugin: plugin),
         _StructureSwitches(plugin: plugin),
+        const SizedBox(height: 8),
+        DrumSongFormEditor(plugin: plugin),
         const SizedBox(height: 8),
         Row(
           children: [
@@ -776,7 +781,11 @@ class _BreakDropdown extends StatelessWidget {
             for (final entry in labels.entries)
               DropdownMenuItem(value: entry.key, child: Text(entry.value)),
           ],
-          onChanged: (val) => _onChanged(context, val),
+          // With a song form the breaks are the form's own blocks, so the
+          // random breaks are off and this setting is greyed out.
+          onChanged: plugin.songForm.isActive
+              ? null
+              : (val) => _onChanged(context, val),
         ),
       ],
     );

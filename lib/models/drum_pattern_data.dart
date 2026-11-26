@@ -146,13 +146,28 @@ class DrumVariation {
   /// Null for `loop` sections (use [stepGrids] instead).
   final List<Map<String, String>>? barSequence;
 
+  /// The part of a song this groove suits, from the file's optional
+  /// `role:` key: `intro`, `verse`, `chorus` or `bridge`. A song-form block
+  /// of that kind plays this variation. Null when the file gives none; the
+  /// arranger then picks from the weights and the number of hits.
+  final String? role;
+
+  /// The roles a variation can declare.
+  static const Set<String> roles = {'intro', 'verse', 'chorus', 'bridge'};
+
   /// Constructs a [DrumVariation].
   const DrumVariation({
     required this.name,
     this.weight = 1,
     this.stepGrids = const {},
     this.barSequence,
+    this.role,
   });
+
+  /// Number of hits in one bar of this variation, all instruments together.
+  /// The arranger uses it to tell a light groove from a busy one.
+  int get hitCount => stepGrids.values.fold(
+      0, (sum, grid) => sum + grid.split('').where((c) => c != '.').length);
 }
 
 /// One named section within a drum pattern (groove, fill, break, crash, intro).
@@ -248,7 +263,8 @@ class DrumPatternData {
 
   /// Named sections of the pattern.
   ///
-  /// Keys: `'groove'`, `'fill'`, `'break'`, `'crash'`, `'intro'`.
+  /// Keys: `'groove'`, `'fill'`, `'break'`, `'crash'`, `'intro'`,
+  /// `'ending'`.
   /// Not all keys are required; the engine falls back to groove if a
   /// section is absent.
   final Map<String, DrumSection> sections;

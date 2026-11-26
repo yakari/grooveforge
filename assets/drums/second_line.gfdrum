@@ -68,6 +68,7 @@ sections:
     bars: 1
     variations:
       - name: big_four
+        role: verse
         weight: 3
         # The definitive second-line groove with the "Big Four" bass drum.
         # KICK: beat 1 (0), and-of-2 (6), and-of-3 (10), and-of-4 (14).
@@ -82,6 +83,7 @@ sections:
         hihat: "x.x.x.x.x.x.x.x."
 
       - name: street_beat
+        role: chorus
         weight: 2
         # Marching parade street beat: kick drives every beat plus the Big Four pickup.
         # Snare plays all 16th notes (ghost and accented) — the continuous "roll" of
@@ -92,6 +94,7 @@ sections:
         hihat: "x.x.x.x.x.x.x.x."
 
       - name: parade_bounce
+        role: bridge
         weight: 2
         # Lighter, bouncier parade feel (Dirty Dozen / Rebirth Brass Band style).
         # Kick is sparser — just beats 1 and 3 with the Big Four pickup on and-of-4.
@@ -131,6 +134,20 @@ sections:
         crash: "X..............."
         kick:  "X...X...X...X..."
         snare: "g.g.g.g.g.g.g.g."
+
+  ending:
+    # Played once at the end of the song; the drums stop after bar 2.
+    type: sequence
+    bars: 2
+    bar_grids:
+      - # Bar 1: Street press roll, then unison 3-3-2 hits
+        kick:  "X.....X.X..X..X."
+        snare: "gxgxgxgXX..X..X."
+        hihat: "x.x.x.x........."
+      - # Bar 2: final hit on beat 1, then silence
+        crash: "X..............."
+        kick:  "X..............."
+        snare: "X..............."
 
 structure:
   fill_every: 4

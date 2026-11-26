@@ -71,6 +71,7 @@ sections:
     bars: 1
     variations:
       - name: don_doko
+        role: verse
         weight: 4
         # "Don doko don doko" — the first pattern any taiko student learns.
         # A full stroke on the beat followed by two quick ones (pos 2, 3 of each
@@ -82,6 +83,7 @@ sections:
         kane:     "X...x...X...x..."
 
       - name: yatai_bayashi
+        role: chorus
         weight: 3
         # Yatai-bayashi: relentless 16ths with the accents falling in 3+3+2
         # groups, so the pattern pulls against its own metre. Played sitting on
@@ -91,6 +93,7 @@ sections:
         shime:    "xxxxxxxxxxxxxxxx"
 
       - name: matsuri
+        role: bridge
         weight: 3
         # The street-festival pattern, led by the kane: the bell states the
         # phrase and the drums answer it. Sparser than the ensemble pieces and
@@ -101,6 +104,7 @@ sections:
         shime:    "x.x.x.x.x.x.x.x."
 
       - name: oroshi
+        role: intro
         weight: 1
         # Oroshi — the accelerating roll that opens most pieces, written here as
         # a density build across the bar: quarters, then 8ths, then 16ths.
@@ -146,6 +150,22 @@ sections:
         odaiko:   "X...X...X...X..."
         chudaiko: "X.xxX.xxX.xxX.xx"
         shime:    "x.x.x.x.x.x.x.x."
+
+  ending:
+    # Played once at the end of the song; the drums stop after bar 2.
+    type: sequence
+    bars: 2
+    bar_grids:
+      - # Bar 1: Unison chudaiko/shime roll swelling over beats 3-4
+        odaiko:   "X.......X......."
+        chudaiko: "X...X...gogoxxXX"
+        shime:    "x.x.x.x.xxxxXXXX"
+        kane:     "X...X...X.X.X.X."
+      - # Bar 2: final hit on beat 1, then silence
+        chappa:   "X..............."
+        odaiko:   "X..............."
+        chudaiko: "X..............."
+        shime:    "X..............."
 
 structure:
   fill_every: 8

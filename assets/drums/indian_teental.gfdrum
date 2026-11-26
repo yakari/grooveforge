@@ -82,6 +82,7 @@ sections:
     bars: 1
     variations:
       - name: theka
+        role: verse
         weight: 4
         # The theka exactly as spoken. Read the three grids together and every
         # matra spells its bol: na+ge = Dha, tin+ge = Dhin, tin alone = Tin,
@@ -92,6 +93,7 @@ sections:
         ge:  "XxxxXxxxX....xxx"
 
       - name: theka_bayan_slide
+        role: bridge
         weight: 3
         # Same theka, but the bayan's Dha strokes on sam and matra 9 are played
         # as ghe — the modulated stroke where the heel of the hand slides on the
@@ -103,6 +105,7 @@ sections:
         ghe: "X.......X......."
 
       - name: theka_open
+        role: intro
         weight: 2
         # A lighter reading for accompanying a slow alap: the bayan plays only
         # the vibhag heads, and the dayan's ghost strokes carry the pulse.
@@ -111,6 +114,7 @@ sections:
         ge:  "X...X...X......."
 
       - name: tirakita
+        role: chorus
         weight: 2
         # Double-density filler on the dayan (the "tirakita" figure) over the
         # unchanged bayan skeleton — how a tabla player fills a repeated cycle
@@ -153,6 +157,20 @@ sections:
         tin: ".xx..xx..xx..xx."
         ghe: "X..............."
         ge:  ".xxxXxxxX....xxx"
+
+  ending:
+    # Played once at the end of the song; the drums stop after bar 2.
+    type: sequence
+    bars: 2
+    bar_grids:
+      - # Bar 1: Theka opening, then dha-ti-dha tihai resolving on sam
+        na:  "X..xXxX..XxX..Xx"
+        tin: ".xx............."
+        ge:  "X..............."
+        ghe: "....X....X....X."
+      - # Bar 2: final hit on beat 1, then silence
+        na:  "X..............."
+        ghe: "X..............."
 
 structure:
   fill_every: 4

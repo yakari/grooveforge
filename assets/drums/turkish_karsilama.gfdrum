@@ -75,6 +75,7 @@ sections:
     bars: 1
     variations:
       - name: karsilama
+        role: verse
         weight: 4
         # The dance rhythm. Doum on beats 1 and 3 (pos 0, 8), tek on beat 2
         # (pos 4) and then three teks filling the long fourth beat (pos 12, 14,
@@ -85,6 +86,7 @@ sections:
         def:  "x.x.x.x.x.x.x.x.x."
 
       - name: roman_havasi
+        role: chorus
         weight: 3
         # Turkish Roman 9/8 — the clarinet-and-darbuka wedding version. All three
         # short beats get a doum, the tek waits until the second half of beat 2
@@ -97,6 +99,7 @@ sections:
         zil:  "....x.......x...x."
 
       - name: agir_aksak
+        role: bridge
         weight: 2
         # Ağır aksak — the slow, heavy reading used for songs rather than dance.
         # Doum on all four beat heads including the long one (pos 12), tek only
@@ -138,6 +141,22 @@ sections:
         doum:  "X.......X........."
         tek:   "....X.......X.X.X."
         def:   "x.x.x.x.x.x.x.x.x."
+
+  ending:
+    # Played once at the end of the song; the drums stop after bar 2.
+    type: sequence
+    bars: 2
+    bar_grids:
+      - # Bar 1: Karsilama phrase, tek and def roll through the final 3-group
+        doum: "X.......X........."
+        tek:  "....X.......XxXxXx"
+        ka:   "..g.g.g.g.g......."
+        def:  "x.x.x.x.x.x.xxxxXX"
+        zil:  "................x."
+      - # Bar 2: final hit on beat 1, then silence
+        crash: "X................."
+        doum:  "X................."
+        def:   "X................."
 
 structure:
   fill_every: 8

@@ -172,8 +172,9 @@ temps     1 e + a 2 e + a 3 e + a  4  e  +  a</code></pre>
     <h2 id="sections">Sections</h2>
     <p>Le générateur joue par phrases, comme un batteur. Une phrase dure ce que dit <span class="ui">Fill tous les</span>
       (8 mesures quand les fills sont désactivés). Le groove garde la même variation pendant toute la phrase, un fill la termine,
-      et la phrase suivante commence par un crash, ou parfois par un break.</p>
-    <p>Le générateur joue les sections qui portent ces cinq noms. Une section avec un autre nom n'est jamais jouée.</p>
+      et la phrase suivante commence par un crash, ou parfois par un break. Quand une grille est allumée dans le module, il suit plutôt
+      ses blocs : voir <a href="#song-form">Grilles de morceau</a>.</p>
+    <p>Le générateur joue les sections qui portent ces six noms. Une section avec un autre nom n'est jamais jouée.</p>
     <table>
       <thead><tr><th>Section</th><th>Quand elle joue</th></tr></thead>
       <tbody>
@@ -186,7 +187,9 @@ temps     1 e + a 2 e + a 3 e + a  4  e  +  a</code></pre>
           Avec <code>bars: 2</code>, le fill prend les deux dernières mesures.</td></tr>
         <tr><td><code>crash</code></td><td>Par-dessus la première mesure après le décompte, un fill ou un break, quand <span class="ui">Crash après le fill</span> est activé.</td></tr>
         <tr><td><code>break</code></td><td>Les premières mesures d'une phrase, jamais la première phrase, aussi souvent que le dit <span class="ui">Breaks</span>.
-          Son <code>bars</code> fixe sa durée en mesures (une par défaut).</td></tr>
+          Son <code>bars</code> fixe sa durée en mesures (une par défaut). Avec une grille, il joue dans les blocs <span class="ui">Break</span>.</td></tr>
+        <tr><td><code>ending</code></td><td>Une fois, dans le bloc <span class="ui">Fin</span> d'une grille. La batterie s'arrête ensuite.
+          Écrivez-la en <code>sequence</code> : une dernière mesure typique du style, puis une mesure avec seulement le coup final sur le 1.</td></tr>
       </tbody>
     </table>
 
@@ -196,7 +199,7 @@ temps     1 e + a 2 e + a 3 e + a  4  e  +  a</code></pre>
       <tbody>
         <tr><td><code>loop</code> (par défaut)</td><td>Une liste sous <code>variations:</code>. Chaque phrase en tire une au hasard et la garde jusqu'au bout ; une variation avec <code>weight: 3</code> sort trois fois
           plus souvent qu'une avec <code>weight: 1</code> (la valeur par défaut). Dans une variation, <code>name</code> est facultatif et chaque autre clé est une piste
-          avec sa grille. Pour une seule variation, sautez la liste et mettez les grilles directement sous la section.</td></tr>
+          avec sa grille, sauf <code>role</code> (voir <a href="#song-form">Grilles de morceau</a>). Pour une seule variation, sautez la liste et mettez les grilles directement sous la section.</td></tr>
         <tr><td><code>sequence</code></td><td>Une liste sous <code>bar_grids:</code>, une entrée par mesure, jouées dans l'ordre puis en boucle. Pour les phrases de plus d'une mesure,
           comme une clave sur deux mesures. La séquence repart de sa première mesure au début de chaque phrase, et après un break.</td></tr>
         <tr><td><code>count_in</code></td><td>Pas de grille : <code>hits</code> coups (4 par défaut) répartis sur la mesure, sur la note <code>note</code> (37 par défaut, side stick).</td></tr>
@@ -209,6 +212,31 @@ temps     1 e + a 2 e + a 3 e + a  4  e  +  a</code></pre>
         kick:    "X......X...X...."
       - rimshot: "...X.....X......"
         kick:    "X......X........"</code></pre>
+
+    <h3 id="song-form">Grilles de morceau</h3>
+    <p>Dans le module, <span class="ui">Grille du morceau</span> découpe un morceau en blocs : intro, couplet, refrain, pont, break et fin.
+      Chaque bloc garde une seule variation du groove du début à la fin. Pour choisir laquelle, donnez un <code>role</code> aux variations
+      du groove : <code>intro</code>, <code>verse</code> (couplet), <code>chorus</code> (refrain) ou <code>bridge</code> (pont). Chaque rôle va à une variation au plus.</p>
+    <pre><code>  groove:
+    variations:
+      - name: main
+        role: verse
+        kick:  "X.......X......."
+      - name: driving
+        role: chorus
+        kick:  "X.X.....X.X....."</code></pre>
+    <p>Sans rôle, le couplet joue la variation de plus fort <code>weight</code>, le refrain celle qui a le plus de coups,
+      l'intro celle qui en a le moins, et le pont une autre. Un groove en <code>sequence</code> joue ses mesures dans l'ordre dans chaque bloc.</p>
+    <p>Un bloc <span class="ui">Break</span> joue la section <code>break</code>. Sans elle, il joue le premier temps de la section <code>crash</code>,
+      puis le silence. Un break en <code>sequence</code> sur deux mesures peut couper le son à la première et jouer une levée à la seconde :</p>
+    <pre><code>  break:
+    type: sequence
+    bars: 2
+    bar_grids:
+      - crash: "X..............."
+        kick:  "X..............."
+      - snare: "........o.o.xxXX"</code></pre>
+    <p>Un bloc <span class="ui">Fin</span> joue la section <code>ending</code>. Sans elle, il joue un fill puis le coup sur le 1.</p>
 
     <h2 id="telechargements">Patterns fournis</h2>
     <p>Ces liens téléchargent les fichiers actuels de la branche <code>main</code> sur GitHub. Les commentaires à l'intérieur expliquent chaque groove.</p>

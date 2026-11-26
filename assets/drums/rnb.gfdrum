@@ -64,6 +64,7 @@ sections:
     bars: 1
     variations:
       - name: neo_soul
+        role: verse
         weight: 3
         # Questlove behind D'Angelo: the backbeats sit late, and the snare hand
         # keeps filling with ghosts at pos 7 and 14 that you feel rather than
@@ -74,6 +75,7 @@ sections:
         hihat:      "x.g.x.g.x.g.x.g."
 
       - name: new_jack_swing
+        role: chorus
         weight: 3
         # Teddy Riley: a hard, gated snare doubled by a clap on 2 and 4, and a
         # kick that plays the "a of 1" (pos 3) and "a of 3" (pos 11) — the
@@ -85,6 +87,7 @@ sections:
         hihat_open: "......x.......x."
 
       - name: slow_jam
+        role: intro
         weight: 2
         # Half-time ballad: one snare per bar on beat 3, tambourine marking the
         # backbeats it left behind, kick spread wide. Space is the point.
@@ -102,6 +105,7 @@ sections:
         hihat:      "x.x.x.x.x.xxxx.x"
 
       - name: quiet_storm
+        role: bridge
         weight: 2
         # Cross-stick and ride instead of snare and hats — the late-night
         # arrangement, where the drums stay under the vocal rather than beside it.
@@ -150,6 +154,22 @@ sections:
         kick:       "X.....X...X....."
         snare:      "....X.......X..."
         hihat:      "x.g.x.g.x.g.x.g."
+
+  ending:
+    # Played once at the end of the song; the drums stop after bar 2.
+    type: sequence
+    bars: 2
+    bar_grids:
+      - # Bar 1: Neo-soul bar, kick/snare/clap stabs into the floor tom
+        kick:   "X.....X...X....."
+        snare:  "....X..g..X..X.."
+        clap:   "....X.....X..X.."
+        hihat:  "x.g.x.g.x.g....."
+        tom_lo: "..............X."
+      - # Bar 2: final hit on beat 1, then silence
+        crash: "X..............."
+        kick:  "X..............."
+        hihat: "X..............."
 
 structure:
   fill_every: 8

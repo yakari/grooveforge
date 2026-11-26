@@ -2,6 +2,8 @@ import 'dart:math';
 
 import '../models/drum_generator_plugin_instance.dart';
 import '../models/drum_pattern_data.dart';
+import '../models/drum_song_form.dart';
+import 'drum_form_arranger.dart';
 
 /// What the drum generator plays in one bar: which section, which bar of it,
 /// and how.
@@ -9,8 +11,17 @@ import '../models/drum_pattern_data.dart';
 /// Produced by [DrumArranger.planBar]. Pure data, so the same bar always gets
 /// the same plan however many times it is scheduled.
 class DrumBarPlan {
-  /// Section to play: `'intro'`, `'groove'`, `'fill'` or `'break'`.
+  /// Section to play: `'intro'` (count-in), `'groove'`, `'fill'`,
+  /// `'break'` or `'ending'`, or one of the two made-up sections:
+  /// [drop] (only the first step of the `crash` section: one hit on beat 1)
+  /// and [silence] (nothing).
   final String section;
+
+  /// Section name for a bar that plays only beat 1 of the `crash` section.
+  static const String drop = '_drop';
+
+  /// Section name for a bar that plays nothing.
+  static const String silence = '_silence';
 
   /// Bar number within the current run of [section], from 0. A two-bar
   /// `sequence` section uses it to play its bars in order.
@@ -30,6 +41,17 @@ class DrumBarPlan {
   /// Index of the phrase this bar belongs to (count-in bars are -1).
   final int phraseIndex;
 
+  /// With a song form: the index of the block this bar belongs to, or -1
+  /// (count-in, after the ending, or no form).
+  final int blockIndex;
+
+  /// With a song form: the bar within [blockIndex], from 0.
+  final int barInBlock;
+
+  /// Name of the groove variation to play, chosen from the song-form block;
+  /// null to draw one with [variationSeed].
+  final String? variation;
+
   const DrumBarPlan({
     required this.section,
     required this.barInSection,
@@ -37,6 +59,9 @@ class DrumBarPlan {
     required this.crash,
     required this.velocityScale,
     required this.phraseIndex,
+    this.blockIndex = -1,
+    this.barInBlock = 0,
+    this.variation,
   });
 }
 
@@ -85,11 +110,15 @@ class DrumArranger {
   /// Plans bar [bar] (0 = the first bar after play was pressed, count-in
   /// included) of [pattern] under [config]. [seed] changes on every play so
   /// that two takes do not sound identical.
+  ///
+  /// When [form] is active the bars after the count-in follow it block by
+  /// block (see [DrumFormArranger]); otherwise they are arranged in phrases.
   static DrumBarPlan planBar({
     required int bar,
     required DrumStructureConfig config,
     required DrumPatternData pattern,
     required int seed,
+    DrumSongForm form = const DrumSongForm(),
   }) {
     final introBars = introBarCount(config, pattern);
     if (bar < introBars) {
@@ -103,6 +132,16 @@ class DrumArranger {
       );
     }
     final rel = bar - introBars;
+    if (form.isActive) {
+      return DrumFormArranger.planBar(
+        rel: rel,
+        afterCountIn: introBars > 0,
+        form: form,
+        config: config,
+        pattern: pattern,
+        seed: seed,
+      );
+    }
     final phrase = _phraseAt(rel, config, seed);
     return _planInPhrase(
       pos: rel - phrase.start,
@@ -157,7 +196,7 @@ class DrumArranger {
       case DrumFillFrequency.off:
         return defaultPhraseBars;
       case DrumFillFrequency.random:
-        final rng = Random(_mix(seed, index, 11));
+        final rng = Random(mix(seed, index, 11));
         return randomPhraseBars[rng.nextInt(randomPhraseBars.length)];
       case DrumFillFrequency.every4:
       case DrumFillFrequency.every8:
@@ -194,7 +233,7 @@ class DrumArranger {
       return DrumBarPlan(
         section: 'break',
         barInSection: pos,
-        variationSeed: _mix(seed, index, 3),
+        variationSeed: mix(seed, index, 3),
         crash: false,
         velocityScale: 1.0,
         phraseIndex: index,
@@ -204,7 +243,7 @@ class DrumArranger {
       return DrumBarPlan(
         section: 'fill',
         barInSection: pos - (length - fillBars),
-        variationSeed: _mix(seed, index, 2),
+        variationSeed: mix(seed, index, 2),
         crash: false,
         velocityScale: 1.0,
         phraseIndex: index,
@@ -214,9 +253,9 @@ class DrumArranger {
     return DrumBarPlan(
       section: 'groove',
       barInSection: barInGroove,
-      variationSeed: _mix(seed, index, 1),
+      variationSeed: mix(seed, index, 1),
       crash: crash,
-      velocityScale: _buildScale(config, barInGroove, grooveBars),
+      velocityScale: buildScale(config, barInGroove, grooveBars),
       phraseIndex: index,
     );
   }
@@ -250,7 +289,7 @@ class DrumArranger {
     if (brk == null) return 0;
     final chance = breakChance[config.breakFrequency] ?? 0.0;
     if (chance <= 0) return 0;
-    if (Random(_mix(seed, index, 5)).nextDouble() >= chance) return 0;
+    if (Random(mix(seed, index, 5)).nextDouble() >= chance) return 0;
     // Keep at least one bar of groove between the break and the fill.
     final room = length - fillBars - 1;
     if (room < 1) return 0;
@@ -259,7 +298,7 @@ class DrumArranger {
 
   /// Velocity multiplier for groove bar [barInGroove] of [grooveBars], when
   /// "dynamic build" is on: a straight rise from [buildStartScale] to 1.0.
-  static double _buildScale(
+  static double buildScale(
     DrumStructureConfig config,
     int barInGroove,
     int grooveBars,
@@ -271,6 +310,6 @@ class DrumArranger {
 
   /// Combines the per-play seed, a phrase index and a purpose tag into one
   /// seed, so the groove, fill and break of a phrase draw independently.
-  static int _mix(int seed, int index, int tag) =>
+  static int mix(int seed, int index, int tag) =>
       (seed * 1000003 + index * 7919 + tag * 104729) & 0x7fffffff;
 }

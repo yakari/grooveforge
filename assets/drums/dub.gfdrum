@@ -64,6 +64,7 @@ sections:
     bars: 1
     variations:
       - name: one_drop
+        role: verse
         weight: 4
         # Carlton Barrett's one drop. Beat 1 (pos 0) is silent on both kick and
         # snare — the "drop". Everything lands together on beat 3 (pos 8).
@@ -83,6 +84,7 @@ sections:
         hihat_open: "..............x."
 
       - name: steppers
+        role: chorus
         weight: 2
         # Steppers: four-on-the-floor kick, ghosted 16th hats, ride doubling the
         # quarters. The militant end of roots — Burning Spear, Black Uhuru.
@@ -92,6 +94,7 @@ sections:
         ride:       "X...X...X...X..."
 
       - name: crosstick
+        role: intro
         weight: 3
         # The dub texture proper: cross-stick instead of a full snare and a hat
         # only on the offbeats. Sparse on purpose — in a dub mix the space is
@@ -102,6 +105,7 @@ sections:
         hihat_open: "......x........."
 
       - name: flying_cymbal
+        role: bridge
         weight: 1
         # Bunny Lee's "flyers" sound: open hi-hat on every offbeat 8th, washing
         # over the whole bar. Rockers underneath so the wash has a floor.
@@ -147,6 +151,23 @@ sections:
         kick:       "X...X...X...X..."
         snare:      "........X......."
         hihat:      "x.x.x.x.x.x.x.x."
+
+  ending:
+    # Played once at the end of the song; the drums stop after bar 2.
+    type: sequence
+    bars: 2
+    bar_grids:
+      - # Bar 1: One drop on 3, rim crescendo into the floor tom
+        kick:       "........X......."
+        snare:      "........X......."
+        hihat:      "x.x.x.x.x......."
+        hihat_open: "......x........."
+        rim:        "..........g.ox.."
+        tom_lo:     "..............X."
+      - # Bar 2: final hit on beat 1, then silence
+        crash: "X..............."
+        kick:  "X..............."
+        hihat: "X..............."
 
 structure:
   fill_every: 8

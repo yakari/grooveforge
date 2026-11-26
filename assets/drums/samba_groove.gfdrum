@@ -74,6 +74,7 @@ sections:
     bars: 1
     variations:
       - name: pagode
+        role: verse
         weight: 3
         # Intimate Rio pagode (Zeca Pagodinho / Beth Carvalho style).
         # Pandeiro plays the "teleco-teco" — 8th notes accented at group starts of
@@ -91,6 +92,7 @@ sections:
         ganza:      "x.x.x.x.x.x.x.x."
 
       - name: partido_alto
+        role: chorus
         weight: 3
         # Traditional partido alto rhythm (Martinho da Vila, Alcione style).
         # The defining feature is the DISPLACED BACKBEAT: caixa accent falls
@@ -109,6 +111,7 @@ sections:
         ganza:      "x.x.x.x.x.x.x.x."
 
       - name: samba_rock
+        role: bridge
         weight: 2
         # 1970s Rio de Janeiro samba-rock (Hyldon, Tim Maia, Jorge Ben Jor style).
         # A drum-kit reinterpretation of samba that fuses the partido alto tamborim
@@ -156,6 +159,25 @@ sections:
         surdo_mute: "........X......."
         tamborim:   "X.x.X.x.X.x.X.x."
         ganza:      "x.x.x.x.x.x.x.x."
+
+  ending:
+    # Played once at the end of the song; the drums stop after bar 2.
+    type: sequence
+    bars: 2
+    bar_grids:
+      - # Bar 1: Pagode half bar, unison bateria hits on 3+, 4, 4+
+        surdo_open: "X.........X.X.X."
+        surdo_mute: "....X..........."
+        caixa:      "g.g.X.g.g.X.X.X."
+        tamborim:   "X.x.X.x...X.X.X."
+        pandeiro:   "x.x.x.x.x.x.x.x."
+        ganza:      "x.x.x.x.xxxxxxxx"
+        agogo:      "X...X..........."
+      - # Bar 2: final hit on beat 1, then silence
+        crash:      "X..............."
+        surdo_open: "X..............."
+        tamborim:   "X..............."
+        ganza:      "X..............."
 
 structure:
   fill_every: 4

@@ -14,6 +14,7 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 - Vos propres plugins .gfpd restent dans le menu + après un redémarrage, et un projet enregistre une copie de ceux qu'il utilise.
 - Générateur de batterie : un réglage Breaks, et des interrupteurs pour le crash après le fill et la montée dynamique (qui fait enfin quelque chose).
 - Les touches à l'écran jouent plus fort près de leur bord avant. Préférences > Vélocité des touches permet de fixer une seule force.
+- Générateur de batterie : une grille de morceau enchaîne intro, couplets, refrains, breaks et fin en blocs ; chaque style fourni a sa propre fin.
 
 ### Modifié
 - Les nouveaux projets démarrent avec le module Xen éteint : le clavier joue toutes les notes jusqu'à ce que vous choisissiez une gamme, ce qui l'allume. Les projets sauvegardés gardent Xen tel quel.

@@ -69,6 +69,7 @@ sections:
     bars: 1
     variations:
       - name: walking
+        role: verse
         weight: 4
         # The lion walking: drum on every quarter, gong and cymbals together on
         # beats 1 and 3, small gong answering on 2 and 4. The steadiest pattern
@@ -79,6 +80,7 @@ sections:
         xiaoluo: "....x.......x..."
 
       - name: three_star
+        role: intro
         weight: 3
         # Three-star (三星鼓): three strokes with the whole ensemble landing
         # together on beats 1, 2 and 3, then a full beat of silence. The pause is
@@ -89,6 +91,7 @@ sections:
         gu_rim:  ".xx..xx..xx....."
 
       - name: seven_star
+        role: bridge
         weight: 2
         # Seven-star (七星鼓): seven even strokes across the first three and a
         # half beats, the gong marking only the first and fifth so the count
@@ -98,6 +101,7 @@ sections:
         daluo:   "X.......X......."
 
       - name: rousing
+        role: chorus
         weight: 2
         # The lion alert or startled: continuous 16ths on the drum with the
         # clapper on 8ths, one gong stroke on the downbeat and the cymbals
@@ -137,6 +141,22 @@ sections:
         daluo:   "X..............."
         gu:      "X...X...X...X..."
         xiaoluo: "....x.......x..."
+
+  ending:
+    # Played once at the end of the song; the drums stop after bar 2.
+    type: sequence
+    bars: 2
+    bar_grids:
+      - # Bar 1: Gongs and bo in unison, gu roll crescendo to the close
+        gu:      "X...X...XxxxXxxx"
+        daluo:   "X.......X...X..."
+        bo:      "X.......X...X..."
+        xiaoluo: "....x.x.....x.x."
+        bangzi:  "x.x.x.x........."
+      - # Bar 2: final hit on beat 1, then silence
+        bo:    "X..............."
+        daluo: "X..............."
+        gu:    "X..............."
 
 structure:
   fill_every: 8

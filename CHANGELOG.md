@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Your own .gfpd plugins stay in the + menu after a restart, and a project saves a copy of the ones it uses.
 - Drum Generator: a Breaks setting, and switches for the crash after a fill and the dynamic build (which now does something).
 - On-screen keys now play louder near the front edge of the key. Preferences > Key velocity can fix one strength instead.
+- Drum Generator: a song form lays out intro, verses, choruses, breaks and an ending as blocks; every bundled style has its own ending.
 
 ### Changed
 - New projects start with the Xen module switched off, so the keyboard plays every note until you pick a scale, which switches it on. Projects you saved keep Xen exactly as they were.

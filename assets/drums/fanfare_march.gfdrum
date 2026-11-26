@@ -61,6 +61,7 @@ sections:
     bars: 1
     variations:
       - name: flam
+        role: verse
         weight: 4
         # Flam rudiment: grace (g) at pos 3 before beat 2 (pos 4),
         # and grace at pos 11 before beat 4 (pos 12).
@@ -69,6 +70,7 @@ sections:
         snare: "...gX......gX..."
         hihat: "..x...x...x...x."
       - name: roll
+        role: chorus
         weight: 2
         # Press roll texture: soft hits fill the 16ths, giving a continuous swell.
         # Grace notes before beats 2 and 4 still define the backbeat accent.
@@ -76,6 +78,7 @@ sections:
         snare: "..ox.gX.o.ox.gX."
         hihat: "..x...x...x...x."
       - name: strong
+        role: bridge
         weight: 1
         # Full-force bars: no hi-hat, every beat accented — peak energy passages
         kick:  "X.......X......."
@@ -101,6 +104,19 @@ sections:
         kick:  "X..............."
         snare: "...gX......gX..."
         hihat: "..x...x...x...x."
+
+  ending:
+    # Played once at the end of the song; the drums stop after bar 2.
+    type: sequence
+    bars: 2
+    bar_grids:
+      - # Bar 1: Snare roll crescendo, then band unison hits 3, 3+, 4
+        kick:  "X.......X.X.X..."
+        snare: "oxoxXxXxX.X.X..."
+        hihat: "........X.X.X..."
+      - # Bar 2: final hit on beat 1, then silence
+        crash: "X..............."
+        kick:  "X..............."
 
 structure:
   fill_every: 8

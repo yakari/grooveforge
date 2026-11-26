@@ -67,6 +67,7 @@ sections:
     bars: 1
     variations:
       - name: power_groove
+        role: verse
         weight: 3
         # Classic mid-tempo metal pocket (Black Sabbath, AC/DC Phil Rudd style).
         # Kick hemiola: beat 1, and-of-2, beat 3, and-of-4 — the defining metal
@@ -77,6 +78,7 @@ sections:
         hihat: "x.x.x.x.x.x.x.x."
 
       - name: double_bass
+        role: chorus
         weight: 3
         # Metallica / Lamb of God style: both kick pedals alternating on 8th notes,
         # creating a continuous 8th-note bass-drum pulse. Right foot (kick, note 36)
@@ -89,6 +91,7 @@ sections:
         hihat: "xxxxxxxxxxxxxxxx"
 
       - name: half_time
+        role: bridge
         weight: 2
         # Sludge/doom metal breakdown: snare falls on beat 3 only (half-time).
         # This "half-time" feel doubles the perceived length of each bar — at
@@ -155,6 +158,23 @@ sections:
         crash: "X..............."
         kick:  "X...X...X...X..."
         ride:  "x.x.x.x.x.x.x.x."
+
+  ending:
+    # Played once at the end of the song; the drums stop after bar 2.
+    type: sequence
+    bars: 2
+    bar_grids:
+      - # Bar 1: Double-kick 16ths, crash/snare stabs, then tom roll
+        kick:   "X.X.X.X.X.X.X.X."
+        kick2:  ".X.X.X.X.X.X.X.X"
+        snare:  "X..X..X........."
+        crash:  "X..X..X........."
+        tom_hi: "........XXXX...."
+        tom_lo: "............XXXX"
+      - # Bar 2: final hit on beat 1, then silence
+        crash: "X..............."
+        kick:  "X..............."
+        ride:  "X..............."
 
 structure:
   fill_every: 8

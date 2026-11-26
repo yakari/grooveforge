@@ -266,7 +266,7 @@
   "guideThereminTitle": "Theremin and Stylophone",
   "guideThereminBody": "The Theremin has two modes. PAD is a touch pad: slide up and down for pitch, left and right for volume. CAM (Android, iOS and macOS) uses the front camera to sense how far your hand is: closer plays higher, far enough away is silent, and volume stays full. BASE sets the lowest note, RANGE the span in octaves, VIB the vibrato and HEIGHT the size of the pad.\nThe Stylophone is a 25-key strip you play by touching or sliding along it. It plays one note at a time, like the original, and glides between keys without a click. SQR, SAW, SIN and TRI pick the waveform.",
   "guideDrumGeneratorTitle": "Drum Generator",
-  "guideDrumGeneratorBody": "Plays a drum pattern at the transport tempo, from bossa nova to metal. Swing pushes the off-beats late. Human feel goes from a strict grid to a drummer who breathes. Count-in plays a few hits before the pattern starts, and Fill every adds a fill every few bars.\nPatterns are .gfdrum files, so you can add your own.",
+  "guideDrumGeneratorBody": "Plays a drum pattern at the transport tempo, from bossa nova to metal. Swing pushes the off-beats late. Human feel goes from a strict grid to a drummer who breathes. Count-in plays a few hits before the pattern starts, and Fill every adds a fill every few bars.\nSong form lays out a whole song as blocks (intro, verse, chorus, bridge, break, ending). Tap + to add one, tap a block to edit it, long-press to move it. Without an ending block the form loops; with one, the drums end the song and stop the transport.\nPatterns are .gfdrum files, so you can add your own.",
   "guideLoopersTitle": "Loopers",
   "guideLoopersBody": "The MIDI Looper records the notes you play and loops them. The Audio Looper records sound, and can also overdub and reverse.\nBoth wait for the next bar to start recording and round the loop to whole bars, so loops stay in time with each other.\nThe Audio Looper records what is cabled into its AUDIO IN: cable an instrument or a Live Input into it first.",
   "guideMidiFxTitle": "MIDI FX",
@@ -1398,9 +1398,125 @@
   "drumGeneratorBreakFrequent": "Often",
   "drumGeneratorCrashAfterFill": "Crash after fill",
   "drumGeneratorDynamicBuild": "Dynamic build",
+  "drumFormTitle": "Song form",
+  "drumFormOffHint": "Without a song form, the drummer plays in phrases and ends each one with a fill.",
+  "drumFormTemplates": "Templates",
+  "drumFormTemplatesHint": "Replaces the current form",
+  "drumFormTemplatePop": "Pop: verse, chorus, bridge, ending",
+  "drumFormTemplateRock": "Rock: intro, verse, chorus, ending",
+  "drumFormTemplateBlues": "Blues: three 12-bar choruses, ending",
+  "drumFormTemplateJam": "Jam: one verse that loops",
+  "drumFormKindIntro": "Intro",
+  "drumFormKindVerse": "Verse",
+  "drumFormKindChorus": "Chorus",
+  "drumFormKindBridge": "Bridge",
+  "drumFormKindBreak": "Break",
+  "drumFormKindEnding": "Ending",
+  "drumFormAddBlock": "Add a block",
+  "drumFormTagFill": "FILL",
+  "drumFormTagStop": "STOP",
+  "drumFormEventFill": "FILL",
+  "drumFormEventCrash": "CRASH",
+  "drumFormEventBreak": "BREAK",
+  "drumFormEventEnd": "END",
+  "drumFormBlockTitle": "Block {index}: {kind}",
+  "@drumFormBlockTitle": {
+    "placeholders": {
+      "index": {
+        "type": "int",
+        "example": "3"
+      },
+      "kind": {
+        "type": "String",
+        "example": "Chorus"
+      }
+    }
+  },
+  "drumFormType": "Type",
+  "drumFormBars": "Bars",
+  "drumFormFillAtEnd": "Fill at the end",
+  "drumFormVariation": "Groove",
+  "drumFormVariationAuto": "Auto ({name})",
+  "@drumFormVariationAuto": {
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "bonham"
+      }
+    }
+  },
+  "drumFormStopTransport": "Stop the transport",
+  "drumFormStopTransportHint": "Also stops the looper and the other modules.",
+  "drumFormHintIntro": "Plays the lightest groove of the style, with no crash at its start. The count-in, if any, comes before it.",
+  "drumFormHintBreak": "The band drops out: the style's break, or one hit on beat 1 then silence. With a fill at the end, its last bar is the drummer's pickup.",
+  "drumFormHintEnding": "Plays the style's ending, then the drums stop. Always the last block.",
+  "drumFormMoveEarlier": "Earlier",
+  "drumFormMoveLater": "Later",
+  "drumFormDuplicate": "Duplicate",
+  "drumFormDelete": "Delete",
+  "drumFormClose": "Close",
+  "drumFormDragHint": "Long-press a block to drag it.",
+  "drumFormLoops": "No ending block: the form loops.",
+  "drumFormStops": "The form stops after its ending.",
+  "drumFormEmpty": "Add a first block with +.",
+  "drumFormBarCount": "{count, plural, =1{1 bar} other{{count} bars}}",
+  "@drumFormBarCount": {
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "example": "8"
+      }
+    }
+  },
+  "drumFormSummary": "{blocks, plural, =1{1 block} other{{blocks} blocks}} · {bars, plural, =1{1 bar} other{{bars} bars}} · {duration} at {bpm} BPM",
+  "@drumFormSummary": {
+    "placeholders": {
+      "blocks": {
+        "type": "int",
+        "example": "7"
+      },
+      "bars": {
+        "type": "int",
+        "example": "52"
+      },
+      "duration": {
+        "type": "String",
+        "example": "1:44"
+      },
+      "bpm": {
+        "type": "int",
+        "example": "120"
+      }
+    }
+  },
+  "drumFormPlaying": "Block {index}/{count} · {kind} · bar {bar}/{bars}",
+  "@drumFormPlaying": {
+    "placeholders": {
+      "index": {
+        "type": "int",
+        "example": "2"
+      },
+      "count": {
+        "type": "int",
+        "example": "7"
+      },
+      "kind": {
+        "type": "String",
+        "example": "Chorus"
+      },
+      "bar": {
+        "type": "int",
+        "example": "3"
+      },
+      "bars": {
+        "type": "int",
+        "example": "8"
+      }
+    }
+  },
   "drumGeneratorDefaultSoundfont": "Default soundfont",
   "drumGeneratorFormatGuideTitle": "Drum Pattern Format (.gfdrum)",
-  "drumGeneratorFormatGuideContent": "A .gfdrum file is a YAML text file describing a drum pattern.\n\nStep grid notation:\nX = strong hit (~100)\nx = medium hit (~75)\no = soft hit (~55)\ng = ghost note (~28)\n. = rest\n\nVelocity fields: base_velocity, velocity_range\nTiming fields: timing_jitter, rush (in beats; negative plays ahead of the beat)\nSections: groove, fill, break, crash, intro\nSection types: loop (one variation per phrase), sequence (bars in order)\n\nThe full format is described on the website, under .gfdrum.",
+  "drumGeneratorFormatGuideContent": "A .gfdrum file is a YAML text file describing a drum pattern.\n\nStep grid notation:\nX = strong hit (~100)\nx = medium hit (~75)\no = soft hit (~55)\ng = ghost note (~28)\n. = rest\n\nVelocity fields: base_velocity, velocity_range\nTiming fields: timing_jitter, rush (in beats; negative plays ahead of the beat)\nSections: groove, fill, break, crash, intro, ending\nSection types: loop (one variation per phrase), sequence (bars in order)\nGroove variations can have a role (intro, verse, chorus, bridge) for the song form.\n\nThe full format is described on the website, under .gfdrum.",
   "drumGeneratorNoPatternsFound": "No patterns loaded",
   "drumGeneratorFamilyRock": "Rock",
   "drumGeneratorFamilyJazz": "Jazz",

@@ -82,6 +82,7 @@ sections:
     bars: 1
     variations:
       - name: main_groove
+        role: verse
         weight: 3
         # The standard batucada groove — no whistle, just the band playing.
         surdo_open: "X..............."
@@ -94,6 +95,7 @@ sections:
         chimbal:    "x.x.x.x.x.x.x.x."
 
       - name: attention_signal
+        role: intro
         weight: 2
         # The mestre blows two SHORT whistles at position 0 and 2 — "attention!"
         surdo_open:    "X..............."
@@ -106,6 +108,7 @@ sections:
         whistle_short: "X.X............."
 
       - name: change_signal
+        role: bridge
         weight: 2
         # Three short whistles: "change pattern!" at positions 0, 2, 4.
         surdo_open:    "X..............."
@@ -131,6 +134,7 @@ sections:
         whistle_long:  "....X..........."
 
       - name: free_energy
+        role: chorus
         weight: 1
         # Rapid short whistles: "maximum energy!" — chaotic climax
         surdo_open:    "X.......X......."
@@ -180,6 +184,26 @@ sections:
         tamborim:   "X..X.X..X..X.X.."
         agogo:      "..X...X...X...X."
         chocalho:   "x.x.x.x.x.x.x.x."
+
+  ending:
+    # Played once at the end of the song; the drums stop after bar 2.
+    type: sequence
+    bars: 2
+    bar_grids:
+      - # Bar 1: Mestre long whistle, then unison bateria hits and caixa roll
+        whistle_long: "X..............."
+        surdo_open:   "X.......X.....X."
+        surdo_mute:   "....X.......X..."
+        caixa:        "gxgxX..X..X.XXXX"
+        repique:      "....X..X..X.X.X."
+        tamborim:     "....X..X..X.X.X."
+        chocalho:     "x.x.x.x.x.x.x.x."
+      - # Bar 2: final hit on beat 1, then silence
+        crash:      "X..............."
+        surdo_open: "X..............."
+        caixa:      "X..............."
+        tamborim:   "X..............."
+        chocalho:   "X..............."
 
 structure:
   fill_every: 8

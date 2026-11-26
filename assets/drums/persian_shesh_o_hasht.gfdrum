@@ -67,6 +67,7 @@ sections:
     bars: 1
     variations:
       - name: shesh_o_hasht
+        role: verse
         weight: 4
         # The basic form: tom on each compound downbeat (pos 0, 6), bak on the
         # third 8th of each (pos 4, 10). Riz fills the odd 16ths; daf keeps the
@@ -77,6 +78,7 @@ sections:
         daf: "x.x.x.x.x.x."
 
       - name: bandari
+        role: chorus
         weight: 3
         # Bandari — the Persian Gulf dance style: busier, with bak strokes on
         # both the second and third 8th of each compound beat and the kick
@@ -87,6 +89,7 @@ sections:
         kick: "X.....X....."
 
       - name: sparse_zarb
+        role: intro
         weight: 2
         # Solo-tombak reading: only the two toms and one bak, everything else
         # left open. Under a slow Shur improvisation this is all the metre needs.
@@ -95,6 +98,7 @@ sections:
         riz: "....g.....g."
 
       - name: daf_drive
+        role: bridge
         weight: 2
         # The daf leads at 16th density — the ensemble texture of a Kurdish or
         # Sufi group, where the frame drum is the loudest thing on stage.
@@ -129,6 +133,21 @@ sections:
         tom:   "X.....X....."
         bak:   "....x.....x."
         daf:   "x.x.x.x.x.x."
+
+  ending:
+    # Played once at the end of the song; the drums stop after bar 2.
+    type: sequence
+    bars: 2
+    bar_grids:
+      - # Bar 1: Zarb pulse, riz roll swells into bak/daf unison hits
+        tom: "X.....X....."
+        bak: "....x...X.X."
+        riz: ".g.g..ggooxx"
+        daf: "x.x.x.x.X.X."
+      - # Bar 2: final hit on beat 1, then silence
+        crash: "X..........."
+        tom:   "X..........."
+        daf:   "X..........."
 
 structure:
   fill_every: 8

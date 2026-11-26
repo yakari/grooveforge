@@ -79,6 +79,7 @@ sections:
     bars: 1
     variations:
       - name: bodhran_down
+        role: verse
         weight: 4
         # Classic bodhran feel: kick drives compound beats (0, 6), hi-hat continuous 8ths
         # with compound-beat accents. Snare accent on the 3rd 8th (steps 4, 10) gives
@@ -88,6 +89,7 @@ sections:
         snare: "...x.....x.."
         hihat: "X.x.x.X.x.x."
       - name: bodhran_tip
+        role: bridge
         weight: 3
         # Cross-stick "tip" strokes on the 2nd and 5th 8th notes (steps 2, 8) add
         # the dry click of the bodhran stick's back face hitting the skin ring —
@@ -96,6 +98,7 @@ sections:
         cross: "..x...x....."
         hihat: "X.x.x.X.x.x."
       - name: swell
+        role: chorus
         weight: 2
         # "Swell" variation: kick adds a push on the 4th 8th note (step 6+1=7? no, step 4+2=6 = compound beat 2 downbeat).
         # Actually: kick on step 4 ("a" of group 1) adds weight before compound beat 2.
@@ -126,6 +129,21 @@ sections:
         crash: "X..........."
         kick:  "X..........."
         hihat: "X.x.x.X.x.x."
+
+  ending:
+    # Played once at the end of the song; the drums stop after bar 2.
+    type: sequence
+    bars: 2
+    bar_grids:
+      - # Bar 1: Jig pulse, then bodhran-style snare roll down to the tom
+        kick:   "X....xX....x"
+        snare:  "...x..XxXx.."
+        tom_hi: "..........X."
+        hihat:  "X.x.x......."
+      - # Bar 2: final hit on beat 1, then silence
+        crash: "X..........."
+        kick:  "X..........."
+        hihat: "X..........."
 
 structure:
   fill_every: 8

@@ -76,6 +76,7 @@ sections:
     bars: 1
     variations:
       - name: irish_reel
+        role: verse
         weight: 3
         # Irish reel groove (Planxty / Altan style): fast, driving, absolutely straight.
         # KICK: beats 1 and 3 (pos 0, 8) — the bodhran's "bass stroke," the thumb hit
@@ -89,6 +90,7 @@ sections:
         hihat:     "x.x.x.x.x.x.x.x."
 
       - name: strathspey
+        role: bridge
         weight: 2
         # Scottish strathspey: the Scotch snap rhythmic cell.
         # The Scotch snap places a 16th note accent on the "e" of each beat (pos 1,5,9,13)
@@ -105,6 +107,7 @@ sections:
         hihat:     "x.x.x.x.x.x.x.x."
 
       - name: jig_feel
+        role: chorus
         weight: 2
         # Irish jig feel approximated in 4/4 (compound 6/8 implied).
         # The bodhran in a jig plays "dom-da-dom-da" — bass on 1 and "and-of-2" (pos 6)
@@ -140,6 +143,20 @@ sections:
         kick:      "X...X...X...X..."
         snare_rim: "....X.......X..."
         hihat:     "x.x.x.x.x.x.x.x."
+
+  ending:
+    # Played once at the end of the song; the drums stop after bar 2.
+    type: sequence
+    bars: 2
+    bar_grids:
+      - # Bar 1: Reel pulse, then unison kick/snare hits on 3, 3+, 4
+        kick:  "X.......X.X.X..."
+        snare: "....X..gX.X.X.xx"
+        hihat: "x.x.x.x........."
+      - # Bar 2: final hit on beat 1, then silence
+        crash: "X..............."
+        kick:  "X..............."
+        hihat: "X..............."
 
 structure:
   fill_every: 8

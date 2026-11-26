@@ -64,6 +64,7 @@ sections:
     bars: 1
     variations:
       - name: ride_spang
+        role: verse
         weight: 4
         # Spang-a-lang: quarter beats (X at 0,4,8,12) + swing "trip" (x at 3,7,11,15)
         # With swing_hard the "trip" steps are delayed ~0.085 beats → triplet approximation
@@ -72,6 +73,7 @@ sections:
         kick:       "x.......x......."
         snare:      ".....gg.......gg"
       - name: ride_comp
+        role: bridge
         weight: 2
         # More active comping with ghost notes on additional off-beats
         ride:       "X..xX..xX..xX..x"
@@ -79,6 +81,7 @@ sections:
         kick:       "x..............."
         snare:      "..g...g.....g..."
       - name: ride_bell
+        role: chorus
         weight: 1
         # Bell of the ride for an energetic section — louder, brighter tone
         ride_bell:  "X..xX..xX..xX..x"
@@ -108,6 +111,19 @@ sections:
         crash:      "X..............."
         ride:       "...xX..xX..xX..x"
         hihat_foot: "....x.......x..."
+
+  ending:
+    # Played once at the end of the song; the drums stop after bar 2.
+    type: sequence
+    bars: 2
+    bar_grids:
+      - # Bar 1: Ride then big-band kick/snare hits on 2+, 3+, 4+
+        ride:       "X..xX..x........"
+        hihat_foot: "....x..........."
+        kick:       "......X...X...X."
+        snare:      "........x.X...X."
+      - # Bar 2: final hit on beat 1, then silence
+        crash: "X..............."
 
 structure:
   fill_every: 16
