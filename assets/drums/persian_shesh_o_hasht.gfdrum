@@ -1,5 +1,6 @@
 # Persian — Shesh-o-hasht (6/8)
-# Reference: the 6/8 dance rhythm of Iran, Afghanistan and the Kurdish regions
+# Reference: the 6/8 dance rhythm of Iran, Afghanistan and the Kurdish regions;
+#            Peyman Nasehpour, "Old Persian Rhythm Cycles"
 #            — "shesh-o-hasht" is literally "six-eight". Heard under bandari and
 #            reng dance pieces and in most Persian pop.
 # Pairs with the dastgah scales in the Xen module: Shur, Segah, Chahargah and
@@ -79,11 +80,11 @@ sections:
         role: verse
         weight: 4
         # The basic form: tom on each compound downbeat (pos 0, 6), bak on the
-        # third 8th of each (pos 4, 10). Riz fills the odd 16ths; daf keeps the
-        # six 8ths audible so nobody loses the compound feel.
+        # third 8th of each (pos 4, 10). A light riz before each bak; the daf
+        # keeps the six 8ths audible so nobody loses the compound feel.
         tom: "X.....X....."
         bak: "....x.....x."
-        riz: ".g.g.g.g.g.g"
+        riz: "...g.......g"
         daf: "x.x.x.x.x.x."
 
       - name: bandari
@@ -105,6 +106,15 @@ sections:
         tom: "X.....X....."
         bak: "..........x."
         riz: "....g.....g."
+
+      - name: torki
+        weight: 1
+        # An older six-beat cycle, Torki-ye-Zarb-e-Far (3+3, "X x o X x o"
+        # in Nasehpour's listing), read here as six eighths: tom, bak, rest,
+        # twice. A plainer, march-like lilt.
+        tom: "X.....X....."
+        bak: "..x.....x..."
+        daf: "x...x.x...x."
 
       - name: daf_drive
         role: bridge

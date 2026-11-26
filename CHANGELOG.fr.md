@@ -21,7 +21,7 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 - Les nouveaux projets démarrent avec le module Xen éteint : le clavier joue toutes les notes jusqu'à ce que vous choisissiez une gamme, ce qui l'allume. Les projets sauvegardés gardent Xen tel quel.
 - Aide réécrite : elle commence par la façon de brancher les modules et des recettes courtes, chacune avec une vidéo du geste sur le site.
 - La latence d'overdub passe de « À propos » à la rubrique Sortie Audio des Préférences.
-- Générateur de batterie : 22 styles fournis réécrits d'après de vraies transcriptions (rock, metal, jazz, shuffle, latino, brésilien, marches, funk, afrobeat, dub, arabe, turc, tabla) ; Celtic Plinn passe en 4/4.
+- Générateur de batterie : 28 styles fournis réécrits d'après de vraies transcriptions et leurs batteurs de référence ; Celtic Plinn passe en 4/4.
 
 ### Corrigé
 - Linux : les plugins VST3 jouaient faux quand JACK ou PipeWire tournait à 44,1 kHz ; ils suivent maintenant la fréquence du serveur.
@@ -50,6 +50,7 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 - L'écran d'alignement disait que le tempo se verrouille après une prise ; il dit maintenant ce qui est vraiment bloqué.
 - Paquets Linux : la page d'accueil pointait vers une adresse morte, et mpv figurait dans les dépendances sans servir.
 - Ouvrir un projet depuis le menu laissait Riff, l'Ampli et tous les autres modules audio bloqués en chargement et muets. Ils se chargent maintenant comme au démarrage.
+- Générateur de batterie : Celtic Plinn et Celtic Reel étaient rangés dans Folk au lieu de Celtique.
 
 ## [3.5.0] - 2026-11-23
 

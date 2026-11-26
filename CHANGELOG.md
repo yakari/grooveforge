@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - New projects start with the Xen module switched off, so the keyboard plays every note until you pick a scale, which switches it on. Projects you saved keep Xen exactly as they were.
 - Help rewritten: it now starts with how to connect modules and short recipes, each linking to a video of the gesture on the website.
 - Overdub latency moved from About to the Audio Output section of Preferences.
-- Drum Generator: 22 bundled styles rewritten from real transcriptions (rock, metal, jazz, shuffle, Latin, Brazilian, marches, funk, Afrobeat, dub, Arabic, Turkish, tabla); Celtic Plinn moves to 4/4.
+- Drum Generator: 28 bundled styles rewritten after real transcriptions and their reference drummers; Celtic Plinn moves to 4/4.
 
 ### Fixed
 - Linux: VST3 plugins played out of tune when JACK or PipeWire ran at 44.1 kHz; they now follow the server's sample rate.
@@ -50,6 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The rehearsal alignment screen said the tempo locks once a part is recorded; it now says what is actually locked.
 - Linux packages: homepage pointed to a dead address, and mpv was listed as a dependency without being used.
 - Opening a project from the menu left Riff, Amp and every other audio module stuck loading and silent. They now load as they do at startup.
+- Drum Generator: Celtic Plinn and Celtic Reel were listed under Folk instead of Celtic.
 
 ## [3.5.0] - 2026-11-23
 

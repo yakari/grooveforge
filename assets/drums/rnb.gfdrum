@@ -1,16 +1,31 @@
-# R&B — neo-soul, new jack swing and slow jam
-# Reference: Questlove / D'Angelo "Voodoo" (neo-soul), Teddy Riley and
-#            Bobby Brown "My Prerogative" (new jack swing), Babyface ballads,
-#            Chris Dave and Anderson .Paak for the modern end.
-# The common thread is the ghost note: the snare hand never stops moving, it
-# just plays most of its strokes almost inaudibly between the backbeats.
+# R&B — neo-soul, new jack swing, slow jam and quiet storm
+# Reference: Questlove with D'Angelo ("Voodoo", 2000), J Dilla's
+#            programming, Teddy Riley (Guy, Bobby Brown "My Prerogative",
+#            Blackstreet), Babyface ballads, Chris Dave for the modern end
+# Two things hold the styles together:
+# - the sixteenths swing. New jack swing is named for it: drum machines
+#   (TR-808, SP-1200) with heavy sixteenth swing, close to triplets.
+#   Neo-soul swings them too, more loosely, after J Dilla. The default
+#   feel is a hard sixteenth swing; lower the swing knob for a straighter
+#   ballad.
+# - the snare sits behind the beat. Questlove's backbeat drags, and the
+#   snare hand keeps moving with ghost notes between the backbeats.
+# The variations are written in the manner of these drummers and
+# producers, not copied:
+# - neo-soul: the bass drum avoids beat 3, the snare late and ghosted;
+# - new jack swing: a hard snare doubled by a clap on 2 and 4, the bass
+#   drum on swung sixteenths around them, an extra snare-and-clap on the
+#   "a" of 4 that kicks the next bar, the open hat on the "and" of 4;
+# - slow jam: half-time, one snare on beat 3, tambourine on 2 and 4;
+# - quiet storm: cross-stick and ride under the vocal.
 # GM notes: 36=kick, 38=snare, 37=side stick, 39=hand clap, 42=closed HH,
-#           46=open HH, 54=tambourine, 51=ride, 45=low tom, 49=crash
+#           46=open HH, 54=tambourine, 51=ride, 45=low tom, 48=hi tom,
+#           49=crash
 
 #
 # ── Step grid notation ────────────────────────────────────────────────────────
 # Each character in a step grid represents one subdivision of the bar.
-# Resolution controls how many steps per bar (16 = 16th notes in 4/4).
+# Resolution controls how many steps per bar (16 = 16th notes in 4/4; 12 = 16th notes in 6/8).
 #
 #   X   Strong accent  — velocity = base_velocity × 1.00  (full hit / downbeat)
 #   x   Medium accent  — velocity = base_velocity × 0.75  (firm stroke / upbeat)
@@ -22,6 +37,11 @@
 #   pos  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
 #        1  e1 +1 a1  2  e2 +2 a2  3  e3 +3 a3  4  e4 +4 a4
 #   (1/+/2/+/3/+/4/+ = quarter beats; e = "e of"; a = "and-a of")
+#
+# Beat positions — 6/8 at resolution 12 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11
+#        C1 .  e1 .  a1 .  C2 .  e2 .  a2 .
+#   (C1/C2 = compound beat downbeats; each compound beat = 3 eighth notes = 6 steps)
 #
 # Swing / feel: 'feel' delays the second note of each swung pair, and
 # 'swing_unit' says which notes pair up: 16 = sixteenths (the default),
@@ -40,18 +60,19 @@ family: rnb
 bpm_range: [65, 105]
 time_signature: [4, 4]
 resolution: 16
-feel: swing_light
+feel: swing_hard
 swing_unit: 16
 
 instruments:
   kick:       { note: 36, base_velocity: 106, velocity_range: 12, timing_jitter: 0.018, duration_beats: 0.16 }
-  snare:      { note: 38, base_velocity: 104, velocity_range: 18, timing_jitter: 0.020, duration_beats: 0.11 }
+  snare:      { note: 38, base_velocity: 104, velocity_range: 14, timing_jitter: 0.016, rush: 0.02, duration_beats: 0.11 }
   rim:        { note: 37, base_velocity: 80,  velocity_range: 12, timing_jitter: 0.018, duration_beats: 0.06 }
   clap:       { note: 39, base_velocity: 94,  velocity_range: 10, timing_jitter: 0.014, duration_beats: 0.10 }
   hihat:      { note: 42, base_velocity: 72,  velocity_range: 14, timing_jitter: 0.016, duration_beats: 0.05 }
   hihat_open: { note: 46, base_velocity: 80,  velocity_range: 10, timing_jitter: 0.014, duration_beats: 0.12 }
   tambourine: { note: 54, base_velocity: 70,  velocity_range: 12, timing_jitter: 0.016, duration_beats: 0.07 }
   ride:       { note: 51, base_velocity: 72,  velocity_range: 12, timing_jitter: 0.016, duration_beats: 0.12 }
+  tom_hi:     { note: 48, base_velocity: 92,  velocity_range: 14, timing_jitter: 0.018, duration_beats: 0.12 }
   tom_lo:     { note: 45, base_velocity: 92,  velocity_range: 14, timing_jitter: 0.018, duration_beats: 0.14 }
   crash:      { note: 49, base_velocity: 96,  velocity_range: 8,  timing_jitter: 0.014, duration_beats: 0.26 }
 
@@ -69,56 +90,67 @@ sections:
   groove:
     bars: 1
     variations:
+      - name: slow_jam
+        role: intro
+        weight: 2
+        # Half-time ballad: one snare per bar on beat 3, the tambourine on
+        # the backbeats it left behind, the bass drum spread wide.
+        kick:       "X... .... ..X. ...."
+        snare:      ".... .... X... ...."
+        hihat:      "x.x. x.x. x.x. x.x."
+        tambourine: ".... x... .... x..."
+
       - name: neo_soul
         role: verse
-        weight: 3
-        # Questlove behind D'Angelo: the backbeats sit late, and the snare hand
-        # keeps filling with ghosts at pos 7 and 14 that you feel rather than
-        # hear. The kick pushes the "and of 2" (pos 6) and "3-and" (pos 10),
-        # never landing squarely on beat 3.
-        kick:       "X.....X...X....."
-        snare:      "....X..g....X..g"
-        hihat:      "x.g.x.g.x.g.x.g."
+        weight: 4
+        # In the manner of Questlove behind D'Angelo: the backbeat late (the
+        # snare's rush), ghost notes before and after it; the bass drum on
+        # 1, the "a" of 2 and the "and" of 3, never squarely on 3; the
+        # hi-hat in sixteenths, soft on the "e" and "a".
+        kick:       "X... ...X ..X. ...."
+        snare:      ".... X..g .g.. X.g."
+        hihat:      "xgxg xgxg xgxg xgxg"
 
       - name: new_jack_swing
         role: chorus
         weight: 3
-        # Teddy Riley: a hard, gated snare doubled by a clap on 2 and 4, and a
-        # kick that plays the "a of 1" (pos 3) and "a of 3" (pos 11) — the
-        # swung-16th push that made the style danceable at pop tempos.
-        kick:       "X..X....X..X...."
-        snare:      "....X.......X..."
-        clap:       "....X.......X..."
-        hihat:      "x.x.x.x.x.x.x.x."
-        hihat_open: "......x.......x."
-
-      - name: slow_jam
-        role: intro
-        weight: 2
-        # Half-time ballad: one snare per bar on beat 3, tambourine marking the
-        # backbeats it left behind, kick spread wide. Space is the point.
-        kick:       "X.........X....."
-        snare:      "........X......."
-        hihat:      "x.x.x.x.x.x.x.x."
-        tambourine: "....x.......x..."
-
-      - name: modern_rnb
-        weight: 2
-        # The contemporary end: half-time snare on 3, kick riding the offbeats,
-        # and a hi-hat that breaks into a 16th roll on beat 4 (pos 12-14).
-        kick:       "X.....X...X....."
-        snare:      "........X......."
-        hihat:      "x.x.x.x.x.xxxx.x"
+        # In the manner of Teddy Riley: snare and clap together on 2 and 4
+        # and again on the "a" of 4; the bass drum on swung sixteenths
+        # around them (1, the "a" of 1, the "and" of 2, the "e" of 3); the
+        # open hat on the "and" of 4.
+        kick:       "X..X ..X. .X.. ...."
+        snare:      ".... X... .... X..X"
+        clap:       ".... X... .... X..X"
+        hihat:      "x.xx x.xx x.xx x..."
+        hihat_open: ".... .... .... ..x."
 
       - name: quiet_storm
         role: bridge
         weight: 2
-        # Cross-stick and ride instead of snare and hats — the late-night
-        # arrangement, where the drums stay under the vocal rather than beside it.
-        kick:       "X.......X......."
-        rim:        "....X.......X..."
-        hihat:      "x.g.x.g.x.g.x.g."
-        ride:       "X...X...X...X..."
+        # Cross-stick and ride instead of snare and hi-hat: the late-night
+        # arrangement, the drums under the vocal rather than beside it.
+        kick:       "X... .... X.X. ...."
+        rim:        ".... X... .... X..."
+        ride:       "x.x. x.x. x.x. x.x."
+
+      - name: new_jack_bounce
+        weight: 2
+        # The busier new jack variation: the bass drum doubled before 3,
+        # a ghosted snare on the "e" of 3, the tambourine on the offbeats.
+        kick:       "X..X ..X. XX.. ..X."
+        snare:      ".... X... .g.. X..X"
+        clap:       ".... X... .... X..X"
+        hihat:      "x.xx x.xx x.xx x..."
+        hihat_open: ".... .... .... ..x."
+        tambourine: "..x. ..x. ..x. ..x."
+
+      - name: modern_rnb
+        weight: 2
+        # The contemporary end: a half-time snare on 3, the bass drum on the
+        # offbeats, a sixteenth hi-hat roll on beat 4.
+        kick:       "X... ..X. ..X. ...."
+        snare:      ".... .... X... ...."
+        hihat:      "x.x. x.x. x.x. xxxx"
 
   fill:
     bars: 1
@@ -131,11 +163,12 @@ sections:
         hihat:      "x.g.x.g.x.g.x.g."
 
       - name: tom_soul
-        # Low tom on beat 3 answered by snare on beat 4 — a Motown-descended
-        # turnaround that still fits under a modern R&B mix.
+        # High tom then low tom on beat 3, answered by the snare on beat 4:
+        # a Motown-descended turnaround that still fits under an R&B mix.
         kick:       "X..............."
-        tom_lo:     "........X.X....."
-        snare:      "............X.X."
+        tom_hi:     "........X.X....."
+        tom_lo:     "...........X.X.."
+        snare:      "............X.XX"
 
       - name: clap_turnaround
         # Clap answers the snare into the downbeat. Programmed rather than played,

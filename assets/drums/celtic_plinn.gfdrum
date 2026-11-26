@@ -49,7 +49,7 @@
 # ─────────────────────────────────────────────────────────────────────────────
 
 name: Celtic Plinn
-family: folk
+family: celtic
 bpm_range: [130, 175]
 time_signature: [4, 4]
 resolution: 16

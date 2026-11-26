@@ -1,17 +1,27 @@
-# Electro — TR-808 electro funk / freestyle
-# Reference: Afrika Bambaataa "Planet Rock", Cybotron "Clear",
-#            Egyptian Lover, Mantronix, Shannon "Let the Music Play",
-#            Man Parrish — all built on the Roland TR-808.
-# The signature is a kick that refuses to sit on the beat: it lands on 16th-note
-# offbeats while the snare/clap keeps a rigid backbeat on 2 and 4.
-# GM notes: 36=kick, 40=electric snare, 39=hand clap, 42=closed HH, 46=open HH,
-#           56=cowbell (the 808 cowbell), 41=low tom, 37=side stick,
-#           69=cabasa, 49=crash
+# Electro — TR-808 electro funk, Miami bass and freestyle
+# Reference: Kraftwerk "Numbers" (1981), Afrika Bambaataa & the Soulsonic
+#            Force "Planet Rock" (1982, its 808 part reprogrammed after
+#            "Numbers"), Cybotron "Clear", Egyptian Lover, Mantronix, 2 Live
+#            Crew, Shannon "Let the Music Play"; MusicRadar, "How to program
+#            a classic electro drum track"
+# Electro is programmed, not played: every hit at one or two velocity
+# levels, no ghost notes, rigidly on the grid. The snare (or clap) sits on
+# 2 and 4 alone, and the bass drum weaves around it, landing on sixteenth
+# offbeats. The closed hi-hat runs in sixteenths with a few holes, an open
+# hat on the last sixteenth pulls into the next bar, and the 808 cowbell
+# plays a syncopated line in the choruses.
+# The variations are written in the manner of these records, not copied:
+# the "Numbers" / "Planet Rock" bass drum groups the first half-bar 3+3+2
+# (beat 1, the "a" of 1, the "and" of 2) and adds the "and" of 3.
+# Uses the TR-808 kit of the bundled soundfont.
+# GM notes: 36=kick, 40=electric snare, 39=hand clap, 42=closed HH, 46=open
+#           HH, 56=cowbell, 75=claves, 70=maracas, 37=rim shot, 41=low tom,
+#           45=mid tom, 48=hi tom, 49=crash
 
 #
 # ── Step grid notation ────────────────────────────────────────────────────────
 # Each character in a step grid represents one subdivision of the bar.
-# Resolution controls how many steps per bar (16 = 16th notes in 4/4).
+# Resolution controls how many steps per bar (16 = 16th notes in 4/4; 12 = 16th notes in 6/8).
 #
 #   X   Strong accent  — velocity = base_velocity × 1.00  (full hit / downbeat)
 #   x   Medium accent  — velocity = base_velocity × 0.75  (firm stroke / upbeat)
@@ -23,6 +33,11 @@
 #   pos  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
 #        1  e1 +1 a1  2  e2 +2 a2  3  e3 +3 a3  4  e4 +4 a4
 #   (1/+/2/+/3/+/4/+ = quarter beats; e = "e of"; a = "and-a of")
+#
+# Beat positions — 6/8 at resolution 12 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11
+#        C1 .  e1 .  a1 .  C2 .  e2 .  a2 .
+#   (C1/C2 = compound beat downbeats; each compound beat = 3 eighth notes = 6 steps)
 #
 # Swing / feel: 'feel' delays the second note of each swung pair, and
 # 'swing_unit' says which notes pair up: 16 = sixteenths (the default),
@@ -46,108 +61,135 @@ swing_unit: 16
 kit: tr808
 
 instruments:
-  kick:       { note: 36, base_velocity: 115, velocity_range: 5,  timing_jitter: 0.003, duration_beats: 0.20 }
-  snare:      { note: 40, base_velocity: 100, velocity_range: 6,  timing_jitter: 0.004, duration_beats: 0.09 }
-  clap:       { note: 39, base_velocity: 96,  velocity_range: 6,  timing_jitter: 0.005, duration_beats: 0.10 }
-  hihat:      { note: 42, base_velocity: 76,  velocity_range: 8,  timing_jitter: 0.003, duration_beats: 0.05 }
-  hihat_open: { note: 46, base_velocity: 82,  velocity_range: 6,  timing_jitter: 0.003, duration_beats: 0.13 }
-  cowbell:    { note: 56, base_velocity: 84,  velocity_range: 6,  timing_jitter: 0.004, duration_beats: 0.07 }
-  cabasa:     { note: 69, base_velocity: 66,  velocity_range: 8,  timing_jitter: 0.004, duration_beats: 0.05 }
-  rim:        { note: 37, base_velocity: 74,  velocity_range: 8,  timing_jitter: 0.004, duration_beats: 0.05 }
-  tom_lo:     { note: 41, base_velocity: 100, velocity_range: 8,  timing_jitter: 0.005, duration_beats: 0.18 }
-  crash:      { note: 49, base_velocity: 98,  velocity_range: 6,  timing_jitter: 0.004, duration_beats: 0.25 }
+  kick:       { note: 36, base_velocity: 118, velocity_range: 4,  timing_jitter: 0.002, duration_beats: 0.30 }
+  snare:      { note: 40, base_velocity: 108, velocity_range: 4,  timing_jitter: 0.002, duration_beats: 0.10 }
+  clap:       { note: 39, base_velocity: 104, velocity_range: 4,  timing_jitter: 0.002, duration_beats: 0.10 }
+  hihat:      { note: 42, base_velocity: 84,  velocity_range: 4,  timing_jitter: 0.002, duration_beats: 0.05 }
+  hihat_open: { note: 46, base_velocity: 88,  velocity_range: 4,  timing_jitter: 0.002, duration_beats: 0.20 }
+  cowbell:    { note: 56, base_velocity: 92,  velocity_range: 4,  timing_jitter: 0.002, duration_beats: 0.08 }
+  claves:     { note: 75, base_velocity: 88,  velocity_range: 4,  timing_jitter: 0.002, duration_beats: 0.05 }
+  maracas:    { note: 70, base_velocity: 72,  velocity_range: 4,  timing_jitter: 0.002, duration_beats: 0.05 }
+  rim:        { note: 37, base_velocity: 86,  velocity_range: 4,  timing_jitter: 0.002, duration_beats: 0.05 }
+  tom_lo:     { note: 41, base_velocity: 104, velocity_range: 4,  timing_jitter: 0.002, duration_beats: 0.25 }
+  tom_mid:    { note: 45, base_velocity: 104, velocity_range: 4,  timing_jitter: 0.002, duration_beats: 0.22 }
+  tom_hi:     { note: 48, base_velocity: 104, velocity_range: 4,  timing_jitter: 0.002, duration_beats: 0.20 }
+  crash:      { note: 49, base_velocity: 100, velocity_range: 4,  timing_jitter: 0.002, duration_beats: 0.25 }
 
+# A drum machine: almost no jitter. The Human feel knob can still loosen it.
 humanization:
-  timing_jitter: 0.004
-  velocity_jitter: 6
-  velocity_drift: 0.03
+  timing_jitter: 0.002
+  velocity_jitter: 4
+  velocity_drift: 0.02
 
 sections:
   intro:
     type: count_in
     hits: 4
-    note: 56
+    note: 75
 
   groove:
     bars: 1
     variations:
-      - name: planet_rock
-        role: verse
-        weight: 3
-        # The Planet Rock kick: pos 0 (beat 1), pos 3 ("a" of 1), pos 6
-        # ("and" of 2) and pos 10 ("and" of 3). Three of those four land off
-        # the quarter-note grid, which is exactly why it walks instead of marches.
-        # Snare stays rigid on 2 and 4 so the kick has something to fight.
-        kick:       "X..X..X...X....."
-        snare:      "....X.......X..."
-        hihat:      "x.x.x.x.x.x.x.x."
-        hihat_open: "......x.......x."
-        cowbell:    "..x.......x....."
+      - name: machine_start
+        role: intro
+        weight: 1
+        # The machine starts: the bass drum figure and the sixteenth hi-hat
+        # alone, before the backbeat comes in.
+        kick:       "X..X ..X. ..X. ...."
+        hihat:      "xxXx xxXx xxXx xxX."
+        hihat_open: ".... .... .... ...X"
 
-      - name: miami_bass
+      - name: numbers
+        role: verse
+        weight: 4
+        # In the manner of "Numbers" and "Planet Rock": the bass drum on 1,
+        # the "a" of 1, the "and" of 2 and the "and" of 3; the snare on 2
+        # and 4, nothing else; the hi-hat in sixteenths with holes, open on
+        # the last sixteenth.
+        kick:       "X..X ..X. ..X. ...."
+        snare:      ".... X... .... X..."
+        hihat:      "xxXx x.Xx xxXx x.X."
+        hihat_open: ".... .... .... ...X"
+
+      - name: cowbell_chorus
         role: chorus
-        weight: 2
-        # Miami bass (2 Live Crew, Dynamix II): the kick gets busier and hits
-        # both sides of the backbeat, clap layered over the snare for width,
-        # and 16th hats with ghosted in-betweens for the machine-gun texture.
-        kick:       "X..X..X.X..X..X."
-        snare:      "....X.......X..."
-        clap:       "....X.......X..."
-        hihat:      "xgxgxgxgxgxgxgxg"
-        hihat_open: "......x.......x."
+        weight: 3
+        # The chorus: the same machine, the clap doubling the snare on 4,
+        # the 808 cowbell on a syncopated two-bar line.
+        kick:       "X..X ..X. ..X. .... | X..X ..X. ..X. ..X."
+        snare:      ".... X... .... X... | .... X... .... X..."
+        clap:       ".... .... .... X... | .... .... .... X..."
+        hihat:      "xxXx x.Xx xxXx x.X. | xxXx x.Xx xxXx x.X."
+        hihat_open: ".... .... .... ...X | .... .... .... ...X"
+        cowbell:    "X..X ..X. .X.. X... | ..X. .X.. X..X ..X."
 
       - name: freestyle
         role: bridge
         weight: 2
-        # Freestyle (Shannon, Debbie Deb): the kick spreads wider across the bar
-        # and the side stick plus cabasa take the offbeats, leaving the middle
-        # of the mix free for the vocal. Lighter than the Miami variant.
-        kick:       "X.....X...X..X.."
-        clap:       "....X.......X..."
-        rim:        "..x...x...x...x."
-        hihat:      "x.x.x.x.x.x.x.x."
-        cabasa:     "..x...x...x...x."
+        # Freestyle (Shannon, Debbie Deb): a lighter bass drum, the clap on
+        # 2 and 4, the 808 claves and maracas taking the offbeats to leave
+        # room for the vocal.
+        kick:       "X... ..X. ..X. ...."
+        clap:       ".... X... .... X..."
+        claves:     "...X ..X. ...X ..X."
+        maracas:    "x.x. x.x. x.x. x.x."
+        hihat:      "..x. ..x. ..x. ..x."
+
+      - name: miami_bass
+        weight: 2
+        # Miami bass (2 Live Crew, Dynamix II): a long booming 808 bass drum
+        # doubled on the sixteenths before 3 and 4, snare and clap together
+        # on 2 and 4, a busier sixteenth hi-hat.
+        kick:       "X..X ..X. .XX. ..X."
+        snare:      ".... X... .... X..."
+        clap:       ".... X... .... X..."
+        hihat:      "xxxx xxxx xxxx xxXx"
+        hihat_open: ".... .... .... ...X"
 
       - name: electro_funk
         weight: 2
-        # Cybotron / Egyptian Lover: a squarer kick (pos 0, 3, 8, 11 — a 3+5
-        # displacement repeated over each half-bar) with the 808 cowbell nailed
-        # to the quarters, so the cowbell reads as the beat and the kick as the riff.
-        kick:       "X..X....X..X...."
-        snare:      "....X.......X..."
-        hihat:      "x.x.x.x.x.x.x.x."
-        hihat_open: "..............x."
-        cowbell:    "X...X...X...X..."
+        # Cybotron, Egyptian Lover: the 808 cowbell nailed to the quarters
+        # so it reads as the beat, the bass drum on 1, the "a" of 1, 3 and
+        # the "a" of 3 as the riff.
+        kick:       "X..X .... X..X ...."
+        snare:      ".... X... .... X..."
+        hihat:      "x.x. x.x. x.x. x.x."
+        hihat_open: ".... .... .... ..x."
+        cowbell:    "X... X... X... X..."
 
   fill:
     bars: 1
     variations:
       - name: tom_808
-        # The 808's tuned low tom descending into the downbeat — the fill every
-        # electro record uses, because the 808 tom pitch-bends as it decays.
-        kick:       "X..............."
-        tom_lo:     "........X.X.XXXX"
+        # The 808 toms falling into the downbeat: the fill every electro
+        # record uses, the toms' pitch dropping as they decay.
+        kick:    "X..X ..X. .... ...."
+        snare:   ".... X... .... ...."
+        tom_hi:  ".... .... X.X. ...."
+        tom_mid: ".... .... ...X X..."
+        tom_lo:  ".... .... .... ..XX"
 
       - name: snare_stutter
-        # Snare 16ths over the last beat only; the kick keeps its syncopation
-        # through the first three beats so the bar still swings into the stutter.
-        kick:       "X..X..X........."
-        snare:      "............XXXX"
-        hihat:      "x.x.x.x.x.x.x.x."
+        # Snare sixteenths over the last beat only; the bass drum keeps its
+        # figure through the first three beats.
+        kick:   "X..X ..X. ..X. ...."
+        snare:  ".... X... .... XXXX"
+        hihat:  "xxXx x.Xx xxXx ...."
 
       - name: clap_roll
-        # Clap accelerating from 8ths to 16ths — cheap, effective, and period-correct.
-        kick:       "X..X..X........."
-        clap:       "........X.X.XxXX"
-        cabasa:     "..x...x...x...x."
+        # The clap from eighths to sixteenths, the bass drum on 1 only.
+        kick:   "X... .... .... ...."
+        clap:   ".... X... X.X. XXXX"
+        hihat:  "xxXx xxXx .... ...."
 
   break:
     bars: 2
     variations:
       - name: drop
-        # Kick and hats only: the vocal or the bassline carries the break.
-        kick:       "X..X..X...X....."
-        hihat:      "x.x.x.x.x.x.x.x."
+        # The bass drum and the hi-hat only: the vocal or the bassline
+        # carries the break.
+        kick:       "X..X ..X. ..X. ...."
+        hihat:      "xxXx x.Xx xxXx x.X."
 
   crash:
     bars: 1

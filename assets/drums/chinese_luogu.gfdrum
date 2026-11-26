@@ -1,30 +1,30 @@
-# Chinese — Luogu (gong-and-drum, lion dance)
-# Reference: the luogu (鑼鼓, "gong and drum") percussion that accompanies
-#            southern lion dance and Chinese opera. The two cadences named
-#            below — three-star (三星鼓) and seven-star (七星鼓) — are the
-#            standard teaching patterns of the Cantonese lion-dance tradition.
+# Chinese — Luogu (gong-and-drum, southern lion dance)
+# Reference: the luogu (鑼鼓, "gong and drum") percussion of the southern
+#            (Cantonese) lion dance; Wong Kiew Kit, "Percussion Music of the
+#            Lion Dance" and "Patterns of Gong, Cymbals and Drum"
+#            (shaolin.org)
+# The lion-dance ensemble has no melody and three kinds of instrument:
+#   GU    — the big barrel drum, which leads: the lion follows the drum,
+#           and the drummer changes pattern as the lion moves
+#   LUO   — the gong
+#   BO    — the hand cymbals, played by one or more players
+# The music is built on a two-beat unit, "1 2 1 2". The gong strikes on 2
+# of each unit; the cymbals strike on 1 and 2, every beat. For excitement
+# the cymbals play three strokes in the time of two beats. The drum plays
+# the patterns, from the relaxed "leisure" drumming to the "majestic"
+# drumming of a lion showing off. The drum patterns here are written in
+# that manner, not as transcriptions of the named teaching sequences.
 #
-# The ensemble is four players and no melody:
-#   GU       — the big barrel drum, which leads: the lion follows the drum
-#   DALUO    — the large gong, struck on the heavy accents
-#   XIAOLUO  — the small gong, answering off the beat
-#   BO       — the hand cymbals, doubling the gong
-#   BANGZI   — the wooden clapper, used in opera to keep time
-#
-# GM substitution: General MIDI has no Chinese gongs. The Chinese cymbal is the
-# only GM voice with the right splash-and-decay for the daluo; the mute triangle
-# stands in for the small gong's high ping, crash for the hand cymbals, low
-# floor tom for the drum with a hi-mid tom for its rim strokes, and hi wood
-# block for the clapper. This is an approximation of a timbre that GM simply
-# does not contain — the rhythm is right, the colour needs a real SoundFont.
-# GM notes: 41=low floor tom (gu), 48=hi-mid tom (gu rim), 52=Chinese cymbal
-#           (daluo), 80=mute triangle (xiaoluo), 49=crash (bo),
-#           76=hi wood block (bangzi)
+# GM substitution: General MIDI has no Chinese gong or bo. The Chinese
+# cymbal stands in for the gong's splash, the crash for the hand cymbals,
+# the low floor tom for the drum head and the high tom for its rim.
+# GM notes: 41=low floor tom (gu), 48=hi tom (gu rim), 52=Chinese cymbal
+#           (luo), 49=crash (bo)
 
 #
 # ── Step grid notation ────────────────────────────────────────────────────────
 # Each character in a step grid represents one subdivision of the bar.
-# Resolution controls how many steps per bar (16 = 16th notes in 4/4).
+# Resolution controls how many steps per bar (16 = 16th notes in 4/4; 12 = 16th notes in 6/8).
 #
 #   X   Strong accent  — velocity = base_velocity × 1.00  (full hit / downbeat)
 #   x   Medium accent  — velocity = base_velocity × 0.75  (firm stroke / upbeat)
@@ -35,6 +35,12 @@
 # Beat positions — 4/4 at resolution 16 (one char per 16th note):
 #   pos  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
 #        1  e1 +1 a1  2  e2 +2 a2  3  e3 +3 a3  4  e4 +4 a4
+#   (1/+/2/+/3/+/4/+ = quarter beats; e = "e of"; a = "and-a of")
+#
+# Beat positions — 6/8 at resolution 12 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11
+#        C1 .  e1 .  a1 .  C2 .  e2 .  a2 .
+#   (C1/C2 = compound beat downbeats; each compound beat = 3 eighth notes = 6 steps)
 #
 # Swing / feel: 'feel' delays the second note of each swung pair, and
 # 'swing_unit' says which notes pair up: 16 = sixteenths (the default),
@@ -50,125 +56,128 @@
 
 name: Luogu (Lion Dance)
 family: fareast
-bpm_range: [85, 150]
+bpm_range: [90, 150]
 time_signature: [4, 4]
 resolution: 16
 feel: straight
 swing_unit: 8
 
 instruments:
-  gu:      { note: 41, base_velocity: 114, velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.20 }
-  gu_rim:  { note: 48, base_velocity: 88,  velocity_range: 14, timing_jitter: 0.012, duration_beats: 0.10 }
-  daluo:   { note: 52, base_velocity: 108, velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.35 }
-  xiaoluo: { note: 80, base_velocity: 84,  velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.09 }
-  bo:      { note: 49, base_velocity: 100, velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.28 }
-  bangzi:  { note: 76, base_velocity: 82,  velocity_range: 12, timing_jitter: 0.010, duration_beats: 0.05 }
+  gu:     { note: 41, base_velocity: 114, velocity_range: 12, timing_jitter: 0.010, duration_beats: 0.20 }
+  gu_rim: { note: 48, base_velocity: 88,  velocity_range: 12, timing_jitter: 0.010, duration_beats: 0.10 }
+  luo:    { note: 52, base_velocity: 104, velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.35 }
+  bo:     { note: 49, base_velocity: 92,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.25 }
 
 humanization:
-  timing_jitter: 0.014
-  velocity_jitter: 14
+  timing_jitter: 0.012
+  velocity_jitter: 12
   velocity_drift: 0.06
 
 sections:
   intro:
     type: count_in
     hits: 4
-    note: 76
+    note: 48
 
   groove:
     bars: 1
     variations:
-      - name: walking
+      - name: awakening
+        role: intro
+        weight: 1
+        # The lion wakes: the drum alone on the beats with rim answers,
+        # the cymbals on 1 and the gong on 2 of the first unit only.
+        gu:     "X... X... X... X..."
+        gu_rim: "..x. ..x. ..x. ..x."
+        bo:     "X... .... .... ...."
+        luo:    ".... X... .... ...."
+
+      - name: leisure
         role: verse
         weight: 4
-        # The lion walking: drum on every quarter, gong and cymbals together on
-        # beats 1 and 3, small gong answering on 2 and 4. The steadiest pattern
-        # in the repertoire and the one the lion travels on.
-        gu:      "X...X...X...X..."
-        daluo:   "X.......X......."
-        bo:      "X.......X......."
-        xiaoluo: "....x.......x..."
+        # Leisure drumming, the lion walking: the cymbals on every beat,
+        # the gong on 2 of each two-beat unit (beats 2 and 4), the drum on
+        # the beats with an eighth before each gong.
+        gu:  "X... X.X. X... X.X."
+        bo:  "X... X... X... X..."
+        luo: ".... X... .... X..."
 
-      - name: three_star
-        role: intro
+      - name: majestic
+        role: chorus
         weight: 3
-        # Three-star (三星鼓): three strokes with the whole ensemble landing
-        # together on beats 1, 2 and 3, then a full beat of silence. The pause is
-        # the pattern — it is the cue everyone in the troupe listens for.
-        gu:      "X...X...X......."
-        daluo:   "X...X...X......."
-        bo:      "X...X...X......."
-        gu_rim:  ".xx..xx..xx....."
+        # Majestic drumming, the lion showing off: the drum in eighths with
+        # double strokes, accented on the gong beats; cymbals and gong as in
+        # the walk.
+        gu:     "X.X. XXX. X.X. XXX."
+        gu_rim: ".... ...x .... ...x"
+        bo:     "X... X... X... X..."
+        luo:    ".... X... .... X..."
 
-      - name: seven_star
+      - name: fast_cymbals
         role: bridge
         weight: 2
-        # Seven-star (七星鼓): seven even strokes across the first three and a
-        # half beats, the gong marking only the first and fifth so the count
-        # stays audible through the run.
-        gu:      "X.X.X.X.X.X.X..."
-        bo:      "X.X.X.X.X.X.X..."
-        daluo:   "X.......X......."
+        # Fast beat: the cymbals play three strokes in the time of two
+        # beats, the drum doubles its eighths, the gong stays on 2 and 4.
+        grid: triplet
+        bo:  "X.x .x. X.x .x."
+        gu:  "X.x X.x X.x X.x"
+        luo: "... X.. ... X.."
 
-      - name: rousing
-        role: chorus
+      - name: drum_lead
         weight: 2
-        # The lion alert or startled: continuous 16ths on the drum with the
-        # clapper on 8ths, one gong stroke on the downbeat and the cymbals
-        # crashing in on beat 3.
-        gu:      "XxXxXxXxXxXxXxXx"
-        bangzi:  "x.x.x.x.x.x.x.x."
-        daluo:   "X..............."
-        bo:      "........X......."
+        # The drummer leads the lion into a new move: syncopated drum
+        # strokes, the rim between them, the gong and cymbals holding the
+        # unit.
+        gu:     "X..X ..X. X..X X..."
+        gu_rim: ".x.. x... .x.. ..x."
+        bo:     "X... X... X... X..."
+        luo:    ".... X... .... X..."
 
   fill:
     bars: 1
     variations:
       - name: drum_roll
-        # The drum alone, accelerating — the lion is about to move.
-        gu:      "X...X...X.X.XXXX"
-        gu_rim:  "..x...x...x....."
+        # The drum alone, accelerating: the lion is about to move.
+        gu:     "X... X... X.X. XXXX"
+        gu_rim: "..x. ..x. .... ...."
 
-      - name: gong_cadence
-        # Gong and cymbals answering the drum on alternate beats, closing with
-        # both together on the last 8th.
-        gu:      "X.......X......."
-        daluo:   "....X.........X."
-        bo:      "....X.........X."
-        xiaoluo: "..x...x...x....."
+      - name: cymbal_burst
+        # Cymbals and drum in triplets on the last two beats, the gong on
+        # the last beat.
+        grid: triplet
+        gu:  "X.. X.. XXX XXX"
+        bo:  "X.. X.. XXX XXX"
+        luo: "... X.. ... X.."
 
-      - name: clapper_run
-        # Opera-style: the clapper takes the bar in 16ths under a held gong.
-        bangzi:  "XxXxXxXxXxXxXxXx"
-        daluo:   "X..............."
-        gu:      "X.......X......."
+      - name: gong_answer
+        # Drum and gong trade strokes, closing together on the last eighth.
+        gu:  "X.X. .... X.X. ...."
+        luo: ".... X... .... X.X."
+        bo:  ".... X... .... X.X."
 
   crash:
     bars: 1
     variations:
       - name: standard
-        # Laid over the groove on the bar after a fill, a break or the
-        # count-in: the cymbal and the low drum on beat 1. The groove
-        # plays everything else.
-        bo:    "X..............."
-        daluo: "X..............."
-        gu:    "X..............."
+        # Laid over the groove on the bar after a fill or the count-in:
+        # the whole ensemble on beat 1.
+        bo:  "X..............."
+        luo: "X..............."
+        gu:  "X..............."
 
   ending:
-    # Played once at the end of the song; the drums stop after bar 2.
+    # Played once at the end of the piece; the drums stop after bar 2.
     type: sequence
     bars: 2
     bar_grids:
-      - # Bar 1: Gongs and bo in unison, gu roll crescendo to the close
-        gu:      "X...X...XxxxXxxx"
-        daluo:   "X.......X...X..."
-        bo:      "X.......X...X..."
-        xiaoluo: "....x.x.....x.x."
-        bangzi:  "x.x.x.x........."
+      - # Bar 1: gong and cymbals in unison, the drum rolling to the close
+        gu:  "X...X...XxxxXxxx"
+        luo: "X.......X...X..."
+        bo:  "X.......X...X..."
       - # Bar 2: final hit on beat 1, then silence
-        bo:    "X..............."
-        daluo: "X..............."
-        gu:    "X..............."
+        bo:  "X..............."
+        luo: "X..............."
+        gu:  "X..............."
 
 structure:
   fill_every: 8

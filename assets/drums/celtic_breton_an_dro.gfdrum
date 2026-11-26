@@ -1,10 +1,20 @@
-# Breton An Dro — "The Turn" circle dance
-# Reference: An Dro (Wikipedia), Breton traditional music conventions
-# The defining feature is the double-kick at "a of 2" (pos 6) and beat 3 (pos 7) in 0-indexed,
-# creating a distinctive SHORT-LONG anticipation of beat 3 that drives the circular dance.
-# A 4-bar sequence where each bar has its own signature (bars 1-4 cycle and repeat).
-# GM notes: 36=kick (grosse caisse), 37=rimshot (caisse claire character),
-#            38=snare, 42=HH (steady pulse)
+# Breton An Dro — "the turn", the Vannetais chain dance
+# Reference: An dro (Wikipedia, English and French); fest-noz bands with a
+#            drum kit (Tri Yann, Gwerz, Skolvan), bagad snare sections
+# The an dro is in 4/4. Its step is close to the polka's: two equal motifs
+# follow each other, left-right-left then right-left-right, the dancers
+# marking the pulse on every beat as the chain drifts to the left. A
+# melodic phrase usually spans two bars, so the grooves are two-bar grids
+# ("bar 1 | bar 2").
+# What the drums do, in the manner of fest-noz bands rather than copied:
+# - the bass drum marks every beat, like the dancers' feet;
+# - the snare keeps the backbeat and answers the tune's short-short-long
+#   figure at the end of the phrase;
+# - the toms can play the step itself, three strokes per motif;
+# - in a bagad, the snare section plays the rudimental pipe-band style:
+#   continuous strokes, accents, drags into the beat.
+# GM notes: 36=kick, 38=snare, 37=side stick, 42=closed HH, 46=open HH,
+#           48=hi tom, 45=mid tom, 41=floor tom, 49=crash
 
 #
 # ── Step grid notation ────────────────────────────────────────────────────────
@@ -41,25 +51,27 @@
 
 name: Breton An Dro
 family: celtic
-bpm_range: [100, 160]
+bpm_range: [100, 140]
 time_signature: [4, 4]
 resolution: 16
 feel: straight
 swing_unit: 8
 
 instruments:
-  kick:    { note: 36, base_velocity: 102, velocity_range: 14, timing_jitter: 0.016, duration_beats: 0.12 }
-  rimshot: { note: 37, base_velocity: 90,  velocity_range: 15, timing_jitter: 0.016, duration_beats: 0.08 }
-  snare:   { note: 38, base_velocity: 95,  velocity_range: 18, timing_jitter: 0.020, duration_beats: 0.09 }
-  hihat:   { note: 42, base_velocity: 72,  velocity_range: 12, timing_jitter: 0.014, duration_beats: 0.07 }
-  crash:   { note: 49, base_velocity: 95,  velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.22 }
-  tom_hi:  { note: 48, base_velocity: 90,  velocity_range: 15, timing_jitter: 0.018, duration_beats: 0.10 }
-  tom_lo:  { note: 41, base_velocity: 88,  velocity_range: 15, timing_jitter: 0.018, duration_beats: 0.12 }
+  kick:       { note: 36, base_velocity: 104, velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.14 }
+  snare:      { note: 38, base_velocity: 98,  velocity_range: 14, timing_jitter: 0.012, duration_beats: 0.09 }
+  rim:        { note: 37, base_velocity: 84,  velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.06 }
+  hihat:      { note: 42, base_velocity: 76,  velocity_range: 12, timing_jitter: 0.010, duration_beats: 0.07 }
+  hihat_open: { note: 46, base_velocity: 80,  velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.14 }
+  tom_hi:     { note: 48, base_velocity: 94,  velocity_range: 12, timing_jitter: 0.014, duration_beats: 0.12 }
+  tom_mid:    { note: 45, base_velocity: 94,  velocity_range: 12, timing_jitter: 0.014, duration_beats: 0.12 }
+  tom_lo:     { note: 41, base_velocity: 96,  velocity_range: 12, timing_jitter: 0.014, duration_beats: 0.15 }
+  crash:      { note: 49, base_velocity: 96,  velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.22 }
 
 humanization:
-  timing_jitter: 0.018
-  velocity_jitter: 15
-  velocity_drift: 0.08
+  timing_jitter: 0.012
+  velocity_jitter: 12
+  velocity_drift: 0.06
 
 sections:
   intro:
@@ -68,44 +80,77 @@ sections:
     note: 37
 
   groove:
-    # 4-bar phrase: each bar has its own rhythmic identity — cycle repeats indefinitely
-    type: sequence
-    bars: 4
-    bar_grids:
-      - # Bar 1 — The signature An Dro pattern
-        # Double-kick at pos 6-7 (a-of-2 / beat-3) is THE defining marker of An Dro
-        # Rimshot on beat 2 (4), "+" of 3 (10), "e of 4" (13)
-        kick:    "X.....XX.......X"
-        rimshot: "....X.....X..X.."
-        hihat:   "X.x.X.x.X.x.X.x."
-      - # Bar 2 — Standard backbeat variation: regular snare replaces rimshot
-        kick:    "X.....XX.......X"
-        snare:   "....X.......X..."
-        hihat:   "X.x.X.x.X.x.X.x."
-      - # Bar 3 — Syncopated extra kick on "e of 3" (pos 9) — adds forward motion
-        kick:    "X.....XX.X.....X"
-        rimshot: "....X.......X..."
-        hihat:   "X.x.X.x.X.x.X.x."
-      - # Bar 4 — Driving push into bar 1; no extra accent, pure momentum
-        kick:    "X.....XX.......X"
-        snare:   "....X.......X..."
-        rimshot: "..X...........X."
-        hihat:   "X.x.X.x.X.x.X.x."
+    bars: 1
+    variations:
+      - name: pulse
+        role: intro
+        weight: 1
+        # The pulse alone, as the chain forms: the bass drum and the side
+        # stick on every beat, the side stick accented on 2 and 4.
+        kick: "X... X... X... X..."
+        rim:  "x... X... x... X..."
+
+      - name: fest_noz
+        role: verse
+        weight: 4
+        # The fest-noz kit: the bass drum on every beat, the snare on 2 and
+        # 4, eighths on the hi-hat. At the end of the phrase the snare
+        # answers the tune's short-short-long on beats 3 and 4.
+        kick:  "X... X... X... X... | X... X... X... X..."
+        snare: ".... X... .... X... | .... X... X.X. X..."
+        hihat: "X.x. X.x. X.x. X.x. | X.x. X.x. X.x. X.x."
+
+      - name: bagad
+        role: chorus
+        weight: 3
+        # The bagad snare section: continuous strokes with accents on the
+        # beats and the "and" of 2 and 4, a drag into each phrase end; the
+        # bass drum on every beat.
+        kick:  "X... X... X... X... | X... X... X... X..."
+        snare: "X.xx x.X. X.xx x.X. | X.xx x.X. X.xx XxX."
+
+      - name: step_toms
+        role: bridge
+        weight: 2
+        # The toms play the step itself: left-right-left on 1, the "and" of
+        # 1 and 2, then right-left-right on 3, the "and" of 3 and 4 (floor
+        # tom for the left foot, high tom for the right); the bass drum on
+        # every beat, the side stick on the offbeat that closes each motif.
+        tom_lo: "X... X... ..X. ...."
+        tom_hi: "..X. .... X... X..."
+        rim:    ".... ..x. .... ..x."
+        kick:   "X... X... X... X..."
+
+      - name: open_drive
+        weight: 2
+        # The tune at full strength: the hi-hat half open on the eighths,
+        # the bass drum on every beat, the snare doubling 4 with its "and".
+        kick:       "X... X... X... X..."
+        snare:      ".... X... .... X.x."
+        hihat_open: "X.x. X.x. X.x. X.x."
 
   fill:
     bars: 1
     variations:
-      - name: roll
-        # Snare roll landing on the bar repeat — typical Breton transition
-        snare:   "XxXxXxXxXxXxXxX."
-        tom_hi:  "............X..."
-        tom_lo:  "..............X."
-        kick:    "X..............."
-      - name: bombarde
-        # Tom-based fill imitating the bombarde (Breton bagpipe) melodic run
-        tom_hi:  "X.X.X.X........."
-        tom_lo:  "..............X."
-        kick:    "X..............."
+      - name: snare_roll
+        # The groove on the first half, then a snare roll swelling into the
+        # next phrase.
+        kick:  "X... X... X... X..."
+        snare: ".... X... xxxx XXXX"
+        hihat: "X.x. X.x. .... ...."
+
+      - name: tom_run
+        # The step on the toms, falling from high to low into the next
+        # phrase.
+        kick:    "X... X... X... X..."
+        tom_hi:  "X.X. X... .... ...."
+        tom_mid: ".... ..X. X.X. ...."
+        tom_lo:  ".... .... .... X.X."
+
+      - name: bagad_drag
+        # A bagad cadence: accented strokes, a drag into beat 4.
+        kick:  "X... X... X... X..."
+        snare: "X.X. X.X. X.xx X.X."
 
   crash:
     bars: 1
@@ -124,7 +169,7 @@ sections:
     bar_grids:
       - # Bar 1: Dance pulse, then snare roll and high-low tom drop
         kick:    "X...X...X......."
-        rimshot: "X.x.X.x........."
+        rim:     "X.x.X.x........."
         snare:   "........XxXx...."
         tom_hi:  "............X..."
         tom_lo:  "..............X."
