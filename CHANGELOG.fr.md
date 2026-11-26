@@ -15,6 +15,7 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 - Générateur de batterie : un réglage Breaks, et des interrupteurs pour le crash après le fill et la montée dynamique (qui fait enfin quelque chose).
 - Les touches à l'écran jouent plus fort près de leur bord avant. Préférences > Vélocité des touches permet de fixer une seule force.
 - Générateur de batterie : une grille de morceau enchaîne intro, couplets, refrains, breaks et fin en blocs ; chaque style fourni a sa propre fin.
+- Format .gfdrum : swing sur les croches (`swing_unit: 8`), grilles sur deux mesures, grilles en triolets et un `kit` par style (balais, TR-808, orchestre...).
 
 ### Modifié
 - Les nouveaux projets démarrent avec le module Xen éteint : le clavier joue toutes les notes jusqu'à ce que vous choisissiez une gamme, ce qui l'allume. Les projets sauvegardés gardent Xen tel quel.
@@ -34,6 +35,7 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 - Générateur de batterie : un .gfdrum chargé disparaissait au redémarrage, et un fichier portant le nom d'un pattern fourni le remplaçait partout.
 - Générateur de batterie : tourner un bouton pendant la lecture déclenchait une rafale de coups.
 - Générateur de batterie : le décompte Baguettes annonçait toujours 4 coups, quel que soit le pattern.
+- Générateur de batterie : la mesure après un fill rejouait le groove par-dessus lui-même, doublant grosse caisse et charleston.
 - Les effets MIDI s'appliquaient dans un ordre différent à l'écran et sur un contrôleur ; les deux suivent maintenant le rack, de haut en bas.
 - Un clavier réglé sur Aucune (MIDI seulement) ignorait les effets MIDI sur ses touches à l'écran.
 - Les notes envoyées à un effet MIDI sonnaient une seconde fois sur le canal MIDI 1.

@@ -117,9 +117,12 @@ temps     1 e + a 2 e + a 3 e + a  4  e  +  a</code></pre>
           <code>arabic</code>, <code>turkish</code>, <code>persian</code>, <code>indian</code>, <code>fareast</code>. Toute autre valeur s'affiche telle quelle.</td></tr>
         <tr><td><code>time_signature</code></td><td><code>[4, 4]</code></td><td><code>[temps, unité]</code>, par exemple <code>[6, 8]</code> ou <code>[9, 8]</code>.
           Choisir le pattern quand le transport est arrêté règle le transport sur cette métrique.</td></tr>
-        <tr><td><code>resolution</code></td><td><code>16</code></td><td>Pas par mesure. Écrivez chaque grille avec exactement ce nombre de caractères.
-          Une grille plus courte laisse la fin de la mesure vide ; une plus longue déborde sur la mesure suivante.</td></tr>
-        <tr><td><code>feel</code></td><td><code>straight</code></td><td>Placement des pas impairs (1, 3, 5…). Voir <a href="#feel">Feel</a>.</td></tr>
+        <tr><td><code>resolution</code></td><td><code>16</code></td><td>Pas par mesure. Écrivez chaque grille avec ce nombre de caractères par mesure.
+          Les grilles de deux mesures et les grilles en triolets sont décrites dans <a href="#ecrire">Écrire une grille</a>.</td></tr>
+        <tr><td><code>feel</code></td><td><code>straight</code></td><td>De combien les notes swinguées sont retardées. Voir <a href="#feel">Feel</a>.</td></tr>
+        <tr><td><code>swing_unit</code></td><td><code>16</code></td><td>Les notes qui swinguent : <code>8</code> pour les croches (jazz, shuffle), <code>16</code> pour les doubles croches (funk, hip-hop). Voir <a href="#feel">Feel</a>.</td></tr>
+        <tr><td><code>kit</code></td><td><code>standard</code></td><td>Le kit de batterie du style : <code>standard</code>, <code>room</code>, <code>power</code>, <code>electronic</code>,
+          <code>tr808</code>, <code>jazz</code>, <code>brush</code> (balais) ou <code>orchestra</code>. Si la soundfont du slot n'a pas ce kit, c'est le kit standard qui joue.</td></tr>
         <tr><td><code>instruments</code></td><td>Silence</td><td>Les sons de batterie, une piste chacun. Voir <a href="#instruments">Instruments</a>.</td></tr>
         <tr><td><code>sections</code></td><td>Silence</td><td>Quoi jouer et quand. Voir <a href="#sections">Sections</a>.</td></tr>
       </tbody>
@@ -132,13 +135,18 @@ temps     1 e + a 2 e + a 3 e + a  4  e  +  a</code></pre>
       <thead><tr><th>Valeur</th><th>Effet</th></tr></thead>
       <tbody>
         <tr><td><code>straight</code></td><td>Chaque pas tombe sur la grille.</td></tr>
-        <tr><td><code>swing_light</code> (ou <code>swing_soft</code>)</td><td>Pas impairs retardés de 16 % d'un pas.</td></tr>
-        <tr><td><code>swing_hard</code></td><td>Pas impairs retardés de 34 % d'un pas, proche d'un shuffle en triolets.</td></tr>
+        <tr><td><code>swing_light</code> (ou <code>swing_soft</code>)</td><td>Un swing léger : la deuxième note de chaque paire tombe à 58 % de la paire.</td></tr>
+        <tr><td><code>swing_hard</code></td><td>Un swing ternaire : la deuxième note tombe à 67 % de la paire, sur la dernière note du triolet.</td></tr>
         <tr><td><code>laid_back</code>, <code>pushed</code></td><td>Identiques à <code>straight</code> pour l'instant. Pour retenir ou pousser un fût, utilisez son <code>rush</code>.</td></tr>
       </tbody>
     </table>
-    <p>Une valeur inconnue se joue comme <code>straight</code>. Toucher au curseur <span class="ui">Swing</span> du module remplace le feel du fichier.
-      Ramenez-le tout à gauche, là où il affiche <span class="ui">Pattern</span>, pour revenir à celui du fichier.</p>
+    <p>Un pattern swing s'écrit comme sur une partition : en croches droites, en 4/4, avec l'indication de swing en tête. <code>swing_unit</code> dit quelles notes vont par paires.
+      Avec <code>swing_unit: 8</code>, chaque temps est une paire de croches dont le « et » est retardé : un chabada s'écrit <code>X...X.X.X...X.X.</code>.
+      Les doubles croches du temps suivent, en proportion. Avec <code>swing_unit: 16</code> (par défaut), chaque croche est une paire de doubles croches
+      et seule la deuxième bouge, comme en funk.</p>
+    <p>Une valeur inconnue se joue comme <code>straight</code>. Toucher au curseur <span class="ui">Swing</span> du module remplace le feel du fichier :
+      n'importe quel pattern binaire peut ainsi se jouer swingué. Ramenez-le tout à gauche, là où il affiche <span class="ui">Pattern</span>, pour revenir à celui du fichier.
+      Les grilles en triolets ne swinguent jamais.</p>
 
     <h2 id="instruments">Instruments</h2>
     <p>Sous <code>instruments:</code>, chaque clé est un nom de piste de votre choix (<code>kick</code>, <code>surdo_open</code>…).
@@ -169,6 +177,22 @@ temps     1 e + a 2 e + a 3 e + a  4  e  +  a</code></pre>
       </tbody>
     </table>
 
+    <h3 id="ecrire">Écrire une grille</h3>
+    <p>Les espaces et les <code>|</code> dans une grille ne servent qu'à la lecture et sont ignorés : <code>"X... X... X... X..."</code> vaut <code>"X...X...X...X..."</code>.</p>
+    <p><strong>Deux mesures.</strong> Une variation peut durer deux mesures ou plus : écrivez des grilles deux fois plus longues, un <code>|</code> entre les mesures aide à s'y retrouver.
+      Une grille plus courte que la variation se répète : un charleston d'une mesure peut accompagner une clave de deux mesures. La variation repart toujours
+      de sa première mesure au début d'une phrase ou d'un bloc de la grille du morceau.</p>
+    <pre><code>      - name: son_clave_3_2
+        clave: "X.....X.....X... | ....X...X......."
+        hihat: "x.x.x.x.x.x.x.x."</code></pre>
+    <p><strong>Triolets.</strong> Ajoutez <code>grid: triplet</code> à une variation, ou à une mesure d'une <code>sequence</code>, pour découper chaque temps en trois :
+      12 caractères par mesure en 4/4. C'est pour ce que des croches swinguées ne savent pas écrire, comme la ghost note au milieu du triolet d'un shuffle,
+      ou un fill en triolets. La mesure reste en 4/4 pour le transport et le métronome.</p>
+    <pre><code>      - name: shuffle
+        grid: triplet
+        hihat: "x.x x.x x.x x.x"
+        snare: ".g. Xg. .g. Xg."</code></pre>
+
     <h2 id="sections">Sections</h2>
     <p>Le générateur joue par phrases, comme un batteur. Une phrase dure ce que dit <span class="ui">Fill tous les</span>
       (8 mesures quand les fills sont désactivés). Le groove garde la même variation pendant toute la phrase, un fill la termine,
@@ -185,7 +209,8 @@ temps     1 e + a 2 e + a 3 e + a  4  e  +  a</code></pre>
           Sans <code>intro</code>, le groove joue pendant ces mesures.</td></tr>
         <tr><td><code>fill</code></td><td>La dernière mesure de chaque phrase : toutes les 4, 8 ou 16 mesures, ou au hasard toutes les 8, 12 ou 16 mesures, selon <span class="ui">Fill tous les</span>.
           Avec <code>bars: 2</code>, le fill prend les deux dernières mesures.</td></tr>
-        <tr><td><code>crash</code></td><td>Par-dessus la première mesure après le décompte, un fill ou un break, quand <span class="ui">Crash après le fill</span> est activé.</td></tr>
+        <tr><td><code>crash</code></td><td>Par-dessus la première mesure après le décompte, un fill ou un break, quand <span class="ui">Crash après le fill</span> est activé.
+          N'écrivez que le premier temps, la cymbale et le fût grave : le groove joue le reste. Un coup présent dans les deux ne sonne qu'une fois.</td></tr>
         <tr><td><code>break</code></td><td>Les premières mesures d'une phrase, jamais la première phrase, aussi souvent que le dit <span class="ui">Breaks</span>.
           Son <code>bars</code> fixe sa durée en mesures (une par défaut). Avec une grille, il joue dans les blocs <span class="ui">Break</span>.</td></tr>
         <tr><td><code>ending</code></td><td>Une fois, dans le bloc <span class="ui">Fin</span> d'une grille. La batterie s'arrête ensuite.
@@ -200,8 +225,8 @@ temps     1 e + a 2 e + a 3 e + a  4  e  +  a</code></pre>
         <tr><td><code>loop</code> (par défaut)</td><td>Une liste sous <code>variations:</code>. Chaque phrase en tire une au hasard et la garde jusqu'au bout ; une variation avec <code>weight: 3</code> sort trois fois
           plus souvent qu'une avec <code>weight: 1</code> (la valeur par défaut). Dans une variation, <code>name</code> est facultatif et chaque autre clé est une piste
           avec sa grille, sauf <code>role</code> (voir <a href="#song-form">Grilles de morceau</a>). Pour une seule variation, sautez la liste et mettez les grilles directement sous la section.</td></tr>
-        <tr><td><code>sequence</code></td><td>Une liste sous <code>bar_grids:</code>, une entrée par mesure, jouées dans l'ordre puis en boucle. Pour les phrases de plus d'une mesure,
-          comme une clave sur deux mesures. La séquence repart de sa première mesure au début de chaque phrase, et après un break.</td></tr>
+        <tr><td><code>sequence</code></td><td>Une liste sous <code>bar_grids:</code>, une entrée par mesure, jouées dans l'ordre puis en boucle. Pour une phrase dont toutes les mesures diffèrent
+          et qui n'a pas besoin de variations, comme une fin. Pour une clave sur deux mesures avec des variations, écrivez plutôt des grilles de deux mesures (voir <a href="#ecrire">Écrire une grille</a>). La séquence repart de sa première mesure au début de chaque phrase, et après un break.</td></tr>
         <tr><td><code>count_in</code></td><td>Pas de grille : <code>hits</code> coups (4 par défaut) répartis sur la mesure, sur la note <code>note</code> (37 par défaut, side stick).</td></tr>
       </tbody>
     </table>

@@ -1,3 +1,5 @@
+import 'dart:collection';
+
 /// The timing feel of a drum pattern.
 ///
 /// Determines the default swing ratio and may also imply systematic
@@ -25,8 +27,8 @@ enum DrumFeel {
 
 /// Extension on [DrumFeel] that exposes the default swing ratio as a double.
 ///
-/// The swing ratio represents how much the *even* 16th-note steps are delayed
-/// relative to a perfectly even 16th-note grid.
+/// The swing ratio is where the second note of a swung pair lands, as a
+/// fraction of the pair (see [DrumSwingUnit] for which notes pair up).
 ///
 /// - `0.5` = perfectly straight (even grid, no swing).
 /// - `0.58` = light shuffle.
@@ -51,6 +53,91 @@ extension DrumFeelSwing on DrumFeel {
         return 0.67;
     }
   }
+}
+
+/// Which notes swing: the pairs of eighth notes, or the pairs of sixteenths.
+///
+/// Sheet music writes a swing tune in plain eighth notes and marks it
+/// "Swing": the player delays the second eighth of each beat towards the
+/// last note of a triplet. A `.gfdrum` file does the same. Its grids stay
+/// binary, and [DrumSwingUnit] tells the engine which notes to delay.
+enum DrumSwingUnit {
+  /// Jazz, shuffle, swing country: the "and" of each beat is delayed.
+  /// Sixteenths in between move with it, in proportion.
+  eighth,
+
+  /// Funk, hip-hop, new jack swing, samba: the second sixteenth of each
+  /// eighth is delayed. The default, and how files without the key play.
+  sixteenth;
+
+  /// Length in beats (quarter notes) of one swung pair: one beat for
+  /// eighths, half a beat for sixteenths.
+  double get pairBeats => this == eighth ? 1.0 : 0.5;
+}
+
+/// How a grid divides each beat: in two (eighths, sixteenths) or in three.
+///
+/// A triplet grid is the `.gfdrum` counterpart of a triplet written in a
+/// 4/4 score: the bar keeps its meter, only that grid splits each beat into
+/// three. It is for what swung eighths cannot write, such as the ghost note
+/// on the middle of the triplet in a shuffle, or a triplet fill.
+enum DrumSubdivision {
+  /// The pattern's own `resolution` (usually sixteenth notes).
+  straight,
+
+  /// Three steps per beat (quarter note). Never swung: it is already
+  /// ternary.
+  triplet,
+}
+
+/// The General MIDI drum kits a style can ask for.
+///
+/// GM and GS soundfonts put their drum kits in bank 128, one per program.
+/// A kit the slot's soundfont lacks falls back to [standard].
+enum DrumKit {
+  /// The everyday acoustic kit.
+  standard(0),
+
+  /// A roomier acoustic kit.
+  room(8),
+
+  /// A big, compressed rock kit.
+  power(16),
+
+  /// Synthesised drums, in the style of the 1980s drum machines.
+  electronic(24),
+
+  /// The Roland TR-808 drum machine: electro, Miami bass, hip-hop.
+  tr808(25),
+
+  /// A small, tuned-up jazz kit.
+  jazz(32),
+
+  /// The jazz kit played with brushes on the snare.
+  brush(40),
+
+  /// Concert bass drum, concert snare and clash cymbals: marches, fanfares.
+  orchestra(48);
+
+  /// Program number of this kit in bank 128.
+  final int program;
+
+  const DrumKit(this.program);
+}
+
+/// The grids one bar plays, instrument name to step grid, and how they
+/// divide the beat.
+///
+/// It is a map, so code that only needs the grids reads it as one.
+class DrumBarGrid extends MapView<String, String> {
+  /// Whether these grids are straight or triplets.
+  final DrumSubdivision subdivision;
+
+  /// Constructs a [DrumBarGrid] over [grids].
+  DrumBarGrid(
+    super.grids, {
+    this.subdivision = DrumSubdivision.straight,
+  });
 }
 
 /// How variations within a section are selected on each repetition.
@@ -129,22 +216,32 @@ class DrumVariation {
 
   /// Step grids keyed by instrument name.
   ///
-  /// Each value is a string of [DrumPatternData.resolution] characters:
+  /// Each value holds [DrumPatternData.stepsPerBar] characters per bar:
   /// - `X` = strong hit (~base velocity)
   /// - `x` = medium hit (~75 % of base)
   /// - `o` = soft hit (~55 % of base)
   /// - `g` = ghost note (~28 % of base)
   /// - `.` = rest (no note)
   ///
-  /// Used for `loop` sections.  Null for `sequence` sections.
+  /// A grid can span several bars (see [bars]); a grid shorter than the
+  /// variation repeats, so a one-bar hi-hat can sit under a two-bar clave.
+  ///
+  /// Used for `loop` sections.  Empty for `sequence` sections.
   final Map<String, String> stepGrids;
+
+  /// Whether [stepGrids] are straight or triplets.
+  final DrumSubdivision subdivision;
+
+  /// Length of this variation in bars: that of its longest grid. A clave or
+  /// a bossa-nova pattern takes two.
+  final int bars;
 
   /// Ordered list of per-bar step grids for `sequence` sections.
   ///
-  /// Each element maps instrument name → step grid string for one bar.
-  /// The engine cycles through these with `absoluteBar % barSequence.length`.
+  /// Each element holds the grids of one bar. The engine plays them in
+  /// order from the start of the section.
   /// Null for `loop` sections (use [stepGrids] instead).
-  final List<Map<String, String>>? barSequence;
+  final List<DrumBarGrid>? barSequence;
 
   /// The part of a song this groove suits, from the file's optional
   /// `role:` key: `intro`, `verse`, `chorus` or `bridge`. A song-form block
@@ -160,6 +257,8 @@ class DrumVariation {
     required this.name,
     this.weight = 1,
     this.stepGrids = const {},
+    this.subdivision = DrumSubdivision.straight,
+    this.bars = 1,
     this.barSequence,
     this.role,
   });
@@ -254,6 +353,12 @@ class DrumPatternData {
   /// The timing feel of this pattern.
   final DrumFeel feel;
 
+  /// Which notes the swing delays, from the `swing_unit` key (8 or 16).
+  final DrumSwingUnit swingUnit;
+
+  /// The drum kit this style asks for, from the `kit` key.
+  final DrumKit kit;
+
   /// Named instrument definitions, keyed by the instrument names used in
   /// step grids (e.g. `'kick'`, `'snare'`, `'hihat'`).
   final Map<String, DrumInstrumentDef> instruments;
@@ -277,6 +382,8 @@ class DrumPatternData {
     required this.timeSignature,
     required this.resolution,
     required this.feel,
+    this.swingUnit = DrumSwingUnit.sixteenth,
+    this.kit = DrumKit.standard,
     required this.instruments,
     required this.humanization,
     required this.sections,
@@ -287,4 +394,14 @@ class DrumPatternData {
 
   /// Convenience accessor: time signature denominator (beat unit).
   int get timeSigDenominator => timeSignature.$2;
+
+  /// Length of one bar in beats (quarter notes): 4 for 4/4, 3 for 6/8.
+  double get barBeats => timeSigNumerator * 4.0 / timeSigDenominator;
+
+  /// Steps in one bar of a grid of [subdivision]: [resolution] for a
+  /// straight grid, three per beat for a triplet one (12 in 4/4).
+  int stepsPerBar(DrumSubdivision subdivision) =>
+      subdivision == DrumSubdivision.triplet
+          ? (barBeats * 3).round()
+          : resolution;
 }

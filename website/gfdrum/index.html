@@ -117,9 +117,12 @@ count     1 e + a 2 e + a 3 e + a  4  e  +  a</code></pre>
           <code>arabic</code>, <code>turkish</code>, <code>persian</code>, <code>indian</code>, <code>fareast</code>. Any other value is shown as written.</td></tr>
         <tr><td><code>time_signature</code></td><td><code>[4, 4]</code></td><td><code>[beats, note value]</code>, for example <code>[6, 8]</code> or <code>[9, 8]</code>.
           Picking the pattern while the transport is stopped switches the transport to this time signature.</td></tr>
-        <tr><td><code>resolution</code></td><td><code>16</code></td><td>Steps per bar. Write every grid with exactly this many characters.
-          A shorter grid leaves the end of the bar empty; a longer one spills into the next bar.</td></tr>
-        <tr><td><code>feel</code></td><td><code>straight</code></td><td>Timing of the odd steps (1, 3, 5…). See <a href="#feel">Feel</a>.</td></tr>
+        <tr><td><code>resolution</code></td><td><code>16</code></td><td>Steps per bar. Write every grid with this many characters per bar.
+          See <a href="#writing">Writing a grid</a> for grids of two bars and triplet grids.</td></tr>
+        <tr><td><code>feel</code></td><td><code>straight</code></td><td>How much the swung notes are delayed. See <a href="#feel">Feel</a>.</td></tr>
+        <tr><td><code>swing_unit</code></td><td><code>16</code></td><td>Which notes swing: <code>8</code> for the eighth notes (jazz, shuffle), <code>16</code> for the sixteenths (funk, hip-hop). See <a href="#feel">Feel</a>.</td></tr>
+        <tr><td><code>kit</code></td><td><code>standard</code></td><td>The drum kit the style plays on: <code>standard</code>, <code>room</code>, <code>power</code>, <code>electronic</code>,
+          <code>tr808</code>, <code>jazz</code>, <code>brush</code> or <code>orchestra</code>. When the slot's soundfont lacks that kit, the standard kit plays.</td></tr>
         <tr><td><code>instruments</code></td><td>Silence</td><td>The drum sounds, one lane each. See <a href="#instruments">Instruments</a>.</td></tr>
         <tr><td><code>sections</code></td><td>Silence</td><td>What to play and when. See <a href="#sections">Sections</a>.</td></tr>
       </tbody>
@@ -132,13 +135,17 @@ count     1 e + a 2 e + a 3 e + a  4  e  +  a</code></pre>
       <thead><tr><th>Value</th><th>Effect</th></tr></thead>
       <tbody>
         <tr><td><code>straight</code></td><td>Every step on the grid.</td></tr>
-        <tr><td><code>swing_light</code> (or <code>swing_soft</code>)</td><td>Odd steps 16% of a step late.</td></tr>
-        <tr><td><code>swing_hard</code></td><td>Odd steps 34% of a step late, close to a triplet shuffle.</td></tr>
+        <tr><td><code>swing_light</code> (or <code>swing_soft</code>)</td><td>A light swing: the second note of each pair lands at 58% of the pair.</td></tr>
+        <tr><td><code>swing_hard</code></td><td>A triplet swing: the second note lands at 67% of the pair, on the last note of a triplet.</td></tr>
         <tr><td><code>laid_back</code>, <code>pushed</code></td><td>Same as <code>straight</code> today. To drag or push a drum, use its <code>rush</code>.</td></tr>
       </tbody>
     </table>
-    <p>An unknown value plays as <code>straight</code>. Moving the module's <span class="ui">Swing</span> slider overrides the feel.
-      Slide it all the way left, where it reads <span class="ui">Pattern</span>, to use the file's.</p>
+    <p>Write a swing pattern as a score does: in plain eighth notes, in 4/4, with the swing given at the top. <code>swing_unit</code> says which notes pair up.
+      With <code>swing_unit: 8</code>, each beat is a pair of eighths and its "and" is delayed: a jazz ride is written <code>X...X.X.X...X.X.</code>.
+      Sixteenths inside the beat move with it, in proportion. With <code>swing_unit: 16</code> (the default), each eighth is a pair of sixteenths
+      and only the second sixteenth moves, as in funk.</p>
+    <p>An unknown value plays as <code>straight</code>. Moving the module's <span class="ui">Swing</span> slider overrides the feel, so any straight pattern
+      can be played swung. Slide it all the way left, where it reads <span class="ui">Pattern</span>, to use the file's. Triplet grids never swing.</p>
 
     <h2 id="instruments">Instruments</h2>
     <p>Under <code>instruments:</code>, each key is a lane name of your choice (<code>kick</code>, <code>surdo_open</code>…).
@@ -169,6 +176,22 @@ count     1 e + a 2 e + a 3 e + a  4  e  +  a</code></pre>
       </tbody>
     </table>
 
+    <h3 id="writing">Writing a grid</h3>
+    <p>Spaces and <code>|</code> in a grid only help the eye and are ignored: <code>"X... X... X... X..."</code> is the same as <code>"X...X...X...X..."</code>.</p>
+    <p><strong>Two bars.</strong> A variation can last two bars or more: write its grids twice as long, a <code>|</code> between the bars helps.
+      A grid shorter than the variation repeats, so a one-bar hi-hat can sit under a two-bar clave. The variation always starts on its first bar
+      at the start of a phrase or of a song-form block.</p>
+    <pre><code>      - name: son_clave_3_2
+        clave: "X.....X.....X... | ....X...X......."
+        hihat: "x.x.x.x.x.x.x.x."</code></pre>
+    <p><strong>Triplets.</strong> Add <code>grid: triplet</code> to a variation, or to one bar of a <code>sequence</code>, to split each beat in three:
+      12 characters per bar in 4/4. Use it for what swung eighths cannot write, such as the ghost note on the middle of a shuffle's triplet,
+      or a triplet fill. The bar stays in 4/4 for the transport and the metronome.</p>
+    <pre><code>      - name: shuffle
+        grid: triplet
+        hihat: "x.x x.x x.x x.x"
+        snare: ".g. Xg. .g. Xg."</code></pre>
+
     <h2 id="sections">Sections</h2>
     <p>The generator plays in phrases, as a drummer does. A phrase lasts as long as <span class="ui">Fill every</span> says
       (8 bars when fills are off). The groove keeps the same variation for the whole phrase, a fill ends it, and the next phrase
@@ -185,7 +208,8 @@ count     1 e + a 2 e + a 3 e + a  4  e  +  a</code></pre>
           Without an <code>intro</code>, the groove plays during those bars.</td></tr>
         <tr><td><code>fill</code></td><td>The last bar of each phrase: every 4, 8 or 16 bars, or every 8, 12 or 16 bars at random, set by <span class="ui">Fill every</span>.
           With <code>bars: 2</code>, the fill takes the last two bars.</td></tr>
-        <tr><td><code>crash</code></td><td>On top of the first bar after the count-in, a fill or a break, when <span class="ui">Crash after fill</span> is on.</td></tr>
+        <tr><td><code>crash</code></td><td>On top of the first bar after the count-in, a fill or a break, when <span class="ui">Crash after fill</span> is on.
+          Write only beat 1, the cymbal and the low drum: the groove plays the rest. A hit both play sounds once.</td></tr>
         <tr><td><code>break</code></td><td>The first bars of a phrase, never the first phrase, as often as <span class="ui">Breaks</span> says.
           Its <code>bars</code> sets how many bars it lasts (one by default). In a song form, it plays in the <span class="ui">Break</span> blocks instead.</td></tr>
         <tr><td><code>ending</code></td><td>Once, in the <span class="ui">Ending</span> block of a song form. The drums stop after it.
@@ -200,8 +224,8 @@ count     1 e + a 2 e + a 3 e + a  4  e  +  a</code></pre>
         <tr><td><code>loop</code> (default)</td><td>A list under <code>variations:</code>. Each phrase picks one at random and keeps it to the end; a variation with <code>weight: 3</code> comes up three times
           as often as one with <code>weight: 1</code> (the default). Inside a variation, <code>name</code> is optional and every other key is a lane
           with its grid, except <code>role</code> (see <a href="#song-form">Song forms</a>). For a single variation, skip the list and put the grids straight under the section.</td></tr>
-        <tr><td><code>sequence</code></td><td>A list under <code>bar_grids:</code>, one entry per bar, played in order and repeated. Use it for phrases longer than a bar,
-          like a two-bar clave. The sequence starts again on its first bar at the start of each phrase, and after a break.</td></tr>
+        <tr><td><code>sequence</code></td><td>A list under <code>bar_grids:</code>, one entry per bar, played in order and repeated. Use it for a phrase whose bars all differ
+          and that needs no variations, like an ending. For a two-bar clave with variations, write two-bar grids instead (see <a href="#writing">Writing a grid</a>). The sequence starts again on its first bar at the start of each phrase, and after a break.</td></tr>
         <tr><td><code>count_in</code></td><td>No grid: <code>hits</code> (default 4) clicks spread evenly over the bar, on drum note <code>note</code> (default 37, side stick).</td></tr>
       </tbody>
     </table>

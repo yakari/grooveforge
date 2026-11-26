@@ -27,30 +27,53 @@ void main() {
     }
   });
 
-  test('every step grid is exactly `resolution` steps long', () {
+  test('every step grid fills whole bars of its subdivision', () {
+    // A straight grid has `resolution` steps per bar, a triplet grid three
+    // per beat. A loop variation may span several bars; a grid shorter than
+    // the variation repeats, so it must still be a whole number of bars.
     for (final file in files) {
       final pattern =
           DrumPatternParser.parse(file.readAsStringSync(), id: _stemOf(file))!;
       for (final section in pattern.sections.entries) {
         for (final variation in section.value.variations) {
-          // A loop variation carries one grid map; a sequence variation
-          // carries one per bar of its cycle.
-          final grids = <Map<String, String>>[
-            variation.stepGrids,
+          final bars = <DrumBarGrid>[
+            DrumBarGrid(variation.stepGrids,
+                subdivision: variation.subdivision),
             ...?variation.barSequence,
           ];
-          for (final grid in grids) {
-            grid.forEach((instrument, steps) {
-              expect(
-                steps.length,
-                pattern.resolution,
-                reason: '${pattern.id} / ${section.key} / ${variation.name} / '
-                    '$instrument: ${steps.length} steps, expected '
-                    '${pattern.resolution}',
-              );
+          for (final bar in bars) {
+            final perBar = pattern.stepsPerBar(bar.subdivision);
+            bar.forEach((instrument, steps) {
+              final where = '${pattern.id} / ${section.key} / '
+                  '${variation.name} / $instrument';
+              expect(steps.length % perBar, 0,
+                  reason: '$where: ${steps.length} steps, not a whole '
+                      'number of $perBar-step bars');
+              // A sequence lists its bars one by one.
+              if (variation.barSequence != null) {
+                expect(steps.length, perBar, reason: where);
+              }
             });
           }
         }
+      }
+    }
+  });
+
+  test('the crash section only plays beat 1', () {
+    // The engine lays the crash over the groove. A crash section carrying a
+    // whole groove would change the bar it lands on, so it holds the cymbal
+    // and the low drum on beat 1, and nothing after.
+    for (final file in files) {
+      final pattern =
+          DrumPatternParser.parse(file.readAsStringSync(), id: _stemOf(file))!;
+      final crash = pattern.sections['crash'];
+      expect(crash, isNotNull, reason: '${pattern.id} has no crash section');
+      for (final v in crash!.variations) {
+        v.stepGrids.forEach((instrument, steps) {
+          expect(steps.substring(1).replaceAll('.', ''), isEmpty,
+              reason: '${pattern.id} / crash / $instrument hits after beat 1');
+        });
       }
     }
   });

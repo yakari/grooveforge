@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Drum Generator: a Breaks setting, and switches for the crash after a fill and the dynamic build (which now does something).
 - On-screen keys now play louder near the front edge of the key. Preferences > Key velocity can fix one strength instead.
 - Drum Generator: a song form lays out intro, verses, choruses, breaks and an ending as blocks; every bundled style has its own ending.
+- .gfdrum format: swing on eighth notes (`swing_unit: 8`), grids spanning two bars, triplet grids, and a `kit` per style (brushes, TR-808, orchestra...).
 
 ### Changed
 - New projects start with the Xen module switched off, so the keyboard plays every note until you pick a scale, which switches it on. Projects you saved keep Xen exactly as they were.
@@ -34,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Drum Generator: a loaded .gfdrum was lost on restart, and one named like a bundled pattern replaced it everywhere.
 - Drum Generator: moving a knob during playback fired a burst of hits.
 - Drum Generator: the Chopsticks count-in always said 4 hits, whatever the pattern plays.
+- Drum Generator: the bar after a fill played the groove twice over, doubling its kick and hi-hat.
 - MIDI FX applied in a different order on the screen and on a controller; both now follow the rack, top to bottom.
 - A keyboard set to None (MIDI only) skipped MIDI FX on its on-screen keys.
 - Notes sent to a MIDI FX also played a second time on MIDI channel 1.

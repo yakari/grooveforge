@@ -27,6 +27,7 @@ bpm_range: [100, 180]
 time_signature: [3, 4]
 resolution: 9
 feel: straight
+kit: brush
 
 instruments:
   kick:       { note: 36, base_velocity: 60,  velocity_range: 20, timing_jitter: 0.015, duration_beats: 0.15 }
@@ -111,11 +112,11 @@ sections:
     bars: 1
     variations:
       - name: standard
-        crash:      "X........"
-        ride:       "...X.xX.x"
-        hihat_pedal: "...X..X.."
-        kick:       "X........"
-        snare:      "......o.."
+        # Laid over the groove on the bar after a fill, a break or the
+        # count-in: the cymbal and the low drum on beat 1. The groove
+        # plays everything else.
+        crash: "X........"
+        kick:  "X........"
 
   ending:
     # Played once at the end of the song; the drums stop after bar 2.

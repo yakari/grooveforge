@@ -48,7 +48,16 @@
 #   bol   Dha Dhin Dhin Dha Dha Dhin Dhin Dha Dha Tin Tin Ta Ta Dhin Dhin Dha
 #         ^sam                              ^                ^khali starts
 #
-# Swing / feel: straight — the tala is even; expression comes from the bols.
+# Swing / feel: 'feel' delays the second note of each swung pair, and
+# 'swing_unit' says which notes pair up: 16 = sixteenths (the default),
+# 8 = eighths (jazz, shuffle). Write the grids straight, as a score does.
+#   straight    — every step exactly on the grid
+#   swing_light — light swing, second note at 58 % of the pair (or swing_soft)
+#   swing_hard  — triplet swing, second note at 67 % of the pair
+#   laid_back   — same as straight; drag one instrument with its 'rush'
+#
+# Spaces and '|' inside a grid are ignored. A grid may span two bars, and
+# 'grid: triplet' on a variation splits each beat in three (12 steps in 4/4).
 # ─────────────────────────────────────────────────────────────────────────────
 
 name: Teental (16 matras)
@@ -151,12 +160,11 @@ sections:
     bars: 1
     variations:
       - name: sam_accent
-        # No cymbal: the whole ensemble lands together on sam, then the theka
-        # resumes. This is what a "crash" means in this music.
-        na:  "X..xX..xX..xx..x"
-        tin: ".xx..xx..xx..xx."
+        # Laid over the groove on the bar after a fill, a break or the
+        # count-in: the cymbal and the low drum on beat 1. The groove
+        # plays everything else.
+        na:  "X..............."
         ghe: "X..............."
-        ge:  ".xxxXxxxX....xxx"
 
   ending:
     # Played once at the end of the song; the drums stop after bar 2.

@@ -136,9 +136,11 @@ sections:
     bars: 1
     variations:
       - name: standard
+        # Laid over the groove on the bar after a fill, a break or the
+        # count-in: the cymbal and the low drum on beat 1. The groove
+        # plays everything else.
         crash: "X............."
-        kick:  "X...X...X....."
-        snare: "....X...X....."
+        kick:  "X............."
 
   ending:
     # Played once at the end of the song; the drums stop after bar 2.

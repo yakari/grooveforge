@@ -38,8 +38,16 @@
 #   The eight 8th notes of the iqa' fall on the even positions 0, 2, 4, 6,
 #   8, 10, 12, 14 — the odd positions carry only ka fills.
 #
-# Swing / feel: straight — Arabic iqa'at are played on the grid; the expressive
-#   variation comes from stroke choice and ornament density, not from swing.
+# Swing / feel: 'feel' delays the second note of each swung pair, and
+# 'swing_unit' says which notes pair up: 16 = sixteenths (the default),
+# 8 = eighths (jazz, shuffle). Write the grids straight, as a score does.
+#   straight    — every step exactly on the grid
+#   swing_light — light swing, second note at 58 % of the pair (or swing_soft)
+#   swing_hard  — triplet swing, second note at 67 % of the pair
+#   laid_back   — same as straight; drag one instrument with its 'rush'
+#
+# Spaces and '|' inside a grid are ignored. A grid may span two bars, and
+# 'grid: triplet' on a variation splits each beat in three (12 steps in 4/4).
 # ─────────────────────────────────────────────────────────────────────────────
 
 name: Maqsum & Baladi
@@ -158,10 +166,11 @@ sections:
     bars: 1
     variations:
       - name: standard
+        # Laid over the groove on the bar after a fill, a break or the
+        # count-in: the cymbal and the low drum on beat 1. The groove
+        # plays everything else.
         crash: "X..............."
-        doum:  "X.......X......."
-        tek:   "....X.X.....X..."
-        riq:   "x.x.x.x.x.x.x.x."
+        doum:  "X..............."
 
   ending:
     # Played once at the end of the song; the drums stop after bar 2.
@@ -176,7 +185,6 @@ sections:
       - # Bar 2: final hit on beat 1, then silence
         crash: "X..............."
         doum:  "X..............."
-        riq:   "X..............."
 
 structure:
   fill_every: 8

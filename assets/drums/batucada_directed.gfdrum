@@ -177,13 +177,11 @@ sections:
     bars: 1
     variations:
       - name: standard
+        # Laid over the groove on the bar after a fill, a break or the
+        # count-in: the cymbal and the low drum on beat 1. The groove
+        # plays everything else.
         crash:      "X..............."
         surdo_open: "X..............."
-        surdo_mute: "........X......."
-        caixa:      "gxgxgxgXgxgxgxgX"
-        tamborim:   "X..X.X..X..X.X.."
-        agogo:      "..X...X...X...X."
-        chocalho:   "x.x.x.x.x.x.x.x."
 
   ending:
     # Played once at the end of the song; the drums stop after bar 2.
@@ -201,9 +199,6 @@ sections:
       - # Bar 2: final hit on beat 1, then silence
         crash:      "X..............."
         surdo_open: "X..............."
-        caixa:      "X..............."
-        tamborim:   "X..............."
-        chocalho:   "X..............."
 
 structure:
   fill_every: 8

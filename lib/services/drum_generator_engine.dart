@@ -257,8 +257,9 @@ class DrumGeneratorEngine extends ChangeNotifier {
       _engine.assignSoundfontToChannel(channel, path);
     }
     // Always re-apply bank 128 after a soundfont change so the drum channel
-    // stays mapped to the percussion bank, not the default melodic bank 0.
-    _engine.assignPatchToChannel(channel, 0, bank: 128);
+    // stays mapped to the percussion bank, not the default melodic bank 0,
+    // and so the style's kit is checked against the new soundfont.
+    _initDrumChannel(session);
     notifyListeners();
     _notifyChanged();
   }
@@ -574,99 +575,106 @@ class DrumGeneratorEngine extends ChangeNotifier {
         : pattern.sections[plan.section] ?? pattern.sections['groove'];
     if (section == null) return;
 
-    if (plan.crash) {
-      _scheduleSectionBar(
-        session,
-        pattern,
-        pattern.sections['crash']!,
-        absoluteBar,
-        barStartBeat,
-        plan: plan,
-        isCrashOverlay: true,
-      );
-    }
-
-    _scheduleSectionBar(
-      session,
-      pattern,
-      section,
-      absoluteBar,
-      barStartBeat,
-      plan: plan,
-      isCrashOverlay: false,
-      firstStepOnly: isDrop,
-    );
-  }
-
-  /// Schedules hits for a specific section bar.
-  void _scheduleSectionBar(
-    DrumGeneratorSession session,
-    DrumPatternData pattern,
-    DrumSection section,
-    int absoluteBar,
-    double barStartBeat, {
-    required DrumBarPlan plan,
-    required bool isCrashOverlay,
-    bool firstStepOnly = false,
-  }) {
     // Count-in sections use hit-based generation, not step grids.
     if (section.kind == DrumSectionKind.countIn) {
       _scheduleCountIn(session, pattern, section, barStartBeat, absoluteBar);
       return;
     }
 
-    // Resolve the step grid map for this bar. The crash overlay is a single
-    // bar of its own, so it always starts at its first bar.
     final resolved = resolveStepGrid(
       section,
-      barInSection: isCrashOverlay ? 0 : plan.barInSection,
+      barInSection: plan.barInSection,
       variationSeed: plan.variationSeed,
-      variation: isCrashOverlay ? null : plan.variation,
+      variation: plan.variation,
     );
     if (resolved == null) return;
-    final gridMap = firstStepOnly ? firstStepOf(resolved) : resolved;
+    final main = isDrop ? firstStepOf(resolved) : resolved;
 
-    // Determine effective swing ratio.
-    final swingRatio = session.instance.swingOverride ??
-        pattern.feel.defaultSwingRatio;
+    // The crash lands on top of the groove. Merged into the groove's own
+    // grids, a kick both of them play on beat 1 sounds once, not twice.
+    final crash = plan.crash ? _crashGrids(pattern) : null;
+    final bars = crash == null ? [main] : mergeOverlay(main, crash);
 
+    for (var i = 0; i < bars.length; i++) {
+      _scheduleGrids(
+        session,
+        pattern,
+        bars[i],
+        absoluteBar,
+        barStartBeat,
+        velocityScale: plan.velocityScale,
+        // A second, unmerged grid draws its humanisation apart.
+        rngSalt: i * 7919,
+      );
+    }
+  }
+
+  /// The grids of the crash section, which always plays its first bar.
+  DrumBarGrid? _crashGrids(DrumPatternData pattern) {
+    final crash = pattern.sections['crash'];
+    if (crash == null) return null;
+    return resolveStepGrid(crash, barInSection: 0, variationSeed: 0);
+  }
+
+  /// Schedules the hits of one bar's [grids].
+  void _scheduleGrids(
+    DrumGeneratorSession session,
+    DrumPatternData pattern,
+    DrumBarGrid grids,
+    int absoluteBar,
+    double barStartBeat, {
+    required double velocityScale,
+    required int rngSalt,
+  }) {
     // Step duration in beats: bar duration divided by the number of steps.
     // For 4/4 at 16 steps: 4.0/16 = 0.25 beats.  For 6/8 at 12 steps:
-    // 3.0/12 = 0.25 beats (each step = a 16th note in both cases).
-    final barDur = pattern.timeSigNumerator * 4.0 / pattern.timeSigDenominator;
-    final stepDuration = barDur / pattern.resolution;
+    // 3.0/12 = 0.25 beats (each step = a 16th note in both cases). A
+    // triplet grid in 4/4 has 12 steps of a third of a beat.
+    final stepDuration =
+        pattern.barBeats / pattern.stepsPerBar(grids.subdivision);
+
+    // Swing ratio: the slot's swing knob when set, or the style's feel.
+    // Only a grid that splits the beat in two, four or eight swings: a
+    // triplet grid (or a 3/4 written in triplets) is already ternary.
+    final swingRatio = _isBinary(stepDuration)
+        ? session.instance.swingOverride ?? pattern.feel.defaultSwingRatio
+        : 0.5;
 
     // Humanisation amounts, scaled by the slot's humanization knob.
     final humanFactor = session.instance.humanizationAmount;
 
     // Per-bar seeded random ensures same bar always produces same humanisation,
     // preventing flicker when the lookahead re-schedules the same bar.
-    final barSeed = absoluteBar * 31 + (isCrashOverlay ? 7919 : 0);
-    final rng = Random(barSeed);
+    final rng = Random(absoluteBar * 31 + rngSalt);
 
-    for (final entry in gridMap.entries) {
-      final instrName = entry.key;
-      final grid = entry.value;
-      final instrDef = pattern.instruments[instrName];
+    for (final entry in grids.entries) {
+      final instrDef = pattern.instruments[entry.key];
       if (instrDef == null) continue;
 
       _scheduleInstrumentGrid(
         session: session,
         bar: absoluteBar,
-        velocityScale: isCrashOverlay ? 1.0 : plan.velocityScale,
+        velocityScale: velocityScale,
         instrDef: instrDef,
-        grid: grid,
+        grid: entry.value,
         barStartBeat: barStartBeat,
         stepDuration: stepDuration,
         swingRatio: swingRatio,
+        swingPairBeats: pattern.swingUnit.pairBeats,
         humanFactor: humanFactor,
         rng: rng,
-        humanization: pattern.humanization,
       );
     }
   }
 
-  /// Resolves the step grid map to play for one bar of [section].
+  /// Whether steps of [stepDuration] beats split the beat in two, four or
+  /// eight: the grids a swing can bend.
+  static bool _isBinary(double stepDuration) {
+    final perBeat = 1 / stepDuration;
+    return [2, 4, 8].any((n) => (perBeat - n).abs() < 1e-6);
+  }
+
+  /// Resolves the grids to play for one bar of [section].
   ///
   /// For `sequence` sections: the bar at [barInSection], so a two-bar
   /// pattern starts on its first bar whatever came before (a count-in, a
@@ -674,9 +682,11 @@ class DrumGeneratorEngine extends ChangeNotifier {
   /// For `loop` sections: a weighted random variation drawn with
   /// [variationSeed]. The arranger keeps the seed for a whole phrase, so the
   /// same variation plays until the next fill. A [variation] name, chosen by
-  /// a song-form block, wins over the draw when the section has it.
+  /// a song-form block, wins over the draw when the section has it. A
+  /// variation of several bars plays bar [barInSection] of itself, so a
+  /// two-bar clave always starts on its first bar with the phrase or block.
   @visibleForTesting
-  static Map<String, String>? resolveStepGrid(
+  static DrumBarGrid? resolveStepGrid(
     DrumSection section, {
     required int barInSection,
     required int variationSeed,
@@ -685,37 +695,133 @@ class DrumGeneratorEngine extends ChangeNotifier {
     if (section.variations.isEmpty) return null;
 
     if (section.kind == DrumSectionKind.sequence) {
-      final variation = section.variations.first;
-      final barSeq = variation.barSequence;
+      final barSeq = section.variations.first.barSequence;
       if (barSeq == null || barSeq.isEmpty) return null;
       return barSeq[barInSection.abs() % barSeq.length];
     }
 
-    for (final v in section.variations) {
-      if (v.name == variation) return v.stepGrids;
-    }
+    final chosen = _drawVariation(section, variationSeed, variation);
+    return barOf(chosen, barInSection);
+  }
 
+  /// The variation of a loop [section] to play: the one named [name] when
+  /// the section has it, or else a weighted draw with [seed].
+  static DrumVariation _drawVariation(
+    DrumSection section,
+    int seed,
+    String? name,
+  ) {
+    for (final v in section.variations) {
+      if (v.name == name) return v;
+    }
     final totalWeight =
         section.variations.fold(0, (sum, v) => sum + v.weight);
-    if (totalWeight == 0) return section.variations.first.stepGrids;
+    if (totalWeight == 0) return section.variations.first;
 
-    var roll = Random(variationSeed).nextInt(totalWeight);
-    for (final variation in section.variations) {
-      roll -= variation.weight;
-      if (roll < 0) return variation.stepGrids;
+    var roll = Random(seed).nextInt(totalWeight);
+    for (final v in section.variations) {
+      roll -= v.weight;
+      if (roll < 0) return v;
     }
-    return section.variations.last.stepGrids;
+    return section.variations.last;
+  }
+
+  /// The grids of bar [barInSection] of [variation], one bar long each.
+  ///
+  /// A grid of one bar plays in every bar; a longer grid plays its slice
+  /// for this bar, looping when it is shorter than the variation.
+  @visibleForTesting
+  static DrumBarGrid barOf(DrumVariation variation, int barInSection) {
+    final grids = variation.stepGrids;
+    if (variation.bars <= 1) {
+      return DrumBarGrid(grids, subdivision: variation.subdivision);
+    }
+    // Every grid of a multi-bar variation splits into bars of equal
+    // length: the variation's total divided by its bar count.
+    final longest = grids.values.fold(0, (a, g) => g.length > a ? g.length : a);
+    final steps = longest ~/ variation.bars;
+    final bar = barInSection.abs() % variation.bars;
+    return DrumBarGrid(
+      {
+        for (final e in grids.entries) e.key: _sliceBar(e.value, steps, bar),
+      },
+      subdivision: variation.subdivision,
+    );
+  }
+
+  /// Bar [bar] of [grid], [steps] long, looping a grid shorter than that.
+  static String _sliceBar(String grid, int steps, int bar) {
+    final gridBars = (grid.length / steps).ceil();
+    if (gridBars <= 1) return grid;
+    final start = (bar % gridBars) * steps;
+    final end = start + steps;
+    return grid.substring(start, end > grid.length ? grid.length : end);
+  }
+
+  /// Lays the crash [overlay] over the bar's [main] grids.
+  ///
+  /// When both divide the bar the same way they merge into one grid set:
+  /// where the two hit the same instrument on the same step, the stronger
+  /// hit plays, once. A triplet bar cannot merge with a straight crash, so
+  /// the two are then returned apart and both play.
+  @visibleForTesting
+  static List<DrumBarGrid> mergeOverlay(DrumBarGrid main, DrumBarGrid overlay) {
+    if (main.subdivision != overlay.subdivision) return [main, overlay];
+    final merged = Map<String, String>.of(main);
+    for (final e in overlay.entries) {
+      final under = merged[e.key];
+      merged[e.key] = under == null ? e.value : _strongest(under, e.value);
+    }
+    return [DrumBarGrid(merged, subdivision: main.subdivision)];
+  }
+
+  /// Step by step, the stronger of the hits of [a] and [b].
+  static String _strongest(String a, String b) {
+    final length = a.length > b.length ? a.length : b.length;
+    final out = StringBuffer();
+    for (var i = 0; i < length; i++) {
+      final ca = i < a.length ? a[i] : '.';
+      final cb = i < b.length ? b[i] : '.';
+      out.write(DrumPatternParser.velocityScale(cb) >
+              DrumPatternParser.velocityScale(ca)
+          ? cb
+          : ca);
+    }
+    return out.toString();
   }
 
   /// Keeps only the first step of every grid in [grids]: what a drummer
   /// plays on beat 1 of the crash bar (the cymbal and the bass drum, or the
   /// style's own low drum and gong), and nothing after it.
   @visibleForTesting
-  static Map<String, String> firstStepOf(Map<String, String> grids) => {
-        for (final e in grids.entries)
-          if (e.value.isNotEmpty && e.value[0] != '.')
-            e.key: e.value[0] + '.' * (e.value.length - 1),
-      };
+  static DrumBarGrid firstStepOf(DrumBarGrid grids) => DrumBarGrid(
+        {
+          for (final e in grids.entries)
+            if (e.value.isNotEmpty && e.value[0] != '.')
+              e.key: e.value[0] + '.' * (e.value.length - 1),
+        },
+        subdivision: grids.subdivision,
+      );
+
+  /// Where a note written at [beat] beats into the bar is played under a
+  /// swing of [ratio], for pairs [pairBeats] long.
+  ///
+  /// Each pair (an eighth-note pair is one beat, a sixteenth pair half a
+  /// beat) is bent so its middle lands at [ratio] of the pair: 0.5 leaves
+  /// the grid straight, 0.67 puts the second note on the last third, a
+  /// triplet swing. Notes inside the pair move in proportion, so under an
+  /// eighth swing the "e" and the "a" of a beat keep their order around
+  /// the swung "and".
+  @visibleForTesting
+  static double swungBeat(double beat, double ratio, double pairBeats) {
+    if (ratio <= 0.5) return beat;
+    // Tolerance for steps such as 1/3 beat that floating point cannot hold
+    // exactly; without it a pair's start could fall into the pair before.
+    final pairStart = ((beat + 1e-9) / pairBeats).floor() * pairBeats;
+    final t = (beat - pairStart) / pairBeats;
+    final bent = t < 0.5 ? t * 2 * ratio : ratio + (t - 0.5) * 2 * (1 - ratio);
+    return pairStart + bent * pairBeats;
+  }
 
   /// Schedules evenly-spaced hits for a count-in section.
   ///
@@ -760,7 +866,7 @@ class DrumGeneratorEngine extends ChangeNotifier {
   ///
   /// Iterates through each character in [grid]:
   /// - Rests (`.`) are skipped.
-  /// - Even-indexed steps receive a swing-ratio offset on odd positions.
+  /// - Each hit is moved by the swing (see [swungBeat]).
   /// - Timing jitter and velocity randomisation are applied from [rng].
   void _scheduleInstrumentGrid({
     required DrumGeneratorSession session,
@@ -771,26 +877,19 @@ class DrumGeneratorEngine extends ChangeNotifier {
     required double barStartBeat,
     required double stepDuration,
     required double swingRatio,
+    required double swingPairBeats,
     required double humanFactor,
     required Random rng,
-    required DrumHumanizationDef humanization,
   }) {
     for (var step = 0; step < grid.length; step++) {
       final char = grid[step];
       final velScale = DrumPatternParser.velocityScale(char);
       if (velScale == 0.0) continue; // rest — skip
 
-      // Base beat position on the step grid.
-      var beat = barStartBeat + step * stepDuration;
-
-      // Apply swing: odd steps (1, 3, 5…) are delayed by the swing offset.
-      // Swing offset = (swingRatio - 0.5) * 2 * stepDuration.
-      // At 0.5 (straight) the offset is 0; at 0.67 (triplet) it equals
-      // one-third of a step duration, matching classic jazz swing feel.
-      final isOddStep = step.isOdd;
-      if (isOddStep && swingRatio > 0.5) {
-        beat += (swingRatio - 0.5) * 2.0 * stepDuration;
-      }
+      // Position on the step grid, bent by the swing. Bars start on a
+      // beat, so the swing pairs are counted from the start of the bar.
+      var beat = barStartBeat +
+          swungBeat(step * stepDuration, swingRatio, swingPairBeats);
 
       // Apply the instrument's systematic offset, in beats: negative plays
       // ahead of the beat (a pushed kick), positive behind it (a lazy snare).
@@ -890,8 +989,8 @@ class DrumGeneratorEngine extends ChangeNotifier {
 
   // ── Channel initialisation ────────────────────────────────────────────────
 
-  /// Sets the session's MIDI channel to GM drum bank 128, program 0
-  /// (Standard Drum Kit).
+  /// Sets the session's MIDI channel to GM drum bank 128, on the drum kit
+  /// the style asks for (see [kitProgram]).
   ///
   /// This is required because the default AudioEngine state uses bank 0
   /// (melodic instruments) for all channels.  Without this call, notes
@@ -899,7 +998,19 @@ class DrumGeneratorEngine extends ChangeNotifier {
   /// kick drums and cymbals.
   void _initDrumChannel(DrumGeneratorSession session) {
     final channel = session.instance.midiChannel - 1; // 0-indexed
-    _engine.assignPatchToChannel(channel, 0, bank: 128);
+    final kit = session.patternData?.kit ?? DrumKit.standard;
+    _engine.assignPatchToChannel(channel, kitProgram(channel, kit), bank: 128);
+  }
+
+  /// The bank-128 program to play [kit] with on [channel]: the kit's own
+  /// when the channel's soundfont has it, the standard kit (0) otherwise.
+  /// A soundfont whose presets are unknown also gets 0, since selecting a
+  /// program the soundfont lacks can leave the channel silent.
+  int kitProgram(int channel, DrumKit kit) {
+    if (kit == DrumKit.standard || channel < 0 || channel > 15) return 0;
+    final path = _engine.channels[channel].soundfontPath;
+    final drums = _engine.sf2Presets[path]?[128];
+    return drums != null && drums.containsKey(kit.program) ? kit.program : 0;
   }
 
   // ── Pattern resolution ────────────────────────────────────────────────────
@@ -936,6 +1047,8 @@ class DrumGeneratorEngine extends ChangeNotifier {
     if (session.patternData != null) {
       _syncTransportTimeSignature(session.patternData!);
     }
+    // A new style may ask for another drum kit.
+    _initDrumChannel(session);
   }
 
   /// Applies [pattern]'s time signature to the transport when not playing.

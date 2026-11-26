@@ -42,6 +42,11 @@ class DrumPatternParser {
     'swing_hard': DrumFeel.swingHard,
   };
 
+  /// Maps the `kit` YAML string to the [DrumKit] it names.
+  static final Map<String, DrumKit> _kKitMap = {
+    for (final kit in DrumKit.values) kit.name: kit,
+  };
+
   // ── Public API ─────────────────────────────────────────────────────────────
 
   /// Parses [yaml] into a [DrumPatternData], assigning [id] as the pattern ID.
@@ -75,9 +80,27 @@ class DrumPatternParser {
     final feel = _kFeelMap[_str(doc, 'feel') ?? ''] ?? DrumFeel.straight;
     final timeSig = _parseTimeSignature(doc);
     final resolution = _int(doc, 'resolution') ?? 16;
+    // 8 swings the eighths (jazz), 16 or nothing the sixteenths (funk).
+    final swingUnit = _int(doc, 'swing_unit') == 8
+        ? DrumSwingUnit.eighth
+        : DrumSwingUnit.sixteenth;
+    final kit = _kKitMap[_str(doc, 'kit') ?? ''] ?? DrumKit.standard;
     final instruments = _parseInstruments(doc);
     final humanization = _parseHumanization(doc);
-    final sections = _parseSections(doc, instruments);
+    // Grids are measured against the bar, so the sections need to know how
+    // many steps a bar holds in each subdivision.
+    final meter = DrumPatternData(
+      id: id,
+      name: name,
+      family: family,
+      timeSignature: timeSig,
+      resolution: resolution,
+      feel: feel,
+      instruments: const {},
+      humanization: humanization,
+      sections: const {},
+    );
+    final sections = _parseSections(doc, instruments, meter.stepsPerBar);
 
     return DrumPatternData(
       id: id,
@@ -86,6 +109,8 @@ class DrumPatternParser {
       timeSignature: timeSig,
       resolution: resolution,
       feel: feel,
+      swingUnit: swingUnit,
+      kit: kit,
       instruments: instruments,
       humanization: humanization,
       sections: sections,
@@ -157,6 +182,7 @@ class DrumPatternParser {
   static Map<String, DrumSection> _parseSections(
     YamlMap doc,
     Map<String, DrumInstrumentDef> instruments,
+    _StepsPerBar stepsPerBar,
   ) {
     final result = <String, DrumSection>{};
     final raw = doc['sections'];
@@ -168,6 +194,7 @@ class DrumPatternParser {
         entry.value,
         sectionName: sectionName,
         instruments: instruments,
+        stepsPerBar: stepsPerBar,
       );
       if (section != null) result[sectionName] = section;
     }
@@ -179,6 +206,7 @@ class DrumPatternParser {
     dynamic raw, {
     required String sectionName,
     required Map<String, DrumInstrumentDef> instruments,
+    required _StepsPerBar stepsPerBar,
   }) {
     if (raw is! YamlMap) return null;
 
@@ -196,7 +224,7 @@ class DrumPatternParser {
     }
 
     // Default: loop section with random weighted variation selection.
-    return _parseLoopSection(raw, bars, instruments);
+    return _parseLoopSection(raw, bars, instruments, stepsPerBar);
   }
 
   /// Parses a count-in section from the `hits` and `note` fields.
@@ -220,20 +248,15 @@ class DrumPatternParser {
     Map<String, DrumInstrumentDef> instruments,
   ) {
     final barGridsList = raw['bar_grids'];
-    final List<Map<String, String>> barSequence = [];
+    final List<DrumBarGrid> barSequence = [];
 
     if (barGridsList is YamlList) {
       for (final barEntry in barGridsList) {
         if (barEntry is YamlMap) {
-          final grid = <String, String>{};
-          for (final kv in barEntry.entries) {
-            final instrName = kv.key as String;
-            final gridStr = kv.value?.toString() ?? '';
-            if (instruments.containsKey(instrName) && gridStr.isNotEmpty) {
-              grid[instrName] = gridStr;
-            }
-          }
-          barSequence.add(grid);
+          barSequence.add(DrumBarGrid(
+            _readGrids(barEntry, instruments),
+            subdivision: _subdivision(barEntry),
+          ));
         }
       }
     }
@@ -257,6 +280,7 @@ class DrumPatternParser {
     YamlMap raw,
     int bars,
     Map<String, DrumInstrumentDef> instruments,
+    _StepsPerBar stepsPerBar,
   ) {
     final varRaw = raw['variations'];
     final variations = <DrumVariation>[];
@@ -265,13 +289,18 @@ class DrumPatternParser {
       // Each entry in the list is a named variation with optional weight
       // and one grid entry per instrument.
       for (final varEntry in varRaw) {
-        final v = _parseVariation(varEntry, instruments);
+        final v = _parseVariation(varEntry, instruments, stepsPerBar);
         if (v != null) variations.add(v);
       }
     } else {
       // Short-hand: no `variations:` wrapper — the raw map IS the single
       // variation (instrument grids at top level).
-      final v = _parseVariationFromMap(raw, name: 'main', instruments: instruments);
+      final v = _parseVariationFromMap(
+        raw,
+        name: 'main',
+        instruments: instruments,
+        stepsPerBar: stepsPerBar,
+      );
       if (v != null) variations.add(v);
     }
 
@@ -288,10 +317,16 @@ class DrumPatternParser {
   static DrumVariation? _parseVariation(
     dynamic raw,
     Map<String, DrumInstrumentDef> instruments,
+    _StepsPerBar stepsPerBar,
   ) {
     if (raw is! YamlMap) return null;
     final name = _str(raw, 'name') ?? 'unnamed';
-    return _parseVariationFromMap(raw, name: name, instruments: instruments);
+    return _parseVariationFromMap(
+      raw,
+      name: name,
+      instruments: instruments,
+      stepsPerBar: stepsPerBar,
+    );
   }
 
   /// Extracts step grids from [raw], skipping non-instrument keys.
@@ -299,36 +334,72 @@ class DrumPatternParser {
     YamlMap raw, {
     required String name,
     required Map<String, DrumInstrumentDef> instruments,
+    required _StepsPerBar stepsPerBar,
   }) {
     final weight = _int(raw, 'weight') ?? 1;
     // An unknown role is ignored rather than rejected: the groove still
     // plays, only without a song-form part attached to it.
     final role = _str(raw, 'role');
-    final grids = <String, String>{};
-
-    for (final kv in raw.entries) {
-      final key = kv.key as String;
-      // Skip meta keys; only record instrument grid strings.
-      if (key == 'name' ||
-          key == 'weight' ||
-          key == 'role' ||
-          key == 'type' ||
-          key == 'bars') {
-        continue;
-      }
-      if (!instruments.containsKey(key)) continue;
-      final gridStr = kv.value?.toString() ?? '';
-      if (gridStr.isNotEmpty) grids[key] = gridStr;
-    }
-
+    final grids = _readGrids(raw, instruments);
     if (grids.isEmpty) return null;
+
+    // The variation lasts as long as its longest grid: a 32-step clave in
+    // a 16-step pattern makes a two-bar variation.
+    final subdivision = _subdivision(raw);
+    final steps = stepsPerBar(subdivision);
+    final bars = grids.values
+        .map((g) => (g.length / steps).ceil())
+        .fold(1, (a, b) => b > a ? b : a);
+
     return DrumVariation(
       name: name,
       weight: weight,
       stepGrids: grids,
+      subdivision: subdivision,
+      bars: bars,
       role: DrumVariation.roles.contains(role) ? role : null,
     );
   }
+
+  /// Reads the instrument grids of one variation or one sequence bar,
+  /// skipping meta keys and instruments the file does not declare.
+  ///
+  /// Spaces and `|` inside a grid are only there to help the eye (to mark
+  /// the beats, or where the second bar of a long grid starts) and are
+  /// dropped: `"X...X... | X...X..."` reads as `"X...X...X...X..."`.
+  static Map<String, String> _readGrids(
+    YamlMap raw,
+    Map<String, DrumInstrumentDef> instruments,
+  ) {
+    final grids = <String, String>{};
+    for (final kv in raw.entries) {
+      final key = kv.key.toString();
+      if (_kMetaKeys.contains(key) || !instruments.containsKey(key)) continue;
+      final grid = (kv.value?.toString() ?? '').replaceAll(_kGridSeparators, '');
+      if (grid.isNotEmpty) grids[key] = grid;
+    }
+    return grids;
+  }
+
+  /// Keys of a variation or a sequence bar that are not instrument grids.
+  static const Set<String> _kMetaKeys = {
+    'name',
+    'weight',
+    'role',
+    'type',
+    'bars',
+    'grid',
+  };
+
+  /// Characters a grid may hold for readability only.
+  static final RegExp _kGridSeparators = RegExp(r'[\s|]');
+
+  /// The subdivision a variation or sequence bar asks for with
+  /// `grid: triplet`; straight otherwise.
+  static DrumSubdivision _subdivision(YamlMap raw) =>
+      _str(raw, 'grid') == 'triplet'
+          ? DrumSubdivision.triplet
+          : DrumSubdivision.straight;
 
   // ── YAML helpers ──────────────────────────────────────────────────────────
 
@@ -353,3 +424,7 @@ class DrumPatternParser {
   /// a value in `0.0–1.0` representing the fraction of [DrumInstrumentDef.baseVelocity].
   static double velocityScale(String char) => _kVelocityScale[char] ?? 0.0;
 }
+
+/// Gives the number of steps in one bar for a subdivision, from the
+/// pattern's meter and resolution (see [DrumPatternData.stepsPerBar]).
+typedef _StepsPerBar = int Function(DrumSubdivision subdivision);
