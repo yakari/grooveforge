@@ -19,7 +19,8 @@
 #   Step 10= "a" of compound beat 2      (8th note 6)
 #   Odd steps = 16th-note subdivisions (rarely played in traditional jig)
 # GM notes: 36=kick (low bodhran hit), 38=snare (accent), 37=cross-stick (bodhran tip),
-#           42=HH (continuous 8ths), 48=hi-tom (tonal accent), 49=crash
+#           42=HH (continuous 8ths), 45=low tom (bodhran, as in Celtic Reel),
+#           48=hi-tom (tonal accent), 49=crash
 
 #
 # ── Step grid notation ────────────────────────────────────────────────────────
@@ -66,6 +67,7 @@ instruments:
   snare:   { note: 38, base_velocity: 88,  velocity_range: 18, timing_jitter: 0.018, duration_beats: 0.08 }
   cross:   { note: 37, base_velocity: 68,  velocity_range: 16, timing_jitter: 0.018, duration_beats: 0.06 }
   hihat:   { note: 42, base_velocity: 78,  velocity_range: 12, timing_jitter: 0.014, duration_beats: 0.07 }
+  bodhran: { note: 45, base_velocity: 100, velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.12 }
   tom_hi:  { note: 48, base_velocity: 90,  velocity_range: 15, timing_jitter: 0.018, duration_beats: 0.10 }
   crash:   { note: 49, base_velocity: 95,  velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.22 }
 
@@ -83,15 +85,23 @@ sections:
   groove:
     bars: 1
     variations:
+      - name: bodhran_alone
+        role: intro
+        weight: 1
+        # The bodhran alone, as in a session: every eighth, down-up-down
+        # twice, the down strokes on each compound beat accented.
+        bodhran: "X.x.x.X.x.x."
+
       - name: bodhran_down
         role: verse
         weight: 4
         # Classic bodhran feel: kick drives compound beats (0, 6), hi-hat continuous 8ths
         # with compound-beat accents. Snare accent on the 3rd 8th (steps 4, 10) gives
         # the characteristic "lilt" that distinguishes a jig from a march.
-        # Soft kick at the end of each group (steps 5, 11) suggests the bodhran lift-tip.
+        # Soft kick on the sixteenth before each group (steps 5, 11) suggests
+        # the bodhran's quick lift into the next down stroke.
         kick:  "X....xX....x"
-        snare: "...x.....x.."
+        snare: "....x.....x."
         hihat: "X.x.x.X.x.x."
       - name: bodhran_tip
         role: bridge
@@ -100,16 +110,16 @@ sections:
         # the dry click of the bodhran stick's back face hitting the skin ring —
         # the defining texture of traditional session playing.
         kick:  "X....xX....x"
-        cross: "..x...x....."
+        cross: "..x.....x..."
         hihat: "X.x.x.X.x.x."
       - name: swell
         role: chorus
         weight: 2
-        # "Swell" variation: kick adds a push on the 4th 8th note (step 6+1=7? no, step 4+2=6 = compound beat 2 downbeat).
-        # Actually: kick on step 4 ("a" of group 1) adds weight before compound beat 2.
-        # Snare and cross-stick together on upbeat steps for a denser sound.
+        # "Swell" variation: the kick adds the third eighth (step 4) to push
+        # into compound beat 2; snare and cross-stick share the upbeats for a
+        # denser sound.
         kick:  "X...X.X....x"
-        snare: "...x.....x.."
+        snare: "....x.....x."
         cross: "..x...x....."
         hihat: "X.x.x.X.x.x."
 

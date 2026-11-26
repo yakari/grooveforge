@@ -195,7 +195,7 @@ sections:
       - # Bar 1: One drop on 3, rim crescendo into the floor tom
         kick:       "........X......."
         snare:      "........X......."
-        hihat:      "x.x.x.x.x......."
+        hihat:      "x.x.x...x......."
         hihat_open: "......x........."
         rim:        "..........g.ox.."
         tom_lo:     "..............X."

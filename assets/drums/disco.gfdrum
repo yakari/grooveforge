@@ -1,23 +1,27 @@
-# Disco — Classic 1970s Dance Groove
-# Reference: Nile Rodgers / CHIC ("Good Times", "Le Freak"), Giorgio Moroder,
-#            MFSB ("Love Is the Message"), Donna Summer ("I Feel Love"),
-#            Bernard Edwards (bass) + Tony Thompson (drums) — the CHIC rhythm section
+# Disco — the 1970s dance groove
+# Reference: Earl Young (MFSB, The Trammps, Harold Melvin & the Blue Notes),
+#            Tony Thompson (CHIC, "Good Times", "Le Freak"), Giorgio Moroder
+#            and Donna Summer ("I Feel Love")
 # Disco's defining characteristics:
-#   - "Four on the floor" kick: every quarter note (pos 0,4,8,12) — the heartbeat
-#     that every dancer locks onto. Before disco, the kick was syncopated; disco
-#     made it relentlessly steady to serve the dancefloor.
-#   - Open hi-hat on every 8th upbeat (pos 2,6,10,14) — the "chk-chk-chk" that
-#     defines the era and drove rock fans insane.
-#   - Snare on beats 2 and 4 — standard backbeat, often with a tight, ringy sound.
-#   - The "Philadelphia Soul" variation (MFSB): slightly sparser, orchestral approach.
-#   - Hi-NRG is the Eurodisco accelerated form (Patrick Cowley, Bobby O).
+#   - "Four on the floor": the bass drum on every beat. Earl Young, the
+#     drummer of the Philadelphia sound, made it the rule in the early
+#     1970s, and every disco record followed.
+#   - The open hi-hat on every offbeat eighth, closing on the beat: the
+#     "tss" that defines the era (a closed and an open stroke never fall on
+#     the same step, or the closed one would choke the open one).
+#   - The snare on 2 and 4, tight and ringing.
+#   - A tambourine in sixteenths on the Philadelphia records.
+# The variations, in the manner of these drummers:
+#   earl_young   — the Philadelphia sound: four on the floor, open hats,
+#                  tambourine, a ghosted snare pickup
+#   four_on_floor — the plain disco beat the whole decade danced to
+#   chic         — Tony Thompson: sixteenths on the hi-hat, opening on the
+#                  "and", the bass drum pushing the "and" of 2 and 4
+#   moroder      — the programmed Munich disco: bass drum and sixteenth
+#                  hi-hat, clap on 2 and 4
 #
-# Three variations cover the main disco sub-styles:
-#   four_on_floor  — classic NYC disco: steady kick, open hat upbeats
-#   chic_groove    — Nile Rodgers syncopated kick, all-16th hi-hat intensity
-#   philly_soul    — MFSB orchestral soul: sparser kick, ride-cymbal pulse
-#
-# GM notes: 36=kick, 38=snare, 42=closed HH, 46=open HH, 49=crash, 51=ride
+# GM notes: 36=kick, 38=snare, 39=hand clap, 42=closed HH, 46=open HH,
+#           54=tambourine, 49=crash
 
 #
 # ── Step grid notation ────────────────────────────────────────────────────────
@@ -60,7 +64,8 @@ instruments:
   snare:      { note: 38, base_velocity: 100, velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.09 }
   hihat:      { note: 42, base_velocity: 75,  velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.06 }
   hihat_open: { note: 46, base_velocity: 88,  velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.14 }
-  ride:       { note: 51, base_velocity: 78,  velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.08 }
+  clap:       { note: 39, base_velocity: 96,  velocity_range: 6,  timing_jitter: 0.006, duration_beats: 0.10 }
+  tambourine: { note: 54, base_velocity: 70,  velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.06 }
   crash:      { note: 49, base_velocity: 100, velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.22 }
 
 humanization:
@@ -77,46 +82,56 @@ sections:
   groove:
     bars: 1
     variations:
+      - name: hats_and_kick
+        role: intro
+        weight: 1
+        # The record starts: four on the floor and the hi-hat alone, closed
+        # on the beats, open on the offbeats.
+        kick:       "X... X... X... X..."
+        hihat:      "x... x... x... x..."
+        hihat_open: "..x. ..x. ..x. ..x."
+
       - name: four_on_floor
         role: verse
-        weight: 3
-        # The definitive disco groove (Donna Summer, Bee Gees, KC & Sunshine Band style).
-        # KICK: four on the floor — every quarter note (pos 0,4,8,12). This is disco's
-        #   non-negotiable law. The steady kick is what made dancers move predictably and
-        #   what distinguished disco from funk's syncopated kick patterns.
-        # SNARE: beats 2 and 4 (pos 4,12) — standard backbeat.
-        # HI-HAT: closed on beats (pos 0,4,8,12), open on every 8th upbeat (pos 2,6,10,14).
-        #   The closed-open alternation at 8th-note rate is the iconic disco "chk" sound.
-        kick:       "X...X...X...X..."
-        snare:      "....X.......X..."
-        hihat:      "x.x.x.x.x.x.x.x."
-        hihat_open: "..x...x...x...x."
+        weight: 4
+        # The disco beat: the bass drum on every beat, the snare on 2 and 4,
+        # the hi-hat closed on the beats and open on the offbeats.
+        kick:       "X... X... X... X..."
+        snare:      ".... X... .... X..."
+        hihat:      "x... x... x... x..."
+        hihat_open: "..x. ..x. ..x. ..x."
 
-      - name: chic_groove
+      - name: chic
         role: chorus
-        weight: 2
-        # CHIC's signature groove (Nile Rodgers / Tony Thompson, 1978–1983).
-        # The kick is more syncopated than pure four-on-floor — it anticipates beats
-        # with an "and-of" pickup (pos 6 = and-of-2, pos 14 = and-of-4) that gives
-        # the groove a funkier forward push. All-16th hi-hat (closed) creates relentless
-        # forward motion. Snare keeps backbeat on 2 and 4 with ghost note on e-of-2 (pos 5).
-        kick:       "X...X.X.X...X.X."
-        snare:      "....X.g.....X..."
-        hihat:      "xxxxxxxxxxxxxxxx"
-        hihat_open: "..x...x...x...x."
+        weight: 3
+        # In the manner of Tony Thompson: sixteenths on the hi-hat, opening
+        # on every "and"; the bass drum adds the "and" of 2 and 4; a ghost
+        # note after the backbeat.
+        kick:       "X... X.X. X... X.X."
+        snare:      ".... X.g. .... X..."
+        hihat:      "xx.x xx.x xx.x xx.x"
+        hihat_open: "..x. ..x. ..x. ..x."
 
-      - name: philly_soul
+      - name: earl_young
         role: bridge
         weight: 2
-        # Philadelphia soul / MFSB orchestral approach ("Love Is the Message", 1973).
-        # Sparser than pure disco — kicks on beats 1 and 3 only, leaving room for the
-        # orchestra. Ride cymbal instead of hi-hat gives a warmer, more melodic tone.
-        # Snare on 2 and 4 with a ghost on the 16th before each backbeat (pick-up ghost
-        # at pos 3 and 11) for a slight human "pre-stroke" feel.
-        kick:       "X.......X......."
-        snare:      "...gX......gX..."
-        ride:       "x.x.x.x.x.x.x.x."
-        hihat_open: "..x...x...x...x."
+        # In the manner of Earl Young on the Philadelphia records: four on
+        # the floor, the open hi-hat on the offbeats, a ghosted snare pickup
+        # before each backbeat, the tambourine in sixteenths.
+        kick:       "X... X... X... X..."
+        snare:      "...g X... ...g X..."
+        hihat:      "x... x... x... x..."
+        hihat_open: "..x. ..x. ..x. ..x."
+        tambourine: "xgxg xgxg xgxg xgxg"
+
+      - name: moroder
+        weight: 2
+        # The programmed Munich disco: the bass drum on every beat, the
+        # hi-hat in sixteenths, the clap with the snare on 2 and 4.
+        kick:  "X... X... X... X..."
+        snare: ".... X... .... X..."
+        clap:  ".... X... .... X..."
+        hihat: "xxXx xxXx xxXx xxXx"
 
   fill:
     bars: 1
@@ -128,9 +143,9 @@ sections:
         kick:  "X...X...X...X..."
 
       - name: open_hat_sweep
-        # Open hi-hat on every 16th note — a wash of cymbal leading into the next bar.
-        # Creates the "whoosh" effect common in disco and early electronic dance music.
-        hihat_open: "xxxxxxxxxxxxxxxx"
+        # Open hi-hat on every eighth: a wash of cymbal leading into the
+        # next bar.
+        hihat_open: "x.x.x.x.x.x.x.x."
         kick:       "X...X...X...X..."
         snare:      "....X.......X..."
 
@@ -158,7 +173,7 @@ sections:
       - # Bar 1: Four-on-the-floor, then unison 3-3-2 stabs on beats 3-4
         kick:       "X...X...X..X..X."
         snare:      "....X...X..X..X."
-        hihat:      "x.x.x.x........."
+        hihat:      "x...x..........."
         hihat_open: "..x...x........."
       - # Bar 2: final hit on beat 1, then silence
         crash: "X..............."

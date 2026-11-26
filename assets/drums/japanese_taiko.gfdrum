@@ -1,7 +1,6 @@
 # Japanese — Taiko (matsuri-daiko)
 # Reference: the festival (matsuri) drumming of Japan and the modern ensemble
-#            style of Kodo and Ondekoza; yatai-bayashi from the Chichibu night
-#            festival is the source of the driving variation below.
+#            style of Kodo and Ondekoza.
 # Pairs with the Far East scales in the Xen module — hirajoshi, in sen, yo and
 # ryo all sit naturally over this.
 #
@@ -82,7 +81,8 @@ sections:
       - name: don_doko
         role: verse
         weight: 4
-        # "Don doko don doko" — the first pattern any taiko student learns.
+        # "Don doko don doko", the jiuchi of folk taiko and the first pattern
+        # any taiko student learns.
         # A full stroke on the beat followed by two quick ones (pos 2, 3 of each
         # group). The odaiko marks the quarters underneath; the shime keeps the
         # 8th-note jiuchi that holds the ensemble together.
@@ -91,12 +91,12 @@ sections:
         shime:    "x.x.x.x.x.x.x.x."
         kane:     "X...x...X...x..."
 
-      - name: yatai_bayashi
+      - name: ensemble_drive
         role: chorus
         weight: 3
-        # Yatai-bayashi: relentless 16ths with the accents falling in 3+3+2
-        # groups, so the pattern pulls against its own metre. Played sitting on
-        # the floor of a festival float, for as long as the float is moving.
+        # The ensemble at full power: relentless sixteenths on the chudaiko
+        # with the accents falling in 3+3+2 groups, so the pattern pulls
+        # against its own metre, the shime doubling the sixteenths.
         odaiko:   "X.......X......."
         chudaiko: "XxxXxxXxXxxXxxXx"
         shime:    "xxxxxxxxxxxxxxxx"

@@ -73,13 +73,14 @@ sections:
         role: verse
         weight: 4
         # The foundation: kick on all four quarters (pos 0, 4, 8, 12), clap on
-        # 2 and 4, and the open hi-hat on every offbeat 8th (pos 2, 6, 10, 14).
+        # 2 and 4, the open hi-hat on every offbeat 8th (pos 2, 6, 10, 14) and
+        # the closed one on the sixteenths around it.
         # That offbeat open hat against the on-beat kick is the whole genre in
         # two lines — it is what makes a techno track feel like it is pulling
         # forward even though nothing is syncopated.
         kick:       "X...X...X...X..."
         clap:       "....X.......X..."
-        hihat:      "x.g.x.g.x.g.x.g."
+        hihat:      "x..gx..gx..gx..g"
         hihat_open: "..x...x...x...x."
 
       - name: detroit
@@ -87,23 +88,24 @@ sections:
         weight: 3
         # Detroit (Mills / Hood): the kick adds a 16th pickup on the last step
         # (pos 15) that lands just before the next bar's downbeat, and the side
-        # stick takes the offbeats so the open hat can be saved for beats 2 and 4.
+        # stick takes the offbeats, the open hat only on the "and" of 2 and 4.
         kick:       "X...X...X...X..X"
         clap:       "....X.......X..."
         rim:        "..x...x...x...x."
-        hihat:      "x.x.x.x.x.x.x.x."
+        hihat:      "x.x.x...x.x.x..."
         hihat_open: "......x.......x."
 
       - name: peak_time
         role: chorus
         weight: 2
-        # Maximum density for the loud part of the set: 16th hi-hats, a ghost
-        # snare on every offbeat 8th, and the ride doubling the kick to add
-        # a metallic edge that cuts through a big system.
+        # Maximum density for the loud part of the set: the closed hi-hat on
+        # every sixteenth the open one leaves free, a ghost snare on every
+        # offbeat 8th, and the ride doubling the kick to add a metallic edge
+        # that cuts through a big system.
         kick:       "X...X...X...X..."
         clap:       "....X.......X..."
         snare:      "..g...g...g...g."
-        hihat:      "xgxgxgxgxgxgxgxg"
+        hihat:      "xg.gxg.gxg.gxg.g"
         hihat_open: "..x...x...x...x."
         ride:       "X...X...X...X..."
 

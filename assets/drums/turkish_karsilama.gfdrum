@@ -1,6 +1,7 @@
 # Turkish — Karşılama, aksak 9/8
 # Reference: Turkish Roman (Rom) dance repertoire, Thrace and Istanbul wedding
-#            bands, the 9/8 usul of Ottoman classical music (Aksak Semai family).
+#            bands, the 9/8 usul of Ottoman classical music (Aksak Semai family);
+#            Jas's Middle Eastern Rhythms FAQ (khafif.com), "karsilama 9/8"
 # Pairs with the makam scales in the Xen module — Hicaz, Uşşak and Hüseyni all
 # live in this metre.
 #
@@ -82,47 +83,55 @@ sections:
   groove:
     bars: 1
     variations:
+      - name: karsilama_basic
+        role: intro
+        weight: 1
+        # The bare karsilama, D-__T-__D-__T-T-t- in Jas's notation: doums on
+        # beats 1 and 3, a tek on beat 2, then three teks through the long
+        # fourth beat.
+        doum: "X.......X........."
+        tek:  "....X.......X.X.x."
+
       - name: karsilama
         role: verse
         weight: 4
-        # The dance rhythm. Doum on beats 1 and 3 (pos 0, 8), tek on beat 2
-        # (pos 4) and then three teks filling the long fourth beat (pos 12, 14,
-        # 16) — that triple stroke is what tells the dancer the bar is ending.
+        # The filled form, D-kkT-kkD-kkT-T-t-: the ka strokes fill the gap
+        # before each short beat; the def keeps the nine eighths audible.
         doum: "X.......X........."
-        tek:  "....X.......X.X.X."
-        ka:   "..g.g.g.g.g.g.g.g."
+        tek:  "....X.......X.X.x."
+        ka:   "..gg..gg..gg......"
         def:  "x.x.x.x.x.x.x.x.x."
 
       - name: roman_havasi
         role: chorus
         weight: 3
-        # Turkish Roman 9/8 — the clarinet-and-darbuka wedding version. All three
-        # short beats get a doum, the tek waits until the second half of beat 2
-        # (pos 6), and the zil marks the start of beats 2 and 4 so the whole
-        # ensemble hears where the long beat begins.
-        doum: "X...X...X........."
-        tek:  "......X.....X.X.X."
-        ka:   ".g.g.g.g.g.g.g.g.g"
+        # The busier wedding-band filling, D-tkT-tkD-tkTkT-t-: a soft tek
+        # and a ka before each short beat, a ka between the long beat's
+        # teks, the zil marking beats 2 and 4.
+        doum: "X.......X........."
+        tek:  "..o.X.o...o.X.X.x."
+        ka:   "...g...g...g.g...."
         def:  "x.x.x.x.x.x.x.x.x."
-        zil:  "....x.......x...x."
+        zil:  "....x.......x....."
 
-      - name: agir_aksak
+      - name: karsilama_variation
         role: bridge
         weight: 2
-        # Ağır aksak — the slow, heavy reading used for songs rather than dance.
-        # Doum on all four beat heads including the long one (pos 12), tek only
-        # on the second 8th of each short beat. Much more space.
-        doum: "X...X...X...X....."
-        tek:  "..x...x...x.....x."
-        def:  "x.x.x.x.x.x.x.x.x."
+        # Jas's variation, D-__T-__D-__T-t-k-: the long beat answered by a
+        # soft tek and a ka instead of two strong teks. Lighter, for the
+        # verses of a song.
+        doum: "X.......X........."
+        tek:  "....X.......X.o..."
+        ka:   "................g."
+        def:  "x...x...x...x....."
 
       - name: kit_9_8
         weight: 2
-        # Drum-kit reading for a band with no percussionist: kick on beats 1 and
-        # 3, snare where the tek was. The hi-hat stays on 8ths throughout so the
+        # Drum-kit reading for a band with no percussionist: bass drum on
+        # beats 1 and 3, snare on the teks, the hi-hat on the eighths so the
         # nine is countable from the kit alone.
         kick:  "X.......X........."
-        snare: "....X.......X.X.X."
+        snare: "....X.......X.X.x."
         hihat: "x.x.x.x.x.x.x.x.x."
 
   fill:

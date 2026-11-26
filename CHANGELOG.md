@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - New projects start with the Xen module switched off, so the keyboard plays every note until you pick a scale, which switches it on. Projects you saved keep Xen exactly as they were.
 - Help rewritten: it now starts with how to connect modules and short recipes, each linking to a video of the gesture on the website.
 - Overdub latency moved from About to the Audio Output section of Preferences.
-- Drum Generator: 28 bundled styles rewritten after real transcriptions and their reference drummers; Celtic Plinn moves to 4/4.
+- Drum Generator: the 35 bundled styles reworked after real transcriptions and their reference drummers; Celtic Plinn moves to 4/4.
 
 ### Fixed
 - Linux: VST3 plugins played out of tune when JACK or PipeWire ran at 44.1 kHz; they now follow the server's sample rate.
