@@ -1,23 +1,15 @@
-# Cha-Cha — Authentic Havana cha-cha-chá
-# Reference: Enrique Jorrín (inventor of cha-cha-chá, 1953), Tito Puente,
-#            Orquesta Aragón, La Sonora Matancera,
-#            "Afro-Cuban Rhythms for Drumset" (Frank Malabe / Bob Weiner)
-# The cha-cha-chá originated as a slower variant of the mambo, named after
-# the shuffling sound of dancers' feet on the "and-of-4, 1, and-of-1" beats.
-# Its defining characteristics:
-#   - Cowbell (cencerro): steady quarter-note pulse, the dancer's reference
-#   - Timbale cascara: alternating strong/medium 8th notes on the rim
-#   - Conga tumbao: open tone on "and" of beats 2 and 4 (pos 6, 14)
-#   - Kick: beats 1 and 3 (light, supportive)
-# The tempo is moderate (100–135 BPM) — slower and more sensual than salsa.
-#
-# Three variations cover the classic and evolved cha-cha styles:
-#   classic_cha_cha  — pure Havana 1950s style: all congas and timbale, no snare
-#   modern_cha_cha   — drum-kit adaptation with snare on 2 and 4
-#   mambo_cha        — faster, higher-energy hybrid approaching mambo territory
-#
-# GM notes: 65=hi timbale, 66=lo timbale, 62=mute hi conga, 63=open hi conga, 64=low conga,
-#           56=cowbell (cencerro), 75=claves, 36=kick, 38=snare, 49=crash
+# Cha-Cha — cha-cha bell, güiro, conga tumbao
+# Reference: Orquesta Aragón, Enrique Jorrín "La Engañadora" (1953),
+#            Tito Puente "Oye Como Va"
+# The cha-cha-chá is slower and squarer than salsa. Its sound comes from:
+# - the timbalero's big cha-cha bell, on every beat;
+# - the güiro, a long scrape then two short ones, on every half bar;
+# - the congas' tumbao, a slap on 2 and two open tones on 4 and the "and"
+#   of 4: the "cha-cha" the dancers step to, landing on the next beat 1.
+# The clave, when it plays, is the son clave 2-3, written as two-bar grids.
+# GM notes: 56=cowbell (cha-cha bell), 65=high timbale, 66=low timbale,
+#           73=short guiro, 74=long guiro, 62=mute high conga, 63=open high
+#           conga, 64=low conga, 75=claves, 36=kick, 49=crash
 
 #
 # ── Step grid notation ────────────────────────────────────────────────────────
@@ -34,6 +26,11 @@
 #   pos  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
 #        1  e1 +1 a1  2  e2 +2 a2  3  e3 +3 a3  4  e4 +4 a4
 #   (1/+/2/+/3/+/4/+ = quarter beats; e = "e of"; a = "and-a of")
+#
+# Beat positions — 6/8 at resolution 12 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11
+#        C1 .  e1 .  a1 .  C2 .  e2 .  a2 .
+#   (C1/C2 = compound beat downbeats; each compound beat = 3 eighth notes = 6 steps)
 #
 # Swing / feel: 'feel' delays the second note of each swung pair, and
 # 'swing_unit' says which notes pair up: 16 = sixteenths (the default),
@@ -56,20 +53,21 @@ feel: straight
 swing_unit: 16
 
 instruments:
-  timbale_hi: { note: 65, base_velocity: 80,  velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.07 }
-  timbale_lo: { note: 66, base_velocity: 88,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.08 }
-  conga_mute: { note: 62, base_velocity: 72,  velocity_range: 12, timing_jitter: 0.014, duration_beats: 0.07 }
-  conga_open: { note: 63, base_velocity: 88,  velocity_range: 10, timing_jitter: 0.014, duration_beats: 0.08 }
-  conga_lo:   { note: 64, base_velocity: 90,  velocity_range: 10, timing_jitter: 0.014, duration_beats: 0.10 }
-  cowbell:    { note: 56, base_velocity: 90,  velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.07 }
-  clave:      { note: 75, base_velocity: 85,  velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.06 }
-  kick:       { note: 36, base_velocity: 80,  velocity_range: 10, timing_jitter: 0.014, duration_beats: 0.12 }
-  snare:      { note: 38, base_velocity: 88,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.09 }
-  crash:      { note: 49, base_velocity: 95,  velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.22 }
+  bell:        { note: 56, base_velocity: 96,  velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.08 }
+  timbale_hi:  { note: 65, base_velocity: 88,  velocity_range: 12, timing_jitter: 0.010, duration_beats: 0.08 }
+  timbale_lo:  { note: 66, base_velocity: 98,  velocity_range: 12, timing_jitter: 0.010, duration_beats: 0.10 }
+  guiro_short: { note: 73, base_velocity: 80,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.06 }
+  guiro_long:  { note: 74, base_velocity: 82,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.24 }
+  conga_mute:  { note: 62, base_velocity: 92,  velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.08 }
+  conga_open:  { note: 63, base_velocity: 96,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.10 }
+  conga_lo:    { note: 64, base_velocity: 98,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.12 }
+  clave:       { note: 75, base_velocity: 84,  velocity_range: 8,  timing_jitter: 0.008, duration_beats: 0.08 }
+  kick:        { note: 36, base_velocity: 90,  velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.12 }
+  crash:       { note: 49, base_velocity: 90,  velocity_range: 8,  timing_jitter: 0.008, duration_beats: 0.25 }
 
 humanization:
-  timing_jitter: 0.014
-  velocity_jitter: 12
+  timing_jitter: 0.012
+  velocity_jitter: 10
   velocity_drift: 0.05
 
 sections:
@@ -81,79 +79,80 @@ sections:
   groove:
     bars: 1
     variations:
-      - name: classic_cha_cha
-        role: verse
-        weight: 3
-        # Pure Havana cha-cha-chá (Orquesta Aragón / Enrique Jorrín style).
-        # Cowbell marks every quarter note — the anchor that dancers use to find
-        # the beat. The cencerro (cowbell) is the unmistakable heartbeat of cha-cha.
-        # Timbale cascara: alternating medium-strong 8th notes on the shell rim —
-        #   soft on the beat (x) and louder on the upbeat (X), creating a
-        #   characteristically "clacking" texture.
-        # Conga tumbao: bass on 1 and 3 (pos 0, 8), muted slap on 2 and 4 (4, 12),
-        #   open slap on "and-of-2" and "and-of-4" (pos 6, 14) — the basic tumbao.
-        # Clave provides the rhythmic skeleton in the background.
-        cowbell:    "X...X...X...X..."
-        timbale_hi: "x.X.x.X.x.X.x.X."
-        conga_lo:   "X.......X......."
-        conga_mute: "....X.......X..."
-        conga_open: "......X.......X."
-        clave:      "X.....X...X....."
-        kick:       "X.......X......."
+      - name: guiro_and_bell
+        role: intro
+        weight: 1
+        # Bell on every beat and the güiro's long-short-short: the pulse
+        # the dancers count before the congas come in.
+        bell:        "X...x...X...x..."
+        guiro_long:  "X.......X......."
+        guiro_short: "....x.x.....x.x."
 
-      - name: modern_cha_cha
+      - name: cha_cha
+        role: verse
+        weight: 4
+        # The cha-cha-chá: bell, güiro, and the tumbao (heel-toe ghosts, the
+        # slap on 2, open tones on 4 and the "and" of 4).
+        bell:        "X...x...X...x..."
+        guiro_long:  "X.......X......."
+        guiro_short: "....x.x.....x.x."
+        conga_mute:  "g.g.X.g.g.g....."
+        conga_open:  "............X..."
+        conga_lo:    "..............X."
+
+      - name: full_band
+        role: chorus
+        weight: 3
+        # The whole section: the clave (2-3) joins, the bell adds the "and"
+        # of 4, the low timbale and the bass drum push the "cha-cha" on 4.
+        clave:       "....X...X....... | X.....X.....X..."
+        bell:        "X...x...X...x.x."
+        guiro_long:  "X.......X......."
+        guiro_short: "....x.x.....x.x."
+        conga_mute:  "g.g.X.g.g.g....."
+        conga_open:  "............X..."
+        conga_lo:    "..............X."
+        timbale_lo:  "............x..."
+        kick:        "X.......X......."
+
+      - name: shell_cascara
         role: bridge
         weight: 2
-        # Drum-kit adaptation of cha-cha (Latin jazz club / hotel ballroom style).
-        # When a standard drum kit replaces the full Latin percussion section, the
-        # snare takes the timbale's role on beats 2 and 4, and the kick reinforces
-        # the conga bass strokes. The cowbell remains essential — cha-cha without
-        # a cowbell is just a confused rock ballad.
-        cowbell:    "X...X...X...X..."
-        timbale_hi: "x.X.x.X.x.X.x.X."
-        conga_open: "......X.......X."
-        conga_lo:   "X.......X......."
-        kick:       "X.......X......."
-        snare:      "....X.......X..."
-
-      - name: mambo_cha
-        role: chorus
-        weight: 2
-        # High-energy cha-cha approaching mambo territory — faster, more driving.
-        # The timbale plays a denser cascara, the cowbell doubles on strategic
-        # upbeats, and the kick adds an extra push on the "and-of-2" (pos 6).
-        # This variation works best near the upper BPM range (125–135).
-        cowbell:    "X...X.X.X...X.X."
-        timbale_hi: "x.X.x.x.X.x.x.X."
-        conga_lo:   "X.......X......."
-        conga_mute: "....X.......X..."
-        conga_open: "......X.......X."
-        kick:       "X.....X.X......."
+        # A lighter bridge: the timbalero leaves the bell for the shell of
+        # the timbales, playing cascara (2-3), the güiro carrying on.
+        timbale_hi:  "X...x...X.x...x. | X...x.x...x...x."
+        clave:       "....X...X....... | X.....X.....X..."
+        guiro_long:  "X.......X......."
+        guiro_short: "....x.x.....x.x."
+        conga_mute:  "g.g.X.g.g.g....."
+        conga_open:  "............X..."
+        conga_lo:    "..............X."
 
   fill:
     bars: 1
     variations:
-      - name: timbale_fill
-        # Timbale solo fill: hi timbale runs 16th notes while low timbale marks
-        # beats. The timbale break is the most theatrical moment in salsa/cha-cha.
-        timbale_hi: "XxXxXxXxXxXxXxXx"
-        timbale_lo: "X...X...X...X..."
-
-      - name: clave_accent
-        # All instruments strike clave positions together — dramatic section marker.
-        # Signals the top of a new section to the entire ensemble.
-        cowbell:  "X.....X...X....."
-        conga_lo: "X.....X...X....."
-        kick:     "X.....X...X....."
-
       - name: cha_cha_cha
-        # The iconic "cha-cha-chá" fill: hits at the "and-of-4" (pos 14) and
-        # then downbeats of the next bar — simulated here as pos 12, 14, 0
-        # within the bar (beats 4, and-of-4, back to 1).
-        cowbell:  "............X.X."
-        conga_lo: "............X.X."
-        kick:     "............X.X."
-        crash:    "X..............."
+        # The band stops on its own name: bell on 1, 2, 3, then everybody
+        # on 4 and the "and" of 4, "cha-cha", the next downbeat the "chá".
+        bell:       "X...x...X...X.X."
+        conga_open: "............X..."
+        conga_lo:   "..............X."
+        timbale_lo: "............X.X."
+        kick:       "............X.X."
+
+      - name: abanico
+        # The timbale roll on beats 3 and 4, ending with a rimshot on the
+        # "and" of 4.
+        bell:       "X...x..........."
+        timbale_hi: "........xxxxxxX."
+        timbale_lo: "..............X."
+
+      - name: timbale_answer
+        # High and low timbale answering each other in eighths.
+        bell:       "X...x..........."
+        timbale_hi: "........x...x..."
+        timbale_lo: "..........x...X."
+        conga_lo:   "..............X."
 
   crash:
     bars: 1
@@ -170,13 +169,10 @@ sections:
     type: sequence
     bars: 2
     bar_grids:
-      - # Bar 1: Groove into the cha-cha-cha cierre on 4, 4+, 1
-        cowbell:    "X...X...X...X.X."
-        timbale_hi: "x.X.x.X.x...X.X."
-        timbale_lo: "............X.X."
-        conga_lo:   "X.......X......."
-        conga_open: "......X.....X.X."
-        clave:      "X.....X...X....."
+      - # Bar 1: the closing "cha-cha-chá" (1, 2, 3, then 4 and its "and")
+        bell:       "X...X...X...X.X."
+        timbale_lo: "X...X...X...X.X."
+        conga_lo:   "............X.X."
         kick:       "X.......X...X.X."
       - # Bar 2: final hit on beat 1, then silence
         crash:      "X..............."

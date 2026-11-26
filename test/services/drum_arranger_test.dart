@@ -135,7 +135,7 @@ void main() {
     expect(planBars(rock, config).where((p) => p.crash), isEmpty);
   });
 
-  test('a sequence starts on its first bar after a count-in', () {
+  test('a two-bar groove starts on its first bar after a count-in', () {
     const config = DrumStructureConfig(introType: DrumIntroType.countIn1);
     final plan = DrumArranger.planBar(
       bar: 1,
@@ -145,15 +145,18 @@ void main() {
     );
     expect(plan.section, 'groove');
     expect(plan.barInSection, 0);
+    // The bossa clave spans two bars; bar 1 of it is the one with beat 1.
     final groove = bossa.sections['groove']!;
-    expect(
-      DrumGeneratorEngine.resolveStepGrid(
-        groove,
-        barInSection: plan.barInSection,
-        variationSeed: plan.variationSeed,
-      ),
-      groove.variations.first.barSequence!.first,
-    );
+    final clave =
+        groove.variations.firstWhere((v) => v.name == 'bossa_clave');
+    expect(clave.bars, 2);
+    final first = DrumGeneratorEngine.resolveStepGrid(
+      groove,
+      barInSection: plan.barInSection,
+      variationSeed: plan.variationSeed,
+      variation: clave.name,
+    )!;
+    expect(first['rim'], 'X.....X.....X...');
   });
 
   test('dynamic build rises through the phrase, and only when switched on',
