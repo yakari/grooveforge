@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Les répétitions dans GrooveForge : lancer un morceau, enregistrer sa partie sur un clic commun, mesurer le retard de son appareil, partager les parties avec le groupe sur le réseau local et jouer sur un enregistrement.">
+  <title>GrooveForge — Répétitions</title>
+  <link rel="icon" type="image/png" href="../../assets/icon.png">
+  <link rel="stylesheet" href="../../css/site.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Aller au contenu</a>
+  <header class="site-header">
+    <div class="header-inner">
+      <input type="checkbox" id="gf-nav-menu" class="nav-toggle-input">
+      <a class="brand" href="../">
+        <img src="../../assets/icon.png" width="40" height="40" alt="">
+        GrooveForge
+      </a>
+      <div class="header-triggers">
+        <span class="lang-switch" aria-label="Langue">
+          <a href="../../rehearsals/" hreflang="en">EN</a>
+          <span class="lang-sep" aria-hidden="true">·</span>
+          <span class="lang-current" aria-current="true">FR</span>
+        </span>
+        <label for="gf-nav-menu" class="nav-toggle-label">Menu</label>
+      </div>
+      <nav class="site-nav" aria-label="Navigation principale">
+        <a href="../guide/">Guide</a>
+        <a href="../rehearsals/">Répétitions</a>
+        <a href="../modules/">Modules</a>
+        <a href="../midi-fx/">MIDI FX</a>
+        <a href="../vst/">VST3</a>
+        <a href="../gfdrum/">Patterns (.gfdrum)</a>
+        <a href="../gfpd/">Descripteurs (.gfpd)</a>
+        <a href="../features/">Toutes les fonctionnalités</a>
+        <a href="../../demo/" class="nav-cta">Démo web</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="prose">
+    <div class="page-hero">
+      <h1>Répétitions</h1>
+      <p class="lead">
+        Travaillez un morceau en groupe. Chacun enregistre sa partie sur son téléphone ou son ordinateur, sur le
+        même clic, et chaque appareil finit avec toutes les parties.
+      </p>
+    </div>
+
+    <ul class="recipe-index" aria-label="Recettes">
+      <li><a href="#lancer">Lancer un morceau</a></li>
+      <li><a href="#enregistrer">Enregistrer sa partie</a></li>
+      <li><a href="#latence">Mesurer le retard</a></li>
+      <li><a href="#groupe">Faire venir le groupe</a></li>
+      <li><a href="#jouer-dessus">Jouer sur un enregistrement</a></li>
+      <li><a href="#ralentir">Ralentir</a></li>
+      <li><a href="#accords">Accords et partitions</a></li>
+    </ul>
+
+    <section class="recipe" id="lancer">
+      <div class="recipe-clips">
+        <figure class="clip figure-card">
+          <img src="../../assets/screenshots/rehearsals_new_tune_fr.png" width="484" height="1188" loading="lazy" alt="La fenêtre Nouvelle répétition : morceau, votre nom, votre instrument, tempo, métrique et décompte">
+        </figure>
+      </div>
+      <div>
+        <h2>Lancer un morceau</h2>
+        <p class="recipe-goal">Une personne crée le morceau. Les autres le rejoignent ensuite.</p>
+        <ol>
+          <li>Ouvrez l'onglet <span class="ui">Répéter</span> et touchez <span class="ui">Lancer un morceau</span>.</li>
+          <li>Remplissez <span class="ui">Morceau</span>, <span class="ui">Votre nom</span> et <span class="ui">Votre instrument</span>.</li>
+          <li>Réglez le <span class="ui">Tempo</span>, la <span class="ui">Métrique</span> (de 2/4 à 7/4) et le
+            <span class="ui">Décompte</span> : aucun, 1, 2 ou 4 mesures. Par défaut, deux mesures.</li>
+          <li>Touchez <span class="ui">Créer</span>.</li>
+        </ol>
+        <p class="recipe-result">Le morceau s'ouvre, avec une piste pour votre partie.</p>
+      </div>
+    </section>
+
+    <section class="recipe" id="enregistrer">
+      <div class="recipe-clips">
+        <figure class="clip figure-card">
+          <img src="../../assets/screenshots/rehearsals_chord_grid_fr.png" width="484" height="1188" loading="lazy" alt="Un morceau ouvert : la position dans la mesure, une grille d'accords, un enregistrement importé, et une piste pour une guitare électrique et une pour la batterie">
+        </figure>
+      </div>
+      <div>
+        <h2>Enregistrer sa partie</h2>
+        <p class="recipe-goal">Jouez sur le clic et sur les parties déjà enregistrées.</p>
+        <ol>
+          <li>Pour ajouter une piste, touchez <span class="ui">+</span> (<span class="ui">Ajouter une partie</span>) et choisissez un instrument.</li>
+          <li>Mettez un casque.</li>
+          <li>Touchez le bouton d'enregistrement rouge de votre piste. Le décompte passe, puis l'enregistrement démarre.</li>
+          <li>Touchez le même bouton (devenu un carré) pour arrêter.</li>
+        </ol>
+        <p class="recipe-result">Votre prise rejoint le mixage. Elle ne vous plaît pas ? Réenregistrez par-dessus,
+          ou ouvrez <span class="ui">Plus</span> sur la piste et touchez <span class="ui">Supprimer cet enregistrement</span>.</p>
+        <p class="recipe-note">Vous ne pouvez enregistrer et supprimer que vos propres parties. Une prise supprimée
+          disparaît aussi des autres appareils à la synchronisation suivante.</p>
+        <h3>Sans casque</h3>
+        <p>Sur le haut-parleur du téléphone, le micro entend le clic et les autres parties, qui se retrouvent dans
+          votre prise. Sur Android, une prise faite ainsi peut être nettoyée après coup : ouvrez <span class="ui">Plus</span>
+          et touchez <span class="ui">Enlever la fuite du haut-parleur</span>. L'original est conservé.</p>
+        <h3>Enregistrer le rack plutôt que le micro</h3>
+        <p>Pour enregistrer un instrument du rack (une soundfont, un plugin VST3, le générateur de batterie), ouvrez
+          <span class="ui">Plus</span> sur votre piste et cochez <span class="ui">Enregistrer depuis le rack</span>.
+          Le son va directement dans la prise : il n'y a aucun retard à corriger. Pas dans la démo web.</p>
+      </div>
+    </section>
+
+    <h2 id="latence">Mesurer le retard</h2>
+    <p>
+      Tout appareil met un instant à jouer un son et un autre à l'enregistrer. Sans correction, vos prises arrivent
+      un peu après le temps. L'application mesure ce retard une fois et le retire de chaque prise.
+    </p>
+    <ol>
+      <li>Quand un morceau affiche un bandeau indiquant que le retard n'a pas été mesuré, touchez <span class="ui">Calibrer</span>.
+        Vous pouvez aussi aller dans <span class="ui">Préférences</span>, rubrique <span class="ui">Sortie Audio</span>, et toucher <span class="ui">Latence d'overdub</span>.</li>
+      <li>Le micro doit entendre les sons de test. Au haut-parleur, montez le volume ; au casque, voir plus bas. Faites le silence.</li>
+      <li>Touchez <span class="ui">Mesurer maintenant</span>. Cela prend quelques secondes.</li>
+    </ol>
+    <p>
+      La mesure dépend de ce que vous écoutez, pas du morceau. Le haut-parleur, un casque filaire et chaque casque
+      Bluetooth ont la leur, et une mesure vaut pour tous les morceaux. Pour mesurer un casque, filaire ou Bluetooth,
+      plaquez un écouteur contre le micro du téléphone pendant le test. Le Bluetooth ajoute à lui seul un long retard.
+    </p>
+
+    <section class="recipe" id="groupe">
+      <div class="recipe-clips">
+        <figure class="clip">
+          <video src="../../clips/rehearsal-join.mp4" poster="../../clips/rehearsal-join.jpg" width="540" height="1236" muted loop playsinline controls preload="none" aria-label="Rejoindre une répétition en scannant un code"></video>
+        </figure>
+      </div>
+      <div>
+        <h2>Faire venir le groupe</h2>
+        <p class="recipe-goal">Les autres reçoivent le morceau sur leur appareil, directement depuis le vôtre.</p>
+        <p>Les étapes sont dans le guide : <a href="../guide/#repetition">Rejoindre une répétition</a>. En bref, vous
+          touchez l'icône de partage dans le morceau, et les autres scannent le code (sur un téléphone) ou collent le
+          lien (sur un ordinateur).</p>
+        <p>Cela ne se fait qu'une fois. Ensuite, les appareils se retrouvent seuls dès que tout le monde ouvre le même morceau.</p>
+        <ul>
+          <li>Chaque piste indique si son musicien est <span class="ui">Présent</span> ou <span class="ui">Non connecté</span>.</li>
+          <li>Une prise marquée <span class="ui">Pas encore transmise</span> n'est pas arrivée chez tout le monde. Restez connectés jusqu'à ce que la mention disparaisse.</li>
+          <li>Quelqu'un qui a manqué une répétition reçoit les nouvelles parties la prochaine fois que vous êtes tous sur le même réseau.</li>
+        </ul>
+        <h3>Quand la salle n'a pas de Wi-Fi</h3>
+        <p>Tout le monde doit être sur le même réseau, et des téléphones en données mobiles ne se voient pas. Une
+          personne active le partage de connexion de son téléphone et les autres s'y connectent. Les parties passent
+          d'un téléphone à l'autre, chiffrées, sans serveur ni compte : la répétition ne consomme pas de données mobiles.</p>
+      </div>
+    </section>
+
+    <section class="recipe" id="jouer-dessus">
+      <div class="recipe-clips">
+        <figure class="clip">
+          <video src="../../clips/rehearsal-align-grid.mp4" poster="../../clips/rehearsal-align-grid.jpg" width="540" height="1236" muted loop playsinline controls preload="none" aria-label="Caler la grille des mesures sur un morceau importé"></video>
+        </figure>
+      </div>
+      <div>
+        <h2>Jouer sur un enregistrement</h2>
+        <p class="recipe-goal">Importez le morceau que vous apprenez et enregistrez vos parties par-dessus.</p>
+        <ol>
+          <li>Dans le morceau, touchez <span class="ui">Jouer sur un enregistrement</span> et choisissez un fichier.
+            MP3, FLAC et WAV fonctionnent partout. Sur Android, M4A, AAC, OGG, Opus et les vidéos aussi (seul le son est gardé).</li>
+          <li>L'écran <span class="ui">Caler la grille</span> s'ouvre. Lancez l'enregistrement et touchez <span class="ui">Tapez le tempo</span> en rythme.</li>
+          <li>Glissez le repère sur le premier temps fort du morceau.</li>
+          <li>Zoomez sur la forme d'onde. Les lignes rouges sont les temps : si elles s'écartent du son, utilisez
+            <span class="ui">Ralentir de 0,1</span> ou <span class="ui">Accélérer de 0,1</span> jusqu'à ce qu'elles restent dessus.</li>
+          <li>Touchez <span class="ui">Écouter deux mesures</span> pour vérifier, puis <span class="ui">Terminé</span>.</li>
+        </ol>
+        <p class="recipe-result">Les mesures tombent sur le morceau. Le clic se coupe : c'est l'enregistrement qui donne le tempo.</p>
+        <p class="recipe-note">Calez la grille avant que quiconque enregistre : dès qu'une partie est enregistrée, le tempo est verrouillé.</p>
+      </div>
+    </section>
+
+    <h2 id="ralentir">Ralentir</h2>
+    <p>Touchez le tempo en haut du morceau (il affiche les BPM et la métrique).</p>
+    <ul>
+      <li><span class="ui">Vitesse de travail</span> joue tout plus lentement, jusqu'à 50 %, sans changer la hauteur.
+        Seul votre appareil est concerné : le reste du groupe garde sa vitesse.</li>
+      <li><span class="ui">Tempo du morceau</span> change le tempo pour tout le monde, de 40 à 240 BPM. Les enregistrements sont recalculés en conséquence.
+        Si le morceau contient un enregistrement importé, c'est lui qui fixe le tempo, et on le règle dans <span class="ui">Caler la grille</span>.</li>
+      <li>Le <span class="ui">Décompte</span> se change aussi ici.</li>
+    </ul>
+    <p>La métrique ne peut plus changer une fois qu'une partie est enregistrée.</p>
+
+    <h2 id="accords">Accords et partitions</h2>
+    <h3>Grille d'accords</h3>
+    <p>
+      Touchez <span class="ui">Écrire les accords</span> au-dessus des pistes, puis touchez une mesure pour taper ses
+      accords, par exemple <code>Am7</code>, <code>C#m7</code>, <code>Gm7b5</code> ou <code>C6/9</code>.
+      <span class="ui">Accords par mesure</span> propose les découpages qui tombent sur un temps : en 4/4, un, deux ou
+      quatre accords. Pendant la lecture, la mesure jouée s'allume, et la vue sur une ligne défile avec elle.
+    </p>
+    <h3>Partitions</h3>
+    <p>
+      Touchez l'icône de livre en haut du morceau (<span class="ui">Partitions</span>), puis <span class="ui">Ajouter une partition</span> :
+      un PDF, une grille, la photo d'une page. Tout le monde dans le morceau en reçoit une copie. Les photos s'ouvrent
+      en plein écran et se zooment. Les autres fichiers s'ouvrent dans l'application que votre appareil utilise d'habitude.
+    </p>
+
+    <p><a href="../guide/">← Prise en main</a> · <a href="../modules/">Modules intégrés →</a></p>
+  </main>
+
+  <footer class="site-footer">
+    <p><a href="https://github.com/yakari/grooveforge">GitHub</a> · <a href="../privacy/">Confidentialité</a></p>
+  </footer>
+  <script>
+    /*
+     * Clips play while they are on screen and pause when they leave it, so a
+     * long page does not decode a dozen videos at once. Without JavaScript, or
+     * when the reader prefers reduced motion, the native controls stay and
+     * nothing starts by itself.
+     */
+    (function () {
+      var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (reduced || !('IntersectionObserver' in window)) return;
+      var clips = document.querySelectorAll('.clip video');
+      var observer = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+          var video = entry.target;
+          if (entry.isIntersecting) {
+            var playing = video.play();
+            if (playing && playing.catch) playing.catch(function () {});
+          } else {
+            video.pause();
+          }
+        });
+      }, { threshold: 0.5 });
+      clips.forEach(function (video) {
+        video.removeAttribute('controls');
+        video.preload = 'metadata';
+        // Tap to pause or resume.
+        video.addEventListener('click', function () {
+          if (video.paused) { video.play(); } else { video.pause(); }
+        });
+        observer.observe(video);
+      });
+    })();
+  </script>
+</body>
+</html>

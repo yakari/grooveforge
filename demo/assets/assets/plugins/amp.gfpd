@@ -1,0 +1,211 @@
+spec: "1.0"
+id: "com.grooveforge.amp"
+name: "Amp"
+version: "1.0.0"
+type: effect
+
+# A guitar amp in one slot: a drive pedal, the amp itself (preamp and its
+# Bass / Middle / Treble tone stack) and the speaker cabinet. Each of the three
+# sections has its own on/off switch, which can be put on a footswitch or a
+# pad through the CC mappings.
+#
+# The DSP is native only (gfpa_dsp.cpp, AmpEffect, which drives
+# native_audio/gf_amp.c), like the Autotune: the graph below is a
+# pass-through so the descriptor still loads everywhere.
+
+# ─── Parameters ────────────────────────────────────────────────────────────
+# Physical units throughout; the host converts from the normalised knob
+# position before sending them to the native DSP.
+parameters:
+  # ── Drive pedal ──
+  - id: drive_on
+    paramId: 0
+    name: "Drive"
+    min: 0.0
+    max: 1.0
+    default: 0.0
+    type: toggle
+
+  # Overdrive: a Tube Screamer-style circuit, mid-focused, keeps the low end
+  # clean. Distortion: the whole band into a hard clipper.
+  # Order matches gf_amp_drive_mode in native_audio/gf_amp.h.
+  - id: drive_mode
+    paramId: 1
+    name: "Type"
+    min: 0.0
+    max: 1.0
+    default: 0.0
+    type: selector
+    options: ["Overdrive", "Distortion"]
+
+  - id: drive
+    paramId: 2
+    name: "Drive"
+    min: 0.0
+    max: 100.0
+    default: 50.0
+    unit: "%"
+
+  - id: drive_tone
+    paramId: 3
+    name: "Tone"
+    min: 0.0
+    max: 100.0
+    default: 50.0
+    unit: "%"
+
+  # ── Amp: preamp and tone stack ──
+  - id: amp_on
+    paramId: 4
+    name: "Amp"
+    min: 0.0
+    max: 1.0
+    default: 1.0
+    type: toggle
+
+  # The tone stack circuit: US is the classic American tweed bass amp, Brit
+  # the British stack, AC the British combo. Order matches gf_amp_model.
+  - id: amp_model
+    paramId: 5
+    name: "Model"
+    min: 0.0
+    max: 2.0
+    default: 0.0
+    type: selector
+    options: ["US", "Brit", "AC"]
+
+  - id: gain
+    paramId: 6
+    name: "Gain"
+    min: 0.0
+    max: 100.0
+    default: 40.0
+    unit: "%"
+
+  - id: bass
+    paramId: 7
+    name: "Bass"
+    min: 0.0
+    max: 10.0
+    default: 5.0
+
+  - id: middle
+    paramId: 8
+    name: "Middle"
+    min: 0.0
+    max: 10.0
+    default: 5.0
+
+  - id: treble
+    paramId: 9
+    name: "Treble"
+    min: 0.0
+    max: 10.0
+    default: 5.0
+
+  # ── Cabinet ──
+  - id: cab_on
+    paramId: 10
+    name: "Cab"
+    min: 0.0
+    max: 1.0
+    default: 1.0
+    type: toggle
+
+  # Order matches gf_amp_cab. "IR" plays the impulse response loaded with
+  # the panel's "Load IR" button (stored in the slot state under __cabIr);
+  # with none loaded it sounds like the 2x12. The panel matches the option
+  # by its text, so do not rename it.
+  - id: cab_type
+    paramId: 11
+    name: "Cabinet"
+    min: 0.0
+    max: 3.0
+    default: 1.0
+    type: selector
+    options: ["1x12", "2x12", "4x12", "IR"]
+
+  # ── Output ──
+  - id: level
+    paramId: 12
+    name: "Level"
+    min: -24.0
+    max: 12.0
+    default: 0.0
+    unit: "dB"
+    display: value
+
+# ─── Graph ─────────────────────────────────────────────────────────────────
+graph:
+  nodes:
+    - id: in
+      type: audio_in
+    - id: out
+      type: audio_out
+  connections:
+    - from: in.out
+      to: out.in
+
+# ─── UI ────────────────────────────────────────────────────────────────────
+ui:
+  layout: lanes
+  groups:
+    - label: "Drive"
+      controls:
+        - type: toggle
+          param: drive_on
+          label: "On"
+        - type: selector
+          param: drive_mode
+          label: "Type"
+        - type: knob
+          param: drive
+          label: "Drive"
+          size: small
+        - type: knob
+          param: drive_tone
+          label: "Tone"
+          size: small
+
+    - label: "Amp"
+      controls:
+        - type: toggle
+          param: amp_on
+          label: "On"
+        - type: selector
+          param: amp_model
+          label: "Model"
+        - type: knob
+          param: gain
+          label: "Gain"
+          size: small
+        - type: knob
+          param: bass
+          label: "Bass"
+          size: small
+        - type: knob
+          param: middle
+          label: "Middle"
+          size: small
+        - type: knob
+          param: treble
+          label: "Treble"
+          size: small
+
+    - label: "Cab"
+      controls:
+        - type: toggle
+          param: cab_on
+          label: "On"
+        - type: selector
+          param: cab_type
+          label: "Cabinet"
+
+    - label: "Output"
+      controls:
+        - type: knob
+          param: level
+          label: "Level"
+          size: small
+        - type: vumeter
+          source: out

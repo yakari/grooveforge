@@ -1,0 +1,173 @@
+# Bossa Nova — the drum-set bossa of the early 1960s
+# Reference: Milton Banana (João Gilberto, "Getz/Gilberto"), Edison Machado,
+#            Dom Um Romão; the cross-stick and bass drum figures as taught in
+#            jazz drum set methods
+# - The bass drum plays the surdo's figure in every bar: beat 1 (a dotted
+#   quarter), the "and" of 2, beat 3, the "and" of 4, soft.
+# - The cross-stick plays the two-bar bossa clave: beat 1, the "and" of 2
+#   and beat 4, then beat 2 and the "and" of 3. The grooves are two-bar
+#   grids ("bar 1 | bar 2").
+# - The hi-hat or the ride plays even eighths, the hi-hat foot 2 and 4.
+# Played with brushes, quiet and laid back.
+# GM notes: 36=kick, 37=side stick, 38=snare (brush), 42=closed HH,
+#           44=HH foot, 51=ride, 48=hi tom, 45=mid tom, 41=floor tom,
+#           49=crash
+
+#
+# ── Step grid notation ────────────────────────────────────────────────────────
+# Each character in a step grid represents one subdivision of the bar.
+# Resolution controls how many steps per bar (16 = 16th notes in 4/4; 12 = 16th notes in 6/8).
+#
+#   X   Strong accent  — velocity = base_velocity × 1.00  (full hit / downbeat)
+#   x   Medium accent  — velocity = base_velocity × 0.75  (firm stroke / upbeat)
+#   o   Soft hit       — velocity = base_velocity × 0.55  (brush / light touch)
+#   g   Ghost note     — velocity = base_velocity × 0.28  (barely audible, mostly felt)
+#   .   Rest           — no note fired at this step
+#
+# Beat positions — 4/4 at resolution 16 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
+#        1  e1 +1 a1  2  e2 +2 a2  3  e3 +3 a3  4  e4 +4 a4
+#   (1/+/2/+/3/+/4/+ = quarter beats; e = "e of"; a = "and-a of")
+#
+# Beat positions — 6/8 at resolution 12 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11
+#        C1 .  e1 .  a1 .  C2 .  e2 .  a2 .
+#   (C1/C2 = compound beat downbeats; each compound beat = 3 eighth notes = 6 steps)
+#
+# Swing / feel: 'feel' delays the second note of each swung pair, and
+# 'swing_unit' says which notes pair up: 16 = sixteenths (the default),
+# 8 = eighths (jazz, shuffle). Write the grids straight, as a score does.
+#   straight    — every step exactly on the grid
+#   swing_light — light swing, second note at 58 % of the pair (or swing_soft)
+#   swing_hard  — triplet swing, second note at 67 % of the pair
+#   laid_back   — same as straight; drag one instrument with its 'rush'
+#
+# Spaces and '|' inside a grid are ignored. A grid may span two bars, and
+# 'grid: triplet' on a variation splits each beat in three (12 steps in 4/4).
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Bossa Nova
+family: latin
+bpm_range: [80, 150]
+time_signature: [4, 4]
+resolution: 16
+feel: laid_back
+swing_unit: 16
+kit: brush
+
+instruments:
+  kick:       { note: 36, base_velocity: 78,  velocity_range: 8,  timing_jitter: 0.012, duration_beats: 0.14 }
+  rim:        { note: 37, base_velocity: 86,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.08 }
+  snare:      { note: 38, base_velocity: 70,  velocity_range: 12, timing_jitter: 0.016, duration_beats: 0.10 }
+  hihat:      { note: 42, base_velocity: 70,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.07 }
+  hihat_foot: { note: 44, base_velocity: 66,  velocity_range: 8,  timing_jitter: 0.012, duration_beats: 0.07 }
+  ride:       { note: 51, base_velocity: 76,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.12 }
+  tom_hi:     { note: 48, base_velocity: 78,  velocity_range: 12, timing_jitter: 0.016, duration_beats: 0.12 }
+  tom_mid:    { note: 45, base_velocity: 78,  velocity_range: 12, timing_jitter: 0.016, duration_beats: 0.12 }
+  tom_lo:     { note: 41, base_velocity: 80,  velocity_range: 12, timing_jitter: 0.016, duration_beats: 0.15 }
+  crash:      { note: 49, base_velocity: 80,  velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.25 }
+
+humanization:
+  timing_jitter: 0.014
+  velocity_jitter: 10
+  velocity_drift: 0.06
+
+sections:
+  intro:
+    type: count_in
+    hits: 4
+    note: 37
+
+  groove:
+    bars: 1
+    variations:
+      - name: hihat_and_surdo
+        role: intro
+        weight: 1
+        # Eighths on the hi-hat and the surdo figure on the bass drum, no
+        # cross-stick yet: the guitar sets the clave alone.
+        hihat:      "x.o.x.o.x.o.x.o."
+        kick:       "X.....o.X.....o."
+        hihat_foot: "....x.......x..."
+
+      - name: bossa_clave
+        role: verse
+        weight: 4
+        # The bossa nova: cross-stick on the two-bar clave, bass drum on the
+        # surdo figure, hi-hat eighths with the foot on 2 and 4.
+        rim:        "X.....X.....X... | ....X.....X....."
+        kick:       "X.....o.X.....o."
+        hihat:      "x.o.x.o.x.o.x.o."
+        hihat_foot: "....x.......x..."
+
+      - name: ride_bossa
+        role: chorus
+        weight: 3
+        # The same on the ride, a little stronger, for the chorus or a solo.
+        rim:        "X.....X.....X... | ....X.....X....."
+        kick:       "X.....x.X.....x."
+        ride:       "x.x.x.x.x.x.x.x."
+        hihat_foot: "....x.......x..."
+
+      - name: brushes
+        role: bridge
+        weight: 2
+        # Brushes on the snare in sixteenths, accented on each beat, as a
+        # brush sweep: a softer colour for the bridge, the clave left to the
+        # guitar.
+        snare:      "o.g.o.g.o.g.o.g."
+        kick:       "X.....o.X.....o."
+        hihat_foot: "....x.......x..."
+
+  fill:
+    bars: 1
+    variations:
+      - name: rim_answer
+        # The cross-stick answers the bar with a short phrase over beats 3
+        # and 4, the hi-hat keeping beats 1 and 2.
+        hihat: "x.o.x.o........."
+        kick:  "X.....o.X......."
+        rim:   "X.....X...X.X.X."
+
+      - name: soft_toms
+        # Two beats of time, then the toms down from high to floor, quietly.
+        hihat:   "x.o.x.o........."
+        kick:    "X.....o........."
+        tom_hi:  "........x.x....."
+        tom_mid: "............x..."
+        tom_lo:  "..............x."
+
+      - name: snare_lift
+        # A brush lift on the snare into the next section.
+        kick:  "X.....o.X......."
+        snare: "........o.o.oxxx"
+
+  crash:
+    bars: 1
+    variations:
+      - name: standard
+        # Laid over the groove on the bar after a fill, a break or the
+        # count-in: the cymbal and the low drum on beat 1. The groove
+        # plays everything else.
+        crash: "X..............."
+        kick:  "X..............."
+
+  ending:
+    # Played once at the end of the song; the drums stop after bar 2.
+    type: sequence
+    bars: 2
+    bar_grids:
+      - # Bar 1: the last half clave, then the band waits on the "and" of 4
+        rim:   "....X.....X....."
+        kick:  "X.....o.X.....x."
+        hihat: "x.o.x.o.x.o....."
+      - # Bar 2: final hit on beat 1, then silence
+        crash: "X..............."
+        kick:  "X..............."
+
+structure:
+  fill_every: 8
+  break_every: 0
+  break_length: 1
+  crash_after_fill: true
+  dynamic_build: false

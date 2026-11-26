@@ -1,0 +1,214 @@
+# Batucada — the bateria of a Rio samba school, at full speed
+# Reference: the baterias of Mangueira, Mocidade and Salgueiro in the
+#            samba-enredo of the Rio carnival
+# Samba is felt in 2/4: one bar here holds two samba bars (beats 1-2 and
+# 3-4). The bateria's layers:
+# - surdos: the primeira, the deepest, marks the strong beat 2 (and 4);
+#   the segunda answers on 1 (and 3); the terceira cuts between them;
+# - caixa: sixteenths, accents on 3+3+2;
+# - repinique: the lead drum, calls and fills;
+# - tamborim: the "teleco-teco" figure;
+# - agogô: two bells, high and low;
+# - chocalho: sixteenths, the last one of each beat accented;
+# - cuíca: the squeaking friction drum.
+# No cymbal, no drum kit. The bar after a fill lands on the surdos.
+# GM notes: 87=open surdo (primeira), 86=mute surdo (segunda), 45=low tom
+#           (terceira), 38=snare (caixa), 50=high tom (repinique),
+#           37=side stick (tamborim), 67=high agogô, 68=low agogô,
+#           70=maracas (chocalho), 78=mute cuíca, 79=open cuíca
+
+#
+# ── Step grid notation ────────────────────────────────────────────────────────
+# Each character in a step grid represents one subdivision of the bar.
+# Resolution controls how many steps per bar (16 = 16th notes in 4/4; 12 = 16th notes in 6/8).
+#
+#   X   Strong accent  — velocity = base_velocity × 1.00  (full hit / downbeat)
+#   x   Medium accent  — velocity = base_velocity × 0.75  (firm stroke / upbeat)
+#   o   Soft hit       — velocity = base_velocity × 0.55  (brush / light touch)
+#   g   Ghost note     — velocity = base_velocity × 0.28  (barely audible, mostly felt)
+#   .   Rest           — no note fired at this step
+#
+# Beat positions — 4/4 at resolution 16 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
+#        1  e1 +1 a1  2  e2 +2 a2  3  e3 +3 a3  4  e4 +4 a4
+#   (1/+/2/+/3/+/4/+ = quarter beats; e = "e of"; a = "and-a of")
+#
+# Beat positions — 6/8 at resolution 12 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11
+#        C1 .  e1 .  a1 .  C2 .  e2 .  a2 .
+#   (C1/C2 = compound beat downbeats; each compound beat = 3 eighth notes = 6 steps)
+#
+# Swing / feel: 'feel' delays the second note of each swung pair, and
+# 'swing_unit' says which notes pair up: 16 = sixteenths (the default),
+# 8 = eighths (jazz, shuffle). Write the grids straight, as a score does.
+#   straight    — every step exactly on the grid
+#   swing_light — light swing, second note at 58 % of the pair (or swing_soft)
+#   swing_hard  — triplet swing, second note at 67 % of the pair
+#   laid_back   — same as straight; drag one instrument with its 'rush'
+#
+# Spaces and '|' inside a grid are ignored. A grid may span two bars, and
+# 'grid: triplet' on a variation splits each beat in three (12 steps in 4/4).
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Batucada
+family: latin
+bpm_range: [120, 160]
+time_signature: [4, 4]
+resolution: 16
+feel: straight
+swing_unit: 16
+
+instruments:
+  surdo_1:   { note: 87, base_velocity: 110, velocity_range: 8,  timing_jitter: 0.012, duration_beats: 0.30 }
+  surdo_2:   { note: 86, base_velocity: 100, velocity_range: 8,  timing_jitter: 0.012, duration_beats: 0.25 }
+  surdo_3:   { note: 45, base_velocity: 96,  velocity_range: 10, timing_jitter: 0.014, duration_beats: 0.18 }
+  caixa:     { note: 38, base_velocity: 92,  velocity_range: 14, timing_jitter: 0.014, duration_beats: 0.08 }
+  repique:   { note: 50, base_velocity: 100, velocity_range: 12, timing_jitter: 0.014, duration_beats: 0.10 }
+  tamborim:  { note: 37, base_velocity: 100, velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.06 }
+  agogo_hi:  { note: 67, base_velocity: 88,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.10 }
+  agogo_lo:  { note: 68, base_velocity: 90,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.10 }
+  chocalho:  { note: 70, base_velocity: 80,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.05 }
+  cuica_hi:  { note: 78, base_velocity: 86,  velocity_range: 12, timing_jitter: 0.016, duration_beats: 0.12 }
+  cuica_lo:  { note: 79, base_velocity: 86,  velocity_range: 12, timing_jitter: 0.016, duration_beats: 0.14 }
+
+humanization:
+  timing_jitter: 0.014
+  velocity_jitter: 12
+  velocity_drift: 0.06
+
+sections:
+  intro:
+    type: count_in
+    hits: 4
+    note: 37
+
+  groove:
+    bars: 1
+    variations:
+      - name: surdos_and_caixa
+        role: intro
+        weight: 1
+        # The heart of the bateria alone: the three surdos and the caixa.
+        surdo_1: "g...X...g...X..."
+        surdo_2: "X...g...X...g..."
+        surdo_3: "..x.X..x..x.X..x"
+        caixa:   "XggXggXg XggXggXg"
+
+      - name: bateria
+        role: verse
+        weight: 4
+        # The whole bateria in its everyday groove: surdos, caixa, the
+        # tamborins' teleco-teco, the agogô's two bells, the chocalho.
+        surdo_1:  "g...X...g...X..."
+        surdo_2:  "X...g...X...g..."
+        surdo_3:  "..x.X..x..x.X..x"
+        caixa:    "XggXggXg XggXggXg"
+        tamborim: "X.x..x.x .x..x.x."
+        agogo_hi: "X...X.X. ........"
+        agogo_lo: "........ X.X...X."
+        chocalho: "gggX gggX gggX gggX"
+
+      - name: cuica_and_carreteiro
+        role: chorus
+        weight: 3
+        # The chorus at full power: the tamborins play "carreteiro" (every
+        # sixteenth, accented), the cuíca sings, the repinique doubles the
+        # surdo's beat.
+        surdo_1:  "g...X...g...X..."
+        surdo_2:  "X...g...X...g..."
+        surdo_3:  "..x.X..x..x.X..x"
+        caixa:    "XggXggXg XggXggXg"
+        tamborim: "XxxX xxXx XxxX xxXx"
+        repique:  "..x.X...  ..x.X..."
+        agogo_hi: "X...X.X. ........"
+        agogo_lo: "........ X.X...X."
+        chocalho: "gggX gggX gggX gggX"
+        cuica_hi: "....x..x ....x..x"
+        cuica_lo: "x.....x. x.....x."
+
+      - name: repique_partido
+        role: bridge
+        weight: 2
+        # A lighter bridge: the caixa thins out to its accents, the
+        # repinique plays the partido alto figure over the surdos.
+        surdo_1:  "g...X...g...X..."
+        surdo_2:  "X...g...X...g..."
+        caixa:    "X..X..X. X..X..X."
+        repique:  ".x..x.x. x..x..x."
+        agogo_hi: "X...X.X. ........"
+        agogo_lo: "........ X.X...X."
+        chocalho: "gggX gggX gggX gggX"
+
+  fill:
+    bars: 1
+    variations:
+      - name: virada
+        # The "virada": the caixa rolls louder and louder while the surdos
+        # stop, then all the surdos hit the last two sixteenths together.
+        caixa:   "gggg gggo ooxx xXXX"
+        surdo_1: "X... .... .... ..XX"
+        surdo_2: "X... .... .... ..XX"
+
+      - name: chamada
+        # The repinique's call, answered by the whole bateria on the last
+        # three hits.
+        repique:  "X.X. X.X. X..X ..X."
+        surdo_1:  ".... .... X..X ..X."
+        caixa:    ".... .... X..X ..X."
+        tamborim: ".... .... X..X ..X."
+
+      - name: surdo_break
+        # The surdos alone for a bar, the primeira doubling its beat, while
+        # the others wait to come back in.
+        surdo_1: "g...X...g...X.X."
+        surdo_2: "X...g...X...g..."
+        surdo_3: "..x.X..x..x.X..x"
+
+  break:
+    # The "paradinha": the bateria stops on a figure, the surdos keep the
+    # pulse, and the repinique calls everyone back in.
+    type: sequence
+    bars: 2
+    bar_grids:
+      - # Bar 1: all together on 1, the "a" of 1 and the "and" of 2, then
+        # silence but for the surdos
+        surdo_1:  "X..X..X. ....X..."
+        surdo_2:  "X..X..X. X......."
+        caixa:    "X..X..X. ........"
+        tamborim: "X..X..X. ........"
+        agogo_lo: "X..X..X. ........"
+      - # Bar 2: the repinique's call back in
+        surdo_1:  "....X.......X..."
+        surdo_2:  "X.......X......."
+        repique:  "........ X.X.XXXX"
+
+  crash:
+    bars: 1
+    variations:
+      - name: standard
+        # Laid over the groove on the bar after a fill, a break or the
+        # count-in: no cymbal in a bateria, the surdos land together on 1.
+        surdo_1: "X..............."
+        surdo_2: "X..............."
+
+  ending:
+    # Played once at the end of the song; the drums stop after bar 2.
+    type: sequence
+    bars: 2
+    bar_grids:
+      - # Bar 1: the closing figure, everybody on the 3+3+2
+        surdo_1:  "X..X..X.X..X..X."
+        surdo_2:  "X..X..X.X..X..X."
+        caixa:    "X..X..X.X..X..XX"
+        repique:  "X..X..X.X..X..XX"
+        tamborim: "X..X..X.X..X..X."
+      - # Bar 2: final hit on beat 1, then silence
+        surdo_1:  "X..............."
+        surdo_2:  "X..............."
+
+structure:
+  fill_every: 8
+  break_every: 0
+  break_length: 2
+  crash_after_fill: true
+  dynamic_build: true

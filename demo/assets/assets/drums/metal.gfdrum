@@ -1,0 +1,211 @@
+# Heavy Metal — backbeat, gallop, double bass, skank and blast beats
+# Reference: Black Sabbath (Bill Ward), Iron Maiden (Clive Burr, Nicko
+#            McBrain), Metallica (Lars Ulrich), Slayer (Dave Lombardo),
+#            Pantera (Vinnie Paul); Wikipedia, "Heavy metal gallop" and
+#            "Blast beat"
+# Metal drumming is built on a handful of standard patterns:
+# - the heavy backbeat: the rock beat played harder, the bass drum
+#   following the riff;
+# - the gallop: the bass drum plays an eighth and two sixteenths on every
+#   beat, with the guitars' "da-da-dum", hi-hat on the quarters, snare on
+#   2 and 4 (written as in Wikipedia's gallop article, the feet split
+#   over two pedals);
+# - the skank (thrash) beat: a sped-up polka, the bass drum on the beats
+#   and the snare on the "ands", the cymbal hand playing with both;
+# - double bass: both feet in continuous sixteenths under a backbeat,
+#   the china marking the quarters;
+# - half time: the snare on beat 3 only, for breakdowns;
+# - the blast beat: kick and snare alternating in sixteenths, the cymbal
+#   with the kick. Rare punctuation, even in the genre.
+# Uses the Power kit of the bundled soundfont.
+# GM notes: 36=kick (right), 35=kick2 (left pedal), 38=snare, 42=closed HH,
+#           46=open HH, 51=ride, 52=china, 49=crash, 50=hi tom, 47=mid tom,
+#           41=floor tom
+
+#
+# ── Step grid notation ────────────────────────────────────────────────────────
+# Each character in a step grid represents one subdivision of the bar.
+# Resolution controls how many steps per bar (16 = 16th notes in 4/4; 12 = 16th notes in 6/8).
+#
+#   X   Strong accent  — velocity = base_velocity × 1.00  (full hit / downbeat)
+#   x   Medium accent  — velocity = base_velocity × 0.75  (firm stroke / upbeat)
+#   o   Soft hit       — velocity = base_velocity × 0.55  (brush / light touch)
+#   g   Ghost note     — velocity = base_velocity × 0.28  (barely audible, mostly felt)
+#   .   Rest           — no note fired at this step
+#
+# Beat positions — 4/4 at resolution 16 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
+#        1  e1 +1 a1  2  e2 +2 a2  3  e3 +3 a3  4  e4 +4 a4
+#   (1/+/2/+/3/+/4/+ = quarter beats; e = "e of"; a = "and-a of")
+#
+# Beat positions — 6/8 at resolution 12 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11
+#        C1 .  e1 .  a1 .  C2 .  e2 .  a2 .
+#   (C1/C2 = compound beat downbeats; each compound beat = 3 eighth notes = 6 steps)
+#
+# Swing / feel: 'feel' delays the second note of each swung pair, and
+# 'swing_unit' says which notes pair up: 16 = sixteenths (the default),
+# 8 = eighths (jazz, shuffle). Write the grids straight, as a score does.
+#   straight    — every step exactly on the grid
+#   swing_light — light swing, second note at 58 % of the pair (or swing_soft)
+#   swing_hard  — triplet swing, second note at 67 % of the pair
+#   laid_back   — same as straight; drag one instrument with its 'rush'
+#
+# Spaces and '|' inside a grid are ignored. A grid may span two bars, and
+# 'grid: triplet' on a variation splits each beat in three (12 steps in 4/4).
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Heavy Metal
+family: metal
+bpm_range: [90, 220]
+time_signature: [4, 4]
+resolution: 16
+feel: straight
+swing_unit: 8
+kit: power
+
+instruments:
+  kick:       { note: 36, base_velocity: 115, velocity_range: 8,  timing_jitter: 0.006, duration_beats: 0.14 }
+  kick2:      { note: 35, base_velocity: 112, velocity_range: 8,  timing_jitter: 0.008, duration_beats: 0.12 }
+  snare:      { note: 38, base_velocity: 112, velocity_range: 8,  timing_jitter: 0.008, duration_beats: 0.10 }
+  hihat:      { note: 42, base_velocity: 84,  velocity_range: 8,  timing_jitter: 0.006, duration_beats: 0.07 }
+  hihat_open: { note: 46, base_velocity: 92,  velocity_range: 8,  timing_jitter: 0.008, duration_beats: 0.18 }
+  ride:       { note: 51, base_velocity: 88,  velocity_range: 8,  timing_jitter: 0.006, duration_beats: 0.10 }
+  china:      { note: 52, base_velocity: 100, velocity_range: 8,  timing_jitter: 0.008, duration_beats: 0.25 }
+  crash:      { note: 49, base_velocity: 115, velocity_range: 6,  timing_jitter: 0.008, duration_beats: 0.25 }
+  tom_hi:     { note: 50, base_velocity: 104, velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.12 }
+  tom_mid:    { note: 47, base_velocity: 104, velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.12 }
+  tom_lo:     { note: 41, base_velocity: 106, velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.14 }
+
+humanization:
+  timing_jitter: 0.006
+  velocity_jitter: 8
+  velocity_drift: 0.03
+
+sections:
+  intro:
+    type: count_in
+    hits: 4
+    note: 42
+
+  groove:
+    bars: 1
+    variations:
+      - name: heavy_backbeat
+        role: intro
+        weight: 2
+        # The heavy backbeat, in the manner of Bill Ward: open hi-hat on
+        # the quarters, the snare on 2 and 4, the bass drum on 1 and the
+        # "and" of 2 to follow the riff.
+        hihat_open: "X... X... X... X..."
+        snare:      ".... X... .... X..."
+        kick:       "X... ..X. X... ...."
+
+      - name: gallop
+        role: verse
+        weight: 4
+        # The gallop: an eighth and two sixteenths in the bass drum on every
+        # beat, the hi-hat on the quarters, the snare on 2 and 4. The right
+        # foot takes the beats and the last sixteenth, the left the middle
+        # one.
+        hihat: "X... X... X... X..."
+        snare: ".... X... .... X..."
+        kick:  "X..X X..X X..X X..X"
+        kick2: "..X. ..X. ..X. ..X."
+
+      - name: double_bass
+        role: chorus
+        weight: 3
+        # Double bass: both feet in continuous sixteenths, the snare on 2
+        # and 4, the china on the quarters.
+        china: "X... X... X... X..."
+        snare: ".... X... .... X..."
+        kick:  "X.X. X.X. X.X. X.X."
+        kick2: ".X.X .X.X .X.X .X.X"
+
+      - name: half_time
+        role: bridge
+        weight: 2
+        # The breakdown: the snare on beat 3 only, the china on the
+        # quarters, the bass drum following the chugs.
+        china: "X... X... X... X..."
+        snare: ".... .... X... ...."
+        kick:  "X.X. ..XX .... X.X."
+
+      - name: skank
+        weight: 2
+        # The skank (thrash) beat: a sped-up polka, the bass drum on the
+        # beats, the snare on the "ands", the cymbal hand on every eighth.
+        ride:  "X.x. X.x. X.x. X.x."
+        kick:  "X... X... X... X..."
+        snare: "..X. ..X. ..X. ..X."
+
+      - name: blast_beat
+        weight: 1
+        # The traditional blast beat: kick and snare alternating in
+        # sixteenths, the cymbal hand doubling the kick.
+        ride:  "X.x. x.x. X.x. x.x."
+        kick:  "X.X. X.X. X.X. X.X."
+        snare: ".X.X .X.X .X.X .X.X"
+
+  fill:
+    bars: 1
+    variations:
+      - name: snare_run
+        # Groove on the first half, then a sixteenth snare run.
+        hihat: "X... X... .... ...."
+        kick:  "X..X X..X .... ...."
+        kick2: "..X. ..X. .... ...."
+        snare: ".... X... XxXx XxXX"
+
+      - name: tom_cascade
+        # Sixteenths down the toms over the second half, the feet in
+        # sixteenths underneath.
+        snare:   ".... X... XX.. ...."
+        tom_hi:  ".... .... ..XX ...."
+        tom_mid: ".... .... .... XX.."
+        tom_lo:  ".... .... .... ..XX"
+        kick:    "X.X. X.X. X.X. X.X."
+        kick2:   ".X.X .X.X .X.X .X.X"
+
+      - name: unison_triplets
+        # Hands and feet together in triplets on the last two beats: the
+        # "everyone hits the riff" fill.
+        grid: triplet
+        hihat: "X.. X.. ... ..."
+        snare: "... X.. XXX XXX"
+        crash: "... ... X.. X.."
+        kick:  "X.. ... XXX XXX"
+
+  crash:
+    bars: 1
+    variations:
+      - name: standard
+        # Laid over the groove on the bar after a fill, a break or the
+        # count-in: the cymbal and the low drum on beat 1. The groove
+        # plays everything else.
+        crash: "X..............."
+        kick:  "X..............."
+
+  ending:
+    # Played once at the end of the song; the drums stop after bar 2.
+    type: sequence
+    bars: 2
+    bar_grids:
+      - # Bar 1: Double-kick 16ths, crash/snare stabs, then tom roll
+        kick:   "X.X.X.X.X.X.X.X."
+        kick2:  ".X.X.X.X.X.X.X.X"
+        snare:  "X..X..X........."
+        crash:  "X..X..X........."
+        tom_hi: "........XXXX...."
+        tom_lo: "............XXXX"
+      - # Bar 2: final hit on beat 1, then silence
+        crash: "X..............."
+        kick:  "X..............."
+
+structure:
+  fill_every: 8
+  break_every: 0
+  break_length: 1
+  crash_after_fill: true
+  dynamic_build: true

@@ -1,0 +1,205 @@
+# Tight Funk — the great funk drummers' sixteenth-note grooves
+# Reference: Clyde Stubblefield (James Brown, "Funky Drummer", 1970),
+#            Greg Errico (Sly & the Family Stone, "Thank You"), David
+#            Garibaldi (Tower of Power, "What Is Hip?"), Zigaboo Modeliste
+#            (The Meters, "Cissy Strut")
+# Funk lives on the sixteenth note: a one-handed sixteenth hi-hat, the
+# snare on 2 and 4 with ghost notes between, and a bass drum that dances
+# around the beat. The variations are written in the manner of each
+# drummer, not as copies of their records:
+# - Stubblefield: bass drum on 1, the "and" of 1, the "and" of 3 and the
+#   "e" of 4 (the "and" of 4 anticipated by a sixteenth), ghost notes
+#   around the backbeat, the hi-hat opening on the "a" of 2 and the "e"
+#   of 4;
+# - Errico: a lighter eighth-note hi-hat, an open hat on the "and" of 4;
+# - Garibaldi: linear, hands and feet never together;
+# - Zigaboo: the New Orleans side of funk, syncopated and loose.
+# GM notes: 36=kick, 38=snare, 42=closed HH, 46=open HH, 44=HH foot,
+#           49=crash, 48=hi tom, 45=mid tom, 41=floor tom
+
+#
+# ── Step grid notation ────────────────────────────────────────────────────────
+# Each character in a step grid represents one subdivision of the bar.
+# Resolution controls how many steps per bar (16 = 16th notes in 4/4; 12 = 16th notes in 6/8).
+#
+#   X   Strong accent  — velocity = base_velocity × 1.00  (full hit / downbeat)
+#   x   Medium accent  — velocity = base_velocity × 0.75  (firm stroke / upbeat)
+#   o   Soft hit       — velocity = base_velocity × 0.55  (brush / light touch)
+#   g   Ghost note     — velocity = base_velocity × 0.28  (barely audible, mostly felt)
+#   .   Rest           — no note fired at this step
+#
+# Beat positions — 4/4 at resolution 16 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
+#        1  e1 +1 a1  2  e2 +2 a2  3  e3 +3 a3  4  e4 +4 a4
+#   (1/+/2/+/3/+/4/+ = quarter beats; e = "e of"; a = "and-a of")
+#
+# Beat positions — 6/8 at resolution 12 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11
+#        C1 .  e1 .  a1 .  C2 .  e2 .  a2 .
+#   (C1/C2 = compound beat downbeats; each compound beat = 3 eighth notes = 6 steps)
+#
+# Swing / feel: 'feel' delays the second note of each swung pair, and
+# 'swing_unit' says which notes pair up: 16 = sixteenths (the default),
+# 8 = eighths (jazz, shuffle). Write the grids straight, as a score does.
+#   straight    — every step exactly on the grid
+#   swing_light — light swing, second note at 58 % of the pair (or swing_soft)
+#   swing_hard  — triplet swing, second note at 67 % of the pair
+#   laid_back   — same as straight; drag one instrument with its 'rush'
+#
+# Spaces and '|' inside a grid are ignored. A grid may span two bars, and
+# 'grid: triplet' on a variation splits each beat in three (12 steps in 4/4).
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Tight Funk
+family: funk
+bpm_range: [84, 116]
+time_signature: [4, 4]
+resolution: 16
+feel: straight
+swing_unit: 16
+
+instruments:
+  kick:       { note: 36, base_velocity: 108, velocity_range: 8,  timing_jitter: 0.008, duration_beats: 0.12 }
+  snare:      { note: 38, base_velocity: 104, velocity_range: 12, timing_jitter: 0.010, duration_beats: 0.09 }
+  hihat:      { note: 42, base_velocity: 82,  velocity_range: 12, timing_jitter: 0.008, duration_beats: 0.06 }
+  hihat_open: { note: 46, base_velocity: 86,  velocity_range: 8,  timing_jitter: 0.008, duration_beats: 0.14 }
+  hihat_foot: { note: 44, base_velocity: 70,  velocity_range: 8,  timing_jitter: 0.008, duration_beats: 0.06 }
+  crash:      { note: 49, base_velocity: 98,  velocity_range: 8,  timing_jitter: 0.008, duration_beats: 0.25 }
+  tom_hi:     { note: 48, base_velocity: 96,  velocity_range: 12, timing_jitter: 0.010, duration_beats: 0.12 }
+  tom_mid:    { note: 45, base_velocity: 96,  velocity_range: 12, timing_jitter: 0.010, duration_beats: 0.12 }
+  tom_lo:     { note: 41, base_velocity: 98,  velocity_range: 12, timing_jitter: 0.010, duration_beats: 0.15 }
+
+humanization:
+  timing_jitter: 0.008
+  velocity_jitter: 10
+  velocity_drift: 0.04
+
+sections:
+  intro:
+    type: count_in
+    hits: 4
+    note: 42
+
+  groove:
+    bars: 1
+    variations:
+      - name: hats_and_kick
+        role: intro
+        weight: 1
+        # The sixteenth hi-hat, accented on the beats, over the bass drum
+        # alone: the band vamps on one chord before the groove drops.
+        hihat: "Xxxx Xxxx Xxxx Xxxx"
+        kick:  "X.X. .... ..X. .X.."
+
+      - name: stubblefield
+        role: verse
+        weight: 4
+        # In the manner of Clyde Stubblefield: the bass drum on 1, the "and"
+        # of 1, the "and" of 3 and the "e" of 4; ghost notes on the "a" of
+        # 2, the "e" and "a" of 3 and the "a" of 4; the hi-hat opening on
+        # the "a" of 2 and the "e" of 4.
+        hihat:      "Xxxx xxx. Xxxx x.xx"
+        hihat_open: ".... ...x .... .x.."
+        kick:       "X.X. .... ..X. .X.."
+        snare:      ".... X..g .g.g X..g"
+
+      - name: garibaldi
+        role: chorus
+        weight: 3
+        # Linear, in the manner of David Garibaldi: hi-hat, snare and bass
+        # drum take turns on the sixteenths, never two at once, the hi-hat
+        # foot on 2 and 4.
+        hihat:      "..x. .x.. x... .x.x"
+        snare:      ".g.. X..g .g.x X..."
+        kick:       "X..X ..X. ..X. ..X."
+        hihat_foot: ".... X... .... X..."
+
+      - name: zigaboo
+        role: bridge
+        weight: 2
+        # The New Orleans side, in the manner of Zigaboo Modeliste: the bass
+        # drum and the snare trade syncopations, the hi-hat in eighths with
+        # an open stroke on the "and" of 3.
+        hihat:      "x.x. x.x. x... x.x."
+        hihat_open: ".... .... ..x. ...."
+        kick:       "X..X ...X ..X. ...."
+        snare:      ".g.. X.g. .g.X ..X."
+
+      - name: errico
+        weight: 2
+        # Lighter, in the manner of Greg Errico: eighth-note hi-hat, the
+        # bass drum on 1, the "and" of 1 and the "a" of 2, an open hat on
+        # the "and" of 4.
+        hihat:      "x.x. x.x. x.x. x..."
+        hihat_open: ".... .... .... ..x."
+        kick:       "X.X. ...X .... ...."
+        snare:      ".... X... .... X.g."
+
+  fill:
+    bars: 1
+    variations:
+      - name: ghost_burst
+        # Two beats of groove, then the ghost notes grow into a full snare
+        # run, the bass drum kicking the last sixteenth.
+        hihat: "Xxxx Xxxx .... ...."
+        kick:  "X.X. .... .... ...X"
+        snare: ".... X..g gggo oxxX"
+
+      - name: tom_syncopation
+        # A syncopated phrase between snare and toms, in sixteenths grouped
+        # in threes.
+        kick:    "X... .... .... ...."
+        snare:   "..X. .X.. X... ...."
+        tom_hi:  ".... .... ..X. ...."
+        tom_mid: ".... .... ...X ..X."
+        tom_lo:  ".... .... .... X..X"
+
+      - name: kick_snare_stabs
+        # The band stabs together on the "a" of 2 and the "e" of 4, the
+        # drummer filling the gaps with ghost notes.
+        kick:       "X... ...X .... .X.."
+        snare:      "g.g. X..X g.g. .X.X"
+        hihat_open: ".... ...x .... .x.."
+
+  break:
+    # Stop-time break: hit on 1, silence, then a pickup into the next section.
+    type: sequence
+    bars: 2
+    bar_grids:
+      - # Bar 1: hit on beat 1 only, the band drops out
+        crash: "X..............."
+        kick:  "X..............."
+      - # Bar 2: Ghosted snare with syncopated kicks, snare accents on 3a, 4e, 4+, 4a
+        kick:  "X.....X..X......"
+        snare: "g.g.X.g.g.gXgXXX"
+        hihat: "x.x.x.x.x.x....."
+
+  crash:
+    bars: 1
+    variations:
+      - name: standard
+        # Laid over the groove on the bar after a fill, a break or the
+        # count-in: the cymbal and the low drum on beat 1. The groove
+        # plays everything else.
+        crash: "X..............."
+        kick:  "X..............."
+
+  ending:
+    # Played once at the end of the song; the drums stop after bar 2.
+    type: sequence
+    bars: 2
+    bar_grids:
+      - # Bar 1: JB-style syncopated kick/snare stabs with ghost notes
+        kick:  "X..X..X...X.X..."
+        snare: "g.gX.gX..gX.X.X."
+        hihat: "x.x............."
+      - # Bar 2: final hit on beat 1, then silence
+        crash: "X..............."
+        kick:  "X..............."
+
+structure:
+  fill_every: 8
+  break_every: 0
+  break_length: 1
+  crash_after_fill: true
+  dynamic_build: true

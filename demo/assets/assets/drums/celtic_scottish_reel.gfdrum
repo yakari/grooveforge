@@ -1,0 +1,166 @@
+# Scottish Reel — the drum corps of a Scottish pipe band
+# Reference: pipe band drumming in competition reels (Field Marshal Montgomery,
+#            Simon Fraser University); the drum corps behind the bagpipes
+# A reel is in cut time, felt in two: one bar here is one bar of 2/2, the
+# bass drum on its two beats (1 and 3). The corps has three parts:
+# - the side drums (snares): a dense rudimental score of sixteenths, rolls
+#   (written as runs of soft strokes) and accents, played in unison;
+# - the tenor drums: a few strokes on the beats, the "flourish" players
+#   swinging their sticks;
+# - the bass drum: the pulse, nothing more.
+# No cymbals in a pipe band: the bar after a fill lands on the bass drum and
+# a side-drum accent.
+# GM notes: 35=bass drum, 38=side drum, 37=rim shot, 47=tenor drum,
+#           43=low tenor drum
+
+#
+# ── Step grid notation ────────────────────────────────────────────────────────
+# Each character in a step grid represents one subdivision of the bar.
+# Resolution controls how many steps per bar (16 = 16th notes in 4/4; 12 = 16th notes in 6/8).
+#
+#   X   Strong accent  — velocity = base_velocity × 1.00  (full hit / downbeat)
+#   x   Medium accent  — velocity = base_velocity × 0.75  (firm stroke / upbeat)
+#   o   Soft hit       — velocity = base_velocity × 0.55  (brush / light touch)
+#   g   Ghost note     — velocity = base_velocity × 0.28  (barely audible, mostly felt)
+#   .   Rest           — no note fired at this step
+#
+# Beat positions — 4/4 at resolution 16 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
+#        1  e1 +1 a1  2  e2 +2 a2  3  e3 +3 a3  4  e4 +4 a4
+#   (1/+/2/+/3/+/4/+ = quarter beats; e = "e of"; a = "and-a of")
+#
+# Beat positions — 6/8 at resolution 12 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11
+#        C1 .  e1 .  a1 .  C2 .  e2 .  a2 .
+#   (C1/C2 = compound beat downbeats; each compound beat = 3 eighth notes = 6 steps)
+#
+# Swing / feel: 'feel' delays the second note of each swung pair, and
+# 'swing_unit' says which notes pair up: 16 = sixteenths (the default),
+# 8 = eighths (jazz, shuffle). Write the grids straight, as a score does.
+#   straight    — every step exactly on the grid
+#   swing_light — light swing, second note at 58 % of the pair (or swing_soft)
+#   swing_hard  — triplet swing, second note at 67 % of the pair
+#   laid_back   — same as straight; drag one instrument with its 'rush'
+#
+# Spaces and '|' inside a grid are ignored. A grid may span two bars, and
+# 'grid: triplet' on a variation splits each beat in three (12 steps in 4/4).
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Scottish Reel
+family: celtic
+bpm_range: [150, 200]
+time_signature: [4, 4]
+resolution: 16
+feel: straight
+swing_unit: 8
+
+instruments:
+  bass:     { note: 35, base_velocity: 110, velocity_range: 6,  timing_jitter: 0.008, duration_beats: 0.25 }
+  snare:    { note: 38, base_velocity: 100, velocity_range: 10, timing_jitter: 0.008, duration_beats: 0.06 }
+  rim:      { note: 37, base_velocity: 100, velocity_range: 8,  timing_jitter: 0.008, duration_beats: 0.06 }
+  tenor:    { note: 47, base_velocity: 92,  velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.14 }
+  tenor_lo: { note: 43, base_velocity: 94,  velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.16 }
+
+humanization:
+  timing_jitter: 0.008
+  velocity_jitter: 8
+  velocity_drift: 0.04
+
+sections:
+  intro:
+    type: count_in
+    hits: 4
+    note: 37
+
+  groove:
+    bars: 1
+    variations:
+      - name: bass_and_tenors
+        role: intro
+        weight: 1
+        # The bass drum and the tenors alone while the pipes play the tune
+        # through once.
+        bass:     "X... .... X... ...."
+        tenor:    "X... x... X... x..."
+        tenor_lo: "X... .... X... ...."
+
+      - name: side_drum_score
+        role: verse
+        weight: 4
+        # The side drums' reel score: accents on each beat, double strokes
+        # and a short roll leading into beat 3, the bass drum on 1 and 3.
+        bass:  "X... .... X... ...."
+        snare: "X.xx X.x. ooox X.xx"
+        tenor: "X... .... X... ...."
+
+      - name: full_corps
+        role: chorus
+        weight: 3
+        # The whole corps driving: a denser score, a rim shot on the last
+        # beat, the tenors on every beat.
+        bass:     "X... x... X... x..."
+        snare:    "X.xx Xxx. X.xx oooo"
+        rim:      ".... .... .... ..X."
+        tenor:    "X... X... X... X..."
+        tenor_lo: "X... .... X... ...."
+
+      - name: roll_passage
+        role: bridge
+        weight: 2
+        # The quieter second part of the tune: long rolls on the side drums,
+        # each ending on an accent, the bass drum on beat 1 only.
+        bass:  "X... .... .... ...."
+        snare: "oooo oooX oooo oooX"
+        tenor: "X... .... X... ...."
+
+  fill:
+    bars: 1
+    variations:
+      - name: roll_into
+        # A roll from soft to loud over the whole bar, into the next part.
+        bass:  "X... .... X... ...."
+        snare: "oooo oooo xxxx xXXX"
+
+      - name: tenor_flourish
+        # The tenors take the bar, alternating high and low, the side drums
+        # answering on the last beat.
+        bass:     "X... .... X... ...."
+        tenor:    "X.X. X.X. X... ...."
+        tenor_lo: ".X.X .X.X .X.. ...."
+        snare:    ".... .... ..xx X.X."
+
+      - name: triplet_accents
+        # Side-drum triplets on beats 3 and 4, accented on each beat.
+        grid: triplet
+        bass:  "X.. ... X.. ..."
+        snare: "X.x X.x Xxx Xxx"
+
+  crash:
+    bars: 1
+    variations:
+      - name: standard
+        # Laid over the groove on the bar after a fill, a break or the
+        # count-in: no cymbal in a pipe band, the bass drum and a side-drum
+        # accent land on 1.
+        bass:  "X..............."
+        snare: "X..............."
+
+  ending:
+    # Played once at the end of the song; the drums stop after bar 2.
+    type: sequence
+    bars: 2
+    bar_grids:
+      - # Bar 1: the closing roll, the bass drum and the tenors on the beats
+        bass:  "X.......X......."
+        snare: "oooooooo xxxxXXXX"
+        tenor: "X.......X......."
+      - # Bar 2: the final beat
+        bass:  "X..............."
+        snare: "X..............."
+
+structure:
+  fill_every: 8
+  break_every: 0
+  break_length: 1
+  crash_after_fill: true
+  dynamic_build: false

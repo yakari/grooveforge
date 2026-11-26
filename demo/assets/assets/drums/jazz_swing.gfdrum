@@ -1,0 +1,174 @@
+# Jazz Swing — ride cymbal "spang-a-lang", hi-hat on 2 and 4
+# Reference: Jimmy Cobb (Miles Davis, "So What"), Art Blakey, Philly Joe Jones
+# Written as a jazz chart is: straight eighth notes, swung by the engine.
+# swing_unit 8 + swing_hard put every "and" on the last note of a triplet,
+# so the ride's "ding, ding-ga, ding, ding-ga" swings as it should.
+# Fills that need real triplets use 'grid: triplet'.
+# GM notes: 36=kick (feathered), 38=snare (comping), 44=hi-hat foot,
+#           51=ride, 49=crash, 48=hi tom, 41=floor tom
+
+#
+# ── Step grid notation ────────────────────────────────────────────────────────
+# Each character in a step grid represents one subdivision of the bar.
+# Resolution controls how many steps per bar (16 = 16th notes in 4/4; 12 = 16th notes in 6/8).
+#
+#   X   Strong accent  — velocity = base_velocity × 1.00  (full hit / downbeat)
+#   x   Medium accent  — velocity = base_velocity × 0.75  (firm stroke / upbeat)
+#   o   Soft hit       — velocity = base_velocity × 0.55  (brush / light touch)
+#   g   Ghost note     — velocity = base_velocity × 0.28  (barely audible, mostly felt)
+#   .   Rest           — no note fired at this step
+#
+# Beat positions — 4/4 at resolution 16 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
+#        1  e1 +1 a1  2  e2 +2 a2  3  e3 +3 a3  4  e4 +4 a4
+#   (1/+/2/+/3/+/4/+ = quarter beats; e = "e of"; a = "and-a of")
+#
+# Beat positions — 6/8 at resolution 12 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11
+#        C1 .  e1 .  a1 .  C2 .  e2 .  a2 .
+#   (C1/C2 = compound beat downbeats; each compound beat = 3 eighth notes = 6 steps)
+#
+# Swing / feel: 'feel' delays the second note of each swung pair, and
+# 'swing_unit' says which notes pair up: 16 = sixteenths (the default),
+# 8 = eighths (jazz, shuffle). Write the grids straight, as a score does.
+#   straight    — every step exactly on the grid
+#   swing_light — light swing, second note at 58 % of the pair (or swing_soft)
+#   swing_hard  — triplet swing, second note at 67 % of the pair
+#   laid_back   — same as straight; drag one instrument with its 'rush'
+#
+# Spaces and '|' inside a grid are ignored. A grid may span two bars, and
+# 'grid: triplet' on a variation splits each beat in three (12 steps in 4/4).
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Jazz Swing
+family: jazz
+bpm_range: [100, 260]
+time_signature: [4, 4]
+resolution: 16
+feel: swing_hard
+swing_unit: 8
+kit: brush
+
+instruments:
+  kick:       { note: 36, base_velocity: 70,  velocity_range: 14, timing_jitter: 0.020, duration_beats: 0.12 }
+  snare:      { note: 38, base_velocity: 76,  velocity_range: 20, timing_jitter: 0.025, duration_beats: 0.10 }
+  hihat_foot: { note: 44, base_velocity: 78,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.07 }
+  ride:       { note: 51, base_velocity: 88,  velocity_range: 12, timing_jitter: 0.015, duration_beats: 0.12 }
+  crash:      { note: 49, base_velocity: 92,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.25 }
+  tom_hi:     { note: 48, base_velocity: 82,  velocity_range: 16, timing_jitter: 0.022, duration_beats: 0.10 }
+  tom_lo:     { note: 41, base_velocity: 84,  velocity_range: 16, timing_jitter: 0.022, duration_beats: 0.14 }
+
+humanization:
+  timing_jitter: 0.022
+  velocity_jitter: 16
+  velocity_drift: 0.08
+
+sections:
+  intro:
+    type: count_in
+    hits: 4
+    note: 44
+
+  groove:
+    bars: 1
+    variations:
+      - name: light_time
+        role: intro
+        weight: 1
+        # Ride and hi-hat alone: the band states the tempo before the kit
+        # joins. The ride leans on 2 and 4, the hi-hat closes on 2 and 4.
+        ride:       "x...X.x.x...X.x."
+        hihat_foot: "....X.......X..."
+
+      - name: spang_a_lang
+        role: verse
+        weight: 4
+        # The time keeping: ride on every beat plus the swung "and" of 2 and
+        # 4, hi-hat foot on 2 and 4, the bass drum "feathered" on every beat
+        # (felt more than heard), and a rare snare comp.
+        ride:       "x...X.x.x...X.x."
+        hihat_foot: "....X.......X..."
+        kick:       "g...g...g...g..."
+        snare:      "..........g....."
+
+      - name: comping
+        role: chorus
+        weight: 2
+        # The drummer talks to the soloist: snare comps on the "and" of 2
+        # (a Charleston figure) and a bass drum "bomb" on the "and" of 4,
+        # pushing into the next bar.
+        ride:       "x...X.x.x...X.x."
+        hihat_foot: "....X.......X..."
+        kick:       "g...g...g...g.x."
+        snare:      "......x.....g..."
+
+      - name: two_feel
+        role: bridge
+        weight: 1
+        # Half the pulse: bass drum on 1 and 3 like a walking bass playing
+        # half notes, cross-stick ghost on 4. Ballad heads and the first
+        # chorus of a standard often sit here.
+        ride:       "x...X.x.x...X.x."
+        hihat_foot: "....X.......X..."
+        kick:       "o.......o......."
+        snare:      "............g..."
+
+  fill:
+    bars: 1
+    variations:
+      - name: triplet_down
+        # Time on beats 1 and 2, then snare and toms in triplets down the
+        # kit on 3 and 4 (12 steps: three per beat).
+        grid: triplet
+        ride:   "x..X.x......"
+        kick:   "g..g........"
+        snare:  "......oxx..."
+        tom_hi: ".........xx."
+        tom_lo: "...........X"
+
+      - name: bebop_exchange
+        # A short "conversation" between snare and bass drum on the swung
+        # eighths of beats 3 and 4, the ride keeping beats 1 and 2.
+        ride:  "x...X.x........."
+        snare: "........x.X...X."
+        kick:  "..........x.X..."
+
+      - name: kick_bomb
+        # Plain time with a loud bass drum and snare hit on the "and" of 4,
+        # the classic set-up into the next chorus.
+        ride:       "x...X.x.x...X..."
+        hihat_foot: "....X.......X..."
+        snare:      "......g.....g.X."
+        kick:       "g...g...g...g.X."
+
+  crash:
+    bars: 1
+    variations:
+      - name: standard
+        # Laid over the groove on the bar after a fill, a break or the
+        # count-in: the cymbal and the low drum on beat 1. The groove
+        # plays everything else.
+        crash: "X..............."
+        kick:  "X..............."
+
+  ending:
+    # Played once at the end of the song; the drums stop after bar 2.
+    type: sequence
+    bars: 2
+    bar_grids:
+      - # Bar 1: big-band kicks on the "and" of 2 and the "and" of 4, the
+        # ride stopping to leave them room
+        ride:  "x...X..........."
+        snare: "......X.......X."
+        kick:  "......X.......X."
+        crash: "..............X."
+      - # Bar 2: final hit on beat 1, then silence
+        crash: "X..............."
+        kick:  "X..............."
+
+structure:
+  fill_every: 16
+  break_every: 0
+  break_length: 1
+  crash_after_fill: true
+  dynamic_build: false

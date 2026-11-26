@@ -1,0 +1,187 @@
+# Disco — the 1970s dance groove
+# Reference: Earl Young (MFSB, The Trammps, Harold Melvin & the Blue Notes),
+#            Tony Thompson (CHIC, "Good Times", "Le Freak"), Giorgio Moroder
+#            and Donna Summer ("I Feel Love")
+# Disco's defining characteristics:
+#   - "Four on the floor": the bass drum on every beat. Earl Young, the
+#     drummer of the Philadelphia sound, made it the rule in the early
+#     1970s, and every disco record followed.
+#   - The open hi-hat on every offbeat eighth, closing on the beat: the
+#     "tss" that defines the era (a closed and an open stroke never fall on
+#     the same step, or the closed one would choke the open one).
+#   - The snare on 2 and 4, tight and ringing.
+#   - A tambourine in sixteenths on the Philadelphia records.
+# The variations, in the manner of these drummers:
+#   earl_young   — the Philadelphia sound: four on the floor, open hats,
+#                  tambourine, a ghosted snare pickup
+#   four_on_floor — the plain disco beat the whole decade danced to
+#   chic         — Tony Thompson: sixteenths on the hi-hat, opening on the
+#                  "and", the bass drum pushing the "and" of 2 and 4
+#   moroder      — the programmed Munich disco: bass drum and sixteenth
+#                  hi-hat, clap on 2 and 4
+#
+# GM notes: 36=kick, 38=snare, 39=hand clap, 42=closed HH, 46=open HH,
+#           54=tambourine, 49=crash
+
+#
+# ── Step grid notation ────────────────────────────────────────────────────────
+# Each character in a step grid represents one subdivision of the bar.
+# Resolution controls how many steps per bar (16 = 16th notes in 4/4; 12 = 16th notes in 6/8).
+#
+#   X   Strong accent  — velocity = base_velocity × 1.00  (full hit / downbeat)
+#   x   Medium accent  — velocity = base_velocity × 0.75  (firm stroke / upbeat)
+#   o   Soft hit       — velocity = base_velocity × 0.55  (brush / light touch)
+#   g   Ghost note     — velocity = base_velocity × 0.28  (barely audible, mostly felt)
+#   .   Rest           — no note fired at this step
+#
+# Beat positions — 4/4 at resolution 16 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
+#        1  e1 +1 a1  2  e2 +2 a2  3  e3 +3 a3  4  e4 +4 a4
+#   (1/+/2/+/3/+/4/+ = quarter beats; e = "e of"; a = "and-a of")
+#
+# Swing / feel: 'feel' delays the second note of each swung pair, and
+# 'swing_unit' says which notes pair up: 16 = sixteenths (the default),
+# 8 = eighths (jazz, shuffle). Write the grids straight, as a score does.
+#   straight    — every step exactly on the grid
+#   swing_light — light swing, second note at 58 % of the pair (or swing_soft)
+#   swing_hard  — triplet swing, second note at 67 % of the pair
+#   laid_back   — same as straight; drag one instrument with its 'rush'
+#
+# Spaces and '|' inside a grid are ignored. A grid may span two bars, and
+# 'grid: triplet' on a variation splits each beat in three (12 steps in 4/4).
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Disco
+family: funk
+bpm_range: [108, 135]
+time_signature: [4, 4]
+resolution: 16
+feel: straight
+swing_unit: 8
+
+instruments:
+  kick:       { note: 36, base_velocity: 110, velocity_range: 8,  timing_jitter: 0.008, duration_beats: 0.14 }
+  snare:      { note: 38, base_velocity: 100, velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.09 }
+  hihat:      { note: 42, base_velocity: 75,  velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.06 }
+  hihat_open: { note: 46, base_velocity: 88,  velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.14 }
+  clap:       { note: 39, base_velocity: 96,  velocity_range: 6,  timing_jitter: 0.006, duration_beats: 0.10 }
+  tambourine: { note: 54, base_velocity: 70,  velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.06 }
+  crash:      { note: 49, base_velocity: 100, velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.22 }
+
+humanization:
+  timing_jitter: 0.010
+  velocity_jitter: 10
+  velocity_drift: 0.04
+
+sections:
+  intro:
+    type: count_in
+    hits: 4
+    note: 42
+
+  groove:
+    bars: 1
+    variations:
+      - name: hats_and_kick
+        role: intro
+        weight: 1
+        # The record starts: four on the floor and the hi-hat alone, closed
+        # on the beats, open on the offbeats.
+        kick:       "X... X... X... X..."
+        hihat:      "x... x... x... x..."
+        hihat_open: "..x. ..x. ..x. ..x."
+
+      - name: four_on_floor
+        role: verse
+        weight: 4
+        # The disco beat: the bass drum on every beat, the snare on 2 and 4,
+        # the hi-hat closed on the beats and open on the offbeats.
+        kick:       "X... X... X... X..."
+        snare:      ".... X... .... X..."
+        hihat:      "x... x... x... x..."
+        hihat_open: "..x. ..x. ..x. ..x."
+
+      - name: chic
+        role: chorus
+        weight: 3
+        # In the manner of Tony Thompson: sixteenths on the hi-hat, opening
+        # on every "and"; the bass drum adds the "and" of 2 and 4; a ghost
+        # note after the backbeat.
+        kick:       "X... X.X. X... X.X."
+        snare:      ".... X.g. .... X..."
+        hihat:      "xx.x xx.x xx.x xx.x"
+        hihat_open: "..x. ..x. ..x. ..x."
+
+      - name: earl_young
+        role: bridge
+        weight: 2
+        # In the manner of Earl Young on the Philadelphia records: four on
+        # the floor, the open hi-hat on the offbeats, a ghosted snare pickup
+        # before each backbeat, the tambourine in sixteenths.
+        kick:       "X... X... X... X..."
+        snare:      "...g X... ...g X..."
+        hihat:      "x... x... x... x..."
+        hihat_open: "..x. ..x. ..x. ..x."
+        tambourine: "xgxg xgxg xgxg xgxg"
+
+      - name: moroder
+        weight: 2
+        # The programmed Munich disco: the bass drum on every beat, the
+        # hi-hat in sixteenths, the clap with the snare on 2 and 4.
+        kick:  "X... X... X... X..."
+        snare: ".... X... .... X..."
+        clap:  ".... X... .... X..."
+        hihat: "xxXx xxXx xxXx xxXx"
+
+  fill:
+    bars: 1
+    variations:
+      - name: snare_disco_fill
+        # Classic disco drum break: snare on all 4 beats plus 16th pickups —
+        # the "ratatat" fill heard in countless 12-inch remixes before the drop.
+        snare: "....X...X...XxXx"
+        kick:  "X...X...X...X..."
+
+      - name: open_hat_sweep
+        # Open hi-hat on every eighth: a wash of cymbal leading into the
+        # next bar.
+        hihat_open: "x.x.x.x.x.x.x.x."
+        kick:       "X...X...X...X..."
+        snare:      "....X.......X..."
+
+      - name: kick_snare_unison
+        # All-16th kick and snare in unison — the "disco stomp" fill that signals
+        # a breakdown or key change. Very dramatic at full velocity.
+        kick:  "X.X.X.X.X.X.XxXx"
+        snare: "X.X.X.X.X.X.XxXx"
+
+  crash:
+    bars: 1
+    variations:
+      - name: standard
+        # Laid over the groove on the bar after a fill, a break or the
+        # count-in: the cymbal and the low drum on beat 1. The groove
+        # plays everything else.
+        crash: "X..............."
+        kick:  "X..............."
+
+  ending:
+    # Played once at the end of the song; the drums stop after bar 2.
+    type: sequence
+    bars: 2
+    bar_grids:
+      - # Bar 1: Four-on-the-floor, then unison 3-3-2 stabs on beats 3-4
+        kick:       "X...X...X..X..X."
+        snare:      "....X...X..X..X."
+        hihat:      "x...x..........."
+        hihat_open: "..x...x........."
+      - # Bar 2: final hit on beat 1, then silence
+        crash: "X..............."
+        kick:  "X..............."
+
+structure:
+  fill_every: 4
+  break_every: 0
+  break_length: 1
+  crash_after_fill: true
+  dynamic_build: false

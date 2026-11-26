@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Load VST3 instruments and effects into the GrooveForge rack on Linux, macOS and Windows: what works, how to load and cable a plugin, and current limits.">
+  <title>GrooveForge — VST3 plugins</title>
+  <link rel="icon" type="image/png" href="../assets/icon.png">
+  <link rel="stylesheet" href="../css/site.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="header-inner">
+      <input type="checkbox" id="gf-nav-menu" class="nav-toggle-input">
+      <a class="brand" href="../">
+        <img src="../assets/icon.png" width="40" height="40" alt="">
+        GrooveForge
+      </a>
+      <div class="header-triggers">
+        <span class="lang-switch" aria-label="Language">
+          <span class="lang-current" aria-current="true">EN</span>
+          <span class="lang-sep" aria-hidden="true">·</span>
+          <a href="../fr/vst/" hreflang="fr">FR</a>
+        </span>
+        <label for="gf-nav-menu" class="nav-toggle-label">Menu</label>
+      </div>
+      <nav class="site-nav" aria-label="Primary">
+        <a href="../guide/">Guide</a>
+        <a href="../rehearsals/">Rehearsals</a>
+        <a href="../modules/">Modules</a>
+        <a href="../midi-fx/">MIDI FX</a>
+        <a href="../vst/">VST3</a>
+        <a href="../gfdrum/">Rhythmic patterns</a>
+        <a href="../gfpd/">Plugin descriptors</a>
+        <a href="../features/">All features</a>
+        <a href="../demo/" class="nav-cta">Try web demo</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="prose">
+    <div class="page-hero">
+      <h1>VST3 plugins</h1>
+      <p class="lead">Use the VST3 instruments and effects installed on your computer as modules in the rack.
+        Desktop only: Linux, macOS and Windows.</p>
+    </div>
+
+    <h2>Where it works</h2>
+    <table>
+      <thead>
+        <tr><th>Platform</th><th>Load plugins</th><th>Plugin's own window</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Linux</td><td>Yes</td><td>Yes</td></tr>
+        <tr><td>macOS</td><td>Yes</td><td>Yes</td></tr>
+        <tr><td>Windows</td><td>Yes</td><td>Not yet: use the knobs in the rack</td></tr>
+        <tr><td>Android, iOS, web demo</td><td>No</td><td>No</td></tr>
+      </tbody>
+    </table>
+    <p>A project that contains a VST3 plugin still opens on a phone. The plugin's module shows
+      <span class="ui">This VST3 plugin is not available on mobile.</span> and stays silent.</p>
+
+    <h2 id="load">Load a plugin</h2>
+    <p class="recipe-goal">Add an installed instrument or effect to the rack.</p>
+    <ol>
+      <li>Tap <span class="ui">+</span> and scroll to <span class="ui">VST3 Plugins</span>.</li>
+      <li>Tap <span class="ui">Pick Installed Instrument</span> or <span class="ui">Pick Installed Effect</span>,
+        then pick a plugin from the list.</li>
+      <li>Not in the list? Tap <span class="ui">Browse VST3 Instrument…</span> or <span class="ui">Browse VST3 Effect…</span>
+        and select the plugin's <code>.vst3</code> folder.</li>
+    </ol>
+    <p class="recipe-result">The plugin appears in the rack as a module. An instrument gets a <span class="ui">MIDI CH</span> badge;
+      an effect does not.</p>
+    <p class="recipe-note">The list only shows plugins placed directly in these folders. For a plugin in a subfolder, use Browse.</p>
+    <table>
+      <thead><tr><th>System</th><th>Folders searched</th></tr></thead>
+      <tbody>
+        <tr><td>Linux</td><td><code>~/.vst3</code>, <code>/usr/lib/vst3</code>, <code>/usr/local/lib/vst3</code></td></tr>
+        <tr><td>macOS</td><td><code>~/Library/Audio/Plug-Ins/VST3</code>, <code>/Library/Audio/Plug-Ins/VST3</code></td></tr>
+        <tr><td>Windows</td><td><code>C:\Program Files\Common Files\VST3</code></td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="play">Play a VST3 instrument</h2>
+    <p class="recipe-goal">Send it notes, like any other instrument.</p>
+    <ul>
+      <li>From a MIDI controller: set the module's <span class="ui">MIDI CH</span> badge to the channel your controller sends on.</li>
+      <li>From the on-screen keyboard: in <span class="ui">Patch view</span>, cable the keyboard's <code>MIDI OUT</code> to the plugin's
+        <code>MIDI IN</code>. The guide shows the same thing with Riff: <a href="../guide/#guitar">Play the guitar from the keyboard</a>.</li>
+    </ul>
+    <p class="recipe-note">Plugins follow the tempo and play/stop of the transport bar, so tempo-synced delays and arpeggiators stay in time.</p>
+
+    <h2 id="effect">Put an effect after an instrument</h2>
+    <p class="recipe-goal">Run any instrument, built-in or VST3, through a VST3 effect.</p>
+    <ol>
+      <li>Load the effect (see above).</li>
+      <li>In <span class="ui">Patch view</span>, cable the instrument's <code>AUDIO OUT L</code> and <code>R</code>
+        into the effect's <code>AUDIO IN L</code> and <code>R</code>.</li>
+    </ol>
+    <p class="recipe-result">You hear the instrument through the effect.</p>
+    <p class="recipe-note">On a VST3 instrument there is a shortcut: tap <span class="ui">FX</span> at the bottom of its module,
+      then <span class="ui">Add effect</span>. You pick the effect's <code>.vst3</code> folder and the cables are drawn for you.</p>
+
+    <h2 id="settings">Change the plugin's settings</h2>
+    <ul>
+      <li>In the module, tap <span class="ui">PARAMETERS</span> to unfold it, then tap a group to open its knobs.
+        A search field helps with plugins that have hundreds of settings.</li>
+      <li>On Linux and macOS, tap <span class="ui">Show Plugin UI</span> to open the plugin's own window.</li>
+    </ul>
+    <p>
+      On Linux, some plugins draw their window with OpenGL and fail to open under Wayland. The app then says so.
+      Start GrooveForge with <code>LIBGL_ALWAYS_SOFTWARE=1</code>, or in an X11 session, and try again.
+    </p>
+    <p>Saving the project keeps each plugin and the values of its parameters.</p>
+
+    <h2 id="limits">What does not work yet</h2>
+    <ul>
+      <li>Pitch bend, the mod wheel, aftertouch and other controller messages (CC) reach a VST3 instrument when the plugin assigns them
+        to one of its parameters, as most synths do. The bend range is the plugin's own setting.</li>
+      <li>Xen's microtonal tuning does not apply to VST3 instruments. They play in normal tuning.</li>
+      <li>On Windows, the plugin's own window does not open yet, so the button is not shown. Use the knobs in the rack.</li>
+    </ul>
+
+    <h2 id="build">Building GrooveForge yourself</h2>
+    <p>
+      The Steinberg VST3 SDK is not in the repository. Before building for Linux, macOS or Windows, clone it into
+      <code>packages/flutter_vst3/vst3sdk</code> with its submodules. The command is in the
+      <a href="https://github.com/yakari/grooveforge#readme">README</a>.
+    </p>
+
+    <p><a href="../midi-fx/">← MIDI FX</a> · <a href="../gfdrum/">.gfdrum patterns →</a></p>
+  </main>
+
+  <footer class="site-footer">
+    <p><a href="https://github.com/yakari/grooveforge">GitHub</a> · <a href="../privacy/">Privacy</a></p>
+  </footer>
+</body>
+</html>

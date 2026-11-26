@@ -1,0 +1,186 @@
+# Breton An Dro — "the turn", the Vannetais chain dance
+# Reference: An dro (Wikipedia, English and French); fest-noz bands with a
+#            drum kit (Tri Yann, Gwerz, Skolvan), bagad snare sections
+# The an dro is in 4/4. Its step is close to the polka's: two equal motifs
+# follow each other, left-right-left then right-left-right, the dancers
+# marking the pulse on every beat as the chain drifts to the left. A
+# melodic phrase usually spans two bars, so the grooves are two-bar grids
+# ("bar 1 | bar 2").
+# What the drums do, in the manner of fest-noz bands rather than copied:
+# - the bass drum marks every beat, like the dancers' feet;
+# - the snare keeps the backbeat and answers the tune's short-short-long
+#   figure at the end of the phrase;
+# - the toms can play the step itself, three strokes per motif;
+# - in a bagad, the snare section plays the rudimental pipe-band style:
+#   continuous strokes, accents, drags into the beat.
+# GM notes: 36=kick, 38=snare, 37=side stick, 42=closed HH, 46=open HH,
+#           48=hi tom, 45=mid tom, 41=floor tom, 49=crash
+
+#
+# ── Step grid notation ────────────────────────────────────────────────────────
+# Each character in a step grid represents one subdivision of the bar.
+# Resolution controls how many steps per bar (16 = 16th notes in 4/4; 12 = 16th notes in 6/8).
+#
+#   X   Strong accent  — velocity = base_velocity × 1.00  (full hit / downbeat)
+#   x   Medium accent  — velocity = base_velocity × 0.75  (firm stroke / upbeat)
+#   o   Soft hit       — velocity = base_velocity × 0.55  (brush / light touch)
+#   g   Ghost note     — velocity = base_velocity × 0.28  (barely audible, mostly felt)
+#   .   Rest           — no note fired at this step
+#
+# Beat positions — 4/4 at resolution 16 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
+#        1  e1 +1 a1  2  e2 +2 a2  3  e3 +3 a3  4  e4 +4 a4
+#   (1/+/2/+/3/+/4/+ = quarter beats; e = "e of"; a = "and-a of")
+#
+# Beat positions — 6/8 at resolution 12 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11
+#        C1 .  e1 .  a1 .  C2 .  e2 .  a2 .
+#   (C1/C2 = compound beat downbeats; each compound beat = 3 eighth notes = 6 steps)
+#
+# Swing / feel: 'feel' delays the second note of each swung pair, and
+# 'swing_unit' says which notes pair up: 16 = sixteenths (the default),
+# 8 = eighths (jazz, shuffle). Write the grids straight, as a score does.
+#   straight    — every step exactly on the grid
+#   swing_light — light swing, second note at 58 % of the pair (or swing_soft)
+#   swing_hard  — triplet swing, second note at 67 % of the pair
+#   laid_back   — same as straight; drag one instrument with its 'rush'
+#
+# Spaces and '|' inside a grid are ignored. A grid may span two bars, and
+# 'grid: triplet' on a variation splits each beat in three (12 steps in 4/4).
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Breton An Dro
+family: celtic
+bpm_range: [100, 140]
+time_signature: [4, 4]
+resolution: 16
+feel: straight
+swing_unit: 8
+
+instruments:
+  kick:       { note: 36, base_velocity: 104, velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.14 }
+  snare:      { note: 38, base_velocity: 98,  velocity_range: 14, timing_jitter: 0.012, duration_beats: 0.09 }
+  rim:        { note: 37, base_velocity: 84,  velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.06 }
+  hihat:      { note: 42, base_velocity: 76,  velocity_range: 12, timing_jitter: 0.010, duration_beats: 0.07 }
+  hihat_open: { note: 46, base_velocity: 80,  velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.14 }
+  tom_hi:     { note: 48, base_velocity: 94,  velocity_range: 12, timing_jitter: 0.014, duration_beats: 0.12 }
+  tom_mid:    { note: 45, base_velocity: 94,  velocity_range: 12, timing_jitter: 0.014, duration_beats: 0.12 }
+  tom_lo:     { note: 41, base_velocity: 96,  velocity_range: 12, timing_jitter: 0.014, duration_beats: 0.15 }
+  crash:      { note: 49, base_velocity: 96,  velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.22 }
+
+humanization:
+  timing_jitter: 0.012
+  velocity_jitter: 12
+  velocity_drift: 0.06
+
+sections:
+  intro:
+    type: count_in
+    hits: 4
+    note: 37
+
+  groove:
+    bars: 1
+    variations:
+      - name: pulse
+        role: intro
+        weight: 1
+        # The pulse alone, as the chain forms: the bass drum and the side
+        # stick on every beat, the side stick accented on 2 and 4.
+        kick: "X... X... X... X..."
+        rim:  "x... X... x... X..."
+
+      - name: fest_noz
+        role: verse
+        weight: 4
+        # The fest-noz kit: the bass drum on every beat, the snare on 2 and
+        # 4, eighths on the hi-hat. At the end of the phrase the snare
+        # answers the tune's short-short-long on beats 3 and 4.
+        kick:  "X... X... X... X... | X... X... X... X..."
+        snare: ".... X... .... X... | .... X... X.X. X..."
+        hihat: "X.x. X.x. X.x. X.x. | X.x. X.x. X.x. X.x."
+
+      - name: bagad
+        role: chorus
+        weight: 3
+        # The bagad snare section: continuous strokes with accents on the
+        # beats and the "and" of 2 and 4, a drag into each phrase end; the
+        # bass drum on every beat.
+        kick:  "X... X... X... X... | X... X... X... X..."
+        snare: "X.xx x.X. X.xx x.X. | X.xx x.X. X.xx XxX."
+
+      - name: step_toms
+        role: bridge
+        weight: 2
+        # The toms play the step itself: left-right-left on 1, the "and" of
+        # 1 and 2, then right-left-right on 3, the "and" of 3 and 4 (floor
+        # tom for the left foot, high tom for the right); the bass drum on
+        # every beat, the side stick on the offbeat that closes each motif.
+        tom_lo: "X... X... ..X. ...."
+        tom_hi: "..X. .... X... X..."
+        rim:    ".... ..x. .... ..x."
+        kick:   "X... X... X... X..."
+
+      - name: open_drive
+        weight: 2
+        # The tune at full strength: the hi-hat half open on the eighths,
+        # the bass drum on every beat, the snare doubling 4 with its "and".
+        kick:       "X... X... X... X..."
+        snare:      ".... X... .... X.x."
+        hihat_open: "X.x. X.x. X.x. X.x."
+
+  fill:
+    bars: 1
+    variations:
+      - name: snare_roll
+        # The groove on the first half, then a snare roll swelling into the
+        # next phrase.
+        kick:  "X... X... X... X..."
+        snare: ".... X... xxxx XXXX"
+        hihat: "X.x. X.x. .... ...."
+
+      - name: tom_run
+        # The step on the toms, falling from high to low into the next
+        # phrase.
+        kick:    "X... X... X... X..."
+        tom_hi:  "X.X. X... .... ...."
+        tom_mid: ".... ..X. X.X. ...."
+        tom_lo:  ".... .... .... X.X."
+
+      - name: bagad_drag
+        # A bagad cadence: accented strokes, a drag into beat 4.
+        kick:  "X... X... X... X..."
+        snare: "X.X. X.X. X.xx X.X."
+
+  crash:
+    bars: 1
+    variations:
+      - name: standard
+        # Laid over the groove on the bar after a fill, a break or the
+        # count-in: the cymbal and the low drum on beat 1. The groove
+        # plays everything else.
+        crash: "X..............."
+        kick:  "X..............."
+
+  ending:
+    # Played once at the end of the song; the drums stop after bar 2.
+    type: sequence
+    bars: 2
+    bar_grids:
+      - # Bar 1: Dance pulse, then snare roll and high-low tom drop
+        kick:    "X...X...X......."
+        rim:     "X.x.X.x........."
+        snare:   "........XxXx...."
+        tom_hi:  "............X..."
+        tom_lo:  "..............X."
+        hihat:   "X.x.X.x........."
+      - # Bar 2: final hit on beat 1, then silence
+        crash: "X..............."
+        kick:  "X..............."
+
+structure:
+  fill_every: 8
+  break_every: 0
+  break_length: 1
+  crash_after_fill: true
+  dynamic_build: false

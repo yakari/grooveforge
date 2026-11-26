@@ -1,0 +1,189 @@
+# Maqsum & Baladi — the maqsum family of Egyptian rhythms, on darbuka and riq
+# Reference: Jas's Middle Eastern Rhythms FAQ (khafif.com), the ASCII
+#            notations of maqsuum, baladii, sayyidii, ayyuub and malfuuf;
+#            Hossam Ramzy's Egyptian percussion recordings
+# The strokes of the darbuka (goblet drum):
+# - doum (D): the deep stroke in the middle of the head;
+# - tek (T): the sharp stroke on the rim, with the strong hand;
+# - ka (k): the same rim stroke with the other hand, softer, filling in.
+# One bar of 4/4, in sixteenths ("1-+-2-+-3-+-4-+-" in Jas's notation):
+#   maqsum   D-T-__T-D-__T-__   (filled: D-T-kkT-D-kkT-kk)
+#   baladi   D-D-__T-D-__T-__   two doums open the phrase
+#   saidi    D-T-__D-D-__T-__   the middle doum doubled
+#   ayyub    D--kD-T- twice      a 2/4 rhythm, played two per bar
+#   malfuf   D--T--T- twice      3+3+2, fast
+# The riq (frame drum with jingles) follows the darbuka's accents; the
+# sagat (finger cymbals) mark the beat for the dancer.
+# No cymbal crash in this music: the bar after a fill lands on a doum and
+# the riq.
+# GM notes: 64=low conga (doum), 62=mute high conga (tek), 60=high bongo
+#           (ka), 54=tambourine (riq), 80=mute triangle (sagat)
+
+#
+# ── Step grid notation ────────────────────────────────────────────────────────
+# Each character in a step grid represents one subdivision of the bar.
+# Resolution controls how many steps per bar (16 = 16th notes in 4/4; 12 = 16th notes in 6/8).
+#
+#   X   Strong accent  — velocity = base_velocity × 1.00  (full hit / downbeat)
+#   x   Medium accent  — velocity = base_velocity × 0.75  (firm stroke / upbeat)
+#   o   Soft hit       — velocity = base_velocity × 0.55  (brush / light touch)
+#   g   Ghost note     — velocity = base_velocity × 0.28  (barely audible, mostly felt)
+#   .   Rest           — no note fired at this step
+#
+# Beat positions — 4/4 at resolution 16 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
+#        1  e1 +1 a1  2  e2 +2 a2  3  e3 +3 a3  4  e4 +4 a4
+#   (1/+/2/+/3/+/4/+ = quarter beats; e = "e of"; a = "and-a of")
+#
+# Beat positions — 6/8 at resolution 12 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11
+#        C1 .  e1 .  a1 .  C2 .  e2 .  a2 .
+#   (C1/C2 = compound beat downbeats; each compound beat = 3 eighth notes = 6 steps)
+#
+# Swing / feel: 'feel' delays the second note of each swung pair, and
+# 'swing_unit' says which notes pair up: 16 = sixteenths (the default),
+# 8 = eighths (jazz, shuffle). Write the grids straight, as a score does.
+#   straight    — every step exactly on the grid
+#   swing_light — light swing, second note at 58 % of the pair (or swing_soft)
+#   swing_hard  — triplet swing, second note at 67 % of the pair
+#   laid_back   — same as straight; drag one instrument with its 'rush'
+#
+# Spaces and '|' inside a grid are ignored. A grid may span two bars, and
+# 'grid: triplet' on a variation splits each beat in three (12 steps in 4/4).
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Maqsum & Baladi
+family: arabic
+bpm_range: [80, 140]
+time_signature: [4, 4]
+resolution: 16
+feel: straight
+swing_unit: 16
+
+instruments:
+  doum:  { note: 64, base_velocity: 108, velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.20 }
+  tek:   { note: 62, base_velocity: 100, velocity_range: 12, timing_jitter: 0.010, duration_beats: 0.08 }
+  ka:    { note: 60, base_velocity: 80,  velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.06 }
+  riq:   { note: 54, base_velocity: 80,  velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.06 }
+  sagat: { note: 80, base_velocity: 72,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.08 }
+
+humanization:
+  timing_jitter: 0.010
+  velocity_jitter: 10
+  velocity_drift: 0.05
+
+sections:
+  intro:
+    type: count_in
+    hits: 4
+    note: 62
+
+  groove:
+    bars: 1
+    variations:
+      - name: maqsum_basic
+        role: intro
+        weight: 1
+        # The bare maqsum, D-T-__T-D-__T-__, with nothing filled in.
+        doum: "X... .... X... ...."
+        tek:  "..X. ..X. .... X..."
+
+      - name: maqsum
+        role: verse
+        weight: 4
+        # The maqsum filled, D-T-kkT-D-kkT-kk: the ka strokes fill the gaps,
+        # the riq doubles the doums and teks.
+        doum: "X... .... X... ...."
+        tek:  "..X. ..X. .... X..."
+        ka:   ".... gg.. ..gg ..gg"
+        riq:  "X.x. o.x. X.o. x.o."
+
+      - name: saidi
+        role: chorus
+        weight: 3
+        # The saidi of upper Egypt, D-T-tkD-D-tkT-tk, the middle doum
+        # doubled: louder, the sagat on every beat for the cane dance.
+        doum:  "X... ..X. X... ...."
+        tek:   "..X. o... ..o. X.o."
+        ka:    ".... .g.. ...g ...g"
+        riq:   "X.x. x.X. X.x. X.x."
+        sagat: "x... x... x... x..."
+
+      - name: baladi
+        role: bridge
+        weight: 2
+        # The baladi, D-D-tkT-D-tkT-tk, the folk form: two doums open the
+        # phrase.
+        doum: "X.X. .... X... ...."
+        tek:  ".... o.X. ..o. X.o."
+        ka:   ".... .g.. ...g ...g"
+        riq:  "X.X. o.x. X.o. x.o."
+
+      - name: ayyub
+        weight: 1
+        # The ayyub, D--kD-T- twice per bar: the rocking 2/4 of the zar.
+        doum: "X... X... X... X..."
+        tek:  ".... ..X. .... ..X."
+        ka:   "...g .... ...g ...."
+        riq:  "x... x.x. x... x.x."
+
+      - name: malfuf
+        weight: 1
+        # The malfuf, D--T--T- twice per bar (3+3+2), for fast entrances.
+        doum: "X... .... X... ...."
+        tek:  "...X ..X. ...X ..X."
+        ka:   ".g.. g... .g.. g..."
+        riq:  "x..x ..x. x..x ..x."
+
+  fill:
+    bars: 1
+    variations:
+      - name: tek_roll
+        # A maqsum's first half, then a roll of tek and ka in sixteenths
+        # growing into the next doum.
+        doum: "X... .... .... ...."
+        tek:  "..X. ..X. x.x. X.X."
+        ka:   ".... .... .g.g .g.X"
+
+      - name: doum_cadence
+        # Doums on every beat, then on every eighth: the drummer leads the
+        # dancer into the next phrase.
+        doum: "X... X... X.X. X.X."
+        tek:  "..X. ..X. .... ...."
+        riq:  "x.x. x.x. xxxx XXXX"
+
+      - name: riq_flourish
+        # The riq takes the bar with a jingle roll, the darbuka marking the
+        # maqsum's doums.
+        doum: "X... .... X... ...."
+        riq:  "x.x. x.xX x.x. XXXX"
+
+  crash:
+    bars: 1
+    variations:
+      - name: standard
+        # Laid over the groove on the bar after a fill, a break or the
+        # count-in: no cymbal here, a doum and the riq land on 1.
+        doum: "X..............."
+        riq:  "X..............."
+
+  ending:
+    # Played once at the end of the song; the drums stop after bar 2.
+    type: sequence
+    bars: 2
+    bar_grids:
+      - # Bar 1: the closing phrase, the doum and the tek in turn, then
+        # a roll on the last beat
+        doum: "X...X...X......."
+        tek:  "..X...X...X.xxXX"
+        riq:  "X.X.X.X.X.X.xxXX"
+      - # Bar 2: final hit on beat 1, then silence
+        doum: "X..............."
+        riq:  "X..............."
+
+structure:
+  fill_every: 8
+  break_every: 0
+  break_length: 1
+  crash_after_fill: true
+  dynamic_build: false

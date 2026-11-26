@@ -1,0 +1,72 @@
+spec: "1.0"
+id: "com.grooveforge.chord"
+name: "Chord Expand"
+version: "1.0.0"
+type: midi_fx
+
+# Expands each incoming note into a full chord voicing. The original note
+# is always passed through as the root. The remaining chord tones are added
+# above it based on the selected chord type and spread mode.
+
+parameters:
+  # Chord quality — selects the interval structure above the root.
+  # 11 options; normalised as index / 10.
+  - id: chord_type
+    paramId: 0
+    name: "Chord"
+    min: 0
+    max: 10
+    default: 0
+    type: selector
+    options: ["Maj", "Min", "Dim", "Aug", "Sus2", "Sus4", "Dom7", "Maj7", "Min7", "m7b5", "Dim7"]
+
+  # Voicing spread — controls how far chord tones are distributed vertically.
+  # Close: all notes within one octave above root.
+  # Open: alternate notes raised an octave (drop-2 style).
+  # Wide: all non-root notes raised an octave.
+  # 3 options; normalised as index / 2.
+  - id: spread
+    paramId: 1
+    name: "Spread"
+    min: 0
+    max: 2
+    default: 0
+    type: selector
+    options: ["Close", "Open", "Wide"]
+
+  # Scale Lock — when on, each chord tone is snapped to the nearest note
+  # in the host's active Jam Mode scale (down-first tie-breaking).
+  - id: snap_to_scale
+    paramId: 2
+    name: "Scale Lock"
+    min: 0
+    max: 1
+    default: 1
+    type: toggle
+
+midi_nodes:
+  - id: chordexp
+    type: chord_expand
+    params:
+      chordType:   { param: chord_type }
+      spread:      { param: spread }
+      snapToScale: { param: snap_to_scale }
+
+ui:
+  layout: grid
+  groups:
+    - label: "Chord"
+      controls:
+        - type: selector
+          param: chord_type
+          label: "Chord Type"
+    - label: "Voicing"
+      controls:
+        - type: selector
+          param: spread
+          label: "Spread"
+    - label: "Scale"
+      controls:
+        - type: toggle
+          param: snap_to_scale
+          label: "Scale Lock"

@@ -1,0 +1,201 @@
+# Indian — Bhangra (dhol)
+# Reference: Punjabi harvest-dance repertoire and the British bhangra of Malkit
+#            Singh, Panjabi MC and Bally Sagoo; GCSE "Rhythms of the World"
+#            teaching material on the chaal
+# The dhol is a two-headed barrel drum played with two different sticks:
+#   DAGGA   — the thick bent stick on the bass head
+#   THILLI  — the thin cane on the treble head, which never stops moving
+# THE CHAAL, the rhythm under all bhangra, is in 4/4 with every beat split
+# in three: eight swung eighths to the bar, a galloping shuffle. The bass
+# lands on the 1st, 6th and 7th of those eighths: beat 1, the swung "and"
+# of 3 and beat 4 ("DHA . . . . na DHA ."). The thilli plays every swung
+# eighth, with triplet fills when the dancers push.
+# All the grooves are written on the triplet grid ("grid: triplet", three
+# steps per beat); the eighths are the 1st and 3rd step of each beat.
+#
+# GM substitution: General MIDI has no dhol. The low floor tom stands in for
+# the dagga, the high timbale for the thilli (a cane on a tight head, crisp
+# and dry). Tambourine covers the chimta (tongs with jingles).
+# GM notes: 41=low floor tom (dagga), 65=high timbale (thilli),
+#           54=tambourine (chimta), 39=hand clap, 36=kick, 38=snare,
+#           42=closed HH, 49=crash
+
+#
+# ── Step grid notation ────────────────────────────────────────────────────────
+# Each character in a step grid represents one subdivision of the bar.
+# Resolution controls how many steps per bar (16 = 16th notes in 4/4; 12 = 16th notes in 6/8).
+#
+#   X   Strong accent  — velocity = base_velocity × 1.00  (full hit / downbeat)
+#   x   Medium accent  — velocity = base_velocity × 0.75  (firm stroke / upbeat)
+#   o   Soft hit       — velocity = base_velocity × 0.55  (brush / light touch)
+#   g   Ghost note     — velocity = base_velocity × 0.28  (barely audible, mostly felt)
+#   .   Rest           — no note fired at this step
+#
+# Beat positions — 4/4 at resolution 16 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
+#        1  e1 +1 a1  2  e2 +2 a2  3  e3 +3 a3  4  e4 +4 a4
+#   (1/+/2/+/3/+/4/+ = quarter beats; e = "e of"; a = "and-a of")
+#
+# Beat positions — 6/8 at resolution 12 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11
+#        C1 .  e1 .  a1 .  C2 .  e2 .  a2 .
+#   (C1/C2 = compound beat downbeats; each compound beat = 3 eighth notes = 6 steps)
+#
+# Swing / feel: 'feel' delays the second note of each swung pair, and
+# 'swing_unit' says which notes pair up: 16 = sixteenths (the default),
+# 8 = eighths (jazz, shuffle). Write the grids straight, as a score does.
+#   straight    — every step exactly on the grid
+#   swing_light — light swing, second note at 58 % of the pair (or swing_soft)
+#   swing_hard  — triplet swing, second note at 67 % of the pair
+#   laid_back   — same as straight; drag one instrument with its 'rush'
+#
+# Spaces and '|' inside a grid are ignored. A grid may span two bars, and
+# 'grid: triplet' on a variation splits each beat in three (12 steps in 4/4).
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Bhangra (Dhol)
+family: indian
+bpm_range: [80, 130]
+time_signature: [4, 4]
+resolution: 16
+feel: straight
+
+instruments:
+  dagga:   { note: 41, base_velocity: 114, velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.18 }
+  thilli:  { note: 65, base_velocity: 86,  velocity_range: 12, timing_jitter: 0.010, duration_beats: 0.05 }
+  chimta:  { note: 54, base_velocity: 76,  velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.07 }
+  clap:    { note: 39, base_velocity: 94,  velocity_range: 12, timing_jitter: 0.016, duration_beats: 0.10 }
+  kick:    { note: 36, base_velocity: 106, velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.15 }
+  snare:   { note: 38, base_velocity: 100, velocity_range: 12, timing_jitter: 0.010, duration_beats: 0.10 }
+  hihat:   { note: 42, base_velocity: 74,  velocity_range: 12, timing_jitter: 0.010, duration_beats: 0.06 }
+  crash:   { note: 49, base_velocity: 100, velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.26 }
+
+humanization:
+  timing_jitter: 0.012
+  velocity_jitter: 12
+  velocity_drift: 0.06
+
+sections:
+  intro:
+    type: count_in
+    hits: 4
+    note: 65
+
+  groove:
+    bars: 1
+    variations:
+      - name: chaal_bare
+        role: intro
+        weight: 1
+        # The chaal stripped down: the dagga on 1, the "and" of 3 and 4,
+        # the thilli only on the beats.
+        grid: triplet
+        dagga:  "X.. ... ..X X.."
+        thilli: "x.. x.. x.. x.."
+
+      - name: chaal
+        role: verse
+        weight: 4
+        # The chaal: the dagga on the 1st, 6th and 7th swung eighths, the
+        # thilli on every swung eighth, accented on 2 and 4; the chimta on
+        # the beats.
+        grid: triplet
+        dagga:  "X.. ... ..X X.."
+        thilli: "x.x X.x x.x X.x"
+        chimta: "x.. x.. x.. x.."
+
+      - name: chaal_full
+        role: chorus
+        weight: 3
+        # The chaal at full energy: triplet fills on the thilli before 3
+        # and 1, the crowd clapping on 2 and 4.
+        grid: triplet
+        dagga:  "X.. ... ..X X.."
+        thilli: "x.x Xxx x.x Xxx"
+        chimta: "x.x x.x x.x x.x"
+        clap:   "... X.. ... X.."
+
+      - name: dhamaal
+        role: bridge
+        weight: 2
+        # Dhamaal, the heavier processional feel: the dagga on every beat
+        # with a pickup into 1, the thilli on the swung eighths.
+        grid: triplet
+        dagga:  "X.. X.. X.. X.x"
+        thilli: "x.x x.x x.x x.x"
+        chimta: "x.. x.. x.. x.."
+
+      - name: kit_bhangra
+        weight: 2
+        # The British bhangra band: the kit's bass drum on the chaal, the
+        # snare on 2 and 4, the hi-hat on the swung eighths, the thilli on
+        # top.
+        grid: triplet
+        kick:   "X.. ... ..X X.."
+        snare:  "... X.. ... X.."
+        hihat:  "x.x x.x x.x x.x"
+        thilli: "x.x x.x x.x x.x"
+
+      - name: giddha
+        weight: 1
+        # Giddha, the women's dance of the same tradition: clap-led, the
+        # dagga on 1 and 3, the thilli on the swung offbeats.
+        grid: triplet
+        clap:   "X.. X.. X.. X.."
+        dagga:  "X.. ... X.. ..."
+        thilli: "..x ..x ..x ..x"
+        chimta: "x.x x.x x.x x.x"
+
+  fill:
+    bars: 1
+    variations:
+      - name: dhol_roll
+        # Both sticks in triplets on the last two beats: the dhol player's
+        # turn, and the cue for the dancers to change figure.
+        grid: triplet
+        dagga:  "X.. ... X.. X.X"
+        thilli: "x.x X.x XxX xXx"
+
+      - name: bass_run
+        # The dagga alone, from the chaal into triplets.
+        grid: triplet
+        dagga:  "X.. ..X X.x XXX"
+        chimta: "x.. x.. x.. x.."
+
+      - name: clap_build
+        # The crowd fill: claps on the beats, then in triplets into the
+        # downbeat, over the chaal's bass.
+        grid: triplet
+        clap:   "... X.. Xxx XXX"
+        dagga:  "X.. ... ..X X.."
+        thilli: "x.x x.x ... ..."
+
+  crash:
+    bars: 1
+    variations:
+      - name: standard
+        # Laid over the groove on the bar after a fill or the count-in: the
+        # cymbal and the dagga on beat 1.
+        crash: "X..............."
+        dagga: "X..............."
+
+  ending:
+    # Played once at the end of the song; the drums stop after bar 2.
+    type: sequence
+    bars: 2
+    bar_grids:
+      - # Bar 1: the chaal, then dagga and thilli together in triplets
+        grid: triplet
+        dagga:  "X.. ... XXX XXX"
+        thilli: "x.x x.x XXX XXX"
+        chimta: "x.. x.. x.. x.."
+      - # Bar 2: final hit on beat 1, then silence
+        crash:  "X..............."
+        dagga:  "X..............."
+
+structure:
+  fill_every: 8
+  break_every: 0
+  break_length: 1
+  crash_after_fill: true
+  dynamic_build: true

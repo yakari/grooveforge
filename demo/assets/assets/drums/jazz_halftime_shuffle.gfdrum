@@ -1,0 +1,176 @@
+# Half-Time Shuffle — Bernard Purdie / Jeff Porcaro
+# Reference: Steely Dan "Home at Last" and "Babylon Sisters" (Purdie),
+#            Toto "Rosanna" (Porcaro), Led Zeppelin "Fool in the Rain" (Bonham)
+# A shuffle is a triplet with its middle note left out. Here the grooves are
+# written on triplet grids ('grid: triplet', three steps per beat, 12 per
+# bar): the hi-hat plays the first and last note of each triplet, the snare
+# fills the middle notes with ghost notes, and the backbeat falls on beat 3
+# only (half time).
+# GM notes: 36=kick, 38=snare, 42=closed HH, 46=open HH, 44=HH foot,
+#           51=ride, 49=crash, 48=hi tom, 45=mid tom, 41=floor tom
+
+#
+# ── Step grid notation ────────────────────────────────────────────────────────
+# Each character in a step grid represents one subdivision of the bar.
+# Resolution controls how many steps per bar (16 = 16th notes in 4/4; 12 = 16th notes in 6/8).
+#
+#   X   Strong accent  — velocity = base_velocity × 1.00  (full hit / downbeat)
+#   x   Medium accent  — velocity = base_velocity × 0.75  (firm stroke / upbeat)
+#   o   Soft hit       — velocity = base_velocity × 0.55  (brush / light touch)
+#   g   Ghost note     — velocity = base_velocity × 0.28  (barely audible, mostly felt)
+#   .   Rest           — no note fired at this step
+#
+# Beat positions — 4/4 at resolution 16 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
+#        1  e1 +1 a1  2  e2 +2 a2  3  e3 +3 a3  4  e4 +4 a4
+#   (1/+/2/+/3/+/4/+ = quarter beats; e = "e of"; a = "and-a of")
+#
+# Beat positions — 6/8 at resolution 12 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11
+#        C1 .  e1 .  a1 .  C2 .  e2 .  a2 .
+#   (C1/C2 = compound beat downbeats; each compound beat = 3 eighth notes = 6 steps)
+#
+# Swing / feel: 'feel' delays the second note of each swung pair, and
+# 'swing_unit' says which notes pair up: 16 = sixteenths (the default),
+# 8 = eighths (jazz, shuffle). Write the grids straight, as a score does.
+#   straight    — every step exactly on the grid
+#   swing_light — light swing, second note at 58 % of the pair (or swing_soft)
+#   swing_hard  — triplet swing, second note at 67 % of the pair
+#   laid_back   — same as straight; drag one instrument with its 'rush'
+#
+# Spaces and '|' inside a grid are ignored. A grid may span two bars, and
+# 'grid: triplet' on a variation splits each beat in three (12 steps in 4/4).
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Half-Time Shuffle
+family: jazz
+bpm_range: [70, 130]
+time_signature: [4, 4]
+resolution: 16
+feel: straight
+
+instruments:
+  kick:       { note: 36, base_velocity: 104, velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.14 }
+  snare:      { note: 38, base_velocity: 104, velocity_range: 14, timing_jitter: 0.016, duration_beats: 0.10 }
+  hihat:      { note: 42, base_velocity: 84,  velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.07 }
+  hihat_open: { note: 46, base_velocity: 86,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.18 }
+  hihat_foot: { note: 44, base_velocity: 72,  velocity_range: 8,  timing_jitter: 0.012, duration_beats: 0.07 }
+  ride:       { note: 51, base_velocity: 86,  velocity_range: 12, timing_jitter: 0.014, duration_beats: 0.12 }
+  crash:      { note: 49, base_velocity: 98,  velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.25 }
+  tom_hi:     { note: 48, base_velocity: 92,  velocity_range: 14, timing_jitter: 0.016, duration_beats: 0.12 }
+  tom_mid:    { note: 45, base_velocity: 92,  velocity_range: 14, timing_jitter: 0.016, duration_beats: 0.12 }
+  tom_lo:     { note: 41, base_velocity: 94,  velocity_range: 14, timing_jitter: 0.016, duration_beats: 0.15 }
+
+humanization:
+  timing_jitter: 0.014
+  velocity_jitter: 12
+  velocity_drift: 0.06
+
+sections:
+  intro:
+    type: count_in
+    hits: 4
+    note: 42
+
+  groove:
+    bars: 1
+    variations:
+      - name: plain_shuffle
+        role: intro
+        weight: 1
+        # The bare half-time shuffle, no ghost notes yet: hi-hat triplets
+        # without their middle note, bass drum on 1, backbeat on 3.
+        grid: triplet
+        hihat: "X.x X.x X.x X.x"
+        snare: "... ... X.. ..."
+        kick:  "X.. ... ... ..."
+
+      - name: purdie
+        role: verse
+        weight: 4
+        # The Purdie shuffle: ghost notes on the middle of every triplet,
+        # the hardest one right after the backbeat, played as a rebound.
+        # The bass drum adds a "ba-bum" on the last triplet of beat 4.
+        grid: triplet
+        hihat: "X.x X.x X.x X.x"
+        snare: ".g. .g. Xg. .g."
+        kick:  "X.. ... ... ..x"
+
+      - name: porcaro
+        role: chorus
+        weight: 2
+        # Busier, in the manner of "Rosanna": a second bass drum on the last
+        # triplet of beat 2 and the hi-hat opening on the last triplet of
+        # beat 4, closing on the next downbeat.
+        grid: triplet
+        hihat:      "X.x X.x X.x X.."
+        hihat_open: "... ... ... ..x"
+        snare:      ".g. .g. Xg. .g."
+        kick:       "X.. ..x ... ..x"
+
+      - name: ride_shuffle
+        role: bridge
+        weight: 1
+        # The same shuffle moved to the ride, the hi-hat foot keeping beats
+        # 2 and 4: the bridge opens up without changing the feel.
+        grid: triplet
+        ride:       "X.x X.x X.x X.x"
+        hihat_foot: "... X.. ... X.."
+        snare:      ".g. .g. Xg. .g."
+        kick:       "X.. ... ..x ..."
+
+  fill:
+    bars: 1
+    variations:
+      - name: triplet_toms
+        # Two beats of time, then triplets from the snare down to the floor
+        # tom, landing on the next downbeat.
+        grid: triplet
+        hihat:  "X.x X.x ... ..."
+        snare:  ".g. .g. Xxx ..."
+        tom_mid: "... ... ... xx."
+        tom_lo: "... ... ... ..X"
+        kick:   "X.. ... ... ..."
+
+      - name: ghost_crescendo
+        # The ghost notes grow into a full snare triplet run on beat 4.
+        grid: triplet
+        hihat: "X.x X.x X.x ..."
+        snare: ".g. .g. Xgo xxX"
+        kick:  "X.. ... ... ..x"
+
+  crash:
+    bars: 1
+    variations:
+      - name: standard
+        # Laid over the groove on the bar after a fill, a break or the
+        # count-in: the cymbal and the low drum on beat 1. The groove
+        # plays everything else.
+        crash: "X..............."
+        kick:  "X..............."
+
+  ending:
+    # Played once at the end of the song; the drums stop after bar 2.
+    type: sequence
+    bars: 2
+    bar_grids:
+      - # Bar 1: shuffle on beats 1 and 2, then band hits on 3 and on the
+        # last triplet of 3, and a tom triplet on 4
+        grid: triplet
+        hihat:   "X.x X.x ... ..."
+        snare:   ".g. .g. X.X ..."
+        kick:    "X.. ... X.X ..."
+        crash:   "... ... X.. ..."
+        tom_hi:  "... ... ... X.."
+        tom_mid: "... ... ... .X."
+        tom_lo:  "... ... ... ..X"
+      - # Bar 2: final hit on beat 1, then silence
+        crash: "X..............."
+        kick:  "X..............."
+
+structure:
+  fill_every: 8
+  break_every: 0
+  break_length: 1
+  crash_after_fill: true
+  dynamic_build: false

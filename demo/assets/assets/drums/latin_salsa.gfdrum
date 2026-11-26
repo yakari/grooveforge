@@ -1,0 +1,194 @@
+# Salsa — son clave 2-3, timbales, congas and the bongo bell
+# Reference: Tito Puente, Eddie Palmieri, Fania All-Stars; the campana
+#            pattern as taught on timba.com ("La Campana")
+# Everything in salsa sits on the clave, a two-bar rhythm. This style is in
+# 2-3: the first bar is the "2" side (beats 2 and 3), the second bar the
+# "3" side (beat 1, the "and" of 2, beat 4). The grooves are two-bar grids
+# ("bar 1 | bar 2"), so every part stays locked to the clave.
+# - Verses: the timbalero plays cascara on the shell of the timbales.
+# - Choruses (the montuno): the bongo player switches to the campana, the
+#   big hand bell, open strokes marking each half bar.
+# - The congas play the tumbao: a slap on 2, open tones on 4 and the "and"
+#   of 4. The bass drum, when used, marks the "bombo", the "and" of 2 on the
+#   3 side.
+# GM notes: 75=claves, 65=high timbale (shell), 66=low timbale, 56=cowbell
+#           (campana), 62=mute high conga, 63=open high conga, 64=low conga
+#           (tumba), 60=high bongo, 73=short guiro, 74=long guiro,
+#           36=kick, 49=crash
+
+#
+# ── Step grid notation ────────────────────────────────────────────────────────
+# Each character in a step grid represents one subdivision of the bar.
+# Resolution controls how many steps per bar (16 = 16th notes in 4/4; 12 = 16th notes in 6/8).
+#
+#   X   Strong accent  — velocity = base_velocity × 1.00  (full hit / downbeat)
+#   x   Medium accent  — velocity = base_velocity × 0.75  (firm stroke / upbeat)
+#   o   Soft hit       — velocity = base_velocity × 0.55  (brush / light touch)
+#   g   Ghost note     — velocity = base_velocity × 0.28  (barely audible, mostly felt)
+#   .   Rest           — no note fired at this step
+#
+# Beat positions — 4/4 at resolution 16 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
+#        1  e1 +1 a1  2  e2 +2 a2  3  e3 +3 a3  4  e4 +4 a4
+#   (1/+/2/+/3/+/4/+ = quarter beats; e = "e of"; a = "and-a of")
+#
+# Beat positions — 6/8 at resolution 12 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11
+#        C1 .  e1 .  a1 .  C2 .  e2 .  a2 .
+#   (C1/C2 = compound beat downbeats; each compound beat = 3 eighth notes = 6 steps)
+#
+# Swing / feel: 'feel' delays the second note of each swung pair, and
+# 'swing_unit' says which notes pair up: 16 = sixteenths (the default),
+# 8 = eighths (jazz, shuffle). Write the grids straight, as a score does.
+#   straight    — every step exactly on the grid
+#   swing_light — light swing, second note at 58 % of the pair (or swing_soft)
+#   swing_hard  — triplet swing, second note at 67 % of the pair
+#   laid_back   — same as straight; drag one instrument with its 'rush'
+#
+# Spaces and '|' inside a grid are ignored. A grid may span two bars, and
+# 'grid: triplet' on a variation splits each beat in three (12 steps in 4/4).
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Salsa
+family: latin
+bpm_range: [160, 220]
+time_signature: [4, 4]
+resolution: 16
+feel: straight
+swing_unit: 16
+
+instruments:
+  clave:        { note: 75, base_velocity: 92,  velocity_range: 8,  timing_jitter: 0.008, duration_beats: 0.08 }
+  timbale_hi:   { note: 65, base_velocity: 82,  velocity_range: 12, timing_jitter: 0.010, duration_beats: 0.08 }
+  timbale_lo:   { note: 66, base_velocity: 96,  velocity_range: 12, timing_jitter: 0.010, duration_beats: 0.10 }
+  campana:      { note: 56, base_velocity: 98,  velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.08 }
+  conga_mute:   { note: 62, base_velocity: 92,  velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.08 }
+  conga_open:   { note: 63, base_velocity: 96,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.10 }
+  conga_lo:     { note: 64, base_velocity: 98,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.12 }
+  bongo:        { note: 60, base_velocity: 80,  velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.06 }
+  guiro_short:  { note: 73, base_velocity: 70,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.06 }
+  guiro_long:   { note: 74, base_velocity: 72,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.20 }
+  kick:         { note: 36, base_velocity: 96,  velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.12 }
+  crash:        { note: 49, base_velocity: 96,  velocity_range: 8,  timing_jitter: 0.008, duration_beats: 0.25 }
+
+humanization:
+  timing_jitter: 0.010
+  velocity_jitter: 10
+  velocity_drift: 0.05
+
+sections:
+  intro:
+    type: count_in
+    hits: 4
+    note: 75
+
+  groove:
+    bars: 1
+    variations:
+      - name: clave_and_tumbao
+        role: intro
+        weight: 1
+        # The clave alone over the congas' tumbao and the güiro: the
+        # rhythm section before the band comes in.
+        clave:       "....X...X....... | X.....X.....X..."
+        conga_mute:  "g.g.X.g.g.g....."
+        conga_open:  "............X.X."
+        guiro_long:  "X.......X......."
+        guiro_short: "....x.x.....x.x."
+
+      - name: cascara
+        role: verse
+        weight: 4
+        # The verse: cascara on the timbale shell (its 2-side half, then its
+        # 3-side half), clave, tumbao, and the bongos' martillo (a steady
+        # pulse with the open stroke on 4).
+        clave:      "....X...X....... | X.....X.....X..."
+        timbale_hi: "X...x...X.x...x. | X...x.x...x...x."
+        conga_mute: "g.g.X.g.g.g....."
+        conga_open: "............X.X."
+        bongo:      "x.g.x.g.x.g.X.g."
+
+      - name: montuno_campana
+        role: chorus
+        weight: 3
+        # The montuno: the campana takes over from the bongos, its open
+        # strokes on each half bar, closed strokes in between; the bass drum
+        # marks the bombo of the 3 side, the low timbale beat 4.
+        clave:      "....X...X....... | X.....X.....X..."
+        campana:    "X...x...X...x.x. | X...x.x.X...x.x."
+        timbale_lo: "............x..."
+        conga_mute: "g.g.X.g.g.g....."
+        conga_open: "............X.X. | ............X..."
+        conga_lo:   "................ | ..............X."
+        kick:       "................ | ......x........."
+
+      - name: mambo_section
+        role: bridge
+        weight: 2
+        # The mambo, the horns' interlude: cascara and campana together, the
+        # band at full power.
+        clave:      "....X...X....... | X.....X.....X..."
+        timbale_hi: "X...x...X.x...x. | X...x.x...x...x."
+        campana:    "X...x...X...x.x. | X...x.x.X...x.x."
+        conga_mute: "g.g.X.g.g.g....."
+        conga_open: "............X.X. | ............X..."
+        conga_lo:   "................ | ..............X."
+        kick:       "................ | ......x.....x..."
+
+  fill:
+    bars: 1
+    variations:
+      - name: abanico
+        # The timbalero's roll: two beats of time, then a roll on the high
+        # timbale growing into a rimshot accent on the "and" of 4.
+        clave:      "X.....X........."
+        conga_mute: "g.g.X.g........."
+        timbale_hi: "........xxxxxxX."
+        timbale_lo: "..............X."
+
+      - name: cierre
+        # The band closes the phrase together on the 3 side of the clave:
+        # beat 1, the "and" of 2, beat 4.
+        timbale_lo: "X.....X.....X..."
+        conga_lo:   "X.....X.....X..."
+        kick:       "X.....X.....X..."
+        clave:      "X.....X.....X..."
+
+      - name: timbale_run
+        # Time on beats 1 and 2, then alternating high and low timbale in
+        # sixteenths, ending on the low drum.
+        clave:      "X.....X........."
+        timbale_hi: "........x.x.x.x."
+        timbale_lo: ".........x.x.x.X"
+
+  crash:
+    bars: 1
+    variations:
+      - name: standard
+        # Laid over the groove on the bar after a fill, a break or the
+        # count-in: the cymbal and the low drum on beat 1. The groove
+        # plays everything else.
+        crash: "X..............."
+        kick:  "X..............."
+
+  ending:
+    # Played once at the end of the song; the drums stop after bar 2.
+    type: sequence
+    bars: 2
+    bar_grids:
+      - # Bar 1: the last 3 side of the clave hit by everybody, the low
+        # timbale and the congas answering on the "and" of 4
+        clave:      "X.....X.....X..."
+        timbale_lo: "X.....X.....X.X."
+        conga_lo:   "X.....X.....X.X."
+        kick:       "X.....X.....X..."
+      - # Bar 2: final hit on beat 1, then silence
+        crash:      "X..............."
+        kick:       "X..............."
+
+structure:
+  fill_every: 8
+  break_every: 0
+  break_length: 1
+  crash_after_fill: true
+  dynamic_build: false

@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Reference for the .gfpd plugin descriptor format: what a custom file can do today, parameters, MIDI nodes, panel controls, and the bundled files to download.">
+  <title>GrooveForge — .gfpd plugin descriptors</title>
+  <link rel="icon" type="image/png" href="../assets/icon.png">
+  <link rel="stylesheet" href="../css/site.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="header-inner">
+      <input type="checkbox" id="gf-nav-menu" class="nav-toggle-input">
+      <a class="brand" href="../">
+        <img src="../assets/icon.png" width="40" height="40" alt="">
+        GrooveForge
+      </a>
+      <div class="header-triggers">
+        <span class="lang-switch" aria-label="Language">
+          <span class="lang-current" aria-current="true">EN</span>
+          <span class="lang-sep" aria-hidden="true">·</span>
+          <a href="../fr/gfpd/" hreflang="fr">FR</a>
+        </span>
+        <label for="gf-nav-menu" class="nav-toggle-label">Menu</label>
+      </div>
+      <nav class="site-nav" aria-label="Primary">
+        <a href="../guide/">Guide</a>
+        <a href="../rehearsals/">Rehearsals</a>
+        <a href="../modules/">Modules</a>
+        <a href="../midi-fx/">MIDI FX</a>
+        <a href="../vst/">VST3</a>
+        <a href="../gfdrum/">Rhythmic patterns</a>
+        <a href="../gfpd/">Plugin descriptors</a>
+        <a href="../features/">All features</a>
+        <a href="../demo/" class="nav-cta">Try web demo</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="prose">
+    <div class="page-hero">
+      <h1><code>.gfpd</code> plugin descriptors</h1>
+      <p class="lead">A <code>.gfpd</code> file is a YAML text file that describes a GrooveForge plugin: its parameters, what it does,
+        and the controls on its panel. Every bundled effect and MIDI FX has one.</p>
+    </div>
+
+    <h2 id="what-works">What a file of your own can do today</h2>
+    <table>
+      <thead><tr><th><code>type</code></th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td><code>midi_fx</code></td><td>Works. The app runs your chain of MIDI nodes on the notes that reach the module.</td></tr>
+        <tr><td><code>effect</code></td><td>Works. The app builds your <a href="#graph">audio graph</a> and runs it on the sound, wherever the bundled effects play.
+          If the graph cannot be built (an unknown node type or port, a loop, no <code>audio_out</code>), the panel says the plugin has no sound.</td></tr>
+        <tr><td><code>instrument</code>, <code>analyzer</code></td><td>Panel only: the file loads and shows its panel, but makes no sound. The only bundled instrument, Riff, is built-in code.</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="load">Load a file</h2>
+    <ol>
+      <li>Tap <span class="ui">+</span>, then <span class="ui">Load .gfpd from file…</span>.</li>
+      <li>Pick your file.</li>
+    </ol>
+    <p class="recipe-result">The plugin is added to the rack as a new module, and to the <span class="ui">+</span> menu.</p>
+    <ul>
+      <li>The plugin stays in the <span class="ui">+</span> menu after a restart. The cross next to it removes it from the menu.</li>
+      <li>To try an edit, load the file again. The modules already in the rack switch to the new version and keep their knob positions.</li>
+      <li>A project saves a copy of the plugins it uses, so it plays on a device that never had the file.</li>
+      <li>Your <code>id</code> must not start with <code>com.grooveforge.</code>: those ids belong to the modules that come with the app, and the app refuses the file.</li>
+      <li>If the file is not a valid plugin, the app says so and adds nothing.</li>
+    </ul>
+
+    <h2 id="example">Example: a MIDI transposer</h2>
+    <p>This is the bundled <code>transposer.gfpd</code>, without its comments.</p>
+    <pre><code>spec: "1.0"
+id: "com.grooveforge.transposer"
+name: "Transposer"
+version: "1.0.0"
+type: midi_fx
+
+parameters:
+  - id: semitones
+    paramId: 0
+    name: "Semitones"
+    min: -24
+    max: 24
+    default: 0
+    unit: "st"
+
+midi_nodes:
+  - id: tr
+    type: transpose
+    params:
+      semitones: { param: semitones }
+
+ui:
+  layout: grid
+  groups:
+    - label: "Pitch Shift"
+      controls:
+        - type: knob
+          param: semitones
+          label: "Semitones"</code></pre>
+    <p>For your own plugin, change <code>id</code> first, to something like <code>com.yourname.transposer</code>:
+      the app refuses ids that start with <code>com.grooveforge.</code> (see <a href="#load">Load a file</a>).</p>
+
+    <h2 id="top-level">Top-level fields</h2>
+    <table>
+      <thead><tr><th>Field</th><th>What it does</th></tr></thead>
+      <tbody>
+        <tr><td><code>id</code></td><td>Unique name in reverse-domain form, like <code>com.yourname.myfx</code>. Projects refer to the plugin by it, so never change it once people use your file.</td></tr>
+        <tr><td><code>name</code></td><td>Name shown in the rack.</td></tr>
+        <tr><td><code>version</code></td><td>Your version number, as text.</td></tr>
+        <tr><td><code>type</code></td><td><code>midi_fx</code> (or <code>midifx</code>), <code>effect</code>, <code>instrument</code> or <code>analyzer</code>. Missing or unknown means <code>effect</code>.</td></tr>
+        <tr><td><code>parameters</code></td><td>The settings the user can change. See <a href="#parameters">Parameters</a>.</td></tr>
+        <tr><td><code>midi_nodes</code></td><td>For <code>midi_fx</code>: the processing chain. See <a href="#midi-nodes">MIDI nodes</a>.</td></tr>
+        <tr><td><code>graph</code></td><td>For <code>effect</code>: the audio graph. See <a href="#graph">Audio graph</a>.</td></tr>
+        <tr><td><code>ui</code></td><td>The panel. See <a href="#ui">Panel</a>.</td></tr>
+      </tbody>
+    </table>
+    <p class="recipe-note">The bundled files start with <code>spec: "1.0"</code>. The app reads it but does not check it.</p>
+
+    <h2 id="parameters">Parameters</h2>
+    <p>A list under <code>parameters:</code>, one entry per setting.</p>
+    <table>
+      <thead><tr><th>Field</th><th>If missing</th><th>What it does</th></tr></thead>
+      <tbody>
+        <tr><td><code>id</code></td><td>(required)</td><td>Text key. Nodes and controls refer to it, and projects save the value under it.</td></tr>
+        <tr><td><code>paramId</code></td><td><code>0</code></td><td>Number, unique within the file. Never reuse or renumber one once the file is in use.</td></tr>
+        <tr><td><code>name</code></td><td>Empty</td><td>Label under the control.</td></tr>
+        <tr><td><code>min</code>, <code>max</code></td><td><code>0</code></td><td>Range shown on the panel.</td></tr>
+        <tr><td><code>default</code></td><td><code>0</code></td><td>Starting value, between <code>min</code> and <code>max</code>.</td></tr>
+        <tr><td><code>unit</code></td><td>Empty</td><td>Text after the value, like <code>ms</code> or <code>%</code>.</td></tr>
+        <tr><td><code>type</code></td><td><code>float</code></td><td><code>float</code> (continuous), <code>toggle</code> (off/on) or <code>selector</code> (one of <code>options</code>).</td></tr>
+        <tr><td><code>options</code></td><td>None</td><td>For a <code>selector</code>: the labels, in order. Set <code>min: 0</code> and <code>max</code> to the number of options minus one.</td></tr>
+        <tr><td><code>display</code></td><td>No readout</td><td>Prints the value under the control: <code>integer</code> (rounded), <code>value</code> (rounded, with the unit)
+          or <code>interval</code> (semitones with the interval name).</td></tr>
+      </tbody>
+    </table>
+    <p>
+      Nodes do not see <code>min</code> and <code>max</code>. They receive the control's position from 0 to 1 and apply their own range:
+      <code>transpose</code> always maps 0 to 1 onto −24 to +24 semitones. When you reuse a node, copy the range from the bundled file that uses it,
+      or the panel will show one value while the node plays another.
+    </p>
+
+    <h2 id="midi-nodes">MIDI nodes</h2>
+    <p>
+      A list under <code>midi_nodes:</code>. Notes go through the nodes in the order of the list. Each node has an <code>id</code>, a
+      <code>type</code> and <code>params</code>. A node parameter is either linked to a plugin parameter, <code>{ param: semitones }</code>,
+      or fixed, <code>{ value: 0.5 }</code>. A fixed value is on the same 0-to-1 scale.
+    </p>
+    <table>
+      <thead><tr><th>Node <code>type</code></th><th>Node parameters</th><th>Bundled example</th></tr></thead>
+      <tbody>
+        <tr><td><code>transpose</code></td><td><code>semitones</code></td><td><code>transposer.gfpd</code></td></tr>
+        <tr><td><code>gate</code></td><td><code>minVelocity</code>, <code>maxVelocity</code>, <code>minPitch</code>, <code>maxPitch</code></td><td><code>gate.gfpd</code></td></tr>
+        <tr><td><code>harmonize</code></td><td><code>voiceCount</code>, <code>interval1</code> to <code>interval4</code>, <code>snapToScale</code></td><td><code>harmonizer.gfpd</code></td></tr>
+        <tr><td><code>chord_expand</code></td><td><code>chordType</code>, <code>spread</code>, <code>snapToScale</code></td><td><code>chord_expand.gfpd</code></td></tr>
+        <tr><td><code>arpeggiate</code></td><td><code>pattern</code>, <code>division</code>, <code>gate</code>, <code>octaves</code></td><td><code>arpeggiator.gfpd</code></td></tr>
+        <tr><td><code>velocity_curve</code></td><td><code>mode</code>, <code>amount</code></td><td><code>velocity_curve.gfpd</code></td></tr>
+        <tr><td><code>microtone</code></td><td><code>chordWindow</code>, <code>clusterMode</code>, <code>bendRange</code>, <code>velocityMode</code></td><td><code>microtone.gfpd</code></td></tr>
+      </tbody>
+    </table>
+    <p>One unknown node type disables the whole chain.</p>
+
+    <h2 id="graph">Audio graph</h2>
+    <p>
+      An effect describes its processing under <code>graph:</code>, with <code>nodes</code> and <code>connections</code>. The bundled effects
+      are good examples to copy:
+    </p>
+    <pre><code>graph:
+  nodes:
+    - id: in
+      type: audio_in
+    - id: rev
+      type: freeverb
+      params:
+        roomSize: { param: room_size }
+    - id: mix_nd
+      type: wet_dry
+      params:
+        mix: { param: mix }
+    - id: out
+      type: audio_out
+  connections:
+    - from: in.out
+      to: [rev.in, mix_nd.dry]
+    - from: rev.out
+      to: mix_nd.wet
+    - from: mix_nd.out
+      to: out.in</code></pre>
+    <p>
+      <code>audio_in</code> and <code>audio_out</code> are the plugin's input and output. The other node types are <code>gain</code>,
+      <code>wet_dry</code>, <code>freeverb</code>, <code>biquad_filter</code>, <code>delay</code>, <code>wah_filter</code>,
+      <code>compressor</code> and <code>chorus</code>. A connection goes from <code>node.port</code> to one target or a list.
+      Without a port, <code>from</code> means <code>out</code> and <code>to</code> means <code>in</code>. Several connections into one input are added together.
+    </p>
+    <p>
+      Under <code>params</code>, <code>{ param: id }</code> makes a node setting follow one of your parameters: the knob's position, from 0 at its
+      <code>min</code> to 1 at its <code>max</code>, is what the node receives. <code>{ value: n }</code> sets it once, with <code>n</code> between 0 and 1 too.
+      Every node outputs on <code>out</code>. The effect nodes <code>freeverb</code>, <code>delay</code>, <code>wah_filter</code> and <code>compressor</code> output the effect alone:
+      blend it with the dry signal through <code>wet_dry</code>. <code>chorus</code> has its own <code>mix</code>.
+    </p>
+    <table>
+      <thead><tr><th>Node <code>type</code></th><th>Inputs</th><th>Parameters (0 to 1 maps to)</th></tr></thead>
+      <tbody>
+        <tr><td><code>gain</code></td><td><code>in</code></td><td><code>gain</code> (x0 to x2, 0.5 = unchanged)</td></tr>
+        <tr><td><code>wet_dry</code></td><td><code>wet</code>, <code>dry</code></td><td><code>mix</code> (all dry to all wet)</td></tr>
+        <tr><td><code>biquad_filter</code></td><td><code>in</code></td><td><code>freq</code> (20 Hz to 20 kHz), <code>q</code> (0.1 to 20), <code>gain</code> (-24 to +24 dB),
+          <code>mode</code> (0 low pass, 0.167 high pass, 0.333 band pass, 0.5 notch, 0.667 peaking, 0.833 low shelf, 1 high shelf)</td></tr>
+        <tr><td><code>freeverb</code></td><td><code>in</code></td><td><code>roomSize</code>, <code>damping</code>, <code>width</code></td></tr>
+        <tr><td><code>delay</code></td><td><code>in</code></td><td><code>timeMs</code> (1 to 2000 ms), <code>feedback</code>, <code>bpmSync</code>, <code>beatDiv</code></td></tr>
+        <tr><td><code>wah_filter</code></td><td><code>in</code></td><td><code>center</code>, <code>resonance</code>, <code>rate</code>, <code>depth</code>, <code>waveform</code>,
+          <code>bpmSync</code>, <code>beatDiv</code>, <code>mode</code>, <code>pedal</code></td></tr>
+        <tr><td><code>compressor</code></td><td><code>in</code></td><td><code>threshold</code> (-60 to 0 dB), <code>ratio</code> (1 to 20), <code>attack</code>, <code>release</code>, <code>makeup</code> (0 to 24 dB)</td></tr>
+        <tr><td><code>chorus</code></td><td><code>in</code></td><td><code>rate</code>, <code>depth</code>, <code>delay</code>, <code>mix</code>, <code>feedback</code>, <code>bpmSync</code>, <code>beatDiv</code></td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="ui">Panel</h2>
+    <p>Under <code>ui:</code>, either a flat <code>controls:</code> list or a list of <code>groups:</code>. When both are there, the groups win.</p>
+    <table>
+      <thead><tr><th>Field</th><th>What it does</th></tr></thead>
+      <tbody>
+        <tr><td><code>layout</code></td><td>Without groups: <code>row</code> (the default, one line that scrolls) or <code>grid</code> (wraps onto several lines).
+          With groups: <code>lanes</code> stacks each group on its own line; anything else places the groups to fit the screen.</td></tr>
+        <tr><td><code>groups</code></td><td>Each group has a <code>label</code> and its own <code>controls</code> list.</td></tr>
+        <tr><td><code>activeWhen</code></td><td>On a group, with <code>layout: lanes</code> only: <code>{ param: voice_count, atLeast: 2 }</code> greys the group out
+          while that parameter is below 2. The value is compared in the parameter's own units.</td></tr>
+      </tbody>
+    </table>
+    <p>Each control has a <code>type</code>, and most have a <code>param</code> (a parameter <code>id</code>). <code>label</code> replaces the parameter's
+      name, and <code>size</code> is <code>small</code>, <code>medium</code> (the default) or <code>large</code>.</p>
+    <table>
+      <thead><tr><th>Control <code>type</code></th><th>Shows</th></tr></thead>
+      <tbody>
+        <tr><td><code>knob</code></td><td>A rotary knob. Also used for a missing or unknown type.</td></tr>
+        <tr><td><code>slider</code></td><td>A slider.</td></tr>
+        <tr><td><code>toggle</code></td><td>An on/off button.</td></tr>
+        <tr><td><code>selector</code></td><td>A choice between the parameter's <code>options</code>.</td></tr>
+        <tr><td><code>interval</code></td><td>A bar for picking an interval in semitones.</td></tr>
+        <tr><td><code>vumeter</code></td><td>A level meter. No <code>param</code>.</td></tr>
+        <tr><td><code>button</code></td><td>With <code>action: reset</code>, puts every parameter back to its default. No <code>param</code>.</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="languages">Labels in several languages</h2>
+    <p>
+      Wherever a file takes a text that the user reads (the plugin <code>name</code>, a parameter <code>name</code>, a group or control
+      <code>label</code>, each entry of <code>options</code>), you can write it once per language instead of as a single string:
+    </p>
+    <pre><code>name: {en: "Noise Gate", fr: "Porte de bruit"}
+
+parameters:
+  - id: mode
+    name: {en: "Mode", fr: "Mode"}
+    type: selector
+    options: [{en: "Soft", fr: "Doux"}, {en: "Hard", fr: "Dur"}]
+
+ui:
+  groups:
+    - label: {en: "Gate", fr: "Porte"}</code></pre>
+    <ul>
+      <li>The panel and the module's name in the rack use the entry for the app's language. If there is none, they use
+        <code>en</code>, then the first entry.</li>
+      <li>A plain string still works and reads the same in every language. You can mix both forms in one file, even in one
+        <code>options</code> list.</li>
+      <li>The <span class="ui">+</span> menu shows the <code>en</code> text.</li>
+    </ul>
+
+    <h2>Going further</h2>
+    <p>
+      The repository's
+      <a href="https://github.com/yakari/grooveforge/blob/main/assets/plugins/HOW_TO_CREATE_A_PLUGIN.md"><code>HOW_TO_CREATE_A_PLUGIN.md</code></a>
+      is written for people building the app from source, who add <code>.gfpd</code> files to its assets.
+    </p>
+
+    <h2 id="downloads">Bundled files</h2>
+    <p>These links download the current files from the <code>main</code> branch on GitHub.</p>
+    <table class="download-table">
+      <thead><tr><th>File</th><th>Kind</th></tr></thead>
+      <tbody>
+        <tr><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/plugins/reverb.gfpd" download>reverb.gfpd</a></td><td>Audio effect: plate reverb</td></tr>
+        <tr><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/plugins/delay.gfpd" download>delay.gfpd</a></td><td>Audio effect: ping-pong delay</td></tr>
+        <tr><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/plugins/wah.gfpd" download>wah.gfpd</a></td><td>Audio effect: wah (auto or pedal)</td></tr>
+        <tr><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/plugins/eq.gfpd" download>eq.gfpd</a></td><td>Audio effect: 4-band EQ</td></tr>
+        <tr><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/plugins/compressor.gfpd" download>compressor.gfpd</a></td><td>Audio effect: compressor</td></tr>
+        <tr><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/plugins/chorus.gfpd" download>chorus.gfpd</a></td><td>Audio effect: chorus / flanger</td></tr>
+        <tr><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/plugins/audio_harmonizer.gfpd" download>audio_harmonizer.gfpd</a></td><td>Audio effect: harmonizer</td></tr>
+        <tr><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/plugins/autotune.gfpd" download>autotune.gfpd</a></td><td>Audio effect: autotune</td></tr>
+        <tr><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/plugins/amp.gfpd" download>amp.gfpd</a></td><td>Audio effect: guitar amp</td></tr>
+        <tr><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/plugins/riff.gfpd" download>riff.gfpd</a></td><td>Instrument: Riff guitar</td></tr>
+        <tr><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/plugins/harmonizer.gfpd" download>harmonizer.gfpd</a></td><td>MIDI FX: harmonizer</td></tr>
+        <tr><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/plugins/chord_expand.gfpd" download>chord_expand.gfpd</a></td><td>MIDI FX: chord expand</td></tr>
+        <tr><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/plugins/arpeggiator.gfpd" download>arpeggiator.gfpd</a></td><td>MIDI FX: arpeggiator</td></tr>
+        <tr><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/plugins/transposer.gfpd" download>transposer.gfpd</a></td><td>MIDI FX: transposer</td></tr>
+        <tr><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/plugins/velocity_curve.gfpd" download>velocity_curve.gfpd</a></td><td>MIDI FX: velocity curve</td></tr>
+        <tr><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/plugins/gate.gfpd" download>gate.gfpd</a></td><td>MIDI FX: gate</td></tr>
+        <tr><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/plugins/microtone.gfpd" download>microtone.gfpd</a></td><td>MIDI FX: microtone</td></tr>
+      </tbody>
+    </table>
+    <p><a href="../gfdrum/">← .gfdrum</a> · <a href="../features/">Full feature list →</a></p>
+  </main>
+
+  <footer class="site-footer">
+    <p><a href="https://github.com/yakari/grooveforge">GitHub</a> · <a href="../privacy/">Privacy</a></p>
+  </footer>
+</body>
+</html>

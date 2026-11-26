@@ -1,0 +1,183 @@
+# Festive Fanfare — the drummers of a street brass band
+# Reference: French "fanfares de rue", the bandas of the South-West, student
+#            and village brass bands at festivals
+# The drummers walk with the band, so they carry little: a bass drum with a
+# cymbal mounted on top (one stroke sounds both), a snare, a hand cymbal,
+# and whatever percussion is at hand (a cowbell, a wood block, a triangle).
+# They play with energy: a steady bass drum, a busy snare, the little
+# percussion on top. For a looser, more amateur band, turn the module's
+# Human feel up.
+# GM notes: 36=bass drum, 38=snare, 49=cymbal on the bass drum, 57=hand
+#           cymbal, 56=cowbell, 76=high wood block, 77=low wood block,
+#           81=open triangle
+
+#
+# ── Step grid notation ────────────────────────────────────────────────────────
+# Each character in a step grid represents one subdivision of the bar.
+# Resolution controls how many steps per bar (16 = 16th notes in 4/4; 12 = 16th notes in 6/8).
+#
+#   X   Strong accent  — velocity = base_velocity × 1.00  (full hit / downbeat)
+#   x   Medium accent  — velocity = base_velocity × 0.75  (firm stroke / upbeat)
+#   o   Soft hit       — velocity = base_velocity × 0.55  (brush / light touch)
+#   g   Ghost note     — velocity = base_velocity × 0.28  (barely audible, mostly felt)
+#   .   Rest           — no note fired at this step
+#
+# Beat positions — 4/4 at resolution 16 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
+#        1  e1 +1 a1  2  e2 +2 a2  3  e3 +3 a3  4  e4 +4 a4
+#   (1/+/2/+/3/+/4/+ = quarter beats; e = "e of"; a = "and-a of")
+#
+# Beat positions — 6/8 at resolution 12 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11
+#        C1 .  e1 .  a1 .  C2 .  e2 .  a2 .
+#   (C1/C2 = compound beat downbeats; each compound beat = 3 eighth notes = 6 steps)
+#
+# Swing / feel: 'feel' delays the second note of each swung pair, and
+# 'swing_unit' says which notes pair up: 16 = sixteenths (the default),
+# 8 = eighths (jazz, shuffle). Write the grids straight, as a score does.
+#   straight    — every step exactly on the grid
+#   swing_light — light swing, second note at 58 % of the pair (or swing_soft)
+#   swing_hard  — triplet swing, second note at 67 % of the pair
+#   laid_back   — same as straight; drag one instrument with its 'rush'
+#
+# Spaces and '|' inside a grid are ignored. A grid may span two bars, and
+# 'grid: triplet' on a variation splits each beat in three (12 steps in 4/4).
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Festive Fanfare
+family: world
+bpm_range: [100, 150]
+time_signature: [4, 4]
+resolution: 16
+feel: straight
+swing_unit: 8
+
+instruments:
+  kick:     { note: 36, base_velocity: 110, velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.20 }
+  cymbal:   { note: 49, base_velocity: 82,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.20 }
+  snare:    { note: 38, base_velocity: 100, velocity_range: 12, timing_jitter: 0.014, duration_beats: 0.08 }
+  hand_cym: { note: 57, base_velocity: 92,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.25 }
+  cowbell:  { note: 56, base_velocity: 88,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.08 }
+  block_hi: { note: 76, base_velocity: 88,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.06 }
+  block_lo: { note: 77, base_velocity: 88,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.06 }
+  triangle: { note: 81, base_velocity: 78,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.30 }
+  crash:    { note: 57, base_velocity: 100, velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.30 }
+
+humanization:
+  timing_jitter: 0.012
+  velocity_jitter: 10
+  velocity_drift: 0.06
+
+sections:
+  intro:
+    type: count_in
+    hits: 4
+    note: 56
+
+  groove:
+    bars: 1
+    variations:
+      - name: bass_and_bell
+        role: intro
+        weight: 1
+        # The bass drum walks on every beat, the cowbell on top: the band
+        # gathers before the brass comes in.
+        kick:    "X... x... X... x..."
+        cowbell: "X... X... X... X..."
+
+      - name: boum_tchak
+        role: verse
+        weight: 4
+        # The "boum-tchak" of every street band: bass drum on the beat, the
+        # cymbal on its top answering on the off-beat, a snare backbeat with
+        # a pickup now and then.
+        kick:   "X... x... X... x..."
+        cymbal: "..x. ..x. ..x. ..x."
+        snare:  ".... X..g .... X.g."
+
+      - name: tutti
+        role: chorus
+        weight: 3
+        # The chorus, everybody at once: the hand cymbal on 2 and 4, the
+        # snare in eighths, the cowbell on every beat.
+        kick:     "X... x... X... x..."
+        cymbal:   "..x. ..x. ..x. ..x."
+        hand_cym: ".... X... .... X..."
+        snare:    "x.x. X.x. x.x. X.xx"
+        cowbell:  "X... X... X... X..."
+
+      - name: batuc
+        role: bridge
+        weight: 2
+        # The samba number every fanfare plays: the bass drum on the 3+3+2,
+        # the snare in sixteenths, the wood blocks on a teleco-teco.
+        kick:     "X..X ..X. X..X ..X."
+        snare:    "XggX ggXg XggX ggXg"
+        block_hi: "X.x. .x.x .x.. x.x."
+        block_lo: ".... X... .... X..."
+        triangle: "x.X. x.X. x.X. x.X."
+
+  fill:
+    bars: 1
+    variations:
+      - name: ras
+        # A snare roll swelling from soft to loud, the bass drum keeping the
+        # strong beats.
+        kick:  "X... .... X... ...."
+        snare: "o.o. oooo xxxx XXXX"
+
+      - name: tutti_stop
+        # The whole band stops on the "and" of 3: bass drum, snare and hand
+        # cymbal together, then a snare pickup.
+        kick:     "X... X... X.X. ...."
+        snare:    "X... X... X.X. .xXX"
+        hand_cym: ".... .... ..X. ...."
+
+      - name: cowbell_call
+        # The cowbell calls and the band answers.
+        cowbell: "X.X. X.X. .... ...."
+        kick:    ".... .... X..X ..X."
+        snare:   ".... .... X..X ..XX"
+
+  break:
+    # A stop: one hit and the band shouts, then the snare brings it back.
+    type: sequence
+    bars: 2
+    bar_grids:
+      - # Bar 1: everybody on beat 1, then silence for the shout
+        kick:     "X..............."
+        hand_cym: "X..............."
+        snare:    "X..............."
+      - # Bar 2: the snare's pickup into the groove
+        kick:  "............X..."
+        snare: "....x.x.xxxxXXXX"
+
+  crash:
+    bars: 1
+    variations:
+      - name: standard
+        # Laid over the groove on the bar after a fill, a break or the
+        # count-in: the cymbal and the low drum on beat 1. The groove
+        # plays everything else.
+        crash: "X..............."
+        kick:  "X..............."
+
+  ending:
+    # Played once at the end of the song; the drums stop after bar 2.
+    type: sequence
+    bars: 2
+    bar_grids:
+      - # Bar 1: the last chorus hits by the whole band, a roll on beat 4
+        kick:     "X..X..X.....X..."
+        snare:    "X..X..X.....xxXX"
+        hand_cym: "X..X..X........."
+      - # Bar 2: final hit on beat 1, then silence
+        crash: "X..............."
+        kick:  "X..............."
+
+structure:
+  fill_every: 4
+  break_every: 0
+  break_length: 2
+  crash_after_fill: true
+  dynamic_build: true

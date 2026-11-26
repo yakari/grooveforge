@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="GrooveForge MIDI FX: add harmony, chords or an arpeggio to what you play, lock the keyboard to a scale with Xen, and how to cable them.">
+  <title>GrooveForge — MIDI FX</title>
+  <link rel="icon" type="image/png" href="../assets/icon.png">
+  <link rel="stylesheet" href="../css/site.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="header-inner">
+      <input type="checkbox" id="gf-nav-menu" class="nav-toggle-input">
+      <a class="brand" href="../">
+        <img src="../assets/icon.png" width="40" height="40" alt="">
+        GrooveForge
+      </a>
+      <div class="header-triggers">
+        <span class="lang-switch" aria-label="Language">
+          <span class="lang-current" aria-current="true">EN</span>
+          <span class="lang-sep" aria-hidden="true">·</span>
+          <a href="../fr/midi-fx/" hreflang="fr">FR</a>
+        </span>
+        <label for="gf-nav-menu" class="nav-toggle-label">Menu</label>
+      </div>
+      <nav class="site-nav" aria-label="Primary">
+        <a href="../guide/">Guide</a>
+        <a href="../rehearsals/">Rehearsals</a>
+        <a href="../modules/">Modules</a>
+        <a href="../midi-fx/">MIDI FX</a>
+        <a href="../vst/">VST3</a>
+        <a href="../gfdrum/">Rhythmic patterns</a>
+        <a href="../gfpd/">Plugin descriptors</a>
+        <a href="../features/">All features</a>
+        <a href="../demo/" class="nav-cta">Try web demo</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="prose">
+    <div class="page-hero">
+      <h1>MIDI FX</h1>
+      <p class="lead">Modules that change the notes you play before an instrument hears them: add harmony, turn one key into a chord, play an arpeggio.</p>
+    </div>
+
+    <p>
+      A MIDI FX makes no sound of its own. It works on the notes (MIDI) of the instrument cabled into it, and that instrument plays the result.
+      They all work in the <a href="../demo/">web demo</a> too. You find them under <span class="ui">Built-in MIDI FX</span> in the <span class="ui">+</span> sheet.
+    </p>
+
+    <ul class="recipe-index" aria-label="MIDI FX">
+      <li><a href="#connect">Connect a MIDI FX</a></li>
+      <li><a href="#harmonizer">Harmonizer</a></li>
+      <li><a href="#chord-expand">Chord Expand</a></li>
+      <li><a href="#arpeggiator">Arpeggiator</a></li>
+      <li><a href="#transposer">Transposer</a></li>
+      <li><a href="#velocity-curve">Velocity Curve</a></li>
+      <li><a href="#gate">Gate</a></li>
+      <li><a href="#microtone">Microtone</a></li>
+      <li><a href="#xen">Xen</a></li>
+    </ul>
+
+    <h2 id="connect">Connect a MIDI FX</h2>
+    <p class="recipe-goal">Here a Harmonizer adds two notes above every key you press on the keyboard.</p>
+    <ol>
+      <li>Tap <span class="ui">+</span> and pick <span class="ui">Harmonizer</span>.</li>
+      <li>Tap the cable icon at the top to open <span class="ui">Patch view</span>.</li>
+      <li>Long-press the keyboard's yellow <code>MIDI OUT</code> and drag it to the Harmonizer's <code>MIDI IN</code>.</li>
+      <li>Tap the back arrow and play.</li>
+    </ol>
+    <p class="recipe-result">Each key now plays three notes. You do not cable anything out of the Harmonizer: the keyboard plays what it sends back.</p>
+    <ul>
+      <li>It works on instruments that make their own sound: the keyboard with a soundfont, the Vocoder, the Stylophone and the Theremin.
+        A keyboard set to <span class="ui">None (MIDI only)</span> passes the result on to the instruments its <code>MIDI OUT</code> is cabled to.</li>
+      <li>To use two MIDI FX on one keyboard, cable the keyboard's <code>MIDI OUT</code> to each of them.
+        They apply from top to bottom, in the order they sit in the rack, whether you play on the screen or on a controller.</li>
+      <li>The power button at the top of a MIDI FX switches it off (<span class="ui">Bypass</span>). To flip it from a pad on your controller,
+        see <a href="../guide/#learn">Map a knob</a>.</li>
+    </ul>
+
+    <h2 id="harmonizer">Harmonizer</h2>
+    <p>
+      Adds up to four notes above each note you play. <span class="ui">Voices</span> sets how many, and each voice
+      (<span class="ui">V1</span> to <span class="ui">V4</span>) sets its distance in semitones, up to two octaves. The readout names the interval:
+      +4 is a major third, +7 a perfect fifth, which is the default pair.
+    </p>
+    <p>
+      With <span class="ui">Scale Lock</span> on, harmony notes move to the nearest note of the scale your keyboard is locked to by Xen or Jam Mode,
+      so the harmony stays in key. To set the intervals by playing, cable a keyboard's <code>CHORD OUT</code> into the Harmonizer's
+      <code>CHORD IN</code> and hold a chord: the notes above the lowest one become the voices.
+      For harmony on a voice or a guitar instead of on notes, use the <a href="../modules/#audio-harmonizer">Audio Harmonizer</a>.
+    </p>
+
+    <h2 id="chord-expand">Chord Expand</h2>
+    <p>
+      Turns each key into a full chord, with the key you press as the root. Pick the <span class="ui">Chord Type</span>
+      (Maj, Min, Dim, Aug, Sus2, Sus4, Dom7, Maj7, Min7, m7b5, Dim7). <span class="ui">Spread</span> stacks the notes
+      <span class="ui">Close</span>, or moves some of them an octave up (<span class="ui">Open</span>, <span class="ui">Wide</span>).
+      <span class="ui">Scale Lock</span>, on by default, moves chord notes into the locked scale.
+    </p>
+
+    <h2 id="arpeggiator">Arpeggiator</h2>
+    <p>
+      Hold a chord and it plays the notes one after another, in time with the tempo at the top of the screen, even when the transport is stopped.
+      <span class="ui">Pattern</span> sets the order (Up, Down, UpDown, DnUp, Played, Random), <span class="ui">Division</span> the note length
+      (1/4 to 1/128, and triplets), <span class="ui">Gate</span> how long each note lasts, and <span class="ui">Octaves</span> whether it climbs over 1, 2 or 3 octaves.
+    </p>
+
+    <h2 id="transposer">Transposer</h2>
+    <p>
+      Moves every note up or down. <span class="ui">Semitones</span> goes from -24 to +24: +12 is an octave up.
+      Use it to play a song in another key with the fingering you know.
+    </p>
+
+    <h2 id="velocity-curve">Velocity Curve</h2>
+    <p>
+      Changes how hard or soft your playing sounds. <span class="ui">Mode</span> is <span class="ui">Power</span> or <span class="ui">Sigmoid</span>
+      (two curve shapes; <span class="ui">Amount</span> sets how strong) or <span class="ui">Fixed</span>, where every note plays at the strength
+      set by <span class="ui">Amount</span>. It is for a MIDI controller with touch-sensitive keys: the on-screen keys always play at the same strength.
+    </p>
+
+    <h2 id="gate">Gate</h2>
+    <p>
+      Lets through only the notes inside a range. <span class="ui">Min Vel</span> and <span class="ui">Max Vel</span> set how soft and how hard a note may be;
+      <span class="ui">Min Note</span> and <span class="ui">Max Note</span> set the lowest and highest key, numbered 0 to 127 (middle C is 60).
+      For example, set Min Note to 60 and the instrument only answers middle C and above.
+    </p>
+
+    <h2 id="microtone">Microtone</h2>
+    <p>
+      Plays the notes between the piano keys. Hold two neighbouring keys and you hear one note halfway between them, made with pitch bend.
+      It plays one note at a time. <span class="ui">Delay</span> is how long it waits for your other fingers before sounding (0 plays at once).
+      <span class="ui">Mode</span> picks how the held keys are averaged, and <span class="ui">Velocity</span> takes the average strength or the last note's.
+      Leave <span class="ui">Bend Range</span> on ±2 st unless the instrument it plays uses a wider pitch-bend range.
+      To play a whole scale in tune, chords included, use Xen instead.
+    </p>
+
+    <section class="recipe" id="xen">
+      <div class="recipe-clips">
+        <figure class="clip">
+          <video src="../clips/xen-pick-scale.mp4" poster="../clips/xen-pick-scale.jpg" width="540" height="1236" muted loop playsinline controls preload="none" aria-label="Switching Xen on and picking a scale"></video>
+        </figure>
+      </div>
+      <div>
+        <h2>Xen</h2>
+        <p class="recipe-goal">Locks the keyboard to a scale you choose, and retunes it for scales that use notes between the piano keys.</p>
+        <p>
+          A new project already has a Xen module cabled to the keyboard. Switch it on with <span class="ui">ON</span>, then hold a key
+          and tap a scale: the key you hold becomes the root. The steps are in <a href="../guide/#scale">Play in a scale</a>.
+        </p>
+        <ul>
+          <li><span class="ui">SNAP</span> moves keys outside the scale to the nearest note that fits. Those keys turn grey.</li>
+          <li><span class="ui">TUNE</span> retunes keys for scales that are not played on a piano, such as a maqam or a raga.
+            Retuned keys get a teal band and show how many cents they move.</li>
+          <li><span class="ui">FAMILY</span> picks the tradition: Western, Maqam, Raga, Gamelan, Temperaments and more.
+            <span class="ui">My Scales</span> holds the ones you build or import (Scala <code>.scl</code> files work).</li>
+          <li>The <span class="ui">ROOT</span> row sets the root without playing it.</li>
+        </ul>
+        <p>
+          Xen reaches an instrument through two purple and teal cables, also listed on its panel under
+          <span class="ui">SCALE LOCK</span> and <span class="ui">RETUNE</span>: <code>SCALE OUT</code> into the keyboard's
+          <code>SCALE IN</code> locks it to the scale, and <code>TUNE OUT</code> into <code>TUNE IN</code> retunes it.
+          Patch one without the other to lock without retuning, or the reverse. The Vocoder takes both cables too.
+        </p>
+      </div>
+    </section>
+
+    <h2 id="author">Make your own</h2>
+    <p>
+      A MIDI FX is a <code>.gfpd</code> text file with <code>type: midi_fx</code> and a <code>midi_nodes:</code> section.
+      Add yours with <span class="ui">Load .gfpd from file…</span> at the bottom of the <span class="ui">+</span> sheet.
+      See <a href="../gfpd/">Plugin descriptors</a> and
+      <a href="https://github.com/yakari/grooveforge/blob/main/assets/plugins/HOW_TO_CREATE_A_PLUGIN.md"><code>HOW_TO_CREATE_A_PLUGIN.md</code></a>.
+    </p>
+
+    <p><a href="../modules/">← Modules</a> · <a href="../vst/">VST3 →</a></p>
+  </main>
+
+  <footer class="site-footer">
+    <p><a href="https://github.com/yakari/grooveforge">GitHub</a> · <a href="../privacy/">Privacy</a></p>
+  </footer>
+
+  <script>
+    /*
+     * Clips play while they are on screen and pause when they leave it, so a
+     * long page does not decode a dozen videos at once. Without JavaScript, or
+     * when the reader prefers reduced motion, the native controls stay and
+     * nothing starts by itself.
+     */
+    (function () {
+      var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (reduced || !('IntersectionObserver' in window)) return;
+      var clips = document.querySelectorAll('.clip video');
+      var observer = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+          var video = entry.target;
+          if (entry.isIntersecting) {
+            var playing = video.play();
+            if (playing && playing.catch) playing.catch(function () {});
+          } else {
+            video.pause();
+          }
+        });
+      }, { threshold: 0.5 });
+      clips.forEach(function (video) {
+        video.removeAttribute('controls');
+        video.preload = 'metadata';
+        // Tap to pause or resume.
+        video.addEventListener('click', function () {
+          if (video.paused) { video.play(); } else { video.pause(); }
+        });
+        observer.observe(video);
+      });
+    })();
+  </script>
+</body>
+</html>

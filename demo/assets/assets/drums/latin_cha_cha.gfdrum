@@ -1,0 +1,186 @@
+# Cha-Cha — cha-cha bell, güiro, conga tumbao
+# Reference: Orquesta Aragón, Enrique Jorrín "La Engañadora" (1953),
+#            Tito Puente "Oye Como Va"
+# The cha-cha-chá is slower and squarer than salsa. Its sound comes from:
+# - the timbalero's big cha-cha bell, on every beat;
+# - the güiro, a long scrape then two short ones, on every half bar;
+# - the congas' tumbao, a slap on 2 and two open tones on 4 and the "and"
+#   of 4: the "cha-cha" the dancers step to, landing on the next beat 1.
+# The clave, when it plays, is the son clave 2-3, written as two-bar grids.
+# GM notes: 56=cowbell (cha-cha bell), 65=high timbale, 66=low timbale,
+#           73=short guiro, 74=long guiro, 62=mute high conga, 63=open high
+#           conga, 64=low conga, 75=claves, 36=kick, 49=crash
+
+#
+# ── Step grid notation ────────────────────────────────────────────────────────
+# Each character in a step grid represents one subdivision of the bar.
+# Resolution controls how many steps per bar (16 = 16th notes in 4/4; 12 = 16th notes in 6/8).
+#
+#   X   Strong accent  — velocity = base_velocity × 1.00  (full hit / downbeat)
+#   x   Medium accent  — velocity = base_velocity × 0.75  (firm stroke / upbeat)
+#   o   Soft hit       — velocity = base_velocity × 0.55  (brush / light touch)
+#   g   Ghost note     — velocity = base_velocity × 0.28  (barely audible, mostly felt)
+#   .   Rest           — no note fired at this step
+#
+# Beat positions — 4/4 at resolution 16 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
+#        1  e1 +1 a1  2  e2 +2 a2  3  e3 +3 a3  4  e4 +4 a4
+#   (1/+/2/+/3/+/4/+ = quarter beats; e = "e of"; a = "and-a of")
+#
+# Beat positions — 6/8 at resolution 12 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11
+#        C1 .  e1 .  a1 .  C2 .  e2 .  a2 .
+#   (C1/C2 = compound beat downbeats; each compound beat = 3 eighth notes = 6 steps)
+#
+# Swing / feel: 'feel' delays the second note of each swung pair, and
+# 'swing_unit' says which notes pair up: 16 = sixteenths (the default),
+# 8 = eighths (jazz, shuffle). Write the grids straight, as a score does.
+#   straight    — every step exactly on the grid
+#   swing_light — light swing, second note at 58 % of the pair (or swing_soft)
+#   swing_hard  — triplet swing, second note at 67 % of the pair
+#   laid_back   — same as straight; drag one instrument with its 'rush'
+#
+# Spaces and '|' inside a grid are ignored. A grid may span two bars, and
+# 'grid: triplet' on a variation splits each beat in three (12 steps in 4/4).
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Cha-Cha
+family: latin
+bpm_range: [100, 135]
+time_signature: [4, 4]
+resolution: 16
+feel: straight
+swing_unit: 16
+
+instruments:
+  bell:        { note: 56, base_velocity: 96,  velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.08 }
+  timbale_hi:  { note: 65, base_velocity: 88,  velocity_range: 12, timing_jitter: 0.010, duration_beats: 0.08 }
+  timbale_lo:  { note: 66, base_velocity: 98,  velocity_range: 12, timing_jitter: 0.010, duration_beats: 0.10 }
+  guiro_short: { note: 73, base_velocity: 80,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.06 }
+  guiro_long:  { note: 74, base_velocity: 82,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.24 }
+  conga_mute:  { note: 62, base_velocity: 92,  velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.08 }
+  conga_open:  { note: 63, base_velocity: 96,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.10 }
+  conga_lo:    { note: 64, base_velocity: 98,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.12 }
+  clave:       { note: 75, base_velocity: 84,  velocity_range: 8,  timing_jitter: 0.008, duration_beats: 0.08 }
+  kick:        { note: 36, base_velocity: 90,  velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.12 }
+  crash:       { note: 49, base_velocity: 90,  velocity_range: 8,  timing_jitter: 0.008, duration_beats: 0.25 }
+
+humanization:
+  timing_jitter: 0.012
+  velocity_jitter: 10
+  velocity_drift: 0.05
+
+sections:
+  intro:
+    type: count_in
+    hits: 4
+    note: 56
+
+  groove:
+    bars: 1
+    variations:
+      - name: guiro_and_bell
+        role: intro
+        weight: 1
+        # Bell on every beat and the güiro's long-short-short: the pulse
+        # the dancers count before the congas come in.
+        bell:        "X...x...X...x..."
+        guiro_long:  "X.......X......."
+        guiro_short: "....x.x.....x.x."
+
+      - name: cha_cha
+        role: verse
+        weight: 4
+        # The cha-cha-chá: bell, güiro, and the tumbao (heel-toe ghosts, the
+        # slap on 2, open tones on 4 and the "and" of 4).
+        bell:        "X...x...X...x..."
+        guiro_long:  "X.......X......."
+        guiro_short: "....x.x.....x.x."
+        conga_mute:  "g.g.X.g.g.g....."
+        conga_open:  "............X..."
+        conga_lo:    "..............X."
+
+      - name: full_band
+        role: chorus
+        weight: 3
+        # The whole section: the clave (2-3) joins, the bell adds the "and"
+        # of 4, the low timbale and the bass drum push the "cha-cha" on 4.
+        clave:       "....X...X....... | X.....X.....X..."
+        bell:        "X...x...X...x.x."
+        guiro_long:  "X.......X......."
+        guiro_short: "....x.x.....x.x."
+        conga_mute:  "g.g.X.g.g.g....."
+        conga_open:  "............X..."
+        conga_lo:    "..............X."
+        timbale_lo:  "............x..."
+        kick:        "X.......X......."
+
+      - name: shell_cascara
+        role: bridge
+        weight: 2
+        # A lighter bridge: the timbalero leaves the bell for the shell of
+        # the timbales, playing cascara (2-3), the güiro carrying on.
+        timbale_hi:  "X...x...X.x...x. | X...x.x...x...x."
+        clave:       "....X...X....... | X.....X.....X..."
+        guiro_long:  "X.......X......."
+        guiro_short: "....x.x.....x.x."
+        conga_mute:  "g.g.X.g.g.g....."
+        conga_open:  "............X..."
+        conga_lo:    "..............X."
+
+  fill:
+    bars: 1
+    variations:
+      - name: cha_cha_cha
+        # The band stops on its own name: bell on 1, 2, 3, then everybody
+        # on 4 and the "and" of 4, "cha-cha", the next downbeat the "chá".
+        bell:       "X...x...X...X.X."
+        conga_open: "............X..."
+        conga_lo:   "..............X."
+        timbale_lo: "............X.X."
+        kick:       "............X.X."
+
+      - name: abanico
+        # The timbale roll on beats 3 and 4, ending with a rimshot on the
+        # "and" of 4.
+        bell:       "X...x..........."
+        timbale_hi: "........xxxxxxX."
+        timbale_lo: "..............X."
+
+      - name: timbale_answer
+        # High and low timbale answering each other in eighths.
+        bell:       "X...x..........."
+        timbale_hi: "........x...x..."
+        timbale_lo: "..........x...X."
+        conga_lo:   "..............X."
+
+  crash:
+    bars: 1
+    variations:
+      - name: standard
+        # Laid over the groove on the bar after a fill, a break or the
+        # count-in: the cymbal and the low drum on beat 1. The groove
+        # plays everything else.
+        crash: "X..............."
+        kick:  "X..............."
+
+  ending:
+    # Played once at the end of the song; the drums stop after bar 2.
+    type: sequence
+    bars: 2
+    bar_grids:
+      - # Bar 1: the closing "cha-cha-chá" (1, 2, 3, then 4 and its "and")
+        bell:       "X...X...X...X.X."
+        timbale_lo: "X...X...X...X.X."
+        conga_lo:   "............X.X."
+        kick:       "X.......X...X.X."
+      - # Bar 2: final hit on beat 1, then silence
+        crash:      "X..............."
+        kick:       "X..............."
+
+structure:
+  fill_every: 4
+  break_every: 0
+  break_length: 1
+  crash_after_fill: true
+  dynamic_build: false

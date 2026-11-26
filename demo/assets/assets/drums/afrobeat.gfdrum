@@ -1,0 +1,205 @@
+# Afrobeat — Tony Allen and the Africa 70 rhythm section
+# Reference: Tony Allen with Fela Kuti and Africa 70 ("Zombie", "Ikoyi
+#            Blindness", "No Agreement", "African Message"); Miles Francis,
+#            "What I Learned From Tony Allen" (Talkhouse)
+# Afrobeat is a band rhythm, not a drum beat. The kit floats over a fixed
+# grid laid down by the percussion: the sticks (claves) on a two-bar
+# timeline, the shekere in sixteenths, the congas talking in between.
+# Tony Allen's kit, written in his manner rather than copied:
+# - the bass drum accents 1 and 3 and adds a softer stroke on the "and"
+#   of 2 and of 4, which pulls the groove down towards 3 and 1 and gives
+#   it its half-time lilt (after Miles Francis's analysis of "Ikoyi
+#   Blindness");
+# - the hi-hat is the lead voice: sixteenths with accents and short
+#   openings, never the disco "open on every offbeat";
+# - the snare is mostly ghost notes, with a few dry accents that avoid the
+#   rock backbeat.
+# The grooves span two bars ("bar 1 | bar 2") so the sticks' timeline can
+# run 3-2 under the kit.
+# GM notes: 36=kick, 38=snare, 37=side stick, 42=closed HH, 46=open HH,
+#           75=claves (sticks), 82=shaker (shekere), 63=open high conga,
+#           62=mute high conga, 64=low conga, 49=crash
+
+#
+# ── Step grid notation ────────────────────────────────────────────────────────
+# Each character in a step grid represents one subdivision of the bar.
+# Resolution controls how many steps per bar (16 = 16th notes in 4/4; 12 = 16th notes in 6/8).
+#
+#   X   Strong accent  — velocity = base_velocity × 1.00  (full hit / downbeat)
+#   x   Medium accent  — velocity = base_velocity × 0.75  (firm stroke / upbeat)
+#   o   Soft hit       — velocity = base_velocity × 0.55  (brush / light touch)
+#   g   Ghost note     — velocity = base_velocity × 0.28  (barely audible, mostly felt)
+#   .   Rest           — no note fired at this step
+#
+# Beat positions — 4/4 at resolution 16 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
+#        1  e1 +1 a1  2  e2 +2 a2  3  e3 +3 a3  4  e4 +4 a4
+#   (1/+/2/+/3/+/4/+ = quarter beats; e = "e of"; a = "and-a of")
+#
+# Beat positions — 6/8 at resolution 12 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11
+#        C1 .  e1 .  a1 .  C2 .  e2 .  a2 .
+#   (C1/C2 = compound beat downbeats; each compound beat = 3 eighth notes = 6 steps)
+#
+# Swing / feel: 'feel' delays the second note of each swung pair, and
+# 'swing_unit' says which notes pair up: 16 = sixteenths (the default),
+# 8 = eighths (jazz, shuffle). Write the grids straight, as a score does.
+#   straight    — every step exactly on the grid
+#   swing_light — light swing, second note at 58 % of the pair (or swing_soft)
+#   swing_hard  — triplet swing, second note at 67 % of the pair
+#   laid_back   — same as straight; drag one instrument with its 'rush'
+#
+# Spaces and '|' inside a grid are ignored. A grid may span two bars, and
+# 'grid: triplet' on a variation splits each beat in three (12 steps in 4/4).
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Afrobeat
+family: world
+bpm_range: [96, 128]
+time_signature: [4, 4]
+resolution: 16
+feel: swing_soft
+swing_unit: 16
+
+instruments:
+  kick:       { note: 36, base_velocity: 102, velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.12 }
+  snare:      { note: 38, base_velocity: 92,  velocity_range: 14, timing_jitter: 0.012, duration_beats: 0.09 }
+  rim:        { note: 37, base_velocity: 84,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.06 }
+  hihat:      { note: 42, base_velocity: 80,  velocity_range: 12, timing_jitter: 0.010, duration_beats: 0.06 }
+  hihat_open: { note: 46, base_velocity: 82,  velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.10 }
+  sticks:     { note: 75, base_velocity: 84,  velocity_range: 8,  timing_jitter: 0.008, duration_beats: 0.06 }
+  shekere:    { note: 82, base_velocity: 66,  velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.05 }
+  conga_open: { note: 63, base_velocity: 86,  velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.10 }
+  conga_mute: { note: 62, base_velocity: 78,  velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.06 }
+  conga_low:  { note: 64, base_velocity: 88,  velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.12 }
+  crash:      { note: 49, base_velocity: 92,  velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.22 }
+
+humanization:
+  timing_jitter: 0.012
+  velocity_jitter: 12
+  velocity_drift: 0.06
+
+sections:
+  intro:
+    type: count_in
+    hits: 4
+    note: 75
+
+  groove:
+    bars: 1
+    variations:
+      - name: percussion_bed
+        role: intro
+        weight: 1
+        # The percussion alone with the bass drum: the sticks on the 3-2
+        # timeline, the shekere in sixteenths, the congas. The band comes
+        # in over this.
+        sticks:     "X... ..X. .... X... | .... X... X... ...."
+        shekere:    "Xxxx Xxxx Xxxx Xxxx | Xxxx Xxxx Xxxx Xxxx"
+        conga_mute: "..x. ..x. ..x. ..x. | ..x. ..x. ..x. ..x."
+        conga_open: ".... ...X .... ...X | .... ...X .... ..XX"
+        kick:       "X... .... X... .... | X... .... X... ...."
+
+      - name: tony_allen
+        role: verse
+        weight: 4
+        # In the manner of Tony Allen: the bass drum accents 1 and 3, softer
+        # on the "and" of 2 and 4; the hi-hat in sixteenths, opening on the
+        # "a" of 2 and the "and" of 4; ghost notes on the snare, dry accents
+        # on the "e" of 2 and on 4.
+        hihat:      "Xxxx xxx. Xxxx xx.x | Xxxx xxx. Xxxx xx.x"
+        hihat_open: ".... ...x .... ..x. | .... ...x .... ..x."
+        snare:      "..g. .X.g .g.. X..g | ..g. .X.g .g.g X.g."
+        kick:       "X... ..x. X... ..x. | X... ..x. X... ..x."
+        sticks:     "X... ..X. .... X... | .... X... X... ...."
+        shekere:    "xgxg xgxg xgxg xgxg | xgxg xgxg xgxg xgxg"
+        conga_mute: "..x. ..x. ..x. ..x. | ..x. ..x. ..x. ..x."
+        conga_open: ".... ...X .... ...X | .... ...X .... ..XX"
+
+      - name: fela_drive
+        role: chorus
+        weight: 3
+        # The band at full tilt (the "Zombie" end): the bass drum doubled
+        # on the "and" of 2, the snare accents moving to the "a" of 1 and
+        # the "and" of 3, the low conga answering.
+        hihat:      "Xxxx xxx. Xxxx xx.x | Xxxx xxx. Xxxx xx.x"
+        hihat_open: ".... ...x .... ..x. | .... ...x .... ..x."
+        snare:      "...X .g.g .gX. g..g | ...X .g.g .gX. g.gX"
+        kick:       "X... .xx. X... ..x. | X... .xx. X... ..x."
+        sticks:     "X... ..X. .... X... | .... X... X... ...."
+        shekere:    "Xxxx Xxxx Xxxx Xxxx | Xxxx Xxxx Xxxx Xxxx"
+        conga_mute: "..x. ..x. ..x. ..x. | ..x. ..x. ..x. ..x."
+        conga_open: ".... ...X .... ...X | .... ...X .... ..XX"
+        conga_low:  "X... .... ..X. .... | X... .... ..X. ...."
+
+      - name: half_time_float
+        role: bridge
+        weight: 2
+        # The groove thinned out to its half-time skeleton: side stick on
+        # beat 3, the hi-hat in eighths with one opening, the bass drum
+        # alone on 1 and the "and" of 4.
+        hihat:      "X.x. x.x. X.x. x..."
+        hihat_open: ".... .... .... ..x."
+        rim:        ".... .... X... ...."
+        kick:       "X... .... .... ..x."
+        sticks:     "X... ..X. .... X... | .... X... X... ...."
+        shekere:    "xgxg xgxg xgxg xgxg"
+        conga_mute: "..x. ..x. ..x. ..x."
+
+  fill:
+    bars: 1
+    variations:
+      - name: snare_stutter
+        # The groove on the first half, then a stuttering snare phrase
+        # with the bass drum doubled, landing on the next 1.
+        hihat: "Xxxx xxx. .... ...."
+        kick:  "X... ..x. ..XX ...X"
+        snare: "..g. .X.g X..X X.XX"
+
+      - name: hihat_call
+        # The hi-hat takes the bar: accents and openings answered by the
+        # snare, the way Allen calls the horns in.
+        hihat:      "X.xx X.xx ..x. ...."
+        hihat_open: ".... .... X... X..."
+        snare:      ".... .... ...X ..XX"
+        kick:       "X... .... X... X..."
+
+      - name: conga_break
+        # The kit drops out; the congas and the sticks carry the bar.
+        conga_open: "X..X ..X. X..X .XX."
+        conga_low:  ".... X... .... X..."
+        conga_mute: ".X.. .X.. .X.. ...."
+        sticks:     "X... ..X. .... X..."
+        kick:       "X... .... .... ...."
+
+  crash:
+    bars: 1
+    variations:
+      - name: standard
+        # Laid over the groove on the bar after a fill or the count-in:
+        # the cymbal and the bass drum on beat 1.
+        crash: "X..............."
+        kick:  "X..............."
+
+  ending:
+    # Played once at the end of the song; the drums stop after bar 2.
+    type: sequence
+    bars: 2
+    bar_grids:
+      - # Bar 1: the groove on beats 1-2, then the band's unison stabs on
+        # the "and" of 3, 4 and the "and" of 4
+        kick:    "X.....x...X.X.X."
+        snare:   "..g..X.g..X.X.X."
+        hihat:   "Xxxxxxx........."
+        conga_open: "..........X.X.X."
+        shekere: "xgxgxgxgxgxgxgxg"
+      - # Bar 2: final hit on beat 1, then silence
+        crash:  "X..............."
+        kick:   "X..............."
+
+structure:
+  fill_every: 8
+  break_every: 0
+  break_length: 1
+  crash_after_fill: false
+  dynamic_build: false

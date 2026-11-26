@@ -1,0 +1,158 @@
+# Military March — a marching band's bass drum, clash cymbals and snare
+# Reference: Sousa marches ("The Stars and Stripes Forever"), the French
+#            "pas redoublé" of a batterie-fanfare; rudimental snare cadences
+# A march is felt in two: one bar here holds two bars of 2/4. Nobody marches
+# with a hi-hat or toms, so the band is three players:
+# - the bass drum on every beat, the strong beats (1 and 3) louder;
+# - the clash cymbals on the off-beats, the "oom-pah" of the band;
+# - the snare playing a rudimental cadence (double strokes, accents, rolls
+#   written as runs of sixteenths).
+# GM notes: 36=bass drum, 38=snare, 57=clash cymbals, 49=crash
+
+#
+# ── Step grid notation ────────────────────────────────────────────────────────
+# Each character in a step grid represents one subdivision of the bar.
+# Resolution controls how many steps per bar (16 = 16th notes in 4/4; 12 = 16th notes in 6/8).
+#
+#   X   Strong accent  — velocity = base_velocity × 1.00  (full hit / downbeat)
+#   x   Medium accent  — velocity = base_velocity × 0.75  (firm stroke / upbeat)
+#   o   Soft hit       — velocity = base_velocity × 0.55  (brush / light touch)
+#   g   Ghost note     — velocity = base_velocity × 0.28  (barely audible, mostly felt)
+#   .   Rest           — no note fired at this step
+#
+# Beat positions — 4/4 at resolution 16 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
+#        1  e1 +1 a1  2  e2 +2 a2  3  e3 +3 a3  4  e4 +4 a4
+#   (1/+/2/+/3/+/4/+ = quarter beats; e = "e of"; a = "and-a of")
+#
+# Beat positions — 6/8 at resolution 12 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11
+#        C1 .  e1 .  a1 .  C2 .  e2 .  a2 .
+#   (C1/C2 = compound beat downbeats; each compound beat = 3 eighth notes = 6 steps)
+#
+# Swing / feel: 'feel' delays the second note of each swung pair, and
+# 'swing_unit' says which notes pair up: 16 = sixteenths (the default),
+# 8 = eighths (jazz, shuffle). Write the grids straight, as a score does.
+#   straight    — every step exactly on the grid
+#   swing_light — light swing, second note at 58 % of the pair (or swing_soft)
+#   swing_hard  — triplet swing, second note at 67 % of the pair
+#   laid_back   — same as straight; drag one instrument with its 'rush'
+#
+# Spaces and '|' inside a grid are ignored. A grid may span two bars, and
+# 'grid: triplet' on a variation splits each beat in three (12 steps in 4/4).
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Military March
+family: march
+bpm_range: [96, 132]
+time_signature: [4, 4]
+resolution: 16
+feel: straight
+swing_unit: 8
+
+instruments:
+  kick:   { note: 36, base_velocity: 108, velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.20 }
+  snare:  { note: 38, base_velocity: 100, velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.08 }
+  cymbal: { note: 57, base_velocity: 84,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.20 }
+  crash:  { note: 49, base_velocity: 100, velocity_range: 6,  timing_jitter: 0.008, duration_beats: 0.30 }
+
+humanization:
+  timing_jitter: 0.010
+  velocity_jitter: 10
+  velocity_drift: 0.05
+
+sections:
+  intro:
+    type: count_in
+    hits: 4
+    note: 37
+
+  groove:
+    bars: 1
+    variations:
+      - name: drum_cadence
+        role: intro
+        weight: 1
+        # The snare's street cadence alone over the bass drum on the strong
+        # beats: the drums lead the band off before the music starts.
+        snare: "X.xx X.x. X.xx X.x."
+        kick:  "X... .... X... ...."
+
+      - name: street_march
+        role: verse
+        weight: 4
+        # The march: bass drum on every beat, the cymbals answering on 2
+        # and 4, the snare on its cadence of double strokes and accents.
+        kick:   "X... x... X... x..."
+        cymbal: ".... X... .... X..."
+        snare:  "X.xx X.x. X.xx X.x."
+
+      - name: oom_pah
+        role: chorus
+        weight: 3
+        # The full band: the cymbals on every off-beat ("oom-pah"), the
+        # snare with a roll leading into each strong beat.
+        kick:   "X... x... X... x..."
+        cymbal: "..x. ..x. ..x. ..x."
+        snare:  "X.x. X.xx X.x. Xxxx"
+
+      - name: trio_rolls
+        role: bridge
+        weight: 2
+        # The trio, the quiet strain of a march: soft snare rolls, the bass
+        # drum on the strong beats only, the cymbals resting.
+        kick:  "X... .... X... ...."
+        snare: "oooo X... oooo X..."
+
+  fill:
+    bars: 1
+    variations:
+      - name: roll_off
+        # The "roll-off" that starts a strain: three strong hits, then a
+        # roll swelling into the next downbeat.
+        kick:  "X... .... .... ...."
+        snare: "X..X ..X. oooo xxXX"
+
+      - name: accent_run
+        # Accents moving across the beat, every three sixteenths, the bass
+        # drum and cymbals marking the last one.
+        kick:   "X... .... .... ..X."
+        cymbal: ".... .... .... ..X."
+        snare:  "XxxX xxXx xXxx XxX."
+
+      - name: tap_down
+        # Single strokes getting louder, then a double stroke on the last
+        # beat.
+        kick:  "X... .... X... ...."
+        snare: "o.o. x.x. X.X. XXXX"
+
+  crash:
+    bars: 1
+    variations:
+      - name: standard
+        # Laid over the groove on the bar after a fill, a break or the
+        # count-in: the cymbal and the low drum on beat 1. The groove
+        # plays everything else.
+        crash: "X..............."
+        kick:  "X..............."
+
+  ending:
+    # Played once at the end of the song; the drums stop after bar 2.
+    type: sequence
+    bars: 2
+    bar_grids:
+      - # Bar 1: the closing roll, the bass drum on the strong beats, and the
+        # "stinger" on the last beat
+        kick:   "X.......X...X..."
+        snare:  "oooooooo xxxxX..."
+        cymbal: "............X..."
+      - # Bar 2: final hit on beat 1, then silence
+        crash:  "X..............."
+        kick:   "X..............."
+
+structure:
+  fill_every: 8
+  break_every: 0
+  break_length: 1
+  crash_after_fill: true
+  dynamic_build: true

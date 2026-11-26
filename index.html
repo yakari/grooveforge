@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Short recipes and video clips for GrooveForge, a free music app: connect modules with cables, play in 92 scales, play a modelled guitar from a keyboard, and record a tune as a band on several phones.">
+  <title>GrooveForge — Practice alone, rehearse with your band</title>
+  <link rel="icon" type="image/png" href="assets/icon.png">
+  <link rel="stylesheet" href="css/site.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="header-inner">
+      <input type="checkbox" id="gf-nav-menu" class="nav-toggle-input">
+      <a class="brand" href="./">
+        <img src="assets/icon.png" width="40" height="40" alt="">
+        GrooveForge
+      </a>
+      <div class="header-triggers">
+        <span class="lang-switch" aria-label="Language">
+          <span class="lang-current" aria-current="true">EN</span>
+          <span class="lang-sep" aria-hidden="true">·</span>
+          <a href="fr/" hreflang="fr">FR</a>
+        </span>
+        <label for="gf-nav-menu" class="nav-toggle-label">Menu</label>
+      </div>
+      <nav class="site-nav" aria-label="Primary">
+        <a href="guide/">Guide</a>
+        <a href="rehearsals/">Rehearsals</a>
+        <a href="modules/">Modules</a>
+        <a href="midi-fx/">MIDI FX</a>
+        <a href="vst/">VST3</a>
+        <a href="gfdrum/">Rhythmic patterns</a>
+        <a href="gfpd/">Plugin descriptors</a>
+        <a href="features/">All features</a>
+        <a href="demo/" class="nav-cta">Try web demo</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="hero-tagline">Scales · Grooves · Rehearsals</p>
+        <h1>Practice alone, rehearse with your band</h1>
+        <p>
+          GrooveForge is a free music app. You build a rack of modules (keyboards, a guitar, effects, a drummer,
+          loopers) and connect them with cables, like real gear. Play on the screen, or plug in a MIDI keyboard.
+        </p>
+        <p>
+          When the band meets, each player records their part of the same tune on their own phone. The phones share
+          the tune over Wi-Fi. You need no account and no internet.
+        </p>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="demo/">Try the web demo</a>
+          <a class="btn btn-secondary" href="https://github.com/yakari/grooveforge/releases" rel="noopener noreferrer">Download</a>
+          <a class="btn btn-ghost" href="guide/">Getting started</a>
+        </div>
+      </div>
+      <div class="hero-visual">
+        <img src="assets/splashscreen.png" width="1200" height="675" alt="GrooveForge logo: anvil, sound wave, and MIDI keyboard on a dark textured background">
+      </div>
+    </section>
+
+    <section class="recipe" id="connect" aria-labelledby="connect-heading">
+      <div class="recipe-clips">
+        <figure class="clip">
+          <video src="clips/cable-midi.mp4" poster="clips/cable-midi.jpg" width="540" height="1236" muted loop playsinline controls preload="none" aria-label="Adding Riff and drawing a MIDI cable from the keyboard to it"></video>
+        </figure>
+      </div>
+      <div>
+        <h2 class="section-title" id="connect-heading">How you connect things</h2>
+        <p class="recipe-goal">
+          Every module has sockets on its back. Tap the cable icon at the top of the screen
+          (<span class="ui">Patch view</span>), then long-press a socket and drag it to another one.
+        </p>
+        <p>
+          Yellow cables carry notes, red and white cables carry sound. In the clip, a yellow cable runs from the
+          keyboard to Riff, a guitar with no keys of its own, so the keyboard now plays the guitar.
+        </p>
+        <p>
+          An instrument plays through the speakers without any cable. You only connect it to send its notes
+          or its sound to another module.
+        </p>
+        <p><a href="guide/#how-sound-moves">How sound moves between modules →</a></p>
+      </div>
+    </section>
+
+    <section class="learn-strip" aria-labelledby="learn-heading">
+      <h2 class="section-title" id="learn-heading">What you can do with it</h2>
+      <div class="card-grid three">
+        <article class="card">
+          <h3><a href="rehearsals/">Rehearse a tune as a band</a></h3>
+          <p>
+            Everyone records their own part over a shared click. GrooveForge measures how late your phone plays
+            and records, once for the speaker and once for each headset, and moves your take back onto the beat.
+            Import a recording to play along to, slow it down to half speed without changing its pitch, write
+            the chords and add the scores.
+          </p>
+        </article>
+        <article class="card">
+          <h3><a href="guide/#scale">Play in a scale</a></h3>
+          <p>
+            Hold a key and tap a scale in Xen: the key you hold becomes the root, and every key you press lands in
+            the scale. There are 92 scales, from blues to maqam, raga and gamelan. Scales with notes between the
+            piano keys retune those keys. You can also build your own, or import Scala (<code>.scl</code>) files.
+          </p>
+        </article>
+        <article class="card">
+          <h3><a href="modules/">Follow another player's chords</a></h3>
+          <p>
+            Jam Mode keeps one keyboard in the scale of another. It reads the chord the leading keyboard plays,
+            or only its lowest note for a bass line. A note outside the scale moves to the nearest one that fits.
+          </p>
+        </article>
+        <article class="card">
+          <h3><a href="guide/#guitar">Play the guitar from a keyboard</a></h3>
+          <p>
+            Riff is an electric guitar modelled string by string. The on-screen keyboard or your MIDI controller
+            sends it the notes. <a href="guide/#amp">Cable it into the Amp</a> for a crunchy or distorted sound.
+          </p>
+        </article>
+        <article class="card">
+          <h3><a href="modules/#autotune">Sing in tune, or like a robot</a></h3>
+          <p>
+            Cable Live Input (your microphone) into Autotune and sing. Each note is pulled onto your key and scale.
+            With <span class="ui">Retune</span> at 0 ms you get the stepped robot voice. A needle shows how many cents
+            off you were.
+          </p>
+        </article>
+        <article class="card">
+          <h3><a href="guide/#drums">Play over drums and loops</a></h3>
+          <p>
+            The Drum Generator plays a groove at the tempo shown at the top, from bossa nova to metal.
+            The loopers start and stop recording on a bar line, so <a href="guide/#loop">your loop</a> stays
+            in time with the drums.
+          </p>
+        </article>
+      </div>
+    </section>
+
+    <h2 class="section-title">Get GrooveForge</h2>
+    <div class="prose">
+      <p>
+        GrooveForge is free and open source (MIT licence). On Android, get it from
+        <a href="https://play.google.com/store/apps/details?id=com.grooveforge.grooveforge" rel="noopener noreferrer">Google Play</a> or
+        <a href="https://f-droid.org/packages/com.grooveforge.grooveforge/" rel="noopener noreferrer">F-Droid</a>. For Windows, macOS and Linux
+        (<code>.deb</code>, <code>.rpm</code>, Arch and Flatpak packages), download it from the
+        <a href="https://github.com/yakari/grooveforge/releases" rel="noopener noreferrer">releases page on GitHub</a>.
+      </p>
+      <p>
+        The <a href="demo/">web demo</a> runs in your browser with nothing to install, but with fewer modules:
+        Riff, the Amp, Autotune, the Vocoder, the Audio Looper, Live Input and the audio effects need the app.
+        The demo also forgets your session when you close it. Use <span class="ui">Save As…</span> to keep your project.
+      </p>
+      <p>VST3 plugins load in the Windows, macOS and Linux apps only.</p>
+    </div>
+
+    <figure class="figure-card figure-doc home-app-preview">
+      <img src="clips/xen-pick-scale.jpg" width="540" height="1236" loading="lazy" alt="The rack of a new project: a keyboard, and a Xen module set to the Rast scale, with the tempo and play controls at the top.">
+      <figcaption>The rack of a new project: a keyboard and a Xen module, with the tempo and play controls at the top.</figcaption>
+    </figure>
+
+    <figure class="figure-card figure-doc home-app-preview">
+      <img src="assets/screenshots/rehearsals_chord_grid.png" width="460" height="1129" loading="lazy" alt="A tune open in the Rehearse tab: chord grid, imported recording, and one lane per player">
+      <figcaption>A tune in the <span class="ui">Rehearse</span> tab: the chords, the imported recording, and one lane per player.</figcaption>
+    </figure>
+
+    <h2 class="section-title">Read more</h2>
+    <div class="card-grid three">
+      <article class="card">
+        <h3><a href="guide/">Getting started</a></h3>
+        <p>Short recipes with a clip each: connect modules, add an effect, record a loop, save a project, join a rehearsal.</p>
+      </article>
+      <article class="card">
+        <h3><a href="rehearsals/">Rehearsals</a></h3>
+        <p>Recording as a band, how your take lands on the beat, playing along to a recording, and sharing a tune with no Wi-Fi router.</p>
+      </article>
+      <article class="card">
+        <h3><a href="modules/">Built-in modules</a></h3>
+        <p>What each module does: the keyboard, Vocoder, Stylophone, Theremin, Riff, Amp, Jam Mode, MIDI Looper, Drum Generator and Autotune.</p>
+      </article>
+      <article class="card">
+        <h3><a href="midi-fx/">MIDI FX</a></h3>
+        <p>Modules that change the notes before an instrument plays them, such as the Harmonizer, Arpeggiator and Transposer.</p>
+      </article>
+      <article class="card">
+        <h3><a href="vst/">VST3 plugins</a></h3>
+        <p>Load your own instrument and effect plugins in the desktop apps.</p>
+      </article>
+      <article class="card">
+        <h3><a href="gfdrum/">Drum patterns (.gfdrum)</a></h3>
+        <p>How a drum pattern file is written, so you can make your own, and downloads of the patterns that come with the app.</p>
+      </article>
+      <article class="card">
+        <h3><a href="gfpd/">Plugin descriptors (.gfpd)</a></h3>
+        <p>Describe your own audio effect or MIDI FX in a text file, without writing Dart code.</p>
+      </article>
+    </div>
+
+    <h2 class="section-title">Links</h2>
+    <div class="prose">
+      <ul>
+        <li><a href="https://github.com/yakari/grooveforge" rel="noopener noreferrer">GrooveForge on GitHub</a>: source code, bug reports and downloads</li>
+        <li><a href="fr/">Site en français</a></li>
+        <li><a href="features/">Full feature list</a></li>
+        <li><a href="privacy/">Privacy policy</a></li>
+        <li><a href="demo/">Web demo</a></li>
+      </ul>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <p>
+      <a href="https://github.com/yakari/grooveforge">GrooveForge on GitHub</a>
+      · <a href="privacy/">Privacy</a>
+      · MIT License
+    </p>
+  </footer>
+  <script>
+    /*
+     * Clips play while they are on screen and pause when they leave it, so a
+     * long page does not decode a dozen videos at once. Without JavaScript, or
+     * when the reader prefers reduced motion, the native controls stay and
+     * nothing starts by itself.
+     */
+    (function () {
+      var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (reduced || !('IntersectionObserver' in window)) return;
+      var clips = document.querySelectorAll('.clip video');
+      var observer = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+          var video = entry.target;
+          if (entry.isIntersecting) {
+            var playing = video.play();
+            if (playing && playing.catch) playing.catch(function () {});
+          } else {
+            video.pause();
+          }
+        });
+      }, { threshold: 0.5 });
+      clips.forEach(function (video) {
+        video.removeAttribute('controls');
+        video.preload = 'metadata';
+        // Tap to pause or resume.
+        video.addEventListener('click', function () {
+          if (video.paused) { video.play(); } else { video.pause(); }
+        });
+        observer.observe(video);
+      });
+    })();
+  </script>
+</body>
+</html>

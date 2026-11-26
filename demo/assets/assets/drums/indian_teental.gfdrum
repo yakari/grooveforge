@@ -1,0 +1,192 @@
+# Indian — Teental (tabla theka, 16 matras)
+# Reference: the Hindustani tala repertoire — Zakir Hussain, Alla Rakha,
+#            Anindo Chatterjee. Teental (tintal) is the most-played tala in
+#            North Indian classical music and the one every student learns first.
+# Pairs with the raga scales in the Xen module: Yaman, Bhairav, Kafi and
+# Bhimpalasi are all commonly set in teental.
+#
+# ONE MATRA = ONE EIGHTH NOTE: the 16-matra cycle (avartan) spans two bars
+# of 4/4, written as two-bar grids ("bar 1 | bar 2"). Each beat of the
+# transport is two matras. At 80 BPM that is 160 matras a minute, madhya
+# laya, the medium tempo; the sixteenths between the matras carry the
+# ornaments of the filled theka.
+#
+# The theka (the tala's spoken skeleton), with its four vibhags of four matras:
+#   Dha Dhin Dhin Dha | Dha Dhin Dhin Dha | Dha Tin Tin Ta | Ta Dhin Dhin Dha
+#   ^sam (bar 1)        ^tali               ^khali (bar 2)   ^tali
+# The bols are combinations of two hands:
+#   Dha  = na (right/dayan, treble) + ge (left/bayan, bass)
+#   Dhin = tin (dayan, on the sur) + ge
+#   Tin  = tin alone      Ta / Na = na alone
+# Matras 10-13 are the khali ("empty") section: the bayan lifts off entirely.
+# That silence in the bass is how a listener knows where they are in the
+# cycle.
+#
+# The fill is a tihai: a phrase played three times, its last stroke landing
+# on the next sam. It takes the second bar of the cycle, so the phrase ends
+# where the cycle begins again.
+#
+# GM substitution: General MIDI has no tabla. High bongo stands in for the
+# dayan's na/ta strokes, muted high conga for its tin, low conga for the
+# bayan's ge, and mute cuica for the bayan's pitch-bent ghe — the cuica is
+# the only GM voice that slides the way a bayan does under the heel of the
+# hand.
+# GM notes: 60=hi bongo (na/ta), 62=mute hi conga (tin), 64=low conga (ge),
+#           78=mute cuica (ghe)
+#
+# There is no cymbal anywhere in this pattern. The `crash` section — which
+# the generator fires after a fill — restates the sam on the tabla instead,
+# because a crash cymbal landing on sam would be wrong in this music.
+
+#
+# ── Step grid notation ────────────────────────────────────────────────────────
+# Each character in a step grid represents one subdivision of the bar.
+# Resolution controls how many steps per bar (16 = 16th notes in 4/4; 12 = 16th notes in 6/8).
+#
+#   X   Strong accent  — velocity = base_velocity × 1.00  (full hit / downbeat)
+#   x   Medium accent  — velocity = base_velocity × 0.75  (firm stroke / upbeat)
+#   o   Soft hit       — velocity = base_velocity × 0.55  (brush / light touch)
+#   g   Ghost note     — velocity = base_velocity × 0.28  (barely audible, mostly felt)
+#   .   Rest           — no note fired at this step
+#
+# Beat positions — 4/4 at resolution 16 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
+#        1  e1 +1 a1  2  e2 +2 a2  3  e3 +3 a3  4  e4 +4 a4
+#   (1/+/2/+/3/+/4/+ = quarter beats; e = "e of"; a = "and-a of")
+#
+# Beat positions — 6/8 at resolution 12 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11
+#        C1 .  e1 .  a1 .  C2 .  e2 .  a2 .
+#   (C1/C2 = compound beat downbeats; each compound beat = 3 eighth notes = 6 steps)
+#
+# Swing / feel: 'feel' delays the second note of each swung pair, and
+# 'swing_unit' says which notes pair up: 16 = sixteenths (the default),
+# 8 = eighths (jazz, shuffle). Write the grids straight, as a score does.
+#   straight    — every step exactly on the grid
+#   swing_light — light swing, second note at 58 % of the pair (or swing_soft)
+#   swing_hard  — triplet swing, second note at 67 % of the pair
+#   laid_back   — same as straight; drag one instrument with its 'rush'
+#
+# Spaces and '|' inside a grid are ignored. A grid may span two bars, and
+# 'grid: triplet' on a variation splits each beat in three (12 steps in 4/4).
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Teental (16 matras)
+family: indian
+bpm_range: [55, 110]
+time_signature: [4, 4]
+resolution: 16
+feel: straight
+swing_unit: 16
+
+instruments:
+  na:  { note: 60, base_velocity: 92,  velocity_range: 12, timing_jitter: 0.010, duration_beats: 0.06 }
+  tin: { note: 62, base_velocity: 86,  velocity_range: 12, timing_jitter: 0.010, duration_beats: 0.07 }
+  ge:  { note: 64, base_velocity: 100, velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.12 }
+  ghe: { note: 78, base_velocity: 88,  velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.16 }
+
+# Tabla playing is precise but not mechanical; the jitter here is small enough
+# that the theka still locks, large enough that it sounds played.
+humanization:
+  timing_jitter: 0.010
+  velocity_jitter: 10
+  velocity_drift: 0.04
+
+sections:
+  intro:
+    type: count_in
+    hits: 4
+    note: 60
+
+  groove:
+    bars: 1
+    variations:
+      - name: theka_dayan
+        role: intro
+        weight: 1
+        # The theka on the dayan alone, the bayan only on sam: the tabla
+        # player finds the tempo before the full theka.
+        na:  "X.....x.X.....x. | o.....x.X.....x."
+        tin: "..x.x.....x.x... | ..x.x.....x.x..."
+        ge:  "X............... | ................"
+
+      - name: theka
+        role: verse
+        weight: 4
+        # The theka, one bol per matra (eighth note): Dha Dhin Dhin Dha,
+        # Dha Dhin Dhin Dha, Dha Tin Tin Ta, Ta Dhin Dhin Dha. Sam and the
+        # two talis accented, the bayan silent through the khali.
+        na:  "X.....x.X.....x. | o.....x.X.....x."
+        tin: "..x.x.....x.x... | ..x.x.....x.x..."
+        ge:  "X.x.x.x.X.x.x.x. | o.........x.x.x."
+
+      - name: theka_filled
+        role: chorus
+        weight: 3
+        # The filled theka: the same bols, with "tirakita" ornaments on the
+        # dayan in the sixteenths before each vibhag head.
+        na:  "X.....xgX.....xg | o.....xgX.....xg"
+        tin: "..x.x..g..x.x..g | ..x.x..g..x.x..g"
+        ge:  "X.x.x.x.X.x.x.x. | o.........x.x.x."
+
+      - name: theka_ghe
+        role: bridge
+        weight: 2
+        # The bayan modulates: sliding ghe strokes on sam and on the talis,
+        # the plain ge on the other Dhas and Dhins.
+        na:  "X.....x.X.....x. | o.....x.X.....x."
+        tin: "..x.x.....x.x... | ..x.x.....x.x..."
+        ge:  "..x.x.x...x.x.x. | o.........x.x.x."
+        ghe: "X.......X....... | ........X......."
+
+  fill:
+    bars: 1
+    variations:
+      - name: tihai
+        # A tihai over the last eight matras: Dha-Ti-Dha three times, a
+        # sixteenth apart, its last Dha falling on the next sam.
+        na:  "X...X.X...X.X..."
+        tin: "..x.....x.....x."
+        ge:  "X...X.X...X.X..."
+
+      - name: kaida
+        # A kaida phrase in sixteenths, dayan strokes alternating, the
+        # bayan on each matra of the vibhag heads.
+        na:  "XgxgXgxg XgxgXgxX"
+        tin: ".g.g.g.g .g.g.g.."
+        ge:  "X...X... X...X.X."
+
+      - name: bayan_sweep
+        # The bayan takes the bar with sliding ghe strokes on every vibhag
+        # head, the dayan answering in between.
+        ghe: "X...X...X...X.X."
+        na:  "..x...x...x....."
+
+  crash:
+    bars: 1
+    variations:
+      - name: sam_accent
+        # Laid over the groove on the bar after a fill or the count-in: no
+        # cymbal, the sam restated as a strong Dha.
+        na: "X..............."
+        ge: "X..............."
+
+  ending:
+    # Played once at the end of the piece; the tabla stops after bar 2.
+    type: sequence
+    bars: 2
+    bar_grids:
+      - # Bar 1: the closing tihai, landing on the last sam
+        na:  "X...X.X...X.X..."
+        tin: "..x.....x.....x."
+        ge:  "X...X.X...X.X..."
+      - # Bar 2: the sam, then silence
+        na: "X..............."
+        ge: "X..............."
+
+structure:
+  fill_every: 8
+  break_every: 0
+  break_length: 1
+  crash_after_fill: true
+  dynamic_build: false

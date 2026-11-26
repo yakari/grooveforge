@@ -1,0 +1,175 @@
+# Celtic Plinn — the dañs plinn of central Brittany, on a drum kit
+# Reference: the plinn suite of the Poher and Fañch countries (dañs plinn,
+#            tamm kreiz, dañs plinn); fest-noz bands with a drummer
+#            (Startijenn, Plantec, Ndiaz); Breton tune books list plinn
+#            tunes in 4/4
+# The plinn is danced in a chain, its step counted in four: jump, jump,
+# right-left-right, on 1, 2, then 3, the "and" of 3, 4. The tune is fast and
+# binary, and a fest-noz drummer underlines that step:
+# - the bass drum plays the step's figure (1, 2, 3, "and" of 3, 4);
+# - the snare answers on the off-beats, pushing the dancers on;
+# - the toms take the figure in the fills.
+# The suite's middle part, the "tamm kreiz", is calmer: the bridge variation
+# plays it in half time.
+# The feel is straight: Breton dance music does not swing.
+# GM notes: 36=kick, 38=snare, 37=side stick, 42=closed HH, 46=open HH,
+#           48=hi tom, 45=mid tom, 41=floor tom, 49=crash
+
+#
+# ── Step grid notation ────────────────────────────────────────────────────────
+# Each character in a step grid represents one subdivision of the bar.
+# Resolution controls how many steps per bar (16 = 16th notes in 4/4; 12 = 16th notes in 6/8).
+#
+#   X   Strong accent  — velocity = base_velocity × 1.00  (full hit / downbeat)
+#   x   Medium accent  — velocity = base_velocity × 0.75  (firm stroke / upbeat)
+#   o   Soft hit       — velocity = base_velocity × 0.55  (brush / light touch)
+#   g   Ghost note     — velocity = base_velocity × 0.28  (barely audible, mostly felt)
+#   .   Rest           — no note fired at this step
+#
+# Beat positions — 4/4 at resolution 16 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
+#        1  e1 +1 a1  2  e2 +2 a2  3  e3 +3 a3  4  e4 +4 a4
+#   (1/+/2/+/3/+/4/+ = quarter beats; e = "e of"; a = "and-a of")
+#
+# Beat positions — 6/8 at resolution 12 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11
+#        C1 .  e1 .  a1 .  C2 .  e2 .  a2 .
+#   (C1/C2 = compound beat downbeats; each compound beat = 3 eighth notes = 6 steps)
+#
+# Swing / feel: 'feel' delays the second note of each swung pair, and
+# 'swing_unit' says which notes pair up: 16 = sixteenths (the default),
+# 8 = eighths (jazz, shuffle). Write the grids straight, as a score does.
+#   straight    — every step exactly on the grid
+#   swing_light — light swing, second note at 58 % of the pair (or swing_soft)
+#   swing_hard  — triplet swing, second note at 67 % of the pair
+#   laid_back   — same as straight; drag one instrument with its 'rush'
+#
+# Spaces and '|' inside a grid are ignored. A grid may span two bars, and
+# 'grid: triplet' on a variation splits each beat in three (12 steps in 4/4).
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Celtic Plinn
+family: celtic
+bpm_range: [130, 175]
+time_signature: [4, 4]
+resolution: 16
+feel: straight
+swing_unit: 8
+
+instruments:
+  kick:       { note: 36, base_velocity: 108, velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.14 }
+  snare:      { note: 38, base_velocity: 100, velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.09 }
+  rim:        { note: 37, base_velocity: 92,  velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.07 }
+  hihat:      { note: 42, base_velocity: 80,  velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.06 }
+  hihat_open: { note: 46, base_velocity: 84,  velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.16 }
+  tom_hi:     { note: 48, base_velocity: 96,  velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.12 }
+  tom_mid:    { note: 45, base_velocity: 96,  velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.12 }
+  tom_lo:     { note: 41, base_velocity: 98,  velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.15 }
+  crash:      { note: 49, base_velocity: 98,  velocity_range: 8,  timing_jitter: 0.008, duration_beats: 0.25 }
+
+humanization:
+  timing_jitter: 0.010
+  velocity_jitter: 10
+  velocity_drift: 0.05
+
+sections:
+  intro:
+    type: count_in
+    hits: 4
+    note: 37
+
+  groove:
+    bars: 1
+    variations:
+      - name: dancers_step
+        role: intro
+        weight: 1
+        # The step alone: the bass drum on the dancers' feet (jump, jump,
+        # right-left-right), the side stick on the off-beats.
+        kick: "X... X... X.X. X..."
+        rim:  "..x. ..x. .... ..x."
+
+      - name: dans_plinn
+        role: verse
+        weight: 4
+        # The dañs plinn: the bass drum on the step, the snare pushing on the
+        # off-beats, the hi-hat in eighths.
+        kick:  "X... X... X.X. X..."
+        snare: "..x. ..X. .... ..X."
+        hihat: "x.x. x.x. x.x. x.x."
+
+      - name: fest_noz_drive
+        role: chorus
+        weight: 3
+        # The fest-noz at its height: the bass drum on every beat plus the
+        # step's "and" of 3, the snare on every off-beat, the hi-hat opening
+        # on the last one into the next jump.
+        kick:       "X... X... X.X. X..."
+        snare:      "..X. ..X. ..X. ..X."
+        hihat:      "x.x. x.x. x.x. x..."
+        hihat_open: ".... .... .... ..x."
+        tom_lo:     "X... .... X... ...."
+
+      - name: tamm_kreiz
+        role: bridge
+        weight: 2
+        # The tamm kreiz, the calmer middle of the suite: half time, the
+        # bass drum on 1 and the step's "and" of 3, the snare on 3.
+        kick:  "X... .... ..X. ...."
+        snare: ".... .... X... ...."
+        hihat: "x.x. x.x. x.x. x.x."
+        rim:   ".... X... .... X..."
+
+  fill:
+    bars: 1
+    variations:
+      - name: step_on_toms
+        # The step's figure moved to the toms, high to low, the snare
+        # rolling into the next jump.
+        tom_hi:  "X... X... .... ...."
+        tom_mid: ".... .... X.X. ...."
+        tom_lo:  ".... .... .... X..."
+        kick:    "X... X... X.X. X..."
+        snare:   ".... .... .... .xXX"
+
+      - name: snare_roll
+        # Two beats of groove, then a snare roll over the step.
+        kick:  "X... X... X.X. X..."
+        snare: "..x. ..X. xxxx xxXX"
+
+      - name: unison_jumps
+        # The whole kit on the two jumps, then the snare alone on the
+        # right-left-right.
+        kick:  "X... X... .... ...."
+        snare: "X... X... X.X. X.X."
+        crash: "X... X... .... ...."
+
+  crash:
+    bars: 1
+    variations:
+      - name: standard
+        # Laid over the groove on the bar after a fill, a break or the
+        # count-in: the cymbal and the low drum on beat 1. The groove
+        # plays everything else.
+        crash: "X..............."
+        kick:  "X..............."
+
+  ending:
+    # Played once at the end of the song; the drums stop after bar 2.
+    type: sequence
+    bars: 2
+    bar_grids:
+      - # Bar 1: the last step hit by the whole kit, a roll on beat 4
+        kick:   "X...X...X.X....."
+        snare:  "X...X...X.X.xxXX"
+        tom_lo: "X...X...X.X....."
+      - # Bar 2: final hit on beat 1, then silence
+        crash:  "X..............."
+        kick:   "X..............."
+
+structure:
+  fill_every: 8
+  break_every: 0
+  break_length: 1
+  crash_after_fill: true
+  dynamic_build: false

@@ -1,0 +1,170 @@
+# Çiftetelli — the Turkish and Greek 8-beat dance rhythm
+# Reference: Jas's Middle Eastern Rhythms FAQ (khafif.com), "ciftitelli
+#            8/4"; Turkish belly dance and Greek tsifteteli recordings
+# Çiftetelli is an 8/4 rhythm, written here over two bars of 4/4: the
+# grooves are two-bar grids ("bar 1 | bar 2"). In Jas's notation, in
+# sixteenths:
+#   basic   D---__T---__T--- | D---D---T---____
+#   filled  D-tkt-T-tkD-T-tk | D---D---Tktkt---
+# The first bar groups its eighths 3+3+2, the second 2+2+2 and a silent
+# last beat. It is played moderately slowly, with space; drummers fill it
+# in more as the dance warms up. The "sombati" of the bridge is its double-
+# time cousin, one bar long.
+# The strokes: doum (D, deep), tek (T, rim, strong hand), ka and soft teks
+# (k, t, the other hand). The def (frame drum with jingles) and the zil
+# (finger cymbals) accompany.
+# No cymbal crash in this music: the bar after a fill lands on a doum and
+# the zil.
+# GM notes: 64=low conga (doum), 62=mute high conga (tek), 60=high bongo
+#           (ka), 54=tambourine (def), 81=open triangle (zil)
+
+#
+# ── Step grid notation ────────────────────────────────────────────────────────
+# Each character in a step grid represents one subdivision of the bar.
+# Resolution controls how many steps per bar (16 = 16th notes in 4/4; 12 = 16th notes in 6/8).
+#
+#   X   Strong accent  — velocity = base_velocity × 1.00  (full hit / downbeat)
+#   x   Medium accent  — velocity = base_velocity × 0.75  (firm stroke / upbeat)
+#   o   Soft hit       — velocity = base_velocity × 0.55  (brush / light touch)
+#   g   Ghost note     — velocity = base_velocity × 0.28  (barely audible, mostly felt)
+#   .   Rest           — no note fired at this step
+#
+# Beat positions — 4/4 at resolution 16 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
+#        1  e1 +1 a1  2  e2 +2 a2  3  e3 +3 a3  4  e4 +4 a4
+#   (1/+/2/+/3/+/4/+ = quarter beats; e = "e of"; a = "and-a of")
+#
+# Beat positions — 6/8 at resolution 12 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11
+#        C1 .  e1 .  a1 .  C2 .  e2 .  a2 .
+#   (C1/C2 = compound beat downbeats; each compound beat = 3 eighth notes = 6 steps)
+#
+# Swing / feel: 'feel' delays the second note of each swung pair, and
+# 'swing_unit' says which notes pair up: 16 = sixteenths (the default),
+# 8 = eighths (jazz, shuffle). Write the grids straight, as a score does.
+#   straight    — every step exactly on the grid
+#   swing_light — light swing, second note at 58 % of the pair (or swing_soft)
+#   swing_hard  — triplet swing, second note at 67 % of the pair
+#   laid_back   — same as straight; drag one instrument with its 'rush'
+#
+# Spaces and '|' inside a grid are ignored. A grid may span two bars, and
+# 'grid: triplet' on a variation splits each beat in three (12 steps in 4/4).
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Çiftetelli
+family: turkish
+bpm_range: [90, 140]
+time_signature: [4, 4]
+resolution: 16
+feel: straight
+swing_unit: 16
+
+instruments:
+  doum: { note: 64, base_velocity: 108, velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.20 }
+  tek:  { note: 62, base_velocity: 100, velocity_range: 12, timing_jitter: 0.010, duration_beats: 0.08 }
+  ka:   { note: 60, base_velocity: 80,  velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.06 }
+  def:  { note: 54, base_velocity: 78,  velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.06 }
+  zil:  { note: 81, base_velocity: 72,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.20 }
+
+humanization:
+  timing_jitter: 0.012
+  velocity_jitter: 10
+  velocity_drift: 0.06
+
+sections:
+  intro:
+    type: count_in
+    hits: 4
+    note: 62
+
+  groove:
+    bars: 1
+    variations:
+      - name: ciftetelli_basic
+        role: intro
+        weight: 1
+        # The bare rhythm, with all its space: D---__T---__T--- then
+        # D---D---T---____.
+        doum: "X... .... .... .... | X... X... .... ...."
+        tek:  ".... ..X. .... X... | .... .... X... ...."
+
+      - name: ciftetelli
+        role: verse
+        weight: 4
+        # The rhythm filled in the usual way, D-tkt-T-tkD-T-tk then
+        # D---D---Tktkt---, the def on the beats.
+        doum: "X... .... ..X. .... | X... X... .... ...."
+        tek:  "..o. o.X. o... X.o. | .... .... X.o. o..."
+        ka:   "...g .... .g.. ...g | .... .... .g.g ...."
+        def:  "x... x... x... x... | x... x... x... ...."
+
+      - name: ciftetelli_dance
+        role: chorus
+        weight: 3
+        # The dance warmed up: the same rhythm, the zil ringing on the teks
+        # and the def filling the eighths.
+        doum: "X... .... ..X. .... | X... X... .... ...."
+        tek:  "..o. o.X. o... X.o. | .... .... X.o. o..."
+        ka:   "...g .... .g.. ...g | .... .... .g.g ...."
+        def:  "x.x. x.x. x.x. x.x. | x.x. x.x. x.x. ...."
+        zil:  ".... ..x. .... x... | .... .... x... ...."
+
+      - name: sombati
+        role: bridge
+        weight: 2
+        # The sombati, D-kT-kT-D-DkT-tk: the 3+3+2 of the first bar played
+        # in every bar, like a çiftetelli in double time.
+        doum: "X... .... X.X. ...."
+        tek:  "...X ..X. .... X.o."
+        ka:   "..g. .g.. ...g ...g"
+        def:  "x... x... x... x..."
+
+  fill:
+    bars: 1
+    variations:
+      - name: tek_roll
+        # The doum on beat 1, then a roll of tek and ka in sixteenths.
+        doum: "X... .... .... ...."
+        tek:  "X.x. x.x. x.x. X.X."
+        ka:   ".g.g .g.g .g.g .g.X"
+
+      - name: doum_cadence
+        # The doums lead the dancer on: every beat, then every eighth.
+        doum: "X... X... X.X. X.X."
+        tek:  "..x. ..x. .... ...."
+        def:  "x.x. x.x. xxxx XXXX"
+
+      - name: zil_break
+        # The zil plays alone over the ka, the doum coming back on beat 4.
+        zil:  "X... x... X... x.x."
+        ka:   ".g.g .g.g .g.g .g.g"
+        doum: ".... .... .... X..."
+
+  crash:
+    bars: 1
+    variations:
+      - name: standard
+        # Laid over the groove on the bar after a fill, a break or the
+        # count-in: no cymbal here, a doum and the zil land on 1.
+        doum: "X..............."
+        zil:  "X..............."
+
+  ending:
+    # Played once at the end of the song; the drums stop after bar 2.
+    type: sequence
+    bars: 2
+    bar_grids:
+      - # Bar 1: the first half of the rhythm, then a roll into the end
+        doum: "X.........X....."
+        tek:  "..o.o.X.o...xxXX"
+        def:  "x...x...x...xxXX"
+      - # Bar 2: final hit on beat 1, then silence
+        doum: "X..............."
+        zil:  "X..............."
+
+structure:
+  fill_every: 8
+  break_every: 0
+  break_length: 1
+  crash_after_fill: true
+  dynamic_build: false

@@ -1,0 +1,167 @@
+# Country — train beat, two-beat and shuffle
+# Reference: Johnny Cash "Folsom Prison Blues" (train beat, W.S. Holland),
+#            Buck Owens "Act Naturally" (two-beat), Ray Price "Crazy Arms"
+#            (the "Ray Price shuffle")
+# The train beat is a steady roll of sixteenths on the snare, accented on 2
+# and 4, over a bass drum on 1 and 3. The two-beat is the "boom-chick" of
+# bass on 1 and 3 and snare or cross-stick on 2 and 4. The shuffle is written
+# on a triplet grid. The file plays straight; with swing_unit 8, the module's
+# Swing slider turns the straight grooves into a shuffle feel.
+# GM notes: 36=kick, 38=snare, 37=side stick, 42=closed HH, 44=HH foot,
+#           51=ride, 49=crash, 48=hi tom, 41=floor tom
+
+#
+# ── Step grid notation ────────────────────────────────────────────────────────
+# Each character in a step grid represents one subdivision of the bar.
+# Resolution controls how many steps per bar (16 = 16th notes in 4/4; 12 = 16th notes in 6/8).
+#
+#   X   Strong accent  — velocity = base_velocity × 1.00  (full hit / downbeat)
+#   x   Medium accent  — velocity = base_velocity × 0.75  (firm stroke / upbeat)
+#   o   Soft hit       — velocity = base_velocity × 0.55  (brush / light touch)
+#   g   Ghost note     — velocity = base_velocity × 0.28  (barely audible, mostly felt)
+#   .   Rest           — no note fired at this step
+#
+# Beat positions — 4/4 at resolution 16 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
+#        1  e1 +1 a1  2  e2 +2 a2  3  e3 +3 a3  4  e4 +4 a4
+#   (1/+/2/+/3/+/4/+ = quarter beats; e = "e of"; a = "and-a of")
+#
+# Beat positions — 6/8 at resolution 12 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11
+#        C1 .  e1 .  a1 .  C2 .  e2 .  a2 .
+#   (C1/C2 = compound beat downbeats; each compound beat = 3 eighth notes = 6 steps)
+#
+# Swing / feel: 'feel' delays the second note of each swung pair, and
+# 'swing_unit' says which notes pair up: 16 = sixteenths (the default),
+# 8 = eighths (jazz, shuffle). Write the grids straight, as a score does.
+#   straight    — every step exactly on the grid
+#   swing_light — light swing, second note at 58 % of the pair (or swing_soft)
+#   swing_hard  — triplet swing, second note at 67 % of the pair
+#   laid_back   — same as straight; drag one instrument with its 'rush'
+#
+# Spaces and '|' inside a grid are ignored. A grid may span two bars, and
+# 'grid: triplet' on a variation splits each beat in three (12 steps in 4/4).
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Country
+family: country
+bpm_range: [80, 190]
+time_signature: [4, 4]
+resolution: 16
+feel: straight
+swing_unit: 8
+
+instruments:
+  kick:       { note: 36, base_velocity: 102, velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.14 }
+  snare:      { note: 38, base_velocity: 100, velocity_range: 12, timing_jitter: 0.014, duration_beats: 0.10 }
+  rim:        { note: 37, base_velocity: 92,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.08 }
+  hihat:      { note: 42, base_velocity: 80,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.07 }
+  hihat_foot: { note: 44, base_velocity: 72,  velocity_range: 8,  timing_jitter: 0.012, duration_beats: 0.07 }
+  ride:       { note: 51, base_velocity: 84,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.12 }
+  crash:      { note: 49, base_velocity: 96,  velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.25 }
+  tom_hi:     { note: 48, base_velocity: 92,  velocity_range: 12, timing_jitter: 0.016, duration_beats: 0.12 }
+  tom_lo:     { note: 41, base_velocity: 94,  velocity_range: 12, timing_jitter: 0.016, duration_beats: 0.15 }
+
+humanization:
+  timing_jitter: 0.014
+  velocity_jitter: 12
+  velocity_drift: 0.06
+
+sections:
+  intro:
+    type: count_in
+    hits: 4
+    note: 37
+
+  groove:
+    bars: 1
+    variations:
+      - name: two_beat_rim
+        role: intro
+        weight: 2
+        # The two-beat with a cross-stick: bass on 1 and 3, side stick on 2
+        # and 4, closed hi-hat eighths. The quiet verse of a ballad.
+        kick:  "X.......X......."
+        rim:   "....X.......X..."
+        hihat: "x.x.x.x.x.x.x.x."
+
+      - name: train_beat
+        role: verse
+        weight: 4
+        # The train beat: alternating sixteenths on the snare, the strokes
+        # on 2 and 4 accented, the bass drum on 1 and 3 and the hi-hat foot
+        # closing on 2 and 4. The "chugga-chugga" of a locomotive.
+        snare:      "gggg Xggg gggg Xggg"
+        kick:       "X... .... X... ...."
+        hihat_foot: ".... X... .... X..."
+
+      - name: boom_chick
+        role: chorus
+        weight: 3
+        # The two-beat played out for the chorus: full backbeat on the
+        # snare, ride eighths, a bass drum pickup on the "and" of 2.
+        kick:  "X.....x.X......."
+        snare: "....X.......X..."
+        ride:  "x.x.x.x.x.x.x.x."
+
+      - name: price_shuffle
+        role: bridge
+        weight: 2
+        # The Ray Price shuffle on a triplet grid: hi-hat triplets without
+        # their middle note, bass drum on 1 and 3, snare on 2 and 4.
+        grid: triplet
+        hihat: "X.x X.x X.x X.x"
+        snare: "... X.. ... X.."
+        kick:  "X.. ... X.. ..."
+
+  fill:
+    bars: 1
+    variations:
+      - name: snare_pickup
+        # Backbeat on 2, then a snare pickup growing through beats 3 and 4.
+        kick:  "X.......X......."
+        snare: "....X...o.o.xxXX"
+
+      - name: tom_walk
+        # Snare on 2, then two strokes on each tom down to the floor tom.
+        kick:   "X..............."
+        snare:  "....X..........."
+        tom_hi: "........X.X....."
+        tom_lo: "............X.X."
+
+      - name: shuffle_turn
+        # A triplet turnaround on the snare over beats 3 and 4.
+        grid: triplet
+        kick:  "X.. ... X.. ..."
+        snare: "... X.. xxx xxX"
+
+  crash:
+    bars: 1
+    variations:
+      - name: standard
+        # Laid over the groove on the bar after a fill, a break or the
+        # count-in: the cymbal and the low drum on beat 1. The groove
+        # plays everything else.
+        crash: "X..............."
+        kick:  "X..............."
+
+  ending:
+    # Played once at the end of the song; the drums stop after bar 2.
+    type: sequence
+    bars: 2
+    bar_grids:
+      - # Bar 1: the band stops together on "shave and a haircut"
+        # (1, 2, "and" of 2, 3), then lets beat 4 ring
+        kick:  "X...X.X.X......."
+        snare: "X...X.X.X......."
+        crash: "X..............."
+      - # Bar 2: final hit on beat 1, then silence
+        crash: "X..............."
+        kick:  "X..............."
+
+structure:
+  fill_every: 8
+  break_every: 0
+  break_length: 1
+  crash_after_fill: true
+  dynamic_build: false

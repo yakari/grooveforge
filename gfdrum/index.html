@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Reference for the .gfdrum drum pattern format: every field the Drum Generator reads, step grids, sections, and the bundled patterns to download.">
+  <title>GrooveForge — .gfdrum drum patterns</title>
+  <link rel="icon" type="image/png" href="../assets/icon.png">
+  <link rel="stylesheet" href="../css/site.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="header-inner">
+      <input type="checkbox" id="gf-nav-menu" class="nav-toggle-input">
+      <a class="brand" href="../">
+        <img src="../assets/icon.png" width="40" height="40" alt="">
+        GrooveForge
+      </a>
+      <div class="header-triggers">
+        <span class="lang-switch" aria-label="Language">
+          <span class="lang-current" aria-current="true">EN</span>
+          <span class="lang-sep" aria-hidden="true">·</span>
+          <a href="../fr/gfdrum/" hreflang="fr">FR</a>
+        </span>
+        <label for="gf-nav-menu" class="nav-toggle-label">Menu</label>
+      </div>
+      <nav class="site-nav" aria-label="Primary">
+        <a href="../guide/">Guide</a>
+        <a href="../rehearsals/">Rehearsals</a>
+        <a href="../modules/">Modules</a>
+        <a href="../midi-fx/">MIDI FX</a>
+        <a href="../vst/">VST3</a>
+        <a href="../gfdrum/">Rhythmic patterns</a>
+        <a href="../gfpd/">Plugin descriptors</a>
+        <a href="../features/">All features</a>
+        <a href="../demo/" class="nav-cta">Try web demo</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="prose">
+    <div class="page-hero">
+      <h1><code>.gfdrum</code> patterns</h1>
+      <p class="lead">A <code>.gfdrum</code> file is a YAML text file that describes one drum style for the Drum Generator.
+        This page lists every field the app reads.</p>
+    </div>
+
+    <h2 id="load">Load your own pattern</h2>
+    <ol>
+      <li>Start from the bundled pattern closest to your style (<a href="#downloads">downloads below</a>) and edit it in a text editor.</li>
+      <li>In the Drum Generator module, tap <span class="ui">Load .gfdrum…</span> and pick your file.</li>
+    </ol>
+    <p class="recipe-result">The <span class="ui">Style</span> menu shows the pattern's <code>name</code> and the pattern plays.</p>
+    <ul>
+      <li>Not in the web demo.</li>
+      <li>The pattern is saved inside the project, so it plays again when you reopen the project, even if the file has moved.</li>
+      <li>If the file has errors, a message says so and the previous pattern keeps playing.</li>
+      <li>Your pattern only plays in the module you loaded it into. It never replaces a bundled pattern, whatever the file is called.</li>
+    </ul>
+
+    <h2 id="example">A short example</h2>
+    <pre><code>name: My Rock
+family: rock
+time_signature: [4, 4]
+resolution: 16
+feel: straight
+
+instruments:
+  kick:  { note: 36, base_velocity: 110, velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.15 }
+  snare: { note: 38, base_velocity: 105 }
+  hihat: { note: 42, base_velocity: 82 }
+  crash: { note: 49, base_velocity: 100, duration_beats: 0.25 }
+
+sections:
+  intro:
+    type: count_in
+    hits: 4
+    note: 37
+
+  groove:
+    variations:
+      - name: main
+        weight: 3
+        kick:  "X.......X......."
+        snare: "....X.......X..."
+        hihat: "X.x.X.x.X.x.X.x."
+      - name: push
+        weight: 1
+        kick:  "X.......X......X"
+        snare: "....X.......X..."
+        hihat: "X.x.X.x.X.x.X.x."
+
+  fill:
+    variations:
+      - name: snare_run
+        kick:  "X..............."
+        snare: "....X...X.X.X.X."
+
+  crash:
+    variations:
+      - name: standard
+        crash: "X..............."
+        kick:  "X..............."</code></pre>
+    <p>Each grid is one bar. With <code>resolution: 16</code> in 4/4, one character is a sixteenth note:</p>
+    <pre><code>position  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15
+count     1 e + a 2 e + a 3 e + a  4  e  +  a</code></pre>
+
+    <h2 id="top-level">Top-level fields</h2>
+    <table>
+      <thead><tr><th>Field</th><th>If missing</th><th>What it does</th></tr></thead>
+      <tbody>
+        <tr><td><code>name</code></td><td>The file name</td><td>Name in the <span class="ui">Style</span> menu.</td></tr>
+        <tr><td><code>family</code></td><td><code>other</code></td><td>Group in the <span class="ui">Style</span> menu. These values are translated in the app:
+          <code>rock</code>, <code>jazz</code>, <code>funk</code>, <code>latin</code>, <code>celtic</code>, <code>pop</code>, <code>electronic</code>,
+          <code>world</code>, <code>metal</code>, <code>country</code>, <code>folk</code>, <code>march</code>, <code>reggae</code>, <code>rnb</code>,
+          <code>arabic</code>, <code>turkish</code>, <code>persian</code>, <code>indian</code>, <code>fareast</code>. Any other value is shown as written.</td></tr>
+        <tr><td><code>time_signature</code></td><td><code>[4, 4]</code></td><td><code>[beats, note value]</code>, for example <code>[6, 8]</code> or <code>[9, 8]</code>.
+          Picking the pattern while the transport is stopped switches the transport to this time signature.</td></tr>
+        <tr><td><code>resolution</code></td><td><code>16</code></td><td>Steps per bar. Write every grid with this many characters per bar.
+          See <a href="#writing">Writing a grid</a> for grids of two bars and triplet grids.</td></tr>
+        <tr><td><code>feel</code></td><td><code>straight</code></td><td>How much the swung notes are delayed. See <a href="#feel">Feel</a>.</td></tr>
+        <tr><td><code>swing_unit</code></td><td><code>16</code></td><td>Which notes swing: <code>8</code> for the eighth notes (jazz, shuffle), <code>16</code> for the sixteenths (funk, hip-hop). See <a href="#feel">Feel</a>.</td></tr>
+        <tr><td><code>kit</code></td><td><code>standard</code></td><td>The drum kit the style plays on: <code>standard</code>, <code>room</code>, <code>power</code>, <code>electronic</code>,
+          <code>tr808</code>, <code>jazz</code>, <code>brush</code> or <code>orchestra</code>. When the slot's soundfont lacks that kit, the standard kit plays.</td></tr>
+        <tr><td><code>instruments</code></td><td>Silence</td><td>The drum sounds, one lane each. See <a href="#instruments">Instruments</a>.</td></tr>
+        <tr><td><code>sections</code></td><td>Silence</td><td>What to play and when. See <a href="#sections">Sections</a>.</td></tr>
+      </tbody>
+    </table>
+    <p class="recipe-note">The bundled files also contain <code>bpm_range</code> and <code>structure</code>.
+      The app does not read them: changing them has no effect. The module's own settings decide the structure.
+      Of the <code>humanization</code> block, only <code>velocity_drift</code> is read (see <a href="#instruments">Instruments</a>).</p>
+
+    <h3 id="feel">Feel</h3>
+    <table>
+      <thead><tr><th>Value</th><th>Effect</th></tr></thead>
+      <tbody>
+        <tr><td><code>straight</code></td><td>Every step on the grid.</td></tr>
+        <tr><td><code>swing_light</code> (or <code>swing_soft</code>)</td><td>A light swing: the second note of each pair lands at 58% of the pair.</td></tr>
+        <tr><td><code>swing_hard</code></td><td>A triplet swing: the second note lands at 67% of the pair, on the last note of a triplet.</td></tr>
+        <tr><td><code>laid_back</code>, <code>pushed</code></td><td>Same as <code>straight</code> today. To drag or push a drum, use its <code>rush</code>.</td></tr>
+      </tbody>
+    </table>
+    <p>Write a swing pattern as a score does: in plain eighth notes, in 4/4, with the swing given at the top. <code>swing_unit</code> says which notes pair up.
+      With <code>swing_unit: 8</code>, each beat is a pair of eighths and its "and" is delayed: a jazz ride is written <code>X...X.X.X...X.X.</code>.
+      Sixteenths inside the beat move with it, in proportion. With <code>swing_unit: 16</code> (the default), each eighth is a pair of sixteenths
+      and only the second sixteenth moves, as in funk.</p>
+    <p>An unknown value plays as <code>straight</code>. Moving the module's <span class="ui">Swing</span> slider overrides the feel, on the notes
+      <code>swing_unit</code> names, so any straight pattern can be played swung. Slide it all the way left, where it reads <span class="ui">Pattern</span>, to use the file's. Triplet grids never swing.</p>
+
+    <h2 id="instruments">Instruments</h2>
+    <p>Under <code>instruments:</code>, each key is a lane name of your choice (<code>kick</code>, <code>surdo_open</code>…).
+      Grids that use a lane name not listed here are ignored.</p>
+    <table>
+      <thead><tr><th>Field</th><th>If missing</th><th>What it does</th></tr></thead>
+      <tbody>
+        <tr><td><code>note</code></td><td>Lane dropped</td><td>Required. General MIDI drum note: 36 kick, 37 side stick, 38 snare, 42 closed hi-hat, 46 open hi-hat, 49 crash, 51 ride.</td></tr>
+        <tr><td><code>base_velocity</code></td><td><code>100</code></td><td>Velocity (1 to 127) of an <code>X</code> hit. The other characters are fractions of it.</td></tr>
+        <tr><td><code>velocity_range</code></td><td><code>15</code></td><td>Random variation, plus or minus, added to each hit's velocity.</td></tr>
+        <tr><td><code>timing_jitter</code></td><td><code>0.02</code></td><td>Random variation of each hit's timing, plus or minus, in beats.</td></tr>
+        <tr><td><code>rush</code></td><td><code>0</code></td><td>Fixed shift in beats for every hit of this lane. Negative plays early, positive plays late.</td></tr>
+        <tr><td><code>duration_beats</code></td><td><code>0.1</code></td><td>Length of each note, in beats.</td></tr>
+      </tbody>
+    </table>
+    <p>The module's <span class="ui">Human feel</span> control scales <code>velocity_range</code> and <code>timing_jitter</code>.
+      At its lowest, every hit is exact; in the middle, the file plays as written; at its highest, the spread doubles and some ghost notes are left out.
+      The <code>velocity_drift</code> of the <code>humanization</code> block (for example <code>0.06</code>, up to 6% softer or louder) makes the drummer's
+      energy rise and fall slowly, over eight bars, by the same amount.</p>
+
+    <h3 id="grid">Step grid characters</h3>
+    <table>
+      <thead><tr><th>Character</th><th>Hit</th><th>Velocity</th></tr></thead>
+      <tbody>
+        <tr><td><code>X</code></td><td>Accent</td><td><code>base_velocity</code></td></tr>
+        <tr><td><code>x</code></td><td>Medium</td><td>75%</td></tr>
+        <tr><td><code>o</code></td><td>Soft</td><td>55%</td></tr>
+        <tr><td><code>g</code></td><td>Ghost note</td><td>28%</td></tr>
+        <tr><td><code>.</code></td><td>Rest</td><td>None. Any other character is also a rest.</td></tr>
+      </tbody>
+    </table>
+
+    <h3 id="writing">Writing a grid</h3>
+    <p>Spaces and <code>|</code> in a grid only help the eye and are ignored: <code>"X... X... X... X..."</code> is the same as <code>"X...X...X...X..."</code>.</p>
+    <p><strong>Two bars.</strong> A variation can last two bars or more: write its grids twice as long, a <code>|</code> between the bars helps.
+      A grid shorter than the variation repeats, so a one-bar hi-hat can sit under a two-bar clave. The variation always starts on its first bar
+      at the start of a phrase or of a song-form block.</p>
+    <pre><code>      - name: son_clave_3_2
+        clave: "X.....X.....X... | ....X...X......."
+        hihat: "x.x.x.x.x.x.x.x."</code></pre>
+    <p><strong>Triplets.</strong> Add <code>grid: triplet</code> to a variation, or to one bar of a <code>sequence</code>, to split each beat in three:
+      12 characters per bar in 4/4. Use it for what swung eighths cannot write, such as the ghost note on the middle of a shuffle's triplet,
+      or a triplet fill. The bar stays in 4/4 for the transport and the metronome.</p>
+    <pre><code>      - name: shuffle
+        grid: triplet
+        hihat: "x.x x.x x.x x.x"
+        snare: ".g. Xg. .g. Xg."</code></pre>
+
+    <h2 id="sections">Sections</h2>
+    <p>The generator plays in phrases, as a drummer does. A phrase lasts as long as <span class="ui">Fill every</span> says
+      (8 bars when fills are off). The groove keeps the same variation for the whole phrase, a fill ends it, and the next phrase
+      starts with a crash, or sometimes with a break. With a song form switched on in the module, it follows the form's blocks
+      instead: see <a href="#song-form">Song forms</a>.</p>
+    <p>The generator plays sections with these six names. A section with any other name is never played.</p>
+    <table>
+      <thead><tr><th>Section</th><th>When it plays</th></tr></thead>
+      <tbody>
+        <tr><td><code>groove</code></td><td>Every bar that no other section takes. Without it, the pattern is silent.</td></tr>
+        <tr><td><code>intro</code></td><td>Before the groove, when the module's <span class="ui">Count-in</span> is set:
+          one bar for <span class="ui">1 bar</span> and <span class="ui">Chopsticks</span>, two bars for <span class="ui">2 bars</span>.
+          The menu shows how many clicks the pattern's <code>intro</code> plays.
+          Without an <code>intro</code>, the groove plays during those bars.</td></tr>
+        <tr><td><code>fill</code></td><td>The last bar of each phrase: every 4, 8 or 16 bars, or every 8, 12 or 16 bars at random, set by <span class="ui">Fill every</span>.
+          With <code>bars: 2</code>, the fill takes the last two bars.</td></tr>
+        <tr><td><code>crash</code></td><td>On top of the first bar after the count-in, a fill or a break, when <span class="ui">Crash after fill</span> is on.
+          Write only beat 1, the cymbal and the low drum: the groove plays the rest. A hit both play sounds once.</td></tr>
+        <tr><td><code>break</code></td><td>The first bars of a phrase, never the first phrase, as often as <span class="ui">Breaks</span> says.
+          Its <code>bars</code> sets how many bars it lasts (one by default). In a song form, it plays in the <span class="ui">Break</span> blocks instead.</td></tr>
+        <tr><td><code>ending</code></td><td>Once, in the <span class="ui">Ending</span> block of a song form. The drums stop after it.
+          Write it as a <code>sequence</code>: a last bar typical of the style, then a bar with only the final hit on beat 1.</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Three kinds of section</h3>
+        <table>
+      <thead><tr><th><code>type</code></th><th>How it works</th></tr></thead>
+      <tbody>
+        <tr><td><code>loop</code> (default)</td><td>A list under <code>variations:</code>. Each phrase picks one at random and keeps it to the end; a variation with <code>weight: 3</code> comes up three times
+          as often as one with <code>weight: 1</code> (the default). Inside a variation, <code>name</code> is optional and every other key is a lane
+          with its grid, except <code>role</code> (see <a href="#song-form">Song forms</a>). For a single variation, skip the list and put the grids straight under the section.</td></tr>
+        <tr><td><code>sequence</code></td><td>A list under <code>bar_grids:</code>, one entry per bar, played in order and repeated. Use it for a phrase whose bars all differ
+          and that needs no variations, like an ending. For a two-bar clave with variations, write two-bar grids instead (see <a href="#writing">Writing a grid</a>). The sequence starts again on its first bar at the start of each phrase, and after a break.</td></tr>
+        <tr><td><code>count_in</code></td><td>No grid: <code>hits</code> (default 4) clicks spread evenly over the bar, on drum note <code>note</code> (default 37, side stick).</td></tr>
+      </tbody>
+    </table>
+    <pre><code>  groove:
+    type: sequence
+    bar_grids:
+      - rimshot: "X..X..X........."
+        kick:    "X......X...X...."
+      - rimshot: "...X.....X......"
+        kick:    "X......X........"</code></pre>
+
+    <h3 id="song-form">Song forms</h3>
+    <p>In the module, <span class="ui">Song form</span> lays out a song as blocks: intro, verse, chorus, bridge, break and ending.
+      Each block holds one groove variation from start to end. To choose which one, give the groove's variations a <code>role</code>:
+      <code>intro</code>, <code>verse</code>, <code>chorus</code> or <code>bridge</code>. Each role goes to one variation at most.</p>
+    <pre><code>  groove:
+    variations:
+      - name: main
+        role: verse
+        kick:  "X.......X......."
+      - name: driving
+        role: chorus
+        kick:  "X.X.....X.X....."</code></pre>
+    <p>Without roles, the verse plays the variation with the highest <code>weight</code>, the chorus the one with the most hits,
+      the intro the one with the fewest, and the bridge another one. A <code>sequence</code> groove plays its bars in order in every block.</p>
+    <p>A <span class="ui">Break</span> block plays the <code>break</code> section. Without one, it plays beat 1 of the <code>crash</code> section
+      and then stays silent. A two-bar <code>sequence</code> break can drop out on its first bar and play a pickup on the second:</p>
+    <pre><code>  break:
+    type: sequence
+    bars: 2
+    bar_grids:
+      - crash: "X..............."
+        kick:  "X..............."
+      - snare: "........o.o.xxXX"</code></pre>
+    <p>An <span class="ui">Ending</span> block plays the <code>ending</code> section. Without one, it plays a fill and then the hit on beat 1.</p>
+
+    <h2 id="downloads">Bundled patterns</h2>
+    <p>These links download the current files from the <code>main</code> branch on GitHub. The comments inside explain each groove.</p>
+    <table class="download-table">
+      <thead>
+        <tr><th>Pattern</th><th>Download</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Afrobeat</td><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/drums/afrobeat.gfdrum" download>afrobeat.gfdrum</a></td></tr>
+        <tr><td>Batucada</td><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/drums/batucada.gfdrum" download>batucada.gfdrum</a></td></tr>
+        <tr><td>Batucada (directed)</td><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/drums/batucada_directed.gfdrum" download>batucada_directed.gfdrum</a></td></tr>
+        <tr><td>Breton An Dro</td><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/drums/celtic_breton_an_dro.gfdrum" download>celtic_breton_an_dro.gfdrum</a></td></tr>
+        <tr><td>Irish Jig</td><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/drums/celtic_irish_jig.gfdrum" download>celtic_irish_jig.gfdrum</a></td></tr>
+        <tr><td>Plinn</td><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/drums/celtic_plinn.gfdrum" download>celtic_plinn.gfdrum</a></td></tr>
+        <tr><td>Celtic Reel</td><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/drums/celtic_reel.gfdrum" download>celtic_reel.gfdrum</a></td></tr>
+        <tr><td>Scottish Reel</td><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/drums/celtic_scottish_reel.gfdrum" download>celtic_scottish_reel.gfdrum</a></td></tr>
+        <tr><td>Country</td><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/drums/country.gfdrum" download>country.gfdrum</a></td></tr>
+        <tr><td>Disco</td><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/drums/disco.gfdrum" download>disco.gfdrum</a></td></tr>
+        <tr><td>Fanfare march</td><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/drums/fanfare_march.gfdrum" download>fanfare_march.gfdrum</a></td></tr>
+        <tr><td>Festive fanfare</td><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/drums/festive_fanfare.gfdrum" download>festive_fanfare.gfdrum</a></td></tr>
+        <tr><td>Funk (tight)</td><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/drums/funk_tight.gfdrum" download>funk_tight.gfdrum</a></td></tr>
+        <tr><td>Jazz half-time shuffle</td><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/drums/jazz_halftime_shuffle.gfdrum" download>jazz_halftime_shuffle.gfdrum</a></td></tr>
+        <tr><td>Jazz swing</td><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/drums/jazz_swing.gfdrum" download>jazz_swing.gfdrum</a></td></tr>
+        <tr><td>Jazz waltz</td><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/drums/jazz_waltz.gfdrum" download>jazz_waltz.gfdrum</a></td></tr>
+        <tr><td>Bossa Nova</td><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/drums/latin_bossa_nova.gfdrum" download>latin_bossa_nova.gfdrum</a></td></tr>
+        <tr><td>Cha-cha</td><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/drums/latin_cha_cha.gfdrum" download>latin_cha_cha.gfdrum</a></td></tr>
+        <tr><td>Salsa</td><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/drums/latin_salsa.gfdrum" download>latin_salsa.gfdrum</a></td></tr>
+        <tr><td>Metal</td><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/drums/metal.gfdrum" download>metal.gfdrum</a></td></tr>
+        <tr><td>Classic rock</td><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/drums/rock_basic.gfdrum" download>rock_basic.gfdrum</a></td></tr>
+        <tr><td>Samba groove</td><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/drums/samba_groove.gfdrum" download>samba_groove.gfdrum</a></td></tr>
+        <tr><td>Second line</td><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/drums/second_line.gfdrum" download>second_line.gfdrum</a></td></tr>
+        <tr><td>Arabic maqsum &amp; baladi</td><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/drums/arabic_maqsum.gfdrum" download>arabic_maqsum.gfdrum</a></td></tr>
+        <tr><td>Bhangra (dhol)</td><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/drums/indian_bhangra.gfdrum" download>indian_bhangra.gfdrum</a></td></tr>
+        <tr><td>Çiftetelli</td><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/drums/turkish_ciftetelli.gfdrum" download>turkish_ciftetelli.gfdrum</a></td></tr>
+        <tr><td>Dub</td><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/drums/dub.gfdrum" download>dub.gfdrum</a></td></tr>
+        <tr><td>Electro</td><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/drums/electro.gfdrum" download>electro.gfdrum</a></td></tr>
+        <tr><td>Karşılama (9/8)</td><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/drums/turkish_karsilama.gfdrum" download>turkish_karsilama.gfdrum</a></td></tr>
+        <tr><td>Luogu (lion dance)</td><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/drums/chinese_luogu.gfdrum" download>chinese_luogu.gfdrum</a></td></tr>
+        <tr><td>R&amp;B</td><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/drums/rnb.gfdrum" download>rnb.gfdrum</a></td></tr>
+        <tr><td>Shesh-o-hasht (6/8)</td><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/drums/persian_shesh_o_hasht.gfdrum" download>persian_shesh_o_hasht.gfdrum</a></td></tr>
+        <tr><td>Taiko (matsuri)</td><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/drums/japanese_taiko.gfdrum" download>japanese_taiko.gfdrum</a></td></tr>
+        <tr><td>Techno</td><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/drums/techno.gfdrum" download>techno.gfdrum</a></td></tr>
+        <tr><td>Teental (16 matras)</td><td><a href="https://raw.githubusercontent.com/yakari/grooveforge/main/assets/drums/indian_teental.gfdrum" download>indian_teental.gfdrum</a></td></tr>
+      </tbody>
+    </table>
+    <p><a href="../vst/">← VST3</a> · <a href="../gfpd/">.gfpd plugins →</a></p>
+  </main>
+
+  <footer class="site-footer">
+    <p><a href="https://github.com/yakari/grooveforge">GitHub</a> · <a href="../privacy/">Privacy</a></p>
+  </footer>
+</body>
+</html>

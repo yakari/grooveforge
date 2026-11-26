@@ -1,0 +1,92 @@
+spec: "1.0"
+id: "com.grooveforge.delay"
+name: "Ping-Pong Delay"
+version: "1.0.0"
+type: effect
+
+parameters:
+  - id: time
+    paramId: 0
+    name: "Time"
+    min: 1.0
+    max: 2000.0
+    default: 375.0
+    unit: "ms"
+  - id: feedback
+    paramId: 1
+    name: "Feedback"
+    min: 0.0
+    max: 99.0
+    default: 40.0
+    unit: "%"
+  - id: bpm_sync
+    paramId: 2
+    name: "BPM"
+    min: 0.0
+    max: 1.0
+    default: 0.0
+    type: toggle
+  - id: beat_div
+    paramId: 3
+    name: "Div"
+    min: 0.0
+    max: 5.0
+    default: 2.0
+    type: selector
+    options: ["2 bars", "1 bar", "1/2", "1/4", "1/8", "1/16"]
+  - id: mix
+    paramId: 4
+    name: "Mix"
+    min: 0.0
+    max: 100.0
+    default: 40.0
+    unit: "%"
+
+graph:
+  nodes:
+    - id: in
+      type: audio_in
+    - id: del
+      type: delay
+      params:
+        timeMs:   { param: time }
+        feedback: { param: feedback }
+        bpmSync:  { param: bpm_sync }
+        beatDiv:  { param: beat_div }
+    - id: mix_nd
+      type: wet_dry
+      params:
+        mix: { param: mix }
+    - id: out
+      type: audio_out
+
+  connections:
+    - from: in.out
+      to: [del.in, mix_nd.dry]
+    - from: del.out
+      to: mix_nd.wet
+    - from: mix_nd.out
+      to: out.in
+
+ui:
+  groups:
+    - label: "Timing"
+      controls:
+        - type: knob
+          param: time
+        - type: toggle
+          param: bpm_sync
+          label: "BPM"
+        - type: selector
+          param: beat_div
+          label: "Div"
+    - label: "Character"
+      controls:
+        - type: knob
+          param: feedback
+    - label: "Output"
+      controls:
+        - type: knob
+          param: mix
+        - type: vumeter
+          source: out

@@ -1,0 +1,236 @@
+spec: "1.0"
+id: "com.grooveforge.riff"
+name: "Riff"
+version: "1.0.0"
+type: instrument
+
+# Riff: an electric guitar simulated string by string (native_audio/gf_riff.h)
+# rather than played from recordings. It is an instrument played from MIDI —
+# a keyboard, MIDI FX or the looper — and is usually cabled into the Amp.
+#
+# The guitar is native only (gfpa_riff.cpp behind the GFPA DSP handle): the
+# knobs below travel the same path as an effect's, so they are saved with the
+# project and can be put on CC like any effect's. Every one of them acts on
+# strings that are already ringing, so a pedal or a ribbon can play them.
+
+# ─── Parameters ────────────────────────────────────────────────────────────
+# Physical units throughout; the host converts from the normalised knob
+# position before sending them to the native DSP. The native side matches
+# them by id (gfpa_riff_slot_set_param), so do not rename them.
+parameters:
+  # ── Picking hand ──
+  # How hard the side of the picking hand rests on the strings: from ringing
+  # freely to the tight "chug" of metal rhythm parts.
+  - id: palm_mute
+    paramId: 0
+    name: "Palm mute"
+    min: 0.0
+    max: 100.0
+    default: 0.0
+    unit: "%"
+
+  # Where the string is picked: near the bridge (thin, snappy) to over the
+  # neck (round, warm).
+  - id: pick_pos
+    paramId: 1
+    name: "Pick position"
+    min: 0.0
+    max: 100.0
+    default: 35.0
+    unit: "%"
+
+  # From a soft fingertip to a hard pick.
+  - id: attack
+    paramId: 2
+    name: "Attack"
+    min: 0.0
+    max: 100.0
+    default: 70.0
+    unit: "%"
+
+  # ── Pickups ──
+  # Order matches gf_riff_pickup in native_audio/gf_riff.h.
+  - id: pickup
+    paramId: 3
+    name: "Pickup"
+    min: 0.0
+    max: 3.0
+    default: 2.0
+    type: selector
+    options: ["Neck", "Middle", "Bridge", "Neck+Bridge"]
+
+  - id: pickup_type
+    paramId: 4
+    name: "Pickup type"
+    min: 0.0
+    max: 1.0
+    default: 1.0
+    type: selector
+    options: ["Single coil", "Humbucker"]
+
+  # The guitar's own tone knob: dark to bright.
+  - id: tone
+    paramId: 5
+    name: "Tone"
+    min: 0.0
+    max: 100.0
+    default: 70.0
+    unit: "%"
+
+  # ── Strings ──
+  # How long the strings ring: about 2 s on the low E at 0, 20 s at 100.
+  - id: sustain
+    paramId: 6
+    name: "Sustain"
+    min: 0.0
+    max: 100.0
+    default: 70.0
+    unit: "%"
+
+  # Semitones a full pitch-bend reaches. 2 is a whole-tone bend.
+  - id: bend_range
+    paramId: 7
+    name: "Bend range"
+    min: 1.0
+    max: 12.0
+    default: 2.0
+    unit: "st"
+    display: value
+
+  # ── Fretting hand ──
+  # Hammer-ons and pull-offs: while on, a note played on its own close to the
+  # last one slurs on the same string instead of being picked again. Meant to
+  # be held on a pad (CC, absolute mode: pressed = on); a pad sending MIDI
+  # CC 68, the standard legato pedal, works without any mapping.
+  - id: legato
+    paramId: 9
+    name: "Legato"
+    min: 0.0
+    max: 1.0
+    default: 0.0
+    type: toggle
+
+  # Keyboard legato: a note whose key goes down while the previous one, alone,
+  # is still held slurs on its string; a note played detached is picked. Needs
+  # no pad, as on most guitar instruments (Shreddage, Ample, Strum).
+  - id: legato_overlap
+    paramId: 10
+    name: "Overlap legato"
+    min: 0.0
+    max: 1.0
+    default: 0.0
+    type: toggle
+
+  # How much longer the strings ring while the sustain pedal is down than
+  # when the keys are only held: x1 at 0 (the pedal just holds released
+  # strings), about x6 at 50, x40 at 100 (endless, a sustainer).
+  - id: pedal_sustain
+    paramId: 11
+    name: "Pedal sustain"
+    min: 0.0
+    max: 100.0
+    default: 50.0
+    unit: "%"
+
+  # ── Feedback ──
+  # The amp's sound driving the strings back (larsen): a held string's
+  # harmonic blooms in about a second and holds while the note is held or
+  # pedalled. Damped by the palm mute and by letting go. Meant for a CC
+  # slider or an expression pedal.
+  - id: feedback
+    paramId: 12
+    name: "Feedback"
+    min: 0.0
+    max: 100.0
+    default: 0.0
+    unit: "%"
+
+  # Which harmonic blooms. Order matches k_fb_harm in native_audio/gf_riff.c.
+  - id: fb_harmonic
+    paramId: 13
+    name: "Feedback harmonic"
+    min: 0.0
+    max: 3.0
+    default: 1.0
+    type: selector
+    options: ["Root", "Octave", "Oct+5th", "2 Oct"]
+
+  # ── Output ──
+  - id: level
+    paramId: 8
+    name: "Level"
+    min: -24.0
+    max: 12.0
+    default: 0.0
+    unit: "dB"
+    display: value
+
+# ─── UI ────────────────────────────────────────────────────────────────────
+ui:
+  layout: lanes
+  groups:
+    - label: "Picking hand"
+      controls:
+        - type: knob
+          param: palm_mute
+          label: "Palm mute"
+          size: small
+        - type: knob
+          param: pick_pos
+          label: "Pick pos."
+          size: small
+        - type: knob
+          param: attack
+          label: "Attack"
+          size: small
+
+    - label: "Fretting hand"
+      controls:
+        - type: toggle
+          param: legato
+          label: "Legato"
+        - type: toggle
+          param: legato_overlap
+          label: "Overlap"
+        - type: knob
+          param: bend_range
+          label: "Bend"
+          size: small
+
+    - label: "Pickups"
+      controls:
+        - type: selector
+          param: pickup
+          label: "Pickup"
+        - type: selector
+          param: pickup_type
+          label: "Type"
+        - type: knob
+          param: tone
+          label: "Tone"
+          size: small
+
+    - label: "Feedback"
+      controls:
+        - type: knob
+          param: feedback
+          label: "Feedback"
+          size: small
+        - type: selector
+          param: fb_harmonic
+          label: "Harmonic"
+
+    - label: "Strings"
+      controls:
+        - type: knob
+          param: sustain
+          label: "Sustain"
+          size: small
+        - type: knob
+          param: pedal_sustain
+          label: "Pedal sus."
+          size: small
+        - type: knob
+          param: level
+          label: "Level"
+          size: small

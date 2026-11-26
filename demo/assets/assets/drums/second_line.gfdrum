@@ -1,0 +1,164 @@
+# Second Line — New Orleans street parade drumming on a drum kit
+# Reference: Herlin Riley & Johnny Vidacovich, "New Orleans Jazz and Second
+#            Line Drumming" (Alfred, 1995); The Meters "Hey Pocky A-Way"
+#            (Zigaboo Modeliste); Dirty Dozen and Rebirth brass bands
+# A parade has two drummers, one on a bass drum with a cymbal on top, one on
+# a snare. The bass drum plays the 3+3+2 figure (beat 1, the "and" of 2,
+# beat 4), the "big four" accent of the parade. The snare doubles those
+# accents and fills the rest with ghost notes and press rolls, with a weak
+# stroke on the "and" of 4. No hi-hat: nobody marches with one.
+# The feel sits "in the crack", between straight and shuffled eighths:
+# swing_unit 8 with a light swing.
+# GM notes: 36=bass drum, 38=snare, 49=cymbal on the bass drum, 57=crash
+
+#
+# ── Step grid notation ────────────────────────────────────────────────────────
+# Each character in a step grid represents one subdivision of the bar.
+# Resolution controls how many steps per bar (16 = 16th notes in 4/4; 12 = 16th notes in 6/8).
+#
+#   X   Strong accent  — velocity = base_velocity × 1.00  (full hit / downbeat)
+#   x   Medium accent  — velocity = base_velocity × 0.75  (firm stroke / upbeat)
+#   o   Soft hit       — velocity = base_velocity × 0.55  (brush / light touch)
+#   g   Ghost note     — velocity = base_velocity × 0.28  (barely audible, mostly felt)
+#   .   Rest           — no note fired at this step
+#
+# Beat positions — 4/4 at resolution 16 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
+#        1  e1 +1 a1  2  e2 +2 a2  3  e3 +3 a3  4  e4 +4 a4
+#   (1/+/2/+/3/+/4/+ = quarter beats; e = "e of"; a = "and-a of")
+#
+# Beat positions — 6/8 at resolution 12 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11
+#        C1 .  e1 .  a1 .  C2 .  e2 .  a2 .
+#   (C1/C2 = compound beat downbeats; each compound beat = 3 eighth notes = 6 steps)
+#
+# Swing / feel: 'feel' delays the second note of each swung pair, and
+# 'swing_unit' says which notes pair up: 16 = sixteenths (the default),
+# 8 = eighths (jazz, shuffle). Write the grids straight, as a score does.
+#   straight    — every step exactly on the grid
+#   swing_light — light swing, second note at 58 % of the pair (or swing_soft)
+#   swing_hard  — triplet swing, second note at 67 % of the pair
+#   laid_back   — same as straight; drag one instrument with its 'rush'
+#
+# Spaces and '|' inside a grid are ignored. A grid may span two bars, and
+# 'grid: triplet' on a variation splits each beat in three (12 steps in 4/4).
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Second Line
+family: world
+bpm_range: [88, 126]
+time_signature: [4, 4]
+resolution: 16
+feel: swing_light
+swing_unit: 8
+
+instruments:
+  kick:   { note: 36, base_velocity: 108, velocity_range: 12, timing_jitter: 0.016, duration_beats: 0.16 }
+  snare:  { note: 38, base_velocity: 100, velocity_range: 16, timing_jitter: 0.018, duration_beats: 0.10 }
+  cymbal: { note: 49, base_velocity: 74,  velocity_range: 12, timing_jitter: 0.016, duration_beats: 0.20 }
+  crash:  { note: 57, base_velocity: 96,  velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.25 }
+
+humanization:
+  timing_jitter: 0.018
+  velocity_jitter: 14
+  velocity_drift: 0.08
+
+sections:
+  intro:
+    type: count_in
+    hits: 4
+    note: 38
+
+  groove:
+    bars: 1
+    variations:
+      - name: snare_call
+        role: intro
+        weight: 1
+        # The snare drummer starts the parade alone over a bass drum on 1
+        # and 4: the accents of the 3+3+2, ghost notes in between.
+        snare:  "X.g. g.X. g.g. X.gg"
+        kick:   "X... .... .... X..."
+        cymbal: ".... .... .... X..."
+
+      - name: three_three_two
+        role: verse
+        weight: 4
+        # The basic second line: bass drum on 1, the "and" of 2 and beat 4
+        # (3+3+2 eighths), the cymbal on top crashing the big four. The
+        # snare doubles the accents, ghosts the eighths, buzzes into beat 1.
+        kick:   "X... ..X. .... X..."
+        cymbal: ".... .... .... X..."
+        snare:  "X.g. g.X. g.g. X.gg"
+
+      - name: street_parade
+        role: chorus
+        weight: 3
+        # The parade in full swing: the bass drum doubles every eighth
+        # ("the boom"), accents on 1 and 3; the snare accents follow the
+        # clapping of the crowd (1, the "a" of 1, the "and" of 2, 3, the
+        # "a" of 3, the "and" of 4).
+        kick:   "X.x. x.x. X.x. x.x."
+        cymbal: ".... X... .... X..."
+        snare:  "X.gX g.X. X.gX g.X."
+
+      - name: clave_two_bars
+        role: bridge
+        weight: 2
+        # Two bars on the son clave the groove comes from: the 3+3+2 in the
+        # first bar, the bass drum on 2 and 3 in the second.
+        kick:   "X... ..X. .... X... | .... X... X... ...."
+        cymbal: ".... .... .... X... | .... X... .... ...."
+        snare:  "X.g. g.X. g.g. X.gg | g.g. X.g. X.g. g.gg"
+
+  fill:
+    bars: 1
+    variations:
+      - name: press_roll
+        # Beat 1 on the bass drum, then a press roll on the snare growing
+        # from soft to loud into the next downbeat.
+        kick:  "X... .... .... ...."
+        snare: "X... o.o. oooo xxXX"
+
+      - name: big_four_stomp
+        # Bass drum and snare together on 1, the "and" of 2, beat 4 and the
+        # "and" of 4: the whole band stomps the figure.
+        kick:   "X... ..X. .... X.X."
+        snare:  "X... ..X. .... X.XX"
+        cymbal: ".... .... .... X..."
+
+      - name: dotted_call
+        # Snare accents every three sixteenths, three against the beat, the
+        # bass drum marking beat 1.
+        kick:  "X... .... .... ...."
+        snare: "X..X ..X. .X.. X.XX"
+
+  crash:
+    bars: 1
+    variations:
+      - name: standard
+        # Laid over the groove on the bar after a fill, a break or the
+        # count-in: the cymbal and the low drum on beat 1. The groove
+        # plays everything else.
+        crash: "X..............."
+        kick:  "X..............."
+
+  ending:
+    # Played once at the end of the song; the drums stop after bar 2.
+    type: sequence
+    bars: 2
+    bar_grids:
+      - # Bar 1: the 3+3+2 hit by the whole band, a press roll into the end
+        kick:   "X.....X.....X..."
+        snare:  "X.....X.....Xxxx"
+        cymbal: "X.....X.....X..."
+      - # Bar 2: final hit on beat 1, then silence
+        crash: "X..............."
+        kick:  "X..............."
+
+structure:
+  fill_every: 4
+  break_every: 0
+  break_length: 1
+  crash_after_fill: true
+  dynamic_build: false

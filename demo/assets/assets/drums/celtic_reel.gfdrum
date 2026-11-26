@@ -1,0 +1,169 @@
+# Celtic Reel — the Irish session reel, bodhrán and folk band
+# Reference: Planxty, The Bothy Band, Altan, Dervish, Solas; Soundbrenner,
+#            "Reel rhythm"; bodhrán tutorials (Bill Troxler, the OAIM)
+# The reel is the most played tune type in an Irish session: 4/4, fast,
+# eight even eighths to the bar, the weight on beat 1 and a lift on 3.
+# It is straight, not swung: unlike the jig, the reel's eighths stay even.
+# (The pipe-band side of the reel is the Scottish Reel style.)
+# The bodhrán plays every eighth with its two-headed tipper, down and up,
+# accenting the down strokes on 1 and 3. Players vary the accents (on the
+# up strokes, the offbeats, to lift the tune) and ornament with quick
+# double strokes and triplets. The variations are written in that manner:
+# - the plain down-up motor;
+# - the offbeat lift;
+# - the ornamented motor, double strokes before the beats;
+# - the folk-band version (Planxty, Moving Hearts): bass drum on 1 and 3,
+#   side stick on 2 and 4, the bodhrán on top.
+# GM substitution: General MIDI has no bodhrán. The low tom stands in for
+# the open skin, the high tom for strokes with the hand pressing the skin
+# (the higher, tighter sound), the side stick for the tipper on the rim.
+# GM notes: 45=low tom (bodhrán), 48=hi tom (bodhrán pressed), 37=side stick
+#           (rim), 36=kick, 42=closed HH, 49=crash
+
+#
+# ── Step grid notation ────────────────────────────────────────────────────────
+# Each character in a step grid represents one subdivision of the bar.
+# Resolution controls how many steps per bar (16 = 16th notes in 4/4; 12 = 16th notes in 6/8).
+#
+#   X   Strong accent  — velocity = base_velocity × 1.00  (full hit / downbeat)
+#   x   Medium accent  — velocity = base_velocity × 0.75  (firm stroke / upbeat)
+#   o   Soft hit       — velocity = base_velocity × 0.55  (brush / light touch)
+#   g   Ghost note     — velocity = base_velocity × 0.28  (barely audible, mostly felt)
+#   .   Rest           — no note fired at this step
+#
+# Beat positions — 4/4 at resolution 16 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
+#        1  e1 +1 a1  2  e2 +2 a2  3  e3 +3 a3  4  e4 +4 a4
+#   (1/+/2/+/3/+/4/+ = quarter beats; e = "e of"; a = "and-a of")
+#
+# Beat positions — 6/8 at resolution 12 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11
+#        C1 .  e1 .  a1 .  C2 .  e2 .  a2 .
+#   (C1/C2 = compound beat downbeats; each compound beat = 3 eighth notes = 6 steps)
+#
+# Swing / feel: 'feel' delays the second note of each swung pair, and
+# 'swing_unit' says which notes pair up: 16 = sixteenths (the default),
+# 8 = eighths (jazz, shuffle). Write the grids straight, as a score does.
+#   straight    — every step exactly on the grid
+#   swing_light — light swing, second note at 58 % of the pair (or swing_soft)
+#   swing_hard  — triplet swing, second note at 67 % of the pair
+#   laid_back   — same as straight; drag one instrument with its 'rush'
+#
+# Spaces and '|' inside a grid are ignored. A grid may span two bars, and
+# 'grid: triplet' on a variation splits each beat in three (12 steps in 4/4).
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Celtic Reel
+family: celtic
+bpm_range: [96, 128]
+time_signature: [4, 4]
+resolution: 16
+feel: straight
+swing_unit: 8
+
+instruments:
+  bodhran:     { note: 45, base_velocity: 100, velocity_range: 12, timing_jitter: 0.010, duration_beats: 0.12 }
+  bodhran_top: { note: 48, base_velocity: 92,  velocity_range: 12, timing_jitter: 0.010, duration_beats: 0.10 }
+  rim:         { note: 37, base_velocity: 78,  velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.06 }
+  kick:        { note: 36, base_velocity: 100, velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.12 }
+  hihat:       { note: 42, base_velocity: 72,  velocity_range: 10, timing_jitter: 0.010, duration_beats: 0.07 }
+  crash:       { note: 49, base_velocity: 96,  velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.22 }
+
+humanization:
+  timing_jitter: 0.010
+  velocity_jitter: 12
+  velocity_drift: 0.05
+
+sections:
+  intro:
+    type: count_in
+    hits: 4
+    note: 37
+
+  groove:
+    bars: 1
+    variations:
+      - name: bodhran_light
+        role: intro
+        weight: 1
+        # The bodhrán joins the first time through: down strokes on the
+        # beats only, a light up stroke before 3.
+        bodhran: "X... x... X..g x..."
+
+      - name: motor
+        role: verse
+        weight: 4
+        # The motor: every eighth, down and up, the down strokes on 1 and 3
+        # accented, the others even.
+        bodhran: "X.x. x.x. X.x. x.x."
+
+      - name: band_reel
+        role: chorus
+        weight: 3
+        # The folk band: bass drum on 1 and 3, side stick on 2 and 4,
+        # eighths on the hi-hat, the bodhrán's motor on top.
+        kick:    "X... .... X... ...."
+        rim:     ".... X... .... X..."
+        hihat:   "x.x. x.x. x.x. x.x."
+        bodhran: "X.x. x.x. X.x. x.x."
+
+      - name: offbeat_lift
+        role: bridge
+        weight: 2
+        # The accents move to the up strokes: the offbeats lift the tune,
+        # the pressed skin rising on the "and" of 2 and 4.
+        bodhran:     "x.X. x.X. x.X. x..."
+        bodhran_top: ".... .... .... ..X."
+
+      - name: ornamented
+        weight: 2
+        # The motor with double strokes before 2 and 4 and a pressed-skin
+        # accent on 3: the player decorating a tune they know well.
+        bodhran:     "X.x. x.xx X.x. x.xx"
+        bodhran_top: ".... .... X... ...."
+
+  fill:
+    bars: 1
+    variations:
+      - name: triplet_rolls
+        # Bodhrán triplets on every beat of the second half, down-up-down,
+        # the pressed skin on the last one.
+        grid: triplet
+        bodhran:     "X.x x.x Xxx Xx."
+        bodhran_top: "... ... ... ..X"
+
+      - name: rim_answer
+        # The tipper alternates skin and rim, the skin pressed on the last
+        # beat: the turn of the tune.
+        bodhran:     "X.x. X.x. X... X..."
+        rim:         ".... .... ..x. ..x."
+        bodhran_top: ".... .... .... X.XX"
+
+  crash:
+    bars: 1
+    variations:
+      - name: standard
+        # Laid over the groove on the bar after a fill or the count-in: no
+        # cymbal in a session; a strong down stroke and the bass drum on 1.
+        bodhran: "X..............."
+        kick:    "X..............."
+
+  ending:
+    # Played once at the end of the tune set; the drums stop after bar 2.
+    type: sequence
+    bars: 2
+    bar_grids:
+      - # Bar 1: the motor, then unison strokes on 3, the "and" of 3 and 4
+        bodhran:     "X.x.x.x.X.X.X..."
+        bodhran_top: "........X.X.X..."
+        kick:        "X.......X.X.X..."
+      - # Bar 2: final hit on beat 1, then silence
+        bodhran: "X..............."
+        kick:    "X..............."
+
+structure:
+  fill_every: 8
+  break_every: 0
+  break_length: 1
+  crash_after_fill: true
+  dynamic_build: false

@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Rehearsals in GrooveForge: start a tune, record your part over a shared click, measure your device's delay, share parts with the band over the local network, and play along to a recording.">
+  <title>GrooveForge — Rehearsals</title>
+  <link rel="icon" type="image/png" href="../assets/icon.png">
+  <link rel="stylesheet" href="../css/site.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="header-inner">
+      <input type="checkbox" id="gf-nav-menu" class="nav-toggle-input">
+      <a class="brand" href="../">
+        <img src="../assets/icon.png" width="40" height="40" alt="">
+        GrooveForge
+      </a>
+      <div class="header-triggers">
+        <span class="lang-switch" aria-label="Language">
+          <span class="lang-current" aria-current="true">EN</span>
+          <span class="lang-sep" aria-hidden="true">·</span>
+          <a href="../fr/rehearsals/" hreflang="fr">FR</a>
+        </span>
+        <label for="gf-nav-menu" class="nav-toggle-label">Menu</label>
+      </div>
+      <nav class="site-nav" aria-label="Primary">
+        <a href="../guide/">Guide</a>
+        <a href="../rehearsals/">Rehearsals</a>
+        <a href="../modules/">Modules</a>
+        <a href="../midi-fx/">MIDI FX</a>
+        <a href="../vst/">VST3</a>
+        <a href="../gfdrum/">Rhythmic patterns</a>
+        <a href="../gfpd/">Plugin descriptors</a>
+        <a href="../features/">All features</a>
+        <a href="../demo/" class="nav-cta">Try web demo</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="prose">
+    <div class="page-hero">
+      <h1>Rehearsals</h1>
+      <p class="lead">
+        Learn a tune as a band. Each player records their own part on their own phone or computer, over the same
+        click, and every device ends up with all the parts.
+      </p>
+    </div>
+
+    <ul class="recipe-index" aria-label="Recipes">
+      <li><a href="#start">Start a tune</a></li>
+      <li><a href="#record">Record your part</a></li>
+      <li><a href="#latency">Measure the delay</a></li>
+      <li><a href="#band">Bring the band in</a></li>
+      <li><a href="#play-along">Play along to a recording</a></li>
+      <li><a href="#slow">Slow it down</a></li>
+      <li><a href="#chords">Chords and scores</a></li>
+    </ul>
+
+    <section class="recipe" id="start">
+      <div class="recipe-clips">
+        <figure class="clip figure-card">
+          <img src="../assets/screenshots/rehearsals_new_tune.png" width="484" height="1188" loading="lazy" alt="The New rehearsal dialog: tune, your name, your instrument, tempo, time signature and count-in">
+        </figure>
+      </div>
+      <div>
+        <h2>Start a tune</h2>
+        <p class="recipe-goal">One person creates the tune. The others join it later.</p>
+        <ol>
+          <li>Open the <span class="ui">Rehearse</span> tab and tap <span class="ui">Start a tune</span>.</li>
+          <li>Fill in <span class="ui">Tune</span>, <span class="ui">Your name</span> and <span class="ui">Your instrument</span>.</li>
+          <li>Set the <span class="ui">Tempo</span>, the <span class="ui">Time signature</span> (2/4 to 7/4) and the
+            <span class="ui">Count-in</span>: none, 1, 2 or 4 bars. Two bars is the default.</li>
+          <li>Tap <span class="ui">Create</span>.</li>
+        </ol>
+        <p class="recipe-result">The tune opens, with a lane for your part.</p>
+      </div>
+    </section>
+
+    <section class="recipe" id="record">
+      <div class="recipe-clips">
+        <figure class="clip figure-card">
+          <img src="../assets/screenshots/rehearsals_chord_grid.png" width="484" height="1188" loading="lazy" alt="A tune open: transport with bar and beat, a chord grid, an imported recording, and one lane each for an electric guitar and drums">
+        </figure>
+      </div>
+      <div>
+        <h2>Record your part</h2>
+        <p class="recipe-goal">Play over the click and the parts already there.</p>
+        <ol>
+          <li>To add another lane, tap <span class="ui">+</span> (<span class="ui">Add a part</span>) and pick an instrument.</li>
+          <li>Put on headphones.</li>
+          <li>Tap the red record button on your lane. The count-in plays, then recording starts.</li>
+          <li>Tap the same button (now a square) to stop.</li>
+        </ol>
+        <p class="recipe-result">Your take joins the mix. Not happy? Record over it,
+          or open <span class="ui">More</span> on the lane and tap <span class="ui">Delete this recording</span>.</p>
+        <p class="recipe-note">You can only record and delete your own parts. A deleted take also disappears from the
+          other devices the next time they sync.</p>
+        <h3>Without headphones</h3>
+        <p>On the phone's speaker, the microphone hears the click and the other parts, and they end up in your take.
+          On Android, a take recorded this way can be cleaned afterwards: open <span class="ui">More</span> and tap
+          <span class="ui">Remove the speaker bleed</span>. The original is kept.</p>
+        <h3>Record the rack instead of the microphone</h3>
+        <p>To record an instrument from the rack (a soundfont, a VST3 plugin, the drum generator), open
+          <span class="ui">More</span> on your lane and tick <span class="ui">Record from the rack</span>.
+          The sound goes straight into the take, so there is no delay to correct. Not in the web demo.</p>
+      </div>
+    </section>
+
+    <h2 id="latency">Measure the delay</h2>
+    <p>
+      Every device takes a moment to play a sound and another to record it. Without a correction, your takes land
+      slightly after the beat. The app measures this delay once and removes it from every take.
+    </p>
+    <ol>
+      <li>When a tune shows a banner saying the delay has not been measured, tap <span class="ui">Calibrate</span>.
+        You can also go to <span class="ui">Preferences</span>, under <span class="ui">Audio Output</span>, and tap <span class="ui">Overdub latency</span>.</li>
+      <li>The microphone must hear the test sounds. On the speaker, turn the volume up; on headphones, see below. Keep the room quiet.</li>
+      <li>Tap <span class="ui">Measure now</span>. It takes a few seconds.</li>
+    </ol>
+    <p>
+      The figure belongs to what you listen on, not to the tune. The speaker, wired headphones and each Bluetooth
+      headset have their own, and one measurement counts for every tune. To measure headphones, wired or Bluetooth,
+      hold one earcup against the phone's microphone while the test runs. Bluetooth adds a long delay of its own.
+    </p>
+
+    <section class="recipe" id="band">
+      <div class="recipe-clips">
+        <figure class="clip">
+          <video src="../clips/rehearsal-join.mp4" poster="../clips/rehearsal-join.jpg" width="540" height="1236" muted loop playsinline controls preload="none" aria-label="Joining a rehearsal by scanning a code"></video>
+        </figure>
+      </div>
+      <div>
+        <h2>Bring the band in</h2>
+        <p class="recipe-goal">The others get the tune on their own device, directly from yours.</p>
+        <p>The steps are in the guide: <a href="../guide/#rehearsal">Join a rehearsal</a>. In short, you tap the share
+          icon in the tune, and the others scan the code (on a phone) or paste the link (on a computer).</p>
+        <p>You only do this once. After that, the devices find each other on their own when you all open the same tune.</p>
+        <ul>
+          <li>Each lane shows whether its player is <span class="ui">Here now</span> or <span class="ui">Not connected</span>.</li>
+          <li>A take marked <span class="ui">Not sent yet</span> has not reached everyone. Stay connected until the mark goes away.</li>
+          <li>Someone who missed a rehearsal gets the new parts the next time you are all on the same network.</li>
+        </ul>
+        <h3>When the room has no Wi-Fi</h3>
+        <p>Everyone must be on the same network, and phones on mobile data cannot see each other. One person turns on
+          their phone's hotspot and the others join it. The parts go from phone to phone, encrypted, with no server
+          and no account, so the rehearsal uses no mobile data.</p>
+      </div>
+    </section>
+
+    <section class="recipe" id="play-along">
+      <div class="recipe-clips">
+        <figure class="clip">
+          <video src="../clips/rehearsal-align-grid.mp4" poster="../clips/rehearsal-align-grid.jpg" width="540" height="1236" muted loop playsinline controls preload="none" aria-label="Aligning the bar grid on an imported track"></video>
+        </figure>
+      </div>
+      <div>
+        <h2>Play along to a recording</h2>
+        <p class="recipe-goal">Import the song you are learning, and record your parts over it.</p>
+        <ol>
+          <li>In the tune, tap <span class="ui">Play along to a recording</span> and pick a file.
+            MP3, FLAC and WAV work everywhere. On Android, M4A, AAC, OGG, Opus and video files work too (only their sound is used).</li>
+          <li><span class="ui">Align the grid</span> opens. Play the recording and tap <span class="ui">Tap the beat</span> in time with it.</li>
+          <li>Drag the marker onto the first downbeat of the song.</li>
+          <li>Zoom in on the waveform. The red lines are the beats: if they drift away from the sound, use
+            <span class="ui">Slower by 0.1</span> or <span class="ui">Faster by 0.1</span> until they stay on it.</li>
+          <li>Tap <span class="ui">Check two bars</span> to listen, then <span class="ui">Done</span>.</li>
+        </ol>
+        <p class="recipe-result">The bars line up with the song. The click turns off, because the recording now sets the tempo.</p>
+        <p class="recipe-note">Align the grid before anyone records: once a part is recorded, the tempo is locked.</p>
+      </div>
+    </section>
+
+    <h2 id="slow">Slow it down</h2>
+    <p>Tap the tempo at the top of the tune (it shows the BPM and the time signature).</p>
+    <ul>
+      <li><span class="ui">Practice speed</span> plays everything slower, down to 50%, without changing the pitch.
+        It only affects your device: the rest of the band keeps their own speed.</li>
+      <li><span class="ui">Tune tempo</span> changes the tempo for everyone, from 40 to 240 BPM. The recordings are adjusted to match.
+        When the tune has an imported recording, the tempo comes from it and you change it in <span class="ui">Align the grid</span>.</li>
+      <li>The <span class="ui">Count-in</span> can be changed here too.</li>
+    </ul>
+    <p>The time signature cannot change once a part is recorded.</p>
+
+    <h2 id="chords">Chords and scores</h2>
+    <h3>Chord chart</h3>
+    <p>
+      Tap <span class="ui">Write the chords</span> above the lanes, then tap a bar to type its chords, for example
+      <code>Am7</code>, <code>C#m7</code>, <code>Gm7b5</code> or <code>C6/9</code>. <span class="ui">Chords per bar</span>
+      offers the splits that land on a beat: in 4/4, one, two or four chords. While the tune plays, the current bar
+      lights up, and the one-line view scrolls along with it.
+    </p>
+    <h3>Scores</h3>
+    <p>
+      Tap the book icon at the top of the tune (<span class="ui">Scores</span>), then <span class="ui">Add a score</span>:
+      a PDF, a chart, a photo of a page. Everyone in the tune gets a copy. Photos open full screen and you can zoom in.
+      Other files open in the app your device normally uses for them.
+    </p>
+
+    <p><a href="../guide/">← Getting started</a> · <a href="../modules/">Built-in modules →</a></p>
+  </main>
+
+  <footer class="site-footer">
+    <p><a href="https://github.com/yakari/grooveforge">GitHub</a> · <a href="../privacy/">Privacy</a></p>
+  </footer>
+  <script>
+    /*
+     * Clips play while they are on screen and pause when they leave it, so a
+     * long page does not decode a dozen videos at once. Without JavaScript, or
+     * when the reader prefers reduced motion, the native controls stay and
+     * nothing starts by itself.
+     */
+    (function () {
+      var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (reduced || !('IntersectionObserver' in window)) return;
+      var clips = document.querySelectorAll('.clip video');
+      var observer = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+          var video = entry.target;
+          if (entry.isIntersecting) {
+            var playing = video.play();
+            if (playing && playing.catch) playing.catch(function () {});
+          } else {
+            video.pause();
+          }
+        });
+      }, { threshold: 0.5 });
+      clips.forEach(function (video) {
+        video.removeAttribute('controls');
+        video.preload = 'metadata';
+        // Tap to pause or resume.
+        video.addEventListener('click', function () {
+          if (video.paused) { video.play(); } else { video.pause(); }
+        });
+        observer.observe(video);
+      });
+    })();
+  </script>
+</body>
+</html>
