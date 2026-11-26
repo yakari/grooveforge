@@ -1,0 +1,9 @@
+Ajouté
+- Générateur de batterie : une grille de morceau avec intro, couplets, refrains, breaks et fin ; 35 styles refaits d'après de vraies transcriptions.
+- Vos propres effets .gfpd traitent maintenant le son.
+- Touches à l'écran plus fortes près du bord avant.
+
+Corrigé
+- Le générateur de batterie garde un groove par phrase, avec fills et crashs au bon endroit.
+- Les effets MIDI suivent l'ordre du rack et ne doublent plus les notes sur le canal 1.
+- De nombreux écrans restaient en anglais.

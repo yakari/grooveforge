@@ -5,7 +5,7 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/lang/fr/).
 
-## [X.x.x]
+## [3.6.0] - 2026-11-26
 
 ### Ajouté
 - Vos propres effets audio .gfpd traitent maintenant le son : leur graphe tourne en natif, et le panneau prévient s'il ne peut pas être construit.
