@@ -180,11 +180,23 @@ void main() {
       expect(merged.single['hihat'], 'x.x.');
     });
 
-    test('a triplet bar keeps the crash apart', () {
+    test('a crash on beat 1 merges into a triplet bar too', () {
+      final main = DrumBarGrid({'kick': 'X.....x.....'},
+          subdivision: DrumSubdivision.triplet);
+      final crash = DrumBarGrid(
+          {'crash': 'X...............', 'kick': 'X...............'});
+      final merged = DrumGeneratorEngine.mergeOverlay(main, crash);
+      expect(merged, hasLength(1));
+      expect(merged.single.subdivision, DrumSubdivision.triplet);
+      expect(merged.single['kick'], 'X.....x.....');
+      expect(merged.single['crash'], 'X...........');
+    });
+
+    test('a straight overlay with more than beat 1 stays apart', () {
       final main = DrumBarGrid({'kick': 'X...........'},
           subdivision: DrumSubdivision.triplet);
-      final crash = DrumBarGrid({'crash': 'X...............'});
-      expect(DrumGeneratorEngine.mergeOverlay(main, crash), hasLength(2));
+      final other = DrumBarGrid({'snare': '....X.......X...'});
+      expect(DrumGeneratorEngine.mergeOverlay(main, other), hasLength(2));
     });
   });
 

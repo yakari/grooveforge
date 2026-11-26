@@ -762,11 +762,25 @@ class DrumGeneratorEngine extends ChangeNotifier {
   ///
   /// When both divide the bar the same way they merge into one grid set:
   /// where the two hit the same instrument on the same step, the stronger
-  /// hit plays, once. A triplet bar cannot merge with a straight crash, so
-  /// the two are then returned apart and both play.
+  /// hit plays, once. Beat 1 is the first step of a straight and of a
+  /// triplet grid alike, so an overlay that only plays beat 1 (as a crash
+  /// section does) is re-cut to the main grid's length and merges too.
+  /// Any other mix of straight and triplet is returned apart, both playing.
   @visibleForTesting
   static List<DrumBarGrid> mergeOverlay(DrumBarGrid main, DrumBarGrid overlay) {
-    if (main.subdivision != overlay.subdivision) return [main, overlay];
+    if (main.subdivision != overlay.subdivision) {
+      final steps = main.values.fold(0, (a, g) => g.length > a ? g.length : a);
+      final onBeatOne = overlay.values
+          .every((g) => g.length < 2 || g.substring(1).replaceAll('.', '').isEmpty);
+      if (!onBeatOne || steps == 0) return [main, overlay];
+      overlay = DrumBarGrid(
+        {
+          for (final e in overlay.entries)
+            if (e.value.isNotEmpty) e.key: e.value[0] + '.' * (steps - 1),
+        },
+        subdivision: main.subdivision,
+      );
+    }
     final merged = Map<String, String>.of(main);
     for (final e in overlay.entries) {
       final under = merged[e.key];

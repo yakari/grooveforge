@@ -21,6 +21,7 @@ et ce projet adhère à la [Gestion Sémantique de Version](https://semver.org/l
 - Les nouveaux projets démarrent avec le module Xen éteint : le clavier joue toutes les notes jusqu'à ce que vous choisissiez une gamme, ce qui l'allume. Les projets sauvegardés gardent Xen tel quel.
 - Aide réécrite : elle commence par la façon de brancher les modules et des recettes courtes, chacune avec une vidéo du geste sur le site.
 - La latence d'overdub passe de « À propos » à la rubrique Sortie Audio des Préférences.
+- Générateur de batterie : Jazz Swing, Half-Time Shuffle, Country et Second Line réécrits d'après des transcriptions des vrais grooves.
 
 ### Corrigé
 - Linux : les plugins VST3 jouaient faux quand JACK ou PipeWire tournait à 44,1 kHz ; ils suivent maintenant la fréquence du serveur.

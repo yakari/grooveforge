@@ -1,23 +1,15 @@
-# Second Line — New Orleans Parade / Street Beat
-# Reference: Stanton Moore "Groove Alchemy" (2010), "New Orleans Drumming" (Johnny Vidacovich),
-#            Rebirth Brass Band (Derrick Tabb), Dirty Dozen Brass Band,
-#            John Boudreaux (Meters), Zigaboo Modeliste (Meters second-line work)
-# Second Line is the New Orleans parade tradition where the public follows a brass band,
-# dancing in the street. The drum groove defines this style:
-#   - The "Big Four": the bass drum's famous "and-of-4" accent (pos 14) is the
-#     defining feature — it propels the next downbeat before it arrives, giving
-#     second-line its irresistible forward momentum.
-#   - Ghost notes on the snare are NOT optional ornamentation — they ARE the groove.
-#     A second-line snare without ghosts is just a march.
-#   - The swing_soft feel captures the "laid-back but forward" paradox of the
-#     New Orleans pocket — simultaneously behind and ahead of the beat.
-#
-# Three variations cover the main second-line contexts:
-#   big_four     — the definitive groove with Big Four kick at and-of-4
-#   street_beat  — marching parade feel: more active snare, driving kick
-#   parade_bounce — bouncier parade feel with open hi-hat decoration
-#
-# GM notes: 36=kick, 38=snare, 42=closed HH, 46=open HH, 49=crash
+# Second Line — New Orleans street parade drumming on a drum kit
+# Reference: Herlin Riley & Johnny Vidacovich, "New Orleans Jazz and Second
+#            Line Drumming" (Alfred, 1995); The Meters "Hey Pocky A-Way"
+#            (Zigaboo Modeliste); Dirty Dozen and Rebirth brass bands
+# A parade has two drummers, one on a bass drum with a cymbal on top, one on
+# a snare. The bass drum plays the 3+3+2 figure (beat 1, the "and" of 2,
+# beat 4), the "big four" accent of the parade. The snare doubles those
+# accents and fills the rest with ghost notes and press rolls, with a weak
+# stroke on the "and" of 4. No hi-hat: nobody marches with one.
+# The feel sits "in the crack", between straight and shuffled eighths:
+# swing_unit 8 with a light swing.
+# GM notes: 36=bass drum, 38=snare, 49=cymbal on the bass drum, 57=crash
 
 #
 # ── Step grid notation ────────────────────────────────────────────────────────
@@ -34,6 +26,11 @@
 #   pos  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
 #        1  e1 +1 a1  2  e2 +2 a2  3  e3 +3 a3  4  e4 +4 a4
 #   (1/+/2/+/3/+/4/+ = quarter beats; e = "e of"; a = "and-a of")
+#
+# Beat positions — 6/8 at resolution 12 (one char per 16th note):
+#   pos  0  1  2  3  4  5  6  7  8  9 10 11
+#        C1 .  e1 .  a1 .  C2 .  e2 .  a2 .
+#   (C1/C2 = compound beat downbeats; each compound beat = 3 eighth notes = 6 steps)
 #
 # Swing / feel: 'feel' delays the second note of each swung pair, and
 # 'swing_unit' says which notes pair up: 16 = sixteenths (the default),
@@ -52,19 +49,19 @@ family: world
 bpm_range: [88, 126]
 time_signature: [4, 4]
 resolution: 16
-feel: swing_soft
+feel: swing_light
+swing_unit: 8
 
 instruments:
-  kick:       { note: 36, base_velocity: 105, velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.12 }
-  snare:      { note: 38, base_velocity: 85,  velocity_range: 20, timing_jitter: 0.016, duration_beats: 0.09 }
-  hihat:      { note: 42, base_velocity: 70,  velocity_range: 12, timing_jitter: 0.012, duration_beats: 0.07 }
-  hihat_open: { note: 46, base_velocity: 82,  velocity_range: 10, timing_jitter: 0.014, duration_beats: 0.18 }
-  crash:      { note: 49, base_velocity: 100, velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.22 }
+  kick:   { note: 36, base_velocity: 108, velocity_range: 12, timing_jitter: 0.016, duration_beats: 0.16 }
+  snare:  { note: 38, base_velocity: 100, velocity_range: 16, timing_jitter: 0.018, duration_beats: 0.10 }
+  cymbal: { note: 49, base_velocity: 74,  velocity_range: 12, timing_jitter: 0.016, duration_beats: 0.20 }
+  crash:  { note: 57, base_velocity: 96,  velocity_range: 8,  timing_jitter: 0.010, duration_beats: 0.25 }
 
 humanization:
   timing_jitter: 0.018
-  velocity_jitter: 20
-  velocity_drift: 0.09
+  velocity_jitter: 14
+  velocity_drift: 0.08
 
 sections:
   intro:
@@ -75,65 +72,66 @@ sections:
   groove:
     bars: 1
     variations:
-      - name: big_four
+      - name: snare_call
+        role: intro
+        weight: 1
+        # The snare drummer starts the parade alone over a bass drum on 1
+        # and 4: the accents of the 3+3+2, ghost notes in between.
+        snare:  "X.g. g.X. g.g. X.gg"
+        kick:   "X... .... .... X..."
+        cymbal: ".... .... .... X..."
+
+      - name: three_three_two
         role: verse
-        weight: 3
-        # The definitive second-line groove with the "Big Four" bass drum.
-        # KICK: beat 1 (0), and-of-2 (6), and-of-3 (10), and-of-4 (14).
-        #   The and-of-4 hit (pos 14) is the Big Four — it anticipates the downbeat
-        #   and is what makes second-line impossible to stand still to. Stanton Moore
-        #   called it "the most important note in New Orleans drumming."
-        # SNARE: ghost notes throughout with backbeat on beats 2 and 4 (pos 4, 12).
-        #   The ghost notes fill every space between accents. Rudimentary technique
-        #   (flams, drags) is implied by the humanization on adjacent ghost steps.
-        kick:  "X.....X...X...X."
-        snare: "g.g.X.g.g.g.X.g."
-        hihat: "x.x.x.x.x.x.x.x."
+        weight: 4
+        # The basic second line: bass drum on 1, the "and" of 2 and beat 4
+        # (3+3+2 eighths), the cymbal on top crashing the big four. The
+        # snare doubles the accents, ghosts the eighths, buzzes into beat 1.
+        kick:   "X... ..X. .... X..."
+        cymbal: ".... .... .... X..."
+        snare:  "X.g. g.X. g.g. X.gg"
 
-      - name: street_beat
+      - name: street_parade
         role: chorus
-        weight: 2
-        # Marching parade street beat: kick drives every beat plus the Big Four pickup.
-        # Snare plays all 16th notes (ghost and accented) — the continuous "roll" of
-        # the snare drummer keeping the brass band in step. This is closer to the
-        # actual field drummer's part in a Mardi Gras Indian parade.
-        kick:  "X...X...X...X.X."
-        snare: "gXgXgXgXgXgXgXgX"
-        hihat: "x.x.x.x.x.x.x.x."
+        weight: 3
+        # The parade in full swing: the bass drum doubles every eighth
+        # ("the boom"), accents on 1 and 3; the snare accents follow the
+        # clapping of the crowd (1, the "a" of 1, the "and" of 2, 3, the
+        # "a" of 3, the "and" of 4).
+        kick:   "X.x. x.x. X.x. x.x."
+        cymbal: ".... X... .... X..."
+        snare:  "X.gX g.X. X.gX g.X."
 
-      - name: parade_bounce
+      - name: clave_two_bars
         role: bridge
         weight: 2
-        # Lighter, bouncier parade feel (Dirty Dozen / Rebirth Brass Band style).
-        # Kick is sparser — just beats 1 and 3 with the Big Four pickup on and-of-4.
-        # Open hi-hat on the 8th upbeats (pos 2, 6, 10, 14) adds the "chk" that
-        # street drummers get from high-tension snare drums.
-        kick:       "X.......X.....X."
-        snare:      "g.g.X.g.g.g.X.g."
-        hihat_open: "..x...x...x...x."
-        hihat:      "x.x.x.x.x.x.x.x."
+        # Two bars on the son clave the groove comes from: the 3+3+2 in the
+        # first bar, the bass drum on 2 and 3 in the second.
+        kick:   "X... ..X. .... X... | .... X... X... ...."
+        cymbal: ".... .... .... X... | .... X... .... ...."
+        snare:  "X.g. g.X. g.g. X.gg | g.g. X.g. X.g. g.gg"
 
   fill:
     bars: 1
     variations:
-      - name: snare_flam
-        # New Orleans snare roll build: ghost notes accelerate to full accents,
-        # simulating the rudimental "rush" that street drummers use to signal
-        # a brass band section change.
-        snare: "XxXxXxXxXxXxXxXx"
-        kick:  "X..............."
+      - name: press_roll
+        # Beat 1 on the bass drum, then a press roll on the snare growing
+        # from soft to loud into the next downbeat.
+        kick:  "X... .... .... ...."
+        snare: "X... o.o. oooo xxXX"
 
-      - name: big_four_accent
-        # Both kick and snare driving all 16th positions — maximum street energy.
-        kick:  "X.X.X.X.X.X.X.X."
-        snare: "gXgXgXgXgXgXgXgX"
+      - name: big_four_stomp
+        # Bass drum and snare together on 1, the "and" of 2, beat 4 and the
+        # "and" of 4: the whole band stomps the figure.
+        kick:   "X... ..X. .... X.X."
+        snare:  "X... ..X. .... X.XX"
+        cymbal: ".... .... .... X..."
 
-      - name: roll_and_crash
-        # Snare roll culminating in crash: ghost notes build, then one massive hit.
-        # The silence before the crash makes it land harder.
-        snare: "g.g.g.g.g.g.g.gX"
-        kick:  "X..............."
-        crash: "X..............."
+      - name: dotted_call
+        # Snare accents every three sixteenths, three against the beat, the
+        # bass drum marking beat 1.
+        kick:  "X... .... .... ...."
+        snare: "X..X ..X. .X.. X.XX"
 
   crash:
     bars: 1
@@ -150,10 +148,10 @@ sections:
     type: sequence
     bars: 2
     bar_grids:
-      - # Bar 1: Street press roll, then unison 3-3-2 hits
-        kick:  "X.....X.X..X..X."
-        snare: "gxgxgxgXX..X..X."
-        hihat: "x.x.x.x........."
+      - # Bar 1: the 3+3+2 hit by the whole band, a press roll into the end
+        kick:   "X.....X.....X..."
+        snare:  "X.....X.....Xxxx"
+        cymbal: "X.....X.....X..."
       - # Bar 2: final hit on beat 1, then silence
         crash: "X..............."
         kick:  "X..............."

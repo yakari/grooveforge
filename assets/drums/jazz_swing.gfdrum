@@ -1,8 +1,11 @@
-# Jazz Swing — "Spang-a-Lang" ride cymbal pattern
-# Reference: Jimmy Cobb (Miles Davis), Art Blakey, Elvin Jones
-# The ride hits on quarter beats (X) and the swing "trip" (x at odd steps, delayed by
-# swing_hard engine so they land ~2/3 of a beat after the downbeat — triplet feel).
-# GM notes: 36=kick (feathered), 38=snare (comping ghosts), 42=HH foot, 51=ride
+# Jazz Swing — ride cymbal "spang-a-lang", hi-hat on 2 and 4
+# Reference: Jimmy Cobb (Miles Davis, "So What"), Art Blakey, Philly Joe Jones
+# Written as a jazz chart is: straight eighth notes, swung by the engine.
+# swing_unit 8 + swing_hard put every "and" on the last note of a triplet,
+# so the ride's "ding, ding-ga, ding, ding-ga" swings as it should.
+# Fills that need real triplets use 'grid: triplet'.
+# GM notes: 36=kick (feathered), 38=snare (comping), 44=hi-hat foot,
+#           51=ride, 49=crash, 48=hi tom, 41=floor tom
 
 #
 # ── Step grid notation ────────────────────────────────────────────────────────
@@ -43,72 +46,100 @@ bpm_range: [100, 260]
 time_signature: [4, 4]
 resolution: 16
 feel: swing_hard
+swing_unit: 8
 kit: brush
 
 instruments:
-  kick:       { note: 36, base_velocity: 65,  velocity_range: 20, timing_jitter: 0.025, rush: -0.01, duration_beats: 0.12 }
-  snare:      { note: 38, base_velocity: 72,  velocity_range: 22, timing_jitter: 0.028, duration_beats: 0.10 }
-  hihat_foot: { note: 44, base_velocity: 75,  velocity_range: 10, timing_jitter: 0.015, duration_beats: 0.07 }
-  ride:       { note: 51, base_velocity: 88,  velocity_range: 14, timing_jitter: 0.022, duration_beats: 0.10 }
-  ride_bell:  { note: 53, base_velocity: 100, velocity_range: 10, timing_jitter: 0.018, duration_beats: 0.08 }
-  crash:      { note: 49, base_velocity: 90,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.22 }
-  tom_hi:     { note: 48, base_velocity: 85,  velocity_range: 18, timing_jitter: 0.025, duration_beats: 0.10 }
-  tom_lo:     { note: 41, base_velocity: 80,  velocity_range: 18, timing_jitter: 0.025, duration_beats: 0.12 }
+  kick:       { note: 36, base_velocity: 70,  velocity_range: 14, timing_jitter: 0.020, duration_beats: 0.12 }
+  snare:      { note: 38, base_velocity: 76,  velocity_range: 20, timing_jitter: 0.025, duration_beats: 0.10 }
+  hihat_foot: { note: 44, base_velocity: 78,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.07 }
+  ride:       { note: 51, base_velocity: 88,  velocity_range: 12, timing_jitter: 0.015, duration_beats: 0.12 }
+  crash:      { note: 49, base_velocity: 92,  velocity_range: 10, timing_jitter: 0.012, duration_beats: 0.25 }
+  tom_hi:     { note: 48, base_velocity: 82,  velocity_range: 16, timing_jitter: 0.022, duration_beats: 0.10 }
+  tom_lo:     { note: 41, base_velocity: 84,  velocity_range: 16, timing_jitter: 0.022, duration_beats: 0.14 }
 
 humanization:
-  timing_jitter: 0.025
-  velocity_jitter: 18
-  velocity_drift: 0.10
+  timing_jitter: 0.022
+  velocity_jitter: 16
+  velocity_drift: 0.08
 
 sections:
   intro:
     type: count_in
     hits: 4
-    note: 42
+    note: 44
 
   groove:
     bars: 1
     variations:
-      - name: ride_spang
+      - name: light_time
+        role: intro
+        weight: 1
+        # Ride and hi-hat alone: the band states the tempo before the kit
+        # joins. The ride leans on 2 and 4, the hi-hat closes on 2 and 4.
+        ride:       "x...X.x.x...X.x."
+        hihat_foot: "....X.......X..."
+
+      - name: spang_a_lang
         role: verse
         weight: 4
-        # Spang-a-lang: quarter beats (X at 0,4,8,12) + swing "trip" (x at 3,7,11,15)
-        # With swing_hard the "trip" steps are delayed ~0.085 beats → triplet approximation
-        ride:       "X..xX..xX..xX..x"
-        hihat_foot: "....x.......x..."
-        kick:       "x.......x......."
-        snare:      ".....gg.......gg"
-      - name: ride_comp
-        role: bridge
-        weight: 2
-        # More active comping with ghost notes on additional off-beats
-        ride:       "X..xX..xX..xX..x"
-        hihat_foot: "....x.......x..."
-        kick:       "x..............."
-        snare:      "..g...g.....g..."
-      - name: ride_bell
+        # The time keeping: ride on every beat plus the swung "and" of 2 and
+        # 4, hi-hat foot on 2 and 4, the bass drum "feathered" on every beat
+        # (felt more than heard), and a rare snare comp.
+        ride:       "x...X.x.x...X.x."
+        hihat_foot: "....X.......X..."
+        kick:       "g...g...g...g..."
+        snare:      "..........g....."
+
+      - name: comping
         role: chorus
+        weight: 2
+        # The drummer talks to the soloist: snare comps on the "and" of 2
+        # (a Charleston figure) and a bass drum "bomb" on the "and" of 4,
+        # pushing into the next bar.
+        ride:       "x...X.x.x...X.x."
+        hihat_foot: "....X.......X..."
+        kick:       "g...g...g...g.x."
+        snare:      "......x.....g..."
+
+      - name: two_feel
+        role: bridge
         weight: 1
-        # Bell of the ride for an energetic section — louder, brighter tone
-        ride_bell:  "X..xX..xX..xX..x"
-        hihat_foot: "....x.......x..."
-        kick:       "x.......x......."
-        snare:      ".....g........g."
+        # Half the pulse: bass drum on 1 and 3 like a walking bass playing
+        # half notes, cross-stick ghost on 4. Ballad heads and the first
+        # chorus of a standard often sit here.
+        ride:       "x...X.x.x...X.x."
+        hihat_foot: "....X.......X..."
+        kick:       "o.......o......."
+        snare:      "............g..."
 
   fill:
     bars: 1
     variations:
-      - name: bebop
-        # Jazz-style fill: light snare run then accent into next bar
-        snare:  "....x.x.x.X.X.X."
-        tom_hi: "............X..."
-        tom_lo: "..............X."
-        kick:   "X..............."
-      - name: ride_dense
-        # Ride-heavy fill: double-time feel on the ride
-        ride:   "XxXxXxXxXxXxXxXx"
-        snare:  "..............X."
-        kick:   "X..............."
+      - name: triplet_down
+        # Time on beats 1 and 2, then snare and toms in triplets down the
+        # kit on 3 and 4 (12 steps: three per beat).
+        grid: triplet
+        ride:   "x..X.x......"
+        kick:   "g..g........"
+        snare:  "......oxx..."
+        tom_hi: ".........xx."
+        tom_lo: "...........X"
+
+      - name: bebop_exchange
+        # A short "conversation" between snare and bass drum on the swung
+        # eighths of beats 3 and 4, the ride keeping beats 1 and 2.
+        ride:  "x...X.x........."
+        snare: "........x.X...X."
+        kick:  "..........x.X..."
+
+      - name: kick_bomb
+        # Plain time with a loud bass drum and snare hit on the "and" of 4,
+        # the classic set-up into the next chorus.
+        ride:       "x...X.x.x...X..."
+        hihat_foot: "....X.......X..."
+        snare:      "......g.....g.X."
+        kick:       "g...g...g...g.X."
 
   crash:
     bars: 1
@@ -125,11 +156,12 @@ sections:
     type: sequence
     bars: 2
     bar_grids:
-      - # Bar 1: Ride then big-band kick/snare hits on 2+, 3+, 4+
-        ride:       "X..xX..x........"
-        hihat_foot: "....x..........."
-        kick:       "......X...X...X."
-        snare:      "........x.X...X."
+      - # Bar 1: big-band kicks on the "and" of 2 and the "and" of 4, the
+        # ride stopping to leave them room
+        ride:  "x...X..........."
+        snare: "......X.......X."
+        kick:  "......X.......X."
+        crash: "..............X."
       - # Bar 2: final hit on beat 1, then silence
         crash: "X..............."
         kick:  "X..............."
